@@ -1,0 +1,61 @@
+name: Deploy to Dev (GitHub Pages)
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # Pin npm 11 to match local dev environment (prevents lockfile sync issues)
+      - run: npm install -g npm@11
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test:run
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_ENV: 'development'
+          VITE_UMAMI_ENABLED: 'true'
+          VITE_UMAMI_WEBSITE_ID: ${{ secrets.UMAMI_DEV_WEBSITE_ID }}
+          VITE_UMAMI_SCRIPT_URL: 'https://analytics.rackarr.com/script.js'
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: 'https://dev.rackarr.com'
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

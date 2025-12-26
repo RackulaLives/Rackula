@@ -1,0 +1,52 @@
+name: Research Spike
+description: Research or investigation task before implementation
+labels: ['triage']
+type: Spike
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for research tasks that need investigation before implementation work can begin.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Research Question
+      description: What do we need to find out?
+      placeholder: |
+        How should we implement offline support? What technologies are available?
+        What are the trade-offs between different approaches?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why is this research needed? What problem are we trying to solve?
+      placeholder: |
+        Users have requested the ability to work offline, but we need to understand
+        the technical constraints before committing to an approach.
+    validations:
+      required: true
+
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Expected Deliverables
+      description: What should the spike produce?
+      placeholder: |
+        - [ ] Document comparing PWA vs local-first approaches
+        - [ ] Proof of concept for preferred approach
+        - [ ] Follow-up implementation issues if viable
+    validations:
+      required: true
+
+  - type: textarea
+    id: timebox
+    attributes:
+      label: Time Box
+      description: How much time should be spent on this research?
+      placeholder: '2-4 hours'
+    validations:
+      required: false

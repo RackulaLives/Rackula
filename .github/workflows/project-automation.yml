@@ -1,0 +1,16 @@
+name: Auto-add to Project
+
+on:
+  issues:
+    types: [opened]
+
+permissions: {} # Uses PAT for project access, not GITHUB_TOKEN
+
+jobs:
+  add-to-project:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/add-to-project@v1.0.2
+        with:
+          project-url: https://github.com/orgs/Rackarr/projects/3
+          github-token: ${{ secrets.PROJECT_TOKEN }}

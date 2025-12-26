@@ -1,0 +1,74 @@
+name: Implementation Task
+description: Internal task with full implementation details (maintainers only)
+labels: ['ready']
+type: Task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for implementation-ready tasks. Include all details needed for Claude Code to execute.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One-line description of the task
+      placeholder: Add keyboard shortcut for toggling device labels
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Checkboxes for each requirement. Be specific and testable.
+      placeholder: |
+        - [ ] Pressing `L` key toggles device label visibility
+        - [ ] Toggle state persists in layout save
+        - [ ] Keyboard shortcut appears in help modal
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical-notes
+    attributes:
+      label: Technical Notes
+      description: Implementation guidance, spec references, constraints, gotchas
+      placeholder: |
+        - Follows existing keyboard shortcut pattern in `useKeyboardShortcuts.svelte.ts`
+        - Spec reference: Section 12.3 (Keyboard Shortcuts)
+        - Must not conflict with browser defaults
+    validations:
+      required: false
+
+  - type: textarea
+    id: test-requirements
+    attributes:
+      label: Test Requirements
+      description: Specific test cases required (TDD)
+      placeholder: |
+        - [ ] Unit test: `L` key triggers toggle action
+        - [ ] Unit test: Toggle state included in save payload
+        - [ ] E2E test: Visual verification of label hide/show
+    validations:
+      required: true
+
+  - type: input
+    id: spec-reference
+    attributes:
+      label: Spec Reference
+      description: Link to relevant spec-combined.md section (if applicable)
+      placeholder: 'docs/planning/spec-combined.md#section-12-3'
+    validations:
+      required: false
+
+  - type: dropdown
+    id: size
+    attributes:
+      label: Size Estimate
+      options:
+        - 'small (<1 hour)'
+        - 'medium (1-4 hours)'
+        - 'large (needs breakdown)'
+    validations:
+      required: true

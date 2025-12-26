@@ -1,0 +1,65 @@
+name: Bug Report
+description: Report something that's broken
+labels: ['bug', 'triage']
+type: Bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the details below.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: What happened?
+      placeholder: When I drag a device to position 5, it snaps to position 4 instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What should have happened?
+      placeholder: The device should be placed at position 5.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Open Rackarr
+        2. Add a 2U device to the library
+        3. Drag device to U5 on the rack
+        4. Observe device lands at U4
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      description: What browser are you using?
+      placeholder: Firefox 121, Chrome 120, Safari 17
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      placeholder: Windows 11, macOS Sonoma, Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, console errors, or anything else helpful
+    validations:
+      required: false

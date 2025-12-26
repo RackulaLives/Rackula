@@ -1,0 +1,22 @@
+name: Deploy to VPS
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions: {} # No GitHub API access needed - runs shell commands on self-hosted runner
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Deploy container
+        run: |
+          cd ~/rackarr-app
+          docker compose pull
+          docker compose up -d --remove-orphans
+          echo "Deployed to app.rackarr.com"
+
+      - name: Cleanup old images
+        run: docker image prune -f

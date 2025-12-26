@@ -1,0 +1,50 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+labels: ['feature', 'triage']
+type: Feature
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe your idea below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this solve? What's the use case?
+      placeholder: |
+        When planning a rack, I often need to see how much power each device draws,
+        but currently there's no way to track this in the layout.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How do you imagine this working?
+      placeholder: |
+        Add a "power draw" field to devices (in watts). Show total rack power
+        consumption in the toolbar or a dedicated panel.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered other approaches?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: importance
+    attributes:
+      label: How important is this to you?
+      options:
+        - 'Nice to have'
+        - 'Would significantly improve my workflow'
+        - 'Critical - blocking my use of Rackarr'
+    validations:
+      required: true
