@@ -299,4 +299,4 @@ git push && git push --tags  # Triggers: Docker build → push to ghcr.io → VP
 3. Test on dev environment
 4. Tag release → auto-deploys to app.racku.la
 
-**Analytics:** Umami (self-hosted at `analytics.racku.la`) - privacy-focused, no cookies. Separate tracking for dev and prod environments. Configure via `VITE_UMAMI_*` env vars. Analytics utility at `src/lib/utils/analytics.ts`.
+**Analytics:** Umami (self-hosted at `t.racku.la`) - privacy-focused, no cookies. Separate tracking for dev and prod environments. Configure via `VITE_UMAMI_*` env vars. Analytics utility at `src/lib/utils/analytics.ts`.

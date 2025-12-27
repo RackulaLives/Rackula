@@ -405,17 +405,14 @@
 	/* Clickable brand (opens About in non-hamburger mode) */
 	.toolbar-brand--clickable {
 		cursor: pointer;
-		border: 1px solid var(--colour-border);
-		padding: 0 var(--space-2); /* Tight vertical, modest horizontal for button-like appearance */
+		padding: 0 var(--space-2);
 		transition:
 			background-color var(--duration-fast) var(--ease-out),
-			border-color var(--duration-fast) var(--ease-out),
 			transform var(--duration-fast) var(--ease-out);
 	}
 
 	.toolbar-brand--clickable:hover {
 		background: var(--colour-surface-hover);
-		border-color: var(--colour-border-hover, var(--colour-border));
 		transform: scale(1.02);
 	}
 
@@ -522,8 +519,6 @@
 	.toolbar-brand.hamburger-mode {
 		cursor: pointer;
 		padding: var(--space-2);
-		border: 1px solid var(--colour-border);
-		border-radius: var(--radius-md);
 		background: transparent;
 		width: 100%;
 		justify-content: space-between;
@@ -535,7 +530,6 @@
 
 	.toolbar-brand.hamburger-mode:hover {
 		background: var(--colour-surface-hover);
-		border-color: var(--colour-border-hover, var(--colour-border));
 	}
 
 	.toolbar-brand.hamburger-mode:focus-visible {
