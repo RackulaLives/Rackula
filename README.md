@@ -18,9 +18,7 @@
 
 ## What _Is_ This
 
-Plan your rack layout. Drag your devices in, move them around, export it. There's no account. It runs in your browser. You can close the tab whenever you want. I'm not going to send you emails about it.
-
-The name is Rackula. Like Dracula. But for racks.
+Plan your rack layout. Drag your devices in, move them around, export it. It runs in your browser. You can close the tab whenever you want.
 
 ## What It _Do_
 
@@ -31,9 +29,9 @@ The name is Rackula. Like Dracula. But for racks.
 
 ## Get Started
 
-**Use it right now:** [app.racku.la](https://app.racku.la)
+**Use it right now:** [count.racku.la](https://count.racku.la)
 
-**Selfhost with that box whale thing:**
+**Selfhost with Docker**
 
 ```bash
 docker run -d -p 8080:80 ghcr.io/RackulaLives/Rackula:latest
