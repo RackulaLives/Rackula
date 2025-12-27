@@ -1,6 +1,6 @@
 name: Bug Report
 description: Report something that's broken
-labels: ['bug', 'triage']
+labels: ["bug", "triage"]
 type: Bug
 body:
   - type: markdown
@@ -32,7 +32,7 @@ body:
       label: Steps to reproduce
       description: How can we reproduce this issue?
       placeholder: |
-        1. Open Rackarr
+        1. Open Rackula
         2. Add a 2U device to the library
         3. Drag device to U5 on the rack
         4. Observe device lands at U4

@@ -13,10 +13,10 @@ jobs:
     steps:
       - name: Deploy container
         run: |
-          cd ~/rackarr-app
+          cd ~/Rackula-app
           docker compose pull
           docker compose up -d --remove-orphans
-          echo "Deployed to app.rackarr.com"
+          echo "Deployed to app.Rackula.com"
 
       - name: Cleanup old images
         run: docker image prune -f

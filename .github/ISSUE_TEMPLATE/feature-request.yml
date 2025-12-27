@@ -1,6 +1,6 @@
 name: Feature Request
 description: Suggest a new feature or enhancement
-labels: ['feature', 'triage']
+labels: ["feature", "triage"]
 type: Feature
 body:
   - type: markdown
@@ -43,8 +43,8 @@ body:
     attributes:
       label: How important is this to you?
       options:
-        - 'Nice to have'
-        - 'Would significantly improve my workflow'
-        - 'Critical - blocking my use of Rackarr'
+        - "Nice to have"
+        - "Would significantly improve my workflow"
+        - "Critical - blocking my use of Rackula"
     validations:
       required: true
