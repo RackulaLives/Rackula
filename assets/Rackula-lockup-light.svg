@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="0 0 220 62" xmlns="http://www.w3.org/2000/svg" width="440" height="124">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500&amp;display=swap');
+    </style>
+  </defs>
+  
+  <!-- Rack mark with widow's peak (Alucard purple) -->
+  <g transform="translate(8, 4)">
+    <path d="M0 0 L14 0 L18 6 L22 0 L36 0 L36 54 L0 54 Z" fill="#644AC9"/>
+    
+    <!-- Device slots with heartbeat timing (2s cycle, tight staggers) -->
+    <rect x="5" y="10" width="26" height="10" fill="#FFFBEB">
+      <animate attributeName="fill" values="#FFFBEB;#036A96;#FFFBEB" dur="2s" begin="0s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="5" y="22" width="26" height="10" fill="#FFFBEB">
+      <animate attributeName="fill" values="#FFFBEB;#14710A;#FFFBEB" dur="2s" begin="0.15s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="5" y="34" width="26" height="10" fill="#FFFBEB">
+      <animate attributeName="fill" values="#FFFBEB;#A3144D;#FFFBEB" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+  
+  <!-- Wordmark (dark text for light backgrounds) -->
+  <text x="56" y="43" 
+        font-family="'Space Grotesk', system-ui, sans-serif" 
+        font-size="38" 
+        font-weight="500" 
+        fill="#1F1F1F">Rackula</text>
+</svg>

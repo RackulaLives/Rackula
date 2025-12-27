@@ -1,5 +1,8 @@
 /* Rackula - Global Styles and CSS Custom Properties */
 
+/* Space Grotesk for logo wordmark - TODO: self-host like other fonts */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500&display=swap');
+
 /* Import Design Token System - must come first per CSS spec */
 @import "./lib/styles/tokens.css";
 @import "./lib/styles/animations.css";

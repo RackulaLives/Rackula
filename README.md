@@ -1,5 +1,8 @@
 <p align="center">
-  <a href="https://app.racku.la"><img src="assets/Rackula-lockup-staggered-dark.svg#gh-dark-mode-only" alt="Rackula" width="420"></a>
+  <a href="https://count.racku.la">
+    <img src="assets/Rackula-lockup-dark.svg#gh-dark-mode-only" alt="Rackula" width="420">
+    <img src="assets/Rackula-lockup-light.svg#gh-light-mode-only" alt="Rackula" width="420">
+  </a>
 </p>
 
 <p align="center">
@@ -22,7 +25,7 @@ Plan your rack layout. Drag your devices in, move them around, export it. It run
 
 ## What It _Do_
 
-- **Drag and drop devices** into your rack like a normal person
+- **Drag and drop devices** into your rack so you can frown at them
 - **Real device images** so it actually looks like your gear, not sad grey boxes
 - **Export to PNG, PDF, SVG** for your documentation or for printing and staring at
 - **QR code sharing** - your layout lives in a URL, scan it and it just shows up
@@ -33,11 +36,13 @@ Plan your rack layout. Drag your devices in, move them around, export it. It run
 
 **Selfhost with Docker**
 
+Run: 
+
 ```bash
 docker run -d -p 8080:80 ghcr.io/RackulaLives/Rackula:latest
 ```
 
-Or with Compose:
+Or Compose:
 
 ```bash
 curl -O https://raw.githubusercontent.com/RackulaLives/Rackula/main/docker-compose.yml

@@ -3,6 +3,8 @@
   Animated logo + title lockup for toolbar branding
   Breathing glow at rest, rainbow gradient on hover, celebrate on success
   Showcase mode: slow rainbow wave for About/Help display
+  
+  v2: Widow's peak mark + Space Grotesk wordmark
 -->
 <script lang="ts">
   import EnvironmentBadge from "./EnvironmentBadge.svelte";
@@ -197,7 +199,7 @@
     </defs>
   </svg>
 
-  <!-- Logo mark with optional Christmas hat -->
+  <!-- Logo mark with widow's peak + optional Christmas hat -->
   <div class="logo-mark-container">
     <svg
       class="logo-mark"
@@ -212,8 +214,9 @@
       fill-rule="evenodd"
       style={gradientId ? `--active-gradient: ${gradientId}` : undefined}
     >
+      <!-- Widow's peak frame with device slots as negative space -->
       <path
-        d="M6 4 h20 v24 h-20 z M10 8 h12 v4 h-12 z M10 14 h12 v4 h-12 z M10 20 h12 v4 h-12 z"
+        d="M6 4 L13 4 L16 7 L19 4 L26 4 L26 28 L6 28 Z M10 9 h12 v4 h-12 z M10 15 h12 v4 h-12 z M10 21 h12 v4 h-12 z"
       />
     </svg>
     {#if showChristmasHat}
@@ -223,7 +226,7 @@
     {/if}
   </div>
 
-  <!-- Title (SVG text for gradient support) -->
+  <!-- Title (SVG text for gradient support) - Space Grotesk -->
   <svg
     class="logo-title"
     class:logo-title--celebrate={celebrate}
@@ -272,6 +275,8 @@
   .logo-mark {
     flex-shrink: 0;
     filter: drop-shadow(0 0 8px rgba(189, 147, 249, 0.3));
+    /* Align mark baseline with text baseline */
+    margin-bottom: -2px;
   }
 
   .logo-title {
@@ -280,9 +285,10 @@
   }
 
   .logo-title text {
-    font-family: var(--font-mono, "JetBrains Mono", monospace);
+    /* Space Grotesk for wordmark */
+    font-family: "Space Grotesk", var(--font-family, system-ui, sans-serif);
     font-size: 38px;
-    font-weight: 600;
+    font-weight: 500;
   }
 
   /* Celebrate state: rainbow wave for 3s */
