@@ -15,7 +15,9 @@
   <strong>Drag and drop rack visualizer</strong>
 </p>
 
-// insert hero images here
+<p align="center">
+  <img src="assets/Rackula-hero-drac.gif" alt="Rackula demo" width="500">
+</p>
 
 ---
 
