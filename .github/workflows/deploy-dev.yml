@@ -50,6 +50,7 @@ jobs:
   deploy:
     needs: build-and-deploy
     runs-on: [self-hosted, rackula-vps]
+    permissions: {}
 
     steps:
       - name: Deploy to dev
