@@ -14,7 +14,8 @@
 	import { getCanvasStore } from '$lib/stores/canvas.svelte';
 	import { getImageStore } from '$lib/stores/images.svelte';
 	import { getCategoryDisplayName } from '$lib/utils/deviceFilters';
-	import { findDeviceType } from '$lib/utils/device-lookup';
+	import { findDeviceType, isCustomDevice } from '$lib/utils/device-lookup';
+	import ConfirmDialog from './ConfirmDialog.svelte';
 	import {
 		canResizeRackTo,
 		getConflictDetails,
@@ -66,6 +67,9 @@
 	// State for colour picker visibility
 	let showColourPicker = $state(false);
 
+	// State for delete device type confirmation dialog
+	let showDeleteConfirm = $state(false);
+
 	// Get the selected rack if any (single-rack mode)
 	const selectedRack = $derived.by(() => {
 		if (!selectionStore.isRackSelected || selectionStore.selectedRackId !== RACK_ID) return null;
@@ -81,10 +85,7 @@
 			deviceIndex: number;
 		} | null => {
 			if (!selectionStore.isDeviceSelected) return null;
-			if (
-				selectionStore.selectedRackId === null ||
-				selectionStore.selectedDeviceId === null
-			)
+			if (selectionStore.selectedRackId === null || selectionStore.selectedDeviceId === null)
 				return null;
 
 			const rack = layoutStore.rack;
@@ -264,6 +265,19 @@
 		return device.is_full_depth !== false;
 	});
 
+	// Check if selected device is a custom (user-created) device
+	const isSelectedDeviceCustom = $derived.by(() => {
+		if (!selectedDeviceInfo) return false;
+		return isCustomDevice(selectedDeviceInfo.device.slug);
+	});
+
+	// Count how many times this device type is placed in the rack
+	const deviceTypePlacementCount = $derived.by(() => {
+		if (!selectedDeviceInfo) return 0;
+		const slug = selectedDeviceInfo.device.slug;
+		return layoutStore.rack.devices.filter((d) => d.device_type === slug).length;
+	});
+
 	// Sync device notes with selection
 	$effect(() => {
 		if (selectedDeviceInfo) {
@@ -318,6 +332,26 @@
 			};
 			layoutStore.updateRack(RACK_ID, { devices: updatedDevices });
 		}
+	}
+
+	// Handle delete device type from library
+	function handleDeleteDeviceType() {
+		showDeleteConfirm = true;
+	}
+
+	// Confirm delete device type
+	function confirmDeleteDeviceType() {
+		if (selectedDeviceInfo) {
+			const slug = selectedDeviceInfo.device.slug;
+			selectionStore.clearSelection();
+			layoutStore.deleteDeviceType(slug);
+		}
+		showDeleteConfirm = false;
+	}
+
+	// Cancel delete device type
+	function cancelDeleteDeviceType() {
+		showDeleteConfirm = false;
 	}
 
 	// Close drawer
@@ -457,7 +491,10 @@
 				<div class="info-row">
 					<span class="info-label">Brand</span>
 					<span class="info-value brand-info">
-						<BrandIcon slug={getManufacturerIconSlug(selectedDeviceInfo.device.manufacturer)} size={16} />
+						<BrandIcon
+							slug={getManufacturerIconSlug(selectedDeviceInfo.device.manufacturer)}
+							size={16}
+						/>
 						{selectedDeviceInfo.device.manufacturer ?? 'Generic'}
 					</span>
 				</div>
@@ -489,7 +526,8 @@
 					<span class="info-label">Colour</span>
 					<span class="info-value colour-info">
 						<ColourSwatch
-							colour={selectedDeviceInfo.placedDevice.colour_override ?? selectedDeviceInfo.device.colour}
+							colour={selectedDeviceInfo.placedDevice.colour_override ??
+								selectedDeviceInfo.device.colour}
 							size={16}
 						/>
 						{#if selectedDeviceInfo.placedDevice.colour_override}
@@ -503,7 +541,8 @@
 				{#if showColourPicker && selectedDeviceInfo}
 					<div class="colour-picker-container">
 						<ColourPicker
-							value={selectedDeviceInfo.placedDevice.colour_override ?? selectedDeviceInfo.device.colour}
+							value={selectedDeviceInfo.placedDevice.colour_override ??
+								selectedDeviceInfo.device.colour}
 							defaultValue={selectedDeviceInfo.device.colour}
 							onchange={(colour) => {
 								const deviceIndex = layoutStore.rack?.devices.findIndex(
@@ -535,7 +574,9 @@
 					value={selectedDeviceInfo.placedDevice.face}
 					onchange={(e) => handleFaceChange((e.target as HTMLSelectElement).value as DeviceFace)}
 					disabled={isFullDepthDevice}
-					title={isFullDepthDevice ? 'Full-depth devices occupy both front and rear of the rack' : undefined}
+					title={isFullDepthDevice
+						? 'Full-depth devices occupy both front and rear of the rack'
+						: undefined}
 				>
 					<option value="front">Front</option>
 					<option value="rear">Rear</option>
@@ -615,10 +656,30 @@
 				>
 					Remove from Rack
 				</button>
+				{#if isSelectedDeviceCustom}
+					<button
+						type="button"
+						class="btn-danger btn-delete-type"
+						onclick={handleDeleteDeviceType}
+						aria-label="Delete from library"
+					>
+						Delete from Library
+					</button>
+				{/if}
 			</div>
 		</div>
 	{/if}
 </Drawer>
+
+<!-- Delete device type confirmation dialog -->
+<ConfirmDialog
+	open={showDeleteConfirm}
+	title="Delete Device Type"
+	message={`Delete "${selectedDeviceInfo?.device.model ?? selectedDeviceInfo?.device.slug}"? ${deviceTypePlacementCount > 0 ? `This device is placed ${deviceTypePlacementCount} time${deviceTypePlacementCount === 1 ? '' : 's'}. All instances will be removed.` : 'This will remove the device from your library.'}`}
+	confirmLabel="Delete"
+	onconfirm={confirmDeleteDeviceType}
+	oncancel={cancelDeleteDeviceType}
+/>
 
 <style>
 	.edit-form,
@@ -889,5 +950,9 @@
 
 	.btn-danger:hover {
 		background: var(--colour-error-hover);
+	}
+
+	.btn-delete-type {
+		margin-top: var(--space-2);
 	}
 </style>

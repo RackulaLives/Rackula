@@ -4,8 +4,8 @@
  */
 
 import type { DeviceType } from '$lib/types';
-import { findStarterDevice } from '$lib/data/starterLibrary';
-import { findBrandDevice } from '$lib/data/brandPacks';
+import { findStarterDevice, getStarterSlugs } from '$lib/data/starterLibrary';
+import { findBrandDevice, getBrandSlugs } from '$lib/data/brandPacks';
 
 /**
  * Find a device type by slug across all sources
@@ -57,4 +57,17 @@ export function findDeviceInLibrary(
 	slug: string
 ): DeviceType | undefined {
 	return deviceLibrary.find((dt) => dt.slug === slug);
+}
+
+/**
+ * Check if a device type is a custom (user-created) device
+ * Custom devices are NOT in the starter library or brand packs
+ *
+ * @param slug - Device type slug to check
+ * @returns true if the device is custom, false if it's built-in
+ */
+export function isCustomDevice(slug: string): boolean {
+	const starterSlugs = getStarterSlugs();
+	const brandSlugs = getBrandSlugs();
+	return !starterSlugs.has(slug) && !brandSlugs.has(slug);
 }
