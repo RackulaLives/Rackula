@@ -3,891 +3,939 @@
   Right drawer for editing selected racks and viewing device info
 -->
 <script lang="ts">
-	import Drawer from './Drawer.svelte';
-	import ColourSwatch from './ColourSwatch.svelte';
-	import ColourPicker from './ColourPicker.svelte';
-	import BrandIcon from './BrandIcon.svelte';
-	import ImageUpload from './ImageUpload.svelte';
-	import { getLayoutStore } from '$lib/stores/layout.svelte';
-	import { getSelectionStore } from '$lib/stores/selection.svelte';
-	import { getUIStore } from '$lib/stores/ui.svelte';
-	import { getCanvasStore } from '$lib/stores/canvas.svelte';
-	import { getImageStore } from '$lib/stores/images.svelte';
-	import { getCategoryDisplayName } from '$lib/utils/deviceFilters';
-	import { findDeviceType } from '$lib/utils/device-lookup';
-	import {
-		canResizeRackTo,
-		getConflictDetails,
-		formatConflictMessage
-	} from '$lib/utils/rack-resize';
-	import { COMMON_RACK_HEIGHTS } from '$lib/types/constants';
-	import type { Rack, DeviceType, PlacedDevice, DeviceFace } from '$lib/types';
-	import type { ImageData } from '$lib/types/images';
+  import Drawer from "./Drawer.svelte";
+  import ColourSwatch from "./ColourSwatch.svelte";
+  import ColourPicker from "./ColourPicker.svelte";
+  import BrandIcon from "./BrandIcon.svelte";
+  import ImageUpload from "./ImageUpload.svelte";
+  import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getSelectionStore } from "$lib/stores/selection.svelte";
+  import { getUIStore } from "$lib/stores/ui.svelte";
+  import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import { getImageStore } from "$lib/stores/images.svelte";
+  import { getCategoryDisplayName } from "$lib/utils/deviceFilters";
+  import { findDeviceType } from "$lib/utils/device-lookup";
+  import {
+    canResizeRackTo,
+    getConflictDetails,
+    formatConflictMessage,
+  } from "$lib/utils/rack-resize";
+  import { COMMON_RACK_HEIGHTS } from "$lib/types/constants";
+  import type { Rack, DeviceType, PlacedDevice, DeviceFace } from "$lib/types";
+  import type { ImageData } from "$lib/types/images";
 
-	// Synthetic rack ID for single-rack mode
-	const RACK_ID = 'rack-0';
+  // Synthetic rack ID for single-rack mode
+  const RACK_ID = "rack-0";
 
-	// Map manufacturer names to simple-icons slugs
-	const manufacturerIconMap: Record<string, string> = {
-		Ubiquiti: 'ubiquiti',
-		MikroTik: 'mikrotik',
-		'TP-Link': 'tplink',
-		Synology: 'synology',
-		APC: 'schneiderelectric',
-		Dell: 'dell',
-		Supermicro: 'supermicro',
-		HPE: 'hp'
-	};
+  // Map manufacturer names to simple-icons slugs
+  const manufacturerIconMap: Record<string, string> = {
+    Ubiquiti: "ubiquiti",
+    MikroTik: "mikrotik",
+    "TP-Link": "tplink",
+    Synology: "synology",
+    APC: "schneiderelectric",
+    Dell: "dell",
+    Supermicro: "supermicro",
+    HPE: "hp",
+  };
 
-	function getManufacturerIconSlug(manufacturer?: string): string | undefined {
-		if (!manufacturer) return undefined;
-		return manufacturerIconMap[manufacturer];
-	}
+  function getManufacturerIconSlug(manufacturer?: string): string | undefined {
+    if (!manufacturer) return undefined;
+    return manufacturerIconMap[manufacturer];
+  }
 
-	const layoutStore = getLayoutStore();
-	const selectionStore = getSelectionStore();
-	const uiStore = getUIStore();
-	const canvasStore = getCanvasStore();
-	const imageStore = getImageStore();
+  const layoutStore = getLayoutStore();
+  const selectionStore = getSelectionStore();
+  const uiStore = getUIStore();
+  const canvasStore = getCanvasStore();
+  const imageStore = getImageStore();
 
-	// Local state for form fields
-	let rackName = $state('');
-	let rackHeight = $state(42);
-	let rackNotes = $state('');
+  // Local state for form fields
+  let rackName = $state("");
+  let rackHeight = $state(42);
+  let rackNotes = $state("");
 
-	// Resize validation error state
-	let resizeError = $state<string | null>(null);
+  // Resize validation error state
+  let resizeError = $state<string | null>(null);
 
-	// State for device name editing
-	let editingDeviceName = $state(false);
-	let deviceNameInput = $state('');
-	let deviceNotes = $state('');
+  // State for device name editing
+  let editingDeviceName = $state(false);
+  let deviceNameInput = $state("");
+  let deviceNotes = $state("");
 
-	// State for colour picker visibility
-	let showColourPicker = $state(false);
+  // State for colour picker visibility
+  let showColourPicker = $state(false);
 
-	// Get the selected rack if any (single-rack mode)
-	const selectedRack = $derived.by(() => {
-		if (!selectionStore.isRackSelected || selectionStore.selectedRackId !== RACK_ID) return null;
-		return layoutStore.rack;
-	});
+  // Get the selected rack if any (single-rack mode)
+  const selectedRack = $derived.by(() => {
+    if (
+      !selectionStore.isRackSelected ||
+      selectionStore.selectedRackId !== RACK_ID
+    )
+      return null;
+    return layoutStore.rack;
+  });
 
-	// Get the selected device info if any (single-rack mode)
-	const selectedDeviceInfo = $derived.by(
-		(): {
-			device: DeviceType;
-			placedDevice: PlacedDevice;
-			rack: Rack;
-			deviceIndex: number;
-		} | null => {
-			if (!selectionStore.isDeviceSelected) return null;
-			if (
-				selectionStore.selectedRackId === null ||
-				selectionStore.selectedDeviceId === null
-			)
-				return null;
+  // Get the selected device info if any (single-rack mode)
+  const selectedDeviceInfo = $derived.by(
+    (): {
+      device: DeviceType;
+      placedDevice: PlacedDevice;
+      rack: Rack;
+      deviceIndex: number;
+    } | null => {
+      if (!selectionStore.isDeviceSelected) return null;
+      if (
+        selectionStore.selectedRackId === null ||
+        selectionStore.selectedDeviceId === null
+      )
+        return null;
 
-			const rack = layoutStore.rack;
-			if (!rack) return null;
+      const rack = layoutStore.rack;
+      if (!rack) return null;
 
-			// Find device by ID (UUID-based tracking)
-			const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
-			if (deviceIndex === null) return null;
+      // Find device by ID (UUID-based tracking)
+      const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
+      if (deviceIndex === null) return null;
 
-			const placedDevice = rack.devices[deviceIndex];
-			if (!placedDevice) return null;
+      const placedDevice = rack.devices[deviceIndex];
+      if (!placedDevice) return null;
 
-			const device = layoutStore.device_types.find((d) => d.slug === placedDevice.device_type);
-			if (!device) return null;
+      const device = layoutStore.device_types.find(
+        (d) => d.slug === placedDevice.device_type,
+      );
+      if (!device) return null;
 
-			return { device, placedDevice, rack, deviceIndex };
-		}
-	);
+      return { device, placedDevice, rack, deviceIndex };
+    },
+  );
 
-	// Get the current placement images (if any)
-	const placementFrontImage = $derived.by(() => {
-		if (!selectedDeviceInfo) return undefined;
-		return imageStore.getDeviceImage(`placement-${selectedDeviceInfo.placedDevice.id}`, 'front');
-	});
+  // Get the current placement images (if any)
+  const placementFrontImage = $derived.by(() => {
+    if (!selectedDeviceInfo) return undefined;
+    return imageStore.getDeviceImage(
+      `placement-${selectedDeviceInfo.placedDevice.id}`,
+      "front",
+    );
+  });
 
-	const placementRearImage = $derived.by(() => {
-		if (!selectedDeviceInfo) return undefined;
-		return imageStore.getDeviceImage(`placement-${selectedDeviceInfo.placedDevice.id}`, 'rear');
-	});
+  const placementRearImage = $derived.by(() => {
+    if (!selectedDeviceInfo) return undefined;
+    return imageStore.getDeviceImage(
+      `placement-${selectedDeviceInfo.placedDevice.id}`,
+      "rear",
+    );
+  });
 
-	// Handle placement image upload
-	function handlePlacementImageUpload(face: 'front' | 'rear', data: ImageData) {
-		if (!selectedDeviceInfo) return;
-		const deviceId = selectedDeviceInfo.placedDevice.id;
-		imageStore.setDeviceImage(`placement-${deviceId}`, face, data);
-		layoutStore.updateDevicePlacementImage(
-			selectionStore.selectedRackId!,
-			selectedDeviceInfo.deviceIndex,
-			face,
-			data.filename
-		);
-	}
+  // Handle placement image upload
+  function handlePlacementImageUpload(face: "front" | "rear", data: ImageData) {
+    if (!selectedDeviceInfo) return;
+    const deviceId = selectedDeviceInfo.placedDevice.id;
+    imageStore.setDeviceImage(`placement-${deviceId}`, face, data);
+    layoutStore.updateDevicePlacementImage(
+      selectionStore.selectedRackId!,
+      selectedDeviceInfo.deviceIndex,
+      face,
+      data.filename,
+    );
+  }
 
-	// Handle placement image removal
-	function handlePlacementImageRemove(face: 'front' | 'rear') {
-		if (!selectedDeviceInfo) return;
-		const deviceId = selectedDeviceInfo.placedDevice.id;
-		imageStore.removeDeviceImage(`placement-${deviceId}`, face);
-		layoutStore.updateDevicePlacementImage(
-			selectionStore.selectedRackId!,
-			selectedDeviceInfo.deviceIndex,
-			face,
-			undefined
-		);
-	}
+  // Handle placement image removal
+  function handlePlacementImageRemove(face: "front" | "rear") {
+    if (!selectedDeviceInfo) return;
+    const deviceId = selectedDeviceInfo.placedDevice.id;
+    imageStore.removeDeviceImage(`placement-${deviceId}`, face);
+    layoutStore.updateDevicePlacementImage(
+      selectionStore.selectedRackId!,
+      selectedDeviceInfo.deviceIndex,
+      face,
+      undefined,
+    );
+  }
 
-	// Auto-open drawer on selection, close on deselection
-	$effect(() => {
-		if (selectionStore.hasSelection) {
-			uiStore.openRightDrawer();
-		} else {
-			uiStore.closeRightDrawer();
-		}
-	});
+  // Auto-open drawer on selection, close on deselection
+  $effect(() => {
+    if (selectionStore.hasSelection) {
+      uiStore.openRightDrawer();
+    } else {
+      uiStore.closeRightDrawer();
+    }
+  });
 
-	// Sync local state with selected rack and clear errors
-	$effect(() => {
-		if (selectedRack) {
-			rackName = selectedRack.name;
-			rackHeight = selectedRack.height;
-			rackNotes = selectedRack.notes ?? '';
-			resizeError = null; // Clear any previous resize error
-		}
-	});
+  // Sync local state with selected rack and clear errors
+  $effect(() => {
+    if (selectedRack) {
+      rackName = selectedRack.name;
+      rackHeight = selectedRack.height;
+      rackNotes = selectedRack.notes ?? "";
+      resizeError = null; // Clear any previous resize error
+    }
+  });
 
-	// Update rack name on blur
-	function handleNameBlur() {
-		if (selectedRack && rackName !== selectedRack.name) {
-			layoutStore.updateRack(RACK_ID, { name: rackName });
-		}
-	}
+  // Update rack name on blur
+  function handleNameBlur() {
+    if (selectedRack && rackName !== selectedRack.name) {
+      layoutStore.updateRack(RACK_ID, { name: rackName });
+    }
+  }
 
-	// Update rack name on Enter
-	function handleNameKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter') {
-			(event.target as HTMLInputElement).blur();
-		}
-	}
+  // Update rack name on Enter
+  function handleNameKeydown(event: KeyboardEvent) {
+    if (event.key === "Enter") {
+      (event.target as HTMLInputElement).blur();
+    }
+  }
 
-	// Update rack notes on blur
-	function handleNotesBlur() {
-		if (selectedRack) {
-			const trimmedNotes = rackNotes.trim();
-			const notesToSave = trimmedNotes === '' ? undefined : trimmedNotes;
-			if (notesToSave !== selectedRack.notes) {
-				layoutStore.updateRack(RACK_ID, { notes: notesToSave });
-			}
-		}
-	}
+  // Update rack notes on blur
+  function handleNotesBlur() {
+    if (selectedRack) {
+      const trimmedNotes = rackNotes.trim();
+      const notesToSave = trimmedNotes === "" ? undefined : trimmedNotes;
+      if (notesToSave !== selectedRack.notes) {
+        layoutStore.updateRack(RACK_ID, { notes: notesToSave });
+      }
+    }
+  }
 
-	// Validate and apply height change
-	function attemptHeightChange(newHeight: number): boolean {
-		if (!selectedRack) return false;
+  // Validate and apply height change
+  function attemptHeightChange(newHeight: number): boolean {
+    if (!selectedRack) return false;
 
-		const result = canResizeRackTo(selectedRack, newHeight, layoutStore.device_types);
+    const result = canResizeRackTo(
+      selectedRack,
+      newHeight,
+      layoutStore.device_types,
+    );
 
-		if (!result.allowed) {
-			const conflictDetails = getConflictDetails(result.conflicts, layoutStore.device_types);
-			resizeError = formatConflictMessage(conflictDetails);
-			// Revert local state to current rack height
-			rackHeight = selectedRack.height;
-			return false;
-		}
+    if (!result.allowed) {
+      const conflictDetails = getConflictDetails(
+        result.conflicts,
+        layoutStore.device_types,
+      );
+      resizeError = formatConflictMessage(conflictDetails);
+      // Revert local state to current rack height
+      rackHeight = selectedRack.height;
+      return false;
+    }
 
-		// Clear error and apply change
-		resizeError = null;
-		layoutStore.updateRack(RACK_ID, { height: newHeight });
-		// Reset view to center the resized rack
-		canvasStore.fitAll(layoutStore.rack ? [layoutStore.rack] : []);
-		return true;
-	}
+    // Clear error and apply change
+    resizeError = null;
+    layoutStore.updateRack(RACK_ID, { height: newHeight });
+    // Reset view to center the resized rack
+    canvasStore.fitAll(layoutStore.rack ? [layoutStore.rack] : []);
+    return true;
+  }
 
-	// Update rack height on input change
-	function handleHeightChange(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const newHeight = parseInt(target.value, 10);
-		if (newHeight >= 1 && newHeight <= 100) {
-			attemptHeightChange(newHeight);
-		}
-	}
+  // Update rack height on input change
+  function handleHeightChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const newHeight = parseInt(target.value, 10);
+    if (newHeight >= 1 && newHeight <= 100) {
+      attemptHeightChange(newHeight);
+    }
+  }
 
-	// Handle preset button click
-	function handlePresetClick(preset: number) {
-		rackHeight = preset;
-		attemptHeightChange(preset);
-	}
+  // Handle preset button click
+  function handlePresetClick(preset: number) {
+    rackHeight = preset;
+    attemptHeightChange(preset);
+  }
 
-	// Delete selected rack
-	function handleDeleteRack() {
-		if (selectedRack) {
-			layoutStore.deleteRack(RACK_ID);
-			selectionStore.clearSelection();
-		}
-	}
+  // Delete selected rack
+  function handleDeleteRack() {
+    if (selectedRack) {
+      layoutStore.deleteRack(RACK_ID);
+      selectionStore.clearSelection();
+    }
+  }
 
-	// Remove device from rack
-	function handleRemoveDevice() {
-		if (selectedDeviceInfo) {
-			layoutStore.removeDeviceFromRack(
-				selectionStore.selectedRackId!,
-				selectedDeviceInfo.deviceIndex
-			);
-			selectionStore.clearSelection();
-		}
-	}
+  // Remove device from rack
+  function handleRemoveDevice() {
+    if (selectedDeviceInfo) {
+      layoutStore.removeDeviceFromRack(
+        selectionStore.selectedRackId!,
+        selectedDeviceInfo.deviceIndex,
+      );
+      selectionStore.clearSelection();
+    }
+  }
 
-	// Update device face
-	function handleFaceChange(face: DeviceFace) {
-		if (selectedDeviceInfo) {
-			layoutStore.updateDeviceFace(
-				selectionStore.selectedRackId!,
-				selectedDeviceInfo.deviceIndex,
-				face
-			);
-		}
-	}
+  // Update device face
+  function handleFaceChange(face: DeviceFace) {
+    if (selectedDeviceInfo) {
+      layoutStore.updateDeviceFace(
+        selectionStore.selectedRackId!,
+        selectedDeviceInfo.deviceIndex,
+        face,
+      );
+    }
+  }
 
-	// Check if selected device is full-depth (determines if face can be changed)
-	// Uses authoritative source (starter/brand library) to get current is_full_depth value
-	const isFullDepthDevice = $derived.by(() => {
-		if (!selectedDeviceInfo) return false;
-		// Look up the authoritative device type definition (checks starter/brand packs)
-		// This ensures we use the current library value, not a stale layout copy
-		const authoritativeDevice = findDeviceType(selectedDeviceInfo.device.slug);
-		const device = authoritativeDevice ?? selectedDeviceInfo.device;
-		// is_full_depth undefined or true means full-depth
-		return device.is_full_depth !== false;
-	});
+  // Check if selected device is full-depth (determines if face can be changed)
+  // Uses authoritative source (starter/brand library) to get current is_full_depth value
+  const isFullDepthDevice = $derived.by(() => {
+    if (!selectedDeviceInfo) return false;
+    // Look up the authoritative device type definition (checks starter/brand packs)
+    // This ensures we use the current library value, not a stale layout copy
+    const authoritativeDevice = findDeviceType(selectedDeviceInfo.device.slug);
+    const device = authoritativeDevice ?? selectedDeviceInfo.device;
+    // is_full_depth undefined or true means full-depth
+    return device.is_full_depth !== false;
+  });
 
-	// Sync device notes with selection
-	$effect(() => {
-		if (selectedDeviceInfo) {
-			deviceNotes = selectedDeviceInfo.placedDevice.notes ?? '';
-		}
-	});
+  // Sync device notes with selection
+  $effect(() => {
+    if (selectedDeviceInfo) {
+      deviceNotes = selectedDeviceInfo.placedDevice.notes ?? "";
+    }
+  });
 
-	// Start editing device name
-	function startEditingDeviceName() {
-		if (selectedDeviceInfo) {
-			const deviceName = selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug;
-			deviceNameInput = selectedDeviceInfo.placedDevice.name ?? deviceName;
-			editingDeviceName = true;
-		}
-	}
+  // Start editing device name
+  function startEditingDeviceName() {
+    if (selectedDeviceInfo) {
+      const deviceName =
+        selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug;
+      deviceNameInput = selectedDeviceInfo.placedDevice.name ?? deviceName;
+      editingDeviceName = true;
+    }
+  }
 
-	// Save device name
-	function saveDeviceName() {
-		if (selectedDeviceInfo) {
-			const newName = deviceNameInput.trim();
-			const deviceName = selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug;
-			// If same as device type name, clear the custom name
-			const nameToSave = newName === deviceName || newName === '' ? undefined : newName;
-			layoutStore.updateDeviceName(
-				selectionStore.selectedRackId!,
-				selectedDeviceInfo.deviceIndex,
-				nameToSave
-			);
-		}
-		editingDeviceName = false;
-	}
+  // Save device name
+  function saveDeviceName() {
+    if (selectedDeviceInfo) {
+      const newName = deviceNameInput.trim();
+      const deviceName =
+        selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug;
+      // If same as device type name, clear the custom name
+      const nameToSave =
+        newName === deviceName || newName === "" ? undefined : newName;
+      layoutStore.updateDeviceName(
+        selectionStore.selectedRackId!,
+        selectedDeviceInfo.deviceIndex,
+        nameToSave,
+      );
+    }
+    editingDeviceName = false;
+  }
 
-	// Handle device name input keydown
-	function handleDeviceNameKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter') {
-			saveDeviceName();
-		} else if (event.key === 'Escape') {
-			editingDeviceName = false;
-		}
-	}
+  // Handle device name input keydown
+  function handleDeviceNameKeydown(event: KeyboardEvent) {
+    if (event.key === "Enter") {
+      saveDeviceName();
+    } else if (event.key === "Escape") {
+      editingDeviceName = false;
+    }
+  }
 
-	// Update device notes
-	function handleDeviceNotesBlur() {
-		if (selectedDeviceInfo) {
-			const trimmedNotes = deviceNotes.trim();
-			const notesToSave = trimmedNotes === '' ? undefined : trimmedNotes;
-			// Update via updateRack - modify the device in the rack's devices array
-			const updatedDevices = [...layoutStore.rack.devices];
-			updatedDevices[selectedDeviceInfo.deviceIndex] = {
-				...updatedDevices[selectedDeviceInfo.deviceIndex]!,
-				notes: notesToSave
-			};
-			layoutStore.updateRack(RACK_ID, { devices: updatedDevices });
-		}
-	}
+  // Update device notes
+  function handleDeviceNotesBlur() {
+    if (selectedDeviceInfo) {
+      const trimmedNotes = deviceNotes.trim();
+      const notesToSave = trimmedNotes === "" ? undefined : trimmedNotes;
+      // Update via updateRack - modify the device in the rack's devices array
+      const updatedDevices = [...layoutStore.rack.devices];
+      updatedDevices[selectedDeviceInfo.deviceIndex] = {
+        ...updatedDevices[selectedDeviceInfo.deviceIndex]!,
+        notes: notesToSave,
+      };
+      layoutStore.updateRack(RACK_ID, { devices: updatedDevices });
+    }
+  }
 
-	// Close drawer
-	function handleClose() {
-		uiStore.closeRightDrawer();
-		selectionStore.clearSelection();
-	}
+  // Close drawer
+  function handleClose() {
+    uiStore.closeRightDrawer();
+    selectionStore.clearSelection();
+  }
 </script>
 
 <Drawer
-	side="right"
-	open={uiStore.rightDrawerOpen}
-	title="Edit"
-	showClose={false}
-	onclose={handleClose}
+  side="right"
+  open={uiStore.rightDrawerOpen}
+  title="Edit"
+  showClose={false}
+  onclose={handleClose}
 >
-	{#if selectedRack}
-		<!-- Rack editing form -->
-		<div class="edit-form">
-			<div class="form-group">
-				<label for="rack-name">Name</label>
-				<input
-					type="text"
-					id="rack-name"
-					class="input-field"
-					bind:value={rackName}
-					onblur={handleNameBlur}
-					onkeydown={handleNameKeydown}
-				/>
-			</div>
+  {#if selectedRack}
+    <!-- Rack editing form -->
+    <div class="edit-form">
+      <div class="form-group">
+        <label for="rack-name">Name</label>
+        <input
+          type="text"
+          id="rack-name"
+          class="input-field"
+          bind:value={rackName}
+          onblur={handleNameBlur}
+          onkeydown={handleNameKeydown}
+        />
+      </div>
 
-			<div class="form-group">
-				<label for="rack-height">Height</label>
-				<input
-					type="number"
-					id="rack-height"
-					class="input-field"
-					class:error={resizeError !== null}
-					bind:value={rackHeight}
-					onchange={handleHeightChange}
-					min="1"
-					max="100"
-				/>
-				{#if resizeError}
-					<p class="helper-text error">Cannot resize: {resizeError}</p>
-				{/if}
-				<div class="height-presets">
-					{#each COMMON_RACK_HEIGHTS as preset (preset)}
-						<button
-							type="button"
-							class="preset-btn"
-							class:active={rackHeight === preset}
-							onclick={() => handlePresetClick(preset)}
-						>
-							{preset}U
-						</button>
-					{/each}
-				</div>
-			</div>
+      <div class="form-group">
+        <label for="rack-height">Height</label>
+        <input
+          type="number"
+          id="rack-height"
+          class="input-field"
+          class:error={resizeError !== null}
+          bind:value={rackHeight}
+          onchange={handleHeightChange}
+          min="1"
+          max="100"
+        />
+        {#if resizeError}
+          <p class="helper-text error">Cannot resize: {resizeError}</p>
+        {/if}
+        <div class="height-presets">
+          {#each COMMON_RACK_HEIGHTS as preset (preset)}
+            <button
+              type="button"
+              class="preset-btn"
+              class:active={rackHeight === preset}
+              onclick={() => handlePresetClick(preset)}
+            >
+              {preset}U
+            </button>
+          {/each}
+        </div>
+      </div>
 
-			<div class="form-group">
-				<label for="rack-notes">Notes</label>
-				<textarea
-					id="rack-notes"
-					class="input-field textarea"
-					bind:value={rackNotes}
-					onblur={handleNotesBlur}
-					rows="4"
-					placeholder="Add notes about this rack..."
-				></textarea>
-			</div>
+      <div class="form-group">
+        <label for="rack-notes">Notes</label>
+        <textarea
+          id="rack-notes"
+          class="input-field textarea"
+          bind:value={rackNotes}
+          onblur={handleNotesBlur}
+          rows="4"
+          placeholder="Add notes about this rack..."
+        ></textarea>
+      </div>
 
-			<div class="actions">
-				<button
-					type="button"
-					class="btn-danger"
-					onclick={handleDeleteRack}
-					aria-label="Delete rack"
-				>
-					Delete Rack
-				</button>
-			</div>
-		</div>
-	{:else if selectedDeviceInfo}
-		<!-- Device view -->
-		<div class="device-view">
-			<!-- Display Name at top (click-to-edit) -->
-			<div class="form-group">
-				<label for="device-display-name">Name</label>
-				{#if editingDeviceName}
-					<input
-						id="device-display-name"
-						type="text"
-						class="input-field"
-						bind:value={deviceNameInput}
-						onblur={saveDeviceName}
-						onkeydown={handleDeviceNameKeydown}
-					/>
-				{:else}
-					<button
-						id="device-display-name"
-						type="button"
-						class="display-name-display"
-						onclick={startEditingDeviceName}
-						aria-label="Edit display name"
-					>
-						<span class="display-name-text">
-							{selectedDeviceInfo.placedDevice.name ??
-								selectedDeviceInfo.device.model ??
-								selectedDeviceInfo.device.slug}
-						</span>
-						<svg
-							class="edit-icon"
-							width="14"
-							height="14"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-						>
-							<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-							<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-						</svg>
-					</button>
-				{/if}
-			</div>
+      <div class="actions">
+        <button
+          type="button"
+          class="btn-danger"
+          onclick={handleDeleteRack}
+          aria-label="Delete rack"
+        >
+          Delete Rack
+        </button>
+      </div>
+    </div>
+  {:else if selectedDeviceInfo}
+    <!-- Device view -->
+    <div class="device-view">
+      <!-- Display Name at top (click-to-edit) -->
+      <div class="form-group">
+        <label for="device-display-name">Name</label>
+        {#if editingDeviceName}
+          <input
+            id="device-display-name"
+            type="text"
+            class="input-field"
+            bind:value={deviceNameInput}
+            onblur={saveDeviceName}
+            onkeydown={handleDeviceNameKeydown}
+          />
+        {:else}
+          <button
+            id="device-display-name"
+            type="button"
+            class="display-name-display"
+            onclick={startEditingDeviceName}
+            aria-label="Edit display name"
+          >
+            <span class="display-name-text">
+              {selectedDeviceInfo.placedDevice.name ??
+                selectedDeviceInfo.device.model ??
+                selectedDeviceInfo.device.slug}
+            </span>
+            <svg
+              class="edit-icon"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+              />
+              <path
+                d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+              />
+            </svg>
+          </button>
+        {/if}
+      </div>
 
-			<!-- Device Type (read-only) -->
-			<div class="info-section">
-				<div class="info-row">
-					<span class="info-label">Device Type</span>
-					<span class="info-value device-type">
-						<ColourSwatch colour={selectedDeviceInfo.device.colour} size={16} />
-						{selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug}
-					</span>
-				</div>
-				<div class="info-row">
-					<span class="info-label">Brand</span>
-					<span class="info-value brand-info">
-						<BrandIcon slug={getManufacturerIconSlug(selectedDeviceInfo.device.manufacturer)} size={16} />
-						{selectedDeviceInfo.device.manufacturer ?? 'Generic'}
-					</span>
-				</div>
-			</div>
+      <!-- Device Type (read-only) -->
+      <div class="info-section">
+        <div class="info-row">
+          <span class="info-label">Device Type</span>
+          <span class="info-value device-type">
+            <ColourSwatch colour={selectedDeviceInfo.device.colour} size={16} />
+            {selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug}
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Brand</span>
+          <span class="info-value brand-info">
+            <BrandIcon
+              slug={getManufacturerIconSlug(
+                selectedDeviceInfo.device.manufacturer,
+              )}
+              size={16}
+            />
+            {selectedDeviceInfo.device.manufacturer ?? "Generic"}
+          </span>
+        </div>
+      </div>
 
-			<div class="info-section">
-				<div class="info-row">
-					<span class="info-label">Height</span>
-					<span class="info-value">{selectedDeviceInfo.device.u_height}U</span>
-				</div>
-				<div class="info-row">
-					<span class="info-label">Category</span>
-					<span class="info-value"
-						>{getCategoryDisplayName(selectedDeviceInfo.device.category)}</span
-					>
-				</div>
-				<div class="info-row">
-					<span class="info-label">Position</span>
-					<span class="info-value">U{selectedDeviceInfo.placedDevice.position}</span>
-				</div>
-				<!-- Colour row - clickable to open picker -->
-				<button
-					type="button"
-					class="info-row colour-row-btn"
-					onclick={() => (showColourPicker = !showColourPicker)}
-					aria-expanded={showColourPicker}
-					aria-label="Edit device colour"
-				>
-					<span class="info-label">Colour</span>
-					<span class="info-value colour-info">
-						<ColourSwatch
-							colour={selectedDeviceInfo.placedDevice.colour_override ?? selectedDeviceInfo.device.colour}
-							size={16}
-						/>
-						{#if selectedDeviceInfo.placedDevice.colour_override}
-							{selectedDeviceInfo.placedDevice.colour_override}
-							<span class="colour-badge">custom</span>
-						{:else}
-							{selectedDeviceInfo.device.colour}
-						{/if}
-					</span>
-				</button>
-				{#if showColourPicker && selectedDeviceInfo}
-					<div class="colour-picker-container">
-						<ColourPicker
-							value={selectedDeviceInfo.placedDevice.colour_override ?? selectedDeviceInfo.device.colour}
-							defaultValue={selectedDeviceInfo.device.colour}
-							onchange={(colour) => {
-								const deviceIndex = layoutStore.rack?.devices.findIndex(
-									(d) => d.id === selectedDeviceInfo.placedDevice.id
-								);
-								if (deviceIndex !== undefined && deviceIndex >= 0) {
-									layoutStore.updateDeviceColour(RACK_ID, deviceIndex, colour);
-								}
-							}}
-							onreset={() => {
-								const deviceIndex = layoutStore.rack?.devices.findIndex(
-									(d) => d.id === selectedDeviceInfo.placedDevice.id
-								);
-								if (deviceIndex !== undefined && deviceIndex >= 0) {
-									layoutStore.updateDeviceColour(RACK_ID, deviceIndex, undefined);
-								}
-							}}
-						/>
-					</div>
-				{/if}
-			</div>
+      <div class="info-section">
+        <div class="info-row">
+          <span class="info-label">Height</span>
+          <span class="info-value">{selectedDeviceInfo.device.u_height}U</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Category</span>
+          <span class="info-value"
+            >{getCategoryDisplayName(selectedDeviceInfo.device.category)}</span
+          >
+        </div>
+        <div class="info-row">
+          <span class="info-label">Position</span>
+          <span class="info-value"
+            >U{selectedDeviceInfo.placedDevice.position}</span
+          >
+        </div>
+        <!-- Colour row - clickable to open picker -->
+        <button
+          type="button"
+          class="info-row colour-row-btn"
+          onclick={() => (showColourPicker = !showColourPicker)}
+          aria-expanded={showColourPicker}
+          aria-label="Edit device colour"
+        >
+          <span class="info-label">Colour</span>
+          <span class="info-value colour-info">
+            <ColourSwatch
+              colour={selectedDeviceInfo.placedDevice.colour_override ??
+                selectedDeviceInfo.device.colour}
+              size={16}
+            />
+            {#if selectedDeviceInfo.placedDevice.colour_override}
+              {selectedDeviceInfo.placedDevice.colour_override}
+              <span class="colour-badge">custom</span>
+            {:else}
+              {selectedDeviceInfo.device.colour}
+            {/if}
+          </span>
+        </button>
+        {#if showColourPicker && selectedDeviceInfo}
+          <div class="colour-picker-container">
+            <ColourPicker
+              value={selectedDeviceInfo.placedDevice.colour_override ??
+                selectedDeviceInfo.device.colour}
+              defaultValue={selectedDeviceInfo.device.colour}
+              onchange={(colour) => {
+                const deviceIndex = layoutStore.rack?.devices.findIndex(
+                  (d) => d.id === selectedDeviceInfo.placedDevice.id,
+                );
+                if (deviceIndex !== undefined && deviceIndex >= 0) {
+                  layoutStore.updateDeviceColour(RACK_ID, deviceIndex, colour);
+                }
+              }}
+              onreset={() => {
+                const deviceIndex = layoutStore.rack?.devices.findIndex(
+                  (d) => d.id === selectedDeviceInfo.placedDevice.id,
+                );
+                if (deviceIndex !== undefined && deviceIndex >= 0) {
+                  layoutStore.updateDeviceColour(
+                    RACK_ID,
+                    deviceIndex,
+                    undefined,
+                  );
+                }
+              }}
+            />
+          </div>
+        {/if}
+      </div>
 
-			<!-- Face selector (dropdown) -->
-			<div class="form-group">
-				<label for="device-face">Mounted Face</label>
-				<select
-					id="device-face"
-					class="input-field"
-					value={selectedDeviceInfo.placedDevice.face}
-					onchange={(e) => handleFaceChange((e.target as HTMLSelectElement).value as DeviceFace)}
-					disabled={isFullDepthDevice}
-					title={isFullDepthDevice ? 'Full-depth devices occupy both front and rear of the rack' : undefined}
-				>
-					<option value="front">Front</option>
-					<option value="rear">Rear</option>
-					<option value="both">Both (full-depth)</option>
-				</select>
-				{#if isFullDepthDevice}
-					<p class="helper-text">Full-depth devices occupy both front and rear of the rack</p>
-				{/if}
-			</div>
+      <!-- Face selector (dropdown) -->
+      <div class="form-group">
+        <label for="device-face">Mounted Face</label>
+        <select
+          id="device-face"
+          class="input-field"
+          value={selectedDeviceInfo.placedDevice.face}
+          onchange={(e) =>
+            handleFaceChange(
+              (e.target as HTMLSelectElement).value as DeviceFace,
+            )}
+        >
+          <option value="front">Front</option>
+          <option value="rear">Rear</option>
+          <option value="both">Both (full-depth)</option>
+        </select>
+        {#if isFullDepthDevice && selectedDeviceInfo.placedDevice.face !== "both"}
+          <p class="helper-text">Overriding default full-depth setting</p>
+        {/if}
+      </div>
 
-			<!-- Placement Image Overrides -->
-			<div class="form-group">
-				<ImageUpload
-					face="front"
-					currentImage={placementFrontImage}
-					onupload={(data) => handlePlacementImageUpload('front', data)}
-					onremove={() => handlePlacementImageRemove('front')}
-				/>
-				<p class="helper-text">Override the device type front image for this placement</p>
-			</div>
+      <!-- Placement Image Overrides -->
+      <div class="form-group">
+        <ImageUpload
+          face="front"
+          currentImage={placementFrontImage}
+          onupload={(data) => handlePlacementImageUpload("front", data)}
+          onremove={() => handlePlacementImageRemove("front")}
+        />
+        <p class="helper-text">
+          Override the device type front image for this placement
+        </p>
+      </div>
 
-			<div class="form-group">
-				<ImageUpload
-					face="rear"
-					currentImage={placementRearImage}
-					onupload={(data) => handlePlacementImageUpload('rear', data)}
-					onremove={() => handlePlacementImageRemove('rear')}
-				/>
-				<p class="helper-text">Override the device type rear image for this placement</p>
-			</div>
+      <div class="form-group">
+        <ImageUpload
+          face="rear"
+          currentImage={placementRearImage}
+          onupload={(data) => handlePlacementImageUpload("rear", data)}
+          onremove={() => handlePlacementImageRemove("rear")}
+        />
+        <p class="helper-text">
+          Override the device type rear image for this placement
+        </p>
+      </div>
 
-			<!-- Power device properties -->
-			{#if selectedDeviceInfo.device.category === 'power' && (selectedDeviceInfo.device.outlet_count || selectedDeviceInfo.device.va_rating)}
-				<div class="info-section">
-					{#if selectedDeviceInfo.device.outlet_count}
-						<div class="info-row">
-							<span class="info-label">Outlets</span>
-							<span class="info-value">{selectedDeviceInfo.device.outlet_count}</span>
-						</div>
-					{/if}
-					{#if selectedDeviceInfo.device.va_rating}
-						<div class="info-row">
-							<span class="info-label">VA Rating</span>
-							<span class="info-value">{selectedDeviceInfo.device.va_rating}</span>
-						</div>
-					{/if}
-				</div>
-			{/if}
+      <!-- Power device properties -->
+      {#if selectedDeviceInfo.device.category === "power" && (selectedDeviceInfo.device.outlet_count || selectedDeviceInfo.device.va_rating)}
+        <div class="info-section">
+          {#if selectedDeviceInfo.device.outlet_count}
+            <div class="info-row">
+              <span class="info-label">Outlets</span>
+              <span class="info-value"
+                >{selectedDeviceInfo.device.outlet_count}</span
+              >
+            </div>
+          {/if}
+          {#if selectedDeviceInfo.device.va_rating}
+            <div class="info-row">
+              <span class="info-label">VA Rating</span>
+              <span class="info-value"
+                >{selectedDeviceInfo.device.va_rating}</span
+              >
+            </div>
+          {/if}
+        </div>
+      {/if}
 
-			<!-- Device Type Notes (read-only) -->
-			{#if selectedDeviceInfo.device.notes}
-				<div class="notes-section">
-					<span class="info-label">Device Type Notes</span>
-					<p class="notes-text">{selectedDeviceInfo.device.notes}</p>
-				</div>
-			{/if}
+      <!-- Device Type Notes (read-only) -->
+      {#if selectedDeviceInfo.device.notes}
+        <div class="notes-section">
+          <span class="info-label">Device Type Notes</span>
+          <p class="notes-text">{selectedDeviceInfo.device.notes}</p>
+        </div>
+      {/if}
 
-			<!-- Placement Notes (editable) -->
-			<div class="form-group">
-				<label for="device-notes">Notes</label>
-				<textarea
-					id="device-notes"
-					class="input-field textarea"
-					bind:value={deviceNotes}
-					onblur={handleDeviceNotesBlur}
-					rows="4"
-					placeholder="Add notes about this device placement..."
-				></textarea>
-			</div>
+      <!-- Placement Notes (editable) -->
+      <div class="form-group">
+        <label for="device-notes">Notes</label>
+        <textarea
+          id="device-notes"
+          class="input-field textarea"
+          bind:value={deviceNotes}
+          onblur={handleDeviceNotesBlur}
+          rows="4"
+          placeholder="Add notes about this device placement..."
+        ></textarea>
+      </div>
 
-			<div class="actions">
-				<button
-					type="button"
-					class="btn-danger"
-					onclick={handleRemoveDevice}
-					aria-label="Remove from rack"
-				>
-					Remove from Rack
-				</button>
-			</div>
-		</div>
-	{/if}
+      <div class="actions">
+        <button
+          type="button"
+          class="btn-danger"
+          onclick={handleRemoveDevice}
+          aria-label="Remove from rack"
+        >
+          Remove from Rack
+        </button>
+      </div>
+    </div>
+  {/if}
 </Drawer>
 
 <style>
-	.edit-form,
-	.device-view {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-4);
-	}
+  .edit-form,
+  .device-view {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
 
-	.form-group {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1-5);
-	}
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1-5);
+  }
 
-	.form-group label {
-		font-size: var(--font-size-base);
-		font-weight: var(--font-weight-medium);
-		color: var(--colour-text);
-	}
+  .form-group label {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    color: var(--colour-text);
+  }
 
-	.form-group input {
-		padding: var(--space-2) var(--space-3);
-		background: var(--input-bg);
-		border: 1px solid var(--input-border);
-		border-radius: var(--radius-sm);
-		color: var(--colour-text);
-		font-size: var(--font-size-base);
-	}
+  .form-group input {
+    padding: var(--space-2) var(--space-3);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    color: var(--colour-text);
+    font-size: var(--font-size-base);
+  }
 
-	.form-group input:focus {
-		outline: none;
-		border-color: var(--colour-selection);
-	}
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--colour-selection);
+  }
 
-	.form-group input:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-	}
+  .form-group input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 
-	.form-group select {
-		padding: var(--space-2) var(--space-3);
-		background: var(--input-bg);
-		border: 1px solid var(--input-border);
-		border-radius: var(--radius-sm);
-		color: var(--colour-text);
-		font-size: var(--font-size-base);
-		cursor: pointer;
-	}
+  .form-group select {
+    padding: var(--space-2) var(--space-3);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    color: var(--colour-text);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+  }
 
-	.form-group select:focus {
-		outline: none;
-		border-color: var(--colour-selection);
-	}
+  .form-group select:focus {
+    outline: none;
+    border-color: var(--colour-selection);
+  }
 
-	.form-group select:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-		background: var(--colour-surface);
-	}
+  .form-group select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: var(--colour-surface);
+  }
 
-	.form-group textarea {
-		padding: var(--space-2) var(--space-3);
-		background: var(--input-bg);
-		border: 1px solid var(--input-border);
-		border-radius: var(--radius-sm);
-		color: var(--colour-text);
-		font-size: var(--font-size-base);
-		font-family: inherit;
-		resize: vertical;
-		min-height: 80px;
-	}
+  .form-group textarea {
+    padding: var(--space-2) var(--space-3);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    color: var(--colour-text);
+    font-size: var(--font-size-base);
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+  }
 
-	.form-group textarea:focus {
-		outline: none;
-		border-color: var(--colour-selection);
-	}
+  .form-group textarea:focus {
+    outline: none;
+    border-color: var(--colour-selection);
+  }
 
-	.helper-text {
-		font-size: var(--font-size-sm);
-		margin: 0;
-		color: var(--colour-text-muted);
-	}
+  .helper-text {
+    font-size: var(--font-size-sm);
+    margin: 0;
+    color: var(--colour-text-muted);
+  }
 
-	.helper-text.error {
-		color: var(--colour-error);
-	}
+  .helper-text.error {
+    color: var(--colour-error);
+  }
 
-	.input-field.error {
-		border-color: var(--colour-error);
-	}
+  .input-field.error {
+    border-color: var(--colour-error);
+  }
 
-	.height-presets {
-		display: flex;
-		gap: var(--space-2);
-		margin-top: 4px;
-	}
+  .height-presets {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: 4px;
+  }
 
-	.preset-btn {
-		padding: 4px var(--space-2);
-		background: var(--button-bg);
-		border: 1px solid var(--colour-border);
-		border-radius: var(--radius-sm);
-		color: var(--colour-text);
-		font-size: var(--font-size-sm);
-		cursor: pointer;
-		transition: background-color var(--duration-fast);
-	}
+  .preset-btn {
+    padding: 4px var(--space-2);
+    background: var(--button-bg);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+    color: var(--colour-text);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: background-color var(--duration-fast);
+  }
 
-	.preset-btn:hover {
-		background: var(--button-bg-hover);
-	}
+  .preset-btn:hover {
+    background: var(--button-bg-hover);
+  }
 
-	.preset-btn.active {
-		background: var(--colour-selection);
-		border-color: var(--colour-selection);
-		color: white;
-	}
+  .preset-btn.active {
+    background: var(--colour-selection);
+    border-color: var(--colour-selection);
+    color: white;
+  }
 
-	.info-section {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
+  .info-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
 
-	.info-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
 
-	.info-label {
-		font-size: var(--font-size-sm);
-		color: var(--colour-text-muted);
-	}
+  .info-label {
+    font-size: var(--font-size-sm);
+    color: var(--colour-text-muted);
+  }
 
-	.info-value {
-		font-size: var(--font-size-base);
-		color: var(--colour-text);
-	}
+  .info-value {
+    font-size: var(--font-size-base);
+    color: var(--colour-text);
+  }
 
-	.colour-info {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		font-family: monospace;
-	}
+  .colour-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: monospace;
+  }
 
-	.colour-row-btn {
-		width: 100%;
-		background: transparent;
-		border: none;
-		cursor: pointer;
-		text-align: left;
-		padding: var(--space-1) 0;
-		border-radius: var(--radius-sm);
-		transition: background-color var(--duration-fast);
-	}
+  .colour-row-btn {
+    width: 100%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    padding: var(--space-1) 0;
+    border-radius: var(--radius-sm);
+    transition: background-color var(--duration-fast);
+  }
 
-	.colour-row-btn:hover {
-		background: var(--colour-surface-hover);
-	}
+  .colour-row-btn:hover {
+    background: var(--colour-surface-hover);
+  }
 
-	.colour-row-btn:focus-visible {
-		outline: 2px solid var(--colour-selection);
-		outline-offset: 2px;
-	}
+  .colour-row-btn:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
+  }
 
-	.colour-badge {
-		font-size: var(--font-size-xs);
-		padding: 0 var(--space-1);
-		background: var(--dracula-purple);
-		color: var(--dracula-bg);
-		border-radius: var(--radius-xs);
-		text-transform: uppercase;
-		font-weight: var(--font-weight-medium);
-	}
+  .colour-badge {
+    font-size: var(--font-size-xs);
+    padding: 0 var(--space-1);
+    background: var(--dracula-purple);
+    color: var(--dracula-bg);
+    border-radius: var(--radius-xs);
+    text-transform: uppercase;
+    font-weight: var(--font-weight-medium);
+  }
 
-	.colour-picker-container {
-		margin-top: var(--space-2);
-		margin-bottom: var(--space-2);
-	}
+  .colour-picker-container {
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
 
-	.device-type {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
+  .device-type {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
 
-	.brand-info {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
+  .brand-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
 
-	.display-name-display {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-2);
-		width: 100%;
-		padding: var(--space-2) var(--space-3);
-		background: var(--colour-surface);
-		border: 1px solid var(--colour-border);
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		text-align: left;
-		color: var(--colour-text);
-		font-size: var(--font-size-base);
-		transition: border-color 0.15s ease;
-	}
+  .display-name-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    background: var(--colour-surface);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+    color: var(--colour-text);
+    font-size: var(--font-size-base);
+    transition: border-color 0.15s ease;
+  }
 
-	.display-name-display:hover {
-		border-color: var(--colour-selection);
-	}
+  .display-name-display:hover {
+    border-color: var(--colour-selection);
+  }
 
-	.display-name-display:focus {
-		outline: 2px solid var(--colour-selection);
-		outline-offset: 2px;
-	}
+  .display-name-display:focus {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
+  }
 
-	.display-name-text {
-		flex: 1;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
+  .display-name-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-	.edit-icon {
-		flex-shrink: 0;
-		opacity: 0.6;
-	}
+  .edit-icon {
+    flex-shrink: 0;
+    opacity: 0.6;
+  }
 
-	.display-name-display:hover .edit-icon {
-		opacity: 1;
-	}
+  .display-name-display:hover .edit-icon {
+    opacity: 1;
+  }
 
-	.notes-section {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1-5);
-	}
+  .notes-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1-5);
+  }
 
-	.notes-text {
-		font-size: var(--font-size-base);
-		color: var(--colour-text-muted);
-		margin: 0;
-		white-space: pre-wrap;
-		line-height: 1.5;
-	}
+  .notes-text {
+    font-size: var(--font-size-base);
+    color: var(--colour-text-muted);
+    margin: 0;
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
 
-	.actions {
-		margin-top: var(--space-6);
-	}
+  .actions {
+    margin-top: var(--space-6);
+  }
 
-	.btn-danger {
-		width: 100%;
-		padding: 10px var(--space-4);
-		background: var(--colour-error);
-		border: none;
-		border-radius: var(--radius-sm);
-		color: white;
-		font-size: var(--font-size-base);
-		font-weight: 500;
-		cursor: pointer;
-		transition: background-color var(--duration-fast);
-	}
+  .btn-danger {
+    width: 100%;
+    padding: 10px var(--space-4);
+    background: var(--colour-error);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--duration-fast);
+  }
 
-	.btn-danger:hover {
-		background: var(--colour-error-hover);
-	}
+  .btn-danger:hover {
+    background: var(--colour-error-hover);
+  }
 </style>

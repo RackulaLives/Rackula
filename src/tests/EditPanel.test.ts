@@ -622,7 +622,7 @@ describe("EditPanel Component", () => {
       expect(select).not.toBeDisabled();
     });
 
-    it("face dropdown is disabled for full-depth servers", () => {
+    it("face dropdown is enabled for full-depth servers (issue #144)", () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
       const RACK_ID = "rack-0";
@@ -636,8 +636,67 @@ describe("EditPanel Component", () => {
       const { getByRole } = render(EditPanel);
       const select = getByRole("combobox", { name: /mounted face/i });
 
-      // Face dropdown should be disabled for full-depth devices
-      expect(select).toBeDisabled();
+      // Face dropdown should be enabled for ALL devices including full-depth (issue #144)
+      expect(select).not.toBeDisabled();
+    });
+
+    it("allows face override on explicitly full-depth devices", () => {
+      const layoutStore = getLayoutStore();
+      const selectionStore = getSelectionStore();
+      const RACK_ID = "rack-0";
+
+      layoutStore.addRack("My Rack", 24);
+      // Device with is_full_depth = true
+      const device = layoutStore.addDeviceType({
+        name: "Full Depth Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+        is_full_depth: true,
+      });
+      layoutStore.placeDevice(RACK_ID, device.slug, 1);
+      const deviceId = layoutStore.rack!.devices[0]!.id;
+      selectionStore.selectDevice(RACK_ID, deviceId);
+
+      const { getByRole } = render(EditPanel);
+      const select = getByRole("combobox", {
+        name: /mounted face/i,
+      }) as HTMLSelectElement;
+
+      // Face selector should NOT be disabled for full-depth devices (issue #144)
+      expect(select).not.toBeDisabled();
+    });
+
+    it("updates face when changed on full-depth device", async () => {
+      const layoutStore = getLayoutStore();
+      const selectionStore = getSelectionStore();
+      const RACK_ID = "rack-0";
+
+      layoutStore.addRack("My Rack", 24);
+      const device = layoutStore.addDeviceType({
+        name: "Full Depth Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+        is_full_depth: true,
+      });
+      layoutStore.placeDevice(RACK_ID, device.slug, 1);
+      const deviceId = layoutStore.rack!.devices[0]!.id;
+      selectionStore.selectDevice(RACK_ID, deviceId);
+
+      const { getByRole } = render(EditPanel);
+      const select = getByRole("combobox", {
+        name: /mounted face/i,
+      }) as HTMLSelectElement;
+
+      // Default should be 'both' for full-depth
+      expect(select.value).toBe("both");
+
+      // Change to 'front'
+      await fireEvent.change(select, { target: { value: "front" } });
+
+      // Store should be updated
+      expect(layoutStore.rack!.devices[0]!.face).toBe("front");
     });
   });
 });
