@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { findDeviceType, findDeviceInLibrary } from "$lib/utils/device-lookup";
+import {
+  findDeviceType,
+  findDeviceInLibrary,
+  isCustomDevice,
+} from "$lib/utils/device-lookup";
 import type { DeviceType } from "$lib/types";
 
 describe("Device Lookup Utility", () => {
@@ -146,6 +150,30 @@ describe("Device Lookup Utility", () => {
     it("works with empty library", () => {
       const result = findDeviceInLibrary([], "device-a");
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe("isCustomDevice", () => {
+    it("returns false for starter library devices", () => {
+      expect(isCustomDevice("1u-server")).toBe(false);
+      expect(isCustomDevice("1u-blank")).toBe(false);
+      expect(isCustomDevice("24-port-switch")).toBe(false);
+    });
+
+    it("returns false for brand pack devices", () => {
+      expect(isCustomDevice("ubiquiti-unifi-dream-machine-pro")).toBe(false);
+      expect(isCustomDevice("synology-rs1219-plus")).toBe(false);
+    });
+
+    it("returns true for custom device slugs", () => {
+      expect(isCustomDevice("my-custom-server")).toBe(true);
+      expect(isCustomDevice("custom-nas-box")).toBe(true);
+      expect(isCustomDevice("homelab-special-device")).toBe(true);
+    });
+
+    it("returns true for non-existent slugs", () => {
+      // Any slug not in starter/brand is considered custom
+      expect(isCustomDevice("xyz-123-abc")).toBe(true);
     });
   });
 });

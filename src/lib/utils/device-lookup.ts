@@ -3,9 +3,9 @@
  * Unified lookup across all device sources with clear priority order
  */
 
-import type { DeviceType } from '$lib/types';
-import { findStarterDevice } from '$lib/data/starterLibrary';
-import { findBrandDevice } from '$lib/data/brandPacks';
+import type { DeviceType } from "$lib/types";
+import { findStarterDevice, getStarterSlugs } from "$lib/data/starterLibrary";
+import { findBrandDevice, getBrandSlugs } from "$lib/data/brandPacks";
 
 /**
  * Find a device type by slug across all sources
@@ -20,28 +20,28 @@ import { findBrandDevice } from '$lib/data/brandPacks';
  * @returns DeviceType or undefined if not found
  */
 export function findDeviceType(
-	slug: string,
-	layoutDeviceTypes: DeviceType[] = []
+  slug: string,
+  layoutDeviceTypes: DeviceType[] = [],
 ): DeviceType | undefined {
-	// 1. Check layout's device_types first (user's custom/imported)
-	const layoutDevice = layoutDeviceTypes.find((dt) => dt.slug === slug);
-	if (layoutDevice) {
-		return layoutDevice;
-	}
+  // 1. Check layout's device_types first (user's custom/imported)
+  const layoutDevice = layoutDeviceTypes.find((dt) => dt.slug === slug);
+  if (layoutDevice) {
+    return layoutDevice;
+  }
 
-	// 2. Check starter pack
-	const starterDevice = findStarterDevice(slug);
-	if (starterDevice) {
-		return starterDevice;
-	}
+  // 2. Check starter pack
+  const starterDevice = findStarterDevice(slug);
+  if (starterDevice) {
+    return starterDevice;
+  }
 
-	// 3. Check brand packs
-	const brandDevice = findBrandDevice(slug);
-	if (brandDevice) {
-		return brandDevice;
-	}
+  // 3. Check brand packs
+  const brandDevice = findBrandDevice(slug);
+  if (brandDevice) {
+    return brandDevice;
+  }
 
-	return undefined;
+  return undefined;
 }
 
 /**
@@ -53,8 +53,21 @@ export function findDeviceType(
  * @returns DeviceType or undefined if not found
  */
 export function findDeviceInLibrary(
-	deviceLibrary: DeviceType[],
-	slug: string
+  deviceLibrary: DeviceType[],
+  slug: string,
 ): DeviceType | undefined {
-	return deviceLibrary.find((dt) => dt.slug === slug);
+  return deviceLibrary.find((dt) => dt.slug === slug);
+}
+
+/**
+ * Check if a device type is a custom (user-created) device
+ * Custom devices are NOT in the starter library or brand packs
+ *
+ * @param slug - Device type slug to check
+ * @returns true if the device is custom, false if it's built-in
+ */
+export function isCustomDevice(slug: string): boolean {
+  const starterSlugs = getStarterSlugs();
+  const brandSlugs = getBrandSlugs();
+  return !starterSlugs.has(slug) && !brandSlugs.has(slug);
 }
