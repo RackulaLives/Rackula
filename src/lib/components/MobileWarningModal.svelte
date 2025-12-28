@@ -163,8 +163,8 @@
   .continue-button {
     margin-top: var(--space-2);
     padding: var(--space-3) var(--space-6);
-    background: var(--colour-primary);
-    color: var(--colour-primary-contrast, white);
+    background: var(--colour-button-primary);
+    color: var(--colour-text-on-primary);
     border: none;
     border-radius: var(--radius-md);
     font-size: var(--font-size-base, 1rem);
@@ -174,7 +174,7 @@
   }
 
   .continue-button:hover {
-    background: var(--colour-primary-hover);
+    background: var(--colour-button-primary-hover);
   }
 
   .continue-button:focus-visible {
