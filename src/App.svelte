@@ -21,6 +21,7 @@
   import HelpPanel from "$lib/components/HelpPanel.svelte";
   import BottomSheet from "$lib/components/BottomSheet.svelte";
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
+  import MobileWarningModal from "$lib/components/MobileWarningModal.svelte";
   import {
     getShareParam,
     clearShareParam,
@@ -788,6 +789,8 @@
   <HelpPanel open={helpPanelOpen} onclose={handleHelpClose} />
 
   <ToastContainer />
+
+  <MobileWarningModal />
 
   <KeyboardHandler
     onsave={handleSave}
