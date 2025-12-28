@@ -293,8 +293,13 @@
   --z-sidebar: 10;
   --z-drawer-backdrop: 99;
   --z-drawer: 100;
+  --z-placement-indicator: 50;
   --z-modal: 200;
   --z-toast: 300;
+
+  /* Touch Targets (WCAG 2.5.5 - minimum 44px, recommended 48px) */
+  --touch-target-min: 48px;
+  --touch-target-comfortable: 56px;
 
   /* Form Inputs */
   --input-bg: var(--dracula-bg-light);

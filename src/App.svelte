@@ -22,6 +22,7 @@
   import BottomSheet from "$lib/components/BottomSheet.svelte";
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
   import MobileWarningModal from "$lib/components/MobileWarningModal.svelte";
+  import DeviceLibraryFAB from "$lib/components/DeviceLibraryFAB.svelte";
   import {
     getShareParam,
     clearShareParam,
@@ -41,6 +42,7 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
+  import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { createKonamiDetector } from "$lib/utils/konami";
   import type { ImageData } from "$lib/types/images";
   import { openFilePicker } from "$lib/utils/file";
@@ -61,6 +63,7 @@
   } from "$lib/utils/export";
   import type { ExportOptions } from "$lib/types";
   import { analytics } from "$lib/utils/analytics";
+  import { hapticTap } from "$lib/utils/haptics";
 
   // Build-time environment constant from vite.config.ts
   declare const __BUILD_ENV__: string;
@@ -72,6 +75,7 @@
   const toastStore = getToastStore();
   const imageStore = getImageStore();
   const viewportStore = getViewportStore();
+  const placementStore = getPlacementStore();
 
   // Dialog state
   let newRackFormOpen = $state(false);
@@ -91,6 +95,9 @@
   // Mobile bottom sheet state
   let bottomSheetOpen = $state(false);
   let selectedDeviceForSheet: number | null = $state(null);
+
+  // Mobile device library sheet state
+  let deviceLibrarySheetOpen = $state(false);
 
   // Party Mode easter egg (triggered by Konami code)
   let partyMode = $state(false);
@@ -655,6 +662,26 @@
     selectionStore.clearSelection();
   }
 
+  // Handle device library FAB click (mobile)
+  function handleDeviceLibraryFABClick() {
+    deviceLibrarySheetOpen = true;
+  }
+
+  // Handle device library sheet close
+  function handleDeviceLibrarySheetClose() {
+    deviceLibrarySheetOpen = false;
+  }
+
+  // Handle mobile device selection from palette (enters placement mode)
+  function handleMobileDeviceSelect(
+    event: CustomEvent<{ device: import("$lib/types").DeviceType }>,
+  ) {
+    const { device } = event.detail;
+    placementStore.startPlacement(device);
+    deviceLibrarySheetOpen = false;
+    hapticTap();
+  }
+
   // Auto-save layout to localStorage with debouncing
   let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   $effect(() => {
@@ -791,6 +818,21 @@
   <ToastContainer />
 
   <MobileWarningModal />
+
+  <!-- Mobile device library FAB and bottom sheet -->
+  <DeviceLibraryFAB onclick={handleDeviceLibraryFABClick} />
+
+  {#if viewportStore.isMobile && deviceLibrarySheetOpen}
+    <BottomSheet
+      bind:open={deviceLibrarySheetOpen}
+      onclose={handleDeviceLibrarySheetClose}
+    >
+      <DevicePalette
+        onadddevice={handleAddDevice}
+        ondeviceselect={handleMobileDeviceSelect}
+      />
+    </BottomSheet>
+  {/if}
 
   <KeyboardHandler
     onsave={handleSave}

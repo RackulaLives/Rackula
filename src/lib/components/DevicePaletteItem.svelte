@@ -4,177 +4,191 @@
   Draggable for placement into racks
 -->
 <script lang="ts">
-	import type { DeviceType } from '$lib/types';
-	import IconGrip from './icons/IconGrip.svelte';
-	import CategoryIcon from './CategoryIcon.svelte';
-	import ImageIndicator from './ImageIndicator.svelte';
-	import {
-		createPaletteDragData,
-		serializeDragData,
-		setCurrentDragData
-	} from '$lib/utils/dragdrop';
-	import { highlightMatch } from '$lib/utils/searchHighlight';
+  import type { DeviceType } from "$lib/types";
+  import IconGrip from "./icons/IconGrip.svelte";
+  import CategoryIcon from "./CategoryIcon.svelte";
+  import ImageIndicator from "./ImageIndicator.svelte";
+  import {
+    createPaletteDragData,
+    serializeDragData,
+    setCurrentDragData,
+  } from "$lib/utils/dragdrop";
+  import { highlightMatch } from "$lib/utils/searchHighlight";
 
-	interface Props {
-		device: DeviceType;
-		librarySelected?: boolean;
-		searchQuery?: string;
-		onselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
-	}
+  interface Props {
+    device: DeviceType;
+    librarySelected?: boolean;
+    searchQuery?: string;
+    onselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
+  }
 
-	let { device, librarySelected = false, searchQuery = '', onselect }: Props = $props();
+  let {
+    device,
+    librarySelected = false,
+    searchQuery = "",
+    onselect,
+  }: Props = $props();
 
-	// Device display name: model or slug
-	const deviceName = $derived(device.model ?? device.slug);
+  // Device display name: model or slug
+  const deviceName = $derived(device.model ?? device.slug);
 
-	// Highlighted text segments for search matching
-	const highlightedSegments = $derived(highlightMatch(deviceName, searchQuery));
+  // Highlighted text segments for search matching
+  const highlightedSegments = $derived(highlightMatch(deviceName, searchQuery));
 
-	// Track dragging state for visual feedback
-	let isDragging = $state(false);
+  // Track dragging state for visual feedback
+  let isDragging = $state(false);
 
-	function handleClick() {
-		onselect?.(new CustomEvent('select', { detail: { device } }));
-	}
+  function handleClick() {
+    onselect?.(new CustomEvent("select", { detail: { device } }));
+  }
 
-	function handleKeyDown(event: KeyboardEvent) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			onselect?.(new CustomEvent('select', { detail: { device } }));
-		}
-	}
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onselect?.(new CustomEvent("select", { detail: { device } }));
+    }
+  }
 
-	function handleDragStart(event: DragEvent) {
-		if (!event.dataTransfer) return;
+  function handleDragStart(event: DragEvent) {
+    if (!event.dataTransfer) return;
 
-		const dragData = createPaletteDragData(device);
-		event.dataTransfer.setData('application/json', serializeDragData(dragData));
-		event.dataTransfer.effectAllowed = 'copy';
+    const dragData = createPaletteDragData(device);
+    event.dataTransfer.setData("application/json", serializeDragData(dragData));
+    event.dataTransfer.effectAllowed = "copy";
 
-		// Set shared drag state for dragover (browsers block getData during dragover)
-		setCurrentDragData(dragData);
-		isDragging = true;
-	}
+    // Set shared drag state for dragover (browsers block getData during dragover)
+    setCurrentDragData(dragData);
+    isDragging = true;
+  }
 
-	function handleDragEnd() {
-		setCurrentDragData(null);
-		isDragging = false;
-	}
+  function handleDragEnd() {
+    setCurrentDragData(null);
+    isDragging = false;
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
-	class="device-palette-item"
-	class:dragging={isDragging}
-	class:library-selected={librarySelected}
-	role="listitem"
-	tabindex="0"
-	draggable="true"
-	data-testid="device-palette-item"
-	onclick={handleClick}
-	onkeydown={handleKeyDown}
-	ondragstart={handleDragStart}
-	ondragend={handleDragEnd}
-	aria-label="{deviceName}, {device.u_height}U {device.category}"
+  class="device-palette-item"
+  class:dragging={isDragging}
+  class:library-selected={librarySelected}
+  role="listitem"
+  tabindex="0"
+  draggable="true"
+  data-testid="device-palette-item"
+  onclick={handleClick}
+  onkeydown={handleKeyDown}
+  ondragstart={handleDragStart}
+  ondragend={handleDragEnd}
+  aria-label="{deviceName}, {device.u_height}U {device.category}"
 >
-	<span class="drag-handle" aria-hidden="true">
-		<IconGrip size={16} />
-	</span>
-	<span class="category-icon-indicator" style="color: {device.colour}">
-		<CategoryIcon category={device.category} size={16} />
-	</span>
-	<span class="device-name">
-		{#each highlightedSegments as segment, i (i)}
-			{#if segment.isMatch}
-				<strong>{segment.text}</strong>
-			{:else}
-				{segment.text}
-			{/if}
-		{/each}
-	</span>
-	{#if device.front_image || device.rear_image}
-		<ImageIndicator front={device.front_image} rear={device.rear_image} size={14} />
-	{/if}
-	<span class="device-height">{device.u_height}U</span>
+  <span class="drag-handle" aria-hidden="true">
+    <IconGrip size={16} />
+  </span>
+  <span class="category-icon-indicator" style="color: {device.colour}">
+    <CategoryIcon category={device.category} size={16} />
+  </span>
+  <span class="device-name">
+    {#each highlightedSegments as segment, i (i)}
+      {#if segment.isMatch}
+        <strong>{segment.text}</strong>
+      {:else}
+        {segment.text}
+      {/if}
+    {/each}
+  </span>
+  {#if device.front_image || device.rear_image}
+    <ImageIndicator
+      front={device.front_image}
+      rear={device.rear_image}
+      size={14}
+    />
+  {/if}
+  <span class="device-height">{device.u_height}U</span>
 </div>
 
 <style>
-	.device-palette-item {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		padding: var(--space-2) var(--space-3);
-		border-radius: var(--radius-sm);
-		cursor: grab;
-		transition:
-			transform var(--duration-fast) var(--ease-out),
-			box-shadow var(--duration-fast) var(--ease-out),
-			background-color var(--duration-fast) var(--ease-out);
-	}
+  .device-palette-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    min-height: var(--touch-target-min);
+    border-radius: var(--radius-sm);
+    cursor: grab;
+    transition:
+      transform var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+  }
 
-	.device-palette-item:hover {
-		background-color: var(--colour-surface-hover);
-		transform: translateY(-1px);
-		box-shadow: var(--shadow-sm);
-	}
+  .device-palette-item:hover {
+    background-color: var(--colour-surface-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
 
-	.device-palette-item:active,
-	.device-palette-item.dragging {
-		cursor: grabbing;
-		transform: translateY(-2px) scale(1.02);
-		box-shadow: var(--shadow-lg);
-		z-index: 100;
-	}
+  .device-palette-item:active,
+  .device-palette-item.dragging {
+    cursor: grabbing;
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+  }
 
-	.device-palette-item:focus-visible {
-		outline: 2px solid var(--colour-focus-ring);
-		outline-offset: var(--space-1);
-	}
+  .device-palette-item:focus-visible {
+    outline: 2px solid var(--colour-focus-ring);
+    outline-offset: var(--space-1);
+  }
 
-	.device-palette-item.library-selected {
-		background-color: color-mix(in srgb, var(--colour-selection) 15%, transparent);
-		border: 1px solid var(--colour-selection);
-	}
+  .device-palette-item.library-selected {
+    background-color: color-mix(
+      in srgb,
+      var(--colour-selection) 15%,
+      transparent
+    );
+    border: 1px solid var(--colour-selection);
+  }
 
-	.drag-handle {
-		color: var(--colour-text-muted);
-		opacity: 0.5;
-		transition: opacity var(--duration-fast) var(--ease-out);
-		flex-shrink: 0;
-		display: flex;
-		align-items: center;
-	}
+  .drag-handle {
+    color: var(--colour-text-muted);
+    opacity: 0.5;
+    transition: opacity var(--duration-fast) var(--ease-out);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+  }
 
-	.device-palette-item:hover .drag-handle {
-		opacity: 1;
-	}
+  .device-palette-item:hover .drag-handle {
+    opacity: 1;
+  }
 
-	.category-icon-indicator {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-	}
+  .category-icon-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
 
-	.device-name {
-		flex: 1;
-		font-size: var(--font-size-sm);
-		font-weight: var(--font-weight-medium);
-		color: var(--colour-text);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		min-width: 0;
-	}
+  .device-name {
+    flex: 1;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--colour-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
 
-	.device-height {
-		background-color: var(--colour-surface-active);
-		padding: 2px var(--space-2);
-		border-radius: var(--radius-full);
-		font-size: var(--font-size-xs);
-		font-weight: var(--font-weight-semibold);
-		color: var(--colour-text);
-		flex-shrink: 0;
-	}
+  .device-height {
+    background-color: var(--colour-surface-active);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--colour-text);
+    flex-shrink: 0;
+  }
 </style>
