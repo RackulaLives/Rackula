@@ -1,0 +1,128 @@
+name: Sync Project Status to Labels
+
+# Triggered when project items are edited (status changed)
+on:
+  projects_v2_item:
+    types: [edited]
+
+permissions: {}
+
+jobs:
+  sync-labels:
+    runs-on: ubuntu-latest
+    # Only run for the Rackula Roadmap project
+    if: github.event.projects_v2_item.project_node_id == 'PVT_kwDODv3FSs4BLc_R'
+    permissions:
+      issues: write
+    steps:
+      - name: Get item details and sync labels
+        uses: actions/github-script@v7
+        env:
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const itemNodeId = context.payload.projects_v2_item.node_id;
+
+            // Query the item to get its current status and linked issue
+            const query = `
+              query($itemId: ID!) {
+                node(id: $itemId) {
+                  ... on ProjectV2Item {
+                    content {
+                      ... on Issue {
+                        number
+                        repository {
+                          owner { login }
+                          name
+                        }
+                        labels(first: 20) {
+                          nodes { name }
+                        }
+                      }
+                    }
+                    fieldValueByName(name: "Status") {
+                      ... on ProjectV2ItemFieldSingleSelectValue {
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const result = await github.graphql(query, { itemId: itemNodeId });
+            const item = result.node;
+
+            // Only process issues (not draft items or PRs)
+            if (!item?.content?.number) {
+              console.log('Not an issue, skipping');
+              return;
+            }
+
+            const issue = item.content;
+            const status = item.fieldValueByName?.name;
+            const currentLabels = issue.labels.nodes.map(l => l.name);
+
+            console.log(`Issue #${issue.number} moved to status: ${status}`);
+            console.log(`Current labels: ${currentLabels.join(', ')}`);
+
+            // Status to label mapping
+            const statusLabels = {
+              'Ready': { add: ['ready'], remove: ['triage', 'in-progress', 'in-review'] },
+              'In Progress': { add: ['in-progress'], remove: ['ready', 'triage', 'in-review'] },
+              'In Review': { add: ['in-review'], remove: ['in-progress', 'ready'] },
+              'Done': { add: [], remove: ['in-progress', 'in-review', 'ready', 'triage'] },
+              'Inbox': { add: ['triage'], remove: ['ready', 'in-progress', 'in-review'] },
+              'Needs Plan': { add: [], remove: ['ready', 'in-progress', 'in-review'] }
+            };
+
+            const mapping = statusLabels[status];
+            if (!mapping) {
+              console.log(`No label mapping for status: ${status}`);
+              return;
+            }
+
+            const owner = issue.repository.owner.login;
+            const repo = issue.repository.name;
+            const issueNumber = issue.number;
+
+            // Remove labels that shouldn't be present
+            for (const label of mapping.remove) {
+              if (currentLabels.includes(label)) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner, repo,
+                    issue_number: issueNumber,
+                    name: label
+                  });
+                  console.log(`Removed label: ${label}`);
+                } catch (e) {
+                  console.log(`Failed to remove label ${label}: ${e.message}`);
+                }
+              }
+            }
+
+            // Add labels that should be present
+            const labelsToAdd = mapping.add.filter(l => !currentLabels.includes(l));
+            if (labelsToAdd.length > 0) {
+              await github.rest.issues.addLabels({
+                owner, repo,
+                issue_number: issueNumber,
+                labels: labelsToAdd
+              });
+              console.log(`Added labels: ${labelsToAdd.join(', ')}`);
+            }
+
+            // If moved to Done, ensure issue is closed
+            if (status === 'Done') {
+              const issueData = await github.rest.issues.get({ owner, repo, issue_number: issueNumber });
+              if (issueData.data.state === 'open') {
+                await github.rest.issues.update({
+                  owner, repo,
+                  issue_number: issueNumber,
+                  state: 'closed'
+                });
+                console.log('Issue closed');
+              }
+            }
