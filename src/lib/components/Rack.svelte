@@ -19,7 +19,8 @@
   import { isChristmas } from "$lib/utils/christmas";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
-  import { hapticError } from "$lib/utils/haptics";
+  import { hapticError, hapticCancel } from "$lib/utils/haptics";
+  import { SvelteSet } from "svelte/reactivity";
 
   const canvasStore = getCanvasStore();
   const viewportStore = getViewportStore();
@@ -187,6 +188,47 @@
   const blockedSlots = $derived(
     faceFilter ? getBlockedSlots(rack, faceFilter, deviceLibrary) : [],
   );
+
+  // Check if we're in mobile placement mode
+  const isPlacementMode = $derived(
+    viewportStore.isMobile && placementStore.isPlacing,
+  );
+
+  // Calculate which U positions are valid for placing the pending device
+  const validPlacementSlots = $derived.by(() => {
+    if (!isPlacementMode || !placementStore.pendingDevice)
+      return new SvelteSet<number>();
+
+    const device = placementStore.pendingDevice;
+    const deviceHeight = device.u_height;
+    const validSlots = new SvelteSet<number>();
+
+    // Check each potential starting position
+    for (let startU = 1; startU <= rack.height - deviceHeight + 1; startU++) {
+      const feedback = getDropFeedback(
+        rack,
+        deviceLibrary,
+        deviceHeight,
+        startU,
+        undefined,
+        effectiveFaceFilter,
+        device.is_full_depth ?? true,
+      );
+      if (feedback === "valid") {
+        // Mark all U positions this device would occupy as valid
+        for (let u = startU; u < startU + deviceHeight; u++) {
+          validSlots.add(u);
+        }
+      }
+    }
+    return validSlots;
+  });
+
+  // Handle cancel placement when tapping outside rack content
+  function handleCancelPlacement() {
+    hapticCancel();
+    placementStore.cancelPlacement();
+  }
 
   function handleClick(_event: MouseEvent) {
     // Don't select rack if we just finished panning
@@ -454,6 +496,7 @@
   class="rack-container"
   class:selected
   class:party-mode={partyMode}
+  class:placement-mode={isPlacementMode}
   tabindex="0"
   aria-selected={selected}
   role="option"
@@ -527,6 +570,8 @@
         dropPreview !== null &&
         uPosition >= dropPreview.position &&
         uPosition < dropPreview.position + dropPreview.height}
+      {@const isPlacementValid =
+        isPlacementMode && validPlacementSlots.has(uPosition)}
       <rect
         class="u-slot"
         class:u-slot-even={uPosition % 2 === 0}
@@ -535,6 +580,7 @@
         class:drop-invalid={isDropTarget &&
           (dropPreview?.feedback === "invalid" ||
             dropPreview?.feedback === "blocked")}
+        class:placement-valid={isPlacementValid}
         x={RAIL_WIDTH}
         y={i * U_HEIGHT + RACK_PADDING + RAIL_WIDTH}
         width={interiorWidth}
@@ -750,6 +796,49 @@
       </text>
     {/if}
 
+    <!-- Placement mode header - shown when in mobile placement mode -->
+    {#if isPlacementMode && placementStore.pendingDevice}
+      <foreignObject
+        x="0"
+        y={RACK_PADDING}
+        width={RACK_WIDTH}
+        height="24"
+        class="placement-header-container"
+      >
+        <div
+          class="placement-header"
+          role="status"
+          aria-live="polite"
+          xmlns="http://www.w3.org/1999/xhtml"
+        >
+          <span class="placement-text">
+            Tap to place: <strong>{placementStore.pendingDevice.model}</strong>
+          </span>
+          <button
+            type="button"
+            class="placement-cancel"
+            onclick={handleCancelPlacement}
+            aria-label="Cancel placement"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </foreignObject>
+    {/if}
+
     <!-- Christmas Santa hat (front view only, rendered last to appear on top of name) -->
     {#if showChristmasHats && effectiveFaceFilter === "front"}
       <g
@@ -946,6 +1035,116 @@
     .rack-container.party-mode .rack-svg {
       animation: none;
       filter: drop-shadow(0 0 8px hsl(300, 100%, 50%));
+    }
+  }
+
+  /* ==========================================================================
+     PLACEMENT MODE STYLES
+     Mobile tap-to-place visual feedback
+     ========================================================================== */
+
+  /* Rack glow when in placement mode */
+  .rack-container.placement-mode {
+    outline: 2px solid var(--dracula-pink, #ff79c6);
+    outline-offset: 4px;
+    border-radius: var(--radius-md, 6px);
+    box-shadow: 0 0 20px rgba(255, 121, 198, 0.3);
+    transition:
+      outline var(--duration-fast, 150ms) var(--ease-out),
+      box-shadow var(--duration-fast, 150ms) var(--ease-out);
+  }
+
+  /* Valid placement slots - subtle pulse highlight */
+  .u-slot.placement-valid {
+    fill: rgba(255, 121, 198, 0.15);
+    animation: placement-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes placement-pulse {
+    0%,
+    100% {
+      fill: rgba(255, 121, 198, 0.1);
+    }
+    50% {
+      fill: rgba(255, 121, 198, 0.25);
+    }
+  }
+
+  /* Placement header - foreignObject container */
+  .placement-header-container {
+    overflow: visible;
+  }
+
+  /* Placement header bar */
+  .placement-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    height: 24px;
+    padding: 0 6px;
+    background: rgba(40, 42, 54, 0.95);
+    border-bottom: 1px solid var(--dracula-pink, #ff79c6);
+    font-family: var(--font-family, system-ui, sans-serif);
+    font-size: 11px;
+    color: var(--dracula-foreground, #f8f8f2);
+    box-sizing: border-box;
+  }
+
+  .placement-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .placement-text strong {
+    color: var(--dracula-pink, #ff79c6);
+    font-weight: 600;
+  }
+
+  .placement-cancel {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--dracula-foreground, #f8f8f2);
+    cursor: pointer;
+    transition: background-color 150ms;
+    /* Expand touch target */
+    position: relative;
+  }
+
+  .placement-cancel::before {
+    content: "";
+    position: absolute;
+    inset: -14px -10px;
+  }
+
+  .placement-cancel:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .placement-cancel:active {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Respect reduced motion - no pulse */
+  @media (prefers-reduced-motion: reduce) {
+    .u-slot.placement-valid {
+      animation: none;
+      fill: rgba(255, 121, 198, 0.2);
+    }
+
+    .rack-container.placement-mode {
+      transition: none;
     }
   }
 </style>

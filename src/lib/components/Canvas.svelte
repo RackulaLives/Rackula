@@ -16,12 +16,12 @@
   } from "$lib/stores/canvas.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { debug } from "$lib/utils/debug";
-  import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
+  // Note: getViewportStore removed - was only used for PlacementIndicator condition
   import { hapticSuccess } from "$lib/utils/haptics";
   import RackDualView from "./RackDualView.svelte";
   import WelcomeScreen from "./WelcomeScreen.svelte";
-  import PlacementIndicator from "./PlacementIndicator.svelte";
+  // Note: PlacementIndicator removed - placement UI now integrated into Rack.svelte
 
   // Synthetic rack ID for single-rack mode
   const RACK_ID = "rack-0";
@@ -74,13 +74,10 @@
   const selectionStore = getSelectionStore();
   const canvasStore = getCanvasStore();
   const uiStore = getUIStore();
-  const viewportStore = getViewportStore();
+  // Note: viewportStore removed - was only used for PlacementIndicator condition
   const placementStore = getPlacementStore();
 
-  // Handle placement mode cancel
-  function handlePlacementCancel() {
-    placementStore.cancelPlacement();
-  }
+  // Note: handlePlacementCancel removed - now handled in Rack.svelte
 
   // Handle mobile tap-to-place
   function handlePlacementTap(
@@ -299,14 +296,7 @@
   onclick={handleCanvasClick}
   onkeydown={handleCanvasKeydown}
 >
-  <!-- Mobile placement mode indicator -->
-  {#if viewportStore.isMobile}
-    <PlacementIndicator
-      isPlacing={placementStore.isPlacing}
-      device={placementStore.pendingDevice}
-      oncancel={handlePlacementCancel}
-    />
-  {/if}
+  <!-- Note: Mobile placement indicator now integrated into Rack.svelte -->
 
   <!-- Hidden description for screen readers -->
   {#if deviceListDescription}
