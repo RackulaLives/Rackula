@@ -21,6 +21,7 @@
     getConflictDetails,
     formatConflictMessage,
   } from "$lib/utils/rack-resize";
+  import { canPlaceDevice } from "$lib/utils/collision";
   import { COMMON_RACK_HEIGHTS } from "$lib/types/constants";
   import type { Rack, DeviceType, PlacedDevice, DeviceFace } from "$lib/types";
   import type { ImageData } from "$lib/types/images";
@@ -385,6 +386,78 @@
     uiStore.closeRightDrawer();
     selectionStore.clearSelection();
   }
+
+  /**
+   * Move device up or down by specified step size
+   * @param direction - 1 for up (higher U), -1 for down (lower U)
+   * @param step - Step size in U (default 1, use 0.5 for fine movement)
+   */
+  function moveDevice(direction: number, step: number = 1) {
+    if (!selectedDeviceInfo) return;
+
+    const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
+    const isFullDepth = device.is_full_depth !== false;
+
+    // Calculate new position
+    let newPosition = placedDevice.position + direction * step;
+
+    // Clamp to valid range
+    if (newPosition < 1) newPosition = 1;
+    if (newPosition + device.u_height - 1 > rack.height) {
+      newPosition = rack.height - device.u_height + 1;
+    }
+
+    // Check if new position is valid
+    const isValid = canPlaceDevice(
+      rack,
+      layoutStore.device_types,
+      device.u_height,
+      newPosition,
+      deviceIndex,
+      placedDevice.face,
+      isFullDepth,
+    );
+
+    if (isValid) {
+      layoutStore.moveDevice(RACK_ID, deviceIndex, newPosition);
+    }
+  }
+
+  // Check if device can move up
+  const canMoveUp = $derived.by(() => {
+    if (!selectedDeviceInfo) return false;
+    const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
+    const isFullDepth = device.is_full_depth !== false;
+    const newPosition = placedDevice.position + 1;
+    if (newPosition + device.u_height - 1 > rack.height) return false;
+    return canPlaceDevice(
+      rack,
+      layoutStore.device_types,
+      device.u_height,
+      newPosition,
+      deviceIndex,
+      placedDevice.face,
+      isFullDepth,
+    );
+  });
+
+  // Check if device can move down
+  const canMoveDown = $derived.by(() => {
+    if (!selectedDeviceInfo) return false;
+    const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
+    const isFullDepth = device.is_full_depth !== false;
+    const newPosition = placedDevice.position - 1;
+    if (newPosition < 1) return false;
+    return canPlaceDevice(
+      rack,
+      layoutStore.device_types,
+      device.u_height,
+      newPosition,
+      deviceIndex,
+      placedDevice.face,
+      isFullDepth,
+    );
+  });
 </script>
 
 <Drawer
@@ -543,12 +616,74 @@
             >{getCategoryDisplayName(selectedDeviceInfo.device.category)}</span
           >
         </div>
-        <div class="info-row">
+        <div class="info-row position-row">
           <span class="info-label">Position</span>
-          <span class="info-value"
-            >U{selectedDeviceInfo.placedDevice.position}</span
-          >
+          <div class="position-controls">
+            <span class="info-value position-value"
+              >U{selectedDeviceInfo.placedDevice.position}</span
+            >
+            <div class="position-buttons">
+              <button
+                type="button"
+                class="position-btn"
+                onclick={() => moveDevice(-1)}
+                disabled={!canMoveDown}
+                aria-label="Move down 1U"
+                title="Move down 1U"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="position-btn"
+                onclick={() => moveDevice(1)}
+                disabled={!canMoveUp}
+                aria-label="Move up 1U"
+                title="Move up 1U"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <polyline points="18 15 12 9 6 15"></polyline>
+                </svg>
+              </button>
+              <span class="position-divider"></span>
+              <button
+                type="button"
+                class="position-btn position-btn-fine"
+                onclick={() => moveDevice(-1, 0.5)}
+                aria-label="Move down 0.5U"
+                title="Move down 0.5U (fine)"
+              >
+                <span class="fine-label">-½</span>
+              </button>
+              <button
+                type="button"
+                class="position-btn position-btn-fine"
+                onclick={() => moveDevice(1, 0.5)}
+                aria-label="Move up 0.5U"
+                title="Move up 0.5U (fine)"
+              >
+                <span class="fine-label">+½</span>
+              </button>
+            </div>
+          </div>
         </div>
+        <p class="helper-text position-hint">Use ↑↓ keys (Shift for 0.5U)</p>
         <!-- Colour row - clickable to open picker -->
         <button
           type="button"
@@ -999,5 +1134,85 @@
 
   .btn-delete-type {
     margin-top: var(--space-2);
+  }
+
+  /* Position controls */
+  .position-row {
+    align-items: flex-start;
+  }
+
+  .position-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .position-value {
+    min-width: 2.5em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .position-buttons {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .position-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: var(--button-bg);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+    color: var(--colour-text);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast),
+      border-color var(--duration-fast);
+  }
+
+  .position-btn:hover:not(:disabled) {
+    background: var(--button-bg-hover);
+    border-color: var(--colour-selection);
+  }
+
+  .position-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .position-btn:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 1px;
+  }
+
+  .position-btn-fine {
+    background: var(--colour-surface);
+  }
+
+  .position-btn-fine:hover:not(:disabled) {
+    background: var(--colour-selection);
+    color: white;
+    border-color: var(--colour-selection);
+  }
+
+  .fine-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .position-divider {
+    width: 1px;
+    height: 16px;
+    background: var(--colour-border);
+    margin: 0 var(--space-1);
+  }
+
+  .position-hint {
+    margin-top: var(--space-1);
   }
 </style>
