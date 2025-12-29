@@ -37,7 +37,7 @@
   const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
   const isDevSite = hostname === "d.racku.la";
 
-  // Show "D" prefix on dev/local environments (not on production app.racku.la)
+  // Show "D" prefix on dev/local environments (not on production count.racku.la)
   const showEnvPrefix = $derived(isLocalhost || isDevSite);
 
   // Tooltip text for environment context

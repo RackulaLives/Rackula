@@ -294,7 +294,7 @@ describe("LogoLockup", () => {
   });
 
   describe("DRackula Prefix (#215)", () => {
-    // Tests run on localhost, so the D prefix should show
+    // Tests run on localhost, so the D prefix should show by default
     it("shows red D prefix on localhost", () => {
       const { container } = render(LogoLockup);
       const envPrefix = container.querySelector(".env-prefix");
@@ -303,15 +303,15 @@ describe("LogoLockup", () => {
       expect(envPrefix?.textContent).toBe("D");
     });
 
-    it("D prefix has Dracula red fill style rule", () => {
+    it("D prefix has Dracula red fill CSS class", () => {
       const { container } = render(LogoLockup);
       const envPrefix = container.querySelector(".env-prefix");
 
-      // The class should exist (actual color is applied via CSS)
-      expect(envPrefix).toHaveClass("env-prefix");
+      // The class exists (actual color is applied via CSS stylesheet)
+      expect(envPrefix).toBeInTheDocument();
     });
 
-    it("shows tooltip on lockup container", () => {
+    it("shows local tooltip on localhost", () => {
       const { container } = render(LogoLockup);
       const lockup = container.querySelector(".logo-lockup");
 
@@ -326,5 +326,12 @@ describe("LogoLockup", () => {
       // Text content combines D prefix + Rackula
       expect(textContent).toBe("DRackula");
     });
+
+    // Note: The following tests would require module re-initialization
+    // since hostname is read at component script evaluation time.
+    // The component caches the hostname value, so mocking window.location
+    // after module load doesn't affect existing tests.
+    // For comprehensive testing of different hostnames, consider using
+    // dynamic imports with vi.resetModules() or E2E tests.
   });
 });
