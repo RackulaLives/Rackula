@@ -61,9 +61,7 @@
     color: var(--colour-text-on-primary);
     border: none;
     border-radius: 50%;
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.3),
-      0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-fab);
     cursor: pointer;
     transition:
       transform var(--duration-fast),
@@ -76,9 +74,7 @@
 
   .device-library-fab:hover {
     transform: scale(1.05);
-    box-shadow:
-      0 6px 16px rgba(0, 0, 0, 0.35),
-      0 3px 6px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-fab-hover);
   }
 
   .device-library-fab:active {

@@ -116,11 +116,11 @@
   }
 
   .cancel-button:hover {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--colour-button-overlay);
   }
 
   .cancel-button:active {
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--colour-button-overlay-hover);
   }
 
   .cancel-button:focus-visible {
