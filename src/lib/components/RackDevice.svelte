@@ -15,7 +15,14 @@
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { useLongPress } from "$lib/utils/gestures";
   import { RAIL_WIDTH } from "$lib/constants/layout";
-  import { fitTextToWidth } from "$lib/utils/text-sizing";
+  import {
+    fitTextToWidth,
+    DEVICE_LABEL_MAX_FONT,
+    DEVICE_LABEL_MIN_FONT,
+    DEVICE_LABEL_IMAGE_MAX_FONT,
+    DEVICE_LABEL_ICON_SPACE_LEFT,
+    DEVICE_LABEL_ICON_SPACE_RIGHT,
+  } from "$lib/utils/text-sizing";
 
   interface Props {
     device: DeviceType;
@@ -119,35 +126,26 @@
   const deviceHeight = $derived(device.u_height * uHeight);
   const deviceWidth = $derived(rackWidth - RAIL_WIDTH * 2);
 
-  // Text sizing constants for auto-resize labels
-  // Category icon: x=8, width=16, plus padding = ~28px from left
-  // Grip icon: right=4, width=12, plus padding = ~20px from right
-  const ICON_SPACE_LEFT = 28;
-  const ICON_SPACE_RIGHT = 20;
-  const MAX_FONT_SIZE = 13;
-  const MIN_FONT_SIZE = 9;
-
   // Calculate available width for centered text (accounting for icon areas)
+  // Uses shared constants from text-sizing.ts for consistency with exports
   const textAvailableWidth = $derived(
-    deviceWidth - ICON_SPACE_LEFT - ICON_SPACE_RIGHT,
+    deviceWidth - DEVICE_LABEL_ICON_SPACE_LEFT - DEVICE_LABEL_ICON_SPACE_RIGHT,
   );
 
   // Fit display name to available width with auto-sizing
   const fittedLabel = $derived(
     fitTextToWidth(displayName, {
-      maxFontSize: MAX_FONT_SIZE,
-      minFontSize: MIN_FONT_SIZE,
+      maxFontSize: DEVICE_LABEL_MAX_FONT,
+      minFontSize: DEVICE_LABEL_MIN_FONT,
       availableWidth: textAvailableWidth,
     }),
   );
 
   // Image overlay uses slightly smaller max font and full width (no icons in image mode)
-  const IMAGE_OVERLAY_MAX_FONT = 12;
-  const IMAGE_OVERLAY_MIN_FONT = 9;
   const fittedImageLabel = $derived(
     fitTextToWidth(displayName, {
-      maxFontSize: IMAGE_OVERLAY_MAX_FONT,
-      minFontSize: IMAGE_OVERLAY_MIN_FONT,
+      maxFontSize: DEVICE_LABEL_IMAGE_MAX_FONT,
+      minFontSize: DEVICE_LABEL_MIN_FONT,
       availableWidth: deviceWidth - 16, // Small padding on edges
     }),
   );

@@ -12,7 +12,13 @@ import type {
 } from "$lib/types";
 import type { ImageStoreMap } from "$lib/types/images";
 import { getBlockedSlots } from "./blocked-slots";
-import { fitTextToWidth } from "./text-sizing";
+import {
+  fitTextToWidth,
+  DEVICE_LABEL_MAX_FONT,
+  DEVICE_LABEL_MIN_FONT,
+  DEVICE_LABEL_ICON_SPACE_LEFT,
+  DEVICE_LABEL_ICON_SPACE_RIGHT,
+} from "./text-sizing";
 import {
   U_HEIGHT_PX,
   BASE_RACK_WIDTH,
@@ -36,11 +42,10 @@ const RACK_NAME_HEIGHT = 18; // Space for rack name above rack
 const VIEW_LABEL_HEIGHT = 15; // Space for FRONT/REAR labels
 const RACK_BOTTOM_PADDING = 2; // Visual breathing room below bottom rail
 
-// Device label text sizing constants (matching RackDevice.svelte)
-const LABEL_MAX_FONT_SIZE = 12;
-const LABEL_MIN_FONT_SIZE = 9;
-const ICON_SPACE_LEFT = 24; // Category icon area
-const ICON_SPACE_RIGHT = 4; // Right padding
+// Legend text sizing constants
+const LEGEND_MAX_FONT_SIZE = 12;
+const LEGEND_MIN_FONT_SIZE = 9;
+const LEGEND_TEXT_WIDTH = 160; // Available width for legend device names
 
 // QR Code export constants
 const QR_SIZE = 150; // Size of QR code in pixels for screen exports
@@ -822,15 +827,17 @@ export function generateExportSVG(
       // In image mode, name is still shown as overlay for accessibility
       const labelText = placedDevice.name || deviceDisplayName;
 
-      // Calculate available width for text (matching RackDevice.svelte)
+      // Calculate available width for text (using shared constants from text-sizing.ts)
       const textAvailableWidth = showImage
         ? deviceWidth - 16 // Small padding in image mode
-        : deviceWidth - ICON_SPACE_LEFT - ICON_SPACE_RIGHT;
+        : deviceWidth -
+          DEVICE_LABEL_ICON_SPACE_LEFT -
+          DEVICE_LABEL_ICON_SPACE_RIGHT;
 
       // Apply auto-sizing to fit text within available width
       const fittedLabel = fitTextToWidth(labelText, {
-        maxFontSize: LABEL_MAX_FONT_SIZE,
-        minFontSize: LABEL_MIN_FONT_SIZE,
+        maxFontSize: DEVICE_LABEL_MAX_FONT,
+        minFontSize: DEVICE_LABEL_MIN_FONT,
         availableWidth: textAvailableWidth,
       });
 
@@ -1041,7 +1048,14 @@ export function generateExportSVG(
         itemGroup.appendChild(swatch);
       }
 
-      // Device name
+      // Device name with auto-sizing
+      const legendLabelText = `${deviceDisplayName} (${device.u_height}U)`;
+      const fittedLegendLabel = fitTextToWidth(legendLabelText, {
+        maxFontSize: LEGEND_MAX_FONT_SIZE,
+        minFontSize: LEGEND_MIN_FONT_SIZE,
+        availableWidth: LEGEND_TEXT_WIDTH,
+      });
+
       const nameText = document.createElementNS(
         "http://www.w3.org/2000/svg",
         "text",
@@ -1049,9 +1063,9 @@ export function generateExportSVG(
       nameText.setAttribute("x", "24");
       nameText.setAttribute("y", String(itemY + 12));
       nameText.setAttribute("fill", textColor);
-      nameText.setAttribute("font-size", "12");
+      nameText.setAttribute("font-size", String(fittedLegendLabel.fontSize));
       nameText.setAttribute("font-family", "system-ui, sans-serif");
-      nameText.textContent = `${deviceDisplayName} (${device.u_height}U)`;
+      nameText.textContent = fittedLegendLabel.text;
       itemGroup.appendChild(nameText);
 
       legendGroup.appendChild(itemGroup);

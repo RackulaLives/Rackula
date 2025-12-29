@@ -8,6 +8,29 @@
  * The estimation is calibrated for system-ui/sans-serif fonts used in device labels.
  */
 
+// =============================================================================
+// Shared Constants - Used by RackDevice.svelte and export.ts for consistency
+// =============================================================================
+
+/** Maximum font size for device labels in label mode */
+export const DEVICE_LABEL_MAX_FONT = 13;
+
+/** Maximum font size for device labels in image overlay mode */
+export const DEVICE_LABEL_IMAGE_MAX_FONT = 12;
+
+/** Minimum readable font size for device labels */
+export const DEVICE_LABEL_MIN_FONT = 9;
+
+/** Space reserved for category icon on left side of device label */
+export const DEVICE_LABEL_ICON_SPACE_LEFT = 28;
+
+/** Space reserved for grip icon on right side of device label */
+export const DEVICE_LABEL_ICON_SPACE_RIGHT = 20;
+
+// =============================================================================
+// Types
+// =============================================================================
+
 export interface FontSizeOptions {
   maxFontSize: number;
   minFontSize: number;
@@ -128,11 +151,16 @@ export function fitTextToWidth(
   text: string,
   options: FontSizeOptions,
 ): FitTextResult {
-  const { minFontSize, availableWidth } = options;
+  const { minFontSize, maxFontSize, availableWidth } = options;
 
   // Empty text returns as-is with max font size
   if (!text) {
-    return { text: "", fontSize: options.maxFontSize };
+    return { text: "", fontSize: maxFontSize };
+  }
+
+  // Edge case: zero or negative available width - return ellipsis at min size
+  if (availableWidth <= 0) {
+    return { text: "…", fontSize: minFontSize };
   }
 
   // First, calculate optimal font size

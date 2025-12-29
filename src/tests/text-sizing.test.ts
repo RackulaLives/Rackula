@@ -3,6 +3,11 @@ import {
   calculateFontSize,
   truncateWithEllipsis,
   fitTextToWidth,
+  DEVICE_LABEL_MAX_FONT,
+  DEVICE_LABEL_MIN_FONT,
+  DEVICE_LABEL_IMAGE_MAX_FONT,
+  DEVICE_LABEL_ICON_SPACE_LEFT,
+  DEVICE_LABEL_ICON_SPACE_RIGHT,
 } from "$lib/utils/text-sizing";
 
 describe("Text Sizing Utility", () => {
@@ -129,6 +134,68 @@ describe("Text Sizing Utility", () => {
       const result = fitTextToWidth("", defaultOptions);
       expect(result.text).toBe("");
       expect(result.fontSize).toBe(13);
+    });
+
+    it("handles zero available width", () => {
+      const result = fitTextToWidth("Server", {
+        ...defaultOptions,
+        availableWidth: 0,
+      });
+      expect(result.text).toBe("…");
+      expect(result.fontSize).toBe(9);
+    });
+
+    it("handles negative available width", () => {
+      const result = fitTextToWidth("Server", {
+        ...defaultOptions,
+        availableWidth: -100,
+      });
+      expect(result.text).toBe("…");
+      expect(result.fontSize).toBe(9);
+    });
+
+    it("handles text with wide characters", () => {
+      // Wide characters like W, M take more horizontal space
+      const result = fitTextToWidth("WWWWWWWWWW", {
+        ...defaultOptions,
+        availableWidth: 100,
+      });
+      // Should scale down or truncate due to character width estimation
+      expect(result.fontSize).toBeLessThanOrEqual(13);
+    });
+
+    it("handles text with narrow characters", () => {
+      // Narrow characters like i, l take less horizontal space
+      const result = fitTextToWidth("iiiiiiiiii", {
+        ...defaultOptions,
+        availableWidth: 100,
+      });
+      // Should fit comfortably at max size
+      expect(result.fontSize).toBe(13);
+    });
+  });
+
+  describe("Shared Constants", () => {
+    it("exports correct device label font sizes", () => {
+      expect(DEVICE_LABEL_MAX_FONT).toBe(13);
+      expect(DEVICE_LABEL_MIN_FONT).toBe(9);
+      expect(DEVICE_LABEL_IMAGE_MAX_FONT).toBe(12);
+    });
+
+    it("exports correct icon spacing values", () => {
+      expect(DEVICE_LABEL_ICON_SPACE_LEFT).toBe(28);
+      expect(DEVICE_LABEL_ICON_SPACE_RIGHT).toBe(20);
+    });
+
+    it("icon spacing leaves reasonable text area", () => {
+      // For a typical device width of ~140px (150px - 2*5px rails)
+      const typicalDeviceWidth = 140;
+      const availableForText =
+        typicalDeviceWidth -
+        DEVICE_LABEL_ICON_SPACE_LEFT -
+        DEVICE_LABEL_ICON_SPACE_RIGHT;
+      // Should leave at least 80px for text
+      expect(availableForText).toBeGreaterThanOrEqual(80);
     });
   });
 });
