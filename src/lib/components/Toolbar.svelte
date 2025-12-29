@@ -21,6 +21,7 @@
     IconUndo,
     IconRedo,
     IconMenu,
+    IconNote,
   } from "./icons";
   import type { DisplayMode } from "$lib/types";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
@@ -316,8 +317,8 @@
         onclick={ontoggleannotations}
         data-testid="btn-toggle-annotations"
       >
-        <IconLabel size={16} />
-        <span>{showAnnotations ? "Annotations" : "Annotations"}</span>
+        <IconNote size={16} />
+        <span>Annotations</span>
       </button>
     </Tooltip>
 

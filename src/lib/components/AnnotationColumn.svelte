@@ -141,7 +141,7 @@
       "Consolas",
       monospace
     );
-    font-size: 10px;
+    font-size: var(--font-size-2xs, 10px);
     fill: var(--colour-text);
     user-select: none;
   }

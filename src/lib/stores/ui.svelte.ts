@@ -254,9 +254,30 @@ function toggleAnnotations(): void {
 }
 
 /**
+ * Valid annotation field values for runtime validation
+ */
+const VALID_ANNOTATION_FIELDS: readonly AnnotationField[] = [
+  "name",
+  "ip",
+  "notes",
+  "asset_tag",
+  "serial",
+  "manufacturer",
+] as const;
+
+/**
+ * Check if a value is a valid AnnotationField
+ */
+function isValidAnnotationField(field: string): field is AnnotationField {
+  return VALID_ANNOTATION_FIELDS.includes(field as AnnotationField);
+}
+
+/**
  * Set annotation field to display
  * @param field - Annotation field to display
  */
 function setAnnotationField(field: AnnotationField): void {
-  annotationField = field;
+  if (isValidAnnotationField(field)) {
+    annotationField = field;
+  }
 }

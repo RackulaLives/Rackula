@@ -8,7 +8,7 @@ const createTestRack = (devices: Rack["devices"] = []): Rack => ({
   id: "test-rack",
   name: "Test Rack",
   height: 42,
-  width: "19in",
+  width: 19,
   devices,
 });
 
