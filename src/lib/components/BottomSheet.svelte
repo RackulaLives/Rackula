@@ -102,8 +102,7 @@
     class="bottom-sheet-container"
     onclick={handleBackdropClick}
     onkeydown={(e) => e.key === "Enter" && closeSheet()}
-    role="button"
-    tabindex="-1"
+    role="presentation"
   >
     <!-- Backdrop -->
     <div class="backdrop" class:visible={open}></div>
@@ -263,7 +262,9 @@
     background: transparent;
     color: var(--colour-text-secondary);
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
   }
 
   .close-button:hover,

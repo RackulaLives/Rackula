@@ -285,10 +285,12 @@
   }
 </script>
 
+<!-- eslint-disable-next-line svelte/no-unused-svelte-ignore -- these warnings appear in Vite build but not ESLint -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (role="application" makes this interactive per WAI-ARIA) -->
 <div
   class="canvas"
   class:party-mode={partyMode}
-  role="region"
+  role="application"
   aria-label={rackDescription}
   aria-describedby={deviceListDescription ? "canvas-device-list" : undefined}
   tabindex="0"

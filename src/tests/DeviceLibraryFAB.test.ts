@@ -124,7 +124,8 @@ describe("DeviceLibraryFAB", () => {
       const button = screen.getByRole("button", {
         name: /open device library/i,
       });
-      expect(button.closest(".device-library-fab")).toBeInTheDocument();
+      // Fixed positioning is applied via the device-library-fab class
+      expect(button).toHaveClass("device-library-fab");
     });
   });
 });

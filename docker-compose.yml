@@ -1,6 +1,6 @@
 services:
   Rackula:
-    image: ghcr.io/rackulalives/rackula:main
+    image: ghcr.io/rackulalives/rackula:latest
     # To build locally instead, comment out 'image' and uncomment 'build':
     # build: ./deploy
     ports:

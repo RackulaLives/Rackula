@@ -31,7 +31,8 @@ Plan your rack layout. Drag your devices in, move them around, export it. It run
 - **Export to PNG, PDF, SVG** for your documentation or for printing and staring at
 - **QR code sharing** - your layout lives in a URL, scan it and it just shows up
 
-## Get Started 
+## Get Started
+
 ### **Use it right now:** [app.racku.la](https://app.racku.la)
 
 ### Selfhost with Docker

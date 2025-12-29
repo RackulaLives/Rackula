@@ -3,7 +3,7 @@
  * Schema v1.0.0 - Flat structure with NetBox-compatible fields
  */
 
-import { z } from "zod";
+import { z } from "../zod";
 
 /**
  * Slug pattern: lowercase alphanumeric with hyphens, no leading/trailing/consecutive hyphens

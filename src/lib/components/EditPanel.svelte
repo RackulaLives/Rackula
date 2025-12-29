@@ -9,6 +9,7 @@
   import BrandIcon from "./BrandIcon.svelte";
   import ImageUpload from "./ImageUpload.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
+  import SegmentedControl from "./SegmentedControl.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -458,6 +459,19 @@
       isFullDepth,
     );
   });
+
+  // Transform internal position to display position (matches ruler labels)
+  // Internal: position 1 = bottom of rack, position N = top
+  // Display with desc_units=false: U1 at bottom (same as internal)
+  // Display with desc_units=true: U1 at top (inverted)
+  const displayPosition = $derived.by(() => {
+    if (!selectedDeviceInfo) return null;
+    const { placedDevice, rack } = selectedDeviceInfo;
+    const pos = placedDevice.position;
+    return rack.desc_units
+      ? rack.height - pos + 1 // Inverted: bottom (pos=1) shows as highest U
+      : pos; // Normal: position = display
+  });
 </script>
 
 <Drawer
@@ -509,6 +523,22 @@
             </button>
           {/each}
         </div>
+      </div>
+
+      <div class="form-group">
+        <label for="rack-numbering">U Numbering</label>
+        <SegmentedControl
+          options={[
+            { value: "bottom", label: "U1 at bottom" },
+            { value: "top", label: "U1 at top" },
+          ]}
+          value={selectedRack.desc_units ? "top" : "bottom"}
+          onchange={(value) =>
+            layoutStore.updateRack(RACK_ID, {
+              desc_units: value === "top",
+            })}
+          ariaLabel="U numbering direction"
+        />
       </div>
 
       <div class="form-group">
@@ -619,9 +649,7 @@
         <div class="info-row position-row">
           <span class="info-label">Position</span>
           <div class="position-controls">
-            <span class="info-value position-value"
-              >U{selectedDeviceInfo.placedDevice.position}</span
-            >
+            <span class="info-value position-value">U{displayPosition}</span>
             <div class="position-buttons">
               <button
                 type="button"
