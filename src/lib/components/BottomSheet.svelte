@@ -193,11 +193,11 @@
   .bottom-sheet {
     position: relative;
     width: 100%;
-    /* Extend to just below toolbar (56px) with some margin */
-    max-height: calc(100vh - 64px);
+    /* Extend to just below toolbar (56px) */
+    max-height: calc(100vh - 56px);
     background: var(--colour-bg);
-    border-top-left-radius: 1rem;
-    border-top-right-radius: 1rem;
+    border-top-left-radius: 0.75rem;
+    border-top-right-radius: 0.75rem;
     box-shadow: var(--shadow-sheet);
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -223,7 +223,7 @@
 
   .sheet-header {
     flex-shrink: 0;
-    padding: var(--space-2) var(--space-4);
+    padding: var(--space-2) var(--space-4) 0;
     cursor: grab;
     user-select: none;
   }
@@ -231,7 +231,7 @@
   .drag-handle-bar {
     width: 2.5rem;
     height: 0.25rem;
-    margin: 0 auto var(--space-2);
+    margin: 0 auto var(--space-1);
     background: var(--colour-text-secondary);
     opacity: 0.4;
     border-radius: 0.125rem;

@@ -628,17 +628,8 @@
       if (deviceIndex !== null && layoutStore.rack) {
         selectedDeviceForSheet = deviceIndex;
         bottomSheetOpen = true;
-        console.log(
-          "[Mobile] Opening bottom sheet and auto-zooming to device",
-          deviceIndex,
-        );
-
-        // Auto-zoom to device on mobile
-        canvasStore.zoomToDevice(
-          layoutStore.rack,
-          deviceIndex,
-          layoutStore.device_types,
-        );
+        console.log("[Mobile] Opening bottom sheet for device", deviceIndex);
+        // Note: Not zooming because bottom sheet covers most of viewport
       }
     } else if (!selectionStore.isDeviceSelected) {
       // When device deselected, close sheet and fit all
