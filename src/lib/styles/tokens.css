@@ -8,6 +8,9 @@
    ============================================================ */
 
 :root {
+  /* Color scheme declaration for browser chrome and form controls */
+  color-scheme: dark light;
+
   /* Spacing Scale (4px base) */
   --space-0: 0;
   --space-1: 0.25rem; /* 4px */
@@ -350,6 +353,9 @@
    ============================================================ */
 
 [data-theme="light"] {
+  /* Force light color scheme for browser chrome */
+  color-scheme: light;
+
   /* --------------------------------------------------------------------------
 	   ALUCARD THEME PRIMITIVES
 	   Official Dracula light mode: https://draculatheme.com/spec

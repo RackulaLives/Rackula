@@ -248,11 +248,11 @@ describe("DevicePalette Exclusive Accordion", () => {
 
   describe("Generic Section", () => {
     it("renders Generic section with correct device count", () => {
-      // Starter library has 26 devices
+      // Starter library has 43 devices
       render(DevicePalette);
 
       expect(screen.getByText("Generic")).toBeInTheDocument();
-      expect(screen.getByText("(26)")).toBeInTheDocument();
+      expect(screen.getByText("(43)")).toBeInTheDocument();
     });
 
     it("Generic section is expanded by default", () => {
@@ -311,15 +311,15 @@ describe("DevicePalette Exclusive Accordion", () => {
     it("Ubiquiti section shows correct device count", () => {
       render(DevicePalette);
 
-      // Ubiquiti has 52 devices
-      expect(screen.getByText("(52)")).toBeInTheDocument();
+      // Ubiquiti has 92 devices
+      expect(screen.getByText("(92)")).toBeInTheDocument();
     });
 
     it("MikroTik section shows correct device count", () => {
       render(DevicePalette);
 
-      // MikroTik has 27 devices
-      expect(screen.getByText("(27)")).toBeInTheDocument();
+      // MikroTik has 57 devices
+      expect(screen.getByText("(57)")).toBeInTheDocument();
     });
   });
 
@@ -405,8 +405,8 @@ describe("DevicePalette Exclusive Accordion", () => {
         expect(genericSection.textContent).not.toContain("UniFi Switch 24");
       }
 
-      // The device count in Generic should still be 26 (starter library only)
-      expect(screen.getByText("(26)")).toBeInTheDocument();
+      // The device count in Generic should still be 43 (starter library only)
+      expect(screen.getByText("(43)")).toBeInTheDocument();
     });
 
     it("brand devices still appear in their brand section after placement", async () => {
@@ -442,12 +442,12 @@ describe("DevicePalette Exclusive Accordion", () => {
       const { container } = render(DevicePalette);
 
       // Custom device should appear in Generic
-      // Generic count should now be 27 (26 starter + 1 custom)
+      // Generic count should now be 44 (43 starter + 1 custom)
       // Use a more specific selector to find the Generic section's count
       const genericButton = container.querySelector(".accordion-trigger");
       expect(genericButton).toBeInTheDocument();
       expect(genericButton?.textContent).toContain("Generic");
-      expect(genericButton?.textContent).toContain("(27)");
+      expect(genericButton?.textContent).toContain("(44)");
     });
   });
 

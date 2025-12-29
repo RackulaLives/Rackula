@@ -544,6 +544,8 @@
   }
 
   function handleAddDevice() {
+    // Close bottom sheet first to avoid z-index conflict on mobile
+    deviceLibrarySheetOpen = false;
     addDeviceFormOpen = true;
   }
 
