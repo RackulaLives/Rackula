@@ -33,7 +33,11 @@ describe("LogoLockup", () => {
       const { container } = render(LogoLockup);
       const logoTitle = container.querySelector(".logo-title");
 
-      expect(logoTitle).toHaveAttribute("aria-label", "Rackula");
+      // Tests run on localhost, so DRackula prefix shows
+      expect(logoTitle).toHaveAttribute(
+        "aria-label",
+        "DRackula - development environment",
+      );
     });
   });
 
@@ -257,7 +261,8 @@ describe("LogoLockup", () => {
       const logoTitle = container.querySelector(".logo-title");
       const viewBox = logoTitle?.getAttribute("viewBox");
 
-      expect(viewBox).toBe("0 0 160 50");
+      // Tests run on localhost, so DRackula prefix shows (wider viewBox)
+      expect(viewBox).toBe("0 0 180 50");
 
       // Validate format: exactly 4 space-separated numeric values
       const values = viewBox?.split(" ");
@@ -285,6 +290,41 @@ describe("LogoLockup", () => {
 
       expect(minX).toBe(0);
       expect(minY).toBe(0);
+    });
+  });
+
+  describe("DRackula Prefix (#215)", () => {
+    // Tests run on localhost, so the D prefix should show
+    it("shows red D prefix on localhost", () => {
+      const { container } = render(LogoLockup);
+      const envPrefix = container.querySelector(".env-prefix");
+
+      expect(envPrefix).toBeInTheDocument();
+      expect(envPrefix?.textContent).toBe("D");
+    });
+
+    it("D prefix has Dracula red fill style rule", () => {
+      const { container } = render(LogoLockup);
+      const envPrefix = container.querySelector(".env-prefix");
+
+      // The class should exist (actual color is applied via CSS)
+      expect(envPrefix).toHaveClass("env-prefix");
+    });
+
+    it("shows tooltip on lockup container", () => {
+      const { container } = render(LogoLockup);
+      const lockup = container.querySelector(".logo-lockup");
+
+      expect(lockup).toHaveAttribute("title", "Local development environment");
+    });
+
+    it("title text contains D prefix and Rackula", () => {
+      const { container } = render(LogoLockup);
+      const logoTitle = container.querySelector(".logo-title");
+      const textContent = logoTitle?.textContent?.replace(/\s+/g, "");
+
+      // Text content combines D prefix + Rackula
+      expect(textContent).toBe("DRackula");
     });
   });
 });

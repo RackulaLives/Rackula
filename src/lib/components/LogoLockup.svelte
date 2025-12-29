@@ -4,12 +4,14 @@
   White by default, rainbow gradient on hover, celebrate on success
   Showcase mode: slow rainbow wave for About/Help display
 
-  v3: White default, gradient on interaction (vampire aesthetic)
+  v4: DRackula prefix for dev/local environments (blood-red D)
 -->
 <script lang="ts">
-  import EnvironmentBadge from "./EnvironmentBadge.svelte";
   import SantaHat from "./SantaHat.svelte";
   import { isChristmas } from "$lib/utils/christmas";
+
+  // Build-time environment constant from vite.config.ts
+  declare const __BUILD_ENV__: string;
 
   interface Props {
     size?: number;
@@ -27,6 +29,23 @@
 
   // Christmas easter egg - only show on December 25
   const showChristmasHat = isChristmas();
+
+  // Environment detection for DRackula prefix
+  // Check hostname for local dev or deployed dev environment (d.racku.la)
+  const hostname =
+    typeof window !== "undefined" ? window.location.hostname : "";
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+  const isDevSite = hostname === "d.racku.la";
+
+  // Show "D" prefix on dev/local environments (not on production app.racku.la)
+  const showEnvPrefix = $derived(isLocalhost || isDevSite);
+
+  // Tooltip text for environment context
+  const envTooltip = $derived.by(() => {
+    if (isLocalhost) return "Local development environment";
+    if (isDevSite) return "Development environment";
+    return undefined;
+  });
 
   // Hover state for rainbow animation
   let hovering = $state(false);
@@ -53,6 +72,7 @@
   onmouseenter={() => (hovering = true)}
   onmouseleave={() => (hovering = false)}
   role="presentation"
+  title={envTooltip}
 >
   <!-- Hidden SVG for gradient definitions (1x1 to avoid browser image serialization errors) -->
   <svg
@@ -227,23 +247,28 @@
   </div>
 
   <!-- Title (SVG text for gradient support) - Space Grotesk -->
+  <!-- DRackula: adds red "D" prefix on dev/local environments -->
   <svg
     class="logo-title"
     class:logo-title--celebrate={celebrate}
     class:logo-title--party={partyMode}
     class:logo-title--showcase={showcase}
     class:logo-title--hover={hovering && !partyMode && !celebrate && !showcase}
-    viewBox="0 0 160 50"
+    viewBox="0 0 {showEnvPrefix ? 180 : 160} 50"
     height={titleHeight}
     role="img"
-    aria-label="Rackula"
+    aria-label={showEnvPrefix
+      ? "DRackula - development environment"
+      : "Rackula"}
     style={gradientId ? `--active-gradient: ${gradientId}` : undefined}
   >
-    <text x="0" y="38">Rackula</text>
+    <text x="0" y="38">
+      {#if showEnvPrefix}
+        <tspan class="env-prefix">D</tspan>
+      {/if}
+      <tspan>Rackula</tspan>
+    </text>
   </svg>
-
-  <!-- Environment indicator badge (DEV/LOCAL) -->
-  <EnvironmentBadge />
 </div>
 
 <style>
@@ -289,6 +314,16 @@
     font-family: "Space Grotesk", var(--font-family, system-ui, sans-serif);
     font-size: 38px;
     font-weight: 500;
+  }
+
+  /* DRackula: blood-red "D" prefix for dev/local environments */
+  /* Always red - never changes with gradient animations */
+  .logo-title text .env-prefix,
+  .logo-title--hover text .env-prefix,
+  .logo-title--celebrate text .env-prefix,
+  .logo-title--party text .env-prefix,
+  .logo-title--showcase text .env-prefix {
+    fill: var(--dracula-red, #ff5555) !important;
   }
 
   /* Celebrate state: rainbow wave for 3s */
@@ -373,6 +408,11 @@
     .logo-mark--party,
     .logo-title--party {
       animation: none;
+    }
+
+    /* DRackula prefix stays red in reduced motion */
+    .logo-title text .env-prefix {
+      fill: var(--dracula-red, #ff5555) !important;
     }
   }
 
