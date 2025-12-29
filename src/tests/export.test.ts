@@ -1337,6 +1337,159 @@ describe("QR Code Export", () => {
   });
 });
 
+describe("Custom Colour Override Export", () => {
+  const mockDevices: DeviceType[] = [
+    {
+      slug: "server-1",
+      model: "Test Server",
+      u_height: 2,
+      colour: "#4A90D9", // Default colour
+      category: "server",
+    },
+  ];
+
+  const defaultOptions: ExportOptions = {
+    format: "png",
+    scope: "all",
+    includeNames: false,
+    includeLegend: false,
+    background: "dark",
+  };
+
+  it("uses colour_override when set on placed device", () => {
+    const customColour = "#FF0000"; // Red override
+    const racks: Rack[] = [
+      {
+        name: "Test Rack",
+        height: 12,
+        width: 19,
+        position: 0,
+        desc_units: false,
+        form_factor: "4-post",
+        starting_unit: 1,
+        devices: [
+          {
+            id: "colour-test-1",
+            device_type: "server-1",
+            position: 1,
+            face: "front",
+            colour_override: customColour,
+          },
+        ],
+      },
+    ];
+
+    const svg = generateExportSVG(racks, mockDevices, defaultOptions);
+
+    // Should use the custom colour, not the default
+    const deviceRect = svg.querySelector(`rect[fill="${customColour}"]`);
+    expect(deviceRect).not.toBeNull();
+
+    // Should NOT have a rect with the default colour (except possibly in other contexts)
+    const defaultColourRect = svg.querySelector('rect[fill="#4A90D9"]');
+    expect(defaultColourRect).toBeNull();
+  });
+
+  it("uses default DeviceType colour when colour_override is not set", () => {
+    const racks: Rack[] = [
+      {
+        name: "Test Rack",
+        height: 12,
+        width: 19,
+        position: 0,
+        desc_units: false,
+        form_factor: "4-post",
+        starting_unit: 1,
+        devices: [
+          {
+            id: "colour-test-2",
+            device_type: "server-1",
+            position: 1,
+            face: "front",
+            // No colour_override
+          },
+        ],
+      },
+    ];
+
+    const svg = generateExportSVG(racks, mockDevices, defaultOptions);
+
+    // Should use the default device colour
+    const deviceRect = svg.querySelector('rect[fill="#4A90D9"]');
+    expect(deviceRect).not.toBeNull();
+  });
+
+  it("uses default colour when colour_override is undefined", () => {
+    const racks: Rack[] = [
+      {
+        name: "Test Rack",
+        height: 12,
+        width: 19,
+        position: 0,
+        desc_units: false,
+        form_factor: "4-post",
+        starting_unit: 1,
+        devices: [
+          {
+            id: "colour-test-3",
+            device_type: "server-1",
+            position: 1,
+            face: "front",
+            colour_override: undefined,
+          },
+        ],
+      },
+    ];
+
+    const svg = generateExportSVG(racks, mockDevices, defaultOptions);
+
+    // Should use the default device colour
+    const deviceRect = svg.querySelector('rect[fill="#4A90D9"]');
+    expect(deviceRect).not.toBeNull();
+  });
+
+  it("respects colour_override in dual-view export", () => {
+    const customColour = "#00FF00"; // Green override
+    const racks: Rack[] = [
+      {
+        name: "Test Rack",
+        height: 12,
+        width: 19,
+        position: 0,
+        desc_units: false,
+        form_factor: "4-post",
+        starting_unit: 1,
+        devices: [
+          {
+            id: "colour-test-4",
+            device_type: "server-1",
+            position: 1,
+            face: "both",
+            colour_override: customColour,
+          },
+        ],
+      },
+    ];
+
+    const options: ExportOptions = {
+      ...defaultOptions,
+      exportView: "both",
+    };
+
+    const svg = generateExportSVG(racks, mockDevices, options);
+
+    // Custom colour should appear (twice - once in each view for "both" face device)
+    const customColourRects = svg.querySelectorAll(
+      `rect[fill="${customColour}"]`,
+    );
+    expect(customColourRects.length).toBeGreaterThanOrEqual(1);
+
+    // Default colour should NOT appear for this device
+    const defaultColourRects = svg.querySelectorAll('rect[fill="#4A90D9"]');
+    expect(defaultColourRects.length).toBe(0);
+  });
+});
+
 describe("Dual-View Export", () => {
   const mockDevices: DeviceType[] = [
     {
