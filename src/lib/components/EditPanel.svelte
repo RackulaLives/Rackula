@@ -23,7 +23,13 @@
   } from "$lib/utils/rack-resize";
   import { canPlaceDevice } from "$lib/utils/collision";
   import { COMMON_RACK_HEIGHTS } from "$lib/types/constants";
-  import type { Rack, DeviceType, PlacedDevice, DeviceFace } from "$lib/types";
+  import type {
+    Rack,
+    DeviceType,
+    PlacedDevice,
+    DeviceFace,
+    AnnotationField,
+  } from "$lib/types";
   import type { ImageData } from "$lib/types/images";
 
   // Synthetic rack ID for single-rack mode
@@ -521,6 +527,29 @@
           rows="4"
           placeholder="Add notes about this rack..."
         ></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="annotation-field">Annotation Field</label>
+        <select
+          id="annotation-field"
+          class="input-field"
+          value={uiStore.annotationField}
+          onchange={(e) =>
+            uiStore.setAnnotationField(
+              e.currentTarget.value as AnnotationField,
+            )}
+        >
+          <option value="name">Name</option>
+          <option value="ip">IP Address</option>
+          <option value="notes">Notes</option>
+          <option value="asset_tag">Asset Tag</option>
+          <option value="serial">Serial Number</option>
+          <option value="manufacturer">Manufacturer</option>
+        </select>
+        <p class="helper-text">
+          Field shown in annotation column (press N to toggle)
+        </p>
       </div>
 
       <div class="actions">

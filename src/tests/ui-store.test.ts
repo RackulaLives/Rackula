@@ -304,4 +304,49 @@ describe("UI Store", () => {
       expect(store.showLabelsOnImages).toBe(true);
     });
   });
+
+  describe("Annotations", () => {
+    it("initial showAnnotations is false", () => {
+      const store = getUIStore();
+      expect(store.showAnnotations).toBe(false);
+    });
+
+    it("initial annotationField is name", () => {
+      const store = getUIStore();
+      expect(store.annotationField).toBe("name");
+    });
+
+    it("toggleAnnotations toggles showAnnotations", () => {
+      const store = getUIStore();
+      expect(store.showAnnotations).toBe(false);
+
+      store.toggleAnnotations();
+      expect(store.showAnnotations).toBe(true);
+
+      store.toggleAnnotations();
+      expect(store.showAnnotations).toBe(false);
+    });
+
+    it("setAnnotationField sets the annotation field", () => {
+      const store = getUIStore();
+
+      store.setAnnotationField("ip");
+      expect(store.annotationField).toBe("ip");
+
+      store.setAnnotationField("notes");
+      expect(store.annotationField).toBe("notes");
+
+      store.setAnnotationField("asset_tag");
+      expect(store.annotationField).toBe("asset_tag");
+
+      store.setAnnotationField("serial");
+      expect(store.annotationField).toBe("serial");
+
+      store.setAnnotationField("manufacturer");
+      expect(store.annotationField).toBe("manufacturer");
+
+      store.setAnnotationField("name");
+      expect(store.annotationField).toBe("name");
+    });
+  });
 });

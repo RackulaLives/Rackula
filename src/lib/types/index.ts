@@ -58,6 +58,23 @@ export type FormFactor =
 export type DisplayMode = "label" | "image" | "image-label";
 
 /**
+ * Annotation field for rack-side annotation column
+ * - 'name': Custom placement name
+ * - 'ip': IP address from custom_fields.ip
+ * - 'notes': Placement notes
+ * - 'asset_tag': Asset identifier (from DeviceType)
+ * - 'serial': Serial number (from DeviceType)
+ * - 'manufacturer': Brand name (from DeviceType)
+ */
+export type AnnotationField =
+  | "name"
+  | "ip"
+  | "notes"
+  | "asset_tag"
+  | "serial"
+  | "manufacturer";
+
+/**
  * Airflow direction types (NetBox-compatible with full parity)
  */
 export type Airflow =
@@ -419,4 +436,8 @@ export interface ExportOptions {
   includeQR?: boolean;
   /** Pre-generated QR code as PNG data URL (required when includeQR is true) */
   qrCodeDataUrl?: string;
+  /** Include annotation column in export */
+  includeAnnotations?: boolean;
+  /** Which field to show in annotation column */
+  annotationField?: AnnotationField;
 }
