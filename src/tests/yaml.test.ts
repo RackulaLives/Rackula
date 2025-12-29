@@ -121,6 +121,7 @@ describe("v0.2 Layout YAML Serialization", () => {
       height: 42,
       width: 19,
       desc_units: false,
+      show_rear: true,
       form_factor: "4-post-cabinet",
       starting_unit: 1,
       position: 0,

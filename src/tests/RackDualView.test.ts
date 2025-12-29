@@ -15,6 +15,7 @@ function createTestRack(overrides: Partial<Rack> = {}): Rack {
     width: 19,
     position: 0,
     desc_units: false,
+    show_rear: true,
     form_factor: "4-post",
     starting_unit: 1,
     devices: [],

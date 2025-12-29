@@ -232,12 +232,13 @@ function createNewLayout(name: string): void {
  * @param layoutData - v0.2 layout to load
  */
 function loadLayout(layoutData: Layout): void {
-  // Ensure runtime view is set
+  // Ensure runtime view is set and show_rear defaults to true for older layouts
   layout = {
     ...layoutData,
     rack: {
       ...layoutData.rack,
       view: layoutData.rack.view ?? "front",
+      show_rear: layoutData.rack.show_rear ?? true,
     },
   };
   isDirty = false;

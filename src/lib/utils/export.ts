@@ -390,11 +390,18 @@ export function generateExportSVG(
 
   // Calculate dimensions
   const maxRackHeight = Math.max(...racks.map((r) => r.height), 0);
-  // For dual view: each rack takes 2x width + gap between front/rear
+  // For dual view: each rack takes 2x width + gap between front/rear (but respect show_rear)
   const singleRackWidth =
     racks.length * RACK_WIDTH + (racks.length - 1) * RACK_GAP;
+  // Count how many racks will actually show dual view (respecting show_rear setting)
+  const dualViewRackCount = isDualView
+    ? racks.filter((r) => r.show_rear !== false).length
+    : 0;
+  const singleViewRackCount = racks.length - dualViewRackCount;
   const totalRackWidth = isDualView
-    ? racks.length * (RACK_WIDTH * 2 + RACK_GAP) + (racks.length - 1) * RACK_GAP
+    ? dualViewRackCount * (RACK_WIDTH * 2 + RACK_GAP) +
+      singleViewRackCount * RACK_WIDTH +
+      (racks.length - 1) * RACK_GAP
     : singleRackWidth;
 
   // Calculate space needed above rack for names and labels
@@ -903,15 +910,22 @@ export function generateExportSVG(
   }
 
   // Render each rack (single or dual view)
-  racks.forEach((rack, index) => {
+  // Track cumulative X position to handle mixed single/dual racks properly
+  let currentX = EXPORT_PADDING;
+
+  racks.forEach((rack) => {
     // Position rack below header space (name/labels)
     const rackY =
       EXPORT_PADDING + headerSpace + (maxRackHeight - rack.height) * U_HEIGHT;
 
-    if (isDualView) {
+    // Respect rack's show_rear setting - if false, force front-only even when isDualView
+    const shouldShowRear = rack.show_rear !== false;
+    const effectiveDualView = isDualView && shouldShowRear;
+
+    if (effectiveDualView) {
       // Dual view: render front and rear side-by-side
       const dualRackWidth = RACK_WIDTH * 2 + RACK_GAP;
-      const baseX = EXPORT_PADDING + index * (dualRackWidth + RACK_GAP);
+      const baseX = currentX;
 
       // Render rack name centered above both views
       if (includeNames) {
@@ -940,10 +954,13 @@ export function generateExportSVG(
       const rearX = baseX + RACK_WIDTH + RACK_GAP;
       const rearGroup = renderRackView(rack, rearX, rackY, "rear", "REAR");
       svg.appendChild(rearGroup);
+
+      // Advance X position for next rack
+      currentX += dualRackWidth + RACK_GAP;
     } else {
       // Single view: render with optional face filter
       // Note: Rack name is handled inside renderRackView when no viewLabel is provided
-      const rackX = EXPORT_PADDING + index * (RACK_WIDTH + RACK_GAP);
+      const rackX = currentX;
       const faceFilter =
         exportView === "front" || exportView === "rear"
           ? exportView
@@ -951,6 +968,9 @@ export function generateExportSVG(
       const rackGroup = renderRackView(rack, rackX, rackY, faceFilter);
 
       svg.appendChild(rackGroup);
+
+      // Advance X position for next rack
+      currentX += RACK_WIDTH + RACK_GAP;
     }
   });
 

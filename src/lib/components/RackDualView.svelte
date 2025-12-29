@@ -120,15 +120,15 @@
   tabindex="0"
   role="option"
   aria-selected={selected}
-  aria-label="{rack.name}, {rack.height}U rack, front and rear view{selected
-    ? ', selected'
-    : ''}"
+  aria-label="{rack.name}, {rack.height}U rack, {rack.show_rear
+    ? 'front and rear view'
+    : 'front view only'}{selected ? ', selected' : ''}"
   onkeydown={handleKeyDown}
 >
   <!-- Rack name centered above both views -->
   <div class="rack-dual-view-name">{rack.name}</div>
 
-  <div class="rack-dual-view-container">
+  <div class="rack-dual-view-container" class:single-view={!rack.show_rear}>
     <!-- Front view -->
     <div class="rack-front" role="presentation">
       <Rack
@@ -141,7 +141,7 @@
         {partyMode}
         faceFilter="front"
         hideRackName={true}
-        viewLabel="FRONT"
+        viewLabel={rack.show_rear ? "FRONT" : undefined}
         onselect={() => handleSelect()}
         {ondeviceselect}
         ondevicedrop={handleFrontDeviceDrop}
@@ -151,27 +151,29 @@
       />
     </div>
 
-    <!-- Rear view -->
-    <div class="rack-rear" role="presentation">
-      <Rack
-        {rack}
-        {deviceLibrary}
-        selected={false}
-        {selectedDeviceId}
-        {displayMode}
-        {showLabelsOnImages}
-        {partyMode}
-        faceFilter="rear"
-        hideRackName={true}
-        viewLabel="REAR"
-        onselect={() => handleSelect()}
-        {ondeviceselect}
-        ondevicedrop={handleRearDeviceDrop}
-        {ondevicemove}
-        {ondevicemoverack}
-        {onplacementtap}
-      />
-    </div>
+    <!-- Rear view (conditionally shown based on rack.show_rear) -->
+    {#if rack.show_rear}
+      <div class="rack-rear" role="presentation">
+        <Rack
+          {rack}
+          {deviceLibrary}
+          selected={false}
+          {selectedDeviceId}
+          {displayMode}
+          {showLabelsOnImages}
+          {partyMode}
+          faceFilter="rear"
+          hideRackName={true}
+          viewLabel="REAR"
+          onselect={() => handleSelect()}
+          {ondeviceselect}
+          ondevicedrop={handleRearDeviceDrop}
+          {ondevicemove}
+          {ondevicemoverack}
+          {onplacementtap}
+        />
+      </div>
+    {/if}
   </div>
 </div>
 

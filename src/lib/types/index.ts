@@ -291,6 +291,8 @@ export interface Rack {
   width: 10 | 19 | 23;
   /** Descending units - if true, U1 is at top (default: false) */
   desc_units: boolean;
+  /** Show rear view on canvas (default: true) */
+  show_rear: boolean;
   /** Rack form factor */
   form_factor: FormFactor;
   /** Starting unit number (default: 1) */

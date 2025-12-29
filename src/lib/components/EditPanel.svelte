@@ -542,6 +542,22 @@
       </div>
 
       <div class="form-group">
+        <label for="show-rear-view">Show Rear View</label>
+        <SegmentedControl
+          options={[
+            { value: "show", label: "Show" },
+            { value: "hide", label: "Hide" },
+          ]}
+          value={selectedRack.show_rear ? "show" : "hide"}
+          onchange={(value) =>
+            layoutStore.updateRack(RACK_ID, {
+              show_rear: value === "show",
+            })}
+          ariaLabel="Show rear view on canvas"
+        />
+      </div>
+
+      <div class="form-group">
         <label for="rack-notes">Notes</label>
         <textarea
           id="rack-notes"
