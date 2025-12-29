@@ -154,24 +154,31 @@ describe("Text Sizing Utility", () => {
       expect(result.fontSize).toBe(9);
     });
 
-    it("handles text with wide characters", () => {
-      // Wide characters like W, M take more horizontal space
-      const result = fitTextToWidth("WWWWWWWWWW", {
+    it("uses fixed character width regardless of actual glyph width", () => {
+      // Implementation uses a fixed CHAR_WIDTH_RATIO (0.58) for all characters.
+      // This means "WWWWWWWWWW" and "iiiiiiiiii" (both 10 chars) produce
+      // identical results despite real rendering differences.
+      const wideChars = fitTextToWidth("WWWWWWWWWW", {
         ...defaultOptions,
         availableWidth: 100,
       });
-      // Should scale down or truncate due to character width estimation
-      expect(result.fontSize).toBeLessThanOrEqual(13);
+      const narrowChars = fitTextToWidth("iiiiiiiiii", {
+        ...defaultOptions,
+        availableWidth: 100,
+      });
+      // Same character count = same result (known limitation)
+      expect(wideChars.fontSize).toBe(narrowChars.fontSize);
+      expect(wideChars.text.length).toBe(narrowChars.text.length);
     });
 
-    it("handles text with narrow characters", () => {
-      // Narrow characters like i, l take less horizontal space
-      const result = fitTextToWidth("iiiiiiiiii", {
-        ...defaultOptions,
-        availableWidth: 100,
-      });
-      // Should fit comfortably at max size
-      expect(result.fontSize).toBe(13);
+    it("scales based on character count not actual glyph widths", () => {
+      // With constrained width, longer strings scale down regardless of character type
+      const constrainedOptions = { ...defaultOptions, availableWidth: 80 };
+      const shortText = fitTextToWidth("WWWWW", constrainedOptions); // 5 chars
+      const longText = fitTextToWidth("iiiiiiiiiiiiiiii", constrainedOptions); // 16 chars
+      // Shorter string gets larger font despite using "wide" characters
+      // because algorithm only considers character count, not glyph widths
+      expect(shortText.fontSize).toBeGreaterThan(longText.fontSize);
     });
   });
 
