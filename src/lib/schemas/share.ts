@@ -22,8 +22,8 @@
  * - deviceType.category -> x (single char abbreviation)
  */
 
-import { z } from 'zod';
-import type { DeviceCategory } from '$lib/types';
+import { z } from "../zod";
+import type { DeviceCategory } from "$lib/types";
 
 // =============================================================================
 // Category Abbreviation Maps
@@ -33,26 +33,30 @@ import type { DeviceCategory } from '$lib/types';
  * Category to single-char abbreviation for compression
  */
 export const CATEGORY_TO_ABBREV: Record<DeviceCategory, string> = {
-	server: 's',
-	network: 'n',
-	'patch-panel': 'p',
-	power: 'w',
-	storage: 't',
-	kvm: 'k',
-	'av-media': 'a',
-	cooling: 'l',
-	shelf: 'f',
-	blank: 'b',
-	'cable-management': 'c',
-	other: 'o'
+  server: "s",
+  network: "n",
+  "patch-panel": "p",
+  power: "w",
+  storage: "t",
+  kvm: "k",
+  "av-media": "a",
+  cooling: "l",
+  shelf: "f",
+  blank: "b",
+  "cable-management": "c",
+  other: "o",
 };
 
 /**
  * Single-char abbreviation back to category
  */
-export const ABBREV_TO_CATEGORY: Record<string, DeviceCategory> = Object.fromEntries(
-	Object.entries(CATEGORY_TO_ABBREV).map(([k, v]) => [v, k as DeviceCategory])
-) as Record<string, DeviceCategory>;
+export const ABBREV_TO_CATEGORY: Record<string, DeviceCategory> =
+  Object.fromEntries(
+    Object.entries(CATEGORY_TO_ABBREV).map(([k, v]) => [
+      v,
+      k as DeviceCategory,
+    ]),
+  ) as Record<string, DeviceCategory>;
 
 // =============================================================================
 // Minimal Format Schemas
@@ -62,60 +66,60 @@ export const ABBREV_TO_CATEGORY: Record<string, DeviceCategory> = Object.fromEnt
  * Minimal device placement schema
  */
 export const MinimalDeviceSchema = z.object({
-	/** device_type slug */
-	t: z.string(),
-	/** position (1-indexed U) */
-	p: z.number().int().min(1),
-	/** face */
-	f: z.enum(['front', 'rear', 'both']),
-	/** custom name (optional) */
-	n: z.string().optional()
+  /** device_type slug */
+  t: z.string(),
+  /** position (1-indexed U) */
+  p: z.number().int().min(1),
+  /** face */
+  f: z.enum(["front", "rear", "both"]),
+  /** custom name (optional) */
+  n: z.string().optional(),
 });
 
 /**
  * Minimal device type schema
  */
 export const MinimalDeviceTypeSchema = z.object({
-	/** slug */
-	s: z.string(),
-	/** u_height */
-	h: z.number().min(0.5),
-	/** manufacturer (optional) */
-	mf: z.string().optional(),
-	/** model (optional) */
-	m: z.string().optional(),
-	/** colour (hex) */
-	c: z.string(),
-	/** category abbreviation */
-	x: z.string().length(1)
+  /** slug */
+  s: z.string(),
+  /** u_height */
+  h: z.number().min(0.5),
+  /** manufacturer (optional) */
+  mf: z.string().optional(),
+  /** model (optional) */
+  m: z.string().optional(),
+  /** colour (hex) */
+  c: z.string(),
+  /** category abbreviation */
+  x: z.string().length(1),
 });
 
 /**
  * Minimal rack schema
  */
 export const MinimalRackSchema = z.object({
-	/** name */
-	n: z.string(),
-	/** height */
-	h: z.number().int().min(1).max(100),
-	/** width */
-	w: z.union([z.literal(10), z.literal(19), z.literal(23)]),
-	/** devices */
-	d: z.array(MinimalDeviceSchema)
+  /** name */
+  n: z.string(),
+  /** height */
+  h: z.number().int().min(1).max(100),
+  /** width */
+  w: z.union([z.literal(10), z.literal(19), z.literal(23)]),
+  /** devices */
+  d: z.array(MinimalDeviceSchema),
 });
 
 /**
  * Minimal layout schema (root)
  */
 export const MinimalLayoutSchema = z.object({
-	/** version */
-	v: z.string(),
-	/** name */
-	n: z.string(),
-	/** rack */
-	r: MinimalRackSchema,
-	/** device_types (only used ones) */
-	dt: z.array(MinimalDeviceTypeSchema)
+  /** version */
+  v: z.string(),
+  /** name */
+  n: z.string(),
+  /** rack */
+  r: MinimalRackSchema,
+  /** device_types (only used ones) */
+  dt: z.array(MinimalDeviceTypeSchema),
 });
 
 // =============================================================================
