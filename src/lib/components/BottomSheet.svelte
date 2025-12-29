@@ -100,8 +100,7 @@
   <div
     class="bottom-sheet-container"
     onclick={handleBackdropClick}
-    onkeydown={(e) =>
-      e.key === "Enter" && handleBackdropClick(e as unknown as MouseEvent)}
+    onkeydown={(e) => e.key === "Enter" && closeSheet()}
     role="button"
     tabindex="-1"
   >
@@ -148,7 +147,7 @@
   .backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--colour-backdrop);
     opacity: 0;
     transition: opacity 0.3s ease;
   }
@@ -166,11 +165,12 @@
   .bottom-sheet {
     position: relative;
     width: 100%;
-    max-height: 80vh;
-    background: var(--color-bg);
+    /* Extend to just below toolbar (56px) with some margin */
+    max-height: calc(100vh - 64px);
+    background: var(--colour-bg);
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-sheet);
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     touch-action: pan-y;
@@ -213,9 +213,11 @@
 
   .sheet-content {
     flex: 1;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: hidden;
     padding: 0 1.5rem 1.5rem;
+    /* Let child components handle their own scrolling */
+    display: flex;
+    flex-direction: column;
   }
 
   /* Scrollbar styling */

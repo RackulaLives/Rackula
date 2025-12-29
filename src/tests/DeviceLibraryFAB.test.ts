@@ -108,9 +108,8 @@ describe("DeviceLibraryFAB", () => {
         name: /open device library/i,
       });
 
-      // Check that min dimensions are set via CSS class
-      // The actual computed values depend on CSS being loaded
-      expect(button).toBeInTheDocument();
+      // Verify button has the FAB class that applies touch target sizing
+      expect(button).toHaveClass("device-library-fab");
     });
   });
 

@@ -677,9 +677,9 @@
     event: CustomEvent<{ device: import("$lib/types").DeviceType }>,
   ) {
     const { device } = event.detail;
+    hapticTap(); // Fire haptic immediately for snappier feedback
     placementStore.startPlacement(device);
     deviceLibrarySheetOpen = false;
-    hapticTap();
   }
 
   // Auto-save layout to localStorage with debouncing

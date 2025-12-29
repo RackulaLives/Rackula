@@ -23,21 +23,27 @@ function startPlacement(device: DeviceType, face: DeviceFace = "front"): void {
 }
 
 /**
- * Cancel placement mode without placing the device.
+ * Internal helper to reset placement state.
+ * Used by cancel, complete, and resetPlacementStore.
  */
-function cancelPlacement(): void {
+function resetState(): void {
   isPlacing = false;
   pendingDevice = null;
   targetFace = "front";
 }
 
 /**
+ * Cancel placement mode without placing the device.
+ */
+function cancelPlacement(): void {
+  resetState();
+}
+
+/**
  * Complete placement mode after successfully placing the device.
  */
 function completePlacement(): void {
-  isPlacing = false;
-  pendingDevice = null;
-  targetFace = "front";
+  resetState();
 }
 
 /**
@@ -52,9 +58,7 @@ function setTargetFace(face: DeviceFace): void {
  * Reset placement store state (for testing).
  */
 export function resetPlacementStore(): void {
-  isPlacing = false;
-  pendingDevice = null;
-  targetFace = "front";
+  resetState();
 }
 
 /**

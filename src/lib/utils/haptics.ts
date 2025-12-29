@@ -33,6 +33,7 @@ export function isHapticSupported(): boolean {
 function vibrate(pattern: number | readonly number[]): void {
   if (isHapticSupported()) {
     try {
+      // Cast needed: DOM types require mutable array but readonly is compatible
       navigator.vibrate(pattern as number | number[]);
     } catch {
       // Silently ignore errors (some browsers block vibration)

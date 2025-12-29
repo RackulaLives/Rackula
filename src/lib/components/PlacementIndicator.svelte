@@ -73,7 +73,7 @@
     color: var(--dracula-bg, #282a36);
     font-weight: 500;
 
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-indicator);
   }
 
   .indicator-content {
