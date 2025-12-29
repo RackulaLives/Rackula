@@ -653,6 +653,39 @@
     selectionStore.clearSelection();
   }
 
+  // Handle mobile device actions (remove, move)
+  function handleMobileRemoveDevice() {
+    if (selectedDeviceForSheet !== null && layoutStore.rack) {
+      layoutStore.removeDeviceFromRack(RACK_ID, selectedDeviceForSheet);
+      handleBottomSheetClose();
+    }
+  }
+
+  function handleMobileMoveDeviceUp() {
+    if (selectedDeviceForSheet !== null && layoutStore.rack) {
+      const device = layoutStore.rack.devices[selectedDeviceForSheet];
+      const deviceType = layoutStore.device_types.find(
+        (dt) => dt.slug === device?.device_type,
+      );
+      if (device && deviceType) {
+        // Move up = increase position (higher U number)
+        const newPosition = device.position + 1;
+        layoutStore.moveDevice(RACK_ID, selectedDeviceForSheet, newPosition);
+      }
+    }
+  }
+
+  function handleMobileMoveDeviceDown() {
+    if (selectedDeviceForSheet !== null && layoutStore.rack) {
+      const device = layoutStore.rack.devices[selectedDeviceForSheet];
+      if (device && device.position > 1) {
+        // Move down = decrease position (lower U number)
+        const newPosition = device.position - 1;
+        layoutStore.moveDevice(RACK_ID, selectedDeviceForSheet, newPosition);
+      }
+    }
+  }
+
   // Handle device library FAB click (mobile)
   function handleDeviceLibraryFABClick() {
     deviceLibrarySheetOpen = true;
@@ -741,6 +774,10 @@
       ? layoutStore.device_types.find((dt) => dt.slug === device.device_type)
       : null}
     {#if device && deviceType}
+      {@const rackHeight = layoutStore.rack?.height ?? 42}
+      {@const maxPosition = rackHeight - deviceType.u_height + 1}
+      {@const canMoveUp = device.position < maxPosition}
+      {@const canMoveDown = device.position > 1}
       <BottomSheet
         bind:open={bottomSheetOpen}
         title={deviceType.model}
@@ -750,7 +787,13 @@
           {device}
           {deviceType}
           rackView={layoutStore.rack?.view}
-          rackHeight={layoutStore.rack?.height}
+          {rackHeight}
+          showActions={true}
+          onremove={handleMobileRemoveDevice}
+          onmoveup={handleMobileMoveDeviceUp}
+          onmovedown={handleMobileMoveDeviceDown}
+          {canMoveUp}
+          {canMoveDown}
         />
       </BottomSheet>
     {/if}

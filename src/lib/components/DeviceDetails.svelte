@@ -12,9 +12,32 @@
 		deviceType: DeviceType;
 		rackView?: RackView;
 		rackHeight?: number;
+		/** Show action buttons (remove, move) - used on mobile */
+		showActions?: boolean;
+		/** Callback when remove button is clicked */
+		onremove?: () => void;
+		/** Callback when move up button is clicked */
+		onmoveup?: () => void;
+		/** Callback when move down button is clicked */
+		onmovedown?: () => void;
+		/** Whether device can move up (not at top of rack) */
+		canMoveUp?: boolean;
+		/** Whether device can move down (not at bottom of rack) */
+		canMoveDown?: boolean;
 	}
 
-	let { device, deviceType, rackView: _rackView = 'front', rackHeight: _rackHeight }: Props = $props();
+	let {
+		device,
+		deviceType,
+		rackView: _rackView = 'front',
+		rackHeight: _rackHeight,
+		showActions = false,
+		onremove,
+		onmoveup,
+		onmovedown,
+		canMoveUp = true,
+		canMoveDown = true
+	}: Props = $props();
 
 	// Display name: custom name if set, otherwise device type model/slug
 	const displayName = $derived(device.name ?? deviceType.model ?? deviceType.slug);
@@ -83,6 +106,50 @@
 		<div class="detail-section notes-section">
 			<span class="info-label">Notes</span>
 			<p class="notes-text">{device.notes}</p>
+		</div>
+	{/if}
+
+	<!-- Action buttons (mobile) -->
+	{#if showActions}
+		<div class="detail-section actions-section">
+			<div class="move-buttons">
+				<button
+					type="button"
+					class="btn btn-secondary"
+					onclick={onmoveup}
+					disabled={!canMoveUp}
+					aria-label="Move device up"
+				>
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="18 15 12 9 6 15"></polyline>
+					</svg>
+					Move Up
+				</button>
+				<button
+					type="button"
+					class="btn btn-secondary"
+					onclick={onmovedown}
+					disabled={!canMoveDown}
+					aria-label="Move device down"
+				>
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="6 9 12 15 18 9"></polyline>
+					</svg>
+					Move Down
+				</button>
+			</div>
+			<button
+				type="button"
+				class="btn btn-danger"
+				onclick={onremove}
+				aria-label="Remove device from rack"
+			>
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<polyline points="3 6 5 6 21 6"></polyline>
+					<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+				</svg>
+				Remove from Rack
+			</button>
 		</div>
 	{/if}
 </div>
@@ -156,5 +223,58 @@
 		color: var(--color-text);
 		white-space: pre-wrap;
 		word-break: break-word;
+	}
+
+	/* Action buttons */
+	.actions-section {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		padding-top: var(--space-3);
+		border-top: 1px solid var(--color-border);
+	}
+
+	.move-buttons {
+		display: flex;
+		gap: var(--space-2);
+	}
+
+	.btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		min-height: var(--touch-target-min);
+		padding: var(--space-2) var(--space-3);
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		border: none;
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		transition: background-color 0.15s ease, opacity 0.15s ease;
+	}
+
+	.btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.btn-secondary {
+		flex: 1;
+		background: var(--colour-surface-secondary);
+		color: var(--colour-text);
+	}
+
+	.btn-secondary:hover:not(:disabled) {
+		background: var(--colour-bg-light);
+	}
+
+	.btn-danger {
+		background: var(--dracula-red);
+		color: var(--dracula-fg);
+	}
+
+	.btn-danger:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--dracula-red), black 15%);
 	}
 </style>
