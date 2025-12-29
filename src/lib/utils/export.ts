@@ -617,8 +617,12 @@ export function generateExportSVG(
     }
 
     // U labels on left rail
+    // Respect desc_units and starting_unit settings (mirrors Rack.svelte logic)
+    const startUnit = rack.starting_unit ?? 1;
     for (let i = 0; i < rack.height; i++) {
-      const uNumber = rack.height - i;
+      const uNumber = rack.desc_units
+        ? startUnit + i // Descending: lowest number at top
+        : startUnit + (rack.height - 1) - i; // Ascending: highest number at top
       const labelY = i * U_HEIGHT + U_HEIGHT / 2 + RACK_PADDING + RAIL_WIDTH;
 
       const label = document.createElementNS(
