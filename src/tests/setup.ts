@@ -5,7 +5,7 @@ import { beforeEach } from "vitest";
 // This file is loaded before all tests via vitest.config.ts setupFiles
 
 // Mock localStorage and sessionStorage - happy-dom's implementation can be unreliable
-const createStorageMock = () => {
+const createStorageMock = (): Storage => {
   let store: Record<string, string> = {};
   return {
     getItem: (key: string) => store[key] ?? null,
