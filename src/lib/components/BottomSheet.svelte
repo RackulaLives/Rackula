@@ -5,11 +5,12 @@
 <script lang="ts">
   interface Props {
     open: boolean;
+    title?: string;
     onclose?: () => void;
     children?: import("svelte").Snippet;
   }
 
-  let { open = $bindable(false), onclose, children }: Props = $props();
+  let { open = $bindable(false), title, onclose, children }: Props = $props();
 
   let sheetElement: HTMLDivElement | null = $state(null);
   let startY = $state(0);
@@ -121,9 +122,36 @@
       onpointerup={handlePointerUp}
       onpointercancel={handlePointerCancel}
     >
-      <!-- Drag handle -->
-      <div class="drag-handle">
+      <!-- Header with drag handle, title and close button -->
+      <div class="sheet-header">
         <div class="drag-handle-bar"></div>
+        <div class="header-row">
+          {#if title}
+            <h2 class="sheet-title">{title}</h2>
+          {:else}
+            <div></div>
+          {/if}
+          <button
+            type="button"
+            class="close-button"
+            onclick={closeSheet}
+            aria-label="Close"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <!-- Content -->
@@ -193,28 +221,66 @@
     transition: none;
   }
 
-  .drag-handle {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: var(--touch-target-min);
+  .sheet-header {
+    flex-shrink: 0;
+    padding: var(--space-2) var(--space-4);
     cursor: grab;
     user-select: none;
-    flex-shrink: 0;
   }
 
   .drag-handle-bar {
     width: 2.5rem;
     height: 0.25rem;
-    background: var(--color-text-secondary);
+    margin: 0 auto var(--space-2);
+    background: var(--colour-text-secondary);
     opacity: 0.4;
     border-radius: 0.125rem;
+  }
+
+  .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .sheet-title {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--colour-text);
+  }
+
+  .close-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--colour-text-secondary);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .close-button:hover,
+  .close-button:focus-visible {
+    background: var(--colour-surface-secondary);
+    color: var(--colour-text);
+  }
+
+  .close-button:focus-visible {
+    outline: 2px solid var(--colour-focus-ring);
+    outline-offset: 2px;
   }
 
   .sheet-content {
     flex: 1;
     overflow: hidden;
-    padding: 0 1.5rem 1.5rem;
+    padding: 0 var(--space-4) var(--space-4);
     /* Let child components handle their own scrolling */
     display: flex;
     flex-direction: column;

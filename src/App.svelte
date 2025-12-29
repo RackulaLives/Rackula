@@ -750,7 +750,11 @@
       ? layoutStore.device_types.find((dt) => dt.slug === device.device_type)
       : null}
     {#if device && deviceType}
-      <BottomSheet bind:open={bottomSheetOpen} onclose={handleBottomSheetClose}>
+      <BottomSheet
+        bind:open={bottomSheetOpen}
+        title={deviceType.model}
+        onclose={handleBottomSheetClose}
+      >
         <DeviceDetails
           {device}
           {deviceType}
@@ -825,6 +829,7 @@
   {#if viewportStore.isMobile && deviceLibrarySheetOpen}
     <BottomSheet
       bind:open={deviceLibrarySheetOpen}
+      title="Device Library"
       onclose={handleDeviceLibrarySheetClose}
     >
       <DevicePalette
