@@ -77,6 +77,9 @@
   const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
 
+  // Single-rack mode constant
+  const RACK_ID = "rack-0";
+
   // Dialog state
   let newRackFormOpen = $state(false);
   let addDeviceFormOpen = $state(false);
