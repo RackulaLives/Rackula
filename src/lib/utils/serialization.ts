@@ -14,7 +14,7 @@ export function createLayout(name: string = "Racky McRackface"): Layout {
   return {
     version: VERSION,
     name,
-    rack: createDefaultRack(name),
+    rack: createRackForNewLayout(name),
     device_types: [], // Starter library is a runtime constant, not stored in layout
     settings: {
       display_mode: "label",
@@ -24,11 +24,11 @@ export function createLayout(name: string = "Racky McRackface"): Layout {
 }
 
 /**
- * Create a default rack for a new layout
+ * Create a default rack for a new layout (internal helper)
  * @param name - Rack name
- * @returns A default Rack with empty devices
+ * @returns A default 42U Rack with empty devices
  */
-function createDefaultRack(name: string): Rack {
+function createRackForNewLayout(name: string): Rack {
   return {
     name,
     height: 42,
@@ -44,7 +44,7 @@ function createDefaultRack(name: string): Rack {
 }
 
 /**
- * Create a rack with the given parameters
+ * Create a rack with application-level defaults
  * @param name - Rack name
  * @param height - Rack height in U
  * @param width - Rack width (10 or 19)
@@ -54,7 +54,7 @@ function createDefaultRack(name: string): Rack {
  * @param show_rear - Show rear view on canvas (default: true)
  * @returns A new Rack object
  */
-export function createRack(
+export function createDefaultRack(
   name: string,
   height: number,
   width: 10 | 19 = 19,
