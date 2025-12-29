@@ -679,6 +679,14 @@
         saveDebounceTimer = null;
       }, 1000);
     }
+
+    // Cleanup on component destroy or effect re-run
+    return () => {
+      if (saveDebounceTimer) {
+        clearTimeout(saveDebounceTimer);
+        saveDebounceTimer = null;
+      }
+    };
   });
 </script>
 
