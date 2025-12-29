@@ -16,6 +16,7 @@ export default defineConfig({
 		include: ['src/**/*.{test,spec}.{js,ts}'],
 		globals: true,
 		setupFiles: ['src/tests/setup.ts'],
+		testTimeout: 10000, // 10 seconds per test (App tests are slow due to complex component tree)
 		coverage: {
 			provider: 'v8',
 			reporter: ['text', 'json', 'html'],

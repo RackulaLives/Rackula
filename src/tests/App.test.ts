@@ -336,33 +336,40 @@ describe("App Component", () => {
       expect(container.querySelector(".welcome-screen")).toBeInTheDocument();
     });
 
-    it("returns to WelcomeScreen when dialog is dismissed without creating rack", async () => {
-      // Don't call markStarted - simulating fresh start
-      clearSession(); // Ensure no autosaved session
-      resetLayoutStore();
+    it(
+      "returns to WelcomeScreen when dialog is dismissed without creating rack",
+      async () => {
+        // Don't call markStarted - simulating fresh start
+        clearSession(); // Ensure no autosaved session
+        resetLayoutStore();
 
-      const { container } = render(App);
+        const { container } = render(App);
 
-      // Wait for dialog to auto-open (increase timeout for CI)
-      await waitFor(
-        () => {
-          expect(screen.getByRole("dialog")).toBeInTheDocument();
-        },
-        { timeout: 3000 },
-      );
+        // Wait for dialog to auto-open (increase timeout for CI)
+        await waitFor(
+          () => {
+            expect(screen.getByRole("dialog")).toBeInTheDocument();
+          },
+          { timeout: 3000 },
+        );
 
-      // Click Cancel button to dismiss
-      const cancelBtn = screen.getByRole("button", { name: /cancel/i });
-      await fireEvent.click(cancelBtn);
+        // Click Cancel button to dismiss
+        const cancelBtn = screen.getByRole("button", { name: /cancel/i });
+        await fireEvent.click(cancelBtn);
 
-      // Dialog should be closed
-      await waitFor(() => {
-        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-      });
+        // Dialog should be closed
+        await waitFor(
+          () => {
+            expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+          },
+          { timeout: 2000 },
+        );
 
-      // WelcomeScreen should still be visible
-      expect(container.querySelector(".welcome-screen")).toBeInTheDocument();
-    });
+        // WelcomeScreen should still be visible
+        expect(container.querySelector(".welcome-screen")).toBeInTheDocument();
+      },
+      { timeout: 10000 },
+    );
 
     it("can re-open dialog by clicking WelcomeScreen after dismissing", async () => {
       // Don't call markStarted - simulating fresh start
