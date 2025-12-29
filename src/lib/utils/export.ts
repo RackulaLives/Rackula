@@ -12,6 +12,7 @@ import type {
 } from "$lib/types";
 import type { ImageStoreMap } from "$lib/types/images";
 import { getBlockedSlots } from "./blocked-slots";
+import { fitTextToWidth } from "./text-sizing";
 import {
   U_HEIGHT_PX,
   BASE_RACK_WIDTH,
@@ -34,6 +35,12 @@ const EXPORT_PADDING = 20;
 const RACK_NAME_HEIGHT = 18; // Space for rack name above rack
 const VIEW_LABEL_HEIGHT = 15; // Space for FRONT/REAR labels
 const RACK_BOTTOM_PADDING = 2; // Visual breathing room below bottom rail
+
+// Device label text sizing constants (matching RackDevice.svelte)
+const LABEL_MAX_FONT_SIZE = 12;
+const LABEL_MIN_FONT_SIZE = 9;
+const ICON_SPACE_LEFT = 24; // Category icon area
+const ICON_SPACE_RIGHT = 4; // Right padding
 
 // QR Code export constants
 const QR_SIZE = 150; // Size of QR code in pixels for screen exports
@@ -813,6 +820,20 @@ export function generateExportSVG(
 
       // Device name (always shown unless image mode without labels)
       // In image mode, name is still shown as overlay for accessibility
+      const labelText = placedDevice.name || deviceDisplayName;
+
+      // Calculate available width for text (matching RackDevice.svelte)
+      const textAvailableWidth = showImage
+        ? deviceWidth - 16 // Small padding in image mode
+        : deviceWidth - ICON_SPACE_LEFT - ICON_SPACE_RIGHT;
+
+      // Apply auto-sizing to fit text within available width
+      const fittedLabel = fitTextToWidth(labelText, {
+        maxFontSize: LABEL_MAX_FONT_SIZE,
+        minFontSize: LABEL_MIN_FONT_SIZE,
+        availableWidth: textAvailableWidth,
+      });
+
       const deviceNameEl = document.createElementNS(
         "http://www.w3.org/2000/svg",
         "text",
@@ -820,7 +841,7 @@ export function generateExportSVG(
       deviceNameEl.setAttribute("x", String(RACK_WIDTH / 2));
       deviceNameEl.setAttribute("y", String(deviceY + deviceHeight / 2 + 1));
       deviceNameEl.setAttribute("fill", "#ffffff");
-      deviceNameEl.setAttribute("font-size", "12");
+      deviceNameEl.setAttribute("font-size", String(fittedLabel.fontSize));
       deviceNameEl.setAttribute("text-anchor", "middle");
       deviceNameEl.setAttribute("dominant-baseline", "middle");
       deviceNameEl.setAttribute("font-family", "system-ui, sans-serif");
@@ -831,7 +852,7 @@ export function generateExportSVG(
           "text-shadow: 0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.5);",
         );
       }
-      deviceNameEl.textContent = placedDevice.name || deviceDisplayName;
+      deviceNameEl.textContent = fittedLabel.text;
       rackGroup.appendChild(deviceNameEl);
     }
 
