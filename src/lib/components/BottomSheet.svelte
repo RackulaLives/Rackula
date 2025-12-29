@@ -165,7 +165,7 @@
   .bottom-sheet-container {
     position: fixed;
     inset: 0;
-    z-index: 1000;
+    z-index: var(--z-bottom-sheet, 200);
     display: flex;
     align-items: flex-end;
     pointer-events: all;
@@ -192,8 +192,8 @@
   .bottom-sheet {
     position: relative;
     width: 100%;
-    /* Extend to just below toolbar (56px) */
-    max-height: calc(100vh - 56px);
+    /* Extend to just below toolbar */
+    max-height: calc(100vh - var(--toolbar-height, 56px));
     background: var(--colour-bg);
     border-top-left-radius: 0.75rem;
     border-top-right-radius: 0.75rem;

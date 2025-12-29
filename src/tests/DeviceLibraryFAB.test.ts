@@ -99,6 +99,8 @@ describe("DeviceLibraryFAB", () => {
         name: /open device library/i,
       });
       expect(button).toBeInTheDocument();
+      // Verify the aria-label provides the accessible name
+      expect(button).toHaveAttribute("aria-label", "Open device library");
     });
 
     it("has minimum touch target size (48px)", () => {
