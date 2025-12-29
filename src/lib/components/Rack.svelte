@@ -98,6 +98,8 @@
   let _draggingDeviceIndex = $state<number | null>(null);
   // Track if we just finished dragging a device (to prevent rack selection on release)
   let justFinishedDrag = $state(false);
+  // Track Shift key state for fine-positioning mode
+  let shiftKeyHeld = $state(false);
 
   // Look up device by device_type (slug)
   function getDeviceBySlug(slug: string): DeviceType | undefined {
@@ -432,7 +434,21 @@
 
   // NOTE: Rack drag handle for reordering removed in v0.1.1 (single-rack mode)
   // Restore in v0.3 when multi-rack support returns
+
+  function handleShiftDown(event: KeyboardEvent) {
+    if (event.key === "Shift") {
+      shiftKeyHeld = true;
+    }
+  }
+
+  function handleShiftUp(event: KeyboardEvent) {
+    if (event.key === "Shift") {
+      shiftKeyHeld = false;
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleShiftDown} onkeyup={handleShiftUp} />
 
 <div
   class="rack-container"
@@ -536,6 +552,19 @@
         class="rack-grid-line"
       />
     {/each}
+
+    <!-- Half-U grid lines (shown when Shift is held for fine positioning) -->
+    {#if shiftKeyHeld}
+      {#each Array(rack.height).fill(null) as _halfLine, i (i)}
+        <line
+          x1={RAIL_WIDTH}
+          y1={i * U_HEIGHT + U_HEIGHT / 2 + RACK_PADDING + RAIL_WIDTH}
+          x2={RACK_WIDTH - RAIL_WIDTH}
+          y2={i * U_HEIGHT + U_HEIGHT / 2 + RACK_PADDING + RAIL_WIDTH}
+          class="rack-grid-line-half"
+        />
+      {/each}
+    {/if}
 
     <!-- Rail mounting holes (3 per U on each rail) - rendered first so labels appear on top -->
     {#each Array(rack.height).fill(null) as _hole, i (i)}
@@ -807,6 +836,13 @@
   .rack-grid-line {
     stroke: var(--rack-grid);
     stroke-width: 1;
+  }
+
+  .rack-grid-line-half {
+    stroke: var(--colour-selection);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    opacity: 0.6;
   }
 
   .u-label {

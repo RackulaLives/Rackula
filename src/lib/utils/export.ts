@@ -727,7 +727,10 @@ export function generateExportSVG(
       deviceRect.setAttribute("y", String(deviceY + 1));
       deviceRect.setAttribute("width", String(deviceWidth));
       deviceRect.setAttribute("height", String(deviceHeight));
-      deviceRect.setAttribute("fill", device.colour);
+      deviceRect.setAttribute(
+        "fill",
+        placedDevice.colour_override ?? device.colour,
+      );
       deviceRect.setAttribute("rx", "2");
       deviceRect.setAttribute("ry", "2");
       rackGroup.appendChild(deviceRect);
@@ -795,7 +798,7 @@ export function generateExportSVG(
 
           // White icon with slight transparency for visibility on coloured backgrounds
           const iconColor = "rgba(255, 255, 255, 0.85)";
-          const iconBgColor = device.colour;
+          const iconBgColor = placedDevice.colour_override ?? device.colour;
           const iconElements = createCategoryIconElements(
             device.category,
             iconColor,

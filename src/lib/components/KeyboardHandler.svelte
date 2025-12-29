@@ -13,7 +13,7 @@
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
-  import { canPlaceDevice } from "$lib/utils/collision";
+  import { findNextValidPosition } from "$lib/utils/device-movement";
   import { analytics } from "$lib/utils/analytics";
 
   interface Props {
@@ -85,53 +85,7 @@
         },
       },
 
-      // Ctrl/Cmd+Z - undo
-      {
-        key: "z",
-        ctrl: true,
-        action: () => performUndo(),
-      },
-      {
-        key: "z",
-        meta: true,
-        action: () => performUndo(),
-      },
-
-      // Ctrl/Cmd+Shift+Z or Ctrl+Y - redo
-      {
-        key: "z",
-        ctrl: true,
-        shift: true,
-        action: () => performRedo(),
-      },
-      {
-        key: "z",
-        meta: true,
-        shift: true,
-        action: () => performRedo(),
-      },
-      {
-        key: "y",
-        ctrl: true,
-        action: () => performRedo(),
-      },
-      {
-        key: "y",
-        meta: true,
-        action: () => performRedo(),
-      },
-
-      // Delete / Backspace - delete selected item
-      {
-        key: "Delete",
-        action: () => ondelete?.(),
-      },
-      {
-        key: "Backspace",
-        action: () => ondelete?.(),
-      },
-
-      // Arrow keys - device movement (1U or device height)
+      // Arrow keys - move selected device (without modifiers)
       {
         key: "ArrowUp",
         action: () => moveSelectedDevice(1),
@@ -140,8 +94,7 @@
         key: "ArrowDown",
         action: () => moveSelectedDevice(-1),
       },
-
-      // Shift+Arrow keys - fine device movement (0.5U)
+      // Shift+Arrow keys - move by 0.5U (fine movement)
       {
         key: "ArrowUp",
         shift: true,
@@ -152,8 +105,7 @@
         shift: true,
         action: () => moveSelectedDevice(-1, 0.5),
       },
-
-      // Arrow keys - rack reordering
+      // Left/Right arrows - move selected rack (disabled in single-rack mode)
       {
         key: "ArrowLeft",
         action: () => moveSelectedRack(-1),
@@ -163,16 +115,70 @@
         action: () => moveSelectedRack(1),
       },
 
-      // D - toggle device palette
+      // Delete/Backspace - delete selection
       {
-        key: "d",
-        action: () => uiStore.toggleLeftDrawer(),
+        key: "Delete",
+        action: () => ondelete?.(),
+      },
+      {
+        key: "Backspace",
+        action: () => ondelete?.(),
       },
 
       // F - fit all
       {
         key: "f",
         action: () => onfitall?.(),
+      },
+
+      // D - toggle sidebar (device palette)
+      {
+        key: "d",
+        action: () => uiStore.toggleLeftDrawer(),
+      },
+
+      // A - toggle airflow display
+      {
+        key: "a",
+        action: () => uiStore.toggleAirflow(),
+      },
+
+      // Ctrl/Cmd+Z - undo
+      {
+        key: "z",
+        ctrl: true,
+        action: performUndo,
+      },
+      {
+        key: "z",
+        meta: true,
+        action: performUndo,
+      },
+
+      // Ctrl/Cmd+Shift+Z - redo
+      {
+        key: "z",
+        ctrl: true,
+        shift: true,
+        action: performRedo,
+      },
+      {
+        key: "z",
+        meta: true,
+        shift: true,
+        action: performRedo,
+      },
+
+      // Ctrl/Cmd+Y - redo (alternative)
+      {
+        key: "y",
+        ctrl: true,
+        action: performRedo,
+      },
+      {
+        key: "y",
+        meta: true,
+        action: performRedo,
       },
 
       // Ctrl/Cmd+S - save
@@ -238,11 +244,12 @@
   }
 
   /**
-   * Move the selected device up or down, leapfrogging over blocking devices
+   * Move the selected device up or down, using shared movement utility.
+   * Leapfrogs over blocking devices to find valid positions.
    * @param direction - 1 for up (higher U), -1 for down (lower U)
    * @param stepOverride - Optional step size (default: device height). Use 0.5 for fine movement.
    */
-  function moveSelectedDevice(direction: number, stepOverride?: number) {
+  function moveSelectedDevice(direction: 1 | -1, stepOverride?: number) {
     if (!selectionStore.isDeviceSelected) return;
     if (
       selectionStore.selectedRackId === null ||
@@ -258,52 +265,22 @@
     const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
     if (deviceIndex === null) return;
 
-    const placedDevice = rack.devices[deviceIndex];
-    if (!placedDevice) return;
-
-    const device = layoutStore.device_types.find(
-      (d) => d.slug === placedDevice.device_type,
+    // Use shared utility to find next valid position
+    const result = findNextValidPosition(
+      rack,
+      layoutStore.device_types,
+      deviceIndex,
+      direction,
+      stepOverride,
     );
-    if (!device) return;
 
-    // Movement increment: use override if provided, otherwise device height
-    const moveIncrement = stepOverride ?? device.u_height;
-    const isFullDepth = device.is_full_depth !== false;
-
-    // Try to find a valid position in the direction of movement
-    let newPosition = placedDevice.position + direction * moveIncrement;
-
-    // Keep looking for a valid position, leapfrogging over blocking devices
-    while (
-      newPosition >= 1 &&
-      newPosition + device.u_height - 1 <= rack.height
-    ) {
-      // Use canPlaceDevice for face and depth-aware collision detection
-      const isValid = canPlaceDevice(
-        rack,
-        layoutStore.device_types,
-        device.u_height,
-        newPosition,
+    if (result.success && result.newPosition !== null) {
+      layoutStore.moveDevice(
+        selectionStore.selectedRackId!,
         deviceIndex,
-        placedDevice.face,
-        isFullDepth,
+        result.newPosition,
       );
-
-      if (isValid) {
-        // Found a valid position, move there
-        layoutStore.moveDevice(
-          selectionStore.selectedRackId!,
-          deviceIndex,
-          newPosition,
-        );
-        return;
-      }
-
-      // Position blocked, try next position in direction (using device height increment)
-      newPosition += direction * moveIncrement;
     }
-
-    // No valid position found in that direction
   }
 
   /**
@@ -350,9 +327,10 @@
         event.preventDefault();
         shortcut.action();
 
-        // Track keyboard shortcut usage
+        // Track shortcut usage (only for meaningful actions)
         const shortcutName = formatShortcutName(shortcut);
         analytics.trackKeyboardShortcut(shortcutName);
+
         return;
       }
     }

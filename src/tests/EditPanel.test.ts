@@ -622,7 +622,7 @@ describe("EditPanel Component", () => {
       expect(select).not.toBeDisabled();
     });
 
-    it("face dropdown is disabled for full-depth servers", () => {
+    it("face dropdown is enabled for full-depth servers (override allowed per #144)", () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
       const RACK_ID = "rack-0";
@@ -636,8 +636,8 @@ describe("EditPanel Component", () => {
       const { getByRole } = render(EditPanel);
       const select = getByRole("combobox", { name: /mounted face/i });
 
-      // Face dropdown should be disabled for full-depth devices
-      expect(select).toBeDisabled();
+      // Face dropdown should be enabled for all devices (issue #144 - allow override)
+      expect(select).not.toBeDisabled();
     });
   });
 });

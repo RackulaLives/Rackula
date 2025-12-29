@@ -21,7 +21,6 @@
   import HelpPanel from "$lib/components/HelpPanel.svelte";
   import BottomSheet from "$lib/components/BottomSheet.svelte";
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
-  import MobileWarningModal from "$lib/components/MobileWarningModal.svelte";
   import DeviceLibraryFAB from "$lib/components/DeviceLibraryFAB.svelte";
   import {
     getShareParam,
@@ -857,8 +856,6 @@
   <HelpPanel open={helpPanelOpen} onclose={handleHelpClose} />
 
   <ToastContainer />
-
-  <MobileWarningModal />
 
   <!-- Mobile device library FAB and bottom sheet -->
   <DeviceLibraryFAB onclick={handleDeviceLibraryFABClick} />
