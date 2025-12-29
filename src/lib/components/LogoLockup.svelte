@@ -1,10 +1,10 @@
 <!--
   LogoLockup Component
-  Animated logo + title lockup for toolbar branding
-  Breathing glow at rest, rainbow gradient on hover, celebrate on success
+  Logo + title lockup for toolbar branding
+  White by default, rainbow gradient on hover, celebrate on success
   Showcase mode: slow rainbow wave for About/Help display
-  
-  v2: Widow's peak mark + Space Grotesk wordmark
+
+  v3: White default, gradient on interaction (vampire aesthetic)
 -->
 <script lang="ts">
   import EnvironmentBadge from "./EnvironmentBadge.svelte";
@@ -267,21 +267,21 @@
 
   .logo-mark,
   .logo-title text {
-    /* Slow rotating gradient at rest */
-    fill: url(#lockup-idle);
+    /* White by default, gradient on hover/special states */
+    fill: var(--dracula-foreground, #f8f8f2);
     transition: fill 0.3s ease;
   }
 
   .logo-mark {
     flex-shrink: 0;
-    filter: drop-shadow(0 0 8px rgba(189, 147, 249, 0.3));
+    filter: drop-shadow(0 0 6px rgba(248, 248, 242, 0.15));
     /* Align mark baseline with text baseline */
     margin-bottom: -2px;
   }
 
   .logo-title {
     width: auto;
-    filter: drop-shadow(0 0 8px rgba(189, 147, 249, 0.3));
+    filter: drop-shadow(0 0 6px rgba(248, 248, 242, 0.15));
   }
 
   .logo-title text {
@@ -340,13 +340,34 @@
   @media (prefers-reduced-motion: reduce) {
     .logo-mark,
     .logo-title text {
-      /* Static purple when motion reduced */
-      fill: var(--dracula-purple) !important;
+      /* White by default, static purple on hover/special states */
+      fill: var(--dracula-foreground, #f8f8f2);
     }
 
     .logo-mark,
     .logo-title {
+      filter: drop-shadow(0 0 6px rgba(248, 248, 242, 0.15));
+    }
+
+    /* Static purple for hover state (no animation) */
+    .logo-mark--hover,
+    .logo-title--hover text {
+      fill: var(--dracula-purple) !important;
+    }
+
+    .logo-mark--hover,
+    .logo-title--hover {
       filter: drop-shadow(0 0 8px rgba(189, 147, 249, 0.2));
+    }
+
+    /* Static purple for special states (no animation) */
+    .logo-mark--celebrate,
+    .logo-mark--party,
+    .logo-mark--showcase,
+    .logo-title--celebrate text,
+    .logo-title--party text,
+    .logo-title--showcase text {
+      fill: var(--dracula-purple) !important;
     }
 
     .logo-mark--party,
