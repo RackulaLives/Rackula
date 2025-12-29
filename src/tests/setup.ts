@@ -4,8 +4,8 @@ import { beforeEach } from "vitest";
 // Global test setup for Rackula
 // This file is loaded before all tests via vitest.config.ts setupFiles
 
-// Mock localStorage - happy-dom's implementation can be unreliable
-const localStorageMock = (() => {
+// Mock localStorage and sessionStorage - happy-dom's implementation can be unreliable
+const createStorageMock = () => {
   let store: Record<string, string> = {};
   return {
     getItem: (key: string) => store[key] ?? null,
@@ -23,22 +23,25 @@ const localStorageMock = (() => {
     },
     key: (index: number) => Object.keys(store)[index] ?? null,
   };
-})();
+};
+
+const localStorageMock = createStorageMock();
+const sessionStorageMock = createStorageMock();
 
 Object.defineProperty(globalThis, "localStorage", {
   value: localStorageMock,
   writable: true,
 });
 
-// Also mock sessionStorage for consistency
 Object.defineProperty(globalThis, "sessionStorage", {
-  value: localStorageMock,
+  value: sessionStorageMock,
   writable: true,
 });
 
 // Clear storage before each test for isolation
 beforeEach(() => {
   localStorageMock.clear();
+  sessionStorageMock.clear();
 });
 
 // Mock window.matchMedia for responsive component testing
