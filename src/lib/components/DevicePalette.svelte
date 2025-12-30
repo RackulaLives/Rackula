@@ -771,7 +771,7 @@
     padding: var(--space-2) var(--space-3);
     margin-top: var(--space-2);
     font-size: var(--font-size-xs);
-    color: var(--colour-muted);
+    color: var(--colour-text-muted);
     background: transparent;
     border: 1px dashed var(--button-border);
     border-radius: var(--radius-sm);

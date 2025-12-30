@@ -9,6 +9,7 @@
   import {
     parseNetBoxYaml,
     convertToDeviceType,
+    inferCategory,
     type NetBoxDeviceType,
     type ImportResult,
   } from "$lib/utils/netbox-import";
@@ -41,7 +42,7 @@
 
   // Computed values
   let inferredCategory = $derived(
-    parsedData ? convertToDeviceType(parsedData).inferredCategory : "other",
+    parsedData ? inferCategory(parsedData) : "other",
   );
 
   let effectiveCategory = $derived(categoryOverride ?? inferredCategory);
@@ -656,7 +657,7 @@ is_full_depth: false"
 
   .btn-primary {
     background: var(--colour-selection);
-    color: white;
+    color: var(--colour-text-on-primary);
   }
 
   .btn-primary:hover:not(:disabled) {
