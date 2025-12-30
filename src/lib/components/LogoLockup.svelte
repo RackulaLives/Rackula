@@ -264,12 +264,7 @@
       : "Rackula"}
     style={gradientId ? `--active-gradient: ${gradientId}` : undefined}
   >
-    <text x="0" y="38">
-      {#if showEnvPrefix}
-        <tspan class="env-prefix">D</tspan>
-      {/if}
-      <tspan>Rackula</tspan>
-    </text>
+    <text x="0" y="38">{#if showEnvPrefix}<tspan class="env-prefix" font-size="44">D</tspan>{/if}<tspan>Rackula</tspan></text>
   </svg>
 </div>
 

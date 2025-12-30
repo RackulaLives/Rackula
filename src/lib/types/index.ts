@@ -74,12 +74,94 @@ export type Airflow =
  */
 export type SubdeviceRole = "parent" | "child";
 
+/**
+ * Network interface type (NetBox-compatible subset)
+ * Common physical interface types for rack equipment
+ */
+export type InterfaceType =
+  // Copper Ethernet
+  | "100base-tx" // 100 Mbps RJ45
+  | "1000base-t" // 1 GbE RJ45
+  | "2.5gbase-t" // 2.5 GbE RJ45
+  | "5gbase-t" // 5 GbE RJ45
+  | "10gbase-t" // 10 GbE RJ45
+  // Modular - SFP/SFP+/SFP28
+  | "1000base-x-sfp" // 1 GbE SFP
+  | "10gbase-x-sfpp" // 10 GbE SFP+
+  | "25gbase-x-sfp28" // 25 GbE SFP28
+  // Modular - QSFP/QSFP28/QSFP-DD
+  | "40gbase-x-qsfpp" // 40 GbE QSFP+
+  | "100gbase-x-qsfp28" // 100 GbE QSFP28
+  | "100gbase-x-qsfpdd" // 100 GbE QSFP-DD
+  | "200gbase-x-qsfp56" // 200 GbE QSFP56
+  | "200gbase-x-qsfpdd" // 200 GbE QSFP-DD
+  | "400gbase-x-qsfpdd" // 400 GbE QSFP-DD
+  // Console & Management
+  | "console" // Console port (RJ45/USB)
+  | "usb-a" // USB Type A
+  | "usb-b" // USB Type B
+  | "usb-c" // USB Type C
+  | "usb-mini-b" // USB Mini B
+  | "usb-micro-b" // USB Micro B
+  // Virtual
+  | "virtual" // Virtual interface
+  | "lag" // Link Aggregation Group
+  // Other
+  | "other"; // Catch-all for unlisted types
+
+/**
+ * PoE type (NetBox-compatible)
+ * Power over Ethernet standards
+ */
+export type PoEType =
+  | "type1-ieee802.3af" // 15.4W max
+  | "type2-ieee802.3at" // 30W max (PoE+)
+  | "type3-ieee802.3bt" // 60W max (PoE++ 4-pair)
+  | "type4-ieee802.3bt" // 100W max (PoE++ 4-pair)
+  | "passive-24v-1pair" // Passive 24V (1-pair)
+  | "passive-24v-2pair" // Passive 24V (2-pair)
+  | "passive-48v-1pair" // Passive 48V (1-pair)
+  | "passive-48v-2pair" // Passive 48V (2-pair)
+  | "passive-56v-4pair"; // Passive 56V (4-pair, Ubiquiti)
+
+/**
+ * PoE mode - powered device or power sourcing equipment
+ */
+export type PoEMode = "pd" | "pse";
+
+/**
+ * Interface position on device face
+ */
+export type InterfacePosition = "front" | "rear";
+
 // =============================================================================
 // Component Types (NetBox-compatible, schema-only)
 // =============================================================================
 
 /**
- * Network interface definition
+ * Network interface template definition (NetBox-compatible with Rackula extensions)
+ * Used to define interface templates on DeviceType
+ */
+export interface InterfaceTemplate {
+  /** Interface name (e.g., 'eth0', 'Gi1/0/1', 'Port 1') */
+  name: string;
+  /** Interface type (from InterfaceType enum) */
+  type: InterfaceType;
+  /** Alternative display label */
+  label?: string;
+  /** Management interface only (default: false) */
+  mgmt_only?: boolean;
+  /** Interface position on device face (Rackula extension for visual layout) */
+  position?: InterfacePosition;
+  /** PoE mode: pd (powered device) or pse (power sourcing equipment) */
+  poe_mode?: PoEMode;
+  /** PoE type/standard */
+  poe_type?: PoEType;
+}
+
+/**
+ * @deprecated Use InterfaceTemplate instead
+ * Legacy interface definition (kept for backward compatibility)
  */
 export interface Interface {
   /** Interface name (e.g., 'eth0', 'Gi1/0/1') */
@@ -214,8 +296,8 @@ export interface DeviceType {
   custom_fields?: Record<string, unknown>;
 
   // --- Component Arrays (schema-only, future features) ---
-  /** Network interfaces */
-  interfaces?: Interface[];
+  /** Network interface templates */
+  interfaces?: InterfaceTemplate[];
   /** Power input ports */
   power_ports?: PowerPort[];
   /** Power output outlets (for PDUs) */

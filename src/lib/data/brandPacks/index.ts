@@ -243,12 +243,11 @@ export function getBrandDevices(brandId: string): DeviceType[] {
 }
 
 /**
- * Find a device by slug across all brand packs
- * @returns The DeviceType if found, undefined otherwise
+ * Get all devices from all brand packs as a single array
+ * Used by findBrandDevice and getBrandSlugs to avoid duplication
  */
-export function findBrandDevice(slug: string): DeviceType | undefined {
-  // Search all brand packs
-  const allDevices = [
+export function getAllBrandDevices(): DeviceType[] {
+  return [
     ...ubiquitiDevices,
     ...mikrotikDevices,
     ...tplinkDevices,
@@ -268,8 +267,14 @@ export function findBrandDevice(slug: string): DeviceType | undefined {
     ...blackmagicdesignDevices,
     ...deskpiDevices,
   ];
+}
 
-  return allDevices.find((d) => d.slug === slug);
+/**
+ * Find a device by slug across all brand packs
+ * @returns The DeviceType if found, undefined otherwise
+ */
+export function findBrandDevice(slug: string): DeviceType | undefined {
+  return getAllBrandDevices().find((d) => d.slug === slug);
 }
 
 // Cached set of all brand device slugs
@@ -281,27 +286,7 @@ let brandSlugsCache: Set<string> | null = null;
  */
 export function getBrandSlugs(): Set<string> {
   if (!brandSlugsCache) {
-    const allDevices = [
-      ...ubiquitiDevices,
-      ...mikrotikDevices,
-      ...tplinkDevices,
-      ...synologyDevices,
-      ...apcDevices,
-      ...dellDevices,
-      ...supermicroDevices,
-      ...hpeDevices,
-      ...fortinetDevices,
-      ...eatonDevices,
-      ...netgearDevices,
-      ...paloaltoDevices,
-      ...qnapDevices,
-      ...lenovoDevices,
-      ...cyberpowerDevices,
-      ...netgateDevices,
-      ...blackmagicdesignDevices,
-      ...deskpiDevices,
-    ];
-    brandSlugsCache = new Set(allDevices.map((d) => d.slug));
+    brandSlugsCache = new Set(getAllBrandDevices().map((d) => d.slug));
   }
   return brandSlugsCache;
 }

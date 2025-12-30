@@ -21,31 +21,31 @@ describe("YAML Utilities", () => {
   });
 
   describe("serializeToYaml", () => {
-    it("serializes simple object", () => {
+    it("serializes simple object", async () => {
       const data = { name: "Test", value: 42 };
-      const result = serializeToYaml(data);
+      const result = await serializeToYaml(data);
       expect(result).toContain("name: Test");
       expect(result).toContain("value: 42");
     });
 
-    it("serializes nested object", () => {
+    it("serializes nested object", async () => {
       const data = {
         rack: {
           name: "Homelab",
           height: 42,
         },
       };
-      const result = serializeToYaml(data);
+      const result = await serializeToYaml(data);
       expect(result).toContain("rack:");
       expect(result).toContain("name: Homelab");
       expect(result).toContain("height: 42");
     });
 
-    it("serializes arrays", () => {
+    it("serializes arrays", async () => {
       const data = {
         items: ["one", "two", "three"],
       };
-      const result = serializeToYaml(data);
+      const result = await serializeToYaml(data);
       expect(result).toContain("items:");
       expect(result).toContain("- one");
       expect(result).toContain("- two");
@@ -54,40 +54,40 @@ describe("YAML Utilities", () => {
   });
 
   describe("parseYaml", () => {
-    it("parses simple YAML", () => {
+    it("parses simple YAML", async () => {
       const yaml = "name: Test\nvalue: 42";
-      const result = parseYaml<{ name: string; value: number }>(yaml);
+      const result = await parseYaml<{ name: string; value: number }>(yaml);
       expect(result.name).toBe("Test");
       expect(result.value).toBe(42);
     });
 
-    it("parses nested YAML", () => {
+    it("parses nested YAML", async () => {
       const yaml = `
 rack:
   name: Homelab
   height: 42
 `;
-      const result = parseYaml<{ rack: { name: string; height: number } }>(
+      const result = await parseYaml<{ rack: { name: string; height: number } }>(
         yaml,
       );
       expect(result.rack.name).toBe("Homelab");
       expect(result.rack.height).toBe(42);
     });
 
-    it("parses arrays", () => {
+    it("parses arrays", async () => {
       const yaml = `
 items:
   - one
   - two
   - three
 `;
-      const result = parseYaml<{ items: string[] }>(yaml);
+      const result = await parseYaml<{ items: string[] }>(yaml);
       expect(result.items).toEqual(["one", "two", "three"]);
     });
   });
 
   describe("round-trip", () => {
-    it("preserves data through serialize then parse", () => {
+    it("preserves data through serialize then parse", async () => {
       const original = {
         version: "0.2.0",
         name: "Test Layout",
@@ -104,8 +104,8 @@ items:
         ],
       };
 
-      const yaml = serializeToYaml(original);
-      const parsed = parseYaml(yaml);
+      const yaml = await serializeToYaml(original);
+      const parsed = await parseYaml(yaml);
 
       expect(parsed).toEqual(original);
     });
@@ -135,27 +135,27 @@ describe("v0.2 Layout YAML Serialization", () => {
   });
 
   describe("serializeLayoutToYaml", () => {
-    it("produces valid YAML that can be parsed back", () => {
+    it("produces valid YAML that can be parsed back", async () => {
       const layout = createValidLayout();
-      const yaml = serializeLayoutToYaml(layout);
-      const parsed = parseYaml(yaml);
+      const yaml = await serializeLayoutToYaml(layout);
+      const parsed = await parseYaml(yaml);
 
       expect(parsed).toBeDefined();
     });
 
-    it("excludes view field from output", () => {
+    it("excludes view field from output", async () => {
       const layout = createValidLayout();
       layout.rack.view = "rear"; // Runtime-only field
 
-      const yaml = serializeLayoutToYaml(layout);
+      const yaml = await serializeLayoutToYaml(layout);
 
       expect(yaml).not.toContain("view:");
       expect(yaml).not.toContain("view: rear");
     });
 
-    it("includes all required fields", () => {
+    it("includes all required fields", async () => {
       const layout = createValidLayout();
-      const yaml = serializeLayoutToYaml(layout);
+      const yaml = await serializeLayoutToYaml(layout);
 
       expect(yaml).toContain("version:");
       expect(yaml).toContain("name:");
@@ -164,9 +164,9 @@ describe("v0.2 Layout YAML Serialization", () => {
       expect(yaml).toContain("settings:");
     });
 
-    it("maintains field order (version, name, rack, device_types, settings)", () => {
+    it("maintains field order (version, name, rack, device_types, settings)", async () => {
       const layout = createValidLayout();
-      const yaml = serializeLayoutToYaml(layout);
+      const yaml = await serializeLayoutToYaml(layout);
 
       const versionIndex = yaml.indexOf("version:");
       const nameIndex = yaml.indexOf("name:");
@@ -180,7 +180,7 @@ describe("v0.2 Layout YAML Serialization", () => {
       expect(deviceTypesIndex).toBeLessThan(settingsIndex);
     });
 
-    it("properly indents nested structures", () => {
+    it("properly indents nested structures", async () => {
       const layout = createValidLayout();
       // Schema v1.0.0: Flat structure with colour and category at top level
       layout.device_types = [
@@ -192,7 +192,7 @@ describe("v0.2 Layout YAML Serialization", () => {
         },
       ];
 
-      const yaml = serializeLayoutToYaml(layout);
+      const yaml = await serializeLayoutToYaml(layout);
 
       // Check that colour and category are flat (not nested under Rackula)
       expect(yaml).not.toContain("Rackula:");
@@ -200,7 +200,7 @@ describe("v0.2 Layout YAML Serialization", () => {
       expect(yaml).toContain("category:");
     });
 
-    it("serializes device types correctly", () => {
+    it("serializes device types correctly", async () => {
       const layout = createValidLayout();
       // Schema v1.0.0: Flat structure
       layout.device_types = [
@@ -214,14 +214,14 @@ describe("v0.2 Layout YAML Serialization", () => {
         },
       ];
 
-      const yaml = serializeLayoutToYaml(layout);
+      const yaml = await serializeLayoutToYaml(layout);
 
       expect(yaml).toContain("slug: synology-ds920-plus");
       expect(yaml).toContain("u_height: 2");
       expect(yaml).toContain("manufacturer: Synology");
     });
 
-    it("serializes placed devices correctly", () => {
+    it("serializes placed devices correctly", async () => {
       const layout = createValidLayout();
       // Schema v1.0.0: Flat structure
       layout.device_types = [
@@ -249,7 +249,7 @@ describe("v0.2 Layout YAML Serialization", () => {
         },
       ];
 
-      const yaml = serializeLayoutToYaml(layout);
+      const yaml = await serializeLayoutToYaml(layout);
 
       expect(yaml).toContain("device_type: test-device");
       expect(yaml).toContain("position: 10");
@@ -259,18 +259,18 @@ describe("v0.2 Layout YAML Serialization", () => {
   });
 
   describe("parseLayoutYaml", () => {
-    it("parses valid YAML correctly", () => {
+    it("parses valid YAML correctly", async () => {
       const layout = createValidLayout();
-      const yaml = serializeLayoutToYaml(layout);
+      const yaml = await serializeLayoutToYaml(layout);
 
-      const parsed = parseLayoutYaml(yaml);
+      const parsed = await parseLayoutYaml(yaml);
 
       expect(parsed.version).toBe("0.2.0");
       expect(parsed.name).toBe("My Homelab");
       expect(parsed.rack.name).toBe("Main Rack");
     });
 
-    it("returns layout with all fields", () => {
+    it("returns layout with all fields", async () => {
       const layout = createValidLayout();
       // Schema v1.0.0: Flat structure
       layout.device_types = [
@@ -282,32 +282,32 @@ describe("v0.2 Layout YAML Serialization", () => {
         },
       ];
 
-      const yaml = serializeLayoutToYaml(layout);
-      const parsed = parseLayoutYaml(yaml);
+      const yaml = await serializeLayoutToYaml(layout);
+      const parsed = await parseLayoutYaml(yaml);
 
       expect(parsed.device_types).toHaveLength(1);
       expect(parsed.device_types[0]!.slug).toBe("test-server");
       expect(parsed.settings.display_mode).toBe("label");
     });
 
-    it("adds default view: front", () => {
+    it("adds default view: front", async () => {
       const layout = createValidLayout();
-      const yaml = serializeLayoutToYaml(layout);
+      const yaml = await serializeLayoutToYaml(layout);
 
-      const parsed = parseLayoutYaml(yaml);
+      const parsed = await parseLayoutYaml(yaml);
 
       expect(parsed.rack.view).toBe("front");
     });
 
-    it("throws on invalid YAML syntax", () => {
+    it("throws on invalid YAML syntax", async () => {
       const invalidYaml = `
 version: "0.2.0
 name: Broken
 `;
-      expect(() => parseLayoutYaml(invalidYaml)).toThrow();
+      await expect(parseLayoutYaml(invalidYaml)).rejects.toThrow();
     });
 
-    it("throws on schema validation failure", () => {
+    it("throws on schema validation failure", async () => {
       const invalidLayout = `
 version: "0.2.0"
 name: ""
@@ -325,10 +325,10 @@ settings:
   display_mode: label
   show_labels_on_images: true
 `;
-      expect(() => parseLayoutYaml(invalidLayout)).toThrow();
+      await expect(parseLayoutYaml(invalidLayout)).rejects.toThrow();
     });
 
-    it("error message includes details about what is wrong", () => {
+    it("error message includes details about what is wrong", async () => {
       const invalidLayout = `
 version: "0.2.0"
 name: "Test"
@@ -347,7 +347,7 @@ settings:
   show_labels_on_images: true
 `;
       try {
-        parseLayoutYaml(invalidLayout);
+        await parseLayoutYaml(invalidLayout);
         expect.fail("Should have thrown");
       } catch (e) {
         expect((e as Error).message).toContain("width");
@@ -356,7 +356,7 @@ settings:
   });
 
   describe("layout round-trip", () => {
-    it("serialize then parse returns equivalent object", () => {
+    it("serialize then parse returns equivalent object", async () => {
       const layout = createValidLayout();
       // Schema v1.0.0: Flat structure
       layout.device_types = [
@@ -379,8 +379,8 @@ settings:
         },
       ];
 
-      const yaml = serializeLayoutToYaml(layout);
-      const parsed = parseLayoutYaml(yaml);
+      const yaml = await serializeLayoutToYaml(layout);
+      const parsed = await parseLayoutYaml(yaml);
 
       // Compare without runtime fields
       const { view: _, ...parsedRack } = parsed.rack;
@@ -389,7 +389,7 @@ settings:
       expect(parsed.settings).toEqual(layout.settings);
     });
 
-    it("all device_types preserved", () => {
+    it("all device_types preserved", async () => {
       const layout = createValidLayout();
       // Schema v1.0.0: Flat structure
       layout.device_types = [
@@ -413,8 +413,8 @@ settings:
         },
       ];
 
-      const yaml = serializeLayoutToYaml(layout);
-      const parsed = parseLayoutYaml(yaml);
+      const yaml = await serializeLayoutToYaml(layout);
+      const parsed = await parseLayoutYaml(yaml);
 
       expect(parsed.device_types).toHaveLength(3);
       expect(parsed.device_types.map((dt) => dt.slug)).toEqual([
@@ -424,7 +424,7 @@ settings:
       ]);
     });
 
-    it("all devices preserved", () => {
+    it("all devices preserved", async () => {
       const layout = createValidLayout();
       // Schema v1.0.0: Flat structure
       layout.device_types = [
@@ -458,8 +458,8 @@ settings:
         },
       ];
 
-      const yaml = serializeLayoutToYaml(layout);
-      const parsed = parseLayoutYaml(yaml);
+      const yaml = await serializeLayoutToYaml(layout);
+      const parsed = await parseLayoutYaml(yaml);
 
       expect(parsed.rack.devices).toHaveLength(3);
       expect(parsed.rack.devices[0]!.position).toBe(1);
@@ -467,15 +467,15 @@ settings:
       expect(parsed.rack.devices[2]!.face).toBe("both");
     });
 
-    it("settings preserved", () => {
+    it("settings preserved", async () => {
       const layout = createValidLayout();
       layout.settings = {
         display_mode: "image",
         show_labels_on_images: false,
       };
 
-      const yaml = serializeLayoutToYaml(layout);
-      const parsed = parseLayoutYaml(yaml);
+      const yaml = await serializeLayoutToYaml(layout);
+      const parsed = await parseLayoutYaml(yaml);
 
       expect(parsed.settings.display_mode).toBe("image");
       expect(parsed.settings.show_labels_on_images).toBe(false);

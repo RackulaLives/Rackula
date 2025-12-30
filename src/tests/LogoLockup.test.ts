@@ -307,7 +307,7 @@ describe("LogoLockup", () => {
       const { container } = render(LogoLockup);
       const envPrefix = container.querySelector(".env-prefix");
 
-      // The class exists (actual color is applied via CSS stylesheet)
+      // Class exists (actual color is applied via CSS stylesheet)
       expect(envPrefix).toBeInTheDocument();
     });
 

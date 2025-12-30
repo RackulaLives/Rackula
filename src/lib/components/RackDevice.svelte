@@ -401,6 +401,14 @@
     border: none;
     padding: 0;
     margin: 0;
+    /* iOS Safari long-press fixes (#232):
+       - Disable Safari's default callout/context menu on long press
+       - Prevent text selection during touch gestures
+       - Allow pan/pinch zoom but disable double-tap zoom delay */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
   }
 
   .drag-handle:active {
