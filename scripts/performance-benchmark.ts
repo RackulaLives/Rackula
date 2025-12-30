@@ -61,8 +61,13 @@ function generatePlacedDevices(
   const devices: PlacedDevice[] = [];
   let currentU = 1;
 
-  for (let i = 0; i < count && currentU <= rackHeight - 1; i++) {
+  for (let i = 0; i < count; i++) {
     const deviceType = deviceTypes[i % deviceTypes.length];
+    // Check if device fits in remaining rack space
+    // A device at position P with height H occupies U positions P to P+H-1
+    if (currentU + deviceType.u_height - 1 > rackHeight) {
+      break;
+    }
     devices.push({
       id: `placed-${i}`,
       device_type: deviceType.slug,
@@ -115,10 +120,17 @@ function generateTestRack(
 // Test Scenarios
 // =============================================================================
 
+// SVG element count constants (based on docs/research/performance-baseline.md)
+const EMPTY_RACK_ELEMENTS = 1 + 4 + 42 + 43 + 252 + 42; // interior + rails + U slots + grid + mounting holes + labels = 384
+const ELEMENTS_PER_DEVICE = 15; // rect, text, foreignObjects, etc.
+const PORT_ELEMENTS_LOW_DENSITY = 48; // For ≤24 ports: individual circles + buttons
+const PORT_ELEMENTS_HIGH_DENSITY = 12; // For >24 ports: grouped badges
+
 interface TestScenario {
   name: string;
   deviceCount: number;
   portsPerDevice: number;
+  /** Expected total SVG element count (rack + devices + ports) */
   expectedElements: number;
 }
 
@@ -127,31 +139,43 @@ const scenarios: TestScenario[] = [
     name: "Empty rack",
     deviceCount: 0,
     portsPerDevice: 0,
-    expectedElements: 42 * 6 + 43 + 42 * 2, // U slots + grid lines + U labels + mounting holes
+    expectedElements: EMPTY_RACK_ELEMENTS, // ~384
   },
   {
     name: "10 devices (no ports)",
     deviceCount: 10,
     portsPerDevice: 0,
-    expectedElements: 0, // Calculated at runtime
+    expectedElements: EMPTY_RACK_ELEMENTS + 10 * ELEMENTS_PER_DEVICE, // ~534
   },
   {
     name: "10 devices × 24 ports = 240 port elements",
     deviceCount: 10,
     portsPerDevice: 24,
-    expectedElements: 240,
+    // 384 rack + 150 devices + 480 ports (10 × 48 low-density port elements)
+    expectedElements:
+      EMPTY_RACK_ELEMENTS +
+      10 * ELEMENTS_PER_DEVICE +
+      10 * PORT_ELEMENTS_LOW_DENSITY, // ~1014
   },
   {
     name: "10 devices × 48 ports = 480 port elements",
     deviceCount: 10,
     portsPerDevice: 48,
-    expectedElements: 480,
+    // 384 rack + 150 devices + 120 ports (10 × 12 high-density port elements)
+    expectedElements:
+      EMPTY_RACK_ELEMENTS +
+      10 * ELEMENTS_PER_DEVICE +
+      10 * PORT_ELEMENTS_HIGH_DENSITY, // ~654
   },
   {
     name: "20 devices × 24 ports = 480 port elements (max rack)",
     deviceCount: 20,
     portsPerDevice: 24,
-    expectedElements: 480,
+    // 384 rack + 300 devices + 960 ports (20 × 48 low-density port elements)
+    expectedElements:
+      EMPTY_RACK_ELEMENTS +
+      20 * ELEMENTS_PER_DEVICE +
+      20 * PORT_ELEMENTS_LOW_DENSITY, // ~1644
   },
 ];
 
