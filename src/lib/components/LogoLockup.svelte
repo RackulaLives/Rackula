@@ -1,10 +1,12 @@
 <!--
   LogoLockup Component
   Logo + title lockup for toolbar branding
-  White by default, rainbow gradient on hover, celebrate on success
-  Showcase mode: slow rainbow wave for About/Help display
+  Logo mark: Dracula purple by default, rainbow gradient on hover
+  Brand text: White by default, rainbow gradient on hover
+  Celebrate on success, Showcase mode: slow rainbow wave for About/Help
 
   v4: DRackula prefix for dev/local environments (blood-red D)
+  v5: Purple logo mark with white brand text (restoring Dracula theming)
 -->
 <script lang="ts">
   import SantaHat from "./SantaHat.svelte";
@@ -262,12 +264,7 @@
       : "Rackula"}
     style={gradientId ? `--active-gradient: ${gradientId}` : undefined}
   >
-    <text x="0" y="38">
-      {#if showEnvPrefix}
-        <tspan class="env-prefix">D</tspan>
-      {/if}
-      <tspan>Rackula</tspan>
-    </text>
+    <text x="0" y="38">{#if showEnvPrefix}<tspan class="env-prefix" font-size="44">D</tspan>{/if}<tspan>Rackula</tspan></text>
   </svg>
 </div>
 
@@ -290,18 +287,20 @@
     z-index: 1;
   }
 
-  .logo-mark,
+  .logo-mark {
+    /* Dracula purple by default, gradient on hover/special states */
+    fill: var(--dracula-purple, #bd93f9);
+    transition: fill 0.3s ease;
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 6px rgba(189, 147, 249, 0.2));
+    /* Align mark baseline with text baseline */
+    margin-bottom: -2px;
+  }
+
   .logo-title text {
     /* White by default, gradient on hover/special states */
     fill: var(--dracula-foreground, #f8f8f2);
     transition: fill 0.3s ease;
-  }
-
-  .logo-mark {
-    flex-shrink: 0;
-    filter: drop-shadow(0 0 6px rgba(248, 248, 242, 0.15));
-    /* Align mark baseline with text baseline */
-    margin-bottom: -2px;
   }
 
   .logo-title {
@@ -373,24 +372,31 @@
 
   /* Respect reduced motion preference */
   @media (prefers-reduced-motion: reduce) {
-    .logo-mark,
+    .logo-mark {
+      /* Purple by default (matches normal state) */
+      fill: var(--dracula-purple, #bd93f9);
+      filter: drop-shadow(0 0 6px rgba(189, 147, 249, 0.2));
+    }
+
     .logo-title text {
       /* White by default, static purple on hover/special states */
       fill: var(--dracula-foreground, #f8f8f2);
     }
 
-    .logo-mark,
     .logo-title {
       filter: drop-shadow(0 0 6px rgba(248, 248, 242, 0.15));
     }
 
-    /* Static purple for hover state (no animation) */
-    .logo-mark--hover,
+    /* Static purple for hover state (no animation) - logo stays purple, text goes purple */
+    .logo-mark--hover {
+      fill: var(--dracula-purple) !important;
+      filter: drop-shadow(0 0 8px rgba(189, 147, 249, 0.3));
+    }
+
     .logo-title--hover text {
       fill: var(--dracula-purple) !important;
     }
 
-    .logo-mark--hover,
     .logo-title--hover {
       filter: drop-shadow(0 0 8px rgba(189, 147, 249, 0.2));
     }

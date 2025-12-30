@@ -1,13 +1,28 @@
 /**
  * Archive Utilities
  * Folder-based ZIP archives with YAML and nested image structure
+ *
+ * Uses dynamic import for JSZip to reduce initial bundle size.
+ * The library is only loaded when save/load operations are performed.
  */
 
-import JSZip from "jszip";
 import type { Layout } from "$lib/types";
 import type { ImageData, ImageStoreMap } from "$lib/types/images";
 import { slugify } from "./slug";
 import { serializeLayoutToYaml, parseLayoutYaml } from "./yaml";
+
+/**
+ * Lazily load JSZip library
+ * Cached after first load for subsequent calls
+ */
+let jsZipModule: typeof import("jszip") | null = null;
+
+async function getJSZip(): Promise<typeof import("jszip").default> {
+  if (!jsZipModule) {
+    jsZipModule = await import("jszip");
+  }
+  return jsZipModule.default;
+}
 
 /**
  * MIME type to file extension mapping
@@ -51,6 +66,7 @@ export async function createFolderArchive(
   layout: Layout,
   images: ImageStoreMap,
 ): Promise<Blob> {
+  const JSZip = await getJSZip();
   const zip = new JSZip();
 
   // Sanitize folder name using slugify
@@ -63,7 +79,7 @@ export async function createFolderArchive(
   }
 
   // Serialize layout to YAML (excludes runtime fields)
-  const yamlContent = serializeLayoutToYaml(layout);
+  const yamlContent = await serializeLayoutToYaml(layout);
   folder.file(`${folderName}.yaml`, yamlContent);
 
   // Add images if present
@@ -129,6 +145,7 @@ export async function createFolderArchive(
 export async function extractFolderArchive(
   blob: Blob,
 ): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
+  const JSZip = await getJSZip();
   const zip = await JSZip.loadAsync(blob);
 
   // Find the YAML file (should be [name]/[name].yaml)
@@ -149,7 +166,7 @@ export async function extractFolderArchive(
 
   // Parse YAML content
   const yamlContent = await yamlFile.async("string");
-  const layout = parseLayoutYaml(yamlContent);
+  const layout = await parseLayoutYaml(yamlContent);
 
   // Find the folder name (parent of the YAML file)
   const folderName = yamlPath.split("/")[0] ?? "layout";

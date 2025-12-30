@@ -12,6 +12,7 @@
     QR_MIN_PRINT_CM,
   } from "$lib/utils/qrcode";
   import { getToastStore } from "$lib/stores/toast.svelte";
+  import { analytics } from "$lib/utils/analytics";
   import type { Layout } from "$lib/types";
 
   interface Props {
@@ -21,6 +22,11 @@
   }
 
   let { open, layout, onclose }: Props = $props();
+
+  function handleClose() {
+    analytics.trackPanelClose("share");
+    onclose?.();
+  }
 
   const toastStore = getToastStore();
 
@@ -34,11 +40,14 @@
   let qrError = $state<string | null>(null);
   let isGeneratingQR = $state(false);
 
-  // Generate QR code when dialog opens
+  // Generate QR code when dialog opens and track panel open
   $effect(() => {
-    if (open && fitsInQR) {
-      generateQR();
-    } else if (!open) {
+    if (open) {
+      analytics.trackPanelOpen("share");
+      if (fitsInQR) {
+        generateQR();
+      }
+    } else {
       qrDataUrl = null;
       qrError = null;
     }
@@ -82,7 +91,7 @@
   }
 </script>
 
-<Dialog {open} title="Share Layout" width="420px" showClose={false} {onclose}>
+<Dialog {open} title="Share Layout" width="420px" showClose={false} onclose={handleClose}>
   <div class="share-dialog">
     <!-- URL Section -->
     <div class="share-section">

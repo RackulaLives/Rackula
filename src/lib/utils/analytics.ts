@@ -3,6 +3,19 @@
  * Privacy-focused event tracking with TypeScript support
  */
 
+// Toolbar button identifiers for tracking
+export type ToolbarButton =
+  | "new-rack"
+  | "undo"
+  | "redo"
+  | "delete"
+  | "fit-all"
+  | "theme"
+  | "hamburger";
+
+// Panel identifiers for tracking
+export type PanelName = "help" | "export" | "share";
+
 // Typed event definitions
 export interface AnalyticsEvents {
   // File operations
@@ -31,6 +44,23 @@ export interface AnalyticsEvents {
 
   // Session tracking
   "session:heartbeat": { session_minutes: number };
+
+  // Tier 1: Core feature adoption events
+  // Rack operations
+  "rack:create": Record<string, never>;
+
+  // UI panel interactions
+  "ui:panel:open": { panel: PanelName };
+  "ui:panel:close": { panel: PanelName };
+
+  // Toolbar interactions (untracked buttons)
+  "ui:toolbar:click": { button: ToolbarButton };
+
+  // Device palette
+  "palette:import": Record<string, never>;
+
+  // Mobile-specific
+  "mobile:fab:click": Record<string, never>;
 }
 
 // Session properties (privacy-compliant)
@@ -219,6 +249,25 @@ export const analytics = {
   // Keyboard shortcuts
   trackKeyboardShortcut: (shortcut: string) =>
     trackEvent("keyboard:shortcut", { shortcut }),
+
+  // Tier 1: Core feature adoption
+  // Rack operations
+  trackRackCreate: () => trackEvent("rack:create", {}),
+
+  // Panel interactions
+  trackPanelOpen: (panel: PanelName) => trackEvent("ui:panel:open", { panel }),
+  trackPanelClose: (panel: PanelName) =>
+    trackEvent("ui:panel:close", { panel }),
+
+  // Toolbar interactions
+  trackToolbarClick: (button: ToolbarButton) =>
+    trackEvent("ui:toolbar:click", { button }),
+
+  // Device palette
+  trackPaletteImport: () => trackEvent("palette:import", {}),
+
+  // Mobile
+  trackMobileFabClick: () => trackEvent("mobile:fab:click", {}),
 };
 
 // Helper functions

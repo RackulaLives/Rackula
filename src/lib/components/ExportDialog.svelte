@@ -18,6 +18,7 @@
 	import LogoLoader from './LogoLoader.svelte';
 	import Shimmer from './Shimmer.svelte';
 	import { generateExportSVG, generateExportFilename } from '$lib/utils/export';
+	import { analytics } from '$lib/utils/analytics';
 
 	interface Props {
 		open: boolean;
@@ -144,6 +145,7 @@
 	}
 
 	function handleCancel() {
+		analytics.trackPanelClose('export');
 		oncancel?.();
 	}
 
@@ -153,9 +155,10 @@
 		}
 	}
 
-	// Add/remove event listener based on open state
+	// Add/remove event listener based on open state and track panel open
 	$effect(() => {
 		if (open) {
+			analytics.trackPanelOpen('export');
 			window.addEventListener('keydown', handleKeyDown);
 			return () => {
 				window.removeEventListener('keydown', handleKeyDown);

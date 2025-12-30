@@ -2,16 +2,32 @@
  * YAML Serialization Utilities
  * For folder-based project format
  * Schema v1.0.0: Flat structure with controlled field ordering
+ *
+ * Uses dynamic import for js-yaml to reduce initial bundle size.
+ * The library is only loaded when save/load operations are performed.
  */
 
-import yaml from "js-yaml";
 import type { Layout, DeviceType, PlacedDevice, Rack } from "$lib/types";
 import { LayoutSchema, type LayoutZod } from "$lib/schemas";
 
 /**
+ * Lazily load js-yaml library
+ * Cached after first load for subsequent calls
+ */
+let yamlModule: typeof import("js-yaml") | null = null;
+
+async function getYaml(): Promise<typeof import("js-yaml")> {
+  if (!yamlModule) {
+    yamlModule = await import("js-yaml");
+  }
+  return yamlModule;
+}
+
+/**
  * Serialize object to YAML string
  */
-export function serializeToYaml(data: unknown): string {
+export async function serializeToYaml(data: unknown): Promise<string> {
+  const yaml = await getYaml();
   return yaml.dump(data, {
     indent: 2,
     lineWidth: 120,
@@ -24,7 +40,8 @@ export function serializeToYaml(data: unknown): string {
 /**
  * Parse YAML string to object
  */
-export function parseYaml<T = unknown>(yamlString: string): T {
+export async function parseYaml<T = unknown>(yamlString: string): Promise<T> {
+  const yaml = await getYaml();
   return yaml.load(yamlString) as T;
 }
 
@@ -150,7 +167,7 @@ function orderRackFields(rack: Rack): Record<string, unknown> {
  * Serialize a layout to YAML string
  * Excludes runtime-only fields (view) and orders fields according to schema v1.0.0
  */
-export function serializeLayoutToYaml(layout: Layout): string {
+export async function serializeLayoutToYaml(layout: Layout): Promise<string> {
   const layoutForSerialization = {
     version: layout.version,
     name: layout.name,
@@ -180,9 +197,9 @@ function toRuntimeLayout(parsed: LayoutZod): Layout {
  * Parse YAML string to layout
  * Validates against schema and adds runtime defaults
  */
-export function parseLayoutYaml(yamlString: string): Layout {
+export async function parseLayoutYaml(yamlString: string): Promise<Layout> {
   // Parse YAML (may throw on invalid syntax)
-  const parsed = parseYaml(yamlString);
+  const parsed = await parseYaml(yamlString);
 
   // Validate against schema - result.data is typed as LayoutZod
   const result = LayoutSchema.safeParse(parsed);

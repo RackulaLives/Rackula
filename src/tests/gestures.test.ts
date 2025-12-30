@@ -32,178 +32,26 @@ describe("useLongPress", () => {
     vi.useRealTimers();
   });
 
-  it("calls callback after 500ms of press", () => {
-    cleanup = useLongPress(element, callback);
+  describe("basic functionality", () => {
+    it("calls callback after 500ms of press", () => {
+      cleanup = useLongPress(element, callback);
 
-    // Simulate pointerdown (isPrimary is required for gesture to trigger)
-    element.dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
-    );
+      // Simulate pointerdown with primary pointer
+      element.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
+      );
 
-    // Fast-forward 499ms - should not trigger
-    vi.advanceTimersByTime(499);
-    expect(callback).not.toHaveBeenCalled();
+      // Fast-forward 499ms - should not trigger
+      vi.advanceTimersByTime(499);
+      expect(callback).not.toHaveBeenCalled();
 
-    // Fast-forward 1ms more (total 500ms) - should trigger
-    vi.advanceTimersByTime(1);
-    expect(callback).toHaveBeenCalledTimes(1);
-  });
-
-  it("accepts custom duration", () => {
-    cleanup = useLongPress(element, callback, 300);
-
-    element.dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
-    );
-
-    vi.advanceTimersByTime(299);
-    expect(callback).not.toHaveBeenCalled();
-
-    vi.advanceTimersByTime(1);
-    expect(callback).toHaveBeenCalledTimes(1);
-  });
-
-  it("cancels on pointerup before duration", () => {
-    cleanup = useLongPress(element, callback);
-
-    element.dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
-    );
-    vi.advanceTimersByTime(200);
-
-    // Release before 500ms
-    element.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
-    vi.advanceTimersByTime(300);
-
-    expect(callback).not.toHaveBeenCalled();
-  });
-
-  it("cancels on pointercancel", () => {
-    cleanup = useLongPress(element, callback);
-
-    element.dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
-    );
-    vi.advanceTimersByTime(200);
-
-    element.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true }));
-    vi.advanceTimersByTime(300);
-
-    expect(callback).not.toHaveBeenCalled();
-  });
-
-  it("cancels on pointermove beyond threshold", () => {
-    cleanup = useLongPress(element, callback);
-
-    // Start press at 0,0
-    element.dispatchEvent(
-      new PointerEvent("pointerdown", {
-        bubbles: true,
-        isPrimary: true,
-        clientX: 0,
-        clientY: 0,
-      }),
-    );
-
-    vi.advanceTimersByTime(200);
-
-    // Move 11px (threshold is 10px)
-    element.dispatchEvent(
-      new PointerEvent("pointermove", {
-        bubbles: true,
-        clientX: 11,
-        clientY: 0,
-      }),
-    );
-
-    vi.advanceTimersByTime(300);
-    expect(callback).not.toHaveBeenCalled();
-  });
-
-  it("does not cancel on small movement within threshold", () => {
-    cleanup = useLongPress(element, callback);
-
-    element.dispatchEvent(
-      new PointerEvent("pointerdown", {
-        bubbles: true,
-        isPrimary: true,
-        clientX: 0,
-        clientY: 0,
-      }),
-    );
-
-    vi.advanceTimersByTime(200);
-
-    // Move 5px (within 10px threshold)
-    element.dispatchEvent(
-      new PointerEvent("pointermove", {
-        bubbles: true,
-        clientX: 5,
-        clientY: 0,
-      }),
-    );
-
-    vi.advanceTimersByTime(300);
-    expect(callback).toHaveBeenCalledTimes(1);
-  });
-
-  it("triggers haptic feedback if available", () => {
-    cleanup = useLongPress(element, callback);
-
-    element.dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
-    );
-    vi.advanceTimersByTime(500);
-
-    expect(navigator.vibrate).toHaveBeenCalledWith(50);
-  });
-
-  it("handles missing vibrate API gracefully", () => {
-    // Remove vibrate API
-    Object.defineProperty(navigator, "vibrate", {
-      value: undefined,
-      writable: true,
-      configurable: true,
+      // Fast-forward 1ms more (total 500ms) - should trigger
+      vi.advanceTimersByTime(1);
+      expect(callback).toHaveBeenCalledTimes(1);
     });
 
-    cleanup = useLongPress(element, callback);
-
-    element.dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
-    );
-    vi.advanceTimersByTime(500);
-
-    // Should still call callback
-    expect(callback).toHaveBeenCalledTimes(1);
-  });
-
-  it("cleans up event listeners on cleanup", () => {
-    const removeEventListenerSpy = vi.spyOn(element, "removeEventListener");
-
-    cleanup = useLongPress(element, callback);
-    cleanup();
-
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      "pointerdown",
-      expect.any(Function),
-    );
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      "pointerup",
-      expect.any(Function),
-    );
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      "pointercancel",
-      expect.any(Function),
-    );
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      "pointermove",
-      expect.any(Function),
-    );
-  });
-
-  describe("options API", () => {
-    it("accepts options object with duration", () => {
-      cleanup = useLongPress(element, callback, { duration: 300 });
+    it("accepts custom duration via number (legacy API)", () => {
+      cleanup = useLongPress(element, callback, 300);
 
       element.dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
@@ -216,7 +64,169 @@ describe("useLongPress", () => {
       expect(callback).toHaveBeenCalledTimes(1);
     });
 
-    it("calls onStart when press begins", () => {
+    it("accepts custom duration via options object", () => {
+      cleanup = useLongPress(element, callback, { duration: 300 });
+
+      element.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
+      );
+
+      vi.advanceTimersByTime(299);
+      expect(callback).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("cancellation", () => {
+    it("cancels on pointerup before duration", () => {
+      cleanup = useLongPress(element, callback);
+
+      element.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
+      );
+      vi.advanceTimersByTime(200);
+
+      // Release before 500ms
+      element.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+      vi.advanceTimersByTime(300);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it("cancels on pointercancel", () => {
+      cleanup = useLongPress(element, callback);
+
+      element.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
+      );
+      vi.advanceTimersByTime(200);
+
+      element.dispatchEvent(
+        new PointerEvent("pointercancel", { bubbles: true }),
+      );
+      vi.advanceTimersByTime(300);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it("cancels on pointermove beyond threshold", () => {
+      cleanup = useLongPress(element, callback);
+
+      // Start press at 0,0
+      element.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          isPrimary: true,
+          clientX: 0,
+          clientY: 0,
+        }),
+      );
+
+      vi.advanceTimersByTime(200);
+
+      // Move 11px (threshold is 10px)
+      element.dispatchEvent(
+        new PointerEvent("pointermove", {
+          bubbles: true,
+          clientX: 11,
+          clientY: 0,
+        }),
+      );
+
+      vi.advanceTimersByTime(300);
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it("does not cancel on small movement within threshold", () => {
+      cleanup = useLongPress(element, callback);
+
+      element.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          isPrimary: true,
+          clientX: 0,
+          clientY: 0,
+        }),
+      );
+
+      vi.advanceTimersByTime(200);
+
+      // Move 5px (within 10px threshold)
+      element.dispatchEvent(
+        new PointerEvent("pointermove", {
+          bubbles: true,
+          clientX: 5,
+          clientY: 0,
+        }),
+      );
+
+      vi.advanceTimersByTime(300);
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("multi-touch handling", () => {
+    it("ignores non-primary pointer events", () => {
+      cleanup = useLongPress(element, callback);
+
+      // Non-primary pointer (e.g., second finger)
+      element.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, isPrimary: false }),
+      );
+
+      vi.advanceTimersByTime(500);
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it("only responds to primary pointer", () => {
+      cleanup = useLongPress(element, callback);
+
+      // Primary pointer
+      element.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
+      );
+
+      vi.advanceTimersByTime(500);
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("haptic feedback", () => {
+    it("triggers haptic feedback if available", () => {
+      cleanup = useLongPress(element, callback);
+
+      element.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
+      );
+      vi.advanceTimersByTime(500);
+
+      expect(navigator.vibrate).toHaveBeenCalledWith(50);
+    });
+
+    it("handles missing vibrate API gracefully", () => {
+      // Remove vibrate API
+      Object.defineProperty(navigator, "vibrate", {
+        value: undefined,
+        writable: true,
+        configurable: true,
+      });
+
+      cleanup = useLongPress(element, callback);
+
+      element.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
+      );
+      vi.advanceTimersByTime(500);
+
+      // Should still call callback
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("options callbacks", () => {
+    it("calls onStart when pointer goes down", () => {
       const onStart = vi.fn();
       cleanup = useLongPress(element, callback, { onStart });
 
@@ -232,7 +242,7 @@ describe("useLongPress", () => {
       expect(onStart).toHaveBeenCalledWith(100, 200);
     });
 
-    it("calls onCancel when press is cancelled", () => {
+    it("calls onCancel when gesture is cancelled", () => {
       const onCancel = vi.fn();
       cleanup = useLongPress(element, callback, { onCancel });
 
@@ -243,50 +253,86 @@ describe("useLongPress", () => {
 
       element.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
 
-      expect(onCancel).toHaveBeenCalledTimes(1);
+      expect(onCancel).toHaveBeenCalled();
+      expect(callback).not.toHaveBeenCalled();
     });
 
     it("calls onProgress during hold", () => {
       const onProgress = vi.fn();
-      cleanup = useLongPress(element, callback, { onProgress, duration: 500 });
+      cleanup = useLongPress(element, callback, { onProgress });
 
       element.dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
       );
 
-      // onProgress should be called immediately with 0
+      // Initial progress call
       expect(onProgress).toHaveBeenCalledWith(0);
 
-      // Advance time and run animation frames
-      vi.advanceTimersByTime(250);
-      // Progress updates happen via requestAnimationFrame
-      // The final progress value should be called when timer completes
-      vi.advanceTimersByTime(250);
-
-      expect(callback).toHaveBeenCalledTimes(1);
-    });
-
-    it("ignores non-primary pointers (multi-touch)", () => {
-      cleanup = useLongPress(element, callback);
-
-      // Secondary touch should be ignored
-      element.dispatchEvent(
-        new PointerEvent("pointerdown", { bubbles: true, isPrimary: false }),
-      );
-
+      // Advance some time to trigger animation frames
       vi.advanceTimersByTime(500);
-      expect(callback).not.toHaveBeenCalled();
+
+      // Final progress should be 1
+      expect(onProgress).toHaveBeenLastCalledWith(1);
     });
 
-    it("primary pointer triggers long press", () => {
+    it("delivers final progress value before callback", () => {
+      const callOrder: string[] = [];
+      const onProgress = vi.fn(() => callOrder.push("progress"));
+      const trackedCallback = vi.fn(() => callOrder.push("callback"));
+
+      cleanup = useLongPress(element, trackedCallback, { onProgress });
+
+      element.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
+      );
+      vi.advanceTimersByTime(500);
+
+      // Progress(1) should be called before callback
+      const lastProgressIndex = callOrder.lastIndexOf("progress");
+      const callbackIndex = callOrder.indexOf("callback");
+      expect(lastProgressIndex).toBeLessThan(callbackIndex);
+    });
+  });
+
+  describe("cleanup", () => {
+    it("cleans up event listeners on cleanup", () => {
+      const removeEventListenerSpy = vi.spyOn(element, "removeEventListener");
+
+      cleanup = useLongPress(element, callback);
+      cleanup();
+
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        "pointerdown",
+        expect.any(Function),
+      );
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        "pointerup",
+        expect.any(Function),
+      );
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        "pointercancel",
+        expect.any(Function),
+      );
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        "pointermove",
+        expect.any(Function),
+      );
+    });
+
+    it("clears pending timers on cleanup", () => {
       cleanup = useLongPress(element, callback);
 
       element.dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
       );
+      vi.advanceTimersByTime(200);
 
-      vi.advanceTimersByTime(500);
-      expect(callback).toHaveBeenCalledTimes(1);
+      // Cleanup before timer fires
+      cleanup();
+      cleanup = undefined;
+
+      vi.advanceTimersByTime(300);
+      expect(callback).not.toHaveBeenCalled();
     });
   });
 });

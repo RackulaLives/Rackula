@@ -25,6 +25,7 @@
 	import type { DisplayMode } from '$lib/types';
 	import { getLayoutStore } from '$lib/stores/layout.svelte';
 	import { getToastStore } from '$lib/stores/toast.svelte';
+	import { analytics } from '$lib/utils/analytics';
 
 	interface Props {
 		hasSelection?: boolean;
@@ -101,6 +102,7 @@
 		// Only toggle drawer in hamburger mode
 		if (isHamburgerMode) {
 			drawerOpen = !drawerOpen;
+			analytics.trackToolbarClick('hamburger');
 		}
 	}
 
@@ -115,6 +117,7 @@
 		const desc = layoutStore.undoDescription?.replace('Undo: ', '') ?? 'action';
 		layoutStore.undo();
 		toastStore.showToast(`Undid: ${desc}`, 'info');
+		analytics.trackToolbarClick('undo');
 	}
 
 	function handleRedo() {
@@ -122,6 +125,28 @@
 		const desc = layoutStore.redoDescription?.replace('Redo: ', '') ?? 'action';
 		layoutStore.redo();
 		toastStore.showToast(`Redid: ${desc}`, 'info');
+		analytics.trackToolbarClick('redo');
+	}
+
+	function handleNewRack() {
+		analytics.trackRackCreate();
+		analytics.trackToolbarClick('new-rack');
+		onnewrack?.();
+	}
+
+	function handleDelete() {
+		analytics.trackToolbarClick('delete');
+		ondelete?.();
+	}
+
+	function handleFitAll() {
+		analytics.trackToolbarClick('fit-all');
+		onfitall?.();
+	}
+
+	function handleToggleTheme() {
+		analytics.trackToolbarClick('theme');
+		ontoggletheme?.();
 	}
 </script>
 
@@ -167,7 +192,7 @@
 				class="toolbar-action-btn"
 				class:primary={!hasRacks}
 				aria-label="New Rack"
-				onclick={onnewrack}
+				onclick={handleNewRack}
 				data-testid="btn-new-rack"
 			>
 				<IconPlus size={16} />
@@ -253,7 +278,7 @@
 				class="toolbar-action-btn"
 				aria-label="Delete"
 				disabled={!hasSelection}
-				onclick={ondelete}
+				onclick={handleDelete}
 				data-testid="btn-delete"
 			>
 				<IconTrash size={16} />
@@ -287,7 +312,7 @@
 			<button
 				class="toolbar-action-btn"
 				aria-label="Reset View"
-				onclick={onfitall}
+				onclick={handleFitAll}
 				data-testid="btn-reset-view"
 			>
 				<IconFitAll size={16} />
@@ -299,7 +324,7 @@
 			<button
 				class="toolbar-action-btn"
 				aria-label="Toggle Theme"
-				onclick={ontoggletheme}
+				onclick={handleToggleTheme}
 				data-testid="btn-toggle-theme"
 			>
 				{#if theme === 'dark'}
