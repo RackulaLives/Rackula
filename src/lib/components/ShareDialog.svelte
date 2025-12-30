@@ -91,7 +91,13 @@
   }
 </script>
 
-<Dialog {open} title="Share Layout" width="420px" showClose={false} onclose={handleClose}>
+<Dialog
+  {open}
+  title="Share Layout"
+  width="420px"
+  showClose={false}
+  onclose={handleClose}
+>
   <div class="share-dialog">
     <!-- URL Section -->
     <div class="share-section">

@@ -20,26 +20,26 @@
     type: InterfaceType;
     label?: string;
     mgmt_only?: boolean;
-    position?: 'front' | 'rear';
-    poe_mode?: 'pd' | 'pse';
+    position?: "front" | "rear";
+    poe_mode?: "pd" | "pse";
   }
 
   type InterfaceType =
-    | '1000base-t'      // 1GbE RJ45
-    | '10gbase-t'       // 10GbE RJ45
-    | '10gbase-x-sfpp'  // 10GbE SFP+
-    | '25gbase-x-sfp28' // 25GbE SFP28
-    | '40gbase-x-qsfpp' // 40GbE QSFP+
-    | '100gbase-x-qsfp28'; // 100GbE QSFP28
+    | "1000base-t" // 1GbE RJ45
+    | "10gbase-t" // 10GbE RJ45
+    | "10gbase-x-sfpp" // 10GbE SFP+
+    | "25gbase-x-sfp28" // 25GbE SFP28
+    | "40gbase-x-qsfpp" // 40GbE QSFP+
+    | "100gbase-x-qsfp28"; // 100GbE QSFP28
 
   // Color scheme by interface type
   const INTERFACE_COLORS: Record<InterfaceType, string> = {
-    '1000base-t': '#10b981',      // Emerald - 1GbE
-    '10gbase-t': '#3b82f6',       // Blue - 10GbE copper
-    '10gbase-x-sfpp': '#8b5cf6',  // Purple - SFP+
-    '25gbase-x-sfp28': '#f59e0b', // Amber - SFP28
-    '40gbase-x-qsfpp': '#ef4444', // Red - QSFP+
-    '100gbase-x-qsfp28': '#ec4899', // Pink - QSFP28
+    "1000base-t": "#10b981", // Emerald - 1GbE
+    "10gbase-t": "#3b82f6", // Blue - 10GbE copper
+    "10gbase-x-sfpp": "#8b5cf6", // Purple - SFP+
+    "25gbase-x-sfp28": "#f59e0b", // Amber - SFP28
+    "40gbase-x-qsfpp": "#ef4444", // Red - QSFP+
+    "100gbase-x-qsfp28": "#ec4899", // Pink - QSFP28
   };
 
   // Props
@@ -47,8 +47,8 @@
     interfaces: InterfaceTemplate[];
     deviceWidth: number;
     deviceHeight: number;
-    rackView: 'front' | 'rear';
-    showPorts?: boolean;  // Toggle visibility
+    rackView: "front" | "rear";
+    showPorts?: boolean; // Toggle visibility
     onPortClick?: (iface: InterfaceTemplate) => void;
   }
 
@@ -69,10 +69,10 @@
 
   // Filter interfaces for current view
   const visibleInterfaces = $derived(
-    interfaces.filter(iface => {
-      const pos = iface.position ?? 'front';
+    interfaces.filter((iface) => {
+      const pos = iface.position ?? "front";
       return pos === rackView;
-    })
+    }),
   );
 
   // Calculate port positions (center horizontally)
@@ -88,7 +88,7 @@
       iface,
       x: startX + i * PORT_SPACING,
       y,
-      color: INTERFACE_COLORS[iface.type] ?? '#6b7280',
+      color: INTERFACE_COLORS[iface.type] ?? "#6b7280",
     }));
   });
 
@@ -142,10 +142,10 @@
         {/if}
 
         <!-- PoE indicator (lightning bolt or similar) -->
-        {#if iface.poe_mode === 'pse'}
+        {#if iface.poe_mode === "pse"}
           <text
             class="port-poe-indicator"
-            x={x}
+            {x}
             y={y - PORT_RADIUS - 2}
             text-anchor="middle"
             dominant-baseline="auto"
@@ -163,10 +163,7 @@
         height="16"
         class="port-click-overlay"
       >
-        <div
-          xmlns="http://www.w3.org/1999/xhtml"
-          class="port-click-container"
-        >
+        <div xmlns="http://www.w3.org/1999/xhtml" class="port-click-container">
           {#each portPositions as { iface, x } (iface.name)}
             <button
               type="button"
@@ -186,7 +183,8 @@
       {@const groupArray = portGroups ? Array.from(portGroups.entries()) : []}
       {@const badgeWidth = 24}
       {@const badgeSpacing = 4}
-      {@const totalBadgeWidth = groupArray.length * (badgeWidth + badgeSpacing) - badgeSpacing}
+      {@const totalBadgeWidth =
+        groupArray.length * (badgeWidth + badgeSpacing) - badgeSpacing}
       {@const startX = (deviceWidth - totalBadgeWidth) / 2}
       {@const y = deviceHeight - PORT_Y_OFFSET}
 
@@ -197,7 +195,7 @@
             width={badgeWidth}
             height="8"
             rx="2"
-            fill={INTERFACE_COLORS[type] ?? '#6b7280'}
+            fill={INTERFACE_COLORS[type] ?? "#6b7280"}
             stroke="rgba(0,0,0,0.3)"
             stroke-width="0.5"
           />

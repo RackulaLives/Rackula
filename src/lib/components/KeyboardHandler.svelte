@@ -24,6 +24,7 @@
     onfitall?: () => void;
     onhelp?: () => void;
     ontoggledisplaymode?: () => void;
+    ontoggleannotations?: () => void;
   }
 
   let {
@@ -34,6 +35,7 @@
     onfitall,
     onhelp,
     ontoggledisplaymode,
+    ontoggleannotations,
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
@@ -239,6 +241,12 @@
       {
         key: "i",
         action: () => ontoggledisplaymode?.(),
+      },
+
+      // N - toggle annotation column
+      {
+        key: "n",
+        action: () => ontoggleannotations?.(),
       },
     ];
   }

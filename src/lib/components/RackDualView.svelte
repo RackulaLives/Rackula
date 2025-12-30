@@ -4,8 +4,14 @@
   Replaces single-view Rack with toggle
 -->
 <script lang="ts">
-  import type { Rack as RackType, DeviceType, DisplayMode } from "$lib/types";
+  import type {
+    Rack as RackType,
+    DeviceType,
+    DisplayMode,
+    AnnotationField,
+  } from "$lib/types";
   import Rack from "./Rack.svelte";
+  import AnnotationColumn from "./AnnotationColumn.svelte";
   import { useLongPress } from "$lib/utils/gestures";
 
   // Synthetic rack ID for single-rack mode
@@ -21,6 +27,10 @@
     showLabelsOnImages?: boolean;
     /** Party mode visual effects active */
     partyMode?: boolean;
+    /** Show annotation column */
+    showAnnotations?: boolean;
+    /** Which field to display in annotation column */
+    annotationField?: AnnotationField;
     /** Enable long press gesture for mobile rack editing */
     enableLongPress?: boolean;
     onselect?: (event: CustomEvent<{ rackId: string }>) => void;
@@ -66,6 +76,8 @@
     displayMode = "label",
     showLabelsOnImages = false,
     partyMode = false,
+    showAnnotations = false,
+    annotationField = "name",
     enableLongPress = false,
     onselect,
     ondeviceselect,
@@ -180,6 +192,11 @@
   <div class="rack-dual-view-name">{rack.name}</div>
 
   <div class="rack-dual-view-container" class:single-view={!rack.show_rear}>
+    <!-- Annotation column (left of front view) -->
+    {#if showAnnotations}
+      <AnnotationColumn {rack} {deviceLibrary} {annotationField} />
+    {/if}
+
     <!-- Front view -->
     <div class="rack-front" role="presentation">
       <Rack

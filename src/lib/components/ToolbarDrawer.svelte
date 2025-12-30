@@ -17,7 +17,8 @@
 		IconUndo,
 		IconRedo,
 		IconSun,
-		IconMoon
+		IconMoon,
+		IconNote
 	} from './icons';
 	import type { DisplayMode } from '$lib/types';
 	import { getViewportStore } from '$lib/utils/viewport.svelte';
@@ -25,6 +26,7 @@
 	interface Props {
 		open?: boolean;
 		displayMode?: DisplayMode;
+		showAnnotations?: boolean;
 		theme?: 'dark' | 'light';
 		canUndo?: boolean;
 		canRedo?: boolean;
@@ -41,6 +43,7 @@
 		ondelete?: () => void;
 		onfitall?: () => void;
 		ontoggledisplaymode?: () => void;
+		ontoggleannotations?: () => void;
 		ontoggletheme?: () => void;
 		onhelp?: () => void;
 		onundo?: () => void;
@@ -50,6 +53,7 @@
 	let {
 		open = false,
 		displayMode = 'label',
+		showAnnotations = false,
 		theme = 'dark',
 		canUndo = false,
 		canRedo = false,
@@ -66,6 +70,7 @@
 		ondelete,
 		onfitall,
 		ontoggledisplaymode,
+		ontoggleannotations,
 		ontoggletheme,
 		onhelp,
 		onundo,
@@ -232,6 +237,16 @@
 				{/if}
 			</button>
 			{#if !viewportStore.isMobile}
+				<button
+					class="drawer-item"
+					class:active={showAnnotations}
+					aria-label="{showAnnotations ? 'Hide' : 'Show'} Annotations"
+					onclick={() => handleAction(ontoggleannotations)}
+				>
+					<IconNote size={18} />
+					<span>{showAnnotations ? 'Hide' : 'Show'} Annotations</span>
+					<kbd class="drawer-shortcut">N</kbd>
+				</button>
 				<button class="drawer-item" aria-label="Reset View" onclick={() => handleAction(onfitall)}>
 					<IconFitAll size={18} />
 					<span>Reset View</span>

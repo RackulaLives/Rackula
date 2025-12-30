@@ -539,6 +539,10 @@
     analytics.trackDisplayModeToggle(uiStore.displayMode);
   }
 
+  function handleToggleAnnotations() {
+    uiStore.toggleAnnotations();
+  }
+
   function handleHelp() {
     helpPanelOpen = true;
   }
@@ -778,6 +782,7 @@
     hasRacks={layoutStore.hasRack}
     theme={uiStore.theme}
     displayMode={uiStore.displayMode}
+    showAnnotations={uiStore.showAnnotations}
     {partyMode}
     onnewrack={handleNewRack}
     onsave={handleSave}
@@ -788,6 +793,7 @@
     onfitall={handleFitAll}
     ontoggletheme={handleToggleTheme}
     ontoggledisplaymode={handleToggleDisplayMode}
+    ontoggleannotations={handleToggleAnnotations}
     onhelp={handleHelp}
   />
 
@@ -937,6 +943,7 @@
     onfitall={handleFitAll}
     onhelp={handleHelp}
     ontoggledisplaymode={handleToggleDisplayMode}
+    ontoggleannotations={handleToggleAnnotations}
   />
 
   <!-- Global SVG gradient definitions for animations -->

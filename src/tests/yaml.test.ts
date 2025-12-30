@@ -67,9 +67,9 @@ rack:
   name: Homelab
   height: 42
 `;
-      const result = await parseYaml<{ rack: { name: string; height: number } }>(
-        yaml,
-      );
+      const result = await parseYaml<{
+        rack: { name: string; height: number };
+      }>(yaml);
       expect(result.rack.name).toBe("Homelab");
       expect(result.rack.height).toBe(42);
     });

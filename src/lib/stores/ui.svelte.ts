@@ -4,12 +4,12 @@
  */
 
 import {
-	loadThemeFromStorage,
-	saveThemeToStorage,
-	applyThemeToDocument,
-	type Theme
-} from '$lib/utils/theme';
-import type { DisplayMode } from '$lib/types';
+  loadThemeFromStorage,
+  saveThemeToStorage,
+  applyThemeToDocument,
+  type Theme,
+} from "$lib/utils/theme";
+import type { DisplayMode, AnnotationField } from "$lib/types";
 
 // Zoom constants
 export const ZOOM_MIN = 50;
@@ -24,14 +24,16 @@ let theme = $state<Theme>(initialTheme);
 let zoom = $state(100);
 let leftDrawerOpen = $state(false);
 let rightDrawerOpen = $state(false);
-let displayMode = $state<DisplayMode>('label');
+let displayMode = $state<DisplayMode>("label");
+let showAnnotations = $state(false);
+let annotationField = $state<AnnotationField>("name");
 
 // Derived values (using $derived rune)
 const canZoomIn = $derived(zoom < ZOOM_MAX);
 const canZoomOut = $derived(zoom > ZOOM_MIN);
 const zoomScale = $derived(zoom / 100);
 // Derive showLabelsOnImages from displayMode for backward compatibility
-const showLabelsOnImages = $derived(displayMode === 'image-label');
+const showLabelsOnImages = $derived(displayMode === "image-label");
 
 // Apply initial theme to document (using the non-reactive initial value)
 applyThemeToDocument(initialTheme);
@@ -40,12 +42,14 @@ applyThemeToDocument(initialTheme);
  * Reset the store to initial state (primarily for testing)
  */
 export function resetUIStore(): void {
-	theme = loadThemeFromStorage();
-	zoom = 100;
-	leftDrawerOpen = false;
-	rightDrawerOpen = false;
-	displayMode = 'label';
-	applyThemeToDocument(theme);
+  theme = loadThemeFromStorage();
+  zoom = 100;
+  leftDrawerOpen = false;
+  rightDrawerOpen = false;
+  displayMode = "label";
+  showAnnotations = false;
+  annotationField = "name";
+  applyThemeToDocument(theme);
 }
 
 /**
@@ -53,72 +57,84 @@ export function resetUIStore(): void {
  * @returns Store object with state and actions
  */
 export function getUIStore() {
-	return {
-		// Theme state getters
-		get theme() {
-			return theme;
-		},
+  return {
+    // Theme state getters
+    get theme() {
+      return theme;
+    },
 
-		// Zoom state getters
-		get zoom() {
-			return zoom;
-		},
-		get canZoomIn() {
-			return canZoomIn;
-		},
-		get canZoomOut() {
-			return canZoomOut;
-		},
-		get zoomScale() {
-			return zoomScale;
-		},
+    // Zoom state getters
+    get zoom() {
+      return zoom;
+    },
+    get canZoomIn() {
+      return canZoomIn;
+    },
+    get canZoomOut() {
+      return canZoomOut;
+    },
+    get zoomScale() {
+      return zoomScale;
+    },
 
-		// Drawer state getters
-		get leftDrawerOpen() {
-			return leftDrawerOpen;
-		},
-		get rightDrawerOpen() {
-			return rightDrawerOpen;
-		},
+    // Drawer state getters
+    get leftDrawerOpen() {
+      return leftDrawerOpen;
+    },
+    get rightDrawerOpen() {
+      return rightDrawerOpen;
+    },
 
-		// Display mode state getters
-		get displayMode() {
-			return displayMode;
-		},
-		get showLabelsOnImages() {
-			return showLabelsOnImages;
-		},
+    // Display mode state getters
+    get displayMode() {
+      return displayMode;
+    },
+    get showLabelsOnImages() {
+      return showLabelsOnImages;
+    },
 
-		// Theme actions
-		toggleTheme,
-		setTheme,
+    // Annotation state getters
+    get showAnnotations() {
+      return showAnnotations;
+    },
+    get annotationField() {
+      return annotationField;
+    },
 
-		// Zoom actions
-		zoomIn,
-		zoomOut,
-		setZoom,
-		resetZoom,
+    // Theme actions
+    toggleTheme,
+    setTheme,
 
-		// Drawer actions
-		toggleLeftDrawer,
-		toggleRightDrawer,
-		openLeftDrawer,
-		closeLeftDrawer,
-		openRightDrawer,
-		closeRightDrawer,
+    // Zoom actions
+    zoomIn,
+    zoomOut,
+    setZoom,
+    resetZoom,
 
-		// Display mode actions
-		toggleDisplayMode,
-		setDisplayMode
-	};
+    // Drawer actions
+    toggleLeftDrawer,
+    toggleRightDrawer,
+    openLeftDrawer,
+    closeLeftDrawer,
+    openRightDrawer,
+    closeRightDrawer,
+
+    // Display mode actions
+    toggleDisplayMode,
+    setDisplayMode,
+
+    // Annotation actions
+    toggleAnnotations,
+    setAnnotationField,
+  };
 }
 
 /**
  * Toggle between dark and light themes
  */
 function toggleTheme(): void {
-	const newTheme: Theme = theme === 'dark' ? 'light' : 'dark';
-	setTheme(newTheme);
+  const newTheme: Theme = theme === "dark" ? "light" : "dark";
+  setTheme(newTheme);
 }
 
 /**
@@ -126,27 +142,27 @@ function toggleTheme(): void {
  * @param newTheme - Theme to set
  */
 function setTheme(newTheme: Theme): void {
-	theme = newTheme;
-	saveThemeToStorage(newTheme);
-	applyThemeToDocument(newTheme);
+  theme = newTheme;
+  saveThemeToStorage(newTheme);
+  applyThemeToDocument(newTheme);
 }
 
 /**
  * Zoom in by one step
  */
 function zoomIn(): void {
-	if (zoom < ZOOM_MAX) {
-		zoom = Math.min(zoom + ZOOM_STEP, ZOOM_MAX);
-	}
+  if (zoom < ZOOM_MAX) {
+    zoom = Math.min(zoom + ZOOM_STEP, ZOOM_MAX);
+  }
 }
 
 /**
  * Zoom out by one step
  */
 function zoomOut(): void {
-	if (zoom > ZOOM_MIN) {
-		zoom = Math.max(zoom - ZOOM_STEP, ZOOM_MIN);
-	}
+  if (zoom > ZOOM_MIN) {
+    zoom = Math.max(zoom - ZOOM_STEP, ZOOM_MIN);
+  }
 }
 
 /**
@@ -154,70 +170,70 @@ function zoomOut(): void {
  * @param value - Zoom percentage
  */
 function setZoom(value: number): void {
-	zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value));
+  zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value));
 }
 
 /**
  * Reset zoom to 100%
  */
 function resetZoom(): void {
-	zoom = 100;
+  zoom = 100;
 }
 
 /**
  * Toggle left drawer visibility
  */
 function toggleLeftDrawer(): void {
-	leftDrawerOpen = !leftDrawerOpen;
+  leftDrawerOpen = !leftDrawerOpen;
 }
 
 /**
  * Toggle right drawer visibility
  */
 function toggleRightDrawer(): void {
-	rightDrawerOpen = !rightDrawerOpen;
+  rightDrawerOpen = !rightDrawerOpen;
 }
 
 /**
  * Open left drawer
  */
 function openLeftDrawer(): void {
-	leftDrawerOpen = true;
+  leftDrawerOpen = true;
 }
 
 /**
  * Close left drawer
  */
 function closeLeftDrawer(): void {
-	leftDrawerOpen = false;
+  leftDrawerOpen = false;
 }
 
 /**
  * Open right drawer
  */
 function openRightDrawer(): void {
-	rightDrawerOpen = true;
+  rightDrawerOpen = true;
 }
 
 /**
  * Close right drawer
  */
 function closeRightDrawer(): void {
-	rightDrawerOpen = false;
+  rightDrawerOpen = false;
 }
 
 /**
  * Display mode cycle order
  */
-const DISPLAY_MODE_ORDER: DisplayMode[] = ['label', 'image', 'image-label'];
+const DISPLAY_MODE_ORDER: DisplayMode[] = ["label", "image", "image-label"];
 
 /**
  * Toggle display mode through: label → image → image-label → label
  */
 function toggleDisplayMode(): void {
-	const currentIndex = DISPLAY_MODE_ORDER.indexOf(displayMode);
-	const nextIndex = (currentIndex + 1) % DISPLAY_MODE_ORDER.length;
-	displayMode = DISPLAY_MODE_ORDER[nextIndex] ?? 'label';
+  const currentIndex = DISPLAY_MODE_ORDER.indexOf(displayMode);
+  const nextIndex = (currentIndex + 1) % DISPLAY_MODE_ORDER.length;
+  displayMode = DISPLAY_MODE_ORDER[nextIndex] ?? "label";
 }
 
 /**
@@ -225,7 +241,43 @@ function toggleDisplayMode(): void {
  * @param mode - Display mode to set ('label', 'image', or 'image-label')
  */
 function setDisplayMode(mode: DisplayMode): void {
-	if (DISPLAY_MODE_ORDER.includes(mode)) {
-		displayMode = mode;
-	}
+  if (DISPLAY_MODE_ORDER.includes(mode)) {
+    displayMode = mode;
+  }
+}
+
+/**
+ * Toggle annotation column visibility
+ */
+function toggleAnnotations(): void {
+  showAnnotations = !showAnnotations;
+}
+
+/**
+ * Valid annotation field values for runtime validation
+ */
+const VALID_ANNOTATION_FIELDS: readonly AnnotationField[] = [
+  "name",
+  "ip",
+  "notes",
+  "asset_tag",
+  "serial",
+  "manufacturer",
+] as const;
+
+/**
+ * Check if a value is a valid AnnotationField
+ */
+function isValidAnnotationField(field: string): field is AnnotationField {
+  return VALID_ANNOTATION_FIELDS.includes(field as AnnotationField);
+}
+
+/**
+ * Set annotation field to display
+ * @param field - Annotation field to display
+ */
+function setAnnotationField(field: AnnotationField): void {
+  if (isValidAnnotationField(field)) {
+    annotationField = field;
+  }
 }
