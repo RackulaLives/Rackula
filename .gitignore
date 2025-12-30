@@ -27,5 +27,11 @@ coverage/
 playwright-report/
 test-results/
 
+# BrowserStack
+log/
+browserstackSetupConfig.json
+playwright-browserstack-sdk.config.temp.json
+playwright-browserstack-sdk.config.ts
+
 # Claude
 .claude/
