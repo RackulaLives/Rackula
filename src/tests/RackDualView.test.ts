@@ -492,6 +492,33 @@ describe("RackDualView Component", () => {
         "0",
       );
     });
+
+    it("fires onlongpress callback after 500ms hold", async () => {
+      const rack = createTestRack();
+      const handleLongPress = vi.fn();
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+          enableLongPress: true,
+          onlongpress: handleLongPress,
+        },
+      });
+
+      const dualView = container.querySelector(".rack-dual-view")!;
+
+      // Simulate pointer down with isPrimary (required for gesture)
+      await fireEvent.pointerDown(dualView, { isPrimary: true });
+
+      // Should not fire before 500ms
+      vi.advanceTimersByTime(499);
+      expect(handleLongPress).not.toHaveBeenCalled();
+
+      // Should fire after 500ms
+      vi.advanceTimersByTime(1);
+      expect(handleLongPress).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("Single View Mode", () => {

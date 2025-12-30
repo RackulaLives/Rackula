@@ -21,7 +21,7 @@
     onclose?: () => void;
   }
 
-  let { rack, onclose: _onclose }: Props = $props();
+  let { rack, onclose }: Props = $props();
 
   const layoutStore = getLayoutStore();
   const canvasStore = getCanvasStore();
@@ -122,6 +122,7 @@
   function confirmClearRack() {
     layoutStore.clearRackDevices(RACK_ID);
     showClearConfirm = false;
+    onclose?.();
   }
 </script>
 

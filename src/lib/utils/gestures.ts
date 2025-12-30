@@ -100,6 +100,9 @@ export function useLongPress(
         animationFrameId = null;
       }
 
+      // Ensure final progress is delivered before callback
+      onProgress?.(1);
+
       // Trigger haptic feedback if available
       if (navigator.vibrate) {
         navigator.vibrate(50);
