@@ -332,12 +332,13 @@ describe("LogoLockup", () => {
       expect(textContent).toBe("DevRackula");
     });
 
-    it("'ev' tspan has smaller font-size attribute (#279)", () => {
+    it("'ev' tspan has 50% smaller font-size attribute (#279)", () => {
       const { container } = render(LogoLockup);
       const envPrefixSmall = container.querySelector(".env-prefix-small");
 
       // SVG tspan needs inline font-size attribute (CSS class doesn't work)
-      expect(envPrefixSmall).toHaveAttribute("font-size", "26");
+      // 19px = 50% of 38px (the main text size)
+      expect(envPrefixSmall).toHaveAttribute("font-size", "19");
       expect(envPrefixSmall).toHaveAttribute("font-weight", "400");
     });
 
