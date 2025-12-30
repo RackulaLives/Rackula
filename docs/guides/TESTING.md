@@ -4,11 +4,11 @@ This document describes the testing patterns, conventions, and best practices fo
 
 ## Environments
 
-| Environment | URL                   | Purpose                                  |
-| ----------- | --------------------- | ---------------------------------------- |
-| **Local**   | `localhost:5173`      | Development with HMR (`npm run dev`)     |
-| **Dev**     | https://dev.racku.la  | Preview production builds before release |
-| **Prod**    | https://app.racku.la  | Live production environment              |
+| Environment | URL                  | Purpose                                  |
+| ----------- | -------------------- | ---------------------------------------- |
+| **Local**   | `localhost:5173`     | Development with HMR (`npm run dev`)     |
+| **Dev**     | https://dev.racku.la | Preview production builds before release |
+| **Prod**    | https://app.racku.la | Live production environment              |
 
 ### Dev Environment
 
@@ -79,18 +79,18 @@ e2e/                          # Playwright E2E tests
 ### Test Structure (AAA Pattern)
 
 ```typescript
-it('adds device to rack when placed', () => {
-	// Arrange
-	const store = getLayoutStore();
-	const deviceType = createTestDeviceType({ u_height: 2 });
+it("adds device to rack when placed", () => {
+  // Arrange
+  const store = getLayoutStore();
+  const deviceType = createTestDeviceType({ u_height: 2 });
 
-	// Act
-	store.addDeviceTypeRecorded(deviceType);
-	store.placeDeviceRecorded(deviceType.slug, 10);
+  // Act
+  store.addDeviceTypeRecorded(deviceType);
+  store.placeDeviceRecorded(deviceType.slug, 10);
 
-	// Assert
-	expect(store.rack.devices).toHaveLength(1);
-	expect(store.rack.devices[0]?.position).toBe(10);
+  // Assert
+  expect(store.rack.devices).toHaveLength(1);
+  expect(store.rack.devices[0]?.position).toBe(10);
 });
 ```
 
@@ -122,17 +122,17 @@ Available factories:
 For components using `$state`, `$derived`, or `$effect`:
 
 ```typescript
-import { render, screen } from '@testing-library/svelte';
-import userEvent from '@testing-library/user-event';
-import MyComponent from '$lib/components/MyComponent.svelte';
+import { render, screen } from "@testing-library/svelte";
+import userEvent from "@testing-library/user-event";
+import MyComponent from "$lib/components/MyComponent.svelte";
 
-it('updates state when button clicked', async () => {
-	const user = userEvent.setup();
-	render(MyComponent, { props: { initialCount: 0 } });
+it("updates state when button clicked", async () => {
+  const user = userEvent.setup();
+  render(MyComponent, { props: { initialCount: 0 } });
 
-	await user.click(screen.getByRole('button', { name: 'Increment' }));
+  await user.click(screen.getByRole("button", { name: "Increment" }));
 
-	expect(screen.getByText('Count: 1')).toBeInTheDocument();
+  expect(screen.getByText("Count: 1")).toBeInTheDocument();
 });
 ```
 
@@ -141,15 +141,15 @@ it('updates state when button clicked', async () => {
 Commands should have symmetrical execute/undo:
 
 ```typescript
-it('can be undone after execution', () => {
-	const store = createMockStore();
-	const command = createAddDeviceTypeCommand(deviceType, store);
+it("can be undone after execution", () => {
+  const store = createMockStore();
+  const command = createAddDeviceTypeCommand(deviceType, store);
 
-	command.execute();
-	expect(store.addDeviceTypeRaw).toHaveBeenCalledWith(deviceType);
+  command.execute();
+  expect(store.addDeviceTypeRaw).toHaveBeenCalledWith(deviceType);
 
-	command.undo();
-	expect(store.removeDeviceTypeRaw).toHaveBeenCalledWith(deviceType.slug);
+  command.undo();
+  expect(store.removeDeviceTypeRaw).toHaveBeenCalledWith(deviceType.slug);
 });
 ```
 
@@ -158,17 +158,17 @@ it('can be undone after execution', () => {
 For tests requiring browser APIs:
 
 ```typescript
-import { setupBrowserMocks, createMockFile } from './mocks/browser';
+import { setupBrowserMocks, createMockFile } from "./mocks/browser";
 
-describe('Image Upload', () => {
-	beforeEach(() => {
-		setupBrowserMocks();
-	});
+describe("Image Upload", () => {
+  beforeEach(() => {
+    setupBrowserMocks();
+  });
 
-	it('handles file upload', async () => {
-		const file = createMockFile('test.png', 'image/png');
-		// ... test file handling
-	});
+  it("handles file upload", async () => {
+    const file = createMockFile("test.png", "image/png");
+    // ... test file handling
+  });
 });
 ```
 
@@ -178,30 +178,90 @@ describe('Image Upload', () => {
 
 The Playwright configuration supports multiple browser projects:
 
-| Project | Browser | Use Case |
-|---------|---------|----------|
-| `chromium` | Chrome | Default desktop testing |
-| `webkit` | Safari | Desktop Safari testing |
-| `ios-safari` | WebKit (iPhone 14) | iOS Safari viewport tests |
-| `ipad` | WebKit (iPad Pro 11) | iPad viewport tests |
+| Project          | Browser                  | Use Case                      |
+| ---------------- | ------------------------ | ----------------------------- |
+| `chromium`       | Chrome                   | Default desktop testing       |
+| `webkit`         | Safari                   | Desktop Safari testing        |
+| `ios-safari`     | WebKit (iPhone 14)       | iOS Safari viewport tests     |
+| `ipad`           | WebKit (iPad Pro 11)     | iPad viewport tests           |
+| `android-chrome` | Chromium (Pixel 7)       | Android Chrome viewport tests |
+| `android-tablet` | Chromium (Galaxy Tab S4) | Android tablet viewport tests |
 
 Run specific projects:
 
 ```bash
 npx playwright test --project=chromium        # Desktop Chrome only
 npx playwright test --project=ios-safari      # iOS Safari tests
+npx playwright test --project=android-chrome  # Android Chrome tests
 npx playwright test ios-safari.spec.ts        # Run specific test file
+npx playwright test android-chrome.spec.ts    # Run Android test file
 ```
 
 ### iOS Safari Testing
 
 The `e2e/ios-safari.spec.ts` tests mobile Safari functionality:
+
 - FAB button visibility and 48px touch targets
 - Bottom sheet open/close behavior
 - Device label positioning
 - No horizontal scroll on all iOS viewports
 
-**Note:** Playwright WebKit is a desktop build. For real iOS device testing, use BrowserStack or LambdaTest.
+**Note:** Playwright WebKit is a desktop build. For real iOS device testing, use BrowserStack.
+
+### Android Chrome Testing
+
+The `e2e/android-chrome.spec.ts` tests Android Chrome functionality:
+
+- FAB button visibility and touch targets across device fragmentation
+- Bottom sheet behavior (swipe-to-dismiss without triggering back gesture)
+- Device label positioning across different DPI densities
+- Haptic feedback (Android supports `navigator.vibrate()`)
+- Touch interaction accuracy on various OEM devices
+- Long-press gesture without triggering system context menu
+- WebView compatibility smoke tests
+- Foldable device support (Galaxy Z Fold/Flip)
+
+**Android-Specific Considerations:**
+| Aspect | iOS | Android |
+|--------|-----|---------|
+| Haptic API | Not supported | Supported ✓ |
+| Device fragmentation | Low (Apple only) | High (many OEMs) |
+| WebView versions | Safari-based, unified | Varies by device/OS |
+| DPI densities | Limited (1x, 2x, 3x) | ldpi to xxxhdpi |
+
+**Note:** Playwright Chromium is a desktop build. For real Android device testing, use BrowserStack.
+
+### Real Device Testing (BrowserStack)
+
+For comprehensive mobile testing on real iOS and Android devices, use BrowserStack integration.
+
+**Setup:**
+
+1. Set environment variables: `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY`
+2. Configuration is in `browserstack.yml`
+
+**Running tests on real devices:**
+
+```bash
+# iOS Safari on real devices
+npx browserstack-node-sdk playwright test ios-safari.spec.ts
+
+# Android Chrome on real devices
+npx browserstack-node-sdk playwright test android-chrome.spec.ts
+
+# All mobile tests on all devices
+npx browserstack-node-sdk playwright test
+```
+
+**Configured devices:**
+
+| Platform   | Devices                                          |
+| ---------- | ------------------------------------------------ |
+| iOS 17     | iPhone 15, iPhone 15 Pro Max, iPad Pro 12.9 2022 |
+| Android 14 | Google Pixel 8, Samsung Galaxy S24               |
+| Android 13 | Samsung Galaxy Tab S9                            |
+
+**GitHub Actions:** Secrets `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` are configured for CI.
 
 ### Selector Strategy
 
@@ -223,25 +283,25 @@ Available data-testid attributes:
 ### E2E Test Structure
 
 ```typescript
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test.describe('Feature', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
-		// Common setup
-	});
+test.describe("Feature", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    // Common setup
+  });
 
-	test('user can complete workflow', async ({ page }) => {
-		// Arrange
-		await page.click('[data-testid="btn-new-rack"]');
+  test("user can complete workflow", async ({ page }) => {
+    // Arrange
+    await page.click('[data-testid="btn-new-rack"]');
 
-		// Act
-		await page.fill('[data-testid="input-rack-name"]', 'Test Rack');
-		await page.click('[data-testid="btn-create-rack"]');
+    // Act
+    await page.fill('[data-testid="input-rack-name"]', "Test Rack");
+    await page.click('[data-testid="btn-create-rack"]');
 
-		// Assert
-		await expect(page.locator('.rack-name')).toHaveText('Test Rack');
-	});
+    // Assert
+    await expect(page.locator(".rack-name")).toHaveText("Test Rack");
+  });
 });
 ```
 
