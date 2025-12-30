@@ -285,19 +285,22 @@ function applyIsometricTransform(svg: SVGElement, isIsometric: boolean): void {
 
 ---
 
-## Open Questions
+## Design Decisions (Clarified)
 
-1. **Should dual-view (front+rear) work in isometric?**
-   - Could show as "stacked" with rear behind front
-   - Or render as separate isometric images
+1. **Dual-view (front+rear) in isometric?**
+   - **Decision:** Toggle for front-only, rear-only, or both views
+   - When "both" is selected, render two separate isometric views side-by-side
+   - Matches current flat export behavior
 
-2. **What about half-depth devices?**
-   - Could show with different depth in isometric
-   - Additional visual complexity
+2. **Half-depth devices?**
+   - **Decision:** Yes, visually represent half-depth in isometric view
+   - Half-depth devices should appear with less "thickness" in the isometric projection
+   - This reinforces the mounted face concept and adds visual accuracy
 
-3. **Legend placement in isometric export?**
-   - Keep legend flat (not transformed)?
-   - Place below the isometric rack?
+3. **Legend placement?**
+   - **Decision:** Keep legend flat (not transformed)
+   - Place below the isometric rack(s)
+   - Maintains readability and follows convention for technical diagrams
 
 ---
 
