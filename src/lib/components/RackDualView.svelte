@@ -242,6 +242,11 @@
         />
       </div>
     {/if}
+
+    <!-- Balancing spacer to keep rack centered when annotations are shown -->
+    {#if showAnnotations}
+      <div class="annotation-spacer" aria-hidden="true"></div>
+    {/if}
   </div>
 </div>
 
@@ -316,5 +321,11 @@
   .rack-front :global(.rack-container:focus),
   .rack-rear :global(.rack-container:focus) {
     outline: none !important;
+  }
+
+  /* Balancing spacer matches annotation column width to keep rack centered */
+  .annotation-spacer {
+    width: 100px; /* Must match AnnotationColumn default width */
+    flex-shrink: 0;
   }
 </style>
