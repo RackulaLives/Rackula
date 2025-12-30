@@ -27,6 +27,7 @@ let rightDrawerOpen = $state(false);
 let displayMode = $state<DisplayMode>("label");
 let showAnnotations = $state(false);
 let annotationField = $state<AnnotationField>("name");
+let showBanana = $state(false);
 
 // Derived values (using $derived rune)
 const canZoomIn = $derived(zoom < ZOOM_MAX);
@@ -49,6 +50,7 @@ export function resetUIStore(): void {
   displayMode = "label";
   showAnnotations = false;
   annotationField = "name";
+  showBanana = false;
   applyThemeToDocument(theme);
 }
 
@@ -101,6 +103,11 @@ export function getUIStore() {
       return annotationField;
     },
 
+    // Easter egg state getters
+    get showBanana() {
+      return showBanana;
+    },
+
     // Theme actions
     toggleTheme,
     setTheme,
@@ -126,6 +133,9 @@ export function getUIStore() {
     // Annotation actions
     toggleAnnotations,
     setAnnotationField,
+
+    // Easter egg actions
+    toggleBanana,
   };
 }
 
@@ -280,4 +290,11 @@ function setAnnotationField(field: AnnotationField): void {
   if (isValidAnnotationField(field)) {
     annotationField = field;
   }
+}
+
+/**
+ * Toggle banana for scale easter egg
+ */
+function toggleBanana(): void {
+  showBanana = !showBanana;
 }

@@ -327,6 +327,7 @@
           showLabelsOnImages={uiStore.showLabelsOnImages}
           showAnnotations={uiStore.showAnnotations}
           annotationField={uiStore.annotationField}
+          showBanana={uiStore.showBanana}
           {partyMode}
           {enableLongPress}
           onselect={(e) => handleRackSelect(e)}

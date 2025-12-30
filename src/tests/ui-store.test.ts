@@ -349,4 +349,22 @@ describe("UI Store", () => {
       expect(store.annotationField).toBe("name");
     });
   });
+
+  describe("Banana for Scale (Easter Egg)", () => {
+    it("initial showBanana is false", () => {
+      const store = getUIStore();
+      expect(store.showBanana).toBe(false);
+    });
+
+    it("toggleBanana toggles showBanana", () => {
+      const store = getUIStore();
+      expect(store.showBanana).toBe(false);
+
+      store.toggleBanana();
+      expect(store.showBanana).toBe(true);
+
+      store.toggleBanana();
+      expect(store.showBanana).toBe(false);
+    });
+  });
 });

@@ -901,7 +901,12 @@
     onclose={handleShareClose}
   />
 
-  <HelpPanel open={helpPanelOpen} onclose={handleHelpClose} />
+  <HelpPanel
+    open={helpPanelOpen}
+    showBanana={uiStore.showBanana}
+    onclose={handleHelpClose}
+    ontogglebanana={() => uiStore.toggleBanana()}
+  />
 
   <ToastContainer />
 

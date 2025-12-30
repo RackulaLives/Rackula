@@ -184,4 +184,56 @@ describe("HelpPanel", () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe("Easter Eggs Section", () => {
+    it("shows Easter Eggs section heading", () => {
+      render(HelpPanel, { props: { open: true } });
+
+      expect(screen.getByText("Easter Eggs")).toBeInTheDocument();
+    });
+
+    it("shows banana toggle checkbox", () => {
+      render(HelpPanel, { props: { open: true } });
+
+      const bananaToggle = screen.getByRole("checkbox", {
+        name: /banana for scale/i,
+      });
+      expect(bananaToggle).toBeInTheDocument();
+    });
+
+    it("banana toggle starts unchecked", () => {
+      render(HelpPanel, { props: { open: true } });
+
+      const bananaToggle = screen.getByRole("checkbox", {
+        name: /banana for scale/i,
+      });
+      expect(bananaToggle).not.toBeChecked();
+    });
+
+    it("banana toggle calls ontogglebanana when clicked", async () => {
+      const onToggleBanana = vi.fn();
+
+      render(HelpPanel, {
+        props: { open: true, ontogglebanana: onToggleBanana },
+      });
+
+      const bananaToggle = screen.getByRole("checkbox", {
+        name: /banana for scale/i,
+      });
+      await fireEvent.click(bananaToggle);
+
+      expect(onToggleBanana).toHaveBeenCalledTimes(1);
+    });
+
+    it("banana toggle reflects showBanana prop", () => {
+      render(HelpPanel, {
+        props: { open: true, showBanana: true },
+      });
+
+      const bananaToggle = screen.getByRole("checkbox", {
+        name: /banana for scale/i,
+      });
+      expect(bananaToggle).toBeChecked();
+    });
+  });
 });

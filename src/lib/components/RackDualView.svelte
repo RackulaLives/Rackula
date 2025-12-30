@@ -12,6 +12,7 @@
   } from "$lib/types";
   import Rack from "./Rack.svelte";
   import AnnotationColumn from "./AnnotationColumn.svelte";
+  import BananaForScale from "./BananaForScale.svelte";
   import { useLongPress } from "$lib/utils/gestures";
 
   // Synthetic rack ID for single-rack mode
@@ -31,6 +32,8 @@
     showAnnotations?: boolean;
     /** Which field to display in annotation column */
     annotationField?: AnnotationField;
+    /** Show banana for scale easter egg */
+    showBanana?: boolean;
     /** Enable long press gesture for mobile rack editing */
     enableLongPress?: boolean;
     onselect?: (event: CustomEvent<{ rackId: string }>) => void;
@@ -78,6 +81,7 @@
     partyMode = false,
     showAnnotations = false,
     annotationField = "name",
+    showBanana = false,
     enableLongPress = false,
     onselect,
     ondeviceselect,
@@ -248,6 +252,13 @@
       <div class="annotation-spacer" aria-hidden="true"></div>
     {/if}
   </div>
+
+  <!-- Banana for scale easter egg -->
+  {#if showBanana}
+    <div class="banana-container" aria-hidden="true">
+      <BananaForScale />
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -260,6 +271,7 @@
     border-radius: var(--radius-md);
     background: transparent;
     cursor: inherit;
+    position: relative; /* For banana positioning */
   }
 
   .rack-dual-view:focus {
@@ -327,5 +339,13 @@
   .annotation-spacer {
     width: 100px; /* Must match AnnotationColumn default width */
     flex-shrink: 0;
+  }
+
+  /* Banana for scale easter egg container */
+  .banana-container {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    pointer-events: none;
   }
 </style>
