@@ -174,6 +174,35 @@ describe('Image Upload', () => {
 
 ## E2E Testing
 
+### Browser Projects
+
+The Playwright configuration supports multiple browser projects:
+
+| Project | Browser | Use Case |
+|---------|---------|----------|
+| `chromium` | Chrome | Default desktop testing |
+| `webkit` | Safari | Desktop Safari testing |
+| `ios-safari` | WebKit (iPhone 14) | iOS Safari viewport tests |
+| `ipad` | WebKit (iPad Pro 11) | iPad viewport tests |
+
+Run specific projects:
+
+```bash
+npx playwright test --project=chromium        # Desktop Chrome only
+npx playwright test --project=ios-safari      # iOS Safari tests
+npx playwright test ios-safari.spec.ts        # Run specific test file
+```
+
+### iOS Safari Testing
+
+The `e2e/ios-safari.spec.ts` tests mobile Safari functionality:
+- FAB button visibility and 48px touch targets
+- Bottom sheet open/close behavior
+- Device label positioning
+- No horizontal scroll on all iOS viewports
+
+**Note:** Playwright WebKit is a desktop build. For real iOS device testing, use BrowserStack or LambdaTest.
+
 ### Selector Strategy
 
 Use `data-testid` attributes for reliable element selection:
