@@ -529,15 +529,26 @@ Checkpoint is preserved. Start new session with same command:
 Will resume from last checkpoint.
 
 ### Agent Failure
-1. Retry once with refined prompt
-2. If fails again, add to checkpoint blockers
-3. Continue with remaining agents
-4. Report blockers at end
+
+**Success:** Output file exists and size > 0 bytes
+**Failure:** After one retry, file is still missing or below minimum size (< 1KB)
+
+1. Verify output file exists and size > 0 bytes
+2. If missing or empty, retry once with a refined prompt (one additional attempt)
+3. If still failing after retry, mark as checkpoint blocker
+4. Continue with remaining agents
+5. Report blockers at end
 
 ### GitHub API Failure
-1. Retry with exponential backoff (1s, 2s, 4s)
-2. If persistent, save issue definitions to file
-3. Report for manual creation
+
+**Success:** Any HTTP 2xx response
+**Failure:** No 2xx after maximum 3 retries with exponential backoff (1s, 2s, 4s)
+
+1. Attempt API call
+2. On non-2xx response, retry with exponential backoff intervals: 1s, 2s, 4s
+3. Maximum 3 retries total (4 attempts including original)
+4. If still failing after 3 retries, persist issue definitions to `.claude/spike-<N>-issues.yaml`
+5. Log for manual creation and continue with remaining work
 
 ---
 
