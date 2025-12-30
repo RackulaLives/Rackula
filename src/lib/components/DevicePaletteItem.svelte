@@ -106,6 +106,13 @@
     />
   {/if}
   <span class="device-height">{device.u_height}U</span>
+  {#if device.is_full_depth === false}
+    <span
+      class="depth-indicator"
+      title="Half-depth: Mounts on one face only"
+      aria-label="Half-depth device">½D</span
+    >
+  {/if}
 </div>
 
 <style>
@@ -190,5 +197,16 @@
     font-weight: var(--font-weight-semibold);
     color: var(--colour-text);
     flex-shrink: 0;
+  }
+
+  .depth-indicator {
+    background-color: var(--colour-surface-hover);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--colour-text-muted);
+    flex-shrink: 0;
+    cursor: help;
   }
 </style>
