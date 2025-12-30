@@ -6,6 +6,7 @@
 <script lang="ts">
   import type { Rack as RackType, DeviceType, DisplayMode } from "$lib/types";
   import Rack from "./Rack.svelte";
+  import { useLongPress } from "$lib/utils/gestures";
 
   // Synthetic rack ID for single-rack mode
   const RACK_ID = "rack-0";
@@ -20,6 +21,8 @@
     showLabelsOnImages?: boolean;
     /** Party mode visual effects active */
     partyMode?: boolean;
+    /** Enable long press gesture for mobile rack editing */
+    enableLongPress?: boolean;
     onselect?: (event: CustomEvent<{ rackId: string }>) => void;
     ondeviceselect?: (
       event: CustomEvent<{ slug: string; position: number }>,
@@ -51,6 +54,8 @@
     onplacementtap?: (
       event: CustomEvent<{ position: number; face: "front" | "rear" }>,
     ) => void;
+    /** Mobile long press for rack editing */
+    onlongpress?: (event: CustomEvent<{ rackId: string }>) => void;
   }
 
   let {
@@ -61,13 +66,56 @@
     displayMode = "label",
     showLabelsOnImages = false,
     partyMode = false,
+    enableLongPress = false,
     onselect,
     ondeviceselect,
     ondevicedrop,
     ondevicemove,
     ondevicemoverack,
     onplacementtap,
+    onlongpress,
   }: Props = $props();
+
+  // Element reference for long press
+  let containerElement: HTMLDivElement | null = $state(null);
+
+  // Long press visual feedback state
+  let longPressProgress = $state(0);
+  let longPressActive = $state(false);
+
+  // Attach long press gesture when enabled
+  $effect(() => {
+    if (!enableLongPress || !containerElement || !onlongpress) {
+      longPressActive = false;
+      longPressProgress = 0;
+      return;
+    }
+
+    const cleanup = useLongPress(
+      containerElement,
+      () => {
+        longPressActive = false;
+        longPressProgress = 0;
+        onlongpress(
+          new CustomEvent("longpress", { detail: { rackId: RACK_ID } }),
+        );
+      },
+      {
+        onProgress: (progress) => {
+          longPressProgress = progress;
+        },
+        onStart: () => {
+          longPressActive = true;
+        },
+        onCancel: () => {
+          longPressActive = false;
+          longPressProgress = 0;
+        },
+      },
+    );
+
+    return cleanup;
+  });
 
   // Now using faceFilter prop instead of virtual racks
 
@@ -115,8 +163,10 @@
 </script>
 
 <div
+  bind:this={containerElement}
   class="rack-dual-view"
   class:selected
+  class:long-press-active={longPressActive}
   tabindex="0"
   role="option"
   aria-selected={selected}
@@ -124,6 +174,7 @@
     ? 'front and rear view'
     : 'front view only'}{selected ? ', selected' : ''}"
   onkeydown={handleKeyDown}
+  style:--long-press-progress={longPressProgress}
 >
   <!-- Rack name centered above both views -->
   <div class="rack-dual-view-name">{rack.name}</div>
@@ -198,6 +249,23 @@
   .rack-dual-view.selected {
     outline: 2px solid var(--colour-selection);
     outline-offset: 4px;
+  }
+
+  /* Long press visual feedback */
+  .rack-dual-view.long-press-active {
+    outline: 3px solid var(--dracula-pink, #ff79c6);
+    outline-offset: 2px;
+    /* Progress indicator via box-shadow */
+    box-shadow: inset 0 0 0 calc(var(--long-press-progress, 0) * 4px)
+      rgba(255, 121, 198, 0.15);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rack-dual-view.long-press-active {
+      /* Simpler feedback without animation */
+      box-shadow: none;
+      outline-width: 3px;
+    }
   }
 
   .rack-dual-view-name {

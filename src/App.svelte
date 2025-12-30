@@ -22,6 +22,7 @@
   import BottomSheet from "$lib/components/BottomSheet.svelte";
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
   import DeviceLibraryFAB from "$lib/components/DeviceLibraryFAB.svelte";
+  import RackEditSheet from "$lib/components/RackEditSheet.svelte";
   import {
     getShareParam,
     clearShareParam,
@@ -100,6 +101,9 @@
 
   // Mobile device library sheet state
   let deviceLibrarySheetOpen = $state(false);
+
+  // Mobile rack edit sheet state (opened via long press)
+  let rackEditSheetOpen = $state(false);
 
   // Party Mode easter egg (triggered by Konami code)
   let partyMode = $state(false);
@@ -700,6 +704,24 @@
     deviceLibrarySheetOpen = false;
   }
 
+  // Handle rack long press (mobile rack editing)
+  function handleRackLongPress(_event: CustomEvent<{ rackId: string }>) {
+    // Ignore if in placement mode (handled by enableLongPress prop, but double-check)
+    if (placementStore.isPlacing) return;
+
+    // Close any other open sheets first
+    bottomSheetOpen = false;
+    deviceLibrarySheetOpen = false;
+    selectedDeviceForSheet = null;
+    // Open rack edit sheet
+    rackEditSheetOpen = true;
+  }
+
+  // Handle rack edit sheet close
+  function handleRackEditSheetClose() {
+    rackEditSheetOpen = false;
+  }
+
   // Handle mobile device selection from palette (enters placement mode)
   function handleMobileDeviceSelect(
     event: CustomEvent<{ device: import("$lib/types").DeviceType }>,
@@ -707,7 +729,9 @@
     const { device } = event.detail;
     hapticTap(); // Fire haptic immediately for snappier feedback
     placementStore.startPlacement(device);
+    // Close all sheets when entering placement mode
     deviceLibrarySheetOpen = false;
+    rackEditSheetOpen = false;
   }
 
   // Auto-save layout to localStorage with debouncing
@@ -772,7 +796,13 @@
       </Sidebar>
     {/if}
 
-    <Canvas onnewrack={handleNewRack} onload={handleLoad} {partyMode} />
+    <Canvas
+      onnewrack={handleNewRack}
+      onload={handleLoad}
+      {partyMode}
+      enableLongPress={viewportStore.isMobile && !placementStore.isPlacing}
+      onracklongpress={handleRackLongPress}
+    />
 
     {#if !viewportStore.isMobile}
       <EditPanel />
@@ -879,6 +909,20 @@
       <DevicePalette
         onadddevice={handleAddDevice}
         ondeviceselect={handleMobileDeviceSelect}
+      />
+    </BottomSheet>
+  {/if}
+
+  <!-- Mobile rack edit sheet (opened via long press on rack) -->
+  {#if viewportStore.isMobile && rackEditSheetOpen && layoutStore.rack}
+    <BottomSheet
+      bind:open={rackEditSheetOpen}
+      title="Edit Rack"
+      onclose={handleRackEditSheetClose}
+    >
+      <RackEditSheet
+        rack={layoutStore.rack}
+        onclose={handleRackEditSheetClose}
       />
     </BottomSheet>
   {/if}

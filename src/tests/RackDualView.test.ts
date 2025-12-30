@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import RackDualView from "$lib/components/RackDualView.svelte";
 import type { Rack, DeviceType } from "$lib/types";
@@ -429,6 +429,117 @@ describe("RackDualView Component", () => {
       const rearViewBox = rearView?.getAttribute("viewBox");
 
       expect(frontViewBox).toBe(rearViewBox);
+    });
+  });
+
+  describe("Long Press", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("does not render long-press-active class when enableLongPress is false", () => {
+      const rack = createTestRack();
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+          enableLongPress: false,
+        },
+      });
+
+      const dualView = container.querySelector(".rack-dual-view");
+      expect(dualView).not.toHaveClass("long-press-active");
+    });
+
+    it("has container element reference for long press gesture", () => {
+      const rack = createTestRack();
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+          enableLongPress: true,
+          onlongpress: vi.fn(),
+        },
+      });
+
+      const dualView = container.querySelector(".rack-dual-view");
+      expect(dualView).toBeInTheDocument();
+    });
+
+    it("exposes --long-press-progress CSS variable", () => {
+      const rack = createTestRack();
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+          enableLongPress: true,
+          onlongpress: vi.fn(),
+        },
+      });
+
+      const dualView = container.querySelector(
+        ".rack-dual-view",
+      ) as HTMLElement;
+      // The CSS variable should be set (initial value of 0)
+      expect(dualView.style.getPropertyValue("--long-press-progress")).toBe(
+        "0",
+      );
+    });
+  });
+
+  describe("Single View Mode", () => {
+    it("only renders front view when show_rear is false", () => {
+      const rack = createTestRack({ show_rear: false });
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+        },
+      });
+
+      const frontView = container.querySelector(".rack-front");
+      const rearView = container.querySelector(".rack-rear");
+
+      expect(frontView).toBeInTheDocument();
+      expect(rearView).not.toBeInTheDocument();
+    });
+
+    it("has single-view class on container when show_rear is false", () => {
+      const rack = createTestRack({ show_rear: false });
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+        },
+      });
+
+      const dualViewContainer = container.querySelector(
+        ".rack-dual-view-container",
+      );
+      expect(dualViewContainer).toHaveClass("single-view");
+    });
+
+    it("does not show FRONT label in single view mode", () => {
+      const rack = createTestRack({ show_rear: false });
+      render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+        },
+      });
+
+      // In single view mode, the FRONT label should not be shown
+      expect(screen.queryByText("FRONT")).not.toBeInTheDocument();
     });
   });
 });

@@ -28,6 +28,8 @@
 
   interface Props {
     partyMode?: boolean;
+    /** Enable long press gesture for mobile rack editing */
+    enableLongPress?: boolean;
     onnewrack?: () => void;
     onload?: () => void;
     onrackselect?: (event: CustomEvent<{ rackId: string }>) => void;
@@ -57,10 +59,13 @@
         targetPosition: number;
       }>,
     ) => void;
+    /** Mobile long press for rack editing */
+    onracklongpress?: (event: CustomEvent<{ rackId: string }>) => void;
   }
 
   let {
     partyMode = false,
+    enableLongPress = false,
     onnewrack,
     onload: _onload,
     onrackselect,
@@ -68,6 +73,7 @@
     ondevicedrop,
     ondevicemove,
     ondevicemoverack,
+    onracklongpress,
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
@@ -320,12 +326,14 @@
           displayMode={uiStore.displayMode}
           showLabelsOnImages={uiStore.showLabelsOnImages}
           {partyMode}
+          {enableLongPress}
           onselect={(e) => handleRackSelect(e)}
           ondeviceselect={(e) => handleDeviceSelect(e)}
           ondevicedrop={(e) => handleDeviceDrop(e)}
           ondevicemove={(e) => handleDeviceMove(e)}
           ondevicemoverack={(e) => handleDeviceMoveRack(e)}
           onplacementtap={(e) => handlePlacementTap(e)}
+          onlongpress={(e) => onracklongpress?.(e)}
         />
       </div>
     </div>
