@@ -257,7 +257,7 @@
     class:logo-title--party={partyMode}
     class:logo-title--showcase={showcase}
     class:logo-title--hover={hovering && !partyMode && !celebrate && !showcase}
-    viewBox="0 0 {showEnvPrefix ? 195 : 160} 50"
+    viewBox="0 0 {showEnvPrefix ? 210 : 160} 50"
     height={titleHeight}
     role="img"
     aria-label={showEnvPrefix
@@ -267,9 +267,11 @@
   >
     <text x="0" y="38">
       {#if showEnvPrefix}
-        <tspan class="env-prefix">D</tspan><tspan class="env-prefix-small"
-          >ev</tspan
-        >
+        <tspan class="env-prefix">D</tspan><tspan
+          class="env-prefix-small"
+          font-size="26"
+          font-weight="400"
+          dy="1">ev</tspan>
       {/if}
       <tspan>Rackula</tspan>
     </text>

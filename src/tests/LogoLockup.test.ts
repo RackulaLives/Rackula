@@ -262,7 +262,7 @@ describe("LogoLockup", () => {
       const viewBox = logoTitle?.getAttribute("viewBox");
 
       // Tests run on localhost, so DevRackula prefix shows (wider viewBox)
-      expect(viewBox).toBe("0 0 195 50");
+      expect(viewBox).toBe("0 0 210 50");
 
       // Validate format: exactly 4 space-separated numeric values
       const values = viewBox?.split(" ");
@@ -330,6 +330,25 @@ describe("LogoLockup", () => {
 
       // Text content combines Dev prefix + Rackula
       expect(textContent).toBe("DevRackula");
+    });
+
+    it("'ev' tspan has smaller font-size attribute (#279)", () => {
+      const { container } = render(LogoLockup);
+      const envPrefixSmall = container.querySelector(".env-prefix-small");
+
+      // SVG tspan needs inline font-size attribute (CSS class doesn't work)
+      expect(envPrefixSmall).toHaveAttribute("font-size", "26");
+      expect(envPrefixSmall).toHaveAttribute("font-weight", "400");
+    });
+
+    it("viewBox is wide enough for full DevRackula text (#279)", () => {
+      const { container } = render(LogoLockup);
+      const logoTitle = container.querySelector(".logo-title");
+      const viewBox = logoTitle?.getAttribute("viewBox");
+      const width = viewBox?.split(" ")[2];
+
+      // viewBox width must be >= 210 to prevent text cutoff
+      expect(Number(width)).toBeGreaterThanOrEqual(210);
     });
 
     // Note: The following tests would require module re-initialization
