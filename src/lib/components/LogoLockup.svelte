@@ -7,7 +7,6 @@
 
   v4: DRackula prefix for dev/local environments (blood-red D)
   v5: Purple logo mark with white brand text (restoring Dracula theming)
-  v6: DevRackula prefix (blood-red "Dev" with smaller "ev")
 -->
 <script lang="ts">
   import SantaHat from "./SantaHat.svelte";
@@ -250,22 +249,22 @@
   </div>
 
   <!-- Title (SVG text for gradient support) - Space Grotesk -->
-  <!-- DevRackula: adds red "Dev" prefix on dev/local environments -->
+  <!-- DRackula: adds red "D" prefix on dev/local environments -->
   <svg
     class="logo-title"
     class:logo-title--celebrate={celebrate}
     class:logo-title--party={partyMode}
     class:logo-title--showcase={showcase}
     class:logo-title--hover={hovering && !partyMode && !celebrate && !showcase}
-    viewBox="0 0 {showEnvPrefix ? 210 : 160} 50"
+    viewBox="0 0 {showEnvPrefix ? 180 : 160} 50"
     height={titleHeight}
     role="img"
     aria-label={showEnvPrefix
-      ? "DevRackula - development environment"
+      ? "DRackula - development environment"
       : "Rackula"}
     style={gradientId ? `--active-gradient: ${gradientId}` : undefined}
   >
-    <text x="0" y="38">{#if showEnvPrefix}<tspan class="env-prefix">D</tspan><tspan class="env-prefix-small" font-size="19" font-weight="400" dy="2">ev</tspan>{/if}<tspan>Rackula</tspan></text>
+    <text x="0" y="38">{#if showEnvPrefix}<tspan class="env-prefix">D</tspan>{/if}<tspan>Rackula</tspan></text>
   </svg>
 </div>
 
@@ -316,25 +315,14 @@
     font-weight: 500;
   }
 
-  /* DevRackula: blood-red "Dev" prefix for dev/local environments */
+  /* DRackula: blood-red "D" prefix for dev/local environments */
   /* Always red - never changes with gradient animations */
   .logo-title text .env-prefix,
-  .logo-title text .env-prefix-small,
   .logo-title--hover text .env-prefix,
-  .logo-title--hover text .env-prefix-small,
   .logo-title--celebrate text .env-prefix,
-  .logo-title--celebrate text .env-prefix-small,
   .logo-title--party text .env-prefix,
-  .logo-title--party text .env-prefix-small,
-  .logo-title--showcase text .env-prefix,
-  .logo-title--showcase text .env-prefix-small {
+  .logo-title--showcase text .env-prefix {
     fill: var(--dracula-red, #ff5555) !important;
-  }
-
-  /* Smaller "ev" in DevRackula prefix */
-  .logo-title text .env-prefix-small {
-    font-size: 26px;
-    font-weight: 400;
   }
 
   /* Celebrate state: rainbow wave for 3s */
@@ -428,9 +416,8 @@
       animation: none;
     }
 
-    /* DevRackula prefix stays red in reduced motion */
-    .logo-title text .env-prefix,
-    .logo-title text .env-prefix-small {
+    /* DRackula prefix stays red in reduced motion */
+    .logo-title text .env-prefix {
       fill: var(--dracula-red, #ff5555) !important;
     }
   }

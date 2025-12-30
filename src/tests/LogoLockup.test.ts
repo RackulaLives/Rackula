@@ -33,10 +33,10 @@ describe("LogoLockup", () => {
       const { container } = render(LogoLockup);
       const logoTitle = container.querySelector(".logo-title");
 
-      // Tests run on localhost, so DevRackula prefix shows
+      // Tests run on localhost, so DRackula prefix shows
       expect(logoTitle).toHaveAttribute(
         "aria-label",
-        "DevRackula - development environment",
+        "DRackula - development environment",
       );
     });
   });
@@ -261,8 +261,8 @@ describe("LogoLockup", () => {
       const logoTitle = container.querySelector(".logo-title");
       const viewBox = logoTitle?.getAttribute("viewBox");
 
-      // Tests run on localhost, so DevRackula prefix shows (wider viewBox)
-      expect(viewBox).toBe("0 0 210 50");
+      // Tests run on localhost, so DRackula prefix shows (wider viewBox)
+      expect(viewBox).toBe("0 0 180 50");
 
       // Validate format: exactly 4 space-separated numeric values
       const values = viewBox?.split(" ");
@@ -293,27 +293,22 @@ describe("LogoLockup", () => {
     });
   });
 
-  describe("DevRackula Prefix (#215, #279)", () => {
-    // Tests run on localhost, so the Dev prefix should show by default
-    it("shows red Dev prefix on localhost", () => {
+  describe("DRackula Prefix (#215)", () => {
+    // Tests run on localhost, so the D prefix should show by default
+    it("shows red D prefix on localhost", () => {
       const { container } = render(LogoLockup);
       const envPrefix = container.querySelector(".env-prefix");
-      const envPrefixSmall = container.querySelector(".env-prefix-small");
 
       expect(envPrefix).toBeInTheDocument();
       expect(envPrefix?.textContent).toBe("D");
-      expect(envPrefixSmall).toBeInTheDocument();
-      expect(envPrefixSmall?.textContent).toBe("ev");
     });
 
-    it("Dev prefix has Dracula red fill CSS class", () => {
+    it("D prefix has Dracula red fill CSS class", () => {
       const { container } = render(LogoLockup);
       const envPrefix = container.querySelector(".env-prefix");
-      const envPrefixSmall = container.querySelector(".env-prefix-small");
 
-      // Both classes exist (actual color is applied via CSS stylesheet)
+      // Class exists (actual color is applied via CSS stylesheet)
       expect(envPrefix).toBeInTheDocument();
-      expect(envPrefixSmall).toBeInTheDocument();
     });
 
     it("shows local tooltip on localhost", () => {
@@ -323,33 +318,13 @@ describe("LogoLockup", () => {
       expect(lockup).toHaveAttribute("title", "Local development environment");
     });
 
-    it("title text contains Dev prefix and Rackula", () => {
+    it("title text contains D prefix and Rackula", () => {
       const { container } = render(LogoLockup);
       const logoTitle = container.querySelector(".logo-title");
       const textContent = logoTitle?.textContent?.replace(/\s+/g, "");
 
-      // Text content combines Dev prefix + Rackula
-      expect(textContent).toBe("DevRackula");
-    });
-
-    it("'ev' tspan has 50% smaller font-size attribute (#279)", () => {
-      const { container } = render(LogoLockup);
-      const envPrefixSmall = container.querySelector(".env-prefix-small");
-
-      // SVG tspan needs inline font-size attribute (CSS class doesn't work)
-      // 19px = 50% of 38px (the main text size)
-      expect(envPrefixSmall).toHaveAttribute("font-size", "19");
-      expect(envPrefixSmall).toHaveAttribute("font-weight", "400");
-    });
-
-    it("viewBox is wide enough for full DevRackula text (#279)", () => {
-      const { container } = render(LogoLockup);
-      const logoTitle = container.querySelector(".logo-title");
-      const viewBox = logoTitle?.getAttribute("viewBox");
-      const width = viewBox?.split(" ")[2];
-
-      // viewBox width must be >= 210 to prevent text cutoff
-      expect(Number(width)).toBeGreaterThanOrEqual(210);
+      // Text content combines D prefix + Rackula
+      expect(textContent).toBe("DRackula");
     });
 
     // Note: The following tests would require module re-initialization
