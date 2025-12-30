@@ -555,6 +555,7 @@
     category: import("$lib/types").DeviceCategory;
     colour: string;
     notes: string;
+    isFullDepth: boolean;
     frontImage?: ImageData;
     rearImage?: ImageData;
   }) {
@@ -564,6 +565,7 @@
       category: data.category,
       colour: data.colour,
       comments: data.notes || undefined,
+      is_full_depth: data.isFullDepth ? undefined : false,
     });
 
     // Store images if provided (v0.1.0)
