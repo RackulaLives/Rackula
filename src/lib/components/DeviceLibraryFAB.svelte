@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   import { getViewportStore } from "$lib/utils/viewport.svelte";
+  import { analytics } from "$lib/utils/analytics";
 
   interface Props {
     onclick?: () => void;
@@ -13,13 +14,18 @@
   let { onclick }: Props = $props();
 
   const viewportStore = getViewportStore();
+
+  function handleClick() {
+    analytics.trackMobileFabClick();
+    onclick?.();
+  }
 </script>
 
 {#if viewportStore.isMobile}
   <button
     type="button"
     class="device-library-fab"
-    {onclick}
+    onclick={handleClick}
     aria-label="Open device library"
   >
     <!-- Plus icon -->

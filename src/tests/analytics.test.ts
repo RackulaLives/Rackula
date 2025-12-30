@@ -90,6 +90,41 @@ describe('analytics', () => {
 		it('trackKeyboardShortcut does not throw', () => {
 			expect(() => analytics.trackKeyboardShortcut('Ctrl+S')).not.toThrow();
 		});
+
+		// Tier 1: Core feature adoption events
+		it('trackRackCreate does not throw', () => {
+			expect(() => analytics.trackRackCreate()).not.toThrow();
+		});
+
+		it('trackPanelOpen does not throw for all panel types', () => {
+			expect(() => analytics.trackPanelOpen('help')).not.toThrow();
+			expect(() => analytics.trackPanelOpen('export')).not.toThrow();
+			expect(() => analytics.trackPanelOpen('share')).not.toThrow();
+		});
+
+		it('trackPanelClose does not throw for all panel types', () => {
+			expect(() => analytics.trackPanelClose('help')).not.toThrow();
+			expect(() => analytics.trackPanelClose('export')).not.toThrow();
+			expect(() => analytics.trackPanelClose('share')).not.toThrow();
+		});
+
+		it('trackToolbarClick does not throw for all button types', () => {
+			expect(() => analytics.trackToolbarClick('new-rack')).not.toThrow();
+			expect(() => analytics.trackToolbarClick('undo')).not.toThrow();
+			expect(() => analytics.trackToolbarClick('redo')).not.toThrow();
+			expect(() => analytics.trackToolbarClick('delete')).not.toThrow();
+			expect(() => analytics.trackToolbarClick('fit-all')).not.toThrow();
+			expect(() => analytics.trackToolbarClick('theme')).not.toThrow();
+			expect(() => analytics.trackToolbarClick('hamburger')).not.toThrow();
+		});
+
+		it('trackPaletteImport does not throw', () => {
+			expect(() => analytics.trackPaletteImport()).not.toThrow();
+		});
+
+		it('trackMobileFabClick does not throw', () => {
+			expect(() => analytics.trackMobileFabClick()).not.toThrow();
+		});
 	});
 });
 

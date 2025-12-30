@@ -24,6 +24,7 @@
   import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { getBrandPacks, getBrandSlugs } from "$lib/data/brandPacks";
   import { getStarterLibrary, getStarterSlugs } from "$lib/data/starterLibrary";
+  import { analytics } from "$lib/utils/analytics";
   import DevicePaletteItem from "./DevicePaletteItem.svelte";
   import BrandIcon from "./BrandIcon.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
@@ -344,6 +345,9 @@
       for (const deviceType of result.devices) {
         layoutStore.addDeviceTypeRaw(deviceType);
       }
+
+      // Track successful import
+      analytics.trackPaletteImport();
 
       // Show success toast
       const message =

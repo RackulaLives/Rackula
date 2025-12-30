@@ -8,6 +8,7 @@
   import LogoLockup from "./LogoLockup.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { formatShortcut } from "$lib/utils/platform";
+  import { analytics } from "$lib/utils/analytics";
 
   interface Props {
     open: boolean;
@@ -15,6 +16,13 @@
   }
 
   let { open, onclose }: Props = $props();
+
+  // Track panel open/close
+  $effect(() => {
+    if (open) {
+      analytics.trackPanelOpen("help");
+    }
+  });
 
   const toastStore = getToastStore();
 
@@ -94,6 +102,7 @@
   const featureRequestUrl = `${GITHUB_URL}/issues/new?template=feature-request.yml`;
 
   function handleClose() {
+    analytics.trackPanelClose("help");
     onclose?.();
   }
 
