@@ -32,10 +32,11 @@
 
   interface Props {
     onadddevice?: () => void;
+    onimportfromnetbox?: () => void;
     ondeviceselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
   }
 
-  let { onadddevice, ondeviceselect }: Props = $props();
+  let { onadddevice, onimportfromnetbox, ondeviceselect }: Props = $props();
 
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
@@ -310,6 +311,10 @@
     onadddevice?.();
   }
 
+  function handleImportFromNetBox() {
+    onimportfromnetbox?.();
+  }
+
   function handleDeviceSelect(event: CustomEvent<{ device: DeviceType }>) {
     ondeviceselect?.(event);
   }
@@ -507,6 +512,15 @@
         Add Device
       </button>
     </div>
+    <button
+      class="netbox-import-button"
+      type="button"
+      onclick={handleImportFromNetBox}
+      aria-label="Import from NetBox device type library"
+      data-testid="btn-import-netbox"
+    >
+      Import from NetBox YAML
+    </button>
   </div>
 </div>
 
@@ -750,5 +764,30 @@
   .add-icon {
     font-size: var(--font-size-base);
     font-weight: bold;
+  }
+
+  .netbox-import-button {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    margin-top: var(--space-2);
+    font-size: var(--font-size-xs);
+    color: var(--colour-muted);
+    background: transparent;
+    border: 1px dashed var(--button-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .netbox-import-button:hover {
+    color: var(--colour-text);
+    border-color: var(--colour-text);
+  }
+
+  .netbox-import-button:focus {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
   }
 </style>
