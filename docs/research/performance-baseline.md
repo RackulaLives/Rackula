@@ -265,4 +265,4 @@ if (performance.memory) {
 
 ---
 
-**End of Performance Baseline Document**
+## End of Performance Baseline Document
