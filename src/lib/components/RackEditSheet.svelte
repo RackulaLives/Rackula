@@ -383,7 +383,7 @@
   .btn-danger:hover:not(:disabled),
   .btn-danger:focus-visible:not(:disabled) {
     background: var(--colour-error);
-    color: white;
+    color: var(--colour-text-on-primary);
   }
 
   .btn-danger:disabled {

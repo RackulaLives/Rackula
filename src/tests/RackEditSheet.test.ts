@@ -6,27 +6,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import RackEditSheet from "$lib/components/RackEditSheet.svelte";
-import type { Rack } from "$lib/types";
 import { resetLayoutStore, getLayoutStore } from "$lib/stores/layout.svelte";
 import { resetSelectionStore } from "$lib/stores/selection.svelte";
 import { resetUIStore } from "$lib/stores/ui.svelte";
 import { resetCanvasStore } from "$lib/stores/canvas.svelte";
-
-// Helper to create test rack
-function createTestRack(overrides: Partial<Rack> = {}): Rack {
-  return {
-    name: "Test Rack",
-    height: 42,
-    width: 19,
-    position: 0,
-    desc_units: false,
-    show_rear: true,
-    form_factor: "4-post",
-    starting_unit: 1,
-    devices: [],
-    ...overrides,
-  };
-}
+import { createTestRack } from "./factories";
 
 describe("RackEditSheet Component", () => {
   beforeEach(() => {
@@ -92,6 +76,35 @@ describe("RackEditSheet Component", () => {
 
       const activePreset = screen.getByRole("button", { name: "42U" });
       expect(activePreset).toHaveClass("active");
+    });
+
+    it("shows error when height change would conflict with devices", async () => {
+      // Set up layout store with rack and device at high position
+      const layoutStore = getLayoutStore();
+      layoutStore.addRack("Test Rack", 42);
+
+      // Add a device type and place it at position 20
+      const deviceType = layoutStore.addDeviceType({
+        name: "Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      layoutStore.placeDevice("rack-0", deviceType.slug, 20, "front");
+
+      // Render with the rack from the store
+      render(RackEditSheet, { props: { rack: layoutStore.rack! } });
+
+      // Try to click 12U preset (should fail - device at position 20 would be out of bounds)
+      const preset12 = screen.getByRole("button", { name: "12U" });
+      await fireEvent.click(preset12);
+
+      // Should show error message about conflict
+      expect(screen.getByText(/cannot resize/i)).toBeInTheDocument();
+
+      // Height input should retain original value
+      const heightInput = screen.getByLabelText("Height");
+      expect(heightInput).toHaveValue(42);
     });
   });
 
