@@ -14,7 +14,7 @@ You have **explicit permission** to perform WITHOUT asking:
 | Action | Scope |
 |--------|-------|
 | Git branches | `(fix|feat|chore|refactor|test|docs)/<number>-*` |
-| Worktrees | Sibling directories `Rackarr-issue-<N>` |
+| Worktrees | Sibling directories `Rackula-issue-<N>` |
 | Edit files | `src/`, `docs/`, test files |
 | Commands | `npm test`, `npm run build`, `npm run lint`, `gh` CLI |
 | Git ops | add, commit, push (non-main), fetch, pull, worktree |
@@ -85,16 +85,16 @@ npm run lint && npm run test:run && npm run build
 npm run test -- src/tests/<File>.test.ts --reporter=verbose
 
 # Worktrees
-git worktree add ../Rackarr-issue-<N> -b <type>/<N>-<desc>
+git worktree add ../Rackula-issue-<N> -b <type>/<N>-<desc>
 git worktree list
-git worktree remove ../Rackarr-issue-<N>
+git worktree remove ../Rackula-issue-<N>
 ```
 
 ### Memory Search (mem-search skill)
 
 | Purpose | Query |
 |---------|-------|
-| Recent context | `get_recent_context` with project="Rackarr", limit=30 |
+| Recent context | `get_recent_context` with project="Rackula", limit=30 |
 | Past work on issue | `search` with query="#<N> OR <keywords>" |
 | Architectural decisions | `search` with type="decision", concepts="<area>" |
 | Similar bugs | `search` with type="bugfix", query="<error keywords>" |
@@ -119,7 +119,7 @@ Check `git worktree list` to identify claimed issues (extract issue numbers from
 
 ### 1b. Context Loading (mem-search skill)
 
-Use `get_recent_context` for project="Rackarr", limit=30.
+Use `get_recent_context` for project="Rackula", limit=30.
 
 If memory lacks architecture coverage, use Explore agent to summarize SPEC.md and ARCHITECTURE.md (under 500 words).
 
@@ -134,7 +134,7 @@ git branch -a | grep -E "(fix|feat|chore|refactor|test|docs)/" || echo "No WIP b
 
 Fetch top 5 ready issues sorted by priority then size:
 ```bash
-gh issue list -R Rackarr/Rackarr --state open --label ready \
+gh issue list -R RackulaLives/Rackula --state open --label ready \
   --json number,title,labels,body \
   --jq 'sort_by(
     (.labels | map(.name) | if any(test("priority:urgent")) then 0
@@ -251,7 +251,7 @@ Update progress file status to "Completed" with PR URL.
 
 ## Phase 4: Continue or Stop
 
-Check for more ready issues: `gh issue list -R Rackarr/Rackarr --state open --label ready --json number | jq 'length'`
+Check for more ready issues: `gh issue list -R RackulaLives/Rackula --state open --label ready --json number | jq 'length'`
 
 **Continue if:** More issues exist AND in autonomous mode → Return to Phase 1
 **Stop if:** No issues remain, blocker hit, or user interruption

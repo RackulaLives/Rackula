@@ -51,10 +51,17 @@ describe("Toolbar Responsive Structure", () => {
       const { container } = render(Toolbar);
 
       // LogoLockup uses SVG text for the brand name with aria-label
+      // Tests run on localhost, so DRackula prefix shows
       const logoTitle = container.querySelector(".logo-title");
       expect(logoTitle).toBeInTheDocument();
-      expect(logoTitle?.getAttribute("aria-label")).toBe("Rackula");
-      expect(logoTitle?.querySelector("text")?.textContent).toBe("Rackula");
+      expect(logoTitle?.getAttribute("aria-label")).toBe(
+        "DRackula - development environment",
+      );
+      // Text content includes D prefix and Rackula (whitespace normalized)
+      const textContent =
+        logoTitle?.querySelector("text")?.textContent?.replace(/\s+/g, "") ??
+        "";
+      expect(textContent).toBe("DRackula");
     });
 
     it("brand section does not contain tagline (moved to About)", () => {

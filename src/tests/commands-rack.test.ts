@@ -1,219 +1,242 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from "vitest";
 import {
-	createUpdateRackCommand,
-	createReplaceRackCommand,
-	createClearRackCommand,
-	type RackCommandStore,
-	type RackSettings
-} from '$lib/stores/commands/rack';
-import type { Rack, PlacedDevice } from '$lib/types';
-import { createTestRack, createTestDevice } from './factories';
+  createUpdateRackCommand,
+  createReplaceRackCommand,
+  createClearRackCommand,
+  type RackCommandStore,
+  type RackSettings,
+} from "$lib/stores/commands/rack";
+import type { Rack, PlacedDevice } from "$lib/types";
+import { createTestRack, createTestDevice } from "./factories";
 
 function createMockStore(rack: Rack = createTestRack()): RackCommandStore & {
-	updateRackRaw: ReturnType<typeof vi.fn>;
-	replaceRackRaw: ReturnType<typeof vi.fn>;
-	clearRackDevicesRaw: ReturnType<typeof vi.fn>;
-	restoreRackDevicesRaw: ReturnType<typeof vi.fn>;
-	getRack: ReturnType<typeof vi.fn>;
+  updateRackRaw: ReturnType<typeof vi.fn>;
+  replaceRackRaw: ReturnType<typeof vi.fn>;
+  clearRackDevicesRaw: ReturnType<typeof vi.fn>;
+  restoreRackDevicesRaw: ReturnType<typeof vi.fn>;
+  getRack: ReturnType<typeof vi.fn>;
 } {
-	return {
-		updateRackRaw: vi.fn(),
-		replaceRackRaw: vi.fn(),
-		clearRackDevicesRaw: vi.fn().mockReturnValue([]),
-		restoreRackDevicesRaw: vi.fn(),
-		getRack: vi.fn().mockReturnValue(rack)
-	};
+  return {
+    updateRackRaw: vi.fn(),
+    replaceRackRaw: vi.fn(),
+    clearRackDevicesRaw: vi.fn().mockReturnValue([]),
+    restoreRackDevicesRaw: vi.fn(),
+    getRack: vi.fn().mockReturnValue(rack),
+  };
 }
 
-describe('Rack Commands', () => {
-	describe('createUpdateRackCommand', () => {
-		it('creates command with correct type and description', () => {
-			const store = createMockStore();
-			const before = { name: 'Old Name' };
-			const after = { name: 'New Name' };
+describe("Rack Commands", () => {
+  describe("createUpdateRackCommand", () => {
+    it("creates command with correct type and description", () => {
+      const store = createMockStore();
+      const before = { name: "Old Name" };
+      const after = { name: "New Name" };
 
-			const command = createUpdateRackCommand(before, after, store);
+      const command = createUpdateRackCommand(before, after, store);
 
-			expect(command.type).toBe('UPDATE_RACK');
-			expect(command.description).toBe('Update rack settings');
-			expect(typeof command.timestamp).toBe('number');
-		});
+      expect(command.type).toBe("UPDATE_RACK");
+      expect(command.description).toBe("Update rack settings");
+      expect(typeof command.timestamp).toBe("number");
+    });
 
-		it('execute calls updateRackRaw with after values', () => {
-			const store = createMockStore();
-			const before = { height: 42 };
-			const after = { height: 48 };
+    it("execute calls updateRackRaw with after values", () => {
+      const store = createMockStore();
+      const before = { height: 42 };
+      const after = { height: 48 };
 
-			const command = createUpdateRackCommand(before, after, store);
-			command.execute();
+      const command = createUpdateRackCommand(before, after, store);
+      command.execute();
 
-			expect(store.updateRackRaw).toHaveBeenCalledTimes(1);
-			expect(store.updateRackRaw).toHaveBeenCalledWith(after);
-		});
+      expect(store.updateRackRaw).toHaveBeenCalledTimes(1);
+      expect(store.updateRackRaw).toHaveBeenCalledWith(after);
+    });
 
-		it('undo calls updateRackRaw with before values', () => {
-			const store = createMockStore();
-			const before: Partial<RackSettings> = { height: 42, width: 19 };
-			const after: Partial<RackSettings> = { height: 48, width: 10 };
+    it("undo calls updateRackRaw with before values", () => {
+      const store = createMockStore();
+      const before: Partial<RackSettings> = { height: 42, width: 19 };
+      const after: Partial<RackSettings> = { height: 48, width: 10 };
 
-			const command = createUpdateRackCommand(before, after, store);
-			command.execute();
-			command.undo();
+      const command = createUpdateRackCommand(before, after, store);
+      command.execute();
+      command.undo();
 
-			expect(store.updateRackRaw).toHaveBeenCalledTimes(2);
-			expect(store.updateRackRaw).toHaveBeenLastCalledWith(before);
-		});
-	});
+      expect(store.updateRackRaw).toHaveBeenCalledTimes(2);
+      expect(store.updateRackRaw).toHaveBeenLastCalledWith(before);
+    });
 
-	describe('createReplaceRackCommand', () => {
-		it('creates command with correct type and description', () => {
-			const store = createMockStore();
-			const oldRack = createTestRack({ name: 'Old' });
-			const newRack = createTestRack({ name: 'New' });
+    it("updates show_rear property", () => {
+      const store = createMockStore();
+      const before: Partial<RackSettings> = { show_rear: true };
+      const after: Partial<RackSettings> = { show_rear: false };
 
-			const command = createReplaceRackCommand(oldRack, newRack, store);
+      const command = createUpdateRackCommand(before, after, store);
+      command.execute();
 
-			expect(command.type).toBe('REPLACE_RACK');
-			expect(command.description).toBe('Replace rack');
-			expect(typeof command.timestamp).toBe('number');
-		});
+      expect(store.updateRackRaw).toHaveBeenCalledWith({ show_rear: false });
 
-		it('execute calls replaceRackRaw with new rack', () => {
-			const store = createMockStore();
-			const oldRack = createTestRack({ name: 'Old' });
-			const newRack = createTestRack({ name: 'New', height: 48 });
+      command.undo();
 
-			const command = createReplaceRackCommand(oldRack, newRack, store);
-			command.execute();
+      expect(store.updateRackRaw).toHaveBeenLastCalledWith({ show_rear: true });
+    });
+  });
 
-			expect(store.replaceRackRaw).toHaveBeenCalledTimes(1);
-			expect(store.replaceRackRaw).toHaveBeenCalledWith(
-				expect.objectContaining({ name: 'New', height: 48 })
-			);
-		});
+  describe("createReplaceRackCommand", () => {
+    it("creates command with correct type and description", () => {
+      const store = createMockStore();
+      const oldRack = createTestRack({ name: "Old" });
+      const newRack = createTestRack({ name: "New" });
 
-		it('undo calls replaceRackRaw with old rack', () => {
-			const store = createMockStore();
-			const oldRack = createTestRack({ name: 'Old', height: 42 });
-			const newRack = createTestRack({ name: 'New', height: 48 });
+      const command = createReplaceRackCommand(oldRack, newRack, store);
 
-			const command = createReplaceRackCommand(oldRack, newRack, store);
-			command.execute();
-			command.undo();
+      expect(command.type).toBe("REPLACE_RACK");
+      expect(command.description).toBe("Replace rack");
+      expect(typeof command.timestamp).toBe("number");
+    });
 
-			expect(store.replaceRackRaw).toHaveBeenCalledTimes(2);
-			expect(store.replaceRackRaw).toHaveBeenLastCalledWith(
-				expect.objectContaining({ name: 'Old', height: 42 })
-			);
-		});
+    it("execute calls replaceRackRaw with new rack", () => {
+      const store = createMockStore();
+      const oldRack = createTestRack({ name: "Old" });
+      const newRack = createTestRack({ name: "New", height: 48 });
 
-		it('deep copies racks to avoid mutation issues', () => {
-			const store = createMockStore();
-			const oldRack = createTestRack({
-				devices: [createTestDevice({ position: 5 })]
-			});
-			const newRack = createTestRack({
-				devices: [createTestDevice({ position: 10 })]
-			});
+      const command = createReplaceRackCommand(oldRack, newRack, store);
+      command.execute();
 
-			const command = createReplaceRackCommand(oldRack, newRack, store);
+      expect(store.replaceRackRaw).toHaveBeenCalledTimes(1);
+      expect(store.replaceRackRaw).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "New", height: 48 }),
+      );
+    });
 
-			// Mutate originals
-			oldRack.devices[0]!.position = 99;
-			newRack.devices[0]!.position = 88;
+    it("undo calls replaceRackRaw with old rack", () => {
+      const store = createMockStore();
+      const oldRack = createTestRack({ name: "Old", height: 42 });
+      const newRack = createTestRack({ name: "New", height: 48 });
 
-			command.execute();
+      const command = createReplaceRackCommand(oldRack, newRack, store);
+      command.execute();
+      command.undo();
 
-			// Should use original values
-			expect(store.replaceRackRaw).toHaveBeenCalledWith(
-				expect.objectContaining({
-					devices: expect.arrayContaining([expect.objectContaining({ position: 10 })])
-				})
-			);
+      expect(store.replaceRackRaw).toHaveBeenCalledTimes(2);
+      expect(store.replaceRackRaw).toHaveBeenLastCalledWith(
+        expect.objectContaining({ name: "Old", height: 42 }),
+      );
+    });
 
-			command.undo();
+    it("deep copies racks to avoid mutation issues", () => {
+      const store = createMockStore();
+      const oldRack = createTestRack({
+        devices: [createTestDevice({ position: 5 })],
+      });
+      const newRack = createTestRack({
+        devices: [createTestDevice({ position: 10 })],
+      });
 
-			expect(store.replaceRackRaw).toHaveBeenLastCalledWith(
-				expect.objectContaining({
-					devices: expect.arrayContaining([expect.objectContaining({ position: 5 })])
-				})
-			);
-		});
-	});
+      const command = createReplaceRackCommand(oldRack, newRack, store);
 
-	describe('createClearRackCommand', () => {
-		it('creates command with correct type and description for single device', () => {
-			const store = createMockStore();
-			const devices = [createTestDevice()];
+      // Mutate originals
+      oldRack.devices[0]!.position = 99;
+      newRack.devices[0]!.position = 88;
 
-			const command = createClearRackCommand(devices, store);
+      command.execute();
 
-			expect(command.type).toBe('CLEAR_RACK');
-			expect(command.description).toBe('Clear rack (1 device)');
-		});
+      // Should use original values
+      expect(store.replaceRackRaw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          devices: expect.arrayContaining([
+            expect.objectContaining({ position: 10 }),
+          ]),
+        }),
+      );
 
-		it('creates command with correct description for multiple devices', () => {
-			const store = createMockStore();
-			const devices = [createTestDevice(), createTestDevice(), createTestDevice()];
+      command.undo();
 
-			const command = createClearRackCommand(devices, store);
+      expect(store.replaceRackRaw).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          devices: expect.arrayContaining([
+            expect.objectContaining({ position: 5 }),
+          ]),
+        }),
+      );
+    });
+  });
 
-			expect(command.description).toBe('Clear rack (3 devices)');
-		});
+  describe("createClearRackCommand", () => {
+    it("creates command with correct type and description for single device", () => {
+      const store = createMockStore();
+      const devices = [createTestDevice()];
 
-		it('creates command with correct description for empty rack', () => {
-			const store = createMockStore();
-			const devices: PlacedDevice[] = [];
+      const command = createClearRackCommand(devices, store);
 
-			const command = createClearRackCommand(devices, store);
+      expect(command.type).toBe("CLEAR_RACK");
+      expect(command.description).toBe("Clear rack (1 device)");
+    });
 
-			expect(command.description).toBe('Clear rack (0 devices)');
-		});
+    it("creates command with correct description for multiple devices", () => {
+      const store = createMockStore();
+      const devices = [
+        createTestDevice(),
+        createTestDevice(),
+        createTestDevice(),
+      ];
 
-		it('execute calls clearRackDevicesRaw', () => {
-			const store = createMockStore();
-			const devices = [createTestDevice()];
+      const command = createClearRackCommand(devices, store);
 
-			const command = createClearRackCommand(devices, store);
-			command.execute();
+      expect(command.description).toBe("Clear rack (3 devices)");
+    });
 
-			expect(store.clearRackDevicesRaw).toHaveBeenCalledTimes(1);
-		});
+    it("creates command with correct description for empty rack", () => {
+      const store = createMockStore();
+      const devices: PlacedDevice[] = [];
 
-		it('undo calls restoreRackDevicesRaw with device copies', () => {
-			const store = createMockStore();
-			const devices = [
-				createTestDevice({ position: 5, device_type: 'device-a' }),
-				createTestDevice({ position: 10, device_type: 'device-b' })
-			];
+      const command = createClearRackCommand(devices, store);
 
-			const command = createClearRackCommand(devices, store);
-			command.execute();
-			command.undo();
+      expect(command.description).toBe("Clear rack (0 devices)");
+    });
 
-			expect(store.restoreRackDevicesRaw).toHaveBeenCalledTimes(1);
-			expect(store.restoreRackDevicesRaw).toHaveBeenCalledWith([
-				expect.objectContaining({ position: 5, device_type: 'device-a' }),
-				expect.objectContaining({ position: 10, device_type: 'device-b' })
-			]);
-		});
+    it("execute calls clearRackDevicesRaw", () => {
+      const store = createMockStore();
+      const devices = [createTestDevice()];
 
-		it('stores copies of devices to avoid mutation issues', () => {
-			const store = createMockStore();
-			const devices = [createTestDevice({ position: 5 })];
+      const command = createClearRackCommand(devices, store);
+      command.execute();
 
-			const command = createClearRackCommand(devices, store);
+      expect(store.clearRackDevicesRaw).toHaveBeenCalledTimes(1);
+    });
 
-			// Mutate original
-			devices[0]!.position = 99;
+    it("undo calls restoreRackDevicesRaw with device copies", () => {
+      const store = createMockStore();
+      const devices = [
+        createTestDevice({ position: 5, device_type: "device-a" }),
+        createTestDevice({ position: 10, device_type: "device-b" }),
+      ];
 
-			command.execute();
-			command.undo();
+      const command = createClearRackCommand(devices, store);
+      command.execute();
+      command.undo();
 
-			// Should restore with original position
-			expect(store.restoreRackDevicesRaw).toHaveBeenCalledWith([
-				expect.objectContaining({ position: 5 })
-			]);
-		});
-	});
+      expect(store.restoreRackDevicesRaw).toHaveBeenCalledTimes(1);
+      expect(store.restoreRackDevicesRaw).toHaveBeenCalledWith([
+        expect.objectContaining({ position: 5, device_type: "device-a" }),
+        expect.objectContaining({ position: 10, device_type: "device-b" }),
+      ]);
+    });
+
+    it("stores copies of devices to avoid mutation issues", () => {
+      const store = createMockStore();
+      const devices = [createTestDevice({ position: 5 })];
+
+      const command = createClearRackCommand(devices, store);
+
+      // Mutate original
+      devices[0]!.position = 99;
+
+      command.execute();
+      command.undo();
+
+      // Should restore with original position
+      expect(store.restoreRackDevicesRaw).toHaveBeenCalledWith([
+        expect.objectContaining({ position: 5 }),
+      ]);
+    });
+  });
 });

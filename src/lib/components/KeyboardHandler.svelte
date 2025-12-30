@@ -12,6 +12,7 @@
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
+  import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { findNextValidPosition } from "$lib/utils/device-movement";
   import { analytics } from "$lib/utils/analytics";
 
@@ -41,6 +42,7 @@
   const selectionStore = getSelectionStore();
   const uiStore = getUIStore();
   const toastStore = getToastStore();
+  const placementStore = getPlacementStore();
 
   /**
    * Perform undo with toast notification
@@ -69,63 +71,23 @@
   // Define all shortcuts
   function getShortcuts(): ShortcutHandler[] {
     return [
-      // Escape - clear selection and close drawers
+      // Escape - cancel placement mode, or clear selection and close drawers
       {
         key: "Escape",
         action: () => {
+          // Priority: cancel placement mode first
+          if (placementStore.isPlacing) {
+            placementStore.cancelPlacement();
+            return;
+          }
+          // Otherwise clear selection and close drawers
           selectionStore.clearSelection();
           uiStore.closeLeftDrawer();
           uiStore.closeRightDrawer();
         },
       },
 
-      // Ctrl/Cmd+Z - undo
-      {
-        key: "z",
-        ctrl: true,
-        action: () => performUndo(),
-      },
-      {
-        key: "z",
-        meta: true,
-        action: () => performUndo(),
-      },
-
-      // Ctrl/Cmd+Shift+Z or Ctrl+Y - redo
-      {
-        key: "z",
-        ctrl: true,
-        shift: true,
-        action: () => performRedo(),
-      },
-      {
-        key: "z",
-        meta: true,
-        shift: true,
-        action: () => performRedo(),
-      },
-      {
-        key: "y",
-        ctrl: true,
-        action: () => performRedo(),
-      },
-      {
-        key: "y",
-        meta: true,
-        action: () => performRedo(),
-      },
-
-      // Delete / Backspace - delete selected item
-      {
-        key: "Delete",
-        action: () => ondelete?.(),
-      },
-      {
-        key: "Backspace",
-        action: () => ondelete?.(),
-      },
-
-      // Arrow keys - device movement (1U or device height)
+      // Arrow keys - move selected device (without modifiers)
       {
         key: "ArrowUp",
         action: () => moveSelectedDevice(1),
@@ -134,8 +96,7 @@
         key: "ArrowDown",
         action: () => moveSelectedDevice(-1),
       },
-
-      // Shift+Arrow keys - fine device movement (0.5U)
+      // Shift+Arrow keys - move by 0.5U (fine movement)
       {
         key: "ArrowUp",
         shift: true,
@@ -146,8 +107,7 @@
         shift: true,
         action: () => moveSelectedDevice(-1, 0.5),
       },
-
-      // Arrow keys - rack reordering
+      // Left/Right arrows - move selected rack (disabled in single-rack mode)
       {
         key: "ArrowLeft",
         action: () => moveSelectedRack(-1),
@@ -157,16 +117,70 @@
         action: () => moveSelectedRack(1),
       },
 
-      // D - toggle device palette
+      // Delete/Backspace - delete selection
       {
-        key: "d",
-        action: () => uiStore.toggleLeftDrawer(),
+        key: "Delete",
+        action: () => ondelete?.(),
+      },
+      {
+        key: "Backspace",
+        action: () => ondelete?.(),
       },
 
       // F - fit all
       {
         key: "f",
         action: () => onfitall?.(),
+      },
+
+      // D - toggle sidebar (device palette)
+      {
+        key: "d",
+        action: () => uiStore.toggleLeftDrawer(),
+      },
+
+      // A - toggle airflow display
+      {
+        key: "a",
+        action: () => uiStore.toggleAirflow(),
+      },
+
+      // Ctrl/Cmd+Z - undo
+      {
+        key: "z",
+        ctrl: true,
+        action: performUndo,
+      },
+      {
+        key: "z",
+        meta: true,
+        action: performUndo,
+      },
+
+      // Ctrl/Cmd+Shift+Z - redo
+      {
+        key: "z",
+        ctrl: true,
+        shift: true,
+        action: performRedo,
+      },
+      {
+        key: "z",
+        meta: true,
+        shift: true,
+        action: performRedo,
+      },
+
+      // Ctrl/Cmd+Y - redo (alternative)
+      {
+        key: "y",
+        ctrl: true,
+        action: performRedo,
+      },
+      {
+        key: "y",
+        meta: true,
+        action: performRedo,
       },
 
       // Ctrl/Cmd+S - save
@@ -321,9 +335,10 @@
         event.preventDefault();
         shortcut.action();
 
-        // Track keyboard shortcut usage
+        // Track shortcut usage (only for meaningful actions)
         const shortcutName = formatShortcutName(shortcut);
         analytics.trackKeyboardShortcut(shortcutName);
+
         return;
       }
     }

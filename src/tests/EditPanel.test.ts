@@ -642,6 +642,182 @@ describe("EditPanel Component", () => {
   });
 });
 
+describe("U Numbering", () => {
+  beforeEach(() => {
+    resetLayoutStore();
+    resetSelectionStore();
+    resetUIStore();
+  });
+
+  it("shows U Numbering control when rack is selected", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const RACK_ID = "rack-0";
+
+    layoutStore.addRack("My Rack", 42);
+    selectionStore.selectRack(RACK_ID);
+
+    render(EditPanel);
+
+    expect(screen.getByText("U Numbering")).toBeInTheDocument();
+    expect(screen.getByText("U1 at bottom")).toBeInTheDocument();
+    expect(screen.getByText("U1 at top")).toBeInTheDocument();
+  });
+
+  it("defaults to U1 at bottom (desc_units=false)", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const RACK_ID = "rack-0";
+
+    layoutStore.addRack("My Rack", 42);
+    selectionStore.selectRack(RACK_ID);
+
+    render(EditPanel);
+
+    const bottomButton = screen.getByRole("button", { name: "U1 at bottom" });
+    expect(bottomButton).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("clicking U1 at top updates desc_units to true", async () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const RACK_ID = "rack-0";
+
+    layoutStore.addRack("My Rack", 42);
+    selectionStore.selectRack(RACK_ID);
+
+    render(EditPanel);
+
+    expect(layoutStore.rack?.desc_units).toBe(false);
+
+    const topButton = screen.getByRole("button", { name: "U1 at top" });
+    await fireEvent.click(topButton);
+
+    expect(layoutStore.rack?.desc_units).toBe(true);
+  });
+
+  it("clicking U1 at bottom updates desc_units to false", async () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const RACK_ID = "rack-0";
+
+    layoutStore.addRack("My Rack", 42);
+    // Set desc_units to true first
+    layoutStore.updateRack(RACK_ID, { desc_units: true });
+    selectionStore.selectRack(RACK_ID);
+
+    render(EditPanel);
+
+    expect(layoutStore.rack?.desc_units).toBe(true);
+
+    const bottomButton = screen.getByRole("button", { name: "U1 at bottom" });
+    await fireEvent.click(bottomButton);
+
+    expect(layoutStore.rack?.desc_units).toBe(false);
+  });
+
+  it("does not show U Numbering control for device selection", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const RACK_ID = "rack-0";
+
+    layoutStore.addRack("My Rack", 24);
+    const device = layoutStore.addDeviceType({
+      name: "Test Server",
+      u_height: 2,
+      category: "server",
+      colour: "#4A90D9",
+    });
+    layoutStore.placeDevice(RACK_ID, device.slug, 1);
+    const deviceId = layoutStore.rack!.devices[0]!.id;
+    selectionStore.selectDevice(RACK_ID, deviceId);
+
+    render(EditPanel);
+
+    expect(screen.queryByText("U Numbering")).not.toBeInTheDocument();
+  });
+});
+
+describe("Device position display", () => {
+  beforeEach(() => {
+    resetLayoutStore();
+    resetSelectionStore();
+    resetUIStore();
+  });
+
+  it("shows internal position when desc_units=false", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const RACK_ID = "rack-0";
+
+    layoutStore.addRack("My Rack", 42);
+    const device = layoutStore.addDeviceType({
+      name: "Test Server",
+      u_height: 2,
+      category: "server",
+      colour: "#4A90D9",
+    });
+    layoutStore.placeDevice(RACK_ID, device.slug, 5); // position 5 (from bottom)
+    const deviceId = layoutStore.rack!.devices[0]!.id;
+    selectionStore.selectDevice(RACK_ID, deviceId);
+
+    render(EditPanel);
+
+    // With desc_units=false, position 5 should display as U5
+    expect(screen.getByText("U5")).toBeInTheDocument();
+  });
+
+  it("transforms position when desc_units=true", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const RACK_ID = "rack-0";
+
+    layoutStore.addRack("My Rack", 42);
+    layoutStore.updateRack(RACK_ID, { desc_units: true });
+
+    const device = layoutStore.addDeviceType({
+      name: "Test Server",
+      u_height: 2,
+      category: "server",
+      colour: "#4A90D9",
+    });
+    layoutStore.placeDevice(RACK_ID, device.slug, 1); // position 1 = bottom of rack
+    const deviceId = layoutStore.rack!.devices[0]!.id;
+    selectionStore.selectDevice(RACK_ID, deviceId);
+
+    render(EditPanel);
+
+    // With desc_units=true and height=42, position 1 should display as U42
+    // Formula: rack.height - pos + 1 = 42 - 1 + 1 = 42
+    expect(screen.getByText("U42")).toBeInTheDocument();
+  });
+
+  it("transforms top position correctly when desc_units=true", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const RACK_ID = "rack-0";
+
+    layoutStore.addRack("My Rack", 42);
+    layoutStore.updateRack(RACK_ID, { desc_units: true });
+
+    const device = layoutStore.addDeviceType({
+      name: "Test Server",
+      u_height: 2,
+      category: "server",
+      colour: "#4A90D9",
+    });
+    layoutStore.placeDevice(RACK_ID, device.slug, 41); // position 41 = near top of 42U rack
+    const deviceId = layoutStore.rack!.devices[0]!.id;
+    selectionStore.selectDevice(RACK_ID, deviceId);
+
+    render(EditPanel);
+
+    // With desc_units=true and height=42, position 41 should display as U2
+    // Formula: rack.height - pos + 1 = 42 - 41 + 1 = 2
+    expect(screen.getByText("U2")).toBeInTheDocument();
+  });
+});
+
 describe("Delete device type", () => {
   beforeEach(() => {
     resetLayoutStore();

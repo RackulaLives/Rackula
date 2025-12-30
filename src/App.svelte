@@ -21,7 +21,8 @@
   import HelpPanel from "$lib/components/HelpPanel.svelte";
   import BottomSheet from "$lib/components/BottomSheet.svelte";
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
-  import MobileWarningModal from "$lib/components/MobileWarningModal.svelte";
+  import DeviceLibraryFAB from "$lib/components/DeviceLibraryFAB.svelte";
+  import RackEditSheet from "$lib/components/RackEditSheet.svelte";
   import {
     getShareParam,
     clearShareParam,
@@ -41,6 +42,7 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
+  import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { createKonamiDetector } from "$lib/utils/konami";
   import type { ImageData } from "$lib/types/images";
   import { openFilePicker } from "$lib/utils/file";
@@ -61,6 +63,7 @@
   } from "$lib/utils/export";
   import type { ExportOptions } from "$lib/types";
   import { analytics } from "$lib/utils/analytics";
+  import { hapticTap } from "$lib/utils/haptics";
 
   // Build-time environment constant from vite.config.ts
   declare const __BUILD_ENV__: string;
@@ -72,6 +75,10 @@
   const toastStore = getToastStore();
   const imageStore = getImageStore();
   const viewportStore = getViewportStore();
+  const placementStore = getPlacementStore();
+
+  // Single-rack mode constant
+  const RACK_ID = "rack-0";
 
   // Dialog state
   let newRackFormOpen = $state(false);
@@ -91,6 +98,12 @@
   // Mobile bottom sheet state
   let bottomSheetOpen = $state(false);
   let selectedDeviceForSheet: number | null = $state(null);
+
+  // Mobile device library sheet state
+  let deviceLibrarySheetOpen = $state(false);
+
+  // Mobile rack edit sheet state (opened via long press)
+  let rackEditSheetOpen = $state(false);
 
   // Party Mode easter egg (triggered by Konami code)
   let partyMode = $state(false);
@@ -539,6 +552,8 @@
   }
 
   function handleAddDevice() {
+    // Close bottom sheet first to avoid z-index conflict on mobile
+    deviceLibrarySheetOpen = false;
     addDeviceFormOpen = true;
   }
 
@@ -548,6 +563,7 @@
     category: import("$lib/types").DeviceCategory;
     colour: string;
     notes: string;
+    isFullDepth: boolean;
     frontImage?: ImageData;
     rearImage?: ImageData;
   }) {
@@ -557,6 +573,7 @@
       category: data.category,
       colour: data.colour,
       comments: data.notes || undefined,
+      is_full_depth: data.isFullDepth ? undefined : false,
     });
 
     // Store images if provided (v0.1.0)
@@ -625,17 +642,8 @@
       if (deviceIndex !== null && layoutStore.rack) {
         selectedDeviceForSheet = deviceIndex;
         bottomSheetOpen = true;
-        console.log(
-          "[Mobile] Opening bottom sheet and auto-zooming to device",
-          deviceIndex,
-        );
-
-        // Auto-zoom to device on mobile
-        canvasStore.zoomToDevice(
-          layoutStore.rack,
-          deviceIndex,
-          layoutStore.device_types,
-        );
+        console.log("[Mobile] Opening bottom sheet for device", deviceIndex);
+        // Note: Not zooming because bottom sheet covers most of viewport
       }
     } else if (!selectionStore.isDeviceSelected) {
       // When device deselected, close sheet and fit all
@@ -657,6 +665,79 @@
     bottomSheetOpen = false;
     selectedDeviceForSheet = null;
     selectionStore.clearSelection();
+  }
+
+  // Handle mobile device actions (remove, move)
+  function handleMobileRemoveDevice() {
+    if (selectedDeviceForSheet !== null && layoutStore.rack) {
+      layoutStore.removeDeviceFromRack(RACK_ID, selectedDeviceForSheet);
+      handleBottomSheetClose();
+    }
+  }
+
+  function handleMobileMoveDeviceUp() {
+    if (selectedDeviceForSheet !== null && layoutStore.rack) {
+      const device = layoutStore.rack.devices[selectedDeviceForSheet];
+      const deviceType = layoutStore.device_types.find(
+        (dt) => dt.slug === device?.device_type,
+      );
+      if (device && deviceType) {
+        // Move up = increase position (higher U number)
+        const newPosition = device.position + 1;
+        layoutStore.moveDevice(RACK_ID, selectedDeviceForSheet, newPosition);
+      }
+    }
+  }
+
+  function handleMobileMoveDeviceDown() {
+    if (selectedDeviceForSheet !== null && layoutStore.rack) {
+      const device = layoutStore.rack.devices[selectedDeviceForSheet];
+      if (device && device.position > 1) {
+        // Move down = decrease position (lower U number)
+        const newPosition = device.position - 1;
+        layoutStore.moveDevice(RACK_ID, selectedDeviceForSheet, newPosition);
+      }
+    }
+  }
+
+  // Handle device library FAB click (mobile)
+  function handleDeviceLibraryFABClick() {
+    deviceLibrarySheetOpen = true;
+  }
+
+  // Handle device library sheet close
+  function handleDeviceLibrarySheetClose() {
+    deviceLibrarySheetOpen = false;
+  }
+
+  // Handle rack long press (mobile rack editing)
+  function handleRackLongPress(_event: CustomEvent<{ rackId: string }>) {
+    // Ignore if in placement mode (handled by enableLongPress prop, but double-check)
+    if (placementStore.isPlacing) return;
+
+    // Close any other open sheets first
+    bottomSheetOpen = false;
+    deviceLibrarySheetOpen = false;
+    selectedDeviceForSheet = null;
+    // Open rack edit sheet
+    rackEditSheetOpen = true;
+  }
+
+  // Handle rack edit sheet close
+  function handleRackEditSheetClose() {
+    rackEditSheetOpen = false;
+  }
+
+  // Handle mobile device selection from palette (enters placement mode)
+  function handleMobileDeviceSelect(
+    event: CustomEvent<{ device: import("$lib/types").DeviceType }>,
+  ) {
+    const { device } = event.detail;
+    hapticTap(); // Fire haptic immediately for snappier feedback
+    placementStore.startPlacement(device);
+    // Close all sheets when entering placement mode
+    deviceLibrarySheetOpen = false;
+    rackEditSheetOpen = false;
   }
 
   // Auto-save layout to localStorage with debouncing
@@ -723,7 +804,13 @@
       </Sidebar>
     {/if}
 
-    <Canvas onnewrack={handleNewRack} onload={handleLoad} {partyMode} />
+    <Canvas
+      onnewrack={handleNewRack}
+      onload={handleLoad}
+      {partyMode}
+      enableLongPress={viewportStore.isMobile && !placementStore.isPlacing}
+      onracklongpress={handleRackLongPress}
+    />
 
     {#if !viewportStore.isMobile}
       <EditPanel />
@@ -737,12 +824,26 @@
       ? layoutStore.device_types.find((dt) => dt.slug === device.device_type)
       : null}
     {#if device && deviceType}
-      <BottomSheet bind:open={bottomSheetOpen} onclose={handleBottomSheetClose}>
+      {@const rackHeight = layoutStore.rack?.height ?? 42}
+      {@const maxPosition = rackHeight - deviceType.u_height + 1}
+      {@const canMoveUp = device.position < maxPosition}
+      {@const canMoveDown = device.position > 1}
+      <BottomSheet
+        bind:open={bottomSheetOpen}
+        title={deviceType.model}
+        onclose={handleBottomSheetClose}
+      >
         <DeviceDetails
           {device}
           {deviceType}
           rackView={layoutStore.rack?.view}
-          rackHeight={layoutStore.rack?.height}
+          {rackHeight}
+          showActions={true}
+          onremove={handleMobileRemoveDevice}
+          onmoveup={handleMobileMoveDeviceUp}
+          onmovedown={handleMobileMoveDeviceDown}
+          {canMoveUp}
+          {canMoveDown}
         />
       </BottomSheet>
     {/if}
@@ -804,7 +905,35 @@
 
   <ToastContainer />
 
-  <MobileWarningModal />
+  <!-- Mobile device library FAB and bottom sheet -->
+  <DeviceLibraryFAB onclick={handleDeviceLibraryFABClick} />
+
+  {#if viewportStore.isMobile && deviceLibrarySheetOpen}
+    <BottomSheet
+      bind:open={deviceLibrarySheetOpen}
+      title="Device Library"
+      onclose={handleDeviceLibrarySheetClose}
+    >
+      <DevicePalette
+        onadddevice={handleAddDevice}
+        ondeviceselect={handleMobileDeviceSelect}
+      />
+    </BottomSheet>
+  {/if}
+
+  <!-- Mobile rack edit sheet (opened via long press on rack) -->
+  {#if viewportStore.isMobile && rackEditSheetOpen && layoutStore.rack}
+    <BottomSheet
+      bind:open={rackEditSheetOpen}
+      title="Edit Rack"
+      onclose={handleRackEditSheetClose}
+    >
+      <RackEditSheet
+        rack={layoutStore.rack}
+        onclose={handleRackEditSheetClose}
+      />
+    </BottomSheet>
+  {/if}
 
   <KeyboardHandler
     onsave={handleSave}

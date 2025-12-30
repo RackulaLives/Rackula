@@ -1,15 +1,19 @@
 <!--
   LogoLockup Component
-  Animated logo + title lockup for toolbar branding
-  Breathing glow at rest, rainbow gradient on hover, celebrate on success
-  Showcase mode: slow rainbow wave for About/Help display
-  
-  v2: Widow's peak mark + Space Grotesk wordmark
+  Logo + title lockup for toolbar branding
+  Logo mark: Dracula purple by default, rainbow gradient on hover
+  Brand text: White by default, rainbow gradient on hover
+  Celebrate on success, Showcase mode: slow rainbow wave for About/Help
+
+  v4: DRackula prefix for dev/local environments (blood-red D)
+  v5: Purple logo mark with white brand text (restoring Dracula theming)
 -->
 <script lang="ts">
-  import EnvironmentBadge from "./EnvironmentBadge.svelte";
   import SantaHat from "./SantaHat.svelte";
   import { isChristmas } from "$lib/utils/christmas";
+
+  // Build-time environment constant from vite.config.ts
+  declare const __BUILD_ENV__: string;
 
   interface Props {
     size?: number;
@@ -27,6 +31,23 @@
 
   // Christmas easter egg - only show on December 25
   const showChristmasHat = isChristmas();
+
+  // Environment detection for DRackula prefix
+  // Check hostname for local dev or deployed dev environment (d.racku.la)
+  const hostname =
+    typeof window !== "undefined" ? window.location.hostname : "";
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+  const isDevSite = hostname === "d.racku.la";
+
+  // Show "D" prefix on dev/local environments (not on production count.racku.la)
+  const showEnvPrefix = $derived(isLocalhost || isDevSite);
+
+  // Tooltip text for environment context
+  const envTooltip = $derived.by(() => {
+    if (isLocalhost) return "Local development environment";
+    if (isDevSite) return "Development environment";
+    return undefined;
+  });
 
   // Hover state for rainbow animation
   let hovering = $state(false);
@@ -53,6 +74,7 @@
   onmouseenter={() => (hovering = true)}
   onmouseleave={() => (hovering = false)}
   role="presentation"
+  title={envTooltip}
 >
   <!-- Hidden SVG for gradient definitions (1x1 to avoid browser image serialization errors) -->
   <svg
@@ -227,23 +249,26 @@
   </div>
 
   <!-- Title (SVG text for gradient support) - Space Grotesk -->
+  <!-- DRackula: adds red "D" prefix on dev/local environments -->
   <svg
     class="logo-title"
     class:logo-title--celebrate={celebrate}
     class:logo-title--party={partyMode}
     class:logo-title--showcase={showcase}
     class:logo-title--hover={hovering && !partyMode && !celebrate && !showcase}
-    viewBox="0 0 160 50"
+    viewBox="0 0 {showEnvPrefix ? 180 : 160} 50"
     height={titleHeight}
     role="img"
-    aria-label="Rackula"
+    aria-label={showEnvPrefix
+      ? "DRackula - development environment"
+      : "Rackula"}
     style={gradientId ? `--active-gradient: ${gradientId}` : undefined}
   >
-    <text x="0" y="38">Rackula</text>
+    <text x="0" y="38"
+      >{#if showEnvPrefix}<tspan class="env-prefix" font-size="44">D</tspan
+        >{/if}<tspan>Rackula</tspan></text
+    >
   </svg>
-
-  <!-- Environment indicator badge (DEV/LOCAL) -->
-  <EnvironmentBadge />
 </div>
 
 <style>
@@ -265,23 +290,25 @@
     z-index: 1;
   }
 
-  .logo-mark,
-  .logo-title text {
-    /* Slow rotating gradient at rest */
-    fill: url(#lockup-idle);
-    transition: fill 0.3s ease;
-  }
-
   .logo-mark {
+    /* Dracula purple by default, gradient on hover/special states */
+    fill: var(--dracula-purple, #bd93f9);
+    transition: fill 0.3s ease;
     flex-shrink: 0;
-    filter: drop-shadow(0 0 8px rgba(189, 147, 249, 0.3));
+    filter: drop-shadow(0 0 6px rgba(189, 147, 249, 0.2));
     /* Align mark baseline with text baseline */
     margin-bottom: -2px;
   }
 
+  .logo-title text {
+    /* White by default, gradient on hover/special states */
+    fill: var(--dracula-foreground, #f8f8f2);
+    transition: fill 0.3s ease;
+  }
+
   .logo-title {
     width: auto;
-    filter: drop-shadow(0 0 8px rgba(189, 147, 249, 0.3));
+    filter: drop-shadow(0 0 6px rgba(248, 248, 242, 0.15));
   }
 
   .logo-title text {
@@ -289,6 +316,16 @@
     font-family: "Space Grotesk", var(--font-family, system-ui, sans-serif);
     font-size: 38px;
     font-weight: 500;
+  }
+
+  /* DRackula: blood-red "D" prefix for dev/local environments */
+  /* Always red - never changes with gradient animations */
+  .logo-title text .env-prefix,
+  .logo-title--hover text .env-prefix,
+  .logo-title--celebrate text .env-prefix,
+  .logo-title--party text .env-prefix,
+  .logo-title--showcase text .env-prefix {
+    fill: var(--dracula-red, #ff5555) !important;
   }
 
   /* Celebrate state: rainbow wave for 3s */
@@ -338,20 +375,53 @@
 
   /* Respect reduced motion preference */
   @media (prefers-reduced-motion: reduce) {
-    .logo-mark,
+    .logo-mark {
+      /* Purple by default (matches normal state) */
+      fill: var(--dracula-purple, #bd93f9);
+      filter: drop-shadow(0 0 6px rgba(189, 147, 249, 0.2));
+    }
+
     .logo-title text {
-      /* Static purple when motion reduced */
+      /* White by default, static purple on hover/special states */
+      fill: var(--dracula-foreground, #f8f8f2);
+    }
+
+    .logo-title {
+      filter: drop-shadow(0 0 6px rgba(248, 248, 242, 0.15));
+    }
+
+    /* Static purple for hover state (no animation) - logo stays purple, text goes purple */
+    .logo-mark--hover {
+      fill: var(--dracula-purple) !important;
+      filter: drop-shadow(0 0 8px rgba(189, 147, 249, 0.3));
+    }
+
+    .logo-title--hover text {
       fill: var(--dracula-purple) !important;
     }
 
-    .logo-mark,
-    .logo-title {
+    .logo-title--hover {
       filter: drop-shadow(0 0 8px rgba(189, 147, 249, 0.2));
+    }
+
+    /* Static purple for special states (no animation) */
+    .logo-mark--celebrate,
+    .logo-mark--party,
+    .logo-mark--showcase,
+    .logo-title--celebrate text,
+    .logo-title--party text,
+    .logo-title--showcase text {
+      fill: var(--dracula-purple) !important;
     }
 
     .logo-mark--party,
     .logo-title--party {
       animation: none;
+    }
+
+    /* DRackula prefix stays red in reduced motion */
+    .logo-title text .env-prefix {
+      fill: var(--dracula-red, #ff5555) !important;
     }
   }
 

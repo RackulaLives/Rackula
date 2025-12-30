@@ -1,0 +1,39 @@
+# BrowserStack Configuration for Rackula Mobile E2E Tests
+# Run iOS:     npx browserstack-node-sdk playwright test ios-safari.spec.ts
+# Run Android: npx browserstack-node-sdk playwright test android-chrome.spec.ts
+
+userName: ${BROWSERSTACK_USERNAME}
+accessKey: ${BROWSERSTACK_ACCESS_KEY}
+
+projectName: Rackula
+buildName: Mobile E2E Tests
+buildIdentifier: "${BUILD_NUMBER}"
+
+platforms:
+  # iOS Devices (WebKit)
+  - browserName: playwright-webkit
+    osVersion: "17"
+    deviceName: iPhone 15
+  - browserName: playwright-webkit
+    osVersion: "17"
+    deviceName: iPhone 15 Pro Max
+  - browserName: playwright-webkit
+    osVersion: "17"
+    deviceName: iPad Pro 12.9 2022
+  # Android Devices (Chromium)
+  - browserName: playwright-chromium
+    osVersion: "14.0"
+    deviceName: Google Pixel 8
+  - browserName: playwright-chromium
+    osVersion: "14.0"
+    deviceName: Samsung Galaxy S24
+  - browserName: playwright-chromium
+    osVersion: "13.0"
+    deviceName: Samsung Galaxy Tab S9
+
+parallelsPerPlatform: 1
+browserstackLocal: true
+testObservability: true
+debug: false
+networkLogs: true
+consoleLogs: info

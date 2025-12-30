@@ -13,7 +13,7 @@ describe("EnvironmentBadge", () => {
   beforeEach(() => {
     // Reset location mock before each test
     Object.defineProperty(window, "location", {
-      value: { hostname: "app.racku.la" },
+      value: { hostname: "count.racku.la" },
       writable: true,
     });
   });

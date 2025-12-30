@@ -12,6 +12,7 @@
   } from "$lib/types";
   import Rack from "./Rack.svelte";
   import AnnotationColumn from "./AnnotationColumn.svelte";
+  import { useLongPress } from "$lib/utils/gestures";
 
   // Synthetic rack ID for single-rack mode
   const RACK_ID = "rack-0";
@@ -30,6 +31,8 @@
     showAnnotations?: boolean;
     /** Which field to display in annotation column */
     annotationField?: AnnotationField;
+    /** Enable long press gesture for mobile rack editing */
+    enableLongPress?: boolean;
     onselect?: (event: CustomEvent<{ rackId: string }>) => void;
     ondeviceselect?: (
       event: CustomEvent<{ slug: string; position: number }>,
@@ -57,6 +60,12 @@
         targetPosition: number;
       }>,
     ) => void;
+    /** Mobile tap-to-place event */
+    onplacementtap?: (
+      event: CustomEvent<{ position: number; face: "front" | "rear" }>,
+    ) => void;
+    /** Mobile long press for rack editing */
+    onlongpress?: (event: CustomEvent<{ rackId: string }>) => void;
   }
 
   let {
@@ -69,12 +78,56 @@
     partyMode = false,
     showAnnotations = false,
     annotationField = "name",
+    enableLongPress = false,
     onselect,
     ondeviceselect,
     ondevicedrop,
     ondevicemove,
     ondevicemoverack,
+    onplacementtap,
+    onlongpress,
   }: Props = $props();
+
+  // Element reference for long press
+  let containerElement: HTMLDivElement | null = $state(null);
+
+  // Long press visual feedback state
+  let longPressProgress = $state(0);
+  let longPressActive = $state(false);
+
+  // Attach long press gesture when enabled
+  $effect(() => {
+    if (!enableLongPress || !containerElement || !onlongpress) {
+      longPressActive = false;
+      longPressProgress = 0;
+      return;
+    }
+
+    const cleanup = useLongPress(
+      containerElement,
+      () => {
+        longPressActive = false;
+        longPressProgress = 0;
+        onlongpress(
+          new CustomEvent("longpress", { detail: { rackId: RACK_ID } }),
+        );
+      },
+      {
+        onProgress: (progress) => {
+          longPressProgress = progress;
+        },
+        onStart: () => {
+          longPressActive = true;
+        },
+        onCancel: () => {
+          longPressActive = false;
+          longPressProgress = 0;
+        },
+      },
+    );
+
+    return cleanup;
+  });
 
   // Now using faceFilter prop instead of virtual racks
 
@@ -122,20 +175,23 @@
 </script>
 
 <div
+  bind:this={containerElement}
   class="rack-dual-view"
   class:selected
+  class:long-press-active={longPressActive}
   tabindex="0"
   role="option"
   aria-selected={selected}
-  aria-label="{rack.name}, {rack.height}U rack, front and rear view{selected
-    ? ', selected'
-    : ''}"
+  aria-label="{rack.name}, {rack.height}U rack, {rack.show_rear
+    ? 'front and rear view'
+    : 'front view only'}{selected ? ', selected' : ''}"
   onkeydown={handleKeyDown}
+  style:--long-press-progress={longPressProgress}
 >
   <!-- Rack name centered above both views -->
   <div class="rack-dual-view-name">{rack.name}</div>
 
-  <div class="rack-dual-view-container">
+  <div class="rack-dual-view-container" class:single-view={!rack.show_rear}>
     <!-- Annotation column (left of front view) -->
     {#if showAnnotations}
       <AnnotationColumn {rack} {deviceLibrary} {annotationField} />
@@ -153,35 +209,39 @@
         {partyMode}
         faceFilter="front"
         hideRackName={true}
-        viewLabel="FRONT"
+        viewLabel={rack.show_rear ? "FRONT" : undefined}
         onselect={() => handleSelect()}
         {ondeviceselect}
         ondevicedrop={handleFrontDeviceDrop}
         {ondevicemove}
         {ondevicemoverack}
+        {onplacementtap}
       />
     </div>
 
-    <!-- Rear view -->
-    <div class="rack-rear" role="presentation">
-      <Rack
-        {rack}
-        {deviceLibrary}
-        selected={false}
-        {selectedDeviceId}
-        {displayMode}
-        {showLabelsOnImages}
-        {partyMode}
-        faceFilter="rear"
-        hideRackName={true}
-        viewLabel="REAR"
-        onselect={() => handleSelect()}
-        {ondeviceselect}
-        ondevicedrop={handleRearDeviceDrop}
-        {ondevicemove}
-        {ondevicemoverack}
-      />
-    </div>
+    <!-- Rear view (conditionally shown based on rack.show_rear) -->
+    {#if rack.show_rear}
+      <div class="rack-rear" role="presentation">
+        <Rack
+          {rack}
+          {deviceLibrary}
+          selected={false}
+          {selectedDeviceId}
+          {displayMode}
+          {showLabelsOnImages}
+          {partyMode}
+          faceFilter="rear"
+          hideRackName={true}
+          viewLabel="REAR"
+          onselect={() => handleSelect()}
+          {ondeviceselect}
+          ondevicedrop={handleRearDeviceDrop}
+          {ondevicemove}
+          {ondevicemoverack}
+          {onplacementtap}
+        />
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -206,6 +266,23 @@
   .rack-dual-view.selected {
     outline: 2px solid var(--colour-selection);
     outline-offset: 4px;
+  }
+
+  /* Long press visual feedback */
+  .rack-dual-view.long-press-active {
+    outline: 3px solid var(--dracula-pink, #ff79c6);
+    outline-offset: 2px;
+    /* Progress indicator via box-shadow */
+    box-shadow: inset 0 0 0 calc(var(--long-press-progress, 0) * 4px)
+      rgba(255, 121, 198, 0.15);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rack-dual-view.long-press-active {
+      /* Simpler feedback without animation */
+      box-shadow: none;
+      outline-width: 3px;
+    }
   }
 
   .rack-dual-view-name {

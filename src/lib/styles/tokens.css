@@ -8,6 +8,9 @@
    ============================================================ */
 
 :root {
+  /* Color scheme declaration for browser chrome and form controls */
+  color-scheme: dark light;
+
   /* Spacing Scale (4px base) */
   --space-0: 0;
   --space-1: 0.25rem; /* 4px */
@@ -293,8 +296,25 @@
   --z-sidebar: 10;
   --z-drawer-backdrop: 99;
   --z-drawer: 100;
+  --z-placement-indicator: 50;
+  --z-fab: 100;
+  --z-bottom-sheet: 200;
   --z-modal: 200;
   --z-toast: 300;
+
+  /* Touch Targets (WCAG 2.5.5 Level AAA - minimum 44×44px, we use 48px) */
+  --touch-target-min: 48px;
+  --touch-target-comfortable: 56px;
+
+  /* Overlays & Shadows */
+  --colour-backdrop: rgba(0, 0, 0, 0.5);
+  --shadow-sheet: 0 -4px 20px rgba(0, 0, 0, 0.15);
+  --shadow-indicator: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-fab: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-fab-hover:
+    0 6px 16px rgba(0, 0, 0, 0.35), 0 3px 6px rgba(0, 0, 0, 0.25);
+  --colour-button-overlay: rgba(0, 0, 0, 0.1);
+  --colour-button-overlay-hover: rgba(0, 0, 0, 0.2);
 
   /* Form Inputs */
   --input-bg: var(--dracula-bg-light);
@@ -339,6 +359,9 @@
    ============================================================ */
 
 [data-theme="light"] {
+  /* Force light color scheme for browser chrome */
+  color-scheme: light;
+
   /* --------------------------------------------------------------------------
 	   ALUCARD THEME PRIMITIVES
 	   Official Dracula light mode: https://draculatheme.com/spec

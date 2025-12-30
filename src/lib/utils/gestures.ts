@@ -7,84 +7,148 @@ const DEFAULT_LONG_PRESS_DURATION = 500; // ms
 const MOVE_THRESHOLD = 10; // px
 
 /**
+ * Options for useLongPress
+ */
+export interface LongPressOptions {
+  /** Duration in ms before triggering (default: 500) */
+  duration?: number;
+  /** Progress callback (0-1) called during hold */
+  onProgress?: (progress: number) => void;
+  /** Called when long press starts (pointerdown) */
+  onStart?: (x: number, y: number) => void;
+  /** Called when long press is cancelled */
+  onCancel?: () => void;
+}
+
+/**
  * Add long-press gesture detection to an element
  * @param element - Target element
  * @param callback - Function to call on long-press
- * @param duration - Long-press duration in ms (default: 500)
+ * @param options - Configuration options
  * @returns Cleanup function to remove event listeners
  */
 export function useLongPress(
-	element: HTMLElement,
-	callback: () => void,
-	duration: number = DEFAULT_LONG_PRESS_DURATION
+  element: HTMLElement,
+  callback: () => void,
+  options: LongPressOptions | number = {},
 ): () => void {
-	let timeoutId: ReturnType<typeof setTimeout> | null = null;
-	let startX = 0;
-	let startY = 0;
-	let hasMoved = false;
+  // Support legacy API: useLongPress(el, cb, duration)
+  const opts: LongPressOptions =
+    typeof options === "number" ? { duration: options } : options;
+  const duration = opts.duration ?? DEFAULT_LONG_PRESS_DURATION;
+  const { onProgress, onStart, onCancel } = opts;
 
-	const handlePointerDown = (e: PointerEvent) => {
-		// Store initial position
-		startX = e.clientX;
-		startY = e.clientY;
-		hasMoved = false;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let animationFrameId: number | null = null;
+  let startX = 0;
+  let startY = 0;
+  let startTime = 0;
+  let hasMoved = false;
+  let isActive = false;
 
-		// Start timer
-		timeoutId = setTimeout(() => {
-			// Trigger haptic feedback if available
-			if (navigator.vibrate) {
-				navigator.vibrate(50);
-			}
+  const cancelLongPress = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+    }
+    if (isActive) {
+      isActive = false;
+      onCancel?.();
+    }
+  };
 
-			callback();
-			timeoutId = null;
-		}, duration);
-	};
+  const updateProgress = () => {
+    if (!isActive || !onProgress) return;
 
-	const handlePointerUp = () => {
-		if (timeoutId) {
-			clearTimeout(timeoutId);
-			timeoutId = null;
-		}
-	};
+    const elapsed = performance.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    onProgress(progress);
 
-	const handlePointerCancel = () => {
-		if (timeoutId) {
-			clearTimeout(timeoutId);
-			timeoutId = null;
-		}
-	};
+    if (progress < 1) {
+      animationFrameId = requestAnimationFrame(updateProgress);
+    }
+  };
 
-	const handlePointerMove = (e: PointerEvent) => {
-		if (!timeoutId || hasMoved) return;
+  const handlePointerDown = (e: PointerEvent) => {
+    // Only handle primary pointer (ignore multi-touch)
+    if (!e.isPrimary) return;
 
-		// Calculate distance moved
-		const deltaX = Math.abs(e.clientX - startX);
-		const deltaY = Math.abs(e.clientY - startY);
-		const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    // Store initial position
+    startX = e.clientX;
+    startY = e.clientY;
+    startTime = performance.now();
+    hasMoved = false;
+    isActive = true;
 
-		// Cancel if moved beyond threshold
-		if (distance > MOVE_THRESHOLD) {
-			hasMoved = true;
-			clearTimeout(timeoutId);
-			timeoutId = null;
-		}
-	};
+    // Notify start
+    onStart?.(e.clientX, e.clientY);
 
-	// Attach event listeners
-	element.addEventListener('pointerdown', handlePointerDown);
-	element.addEventListener('pointerup', handlePointerUp);
-	element.addEventListener('pointercancel', handlePointerCancel);
-	element.addEventListener('pointermove', handlePointerMove);
+    // Start progress updates
+    if (onProgress) {
+      onProgress(0);
+      animationFrameId = requestAnimationFrame(updateProgress);
+    }
 
-	// Return cleanup function
-	return () => {
-		if (timeoutId) {
-			clearTimeout(timeoutId);
-		}
-		element.removeEventListener('pointerdown', handlePointerDown);
-		element.removeEventListener('pointerup', handlePointerUp);
-		element.removeEventListener('pointercancel', handlePointerCancel);
-		element.removeEventListener('pointermove', handlePointerMove);
-	};
+    // Start timer
+    timeoutId = setTimeout(() => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+
+      // Ensure final progress is delivered before callback
+      onProgress?.(1);
+
+      // Trigger haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+
+      isActive = false;
+      callback();
+      timeoutId = null;
+    }, duration);
+  };
+
+  const handlePointerUp = () => {
+    cancelLongPress();
+  };
+
+  const handlePointerCancel = () => {
+    cancelLongPress();
+  };
+
+  const handlePointerMove = (e: PointerEvent) => {
+    if (!timeoutId || hasMoved) return;
+
+    // Calculate distance moved
+    const deltaX = Math.abs(e.clientX - startX);
+    const deltaY = Math.abs(e.clientY - startY);
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+    // Cancel if moved beyond threshold
+    if (distance > MOVE_THRESHOLD) {
+      hasMoved = true;
+      cancelLongPress();
+    }
+  };
+
+  // Attach event listeners
+  element.addEventListener("pointerdown", handlePointerDown);
+  element.addEventListener("pointerup", handlePointerUp);
+  element.addEventListener("pointercancel", handlePointerCancel);
+  element.addEventListener("pointermove", handlePointerMove);
+
+  // Return cleanup function
+  return () => {
+    cancelLongPress();
+    element.removeEventListener("pointerdown", handlePointerDown);
+    element.removeEventListener("pointerup", handlePointerUp);
+    element.removeEventListener("pointercancel", handlePointerCancel);
+    element.removeEventListener("pointermove", handlePointerMove);
+  };
 }

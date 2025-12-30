@@ -16,14 +16,20 @@
   } from "$lib/stores/canvas.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { debug } from "$lib/utils/debug";
+  import { getPlacementStore } from "$lib/stores/placement.svelte";
+  // Note: getViewportStore removed - was only used for PlacementIndicator condition
+  import { hapticSuccess } from "$lib/utils/haptics";
   import RackDualView from "./RackDualView.svelte";
   import WelcomeScreen from "./WelcomeScreen.svelte";
+  // Note: PlacementIndicator removed - placement UI now integrated into Rack.svelte
 
   // Synthetic rack ID for single-rack mode
   const RACK_ID = "rack-0";
 
   interface Props {
     partyMode?: boolean;
+    /** Enable long press gesture for mobile rack editing */
+    enableLongPress?: boolean;
     onnewrack?: () => void;
     onload?: () => void;
     onrackselect?: (event: CustomEvent<{ rackId: string }>) => void;
@@ -53,10 +59,13 @@
         targetPosition: number;
       }>,
     ) => void;
+    /** Mobile long press for rack editing */
+    onracklongpress?: (event: CustomEvent<{ rackId: string }>) => void;
   }
 
   let {
     partyMode = false,
+    enableLongPress = false,
     onnewrack,
     onload: _onload,
     onrackselect,
@@ -64,12 +73,38 @@
     ondevicedrop,
     ondevicemove,
     ondevicemoverack,
+    onracklongpress,
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
   const canvasStore = getCanvasStore();
   const uiStore = getUIStore();
+  // Note: viewportStore removed - was only used for PlacementIndicator condition
+  const placementStore = getPlacementStore();
+
+  // Note: handlePlacementCancel removed - now handled in Rack.svelte
+
+  // Handle mobile tap-to-place
+  function handlePlacementTap(
+    event: CustomEvent<{ position: number; face: "front" | "rear" }>,
+  ) {
+    const device = placementStore.pendingDevice;
+    if (!device) return;
+
+    const { position, face } = event.detail;
+    const success = layoutStore.placeDevice(
+      RACK_ID,
+      device.slug,
+      position,
+      face,
+    );
+
+    if (success) {
+      hapticSuccess();
+      placementStore.completePlacement();
+    }
+  }
 
   // Single-rack mode: direct access to rack
   const rack = $derived(layoutStore.rack);
@@ -256,10 +291,12 @@
   }
 </script>
 
+<!-- eslint-disable-next-line svelte/no-unused-svelte-ignore -- these warnings appear in Vite build but not ESLint -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (role="application" makes this interactive per WAI-ARIA) -->
 <div
   class="canvas"
   class:party-mode={partyMode}
-  role="region"
+  role="application"
   aria-label={rackDescription}
   aria-describedby={deviceListDescription ? "canvas-device-list" : undefined}
   tabindex="0"
@@ -267,6 +304,8 @@
   onclick={handleCanvasClick}
   onkeydown={handleCanvasKeydown}
 >
+  <!-- Note: Mobile placement indicator now integrated into Rack.svelte -->
+
   <!-- Hidden description for screen readers -->
   {#if deviceListDescription}
     <p id="canvas-device-list" class="sr-only">{deviceListDescription}</p>
@@ -289,11 +328,14 @@
           showAnnotations={uiStore.showAnnotations}
           annotationField={uiStore.annotationField}
           {partyMode}
+          {enableLongPress}
           onselect={(e) => handleRackSelect(e)}
           ondeviceselect={(e) => handleDeviceSelect(e)}
           ondevicedrop={(e) => handleDeviceDrop(e)}
           ondevicemove={(e) => handleDeviceMove(e)}
           ondevicemoverack={(e) => handleDeviceMoveRack(e)}
+          onplacementtap={(e) => handlePlacementTap(e)}
+          onlongpress={(e) => onracklongpress?.(e)}
         />
       </div>
     </div>

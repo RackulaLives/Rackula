@@ -368,6 +368,96 @@ describe("Export Utilities", () => {
         }
       });
     });
+
+    describe("U Numbering Direction (#217)", () => {
+      it("renders U numbers ascending (U1 at bottom) when desc_units is false", () => {
+        const rack: Rack = {
+          name: "Test Rack",
+          height: 4,
+          width: 19,
+          position: 0,
+          desc_units: false,
+          form_factor: "4-post",
+          starting_unit: 1,
+          devices: [],
+        };
+
+        const svg = generateExportSVG([rack], [], defaultOptions);
+        const textElements = svg.querySelectorAll("text");
+        const uLabels = Array.from(textElements)
+          .filter((el) => /^[0-9]+$/.test(el.textContent || ""))
+          .map((el) => el.textContent);
+
+        // With desc_units=false, U4 should be at top (first), U1 at bottom (last)
+        expect(uLabels).toEqual(["4", "3", "2", "1"]);
+      });
+
+      it("renders U numbers descending (U1 at top) when desc_units is true", () => {
+        const rack: Rack = {
+          name: "Test Rack",
+          height: 4,
+          width: 19,
+          position: 0,
+          desc_units: true,
+          form_factor: "4-post",
+          starting_unit: 1,
+          devices: [],
+        };
+
+        const svg = generateExportSVG([rack], [], defaultOptions);
+        const textElements = svg.querySelectorAll("text");
+        const uLabels = Array.from(textElements)
+          .filter((el) => /^[0-9]+$/.test(el.textContent || ""))
+          .map((el) => el.textContent);
+
+        // With desc_units=true, U1 should be at top (first), U4 at bottom (last)
+        expect(uLabels).toEqual(["1", "2", "3", "4"]);
+      });
+
+      it("respects starting_unit offset", () => {
+        const rack: Rack = {
+          name: "Test Rack",
+          height: 4,
+          width: 19,
+          position: 0,
+          desc_units: false,
+          form_factor: "4-post",
+          starting_unit: 10,
+          devices: [],
+        };
+
+        const svg = generateExportSVG([rack], [], defaultOptions);
+        const textElements = svg.querySelectorAll("text");
+        const uLabels = Array.from(textElements)
+          .filter((el) => /^[0-9]+$/.test(el.textContent || ""))
+          .map((el) => el.textContent);
+
+        // Starting at U10, ascending: U13 at top, U10 at bottom
+        expect(uLabels).toEqual(["13", "12", "11", "10"]);
+      });
+
+      it("combines desc_units and starting_unit correctly", () => {
+        const rack: Rack = {
+          name: "Test Rack",
+          height: 4,
+          width: 19,
+          position: 0,
+          desc_units: true,
+          form_factor: "4-post",
+          starting_unit: 10,
+          devices: [],
+        };
+
+        const svg = generateExportSVG([rack], [], defaultOptions);
+        const textElements = svg.querySelectorAll("text");
+        const uLabels = Array.from(textElements)
+          .filter((el) => /^[0-9]+$/.test(el.textContent || ""))
+          .map((el) => el.textContent);
+
+        // Descending with starting_unit=10: U10 at top, U13 at bottom
+        expect(uLabels).toEqual(["10", "11", "12", "13"]);
+      });
+    });
   });
 
   describe("exportAsSVG", () => {

@@ -1,46 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import RackDualView from "$lib/components/RackDualView.svelte";
-import type { Rack, DeviceType } from "$lib/types";
 import { resetLayoutStore, getLayoutStore } from "$lib/stores/layout.svelte";
 import { resetSelectionStore } from "$lib/stores/selection.svelte";
 import { resetUIStore } from "$lib/stores/ui.svelte";
 import { resetCanvasStore } from "$lib/stores/canvas.svelte";
-
-// Helper to create test rack
-function createTestRack(overrides: Partial<Rack> = {}): Rack {
-  return {
-    name: "Test Rack",
-    height: 12,
-    width: 19,
-    position: 0,
-    desc_units: false,
-    form_factor: "4-post",
-    starting_unit: 1,
-    devices: [],
-    ...overrides,
-  };
-}
-
-// Helper to create test device library
-function createTestDeviceLibrary(): DeviceType[] {
-  return [
-    {
-      slug: "device-1",
-      model: "Server",
-      u_height: 2,
-      is_full_depth: true,
-      Rackula: { colour: "#4A90D9", category: "server" },
-    },
-    {
-      slug: "device-2",
-      model: "Half-depth Switch",
-      u_height: 1,
-      is_full_depth: false,
-      Rackula: { colour: "#7B68EE", category: "network" },
-    },
-  ];
-}
+import { createTestRack, createTestDeviceLibrary } from "./factories";
 
 describe("RackDualView Component", () => {
   beforeEach(() => {
@@ -250,8 +215,10 @@ describe("RackDualView Component", () => {
   describe("Device Display", () => {
     it("shows half-depth front-face devices only in front view", () => {
       const rack = createTestRack({
-        // device-2 is half-depth, so it should only appear on its face
-        devices: [{ device_type: "device-2", position: 1, face: "front" }],
+        // half-depth-device is half-depth, so it should only appear on its face
+        devices: [
+          { device_type: "half-depth-device", position: 1, face: "front" },
+        ],
       });
       const { container } = render(RackDualView, {
         props: {
@@ -274,8 +241,8 @@ describe("RackDualView Component", () => {
 
     it("shows full-depth front-face devices in both views", () => {
       const rack = createTestRack({
-        // device-1 is full-depth, so it should be visible from both sides
-        devices: [{ device_type: "device-1", position: 1, face: "front" }],
+        // server-1 is full-depth, so it should be visible from both sides
+        devices: [{ device_type: "server-1", position: 1, face: "front" }],
       });
       const { container } = render(RackDualView, {
         props: {
@@ -298,7 +265,9 @@ describe("RackDualView Component", () => {
 
     it("shows rear-face devices only in rear view", () => {
       const rack = createTestRack({
-        devices: [{ device_type: "device-2", position: 1, face: "rear" }],
+        devices: [
+          { device_type: "half-depth-device", position: 1, face: "rear" },
+        ],
       });
       const { container } = render(RackDualView, {
         props: {
@@ -320,7 +289,7 @@ describe("RackDualView Component", () => {
 
     it("shows both-face devices in both views", () => {
       const rack = createTestRack({
-        devices: [{ device_type: "device-1", position: 1, face: "both" }],
+        devices: [{ device_type: "server-1", position: 1, face: "both" }],
       });
       const { container } = render(RackDualView, {
         props: {
@@ -428,6 +397,203 @@ describe("RackDualView Component", () => {
       const rearViewBox = rearView?.getAttribute("viewBox");
 
       expect(frontViewBox).toBe(rearViewBox);
+    });
+  });
+
+  describe("Long Press", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("does not render long-press-active class when enableLongPress is false", () => {
+      const rack = createTestRack();
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+          enableLongPress: false,
+        },
+      });
+
+      const dualView = container.querySelector(".rack-dual-view");
+      expect(dualView).not.toHaveClass("long-press-active");
+    });
+
+    it("has container element reference for long press gesture", () => {
+      const rack = createTestRack();
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+          enableLongPress: true,
+          onlongpress: vi.fn(),
+        },
+      });
+
+      const dualView = container.querySelector(".rack-dual-view");
+      expect(dualView).toBeInTheDocument();
+    });
+
+    it("exposes --long-press-progress CSS variable", () => {
+      const rack = createTestRack();
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+          enableLongPress: true,
+          onlongpress: vi.fn(),
+        },
+      });
+
+      const dualView = container.querySelector(
+        ".rack-dual-view",
+      ) as HTMLElement;
+      // The CSS variable should be set (initial value of 0)
+      expect(dualView.style.getPropertyValue("--long-press-progress")).toBe(
+        "0",
+      );
+    });
+
+    it("fires onlongpress callback after 500ms hold", async () => {
+      const rack = createTestRack();
+      const handleLongPress = vi.fn();
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+          enableLongPress: true,
+          onlongpress: handleLongPress,
+        },
+      });
+
+      const dualView = container.querySelector(".rack-dual-view")!;
+
+      // Simulate pointer down with isPrimary (required for gesture)
+      await fireEvent.pointerDown(dualView, { isPrimary: true });
+
+      // Should not fire before 500ms
+      vi.advanceTimersByTime(499);
+      expect(handleLongPress).not.toHaveBeenCalled();
+
+      // Should fire after 500ms
+      vi.advanceTimersByTime(1);
+      expect(handleLongPress).toHaveBeenCalledTimes(1);
+    });
+
+    it("cancels long press when pointer moves beyond threshold", async () => {
+      const rack = createTestRack();
+      const handleLongPress = vi.fn();
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+          enableLongPress: true,
+          onlongpress: handleLongPress,
+        },
+      });
+
+      const dualView = container.querySelector(".rack-dual-view")!;
+
+      // Start press at origin
+      await fireEvent.pointerDown(dualView, {
+        isPrimary: true,
+        clientX: 0,
+        clientY: 0,
+      });
+
+      // Move beyond 10px threshold
+      await fireEvent.pointerMove(dualView, {
+        clientX: 15,
+        clientY: 0,
+      });
+
+      // Advance past duration - should NOT fire due to movement
+      vi.advanceTimersByTime(500);
+      expect(handleLongPress).not.toHaveBeenCalled();
+    });
+
+    it("cancels long press when pointer released early", async () => {
+      const rack = createTestRack();
+      const handleLongPress = vi.fn();
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+          enableLongPress: true,
+          onlongpress: handleLongPress,
+        },
+      });
+
+      const dualView = container.querySelector(".rack-dual-view")!;
+
+      await fireEvent.pointerDown(dualView, { isPrimary: true });
+      vi.advanceTimersByTime(200);
+
+      // Release early
+      await fireEvent.pointerUp(dualView);
+
+      // Advance past remaining duration - should NOT fire
+      vi.advanceTimersByTime(300);
+      expect(handleLongPress).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Single View Mode", () => {
+    it("only renders front view when show_rear is false", () => {
+      const rack = createTestRack({ show_rear: false });
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+        },
+      });
+
+      const frontView = container.querySelector(".rack-front");
+      const rearView = container.querySelector(".rack-rear");
+
+      expect(frontView).toBeInTheDocument();
+      expect(rearView).not.toBeInTheDocument();
+    });
+
+    it("has single-view class on container when show_rear is false", () => {
+      const rack = createTestRack({ show_rear: false });
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+        },
+      });
+
+      const dualViewContainer = container.querySelector(
+        ".rack-dual-view-container",
+      );
+      expect(dualViewContainer).toHaveClass("single-view");
+    });
+
+    it("does not show FRONT label in single view mode", () => {
+      const rack = createTestRack({ show_rear: false });
+      render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+        },
+      });
+
+      // In single view mode, the FRONT label should not be shown
+      expect(screen.queryByText("FRONT")).not.toBeInTheDocument();
     });
   });
 });

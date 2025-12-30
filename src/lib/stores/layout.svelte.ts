@@ -15,7 +15,7 @@ import type {
 } from "$lib/types";
 import { DEFAULT_DEVICE_FACE } from "$lib/types/constants";
 import { canPlaceDevice } from "$lib/utils/collision";
-import { createLayout, createRack } from "$lib/utils/serialization";
+import { createLayout, createDefaultRack } from "$lib/utils/serialization";
 import {
   createDeviceType as createDeviceTypeHelper,
   findDeviceType as findDeviceTypeInArray,
@@ -232,12 +232,13 @@ function createNewLayout(name: string): void {
  * @param layoutData - v0.2 layout to load
  */
 function loadLayout(layoutData: Layout): void {
-  // Ensure runtime view is set
+  // Ensure runtime view is set and show_rear defaults to true for older layouts
   layout = {
     ...layoutData,
     rack: {
       ...layoutData.rack,
       view: layoutData.rack.view ?? "front",
+      show_rear: layoutData.rack.show_rear ?? true,
     },
   };
   isDirty = false;
@@ -266,7 +267,7 @@ function addRack(
   desc_units?: boolean,
   starting_unit?: number,
 ): (Rack & { id: string }) | null {
-  const newRack = createRack(
+  const newRack = createDefaultRack(
     name,
     height,
     (width as 10 | 19) ?? 19,
