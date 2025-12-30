@@ -26,6 +26,9 @@
 
   let { rack, deviceLibrary, annotationField, width = 100 }: Props = $props();
 
+  // Padding from right edge for text alignment
+  const TEXT_PADDING = 8;
+
   // Create a lookup map for device types
   const deviceTypeMap = $derived(
     new Map(deviceLibrary.map((dt) => [dt.slug, dt])),
@@ -109,7 +112,7 @@
   >
     {#each annotations as annotation (annotation.id)}
       <text
-        x={width - 8}
+        x={width - TEXT_PADDING}
         y={annotation.y}
         class="annotation-text"
         class:empty={annotation.isEmpty}

@@ -41,8 +41,8 @@ const createTestDeviceLibrary = (): DeviceType[] => [
 ];
 
 // Helper to get annotation text content (excludes title element)
-function getAnnotationTexts(): string[] {
-  const texts = document.querySelectorAll(".annotation-text");
+function getAnnotationTexts(container: HTMLElement): string[] {
+  const texts = container.querySelectorAll(".annotation-text");
   return Array.from(texts).map((el) => {
     // Get direct text content, excluding nested title element
     const clone = el.cloneNode(true) as Element;
@@ -133,7 +133,7 @@ describe("AnnotationColumn", () => {
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -141,7 +141,7 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const texts = getAnnotationTexts();
+      const texts = getAnnotationTexts(container);
       expect(texts).toContain("Custom Name");
     });
 
@@ -156,7 +156,7 @@ describe("AnnotationColumn", () => {
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -164,7 +164,7 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const texts = getAnnotationTexts();
+      const texts = getAnnotationTexts(container);
       expect(texts).toContain("PowerEdge R640");
     });
 
@@ -180,7 +180,7 @@ describe("AnnotationColumn", () => {
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -188,7 +188,7 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const texts = getAnnotationTexts();
+      const texts = getAnnotationTexts(container);
       expect(texts).toContain("192.168.1.100");
     });
 
@@ -204,7 +204,7 @@ describe("AnnotationColumn", () => {
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -212,7 +212,7 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const texts = getAnnotationTexts();
+      const texts = getAnnotationTexts(container);
       expect(texts).toContain("Web server");
     });
 
@@ -227,7 +227,7 @@ describe("AnnotationColumn", () => {
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -235,7 +235,7 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const texts = getAnnotationTexts();
+      const texts = getAnnotationTexts(container);
       expect(texts).toContain("Dell");
     });
 
@@ -250,7 +250,7 @@ describe("AnnotationColumn", () => {
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -258,7 +258,7 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const texts = getAnnotationTexts();
+      const texts = getAnnotationTexts(container);
       expect(texts).toContain("ASSET-001");
     });
 
@@ -273,7 +273,7 @@ describe("AnnotationColumn", () => {
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -281,7 +281,7 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const texts = getAnnotationTexts();
+      const texts = getAnnotationTexts(container);
       expect(texts).toContain("SN-12345");
     });
   });
@@ -298,7 +298,7 @@ describe("AnnotationColumn", () => {
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -306,7 +306,7 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const texts = getAnnotationTexts();
+      const texts = getAnnotationTexts(container);
       expect(texts).toContain("—");
     });
 
@@ -321,7 +321,7 @@ describe("AnnotationColumn", () => {
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -329,25 +329,26 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const text = document.querySelector(".annotation-text.empty");
+      const text = container.querySelector(".annotation-text.empty");
       expect(text).toBeTruthy();
     });
   });
 
   describe("Text Truncation", () => {
     it("truncates long values", () => {
+      const fullName = "This is a very long device name that should be truncated";
       const rack = createTestRack([
         {
           id: "device-1",
           device_type: "server-1u",
           position: 10,
           face: "front",
-          name: "This is a very long device name that should be truncated",
+          name: fullName,
         },
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -355,8 +356,9 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const texts = getAnnotationTexts();
-      expect(texts[0].length).toBeLessThanOrEqual(15);
+      const texts = getAnnotationTexts(container);
+      // Assert that the displayed text is shorter than the original and ends with ellipsis
+      expect(texts[0].length).toBeLessThan(fullName.length);
       expect(texts[0].endsWith("…")).toBe(true);
     });
 
@@ -374,7 +376,7 @@ describe("AnnotationColumn", () => {
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -382,7 +384,7 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const title = document.querySelector(".annotation-text title");
+      const title = container.querySelector(".annotation-text title");
       expect(title?.textContent).toBe(fullName);
     });
   });
@@ -400,7 +402,7 @@ describe("AnnotationColumn", () => {
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -408,7 +410,7 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const texts = getAnnotationTexts();
+      const texts = getAnnotationTexts(container);
       expect(texts).toContain("Mystery Device");
     });
 
@@ -423,7 +425,7 @@ describe("AnnotationColumn", () => {
       ]);
       const deviceLibrary = createTestDeviceLibrary();
 
-      render(AnnotationColumn, {
+      const { container } = render(AnnotationColumn, {
         props: {
           rack,
           deviceLibrary,
@@ -431,7 +433,7 @@ describe("AnnotationColumn", () => {
         },
       });
 
-      const texts = getAnnotationTexts();
+      const texts = getAnnotationTexts(container);
       expect(texts).toContain("—");
     });
   });
