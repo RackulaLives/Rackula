@@ -1,62 +1,90 @@
-# Isometric Export POC - Visual Notes
+# Isometric Export POC v2 - Visual Notes
 
 **Issue:** #300
 **Date:** 2025-12-30
+**Version:** 2.0 (Full 3D Cabinet)
 **Files generated:**
 
-- `isometric-poc-single.svg` - Single rack front view
-- `isometric-poc-dual.svg` - Dual view (front + rear)
+- `isometric-poc-single.svg` - Single rack cabinet front view
+- `isometric-poc-dual.svg` - Dual view (front + rear cabinets)
 
-## POC Parameters
+## POC v2 Improvements
 
-| Parameter              | Value                                     | Notes                          |
-| ---------------------- | ----------------------------------------- | ------------------------------ |
-| Transform matrix       | `matrix(0.866, 0.5, -0.866, 0.5, tx, ty)` | True isometric (30°)           |
-| Full-depth side panel  | 24px                                      | Represents ~24" physical depth |
-| Half-depth side panel  | 12px                                      | 50% of full depth              |
-| Side panel darkening   | 25%                                       | HSL lightness reduction        |
-| Top surface lightening | 15%                                       | Subtle highlight effect        |
-| Rack depth             | 24px                                      | Same as full-depth devices     |
+This version renders a **proper 3D server rack cabinet enclosure** with devices mounted inside, rather than just a flat rack with extruded sides.
+
+### Key Features
+
+| Feature              | Description                                           |
+| -------------------- | ----------------------------------------------------- |
+| 3D Cabinet Enclosure | Full cabinet with top, bottom, sides, and back panels |
+| Mounting Rails       | Visible rack rails with mounting holes                |
+| Side Panel Vents     | Horizontal vent slots on the right side panel         |
+| Status LEDs          | Cabinet LEDs with glow effect on top-left             |
+| Device Details       | Bezel lines, front LEDs, drive bays                   |
+| Half-depth Devices   | Visually shorter depth inside cabinet                 |
+
+## Technical Parameters
+
+| Parameter       | Value                                | Notes                        |
+| --------------- | ------------------------------------ | ---------------------------- |
+| Projection      | True isometric (30°)                 | `isoProject(x, y, z)` helper |
+| Rack Width      | 160px                                | Front face width             |
+| Rack Depth      | 100px                                | Cabinet depth                |
+| U Height        | 18px                                 | Pixels per rack unit         |
+| Rack Size       | 12U                                  | Demo rack                    |
+| Frame Thickness | 8px                                  | Cabinet frame                |
+| Rail Width      | 6px                                  | Mounting rails               |
+| Full-depth      | 90px (RACK_DEPTH - 10)               | Full-depth devices           |
+| Half-depth      | 40px (RACK_DEPTH \* 0.4)             | Half-depth devices           |
+| Side darkening  | 30% (RGB multiplication)             | Side panel shading           |
+| Top lightening  | 20% (RGB interpolation toward white) | Top surface highlight        |
 
 ## Visual Assessment
 
 ### What Works Well
 
-1. **Depth perception** - Devices clearly appear 3D with side panels
-2. **Half-depth distinction** - Smaller side panels + ½ legend indicator
-3. **Color scheme** - Darkened sides and lightened tops create depth
-4. **Depth sorting** - Higher U devices render behind lower ones correctly
-5. **Legend readability** - Flat legend is easy to read
-6. **Rack frame** - 3D frame provides context for devices
+1. **Realistic cabinet appearance** - Looks like an actual server rack
+2. **Proper depth visualization** - Cabinet depth creates sense of volume
+3. **Device mounting context** - Devices clearly sit inside the cabinet
+4. **Mounting rails** - Rails with holes add authenticity
+5. **Side panel vents** - Add visual interest and realism
+6. **Status LEDs** - Cabinet LEDs with glow effect
+7. **Device details** - Bezel lines, front LEDs, drive bays
+8. **Color scheme** - Dracula theme matches app aesthetic
 
-### Potential Adjustments
+### What Could Be Improved
 
-1. **Increase depth pixels** - 24px might be too subtle; try 30-36px
-2. **Add drop shadow** - Ground shadow would improve visual grounding
-3. **Rack name** - Currently only shows "FRONT/REAR"; add rack name
-4. **U numbering** - Consider adding U labels (may be too cluttered when skewed)
-5. **Device labels** - Could add callout lines for key devices
-6. **Top surface visibility** - Device top surfaces are narrow; may need adjustment
+1. **Add rack name label** - Show rack name on cabinet or below
+2. **U position labels** - Consider subtle U markers (may be cluttered)
+3. **Ground shadow** - Drop shadow below cabinet
+4. **Device labels** - Optional callout lines for device names
+5. **Cabinet feet/casters** - Add visual grounding at bottom
 
-### Edge Cases to Address in Full Implementation
+### Sample Devices in POC
 
-1. **0.5U devices** - Not tested in POC; may need minimum height
-2. **10" racks** - Narrower; proportions should scale
-3. **Very tall racks (42U+)** - Test aspect ratio
-4. **Device images** - Skipped in POC; recommend category icons only
-5. **Airflow indicators** - Not attempted; likely skip for isometric
+| Device         | U Height | Position | Full Depth | Details    |
+| -------------- | -------- | -------- | ---------- | ---------- |
+| UPS            | 2U       | U1-2     | Yes        | -          |
+| Patch Panel    | 1U       | U3       | No         | -          |
+| Network Switch | 1U       | U4       | No         | Front LEDs |
+| Server         | 2U       | U5-6     | Yes        | Front LEDs |
+| NAS            | 4U       | U7-10    | Yes        | Drive bays |
+| Blank Panel    | 1U       | U11      | No         | -          |
+
+## Edge Cases for Full Implementation
+
+1. **0.5U devices** - May need minimum visual height
+2. **10" racks** - Scale proportionally (narrower width)
+3. **Very tall racks (42U+)** - Test aspect ratio and canvas size
+4. **Device images** - Consider category icons only (not full images)
+5. **Airflow indicators** - Likely skip for isometric view
+6. **Empty U slots** - Show cabinet interior darkness
 
 ## Dual-View Notes
 
-- Front and rear render side-by-side with 60px gap
-- Each view has its own isometric projection
-- Rear view shows same devices (in POC - would filter by face in real impl)
-
-## Recommended Next Steps
-
-1. **Stakeholder review** - Get approval on visual direction
-2. **Adjust parameters** - Based on feedback, tweak depth/colors
-3. **Proceed to Phase 1** - Implement in `export.ts` per #299
+- Front and rear cabinets render side-by-side with 80px gap
+- Both are identical 3D cabinets (in real impl, rear shows rear-mounted devices)
+- Shared legend below both views
 
 ## How to View
 
@@ -68,3 +96,9 @@ open docs/research/isometric-poc-dual.svg
 ```
 
 Or view in VS Code with SVG preview extension.
+
+## Recommended Next Steps
+
+1. **Review visual output** - Verify cabinet looks appropriate
+2. **Adjust parameters** - Tweak colors/dimensions based on feedback
+3. **Proceed to Phase 1** - Implement in `export.ts` per #299

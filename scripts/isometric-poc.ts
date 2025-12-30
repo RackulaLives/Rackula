@@ -1,12 +1,11 @@
 /**
- * Isometric Export Proof-of-Concept
+ * Isometric Export Proof-of-Concept v2
  *
  * Issue: #300
  * Parent: #299 (Isometric Export Feature)
- * Research: docs/research/spike-293-isometric-3d-view.md
  *
- * This script generates sample isometric SVG exports to validate
- * the visual approach before implementing in the main export.ts.
+ * This script generates realistic isometric 3D rack cabinet SVGs.
+ * The rack is rendered as a proper enclosure with devices mounted inside.
  *
  * Run: npx tsx scripts/isometric-poc.ts
  * Output: docs/research/isometric-poc-single.svg
@@ -22,30 +21,59 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ============================================================================
+// Isometric Projection Utilities
+// ============================================================================
+
+// True isometric angles (30°)
+const ISO_ANGLE = Math.PI / 6; // 30 degrees
+const COS_30 = Math.cos(ISO_ANGLE);
+const SIN_30 = Math.sin(ISO_ANGLE);
+
+/**
+ * Convert 3D point to 2D isometric projection.
+ * X = right, Y = depth (into screen), Z = up
+ */
+function isoProject(x: number, y: number, z: number): { x: number; y: number } {
+  return {
+    x: (x - y) * COS_30,
+    y: (x + y) * SIN_30 - z,
+  };
+}
+
+// ============================================================================
 // Constants
 // ============================================================================
 
-// Isometric transform constants (true 30° isometric projection)
-const COS_30 = Math.cos(Math.PI / 6); // ≈ 0.866
-const SIN_30 = Math.sin(Math.PI / 6); // 0.5
-
-// Rack dimensions
-const RACK_WIDTH = 200; // pixels for 19" rack front face
-const U_HEIGHT = 20; // pixels per U
+// Rack cabinet physical dimensions (in pixels)
+const RACK_WIDTH = 160; // Front face width
+const RACK_DEPTH = 100; // Cabinet depth
+const U_HEIGHT = 18; // Pixels per U
 const RACK_U = 12; // 12U rack for POC
+const RACK_HEIGHT = RACK_U * U_HEIGHT;
 
-// Depth visualization
-const FULL_DEPTH_PX = 24; // Full-depth device side panel width
-const HALF_DEPTH_PX = 12; // Half-depth device side panel width
-const RACK_DEPTH_PX = 24; // Rack frame depth
+// Frame dimensions
+const FRAME_THICKNESS = 8; // Cabinet frame thickness
+const RAIL_WIDTH = 6; // Mounting rail width
+const RAIL_INSET = 12; // Distance from edge to rails
 
-// Color adjustments
-const SIDE_DARKEN = 0.25; // 25% darker for side panels
-const TOP_LIGHTEN = 0.15; // 15% lighter for top surfaces
+// Colors (Dracula theme)
+const COLORS = {
+  background: "#282a36",
+  cabinetFrame: "#2d3142", // Dark cabinet frame
+  cabinetSide: "#1e2130", // Even darker side
+  cabinetTop: "#3d4258", // Lighter top
+  cabinetInner: "#1a1c26", // Dark interior
+  rail: "#44475a", // Mounting rails
+  railHole: "#282a36", // Rail mounting holes
+  led: "#50fa7b", // Status LED
+  text: "#f8f8f2",
+  textMuted: "#6272a4",
+  ventSlot: "#1a1c26", // Vent slots
+};
 
 // Layout
-const LEGEND_GAP = 40; // Gap between rack and legend
-const DUAL_VIEW_GAP = 60; // Gap between front and rear views
+const CANVAS_PADDING = 60;
+const LEGEND_GAP = 30;
 
 // ============================================================================
 // Sample Devices
@@ -57,6 +85,8 @@ interface POCDevice {
   uPosition: number; // Bottom U position (1-based)
   color: string;
   isFullDepth: boolean;
+  hasLeds?: boolean;
+  hasDriveBays?: boolean;
 }
 
 const sampleDevices: POCDevice[] = [
@@ -71,22 +101,24 @@ const sampleDevices: POCDevice[] = [
     name: "Patch Panel",
     uHeight: 1,
     uPosition: 3,
-    color: "#8be9fd",
+    color: "#6272a4",
     isFullDepth: false,
   },
   {
     name: "Network Switch",
     uHeight: 1,
     uPosition: 4,
-    color: "#ff79c6",
+    color: "#8be9fd",
     isFullDepth: false,
+    hasLeds: true,
   },
   {
-    name: "Server 1",
+    name: "Server",
     uHeight: 2,
     uPosition: 5,
     color: "#bd93f9",
     isFullDepth: true,
+    hasLeds: true,
   },
   {
     name: "NAS",
@@ -94,10 +126,11 @@ const sampleDevices: POCDevice[] = [
     uPosition: 7,
     color: "#ffb86c",
     isFullDepth: true,
+    hasDriveBays: true,
   },
   {
     name: "Blank Panel",
-    uHeight: 2,
+    uHeight: 1,
     uPosition: 11,
     color: "#44475a",
     isFullDepth: false,
@@ -108,90 +141,37 @@ const sampleDevices: POCDevice[] = [
 // Color Utilities
 // ============================================================================
 
-function hexToHsl(hex: string): { h: number; s: number; l: number } {
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-
-  let h = 0;
-  let s = 0;
-
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-
-    switch (max) {
-      case r:
-        h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-        break;
-      case g:
-        h = ((b - r) / d + 2) / 6;
-        break;
-      case b:
-        h = ((r - g) / d + 4) / 6;
-        break;
-    }
-  }
-
-  return { h: h * 360, s: s * 100, l: l * 100 };
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return { r, g, b };
 }
 
-function hslToHex(h: number, s: number, l: number): string {
-  s /= 100;
-  l /= 100;
-
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const m = l - c / 2;
-
-  let r = 0,
-    g = 0,
-    b = 0;
-
-  if (h < 60) {
-    r = c;
-    g = x;
-  } else if (h < 120) {
-    r = x;
-    g = c;
-  } else if (h < 180) {
-    g = c;
-    b = x;
-  } else if (h < 240) {
-    g = x;
-    b = c;
-  } else if (h < 300) {
-    r = x;
-    b = c;
-  } else {
-    r = c;
-    b = x;
-  }
-
+function rgbToHex(r: number, g: number, b: number): string {
   const toHex = (n: number) =>
-    Math.round((n + m) * 255)
+    Math.max(0, Math.min(255, Math.round(n)))
       .toString(16)
       .padStart(2, "0");
-
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
 function darkenColor(hex: string, amount: number): string {
-  const hsl = hexToHsl(hex);
-  return hslToHex(hsl.h, hsl.s, Math.max(0, hsl.l * (1 - amount)));
+  const { r, g, b } = hexToRgb(hex);
+  return rgbToHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
 }
 
 function lightenColor(hex: string, amount: number): string {
-  const hsl = hexToHsl(hex);
-  return hslToHex(hsl.h, hsl.s, Math.min(100, hsl.l * (1 + amount)));
+  const { r, g, b } = hexToRgb(hex);
+  return rgbToHex(
+    r + (255 - r) * amount,
+    g + (255 - g) * amount,
+    b + (255 - b) * amount,
+  );
 }
 
 // ============================================================================
-// SVG Generation
+// SVG Helpers
 // ============================================================================
 
 function createSvgDocument(
@@ -212,233 +192,687 @@ function createSvgDocument(
   const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
   bg.setAttribute("width", "100%");
   bg.setAttribute("height", "100%");
-  bg.setAttribute("fill", "#282a36");
+  bg.setAttribute("fill", COLORS.background);
   svg.appendChild(bg);
 
   return { document, svg };
 }
 
-function createRackFrame(document: Document, rackHeight: number): SVGGElement {
-  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-  // Rack frame colors
-  const frameColor = "#6272a4";
-  const frameSide = darkenColor(frameColor, SIDE_DARKEN);
-  const frameTop = lightenColor(frameColor, TOP_LIGHTEN);
-
-  // Front face (main rectangle)
-  const front = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  front.setAttribute("x", "0");
-  front.setAttribute("y", "0");
-  front.setAttribute("width", String(RACK_WIDTH));
-  front.setAttribute("height", String(rackHeight));
-  front.setAttribute("fill", frameColor);
-  front.setAttribute("stroke", "#44475a");
-  front.setAttribute("stroke-width", "2");
-  group.appendChild(front);
-
-  // Side panel (right side, going back in isometric space)
-  const sidePoints = [
-    `${RACK_WIDTH},0`,
-    `${RACK_WIDTH + RACK_DEPTH_PX},${(-RACK_DEPTH_PX * SIN_30) / COS_30}`,
-    `${RACK_WIDTH + RACK_DEPTH_PX},${rackHeight - (RACK_DEPTH_PX * SIN_30) / COS_30}`,
-    `${RACK_WIDTH},${rackHeight}`,
-  ].join(" ");
-
-  const side = document.createElementNS(
+function createPolygon(
+  document: Document,
+  points: Array<{ x: number; y: number }>,
+  fill: string,
+  stroke?: string,
+): SVGPolygonElement {
+  const polygon = document.createElementNS(
     "http://www.w3.org/2000/svg",
     "polygon",
   );
-  side.setAttribute("points", sidePoints);
-  side.setAttribute("fill", frameSide);
-  side.setAttribute("stroke", "#44475a");
-  side.setAttribute("stroke-width", "1");
-  group.appendChild(side);
-
-  // Top surface
-  const topPoints = [
-    `0,0`,
-    `${RACK_DEPTH_PX},${(-RACK_DEPTH_PX * SIN_30) / COS_30}`,
-    `${RACK_WIDTH + RACK_DEPTH_PX},${(-RACK_DEPTH_PX * SIN_30) / COS_30}`,
-    `${RACK_WIDTH},0`,
-  ].join(" ");
-
-  const top = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-  top.setAttribute("points", topPoints);
-  top.setAttribute("fill", frameTop);
-  top.setAttribute("stroke", "#44475a");
-  top.setAttribute("stroke-width", "1");
-  group.appendChild(top);
-
-  return group;
+  polygon.setAttribute("points", points.map((p) => `${p.x},${p.y}`).join(" "));
+  polygon.setAttribute("fill", fill);
+  if (stroke) {
+    polygon.setAttribute("stroke", stroke);
+    polygon.setAttribute("stroke-width", "1");
+  }
+  return polygon;
 }
 
-function createDevice(
+function createRect(
   document: Document,
-  device: POCDevice,
-  rackHeight: number,
-): SVGGElement {
-  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fill: string,
+  stroke?: string,
+): SVGRectElement {
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", String(x));
+  rect.setAttribute("y", String(y));
+  rect.setAttribute("width", String(width));
+  rect.setAttribute("height", String(height));
+  rect.setAttribute("fill", fill);
+  if (stroke) {
+    rect.setAttribute("stroke", stroke);
+    rect.setAttribute("stroke-width", "1");
+  }
+  return rect;
+}
 
-  const deviceHeight = device.uHeight * U_HEIGHT;
-  const deviceY =
-    rackHeight - device.uPosition * U_HEIGHT - deviceHeight + U_HEIGHT;
-  const depthPx = device.isFullDepth ? FULL_DEPTH_PX : HALF_DEPTH_PX;
+// ============================================================================
+// 3D Box Drawing (Isometric)
+// ============================================================================
 
-  const sideColor = darkenColor(device.color, SIDE_DARKEN);
-  const topColor = lightenColor(device.color, TOP_LIGHTEN);
+/**
+ * Draw a 3D isometric box.
+ * Origin (0,0,0) is front-bottom-left corner.
+ */
+function draw3DBox(
+  document: Document,
+  group: SVGGElement,
+  originX: number,
+  originY: number,
+  originZ: number,
+  width: number,
+  depth: number,
+  height: number,
+  frontColor: string,
+  options?: {
+    topColor?: string;
+    sideColor?: string;
+    stroke?: string;
+    skipFront?: boolean;
+    skipTop?: boolean;
+    skipSide?: boolean;
+  },
+): void {
+  const topColor = options?.topColor ?? lightenColor(frontColor, 0.2);
+  const sideColor = options?.sideColor ?? darkenColor(frontColor, 0.3);
+  const stroke = options?.stroke;
+
+  // Calculate all 8 vertices of the box
+  const frontBottomLeft = isoProject(originX, originY, originZ);
+  const frontBottomRight = isoProject(originX + width, originY, originZ);
+  const frontTopLeft = isoProject(originX, originY, originZ + height);
+  const frontTopRight = isoProject(originX + width, originY, originZ + height);
+  const backBottomRight = isoProject(originX + width, originY + depth, originZ);
+  const backTopLeft = isoProject(originX, originY + depth, originZ + height);
+  const backTopRight = isoProject(
+    originX + width,
+    originY + depth,
+    originZ + height,
+  );
+
+  // Draw faces in back-to-front order for correct occlusion
+
+  // Right side face (visible in this projection)
+  if (!options?.skipSide) {
+    group.appendChild(
+      createPolygon(
+        document,
+        [frontBottomRight, backBottomRight, backTopRight, frontTopRight],
+        sideColor,
+        stroke,
+      ),
+    );
+  }
+
+  // Top face
+  if (!options?.skipTop) {
+    group.appendChild(
+      createPolygon(
+        document,
+        [frontTopLeft, frontTopRight, backTopRight, backTopLeft],
+        topColor,
+        stroke,
+      ),
+    );
+  }
 
   // Front face
-  const front = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  front.setAttribute("x", "4"); // 4px inset for rack rails
-  front.setAttribute("y", String(deviceY));
-  front.setAttribute("width", String(RACK_WIDTH - 8)); // Account for both rails
-  front.setAttribute("height", String(deviceHeight));
-  front.setAttribute("fill", device.color);
-  front.setAttribute("stroke", "#282a36");
-  front.setAttribute("stroke-width", "1");
-  group.appendChild(front);
-
-  // Side panel (extends to the right in isometric space)
-  const sideX = RACK_WIDTH - 4;
-  const sidePoints = [
-    `${sideX},${deviceY}`,
-    `${sideX + depthPx},${deviceY - (depthPx * SIN_30) / COS_30}`,
-    `${sideX + depthPx},${deviceY + deviceHeight - (depthPx * SIN_30) / COS_30}`,
-    `${sideX},${deviceY + deviceHeight}`,
-  ].join(" ");
-
-  const side = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "polygon",
-  );
-  side.setAttribute("points", sidePoints);
-  side.setAttribute("fill", sideColor);
-  side.setAttribute("stroke", "#282a36");
-  side.setAttribute("stroke-width", "1");
-  group.appendChild(side);
-
-  // Top surface
-  const topPoints = [
-    `4,${deviceY}`,
-    `${4 + depthPx},${deviceY - (depthPx * SIN_30) / COS_30}`,
-    `${sideX + depthPx},${deviceY - (depthPx * SIN_30) / COS_30}`,
-    `${sideX},${deviceY}`,
-  ].join(" ");
-
-  const top = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-  top.setAttribute("points", topPoints);
-  top.setAttribute("fill", topColor);
-  top.setAttribute("stroke", "#282a36");
-  top.setAttribute("stroke-width", "1");
-  group.appendChild(top);
-
-  return group;
+  if (!options?.skipFront) {
+    group.appendChild(
+      createPolygon(
+        document,
+        [frontBottomLeft, frontBottomRight, frontTopRight, frontTopLeft],
+        frontColor,
+        stroke,
+      ),
+    );
+  }
 }
 
-function createLegend(
+// ============================================================================
+// Rack Cabinet Drawing
+// ============================================================================
+
+function drawRackCabinet(document: Document, group: SVGGElement): void {
+  // The cabinet is drawn from front-bottom-left origin
+  const baseX = 0;
+  const baseY = 0;
+  const baseZ = 0;
+
+  // Draw cabinet frame (outer shell)
+  // Bottom panel
+  draw3DBox(
+    document,
+    group,
+    baseX,
+    baseY,
+    baseZ,
+    RACK_WIDTH,
+    RACK_DEPTH,
+    FRAME_THICKNESS,
+    COLORS.cabinetFrame,
+    { sideColor: COLORS.cabinetSide, topColor: COLORS.cabinetInner },
+  );
+
+  // Top panel
+  draw3DBox(
+    document,
+    group,
+    baseX,
+    baseY,
+    baseZ + RACK_HEIGHT + FRAME_THICKNESS,
+    RACK_WIDTH,
+    RACK_DEPTH,
+    FRAME_THICKNESS,
+    COLORS.cabinetTop,
+    { sideColor: COLORS.cabinetSide },
+  );
+
+  // Left side panel (with vents)
+  drawSidePanel(
+    document,
+    group,
+    baseX,
+    baseY,
+    baseZ + FRAME_THICKNESS,
+    RACK_HEIGHT,
+    true,
+  );
+
+  // Right side panel (with vents)
+  drawSidePanel(
+    document,
+    group,
+    baseX + RACK_WIDTH - FRAME_THICKNESS,
+    baseY,
+    baseZ + FRAME_THICKNESS,
+    RACK_HEIGHT,
+    false,
+  );
+
+  // Back panel (solid dark)
+  const backPanelPoints = [
+    isoProject(
+      baseX + FRAME_THICKNESS,
+      baseY + RACK_DEPTH,
+      baseZ + FRAME_THICKNESS,
+    ),
+    isoProject(
+      baseX + RACK_WIDTH - FRAME_THICKNESS,
+      baseY + RACK_DEPTH,
+      baseZ + FRAME_THICKNESS,
+    ),
+    isoProject(
+      baseX + RACK_WIDTH - FRAME_THICKNESS,
+      baseY + RACK_DEPTH,
+      baseZ + RACK_HEIGHT + FRAME_THICKNESS,
+    ),
+    isoProject(
+      baseX + FRAME_THICKNESS,
+      baseY + RACK_DEPTH,
+      baseZ + RACK_HEIGHT + FRAME_THICKNESS,
+    ),
+  ];
+  group.appendChild(
+    createPolygon(document, backPanelPoints, COLORS.cabinetInner),
+  );
+
+  // Draw mounting rails
+  drawMountingRails(document, group, baseX, baseY, baseZ + FRAME_THICKNESS);
+
+  // Status LEDs on top-left
+  drawStatusLeds(
+    document,
+    group,
+    baseX + 15,
+    baseY + 10,
+    baseZ + RACK_HEIGHT + FRAME_THICKNESS * 2,
+  );
+}
+
+function drawSidePanel(
   document: Document,
+  group: SVGGElement,
+  x: number,
+  y: number,
+  z: number,
+  height: number,
+  isLeft: boolean,
+): void {
+  // Side panel base
+  if (isLeft) {
+    // Left panel - we see the inner surface
+    const leftPoints = [
+      isoProject(x, y, z),
+      isoProject(x, y + RACK_DEPTH, z),
+      isoProject(x, y + RACK_DEPTH, z + height),
+      isoProject(x, y, z + height),
+    ];
+    group.appendChild(createPolygon(document, leftPoints, COLORS.cabinetSide));
+  } else {
+    // Right panel - visible from outside
+    draw3DBox(
+      document,
+      group,
+      x,
+      y,
+      z,
+      FRAME_THICKNESS,
+      RACK_DEPTH,
+      height,
+      COLORS.cabinetFrame,
+      {
+        sideColor: COLORS.cabinetSide,
+        topColor: COLORS.cabinetTop,
+        skipFront: true,
+      },
+    );
+
+    // Add vent slots on right side
+    const ventCount = Math.floor(height / 20);
+    const ventHeight = 3;
+    const ventSpacing = height / ventCount;
+
+    for (let i = 1; i < ventCount; i++) {
+      const ventZ = z + i * ventSpacing;
+      const ventPoints = [
+        isoProject(x + FRAME_THICKNESS, y + 15, ventZ),
+        isoProject(x + FRAME_THICKNESS, y + RACK_DEPTH - 15, ventZ),
+        isoProject(
+          x + FRAME_THICKNESS,
+          y + RACK_DEPTH - 15,
+          ventZ + ventHeight,
+        ),
+        isoProject(x + FRAME_THICKNESS, y + 15, ventZ + ventHeight),
+      ];
+      group.appendChild(createPolygon(document, ventPoints, COLORS.ventSlot));
+    }
+  }
+}
+
+function drawMountingRails(
+  document: Document,
+  group: SVGGElement,
+  baseX: number,
+  baseY: number,
+  baseZ: number,
+): void {
+  // Left rail
+  const leftRailX = baseX + RAIL_INSET;
+  draw3DBox(
+    document,
+    group,
+    leftRailX,
+    baseY,
+    baseZ,
+    RAIL_WIDTH,
+    4,
+    RACK_HEIGHT,
+    COLORS.rail,
+    { stroke: darkenColor(COLORS.rail, 0.2) },
+  );
+
+  // Right rail
+  const rightRailX = baseX + RACK_WIDTH - RAIL_INSET - RAIL_WIDTH;
+  draw3DBox(
+    document,
+    group,
+    rightRailX,
+    baseY,
+    baseZ,
+    RAIL_WIDTH,
+    4,
+    RACK_HEIGHT,
+    COLORS.rail,
+    { stroke: darkenColor(COLORS.rail, 0.2) },
+  );
+
+  // Draw mounting holes on front of rails
+  for (let u = 0; u < RACK_U; u++) {
+    const holeZ = baseZ + u * U_HEIGHT + U_HEIGHT / 2;
+    const holeSize = 3;
+
+    // Left rail holes
+    const leftHole = isoProject(leftRailX + RAIL_WIDTH / 2, baseY, holeZ);
+    const leftCircle = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "circle",
+    );
+    leftCircle.setAttribute("cx", String(leftHole.x));
+    leftCircle.setAttribute("cy", String(leftHole.y));
+    leftCircle.setAttribute("r", String(holeSize / 2));
+    leftCircle.setAttribute("fill", COLORS.railHole);
+    group.appendChild(leftCircle);
+
+    // Right rail holes
+    const rightHole = isoProject(rightRailX + RAIL_WIDTH / 2, baseY, holeZ);
+    const rightCircle = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "circle",
+    );
+    rightCircle.setAttribute("cx", String(rightHole.x));
+    rightCircle.setAttribute("cy", String(rightHole.y));
+    rightCircle.setAttribute("r", String(holeSize / 2));
+    rightCircle.setAttribute("fill", COLORS.railHole);
+    group.appendChild(rightCircle);
+  }
+}
+
+function drawStatusLeds(
+  document: Document,
+  group: SVGGElement,
+  x: number,
+  y: number,
+  z: number,
+): void {
+  const ledSpacing = 8;
+  const ledRadius = 3;
+
+  for (let i = 0; i < 3; i++) {
+    const ledPos = isoProject(x + i * ledSpacing, y, z);
+    const led = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "circle",
+    );
+    led.setAttribute("cx", String(ledPos.x));
+    led.setAttribute("cy", String(ledPos.y));
+    led.setAttribute("r", String(ledRadius));
+    led.setAttribute("fill", i === 2 ? "#ff5555" : COLORS.led);
+    // Add glow effect
+    led.setAttribute("filter", "url(#ledGlow)");
+    group.appendChild(led);
+  }
+}
+
+// ============================================================================
+// Device Drawing
+// ============================================================================
+
+function drawDevice(
+  document: Document,
+  group: SVGGElement,
+  device: POCDevice,
+  baseZ: number,
+): void {
+  const deviceHeight = device.uHeight * U_HEIGHT;
+  const deviceZ = baseZ + FRAME_THICKNESS + (device.uPosition - 1) * U_HEIGHT;
+  const deviceX = RAIL_INSET + RAIL_WIDTH + 2;
+  const deviceWidth = RACK_WIDTH - 2 * (RAIL_INSET + RAIL_WIDTH + 2);
+  const deviceDepth = device.isFullDepth ? RACK_DEPTH - 10 : RACK_DEPTH * 0.4;
+
+  // Main device body
+  draw3DBox(
+    document,
+    group,
+    deviceX,
+    2,
+    deviceZ,
+    deviceWidth,
+    deviceDepth,
+    deviceHeight - 1,
+    device.color,
+    {
+      topColor: lightenColor(device.color, 0.15),
+      sideColor: darkenColor(device.color, 0.25),
+      stroke: darkenColor(device.color, 0.4),
+    },
+  );
+
+  // Add front panel details
+  drawDeviceFrontDetails(
+    document,
+    group,
+    device,
+    deviceX,
+    deviceZ,
+    deviceWidth,
+    deviceHeight,
+  );
+}
+
+function drawDeviceFrontDetails(
+  document: Document,
+  group: SVGGElement,
+  device: POCDevice,
+  x: number,
+  z: number,
+  width: number,
+  height: number,
+): void {
+  // Horizontal lines on front panel (like bezel lines)
+  const lineCount = Math.max(1, Math.floor(height / 8));
+  const lineSpacing = height / (lineCount + 1);
+  const lineColor = darkenColor(device.color, 0.15);
+
+  for (let i = 1; i <= lineCount; i++) {
+    const lineZ = z + i * lineSpacing;
+    const lineStart = isoProject(x + 5, 0, lineZ);
+    const lineEnd = isoProject(x + width - 5, 0, lineZ);
+
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", String(lineStart.x));
+    line.setAttribute("y1", String(lineStart.y));
+    line.setAttribute("x2", String(lineEnd.x));
+    line.setAttribute("y2", String(lineEnd.y));
+    line.setAttribute("stroke", lineColor);
+    line.setAttribute("stroke-width", "1");
+    group.appendChild(line);
+  }
+
+  // Status LEDs on front
+  if (device.hasLeds) {
+    const ledZ = z + height - 6;
+    for (let i = 0; i < 4; i++) {
+      const ledX = x + 8 + i * 6;
+      const ledPos = isoProject(ledX, 0, ledZ);
+      const led = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "circle",
+      );
+      led.setAttribute("cx", String(ledPos.x));
+      led.setAttribute("cy", String(ledPos.y));
+      led.setAttribute("r", "2");
+      led.setAttribute("fill", i < 2 ? COLORS.led : "#ffb86c");
+      group.appendChild(led);
+    }
+  }
+
+  // Drive bays
+  if (device.hasDriveBays) {
+    const bayCount = Math.min(4, device.uHeight);
+    const bayHeight = (height - 10) / bayCount;
+    const bayWidth = 25;
+
+    for (let i = 0; i < bayCount; i++) {
+      const bayZ = z + 5 + i * bayHeight;
+      const bayX = x + width - bayWidth - 8;
+
+      // Bay outline
+      const bayTL = isoProject(bayX, 0, bayZ + bayHeight - 2);
+      const bayTR = isoProject(bayX + bayWidth, 0, bayZ + bayHeight - 2);
+      const bayBR = isoProject(bayX + bayWidth, 0, bayZ + 2);
+      const bayBL = isoProject(bayX, 0, bayZ + 2);
+
+      const bayRect = createPolygon(
+        document,
+        [bayTL, bayTR, bayBR, bayBL],
+        darkenColor(device.color, 0.2),
+        darkenColor(device.color, 0.4),
+      );
+      group.appendChild(bayRect);
+
+      // LED on bay
+      const bayLedPos = isoProject(bayX + 3, 0, bayZ + bayHeight / 2);
+      const bayLed = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "circle",
+      );
+      bayLed.setAttribute("cx", String(bayLedPos.x));
+      bayLed.setAttribute("cy", String(bayLedPos.y));
+      bayLed.setAttribute("r", "1.5");
+      bayLed.setAttribute("fill", COLORS.led);
+      group.appendChild(bayLed);
+    }
+  }
+}
+
+// ============================================================================
+// Legend
+// ============================================================================
+
+function drawLegend(
+  document: Document,
+  svg: SVGSVGElement,
   devices: POCDevice[],
-  startY: number,
-): SVGGElement {
+  x: number,
+  y: number,
+): void {
   const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
 
   // Title
   const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  title.setAttribute("x", "10");
-  title.setAttribute("y", String(startY));
-  title.setAttribute("fill", "#f8f8f2");
+  title.setAttribute("x", String(x));
+  title.setAttribute("y", String(y));
+  title.setAttribute("fill", COLORS.text);
   title.setAttribute("font-family", "Inter, system-ui, sans-serif");
-  title.setAttribute("font-size", "14");
+  title.setAttribute("font-size", "12");
   title.setAttribute("font-weight", "bold");
-  title.textContent = "LEGEND";
+  title.textContent = "DEVICES";
   group.appendChild(title);
 
   // Device entries
   devices.forEach((device, index) => {
-    const entryY = startY + 25 + index * 24;
+    const entryY = y + 20 + index * 20;
 
-    // Color swatch
-    const swatch = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "rect",
+    // Color swatch (small 3D box effect)
+    const swatchSize = 12;
+    const swatch = createRect(
+      document,
+      x,
+      entryY - 10,
+      swatchSize,
+      swatchSize,
+      device.color,
+      darkenColor(device.color, 0.3),
     );
-    swatch.setAttribute("x", "10");
-    swatch.setAttribute("y", String(entryY - 12));
-    swatch.setAttribute("width", "16");
-    swatch.setAttribute("height", "16");
-    swatch.setAttribute("fill", device.color);
-    swatch.setAttribute("stroke", "#44475a");
-    swatch.setAttribute("stroke-width", "1");
     group.appendChild(swatch);
 
-    // Half-depth indicator on swatch
+    // Half-depth indicator
     if (!device.isFullDepth) {
-      const halfIndicator = document.createElementNS(
+      const halfBadge = document.createElementNS(
         "http://www.w3.org/2000/svg",
         "text",
       );
-      halfIndicator.setAttribute("x", "18");
-      halfIndicator.setAttribute("y", String(entryY));
-      halfIndicator.setAttribute("fill", "#282a36");
-      halfIndicator.setAttribute("font-family", "Inter, system-ui, sans-serif");
-      halfIndicator.setAttribute("font-size", "10");
-      halfIndicator.setAttribute("font-weight", "bold");
-      halfIndicator.setAttribute("text-anchor", "middle");
-      halfIndicator.textContent = "½";
-      group.appendChild(halfIndicator);
+      halfBadge.setAttribute("x", String(x + swatchSize / 2));
+      halfBadge.setAttribute("y", String(entryY - 1));
+      halfBadge.setAttribute("fill", darkenColor(device.color, 0.5));
+      halfBadge.setAttribute("font-family", "Inter, system-ui, sans-serif");
+      halfBadge.setAttribute("font-size", "8");
+      halfBadge.setAttribute("font-weight", "bold");
+      halfBadge.setAttribute("text-anchor", "middle");
+      halfBadge.textContent = "½";
+      group.appendChild(halfBadge);
     }
 
-    // Device name
+    // Device name and U height
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    text.setAttribute("x", "34");
+    text.setAttribute("x", String(x + swatchSize + 8));
     text.setAttribute("y", String(entryY));
-    text.setAttribute("fill", "#f8f8f2");
+    text.setAttribute("fill", COLORS.text);
     text.setAttribute("font-family", "Inter, system-ui, sans-serif");
-    text.setAttribute("font-size", "12");
+    text.setAttribute("font-size", "11");
     text.textContent = `${device.name} (${device.uHeight}U)`;
     group.appendChild(text);
   });
 
-  return group;
+  svg.appendChild(group);
 }
 
+// ============================================================================
+// SVG Filters (for LED glow)
+// ============================================================================
+
+function addFilters(document: Document, svg: SVGSVGElement): void {
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+
+  // LED glow filter
+  const filter = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "filter",
+  );
+  filter.setAttribute("id", "ledGlow");
+  filter.setAttribute("x", "-50%");
+  filter.setAttribute("y", "-50%");
+  filter.setAttribute("width", "200%");
+  filter.setAttribute("height", "200%");
+
+  const blur = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "feGaussianBlur",
+  );
+  blur.setAttribute("stdDeviation", "2");
+  blur.setAttribute("result", "blur");
+  filter.appendChild(blur);
+
+  const merge = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "feMerge",
+  );
+  const mergeNode1 = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "feMergeNode",
+  );
+  mergeNode1.setAttribute("in", "blur");
+  const mergeNode2 = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "feMergeNode",
+  );
+  mergeNode2.setAttribute("in", "SourceGraphic");
+  merge.appendChild(mergeNode1);
+  merge.appendChild(mergeNode2);
+  filter.appendChild(merge);
+
+  defs.appendChild(filter);
+  svg.appendChild(defs);
+}
+
+// ============================================================================
+// Main Generation Functions
+// ============================================================================
+
 function generateSingleView(): string {
-  const rackHeight = RACK_U * U_HEIGHT;
+  // Calculate canvas size
+  // The isometric projection expands the width and height
+  const projectedWidth = (RACK_WIDTH + RACK_DEPTH) * COS_30;
+  const projectedHeight =
+    (RACK_WIDTH + RACK_DEPTH) * SIN_30 + RACK_HEIGHT + FRAME_THICKNESS * 2;
 
-  // Calculate canvas size to fit isometric rack + legend
-  const isoWidth = RACK_WIDTH + RACK_DEPTH_PX + 50;
-  const isoHeight = rackHeight + RACK_DEPTH_PX + 50;
-  const legendHeight = 25 + sampleDevices.length * 24 + 20;
-
-  const canvasWidth = Math.max(isoWidth, 250);
-  const canvasHeight = isoHeight + LEGEND_GAP + legendHeight;
+  const canvasWidth = projectedWidth + CANVAS_PADDING * 2;
+  const legendHeight = 20 + sampleDevices.length * 20 + 20;
+  const canvasHeight =
+    projectedHeight + CANVAS_PADDING * 2 + LEGEND_GAP + legendHeight;
 
   const { document, svg } = createSvgDocument(canvasWidth, canvasHeight);
+  addFilters(document, svg);
 
-  // Create isometric group with transform
-  const isoGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  const offsetX = 80;
-  const offsetY = RACK_DEPTH_PX + 30;
+  // Create main group and translate to position
+  const mainGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
 
-  // Apply isometric transform
-  isoGroup.setAttribute(
-    "transform",
-    `translate(${offsetX}, ${offsetY}) matrix(${COS_30}, ${SIN_30}, ${-COS_30}, ${SIN_30}, 0, 0)`,
-  );
+  // Offset to center the rack (accounting for isometric projection)
+  const offsetX = CANVAS_PADDING + RACK_DEPTH * COS_30;
+  const offsetY =
+    CANVAS_PADDING +
+    RACK_HEIGHT +
+    FRAME_THICKNESS * 2 +
+    (RACK_WIDTH + RACK_DEPTH) * SIN_30;
 
-  // Add rack frame
-  isoGroup.appendChild(createRackFrame(document, rackHeight));
+  mainGroup.setAttribute("transform", `translate(${offsetX}, ${offsetY})`);
 
-  // Add devices (sorted by U position descending for correct z-order)
+  // Draw cabinet
+  drawRackCabinet(document, mainGroup);
+
+  // Draw devices (sorted by U position for correct z-order - lower U first)
   const sortedDevices = [...sampleDevices].sort(
-    (a, b) => b.uPosition - a.uPosition,
+    (a, b) => a.uPosition - b.uPosition,
   );
   sortedDevices.forEach((device) => {
-    isoGroup.appendChild(createDevice(document, device, rackHeight));
+    drawDevice(document, mainGroup, device, 0);
   });
 
-  svg.appendChild(isoGroup);
+  svg.appendChild(mainGroup);
 
   // View label
   const viewLabel = document.createElementNS(
@@ -446,56 +880,59 @@ function generateSingleView(): string {
     "text",
   );
   viewLabel.setAttribute("x", String(canvasWidth / 2));
-  viewLabel.setAttribute("y", String(isoHeight - 10));
-  viewLabel.setAttribute("fill", "#6272a4");
+  viewLabel.setAttribute("y", String(offsetY + 20));
+  viewLabel.setAttribute("fill", COLORS.textMuted);
   viewLabel.setAttribute("font-family", "Inter, system-ui, sans-serif");
-  viewLabel.setAttribute("font-size", "12");
+  viewLabel.setAttribute("font-size", "11");
   viewLabel.setAttribute("text-anchor", "middle");
-  viewLabel.textContent = "FRONT";
+  viewLabel.textContent = "FRONT VIEW";
   svg.appendChild(viewLabel);
 
-  // Add legend (not transformed)
-  const legendY = isoHeight + LEGEND_GAP;
-  svg.appendChild(createLegend(document, sampleDevices, legendY));
+  // Legend
+  const legendY = offsetY + LEGEND_GAP + 20;
+  drawLegend(document, svg, sampleDevices, CANVAS_PADDING, legendY);
 
   return svg.outerHTML;
 }
 
 function generateDualView(): string {
-  const rackHeight = RACK_U * U_HEIGHT;
+  // Calculate canvas size for two racks
+  const projectedWidth = (RACK_WIDTH + RACK_DEPTH) * COS_30;
+  const projectedHeight =
+    (RACK_WIDTH + RACK_DEPTH) * SIN_30 + RACK_HEIGHT + FRAME_THICKNESS * 2;
 
-  // Calculate canvas size for two isometric views side by side
-  const singleIsoWidth = RACK_WIDTH + RACK_DEPTH_PX + 30;
-  const isoHeight = rackHeight + RACK_DEPTH_PX + 50;
-  const legendHeight = 25 + sampleDevices.length * 24 + 20;
-
-  const canvasWidth = singleIsoWidth * 2 + DUAL_VIEW_GAP + 60;
-  const canvasHeight = isoHeight + LEGEND_GAP + legendHeight;
+  const rackGap = 80;
+  const canvasWidth = projectedWidth * 2 + rackGap + CANVAS_PADDING * 2;
+  const legendHeight = 20 + sampleDevices.length * 20 + 20;
+  const canvasHeight =
+    projectedHeight + CANVAS_PADDING * 2 + LEGEND_GAP + legendHeight;
 
   const { document, svg } = createSvgDocument(canvasWidth, canvasHeight);
+  addFilters(document, svg);
 
-  // Front view
+  const baseOffsetY =
+    CANVAS_PADDING +
+    RACK_HEIGHT +
+    FRAME_THICKNESS * 2 +
+    (RACK_WIDTH + RACK_DEPTH) * SIN_30;
+
+  // Front view (left)
   const frontGroup = document.createElementNS(
     "http://www.w3.org/2000/svg",
     "g",
   );
-  const frontOffsetX = 80;
-  const frontOffsetY = RACK_DEPTH_PX + 30;
-
+  const frontOffsetX = CANVAS_PADDING + RACK_DEPTH * COS_30;
   frontGroup.setAttribute(
     "transform",
-    `translate(${frontOffsetX}, ${frontOffsetY}) matrix(${COS_30}, ${SIN_30}, ${-COS_30}, ${SIN_30}, 0, 0)`,
+    `translate(${frontOffsetX}, ${baseOffsetY})`,
   );
-
-  frontGroup.appendChild(createRackFrame(document, rackHeight));
-
+  drawRackCabinet(document, frontGroup);
   const sortedDevices = [...sampleDevices].sort(
-    (a, b) => b.uPosition - a.uPosition,
+    (a, b) => a.uPosition - b.uPosition,
   );
   sortedDevices.forEach((device) => {
-    frontGroup.appendChild(createDevice(document, device, rackHeight));
+    drawDevice(document, frontGroup, device, 0);
   });
-
   svg.appendChild(frontGroup);
 
   // Front label
@@ -503,31 +940,31 @@ function generateDualView(): string {
     "http://www.w3.org/2000/svg",
     "text",
   );
-  frontLabel.setAttribute("x", String(singleIsoWidth / 2 + 30));
-  frontLabel.setAttribute("y", String(isoHeight - 10));
-  frontLabel.setAttribute("fill", "#6272a4");
+  frontLabel.setAttribute(
+    "x",
+    String(frontOffsetX + projectedWidth / 2 - (RACK_DEPTH * COS_30) / 2),
+  );
+  frontLabel.setAttribute("y", String(baseOffsetY + 20));
+  frontLabel.setAttribute("fill", COLORS.textMuted);
   frontLabel.setAttribute("font-family", "Inter, system-ui, sans-serif");
-  frontLabel.setAttribute("font-size", "12");
+  frontLabel.setAttribute("font-size", "11");
   frontLabel.setAttribute("text-anchor", "middle");
   frontLabel.textContent = "FRONT";
   svg.appendChild(frontLabel);
 
-  // Rear view (same devices, shifted right)
+  // Rear view (right) - same cabinet, devices shown differently
   const rearGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  const rearOffsetX = singleIsoWidth + DUAL_VIEW_GAP + 80;
-  const rearOffsetY = RACK_DEPTH_PX + 30;
-
+  const rearOffsetX = frontOffsetX + projectedWidth + rackGap;
   rearGroup.setAttribute(
     "transform",
-    `translate(${rearOffsetX}, ${rearOffsetY}) matrix(${COS_30}, ${SIN_30}, ${-COS_30}, ${SIN_30}, 0, 0)`,
+    `translate(${rearOffsetX}, ${baseOffsetY})`,
   );
-
-  rearGroup.appendChild(createRackFrame(document, rackHeight));
-
+  drawRackCabinet(document, rearGroup);
+  // In real implementation, rear view would show rear-mounted devices
+  // For POC, we show same devices
   sortedDevices.forEach((device) => {
-    rearGroup.appendChild(createDevice(document, device, rackHeight));
+    drawDevice(document, rearGroup, device, 0);
   });
-
   svg.appendChild(rearGroup);
 
   // Rear label
@@ -537,19 +974,19 @@ function generateDualView(): string {
   );
   rearLabel.setAttribute(
     "x",
-    String(singleIsoWidth + DUAL_VIEW_GAP + singleIsoWidth / 2 + 30),
+    String(rearOffsetX + projectedWidth / 2 - (RACK_DEPTH * COS_30) / 2),
   );
-  rearLabel.setAttribute("y", String(isoHeight - 10));
-  rearLabel.setAttribute("fill", "#6272a4");
+  rearLabel.setAttribute("y", String(baseOffsetY + 20));
+  rearLabel.setAttribute("fill", COLORS.textMuted);
   rearLabel.setAttribute("font-family", "Inter, system-ui, sans-serif");
-  rearLabel.setAttribute("font-size", "12");
+  rearLabel.setAttribute("font-size", "11");
   rearLabel.setAttribute("text-anchor", "middle");
   rearLabel.textContent = "REAR";
   svg.appendChild(rearLabel);
 
-  // Add legend (not transformed, centered below both views)
-  const legendY = isoHeight + LEGEND_GAP;
-  svg.appendChild(createLegend(document, sampleDevices, legendY));
+  // Legend (centered below both racks)
+  const legendY = baseOffsetY + LEGEND_GAP + 20;
+  drawLegend(document, svg, sampleDevices, CANVAS_PADDING, legendY);
 
   return svg.outerHTML;
 }
@@ -578,7 +1015,7 @@ function main(): void {
   fs.writeFileSync(dualPath, dualSvg);
   console.log(`✓ Generated: ${dualPath}`);
 
-  console.log("\nPOC complete! Open the SVG files in a browser to review.");
+  console.log("\nPOC v2 complete! Open the SVG files in a browser to review.");
   console.log(
     "See docs/research/isometric-poc-notes.md for visual assessment.",
   );
