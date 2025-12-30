@@ -93,6 +93,66 @@ export const AirflowSchema = z.enum([
  */
 export const SubdeviceRoleSchema = z.enum(["parent", "child"]);
 
+/**
+ * Network interface type enum (NetBox-compatible subset)
+ */
+export const InterfaceTypeSchema = z.enum([
+  // Copper Ethernet
+  "100base-tx",
+  "1000base-t",
+  "2.5gbase-t",
+  "5gbase-t",
+  "10gbase-t",
+  // Modular - SFP/SFP+/SFP28
+  "1000base-x-sfp",
+  "10gbase-x-sfpp",
+  "25gbase-x-sfp28",
+  // Modular - QSFP/QSFP28/QSFP-DD
+  "40gbase-x-qsfpp",
+  "100gbase-x-qsfp28",
+  "100gbase-x-qsfpdd",
+  "200gbase-x-qsfp56",
+  "200gbase-x-qsfpdd",
+  "400gbase-x-qsfpdd",
+  // Console & Management
+  "console",
+  "usb-a",
+  "usb-b",
+  "usb-c",
+  "usb-mini-b",
+  "usb-micro-b",
+  // Virtual
+  "virtual",
+  "lag",
+  // Other
+  "other",
+]);
+
+/**
+ * PoE type enum (NetBox-compatible)
+ */
+export const PoETypeSchema = z.enum([
+  "type1-ieee802.3af",
+  "type2-ieee802.3at",
+  "type3-ieee802.3bt",
+  "type4-ieee802.3bt",
+  "passive-24v-1pair",
+  "passive-24v-2pair",
+  "passive-48v-1pair",
+  "passive-48v-2pair",
+  "passive-56v-4pair",
+]);
+
+/**
+ * PoE mode enum
+ */
+export const PoEModeSchema = z.enum(["pd", "pse"]);
+
+/**
+ * Interface position enum
+ */
+export const InterfacePositionSchema = z.enum(["front", "rear"]);
+
 // ============================================================================
 // Utility Functions
 // ============================================================================
@@ -126,7 +186,23 @@ export function validateSlugUniqueness(
 // ============================================================================
 
 /**
- * Network interface schema
+ * Network interface template schema (NetBox-compatible with Rackula extensions)
+ */
+export const InterfaceTemplateSchema = z
+  .object({
+    name: z.string().min(1, "Interface name is required"),
+    type: InterfaceTypeSchema,
+    label: z.string().max(64).optional(),
+    mgmt_only: z.boolean().optional(),
+    position: InterfacePositionSchema.optional(),
+    poe_mode: PoEModeSchema.optional(),
+    poe_type: PoETypeSchema.optional(),
+  })
+  .passthrough();
+
+/**
+ * @deprecated Use InterfaceTemplateSchema instead
+ * Legacy network interface schema (kept for backward compatibility)
  */
 export const InterfaceSchema = z
   .object({
@@ -240,7 +316,7 @@ export const DeviceTypeSchema = z
     custom_fields: z.record(z.string(), z.any()).optional(),
 
     // --- Component Arrays ---
-    interfaces: z.array(InterfaceSchema).optional(),
+    interfaces: z.array(InterfaceTemplateSchema).optional(),
     power_ports: z.array(PowerPortSchema).optional(),
     power_outlets: z.array(PowerOutletSchema).optional(),
     device_bays: z.array(DeviceBaySchema).optional(),
@@ -370,6 +446,12 @@ export type WeightUnit = z.infer<typeof WeightUnitSchema>;
 export type DisplayMode = z.infer<typeof DisplayModeSchema>;
 export type Airflow = z.infer<typeof AirflowSchema>;
 export type SubdeviceRole = z.infer<typeof SubdeviceRoleSchema>;
+export type InterfaceType = z.infer<typeof InterfaceTypeSchema>;
+export type PoEType = z.infer<typeof PoETypeSchema>;
+export type PoEMode = z.infer<typeof PoEModeSchema>;
+export type InterfacePosition = z.infer<typeof InterfacePositionSchema>;
+export type InterfaceTemplate = z.infer<typeof InterfaceTemplateSchema>;
+/** @deprecated Use InterfaceTemplate instead */
 export type Interface = z.infer<typeof InterfaceSchema>;
 export type PowerPort = z.infer<typeof PowerPortSchema>;
 export type PowerOutlet = z.infer<typeof PowerOutletSchema>;
