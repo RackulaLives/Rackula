@@ -8,7 +8,7 @@ import {
   getEffectiveSidebarWidth,
   SIDEBAR_WIDTHS,
   SIDEBAR_COLLAPSED_WIDTH,
-  type SidebarWidthPreset,
+  type SidebarWidthPreset as _SidebarWidthPreset,
 } from "$lib/utils/sidebarWidth";
 
 describe("sidebarWidth", () => {

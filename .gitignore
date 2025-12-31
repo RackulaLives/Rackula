@@ -36,3 +36,6 @@ playwright-browserstack-sdk.config.ts
 
 # Claude
 .claude/
+
+# Paraglide generated files
+src/lib/i18n/paraglide/
