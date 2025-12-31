@@ -101,8 +101,8 @@ describe("BananaForScale", () => {
       const { container } = render(BananaForScale);
       const svg = container.querySelector("svg");
       const style = svg?.getAttribute("style") || "";
-      // Should have a rotation transform (negative angle to lean against right edge)
-      expect(style).toMatch(/rotate\(-?\d+deg\)/);
+      // Should have a positive rotation (clockwise) to lean against right edge with stem up
+      expect(style).toMatch(/rotate\(75deg\)/);
     });
   });
 });

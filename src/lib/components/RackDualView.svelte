@@ -221,6 +221,12 @@
         {ondevicemoverack}
         {onplacementtap}
       />
+      <!-- Banana for scale (single view - front panel only) -->
+      {#if showBanana && !rack.show_rear}
+        <div class="banana-container" aria-hidden="true">
+          <BananaForScale />
+        </div>
+      {/if}
     </div>
 
     <!-- Rear view (conditionally shown based on rack.show_rear) -->
@@ -244,6 +250,12 @@
           {ondevicemoverack}
           {onplacementtap}
         />
+        <!-- Banana for scale (dual view - rear panel) -->
+        {#if showBanana}
+          <div class="banana-container" aria-hidden="true">
+            <BananaForScale />
+          </div>
+        {/if}
       </div>
     {/if}
 
@@ -252,13 +264,6 @@
       <div class="annotation-spacer" aria-hidden="true"></div>
     {/if}
   </div>
-
-  <!-- Banana for scale easter egg -->
-  {#if showBanana}
-    <div class="banana-container" aria-hidden="true">
-      <BananaForScale />
-    </div>
-  {/if}
 </div>
 
 <style>
@@ -322,6 +327,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    position: relative; /* For banana positioning */
   }
 
   /* Remove individual rack selection styling since we handle it at container level */
@@ -344,7 +350,7 @@
   /* Banana for scale easter egg container */
   .banana-container {
     position: absolute;
-    bottom: 0;
+    bottom: 8px;
     right: 0;
     pointer-events: none;
   }
