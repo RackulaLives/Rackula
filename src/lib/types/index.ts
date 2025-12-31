@@ -386,7 +386,7 @@ export interface Rack {
   name: string;
   /** Height in rack units (1-100U) */
   height: number;
-  /** Width in inches (10, 19, 21, or 23) */
+  /** Width in inches (10, 19, or 23) */
   width: 10 | 19 | 21 | 23;
   /** Descending units - if true, U1 is at top (default: false) */
   desc_units: boolean;
