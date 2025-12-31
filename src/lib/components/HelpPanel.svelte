@@ -70,7 +70,8 @@
         { key: "Escape", action: "Clear selection / Close dialog" },
         { key: "I", action: "Toggle display mode" },
         { key: "F", action: "Fit all (zoom to fit)" },
-        { key: "[", action: "Collapse / expand sidebar" },
+        { key: "[", action: "Shrink sidebar" },
+        { key: "]", action: "Widen sidebar" },
       ],
     },
     {

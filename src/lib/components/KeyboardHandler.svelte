@@ -254,6 +254,18 @@
         key: "n",
         action: () => ontoggleannotations?.(),
       },
+
+      // [ - shrink sidebar width
+      {
+        key: "[",
+        action: () => cycleSidebarWidth(-1),
+      },
+
+      // ] - widen sidebar width
+      {
+        key: "]",
+        action: () => cycleSidebarWidth(1),
+      },
     ];
   }
 
@@ -304,6 +316,19 @@
   function moveSelectedRack(_direction: number) {
     // Single-rack mode - rack reordering not applicable
     // Reserved for future multi-rack support
+  }
+
+  /**
+   * Cycle sidebar width in the given direction
+   * @param direction - -1 to shrink, 1 to widen
+   */
+  function cycleSidebarWidth(direction: -1 | 1) {
+    const presets = ["narrow", "default", "wide"] as const;
+    const currentIndex = presets.indexOf(uiStore.sidebarWidth);
+    const newIndex = Math.max(0, Math.min(presets.length - 1, currentIndex + direction));
+    if (newIndex !== currentIndex) {
+      uiStore.setSidebarWidth(presets[newIndex]);
+    }
   }
 
   /**
