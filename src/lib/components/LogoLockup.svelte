@@ -11,9 +11,15 @@
 <script lang="ts">
   import SantaHat from "./SantaHat.svelte";
   import { isChristmas } from "$lib/utils/christmas";
+  import {
+    formatRelativeTime,
+    formatFullTimestamp,
+    isBuildStale,
+  } from "$lib/utils/buildTime";
 
-  // Build-time environment constant from vite.config.ts
+  // Build-time constants from vite.config.ts
   declare const __BUILD_ENV__: string;
+  declare const __BUILD_TIME__: string;
 
   interface Props {
     size?: number;
@@ -48,6 +54,27 @@
     if (isDevSite) return "Development environment";
     return undefined;
   });
+
+  // Build age display (only in dev environments)
+  // Update every minute to keep the display fresh
+  let now = $state(new Date());
+  $effect(() => {
+    if (!showEnvPrefix) return;
+    const interval = setInterval(() => {
+      now = new Date();
+    }, 60_000); // Update every minute
+    return () => clearInterval(interval);
+  });
+
+  const buildAge = $derived(
+    showEnvPrefix ? formatRelativeTime(__BUILD_TIME__, now) : null,
+  );
+  const buildTimestamp = $derived(
+    showEnvPrefix ? formatFullTimestamp(__BUILD_TIME__) : null,
+  );
+  const isStale = $derived(
+    showEnvPrefix ? isBuildStale(__BUILD_TIME__, now) : false,
+  );
 
   // Hover state for rainbow animation
   let hovering = $state(false);
@@ -269,6 +296,18 @@
         >{/if}<tspan>Rackula</tspan></text
     >
   </svg>
+
+  <!-- Build age indicator (dev environments only) -->
+  {#if buildAge}
+    <span
+      class="build-age"
+      class:build-age--stale={isStale}
+      title="Built: {buildTimestamp}"
+      data-testid="build-age"
+    >
+      {buildAge}
+    </span>
+  {/if}
 </div>
 
 <style>
@@ -450,5 +489,36 @@
     75% {
       transform: rotate(3deg);
     }
+  }
+
+  /* Build age indicator (dev environments only) */
+  .build-age {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: var(--font-size-xs, 12px);
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--colour-text-muted, #6272a4);
+    align-self: center;
+    padding: 0 var(--space-1, 4px);
+    border-radius: var(--radius-sm, 4px);
+    cursor: help;
+    transition: color var(--duration-fast, 150ms) var(--ease-out, ease-out);
+  }
+
+  /* Stale build warning (> 1 hour old) */
+  .build-age--stale {
+    color: var(--dracula-orange, #ffb86c);
+  }
+
+  /* Hide build age on small screens */
+  @media (max-width: 600px) {
+    .build-age {
+      display: none;
+    }
+  }
+
+  /* Always show build age in toolbar (mobile hamburger mode) */
+  :global(.toolbar-brand) .build-age,
+  :global(.toolbar-brand.hamburger-mode) .build-age {
+    display: inline;
   }
 </style>
