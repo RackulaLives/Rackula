@@ -439,7 +439,7 @@
     >
       Import from NetBox YAML
     </button>
-  </div>
+  {/if}
 </div>
 
 <style>

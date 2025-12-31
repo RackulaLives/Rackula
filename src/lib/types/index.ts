@@ -387,7 +387,7 @@ export interface Rack {
   /** Height in rack units (1-100U) */
   height: number;
   /** Width in inches (10, 19, or 23) */
-  width: 10 | 19 | 23;
+  width: 10 | 19 | 21 | 23;
   /** Descending units - if true, U1 is at top (default: false) */
   desc_units: boolean;
   /** Show rear view on canvas (default: true) */
@@ -468,7 +468,7 @@ export interface CreateDeviceTypeData {
 export interface CreateRackData {
   name: string;
   height: number;
-  width?: 10 | 19 | 23;
+  width?: 10 | 19 | 21 | 23;
   form_factor?: FormFactor;
   desc_units?: boolean;
   starting_unit?: number;

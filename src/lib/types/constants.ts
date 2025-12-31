@@ -87,6 +87,11 @@ export const STANDARD_RACK_WIDTH = 19;
 export const NARROW_RACK_WIDTH = 10;
 
 /**
+ * Broadcast/audio rack width (21" rack)
+ */
+export const BROADCAST_RACK_WIDTH = 21;
+
+/**
  * Telco rack width (23" rack)
  */
 export const TELCO_RACK_WIDTH = 23;
@@ -94,7 +99,7 @@ export const TELCO_RACK_WIDTH = 23;
 /**
  * Allowed rack widths
  */
-export const ALLOWED_RACK_WIDTHS: readonly number[] = [10, 19, 23] as const;
+export const ALLOWED_RACK_WIDTHS: readonly number[] = [10, 19, 21, 23] as const;
 
 /**
  * Default rack view (front-facing)

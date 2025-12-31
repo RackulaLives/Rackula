@@ -103,10 +103,10 @@ export const FIT_ALL_MAX_ZOOM = 2;
 /**
  * Calculate rack width based on nominal width in inches
  * Scales proportionally from 19" base width
- * @param nominalWidth - Rack width in inches (10, 19, or 23)
+ * @param nominalWidth - Rack width in inches (10, 19, 21, or 23)
  */
 export function getRackWidth(nominalWidth: number): number {
-	return Math.round((BASE_RACK_WIDTH * nominalWidth) / 19);
+  return Math.round((BASE_RACK_WIDTH * nominalWidth) / 19);
 }
 
 /**
@@ -114,7 +114,7 @@ export function getRackWidth(nominalWidth: number): number {
  * @param rackWidth - Total rack width in pixels
  */
 export function getInteriorWidth(rackWidth: number): number {
-	return rackWidth - RAIL_WIDTH * 2;
+  return rackWidth - RAIL_WIDTH * 2;
 }
 
 /**
@@ -122,7 +122,7 @@ export function getInteriorWidth(rackWidth: number): number {
  * @param uCount - Number of rack units
  */
 export function getTotalHeight(uCount: number): number {
-	return uCount * U_HEIGHT_PX;
+  return uCount * U_HEIGHT_PX;
 }
 
 /**
@@ -131,9 +131,12 @@ export function getTotalHeight(uCount: number): number {
  * @param uCount - Number of rack units
  * @param hideRackName - Whether rack name is hidden (affects padding)
  */
-export function getViewBoxHeight(uCount: number, hideRackName: boolean): number {
-	const padding = hideRackName ? RACK_PADDING_HIDDEN : BASE_RACK_PADDING;
-	return padding + RAIL_WIDTH * 2 + uCount * U_HEIGHT_PX;
+export function getViewBoxHeight(
+  uCount: number,
+  hideRackName: boolean,
+): number {
+  const padding = hideRackName ? RACK_PADDING_HIDDEN : BASE_RACK_PADDING;
+  return padding + RAIL_WIDTH * 2 + uCount * U_HEIGHT_PX;
 }
 
 /**
@@ -141,7 +144,7 @@ export function getViewBoxHeight(uCount: number, hideRackName: boolean): number 
  * Front and rear views side by side with gap
  */
 export function getDualViewWidth(): number {
-	return BASE_RACK_WIDTH * 2 + DUAL_VIEW_GAP;
+  return BASE_RACK_WIDTH * 2 + DUAL_VIEW_GAP;
 }
 
 /**
@@ -150,5 +153,10 @@ export function getDualViewWidth(): number {
  * @param uCount - Number of rack units
  */
 export function getDualViewHeight(uCount: number): number {
-	return BASE_RACK_PADDING + RAIL_WIDTH * 2 + uCount * U_HEIGHT_PX + DUAL_VIEW_EXTRA_HEIGHT;
+  return (
+    BASE_RACK_PADDING +
+    RAIL_WIDTH * 2 +
+    uCount * U_HEIGHT_PX +
+    DUAL_VIEW_EXTRA_HEIGHT
+  );
 }

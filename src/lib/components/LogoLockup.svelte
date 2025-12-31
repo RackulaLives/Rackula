@@ -305,7 +305,7 @@
       title="Built: {buildTimestamp}"
       data-testid="build-age"
     >
-      {buildAge}
+      Built {buildAge} ago
     </span>
   {/if}
 </div>

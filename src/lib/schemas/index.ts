@@ -383,7 +383,12 @@ export const RackSchema = z
       .int()
       .min(1, "Height must be at least 1U")
       .max(100, "Height cannot exceed 100U"),
-    width: z.union([z.literal(10), z.literal(19), z.literal(23)]),
+    width: z.union([
+      z.literal(10),
+      z.literal(19),
+      z.literal(21),
+      z.literal(23),
+    ]),
     desc_units: z.boolean(),
     show_rear: z.boolean().default(true),
     form_factor: FormFactorSchema,
