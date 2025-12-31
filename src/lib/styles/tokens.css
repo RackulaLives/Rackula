@@ -525,9 +525,15 @@
    RESPONSIVE BREAKPOINTS
    ============================================================ */
 
-/* Medium screens: narrower sidebar */
+/* Maximum sidebar width (used for responsive capping) */
+:root {
+  --sidebar-width-max: 400px;
+}
+
+/* Medium screens: cap sidebar at 200px */
 @media (max-width: 1000px) {
   :root {
     --sidebar-width: 200px;
+    --sidebar-width-max: 200px;
   }
 }

@@ -776,7 +776,10 @@
   onkeydown={(e) => konamiDetector.handleKeyDown(e)}
 />
 
-<div class="app-layout">
+<div
+  class="app-layout"
+  style="--sidebar-width: min({uiStore.sidebarWidthPx}px, var(--sidebar-width-max))"
+>
   <Toolbar
     hasSelection={selectionStore.hasSelection}
     hasRacks={layoutStore.hasRack}
@@ -799,7 +802,7 @@
 
   <main class="app-main" class:mobile={viewportStore.isMobile}>
     {#if !viewportStore.isMobile}
-      <Sidebar side="left">
+      <Sidebar side="left" collapsed={uiStore.sidebarCollapsed}>
         <DevicePalette onadddevice={handleAddDevice} />
       </Sidebar>
     {/if}

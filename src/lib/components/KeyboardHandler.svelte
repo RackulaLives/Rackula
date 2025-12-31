@@ -145,6 +145,12 @@
         action: () => uiStore.toggleAirflow(),
       },
 
+      // [ - toggle sidebar collapse
+      {
+        key: "[",
+        action: () => uiStore.toggleSidebarCollapsed(),
+      },
+
       // Ctrl/Cmd+Z - undo
       {
         key: "z",

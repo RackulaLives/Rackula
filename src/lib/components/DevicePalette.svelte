@@ -7,6 +7,7 @@
   import { Accordion } from "bits-ui";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
+  import { getUIStore } from "$lib/stores/ui.svelte";
   import {
     searchDevices,
     groupDevicesByCategory,
@@ -19,6 +20,10 @@
     saveGroupingModeToStorage,
     type DeviceGroupingMode,
   } from "$lib/utils/deviceGrouping";
+  import {
+    SIDEBAR_WIDTHS,
+    type SidebarWidthPreset,
+  } from "$lib/utils/sidebarWidth";
   import { debounce } from "$lib/utils/debounce";
   import { truncateWithEllipsis } from "$lib/utils/searchHighlight";
   import { parseDeviceLibraryImport } from "$lib/utils/import";
@@ -36,6 +41,8 @@
   }
 
   let { onadddevice, ondeviceselect }: Props = $props();
+
+  const uiStore = getUIStore();
 
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
@@ -58,6 +65,21 @@
   function handleGroupingModeChange(newMode: DeviceGroupingMode) {
     groupingMode = newMode;
     saveGroupingModeToStorage(newMode);
+  }
+
+  // Width preset options for SegmentedControl
+  const widthPresetOptions: { value: SidebarWidthPreset; label: string }[] = [
+    { value: "compact", label: "S" },
+    { value: "normal", label: "M" },
+    { value: "wide", label: "L" },
+  ];
+
+  function handleWidthPresetChange(newPreset: SidebarWidthPreset) {
+    uiStore.setSidebarWidth(newPreset);
+  }
+
+  function handleCollapseToggle() {
+    uiStore.toggleSidebarCollapsed();
   }
 
   // Accordion mode and state tracking
@@ -365,149 +387,189 @@
   }
 </script>
 
-<div class="device-palette">
-  <!-- Grouping Mode and Search -->
-  <div class="search-container">
-    <SegmentedControl
-      options={groupingModeOptions}
-      value={groupingMode}
-      onchange={handleGroupingModeChange}
-      ariaLabel="Grouping mode"
-    />
-    <input
-      type="search"
-      class="search-input"
-      placeholder="Search devices..."
-      bind:value={searchQueryRaw}
-      oninput={() => updateSearchQuery(searchQueryRaw)}
-      aria-label="Search devices"
-      data-testid="search-devices"
-    />
-  </div>
-
-  <!-- Device List -->
-  <div class="device-list">
-    {#if !hasDevices}
-      <div class="empty-state">
-        <p class="empty-message">No devices in library</p>
-        <p class="empty-hint">Add a device to get started</p>
-      </div>
-    {:else if !hasResults}
-      <div class="empty-state">
-        <p class="empty-message">No devices match your search</p>
-      </div>
-    {:else}
-      <Accordion.Root type={accordionMode} bind:value={accordionValue}>
-        {#each sections as section (section.id)}
-          <Accordion.Item value={section.id} class="accordion-item">
-            <Accordion.Header>
-              <Accordion.Trigger
-                class="accordion-trigger{section.isEmpty
-                  ? ' has-no-matches'
-                  : ''}"
-                onclick={handleAccordionTriggerClick}
-              >
-                <span class="section-header">
-                  {#if section.icon || section.id === "apc"}
-                    <BrandIcon slug={section.icon} size={16} />
-                  {/if}
-                  <span class="section-title">{section.title}</span>
-                </span>
-
-                {#if isSearchActive && section.matchCount !== undefined}
-                  <span class="match-info">
-                    <span class="match-count">({section.matchCount})</span>
-                    {#if section.firstMatch && Array.isArray(accordionValue) && !accordionValue.includes(section.id)}
-                      <span class="match-preview">
-                        -
-                        {truncateWithEllipsis(
-                          section.firstMatch.model ?? section.firstMatch.slug,
-                          30,
-                        )}
-                      </span>
-                    {/if}
-                  </span>
-                {:else}
-                  <span class="section-count">({section.devices.length})</span>
-                {/if}
-              </Accordion.Trigger>
-            </Accordion.Header>
-            <Accordion.Content class="accordion-content">
-              <div class="accordion-content-inner">
-                {#if section.id === "generic" && groupingMode === "brand"}
-                  <!-- Generic section uses category grouping (brand mode only) -->
-                  {#each [...groupedGenericDevices.entries()] as [category, devices] (category)}
-                    {#if !isSearchActive || devices.length > 0}
-                      <div class="category-group">
-                        <h3 class="category-header">
-                          {getCategoryDisplayName(category)}
-                        </h3>
-                        <div class="category-devices">
-                          {#each devices as device (device.slug)}
-                            <DevicePaletteItem
-                              {device}
-                              searchQuery={isSearchActive ? searchQuery : ""}
-                              onselect={handleDeviceSelect}
-                            />
-                          {/each}
-                        </div>
-                      </div>
-                    {/if}
-                  {/each}
-                {:else}
-                  <!-- All other sections show devices in a flat list -->
-                  <div class="section-devices">
-                    {#each section.devices as device (device.slug)}
-                      <DevicePaletteItem
-                        {device}
-                        searchQuery={isSearchActive ? searchQuery : ""}
-                        onselect={handleDeviceSelect}
-                      />
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            </Accordion.Content>
-          </Accordion.Item>
-        {/each}
-      </Accordion.Root>
-    {/if}
-  </div>
-
-  <!-- Hidden file input for import -->
-  <input
-    bind:this={fileInputRef}
-    type="file"
-    accept=".json,application/json"
-    onchange={handleFileChange}
-    style="display: none;"
-    aria-label="Import device library file"
-  />
-
-  <!-- Actions -->
-  <div class="actions">
-    <div class="actions-row">
+<div class="device-palette" class:collapsed={uiStore.sidebarCollapsed}>
+  {#if uiStore.sidebarCollapsed}
+    <!-- Collapsed view: show only expand button -->
+    <div class="collapsed-view">
       <button
-        class="import-button"
+        class="collapse-toggle expand"
         type="button"
-        onclick={handleImportClick}
-        aria-label="Import device library"
-        data-testid="btn-import-devices"
+        onclick={handleCollapseToggle}
+        aria-label="Expand device library"
+        aria-expanded="false"
+        title="Expand device library"
       >
-        <span class="import-icon">↓</span>
-        Import
+        <span class="collapse-icon">→</span>
       </button>
-      <button
-        class="add-device-button"
-        type="button"
-        onclick={handleAddDevice}
-        data-testid="btn-add-device"
-      >
-        <span class="add-icon">+</span>
-        Add Device
-      </button>
+      <span class="collapsed-label">Devices</span>
     </div>
-  </div>
+  {:else}
+    <!-- Expanded view: full controls -->
+    <!-- Header with collapse toggle and width presets -->
+    <div class="palette-header">
+      <button
+        class="collapse-toggle"
+        type="button"
+        onclick={handleCollapseToggle}
+        aria-label="Collapse device library"
+        aria-expanded="true"
+        title="Collapse device library"
+      >
+        <span class="collapse-icon">←</span>
+      </button>
+      <SegmentedControl
+        options={widthPresetOptions}
+        value={uiStore.sidebarWidth}
+        onchange={handleWidthPresetChange}
+        ariaLabel="Panel width"
+        size="small"
+      />
+    </div>
+
+    <!-- Grouping Mode and Search -->
+    <div class="search-container">
+      <SegmentedControl
+        options={groupingModeOptions}
+        value={groupingMode}
+        onchange={handleGroupingModeChange}
+        ariaLabel="Grouping mode"
+      />
+      <input
+        type="search"
+        class="search-input"
+        placeholder="Search devices..."
+        bind:value={searchQueryRaw}
+        oninput={() => updateSearchQuery(searchQueryRaw)}
+        aria-label="Search devices"
+        data-testid="search-devices"
+      />
+    </div>
+
+    <!-- Device List -->
+    <div class="device-list">
+      {#if !hasDevices}
+        <div class="empty-state">
+          <p class="empty-message">No devices in library</p>
+          <p class="empty-hint">Add a device to get started</p>
+        </div>
+      {:else if !hasResults}
+        <div class="empty-state">
+          <p class="empty-message">No devices match your search</p>
+        </div>
+      {:else}
+        <Accordion.Root type={accordionMode} bind:value={accordionValue}>
+          {#each sections as section (section.id)}
+            <Accordion.Item value={section.id} class="accordion-item">
+              <Accordion.Header>
+                <Accordion.Trigger
+                  class="accordion-trigger{section.isEmpty
+                    ? ' has-no-matches'
+                    : ''}"
+                  onclick={handleAccordionTriggerClick}
+                >
+                  <span class="section-header">
+                    {#if section.icon || section.id === "apc"}
+                      <BrandIcon slug={section.icon} size={16} />
+                    {/if}
+                    <span class="section-title">{section.title}</span>
+                  </span>
+
+                  {#if isSearchActive && section.matchCount !== undefined}
+                    <span class="match-info">
+                      <span class="match-count">({section.matchCount})</span>
+                      {#if section.firstMatch && Array.isArray(accordionValue) && !accordionValue.includes(section.id)}
+                        <span class="match-preview">
+                          -
+                          {truncateWithEllipsis(
+                            section.firstMatch.model ?? section.firstMatch.slug,
+                            30,
+                          )}
+                        </span>
+                      {/if}
+                    </span>
+                  {:else}
+                    <span class="section-count">({section.devices.length})</span
+                    >
+                  {/if}
+                </Accordion.Trigger>
+              </Accordion.Header>
+              <Accordion.Content class="accordion-content">
+                <div class="accordion-content-inner">
+                  {#if section.id === "generic" && groupingMode === "brand"}
+                    <!-- Generic section uses category grouping (brand mode only) -->
+                    {#each [...groupedGenericDevices.entries()] as [category, devices] (category)}
+                      {#if !isSearchActive || devices.length > 0}
+                        <div class="category-group">
+                          <h3 class="category-header">
+                            {getCategoryDisplayName(category)}
+                          </h3>
+                          <div class="category-devices">
+                            {#each devices as device (device.slug)}
+                              <DevicePaletteItem
+                                {device}
+                                searchQuery={isSearchActive ? searchQuery : ""}
+                                onselect={handleDeviceSelect}
+                              />
+                            {/each}
+                          </div>
+                        </div>
+                      {/if}
+                    {/each}
+                  {:else}
+                    <!-- All other sections show devices in a flat list -->
+                    <div class="section-devices">
+                      {#each section.devices as device (device.slug)}
+                        <DevicePaletteItem
+                          {device}
+                          searchQuery={isSearchActive ? searchQuery : ""}
+                          onselect={handleDeviceSelect}
+                        />
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              </Accordion.Content>
+            </Accordion.Item>
+          {/each}
+        </Accordion.Root>
+      {/if}
+    </div>
+
+    <!-- Hidden file input for import -->
+    <input
+      bind:this={fileInputRef}
+      type="file"
+      accept=".json,application/json"
+      onchange={handleFileChange}
+      style="display: none;"
+      aria-label="Import device library file"
+    />
+
+    <!-- Actions -->
+    <div class="actions">
+      <div class="actions-row">
+        <button
+          class="import-button"
+          type="button"
+          onclick={handleImportClick}
+          aria-label="Import device library"
+          data-testid="btn-import-devices"
+        >
+          <span class="import-icon">↓</span>
+          Import
+        </button>
+        <button
+          class="add-device-button"
+          type="button"
+          onclick={handleAddDevice}
+          data-testid="btn-add-device"
+        >
+          <span class="add-icon">+</span>
+          Add Device
+        </button>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -516,6 +578,78 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+  }
+
+  /* Collapsed state */
+  .device-palette.collapsed {
+    align-items: center;
+    padding-top: var(--space-2);
+  }
+
+  .collapsed-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2);
+  }
+
+  .collapsed-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--colour-text-muted);
+    letter-spacing: 0.05em;
+  }
+
+  /* Header with collapse toggle and width presets */
+  .palette-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-2) 0;
+  }
+
+  .collapse-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: var(--colour-surface-secondary);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+    color: var(--colour-text);
+    cursor: pointer;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease;
+    flex-shrink: 0;
+  }
+
+  .collapse-toggle:hover {
+    background: var(--colour-surface-hover);
+    border-color: var(--colour-border-hover);
+  }
+
+  .collapse-toggle:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 1px;
+  }
+
+  .collapse-toggle.expand {
+    width: 32px;
+    height: 32px;
+  }
+
+  .collapse-icon {
+    font-size: var(--font-size-sm);
+    font-weight: bold;
+    line-height: 1;
   }
 
   .search-container {
