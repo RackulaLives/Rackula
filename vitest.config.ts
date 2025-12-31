@@ -10,7 +10,7 @@ export default defineConfig({
   define: {
     // Inject version at build time (same as vite.config.ts)
     __APP_VERSION__: JSON.stringify(pkg.version),
-    // Inject build timestamp (use a fixed timestamp for test consistency)
+    // Inject build timestamp at test start (same as vite.config.ts)
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
   test: {
