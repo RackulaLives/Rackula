@@ -23,6 +23,7 @@ import { cyberpowerDevices } from "./cyberpower";
 import { netgateDevices } from "./netgate";
 import { blackmagicdesignDevices } from "./blackmagicdesign";
 import { deskpiDevices } from "./deskpi";
+import { acInfinityDevices } from "./ac-infinity";
 
 export {
   ubiquitiDevices,
@@ -44,6 +45,7 @@ export {
   netgateDevices,
   blackmagicdesignDevices,
   deskpiDevices,
+  acInfinityDevices,
 };
 
 /**
@@ -193,6 +195,13 @@ export function getBrandPacks(): BrandSection[] {
       devices: deskpiDevices,
       defaultExpanded: false,
     },
+    // Cooling
+    {
+      id: "ac-infinity",
+      title: "AC Infinity",
+      devices: acInfinityDevices,
+      defaultExpanded: false,
+    },
   ];
 }
 
@@ -237,6 +246,8 @@ export function getBrandDevices(brandId: string): DeviceType[] {
       return blackmagicdesignDevices;
     case "deskpi":
       return deskpiDevices;
+    case "ac-infinity":
+      return acInfinityDevices;
     default:
       return [];
   }
@@ -266,6 +277,7 @@ export function getAllBrandDevices(): DeviceType[] {
     ...netgateDevices,
     ...blackmagicdesignDevices,
     ...deskpiDevices,
+    ...acInfinityDevices,
   ];
 }
 
