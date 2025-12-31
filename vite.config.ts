@@ -15,6 +15,8 @@ export default defineConfig(() => ({
   define: {
     // Inject version at build time
     __APP_VERSION__: JSON.stringify(pkg.version),
+    // Inject build timestamp at build time (ISO 8601)
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     // Environment indicator (development, production, or empty for local detection)
     __BUILD_ENV__: JSON.stringify(process.env.VITE_ENV || ""),
     // Umami analytics configuration
