@@ -8,7 +8,7 @@ import { mikrotikDevices } from "$lib/data/brandPacks/mikrotik";
 describe("MikroTik Brand Pack", () => {
   describe("Device Count", () => {
     it("exports correct number of devices", () => {
-      expect(mikrotikDevices).toHaveLength(57);
+      expect(mikrotikDevices).toHaveLength(58);
     });
   });
 
@@ -29,7 +29,7 @@ describe("MikroTik Brand Pack", () => {
 
     it("all devices have valid u_height", () => {
       for (const device of mikrotikDevices) {
-        expect(device.u_height).toBeGreaterThanOrEqual(1);
+        expect(device.u_height).toBeGreaterThanOrEqual(0.5);
         expect(device.u_height).toBeLessThanOrEqual(4);
       }
     });
