@@ -117,7 +117,7 @@
 	}
 </script>
 
-<Dialog {open} title="New Rack" showClose={false}>
+<Dialog {open} title="New Rack" width="460px" showClose={false}>
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<form class="new-rack-form" onsubmit={(e) => e.preventDefault()} onkeydown={handleKeyDown}>
 		<div class="form-group">
