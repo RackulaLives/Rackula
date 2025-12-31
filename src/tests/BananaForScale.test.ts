@@ -103,6 +103,8 @@ describe("BananaForScale", () => {
       const style = svg?.getAttribute("style") || "";
       // Should have a positive rotation (clockwise) to lean against right edge with stem up
       expect(style).toMatch(/rotate\(75deg\)/);
+      // Pivot point should be bottom-left so banana rotates correctly against rack edge
+      expect(style).toMatch(/transform-origin:\s*bottom left/);
     });
   });
 });
