@@ -12,6 +12,7 @@
   import EditPanel from "$lib/components/EditPanel.svelte";
   import NewRackForm from "$lib/components/NewRackForm.svelte";
   import AddDeviceForm from "$lib/components/AddDeviceForm.svelte";
+  import ImportFromNetBoxDialog from "$lib/components/ImportFromNetBoxDialog.svelte";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import ConfirmReplaceDialog from "$lib/components/ConfirmReplaceDialog.svelte";
   import ToastContainer from "$lib/components/ToastContainer.svelte";
@@ -62,6 +63,7 @@
     generateExportFilename,
   } from "$lib/utils/export";
   import type { ExportOptions } from "$lib/types";
+  import type { ImportResult } from "$lib/utils/netbox-import";
   import { analytics } from "$lib/utils/analytics";
   import { hapticTap } from "$lib/utils/haptics";
 
@@ -87,6 +89,7 @@
   let exportDialogOpen = $state(false);
   let shareDialogOpen = $state(false);
   let helpPanelOpen = $state(false);
+  let importFromNetBoxOpen = $state(false);
   let deleteTarget: { type: "rack" | "device"; name: string } | null =
     $state(null);
   let showReplaceDialog = $state(false);
@@ -594,6 +597,30 @@
     addDeviceFormOpen = false;
   }
 
+  // NetBox import handlers
+  function handleImportFromNetBox() {
+    importFromNetBoxOpen = true;
+  }
+
+  function handleNetBoxImport(result: ImportResult) {
+    // Add the imported device type to the library
+    layoutStore.addDeviceTypeRaw(result.deviceType);
+    layoutStore.markDirty();
+
+    // Track the import
+    analytics.trackCustomDeviceCreate(result.deviceType.category);
+
+    toastStore.showToast(
+      `Imported "${result.deviceType.model}" to device library`,
+      "success",
+    );
+    importFromNetBoxOpen = false;
+  }
+
+  function handleNetBoxImportCancel() {
+    importFromNetBoxOpen = false;
+  }
+
   // Beforeunload handler for unsaved changes
   function handleBeforeUnload(event: BeforeUnloadEvent) {
     if (layoutStore.isDirty) {
@@ -802,8 +829,11 @@
 
   <main class="app-main" class:mobile={viewportStore.isMobile}>
     {#if !viewportStore.isMobile}
-      <Sidebar side="left" collapsed={uiStore.sidebarCollapsed}>
-        <DevicePalette onadddevice={handleAddDevice} />
+      <Sidebar side="left">
+        <DevicePalette
+          onadddevice={handleAddDevice}
+          onimportfromnetbox={handleImportFromNetBox}
+        />
       </Sidebar>
     {/if}
 
@@ -865,6 +895,12 @@
     oncancel={handleAddDeviceCancel}
   />
 
+  <ImportFromNetBoxDialog
+    open={importFromNetBoxOpen}
+    onimport={handleNetBoxImport}
+    oncancel={handleNetBoxImportCancel}
+  />
+
   <ConfirmDialog
     open={confirmDeleteOpen}
     title={deleteTarget?.type === "rack" ? "Delete Rack" : "Remove Device"}
@@ -924,6 +960,7 @@
     >
       <DevicePalette
         onadddevice={handleAddDevice}
+        onimportfromnetbox={handleImportFromNetBox}
         ondeviceselect={handleMobileDeviceSelect}
       />
     </BottomSheet>

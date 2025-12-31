@@ -4,572 +4,582 @@
  * Source: NetBox community devicetype-library
  */
 
-import type { DeviceType } from '$lib/types';
-import { CATEGORY_COLOURS } from '$lib/types/constants';
+import type { DeviceType } from "$lib/types";
+import { CATEGORY_COLOURS } from "$lib/types/constants";
 
 /**
  * MikroTik device definitions (27 rack-mountable devices)
  */
 export const mikrotikDevices: DeviceType[] = [
-	// ============================================
-	// Cloud Core Routers - CCR1009 Series
-	// ============================================
-	{
-		slug: 'ccr1009-7g-1c-1s-plus-pc',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1009-7G-1C-1S+PC',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'ccr1009-7g-1c-1s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1009-7G-1C-1S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'ccr1009-7g-1c-pc',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1009-7G-1C-PC',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'ccr1009-8g-1s-1s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1009-8G-1S-1S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
+  // ============================================
+  // Cloud Core Routers - CCR1009 Series
+  // ============================================
+  {
+    slug: "ccr1009-7g-1c-1s-plus-pc",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1009-7G-1C-1S+PC",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "ccr1009-7g-1c-1s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1009-7G-1C-1S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "ccr1009-7g-1c-pc",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1009-7G-1C-PC",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "ccr1009-8g-1s-1s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1009-8G-1S-1S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
 
-	// ============================================
-	// Cloud Core Routers - CCR1016 Series
-	// ============================================
-	{
-		slug: 'ccr1016-12g',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1016-12G',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'ccr1016-12s-1s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1016-12S-1S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
+  // ============================================
+  // Cloud Core Routers - CCR1016 Series
+  // ============================================
+  {
+    slug: "ccr1016-12g",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1016-12G",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "ccr1016-12s-1s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1016-12S-1S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
 
-	// ============================================
-	// Cloud Core Routers - CCR1036 Series
-	// ============================================
-	{
-		slug: 'ccr1036-12g-4s-em',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1036-12G-4S-EM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'ccr1036-12g-4s',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1036-12G-4S',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'ccr1036-8g-2s-plus-em',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1036-8G-2S+EM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'ccr1036-8g-2s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1036-8G-2S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
+  // ============================================
+  // Cloud Core Routers - CCR1036 Series
+  // ============================================
+  {
+    slug: "ccr1036-12g-4s-em",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1036-12G-4S-EM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "ccr1036-12g-4s",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1036-12G-4S",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "ccr1036-8g-2s-plus-em",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1036-8G-2S+EM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "ccr1036-8g-2s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1036-8G-2S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
 
-	// ============================================
-	// Cloud Core Routers - CCR1072 Series
-	// ============================================
-	{
-		slug: 'ccr1072-1g-8s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1072-1G-8S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
+  // ============================================
+  // Cloud Core Routers - CCR1072 Series
+  // ============================================
+  {
+    slug: "ccr1072-1g-8s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1072-1G-8S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
 
-	// ============================================
-	// Cloud Core Routers - CCR2004 Series
-	// ============================================
-	{
-		slug: 'ccr2004-16g-2s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR2004-16G-2S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'ccr2004-1g-12s-plus-2xs',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR2004-1G-12S+2XS',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
+  // ============================================
+  // Cloud Core Routers - CCR2004 Series
+  // ============================================
+  {
+    slug: "ccr2004-16g-2s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR2004-16G-2S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "ccr2004-1g-12s-plus-2xs",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR2004-1G-12S+2XS",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
 
-	// ============================================
-	// Cloud Core Routers - CCR2116/CCR2216 Series
-	// ============================================
-	{
-		slug: 'ccr2116-12g-4s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR2116-12G-4S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'ccr2216-1g-12xs-2xq',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR2216-1G-12XS-2XQ',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
+  // ============================================
+  // Cloud Core Routers - CCR2116/CCR2216 Series
+  // ============================================
+  {
+    slug: "ccr2116-12g-4s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR2116-12G-4S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "ccr2216-1g-12xs-2xq",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR2216-1G-12XS-2XQ",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
 
-	// ============================================
-	// Cloud Router Switches - CRS300 Series
-	// ============================================
-	{
-		slug: 'crs309-1g-8s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS309-1G-8S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'crs312-4c-plus-8xg-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS312-4C+8XG-RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'crs317-1g-16s-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS317-1G-16S+RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'crs320-8p-8b-4s-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS320-8P-8B-4S+RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'crs326-24g-2s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS326-24G-2S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'crs328-24p-4s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS328-24P-4S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'crs328-4c-20s-4s-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS328-4C-20S-4S+RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
+  // ============================================
+  // Cloud Router Switches - CRS300 Series
+  // ============================================
+  {
+    slug: "crs309-1g-8s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS309-1G-8S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "crs312-4c-plus-8xg-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS312-4C+8XG-RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "crs317-1g-16s-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS317-1G-16S+RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "crs320-8p-8b-4s-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS320-8P-8B-4S+RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "crs326-24g-2s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS326-24G-2S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "crs328-24p-4s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS328-24P-4S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "crs328-4c-20s-4s-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS328-4C-20S-4S+RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
 
-	// ============================================
-	// Cloud Router Switches - CRS354 Series
-	// ============================================
-	{
-		slug: 'crs354-48g-4s-plus-2q-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS354-48G-4S+2Q+RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'crs354-48p-4s-plus-2q-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS354-48P-4S+2Q+RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
+  // ============================================
+  // Cloud Router Switches - CRS354 Series
+  // ============================================
+  {
+    slug: "crs354-48g-4s-plus-2q-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS354-48G-4S+2Q+RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "crs354-48p-4s-plus-2q-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS354-48P-4S+2Q+RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
 
-	// ============================================
-	// RouterBOARD - RB Series
-	// ============================================
-	{
-		slug: 'rb2011uias-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'RB2011UiAS-RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'rb3011uias-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'RB3011UiAS-RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'rb4011igs-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'RB4011iGS+RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
+  // ============================================
+  // RouterBOARD - RB Series
+  // ============================================
+  {
+    slug: "rb2011uias-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "RB2011UiAS-RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "rb3011uias-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "RB3011UiAS-RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "rb4011igs-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "RB4011iGS+RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "rb5009ug-plus-s-plus-in",
+    u_height: 0.5,
+    manufacturer: "MikroTik",
+    model: "RB5009UG+S+IN",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
 
-	// Additional devices from NetBox library
-	{
-		slug: 'mikrotik-ccr1009-7g-1c-1s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1009-7G-1C-1S+',
-		is_full_depth: false,
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr1009-7g-1c-1s-plus-pc',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1009-7G-1C-1S+PC',
-		is_full_depth: false,
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr1009-7g-1c-pc',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1009-7G-1C-PC',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr1009-8g-1s-1s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1009-8G-1S-1S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr1016-12g',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1016-12G',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr1016-12s-1s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1016-12S-1S+',
-		is_full_depth: false,
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr1016-12s-1s-plus-r2',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1016-12S-1S+-r2',
-		is_full_depth: false,
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr1036-12g-4s',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1036-12G-4S',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr1036-12g-4s-em',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1036-12G-4S-EM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr1036-8g-2s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1036-8G-2S+',
-		is_full_depth: false,
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr1036-8g-2s-plus-em',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1036-8G-2S+EM',
-		is_full_depth: false,
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr1072-1g-8s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR1072-1G-8S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr2004-16g-2s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR2004-16G-2S+',
-		is_full_depth: false,
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr2004-1g-12s-plus-2xs',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR2004-1G-12S+2XS',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr2116-12g-4s-plus',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR2116-12G-4S+',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-ccr2216-1g-12xs-2xq',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CCR2216-1G-12XS-2XQ',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs305-1g-4s-plus-in',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS305-1G-4S+IN',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs309-1g-8s-plus-in',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS309-1G-8S+IN',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs310-1g-5s-4s-plus-in',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS310-1G-5S-4S+IN',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs310-8g-plus-2s-plus-in',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS310-8G+2S+IN',
-		is_full_depth: false,
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs312-4c-plus-8xg-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS312-4C+8XG-RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs317-1g-16s-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS317-1G-16S+RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs320-8p-8b-4s-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS320-8P-8B-4S+RM',
-		is_full_depth: false,
-		airflow: 'side-to-rear',
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs326-24g-2s-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS326-24G-2S+RM',
-		is_full_depth: false,
-		airflow: 'passive',
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs326-24s-plus-2q-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS326-24S+2Q+RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs326-4c-plus-20g-plus-2q-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS326-4C+20G+2Q+RM',
-		is_full_depth: false,
-		airflow: 'mixed',
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs328-24p-4s-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS328-24P-4S+RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs328-4c-20s-4s-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS328-4C-20S-4S+RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs354-48g-4s-plus-2q-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS354-48G-4S+2Q+RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	},
-	{
-		slug: 'mikrotik-crs354-48p-4s-plus-2q-plus-rm',
-		u_height: 1,
-		manufacturer: 'MikroTik',
-		model: 'CRS354-48P-4S+2Q+RM',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network'
-	}
+  // Additional devices from NetBox library
+  {
+    slug: "mikrotik-ccr1009-7g-1c-1s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1009-7G-1C-1S+",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr1009-7g-1c-1s-plus-pc",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1009-7G-1C-1S+PC",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr1009-7g-1c-pc",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1009-7G-1C-PC",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr1009-8g-1s-1s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1009-8G-1S-1S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr1016-12g",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1016-12G",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr1016-12s-1s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1016-12S-1S+",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr1016-12s-1s-plus-r2",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1016-12S-1S+-r2",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr1036-12g-4s",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1036-12G-4S",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr1036-12g-4s-em",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1036-12G-4S-EM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr1036-8g-2s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1036-8G-2S+",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr1036-8g-2s-plus-em",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1036-8G-2S+EM",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr1072-1g-8s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR1072-1G-8S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr2004-16g-2s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR2004-16G-2S+",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr2004-1g-12s-plus-2xs",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR2004-1G-12S+2XS",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr2116-12g-4s-plus",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR2116-12G-4S+",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-ccr2216-1g-12xs-2xq",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CCR2216-1G-12XS-2XQ",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs305-1g-4s-plus-in",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS305-1G-4S+IN",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs309-1g-8s-plus-in",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS309-1G-8S+IN",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs310-1g-5s-4s-plus-in",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS310-1G-5S-4S+IN",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs310-8g-plus-2s-plus-in",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS310-8G+2S+IN",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs312-4c-plus-8xg-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS312-4C+8XG-RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs317-1g-16s-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS317-1G-16S+RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs320-8p-8b-4s-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS320-8P-8B-4S+RM",
+    is_full_depth: false,
+    airflow: "side-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs326-24g-2s-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS326-24G-2S+RM",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs326-24s-plus-2q-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS326-24S+2Q+RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs326-4c-plus-20g-plus-2q-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS326-4C+20G+2Q+RM",
+    is_full_depth: false,
+    airflow: "mixed",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs328-24p-4s-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS328-24P-4S+RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs328-4c-20s-4s-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS328-4C-20S-4S+RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs354-48g-4s-plus-2q-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS354-48G-4S+2Q+RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+  {
+    slug: "mikrotik-crs354-48p-4s-plus-2q-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS354-48P-4S+2Q+RM",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
 ];

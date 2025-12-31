@@ -37,10 +37,11 @@
 
   interface Props {
     onadddevice?: () => void;
+    onimportfromnetbox?: () => void;
     ondeviceselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
   }
 
-  let { onadddevice, ondeviceselect }: Props = $props();
+  let { onadddevice, onimportfromnetbox, ondeviceselect }: Props = $props();
 
   const uiStore = getUIStore();
 
@@ -332,6 +333,10 @@
     onadddevice?.();
   }
 
+  function handleImportFromNetBox() {
+    onimportfromnetbox?.();
+  }
+
   function handleDeviceSelect(event: CustomEvent<{ device: DeviceType }>) {
     ondeviceselect?.(event);
   }
@@ -425,151 +430,16 @@
         size="small"
       />
     </div>
-
-    <!-- Grouping Mode and Search -->
-    <div class="search-container">
-      <SegmentedControl
-        options={groupingModeOptions}
-        value={groupingMode}
-        onchange={handleGroupingModeChange}
-        ariaLabel="Grouping mode"
-      />
-      <input
-        type="search"
-        class="search-input"
-        placeholder="Search devices..."
-        bind:value={searchQueryRaw}
-        oninput={() => updateSearchQuery(searchQueryRaw)}
-        aria-label="Search devices"
-        data-testid="search-devices"
-      />
-    </div>
-
-    <!-- Device List -->
-    <div class="device-list">
-      {#if !hasDevices}
-        <div class="empty-state">
-          <p class="empty-message">No devices in library</p>
-          <p class="empty-hint">Add a device to get started</p>
-        </div>
-      {:else if !hasResults}
-        <div class="empty-state">
-          <p class="empty-message">No devices match your search</p>
-        </div>
-      {:else}
-        <Accordion.Root type={accordionMode} bind:value={accordionValue}>
-          {#each sections as section (section.id)}
-            <Accordion.Item value={section.id} class="accordion-item">
-              <Accordion.Header>
-                <Accordion.Trigger
-                  class="accordion-trigger{section.isEmpty
-                    ? ' has-no-matches'
-                    : ''}"
-                  onclick={handleAccordionTriggerClick}
-                >
-                  <span class="section-header">
-                    {#if section.icon || section.id === "apc"}
-                      <BrandIcon slug={section.icon} size={16} />
-                    {/if}
-                    <span class="section-title">{section.title}</span>
-                  </span>
-
-                  {#if isSearchActive && section.matchCount !== undefined}
-                    <span class="match-info">
-                      <span class="match-count">({section.matchCount})</span>
-                      {#if section.firstMatch && Array.isArray(accordionValue) && !accordionValue.includes(section.id)}
-                        <span class="match-preview">
-                          -
-                          {truncateWithEllipsis(
-                            section.firstMatch.model ?? section.firstMatch.slug,
-                            30,
-                          )}
-                        </span>
-                      {/if}
-                    </span>
-                  {:else}
-                    <span class="section-count">({section.devices.length})</span
-                    >
-                  {/if}
-                </Accordion.Trigger>
-              </Accordion.Header>
-              <Accordion.Content class="accordion-content">
-                <div class="accordion-content-inner">
-                  {#if section.id === "generic" && groupingMode === "brand"}
-                    <!-- Generic section uses category grouping (brand mode only) -->
-                    {#each [...groupedGenericDevices.entries()] as [category, devices] (category)}
-                      {#if !isSearchActive || devices.length > 0}
-                        <div class="category-group">
-                          <h3 class="category-header">
-                            {getCategoryDisplayName(category)}
-                          </h3>
-                          <div class="category-devices">
-                            {#each devices as device (device.slug)}
-                              <DevicePaletteItem
-                                {device}
-                                searchQuery={isSearchActive ? searchQuery : ""}
-                                onselect={handleDeviceSelect}
-                              />
-                            {/each}
-                          </div>
-                        </div>
-                      {/if}
-                    {/each}
-                  {:else}
-                    <!-- All other sections show devices in a flat list -->
-                    <div class="section-devices">
-                      {#each section.devices as device (device.slug)}
-                        <DevicePaletteItem
-                          {device}
-                          searchQuery={isSearchActive ? searchQuery : ""}
-                          onselect={handleDeviceSelect}
-                        />
-                      {/each}
-                    </div>
-                  {/if}
-                </div>
-              </Accordion.Content>
-            </Accordion.Item>
-          {/each}
-        </Accordion.Root>
-      {/if}
-    </div>
-
-    <!-- Hidden file input for import -->
-    <input
-      bind:this={fileInputRef}
-      type="file"
-      accept=".json,application/json"
-      onchange={handleFileChange}
-      style="display: none;"
-      aria-label="Import device library file"
-    />
-
-    <!-- Actions -->
-    <div class="actions">
-      <div class="actions-row">
-        <button
-          class="import-button"
-          type="button"
-          onclick={handleImportClick}
-          aria-label="Import device library"
-          data-testid="btn-import-devices"
-        >
-          <span class="import-icon">↓</span>
-          Import
-        </button>
-        <button
-          class="add-device-button"
-          type="button"
-          onclick={handleAddDevice}
-          data-testid="btn-add-device"
-        >
-          <span class="add-icon">+</span>
-          Add Device
-        </button>
-      </div>
-    </div>
-  {/if}
+    <button
+      class="netbox-import-button"
+      type="button"
+      onclick={handleImportFromNetBox}
+      aria-label="Import from NetBox device type library"
+      data-testid="btn-import-netbox"
+    >
+      Import from NetBox YAML
+    </button>
+  </div>
 </div>
 
 <style>
@@ -884,5 +754,30 @@
   .add-icon {
     font-size: var(--font-size-base);
     font-weight: bold;
+  }
+
+  .netbox-import-button {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    margin-top: var(--space-2);
+    font-size: var(--font-size-xs);
+    color: var(--colour-text-muted);
+    background: transparent;
+    border: 1px dashed var(--button-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .netbox-import-button:hover {
+    color: var(--colour-text);
+    border-color: var(--colour-text);
+  }
+
+  .netbox-import-button:focus {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
   }
 </style>

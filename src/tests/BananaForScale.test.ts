@@ -95,4 +95,14 @@ describe("BananaForScale", () => {
       expect(svg).toHaveClass("banana-for-scale");
     });
   });
+
+  describe("Orientation", () => {
+    it("is rotated to lean upright against rack", () => {
+      const { container } = render(BananaForScale);
+      const svg = container.querySelector("svg");
+      const style = svg?.getAttribute("style") || "";
+      // Should have a rotation transform (negative angle to lean against right edge)
+      expect(style).toMatch(/rotate\(-?\d+deg\)/);
+    });
+  });
 });

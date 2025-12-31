@@ -570,7 +570,7 @@ export const ubiquitiDevices: DeviceType[] = [
 	// ============================================
 	{
 		slug: 'ubiquiti-usp-pdu-pro',
-		u_height: 1,
+		u_height: 2,
 		manufacturer: 'Ubiquiti',
 		model: 'USP-PDU-Pro',
 		is_full_depth: false,
