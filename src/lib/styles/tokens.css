@@ -316,10 +316,15 @@
   --colour-button-overlay: rgba(0, 0, 0, 0.1);
   --colour-button-overlay-hover: rgba(0, 0, 0, 0.2);
 
+  /* Dialog Widths */
+  --dialog-width-default: 400px;
+  --dialog-width-md: 460px;
+
   /* Form Inputs */
   --input-bg: var(--dracula-bg-light);
   --input-border: var(--dracula-selection);
   --input-placeholder: var(--dracula-comment);
+  --input-width-custom: 80px;
 
   /* Buttons */
   --button-bg: var(--dracula-bg-light);
