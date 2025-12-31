@@ -103,7 +103,7 @@ export const MinimalRackSchema = z.object({
   /** height */
   h: z.number().int().min(1).max(100),
   /** width */
-  w: z.union([z.literal(10), z.literal(19), z.literal(23)]),
+  w: z.union([z.literal(10), z.literal(19), z.literal(21), z.literal(23)]),
   /** devices */
   d: z.array(MinimalDeviceSchema),
 });

@@ -103,7 +103,7 @@ export const FIT_ALL_MAX_ZOOM = 2;
 /**
  * Calculate rack width based on nominal width in inches
  * Scales proportionally from 19" base width
- * @param nominalWidth - Rack width in inches (10, 19, or 23)
+ * @param nominalWidth - Rack width in inches (10, 19, 21, or 23)
  */
 export function getRackWidth(nominalWidth: number): number {
 	return Math.round((BASE_RACK_WIDTH * nominalWidth) / 19);

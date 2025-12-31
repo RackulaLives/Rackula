@@ -65,9 +65,9 @@ export function validateRack(rack: Rack): RackValidationResult {
     );
   }
 
-  // Validate width (must be 10, 19, or 23 inches)
+  // Validate width (must be 10, 19, 21, or 23 inches)
   if (!ALLOWED_RACK_WIDTHS.includes(rack.width)) {
-    errors.push("Width must be 10, 19, or 23 inches");
+    errors.push("Width must be 10, 19, 21, or 23 inches");
   }
 
   return {
