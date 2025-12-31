@@ -193,7 +193,7 @@ describe('Rack Utilities', () => {
 			const rack = {
 				name: 'Main Rack',
 				height: 42,
-				width: 15 as 10 | 19 | 23, // Force type for test - use 15 which is invalid
+				width: 15 as 10 | 19 | 21 | 23, // Force type for test - use 15 which is invalid
 				position: 0,
 				desc_units: false,
 				form_factor: '4-post' as const,
@@ -203,8 +203,8 @@ describe('Rack Utilities', () => {
 
 			const result = validateRack(rack);
 			expect(result.valid).toBe(false);
-			// Schema v1.0.0: 10, 19, and 23 are valid widths
-			expect(result.errors).toContain('Width must be 10, 19, or 23 inches');
+			// Schema v1.0.0: 10, 19, 21, and 23 are valid widths
+			expect(result.errors).toContain('Width must be 10, 19, 21, or 23 inches');
 		});
 	});
 
