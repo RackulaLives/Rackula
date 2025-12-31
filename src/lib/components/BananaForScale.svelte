@@ -37,8 +37,8 @@
   aria-label="Banana for scale (approximately 7 inches)"
   role="img"
   style:--bottom-offset="{bottomOffset}px"
-  style:transform="rotate(75deg)"
-  style:transform-origin="bottom left"
+  style:transform="rotate(-80deg)"
+  style:transform-origin="right center"
 >
   <title>Banana for scale (7 inches)</title>
 
