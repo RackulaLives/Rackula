@@ -9,6 +9,14 @@ import {
   applyThemeToDocument,
   type Theme,
 } from "$lib/utils/theme";
+import {
+  loadSidebarWidthFromStorage,
+  saveSidebarWidthToStorage,
+  loadSidebarCollapsedFromStorage,
+  saveSidebarCollapsedToStorage,
+  getEffectiveSidebarWidth,
+  type SidebarWidthPreset,
+} from "$lib/utils/sidebarWidth";
 import type { DisplayMode, AnnotationField } from "$lib/types";
 
 // Zoom constants
@@ -16,8 +24,10 @@ export const ZOOM_MIN = 50;
 export const ZOOM_MAX = 200;
 export const ZOOM_STEP = 25;
 
-// Load initial theme from storage
+// Load initial values from storage
 const initialTheme = loadThemeFromStorage();
+const initialSidebarWidth = loadSidebarWidthFromStorage();
+const initialSidebarCollapsed = loadSidebarCollapsedFromStorage();
 
 // Module-level state (using $state rune)
 let theme = $state<Theme>(initialTheme);
@@ -28,6 +38,8 @@ let displayMode = $state<DisplayMode>("label");
 let showAnnotations = $state(false);
 let annotationField = $state<AnnotationField>("name");
 let showBanana = $state(false);
+let sidebarWidth = $state<SidebarWidthPreset>(initialSidebarWidth);
+let sidebarCollapsed = $state(initialSidebarCollapsed);
 
 // Derived values (using $derived rune)
 const canZoomIn = $derived(zoom < ZOOM_MAX);
@@ -35,6 +47,10 @@ const canZoomOut = $derived(zoom > ZOOM_MIN);
 const zoomScale = $derived(zoom / 100);
 // Derive showLabelsOnImages from displayMode for backward compatibility
 const showLabelsOnImages = $derived(displayMode === "image-label");
+// Derive effective sidebar width in pixels based on preset and collapsed state
+const sidebarWidthPx = $derived(
+  getEffectiveSidebarWidth(sidebarWidth, sidebarCollapsed),
+);
 
 // Apply initial theme to document (using the non-reactive initial value)
 applyThemeToDocument(initialTheme);
@@ -51,6 +67,8 @@ export function resetUIStore(): void {
   showAnnotations = false;
   annotationField = "name";
   showBanana = false;
+  sidebarWidth = loadSidebarWidthFromStorage();
+  sidebarCollapsed = loadSidebarCollapsedFromStorage();
   applyThemeToDocument(theme);
 }
 
@@ -108,6 +126,17 @@ export function getUIStore() {
       return showBanana;
     },
 
+    // Sidebar width state getters
+    get sidebarWidth() {
+      return sidebarWidth;
+    },
+    get sidebarCollapsed() {
+      return sidebarCollapsed;
+    },
+    get sidebarWidthPx() {
+      return sidebarWidthPx;
+    },
+
     // Theme actions
     toggleTheme,
     setTheme,
@@ -136,6 +165,12 @@ export function getUIStore() {
 
     // Easter egg actions
     toggleBanana,
+
+    // Sidebar width actions
+    setSidebarWidth,
+    toggleSidebarCollapsed,
+    collapseSidebar,
+    expandSidebar,
   };
 }
 
@@ -297,4 +332,41 @@ function setAnnotationField(field: AnnotationField): void {
  */
 function toggleBanana(): void {
   showBanana = !showBanana;
+}
+
+/**
+ * Set sidebar width preset
+ * @param preset - Width preset to set
+ */
+function setSidebarWidth(preset: SidebarWidthPreset): void {
+  sidebarWidth = preset;
+  saveSidebarWidthToStorage(preset);
+}
+
+/**
+ * Toggle sidebar collapsed state
+ */
+function toggleSidebarCollapsed(): void {
+  sidebarCollapsed = !sidebarCollapsed;
+  saveSidebarCollapsedToStorage(sidebarCollapsed);
+}
+
+/**
+ * Collapse the sidebar
+ */
+function collapseSidebar(): void {
+  if (!sidebarCollapsed) {
+    sidebarCollapsed = true;
+    saveSidebarCollapsedToStorage(true);
+  }
+}
+
+/**
+ * Expand the sidebar
+ */
+function expandSidebar(): void {
+  if (sidebarCollapsed) {
+    sidebarCollapsed = false;
+    saveSidebarCollapsedToStorage(false);
+  }
 }
