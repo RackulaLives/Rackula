@@ -117,7 +117,8 @@ export const ubiquitiDevices: DeviceType[] = [
 		model: 'USW-Pro-Max-16',
 		is_full_depth: false,
 		colour: CATEGORY_COLOURS.network,
-		category: 'network'
+		category: 'network',
+		front_image: true
 	},
 	{
 		slug: 'ubiquiti-unifi-switch-pro-max-16-poe',
@@ -126,7 +127,8 @@ export const ubiquitiDevices: DeviceType[] = [
 		model: 'USW-Pro-Max-16-PoE',
 		is_full_depth: false,
 		colour: CATEGORY_COLOURS.network,
-		category: 'network'
+		category: 'network',
+		front_image: true
 	},
 
 	// ============================================
@@ -186,7 +188,8 @@ export const ubiquitiDevices: DeviceType[] = [
 		model: 'USW-24',
 		is_full_depth: false,
 		colour: CATEGORY_COLOURS.network,
-		category: 'network'
+		category: 'network',
+		front_image: true
 	},
 	{
 		slug: 'ubiquiti-unifi-switch-48-gen1',
@@ -205,7 +208,8 @@ export const ubiquitiDevices: DeviceType[] = [
 		model: 'USW-24-PoE',
 		is_full_depth: false,
 		colour: CATEGORY_COLOURS.network,
-		category: 'network'
+		category: 'network',
+		front_image: true
 	},
 	{
 		slug: 'ubiquiti-unifi-switch-48-poe',
@@ -214,7 +218,8 @@ export const ubiquitiDevices: DeviceType[] = [
 		model: 'USW-48-PoE',
 		is_full_depth: false,
 		colour: CATEGORY_COLOURS.network,
-		category: 'network'
+		category: 'network',
+		front_image: true
 	},
 	{
 		slug: 'ubiquiti-unifi-switch-16-poe-gen2',
@@ -589,7 +594,9 @@ export const ubiquitiDevices: DeviceType[] = [
 		is_full_depth: false,
 		airflow: 'passive',
 		colour: CATEGORY_COLOURS.network,
-		category: 'network'
+		category: 'network',
+		front_image: true,
+		rear_image: true
 	},
 	{
 		slug: 'ubiquiti-uf-olt',
@@ -609,7 +616,9 @@ export const ubiquitiDevices: DeviceType[] = [
 		is_full_depth: false,
 		airflow: 'passive',
 		colour: CATEGORY_COLOURS.network,
-		category: 'network'
+		category: 'network',
+		front_image: true,
+		rear_image: true
 	},
 	{
 		slug: 'ubiquiti-ckg2-rm',
@@ -619,7 +628,9 @@ export const ubiquitiDevices: DeviceType[] = [
 		is_full_depth: false,
 		airflow: 'passive',
 		colour: CATEGORY_COLOURS.network,
-		category: 'network'
+		category: 'network',
+		front_image: true,
+		rear_image: true
 	},
 	{
 		slug: 'ubiquiti-er-10x',
@@ -809,7 +820,9 @@ export const ubiquitiDevices: DeviceType[] = [
 		is_full_depth: false,
 		airflow: 'front-to-rear',
 		colour: CATEGORY_COLOURS.network,
-		category: 'network'
+		category: 'network',
+		front_image: true,
+		rear_image: true
 	},
 	{
 		slug: 'ubiquiti-enterprise-campus-switch-24-port-poe',
@@ -818,7 +831,9 @@ export const ubiquitiDevices: DeviceType[] = [
 		model: 'Enterprise Campus Switch 24-Port PoE',
 		airflow: 'front-to-rear',
 		colour: CATEGORY_COLOURS.network,
-		category: 'network'
+		category: 'network',
+		front_image: true,
+		rear_image: true
 	},
 	{
 		slug: 'ubiquiti-enterprise-fortress-gateway',
@@ -828,7 +843,9 @@ export const ubiquitiDevices: DeviceType[] = [
 		is_full_depth: false,
 		airflow: 'front-to-rear',
 		colour: CATEGORY_COLOURS.network,
-		category: 'network'
+		category: 'network',
+		front_image: true,
+		rear_image: true
 	},
 	{
 		slug: 'ubiquiti-er-x',
@@ -973,6 +990,210 @@ export const ubiquitiDevices: DeviceType[] = [
 		is_full_depth: false,
 		airflow: 'front-to-rear',
 		colour: CATEGORY_COLOURS.storage,
-		category: 'storage'
+		category: 'storage',
+		front_image: true,
+		rear_image: true
+	},
+
+	// ============================================
+	// UniFi Switches - Pro XG Series (from vastoholic SVGs)
+	// ============================================
+	{
+		slug: 'ubiquiti-usw-pro-xg-10-poe',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'USW-Pro-XG-10-PoE',
+		is_full_depth: false,
+		airflow: 'front-to-rear',
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+	{
+		slug: 'ubiquiti-usw-pro-xg-24-poe',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'USW-Pro-XG-24-PoE',
+		is_full_depth: false,
+		airflow: 'front-to-rear',
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+	{
+		slug: 'ubiquiti-usw-pro-xg-48',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'USW-Pro-XG-48',
+		is_full_depth: false,
+		airflow: 'front-to-rear',
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+	{
+		slug: 'ubiquiti-usw-pro-xg-48-poe',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'USW-Pro-XG-48-PoE',
+		is_full_depth: false,
+		airflow: 'front-to-rear',
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+	{
+		slug: 'ubiquiti-usw-pro-xg-aggregation',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'USW-Pro-XG-Aggregation',
+		is_full_depth: false,
+		airflow: 'front-to-rear',
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+
+	// ============================================
+	// UniFi Switches - Pro HD Series (from vastoholic SVGs)
+	// ============================================
+	{
+		slug: 'ubiquiti-usw-pro-hd-24',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'USW-Pro-HD-24',
+		is_full_depth: false,
+		airflow: 'front-to-rear',
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+	{
+		slug: 'ubiquiti-usw-pro-hd-24-poe',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'USW-Pro-HD-24-PoE',
+		is_full_depth: false,
+		airflow: 'front-to-rear',
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+
+	// ============================================
+	// UniFi Switches - Special (from vastoholic SVGs)
+	// ============================================
+	{
+		slug: 'ubiquiti-usw-mission-critical',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'USW-Mission-Critical',
+		is_full_depth: false,
+		airflow: 'front-to-rear',
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+	{
+		slug: 'ubiquiti-usw-wan',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'USW-WAN',
+		is_full_depth: false,
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+	{
+		slug: 'ubiquiti-usw-wan-rj45',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'USW-WAN-RJ45',
+		is_full_depth: false,
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+
+	// ============================================
+	// Enterprise Campus Switches (from vastoholic SVGs)
+	// ============================================
+	{
+		slug: 'ubiquiti-ecs-24-poe',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'ECS-24-PoE',
+		is_full_depth: false,
+		airflow: 'front-to-rear',
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+	{
+		slug: 'ubiquiti-ecs-24s-poe',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'ECS-24S-PoE',
+		is_full_depth: false,
+		airflow: 'front-to-rear',
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+	{
+		slug: 'ubiquiti-ecs-48-poe',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'ECS-48-PoE',
+		is_full_depth: false,
+		airflow: 'front-to-rear',
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+	{
+		slug: 'ubiquiti-ecs-48s-poe',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'ECS-48S-PoE',
+		is_full_depth: false,
+		airflow: 'front-to-rear',
+		colour: CATEGORY_COLOURS.network,
+		category: 'network',
+		front_image: true
+	},
+
+	// ============================================
+	// Rackmount Accessories (from vastoholic SVGs)
+	// ============================================
+	{
+		slug: 'ubiquiti-brush-panel-1u',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'Brush Panel 1U',
+		is_full_depth: false,
+		colour: CATEGORY_COLOURS['cable-management'],
+		category: 'cable-management',
+		front_image: true
+	},
+	{
+		slug: 'ubiquiti-uacc-rack-panel-blank-1u',
+		u_height: 1,
+		manufacturer: 'Ubiquiti',
+		model: 'UACC-Rack-Panel-Blank-1U',
+		is_full_depth: false,
+		colour: CATEGORY_COLOURS.blank,
+		category: 'blank',
+		front_image: true
+	},
+	{
+		slug: 'ubiquiti-uacc-rack-panel-blank-2u',
+		u_height: 2,
+		manufacturer: 'Ubiquiti',
+		model: 'UACC-Rack-Panel-Blank-2U',
+		is_full_depth: false,
+		colour: CATEGORY_COLOURS.blank,
+		category: 'blank',
+		front_image: true
 	}
 ];

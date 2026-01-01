@@ -8,7 +8,7 @@ import { ubiquitiDevices } from "$lib/data/brandPacks/ubiquiti";
 describe("Ubiquiti Brand Pack", () => {
   describe("Device Count", () => {
     it("exports correct number of devices", () => {
-      expect(ubiquitiDevices).toHaveLength(92);
+      expect(ubiquitiDevices).toHaveLength(109);
     });
   });
 
@@ -34,7 +34,13 @@ describe("Ubiquiti Brand Pack", () => {
     });
 
     it("all devices have valid category", () => {
-      const validCategories = ["network", "storage", "power"];
+      const validCategories = [
+        "network",
+        "storage",
+        "power",
+        "cable-management",
+        "blank",
+      ];
       for (const device of ubiquitiDevices) {
         // Schema v1.0.0: Flat structure with category at top level
         expect(validCategories).toContain(device.category);
@@ -61,7 +67,7 @@ describe("Ubiquiti Brand Pack", () => {
       );
       expect(pdu).toBeDefined();
       expect(pdu?.model).toBe("USP-PDU-Pro");
-      expect(pdu?.u_height).toBe(1);
+      expect(pdu?.u_height).toBe(2);
       expect(pdu?.is_full_depth).toBe(false);
       // Schema v1.0.0: Flat structure
       expect(pdu?.category).toBe("power");
