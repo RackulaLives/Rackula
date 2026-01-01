@@ -372,22 +372,22 @@ gh pr merge --squash --delete-branch --auto
 
 ### 3h. Cleanup
 
-**Release the lock** — remove `in-progress` label (issue will close via PR merge):
+1. **Release the lock** — remove `in-progress` label (issue will close via PR merge):
 
-```bash
-gh issue edit <number> --remove-label "in-progress"
-```
+    ```bash
+    gh issue edit <number> --remove-label "in-progress"
+    ```
 
-If using worktree, return to main directory, pull, remove worktree, prune:
+2. If using worktree, return to main directory, pull, remove worktree, prune:
 
-```bash
-cd /path/to/Rackula  # main directory
-git pull origin main
-git worktree remove ../Rackula-issue-<N>
-git worktree prune
-```
+    ```bash
+    cd /path/to/Rackula  # main directory
+    git pull origin main
+    git worktree remove ../Rackula-issue-<N>
+    git worktree prune
+    ```
 
-Update progress file status to "Completed" with PR URL.
+3. Update progress file status to "Completed" with PR URL.
 
 <!-- CHECKPOINT: Phase 3 Complete -->
 
@@ -434,9 +434,9 @@ If not, read error and fix manually.
 
 2. **Release the lock** — remove `in-progress` label, so others can pick it up:
 
-```bash
-gh issue edit <N> --remove-label "in-progress"
-```
+    ```bash
+    gh issue edit <N> --remove-label "in-progress"
+    ```
 
 3. **Comment on issue** with status, completed items, blocker description, what was attempted, next steps needed, WIP branch name
 
