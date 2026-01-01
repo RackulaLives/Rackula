@@ -151,6 +151,41 @@ export type PoEMode = "pd" | "pse";
  */
 export type InterfacePosition = "front" | "rear";
 
+/**
+ * Cable type (NetBox-compatible)
+ * Physical cable types for network, fiber, and power connections
+ */
+export type CableType =
+  // Copper Ethernet
+  | "cat5e"
+  | "cat6"
+  | "cat6a"
+  | "cat7"
+  | "cat8"
+  // Direct Attach Copper
+  | "dac-passive"
+  | "dac-active"
+  // Fiber - Multi-mode
+  | "mmf-om3"
+  | "mmf-om4"
+  // Fiber - Single-mode
+  | "smf-os2"
+  // Active Optical Cable
+  | "aoc"
+  // Power & Serial
+  | "power"
+  | "serial";
+
+/**
+ * Cable status (NetBox-compatible)
+ */
+export type CableStatus = "connected" | "planned" | "decommissioning";
+
+/**
+ * Length unit for cable measurements
+ */
+export type LengthUnit = "m" | "cm" | "ft" | "in";
+
 // =============================================================================
 // Component Types (NetBox-compatible, schema-only)
 // =============================================================================
@@ -251,6 +286,45 @@ export interface DeviceLink {
   label: string;
   /** URL */
   url: string;
+}
+
+// =============================================================================
+// Cable Types (NetBox-compatible)
+// =============================================================================
+
+/**
+ * Cable connection between device interfaces
+ * Represents a physical cable connecting two device ports
+ */
+export interface Cable {
+  /** Unique identifier (UUID) */
+  id: string;
+
+  // --- A-side termination ---
+  /** Placed device UUID (A-side) */
+  a_device_id: string;
+  /** Interface name on A-side device */
+  a_interface: string;
+
+  // --- B-side termination ---
+  /** Placed device UUID (B-side) */
+  b_device_id: string;
+  /** Interface name on B-side device */
+  b_interface: string;
+
+  // --- Cable properties ---
+  /** Cable type (e.g., 'cat6a', 'smf-os2') */
+  type?: CableType;
+  /** Cable color as 6-digit hex (e.g., '#FF5500') */
+  color?: string;
+  /** Cable label/identifier */
+  label?: string;
+  /** Cable length */
+  length?: number;
+  /** Length unit */
+  length_unit?: LengthUnit;
+  /** Connection status */
+  status?: CableStatus;
 }
 
 // =============================================================================
@@ -434,6 +508,8 @@ export interface Layout {
   device_types: DeviceType[];
   /** Layout settings */
   settings: LayoutSettings;
+  /** Cable connections between device interfaces */
+  cables?: Cable[];
 }
 
 // =============================================================================

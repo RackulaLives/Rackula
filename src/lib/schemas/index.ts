@@ -153,6 +153,45 @@ export const PoEModeSchema = z.enum(["pd", "pse"]);
  */
 export const InterfacePositionSchema = z.enum(["front", "rear"]);
 
+/**
+ * Cable type enum (NetBox-compatible)
+ */
+export const CableTypeSchema = z.enum([
+  // Copper Ethernet
+  "cat5e",
+  "cat6",
+  "cat6a",
+  "cat7",
+  "cat8",
+  // Direct Attach Copper
+  "dac-passive",
+  "dac-active",
+  // Fiber - Multi-mode
+  "mmf-om3",
+  "mmf-om4",
+  // Fiber - Single-mode
+  "smf-os2",
+  // Active Optical Cable
+  "aoc",
+  // Power & Serial
+  "power",
+  "serial",
+]);
+
+/**
+ * Cable status enum (NetBox-compatible)
+ */
+export const CableStatusSchema = z.enum([
+  "connected",
+  "planned",
+  "decommissioning",
+]);
+
+/**
+ * Length unit enum for cable measurements
+ */
+export const LengthUnitSchema = z.enum(["m", "cm", "ft", "in"]);
+
 // ============================================================================
 // Utility Functions
 // ============================================================================
@@ -266,6 +305,42 @@ export const DeviceLinkSchema = z
   .object({
     label: z.string().min(1),
     url: z.string().url(),
+  })
+  .passthrough();
+
+// ============================================================================
+// Cable Schemas (NetBox-compatible)
+// ============================================================================
+
+/**
+ * Cable schema - connection between device interfaces
+ */
+export const CableSchema = z
+  .object({
+    // Unique identifier
+    id: z.string().min(1, "Cable ID is required"),
+
+    // A-side termination
+    a_device_id: z.string().min(1, "A-side device ID is required"),
+    a_interface: z.string().min(1, "A-side interface is required"),
+
+    // B-side termination
+    b_device_id: z.string().min(1, "B-side device ID is required"),
+    b_interface: z.string().min(1, "B-side interface is required"),
+
+    // Cable properties
+    type: CableTypeSchema.optional(),
+    color: z
+      .string()
+      .regex(
+        /^#[0-9A-Fa-f]{6}$/,
+        "Color must be a valid hex color (e.g., #FF5500)",
+      )
+      .optional(),
+    label: z.string().max(100).optional(),
+    length: z.number().positive().optional(),
+    length_unit: LengthUnitSchema.optional(),
+    status: CableStatusSchema.optional(),
   })
   .passthrough();
 
@@ -422,6 +497,7 @@ const LayoutSchemaBase = z
     rack: RackSchema,
     device_types: z.array(DeviceTypeSchema),
     settings: LayoutSettingsSchema,
+    cables: z.array(CableSchema).optional(),
   })
   .passthrough();
 
@@ -468,3 +544,7 @@ export type PlacedDeviceZod = z.infer<typeof PlacedDeviceSchema>;
 export type RackZod = z.infer<typeof RackSchema>;
 export type LayoutSettingsZod = z.infer<typeof LayoutSettingsSchema>;
 export type LayoutZod = z.infer<typeof LayoutSchema>;
+export type CableType = z.infer<typeof CableTypeSchema>;
+export type CableStatus = z.infer<typeof CableStatusSchema>;
+export type LengthUnit = z.infer<typeof LengthUnitSchema>;
+export type CableZod = z.infer<typeof CableSchema>;

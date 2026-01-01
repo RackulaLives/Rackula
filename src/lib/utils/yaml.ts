@@ -7,7 +7,7 @@
  * The library is only loaded when save/load operations are performed.
  */
 
-import type { Layout, DeviceType, PlacedDevice, Rack } from "$lib/types";
+import type { Layout, DeviceType, PlacedDevice, Rack, Cable } from "$lib/types";
 import { LayoutSchema, type LayoutZod } from "$lib/schemas";
 
 /**
@@ -164,11 +164,40 @@ function orderRackFields(rack: Rack): Record<string, unknown> {
 }
 
 /**
+ * Order Cable fields according to schema v1.0.0
+ * Field order: id, a_device_id, a_interface, b_device_id, b_interface, type, color, label, length, length_unit, status
+ */
+function orderCableFields(cable: Cable): Record<string, unknown> {
+  const ordered: Record<string, unknown> = {};
+
+  // --- Core Fields ---
+  ordered.id = cable.id;
+
+  // --- A-side termination ---
+  ordered.a_device_id = cable.a_device_id;
+  ordered.a_interface = cable.a_interface;
+
+  // --- B-side termination ---
+  ordered.b_device_id = cable.b_device_id;
+  ordered.b_interface = cable.b_interface;
+
+  // --- Cable properties ---
+  if (cable.type !== undefined) ordered.type = cable.type;
+  if (cable.color !== undefined) ordered.color = cable.color;
+  if (cable.label !== undefined) ordered.label = cable.label;
+  if (cable.length !== undefined) ordered.length = cable.length;
+  if (cable.length_unit !== undefined) ordered.length_unit = cable.length_unit;
+  if (cable.status !== undefined) ordered.status = cable.status;
+
+  return ordered;
+}
+
+/**
  * Serialize a layout to YAML string
  * Excludes runtime-only fields (view) and orders fields according to schema v1.0.0
  */
 export async function serializeLayoutToYaml(layout: Layout): Promise<string> {
-  const layoutForSerialization = {
+  const layoutForSerialization: Record<string, unknown> = {
     version: layout.version,
     name: layout.name,
     rack: orderRackFields(layout.rack),
@@ -176,12 +205,17 @@ export async function serializeLayoutToYaml(layout: Layout): Promise<string> {
     settings: layout.settings,
   };
 
+  // Only include cables if present
+  if (layout.cables !== undefined && layout.cables.length > 0) {
+    layoutForSerialization.cables = layout.cables.map(orderCableFields);
+  }
+
   return serializeToYaml(layoutForSerialization);
 }
 
 /**
  * Convert Zod-validated layout to runtime Layout type
- * Adds runtime defaults (e.g., rack.view)
+ * Adds runtime defaults (e.g., rack.view) and preserves cables
  */
 function toRuntimeLayout(parsed: LayoutZod): Layout {
   return {
@@ -190,6 +224,7 @@ function toRuntimeLayout(parsed: LayoutZod): Layout {
       ...parsed.rack,
       view: "front",
     },
+    cables: parsed.cables,
   };
 }
 
