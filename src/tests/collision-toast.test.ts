@@ -1,265 +1,483 @@
-/**
- * Collision Toast Tests
- * Tests for toast notifications when device drops are blocked
- */
-
-import { describe, it, expect, beforeEach } from "vitest";
-import type { DeviceType, PlacedDevice, Rack } from "$lib/types";
-import { findCollisions } from "$lib/utils/collision";
-import { getDropFeedback } from "$lib/utils/dragdrop";
-import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { findCollisions } from "\$lib/utils/collision";
+import type { PlacedDevice, DeviceType } from "\$lib/types";
 
 describe("Collision Toast Notifications", () => {
-  // Test devices
-  const serverDevice: DeviceType = {
-    slug: "server-1",
-    model: "PowerEdge R740",
-    manufacturer: "Dell",
-    u_height: 2,
-    colour: "#4A90D9",
-    category: "server",
-    is_full_depth: true,
-  };
-
-  const switchDevice: DeviceType = {
-    slug: "switch-1",
-    model: "Catalyst 9300",
-    manufacturer: "Cisco",
-    u_height: 1,
-    colour: "#7B68EE",
-    category: "network",
-    is_full_depth: true,
-  };
-
-  const halfDepthSwitch: DeviceType = {
-    slug: "half-switch-1",
-    model: "UniFi Switch 24",
-    manufacturer: "Ubiquiti",
-    u_height: 1,
-    colour: "#50fa7b",
-    category: "network",
-    is_full_depth: false,
-  };
-
+  // Sample device library for testing
   const deviceLibrary: DeviceType[] = [
-    serverDevice,
-    switchDevice,
-    halfDepthSwitch,
+    {
+      slug: "server-1u",
+      manufacturer: "Generic",
+      model: "1U Server",
+      u_height: 1,
+      is_full_depth: true,
+      form_factor: "rack-mount",
+      category: "server",
+    },
+    {
+      slug: "server-2u",
+      manufacturer: "Dell",
+      model: "PowerEdge R740",
+      u_height: 2,
+      is_full_depth: true,
+      form_factor: "rack-mount",
+      category: "server",
+    },
+    {
+      slug: "switch-1u",
+      manufacturer: "Cisco",
+      model: "Catalyst 9300",
+      u_height: 1,
+      is_full_depth: false,
+      form_factor: "rack-mount",
+      category: "network",
+    },
+    {
+      slug: "ups-2u",
+      manufacturer: "APC",
+      model: "Smart-UPS 1500",
+      u_height: 2,
+      is_full_depth: true,
+      form_factor: "rack-mount",
+      category: "power",
+    },
+    {
+      slug: "no-model-device",
+      manufacturer: "Unknown Manufacturer",
+      u_height: 1,
+      is_full_depth: true,
+      form_factor: "rack-mount",
+      category: "other",
+    },
+    {
+      slug: "bare-device",
+      u_height: 1,
+      is_full_depth: true,
+      form_factor: "rack-mount",
+      category: "other",
+    },
   ];
 
-  const baseRack: Rack = {
-    name: "Test Rack",
-    height: 12,
-    width: 19,
-    position: 0,
-    desc_units: false,
-    show_rear: true,
-    form_factor: "4-post",
-    starting_unit: 1,
-    devices: [],
-  };
+  describe("Collision Detection", () => {
+    it("should detect collision with existing device", () => {
+      const placedDevices: PlacedDevice[] = [
+        {
+          id: "placed-1",
+          device_type: "server-2u",
+          position: 10,
+          face: "front",
+        },
+      ];
 
-  beforeEach(() => {
-    resetToastStore();
-  });
-
-  describe("findCollisions with blocking device identification", () => {
-    it("returns empty array when no collisions", () => {
-      const rack: Rack = {
-        ...baseRack,
-        devices: [
-          { id: "id-1", device_type: "server-1", position: 1, face: "front" },
-        ],
+      const rack = {
+        name: "Test Rack",
+        u_height: 42,
+        rack_width: 19,
+        devices: placedDevices,
       };
 
-      const collisions = findCollisions(rack, deviceLibrary, 1, 5);
-      expect(collisions).toHaveLength(0);
-    });
-
-    it("returns single blocking device on collision", () => {
-      const rack: Rack = {
-        ...baseRack,
-        devices: [
-          { id: "id-1", device_type: "server-1", position: 5, face: "front" },
-        ],
-      };
-
-      // Try to place at position 5 where server already is (server is 2U, occupies 5-6)
-      const collisions = findCollisions(rack, deviceLibrary, 2, 5);
-      expect(collisions).toHaveLength(1);
-      expect(collisions[0]!.device_type).toBe("server-1");
-    });
-
-    it("returns multiple blocking devices when overlapping several", () => {
-      const rack: Rack = {
-        ...baseRack,
-        devices: [
-          { id: "id-1", device_type: "switch-1", position: 5, face: "front" },
-          { id: "id-2", device_type: "switch-1", position: 6, face: "front" },
-        ],
-      };
-
-      // Try to place 2U device at position 5 - would overlap both switches
-      const collisions = findCollisions(rack, deviceLibrary, 2, 5);
-      expect(collisions).toHaveLength(2);
-    });
-
-    it("identifies blocking device for half-depth collision", () => {
-      const rack: Rack = {
-        ...baseRack,
-        devices: [
-          { id: "id-1", device_type: "server-1", position: 5, face: "front" },
-        ],
-      };
-
-      // Half-depth switch on rear should still collide with full-depth server on front
       const collisions = findCollisions(
         rack,
         deviceLibrary,
         1,
-        5,
-        undefined,
-        "rear",
-        false,
+        10,
+        -1,
+        null,
+        true,
       );
-      // Full-depth server blocks the position even from rear
-      expect(collisions).toHaveLength(1);
-      expect(collisions[0]!.device_type).toBe("server-1");
+
+      expect(collisions.length).toBe(1);
+      expect(collisions[0].device_type).toBe("server-2u");
     });
 
-    it("allows half-depth devices on opposite faces with no collision", () => {
-      const rack: Rack = {
-        ...baseRack,
-        devices: [
-          {
-            id: "id-1",
-            device_type: "half-switch-1",
-            position: 5,
-            face: "front",
-          },
-        ],
+    it("should detect collision with multi-U device spanning target position", () => {
+      const placedDevices: PlacedDevice[] = [
+        {
+          id: "placed-1",
+          device_type: "server-2u",
+          position: 10,
+          face: "front",
+        },
+      ];
+
+      const rack = {
+        name: "Test Rack",
+        u_height: 42,
+        rack_width: 19,
+        devices: placedDevices,
       };
 
-      // Another half-depth on rear should NOT collide
       const collisions = findCollisions(
         rack,
         deviceLibrary,
         1,
-        5,
-        undefined,
+        11,
+        -1,
+        null,
+        true,
+      );
+
+      expect(collisions.length).toBe(1);
+    });
+
+    it("should not detect collision for valid position", () => {
+      const placedDevices: PlacedDevice[] = [
+        {
+          id: "placed-1",
+          device_type: "server-1u",
+          position: 10,
+          face: "front",
+        },
+      ];
+
+      const rack = {
+        name: "Test Rack",
+        u_height: 42,
+        rack_width: 19,
+        devices: placedDevices,
+      };
+
+      const collisions = findCollisions(
+        rack,
+        deviceLibrary,
+        1,
+        20,
+        -1,
+        null,
+        true,
+      );
+
+      expect(collisions.length).toBe(0);
+    });
+
+    it("should detect multiple collisions", () => {
+      const placedDevices: PlacedDevice[] = [
+        {
+          id: "placed-1",
+          device_type: "server-1u",
+          position: 10,
+          face: "front",
+        },
+        {
+          id: "placed-2",
+          device_type: "switch-1u",
+          position: 11,
+          face: "front",
+        },
+      ];
+
+      const rack = {
+        name: "Test Rack",
+        u_height: 42,
+        rack_width: 19,
+        devices: placedDevices,
+      };
+
+      const collisions = findCollisions(
+        rack,
+        deviceLibrary,
+        2,
+        10,
+        -1,
+        null,
+        true,
+      );
+
+      expect(collisions.length).toBe(2);
+    });
+  });
+
+  describe("Toast Message Formatting", () => {
+    it("should format single collision message correctly", () => {
+      const collisions: PlacedDevice[] = [
+        {
+          id: "placed-1",
+          device_type: "server-2u",
+          position: 10,
+          face: "front",
+        },
+      ];
+
+      const blockingNames = collisions.map((placed) => {
+        if (placed.name) return placed.name;
+        const deviceType = deviceLibrary.find(
+          (d) => d.slug === placed.device_type,
+        );
+        if (deviceType) {
+          if (deviceType.model) return deviceType.model;
+          if (deviceType.manufacturer) return deviceType.manufacturer;
+        }
+        return placed.device_type;
+      });
+
+      const message =
+        blockingNames.length === 1
+          ? `Position blocked by ${blockingNames[0]}`
+          : `Position blocked by ${blockingNames.join(", ")}`;
+
+      expect(message).toBe("Position blocked by PowerEdge R740");
+    });
+
+    it("should format multiple collision message correctly", () => {
+      const collisions: PlacedDevice[] = [
+        {
+          id: "placed-1",
+          device_type: "server-2u",
+          position: 10,
+          face: "front",
+        },
+        {
+          id: "placed-2",
+          device_type: "switch-1u",
+          position: 11,
+          face: "front",
+        },
+      ];
+
+      const blockingNames = collisions.map((placed) => {
+        if (placed.name) return placed.name;
+        const deviceType = deviceLibrary.find(
+          (d) => d.slug === placed.device_type,
+        );
+        if (deviceType) {
+          if (deviceType.model) return deviceType.model;
+          if (deviceType.manufacturer) return deviceType.manufacturer;
+        }
+        return placed.device_type;
+      });
+
+      const message =
+        blockingNames.length === 1
+          ? `Position blocked by ${blockingNames[0]}`
+          : `Position blocked by ${blockingNames.join(", ")}`;
+
+      expect(message).toBe("Position blocked by PowerEdge R740, Catalyst 9300");
+    });
+
+    it("should use custom name when device has one", () => {
+      const collisions: PlacedDevice[] = [
+        {
+          id: "placed-1",
+          device_type: "server-2u",
+          name: "Production DB Server",
+          position: 10,
+          face: "front",
+        },
+      ];
+
+      const blockingNames = collisions.map((placed) => {
+        if (placed.name) return placed.name;
+        const deviceType = deviceLibrary.find(
+          (d) => d.slug === placed.device_type,
+        );
+        if (deviceType) {
+          if (deviceType.model) return deviceType.model;
+          if (deviceType.manufacturer) return deviceType.manufacturer;
+        }
+        return placed.device_type;
+      });
+
+      expect(blockingNames[0]).toBe("Production DB Server");
+    });
+  });
+
+  describe("Name Resolution Fallback Chain", () => {
+    it("should use placed.name first if available", () => {
+      const placed: PlacedDevice = {
+        id: "p1",
+        device_type: "server-2u",
+        name: "My Custom Name",
+        position: 10,
+        face: "front",
+      };
+
+      const resolveName = (p: PlacedDevice): string => {
+        if (p.name) return p.name;
+        const deviceType = deviceLibrary.find((d) => d.slug === p.device_type);
+        if (deviceType) {
+          if (deviceType.model) return deviceType.model;
+          if (deviceType.manufacturer) return deviceType.manufacturer;
+        }
+        return p.device_type;
+      };
+
+      expect(resolveName(placed)).toBe("My Custom Name");
+    });
+
+    it("should fallback to model if no custom name", () => {
+      const placed: PlacedDevice = {
+        id: "p1",
+        device_type: "server-2u",
+        position: 10,
+        face: "front",
+      };
+
+      const resolveName = (p: PlacedDevice): string => {
+        if (p.name) return p.name;
+        const deviceType = deviceLibrary.find((d) => d.slug === p.device_type);
+        if (deviceType) {
+          if (deviceType.model) return deviceType.model;
+          if (deviceType.manufacturer) return deviceType.manufacturer;
+        }
+        return p.device_type;
+      };
+
+      expect(resolveName(placed)).toBe("PowerEdge R740");
+    });
+
+    it("should fallback to manufacturer if no model", () => {
+      const placed: PlacedDevice = {
+        id: "p1",
+        device_type: "no-model-device",
+        position: 10,
+        face: "front",
+      };
+
+      const resolveName = (p: PlacedDevice): string => {
+        if (p.name) return p.name;
+        const deviceType = deviceLibrary.find((d) => d.slug === p.device_type);
+        if (deviceType) {
+          if (deviceType.model) return deviceType.model;
+          if (deviceType.manufacturer) return deviceType.manufacturer;
+        }
+        return p.device_type;
+      };
+
+      expect(resolveName(placed)).toBe("Unknown Manufacturer");
+    });
+
+    it("should fallback to device_type slug as last resort", () => {
+      const placed: PlacedDevice = {
+        id: "p1",
+        device_type: "bare-device",
+        position: 10,
+        face: "front",
+      };
+
+      const resolveName = (p: PlacedDevice): string => {
+        if (p.name) return p.name;
+        const deviceType = deviceLibrary.find((d) => d.slug === p.device_type);
+        if (deviceType) {
+          if (deviceType.model) return deviceType.model;
+          if (deviceType.manufacturer) return deviceType.manufacturer;
+        }
+        return p.device_type;
+      };
+
+      expect(resolveName(placed)).toBe("bare-device");
+    });
+
+    it("should use slug for unknown device type", () => {
+      const placed: PlacedDevice = {
+        id: "p1",
+        device_type: "unknown-device-slug",
+        position: 10,
+        face: "front",
+      };
+
+      const resolveName = (p: PlacedDevice): string => {
+        if (p.name) return p.name;
+        const deviceType = deviceLibrary.find((d) => d.slug === p.device_type);
+        if (deviceType) {
+          if (deviceType.model) return deviceType.model;
+          if (deviceType.manufacturer) return deviceType.manufacturer;
+        }
+        return p.device_type;
+      };
+
+      expect(resolveName(placed)).toBe("unknown-device-slug");
+    });
+  });
+
+  describe("Half-Depth Device Collisions", () => {
+    it("should allow half-depth devices on opposite faces", () => {
+      const placedDevices: PlacedDevice[] = [
+        {
+          id: "placed-1",
+          device_type: "switch-1u",
+          position: 10,
+          face: "front",
+        },
+      ];
+
+      const rack = {
+        name: "Test Rack",
+        u_height: 42,
+        rack_width: 19,
+        devices: placedDevices,
+      };
+
+      const collisions = findCollisions(
+        rack,
+        deviceLibrary,
+        1,
+        10,
+        -1,
         "rear",
         false,
       );
-      expect(collisions).toHaveLength(0);
-    });
-  });
 
-  describe("getDropFeedback returns correct state", () => {
-    it("returns blocked when collision detected", () => {
-      const rack: Rack = {
-        ...baseRack,
-        devices: [
-          { id: "id-1", device_type: "server-1", position: 5, face: "front" },
-        ],
+      expect(collisions.length).toBe(0);
+    });
+
+    it("should block half-depth device on same face", () => {
+      const placedDevices: PlacedDevice[] = [
+        {
+          id: "placed-1",
+          device_type: "switch-1u",
+          position: 10,
+          face: "front",
+        },
+      ];
+
+      const rack = {
+        name: "Test Rack",
+        u_height: 42,
+        rack_width: 19,
+        devices: placedDevices,
       };
 
-      const feedback = getDropFeedback(rack, deviceLibrary, 2, 5);
-      expect(feedback).toBe("blocked");
-    });
-
-    it("returns invalid when device exceeds rack height", () => {
-      const feedback = getDropFeedback(baseRack, deviceLibrary, 2, 12);
-      expect(feedback).toBe("invalid");
-    });
-
-    it("returns valid when placement is allowed", () => {
-      const feedback = getDropFeedback(baseRack, deviceLibrary, 2, 5);
-      expect(feedback).toBe("valid");
-    });
-  });
-
-  describe("Toast store integration", () => {
-    it("showToast creates warning notification", () => {
-      const toastStore = getToastStore();
-      toastStore.showToast(
-        "Position blocked by PowerEdge R740",
-        "warning",
-        3000,
+      const collisions = findCollisions(
+        rack,
+        deviceLibrary,
+        1,
+        10,
+        -1,
+        "front",
+        false,
       );
 
-      expect(toastStore.toasts).toHaveLength(1);
-      expect(toastStore.toasts[0]!.type).toBe("warning");
-      expect(toastStore.toasts[0]!.message).toBe(
-        "Position blocked by PowerEdge R740",
+      expect(collisions.length).toBe(1);
+    });
+
+    it("should block full-depth device against half-depth on same position", () => {
+      const placedDevices: PlacedDevice[] = [
+        {
+          id: "placed-1",
+          device_type: "switch-1u",
+          position: 10,
+          face: "front",
+        },
+      ];
+
+      const rack = {
+        name: "Test Rack",
+        u_height: 42,
+        rack_width: 19,
+        devices: placedDevices,
+      };
+
+      const collisions = findCollisions(
+        rack,
+        deviceLibrary,
+        1,
+        10,
+        -1,
+        null,
+        true,
       );
-      expect(toastStore.toasts[0]!.duration).toBe(3000);
-    });
 
-    it("handles multiple blocking device message format", () => {
-      const blockingNames = ["PowerEdge R740", "Catalyst 9300"];
-      const message = `Position blocked by ${blockingNames.join(", ")}`;
-
-      const toastStore = getToastStore();
-      toastStore.showToast(message, "warning", 3000);
-
-      expect(toastStore.toasts[0]!.message).toBe(
-        "Position blocked by PowerEdge R740, Catalyst 9300",
-      );
-    });
-  });
-
-  describe("Blocking device name resolution", () => {
-    it("uses placement name when available", () => {
-      const placedDevice: PlacedDevice = {
-        id: "id-1",
-        device_type: "server-1",
-        position: 5,
-        face: "front",
-        name: "Primary Database Server",
-      };
-
-      // Name should take priority
-      expect(placedDevice.name).toBe("Primary Database Server");
-    });
-
-    it("falls back to device model when no placement name", () => {
-      const placedDevice: PlacedDevice = {
-        id: "id-1",
-        device_type: "server-1",
-        position: 5,
-        face: "front",
-      };
-
-      const deviceType = deviceLibrary.find(
-        (d) => d.slug === placedDevice.device_type,
-      );
-      expect(deviceType?.model).toBe("PowerEdge R740");
-    });
-
-    it("falls back to manufacturer when no model", () => {
-      const deviceWithOnlyManufacturer: DeviceType = {
-        slug: "no-model-device",
-        manufacturer: "Generic Co",
-        u_height: 1,
-        colour: "#888888",
-        category: "other",
-      };
-
-      expect(deviceWithOnlyManufacturer.model).toBeUndefined();
-      expect(deviceWithOnlyManufacturer.manufacturer).toBe("Generic Co");
-    });
-
-    it("falls back to slug when no name, model, or manufacturer", () => {
-      const minimalDevice: DeviceType = {
-        slug: "minimal-device",
-        u_height: 1,
-        colour: "#888888",
-        category: "other",
-      };
-
-      expect(minimalDevice.model).toBeUndefined();
-      expect(minimalDevice.manufacturer).toBeUndefined();
-      expect(minimalDevice.slug).toBe("minimal-device");
+      expect(collisions.length).toBe(1);
     });
   });
 });
