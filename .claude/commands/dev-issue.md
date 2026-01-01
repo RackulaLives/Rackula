@@ -1,9 +1,76 @@
-# Issue Development Workflow v5
+# Issue Development Workflow v6
 
 Pick up the next ready issue, assess it, and either complete it or document blockers.
 Designed for autonomous operation with subagent delegation and memory-assisted context.
 
 **Arguments:** `$ARGUMENTS` (optional: issue number to work on specific issue)
+
+---
+
+## Issue Locking Protocol
+
+To prevent multiple agents from working on the same issue simultaneously:
+
+1. **Claim with label:** Add `in-progress` label immediately when selecting an issue
+2. **Race detection:** Re-fetch issue after claiming; abort if another agent also claimed it (check for conflicting comments/assignees added in the same window)
+3. **Release on exit:** Remove `in-progress` label when done (success or blocked)
+
+**Label lifecycle:**
+
+```text
+ready → in-progress (agent claims) → ready (released on completion/block)
+```
+
+**Important:** Issues with `in-progress` label are automatically excluded from the available issues query. An agent that crashes without releasing the lock will leave the issue marked—humans or other agents can manually remove `in-progress` to reclaim stale locks.
+
+---
+
+## Worktree Requirement
+
+**MANDATORY:** Always create a worktree for issue work. Never work directly on main.
+
+```bash
+# Required pattern - always use worktrees
+git worktree add ../Rackula-issue-<N> -b <type>/<N>-<desc>
+cd ../Rackula-issue-<N>
+npm install
+```
+
+This ensures:
+- Parallel agents don't conflict on the same directory
+- Main branch stays clean
+- Easy cleanup if work is abandoned
+
+---
+
+## CRITICAL: Branch Checkout Rules
+
+**NEVER run these commands in the main Rackula directory:**
+
+```bash
+# FORBIDDEN in main directory:
+git checkout <branch>      # ❌ Changes branch for ALL agents
+git switch <branch>        # ❌ Same problem
+git checkout -b <branch>   # ❌ Creates and switches
+```
+
+**The main directory must ALWAYS stay on `main` branch.** Multiple agents share this directory, and switching branches causes conflicts.
+
+**ALWAYS use worktrees instead:**
+
+```bash
+# CORRECT: Create isolated worktree
+git worktree add ../Rackula-issue-<N> -b <type>/<N>-<desc>
+cd ../Rackula-issue-<N>
+# Now you can work freely on this branch
+```
+
+**If you find main directory on wrong branch:**
+
+```bash
+# Fix it immediately:
+git checkout main
+```
 
 ---
 
@@ -19,6 +86,7 @@ You have **explicit permission** to perform WITHOUT asking:
 | Commands | `npm test`, `npm run build`, `npm run lint`, `gh` CLI |
 | Git ops | add, commit, push (non-main), fetch, pull, worktree |
 | PRs | `gh pr create`, `gh pr merge --squash` after checks pass |
+| Issue labels | `gh issue edit --add-label`, `--remove-label` (for locking) |
 
 **STOP and ask for:** Force push, direct main operations, deleting branches/worktrees not created this session, genuine ambiguity.
 
@@ -26,7 +94,7 @@ You have **explicit permission** to perform WITHOUT asking:
 
 ## Decision Flow
 
-```
+```text
 START
   │
   ├─ Argument provided? ──yes──▶ Work on issue #$ARGUMENTS
@@ -40,6 +108,19 @@ START
                                 ▼
                            PHASE 2: Assess
                                 │
+                                ▼
+                    ┌─── Claim issue (add in-progress label) ───┐
+                    │                                           │
+                    ▼                                           ▼
+              Race detected?                              Claimed OK
+              (abort conditions)                               │
+                    │                                          │
+                    ▼                                          │
+              Release label,                                   │
+              try next issue                                   │
+                    │                                          │
+                    └──────────────────────────────────────────┘
+                                │
                     ┌───────────┴───────────┐
                     ▼                       ▼
               size:small              size:medium+
@@ -50,6 +131,9 @@ START
                     │                      │
                     └──────────┬───────────┘
                                ▼
+                    Create worktree (MANDATORY)
+                               │
+                               ▼
                          PHASE 3: Implement (TDD)
                                │
                     ┌──────────┴──────────┐
@@ -59,16 +143,17 @@ START
                     ▼                     ▼
               Create PR            Error Recovery
               Merge                (3 attempts max)
-              Clean up                    │
-                    │              ┌──────┴──────┐
-                    ▼              ▼             ▼
-              PHASE 4:         Resolved      BLOCKED
-              More issues?         │             │
-                    │              └──────┬──────┘
-                    ▼                     ▼
-              Loop or Stop           WIP commit
-                                     Comment
-                                     STOP
+              Release label              │
+              Clean up             ┌─────┴─────┐
+                    │              ▼           ▼
+                    ▼          Resolved    BLOCKED
+              PHASE 4:             │           │
+              More issues?         │     Release label
+                    │              │     WIP commit
+                    ▼              │     Comment
+              Loop or Stop         └─────┬─────┘
+                                         ▼
+                                       STOP
 ```
 
 ---
@@ -111,32 +196,52 @@ git worktree remove ../Rackula-issue-<N>
 
 > Skip this phase if argument provided or already in a worktree.
 
+### 1a. Main Branch Verification (FIRST)
+
+**Before anything else**, verify main directory is on `main` branch:
+
+```bash
+cd /path/to/Rackula  # main directory
+CURRENT=$(git branch --show-current)
+if [ "$CURRENT" != "main" ]; then
+  echo "ERROR: Main directory on wrong branch: $CURRENT"
+  echo "Fixing..."
+  git checkout main
+fi
+```
+
+If this check fails, another agent made a mistake. Fix it before proceeding.
+
+---
+
 Launch these operations **in parallel** using Task tool:
 
-### 1a. Worktree Detection (Bash)
+### 1b. Worktree Detection (Bash)
 
 Check `git worktree list` to identify claimed issues (extract issue numbers from branch names like `fix/42-*`). Store claimed numbers to filter from available issues.
 
-### 1b. Context Loading (mem-search skill)
+### 1c. Context Loading (mem-search skill)
 
 Use `get_recent_context` for project="Rackula", limit=30.
 
 If memory lacks architecture coverage, use Explore agent to summarize SPEC.md and ARCHITECTURE.md (under 500 words).
 
-### 1c. WIP Branch Check (Bash)
+### 1d. WIP Branch Check (Bash)
 
 ```bash
 git fetch origin --prune
 git branch -a | grep -E "(fix|feat|chore|refactor|test|docs)/" || echo "No WIP branches"
 ```
 
-### 1d. Issue Fetch (Bash)
+### 1e. Issue Fetch (Bash)
 
-Fetch top 5 ready issues sorted by priority then size:
+Fetch top 5 ready issues sorted by priority then size, **excluding in-progress**:
+
 ```bash
 gh issue list -R RackulaLives/Rackula --state open --label ready \
   --json number,title,labels,body \
-  --jq 'sort_by(
+  --jq '[.[] | select(.labels | map(.name) | any(. == "in-progress") | not)] |
+  sort_by(
     (.labels | map(.name) | if any(test("priority:urgent")) then 0
       elif any(test("priority:high")) then 1
       elif any(test("priority:medium")) then 2
@@ -147,7 +252,7 @@ gh issue list -R RackulaLives/Rackula --state open --label ready \
   ) | .[0:5]'
 ```
 
-Filter out claimed issues. If none remain, report "No ready issues available" and stop.
+Filter out worktree-claimed issues. If none remain, report "No ready issues available" and stop.
 
 <!-- CHECKPOINT: Phase 1 Complete -->
 
@@ -155,12 +260,29 @@ Filter out claimed issues. If none remain, report "No ready issues available" an
 
 ## Phase 2: Issue Assessment
 
-### 2a. Select Issue
+### 2a. Select and Claim Issue
 
-Pick first available issue (or use provided argument). Fetch full details:
+Pick first available issue (or use provided argument).
+
+**Step 1: Claim the issue immediately** by adding the `in-progress` label:
+
 ```bash
-gh issue view <number> --json number,title,body,labels,comments
+gh issue edit <number> --add-label "in-progress"
 ```
+
+**Step 2: Race detection** — wait 2 seconds, then re-fetch to verify no conflict:
+
+```bash
+sleep 2
+gh issue view <number> --json number,title,body,labels,comments,assignees
+```
+
+**Abort conditions** (another agent may have claimed simultaneously):
+- Issue has an assignee that wasn't there before
+- A comment was added within the race detection window
+- Issue no longer has `ready` label
+
+If any abort condition is true: remove `in-progress` label and try the next issue.
 
 ### 2b. Historical Context (mem-search skill)
 
@@ -190,17 +312,25 @@ If not obvious from issue, use Explore agent: "Find files related to <feature/co
 
 ## Phase 3: Implementation
 
-### 3a. Create Branch
+### 3a. Create Worktree (MANDATORY)
 
-**If in worktree for this issue:** Skip (branch exists).
+**If already in worktree for this issue:** Skip (branch exists).
 
-**Otherwise:**
+**Otherwise, ALWAYS create a worktree** (never work on main):
+
 ```bash
-git checkout main && git pull origin main
-git checkout -b <type>/<number>-<short-description>
+# From main directory
+git fetch origin main
+git worktree add ../Rackula-issue-<N> -b <type>/<N>-<short-description> origin/main
+cd ../Rackula-issue-<N>
+npm install
 ```
 
-For parallel sessions, create worktree in sibling directory and run `npm install` there.
+**Why mandatory:**
+- Prevents conflicts between parallel agent sessions
+- Keeps main branch clean for other agents
+- Allows easy cleanup if work is abandoned
+- Isolates npm dependencies per issue
 
 ### 3b. Update Progress File
 
@@ -242,8 +372,22 @@ gh pr merge --squash --delete-branch --auto
 
 ### 3h. Cleanup
 
-If using worktree: return to main directory, pull, remove worktree, prune.
-Update progress file status to "Completed" with PR URL.
+1. **Release the lock** — remove `in-progress` label (issue will close via PR merge):
+
+    ```bash
+    gh issue edit <number> --remove-label "in-progress"
+    ```
+
+2. If using worktree, return to main directory, pull, remove worktree, prune:
+
+    ```bash
+    cd /path/to/Rackula  # main directory
+    git pull origin main
+    git worktree remove ../Rackula-issue-<N>
+    git worktree prune
+    ```
+
+3. Update progress file status to "Completed" with PR URL.
 
 <!-- CHECKPOINT: Phase 3 Complete -->
 
@@ -251,7 +395,13 @@ Update progress file status to "Completed" with PR URL.
 
 ## Phase 4: Continue or Stop
 
-Check for more ready issues: `gh issue list -R RackulaLives/Rackula --state open --label ready --json number | jq 'length'`
+Check for more ready issues (excluding in-progress):
+
+```bash
+gh issue list -R RackulaLives/Rackula --state open --label ready \
+  --json number,labels \
+  --jq '[.[] | select(.labels | map(.name) | any(. == "in-progress") | not)] | length'
+```
 
 **Continue if:** More issues exist AND in autonomous mode → Return to Phase 1
 **Stop if:** No issues remain, blocker hit, or user interruption
@@ -282,11 +432,17 @@ If not, read error and fix manually.
 
 1. **Commit WIP:** `git commit -m "wip: partial progress on #<N>" --no-verify && git push`
 
-2. **Comment on issue** with: status, completed items, blocker description, what was attempted, next steps needed, WIP branch name
+2. **Release the lock** — remove `in-progress` label, so others can pick it up:
 
-3. **Update progress file** with BLOCKED status and blocker description
+    ```bash
+    gh issue edit <N> --remove-label "in-progress"
+    ```
 
-4. **Stop** — do not continue to next issue
+3. **Comment on issue** with status, completed items, blocker description, what was attempted, next steps needed, WIP branch name
+
+4. **Update progress file** with BLOCKED status and blocker description
+
+5. **Stop** — do not continue to next issue (blocker needs human attention)
 
 ---
 
@@ -303,7 +459,7 @@ If working on a long session and context is filling up:
 
 ### After Each Issue
 
-```
+```markdown
 ## Issue #<number>: <title>
 
 **Status:** ✅ Completed | ❌ Blocked
@@ -322,7 +478,7 @@ If working on a long session and context is filling up:
 
 ### Session End
 
-```
+```markdown
 ## Session Summary
 
 **Completed:** N issues

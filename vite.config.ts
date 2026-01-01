@@ -1,4 +1,5 @@
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { defineConfig } from "vite";
 import { readFileSync } from "fs";
 
@@ -11,7 +12,13 @@ export default defineConfig(() => ({
   // - Docker/local: / (default)
   base: process.env.VITE_BASE_PATH || "/",
   publicDir: "static",
-  plugins: [svelte()],
+  plugins: [
+    svelte(),
+    paraglideVitePlugin({
+      project: "./project.inlang",
+      outdir: "./src/lib/i18n/paraglide",
+    }),
+  ],
   define: {
     // Inject version at build time
     __APP_VERSION__: JSON.stringify(pkg.version),

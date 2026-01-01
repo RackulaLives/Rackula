@@ -97,14 +97,35 @@ describe("BananaForScale", () => {
   });
 
   describe("Orientation", () => {
-    it("is rotated to lean upright against rack", () => {
+    it("stands nearly vertical with stem pointing up", () => {
       const { container } = render(BananaForScale);
       const svg = container.querySelector("svg");
       const style = svg?.getAttribute("style") || "";
-      // Should have a positive rotation (clockwise) to lean against right edge with stem up
-      expect(style).toMatch(/rotate\(75deg\)/);
-      // Pivot point should be bottom-left so banana rotates correctly against rack edge
-      expect(style).toMatch(/transform-origin:\s*bottom left/);
+
+      // SVG is drawn horizontally (stem left at x≈6, tip right at x≈85)
+      // To stand upright with stem UP: rotate counter-clockwise ~-80deg
+      // This makes stem point up, tip point down (standing on tip)
+      // A slight lean (5-15deg from vertical) looks natural
+
+      // Should rotate counter-clockwise (negative angle) between -75 and -85 degrees
+      const rotateMatch = style.match(/rotate\((-?\d+)deg\)/);
+      expect(rotateMatch).toBeTruthy();
+      const angle = parseInt(rotateMatch![1], 10);
+      expect(angle).toBeGreaterThanOrEqual(-85);
+      expect(angle).toBeLessThanOrEqual(-75);
+    });
+
+    it("pivots from tip end to stand on bottom", () => {
+      const { container } = render(BananaForScale);
+      const svg = container.querySelector("svg");
+      const style = svg?.getAttribute("style") || "";
+
+      // After rotation, the tip (right side of SVG) becomes the bottom
+      // Transform-origin should be at the tip end so banana "stands" on it
+      // Using "right center" or "100% 50%" or similar
+      expect(style).toMatch(
+        /transform-origin:\s*(right center|100% 50%|right)/,
+      );
     });
   });
 });

@@ -117,7 +117,7 @@
 	}
 </script>
 
-<Dialog {open} title="New Rack" showClose={false}>
+<Dialog {open} title="New Rack" width="var(--dialog-width-md)" showClose={false}>
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<form class="new-rack-form" onsubmit={(e) => e.preventDefault()} onkeydown={handleKeyDown}>
 		<div class="form-group">
@@ -282,7 +282,7 @@
 	}
 
 	.custom-height-input input {
-		width: 80px;
+		width: var(--input-width-custom);
 		padding: var(--space-2) var(--space-3);
 		background: var(--colour-input-bg, var(--colour-bg));
 		border: 1px solid var(--colour-border);

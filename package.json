@@ -1,6 +1,6 @@
 {
   "name": "Rackula",
-  "version": "0.6.8",
+  "version": "0.6.9",
   "description": "Drag and drop rack visualizer",
   "author": "ggfevans",
   "license": "MIT",
@@ -31,6 +31,7 @@
   "devDependencies": {
     "@eslint/compat": "^1.4.0",
     "@eslint/js": "^9.39.1",
+    "@inlang/paraglide-js": "^2.1.0",
     "@playwright/test": "^1.56.1",
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "@testing-library/jest-dom": "^6.6.3",

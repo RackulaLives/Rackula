@@ -102,6 +102,10 @@ import apcSmt3000rmi2ucRear from '$lib/assets/device-images/apc/apc-smt3000rmi2u
 import apcSmx3000rmlv2uFront from '$lib/assets/device-images/apc/apc-smx3000rmlv2u.front.webp';
 import apcSmx3000rmlv2uRear from '$lib/assets/device-images/apc/apc-smx3000rmlv2u.rear.webp';
 
+// APPLE images
+import appleXserveFront from '$lib/assets/device-images/apple/apple-xserve.front.webp';
+import appleXserveRaidFront from '$lib/assets/device-images/apple/apple-xserve-raid.front.webp';
+
 // ARISTA images
 import aristaDcs7020sr24c2FFront from '$lib/assets/device-images/arista/arista-dcs-7020sr-24c2-f.front.webp';
 import aristaDcs7020sr24c2FRear from '$lib/assets/device-images/arista/arista-dcs-7020sr-24c2-f.rear.webp';
@@ -1081,6 +1085,10 @@ const BUNDLED_IMAGES: Record<string, BundledImageSet> = {
 	'apc-smt2200rm2unc': { front: apcSmt2200rm2uncFront, rear: apcSmt2200rm2uncRear },
 	'apc-smt3000rmi2uc': { front: apcSmt3000rmi2ucFront, rear: apcSmt3000rmi2ucRear },
 	'apc-smx3000rmlv2u': { front: apcSmx3000rmlv2uFront, rear: apcSmx3000rmlv2uRear },
+
+	// APPLE
+	'apple-xserve': { front: appleXserveFront },
+	'apple-xserve-raid': { front: appleXserveRaidFront },
 
 	// ARISTA
 	'arista-dcs-7020sr-24c2-f': { front: aristaDcs7020sr24c2FFront, rear: aristaDcs7020sr24c2FRear },

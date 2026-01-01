@@ -13,6 +13,8 @@
     getCurrentDragData,
     type DropFeedback,
   } from "$lib/utils/dragdrop";
+  import { findCollisions } from "$lib/utils/collision";
+  import { getToastStore } from "$lib/stores/toast.svelte";
   import { screenToSVG } from "$lib/utils/coordinates";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getBlockedSlots } from "$lib/utils/blocked-slots";
@@ -25,6 +27,7 @@
   const canvasStore = getCanvasStore();
   const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
+  const toastStore = getToastStore();
 
   // Christmas easter egg
   const showChristmasHats = isChristmas();
@@ -469,6 +472,56 @@
               position: targetU,
             },
           }),
+        );
+      }
+    } else {
+      // Drop failed - show toast with reason
+      if (feedback === "blocked") {
+        // Find colliding devices
+        const collisions = findCollisions(
+          rack,
+          deviceLibrary,
+          dragData.device.u_height,
+          targetU,
+          excludeIndex,
+          effectiveFaceFilter,
+          dragData.device.is_full_depth ?? true,
+        );
+
+        if (collisions.length > 0) {
+          // Build list of blocking device names
+          const blockingNames = collisions.map((placed) => {
+            // Try to get a display name: placement name, or device type model/manufacturer, or slug
+            if (placed.name) {
+              return placed.name;
+            }
+            const deviceType = deviceLibrary.find(
+              (d) => d.slug === placed.device_type,
+            );
+            if (deviceType) {
+              if (deviceType.model) {
+                return deviceType.model;
+              }
+              if (deviceType.manufacturer) {
+                return deviceType.manufacturer;
+              }
+            }
+            return placed.device_type;
+          });
+
+          // Format message based on number of collisions
+          const message =
+            blockingNames.length === 1
+              ? `Position blocked by ${blockingNames[0]}`
+              : `Position blocked by ${blockingNames.join(", ")}`;
+
+          toastStore.showToast(message, "warning", 3000);
+        }
+      } else if (feedback === "invalid") {
+        toastStore.showToast(
+          "Device doesn't fit at this position",
+          "warning",
+          3000,
         );
       }
     }
