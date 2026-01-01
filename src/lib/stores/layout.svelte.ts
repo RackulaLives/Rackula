@@ -12,6 +12,7 @@ import type {
   DeviceFace,
   RackView,
   DisplayMode,
+  Cable,
 } from "$lib/types";
 import { DEFAULT_DEVICE_FACE } from "$lib/types/constants";
 import { canPlaceDevice } from "$lib/utils/collision";
@@ -183,6 +184,12 @@ export function getLayoutStore() {
     replaceRackRaw,
     clearRackDevicesRaw,
     restoreRackDevicesRaw,
+
+    // Cable raw actions
+    addCableRaw,
+    updateCableRaw,
+    removeCableRaw,
+    removeCablesRaw,
 
     // Utility
     getUsedDeviceTypeSlugs,
@@ -847,6 +854,58 @@ function restoreRackDevicesRaw(devices: PlacedDevice[]): void {
       ...layout.rack,
       devices: [...devices],
     },
+  };
+}
+
+// =============================================================================
+// Cable Raw Actions
+// These perform immutable updates to layout.cables without dirty tracking
+// =============================================================================
+
+/**
+ * Add a cable directly (raw)
+ * @param cable - Cable to add
+ */
+function addCableRaw(cable: Cable): void {
+  layout = {
+    ...layout,
+    cables: [...(layout.cables ?? []), cable],
+  };
+}
+
+/**
+ * Update a cable directly (raw)
+ * @param id - Cable ID to update
+ * @param updates - Properties to update
+ */
+function updateCableRaw(id: string, updates: Partial<Omit<Cable, "id">>): void {
+  layout = {
+    ...layout,
+    cables: (layout.cables ?? []).map((c) =>
+      c.id === id ? { ...c, ...updates } : c,
+    ),
+  };
+}
+
+/**
+ * Remove a cable directly (raw)
+ * @param id - Cable ID to remove
+ */
+function removeCableRaw(id: string): void {
+  layout = {
+    ...layout,
+    cables: (layout.cables ?? []).filter((c) => c.id !== id),
+  };
+}
+
+/**
+ * Remove multiple cables directly (raw)
+ * @param ids - Set of cable IDs to remove
+ */
+function removeCablesRaw(ids: Set<string>): void {
+  layout = {
+    ...layout,
+    cables: (layout.cables ?? []).filter((c) => !ids.has(c.id)),
   };
 }
 

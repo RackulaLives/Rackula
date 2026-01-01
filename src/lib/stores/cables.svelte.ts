@@ -282,13 +282,11 @@ export function getCableStore() {
     );
 
     if (toRemove.length > 0) {
-      // Batch removal: single loadLayout call instead of one per cable
+      // Batch removal using layout store's cable removal method
+      // Plain Set is intentional - this is used immediately for filtering, not reactive state
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const toRemoveIds = new Set(toRemove.map((c) => c.id));
-      const layout = layoutStore.layout;
-      layoutStore.loadLayout({
-        ...layout,
-        cables: (layout.cables ?? []).filter((c) => !toRemoveIds.has(c.id)),
-      });
+      layoutStore.removeCablesRaw(toRemoveIds);
       layoutStore.markDirty();
     }
 
@@ -303,15 +301,7 @@ export function getCableStore() {
    * Add a cable directly (raw)
    */
   function addCableRaw(cable: Cable): void {
-    const layout = layoutStore.layout;
-    const cables = layout.cables ?? [];
-    // Update layout with new cables array
-    // Note: This uses a workaround since layout is read-only from getter
-    // The loadLayout function can set the full layout
-    layoutStore.loadLayout({
-      ...layout,
-      cables: [...cables, cable],
-    });
+    layoutStore.addCableRaw(cable);
   }
 
   /**
@@ -321,24 +311,14 @@ export function getCableStore() {
     id: string,
     updates: Partial<Omit<Cable, "id">>,
   ): void {
-    const layout = layoutStore.layout;
-    const cables = layout.cables ?? [];
-    layoutStore.loadLayout({
-      ...layout,
-      cables: cables.map((c) => (c.id === id ? { ...c, ...updates } : c)),
-    });
+    layoutStore.updateCableRaw(id, updates);
   }
 
   /**
    * Remove a cable directly (raw)
    */
   function removeCableRaw(id: string): void {
-    const layout = layoutStore.layout;
-    const cables = layout.cables ?? [];
-    layoutStore.loadLayout({
-      ...layout,
-      cables: cables.filter((c) => c.id !== id),
-    });
+    layoutStore.removeCableRaw(id);
   }
 
   return {
