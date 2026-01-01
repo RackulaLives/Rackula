@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { findCollisions } from "\$lib/utils/collision";
-import type { PlacedDevice, DeviceType } from "\$lib/types";
+import { describe, it, expect } from "vitest";
+import { findCollisions } from "$lib/utils/collision";
+import type { PlacedDevice, DeviceType } from "$lib/types";
 
 describe("Collision Toast Notifications", () => {
   // Sample device library for testing
