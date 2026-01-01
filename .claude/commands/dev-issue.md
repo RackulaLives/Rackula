@@ -17,7 +17,7 @@ To prevent multiple agents from working on the same issue simultaneously:
 
 **Label lifecycle:**
 
-```
+```text
 ready → in-progress (agent claims) → ready (released on completion/block)
 ```
 
