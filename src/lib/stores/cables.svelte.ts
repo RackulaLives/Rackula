@@ -281,11 +281,14 @@ export function getCableStore() {
       (c) => c.a_device_id === deviceId || c.b_device_id === deviceId,
     );
 
-    for (const cable of toRemove) {
-      removeCableRaw(cable.id);
-    }
-
     if (toRemove.length > 0) {
+      // Batch removal: single loadLayout call instead of one per cable
+      const toRemoveIds = new Set(toRemove.map((c) => c.id));
+      const layout = layoutStore.layout;
+      layoutStore.loadLayout({
+        ...layout,
+        cables: (layout.cables ?? []).filter((c) => !toRemoveIds.has(c.id)),
+      });
       layoutStore.markDirty();
     }
 

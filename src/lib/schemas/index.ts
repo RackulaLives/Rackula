@@ -333,7 +333,7 @@ export const CableSchema = z
     color: z
       .string()
       .regex(
-        /^#[0-9A-Fa-f]{6}$/,
+        HEX_COLOUR_PATTERN,
         "Color must be a valid hex color (e.g., #FF5500)",
       )
       .optional(),
