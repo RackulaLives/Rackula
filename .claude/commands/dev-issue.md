@@ -94,7 +94,7 @@ You have **explicit permission** to perform WITHOUT asking:
 
 ## Decision Flow
 
-```
+```text
 START
   │
   ├─ Argument provided? ──yes──▶ Work on issue #$ARGUMENTS
@@ -459,7 +459,7 @@ If working on a long session and context is filling up:
 
 ### After Each Issue
 
-```
+```markdown
 ## Issue #<number>: <title>
 
 **Status:** ✅ Completed | ❌ Blocked
@@ -478,7 +478,7 @@ If working on a long session and context is filling up:
 
 ### Session End
 
-```
+```markdown
 ## Session Summary
 
 **Completed:** N issues
