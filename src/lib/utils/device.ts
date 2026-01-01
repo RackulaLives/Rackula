@@ -3,7 +3,7 @@
  * Pure functions for device-related operations
  */
 
-import type { DeviceCategory } from '$lib/types';
+import type { DeviceCategory, DeviceType, PlacedDevice } from '$lib/types';
 import { CATEGORY_COLOURS } from '$lib/types/constants';
 
 /**
@@ -35,4 +35,36 @@ export function generateId(): string {
  */
 export function getDefaultColour(category: DeviceCategory): string {
 	return CATEGORY_COLOURS[category];
+}
+
+/**
+ * Get a human-readable display name for a placed device.
+ * Follows a fallback chain:
+ * 1. Placement name (user-assigned name for this instance)
+ * 2. Device type model
+ * 3. Device type manufacturer
+ * 4. Device type slug (final fallback)
+ */
+export function getDeviceDisplayName(
+	placed: PlacedDevice,
+	deviceLibrary: DeviceType[]
+): string {
+	// Try placement name first (user-assigned name for this instance)
+	if (placed.name) {
+		return placed.name;
+	}
+
+	// Fall back to device type properties
+	const deviceType = deviceLibrary.find((d) => d.slug === placed.device_type);
+	if (deviceType) {
+		if (deviceType.model) {
+			return deviceType.model;
+		}
+		if (deviceType.manufacturer) {
+			return deviceType.manufacturer;
+		}
+	}
+
+	// Final fallback to slug
+	return placed.device_type;
 }

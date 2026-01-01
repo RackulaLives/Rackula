@@ -14,6 +14,7 @@
     type DropFeedback,
   } from "$lib/utils/dragdrop";
   import { findCollisions } from "$lib/utils/collision";
+  import { getDeviceDisplayName } from "$lib/utils/device";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { screenToSVG } from "$lib/utils/coordinates";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
@@ -489,25 +490,10 @@
         );
 
         if (collisions.length > 0) {
-          // Build list of blocking device names
-          const blockingNames = collisions.map((placed) => {
-            // Try to get a display name: placement name, or device type model/manufacturer, or slug
-            if (placed.name) {
-              return placed.name;
-            }
-            const deviceType = deviceLibrary.find(
-              (d) => d.slug === placed.device_type,
-            );
-            if (deviceType) {
-              if (deviceType.model) {
-                return deviceType.model;
-              }
-              if (deviceType.manufacturer) {
-                return deviceType.manufacturer;
-              }
-            }
-            return placed.device_type;
-          });
+          // Build list of blocking device names using the helper function
+          const blockingNames = collisions.map((placed) =>
+            getDeviceDisplayName(placed, deviceLibrary),
+          );
 
           // Format message based on number of collisions
           const message =
