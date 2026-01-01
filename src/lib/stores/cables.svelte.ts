@@ -4,6 +4,7 @@
  */
 
 import type { Cable, CableType, CableStatus, LengthUnit } from "$lib/types";
+import { debug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { getLayoutStore } from "./layout.svelte";
 
@@ -82,9 +83,13 @@ export function validateCable(
           `Interface '${cable.a_interface}' not found on device type '${aDevice.device_type}'`,
         );
       }
+    } else {
+      // Device type has no interfaces defined - allow any interface name
+      // This supports user-defined cables on devices without explicit interface templates
+      debug.warn(
+        `Cable validation: Device type '${aDevice.device_type}' has no interfaces defined. Interface '${cable.a_interface}' will not be validated.`,
+      );
     }
-    // Note: If device type has no interfaces defined, we allow any interface name
-    // This supports user-defined cables on devices without explicit interface templates
   }
 
   // Check B-side interface exists on device type
@@ -101,6 +106,11 @@ export function validateCable(
           `Interface '${cable.b_interface}' not found on device type '${bDevice.device_type}'`,
         );
       }
+    } else {
+      // Device type has no interfaces defined - allow any interface name
+      debug.warn(
+        `Cable validation: Device type '${bDevice.device_type}' has no interfaces defined. Interface '${cable.b_interface}' will not be validated.`,
+      );
     }
   }
 

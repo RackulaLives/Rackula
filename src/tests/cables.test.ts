@@ -660,6 +660,17 @@ describe("Cable Store", () => {
       expect(result.success).toBe(false);
       expect(result.errors).toContain("Cable not found");
     });
+
+    it("marks layout as dirty after updating cable", () => {
+      const layoutStore = getLayoutStore();
+      layoutStore.markClean();
+      expect(layoutStore.isDirty).toBe(false);
+
+      const cableStore = getCableStore();
+      cableStore.updateCable("cable-1", { label: "Updated" });
+
+      expect(layoutStore.isDirty).toBe(true);
+    });
   });
 
   describe("removeCable", () => {
@@ -692,6 +703,17 @@ describe("Cable Store", () => {
       const cableStore = getCableStore();
       const removed = cableStore.removeCable("non-existent");
       expect(removed).toBeUndefined();
+    });
+
+    it("marks layout as dirty after removing cable", () => {
+      const layoutStore = getLayoutStore();
+      layoutStore.markClean();
+      expect(layoutStore.isDirty).toBe(false);
+
+      const cableStore = getCableStore();
+      cableStore.removeCable("cable-1");
+
+      expect(layoutStore.isDirty).toBe(true);
     });
   });
 
