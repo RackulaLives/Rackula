@@ -24,6 +24,7 @@ import { netgateDevices } from "./netgate";
 import { blackmagicdesignDevices } from "./blackmagicdesign";
 import { deskpiDevices } from "./deskpi";
 import { acInfinityDevices } from "./ac-infinity";
+import { appleDevices } from "./apple";
 
 export {
   ubiquitiDevices,
@@ -46,6 +47,7 @@ export {
   blackmagicdesignDevices,
   deskpiDevices,
   acInfinityDevices,
+  appleDevices,
 };
 
 /**
@@ -202,6 +204,14 @@ export function getBrandPacks(): BrandSection[] {
       devices: acInfinityDevices,
       defaultExpanded: false,
     },
+    // Servers - Apple
+    {
+      id: "apple",
+      title: "Apple",
+      devices: appleDevices,
+      defaultExpanded: false,
+      icon: "apple",
+    },
   ];
 }
 
@@ -248,6 +258,8 @@ export function getBrandDevices(brandId: string): DeviceType[] {
       return deskpiDevices;
     case "ac-infinity":
       return acInfinityDevices;
+    case "apple":
+      return appleDevices;
     default:
       return [];
   }
@@ -278,6 +290,7 @@ export function getAllBrandDevices(): DeviceType[] {
     ...blackmagicdesignDevices,
     ...deskpiDevices,
     ...acInfinityDevices,
+    ...appleDevices,
   ];
 }
 
