@@ -240,7 +240,20 @@ describe("Cable Schema Validation", () => {
       expect(() => CableSchema.parse(cable)).toThrow();
     });
 
-    it("accepts cable with positive length", () => {
+    it("accepts cable with positive length and length_unit", () => {
+      const cable = {
+        id: "cable-1",
+        a_device_id: "device-1",
+        a_interface: "eth0",
+        b_device_id: "device-2",
+        b_interface: "eth0",
+        length: 0.5,
+        length_unit: "m",
+      };
+      expect(CableSchema.parse(cable)).toMatchObject(cable);
+    });
+
+    it("rejects cable with length but no length_unit", () => {
       const cable = {
         id: "cable-1",
         a_device_id: "device-1",
@@ -249,7 +262,7 @@ describe("Cable Schema Validation", () => {
         b_interface: "eth0",
         length: 0.5,
       };
-      expect(CableSchema.parse(cable)).toMatchObject(cable);
+      expect(() => CableSchema.parse(cable)).toThrow("length_unit is required");
     });
   });
 });

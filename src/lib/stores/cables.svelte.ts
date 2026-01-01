@@ -32,7 +32,12 @@ export interface CableValidationResult {
 }
 
 /**
- * Validate cable data against layout constraints
+ * Validate cable data against layout constraints.
+ *
+ * This function is exported for unit testing. Application code should use
+ * getCableStore().validateCable() which automatically provides the current
+ * cable list from the layout store.
+ *
  * @param cable - Cable data to validate
  * @param cables - Existing cables (for duplicate check)
  * @param excludeCableId - Cable ID to exclude from duplicate check (for updates)

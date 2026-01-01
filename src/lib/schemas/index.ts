@@ -342,7 +342,20 @@ export const CableSchema = z
     length_unit: LengthUnitSchema.optional(),
     status: CableStatusSchema.optional(),
   })
-  .passthrough();
+  .passthrough()
+  .refine(
+    (data) => {
+      // If length is provided, length_unit must also be provided
+      if (data.length !== undefined && data.length_unit === undefined) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "length_unit is required when length is specified",
+      path: ["length_unit"],
+    },
+  );
 
 // ============================================================================
 // Composite Schemas
