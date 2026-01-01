@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { generateId, getDefaultColour } from '$lib/utils/device';
+import { generateId, getDefaultColour, getDeviceDisplayName } from '$lib/utils/device';
 import { CATEGORY_COLOURS } from '$lib/types/constants';
-import type { DeviceCategory } from '$lib/types';
+import type { DeviceCategory, DeviceType, PlacedDevice } from '$lib/types';
 
 describe('Device Utilities', () => {
 	describe('generateId', () => {
@@ -90,6 +90,119 @@ describe('Device Utilities', () => {
 				const colour = getDefaultColour(category);
 				expect(colour).toBe(CATEGORY_COLOURS[category]);
 			});
+		});
+	});
+
+	describe('getDeviceDisplayName', () => {
+		// Helper to create minimal PlacedDevice
+		const createPlacedDevice = (overrides: Partial<PlacedDevice> = {}): PlacedDevice => ({
+			id: 'test-id',
+			device_type: 'test-device',
+			position: 1,
+			rack_id: 'rack-1',
+			...overrides
+		});
+
+		// Helper to create minimal DeviceType
+		const createDeviceType = (overrides: Partial<DeviceType> = {}): DeviceType => ({
+			slug: 'test-device',
+			u_height: 1,
+			category: 'server',
+			...overrides
+		});
+
+		it('returns placement name when available', () => {
+			const placed = createPlacedDevice({ name: 'My Server' });
+			const library: DeviceType[] = [createDeviceType({ model: 'DL380 Gen10' })];
+
+			expect(getDeviceDisplayName(placed, library)).toBe('My Server');
+		});
+
+		it('falls back to device type model when no placement name', () => {
+			const placed = createPlacedDevice({ name: undefined });
+			const library: DeviceType[] = [createDeviceType({ model: 'DL380 Gen10' })];
+
+			expect(getDeviceDisplayName(placed, library)).toBe('DL380 Gen10');
+		});
+
+		it('falls back to manufacturer when no name or model', () => {
+			const placed = createPlacedDevice({ name: undefined });
+			const library: DeviceType[] = [
+				createDeviceType({ model: undefined, manufacturer: 'HPE' })
+			];
+
+			expect(getDeviceDisplayName(placed, library)).toBe('HPE');
+		});
+
+		it('falls back to slug when no name, model, or manufacturer', () => {
+			const placed = createPlacedDevice({
+				name: undefined,
+				device_type: 'custom-switch'
+			});
+			const library: DeviceType[] = [
+				createDeviceType({
+					slug: 'custom-switch',
+					model: undefined,
+					manufacturer: undefined
+				})
+			];
+
+			expect(getDeviceDisplayName(placed, library)).toBe('custom-switch');
+		});
+
+		it('returns slug when device type not found in library', () => {
+			const placed = createPlacedDevice({
+				name: undefined,
+				device_type: 'unknown-device'
+			});
+			const library: DeviceType[] = [createDeviceType({ slug: 'other-device' })];
+
+			expect(getDeviceDisplayName(placed, library)).toBe('unknown-device');
+		});
+
+		it('prioritizes placement name over device type properties', () => {
+			const placed = createPlacedDevice({
+				name: 'Production DB',
+				device_type: 'dl380-gen10'
+			});
+			const library: DeviceType[] = [
+				createDeviceType({
+					slug: 'dl380-gen10',
+					model: 'DL380 Gen10',
+					manufacturer: 'HPE'
+				})
+			];
+
+			expect(getDeviceDisplayName(placed, library)).toBe('Production DB');
+		});
+
+		it('prioritizes model over manufacturer', () => {
+			const placed = createPlacedDevice({ name: undefined });
+			const library: DeviceType[] = [
+				createDeviceType({
+					model: 'USW-Pro-48-PoE',
+					manufacturer: 'Ubiquiti'
+				})
+			];
+
+			expect(getDeviceDisplayName(placed, library)).toBe('USW-Pro-48-PoE');
+		});
+
+		it('handles empty library', () => {
+			const placed = createPlacedDevice({
+				name: undefined,
+				device_type: 'orphaned-device'
+			});
+
+			expect(getDeviceDisplayName(placed, [])).toBe('orphaned-device');
+		});
+
+		it('handles empty string name (treats as no name)', () => {
+			const placed = createPlacedDevice({ name: '' });
+			const library: DeviceType[] = [createDeviceType({ model: 'Model X' })];
+
+			// Empty string is falsy, so should fall back to model
+			expect(getDeviceDisplayName(placed, library)).toBe('Model X');
 		});
 	});
 });
