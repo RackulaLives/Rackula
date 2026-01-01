@@ -16,6 +16,7 @@ To prevent multiple agents from working on the same issue simultaneously:
 3. **Release on exit:** Remove `in-progress` label when done (success or blocked)
 
 **Label lifecycle:**
+
 ```
 ready → in-progress (agent claims) → ready (released on completion/block)
 ```
@@ -45,6 +46,7 @@ This ensures:
 ## CRITICAL: Branch Checkout Rules
 
 **NEVER run these commands in the main Rackula directory:**
+
 ```bash
 # FORBIDDEN in main directory:
 git checkout <branch>      # ❌ Changes branch for ALL agents
@@ -55,6 +57,7 @@ git checkout -b <branch>   # ❌ Creates and switches
 **The main directory must ALWAYS stay on `main` branch.** Multiple agents share this directory, and switching branches causes conflicts.
 
 **ALWAYS use worktrees instead:**
+
 ```bash
 # CORRECT: Create isolated worktree
 git worktree add ../Rackula-issue-<N> -b <type>/<N>-<desc>
@@ -63,6 +66,7 @@ cd ../Rackula-issue-<N>
 ```
 
 **If you find main directory on wrong branch:**
+
 ```bash
 # Fix it immediately:
 git checkout main
@@ -195,6 +199,7 @@ git worktree remove ../Rackula-issue-<N>
 ### 1a. Main Branch Verification (FIRST)
 
 **Before anything else**, verify main directory is on `main` branch:
+
 ```bash
 cd /path/to/Rackula  # main directory
 CURRENT=$(git branch --show-current)
@@ -231,6 +236,7 @@ git branch -a | grep -E "(fix|feat|chore|refactor|test|docs)/" || echo "No WIP b
 ### 1e. Issue Fetch (Bash)
 
 Fetch top 5 ready issues sorted by priority then size, **excluding in-progress**:
+
 ```bash
 gh issue list -R RackulaLives/Rackula --state open --label ready \
   --json number,title,labels,body \
@@ -259,11 +265,13 @@ Filter out worktree-claimed issues. If none remain, report "No ready issues avai
 Pick first available issue (or use provided argument).
 
 **Step 1: Claim the issue immediately** by adding the `in-progress` label:
+
 ```bash
 gh issue edit <number> --add-label "in-progress"
 ```
 
 **Step 2: Race detection** — wait 2 seconds, then re-fetch to verify no conflict:
+
 ```bash
 sleep 2
 gh issue view <number> --json number,title,body,labels,comments,assignees
@@ -271,7 +279,7 @@ gh issue view <number> --json number,title,body,labels,comments,assignees
 
 **Abort conditions** (another agent may have claimed simultaneously):
 - Issue has an assignee that wasn't there before
-- A comment was added in the last minute by another agent
+- A comment was added within the race detection window
 - Issue no longer has `ready` label
 
 If any abort condition is true: remove `in-progress` label and try the next issue.
@@ -309,6 +317,7 @@ If not obvious from issue, use Explore agent: "Find files related to <feature/co
 **If already in worktree for this issue:** Skip (branch exists).
 
 **Otherwise, ALWAYS create a worktree** (never work on main):
+
 ```bash
 # From main directory
 git fetch origin main
@@ -363,12 +372,14 @@ gh pr merge --squash --delete-branch --auto
 
 ### 3h. Cleanup
 
-1. **Release the lock** — remove `in-progress` label (issue will close via PR merge):
+**Release the lock** — remove `in-progress` label (issue will close via PR merge):
+
 ```bash
 gh issue edit <number> --remove-label "in-progress"
 ```
 
-2. If using worktree: return to main directory, pull, remove worktree, prune:
+If using worktree, return to main directory, pull, remove worktree, prune:
+
 ```bash
 cd /path/to/Rackula  # main directory
 git pull origin main
@@ -376,7 +387,7 @@ git worktree remove ../Rackula-issue-<N>
 git worktree prune
 ```
 
-3. Update progress file status to "Completed" with PR URL.
+Update progress file status to "Completed" with PR URL.
 
 <!-- CHECKPOINT: Phase 3 Complete -->
 
@@ -385,6 +396,7 @@ git worktree prune
 ## Phase 4: Continue or Stop
 
 Check for more ready issues (excluding in-progress):
+
 ```bash
 gh issue list -R RackulaLives/Rackula --state open --label ready \
   --json number,labels \
@@ -420,12 +432,13 @@ If not, read error and fix manually.
 
 1. **Commit WIP:** `git commit -m "wip: partial progress on #<N>" --no-verify && git push`
 
-2. **Release the lock** — remove `in-progress` label so others can pick it up:
+2. **Release the lock** — remove `in-progress` label, so others can pick it up:
+
 ```bash
 gh issue edit <N> --remove-label "in-progress"
 ```
 
-3. **Comment on issue** with: status, completed items, blocker description, what was attempted, next steps needed, WIP branch name
+3. **Comment on issue** with status, completed items, blocker description, what was attempted, next steps needed, WIP branch name
 
 4. **Update progress file** with BLOCKED status and blocker description
 
