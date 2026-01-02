@@ -32,14 +32,23 @@ We follow [Cargo semver](https://doc.rust-lang.org/cargo/reference/semver.html) 
 
 **Release Process:**
 
-Use `npm version` to create releases (auto-creates correctly-formatted tags):
+Use the `/release` skill to create releases with proper changelog entries:
 
 ```bash
-npm version patch   # 0.5.8 → 0.5.9, creates v0.5.9 tag
-npm version minor   # 0.5.9 → 0.6.0, creates v0.6.0 tag
-npm version major   # 0.6.0 → 1.0.0, creates v1.0.0 tag
-git push && git push --tags
+/release patch   # Bug fixes: 0.5.8 → 0.5.9
+/release minor   # Features: 0.5.9 → 0.6.0
+/release major   # Breaking: 0.6.0 → 1.0.0
+/release 1.0.0   # Explicit version
 ```
+
+The `/release` skill will:
+
+1. Gather changes since last release (commits, PRs, issues)
+2. Draft a changelog entry in Keep a Changelog format
+3. Preview and confirm with you
+4. Update CHANGELOG.md, bump version, tag, and push
+
+**Important:** CHANGELOG.md is the source of truth. GitHub releases are auto-generated from changelog entries. The release workflow will fail if no changelog entry exists.
 
 **Tag format:** Always use `v` prefix (e.g., `v0.5.8`, not `0.5.8`)
 
