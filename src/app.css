@@ -1,8 +1,5 @@
 /* Rackula - Global Styles and CSS Custom Properties */
 
-/* Space Grotesk for logo wordmark - TODO: self-host like other fonts */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500&display=swap');
-
 /* Import Design Token System - must come first per CSS spec */
 @import "./lib/styles/tokens.css";
 @import "./lib/styles/animations.css";
@@ -72,6 +69,14 @@
   font-family: "Inter";
   src: url("/fonts/Inter-Bold.woff2") format("woff2");
   font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/fonts/SpaceGrotesk-Medium.woff2") format("woff2");
+  font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
