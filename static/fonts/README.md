@@ -55,5 +55,6 @@ After adding fonts, run `npm run dev` and check the browser console for any 404 
 
 If fonts are missing, the app falls back to system fonts:
 
+- Space Grotesk -> system-ui, sans-serif
 - JetBrains Mono -> SF Mono, Consolas, monospace
 - Inter -> system-ui, -apple-system, sans-serif
