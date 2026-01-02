@@ -166,7 +166,12 @@
   const effectiveFaceFilter = $derived(faceFilter ?? rack.view);
 
   // Filter devices by face and preserve original indices for selection tracking
-  // Full-depth devices are visible from both sides, so they appear on both faces
+  // The face field on PlacedDevice is the source of truth for which face(s) a device occupies.
+  // - face="both": device shows on both front and rear (default for full-depth devices)
+  // - face="front": device only shows on front view
+  // - face="rear": device only shows on rear view
+  // Note: is_full_depth on DeviceType only affects default face assignment and collision detection,
+  // it does NOT override the user's explicit face selection (Issue #383).
   const visibleDevices = $derived(
     rack.devices
       .map((placedDevice, originalIndex) => ({ placedDevice, originalIndex }))
@@ -176,14 +181,7 @@
         if (face === "both") return true;
         // Devices on this face are always visible
         if (face === effectiveFaceFilter) return true;
-        // Full-depth devices on the opposite face are also visible (they span full rack depth)
-        if (faceFilter) {
-          const deviceType = getDeviceBySlug(placedDevice.device_type);
-          if (deviceType) {
-            const isFullDepth = deviceType.is_full_depth !== false;
-            if (isFullDepth) return true;
-          }
-        }
+        // Otherwise, device is on the opposite face and not "both", so not visible
         return false;
       }),
   );

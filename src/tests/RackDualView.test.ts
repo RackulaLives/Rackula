@@ -239,9 +239,10 @@ describe("RackDualView Component", () => {
       expect(rearDevices?.length).toBe(0);
     });
 
-    it("shows full-depth front-face devices in both views", () => {
+    it("respects face override even for full-depth devices (Issue #383)", () => {
       const rack = createTestRack({
-        // server-1 is full-depth, so it should be visible from both sides
+        // server-1 is full-depth, but face is explicitly set to "front"
+        // The face field is the source of truth - device should only show on front
         devices: [{ device_type: "server-1", position: 1, face: "front" }],
       });
       const { container } = render(RackDualView, {
@@ -255,7 +256,31 @@ describe("RackDualView Component", () => {
       const frontView = container.querySelector(".rack-front");
       const rearView = container.querySelector(".rack-rear");
 
-      // Full-depth device should be visible in both views
+      // Full-depth device with face="front" should only be visible in front view
+      const frontDevices = frontView?.querySelectorAll(".rack-device");
+      const rearDevices = rearView?.querySelectorAll(".rack-device");
+
+      expect(frontDevices?.length).toBe(1);
+      expect(rearDevices?.length).toBe(0); // Should NOT show on rear
+    });
+
+    it("shows full-depth devices with face='both' in both views", () => {
+      const rack = createTestRack({
+        // server-1 is full-depth with face="both" (the default), should be visible from both sides
+        devices: [{ device_type: "server-1", position: 1, face: "both" }],
+      });
+      const { container } = render(RackDualView, {
+        props: {
+          rack,
+          deviceLibrary: createTestDeviceLibrary(),
+          selected: false,
+        },
+      });
+
+      const frontView = container.querySelector(".rack-front");
+      const rearView = container.querySelector(".rack-rear");
+
+      // Full-depth device with face="both" should be visible in both views
       const frontDevices = frontView?.querySelectorAll(".rack-device");
       const rearDevices = rearView?.querySelectorAll(".rack-device");
 

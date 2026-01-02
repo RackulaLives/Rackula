@@ -635,8 +635,10 @@ describe("Rack SVG Component", () => {
       expect(deviceIds).not.toContain("front-device");
     });
 
-    it("shows full-depth devices from opposite face", () => {
-      // Create a full-depth device on front face
+    it("respects face override on full-depth devices (Issue #383)", () => {
+      // When user explicitly sets face to "front" on a full-depth device,
+      // it should ONLY show on front view, NOT rear view.
+      // The face field is the source of truth, not is_full_depth.
       const fullDepthLibrary: DeviceType[] = [
         {
           slug: "full-depth-server",
@@ -655,27 +657,145 @@ describe("Rack SVG Component", () => {
             id: "rc-ff-fd",
             device_type: "full-depth-server",
             position: 1,
-            face: "front",
+            face: "front", // User explicitly set to front-only
           },
         ],
       };
 
-      const { container } = render(Rack, {
+      // Should be visible from front
+      const { container: frontContainer } = render(Rack, {
         props: {
           rack: rackWithFullDepth,
           deviceLibrary: fullDepthLibrary,
           selected: false,
-          faceFilter: "rear", // Viewing rear, but full-depth front device should be visible
+          faceFilter: "front",
         },
       });
 
-      const devices = container.querySelectorAll("[data-device-id]");
-      expect(devices).toHaveLength(1);
+      const frontDevices = frontContainer.querySelectorAll("[data-device-id]");
+      expect(frontDevices).toHaveLength(1);
 
-      const deviceIds = Array.from(devices).map((d) =>
-        d.getAttribute("data-device-id"),
+      // Should NOT be visible from rear (face override takes precedence)
+      const { container: rearContainer } = render(Rack, {
+        props: {
+          rack: rackWithFullDepth,
+          deviceLibrary: fullDepthLibrary,
+          selected: false,
+          faceFilter: "rear",
+        },
+      });
+
+      const rearDevices = rearContainer.querySelectorAll("[data-device-id]");
+      expect(rearDevices).toHaveLength(0); // Should NOT show on rear
+    });
+
+    it("full-depth device with face='both' shows on both views", () => {
+      // Full-depth devices with face='both' (the default) should be visible from both sides
+      const fullDepthLibrary: DeviceType[] = [
+        {
+          slug: "full-depth-server",
+          model: "Full Depth Server",
+          u_height: 2,
+          colour: "#888888",
+          category: "server",
+          is_full_depth: true,
+        },
+      ];
+
+      const rackWithFullDepth: RackType = {
+        ...mockRack,
+        devices: [
+          {
+            id: "rc-ff-fd-both",
+            device_type: "full-depth-server",
+            position: 1,
+            face: "both", // Default for full-depth devices
+          },
+        ],
+      };
+
+      // Should be visible from front
+      const { container: frontContainer } = render(Rack, {
+        props: {
+          rack: rackWithFullDepth,
+          deviceLibrary: fullDepthLibrary,
+          selected: false,
+          faceFilter: "front",
+        },
+      });
+
+      expect(frontContainer.querySelectorAll("[data-device-id]")).toHaveLength(
+        1,
       );
-      expect(deviceIds).toContain("full-depth-server");
+
+      // Should also be visible from rear
+      const { container: rearContainer } = render(Rack, {
+        props: {
+          rack: rackWithFullDepth,
+          deviceLibrary: fullDepthLibrary,
+          selected: false,
+          faceFilter: "rear",
+        },
+      });
+
+      expect(rearContainer.querySelectorAll("[data-device-id]")).toHaveLength(
+        1,
+      );
+    });
+
+    it("full-depth device with face='rear' only shows on rear view", () => {
+      // When user explicitly sets face to "rear" on a full-depth device,
+      // it should ONLY show on rear view
+      const fullDepthLibrary: DeviceType[] = [
+        {
+          slug: "full-depth-server",
+          model: "Full Depth Server",
+          u_height: 2,
+          colour: "#888888",
+          category: "server",
+          is_full_depth: true,
+        },
+      ];
+
+      const rackWithFullDepth: RackType = {
+        ...mockRack,
+        devices: [
+          {
+            id: "rc-ff-fd-rear",
+            device_type: "full-depth-server",
+            position: 1,
+            face: "rear", // User explicitly set to rear-only
+          },
+        ],
+      };
+
+      // Should NOT be visible from front
+      const { container: frontContainer } = render(Rack, {
+        props: {
+          rack: rackWithFullDepth,
+          deviceLibrary: fullDepthLibrary,
+          selected: false,
+          faceFilter: "front",
+        },
+      });
+
+      expect(frontContainer.querySelectorAll("[data-device-id]")).toHaveLength(
+        0,
+      );
+
+      // Should be visible from rear
+      const { container: rearContainer } = render(Rack, {
+        props: {
+          rack: rackWithFullDepth,
+          deviceLibrary: fullDepthLibrary,
+          selected: false,
+          faceFilter: "rear",
+        },
+      });
+
+      expect(rearContainer.querySelectorAll("[data-device-id]")).toHaveLength(
+        1,
+      );
     });
 
     it("shows all devices when faceFilter is undefined (backwards compat)", () => {
