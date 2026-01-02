@@ -3,7 +3,13 @@
   Renders a device within a rack at the specified U position
 -->
 <script lang="ts">
-  import type { DeviceType, DisplayMode, RackView } from "$lib/types";
+  import type {
+    DeviceType,
+    DisplayMode,
+    InterfaceTemplate,
+    RackView,
+  } from "$lib/types";
+  import PortIndicators from "./PortIndicators.svelte";
   import {
     createRackDeviceDragData,
     serializeDragData,
@@ -45,6 +51,7 @@
       event: CustomEvent<{ rackId: string; deviceIndex: number }>,
     ) => void;
     ondragend?: () => void;
+    onPortClick?: (iface: InterfaceTemplate) => void;
   }
 
   let {
@@ -65,6 +72,7 @@
     onselect,
     ondragstart: ondragstartProp,
     ondragend: ondragendProp,
+    onPortClick,
   }: Props = $props();
 
   // Device display name: model or slug
@@ -333,6 +341,17 @@
         </div>
       </foreignObject>
     {/if}
+  {/if}
+
+  <!-- Port indicators (layer 3.5: after device content, before drag overlay) -->
+  {#if device.interfaces?.length}
+    <PortIndicators
+      interfaces={device.interfaces}
+      {deviceWidth}
+      {deviceHeight}
+      {rackView}
+      {onPortClick}
+    />
   {/if}
 
   <!-- Invisible HTML overlay for drag-and-drop (rendered last to be on top for click events) -->

@@ -586,4 +586,140 @@ describe("RackDevice SVG Component", () => {
       expect(container.querySelector(".label-overlay")).not.toBeInTheDocument();
     });
   });
+
+  describe("Port Indicators Integration", () => {
+    const mockDeviceWithInterfaces: DeviceType = {
+      ...mockDevice,
+      interfaces: [
+        { name: "eth0", type: "1000base-t" },
+        { name: "eth1", type: "1000base-t" },
+        { name: "mgmt", type: "1000base-t", mgmt_only: true },
+      ],
+    };
+
+    it("does not render PortIndicators when device has no interfaces", () => {
+      const { container } = render(RackDevice, {
+        props: { ...defaultProps },
+      });
+
+      const portIndicators = container.querySelector(".port-indicators");
+      expect(portIndicators).not.toBeInTheDocument();
+    });
+
+    it("does not render PortIndicators when interfaces array is empty", () => {
+      const deviceWithEmptyInterfaces: DeviceType = {
+        ...mockDevice,
+        interfaces: [],
+      };
+      const { container } = render(RackDevice, {
+        props: { ...defaultProps, device: deviceWithEmptyInterfaces },
+      });
+
+      const portIndicators = container.querySelector(".port-indicators");
+      expect(portIndicators).not.toBeInTheDocument();
+    });
+
+    it("renders PortIndicators when device has interfaces", () => {
+      const { container } = render(RackDevice, {
+        props: { ...defaultProps, device: mockDeviceWithInterfaces },
+      });
+
+      const portIndicators = container.querySelector(".port-indicators");
+      expect(portIndicators).toBeInTheDocument();
+    });
+
+    it("passes correct props to PortIndicators", () => {
+      const { container } = render(RackDevice, {
+        props: { ...defaultProps, device: mockDeviceWithInterfaces },
+      });
+
+      // PortIndicators should render port circles for the interfaces
+      const portCircles = container.querySelectorAll("circle.port-circle");
+      expect(portCircles.length).toBe(3);
+    });
+
+    it("passes rackView prop to PortIndicators", () => {
+      const deviceWithPositionedInterfaces: DeviceType = {
+        ...mockDevice,
+        interfaces: [
+          { name: "eth0", type: "1000base-t", position: "front" },
+          { name: "eth1", type: "1000base-t", position: "rear" },
+        ],
+      };
+
+      // Front view should only show front interfaces
+      const { container: frontContainer } = render(RackDevice, {
+        props: {
+          ...defaultProps,
+          device: deviceWithPositionedInterfaces,
+          rackView: "front",
+        },
+      });
+      const frontPorts = frontContainer.querySelectorAll("circle.port-circle");
+      expect(frontPorts.length).toBe(1);
+
+      // Rear view should only show rear interfaces
+      const { container: rearContainer } = render(RackDevice, {
+        props: {
+          ...defaultProps,
+          device: deviceWithPositionedInterfaces,
+          rackView: "rear",
+        },
+      });
+      const rearPorts = rearContainer.querySelectorAll("circle.port-circle");
+      expect(rearPorts.length).toBe(1);
+    });
+
+    it("emits onPortClick event when port is clicked", async () => {
+      const handlePortClick = vi.fn();
+
+      const { container } = render(RackDevice, {
+        props: {
+          ...defaultProps,
+          device: mockDeviceWithInterfaces,
+          onPortClick: handlePortClick,
+        },
+      });
+
+      // Find and click a port click target
+      const portClickTarget = container.querySelector(".port-click-target");
+      expect(portClickTarget).toBeInTheDocument();
+
+      await fireEvent.click(portClickTarget!);
+
+      expect(handlePortClick).toHaveBeenCalledTimes(1);
+      expect(handlePortClick).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "eth0",
+          type: "1000base-t",
+        }),
+      );
+    });
+
+    it("renders PortIndicators in correct layer (before drag overlay)", () => {
+      const { container } = render(RackDevice, {
+        props: { ...defaultProps, device: mockDeviceWithInterfaces },
+      });
+
+      const group = container.querySelector("g.rack-device");
+      const children = Array.from(group?.children ?? []);
+
+      // Find the positions of port-indicators and drag-overlay
+      const portIndicatorsIndex = children.findIndex(
+        (el) =>
+          el.tagName.toLowerCase() === "g" &&
+          el.classList.contains("port-indicators"),
+      );
+      const dragOverlayIndex = children.findIndex(
+        (el) =>
+          el.tagName.toLowerCase() === "foreignobject" &&
+          el.classList.contains("drag-overlay"),
+      );
+
+      expect(portIndicatorsIndex).toBeGreaterThan(-1);
+      expect(dragOverlayIndex).toBeGreaterThan(-1);
+      // Port indicators should come before drag overlay
+      expect(portIndicatorsIndex).toBeLessThan(dragOverlayIndex);
+    });
+  });
 });
