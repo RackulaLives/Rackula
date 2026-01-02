@@ -32,17 +32,18 @@
   }: Props = $props();
 
   // Color scheme by interface type (NetBox-inspired)
+  // Uses CSS custom properties from tokens.css for design system consistency
   const INTERFACE_COLORS: Partial<Record<InterfaceType, string>> = {
-    "1000base-t": "#10b981", // Emerald - 1GbE
-    "10gbase-t": "#3b82f6", // Blue - 10GbE copper
-    "10gbase-x-sfpp": "#8b5cf6", // Purple - SFP+
-    "25gbase-x-sfp28": "#f59e0b", // Amber - SFP28
-    "40gbase-x-qsfpp": "#ef4444", // Red - QSFP+
-    "100gbase-x-qsfp28": "#ec4899", // Pink - QSFP28
+    "1000base-t": "var(--colour-port-1gbe)", // Emerald - 1GbE
+    "10gbase-t": "var(--colour-port-10gbe)", // Blue - 10GbE copper
+    "10gbase-x-sfpp": "var(--colour-port-sfpp)", // Purple - SFP+
+    "25gbase-x-sfp28": "var(--colour-port-sfp28)", // Amber - SFP28
+    "40gbase-x-qsfpp": "var(--colour-port-qsfpp)", // Red - QSFP+
+    "100gbase-x-qsfp28": "var(--colour-port-qsfp28)", // Pink - QSFP28
   };
 
   // Default color for unknown types
-  const DEFAULT_COLOR = "#6b7280";
+  const DEFAULT_COLOR = "var(--colour-port-default)";
 
   // Constants for port rendering
   const PORT_RADIUS = 3;
@@ -147,19 +148,12 @@
           cy={y}
           r={PORT_RADIUS}
           fill={color}
-          stroke="rgba(0,0,0,0.3)"
           stroke-width="0.5"
         />
 
         <!-- Management interface indicator (smaller inner circle) -->
         {#if iface.mgmt_only}
-          <circle
-            class="port-mgmt-indicator"
-            cx={x}
-            cy={y}
-            r={1}
-            fill="white"
-          />
+          <circle class="port-mgmt-indicator" cx={x} cy={y} r={1} />
         {/if}
 
         <!-- PoE indicator (lightning bolt for PSE interfaces) -->
@@ -207,7 +201,6 @@
             height={BADGE_HEIGHT}
             rx="2"
             fill={color}
-            stroke="rgba(0,0,0,0.3)"
             stroke-width="0.5"
           />
           <text
@@ -230,10 +223,12 @@
   }
 
   .port-circle {
+    stroke: var(--colour-port-stroke);
     transition: r 150ms ease-out;
   }
 
   .port-mgmt-indicator {
+    fill: var(--colour-port-indicator);
     pointer-events: none;
   }
 
@@ -265,11 +260,11 @@
   }
 
   .port-click-target:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--colour-port-hover);
   }
 
   .port-click-target:focus {
-    outline: 2px solid var(--colour-selection, #ff79c6);
+    outline: 2px solid var(--colour-selection);
     outline-offset: 1px;
   }
 
@@ -286,14 +281,15 @@
   }
 
   .port-count-text {
-    fill: white;
+    fill: var(--colour-port-indicator);
     font-size: 6px;
     font-weight: 600;
     font-family: var(--font-mono, monospace);
-    text-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.5);
+    text-shadow: var(--shadow-port-text);
   }
 
   .port-group-badge rect {
+    stroke: var(--colour-port-stroke);
     transition: transform 150ms ease-out;
   }
 

@@ -93,6 +93,15 @@
   --amber-500: #f59e0b;
   --amber-600: #d97706;
 
+  /* Color Palette - Emerald (Network interfaces) */
+  --emerald-500: #10b981;
+
+  /* Color Palette - Purple (Network interfaces) */
+  --purple-500: #8b5cf6;
+
+  /* Color Palette - Pink (Network interfaces) */
+  --pink-500: #ec4899;
+
   /* Typography - Font Families (Dracula Brand) */
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -218,6 +227,19 @@
   --colour-airflow-exhaust: var(--dracula-red);
   --colour-airflow-passive: var(--dracula-comment);
   --colour-airflow-conflict: var(--dracula-orange);
+
+  /* Port/Interface Indicators */
+  --colour-port-1gbe: var(--emerald-500);
+  --colour-port-10gbe: var(--blue-500);
+  --colour-port-sfpp: var(--purple-500);
+  --colour-port-sfp28: var(--amber-500);
+  --colour-port-qsfpp: var(--red-500);
+  --colour-port-qsfp28: var(--pink-500);
+  --colour-port-default: var(--neutral-500);
+  --colour-port-stroke: rgba(0, 0, 0, 0.3);
+  --colour-port-indicator: white;
+  --colour-port-hover: rgba(255, 255, 255, 0.2);
+  --shadow-port-text: 0 0.5px 1px rgba(0, 0, 0, 0.5);
 
   /* Glow Effects - Dracula style neon glows */
   --glow-cyan-sm: 0 0 12px rgba(139, 233, 253, 0.3);

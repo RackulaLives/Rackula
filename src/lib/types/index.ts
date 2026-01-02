@@ -203,7 +203,11 @@ export interface InterfaceTemplate {
   label?: string;
   /** Management interface only (default: false) */
   mgmt_only?: boolean;
-  /** Interface position on device face (Rackula extension for visual layout) */
+  /**
+   * Interface position on device face (Rackula extension for visual layout).
+   * When omitted, defaults to 'front' (matching DEFAULT_RACK_VIEW constant).
+   * @default 'front'
+   */
   position?: InterfacePosition;
   /** PoE mode: pd (powered device) or pse (power sourcing equipment) */
   poe_mode?: PoEMode;

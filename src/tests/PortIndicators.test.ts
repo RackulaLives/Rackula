@@ -64,74 +64,74 @@ describe("PortIndicators SVG Component", () => {
   });
 
   describe("Color Coding", () => {
-    it("renders 1GbE ports in emerald (#10b981)", () => {
+    it("renders 1GbE ports with design token color", () => {
       const interfaces = [createInterface("eth0", "1000base-t")];
       const { container } = render(PortIndicators, {
         props: { ...defaultProps, interfaces },
       });
 
       const circle = container.querySelector("circle.port-circle");
-      expect(circle?.getAttribute("fill")).toBe("#10b981");
+      expect(circle?.getAttribute("fill")).toBe("var(--colour-port-1gbe)");
     });
 
-    it("renders 10GbE copper ports in blue (#3b82f6)", () => {
+    it("renders 10GbE copper ports with design token color", () => {
       const interfaces = [createInterface("eth0", "10gbase-t")];
       const { container } = render(PortIndicators, {
         props: { ...defaultProps, interfaces },
       });
 
       const circle = container.querySelector("circle.port-circle");
-      expect(circle?.getAttribute("fill")).toBe("#3b82f6");
+      expect(circle?.getAttribute("fill")).toBe("var(--colour-port-10gbe)");
     });
 
-    it("renders SFP+ ports in purple (#8b5cf6)", () => {
+    it("renders SFP+ ports with design token color", () => {
       const interfaces = [createInterface("sfp0", "10gbase-x-sfpp")];
       const { container } = render(PortIndicators, {
         props: { ...defaultProps, interfaces },
       });
 
       const circle = container.querySelector("circle.port-circle");
-      expect(circle?.getAttribute("fill")).toBe("#8b5cf6");
+      expect(circle?.getAttribute("fill")).toBe("var(--colour-port-sfpp)");
     });
 
-    it("renders SFP28 ports in amber (#f59e0b)", () => {
+    it("renders SFP28 ports with design token color", () => {
       const interfaces = [createInterface("sfp0", "25gbase-x-sfp28")];
       const { container } = render(PortIndicators, {
         props: { ...defaultProps, interfaces },
       });
 
       const circle = container.querySelector("circle.port-circle");
-      expect(circle?.getAttribute("fill")).toBe("#f59e0b");
+      expect(circle?.getAttribute("fill")).toBe("var(--colour-port-sfp28)");
     });
 
-    it("renders QSFP+ ports in red (#ef4444)", () => {
+    it("renders QSFP+ ports with design token color", () => {
       const interfaces = [createInterface("qsfp0", "40gbase-x-qsfpp")];
       const { container } = render(PortIndicators, {
         props: { ...defaultProps, interfaces },
       });
 
       const circle = container.querySelector("circle.port-circle");
-      expect(circle?.getAttribute("fill")).toBe("#ef4444");
+      expect(circle?.getAttribute("fill")).toBe("var(--colour-port-qsfpp)");
     });
 
-    it("renders QSFP28 ports in pink (#ec4899)", () => {
+    it("renders QSFP28 ports with design token color", () => {
       const interfaces = [createInterface("qsfp0", "100gbase-x-qsfp28")];
       const { container } = render(PortIndicators, {
         props: { ...defaultProps, interfaces },
       });
 
       const circle = container.querySelector("circle.port-circle");
-      expect(circle?.getAttribute("fill")).toBe("#ec4899");
+      expect(circle?.getAttribute("fill")).toBe("var(--colour-port-qsfp28)");
     });
 
-    it("renders unknown types in gray (#6b7280)", () => {
+    it("renders unknown types with default design token color", () => {
       const interfaces = [createInterface("other0", "other" as InterfaceType)];
       const { container } = render(PortIndicators, {
         props: { ...defaultProps, interfaces },
       });
 
       const circle = container.querySelector("circle.port-circle");
-      expect(circle?.getAttribute("fill")).toBe("#6b7280");
+      expect(circle?.getAttribute("fill")).toBe("var(--colour-port-default)");
     });
   });
 
@@ -195,7 +195,7 @@ describe("PortIndicators SVG Component", () => {
         "circle.port-mgmt-indicator",
       );
       expect(mgmtIndicator).toBeInTheDocument();
-      expect(mgmtIndicator?.getAttribute("fill")).toBe("white");
+      // fill is controlled by CSS via design tokens
       expect(mgmtIndicator?.getAttribute("r")).toBe("1");
     });
 
@@ -299,7 +299,7 @@ describe("PortIndicators SVG Component", () => {
       expect(counts).toContain("18");
     });
 
-    it("uses correct colors for badge backgrounds", () => {
+    it("uses correct design token colors for badge backgrounds", () => {
       const interfaces = Array.from({ length: 48 }, (_, i) =>
         createInterface(`eth${i}`, "1000base-t"),
       );
@@ -309,7 +309,7 @@ describe("PortIndicators SVG Component", () => {
       });
 
       const badgeRect = container.querySelector("g.port-group-badge rect");
-      expect(badgeRect?.getAttribute("fill")).toBe("#10b981"); // 1GbE color
+      expect(badgeRect?.getAttribute("fill")).toBe("var(--colour-port-1gbe)");
     });
 
     it("threshold is >24 ports for high-density mode", () => {
@@ -421,6 +421,21 @@ describe("PortIndicators SVG Component", () => {
 
       const button = container.querySelector("button.port-click-target");
       expect(button).toHaveAttribute("type", "button");
+    });
+
+    it("applies focus styles when port is focused", () => {
+      const interfaces = [createInterface("eth0", "1000base-t")];
+
+      const { container } = render(PortIndicators, {
+        props: { ...defaultProps, interfaces },
+      });
+
+      const button = container.querySelector(
+        "button.port-click-target",
+      ) as HTMLButtonElement;
+      button?.focus();
+
+      expect(button).toHaveFocus();
     });
   });
 
