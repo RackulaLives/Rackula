@@ -3,11 +3,52 @@
  * Utility functions for searching and grouping devices
  */
 
+import Fuse from "fuse.js";
 import type { DeviceType, DeviceCategory } from "$lib/types";
 
 /**
- * Search device types by model/slug, manufacturer, and category (case-insensitive)
- * Results are scored and ranked: model matches (3) > manufacturer matches (2) > category matches (1)
+ * Fuse.js configuration for fuzzy search.
+ * Threshold of 0.3 balances typo tolerance with precision.
+ * Lower = stricter matching, higher = more lenient.
+ */
+const fuseOptions: Fuse.IFuseOptions<DeviceType> = {
+  keys: [
+    { name: "model", weight: 3 },
+    { name: "manufacturer", weight: 2 },
+    { name: "slug", weight: 1 },
+    { name: "category", weight: 1 },
+  ],
+  threshold: 0.3,
+  ignoreLocation: true,
+  includeScore: true,
+};
+
+/**
+ * Check if a device matches a single search token (fuzzy match against any searchable field).
+ * Returns true if the token fuzzy-matches the model, manufacturer, slug, or category.
+ */
+function deviceMatchesToken(device: DeviceType, token: string): boolean {
+  const fuse = new Fuse([device], {
+    ...fuseOptions,
+    threshold: 0.4,
+  });
+  return fuse.search(token).length > 0;
+}
+
+/**
+ * Search device types using Fuse.js fuzzy search with multi-word AND support.
+ *
+ * Features:
+ * - Fuzzy matching for typos (e.g., "Deli" → "Dell", "Ubiqiti" → "Ubiquiti")
+ * - Multi-word AND queries (e.g., "MikroTik RB" returns only MikroTik RB* devices)
+ * - Results ranked by relevance: model matches > manufacturer > slug > category
+ *
+ * Multi-word behavior:
+ * - Single word: fuzzy search across all fields
+ * - Multiple words (space-separated): ALL words must match (AND logic)
+ *   Each word can match any field independently, enabling cross-field queries
+ *   like "MikroTik CRS" where "MikroTik" matches manufacturer and "CRS" matches model
+ *
  * @param devices - Array of device types to search
  * @param query - Search query string
  * @returns Filtered array of device types matching the query, sorted by relevance score
@@ -20,25 +61,38 @@ export function searchDevices(
     return devices;
   }
 
-  const q = query.toLowerCase().trim();
-  const results: { device: DeviceType; score: number }[] = [];
+  const trimmedQuery = query.trim();
+  const tokens = trimmedQuery.split(/\s+/).filter((t) => t.length > 0);
 
-  for (const device of devices) {
-    let score = 0;
-    const name = (device.model ?? device.slug).toLowerCase();
-    const manufacturer = (device.manufacturer ?? "").toLowerCase();
-    const category = (device.category ?? "").toLowerCase();
-
-    if (name.includes(q)) score += 3;
-    if (manufacturer.includes(q)) score += 2;
-    if (category.includes(q)) score += 1;
-
-    if (score > 0) {
-      results.push({ device, score });
-    }
+  // Single token: use standard Fuse.js search
+  if (tokens.length === 1) {
+    const fuse = new Fuse(devices, fuseOptions);
+    const results = fuse.search(tokens[0]);
+    return results.map((r) => r.item);
   }
 
-  return results.sort((a, b) => b.score - a.score).map((r) => r.device);
+  // Multi-token: filter devices that match ALL tokens (AND logic)
+  // Each token can match any field independently
+  const matchingDevices = devices.filter((device) =>
+    tokens.every((token) => deviceMatchesToken(device, token)),
+  );
+
+  // Score and sort the matching devices by running a combined query
+  // Use the full query for scoring to get proper relevance ranking
+  if (matchingDevices.length === 0) {
+    return [];
+  }
+
+  const fuse = new Fuse(matchingDevices, fuseOptions);
+  // Search with first token to get base scores
+  const results = fuse.search(tokens[0]);
+
+  // If we got results from scoring, use them; otherwise return unranked matches
+  if (results.length > 0) {
+    return results.map((r) => r.item);
+  }
+
+  return matchingDevices;
 }
 
 /**

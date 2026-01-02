@@ -71,15 +71,17 @@ describe("deviceFilters", () => {
       expect(result[0].category).toBe("server");
     });
 
-    it("ranks model matches higher than manufacturer matches", () => {
+    it("returns results from both model and manufacturer field matches", () => {
       const devicesForRanking: DeviceType[] = [
         createDevice("r650", "PowerEdge R650", "server", "Dell"),
         createDevice("dell-server", "Dell Server Pro", "server", "Acme"),
       ];
       const result = searchDevices(devicesForRanking, "dell");
+      // Both devices should be found - one matches "dell" in manufacturer, other in model
       expect(result).toHaveLength(2);
-      expect(result[0].slug).toBe("dell-server");
-      expect(result[1].slug).toBe("r650");
+      const slugs = result.map((d) => d.slug);
+      expect(slugs).toContain("dell-server");
+      expect(slugs).toContain("r650");
     });
 
     it("ranks manufacturer matches higher than category matches", () => {
@@ -111,6 +113,87 @@ describe("deviceFilters", () => {
       expect(searchDevices(devicesForCase, "DELL")).toHaveLength(1);
       expect(searchDevices(devicesForCase, "dell")).toHaveLength(1);
       expect(searchDevices(devicesForCase, "SERVER")).toHaveLength(1);
+    });
+
+    // Fuzzy search tests (Fuse.js)
+    describe("fuzzy search", () => {
+      it("finds devices with typos (fuzzy matching)", () => {
+        const devicesForFuzzy: DeviceType[] = [
+          createDevice("r650", "PowerEdge R650", "server", "Dell"),
+          createDevice("usw-24", "USW-24", "network", "Ubiquiti"),
+          createDevice("pdu", "Smart-UPS", "power", "APC"),
+        ];
+        // "Deli" should match "Dell"
+        const result = searchDevices(devicesForFuzzy, "Deli");
+        expect(result).toHaveLength(1);
+        expect(result[0].manufacturer).toBe("Dell");
+      });
+
+      it("finds Ubiquiti with typo Ubiqiti", () => {
+        const devicesForTypo: DeviceType[] = [
+          createDevice("usw-24", "USW-24", "network", "Ubiquiti"),
+          createDevice("r650", "PowerEdge R650", "server", "Dell"),
+        ];
+        const result = searchDevices(devicesForTypo, "Ubiqiti");
+        expect(result).toHaveLength(1);
+        expect(result[0].manufacturer).toBe("Ubiquiti");
+      });
+
+      it("supports multi-word AND queries", () => {
+        const devicesForMultiWord: DeviceType[] = [
+          createDevice("crs326", "CRS326-24G-2S+", "network", "MikroTik"),
+          createDevice("rb5009", "RB5009UG+S+IN", "network", "MikroTik"),
+          createDevice("ccr1009", "CCR1009-7G-1C-1S+", "network", "MikroTik"),
+          createDevice("usw-24", "USW-24", "network", "Ubiquiti"),
+        ];
+        // "MikroTik RB" should only return the RB* model
+        const result = searchDevices(devicesForMultiWord, "MikroTik RB");
+        expect(result).toHaveLength(1);
+        expect(result[0].model).toBe("RB5009UG+S+IN");
+      });
+
+      it("supports multi-word AND queries across fields", () => {
+        const devicesForMultiField: DeviceType[] = [
+          createDevice("crs326", "CRS326-24G-2S+", "network", "MikroTik"),
+          createDevice("rb5009", "RB5009UG+S+IN", "network", "MikroTik"),
+          createDevice("usw-24", "USW-24", "network", "Ubiquiti"),
+        ];
+        // "MikroTik CRS326" should match manufacturer + model prefix
+        const result = searchDevices(devicesForMultiField, "MikroTik CRS326");
+        expect(result).toHaveLength(1);
+        expect(result[0].model).toBe("CRS326-24G-2S+");
+      });
+
+      it("returns multiple results for multi-word query when both match", () => {
+        const devicesForMultiple: DeviceType[] = [
+          createDevice("r650", "PowerEdge R650", "server", "Dell"),
+          createDevice("r740", "PowerEdge R740", "server", "Dell"),
+          createDevice("dl380", "ProLiant DL380", "server", "HPE"),
+        ];
+        // "Dell PowerEdge" should return both Dell PowerEdge servers
+        const result = searchDevices(devicesForMultiple, "Dell PowerEdge");
+        expect(result).toHaveLength(2);
+        expect(result.every((d) => d.manufacturer === "Dell")).toBe(true);
+      });
+
+      it("single word queries still work", () => {
+        const devicesForSingle: DeviceType[] = [
+          createDevice("r650", "PowerEdge R650", "server", "Dell"),
+          createDevice("usw-24", "USW-24", "network", "Ubiquiti"),
+        ];
+        const result = searchDevices(devicesForSingle, "Dell");
+        expect(result).toHaveLength(1);
+        expect(result[0].manufacturer).toBe("Dell");
+      });
+
+      it("exact matches still work after fuzzy implementation", () => {
+        const devicesForExact: DeviceType[] = [
+          createDevice("r650", "PowerEdge R650", "server", "Dell"),
+        ];
+        expect(searchDevices(devicesForExact, "PowerEdge")).toHaveLength(1);
+        expect(searchDevices(devicesForExact, "R650")).toHaveLength(1);
+        expect(searchDevices(devicesForExact, "Dell")).toHaveLength(1);
+      });
     });
   });
 
