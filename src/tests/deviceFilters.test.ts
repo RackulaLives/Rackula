@@ -194,6 +194,17 @@ describe("deviceFilters", () => {
         expect(searchDevices(devicesForExact, "R650")).toHaveLength(1);
         expect(searchDevices(devicesForExact, "Dell")).toHaveLength(1);
       });
+
+      it("does not match completely different terms (threshold validation)", () => {
+        const devicesForThreshold: DeviceType[] = [
+          createDevice("r650", "PowerEdge R650", "server", "Dell"),
+          createDevice("catalyst", "Catalyst 2960", "network", "Cisco"),
+        ];
+        // "Cisco" should only match the Cisco device, not Dell
+        const result = searchDevices(devicesForThreshold, "Cisco");
+        expect(result).toHaveLength(1);
+        expect(result[0].manufacturer).toBe("Cisco");
+      });
     });
   });
 

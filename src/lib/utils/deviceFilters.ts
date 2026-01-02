@@ -30,7 +30,7 @@ const fuseOptions: Fuse.IFuseOptions<DeviceType> = {
 function deviceMatchesToken(device: DeviceType, token: string): boolean {
   const fuse = new Fuse([device], {
     ...fuseOptions,
-    threshold: 0.4,
+    // Use same threshold as main search for consistent behavior
   });
   return fuse.search(token).length > 0;
 }
@@ -84,8 +84,8 @@ export function searchDevices(
   }
 
   const fuse = new Fuse(matchingDevices, fuseOptions);
-  // Search with first token to get base scores
-  const results = fuse.search(tokens[0]);
+  // Search with full query to get proper relevance ranking
+  const results = fuse.search(trimmedQuery);
 
   // If we got results from scoring, use them; otherwise return unranked matches
   if (results.length > 0) {
