@@ -1,0 +1,37 @@
+<svg viewBox="0 0 260 56" xmlns="http://www.w3.org/2000/svg" width="520" height="112">
+  <!-- Logo mark - frame in Alucard purple -->
+  <g transform="translate(6, 6)">
+    <!-- Outer frame -->
+    <rect x="0" y="0" width="36" height="44" fill="#644AC9"/>
+    
+    <!-- Slot 1 (top) - animated with offset 0s -->
+    <rect x="5" y="5" width="26" height="10" fill="#FFFBEB">
+      <animate attributeName="fill" 
+        values="#FFFBEB;#036A96;#FFFBEB" 
+        dur="4s"
+        begin="0s"
+        repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Slot 2 (middle) - animated with offset 0.5s -->
+    <rect x="5" y="17" width="26" height="10" fill="#FFFBEB">
+      <animate attributeName="fill" 
+        values="#FFFBEB;#14710A;#FFFBEB" 
+        dur="4s"
+        begin="0.5s"
+        repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Slot 3 (bottom) - animated with offset 1s -->
+    <rect x="5" y="29" width="26" height="10" fill="#FFFBEB">
+      <animate attributeName="fill" 
+        values="#FFFBEB;#A3144D;#FFFBEB" 
+        dur="4s"
+        begin="1s"
+        repeatCount="indefinite"/>
+    </rect>
+  </g>
+  
+  <!-- Wordmark - static Alucard purple -->
+  <text x="54" y="40" font-family="JetBrains Mono, monospace" font-size="36" font-weight="500" fill="#644AC9">Rackula</text>
+</svg>

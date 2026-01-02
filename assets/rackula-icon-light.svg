@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background - Alucard light -->
+  <rect width="512" height="512" fill="#FFFBEB"/>
+  
+  <!-- Rackula mark with fangs - centered -->
+  <g transform="translate(166, 103)">
+    <!-- Frame with fang points -->
+    <path d="M0 0 L70 0 L90 30 L110 0 L180 0 L180 306 L0 306 Z" fill="#644AC9"/>
+    
+    <!-- Slot 1 (top) -->
+    <rect x="25" y="57" width="130" height="56" fill="#FFFBEB"/>
+    
+    <!-- Slot 2 (middle) -->
+    <rect x="25" y="125" width="130" height="56" fill="#FFFBEB"/>
+    
+    <!-- Slot 3 (bottom) -->
+    <rect x="25" y="193" width="130" height="56" fill="#FFFBEB"/>
+  </g>
+</svg>
