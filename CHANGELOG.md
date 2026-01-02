@@ -5,6 +5,172 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.11] - 2026-01-02
+
+### Fixed
+
+- Face override not working on full-depth devices (#383, PR #385)
+
+## [0.6.10] - 2026-01-02
+
+### Added
+
+- Network interface port indicators on devices with color-coded types (#249, PR #378; #250, PR #382)
+- Fuzzy search with Fuse.js in device library (#310, PR #373)
+- Cable data model and schema (#261, PR #355)
+- Apple brand pack: Xserve, Xserve RAID (#340, PR #353)
+- AC Infinity brand pack: Cloudplate T1, T2, T7 cooling fans (#337, PR #343)
+- 27 Ubiquiti device images from vastoholic/draw-io (#339, PR #350)
+
+### Changed
+
+- Self-hosted Space Grotesk font for logo wordmark (#377, PR #379)
+
+### Fixed
+
+- Banana orientation and icon (#348, PR #349)
+- CodeRabbit feedback on PortIndicators and fuzzy search (PR #374, PR #381)
+
+### Technical
+
+- Collision toast notification test suite (#307, PR #351)
+- Extracted getDeviceDisplayName helper function (#348, PR #354)
+
+## [0.6.9] - 2025-12-31
+
+### Added
+
+- 21-inch rack support for OCP Open Rack width (#149)
+- NetBox YAML import for device types (#259)
+- Resizable device library sidebar with keyboard shortcuts (#318)
+- Multi-field device search with relevance scoring (#308)
+- Rack-side annotations column (#173)
+- Mobile long-press editing for devices (#230)
+- Paraglide JS 2.0 internationalization infrastructure (#182)
+- Build time indicator in dev environment (#328, #336)
+- MikroTik RB5009 device (#280)
+- Banana for scale easter egg (#313)
+
+### Fixed
+
+- Device library panel content after #259 regression
+- iOS Safari long press for device edit menu (#232)
+- Rack + annotations centering relative to name heading (#304)
+- Banana positioning and rotation (#317)
+
+### Technical
+
+- Research spikes: isometric rendering (#321), device search (#281), NetBox DnD patterns (#200)
+- Performance baseline for port visualization (#255)
+
+## [0.6.8] - 2025-12-30
+
+### Added
+
+- Device depth visibility badges and Add Device toggle (#240, #241)
+- DeskPi brand pack: 8 devices for 10-inch rack accessories (#226)
+- Tier 1 analytics for core feature adoption metrics (#223)
+- DRackula prefix for development environment (#215)
+
+### Changed
+
+- Restored Dracula purple logo with white brand text (#233)
+
+### Fixed
+
+- Consolidated duplicate createRack function exports (#224)
+
+### Technical
+
+- iOS Safari E2E tests via BrowserStack (#228)
+- Android Chrome E2E tests (#229)
+- Network interface visualization spike research (#237)
+
+## [0.6.7] - 2025-12-29
+
+### Added
+
+- Mobile tap-to-place editing experience (PR #174)
+- Toggle to disable rear view on canvas (#207, PR #222)
+- White logo with rainbow gradient on hover (#216, PR #221)
+
+### Fixed
+
+- Canvas.svelte a11y warnings with ARIA role (#208, PR #213)
+- U numbering direction in export (#217, PR #220)
+
+## [0.6.6] - 2025-12-29
+
+### Added
+
+- Invert U numbering toggle in EditPanel (#204, PR #210)
+
+### Fixed
+
+- Zod jitless mode to avoid CSP violations (#211, PR #212)
+
+## [0.6.5] - 2025-12-29
+
+### Added
+
+- UI controls for 0.5U device positioning (#145, PR #179)
+- Auto-resize device labels for longer text (PR #178)
+- create-issue Claude Code skill (#194, PR #195)
+
+### Changed
+
+- Extracted device movement logic into shared utility (PR #180)
+- Docker compose configuration update (PR #170)
+
+### Fixed
+
+- Export respects colour_override on placed devices (#171, PR #175)
+- localStorage mock and test timeout (#193, PR #197)
+- Removed invalid project-status-sync workflow (#201, PR #203)
+
+### Technical
+
+- Beszel monitoring backend spike (#199, PR #202)
+
+## [0.6.4] - 2025-12-28
+
+### Added
+
+- Face override on all device types (#161)
+- Warning modal for mobile users (#165)
+- Delete custom device types from library (#162, PR #164)
+
+### Fixed
+
+- Brand pink for mobile warning modal button (#163, PR #169)
+
+### Technical
+
+- Regression tests for blank panel depth detection (PR #160)
+- Regression tests for custom multi-U device placement (#166, PR #168)
+
+## [0.6.3] - 2025-12-28
+
+### Added
+
+- Widow's peak logo with Space Grotesk font and heartbeat animation (PR #148)
+
+### Fixed
+
+- Toolbar logo border and analytics subdomain (PR #147)
+
+## [0.6.2] - 2025-12-27
+
+### Changed
+
+- Minor fixes and improvements
+
+## [0.6.1] - 2025-12-27
+
+### Changed
+
+- Rebranded to Rackula name
+
 ## [0.5.9] - 2025-12-20
 
 ### Added
