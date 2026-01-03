@@ -320,18 +320,49 @@ export const PlacedPortSchema = z
   .object({
     id: z.string().min(1, "Port ID is required"),
     template_name: z.string().min(1, "Template name is required"),
-    template_index: z.number().int().min(0, "Template index must be non-negative"),
+    template_index: z
+      .number()
+      .int()
+      .min(0, "Template index must be non-negative"),
     type: InterfaceTypeSchema,
     label: z.string().max(64).optional(),
   })
   .passthrough();
 
 // ============================================================================
-// Cable Schemas (NetBox-compatible)
+// Connection Schema (Port-based - MVP)
 // ============================================================================
 
 /**
- * Cable schema - connection between device interfaces
+ * Connection schema - port-to-port connection (MVP model)
+ * Uses PlacedPort.id for stable references
+ */
+export const ConnectionSchema = z
+  .object({
+    id: z.string().min(1, "Connection ID is required"),
+    a_port_id: z.string().min(1, "A-side port ID is required"),
+    b_port_id: z.string().min(1, "B-side port ID is required"),
+    label: z.string().max(100).optional(),
+    color: z
+      .string()
+      .regex(
+        HEX_COLOUR_PATTERN,
+        "Color must be a valid hex color (e.g., #FF5500)",
+      )
+      .optional(),
+  })
+  .passthrough()
+  .refine((data) => data.a_port_id !== data.b_port_id, {
+    message: "Cannot connect a port to itself",
+    path: ["b_port_id"],
+  });
+
+// ============================================================================
+// Cable Schemas (NetBox-compatible) - DEPRECATED
+// ============================================================================
+
+/**
+ * @deprecated Use ConnectionSchema instead - Cable uses fragile device+interface references
  */
 export const CableSchema = z
   .object({
@@ -531,6 +562,8 @@ const LayoutSchemaBase = z
     rack: RackSchema,
     device_types: z.array(DeviceTypeSchema),
     settings: LayoutSettingsSchema,
+    connections: z.array(ConnectionSchema).optional(),
+    /** @deprecated Use connections instead */
     cables: z.array(CableSchema).optional(),
   })
   .passthrough();
@@ -574,6 +607,7 @@ export type DeviceBay = z.infer<typeof DeviceBaySchema>;
 export type InventoryItem = z.infer<typeof InventoryItemSchema>;
 export type DeviceLink = z.infer<typeof DeviceLinkSchema>;
 export type PlacedPortZod = z.infer<typeof PlacedPortSchema>;
+export type ConnectionZod = z.infer<typeof ConnectionSchema>;
 export type DeviceTypeZod = z.infer<typeof DeviceTypeSchema>;
 export type PlacedDeviceZod = z.infer<typeof PlacedDeviceSchema>;
 export type RackZod = z.infer<typeof RackSchema>;

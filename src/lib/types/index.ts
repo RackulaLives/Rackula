@@ -314,12 +314,33 @@ export interface PlacedPort {
 }
 
 // =============================================================================
-// Cable Types (NetBox-compatible)
+// Connection Types (Port-based - MVP)
 // =============================================================================
 
 /**
- * Cable connection between device interfaces
- * Represents a physical cable connecting two device ports
+ * Connection between two ports
+ * MVP model: just the essential fields, add complexity when needed
+ * References PlacedPort.id directly for stable connections
+ */
+export interface Connection {
+  /** Unique identifier (UUID) */
+  id: string;
+  /** A-side port ID (PlacedPort.id) */
+  a_port_id: string;
+  /** B-side port ID (PlacedPort.id) */
+  b_port_id: string;
+  /** Optional user label */
+  label?: string;
+  /** Optional color for visualization (hex, e.g., '#FF5500') */
+  color?: string;
+}
+
+// =============================================================================
+// Cable Types (NetBox-compatible) - DEPRECATED
+// =============================================================================
+
+/**
+ * @deprecated Use Connection instead - Cable uses fragile device+interface references
  */
 export interface Cable {
   /** Unique identifier (UUID) */
@@ -537,7 +558,11 @@ export interface Layout {
   device_types: DeviceType[];
   /** Layout settings */
   settings: LayoutSettings;
-  /** Cable connections between device interfaces */
+  /** Port-to-port connections (MVP model) */
+  connections?: Connection[];
+  /**
+   * @deprecated Use connections instead - cables uses fragile device+interface references
+   */
   cables?: Cable[];
 }
 
