@@ -309,6 +309,24 @@ export const DeviceLinkSchema = z
   .passthrough();
 
 // ============================================================================
+// PlacedPort Schema
+// ============================================================================
+
+/**
+ * PlacedPort schema - instantiated port with stable UUID
+ * Created when a device is placed in a rack
+ */
+export const PlacedPortSchema = z
+  .object({
+    id: z.string().min(1, "Port ID is required"),
+    template_name: z.string().min(1, "Template name is required"),
+    template_index: z.number().int().min(0, "Template index must be non-negative"),
+    type: InterfaceTypeSchema,
+    label: z.string().max(64).optional(),
+  })
+  .passthrough();
+
+// ============================================================================
 // Cable Schemas (NetBox-compatible)
 // ============================================================================
 
@@ -433,6 +451,9 @@ export const PlacedDeviceSchema = z
     position: z.number().int().min(1, "Position must be at least 1"),
     face: DeviceFaceSchema,
 
+    // --- Port Instances ---
+    ports: z.array(PlacedPortSchema).default([]),
+
     // --- Placement Image Override ---
     front_image: z.string().optional(),
     rear_image: z.string().optional(),
@@ -552,6 +573,7 @@ export type PowerOutlet = z.infer<typeof PowerOutletSchema>;
 export type DeviceBay = z.infer<typeof DeviceBaySchema>;
 export type InventoryItem = z.infer<typeof InventoryItemSchema>;
 export type DeviceLink = z.infer<typeof DeviceLinkSchema>;
+export type PlacedPortZod = z.infer<typeof PlacedPortSchema>;
 export type DeviceTypeZod = z.infer<typeof DeviceTypeSchema>;
 export type PlacedDeviceZod = z.infer<typeof PlacedDeviceSchema>;
 export type RackZod = z.infer<typeof RackSchema>;

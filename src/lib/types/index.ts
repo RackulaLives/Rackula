@@ -293,6 +293,27 @@ export interface DeviceLink {
 }
 
 // =============================================================================
+// PlacedPort Types
+// =============================================================================
+
+/**
+ * Placed port instance - created when a device is placed in a rack
+ * Provides stable UUID references for connections instead of fragile template name strings
+ */
+export interface PlacedPort {
+  /** Unique identifier (UUID) - stable identity for connection references */
+  id: string;
+  /** Reference to InterfaceTemplate.name from DeviceType */
+  template_name: string;
+  /** Position index in DeviceType.interfaces array - for ordering and lookup */
+  template_index: number;
+  /** Cached interface type from template - avoids lookups for cable routing */
+  type: InterfaceType;
+  /** User override label for this port instance */
+  label?: string;
+}
+
+// =============================================================================
 // Cable Types (NetBox-compatible)
 // =============================================================================
 
@@ -426,6 +447,10 @@ export interface PlacedDevice {
   face: DeviceFace;
   /** Optional custom display name for this placement */
   name?: string;
+
+  // --- Port Instances ---
+  /** Instantiated ports from DeviceType.interfaces with stable UUIDs */
+  ports: PlacedPort[];
 
   // --- Placement Image Override ---
   /** Custom front image for this specific placement (overrides device type image) */

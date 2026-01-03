@@ -11,6 +11,7 @@ import type {
   DeviceCategory,
   Airflow,
   WeightUnit,
+  InterfaceTemplate,
 } from "$lib/types";
 import { generateDeviceSlug } from "$lib/utils/slug";
 import { generateId } from "$lib/utils/device";
@@ -32,6 +33,7 @@ export interface CreateDeviceTypeInput {
   airflow?: Airflow;
   notes?: string;
   tags?: string[];
+  interfaces?: InterfaceTemplate[];
 }
 
 /**
@@ -85,6 +87,9 @@ export function createDeviceType(data: CreateDeviceTypeInput): DeviceType {
   }
   if (data.tags && data.tags.length > 0) {
     deviceType.tags = data.tags;
+  }
+  if (data.interfaces && data.interfaces.length > 0) {
+    deviceType.interfaces = data.interfaces;
   }
 
   return deviceType;

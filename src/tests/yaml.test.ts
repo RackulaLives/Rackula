@@ -369,13 +369,14 @@ settings:
           category: "storage",
         },
       ];
-      // Schema v1.0.0: PlacedDevice requires id
+      // Schema v1.0.0: PlacedDevice requires id, ports defaults to []
       layout.rack.devices = [
         {
           id: "device-1",
           device_type: "synology-ds920-plus",
           position: 10,
           face: "front",
+          ports: [], // Required field with default value
         },
       ];
 

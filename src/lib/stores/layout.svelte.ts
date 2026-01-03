@@ -25,6 +25,7 @@ import {
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { debug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
+import { instantiatePorts } from "$lib/utils/port-utils";
 import { sanitizeFilename } from "$lib/utils/imageUpload";
 import { getHistoryStore } from "./history.svelte";
 import { getImageStore } from "./images.svelte";
@@ -1103,6 +1104,7 @@ function placeDeviceRecorded(
     device_type: deviceTypeSlug,
     position,
     face: effectiveFace,
+    ports: instantiatePorts(deviceType),
   };
 
   const history = getHistoryStore();
