@@ -40,13 +40,13 @@ Plan your rack layout. Drag your devices in, move them around, export it. It run
 #### Docker Run
 
 ```bash
-docker run -d -p 8080:80 ghcr.io/RackulaLives/Rackula:latest
+docker run -d -p 8080:80 ghcr.io/rackulaLives/rackula:latest
 ```
 
 #### Docker Compose
 
 ```bash
-curl -O https://raw.githubusercontent.com/RackulaLives/Rackula/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/rackulaLives/rackula/main/docker-compose.yml
 docker compose up -d
 ```
 
