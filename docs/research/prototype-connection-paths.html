@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cable Path Rendering Prototype - Spike #262</title>
+  <style>
+    :root {
+      --bg-dark: #282a36;
+      --bg-darker: #1e1f29;
+      --fg: #f8f8f2;
+      --purple: #bd93f9;
+      --pink: #ff79c6;
+      --green: #50fa7b;
+      --cyan: #8be9fd;
+      --orange: #ffb86c;
+      --red: #ff5555;
+      --yellow: #f1fa8c;
+      --comment: #6272a4;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: var(--bg-dark);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    h1 {
+      color: var(--purple);
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--comment);
+      margin-bottom: 24px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .control-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    label {
+      color: var(--cyan);
+      font-size: 14px;
+    }
+
+    select, input[type="range"] {
+      background: var(--bg-darker);
+      color: var(--fg);
+      border: 1px solid var(--comment);
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-size: 14px;
+    }
+
+    select:focus, input:focus {
+      outline: 2px solid var(--purple);
+      outline-offset: 2px;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .rack-container {
+      background: var(--bg-darker);
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid var(--comment);
+    }
+
+    .rack-container h3 {
+      margin: 0 0 12px 0;
+      color: var(--green);
+      font-size: 16px;
+    }
+
+    .rack-container.recommended {
+      border-color: var(--pink);
+      box-shadow: 0 0 12px rgba(255, 121, 198, 0.2);
+    }
+
+    .rack-container.recommended h3::after {
+      content: ' ★ Recommended';
+      color: var(--pink);
+      font-size: 12px;
+    }
+
+    .score {
+      display: flex;
+      gap: 4px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--comment);
+    }
+
+    .score-item {
+      background: var(--bg-dark);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    svg.rack {
+      background: var(--bg-dark);
+      border-radius: 4px;
+    }
+
+    .device-rect {
+      fill: var(--comment);
+      stroke: var(--fg);
+      stroke-width: 1;
+    }
+
+    .device-label {
+      fill: var(--fg);
+      font-size: 10px;
+      font-family: monospace;
+    }
+
+    .port {
+      fill: var(--cyan);
+      stroke: rgba(0,0,0,0.3);
+      stroke-width: 0.5;
+    }
+
+    .port.highlighted {
+      fill: var(--pink);
+      r: 4;
+    }
+
+    .connection-path {
+      fill: none;
+      stroke: var(--orange);
+      stroke-width: 2;
+      stroke-linecap: round;
+      opacity: 0.8;
+      transition: opacity 150ms, stroke-width 150ms;
+    }
+
+    .connection-path:hover {
+      opacity: 1;
+      stroke-width: 3;
+    }
+
+    .connection-path.cross-face {
+      stroke: var(--pink);
+      stroke-dasharray: 4 2;
+    }
+
+    .rail {
+      fill: #444;
+    }
+
+    .slot {
+      fill: none;
+      stroke: var(--comment);
+      stroke-width: 0.5;
+      stroke-dasharray: 2 2;
+    }
+
+    .gutter {
+      fill: none;
+      stroke: var(--comment);
+      stroke-width: 0.5;
+      stroke-dasharray: 1 3;
+      opacity: 0.5;
+    }
+
+    .legend {
+      background: var(--bg-darker);
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid var(--comment);
+    }
+
+    .legend h3 {
+      margin: 0 0 12px 0;
+      color: var(--purple);
+    }
+
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .legend-line {
+      width: 40px;
+      height: 2px;
+    }
+
+    .benchmark-results {
+      background: var(--bg-darker);
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid var(--comment);
+      margin-top: 20px;
+    }
+
+    .benchmark-results h3 {
+      margin: 0 0 12px 0;
+      color: var(--yellow);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--comment);
+    }
+
+    th {
+      color: var(--cyan);
+      font-weight: 600;
+    }
+
+    .info-box {
+      background: var(--bg-darker);
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid var(--comment);
+      margin-top: 20px;
+    }
+
+    .info-box h3 {
+      margin: 0 0 12px 0;
+      color: var(--cyan);
+    }
+
+    .info-box p {
+      margin: 0 0 8px 0;
+      color: var(--fg);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .info-box code {
+      background: var(--bg-dark);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      color: var(--green);
+    }
+  </style>
+</head>
+<body>
+  <h1>Cable Path Rendering Prototype</h1>
+  <p class="subtitle">Spike #262 - Comparing 5 approaches for connection visualization</p>
+
+  <div class="controls">
+    <div class="control-group">
+      <label for="connectionCount">Connections:</label>
+      <select id="connectionCount">
+        <option value="3">3 (simple)</option>
+        <option value="6" selected>6 (typical)</option>
+        <option value="12">12 (dense)</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="showCrossFace">Cross-face:</label>
+      <input type="checkbox" id="showCrossFace" checked>
+    </div>
+    <div class="control-group">
+      <label for="gutterOffset">Gutter offset:</label>
+      <input type="range" id="gutterOffset" min="20" max="60" value="30">
+      <span id="gutterValue">30px</span>
+    </div>
+  </div>
+
+  <div class="comparison-grid" id="comparisonGrid">
+    <!-- Populated by JavaScript -->
+  </div>
+
+  <div class="legend">
+    <h3>Legend</h3>
+    <div class="legend-grid">
+      <div class="legend-item">
+        <svg width="40" height="20">
+          <line x1="0" y1="10" x2="40" y2="10" stroke="#ffb86c" stroke-width="2"/>
+        </svg>
+        <span>Same-face connection</span>
+      </div>
+      <div class="legend-item">
+        <svg width="40" height="20">
+          <line x1="0" y1="10" x2="40" y2="10" stroke="#ff79c6" stroke-width="2" stroke-dasharray="4 2"/>
+        </svg>
+        <span>Cross-face connection</span>
+      </div>
+      <div class="legend-item">
+        <svg width="40" height="20">
+          <circle cx="20" cy="10" r="3" fill="#8be9fd" stroke="rgba(0,0,0,0.3)" stroke-width="0.5"/>
+        </svg>
+        <span>Port indicator</span>
+      </div>
+      <div class="legend-item">
+        <svg width="40" height="20">
+          <line x1="0" y1="10" x2="40" y2="10" stroke="#6272a4" stroke-width="0.5" stroke-dasharray="1 3"/>
+        </svg>
+        <span>Routing gutter (external)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="benchmark-results">
+    <h3>Performance Comparison</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Approach</th>
+          <th>Complexity</th>
+          <th>DOM Nodes (6 conn.)</th>
+          <th>Visual Clarity</th>
+          <th>Cross-face</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1. Straight Lines</td>
+          <td>O(1)</td>
+          <td>6</td>
+          <td>Poor</td>
+          <td>N/A</td>
+          <td>2/5</td>
+        </tr>
+        <tr>
+          <td>2. Quadratic Bezier</td>
+          <td>O(1)</td>
+          <td>6</td>
+          <td>Good</td>
+          <td>Basic</td>
+          <td>3/5</td>
+        </tr>
+        <tr>
+          <td>3. Cubic Bezier</td>
+          <td>O(1)</td>
+          <td>6</td>
+          <td>Excellent</td>
+          <td>Good</td>
+          <td>4/5</td>
+        </tr>
+        <tr>
+          <td>4. Orthogonal</td>
+          <td>O(n)</td>
+          <td>6</td>
+          <td>Good</td>
+          <td>Good</td>
+          <td>3/5</td>
+        </tr>
+        <tr style="background: rgba(255, 121, 198, 0.1);">
+          <td><strong>5. External Channel</strong></td>
+          <td>O(1)</td>
+          <td>6</td>
+          <td><strong>Excellent</strong></td>
+          <td><strong>Excellent</strong></td>
+          <td><strong>5/5</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="info-box">
+    <h3>Coordinate System</h3>
+    <p>
+      Rackula uses these constants for port positioning:
+      <code>U_HEIGHT_PX = 22</code>,
+      <code>RAIL_WIDTH = 17</code>,
+      <code>PORT_RADIUS = 3</code>,
+      <code>PORT_SPACING = 8</code>,
+      <code>PORT_Y_OFFSET = 8</code>
+    </p>
+    <p>
+      Port X coordinate: <code>startX + (portIndex * PORT_SPACING)</code> where
+      <code>startX = (deviceWidth - totalPortWidth) / 2</code>
+    </p>
+    <p>
+      Port Y coordinate: <code>deviceY + deviceHeight - PORT_Y_OFFSET</code>
+    </p>
+  </div>
+
+  <script>
+    // === CONSTANTS (matching Rackula) ===
+    const U_HEIGHT_PX = 22;
+    const RAIL_WIDTH = 17;
+    const BASE_RACK_WIDTH = 220;
+    const BASE_RACK_PADDING = 18;
+    const PORT_RADIUS = 3;
+    const PORT_SPACING = 8;
+    const PORT_Y_OFFSET = 8;
+
+    // === MOCK DATA ===
+    const RACK_HEIGHT = 12; // 12U rack
+    const devices = [
+      { id: 'd1', name: 'Switch-48', position: 12, u_height: 1, portCount: 8, face: 'front' },
+      { id: 'd2', name: 'Server-1', position: 10, u_height: 2, portCount: 4, face: 'front' },
+      { id: 'd3', name: 'Router', position: 8, u_height: 1, portCount: 4, face: 'front' },
+      { id: 'd4', name: 'NAS', position: 5, u_height: 3, portCount: 2, face: 'front' },
+      { id: 'd5', name: 'UPS', position: 2, u_height: 2, portCount: 1, face: 'front' },
+    ];
+
+    // Connection definitions (device indices and port indices)
+    const allConnections = [
+      // Same-face connections
+      { from: [0, 0], to: [1, 0], crossFace: false }, // Switch port 0 -> Server port 0
+      { from: [0, 1], to: [1, 1], crossFace: false }, // Switch port 1 -> Server port 1
+      { from: [0, 2], to: [2, 0], crossFace: false }, // Switch port 2 -> Router port 0
+      { from: [0, 3], to: [3, 0], crossFace: false }, // Switch port 3 -> NAS port 0
+      { from: [2, 1], to: [3, 1], crossFace: false }, // Router port 1 -> NAS port 1
+      { from: [1, 2], to: [2, 2], crossFace: false }, // Server port 2 -> Router port 2
+      // Cross-face connections (would go to rear)
+      { from: [0, 4], to: [4, 0], crossFace: true },  // Switch -> UPS
+      { from: [1, 3], to: [4, 0], crossFace: true },  // Server -> UPS
+      { from: [2, 3], to: [4, 0], crossFace: true },  // Router -> UPS
+      { from: [3, 0], to: [4, 0], crossFace: true },  // NAS -> UPS
+      { from: [0, 5], to: [1, 2], crossFace: false }, // Extra connection
+      { from: [0, 6], to: [2, 3], crossFace: false }, // Extra connection
+    ];
+
+    let gutterOffset = 30;
+    let connectionCount = 6;
+    let showCrossFace = true;
+
+    // === PATH GENERATION FUNCTIONS ===
+
+    function getPortPosition(device, portIndex, rackWidth) {
+      const deviceY = (RACK_HEIGHT - device.position - device.u_height + 1) * U_HEIGHT_PX + BASE_RACK_PADDING + RAIL_WIDTH;
+      const deviceX = RAIL_WIDTH;
+      const deviceWidth = rackWidth - (RAIL_WIDTH * 2);
+      const deviceHeight = device.u_height * U_HEIGHT_PX;
+
+      const portCount = device.portCount;
+      const totalPortWidth = (portCount - 1) * PORT_SPACING;
+      const portStartX = (deviceWidth - totalPortWidth) / 2;
+
+      return {
+        x: deviceX + portStartX + (portIndex * PORT_SPACING),
+        y: deviceY + deviceHeight - PORT_Y_OFFSET
+      };
+    }
+
+    // 1. Straight Lines
+    function straightLine(p1, p2) {
+      return `M ${p1.x},${p1.y} L ${p2.x},${p2.y}`;
+    }
+
+    // 2. Quadratic Bezier
+    function quadraticBezier(p1, p2, rackWidth) {
+      const cx = rackWidth + gutterOffset;
+      const cy = (p1.y + p2.y) / 2;
+      return `M ${p1.x},${p1.y} Q ${cx},${cy} ${p2.x},${p2.y}`;
+    }
+
+    // 3. Cubic Bezier (simple)
+    function cubicBezier(p1, p2, rackWidth) {
+      const gutterX = rackWidth + gutterOffset;
+      return `M ${p1.x},${p1.y} C ${gutterX},${p1.y} ${gutterX},${p2.y} ${p2.x},${p2.y}`;
+    }
+
+    // 4. Orthogonal Routing
+    function orthogonal(p1, p2, rackWidth) {
+      const gutterX = rackWidth + gutterOffset;
+      return `M ${p1.x},${p1.y} H ${gutterX} V ${p2.y} H ${p2.x}`;
+    }
+
+    // 5. External Channel (cubic bezier with balanced routing)
+    function externalChannel(p1, p2, rackWidth, index) {
+      // Alternate left/right for balance
+      const side = index % 2 === 0 ? 'right' : 'left';
+      const gutterX = side === 'right'
+        ? rackWidth + gutterOffset
+        : -gutterOffset;
+
+      return `M ${p1.x},${p1.y} C ${gutterX},${p1.y} ${gutterX},${p2.y} ${p2.x},${p2.y}`;
+    }
+
+    // === RENDERING ===
+
+    const approaches = [
+      {
+        name: '1. Straight Lines',
+        fn: straightLine,
+        description: 'Direct point-to-point',
+        recommended: false
+      },
+      {
+        name: '2. Quadratic Bezier',
+        fn: quadraticBezier,
+        description: 'Single control point curve',
+        recommended: false
+      },
+      {
+        name: '3. Cubic Bezier',
+        fn: cubicBezier,
+        description: 'Two control point S-curve',
+        recommended: false
+      },
+      {
+        name: '4. Orthogonal',
+        fn: orthogonal,
+        description: 'Right-angle routing',
+        recommended: false
+      },
+      {
+        name: '5. External Channel',
+        fn: externalChannel,
+        description: 'Balanced gutter routing',
+        recommended: true
+      },
+    ];
+
+    function renderRack(approach, containerId) {
+      const rackWidth = BASE_RACK_WIDTH;
+      const rackHeight = BASE_RACK_PADDING + RAIL_WIDTH * 2 + RACK_HEIGHT * U_HEIGHT_PX;
+      const svgWidth = rackWidth + gutterOffset * 2;
+      const offsetX = gutterOffset;
+
+      let svg = `<svg class="rack" width="${svgWidth}" height="${rackHeight}" viewBox="${-offsetX} 0 ${svgWidth} ${rackHeight}">`;
+
+      // Draw gutters (for external channel)
+      if (approach.name.includes('External')) {
+        svg += `<line class="gutter" x1="${-gutterOffset/2}" y1="${BASE_RACK_PADDING}" x2="${-gutterOffset/2}" y2="${rackHeight - RAIL_WIDTH}" />`;
+        svg += `<line class="gutter" x1="${rackWidth + gutterOffset/2}" y1="${BASE_RACK_PADDING}" x2="${rackWidth + gutterOffset/2}" y2="${rackHeight - RAIL_WIDTH}" />`;
+      }
+
+      // Draw rails
+      svg += `<rect class="rail" x="0" y="${BASE_RACK_PADDING}" width="${RAIL_WIDTH}" height="${RACK_HEIGHT * U_HEIGHT_PX + RAIL_WIDTH * 2}" rx="2"/>`;
+      svg += `<rect class="rail" x="${rackWidth - RAIL_WIDTH}" y="${BASE_RACK_PADDING}" width="${RAIL_WIDTH}" height="${RACK_HEIGHT * U_HEIGHT_PX + RAIL_WIDTH * 2}" rx="2"/>`;
+
+      // Draw U slots
+      for (let u = 1; u <= RACK_HEIGHT; u++) {
+        const y = (RACK_HEIGHT - u) * U_HEIGHT_PX + BASE_RACK_PADDING + RAIL_WIDTH;
+        svg += `<rect class="slot" x="${RAIL_WIDTH}" y="${y}" width="${rackWidth - RAIL_WIDTH * 2}" height="${U_HEIGHT_PX}"/>`;
+      }
+
+      // Get active connections
+      const activeConnections = allConnections
+        .slice(0, connectionCount)
+        .filter(c => showCrossFace || !c.crossFace);
+
+      // Draw connections (behind devices)
+      activeConnections.forEach((conn, index) => {
+        const fromDevice = devices[conn.from[0]];
+        const toDevice = devices[conn.to[0]];
+        const p1 = getPortPosition(fromDevice, conn.from[1], rackWidth);
+        const p2 = getPortPosition(toDevice, conn.to[1], rackWidth);
+
+        let pathD;
+        if (approach.fn.length === 4) {
+          pathD = approach.fn(p1, p2, rackWidth, index);
+        } else {
+          pathD = approach.fn(p1, p2, rackWidth);
+        }
+
+        const crossFaceClass = conn.crossFace ? ' cross-face' : '';
+        svg += `<path class="connection-path${crossFaceClass}" d="${pathD}" />`;
+      });
+
+      // Draw devices
+      devices.forEach(device => {
+        const y = (RACK_HEIGHT - device.position - device.u_height + 1) * U_HEIGHT_PX + BASE_RACK_PADDING + RAIL_WIDTH;
+        const x = RAIL_WIDTH;
+        const width = rackWidth - RAIL_WIDTH * 2;
+        const height = device.u_height * U_HEIGHT_PX;
+
+        svg += `<rect class="device-rect" x="${x}" y="${y}" width="${width}" height="${height}" rx="2"/>`;
+        svg += `<text class="device-label" x="${x + 4}" y="${y + height/2 + 3}">${device.name}</text>`;
+
+        // Draw ports
+        for (let i = 0; i < device.portCount; i++) {
+          const pos = getPortPosition(device, i, rackWidth);
+          svg += `<circle class="port" cx="${pos.x}" cy="${pos.y}" r="${PORT_RADIUS}"/>`;
+        }
+      });
+
+      svg += '</svg>';
+      return svg;
+    }
+
+    function renderAll() {
+      const grid = document.getElementById('comparisonGrid');
+      grid.innerHTML = '';
+
+      approaches.forEach(approach => {
+        const container = document.createElement('div');
+        container.className = 'rack-container' + (approach.recommended ? ' recommended' : '');
+        container.innerHTML = `
+          <h3>${approach.name}</h3>
+          ${renderRack(approach)}
+          <div class="score">
+            <span class="score-item">${approach.description}</span>
+          </div>
+        `;
+        grid.appendChild(container);
+      });
+    }
+
+    // === EVENT HANDLERS ===
+
+    document.getElementById('connectionCount').addEventListener('change', (e) => {
+      connectionCount = parseInt(e.target.value);
+      renderAll();
+    });
+
+    document.getElementById('showCrossFace').addEventListener('change', (e) => {
+      showCrossFace = e.target.checked;
+      renderAll();
+    });
+
+    document.getElementById('gutterOffset').addEventListener('input', (e) => {
+      gutterOffset = parseInt(e.target.value);
+      document.getElementById('gutterValue').textContent = gutterOffset + 'px';
+      renderAll();
+    });
+
+    // Initial render
+    renderAll();
+  </script>
+</body>
+</html>

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connection Rendering Benchmark - Spike #262</title>
+  <style>
+    :root {
+      --bg-dark: #282a36;
+      --fg: #f8f8f2;
+      --purple: #bd93f9;
+      --green: #50fa7b;
+      --yellow: #f1fa8c;
+      --red: #ff5555;
+      --comment: #6272a4;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: var(--bg-dark);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    h1 { color: var(--purple); }
+    h2 { color: var(--green); margin-top: 24px; }
+
+    .controls {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: var(--purple);
+      color: var(--bg-dark);
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .results {
+      background: #1e1f29;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--comment);
+    }
+
+    th { color: var(--yellow); }
+
+    .pass { color: var(--green); }
+    .warn { color: var(--yellow); }
+    .fail { color: var(--red); }
+
+    #benchmarkSvg {
+      display: none;
+    }
+
+    .progress {
+      color: var(--comment);
+      font-style: italic;
+    }
+
+    .summary {
+      background: #1e1f29;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+      border-left: 4px solid var(--green);
+    }
+
+    .summary h3 { margin: 0 0 8px 0; color: var(--green); }
+    .summary p { margin: 0; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <h1>Connection Rendering Benchmark</h1>
+  <p>Measures render time for different connection counts using the External Channel algorithm.</p>
+
+  <div class="controls">
+    <button id="runBenchmark">Run Full Benchmark</button>
+    <button id="runQuick">Quick Test (10 only)</button>
+  </div>
+
+  <div id="progress" class="progress"></div>
+
+  <div class="results" id="results" style="display: none;">
+    <h2>Results</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Connections</th>
+          <th>DOM Nodes</th>
+          <th>Render Time</th>
+          <th>Target</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="summary" id="summary" style="display: none;">
+    <h3>Recommendation</h3>
+    <p id="summaryText"></p>
+  </div>
+
+  <!-- Hidden SVG for benchmark -->
+  <svg id="benchmarkSvg" width="300" height="600"></svg>
+
+  <script>
+    const U_HEIGHT_PX = 22;
+    const RAIL_WIDTH = 17;
+    const BASE_RACK_WIDTH = 220;
+    const BASE_RACK_PADDING = 18;
+    const PORT_SPACING = 8;
+    const PORT_Y_OFFSET = 8;
+    const GUTTER_OFFSET = 30;
+
+    const RACK_HEIGHT = 42; // 42U rack for stress testing
+    const DEVICE_COUNT = 20;
+
+    // Targets from spike document
+    const TARGETS = {
+      10: 5,    // <5ms
+      50: 10,   // <10ms
+      100: 16,  // <16ms (60fps)
+      200: 32   // <32ms (acceptable)
+    };
+
+    // Generate mock devices
+    function generateDevices(count) {
+      const devices = [];
+      let currentU = 1;
+      for (let i = 0; i < count && currentU <= RACK_HEIGHT - 1; i++) {
+        const uHeight = Math.random() > 0.7 ? 2 : 1;
+        devices.push({
+          id: `d${i}`,
+          position: currentU,
+          u_height: uHeight,
+          portCount: Math.floor(Math.random() * 8) + 2
+        });
+        currentU += uHeight + 1;
+      }
+      return devices;
+    }
+
+    // Generate connections between random ports
+    function generateConnections(devices, count) {
+      const connections = [];
+      for (let i = 0; i < count; i++) {
+        const fromDevice = devices[Math.floor(Math.random() * devices.length)];
+        const toDevice = devices[Math.floor(Math.random() * devices.length)];
+        if (fromDevice.id !== toDevice.id) {
+          connections.push({
+            from: { device: fromDevice, port: Math.floor(Math.random() * fromDevice.portCount) },
+            to: { device: toDevice, port: Math.floor(Math.random() * toDevice.portCount) }
+          });
+        }
+      }
+      return connections;
+    }
+
+    // Get port position
+    function getPortPosition(device, portIndex, rackWidth) {
+      const deviceY = (RACK_HEIGHT - device.position - device.u_height + 1) * U_HEIGHT_PX + BASE_RACK_PADDING + RAIL_WIDTH;
+      const deviceX = RAIL_WIDTH;
+      const deviceWidth = rackWidth - (RAIL_WIDTH * 2);
+      const deviceHeight = device.u_height * U_HEIGHT_PX;
+
+      const totalPortWidth = (device.portCount - 1) * PORT_SPACING;
+      const portStartX = (deviceWidth - totalPortWidth) / 2;
+
+      return {
+        x: deviceX + portStartX + (portIndex * PORT_SPACING),
+        y: deviceY + deviceHeight - PORT_Y_OFFSET
+      };
+    }
+
+    // External channel path
+    function externalChannelPath(p1, p2, rackWidth, index) {
+      const side = index % 2 === 0 ? 'right' : 'left';
+      const gutterX = side === 'right'
+        ? rackWidth + GUTTER_OFFSET
+        : -GUTTER_OFFSET;
+      return `M ${p1.x},${p1.y} C ${gutterX},${p1.y} ${gutterX},${p2.y} ${p2.x},${p2.y}`;
+    }
+
+    // Render connections and measure time
+    function measureRender(connectionCount) {
+      const svg = document.getElementById('benchmarkSvg');
+      const devices = generateDevices(DEVICE_COUNT);
+      const connections = generateConnections(devices, connectionCount);
+
+      // Clear previous
+      svg.innerHTML = '';
+
+      // Measure render time
+      const start = performance.now();
+
+      connections.forEach((conn, index) => {
+        const p1 = getPortPosition(conn.from.device, conn.from.port, BASE_RACK_WIDTH);
+        const p2 = getPortPosition(conn.to.device, conn.to.port, BASE_RACK_WIDTH);
+        const pathD = externalChannelPath(p1, p2, BASE_RACK_WIDTH, index);
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', pathD);
+        path.setAttribute('stroke', '#ffb86c');
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('fill', 'none');
+        svg.appendChild(path);
+      });
+
+      // Force layout calculation
+      svg.getBBox();
+
+      const end = performance.now();
+      const renderTime = end - start;
+      const domNodes = svg.childElementCount;
+
+      return { renderTime, domNodes };
+    }
+
+    // Run benchmark for a specific count
+    async function runBenchmarkFor(count) {
+      // Warm up
+      measureRender(count);
+
+      // Average of 5 runs
+      let totalTime = 0;
+      let domNodes = 0;
+      const runs = 5;
+
+      for (let i = 0; i < runs; i++) {
+        const result = measureRender(count);
+        totalTime += result.renderTime;
+        domNodes = result.domNodes;
+        await new Promise(r => setTimeout(r, 10)); // Small delay between runs
+      }
+
+      return {
+        count,
+        avgTime: totalTime / runs,
+        domNodes
+      };
+    }
+
+    // Display result row
+    function displayResult(result) {
+      const target = TARGETS[result.count];
+      const passed = result.avgTime < target;
+      const status = passed ? 'pass' : (result.avgTime < target * 1.5 ? 'warn' : 'fail');
+      const statusText = passed ? 'PASS' : (status === 'warn' ? 'ACCEPTABLE' : 'SLOW');
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${result.count}</td>
+        <td>${result.domNodes}</td>
+        <td>${result.avgTime.toFixed(2)}ms</td>
+        <td>&lt;${target}ms</td>
+        <td class="${status}">${statusText}</td>
+      `;
+      document.getElementById('resultsBody').appendChild(row);
+    }
+
+    // Run full benchmark
+    async function runBenchmark(counts) {
+      const progress = document.getElementById('progress');
+      const results = document.getElementById('results');
+      const summary = document.getElementById('summary');
+
+      document.getElementById('resultsBody').innerHTML = '';
+      results.style.display = 'block';
+      summary.style.display = 'none';
+
+      const allResults = [];
+
+      for (const count of counts) {
+        progress.textContent = `Testing ${count} connections...`;
+        await new Promise(r => setTimeout(r, 50));
+
+        const result = await runBenchmarkFor(count);
+        allResults.push(result);
+        displayResult(result);
+      }
+
+      progress.textContent = 'Benchmark complete!';
+
+      // Show summary
+      const allPass = allResults.every(r => r.avgTime < TARGETS[r.count]);
+      const maxSafe = allResults.filter(r => r.avgTime < TARGETS[r.count]).pop();
+
+      summary.style.display = 'block';
+      document.getElementById('summaryText').innerHTML = allPass
+        ? `<strong>All tests passed!</strong> The External Channel algorithm performs well up to ${counts[counts.length - 1]} connections. Production can safely use this approach.`
+        : `Performance is acceptable up to ${maxSafe?.count || 10} connections. Consider virtualization or bundling for larger connection counts.`;
+    }
+
+    // Event handlers
+    document.getElementById('runBenchmark').addEventListener('click', () => {
+      runBenchmark([10, 50, 100, 200]);
+    });
+
+    document.getElementById('runQuick').addEventListener('click', () => {
+      runBenchmark([10]);
+    });
+  </script>
+</body>
+</html>
