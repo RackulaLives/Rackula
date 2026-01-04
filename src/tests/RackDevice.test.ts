@@ -738,11 +738,11 @@ describe("RackDevice SVG Component", () => {
         },
       });
 
-      // Find and click a port click target
-      const portClickTarget = container.querySelector(".port-click-target");
-      expect(portClickTarget).toBeInTheDocument();
+      // Find and click a port hit target (SVG circle, not button - Safari compatible)
+      const portHitTarget = container.querySelector("circle.port-hit-target");
+      expect(portHitTarget).toBeInTheDocument();
 
-      await fireEvent.click(portClickTarget!);
+      portHitTarget!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
       expect(handlePortClick).toHaveBeenCalledTimes(1);
       expect(handlePortClick).toHaveBeenCalledWith(
