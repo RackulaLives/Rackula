@@ -9,9 +9,14 @@
   - Management interface indicator (inner white dot)
   - PoE indicator (lightning bolt) for PSE interfaces
   - SVG-native click targets (Safari compatible, fixes #400)
+  - Hover tooltips with port details (#251)
 -->
 <script lang="ts">
   import type { InterfaceTemplate, InterfaceType, RackView } from "$lib/types";
+  import {
+    showPortTooltip,
+    hidePortTooltip,
+  } from "$lib/stores/portTooltip.svelte";
 
   interface Props {
     interfaces: InterfaceTemplate[];
@@ -30,6 +35,10 @@
     showPorts = true,
     onPortClick,
   }: Props = $props();
+
+  // Tooltip delay timer
+  let hoverTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  const TOOLTIP_DELAY_MS = 300;
 
   // Color scheme by interface type (NetBox-inspired)
   // Uses CSS custom properties from tokens.css for design system consistency
@@ -135,6 +144,29 @@
   function handlePortClick(iface: InterfaceTemplate) {
     onPortClick?.(iface);
   }
+
+  function handlePortMouseEnter(event: MouseEvent, iface: InterfaceTemplate) {
+    // Clear any pending timeout
+    if (hoverTimeoutId) {
+      clearTimeout(hoverTimeoutId);
+    }
+
+    // Delay before showing tooltip
+    hoverTimeoutId = setTimeout(() => {
+      const target = event.target as SVGElement;
+      const rect = target.getBoundingClientRect();
+      showPortTooltip(iface, rect.left + rect.width / 2, rect.top);
+    }, TOOLTIP_DELAY_MS);
+  }
+
+  function handlePortMouseLeave() {
+    // Clear pending timeout
+    if (hoverTimeoutId) {
+      clearTimeout(hoverTimeoutId);
+      hoverTimeoutId = null;
+    }
+    hidePortTooltip();
+  }
 </script>
 
 {#if showPorts && visibleInterfaces.length > 0}
@@ -180,8 +212,10 @@
           fill="transparent"
           role="button"
           tabindex="0"
-          aria-label="{iface.name} ({iface.type})"
+          aria-label="{iface.label ?? iface.name} ({iface.type})"
           onclick={() => handlePortClick(iface)}
+          onmouseenter={(e) => handlePortMouseEnter(e, iface)}
+          onmouseleave={handlePortMouseLeave}
           onkeydown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -189,7 +223,7 @@
             }
           }}
         >
-          <title>{iface.name} ({iface.type})</title>
+          <title>{iface.label ?? iface.name} ({iface.type})</title>
         </circle>
       {/each}
     {:else}

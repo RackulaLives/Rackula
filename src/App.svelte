@@ -16,6 +16,7 @@
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import ConfirmReplaceDialog from "$lib/components/ConfirmReplaceDialog.svelte";
   import ToastContainer from "$lib/components/ToastContainer.svelte";
+  import PortTooltip from "$lib/components/PortTooltip.svelte";
   import KeyboardHandler from "$lib/components/KeyboardHandler.svelte";
   import ExportDialog from "$lib/components/ExportDialog.svelte";
   import ShareDialog from "$lib/components/ShareDialog.svelte";
@@ -948,6 +949,9 @@
   />
 
   <ToastContainer />
+
+  <!-- Port tooltip for network interface hover -->
+  <PortTooltip />
 
   <!-- Mobile device library FAB and bottom sheet -->
   <DeviceLibraryFAB onclick={handleDeviceLibraryFABClick} />
