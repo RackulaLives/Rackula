@@ -71,6 +71,7 @@
   let editingDeviceName = $state(false);
   let deviceNameInput = $state("");
   let deviceNotes = $state("");
+  let deviceIp = $state("");
 
   // State for colour picker visibility
   let showColourPicker = $state(false);
@@ -316,6 +317,14 @@
     }
   });
 
+  // Sync device IP with selection
+  $effect(() => {
+    if (selectedDeviceInfo) {
+      const ip = selectedDeviceInfo.placedDevice.custom_fields?.ip;
+      deviceIp = typeof ip === "string" ? ip : "";
+    }
+  });
+
   // Start editing device name
   function startEditingDeviceName() {
     if (selectedDeviceInfo) {
@@ -363,6 +372,33 @@
       updatedDevices[selectedDeviceInfo.deviceIndex] = {
         ...updatedDevices[selectedDeviceInfo.deviceIndex]!,
         notes: notesToSave,
+      };
+      layoutStore.updateRack(RACK_ID, { devices: updatedDevices });
+    }
+  }
+
+  // Update device IP address
+  function handleDeviceIpBlur() {
+    if (selectedDeviceInfo) {
+      const trimmedIp = deviceIp.trim();
+      const updatedDevices = [...layoutStore.rack.devices];
+      const currentDevice = updatedDevices[selectedDeviceInfo.deviceIndex]!;
+      const currentCustomFields = currentDevice.custom_fields ?? {};
+
+      // Build new custom_fields object
+      let newCustomFields: Record<string, unknown> | undefined;
+      if (trimmedIp === "") {
+        // Remove ip from custom_fields
+        const { ip: _, ...rest } = currentCustomFields;
+        void _; // Explicitly mark as intentionally unused
+        newCustomFields = Object.keys(rest).length > 0 ? rest : undefined;
+      } else {
+        newCustomFields = { ...currentCustomFields, ip: trimmedIp };
+      }
+
+      updatedDevices[selectedDeviceInfo.deviceIndex] = {
+        ...currentDevice,
+        custom_fields: newCustomFields,
       };
       layoutStore.updateRack(RACK_ID, { devices: updatedDevices });
     }
@@ -886,6 +922,19 @@
           <p class="notes-text">{selectedDeviceInfo.device.notes}</p>
         </div>
       {/if}
+
+      <!-- IP Address (editable) -->
+      <div class="form-group">
+        <label for="device-ip">IP Address</label>
+        <input
+          type="text"
+          id="device-ip"
+          class="input-field"
+          bind:value={deviceIp}
+          onblur={handleDeviceIpBlur}
+          placeholder="e.g., 192.168.1.100"
+        />
+      </div>
 
       <!-- Placement Notes (editable) -->
       <div class="form-group">
