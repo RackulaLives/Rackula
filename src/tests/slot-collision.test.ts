@@ -218,13 +218,21 @@ describe("Slot Collision Detection", () => {
   });
 });
 
-describe("Slot Position Type", () => {
-  it("should have valid slot position values", () => {
+describe("SlotPosition runtime behavior", () => {
+  it("doSlotsOverlap handles all three slot positions correctly", () => {
+    // Test that doSlotsOverlap correctly processes all SlotPosition values
+    // This validates runtime behavior rather than just compile-time types
     const positions: SlotPosition[] = ["left", "right", "full"];
-    expect(positions).toContain("left");
-    expect(positions).toContain("right");
-    expect(positions).toContain("full");
-    // Verify these are the only valid values by checking array completeness
-    expect(new Set(positions).size).toBe(3);
+
+    // Each position should work with doSlotsOverlap without errors
+    for (const pos of positions) {
+      // Same position always overlaps with itself
+      expect(doSlotsOverlap(pos, pos)).toBe(true);
+    }
+
+    // Verify the expected overlap matrix
+    expect(doSlotsOverlap("left", "right")).toBe(false);
+    expect(doSlotsOverlap("left", "full")).toBe(true);
+    expect(doSlotsOverlap("right", "full")).toBe(true);
   });
 });
