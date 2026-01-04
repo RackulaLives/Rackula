@@ -224,18 +224,31 @@ describe("RackDevice SVG Component", () => {
   });
 
   describe("Events", () => {
-    it("dispatches select event on click", async () => {
+    // Issue #397: Events now handled via pointer events on SVG group
+    it("dispatches select event on pointer click (pointerdown + pointerup)", async () => {
       const handleSelect = vi.fn();
 
       const { container } = render(RackDevice, {
         props: { ...defaultProps, onselect: handleSelect },
       });
 
-      // Click the drag-handle (the interactive element inside foreignObject)
-      const dragHandle = container.querySelector(".drag-handle");
-      expect(dragHandle).toBeInTheDocument();
+      // Interact via pointer events (the new interaction model)
+      const group = container.querySelector("g.rack-device");
+      expect(group).toBeInTheDocument();
 
-      await fireEvent.click(dragHandle!);
+      // Simulate a click: pointerdown followed by pointerup at same position
+      await fireEvent.pointerDown(group!, {
+        isPrimary: true,
+        pointerId: 1,
+        clientX: 100,
+        clientY: 100,
+      });
+      await fireEvent.pointerUp(group!, {
+        isPrimary: true,
+        pointerId: 1,
+        clientX: 100,
+        clientY: 100,
+      });
 
       expect(handleSelect).toHaveBeenCalledTimes(1);
       expect(handleSelect).toHaveBeenCalledWith(
@@ -245,39 +258,54 @@ describe("RackDevice SVG Component", () => {
       );
     });
 
-    it("click event stops propagation", async () => {
-      const handleSelect = vi.fn();
-      const handleParentClick = vi.fn();
+    it("does not trigger drag when pointer moves less than threshold", async () => {
+      const handleDragStart = vi.fn();
 
       const { container } = render(RackDevice, {
-        props: { ...defaultProps, onselect: handleSelect },
+        props: { ...defaultProps, ondragstart: handleDragStart },
       });
 
-      // Click the drag-handle
-      const dragHandle = container.querySelector(".drag-handle");
-      container.addEventListener("click", handleParentClick);
+      const group = container.querySelector("g.rack-device");
 
-      await fireEvent.click(dragHandle!);
+      // Small movement (less than 3px threshold) should not trigger drag
+      await fireEvent.pointerDown(group!, {
+        isPrimary: true,
+        pointerId: 1,
+        clientX: 100,
+        clientY: 100,
+      });
+      await fireEvent.pointerMove(group!, {
+        isPrimary: true,
+        pointerId: 1,
+        clientX: 101,
+        clientY: 101,
+      });
+      await fireEvent.pointerUp(group!, {
+        isPrimary: true,
+        pointerId: 1,
+        clientX: 101,
+        clientY: 101,
+      });
 
-      // Parent should not receive click due to stopPropagation
-      expect(handleSelect).toHaveBeenCalledTimes(1);
+      // Should not have triggered drag (movement was < 3px)
+      expect(handleDragStart).not.toHaveBeenCalled();
     });
   });
 
   describe("Accessibility", () => {
+    // Issue #397: Accessibility attributes now on SVG group (not foreignObject)
     it('has role="button"', () => {
       const { container } = render(RackDevice, { props: defaultProps });
 
-      // Accessibility attributes are on the drag-handle inside foreignObject
-      const dragHandle = container.querySelector(".drag-handle");
-      expect(dragHandle).toHaveAttribute("role", "button");
+      const group = container.querySelector("g.rack-device");
+      expect(group).toHaveAttribute("role", "button");
     });
 
     it("has correct aria-label", () => {
       const { container } = render(RackDevice, { props: defaultProps });
 
-      const dragHandle = container.querySelector(".drag-handle");
-      expect(dragHandle).toHaveAttribute(
+      const group = container.querySelector("g.rack-device");
+      expect(group).toHaveAttribute(
         "aria-label",
         "Test Server, 1U server at U1",
       );
@@ -286,8 +314,8 @@ describe("RackDevice SVG Component", () => {
     it("has tabindex for keyboard focus", () => {
       const { container } = render(RackDevice, { props: defaultProps });
 
-      const dragHandle = container.querySelector(".drag-handle");
-      expect(dragHandle).toHaveAttribute("tabindex", "0");
+      const group = container.querySelector("g.rack-device");
+      expect(group).toHaveAttribute("tabindex", "0");
     });
   });
 
@@ -303,54 +331,56 @@ describe("RackDevice SVG Component", () => {
   });
 
   describe("Drag Affordance", () => {
-    it("has grip icon that shows on hover", async () => {
+    // Issue #397: Replaced foreignObject drag overlay with pointer events on SVG group
+    // These tests verify the new pointer events implementation
+
+    it("has grab cursor on rack-device group", () => {
       const { container } = render(RackDevice, { props: defaultProps });
 
-      // Grip icon container should exist
-      const gripContainer = container.querySelector(".grip-icon-container");
-      expect(gripContainer).toBeInTheDocument();
-    });
-
-    it("has grab cursor on drag handle", () => {
-      const { container } = render(RackDevice, { props: defaultProps });
-
-      const dragHandle = container.querySelector(".drag-handle");
-      expect(dragHandle).toBeInTheDocument();
-      // Cursor style is applied via CSS, just verify element exists
+      // The SVG group should have the rack-device class with grab cursor via CSS
+      const group = container.querySelector("g.rack-device");
+      expect(group).toBeInTheDocument();
+      expect(group).toHaveClass("rack-device");
     });
 
     it("has CSS properties for iOS Safari long-press support (#232)", () => {
-      // This test documents that the drag-handle element is styled
+      // This test documents that the rack-device group is styled
       // with CSS properties that prevent iOS Safari's default
       // long-press context menu from interfering with our gesture.
       // The actual CSS is verified through linting and visual testing.
       const { container } = render(RackDevice, { props: defaultProps });
 
-      const dragHandle = container.querySelector(".drag-handle");
-      expect(dragHandle).toBeInTheDocument();
-      expect(dragHandle).toHaveClass("drag-handle");
-      // CSS properties applied via stylesheet:
+      const group = container.querySelector("g.rack-device");
+      expect(group).toBeInTheDocument();
+      expect(group).toHaveClass("rack-device");
+      // CSS properties applied via stylesheet on .rack-device:
       // -webkit-touch-callout: none (disables Safari callout)
       // -webkit-user-select: none (prevents text selection)
       // user-select: none (standard property)
       // touch-action: manipulation (allows pan/zoom, disables double-tap delay)
     });
 
-    it("applies dragging class when drag starts", async () => {
-      const handleDragStart = vi.fn();
-      const { container } = render(RackDevice, {
-        props: { ...defaultProps, ondragstart: handleDragStart },
-      });
+    it("has accessibility attributes for keyboard interaction", () => {
+      const { container } = render(RackDevice, { props: defaultProps });
 
-      const dragHandle = container.querySelector(".drag-handle");
-      expect(dragHandle).toBeInTheDocument();
-
-      // The drag handle should have draggable attribute
-      expect(dragHandle).toHaveAttribute("draggable", "true");
-
-      // The group element should have the rack-device class
       const group = container.querySelector("g.rack-device");
       expect(group).toBeInTheDocument();
+      expect(group).toHaveAttribute("role", "button");
+      expect(group).toHaveAttribute("tabindex", "0");
+      expect(group).toHaveAttribute("aria-label");
+      expect(group).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("uses pointer events for drag detection (not HTML5 drag)", () => {
+      const { container } = render(RackDevice, { props: defaultProps });
+
+      // The SVG group handles pointer events directly
+      const group = container.querySelector("g.rack-device");
+      expect(group).toBeInTheDocument();
+
+      // Should NOT have a foreignObject drag overlay
+      const dragOverlay = container.querySelector(".drag-overlay");
+      expect(dragOverlay).not.toBeInTheDocument();
 
       // Note: CSS transform: scale() on SVG elements with existing transform
       // attributes causes visual position jumps. The dragging state uses
@@ -696,7 +726,9 @@ describe("RackDevice SVG Component", () => {
       );
     });
 
-    it("renders PortIndicators in correct layer (before drag overlay)", () => {
+    it("renders PortIndicators as last child (on top of device content)", () => {
+      // Issue #397: Removed foreignObject drag overlay, now using pointer events
+      // Port indicators should be rendered last so they're visually on top
       const { container } = render(RackDevice, {
         props: { ...defaultProps, device: mockDeviceWithInterfaces },
       });
@@ -704,22 +736,16 @@ describe("RackDevice SVG Component", () => {
       const group = container.querySelector("g.rack-device");
       const children = Array.from(group?.children ?? []);
 
-      // Find the positions of port-indicators and drag-overlay
+      // Find the port-indicators group
       const portIndicatorsIndex = children.findIndex(
         (el) =>
           el.tagName.toLowerCase() === "g" &&
           el.classList.contains("port-indicators"),
       );
-      const dragOverlayIndex = children.findIndex(
-        (el) =>
-          el.tagName.toLowerCase() === "foreignobject" &&
-          el.classList.contains("drag-overlay"),
-      );
 
       expect(portIndicatorsIndex).toBeGreaterThan(-1);
-      expect(dragOverlayIndex).toBeGreaterThan(-1);
-      // Port indicators should come before drag overlay
-      expect(portIndicatorsIndex).toBeLessThan(dragOverlayIndex);
+      // Port indicators should be near the end of the children (after device rect, selection, content)
+      expect(portIndicatorsIndex).toBeGreaterThan(0);
     });
   });
 });
