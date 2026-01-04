@@ -3,8 +3,8 @@
  * Handles drag data, position calculation, and drop validation
  */
 
-import type { DeviceType, DeviceFace, Rack } from '$lib/types';
-import { canPlaceDevice } from './collision';
+import type { DeviceType, DeviceFace, Rack, SlotPosition } from "$lib/types";
+import { canPlaceDevice } from "./collision";
 
 /**
  * Shared drag state - workaround for browser security restriction
@@ -14,31 +14,31 @@ import { canPlaceDevice } from './collision';
 let currentDragData: DragData | null = null;
 
 export function setCurrentDragData(data: DragData | null): void {
-	currentDragData = data;
+  currentDragData = data;
 }
 
 export function getCurrentDragData(): DragData | null {
-	return currentDragData;
+  return currentDragData;
 }
 
 /**
  * Drag data structure for drag-and-drop operations
  */
 export interface DragData {
-	/** Type of drag operation */
-	type: 'palette' | 'rack-device';
-	/** Device type being dragged */
-	device: DeviceType;
-	/** Source rack ID (for rack-device type) */
-	sourceRackId?: string;
-	/** Source device index in rack (for rack-device type) */
-	sourceIndex?: number;
+  /** Type of drag operation */
+  type: "palette" | "rack-device";
+  /** Device type being dragged */
+  device: DeviceType;
+  /** Source rack ID (for rack-device type) */
+  sourceRackId?: string;
+  /** Source device index in rack (for rack-device type) */
+  sourceIndex?: number;
 }
 
 /**
  * Drop feedback states
  */
-export type DropFeedback = 'valid' | 'invalid' | 'blocked';
+export type DropFeedback = "valid" | "invalid" | "blocked";
 
 /**
  * Calculate the target U position from mouse Y coordinate
@@ -49,30 +49,52 @@ export type DropFeedback = 'valid' | 'invalid' | 'blocked';
  * @returns Target U position (1-indexed, 1 is at bottom)
  */
 export function calculateDropPosition(
-	mouseY: number,
-	rackHeight: number,
-	uHeight: number,
-	_rackPadding: number
+  mouseY: number,
+  rackHeight: number,
+  uHeight: number,
+  _rackPadding: number,
 ): number {
-	// SVG coordinate system: y=0 at top
-	// U1 is at bottom, U{rackHeight} is at top
-	// Total rack height in pixels = rackHeight * uHeight
-	const totalHeight = rackHeight * uHeight;
+  // SVG coordinate system: y=0 at top
+  // U1 is at bottom, U{rackHeight} is at top
+  // Total rack height in pixels = rackHeight * uHeight
+  const totalHeight = rackHeight * uHeight;
 
-	// Calculate which U the mouse is over
-	// mouseY=0 -> top -> U{rackHeight}
-	// mouseY=totalHeight -> bottom -> U1
+  // Calculate which U the mouse is over
+  // mouseY=0 -> top -> U{rackHeight}
+  // mouseY=totalHeight -> bottom -> U1
 
-	// First, clamp mouseY to valid range
-	const clampedY = Math.max(0, Math.min(mouseY, totalHeight));
+  // First, clamp mouseY to valid range
+  const clampedY = Math.max(0, Math.min(mouseY, totalHeight));
 
-	// Calculate U from bottom (U1 = bottom)
-	// At y=totalHeight, U=1. At y=0, U=rackHeight
-	const uFromTop = Math.floor(clampedY / uHeight);
-	const uPosition = rackHeight - uFromTop;
+  // Calculate U from bottom (U1 = bottom)
+  // At y=totalHeight, U=1. At y=0, U=rackHeight
+  const uFromTop = Math.floor(clampedY / uHeight);
+  const uPosition = rackHeight - uFromTop;
 
-	// Clamp to valid range [1, rackHeight]
-	return Math.max(1, Math.min(uPosition, rackHeight));
+  // Clamp to valid range [1, rackHeight]
+  return Math.max(1, Math.min(uPosition, rackHeight));
+}
+
+/**
+ * Calculate the target slot position from mouse X coordinate
+ * @param mouseX - Mouse X position relative to rack interior
+ * @param rackWidth - Rack interior width in pixels
+ * @param slotWidth - Device slot width (1 = half, 2 = full)
+ * @returns Target slot position ('left', 'right', or 'full')
+ */
+export function calculateDropSlotPosition(
+  mouseX: number,
+  rackWidth: number,
+  slotWidth: number = 2,
+): SlotPosition {
+  // Full-width devices always use 'full' position
+  if (slotWidth === 2) {
+    return "full";
+  }
+
+  // Half-width devices: determine left or right based on X position
+  const midpoint = rackWidth / 2;
+  return mouseX < midpoint ? "left" : "right";
 }
 
 /**
@@ -84,42 +106,45 @@ export function calculateDropPosition(
  * @param excludeIndex - Optional device index to exclude from collision check (for moves within same rack)
  * @param targetFace - Target face for placement (defaults to 'front')
  * @param isFullDepth - Whether the device being dropped is full-depth (defaults to true)
+ * @param targetSlot - Target slot position (defaults to 'full')
  * @returns Feedback: 'valid', 'invalid', or 'blocked'
  */
 export function getDropFeedback(
-	rack: Rack,
-	deviceLibrary: DeviceType[],
-	deviceHeight: number,
-	targetU: number,
-	excludeIndex?: number,
-	targetFace: DeviceFace = 'front',
-	isFullDepth: boolean = true
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  deviceHeight: number,
+  targetU: number,
+  excludeIndex?: number,
+  targetFace: DeviceFace = "front",
+  isFullDepth: boolean = true,
+  targetSlot: SlotPosition = "full",
 ): DropFeedback {
-	// Check bounds first
-	if (targetU < 1) {
-		return 'invalid';
-	}
+  // Check bounds first
+  if (targetU < 1) {
+    return "invalid";
+  }
 
-	if (targetU + deviceHeight - 1 > rack.height) {
-		return 'invalid';
-	}
+  if (targetU + deviceHeight - 1 > rack.height) {
+    return "invalid";
+  }
 
-	// Check for collisions with face-aware validation
-	const canPlace = canPlaceDevice(
-		rack,
-		deviceLibrary,
-		deviceHeight,
-		targetU,
-		excludeIndex,
-		targetFace,
-		isFullDepth
-	);
+  // Check for collisions with face-aware and slot-aware validation
+  const canPlace = canPlaceDevice(
+    rack,
+    deviceLibrary,
+    deviceHeight,
+    targetU,
+    excludeIndex,
+    targetFace,
+    isFullDepth,
+    targetSlot,
+  );
 
-	if (!canPlace) {
-		return 'blocked';
-	}
+  if (!canPlace) {
+    return "blocked";
+  }
 
-	return 'valid';
+  return "valid";
 }
 
 /**
@@ -128,10 +153,10 @@ export function getDropFeedback(
  * @returns DragData for palette drag
  */
 export function createPaletteDragData(device: DeviceType): DragData {
-	return {
-		type: 'palette',
-		device
-	};
+  return {
+    type: "palette",
+    device,
+  };
 }
 
 /**
@@ -142,16 +167,16 @@ export function createPaletteDragData(device: DeviceType): DragData {
  * @returns DragData for rack device drag
  */
 export function createRackDeviceDragData(
-	device: DeviceType,
-	rackId: string,
-	deviceIndex: number
+  device: DeviceType,
+  rackId: string,
+  deviceIndex: number,
 ): DragData {
-	return {
-		type: 'rack-device',
-		device,
-		sourceRackId: rackId,
-		sourceIndex: deviceIndex
-	};
+  return {
+    type: "rack-device",
+    device,
+    sourceRackId: rackId,
+    sourceIndex: deviceIndex,
+  };
 }
 
 /**
@@ -160,7 +185,7 @@ export function createRackDeviceDragData(
  * @returns JSON string
  */
 export function serializeDragData(data: DragData): string {
-	return JSON.stringify(data);
+  return JSON.stringify(data);
 }
 
 /**
@@ -169,13 +194,13 @@ export function serializeDragData(data: DragData): string {
  * @returns Parsed DragData or null if invalid
  */
 export function parseDragData(dataString: string): DragData | null {
-	try {
-		const data = JSON.parse(dataString) as DragData;
-		if (data.type && data.device) {
-			return data;
-		}
-		return null;
-	} catch {
-		return null;
-	}
+  try {
+    const data = JSON.parse(dataString) as DragData;
+    if (data.type && data.device) {
+      return data;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }

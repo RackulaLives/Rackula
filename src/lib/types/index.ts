@@ -92,6 +92,21 @@ export type Airflow =
 export type SubdeviceRole = "parent" | "child";
 
 /**
+ * Slot position for half-width devices
+ * - 'left': Device occupies left half of rack width
+ * - 'right': Device occupies right half of rack width
+ * - 'full': Device occupies full rack width (default)
+ */
+export type SlotPosition = "left" | "right" | "full";
+
+/**
+ * Slot width for device types
+ * - 1: Half-width device (occupies one slot)
+ * - 2: Full-width device (occupies both slots, default)
+ */
+export type SlotWidth = 1 | 2;
+
+/**
  * Network interface type (NetBox-compatible subset)
  * Common physical interface types for rack equipment
  */
@@ -395,6 +410,8 @@ export interface DeviceType {
   // --- Physical Properties ---
   /** Height in rack units (0.5-42U) */
   u_height: number;
+  /** Width in slots (1 = half-width, 2 = full-width). Default: 2 */
+  slot_width?: SlotWidth;
   /** Whether device occupies full rack depth (default: true) */
   is_full_depth?: boolean;
   /** Whether device is powered (false for patch panels, shelves) */
@@ -466,6 +483,8 @@ export interface PlacedDevice {
   position: number;
   /** Which face(s) of the rack the device occupies */
   face: DeviceFace;
+  /** Horizontal slot position (left, right, or full). Default: 'full' */
+  slot_position?: SlotPosition;
   /** Optional custom display name for this placement */
   name?: string;
 

@@ -94,6 +94,16 @@ export const AirflowSchema = z.enum([
 export const SubdeviceRoleSchema = z.enum(["parent", "child"]);
 
 /**
+ * Slot position enum for horizontal device placement
+ */
+export const SlotPositionSchema = z.enum(["left", "right", "full"]);
+
+/**
+ * Slot width enum for device width in slots
+ */
+export const SlotWidthSchema = z.union([z.literal(1), z.literal(2)]);
+
+/**
  * Network interface type enum (NetBox-compatible subset)
  */
 export const InterfaceTypeSchema = z.enum([
@@ -428,6 +438,7 @@ export const DeviceTypeSchema = z
       .min(0.5, "Height must be at least 0.5U")
       .max(50, "Height cannot exceed 50U")
       .refine((val) => val % 0.5 === 0, "Height must be a multiple of 0.5U"),
+    slot_width: SlotWidthSchema.optional(),
     is_full_depth: z.boolean().optional(),
     is_powered: z.boolean().optional(),
     weight: z.number().positive().optional(),
@@ -481,6 +492,7 @@ export const PlacedDeviceSchema = z
     name: z.string().max(100, "Name must be 100 characters or less").optional(),
     position: z.number().int().min(1, "Position must be at least 1"),
     face: DeviceFaceSchema,
+    slot_position: SlotPositionSchema.optional(),
 
     // --- Port Instances ---
     ports: z.array(PlacedPortSchema).default([]),
@@ -594,6 +606,8 @@ export type WeightUnit = z.infer<typeof WeightUnitSchema>;
 export type DisplayMode = z.infer<typeof DisplayModeSchema>;
 export type Airflow = z.infer<typeof AirflowSchema>;
 export type SubdeviceRole = z.infer<typeof SubdeviceRoleSchema>;
+export type SlotPosition = z.infer<typeof SlotPositionSchema>;
+export type SlotWidth = z.infer<typeof SlotWidthSchema>;
 export type InterfaceType = z.infer<typeof InterfaceTypeSchema>;
 export type PoEType = z.infer<typeof PoETypeSchema>;
 export type PoEMode = z.infer<typeof PoEModeSchema>;

@@ -783,6 +783,7 @@
             placedDeviceName={placedDevice.name}
             placedDeviceId={placedDevice.id}
             colourOverride={placedDevice.colour_override}
+            slotPosition={placedDevice.slot_position}
             onselect={ondeviceselect}
             ondragstart={() => handleDeviceDragStart(originalIndex)}
             ondragend={handleDeviceDragEnd}

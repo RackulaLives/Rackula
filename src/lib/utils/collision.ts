@@ -3,14 +3,23 @@
  * Functions for device placement validation
  */
 
-import type { DeviceType, DeviceFace, PlacedDevice, Rack } from '$lib/types';
+import type {
+  DeviceType,
+  DeviceFace,
+  PlacedDevice,
+  Rack,
+  SlotPosition,
+} from "$lib/types";
+
+// Re-export SlotPosition for test imports
+export type { SlotPosition } from "$lib/types";
 
 /**
  * Range of U positions occupied by a device
  */
 export interface URange {
-	bottom: number;
-	top: number;
+  bottom: number;
+  top: number;
 }
 
 /**
@@ -20,10 +29,10 @@ export interface URange {
  * @returns Range of U positions {bottom, top}
  */
 export function getDeviceURange(position: number, height: number): URange {
-	return {
-		bottom: position,
-		top: position + height - 1
-	};
+  return {
+    bottom: position,
+    top: position + height - 1,
+  };
 }
 
 /**
@@ -33,9 +42,9 @@ export function getDeviceURange(position: number, height: number): URange {
  * @returns true if ranges overlap (including edge touch)
  */
 export function doRangesOverlap(rangeA: URange, rangeB: URange): boolean {
-	// Ranges overlap if one starts before or at the other's end
-	// and ends after or at the other's start
-	return rangeA.bottom <= rangeB.top && rangeA.top >= rangeB.bottom;
+  // Ranges overlap if one starts before or at the other's end
+  // and ends after or at the other's start
+  return rangeA.bottom <= rangeB.top && rangeA.top >= rangeB.bottom;
 }
 
 /**
@@ -47,23 +56,45 @@ export function doRangesOverlap(rangeA: URange, rangeB: URange): boolean {
  * @returns true if devices on these faces would collide
  */
 export function doFacesCollide(
-	faceA: DeviceFace,
-	faceB: DeviceFace,
-	isFullDepthA: boolean = true,
-	isFullDepthB: boolean = true
+  faceA: DeviceFace,
+  faceB: DeviceFace,
+  isFullDepthA: boolean = true,
+  isFullDepthB: boolean = true,
 ): boolean {
-	// 'both' collides with everything
-	if (faceA === 'both' || faceB === 'both') {
-		return true;
-	}
-	// Same face always collides
-	if (faceA === faceB) {
-		return true;
-	}
-	// Opposite faces: collision depends on depth
-	// If either device is full-depth, they collide
-	// If both are half-depth, they don't collide
-	return isFullDepthA || isFullDepthB;
+  // 'both' collides with everything
+  if (faceA === "both" || faceB === "both") {
+    return true;
+  }
+  // Same face always collides
+  if (faceA === faceB) {
+    return true;
+  }
+  // Opposite faces: collision depends on depth
+  // If either device is full-depth, they collide
+  // If both are half-depth, they don't collide
+  return isFullDepthA || isFullDepthB;
+}
+
+/**
+ * Check if two slot positions overlap
+ * @param slotA - First slot position ('left', 'right', or 'full')
+ * @param slotB - Second slot position ('left', 'right', or 'full')
+ * @returns true if the slots overlap
+ */
+export function doSlotsOverlap(
+  slotA: SlotPosition,
+  slotB: SlotPosition,
+): boolean {
+  // 'full' overlaps with everything
+  if (slotA === "full" || slotB === "full") {
+    return true;
+  }
+  // Same slot position overlaps
+  if (slotA === slotB) {
+    return true;
+  }
+  // 'left' and 'right' don't overlap
+  return false;
 }
 
 /**
@@ -75,54 +106,69 @@ export function doFacesCollide(
  * @param excludeIndex - Optional index in rack.devices to exclude (for move operations)
  * @param targetFace - Optional face to place device on (default: 'front')
  * @param isFullDepth - Optional whether the new device is full-depth (default: true)
+ * @param targetSlot - Optional slot position (default: 'full')
  * @returns true if placement is valid
  */
 export function canPlaceDevice(
-	rack: Rack,
-	deviceLibrary: DeviceType[],
-	deviceHeight: number,
-	targetPosition: number,
-	excludeIndex?: number,
-	targetFace: DeviceFace = 'front',
-	isFullDepth: boolean = true
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  deviceHeight: number,
+  targetPosition: number,
+  excludeIndex?: number,
+  targetFace: DeviceFace = "front",
+  isFullDepth: boolean = true,
+  targetSlot: SlotPosition = "full",
 ): boolean {
-	// Position must be >= 1
-	if (targetPosition < 1) {
-		return false;
-	}
+  // Position must be >= 1
+  if (targetPosition < 1) {
+    return false;
+  }
 
-	// Device must fit within rack height
-	const topPosition = targetPosition + deviceHeight - 1;
-	if (topPosition > rack.height) {
-		return false;
-	}
+  // Device must fit within rack height
+  const topPosition = targetPosition + deviceHeight - 1;
+  if (topPosition > rack.height) {
+    return false;
+  }
 
-	// Check for collisions with existing devices
-	const newRange = getDeviceURange(targetPosition, deviceHeight);
+  // Check for collisions with existing devices
+  const newRange = getDeviceURange(targetPosition, deviceHeight);
 
-	for (let i = 0; i < rack.devices.length; i++) {
-		// Skip the excluded device (for move operations)
-		if (excludeIndex !== undefined && i === excludeIndex) {
-			continue;
-		}
+  for (let i = 0; i < rack.devices.length; i++) {
+    // Skip the excluded device (for move operations)
+    if (excludeIndex !== undefined && i === excludeIndex) {
+      continue;
+    }
 
-		const placedDevice = rack.devices[i]!;
-		const device = deviceLibrary.find((d) => d.slug === placedDevice.device_type);
-		if (device) {
-			const existingRange = getDeviceURange(placedDevice.position, device.u_height);
-			// Determine if existing device is full-depth (default to true if not specified)
-			const existingIsFullDepth = device.is_full_depth !== false;
-			// Check both U range overlap AND face collision (with depth awareness)
-			if (
-				doRangesOverlap(newRange, existingRange) &&
-				doFacesCollide(targetFace, placedDevice.face, isFullDepth, existingIsFullDepth)
-			) {
-				return false;
-			}
-		}
-	}
+    const placedDevice = rack.devices[i]!;
+    const device = deviceLibrary.find(
+      (d) => d.slug === placedDevice.device_type,
+    );
+    if (device) {
+      const existingRange = getDeviceURange(
+        placedDevice.position,
+        device.u_height,
+      );
+      // Determine if existing device is full-depth (default to true if not specified)
+      const existingIsFullDepth = device.is_full_depth !== false;
+      // Get existing device's slot position (default to 'full')
+      const existingSlot: SlotPosition = placedDevice.slot_position ?? "full";
+      // Check U range overlap AND face collision AND slot overlap
+      if (
+        doRangesOverlap(newRange, existingRange) &&
+        doFacesCollide(
+          targetFace,
+          placedDevice.face,
+          isFullDepth,
+          existingIsFullDepth,
+        ) &&
+        doSlotsOverlap(targetSlot, existingSlot)
+      ) {
+        return false;
+      }
+    }
+  }
 
-	return true;
+  return true;
 }
 
 /**
@@ -134,42 +180,57 @@ export function canPlaceDevice(
  * @param excludeIndex - Optional index in rack.devices to exclude (for move operations)
  * @param targetFace - Optional face to place device on (default: 'front')
  * @param isFullDepth - Optional whether the new device is full-depth (default: true)
+ * @param targetSlot - Optional slot position (default: 'full')
  * @returns Array of colliding PlacedDevices
  */
 export function findCollisions(
-	rack: Rack,
-	deviceLibrary: DeviceType[],
-	newDeviceHeight: number,
-	newPosition: number,
-	excludeIndex?: number,
-	targetFace: DeviceFace = 'front',
-	isFullDepth: boolean = true
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  newDeviceHeight: number,
+  newPosition: number,
+  excludeIndex?: number,
+  targetFace: DeviceFace = "front",
+  isFullDepth: boolean = true,
+  targetSlot: SlotPosition = "full",
 ): PlacedDevice[] {
-	const collisions: PlacedDevice[] = [];
-	const newRange = getDeviceURange(newPosition, newDeviceHeight);
+  const collisions: PlacedDevice[] = [];
+  const newRange = getDeviceURange(newPosition, newDeviceHeight);
 
-	rack.devices.forEach((placedDevice, index) => {
-		// Skip the excluded device (for move operations)
-		if (excludeIndex !== undefined && index === excludeIndex) {
-			return;
-		}
+  rack.devices.forEach((placedDevice, index) => {
+    // Skip the excluded device (for move operations)
+    if (excludeIndex !== undefined && index === excludeIndex) {
+      return;
+    }
 
-		const device = deviceLibrary.find((d) => d.slug === placedDevice.device_type);
-		if (device) {
-			const existingRange = getDeviceURange(placedDevice.position, device.u_height);
-			// Determine if existing device is full-depth (default to true if not specified)
-			const existingIsFullDepth = device.is_full_depth !== false;
-			// Check both U range overlap AND face collision (with depth awareness)
-			if (
-				doRangesOverlap(newRange, existingRange) &&
-				doFacesCollide(targetFace, placedDevice.face, isFullDepth, existingIsFullDepth)
-			) {
-				collisions.push(placedDevice);
-			}
-		}
-	});
+    const device = deviceLibrary.find(
+      (d) => d.slug === placedDevice.device_type,
+    );
+    if (device) {
+      const existingRange = getDeviceURange(
+        placedDevice.position,
+        device.u_height,
+      );
+      // Determine if existing device is full-depth (default to true if not specified)
+      const existingIsFullDepth = device.is_full_depth !== false;
+      // Get existing device's slot position (default to 'full')
+      const existingSlot: SlotPosition = placedDevice.slot_position ?? "full";
+      // Check U range overlap AND face collision AND slot overlap
+      if (
+        doRangesOverlap(newRange, existingRange) &&
+        doFacesCollide(
+          targetFace,
+          placedDevice.face,
+          isFullDepth,
+          existingIsFullDepth,
+        ) &&
+        doSlotsOverlap(targetSlot, existingSlot)
+      ) {
+        collisions.push(placedDevice);
+      }
+    }
+  });
 
-	return collisions;
+  return collisions;
 }
 
 /**
@@ -179,36 +240,39 @@ export function findCollisions(
  * @param deviceHeight - Height of device to place
  * @param targetFace - Optional face to place device on (default: 'front')
  * @param isFullDepth - Optional whether the new device is full-depth (default: true)
+ * @param targetSlot - Optional slot position (default: 'full')
  * @returns Array of valid bottom U positions, sorted ascending
  */
 export function findValidDropPositions(
-	rack: Rack,
-	deviceLibrary: DeviceType[],
-	deviceHeight: number,
-	targetFace: DeviceFace = 'front',
-	isFullDepth: boolean = true
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  deviceHeight: number,
+  targetFace: DeviceFace = "front",
+  isFullDepth: boolean = true,
+  targetSlot: SlotPosition = "full",
 ): number[] {
-	const validPositions: number[] = [];
+  const validPositions: number[] = [];
 
-	// Check each possible position from 1 to (rack.height - deviceHeight + 1)
-	const maxPosition = rack.height - deviceHeight + 1;
-	for (let position = 1; position <= maxPosition; position++) {
-		if (
-			canPlaceDevice(
-				rack,
-				deviceLibrary,
-				deviceHeight,
-				position,
-				undefined,
-				targetFace,
-				isFullDepth
-			)
-		) {
-			validPositions.push(position);
-		}
-	}
+  // Check each possible position from 1 to (rack.height - deviceHeight + 1)
+  const maxPosition = rack.height - deviceHeight + 1;
+  for (let position = 1; position <= maxPosition; position++) {
+    if (
+      canPlaceDevice(
+        rack,
+        deviceLibrary,
+        deviceHeight,
+        position,
+        undefined,
+        targetFace,
+        isFullDepth,
+        targetSlot,
+      )
+    ) {
+      validPositions.push(position);
+    }
+  }
 
-	return validPositions;
+  return validPositions;
 }
 
 /**
@@ -219,9 +283,9 @@ export function findValidDropPositions(
  * @returns U position (1-indexed from bottom)
  */
 function yToUPosition(y: number, rackHeight: number, uHeight: number): number {
-	// SVG has y=0 at top, U=1 at bottom
-	// position = rackHeight - floor(y / uHeight)
-	return rackHeight - Math.floor(y / uHeight);
+  // SVG has y=0 at top, U=1 at bottom
+  // position = rackHeight - floor(y / uHeight)
+  return rackHeight - Math.floor(y / uHeight);
 }
 
 /**
@@ -234,32 +298,36 @@ function yToUPosition(y: number, rackHeight: number, uHeight: number): number {
  * @returns Nearest valid U position, or null if no valid positions
  */
 export function snapToNearestValidPosition(
-	rack: Rack,
-	deviceLibrary: DeviceType[],
-	deviceHeight: number,
-	targetY: number,
-	uHeight: number
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  deviceHeight: number,
+  targetY: number,
+  uHeight: number,
 ): number | null {
-	const validPositions = findValidDropPositions(rack, deviceLibrary, deviceHeight);
+  const validPositions = findValidDropPositions(
+    rack,
+    deviceLibrary,
+    deviceHeight,
+  );
 
-	if (validPositions.length === 0) {
-		return null;
-	}
+  if (validPositions.length === 0) {
+    return null;
+  }
 
-	// Convert target Y to approximate U position
-	const targetU = yToUPosition(targetY, rack.height, uHeight);
+  // Convert target Y to approximate U position
+  const targetU = yToUPosition(targetY, rack.height, uHeight);
 
-	// Find the closest valid position
-	let closestPosition = validPositions[0]!;
-	let closestDistance = Math.abs(targetU - closestPosition);
+  // Find the closest valid position
+  let closestPosition = validPositions[0]!;
+  let closestDistance = Math.abs(targetU - closestPosition);
 
-	for (const position of validPositions) {
-		const distance = Math.abs(targetU - position);
-		if (distance < closestDistance) {
-			closestDistance = distance;
-			closestPosition = position;
-		}
-	}
+  for (const position of validPositions) {
+    const distance = Math.abs(targetU - position);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestPosition = position;
+    }
+  }
 
-	return closestPosition;
+  return closestPosition;
 }

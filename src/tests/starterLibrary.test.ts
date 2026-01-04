@@ -5,9 +5,9 @@ import { createLayout } from "$lib/utils/serialization";
 
 describe("Starter Device Type Library", () => {
   describe("getStarterLibrary", () => {
-    it("returns 43 generic device types", () => {
+    it("returns 51 generic device types", () => {
       const deviceTypes = getStarterLibrary();
-      expect(deviceTypes).toHaveLength(43);
+      expect(deviceTypes).toHaveLength(51);
     });
 
     it("all categories have at least one starter device type", () => {
@@ -410,9 +410,11 @@ describe("Starter Device Type Library", () => {
       expect(device?.category).toBe("blank");
     });
 
-    it("blank panels are half-depth (is_full_depth: false)", () => {
+    it("full-width blank panels are half-depth (is_full_depth: false)", () => {
       const library = getStarterLibrary();
-      const blanks = library.filter((d) => d.category === "blank");
+      const blanks = library.filter(
+        (d) => d.category === "blank" && !d.slot_width,
+      );
 
       expect(blanks.length).toBe(5);
       blanks.forEach((blank) => {
@@ -448,15 +450,96 @@ describe("Starter Device Type Library", () => {
       expect(device?.category).toBe("cable-management");
     });
 
-    it("cable-management devices have Dracula comment colour", () => {
+    it("full-width cable-management devices have Dracula comment colour", () => {
       const library = getStarterLibrary();
       const cableDevices = library.filter(
-        (d) => d.category === "cable-management",
+        (d) => d.category === "cable-management" && !d.slot_width,
       );
 
       expect(cableDevices).toHaveLength(3);
       cableDevices.forEach((device) => {
         expect(device.colour).toBe("#6272A4");
+      });
+    });
+  });
+
+  describe("half-width devices (8 items)", () => {
+    it("includes 8 half-width devices with slot_width: 1", () => {
+      const library = getStarterLibrary();
+      const halfWidthDevices = library.filter((d) => d.slot_width === 1);
+      expect(halfWidthDevices).toHaveLength(8);
+    });
+
+    it("includes Half Blank Panel (1U)", () => {
+      const library = getStarterLibrary();
+      const device = library.find((d) => d.slug === "1u-half-blank");
+      expect(device).toBeDefined();
+      expect(device?.slot_width).toBe(1);
+      expect(device?.category).toBe("blank");
+    });
+
+    it("includes Half Blank Panel (2U)", () => {
+      const library = getStarterLibrary();
+      const device = library.find((d) => d.slug === "2u-half-blank");
+      expect(device).toBeDefined();
+      expect(device?.slot_width).toBe(1);
+      expect(device?.u_height).toBe(2);
+    });
+
+    it("includes Half Shelf", () => {
+      const library = getStarterLibrary();
+      const device = library.find((d) => d.slug === "1u-half-shelf");
+      expect(device).toBeDefined();
+      expect(device?.slot_width).toBe(1);
+      expect(device?.category).toBe("shelf");
+    });
+
+    it("includes Half Patch Panel", () => {
+      const library = getStarterLibrary();
+      const device = library.find((d) => d.slug === "1u-half-patch-panel");
+      expect(device).toBeDefined();
+      expect(device?.slot_width).toBe(1);
+      expect(device?.category).toBe("patch-panel");
+    });
+
+    it("includes Half Switch (8-Port)", () => {
+      const library = getStarterLibrary();
+      const device = library.find((d) => d.slug === "1u-half-switch");
+      expect(device).toBeDefined();
+      expect(device?.slot_width).toBe(1);
+      expect(device?.category).toBe("network");
+    });
+
+    it("includes Half Brush Panel", () => {
+      const library = getStarterLibrary();
+      const device = library.find((d) => d.slug === "1u-half-brush-panel");
+      expect(device).toBeDefined();
+      expect(device?.slot_width).toBe(1);
+      expect(device?.category).toBe("cable-management");
+    });
+
+    it("includes Mini UPS", () => {
+      const library = getStarterLibrary();
+      const device = library.find((d) => d.slug === "1u-mini-ups");
+      expect(device).toBeDefined();
+      expect(device?.slot_width).toBe(1);
+      expect(device?.category).toBe("power");
+    });
+
+    it("includes Half Fan Panel", () => {
+      const library = getStarterLibrary();
+      const device = library.find((d) => d.slug === "1u-half-fan");
+      expect(device).toBeDefined();
+      expect(device?.slot_width).toBe(1);
+      expect(device?.category).toBe("cooling");
+    });
+
+    it("all half-width devices are half-depth", () => {
+      const library = getStarterLibrary();
+      const halfWidthDevices = library.filter((d) => d.slot_width === 1);
+
+      halfWidthDevices.forEach((device) => {
+        expect(device.is_full_depth).toBe(false);
       });
     });
   });
@@ -529,8 +612,8 @@ describe("Starter Device Type Library", () => {
     it("starter library contains only generic devices", () => {
       const starterLibrary = getStarterLibrary();
 
-      // Library should have 43 generic devices
-      expect(starterLibrary.length).toBe(43);
+      // Library should have 51 generic devices (43 full-width + 8 half-width)
+      expect(starterLibrary.length).toBe(51);
       expect(starterLibrary[0]?.slug).toBeTruthy();
     });
 

@@ -250,11 +250,11 @@ describe("DevicePalette Exclusive Accordion", () => {
 
   describe("Generic Section", () => {
     it("renders Generic section with correct device count", () => {
-      // Starter library has 43 devices
+      // Starter library has 51 devices (43 full-width + 8 half-width)
       render(DevicePalette);
 
       expect(screen.getByText("Generic")).toBeInTheDocument();
-      expect(screen.getByText("(43)")).toBeInTheDocument();
+      expect(screen.getByText("(51)")).toBeInTheDocument();
     });
 
     it("Generic section is expanded by default", () => {
@@ -407,8 +407,8 @@ describe("DevicePalette Exclusive Accordion", () => {
         expect(genericSection.textContent).not.toContain("UniFi Switch 24");
       }
 
-      // The device count in Generic should still be 43 (starter library only)
-      expect(screen.getByText("(43)")).toBeInTheDocument();
+      // The device count in Generic should still be 51 (starter library only)
+      expect(screen.getByText("(51)")).toBeInTheDocument();
     });
 
     it("brand devices still appear in their brand section after placement", async () => {
@@ -444,12 +444,12 @@ describe("DevicePalette Exclusive Accordion", () => {
       const { container } = render(DevicePalette);
 
       // Custom device should appear in Generic
-      // Generic count should now be 44 (43 starter + 1 custom)
+      // Generic count should now be 52 (51 starter + 1 custom)
       // Use a more specific selector to find the Generic section's count
       const genericButton = container.querySelector(".accordion-trigger");
       expect(genericButton).toBeInTheDocument();
       expect(genericButton?.textContent).toContain("Generic");
-      expect(genericButton?.textContent).toContain("(44)");
+      expect(genericButton?.textContent).toContain("(52)");
     });
   });
 
