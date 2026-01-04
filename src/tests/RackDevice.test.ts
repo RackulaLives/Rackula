@@ -232,18 +232,18 @@ describe("RackDevice SVG Component", () => {
         props: { ...defaultProps, onselect: handleSelect },
       });
 
-      // Interact via pointer events (the new interaction model)
-      const group = container.querySelector("g.rack-device");
-      expect(group).toBeInTheDocument();
+      // Safari 18.x fix #411: Pointer events on device-rect (explicit geometry)
+      const rect = container.querySelector(".device-rect");
+      expect(rect).toBeInTheDocument();
 
       // Simulate a click: pointerdown followed by pointerup at same position
-      await fireEvent.pointerDown(group!, {
+      await fireEvent.pointerDown(rect!, {
         isPrimary: true,
         pointerId: 1,
         clientX: 100,
         clientY: 100,
       });
-      await fireEvent.pointerUp(group!, {
+      await fireEvent.pointerUp(rect!, {
         isPrimary: true,
         pointerId: 1,
         clientX: 100,
@@ -265,22 +265,23 @@ describe("RackDevice SVG Component", () => {
         props: { ...defaultProps, ondragstart: handleDragStart },
       });
 
-      const group = container.querySelector("g.rack-device");
+      // Safari 18.x fix #411: Pointer events on device-rect (explicit geometry)
+      const rect = container.querySelector(".device-rect");
 
       // Small movement (less than 3px threshold) should not trigger drag
-      await fireEvent.pointerDown(group!, {
+      await fireEvent.pointerDown(rect!, {
         isPrimary: true,
         pointerId: 1,
         clientX: 100,
         clientY: 100,
       });
-      await fireEvent.pointerMove(group!, {
+      await fireEvent.pointerMove(rect!, {
         isPrimary: true,
         pointerId: 1,
         clientX: 101,
         clientY: 101,
       });
-      await fireEvent.pointerUp(group!, {
+      await fireEvent.pointerUp(rect!, {
         isPrimary: true,
         pointerId: 1,
         clientX: 101,
@@ -298,16 +299,17 @@ describe("RackDevice SVG Component", () => {
         props: { ...defaultProps, ondragstart: handleDragStart },
       });
 
-      const group = container.querySelector("g.rack-device");
+      // Safari 18.x fix #411: Pointer events on device-rect (explicit geometry)
+      const rect = container.querySelector(".device-rect");
 
       // Movement of exactly 3px should trigger drag
-      await fireEvent.pointerDown(group!, {
+      await fireEvent.pointerDown(rect!, {
         isPrimary: true,
         pointerId: 1,
         clientX: 100,
         clientY: 100,
       });
-      await fireEvent.pointerMove(group!, {
+      await fireEvent.pointerMove(rect!, {
         isPrimary: true,
         pointerId: 1,
         clientX: 103, // 3px horizontal movement
@@ -358,16 +360,16 @@ describe("RackDevice SVG Component", () => {
   });
 
   describe("Drag Affordance", () => {
-    // Issue #397: Replaced foreignObject drag overlay with pointer events on SVG group
-    // These tests verify the new pointer events implementation
+    // Issue #397: Replaced foreignObject drag overlay with pointer events
+    // Issue #411: Moved pointer events to device-rect for Safari 18.x compatibility
 
-    it("has grab cursor on rack-device group", () => {
+    it("has grab cursor on device-rect element", () => {
       const { container } = render(RackDevice, { props: defaultProps });
 
-      // The SVG group should have the rack-device class with grab cursor via CSS
-      const group = container.querySelector("g.rack-device");
-      expect(group).toBeInTheDocument();
-      expect(group).toHaveClass("rack-device");
+      // Safari 18.x fix #411: cursor on device-rect (explicit geometry element)
+      const rect = container.querySelector(".device-rect");
+      expect(rect).toBeInTheDocument();
+      // Cursor style applied via CSS on .device-rect class
     });
 
     it("has CSS properties for iOS Safari long-press support (#232)", () => {

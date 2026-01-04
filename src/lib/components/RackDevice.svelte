@@ -121,8 +121,11 @@
   // Viewport detection for mobile-specific interactions
   const viewportStore = getViewportStore();
 
-  // SVG group element ref for pointer events and long-press
+  // SVG group element ref for long-press gesture
   let groupElement: SVGGElement | null = $state(null);
+
+  // Rect element ref for pointer capture (Safari 18.x fix #411)
+  let rectElement: SVGRectElement | null = $state(null);
 
   // Pointer tracking for click vs drag detection
   const DRAG_THRESHOLD = 3; // pixels - movement beyond this initiates drag
@@ -217,8 +220,9 @@
 
     // Capture pointer to receive events even if cursor leaves element
     // Note: setPointerCapture may not exist in test environments (happy-dom)
-    if (groupElement?.setPointerCapture) {
-      groupElement.setPointerCapture(event.pointerId);
+    // Safari 18.x fix #411: Capture on the rect element (has explicit geometry)
+    if (rectElement?.setPointerCapture) {
+      rectElement.setPointerCapture(event.pointerId);
     }
   }
 
@@ -273,9 +277,10 @@
     // Exception is safe to ignore: releasePointerCapture throws if the pointer
     // was already released (e.g., by pointercancel or browser gesture handling).
     // This is a normal race condition, not an error condition.
-    if (groupElement?.releasePointerCapture && activePointerId !== null) {
+    // Safari 18.x fix #411: Release on the rect element (has explicit geometry)
+    if (rectElement?.releasePointerCapture && activePointerId !== null) {
       try {
-        groupElement.releasePointerCapture(activePointerId);
+        rectElement.releasePointerCapture(activePointerId);
       } catch {
         // Already released - safe to ignore
       }
@@ -356,15 +361,14 @@
   tabindex="0"
   aria-label={ariaLabel}
   aria-pressed={selected}
-  onpointerdown={handlePointerDown}
-  onpointermove={handlePointerMove}
-  onpointerup={handlePointerUp}
-  onpointercancel={handlePointerCancel}
   onclick={(e) => e.stopPropagation()}
   onkeydown={handleKeyDown}
 >
-  <!-- Device rectangle -->
+  <!-- Device rectangle with pointer events (Safari 18.x fix #411)
+       Using explicit geometry rect for pointer events instead of <g> element
+       because Safari 18.x doesn't properly compute hit areas on transformed <g> elements -->
   <rect
+    bind:this={rectElement}
     class="device-rect"
     x="0"
     y="0"
@@ -373,6 +377,10 @@
     fill={effectiveColour}
     rx="2"
     ry="2"
+    onpointerdown={handlePointerDown}
+    onpointermove={handlePointerMove}
+    onpointerup={handlePointerUp}
+    onpointercancel={handlePointerCancel}
   />
 
   <!-- Selection outline -->
@@ -497,9 +505,9 @@
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
   }
 
-  /* Cursor and touch behavior for interactive SVG group */
+  /* Touch behavior for interactive SVG group
+     Safari 18.x fix #411: cursor moved to .device-rect for proper hit area */
   .rack-device {
-    cursor: grab;
     /* iOS Safari fixes (#232):
        - Disable Safari's default callout/context menu on long press
        - Prevent text selection during touch gestures
@@ -508,10 +516,6 @@
     -webkit-user-select: none;
     user-select: none;
     touch-action: manipulation;
-  }
-
-  .rack-device:active {
-    cursor: grabbing;
   }
 
   /* Focus styling for keyboard navigation */
@@ -534,7 +538,13 @@
   .device-rect {
     stroke: rgba(0, 0, 0, 0.2);
     stroke-width: 1;
-    /* pointer-events enabled for SVG group interaction (no foreignObject overlay) */
+    /* Safari 18.x fix #411: cursor on rect element for proper hit area */
+    cursor: grab;
+  }
+
+  .rack-device:active .device-rect,
+  .rack-device.dragging .device-rect {
+    cursor: grabbing;
   }
 
   .device-selection {
