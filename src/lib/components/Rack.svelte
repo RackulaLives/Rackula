@@ -226,6 +226,151 @@
     return validSlots;
   });
 
+  // Reference to the SVG element for coordinate conversion
+  let svgElement: SVGSVGElement | null = $state(null);
+
+  // Listen for custom pointer-based drag events from RackDevice (fixes Safari #397)
+  $effect(() => {
+    function handleDragMove(event: CustomEvent) {
+      if (!svgElement) return;
+      const { clientX, clientY, device } = event.detail;
+
+      // Determine if this is an internal move (same rack)
+      const isInternalMove = event.detail.rackId === RACK_ID;
+
+      // Calculate target position using transform-aware coordinates
+      const svgCoords = screenToSVG(svgElement, clientX, clientY);
+      const mouseY = svgCoords.y - RACK_PADDING;
+
+      const targetU = calculateDropPosition(
+        mouseY,
+        rack.height,
+        U_HEIGHT,
+        RACK_PADDING,
+      );
+
+      // For internal moves, exclude the source device from collision checks
+      const excludeIndex = isInternalMove
+        ? event.detail.deviceIndex
+        : undefined;
+      const feedback = getDropFeedback(
+        rack,
+        deviceLibrary,
+        device.u_height,
+        targetU,
+        excludeIndex,
+        effectiveFaceFilter,
+        device.is_full_depth ?? true,
+      );
+
+      dropPreview = {
+        position: targetU,
+        height: device.u_height,
+        feedback,
+      };
+    }
+
+    function handleDragEnd(event: CustomEvent) {
+      if (!svgElement) return;
+      const {
+        clientX,
+        clientY,
+        device,
+        rackId: sourceRackId,
+        deviceIndex,
+      } = event.detail;
+
+      // Clear preview
+      dropPreview = null;
+      _draggingDeviceIndex = null;
+
+      // Determine if this is an internal move
+      const isInternalMove = sourceRackId === RACK_ID;
+      const isCrossRackMove = sourceRackId !== RACK_ID;
+
+      // Calculate target position
+      const svgCoords = screenToSVG(svgElement, clientX, clientY);
+      const mouseY = svgCoords.y - RACK_PADDING;
+
+      const targetU = calculateDropPosition(
+        mouseY,
+        rack.height,
+        U_HEIGHT,
+        RACK_PADDING,
+      );
+
+      // Validate placement
+      const excludeIndex = isInternalMove ? deviceIndex : undefined;
+      const feedback = getDropFeedback(
+        rack,
+        deviceLibrary,
+        device.u_height,
+        targetU,
+        excludeIndex,
+        effectiveFaceFilter,
+        device.is_full_depth ?? true,
+      );
+
+      if (feedback === "valid") {
+        if (isInternalMove && deviceIndex !== undefined) {
+          // Internal move within same rack
+          ondevicemove?.(
+            new CustomEvent("devicemove", {
+              detail: {
+                rackId: RACK_ID,
+                deviceIndex: deviceIndex,
+                newPosition: targetU,
+              },
+            }),
+          );
+        } else if (isCrossRackMove && deviceIndex !== undefined) {
+          // Cross-rack move
+          ondevicemoverack?.(
+            new CustomEvent("devicemoverack", {
+              detail: {
+                sourceRackId: sourceRackId,
+                sourceIndex: deviceIndex,
+                targetRackId: RACK_ID,
+                targetPosition: targetU,
+              },
+            }),
+          );
+        }
+      } else {
+        // Invalid placement - haptic feedback
+        hapticError();
+      }
+
+      // Set flag to prevent rack selection on the click that follows
+      justFinishedDrag = true;
+      setTimeout(() => {
+        justFinishedDrag = false;
+      }, 100);
+    }
+
+    // Add listeners
+    document.addEventListener(
+      "rackula:dragmove",
+      handleDragMove as EventListener,
+    );
+    document.addEventListener(
+      "rackula:dragend",
+      handleDragEnd as EventListener,
+    );
+
+    // Cleanup
+    return () => {
+      document.removeEventListener(
+        "rackula:dragmove",
+        handleDragMove as EventListener,
+      );
+      document.removeEventListener(
+        "rackula:dragend",
+        handleDragEnd as EventListener,
+      );
+    };
+  });
+
   // Handle cancel placement when tapping outside rack content
   function handleCancelPlacement() {
     hapticCancel();
@@ -542,6 +687,7 @@
 >
   <!-- NOTE: Drag handle removed in v0.1.1 (single-rack mode) -->
   <svg
+    bind:this={svgElement}
     class="rack-svg"
     width={RACK_WIDTH}
     height={viewBoxHeight + NAME_Y_OFFSET}
