@@ -221,6 +221,10 @@ describe("Slot Collision Detection", () => {
 describe("Slot Position Type", () => {
   it("should have valid slot position values", () => {
     const positions: SlotPosition[] = ["left", "right", "full"];
-    expect(positions).toHaveLength(3);
+    expect(positions).toContain("left");
+    expect(positions).toContain("right");
+    expect(positions).toContain("full");
+    // Verify these are the only valid values by checking array completeness
+    expect(new Set(positions).size).toBe(3);
   });
 });

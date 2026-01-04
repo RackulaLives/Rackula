@@ -13,11 +13,9 @@
   import PortIndicators from "./PortIndicators.svelte";
   import {
     createRackDeviceDragData,
-    serializeDragData,
     setCurrentDragData,
   } from "$lib/utils/dragdrop";
   import CategoryIcon from "./CategoryIcon.svelte";
-  import { IconGrip } from "./icons";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { useLongPress } from "$lib/utils/gestures";
@@ -123,8 +121,15 @@
   // Viewport detection for mobile-specific interactions
   const viewportStore = getViewportStore();
 
-  // Drag handle element ref for long-press
-  let dragHandleElement: HTMLDivElement | null = $state(null);
+  // SVG group element ref for pointer events and long-press
+  let groupElement: SVGGElement | null = $state(null);
+
+  // Pointer tracking for click vs drag detection
+  const DRAG_THRESHOLD = 3; // pixels - movement beyond this initiates drag
+  type PointerState = "idle" | "pressing" | "dragging";
+  let pointerState: PointerState = $state("idle");
+  let pointerStartPos: { x: number; y: number } | null = $state(null);
+  let activePointerId: number | null = $state(null);
 
   // Image overflow: how far device images extend past rack rails (Issue #9)
   // Real equipment extends past the rails; this creates realistic front-mounting appearance
@@ -183,13 +188,7 @@
     `${deviceName}, ${device.u_height}U ${device.category} at U${position}${selected ? ", selected" : ""}`,
   );
 
-  function handleClick(event: MouseEvent) {
-    event.stopPropagation();
-    onselect?.(
-      new CustomEvent("select", { detail: { slug: device.slug, position } }),
-    );
-  }
-
+  // Handle keyboard activation (Enter/Space to select)
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -200,33 +199,137 @@
     }
   }
 
-  function handleDragStart(event: DragEvent) {
-    if (!event.dataTransfer) return;
+  // Pointer Events for unified mouse/touch handling (fixes Safari foreignObject bug #397)
+  function handlePointerDown(event: PointerEvent) {
+    // Only handle primary pointer (left mouse button or first touch)
+    if (!event.isPrimary) return;
 
-    const dragData = createRackDeviceDragData(device, rackId, deviceIndex);
-    event.dataTransfer.setData("application/json", serializeDragData(dragData));
-    event.dataTransfer.effectAllowed = "move";
+    // Don't interfere with port clicks
+    const target = event.target as Element;
+    if (target.closest(".port-indicators")) return;
 
-    // Set shared drag state for dragover (browsers block getData during dragover)
-    setCurrentDragData(dragData);
-    isDragging = true;
-    ondragstartProp?.(
-      new CustomEvent("dragstart", { detail: { rackId, deviceIndex } }),
-    );
+    event.stopPropagation();
+
+    // Record starting position for click vs drag detection
+    pointerStartPos = { x: event.clientX, y: event.clientY };
+    pointerState = "pressing";
+    activePointerId = event.pointerId;
+
+    // Capture pointer to receive events even if cursor leaves element
+    // Note: setPointerCapture may not exist in test environments (happy-dom)
+    if (groupElement?.setPointerCapture) {
+      groupElement.setPointerCapture(event.pointerId);
+    }
   }
 
-  function handleDragEnd() {
-    setCurrentDragData(null);
-    isDragging = false;
-    ondragendProp?.();
+  function handlePointerMove(event: PointerEvent) {
+    // Only track the pointer we started with
+    if (event.pointerId !== activePointerId) return;
+    if (!pointerStartPos) return;
+
+    if (pointerState === "pressing") {
+      // Check if we've moved beyond the drag threshold
+      const distance = Math.hypot(
+        event.clientX - pointerStartPos.x,
+        event.clientY - pointerStartPos.y,
+      );
+
+      if (distance >= DRAG_THRESHOLD) {
+        // Transition to dragging state
+        pointerState = "dragging";
+        isDragging = true;
+
+        // Set up drag data for drop handling
+        const dragData = createRackDeviceDragData(device, rackId, deviceIndex);
+        setCurrentDragData(dragData);
+
+        ondragstartProp?.(
+          new CustomEvent("dragstart", { detail: { rackId, deviceIndex } }),
+        );
+      }
+    }
+
+    if (pointerState === "dragging") {
+      // Dispatch pointermove to document for Rack to track drop position
+      // The Rack listens for this via document-level handler
+      document.dispatchEvent(
+        new CustomEvent("rackula:dragmove", {
+          detail: {
+            clientX: event.clientX,
+            clientY: event.clientY,
+            device,
+            rackId,
+            deviceIndex,
+          },
+        }),
+      );
+    }
+  }
+
+  function handlePointerUp(event: PointerEvent) {
+    if (event.pointerId !== activePointerId) return;
+
+    // Release pointer capture (may not exist in test environments)
+    // Exception is safe to ignore: releasePointerCapture throws if the pointer
+    // was already released (e.g., by pointercancel or browser gesture handling).
+    // This is a normal race condition, not an error condition.
+    if (groupElement?.releasePointerCapture && activePointerId !== null) {
+      try {
+        groupElement.releasePointerCapture(activePointerId);
+      } catch {
+        // Already released - safe to ignore
+      }
+    }
+
+    if (pointerState === "pressing") {
+      // No significant movement - this is a click
+      event.stopPropagation();
+      onselect?.(
+        new CustomEvent("select", { detail: { slug: device.slug, position } }),
+      );
+    } else if (pointerState === "dragging") {
+      // Complete the drag operation
+      document.dispatchEvent(
+        new CustomEvent("rackula:dragend", {
+          detail: {
+            clientX: event.clientX,
+            clientY: event.clientY,
+            device,
+            rackId,
+            deviceIndex,
+          },
+        }),
+      );
+
+      setCurrentDragData(null);
+      isDragging = false;
+      ondragendProp?.();
+    }
+
+    // Reset state
+    pointerState = "idle";
+    pointerStartPos = null;
+    activePointerId = null;
+  }
+
+  function handlePointerCancel(event: PointerEvent) {
+    if (event.pointerId !== activePointerId) return;
+
+    // Cancel any in-progress drag
+    if (pointerState === "dragging") {
+      setCurrentDragData(null);
+      isDragging = false;
+      ondragendProp?.();
+    }
+
+    // Reset state
+    pointerState = "idle";
+    pointerStartPos = null;
+    activePointerId = null;
   }
 
   // Long-press handler for mobile (triggers selection + details)
   function handleLongPress() {
-    console.log("[RackDevice] Long-press triggered:", {
-      slug: device.slug,
-      position,
-    });
     onselect?.(
       new CustomEvent("select", { detail: { slug: device.slug, position } }),
     );
@@ -234,25 +337,31 @@
 
   // Set up long-press gesture on mobile (reactive to viewport changes)
   $effect(() => {
-    if (viewportStore.isMobile && dragHandleElement) {
-      console.log(
-        "[RackDevice] Setting up long-press for device:",
-        device.slug,
-        "isMobile:",
-        viewportStore.isMobile,
-      );
-      const cleanup = useLongPress(dragHandleElement, handleLongPress);
+    if (viewportStore.isMobile && groupElement) {
+      const cleanup = useLongPress(groupElement, handleLongPress);
       return cleanup;
     }
   });
 </script>
 
 <g
+  bind:this={groupElement}
   data-device-id={device.slug}
+  data-device-position={position}
   transform="translate({RAIL_WIDTH + slotXOffset}, {yPosition})"
   class="rack-device"
   class:selected
   class:dragging={isDragging}
+  role="button"
+  tabindex="0"
+  aria-label={ariaLabel}
+  aria-pressed={selected}
+  onpointerdown={handlePointerDown}
+  onpointermove={handlePointerMove}
+  onpointerup={handlePointerUp}
+  onpointercancel={handlePointerCancel}
+  onclick={(e) => e.stopPropagation()}
+  onkeydown={handleKeyDown}
 >
   <!-- Device rectangle -->
   <rect
@@ -354,7 +463,7 @@
     {/if}
   {/if}
 
-  <!-- Port indicators (layer 3.5: after device content, before drag overlay) -->
+  <!-- Port indicators (rendered after device content) -->
   {#if device.interfaces?.length}
     <PortIndicators
       interfaces={device.interfaces}
@@ -364,36 +473,6 @@
       {onPortClick}
     />
   {/if}
-
-  <!-- Invisible HTML overlay for drag-and-drop (rendered last to be on top for click events) -->
-  <foreignObject
-    x="0"
-    y="0"
-    width={deviceWidth}
-    height={deviceHeight}
-    class="drag-overlay"
-  >
-    <!-- xmlns required for foreignObject HTML content on mobile browsers -->
-    <div
-      xmlns="http://www.w3.org/1999/xhtml"
-      bind:this={dragHandleElement}
-      class="drag-handle"
-      role="button"
-      aria-label={ariaLabel}
-      aria-pressed={selected}
-      tabindex="0"
-      draggable="true"
-      onclick={handleClick}
-      onkeydown={handleKeyDown}
-      ondragstart={handleDragStart}
-      ondragend={handleDragEnd}
-    >
-      <!-- Grip icon for drag affordance -->
-      <div class="grip-icon-container">
-        <IconGrip size={12} />
-      </div>
-    </div>
-  </foreignObject>
 </g>
 
 <style>
@@ -418,20 +497,10 @@
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
   }
 
-  .drag-overlay {
-    overflow: visible;
-  }
-
-  .drag-handle {
-    position: relative;
-    width: 100%;
-    height: 100%;
+  /* Cursor and touch behavior for interactive SVG group */
+  .rack-device {
     cursor: grab;
-    background: transparent;
-    border: none;
-    padding: 0;
-    margin: 0;
-    /* iOS Safari long-press fixes (#232):
+    /* iOS Safari fixes (#232):
        - Disable Safari's default callout/context menu on long press
        - Prevent text selection during touch gestures
        - Allow pan/pinch zoom but disable double-tap zoom delay */
@@ -441,15 +510,23 @@
     touch-action: manipulation;
   }
 
-  .drag-handle:active {
+  .rack-device:active {
     cursor: grabbing;
   }
 
-  .drag-handle:focus {
+  /* Focus styling for keyboard navigation */
+  .rack-device:focus {
     outline: none;
   }
 
+  .rack-device:focus .device-rect,
   .rack-device:focus-within .device-rect {
+    stroke: var(--colour-selection);
+    stroke-width: 2;
+  }
+
+  /* Focus-visible for keyboard-only focus indication */
+  .rack-device:focus-visible .device-rect {
     stroke: var(--colour-selection);
     stroke-width: 2;
   }
@@ -457,7 +534,7 @@
   .device-rect {
     stroke: rgba(0, 0, 0, 0.2);
     stroke-width: 1;
-    pointer-events: none;
+    /* pointer-events enabled for SVG group interaction (no foreignObject overlay) */
   }
 
   .device-selection {
@@ -488,29 +565,6 @@
     height: 100%;
     color: rgba(255, 255, 255, 0.8);
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
-  }
-
-  .grip-icon-container {
-    position: absolute;
-    right: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: 0;
-    transition:
-      opacity var(--duration-fast, 100ms) var(--ease-out, ease-out),
-      transform var(--duration-fast, 100ms) var(--ease-out, ease-out);
-    color: rgba(255, 255, 255, 0.6);
-    pointer-events: none;
-  }
-
-  .drag-handle:hover .grip-icon-container,
-  .drag-handle:focus .grip-icon-container {
-    opacity: 1;
-  }
-
-  .drag-handle:active .grip-icon-container {
-    opacity: 1;
-    transform: translateY(-50%) scale(0.9);
   }
 
   .label-overlay-wrapper {

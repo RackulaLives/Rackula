@@ -345,18 +345,21 @@ describe("PortIndicators SVG Component", () => {
   });
 
   describe("Click Handling", () => {
-    it("renders foreignObject click overlay for low-density mode", () => {
+    it("renders SVG hit targets for low-density mode (Safari compatible)", () => {
       const { container } = render(PortIndicators, {
         props: defaultProps,
       });
 
-      const overlay = container.querySelector(
-        "foreignObject.port-click-overlay",
-      );
-      expect(overlay).toBeInTheDocument();
+      // Should have SVG circle hit targets, not foreignObject
+      const hitTargets = container.querySelectorAll("circle.port-hit-target");
+      expect(hitTargets.length).toBeGreaterThan(0);
+
+      // Should NOT have foreignObject (WebKit Bug #230304)
+      const overlay = container.querySelector("foreignObject");
+      expect(overlay).not.toBeInTheDocument();
     });
 
-    it("renders click targets for each port", () => {
+    it("renders hit targets for each port", () => {
       const interfaces = [
         createInterface("eth0", "1000base-t"),
         createInterface("eth1", "1000base-t"),
@@ -367,21 +370,20 @@ describe("PortIndicators SVG Component", () => {
         props: { ...defaultProps, interfaces },
       });
 
-      const clickTargets = container.querySelectorAll(
-        "button.port-click-target",
-      );
-      expect(clickTargets).toHaveLength(3);
+      const hitTargets = container.querySelectorAll("circle.port-hit-target");
+      expect(hitTargets).toHaveLength(3);
     });
 
-    it("click targets have accessible title", () => {
+    it("hit targets have accessible title via SVG title element", () => {
       const interfaces = [createInterface("eth0", "1000base-t")];
 
       const { container } = render(PortIndicators, {
         props: { ...defaultProps, interfaces },
       });
 
-      const clickTarget = container.querySelector("button.port-click-target");
-      expect(clickTarget?.getAttribute("title")).toBe("eth0 (1000base-t)");
+      const hitTarget = container.querySelector("circle.port-hit-target");
+      const title = hitTarget?.querySelector("title");
+      expect(title?.textContent).toBe("eth0 (1000base-t)");
     });
 
     it("calls onPortClick when port is clicked", async () => {
@@ -392,50 +394,64 @@ describe("PortIndicators SVG Component", () => {
         props: { ...defaultProps, interfaces, onPortClick: handlePortClick },
       });
 
-      const clickTarget = container.querySelector("button.port-click-target");
-      await clickTarget?.click();
+      const hitTarget = container.querySelector("circle.port-hit-target");
+      await hitTarget?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
 
       expect(handlePortClick).toHaveBeenCalledWith(interfaces[0]);
     });
   });
 
   describe("Accessibility", () => {
-    it("click targets have screen-reader-only text", () => {
+    it("hit targets have aria-label for screen readers", () => {
       const interfaces = [createInterface("eth0", "1000base-t")];
 
       const { container } = render(PortIndicators, {
         props: { ...defaultProps, interfaces },
       });
 
-      const srOnly = container.querySelector(".sr-only");
-      expect(srOnly).toBeInTheDocument();
-      expect(srOnly?.textContent).toBe("eth0");
+      const hitTarget = container.querySelector("circle.port-hit-target");
+      expect(hitTarget).toHaveAttribute("aria-label", "eth0 (1000base-t)");
     });
 
-    it("click targets are focusable buttons", () => {
+    it("hit targets have button role and are focusable", () => {
       const interfaces = [createInterface("eth0", "1000base-t")];
 
       const { container } = render(PortIndicators, {
         props: { ...defaultProps, interfaces },
       });
 
-      const button = container.querySelector("button.port-click-target");
-      expect(button).toHaveAttribute("type", "button");
+      const hitTarget = container.querySelector("circle.port-hit-target");
+      expect(hitTarget).toHaveAttribute("role", "button");
+      expect(hitTarget).toHaveAttribute("tabindex", "0");
     });
 
-    it("applies focus styles when port is focused", () => {
+    it("hit targets support keyboard activation", async () => {
+      const handlePortClick = vi.fn();
       const interfaces = [createInterface("eth0", "1000base-t")];
 
       const { container } = render(PortIndicators, {
-        props: { ...defaultProps, interfaces },
+        props: { ...defaultProps, interfaces, onPortClick: handlePortClick },
       });
 
-      const button = container.querySelector(
-        "button.port-click-target",
-      ) as HTMLButtonElement;
-      button?.focus();
+      const hitTarget = container.querySelector(
+        "circle.port-hit-target",
+      ) as SVGCircleElement;
 
-      expect(button).toHaveFocus();
+      // Test Enter key
+      hitTarget?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+      expect(handlePortClick).toHaveBeenCalledWith(interfaces[0]);
+
+      handlePortClick.mockClear();
+
+      // Test Space key
+      hitTarget?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+      );
+      expect(handlePortClick).toHaveBeenCalledWith(interfaces[0]);
     });
   });
 

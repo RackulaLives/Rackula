@@ -393,9 +393,8 @@ describe("Drag and Drop Utilities", () => {
       expect(position).toBe("right");
     });
 
-    it('returns "left" when mouse is exactly at midpoint', () => {
-      // At midpoint (100), should be left (mouseX < midpoint is false, so it returns right)
-      // Actually: midpoint = 100, mouseX = 100, 100 < 100 is false, so 'right'
+    it('returns "right" when mouse is exactly at midpoint', () => {
+      // At midpoint (100), mouseX < midpoint is false, so returns 'right'
       const position = calculateDropSlotPosition(100, RACK_WIDTH, 1);
       expect(position).toBe("right");
     });

@@ -334,7 +334,7 @@ export function getStarterLibrary(): DeviceType[] {
       model: spec.model,
       u_height: spec.u_height,
       is_full_depth: spec.is_full_depth,
-      slot_width: spec.slot_width,
+      slot_width: spec.slot_width ?? 2,
       colour: CATEGORY_COLOURS[spec.category],
       category: spec.category,
     }));

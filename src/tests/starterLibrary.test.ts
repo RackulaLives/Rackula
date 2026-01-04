@@ -413,7 +413,7 @@ describe("Starter Device Type Library", () => {
     it("full-width blank panels are half-depth (is_full_depth: false)", () => {
       const library = getStarterLibrary();
       const blanks = library.filter(
-        (d) => d.category === "blank" && !d.slot_width,
+        (d) => d.category === "blank" && d.slot_width === 2,
       );
 
       expect(blanks.length).toBe(5);
@@ -453,7 +453,7 @@ describe("Starter Device Type Library", () => {
     it("full-width cable-management devices have Dracula comment colour", () => {
       const library = getStarterLibrary();
       const cableDevices = library.filter(
-        (d) => d.category === "cable-management" && !d.slot_width,
+        (d) => d.category === "cable-management" && d.slot_width === 2,
       );
 
       expect(cableDevices).toHaveLength(3);

@@ -8,7 +8,7 @@
   - High-density mode: grouped badges (>24 ports)
   - Management interface indicator (inner white dot)
   - PoE indicator (lightning bolt) for PSE interfaces
-  - Click targets via foreignObject overlays
+  - SVG-native click targets (Safari compatible, fixes #400)
 -->
 <script lang="ts">
   import type { InterfaceTemplate, InterfaceType, RackView } from "$lib/types";
@@ -170,28 +170,28 @@
         {/if}
       {/each}
 
-      <!-- Invisible click targets (larger than visual ports) -->
-      <foreignObject
-        x="0"
-        y={deviceHeight - PORT_Y_OFFSET - 8}
-        width={deviceWidth}
-        height="16"
-        class="port-click-overlay"
-      >
-        <div xmlns="http://www.w3.org/1999/xhtml" class="port-click-container">
-          {#each portPositions as { iface, x } (iface.name)}
-            <button
-              type="button"
-              class="port-click-target"
-              style="left: {x - 6}px; top: 2px;"
-              title="{iface.name} ({iface.type})"
-              onclick={() => handlePortClick(iface)}
-            >
-              <span class="sr-only">{iface.name}</span>
-            </button>
-          {/each}
-        </div>
-      </foreignObject>
+      <!-- Invisible SVG click targets (larger than visual ports, Safari compatible) -->
+      {#each portPositions as { iface, x, y } (iface.name)}
+        <circle
+          class="port-hit-target"
+          cx={x}
+          cy={y}
+          r={6}
+          fill="transparent"
+          role="button"
+          tabindex="0"
+          aria-label="{iface.name} ({iface.type})"
+          onclick={() => handlePortClick(iface)}
+          onkeydown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handlePortClick(iface);
+            }
+          }}
+        >
+          <title>{iface.name} ({iface.type})</title>
+        </circle>
+      {/each}
     {:else}
       <!-- Grouped port summary for high-density devices -->
       {#each badgePositions as { type, count, color, x, y } (type)}
@@ -237,47 +237,18 @@
     pointer-events: none;
   }
 
-  .port-click-overlay {
-    overflow: visible;
+  .port-hit-target {
     pointer-events: auto;
-  }
-
-  .port-click-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
-
-  .port-click-target {
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    background: transparent;
-    border: none;
     cursor: pointer;
-    padding: 0;
-    border-radius: 50%;
   }
 
-  .port-click-target:hover {
-    background: var(--colour-port-hover);
+  .port-hit-target:hover {
+    fill: var(--colour-port-hover);
   }
 
-  .port-click-target:focus {
+  .port-hit-target:focus {
     outline: 2px solid var(--colour-selection);
     outline-offset: 1px;
-  }
-
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
   }
 
   .port-count-text {

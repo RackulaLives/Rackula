@@ -28,7 +28,7 @@ export interface LongPressOptions {
  * @returns Cleanup function to remove event listeners
  */
 export function useLongPress(
-  element: HTMLElement,
+  element: HTMLElement | SVGElement,
   callback: () => void,
   options: LongPressOptions | number = {},
 ): () => void {

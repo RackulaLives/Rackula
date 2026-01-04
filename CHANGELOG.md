@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.13] - 2026-01-03
+
+### Fixed
+
+- Safari device selection and drag-and-drop not working (WebKit Bug #230304 workaround) - thanks @Daishi1938 for reporting! (#397, #393, #394, PR #398)
+
+### Technical
+
+- Cable path rendering algorithm research spike (#262, PR #395)
+
 ## [0.6.12] - 2026-01-03
 
 ### Added

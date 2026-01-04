@@ -196,7 +196,11 @@ export function serializeDragData(data: DragData): string {
 export function parseDragData(dataString: string): DragData | null {
   try {
     const data = JSON.parse(dataString) as DragData;
-    if (data.type && data.device) {
+    if (
+      (data.type === "palette" || data.type === "rack-device") &&
+      data.device &&
+      typeof data.device.slug === "string"
+    ) {
       return data;
     }
     return null;
