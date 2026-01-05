@@ -15,7 +15,7 @@
     createRackDeviceDragData,
     setCurrentDragData,
   } from "$lib/utils/dragdrop";
-  import CategoryIcon from "./CategoryIcon.svelte";
+  import CategoryIconSVG from "./CategoryIconSVG.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { useLongPress } from "$lib/utils/gestures";
@@ -454,20 +454,16 @@
       {fittedLabel.text}
     </text>
 
-    <!-- Category icon (vertically centered) -->
+    <!-- Category icon (vertically centered)
+         Safari 18.x fix #411: Use SVG-native component instead of foreignObject
+         to avoid transform inheritance bug -->
     {#if deviceHeight >= 22}
-      <foreignObject
-        x="8"
-        y="0"
-        width="16"
-        height={deviceHeight}
-        class="category-icon-wrapper"
-      >
-        <!-- xmlns required for foreignObject HTML content on mobile browsers -->
-        <div xmlns="http://www.w3.org/1999/xhtml" class="icon-container">
-          <CategoryIcon category={device.category} size={14} />
-        </div>
-      </foreignObject>
+      <CategoryIconSVG
+        category={device.category}
+        size={14}
+        x={8}
+        y={(deviceHeight - 14) / 2}
+      />
     {/if}
   {/if}
 
@@ -564,18 +560,8 @@
     user-select: none;
   }
 
-  .category-icon-wrapper {
-    pointer-events: none;
-    overflow: visible;
-  }
-
-  .icon-container {
-    display: flex;
-    align-items: center;
-    height: 100%;
-    color: rgba(255, 255, 255, 0.8);
-    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
-  }
+  /* Safari 18.x fix #411: category-icon-wrapper and icon-container CSS removed
+     Category icons now use SVG-native CategoryIconSVG component */
 
   .label-overlay-wrapper {
     overflow: visible;

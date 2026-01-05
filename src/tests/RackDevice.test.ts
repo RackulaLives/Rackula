@@ -148,22 +148,14 @@ describe("RackDevice SVG Component", () => {
     it("displays category icon for devices", () => {
       const { container } = render(RackDevice, { props: defaultProps });
 
-      // Category icon is rendered via foreignObject with class category-icon-wrapper
-      const foreignObject = container.querySelector(
-        "foreignObject.category-icon-wrapper",
-      );
-      expect(foreignObject).toBeInTheDocument();
+      // Safari 18.x fix #411: Category icons now use SVG-native component
+      // instead of foreignObject (which has transform inheritance bugs in Safari)
+      const categoryIconSvg = container.querySelector("svg.category-icon-svg");
+      expect(categoryIconSvg).toBeInTheDocument();
 
-      // Icon container should have the icon
-      const iconContainer = foreignObject?.querySelector(".icon-container");
-      expect(iconContainer).toBeInTheDocument();
-
-      // The CategoryIcon SVG should be present (Lucide icon inside .category-icon wrapper)
-      const categoryIconWrapper =
-        iconContainer?.querySelector(".category-icon");
-      expect(categoryIconWrapper).toBeInTheDocument();
-      const iconSvg = categoryIconWrapper?.querySelector("svg");
-      expect(iconSvg).toBeInTheDocument();
+      // The Lucide icon SVG should be nested inside
+      const nestedIconSvg = categoryIconSvg?.querySelector("svg");
+      expect(nestedIconSvg).toBeInTheDocument();
     });
 
     it("displays category icon for multi-U devices", () => {
@@ -172,34 +164,32 @@ describe("RackDevice SVG Component", () => {
         props: { ...defaultProps, device: device2U },
       });
 
-      const foreignObject = container.querySelector("foreignObject");
-      expect(foreignObject).toBeInTheDocument();
+      // Safari 18.x fix #411: Category icons now use SVG-native component
+      const categoryIconSvg = container.querySelector("svg.category-icon-svg");
+      expect(categoryIconSvg).toBeInTheDocument();
     });
 
-    it("centers icon vertically by spanning full device height", () => {
+    it("centers icon vertically using SVG positioning", () => {
+      // Safari 18.x fix #411: Category icons now use SVG-native component
+      // with explicit x/y positioning instead of foreignObject
       const device2U: DeviceType = { ...mockDevice, u_height: 2 };
       const { container } = render(RackDevice, {
         props: { ...defaultProps, device: device2U },
       });
 
-      // Get the category icon wrapper (not the drag handle overlay)
-      const foreignObject = container.querySelector(
-        "foreignObject.category-icon-wrapper",
-      );
-      expect(foreignObject).toBeInTheDocument();
+      // Get the category icon SVG element
+      const categoryIconSvg = container.querySelector("svg.category-icon-svg");
+      expect(categoryIconSvg).toBeInTheDocument();
 
-      // Foreign object should span full device height (2U * 22px = 44px)
-      const expectedHeight = 2 * U_HEIGHT;
-      expect(foreignObject?.getAttribute("height")).toBe(
-        String(expectedHeight),
-      );
+      // Icon should have explicit x positioning (left margin)
+      expect(categoryIconSvg?.getAttribute("x")).toBe("8");
 
-      // Y position should be 0 (starts at top of device)
-      expect(foreignObject?.getAttribute("y")).toBe("0");
-
-      // Icon container should have flexbox class (CSS applied)
-      const iconContainer = foreignObject?.querySelector(".icon-container");
-      expect(iconContainer).toBeInTheDocument();
+      // Icon should be vertically centered: y = (deviceHeight - iconSize) / 2
+      // For 2U device: height = 44px, icon size = 14px, y = (44 - 14) / 2 = 15
+      const deviceHeight = 2 * U_HEIGHT;
+      const iconSize = 14;
+      const expectedY = (deviceHeight - iconSize) / 2;
+      expect(categoryIconSvg?.getAttribute("y")).toBe(String(expectedY));
     });
   });
 
