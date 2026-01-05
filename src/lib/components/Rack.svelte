@@ -982,7 +982,12 @@
       </text>
     {/if}
 
-    <!-- Placement mode header - shown when in mobile placement mode -->
+    <!-- Placement mode header - shown when in mobile placement mode
+         NOTE: This foreignObject is safe to keep as-is for Safari compatibility.
+         Unlike RackDevice's label overlay, this element is NOT inside a transformed
+         <g> element - it's a direct child of the root <svg> with explicit x/y coords.
+         Safari's foreignObject transform inheritance bug (WebKit #230304) only affects
+         foreignObjects inside transformed <g> elements. See #420 for audit details. -->
     {#if isPlacementMode && placementStore.pendingDevice}
       <foreignObject
         x="0"

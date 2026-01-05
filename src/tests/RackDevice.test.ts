@@ -593,7 +593,10 @@ describe("RackDevice SVG Component", () => {
       // Should have image
       expect(container.querySelector(".device-image")).toBeInTheDocument();
       // Should NOT have label overlay
-      expect(container.querySelector(".label-overlay")).not.toBeInTheDocument();
+      // Safari 18.x fix #420: label overlay now uses SVG-native LabelOverlaySVG component
+      expect(
+        container.querySelector(".label-overlay-svg"),
+      ).not.toBeInTheDocument();
     });
 
     it("shows label overlay when showLabelsOnImages is true in image mode", () => {
@@ -610,10 +613,13 @@ describe("RackDevice SVG Component", () => {
       });
 
       // Should have both image and label overlay
+      // Safari 18.x fix #420: label overlay now uses SVG-native LabelOverlaySVG component
+      // instead of foreignObject with .label-overlay class
       expect(container.querySelector(".device-image")).toBeInTheDocument();
-      const overlay = container.querySelector(".label-overlay");
+      const overlay = container.querySelector(".label-overlay-svg");
       expect(overlay).toBeInTheDocument();
-      expect(overlay?.textContent).toBe("Test Server");
+      const overlayText = overlay?.querySelector(".label-text");
+      expect(overlayText?.textContent).toBe("Test Server");
     });
 
     it("does not show label overlay in label mode even when showLabelsOnImages is true", () => {
@@ -626,8 +632,11 @@ describe("RackDevice SVG Component", () => {
       });
 
       // Should have device name but not as overlay
+      // Safari 18.x fix #420: label overlay now uses SVG-native LabelOverlaySVG component
       expect(container.querySelector(".device-name")).toBeInTheDocument();
-      expect(container.querySelector(".label-overlay")).not.toBeInTheDocument();
+      expect(
+        container.querySelector(".label-overlay-svg"),
+      ).not.toBeInTheDocument();
     });
 
     it("does not show label overlay when image mode but no image exists", () => {
@@ -641,8 +650,11 @@ describe("RackDevice SVG Component", () => {
       });
 
       // Falls back to label display, no overlay
+      // Safari 18.x fix #420: label overlay now uses SVG-native LabelOverlaySVG component
       expect(container.querySelector(".device-name")).toBeInTheDocument();
-      expect(container.querySelector(".label-overlay")).not.toBeInTheDocument();
+      expect(
+        container.querySelector(".label-overlay-svg"),
+      ).not.toBeInTheDocument();
     });
   });
 

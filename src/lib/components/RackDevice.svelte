@@ -16,6 +16,7 @@
     setCurrentDragData,
   } from "$lib/utils/dragdrop";
   import CategoryIconSVG from "./CategoryIconSVG.svelte";
+  import LabelOverlaySVG from "./LabelOverlaySVG.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { useLongPress } from "$lib/utils/gestures";
@@ -422,24 +423,16 @@
       preserveAspectRatio="xMidYMid slice"
       clip-path="url(#{clipId})"
     />
-    <!-- Label overlay when showLabelsOnImages is true -->
+    <!-- Label overlay when showLabelsOnImages is true
+         Safari 18.x fix #420: Use SVG-native component instead of foreignObject
+         to avoid transform inheritance bug -->
     {#if showLabelsOnImages}
-      <foreignObject
-        x="0"
-        y="0"
+      <LabelOverlaySVG
+        text={fittedImageLabel.text}
+        fontSize={fittedImageLabel.fontSize}
         width={deviceWidth}
         height={deviceHeight}
-        class="label-overlay-wrapper"
-      >
-        <!-- xmlns required for foreignObject HTML content on mobile browsers -->
-        <div
-          xmlns="http://www.w3.org/1999/xhtml"
-          class="label-overlay"
-          style="font-size: {fittedImageLabel.fontSize}px"
-        >
-          {fittedImageLabel.text}
-        </div>
-      </foreignObject>
+      />
     {/if}
   {:else}
     <!-- Device name (centered, auto-sized) -->
@@ -563,32 +556,8 @@
   /* Safari 18.x fix #411: category-icon-wrapper and icon-container CSS removed
      Category icons now use SVG-native CategoryIconSVG component */
 
-  .label-overlay-wrapper {
-    overflow: visible;
-    pointer-events: none;
-  }
-
-  .label-overlay {
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    height: 100%;
-    padding-bottom: 2px;
-    font-size: var(--font-size-device, 12px);
-    font-family: var(--font-family, system-ui, sans-serif);
-    font-weight: 500;
-    color: var(--neutral-50);
-    text-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.8),
-      0 0 4px rgba(0, 0, 0, 0.5);
-    background: linear-gradient(
-      to top,
-      rgba(0, 0, 0, 0.6) 0%,
-      rgba(0, 0, 0, 0.3) 50%,
-      transparent 100%
-    );
-    user-select: none;
-  }
+  /* Safari 18.x fix #420: label-overlay-wrapper and label-overlay CSS removed
+     Label overlays now use SVG-native LabelOverlaySVG component */
 
   .device-image {
     pointer-events: none;
