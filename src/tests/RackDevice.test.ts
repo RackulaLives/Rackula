@@ -369,7 +369,17 @@ describe("RackDevice SVG Component", () => {
       // Safari 18.x fix #411: cursor on device-rect (explicit geometry element)
       const rect = container.querySelector(".device-rect");
       expect(rect).toBeInTheDocument();
-      // Cursor style applied via CSS on .device-rect class
+      expect(rect).toHaveClass("device-rect");
+
+      // Attempt to verify cursor style via getComputedStyle
+      // Note: happy-dom/jsdom may not fully support CSS from <style> blocks,
+      // so we guard this assertion. If the test environment doesn't compute
+      // styles properly, verify cursor behavior via E2E/visual testing.
+      const computedCursor = window.getComputedStyle(rect!).cursor;
+      if (computedCursor && computedCursor !== "") {
+        expect(computedCursor).toBe("grab");
+      }
+      // The .device-rect CSS class in RackDevice.svelte sets cursor: grab
     });
 
     it("has CSS properties for iOS Safari long-press support (#232)", () => {
