@@ -23,7 +23,6 @@ function createTestDevice(
   u_height: number,
   options?: {
     is_full_depth?: boolean;
-    face?: DeviceFace;
     slot_width?: SlotWidth;
   },
 ): DeviceType {
@@ -36,7 +35,6 @@ function createTestDevice(
     ...(options?.is_full_depth !== undefined && {
       is_full_depth: options.is_full_depth,
     }),
-    ...(options?.face !== undefined && { face: options.face }),
     ...(options?.slot_width !== undefined && {
       slot_width: options.slot_width,
     }),
