@@ -34,10 +34,9 @@ describe("LogoLockup", () => {
       const logoTitle = container.querySelector(".logo-title");
 
       // Tests run on localhost, so DRackula prefix shows
-      expect(logoTitle).toHaveAttribute(
-        "aria-label",
-        "DRackula - development environment",
-      );
+      // May include "(uncommitted changes)" suffix if git has uncommitted changes
+      const ariaLabel = logoTitle?.getAttribute("aria-label") ?? "";
+      expect(ariaLabel).toMatch(/^DRackula - development environment/);
     });
   });
 
@@ -262,7 +261,8 @@ describe("LogoLockup", () => {
       const viewBox = logoTitle?.getAttribute("viewBox");
 
       // Tests run on localhost, so DRackula prefix shows (wider viewBox)
-      expect(viewBox).toBe("0 0 180 50");
+      // Width is 180 (clean) or 195 (dirty with * indicator)
+      expect(viewBox).toMatch(/^0 0 (180|195) 50$/);
 
       // Validate format: exactly 4 space-separated numeric values
       const values = viewBox?.split(" ");
@@ -311,11 +311,11 @@ describe("LogoLockup", () => {
       expect(envPrefix).toBeInTheDocument();
     });
 
-    it("shows local tooltip on localhost", () => {
-      const { container } = render(LogoLockup);
-      const lockup = container.querySelector(".logo-lockup");
+    it("shows build info trigger on localhost", () => {
+      const { getByTestId } = render(LogoLockup);
+      const trigger = getByTestId("build-info-trigger");
 
-      expect(lockup).toHaveAttribute("title", "Local development environment");
+      expect(trigger).toBeInTheDocument();
     });
 
     it("title text contains D prefix and Rackula", () => {
@@ -323,8 +323,8 @@ describe("LogoLockup", () => {
       const logoTitle = container.querySelector(".logo-title");
       const textContent = logoTitle?.textContent?.replace(/\s+/g, "");
 
-      // Text content combines D prefix + Rackula
-      expect(textContent).toBe("DRackula");
+      // Text content combines D prefix + Rackula (may have * dirty indicator)
+      expect(textContent).toMatch(/^D\*?Rackula$/);
     });
 
     // Note: The following tests would require module re-initialization

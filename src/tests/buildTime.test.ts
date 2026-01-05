@@ -14,48 +14,48 @@ describe("buildTime utilities", () => {
   describe("formatRelativeTime", () => {
     const baseTime = new Date("2025-12-30T17:00:00Z");
 
-    it("should format seconds correctly", () => {
+    it("should format seconds as less than 1 min", () => {
       const buildTime = new Date("2025-12-30T16:59:30Z"); // 30 seconds ago
-      expect(formatRelativeTime(buildTime, baseTime)).toBe("30s");
+      expect(formatRelativeTime(buildTime, baseTime)).toBe("< 1 min");
     });
 
     it("should format minutes correctly", () => {
       const buildTime = new Date("2025-12-30T16:55:00Z"); // 5 minutes ago
-      expect(formatRelativeTime(buildTime, baseTime)).toBe("5m");
+      expect(formatRelativeTime(buildTime, baseTime)).toBe("5 min");
     });
 
     it("should format hours correctly", () => {
       const buildTime = new Date("2025-12-30T15:00:00Z"); // 2 hours ago
-      expect(formatRelativeTime(buildTime, baseTime)).toBe("2h");
+      expect(formatRelativeTime(buildTime, baseTime)).toBe("2 hours");
     });
 
     it("should format days correctly", () => {
       const buildTime = new Date("2025-12-28T17:00:00Z"); // 2 days ago
-      expect(formatRelativeTime(buildTime, baseTime)).toBe("2d");
+      expect(formatRelativeTime(buildTime, baseTime)).toBe("2 days");
     });
 
     it("should handle ISO string input", () => {
       const buildTime = "2025-12-30T16:55:00Z"; // 5 minutes ago
-      expect(formatRelativeTime(buildTime, baseTime)).toBe("5m");
+      expect(formatRelativeTime(buildTime, baseTime)).toBe("5 min");
     });
 
     it("should handle 0 seconds", () => {
-      expect(formatRelativeTime(baseTime, baseTime)).toBe("0s");
+      expect(formatRelativeTime(baseTime, baseTime)).toBe("< 1 min");
     });
 
     it("should handle future dates gracefully", () => {
       const futureTime = new Date("2025-12-30T18:00:00Z"); // 1 hour in the future
-      expect(formatRelativeTime(futureTime, baseTime)).toBe("0s");
+      expect(formatRelativeTime(futureTime, baseTime)).toBe("< 1 min");
     });
 
-    it("should use hours instead of minutes after 60 minutes", () => {
+    it("should use singular for 1 hour", () => {
       const buildTime = new Date("2025-12-30T15:30:00Z"); // 90 minutes ago = 1h
-      expect(formatRelativeTime(buildTime, baseTime)).toBe("1h");
+      expect(formatRelativeTime(buildTime, baseTime)).toBe("1 hour");
     });
 
-    it("should use days instead of hours after 24 hours", () => {
+    it("should use singular for 1 day", () => {
       const buildTime = new Date("2025-12-29T10:00:00Z"); // 31 hours ago = 1d
-      expect(formatRelativeTime(buildTime, baseTime)).toBe("1d");
+      expect(formatRelativeTime(buildTime, baseTime)).toBe("1 day");
     });
   });
 

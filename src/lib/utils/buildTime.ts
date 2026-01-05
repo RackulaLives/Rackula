@@ -10,11 +10,12 @@ export const STALE_THRESHOLD_MS = 60 * 60 * 1000;
 
 /**
  * Calculate the difference between two dates in a human-friendly format.
- * Returns compact relative time strings like "5m", "2h", "1d".
+ * Returns readable relative time strings like "5 min", "2 hours", "1 day".
+ * Designed to be followed by "ago" in the UI (e.g., "5 min ago").
  *
  * @param buildTime - The build timestamp (ISO 8601 string or Date)
  * @param now - Current time (defaults to new Date())
- * @returns Compact relative time string
+ * @returns Human-readable relative time string (without "ago" suffix)
  */
 export function formatRelativeTime(
   buildTime: string | Date,
@@ -26,7 +27,7 @@ export function formatRelativeTime(
 
   // Handle future dates (shouldn't happen, but be safe)
   if (diffMs < 0) {
-    return "0s";
+    return "< 1 min";
   }
 
   const seconds = Math.floor(diffMs / 1000);
@@ -35,15 +36,15 @@ export function formatRelativeTime(
   const days = Math.floor(hours / 24);
 
   if (days > 0) {
-    return `${days}d`;
+    return days === 1 ? "1 day" : `${days} days`;
   }
   if (hours > 0) {
-    return `${hours}h`;
+    return hours === 1 ? "1 hour" : `${hours} hours`;
   }
   if (minutes > 0) {
-    return `${minutes}m`;
+    return minutes === 1 ? "1 min" : `${minutes} min`;
   }
-  return `${seconds}s`;
+  return "< 1 min";
 }
 
 /**
