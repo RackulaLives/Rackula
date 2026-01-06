@@ -30,16 +30,20 @@ ready → in-progress (agent claims) → ready (released on completion/block)
 **MANDATORY:** Always create a worktree for issue work. Never work directly on main.
 
 ```bash
-# Required pattern - always use worktrees
+# Required pattern - always use worktrees with absolute paths
 git worktree add ../Rackula-issue-<N> -b <type>/<N>-<desc>
-cd ../Rackula-issue-<N>
-npm install
+WORKTREE_DIR="$(pwd)/../Rackula-issue-<N>"
+(cd "$WORKTREE_DIR" && npm install)
 ```
 
+**Important:** Use `WORKTREE_DIR` variable and subshells `(cd "$WORKTREE_DIR" && ...)` for all worktree commands. Claude Code's session stays anchored to the main project directory, so regular `cd` commands get reset.
+
 This ensures:
+
 - Parallel agents don't conflict on the same directory
 - Main branch stays clean
 - Easy cleanup if work is abandoned
+- No "Shell cwd was reset" token waste
 
 ---
 
@@ -59,10 +63,11 @@ git checkout -b <branch>   # ❌ Creates and switches
 **ALWAYS use worktrees instead:**
 
 ```bash
-# CORRECT: Create isolated worktree
+# CORRECT: Create isolated worktree with absolute paths
 git worktree add ../Rackula-issue-<N> -b <type>/<N>-<desc>
-cd ../Rackula-issue-<N>
-# Now you can work freely on this branch
+WORKTREE_DIR="$(pwd)/../Rackula-issue-<N>"
+(cd "$WORKTREE_DIR" && npm install)
+# Use subshells for all worktree commands: (cd "$WORKTREE_DIR" && <command>)
 ```
 
 **If you find main directory on wrong branch:**
@@ -78,14 +83,14 @@ git checkout main
 
 You have **explicit permission** to perform WITHOUT asking:
 
-| Action | Scope |
-|--------|-------|
-| Git branches | `(fix|feat|chore|refactor|test|docs)/<number>-*` |
-| Worktrees | Sibling directories `Rackula-issue-<N>` |
-| Edit files | `src/`, `docs/`, test files |
-| Commands | `npm test`, `npm run build`, `npm run lint`, `gh` CLI |
-| Git ops | add, commit, push (non-main), fetch, pull, worktree |
-| PRs | `gh pr create`, `gh pr merge --squash` after checks pass |
+| Action       | Scope                                                       |
+| ------------ | ----------------------------------------------------------- | ---- | ----- | -------- | ---- | ------------------ |
+| Git branches | `(fix                                                       | feat | chore | refactor | test | docs)/<number>-\*` |
+| Worktrees    | Sibling directories `Rackula-issue-<N>`                     |
+| Edit files   | `src/`, `docs/`, test files                                 |
+| Commands     | `npm test`, `npm run build`, `npm run lint`, `gh` CLI       |
+| Git ops      | add, commit, push (non-main), fetch, pull, worktree         |
+| PRs          | `gh pr create`, `gh pr merge --squash` after checks pass    |
 | Issue labels | `gh issue edit --add-label`, `--remove-label` (for locking) |
 
 **STOP and ask for:** Force push, direct main operations, deleting branches/worktrees not created this session, genuine ambiguity.
@@ -163,26 +168,27 @@ START
 ### Commands
 
 ```bash
-# Verification (run before commit)
-npm run lint && npm run test:run && npm run build
+# Verification (run in worktree using subshell)
+(cd "$WORKTREE_DIR" && npm run lint && npm run test:run && npm run build)
 
-# Test specific file
-npm run test -- src/tests/<File>.test.ts --reporter=verbose
+# Test specific file (in worktree)
+(cd "$WORKTREE_DIR" && npm run test -- src/tests/<File>.test.ts --reporter=verbose)
 
-# Worktrees
+# Worktrees (always define WORKTREE_DIR after creation)
 git worktree add ../Rackula-issue-<N> -b <type>/<N>-<desc>
+WORKTREE_DIR="$(pwd)/../Rackula-issue-<N>"
 git worktree list
 git worktree remove ../Rackula-issue-<N>
 ```
 
 ### Memory Search (mem-search skill)
 
-| Purpose | Query |
-|---------|-------|
-| Recent context | `get_recent_context` with project="Rackula", limit=30 |
-| Past work on issue | `search` with query="#<N> OR <keywords>" |
-| Architectural decisions | `search` with type="decision", concepts="<area>" |
-| Similar bugs | `search` with type="bugfix", query="<error keywords>" |
+| Purpose                 | Query                                                 |
+| ----------------------- | ----------------------------------------------------- |
+| Recent context          | `get_recent_context` with project="Rackula", limit=30 |
+| Past work on issue      | `search` with query="#<N> OR <keywords>"              |
+| Architectural decisions | `search` with type="decision", concepts="<area>"      |
+| Similar bugs            | `search` with type="bugfix", query="<error keywords>" |
 
 ### Issue Type Checklists
 
@@ -278,6 +284,7 @@ gh issue view <number> --json number,title,body,labels,comments,assignees
 ```
 
 **Abort conditions** (another agent may have claimed simultaneously):
+
 - Issue has an assignee that wasn't there before
 - A comment was added within the race detection window
 - Issue no longer has `ready` label
@@ -292,12 +299,12 @@ This reveals prior attempts, design decisions, known patterns, and past blockers
 
 ### 2c. Complexity Assessment
 
-| Criteria | Simple | Complex |
-|----------|--------|---------|
-| Size label | `size:small` | `size:medium` or larger |
-| Acceptance criteria | Explicit | Needs interpretation |
-| Files affected | ≤3 | >3 or multiple subsystems |
-| Type | Bug fix, small tweak | Feature, architectural |
+| Criteria            | Simple               | Complex                   |
+| ------------------- | -------------------- | ------------------------- |
+| Size label          | `size:small`         | `size:medium` or larger   |
+| Acceptance criteria | Explicit             | Needs interpretation      |
+| Files affected      | ≤3                   | >3 or multiple subsystems |
+| Type                | Bug fix, small tweak | Feature, architectural    |
 
 **Simple:** Proceed directly to Phase 3.
 **Complex:** Launch Plan agent first with issue body, acceptance criteria, and any relevant memory context. Output numbered implementation plan.
@@ -319,18 +326,22 @@ If not obvious from issue, use Explore agent: "Find files related to <feature/co
 **Otherwise, ALWAYS create a worktree** (never work on main):
 
 ```bash
-# From main directory
+# From main directory - use absolute paths pattern
 git fetch origin main
 git worktree add ../Rackula-issue-<N> -b <type>/<N>-<short-description> origin/main
-cd ../Rackula-issue-<N>
-npm install
+WORKTREE_DIR="$(pwd)/../Rackula-issue-<N>"
+(cd "$WORKTREE_DIR" && npm install)
 ```
 
+**Important:** Always define `WORKTREE_DIR` and use subshells `(cd "$WORKTREE_DIR" && ...)` for commands. Claude Code's session stays anchored to the main directory, so regular `cd` commands get reset.
+
 **Why mandatory:**
+
 - Prevents conflicts between parallel agent sessions
 - Keeps main branch clean for other agents
 - Allows easy cleanup if work is abandoned
 - Isolates npm dependencies per issue
+- Avoids "Shell cwd was reset" token waste
 
 ### 3b. Update Progress File
 
@@ -339,6 +350,7 @@ Add entry to `.claude/session-progress.md` with: issue number, title, start time
 ### 3c. TDD Workflow
 
 For each acceptance criterion:
+
 1. Write failing test first
 2. Implement minimum code to pass
 3. Verify test passes
@@ -347,7 +359,7 @@ For each acceptance criterion:
 ### 3d. Pre-Commit Verification
 
 ```bash
-npm run lint && npm run test:run && npm run build
+(cd "$WORKTREE_DIR" && npm run lint && npm run test:run && npm run build)
 ```
 
 If failures: see Error Recovery section.
@@ -360,6 +372,7 @@ Push to origin with `-u` flag.
 ### 3f. Create PR
 
 Use `gh pr create` with:
+
 - Title: `<type>: <description> (#<number>)`
 - Body: Summary bullets, files changed, test plan checklist, `Closes #<number>`
 
@@ -374,18 +387,18 @@ gh pr merge --squash --delete-branch --auto
 
 1. **Release the lock** — remove `in-progress` label (issue will close via PR merge):
 
-    ```bash
-    gh issue edit <number> --remove-label "in-progress"
-    ```
+   ```bash
+   gh issue edit <number> --remove-label "in-progress"
+   ```
 
 2. If using worktree, return to main directory, pull, remove worktree, prune:
 
-    ```bash
-    cd /path/to/Rackula  # main directory
-    git pull origin main
-    git worktree remove ../Rackula-issue-<N>
-    git worktree prune
-    ```
+   ```bash
+   cd /path/to/Rackula  # main directory
+   git pull origin main
+   git worktree remove ../Rackula-issue-<N>
+   git worktree prune
+   ```
 
 3. Update progress file status to "Completed" with PR URL.
 
@@ -414,12 +427,12 @@ Write session summary when stopping.
 
 ### Test Failures
 
-| Attempt | Action |
-|---------|--------|
-| 1 | Read output, fix obvious issues |
-| 2 | Search memory for similar bugs: type="bugfix", query="<error keywords>" |
-| 3 | Launch Plan agent with test output, code, and memory context |
-| 4+ | Proceed to Blocker Handling |
+| Attempt | Action                                                                  |
+| ------- | ----------------------------------------------------------------------- |
+| 1       | Read output, fix obvious issues                                         |
+| 2       | Search memory for similar bugs: type="bugfix", query="<error keywords>" |
+| 3       | Launch Plan agent with test output, code, and memory context            |
+| 4+      | Proceed to Blocker Handling                                             |
 
 ### Lint/Build Failures
 
@@ -434,9 +447,9 @@ If not, read error and fix manually.
 
 2. **Release the lock** — remove `in-progress` label, so others can pick it up:
 
-    ```bash
-    gh issue edit <N> --remove-label "in-progress"
-    ```
+   ```bash
+   gh issue edit <N> --remove-label "in-progress"
+   ```
 
 3. **Comment on issue** with status, completed items, blocker description, what was attempted, next steps needed, WIP branch name
 
@@ -449,6 +462,7 @@ If not, read error and fix manually.
 ## Context Management
 
 If working on a long session and context is filling up:
+
 1. Commit any WIP with descriptive message
 2. Update progress file with current state
 3. The session can be resumed from the WIP branch
@@ -469,9 +483,11 @@ If working on a long session and context is filling up:
 **Summary:** <what was done>
 
 **Files Changed:**
+
 - `file.ts`: <change summary>
 
 **Key Learnings:** (auto-captured by claude-mem)
+
 - <patterns discovered>
 - <non-obvious decisions>
 ```
@@ -485,8 +501,10 @@ If working on a long session and context is filling up:
 **Blocked:** M issues
 
 **Completed:**
+
 1. #42: Title - PR #123
 
 **Blocked:**
+
 1. #44: Title - <reason>
 ```
