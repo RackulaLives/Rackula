@@ -420,6 +420,7 @@
     border-bottom: 1px solid var(--colour-toolbar-border, var(--toolbar-border));
     flex-shrink: 0;
     position: relative;
+    z-index: var(--z-toolbar);
   }
 
   .toolbar-section {

@@ -316,6 +316,7 @@
   --colour-surface-secondary: var(--dracula-bg-light);
 
   /* Z-Index Layers */
+  --z-toolbar: 10;
   --z-sidebar: 10;
   --z-drawer-backdrop: 99;
   --z-drawer: 100;
