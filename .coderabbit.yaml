@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+
+reviews:
+  # Block PRs until CodeRabbit issues are resolved
+  request_changes_workflow: true
+
+  # Review settings
+  high_level_summary: true
+  poem: false
+  profile: assertive # Stricter reviews for quality
+  collapse_walkthrough: true
+
+  # Paths to exclude from review
+  path_filters:
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/*.snap"
+    - "!**/package-lock.json"
+
+  # Enable auto-review on all PRs
+  auto_review:
+    enabled: true
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  learnings:
+    scope: auto

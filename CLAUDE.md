@@ -178,6 +178,47 @@ gh issue close <number> --comment "Implemented in <commit-hash>"
 
 See `docs/reference/GITHUB-WORKFLOW.md` for full workflow documentation.
 
+## CodeRabbit Integration
+
+CodeRabbit provides AI code review on every PR. **Claude Code must wait for CodeRabbit approval before merging.**
+
+### PR Workflow
+
+1. Create PR with `gh pr create`
+2. **Wait for CodeRabbit review** (7-30 min) — check with `gh pr checks <number>`
+3. If CodeRabbit requests changes:
+   - Read the CodeRabbit comments
+   - Address each issue in follow-up commits
+   - Push changes and wait for re-review
+4. Only merge after CodeRabbit approves
+
+### CodeRabbit CLI (Optional Local Review)
+
+For pre-push review of uncommitted changes:
+
+```bash
+# Install CLI (one-time)
+curl -fsSL https://cli.coderabbit.ai/install.sh | sh
+coderabbit auth login
+
+# Run local review before pushing
+coderabbit --prompt-only --type uncommitted
+```
+
+### Commands for Claude Code
+
+When implementing features that will be reviewed:
+
+```bash
+# After creating PR, wait for CodeRabbit
+gh pr checks <number> --watch
+
+# View CodeRabbit's review comments
+gh pr view <number> --comments
+```
+
+**Important:** Never use `gh pr merge` until CodeRabbit has approved the PR.
+
 ## Development Philosophy
 
 **Greenfield approach:** Do not use migration or legacy support concepts in this project. Implement features as if they are the first and only implementation.
