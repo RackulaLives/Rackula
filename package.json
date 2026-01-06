@@ -26,7 +26,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "prepare": "husky",
     "process-images": "npx tsx scripts/process-images.ts",
-    "generate-bundled-images": "npx tsx scripts/generate-bundled-images.ts"
+    "generate-bundled-images": "npx tsx scripts/generate-bundled-images.ts",
+    "update-contributors": "npx tsx scripts/update-contributors.ts"
   },
   "devDependencies": {
     "@eslint/compat": "^1.4.0",

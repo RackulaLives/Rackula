@@ -73,9 +73,9 @@ This project was built using AI-assisted development with Claude. I told it what
 
 ## Acknowledgements
 
-Built for the [r/homelab](https://reddit.com/r/homelab) and [r/selfhosted](https://reddit.com/r/selfhosted) communities.
+Built for the [r/homelab](https://reddit.com/r/homelab) and [r/selfhosted](https://reddit.com/r/selfhosted) communities. Colors from [Dracula Theme](https://draculatheme.com/). Device data from [NetBox devicetype-library](https://github.com/netbox-community/devicetype-library).
 
-Device types and images ~~are stolen from~~ are compatible with the [NetBox devicetype-library](https://github.com/netbox-community/devicetype-library) because why reinvent that wheel.
+See [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md) for full credits.
 
 ## Licence
 
