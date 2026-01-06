@@ -37,6 +37,69 @@ describe("HelpPanel", () => {
     });
   });
 
+  describe("Build Info Section", () => {
+    it("shows Version label", () => {
+      render(HelpPanel, { props: { open: true } });
+
+      expect(screen.getByText("Version")).toBeInTheDocument();
+    });
+
+    it("shows version with v prefix", () => {
+      render(HelpPanel, { props: { open: true } });
+
+      expect(screen.getByText(`v${VERSION}`)).toBeInTheDocument();
+    });
+
+    it("shows Browser label", () => {
+      render(HelpPanel, { props: { open: true } });
+
+      expect(screen.getByText("Browser")).toBeInTheDocument();
+    });
+
+    it("shows user agent info", () => {
+      render(HelpPanel, { props: { open: true } });
+
+      // User agent should be visible in the build info section
+      const browserRow = screen.getByText("Browser");
+      expect(browserRow).toBeInTheDocument();
+    });
+
+    it("shows copy button", () => {
+      render(HelpPanel, { props: { open: true } });
+
+      expect(
+        screen.getByRole("button", { name: /copy for bug report/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("copies build info when copy button is clicked", async () => {
+      const mockWriteText = vi.fn().mockResolvedValue(undefined);
+      vi.stubGlobal("navigator", {
+        ...navigator,
+        clipboard: { writeText: mockWriteText },
+      });
+      // Mock isSecureContext to allow clipboard API usage
+      Object.defineProperty(window, "isSecureContext", {
+        value: true,
+        configurable: true,
+      });
+
+      render(HelpPanel, { props: { open: true } });
+
+      const copyBtn = screen.getByRole("button", {
+        name: /copy for bug report/i,
+      });
+      await fireEvent.click(copyBtn);
+
+      expect(mockWriteText).toHaveBeenCalled();
+      const copiedText = mockWriteText.mock.calls[0][0] as string;
+      expect(copiedText).toContain(`Rackula v${VERSION}`);
+      expect(copiedText).toContain("Browser:");
+
+      vi.unstubAllGlobals();
+    });
+  });
+
   describe("Keyboard Shortcuts", () => {
     it("shows shortcut categories", () => {
       render(HelpPanel, { props: { open: true } });

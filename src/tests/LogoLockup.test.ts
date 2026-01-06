@@ -34,9 +34,8 @@ describe("LogoLockup", () => {
       const logoTitle = container.querySelector(".logo-title");
 
       // Tests run on localhost, so DRackula prefix shows
-      // May include "(uncommitted changes)" suffix if git has uncommitted changes
       const ariaLabel = logoTitle?.getAttribute("aria-label") ?? "";
-      expect(ariaLabel).toMatch(/^DRackula - development environment/);
+      expect(ariaLabel).toBe("DRackula - development environment");
     });
   });
 
@@ -261,8 +260,7 @@ describe("LogoLockup", () => {
       const viewBox = logoTitle?.getAttribute("viewBox");
 
       // Tests run on localhost, so DRackula prefix shows (wider viewBox)
-      // Width is 180 (clean) or 195 (dirty with * indicator)
-      expect(viewBox).toMatch(/^0 0 (180|195) 50$/);
+      expect(viewBox).toBe("0 0 180 50");
 
       // Validate format: exactly 4 space-separated numeric values
       const values = viewBox?.split(" ");
@@ -311,20 +309,13 @@ describe("LogoLockup", () => {
       expect(envPrefix).toBeInTheDocument();
     });
 
-    it("shows build info trigger on localhost", () => {
-      const { getByTestId } = render(LogoLockup);
-      const trigger = getByTestId("build-info-trigger");
-
-      expect(trigger).toBeInTheDocument();
-    });
-
     it("title text contains D prefix and Rackula", () => {
       const { container } = render(LogoLockup);
       const logoTitle = container.querySelector(".logo-title");
       const textContent = logoTitle?.textContent?.replace(/\s+/g, "");
 
-      // Text content combines D prefix + Rackula (may have * dirty indicator)
-      expect(textContent).toMatch(/^D\*?Rackula$/);
+      // Text content combines D prefix + Rackula
+      expect(textContent).toBe("DRackula");
     });
 
     // Note: The following tests would require module re-initialization

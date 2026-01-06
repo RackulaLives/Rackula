@@ -9,6 +9,16 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { formatShortcut } from "$lib/utils/platform";
   import { analytics } from "$lib/utils/analytics";
+  import {
+    formatRelativeTime,
+    formatFullTimestamp,
+  } from "$lib/utils/buildTime";
+
+  // Build-time constants from vite.config.ts
+  declare const __BUILD_TIME__: string;
+  declare const __COMMIT_HASH__: string;
+  declare const __BRANCH_NAME__: string;
+  declare const __GIT_DIRTY__: boolean;
 
   interface Props {
     open: boolean;
@@ -34,11 +44,62 @@
   const userAgent =
     typeof navigator !== "undefined" ? navigator.userAgent : "Unknown";
 
-  // Toggle for showing debug info
-  let showDebugInfo = $state(false);
+  // Build info constants
+  const commitHash =
+    typeof __COMMIT_HASH__ !== "undefined" ? __COMMIT_HASH__ : "";
+  const branchName =
+    typeof __BRANCH_NAME__ !== "undefined" ? __BRANCH_NAME__ : "";
+  const buildTime = typeof __BUILD_TIME__ !== "undefined" ? __BUILD_TIME__ : "";
+  const isDirty = typeof __GIT_DIRTY__ !== "undefined" ? __GIT_DIRTY__ : false;
+  const commitUrl = commitHash
+    ? `https://github.com/RackulaLives/Rackula/commit/${commitHash}`
+    : "";
 
-  async function copyDebugInfo() {
-    const text = `Rackula v${VERSION} on ${userAgent}`;
+  // Live-updating relative time for build timestamp
+  let now = $state(new Date());
+
+  $effect(() => {
+    const interval = setInterval(() => {
+      now = new Date();
+    }, 60_000); // Update every minute
+    return () => clearInterval(interval);
+  });
+
+  // Derived relative time
+  const relativeTime = $derived(
+    buildTime ? formatRelativeTime(buildTime, now) : "",
+  );
+  const fullTimestamp = $derived(
+    buildTime ? formatFullTimestamp(buildTime) : "",
+  );
+
+  // Copy state for button feedback
+  let copied = $state(false);
+
+  async function copyBuildInfo() {
+    // Build the copy text with all available info
+    const lines: string[] = [];
+
+    // Line 1: Version with commit/branch/dirty context
+    let versionLine = `Rackula v${VERSION}`;
+    if (commitHash) {
+      const parts = [commitHash];
+      if (branchName) parts.push(branchName);
+      if (isDirty) parts.push("dirty");
+      versionLine += ` (${parts.join(", ")})`;
+    }
+    lines.push(versionLine);
+
+    // Line 2: Build time
+    if (fullTimestamp) {
+      lines.push(`Built: ${fullTimestamp}`);
+    }
+
+    // Line 3: Browser
+    lines.push(`Browser: ${userAgent}`);
+
+    const text = lines.join("\n");
+
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
@@ -52,14 +113,14 @@
         document.execCommand("copy");
         document.body.removeChild(textArea);
       }
-      toastStore.showToast("Debug info copied", "success", 2000);
+      copied = true;
+      toastStore.showToast("Build info copied", "success", 2000);
+      setTimeout(() => {
+        copied = false;
+      }, 2000);
     } catch {
       toastStore.showToast("Failed to copy", "error");
     }
-  }
-
-  function toggleDebugInfo() {
-    showDebugInfo = !showDebugInfo;
   }
 
   // Keyboard shortcuts grouped by category
@@ -130,44 +191,74 @@
 
 <Dialog {open} title="About" width="600px" onclose={handleClose}>
   <div class="about-content">
-    <!-- Header: Logo + Version -->
+    <!-- Header: Logo -->
     <header class="about-header">
       <div class="brand-row">
-        <LogoLockup size={48} />
-        <button
-          type="button"
-          class="version-btn"
-          onclick={toggleDebugInfo}
-          title="Click to show debug info"
-        >
-          v{VERSION}
-          <svg
-            class="chevron-icon"
-            class:expanded={showDebugInfo}
-            viewBox="0 0 16 16"
-            width="12"
-            height="12"
-            aria-hidden="true"
-          >
-            <path
-              fill="currentColor"
-              d="M4.427 7.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 7H4.604a.25.25 0 00-.177.427z"
-            />
-          </svg>
-        </button>
+        <LogoLockup size={48} showcase />
       </div>
     </header>
 
-    <!-- Debug info (expandable) -->
-    {#if showDebugInfo}
-      <div class="debug-info">
-        <code class="user-agent">{userAgent}</code>
-        <button
-          type="button"
-          class="copy-btn"
-          onclick={copyDebugInfo}
-          title="Copy debug info"
-        >
+    <!-- Build Info Section -->
+    <section class="build-info-section">
+      <div class="build-info-grid">
+        <div class="info-row">
+          <span class="info-label">Version</span>
+          <span class="info-value">v{VERSION}</span>
+        </div>
+
+        {#if commitHash}
+          <div class="info-row">
+            <span class="info-label">Commit</span>
+            <span class="info-value">
+              <a
+                href={commitUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="commit-link"
+              >
+                {commitHash}{#if isDirty}<span class="dirty-badge">*</span>{/if}
+              </a>
+            </span>
+          </div>
+        {/if}
+
+        {#if branchName}
+          <div class="info-row">
+            <span class="info-label">Branch</span>
+            <span class="info-value">{branchName}</span>
+          </div>
+        {/if}
+
+        {#if relativeTime}
+          <div class="info-row">
+            <span class="info-label">Built</span>
+            <span class="info-value" title={fullTimestamp}
+              >{relativeTime} ago</span
+            >
+          </div>
+        {/if}
+
+        <div class="info-row">
+          <span class="info-label">Browser</span>
+          <span class="info-value user-agent">{userAgent}</span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="copy-info-btn"
+        class:copied
+        onclick={copyBuildInfo}
+      >
+        {#if copied}
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"
+            />
+          </svg>
+          Copied!
+        {:else}
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
             <path
               fill="currentColor"
@@ -178,9 +269,10 @@
               d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
             />
           </svg>
-        </button>
-      </div>
-    {/if}
+          Copy for bug report
+        {/if}
+      </button>
+    </section>
 
     <!-- Keyboard Shortcuts (grouped) -->
     {#each shortcutGroups as group (group.name)}
@@ -282,77 +374,91 @@
   .brand-row {
     display: flex;
     align-items: center;
+    justify-content: center;
+  }
+
+  /* Build Info Section */
+  .build-info-section {
+    display: flex;
+    flex-direction: column;
     gap: var(--space-3);
-  }
-
-  .version-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-1) var(--space-2);
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    font-size: var(--font-size-sm);
-    font-family: var(--font-mono, monospace);
-    color: var(--colour-text-muted);
-    transition: all 0.15s ease;
-  }
-
-  .version-btn:hover {
+    padding: var(--space-3);
     background: var(--colour-surface);
-    border-color: var(--colour-border);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+  }
+
+  .build-info-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .info-row {
+    display: contents;
+  }
+
+  .info-label {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-xs);
+    color: var(--colour-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .info-value {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-sm);
     color: var(--colour-text);
   }
 
-  .chevron-icon {
-    transition: transform 0.15s ease;
-  }
-
-  .chevron-icon.expanded {
-    transform: rotate(180deg);
-  }
-
-  /* Debug info panel */
-  .debug-info {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2);
-    background: var(--colour-surface);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--colour-border);
-  }
-
-  .debug-info .user-agent {
-    flex: 1;
+  .info-value.user-agent {
     font-size: var(--font-size-xs);
     color: var(--colour-text-muted);
-    font-family: var(--font-mono, monospace);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
   }
 
-  .copy-btn {
+  .commit-link {
+    color: var(--dracula-cyan, #8be9fd);
+    text-decoration: none;
+  }
+
+  .commit-link:hover {
+    text-decoration: underline;
+  }
+
+  .dirty-badge {
+    color: var(--dracula-orange, #ffb86c);
+    margin-left: 2px;
+  }
+
+  .copy-info-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--space-1);
+    gap: var(--space-2);
+    padding: var(--space-2);
     background: transparent;
-    border: none;
+    border: 1px dashed var(--colour-border);
     border-radius: var(--radius-sm);
-    cursor: pointer;
     color: var(--colour-text-muted);
-    transition:
-      color 0.15s ease,
-      background 0.15s ease;
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
   }
 
-  .copy-btn:hover {
-    color: var(--colour-selection);
-    background: var(--colour-surface-hover);
+  .copy-info-btn:hover {
+    border-color: var(--colour-text-muted);
+    color: var(--colour-text);
+  }
+
+  .copy-info-btn.copied {
+    border-color: var(--dracula-green, #50fa7b);
+    color: var(--dracula-green, #50fa7b);
+    border-style: solid;
   }
 
   /* Shortcut groups */

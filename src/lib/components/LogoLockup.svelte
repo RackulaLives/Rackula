@@ -10,12 +10,10 @@
 -->
 <script lang="ts">
   import SantaHat from "./SantaHat.svelte";
-  import BuildInfoTooltip from "./BuildInfoTooltip.svelte";
   import { isChristmas } from "$lib/utils/christmas";
 
   // Build-time constants from vite.config.ts
   declare const __BUILD_ENV__: string;
-  declare const __GIT_DIRTY__: boolean;
 
   interface Props {
     size?: number;
@@ -43,29 +41,6 @@
 
   // Show "D" prefix on dev/local environments (not on production count.racku.la)
   const showEnvPrefix = $derived(isLocalhost || isDevSite);
-
-  // Check for dirty state (uncommitted changes at build time)
-  const isDirty = typeof __GIT_DIRTY__ !== "undefined" ? __GIT_DIRTY__ : false;
-
-  // Tooltip visibility state (for build info tooltip)
-  let tooltipVisible = $state(false);
-  let tooltipTimeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  // Show tooltip after delay (500ms)
-  function showTooltip() {
-    tooltipTimeoutId = setTimeout(() => {
-      tooltipVisible = true;
-    }, 500);
-  }
-
-  // Hide tooltip immediately
-  function hideTooltip() {
-    if (tooltipTimeoutId) {
-      clearTimeout(tooltipTimeoutId);
-      tooltipTimeoutId = null;
-    }
-    tooltipVisible = false;
-  }
 
   // Hover state for rainbow animation
   let hovering = $state(false);
@@ -267,45 +242,25 @@
 
   <!-- Title (SVG text for gradient support) - Space Grotesk -->
   <!-- DRackula: adds red "D" prefix on dev/local environments -->
-  <!-- Dirty indicator (*) shows when uncommitted changes exist at build time -->
   <svg
     class="logo-title"
     class:logo-title--celebrate={celebrate}
     class:logo-title--party={partyMode}
     class:logo-title--showcase={showcase}
     class:logo-title--hover={hovering && !partyMode && !celebrate && !showcase}
-    viewBox="0 0 {showEnvPrefix ? (isDirty ? 195 : 180) : 160} 50"
+    viewBox="0 0 {showEnvPrefix ? 180 : 160} 50"
     height={titleHeight}
     role="img"
     aria-label={showEnvPrefix
-      ? `DRackula - development environment${isDirty ? " (uncommitted changes)" : ""}`
+      ? "DRackula - development environment"
       : "Rackula"}
     style={gradientId ? `--active-gradient: ${gradientId}` : undefined}
   >
     <text x="0" y="38"
       >{#if showEnvPrefix}<tspan class="env-prefix" font-size="44">D</tspan
-        >{#if isDirty}<tspan class="dirty-indicator" font-size="32">*</tspan
-          >{/if}{/if}<tspan>Rackula</tspan></text
+        >{/if}<tspan>Rackula</tspan></text
     >
   </svg>
-
-  <!-- Build info tooltip trigger (dev environments only) -->
-  {#if showEnvPrefix}
-    <button
-      type="button"
-      class="build-info-trigger"
-      aria-label="Build information - click to copy"
-      aria-expanded={tooltipVisible}
-      onmouseenter={showTooltip}
-      onmouseleave={hideTooltip}
-      onfocus={showTooltip}
-      onblur={hideTooltip}
-      data-testid="build-info-trigger"
-    >
-      <span class="build-info-icon">i</span>
-      <BuildInfoTooltip visible={tooltipVisible} />
-    </button>
-  {/if}
 </div>
 
 <style>
@@ -363,15 +318,6 @@
   .logo-title--party text .env-prefix,
   .logo-title--showcase text .env-prefix {
     fill: var(--dracula-red, #ff5555) !important;
-  }
-
-  /* Dirty indicator (*) - orange to warn of uncommitted changes */
-  .logo-title text .dirty-indicator,
-  .logo-title--hover text .dirty-indicator,
-  .logo-title--celebrate text .dirty-indicator,
-  .logo-title--party text .dirty-indicator,
-  .logo-title--showcase text .dirty-indicator {
-    fill: var(--dracula-orange, #ffb86c) !important;
   }
 
   /* Celebrate state: rainbow wave for 3s */
@@ -469,11 +415,6 @@
     .logo-title text .env-prefix {
       fill: var(--dracula-red, #ff5555) !important;
     }
-
-    /* Dirty indicator stays orange in reduced motion */
-    .logo-title text .dirty-indicator {
-      fill: var(--dracula-orange, #ffb86c) !important;
-    }
   }
 
   /* Responsive: hide title on small screens (but not in toolbar hamburger mode) */
@@ -501,58 +442,5 @@
     75% {
       transform: rotate(3deg);
     }
-  }
-
-  /* Build info trigger (dev environments only) */
-  .build-info-trigger {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    align-self: center;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--colour-surface-overlay, rgba(40, 42, 54, 0.8));
-    border: 1px solid var(--colour-border, #44475a);
-    cursor: pointer;
-    transition:
-      background-color var(--duration-fast, 150ms) var(--ease-out, ease-out),
-      border-color var(--duration-fast, 150ms) var(--ease-out, ease-out);
-  }
-
-  .build-info-trigger:hover,
-  .build-info-trigger:focus {
-    background: var(--colour-surface-hover, rgba(68, 71, 90, 0.8));
-    border-color: var(--dracula-purple, #bd93f9);
-    outline: none;
-  }
-
-  .build-info-icon {
-    font-family: var(--font-mono, monospace);
-    font-size: var(--font-size-xs, 12px);
-    font-weight: var(--font-weight-bold, 700);
-    font-style: italic;
-    color: var(--colour-text-muted, #6272a4);
-    line-height: 1;
-    transition: color var(--duration-fast, 150ms) var(--ease-out, ease-out);
-  }
-
-  .build-info-trigger:hover .build-info-icon,
-  .build-info-trigger:focus .build-info-icon {
-    color: var(--dracula-purple, #bd93f9);
-  }
-
-  /* Hide build info trigger on small screens */
-  @media (max-width: 600px) {
-    .build-info-trigger {
-      display: none;
-    }
-  }
-
-  /* Always show build info trigger in toolbar (mobile hamburger mode) */
-  :global(.toolbar-brand) .build-info-trigger,
-  :global(.toolbar-brand.hamburger-mode) .build-info-trigger {
-    display: inline-flex;
   }
 </style>
