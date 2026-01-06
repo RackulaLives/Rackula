@@ -31,10 +31,39 @@ const MANUAL_CONTRIBUTORS: ContributorInfo[] = [
 // Contributors to exclude (bots, etc.)
 const EXCLUDED_CONTRIBUTORS = ["dependabot[bot]", "github-actions[bot]"];
 
-async function getCodeContributors(): Promise<ContributorInfo[]> {
+/**
+ * Get repository info from git remote URL
+ */
+function getRepoFromGit(): string {
+  try {
+    const remoteUrl = execSync("git remote get-url origin", {
+      encoding: "utf-8",
+    }).trim();
+
+    // Handle SSH format: git@github.com:owner/repo.git
+    const sshMatch = remoteUrl.match(/git@github\.com:(.+?)(?:\.git)?$/);
+    if (sshMatch) return sshMatch[1];
+
+    // Handle HTTPS format: https://github.com/owner/repo.git
+    const httpsMatch = remoteUrl.match(
+      /https:\/\/github\.com\/(.+?)(?:\.git)?$/,
+    );
+    if (httpsMatch) return httpsMatch[1];
+
+    throw new Error(`Could not parse repo from URL: ${remoteUrl}`);
+  } catch (error: unknown) {
+    console.error("Failed to get repo from git remote:", error);
+    // Fallback to hardcoded value
+    return "RackulaLives/Rackula";
+  }
+}
+
+function getCodeContributors(): ContributorInfo[] {
+  const repo = getRepoFromGit();
+
   try {
     const result = execSync(
-      `gh api repos/RackulaLives/Rackula/contributors --paginate --jq '.[] | "{\\(.login)}|{\\(.contributions)}|{\\(.type)}"'`,
+      `gh api repos/${repo}/contributors --paginate --jq '.[] | "{\\(.login)}|{\\(.contributions)}|{\\(.type)}"'`,
       { encoding: "utf-8" },
     );
 
@@ -60,7 +89,7 @@ async function getCodeContributors(): Promise<ContributorInfo[]> {
             : `${c.contributions} code contributions`,
         source: "code" as const,
       }));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to fetch contributors from GitHub:", error);
     return [];
   }
@@ -97,21 +126,21 @@ function generateContributorTable(contributors: ContributorInfo[]): string {
 ${rows.join("\n")}`;
 }
 
-async function main() {
+function main(): void {
   const acknowledgmentsPath = "ACKNOWLEDGEMENTS.md";
 
   // Read current file
   let content: string;
   try {
     content = readFileSync(acknowledgmentsPath, "utf-8");
-  } catch {
-    console.error(`Could not read ${acknowledgmentsPath}`);
+  } catch (error: unknown) {
+    console.error(`Could not read ${acknowledgmentsPath}:`, error);
     process.exit(1);
   }
 
   // Fetch contributors
   console.log("Fetching contributors from GitHub...");
-  const codeContributors = await getCodeContributors();
+  const codeContributors = getCodeContributors();
   const allContributors = [...codeContributors, ...MANUAL_CONTRIBUTORS];
 
   console.log(`Found ${codeContributors.length} code contributors`);
@@ -138,8 +167,13 @@ async function main() {
   const newContent = `${before}\n\n${newTable}\n\n${after}`;
 
   // Write updated file
-  writeFileSync(acknowledgmentsPath, newContent);
-  console.log("Updated ACKNOWLEDGEMENTS.md");
+  try {
+    writeFileSync(acknowledgmentsPath, newContent);
+    console.log("Updated ACKNOWLEDGEMENTS.md");
+  } catch (error: unknown) {
+    console.error(`Failed to write ${acknowledgmentsPath}:`, error);
+    process.exit(1);
+  }
 }
 
-main().catch(console.error);
+main();

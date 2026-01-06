@@ -40,18 +40,17 @@ Many device images in Rackula come from vastoholic's Draw.io shape library. This
 
 These open-source libraries make Rackula work:
 
-| Package                                                  | Purpose                   | License    |
-| -------------------------------------------------------- | ------------------------- | ---------- |
-| [Svelte](https://svelte.dev/)                            | UI framework              | MIT        |
-| [panzoom](https://github.com/anvaka/panzoom)             | Pan and zoom interactions | MIT        |
-| [Fuse.js](https://www.fusejs.io/)                        | Fuzzy search              | Apache-2.0 |
-| [jsPDF](https://github.com/parallax/jsPDF)               | PDF export                | MIT        |
-| [JSZip](https://stuk.github.io/jszip/)                   | ZIP file creation         | MIT        |
-| [html-to-image](https://github.com/bubkoo/html-to-image) | Image export              | MIT        |
-| [Zod](https://zod.dev/)                                  | Schema validation         | MIT        |
-| [qrcode](https://github.com/soldair/node-qrcode)         | QR code generation        | MIT        |
-| [js-yaml](https://github.com/nodeca/js-yaml)             | YAML parsing              | MIT        |
-| [pako](https://github.com/nodeca/pako)                   | Compression               | MIT        |
+| Package                                          | Purpose                   | License    |
+| ------------------------------------------------ | ------------------------- | ---------- |
+| [Svelte](https://svelte.dev/)                    | UI framework              | MIT        |
+| [panzoom](https://github.com/anvaka/panzoom)     | Pan and zoom interactions | MIT        |
+| [Fuse.js](https://www.fusejs.io/)                | Fuzzy search              | Apache-2.0 |
+| [jsPDF](https://github.com/parallax/jsPDF)       | PDF export                | MIT        |
+| [JSZip](https://stuk.github.io/jszip/)           | ZIP file creation         | MIT        |
+| [Zod](https://zod.dev/)                          | Schema validation         | MIT        |
+| [qrcode](https://github.com/soldair/node-qrcode) | QR code generation        | MIT        |
+| [js-yaml](https://github.com/nodeca/js-yaml)     | YAML parsing              | MIT        |
+| [pako](https://github.com/nodeca/pako)           | Compression               | MIT        |
 
 ### UI Components
 
