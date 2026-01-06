@@ -34,8 +34,9 @@ browserstackSetupConfig.json
 playwright-browserstack-sdk.config.temp.json
 playwright-browserstack-sdk.config.ts
 
-# Claude
-.claude/
+# Claude Code - track commands/skills, ignore local settings
+.claude/settings.local.json
+.claude/plans/
 
 # Paraglide generated files
 src/lib/i18n/paraglide/
