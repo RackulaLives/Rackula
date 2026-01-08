@@ -59,6 +59,7 @@
   let now = $state(new Date());
 
   $effect(() => {
+    if (!open) return;
     const interval = setInterval(() => {
       now = new Date();
     }, 60_000); // Update every minute

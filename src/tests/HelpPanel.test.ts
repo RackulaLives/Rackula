@@ -59,9 +59,9 @@ describe("HelpPanel", () => {
     it("shows user agent info", () => {
       render(HelpPanel, { props: { open: true } });
 
-      // User agent should be visible in the build info section
-      const browserRow = screen.getByText("Browser");
-      expect(browserRow).toBeInTheDocument();
+      // Verify user agent value is displayed (not just the label)
+      const userAgentValue = screen.getByText(/Mozilla|Chrome|Safari|Firefox/i);
+      expect(userAgentValue).toBeInTheDocument();
     });
 
     it("shows copy button", () => {
@@ -73,6 +73,7 @@ describe("HelpPanel", () => {
     });
 
     it("copies build info when copy button is clicked", async () => {
+      const originalIsSecureContext = window.isSecureContext;
       const mockWriteText = vi.fn().mockResolvedValue(undefined);
       vi.stubGlobal("navigator", {
         ...navigator,
@@ -97,6 +98,10 @@ describe("HelpPanel", () => {
       expect(copiedText).toContain("Browser:");
 
       vi.unstubAllGlobals();
+      Object.defineProperty(window, "isSecureContext", {
+        value: originalIsSecureContext,
+        configurable: true,
+      });
     });
   });
 
