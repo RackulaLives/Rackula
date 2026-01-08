@@ -2,6 +2,7 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vitest/config";
 import { readFileSync } from "fs";
 import { execSync } from "child_process";
+import { cpus } from "os";
 
 // Read version from package.json
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
@@ -25,6 +26,22 @@ function getGitInfo() {
 }
 
 const gitInfo = getGitInfo();
+
+// Compute maxForks: use VITEST_MAX_FORKS env var if set, otherwise use CPU count (capped at 4)
+function getMaxForks(): number {
+  const envValue = process.env.VITEST_MAX_FORKS;
+  if (envValue) {
+    const parsed = parseInt(envValue, 10);
+    if (!isNaN(parsed) && parsed >= 1) {
+      return Math.min(parsed, 16); // Cap at 16 to prevent resource exhaustion
+    }
+  }
+  // Default: use half of available CPUs, minimum 2, maximum 4
+  const cpuCount = cpus().length;
+  return Math.max(2, Math.min(4, Math.floor(cpuCount / 2)));
+}
+
+const maxForks = getMaxForks();
 
 export default defineConfig({
   plugins: [svelte({ hot: !process.env.VITEST })],
@@ -50,10 +67,11 @@ export default defineConfig({
     testTimeout: 10000, // 10 seconds per test (App tests are slow due to complex component tree)
     // Use forks pool for memory isolation between test file batches
     // Each fork is a separate process, so memory is fully released when recycled
+    // Configure via VITEST_MAX_FORKS env var, defaults to CPU-aware value (2-4)
     pool: "forks",
     poolOptions: {
       forks: {
-        maxForks: 4,
+        maxForks,
       },
     },
     coverage: {
