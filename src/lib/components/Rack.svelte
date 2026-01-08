@@ -217,7 +217,6 @@
         startU,
         undefined,
         effectiveFaceFilter,
-        device.is_full_depth ?? true,
       );
       if (feedback === "valid") {
         // Mark all U positions this device would occupy as valid
@@ -263,7 +262,6 @@
         targetU,
         excludeIndex,
         effectiveFaceFilter,
-        device.is_full_depth ?? true,
       );
 
       dropPreview = {
@@ -310,7 +308,6 @@
         targetU,
         excludeIndex,
         effectiveFaceFilter,
-        device.is_full_depth ?? true,
       );
 
       if (feedback === "valid") {
@@ -436,7 +433,6 @@
       targetU,
       undefined,
       effectiveFaceFilter,
-      device.is_full_depth ?? true,
     );
 
     if (feedback === "valid") {
@@ -495,7 +491,6 @@
       targetU,
       excludeIndex,
       effectiveFaceFilter,
-      dragData.device.is_full_depth ?? true,
     );
 
     dropPreview = {
@@ -577,7 +572,6 @@
       targetU,
       excludeIndex,
       effectiveFaceFilter,
-      dragData.device.is_full_depth ?? true,
     );
 
     if (feedback === "valid") {
@@ -631,7 +625,6 @@
           targetU,
           excludeIndex,
           effectiveFaceFilter,
-          dragData.device.is_full_depth ?? true,
         );
 
         if (collisions.length > 0) {

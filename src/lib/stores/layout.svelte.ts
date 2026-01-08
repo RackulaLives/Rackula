@@ -1084,7 +1084,6 @@ function placeDeviceRecorded(
       position,
       undefined,
       effectiveFace,
-      isFullDepth,
     )
   ) {
     debug.devicePlace({

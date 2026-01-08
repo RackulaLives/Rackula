@@ -82,8 +82,7 @@ describe("Collision Toast Notifications", () => {
         1,
         10,
         -1,
-        null,
-        true,
+        "front",
       );
 
       expect(collisions.length).toBe(1);
@@ -113,8 +112,7 @@ describe("Collision Toast Notifications", () => {
         1,
         11,
         -1,
-        null,
-        true,
+        "front",
       );
 
       expect(collisions.length).toBe(1);
@@ -143,8 +141,7 @@ describe("Collision Toast Notifications", () => {
         1,
         20,
         -1,
-        null,
-        true,
+        "front",
       );
 
       expect(collisions.length).toBe(0);
@@ -179,8 +176,7 @@ describe("Collision Toast Notifications", () => {
         2,
         10,
         -1,
-        null,
-        true,
+        "front",
       );
 
       expect(collisions.length).toBe(2);
@@ -407,20 +403,12 @@ describe("Collision Toast Notifications", () => {
         devices: placedDevices,
       };
 
-      const collisions = findCollisions(
-        rack,
-        deviceLibrary,
-        1,
-        10,
-        -1,
-        "rear",
-        false,
-      );
+      const collisions = findCollisions(rack, deviceLibrary, 1, 10, -1, "rear");
 
       expect(collisions.length).toBe(0);
     });
 
-    it("should block half-depth device on same face", () => {
+    it("should block device on same face", () => {
       const placedDevices: PlacedDevice[] = [
         {
           id: "placed-1",
@@ -444,13 +432,12 @@ describe("Collision Toast Notifications", () => {
         10,
         -1,
         "front",
-        false,
       );
 
       expect(collisions.length).toBe(1);
     });
 
-    it("should block full-depth device against half-depth on same position", () => {
+    it("should block device placing at same position and face", () => {
       const placedDevices: PlacedDevice[] = [
         {
           id: "placed-1",
@@ -473,8 +460,7 @@ describe("Collision Toast Notifications", () => {
         1,
         10,
         -1,
-        null,
-        true,
+        "front",
       );
 
       expect(collisions.length).toBe(1);

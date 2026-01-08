@@ -58,7 +58,6 @@ export function findNextValidPosition(
 
   // Movement increment: use override if provided, otherwise device height
   const moveIncrement = stepOverride ?? deviceType.u_height;
-  const isFullDepth = deviceType.is_full_depth !== false;
 
   // Calculate initial target position
   let newPosition = placedDevice.position + direction * moveIncrement;
@@ -82,7 +81,8 @@ export function findNextValidPosition(
     newPosition >= 1 &&
     newPosition + deviceType.u_height - 1 <= rack.height
   ) {
-    // Use canPlaceDevice for face and depth-aware collision detection
+    // Use canPlaceDevice for face-aware collision detection
+    // Face is authoritative: the device's face value determines blocking
     const isValid = canPlaceDevice(
       rack,
       deviceTypes,
@@ -90,7 +90,6 @@ export function findNextValidPosition(
       newPosition,
       deviceIndex,
       placedDevice.face,
-      isFullDepth,
     );
 
     if (isValid) {

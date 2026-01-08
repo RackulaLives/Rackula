@@ -238,7 +238,6 @@ describe("Drag and Drop Utilities", () => {
         5, // target U
         undefined, // excludeIndex
         "rear", // target face
-        false, // is half-depth
       );
       expect(feedback).toBe("valid");
     });
@@ -264,39 +263,64 @@ describe("Drag and Drop Utilities", () => {
         5,
         undefined,
         "front",
-        false,
       );
       expect(feedback).toBe("valid");
     });
 
-    it("blocks drop on rear when full-depth front device exists at same U", () => {
-      const rackWithFullDepthDevice: Rack = {
+    it("allows drop on rear when full-depth device has face set to front", () => {
+      // Face-authoritative: face: "front" only blocks front, regardless of is_full_depth
+      const rackWithFrontOnlyDevice: Rack = {
         ...emptyRack,
         devices: [
           {
             id: "front-full",
-            device_type: "full-server",
+            device_type: "full-server", // is_full_depth: true
             position: 5,
-            face: "front",
+            face: "front", // Explicitly set to front, so only blocks front
           },
         ],
       };
 
-      // Dropping any device on rear at U5 should be blocked (full-depth occupies both faces)
+      // Dropping on rear at U5 should be valid (face: "front" doesn't block rear)
       const feedback = getDropFeedback(
-        rackWithFullDepthDevice,
+        rackWithFrontOnlyDevice,
         deviceLibrary,
         1,
         5,
         undefined,
         "rear",
-        false,
+      );
+      expect(feedback).toBe("valid");
+    });
+
+    it("blocks drop on rear when device has face set to both", () => {
+      const rackWithBothFaceDevice: Rack = {
+        ...emptyRack,
+        devices: [
+          {
+            id: "both-device",
+            device_type: "full-server",
+            position: 5,
+            face: "both", // Blocks both faces
+          },
+        ],
+      };
+
+      // Dropping on rear at U5 should be blocked (face: "both" blocks everything)
+      const feedback = getDropFeedback(
+        rackWithBothFaceDevice,
+        deviceLibrary,
+        1,
+        5,
+        undefined,
+        "rear",
       );
       expect(feedback).toBe("blocked");
     });
 
-    it("blocks drop when full-depth device dropped over half-depth device", () => {
-      const rackWithHalfDepthDevice: Rack = {
+    it("allows drop on rear when existing device has face set to front", () => {
+      // With face-authoritative model, face: "front" doesn't block rear
+      const rackWithFrontDevice: Rack = {
         ...emptyRack,
         devices: [
           {
@@ -308,20 +332,19 @@ describe("Drag and Drop Utilities", () => {
         ],
       };
 
-      // Dropping full-depth device on rear at U5 should be blocked
+      // Dropping device on rear at U5 should be valid (existing device only blocks front)
       const feedback = getDropFeedback(
-        rackWithHalfDepthDevice,
+        rackWithFrontDevice,
         deviceLibrary,
         1,
         5,
         undefined,
         "rear",
-        true, // full-depth device being dropped
       );
-      expect(feedback).toBe("blocked");
+      expect(feedback).toBe("valid");
     });
 
-    it("blocks drop when half-depth devices overlap on same face", () => {
+    it("blocks drop when devices overlap on same face", () => {
       const rackWithFrontDevice: Rack = {
         ...emptyRack,
         devices: [
@@ -334,7 +357,7 @@ describe("Drag and Drop Utilities", () => {
         ],
       };
 
-      // Dropping half-depth device on front at U5 should be blocked (same face)
+      // Dropping device on front at U5 should be blocked (same face)
       const feedback = getDropFeedback(
         rackWithFrontDevice,
         deviceLibrary,
@@ -342,12 +365,11 @@ describe("Drag and Drop Utilities", () => {
         5,
         undefined,
         "front",
-        false,
       );
       expect(feedback).toBe("blocked");
     });
 
-    it("defaults to front face when targetFace not provided (backward compatibility)", () => {
+    it("defaults to front face when targetFace not provided", () => {
       const rackWithRearDevice: Rack = {
         ...emptyRack,
         devices: [
@@ -360,11 +382,9 @@ describe("Drag and Drop Utilities", () => {
         ],
       };
 
-      // Without face param, should default to 'front' and allow placement
-      // (rear device doesn't block front for half-depth)
+      // Without face param, defaults to 'front' - opposite faces don't collide
       const feedback = getDropFeedback(rackWithRearDevice, deviceLibrary, 1, 5);
-      // Note: Default isFullDepth=true means it will block rear device
-      expect(feedback).toBe("blocked");
+      expect(feedback).toBe("valid");
     });
   });
 
@@ -471,7 +491,6 @@ describe("Drag and Drop Utilities", () => {
         5, // target U
         undefined, // excludeIndex
         "front", // target face
-        true, // isFullDepth (doesn't matter for slot collision)
         "right", // target slot
       );
       expect(feedback).toBe("valid");
@@ -499,7 +518,6 @@ describe("Drag and Drop Utilities", () => {
         5,
         undefined,
         "front",
-        true,
         "left",
       );
       expect(feedback).toBe("blocked");
@@ -527,7 +545,6 @@ describe("Drag and Drop Utilities", () => {
         5,
         undefined,
         "front",
-        true,
         "full",
       );
       expect(feedback).toBe("blocked");
@@ -555,7 +572,6 @@ describe("Drag and Drop Utilities", () => {
         5,
         undefined,
         "front",
-        true,
         "left",
       );
       expect(feedback).toBe("blocked");
@@ -570,32 +586,18 @@ describe("Drag and Drop Utilities", () => {
         5,
         undefined,
         "front",
-        true,
         "left",
       );
       expect(feedback).toBe("valid");
     });
 
-    it("allows half-depth half-width devices on opposite faces at same U and slot", () => {
-      // Use a half-depth device for this test
-      const halfDepthHalfWidthDevice: DeviceType = {
-        slug: "half-depth-switch",
-        model: "Half-Depth Switch",
-        u_height: 1,
-        colour: "#4A90D9",
-        category: "switch",
-        slot_width: 1,
-        is_full_depth: false,
-      };
-
-      const libraryWithHalfDepth = [halfDepthHalfWidthDevice, ...deviceLibrary];
-
+    it("allows devices on opposite faces at same U and slot", () => {
       const rackWithFrontDevice: Rack = {
         ...emptyRack,
         devices: [
           {
             id: "front-left",
-            device_type: "half-depth-switch",
+            device_type: "half-width-switch",
             position: 5,
             face: "front",
             slot_position: "left",
@@ -603,16 +605,15 @@ describe("Drag and Drop Utilities", () => {
         ],
       };
 
-      // Dropping half-depth device on rear, left slot at U5 should be valid
-      // (different face, half-depth devices don't collide)
+      // Dropping on rear at same U and slot should be valid
+      // (opposite faces don't collide with face-authoritative model)
       const feedback = getDropFeedback(
         rackWithFrontDevice,
-        libraryWithHalfDepth,
+        deviceLibrary,
         1,
         5,
         undefined,
         "rear",
-        false, // half-depth device being dropped
         "left",
       );
       expect(feedback).toBe("valid");

@@ -90,7 +90,6 @@ describe("Slot Collision Detection", () => {
         10, // position
         undefined, // excludeIndex
         "front", // face
-        true, // isFullDepth
         "right", // slot_position
       );
 
@@ -117,7 +116,6 @@ describe("Slot Collision Detection", () => {
         10,
         undefined,
         "front",
-        true,
         "left",
       );
 
@@ -144,7 +142,6 @@ describe("Slot Collision Detection", () => {
         10,
         undefined,
         "front",
-        true,
         "left",
       );
 
@@ -171,29 +168,17 @@ describe("Slot Collision Detection", () => {
         10,
         undefined,
         "front",
-        true,
         "full",
       );
 
       expect(canPlace).toBe(false);
     });
 
-    it("should allow half-width on front and rear at same position (half-depth)", () => {
-      const halfDepthHalfWidth: DeviceType = {
-        slug: "half-depth-half-width",
-        u_height: 1,
-        colour: "#FF79C6",
-        category: "network",
-        slot_width: 1,
-        is_full_depth: false,
-      };
-
-      const library = [...deviceLibrary, halfDepthHalfWidth];
-
+    it("should allow devices on front and rear at same position (face-authoritative)", () => {
       const rack = createRack([
         {
           id: "device-1",
-          device_type: "half-depth-half-width",
+          device_type: "half-width-device",
           position: 10,
           face: "front",
           slot_position: "left",
@@ -201,15 +186,14 @@ describe("Slot Collision Detection", () => {
         },
       ]);
 
-      // Should be able to place on rear-left (half-depth allows this)
+      // Should be able to place on rear (opposite faces don't collide)
       const canPlace = canPlaceDevice(
         rack,
-        library,
+        deviceLibrary,
         1,
         10,
         undefined,
         "rear",
-        false, // isFullDepth = false
         "left",
       );
 

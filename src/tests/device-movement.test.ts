@@ -299,18 +299,19 @@ describe("Device Movement Utility", () => {
         expect(result.reason).toBe("moved");
       });
 
-      it("full-depth device collides with devices on both faces", () => {
+      it("face-front device does not collide with rear device (face-authoritative)", () => {
+        // With face-authoritative model, face: "front" only blocks front
         const rack = createTestRack(42, [
-          { device_type: "1u-server", position: 10, face: "front" }, // Full depth by default
+          { device_type: "1u-server", position: 10, face: "front" }, // Front face only
           { device_type: "front-only-device", position: 11, face: "rear" }, // Rear device
         ]);
         const deviceTypes = createDeviceTypes();
 
         const result = findNextValidPosition(rack, deviceTypes, 0, 1);
 
-        // Full-depth device can't go to U11 because rear device is there
+        // Device with face: "front" can move to U11 (rear device doesn't block)
         expect(result.success).toBe(true);
-        expect(result.newPosition).toBe(12);
+        expect(result.newPosition).toBe(11);
         expect(result.reason).toBe("moved");
       });
 

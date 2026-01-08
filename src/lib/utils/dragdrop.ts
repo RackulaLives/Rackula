@@ -105,7 +105,6 @@ export function calculateDropSlotPosition(
  * @param targetU - Target U position
  * @param excludeIndex - Optional device index to exclude from collision check (for moves within same rack)
  * @param targetFace - Target face for placement (defaults to 'front')
- * @param isFullDepth - Whether the device being dropped is full-depth (defaults to true)
  * @param targetSlot - Target slot position (defaults to 'full')
  * @returns Feedback: 'valid', 'invalid', or 'blocked'
  */
@@ -116,7 +115,6 @@ export function getDropFeedback(
   targetU: number,
   excludeIndex?: number,
   targetFace: DeviceFace = "front",
-  isFullDepth: boolean = true,
   targetSlot: SlotPosition = "full",
 ): DropFeedback {
   // Check bounds first
@@ -129,6 +127,7 @@ export function getDropFeedback(
   }
 
   // Check for collisions with face-aware and slot-aware validation
+  // Face is authoritative: only the explicit face value matters for collision
   const canPlace = canPlaceDevice(
     rack,
     deviceLibrary,
@@ -136,7 +135,6 @@ export function getDropFeedback(
     targetU,
     excludeIndex,
     targetFace,
-    isFullDepth,
     targetSlot,
   );
 

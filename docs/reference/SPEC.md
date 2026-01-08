@@ -30,10 +30,10 @@ Homelabbers planning rack layouts. Desktop browser users for creation/editing, m
 
 ### 1.5 Links
 
-| Resource   | URL                                      |
-| ---------- | ---------------------------------------- |
-| Live Demo  | https://app.racku.la/                    |
-| Repository | https://github.com/RackulaLives/Rackula  |
+| Resource   | URL                                     |
+| ---------- | --------------------------------------- |
+| Live Demo  | https://app.racku.la/                   |
+| Repository | https://github.com/RackulaLives/Rackula |
 
 ---
 
@@ -82,40 +82,45 @@ Homelabbers planning rack layouts. Desktop browser users for creation/editing, m
 
 ```typescript
 // View types
-type RackView = 'front' | 'rear';
-type DeviceFace = 'front' | 'rear' | 'both';
-type DisplayMode = 'label' | 'image' | 'image-label';
+type RackView = "front" | "rear";
+type DeviceFace = "front" | "rear" | "both";
+type DisplayMode = "label" | "image" | "image-label";
 
 // Device categories (12 types)
 type DeviceCategory =
-	| 'server'
-	| 'network'
-	| 'patch-panel'
-	| 'power'
-	| 'storage'
-	| 'kvm'
-	| 'av-media'
-	| 'cooling'
-	| 'shelf'
-	| 'blank'
-	| 'cable-management'
-	| 'other';
+  | "server"
+  | "network"
+  | "patch-panel"
+  | "power"
+  | "storage"
+  | "kvm"
+  | "av-media"
+  | "cooling"
+  | "shelf"
+  | "blank"
+  | "cable-management"
+  | "other";
 
 // Airflow directions (7 types, NetBox-compatible)
 type Airflow =
-	| 'passive'
-	| 'front-to-rear'
-	| 'rear-to-front'
-	| 'left-to-right'
-	| 'right-to-left'
-	| 'side-to-rear'
-	| 'mixed';
+  | "passive"
+  | "front-to-rear"
+  | "rear-to-front"
+  | "left-to-right"
+  | "right-to-left"
+  | "side-to-rear"
+  | "mixed";
 
 // Rack form factors (NetBox-compatible)
-type FormFactor = '2-post' | '4-post' | '4-post-cabinet' | 'wall-mount' | 'open-frame';
+type FormFactor =
+  | "2-post"
+  | "4-post"
+  | "4-post-cabinet"
+  | "wall-mount"
+  | "open-frame";
 
 // Weight units (NetBox-compatible)
-type WeightUnit = 'kg' | 'lb';
+type WeightUnit = "kg" | "lb";
 ```
 
 ### 3.2 DeviceType (Library Item)
@@ -124,45 +129,45 @@ type WeightUnit = 'kg' | 'lb';
 
 ```typescript
 interface DeviceType {
-	// Core Identity
-	slug: string; // Unique identifier (e.g., 'dell-r650')
-	manufacturer?: string;
-	model?: string; // Display name
-	part_number?: string;
+  // Core Identity
+  slug: string; // Unique identifier (e.g., 'dell-r650')
+  manufacturer?: string;
+  model?: string; // Display name
+  part_number?: string;
 
-	// Physical Properties
-	u_height: number; // 0.5-42U (supports half-U)
-	is_full_depth?: boolean; // Default: true
-	is_powered?: boolean;
-	weight?: number;
-	weight_unit?: WeightUnit;
-	airflow?: Airflow;
+  // Physical Properties
+  u_height: number; // 0.5-42U (supports half-U)
+  is_full_depth?: boolean; // Default: true
+  is_powered?: boolean;
+  weight?: number;
+  weight_unit?: WeightUnit;
+  airflow?: Airflow;
 
-	// Image Flags
-	front_image?: boolean;
-	rear_image?: boolean;
+  // Image Flags
+  front_image?: boolean;
+  rear_image?: boolean;
 
-	// Rackula Fields (flat, not nested)
-	colour: string; // Hex (#RRGGBB)
-	category: DeviceCategory;
-	tags?: string[];
+  // Rackula Fields (flat, not nested)
+  colour: string; // Hex (#RRGGBB)
+  category: DeviceCategory;
+  tags?: string[];
 
-	// Extension Fields
-	notes?: string;
-	serial_number?: string;
-	asset_tag?: string;
-	links?: DeviceLink[];
-	custom_fields?: Record<string, unknown>;
+  // Extension Fields
+  notes?: string;
+  serial_number?: string;
+  asset_tag?: string;
+  links?: DeviceLink[];
+  custom_fields?: Record<string, unknown>;
 
-	// Component Arrays (schema-only, future features)
-	interfaces?: Interface[];
-	power_ports?: PowerPort[];
-	power_outlets?: PowerOutlet[];
-	device_bays?: DeviceBay[];
-	inventory_items?: InventoryItem[];
+  // Component Arrays (schema-only, future features)
+  interfaces?: Interface[];
+  power_ports?: PowerPort[];
+  power_outlets?: PowerOutlet[];
+  device_bays?: DeviceBay[];
+  inventory_items?: InventoryItem[];
 
-	// Power Device Properties
-	va_rating?: number; // VA capacity (e.g., 1500, 3000)
+  // Power Device Properties
+  va_rating?: number; // VA capacity (e.g., 1500, 3000)
 }
 ```
 
@@ -170,13 +175,13 @@ interface DeviceType {
 
 ```typescript
 interface PlacedDevice {
-	id: string; // UUID for stable reference
-	device_type: string; // Reference to DeviceType.slug
-	position: number; // Bottom U position (1-indexed)
-	face: DeviceFace;
-	name?: string; // Custom instance name
-	notes?: string;
-	custom_fields?: Record<string, unknown>;
+  id: string; // UUID for stable reference
+  device_type: string; // Reference to DeviceType.slug
+  position: number; // Bottom U position (1-indexed)
+  face: DeviceFace;
+  name?: string; // Custom instance name
+  notes?: string;
+  custom_fields?: Record<string, unknown>;
 }
 ```
 
@@ -186,16 +191,16 @@ interface PlacedDevice {
 
 ```typescript
 interface Rack {
-	id?: string; // Unique identifier (for multi-rack support)
-	name: string;
-	height: number; // 1-100U (common: 12, 18, 24, 42)
-	width: 10 | 19 | 23; // Rack width in inches
-	position: number; // Order index
-	devices: PlacedDevice[];
-	form_factor: FormFactor; // Default: '4-post-cabinet'
-	desc_units: boolean; // U1 at top if true (default: false)
-	starting_unit: number; // Default: 1
-	notes?: string;
+  id?: string; // Unique identifier (for multi-rack support)
+  name: string;
+  height: number; // 1-100U (common: 12, 18, 24, 42)
+  width: 10 | 19 | 23; // Rack width in inches
+  position: number; // Order index
+  devices: PlacedDevice[];
+  form_factor: FormFactor; // Default: '4-post-cabinet'
+  desc_units: boolean; // U1 at top if true (default: false)
+  starting_unit: number; // Default: 1
+  notes?: string;
 }
 ```
 
@@ -205,20 +210,20 @@ interface Rack {
 
 ```typescript
 interface Layout {
-	version: string; // Schema version (e.g., "0.1.0")
-	name: string;
-	created: string; // ISO 8601
-	modified: string; // ISO 8601
-	settings: LayoutSettings;
-	device_types: DeviceType[]; // Device type library
-	rack: Rack; // Single rack
+  version: string; // Schema version (e.g., "0.1.0")
+  name: string;
+  created: string; // ISO 8601
+  modified: string; // ISO 8601
+  settings: LayoutSettings;
+  device_types: DeviceType[]; // Device type library
+  rack: Rack; // Single rack
 }
 
 interface LayoutSettings {
-	theme: 'dark' | 'light';
-	view?: RackView;
-	displayMode?: DisplayMode;
-	showLabelsOnImages?: boolean;
+  theme: "dark" | "light";
+  view?: RackView;
+  displayMode?: DisplayMode;
+  showLabelsOnImages?: boolean;
 }
 ```
 
@@ -237,25 +242,31 @@ interface LayoutSettings {
 
 ### 3.7 Collision Detection
 
-Two devices collide if **both** conditions are true:
+Two devices collide if **all** conditions are true:
 
 1. Their U ranges overlap (`position` to `position + u_height - 1`)
-2. Their faces collide (based on depth rules below)
+2. Their faces collide (see rules below)
+3. Their slot positions overlap (left/right/full)
 
-**Face Collision Rules:**
+**Face Collision Rules (Face-Authoritative Model):**
 
-| Face A | Face B | Either Full-Depth? | Collision? |
-| ------ | ------ | ------------------ | ---------- |
-| front  | front  | any                | YES        |
-| rear   | rear   | any                | YES        |
-| both   | any    | any                | YES        |
-| front  | rear   | YES                | YES        |
-| front  | rear   | NO (both half)     | NO         |
+The `face` property is the single source of truth for collision detection:
 
-**Defaults:**
+| Face A | Face B | Collision? |
+| ------ | ------ | ---------- |
+| both   | any    | YES        |
+| front  | front  | YES        |
+| rear   | rear   | YES        |
+| front  | rear   | NO         |
 
-- `is_full_depth` defaults to `true` when not specified
-- Half-depth devices (blanks, shelves, patch panels, cable management) are explicitly marked `is_full_depth: false`
+**Key Principle:** If a device's `face` is explicitly set to `front` or `rear`, it only blocks that face - regardless of the device type's `is_full_depth` property.
+
+**Role of `is_full_depth`:**
+
+- Determines the DEFAULT face when placing a device
+- Full-depth devices (`is_full_depth: true` or not specified) default to `face: "both"`
+- Half-depth devices (`is_full_depth: false`) default to `face: "front"`
+- Users can override face via EditPanel; the override takes precedence for collision detection
 
 **Half-Depth Devices in Starter Library:**
 
@@ -266,18 +277,18 @@ Two devices collide if **both** conditions are true:
 | Patch Panel      | 24-Port Patch Panel, 48-Port Patch Panel |
 | Cable Management | 1U Brush Panel, 1U Cable Management      |
 
-This allows placing a rear half-depth device at the same U position as a front half-depth device (useful for blanks and cable management).
+This allows placing a rear device at the same U position as a front device (useful for blanks, cable management, and when explicitly configuring device faces).
 
 **Interaction Consistency:**
 
 Both drag-and-drop and keyboard movement use face-aware validation:
 
-| Operation       | Validation Parameters                                        |
-| --------------- | ------------------------------------------------------------ |
-| Drag-and-drop   | Target face from `faceFilter` prop, depth from `is_full_depth` |
-| Keyboard (↑/↓)  | Face from `placedDevice.face`, depth from device type         |
+| Operation      | Validation Parameters              |
+| -------------- | ---------------------------------- |
+| Drag-and-drop  | Target face from `faceFilter` prop |
+| Keyboard (↑/↓) | Face from `placedDevice.face`      |
 
-The `getDropFeedback()` function passes `targetFace` and `isFullDepth` to `canPlaceDevice()`, ensuring drag-and-drop preview feedback (valid/blocked) matches actual placement behavior.
+The `getDropFeedback()` function passes `targetFace` to `canPlaceDevice()`, ensuring drag-and-drop preview feedback (valid/blocked) matches actual placement behavior.
 
 ---
 
@@ -311,35 +322,35 @@ my-rack.Rackula.zip
 ### 4.2 YAML Schema
 
 ```yaml
-version: '0.1.0'
-name: 'My Homelab Rack'
+version: "0.1.0"
+name: "My Homelab Rack"
 rack:
-  name: 'Primary Rack'
+  name: "Primary Rack"
   height: 42
   width: 19
   position: 0
-  view: 'front'
+  view: "front"
   desc_units: false
-  form_factor: '4-post-cabinet'
+  form_factor: "4-post-cabinet"
   starting_unit: 1
   devices:
-    - id: '550e8400-e29b-41d4-a716-446655440000'
-      device_type: 'dell-r650'
+    - id: "550e8400-e29b-41d4-a716-446655440000"
+      device_type: "dell-r650"
       position: 40
-      face: 'front'
-      name: 'Web Server 1'
+      face: "front"
+      name: "Web Server 1"
 device_types:
-  - slug: 'dell-r650'
+  - slug: "dell-r650"
     u_height: 1
-    manufacturer: 'Dell'
-    model: 'PowerEdge R650'
+    manufacturer: "Dell"
+    model: "PowerEdge R650"
     is_full_depth: true
-    airflow: 'front-to-rear'
+    airflow: "front-to-rear"
     Rackula:
-      colour: '#4A90D9'
-      category: 'server'
+      colour: "#4A90D9"
+      category: "server"
 settings:
-  display_mode: 'label'
+  display_mode: "label"
   show_labels_on_images: false
 ```
 
@@ -458,8 +469,8 @@ undo(), redo(), reset()
 
 ```typescript
 // State
-theme: 'dark' | 'light';
-displayMode: 'label' | 'image';
+theme: "dark" | "light";
+displayMode: "label" | "image";
 showLabelsOnImages: boolean;
 airflowMode: boolean;
 
@@ -643,11 +654,11 @@ Automatic session persistence using localStorage enables users to resume work af
 
 **Auto-Restore Priority (on mount):**
 
-| Priority | Source                 | Behavior                                     |
-| -------- | ---------------------- | -------------------------------------------- |
-| 1        | Share link (`?l=...`)  | Highest priority, skips autosave check       |
-| 2        | localStorage autosave  | Restores if present, marks layout as dirty   |
-| 3        | Empty state            | Shows NewRackForm dialog if no rack          |
+| Priority | Source                | Behavior                                   |
+| -------- | --------------------- | ------------------------------------------ |
+| 1        | Share link (`?l=...`) | Highest priority, skips autosave check     |
+| 2        | localStorage autosave | Restores if present, marks layout as dirty |
+| 3        | Empty state           | Shows NewRackForm dialog if no rack        |
 
 **Auto-Clear Behavior:**
 
@@ -704,9 +715,9 @@ When `rackCount === 0` (no rack exists), the app guides users to create their fi
 ```typescript
 // App.svelte - Auto-open new rack dialog on mount
 onMount(() => {
-	if (layoutStore.rackCount === 0) {
-		newRackFormOpen = true;
-	}
+  if (layoutStore.rackCount === 0) {
+    newRackFormOpen = true;
+  }
 });
 ```
 
@@ -773,14 +784,14 @@ Position,Name,Model,Manufacturer,U_Height,Category,Face
 
 ```typescript
 interface ExportOptions {
-	format: 'png' | 'jpeg' | 'svg' | 'pdf' | 'csv';
-	scope: 'all' | 'selected';
-	background: 'dark' | 'light' | 'transparent';
-	exportView: 'front' | 'rear' | 'both';
-	displayMode: 'label' | 'image';
-	airflowMode: boolean;
-	includeNames: boolean;
-	includeLegend: boolean;
+  format: "png" | "jpeg" | "svg" | "pdf" | "csv";
+  scope: "all" | "selected";
+  background: "dark" | "light" | "transparent";
+  exportView: "front" | "rear" | "both";
+  displayMode: "label" | "image";
+  airflowMode: boolean;
+  includeNames: boolean;
+  includeLegend: boolean;
 }
 ```
 
@@ -957,30 +968,30 @@ The starter library is defined in `src/lib/data/starterLibrary.ts`:
 
 ```typescript
 interface StarterDeviceSpec {
-	name: string;
-	u_height: number;
-	category: DeviceCategory;
-	is_full_depth?: boolean; // Default: true; false for half-depth devices
+  name: string;
+  u_height: number;
+  category: DeviceCategory;
+  is_full_depth?: boolean; // Default: true; false for half-depth devices
 }
 
 const STARTER_DEVICES: StarterDeviceSpec[] = [
-	{ name: '1U Server', u_height: 1, category: 'server' },
-	{ name: '24-Port Switch', u_height: 1, category: 'network' },
-	{ name: '1U Blank', u_height: 1, category: 'blank', is_full_depth: false }
-	// ... etc
+  { name: "1U Server", u_height: 1, category: "server" },
+  { name: "24-Port Switch", u_height: 1, category: "network" },
+  { name: "1U Blank", u_height: 1, category: "blank", is_full_depth: false },
+  // ... etc
 ];
 
 export function getStarterLibrary(): DeviceType[] {
-	return STARTER_DEVICES.map((spec) => ({
-		slug: slugify(spec.name),
-		u_height: spec.u_height,
-		model: spec.name,
-		is_full_depth: spec.is_full_depth, // undefined = true default
-		Rackula: {
-			colour: CATEGORY_COLOURS[spec.category],
-			category: spec.category
-		}
-	}));
+  return STARTER_DEVICES.map((spec) => ({
+    slug: slugify(spec.name),
+    u_height: spec.u_height,
+    model: spec.name,
+    is_full_depth: spec.is_full_depth, // undefined = true default
+    Rackula: {
+      colour: CATEGORY_COLOURS[spec.category],
+      category: spec.category,
+    },
+  }));
 }
 ```
 
@@ -1123,9 +1134,9 @@ The palette merges all sources for display:
 ```typescript
 // Display priority (user sees all available devices)
 allGenericDevices = [
-	...starterLibrary.filter((d) => !placedSlugs.has(d.slug)), // Starter (not yet placed)
-	...layoutDeviceTypes.filter((d) => starterSlugs.has(d.slug)), // Placed starter devices
-	...layoutDeviceTypes.filter((d) => !starterSlugs.has(d.slug)) // Custom devices
+  ...starterLibrary.filter((d) => !placedSlugs.has(d.slug)), // Starter (not yet placed)
+  ...layoutDeviceTypes.filter((d) => starterSlugs.has(d.slug)), // Placed starter devices
+  ...layoutDeviceTypes.filter((d) => !starterSlugs.has(d.slug)), // Custom devices
 ];
 ```
 
@@ -1170,10 +1181,10 @@ npm run check        # Svelte type check
 
 ### 13.1 Environments
 
-| Environment | URL           | Trigger        | Platform     |
-| ----------- | ------------- | -------------- | ------------ |
-| Dev         | dev.racku.la  | Push to `main` | GitHub Pages |
-| Production  | app.racku.la  | Git tag `v*`   | VPS (Docker) |
+| Environment | URL          | Trigger        | Platform     |
+| ----------- | ------------ | -------------- | ------------ |
+| Dev         | dev.racku.la | Push to `main` | GitHub Pages |
+| Production  | app.racku.la | Git tag `v*`   | VPS (Docker) |
 
 ### 13.2 Security Headers
 
@@ -1324,22 +1335,22 @@ const placementImages = new SvelteMap<string, DeviceImageData>(); // key: placem
 
 // Combined lookup with fallback
 function getImageForPlacement(
-	slug: string,
-	placementId: string,
-	face: 'front' | 'rear'
+  slug: string,
+  placementId: string,
+  face: "front" | "rear",
 ): ImageData | undefined {
-	// 1. Check placement override
-	const override = placementImages.get(placementId)?.[face];
-	if (override) return override;
+  // 1. Check placement override
+  const override = placementImages.get(placementId)?.[face];
+  if (override) return override;
 
-	// 2. Fall back to device type default
-	const typeDefault = deviceTypeImages.get(slug)?.[face];
-	if (typeDefault) return typeDefault;
+  // 2. Fall back to device type default
+  const typeDefault = deviceTypeImages.get(slug)?.[face];
+  if (typeDefault) return typeDefault;
 
-	// 3. Check bundled images (loaded at app init)
-	// (already in deviceTypeImages from loadBundledImages())
+  // 3. Check bundled images (loaded at app init)
+  // (already in deviceTypeImages from loadBundledImages())
 
-	return undefined; // Colored rectangle fallback
+  return undefined; // Colored rectangle fallback
 }
 ```
 
@@ -1422,27 +1433,27 @@ Debug logging uses a centralized logger utility:
 
 ```typescript
 // src/lib/utils/debug.ts
-const PREFIX = 'Rackula';
+const PREFIX = "Rackula";
 
 export const debug = {
-	log(...args: unknown[]) {
-		if (isDebugEnabled()) {
-			console.log(`[${PREFIX}:debug]`, ...args);
-		}
-	},
+  log(...args: unknown[]) {
+    if (isDebugEnabled()) {
+      console.log(`[${PREFIX}:debug]`, ...args);
+    }
+  },
 
-	info(...args: unknown[]) {
-		if (isDebugEnabled()) {
-			console.log(`[${PREFIX}]`, ...args);
-		}
-	},
+  info(...args: unknown[]) {
+    if (isDebugEnabled()) {
+      console.log(`[${PREFIX}]`, ...args);
+    }
+  },
 
-	devicePlace(data: PlaceLogData) {
-		if (isDebugEnabled()) {
-			console.log(`[${PREFIX}:device:place]`, formatPlaceLog(data));
-		}
-	}
-	// ... other category methods
+  devicePlace(data: PlaceLogData) {
+    if (isDebugEnabled()) {
+      console.log(`[${PREFIX}:device:place]`, formatPlaceLog(data));
+    }
+  },
+  // ... other category methods
 };
 ```
 
@@ -1507,54 +1518,54 @@ A sharp-cornered rectangle containing three equal-height horizontal slots as neg
 
 ```css
 :root {
-	/* Backgrounds */
-	--dracula-bg-darkest: #191a21; /* Deepest background */
-	--dracula-bg-darker: #21222c; /* Page background */
-	--dracula-bg: #282a36; /* Card/panel background */
-	--dracula-bg-light: #343746; /* Elevated surfaces */
-	--dracula-bg-lighter: #424450; /* Hover states */
-	--dracula-selection: #44475a; /* Selection highlight */
+  /* Backgrounds */
+  --dracula-bg-darkest: #191a21; /* Deepest background */
+  --dracula-bg-darker: #21222c; /* Page background */
+  --dracula-bg: #282a36; /* Card/panel background */
+  --dracula-bg-light: #343746; /* Elevated surfaces */
+  --dracula-bg-lighter: #424450; /* Hover states */
+  --dracula-selection: #44475a; /* Selection highlight */
 
-	/* Text */
-	--dracula-foreground: #f8f8f2; /* Primary text */
-	--dracula-comment: #6272a4; /* Muted/secondary text */
+  /* Text */
+  --dracula-foreground: #f8f8f2; /* Primary text */
+  --dracula-comment: #6272a4; /* Muted/secondary text */
 
-	/* Accent Colours */
-	--dracula-purple: #bd93f9; /* Primary brand, links */
-	--dracula-pink: #ff79c6; /* Secondary accent */
-	--dracula-cyan: #8be9fd; /* Interactive elements, CTAs */
-	--dracula-green: #50fa7b; /* Success, valid states */
-	--dracula-orange: #ffb86c; /* Warnings */
-	--dracula-red: #ff5555; /* Errors, destructive */
-	--dracula-yellow: #f1fa8c; /* Highlights, caution */
+  /* Accent Colours */
+  --dracula-purple: #bd93f9; /* Primary brand, links */
+  --dracula-pink: #ff79c6; /* Secondary accent */
+  --dracula-cyan: #8be9fd; /* Interactive elements, CTAs */
+  --dracula-green: #50fa7b; /* Success, valid states */
+  --dracula-orange: #ffb86c; /* Warnings */
+  --dracula-red: #ff5555; /* Errors, destructive */
+  --dracula-yellow: #f1fa8c; /* Highlights, caution */
 }
 ```
 
 #### 19.3.2 Alucard Theme (Light) — Primitives
 
 ```css
-:root[data-theme='light'] {
-	/* Backgrounds — warm cream tones */
-	--alucard-bg-darkest: #bcbab3; /* Deepest (inverted from dark) */
-	--alucard-bg-darker: #ceccc0; /* Page background */
-	--alucard-bg: #fffbeb; /* Card/panel background — main */
-	--alucard-bg-light: #dedccf; /* Elevated surfaces */
-	--alucard-bg-lighter: #ece9df; /* Hover states */
-	--alucard-selection: #cfcfde; /* Selection highlight */
-	--alucard-floating: #efeddc; /* Floating interactive elements */
+:root[data-theme="light"] {
+  /* Backgrounds — warm cream tones */
+  --alucard-bg-darkest: #bcbab3; /* Deepest (inverted from dark) */
+  --alucard-bg-darker: #ceccc0; /* Page background */
+  --alucard-bg: #fffbeb; /* Card/panel background — main */
+  --alucard-bg-light: #dedccf; /* Elevated surfaces */
+  --alucard-bg-lighter: #ece9df; /* Hover states */
+  --alucard-selection: #cfcfde; /* Selection highlight */
+  --alucard-floating: #efeddc; /* Floating interactive elements */
 
-	/* Text */
-	--alucard-foreground: #1f1f1f; /* Primary text — near black */
-	--alucard-comment: #6c664b; /* Muted/secondary text — warm grey */
+  /* Text */
+  --alucard-foreground: #1f1f1f; /* Primary text — near black */
+  --alucard-comment: #6c664b; /* Muted/secondary text — warm grey */
 
-	/* Accent Colours — darker for light background contrast */
-	--alucard-purple: #644ac9; /* Primary brand, links */
-	--alucard-pink: #a3144d; /* Secondary accent */
-	--alucard-cyan: #036a96; /* Interactive elements, CTAs */
-	--alucard-green: #14710a; /* Success, valid states */
-	--alucard-orange: #a34d14; /* Warnings */
-	--alucard-red: #cb3a2a; /* Errors, destructive */
-	--alucard-yellow: #846e15; /* Highlights, caution */
+  /* Accent Colours — darker for light background contrast */
+  --alucard-purple: #644ac9; /* Primary brand, links */
+  --alucard-pink: #a3144d; /* Secondary accent */
+  --alucard-cyan: #036a96; /* Interactive elements, CTAs */
+  --alucard-green: #14710a; /* Success, valid states */
+  --alucard-orange: #a34d14; /* Warnings */
+  --alucard-red: #cb3a2a; /* Errors, destructive */
+  --alucard-yellow: #846e15; /* Highlights, caution */
 }
 ```
 
@@ -1585,40 +1596,40 @@ Semantic tokens map primitives to UI purposes:
 
 ```css
 :root {
-	/* Brand */
-	--colour-brand-primary: var(--dracula-purple);
-	--colour-brand-secondary: var(--dracula-pink);
-	--colour-brand-accent: var(--dracula-cyan);
+  /* Brand */
+  --colour-brand-primary: var(--dracula-purple);
+  --colour-brand-secondary: var(--dracula-pink);
+  --colour-brand-accent: var(--dracula-cyan);
 
-	/* Backgrounds */
-	--colour-bg: var(--dracula-bg);
-	--colour-bg-darker: var(--dracula-bg-darker);
-	--colour-surface: var(--dracula-bg-light);
-	--colour-surface-hover: var(--dracula-bg-lighter);
+  /* Backgrounds */
+  --colour-bg: var(--dracula-bg);
+  --colour-bg-darker: var(--dracula-bg-darker);
+  --colour-surface: var(--dracula-bg-light);
+  --colour-surface-hover: var(--dracula-bg-lighter);
 
-	/* Text */
-	--colour-text: var(--dracula-foreground);
-	--colour-text-muted: var(--dracula-comment);
+  /* Text */
+  --colour-text: var(--dracula-foreground);
+  --colour-text-muted: var(--dracula-comment);
 
-	/* Interactive */
-	--colour-interactive: var(--dracula-cyan);
-	--colour-interactive-hover: var(--dracula-purple);
-	--colour-link: var(--dracula-cyan);
-	--colour-link-hover: var(--dracula-purple);
-	--colour-selection: var(--dracula-selection);
-	--colour-focus-ring: var(--dracula-purple);
+  /* Interactive */
+  --colour-interactive: var(--dracula-cyan);
+  --colour-interactive-hover: var(--dracula-purple);
+  --colour-link: var(--dracula-cyan);
+  --colour-link-hover: var(--dracula-purple);
+  --colour-selection: var(--dracula-selection);
+  --colour-focus-ring: var(--dracula-purple);
 
-	/* Feedback */
-	--colour-success: var(--dracula-green);
-	--colour-warning: var(--dracula-orange);
-	--colour-error: var(--dracula-red);
-	--colour-info: var(--dracula-cyan);
+  /* Feedback */
+  --colour-success: var(--dracula-green);
+  --colour-warning: var(--dracula-orange);
+  --colour-error: var(--dracula-red);
+  --colour-info: var(--dracula-cyan);
 
-	/* Borders */
-	--colour-border: var(--dracula-selection);
-	--colour-border-hover: var(--dracula-comment);
-	--colour-border-focus: var(--dracula-purple);
-	--colour-border-error: var(--dracula-red);
+  /* Borders */
+  --colour-border: var(--dracula-selection);
+  --colour-border-hover: var(--dracula-comment);
+  --colour-border-focus: var(--dracula-purple);
+  --colour-border-error: var(--dracula-red);
 }
 ```
 
@@ -1641,11 +1652,11 @@ See Section 15.2 for airflow visualisation colours. Summary:
 
 ```css
 :root {
-	/* Monospace — code, UI chrome, headings */
-	--font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  /* Monospace — code, UI chrome, headings */
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
 
-	/* Sans — body text, descriptions */
-	--font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Sans — body text, descriptions */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 ```
 
@@ -1653,14 +1664,14 @@ See Section 15.2 for airflow visualisation colours. Summary:
 
 ```css
 :root {
-	--text-xs: 0.75rem; /* 12px — captions, labels */
-	--text-sm: 0.875rem; /* 14px — secondary text */
-	--text-base: 1rem; /* 16px — body */
-	--text-lg: 1.125rem; /* 18px — lead text */
-	--text-xl: 1.25rem; /* 20px — section headers */
-	--text-2xl: 1.5rem; /* 24px — page headers */
-	--text-3xl: 2rem; /* 32px — hero text */
-	--text-4xl: 3rem; /* 48px — marketing hero */
+  --text-xs: 0.75rem; /* 12px — captions, labels */
+  --text-sm: 0.875rem; /* 14px — secondary text */
+  --text-base: 1rem; /* 16px — body */
+  --text-lg: 1.125rem; /* 18px — lead text */
+  --text-xl: 1.25rem; /* 20px — section headers */
+  --text-2xl: 1.5rem; /* 24px — page headers */
+  --text-3xl: 2rem; /* 32px — hero text */
+  --text-4xl: 3rem; /* 48px — marketing hero */
 }
 ```
 
@@ -1668,10 +1679,10 @@ See Section 15.2 for airflow visualisation colours. Summary:
 
 ```css
 :root {
-	--font-normal: 400;
-	--font-medium: 500;
-	--font-semibold: 600;
-	--font-bold: 700;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
 }
 ```
 
@@ -1693,18 +1704,18 @@ Base unit: 4px. All spacing derives from this unit.
 
 ```css
 :root {
-	--space-unit: 0.25rem; /* 4px base unit */
+  --space-unit: 0.25rem; /* 4px base unit */
 
-	--space-1: calc(var(--space-unit) * 1); /* 4px */
-	--space-2: calc(var(--space-unit) * 2); /* 8px */
-	--space-3: calc(var(--space-unit) * 3); /* 12px */
-	--space-4: calc(var(--space-unit) * 4); /* 16px */
-	--space-5: calc(var(--space-unit) * 5); /* 20px */
-	--space-6: calc(var(--space-unit) * 6); /* 24px */
-	--space-8: calc(var(--space-unit) * 8); /* 32px */
-	--space-10: calc(var(--space-unit) * 10); /* 40px */
-	--space-12: calc(var(--space-unit) * 12); /* 48px */
-	--space-16: calc(var(--space-unit) * 16); /* 64px */
+  --space-1: calc(var(--space-unit) * 1); /* 4px */
+  --space-2: calc(var(--space-unit) * 2); /* 8px */
+  --space-3: calc(var(--space-unit) * 3); /* 12px */
+  --space-4: calc(var(--space-unit) * 4); /* 16px */
+  --space-5: calc(var(--space-unit) * 5); /* 20px */
+  --space-6: calc(var(--space-unit) * 6); /* 24px */
+  --space-8: calc(var(--space-unit) * 8); /* 32px */
+  --space-10: calc(var(--space-unit) * 10); /* 40px */
+  --space-12: calc(var(--space-unit) * 12); /* 48px */
+  --space-16: calc(var(--space-unit) * 16); /* 64px */
 }
 ```
 
@@ -1712,23 +1723,23 @@ Base unit: 4px. All spacing derives from this unit.
 
 ```css
 :root {
-	/* Component internal padding */
-	--padding-xs: var(--space-1);
-	--padding-sm: var(--space-2);
-	--padding-md: var(--space-4);
-	--padding-lg: var(--space-6);
-	--padding-xl: var(--space-8);
+  /* Component internal padding */
+  --padding-xs: var(--space-1);
+  --padding-sm: var(--space-2);
+  --padding-md: var(--space-4);
+  --padding-lg: var(--space-6);
+  --padding-xl: var(--space-8);
 
-	/* Gaps between elements */
-	--gap-xs: var(--space-1);
-	--gap-sm: var(--space-2);
-	--gap-md: var(--space-4);
-	--gap-lg: var(--space-6);
-	--gap-xl: var(--space-8);
+  /* Gaps between elements */
+  --gap-xs: var(--space-1);
+  --gap-sm: var(--space-2);
+  --gap-md: var(--space-4);
+  --gap-lg: var(--space-6);
+  --gap-xl: var(--space-8);
 
-	/* Section margins */
-	--section-gap: var(--space-12);
-	--page-margin: var(--space-6);
+  /* Section margins */
+  --section-gap: var(--space-12);
+  --page-margin: var(--space-6);
 }
 ```
 
@@ -1738,9 +1749,9 @@ Base unit: 4px. All spacing derives from this unit.
 
 ```css
 :root {
-	--border-thin: 1px;
-	--border-medium: 2px;
-	--border-thick: 3px;
+  --border-thin: 1px;
+  --border-medium: 2px;
+  --border-thick: 3px;
 }
 ```
 
@@ -1748,12 +1759,12 @@ Base unit: 4px. All spacing derives from this unit.
 
 ```css
 :root {
-	--radius-none: 0;
-	--radius-sm: 4px;
-	--radius-md: 6px;
-	--radius-lg: 8px;
-	--radius-xl: 12px;
-	--radius-full: 9999px;
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
 }
 ```
 
@@ -1772,17 +1783,17 @@ Base unit: 4px. All spacing derives from this unit.
 
 ```css
 :root {
-	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-	--shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
-	--shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
-	--shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.4);
 }
 
-:root[data-theme='light'] {
-	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
-	--shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-	--shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-	--shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.12);
+:root[data-theme="light"] {
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.12);
 }
 ```
 
@@ -1790,31 +1801,31 @@ Base unit: 4px. All spacing derives from this unit.
 
 ```css
 :root {
-	/* Cyan glow for interactive elements */
-	--glow-sm: 0 0 12px rgba(139, 233, 253, 0.3);
-	--glow-md: 0 0 20px rgba(139, 233, 253, 0.3);
-	--glow-lg: 0 0 30px rgba(139, 233, 253, 0.3);
+  /* Cyan glow for interactive elements */
+  --glow-sm: 0 0 12px rgba(139, 233, 253, 0.3);
+  --glow-md: 0 0 20px rgba(139, 233, 253, 0.3);
+  --glow-lg: 0 0 30px rgba(139, 233, 253, 0.3);
 
-	/* Purple glow for focus/selection */
-	--glow-purple-sm: 0 0 12px rgba(189, 147, 249, 0.3);
-	--glow-purple-md: 0 0 20px rgba(189, 147, 249, 0.3);
-	--glow-purple-lg: 0 0 30px rgba(189, 147, 249, 0.3);
+  /* Purple glow for focus/selection */
+  --glow-purple-sm: 0 0 12px rgba(189, 147, 249, 0.3);
+  --glow-purple-md: 0 0 20px rgba(189, 147, 249, 0.3);
+  --glow-purple-lg: 0 0 30px rgba(189, 147, 249, 0.3);
 
-	/* Green glow for success states */
-	--glow-green-sm: 0 0 12px rgba(80, 250, 123, 0.3);
+  /* Green glow for success states */
+  --glow-green-sm: 0 0 12px rgba(80, 250, 123, 0.3);
 }
 
-:root[data-theme='light'] {
-	/* Softer glows for light backgrounds */
-	--glow-sm: 0 0 8px rgba(3, 106, 150, 0.2);
-	--glow-md: 0 0 16px rgba(3, 106, 150, 0.2);
-	--glow-lg: 0 0 24px rgba(3, 106, 150, 0.2);
+:root[data-theme="light"] {
+  /* Softer glows for light backgrounds */
+  --glow-sm: 0 0 8px rgba(3, 106, 150, 0.2);
+  --glow-md: 0 0 16px rgba(3, 106, 150, 0.2);
+  --glow-lg: 0 0 24px rgba(3, 106, 150, 0.2);
 
-	--glow-purple-sm: 0 0 8px rgba(100, 74, 201, 0.2);
-	--glow-purple-md: 0 0 16px rgba(100, 74, 201, 0.2);
-	--glow-purple-lg: 0 0 24px rgba(100, 74, 201, 0.2);
+  --glow-purple-sm: 0 0 8px rgba(100, 74, 201, 0.2);
+  --glow-purple-md: 0 0 16px rgba(100, 74, 201, 0.2);
+  --glow-purple-lg: 0 0 24px rgba(100, 74, 201, 0.2);
 
-	--glow-green-sm: 0 0 8px rgba(20, 113, 10, 0.2);
+  --glow-green-sm: 0 0 8px rgba(20, 113, 10, 0.2);
 }
 ```
 
@@ -1822,7 +1833,7 @@ Base unit: 4px. All spacing derives from this unit.
 
 ```css
 :root {
-	--focus-ring: 0 0 0 2px var(--colour-bg), 0 0 0 4px var(--colour-focus-ring);
+  --focus-ring: 0 0 0 2px var(--colour-bg), 0 0 0 4px var(--colour-focus-ring);
 }
 ```
 
@@ -1832,15 +1843,15 @@ Base unit: 4px. All spacing derives from this unit.
 
 ```css
 :root {
-	--duration-fast: 150ms;
-	--duration-normal: 200ms;
-	--duration-slow: 300ms;
-	--duration-slower: 500ms;
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 500ms;
 
-	--ease-default: cubic-bezier(0.4, 0, 0.2, 1);
-	--ease-in: cubic-bezier(0.4, 0, 1, 1);
-	--ease-out: cubic-bezier(0, 0, 0.2, 1);
-	--ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 ```
 
@@ -1848,14 +1859,14 @@ Base unit: 4px. All spacing derives from this unit.
 
 ```css
 :root {
-	--transition-colours:
-		color var(--duration-fast) var(--ease-default),
-		background-color var(--duration-fast) var(--ease-default),
-		border-color var(--duration-fast) var(--ease-default);
+  --transition-colours:
+    color var(--duration-fast) var(--ease-default),
+    background-color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default);
 
-	--transition-transform: transform var(--duration-normal) var(--ease-default);
+  --transition-transform: transform var(--duration-normal) var(--ease-default);
 
-	--transition-all: all var(--duration-normal) var(--ease-default);
+  --transition-all: all var(--duration-normal) var(--ease-default);
 }
 ```
 
@@ -1864,23 +1875,23 @@ Base unit: 4px. All spacing derives from this unit.
 ```css
 /* Slot pulse — use for loading states */
 @keyframes slot-pulse {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.3;
-	}
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 /* Slot reveal — use for building/progress */
 @keyframes slot-reveal {
-	0% {
-		width: 0;
-	}
-	100% {
-		width: 12px;
-	}
+  0% {
+    width: 0;
+  }
+  100% {
+    width: 12px;
+  }
 }
 ```
 
@@ -1890,11 +1901,11 @@ For complex, celebratory, or loading animations:
 
 ```css
 :root {
-	--anim-rainbow: 6s; /* Rainbow wave celebration */
-	--anim-loading: 2s; /* Slot reveal loading cycle */
-	--anim-shimmer: 2s; /* Light sweep effect */
-	--anim-party: 0.5s; /* Party mode colour cycle */
-	--anim-party-duration: 5s; /* Total party mode time */
+  --anim-rainbow: 6s; /* Rainbow wave celebration */
+  --anim-loading: 2s; /* Slot reveal loading cycle */
+  --anim-shimmer: 2s; /* Light sweep effect */
+  --anim-party: 0.5s; /* Party mode colour cycle */
+  --anim-party-duration: 5s; /* Total party mode time */
 }
 ```
 
@@ -1934,19 +1945,19 @@ Success toasts include visual enhancements:
 
 ```css
 @keyframes success-glow {
-	0% {
-		box-shadow: 0 0 0 0 rgba(80, 250, 123, 0.4);
-	}
-	100% {
-		box-shadow: 0 0 0 8px transparent;
-	}
+  0% {
+    box-shadow: 0 0 0 0 rgba(80, 250, 123, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 8px transparent;
+  }
 }
 
 @keyframes slideOut {
-	to {
-		transform: translateX(100%);
-		opacity: 0;
-	}
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
 }
 ```
 
@@ -1963,9 +1974,9 @@ Visual feedback during device drag-and-drop operations:
 
 ```css
 .device-rect.dragging {
-	transform: scale(1.02);
-	filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-	transition: transform 0.1s ease-out;
+  transform: scale(1.02);
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  transition: transform 0.1s ease-out;
 }
 ```
 
@@ -1986,16 +1997,16 @@ Hidden feature activated by Konami code (↑↑↓↓←→←→BA):
 
 ```typescript
 const KONAMI = [
-	'ArrowUp',
-	'ArrowUp',
-	'ArrowDown',
-	'ArrowDown',
-	'ArrowLeft',
-	'ArrowRight',
-	'ArrowLeft',
-	'ArrowRight',
-	'KeyB',
-	'KeyA'
+  "ArrowUp",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowLeft",
+  "ArrowRight",
+  "KeyB",
+  "KeyA",
 ];
 ```
 
@@ -2014,9 +2025,9 @@ All interactive elements must have visible focus indicators:
 
 ```css
 :focus-visible {
-	outline: 2px solid var(--colour-focus-ring);
-	outline-offset: 2px;
-	box-shadow: var(--glow-purple-sm);
+  outline: 2px solid var(--colour-focus-ring);
+  outline-offset: 2px;
+  box-shadow: var(--glow-purple-sm);
 }
 ```
 
@@ -2033,13 +2044,13 @@ Respect user preference for reduced motion:
 
 ```css
 @media (prefers-reduced-motion: reduce) {
-	*,
-	*::before,
-	*::after {
-		animation-duration: 0.01ms !important;
-		animation-iteration-count: 1 !important;
-		transition-duration: 0.01ms !important;
-	}
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 ```
 
@@ -2107,19 +2118,19 @@ Self-hosted fonts for performance and privacy:
 
 ```css
 @font-face {
-	font-family: 'JetBrains Mono';
-	src: url('/fonts/JetBrainsMono-Regular.woff2') format('woff2');
-	font-weight: 400;
-	font-style: normal;
-	font-display: swap;
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-	font-family: 'Inter';
-	src: url('/fonts/Inter-Regular.woff2') format('woff2');
-	font-weight: 400;
-	font-style: normal;
-	font-display: swap;
+  font-family: "Inter";
+  src: url("/fonts/Inter-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 /* ... additional weights */
 ```
@@ -2160,13 +2171,13 @@ Analytics are configured via Vite environment variables:
 
 ```typescript
 // Initialize on app startup (main.ts)
-import { initAnalytics } from '$lib/utils/analytics';
+import { initAnalytics } from "$lib/utils/analytics";
 initAnalytics();
 
 // Track events from components
-import { analytics } from '$lib/utils/analytics';
+import { analytics } from "$lib/utils/analytics";
 analytics.trackSave(deviceCount);
-analytics.trackExportPDF('both');
+analytics.trackExportPDF("both");
 ```
 
 **Script injection:** `index.html` dynamically injects the Umami script when enabled, emitting `umami:loaded` custom event on load.

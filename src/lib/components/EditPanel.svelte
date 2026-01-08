@@ -439,7 +439,6 @@
     if (!selectedDeviceInfo) return;
 
     const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-    const isFullDepth = device.is_full_depth !== false;
 
     // Calculate new position
     let newPosition = placedDevice.position + direction * step;
@@ -451,6 +450,7 @@
     }
 
     // Check if new position is valid
+    // Face is authoritative: the device's face value determines blocking
     const isValid = canPlaceDevice(
       rack,
       layoutStore.device_types,
@@ -458,7 +458,6 @@
       newPosition,
       deviceIndex,
       placedDevice.face,
-      isFullDepth,
     );
 
     if (isValid) {
@@ -470,7 +469,6 @@
   const canMoveUp = $derived.by(() => {
     if (!selectedDeviceInfo) return false;
     const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-    const isFullDepth = device.is_full_depth !== false;
     const newPosition = placedDevice.position + 1;
     if (newPosition + device.u_height - 1 > rack.height) return false;
     return canPlaceDevice(
@@ -480,7 +478,6 @@
       newPosition,
       deviceIndex,
       placedDevice.face,
-      isFullDepth,
     );
   });
 
@@ -488,7 +485,6 @@
   const canMoveDown = $derived.by(() => {
     if (!selectedDeviceInfo) return false;
     const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-    const isFullDepth = device.is_full_depth !== false;
     const newPosition = placedDevice.position - 1;
     if (newPosition < 1) return false;
     return canPlaceDevice(
@@ -498,7 +494,6 @@
       newPosition,
       deviceIndex,
       placedDevice.face,
-      isFullDepth,
     );
   });
 
