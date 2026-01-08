@@ -61,8 +61,6 @@ Object.defineProperty(window, "matchMedia", {
 });
 
 // Global cleanup after each test to prevent memory accumulation
-// This unmounts all Svelte components rendered via @testing-library/svelte
-// Without this, components remain mounted and memory grows across 3,000+ tests
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
