@@ -48,6 +48,14 @@ export default defineConfig({
     globals: true,
     setupFiles: ["src/tests/setup.ts"],
     testTimeout: 10000, // 10 seconds per test (App tests are slow due to complex component tree)
+    // Use forks pool for memory isolation between test file batches
+    // Each fork is a separate process, so memory is fully released when recycled
+    pool: "forks",
+    poolOptions: {
+      forks: {
+        maxForks: 4,
+      },
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

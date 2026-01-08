@@ -3,5 +3,5 @@ npx lint-staged
 # Run tests only for files related to staged changes
 CHANGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|svelte)$' | tr '\n' ' ')
 if [ -n "$CHANGED" ]; then
-  npx vitest related $CHANGED --run --passWithNoTests --reporter=dot
+  NODE_OPTIONS=--max-old-space-size=8192 npx vitest related $CHANGED --run --passWithNoTests --reporter=dot
 fi
