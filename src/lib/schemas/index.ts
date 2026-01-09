@@ -591,7 +591,7 @@ const LayoutSchemaBase = z
       .string()
       .min(1, "Name is required")
       .max(100, "Name must be 100 characters or less"),
-    racks: z.array(RackSchema),
+    racks: z.array(RackSchema).min(1, "At least one rack is required"),
     rack_groups: z.array(RackGroupSchema).optional(),
     device_types: z.array(DeviceTypeSchema),
     settings: LayoutSettingsSchema,
@@ -602,9 +602,10 @@ const LayoutSchemaBase = z
   .passthrough();
 
 /**
- * Complete layout schema with slug uniqueness validation
+ * Complete layout schema with slug uniqueness and referential integrity validation
  */
 export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
+  // Validate device type slug uniqueness
   const duplicates = validateSlugUniqueness(data.device_types);
   if (duplicates.length > 0) {
     ctx.addIssue({
@@ -612,6 +613,26 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
       message: `Duplicate device type slugs: ${duplicates.join(", ")}`,
       path: ["device_types"],
     });
+  }
+
+  // Validate rack_groups reference existing racks
+  if (data.rack_groups && data.rack_groups.length > 0) {
+    const validRackIds = new Set(data.racks.map((r) => r.id));
+    for (
+      let groupIndex = 0;
+      groupIndex < data.rack_groups.length;
+      groupIndex++
+    ) {
+      const group = data.rack_groups[groupIndex]!;
+      const invalidIds = group.rack_ids.filter((id) => !validRackIds.has(id));
+      if (invalidIds.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Rack group "${group.name ?? group.id}" references non-existent rack IDs: ${invalidIds.join(", ")}`,
+          path: ["rack_groups", groupIndex, "rack_ids"],
+        });
+      }
+    }
   }
 });
 

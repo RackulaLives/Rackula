@@ -917,9 +917,15 @@ describe("LayoutSchema multi-rack support", () => {
       expect(LayoutSchema.safeParse(layout).success).toBe(true);
     });
 
-    it("accepts layout with empty racks array", () => {
+    it("rejects layout with empty racks array", () => {
       const layout = { ...validMultiRackLayout, racks: [] };
-      expect(LayoutSchema.safeParse(layout).success).toBe(true);
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toBe(
+          "At least one rack is required",
+        );
+      }
     });
 
     it("rejects layout with racks missing required id", () => {
@@ -961,6 +967,46 @@ describe("LayoutSchema multi-rack support", () => {
 
     it("accepts layout with empty rack_groups array", () => {
       const layout = { ...validMultiRackLayout, rack_groups: [] };
+      expect(LayoutSchema.safeParse(layout).success).toBe(true);
+    });
+
+    it("rejects rack_groups with non-existent rack_ids", () => {
+      const layout = {
+        ...validMultiRackLayout,
+        racks: [validRack],
+        rack_groups: [
+          {
+            id: "group-1",
+            name: "Invalid Group",
+            rack_ids: ["rack-1", "non-existent-rack"],
+          },
+        ],
+      };
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toContain(
+          "non-existent rack IDs",
+        );
+      }
+    });
+
+    it("accepts rack_groups with all valid rack_ids", () => {
+      const layout = {
+        ...validMultiRackLayout,
+        racks: [
+          validRack,
+          { ...validRack, id: "rack-2", name: "Rack 2", position: 1 },
+          { ...validRack, id: "rack-3", name: "Rack 3", position: 2 },
+        ],
+        rack_groups: [
+          {
+            id: "group-1",
+            name: "Valid Group",
+            rack_ids: ["rack-1", "rack-3"],
+          },
+        ],
+      };
       expect(LayoutSchema.safeParse(layout).success).toBe(true);
     });
   });

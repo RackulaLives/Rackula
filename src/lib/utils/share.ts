@@ -101,6 +101,7 @@ export function fromMinimalLayout(minimal: MinimalLayout): Layout {
         height: minimal.r.h,
         width: minimal.r.w,
         desc_units: false,
+        show_rear: true,
         form_factor: "4-post-cabinet",
         starting_unit: 1,
         position: 0,
