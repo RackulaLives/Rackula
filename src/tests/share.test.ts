@@ -20,16 +20,19 @@ describe("Share Utilities", () => {
   const createTestLayout = (): Layout => ({
     version: "1.0.0",
     name: "Test Layout",
-    rack: {
-      name: "Main Rack",
-      height: 42,
-      width: 19,
-      desc_units: false,
-      form_factor: "4-post-cabinet",
-      starting_unit: 1,
-      position: 0,
-      devices: [],
-    },
+    racks: [
+      {
+        id: "rack-1",
+        name: "Main Rack",
+        height: 42,
+        width: 19,
+        desc_units: false,
+        form_factor: "4-post-cabinet",
+        starting_unit: 1,
+        position: 0,
+        devices: [],
+      },
+    ],
     device_types: [],
     settings: {
       display_mode: "label",
@@ -83,7 +86,7 @@ describe("Share Utilities", () => {
           category: "other",
         },
       ];
-      layout.rack.devices = [
+      layout.racks[0].devices = [
         {
           id: "device-1",
           device_type: "used-server",
@@ -108,7 +111,7 @@ describe("Share Utilities", () => {
           category: "server",
         },
       ];
-      layout.rack.devices = [
+      layout.racks[0].devices = [
         {
           id: "device-1",
           device_type: "test-server",
@@ -132,7 +135,7 @@ describe("Share Utilities", () => {
           category: "server",
         },
       ];
-      layout.rack.devices = [
+      layout.racks[0].devices = [
         {
           id: "device-1",
           device_type: "minimal-device",
@@ -158,7 +161,7 @@ describe("Share Utilities", () => {
           category: "server",
         },
       ];
-      layout.rack.devices = [
+      layout.racks[0].devices = [
         {
           id: "device-1",
           device_type: "full-device",
@@ -182,8 +185,8 @@ describe("Share Utilities", () => {
 
       expect(restored.version).toBe("1.0.0");
       expect(restored.name).toBe("Test Layout");
-      expect(restored.rack.name).toBe("Main Rack");
-      expect(restored.rack.height).toBe(42);
+      expect(restored.racks[0].name).toBe("Main Rack");
+      expect(restored.racks[0].height).toBe(42);
     });
 
     it("generates new IDs for devices", () => {
@@ -196,7 +199,7 @@ describe("Share Utilities", () => {
           category: "server",
         },
       ];
-      layout.rack.devices = [
+      layout.racks[0].devices = [
         {
           id: "original-id",
           device_type: "test-device",
@@ -209,8 +212,8 @@ describe("Share Utilities", () => {
       const restored = fromMinimalLayout(minimal);
 
       // ID should be generated, not the original
-      expect(restored.rack.devices[0]?.id).toBeDefined();
-      expect(restored.rack.devices[0]?.id).not.toBe("original-id");
+      expect(restored.racks[0].devices[0]?.id).toBeDefined();
+      expect(restored.racks[0].devices[0]?.id).not.toBe("original-id");
     });
 
     it("generates unique UUIDs for each device", () => {
@@ -223,7 +226,7 @@ describe("Share Utilities", () => {
           category: "server",
         },
       ];
-      layout.rack.devices = [
+      layout.racks[0].devices = [
         {
           id: "device-1",
           device_type: "test-device",
@@ -248,7 +251,7 @@ describe("Share Utilities", () => {
       const restored = fromMinimalLayout(minimal);
 
       // All IDs should be unique
-      const ids = restored.rack.devices.map((d) => d.id);
+      const ids = restored.racks[0].devices.map((d) => d.id);
       const uniqueIds = new Set(ids);
       expect(uniqueIds.size).toBe(3);
 
@@ -265,7 +268,7 @@ describe("Share Utilities", () => {
       layout.device_types = [
         { slug: "test-net", u_height: 1, colour: "#000", category: "network" },
       ];
-      layout.rack.devices = [
+      layout.racks[0].devices = [
         { id: "d1", device_type: "test-net", position: 1, face: "front" },
       ];
 
@@ -305,7 +308,7 @@ describe("Share Utilities", () => {
           category: "server",
         },
       ];
-      layout.rack.devices = [
+      layout.racks[0].devices = [
         { id: "device-1", device_type: "server-1", position: 5, face: "front" },
       ];
 
@@ -319,7 +322,7 @@ describe("Share Utilities", () => {
     it("handles empty layout", () => {
       const layout = createTestLayout();
       layout.device_types = [];
-      layout.rack.devices = [];
+      layout.racks[0].devices = [];
 
       const encoded = encodeLayout(layout);
       expect(encoded).toBeDefined();
@@ -333,7 +336,7 @@ describe("Share Utilities", () => {
       ];
 
       for (let i = 0; i < 40; i++) {
-        layout.rack.devices.push({
+        layout.racks[0].devices.push({
           id: `device-${i}`,
           device_type: "server",
           position: i + 1,
@@ -367,7 +370,7 @@ describe("Share Utilities", () => {
 
       expect(decoded).not.toBeNull();
       expect(decoded?.name).toBe("Test Layout");
-      expect(decoded?.rack.name).toBe("Main Rack");
+      expect(decoded?.racks[0].name).toBe("Main Rack");
     });
 
     it("returns null for invalid base64", () => {
@@ -406,16 +409,16 @@ describe("Share Utilities", () => {
 
     it("preserves rack properties", () => {
       const original = createTestLayout();
-      original.rack.name = "Network Rack";
-      original.rack.height = 24;
-      original.rack.width = 10;
+      original.racks[0].name = "Network Rack";
+      original.racks[0].height = 24;
+      original.racks[0].width = 10;
 
       const encoded = encodeLayout(original);
       const decoded = decodeLayout(encoded);
 
-      expect(decoded?.rack.name).toBe("Network Rack");
-      expect(decoded?.rack.height).toBe(24);
-      expect(decoded?.rack.width).toBe(10);
+      expect(decoded?.racks[0].name).toBe("Network Rack");
+      expect(decoded?.racks[0].height).toBe(24);
+      expect(decoded?.racks[0].width).toBe(10);
     });
 
     it("preserves device types with core properties", () => {
@@ -430,7 +433,7 @@ describe("Share Utilities", () => {
           category: "server",
         },
       ];
-      original.rack.devices = [
+      original.racks[0].devices = [
         {
           id: "device-1",
           device_type: "dell-r740",
@@ -464,7 +467,7 @@ describe("Share Utilities", () => {
           category: "network",
         },
       ];
-      original.rack.devices = [
+      original.racks[0].devices = [
         {
           id: "device-1",
           device_type: "cisco-switch",
@@ -491,7 +494,7 @@ describe("Share Utilities", () => {
           category: "other",
         },
       ];
-      original.rack.devices = [
+      original.racks[0].devices = [
         {
           id: "device-1",
           device_type: "generic-device",
@@ -516,7 +519,7 @@ describe("Share Utilities", () => {
           category: "server",
         },
       ];
-      original.rack.devices = [
+      original.racks[0].devices = [
         {
           id: "device-1",
           device_type: "test-device",
@@ -534,11 +537,11 @@ describe("Share Utilities", () => {
       const encoded = encodeLayout(original);
       const decoded = decodeLayout(encoded);
 
-      expect(decoded?.rack.devices).toHaveLength(2);
-      expect(decoded?.rack.devices[0]?.position).toBe(5);
-      expect(decoded?.rack.devices[0]?.face).toBe("front");
-      expect(decoded?.rack.devices[1]?.position).toBe(10);
-      expect(decoded?.rack.devices[1]?.face).toBe("rear");
+      expect(decoded?.racks[0].devices).toHaveLength(2);
+      expect(decoded?.racks[0].devices[0]?.position).toBe(5);
+      expect(decoded?.racks[0].devices[0]?.face).toBe("front");
+      expect(decoded?.racks[0].devices[1]?.position).toBe(10);
+      expect(decoded?.racks[0].devices[1]?.face).toBe("rear");
     });
 
     it("applies default settings on decode", () => {
@@ -565,7 +568,7 @@ describe("Share Utilities", () => {
         { slug: "used", u_height: 1, colour: "#000", category: "server" },
         { slug: "unused", u_height: 2, colour: "#000", category: "network" },
       ];
-      original.rack.devices = [
+      original.racks[0].devices = [
         { id: "d1", device_type: "used", position: 1, face: "front" },
       ];
 
@@ -694,7 +697,7 @@ describe("Share Utilities", () => {
         { slug: "server", u_height: 1, colour: "#3b82f6", category: "server" },
       ];
       for (let i = 0; i < 10; i++) {
-        layout.rack.devices.push({
+        layout.racks[0].devices.push({
           id: `device-${i}`,
           device_type: "server",
           position: i + 1,
@@ -712,7 +715,7 @@ describe("Share Utilities", () => {
         { slug: "server", u_height: 1, colour: "#3b82f6", category: "server" },
       ];
       for (let i = 0; i < 20; i++) {
-        layout.rack.devices.push({
+        layout.racks[0].devices.push({
           id: `device-${i}`,
           device_type: "server",
           position: i + 1,
@@ -746,7 +749,7 @@ describe("Share Utilities", () => {
       ];
 
       for (let i = 0; i < 40; i++) {
-        layout.rack.devices.push({
+        layout.racks[0].devices.push({
           id: `device-${i}`,
           device_type: i % 2 === 0 ? "server-type" : "network-type",
           position: i + 1,

@@ -22,10 +22,17 @@ import { generateId } from "./device";
 /**
  * Convert Layout to MinimalLayout
  * Only includes device types that are actually placed in the rack
+ * Note: Multi-rack layouts use the first rack for sharing
  */
 export function toMinimalLayout(layout: Layout): MinimalLayout {
+  // For multi-rack layouts, use the first rack
+  const rack = layout.racks[0];
+  if (!rack) {
+    throw new Error("Layout must have at least one rack");
+  }
+
   // Get unique device type slugs from placed devices
-  const usedSlugs = new Set(layout.rack.devices.map((d) => d.device_type));
+  const usedSlugs = new Set(rack.devices.map((d) => d.device_type));
 
   // Filter and convert device types (only used ones)
   const dt: MinimalDeviceType[] = layout.device_types
@@ -40,7 +47,7 @@ export function toMinimalLayout(layout: Layout): MinimalLayout {
     }));
 
   // Convert devices
-  const devices: MinimalDevice[] = layout.rack.devices.map((d) => ({
+  const devices: MinimalDevice[] = rack.devices.map((d) => ({
     t: d.device_type,
     p: d.position,
     f: d.face,
@@ -51,9 +58,9 @@ export function toMinimalLayout(layout: Layout): MinimalLayout {
     v: layout.version,
     n: layout.name,
     r: {
-      n: layout.rack.name,
-      h: layout.rack.height,
-      w: layout.rack.width,
+      n: rack.name,
+      h: rack.height,
+      w: rack.width,
       d: devices,
     },
     dt,
@@ -87,17 +94,20 @@ export function fromMinimalLayout(minimal: MinimalLayout): Layout {
   return {
     version: minimal.v,
     name: minimal.n,
-    rack: {
-      name: minimal.r.n,
-      height: minimal.r.h,
-      width: minimal.r.w,
-      desc_units: false,
-      form_factor: "4-post-cabinet",
-      starting_unit: 1,
-      position: 0,
-      devices,
-      view: "front",
-    },
+    racks: [
+      {
+        id: generateId(),
+        name: minimal.r.n,
+        height: minimal.r.h,
+        width: minimal.r.w,
+        desc_units: false,
+        form_factor: "4-post-cabinet",
+        starting_unit: 1,
+        position: 0,
+        devices,
+        view: "front",
+      },
+    ],
     device_types,
     settings: {
       display_mode: "label",

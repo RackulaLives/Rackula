@@ -93,10 +93,10 @@ export async function createFolderArchive(
       // Handle placement-specific images (key format: placement-{deviceId})
       if (imageKey.startsWith("placement-")) {
         const deviceId = imageKey.replace("placement-", "");
-        // Find the device to get its device_type slug for the folder path
-        const placedDevice = layout.rack?.devices.find(
-          (d) => d.id === deviceId,
-        );
+        // Find the device across all racks to get its device_type slug for the folder path
+        const placedDevice = layout.racks
+          .flatMap((rack) => rack.devices)
+          .find((d) => d.id === deviceId);
         if (!placedDevice) continue;
 
         const deviceFolder = assetsFolder.folder(placedDevice.device_type);

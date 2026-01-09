@@ -523,8 +523,8 @@ export interface PlacedDevice {
  * A rack unit container
  */
 export interface Rack {
-  /** Unique identifier (for multi-rack references) */
-  id?: string;
+  /** Unique identifier (required for multi-rack support) */
+  id: string;
   /** Display name */
   name: string;
   /** Height in rack units (1-100U) */
@@ -539,7 +539,7 @@ export interface Rack {
   form_factor: FormFactor;
   /** Starting unit number (default: 1) */
   starting_unit: number;
-  /** Order position (for future multi-rack) */
+  /** Order position for multi-rack layouts */
   position: number;
   /** Devices placed in this rack */
   devices: PlacedDevice[];
@@ -547,6 +547,29 @@ export interface Rack {
   notes?: string;
   /** Current view mode - runtime only, not persisted */
   view?: RackView;
+}
+
+/**
+ * Layout preset for rack groups
+ * - 'bayed': Stacked front/rear view for touring racks
+ * - 'row': Side-by-side layout (default)
+ * - 'custom': User-defined positioning
+ */
+export type RackGroupLayoutPreset = "bayed" | "row" | "custom";
+
+/**
+ * A group of racks with shared layout behavior
+ * Used for touring/bayed rack configurations and linked rack constraints
+ */
+export interface RackGroup {
+  /** Unique identifier */
+  id: string;
+  /** Optional display name */
+  name?: string;
+  /** References to Rack.id values in this group */
+  rack_ids: string[];
+  /** Layout preset for this group */
+  layout_preset?: RackGroupLayoutPreset;
 }
 
 // =============================================================================
@@ -571,8 +594,10 @@ export interface Layout {
   version: string;
   /** Layout name */
   name: string;
-  /** Single rack (Rackula is single-rack mode) */
-  rack: Rack;
+  /** Array of racks (multi-rack support) */
+  racks: Rack[];
+  /** Optional rack groups for linked/bayed configurations */
+  rack_groups?: RackGroup[];
   /** Device type library */
   device_types: DeviceType[];
   /** Layout settings */

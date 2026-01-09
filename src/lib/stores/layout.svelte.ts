@@ -76,9 +76,9 @@ let isDirty = $state(false);
 let hasStarted = $state(loadHasStarted());
 
 // Derived values (using $derived rune)
-const rack = $derived(layout.rack);
+const rack = $derived(layout.racks[0]);
 const device_types = $derived(layout.device_types);
-const hasRack = $derived(layout.rack.devices !== undefined);
+const hasRack = $derived(layout.racks[0]?.devices !== undefined);
 
 // rackCount returns 0 until user has started (shows WelcomeScreen)
 const rackCount = $derived(hasStarted ? 1 : 0);
@@ -243,11 +243,13 @@ function loadLayout(layoutData: Layout): void {
   // Ensure runtime view is set and show_rear defaults to true for older layouts
   layout = {
     ...layoutData,
-    rack: {
-      ...layoutData.rack,
-      view: layoutData.rack.view ?? "front",
-      show_rear: layoutData.rack.show_rear ?? true,
-    },
+    racks: [
+      {
+        ...layoutData.racks[0],
+        view: layoutData.racks[0].view ?? "front",
+        show_rear: layoutData.racks[0].show_rear ?? true,
+      },
+    ],
   };
   isDirty = false;
 
@@ -287,7 +289,7 @@ function addRack(
   layout = {
     ...layout,
     name, // Sync layout name with rack name
-    rack: newRack,
+    racks: [newRack],
   };
   isDirty = true;
 
@@ -311,7 +313,7 @@ function updateRack(_id: string, updates: Partial<Rack>): void {
   if (updates.view !== undefined) {
     layout = {
       ...layout,
-      rack: { ...layout.rack, view: updates.view },
+      racks: [{ ...layout.racks[0], view: updates.view }],
     };
     isDirty = true;
   }
@@ -340,10 +342,12 @@ function updateRackView(_id: string, view: RackView): void {
 function deleteRack(_id: string): void {
   layout = {
     ...layout,
-    rack: {
-      ...layout.rack,
-      devices: [],
-    },
+    racks: [
+      {
+        ...layout.racks[0],
+        devices: [],
+      },
+    ],
   };
   isDirty = true;
 }
@@ -602,10 +606,12 @@ function removeDeviceTypeRaw(slug: string): void {
   layout = {
     ...layout,
     device_types: layout.device_types.filter((dt) => dt.slug !== slug),
-    rack: {
-      ...layout.rack,
-      devices: layout.rack.devices.filter((d) => d.device_type !== slug),
-    },
+    racks: [
+      {
+        ...layout.racks[0],
+        devices: layout.racks[0].devices.filter((d) => d.device_type !== slug),
+      },
+    ],
   };
 
   // Clean up associated images to prevent memory leaks
@@ -632,13 +638,15 @@ function updateDeviceTypeRaw(slug: string, updates: Partial<DeviceType>): void {
  * @returns Index where device was placed
  */
 function placeDeviceRaw(device: PlacedDevice): number {
-  const newDevices = [...layout.rack.devices, device];
+  const newDevices = [...layout.racks[0].devices, device];
   layout = {
     ...layout,
-    rack: {
-      ...layout.rack,
-      devices: newDevices,
-    },
+    racks: [
+      {
+        ...layout.racks[0],
+        devices: newDevices,
+      },
+    ],
   };
   return newDevices.length - 1;
 }
@@ -649,9 +657,9 @@ function placeDeviceRaw(device: PlacedDevice): number {
  * @returns The removed device or undefined
  */
 function removeDeviceAtIndexRaw(index: number): PlacedDevice | undefined {
-  if (index < 0 || index >= layout.rack.devices.length) return undefined;
+  if (index < 0 || index >= layout.racks[0].devices.length) return undefined;
 
-  const removed = layout.rack.devices[index];
+  const removed = layout.racks[0].devices[index];
 
   // Clean up placement-specific images for this device
   if (removed) {
@@ -661,10 +669,12 @@ function removeDeviceAtIndexRaw(index: number): PlacedDevice | undefined {
 
   layout = {
     ...layout,
-    rack: {
-      ...layout.rack,
-      devices: layout.rack.devices.filter((_, i) => i !== index),
-    },
+    racks: [
+      {
+        ...layout.racks[0],
+        devices: layout.racks[0].devices.filter((_, i) => i !== index),
+      },
+    ],
   };
   return removed;
 }
@@ -676,16 +686,18 @@ function removeDeviceAtIndexRaw(index: number): PlacedDevice | undefined {
  * @returns true if moved
  */
 function moveDeviceRaw(index: number, newPosition: number): boolean {
-  if (index < 0 || index >= layout.rack.devices.length) return false;
+  if (index < 0 || index >= layout.racks[0].devices.length) return false;
 
   layout = {
     ...layout,
-    rack: {
-      ...layout.rack,
-      devices: layout.rack.devices.map((d, i) =>
-        i === index ? { ...d, position: newPosition } : d,
-      ),
-    },
+    racks: [
+      {
+        ...layout.racks[0],
+        devices: layout.racks[0].devices.map((d, i) =>
+          i === index ? { ...d, position: newPosition } : d,
+        ),
+      },
+    ],
   };
   return true;
 }
@@ -696,16 +708,18 @@ function moveDeviceRaw(index: number, newPosition: number): boolean {
  * @param face - New face value
  */
 function updateDeviceFaceRaw(index: number, face: DeviceFace): void {
-  if (index < 0 || index >= layout.rack.devices.length) return;
+  if (index < 0 || index >= layout.racks[0].devices.length) return;
 
   layout = {
     ...layout,
-    rack: {
-      ...layout.rack,
-      devices: layout.rack.devices.map((d, i) =>
-        i === index ? { ...d, face } : d,
-      ),
-    },
+    racks: [
+      {
+        ...layout.racks[0],
+        devices: layout.racks[0].devices.map((d, i) =>
+          i === index ? { ...d, face } : d,
+        ),
+      },
+    ],
   };
 }
 
@@ -715,19 +729,21 @@ function updateDeviceFaceRaw(index: number, face: DeviceFace): void {
  * @param name - New custom name (undefined to clear)
  */
 function updateDeviceNameRaw(index: number, name: string | undefined): void {
-  if (index < 0 || index >= layout.rack.devices.length) return;
+  if (index < 0 || index >= layout.racks[0].devices.length) return;
 
   // Normalize empty string to undefined
   const normalizedName = name?.trim() || undefined;
 
   layout = {
     ...layout,
-    rack: {
-      ...layout.rack,
-      devices: layout.rack.devices.map((d, i) =>
-        i === index ? { ...d, name: normalizedName } : d,
-      ),
-    },
+    racks: [
+      {
+        ...layout.racks[0],
+        devices: layout.racks[0].devices.map((d, i) =>
+          i === index ? { ...d, name: normalizedName } : d,
+        ),
+      },
+    ],
   };
 }
 
@@ -742,7 +758,7 @@ function updateDevicePlacementImageRaw(
   face: "front" | "rear",
   filename: string | undefined,
 ): void {
-  if (index < 0 || index >= layout.rack.devices.length) return;
+  if (index < 0 || index >= layout.racks[0].devices.length) return;
 
   // Sanitize filename to prevent path traversal attacks
   const sanitizedFilename = filename ? sanitizeFilename(filename) : undefined;
@@ -752,12 +768,14 @@ function updateDevicePlacementImageRaw(
 
   layout = {
     ...layout,
-    rack: {
-      ...layout.rack,
-      devices: layout.rack.devices.map((d, i) =>
-        i === index ? { ...d, [fieldName]: sanitizedFilename } : d,
-      ),
-    },
+    racks: [
+      {
+        ...layout.racks[0],
+        devices: layout.racks[0].devices.map((d, i) =>
+          i === index ? { ...d, [fieldName]: sanitizedFilename } : d,
+        ),
+      },
+    ],
   };
 }
 
@@ -770,16 +788,18 @@ function updateDeviceColourRaw(
   index: number,
   colour: string | undefined,
 ): void {
-  if (index < 0 || index >= layout.rack.devices.length) return;
+  if (index < 0 || index >= layout.racks[0].devices.length) return;
 
   layout = {
     ...layout,
-    rack: {
-      ...layout.rack,
-      devices: layout.rack.devices.map((d, i) =>
-        i === index ? { ...d, colour_override: colour } : d,
-      ),
-    },
+    racks: [
+      {
+        ...layout.racks[0],
+        devices: layout.racks[0].devices.map((d, i) =>
+          i === index ? { ...d, colour_override: colour } : d,
+        ),
+      },
+    ],
   };
 }
 
@@ -789,7 +809,7 @@ function updateDeviceColourRaw(
  * @returns The device or undefined
  */
 function getDeviceAtIndex(index: number): PlacedDevice | undefined {
-  return layout.rack.devices[index];
+  return layout.racks[0].devices[index];
 }
 
 /**
@@ -798,7 +818,7 @@ function getDeviceAtIndex(index: number): PlacedDevice | undefined {
  * @returns Array of placed devices
  */
 function getPlacedDevicesForType(slug: string): PlacedDevice[] {
-  return layout.rack.devices.filter((d) => d.device_type === slug);
+  return layout.racks[0].devices.filter((d) => d.device_type === slug);
 }
 
 /**
@@ -808,7 +828,7 @@ function getPlacedDevicesForType(slug: string): PlacedDevice[] {
 function updateRackRaw(updates: Partial<Omit<Rack, "devices" | "view">>): void {
   layout = {
     ...layout,
-    rack: { ...layout.rack, ...updates },
+    racks: [{ ...layout.racks[0], ...updates }],
   };
   // Sync layout name with rack name
   if (updates.name !== undefined) {
@@ -823,7 +843,7 @@ function updateRackRaw(updates: Partial<Omit<Rack, "devices" | "view">>): void {
 function replaceRackRaw(newRack: Rack): void {
   layout = {
     ...layout,
-    rack: newRack,
+    racks: [newRack],
     name: newRack.name,
   };
 }
@@ -833,13 +853,15 @@ function replaceRackRaw(newRack: Rack): void {
  * @returns The removed devices
  */
 function clearRackDevicesRaw(): PlacedDevice[] {
-  const removed = [...layout.rack.devices];
+  const removed = [...layout.racks[0].devices];
   layout = {
     ...layout,
-    rack: {
-      ...layout.rack,
-      devices: [],
-    },
+    racks: [
+      {
+        ...layout.racks[0],
+        devices: [],
+      },
+    ],
   };
   return removed;
 }
@@ -851,10 +873,12 @@ function clearRackDevicesRaw(): PlacedDevice[] {
 function restoreRackDevicesRaw(devices: PlacedDevice[]): void {
   layout = {
     ...layout,
-    rack: {
-      ...layout.rack,
-      devices: [...devices],
-    },
+    racks: [
+      {
+        ...layout.racks[0],
+        devices: [...devices],
+      },
+    ],
   };
 }
 
@@ -926,7 +950,7 @@ function getUsedDeviceTypeSlugs(): Set<string> {
   }
 
   // Add all placed device references (in case of orphaned references)
-  for (const device of layout.rack.devices) {
+  for (const device of layout.racks[0].devices) {
     slugs.add(device.device_type);
   }
 
@@ -963,7 +987,7 @@ function getCommandStoreAdapter(): DeviceTypeCommandStore &
     replaceRackRaw,
     clearRackDevicesRaw,
     restoreRackDevicesRaw,
-    getRack: () => layout.rack,
+    getRack: () => layout.racks[0],
   };
 }
 
@@ -1078,7 +1102,7 @@ function placeDeviceRecorded(
 
   if (
     !canPlaceDevice(
-      layout.rack,
+      layout.racks[0],
       layout.device_types,
       deviceType.u_height,
       position,
@@ -1131,7 +1155,7 @@ function placeDeviceRecorded(
  * @returns true if moved successfully
  */
 function moveDeviceRecorded(deviceIndex: number, newPosition: number): boolean {
-  if (deviceIndex < 0 || deviceIndex >= layout.rack.devices.length) {
+  if (deviceIndex < 0 || deviceIndex >= layout.racks[0].devices.length) {
     debug.deviceMove({
       index: deviceIndex,
       deviceName: "unknown",
@@ -1143,7 +1167,7 @@ function moveDeviceRecorded(deviceIndex: number, newPosition: number): boolean {
     return false;
   }
 
-  const device = layout.rack.devices[deviceIndex]!;
+  const device = layout.racks[0].devices[deviceIndex]!;
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
     device.device_type,
@@ -1167,7 +1191,7 @@ function moveDeviceRecorded(deviceIndex: number, newPosition: number): boolean {
   const isFullDepth = deviceType.is_full_depth !== false;
   if (
     !canPlaceDevice(
-      layout.rack,
+      layout.racks[0],
       layout.device_types,
       deviceType.u_height,
       newPosition,
@@ -1179,7 +1203,7 @@ function moveDeviceRecorded(deviceIndex: number, newPosition: number): boolean {
     // Determine if it's out of bounds or collision
     const isOutOfBounds =
       newPosition < 1 ||
-      newPosition + deviceType.u_height - 1 > layout.rack.height;
+      newPosition + deviceType.u_height - 1 > layout.racks[0].height;
     debug.deviceMove({
       index: deviceIndex,
       deviceName,
@@ -1220,9 +1244,9 @@ function moveDeviceRecorded(deviceIndex: number, newPosition: number): boolean {
  * Remove a device with undo/redo support
  */
 function removeDeviceRecorded(deviceIndex: number): void {
-  if (deviceIndex < 0 || deviceIndex >= layout.rack.devices.length) return;
+  if (deviceIndex < 0 || deviceIndex >= layout.racks[0].devices.length) return;
 
-  const device = layout.rack.devices[deviceIndex]!;
+  const device = layout.racks[0].devices[deviceIndex]!;
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
     device.device_type,
@@ -1246,9 +1270,9 @@ function removeDeviceRecorded(deviceIndex: number): void {
  * Update device face with undo/redo support
  */
 function updateDeviceFaceRecorded(deviceIndex: number, face: DeviceFace): void {
-  if (deviceIndex < 0 || deviceIndex >= layout.rack.devices.length) return;
+  if (deviceIndex < 0 || deviceIndex >= layout.racks[0].devices.length) return;
 
-  const device = layout.rack.devices[deviceIndex]!;
+  const device = layout.racks[0].devices[deviceIndex]!;
   const oldFace = device.face ?? "front";
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
@@ -1277,9 +1301,9 @@ function updateDeviceNameRecorded(
   deviceIndex: number,
   name: string | undefined,
 ): void {
-  if (deviceIndex < 0 || deviceIndex >= layout.rack.devices.length) return;
+  if (deviceIndex < 0 || deviceIndex >= layout.racks[0].devices.length) return;
 
-  const device = layout.rack.devices[deviceIndex]!;
+  const device = layout.racks[0].devices[deviceIndex]!;
   const oldName = device.name;
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
@@ -1316,7 +1340,7 @@ function updateRackRecorded(
     Rack,
     "devices" | "view"
   >)[]) {
-    before[key] = layout.rack[key] as never;
+    before[key] = layout.racks[0][key] as never;
   }
 
   const history = getHistoryStore();
@@ -1331,9 +1355,9 @@ function updateRackRecorded(
  * Clear rack devices with undo/redo support
  */
 function clearRackRecorded(): void {
-  if (layout.rack.devices.length === 0) return;
+  if (layout.racks[0].devices.length === 0) return;
 
-  const devices = [...layout.rack.devices];
+  const devices = [...layout.racks[0].devices];
   const history = getHistoryStore();
   const adapter = getCommandStoreAdapter();
 

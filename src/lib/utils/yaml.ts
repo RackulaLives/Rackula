@@ -200,10 +200,15 @@ export async function serializeLayoutToYaml(layout: Layout): Promise<string> {
   const layoutForSerialization: Record<string, unknown> = {
     version: layout.version,
     name: layout.name,
-    rack: orderRackFields(layout.rack),
+    racks: layout.racks.map(orderRackFields),
     device_types: layout.device_types.map(orderDeviceTypeFields),
     settings: layout.settings,
   };
+
+  // Only include rack_groups if present
+  if (layout.rack_groups !== undefined && layout.rack_groups.length > 0) {
+    layoutForSerialization.rack_groups = layout.rack_groups;
+  }
 
   // Only include cables if present
   if (layout.cables !== undefined && layout.cables.length > 0) {
@@ -220,10 +225,11 @@ export async function serializeLayoutToYaml(layout: Layout): Promise<string> {
 function toRuntimeLayout(parsed: LayoutZod): Layout {
   return {
     ...parsed,
-    rack: {
-      ...parsed.rack,
+    racks: parsed.racks.map((rack) => ({
+      ...rack,
       view: "front",
-    },
+    })),
+    rack_groups: parsed.rack_groups,
     cables: parsed.cables,
   };
 }

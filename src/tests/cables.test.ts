@@ -40,20 +40,23 @@ const createTestPlacedDevice = (
 const createTestLayout = (): Layout => ({
   version: VERSION,
   name: "Test Layout",
-  rack: {
-    name: "Test Rack",
-    height: 42,
-    width: 19,
-    desc_units: false,
-    show_rear: true,
-    form_factor: "4-post-cabinet",
-    starting_unit: 1,
-    position: 0,
-    devices: [
-      createTestPlacedDevice("device-1", "switch-24", 1),
-      createTestPlacedDevice("device-2", "switch-48", 3),
-    ],
-  },
+  racks: [
+    {
+      id: "rack-1",
+      name: "Test Rack",
+      height: 42,
+      width: 19,
+      desc_units: false,
+      show_rear: true,
+      form_factor: "4-post-cabinet",
+      starting_unit: 1,
+      position: 0,
+      devices: [
+        createTestPlacedDevice("device-1", "switch-24", 1),
+        createTestPlacedDevice("device-2", "switch-48", 3),
+      ],
+    },
+  ],
   device_types: [
     createTestDeviceType("switch-24", [
       { name: "Gi1/0/1", type: "1000base-t" },

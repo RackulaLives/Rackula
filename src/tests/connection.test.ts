@@ -204,17 +204,20 @@ describe("Layout with connections", () => {
   const baseLayout = {
     version: "1.0.0",
     name: "Test Layout",
-    rack: {
-      name: "Rack 1",
-      height: 42,
-      width: 19,
-      desc_units: false,
-      show_rear: true,
-      form_factor: "4-post",
-      starting_unit: 1,
-      position: 0,
-      devices: [],
-    },
+    racks: [
+      {
+        id: "rack-1",
+        name: "Rack 1",
+        height: 42,
+        width: 19,
+        desc_units: false,
+        show_rear: true,
+        form_factor: "4-post",
+        starting_unit: 1,
+        position: 0,
+        devices: [],
+      },
+    ],
     device_types: [],
     settings: {
       display_mode: "label",

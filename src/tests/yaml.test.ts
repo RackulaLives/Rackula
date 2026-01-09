@@ -116,17 +116,20 @@ describe("v0.2 Layout YAML Serialization", () => {
   const createValidLayout = (): Layout => ({
     version: "0.2.0",
     name: "My Homelab",
-    rack: {
-      name: "Main Rack",
-      height: 42,
-      width: 19,
-      desc_units: false,
-      show_rear: true,
-      form_factor: "4-post-cabinet",
-      starting_unit: 1,
-      position: 0,
-      devices: [],
-    },
+    racks: [
+      {
+        id: "rack-1",
+        name: "Main Rack",
+        height: 42,
+        width: 19,
+        desc_units: false,
+        show_rear: true,
+        form_factor: "4-post-cabinet",
+        starting_unit: 1,
+        position: 0,
+        devices: [],
+      },
+    ],
     device_types: [],
     settings: {
       display_mode: "label",
@@ -145,7 +148,7 @@ describe("v0.2 Layout YAML Serialization", () => {
 
     it("excludes view field from output", async () => {
       const layout = createValidLayout();
-      layout.rack.view = "rear"; // Runtime-only field
+      layout.racks[0].view = "rear"; // Runtime-only field
 
       const yaml = await serializeLayoutToYaml(layout);
 
@@ -159,24 +162,24 @@ describe("v0.2 Layout YAML Serialization", () => {
 
       expect(yaml).toContain("version:");
       expect(yaml).toContain("name:");
-      expect(yaml).toContain("rack:");
+      expect(yaml).toContain("racks:");
       expect(yaml).toContain("device_types:");
       expect(yaml).toContain("settings:");
     });
 
-    it("maintains field order (version, name, rack, device_types, settings)", async () => {
+    it("maintains field order (version, name, racks, device_types, settings)", async () => {
       const layout = createValidLayout();
       const yaml = await serializeLayoutToYaml(layout);
 
       const versionIndex = yaml.indexOf("version:");
       const nameIndex = yaml.indexOf("name:");
-      const rackIndex = yaml.indexOf("rack:");
+      const racksIndex = yaml.indexOf("racks:");
       const deviceTypesIndex = yaml.indexOf("device_types:");
       const settingsIndex = yaml.indexOf("settings:");
 
       expect(versionIndex).toBeLessThan(nameIndex);
-      expect(nameIndex).toBeLessThan(rackIndex);
-      expect(rackIndex).toBeLessThan(deviceTypesIndex);
+      expect(nameIndex).toBeLessThan(racksIndex);
+      expect(racksIndex).toBeLessThan(deviceTypesIndex);
       expect(deviceTypesIndex).toBeLessThan(settingsIndex);
     });
 
@@ -233,7 +236,7 @@ describe("v0.2 Layout YAML Serialization", () => {
         },
       ];
       // Schema v1.0.0: PlacedDevice requires id
-      layout.rack.devices = [
+      layout.racks[0].devices = [
         {
           id: "device-1",
           device_type: "test-device",
@@ -267,7 +270,7 @@ describe("v0.2 Layout YAML Serialization", () => {
 
       expect(parsed.version).toBe("0.2.0");
       expect(parsed.name).toBe("My Homelab");
-      expect(parsed.rack.name).toBe("Main Rack");
+      expect(parsed.racks[0].name).toBe("Main Rack");
     });
 
     it("returns layout with all fields", async () => {
@@ -296,7 +299,7 @@ describe("v0.2 Layout YAML Serialization", () => {
 
       const parsed = await parseLayoutYaml(yaml);
 
-      expect(parsed.rack.view).toBe("front");
+      expect(parsed.racks[0].view).toBe("front");
     });
 
     it("throws on invalid YAML syntax", async () => {
@@ -311,15 +314,16 @@ name: Broken
       const invalidLayout = `
 version: "0.2.0"
 name: ""
-rack:
-  name: Test
-  height: 0
-  width: 15
-  desc_units: false
-  form_factor: invalid
-  starting_unit: 1
-  position: 0
-  devices: []
+racks:
+  - id: "rack-1"
+    name: Test
+    height: 0
+    width: 15
+    desc_units: false
+    form_factor: invalid
+    starting_unit: 1
+    position: 0
+    devices: []
 device_types: []
 settings:
   display_mode: label
@@ -332,15 +336,16 @@ settings:
       const invalidLayout = `
 version: "0.2.0"
 name: "Test"
-rack:
-  name: "Test Rack"
-  height: 42
-  width: 15
-  desc_units: false
-  form_factor: "4-post-cabinet"
-  starting_unit: 1
-  position: 0
-  devices: []
+racks:
+  - id: "rack-1"
+    name: "Test Rack"
+    height: 42
+    width: 15
+    desc_units: false
+    form_factor: "4-post-cabinet"
+    starting_unit: 1
+    position: 0
+    devices: []
 device_types: []
 settings:
   display_mode: "label"
@@ -370,7 +375,7 @@ settings:
         },
       ];
       // Schema v1.0.0: PlacedDevice requires id, ports defaults to []
-      layout.rack.devices = [
+      layout.racks[0].devices = [
         {
           id: "device-1",
           device_type: "synology-ds920-plus",
@@ -384,8 +389,8 @@ settings:
       const parsed = await parseLayoutYaml(yaml);
 
       // Compare without runtime fields
-      const { view: _, ...parsedRack } = parsed.rack;
-      expect(parsedRack).toEqual(layout.rack);
+      const { view: _, ...parsedRack } = parsed.racks[0];
+      expect(parsedRack).toEqual(layout.racks[0]);
       expect(parsed.device_types).toEqual(layout.device_types);
       expect(parsed.settings).toEqual(layout.settings);
     });
@@ -437,7 +442,7 @@ settings:
         },
       ];
       // Schema v1.0.0: PlacedDevice requires id
-      layout.rack.devices = [
+      layout.racks[0].devices = [
         {
           id: "device-1",
           device_type: "test-device",
@@ -462,10 +467,10 @@ settings:
       const yaml = await serializeLayoutToYaml(layout);
       const parsed = await parseLayoutYaml(yaml);
 
-      expect(parsed.rack.devices).toHaveLength(3);
-      expect(parsed.rack.devices[0]!.position).toBe(1);
-      expect(parsed.rack.devices[1]!.name).toBe("Second");
-      expect(parsed.rack.devices[2]!.face).toBe("both");
+      expect(parsed.racks[0].devices).toHaveLength(3);
+      expect(parsed.racks[0].devices[0]!.position).toBe(1);
+      expect(parsed.racks[0].devices[1]!.name).toBe("Second");
+      expect(parsed.racks[0].devices[2]!.face).toBe("both");
     });
 
     it("settings preserved", async () => {

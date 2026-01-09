@@ -35,6 +35,7 @@ import type { Command, CommandType } from "$lib/stores/commands/types";
  */
 export function createTestRack(overrides: Partial<Rack> = {}): Rack {
   return {
+    id: overrides.id ?? "rack-1",
     name: "Test Rack",
     height: 42,
     width: 19,
@@ -182,7 +183,7 @@ export function createTestLayout(overrides: Partial<Layout> = {}): Layout {
   return {
     version: "1.0",
     name: "Test Layout",
-    rack: createTestRack(),
+    racks: overrides.racks ?? [createTestRack()],
     device_types: [],
     settings: createTestLayoutSettings(),
     ...overrides,

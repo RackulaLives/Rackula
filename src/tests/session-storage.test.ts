@@ -33,13 +33,15 @@ describe("Session Storage", () => {
 
   // Mock layout for testing
   const mockLayout: Layout = {
-    rack: {
-      id: "rack-0",
-      name: "Test Rack",
-      height: 42,
-      devices: [],
-    },
-  };
+    racks: [
+      {
+        id: "rack-0",
+        name: "Test Rack",
+        height: 42,
+        devices: [],
+      },
+    ],
+  } as Layout;
 
   beforeEach(() => {
     // Clear localStorage before each test
@@ -96,13 +98,15 @@ describe("Session Storage", () => {
 
       // Save updated layout
       const updatedLayout: Layout = {
-        rack: {
-          id: "rack-1",
-          name: "Updated Rack",
-          height: 24,
-          devices: [],
-        },
-      };
+        racks: [
+          {
+            id: "rack-1",
+            name: "Updated Rack",
+            height: 24,
+            devices: [],
+          },
+        ],
+      } as Layout;
       saveSession(updatedLayout);
 
       const stored = localStorage.getItem(STORAGE_KEY);
