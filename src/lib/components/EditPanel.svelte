@@ -22,7 +22,9 @@
     getConflictDetails,
     formatConflictMessage,
   } from "$lib/utils/rack-resize";
-  import { canPlaceDevice } from "$lib/utils/collision";
+  import { canPlaceDevice, findCollisions } from "$lib/utils/collision";
+  import { getToastStore } from "$lib/stores/toast.svelte";
+  import { getDeviceDisplayName } from "$lib/utils/device";
   import { COMMON_RACK_HEIGHTS } from "$lib/types/constants";
   import type {
     Rack,
@@ -56,6 +58,7 @@
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
   const uiStore = getUIStore();
+  const toastStore = getToastStore();
   const canvasStore = getCanvasStore();
   const imageStore = getImageStore();
 
@@ -273,15 +276,55 @@
     }
   }
 
-  // Update device face
+  // Update device face (with collision detection)
   function handleFaceChange(face: DeviceFace) {
-    if (selectedDeviceInfo) {
-      layoutStore.updateDeviceFace(
-        selectionStore.selectedRackId!,
-        selectedDeviceInfo.deviceIndex,
+    if (!selectedDeviceInfo) return;
+
+    const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
+
+    // Check for collision at the new face position
+    const canPlace = canPlaceDevice(
+      rack,
+      layoutStore.device_types,
+      device.u_height,
+      placedDevice.position,
+      deviceIndex, // exclude self from collision check
+      face,
+      placedDevice.slot_position ?? "full",
+    );
+
+    if (!canPlace) {
+      // Find blocking devices for descriptive error message
+      const collisions = findCollisions(
+        rack,
+        layoutStore.device_types,
+        device.u_height,
+        placedDevice.position,
+        deviceIndex,
         face,
+        placedDevice.slot_position ?? "full",
       );
+
+      if (collisions.length > 0) {
+        const blockingNames = collisions.map((placed) =>
+          getDeviceDisplayName(placed, layoutStore.device_types),
+        );
+        const faceLabel = face === "both" ? "full-depth" : face;
+        const message =
+          blockingNames.length === 1
+            ? `Cannot change to ${faceLabel}: blocked by ${blockingNames[0]}`
+            : `Cannot change to ${faceLabel}: blocked by ${blockingNames.join(", ")}`;
+        toastStore.showToast(message, "warning", 3000);
+      }
+      return; // Don't update face - collision would occur
     }
+
+    // No collision, proceed with the face update
+    layoutStore.updateDeviceFace(
+      selectionStore.selectedRackId!,
+      deviceIndex,
+      face,
+    );
   }
 
   // Check if selected device is full-depth (determines if face can be changed)
