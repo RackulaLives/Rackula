@@ -1,0 +1,65 @@
+name: Test Quality Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check test file size limit (400 lines)
+        run: |
+          echo "Checking for test files exceeding 400 lines..."
+          OVERLIMIT_FILES=$(find src/tests e2e -name "*.test.ts" -o -name "*.spec.ts" | while read file; do
+            LINES=$(wc -l < "$file")
+            if [ "$LINES" -gt 400 ]; then
+              echo "$file: $LINES lines (exceeds 400 line limit)"
+            fi
+          done)
+
+          if [ -n "$OVERLIMIT_FILES" ]; then
+            echo "❌ Test files exceeding 400 line limit:"
+            echo "$OVERLIMIT_FILES"
+            echo ""
+            echo "Please refactor these files to be under 400 lines."
+            echo "See CLAUDE.md 'Testing Rules (MANDATORY)' for guidance."
+            exit 1
+          else
+            echo "✅ All test files are under 400 lines"
+          fi
+
+      - name: Check test:source ratio (max 0.6:1)
+        run: |
+          echo "Calculating test:source ratio..."
+          TEST_LOC=$(find src/tests e2e -name "*.test.ts" -o -name "*.spec.ts" | xargs wc -l | tail -1 | awk '{print $1}')
+          SRC_LOC=$(find src/lib -name "*.ts" -o -name "*.svelte" | xargs wc -l | tail -1 | awk '{print $1}')
+
+          echo "Test LOC: $TEST_LOC"
+          echo "Source LOC: $SRC_LOC"
+
+          # Calculate ratio (multiply by 100 to avoid floating point in shell)
+          RATIO_X100=$(echo "scale=2; ($TEST_LOC * 100) / $SRC_LOC" | bc)
+          RATIO=$(echo "scale=2; $TEST_LOC / $SRC_LOC" | bc)
+
+          echo "Ratio: ${RATIO}:1"
+
+          # Check if ratio exceeds 0.6 (which is 60 when multiplied by 100)
+          if [ "$(echo "$RATIO_X100 > 60" | bc)" -eq 1 ]; then
+            echo "❌ Test:source ratio ${RATIO}:1 exceeds maximum of 0.6:1"
+            echo ""
+            echo "This indicates potential over-testing or testing of low-value areas."
+            echo "See CLAUDE.md 'Testing Rules (MANDATORY)' for guidance."
+            echo ""
+            echo "Consider:"
+            echo "  - Removing tests that assert exact counts"
+            echo "  - Removing tests that duplicate schema validation"
+            echo "  - Removing component tests that test implementation details"
+            echo "  - Consolidating similar tests using parameterization"
+            exit 1
+          else
+            echo "✅ Test:source ratio ${RATIO}:1 is within acceptable range (≤0.6:1)"
+          fi
