@@ -296,6 +296,115 @@ If none of those conditions are met, proceed immediately to the next prompt.
 
 See `docs/guides/TESTING.md` for comprehensive testing guidelines.
 
+---
+
+## Testing Rules (MANDATORY)
+
+**BEFORE writing any test, ask:** "Would this test break if I made a legitimate code change?"
+If yes, **DON'T WRITE IT.**
+
+### NEVER Write Tests That:
+
+❌ **Assert exact array lengths**
+
+```typescript
+// BAD: Breaks when you add a device to brand pack
+expect(dellDevices).toHaveLength(68);
+```
+
+❌ **Assert hardcoded color values**
+
+```typescript
+// BAD: Breaks on design token changes
+expect(element).toHaveStyle("color: #4A7A8A");
+expect(color).toBe("#FFFFFF");
+```
+
+❌ **Check if a function exists**
+
+```typescript
+// BAD: Zero value, TypeScript already does this
+expect(typeof placeholderDeviceType).toBe("function");
+```
+
+❌ **Assert CSS class names**
+
+```typescript
+// BAD: Breaks on refactoring, tests implementation details
+expect(button).toHaveClass("primary");
+```
+
+❌ **Test that a component renders**
+
+```typescript
+// BAD: If it compiles in TypeScript, it renders
+expect(container.querySelector(".rack")).toBeInTheDocument();
+```
+
+❌ **Test component structure/DOM queries**
+
+```typescript
+// BAD: Fragile, tests implementation not behavior
+const header = container.querySelector(".panel-header");
+expect(header).toHaveTextContent("Settings");
+```
+
+❌ **Duplicate schema validation**
+
+```typescript
+// BAD: DeviceTypeSchema already validates this
+expect(device.slug).toBeDefined();
+expect(typeof device.u_height).toBe("number");
+```
+
+### ALWAYS Write Tests That:
+
+✅ **Test user-visible behavior**
+
+```typescript
+// GOOD: Tests what user experiences
+it("user can place a device in rack", () => {
+  store.placeDevice("server-slug", 10);
+  expect(store.rack.devices).toContain(
+    expect.objectContaining({ slug: "server-slug" }),
+  );
+});
+```
+
+✅ **Test core algorithms and edge cases**
+
+```typescript
+// GOOD: Complex logic with many edge cases
+it("detects collision when devices overlap", () => {
+  // ... collision detection test
+});
+```
+
+✅ **Use factories from src/tests/factories.ts**
+
+```typescript
+// GOOD: Shared, maintainable test data
+import { createTestDeviceType, createTestRack } from "./factories";
+const device = createTestDeviceType({ u_height: 2 });
+```
+
+✅ **Follow patterns in KEEP tests**
+
+```typescript
+// GOOD: Store tests, core algorithms, E2E tests
+// Check src/tests/*-store.test.ts for examples
+```
+
+### Enforcement
+
+- **File size limit:** 400 lines per test file (CI will fail above this)
+- **Ratio limit:** Test:source ratio ≤ 0.6:1 (CI will fail above this)
+- **Zero-change rule:** Adding data should require zero test changes
+
+**Why these rules exist:** The project had 136 unit test files (46k LOC) causing OOM crashes and high token usage. We deleted 78 low-value files (57% reduction) to fix this. These rules prevent re-accumulation.
+
+---
+
 ### Commands
 
 ```bash
