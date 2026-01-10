@@ -2,6 +2,43 @@
 
 This document describes the testing patterns, conventions, and best practices for the Rackula project.
 
+---
+
+## ⚠️ MANDATORY Testing Rules
+
+**BEFORE writing any test**, read the mandatory testing rules in **[CLAUDE.md - Testing Rules (MANDATORY)](../../CLAUDE.md#testing-rules-mandatory)**.
+
+### Quick Summary
+
+**NEVER write tests that:**
+
+- Assert exact array lengths (breaks on data additions)
+- Assert hardcoded color values (breaks on design changes)
+- Check if a function exists (TypeScript does this)
+- Assert CSS class names (tests implementation details)
+- Test that a component renders (TypeScript ensures this)
+- Test DOM structure with querySelector (fragile, implementation-specific)
+- Duplicate schema validation (Zod already validates)
+
+### Why These Rules Exist
+
+In January 2026, the project had:
+
+- **136 unit test files** (45,997 LOC)
+- **Test:source ratio of 1.24:1** (more test code than source code)
+- **OOM crashes** during test execution
+- **High token usage** in Claude Code sessions
+
+We deleted **78 low-value test files** (57% reduction) that tested implementation details rather than behavior. The remaining **58 test files** focus on:
+
+- Store logic (pure functions, stable API)
+- Core algorithms (collision detection, schemas)
+- E2E user flows (real user behavior)
+
+**CI enforcement:** Test file size limit of 400 lines and test:source ratio limit of 0.6:1 prevent re-accumulation.
+
+---
+
 ## Environments
 
 | Environment | URL                  | Purpose                                  |
