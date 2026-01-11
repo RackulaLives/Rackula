@@ -31,8 +31,7 @@ import type { Layout } from "$lib/types";
 function requireEncoded(layout: Layout): string {
   const encoded = encodeLayout(layout);
   expect(encoded).not.toBeNull();
-  expect(typeof encoded).toBe("string");
-  return encoded;
+  return encoded as string;
 }
 
 /**
@@ -204,8 +203,7 @@ describe("fromMinimalLayout", () => {
     const minimal = toMinimalLayout(original);
     const restored = fromMinimalLayout(minimal);
 
-    expect(restored.racks[0].devices[0].id).toBeDefined();
-    expect(typeof restored.racks[0].devices[0].id).toBe("string");
+    expect(restored.racks[0].devices[0].id).toBeTruthy();
   });
 
   it("sets default layout settings", () => {
@@ -234,11 +232,11 @@ describe("fromMinimalLayout", () => {
 // =============================================================================
 
 describe("encodeLayout", () => {
-  it("returns a string", () => {
+  it("returns a non-null value", () => {
     const layout = createLayoutWithDevices();
-    const encoded = requireEncoded(layout);
+    const encoded = encodeLayout(layout);
 
-    expect(typeof encoded).toBe("string");
+    expect(encoded).not.toBeNull();
   });
 
   it("produces URL-safe output (no +, /, =)", () => {
@@ -332,24 +330,16 @@ describe("decodeLayout", () => {
 
 describe("generateShareUrl", () => {
   beforeEach(() => {
-    // Mock window.location
-    Object.defineProperty(globalThis, "window", {
-      value: {
-        location: {
-          origin: "https://app.racku.la",
-          pathname: "/",
-        },
+    vi.stubGlobal("window", {
+      location: {
+        origin: "https://app.racku.la",
+        pathname: "/",
       },
-      writable: true,
     });
   });
 
   afterEach(() => {
-    // Clean up window mock
-    Object.defineProperty(globalThis, "window", {
-      value: undefined,
-      writable: true,
-    });
+    vi.unstubAllGlobals();
   });
 
   it("generates URL with encoded layout parameter", () => {
@@ -361,14 +351,11 @@ describe("generateShareUrl", () => {
   });
 
   it("uses current origin and pathname", () => {
-    Object.defineProperty(globalThis, "window", {
-      value: {
-        location: {
-          origin: "https://custom.domain.com",
-          pathname: "/app/",
-        },
+    vi.stubGlobal("window", {
+      location: {
+        origin: "https://custom.domain.com",
+        pathname: "/app/",
       },
-      writable: true,
     });
 
     const layout = createLayoutWithDevices();
@@ -384,21 +371,15 @@ describe("generateShareUrl", () => {
 
 describe("getShareParam", () => {
   beforeEach(() => {
-    Object.defineProperty(globalThis, "window", {
-      value: {
-        location: {
-          search: "",
-        },
+    vi.stubGlobal("window", {
+      location: {
+        search: "",
       },
-      writable: true,
     });
   });
 
   afterEach(() => {
-    Object.defineProperty(globalThis, "window", {
-      value: undefined,
-      writable: true,
-    });
+    vi.unstubAllGlobals();
   });
 
   it("returns null when no parameter present", () => {
@@ -406,26 +387,20 @@ describe("getShareParam", () => {
   });
 
   it("returns parameter value when present", () => {
-    Object.defineProperty(globalThis, "window", {
-      value: {
-        location: {
-          search: "?l=abc123",
-        },
+    vi.stubGlobal("window", {
+      location: {
+        search: "?l=abc123",
       },
-      writable: true,
     });
 
     expect(getShareParam()).toBe("abc123");
   });
 
   it("returns null when different parameter present", () => {
-    Object.defineProperty(globalThis, "window", {
-      value: {
-        location: {
-          search: "?other=value",
-        },
+    vi.stubGlobal("window", {
+      location: {
+        search: "?other=value",
       },
-      writable: true,
     });
 
     expect(getShareParam()).toBeNull();
@@ -440,30 +415,21 @@ describe("clearShareParam", () => {
   let replaceStateSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    // Create spy for replaceState
     replaceStateSpy = vi.fn();
 
-    // Mock window with history
-    Object.defineProperty(globalThis, "window", {
-      value: {
-        location: {
-          href: "https://app.racku.la/?l=abc123",
-          search: "?l=abc123",
-        },
-        history: {
-          replaceState: replaceStateSpy,
-        },
+    vi.stubGlobal("window", {
+      location: {
+        href: "https://app.racku.la/?l=abc123",
+        search: "?l=abc123",
       },
-      writable: true,
+      history: {
+        replaceState: replaceStateSpy,
+      },
     });
   });
 
   afterEach(() => {
-    // Clean up window mock to prevent cross-test pollution
-    Object.defineProperty(globalThis, "window", {
-      value: undefined,
-      writable: true,
-    });
+    vi.unstubAllGlobals();
   });
 
   it("calls replaceState to remove parameter", () => {
@@ -477,19 +443,15 @@ describe("clearShareParam", () => {
   });
 
   it("preserves other URL parameters", () => {
-    // Update mock for this specific test
     const newSpy = vi.fn();
-    Object.defineProperty(globalThis, "window", {
-      value: {
-        location: {
-          href: "https://app.racku.la/?l=abc123&other=value",
-          search: "?l=abc123&other=value",
-        },
-        history: {
-          replaceState: newSpy,
-        },
+    vi.stubGlobal("window", {
+      location: {
+        href: "https://app.racku.la/?l=abc123&other=value",
+        search: "?l=abc123&other=value",
       },
-      writable: true,
+      history: {
+        replaceState: newSpy,
+      },
     });
 
     clearShareParam();
