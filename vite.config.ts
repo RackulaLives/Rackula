@@ -69,7 +69,7 @@ export default defineConfig(() => ({
     rollupOptions: {
       output: {
         // Manual chunks to reduce main bundle size below 500kB
-        manualChunks(id) {
+        manualChunks(id: string): string | undefined {
           // Vendor libraries - split by functionality
           if (id.includes("node_modules")) {
             // Validation library
