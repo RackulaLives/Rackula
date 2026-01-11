@@ -158,6 +158,7 @@ test.describe("Bottom Sheet", () => {
 
     const bottomSheet = page.locator(".bottom-sheet");
     await expect(bottomSheet).toBeVisible();
+    // eslint-disable-next-line no-restricted-syntax -- E2E test verifying bottom sheet opens (user-visible state)
     await expect(bottomSheet).toHaveClass(/open/);
   });
 
@@ -246,6 +247,7 @@ test.describe("Haptic Feedback", () => {
     await setupMobileViewport(page, mobileDevices[0]);
 
     const vibrateSupported = await page.evaluate(() => {
+      // eslint-disable-next-line no-restricted-syntax -- Testing browser API availability, not TypeScript types
       return typeof navigator.vibrate === "function";
     });
 

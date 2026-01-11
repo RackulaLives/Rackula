@@ -175,6 +175,7 @@ test.describe("Bottom Sheet", () => {
 
     const bottomSheet = page.locator(".bottom-sheet");
     await expect(bottomSheet).toBeVisible();
+    // eslint-disable-next-line no-restricted-syntax -- E2E test verifying bottom sheet opens (user-visible state)
     await expect(bottomSheet).toHaveClass(/open/);
   });
 
@@ -322,6 +323,7 @@ test.describe("Haptic Feedback", () => {
     await setupMobileViewport(page, phoneDevices[0]);
 
     const vibrateSupported = await page.evaluate(() => {
+      // eslint-disable-next-line no-restricted-syntax -- Testing browser API availability, not TypeScript types
       return typeof navigator.vibrate === "function";
     });
 
@@ -335,6 +337,7 @@ test.describe("Haptic Feedback", () => {
 
     const noError = await page.evaluate(() => {
       try {
+        // eslint-disable-next-line no-restricted-syntax -- Testing browser API availability, not TypeScript types
         if (typeof navigator.vibrate === "function") {
           navigator.vibrate(50);
           navigator.vibrate([50, 100, 50]); // Pattern
@@ -391,6 +394,7 @@ test.describe("Touch Interactions", () => {
     await rackDevice.tap();
 
     // Device should be selected (shown by selection indicator or class)
+    // eslint-disable-next-line no-restricted-syntax -- E2E test verifying device selection (user-visible state)
     await expect(rackDevice).toHaveClass(/selected/, { timeout: 2000 });
   });
 
@@ -508,6 +512,7 @@ test.describe("WebView Compatibility", () => {
     const criticalErrors = errors.filter(
       (e) => !e.includes("warning") && !e.includes("deprecated"),
     );
+    // eslint-disable-next-line no-restricted-syntax -- Testing no console errors (behavioral invariant: 0 errors expected)
     expect(criticalErrors).toHaveLength(0);
   });
 });

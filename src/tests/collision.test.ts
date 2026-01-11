@@ -187,6 +187,7 @@ describe("Collision Detection", () => {
       ]);
 
       const collisions = findCollisions(rack, [device1], 2, 4);
+      // eslint-disable-next-line no-restricted-syntax -- Testing collision detection (exactly 1 collision)
       expect(collisions).toHaveLength(1);
       expect(collisions[0]).toEqual({
         device_type: "device-1",
@@ -441,6 +442,7 @@ describe("Face Independence", () => {
         undefined,
         "front",
       );
+      // eslint-disable-next-line no-restricted-syntax -- Testing collision detection (exactly 1 collision)
       expect(collisions).toHaveLength(1);
     });
 
@@ -459,6 +461,7 @@ describe("Face Independence", () => {
         undefined,
         "both",
       );
+      // eslint-disable-next-line no-restricted-syntax -- Testing collision detection (exactly 1 collision)
       expect(collisions).toHaveLength(1);
     });
   });

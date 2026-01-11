@@ -360,6 +360,7 @@ describe("Face Change Collision Detection (#450)", () => {
         "both",
       );
 
+      // eslint-disable-next-line no-restricted-syntax -- Testing collision detection (exactly 1 collision expected)
       expect(collisions).toHaveLength(1);
       expect(collisions[0]!.id).toBe("rear-device");
     });
