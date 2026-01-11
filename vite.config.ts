@@ -95,9 +95,17 @@ export default defineConfig(() => ({
             if (id.includes("/svelte/")) return "vendor-svelte";
           }
           // App data files - split for lazy loading potential
-          if (id.includes("/src/lib/data/brandPacks/"))
+          // Guard against node_modules paths that might contain these strings
+          if (
+            !id.includes("node_modules") &&
+            id.includes("/src/lib/data/brandPacks/")
+          )
             return "data-brandpacks";
-          if (id.includes("/src/lib/data/bundledImages")) return "data-images";
+          if (
+            !id.includes("node_modules") &&
+            id.includes("/src/lib/data/bundledImages")
+          )
+            return "data-images";
         },
       },
     },
