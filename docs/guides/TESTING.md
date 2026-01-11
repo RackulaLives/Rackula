@@ -35,7 +35,7 @@ We deleted **78 low-value test files** (57% reduction) that tested implementatio
 - Core algorithms (collision detection, schemas)
 - E2E user flows (real user behavior)
 
-**Enforcement:** See [CLAUDE.md - Enforcement](../../CLAUDE.md#enforcement) for the complete guardrails system (ESLint hard-blocks, tiered CI checks, pattern-based file size limits).
+**Enforcement:** See [CLAUDE.md - Enforcement](../../CLAUDE.md#enforcement) for ESLint hard-blocks that prevent anti-patterns.
 
 ---
 
@@ -443,16 +443,6 @@ describe.each(ALL_BRAND_PACKS)("$name brand pack", ({ devices }) => {
   });
 });
 ```
-
-### Test:Source Ratio
-
-| Ratio       | CI Action                       |
-| ----------- | ------------------------------- |
-| < 0.60:1    | ✅ Pass (healthy)               |
-| 0.60–0.80:1 | ⚠️ Warning (consider reviewing) |
-| > 0.80:1    | ❌ Block (over-testing)         |
-
-Current project: **0.58:1** — healthy balance after test cleanup.
 
 ---
 
