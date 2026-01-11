@@ -14,6 +14,7 @@ import {
   type MinimalDevice,
 } from "$lib/schemas/share";
 import { generateId } from "./device";
+import { createDefaultRack } from "./serialization";
 
 // =============================================================================
 // Layout Conversion Functions
@@ -33,6 +34,15 @@ export function toMinimalLayout(layout: Layout): MinimalLayout {
 
   // Get unique device type slugs from placed devices
   const usedSlugs = new Set(rack.devices.map((d) => d.device_type));
+
+  // Validate all used slugs exist in device_types
+  const availableSlugs = new Set(layout.device_types.map((t) => t.slug));
+  const missingSlugs = [...usedSlugs].filter((s) => !availableSlugs.has(s));
+  if (missingSlugs.length > 0) {
+    throw new Error(
+      `Cannot share layout: missing device types: ${missingSlugs.join(", ")}`,
+    );
+  }
 
   // Filter and convert device types (only used ones)
   const dt: MinimalDeviceType[] = layout.device_types
@@ -91,24 +101,23 @@ export function fromMinimalLayout(minimal: MinimalLayout): Layout {
     ...(d.n ? { name: d.n } : {}),
   }));
 
+  // Create rack using factory to centralize defaults
+  const rack = createDefaultRack(
+    minimal.r.n, // name
+    minimal.r.h, // height
+    minimal.r.w as 10 | 19, // width
+    "4-post-cabinet", // form_factor (default)
+    false, // desc_units (default)
+    1, // starting_unit (default)
+    true, // show_rear (default)
+    generateId(), // id
+  );
+  rack.devices = devices;
+
   return {
     version: minimal.v,
     name: minimal.n,
-    racks: [
-      {
-        id: generateId(),
-        name: minimal.r.n,
-        height: minimal.r.h,
-        width: minimal.r.w,
-        desc_units: false,
-        show_rear: true,
-        form_factor: "4-post-cabinet",
-        starting_unit: 1,
-        position: 0,
-        devices,
-        view: "front",
-      },
-    ],
+    racks: [rack],
     device_types,
     settings: {
       display_mode: "label",
@@ -141,12 +150,18 @@ function base64UrlDecode(str: string): Uint8Array {
 
 /**
  * Encode Layout to URL-safe compressed string
+ * Returns null if encoding fails (e.g., empty racks, missing device types)
  */
-export function encodeLayout(layout: Layout): string {
-  const minimal = toMinimalLayout(layout);
-  const json = JSON.stringify(minimal);
-  const compressed = pako.deflate(json);
-  return base64UrlEncode(compressed);
+export function encodeLayout(layout: Layout): string | null {
+  try {
+    const minimal = toMinimalLayout(layout);
+    const json = JSON.stringify(minimal);
+    const compressed = pako.deflate(json);
+    return base64UrlEncode(compressed);
+  } catch (error) {
+    console.warn("Share link encode failed:", error);
+    return null;
+  }
 }
 
 /**
@@ -179,9 +194,12 @@ export function decodeLayout(encoded: string): Layout | null {
 
 /**
  * Generate full share URL for a layout
+ * Returns null if encoding fails
  */
-export function generateShareUrl(layout: Layout): string {
+export function generateShareUrl(layout: Layout): string | null {
   const encoded = encodeLayout(layout);
+  if (!encoded) return null;
+
   const baseUrl =
     typeof window !== "undefined"
       ? window.location.origin + window.location.pathname

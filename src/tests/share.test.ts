@@ -175,6 +175,55 @@ describe("Share Utilities", () => {
       // Model is 'm' in minimal format
       expect(minimal.dt[0]?.m).toBe("R740");
     });
+
+    it("only shares first rack when layout has multiple racks", () => {
+      const layout = createTestLayout();
+
+      // Add a second rack with different devices
+      layout.racks.push({
+        id: "rack-2",
+        name: "Second Rack",
+        height: 42,
+        width: 19,
+        depth: 1000,
+        devices: [
+          {
+            id: "second-rack-device",
+            device_type: "test-device",
+            position: 10,
+            face: "front",
+          },
+        ],
+      });
+
+      layout.device_types = [
+        {
+          slug: "test-device",
+          u_height: 1,
+          colour: "#000",
+          category: "server",
+        },
+      ];
+
+      // First rack has one device
+      layout.racks[0].devices = [
+        {
+          id: "first-rack-device",
+          device_type: "test-device",
+          position: 5,
+          face: "front",
+        },
+      ];
+
+      const minimal = toMinimalLayout(layout);
+
+      // Should only have devices from first rack
+      expect(minimal.r.d).toHaveLength(1);
+      expect(minimal.r.d[0]?.p).toBe(5); // Position from first rack device
+
+      // Rack info should be from first rack
+      expect(minimal.r.n).toBe("Main Rack"); // First rack's name
+    });
   });
 
   describe("fromMinimalLayout", () => {
@@ -325,7 +374,6 @@ describe("Share Utilities", () => {
       layout.racks[0].devices = [];
 
       const encoded = encodeLayout(layout);
-      expect(encoded).toBeDefined();
       expect(encoded.length).toBeGreaterThan(0);
     });
 
@@ -349,6 +397,48 @@ describe("Share Utilities", () => {
       // Should still be under QR code limit (~1588 chars)
       expect(encoded.length).toBeLessThan(1600);
     });
+
+    it("returns null when layout has missing device types", () => {
+      const layout = createTestLayout();
+      layout.device_types = []; // No device types
+      layout.racks[0].devices = [
+        {
+          id: "device-1",
+          device_type: "missing-slug",
+          position: 5,
+          face: "front",
+        },
+      ];
+
+      // Suppress warning
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const encoded = encodeLayout(layout);
+
+      expect(encoded).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "Share link encode failed:",
+        expect.any(Error),
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("returns null when layout has no racks", () => {
+      const layout = createTestLayout();
+      layout.racks = [];
+
+      // Suppress warning
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const encoded = encodeLayout(layout);
+
+      expect(encoded).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "Share link encode failed:",
+        expect.any(Error),
+      );
+      warnSpy.mockRestore();
+    });
   });
 
   describe("decodeLayout", () => {
@@ -366,7 +456,8 @@ describe("Share Utilities", () => {
     it("decodes valid encoded layout", () => {
       const original = createTestLayout();
       const encoded = encodeLayout(original);
-      const decoded = decodeLayout(encoded);
+
+      const decoded = decodeLayout(encoded!);
 
       expect(decoded).not.toBeNull();
       expect(decoded?.name).toBe("Test Layout");
