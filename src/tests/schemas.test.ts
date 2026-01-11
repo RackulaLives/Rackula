@@ -14,6 +14,7 @@ import {
   DeviceTypeSchema,
   PlacedDeviceSchema,
   RackSchema,
+  RackGroupSchema,
   LayoutSettingsSchema,
   LayoutSchema,
   validateSlugUniqueness,
@@ -308,7 +309,6 @@ describe("DeviceTypeSchema", () => {
       const result = DeviceTypeSchema.safeParse(device);
       expect(result.success).toBe(true);
       if (result.success) {
-        // eslint-disable-next-line no-restricted-syntax -- Testing schema validation (exactly 2 power outlets)
         expect(result.data.power_outlets).toHaveLength(2);
       }
     });
@@ -325,7 +325,6 @@ describe("DeviceTypeSchema", () => {
       const result = DeviceTypeSchema.safeParse(device);
       expect(result.success).toBe(true);
       if (result.success) {
-        // eslint-disable-next-line no-restricted-syntax -- Testing schema validation (exactly 2 power ports)
         expect(result.data.power_ports).toHaveLength(2);
         expect(result.data.va_rating).toBe(3000);
       }
@@ -549,6 +548,7 @@ describe("PlacedDeviceSchema", () => {
 
 describe("RackSchema", () => {
   const validRack = {
+    id: "rack-1",
     name: "Main Rack",
     height: 42,
     width: 19 as const,
@@ -678,16 +678,19 @@ describe("LayoutSchema", () => {
   const validLayout = {
     version: "0.2.0",
     name: "My Homelab",
-    rack: {
-      name: "Main Rack",
-      height: 42,
-      width: 19 as const,
-      desc_units: false,
-      form_factor: "4-post-cabinet" as const,
-      starting_unit: 1,
-      position: 0,
-      devices: [],
-    },
+    racks: [
+      {
+        id: "rack-1",
+        name: "Main Rack",
+        height: 42,
+        width: 19 as const,
+        desc_units: false,
+        form_factor: "4-post-cabinet" as const,
+        starting_unit: 1,
+        position: 0,
+        devices: [],
+      },
+    ],
     device_types: [],
     settings: {
       display_mode: "label" as const,
@@ -784,6 +787,285 @@ describe("LayoutSchema", () => {
 });
 
 // ============================================================================
+// RackGroupSchema Tests (Multi-rack support)
+// ============================================================================
+
+describe("RackGroupSchema", () => {
+  const validRackGroup = {
+    id: "group-1",
+    name: "Touring Rack",
+    rack_ids: ["rack-1", "rack-2", "rack-3"],
+    layout_preset: "bayed" as const,
+  };
+
+  describe("valid rack groups", () => {
+    it("accepts minimal valid rack group (id + rack_ids only)", () => {
+      const group = { id: "group-1", rack_ids: ["rack-1"] };
+      expect(RackGroupSchema.safeParse(group).success).toBe(true);
+    });
+
+    it("accepts rack group with all fields", () => {
+      expect(RackGroupSchema.safeParse(validRackGroup).success).toBe(true);
+    });
+
+    it("accepts bayed layout preset", () => {
+      const group = { ...validRackGroup, layout_preset: "bayed" as const };
+      expect(RackGroupSchema.safeParse(group).success).toBe(true);
+    });
+
+    it("accepts row layout preset", () => {
+      const group = { ...validRackGroup, layout_preset: "row" as const };
+      expect(RackGroupSchema.safeParse(group).success).toBe(true);
+    });
+
+    it("accepts custom layout preset", () => {
+      const group = { ...validRackGroup, layout_preset: "custom" as const };
+      expect(RackGroupSchema.safeParse(group).success).toBe(true);
+    });
+
+    it("accepts rack group without optional name", () => {
+      const group = { id: "group-1", rack_ids: ["rack-1", "rack-2"] };
+      expect(RackGroupSchema.safeParse(group).success).toBe(true);
+    });
+
+    it("accepts rack group without optional layout_preset", () => {
+      const group = { id: "group-1", name: "Test Group", rack_ids: ["rack-1"] };
+      expect(RackGroupSchema.safeParse(group).success).toBe(true);
+    });
+  });
+
+  describe("id validation", () => {
+    it("rejects missing id", () => {
+      const group = { rack_ids: ["rack-1"] };
+      expect(RackGroupSchema.safeParse(group).success).toBe(false);
+    });
+
+    it("rejects empty id", () => {
+      const group = { id: "", rack_ids: ["rack-1"] };
+      expect(RackGroupSchema.safeParse(group).success).toBe(false);
+    });
+  });
+
+  describe("rack_ids validation", () => {
+    it("rejects missing rack_ids", () => {
+      const group = { id: "group-1" };
+      expect(RackGroupSchema.safeParse(group).success).toBe(false);
+    });
+
+    it("rejects empty rack_ids array", () => {
+      const group = { id: "group-1", rack_ids: [] };
+      expect(RackGroupSchema.safeParse(group).success).toBe(false);
+    });
+
+    it("rejects rack_ids with empty strings", () => {
+      const group = { id: "group-1", rack_ids: ["rack-1", ""] };
+      expect(RackGroupSchema.safeParse(group).success).toBe(false);
+    });
+  });
+
+  describe("layout_preset validation", () => {
+    it("rejects invalid layout preset", () => {
+      const group = { ...validRackGroup, layout_preset: "invalid" };
+      expect(RackGroupSchema.safeParse(group).success).toBe(false);
+    });
+  });
+});
+
+// ============================================================================
+// Multi-rack LayoutSchema Tests
+// ============================================================================
+
+describe("LayoutSchema multi-rack support", () => {
+  const validRack = {
+    id: "rack-1",
+    name: "Main Rack",
+    height: 42,
+    width: 19 as const,
+    desc_units: false,
+    show_rear: true,
+    form_factor: "4-post-cabinet" as const,
+    starting_unit: 1,
+    position: 0,
+    devices: [],
+  };
+
+  const validMultiRackLayout = {
+    version: "0.6.0",
+    name: "Multi-Rack Homelab",
+    racks: [validRack],
+    device_types: [],
+    settings: {
+      display_mode: "label" as const,
+      show_labels_on_images: true,
+    },
+  };
+
+  describe("racks array validation", () => {
+    it("accepts layout with single rack in array", () => {
+      expect(LayoutSchema.safeParse(validMultiRackLayout).success).toBe(true);
+    });
+
+    it("accepts layout with multiple racks", () => {
+      const layout = {
+        ...validMultiRackLayout,
+        racks: [
+          validRack,
+          { ...validRack, id: "rack-2", name: "Rack 2", position: 1 },
+          { ...validRack, id: "rack-3", name: "Rack 3", position: 2 },
+        ],
+      };
+      expect(LayoutSchema.safeParse(layout).success).toBe(true);
+    });
+
+    it("rejects layout with empty racks array", () => {
+      const layout = { ...validMultiRackLayout, racks: [] };
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toBe(
+          "At least one rack is required",
+        );
+      }
+    });
+
+    it("rejects layout with racks missing required id", () => {
+      const rackWithoutId = { ...validRack };
+      delete (rackWithoutId as Record<string, unknown>).id;
+      const layout = {
+        ...validMultiRackLayout,
+        racks: [rackWithoutId],
+      };
+      expect(LayoutSchema.safeParse(layout).success).toBe(false);
+    });
+  });
+
+  describe("rack_groups validation", () => {
+    it("accepts layout with rack_groups", () => {
+      const layout = {
+        ...validMultiRackLayout,
+        racks: [
+          validRack,
+          { ...validRack, id: "rack-2", name: "Rack 2", position: 1 },
+        ],
+        rack_groups: [
+          {
+            id: "group-1",
+            name: "Touring Rack",
+            rack_ids: ["rack-1", "rack-2"],
+            layout_preset: "bayed" as const,
+          },
+        ],
+      };
+      expect(LayoutSchema.safeParse(layout).success).toBe(true);
+    });
+
+    it("accepts layout without rack_groups (optional)", () => {
+      const layout = { ...validMultiRackLayout };
+      delete (layout as Record<string, unknown>).rack_groups;
+      expect(LayoutSchema.safeParse(layout).success).toBe(true);
+    });
+
+    it("accepts layout with empty rack_groups array", () => {
+      const layout = { ...validMultiRackLayout, rack_groups: [] };
+      expect(LayoutSchema.safeParse(layout).success).toBe(true);
+    });
+
+    it("rejects rack_groups with non-existent rack_ids", () => {
+      const layout = {
+        ...validMultiRackLayout,
+        racks: [validRack],
+        rack_groups: [
+          {
+            id: "group-1",
+            name: "Invalid Group",
+            rack_ids: ["rack-1", "non-existent-rack"],
+          },
+        ],
+      };
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toContain(
+          "non-existent rack IDs",
+        );
+      }
+    });
+
+    it("accepts rack_groups with all valid rack_ids", () => {
+      const layout = {
+        ...validMultiRackLayout,
+        racks: [
+          validRack,
+          { ...validRack, id: "rack-2", name: "Rack 2", position: 1 },
+          { ...validRack, id: "rack-3", name: "Rack 3", position: 2 },
+        ],
+        rack_groups: [
+          {
+            id: "group-1",
+            name: "Valid Group",
+            rack_ids: ["rack-1", "rack-3"],
+          },
+        ],
+      };
+      expect(LayoutSchema.safeParse(layout).success).toBe(true);
+    });
+  });
+
+  describe("backward compatibility with single rack format", () => {
+    // Note: Old format normalization happens at load time, not in schema
+    // This test documents that the schema rejects old format (as expected)
+    it("rejects old single-rack format (rack instead of racks)", () => {
+      const oldLayout = {
+        version: "0.5.0",
+        name: "Old Homelab",
+        rack: validRack, // Old format
+        device_types: [],
+        settings: {
+          display_mode: "label" as const,
+          show_labels_on_images: true,
+        },
+      };
+      // Schema requires 'racks' array - normalization handles old format
+      expect(LayoutSchema.safeParse(oldLayout).success).toBe(false);
+    });
+  });
+});
+
+// ============================================================================
+// RackSchema multi-rack changes (id required)
+// ============================================================================
+
+describe("RackSchema multi-rack changes", () => {
+  const validRackWithId = {
+    id: "rack-1",
+    name: "Main Rack",
+    height: 42,
+    width: 19 as const,
+    desc_units: false,
+    show_rear: true,
+    form_factor: "4-post-cabinet" as const,
+    starting_unit: 1,
+    position: 0,
+    devices: [],
+  };
+
+  it("requires id field", () => {
+    const rackWithoutId = { ...validRackWithId };
+    delete (rackWithoutId as Record<string, unknown>).id;
+    expect(RackSchema.safeParse(rackWithoutId).success).toBe(false);
+  });
+
+  it("accepts rack with valid id", () => {
+    expect(RackSchema.safeParse(validRackWithId).success).toBe(true);
+  });
+
+  it("rejects rack with empty id", () => {
+    const rack = { ...validRackWithId, id: "" };
+    expect(RackSchema.safeParse(rack).success).toBe(false);
+  });
+});
+
+// ============================================================================
 // validateSlugUniqueness Tests
 // ============================================================================
 
@@ -813,7 +1095,6 @@ describe("validateSlugUniqueness", () => {
     const result = validateSlugUniqueness(types);
     expect(result).toContain("a");
     expect(result).toContain("b");
-    // eslint-disable-next-line no-restricted-syntax -- Testing deduplication (exactly 2 duplicate slugs: 'a' and 'b')
     expect(result).toHaveLength(2);
   });
 

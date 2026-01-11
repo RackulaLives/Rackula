@@ -14,7 +14,7 @@ export function createLayout(name: string = "Racky McRackface"): Layout {
   return {
     version: VERSION,
     name,
-    rack: createRackForNewLayout(name),
+    racks: [createRackForNewLayout(name)],
     device_types: [], // Starter library is a runtime constant, not stored in layout
     settings: {
       display_mode: "label",
@@ -30,6 +30,7 @@ export function createLayout(name: string = "Racky McRackface"): Layout {
  */
 function createRackForNewLayout(name: string): Rack {
   return {
+    id: "rack-1",
     name,
     height: 42,
     width: 19,
@@ -62,8 +63,10 @@ export function createDefaultRack(
   desc_units: boolean = false,
   starting_unit: number = 1,
   show_rear: boolean = true,
+  id: string = "rack-1",
 ): Rack {
   return {
+    id,
     name,
     height,
     width,

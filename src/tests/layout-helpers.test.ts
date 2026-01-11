@@ -498,7 +498,6 @@ describe("addDeviceTypeToLayout", () => {
 
     const result = addDeviceTypeToLayout(layout, newDeviceType);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing add operation's exact result (1 existing + 1 new = 2)
     expect(result.device_types).toHaveLength(2);
     expect(result.device_types[1].slug).toBe("new-device");
   });
@@ -517,7 +516,6 @@ describe("addDeviceTypeToLayout", () => {
 
     addDeviceTypeToLayout(layout, newDeviceType);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing immutability: original should remain unchanged (1 device)
     expect(layout.device_types).toHaveLength(1);
   });
 
@@ -537,7 +535,6 @@ describe("addDeviceTypeToLayout", () => {
 
     const result = addDeviceTypeToLayout(emptyLayout, newDeviceType);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing add to empty array (0 + 1 = 1)
     expect(result.device_types).toHaveLength(1);
     expect(result.device_types[0].slug).toBe("first-device");
   });
@@ -549,7 +546,7 @@ describe("addDeviceTypeToLayout", () => {
 
     expect(result.name).toBe(layout.name);
     expect(result.version).toBe(layout.version);
-    expect(result.rack).toBe(layout.rack);
+    expect(result.racks[0]).toBe(layout.racks[0]);
     expect(result.settings).toBe(layout.settings);
   });
 });
@@ -568,20 +565,21 @@ describe("removeDeviceTypeFromLayout", () => {
         createTestDeviceType({ slug: "device-2" }),
         createTestDeviceType({ slug: "device-3" }),
       ],
-      rack: createTestRack({
-        devices: [
-          createTestDevice({ device_type: "device-1", position: 1 }),
-          createTestDevice({ device_type: "device-2", position: 5 }),
-          createTestDevice({ device_type: "device-1", position: 10 }), // Multiple instances
-        ],
-      }),
+      racks: [
+        createTestRack({
+          devices: [
+            createTestDevice({ device_type: "device-1", position: 1 }),
+            createTestDevice({ device_type: "device-2", position: 5 }),
+            createTestDevice({ device_type: "device-1", position: 10 }), // Multiple instances
+          ],
+        }),
+      ],
     });
   });
 
   it("removes device type by slug", () => {
     const result = removeDeviceTypeFromLayout(layout, "device-2");
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing remove operation (3 - 1 = 2)
     expect(result.device_types).toHaveLength(2);
     expect(
       result.device_types.find((dt) => dt.slug === "device-2"),
@@ -591,9 +589,8 @@ describe("removeDeviceTypeFromLayout", () => {
   it("removes all placed devices referencing the device type", () => {
     const result = removeDeviceTypeFromLayout(layout, "device-1");
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing cascade delete (3 devices - 2 with device-1 = 1 remaining)
-    expect(result.rack.devices).toHaveLength(1);
-    expect(result.rack.devices[0].device_type).toBe("device-2");
+    expect(result.racks[0].devices).toHaveLength(1);
+    expect(result.racks[0].devices[0].device_type).toBe("device-2");
   });
 
   it("returns a new layout object (immutable)", () => {
@@ -601,26 +598,22 @@ describe("removeDeviceTypeFromLayout", () => {
 
     expect(result).not.toBe(layout);
     expect(result.device_types).not.toBe(layout.device_types);
-    expect(result.rack).not.toBe(layout.rack);
-    expect(result.rack.devices).not.toBe(layout.rack.devices);
+    expect(result.racks[0]).not.toBe(layout.racks[0]);
+    expect(result.racks[0].devices).not.toBe(layout.racks[0].devices);
   });
 
   it("preserves original layout", () => {
     removeDeviceTypeFromLayout(layout, "device-1");
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing immutability: original unchanged (3 device types)
     expect(layout.device_types).toHaveLength(3);
-    // eslint-disable-next-line no-restricted-syntax -- Testing immutability: original unchanged (3 devices)
-    expect(layout.rack.devices).toHaveLength(3);
+    expect(layout.racks[0].devices).toHaveLength(3);
   });
 
   it("handles non-existent slug gracefully", () => {
     const result = removeDeviceTypeFromLayout(layout, "non-existent");
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing no-op when slug not found (3 device types remain)
     expect(result.device_types).toHaveLength(3);
-    // eslint-disable-next-line no-restricted-syntax -- Testing no-op when slug not found (3 devices remain)
-    expect(result.rack.devices).toHaveLength(3);
+    expect(result.racks[0].devices).toHaveLength(3);
   });
 
   it("handles empty device_types array", () => {
@@ -628,7 +621,6 @@ describe("removeDeviceTypeFromLayout", () => {
 
     const result = removeDeviceTypeFromLayout(emptyLayout, "anything");
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing no-op on empty array (0 remains)
     expect(result.device_types).toHaveLength(0);
   });
 
@@ -643,9 +635,9 @@ describe("removeDeviceTypeFromLayout", () => {
   it("preserves rack properties except devices", () => {
     const result = removeDeviceTypeFromLayout(layout, "device-1");
 
-    expect(result.rack.name).toBe(layout.rack.name);
-    expect(result.rack.height).toBe(layout.rack.height);
-    expect(result.rack.width).toBe(layout.rack.width);
+    expect(result.racks[0].name).toBe(layout.racks[0].name);
+    expect(result.racks[0].height).toBe(layout.racks[0].height);
+    expect(result.racks[0].width).toBe(layout.racks[0].width);
   });
 });
 
@@ -662,9 +654,13 @@ describe("placeDeviceInRack", () => {
         createTestDeviceType({ slug: "server-1" }),
         createTestDeviceType({ slug: "switch-1" }),
       ],
-      rack: createTestRack({
-        devices: [createTestDevice({ device_type: "server-1", position: 10 })],
-      }),
+      racks: [
+        createTestRack({
+          devices: [
+            createTestDevice({ device_type: "server-1", position: 10 }),
+          ],
+        }),
+      ],
     });
   });
 
@@ -673,9 +669,8 @@ describe("placeDeviceInRack", () => {
 
     const result = placeDeviceInRack(layout, device);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing place operation (1 existing + 1 new = 2)
-    expect(result.rack.devices).toHaveLength(2);
-    expect(result.rack.devices[1]).toEqual(device);
+    expect(result.racks[0].devices).toHaveLength(2);
+    expect(result.racks[0].devices[1]).toEqual(device);
   });
 
   it("returns a new layout object (immutable)", () => {
@@ -684,8 +679,8 @@ describe("placeDeviceInRack", () => {
     const result = placeDeviceInRack(layout, device);
 
     expect(result).not.toBe(layout);
-    expect(result.rack).not.toBe(layout.rack);
-    expect(result.rack.devices).not.toBe(layout.rack.devices);
+    expect(result.racks[0]).not.toBe(layout.racks[0]);
+    expect(result.racks[0].devices).not.toBe(layout.racks[0].devices);
   });
 
   it("preserves original layout", () => {
@@ -693,8 +688,7 @@ describe("placeDeviceInRack", () => {
 
     placeDeviceInRack(layout, device);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing immutability: original unchanged (1 device)
-    expect(layout.rack.devices).toHaveLength(1);
+    expect(layout.racks[0].devices).toHaveLength(1);
   });
 
   it("throws error for non-existent device type", () => {
@@ -711,14 +705,13 @@ describe("placeDeviceInRack", () => {
   it("places device in empty rack", () => {
     const emptyLayout = createTestLayout({
       device_types: [createTestDeviceType({ slug: "device-1" })],
-      rack: createTestRack({ devices: [] }),
+      racks: [createTestRack({ devices: [] })],
     });
     const device = createTestDevice({ device_type: "device-1", position: 1 });
 
     const result = placeDeviceInRack(emptyLayout, device);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing place in empty rack (0 + 1 = 1)
-    expect(result.rack.devices).toHaveLength(1);
+    expect(result.racks[0].devices).toHaveLength(1);
   });
 
   it("preserves existing devices in rack", () => {
@@ -726,7 +719,7 @@ describe("placeDeviceInRack", () => {
 
     const result = placeDeviceInRack(layout, device);
 
-    expect(result.rack.devices[0]).toEqual(layout.rack.devices[0]);
+    expect(result.racks[0].devices[0]).toEqual(layout.racks[0].devices[0]);
   });
 
   it("preserves other layout properties", () => {
@@ -750,70 +743,66 @@ describe("removeDeviceFromRack", () => {
 
   beforeEach(() => {
     layout = createTestLayout({
-      rack: createTestRack({
-        devices: [
-          createTestDevice({ device_type: "device-1", position: 1 }),
-          createTestDevice({ device_type: "device-2", position: 5 }),
-          createTestDevice({ device_type: "device-3", position: 10 }),
-        ],
-      }),
+      racks: [
+        createTestRack({
+          devices: [
+            createTestDevice({ device_type: "device-1", position: 1 }),
+            createTestDevice({ device_type: "device-2", position: 5 }),
+            createTestDevice({ device_type: "device-3", position: 10 }),
+          ],
+        }),
+      ],
     });
   });
 
   it("removes device at index", () => {
     const result = removeDeviceFromRack(layout, 1);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing remove by index (3 - 1 = 2)
-    expect(result.rack.devices).toHaveLength(2);
-    expect(result.rack.devices[0].device_type).toBe("device-1");
-    expect(result.rack.devices[1].device_type).toBe("device-3");
+    expect(result.racks[0].devices).toHaveLength(2);
+    expect(result.racks[0].devices[0].device_type).toBe("device-1");
+    expect(result.racks[0].devices[1].device_type).toBe("device-3");
   });
 
   it("removes first device", () => {
     const result = removeDeviceFromRack(layout, 0);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing remove first (3 - 1 = 2)
-    expect(result.rack.devices).toHaveLength(2);
-    expect(result.rack.devices[0].device_type).toBe("device-2");
+    expect(result.racks[0].devices).toHaveLength(2);
+    expect(result.racks[0].devices[0].device_type).toBe("device-2");
   });
 
   it("removes last device", () => {
     const result = removeDeviceFromRack(layout, 2);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing remove last (3 - 1 = 2)
-    expect(result.rack.devices).toHaveLength(2);
-    expect(result.rack.devices[1].device_type).toBe("device-2");
+    expect(result.racks[0].devices).toHaveLength(2);
+    expect(result.racks[0].devices[1].device_type).toBe("device-2");
   });
 
   it("returns a new layout object (immutable)", () => {
     const result = removeDeviceFromRack(layout, 1);
 
     expect(result).not.toBe(layout);
-    expect(result.rack).not.toBe(layout.rack);
-    expect(result.rack.devices).not.toBe(layout.rack.devices);
+    expect(result.racks[0]).not.toBe(layout.racks[0]);
+    expect(result.racks[0].devices).not.toBe(layout.racks[0].devices);
   });
 
   it("preserves original layout", () => {
     removeDeviceFromRack(layout, 1);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing immutability: original unchanged (3 devices)
-    expect(layout.rack.devices).toHaveLength(3);
+    expect(layout.racks[0].devices).toHaveLength(3);
   });
 
   it("returns same layout for negative index", () => {
     const result = removeDeviceFromRack(layout, -1);
 
     expect(result).toBe(layout);
-    // eslint-disable-next-line no-restricted-syntax -- Testing no-op for invalid index (3 devices remain)
-    expect(result.rack.devices).toHaveLength(3);
+    expect(result.racks[0].devices).toHaveLength(3);
   });
 
   it("returns same layout for out-of-bounds index", () => {
     const result = removeDeviceFromRack(layout, 100);
 
     expect(result).toBe(layout);
-    // eslint-disable-next-line no-restricted-syntax -- Testing no-op for invalid index (3 devices remain)
-    expect(result.rack.devices).toHaveLength(3);
+    expect(result.racks[0].devices).toHaveLength(3);
   });
 
   it("returns same layout for index equal to length", () => {
@@ -824,7 +813,7 @@ describe("removeDeviceFromRack", () => {
 
   it("handles empty devices array gracefully", () => {
     const emptyLayout = createTestLayout({
-      rack: createTestRack({ devices: [] }),
+      racks: [createTestRack({ devices: [] })],
     });
 
     const result = removeDeviceFromRack(emptyLayout, 0);
@@ -835,9 +824,9 @@ describe("removeDeviceFromRack", () => {
   it("preserves other rack properties", () => {
     const result = removeDeviceFromRack(layout, 1);
 
-    expect(result.rack.name).toBe(layout.rack.name);
-    expect(result.rack.height).toBe(layout.rack.height);
-    expect(result.rack.width).toBe(layout.rack.width);
+    expect(result.racks[0].name).toBe(layout.racks[0].name);
+    expect(result.racks[0].height).toBe(layout.racks[0].height);
+    expect(result.racks[0].width).toBe(layout.racks[0].width);
   });
 
   it("preserves other layout properties", () => {
@@ -851,17 +840,18 @@ describe("removeDeviceFromRack", () => {
 
   it("handles removing only device", () => {
     const singleDeviceLayout = createTestLayout({
-      rack: createTestRack({
-        devices: [
-          createTestDevice({ device_type: "only-device", position: 1 }),
-        ],
-      }),
+      racks: [
+        createTestRack({
+          devices: [
+            createTestDevice({ device_type: "only-device", position: 1 }),
+          ],
+        }),
+      ],
     });
 
     const result = removeDeviceFromRack(singleDeviceLayout, 0);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing remove last device (1 - 1 = 0)
-    expect(result.rack.devices).toHaveLength(0);
+    expect(result.racks[0].devices).toHaveLength(0);
   });
 });
 
@@ -874,7 +864,7 @@ describe("layout-helpers integration", () => {
     // Start with empty layout
     let layout = createTestLayout({
       device_types: [],
-      rack: createTestRack({ devices: [] }),
+      racks: [createTestRack({ devices: [] })],
     });
 
     // Create and add a device type
@@ -886,19 +876,17 @@ describe("layout-helpers integration", () => {
     });
     layout = addDeviceTypeToLayout(layout, deviceType);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing integration: add device type (0 + 1 = 1)
     expect(layout.device_types).toHaveLength(1);
 
     // Place a device
     const device = createDevice(deviceType.slug, 10, "front", "My Server");
     layout = placeDeviceInRack(layout, device);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing integration: place device (0 + 1 = 1)
-    expect(layout.rack.devices).toHaveLength(1);
+    expect(layout.racks[0].devices).toHaveLength(1);
 
     // Verify display name
     const displayName = getDeviceDisplayName(
-      layout.rack.devices[0],
+      layout.racks[0].devices[0],
       layout.device_types,
     );
     expect(displayName).toBe("My Server");
@@ -906,16 +894,14 @@ describe("layout-helpers integration", () => {
     // Remove device type (should also remove placed device)
     layout = removeDeviceTypeFromLayout(layout, deviceType.slug);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing integration: remove device type (1 - 1 = 0)
     expect(layout.device_types).toHaveLength(0);
-    // eslint-disable-next-line no-restricted-syntax -- Testing integration: cascade delete device (1 - 1 = 0)
-    expect(layout.rack.devices).toHaveLength(0);
+    expect(layout.racks[0].devices).toHaveLength(0);
   });
 
   it("handles multiple device types and placements", () => {
     let layout = createTestLayout({
       device_types: [],
-      rack: createTestRack({ devices: [] }),
+      racks: [createTestRack({ devices: [] })],
     });
 
     // Add multiple device types
@@ -935,7 +921,6 @@ describe("layout-helpers integration", () => {
     layout = addDeviceTypeToLayout(layout, server);
     layout = addDeviceTypeToLayout(layout, switch1);
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing integration: add 2 device types (0 + 2 = 2)
     expect(layout.device_types).toHaveLength(2);
 
     // Place multiple devices
@@ -943,17 +928,14 @@ describe("layout-helpers integration", () => {
     layout = placeDeviceInRack(layout, createDevice(switch1.slug, 5, "front"));
     layout = placeDeviceInRack(layout, createDevice(server.slug, 20, "front"));
 
-    // eslint-disable-next-line no-restricted-syntax -- Testing integration: place 3 devices (0 + 3 = 3)
-    expect(layout.rack.devices).toHaveLength(3);
+    expect(layout.racks[0].devices).toHaveLength(3);
 
     // Remove one device type
     layout = removeDeviceTypeFromLayout(layout, server.slug);
 
     // Only switch device should remain
-    // eslint-disable-next-line no-restricted-syntax -- Testing integration: remove 1 device type (2 - 1 = 1)
     expect(layout.device_types).toHaveLength(1);
-    // eslint-disable-next-line no-restricted-syntax -- Testing integration: cascade delete 2 servers (3 - 2 = 1)
-    expect(layout.rack.devices).toHaveLength(1);
-    expect(layout.rack.devices[0].device_type).toBe(switch1.slug);
+    expect(layout.racks[0].devices).toHaveLength(1);
+    expect(layout.racks[0].devices[0].device_type).toBe(switch1.slug);
   });
 });

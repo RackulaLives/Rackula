@@ -521,11 +521,11 @@ export const PlacedDeviceSchema = z
   .passthrough();
 
 /**
- * Rack schema
+ * Rack schema (id is required for multi-rack support)
  */
 export const RackSchema = z
   .object({
-    id: z.string().optional(),
+    id: z.string().min(1, "Rack ID is required"),
     name: z
       .string()
       .min(1, "Name is required")
@@ -552,6 +552,25 @@ export const RackSchema = z
   .passthrough();
 
 /**
+ * Layout preset for rack groups
+ */
+export const RackGroupLayoutPresetSchema = z.enum(["bayed", "row", "custom"]);
+
+/**
+ * Rack group schema for touring/bayed rack configurations
+ */
+export const RackGroupSchema = z
+  .object({
+    id: z.string().min(1, "Group ID is required"),
+    name: z.string().max(100).optional(),
+    rack_ids: z
+      .array(z.string().min(1, "Rack ID cannot be empty"))
+      .min(1, "At least one rack ID is required"),
+    layout_preset: RackGroupLayoutPresetSchema.optional(),
+  })
+  .passthrough();
+
+/**
  * Layout settings schema
  */
 export const LayoutSettingsSchema = z
@@ -563,6 +582,7 @@ export const LayoutSettingsSchema = z
 
 /**
  * Complete layout schema (base, without refinements)
+ * Uses racks array for multi-rack support
  */
 const LayoutSchemaBase = z
   .object({
@@ -571,7 +591,8 @@ const LayoutSchemaBase = z
       .string()
       .min(1, "Name is required")
       .max(100, "Name must be 100 characters or less"),
-    rack: RackSchema,
+    racks: z.array(RackSchema).min(1, "At least one rack is required"),
+    rack_groups: z.array(RackGroupSchema).optional(),
     device_types: z.array(DeviceTypeSchema),
     settings: LayoutSettingsSchema,
     connections: z.array(ConnectionSchema).optional(),
@@ -581,9 +602,10 @@ const LayoutSchemaBase = z
   .passthrough();
 
 /**
- * Complete layout schema with slug uniqueness validation
+ * Complete layout schema with slug uniqueness and referential integrity validation
  */
 export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
+  // Validate device type slug uniqueness
   const duplicates = validateSlugUniqueness(data.device_types);
   if (duplicates.length > 0) {
     ctx.addIssue({
@@ -591,6 +613,26 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
       message: `Duplicate device type slugs: ${duplicates.join(", ")}`,
       path: ["device_types"],
     });
+  }
+
+  // Validate rack_groups reference existing racks
+  if (data.rack_groups && data.rack_groups.length > 0) {
+    const validRackIds = new Set(data.racks.map((r) => r.id));
+    for (
+      let groupIndex = 0;
+      groupIndex < data.rack_groups.length;
+      groupIndex++
+    ) {
+      const group = data.rack_groups[groupIndex]!;
+      const invalidIds = group.rack_ids.filter((id) => !validRackIds.has(id));
+      if (invalidIds.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Rack group "${group.name ?? group.id}" references non-existent rack IDs: ${invalidIds.join(", ")}`,
+          path: ["rack_groups", groupIndex, "rack_ids"],
+        });
+      }
+    }
   }
 });
 
@@ -625,6 +667,8 @@ export type ConnectionZod = z.infer<typeof ConnectionSchema>;
 export type DeviceTypeZod = z.infer<typeof DeviceTypeSchema>;
 export type PlacedDeviceZod = z.infer<typeof PlacedDeviceSchema>;
 export type RackZod = z.infer<typeof RackSchema>;
+export type RackGroupLayoutPreset = z.infer<typeof RackGroupLayoutPresetSchema>;
+export type RackGroupZod = z.infer<typeof RackGroupSchema>;
 export type LayoutSettingsZod = z.infer<typeof LayoutSettingsSchema>;
 export type LayoutZod = z.infer<typeof LayoutSchema>;
 export type CableType = z.infer<typeof CableTypeSchema>;

@@ -16,8 +16,8 @@ describe("Layout Store (v0.2)", () => {
       expect(store.layout.name).toBe("Racky McRackface");
       expect(store.layout.version).toBe(VERSION);
       // v0.2 has a single rack, not an array
-      expect(store.layout.rack).toBeDefined();
-      expect(store.layout.rack.devices).toEqual([]);
+      expect(store.layout.racks[0]).toBeDefined();
+      expect(store.layout.racks[0].devices).toEqual([]);
       // device_types starts empty (starter library is a runtime constant, not stored)
       expect(store.layout.device_types.length).toBe(0);
     });
@@ -67,7 +67,7 @@ describe("Layout Store (v0.2)", () => {
       store.addRack("Test Rack", 42);
       store.createNewLayout("New Layout");
       // v0.2 always has a rack, but devices should be empty
-      expect(store.layout.rack.devices).toEqual([]);
+      expect(store.layout.racks[0].devices).toEqual([]);
     });
 
     it("resets device_types to empty array", () => {
@@ -98,16 +98,19 @@ describe("Layout Store (v0.2)", () => {
       const v02Layout: Layout = {
         version: "0.2.0",
         name: "Test Layout",
-        rack: {
-          name: "Test Rack",
-          height: 24,
-          width: 19,
-          desc_units: false,
-          form_factor: "4-post-cabinet",
-          starting_unit: 1,
-          position: 0,
-          devices: [],
-        },
+        racks: [
+          {
+            id: "rack-1",
+            name: "Test Rack",
+            height: 24,
+            width: 19,
+            desc_units: false,
+            form_factor: "4-post-cabinet",
+            starting_unit: 1,
+            position: 0,
+            devices: [],
+          },
+        ],
         device_types: [],
         settings: {
           display_mode: "label",
@@ -116,7 +119,7 @@ describe("Layout Store (v0.2)", () => {
       };
       store.loadLayout(v02Layout);
       expect(store.layout.name).toBe("Test Layout");
-      expect(store.layout.rack.height).toBe(24);
+      expect(store.layout.racks[0].height).toBe(24);
     });
 
     it("sets isDirty to false", () => {
@@ -126,16 +129,19 @@ describe("Layout Store (v0.2)", () => {
       store.loadLayout({
         version: "0.2.0",
         name: "Test",
-        rack: {
-          name: "Test",
-          height: 42,
-          width: 19,
-          desc_units: false,
-          form_factor: "4-post-cabinet",
-          starting_unit: 1,
-          position: 0,
-          devices: [],
-        },
+        racks: [
+          {
+            id: "rack-1",
+            name: "Test",
+            height: 42,
+            width: 19,
+            desc_units: false,
+            form_factor: "4-post-cabinet",
+            starting_unit: 1,
+            position: 0,
+            devices: [],
+          },
+        ],
         device_types: [],
         settings: {
           display_mode: "label",
@@ -162,8 +168,8 @@ describe("Layout Store (v0.2)", () => {
     it("updates the rack in layout", () => {
       const store = getLayoutStore();
       store.addRack("Test Rack", 42);
-      expect(store.layout.rack.name).toBe("Test Rack");
-      expect(store.layout.rack.height).toBe(42);
+      expect(store.layout.racks[0].name).toBe("Test Rack");
+      expect(store.layout.racks[0].height).toBe(42);
     });
 
     it("always succeeds in v0.2 (replaces existing rack)", () => {
@@ -172,8 +178,8 @@ describe("Layout Store (v0.2)", () => {
       const result = store.addRack("Second", 24);
       // In v0.2, addRack replaces the rack
       expect(result).not.toBeNull();
-      expect(store.layout.rack.name).toBe("Second");
-      expect(store.layout.rack.height).toBe(24);
+      expect(store.layout.racks[0].name).toBe("Second");
+      expect(store.layout.racks[0].height).toBe(24);
     });
 
     it("sets isDirty to true", () => {
@@ -189,16 +195,16 @@ describe("Layout Store (v0.2)", () => {
       const store = getLayoutStore();
       store.addRack("Original", 42);
       store.updateRack("rack-0", { name: "Updated", height: 24 });
-      expect(store.layout.rack.name).toBe("Updated");
-      expect(store.layout.rack.height).toBe(24);
+      expect(store.layout.racks[0].name).toBe("Updated");
+      expect(store.layout.racks[0].height).toBe(24);
     });
 
     it("does not affect other rack properties", () => {
       const store = getLayoutStore();
       store.addRack("Original", 42);
       store.updateRack("rack-0", { name: "Updated" });
-      expect(store.layout.rack.height).toBe(42);
-      expect(store.layout.rack.width).toBe(19);
+      expect(store.layout.racks[0].height).toBe(42);
+      expect(store.layout.racks[0].width).toBe(19);
     });
 
     it("sets isDirty to true", () => {
@@ -222,10 +228,12 @@ describe("Layout Store (v0.2)", () => {
       });
       store.placeDevice("rack-0", device.slug, 5);
       expect(
-        store.layout.rack.devices.find((d) => d.device_type === device.slug),
+        store.layout.racks[0].devices.find(
+          (d) => d.device_type === device.slug,
+        ),
       ).toBeDefined();
       store.deleteRack("rack-0");
-      expect(store.layout.rack.devices).toEqual([]);
+      expect(store.layout.racks[0].devices).toEqual([]);
     });
 
     it("sets isDirty to true", () => {
@@ -349,12 +357,12 @@ describe("Layout Store (v0.2)", () => {
       });
       store.placeDevice("rack-0", deviceType.slug, 5);
       expect(
-        store.layout.rack.devices.find(
+        store.layout.racks[0].devices.find(
           (d) => d.device_type === deviceType.slug,
         ),
       ).toBeDefined();
       store.deleteDeviceType(deviceType.slug);
-      expect(store.layout.rack.devices).toEqual([]);
+      expect(store.layout.racks[0].devices).toEqual([]);
     });
 
     it("sets isDirty to true", () => {
@@ -423,10 +431,15 @@ describe("Layout Store (v0.2)", () => {
 
       const result = store.placeDevice("rack-0", deviceType.slug, 5);
       expect(result).toBe(true);
-      // eslint-disable-next-line no-restricted-syntax -- Testing place operation (0 + 1 = 1)
-      expect(store.layout.rack.devices).toHaveLength(1);
-      expect(store.layout.rack.devices[0]!.device_type).toBe(deviceType.slug);
-      expect(store.layout.rack.devices[0]!.position).toBe(5);
+      expect(
+        store.layout.racks[0].devices.find(
+          (d) => d.device_type === deviceType.slug,
+        ),
+      ).toBeDefined();
+      expect(store.layout.racks[0].devices[0]!.device_type).toBe(
+        deviceType.slug,
+      );
+      expect(store.layout.racks[0].devices[0]!.position).toBe(5);
     });
 
     it("places device with depth-based face default (undefined = full depth = both)", () => {
@@ -441,7 +454,7 @@ describe("Layout Store (v0.2)", () => {
       });
       store.placeDevice("rack-0", deviceType.slug, 5);
       // Full-depth devices default to 'both' face (visible front and rear)
-      expect(store.layout.rack.devices[0]!.face).toBe("both");
+      expect(store.layout.racks[0].devices[0]!.face).toBe("both");
     });
 
     it("places half-depth device with specified rear face", () => {
@@ -456,7 +469,7 @@ describe("Layout Store (v0.2)", () => {
         is_full_depth: false,
       });
       store.placeDevice("rack-0", deviceType.slug, 5, "rear");
-      expect(store.layout.rack.devices[0]!.face).toBe("rear");
+      expect(store.layout.racks[0].devices[0]!.face).toBe("rear");
     });
 
     it("places device with specified both face", () => {
@@ -469,7 +482,7 @@ describe("Layout Store (v0.2)", () => {
         colour: "#4A90D9",
       });
       store.placeDevice("rack-0", deviceType.slug, 5, "both");
-      expect(store.layout.rack.devices[0]!.face).toBe("both");
+      expect(store.layout.racks[0].devices[0]!.face).toBe("both");
     });
 
     it("returns false for invalid position (collision)", () => {
@@ -493,8 +506,7 @@ describe("Layout Store (v0.2)", () => {
       // device at 5 occupies 5,6. Position 6 would collide.
       const result = store.placeDevice("rack-0", deviceType2.slug, 6);
       expect(result).toBe(false);
-      // eslint-disable-next-line no-restricted-syntax -- Testing collision rejection (still 1 device after failed placement)
-      expect(store.layout.rack.devices).toHaveLength(1);
+      expect(store.layout.racks[0].devices).toHaveLength(1);
     });
 
     it("returns false for invalid position (exceeds rack)", () => {
@@ -559,7 +571,7 @@ describe("Layout Store (v0.2)", () => {
 
       const result = store.moveDevice("rack-0", 0, 10);
       expect(result).toBe(true);
-      expect(store.layout.rack.devices[0]!.position).toBe(10);
+      expect(store.layout.racks[0].devices[0]!.position).toBe(10);
     });
 
     it("returns false for collision", () => {
@@ -584,7 +596,7 @@ describe("Layout Store (v0.2)", () => {
       // Try to move first device to 10 (would collide with second device)
       const result = store.moveDevice("rack-0", 0, 10);
       expect(result).toBe(false);
-      expect(store.layout.rack.devices[0]!.position).toBe(5);
+      expect(store.layout.racks[0].devices[0]!.position).toBe(5);
     });
 
     it("sets isDirty to true on success", () => {
@@ -620,7 +632,7 @@ describe("Layout Store (v0.2)", () => {
       // Same rack move should work (delegates to moveDevice)
       const result = store.moveDeviceToRack("rack-0", 0, "rack-0", 10);
       expect(result).toBe(true);
-      expect(store.layout.rack.devices[0]!.position).toBe(10);
+      expect(store.layout.racks[0].devices[0]!.position).toBe(10);
     });
   });
 
@@ -637,12 +649,12 @@ describe("Layout Store (v0.2)", () => {
       store.placeDevice("rack-0", deviceType.slug, 5);
 
       expect(
-        store.layout.rack.devices.find(
+        store.layout.racks[0].devices.find(
           (d) => d.device_type === deviceType.slug,
         ),
       ).toBeDefined();
       store.removeDeviceFromRack("rack-0", 0);
-      expect(store.layout.rack.devices).toEqual([]);
+      expect(store.layout.racks[0].devices).toEqual([]);
     });
 
     it("sets isDirty to true", () => {
@@ -675,11 +687,11 @@ describe("Layout Store (v0.2)", () => {
       store.placeDevice("rack-0", deviceType.slug, 5);
 
       // Device should not have a custom name initially
-      expect(store.layout.rack.devices[0]!.name).toBeUndefined();
+      expect(store.layout.racks[0].devices[0]!.name).toBeUndefined();
 
       // Set a custom name
       store.updateDeviceName("rack-0", 0, "Primary DB Server");
-      expect(store.layout.rack.devices[0]!.name).toBe("Primary DB Server");
+      expect(store.layout.racks[0].devices[0]!.name).toBe("Primary DB Server");
     });
 
     it("clears custom name when set to undefined", () => {
@@ -695,11 +707,11 @@ describe("Layout Store (v0.2)", () => {
 
       // Set a custom name first
       store.updateDeviceName("rack-0", 0, "Primary DB Server");
-      expect(store.layout.rack.devices[0]!.name).toBe("Primary DB Server");
+      expect(store.layout.racks[0].devices[0]!.name).toBe("Primary DB Server");
 
       // Clear the custom name
       store.updateDeviceName("rack-0", 0, undefined);
-      expect(store.layout.rack.devices[0]!.name).toBeUndefined();
+      expect(store.layout.racks[0].devices[0]!.name).toBeUndefined();
     });
 
     it("clears custom name when set to empty string", () => {
@@ -715,7 +727,7 @@ describe("Layout Store (v0.2)", () => {
 
       store.updateDeviceName("rack-0", 0, "Primary DB Server");
       store.updateDeviceName("rack-0", 0, "");
-      expect(store.layout.rack.devices[0]!.name).toBeUndefined();
+      expect(store.layout.racks[0].devices[0]!.name).toBeUndefined();
     });
 
     it("sets isDirty to true", () => {
@@ -747,15 +759,15 @@ describe("Layout Store (v0.2)", () => {
 
       // Set a custom name
       store.updateDeviceName("rack-0", 0, "Primary DB Server");
-      expect(store.layout.rack.devices[0]!.name).toBe("Primary DB Server");
+      expect(store.layout.racks[0].devices[0]!.name).toBe("Primary DB Server");
 
       // Undo should restore undefined
       store.undo();
-      expect(store.layout.rack.devices[0]!.name).toBeUndefined();
+      expect(store.layout.racks[0].devices[0]!.name).toBeUndefined();
 
       // Redo should restore the name
       store.redo();
-      expect(store.layout.rack.devices[0]!.name).toBe("Primary DB Server");
+      expect(store.layout.racks[0].devices[0]!.name).toBe("Primary DB Server");
     });
 
     it("preserves name through multiple updates with undo", () => {
@@ -773,16 +785,16 @@ describe("Layout Store (v0.2)", () => {
       store.updateDeviceName("rack-0", 0, "Second Name");
       store.updateDeviceName("rack-0", 0, "Third Name");
 
-      expect(store.layout.rack.devices[0]!.name).toBe("Third Name");
+      expect(store.layout.racks[0].devices[0]!.name).toBe("Third Name");
 
       store.undo();
-      expect(store.layout.rack.devices[0]!.name).toBe("Second Name");
+      expect(store.layout.racks[0].devices[0]!.name).toBe("Second Name");
 
       store.undo();
-      expect(store.layout.rack.devices[0]!.name).toBe("First Name");
+      expect(store.layout.racks[0].devices[0]!.name).toBe("First Name");
 
       store.undo();
-      expect(store.layout.rack.devices[0]!.name).toBeUndefined();
+      expect(store.layout.racks[0].devices[0]!.name).toBeUndefined();
     });
   });
 
@@ -840,7 +852,7 @@ describe("Layout Store (v0.2)", () => {
       expect(result2).toBe(true);
 
       // Both devices should exist at position 5
-      const devicesAtU5 = store.layout.rack.devices.filter(
+      const devicesAtU5 = store.layout.racks[0].devices.filter(
         (d) => d.position === 5,
       );
       // eslint-disable-next-line no-restricted-syntax -- Testing half-depth pairing (front + rear = 2 devices at same U)
@@ -887,8 +899,8 @@ describe("Layout Store (v0.2)", () => {
       );
       expect(result2).toBe(false);
 
-      // eslint-disable-next-line no-restricted-syntax -- Testing collision rejection (full-depth blocks rear, still 1 device)
-      expect(store.layout.rack.devices).toHaveLength(1);
+      // Only one device should exist
+      expect(store.layout.racks[0].devices).toHaveLength(1);
     });
 
     it("blocks placing full-depth rear device when half-depth front device exists at same U", () => {
@@ -930,8 +942,8 @@ describe("Layout Store (v0.2)", () => {
       );
       expect(result2).toBe(false);
 
-      // eslint-disable-next-line no-restricted-syntax -- Testing collision rejection (half-depth on front, full-depth fails on rear, still 1 device)
-      expect(store.layout.rack.devices).toHaveLength(1);
+      // Only one device should exist
+      expect(store.layout.racks[0].devices).toHaveLength(1);
     });
   });
 
@@ -964,7 +976,7 @@ describe("Layout Store (v0.2)", () => {
       expect(result).toBe(true);
 
       // Both devices should be at position 5
-      const devicesAtU5 = store.layout.rack.devices.filter(
+      const devicesAtU5 = store.layout.racks[0].devices.filter(
         (d) => d.position === 5,
       );
       // eslint-disable-next-line no-restricted-syntax -- Testing half-depth pairing (rear + front = 2 devices at same U)
@@ -1003,7 +1015,7 @@ describe("Layout Store (v0.2)", () => {
       expect(result).toBe(false);
 
       // Device at index 1 should still be at U10
-      expect(store.layout.rack.devices[1]!.position).toBe(10);
+      expect(store.layout.racks[0].devices[1]!.position).toBe(10);
     });
   });
 
@@ -1023,12 +1035,12 @@ describe("Layout Store (v0.2)", () => {
       // Place at position 1
       const placed = store.placeDevice("rack-0", halfUType.slug, 1, "front");
       expect(placed).toBe(true);
-      expect(store.layout.rack.devices[0]!.position).toBe(1);
+      expect(store.layout.racks[0].devices[0]!.position).toBe(1);
 
       // Move to position 1.5 - should succeed
       const result = store.moveDevice("rack-0", 0, 1.5);
       expect(result).toBe(true);
-      expect(store.layout.rack.devices[0]!.position).toBe(1.5);
+      expect(store.layout.racks[0].devices[0]!.position).toBe(1.5);
     });
 
     it("allows moving 0.5U device to integer positions", () => {
@@ -1050,7 +1062,7 @@ describe("Layout Store (v0.2)", () => {
       // Move to position 2 - should succeed
       const result = store.moveDevice("rack-0", 0, 2);
       expect(result).toBe(true);
-      expect(store.layout.rack.devices[0]!.position).toBe(2);
+      expect(store.layout.racks[0].devices[0]!.position).toBe(2);
     });
 
     it("blocks 0.5U device from exceeding rack height", () => {
@@ -1117,7 +1129,7 @@ describe("Layout Store (v0.2)", () => {
       // Move second device to U5.5 - should succeed (adjacent, no overlap)
       const result = store.moveDevice("rack-0", 1, 5.5);
       expect(result).toBe(true);
-      expect(store.layout.rack.devices[1]!.position).toBe(5.5);
+      expect(store.layout.racks[0].devices[1]!.position).toBe(5.5);
     });
   });
 
@@ -1145,7 +1157,7 @@ describe("Layout Store (v0.2)", () => {
       const freshStore = getLayoutStore();
 
       expect(freshStore.layout.name).toBe("Racky McRackface");
-      expect(freshStore.layout.rack.devices).toEqual([]);
+      expect(freshStore.layout.racks[0].devices).toEqual([]);
       // device_types starts empty (starter library is a runtime constant, not stored)
       expect(freshStore.device_types.length).toBe(0);
       expect(freshStore.isDirty).toBe(false);
@@ -1187,12 +1199,15 @@ describe("Layout Store (v0.2)", () => {
       );
 
       expect(result).toBe(true);
-      // eslint-disable-next-line no-restricted-syntax -- Testing place operation (0 + 1 = 1)
-      expect(store.layout.rack.devices).toHaveLength(1);
-      expect(store.layout.rack.devices[0]!.device_type).toBe(
+      expect(
+        store.layout.racks[0].devices.find(
+          (d) => d.device_type === "ubiquiti-unifi-switch-24-pro",
+        ),
+      ).toBeDefined();
+      expect(store.layout.racks[0].devices[0]!.device_type).toBe(
         "ubiquiti-unifi-switch-24-pro",
       );
-      expect(store.layout.rack.devices[0]!.position).toBe(5);
+      expect(store.layout.racks[0].devices[0]!.position).toBe(5);
     });
 
     it("places Mikrotik brand pack device successfully", () => {
@@ -1203,9 +1218,12 @@ describe("Layout Store (v0.2)", () => {
       const result = store.placeDevice("rack-0", "crs326-24g-2s-plus", 10);
 
       expect(result).toBe(true);
-      // eslint-disable-next-line no-restricted-syntax -- Testing place operation (0 + 1 = 1)
-      expect(store.layout.rack.devices).toHaveLength(1);
-      expect(store.layout.rack.devices[0]!.device_type).toBe(
+      expect(
+        store.layout.racks[0].devices.find(
+          (d) => d.device_type === "crs326-24g-2s-plus",
+        ),
+      ).toBeDefined();
+      expect(store.layout.racks[0].devices[0]!.device_type).toBe(
         "crs326-24g-2s-plus",
       );
     });
@@ -1253,8 +1271,7 @@ describe("Layout Store (v0.2)", () => {
 
       const result = store.placeDevice("rack-0", "nonexistent-device-xyz", 5);
       expect(result).toBe(false);
-      // eslint-disable-next-line no-restricted-syntax -- Testing invalid placement (0 devices remain)
-      expect(store.layout.rack.devices).toHaveLength(0);
+      expect(store.layout.racks[0].devices).toHaveLength(0);
     });
 
     it("preserves brand device properties when auto-imported", () => {
@@ -1279,7 +1296,7 @@ describe("Layout Store (v0.2)", () => {
       store.placeDevice("rack-0", "ubiquiti-unifi-switch-24-500w", 5);
 
       // Full-depth devices should default to 'both' face (visible front and rear)
-      expect(store.layout.rack.devices[0]!.face).toBe("both");
+      expect(store.layout.racks[0].devices[0]!.face).toBe("both");
     });
 
     it("half-depth brand device defaults to front face when placed", () => {
@@ -1290,7 +1307,7 @@ describe("Layout Store (v0.2)", () => {
       store.placeDevice("rack-0", "ubiquiti-usp-pdu-pro", 5);
 
       // Half-depth devices should default to 'front' face
-      expect(store.layout.rack.devices[0]!.face).toBe("front");
+      expect(store.layout.racks[0].devices[0]!.face).toBe("front");
     });
 
     it("auto-import creates new array reference for Svelte reactivity", () => {
@@ -1331,7 +1348,7 @@ describe("Layout Store (v0.2)", () => {
       });
 
       store.placeDevice("rack-0", deviceType.slug, 5);
-      expect(store.layout.rack.devices[0]!.face).toBe("both");
+      expect(store.layout.racks[0].devices[0]!.face).toBe("both");
     });
 
     it("half-depth device defaults to front face", () => {
@@ -1348,7 +1365,7 @@ describe("Layout Store (v0.2)", () => {
       });
 
       store.placeDevice("rack-0", deviceType.slug, 5);
-      expect(store.layout.rack.devices[0]!.face).toBe("front");
+      expect(store.layout.racks[0].devices[0]!.face).toBe("front");
     });
 
     it("device with undefined is_full_depth defaults to both face (full depth assumed)", () => {
@@ -1365,7 +1382,7 @@ describe("Layout Store (v0.2)", () => {
       });
 
       store.placeDevice("rack-0", deviceType.slug, 5);
-      expect(store.layout.rack.devices[0]!.face).toBe("both");
+      expect(store.layout.racks[0].devices[0]!.face).toBe("both");
     });
 
     it("full-depth device ignores explicit face and uses both", () => {
@@ -1384,7 +1401,7 @@ describe("Layout Store (v0.2)", () => {
 
       store.placeDevice("rack-0", deviceType.slug, 5, "front");
       // Full-depth devices ALWAYS use 'both' regardless of passed face
-      expect(store.layout.rack.devices[0]!.face).toBe("both");
+      expect(store.layout.racks[0].devices[0]!.face).toBe("both");
     });
 
     it("half-depth device respects explicit face parameter", () => {
@@ -1402,7 +1419,7 @@ describe("Layout Store (v0.2)", () => {
 
       // Explicitly place on rear
       store.placeDevice("rack-0", deviceType.slug, 5, "rear");
-      expect(store.layout.rack.devices[0]!.face).toBe("rear");
+      expect(store.layout.racks[0].devices[0]!.face).toBe("rear");
     });
   });
 

@@ -204,16 +204,16 @@ export function removeDeviceTypeFromLayout(
   // Filter out the device type
   const newDeviceTypes = layout.device_types.filter((dt) => dt.slug !== slug);
 
-  // Filter out placed devices referencing this type
-  const newDevices = layout.rack.devices.filter((d) => d.device_type !== slug);
+  // Filter out placed devices referencing this type from all racks
+  const newRacks = layout.racks.map((rack) => ({
+    ...rack,
+    devices: rack.devices.filter((d) => d.device_type !== slug),
+  }));
 
   return {
     ...layout,
     device_types: newDeviceTypes,
-    rack: {
-      ...layout.rack,
-      devices: newDevices,
-    },
+    racks: newRacks,
   };
 }
 
@@ -221,12 +221,14 @@ export function removeDeviceTypeFromLayout(
  * Place a device in the rack (immutable)
  * @param layout - The layout to modify
  * @param device - The device to place
+ * @param rackIndex - The index of the rack to place the device in (default: 0)
  * @returns A new layout with the device placed
  * @throws Error if the device type does not exist in device_types
  */
 export function placeDeviceInRack(
   layout: Layout,
   device: PlacedDevice,
+  rackIndex: number = 0,
 ): Layout {
   // Validate device type exists
   const deviceType = findDeviceType(layout.device_types, device.device_type);
@@ -234,12 +236,16 @@ export function placeDeviceInRack(
     throw new Error(`Device type not found: ${device.device_type}`);
   }
 
+  const rack = layout.racks[rackIndex];
+  if (!rack) {
+    throw new Error(`Rack not found at index: ${rackIndex}`);
+  }
+
   return {
     ...layout,
-    rack: {
-      ...layout.rack,
-      devices: [...layout.rack.devices, device],
-    },
+    racks: layout.racks.map((r, i) =>
+      i === rackIndex ? { ...r, devices: [...r.devices, device] } : r,
+    ),
   };
 }
 
@@ -247,22 +253,31 @@ export function placeDeviceInRack(
  * Remove a device from the rack by index (immutable)
  * @param layout - The layout to modify
  * @param index - The index of the device to remove
+ * @param rackIndex - The index of the rack to remove the device from (default: 0)
  * @returns A new layout with the device removed
  */
-export function removeDeviceFromRack(layout: Layout, index: number): Layout {
-  // Handle out-of-bounds gracefully
-  if (index < 0 || index >= layout.rack.devices.length) {
+export function removeDeviceFromRack(
+  layout: Layout,
+  index: number,
+  rackIndex: number = 0,
+): Layout {
+  const rack = layout.racks[rackIndex];
+  if (!rack) {
     return layout;
   }
 
-  const newDevices = [...layout.rack.devices];
+  // Handle out-of-bounds gracefully
+  if (index < 0 || index >= rack.devices.length) {
+    return layout;
+  }
+
+  const newDevices = [...rack.devices];
   newDevices.splice(index, 1);
 
   return {
     ...layout,
-    rack: {
-      ...layout.rack,
-      devices: newDevices,
-    },
+    racks: layout.racks.map((r, i) =>
+      i === rackIndex ? { ...r, devices: newDevices } : r,
+    ),
   };
 }

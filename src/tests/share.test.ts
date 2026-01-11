@@ -55,12 +55,14 @@ function createLayoutWithDevices(): Layout {
 
   return createTestLayout({
     name: "Test Layout",
-    rack: createTestRack({
-      name: "Main Rack",
-      height: 42,
-      width: 19,
-      devices: [device],
-    }),
+    racks: [
+      createTestRack({
+        name: "Main Rack",
+        height: 42,
+        width: 19,
+        devices: [device],
+      }),
+    ],
     device_types: [deviceType],
   });
 }
@@ -76,14 +78,14 @@ describe("toMinimalLayout", () => {
 
     expect(minimal.v).toBe(layout.version);
     expect(minimal.n).toBe(layout.name);
-    expect(minimal.r.n).toBe(layout.rack.name);
-    expect(minimal.r.h).toBe(layout.rack.height);
+    expect(minimal.r.n).toBe(layout.racks[0].name);
+    expect(minimal.r.h).toBe(layout.racks[0].height);
     expect(minimal.r.w).toBe(19);
   });
 
   it("normalizes rack width 10 to 10", () => {
     const layout = createTestLayout({
-      rack: createTestRack({ width: 10, devices: [] }),
+      racks: [createTestRack({ width: 10, devices: [] })],
     });
     const minimal = toMinimalLayout(layout);
 
@@ -92,7 +94,7 @@ describe("toMinimalLayout", () => {
 
   it("normalizes rack width 19 to 19", () => {
     const layout = createTestLayout({
-      rack: createTestRack({ width: 19, devices: [] }),
+      racks: [createTestRack({ width: 19, devices: [] })],
     });
     const minimal = toMinimalLayout(layout);
 
@@ -101,7 +103,7 @@ describe("toMinimalLayout", () => {
 
   it("normalizes non-standard rack width 21 to 19", () => {
     const layout = createTestLayout({
-      rack: createTestRack({ width: 21 as 10 | 19, devices: [] }),
+      racks: [createTestRack({ width: 21 as 10 | 19, devices: [] })],
     });
     const minimal = toMinimalLayout(layout);
 
@@ -110,7 +112,7 @@ describe("toMinimalLayout", () => {
 
   it("normalizes non-standard rack width 23 to 19", () => {
     const layout = createTestLayout({
-      rack: createTestRack({ width: 23 as 10 | 19, devices: [] }),
+      racks: [createTestRack({ width: 23 as 10 | 19, devices: [] })],
     });
     const minimal = toMinimalLayout(layout);
 
@@ -123,7 +125,7 @@ describe("toMinimalLayout", () => {
     const device = createTestDevice({ device_type: "used-device" });
 
     const layout = createTestLayout({
-      rack: createTestRack({ devices: [device] }),
+      racks: [createTestRack({ devices: [device] })],
       device_types: [usedType, unusedType],
     });
 
@@ -147,7 +149,7 @@ describe("toMinimalLayout", () => {
     const device = createTestDevice({ device_type: "test-slug" });
 
     const layout = createTestLayout({
-      rack: createTestRack({ devices: [device] }),
+      racks: [createTestRack({ devices: [device] })],
       device_types: [deviceType],
     });
 
@@ -170,7 +172,7 @@ describe("toMinimalLayout", () => {
     });
 
     const layout = createTestLayout({
-      rack: createTestRack({ devices: [device] }),
+      racks: [createTestRack({ devices: [device] })],
       device_types: [deviceType],
     });
 
@@ -192,9 +194,9 @@ describe("fromMinimalLayout", () => {
 
     expect(restored.version).toBe(original.version);
     expect(restored.name).toBe(original.name);
-    expect(restored.rack.name).toBe(original.rack.name);
-    expect(restored.rack.height).toBe(original.rack.height);
-    expect(restored.rack.width).toBe(original.rack.width);
+    expect(restored.racks[0].name).toBe(original.racks[0].name);
+    expect(restored.racks[0].height).toBe(original.racks[0].height);
+    expect(restored.racks[0].width).toBe(original.racks[0].width);
   });
 
   it("generates unique IDs for devices", () => {
@@ -202,8 +204,8 @@ describe("fromMinimalLayout", () => {
     const minimal = toMinimalLayout(original);
     const restored = fromMinimalLayout(minimal);
 
-    expect(restored.rack.devices[0].id).toBeDefined();
-    expect(typeof restored.rack.devices[0].id).toBe("string");
+    expect(restored.racks[0].devices[0].id).toBeDefined();
+    expect(typeof restored.racks[0].devices[0].id).toBe("string");
   });
 
   it("sets default layout settings", () => {
@@ -220,10 +222,10 @@ describe("fromMinimalLayout", () => {
     const minimal = toMinimalLayout(original);
     const restored = fromMinimalLayout(minimal);
 
-    expect(restored.rack.desc_units).toBe(false);
-    expect(restored.rack.form_factor).toBe("4-post-cabinet");
-    expect(restored.rack.starting_unit).toBe(1);
-    expect(restored.rack.view).toBe("front");
+    expect(restored.racks[0].desc_units).toBe(false);
+    expect(restored.racks[0].form_factor).toBe("4-post-cabinet");
+    expect(restored.racks[0].starting_unit).toBe(1);
+    expect(restored.racks[0].view).toBe("front");
   });
 });
 
@@ -257,7 +259,7 @@ describe("encodeLayout", () => {
 
   it("encodes empty layout to small output", () => {
     const layout = createTestLayout({
-      rack: createTestRack({ devices: [] }),
+      racks: [createTestRack({ devices: [] })],
       device_types: [],
     });
     const encoded = requireEncoded(layout);
@@ -280,11 +282,11 @@ describe("decodeLayout", () => {
 
     expect(decoded).not.toBeNull();
     expect(decoded!.name).toBe(original.name);
-    expect(decoded!.rack.name).toBe(original.rack.name);
-    expect(decoded!.rack.height).toBe(original.rack.height);
+    expect(decoded!.racks[0].name).toBe(original.racks[0].name);
+    expect(decoded!.racks[0].height).toBe(original.racks[0].height);
     // Check device was preserved
     expect(
-      decoded!.rack.devices.find((d) => d.device_type === "test-server"),
+      decoded!.racks[0].devices.find((d) => d.device_type === "test-server"),
     ).toBeDefined();
     // Check device type was preserved
     expect(
@@ -297,10 +299,12 @@ describe("decodeLayout", () => {
     const encoded = requireEncoded(original);
     const decoded = decodeLayout(encoded);
 
-    expect(decoded!.rack.devices[0].position).toBe(
-      original.rack.devices[0].position,
+    expect(decoded!.racks[0].devices[0].position).toBe(
+      original.racks[0].devices[0].position,
     );
-    expect(decoded!.rack.devices[0].face).toBe(original.rack.devices[0].face);
+    expect(decoded!.racks[0].devices[0].face).toBe(
+      original.racks[0].devices[0].face,
+    );
   });
 
   it("preserves device custom names", () => {
@@ -311,14 +315,14 @@ describe("decodeLayout", () => {
     });
 
     const layout = createTestLayout({
-      rack: createTestRack({ devices: [device] }),
+      racks: [createTestRack({ devices: [device] })],
       device_types: [deviceType],
     });
 
     const encoded = requireEncoded(layout);
     const decoded = decodeLayout(encoded);
 
-    expect(decoded!.rack.devices[0].name).toBe("My Custom Name");
+    expect(decoded!.racks[0].devices[0].name).toBe("My Custom Name");
   });
 });
 
@@ -530,12 +534,14 @@ describe("share integration", () => {
 
     const original = createTestLayout({
       name: "Integration Test Layout",
-      rack: createTestRack({
-        name: "Test Rack",
-        height: 24,
-        width: 10,
-        devices,
-      }),
+      racks: [
+        createTestRack({
+          name: "Test Rack",
+          height: 24,
+          width: 10,
+          devices,
+        }),
+      ],
       device_types: [deviceType],
     });
 
@@ -544,15 +550,15 @@ describe("share integration", () => {
 
     expect(decoded).not.toBeNull();
     expect(decoded!.name).toBe("Integration Test Layout");
-    expect(decoded!.rack.name).toBe("Test Rack");
-    expect(decoded!.rack.height).toBe(24);
-    expect(decoded!.rack.width).toBe(10);
+    expect(decoded!.racks[0].name).toBe("Test Rack");
+    expect(decoded!.racks[0].height).toBe(24);
+    expect(decoded!.racks[0].width).toBe(10);
     // Check both devices were preserved
     expect(
-      decoded!.rack.devices.find((d) => d.name === "Device 1"),
+      decoded!.racks[0].devices.find((d) => d.name === "Device 1"),
     ).toBeDefined();
     expect(
-      decoded!.rack.devices.find((d) => d.name === "Device 2"),
+      decoded!.racks[0].devices.find((d) => d.name === "Device 2"),
     ).toBeDefined();
     expect(decoded!.device_types[0].manufacturer).toBe("Test Corp");
   });
@@ -568,7 +574,7 @@ describe("share integration", () => {
     );
 
     const layout = createTestLayout({
-      rack: createTestRack({ height: 42, devices }),
+      racks: [createTestRack({ height: 42, devices })],
       device_types: [deviceType],
     });
 
@@ -577,9 +583,13 @@ describe("share integration", () => {
 
     expect(decoded).not.toBeNull();
     // Check devices are present at first and last positions
-    expect(decoded!.rack.devices.find((d) => d.position === 1)).toBeDefined();
-    expect(decoded!.rack.devices.find((d) => d.position === 20)).toBeDefined();
-    expect(decoded!.rack.devices.length).toBeGreaterThan(0);
+    expect(
+      decoded!.racks[0].devices.find((d) => d.position === 1),
+    ).toBeDefined();
+    expect(
+      decoded!.racks[0].devices.find((d) => d.position === 20),
+    ).toBeDefined();
+    expect(decoded!.racks[0].devices.length).toBeGreaterThan(0);
 
     // Output should still be reasonable for QR codes
     expect(encoded.length).toBeLessThan(1600);
