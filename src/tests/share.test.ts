@@ -30,8 +30,22 @@ import type { Layout } from "$lib/types";
  */
 function requireEncoded(layout: Layout): string {
   const encoded = encodeLayout(layout);
-  expect(encoded).not.toBeNull();
-  return encoded as string;
+  if (typeof encoded !== "string" || encoded.length === 0) {
+    throw new Error("encodeLayout returned null or empty string");
+  }
+  return encoded;
+}
+
+/**
+ * Helper to assert decodeLayout returns a non-null Layout.
+ * Use this to safely get decoded values in tests.
+ */
+function requireDecoded(encoded: string): Layout {
+  const decoded = decodeLayout(encoded);
+  if (!decoded) {
+    throw new Error("decodeLayout returned null");
+  }
+  return decoded;
 }
 
 /**
@@ -42,7 +56,6 @@ function createLayoutWithDevices(): Layout {
     slug: "test-server",
     u_height: 2,
     category: "server",
-    colour: "#336699",
     model: "Test Server",
   });
 
@@ -102,7 +115,8 @@ describe("toMinimalLayout", () => {
 
   it("normalizes non-standard rack width 21 to 19", () => {
     const layout = createTestLayout({
-      racks: [createTestRack({ width: 21 as 10 | 19, devices: [] })],
+      // Test legacy/invalid width - cast via unknown for type safety
+      racks: [createTestRack({ width: 21 as unknown as 10 | 19, devices: [] })],
     });
     const minimal = toMinimalLayout(layout);
 
@@ -111,7 +125,8 @@ describe("toMinimalLayout", () => {
 
   it("normalizes non-standard rack width 23 to 19", () => {
     const layout = createTestLayout({
-      racks: [createTestRack({ width: 23 as 10 | 19, devices: [] })],
+      // Test legacy/invalid width - cast via unknown for type safety
+      racks: [createTestRack({ width: 23 as unknown as 10 | 19, devices: [] })],
     });
     const minimal = toMinimalLayout(layout);
 
@@ -142,7 +157,6 @@ describe("toMinimalLayout", () => {
       u_height: 2,
       manufacturer: "Test Mfr",
       model: "Test Model",
-      colour: "#FF0000",
       category: "server",
     });
     const device = createTestDevice({ device_type: "test-slug" });
@@ -153,14 +167,14 @@ describe("toMinimalLayout", () => {
     });
 
     const minimal = toMinimalLayout(layout);
-    const dt = minimal.dt[0];
+    const dt = minimal.dt.find((d) => d.s === "test-slug");
 
-    expect(dt.s).toBe("test-slug");
-    expect(dt.h).toBe(2);
-    expect(dt.mf).toBe("Test Mfr");
-    expect(dt.m).toBe("Test Model");
-    expect(dt.c).toBeTruthy(); // Color is preserved
-    expect(dt.x).toBe("s"); // server -> s
+    expect(dt).toBeDefined();
+    expect(dt!.h).toBe(2);
+    expect(dt!.mf).toBe("Test Mfr");
+    expect(dt!.m).toBe("Test Model");
+    expect(dt!.c).toBeTruthy(); // Color is preserved
+    expect(dt!.x).toBe("s"); // server -> s
   });
 
   it("includes optional device name when set", () => {
@@ -276,31 +290,30 @@ describe("decodeLayout", () => {
   it("round-trips layout through encode/decode", () => {
     const original = createLayoutWithDevices();
     const encoded = requireEncoded(original);
-    const decoded = decodeLayout(encoded);
+    const decoded = requireDecoded(encoded);
 
-    expect(decoded).not.toBeNull();
-    expect(decoded!.name).toBe(original.name);
-    expect(decoded!.racks[0].name).toBe(original.racks[0].name);
-    expect(decoded!.racks[0].height).toBe(original.racks[0].height);
+    expect(decoded.name).toBe(original.name);
+    expect(decoded.racks[0].name).toBe(original.racks[0].name);
+    expect(decoded.racks[0].height).toBe(original.racks[0].height);
     // Check device was preserved
     expect(
-      decoded!.racks[0].devices.find((d) => d.device_type === "test-server"),
+      decoded.racks[0].devices.find((d) => d.device_type === "test-server"),
     ).toBeDefined();
     // Check device type was preserved
     expect(
-      decoded!.device_types.find((dt) => dt.slug === "test-server"),
+      decoded.device_types.find((dt) => dt.slug === "test-server"),
     ).toBeDefined();
   });
 
   it("preserves device positions", () => {
     const original = createLayoutWithDevices();
     const encoded = requireEncoded(original);
-    const decoded = decodeLayout(encoded);
+    const decoded = requireDecoded(encoded);
 
-    expect(decoded!.racks[0].devices[0].position).toBe(
+    expect(decoded.racks[0].devices[0].position).toBe(
       original.racks[0].devices[0].position,
     );
-    expect(decoded!.racks[0].devices[0].face).toBe(
+    expect(decoded.racks[0].devices[0].face).toBe(
       original.racks[0].devices[0].face,
     );
   });
@@ -318,9 +331,9 @@ describe("decodeLayout", () => {
     });
 
     const encoded = requireEncoded(layout);
-    const decoded = decodeLayout(encoded);
+    const decoded = requireDecoded(encoded);
 
-    expect(decoded!.racks[0].devices[0].name).toBe("My Custom Name");
+    expect(decoded.racks[0].devices[0].name).toBe("My Custom Name");
   });
 });
 
@@ -508,21 +521,20 @@ describe("share integration", () => {
     });
 
     const encoded = requireEncoded(original);
-    const decoded = decodeLayout(encoded);
+    const decoded = requireDecoded(encoded);
 
-    expect(decoded).not.toBeNull();
-    expect(decoded!.name).toBe("Integration Test Layout");
-    expect(decoded!.racks[0].name).toBe("Test Rack");
-    expect(decoded!.racks[0].height).toBe(24);
-    expect(decoded!.racks[0].width).toBe(10);
+    expect(decoded.name).toBe("Integration Test Layout");
+    expect(decoded.racks[0].name).toBe("Test Rack");
+    expect(decoded.racks[0].height).toBe(24);
+    expect(decoded.racks[0].width).toBe(10);
     // Check both devices were preserved
     expect(
-      decoded!.racks[0].devices.find((d) => d.name === "Device 1"),
+      decoded.racks[0].devices.find((d) => d.name === "Device 1"),
     ).toBeDefined();
     expect(
-      decoded!.racks[0].devices.find((d) => d.name === "Device 2"),
+      decoded.racks[0].devices.find((d) => d.name === "Device 2"),
     ).toBeDefined();
-    expect(decoded!.device_types[0].manufacturer).toBe("Test Corp");
+    expect(decoded.device_types[0].manufacturer).toBe("Test Corp");
   });
 
   it("handles layout with many devices", () => {
@@ -541,17 +553,16 @@ describe("share integration", () => {
     });
 
     const encoded = requireEncoded(layout);
-    const decoded = decodeLayout(encoded);
+    const decoded = requireDecoded(encoded);
 
-    expect(decoded).not.toBeNull();
     // Check devices are present at first and last positions
     expect(
-      decoded!.racks[0].devices.find((d) => d.position === 1),
+      decoded.racks[0].devices.find((d) => d.position === 1),
     ).toBeDefined();
     expect(
-      decoded!.racks[0].devices.find((d) => d.position === 20),
+      decoded.racks[0].devices.find((d) => d.position === 20),
     ).toBeDefined();
-    expect(decoded!.racks[0].devices.length).toBeGreaterThan(0);
+    expect(decoded.racks[0].devices.length).toBeGreaterThan(0);
 
     // Output should still be reasonable for QR codes
     expect(encoded.length).toBeLessThan(1600);
