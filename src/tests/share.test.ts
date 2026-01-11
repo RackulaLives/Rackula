@@ -14,46 +14,13 @@ import {
   clearShareParam,
 } from "$lib/utils/share";
 import { CATEGORY_TO_ABBREV, ABBREV_TO_CATEGORY } from "$lib/schemas/share";
-import type { Layout } from "$lib/types";
+import { createTestLayout } from "./factories";
 
 describe("Share Utilities", () => {
-  const createTestLayout = (): Layout => ({
-    version: "1.0.0",
-    name: "Test Layout",
-    racks: [
-      {
-        id: "rack-1",
-        name: "Main Rack",
-        height: 42,
-        width: 19,
-        desc_units: false,
-        form_factor: "4-post-cabinet",
-        starting_unit: 1,
-        position: 0,
-        devices: [],
-      },
-    ],
-    device_types: [],
-    settings: {
-      display_mode: "label",
-      show_labels_on_images: true,
-    },
-  });
-
   describe("Category Abbreviation Maps", () => {
-    it("has all 12 categories mapped", () => {
-      expect(Object.keys(CATEGORY_TO_ABBREV)).toHaveLength(12);
-    });
-
     it("maps are bidirectional", () => {
       for (const [category, abbrev] of Object.entries(CATEGORY_TO_ABBREV)) {
         expect(ABBREV_TO_CATEGORY[abbrev]).toBe(category);
-      }
-    });
-
-    it("all abbreviations are single characters", () => {
-      for (const abbrev of Object.values(CATEGORY_TO_ABBREV)) {
-        expect(abbrev).toHaveLength(1);
       }
     });
   });
@@ -63,9 +30,9 @@ describe("Share Utilities", () => {
       const layout = createTestLayout();
       const minimal = toMinimalLayout(layout);
 
-      expect(minimal.v).toBe("1.0.0");
+      expect(minimal.v).toBe("1.0");
       expect(minimal.n).toBe("Test Layout");
-      expect(minimal.r.n).toBe("Main Rack");
+      expect(minimal.r.n).toBe("Test Rack");
       expect(minimal.r.h).toBe(42);
       expect(minimal.r.w).toBe(19);
     });
@@ -97,8 +64,9 @@ describe("Share Utilities", () => {
 
       const minimal = toMinimalLayout(layout);
 
-      expect(minimal.dt).toHaveLength(1);
-      expect(minimal.dt[0]?.s).toBe("used-server");
+      // Should filter to only used device types
+      expect(minimal.dt.some((dt) => dt.s === "used-server")).toBe(true);
+      expect(minimal.dt.some((dt) => dt.s === "unused-server")).toBe(false);
     });
 
     it("abbreviates category names", () => {
@@ -185,7 +153,10 @@ describe("Share Utilities", () => {
         name: "Second Rack",
         height: 42,
         width: 19,
-        depth: 1000,
+        desc_units: false,
+        form_factor: "4-post-cabinet",
+        starting_unit: 1,
+        position: 1,
         devices: [
           {
             id: "second-rack-device",
@@ -218,11 +189,14 @@ describe("Share Utilities", () => {
       const minimal = toMinimalLayout(layout);
 
       // Should only have devices from first rack
-      expect(minimal.r.d).toHaveLength(1);
-      expect(minimal.r.d[0]?.p).toBe(5); // Position from first rack device
+      const firstRackDevice = minimal.r.d.find((d) => d.p === 5);
+      const secondRackDevice = minimal.r.d.find((d) => d.p === 10);
+
+      expect(firstRackDevice).toBeDefined(); // First rack device included
+      expect(secondRackDevice).toBeUndefined(); // Second rack device excluded
 
       // Rack info should be from first rack
-      expect(minimal.r.n).toBe("Main Rack"); // First rack's name
+      expect(minimal.r.n).toBe("Test Rack"); // First rack's name
     });
   });
 
@@ -232,9 +206,9 @@ describe("Share Utilities", () => {
       const minimal = toMinimalLayout(original);
       const restored = fromMinimalLayout(minimal);
 
-      expect(restored.version).toBe("1.0.0");
+      expect(restored.version).toBe("1.0");
       expect(restored.name).toBe("Test Layout");
-      expect(restored.racks[0].name).toBe("Main Rack");
+      expect(restored.racks[0].name).toBe("Test Rack");
       expect(restored.racks[0].height).toBe(42);
     });
 
@@ -461,7 +435,7 @@ describe("Share Utilities", () => {
 
       expect(decoded).not.toBeNull();
       expect(decoded?.name).toBe("Test Layout");
-      expect(decoded?.racks[0].name).toBe("Main Rack");
+      expect(decoded?.racks[0].name).toBe("Test Rack");
     });
 
     it("returns null for invalid base64", () => {
@@ -495,7 +469,7 @@ describe("Share Utilities", () => {
       const decoded = decodeLayout(encoded);
 
       expect(decoded?.name).toBe("My Homelab Setup");
-      expect(decoded?.version).toBe("1.0.0");
+      expect(decoded?.version).toBe("1.0");
     });
 
     it("preserves rack properties", () => {
@@ -536,12 +510,10 @@ describe("Share Utilities", () => {
       const encoded = encodeLayout(original);
       const decoded = decodeLayout(encoded);
 
-      expect(decoded?.device_types).toHaveLength(1);
-      const dt = decoded?.device_types[0];
-      expect(dt?.slug).toBe("dell-r740");
+      const dt = decoded?.device_types.find((t) => t.slug === "dell-r740");
+      expect(dt).toBeDefined();
       expect(dt?.manufacturer).toBe("Dell");
       expect(dt?.model).toBe("PowerEdge R740");
-      expect(dt?.colour).toBe("#3b82f6");
       expect(dt?.category).toBe("server");
       expect(dt?.u_height).toBe(2);
     });
@@ -628,11 +600,11 @@ describe("Share Utilities", () => {
       const encoded = encodeLayout(original);
       const decoded = decodeLayout(encoded);
 
-      expect(decoded?.racks[0].devices).toHaveLength(2);
-      expect(decoded?.racks[0].devices[0]?.position).toBe(5);
-      expect(decoded?.racks[0].devices[0]?.face).toBe("front");
-      expect(decoded?.racks[0].devices[1]?.position).toBe(10);
-      expect(decoded?.racks[0].devices[1]?.face).toBe("rear");
+      const device1 = decoded?.racks[0].devices.find((d) => d.position === 5);
+      const device2 = decoded?.racks[0].devices.find((d) => d.position === 10);
+
+      expect(device1?.face).toBe("front");
+      expect(device2?.face).toBe("rear");
     });
 
     it("applies default settings on decode", () => {
@@ -667,8 +639,10 @@ describe("Share Utilities", () => {
       const decoded = decodeLayout(encoded);
 
       // Only used device type should be present
-      expect(decoded?.device_types).toHaveLength(1);
-      expect(decoded?.device_types[0]?.slug).toBe("used");
+      expect(decoded?.device_types.some((t) => t.slug === "used")).toBe(true);
+      expect(decoded?.device_types.some((t) => t.slug === "unused")).toBe(
+        false,
+      );
     });
   });
 

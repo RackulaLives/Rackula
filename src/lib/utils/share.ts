@@ -101,11 +101,19 @@ export function fromMinimalLayout(minimal: MinimalLayout): Layout {
     ...(d.n ? { name: d.n } : {}),
   }));
 
+  // Validate and normalize rack width
+  const width = minimal.r.w === 10 || minimal.r.w === 19 ? minimal.r.w : 19;
+  if (minimal.r.w !== 10 && minimal.r.w !== 19) {
+    console.warn(
+      `Invalid rack width ${minimal.r.w} in share link, defaulting to 19"`,
+    );
+  }
+
   // Create rack using factory to centralize defaults
   const rack = createDefaultRack(
     minimal.r.n, // name
     minimal.r.h, // height
-    minimal.r.w as 10 | 19, // width
+    width, // width (validated)
     "4-post-cabinet", // form_factor (default)
     false, // desc_units (default)
     1, // starting_unit (default)
