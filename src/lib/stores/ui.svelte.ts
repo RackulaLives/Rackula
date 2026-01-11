@@ -10,12 +10,9 @@ import {
   type Theme,
 } from "$lib/utils/theme";
 import {
-  loadSidebarWidthFromStorage,
-  saveSidebarWidthToStorage,
   loadSidebarCollapsedFromStorage,
   saveSidebarCollapsedToStorage,
   getEffectiveSidebarWidth,
-  type SidebarWidthPreset,
 } from "$lib/utils/sidebarWidth";
 import type { DisplayMode, AnnotationField } from "$lib/types";
 
@@ -26,7 +23,6 @@ export const ZOOM_STEP = 25;
 
 // Load initial values from storage
 const initialTheme = loadThemeFromStorage();
-const initialSidebarWidth = loadSidebarWidthFromStorage();
 const initialSidebarCollapsed = loadSidebarCollapsedFromStorage();
 
 // Module-level state (using $state rune)
@@ -38,7 +34,6 @@ let displayMode = $state<DisplayMode>("label");
 let showAnnotations = $state(false);
 let annotationField = $state<AnnotationField>("name");
 let showBanana = $state(false);
-let sidebarWidth = $state<SidebarWidthPreset>(initialSidebarWidth);
 let sidebarCollapsed = $state(initialSidebarCollapsed);
 
 // Derived values (using $derived rune)
@@ -47,10 +42,8 @@ const canZoomOut = $derived(zoom > ZOOM_MIN);
 const zoomScale = $derived(zoom / 100);
 // Derive showLabelsOnImages from displayMode for backward compatibility
 const showLabelsOnImages = $derived(displayMode === "image-label");
-// Derive effective sidebar width in pixels based on preset and collapsed state
-const sidebarWidthPx = $derived(
-  getEffectiveSidebarWidth(sidebarWidth, sidebarCollapsed),
-);
+// Derive effective sidebar width in pixels based on collapsed state
+const sidebarWidthPx = $derived(getEffectiveSidebarWidth(sidebarCollapsed));
 
 // Apply initial theme to document (using the non-reactive initial value)
 applyThemeToDocument(initialTheme);
@@ -67,7 +60,6 @@ export function resetUIStore(): void {
   showAnnotations = false;
   annotationField = "name";
   showBanana = false;
-  sidebarWidth = loadSidebarWidthFromStorage();
   sidebarCollapsed = loadSidebarCollapsedFromStorage();
   applyThemeToDocument(theme);
 }
@@ -126,10 +118,7 @@ export function getUIStore() {
       return showBanana;
     },
 
-    // Sidebar width state getters
-    get sidebarWidth() {
-      return sidebarWidth;
-    },
+    // Sidebar state getters
     get sidebarCollapsed() {
       return sidebarCollapsed;
     },
@@ -166,8 +155,7 @@ export function getUIStore() {
     // Easter egg actions
     toggleBanana,
 
-    // Sidebar width actions
-    setSidebarWidth,
+    // Sidebar actions
     toggleSidebarCollapsed,
     collapseSidebar,
     expandSidebar,
@@ -332,15 +320,6 @@ function setAnnotationField(field: AnnotationField): void {
  */
 function toggleBanana(): void {
   showBanana = !showBanana;
-}
-
-/**
- * Set sidebar width preset
- * @param preset - Width preset to set
- */
-function setSidebarWidth(preset: SidebarWidthPreset): void {
-  sidebarWidth = preset;
-  saveSidebarWidthToStorage(preset);
 }
 
 /**

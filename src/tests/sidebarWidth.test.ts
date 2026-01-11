@@ -1,14 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
-  loadSidebarWidthFromStorage,
-  saveSidebarWidthToStorage,
   loadSidebarCollapsedFromStorage,
   saveSidebarCollapsedToStorage,
-  getPresetWidth,
   getEffectiveSidebarWidth,
-  SIDEBAR_WIDTHS,
+  SIDEBAR_OPEN_WIDTH,
   SIDEBAR_COLLAPSED_WIDTH,
-  type SidebarWidthPreset as _SidebarWidthPreset,
 } from "$lib/utils/sidebarWidth";
 
 describe("sidebarWidth", () => {
@@ -32,68 +28,6 @@ describe("sidebarWidth", () => {
   beforeEach(() => {
     localStorageMock.clear();
     vi.stubGlobal("localStorage", localStorageMock);
-  });
-
-  describe("loadSidebarWidthFromStorage", () => {
-    it('returns "normal" when no value stored', () => {
-      expect(loadSidebarWidthFromStorage()).toBe("normal");
-    });
-
-    it('returns stored "compact" value', () => {
-      localStorageMock.setItem("Rackula-sidebar-width", "compact");
-      expect(loadSidebarWidthFromStorage()).toBe("compact");
-    });
-
-    it('returns stored "wide" value', () => {
-      localStorageMock.setItem("Rackula-sidebar-width", "wide");
-      expect(loadSidebarWidthFromStorage()).toBe("wide");
-    });
-
-    it('returns "normal" for invalid stored value', () => {
-      localStorageMock.setItem("Rackula-sidebar-width", "invalid");
-      expect(loadSidebarWidthFromStorage()).toBe("normal");
-    });
-
-    it('returns "normal" when localStorage throws', () => {
-      localStorageMock.getItem.mockImplementationOnce(() => {
-        throw new Error("localStorage disabled");
-      });
-      expect(loadSidebarWidthFromStorage()).toBe("normal");
-    });
-  });
-
-  describe("saveSidebarWidthToStorage", () => {
-    it('saves "compact" to localStorage', () => {
-      saveSidebarWidthToStorage("compact");
-      expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        "Rackula-sidebar-width",
-        "compact",
-      );
-    });
-
-    it('saves "normal" to localStorage', () => {
-      saveSidebarWidthToStorage("normal");
-      expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        "Rackula-sidebar-width",
-        "normal",
-      );
-    });
-
-    it('saves "wide" to localStorage', () => {
-      saveSidebarWidthToStorage("wide");
-      expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        "Rackula-sidebar-width",
-        "wide",
-      );
-    });
-
-    it("handles localStorage errors gracefully", () => {
-      localStorageMock.setItem.mockImplementationOnce(() => {
-        throw new Error("QuotaExceeded");
-      });
-      // Should not throw
-      expect(() => saveSidebarWidthToStorage("wide")).not.toThrow();
-    });
   });
 
   describe("loadSidebarCollapsedFromStorage", () => {
@@ -143,11 +77,9 @@ describe("sidebarWidth", () => {
     });
   });
 
-  describe("SIDEBAR_WIDTHS constants", () => {
-    it("has correct width values", () => {
-      expect(SIDEBAR_WIDTHS.compact).toBe(200);
-      expect(SIDEBAR_WIDTHS.normal).toBe(280);
-      expect(SIDEBAR_WIDTHS.wide).toBe(400);
+  describe("width constants", () => {
+    it("open width is 320px", () => {
+      expect(SIDEBAR_OPEN_WIDTH).toBe(320);
     });
 
     it("collapsed width is 40px", () => {
@@ -155,31 +87,13 @@ describe("sidebarWidth", () => {
     });
   });
 
-  describe("getPresetWidth", () => {
-    it("returns correct width for compact", () => {
-      expect(getPresetWidth("compact")).toBe(200);
-    });
-
-    it("returns correct width for normal", () => {
-      expect(getPresetWidth("normal")).toBe(280);
-    });
-
-    it("returns correct width for wide", () => {
-      expect(getPresetWidth("wide")).toBe(400);
-    });
-  });
-
   describe("getEffectiveSidebarWidth", () => {
     it("returns collapsed width when collapsed", () => {
-      expect(getEffectiveSidebarWidth("normal", true)).toBe(40);
-      expect(getEffectiveSidebarWidth("wide", true)).toBe(40);
-      expect(getEffectiveSidebarWidth("compact", true)).toBe(40);
+      expect(getEffectiveSidebarWidth(true)).toBe(40);
     });
 
-    it("returns preset width when not collapsed", () => {
-      expect(getEffectiveSidebarWidth("compact", false)).toBe(200);
-      expect(getEffectiveSidebarWidth("normal", false)).toBe(280);
-      expect(getEffectiveSidebarWidth("wide", false)).toBe(400);
+    it("returns open width when not collapsed", () => {
+      expect(getEffectiveSidebarWidth(false)).toBe(320);
     });
   });
 });

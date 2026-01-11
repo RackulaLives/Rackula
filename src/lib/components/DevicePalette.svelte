@@ -20,7 +20,6 @@
     saveGroupingModeToStorage,
     type DeviceGroupingMode,
   } from "$lib/utils/deviceGrouping";
-  import { type SidebarWidthPreset } from "$lib/utils/sidebarWidth";
   import { debounce } from "$lib/utils/debounce";
   import { truncateWithEllipsis } from "$lib/utils/searchHighlight";
   import { parseDeviceLibraryImport } from "$lib/utils/import";
@@ -63,17 +62,6 @@
   function handleGroupingModeChange(newMode: DeviceGroupingMode) {
     groupingMode = newMode;
     saveGroupingModeToStorage(newMode);
-  }
-
-  // Width preset options for SegmentedControl
-  const widthPresetOptions: { value: SidebarWidthPreset; label: string }[] = [
-    { value: "compact", label: "S" },
-    { value: "normal", label: "M" },
-    { value: "wide", label: "L" },
-  ];
-
-  function handleWidthPresetChange(newPreset: SidebarWidthPreset) {
-    uiStore.setSidebarWidth(newPreset);
   }
 
   function handleCollapseToggle() {
@@ -407,7 +395,7 @@
     </div>
   {:else}
     <!-- Expanded view: full controls -->
-    <!-- Header with collapse toggle and width presets -->
+    <!-- Header with collapse toggle -->
     <div class="palette-header">
       <button
         class="collapse-toggle"
@@ -419,13 +407,6 @@
       >
         <span class="collapse-icon">←</span>
       </button>
-      <SegmentedControl
-        options={widthPresetOptions}
-        value={uiStore.sidebarWidth}
-        onchange={handleWidthPresetChange}
-        ariaLabel="Panel width"
-        size="small"
-      />
     </div>
 
     <!-- Grouping Mode and Search -->
