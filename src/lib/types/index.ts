@@ -308,6 +308,40 @@ export interface DeviceLink {
 }
 
 // =============================================================================
+// Container Slot Types (v0.6.0)
+// =============================================================================
+
+/**
+ * Position within a container's slot grid
+ */
+export interface SlotPosition2D {
+  /** Row index (0-indexed from bottom of container) */
+  row: number;
+  /** Column index (0-indexed from left) */
+  col: number;
+}
+
+/**
+ * Slot definition for container devices
+ * A DeviceType with slots[] is a container that can hold child devices.
+ * Container identification: slots.length > 0 implies container (no separate boolean).
+ */
+export interface Slot {
+  /** Unique identifier within this DeviceType (e.g., "bay-1") */
+  id: string;
+  /** Display label (e.g., "Left Bay") */
+  name?: string;
+  /** Position in container's slot grid */
+  position: SlotPosition2D;
+  /** Horizontal width as fraction of container width (0.5 = half-width, default: 1.0) */
+  width_fraction?: number;
+  /** Slot height in rack units (default: 1) */
+  height_units?: number;
+  /** Categories of devices this slot accepts (empty = accepts all) */
+  accepts?: DeviceCategory[];
+}
+
+// =============================================================================
 // PlacedPort Types
 // =============================================================================
 
@@ -468,6 +502,14 @@ export interface DeviceType {
   // --- Power Device Properties ---
   /** VA capacity (e.g., 1500, 3000) - for UPS devices */
   va_rating?: number;
+
+  // --- Container Support (v0.6.0) ---
+  /**
+   * Slot definitions for container devices.
+   * Presence of slots[] with length > 0 indicates this is a container device.
+   * Container devices can hold child PlacedDevices in their slots.
+   */
+  slots?: Slot[];
 }
 
 /**
@@ -507,6 +549,21 @@ export interface PlacedDevice {
   parent_device?: string;
   /** Bay name in parent device */
   device_bay?: string;
+
+  // --- Container Child Placement (v0.6.0) ---
+  /**
+   * UUID of parent PlacedDevice (if this device is nested in a container).
+   * When set, this device is a child of the container and:
+   * - position is relative (0-indexed from bottom of container)
+   * - device is excluded from rack-level collision detection
+   * - device inherits face from parent container
+   */
+  container_id?: string;
+  /**
+   * Which slot in parent container (references Slot.id in parent's DeviceType.slots).
+   * Required when container_id is set.
+   */
+  slot_id?: string;
 
   // --- Extension Fields ---
   /** Notes for this placement */

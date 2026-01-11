@@ -203,6 +203,41 @@ export const CableStatusSchema = z.enum([
 export const LengthUnitSchema = z.enum(["m", "cm", "ft", "in"]);
 
 // ============================================================================
+// Container Slot Schemas (v0.6.0)
+// ============================================================================
+
+/**
+ * Position within a container's slot grid
+ */
+export const SlotPosition2DSchema = z.object({
+  row: z.number().int().min(0, "Row must be non-negative"),
+  col: z.number().int().min(0, "Column must be non-negative"),
+});
+
+/**
+ * Slot definition for container devices
+ * A DeviceType with slots[] is a container that can hold child devices
+ */
+export const SlotSchema = z
+  .object({
+    id: z.string().min(1, "Slot ID is required"),
+    name: z.string().max(100).optional(),
+    position: SlotPosition2DSchema,
+    width_fraction: z
+      .number()
+      .positive("Width fraction must be positive")
+      .max(1, "Width fraction cannot exceed 1")
+      .optional(),
+    height_units: z
+      .number()
+      .positive("Height units must be positive")
+      .max(50, "Height units cannot exceed 50U")
+      .optional(),
+    accepts: z.array(DeviceCategorySchema).optional(),
+  })
+  .passthrough();
+
+// ============================================================================
 // Utility Functions
 // ============================================================================
 
@@ -479,18 +514,30 @@ export const DeviceTypeSchema = z
       .int()
       .positive("VA rating must be a positive integer")
       .optional(),
+
+    // --- Container Support (v0.6.0) ---
+    /**
+     * Slot definitions for container devices.
+     * Presence of slots[] with length > 0 indicates this is a container device.
+     */
+    slots: z.array(SlotSchema).optional(),
   })
   .passthrough();
 
 /**
  * Placed device schema - instance in rack
+ * Position semantics:
+ * - Rack-level devices: position is 1-indexed U position
+ * - Container children (container_id set): position is 0-indexed relative to container
  */
 export const PlacedDeviceSchema = z
   .object({
     id: z.string().min(1, "ID is required"),
     device_type: SlugSchema,
     name: z.string().max(100, "Name must be 100 characters or less").optional(),
-    position: z.number().int().min(1, "Position must be at least 1"),
+    // Position is 1-indexed for rack-level, 0-indexed for container children
+    // Validation: min 0 to allow container children, superRefine validates rack-level >= 1
+    position: z.number().int().min(0, "Position must be non-negative"),
     face: DeviceFaceSchema,
     slot_position: SlotPositionSchema.optional(),
 
@@ -514,11 +561,43 @@ export const PlacedDeviceSchema = z
     parent_device: z.string().optional(),
     device_bay: z.string().optional(),
 
+    // --- Container Child Placement (v0.6.0) ---
+    /** UUID of parent PlacedDevice if nested in a container */
+    container_id: z.string().optional(),
+    /** Which slot in parent container (references Slot.id) */
+    slot_id: z.string().optional(),
+
     // --- Extension Fields ---
     notes: z.string().max(1000).optional(),
     custom_fields: z.record(z.string(), z.any()).optional(),
   })
-  .passthrough();
+  .passthrough()
+  .refine(
+    (data) => {
+      // If container_id is set, slot_id should also be set
+      if (data.container_id && !data.slot_id) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "slot_id is required when container_id is set",
+      path: ["slot_id"],
+    },
+  )
+  .refine(
+    (data) => {
+      // Rack-level devices (no container_id) must have position >= 1
+      if (!data.container_id && data.position < 1) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Rack-level device position must be at least 1",
+      path: ["position"],
+    },
+  );
 
 /**
  * Rack schema (id is required for multi-rack support)
@@ -634,6 +713,76 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
       }
     }
   }
+
+  // === Container validation (v0.6.0) ===
+  // Build lookup maps for efficient validation
+  const deviceTypeBySlug = new Map(
+    data.device_types.map((dt) => [dt.slug, dt]),
+  );
+
+  // Check each rack's devices for container relationships
+  for (let rackIndex = 0; rackIndex < data.racks.length; rackIndex++) {
+    const rack = data.racks[rackIndex]!;
+    const deviceById = new Map(rack.devices.map((d) => [d.id, d]));
+
+    for (
+      let deviceIndex = 0;
+      deviceIndex < rack.devices.length;
+      deviceIndex++
+    ) {
+      const device = rack.devices[deviceIndex]!;
+
+      // Skip devices without container_id (rack-level devices)
+      if (!device.container_id) continue;
+
+      // 1. Validate container_id references an existing device in this rack
+      const container = deviceById.get(device.container_id);
+      if (!container) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Device "${device.name ?? device.id}" references non-existent container "${device.container_id}"`,
+          path: ["racks", rackIndex, "devices", deviceIndex, "container_id"],
+        });
+        continue; // Skip further container validation for this device
+      }
+
+      // 2. Validate the container's DeviceType has slots
+      const containerType = deviceTypeBySlug.get(container.device_type);
+      if (!containerType) {
+        // DeviceType doesn't exist - this would be caught by other validation
+        continue;
+      }
+
+      if (!containerType.slots || containerType.slots.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Device "${device.name ?? device.id}" is placed in container "${container.name ?? container.id}" but container's device type "${container.device_type}" has no slots`,
+          path: ["racks", rackIndex, "devices", deviceIndex, "container_id"],
+        });
+        continue;
+      }
+
+      // 3. Validate slot_id exists in the container's DeviceType.slots
+      const validSlotIds = new Set(containerType.slots.map((s) => s.id));
+      if (!device.slot_id || !validSlotIds.has(device.slot_id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Device "${device.name ?? device.id}" references invalid slot "${device.slot_id}" in container "${container.name ?? container.id}". Valid slots: ${[...validSlotIds].join(", ")}`,
+          path: ["racks", rackIndex, "devices", deviceIndex, "slot_id"],
+        });
+      }
+
+      // 4. Validate no nested containers (single-level nesting only)
+      const childType = deviceTypeBySlug.get(device.device_type);
+      if (childType && childType.slots && childType.slots.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Device "${device.name ?? device.id}" is a container (has slots) but is placed inside another container. Single-level nesting only.`,
+          path: ["racks", rackIndex, "devices", deviceIndex, "device_type"],
+        });
+      }
+    }
+  }
 });
 
 // ============================================================================
@@ -675,3 +824,5 @@ export type CableType = z.infer<typeof CableTypeSchema>;
 export type CableStatus = z.infer<typeof CableStatusSchema>;
 export type LengthUnit = z.infer<typeof LengthUnitSchema>;
 export type CableZod = z.infer<typeof CableSchema>;
+export type SlotPosition2D = z.infer<typeof SlotPosition2DSchema>;
+export type SlotZod = z.infer<typeof SlotSchema>;

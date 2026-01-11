@@ -22,6 +22,7 @@ import type {
   Layout,
   LayoutSettings,
   Airflow,
+  Slot,
 } from "$lib/types";
 import type { Command, CommandType } from "$lib/stores/commands/types";
 
@@ -220,6 +221,95 @@ export function createTestDeviceLibrary(): DeviceType[] {
       category: "network",
     }),
   ];
+}
+
+// =============================================================================
+// Container/Slot Factories (v0.6.0)
+// =============================================================================
+
+/**
+ * Creates a test Slot for container devices.
+ */
+export function createTestSlot(overrides: Partial<Slot> = {}): Slot {
+  return {
+    id: overrides.id ?? "slot-1",
+    name: overrides.name,
+    position: overrides.position ?? { row: 0, col: 0 },
+    width_fraction: overrides.width_fraction,
+    height_units: overrides.height_units,
+    accepts: overrides.accepts,
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a DeviceType that is a container (has slots).
+ * Containers can hold child PlacedDevices.
+ *
+ * @example
+ * // Simple 2U blade chassis with 2 half-width slots
+ * const chassis = createTestContainerType();
+ *
+ * // Custom container with server-only slots
+ * const serverChassis = createTestContainerType({
+ *   slug: 'blade-chassis-16',
+ *   u_height: 4,
+ *   slots: [
+ *     createTestSlot({ id: 'bay-1', position: { row: 0, col: 0 } }),
+ *     createTestSlot({ id: 'bay-2', position: { row: 0, col: 1 } }),
+ *   ],
+ * });
+ */
+export function createTestContainerType(
+  overrides: Partial<DeviceType> = {},
+): DeviceType {
+  const defaultSlots: Slot[] = [
+    createTestSlot({
+      id: "slot-left",
+      position: { row: 0, col: 0 },
+      width_fraction: 0.5,
+    }),
+    createTestSlot({
+      id: "slot-right",
+      position: { row: 0, col: 1 },
+      width_fraction: 0.5,
+    }),
+  ];
+
+  return {
+    slug: overrides.slug ?? "test-container",
+    u_height: overrides.u_height ?? 2,
+    model: overrides.model ?? "Test Container",
+    category: overrides.category ?? "server",
+    colour: overrides.colour ?? "#8B4513",
+    slots: overrides.slots ?? defaultSlots,
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a PlacedDevice that is a child of a container.
+ *
+ * @example
+ * const container = createTestDevice({ id: 'container-1' });
+ * const child = createTestContainerChild({
+ *   container_id: 'container-1',
+ *   slot_id: 'slot-left',
+ * });
+ */
+export function createTestContainerChild(
+  overrides: Partial<PlacedDevice> & { container_id: string; slot_id: string },
+): PlacedDevice {
+  return {
+    id: overrides.id ?? crypto.randomUUID(),
+    device_type: overrides.device_type ?? "test-device",
+    position: overrides.position ?? 0, // 0-indexed relative position in container
+    face: overrides.face ?? "front",
+    container_id: overrides.container_id,
+    slot_id: overrides.slot_id,
+    ports: overrides.ports ?? [],
+    ...overrides,
+  };
 }
 
 // =============================================================================
