@@ -4,6 +4,7 @@
  */
 
 import { z } from "../zod";
+import { nanoid } from "nanoid";
 
 /**
  * Slug pattern: lowercase alphanumeric with hyphens, no leading/trailing/consecutive hyphens
@@ -600,7 +601,40 @@ export const PlacedDeviceSchema = z
   );
 
 /**
+ * Rack schema base (without id requirement for legacy migration)
+ * Used internally - LayoutSchema transform ensures id is always present in output
+ */
+const RackSchemaInput = z
+  .object({
+    id: z.string().min(1).optional(), // Optional for legacy migration
+    name: z
+      .string()
+      .min(1, "Name is required")
+      .max(100, "Name must be 100 characters or less"),
+    height: z
+      .number()
+      .int()
+      .min(1, "Height must be at least 1U")
+      .max(100, "Height cannot exceed 100U"),
+    width: z.union([
+      z.literal(10),
+      z.literal(19),
+      z.literal(21),
+      z.literal(23),
+    ]),
+    desc_units: z.boolean(),
+    show_rear: z.boolean().default(true),
+    form_factor: FormFactorSchema,
+    starting_unit: z.number().int().min(1),
+    position: z.number().int().min(0),
+    devices: z.array(PlacedDeviceSchema),
+    notes: z.string().max(1000).optional(),
+  })
+  .passthrough();
+
+/**
  * Rack schema (id is required for multi-rack support)
+ * After migration transform, id is always present
  */
 export const RackSchema = z
   .object({
@@ -660,17 +694,20 @@ export const LayoutSettingsSchema = z
   .passthrough();
 
 /**
- * Complete layout schema (base, without refinements)
- * Uses racks array for multi-rack support
+ * Layout schema input (accepts legacy format)
+ * Handles migration from Layout.rack → Layout.racks[]
  */
-const LayoutSchemaBase = z
+const LayoutSchemaInput = z
   .object({
     version: z.string(),
     name: z
       .string()
       .min(1, "Name is required")
       .max(100, "Name must be 100 characters or less"),
-    racks: z.array(RackSchema).min(1, "At least one rack is required"),
+    // Modern format: racks array (optional in input for legacy migration)
+    racks: z.array(RackSchemaInput).optional(),
+    // Legacy format: single rack (optional, converted by transform)
+    rack: RackSchemaInput.optional(),
     rack_groups: z.array(RackGroupSchema).optional(),
     device_types: z.array(DeviceTypeSchema),
     settings: LayoutSettingsSchema,
@@ -681,9 +718,74 @@ const LayoutSchemaBase = z
   .passthrough();
 
 /**
+ * Complete layout schema (base, with migration transform)
+ * Uses racks array for multi-rack support
+ * Transform handles:
+ * - Legacy rack → racks[0] migration
+ * - Generating nanoid for racks missing id field
+ */
+const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
+  // Determine the racks array
+  let racks: z.infer<typeof RackSchemaInput>[];
+
+  if (data.racks && data.racks.length > 0) {
+    // Modern format: use racks array (ignore legacy rack if both present)
+    racks = data.racks;
+  } else if (data.rack) {
+    // Legacy format: wrap single rack in array
+    racks = [data.rack];
+  } else {
+    // Neither present - let validation fail naturally
+    racks = [];
+  }
+
+  // Generate IDs for racks missing them
+  const racksWithIds = racks.map((rack) => ({
+    ...rack,
+    id: rack.id ?? nanoid(),
+  }));
+
+  // Build the output without the legacy 'rack' field
+  const { rack: _legacyRack, racks: _inputRacks, ...rest } = data;
+  void _legacyRack; // Explicitly ignore legacy field
+  void _inputRacks; // Explicitly ignore input racks (using racksWithIds instead)
+
+  return {
+    ...rest,
+    racks: racksWithIds,
+  };
+});
+
+/**
  * Complete layout schema with slug uniqueness and referential integrity validation
  */
 export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
+  // Validate at least one rack is present
+  if (!data.racks || data.racks.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "At least one rack is required",
+      path: ["racks"],
+    });
+    return; // Can't continue validation without racks
+  }
+
+  // === Rack ID uniqueness validation (#472) ===
+  const rackIdCounts = new Map<string, number>();
+  for (const rack of data.racks) {
+    rackIdCounts.set(rack.id, (rackIdCounts.get(rack.id) ?? 0) + 1);
+  }
+  const duplicateRackIds = [...rackIdCounts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([id]) => id);
+  if (duplicateRackIds.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Duplicate rack IDs: ${duplicateRackIds.join(", ")}`,
+      path: ["racks"],
+    });
+  }
+
   // Validate device type slug uniqueness
   const duplicates = validateSlugUniqueness(data.device_types);
   if (duplicates.length > 0) {
@@ -693,6 +795,9 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
       path: ["device_types"],
     });
   }
+
+  // Build rack lookup for group validations
+  const rackById = new Map(data.racks.map((r) => [r.id, r]));
 
   // Validate rack_groups reference existing racks
   if (data.rack_groups && data.rack_groups.length > 0) {
@@ -710,6 +815,25 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
           message: `Rack group "${group.name ?? group.id}" references non-existent rack IDs: ${invalidIds.join(", ")}`,
           path: ["rack_groups", groupIndex, "rack_ids"],
         });
+        continue; // Skip height validation for groups with invalid refs
+      }
+
+      // === Bayed group height validation (#472) ===
+      // Bayed groups require all racks to have the same height
+      if (group.layout_preset === "bayed") {
+        const rackHeights = group.rack_ids.map(
+          (id) => rackById.get(id)?.height,
+        );
+        const firstHeight = rackHeights[0];
+        const mixedHeights = rackHeights.some((h) => h !== firstHeight);
+
+        if (mixedHeights) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Bayed rack group "${group.name ?? group.id}" requires all racks to have the same height`,
+            path: ["rack_groups", groupIndex],
+          });
+        }
       }
     }
   }

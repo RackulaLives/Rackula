@@ -939,14 +939,20 @@ describe("LayoutSchema multi-rack support", () => {
       }
     });
 
-    it("rejects layout with racks missing required id", () => {
+    it("generates id for racks missing required id (migration)", () => {
+      // After #472: racks without id get nanoid generated
       const rackWithoutId = { ...validRack };
       delete (rackWithoutId as Record<string, unknown>).id;
       const layout = {
         ...validMultiRackLayout,
         racks: [rackWithoutId],
       };
-      expect(LayoutSchema.safeParse(layout).success).toBe(false);
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.racks[0]!.id).toBeDefined();
+        expect(result.data.racks[0]!.id.length).toBe(21); // nanoid length
+      }
     });
   });
 
@@ -1023,9 +1029,8 @@ describe("LayoutSchema multi-rack support", () => {
   });
 
   describe("backward compatibility with single rack format", () => {
-    // Note: Old format normalization happens at load time, not in schema
-    // This test documents that the schema rejects old format (as expected)
-    it("rejects old single-rack format (rack instead of racks)", () => {
+    // After #472: Schema now auto-migrates legacy format via transform
+    it("auto-migrates old single-rack format (rack to racks[])", () => {
       const oldLayout = {
         version: "0.5.0",
         name: "Old Homelab",
@@ -1036,8 +1041,13 @@ describe("LayoutSchema multi-rack support", () => {
           show_labels_on_images: true,
         },
       };
-      // Schema requires 'racks' array - normalization handles old format
-      expect(LayoutSchema.safeParse(oldLayout).success).toBe(false);
+      // Schema now handles migration via transform
+      const result = LayoutSchema.safeParse(oldLayout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.racks).toBeDefined();
+        expect(result.data.racks[0]!.name).toBe("Main Rack");
+      }
     });
   });
 });
@@ -1363,6 +1373,317 @@ describe("PlacedDeviceSchema container child support", () => {
         expect(result.error.issues[0]?.message).toContain("at least 1");
       }
     });
+  });
+});
+
+// ============================================================================
+// Multi-rack Migration and Validation Tests (#472)
+// ============================================================================
+
+describe("LayoutSchema legacy migration", () => {
+  const legacyRack = {
+    name: "Legacy Rack",
+    height: 42,
+    width: 19 as const,
+    desc_units: false,
+    show_rear: true,
+    form_factor: "4-post-cabinet" as const,
+    starting_unit: 1,
+    position: 0,
+    devices: [],
+  };
+
+  const baseSettings = {
+    display_mode: "label" as const,
+    show_labels_on_images: true,
+  };
+
+  describe("legacy rack to racks[] migration", () => {
+    it("auto-migrates Layout.rack to Layout.racks[0]", () => {
+      const legacyLayout = {
+        version: "0.5.0",
+        name: "Legacy Homelab",
+        rack: legacyRack,
+        device_types: [],
+        settings: baseSettings,
+      };
+
+      const result = LayoutSchema.safeParse(legacyLayout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.racks).toBeDefined();
+        expect(result.data.racks.length).toBe(1);
+        expect(result.data.racks[0]!.name).toBe("Legacy Rack");
+        // Legacy 'rack' field should be removed from output
+        expect("rack" in result.data).toBe(false);
+      }
+    });
+
+    it("generates nanoid for rack without id during migration", () => {
+      const legacyLayout = {
+        version: "0.5.0",
+        name: "Legacy Homelab",
+        rack: legacyRack, // No id field
+        device_types: [],
+        settings: baseSettings,
+      };
+
+      const result = LayoutSchema.safeParse(legacyLayout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.racks[0]!.id).toBeDefined();
+        expect(result.data.racks[0]!.id.length).toBe(21); // nanoid length
+      }
+    });
+
+    it("preserves existing rack id during migration", () => {
+      const legacyLayoutWithId = {
+        version: "0.5.0",
+        name: "Legacy Homelab",
+        rack: { ...legacyRack, id: "existing-id" },
+        device_types: [],
+        settings: baseSettings,
+      };
+
+      const result = LayoutSchema.safeParse(legacyLayoutWithId);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.racks[0]!.id).toBe("existing-id");
+      }
+    });
+
+    it("prefers racks[] over legacy rack if both present", () => {
+      const modernRack = {
+        ...legacyRack,
+        id: "rack-modern",
+        name: "Modern Rack",
+      };
+      const layoutWithBoth = {
+        version: "0.6.0",
+        name: "Mixed Format",
+        rack: legacyRack, // Should be ignored
+        racks: [modernRack],
+        device_types: [],
+        settings: baseSettings,
+      };
+
+      const result = LayoutSchema.safeParse(layoutWithBoth);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.racks.length).toBe(1);
+        expect(result.data.racks[0]!.name).toBe("Modern Rack");
+      }
+    });
+  });
+
+  describe("rack id generation for racks[] without ids", () => {
+    it("generates ids for racks missing id field", () => {
+      const layout = {
+        version: "0.6.0",
+        name: "Multi-rack Layout",
+        racks: [
+          { ...legacyRack, name: "Rack 1" }, // No id
+          { ...legacyRack, name: "Rack 2" }, // No id
+        ],
+        device_types: [],
+        settings: baseSettings,
+      };
+
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.racks[0]!.id.length).toBe(21);
+        expect(result.data.racks[1]!.id.length).toBe(21);
+        // IDs should be unique
+        expect(result.data.racks[0]!.id).not.toBe(result.data.racks[1]!.id);
+      }
+    });
+
+    it("preserves existing ids while generating missing ones", () => {
+      const layout = {
+        version: "0.6.0",
+        name: "Mixed ID Layout",
+        racks: [
+          { ...legacyRack, id: "has-id", name: "Rack 1" },
+          { ...legacyRack, name: "Rack 2" }, // No id
+        ],
+        device_types: [],
+        settings: baseSettings,
+      };
+
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.racks[0]!.id).toBe("has-id");
+        expect(result.data.racks[1]!.id.length).toBe(21);
+      }
+    });
+  });
+});
+
+describe("LayoutSchema rack ID uniqueness validation", () => {
+  const validRack = {
+    id: "rack-1",
+    name: "Rack 1",
+    height: 42,
+    width: 19 as const,
+    desc_units: false,
+    show_rear: true,
+    form_factor: "4-post-cabinet" as const,
+    starting_unit: 1,
+    position: 0,
+    devices: [],
+  };
+
+  const baseSettings = {
+    display_mode: "label" as const,
+    show_labels_on_images: true,
+  };
+
+  it("rejects duplicate rack IDs", () => {
+    const layout = {
+      version: "0.6.0",
+      name: "Duplicate ID Layout",
+      racks: [
+        { ...validRack, id: "duplicate-id", name: "Rack 1" },
+        { ...validRack, id: "duplicate-id", name: "Rack 2", position: 1 },
+      ],
+      device_types: [],
+      settings: baseSettings,
+    };
+
+    const result = LayoutSchema.safeParse(layout);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toContain("Duplicate rack IDs");
+    }
+  });
+
+  it("accepts unique rack IDs", () => {
+    const layout = {
+      version: "0.6.0",
+      name: "Unique ID Layout",
+      racks: [
+        { ...validRack, id: "rack-1", name: "Rack 1" },
+        { ...validRack, id: "rack-2", name: "Rack 2", position: 1 },
+        { ...validRack, id: "rack-3", name: "Rack 3", position: 2 },
+      ],
+      device_types: [],
+      settings: baseSettings,
+    };
+
+    expect(LayoutSchema.safeParse(layout).success).toBe(true);
+  });
+});
+
+describe("LayoutSchema bayed group height validation", () => {
+  const createRack = (id: string, height: number, position: number) => ({
+    id,
+    name: `Rack ${id}`,
+    height,
+    width: 19 as const,
+    desc_units: false,
+    show_rear: true,
+    form_factor: "4-post-cabinet" as const,
+    starting_unit: 1,
+    position,
+    devices: [],
+  });
+
+  const baseSettings = {
+    display_mode: "label" as const,
+    show_labels_on_images: true,
+  };
+
+  it("rejects bayed group with mixed-height racks", () => {
+    const layout = {
+      version: "0.6.0",
+      name: "Mixed Height Bayed",
+      racks: [
+        createRack("rack-1", 12, 0), // 12U
+        createRack("rack-2", 20, 1), // 20U - different height
+      ],
+      rack_groups: [
+        {
+          id: "group-1",
+          name: "Touring Rack",
+          rack_ids: ["rack-1", "rack-2"],
+          layout_preset: "bayed" as const,
+        },
+      ],
+      device_types: [],
+      settings: baseSettings,
+    };
+
+    const result = LayoutSchema.safeParse(layout);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toContain("same height");
+    }
+  });
+
+  it("accepts bayed group with same-height racks", () => {
+    const layout = {
+      version: "0.6.0",
+      name: "Same Height Bayed",
+      racks: [
+        createRack("rack-1", 12, 0),
+        createRack("rack-2", 12, 1),
+        createRack("rack-3", 12, 2),
+      ],
+      rack_groups: [
+        {
+          id: "group-1",
+          name: "Touring Rack",
+          rack_ids: ["rack-1", "rack-2", "rack-3"],
+          layout_preset: "bayed" as const,
+        },
+      ],
+      device_types: [],
+      settings: baseSettings,
+    };
+
+    expect(LayoutSchema.safeParse(layout).success).toBe(true);
+  });
+
+  it("allows mixed heights in non-bayed groups (row preset)", () => {
+    const layout = {
+      version: "0.6.0",
+      name: "Mixed Height Row",
+      racks: [createRack("rack-1", 12, 0), createRack("rack-2", 42, 1)],
+      rack_groups: [
+        {
+          id: "group-1",
+          name: "Row Group",
+          rack_ids: ["rack-1", "rack-2"],
+          layout_preset: "row" as const,
+        },
+      ],
+      device_types: [],
+      settings: baseSettings,
+    };
+
+    expect(LayoutSchema.safeParse(layout).success).toBe(true);
+  });
+
+  it("allows mixed heights in groups without layout_preset", () => {
+    const layout = {
+      version: "0.6.0",
+      name: "Mixed Height Default",
+      racks: [createRack("rack-1", 12, 0), createRack("rack-2", 42, 1)],
+      rack_groups: [
+        {
+          id: "group-1",
+          name: "Default Group",
+          rack_ids: ["rack-1", "rack-2"],
+          // No layout_preset
+        },
+      ],
+      device_types: [],
+      settings: baseSettings,
+    };
+
+    expect(LayoutSchema.safeParse(layout).success).toBe(true);
   });
 });
 

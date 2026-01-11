@@ -3,6 +3,7 @@
  * Pure functions for rack operations
  */
 
+import { nanoid } from "nanoid";
 import type { DeviceType, FormFactor, Rack, RackView } from "$lib/types";
 import {
   MIN_RACK_HEIGHT,
@@ -11,6 +12,14 @@ import {
   ALLOWED_RACK_WIDTHS,
   DEFAULT_RACK_VIEW,
 } from "$lib/types/constants";
+
+/**
+ * Generate a unique rack ID using nanoid (21 characters)
+ * Used for multi-rack support - stable identifier that survives renames
+ */
+export function generateRackId(): string {
+  return nanoid();
+}
 
 /**
  * Create a new rack with sensible defaults
