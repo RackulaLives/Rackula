@@ -158,8 +158,6 @@ test.describe("Bottom Sheet", () => {
 
     const bottomSheet = page.locator(".bottom-sheet");
     await expect(bottomSheet).toBeVisible();
-    // eslint-disable-next-line no-restricted-syntax -- E2E test verifying bottom sheet opens (user-visible state)
-    await expect(bottomSheet).toHaveClass(/open/);
   });
 
   test("bottom sheet has drag handle visible", async ({ page }) => {

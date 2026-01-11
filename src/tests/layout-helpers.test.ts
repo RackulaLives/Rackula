@@ -23,7 +23,7 @@ import {
   createTestDevice,
   createTestRack,
 } from "./factories";
-import type { Layout, DeviceType, PlacedDevice } from "$lib/types";
+import type { Layout, DeviceType } from "$lib/types";
 
 // =============================================================================
 // createDeviceType Tests
@@ -318,10 +318,10 @@ describe("createDevice", () => {
     expect(result.name).toBe("My Server");
   });
 
-  it("creates a placed device with full-depth face", () => {
-    const result = createDevice("ups-1", 1, "full-depth");
+  it("creates a placed device with both face", () => {
+    const result = createDevice("ups-1", 1, "both");
 
-    expect(result.face).toBe("full-depth");
+    expect(result.face).toBe("both");
   });
 
   it("handles position 0", () => {
@@ -468,12 +468,10 @@ describe("getDeviceDisplayName", () => {
   });
 
   it("handles empty device name (returns model)", () => {
-    const device: PlacedDevice = {
+    const device = createTestDevice({
       device_type: "with-model",
-      position: 1,
-      face: "front",
       name: "", // Empty string is falsy
-    };
+    });
 
     const result = getDeviceDisplayName(device, deviceTypes);
 

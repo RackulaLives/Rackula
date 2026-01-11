@@ -221,11 +221,11 @@ describe("Layout Store (v0.2)", () => {
         colour: "#4A90D9",
       });
       store.placeDevice("rack-0", device.slug, 5);
-      // eslint-disable-next-line no-restricted-syntax -- Testing place operation (0 + 1 = 1)
-      expect(store.layout.rack.devices).toHaveLength(1);
+      expect(
+        store.layout.rack.devices.find((d) => d.device_type === device.slug),
+      ).toBeDefined();
       store.deleteRack("rack-0");
-      // eslint-disable-next-line no-restricted-syntax -- Testing delete operation (1 - 1 = 0)
-      expect(store.layout.rack.devices).toHaveLength(0);
+      expect(store.layout.rack.devices).toEqual([]);
     });
 
     it("sets isDirty to true", () => {
@@ -348,11 +348,13 @@ describe("Layout Store (v0.2)", () => {
         colour: "#4A90D9",
       });
       store.placeDevice("rack-0", deviceType.slug, 5);
-      // eslint-disable-next-line no-restricted-syntax -- Testing place operation (0 + 1 = 1)
-      expect(store.layout.rack.devices).toHaveLength(1);
+      expect(
+        store.layout.rack.devices.find(
+          (d) => d.device_type === deviceType.slug,
+        ),
+      ).toBeDefined();
       store.deleteDeviceType(deviceType.slug);
-      // eslint-disable-next-line no-restricted-syntax -- Testing cascade delete (1 device removed)
-      expect(store.layout.rack.devices).toHaveLength(0);
+      expect(store.layout.rack.devices).toEqual([]);
     });
 
     it("sets isDirty to true", () => {
@@ -634,11 +636,13 @@ describe("Layout Store (v0.2)", () => {
       });
       store.placeDevice("rack-0", deviceType.slug, 5);
 
-      // eslint-disable-next-line no-restricted-syntax -- Testing place operation (0 + 1 = 1)
-      expect(store.layout.rack.devices).toHaveLength(1);
+      expect(
+        store.layout.rack.devices.find(
+          (d) => d.device_type === deviceType.slug,
+        ),
+      ).toBeDefined();
       store.removeDeviceFromRack("rack-0", 0);
-      // eslint-disable-next-line no-restricted-syntax -- Testing remove operation (1 - 1 = 0)
-      expect(store.layout.rack.devices).toHaveLength(0);
+      expect(store.layout.rack.devices).toEqual([]);
     });
 
     it("sets isDirty to true", () => {

@@ -596,7 +596,7 @@ describe("RackSchema", () => {
       expect(RackSchema.safeParse(rack).success).toBe(true);
     });
 
-    it("accepts 50U rack (max)", () => {
+    it("accepts 50U rack (within allowed range)", () => {
       const rack = { ...validRack, height: 50 };
       expect(RackSchema.safeParse(rack).success).toBe(true);
     });
