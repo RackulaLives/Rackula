@@ -6,8 +6,9 @@ reviews:
   request_changes_workflow: true
 
   # Review settings
-  high_level_summary: true
-  poem: false
+  high_level_summary: false
+  high_level_summary_in_walkthrough: true
+  poem: true
   profile: assertive # Stricter reviews for quality
   collapse_walkthrough: true
 

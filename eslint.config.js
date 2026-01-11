@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 import { includeIgnoreFile } from "@eslint/compat";
 import js from "@eslint/js";
 import svelte from "eslint-plugin-svelte";
+import testingLibrary from "eslint-plugin-testing-library";
+import vitest from "eslint-plugin-vitest";
 import { defineConfig } from "eslint/config";
 import globals from "globals";
 import ts from "typescript-eslint";
@@ -49,6 +51,10 @@ export default defineConfig(
   },
   {
     files: ["**/*.test.ts", "**/*.spec.ts"],
+    plugins: {
+      vitest,
+      "testing-library": testingLibrary,
+    },
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -63,6 +69,39 @@ export default defineConfig(
         afterAll: "readonly",
         vi: "readonly",
       },
+    },
+    rules: {
+      // Block querySelector and DOM node access in tests
+      "testing-library/no-container": "error",
+      "testing-library/no-node-access": "error",
+
+      // Block patterns via no-restricted-syntax
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            'CallExpression[callee.property.name="toHaveLength"][arguments.0.type="Literal"]',
+          message:
+            "Avoid exact length assertions on data arrays (breaks on additions). Use .length > 0 for existence checks. For behavioral invariants (deduplication, pagination), use eslint-disable-next-line with justification.",
+        },
+        {
+          selector:
+            'CallExpression[callee.property.name="toBe"][arguments.0.value=/^#/]',
+          message:
+            "Avoid hardcoded color assertions - breaks on design token changes. Test user-visible behavior instead.",
+        },
+        {
+          selector: 'CallExpression[callee.property.name="toHaveClass"]',
+          message:
+            "Avoid CSS class assertions - tests implementation details. Use testing-library queries instead.",
+        },
+        {
+          selector:
+            'BinaryExpression[operator="==="][left.operator="typeof"][right.value="function"]',
+          message:
+            "Avoid function existence checks - TypeScript already validates this. Test behavior instead.",
+        },
+      ],
     },
   },
   {

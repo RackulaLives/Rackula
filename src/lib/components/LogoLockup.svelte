@@ -12,9 +12,6 @@
   import SantaHat from "./SantaHat.svelte";
   import { isChristmas } from "$lib/utils/christmas";
 
-  // Build-time constants from vite.config.ts
-  declare const __BUILD_ENV__: string;
-
   interface Props {
     size?: number;
     celebrate?: boolean;

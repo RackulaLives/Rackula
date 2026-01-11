@@ -1,5 +1,14 @@
 {
-	"enabledPlugins": {
-		"claude-mem@thedotmack": true
-	}
+  "enabledPlugins": {
+    "claude-mem@thedotmack": true,
+    "code-review@claude-code-plugins": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-code-plugins": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/anthropics/claude-code.git"
+      }
+    }
+  }
 }

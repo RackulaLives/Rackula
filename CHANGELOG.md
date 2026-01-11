@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.16] - 2026-01-08
+
+Fixed some regressions in device placement logic after refactoring.
+
+Also learning a bit about how vitest works (or doesn't) with >3k tests.
+
+Also added a little widget for displaying app build info for development purposes.
+
+### Added
+
+- feature: added/refactored the About menu to show relevant info about the app version, build time (#441)
+
+### Fixed
+
+- bug: Changing device face to 'both' bypasses collision detection (#450)
+- bug: Full-depth devices with overridden face still block opposite face placements (#444)
+
+### Technical
+
+- bug: Test suite crashes with JavaScript heap memory limit / IPC channel error (#446)
+
+### Research
+
+- Ongoing work on multi-rack support and multi-bay racks.
+
 ## [0.6.15] - 2026-01-05
 
 ### Fixed
