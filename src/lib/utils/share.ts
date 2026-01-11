@@ -16,6 +16,18 @@ import {
 import { generateId } from "./device";
 
 // =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Normalize rack width to valid share format values (10 or 19)
+ * Maps non-standard widths (21, 23) to 19
+ */
+function normalizeRackWidth(width: number): 10 | 19 {
+  return width === 10 ? 10 : 19;
+}
+
+// =============================================================================
 // Layout Conversion Functions
 // =============================================================================
 
@@ -53,7 +65,7 @@ export function toMinimalLayout(layout: Layout): MinimalLayout {
     r: {
       n: layout.rack.name,
       h: layout.rack.height,
-      w: layout.rack.width,
+      w: normalizeRackWidth(layout.rack.width),
       d: devices,
     },
     dt,
