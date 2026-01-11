@@ -63,20 +63,41 @@ export default defineConfig(() => ({
     },
   },
   build: {
+    // Don't inline any assets as base64 - always use file references
+    // This prevents the data-images chunk from containing base64 data
+    assetsInlineLimit: 0,
     rollupOptions: {
       output: {
-        // Manual chunks to reduce main bundle size
-        manualChunks: {
-          // Zod validation library
-          zod: ["zod"],
-          // UI component library
-          "bits-ui": ["bits-ui"],
-          // Pan/zoom functionality
-          panzoom: ["panzoom"],
-          // Archive handling (save/load)
-          archive: ["jszip", "js-yaml"],
-          // Icon libraries
-          icons: ["@lucide/svelte", "simple-icons"],
+        // Manual chunks to reduce main bundle size below 500kB
+        manualChunks(id) {
+          // Vendor libraries - split by functionality
+          if (id.includes("node_modules")) {
+            // Validation library
+            if (id.includes("/zod/")) return "vendor-zod";
+            // UI component library
+            if (id.includes("/bits-ui/")) return "vendor-bits-ui";
+            // Pan/zoom functionality
+            if (id.includes("/panzoom/")) return "vendor-panzoom";
+            // Archive handling (save/load)
+            if (id.includes("/jszip/") || id.includes("/js-yaml/"))
+              return "vendor-archive";
+            // Icon libraries
+            if (
+              id.includes("/@lucide/svelte/") ||
+              id.includes("/simple-icons/")
+            )
+              return "vendor-icons";
+            // Search library
+            if (id.includes("/fuse.js/")) return "vendor-fuse";
+            // Compression library (used by jszip)
+            if (id.includes("/pako/")) return "vendor-pako";
+            // Svelte runtime - keep together for performance
+            if (id.includes("/svelte/")) return "vendor-svelte";
+          }
+          // App data files - split for lazy loading potential
+          if (id.includes("/src/lib/data/brandPacks/"))
+            return "data-brandpacks";
+          if (id.includes("/src/lib/data/bundledImages")) return "data-images";
         },
       },
     },
