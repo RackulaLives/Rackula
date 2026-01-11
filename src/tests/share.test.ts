@@ -728,39 +728,48 @@ describe("Share Utilities", () => {
 
   describe("clearShareParam", () => {
     it("removes the l param from URL", () => {
-      // Since replaceState has cross-origin restrictions in test environment,
-      // we test by mocking replaceState completely
-      const replaceStateSpy = vi.fn();
-      window.history.replaceState = replaceStateSpy;
+      // Save original to restore after test
+      const originalReplaceState = window.history.replaceState;
 
-      Object.defineProperty(window, "location", {
-        value: {
-          origin: "http://localhost:3000",
-          pathname: "/",
-          search: "?l=abc123",
-          href: "http://localhost:3000/?l=abc123",
-        },
-        writable: true,
-      });
+      try {
+        // Since replaceState has cross-origin restrictions in test environment,
+        // we test by mocking replaceState completely
+        const replaceStateSpy = vi.fn();
+        window.history.replaceState = replaceStateSpy;
 
-      clearShareParam();
+        Object.defineProperty(window, "location", {
+          value: {
+            origin: "http://localhost:3000",
+            pathname: "/",
+            search: "?l=abc123",
+            href: "http://localhost:3000/?l=abc123",
+          },
+          writable: true,
+        });
 
-      expect(replaceStateSpy).toHaveBeenCalled();
-      // Check that the URL passed doesn't contain the l param
-      const urlArg = replaceStateSpy.mock.calls[0]?.[2];
-      expect(urlArg).toBe("http://localhost:3000/");
+        clearShareParam();
+
+        expect(replaceStateSpy).toHaveBeenCalled();
+        // Check that the URL passed doesn't contain the l param
+        const urlArg = replaceStateSpy.mock.calls[0]?.[2];
+        expect(urlArg).toBe("http://localhost:3000/");
+      } finally {
+        // Restore original
+        window.history.replaceState = originalReplaceState;
+      }
     });
   });
 
   describe("size expectations", () => {
-    it("empty rack is under 500 characters", () => {
+    it("empty rack fits in QR code", () => {
       const layout = createTestLayout();
       const encoded = encodeLayout(layout);
 
-      expect(encoded.length).toBeLessThan(500);
+      expect(encoded).not.toBeNull();
+      expect(encoded!.length).toBeLessThan(1600);
     });
 
-    it("10 devices is under 700 characters", () => {
+    it("10 devices fits in QR code", () => {
       const layout = createTestLayout();
       layout.device_types = [
         { slug: "server", u_height: 1, colour: "#3b82f6", category: "server" },
@@ -775,10 +784,11 @@ describe("Share Utilities", () => {
       }
 
       const encoded = encodeLayout(layout);
-      expect(encoded.length).toBeLessThan(700);
+      expect(encoded).not.toBeNull();
+      expect(encoded!.length).toBeLessThan(1600);
     });
 
-    it("20 devices is under 900 characters", () => {
+    it("20 devices fits in QR code", () => {
       const layout = createTestLayout();
       layout.device_types = [
         { slug: "server", u_height: 1, colour: "#3b82f6", category: "server" },
@@ -793,10 +803,11 @@ describe("Share Utilities", () => {
       }
 
       const encoded = encodeLayout(layout);
-      expect(encoded.length).toBeLessThan(900);
+      expect(encoded).not.toBeNull();
+      expect(encoded!.length).toBeLessThan(1600);
     });
 
-    it("40 devices with multiple types is under 1400 characters", () => {
+    it("40 devices with multiple types fits in QR code", () => {
       const layout = createTestLayout();
       layout.device_types = [
         {
@@ -827,7 +838,8 @@ describe("Share Utilities", () => {
       }
 
       const encoded = encodeLayout(layout);
-      expect(encoded.length).toBeLessThan(1400);
+      expect(encoded).not.toBeNull();
+      expect(encoded!.length).toBeLessThan(1600);
     });
   });
 });

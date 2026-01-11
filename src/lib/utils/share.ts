@@ -82,7 +82,7 @@ export function toMinimalLayout(layout: Layout): MinimalLayout {
     r: {
       n: rack.name,
       h: rack.height,
-      w: rack.width,
+      w: normalizeRackWidth(rack.width),
       d: devices,
     },
     dt,
