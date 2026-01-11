@@ -21,6 +21,18 @@ import { createDefaultRack } from "./serialization";
 // =============================================================================
 
 /**
+ * Validate and normalize rack width to supported values (10" or 19")
+ * Logs warning and defaults to 19" for invalid values
+ */
+function normalizeRackWidth(width: number): 10 | 19 {
+  if (width === 10 || width === 19) {
+    return width;
+  }
+  console.warn(`Invalid rack width ${width} in share link, defaulting to 19"`);
+  return 19;
+}
+
+/**
  * Convert Layout to MinimalLayout
  * Only includes device types that are actually placed in the rack
  * Note: Multi-rack layouts use the first rack for sharing
@@ -101,19 +113,11 @@ export function fromMinimalLayout(minimal: MinimalLayout): Layout {
     ...(d.n ? { name: d.n } : {}),
   }));
 
-  // Validate and normalize rack width
-  const width = minimal.r.w === 10 || minimal.r.w === 19 ? minimal.r.w : 19;
-  if (minimal.r.w !== 10 && minimal.r.w !== 19) {
-    console.warn(
-      `Invalid rack width ${minimal.r.w} in share link, defaulting to 19"`,
-    );
-  }
-
   // Create rack using factory to centralize defaults
   const rack = createDefaultRack(
     minimal.r.n, // name
     minimal.r.h, // height
-    width, // width (validated)
+    normalizeRackWidth(minimal.r.w), // width (validated)
     "4-post-cabinet", // form_factor (default)
     false, // desc_units (default)
     1, // starting_unit (default)

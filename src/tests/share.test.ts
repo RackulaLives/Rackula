@@ -66,7 +66,7 @@ describe("Share Utilities", () => {
 
       // Should filter to only used device types
       expect(minimal.dt.some((dt) => dt.s === "used-server")).toBe(true);
-      expect(minimal.dt.some((dt) => dt.s === "unused-server")).toBe(false);
+      expect(minimal.dt.some((dt) => dt.s === "unused-device")).toBe(false);
     });
 
     it("abbreviates category names", () => {
@@ -466,7 +466,9 @@ describe("Share Utilities", () => {
       original.name = "My Homelab Setup";
 
       const encoded = encodeLayout(original);
-      const decoded = decodeLayout(encoded);
+      expect(encoded).not.toBeNull();
+
+      const decoded = decodeLayout(encoded!);
 
       expect(decoded?.name).toBe("My Homelab Setup");
       expect(decoded?.version).toBe("1.0");
@@ -680,7 +682,9 @@ describe("Share Utilities", () => {
     it("encoded parameter is URL-safe", () => {
       const layout = createTestLayout();
       const url = generateShareUrl(layout);
-      const param = new URL(url).searchParams.get("l");
+      expect(url).not.toBeNull();
+
+      const param = new URL(url!).searchParams.get("l");
 
       // Should only contain URL-safe characters
       expect(param).toMatch(/^[A-Za-z0-9_-]+$/);
