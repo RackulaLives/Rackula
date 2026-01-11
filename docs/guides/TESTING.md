@@ -12,13 +12,54 @@ This document describes the testing patterns, conventions, and best practices fo
 
 **NEVER write tests that:**
 
-- Assert exact array lengths (breaks on data additions)
+- Assert exact lengths on data arrays (breaks on data additions) - see [exception below](#exact-length-assertions)
 - Assert hardcoded color values (breaks on design changes)
 - Check if a function exists (TypeScript does this)
 - Assert CSS class names (tests implementation details)
 - Test that a component renders (TypeScript ensures this)
 - Test DOM structure with querySelector (fragile, implementation-specific)
 - Duplicate schema validation (Zod already validates)
+
+#### Exact Length Assertions
+
+**The rule:** Avoid `expect(array).toHaveLength(literal)` on data arrays.
+
+**Why:** Adding a device to a brand pack shouldn't break tests.
+
+**Exception:** Behavioral invariants are okay with inline justification:
+
+```typescript
+// ✅ GOOD - Behavioral invariant with justification
+it("removes duplicate devices from selection", () => {
+  const devices = [device1, device1, device2];
+  const result = deduplicateDevices(devices);
+  // eslint-disable-next-line no-restricted-syntax -- deduplication should leave exactly 2 unique devices
+  expect(result).toHaveLength(2);
+});
+
+// ✅ GOOD - Pagination behavior
+it("returns exactly 10 items per page", () => {
+  const items = Array(25)
+    .fill(null)
+    .map((_, i) => createItem(i));
+  const page1 = paginate(items, { page: 1, pageSize: 10 });
+  // eslint-disable-next-line no-restricted-syntax -- pagination invariant: 10 items per page
+  expect(page1).toHaveLength(10);
+});
+
+// ❌ BAD - Data array assertion
+it("loads all Dell devices", () => {
+  const devices = loadDellDevices();
+  expect(devices).toHaveLength(68); // Breaks when Dell adds a new device
+});
+
+// ✅ BETTER - Test existence, not count
+it("loads Dell devices", () => {
+  const devices = loadDellDevices();
+  expect(devices.length).toBeGreaterThan(0);
+  expect(devices.every((d) => d.manufacturer === "Dell")).toBe(true);
+});
+```
 
 ### Why These Rules Exist
 

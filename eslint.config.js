@@ -82,7 +82,7 @@ export default defineConfig(
           selector:
             'CallExpression[callee.property.name="toHaveLength"][arguments.0.type="Literal"]',
           message:
-            "Avoid exact length assertions - breaks on data changes. Use .length > 0 or test behavior instead.",
+            "Avoid exact length assertions on data arrays (breaks on additions). Use .length > 0 for existence checks. For behavioral invariants (deduplication, pagination), use eslint-disable-next-line with justification.",
         },
         {
           selector:

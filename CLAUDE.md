@@ -305,11 +305,22 @@ If yes, **DON'T WRITE IT.**
 
 ### NEVER Write Tests That:
 
-❌ **Assert exact array lengths**
+❌ **Assert exact array lengths on data arrays**
 
 ```typescript
 // BAD: Breaks when you add a device to brand pack
 expect(dellDevices).toHaveLength(68);
+
+// GOOD: Test existence, not count
+expect(dellDevices.length).toBeGreaterThan(0);
+```
+
+**Exception:** Behavioral invariants (deduplication, pagination) may use exact lengths with `eslint-disable-next-line` and justification:
+
+```typescript
+// GOOD: Behavioral invariant with justification
+// eslint-disable-next-line no-restricted-syntax -- deduplication should leave exactly 2 unique devices
+expect(deduplicateDevices([device1, device1, device2])).toHaveLength(2);
 ```
 
 ❌ **Assert hardcoded color values**
