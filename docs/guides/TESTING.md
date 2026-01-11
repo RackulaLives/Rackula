@@ -35,7 +35,7 @@ We deleted **78 low-value test files** (57% reduction) that tested implementatio
 - Core algorithms (collision detection, schemas)
 - E2E user flows (real user behavior)
 
-**CI enforcement:** Test file size limit of 400 lines and test:source ratio limit of 0.6:1 prevent re-accumulation.
+**Enforcement:** See [CLAUDE.md - Enforcement](../../CLAUDE.md#enforcement) for the complete guardrails system (ESLint hard-blocks, tiered CI checks, pattern-based file size limits).
 
 ---
 
@@ -446,14 +446,13 @@ describe.each(ALL_BRAND_PACKS)("$name brand pack", ({ devices }) => {
 
 ### Test:Source Ratio
 
-| Ratio     | Interpretation                    |
-| --------- | --------------------------------- |
-| < 0.3:1   | Under-tested, risky               |
-| 0.5–0.7:1 | Healthy balance                   |
-| 0.8–1.0:1 | Possibly over-tested              |
-| > 1.0:1   | Likely testing data, not behavior |
+| Ratio       | CI Action                       |
+| ----------- | ------------------------------- |
+| < 0.60:1    | ✅ Pass (healthy)               |
+| 0.60–0.80:1 | ⚠️ Warning (consider reviewing) |
+| > 0.80:1    | ❌ Block (over-testing)         |
 
-Current project: **1.14:1** — indicates over-testing of low-value areas.
+Current project: **0.58:1** — healthy balance after test cleanup.
 
 ---
 

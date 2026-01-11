@@ -397,9 +397,25 @@ const device = createTestDeviceType({ u_height: 2 });
 
 ### Enforcement
 
-- **File size limit:** 400 lines per test file (CI will fail above this)
-- **Ratio limit:** Test:source ratio ≤ 0.6:1 (CI will fail above this)
-- **Zero-change rule:** Adding data should require zero test changes
+**Hard blocks (ESLint):**
+
+- `querySelector()` / DOM node access in tests
+- `toHaveClass()` assertions
+- `toHaveLength(literal)` exact length assertions
+- Hardcoded color assertions
+
+**Soft limits (CI):**
+
+- Ratio > 0.60:1 → Warning in CI logs
+- Ratio > 0.80:1 → Hard block
+
+**File size limits (pattern-based):**
+| Pattern | Limit |
+|---------|-------|
+| `*-store.test.ts` | 2000 lines |
+| `collision*.test.ts`, `schemas.test.ts` | 1500 lines |
+| `e2e/*.spec.ts` | 1000 lines |
+| Other `*.test.ts` | 500 lines |
 
 **Why these rules exist:** The project had 136 unit test files (46k LOC) causing OOM crashes and high token usage. We deleted 78 low-value files (57% reduction) to fix this. These rules prevent re-accumulation.
 
