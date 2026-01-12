@@ -1684,10 +1684,7 @@ function updateDevicePlacementImageRecorded(
   activeRackId = rackId;
 
   const device = targetRack.devices[deviceIndex]!;
-  const oldFilename =
-    face === "front"
-      ? device.placement_front_image
-      : device.placement_rear_image;
+  const oldFilename = face === "front" ? device.front_image : device.rear_image;
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
     device.device_type,
@@ -1728,7 +1725,7 @@ function updateDeviceColourRecorded(
   activeRackId = rackId;
 
   const device = targetRack.devices[deviceIndex]!;
-  const oldColour = device.colour;
+  const oldColour = device.colour_override;
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
     device.device_type,
