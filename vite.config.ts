@@ -2,6 +2,7 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
 import { readFileSync } from "fs";
 import { execSync } from "child_process";
+import CircularDependency from "vite-plugin-circular-dependency";
 
 // Read version from package.json
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
@@ -32,7 +33,19 @@ export default defineConfig(() => ({
   // - Docker/local: / (default)
   base: process.env.VITE_BASE_PATH || "/",
   publicDir: "static",
-  plugins: [svelte()],
+  plugins: [
+    svelte(),
+    // Detect circular dependencies that can cause ESM initialization issues
+    // @see https://github.com/RackulaLives/Rackula/issues/479
+    CircularDependency({
+      // Fail build on circular dependencies
+      failOnError: true,
+      // Exclude node_modules - we only care about our own code
+      exclude: /node_modules/,
+      // Include all source files
+      include: /src\/.*/,
+    }),
+  ],
   define: {
     // Inject version at build time
     __APP_VERSION__: JSON.stringify(pkg.version),
