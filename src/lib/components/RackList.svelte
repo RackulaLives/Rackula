@@ -78,7 +78,7 @@
     >
   </div>
 
-  <div class="rack-items">
+  <div class="rack-items" role="listbox" aria-label="Rack list">
     {#each racks as rack (rack.id)}
       {@const isActive = rack.id === activeRackId}
       {@const deviceCount = rack.devices.length}
@@ -86,8 +86,10 @@
         class="rack-item"
         class:active={isActive}
         onclick={() => handleRackClick(rack.id)}
-        onkeydown={(e) => e.key === "Enter" && handleRackClick(rack.id)}
-        role="button"
+        onkeydown={(e) =>
+          (e.key === "Enter" || e.key === " ") && handleRackClick(rack.id)}
+        role="option"
+        aria-selected={isActive}
         tabindex="0"
         data-testid="rack-item-{rack.id}"
       >
@@ -207,7 +209,7 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--space-0-5, 2px);
     min-width: 0;
   }
 

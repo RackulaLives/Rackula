@@ -23,12 +23,28 @@ export type SidebarTab = "hide" | "devices" | "racks";
 const SIDEBAR_TAB_KEY = "Rackula_sidebar_tab";
 
 /**
+ * Valid sidebar tab values for runtime validation
+ */
+const VALID_SIDEBAR_TABS: readonly SidebarTab[] = [
+  "hide",
+  "devices",
+  "racks",
+] as const;
+
+/**
+ * Check if a value is a valid SidebarTab
+ */
+function isValidSidebarTab(tab: string): tab is SidebarTab {
+  return VALID_SIDEBAR_TABS.includes(tab as SidebarTab);
+}
+
+/**
  * Load sidebar tab from localStorage
  */
 function loadSidebarTabFromStorage(): SidebarTab {
   try {
     const stored = localStorage.getItem(SIDEBAR_TAB_KEY);
-    if (stored === "hide" || stored === "devices" || stored === "racks") {
+    if (stored && isValidSidebarTab(stored)) {
       return stored;
     }
   } catch {
@@ -387,22 +403,6 @@ function expandSidebar(): void {
     sidebarCollapsed = false;
     saveSidebarCollapsedToStorage(false);
   }
-}
-
-/**
- * Valid sidebar tab values for runtime validation
- */
-const VALID_SIDEBAR_TABS: readonly SidebarTab[] = [
-  "hide",
-  "devices",
-  "racks",
-] as const;
-
-/**
- * Check if a value is a valid SidebarTab
- */
-function isValidSidebarTab(tab: string): tab is SidebarTab {
-  return VALID_SIDEBAR_TABS.includes(tab as SidebarTab);
 }
 
 /**

@@ -82,8 +82,6 @@
   const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
 
-  // Multi-rack mode: get active rack ID from store
-
   // Dialog state
   let newRackFormOpen = $state(false);
   let addDeviceFormOpen = $state(false);
@@ -430,7 +428,7 @@
         toastStore.showToast("PDF exported successfully", "success");
         analytics.trackExportPDF(exportViewOrDefault);
       } else if (options.format === "csv") {
-        // CSV export uses null view (no view in filename)
+        // CSV export only supports single rack - warn if multiple racks exist
         const csvContent = exportToCSV(
           racksToExport[0]!,
           layoutStore.device_types,
@@ -442,7 +440,11 @@
           options.format,
         );
         downloadBlob(blob, filename);
-        toastStore.showToast("CSV exported successfully", "success");
+        const successMsg =
+          racksToExport.length > 1
+            ? `CSV exported (first rack only - "${racksToExport[0]!.name}")`
+            : "CSV exported successfully";
+        toastStore.showToast(successMsg, "success");
         analytics.trackExportCSV();
       }
     } catch (error) {
@@ -848,8 +850,8 @@
   />
 
   <main class="app-main" class:mobile={viewportStore.isMobile}>
-    {#if !viewportStore.isMobile && uiStore.sidebarTab !== "hide"}
-      <Sidebar side="left">
+    {#if !viewportStore.isMobile}
+      <Sidebar side="left" collapsed={uiStore.sidebarTab === "hide"}>
         <SidebarTabs
           activeTab={uiStore.sidebarTab}
           onchange={(tab) => uiStore.setSidebarTab(tab)}

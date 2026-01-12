@@ -18,6 +18,9 @@
     { id: "racks", label: "Racks", icon: "▤" },
   ];
 
+  // Use bind:this array for focus management instead of querySelector
+  let tabButtons: HTMLButtonElement[] = $state([]);
+
   /**
    * Handle arrow key navigation between tabs
    */
@@ -39,11 +42,8 @@
       const newTab = tabs[newIndex];
       if (newTab) {
         onchange(newTab.id);
-        // Focus the new tab button
-        const tabButton = document.querySelector(
-          `[data-testid="sidebar-tab-${newTab.id}"]`,
-        ) as HTMLButtonElement | null;
-        tabButton?.focus();
+        // Focus the new tab button using ref array
+        tabButtons[newIndex]?.focus();
       }
     }
   }
@@ -61,6 +61,7 @@
       tabindex={activeTab === tab.id ? 0 : -1}
       onclick={() => onchange(tab.id)}
       onkeydown={(e) => handleKeyDown(e, index)}
+      bind:this={tabButtons[index]}
       data-testid="sidebar-tab-{tab.id}"
     >
       <span class="tab-icon" aria-hidden="true">{tab.icon}</span>

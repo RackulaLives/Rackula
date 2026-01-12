@@ -334,6 +334,7 @@
     }
 
     const newRack = racks[newIndex];
+    if (!newRack) return;
 
     // Skip toast if cycling landed on the same rack (single rack case)
     if (newRack.id === currentId) return;

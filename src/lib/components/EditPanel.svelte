@@ -866,26 +866,24 @@
                 selectedDeviceInfo.device.colour}
               defaultValue={selectedDeviceInfo.device.colour}
               onchange={(colour) => {
-                const activeRack = layoutStore.activeRack;
-                const deviceIndex = activeRack?.devices.findIndex(
+                // Use rack from selectedDeviceInfo to avoid race condition
+                const rackId = selectedDeviceInfo.rack.id;
+                const deviceIndex = selectedDeviceInfo.rack.devices.findIndex(
                   (d) => d.id === selectedDeviceInfo.placedDevice.id,
                 );
-                if (deviceIndex !== undefined && deviceIndex >= 0) {
-                  layoutStore.updateDeviceColour(
-                    currentRackId!,
-                    deviceIndex,
-                    colour,
-                  );
+                if (deviceIndex >= 0) {
+                  layoutStore.updateDeviceColour(rackId, deviceIndex, colour);
                 }
               }}
               onreset={() => {
-                const activeRack = layoutStore.activeRack;
-                const deviceIndex = activeRack?.devices.findIndex(
+                // Use rack from selectedDeviceInfo to avoid race condition
+                const rackId = selectedDeviceInfo.rack.id;
+                const deviceIndex = selectedDeviceInfo.rack.devices.findIndex(
                   (d) => d.id === selectedDeviceInfo.placedDevice.id,
                 );
-                if (deviceIndex !== undefined && deviceIndex >= 0) {
+                if (deviceIndex >= 0) {
                   layoutStore.updateDeviceColour(
-                    currentRackId!,
+                    rackId,
                     deviceIndex,
                     undefined,
                   );

@@ -47,8 +47,9 @@
     will-change: width;
   }
 
-  /* Collapsed state */
+  /* Collapsed state - show only tabs */
   .sidebar.collapsed {
+    width: var(--sidebar-collapsed-width, 120px);
     overflow: hidden;
   }
 
