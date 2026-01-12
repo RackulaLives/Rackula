@@ -74,8 +74,10 @@ export default defineConfig(() => ({
           if (id.includes("node_modules")) {
             // Validation library
             if (id.includes("/zod/")) return "vendor-zod";
-            // UI component library
-            if (id.includes("/bits-ui/")) return "vendor-bits-ui";
+            // Svelte runtime + Svelte component libraries
+            // bits-ui must be in same chunk as svelte for correct ESM initialization order
+            if (id.includes("/svelte/") || id.includes("/bits-ui/"))
+              return "vendor-svelte";
             // Pan/zoom functionality
             if (id.includes("/panzoom/")) return "vendor-panzoom";
             // Archive handling (save/load)
@@ -91,8 +93,6 @@ export default defineConfig(() => ({
             if (id.includes("/fuse.js/")) return "vendor-fuse";
             // Compression library (used by jszip)
             if (id.includes("/pako/")) return "vendor-pako";
-            // Svelte runtime - keep together for performance
-            if (id.includes("/svelte/")) return "vendor-svelte";
           }
           // App data files - split for lazy loading potential
           // Guard against node_modules paths that might contain these strings
