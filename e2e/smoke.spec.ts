@@ -32,11 +32,26 @@ function setupPageErrorCollection(page: Page): string[] {
   return errors;
 }
 
+/**
+ * Collects unhandled promise rejections during test execution.
+ */
+function setupRejectionCollection(page: Page): string[] {
+  const rejections: string[] = [];
+
+  // Catch pageerror events that contain "Unhandled"
+  page.on("pageerror", (error) => {
+    if (error.message.includes("Unhandled")) {
+      rejections.push(error.message);
+    }
+  });
+
+  return rejections;
+}
+
 test.describe("Smoke Tests - JavaScript Initialization", () => {
   test.beforeEach(async ({ page }) => {
-    // Set hasStarted flag so main app UI is displayed (skips welcome page)
-    await page.goto("/");
-    await page.evaluate(() => {
+    // Set hasStarted flag before navigation so main app UI is displayed (skips welcome page)
+    await page.addInitScript(() => {
       localStorage.setItem("Rackula_has_started", "true");
     });
   });
@@ -44,7 +59,7 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
   test("app loads without JavaScript errors", async ({ page }) => {
     const errors = setupPageErrorCollection(page);
 
-    // Navigate to the app (will show main UI due to hasStarted flag)
+    // Navigate to the app (will show main UI due to hasStarted flag set in init script)
     await page.goto("/");
 
     // Wait for the app to fully initialize
@@ -66,7 +81,7 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
   }) => {
     const errors = setupPageErrorCollection(page);
 
-    // Navigate to app (hasStarted is set in beforeEach)
+    // Navigate to app (hasStarted is set via addInitScript in beforeEach)
     await page.goto("/");
 
     // bits-ui Accordion is used in the device palette for category sections
@@ -92,7 +107,7 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
   test("all critical UI components render", async ({ page }) => {
     const errors = setupPageErrorCollection(page);
 
-    // Navigate to app (hasStarted is set in beforeEach)
+    // Navigate to app (hasStarted is set via addInitScript in beforeEach)
     await page.goto("/");
 
     // Verify critical components are present
@@ -123,21 +138,14 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
 
 test.describe("Smoke Tests - Console Warnings", () => {
   test.beforeEach(async ({ page }) => {
-    // Set hasStarted flag so main app UI is displayed (skips welcome page)
-    await page.goto("/");
-    await page.evaluate(() => {
+    // Set hasStarted flag before navigation so main app UI is displayed (skips welcome page)
+    await page.addInitScript(() => {
       localStorage.setItem("Rackula_has_started", "true");
     });
   });
 
   test("no unhandled promise rejections during load", async ({ page }) => {
-    const rejections: string[] = [];
-
-    page.on("pageerror", (error) => {
-      if (error.message.includes("Unhandled")) {
-        rejections.push(error.message);
-      }
-    });
+    const rejections = setupRejectionCollection(page);
 
     await page.goto("/");
     await expect(page.locator(".rack-container").first()).toBeVisible({

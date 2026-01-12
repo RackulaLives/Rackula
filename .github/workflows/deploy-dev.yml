@@ -120,7 +120,24 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Wait for deployment to stabilize
-        run: sleep 30
+        run: |
+          # Health check with retries and backoff
+          MAX_ATTEMPTS=10
+          SLEEP_SECONDS=5
+          URL="https://d.racku.la"
+
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            echo "Attempt $i of $MAX_ATTEMPTS: checking $URL"
+            if curl -sf -o /dev/null -w "%{http_code}" "$URL" | grep -q "200"; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Health check failed, waiting ${SLEEP_SECONDS}s..."
+            sleep $SLEEP_SECONDS
+          done
+
+          echo "Health check failed after $MAX_ATTEMPTS attempts"
+          exit 1
 
       - name: Run smoke tests against d.racku.la
         run: npm run test:e2e:smoke
