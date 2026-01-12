@@ -390,10 +390,27 @@ function expandSidebar(): void {
 }
 
 /**
+ * Valid sidebar tab values for runtime validation
+ */
+const VALID_SIDEBAR_TABS: readonly SidebarTab[] = [
+  "hide",
+  "devices",
+  "racks",
+] as const;
+
+/**
+ * Check if a value is a valid SidebarTab
+ */
+function isValidSidebarTab(tab: string): tab is SidebarTab {
+  return VALID_SIDEBAR_TABS.includes(tab as SidebarTab);
+}
+
+/**
  * Set the sidebar tab
  * @param tab - Tab to set ('hide', 'devices', or 'racks')
  */
 function setSidebarTab(tab: SidebarTab): void {
+  if (!isValidSidebarTab(tab)) return;
   sidebarTab = tab;
   saveSidebarTabToStorage(tab);
 }

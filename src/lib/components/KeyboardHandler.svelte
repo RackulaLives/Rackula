@@ -334,6 +334,10 @@
     }
 
     const newRack = racks[newIndex];
+
+    // Skip toast if cycling landed on the same rack (single rack case)
+    if (newRack.id === currentId) return;
+
     layoutStore.setActiveRack(newRack.id);
     selectionStore.selectRack(newRack.id);
     toastStore.showToast(`Active: ${newRack.name}`, "info");

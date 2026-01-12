@@ -860,7 +860,7 @@
             onimportfromnetbox={handleImportFromNetBox}
           />
         {:else if uiStore.sidebarTab === "racks"}
-          <RackList onaddtrack={handleNewRack} />
+          <RackList onaddrack={handleNewRack} />
         {/if}
       </Sidebar>
     {/if}

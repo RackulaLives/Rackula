@@ -348,8 +348,10 @@
   const deviceTypePlacementCount = $derived.by(() => {
     if (!selectedDeviceInfo) return 0;
     const slug = selectedDeviceInfo.device.slug;
-    return layoutStore.rack.devices.filter((d) => d.device_type === slug)
-      .length;
+    const activeRack = layoutStore.activeRack;
+    return activeRack
+      ? activeRack.devices.filter((d) => d.device_type === slug).length
+      : 0;
   });
 
   // Sync device notes with selection
@@ -410,7 +412,9 @@
       const trimmedNotes = deviceNotes.trim();
       const notesToSave = trimmedNotes === "" ? undefined : trimmedNotes;
       // Update via updateRack - modify the device in the rack's devices array
-      const updatedDevices = [...layoutStore.rack.devices];
+      const activeRack = layoutStore.activeRack;
+      if (!activeRack) return;
+      const updatedDevices = [...activeRack.devices];
       updatedDevices[selectedDeviceInfo.deviceIndex] = {
         ...updatedDevices[selectedDeviceInfo.deviceIndex]!,
         notes: notesToSave,
@@ -423,7 +427,9 @@
   function handleDeviceIpBlur() {
     if (selectedDeviceInfo) {
       const trimmedIp = deviceIp.trim();
-      const updatedDevices = [...layoutStore.rack.devices];
+      const activeRack = layoutStore.activeRack;
+      if (!activeRack) return;
+      const updatedDevices = [...activeRack.devices];
       const currentDevice = updatedDevices[selectedDeviceInfo.deviceIndex]!;
       const currentCustomFields = currentDevice.custom_fields ?? {};
 
@@ -860,7 +866,8 @@
                 selectedDeviceInfo.device.colour}
               defaultValue={selectedDeviceInfo.device.colour}
               onchange={(colour) => {
-                const deviceIndex = layoutStore.rack?.devices.findIndex(
+                const activeRack = layoutStore.activeRack;
+                const deviceIndex = activeRack?.devices.findIndex(
                   (d) => d.id === selectedDeviceInfo.placedDevice.id,
                 );
                 if (deviceIndex !== undefined && deviceIndex >= 0) {
@@ -872,7 +879,8 @@
                 }
               }}
               onreset={() => {
-                const deviceIndex = layoutStore.rack?.devices.findIndex(
+                const activeRack = layoutStore.activeRack;
+                const deviceIndex = activeRack?.devices.findIndex(
                   (d) => d.id === selectedDeviceInfo.placedDevice.id,
                 );
                 if (deviceIndex !== undefined && deviceIndex >= 0) {

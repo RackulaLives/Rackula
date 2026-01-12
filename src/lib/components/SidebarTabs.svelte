@@ -17,17 +17,50 @@
     { id: "devices", label: "Devices", icon: "⬡" },
     { id: "racks", label: "Racks", icon: "▤" },
   ];
+
+  /**
+   * Handle arrow key navigation between tabs
+   */
+  function handleKeyDown(event: KeyboardEvent, currentIndex: number) {
+    let newIndex: number | null = null;
+
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      newIndex = (currentIndex + 1) % tabs.length;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    } else if (event.key === "Home") {
+      newIndex = 0;
+    } else if (event.key === "End") {
+      newIndex = tabs.length - 1;
+    }
+
+    if (newIndex !== null) {
+      event.preventDefault();
+      const newTab = tabs[newIndex];
+      if (newTab) {
+        onchange(newTab.id);
+        // Focus the new tab button
+        const tabButton = document.querySelector(
+          `[data-testid="sidebar-tab-${newTab.id}"]`,
+        ) as HTMLButtonElement | null;
+        tabButton?.focus();
+      }
+    }
+  }
 </script>
 
 <div class="sidebar-tabs" role="tablist" aria-label="Sidebar navigation">
-  {#each tabs as tab (tab.id)}
+  {#each tabs as tab, index (tab.id)}
     <button
       type="button"
       role="tab"
       class="tab-btn"
       class:active={activeTab === tab.id}
       aria-selected={activeTab === tab.id}
+      aria-label="{tab.label} tab"
+      tabindex={activeTab === tab.id ? 0 : -1}
       onclick={() => onchange(tab.id)}
+      onkeydown={(e) => handleKeyDown(e, index)}
       data-testid="sidebar-tab-{tab.id}"
     >
       <span class="tab-icon" aria-hidden="true">{tab.icon}</span>

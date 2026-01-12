@@ -187,7 +187,7 @@
   tabindex="0"
   role="option"
   aria-selected={selected}
-  aria-current={isActive ? "true" : undefined}
+  aria-current={isActive ? "location" : undefined}
   aria-label="{rack.name}, {rack.height}U rack, {rack.show_rear
     ? 'front and rear view'
     : 'front view only'}{isActive ? ', active' : ''}{selected

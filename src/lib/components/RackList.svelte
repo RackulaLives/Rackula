@@ -9,10 +9,10 @@
   import ConfirmDialog from "./ConfirmDialog.svelte";
 
   interface Props {
-    onaddtrack?: () => void;
+    onaddrack?: () => void;
   }
 
-  let { onaddtrack }: Props = $props();
+  let { onaddrack }: Props = $props();
 
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
@@ -127,7 +127,7 @@
     <button
       type="button"
       class="add-rack-btn"
-      onclick={onaddtrack}
+      onclick={onaddrack}
       data-testid="btn-add-rack-sidebar"
     >
       <span class="add-icon">+</span>
@@ -249,7 +249,7 @@
 
   .rack-delete:hover {
     background: var(--colour-error);
-    color: white;
+    color: var(--colour-text-on-error, #fff);
   }
 
   .rack-delete:focus-visible {
