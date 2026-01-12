@@ -37,3 +37,6 @@ playwright-browserstack-sdk.config.ts
 # Claude Code - track commands/skills, ignore local settings
 .claude/settings.local.json
 .claude/plans/
+
+# Git worktrees
+.worktrees/
