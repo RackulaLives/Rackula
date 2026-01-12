@@ -70,25 +70,13 @@
 </Dialog.Root>
 
 <style>
-  :global(.dialog-backdrop) {
-    position: fixed;
-    inset: 0;
-    background: var(--colour-backdrop, rgba(0, 0, 0, 0.6));
-    z-index: var(--z-modal, 200);
-  }
+  /* Base dialog styles (.dialog-backdrop, .dialog, .dialog-title, .dialog-close)
+     are defined in src/lib/styles/dialogs.css and imported globally */
 
+  /* Dialog-specific layout: adds flex column for header/content structure */
   :global(.dialog) {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--colour-dialog-bg, var(--colour-bg));
-    border: 1px solid var(--colour-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
-    z-index: calc(var(--z-modal, 200) + 1);
   }
 
   .dialog-header {
@@ -97,38 +85,6 @@
     justify-content: space-between;
     padding: var(--space-4) var(--space-5);
     border-bottom: 1px solid var(--colour-border);
-  }
-
-  :global(.dialog-title) {
-    margin: 0;
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-    color: var(--colour-text);
-  }
-
-  :global(.dialog-close) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    background: transparent;
-    border: none;
-    border-radius: var(--radius-sm);
-    color: var(--colour-text-muted);
-    cursor: pointer;
-    transition: all var(--duration-fast);
-  }
-
-  :global(.dialog-close:hover) {
-    background: var(--colour-surface-hover);
-    color: var(--colour-text);
-  }
-
-  :global(.dialog-close:focus-visible) {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
   }
 
   .dialog-content {

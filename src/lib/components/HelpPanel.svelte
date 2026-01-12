@@ -166,7 +166,7 @@
   const GITHUB_URL = "https://github.com/RackulaLives/Rackula";
 
   // Pre-filled issue URLs
-  const bugReportUrl = $derived(() => {
+  const bugReportUrl = $derived.by(() => {
     const params = new URLSearchParams({
       template: "bug-report.yml",
       browser: `Rackula v${VERSION} on ${userAgent}`,
@@ -179,7 +179,7 @@
 
 <Dialog.Root {open} onOpenChange={handleOpenChange}>
   <Dialog.Portal>
-    <Dialog.Overlay class="help-dialog-backdrop" />
+    <Dialog.Overlay class="dialog-backdrop" />
     <Dialog.Content class="help-dialog" style="width: 600px;">
       <div class="dialog-header">
         <Dialog.Title class="dialog-title">About</Dialog.Title>
@@ -249,7 +249,7 @@
               Project
             </a>
             <a
-              href={bugReportUrl()}
+              href={bugReportUrl}
               target="_blank"
               rel="noopener noreferrer"
               class="quick-link"
@@ -400,14 +400,10 @@
 </Dialog.Root>
 
 <style>
-  /* Dialog backdrop and container styles */
-  :global(.help-dialog-backdrop) {
-    position: fixed;
-    inset: 0;
-    background: var(--colour-backdrop, rgba(0, 0, 0, 0.6));
-    z-index: var(--z-modal, 200);
-  }
+  /* Base dialog styles (.dialog-backdrop, .dialog-title, .dialog-close)
+     are defined in src/lib/styles/dialogs.css and imported globally */
 
+  /* HelpPanel-specific dialog container with size constraints */
   :global(.help-dialog) {
     position: fixed;
     left: 50%;
@@ -430,38 +426,6 @@
     justify-content: space-between;
     padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--colour-border);
-  }
-
-  :global(.dialog-title) {
-    margin: 0;
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-    color: var(--colour-text);
-  }
-
-  :global(.dialog-close) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    background: transparent;
-    border: none;
-    border-radius: var(--radius-sm);
-    color: var(--colour-text-muted);
-    cursor: pointer;
-    transition: all var(--duration-fast);
-  }
-
-  :global(.dialog-close:hover) {
-    background: var(--colour-surface-hover);
-    color: var(--colour-text);
-  }
-
-  :global(.dialog-close:focus-visible) {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
   }
 
   .dialog-content {

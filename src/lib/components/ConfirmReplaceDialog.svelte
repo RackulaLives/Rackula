@@ -61,32 +61,16 @@
 </Dialog.Root>
 
 <style>
-  /* Dialog backdrop and content styles (bits-ui applies these via class) */
-  :global(.dialog-backdrop) {
-    position: fixed;
-    inset: 0;
-    background: var(--colour-backdrop, rgba(0, 0, 0, 0.6));
-    z-index: var(--z-modal, 200);
-  }
+  /* Base dialog styles (.dialog-backdrop, .dialog, .dialog-title, .dialog-close)
+     are defined in src/lib/styles/dialogs.css and imported globally */
 
+  /* Component-specific overrides */
   :global(.dialog) {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--colour-dialog-bg, var(--colour-bg));
-    border: 1px solid var(--colour-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
     padding: var(--space-5);
-    z-index: calc(var(--z-modal, 200) + 1);
   }
 
   :global(.dialog-title) {
-    margin: 0 0 var(--space-3) 0;
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-    color: var(--colour-text);
+    margin-bottom: var(--space-3);
   }
 
   :global(.message) {

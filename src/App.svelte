@@ -69,6 +69,7 @@
   import type { ImportResult } from "$lib/utils/netbox-import";
   import { analytics } from "$lib/utils/analytics";
   import { hapticTap } from "$lib/utils/haptics";
+  import { debug } from "$lib/utils/debug";
 
   // Build-time environment constant from vite.config.ts
   declare const __BUILD_ENV__: string;
@@ -663,20 +664,20 @@
       const deviceIndex = selectionStore.getSelectedDeviceIndex(
         activeRack?.devices ?? [],
       );
-      console.log("[Mobile] Device selected:", {
+      debug.log("[Mobile] Device selected:", {
         deviceIndex,
         hasRack: !!activeRack,
       });
       if (deviceIndex !== null && activeRack) {
         selectedDeviceForSheet = deviceIndex;
         bottomSheetOpen = true;
-        console.log("[Mobile] Opening bottom sheet for device", deviceIndex);
+        debug.log("[Mobile] Opening bottom sheet for device", deviceIndex);
         // Note: Not zooming because bottom sheet covers most of viewport
       }
     } else if (!selectionStore.isDeviceSelected) {
       // When device deselected, close sheet and fit all
       if (viewportStore.isMobile && bottomSheetOpen) {
-        console.log(
+        debug.log(
           "[Mobile] Device deselected, closing bottom sheet and fitting all",
         );
         bottomSheetOpen = false;

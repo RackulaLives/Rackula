@@ -3,6 +3,7 @@
 /* Import Design Token System - must come first per CSS spec */
 @import "./lib/styles/tokens.css";
 @import "./lib/styles/animations.css";
+@import "./lib/styles/dialogs.css";
 
 /* ==========================================================================
    FONT FACE DECLARATIONS
