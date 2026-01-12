@@ -13,6 +13,8 @@ jobs:
   # Run tests before building/deploying
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -100,6 +102,8 @@ jobs:
   smoke-test:
     needs: deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
