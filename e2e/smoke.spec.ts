@@ -12,40 +12,51 @@ import { test, expect, Page } from "@playwright/test";
  */
 
 /**
- * Collects all page errors during test execution.
- * Returns the list of errors for assertion.
+ * Options for configuring error collection behavior.
  */
-function setupPageErrorCollection(page: Page): string[] {
-  const errors: string[] = [];
-
-  page.on("pageerror", (error) => {
-    errors.push(error.message);
-  });
-
-  // Also catch console errors for additional coverage
-  page.on("console", (msg) => {
-    if (msg.type() === "error") {
-      errors.push(`Console error: ${msg.text()}`);
-    }
-  });
-
-  return errors;
+interface ErrorCollectionOptions {
+  /** Filter function to select which errors to collect. Default: collect all. */
+  filter?: (message: string) => boolean;
+  /** Whether to also collect console.error messages. Default: true. */
+  includeConsole?: boolean;
 }
 
 /**
- * Collects unhandled promise rejections during test execution.
+ * Collects page errors during test execution with configurable filtering.
+ * Returns the list of errors for assertion.
+ *
+ * @example
+ * // Collect all errors (default behavior)
+ * const errors = setupErrorCollection(page);
+ *
+ * // Collect only unhandled promise rejections
+ * const rejections = setupErrorCollection(page, {
+ *   filter: (m) => m.includes("Unhandled"),
+ *   includeConsole: false,
+ * });
  */
-function setupRejectionCollection(page: Page): string[] {
-  const rejections: string[] = [];
+function setupErrorCollection(
+  page: Page,
+  options: ErrorCollectionOptions = {},
+): string[] {
+  const { filter = () => true, includeConsole = true } = options;
+  const errors: string[] = [];
 
-  // Catch pageerror events that contain "Unhandled"
   page.on("pageerror", (error) => {
-    if (error.message.includes("Unhandled")) {
-      rejections.push(error.message);
+    if (filter(error.message)) {
+      errors.push(error.message);
     }
   });
 
-  return rejections;
+  if (includeConsole) {
+    page.on("console", (msg) => {
+      if (msg.type() === "error" && filter(`Console error: ${msg.text()}`)) {
+        errors.push(`Console error: ${msg.text()}`);
+      }
+    });
+  }
+
+  return errors;
 }
 
 test.describe("Smoke Tests - JavaScript Initialization", () => {
@@ -57,7 +68,7 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
   });
 
   test("app loads without JavaScript errors", async ({ page }) => {
-    const errors = setupPageErrorCollection(page);
+    const errors = setupErrorCollection(page);
 
     // Navigate to the app (will show main UI due to hasStarted flag set in init script)
     await page.goto("/");
@@ -79,7 +90,7 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
   test("bits-ui accordion component renders in device palette", async ({
     page,
   }) => {
-    const errors = setupPageErrorCollection(page);
+    const errors = setupErrorCollection(page);
 
     // Navigate to app (hasStarted is set via addInitScript in beforeEach)
     await page.goto("/");
@@ -105,7 +116,7 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
   });
 
   test("all critical UI components render", async ({ page }) => {
-    const errors = setupPageErrorCollection(page);
+    const errors = setupErrorCollection(page);
 
     // Navigate to app (hasStarted is set via addInitScript in beforeEach)
     await page.goto("/");
@@ -145,7 +156,10 @@ test.describe("Smoke Tests - Console Warnings", () => {
   });
 
   test("no unhandled promise rejections during load", async ({ page }) => {
-    const rejections = setupRejectionCollection(page);
+    const rejections = setupErrorCollection(page, {
+      filter: (m) => m.includes("Unhandled"),
+      includeConsole: false,
+    });
 
     await page.goto("/");
     await expect(page.locator(".rack-container").first()).toBeVisible({
