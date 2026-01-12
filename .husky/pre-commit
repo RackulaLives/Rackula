@@ -1,3 +1,13 @@
+# Verify package-lock.json is in sync with package.json
+if git diff --cached --name-only | grep -q 'package.json'; then
+  echo "Checking package-lock.json is in sync..."
+  npm ci --dry-run --ignore-scripts 2>/dev/null || {
+    echo "Error: package-lock.json is out of sync with package.json"
+    echo "Run 'npm install' and stage package-lock.json"
+    exit 1
+  }
+fi
+
 npx lint-staged
 
 # Run tests only for files related to staged changes
