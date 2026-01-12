@@ -367,4 +367,44 @@ describe("UI Store", () => {
       expect(store.showBanana).toBe(false);
     });
   });
+
+  describe("Sidebar Tabs", () => {
+    it("initial sidebarTab is devices", () => {
+      const store = getUIStore();
+      expect(store.sidebarTab).toBe("devices");
+    });
+
+    it("setSidebarTab sets the sidebar tab", () => {
+      const store = getUIStore();
+
+      store.setSidebarTab("racks");
+      expect(store.sidebarTab).toBe("racks");
+
+      store.setSidebarTab("hide");
+      expect(store.sidebarTab).toBe("hide");
+
+      store.setSidebarTab("devices");
+      expect(store.sidebarTab).toBe("devices");
+    });
+
+    it("sidebar tab persists to localStorage", () => {
+      const store = getUIStore();
+      store.setSidebarTab("racks");
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        "Rackula_sidebar_tab",
+        "racks",
+      );
+    });
+
+    it("sidebar tab loads from localStorage", () => {
+      // Set up mock to return "racks" when queried for sidebar tab key
+      localStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === "Rackula_sidebar_tab") return "racks";
+        return null;
+      });
+      resetUIStore();
+      const store = getUIStore();
+      expect(store.sidebarTab).toBe("racks");
+    });
+  });
 });
