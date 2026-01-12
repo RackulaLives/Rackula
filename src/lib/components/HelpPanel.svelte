@@ -428,7 +428,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-4) var(--space-5);
+    padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--colour-border);
   }
 
@@ -465,7 +465,7 @@
   }
 
   .dialog-content {
-    padding: var(--space-5);
+    padding: var(--space-4);
     overflow-y: auto;
   }
 
