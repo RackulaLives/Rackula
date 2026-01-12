@@ -256,7 +256,7 @@ describe("Layout Store", () => {
 
     it("updates active rack when deleting active rack", () => {
       const store = getLayoutStore();
-      const rack1 = store.addRack("First", 42);
+      const _rack1 = store.addRack("First", 42);
       const rack2 = store.addRack("Second", 24);
       // rack2 is now active (last added)
       expect(store.rack.id).toBe(rack2!.id);
@@ -272,7 +272,7 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       const rack1 = store.addRack("First", 42);
       const rack2 = store.addRack("Second", 24);
-      const rack3 = store.addRack("Third", 36);
+      const _rack3 = store.addRack("Third", 36);
       // Move rack1 to position 2 (after rack2)
       store.reorderRacks(
         store.layout.racks.findIndex((r) => r.id === rack1!.id),
@@ -542,6 +542,7 @@ describe("Layout Store", () => {
       // device at 5 occupies 5,6. Position 6 would collide.
       const result = store.placeDevice(rack!.id, deviceType2.slug, 6);
       expect(result).toBe(false);
+      // eslint-disable-next-line no-restricted-syntax -- Testing collision rejection (placement failed, array unchanged)
       expect(store.rack.devices).toHaveLength(1);
     });
 
@@ -932,6 +933,7 @@ describe("Layout Store", () => {
       expect(result2).toBe(false);
 
       // Only one device should exist
+      // eslint-disable-next-line no-restricted-syntax -- Testing depth-based collision rejection (placement failed, array unchanged)
       expect(store.rack.devices).toHaveLength(1);
     });
 
@@ -975,6 +977,7 @@ describe("Layout Store", () => {
       expect(result2).toBe(false);
 
       // Only one device should exist
+      // eslint-disable-next-line no-restricted-syntax -- Testing depth-based collision rejection (placement failed, array unchanged)
       expect(store.rack.devices).toHaveLength(1);
     });
   });
@@ -1300,6 +1303,7 @@ describe("Layout Store", () => {
 
       const result = store.placeDevice(rack!.id, "nonexistent-device-xyz", 5);
       expect(result).toBe(false);
+      // eslint-disable-next-line no-restricted-syntax -- Testing device lookup failure (no placement, empty array)
       expect(store.rack.devices).toHaveLength(0);
     });
 

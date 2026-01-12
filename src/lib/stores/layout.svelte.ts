@@ -3,6 +3,7 @@
  * Central state management for the application using Svelte 5 runes
  */
 
+import { SvelteSet } from "svelte/reactivity";
 import type {
   FormFactor,
   Layout,
@@ -287,7 +288,7 @@ function createNewLayout(name: string): void {
  */
 function loadLayout(layoutData: Layout): void {
   // Track seen IDs to detect duplicates
-  const seenIds = new Set<string>();
+  const seenIds = new SvelteSet<string>();
 
   // Ensure runtime view is set, show_rear defaults, and all racks have valid IDs
   layout = {
