@@ -23,6 +23,7 @@ export function generateRackId(): string {
 
 /**
  * Create a new rack with sensible defaults
+ * Generates a unique ID using nanoid
  */
 export function createRack(
   name: string,
@@ -35,6 +36,7 @@ export function createRack(
   show_rear?: boolean,
 ): Rack {
   return {
+    id: generateRackId(),
     name,
     height,
     width: width ?? (STANDARD_RACK_WIDTH as 10 | 19),

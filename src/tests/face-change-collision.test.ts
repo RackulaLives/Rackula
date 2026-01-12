@@ -19,7 +19,8 @@ import { canPlaceDevice, findCollisions } from "$lib/utils/collision";
 import type { DeviceType, Rack } from "$lib/types";
 
 describe("Face Change Collision Detection (#450)", () => {
-  const RACK_ID = "rack-0";
+  // For unit tests with manually created racks
+  const TEST_RACK_ID = "test-rack";
 
   beforeEach(() => {
     resetLayoutStore();
@@ -59,7 +60,7 @@ describe("Face Change Collision Detection (#450)", () => {
 
     it("should block front device changing to 'both' when rear device at same U", () => {
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -95,7 +96,7 @@ describe("Face Change Collision Detection (#450)", () => {
 
     it("should block front device changing to 'both' with partial U overlap", () => {
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -131,7 +132,7 @@ describe("Face Change Collision Detection (#450)", () => {
 
     it("should allow front device changing to 'both' when no U overlap", () => {
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -166,7 +167,7 @@ describe("Face Change Collision Detection (#450)", () => {
 
     it("should allow left-half front + right-half rear to both become 'both'", () => {
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -205,7 +206,7 @@ describe("Face Change Collision Detection (#450)", () => {
 
     it("should block full-width front + left-half rear when front changes to 'both'", () => {
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -246,7 +247,7 @@ describe("Face Change Collision Detection (#450)", () => {
       // When a device is at 'both' and wants to change to 'front', it should succeed
       // even if there's a device on the rear at the same position (we're vacating the rear)
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -278,7 +279,7 @@ describe("Face Change Collision Detection (#450)", () => {
       // When a device is at 'both' and wants to change to 'rear', it should succeed
       // even if there's a device on the front at the same position (we're vacating the front)
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -307,7 +308,7 @@ describe("Face Change Collision Detection (#450)", () => {
 
     it("should correctly exclude self from collision check", () => {
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -330,7 +331,7 @@ describe("Face Change Collision Detection (#450)", () => {
 
     it("should find collisions with opposite face devices when changing to 'both'", () => {
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -368,7 +369,7 @@ describe("Face Change Collision Detection (#450)", () => {
     // Front↔Rear transition tests
     it("should block front device changing to 'rear' when rear device exists at same U", () => {
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -397,7 +398,7 @@ describe("Face Change Collision Detection (#450)", () => {
 
     it("should block rear device changing to 'front' when front device exists at same U", () => {
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -426,7 +427,7 @@ describe("Face Change Collision Detection (#450)", () => {
 
     it("should allow front device changing to 'rear' when no rear device at same U", () => {
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -455,7 +456,7 @@ describe("Face Change Collision Detection (#450)", () => {
 
     it("should allow rear device changing to 'front' when no front device at same U", () => {
       const rack: Rack = {
-        id: RACK_ID,
+        id: TEST_RACK_ID,
         name: "Test Rack",
         height: 42,
         rack_width: 19,
@@ -490,7 +491,8 @@ describe("Face Change Collision Detection (#450)", () => {
       const toastStore = getToastStore();
 
       // Set up rack with two devices at same U, opposite faces
-      layoutStore.addRack("Test Rack", 42);
+      const rack = layoutStore.addRack("Test Rack", 42);
+      const rackId = rack!.id;
 
       // Add two half-depth device types for testing
       const frontDevice = layoutStore.addDeviceType({
@@ -509,12 +511,12 @@ describe("Face Change Collision Detection (#450)", () => {
       });
 
       // Place devices at same U, opposite faces
-      layoutStore.placeDevice(RACK_ID, frontDevice.slug, 1, "front");
-      layoutStore.placeDevice(RACK_ID, rearDevice.slug, 1, "rear");
+      layoutStore.placeDevice(rackId, frontDevice.slug, 1, "front");
+      layoutStore.placeDevice(rackId, rearDevice.slug, 1, "rear");
 
       // Select the front device
       const deviceId = layoutStore.rack!.devices[0]!.id;
-      selectionStore.selectDevice(RACK_ID, deviceId);
+      selectionStore.selectDevice(rackId, deviceId);
 
       render(EditPanel);
 
@@ -541,7 +543,8 @@ describe("Face Change Collision Detection (#450)", () => {
       const selectionStore = getSelectionStore();
       const toastStore = getToastStore();
 
-      layoutStore.addRack("Test Rack", 42);
+      const rack = layoutStore.addRack("Test Rack", 42);
+      const rackId = rack!.id;
 
       const device = layoutStore.addDeviceType({
         name: "Lonely Server",
@@ -551,10 +554,10 @@ describe("Face Change Collision Detection (#450)", () => {
         is_full_depth: false,
       });
 
-      layoutStore.placeDevice(RACK_ID, device.slug, 1, "front");
+      layoutStore.placeDevice(rackId, device.slug, 1, "front");
 
       const deviceId = layoutStore.rack!.devices[0]!.id;
-      selectionStore.selectDevice(RACK_ID, deviceId);
+      selectionStore.selectDevice(rackId, deviceId);
 
       render(EditPanel);
 
@@ -578,7 +581,8 @@ describe("Face Change Collision Detection (#450)", () => {
       const selectionStore = getSelectionStore();
       const toastStore = getToastStore();
 
-      layoutStore.addRack("Test Rack", 42);
+      const rack = layoutStore.addRack("Test Rack", 42);
+      const rackId = rack!.id;
 
       const mainDevice = layoutStore.addDeviceType({
         name: "Main Server",
@@ -596,12 +600,12 @@ describe("Face Change Collision Detection (#450)", () => {
       });
 
       // Place main device as 'both'
-      layoutStore.placeDevice(RACK_ID, mainDevice.slug, 1, "both");
+      layoutStore.placeDevice(rackId, mainDevice.slug, 1, "both");
       // Place another device at rear
-      layoutStore.placeDevice(RACK_ID, rearDevice.slug, 2, "rear");
+      layoutStore.placeDevice(rackId, rearDevice.slug, 2, "rear");
 
       const deviceId = layoutStore.rack!.devices[0]!.id;
-      selectionStore.selectDevice(RACK_ID, deviceId);
+      selectionStore.selectDevice(rackId, deviceId);
 
       render(EditPanel);
 
@@ -625,7 +629,8 @@ describe("Face Change Collision Detection (#450)", () => {
       const selectionStore = getSelectionStore();
       const toastStore = getToastStore();
 
-      layoutStore.addRack("Test Rack", 42);
+      const rack = layoutStore.addRack("Test Rack", 42);
+      const rackId = rack!.id;
 
       const frontDevice = layoutStore.addDeviceType({
         name: "Front Server",
@@ -642,11 +647,11 @@ describe("Face Change Collision Detection (#450)", () => {
         is_full_depth: false,
       });
 
-      layoutStore.placeDevice(RACK_ID, frontDevice.slug, 1, "front");
-      layoutStore.placeDevice(RACK_ID, rearDevice.slug, 1, "rear");
+      layoutStore.placeDevice(rackId, frontDevice.slug, 1, "front");
+      layoutStore.placeDevice(rackId, rearDevice.slug, 1, "rear");
 
       const deviceId = layoutStore.rack!.devices[0]!.id;
-      selectionStore.selectDevice(RACK_ID, deviceId);
+      selectionStore.selectDevice(rackId, deviceId);
 
       render(EditPanel);
 
@@ -668,7 +673,8 @@ describe("Face Change Collision Detection (#450)", () => {
       const selectionStore = getSelectionStore();
       const toastStore = getToastStore();
 
-      layoutStore.addRack("Test Rack", 42);
+      const rack = layoutStore.addRack("Test Rack", 42);
+      const rackId = rack!.id;
 
       const frontDevice = layoutStore.addDeviceType({
         name: "Front Server",
@@ -685,11 +691,11 @@ describe("Face Change Collision Detection (#450)", () => {
         is_full_depth: false,
       });
 
-      layoutStore.placeDevice(RACK_ID, frontDevice.slug, 1, "front");
-      layoutStore.placeDevice(RACK_ID, rearDevice.slug, 1, "rear");
+      layoutStore.placeDevice(rackId, frontDevice.slug, 1, "front");
+      layoutStore.placeDevice(rackId, rearDevice.slug, 1, "rear");
 
       const deviceId = layoutStore.rack!.devices[0]!.id;
-      selectionStore.selectDevice(RACK_ID, deviceId);
+      selectionStore.selectDevice(rackId, deviceId);
 
       render(EditPanel);
 
@@ -715,7 +721,8 @@ describe("Face Change Collision Detection (#450)", () => {
       const selectionStore = getSelectionStore();
       const toastStore = getToastStore();
 
-      layoutStore.addRack("Test Rack", 42);
+      const rack = layoutStore.addRack("Test Rack", 42);
+      const rackId = rack!.id;
 
       const frontDevice = layoutStore.addDeviceType({
         name: "Front Blocker",
@@ -732,12 +739,12 @@ describe("Face Change Collision Detection (#450)", () => {
         is_full_depth: false,
       });
 
-      layoutStore.placeDevice(RACK_ID, frontDevice.slug, 1, "front");
-      layoutStore.placeDevice(RACK_ID, rearDevice.slug, 1, "rear");
+      layoutStore.placeDevice(rackId, frontDevice.slug, 1, "front");
+      layoutStore.placeDevice(rackId, rearDevice.slug, 1, "rear");
 
       // Select the REAR device (index 1)
       const deviceId = layoutStore.rack!.devices[1]!.id;
-      selectionStore.selectDevice(RACK_ID, deviceId);
+      selectionStore.selectDevice(rackId, deviceId);
 
       render(EditPanel);
 
@@ -763,7 +770,8 @@ describe("Face Change Collision Detection (#450)", () => {
       const selectionStore = getSelectionStore();
       const toastStore = getToastStore();
 
-      layoutStore.addRack("Test Rack", 42);
+      const rack = layoutStore.addRack("Test Rack", 42);
+      const rackId = rack!.id;
 
       const device = layoutStore.addDeviceType({
         name: "Lonely Front Server",
@@ -773,10 +781,10 @@ describe("Face Change Collision Detection (#450)", () => {
         is_full_depth: false,
       });
 
-      layoutStore.placeDevice(RACK_ID, device.slug, 1, "front");
+      layoutStore.placeDevice(rackId, device.slug, 1, "front");
 
       const deviceId = layoutStore.rack!.devices[0]!.id;
-      selectionStore.selectDevice(RACK_ID, deviceId);
+      selectionStore.selectDevice(rackId, deviceId);
 
       render(EditPanel);
 

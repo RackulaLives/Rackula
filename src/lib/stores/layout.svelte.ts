@@ -25,6 +25,7 @@ import {
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { debug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
+import { generateRackId } from "$lib/utils/rack";
 import { instantiatePorts } from "$lib/utils/port-utils";
 import { sanitizeFilename } from "$lib/utils/imageUpload";
 import { getHistoryStore } from "./history.svelte";
@@ -47,6 +48,9 @@ import {
 
 // localStorage key for tracking if user has started (created/loaded a rack)
 const HAS_STARTED_KEY = "Rackula_has_started";
+
+// Maximum number of racks allowed in a layout
+const MAX_RACKS = 10;
 
 // Check if user has previously started (created or loaded a rack)
 function loadHasStarted(): boolean {
@@ -74,15 +78,32 @@ function saveHasStarted(value: boolean): void {
 let layout = $state<Layout>(createLayout("Racky McRackface"));
 let isDirty = $state(false);
 let hasStarted = $state(loadHasStarted());
+let activeRackId = $state<string | null>(null);
 
 // Derived values (using $derived rune)
-const rack = $derived(layout.racks[0]);
+const racks = $derived(layout.racks);
 const device_types = $derived(layout.device_types);
-const hasRack = $derived(layout.racks[0]?.devices !== undefined);
+const rack_groups = $derived(layout.rack_groups ?? []);
 
-// rackCount returns 0 until user has started (shows WelcomeScreen)
-const rackCount = $derived(hasStarted ? 1 : 0);
-const canAddRack = $derived(false); // Single-rack mode
+// Active rack: the rack currently being edited (falls back to first rack if not set)
+const activeRack = $derived.by(() => {
+  if (activeRackId) {
+    const found = layout.racks.find((r) => r.id === activeRackId);
+    if (found) return found;
+  }
+  return layout.racks[0] ?? null;
+});
+
+// Legacy alias for backward compatibility
+const rack = $derived(activeRack);
+
+const hasRack = $derived(
+  layout.racks.length > 0 && layout.racks[0]?.devices !== undefined,
+);
+
+// rackCount returns actual count when user has started
+const rackCount = $derived(hasStarted ? layout.racks.length : 0);
+const canAddRack = $derived(layout.racks.length < MAX_RACKS);
 
 /**
  * Reset the store to initial state (primarily for testing)
@@ -91,6 +112,7 @@ const canAddRack = $derived(false); // Single-rack mode
 export function resetLayoutStore(clearStarted: boolean = true): void {
   layout = createLayout("Racky McRackface");
   isDirty = false;
+  activeRackId = null;
   if (clearStarted) {
     hasStarted = false;
     saveHasStarted(false);
@@ -113,6 +135,18 @@ export function getLayoutStore() {
     get rack() {
       return rack;
     },
+    get racks() {
+      return racks;
+    },
+    get activeRack() {
+      return activeRack;
+    },
+    get activeRackId() {
+      return activeRackId;
+    },
+    get rack_groups() {
+      return rack_groups;
+    },
     get device_types() {
       return device_types;
     },
@@ -134,13 +168,15 @@ export function getLayoutStore() {
     loadLayout,
     resetLayout: resetLayoutStore,
 
-    // Rack actions (simplified for single rack)
+    // Rack actions
     addRack,
     updateRack,
     updateRackView,
     deleteRack,
     reorderRacks,
     duplicateRack,
+    getRackById,
+    setActiveRack,
 
     // Device type actions
     addDeviceType,
@@ -236,22 +272,24 @@ function createNewLayout(name: string): void {
 }
 
 /**
- * Load a v0.2 layout directly
- * @param layoutData - v0.2 layout to load
+ * Load a layout directly
+ * Preserves all racks in the layout (multi-rack support)
+ * @param layoutData - Layout to load
  */
 function loadLayout(layoutData: Layout): void {
-  // Ensure runtime view is set and show_rear defaults to true for older layouts
+  // Ensure runtime view is set and show_rear defaults to true for all racks
   layout = {
     ...layoutData,
-    racks: [
-      {
-        ...layoutData.racks[0],
-        view: layoutData.racks[0].view ?? "front",
-        show_rear: layoutData.racks[0].show_rear ?? true,
-      },
-    ],
+    racks: layoutData.racks.map((r) => ({
+      ...r,
+      view: r.view ?? "front",
+      show_rear: r.show_rear ?? true,
+    })),
   };
   isDirty = false;
+
+  // Set active rack to first rack
+  activeRackId = layout.racks[0]?.id ?? null;
 
   // Mark as started (user has loaded a layout)
   hasStarted = true;
@@ -259,15 +297,15 @@ function loadLayout(layoutData: Layout): void {
 }
 
 /**
- * Add a new rack to the layout (replaces existing in v0.2)
- * In v0.2, there's only one rack, so this replaces it
+ * Add a new rack to the layout
+ * If this is the first rack, it also sets the layout name
  * @param name - Rack name
  * @param height - Rack height in U
  * @param width - Rack width in inches (10 or 19)
  * @param form_factor - Rack form factor
  * @param desc_units - Whether units are numbered top-down
  * @param starting_unit - First U number
- * @returns The created rack object with synthetic id
+ * @returns The created rack object with ID, or null if at max capacity
  */
 function addRack(
   name: string,
@@ -277,6 +315,12 @@ function addRack(
   desc_units?: boolean,
   starting_unit?: number,
 ): (Rack & { id: string }) | null {
+  // Check if we can add more racks
+  if (layout.racks.length >= MAX_RACKS) {
+    return null;
+  }
+
+  const rackId = generateRackId();
   const newRack = createDefaultRack(
     name,
     height,
@@ -286,34 +330,46 @@ function addRack(
     starting_unit ?? 1,
   );
 
+  // Add ID to the rack
+  const rackWithId = { ...newRack, id: rackId };
+
+  // If this is the first rack, sync layout name
+  const isFirstRack = layout.racks.length === 0;
+
   layout = {
     ...layout,
-    name, // Sync layout name with rack name
-    racks: [newRack],
+    name: isFirstRack ? name : layout.name,
+    racks: [...layout.racks, rackWithId],
   };
   isDirty = true;
+
+  // Set as active rack
+  activeRackId = rackId;
 
   // Mark as started (user has created a rack)
   hasStarted = true;
   saveHasStarted(true);
 
-  // Return with synthetic id (single-rack mode uses fixed 'rack-0')
-  return { ...newRack, id: "rack-0" };
+  return rackWithId;
 }
 
 /**
  * Update a rack's properties
  * Uses undo/redo support via updateRackRecorded (except for view changes)
- * In v0.2, there's only one rack, so id is ignored
- * @param _id - Rack ID (ignored in v0.2)
+ * @param id - Rack ID to update
  * @param updates - Properties to update
  */
-function updateRack(_id: string, updates: Partial<Rack>): void {
+function updateRack(id: string, updates: Partial<Rack>): void {
+  const rackIndex = layout.racks.findIndex((r) => r.id === id);
+  if (rackIndex === -1) return;
+
   // Handle view separately (doesn't need undo/redo)
   if (updates.view !== undefined) {
     layout = {
       ...layout,
-      racks: [{ ...layout.racks[0], view: updates.view }],
+      racks: layout.racks.map((r, i) =>
+        i === rackIndex ? { ...r, view: updates.view } : r,
+      ),
     };
     isDirty = true;
   }
@@ -321,53 +377,142 @@ function updateRack(_id: string, updates: Partial<Rack>): void {
   // For other properties, use recorded version for undo/redo support
   const { view: _view, devices: _devices, ...recordableUpdates } = updates;
   if (Object.keys(recordableUpdates).length > 0) {
-    updateRackRecorded(recordableUpdates);
+    updateRackRecorded(id, recordableUpdates);
   }
 }
 
 /**
  * Update a rack's view (front/rear)
- * @param _id - Rack ID (ignored in v0.2)
+ * @param id - Rack ID
  * @param view - New view
  */
-function updateRackView(_id: string, view: RackView): void {
-  updateRack(_id, { view });
+function updateRackView(id: string, view: RackView): void {
+  updateRack(id, { view });
 }
 
 /**
  * Delete a rack from the layout
- * In v0.2, this resets the rack to empty
- * @param _id - Rack ID (ignored in v0.2)
+ * Also removes the rack from any groups it belongs to
+ * @param id - Rack ID to delete
  */
-function deleteRack(_id: string): void {
+function deleteRack(id: string): void {
+  const rackIndex = layout.racks.findIndex((r) => r.id === id);
+  if (rackIndex === -1) return;
+
+  // Remove rack from array
+  const newRacks = layout.racks.filter((r) => r.id !== id);
+
+  // Remove rack from any groups and clean up empty groups
+  const newGroups = (layout.rack_groups ?? [])
+    .map((group) => ({
+      ...group,
+      rack_ids: group.rack_ids.filter((rackId) => rackId !== id),
+    }))
+    .filter((group) => group.rack_ids.length > 0);
+
   layout = {
     ...layout,
-    racks: [
-      {
-        ...layout.racks[0],
-        devices: [],
-      },
-    ],
+    racks: newRacks,
+    rack_groups: newGroups.length > 0 ? newGroups : undefined,
+  };
+
+  // If we deleted the active rack, set active to first remaining rack
+  if (activeRackId === id) {
+    activeRackId = newRacks[0]?.id ?? null;
+  }
+
+  isDirty = true;
+}
+
+/**
+ * Reorder racks by moving from one index to another
+ * @param fromIndex - Source index
+ * @param toIndex - Target index
+ */
+function reorderRacks(fromIndex: number, toIndex: number): void {
+  if (
+    fromIndex < 0 ||
+    fromIndex >= layout.racks.length ||
+    toIndex < 0 ||
+    toIndex >= layout.racks.length ||
+    fromIndex === toIndex
+  ) {
+    return;
+  }
+
+  const newRacks = [...layout.racks];
+  const [removed] = newRacks.splice(fromIndex, 1);
+  newRacks.splice(toIndex, 0, removed);
+
+  layout = {
+    ...layout,
+    racks: newRacks,
   };
   isDirty = true;
 }
 
 /**
- * Reorder racks by swapping positions
- * No-op in v0.2 (single rack only)
+ * Duplicate a rack with all its devices
+ * @param id - Rack ID to duplicate
+ * @returns The duplicated rack or error message
  */
-function reorderRacks(_fromIndex: number, _toIndex: number): void {
-  // No-op in v0.2 - single rack only
+function duplicateRack(id: string): {
+  error?: string;
+  rack?: Rack & { id: string };
+} {
+  if (layout.racks.length >= MAX_RACKS) {
+    return { error: `Maximum of ${MAX_RACKS} racks allowed` };
+  }
+
+  const sourceRack = layout.racks.find((r) => r.id === id);
+  if (!sourceRack) {
+    return { error: "Rack not found" };
+  }
+
+  const newRackId = generateRackId();
+  const duplicatedRack = {
+    ...sourceRack,
+    id: newRackId,
+    name: `${sourceRack.name} (Copy)`,
+    devices: sourceRack.devices.map((d) => ({ ...d, id: generateId() })),
+  };
+
+  layout = {
+    ...layout,
+    racks: [...layout.racks, duplicatedRack],
+  };
+  isDirty = true;
+
+  // Set as active rack
+  activeRackId = newRackId;
+
+  return { rack: duplicatedRack };
 }
 
 /**
- * Duplicate a rack with all its devices
- * Not supported in v0.2 (single rack only)
- * @param _id - Rack ID
- * @returns Error message
+ * Get a rack by its ID
+ * @param id - Rack ID to find
+ * @returns The rack or undefined if not found
  */
-function duplicateRack(_id: string): { error?: string } {
-  return { error: "Maximum of 1 rack allowed" };
+function getRackById(id: string): Rack | undefined {
+  return layout.racks.find((r) => r.id === id);
+}
+
+/**
+ * Set the active rack for editing
+ * @param id - Rack ID to make active (null to clear)
+ */
+function setActiveRack(id: string | null): void {
+  if (id === null) {
+    activeRackId = null;
+    return;
+  }
+
+  // Verify the rack exists
+  const rack = layout.racks.find((r) => r.id === id);
+  if (rack) {
+    activeRackId = id;
+  }
 }
 
 /**
@@ -404,46 +549,46 @@ function deleteDeviceType(slug: string): void {
 }
 
 /**
- * Place a device from the library into the rack
+ * Place a device from the library into a rack
  * Uses undo/redo support via placeDeviceRecorded
  * Face defaults based on device depth: full-depth -> 'both', half-depth -> 'front'
- * @param _rackId - Target rack ID (ignored in v0.2)
+ * @param rackId - Target rack ID
  * @param deviceTypeSlug - Device type slug
  * @param position - U position (bottom of device)
  * @param face - Optional face assignment (auto-determined from depth if not specified)
  * @returns true if placed successfully, false otherwise
  */
 function placeDevice(
-  _rackId: string,
+  rackId: string,
   deviceTypeSlug: string,
   position: number,
   face?: DeviceFace,
 ): boolean {
   // Delegate to recorded version for undo/redo support
   // Face is determined by placeDeviceRecorded based on device depth if not specified
-  return placeDeviceRecorded(deviceTypeSlug, position, face);
+  return placeDeviceRecorded(rackId, deviceTypeSlug, position, face);
 }
 
 /**
- * Move a device within the rack
+ * Move a device within a rack
  * Uses undo/redo support via moveDeviceRecorded
- * @param _rackId - Rack ID (ignored in v0.2)
+ * @param rackId - Rack ID
  * @param deviceIndex - Index of device in rack's devices array
  * @param newPosition - New U position
  * @returns true if moved successfully, false otherwise
  */
 function moveDevice(
-  _rackId: string,
+  rackId: string,
   deviceIndex: number,
   newPosition: number,
 ): boolean {
   // Delegate to recorded version for undo/redo support
-  return moveDeviceRecorded(deviceIndex, newPosition);
+  return moveDeviceRecorded(rackId, deviceIndex, newPosition);
 }
 
 /**
  * Move a device from one rack to another
- * In v0.2, this just delegates to moveDevice (single rack)
+ * Currently only supports within-rack moves (cross-rack is blocked)
  */
 function moveDeviceToRack(
   fromRackId: string,
@@ -451,86 +596,86 @@ function moveDeviceToRack(
   toRackId: string,
   newPosition: number,
 ): boolean {
-  // In v0.2, there's only one rack
+  // Cross-rack moves not yet implemented
   if (fromRackId !== toRackId) {
-    debug.log("Cross-rack move blocked in single-rack mode");
+    debug.log("Cross-rack move not yet implemented");
     return false;
   }
   return moveDevice(fromRackId, deviceIndex, newPosition);
 }
 
 /**
- * Remove a device from the rack
+ * Remove a device from a rack
  * Uses undo/redo support via removeDeviceRecorded
- * @param _rackId - Rack ID (ignored in v0.2)
+ * @param rackId - Rack ID
  * @param deviceIndex - Index of device in rack's devices array
  */
-function removeDeviceFromRack(_rackId: string, deviceIndex: number): void {
+function removeDeviceFromRack(rackId: string, deviceIndex: number): void {
   // Delegate to recorded version for undo/redo support
-  removeDeviceRecorded(deviceIndex);
+  removeDeviceRecorded(rackId, deviceIndex);
 }
 
 /**
  * Update a device's face property
  * Uses undo/redo support via updateDeviceFaceRecorded
- * @param _rackId - Rack ID (ignored in v0.2)
+ * @param rackId - Rack ID
  * @param deviceIndex - Index of device in rack's devices array
  * @param face - New face value
  */
 function updateDeviceFace(
-  _rackId: string,
+  rackId: string,
   deviceIndex: number,
   face: DeviceFace,
 ): void {
   // Delegate to recorded version for undo/redo support
-  updateDeviceFaceRecorded(deviceIndex, face);
+  updateDeviceFaceRecorded(rackId, deviceIndex, face);
 }
 
 /**
  * Update a device's custom display name
  * Uses undo/redo support via updateDeviceNameRecorded
- * @param _rackId - Rack ID (ignored in v0.2)
+ * @param rackId - Rack ID
  * @param deviceIndex - Index of device in rack's devices array
  * @param name - New custom name (undefined or empty to clear)
  */
 function updateDeviceName(
-  _rackId: string,
+  rackId: string,
   deviceIndex: number,
   name: string | undefined,
 ): void {
   // Delegate to recorded version for undo/redo support
-  updateDeviceNameRecorded(deviceIndex, name);
+  updateDeviceNameRecorded(rackId, deviceIndex, name);
 }
 
 /**
  * Update a device's placement image filename
- * @param _rackId - Rack ID (ignored in v0.2)
+ * @param rackId - Rack ID
  * @param deviceIndex - Index of device in rack's devices array
  * @param face - Which face to update ('front' or 'rear')
  * @param filename - Image filename (undefined to clear)
  */
 function updateDevicePlacementImage(
-  _rackId: string,
+  rackId: string,
   deviceIndex: number,
   face: "front" | "rear",
   filename: string | undefined,
 ): void {
-  updateDevicePlacementImageRaw(deviceIndex, face, filename);
+  updateDevicePlacementImageRaw(rackId, deviceIndex, face, filename);
   isDirty = true;
 }
 
 /**
  * Update a device's colour override
- * @param _rackId - Rack ID (ignored in v0.2)
+ * @param rackId - Rack ID
  * @param deviceIndex - Index of device in rack's devices array
  * @param colour - Hex colour string (undefined to clear and use device type colour)
  */
 function updateDeviceColour(
-  _rackId: string,
+  rackId: string,
   deviceIndex: number,
   colour: string | undefined,
 ): void {
-  updateDeviceColourRaw(deviceIndex, colour);
+  updateDeviceColourRaw(rackId, deviceIndex, colour);
   isDirty = true;
 }
 
@@ -582,8 +727,66 @@ function updateShowLabelsOnImages(value: boolean): void {
 }
 
 // =============================================================================
+// Rack Helper Functions
+// =============================================================================
+
+/**
+ * Get the index of a rack by ID
+ * @param rackId - Rack ID to find
+ * @returns Index in layout.racks or -1 if not found
+ */
+function getRackIndex(rackId: string): number {
+  return layout.racks.findIndex((r) => r.id === rackId);
+}
+
+/**
+ * Get the rack to operate on (by ID or active rack)
+ * @param rackId - Optional rack ID (uses active rack if not provided)
+ * @returns Rack and its index, or undefined if not found
+ */
+function getTargetRack(
+  rackId?: string,
+): { rack: Rack; index: number } | undefined {
+  if (rackId) {
+    const index = getRackIndex(rackId);
+    if (index !== -1) {
+      return { rack: layout.racks[index], index };
+    }
+    return undefined;
+  }
+
+  // Use active rack
+  if (activeRackId) {
+    const index = getRackIndex(activeRackId);
+    if (index !== -1) {
+      return { rack: layout.racks[index], index };
+    }
+  }
+
+  // Fall back to first rack
+  if (layout.racks.length > 0) {
+    return { rack: layout.racks[0], index: 0 };
+  }
+
+  return undefined;
+}
+
+/**
+ * Update a rack at a specific index
+ * @param index - Rack index
+ * @param updater - Function to update the rack
+ */
+function updateRackAtIndex(index: number, updater: (rack: Rack) => Rack): void {
+  layout = {
+    ...layout,
+    racks: layout.racks.map((r, i) => (i === index ? updater(r) : r)),
+  };
+}
+
+// =============================================================================
 // Raw Actions for Undo/Redo System
 // These bypass dirty tracking and validation - used by the command pattern
+// Operations use the active rack unless a rackId is specified
 // =============================================================================
 
 /**
@@ -599,19 +802,17 @@ function addDeviceTypeRaw(deviceType: DeviceType): void {
 
 /**
  * Remove a device type directly (raw)
- * Also removes any placed devices of this type
+ * Also removes any placed devices of this type from ALL racks
  * @param slug - Device type slug to remove
  */
 function removeDeviceTypeRaw(slug: string): void {
   layout = {
     ...layout,
     device_types: layout.device_types.filter((dt) => dt.slug !== slug),
-    racks: [
-      {
-        ...layout.racks[0],
-        devices: layout.racks[0].devices.filter((d) => d.device_type !== slug),
-      },
-    ],
+    racks: layout.racks.map((rack) => ({
+      ...rack,
+      devices: rack.devices.filter((d) => d.device_type !== slug),
+    })),
   };
 
   // Clean up associated images to prevent memory leaks
@@ -634,32 +835,34 @@ function updateDeviceTypeRaw(slug: string, updates: Partial<DeviceType>): void {
 
 /**
  * Place a device directly (raw) - no validation
+ * Uses active rack
  * @param device - Device to place
- * @returns Index where device was placed
+ * @returns Index where device was placed, or -1 if no rack available
  */
 function placeDeviceRaw(device: PlacedDevice): number {
-  const newDevices = [...layout.racks[0].devices, device];
-  layout = {
-    ...layout,
-    racks: [
-      {
-        ...layout.racks[0],
-        devices: newDevices,
-      },
-    ],
-  };
+  const target = getTargetRack();
+  if (!target) return -1;
+
+  const newDevices = [...target.rack.devices, device];
+  updateRackAtIndex(target.index, (rack) => ({
+    ...rack,
+    devices: newDevices,
+  }));
   return newDevices.length - 1;
 }
 
 /**
  * Remove a device at index directly (raw)
+ * Uses active rack
  * @param index - Device index to remove
  * @returns The removed device or undefined
  */
 function removeDeviceAtIndexRaw(index: number): PlacedDevice | undefined {
-  if (index < 0 || index >= layout.racks[0].devices.length) return undefined;
+  const target = getTargetRack();
+  if (!target) return undefined;
+  if (index < 0 || index >= target.rack.devices.length) return undefined;
 
-  const removed = layout.racks[0].devices[index];
+  const removed = target.rack.devices[index];
 
   // Clean up placement-specific images for this device
   if (removed) {
@@ -667,98 +870,89 @@ function removeDeviceAtIndexRaw(index: number): PlacedDevice | undefined {
     imageStore.removeAllDeviceImages(`placement-${removed.id}`);
   }
 
-  layout = {
-    ...layout,
-    racks: [
-      {
-        ...layout.racks[0],
-        devices: layout.racks[0].devices.filter((_, i) => i !== index),
-      },
-    ],
-  };
+  updateRackAtIndex(target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.filter((_, i) => i !== index),
+  }));
   return removed;
 }
 
 /**
  * Move a device directly (raw) - no collision checking
+ * Uses active rack
  * @param index - Device index
  * @param newPosition - New position
  * @returns true if moved
  */
 function moveDeviceRaw(index: number, newPosition: number): boolean {
-  if (index < 0 || index >= layout.racks[0].devices.length) return false;
+  const target = getTargetRack();
+  if (!target) return false;
+  if (index < 0 || index >= target.rack.devices.length) return false;
 
-  layout = {
-    ...layout,
-    racks: [
-      {
-        ...layout.racks[0],
-        devices: layout.racks[0].devices.map((d, i) =>
-          i === index ? { ...d, position: newPosition } : d,
-        ),
-      },
-    ],
-  };
+  updateRackAtIndex(target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.map((d, i) =>
+      i === index ? { ...d, position: newPosition } : d,
+    ),
+  }));
   return true;
 }
 
 /**
  * Update a device's face directly (raw)
+ * Uses active rack
  * @param index - Device index
  * @param face - New face value
  */
 function updateDeviceFaceRaw(index: number, face: DeviceFace): void {
-  if (index < 0 || index >= layout.racks[0].devices.length) return;
+  const target = getTargetRack();
+  if (!target) return;
+  if (index < 0 || index >= target.rack.devices.length) return;
 
-  layout = {
-    ...layout,
-    racks: [
-      {
-        ...layout.racks[0],
-        devices: layout.racks[0].devices.map((d, i) =>
-          i === index ? { ...d, face } : d,
-        ),
-      },
-    ],
-  };
+  updateRackAtIndex(target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.map((d, i) => (i === index ? { ...d, face } : d)),
+  }));
 }
 
 /**
  * Update a device's custom display name directly (raw)
+ * Uses active rack
  * @param index - Device index
  * @param name - New custom name (undefined to clear)
  */
 function updateDeviceNameRaw(index: number, name: string | undefined): void {
-  if (index < 0 || index >= layout.racks[0].devices.length) return;
+  const target = getTargetRack();
+  if (!target) return;
+  if (index < 0 || index >= target.rack.devices.length) return;
 
   // Normalize empty string to undefined
   const normalizedName = name?.trim() || undefined;
 
-  layout = {
-    ...layout,
-    racks: [
-      {
-        ...layout.racks[0],
-        devices: layout.racks[0].devices.map((d, i) =>
-          i === index ? { ...d, name: normalizedName } : d,
-        ),
-      },
-    ],
-  };
+  updateRackAtIndex(target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.map((d, i) =>
+      i === index ? { ...d, name: normalizedName } : d,
+    ),
+  }));
 }
 
 /**
  * Update a device's placement image directly (raw)
+ * @param rackId - Rack ID (for multi-rack support)
  * @param index - Device index
  * @param face - Which face to update ('front' or 'rear')
  * @param filename - Image filename (undefined to clear)
  */
 function updateDevicePlacementImageRaw(
+  rackId: string,
   index: number,
   face: "front" | "rear",
   filename: string | undefined,
 ): void {
-  if (index < 0 || index >= layout.racks[0].devices.length) return;
+  const target = getTargetRack(rackId);
+  if (!target) return;
+  if (index < 0 || index >= target.rack.devices.length) return;
 
   // Sanitize filename to prevent path traversal attacks
   const sanitizedFilename = filename ? sanitizeFilename(filename) : undefined;
@@ -766,120 +960,119 @@ function updateDevicePlacementImageRaw(
   // Update the appropriate field based on face
   const fieldName = face === "front" ? "front_image" : "rear_image";
 
-  layout = {
-    ...layout,
-    racks: [
-      {
-        ...layout.racks[0],
-        devices: layout.racks[0].devices.map((d, i) =>
-          i === index ? { ...d, [fieldName]: sanitizedFilename } : d,
-        ),
-      },
-    ],
-  };
+  updateRackAtIndex(target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.map((d, i) =>
+      i === index ? { ...d, [fieldName]: sanitizedFilename } : d,
+    ),
+  }));
 }
 
 /**
  * Update a device's colour override directly (raw)
+ * @param rackId - Rack ID (for multi-rack support)
  * @param index - Device index
  * @param colour - Hex colour string (undefined to clear and use device type colour)
  */
 function updateDeviceColourRaw(
+  rackId: string,
   index: number,
   colour: string | undefined,
 ): void {
-  if (index < 0 || index >= layout.racks[0].devices.length) return;
+  const target = getTargetRack(rackId);
+  if (!target) return;
+  if (index < 0 || index >= target.rack.devices.length) return;
 
-  layout = {
-    ...layout,
-    racks: [
-      {
-        ...layout.racks[0],
-        devices: layout.racks[0].devices.map((d, i) =>
-          i === index ? { ...d, colour_override: colour } : d,
-        ),
-      },
-    ],
-  };
+  updateRackAtIndex(target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.map((d, i) =>
+      i === index ? { ...d, colour_override: colour } : d,
+    ),
+  }));
 }
 
 /**
- * Get a device at a specific index
+ * Get a device at a specific index from the active rack
  * @param index - Device index
  * @returns The device or undefined
  */
 function getDeviceAtIndex(index: number): PlacedDevice | undefined {
-  return layout.racks[0].devices[index];
+  const target = getTargetRack();
+  if (!target) return undefined;
+  return target.rack.devices[index];
 }
 
 /**
- * Get all placed devices for a device type
+ * Get all placed devices for a device type across all racks
  * @param slug - Device type slug
  * @returns Array of placed devices
  */
 function getPlacedDevicesForType(slug: string): PlacedDevice[] {
-  return layout.racks[0].devices.filter((d) => d.device_type === slug);
+  // Collect from all racks for proper deletion handling
+  return layout.racks.flatMap((rack) =>
+    rack.devices.filter((d) => d.device_type === slug),
+  );
 }
 
 /**
  * Update rack settings directly (raw)
+ * Uses active rack
  * @param updates - Settings to update
  */
 function updateRackRaw(updates: Partial<Omit<Rack, "devices" | "view">>): void {
-  layout = {
-    ...layout,
-    racks: [{ ...layout.racks[0], ...updates }],
-  };
-  // Sync layout name with rack name
-  if (updates.name !== undefined) {
+  const target = getTargetRack();
+  if (!target) return;
+
+  updateRackAtIndex(target.index, (rack) => ({ ...rack, ...updates }));
+
+  // Sync layout name with first rack name
+  if (updates.name !== undefined && target.index === 0) {
     layout = { ...layout, name: updates.name };
   }
 }
 
 /**
  * Replace the entire rack directly (raw)
+ * Uses active rack
  * @param newRack - New rack data
  */
 function replaceRackRaw(newRack: Rack): void {
-  layout = {
-    ...layout,
-    racks: [newRack],
-    name: newRack.name,
-  };
+  const target = getTargetRack();
+  if (!target) return;
+
+  updateRackAtIndex(target.index, () => newRack);
+
+  // Sync layout name with first rack name
+  if (target.index === 0) {
+    layout = { ...layout, name: newRack.name };
+  }
 }
 
 /**
- * Clear all devices from the rack directly (raw)
+ * Clear all devices from the active rack directly (raw)
  * @returns The removed devices
  */
 function clearRackDevicesRaw(): PlacedDevice[] {
-  const removed = [...layout.racks[0].devices];
-  layout = {
-    ...layout,
-    racks: [
-      {
-        ...layout.racks[0],
-        devices: [],
-      },
-    ],
-  };
+  const target = getTargetRack();
+  if (!target) return [];
+
+  const removed = [...target.rack.devices];
+  updateRackAtIndex(target.index, (rack) => ({ ...rack, devices: [] }));
   return removed;
 }
 
 /**
- * Restore devices to the rack directly (raw)
+ * Restore devices to the active rack directly (raw)
  * @param devices - Devices to restore
  */
 function restoreRackDevicesRaw(devices: PlacedDevice[]): void {
-  layout = {
-    ...layout,
-    racks: [
-      {
-        ...layout.racks[0],
-        devices: [...devices],
-      },
-    ],
-  };
+  const target = getTargetRack();
+  if (!target) return;
+
+  updateRackAtIndex(target.index, (rack) => ({
+    ...rack,
+    devices: [...devices],
+  }));
 }
 
 // =============================================================================
@@ -936,7 +1129,7 @@ function removeCablesRaw(ids: Set<string>): void {
 
 /**
  * Get all device type slugs currently in use
- * Includes both defined device types and placed device references
+ * Includes both defined device types and placed device references from ALL racks
  * Use this for image store cleanup to identify orphaned images
  */
 function getUsedDeviceTypeSlugs(): Set<string> {
@@ -949,9 +1142,11 @@ function getUsedDeviceTypeSlugs(): Set<string> {
     slugs.add(dt.slug);
   }
 
-  // Add all placed device references (in case of orphaned references)
-  for (const device of layout.racks[0].devices) {
-    slugs.add(device.device_type);
+  // Add all placed device references from all racks (in case of orphaned references)
+  for (const rack of layout.racks) {
+    for (const device of rack.devices) {
+      slugs.add(device.device_type);
+    }
   }
 
   return slugs;
@@ -960,6 +1155,7 @@ function getUsedDeviceTypeSlugs(): Set<string> {
 // =============================================================================
 // Command Store Adapter
 // Creates an adapter that implements the command store interfaces
+// Operations target the active rack
 // =============================================================================
 
 function getCommandStoreAdapter(): DeviceTypeCommandStore &
@@ -978,8 +1174,10 @@ function getCommandStoreAdapter(): DeviceTypeCommandStore &
     moveDeviceRaw,
     updateDeviceFaceRaw,
     updateDeviceNameRaw,
-    updateDevicePlacementImageRaw,
-    updateDeviceColourRaw,
+    updateDevicePlacementImageRaw: (index, face, filename) =>
+      updateDevicePlacementImageRaw(activeRackId ?? "", index, face, filename),
+    updateDeviceColourRaw: (index, colour) =>
+      updateDeviceColourRaw(activeRackId ?? "", index, colour),
     getDeviceAtIndex,
 
     // RackCommandStore
@@ -987,13 +1185,17 @@ function getCommandStoreAdapter(): DeviceTypeCommandStore &
     replaceRackRaw,
     clearRackDevicesRaw,
     restoreRackDevicesRaw,
-    getRack: () => layout.racks[0],
+    getRack: () => {
+      const target = getTargetRack();
+      return target?.rack ?? layout.racks[0];
+    },
   };
 }
 
 // =============================================================================
 // Recorded Actions (with Undo/Redo support)
 // These create commands and execute them through the history system
+// Operations set activeRackId before executing to ensure Raw functions target the correct rack
 // =============================================================================
 
 /**
@@ -1059,13 +1261,36 @@ function deleteDeviceTypeRecorded(slug: string): void {
  * Place a device with undo/redo support
  * Auto-imports brand pack devices if not already in device library
  * Face defaults based on device depth: full-depth -> 'both', half-depth -> 'front'
+ * @param rackId - Target rack ID
+ * @param deviceTypeSlug - Device type slug
+ * @param position - U position
+ * @param face - Optional face assignment
  * @returns true if placed successfully
  */
 function placeDeviceRecorded(
+  rackId: string,
   deviceTypeSlug: string,
   position: number,
   face?: DeviceFace,
 ): boolean {
+  // Validate rack exists
+  const targetRack = getRackById(rackId);
+  if (!targetRack) {
+    debug.devicePlace({
+      slug: deviceTypeSlug,
+      position,
+      passedFace: face,
+      effectiveFace: "N/A",
+      deviceName: "unknown",
+      isFullDepth: false,
+      result: "not_found",
+    });
+    return false;
+  }
+
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
   // Find device type across all sources (layout → starter → brand)
   const deviceType = findDeviceType(deviceTypeSlug, layout.device_types);
 
@@ -1102,7 +1327,7 @@ function placeDeviceRecorded(
 
   if (
     !canPlaceDevice(
-      layout.racks[0],
+      targetRack,
       layout.device_types,
       deviceType.u_height,
       position,
@@ -1152,10 +1377,18 @@ function placeDeviceRecorded(
 
 /**
  * Move a device with undo/redo support
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
+ * @param newPosition - New position
  * @returns true if moved successfully
  */
-function moveDeviceRecorded(deviceIndex: number, newPosition: number): boolean {
-  if (deviceIndex < 0 || deviceIndex >= layout.racks[0].devices.length) {
+function moveDeviceRecorded(
+  rackId: string,
+  deviceIndex: number,
+  newPosition: number,
+): boolean {
+  const targetRack = getRackById(rackId);
+  if (!targetRack) {
     debug.deviceMove({
       index: deviceIndex,
       deviceName: "unknown",
@@ -1167,7 +1400,22 @@ function moveDeviceRecorded(deviceIndex: number, newPosition: number): boolean {
     return false;
   }
 
-  const device = layout.racks[0].devices[deviceIndex]!;
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
+  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) {
+    debug.deviceMove({
+      index: deviceIndex,
+      deviceName: "unknown",
+      face: "unknown",
+      fromPosition: -1,
+      toPosition: newPosition,
+      result: "not_found",
+    });
+    return false;
+  }
+
+  const device = targetRack.devices[deviceIndex]!;
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
     device.device_type,
@@ -1191,7 +1439,7 @@ function moveDeviceRecorded(deviceIndex: number, newPosition: number): boolean {
   const isFullDepth = deviceType.is_full_depth !== false;
   if (
     !canPlaceDevice(
-      layout.racks[0],
+      targetRack,
       layout.device_types,
       deviceType.u_height,
       newPosition,
@@ -1203,7 +1451,7 @@ function moveDeviceRecorded(deviceIndex: number, newPosition: number): boolean {
     // Determine if it's out of bounds or collision
     const isOutOfBounds =
       newPosition < 1 ||
-      newPosition + deviceType.u_height - 1 > layout.racks[0].height;
+      newPosition + deviceType.u_height - 1 > targetRack.height;
     debug.deviceMove({
       index: deviceIndex,
       deviceName,
@@ -1242,11 +1490,18 @@ function moveDeviceRecorded(deviceIndex: number, newPosition: number): boolean {
 
 /**
  * Remove a device with undo/redo support
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
  */
-function removeDeviceRecorded(deviceIndex: number): void {
-  if (deviceIndex < 0 || deviceIndex >= layout.racks[0].devices.length) return;
+function removeDeviceRecorded(rackId: string, deviceIndex: number): void {
+  const targetRack = getRackById(rackId);
+  if (!targetRack) return;
+  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
 
-  const device = layout.racks[0].devices[deviceIndex]!;
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
+  const device = targetRack.devices[deviceIndex]!;
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
     device.device_type,
@@ -1268,11 +1523,23 @@ function removeDeviceRecorded(deviceIndex: number): void {
 
 /**
  * Update device face with undo/redo support
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
+ * @param face - New face value
  */
-function updateDeviceFaceRecorded(deviceIndex: number, face: DeviceFace): void {
-  if (deviceIndex < 0 || deviceIndex >= layout.racks[0].devices.length) return;
+function updateDeviceFaceRecorded(
+  rackId: string,
+  deviceIndex: number,
+  face: DeviceFace,
+): void {
+  const targetRack = getRackById(rackId);
+  if (!targetRack) return;
+  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
 
-  const device = layout.racks[0].devices[deviceIndex]!;
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
+  const device = targetRack.devices[deviceIndex]!;
   const oldFace = device.face ?? "front";
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
@@ -1296,14 +1563,23 @@ function updateDeviceFaceRecorded(deviceIndex: number, face: DeviceFace): void {
 
 /**
  * Update device custom name with undo/redo support
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
+ * @param name - New name
  */
 function updateDeviceNameRecorded(
+  rackId: string,
   deviceIndex: number,
   name: string | undefined,
 ): void {
-  if (deviceIndex < 0 || deviceIndex >= layout.racks[0].devices.length) return;
+  const targetRack = getRackById(rackId);
+  if (!targetRack) return;
+  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
 
-  const device = layout.racks[0].devices[deviceIndex]!;
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
+  const device = targetRack.devices[deviceIndex]!;
   const oldName = device.name;
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
@@ -1330,17 +1606,26 @@ function updateDeviceNameRecorded(
 
 /**
  * Update rack settings with undo/redo support
+ * @param rackId - Rack ID
+ * @param updates - Settings to update
  */
 function updateRackRecorded(
+  rackId: string,
   updates: Partial<Omit<Rack, "devices" | "view">>,
 ): void {
+  const targetRack = getRackById(rackId);
+  if (!targetRack) return;
+
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
   // Capture before state
   const before: Partial<Omit<Rack, "devices" | "view">> = {};
   for (const key of Object.keys(updates) as (keyof Omit<
     Rack,
     "devices" | "view"
   >)[]) {
-    before[key] = layout.racks[0][key] as never;
+    before[key] = targetRack[key] as never;
   }
 
   const history = getHistoryStore();
@@ -1353,11 +1638,13 @@ function updateRackRecorded(
 
 /**
  * Clear rack devices with undo/redo support
+ * Uses active rack
  */
 function clearRackRecorded(): void {
-  if (layout.racks[0].devices.length === 0) return;
+  const target = getTargetRack();
+  if (!target || target.rack.devices.length === 0) return;
 
-  const devices = [...layout.racks[0].devices];
+  const devices = [...target.rack.devices];
   const history = getHistoryStore();
   const adapter = getCommandStoreAdapter();
 
