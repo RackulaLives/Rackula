@@ -228,6 +228,58 @@ describe("canPlaceInContainer", () => {
     ).toBe(true);
   });
 
+  it("allows moving a child device to same position (excludeDeviceId)", () => {
+    const containerType = createTestContainerType({
+      slug: "blade-chassis",
+      u_height: 4,
+    });
+    const childType = createTestDeviceType({
+      slug: "blade-server",
+      u_height: 1,
+    });
+
+    const container = createTestDevice({
+      id: "container-1",
+      device_type: "blade-chassis",
+      position: 5,
+    });
+    const existingChild = createTestContainerChild({
+      id: "child-to-move",
+      container_id: "container-1",
+      slot_id: "slot-left",
+      position: 0,
+      device_type: "blade-server",
+    });
+    const rack = createTestRack({ devices: [container, existingChild] });
+
+    // Without excludeDeviceId, placement at same position should be blocked
+    expect(
+      canPlaceInContainer(
+        rack,
+        [containerType, childType],
+        container,
+        containerType,
+        childType,
+        "slot-left",
+        0,
+      ),
+    ).toBe(false);
+
+    // With excludeDeviceId, moving the same device to its current position should succeed
+    expect(
+      canPlaceInContainer(
+        rack,
+        [containerType, childType],
+        container,
+        containerType,
+        childType,
+        "slot-left",
+        0,
+        "child-to-move", // Exclude the device being moved
+      ),
+    ).toBe(true);
+  });
+
   it("blocks placement when slot is occupied by another child", () => {
     const containerType = createTestContainerType({
       slug: "blade-chassis",
