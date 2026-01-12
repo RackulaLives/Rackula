@@ -14,7 +14,7 @@ import type {
   DisplayMode,
   Cable,
 } from "$lib/types";
-import { DEFAULT_DEVICE_FACE } from "$lib/types/constants";
+import { DEFAULT_DEVICE_FACE, MAX_RACKS } from "$lib/types/constants";
 import { canPlaceDevice } from "$lib/utils/collision";
 import { createLayout, createDefaultRack } from "$lib/utils/serialization";
 import {
@@ -48,9 +48,6 @@ import {
 
 // localStorage key for tracking if user has started (created/loaded a rack)
 const HAS_STARTED_KEY = "Rackula_has_started";
-
-// Maximum number of racks allowed in a layout
-const MAX_RACKS = 10;
 
 // Check if user has previously started (created or loaded a rack)
 function loadHasStarted(): boolean {
@@ -1211,10 +1208,24 @@ function getCommandStoreAdapter(): DeviceTypeCommandStore &
     moveDeviceRaw,
     updateDeviceFaceRaw,
     updateDeviceNameRaw,
-    updateDevicePlacementImageRaw: (index, face, filename) =>
-      updateDevicePlacementImageRaw(activeRackId ?? "", index, face, filename),
-    updateDeviceColourRaw: (index, colour) =>
-      updateDeviceColourRaw(activeRackId ?? "", index, colour),
+    updateDevicePlacementImageRaw: (index, face, filename) => {
+      // Resolve rack ID: use active rack, fall back to first rack
+      const rackId = activeRackId ?? getTargetRack()?.rack.id;
+      if (!rackId) {
+        debug.log("updateDevicePlacementImageRaw: No rack available");
+        return;
+      }
+      updateDevicePlacementImageRaw(rackId, index, face, filename);
+    },
+    updateDeviceColourRaw: (index, colour) => {
+      // Resolve rack ID: use active rack, fall back to first rack
+      const rackId = activeRackId ?? getTargetRack()?.rack.id;
+      if (!rackId) {
+        debug.log("updateDeviceColourRaw: No rack available");
+        return;
+      }
+      updateDeviceColourRaw(rackId, index, colour);
+    },
     getDeviceAtIndex,
 
     // RackCommandStore
