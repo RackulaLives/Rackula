@@ -850,8 +850,8 @@
   />
 
   <main class="app-main" class:mobile={viewportStore.isMobile}>
-    {#if !viewportStore.isMobile}
-      <Sidebar side="left" collapsed={uiStore.sidebarTab === "hide"}>
+    {#if !viewportStore.isMobile && uiStore.sidebarTab !== "hide"}
+      <Sidebar side="left">
         <SidebarTabs
           activeTab={uiStore.sidebarTab}
           onchange={(tab) => uiStore.setSidebarTab(tab)}
