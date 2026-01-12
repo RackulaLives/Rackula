@@ -25,6 +25,7 @@
   }: Props = $props();
 
   function handleOpenChange(newOpen: boolean) {
+    open = newOpen;
     if (!newOpen) {
       onclose?.();
     }
