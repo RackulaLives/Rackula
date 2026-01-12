@@ -839,9 +839,24 @@
 
   <main class="app-main" class:mobile={viewportStore.isMobile}>
     {#if !viewportStore.isMobile}
+      <!-- Show sidebar toggle when hidden -->
+      {#if uiStore.sidebarTab === "hide"}
+        <button
+          type="button"
+          class="sidebar-show-btn"
+          onclick={() => uiStore.setSidebarTab("devices")}
+          aria-label="Show sidebar"
+          title="Show sidebar"
+        >
+          <span aria-hidden="true">→</span>
+        </button>
+      {/if}
+
       <PaneGroup
         direction="horizontal"
-        autoSaveId="rackula-main-layout"
+        autoSaveId={uiStore.sidebarTab !== "hide"
+          ? "rackula-main-layout"
+          : "rackula-main-layout-no-sidebar"}
         keyboardResizeBy={10}
         class="pane-group"
       >
@@ -1098,6 +1113,39 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  /* Show sidebar button when sidebar is hidden */
+  .sidebar-show-btn {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    width: 24px;
+    height: 48px;
+    padding: 0;
+    background: var(--colour-surface);
+    border: 1px solid var(--colour-border);
+    border-left: none;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    color: var(--colour-text-muted);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sidebar-show-btn:hover {
+    background: var(--colour-surface-hover);
+    color: var(--colour-text);
+  }
+
+  .sidebar-show-btn:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: -2px;
   }
 
   /* Note: Mobile overscroll prevention should be in global styles (index.html or app.css) */
