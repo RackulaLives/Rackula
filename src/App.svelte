@@ -248,11 +248,7 @@
       toastStore.showToast(`Saved ${filename}`, "success", 3000);
 
       // Track save event (total devices across all racks)
-      const deviceCount = layoutStore.racks.reduce(
-        (sum, r) => sum + r.devices.length,
-        0,
-      );
-      analytics.trackSave(deviceCount);
+      analytics.trackSave(layoutStore.totalDeviceCount);
 
       // After save, if pendingSaveFirst, reset and open new rack form
       if (pendingSaveFirst) {
@@ -319,11 +315,7 @@
       }
 
       // Track load event (total devices across all racks)
-      const deviceCount = layoutStore.racks.reduce(
-        (sum, r) => sum + r.devices.length,
-        0,
-      );
-      analytics.trackLoad(deviceCount);
+      analytics.trackLoad(layoutStore.totalDeviceCount);
     } catch (error) {
       console.error("Failed to load layout:", error);
       toastStore.showToast(
@@ -468,11 +460,7 @@
     shareDialogOpen = true;
 
     // Track share event (total devices across all racks)
-    const deviceCount = layoutStore.racks.reduce(
-      (sum, r) => sum + r.devices.length,
-      0,
-    );
-    analytics.trackShare(deviceCount);
+    analytics.trackShare(layoutStore.totalDeviceCount);
   }
 
   function handleShareClose() {
