@@ -274,17 +274,32 @@ function createNewLayout(name: string): void {
 /**
  * Load a layout directly
  * Preserves all racks in the layout (multi-rack support)
+ * Defensively assigns IDs and positions to support older layouts
  * @param layoutData - Layout to load
  */
 function loadLayout(layoutData: Layout): void {
-  // Ensure runtime view is set and show_rear defaults to true for all racks
+  // Track seen IDs to detect duplicates
+  const seenIds = new Set<string>();
+
+  // Ensure runtime view is set, show_rear defaults, and all racks have valid IDs
   layout = {
     ...layoutData,
-    racks: layoutData.racks.map((r) => ({
-      ...r,
-      view: r.view ?? "front",
-      show_rear: r.show_rear ?? true,
-    })),
+    racks: layoutData.racks.map((r, index) => {
+      // Generate ID if missing or duplicate
+      let rackId = r.id && r.id.trim().length > 0 ? r.id : generateRackId();
+      if (seenIds.has(rackId)) {
+        rackId = generateRackId();
+      }
+      seenIds.add(rackId);
+
+      return {
+        ...r,
+        id: rackId,
+        position: Number.isFinite(r.position) ? r.position : index,
+        view: r.view ?? "front",
+        show_rear: r.show_rear ?? true,
+      };
+    }),
   };
   isDirty = false;
 
@@ -426,6 +441,7 @@ function deleteRack(id: string): void {
 
 /**
  * Reorder racks by moving from one index to another
+ * Updates position field to match new array indices
  * @param fromIndex - Source index
  * @param toIndex - Target index
  */
@@ -444,15 +460,17 @@ function reorderRacks(fromIndex: number, toIndex: number): void {
   const [removed] = newRacks.splice(fromIndex, 1);
   newRacks.splice(toIndex, 0, removed);
 
+  // Update position field to match new array indices
   layout = {
     ...layout,
-    racks: newRacks,
+    racks: newRacks.map((r, index) => ({ ...r, position: index })),
   };
   isDirty = true;
 }
 
 /**
  * Duplicate a rack with all its devices
+ * Handles container_id references by remapping to new device IDs
  * @param id - Rack ID to duplicate
  * @returns The duplicated rack or error message
  */
@@ -470,11 +488,30 @@ function duplicateRack(id: string): {
   }
 
   const newRackId = generateRackId();
+
+  // Build a mapping from old device IDs to new device IDs
+  // This ensures container_id references remain valid
+  const idMap = new Map<string, string>(
+    sourceRack.devices.map((d) => [d.id, generateId()]),
+  );
+
   const duplicatedRack = {
     ...sourceRack,
     id: newRackId,
     name: `${sourceRack.name} (Copy)`,
-    devices: sourceRack.devices.map((d) => ({ ...d, id: generateId() })),
+    position: layout.racks.length, // Set position to append index
+    devices: sourceRack.devices.map((d) => {
+      const newId = idMap.get(d.id)!;
+      // Remap container_id if present
+      const newContainerId = d.container_id
+        ? idMap.get(d.container_id)
+        : undefined;
+      return {
+        ...d,
+        id: newId,
+        container_id: newContainerId,
+      };
+    }),
   };
 
   layout = {
@@ -1187,6 +1224,9 @@ function getCommandStoreAdapter(): DeviceTypeCommandStore &
     restoreRackDevicesRaw,
     getRack: () => {
       const target = getTargetRack();
+      if (!target && layout.racks.length === 0) {
+        throw new Error("No rack available in RackCommandStore");
+      }
       return target?.rack ?? layout.racks[0];
     },
   };

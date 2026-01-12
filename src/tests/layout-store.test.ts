@@ -1169,6 +1169,7 @@ describe("Layout Store", () => {
       const rack = store.addRack("First Rack", 42);
       const result = store.duplicateRack(rack!.id);
       expect(result.rack).toBeDefined();
+      expect(result.rack!.id).not.toBe(rack!.id); // Must have unique ID
       expect(result.rack!.name).toBe("First Rack (Copy)");
       expect(result.error).toBeUndefined();
     });
