@@ -842,6 +842,7 @@
       <PaneGroup
         direction="horizontal"
         autoSaveId="rackula-main-layout"
+        keyboardResizeBy={10}
         class="pane-group"
       >
         {#if uiStore.sidebarTab !== "hide"}
@@ -876,8 +877,7 @@
             onnewrack={handleNewRack}
             onload={handleLoad}
             {partyMode}
-            enableLongPress={viewportStore.isMobile &&
-              !placementStore.isPlacing}
+            enableLongPress={false}
             onracklongpress={handleRackLongPress}
           />
 
