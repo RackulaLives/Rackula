@@ -7,7 +7,7 @@
   import AnimationDefs from "$lib/components/AnimationDefs.svelte";
   import Toolbar from "$lib/components/Toolbar.svelte";
   import Canvas from "$lib/components/Canvas.svelte";
-  import Sidebar from "$lib/components/Sidebar.svelte";
+  import { PaneGroup, Pane, PaneResizer } from "paneforge";
   import DevicePalette from "$lib/components/DevicePalette.svelte";
   import EditPanel from "$lib/components/EditPanel.svelte";
   import NewRackForm from "$lib/components/NewRackForm.svelte";
@@ -838,33 +838,60 @@
   />
 
   <main class="app-main" class:mobile={viewportStore.isMobile}>
-    {#if !viewportStore.isMobile && uiStore.sidebarTab !== "hide"}
-      <Sidebar side="left">
-        <SidebarTabs
-          activeTab={uiStore.sidebarTab}
-          onchange={(tab) => uiStore.setSidebarTab(tab)}
-        />
-        {#if uiStore.sidebarTab === "devices"}
-          <DevicePalette
-            onadddevice={handleAddDevice}
-            onimportfromnetbox={handleImportFromNetBox}
-          />
-        {:else if uiStore.sidebarTab === "racks"}
-          <RackList onaddrack={handleNewRack} />
-        {/if}
-      </Sidebar>
-    {/if}
-
-    <Canvas
-      onnewrack={handleNewRack}
-      onload={handleLoad}
-      {partyMode}
-      enableLongPress={viewportStore.isMobile && !placementStore.isPlacing}
-      onracklongpress={handleRackLongPress}
-    />
-
     {#if !viewportStore.isMobile}
-      <EditPanel />
+      <PaneGroup
+        direction="horizontal"
+        autoSaveId="rackula-main-layout"
+        class="pane-group"
+      >
+        {#if uiStore.sidebarTab !== "hide"}
+          <Pane
+            defaultSize={20}
+            minSize={10}
+            maxSize={40}
+            collapsible={true}
+            collapsedSize={3}
+            id="sidebar-pane"
+            class="sidebar-pane"
+          >
+            <SidebarTabs
+              activeTab={uiStore.sidebarTab}
+              onchange={(tab) => uiStore.setSidebarTab(tab)}
+            />
+            {#if uiStore.sidebarTab === "devices"}
+              <DevicePalette
+                onadddevice={handleAddDevice}
+                onimportfromnetbox={handleImportFromNetBox}
+              />
+            {:else if uiStore.sidebarTab === "racks"}
+              <RackList onaddrack={handleNewRack} />
+            {/if}
+          </Pane>
+
+          <PaneResizer class="resize-handle" />
+        {/if}
+
+        <Pane class="main-pane">
+          <Canvas
+            onnewrack={handleNewRack}
+            onload={handleLoad}
+            {partyMode}
+            enableLongPress={viewportStore.isMobile &&
+              !placementStore.isPlacing}
+            onracklongpress={handleRackLongPress}
+          />
+
+          <EditPanel />
+        </Pane>
+      </PaneGroup>
+    {:else}
+      <Canvas
+        onnewrack={handleNewRack}
+        onload={handleLoad}
+        {partyMode}
+        enableLongPress={viewportStore.isMobile && !placementStore.isPlacing}
+        onracklongpress={handleRackLongPress}
+      />
     {/if}
   </main>
 
@@ -1038,6 +1065,39 @@
   .app-main.mobile {
     /* Prevent overscroll/bounce on iOS */
     overscroll-behavior: none;
+  }
+
+  /* PaneForge styles */
+  :global(.pane-group) {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  :global(.sidebar-pane) {
+    background: var(--colour-sidebar-bg);
+    border-right: 1px solid var(--colour-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  :global(.resize-handle) {
+    width: 4px;
+    background: var(--colour-border);
+    cursor: col-resize;
+    transition: background var(--duration-fast) var(--ease-out);
+    position: relative;
+  }
+
+  :global(.resize-handle:hover),
+  :global(.resize-handle[data-resize-handle-active]) {
+    background: var(--colour-selection);
+  }
+
+  :global(.main-pane) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   /* Note: Mobile overscroll prevention should be in global styles (index.html or app.css) */

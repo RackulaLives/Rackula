@@ -79,6 +79,7 @@
     "jszip": "^3.10.1",
     "nanoid": "^5.1.6",
     "pako": "^2.1.0",
+    "paneforge": "^1.0.2",
     "panzoom": "^9.4.3",
     "qrcode": "^1.5.4",
     "simple-icons": "^16.2.0",
