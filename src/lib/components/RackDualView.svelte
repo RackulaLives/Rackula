@@ -15,13 +15,12 @@
   import BananaForScale from "./BananaForScale.svelte";
   import { useLongPress } from "$lib/utils/gestures";
 
-  // Synthetic rack ID for single-rack mode
-  const RACK_ID = "rack-0";
-
   interface Props {
     rack: RackType;
     deviceLibrary: DeviceType[];
     selected: boolean;
+    /** Whether this rack is the active rack (for editing) */
+    isActive?: boolean;
     /** ID of the selected device (UUID-based tracking) */
     selectedDeviceId?: string | null;
     displayMode?: DisplayMode;
@@ -75,6 +74,7 @@
     rack,
     deviceLibrary,
     selected,
+    isActive = false,
     selectedDeviceId = null,
     displayMode = "label",
     showLabelsOnImages = false,
@@ -113,7 +113,7 @@
         longPressActive = false;
         longPressProgress = 0;
         onlongpress(
-          new CustomEvent("longpress", { detail: { rackId: RACK_ID } }),
+          new CustomEvent("longpress", { detail: { rackId: rack.id } }),
         );
       },
       {
@@ -136,7 +136,7 @@
   // Now using faceFilter prop instead of virtual racks
 
   function handleSelect() {
-    onselect?.(new CustomEvent("select", { detail: { rackId: RACK_ID } }));
+    onselect?.(new CustomEvent("select", { detail: { rackId: rack.id } }));
   }
 
   function handleKeyDown(event: KeyboardEvent) {
@@ -182,13 +182,17 @@
   bind:this={containerElement}
   class="rack-dual-view"
   class:selected
+  class:active={isActive}
   class:long-press-active={longPressActive}
   tabindex="0"
   role="option"
   aria-selected={selected}
+  aria-current={isActive ? "true" : undefined}
   aria-label="{rack.name}, {rack.height}U rack, {rack.show_rear
     ? 'front and rear view'
-    : 'front view only'}{selected ? ', selected' : ''}"
+    : 'front view only'}{isActive ? ', active' : ''}{selected
+    ? ', selected'
+    : ''}"
   onkeydown={handleKeyDown}
   style:--long-press-progress={longPressProgress}
 >
@@ -288,6 +292,10 @@
   .rack-dual-view.selected {
     outline: 2px solid var(--colour-selection);
     outline-offset: 4px;
+  }
+
+  .rack-dual-view.active .rack-dual-view-name {
+    color: var(--colour-selection);
   }
 
   /* Long press visual feedback */

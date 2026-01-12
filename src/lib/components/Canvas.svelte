@@ -1,7 +1,7 @@
 <!--
   Canvas Component
-  Main content area displaying single rack
-  v0.1.1: Single-rack mode - centered layout
+  Main content area displaying racks
+  Multi-rack mode: displays all racks with active selection indicator
   Uses panzoom for zoom and pan functionality
 -->
 <script lang="ts">
@@ -23,8 +23,7 @@
   import WelcomeScreen from "./WelcomeScreen.svelte";
   // Note: PlacementIndicator removed - placement UI now integrated into Rack.svelte
 
-  // Synthetic rack ID for single-rack mode
-  const RACK_ID = "rack-0";
+  // Multi-rack mode: use active rack ID from store
 
   interface Props {
     partyMode?: boolean;
@@ -85,8 +84,9 @@
 
   // Note: handlePlacementCancel removed - now handled in Rack.svelte
 
-  // Handle mobile tap-to-place
+  // Handle mobile tap-to-place (uses active rack)
   function handlePlacementTap(
+    rackId: string,
     event: CustomEvent<{ position: number; face: "front" | "rear" }>,
   ) {
     const device = placementStore.pendingDevice;
@@ -94,7 +94,7 @@
 
     const { position, face } = event.detail;
     const success = layoutStore.placeDevice(
-      RACK_ID,
+      rackId,
       device.slug,
       position,
       face,
@@ -106,8 +106,9 @@
     }
   }
 
-  // Single-rack mode: direct access to rack
-  const rack = $derived(layoutStore.rack);
+  // Multi-rack mode: access all racks
+  const racks = $derived(layoutStore.racks);
+  const activeRackId = $derived(layoutStore.activeRackId);
   const hasRacks = $derived(layoutStore.rackCount > 0);
 
   // Panzoom container reference
@@ -169,7 +170,7 @@
 
       // Center content on initial load
       requestAnimationFrame(() => {
-        canvasStore.fitAll(rack ? [rack] : []);
+        canvasStore.fitAll(racks);
       });
 
       return () => {
@@ -187,23 +188,27 @@
   }
 
   function handleRackSelect(event: CustomEvent<{ rackId: string }>) {
-    selectionStore.selectRack(event.detail.rackId);
+    const { rackId } = event.detail;
+    layoutStore.setActiveRack(rackId);
+    selectionStore.selectRack(rackId);
     onrackselect?.(event);
   }
 
   function handleDeviceSelect(
+    rackId: string,
     event: CustomEvent<{ slug: string; position: number }>,
   ) {
     // Find the device by slug and position, then select by ID (UUID-based tracking)
-    const currentRack = layoutStore.rack;
-    if (currentRack) {
-      const device = currentRack.devices.find(
+    const targetRack = layoutStore.getRackById(rackId);
+    if (targetRack) {
+      const device = targetRack.devices.find(
         (d) =>
           d.device_type === event.detail.slug &&
           d.position === event.detail.position,
       );
       if (device) {
-        selectionStore.selectDevice(RACK_ID, device.id);
+        layoutStore.setActiveRack(rackId);
+        selectionStore.selectDevice(rackId, device.id);
       }
     }
     ondeviceselect?.(event);
@@ -257,21 +262,21 @@
     ondevicemoverack?.(event);
   }
 
-  // NOTE: Rack reordering handlers removed in v0.1.1 (single-rack mode)
   // NOTE: handleRackViewChange removed in v0.4 (dual-view mode - always show both)
-  // Restore in v0.3 when multi-rack support returns
 
   // Screen reader accessible description of rack contents
   const rackDescription = $derived.by(() => {
-    if (!rack) return "No rack configured";
-    const deviceCount = rack.devices.length;
-    const deviceWord = deviceCount === 1 ? "device" : "devices";
-    return `${rack.name}, ${rack.height}U rack with ${deviceCount} ${deviceWord} placed`;
+    if (racks.length === 0) return "No racks configured";
+    const rackWord = racks.length === 1 ? "rack" : "racks";
+    const totalDevices = racks.reduce((sum, r) => sum + r.devices.length, 0);
+    const deviceWord = totalDevices === 1 ? "device" : "devices";
+    return `${racks.length} ${rackWord} with ${totalDevices} ${deviceWord} total`;
   });
 
   const deviceListDescription = $derived.by(() => {
-    if (!rack || rack.devices.length === 0) return "";
-    const deviceNames = [...rack.devices]
+    const activeRack = layoutStore.activeRack;
+    if (!activeRack || activeRack.devices.length === 0) return "";
+    const deviceNames = [...activeRack.devices]
       .sort((a, b) => b.position - a.position) // Top to bottom
       .map((d) => {
         const deviceType = layoutStore.device_types.find(
@@ -280,7 +285,7 @@
         const name = d.label || deviceType?.model || d.device_type;
         return `U${d.position}: ${name}`;
       });
-    return `Devices from top to bottom: ${deviceNames.join(", ")}`;
+    return `Active rack devices from top to bottom: ${deviceNames.join(", ")}`;
   });
 
   function handleCanvasKeydown(event: KeyboardEvent) {
@@ -310,34 +315,42 @@
   {#if deviceListDescription}
     <p id="canvas-device-list" class="sr-only">{deviceListDescription}</p>
   {/if}
-  {#if hasRacks && rack}
+  {#if hasRacks}
     <div class="panzoom-container" bind:this={panzoomContainer}>
-      <!-- Single-rack mode with dual-view: front and rear side-by-side (v0.4) -->
-      <div class="rack-wrapper">
-        <RackDualView
-          {rack}
-          deviceLibrary={layoutStore.device_types}
-          selected={selectionStore.selectedType === "rack" &&
-            selectionStore.selectedRackId === RACK_ID}
-          selectedDeviceId={selectionStore.selectedType === "device" &&
-          selectionStore.selectedRackId === RACK_ID
-            ? selectionStore.selectedDeviceId
-            : null}
-          displayMode={uiStore.displayMode}
-          showLabelsOnImages={uiStore.showLabelsOnImages}
-          showAnnotations={uiStore.showAnnotations}
-          annotationField={uiStore.annotationField}
-          showBanana={uiStore.showBanana}
-          {partyMode}
-          {enableLongPress}
-          onselect={(e) => handleRackSelect(e)}
-          ondeviceselect={(e) => handleDeviceSelect(e)}
-          ondevicedrop={(e) => handleDeviceDrop(e)}
-          ondevicemove={(e) => handleDeviceMove(e)}
-          ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-          onplacementtap={(e) => handlePlacementTap(e)}
-          onlongpress={(e) => onracklongpress?.(e)}
-        />
+      <!-- Multi-rack mode: render all racks with active selection indicator -->
+      <div class="racks-wrapper">
+        {#each racks as rack (rack.id)}
+          {@const isActive = rack.id === activeRackId}
+          {@const isSelected =
+            selectionStore.selectedType === "rack" &&
+            selectionStore.selectedRackId === rack.id}
+          <div class="rack-wrapper" class:active={isActive}>
+            <RackDualView
+              {rack}
+              deviceLibrary={layoutStore.device_types}
+              selected={isSelected}
+              {isActive}
+              selectedDeviceId={selectionStore.selectedType === "device" &&
+              selectionStore.selectedRackId === rack.id
+                ? selectionStore.selectedDeviceId
+                : null}
+              displayMode={uiStore.displayMode}
+              showLabelsOnImages={uiStore.showLabelsOnImages}
+              showAnnotations={uiStore.showAnnotations}
+              annotationField={uiStore.annotationField}
+              showBanana={uiStore.showBanana}
+              {partyMode}
+              {enableLongPress}
+              onselect={(e) => handleRackSelect(e)}
+              ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
+              ondevicedrop={(e) => handleDeviceDrop(e)}
+              ondevicemove={(e) => handleDeviceMove(e)}
+              ondevicemoverack={(e) => handleDeviceMoveRack(e)}
+              onplacementtap={(e) => handlePlacementTap(rack.id, e)}
+              onlongpress={(e) => onracklongpress?.(e)}
+            />
+          </div>
+        {/each}
       </div>
     </div>
   {:else}
@@ -368,11 +381,24 @@
     cursor: grabbing;
   }
 
-  .rack-wrapper {
-    /* Single-rack mode: positioned at origin, panzoom controls viewport centering (v0.1.1) */
-    /* Note: fitAll() in canvas store handles centering via pan calculations */
-    display: inline-block;
+  .racks-wrapper {
+    /* Multi-rack mode: horizontal layout of all racks */
+    display: flex;
+    flex-direction: row;
+    gap: var(--space-6);
     padding: var(--space-4);
+  }
+
+  .rack-wrapper {
+    /* Individual rack container with active indicator */
+    display: inline-block;
+    border-radius: var(--radius-lg);
+    transition: box-shadow var(--duration-fast) var(--ease-out);
+  }
+
+  .rack-wrapper.active {
+    /* Active rack visual indicator - accent outline */
+    box-shadow: 0 0 0 3px var(--colour-selection);
   }
 
   /* Party mode: animated gradient background */
