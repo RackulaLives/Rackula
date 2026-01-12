@@ -82,11 +82,13 @@
     {#each racks as rack (rack.id)}
       {@const isActive = rack.id === activeRackId}
       {@const deviceCount = rack.devices.length}
-      <button
-        type="button"
+      <div
         class="rack-item"
         class:active={isActive}
         onclick={() => handleRackClick(rack.id)}
+        onkeydown={(e) => e.key === "Enter" && handleRackClick(rack.id)}
+        role="button"
+        tabindex="0"
         data-testid="rack-item-{rack.id}"
       >
         <span class="rack-indicator" aria-hidden="true">
@@ -110,7 +112,7 @@
         >
           ✕
         </button>
-      </button>
+      </div>
     {/each}
 
     {#if racks.length === 0}

@@ -25,6 +25,8 @@
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
   import DeviceLibraryFAB from "$lib/components/DeviceLibraryFAB.svelte";
   import RackEditSheet from "$lib/components/RackEditSheet.svelte";
+  import SidebarTabs from "$lib/components/SidebarTabs.svelte";
+  import RackList from "$lib/components/RackList.svelte";
   import {
     getShareParam,
     clearShareParam,
@@ -829,12 +831,20 @@
   />
 
   <main class="app-main" class:mobile={viewportStore.isMobile}>
-    {#if !viewportStore.isMobile}
+    {#if !viewportStore.isMobile && uiStore.sidebarTab !== "hide"}
       <Sidebar side="left">
-        <DevicePalette
-          onadddevice={handleAddDevice}
-          onimportfromnetbox={handleImportFromNetBox}
+        <SidebarTabs
+          activeTab={uiStore.sidebarTab}
+          onchange={(tab) => uiStore.setSidebarTab(tab)}
         />
+        {#if uiStore.sidebarTab === "devices"}
+          <DevicePalette
+            onadddevice={handleAddDevice}
+            onimportfromnetbox={handleImportFromNetBox}
+          />
+        {:else if uiStore.sidebarTab === "racks"}
+          <RackList onaddtrack={handleNewRack} />
+        {/if}
       </Sidebar>
     {/if}
 
