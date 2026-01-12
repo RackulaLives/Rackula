@@ -82,14 +82,9 @@ describe("isContainerChild", () => {
 
   it("returns false when device has no container_id", () => {
     const rackDevice = createTestDevice({ position: 5 });
+    // Verify createTestDevice doesn't set container_id
+    expect(rackDevice.container_id).toBeUndefined();
     expect(isContainerChild(rackDevice)).toBe(false);
-  });
-
-  it("returns false when container_id is undefined", () => {
-    const device = createTestDevice({ position: 5 });
-    // Explicitly ensure container_id is undefined
-    expect(device.container_id).toBeUndefined();
-    expect(isContainerChild(device)).toBe(false);
   });
 });
 
@@ -541,7 +536,7 @@ describe("Children collide only with siblings in same container", () => {
 // =============================================================================
 
 describe("Face inheritance for container children", () => {
-  it("child device inherits parent container face", () => {
+  it("placement succeeds when container is on rear face", () => {
     const containerType = createTestContainerType({
       slug: "blade-chassis",
       u_height: 4,
