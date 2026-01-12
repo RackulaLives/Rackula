@@ -50,7 +50,7 @@ function setupErrorCollection(
 
   if (includeConsole) {
     page.on("console", (msg) => {
-      if (msg.type() === "error" && filter(`Console error: ${msg.text()}`)) {
+      if (msg.type() === "error" && filter(msg.text())) {
         errors.push(`Console error: ${msg.text()}`);
       }
     });
