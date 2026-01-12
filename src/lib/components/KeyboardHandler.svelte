@@ -145,10 +145,10 @@
         action: () => uiStore.toggleAirflow(),
       },
 
-      // [ - toggle sidebar collapse
+      // [ - cycle to previous rack
       {
         key: "[",
-        action: () => uiStore.toggleSidebarCollapsed(),
+        action: () => cycleActiveRack(-1),
       },
 
       // Ctrl/Cmd+Z - undo
@@ -255,16 +255,10 @@
         action: () => ontoggleannotations?.(),
       },
 
-      // [ - shrink sidebar width
-      {
-        key: "[",
-        action: () => cycleSidebarWidth(-1),
-      },
-
-      // ] - widen sidebar width
+      // ] - cycle to next rack
       {
         key: "]",
-        action: () => cycleSidebarWidth(1),
+        action: () => cycleActiveRack(1),
       },
     ];
   }
@@ -283,8 +277,8 @@
     )
       return;
 
-    // Single-rack mode
-    const rack = layoutStore.rack;
+    // Get the rack containing the selected device
+    const rack = layoutStore.getRackById(selectionStore.selectedRackId);
     if (!rack) return;
 
     // Get device index from ID (UUID-based tracking)
@@ -310,25 +304,39 @@
   }
 
   /**
-   * Move the selected rack left or right (disabled in single-rack mode)
+   * Move the selected rack left or right (reserved for future use)
    * @param _direction - -1 for left, 1 for right
    */
   function moveSelectedRack(_direction: number) {
-    // Single-rack mode - rack reordering not applicable
-    // Reserved for future multi-rack support
+    // Reserved for future rack reordering
   }
 
   /**
-   * Cycle sidebar width in the given direction
-   * @param direction - -1 to shrink, 1 to widen
+   * Cycle to the next or previous rack
+   * @param direction - -1 for previous, 1 for next
    */
-  function cycleSidebarWidth(direction: -1 | 1) {
-    const presets = ["narrow", "default", "wide"] as const;
-    const currentIndex = presets.indexOf(uiStore.sidebarWidth);
-    const newIndex = Math.max(0, Math.min(presets.length - 1, currentIndex + direction));
-    if (newIndex !== currentIndex) {
-      uiStore.setSidebarWidth(presets[newIndex]);
+  function cycleActiveRack(direction: -1 | 1) {
+    const racks = layoutStore.racks;
+    if (racks.length === 0) return;
+
+    const currentId = layoutStore.activeRackId;
+    const currentIndex = currentId
+      ? racks.findIndex((r) => r.id === currentId)
+      : -1;
+
+    // Calculate new index with wrapping
+    let newIndex: number;
+    if (currentIndex === -1) {
+      // No active rack, select first or last based on direction
+      newIndex = direction === 1 ? 0 : racks.length - 1;
+    } else {
+      newIndex = (currentIndex + direction + racks.length) % racks.length;
     }
+
+    const newRack = racks[newIndex];
+    layoutStore.setActiveRack(newRack.id);
+    selectionStore.selectRack(newRack.id);
+    toastStore.showToast(`Active: ${newRack.name}`, "info");
   }
 
   /**
