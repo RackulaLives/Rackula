@@ -1,6 +1,12 @@
 /**
  * Collision Detection System
  * Functions for device placement validation
+ *
+ * Container Hierarchy Rules:
+ * - Container devices collide at rack level (they occupy space)
+ * - Child devices (container_id set) are EXCLUDED from rack-level collision
+ * - Child devices collide ONLY within their container (same container_id)
+ * - Child position is 0-indexed relative to container bottom
  */
 
 import type {
@@ -13,6 +19,14 @@ import type {
 
 // Re-export SlotPosition for test imports
 export type { SlotPosition } from "$lib/types";
+
+/**
+ * Check if a placed device is a container child
+ * Container children have container_id set and are excluded from rack-level collision
+ */
+export function isContainerChild(device: PlacedDevice): boolean {
+  return device.container_id !== undefined;
+}
 
 /**
  * Range of U positions occupied by a device
@@ -95,7 +109,11 @@ export function doSlotsOverlap(
 }
 
 /**
- * Check if a device can be placed at a given position
+ * Check if a device can be placed at a given position (rack-level placement)
+ *
+ * Container children (devices with container_id set) are excluded from rack-level
+ * collision detection. They exist in a separate collision space within their container.
+ *
  * @param rack - The rack to check
  * @param deviceLibrary - The device library
  * @param deviceHeight - Height of device to place
@@ -135,6 +153,12 @@ export function canPlaceDevice(
     }
 
     const placedDevice = rack.devices[i]!;
+
+    // Skip container children - they don't participate in rack-level collision
+    if (isContainerChild(placedDevice)) {
+      continue;
+    }
+
     const device = deviceLibrary.find(
       (d) => d.slug === placedDevice.device_type,
     );
@@ -161,7 +185,10 @@ export function canPlaceDevice(
 }
 
 /**
- * Find devices that would collide with a new device at given position
+ * Find devices that would collide with a new device at given position (rack-level)
+ *
+ * Container children are excluded from rack-level collision detection.
+ *
  * @param rack - The rack to check
  * @param deviceLibrary - The device library
  * @param newDeviceHeight - Height of new device
@@ -169,7 +196,7 @@ export function canPlaceDevice(
  * @param excludeIndex - Optional index in rack.devices to exclude (for move operations)
  * @param targetFace - Optional face to place device on (default: 'front')
  * @param targetSlot - Optional slot position (default: 'full')
- * @returns Array of colliding PlacedDevices
+ * @returns Array of colliding PlacedDevices (only rack-level devices, not container children)
  */
 export function findCollisions(
   rack: Rack,
@@ -186,6 +213,11 @@ export function findCollisions(
   rack.devices.forEach((placedDevice, index) => {
     // Skip the excluded device (for move operations)
     if (excludeIndex !== undefined && index === excludeIndex) {
+      return;
+    }
+
+    // Skip container children - they don't participate in rack-level collision
+    if (isContainerChild(placedDevice)) {
       return;
     }
 
@@ -308,4 +340,85 @@ export function snapToNearestValidPosition(
   }
 
   return closestPosition;
+}
+
+/**
+ * Check if a device can be placed inside a container at a specific slot and position
+ *
+ * Container children:
+ * - Position is 0-indexed relative to container bottom
+ * - Must fit within container height
+ * - Only collide with siblings in the same container AND same slot
+ * - Inherit face from parent container
+ *
+ * @param rack - The rack containing the container
+ * @param deviceLibrary - The device library
+ * @param container - The parent container PlacedDevice
+ * @param containerType - The DeviceType of the container
+ * @param childType - The DeviceType of the child device to place
+ * @param targetSlotId - The slot ID within the container
+ * @param targetPosition - Target position (0-indexed from container bottom)
+ * @param excludeDeviceId - Optional device ID to exclude (for move operations)
+ * @returns true if placement is valid
+ */
+export function canPlaceInContainer(
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  container: PlacedDevice,
+  containerType: DeviceType,
+  childType: DeviceType,
+  targetSlotId: string,
+  targetPosition: number,
+  excludeDeviceId?: string,
+): boolean {
+  // Position must be >= 0 (0-indexed within container)
+  if (targetPosition < 0) {
+    return false;
+  }
+
+  // Child device must fit within container height
+  const topPosition = targetPosition + childType.u_height - 1;
+  if (topPosition >= containerType.u_height) {
+    return false;
+  }
+
+  // Find all sibling devices in the same container and slot
+  const newRange = getDeviceURange(targetPosition, childType.u_height);
+
+  for (const device of rack.devices) {
+    // Only check devices in the same container
+    if (device.container_id !== container.id) {
+      continue;
+    }
+
+    // Skip the device being moved
+    if (excludeDeviceId !== undefined && device.id === excludeDeviceId) {
+      continue;
+    }
+
+    // Only check devices in the same slot
+    if (device.slot_id !== targetSlotId) {
+      continue;
+    }
+
+    // Get the sibling's device type for height
+    const siblingType = deviceLibrary.find(
+      (dt) => dt.slug === device.device_type,
+    );
+    if (!siblingType) {
+      continue;
+    }
+
+    const existingRange = getDeviceURange(
+      device.position,
+      siblingType.u_height,
+    );
+
+    // Check for U range overlap within the slot
+    if (doRangesOverlap(newRange, existingRange)) {
+      return false;
+    }
+  }
+
+  return true;
 }
