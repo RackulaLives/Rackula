@@ -80,8 +80,9 @@ export function createRemoveDeviceCommand(
   store: DeviceCommandStore,
   deviceName: string = "device",
 ): Command {
-  // Store a copy of the device for restoration
-  const deviceCopy = { ...device };
+  // Store a deep copy of the device for restoration
+  // structuredClone handles nested objects like ports and custom_fields
+  const deviceCopy = structuredClone(device);
 
   return {
     type: "REMOVE_DEVICE",
@@ -139,6 +140,53 @@ export function createUpdateDeviceNameCommand(
     },
     undo() {
       store.updateDeviceNameRaw(index, oldName);
+    },
+  };
+}
+
+/**
+ * Create a command to update a device's placement image
+ */
+export function createUpdateDevicePlacementImageCommand(
+  index: number,
+  face: "front" | "rear",
+  oldFilename: string | undefined,
+  newFilename: string | undefined,
+  store: DeviceCommandStore,
+  deviceName: string = "device",
+): Command {
+  return {
+    type: "UPDATE_DEVICE_PLACEMENT_IMAGE",
+    description: `Update ${deviceName} ${face} image`,
+    timestamp: Date.now(),
+    execute() {
+      store.updateDevicePlacementImageRaw(index, face, newFilename);
+    },
+    undo() {
+      store.updateDevicePlacementImageRaw(index, face, oldFilename);
+    },
+  };
+}
+
+/**
+ * Create a command to update a device's colour override
+ */
+export function createUpdateDeviceColourCommand(
+  index: number,
+  oldColour: string | undefined,
+  newColour: string | undefined,
+  store: DeviceCommandStore,
+  deviceName: string = "device",
+): Command {
+  return {
+    type: "UPDATE_DEVICE_COLOUR",
+    description: `Update ${deviceName} colour`,
+    timestamp: Date.now(),
+    execute() {
+      store.updateDeviceColourRaw(index, newColour);
+    },
+    undo() {
+      store.updateDeviceColourRaw(index, oldColour);
     },
   };
 }

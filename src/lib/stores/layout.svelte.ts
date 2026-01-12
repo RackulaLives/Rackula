@@ -39,6 +39,8 @@ import {
   createRemoveDeviceCommand,
   createUpdateDeviceFaceCommand,
   createUpdateDeviceNameCommand,
+  createUpdateDevicePlacementImageCommand,
+  createUpdateDeviceColourCommand,
   createUpdateRackCommand,
   createClearRackCommand,
   type DeviceTypeCommandStore,
@@ -237,6 +239,8 @@ export function getLayoutStore() {
     removeDeviceRecorded,
     updateDeviceFaceRecorded,
     updateDeviceNameRecorded,
+    updateDevicePlacementImageRecorded,
+    updateDeviceColourRecorded,
     updateRackRecorded,
     clearRackRecorded,
 
@@ -683,6 +687,7 @@ function updateDeviceName(
 
 /**
  * Update a device's placement image filename
+ * Uses undo/redo support via updateDevicePlacementImageRecorded
  * @param rackId - Rack ID
  * @param deviceIndex - Index of device in rack's devices array
  * @param face - Which face to update ('front' or 'rear')
@@ -694,12 +699,13 @@ function updateDevicePlacementImage(
   face: "front" | "rear",
   filename: string | undefined,
 ): void {
-  updateDevicePlacementImageRaw(rackId, deviceIndex, face, filename);
-  isDirty = true;
+  // Delegate to recorded version for undo/redo support
+  updateDevicePlacementImageRecorded(rackId, deviceIndex, face, filename);
 }
 
 /**
  * Update a device's colour override
+ * Uses undo/redo support via updateDeviceColourRecorded
  * @param rackId - Rack ID
  * @param deviceIndex - Index of device in rack's devices array
  * @param colour - Hex colour string (undefined to clear and use device type colour)
@@ -709,8 +715,8 @@ function updateDeviceColour(
   deviceIndex: number,
   colour: string | undefined,
 ): void {
-  updateDeviceColourRaw(rackId, deviceIndex, colour);
-  isDirty = true;
+  // Delegate to recorded version for undo/redo support
+  updateDeviceColourRecorded(rackId, deviceIndex, colour);
 }
 
 /**
@@ -1552,7 +1558,9 @@ function removeDeviceRecorded(rackId: string, deviceIndex: number): void {
   // Set active rack so Raw functions target the correct rack
   activeRackId = rackId;
 
-  const device = targetRack.devices[deviceIndex]!;
+  // Get a snapshot to convert from reactive proxy to plain object
+  // structuredClone in the command factory requires a plain object
+  const device = $state.snapshot(targetRack.devices[deviceIndex]!);
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
     device.device_type,
@@ -1650,6 +1658,92 @@ function updateDeviceNameRecorded(
     normalizedName,
     adapter,
     deviceTypeName,
+  );
+  history.execute(command);
+  isDirty = true;
+}
+
+/**
+ * Update device placement image with undo/redo support
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
+ * @param face - Which face to update ('front' or 'rear')
+ * @param filename - New image filename (undefined to clear)
+ */
+function updateDevicePlacementImageRecorded(
+  rackId: string,
+  deviceIndex: number,
+  face: "front" | "rear",
+  filename: string | undefined,
+): void {
+  const targetRack = getRackById(rackId);
+  if (!targetRack) return;
+  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
+
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
+  const device = targetRack.devices[deviceIndex]!;
+  const oldFilename =
+    face === "front"
+      ? device.placement_front_image
+      : device.placement_rear_image;
+  const deviceType = findDeviceTypeInArray(
+    layout.device_types,
+    device.device_type,
+  );
+  const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
+
+  const history = getHistoryStore();
+  const adapter = getCommandStoreAdapter();
+
+  const command = createUpdateDevicePlacementImageCommand(
+    deviceIndex,
+    face,
+    oldFilename,
+    filename,
+    adapter,
+    deviceName,
+  );
+  history.execute(command);
+  isDirty = true;
+}
+
+/**
+ * Update device colour with undo/redo support
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
+ * @param colour - New colour (undefined to clear and use device type colour)
+ */
+function updateDeviceColourRecorded(
+  rackId: string,
+  deviceIndex: number,
+  colour: string | undefined,
+): void {
+  const targetRack = getRackById(rackId);
+  if (!targetRack) return;
+  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
+
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
+  const device = targetRack.devices[deviceIndex]!;
+  const oldColour = device.colour;
+  const deviceType = findDeviceTypeInArray(
+    layout.device_types,
+    device.device_type,
+  );
+  const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
+
+  const history = getHistoryStore();
+  const adapter = getCommandStoreAdapter();
+
+  const command = createUpdateDeviceColourCommand(
+    deviceIndex,
+    oldColour,
+    colour,
+    adapter,
+    deviceName,
   );
   history.execute(command);
   isDirty = true;
