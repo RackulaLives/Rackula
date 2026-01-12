@@ -7,7 +7,6 @@
   import { Accordion } from "bits-ui";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
-  import { getUIStore } from "$lib/stores/ui.svelte";
   import {
     searchDevices,
     groupDevicesByCategory,
@@ -38,8 +37,6 @@
   }
 
   let { onadddevice, onimportfromnetbox, ondeviceselect }: Props = $props();
-
-  const uiStore = getUIStore();
 
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
