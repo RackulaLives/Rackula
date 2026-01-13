@@ -78,6 +78,8 @@
           // Priority: cancel placement mode first
           if (placementStore.isPlacing) {
             placementStore.cancelPlacement();
+            // Reset view to show full rack after placement is cancelled
+            onfitall?.();
             return;
           }
           // Otherwise clear selection and close drawers

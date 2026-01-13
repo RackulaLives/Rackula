@@ -103,6 +103,8 @@
     if (success) {
       hapticSuccess();
       placementStore.completePlacement();
+      // Reset view to show full rack after placement completes
+      canvasStore.fitAll(layoutStore.racks);
     }
   }
 
