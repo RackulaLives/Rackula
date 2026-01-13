@@ -27,9 +27,6 @@
   const layoutStore = getLayoutStore();
   const canvasStore = getCanvasStore();
 
-  // Synthetic rack ID for single-rack mode
-  const RACK_ID = "rack-0";
-
   // Local state for form fields (synced from rack prop)
   // Using untrack() to capture initial values - the $effect below handles reactive updates
   let rackName = $state(untrack(() => rack.name));
@@ -54,7 +51,7 @@
   // Update rack name on blur
   function handleNameBlur() {
     if (rackName !== rack.name) {
-      layoutStore.updateRack(RACK_ID, { name: rackName });
+      layoutStore.updateRack(rack.id, { name: rackName });
     }
   }
 
@@ -70,7 +67,7 @@
     const trimmedNotes = rackNotes.trim();
     const notesToSave = trimmedNotes === "" ? undefined : trimmedNotes;
     if (notesToSave !== rack.notes) {
-      layoutStore.updateRack(RACK_ID, { notes: notesToSave });
+      layoutStore.updateRack(rack.id, { notes: notesToSave });
     }
   }
 
@@ -95,7 +92,7 @@
 
     // Clear error and apply change
     resizeError = null;
-    layoutStore.updateRack(RACK_ID, { height: newHeight });
+    layoutStore.updateRack(rack.id, { height: newHeight });
     // Reset view to center the resized rack
     canvasStore.fitAll(layoutStore.rack ? [layoutStore.rack] : []);
     return true;
@@ -122,7 +119,7 @@
   }
 
   function confirmClearRack() {
-    layoutStore.clearRackDevices(RACK_ID);
+    layoutStore.clearRackDevices(rack.id);
     showClearConfirm = false;
     onclose?.();
   }
@@ -183,7 +180,7 @@
         ]}
         value={rack.desc_units ? "top" : "bottom"}
         onchange={(value) =>
-          layoutStore.updateRack(RACK_ID, {
+          layoutStore.updateRack(rack.id, {
             desc_units: value === "top",
           })}
         ariaLabel="U numbering direction"
@@ -200,7 +197,7 @@
         ]}
         value={rack.show_rear ? "show" : "hide"}
         onchange={(value) =>
-          layoutStore.updateRack(RACK_ID, {
+          layoutStore.updateRack(rack.id, {
             show_rear: value === "show",
           })}
         ariaLabel="Show rear view on canvas"

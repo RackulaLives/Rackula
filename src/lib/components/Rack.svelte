@@ -33,9 +33,6 @@
   // Christmas easter egg
   const showChristmasHats = isChristmas();
 
-  // Synthetic rack ID for single-rack mode
-  const RACK_ID = "rack-0";
-
   // Debounce delay to prevent click events firing immediately after drag ends
   const DRAG_CLICK_DEBOUNCE_MS = 100;
 
@@ -238,7 +235,7 @@
       const { clientX, clientY, device } = event.detail;
 
       // Determine if this is an internal move (same rack)
-      const isInternalMove = event.detail.rackId === RACK_ID;
+      const isInternalMove = event.detail.rackId === rack.id;
 
       // Calculate target position using transform-aware coordinates
       const svgCoords = screenToSVG(svgElement, clientX, clientY);
@@ -286,7 +283,7 @@
       _draggingDeviceIndex = null;
 
       // Determine if this is an internal move (cross-rack is simply !isInternalMove)
-      const isInternalMove = sourceRackId === RACK_ID;
+      const isInternalMove = sourceRackId === rack.id;
 
       // Calculate target position
       const svgCoords = screenToSVG(svgElement, clientX, clientY);
@@ -316,7 +313,7 @@
           ondevicemove?.(
             new CustomEvent("devicemove", {
               detail: {
-                rackId: RACK_ID,
+                rackId: rack.id,
                 deviceIndex: deviceIndex,
                 newPosition: targetU,
               },
@@ -329,7 +326,7 @@
               detail: {
                 sourceRackId: sourceRackId,
                 sourceIndex: deviceIndex,
-                targetRackId: RACK_ID,
+                targetRackId: rack.id,
                 targetPosition: targetU,
               },
             }),
@@ -385,13 +382,13 @@
       return;
     }
 
-    onselect?.(new CustomEvent("select", { detail: { rackId: RACK_ID } }));
+    onselect?.(new CustomEvent("select", { detail: { rackId: rack.id } }));
   }
 
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      onselect?.(new CustomEvent("select", { detail: { rackId: RACK_ID } }));
+      onselect?.(new CustomEvent("select", { detail: { rackId: rack.id } }));
     }
   }
 
@@ -465,7 +462,7 @@
     // Determine if this is an internal move (same rack)
     const isInternalMove =
       dragData.type === "rack-device" &&
-      dragData.sourceRackId === RACK_ID &&
+      dragData.sourceRackId === rack.id &&
       dragData.sourceIndex !== undefined;
 
     event.dataTransfer.dropEffect = isInternalMove ? "move" : "copy";
@@ -541,13 +538,13 @@
     // Determine if this is an internal move (same rack)
     const isInternalMove =
       dragData.type === "rack-device" &&
-      dragData.sourceRackId === RACK_ID &&
+      dragData.sourceRackId === rack.id &&
       dragData.sourceIndex !== undefined;
 
     // Determine if this is a cross-rack move (from different rack)
     const isCrossRackMove =
       dragData.type === "rack-device" &&
-      dragData.sourceRackId !== RACK_ID &&
+      dragData.sourceRackId !== rack.id &&
       dragData.sourceIndex !== undefined;
 
     // Calculate target position using transform-aware coordinates
@@ -580,7 +577,7 @@
         ondevicemove?.(
           new CustomEvent("devicemove", {
             detail: {
-              rackId: RACK_ID,
+              rackId: rack.id,
               deviceIndex: dragData.sourceIndex,
               newPosition: targetU,
             },
@@ -597,7 +594,7 @@
             detail: {
               sourceRackId: dragData.sourceRackId,
               sourceIndex: dragData.sourceIndex,
-              targetRackId: RACK_ID,
+              targetRackId: rack.id,
               targetPosition: targetU,
             },
           }),
@@ -607,7 +604,7 @@
         ondevicedrop?.(
           new CustomEvent("devicedrop", {
             detail: {
-              rackId: RACK_ID,
+              rackId: rack.id,
               slug: dragData.device.slug,
               position: targetU,
             },
@@ -913,7 +910,7 @@
             {device}
             position={placedDevice.position}
             rackHeight={rack.height}
-            rackId={RACK_ID}
+            rackId={rack.id}
             deviceIndex={originalIndex}
             selected={selectedDeviceId === placedDevice.id}
             uHeight={U_HEIGHT}
