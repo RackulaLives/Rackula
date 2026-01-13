@@ -16,7 +16,7 @@ import type {
   Cable,
 } from "$lib/types";
 import { DEFAULT_DEVICE_FACE, MAX_RACKS } from "$lib/types/constants";
-import { canPlaceDevice } from "$lib/utils/collision";
+import { canPlaceDevice, findValidDropPositions } from "$lib/utils/collision";
 import { createLayout, createDefaultRack } from "$lib/utils/serialization";
 import {
   createDeviceType as createDeviceTypeHelper,
@@ -184,6 +184,9 @@ export function getLayoutStore() {
     duplicateRack,
     getRackById,
     setActiveRack,
+
+    // Device actions
+    duplicateDevice,
 
     // Device type actions
     addDeviceType,
@@ -531,6 +534,100 @@ function duplicateRack(id: string): {
   activeRackId = newRackId;
 
   return { rack: duplicatedRack };
+}
+
+/**
+ * Duplicate a placed device within a rack
+ * Places the duplicate in the next available slot on the same face
+ * Inherits all properties (custom label, image overrides, colour)
+ * Uses undo/redo system for reverting the operation
+ * @param rackId - Rack ID containing the device
+ * @param deviceIndex - Index of the device in rack's devices array
+ * @returns The duplicated device or error message
+ */
+function duplicateDevice(
+  rackId: string,
+  deviceIndex: number,
+): { error?: string; device?: PlacedDevice } {
+  const sourceRack = layout.racks.find((r) => r.id === rackId);
+  if (!sourceRack) {
+    return { error: "Rack not found" };
+  }
+
+  if (deviceIndex < 0 || deviceIndex >= sourceRack.devices.length) {
+    return { error: "Device not found" };
+  }
+
+  const sourceDevice = sourceRack.devices[deviceIndex]!;
+  const deviceType = findDeviceTypeInArray(
+    layout.device_types,
+    sourceDevice.device_type,
+  );
+  if (!deviceType) {
+    return { error: "Device type not found" };
+  }
+
+  // Find valid positions on the same face
+  const validPositions = findValidDropPositions(
+    sourceRack,
+    layout.device_types,
+    deviceType.u_height,
+    sourceDevice.face,
+    sourceDevice.slot_position,
+  );
+
+  if (validPositions.length === 0) {
+    return { error: "Cannot duplicate: no available space in rack" };
+  }
+
+  // Prefer adjacent slot (above or below the source device)
+  // Adjacent above: sourceDevice.position + deviceType.u_height
+  // Adjacent below: sourceDevice.position - deviceType.u_height
+  const adjacentAbove = sourceDevice.position + deviceType.u_height;
+  const adjacentBelow = sourceDevice.position - deviceType.u_height;
+
+  let targetPosition: number;
+
+  // Check if adjacent above is valid
+  if (validPositions.includes(adjacentAbove)) {
+    targetPosition = adjacentAbove;
+  } else if (adjacentBelow >= 1 && validPositions.includes(adjacentBelow)) {
+    // Check if adjacent below is valid (and within rack bounds)
+    targetPosition = adjacentBelow;
+  } else {
+    // Fall back to first available position
+    targetPosition = validPositions[0]!;
+  }
+
+  // Create the duplicate device with new ID but inherited properties
+  const duplicatedDevice: PlacedDevice = {
+    ...sourceDevice,
+    id: generateId(),
+    position: targetPosition,
+    // Regenerate ports with new IDs
+    ports: instantiatePorts(deviceType),
+    // Don't copy container_id - duplicates are independent rack-level devices
+    container_id: undefined,
+    slot_id: undefined,
+  };
+
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
+  // Use the undo/redo system via placeDeviceRaw and history
+  const history = getHistoryStore();
+  const adapter = getCommandStoreAdapter();
+  const deviceName = deviceType.model ?? deviceType.slug;
+
+  const command = createPlaceDeviceCommand(
+    duplicatedDevice,
+    adapter,
+    `${deviceName} (Copy)`,
+  );
+  history.execute(command);
+  isDirty = true;
+
+  return { device: duplicatedDevice };
 }
 
 /**

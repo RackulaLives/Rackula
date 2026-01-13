@@ -225,16 +225,16 @@
         action: () => onexport?.(),
       },
 
-      // Ctrl/Cmd+D - duplicate rack
+      // Ctrl/Cmd+D - duplicate selected (device or rack)
       {
         key: "d",
         ctrl: true,
-        action: () => duplicateSelectedRack(),
+        action: () => duplicateSelected(),
       },
       {
         key: "d",
         meta: true,
-        action: () => duplicateSelectedRack(),
+        action: () => duplicateSelected(),
       },
 
       // ? - show help
@@ -345,15 +345,70 @@
   }
 
   /**
+   * Duplicate the currently selected item (device or rack)
+   * If a device is selected, duplicates the device
+   * If only a rack is selected, duplicates the rack
+   */
+  function duplicateSelected() {
+    // Priority 1: Duplicate selected device
+    if (
+      selectionStore.isDeviceSelected &&
+      selectionStore.selectedRackId &&
+      selectionStore.selectedDeviceId
+    ) {
+      duplicateSelectedDevice();
+      return;
+    }
+
+    // Priority 2: Duplicate selected rack
+    if (selectionStore.isRackSelected && selectionStore.selectedRackId) {
+      duplicateSelectedRack();
+      return;
+    }
+  }
+
+  /**
+   * Duplicate the selected device
+   */
+  function duplicateSelectedDevice() {
+    if (!selectionStore.selectedRackId || !selectionStore.selectedDeviceId)
+      return;
+
+    // Get the rack containing the selected device
+    const rack = layoutStore.getRackById(selectionStore.selectedRackId);
+    if (!rack) return;
+
+    // Get device index from ID (UUID-based tracking)
+    const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
+    if (deviceIndex === null) return;
+
+    const result = layoutStore.duplicateDevice(
+      selectionStore.selectedRackId,
+      deviceIndex,
+    );
+    if (result.error) {
+      toastStore.showToast(result.error, "error");
+    } else if (result.device) {
+      // Select the newly duplicated device
+      selectionStore.selectDevice(
+        selectionStore.selectedRackId,
+        result.device.id,
+      );
+      toastStore.showToast("Device duplicated", "success");
+    }
+  }
+
+  /**
    * Duplicate the selected rack
    */
   function duplicateSelectedRack() {
-    if (!selectionStore.isRackSelected || !selectionStore.selectedRackId)
-      return;
+    if (!selectionStore.selectedRackId) return;
 
     const result = layoutStore.duplicateRack(selectionStore.selectedRackId);
     if (result.error) {
       toastStore.showToast(result.error, "error");
+    } else if (result.rack) {
+      toastStore.showToast("Rack duplicated", "success");
     }
   }
 

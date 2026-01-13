@@ -1178,6 +1178,181 @@ describe("Layout Store", () => {
     });
   });
 
+  describe("duplicateDevice", () => {
+    beforeEach(() => {
+      resetLayoutStore();
+    });
+
+    it("duplicates device with all properties inherited", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+
+      // Add a device type and place it
+      const deviceType = store.addDeviceType({
+        name: "Test Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 10, "front");
+
+      // Set a custom name on the device
+      store.updateDeviceName(rack!.id, 0, "Primary Server");
+
+      // Duplicate the device
+      const result = store.duplicateDevice(rack!.id, 0);
+
+      expect(result.device).toBeDefined();
+      expect(result.error).toBeUndefined();
+      expect(result.device!.id).not.toBe(store.rack.devices[0]!.id); // Must have unique ID
+      expect(result.device!.device_type).toBe(deviceType.slug);
+      expect(result.device!.name).toBe("Primary Server"); // Custom name inherited
+    });
+
+    it("places duplicate in next available slot on same face", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+
+      // Create a half-depth device (is_full_depth: false) to test face inheritance
+      const deviceType = store.addDeviceType({
+        name: "Test Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+        is_full_depth: false, // Half-depth allows explicit face
+      });
+      // Place at U10 (occupies U10-U11) on front face
+      store.placeDevice(rack!.id, deviceType.slug, 10, "front");
+
+      // Duplicate
+      const result = store.duplicateDevice(rack!.id, 0);
+
+      expect(result.device).toBeDefined();
+      // Duplicate should be placed in a valid position (not colliding with original)
+      expect(result.device!.position).not.toBe(10);
+      // Should be on same face as original
+      expect(result.device!.face).toBe("front");
+    });
+
+    it("prefers adjacent slot when available", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+
+      const deviceType = store.addDeviceType({
+        name: "Small Server",
+        u_height: 1,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      // Place at U10
+      store.placeDevice(rack!.id, deviceType.slug, 10, "front");
+
+      const result = store.duplicateDevice(rack!.id, 0);
+
+      expect(result.device).toBeDefined();
+      // Should prefer adjacent slot (either U9 or U11)
+      const adjacentPositions = [9, 11];
+      expect(adjacentPositions).toContain(result.device!.position);
+    });
+
+    it("returns error if rack is full", () => {
+      const store = getLayoutStore();
+      // Create a tiny 2U rack
+      const rack = store.addRack("Tiny Rack", 2);
+
+      const deviceType = store.addDeviceType({
+        name: "2U Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      // Fill the rack completely
+      store.placeDevice(rack!.id, deviceType.slug, 1, "front");
+
+      // Try to duplicate - should fail
+      const result = store.duplicateDevice(rack!.id, 0);
+
+      expect(result.device).toBeUndefined();
+      expect(result.error).toBeDefined();
+      expect(result.error).toContain("no available space");
+    });
+
+    it("returns error if device index is invalid", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+
+      const result = store.duplicateDevice(rack!.id, 99);
+
+      expect(result.device).toBeUndefined();
+      expect(result.error).toBeDefined();
+    });
+
+    it("returns error if rack is not found", () => {
+      const store = getLayoutStore();
+      store.addRack("Test Rack", 42);
+
+      const result = store.duplicateDevice("nonexistent-rack", 0);
+
+      expect(result.device).toBeUndefined();
+      expect(result.error).toBeDefined();
+    });
+
+    it("inherits colour override from original device", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+
+      const deviceType = store.addDeviceType({
+        name: "Test Server",
+        u_height: 1,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 10, "front");
+
+      // Set a colour override and capture it for comparison
+      const customColour = "#FF5500";
+      store.updateDeviceColour(rack!.id, 0, customColour);
+      const originalDevice = store.rack.devices[0]!;
+
+      const result = store.duplicateDevice(rack!.id, 0);
+
+      expect(result.device).toBeDefined();
+      // Verify duplicate inherits the same colour override as the original
+      expect(result.device!.colour_override).toBe(
+        originalDevice.colour_override,
+      );
+    });
+
+    it("works with undo/redo", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+
+      const deviceType = store.addDeviceType({
+        name: "Test Server",
+        u_height: 1,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 10, "front");
+
+      // Clear history for clean test
+      store.clearHistory();
+
+      const initialCount = store.rack.devices.length;
+      const result = store.duplicateDevice(rack!.id, 0);
+      expect(result.device).toBeDefined();
+      expect(store.rack.devices.length).toBe(initialCount + 1);
+
+      // Undo should remove the duplicate
+      store.undo();
+      expect(store.rack.devices.length).toBe(initialCount);
+
+      // Redo should restore the duplicate
+      store.redo();
+      expect(store.rack.devices.length).toBe(initialCount + 1);
+    });
+  });
+
   describe("resetLayout", () => {
     it("resets to initial state", () => {
       const store = getLayoutStore();

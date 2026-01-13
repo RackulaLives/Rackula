@@ -16,6 +16,8 @@
   import { findCollisions } from "$lib/utils/collision";
   import { getDeviceDisplayName } from "$lib/utils/device";
   import { getToastStore } from "$lib/stores/toast.svelte";
+  import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { screenToSVG } from "$lib/utils/coordinates";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getBlockedSlots } from "$lib/utils/blocked-slots";
@@ -29,6 +31,8 @@
   const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
   const toastStore = getToastStore();
+  const layoutStore = getLayoutStore();
+  const selectionStore = getSelectionStore();
 
   // Christmas easter egg
   const showChristmasHats = isChristmas();
@@ -524,6 +528,23 @@
     }, DRAG_CLICK_DEBOUNCE_MS);
   }
 
+  /**
+   * Handle device duplication (triggered by right-click context menu)
+   */
+  function handleDeviceDuplicate(
+    event: CustomEvent<{ rackId: string; deviceIndex: number }>,
+  ) {
+    const { rackId, deviceIndex } = event.detail;
+    const result = layoutStore.duplicateDevice(rackId, deviceIndex);
+    if (result.error) {
+      toastStore.showToast(result.error, "error");
+    } else if (result.device) {
+      // Select the newly duplicated device
+      selectionStore.selectDevice(rackId, result.device.id);
+      toastStore.showToast("Device duplicated", "success");
+    }
+  }
+
   function handleDrop(event: DragEvent) {
     event.preventDefault();
     dropPreview = null;
@@ -925,6 +946,7 @@
             onselect={ondeviceselect}
             ondragstart={() => handleDeviceDragStart(originalIndex)}
             ondragend={handleDeviceDragEnd}
+            onduplicate={handleDeviceDuplicate}
           />
         {/if}
       {/each}
