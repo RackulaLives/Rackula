@@ -344,7 +344,6 @@ function addRack(
     return null;
   }
 
-  const rackId = generateRackId();
   const newRack = createDefaultRack(
     name,
     height,
@@ -352,10 +351,9 @@ function addRack(
     form_factor ?? "4-post-cabinet",
     desc_units ?? false,
     starting_unit ?? 1,
+    true, // show_rear
+    generateRackId(), // id - pass directly
   );
-
-  // Add ID to the rack
-  const rackWithId = { ...newRack, id: rackId };
 
   // If this is the first rack, sync layout name
   const isFirstRack = layout.racks.length === 0;
@@ -363,18 +361,18 @@ function addRack(
   layout = {
     ...layout,
     name: isFirstRack ? name : layout.name,
-    racks: [...layout.racks, rackWithId],
+    racks: [...layout.racks, newRack],
   };
   isDirty = true;
 
   // Set as active rack
-  activeRackId = rackId;
+  activeRackId = newRack.id;
 
   // Mark as started (user has created a rack)
   hasStarted = true;
   saveHasStarted(true);
 
-  return rackWithId;
+  return newRack;
 }
 
 /**
