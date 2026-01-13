@@ -2,9 +2,19 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/svelte";
 import { afterEach, beforeEach, vi } from "vitest";
 
-// Suppress bits-ui scroll lock cleanup errors that occur after test teardown
-// These errors happen because bits-ui's body-scroll-lock sets timeouts that fire
-// after the test environment document is torn down. This is benign in tests.
+/*
+ * Targeted bits-ui error suppression
+ *
+ * bits-ui's body-scroll-lock sets timeouts that can fire after test teardown,
+ * causing "document is not defined" errors. This is benign in tests.
+ *
+ * Strategy:
+ * 1. vi.clearAllTimers() in afterEach prevents most timer-related errors
+ * 2. Console.error filter catches remaining scroll lock messages
+ * 3. Process uncaughtException handler catches async cleanup errors
+ *
+ * This targeted approach replaces the blanket dangerouslyIgnoreUnhandledErrors.
+ */
 const originalConsoleError = console.error;
 console.error = (...args: unknown[]) => {
   const message = String(args[0]);
@@ -93,7 +103,9 @@ Object.defineProperty(window, "matchMedia", {
 });
 
 // Global cleanup after each test to prevent memory accumulation
+// Clearing timers prevents bits-ui cleanup timers from firing after test teardown
 afterEach(() => {
   cleanup();
+  vi.clearAllTimers();
   vi.restoreAllMocks();
 });

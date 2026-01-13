@@ -65,8 +65,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ["src/tests/setup.ts"],
     testTimeout: 10000, // 10 seconds per test (increase per-test for slow tests)
-    // Ignore unhandled errors from bits-ui component cleanup timers that fire after test teardown
-    dangerouslyIgnoreUnhandledErrors: true,
+    // bits-ui cleanup errors handled in setup.ts via targeted suppression
     // Use forks pool for memory isolation between test file batches
     // Each fork is a separate process, so memory is fully released when recycled
     // Configure via VITEST_MAX_FORKS env var, defaults to CPU-aware value (2-4)

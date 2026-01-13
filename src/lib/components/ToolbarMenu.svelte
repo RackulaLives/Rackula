@@ -256,7 +256,7 @@
     padding: var(--space-1) var(--space-2);
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
-    color: var(--colour-text-muted-inverse, rgba(255, 255, 255, 0.5));
+    color: var(--colour-text-muted-inverse);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -278,11 +278,11 @@
 
   :global(.menu-item:hover),
   :global(.menu-item[data-highlighted]) {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: var(--colour-overlay-hover);
   }
 
   :global(.menu-item:focus-visible) {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: var(--colour-overlay-hover);
   }
 
   :global(.menu-item[data-disabled]) {
@@ -302,18 +302,18 @@
 
   :global(.menu-shortcut) {
     padding: 2px 6px;
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: var(--colour-overlay-hover);
     border-radius: 3px;
     font-size: var(--font-size-xs);
     font-family: var(--font-mono, monospace);
-    color: var(--colour-text-muted-inverse, rgba(255, 255, 255, 0.6));
+    color: var(--colour-text-muted-inverse);
   }
 
   /* Separator */
   :global(.menu-separator) {
     height: 1px;
     margin: var(--space-2) 0;
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: var(--colour-overlay-border);
   }
 
   /* Reduced motion */
