@@ -69,12 +69,12 @@
   }
 
   .device-height {
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: var(--colour-surface-active, rgba(255, 255, 255, 0.15));
     padding: var(--space-0-5) var(--space-2);
     border-radius: var(--radius-full);
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold, 600);
-    color: var(--dracula-cyan, #8be9fd);
+    color: var(--colour-primary, #8be9fd);
   }
 
   /* Reduced motion */
