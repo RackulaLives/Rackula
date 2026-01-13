@@ -406,20 +406,21 @@ layoutDebug.device("placed device %s at U%d", slug, position);
 
 ### Keyboard Shortcuts
 
-| Key            | Action                  |
-| -------------- | ----------------------- |
-| `Ctrl+Z`       | Undo                    |
-| `Ctrl+Shift+Z` | Redo                    |
-| `Ctrl+Y`       | Redo (alternative)      |
-| `Ctrl+S`       | Save layout             |
-| `Ctrl+O`       | Load layout             |
-| `Ctrl+E`       | Export                  |
-| `I`            | Toggle display mode     |
-| `F`            | Fit all                 |
-| `Delete`       | Delete selection        |
-| `?`            | Show help               |
-| `Escape`       | Clear selection / close |
-| `↑↓`           | Move device in rack     |
+| Key            | Action                         |
+| -------------- | ------------------------------ |
+| `Ctrl+Z`       | Undo                           |
+| `Ctrl+Shift+Z` | Redo                           |
+| `Ctrl+Y`       | Redo (alternative)             |
+| `Ctrl+S`       | Save layout                    |
+| `Ctrl+O`       | Load layout                    |
+| `Ctrl+E`       | Export                         |
+| `Ctrl+D`       | Duplicate selected device/rack |
+| `I`            | Toggle display mode            |
+| `F`            | Fit all                        |
+| `Delete`       | Delete selection               |
+| `?`            | Show help                      |
+| `Escape`       | Clear selection / close        |
+| `↑↓`           | Move device in rack            |
 
 ---
 

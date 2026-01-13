@@ -20,10 +20,15 @@ export interface DragTooltipState {
   y: number;
   /** Whether tooltip is visible */
   visible: boolean;
+  /** Device category color for accent */
+  categoryColor: string;
+  /** Device U-height for sizing */
+  uHeight: number;
 }
 
-/** Offset from cursor to prevent tooltip from obscuring drop target */
+/** Tooltip cursor offset (--space-4) */
 const TOOLTIP_OFFSET_X = 16;
+/** Tooltip cursor offset (--space-2 negative) */
 const TOOLTIP_OFFSET_Y = -8;
 
 /** Drag tooltip store singleton */
@@ -32,6 +37,8 @@ let tooltipState = $state<DragTooltipState>({
   x: 0,
   y: 0,
   visible: false,
+  categoryColor: "",
+  uHeight: 1,
 });
 
 /**
@@ -40,16 +47,36 @@ let tooltipState = $state<DragTooltipState>({
  * @param clientX - Mouse clientX coordinate
  * @param clientY - Mouse clientY coordinate
  */
+/** Maximum U-height for rack devices (standard 42U rack) */
+const MAX_U_HEIGHT = 42;
+
+/**
+ * Check if a color value is valid (non-empty string)
+ */
+function isValidColor(color: string | undefined | null): color is string {
+  return typeof color === "string" && color.trim() !== "";
+}
+
 export function showDragTooltip(
   device: DeviceType,
   clientX: number,
   clientY: number,
 ): void {
+  // Clamp uHeight to valid range (1-42U)
+  const clampedUHeight = Math.max(1, Math.min(device.u_height, MAX_U_HEIGHT));
+
+  // Use device colour only if it's a valid non-empty string
+  const categoryColor = isValidColor(device.colour)
+    ? device.colour
+    : "var(--colour-primary)";
+
   tooltipState = {
     device,
     x: clientX + TOOLTIP_OFFSET_X,
     y: clientY + TOOLTIP_OFFSET_Y,
     visible: true,
+    categoryColor,
+    uHeight: clampedUHeight,
   };
 }
 
@@ -80,6 +107,8 @@ export function hideDragTooltip(): void {
     x: 0,
     y: 0,
     visible: false,
+    categoryColor: "",
+    uHeight: 1,
   };
 }
 

@@ -12,6 +12,7 @@
     createPaletteDragData,
     serializeDragData,
     setCurrentDragData,
+    hideNativeDragGhost,
   } from "$lib/utils/dragdrop";
   import {
     showDragTooltip,
@@ -60,6 +61,9 @@
     const dragData = createPaletteDragData(device);
     event.dataTransfer.setData("application/json", serializeDragData(dragData));
     event.dataTransfer.effectAllowed = "copy";
+
+    // Hide native drag ghost - only our DragTooltip will show
+    hideNativeDragGhost(event.dataTransfer);
 
     // Set shared drag state for dragover (browsers block getData during dragover)
     setCurrentDragData(dragData);

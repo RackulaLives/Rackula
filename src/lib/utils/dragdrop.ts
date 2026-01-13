@@ -206,3 +206,27 @@ export function parseDragData(dataString: string): DragData | null {
     return null;
   }
 }
+
+/**
+ * Transparent 1x1 canvas for hiding native drag ghost
+ * Created once at module level to avoid per-drag allocation
+ */
+let transparentDragImage: HTMLCanvasElement | null = null;
+
+function getTransparentDragImage(): HTMLCanvasElement {
+  if (!transparentDragImage) {
+    transparentDragImage = document.createElement("canvas");
+    transparentDragImage.width = 1;
+    transparentDragImage.height = 1;
+  }
+  return transparentDragImage;
+}
+
+/**
+ * Hide the browser's native drag ghost image
+ * Call this in dragstart handler to show only our custom DragTooltip
+ * @param dataTransfer - The DataTransfer object from drag event
+ */
+export function hideNativeDragGhost(dataTransfer: DataTransfer): void {
+  dataTransfer.setDragImage(getTransparentDragImage(), 0, 0);
+}

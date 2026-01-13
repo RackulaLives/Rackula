@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   calculateDropPosition,
   calculateDropSlotPosition,
   getDropFeedback,
+  hideNativeDragGhost,
   type DragData,
 } from "$lib/utils/dragdrop";
 import type { Rack, DeviceType } from "$lib/types";
@@ -617,6 +618,24 @@ describe("Drag and Drop Utilities", () => {
         "left",
       );
       expect(feedback).toBe("valid");
+    });
+  });
+
+  describe("hideNativeDragGhost", () => {
+    it("calls setDragImage with a 1x1 element", () => {
+      const mockDataTransfer = {
+        setDragImage: vi.fn(),
+      } as unknown as DataTransfer;
+
+      hideNativeDragGhost(mockDataTransfer);
+
+      expect(mockDataTransfer.setDragImage).toHaveBeenCalledTimes(1);
+      const [element, x, y] = (
+        mockDataTransfer.setDragImage as ReturnType<typeof vi.fn>
+      ).mock.calls[0];
+      expect(element).toBeInstanceOf(HTMLCanvasElement);
+      expect(x).toBe(0);
+      expect(y).toBe(0);
     });
   });
 

@@ -33,6 +33,13 @@ export default defineConfig(() => ({
   base: process.env.VITE_BASE_PATH || "/",
   publicDir: "static",
   plugins: [svelte()],
+  server: {
+    watch: {
+      // Ignore git worktrees and other development artifacts
+      // Vite already ignores .git/, node_modules/, test-results/, cacheDir, build.outDir
+      ignored: ["**/.worktree/**", "**/coverage/**", "**/playwright-report/**"],
+    },
+  },
   define: {
     // Inject version at build time
     __APP_VERSION__: JSON.stringify(pkg.version),
