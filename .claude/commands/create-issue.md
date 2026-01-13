@@ -293,7 +293,7 @@ Use AskUserQuestion with dynamic labels showing actual versions:
 
 ### Step 10: Preview & Confirm
 
-Show complete issue preview:
+Show complete issue preview (unchanged format):
 
 ```
 === PREVIEW ===
@@ -302,25 +302,52 @@ Labels: bug, area:ui, size:small
 Milestone: v0.7.0
 
 ## Summary
+
 Toast notifications appear behind modal dialogs when both are visible.
 
 ## Expected Behavior
+
 Toast should appear above all other UI elements.
 
 ## Actual Behavior
+
 Toast renders behind modal overlay.
 
 ## Acceptance Criteria
+
 - [ ] Toast z-index exceeds modal z-index
 - [ ] Toast remains visible when modal is open
 
 ## Test Requirements
+
 - [ ] Unit test: toast z-index is higher than modal
-
----
-
-Create this issue? [y/n]:
 ```
+
+Then use AskUserQuestion tool:
+
+```json
+{
+  "questions": [
+    {
+      "header": "Create?",
+      "question": "Issue preview looks good?",
+      "multiSelect": false,
+      "options": [
+        { "label": "Create issue", "description": "Submit to GitHub now" },
+        {
+          "label": "Edit details",
+          "description": "Go back and modify something"
+        },
+        { "label": "Cancel", "description": "Discard and exit" }
+      ]
+    }
+  ]
+}
+```
+
+- "Create issue": Proceed to Step 11
+- "Edit details": Ask which section to edit, loop back
+- "Cancel": Output "Issue creation cancelled." and stop
 
 ### Step 11: Create Issue
 
