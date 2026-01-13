@@ -3,6 +3,7 @@
 ## Files Examined
 
 ### Dialog/Modal Components
+
 - `src/lib/components/Dialog.svelte` - Base wrapper for bits-ui Dialog
 - `src/lib/components/ConfirmDialog.svelte` - Reusable confirmation dialog
 - `src/lib/components/ConfirmReplaceDialog.svelte` - Specialized confirmation
@@ -12,21 +13,25 @@
 - `src/lib/components/ImportFromNetBoxDialog.svelte` - NetBox import dialog
 
 ### Sheet/Mobile Components
+
 - `src/lib/components/BottomSheet.svelte` - Custom bottom sheet with swipe-to-dismiss
 - `src/lib/components/RackEditSheet.svelte` - Mobile rack editing sheet
 - `src/lib/components/MobileWarningModal.svelte` - Custom modal with focus trap
 
 ### UI Components
+
 - `src/lib/components/Tooltip.svelte` - Custom tooltip
 - `src/lib/components/PortTooltip.svelte` - Network port tooltip
 - `src/lib/components/SidebarTabs.svelte` - bits-ui Tabs implementation
 
 ### bits-ui Wrappers
+
 - `src/lib/components/ui/Tabs/index.ts` - Export wrapper
 - `src/lib/components/ui/Accordion/index.ts` - Export wrapper
 - `src/lib/components/ui/Dialog/index.ts` - Export wrapper
 
 ### State Management
+
 - `src/lib/stores/dialogs.svelte.ts` - Centralized dialog state
 - `src/App.svelte` - Main app with PaneForge and dialog orchestration
 
@@ -37,6 +42,7 @@
 ### Already Using bits-ui Dialog
 
 **1. Dialog.svelte (Base wrapper)**
+
 - Uses `bits-ui Dialog.Root`, `Dialog.Portal`, `Dialog.Overlay`, `Dialog.Content`, `Dialog.Title`, `Dialog.Close`
 - State: `open` prop with `$bindable()` for two-way binding
 - Customizable width, title, close button visibility
@@ -44,18 +50,21 @@
 - Pattern: Open/close callback with `onOpenChange` handler
 
 **2. ConfirmDialog.svelte (Wraps Dialog.svelte)**
+
 - Reusable confirmation with message, confirm/cancel buttons
 - State: `open` prop, `onconfirm`/`oncancel` callbacks
 - Destructive button styling option
 - Keyboard: Enter key for confirm, manually added listener via `onMount`
 
 **3. ConfirmReplaceDialog.svelte (Direct bits-ui Dialog)**
+
 - Direct bits-ui primitives without wrapper (no Dialog.svelte)
 - Derived state: rack name, device count from layout store
 - Three-button layout: Cancel, Save First, Replace
 - Pattern: `open` bindable, `onOpenChange` handler
 
 **4. HelpPanel.svelte (Direct bits-ui Dialog)**
+
 - Direct bits-ui primitives
 - Complex multi-section content (shortcuts, links, build info)
 - State management: analytics tracking on open/close, relative time updates
@@ -65,6 +74,7 @@
 ### Custom/Non-bits-ui Dialogs
 
 **5. MobileWarningModal.svelte (Custom modal)**
+
 - Custom implementation with manual focus trap and event listeners
 - Uses `trapFocus` directive and `createFocusManager` utility
 - SessionStorage for dismissal persistence
@@ -74,6 +84,7 @@
 ### Custom Sheets (Not bits-ui)
 
 **6. BottomSheet.svelte (Custom sheet)**
+
 - Manual implementation with pointer events for swipe-to-dismiss
 - Drag gesture detection: pointer up/down/move/cancel
 - Transform animations with cubic-bezier easing
@@ -82,6 +93,7 @@
 - Focus management: Manual body overflow prevention
 
 **7. RackEditSheet.svelte (Uses BottomSheet.svelte)**
+
 - Content component passed to BottomSheet
 - Rack editing form with validation
 - Confirmation dialog inside (uses ConfirmDialog)
@@ -89,15 +101,18 @@
 ### Other Dialogs (Using Dialog.svelte wrapper)
 
 **8. ExportDialog.svelte**
+
 - Export configuration with live preview
 - State: format, view, background, transparent, includeLegend, includeQR options
 - Keyboard: Escape to close
 
 **9. ShareDialog.svelte**
+
 - Share URL and QR code generation
 - State: async QR generation, copy to clipboard
 
 **10. ImportFromNetBoxDialog.svelte**
+
 - Two-mode interface: paste/upload YAML
 - State: input mode, parsing state, preview overrides
 - Manual button-based tabs (not bits-ui Tabs)
@@ -111,6 +126,7 @@
 **Location:** `src/lib/components/DevicePalette.svelte`
 
 **Pattern:**
+
 ```svelte
 import { Accordion } from "bits-ui";
 
@@ -124,6 +140,7 @@ $effect(() => {
 ```
 
 **Features:**
+
 - Type: "single" (exclusive - only one section open at a time)
 - Multiple grouping modes: brand, category, flat
 - Default values sync with grouping mode changes
@@ -131,6 +148,7 @@ $effect(() => {
 - Empty state handling for search results
 
 **Accessibility:**
+
 - bits-ui provides: `aria-expanded`, focus management, keyboard navigation
 - Tests verify: Tab navigation, Enter/Space toggle, `aria-expanded` updates
 
@@ -139,8 +157,9 @@ $effect(() => {
 **Location:** `src/lib/components/SidebarTabs.svelte` (NEW - PR #521)
 
 **Pattern:**
+
 ```svelte
-import { Tabs } from "$lib/components/ui/Tabs";
+import {Tabs} from "$lib/components/ui/Tabs";
 
 <Tabs.Root
   value={activeTab}
@@ -161,6 +180,7 @@ import { Tabs } from "$lib/components/ui/Tabs";
 ```
 
 **Features:**
+
 - Horizontal orientation with loop enabled (arrow wrapping)
 - Icon + label triggers
 - CSS handles visibility with `[data-state="active"]` selector
@@ -173,8 +193,9 @@ import { Tabs } from "$lib/components/ui/Tabs";
 **Location:** `src/App.svelte`
 
 **Usage:**
+
 ```svelte
-import { PaneGroup, Pane, PaneResizer } from "paneforge";
+import {(PaneGroup, Pane, PaneResizer)} from "paneforge";
 
 <PaneGroup>
   <Pane defaultSize={20} minSize={15} maxSize={40}>
@@ -192,6 +213,7 @@ import { PaneGroup, Pane, PaneResizer } from "paneforge";
 ```
 
 **Completed Migrations:**
+
 - PaneForge for resizable sidebar (#495, #497)
 - SidebarTabs migrated to bits-ui Tabs (#503, #521)
 
@@ -200,12 +222,14 @@ import { PaneGroup, Pane, PaneResizer } from "paneforge";
 ## State Management Patterns
 
 ### Dialog State (Centralized)
+
 - `dialogStore`: Centralized store managing all dialog states
 - Pattern: `dialogStore.isOpen("dialogName")` returns boolean
 - Managed dialogs: newRack, addDevice, confirmDelete, export, share, help, importNetBox, confirmReplace
 - Sheet dialogs: deviceDetails, deviceLibrary, rackEdit
 
 ### Component-level State
+
 - Most components use `$state()` for local form fields
 - `$bindable()` for two-way binding on `open` prop
 - `$effect()` for reactive state synchronization
@@ -215,20 +239,24 @@ import { PaneGroup, Pane, PaneResizer } from "paneforge";
 ## Accessibility Patterns
 
 ### bits-ui Components (Built-in)
+
 - Dialog: Focus trap, `aria-modal`, `aria-labelledby`, keyboard ESC
 - Accordion: `aria-expanded`, keyboard navigation (Tab, Enter, Space)
 - Tabs: Arrow keys, `aria-label` on list, `data-state` for styling
 
 ### Custom Implementations
+
 - Tooltip: `role="tooltip"`, no ARIA live region
 - BottomSheet: `role="dialog"`, `aria-modal="true"`, manual focus management
 - MobileWarningModal: `role="alertdialog"`, `aria-describedby`, focus trap
 
 ### Focus Management
+
 - bits-ui Dialog: Automatic
 - Custom components: Manual via `createFocusManager()` or `trapFocus` directive
 
 ### Reduced Motion
+
 - BottomSheet: `@media (prefers-reduced-motion: reduce)` removes transitions
 - Tooltip: `@media (prefers-reduced-motion: reduce)` removes animation
 - bits-ui components: Inherited from library
@@ -255,10 +283,10 @@ import { PaneGroup, Pane, PaneResizer } from "paneforge";
    - Issue: bits-ui may not have Sheet component
    - Decision: Keep custom for swipe-to-dismiss UX or wait for bits-ui Sheet
 
-4. **Tooltip.svelte** → bits-ui Tooltip (if available)
+4. **Tooltip.svelte** → bits-ui Tooltip
    - Currently: Custom tooltip with position variants
-   - Issue: bits-ui v2.14.4 doesn't export Tooltip
-   - Alternative: Consider Floating UI or bits-ui Popover
+   - bits-ui provides full Tooltip API: `Tooltip.Provider`, `Tooltip.Root`, `Tooltip.Trigger`, `Tooltip.Content`, `Tooltip.Arrow`
+   - **Mobile limitation**: bits-ui tooltips are not supported on mobile devices; fall back to Popover or Floating UI for mobile-first behavior
 
 ### Already Migrated / Working Well
 
@@ -273,14 +301,20 @@ import { PaneGroup, Pane, PaneResizer } from "paneforge";
 ## Package Dependencies
 
 From `package.json`:
-- `bits-ui`: `^2.14.4` - Contains: Dialog, Accordion, Tabs
+
+- `bits-ui`: `^2.15.4` - Headless component library
 - `paneforge`: `^1.0.2` - Resizable panes
 
-**Available in bits-ui v2.14.4:**
+**Available in bits-ui v2.15.4:**
+
 - Dialog
 - Accordion
 - Tabs
-- NOT included: Sheet, Tooltip, Popover, Select, Combobox
+- Tooltip
+- Popover
+- Select
+- Combobox
+- NOT included: Sheet (Drawer) — use vaul-svelte instead
 
 ---
 
