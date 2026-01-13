@@ -880,43 +880,102 @@
 
     <!-- SVG Defs for blocked slots pattern -->
     <defs>
-      <!-- Diagonal stripe pattern for blocked slots -->
+      <!-- Crosshatch pattern for blocked slots - uses two overlapping diagonal line sets
+           for better visibility and accessibility (not relying solely on color) -->
       <pattern
-        id="blocked-stripe-pattern"
+        id="blocked-crosshatch-pattern"
         patternUnits="userSpaceOnUse"
         width="8"
         height="8"
-        patternTransform="rotate(45)"
       >
-        <rect width="4" height="8" class="blocked-stripe-rect" />
+        <!-- First diagonal (top-left to bottom-right) -->
+        <line
+          x1="0"
+          y1="0"
+          x2="8"
+          y2="8"
+          class="blocked-crosshatch-line"
+          stroke-width="1.5"
+        />
+        <!-- Second diagonal (top-right to bottom-left) -->
+        <line
+          x1="8"
+          y1="0"
+          x2="0"
+          y2="8"
+          class="blocked-crosshatch-line"
+          stroke-width="1.5"
+        />
       </pattern>
+
+      <!-- Arrow symbol pointing to indicate device is on opposite face -->
+      <symbol id="blocked-arrow-icon" viewBox="0 0 16 16">
+        <!-- Horizontal line -->
+        <line
+          x1="2"
+          y1="8"
+          x2="14"
+          y2="8"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+        <!-- Arrow head -->
+        <polyline
+          points="9,4 14,8 9,12"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          fill="none"
+        />
+      </symbol>
     </defs>
 
     <!-- Blocked Slots Overlay (renders before devices so devices appear on top) -->
     {#if blockedSlots.length > 0}
+      {@const slotHeight = (slot: { bottom: number; top: number }) =>
+        (slot.top - slot.bottom + 1) * U_HEIGHT}
+      {@const slotY = (slot: { bottom: number; top: number }) =>
+        (rack.height - slot.top) * U_HEIGHT}
+      {@const slotWidth = RACK_WIDTH - 2 * RAIL_WIDTH}
+      {@const iconSize = 14}
       <g
         class="blocked-slots-layer"
         transform="translate(0, {RACK_PADDING + RAIL_WIDTH})"
       >
         {#each blockedSlots as slot (slot.bottom + "-" + slot.top)}
-          <!-- Background wash -->
+          <!-- Background wash with improved opacity -->
           <rect
             class="blocked-slot blocked-slot-bg"
             x={RAIL_WIDTH}
-            y={(rack.height - slot.top) * U_HEIGHT}
-            width={RACK_WIDTH - 2 * RAIL_WIDTH}
-            height={(slot.top - slot.bottom + 1) * U_HEIGHT}
-            opacity="0.5"
+            y={slotY(slot)}
+            width={slotWidth}
+            height={slotHeight(slot)}
           />
-          <!-- Diagonal stripe pattern -->
+          <!-- Crosshatch pattern for accessibility (visual texture, not just color) -->
           <rect
-            class="blocked-slot blocked-slot-stripes"
+            class="blocked-slot blocked-slot-pattern"
             x={RAIL_WIDTH}
-            y={(rack.height - slot.top) * U_HEIGHT}
-            width={RACK_WIDTH - 2 * RAIL_WIDTH}
-            height={(slot.top - slot.bottom + 1) * U_HEIGHT}
-            fill="url(#blocked-stripe-pattern)"
-            opacity="0.8"
+            y={slotY(slot)}
+            width={slotWidth}
+            height={slotHeight(slot)}
+            fill="url(#blocked-crosshatch-pattern)"
+          />
+          <!-- Directional arrow icon indicating device is on opposite face.
+               Arrow points right for front view (device on rear),
+               arrow points left for rear view (device on front).
+               Centered vertically in the blocked slot area. -->
+          <use
+            href="#blocked-arrow-icon"
+            class="blocked-slot-icon"
+            x={RAIL_WIDTH + slotWidth / 2 - iconSize / 2}
+            y={slotY(slot) + slotHeight(slot) / 2 - iconSize / 2}
+            width={iconSize}
+            height={iconSize}
+            transform={faceFilter === "rear"
+              ? `rotate(180, ${RAIL_WIDTH + slotWidth / 2}, ${slotY(slot) + slotHeight(slot) / 2})`
+              : ""}
           />
         {/each}
       </g>
@@ -1197,17 +1256,26 @@
     stroke-width: 2;
   }
 
-  /* Blocked Slots - Diagonal stripe pattern */
-  .blocked-stripe-rect {
-    fill: var(--colour-blocked-stripe, rgba(239, 68, 68, 0.35));
+  /* Blocked Slots - Crosshatch pattern for half-depth conflicts
+     Uses both pattern and color for accessibility (WCAG: not relying solely on color) */
+  .blocked-crosshatch-line {
+    stroke: var(--colour-blocked-stroke, rgba(239, 68, 68, 0.45));
   }
 
   .blocked-slot-bg {
-    fill: var(--colour-blocked-bg, rgba(239, 68, 68, 0.08));
+    fill: var(--colour-blocked-bg, rgba(239, 68, 68, 0.12));
   }
 
-  .blocked-slot-stripes {
+  .blocked-slot-pattern {
     pointer-events: none;
+    opacity: 0.9;
+  }
+
+  /* Arrow icon indicating device is on opposite face */
+  .blocked-slot-icon {
+    color: var(--colour-blocked-icon, rgba(239, 68, 68, 0.7));
+    pointer-events: none;
+    opacity: 0.85;
   }
 
   /* Party mode: rainbow glow animation */

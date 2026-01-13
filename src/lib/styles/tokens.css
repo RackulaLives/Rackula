@@ -287,19 +287,11 @@
     --dracula-foreground
   ); /* Highlighted U labels (multiples of 5) */
 
-  /* Blocked Slots (dual-view mode) - diagonal stripe pattern */
-  --colour-blocked-stripe: rgba(
-    239,
-    68,
-    68,
-    0.35
-  ); /* Red stripe for visibility */
-  --colour-blocked-bg: rgba(
-    239,
-    68,
-    68,
-    0.08
-  ); /* Subtle red wash behind stripes */
+  /* Blocked Slots (dual-view mode) - crosshatch pattern for half-depth conflicts
+     Uses visual texture (crosshatch + icon) not just color for accessibility */
+  --colour-blocked-stroke: rgba(239, 68, 68, 0.45); /* Crosshatch line stroke */
+  --colour-blocked-bg: rgba(239, 68, 68, 0.12); /* Subtle red wash background */
+  --colour-blocked-icon: rgba(239, 68, 68, 0.7); /* Directional arrow icon */
 
   /* Toolbar */
   --toolbar-height: 56px;
@@ -511,8 +503,9 @@
   /* NOTE: Rack tokens intentionally NOT overridden - racks stay dark in all themes */
 
   /* Blocked Slots - slightly lighter for light theme (rack stays dark) */
-  --colour-blocked-stripe: rgba(203, 58, 42, 0.3);
-  --colour-blocked-bg: rgba(203, 58, 42, 0.06);
+  --colour-blocked-stroke: rgba(203, 58, 42, 0.4);
+  --colour-blocked-bg: rgba(203, 58, 42, 0.1);
+  --colour-blocked-icon: rgba(203, 58, 42, 0.65);
 
   --toolbar-bg: var(--alucard-floating);
   --toolbar-border: var(--alucard-bg-light);
