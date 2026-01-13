@@ -453,6 +453,7 @@
 
   function handleExportCancel() {
     dialogStore.close();
+    handleFitAll();
   }
 
   function handleShare() {
@@ -468,6 +469,7 @@
 
   function handleShareClose() {
     dialogStore.close();
+    handleFitAll();
   }
 
   function handleDelete() {
@@ -523,6 +525,7 @@
 
   function handleCancelDelete() {
     dialogStore.close();
+    handleFitAll();
   }
 
   function handleFitAll() {
@@ -553,6 +556,7 @@
 
   function handleHelpClose() {
     dialogStore.close();
+    handleFitAll();
   }
 
   function handleAddDevice() {
@@ -689,6 +693,7 @@
   function handleBottomSheetClose() {
     dialogStore.closeSheet();
     selectionStore.clearSelection();
+    handleFitAll();
   }
 
   // Handle mobile device actions (remove, move)
@@ -743,6 +748,7 @@
   // Handle device library sheet close
   function handleDeviceLibrarySheetClose() {
     dialogStore.closeSheet();
+    handleFitAll();
   }
 
   // Handle rack long press (mobile rack editing)
@@ -759,6 +765,7 @@
   // Handle rack edit sheet close
   function handleRackEditSheetClose() {
     dialogStore.closeSheet();
+    handleFitAll();
   }
 
   // Handle mobile device selection from palette (enters placement mode)
