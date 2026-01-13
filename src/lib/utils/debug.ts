@@ -38,14 +38,20 @@ export const appDebug = {
   mobile: Debug("rackula:app:mobile"),
 };
 
+// Create shared instances for reuse
+const generalLog = Debug("rackula:general");
+const infoLog = Debug("rackula:info");
+const warnLog = Debug("rackula:warn");
+const errorLog = Debug("rackula:error");
+
 // Legacy compatibility - maps to new namespaces
 // This maintains backward compatibility with existing code
 export const debug = {
-  log: Debug("rackula:general"),
-  info: Debug("rackula:info"),
-  warn: Debug("rackula:warn"),
-  error: Debug("rackula:error"),
-  group: (label: string) => Debug("rackula:general")(`--- ${label} ---`),
+  log: generalLog,
+  info: infoLog,
+  warn: warnLog,
+  error: errorLog,
+  group: (label: string) => generalLog(`--- ${label} ---`),
   groupEnd: () => {},
   isEnabled: () => Debug.enabled("rackula:*"),
   devicePlace: (data: {
@@ -69,14 +75,14 @@ export const debug = {
 
 // Auto-enable in development (browser only)
 if (typeof window !== "undefined") {
-  const isDev = (import.meta as ImportMeta & { env?: { DEV?: boolean } }).env
-    ?.DEV;
-  const isTest =
-    (import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ===
-    "test";
+  // Use Vite's built-in env types
+  const isDev = import.meta.env.DEV;
+  const isTest = import.meta.env.MODE === "test";
 
   // Auto-enable in dev mode (unless already configured)
   if (isDev && !isTest && !localStorage.getItem("debug")) {
     localStorage.setItem("debug", "rackula:*");
+    // Enable immediately so logs work without page reload
+    Debug.enable("rackula:*");
   }
 }
