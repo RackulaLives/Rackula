@@ -45,16 +45,39 @@ Full guided workflow for creating well-formed issues.
 
 ### Step 1: Type Selection
 
-Ask the user:
+Use the AskUserQuestion tool:
 
+```json
+{
+  "questions": [
+    {
+      "header": "Issue type",
+      "question": "What type of issue are you creating?",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Bug",
+          "description": "Something is broken or not working as expected"
+        },
+        {
+          "label": "Feature",
+          "description": "New capability or functionality"
+        },
+        {
+          "label": "Chore",
+          "description": "Refactoring, docs, tooling, maintenance"
+        },
+        {
+          "label": "Spike",
+          "description": "Research or investigation before implementation"
+        }
+      ]
+    }
+  ]
+}
 ```
-What type of issue are you creating?
 
-1. bug      - Something is broken
-2. feature  - New capability
-3. chore    - Refactoring, docs, tooling
-4. spike    - Research before implementation
-```
+Map response to type: Bug→`bug`, Feature→`feature`, Chore→`chore`, Spike→`spike`
 
 ### Step 2: Summary
 
