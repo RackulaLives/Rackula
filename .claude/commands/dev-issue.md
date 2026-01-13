@@ -1,7 +1,9 @@
-# Issue Development Workflow v6
+# Issue Development Workflow v7
 
 Pick up the next ready issue, assess it, and either complete it or document blockers.
 Designed for autonomous operation with subagent delegation and memory-assisted context.
+
+**Key feature:** Automatically targets the next milestone (lowest semver with open issues).
 
 **Arguments:** `$ARGUMENTS` (optional: issue number to work on specific issue)
 
@@ -241,12 +243,27 @@ git fetch origin --prune
 git branch -a | grep -E "(fix|feat|chore|refactor|test|docs)/" || echo "No WIP branches"
 ```
 
-### 1e. Issue Fetch (Bash)
+### 1e. Determine Next Milestone (Bash)
 
-Fetch top 5 ready issues sorted by priority then size, **excluding in-progress**:
+Dynamically find the next milestone (lowest semver with open issues):
+
+```bash
+NEXT_MILESTONE=$(gh api repos/RackulaLives/Rackula/milestones \
+  --jq '[.[] | select(.state=="open" and .open_issues > 0)]
+        | sort_by(.title | ltrimstr("v") | split(".") | map(tonumber))
+        | .[0].title')
+echo "Next milestone: $NEXT_MILESTONE"
+```
+
+This automatically advances as milestones are completed.
+
+### 1f. Issue Fetch (Bash)
+
+Fetch top 5 ready issues from the next milestone, sorted by priority then size, **excluding in-progress**:
 
 ```bash
 gh issue list -R RackulaLives/Rackula --state open --label ready \
+  --milestone "$NEXT_MILESTONE" \
   --json number,title,labels,body \
   --jq '[.[] | select(.labels | map(.name) | any(. == "in-progress") | not)] |
   sort_by(
@@ -259,6 +276,8 @@ gh issue list -R RackulaLives/Rackula --state open --label ready \
       else 2 end)
   ) | .[0:5]'
 ```
+
+**Note:** If no issues in milestone, falls back to all ready issues (remove `--milestone` flag).
 
 Filter out worktree-claimed issues. If none remain, report "No ready issues available" and stop.
 
@@ -416,10 +435,17 @@ gh pr merge --squash --delete-branch --auto
 
 ## Phase 4: Continue or Stop
 
-Check for more ready issues (excluding in-progress):
+Check for more ready issues in the current milestone (excluding in-progress):
 
 ```bash
+# Re-fetch milestone in case it changed
+NEXT_MILESTONE=$(gh api repos/RackulaLives/Rackula/milestones \
+  --jq '[.[] | select(.state=="open" and .open_issues > 0)]
+        | sort_by(.title | ltrimstr("v") | split(".") | map(tonumber))
+        | .[0].title')
+
 gh issue list -R RackulaLives/Rackula --state open --label ready \
+  --milestone "$NEXT_MILESTONE" \
   --json number,labels \
   --jq '[.[] | select(.labels | map(.name) | any(. == "in-progress") | not)] | length'
 ```
@@ -437,12 +463,12 @@ Write session summary when stopping.
 
 **Use:** `/debug-with-memory` for memory-assisted debugging, which invokes `superpowers:systematic-debugging`
 
-| Attempt | Action                                                    |
-| ------- | --------------------------------------------------------- |
-| 1       | Read output, fix obvious issues                           |
-| 2       | Invoke `/debug-with-memory` with error keywords           |
-| 3       | Follow systematic debugging with memory context           |
-| 4+      | Proceed to Blocker Handling                               |
+| Attempt | Action                                          |
+| ------- | ----------------------------------------------- |
+| 1       | Read output, fix obvious issues                 |
+| 2       | Invoke `/debug-with-memory` with error keywords |
+| 3       | Follow systematic debugging with memory context |
+| 4+      | Proceed to Blocker Handling                     |
 
 ### Lint/Build Failures
 
