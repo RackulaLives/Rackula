@@ -4,6 +4,7 @@ Create well-formed GitHub Issues or triage existing ones for the ready queue.
 Designed for quick capture during development and structured issue planning.
 
 **Arguments:** `$ARGUMENTS` (optional)
+
 - No args: Interactive mode (guided prompts)
 - Number only (e.g., `42`): Triage existing issue
 - Quoted string (e.g., `"Fix toast bug"`): Quick capture
@@ -12,10 +13,10 @@ Designed for quick capture during development and structured issue planning.
 
 ## Permissions
 
-| Action | Scope |
-|--------|-------|
+| Action        | Scope                                        |
+| ------------- | -------------------------------------------- |
 | GitHub Issues | Read, create, edit (labels, body, milestone) |
-| GitHub API | Read milestones |
+| GitHub API    | Read milestones, create milestones           |
 
 **Commands allowed:** `gh issue list`, `gh issue view`, `gh issue create`, `gh issue edit`, `gh api`
 
@@ -45,6 +46,7 @@ Full guided workflow for creating well-formed issues.
 ### Step 1: Type Selection
 
 Ask the user:
+
 ```
 What type of issue are you creating?
 
@@ -57,6 +59,7 @@ What type of issue are you creating?
 ### Step 2: Summary
 
 Ask for a one-line summary:
+
 ```
 Enter a one-line summary:
 > _____
@@ -65,11 +68,13 @@ Enter a one-line summary:
 ### Step 3: Duplicate Check
 
 Search for similar issues:
+
 ```bash
 gh issue list --search "<summary keywords>" --limit 5 --json number,title,state
 ```
 
 If matches found, display them and ask:
+
 ```
 Possible duplicates:
 1. #42: Toast z-index issue (open)
@@ -83,19 +88,23 @@ If user selects a duplicate, comment on existing issue and stop.
 ### Step 4: Type-Specific Details
 
 **For bug:**
+
 - What is the expected behavior?
 - What is the actual behavior?
 - Steps to reproduce (optional)
 
 **For feature:**
+
 - What problem does this solve?
 - Proposed solution (optional)
 
 **For chore:**
+
 - What needs to be done?
 - Why is this needed?
 
 **For spike:**
+
 - Research question
 - Expected deliverables
 - Time box (default: "2-4 hours")
@@ -103,6 +112,7 @@ If user selects a duplicate, comment on existing issue and stop.
 ### Step 5: Acceptance Criteria
 
 Prompt for testable criteria:
+
 ```
 Enter acceptance criteria (one per line, empty line to finish):
 > Toast z-index exceeds modal z-index
@@ -115,6 +125,7 @@ Format as `- [ ] <criterion>` in issue body.
 ### Step 6: Test Requirements
 
 For bug/feature/chore (skip for spike):
+
 ```
 Enter test requirements (one per line, empty line to finish):
 > Unit test: toast z-index is higher than modal
@@ -124,6 +135,7 @@ Enter test requirements (one per line, empty line to finish):
 ### Step 7: Label Suggestions
 
 Use keyword inference (see Label Inference section) and present:
+
 ```
 Suggested labels based on content:
 - area:ui (detected: "toast", "modal")
@@ -144,11 +156,13 @@ Priority? (u=urgent, h=high, m=medium, l=low, enter=skip):
 ### Step 9: Milestone
 
 Fetch available milestones:
+
 ```bash
 gh api repos/:owner/:repo/milestones --jq '.[] | "\(.number). \(.title)"'
 ```
 
 Present:
+
 ```
 Assign to milestone?
 1. v0.7.0
@@ -160,6 +174,7 @@ Assign to milestone?
 ### Step 10: Preview & Confirm
 
 Show complete issue preview:
+
 ```
 === PREVIEW ===
 Title: bug: Toast appears behind modal
@@ -225,15 +240,16 @@ Display issue summary.
 
 Parse issue body and check for required sections:
 
-| Section | Check For |
-|---------|-----------|
+| Section             | Check For                                 |
+| ------------------- | ----------------------------------------- |
 | Acceptance Criteria | `## Acceptance Criteria` or `- [ ]` items |
-| Test Requirements | `## Test Requirements` or `## Tests` |
-| Size label | `size:small`, `size:medium`, `size:large` |
-| Area label | Any `area:*` label |
-| Type label | `bug`, `feature`, `chore`, `spike` |
+| Test Requirements   | `## Test Requirements` or `## Tests`      |
+| Size label          | `size:small`, `size:medium`, `size:large` |
+| Area label          | Any `area:*` label                        |
+| Type label          | `bug`, `feature`, `chore`, `spike`        |
 
 Display status:
+
 ```
 Issue #42: Toast appears behind modal
 
@@ -257,6 +273,7 @@ For each missing element, prompt user with same flow as Interactive mode steps 5
 ### Step 4: Update Issue
 
 Append new sections to issue body:
+
 ```bash
 gh issue edit $ARGUMENTS --body "<original + new sections>"
 ```
@@ -299,6 +316,7 @@ gh issue list --search "<keywords>" --limit 3 --json number,title,state
 ```
 
 If matches found:
+
 ```
 Possible duplicates:
 1. #42: Toast z-index issue (open)
@@ -346,46 +364,46 @@ Labels: bug, triage, area:ui (inferred)
 
 ### Type Labels (from keywords)
 
-| Keywords | Label |
-|----------|-------|
-| fix, bug, broken, error, crash, fails, wrong, issue | `bug` |
-| add, implement, new, support, enable, allow, feature | `feature` |
-| refactor, clean, update, docs, rename, move, remove | `chore` |
-| research, investigate, explore, spike, POC, prototype | `spike` |
+| Keywords                                              | Label     |
+| ----------------------------------------------------- | --------- |
+| fix, bug, broken, error, crash, fails, wrong, issue   | `bug`     |
+| add, implement, new, support, enable, allow, feature  | `feature` |
+| refactor, clean, update, docs, rename, move, remove   | `chore`   |
+| research, investigate, explore, spike, POC, prototype | `spike`   |
 
 **Default:** If no keywords match, ask user in interactive/triage, use `chore` in quick capture.
 
 ### Area Labels (from keywords)
 
-| Keywords | Label |
-|----------|-------|
-| rack, canvas, SVG, render, zoom, pan, placement | `area:canvas` |
-| toolbar, button, modal, toast, menu, panel, dialog | `area:ui` |
-| device, library, category, 0.5U, manufacturer | `area:devices` |
-| save, load, export, import, PDF, PNG, zip, YAML | `area:export` |
-| accessibility, keyboard, screen reader, focus, ARIA | `area:a11y` |
-| docs, documentation, README, CLAUDE.md | `area:docs` |
-| schema, validation, Zod, format, migration | `area:data-schema` |
-| test, vitest, playwright, e2e, coverage | `area:testing` |
+| Keywords                                            | Label              |
+| --------------------------------------------------- | ------------------ |
+| rack, canvas, SVG, render, zoom, pan, placement     | `area:canvas`      |
+| toolbar, button, modal, toast, menu, panel, dialog  | `area:ui`          |
+| device, library, category, 0.5U, manufacturer       | `area:devices`     |
+| save, load, export, import, PDF, PNG, zip, YAML     | `area:export`      |
+| accessibility, keyboard, screen reader, focus, ARIA | `area:a11y`        |
+| docs, documentation, README, CLAUDE.md              | `area:docs`        |
+| schema, validation, Zod, format, migration          | `area:data-schema` |
+| test, vitest, playwright, e2e, coverage             | `area:testing`     |
 
 ### Size Labels (defaults)
 
-| Type | Default Size |
-|------|--------------|
-| bug | `size:small` |
+| Type    | Default Size  |
+| ------- | ------------- |
+| bug     | `size:small`  |
 | feature | `size:medium` |
-| chore | `size:small` |
-| spike | `size:medium` |
+| chore   | `size:small`  |
+| spike   | `size:medium` |
 
 **Override:** User can change in interactive/triage modes.
 
 ### Priority Labels (only if explicit)
 
-| Keywords | Label |
-|----------|-------|
-| urgent, critical, blocking, ASAP | `priority:urgent` |
-| important, soon, high priority | `priority:high` |
-| when possible, nice to have, low priority | `priority:low` |
+| Keywords                                  | Label             |
+| ----------------------------------------- | ----------------- |
+| urgent, critical, blocking, ASAP          | `priority:urgent` |
+| important, soon, high priority            | `priority:high`   |
+| when possible, nice to have, low priority | `priority:low`    |
 
 **Default:** No priority label unless explicitly set.
 
@@ -397,26 +415,33 @@ Labels: bug, triage, area:ui (inferred)
 
 ```markdown
 ## Summary
+
 <one-line description>
 
 ## Expected Behavior
+
 <what should happen>
 
 ## Actual Behavior
+
 <what's broken>
 
 ## Steps to Reproduce
+
 <if provided>
 
 ## Acceptance Criteria
+
 - [ ] <criterion 1>
 - [ ] <criterion 2>
 
 ## Test Requirements
+
 - [ ] <test 1>
 - [ ] <test 2>
 
 ## Technical Notes
+
 <if provided>
 ```
 
@@ -424,23 +449,29 @@ Labels: bug, triage, area:ui (inferred)
 
 ```markdown
 ## Summary
+
 <one-line description>
 
 ## Problem
+
 <what problem this solves>
 
 ## Proposed Solution
+
 <if provided>
 
 ## Acceptance Criteria
+
 - [ ] <criterion 1>
 - [ ] <criterion 2>
 
 ## Test Requirements
+
 - [ ] <test 1>
 - [ ] <test 2>
 
 ## Technical Notes
+
 <if provided>
 ```
 
@@ -448,19 +479,24 @@ Labels: bug, triage, area:ui (inferred)
 
 ```markdown
 ## Summary
+
 <one-line description>
 
 ## Motivation
+
 <why this is needed>
 
 ## Acceptance Criteria
+
 - [ ] <criterion 1>
 - [ ] <criterion 2>
 
 ## Test Requirements
+
 - [ ] <test 1>
 
 ## Technical Notes
+
 <if provided>
 ```
 
@@ -468,16 +504,20 @@ Labels: bug, triage, area:ui (inferred)
 
 ```markdown
 ## Research Question
+
 <the question to answer>
 
 ## Context
+
 <why this research is needed>
 
 ## Expected Deliverables
+
 - [ ] <deliverable 1>
 - [ ] <deliverable 2>
 
 ## Time Box
+
 <estimate, default "2-4 hours">
 ```
 
@@ -487,23 +527,25 @@ Labels: bug, triage, area:ui (inferred)
 Quick capture during development. Needs triage for full details.
 
 ## Captured Note
+
 <user's input>
 
 ---
-*Logged via /create-issue quick capture*
+
+_Logged via /create-issue quick capture_
 ```
 
 ---
 
 ## Error Handling
 
-| Scenario | Response |
-|----------|----------|
-| `gh` not authenticated | "Error: GitHub CLI not authenticated. Run `gh auth login`." |
-| Issue not found (triage) | "Error: Issue #N not found." |
-| Network error | "Error: Could not reach GitHub. Check connection." |
-| User cancels | "Issue creation cancelled." |
-| Duplicate confirmed | "Linked to existing issue #X. No new issue created." |
+| Scenario                 | Response                                                    |
+| ------------------------ | ----------------------------------------------------------- |
+| `gh` not authenticated   | "Error: GitHub CLI not authenticated. Run `gh auth login`." |
+| Issue not found (triage) | "Error: Issue #N not found."                                |
+| Network error            | "Error: Could not reach GitHub. Check connection."          |
+| User cancels             | "Issue creation cancelled."                                 |
+| Duplicate confirmed      | "Linked to existing issue #X. No new issue created."        |
 
 ---
 
