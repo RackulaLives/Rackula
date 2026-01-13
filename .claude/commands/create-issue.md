@@ -542,22 +542,62 @@ Example: `"Fix toast z-index bug"` → type: `bug`, area: `area:ui`
 gh issue list --search "<keywords>" --limit 3 --json number,title,state
 ```
 
-If matches found:
+If matches found, use AskUserQuestion tool with dynamic options:
 
+```json
+{
+  "questions": [
+    {
+      "header": "Duplicates?",
+      "question": "Possible duplicates found. Continue creating?",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "#42: Toast z-index issue",
+          "description": "open - potential match"
+        },
+        {
+          "label": "None of these, create new",
+          "description": "Continue with new issue"
+        }
+      ]
+    }
+  ]
+}
 ```
-Possible duplicates:
-1. #42: Toast z-index issue (open)
 
-Continue creating? [y/n]:
-```
+- Build options dynamically from search results + "None of these" option
+- If existing issue selected, link to it and stop
+- If "None of these", continue
 
 ### Step 4: Brief Confirmation
+
+Show issue preview:
 
 ```
 Title: bug: Fix toast z-index bug
 Labels: bug, triage, area:ui
+```
 
-Create? [y/n]:
+Then use AskUserQuestion tool:
+
+```json
+{
+  "questions": [
+    {
+      "header": "Create?",
+      "question": "Create this quick capture issue?",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Create",
+          "description": "Submit to GitHub with triage label"
+        },
+        { "label": "Cancel", "description": "Discard" }
+      ]
+    }
+  ]
+}
 ```
 
 ### Step 5: Create Minimal Issue
