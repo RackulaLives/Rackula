@@ -361,13 +361,32 @@ gh issue create \
 
 ### Step 12: Handoff Offer
 
-```
-Issue #194 created: https://github.com/RackulaLives/Rackula/issues/194
+After issue creation, use AskUserQuestion tool:
 
-Start implementation now? [y/n]:
+```json
+{
+  "questions": [
+    {
+      "header": "Next step",
+      "question": "Issue created! What now?",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Start implementation",
+          "description": "Invoke /dev-issue to begin work"
+        },
+        {
+          "label": "Done for now",
+          "description": "Return to normal conversation"
+        }
+      ]
+    }
+  ]
+}
 ```
 
-If yes, output: `Invoking /dev-issue 194`
+- "Start implementation": Output `Invoking /dev-issue <issue-number>`
+- "Done for now": End skill
 
 ---
 
