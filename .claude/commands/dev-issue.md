@@ -29,6 +29,8 @@ ready → in-progress (agent claims) → ready (released on completion/block)
 
 **MANDATORY:** Always create a worktree for issue work. Never work directly on main.
 
+**See also:** `superpowers:using-git-worktrees` for worktree patterns, `/worktree-cleanup` for cleanup.
+
 ```bash
 # Required pattern - always use worktrees with absolute paths
 git worktree add .worktree/Rackula-issue-<N> -b <type>/<N>-<desc>
@@ -349,14 +351,14 @@ Add entry to `.claude/session-progress.md` with: issue number, title, start time
 
 ### 3c. TDD Workflow
 
-For each acceptance criterion:
+**Use:** `superpowers:test-driven-development`
 
-1. Write failing test first
-2. Implement minimum code to pass
-3. Verify test passes
-4. Mark criterion complete in progress file
+Follow TDD skill exactly for each acceptance criterion.
+Mark complete in progress file after each passes.
 
 ### 3d. Pre-Commit Verification
+
+**Use:** `superpowers:verification-before-completion`
 
 ```bash
 (cd "$WORKTREE_DIR" && npm run lint && npm run test:run && npm run build)
@@ -377,6 +379,10 @@ Use `gh pr create` with:
 - Body: Summary bullets, files changed, test plan checklist, `Closes #<number>`
 
 ### 3g. Merge
+
+**Use:** `superpowers:finishing-a-development-branch`
+
+Follow finishing skill for merge decision. Default for dev-issue is squash merge:
 
 ```bash
 gh pr checks --watch
@@ -401,6 +407,8 @@ gh pr merge --squash --delete-branch --auto
    ```
 
 3. Update progress file status to "Completed" with PR URL.
+
+4. **Optional:** Run `/worktree-cleanup list` to check for stale worktrees.
 
 <!-- CHECKPOINT: Phase 3 Complete -->
 
@@ -427,12 +435,14 @@ Write session summary when stopping.
 
 ### Test Failures
 
-| Attempt | Action                                                                  |
-| ------- | ----------------------------------------------------------------------- |
-| 1       | Read output, fix obvious issues                                         |
-| 2       | Search memory for similar bugs: type="bugfix", query="<error keywords>" |
-| 3       | Launch Plan agent with test output, code, and memory context            |
-| 4+      | Proceed to Blocker Handling                                             |
+**Use:** `/debug-with-memory` for memory-assisted debugging, which invokes `superpowers:systematic-debugging`
+
+| Attempt | Action                                                    |
+| ------- | --------------------------------------------------------- |
+| 1       | Read output, fix obvious issues                           |
+| 2       | Invoke `/debug-with-memory` with error keywords           |
+| 3       | Follow systematic debugging with memory context           |
+| 4+      | Proceed to Blocker Handling                               |
 
 ### Lint/Build Failures
 

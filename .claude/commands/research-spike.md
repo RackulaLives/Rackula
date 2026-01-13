@@ -140,9 +140,12 @@ Check for `spike` label. If not present, STOP.
 
 ### 1b. Create Worktree (if not already in one)
 
+**See also:** `superpowers:using-git-worktrees` for worktree patterns.
+
 ```bash
 git worktree add .worktree/Rackula-issue-$ARGUMENTS -b spike/$ARGUMENTS-research
-cd .worktree/Rackula-issue-$ARGUMENTS
+WORKTREE_DIR="$(pwd)/.worktree/Rackula-issue-$ARGUMENTS"
+(cd "$WORKTREE_DIR" && npm install)
 ```
 
 ### 1c. Create Research Directory
@@ -167,9 +170,15 @@ blockers: []
 
 ### 1e. Memory Context
 
-Use mem-search skill: `search` with query="#$ARGUMENTS OR <spike keywords>"
+**Use:** `episodic-memory:search-conversations` or `claude-mem:mem-search`
 
-Load any prior work on this spike or related topics.
+Query: "#$ARGUMENTS OR <spike keywords>"
+Type: decision, discovery
+
+Load any prior work on this spike or related topics. Check for:
+- Previous research on similar topics
+- Architectural decisions that may constrain approach
+- Past patterns that worked well
 
 <!-- CHECKPOINT: Phase 1 Complete -->
 
@@ -324,6 +333,8 @@ research_files:
 
 ## Phase 3: Synthesis
 
+**Pattern:** Follow `superpowers:brainstorming` approach for synthesizing findings into recommendations.
+
 ### 3a. Create Main Findings Document
 
 Create `docs/research/spike-<N>-<slug>.md` with initial structure:
@@ -467,6 +478,8 @@ created_issues:
 
 ## Phase 5: Wrap-up
 
+**Use:** `superpowers:finishing-a-development-branch` for PR/merge decisions.
+
 ### 5a. Create PR for Research Docs
 
 ```bash
@@ -511,12 +524,14 @@ rm .claude/spike-<N>-checkpoint.yaml
 rm .claude/spike-<N>-issues.yaml
 ```
 
-If using worktree, offer to remove:
+If using worktree, remove it:
 
 ```bash
-cd ..
-git worktree remove Rackula-issue-<N>
+git worktree remove .worktree/Rackula-issue-<N>
+git worktree prune
 ```
+
+**Optional:** Run `/worktree-cleanup list` to check for other stale worktrees.
 
 ---
 
@@ -559,14 +574,17 @@ Will resume from last checkpoint.
 
 ### Agent Failure
 
+**Use:** `superpowers:systematic-debugging` if agent failures persist.
+
 **Success:** Output file exists and size > 0 bytes
 **Failure:** After one retry, file is still missing or below minimum size (< 1KB)
 
 1. Verify output file exists and size > 0 bytes
 2. If missing or empty, retry once with a refined prompt (one additional attempt)
-3. If still failing after retry, mark as checkpoint blocker
-4. Continue with remaining agents
-5. Report blockers at end
+3. If still failing after retry, use systematic debugging to diagnose
+4. Mark as checkpoint blocker if unresolved
+5. Continue with remaining agents
+6. Report blockers at end
 
 ### GitHub API Failure
 
