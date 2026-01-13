@@ -64,7 +64,7 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{js,ts}"],
     globals: true,
     setupFiles: ["src/tests/setup.ts"],
-    testTimeout: 60000, // 60 seconds per test (App tests are slow due to complex component tree)
+    testTimeout: 10000, // 10 seconds per test (increase per-test for slow tests)
     // Ignore unhandled errors from bits-ui component cleanup timers that fire after test teardown
     dangerouslyIgnoreUnhandledErrors: true,
     // Use forks pool for memory isolation between test file batches

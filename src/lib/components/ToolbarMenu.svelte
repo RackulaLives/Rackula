@@ -9,17 +9,17 @@
   import type { DisplayMode } from "$lib/types";
 
   interface Props {
-    // File actions
-    onsave: () => void;
-    onload: () => void;
-    onexport: () => void;
-    onshare: () => void;
+    // File actions (optional to match Toolbar.svelte pattern)
+    onsave?: () => void;
+    onload?: () => void;
+    onexport?: () => void;
+    onshare?: () => void;
     hasRacks?: boolean;
 
     // Edit actions
-    onundo: () => void;
-    onredo: () => void;
-    ondelete: () => void;
+    onundo?: () => void;
+    onredo?: () => void;
+    ondelete?: () => void;
     canUndo?: boolean;
     canRedo?: boolean;
     hasSelection?: boolean;
@@ -27,10 +27,10 @@
     redoDescription?: string;
 
     // View actions
-    onfitall: () => void;
-    ontoggledisplaymode: () => void;
-    ontoggleannotations: () => void;
-    ontoggletheme: () => void;
+    onfitall?: () => void;
+    ontoggledisplaymode?: () => void;
+    ontoggleannotations?: () => void;
+    ontoggletheme?: () => void;
     displayMode?: DisplayMode;
     showAnnotations?: boolean;
     theme?: "dark" | "light";
@@ -67,9 +67,9 @@
     "image-label": "Both",
   };
 
-  function handleSelect(action: () => void) {
+  function handleSelect(action?: () => void) {
     return () => {
-      action();
+      action?.();
       open = false;
     };
   }
@@ -161,15 +161,20 @@
           >
           <span class="menu-shortcut">I</span>
         </DropdownMenu.Item>
-        <DropdownMenu.Item
-          class="menu-item {showAnnotations ? 'active' : ''}"
-          onSelect={handleSelect(ontoggleannotations)}
+        <DropdownMenu.CheckboxItem
+          class="menu-item"
+          checked={showAnnotations}
+          onCheckedChange={() => {
+            ontoggleannotations?.();
+            open = false;
+          }}
         >
-          <span class="menu-label"
-            >{showAnnotations ? "Hide" : "Show"} Annotations</span
-          >
-          <span class="menu-shortcut">N</span>
-        </DropdownMenu.Item>
+          {#snippet children({ checked })}
+            <span class="menu-checkbox">{checked ? "✓" : ""}</span>
+            <span class="menu-label">Show Annotations</span>
+            <span class="menu-shortcut">N</span>
+          {/snippet}
+        </DropdownMenu.CheckboxItem>
         <DropdownMenu.Item
           class="menu-item"
           onSelect={handleSelect(ontoggletheme)}
@@ -185,6 +190,7 @@
 
 <style>
   /* Menu trigger - icon-only, borderless, Beszel-style */
+  /* Note: :global() required because bits-ui Trigger doesn't apply Svelte's scoped class hash */
   :global(.menu-trigger) {
     display: inline-flex;
     align-items: center;
@@ -280,8 +286,10 @@
     cursor: not-allowed;
   }
 
-  :global(.menu-item.active) {
-    background-color: rgba(255, 255, 255, 0.05);
+  :global(.menu-checkbox) {
+    width: 16px;
+    font-size: var(--font-size-sm);
+    color: var(--colour-text-inverse);
   }
 
   :global(.menu-label) {

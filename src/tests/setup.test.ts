@@ -16,5 +16,5 @@ describe("Setup", () => {
     render(App);
     // 'Rackula' text appears in toolbar
     expect(screen.getByText("Rackula")).toBeInTheDocument();
-  });
+  }, 60000); // App component is slow to render due to complex component tree
 });

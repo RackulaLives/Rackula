@@ -281,10 +281,10 @@
     align-items: center;
     gap: var(--space-1);
     padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--colour-primary, #e91e63);
+    border: 1px solid var(--colour-primary);
     border-radius: var(--radius-md);
     background: transparent;
-    color: var(--colour-primary, #e91e63);
+    color: var(--colour-primary);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     cursor: pointer;
@@ -295,15 +295,15 @@
   }
 
   .btn-new-rack:hover {
-    background: var(--colour-primary, #e91e63);
-    color: white;
+    background: var(--colour-primary);
+    color: var(--colour-text-on-primary);
   }
 
   .btn-new-rack:focus-visible {
     outline: none;
     box-shadow:
       0 0 0 2px var(--colour-bg),
-      0 0 0 4px var(--colour-primary, #e91e63);
+      0 0 0 4px var(--colour-primary);
   }
 
   .btn-new-rack:active {
