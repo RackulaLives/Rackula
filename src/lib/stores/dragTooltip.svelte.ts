@@ -20,10 +20,15 @@ export interface DragTooltipState {
   y: number;
   /** Whether tooltip is visible */
   visible: boolean;
+  /** Device category color for accent */
+  categoryColor: string;
+  /** Device U-height for sizing */
+  uHeight: number;
 }
 
-/** Offset from cursor to prevent tooltip from obscuring drop target */
+/** Tooltip cursor offset (--space-4) */
 const TOOLTIP_OFFSET_X = 16;
+/** Tooltip cursor offset (--space-2 negative) */
 const TOOLTIP_OFFSET_Y = -8;
 
 /** Drag tooltip store singleton */
@@ -32,6 +37,8 @@ let tooltipState = $state<DragTooltipState>({
   x: 0,
   y: 0,
   visible: false,
+  categoryColor: "",
+  uHeight: 1,
 });
 
 /**
@@ -50,6 +57,8 @@ export function showDragTooltip(
     x: clientX + TOOLTIP_OFFSET_X,
     y: clientY + TOOLTIP_OFFSET_Y,
     visible: true,
+    categoryColor: device.colour ?? "var(--colour-primary)",
+    uHeight: device.u_height,
   };
 }
 
@@ -80,6 +89,8 @@ export function hideDragTooltip(): void {
     x: 0,
     y: 0,
     visible: false,
+    categoryColor: "",
+    uHeight: 1,
   };
 }
 
