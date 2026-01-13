@@ -318,9 +318,6 @@
       </button>
     </Tooltip>
   </div>
-
-  <!-- Right section: Empty (previously held theme toggle) -->
-  <div class="toolbar-section toolbar-right"></div>
 </header>
 
 <style>
@@ -354,10 +351,6 @@
     align-items: center;
     justify-content: center;
     gap: var(--space-1);
-  }
-
-  .toolbar-right {
-    flex: 0 0 auto;
   }
 
   .toolbar-brand {
