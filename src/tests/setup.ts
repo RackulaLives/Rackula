@@ -75,18 +75,21 @@ beforeEach(() => {
 });
 
 // Mock window.matchMedia for responsive component testing
+// Note: addListener/removeListener are deprecated but included for legacy compatibility
+const createMatchMediaMock = (query: string): MediaQueryList => ({
+  matches: false, // Default to full mode (not hamburger mode)
+  media: query,
+  onchange: null,
+  addListener: () => {}, // Deprecated but needed for some libraries
+  removeListener: () => {}, // Deprecated but needed for some libraries
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  dispatchEvent: () => true,
+});
+
 Object.defineProperty(window, "matchMedia", {
   writable: true,
-  value: (query: string) => ({
-    matches: false, // Default to full mode (not hamburger mode)
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => true,
-  }),
+  value: createMatchMediaMock,
 });
 
 // Global cleanup after each test to prevent memory accumulation

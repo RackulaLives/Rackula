@@ -225,7 +225,11 @@
     color: var(--colour-text);
   }
 
-  /* Menu content - dark overlay style matching tooltips */
+  /*
+   * Portal-rendered styles require :global() because DropdownMenu.Portal
+   * renders content outside the component tree (in document.body).
+   * Svelte's scoped styles won't apply without :global().
+   */
   :global(.menu-content) {
     z-index: var(--z-dropdown, 100);
     min-width: 180px;
