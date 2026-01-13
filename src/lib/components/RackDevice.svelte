@@ -15,6 +15,11 @@
     createRackDeviceDragData,
     setCurrentDragData,
   } from "$lib/utils/dragdrop";
+  import {
+    showDragTooltip,
+    updateDragTooltipPosition,
+    hideDragTooltip,
+  } from "$lib/stores/dragTooltip.svelte";
   import CategoryIconSVG from "./CategoryIconSVG.svelte";
   import LabelOverlaySVG from "./LabelOverlaySVG.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
@@ -249,6 +254,9 @@
         const dragData = createRackDeviceDragData(device, rackId, deviceIndex);
         setCurrentDragData(dragData);
 
+        // Show drag tooltip at cursor position
+        showDragTooltip(device, event.clientX, event.clientY);
+
         ondragstartProp?.(
           new CustomEvent("dragstart", { detail: { rackId, deviceIndex } }),
         );
@@ -256,6 +264,9 @@
     }
 
     if (pointerState === "dragging") {
+      // Update drag tooltip position
+      updateDragTooltipPosition(event.clientX, event.clientY);
+
       // Dispatch pointermove to document for Rack to track drop position
       // The Rack listens for this via document-level handler
       document.dispatchEvent(
@@ -310,6 +321,7 @@
 
       setCurrentDragData(null);
       isDragging = false;
+      hideDragTooltip();
       ondragendProp?.();
     }
 
@@ -326,6 +338,7 @@
     if (pointerState === "dragging") {
       setCurrentDragData(null);
       isDragging = false;
+      hideDragTooltip();
       ondragendProp?.();
     }
 

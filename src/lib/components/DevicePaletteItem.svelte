@@ -13,6 +13,11 @@
     serializeDragData,
     setCurrentDragData,
   } from "$lib/utils/dragdrop";
+  import {
+    showDragTooltip,
+    updateDragTooltipPosition,
+    hideDragTooltip,
+  } from "$lib/stores/dragTooltip.svelte";
   import { highlightMatch } from "$lib/utils/searchHighlight";
 
   interface Props {
@@ -59,11 +64,23 @@
     // Set shared drag state for dragover (browsers block getData during dragover)
     setCurrentDragData(dragData);
     isDragging = true;
+
+    // Show drag tooltip at initial cursor position
+    showDragTooltip(device, event.clientX, event.clientY);
+  }
+
+  function handleDrag(event: DragEvent) {
+    // Update tooltip position during drag
+    // Note: Some browsers report 0,0 for clientX/clientY at drag end
+    if (event.clientX !== 0 || event.clientY !== 0) {
+      updateDragTooltipPosition(event.clientX, event.clientY);
+    }
   }
 
   function handleDragEnd() {
     setCurrentDragData(null);
     isDragging = false;
+    hideDragTooltip();
   }
 </script>
 
@@ -80,6 +97,7 @@
   onclick={handleClick}
   onkeydown={handleKeyDown}
   ondragstart={handleDragStart}
+  ondrag={handleDrag}
   ondragend={handleDragEnd}
   aria-label="{deviceName}, {device.u_height}U {device.category}"
 >
