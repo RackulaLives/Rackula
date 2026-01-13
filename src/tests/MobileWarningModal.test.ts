@@ -151,7 +151,7 @@ describe("MobileWarningModal", () => {
 
       const dialog = screen.getByRole("alertdialog");
       // bits-ui automatically generates and wires aria-labelledby to AlertDialog.Title
-      expect(dialog.getAttribute("aria-labelledby")).toBeTruthy();
+      expect(dialog).toHaveAttribute("aria-labelledby");
     });
 
     it("has aria-describedby attribute", () => {
@@ -159,7 +159,7 @@ describe("MobileWarningModal", () => {
 
       const dialog = screen.getByRole("alertdialog");
       // bits-ui automatically generates and wires aria-describedby to AlertDialog.Description
-      expect(dialog.getAttribute("aria-describedby")).toBeTruthy();
+      expect(dialog).toHaveAttribute("aria-describedby");
     });
   });
 });
