@@ -4,7 +4,6 @@
 -->
 <script lang="ts">
   import Tooltip from "./Tooltip.svelte";
-  import ToolbarDrawer from "./ToolbarDrawer.svelte";
   import LogoLockup from "./LogoLockup.svelte";
   import {
     IconPlus,
@@ -20,7 +19,6 @@
     IconImage,
     IconUndo,
     IconRedo,
-    IconMenu,
     IconNote,
   } from "./icons";
   import type { DisplayMode } from "$lib/types";
@@ -79,44 +77,6 @@
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
 
-  // Drawer state for hamburger menu
-  let drawerOpen = $state(false);
-  let brandRef: HTMLElement | null = $state(null);
-
-  // Track if we're in hamburger mode (<= 1024px)
-  let isHamburgerMode = $state(false);
-
-  // Set up media query listener on mount
-  $effect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 1024px)");
-    isHamburgerMode = mediaQuery.matches;
-
-    const handleChange = (e: MediaQueryListEvent) => {
-      isHamburgerMode = e.matches;
-      // Close drawer if switching to full mode
-      if (!e.matches) {
-        drawerOpen = false;
-      }
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  });
-
-  function toggleDrawer() {
-    // Only toggle drawer in hamburger mode
-    if (isHamburgerMode) {
-      drawerOpen = !drawerOpen;
-      analytics.trackToolbarClick("hamburger");
-    }
-  }
-
-  function closeDrawer() {
-    drawerOpen = false;
-    // Return focus to brand/hamburger button
-    brandRef?.focus();
-  }
-
   function handleUndo() {
     if (!layoutStore.canUndo) return;
     const desc = layoutStore.undoDescription?.replace("Undo: ", "") ?? "action";
@@ -158,35 +118,17 @@
 <header class="toolbar">
   <!-- Left section: Branding -->
   <div class="toolbar-section toolbar-left">
-    {#if isHamburgerMode}
+    <Tooltip text="About & Shortcuts" shortcut="?" position="bottom">
       <button
-        bind:this={brandRef}
-        class="toolbar-brand hamburger-mode"
+        class="toolbar-brand toolbar-brand--clickable"
         type="button"
-        aria-expanded={drawerOpen}
-        aria-controls="toolbar-drawer"
-        aria-label={drawerOpen ? "Close menu" : "Open menu"}
-        onclick={toggleDrawer}
-        data-testid="btn-hamburger-menu"
+        aria-label="About & Shortcuts"
+        onclick={onhelp}
+        data-testid="btn-logo-about"
       >
         <LogoLockup size={36} {partyMode} />
-        <span class="hamburger-icon" aria-hidden="true">
-          <IconMenu size={20} />
-        </span>
       </button>
-    {:else}
-      <Tooltip text="About & Shortcuts" shortcut="?" position="bottom">
-        <button
-          class="toolbar-brand toolbar-brand--clickable"
-          type="button"
-          aria-label="About & Shortcuts"
-          onclick={onhelp}
-          data-testid="btn-logo-about"
-        >
-          <LogoLockup size={36} {partyMode} />
-        </button>
-      </Tooltip>
-    {/if}
+    </Tooltip>
   </div>
 
   <!-- Center section: Main actions -->
@@ -381,34 +323,6 @@
   <div class="toolbar-section toolbar-right"></div>
 </header>
 
-<!-- Toolbar Drawer (hamburger menu) -->
-<ToolbarDrawer
-  open={drawerOpen}
-  {displayMode}
-  {showAnnotations}
-  {theme}
-  canUndo={layoutStore.canUndo}
-  canRedo={layoutStore.canRedo}
-  {hasSelection}
-  {hasRacks}
-  undoDescription={layoutStore.undoDescription ?? "Undo"}
-  redoDescription={layoutStore.redoDescription ?? "Redo"}
-  onclose={closeDrawer}
-  {onnewrack}
-  {onsave}
-  {onload}
-  {onexport}
-  {onshare}
-  {ondelete}
-  {onfitall}
-  {ontoggledisplaymode}
-  {ontoggleannotations}
-  {ontoggletheme}
-  {onhelp}
-  onundo={handleUndo}
-  onredo={handleRedo}
-/>
-
 <style>
   .toolbar {
     display: flex;
@@ -432,14 +346,6 @@
   .toolbar-left {
     flex: 0 0 var(--sidebar-width);
     justify-content: flex-start;
-  }
-
-  /* Mobile: make toolbar-left full width in hamburger mode */
-  @media (max-width: 1024px) {
-    .toolbar-left {
-      flex: 1;
-      justify-content: flex-start;
-    }
   }
 
   .toolbar-center {
@@ -493,14 +399,6 @@
     box-shadow:
       0 0 0 2px var(--colour-bg),
       0 0 0 4px var(--colour-focus-ring);
-  }
-
-  /* Hamburger icon next to logo */
-  .hamburger-icon {
-    display: none;
-    align-items: center;
-    justify-content: center;
-    color: var(--colour-text-muted);
   }
 
   .toolbar-action-btn {
@@ -569,39 +467,6 @@
     .separator {
       margin: 0 var(--space-1);
     }
-  }
-
-  /* Responsive: Hamburger mode - hide center toolbar and right section */
-  @media (max-width: 1024px) {
-    .toolbar-center {
-      display: none;
-    }
-
-    .toolbar-right {
-      display: none;
-    }
-  }
-
-  /* Hamburger mode button styles (Lockin logo + text + hamburger icon) */
-  .toolbar-brand.hamburger-mode {
-    cursor: pointer;
-    padding: var(--space-2);
-    background: transparent;
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .toolbar-brand.hamburger-mode .hamburger-icon {
-    display: flex;
-  }
-
-  .toolbar-brand.hamburger-mode:hover {
-    background: var(--colour-surface-hover);
-  }
-
-  .toolbar-brand.hamburger-mode:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--colour-focus-ring);
   }
 
   /* Responsive: Small screens - compact branding */

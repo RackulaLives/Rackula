@@ -545,18 +545,21 @@
     font-size: var(--font-size-sm);
     color: var(--colour-text);
     background-color: var(--input-bg);
-    border: 1px solid var(--input-border);
+    border: 1px solid var(--colour-border);
     border-radius: var(--radius-sm);
     outline: none;
-    transition: border-color 0.15s ease;
+    transition:
+      border-color var(--duration-fast) ease,
+      box-shadow var(--duration-fast) ease;
   }
 
   .search-input::placeholder {
-    color: var(--input-placeholder);
+    color: var(--colour-text-muted);
   }
 
   .search-input:focus {
     border-color: var(--colour-selection);
+    box-shadow: var(--glow-pink-sm);
   }
 
   .device-list {

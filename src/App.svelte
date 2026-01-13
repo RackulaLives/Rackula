@@ -1095,6 +1095,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-width: var(--sidebar-width-min);
   }
 
   :global(.resize-handle) {

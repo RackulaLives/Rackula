@@ -312,6 +312,7 @@
 
   /* Sidebar (fixed) */
   --sidebar-width: 280px;
+  --sidebar-width-min: 200px;
   --sidebar-collapsed-width: 120px;
   --colour-sidebar-bg: var(--dracula-bg-darker);
   --colour-surface-secondary: var(--dracula-bg-light);
