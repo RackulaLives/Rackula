@@ -20,12 +20,12 @@
   // Device display name: model or slug
   const deviceName = $derived(device?.model ?? device?.slug ?? "Device");
 
-  // Height calculation: base + (uHeight - 1) * perU, minimum 24px
-  // Base: 24px (--space-6), Per U: 14px (--space-3-5)
-  const BASE_HEIGHT = 24;
-  const HEIGHT_PER_U = 14;
+  // Height calculation: base + (uHeight - 1) * perU
+  // Values match design tokens: --drag-tooltip-base-height (24px), --drag-tooltip-height-per-u (14px)
+  const BASE_HEIGHT_PX = 24; // --drag-tooltip-base-height = --space-6
+  const HEIGHT_PER_U_PX = 14; // --drag-tooltip-height-per-u = 0.875rem
   const tooltipHeight = $derived(
-    Math.max(BASE_HEIGHT, BASE_HEIGHT + (uHeight - 1) * HEIGHT_PER_U),
+    Math.max(BASE_HEIGHT_PX, BASE_HEIGHT_PX + (uHeight - 1) * HEIGHT_PER_U_PX),
   );
 </script>
 
@@ -52,13 +52,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 160px;
+    width: var(--drag-tooltip-width, 160px);
     padding: var(--space-1) var(--space-3);
     background-color: var(--colour-surface-overlay, rgba(0, 0, 0, 0.9));
     color: var(--colour-text-inverse, white);
     font-size: var(--font-size-sm);
     border-radius: var(--radius-sm);
-    border-left: 4px solid var(--colour-primary);
+    border-left: var(--drag-tooltip-border-width, var(--space-1)) solid
+      var(--colour-primary);
     pointer-events: none;
     box-shadow: var(--shadow-lg);
     animation: drag-tooltip-fade-in var(--duration-fast, 100ms)
@@ -78,7 +79,7 @@
 
   .device-name {
     font-weight: var(--font-weight-medium, 500);
-    max-width: 140px;
+    max-width: var(--drag-tooltip-max-width, 140px);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

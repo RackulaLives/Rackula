@@ -47,18 +47,36 @@ let tooltipState = $state<DragTooltipState>({
  * @param clientX - Mouse clientX coordinate
  * @param clientY - Mouse clientY coordinate
  */
+/** Maximum U-height for rack devices (standard 42U rack) */
+const MAX_U_HEIGHT = 42;
+
+/**
+ * Check if a color value is valid (non-empty string)
+ */
+function isValidColor(color: string | undefined | null): color is string {
+  return typeof color === "string" && color.trim() !== "";
+}
+
 export function showDragTooltip(
   device: DeviceType,
   clientX: number,
   clientY: number,
 ): void {
+  // Clamp uHeight to valid range (1-42U)
+  const clampedUHeight = Math.max(1, Math.min(device.u_height, MAX_U_HEIGHT));
+
+  // Use device colour only if it's a valid non-empty string
+  const categoryColor = isValidColor(device.colour)
+    ? device.colour
+    : "var(--colour-primary)";
+
   tooltipState = {
     device,
     x: clientX + TOOLTIP_OFFSET_X,
     y: clientY + TOOLTIP_OFFSET_Y,
     visible: true,
-    categoryColor: device.colour ?? "var(--colour-primary)",
-    uHeight: device.u_height,
+    categoryColor,
+    uHeight: clampedUHeight,
   };
 }
 

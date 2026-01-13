@@ -379,6 +379,13 @@
   /* Danger button hover state */
   --colour-error-hover: #cc4444;
 
+  /* Drag Tooltip */
+  --drag-tooltip-width: 160px;
+  --drag-tooltip-max-width: 140px;
+  --drag-tooltip-border-width: var(--space-1); /* 4px */
+  --drag-tooltip-base-height: var(--space-6); /* 24px */
+  --drag-tooltip-height-per-u: 0.875rem; /* 14px - height added per additional U */
+
   /* Environment Badge (DEV/LOCAL indicator) */
   --env-badge-bg: rgba(255, 85, 85, 0.1);
   --env-badge-text: var(--dracula-red);
