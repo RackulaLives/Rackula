@@ -146,18 +146,20 @@ describe("MobileWarningModal", () => {
       expect(dialog).toHaveAttribute("aria-modal", "true");
     });
 
-    it("has aria-labelledby pointing to title", () => {
+    it("has aria-labelledby attribute", () => {
       render(MobileWarningModal);
 
       const dialog = screen.getByRole("alertdialog");
-      expect(dialog).toHaveAttribute("aria-labelledby", "mobile-warning-title");
+      // bits-ui automatically generates and wires aria-labelledby to AlertDialog.Title
+      expect(dialog).toHaveAttribute("aria-labelledby");
     });
 
-    it("has aria-describedby pointing to description", () => {
+    it("has aria-describedby attribute", () => {
       render(MobileWarningModal);
 
       const dialog = screen.getByRole("alertdialog");
-      expect(dialog).toHaveAttribute("aria-describedby", "mobile-warning-desc");
+      // bits-ui automatically generates and wires aria-describedby to AlertDialog.Description
+      expect(dialog).toHaveAttribute("aria-describedby");
     });
   });
 });

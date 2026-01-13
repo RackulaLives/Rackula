@@ -2,17 +2,16 @@
   MobileWarningModal Component
   Shows a warning to users on small viewports that Rackula is designed for desktop.
   Dismissible and remembers dismissal for the session.
+  Uses bits-ui AlertDialog for accessibility and focus management.
 -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import { trapFocus, focusFirst, createFocusManager } from "$lib/utils/focus";
+  import { AlertDialog } from "bits-ui";
 
   const STORAGE_KEY = "rackula-mobile-warning-dismissed";
   const BREAKPOINT = 1024;
 
   let open = $state(false);
-  let dialogElement: HTMLDivElement | null = $state(null);
-  const focusManager = createFocusManager();
 
   onMount(() => {
     // Only show on small viewports that haven't dismissed
@@ -24,50 +23,19 @@
     }
   });
 
-  function handleContinue() {
-    sessionStorage.setItem(STORAGE_KEY, "true");
-    open = false;
-  }
-
-  function handleKeyDown(event: KeyboardEvent) {
-    if (event.key === "Escape" && open) {
-      handleContinue();
+  function handleOpenChange(isOpen: boolean) {
+    open = isOpen;
+    // Persist dismissal when dialog closes
+    if (!isOpen) {
+      sessionStorage.setItem(STORAGE_KEY, "true");
     }
   }
-
-  // Focus management
-  $effect(() => {
-    if (open) {
-      focusManager.save();
-      setTimeout(() => {
-        if (dialogElement) {
-          focusFirst(dialogElement);
-        }
-      }, 0);
-    } else {
-      focusManager.restore();
-    }
-  });
-
-  onMount(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  });
 </script>
 
-{#if open}
-  <div class="modal-backdrop" role="presentation">
-    <div
-      bind:this={dialogElement}
-      class="modal"
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="mobile-warning-title"
-      aria-describedby="mobile-warning-desc"
-      use:trapFocus
-    >
+<AlertDialog.Root {open} onOpenChange={handleOpenChange}>
+  <AlertDialog.Portal>
+    <AlertDialog.Overlay class="modal-backdrop" />
+    <AlertDialog.Content class="modal">
       <div class="modal-icon" aria-hidden="true">
         <svg
           width="48"
@@ -89,49 +57,50 @@
         </svg>
       </div>
 
-      <h2 id="mobile-warning-title" class="modal-title">
+      <AlertDialog.Title class="modal-title">
         Rackula works best on desktop
-      </h2>
+      </AlertDialog.Title>
 
-      <p id="mobile-warning-desc" class="modal-description">
+      <AlertDialog.Description class="modal-description">
         This app is designed for screens 1024px or wider. For the best
         experience, please visit on a desktop or laptop computer.
-      </p>
+      </AlertDialog.Description>
 
       <p class="modal-note">Mobile support is coming soon!</p>
 
-      <button type="button" class="continue-button" onclick={handleContinue}>
+      <AlertDialog.Cancel class="continue-button">
         Continue anyway
-      </button>
-    </div>
-  </div>
-{/if}
+      </AlertDialog.Cancel>
+    </AlertDialog.Content>
+  </AlertDialog.Portal>
+</AlertDialog.Root>
 
 <style>
-  .modal-backdrop {
+  :global(.modal-backdrop) {
     position: fixed;
     inset: 0;
     background: var(--colour-backdrop, rgba(0, 0, 0, 0.8));
-    display: flex;
-    align-items: center;
-    justify-content: center;
     z-index: var(--z-modal, 200);
-    padding: var(--space-4);
   }
 
-  .modal {
+  :global(.modal) {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     background: var(--colour-dialog-bg, var(--colour-bg));
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     max-width: 400px;
-    width: 100%;
+    width: calc(100% - var(--space-8));
     padding: var(--space-6);
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--space-4);
+    z-index: var(--z-modal, 200);
   }
 
   .modal-icon {
@@ -139,14 +108,14 @@
     opacity: 0.8;
   }
 
-  .modal-title {
+  :global(.modal-title) {
     margin: 0;
     font-size: var(--font-size-xl, 1.25rem);
     font-weight: 600;
     color: var(--colour-text);
   }
 
-  .modal-description {
+  :global(.modal-description) {
     margin: 0;
     font-size: var(--font-size-base, 1rem);
     color: var(--colour-text-muted);
@@ -160,7 +129,7 @@
     font-weight: 500;
   }
 
-  .continue-button {
+  :global(.continue-button) {
     margin-top: var(--space-2);
     padding: var(--space-3) var(--space-6);
     background: var(--colour-button-primary);
@@ -173,11 +142,11 @@
     transition: all var(--duration-fast);
   }
 
-  .continue-button:hover {
+  :global(.continue-button:hover) {
     background: var(--colour-button-primary-hover);
   }
 
-  .continue-button:focus-visible {
+  :global(.continue-button:focus-visible) {
     outline: 2px solid var(--colour-selection);
     outline-offset: 2px;
   }
