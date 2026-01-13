@@ -49,6 +49,7 @@ function close() {
   openDialog = null;
   deleteTarget = null;
   pendingSaveFirst = false;
+  exportQrCodeDataUrl = undefined;
 }
 
 /**
