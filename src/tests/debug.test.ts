@@ -17,18 +17,6 @@ import {
 
 describe("Debug utilities", () => {
   describe("Legacy compatibility", () => {
-    it("exports debug object with expected methods", () => {
-      expect(debug.log).toBeDefined();
-      expect(debug.info).toBeDefined();
-      expect(debug.warn).toBeDefined();
-      expect(debug.error).toBeDefined();
-      expect(debug.group).toBeDefined();
-      expect(debug.groupEnd).toBeDefined();
-      expect(debug.isEnabled).toBeDefined();
-      expect(debug.devicePlace).toBeDefined();
-      expect(debug.deviceMove).toBeDefined();
-    });
-
     it("debug methods are callable without errors", () => {
       // These should not throw even when disabled
       expect(() => debug.log("test")).not.toThrow();
@@ -68,36 +56,16 @@ describe("Debug utilities", () => {
   });
 
   describe("Namespace loggers", () => {
-    it("exports layoutDebug with state and device namespaces", () => {
-      expect(layoutDebug.state).toBeDefined();
-      expect(layoutDebug.device).toBeDefined();
-      expect(typeof layoutDebug.state).toBe("function");
-      expect(typeof layoutDebug.device).toBe("function");
-    });
-
-    it("exports canvasDebug with transform and panzoom namespaces", () => {
-      expect(canvasDebug.transform).toBeDefined();
-      expect(canvasDebug.panzoom).toBeDefined();
-      expect(typeof canvasDebug.transform).toBe("function");
-      expect(typeof canvasDebug.panzoom).toBe("function");
-    });
-
-    it("exports cableDebug with validation namespace", () => {
-      expect(cableDebug.validation).toBeDefined();
-      expect(typeof cableDebug.validation).toBe("function");
-    });
-
-    it("exports appDebug with mobile namespace", () => {
-      expect(appDebug.mobile).toBeDefined();
-      expect(typeof appDebug.mobile).toBe("function");
-    });
-
-    it("namespace loggers are callable without errors", () => {
+    it("all namespace loggers are callable without errors", () => {
+      // Layout namespace loggers
       expect(() => layoutDebug.state("test")).not.toThrow();
       expect(() => layoutDebug.device("test")).not.toThrow();
+      // Canvas namespace loggers
       expect(() => canvasDebug.transform("test")).not.toThrow();
       expect(() => canvasDebug.panzoom("test")).not.toThrow();
+      // Cable namespace logger
       expect(() => cableDebug.validation("test")).not.toThrow();
+      // App namespace logger
       expect(() => appDebug.mobile("test")).not.toThrow();
     });
   });
