@@ -1,179 +1,82 @@
 /**
- * Debug logging utilities
- * Automatically enabled in development mode (npm run dev)
- * Can be manually toggled in production via window.Rackula_DEBUG
+ * Debug logging utilities using the debug npm package
  *
- * Log format: [Rackula:category] message
+ * Enable logging in browser console:
+ *   localStorage.debug = 'rackula:*'           // All logs
+ *   localStorage.debug = 'rackula:layout:*'    // Layout module only
+ *   localStorage.debug = 'rackula:*,-rackula:canvas:*'  // All except canvas
+ *
+ * Namespace convention: rackula:module:concern
+ * Examples:
+ *   - rackula:layout:state
+ *   - rackula:layout:device
+ *   - rackula:canvas:transform
+ *   - rackula:dnd:render
  */
+import Debug from "debug";
 
-// Log prefix constant for consistency
-const LOG_PREFIX = "Rackula";
-
-// Extend Window interface for debug flag
-declare global {
-  interface Window {
-    Rackula_DEBUG?: boolean;
-    enableRackulaDebug?: () => void;
-    disableRackulaDebug?: () => void;
-  }
-}
-
-// Check for debug flag - automatically enabled in dev mode (except tests)
-const getDebugFlag = (): boolean => {
-  // Disable in test environment to reduce noise
-  if (
-    (import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ===
-    "test"
-  ) {
-    // Allow override via window flag even in tests
-    if (typeof window !== "undefined" && window.Rackula_DEBUG === true) {
-      return true;
-    }
-    return false;
-  }
-
-  // Always enable in development mode
-  if ((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV) {
-    return true;
-  }
-
-  // In production, check for manual override
-  if (typeof window === "undefined") return false;
-
-  // Check window flag (manual override in production)
-  if (window.Rackula_DEBUG !== undefined) {
-    return window.Rackula_DEBUG === true;
-  }
-
-  return false;
+// Module-level loggers
+export const layoutDebug = {
+  state: Debug("rackula:layout:state"),
+  device: Debug("rackula:layout:device"),
 };
 
+export const canvasDebug = {
+  transform: Debug("rackula:canvas:transform"),
+  panzoom: Debug("rackula:canvas:panzoom"),
+};
+
+export const dndDebug = {
+  render: Debug("rackula:dnd:render"),
+};
+
+export const cableDebug = {
+  validation: Debug("rackula:cable:validation"),
+};
+
+export const appDebug = {
+  mobile: Debug("rackula:app:mobile"),
+};
+
+// Legacy compatibility - maps to new namespaces
+// This maintains backward compatibility with existing code
 export const debug = {
-  /**
-   * General info logging: [Rackula] message
-   */
-  info(...args: unknown[]) {
-    if (getDebugFlag()) {
-      console.log(`[${LOG_PREFIX}]`, ...args);
-    }
-  },
-
-  /**
-   * Debug logging: [Rackula:debug] message
-   */
-  log(...args: unknown[]) {
-    if (getDebugFlag()) {
-      console.log(`[${LOG_PREFIX}:debug]`, ...args);
-    }
-  },
-
-  /**
-   * Warning logging: [Rackula:debug:warn] message
-   */
-  warn(...args: unknown[]) {
-    if (getDebugFlag()) {
-      console.warn(`[${LOG_PREFIX}:debug:warn]`, ...args);
-    }
-  },
-
-  /**
-   * Error logging: [Rackula:debug:error] message
-   */
-  error(...args: unknown[]) {
-    if (getDebugFlag()) {
-      console.error(`[${LOG_PREFIX}:debug:error]`, ...args);
-    }
-  },
-
-  /**
-   * Group logging: [Rackula:debug] label
-   */
-  group(label: string) {
-    if (getDebugFlag()) {
-      console.group(`[${LOG_PREFIX}:debug] ${label}`);
-    }
-  },
-
-  groupEnd() {
-    if (getDebugFlag()) {
-      console.groupEnd();
-    }
-  },
-
-  isEnabled(): boolean {
-    return getDebugFlag();
-  },
-
-  /**
-   * Device placement logging: [Rackula:device:place] message
-   */
-  devicePlace(data: {
+  log: Debug("rackula:general"),
+  info: Debug("rackula:info"),
+  warn: Debug("rackula:warn"),
+  error: Debug("rackula:error"),
+  group: (label: string) => Debug("rackula:general")(`--- ${label} ---`),
+  groupEnd: () => {},
+  isEnabled: () => Debug.enabled("rackula:*"),
+  devicePlace: (data: {
     slug: string;
     position: number;
-    passedFace: string | undefined;
+    passedFace?: string;
     effectiveFace: string;
     deviceName: string;
     isFullDepth: boolean;
-    result: "success" | "collision" | "not_found";
-  }) {
-    if (getDebugFlag()) {
-      console.log(
-        `[${LOG_PREFIX}:device:place] slug=${data.slug} pos=${data.position} face=${data.effectiveFace}`,
-        `\n  deviceType: ${data.deviceName} is_full_depth=${data.isFullDepth}`,
-        `\n  passed face=${data.passedFace ?? "undefined"} → effective face=${data.effectiveFace}`,
-        `\n  result: ${data.result}`,
-      );
-    }
-  },
-
-  /**
-   * Device movement logging: [Rackula:device:move] message
-   */
-  deviceMove(data: {
+    result: string;
+  }) => layoutDebug.device("place %O", data),
+  deviceMove: (data: {
     index: number;
     deviceName: string;
     face: string;
     fromPosition: number;
     toPosition: number;
-    result: "success" | "collision" | "out_of_bounds" | "not_found";
-  }) {
-    if (getDebugFlag()) {
-      console.log(
-        `[${LOG_PREFIX}:device:move] idx=${data.index} from=${data.fromPosition} to=${data.toPosition}`,
-        `\n  device: ${data.deviceName} face=${data.face}`,
-        `\n  result: ${data.result}`,
-      );
-    }
-  },
+    result: string;
+  }) => layoutDebug.device("move %O", data),
 };
 
-// Check if running in test environment
-const isTestEnv = (): boolean => {
-  return (
-    (import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ===
-    "test"
-  );
-};
-
-// Expose control functions to window (for production debugging)
+// Auto-enable in development (browser only)
 if (typeof window !== "undefined") {
-  window.enableRackulaDebug = () => {
-    window.Rackula_DEBUG = true;
-    console.log(`[${LOG_PREFIX}] debug logging enabled`);
-  };
+  const isDev = (import.meta as ImportMeta & { env?: { DEV?: boolean } }).env
+    ?.DEV;
+  const isTest =
+    (import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ===
+    "test";
 
-  window.disableRackulaDebug = () => {
-    window.Rackula_DEBUG = false;
-    console.log(`[${LOG_PREFIX}] debug logging disabled`);
-  };
-
-  // Log mode on startup (skip in tests to reduce noise)
-  if (
-    (import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV &&
-    !isTestEnv()
-  ) {
-    console.log(
-      `[${LOG_PREFIX}] running in development mode - debug logging enabled`,
-    );
+  // Auto-enable in dev mode (unless already configured)
+  if (isDev && !isTest && !localStorage.getItem("debug")) {
+    localStorage.setItem("debug", "rackula:*");
   }
 }

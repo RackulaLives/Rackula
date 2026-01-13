@@ -432,6 +432,36 @@ npm run build        # Production build
 npm run lint         # ESLint check
 ```
 
+### Debug Logging
+
+Uses the `debug` npm package with namespace filtering.
+
+**Enable in browser console:**
+
+```javascript
+localStorage.debug = "rackula:*"; // All logs
+localStorage.debug = "rackula:layout:*"; // Layout module only
+localStorage.debug = "rackula:*,-rackula:canvas:*"; // All except canvas
+```
+
+**Namespaces:**
+
+| Namespace                  | Purpose               |
+| -------------------------- | --------------------- |
+| `rackula:layout:state`     | Layout store state    |
+| `rackula:layout:device`    | Device placement/move |
+| `rackula:canvas:transform` | Pan/zoom calculations |
+| `rackula:canvas:panzoom`   | Panzoom lifecycle     |
+| `rackula:cable:validation` | Cable validation      |
+| `rackula:app:mobile`       | Mobile interactions   |
+
+**Usage:**
+
+```typescript
+import { layoutDebug } from "$lib/utils/debug";
+layoutDebug.device("placed device %s at U%d", slug, position);
+```
+
 ### Keyboard Shortcuts
 
 | Key            | Action                  |

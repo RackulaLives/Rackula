@@ -1,134 +1,104 @@
 /**
  * Debug Logging Utility Tests
- * Verifies console logging uses standardized [Rackula:category] format
+ * Verifies debug utilities using the debug npm package
  *
- * Note: Debug logging is disabled by default in tests to reduce noise.
- * These tests enable it via window.Rackula_DEBUG to verify functionality.
+ * The debug package uses localStorage.debug for filtering, so we can't
+ * easily test output format. Instead we verify the exports work correctly.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { debug } from "$lib/utils/debug";
+import { describe, it, expect } from "vitest";
+import {
+  debug,
+  layoutDebug,
+  canvasDebug,
+  cableDebug,
+  appDebug,
+} from "$lib/utils/debug";
 
-describe("Debug Logging", () => {
-  let consoleSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    // Enable debug for these tests
-    window.Rackula_DEBUG = true;
-    consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    consoleSpy.mockRestore();
-    window.Rackula_DEBUG = undefined;
-  });
-
-  describe("Log Format Standards", () => {
-    it("debug.log() outputs [Rackula:debug] prefix", () => {
-      debug.log("test message");
-      expect(consoleSpy).toHaveBeenCalled();
-      const call = consoleSpy.mock.calls[0];
-      expect(call?.[0]).toBe("[Rackula:debug]");
+describe("Debug utilities", () => {
+  describe("Legacy compatibility", () => {
+    it("exports debug object with expected methods", () => {
+      expect(debug.log).toBeDefined();
+      expect(debug.info).toBeDefined();
+      expect(debug.warn).toBeDefined();
+      expect(debug.error).toBeDefined();
+      expect(debug.group).toBeDefined();
+      expect(debug.groupEnd).toBeDefined();
+      expect(debug.isEnabled).toBeDefined();
+      expect(debug.devicePlace).toBeDefined();
+      expect(debug.deviceMove).toBeDefined();
     });
 
-    it("debug.info() outputs [Rackula] prefix", () => {
-      debug.info("test message");
-      expect(consoleSpy).toHaveBeenCalled();
-      const call = consoleSpy.mock.calls[0];
-      expect(call?.[0]).toBe("[Rackula]");
+    it("debug methods are callable without errors", () => {
+      // These should not throw even when disabled
+      expect(() => debug.log("test")).not.toThrow();
+      expect(() => debug.info("test")).not.toThrow();
+      expect(() => debug.warn("test")).not.toThrow();
+      expect(() => debug.error("test")).not.toThrow();
+      expect(() => debug.group("test")).not.toThrow();
+      expect(() => debug.groupEnd()).not.toThrow();
     });
 
-    it("debug.devicePlace() outputs [Rackula:device:place] prefix", () => {
-      debug.devicePlace({
-        slug: "test-device",
-        position: 1,
-        passedFace: "front",
-        effectiveFace: "both",
-        deviceName: "Test Device",
-        isFullDepth: true,
-        result: "success",
-      });
-      expect(consoleSpy).toHaveBeenCalled();
-      const call = consoleSpy.mock.calls[0];
-      expect(call?.[0]).toMatch(/^\[Rackula:device:place\]/);
+    it("devicePlace is callable with proper data", () => {
+      expect(() =>
+        debug.devicePlace({
+          slug: "test-device",
+          position: 1,
+          passedFace: "front",
+          effectiveFace: "both",
+          deviceName: "Test Device",
+          isFullDepth: true,
+          result: "success",
+        }),
+      ).not.toThrow();
     });
 
-    it("debug.deviceMove() outputs [Rackula:device:move] prefix", () => {
-      debug.deviceMove({
-        index: 0,
-        deviceName: "Test Device",
-        face: "both",
-        fromPosition: 1,
-        toPosition: 5,
-        result: "success",
-      });
-      expect(consoleSpy).toHaveBeenCalled();
-      const call = consoleSpy.mock.calls[0];
-      expect(call?.[0]).toMatch(/^\[Rackula:device:move\]/);
-    });
-  });
-
-  describe("Warn and Error Logging", () => {
-    let warnSpy: ReturnType<typeof vi.spyOn>;
-    let errorSpy: ReturnType<typeof vi.spyOn>;
-
-    beforeEach(() => {
-      warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-      errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    });
-
-    afterEach(() => {
-      warnSpy.mockRestore();
-      errorSpy.mockRestore();
-    });
-
-    it("debug.warn() outputs [Rackula:debug:warn] prefix", () => {
-      debug.warn("warning message");
-      expect(warnSpy).toHaveBeenCalled();
-      const call = warnSpy.mock.calls[0];
-      expect(call?.[0]).toBe("[Rackula:debug:warn]");
-    });
-
-    it("debug.error() outputs [Rackula:debug:error] prefix", () => {
-      debug.error("error message");
-      expect(errorSpy).toHaveBeenCalled();
-      const call = errorSpy.mock.calls[0];
-      expect(call?.[0]).toBe("[Rackula:debug:error]");
+    it("deviceMove is callable with proper data", () => {
+      expect(() =>
+        debug.deviceMove({
+          index: 0,
+          deviceName: "Test Device",
+          face: "both",
+          fromPosition: 1,
+          toPosition: 5,
+          result: "success",
+        }),
+      ).not.toThrow();
     });
   });
 
-  describe("Group Logging", () => {
-    let groupSpy: ReturnType<typeof vi.spyOn>;
-    let groupEndSpy: ReturnType<typeof vi.spyOn>;
-
-    beforeEach(() => {
-      groupSpy = vi.spyOn(console, "group").mockImplementation(() => {});
-      groupEndSpy = vi.spyOn(console, "groupEnd").mockImplementation(() => {});
+  describe("Namespace loggers", () => {
+    it("exports layoutDebug with state and device namespaces", () => {
+      expect(layoutDebug.state).toBeDefined();
+      expect(layoutDebug.device).toBeDefined();
+      expect(typeof layoutDebug.state).toBe("function");
+      expect(typeof layoutDebug.device).toBe("function");
     });
 
-    afterEach(() => {
-      groupSpy.mockRestore();
-      groupEndSpy.mockRestore();
+    it("exports canvasDebug with transform and panzoom namespaces", () => {
+      expect(canvasDebug.transform).toBeDefined();
+      expect(canvasDebug.panzoom).toBeDefined();
+      expect(typeof canvasDebug.transform).toBe("function");
+      expect(typeof canvasDebug.panzoom).toBe("function");
     });
 
-    it("debug.group() outputs [Rackula:debug] prefix with label", () => {
-      debug.group("Test Group");
-      expect(groupSpy).toHaveBeenCalled();
-      const call = groupSpy.mock.calls[0];
-      expect(call?.[0]).toBe("[Rackula:debug] Test Group");
-    });
-  });
-
-  describe("Debug State", () => {
-    it("isEnabled() returns true when Rackula_DEBUG is set", () => {
-      // window.Rackula_DEBUG is set in beforeEach
-      expect(debug.isEnabled()).toBe(true);
+    it("exports cableDebug with validation namespace", () => {
+      expect(cableDebug.validation).toBeDefined();
+      expect(typeof cableDebug.validation).toBe("function");
     });
 
-    it("isEnabled() returns false by default in test environment", () => {
-      // Temporarily disable
-      window.Rackula_DEBUG = undefined;
-      expect(debug.isEnabled()).toBe(false);
+    it("exports appDebug with mobile namespace", () => {
+      expect(appDebug.mobile).toBeDefined();
+      expect(typeof appDebug.mobile).toBe("function");
+    });
+
+    it("namespace loggers are callable without errors", () => {
+      expect(() => layoutDebug.state("test")).not.toThrow();
+      expect(() => layoutDebug.device("test")).not.toThrow();
+      expect(() => canvasDebug.transform("test")).not.toThrow();
+      expect(() => canvasDebug.panzoom("test")).not.toThrow();
+      expect(() => cableDebug.validation("test")).not.toThrow();
+      expect(() => appDebug.mobile("test")).not.toThrow();
     });
   });
 });
