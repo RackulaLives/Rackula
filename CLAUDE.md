@@ -269,6 +269,15 @@ If none of those conditions are met, proceed immediately to the next prompt.
 </script>
 ```
 
+### bits-ui Components
+
+When implementing bits-ui components:
+
+- Fetch docs: `WebFetch https://bits-ui.com/docs/components/{name}/llms.txt`
+- Available: dialog, tabs, accordion, tooltip, popover, select, combobox
+- Validate with Svelte MCP: `svelte-autofixer` tool
+- Follow existing wrapper patterns in `src/lib/components/ui/`
+
 ### TDD Protocol
 
 1. Write tests FIRST
@@ -478,6 +487,25 @@ layoutDebug.device("placed device %s at U%d", slug, position);
 | `?`            | Show help               |
 | `Escape`       | Clear selection / close |
 | `↑↓`           | Move device in rack     |
+
+---
+
+## Skill Routing
+
+**Before starting any task, check if a skill applies:**
+
+| Task Type                 | Skill                                          | Why                                   |
+| ------------------------- | ---------------------------------------------- | ------------------------------------- |
+| Bug/issue investigation   | `/superpowers:systematic-debugging`            | Prevents guessing, forces evidence    |
+| New feature or component  | `/superpowers:brainstorming`                   | Explores requirements before code     |
+| Multi-step implementation | `/superpowers:writing-plans` then `/dev-issue` | Plan first, execute with discipline   |
+| Working on GitHub issue   | `/dev-issue <number>`                          | Full workflow with worktree isolation |
+| Research question         | `/research-spike <number>`                     | Structured investigation              |
+| Finishing a branch        | `/superpowers:finishing-a-development-branch`  | Merge/PR decision flow                |
+| Worktree cleanup needed   | `/worktree-cleanup`                            | List and remove stale worktrees       |
+| Debugging with context    | `/debug-with-memory`                           | Memory-assisted systematic debugging  |
+
+**Default rule:** If uncertain, invoke `/superpowers:brainstorming` first.
 
 ---
 
