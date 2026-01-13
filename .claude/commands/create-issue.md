@@ -1,4 +1,4 @@
-# Issue Creation Workflow v1
+# Issue Creation Workflow v2
 
 Create well-formed GitHub Issues or triage existing ones for the ready queue.
 Designed for quick capture during development and structured issue planning.
@@ -835,10 +835,8 @@ Labels added: <new labels>
 Labels removed: triage
 ```
 
-### Handoff Prompt
+### Handoff
 
-```
-Start implementation now? [y/n]:
-```
+After creating or triaging an issue, offer implementation via AskUserQuestion (see Interactive Step 12 and Triage Step 6).
 
-If yes: `Invoking /dev-issue <N>`
+If user selects "Start implementation": `Invoking /dev-issue <N>`
