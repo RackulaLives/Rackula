@@ -71,6 +71,7 @@
   import { hapticTap } from "$lib/utils/haptics";
   import { debug } from "$lib/utils/debug";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
+  import { Tooltip } from "bits-ui";
 
   // Build-time environment constant from vite.config.ts
   declare const __BUILD_ENV__: string;
@@ -806,251 +807,254 @@
   onkeydown={(e) => konamiDetector.handleKeyDown(e)}
 />
 
-<div
-  class="app-layout"
-  style="--sidebar-width: min({uiStore.sidebarWidthPx}px, var(--sidebar-width-max))"
->
-  <Toolbar
-    hasSelection={selectionStore.hasSelection}
-    hasRacks={layoutStore.hasRack}
-    theme={uiStore.theme}
-    displayMode={uiStore.displayMode}
-    showAnnotations={uiStore.showAnnotations}
-    {partyMode}
-    onnewrack={handleNewRack}
-    onsave={handleSave}
-    onload={handleLoad}
-    onexport={handleExport}
-    onshare={handleShare}
-    ondelete={handleDelete}
-    onfitall={handleFitAll}
-    ontoggletheme={handleToggleTheme}
-    ontoggledisplaymode={handleToggleDisplayMode}
-    ontoggleannotations={handleToggleAnnotations}
-    onhelp={handleHelp}
-  />
+<!-- Tooltip.Provider enables shared tooltip state - only one tooltip shows at a time -->
+<Tooltip.Provider delayDuration={500}>
+  <div
+    class="app-layout"
+    style="--sidebar-width: min({uiStore.sidebarWidthPx}px, var(--sidebar-width-max))"
+  >
+    <Toolbar
+      hasSelection={selectionStore.hasSelection}
+      hasRacks={layoutStore.hasRack}
+      theme={uiStore.theme}
+      displayMode={uiStore.displayMode}
+      showAnnotations={uiStore.showAnnotations}
+      {partyMode}
+      onnewrack={handleNewRack}
+      onsave={handleSave}
+      onload={handleLoad}
+      onexport={handleExport}
+      onshare={handleShare}
+      ondelete={handleDelete}
+      onfitall={handleFitAll}
+      ontoggletheme={handleToggleTheme}
+      ontoggledisplaymode={handleToggleDisplayMode}
+      ontoggleannotations={handleToggleAnnotations}
+      onhelp={handleHelp}
+    />
 
-  <main class="app-main" class:mobile={viewportStore.isMobile}>
-    {#if !viewportStore.isMobile}
-      <!-- Show sidebar toggle when hidden -->
-      {#if uiStore.sidebarTab === "hide"}
-        <button
-          type="button"
-          class="sidebar-show-btn"
-          onclick={() => uiStore.setSidebarTab("devices")}
-          aria-label="Show sidebar"
-          title="Show sidebar"
-        >
-          <span aria-hidden="true">→</span>
-        </button>
-      {/if}
-
-      <PaneGroup
-        direction="horizontal"
-        autoSaveId={uiStore.sidebarTab !== "hide"
-          ? "rackula-main-layout"
-          : "rackula-main-layout-no-sidebar"}
-        keyboardResizeBy={10}
-        class="pane-group"
-      >
-        {#if uiStore.sidebarTab !== "hide"}
-          <Pane
-            defaultSize={20}
-            minSize={10}
-            maxSize={40}
-            collapsible={true}
-            collapsedSize={3}
-            id="sidebar-pane"
-            class="sidebar-pane"
+    <main class="app-main" class:mobile={viewportStore.isMobile}>
+      {#if !viewportStore.isMobile}
+        <!-- Show sidebar toggle when hidden -->
+        {#if uiStore.sidebarTab === "hide"}
+          <button
+            type="button"
+            class="sidebar-show-btn"
+            onclick={() => uiStore.setSidebarTab("devices")}
+            aria-label="Show sidebar"
+            title="Show sidebar"
           >
-            <SidebarTabs
-              activeTab={uiStore.sidebarTab}
-              onchange={(tab) => uiStore.setSidebarTab(tab)}
-            />
-            {#if uiStore.sidebarTab === "devices"}
-              <DevicePalette
-                onadddevice={handleAddDevice}
-                onimportfromnetbox={handleImportFromNetBox}
-              />
-            {:else if uiStore.sidebarTab === "racks"}
-              <RackList onaddrack={handleNewRack} />
-            {/if}
-          </Pane>
-
-          <PaneResizer class="resize-handle" />
+            <span aria-hidden="true">→</span>
+          </button>
         {/if}
 
-        <Pane class="main-pane">
-          <Canvas
-            onnewrack={handleNewRack}
-            onload={handleLoad}
-            {partyMode}
-            enableLongPress={false}
-            onracklongpress={handleRackLongPress}
+        <PaneGroup
+          direction="horizontal"
+          autoSaveId={uiStore.sidebarTab !== "hide"
+            ? "rackula-main-layout"
+            : "rackula-main-layout-no-sidebar"}
+          keyboardResizeBy={10}
+          class="pane-group"
+        >
+          {#if uiStore.sidebarTab !== "hide"}
+            <Pane
+              defaultSize={20}
+              minSize={10}
+              maxSize={40}
+              collapsible={true}
+              collapsedSize={3}
+              id="sidebar-pane"
+              class="sidebar-pane"
+            >
+              <SidebarTabs
+                activeTab={uiStore.sidebarTab}
+                onchange={(tab) => uiStore.setSidebarTab(tab)}
+              />
+              {#if uiStore.sidebarTab === "devices"}
+                <DevicePalette
+                  onadddevice={handleAddDevice}
+                  onimportfromnetbox={handleImportFromNetBox}
+                />
+              {:else if uiStore.sidebarTab === "racks"}
+                <RackList onaddrack={handleNewRack} />
+              {/if}
+            </Pane>
+
+            <PaneResizer class="resize-handle" />
+          {/if}
+
+          <Pane class="main-pane">
+            <Canvas
+              onnewrack={handleNewRack}
+              onload={handleLoad}
+              {partyMode}
+              enableLongPress={false}
+              onracklongpress={handleRackLongPress}
+            />
+
+            <EditPanel />
+          </Pane>
+        </PaneGroup>
+      {:else}
+        <Canvas
+          onnewrack={handleNewRack}
+          onload={handleLoad}
+          {partyMode}
+          enableLongPress={viewportStore.isMobile && !placementStore.isPlacing}
+          onracklongpress={handleRackLongPress}
+        />
+      {/if}
+    </main>
+
+    <!-- Mobile bottom sheet for device details -->
+    {#if viewportStore.isMobile && bottomSheetOpen && selectedDeviceForSheet !== null && layoutStore.activeRack}
+      {@const activeRack = layoutStore.activeRack}
+      {@const device = activeRack.devices[selectedDeviceForSheet]}
+      {@const deviceType = device
+        ? layoutStore.device_types.find((dt) => dt.slug === device.device_type)
+        : null}
+      {#if device && deviceType}
+        {@const rackHeight = activeRack.height}
+        {@const maxPosition = rackHeight - deviceType.u_height + 1}
+        {@const canMoveUp = device.position < maxPosition}
+        {@const canMoveDown = device.position > 1}
+        <BottomSheet
+          bind:open={bottomSheetOpen}
+          title={deviceType.model}
+          onclose={handleBottomSheetClose}
+        >
+          <DeviceDetails
+            {device}
+            {deviceType}
+            rackView={activeRack.view}
+            {rackHeight}
+            showActions={true}
+            onremove={handleMobileRemoveDevice}
+            onmoveup={handleMobileMoveDeviceUp}
+            onmovedown={handleMobileMoveDeviceDown}
+            {canMoveUp}
+            {canMoveDown}
           />
-
-          <EditPanel />
-        </Pane>
-      </PaneGroup>
-    {:else}
-      <Canvas
-        onnewrack={handleNewRack}
-        onload={handleLoad}
-        {partyMode}
-        enableLongPress={viewportStore.isMobile && !placementStore.isPlacing}
-        onracklongpress={handleRackLongPress}
-      />
+        </BottomSheet>
+      {/if}
     {/if}
-  </main>
 
-  <!-- Mobile bottom sheet for device details -->
-  {#if viewportStore.isMobile && bottomSheetOpen && selectedDeviceForSheet !== null && layoutStore.activeRack}
-    {@const activeRack = layoutStore.activeRack}
-    {@const device = activeRack.devices[selectedDeviceForSheet]}
-    {@const deviceType = device
-      ? layoutStore.device_types.find((dt) => dt.slug === device.device_type)
-      : null}
-    {#if device && deviceType}
-      {@const rackHeight = activeRack.height}
-      {@const maxPosition = rackHeight - deviceType.u_height + 1}
-      {@const canMoveUp = device.position < maxPosition}
-      {@const canMoveDown = device.position > 1}
+    <NewRackForm
+      open={newRackFormOpen}
+      rackCount={layoutStore.rackCount}
+      oncreate={handleNewRackCreate}
+      oncancel={handleNewRackCancel}
+    />
+
+    <AddDeviceForm
+      open={addDeviceFormOpen}
+      onadd={handleAddDeviceCreate}
+      oncancel={handleAddDeviceCancel}
+    />
+
+    <ImportFromNetBoxDialog
+      open={importFromNetBoxOpen}
+      onimport={handleNetBoxImport}
+      oncancel={handleNetBoxImportCancel}
+    />
+
+    <ConfirmDialog
+      open={confirmDeleteOpen}
+      title={deleteTarget?.type === "rack" ? "Delete Rack" : "Remove Device"}
+      message={deleteTarget?.type === "rack"
+        ? `Are you sure you want to delete "${deleteTarget?.name}"? All devices in this rack will be removed.`
+        : `Are you sure you want to remove "${deleteTarget?.name}" from this rack?`}
+      confirmLabel={deleteTarget?.type === "rack" ? "Delete Rack" : "Remove"}
+      onconfirm={handleConfirmDelete}
+      oncancel={handleCancelDelete}
+    />
+
+    <ConfirmReplaceDialog
+      open={showReplaceDialog}
+      onSaveFirst={handleSaveFirst}
+      onReplace={handleReplace}
+      onCancel={handleCancelReplace}
+    />
+
+    <ExportDialog
+      open={exportDialogOpen}
+      racks={layoutStore.racks}
+      deviceTypes={layoutStore.device_types}
+      images={imageStore.getAllImages()}
+      displayMode={uiStore.displayMode}
+      layoutName={layoutStore.layout.name}
+      selectedRackId={selectionStore.isRackSelected
+        ? selectionStore.selectedRackId
+        : null}
+      qrCodeDataUrl={exportQrCodeDataUrl}
+      onexport={(e) => handleExportSubmit(e.detail)}
+      oncancel={handleExportCancel}
+    />
+
+    <ShareDialog
+      open={shareDialogOpen}
+      layout={layoutStore.layout}
+      onclose={handleShareClose}
+    />
+
+    <HelpPanel
+      open={helpPanelOpen}
+      showBanana={uiStore.showBanana}
+      onclose={handleHelpClose}
+      ontogglebanana={() => uiStore.toggleBanana()}
+    />
+
+    <ToastContainer />
+
+    <!-- Port tooltip for network interface hover -->
+    <PortTooltip />
+
+    <!-- Mobile device library FAB and bottom sheet -->
+    <DeviceLibraryFAB onclick={handleDeviceLibraryFABClick} />
+
+    {#if viewportStore.isMobile && deviceLibrarySheetOpen}
       <BottomSheet
-        bind:open={bottomSheetOpen}
-        title={deviceType.model}
-        onclose={handleBottomSheetClose}
+        bind:open={deviceLibrarySheetOpen}
+        title="Device Library"
+        onclose={handleDeviceLibrarySheetClose}
       >
-        <DeviceDetails
-          {device}
-          {deviceType}
-          rackView={activeRack.view}
-          {rackHeight}
-          showActions={true}
-          onremove={handleMobileRemoveDevice}
-          onmoveup={handleMobileMoveDeviceUp}
-          onmovedown={handleMobileMoveDeviceDown}
-          {canMoveUp}
-          {canMoveDown}
+        <DevicePalette
+          onadddevice={handleAddDevice}
+          onimportfromnetbox={handleImportFromNetBox}
+          ondeviceselect={handleMobileDeviceSelect}
         />
       </BottomSheet>
     {/if}
-  {/if}
 
-  <NewRackForm
-    open={newRackFormOpen}
-    rackCount={layoutStore.rackCount}
-    oncreate={handleNewRackCreate}
-    oncancel={handleNewRackCancel}
-  />
-
-  <AddDeviceForm
-    open={addDeviceFormOpen}
-    onadd={handleAddDeviceCreate}
-    oncancel={handleAddDeviceCancel}
-  />
-
-  <ImportFromNetBoxDialog
-    open={importFromNetBoxOpen}
-    onimport={handleNetBoxImport}
-    oncancel={handleNetBoxImportCancel}
-  />
-
-  <ConfirmDialog
-    open={confirmDeleteOpen}
-    title={deleteTarget?.type === "rack" ? "Delete Rack" : "Remove Device"}
-    message={deleteTarget?.type === "rack"
-      ? `Are you sure you want to delete "${deleteTarget?.name}"? All devices in this rack will be removed.`
-      : `Are you sure you want to remove "${deleteTarget?.name}" from this rack?`}
-    confirmLabel={deleteTarget?.type === "rack" ? "Delete Rack" : "Remove"}
-    onconfirm={handleConfirmDelete}
-    oncancel={handleCancelDelete}
-  />
-
-  <ConfirmReplaceDialog
-    open={showReplaceDialog}
-    onSaveFirst={handleSaveFirst}
-    onReplace={handleReplace}
-    onCancel={handleCancelReplace}
-  />
-
-  <ExportDialog
-    open={exportDialogOpen}
-    racks={layoutStore.racks}
-    deviceTypes={layoutStore.device_types}
-    images={imageStore.getAllImages()}
-    displayMode={uiStore.displayMode}
-    layoutName={layoutStore.layout.name}
-    selectedRackId={selectionStore.isRackSelected
-      ? selectionStore.selectedRackId
-      : null}
-    qrCodeDataUrl={exportQrCodeDataUrl}
-    onexport={(e) => handleExportSubmit(e.detail)}
-    oncancel={handleExportCancel}
-  />
-
-  <ShareDialog
-    open={shareDialogOpen}
-    layout={layoutStore.layout}
-    onclose={handleShareClose}
-  />
-
-  <HelpPanel
-    open={helpPanelOpen}
-    showBanana={uiStore.showBanana}
-    onclose={handleHelpClose}
-    ontogglebanana={() => uiStore.toggleBanana()}
-  />
-
-  <ToastContainer />
-
-  <!-- Port tooltip for network interface hover -->
-  <PortTooltip />
-
-  <!-- Mobile device library FAB and bottom sheet -->
-  <DeviceLibraryFAB onclick={handleDeviceLibraryFABClick} />
-
-  {#if viewportStore.isMobile && deviceLibrarySheetOpen}
-    <BottomSheet
-      bind:open={deviceLibrarySheetOpen}
-      title="Device Library"
-      onclose={handleDeviceLibrarySheetClose}
-    >
-      <DevicePalette
-        onadddevice={handleAddDevice}
-        onimportfromnetbox={handleImportFromNetBox}
-        ondeviceselect={handleMobileDeviceSelect}
-      />
-    </BottomSheet>
-  {/if}
-
-  <!-- Mobile rack edit sheet (opened via long press on rack) -->
-  {#if viewportStore.isMobile && rackEditSheetOpen && layoutStore.activeRack}
-    <BottomSheet
-      bind:open={rackEditSheetOpen}
-      title="Edit Rack"
-      onclose={handleRackEditSheetClose}
-    >
-      <RackEditSheet
-        rack={layoutStore.activeRack}
+    <!-- Mobile rack edit sheet (opened via long press on rack) -->
+    {#if viewportStore.isMobile && rackEditSheetOpen && layoutStore.activeRack}
+      <BottomSheet
+        bind:open={rackEditSheetOpen}
+        title="Edit Rack"
         onclose={handleRackEditSheetClose}
-      />
-    </BottomSheet>
-  {/if}
+      >
+        <RackEditSheet
+          rack={layoutStore.activeRack}
+          onclose={handleRackEditSheetClose}
+        />
+      </BottomSheet>
+    {/if}
 
-  <KeyboardHandler
-    onsave={handleSave}
-    onload={handleLoad}
-    onexport={handleExport}
-    ondelete={handleDelete}
-    onfitall={handleFitAll}
-    onhelp={handleHelp}
-    ontoggledisplaymode={handleToggleDisplayMode}
-    ontoggleannotations={handleToggleAnnotations}
-  />
+    <KeyboardHandler
+      onsave={handleSave}
+      onload={handleLoad}
+      onexport={handleExport}
+      ondelete={handleDelete}
+      onfitall={handleFitAll}
+      onhelp={handleHelp}
+      ontoggledisplaymode={handleToggleDisplayMode}
+      ontoggleannotations={handleToggleAnnotations}
+    />
 
-  <!-- Global SVG gradient definitions for animations -->
-  <AnimationDefs />
-</div>
+    <!-- Global SVG gradient definitions for animations -->
+    <AnimationDefs />
+  </div>
+</Tooltip.Provider>
 
 <style>
   .app-layout {
