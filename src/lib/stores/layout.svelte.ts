@@ -481,7 +481,8 @@ function deleteRack(id: string): void {
 function validateBayedGroupHeights(rackIds: string[]): string | undefined {
   if (rackIds.length <= 1) return undefined;
 
-  const heights = new SvelteSet<number>();
+  // Plain Set is intentional - this is a utility function, not reactive state
+  const heights = new Set<number>();
   for (const rackId of rackIds) {
     const rack = layout.racks.find((r) => r.id === rackId);
     if (rack) {

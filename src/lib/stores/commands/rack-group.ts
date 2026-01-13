@@ -26,9 +26,11 @@ export function createCreateRackGroupCommand(
   // Deep copy to avoid mutation issues
   const groupCopy = JSON.parse(JSON.stringify(group)) as RackGroup;
 
+  const displayName = group.name ?? group.id ?? "unnamed";
+
   return {
     type: "CREATE_RACK_GROUP",
-    description: `Create rack group "${group.name}"`,
+    description: `Create rack group "${displayName}"`,
     timestamp: Date.now(),
     execute() {
       store.createRackGroupRaw(groupCopy);
@@ -52,9 +54,11 @@ export function createUpdateRackGroupCommand(
   const beforeCopy = JSON.parse(JSON.stringify(before)) as Partial<RackGroup>;
   const afterCopy = JSON.parse(JSON.stringify(after)) as Partial<RackGroup>;
 
+  const displayName = afterCopy.name ?? beforeCopy.name ?? id ?? "unnamed";
+
   return {
     type: "UPDATE_RACK_GROUP",
-    description: "Update rack group",
+    description: `Update rack group "${displayName}"`,
     timestamp: Date.now(),
     execute() {
       store.updateRackGroupRaw(id, afterCopy);
@@ -75,9 +79,11 @@ export function createDeleteRackGroupCommand(
   // Deep copy to avoid mutation issues
   const groupCopy = JSON.parse(JSON.stringify(group)) as RackGroup;
 
+  const displayName = group.name ?? group.id ?? "unnamed";
+
   return {
     type: "DELETE_RACK_GROUP",
-    description: `Delete rack group "${group.name}"`,
+    description: `Delete rack group "${displayName}"`,
     timestamp: Date.now(),
     execute() {
       store.deleteRackGroupRaw(groupCopy.id);
