@@ -2,6 +2,35 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/svelte";
 import { afterEach, beforeEach, vi } from "vitest";
 
+// Suppress bits-ui scroll lock cleanup errors that occur after test teardown
+// These errors happen because bits-ui's body-scroll-lock sets timeouts that fire
+// after the test environment document is torn down. This is benign in tests.
+const originalConsoleError = console.error;
+console.error = (...args: unknown[]) => {
+  const message = String(args[0]);
+  if (
+    message.includes("resetBodyStyle") ||
+    message.includes("body-scroll-lock")
+  ) {
+    return; // Suppress bits-ui scroll lock errors
+  }
+  originalConsoleError.apply(console, args);
+};
+
+// Also handle uncaught exceptions from bits-ui cleanup
+if (typeof process !== "undefined" && process.on) {
+  process.on("uncaughtException", (error: Error) => {
+    if (
+      error.message?.includes("document is not defined") &&
+      error.stack?.includes("body-scroll-lock")
+    ) {
+      // Suppress bits-ui scroll lock cleanup errors
+      return;
+    }
+    throw error;
+  });
+}
+
 // Global test setup for Rackula
 // This file is loaded before all tests via vitest.config.ts setupFiles
 
