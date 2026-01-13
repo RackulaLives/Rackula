@@ -203,10 +203,36 @@ Use keyword inference (see Label Inference section) to suggest labels, then use 
 
 ### Step 8: Priority
 
+Use AskUserQuestion tool:
+
+```json
+{
+  "questions": [
+    {
+      "header": "Priority",
+      "question": "What priority level?",
+      "multiSelect": false,
+      "options": [
+        { "label": "Normal", "description": "Standard priority (Recommended)" },
+        {
+          "label": "Urgent",
+          "description": "Blocking other work, needs immediate attention"
+        },
+        {
+          "label": "High",
+          "description": "Important, should be addressed soon"
+        },
+        {
+          "label": "Low",
+          "description": "Nice to have, address when convenient"
+        }
+      ]
+    }
+  ]
+}
 ```
-Priority? (u=urgent, h=high, m=medium, l=low, enter=skip):
-> _
-```
+
+Map response to label: Urgent→`priority:urgent`, High→`priority:high`, Low→`priority:low`, Normal→no priority label
 
 ### Step 9: Milestone
 
