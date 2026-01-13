@@ -1,8 +1,10 @@
 <!--
   SidebarTabs Component
   Tab bar for sidebar navigation: Hide | Devices | Racks
+  Uses bits-ui Tabs for accessibility and keyboard navigation
 -->
 <script lang="ts">
+  import { Tabs } from "$lib/components/ui/Tabs";
   import type { SidebarTab } from "$lib/stores/ui.svelte";
 
   interface Props {
@@ -18,60 +20,40 @@
     { id: "racks", label: "Racks", icon: "▤" },
   ];
 
-  // Use bind:this array for focus management instead of querySelector
-  let tabButtons: HTMLButtonElement[] = $state([]);
-
-  /**
-   * Handle arrow key navigation between tabs
-   */
-  function handleKeyDown(event: KeyboardEvent, currentIndex: number) {
-    let newIndex: number | null = null;
-
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      newIndex = (currentIndex + 1) % tabs.length;
-    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-    } else if (event.key === "Home") {
-      newIndex = 0;
-    } else if (event.key === "End") {
-      newIndex = tabs.length - 1;
-    }
-
-    if (newIndex !== null) {
-      event.preventDefault();
-      const newTab = tabs[newIndex];
-      if (newTab) {
-        onchange(newTab.id);
-        // Focus the new tab button using ref array
-        tabButtons[newIndex]?.focus();
-      }
+  function handleValueChange(value: string | undefined) {
+    if (value) {
+      onchange(value as SidebarTab);
     }
   }
 </script>
 
-<div class="sidebar-tabs" role="tablist" aria-label="Sidebar navigation">
-  {#each tabs as tab, index (tab.id)}
-    <button
-      type="button"
-      role="tab"
-      class="tab-btn"
-      class:active={activeTab === tab.id}
-      aria-selected={activeTab === tab.id}
-      aria-label="{tab.label} tab"
-      tabindex={activeTab === tab.id ? 0 : -1}
-      onclick={() => onchange(tab.id)}
-      onkeydown={(e) => handleKeyDown(e, index)}
-      bind:this={tabButtons[index]}
-      data-testid="sidebar-tab-{tab.id}"
-    >
-      <span class="tab-icon" aria-hidden="true">{tab.icon}</span>
-      <span class="tab-label">{tab.label}</span>
-    </button>
-  {/each}
-</div>
+<Tabs.Root
+  value={activeTab}
+  onValueChange={handleValueChange}
+  orientation="horizontal"
+  loop={true}
+  class="sidebar-tabs"
+>
+  <Tabs.List class="tabs-list" aria-label="Sidebar navigation">
+    {#each tabs as tab (tab.id)}
+      <Tabs.Trigger
+        value={tab.id}
+        class="tab-btn"
+        data-testid="sidebar-tab-{tab.id}"
+      >
+        <span class="tab-icon" aria-hidden="true">{tab.icon}</span>
+        <span class="tab-label">{tab.label}</span>
+      </Tabs.Trigger>
+    {/each}
+  </Tabs.List>
+</Tabs.Root>
 
 <style>
-  .sidebar-tabs {
+  :global(.sidebar-tabs) {
+    display: contents;
+  }
+
+  :global(.tabs-list) {
     display: flex;
     gap: var(--space-1);
     padding: var(--space-2);
@@ -79,7 +61,7 @@
     background: var(--colour-sidebar-bg);
   }
 
-  .tab-btn {
+  :global(.tab-btn) {
     flex: 1;
     display: flex;
     align-items: center;
@@ -96,18 +78,18 @@
     transition: all var(--duration-fast) var(--ease-out);
   }
 
-  .tab-btn:hover {
+  :global(.tab-btn:hover) {
     background: var(--colour-surface-hover);
     color: var(--colour-text);
   }
 
-  .tab-btn.active {
+  :global(.tab-btn[data-state="active"]) {
     background: var(--colour-surface-active);
     border-color: var(--colour-border);
     color: var(--colour-text);
   }
 
-  .tab-btn:focus-visible {
+  :global(.tab-btn:focus-visible) {
     outline: 2px solid var(--colour-selection);
     outline-offset: -2px;
   }
