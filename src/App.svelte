@@ -28,7 +28,6 @@
   import RackEditSheet from "$lib/components/RackEditSheet.svelte";
   import SidebarTabs from "$lib/components/SidebarTabs.svelte";
   import RackList from "$lib/components/RackList.svelte";
-  import RackGroupManager from "$lib/components/RackGroupManager.svelte";
   import {
     getShareParam,
     clearShareParam,
@@ -885,12 +884,7 @@
                   onimportfromnetbox={handleImportFromNetBox}
                 />
               {:else if uiStore.sidebarTab === "racks"}
-                <div class="racks-tab-content">
-                  <RackList onaddrack={handleNewRack} />
-                  {#if layoutStore.racks.length >= 2}
-                    <RackGroupManager />
-                  {/if}
-                </div>
+                <RackList onaddrack={handleNewRack} />
               {/if}
             </Pane>
 
@@ -1128,14 +1122,6 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-  }
-
-  /* Racks tab content container */
-  .racks-tab-content {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow-y: auto;
   }
 
   /* Show sidebar button when sidebar is hidden */
