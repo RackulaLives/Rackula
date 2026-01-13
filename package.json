@@ -85,6 +85,7 @@
     "panzoom": "^9.4.3",
     "qrcode": "^1.5.4",
     "simple-icons": "^16.2.0",
+    "vaul-svelte": "^0.3.2",
     "zod": "^4.1.13"
   }
 }
