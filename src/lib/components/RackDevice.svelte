@@ -58,6 +58,9 @@
       event: CustomEvent<{ rackId: string; deviceIndex: number }>,
     ) => void;
     ondragend?: () => void;
+    onduplicate?: (
+      event: CustomEvent<{ rackId: string; deviceIndex: number }>,
+    ) => void;
     onPortClick?: (iface: InterfaceTemplate) => void;
   }
 
@@ -80,6 +83,7 @@
     onselect,
     ondragstart: ondragstartProp,
     ondragend: ondragendProp,
+    onduplicate,
     onPortClick,
   }: Props = $props();
 
@@ -355,6 +359,15 @@
     );
   }
 
+  // Context menu handler (right-click) - triggers duplicate
+  function handleContextMenu(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    onduplicate?.(
+      new CustomEvent("duplicate", { detail: { rackId, deviceIndex } }),
+    );
+  }
+
   // Set up long-press gesture on mobile (reactive to viewport changes)
   $effect(() => {
     if (viewportStore.isMobile && groupElement) {
@@ -377,6 +390,7 @@
   aria-label={ariaLabel}
   aria-pressed={selected}
   onclick={(e) => e.stopPropagation()}
+  oncontextmenu={handleContextMenu}
   onkeydown={handleKeyDown}
 >
   <!-- Device rectangle with pointer events (Safari 18.x fix #411)

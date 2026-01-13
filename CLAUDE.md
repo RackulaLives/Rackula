@@ -1,7 +1,7 @@
 # CLAUDE.md — Rackula
 
 **Project:** Rackula — Rack Layout Designer for Homelabbers
-**Version:** 0.5.0
+**Version:** 0.6.16
 
 ---
 
@@ -58,76 +58,6 @@ The `/release` skill will:
 - `1.0.0` — Production-ready, stable API
 
 ---
-
-## Recent Changes
-
-### v0.5.0 (Current)
-
-**v0.5.0** — Type system consolidation
-
-- Unified on storage types only (`DeviceType`, `PlacedDevice` with `device_type`)
-- Removed deprecated UI types (`Device`, `UIPlacedDevice` with `libraryId`)
-- Removed adapter layer and deprecated store functions
-- NetBox-compatible field naming (snake_case: `u_height`, `device_type`, `form_factor`)
-- Cleaned up legacy comments throughout codebase
-- Updated documentation (SPEC.md, ROADMAP.md)
-
-### v0.4.10
-
-**v0.4.10** — View reset on rack resize, toolbar polish
-
-- Auto-reset view when resizing rack height in EditPanel
-- View now centers on rack after height changes (preset buttons or numeric input)
-- Toolbar brand click only opens hamburger menu when in hamburger mode (< 1024px)
-- Brand area styled as button with border only in hamburger mode
-
-### v0.4.9
-
-**v0.4.9** — Airflow visualization
-
-- Edge stripe + arrow airflow indicators (4 types: passive, front-to-rear, rear-to-front, side-to-rear)
-- Conflict detection with orange border highlighting
-- Toggle with 'A' key or toolbar button
-- Airflow indicators in image/PDF exports
-- Fixed multi-device selection bug
-
-### v0.4.x
-
-**v0.4.8** — Toolbar drawer fix, z-index tokens
-
-- Moved toolbar drawer to right side (was overlapping device library)
-- Added z-index design tokens (`--z-sidebar`, `--z-drawer`, `--z-modal`, `--z-toast`)
-
-**v0.4.6–v0.4.7** — Load/save fixes
-
-- Reset view to center rack after loading layout
-- Fixed u_height schema to allow 0.5U devices
-
-**v0.4.3–v0.4.5** — PDF export, toolbar polish
-
-- PDF export (US Letter, auto orientation)
-- Hamburger menu for narrow viewports
-- File picker browser compatibility fixes
-
-**v0.4.1–v0.4.2** — Design token audit, responsive toolbar
-
-- Replaced hardcoded CSS with design tokens
-- Added responsive hamburger menu
-
-### v0.4.0 (BREAKING)
-
-- Removed v0.1/v0.2 legacy format support — only `.Rackula.zip` (YAML) format
-- Code cleanup: removed dead code, unused tokens, redundant dependencies
-
-### v0.3.x Features
-
-- Undo/Redo with Ctrl+Z / Ctrl+Shift+Z
-- YAML folder-based `.Rackula.zip` archive format
-- 11 device categories, device images (front/rear)
-- Label/image display mode toggle
-- 10" and 19" rack width options
-- Bundled export with metadata
-- Single-rack mode, Zod schema validation
 
 ## Documentation
 
@@ -476,20 +406,21 @@ layoutDebug.device("placed device %s at U%d", slug, position);
 
 ### Keyboard Shortcuts
 
-| Key            | Action                  |
-| -------------- | ----------------------- |
-| `Ctrl+Z`       | Undo                    |
-| `Ctrl+Shift+Z` | Redo                    |
-| `Ctrl+Y`       | Redo (alternative)      |
-| `Ctrl+S`       | Save layout             |
-| `Ctrl+O`       | Load layout             |
-| `Ctrl+E`       | Export                  |
-| `I`            | Toggle display mode     |
-| `F`            | Fit all                 |
-| `Delete`       | Delete selection        |
-| `?`            | Show help               |
-| `Escape`       | Clear selection / close |
-| `↑↓`           | Move device in rack     |
+| Key            | Action                         |
+| -------------- | ------------------------------ |
+| `Ctrl+Z`       | Undo                           |
+| `Ctrl+Shift+Z` | Redo                           |
+| `Ctrl+Y`       | Redo (alternative)             |
+| `Ctrl+S`       | Save layout                    |
+| `Ctrl+O`       | Load layout                    |
+| `Ctrl+E`       | Export                         |
+| `Ctrl+D`       | Duplicate selected device/rack |
+| `I`            | Toggle display mode            |
+| `F`            | Fit all                        |
+| `Delete`       | Delete selection               |
+| `?`            | Show help                      |
+| `Escape`       | Clear selection / close        |
+| `↑↓`           | Move device in rack            |
 
 ---
 
