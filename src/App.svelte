@@ -70,6 +70,7 @@
   import { analytics } from "$lib/utils/analytics";
   import { hapticTap } from "$lib/utils/haptics";
   import { debug } from "$lib/utils/debug";
+  import { dialogStore } from "$lib/stores/dialogs.svelte";
 
   // Build-time environment constant from vite.config.ts
   declare const __BUILD_ENV__: string;
@@ -83,31 +84,28 @@
   const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
 
-  // Dialog state
-  let newRackFormOpen = $state(false);
-  let addDeviceFormOpen = $state(false);
-  let confirmDeleteOpen = $state(false);
-  let exportDialogOpen = $state(false);
-  let shareDialogOpen = $state(false);
-  let helpPanelOpen = $state(false);
-  let importFromNetBoxOpen = $state(false);
-  let deleteTarget: { type: "rack" | "device"; name: string } | null =
-    $state(null);
-  let showReplaceDialog = $state(false);
-  let pendingSaveFirst = $state(false);
+  // Dialog state - now managed by dialogStore
+  // Legacy local aliases for gradual migration
+  let newRackFormOpen = $derived(dialogStore.isOpen("newRack"));
+  let addDeviceFormOpen = $derived(dialogStore.isOpen("addDevice"));
+  let confirmDeleteOpen = $derived(dialogStore.isOpen("confirmDelete"));
+  let exportDialogOpen = $derived(dialogStore.isOpen("export"));
+  let shareDialogOpen = $derived(dialogStore.isOpen("share"));
+  let helpPanelOpen = $derived(dialogStore.isOpen("help"));
+  let importFromNetBoxOpen = $derived(dialogStore.isOpen("importNetBox"));
+  let showReplaceDialog = $derived(dialogStore.isOpen("confirmReplace"));
 
-  // QR code for export (generated when export dialog opens)
-  let exportQrCodeDataUrl: string | undefined = $state(undefined);
+  // Mobile bottom sheet state - managed by dialogStore
+  let bottomSheetOpen = $derived(dialogStore.isSheetOpen("deviceDetails"));
+  let deviceLibrarySheetOpen = $derived(
+    dialogStore.isSheetOpen("deviceLibrary"),
+  );
+  let rackEditSheetOpen = $derived(dialogStore.isSheetOpen("rackEdit"));
 
-  // Mobile bottom sheet state
-  let bottomSheetOpen = $state(false);
-  let selectedDeviceForSheet: number | null = $state(null);
-
-  // Mobile device library sheet state
-  let deviceLibrarySheetOpen = $state(false);
-
-  // Mobile rack edit sheet state (opened via long press)
-  let rackEditSheetOpen = $state(false);
+  // Aliases to dialogStore properties for template access
+  let deleteTarget = $derived(dialogStore.deleteTarget);
+  let selectedDeviceForSheet = $derived(dialogStore.selectedDeviceIndex);
+  let exportQrCodeDataUrl = $derived(dialogStore.exportQrCodeDataUrl);
 
   // Party Mode easter egg (triggered by Konami code)
   let partyMode = $state(false);
@@ -184,7 +182,7 @@
 
     // Priority 3: No share link or autosave, show new rack dialog if empty
     if (layoutStore.rackCount === 0) {
-      newRackFormOpen = true;
+      dialogStore.open("newRack");
     }
   });
 
@@ -195,7 +193,7 @@
       toastStore.showToast("Maximum number of racks reached", "warning");
       return;
     }
-    newRackFormOpen = true;
+    dialogStore.open("newRack");
   }
 
   function handleNewRackCreate(data: {
@@ -204,33 +202,33 @@
     width: number;
   }) {
     layoutStore.addRack(data.name, data.height, data.width);
-    newRackFormOpen = false;
+    dialogStore.close();
   }
 
   function handleNewRackCancel() {
-    newRackFormOpen = false;
+    dialogStore.close();
   }
 
   // Replace dialog handlers (single-rack mode)
   async function handleSaveFirst() {
-    showReplaceDialog = false;
-    pendingSaveFirst = true;
+    dialogStore.close();
+    dialogStore.pendingSaveFirst = true;
     await handleSave();
   }
 
   function handleReplace() {
-    showReplaceDialog = false;
+    dialogStore.close();
     layoutStore.resetLayout();
     // Clean up orphaned user images (layout is now empty)
     const usedSlugs = layoutStore.getUsedDeviceTypeSlugs();
     imageStore.cleanupOrphanedImages(usedSlugs);
     // Clear autosaved session when explicitly creating new rack
     clearSession();
-    newRackFormOpen = true;
+    dialogStore.open("newRack");
   }
 
   function handleCancelReplace() {
-    showReplaceDialog = false;
+    dialogStore.close();
   }
 
   async function handleSave() {
@@ -252,13 +250,13 @@
       analytics.trackSave(layoutStore.totalDeviceCount);
 
       // After save, if pendingSaveFirst, reset and open new rack form
-      if (pendingSaveFirst) {
-        pendingSaveFirst = false;
+      if (dialogStore.pendingSaveFirst) {
+        dialogStore.pendingSaveFirst = false;
         layoutStore.resetLayout();
         // Clean up orphaned user images (layout is now empty)
         const usedSlugs = layoutStore.getUsedDeviceTypeSlugs();
         imageStore.cleanupOrphanedImages(usedSlugs);
-        newRackFormOpen = true;
+        dialogStore.open("newRack");
       }
     } catch (error) {
       console.error("Failed to save layout:", error);
@@ -336,21 +334,23 @@
     try {
       const shareUrl = generateShareUrl(layoutStore.layout);
       if (canFitInQR(shareUrl)) {
-        exportQrCodeDataUrl = await generateQRCode(shareUrl, { width: 444 });
+        dialogStore.exportQrCodeDataUrl = await generateQRCode(shareUrl, {
+          width: 444,
+        });
       } else {
         // Layout too large for QR code
-        exportQrCodeDataUrl = undefined;
+        dialogStore.exportQrCodeDataUrl = undefined;
       }
     } catch {
       // If QR generation fails, continue without it
-      exportQrCodeDataUrl = undefined;
+      dialogStore.exportQrCodeDataUrl = undefined;
     }
 
-    exportDialogOpen = true;
+    dialogStore.open("export");
   }
 
   async function handleExportSubmit(options: ExportOptions) {
-    exportDialogOpen = false;
+    dialogStore.close();
 
     try {
       // Multi-rack mode: export all racks
@@ -450,7 +450,7 @@
   }
 
   function handleExportCancel() {
-    exportDialogOpen = false;
+    dialogStore.close();
   }
 
   function handleShare() {
@@ -458,14 +458,14 @@
       toastStore.showToast("No rack to share", "warning");
       return;
     }
-    shareDialogOpen = true;
+    dialogStore.open("share");
 
     // Track share event (total devices across all racks)
     analytics.trackShare(layoutStore.totalDeviceCount);
   }
 
   function handleShareClose() {
-    shareDialogOpen = false;
+    dialogStore.close();
   }
 
   function handleDelete() {
@@ -473,8 +473,8 @@
       // Get the selected rack by ID
       const rack = layoutStore.getRackById(selectionStore.selectedRackId);
       if (rack) {
-        deleteTarget = { type: "rack", name: rack.name };
-        confirmDeleteOpen = true;
+        dialogStore.deleteTarget = { type: "rack", name: rack.name };
+        dialogStore.open("confirmDelete");
       }
     } else if (selectionStore.isDeviceSelected) {
       if (
@@ -491,11 +491,11 @@
           const deviceDef = layoutStore.device_types.find(
             (d) => d.slug === device?.device_type,
           );
-          deleteTarget = {
+          dialogStore.deleteTarget = {
             type: "device",
             name: deviceDef?.model ?? deviceDef?.slug ?? "Device",
           };
-          confirmDeleteOpen = true;
+          dialogStore.open("confirmDelete");
         }
       }
     }
@@ -516,13 +516,11 @@
         selectionStore.clearSelection();
       }
     }
-    confirmDeleteOpen = false;
-    deleteTarget = null;
+    dialogStore.close();
   }
 
   function handleCancelDelete() {
-    confirmDeleteOpen = false;
-    deleteTarget = null;
+    dialogStore.close();
   }
 
   function handleFitAll() {
@@ -548,17 +546,17 @@
   }
 
   function handleHelp() {
-    helpPanelOpen = true;
+    dialogStore.open("help");
   }
 
   function handleHelpClose() {
-    helpPanelOpen = false;
+    dialogStore.close();
   }
 
   function handleAddDevice() {
     // Close bottom sheet first to avoid z-index conflict on mobile
-    deviceLibrarySheetOpen = false;
-    addDeviceFormOpen = true;
+    dialogStore.closeSheet();
+    dialogStore.open("addDevice");
   }
 
   function handleAddDeviceCreate(data: {
@@ -591,16 +589,16 @@
     // Track custom device creation
     analytics.trackCustomDeviceCreate(data.category);
 
-    addDeviceFormOpen = false;
+    dialogStore.close();
   }
 
   function handleAddDeviceCancel() {
-    addDeviceFormOpen = false;
+    dialogStore.close();
   }
 
   // NetBox import handlers
   function handleImportFromNetBox() {
-    importFromNetBoxOpen = true;
+    dialogStore.open("importNetBox");
   }
 
   function handleNetBoxImport(result: ImportResult) {
@@ -615,11 +613,11 @@
       `Imported "${result.deviceType.model}" to device library`,
       "success",
     );
-    importFromNetBoxOpen = false;
+    dialogStore.close();
   }
 
   function handleNetBoxImportCancel() {
-    importFromNetBoxOpen = false;
+    dialogStore.close();
   }
 
   // Beforeunload handler for unsaved changes
@@ -669,8 +667,7 @@
         hasRack: !!activeRack,
       });
       if (deviceIndex !== null && activeRack) {
-        selectedDeviceForSheet = deviceIndex;
-        bottomSheetOpen = true;
+        dialogStore.openSheet("deviceDetails", deviceIndex);
         debug.log("[Mobile] Opening bottom sheet for device", deviceIndex);
         // Note: Not zooming because bottom sheet covers most of viewport
       }
@@ -680,8 +677,7 @@
         debug.log(
           "[Mobile] Device deselected, closing bottom sheet and fitting all",
         );
-        bottomSheetOpen = false;
-        selectedDeviceForSheet = null;
+        dialogStore.closeSheet();
         canvasStore.fitAll(layoutStore.racks);
       }
     }
@@ -689,8 +685,7 @@
 
   // Handle bottom sheet close
   function handleBottomSheetClose() {
-    bottomSheetOpen = false;
-    selectedDeviceForSheet = null;
+    dialogStore.closeSheet();
     selectionStore.clearSelection();
   }
 
@@ -740,12 +735,12 @@
 
   // Handle device library FAB click (mobile)
   function handleDeviceLibraryFABClick() {
-    deviceLibrarySheetOpen = true;
+    dialogStore.openSheet("deviceLibrary");
   }
 
   // Handle device library sheet close
   function handleDeviceLibrarySheetClose() {
-    deviceLibrarySheetOpen = false;
+    dialogStore.closeSheet();
   }
 
   // Handle rack long press (mobile rack editing)
@@ -754,16 +749,14 @@
     if (placementStore.isPlacing) return;
 
     // Close any other open sheets first
-    bottomSheetOpen = false;
-    deviceLibrarySheetOpen = false;
-    selectedDeviceForSheet = null;
+    dialogStore.closeSheet();
     // Open rack edit sheet
-    rackEditSheetOpen = true;
+    dialogStore.openSheet("rackEdit");
   }
 
   // Handle rack edit sheet close
   function handleRackEditSheetClose() {
-    rackEditSheetOpen = false;
+    dialogStore.closeSheet();
   }
 
   // Handle mobile device selection from palette (enters placement mode)
@@ -774,8 +767,7 @@
     hapticTap(); // Fire haptic immediately for snappier feedback
     placementStore.startPlacement(device);
     // Close all sheets when entering placement mode
-    deviceLibrarySheetOpen = false;
-    rackEditSheetOpen = false;
+    dialogStore.closeSheet();
   }
 
   // Auto-save layout to localStorage with debouncing
