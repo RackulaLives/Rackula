@@ -42,6 +42,7 @@ START
   │
   ├─ PHASE 4: Execute Release
   │   - Update CHANGELOG.md
+  │   - Update SECURITY.md (supported version)
   │   - npm version [type] --no-git-tag-version
   │   - git add && git commit
   │   - git tag vX.Y.Z
@@ -164,6 +165,7 @@ Ready to release v$NEW_VERSION
 
 Changes:
 - Update CHANGELOG.md with new entry
+- Update SECURITY.md supported version
 - Bump version in package.json
 - Create git tag vX.Y.Z
 - Push to origin (triggers GitHub Action)
@@ -196,14 +198,29 @@ Insert the new entry after the header (line 7) and before the first existing ver
 
 Use the Edit tool to insert the changelog entry at the correct position.
 
-### 4c. Commit Changelog
+### 4c. Update SECURITY.md
 
-```bash
-git add CHANGELOG.md
-git commit -m "docs: update changelog for v$NEW_VERSION"
+Update the supported versions table in SECURITY.md to reflect the new release version.
+
+Use the Edit tool to replace the version table:
+
+```markdown
+| Version | Supported          |
+| ------- | ------------------ |
+| $NEW_VERSION   | :white_check_mark: |
+| < $NEW_VERSION | :x:                |
 ```
 
-### 4d. Bump Version
+This ensures SECURITY.md always shows the current release as the only supported version.
+
+### 4d. Commit Release Files
+
+```bash
+git add CHANGELOG.md SECURITY.md
+git commit -m "docs: update changelog and security policy for v$NEW_VERSION"
+```
+
+### 4e. Bump Version
 
 ```bash
 npm version $NEW_VERSION --no-git-tag-version
@@ -211,7 +228,7 @@ git add package.json package-lock.json
 git commit --amend -m "v$NEW_VERSION"
 ```
 
-### 4e. Create Tag and Push
+### 4f. Create Tag and Push
 
 ```bash
 git tag "v$NEW_VERSION"
