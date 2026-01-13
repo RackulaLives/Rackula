@@ -236,21 +236,60 @@ Map response to label: Urgent→`priority:urgent`, High→`priority:high`, Low�
 
 ### Step 9: Milestone
 
-Fetch available milestones:
+**Pre-fetch version info:**
 
 ```bash
-gh api repos/:owner/:repo/milestones --jq '.[] | "\(.number). \(.title)"'
+# Get current version from package.json
+current_version=$(node -p "require('./package.json').version")
+
+# Get open milestones
+gh api repos/:owner/:repo/milestones --jq '.[] | select(.state=="open") | .title'
 ```
 
-Present:
+**Calculate semantic versions** from current version (e.g., `0.6.16`):
 
+- Next (patch): `v0.6.17`
+- Next Minor: `v0.7.0`
+- Next Major: `v1.0.0`
+
+**Find matching milestones:**
+
+- For each semantic option, check if a milestone exists
+- "Next" uses the nearest open milestone if any exist, otherwise calculates patch version
+
+Use AskUserQuestion with dynamic labels showing actual versions:
+
+```json
+{
+  "questions": [
+    {
+      "header": "Milestone",
+      "question": "Which milestone should this issue target?",
+      "multiSelect": false,
+      "options": [
+        { "label": "Next (v0.7.0)", "description": "Nearest open milestone" },
+        {
+          "label": "Next Minor (v0.8.0)",
+          "description": "Will create if needed"
+        },
+        {
+          "label": "Next Major (v1.0.0)",
+          "description": "Will create if needed"
+        },
+        { "label": "None", "description": "No milestone assignment" }
+      ]
+    }
+  ]
+}
 ```
-Assign to milestone?
-1. v0.7.0
-2. v0.8.0
-3. Skip
-> _
-```
+
+**Post-selection:**
+
+- If selected milestone doesn't exist, create it:
+  ```bash
+  gh api repos/:owner/:repo/milestones -f title="vX.Y.Z"
+  ```
+- Assign issue to the milestone (or skip if "None")
 
 ### Step 10: Preview & Confirm
 
