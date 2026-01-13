@@ -96,17 +96,32 @@ Search for similar issues:
 gh issue list --search "<summary keywords>" --limit 5 --json number,title,state
 ```
 
-If matches found, display them and ask:
+If matches found, use AskUserQuestion tool with dynamic options:
 
+```json
+{
+  "questions": [
+    {
+      "header": "Duplicates?",
+      "question": "Are any of these existing issues duplicates?",
+      "multiSelect": false,
+      "options": [
+        { "label": "#42: Toast z-index issue", "description": "open" },
+        { "label": "#38: Modal layering bug", "description": "closed" },
+        {
+          "label": "None of these",
+          "description": "Continue creating new issue"
+        }
+      ]
+    }
+  ]
+}
 ```
-Possible duplicates:
-1. #42: Toast z-index issue (open)
-2. #38: Modal layering bug (closed)
 
-Are any of these duplicates? (enter number to link, 'n' to continue):
-```
-
-If user selects a duplicate, comment on existing issue and stop.
+- Build options dynamically from search results
+- Always include "None of these" as final option
+- If user selects an existing issue, comment on it and stop
+- If "None of these" selected, continue to next step
 
 ### Step 4: Type-Specific Details
 
