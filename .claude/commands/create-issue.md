@@ -428,13 +428,46 @@ MISSING:
 - [ ] Test Requirements
 - [ ] Size estimate
 - [ ] Area label
-
-Fill in missing sections? [y/n]:
 ```
+
+Then use AskUserQuestion tool:
+
+```json
+{
+  "questions": [
+    {
+      "header": "Triage",
+      "question": "Fill in missing sections?",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Yes, fill them in",
+          "description": "Guide me through adding missing info"
+        },
+        {
+          "label": "Skip to labels only",
+          "description": "Just update labels and milestone"
+        },
+        { "label": "Cancel", "description": "Exit without changes" }
+      ]
+    }
+  ]
+}
+```
+
+- "Yes, fill them in": Proceed to Step 3
+- "Skip to labels only": Skip to Step 5 (Update Labels)
+- "Cancel": Output "Triage cancelled." and stop
 
 ### Step 3: Fill Missing Sections
 
-For each missing element, prompt user with same flow as Interactive mode steps 5-8.
+For each missing element, prompt user with same flow as Interactive mode:
+
+- **Acceptance Criteria**: Same as Interactive Step 5
+- **Test Requirements**: Same as Interactive Step 6
+- **Labels**: Use same AskUserQuestion as Interactive Step 7 (multi-select with keyword inference)
+- **Priority**: Use same AskUserQuestion as Interactive Step 8
+- **Milestone**: Use same AskUserQuestion as Interactive Step 9
 
 ### Step 4: Update Issue
 
@@ -454,10 +487,38 @@ gh issue edit $ARGUMENTS \
 
 ### Step 6: Handoff Offer
 
+Output triage summary, then use same AskUserQuestion as Interactive Step 12:
+
 ```
 Issue #42 triaged and moved to ready queue.
-Start implementation now? [y/n]:
+Labels added: area:ui, size:small
+Labels removed: triage
 ```
+
+```json
+{
+  "questions": [
+    {
+      "header": "Next step",
+      "question": "Issue triaged! What now?",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Start implementation",
+          "description": "Invoke /dev-issue to begin work"
+        },
+        {
+          "label": "Done for now",
+          "description": "Return to normal conversation"
+        }
+      ]
+    }
+  ]
+}
+```
+
+- "Start implementation": Output `Invoking /dev-issue <issue-number>`
+- "Done for now": End skill
 
 ---
 
