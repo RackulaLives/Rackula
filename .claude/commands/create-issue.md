@@ -170,19 +170,36 @@ Enter test requirements (one per line, empty line to finish):
 >
 ```
 
-### Step 7: Label Suggestions
+### Step 7: Label Selection
 
-Use keyword inference (see Label Inference section) and present:
+Use keyword inference (see Label Inference section) to suggest labels, then use AskUserQuestion with multi-select:
 
+```json
+{
+  "questions": [
+    {
+      "header": "Labels",
+      "question": "Which labels should be applied?",
+      "multiSelect": true,
+      "options": [
+        {
+          "label": "area:ui",
+          "description": "Detected from: 'toast', 'modal'"
+        },
+        { "label": "size:small", "description": "Default for bug type" },
+        { "label": "area:canvas", "description": "Other relevant area" },
+        { "label": "priority:high", "description": "Add high priority" }
+      ]
+    }
+  ]
+}
 ```
-Suggested labels based on content:
-- area:ui (detected: "toast", "modal")
-- size:small (default for bugs)
 
-Confirm labels? [y/n/edit]:
-```
-
-If 'edit', allow adding/removing labels.
+- Build options dynamically from keyword inference
+- Include detected labels with detection reason in description
+- Include default size label for the issue type
+- Include other potentially relevant area labels
+- Pre-select detected labels (user can deselect)
 
 ### Step 8: Priority
 
