@@ -1,9 +1,11 @@
 <!--
   ImportFromNetBoxDialog Component
   Dialog for importing device types from NetBox devicetype-library YAML format
+  Uses bits-ui Tabs for accessible input mode selection
 -->
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
+  import { Tabs } from "$lib/components/ui/Tabs";
   import type { DeviceCategory } from "$lib/types";
   import { ALL_CATEGORIES, CATEGORY_COLOURS } from "$lib/types/constants";
   import {
@@ -175,28 +177,21 @@
 <Dialog {open} title="Import from NetBox" width="560px" onclose={handleCancel}>
   <div class="import-dialog">
     <!-- Input Mode Tabs -->
-    <div class="input-tabs">
-      <button
-        type="button"
-        class="tab"
-        class:active={inputMode === "paste"}
-        onclick={() => (inputMode = "paste")}
-      >
-        Paste YAML
-      </button>
-      <button
-        type="button"
-        class="tab"
-        class:active={inputMode === "upload"}
-        onclick={() => (inputMode = "upload")}
-      >
-        Upload File
-      </button>
-    </div>
+    <Tabs.Root
+      value={inputMode}
+      onValueChange={(value) => {
+        if (value) inputMode = value as InputMode;
+      }}
+      orientation="horizontal"
+      class="input-tabs-root"
+    >
+      <Tabs.List class="input-tabs" aria-label="Import input mode">
+        <Tabs.Trigger value="paste" class="tab">Paste YAML</Tabs.Trigger>
+        <Tabs.Trigger value="upload" class="tab">Upload File</Tabs.Trigger>
+      </Tabs.List>
 
-    <!-- Input Area -->
-    <div class="input-area">
-      {#if inputMode === "paste"}
+      <!-- Input Area -->
+      <Tabs.Content value="paste" class="input-area">
         <textarea
           class="yaml-input"
           bind:value={yamlInput}
@@ -210,7 +205,9 @@ u_height: 1
 is_full_depth: false"
           rows="10"
         ></textarea>
-      {:else}
+      </Tabs.Content>
+
+      <Tabs.Content value="upload" class="input-area">
         <div class="file-upload">
           <input
             type="file"
@@ -250,8 +247,8 @@ is_full_depth: false"
             </p>
           {/if}
         </div>
-      {/if}
-    </div>
+      </Tabs.Content>
+    </Tabs.Root>
 
     <!-- Parse Button -->
     {#if !parsedData}
@@ -379,14 +376,18 @@ is_full_depth: false"
     gap: var(--space-4);
   }
 
-  .input-tabs {
+  :global(.input-tabs-root) {
+    display: contents;
+  }
+
+  :global(.input-tabs) {
     display: flex;
     gap: var(--space-1);
     border-bottom: 1px solid var(--colour-border);
     padding-bottom: var(--space-2);
   }
 
-  .tab {
+  :global(.tab) {
     padding: var(--space-2) var(--space-4);
     background: transparent;
     border: none;
@@ -397,18 +398,23 @@ is_full_depth: false"
     transition: all var(--transition-fast);
   }
 
-  .tab:hover {
+  :global(.tab:hover) {
     color: var(--colour-text);
     background: var(--colour-surface-hover);
   }
 
-  .tab.active {
+  :global(.tab[data-state="active"]) {
     color: var(--colour-selection);
     border-bottom: 2px solid var(--colour-selection);
     margin-bottom: -1px;
   }
 
-  .input-area {
+  :global(.tab:focus-visible) {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: -2px;
+  }
+
+  :global(.input-area) {
     min-height: 200px;
   }
 
