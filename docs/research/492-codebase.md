@@ -328,6 +328,6 @@ From `package.json`:
 
 4. **Mobile sheets are custom:** No bits-ui Sheet available; BottomSheet implements swipe-to-dismiss well
 
-5. **Tooltip gap:** No bits-ui Tooltip; current custom implementation covers use cases
+5. **Tooltip available:** bits-ui provides full Tooltip API (`Tooltip.Provider`, `Tooltip.Root`, `Tooltip.Trigger`, `Tooltip.Content`, `Tooltip.Arrow`); current custom implementation can be migrated, noting mobile limitation (bits-ui tooltips not supported on touch devices)
 
-6. **Migration strategy:** Focus on MobileWarningModal and ImportFromNetBoxDialog Tabs, evaluate bits-ui roadmap for Sheet/Tooltip
+6. **Migration strategy:** Focus on MobileWarningModal and ImportFromNetBoxDialog Tabs; Tooltip migration is straightforward for desktop, consider Popover fallback for mobile
