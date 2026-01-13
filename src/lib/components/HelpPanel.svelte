@@ -134,11 +134,19 @@
   // Keyboard shortcuts grouped by category
   const shortcutGroups = [
     {
+      name: "Navigation",
+      shortcuts: [
+        { key: "Scroll Wheel", action: "Zoom in/out (at cursor)" },
+        { key: "Shift + Scroll", action: "Pan horizontally" },
+        { key: "Click + Drag", action: "Pan canvas" },
+        { key: "F", action: "Fit all (zoom to fit)" },
+      ],
+    },
+    {
       name: "General",
       shortcuts: [
         { key: "Escape", action: "Clear selection / Close dialog" },
         { key: "I", action: "Toggle display mode" },
-        { key: "F", action: "Fit all (zoom to fit)" },
         { key: "[", action: "Shrink sidebar" },
         { key: "]", action: "Widen sidebar" },
       ],

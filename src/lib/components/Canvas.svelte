@@ -133,6 +133,23 @@
         smoothScroll: false,
         // Disable default zoom on double-click (we handle zoom via toolbar)
         zoomDoubleClickSpeed: 1,
+        // Handle wheel events for zoom and Shift+scroll for horizontal pan
+        beforeWheel: (e: WheelEvent) => {
+          // Shift+scroll = horizontal pan instead of zoom
+          if (e.shiftKey) {
+            debug.log("beforeWheel: Shift+scroll, performing horizontal pan");
+            // Panzoom will handle this as pan when we return true (ignore zoom)
+            // We need to manually pan since panzoom doesn't do Shift+scroll pan
+            const panAmount = e.deltaY; // Use deltaY (vertical scroll) as horizontal pan
+            const transform = instance.getTransform();
+            instance.moveTo(transform.x - panAmount, transform.y);
+            e.preventDefault();
+            return true; // Tell panzoom to ignore this wheel event (we handled it)
+          }
+          // Normal scroll = zoom centered on cursor (panzoom default behavior)
+          debug.log("beforeWheel: zoom at cursor position");
+          return false; // Let panzoom handle zoom
+        },
         // Allow panning only when not interacting with drag targets
         beforeMouseDown: (e: MouseEvent) => {
           const target = e.target as HTMLElement;
