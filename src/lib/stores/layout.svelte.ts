@@ -28,7 +28,7 @@ import {
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { debug, layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
-import { generateRackId } from "$lib/utils/rack";
+import { generateRackId, generateGroupId } from "$lib/utils/rack";
 import { instantiatePorts } from "$lib/utils/port-utils";
 import { sanitizeFilename } from "$lib/utils/imageUpload";
 import { getHistoryStore } from "./history.svelte";
@@ -631,7 +631,7 @@ function createRackGroup(
 
   // Create the group
   const group: RackGroup = {
-    id: generateRackId(),
+    id: generateGroupId(),
     name,
     rack_ids: [...rackIds],
     layout_preset: actualPreset,
@@ -643,6 +643,13 @@ function createRackGroup(
   const command = createCreateRackGroupCommand(group, adapter);
   history.execute(command);
   isDirty = true;
+
+  layoutDebug.group(
+    "created group %s with %d racks, preset: %s",
+    group.id,
+    rackIds.length,
+    actualPreset,
+  );
 
   return { group };
 }
@@ -660,6 +667,15 @@ function updateRackGroup(
   const group = getRackGroupById(id);
   if (!group) {
     return { error: "Group not found" };
+  }
+
+  // Validate all rack IDs in updates exist
+  if (updates.rack_ids) {
+    for (const rackId of updates.rack_ids) {
+      if (!layout.racks.find((r) => r.id === rackId)) {
+        return { error: `Rack "${rackId}" not found` };
+      }
+    }
   }
 
   // Validate bayed preset height requirement
@@ -689,6 +705,8 @@ function updateRackGroup(
   history.execute(command);
   isDirty = true;
 
+  layoutDebug.group("updated group %s: %o", id, updates);
+
   return {};
 }
 
@@ -706,6 +724,8 @@ function deleteRackGroup(id: string): void {
   const command = createDeleteRackGroupCommand(group, adapter);
   history.execute(command);
   isDirty = true;
+
+  layoutDebug.group("deleted group %s", id);
 }
 
 /**
