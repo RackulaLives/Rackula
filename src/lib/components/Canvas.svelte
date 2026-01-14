@@ -21,6 +21,7 @@
   import { hapticSuccess } from "$lib/utils/haptics";
   import RackDualView from "./RackDualView.svelte";
   import WelcomeScreen from "./WelcomeScreen.svelte";
+  import CanvasContextMenu from "./CanvasContextMenu.svelte";
   // Note: PlacementIndicator removed - placement UI now integrated into Rack.svelte
 
   // Multi-rack mode: use active rack ID from store
@@ -31,6 +32,9 @@
     enableLongPress?: boolean;
     onnewrack?: () => void;
     onload?: () => void;
+    onfitall?: () => void;
+    onresetzoom?: () => void;
+    ontoggletheme?: () => void;
     onrackselect?: (event: CustomEvent<{ rackId: string }>) => void;
     ondeviceselect?: (
       event: CustomEvent<{ slug: string; position: number }>,
@@ -60,6 +64,16 @@
     ) => void;
     /** Mobile long press for rack editing */
     onracklongpress?: (event: CustomEvent<{ rackId: string }>) => void;
+    /** Rack context menu: add device callback */
+    onrackadddevice?: (rackId: string) => void;
+    /** Rack context menu: edit rack callback */
+    onrackedit?: (rackId: string) => void;
+    /** Rack context menu: rename rack callback */
+    onrackrename?: (rackId: string) => void;
+    /** Rack context menu: duplicate rack callback */
+    onrackduplicate?: (rackId: string) => void;
+    /** Rack context menu: delete rack callback */
+    onrackdelete?: (rackId: string) => void;
   }
 
   let {
@@ -67,12 +81,20 @@
     enableLongPress = false,
     onnewrack,
     onload: _onload,
+    onfitall,
+    onresetzoom,
+    ontoggletheme,
     onrackselect,
     ondeviceselect,
     ondevicedrop,
     ondevicemove,
     ondevicemoverack,
     onracklongpress,
+    onrackadddevice,
+    onrackedit,
+    onrackrename,
+    onrackduplicate,
+    onrackdelete,
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
@@ -317,65 +339,78 @@
 
 <!-- eslint-disable-next-line svelte/no-unused-svelte-ignore -- these warnings appear in Vite build but not ESLint -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (role="application" makes this interactive per WAI-ARIA) -->
-<div
-  class="canvas"
-  class:party-mode={partyMode}
-  role="application"
-  aria-label={rackDescription}
-  aria-describedby={deviceListDescription ? "canvas-device-list" : undefined}
-  tabindex="0"
-  bind:this={canvasContainer}
-  onclick={handleCanvasClick}
-  onkeydown={handleCanvasKeydown}
+<CanvasContextMenu
+  onnewrack={handleNewRack}
+  onfitall={() => onfitall?.() ?? canvasStore.fitAll(racks)}
+  onresetzoom={() => onresetzoom?.() ?? canvasStore.resetZoom()}
+  {ontoggletheme}
+  theme={uiStore.theme}
 >
-  <!-- Note: Mobile placement indicator now integrated into Rack.svelte -->
+  <div
+    class="canvas"
+    class:party-mode={partyMode}
+    role="application"
+    aria-label={rackDescription}
+    aria-describedby={deviceListDescription ? "canvas-device-list" : undefined}
+    tabindex="0"
+    bind:this={canvasContainer}
+    onclick={handleCanvasClick}
+    onkeydown={handleCanvasKeydown}
+  >
+    <!-- Note: Mobile placement indicator now integrated into Rack.svelte -->
 
-  <!-- Hidden description for screen readers -->
-  {#if deviceListDescription}
-    <p id="canvas-device-list" class="sr-only">{deviceListDescription}</p>
-  {/if}
-  {#if hasRacks}
-    <div class="panzoom-container" bind:this={panzoomContainer}>
-      <!-- Multi-rack mode: render all racks with active selection indicator -->
-      <div class="racks-wrapper">
-        {#each racks as rack (rack.id)}
-          {@const isActive = rack.id === activeRackId}
-          {@const isSelected =
-            selectionStore.selectedType === "rack" &&
-            selectionStore.selectedRackId === rack.id}
-          <div class="rack-wrapper" class:active={isActive}>
-            <RackDualView
-              {rack}
-              deviceLibrary={layoutStore.device_types}
-              selected={isSelected}
-              {isActive}
-              selectedDeviceId={selectionStore.selectedType === "device" &&
-              selectionStore.selectedRackId === rack.id
-                ? selectionStore.selectedDeviceId
-                : null}
-              displayMode={uiStore.displayMode}
-              showLabelsOnImages={uiStore.showLabelsOnImages}
-              showAnnotations={uiStore.showAnnotations}
-              annotationField={uiStore.annotationField}
-              showBanana={uiStore.showBanana}
-              {partyMode}
-              {enableLongPress}
-              onselect={(e) => handleRackSelect(e)}
-              ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
-              ondevicedrop={(e) => handleDeviceDrop(e)}
-              ondevicemove={(e) => handleDeviceMove(e)}
-              ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-              onplacementtap={(e) => handlePlacementTap(rack.id, e)}
-              onlongpress={(e) => onracklongpress?.(e)}
-            />
-          </div>
-        {/each}
+    <!-- Hidden description for screen readers -->
+    {#if deviceListDescription}
+      <p id="canvas-device-list" class="sr-only">{deviceListDescription}</p>
+    {/if}
+    {#if hasRacks}
+      <div class="panzoom-container" bind:this={panzoomContainer}>
+        <!-- Multi-rack mode: render all racks with active selection indicator -->
+        <div class="racks-wrapper">
+          {#each racks as rack (rack.id)}
+            {@const isActive = rack.id === activeRackId}
+            {@const isSelected =
+              selectionStore.selectedType === "rack" &&
+              selectionStore.selectedRackId === rack.id}
+            <div class="rack-wrapper" class:active={isActive}>
+              <RackDualView
+                {rack}
+                deviceLibrary={layoutStore.device_types}
+                selected={isSelected}
+                {isActive}
+                selectedDeviceId={selectionStore.selectedType === "device" &&
+                selectionStore.selectedRackId === rack.id
+                  ? selectionStore.selectedDeviceId
+                  : null}
+                displayMode={uiStore.displayMode}
+                showLabelsOnImages={uiStore.showLabelsOnImages}
+                showAnnotations={uiStore.showAnnotations}
+                annotationField={uiStore.annotationField}
+                showBanana={uiStore.showBanana}
+                {partyMode}
+                {enableLongPress}
+                onselect={(e) => handleRackSelect(e)}
+                ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
+                ondevicedrop={(e) => handleDeviceDrop(e)}
+                ondevicemove={(e) => handleDeviceMove(e)}
+                ondevicemoverack={(e) => handleDeviceMoveRack(e)}
+                onplacementtap={(e) => handlePlacementTap(rack.id, e)}
+                onlongpress={(e) => onracklongpress?.(e)}
+                onadddevice={() => onrackadddevice?.(rack.id)}
+                onedit={() => onrackedit?.(rack.id)}
+                onrename={() => onrackrename?.(rack.id)}
+                onduplicate={() => onrackduplicate?.(rack.id)}
+                ondelete={() => onrackdelete?.(rack.id)}
+              />
+            </div>
+          {/each}
+        </div>
       </div>
-    </div>
-  {:else}
-    <WelcomeScreen onclick={handleNewRack} />
-  {/if}
-</div>
+    {:else}
+      <WelcomeScreen onclick={handleNewRack} />
+    {/if}
+  </div>
+</CanvasContextMenu>
 
 <style>
   .canvas {

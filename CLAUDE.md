@@ -210,12 +210,26 @@ When implementing bits-ui components:
 
 ### TDD Protocol
 
+**First, decide if tests are needed.** Ask: "What behavior can I test that TypeScript doesn't already verify?"
+
+Skip tests entirely for:
+
+- **Visual-only components** (icons, decorative SVGs, layout wrappers)
+- **Thin wrappers** with no logic of their own
+- **Components where the only possible test is "renders without throwing"**
+
+If an issue's Acceptance Criteria requests tests for something in this list, the testing policy overrides the AC. Don't write low-value tests just because an issue asked for them.
+
+**If tests ARE needed**, follow TDD:
+
 1. Write tests FIRST
 2. Run tests (should fail)
 3. Implement to pass
 4. Commit
 
 **What to test (high value):**
+
+These are the ONLY categories worth testing. If your component doesn't fit one of these, it probably doesn't need tests:
 
 - Complex logic (collision detection, coordinate math, state machines)
 - User-facing behavior (can user place device? does undo work?)
@@ -238,6 +252,8 @@ See `docs/guides/TESTING.md` for comprehensive testing guidelines.
 ---
 
 ## Testing Rules (MANDATORY)
+
+_These rules apply when you've decided tests ARE needed (see TDD Protocol above)._
 
 **BEFORE writing any test, ask:** "Would this test break if I made a legitimate code change?"
 If yes, **DON'T WRITE IT.**

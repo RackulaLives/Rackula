@@ -10,7 +10,7 @@
   import { PaneGroup, Pane, PaneResizer } from "paneforge";
   import DevicePalette from "$lib/components/DevicePalette.svelte";
   import EditPanel from "$lib/components/EditPanel.svelte";
-  import NewRackForm from "$lib/components/NewRackForm.svelte";
+  import { NewRackWizard, type CreateRackData } from "$lib/components/wizard";
   import AddDeviceForm from "$lib/components/AddDeviceForm.svelte";
   import ImportFromNetBoxDialog from "$lib/components/ImportFromNetBoxDialog.svelte";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
@@ -198,12 +198,26 @@
     dialogStore.open("newRack");
   }
 
-  function handleNewRackCreate(data: {
-    name: string;
-    height: number;
-    width: number;
-  }) {
-    layoutStore.addRack(data.name, data.height, data.width);
+  function handleNewRackCreate(data: CreateRackData) {
+    if (data.layoutType === "bayed" && data.bayCount) {
+      // Create bayed rack group
+      const result = layoutStore.addBayedRackGroup(
+        data.name,
+        data.bayCount,
+        data.height,
+        data.width,
+      );
+      if (!result) {
+        toastStore.showToast(
+          "Could not create bayed group: insufficient capacity",
+          "error",
+        );
+        return;
+      }
+    } else {
+      // Create single column rack
+      layoutStore.addRack(data.name, data.height, data.width);
+    }
     dialogStore.close();
   }
 
@@ -768,6 +782,54 @@
     handleFitAll();
   }
 
+  // Rack context menu handlers
+  function handleRackContextAddDevice(rackId: string) {
+    // Set the rack as active and open device library
+    layoutStore.setActiveRack(rackId);
+    if (viewportStore.isMobile) {
+      dialogStore.openSheet("deviceLibrary");
+    } else {
+      // On desktop, focus the sidebar device palette
+      uiStore.setSidebarTab("devices");
+    }
+  }
+
+  function handleRackContextEdit(rackId: string) {
+    layoutStore.setActiveRack(rackId);
+    selectionStore.selectRack(rackId);
+    if (viewportStore.isMobile) {
+      dialogStore.openSheet("rackEdit");
+    }
+    // On desktop, the EditPanel automatically shows for selected rack
+  }
+
+  function handleRackContextRename(rackId: string) {
+    // Same as edit for now - opens the edit panel where name can be changed
+    handleRackContextEdit(rackId);
+  }
+
+  function handleRackContextDuplicate(rackId: string) {
+    const result = layoutStore.duplicateRack(rackId);
+    if (result.error) {
+      toastStore.showToast(result.error, "error");
+    } else {
+      toastStore.showToast("Rack duplicated", "success");
+      // Fit all to show the new rack
+      handleFitAll();
+    }
+  }
+
+  function handleRackContextDelete(rackId: string) {
+    const rack = layoutStore.getRackById(rackId);
+    if (rack) {
+      // Set up and show delete confirmation
+      layoutStore.setActiveRack(rackId);
+      selectionStore.selectRack(rackId);
+      dialogStore.deleteTarget = { type: "rack", name: rack.name };
+      dialogStore.open("confirmDelete");
+    }
+  }
+
   // Handle mobile device selection from palette (enters placement mode)
   function handleMobileDeviceSelect(
     event: CustomEvent<{ device: import("$lib/types").DeviceType }>,
@@ -895,9 +957,17 @@
             <Canvas
               onnewrack={handleNewRack}
               onload={handleLoad}
+              onfitall={handleFitAll}
+              onresetzoom={() => canvasStore.resetZoom()}
+              ontoggletheme={handleToggleTheme}
               {partyMode}
               enableLongPress={false}
               onracklongpress={handleRackLongPress}
+              onrackadddevice={handleRackContextAddDevice}
+              onrackedit={handleRackContextEdit}
+              onrackrename={handleRackContextRename}
+              onrackduplicate={handleRackContextDuplicate}
+              onrackdelete={handleRackContextDelete}
             />
 
             <EditPanel />
@@ -907,9 +977,17 @@
         <Canvas
           onnewrack={handleNewRack}
           onload={handleLoad}
+          onfitall={handleFitAll}
+          onresetzoom={() => canvasStore.resetZoom()}
+          ontoggletheme={handleToggleTheme}
           {partyMode}
           enableLongPress={viewportStore.isMobile && !placementStore.isPlacing}
           onracklongpress={handleRackLongPress}
+          onrackadddevice={handleRackContextAddDevice}
+          onrackedit={handleRackContextEdit}
+          onrackrename={handleRackContextRename}
+          onrackduplicate={handleRackContextDuplicate}
+          onrackdelete={handleRackContextDelete}
         />
       {/if}
     </main>
@@ -947,7 +1025,7 @@
       {/if}
     {/if}
 
-    <NewRackForm
+    <NewRackWizard
       open={newRackFormOpen}
       rackCount={layoutStore.rackCount}
       oncreate={handleNewRackCreate}

@@ -61,6 +61,15 @@
     onduplicate?: (
       event: CustomEvent<{ rackId: string; deviceIndex: number }>,
     ) => void;
+    /** Context menu event with coordinates and device info */
+    oncontextmenuopen?: (
+      event: CustomEvent<{
+        rackId: string;
+        deviceIndex: number;
+        x: number;
+        y: number;
+      }>,
+    ) => void;
     onPortClick?: (iface: InterfaceTemplate) => void;
   }
 
@@ -84,6 +93,7 @@
     ondragstart: ondragstartProp,
     ondragend: ondragendProp,
     onduplicate,
+    oncontextmenuopen,
     onPortClick,
   }: Props = $props();
 
@@ -359,13 +369,29 @@
     );
   }
 
-  // Context menu handler (right-click) - triggers duplicate
+  // Context menu handler (right-click) - opens device context menu
   function handleContextMenu(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
-    onduplicate?.(
-      new CustomEvent("duplicate", { detail: { rackId, deviceIndex } }),
-    );
+
+    // If context menu handler is provided, use it; otherwise fall back to duplicate
+    if (oncontextmenuopen) {
+      oncontextmenuopen(
+        new CustomEvent("contextmenuopen", {
+          detail: {
+            rackId,
+            deviceIndex,
+            x: event.clientX,
+            y: event.clientY,
+          },
+        }),
+      );
+    } else {
+      // Fallback to legacy duplicate behavior
+      onduplicate?.(
+        new CustomEvent("duplicate", { detail: { rackId, deviceIndex } }),
+      );
+    }
   }
 
   // Set up long-press gesture on mobile (reactive to viewport changes)

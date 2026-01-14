@@ -58,7 +58,7 @@ function createRackForNewLayout(name: string): Rack {
 export function createDefaultRack(
   name: string,
   height: number,
-  width: 10 | 19 = 19,
+  width: 10 | 19 | 23 = 19,
   form_factor: FormFactor = "4-post-cabinet",
   desc_units: boolean = false,
   starting_unit: number = 1,

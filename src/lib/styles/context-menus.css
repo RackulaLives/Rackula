@@ -1,0 +1,95 @@
+/**
+ * Context Menu Styles
+ * Shared styles for bits-ui ContextMenu components.
+ * These styles are applied globally because ContextMenu.Portal renders
+ * content outside the component tree (in document.body).
+ *
+ * Import this file in components that use context menus to ensure styles
+ * are bundled and available at runtime.
+ */
+
+.context-menu-content {
+  z-index: var(--z-dropdown, 100);
+  min-width: 160px;
+  padding: var(--space-2);
+  background-color: var(--colour-surface-overlay);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  animation: context-menu-fade-in var(--duration-fast) var(--ease-out);
+}
+
+@keyframes context-menu-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Menu items */
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--colour-text-inverse);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+  outline: none;
+}
+
+.context-menu-item:hover,
+.context-menu-item[data-highlighted] {
+  background-color: var(--colour-overlay-hover);
+}
+
+.context-menu-item:focus-visible {
+  background-color: var(--colour-overlay-hover);
+}
+
+.context-menu-item[data-disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.context-menu-item--destructive {
+  color: var(--colour-error);
+}
+
+.context-menu-item--destructive:hover,
+.context-menu-item--destructive[data-highlighted] {
+  background-color: color-mix(in srgb, var(--colour-error) 15%, transparent);
+}
+
+.context-menu-label {
+  flex: 1;
+}
+
+.context-menu-shortcut {
+  padding: var(--space-1) var(--space-2);
+  background-color: var(--colour-overlay-hover);
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono, monospace);
+  color: var(--colour-text-muted-inverse);
+}
+
+/* Separator */
+.context-menu-separator {
+  height: 1px;
+  margin: var(--space-2) 0;
+  background-color: var(--colour-overlay-border);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .context-menu-content {
+    animation: none;
+  }
+}
