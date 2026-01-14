@@ -204,6 +204,97 @@ describe("Layout Store", () => {
     });
   });
 
+  describe("addBayedRackGroup", () => {
+    it("creates multiple racks with correct bay names", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Server Bay", 2, 12);
+      expect(result).not.toBeNull();
+      expect(result!.racks).toHaveLength(2);
+      expect(result!.racks[0].name).toBe("Bay 1");
+      expect(result!.racks[1].name).toBe("Bay 2");
+    });
+
+    it("creates 3 bays when requested", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Server Bay", 3, 12);
+      expect(result).not.toBeNull();
+      expect(result!.racks).toHaveLength(3);
+      expect(result!.racks[0].name).toBe("Bay 1");
+      expect(result!.racks[1].name).toBe("Bay 2");
+      expect(result!.racks[2].name).toBe("Bay 3");
+    });
+
+    it("creates racks with specified height", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Server Bay", 2, 18);
+      expect(result).not.toBeNull();
+      expect(result!.racks[0].height).toBe(18);
+      expect(result!.racks[1].height).toBe(18);
+    });
+
+    it("creates a rack group linking all racks", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Server Bay", 2, 12);
+      expect(result).not.toBeNull();
+      expect(result!.group.name).toBe("Server Bay");
+      expect(result!.group.rack_ids).toHaveLength(2);
+      expect(result!.group.rack_ids).toContain(result!.racks[0].id);
+      expect(result!.group.rack_ids).toContain(result!.racks[1].id);
+      expect(result!.group.layout_preset).toBe("bayed");
+    });
+
+    it("adds group to layout rack_groups", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Server Bay", 2, 12);
+      expect(result).not.toBeNull();
+      expect(store.rack_groups).toHaveLength(1);
+      expect(store.rack_groups[0].id).toBe(result!.group.id);
+    });
+
+    it("sets first bay as active rack", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Server Bay", 2, 12);
+      expect(result).not.toBeNull();
+      expect(store.activeRackId).toBe(result!.racks[0].id);
+    });
+
+    it("returns null when capacity exceeded for 2 bays", () => {
+      const store = getLayoutStore();
+      // Add 9 racks (we start with 1 default rack, so total will be 10)
+      for (let i = 0; i < 9; i++) {
+        store.addRack(`Rack ${i}`, 42);
+      }
+      // Now at MAX_RACKS, can't add 2 more
+      const result = store.addBayedRackGroup("Server Bay", 2, 12);
+      expect(result).toBeNull();
+    });
+
+    it("returns null when capacity exceeded for 3 bays", () => {
+      const store = getLayoutStore();
+      // Add 8 racks (we start with 1 default rack, so total will be 9)
+      for (let i = 0; i < 8; i++) {
+        store.addRack(`Rack ${i}`, 42);
+      }
+      // Now at 9 racks, can't add 3 more
+      const result = store.addBayedRackGroup("Server Bay", 3, 12);
+      expect(result).toBeNull();
+    });
+
+    it("sets isDirty to true", () => {
+      const store = getLayoutStore();
+      expect(store.isDirty).toBe(false);
+      store.addBayedRackGroup("Server Bay", 2, 12);
+      expect(store.isDirty).toBe(true);
+    });
+
+    it("marks hasStarted as true", () => {
+      const store = getLayoutStore();
+      expect(store.hasStarted).toBe(false);
+      store.addBayedRackGroup("Server Bay", 2, 12);
+      expect(store.hasStarted).toBe(true);
+    });
+  });
+
   describe("updateRack", () => {
     it("modifies rack properties", () => {
       const store = getLayoutStore();

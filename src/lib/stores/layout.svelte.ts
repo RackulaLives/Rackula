@@ -8,12 +8,14 @@ import type {
   FormFactor,
   Layout,
   Rack,
+  RackGroup,
   DeviceType,
   PlacedDevice,
   DeviceFace,
   RackView,
   DisplayMode,
   Cable,
+  RackGroupLayoutPreset,
 } from "$lib/types";
 import { DEFAULT_DEVICE_FACE, MAX_RACKS } from "$lib/types/constants";
 import { canPlaceDevice, findValidDropPositions } from "$lib/utils/collision";
@@ -177,6 +179,7 @@ export function getLayoutStore() {
 
     // Rack actions
     addRack,
+    addBayedRackGroup,
     updateRack,
     updateRackView,
     deleteRack,
@@ -376,6 +379,82 @@ function addRack(
   saveHasStarted(true);
 
   return newRack;
+}
+
+/**
+ * Interface for bayed rack group creation result
+ */
+interface BayedGroupResult {
+  /** The created rack group */
+  group: RackGroup;
+  /** The created racks (in order) */
+  racks: Rack[];
+}
+
+/**
+ * Create a bayed rack group (multiple racks side-by-side)
+ * Creates multiple racks and links them in a group for atomic management.
+ * Note: This is NOT an undo-able action - bayed group creation happens once.
+ * To undo, users would delete the group which deletes all racks.
+ * @param groupName - Name for the group
+ * @param bayCount - Number of bays (2 or 3)
+ * @param height - Height for each rack in U
+ * @param width - Width for each rack in inches
+ * @returns Created group and racks, or null if insufficient capacity
+ */
+function addBayedRackGroup(
+  groupName: string,
+  bayCount: 2 | 3,
+  height: number,
+  width: 10 | 19 | 23 = 19,
+): BayedGroupResult | null {
+  // Check capacity
+  if (layout.racks.length + bayCount > MAX_RACKS) {
+    return null;
+  }
+
+  // Create the individual racks
+  const newRacks: Rack[] = [];
+  for (let i = 0; i < bayCount; i++) {
+    const rack = createDefaultRack(
+      `Bay ${i + 1}`,
+      height,
+      width,
+      "4-post-cabinet",
+      false,
+      1,
+      true,
+      generateRackId(),
+    );
+    newRacks.push(rack);
+  }
+
+  // Create the group linking them
+  const group: RackGroup = {
+    id: generateId(),
+    name: groupName,
+    rack_ids: newRacks.map((r) => r.id),
+    layout_preset: "bayed" as RackGroupLayoutPreset,
+  };
+
+  // Update layout state
+  const isFirstRack = layout.racks.length === 0;
+  layout = {
+    ...layout,
+    name: isFirstRack ? groupName : layout.name,
+    racks: [...layout.racks, ...newRacks],
+    rack_groups: [...(layout.rack_groups ?? []), group],
+  };
+  isDirty = true;
+
+  // Set first bay as active
+  activeRackId = newRacks[0]!.id;
+
+  // Mark as started
+  hasStarted = true;
+  saveHasStarted(true);
+
+  return { group, racks: newRacks };
 }
 
 /**

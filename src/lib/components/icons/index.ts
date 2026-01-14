@@ -20,3 +20,7 @@ export { default as IconCopy } from "./IconCopy.svelte";
 export { default as IconDownload } from "./IconDownload.svelte";
 export { default as IconQRCode } from "./IconQRCode.svelte";
 export { default as IconNote } from "./IconNote.svelte";
+
+// Rack icons for wizard layout type selection
+export { default as ColumnRackIcon } from "./ColumnRackIcon.svelte";
+export { default as BayedRackIcon } from "./BayedRackIcon.svelte";
