@@ -34,7 +34,7 @@ Due to same-origin policy, isomorphic-git can only clone from the same origin as
 
 1. **[@isomorphic-git/cors-proxy](https://github.com/isomorphic-git/cors-proxy)** - Self-hosted proxy
 2. **CloudFlare Workers** - Serverless proxy option
-3. **https://cors.isomorphic-git.org** - Free proxy (sponsored by Clever Cloud, for testing/small projects only)
+3. **<https://cors.isomorphic-git.org>** - Free proxy (sponsored by Clever Cloud, for testing/small projects only)
 
 **File System - LightningFS:**
 [LightningFS](https://github.com/isomorphic-git/lightning-fs) is the recommended virtual filesystem:
@@ -87,11 +87,12 @@ Process requires creating Blobs, Trees, and Commits via Git Data API:
 4. Update branch ref
 
 **Rate Limits (as of May 2025):**
-| Type | Limit |
-|------|-------|
-| Unauthenticated | 60 requests/hour |
-| Authenticated (PAT/OAuth) | 5,000 requests/hour |
-| GitHub Enterprise Cloud | 15,000 requests/hour |
+
+| Type                      | Limit                                          |
+| ------------------------- | ---------------------------------------------- |
+| Unauthenticated           | 60 requests/hour                               |
+| Authenticated (PAT/OAuth) | 5,000 requests/hour                            |
+| GitHub Enterprise Cloud   | 15,000 requests/hour                           |
 | GitHub App (installation) | 5,000+ requests/hour (scales with repos/users) |
 
 **JavaScript Libraries:**
@@ -101,7 +102,7 @@ Process requires creating Blobs, Trees, and Commits via Git Data API:
   - Both REST and GraphQL APIs
   - 100% test coverage
   - Modular packages: `@octokit/core`, `@octokit/rest`, `@octokit/graphql`
-- **[Github.js](https://www.audero.it/blog/2015/10/17/upload-files-on-github-using-github-js/)** - Lighter alternative
+- **[GitHub.js](https://www.audero.it/blog/2015/10/17/upload-files-on-github-using-github-js/)** - Lighter alternative
 - **Octokat.js** - Good for commit operations with CORS support
 
 **Verdict:** Best for simple file sync without full git history. Native CORS support is a major advantage.
@@ -266,7 +267,7 @@ A simpler ~200 SLOC alternative:
 
 - SQLite persistence
 - Signed blob downloads
-- Requires modified Logseq codebase
+- Requires a modified Logseq codebase
 
 **Key Insight:** Platform diversity requires different sync strategies. Mobile is particularly challenging without native git.
 
@@ -370,7 +371,7 @@ A simpler ~200 SLOC alternative:
 
 ### Recommended Approach for Rackula
 
-**Simplest Path: GitHub REST API with PAT**
+### Simplest Path: GitHub REST API with PAT
 
 1. User provides Personal Access Token (fine-grained, contents:write only)
 2. Store token in localStorage (encrypted if paranoid)

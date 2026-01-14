@@ -56,10 +56,12 @@ User provides a Personal Access Token (fine-grained). Rackula stores it in local
 ```typescript
 // Minimal implementation
 import { Octokit } from "@octokit/rest";
+import YAML from "yaml";
 
 async function saveToGitHub(layout: Layout, config: GitHubConfig) {
   const octokit = new Octokit({ auth: config.pat });
-  const content = btoa(JSON.stringify(layout));
+  // Use YAML format for git-friendly, human-readable diffs
+  const content = Buffer.from(YAML.stringify(layout)).toString("base64");
 
   // Get current file SHA if exists (required for update)
   let sha: string | undefined;
@@ -188,7 +190,7 @@ User → Rackula App → GitHub OAuth Login
 1. **Cloudflare Worker** (~50 LOC):
 
 ```typescript
-// Token exchange endpoint
+// Token exchange endpoint - uses postMessage for secure token transfer
 export default {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -211,17 +213,40 @@ export default {
     );
 
     const { access_token } = await response.json();
-    return Response.redirect(`https://count.racku.la/?token=${access_token}`);
+
+    // Return HTML that uses postMessage to securely send token to opener
+    // This avoids exposing the token in URL query strings or server logs
+    const html = `<!DOCTYPE html>
+<html>
+<head><title>Authenticating...</title></head>
+<body>
+<script>
+  if (window.opener) {
+    window.opener.postMessage(
+      { type: 'github-oauth', access_token: '${access_token}' },
+      'https://count.racku.la'
+    );
+    window.close();
+  } else {
+    document.body.textContent = 'Authentication complete. You can close this window.';
+  }
+</script>
+</body>
+</html>`;
+
+    return new Response(html, {
+      headers: { "Content-Type": "text/html" },
+    });
   },
 };
 ```
 
-2. **GitHub App/OAuth App:**
+1. **GitHub App/OAuth App:**
    - Create at github.com/settings/applications/new
    - Set callback URL to Worker URL
    - Store client secret in Worker environment
 
-3. **Frontend OAuth Flow:**
+1. **Frontend OAuth Flow:**
 
 ```typescript
 function startOAuth() {
@@ -298,11 +323,22 @@ async function cloneAndUpdate(repoUrl: string, layout: Layout) {
 
   // Stage and commit
   await git.add({ fs, dir, filepath: "layout.yaml" });
+
+  // Get author info from environment, git config, or use default
+  const authorName =
+    process.env.GIT_AUTHOR_NAME ||
+    (await git.getConfig({ fs, dir, path: "user.name" })) ||
+    "Rackula";
+  const authorEmail =
+    process.env.GIT_AUTHOR_EMAIL ||
+    (await git.getConfig({ fs, dir, path: "user.email" })) ||
+    "noreply@racku.la";
+
   await git.commit({
     fs,
     dir,
     message: `Update layout: ${new Date().toISOString()}`,
-    author: { name: "Rackula", email: "noreply@racku.la" },
+    author: { name: authorName, email: authorEmail },
   });
 
   // Push
