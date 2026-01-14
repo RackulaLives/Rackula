@@ -69,7 +69,7 @@ function fetchMilestones() {
       .split("\n")
       .filter((line) => line.trim())
       .map((line) => JSON.parse(line));
-  } catch (error) {
+  } catch (_error) {
     console.error("Warning: Could not fetch milestones from GitHub API.");
     console.error("Using fallback milestone v0.7.0");
     return [{ title: "v0.7.0", open_issues: 1 }];

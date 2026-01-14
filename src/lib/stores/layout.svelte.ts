@@ -200,6 +200,7 @@ export function getLayoutStore() {
     removeRackFromGroup,
     getRackGroupById,
     getRackGroupForRack,
+    reorderRacksInGroup,
 
     // Rack group raw actions (for undo/redo)
     createRackGroupRaw,
@@ -801,6 +802,48 @@ function getRackGroupById(id: string): RackGroup | undefined {
  */
 function getRackGroupForRack(rackId: string): RackGroup | undefined {
   return rack_groups.find((g) => g.rack_ids.includes(rackId));
+}
+
+/**
+ * Reorder racks within a group by providing a new order of rack IDs.
+ * This changes the bay numbering for bayed view rendering.
+ * Uses undo/redo system for reverting the operation.
+ *
+ * @param groupId - Group ID to reorder
+ * @param newOrder - New order of rack IDs (must contain same racks, just reordered)
+ * @returns Error if validation fails
+ */
+function reorderRacksInGroup(
+  groupId: string,
+  newOrder: string[],
+): { error?: string } {
+  const group = getRackGroupById(groupId);
+  if (!group) {
+    return { error: "Group not found" };
+  }
+
+  // Validate same racks, just reordered
+  const currentSet = new Set(group.rack_ids);
+  const newSet = new Set(newOrder);
+  if (
+    currentSet.size !== newSet.size ||
+    ![...currentSet].every((id) => newSet.has(id))
+  ) {
+    return { error: "New order must contain same racks" };
+  }
+
+  // Check for duplicates in newOrder
+  if (newOrder.length !== newSet.size) {
+    return { error: "New order contains duplicate rack IDs" };
+  }
+
+  // No change needed if order is the same
+  if (JSON.stringify(group.rack_ids) === JSON.stringify(newOrder)) {
+    return {};
+  }
+
+  // Use updateRackGroup which already has undo/redo support
+  return updateRackGroup(groupId, { rack_ids: newOrder });
 }
 
 // Rack Group Raw Actions (for undo/redo system)
