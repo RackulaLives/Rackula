@@ -10,6 +10,7 @@
   import ImageUpload from "./ImageUpload.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
+  import MarkdownPreview from "./MarkdownPreview.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -652,6 +653,12 @@
           rows="4"
           placeholder="Add notes about this rack..."
         ></textarea>
+        {#if rackNotes.trim()}
+          <div class="notes-preview">
+            <span class="preview-label">Preview</span>
+            <MarkdownPreview content={rackNotes} />
+          </div>
+        {/if}
       </div>
 
       <div class="form-group">
@@ -994,6 +1001,12 @@
           rows="4"
           placeholder="Add notes about this device placement..."
         ></textarea>
+        {#if deviceNotes.trim()}
+          <div class="notes-preview">
+            <span class="preview-label">Preview</span>
+            <MarkdownPreview content={deviceNotes} />
+          </div>
+        {/if}
       </div>
 
       <div class="actions">
@@ -1383,5 +1396,24 @@
 
   .position-hint {
     margin-top: var(--space-1);
+  }
+
+  /* Markdown preview for notes */
+  .notes-preview {
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    background: var(--colour-surface-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--colour-border);
+  }
+
+  .preview-label {
+    display: block;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--colour-text-muted);
+    margin-bottom: var(--space-1);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 </style>
