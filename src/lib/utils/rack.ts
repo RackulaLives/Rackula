@@ -22,6 +22,14 @@ export function generateRackId(): string {
 }
 
 /**
+ * Generate a unique rack group ID using nanoid (21 characters)
+ * Used for rack group management - stable identifier that survives renames
+ */
+export function generateGroupId(): string {
+  return nanoid();
+}
+
+/**
  * Create a new rack with sensible defaults
  * Generates a unique ID using nanoid
  */

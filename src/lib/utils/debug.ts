@@ -19,6 +19,7 @@ import Debug from "debug";
 export const layoutDebug = {
   state: Debug("rackula:layout:state"),
   device: Debug("rackula:layout:device"),
+  group: Debug("rackula:layout:group"),
 };
 
 export const canvasDebug = {

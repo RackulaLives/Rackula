@@ -9,6 +9,7 @@ import type {
   Layout,
   Rack,
   RackGroup,
+  LayoutPreset,
   DeviceType,
   PlacedDevice,
   DeviceFace,
@@ -27,7 +28,7 @@ import {
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { debug, layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
-import { generateRackId } from "$lib/utils/rack";
+import { generateRackId, generateGroupId } from "$lib/utils/rack";
 import { instantiatePorts } from "$lib/utils/port-utils";
 import { sanitizeFilename } from "$lib/utils/imageUpload";
 import { getHistoryStore } from "./history.svelte";
@@ -45,9 +46,13 @@ import {
   createUpdateDeviceColourCommand,
   createUpdateRackCommand,
   createClearRackCommand,
+  createCreateRackGroupCommand,
+  createUpdateRackGroupCommand,
+  createDeleteRackGroupCommand,
   type DeviceTypeCommandStore,
   type DeviceCommandStore,
   type RackCommandStore,
+  type RackGroupCommandStore,
 } from "./commands";
 
 // localStorage key for tracking if user has started (created/loaded a rack)
@@ -186,6 +191,20 @@ export function getLayoutStore() {
     duplicateRack,
     getRackById,
     setActiveRack,
+
+    // Rack group actions
+    createRackGroup,
+    updateRackGroup,
+    deleteRackGroup,
+    addRackToGroup,
+    removeRackFromGroup,
+    getRackGroupById,
+    getRackGroupForRack,
+
+    // Rack group raw actions (for undo/redo)
+    createRackGroupRaw,
+    updateRackGroupRaw,
+    deleteRackGroupRaw,
 
     // Device actions
     duplicateDevice,
@@ -543,6 +562,302 @@ function deleteRack(id: string): void {
   }
 
   isDirty = true;
+}
+
+// =============================================================================
+// Rack Group Functions
+// =============================================================================
+
+/**
+ * Validate that all racks in a group have the same height (for bayed preset)
+ * @param rackIds - Array of rack IDs to validate
+ * @returns Error message if validation fails, undefined if valid
+ */
+function validateBayedGroupHeights(rackIds: string[]): string | undefined {
+  if (rackIds.length <= 1) return undefined;
+
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Plain Set is intentional: utility function, not reactive state
+  const heights = new Set<number>();
+  for (const rackId of rackIds) {
+    const rack = layout.racks.find((r) => r.id === rackId);
+    if (rack) {
+      heights.add(rack.height);
+    }
+  }
+
+  if (heights.size > 1) {
+    const heightList = Array.from(heights)
+      .sort((a, b) => a - b)
+      .map((h) => `${h}U`)
+      .join(", ");
+    return `Bayed groups require same-height racks. Found heights: ${heightList}`;
+  }
+
+  return undefined;
+}
+
+/**
+ * Create a new rack group
+ * @param name - Group name
+ * @param rackIds - Array of rack IDs to include in the group
+ * @param preset - Layout preset (defaults to "row")
+ * @returns The created group or error
+ */
+function createRackGroup(
+  name: string,
+  rackIds: string[],
+  preset?: LayoutPreset,
+): { group?: RackGroup; error?: string } {
+  // Validate at least one rack
+  if (rackIds.length === 0) {
+    return { error: "Group must contain at least one rack" };
+  }
+
+  // Validate all rack IDs exist
+  for (const rackId of rackIds) {
+    if (!layout.racks.find((r) => r.id === rackId)) {
+      return { error: `Rack "${rackId}" not found` };
+    }
+  }
+
+  // Validate bayed preset height requirement
+  const actualPreset = preset ?? "row";
+  if (actualPreset === "bayed") {
+    const heightError = validateBayedGroupHeights(rackIds);
+    if (heightError) {
+      return { error: heightError };
+    }
+  }
+
+  // Create the group
+  const group: RackGroup = {
+    id: generateGroupId(),
+    name,
+    rack_ids: [...rackIds],
+    layout_preset: actualPreset,
+  };
+
+  // Use recorded action for undo/redo support
+  const history = getHistoryStore();
+  const adapter = getRackGroupCommandAdapter();
+  const command = createCreateRackGroupCommand(group, adapter);
+  history.execute(command);
+  isDirty = true;
+
+  layoutDebug.group(
+    "created group %s with %d racks, preset: %s",
+    group.id,
+    rackIds.length,
+    actualPreset,
+  );
+
+  return { group };
+}
+
+/**
+ * Update a rack group's properties
+ * @param id - Group ID
+ * @param updates - Properties to update
+ * @returns Error if validation fails
+ */
+function updateRackGroup(
+  id: string,
+  updates: Partial<RackGroup>,
+): { error?: string } {
+  const group = getRackGroupById(id);
+  if (!group) {
+    return { error: "Group not found" };
+  }
+
+  // Validate all rack IDs in updates exist
+  if (updates.rack_ids) {
+    for (const rackId of updates.rack_ids) {
+      if (!layout.racks.find((r) => r.id === rackId)) {
+        return { error: `Rack "${rackId}" not found` };
+      }
+    }
+  }
+
+  // Validate bayed preset height requirement
+  // Check when: (1) switching to bayed, or (2) updating rack_ids on existing bayed group
+  const effectivePreset = updates.layout_preset ?? group.layout_preset;
+  const effectiveRackIds = updates.rack_ids ?? group.rack_ids;
+  if (
+    effectivePreset === "bayed" &&
+    (updates.layout_preset === "bayed" || updates.rack_ids)
+  ) {
+    const heightError = validateBayedGroupHeights(effectiveRackIds);
+    if (heightError) {
+      return { error: heightError };
+    }
+  }
+
+  // Capture before state for undo
+  const before: Partial<RackGroup> = {};
+  for (const key of Object.keys(updates) as (keyof RackGroup)[]) {
+    before[key] = group[key] as never;
+  }
+
+  // Use recorded action for undo/redo support
+  const history = getHistoryStore();
+  const adapter = getRackGroupCommandAdapter();
+  const command = createUpdateRackGroupCommand(id, before, updates, adapter);
+  history.execute(command);
+  isDirty = true;
+
+  layoutDebug.group("updated group %s: %o", id, updates);
+
+  return {};
+}
+
+/**
+ * Delete a rack group
+ * @param id - Group ID to delete
+ */
+function deleteRackGroup(id: string): void {
+  const group = getRackGroupById(id);
+  if (!group) return;
+
+  // Use recorded action for undo/redo support
+  const history = getHistoryStore();
+  const adapter = getRackGroupCommandAdapter();
+  const command = createDeleteRackGroupCommand(group, adapter);
+  history.execute(command);
+  isDirty = true;
+
+  layoutDebug.group("deleted group %s", id);
+}
+
+/**
+ * Add a rack to an existing group
+ * @param groupId - Group ID
+ * @param rackId - Rack ID to add
+ * @returns Error if validation fails
+ */
+function addRackToGroup(groupId: string, rackId: string): { error?: string } {
+  const group = getRackGroupById(groupId);
+  if (!group) {
+    return { error: "Group not found" };
+  }
+
+  // Check rack exists
+  const rack = layout.racks.find((r) => r.id === rackId);
+  if (!rack) {
+    return { error: `Rack "${rackId}" not found` };
+  }
+
+  // Check rack not already in group
+  if (group.rack_ids.includes(rackId)) {
+    return { error: "Rack is already in this group" };
+  }
+
+  // Validate bayed preset height requirement
+  if (group.layout_preset === "bayed") {
+    const existingRack = layout.racks.find((r) => r.id === group.rack_ids[0]);
+    if (existingRack && rack.height !== existingRack.height) {
+      return {
+        error: `Cannot add ${rack.height}U rack to bayed group with ${existingRack.height}U racks`,
+      };
+    }
+  }
+
+  // Update via updateRackGroup for undo/redo support
+  const newRackIds = [...group.rack_ids, rackId];
+  return updateRackGroup(groupId, { rack_ids: newRackIds });
+}
+
+/**
+ * Remove a rack from a group
+ * @param groupId - Group ID
+ * @param rackId - Rack ID to remove
+ */
+function removeRackFromGroup(groupId: string, rackId: string): void {
+  const group = getRackGroupById(groupId);
+  if (!group) return;
+
+  const newRackIds = group.rack_ids.filter((id) => id !== rackId);
+
+  // If this was the last rack, delete the group
+  if (newRackIds.length === 0) {
+    deleteRackGroup(groupId);
+  } else {
+    updateRackGroup(groupId, { rack_ids: newRackIds });
+  }
+}
+
+/**
+ * Get a rack group by ID
+ * @param id - Group ID
+ * @returns The group or undefined
+ */
+function getRackGroupById(id: string): RackGroup | undefined {
+  return rack_groups.find((g) => g.id === id);
+}
+
+/**
+ * Get the rack group that contains a specific rack
+ * @param rackId - Rack ID
+ * @returns The group or undefined
+ */
+function getRackGroupForRack(rackId: string): RackGroup | undefined {
+  return rack_groups.find((g) => g.rack_ids.includes(rackId));
+}
+
+// Rack Group Raw Actions (for undo/redo system)
+
+/**
+ * Raw create rack group (bypasses history)
+ * @param group - Group to create
+ */
+function createRackGroupRaw(group: RackGroup): void {
+  const newGroups = [...(layout.rack_groups ?? []), group];
+  layout = {
+    ...layout,
+    rack_groups: newGroups,
+  };
+}
+
+/**
+ * Raw update rack group (bypasses history)
+ * @param id - Group ID
+ * @param updates - Properties to update
+ */
+function updateRackGroupRaw(id: string, updates: Partial<RackGroup>): void {
+  const newGroups = (layout.rack_groups ?? []).map((g) =>
+    g.id === id ? { ...g, ...updates } : g,
+  );
+  layout = {
+    ...layout,
+    rack_groups: newGroups,
+  };
+}
+
+/**
+ * Raw delete rack group (bypasses history)
+ * @param id - Group ID
+ * @returns The deleted group or undefined
+ */
+function deleteRackGroupRaw(id: string): RackGroup | undefined {
+  const group = getRackGroupById(id);
+  if (!group) return undefined;
+
+  const newGroups = (layout.rack_groups ?? []).filter((g) => g.id !== id);
+  layout = {
+    ...layout,
+    rack_groups: newGroups.length > 0 ? newGroups : undefined,
+  };
+  return group;
+}
+
+/**
+ * Get the command adapter for rack group operations
+ */
+function getRackGroupCommandAdapter(): RackGroupCommandStore {
+  return {
+    createRackGroupRaw,
+    updateRackGroupRaw,
+    deleteRackGroupRaw,
+  };
 }
 
 /**
