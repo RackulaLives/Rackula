@@ -30,7 +30,8 @@
     "process-images": "npx tsx scripts/process-images.ts",
     "generate-bundled-images": "npx tsx scripts/generate-bundled-images.ts",
     "update-contributors": "npx tsx scripts/update-contributors.ts",
-    "refresh-lockfile": "rm -rf node_modules package-lock.json && npm install"
+    "refresh-lockfile": "rm -rf node_modules package-lock.json && npm install",
+    "deps:status": "npm outdated || true"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.1",
