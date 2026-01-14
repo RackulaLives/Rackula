@@ -6,6 +6,7 @@
 <script lang="ts">
   import { ContextMenu } from "bits-ui";
   import type { Snippet } from "svelte";
+  import "$lib/styles/context-menus.css";
 
   interface Props {
     /** Whether the menu is open */
@@ -110,96 +111,3 @@
     </ContextMenu.Content>
   </ContextMenu.Portal>
 </ContextMenu.Root>
-
-<style>
-  /*
-   * Portal-rendered styles require :global() because ContextMenu.Portal
-   * renders content outside the component tree (in document.body).
-   * Svelte's scoped styles won't apply without :global().
-   */
-  :global(.context-menu-content) {
-    z-index: var(--z-dropdown, 100);
-    min-width: 160px;
-    padding: var(--space-2);
-    background-color: var(--colour-surface-overlay);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    animation: context-menu-fade-in var(--duration-fast) var(--ease-out);
-  }
-
-  @keyframes context-menu-fade-in {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  /* Menu items */
-  :global(.context-menu-item) {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4);
-    padding: var(--space-2) var(--space-2);
-    border-radius: var(--radius-sm);
-    color: var(--colour-text-inverse);
-    font-size: var(--font-size-sm);
-    cursor: pointer;
-    transition: background-color var(--duration-fast) var(--ease-out);
-    outline: none;
-  }
-
-  :global(.context-menu-item:hover),
-  :global(.context-menu-item[data-highlighted]) {
-    background-color: var(--colour-overlay-hover);
-  }
-
-  :global(.context-menu-item:focus-visible) {
-    background-color: var(--colour-overlay-hover);
-  }
-
-  :global(.context-menu-item[data-disabled]) {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  :global(.context-menu-item--destructive) {
-    color: var(--colour-error);
-  }
-
-  :global(.context-menu-item--destructive:hover),
-  :global(.context-menu-item--destructive[data-highlighted]) {
-    background-color: color-mix(in srgb, var(--colour-error) 15%, transparent);
-  }
-
-  :global(.context-menu-label) {
-    flex: 1;
-  }
-
-  :global(.context-menu-shortcut) {
-    padding: 2px 6px;
-    background-color: var(--colour-overlay-hover);
-    border-radius: 3px;
-    font-size: var(--font-size-xs);
-    font-family: var(--font-mono, monospace);
-    color: var(--colour-text-muted-inverse);
-  }
-
-  /* Separator */
-  :global(.context-menu-separator) {
-    height: 1px;
-    margin: var(--space-2) 0;
-    background-color: var(--colour-overlay-border);
-  }
-
-  /* Reduced motion */
-  @media (prefers-reduced-motion: reduce) {
-    :global(.context-menu-content) {
-      animation: none;
-    }
-  }
-</style>

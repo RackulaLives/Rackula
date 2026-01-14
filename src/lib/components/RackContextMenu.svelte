@@ -6,6 +6,7 @@
 <script lang="ts">
   import { ContextMenu } from "bits-ui";
   import type { Snippet } from "svelte";
+  import "$lib/styles/context-menus.css";
 
   interface Props {
     /** Whether the menu is open */
@@ -96,11 +97,3 @@
     </ContextMenu.Content>
   </ContextMenu.Portal>
 </ContextMenu.Root>
-
-<style>
-  /*
-   * Styles are shared with DeviceContextMenu via :global() selectors.
-   * The context-menu-* classes are defined there and apply globally
-   * since both menus render via Portal to document.body.
-   */
-</style>

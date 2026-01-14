@@ -7,6 +7,7 @@
   import type { Rack as RackType, DeviceType, DisplayMode } from "$lib/types";
   import RackDevice from "./RackDevice.svelte";
   import { ContextMenu } from "bits-ui";
+  import "$lib/styles/context-menus.css";
   import {
     parseDragData,
     calculateDropPosition,
@@ -1256,7 +1257,15 @@
   </svg>
 </div>
 
-<!-- Device context menu (rendered via portal to body) -->
+<!--
+  Device context menu (rendered via portal to body)
+  Note: Cannot reuse DeviceContextMenu.svelte here because SVG elements
+  require virtual trigger positioning at cursor coordinates. The wrapper
+  component expects to wrap DOM children as the trigger, but SVG <g>
+  elements can't be wrapped that way. The inline ContextMenu with a
+  virtual 1px div trigger solves this by positioning at the right-click
+  coordinates captured from the SVG contextmenu event.
+-->
 {#if deviceContextMenuOpen && deviceContextMenuTarget}
   <ContextMenu.Root
     open={deviceContextMenuOpen}
