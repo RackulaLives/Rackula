@@ -18,7 +18,8 @@ jobs:
     #   github.event.pull_request.user.login == 'new-developer' ||
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
 
-    if: github.event.pull_request.draft != true
+    # Skip drafts and Dependabot PRs (no access to secrets)
+    if: github.event.pull_request.draft != true && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
@@ -32,13 +33,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Run Claude Code Review
         id: claude-review
-        uses: anthropics/claude-code-action@f73695ddb416e135da2e84cf04fbd47bc89beda5 # v1
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71 # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: '/code-review'

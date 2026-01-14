@@ -1,0 +1,44 @@
+# Auto-merge low-risk Dependabot PRs after CI passes
+# Risk levels:
+#   - Auto-merge: patch updates, minor dev deps, type definitions
+#   - Manual review: major updates, minor prod deps
+
+name: Dependabot Auto-Merge
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Auto-merge low-risk updates
+        # Auto-merge if:
+        # 1. Patch update (any dependency)
+        # 2. Minor update of dev dependency
+        # 3. GitHub Actions updates (any version)
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          (steps.metadata.outputs.update-type == 'version-update:semver-minor' &&
+           steps.metadata.outputs.dependency-type == 'direct:development') ||
+          steps.metadata.outputs.package-ecosystem == 'github_actions'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log decision
+        run: |
+          echo "Update type: ${{ steps.metadata.outputs.update-type }}"
+          echo "Dependency type: ${{ steps.metadata.outputs.dependency-type }}"
+          echo "Package ecosystem: ${{ steps.metadata.outputs.package-ecosystem }}"

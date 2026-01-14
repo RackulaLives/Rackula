@@ -7,30 +7,60 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
+      interval: "daily"  # Daily catches updates sooner, prevents batch accumulation
+    open-pull-requests-limit: 15
     groups:
-      # Group minor/patch updates to reduce PR noise
-      development:
-        dependency-type: "development"
-        update-types:
-          - "minor"
-          - "patch"
-      production:
+      # Related packages that MUST update together
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+      eslint:
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+          - "eslint-*"
+          - "globals"
+      svelte:
+        patterns:
+          - "svelte"
+          - "@sveltejs/*"
+          - "svelte-*"
+      typescript:
+        patterns:
+          - "typescript"
+          - "@types/*"
+      # Catch-all groups for remaining deps
+      production-dependencies:
         dependency-type: "production"
-        update-types:
-          - "minor"
-          - "patch"
+        exclude-patterns:
+          - "svelte"
+          - "@sveltejs/*"
+          - "svelte-*"
+      development-dependencies:
+        dependency-type: "development"
+        exclude-patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "eslint"
+          - "@eslint/*"
+          - "eslint-*"
+          - "globals"
+          - "typescript"
+          - "@types/*"
     commit-message:
       prefix: "chore(deps)"
 
-  # GitHub Actions
+  # GitHub Actions - group all together
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns:
+          - "*"
     commit-message:
       prefix: "chore(ci)"
