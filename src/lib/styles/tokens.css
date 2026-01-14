@@ -127,6 +127,11 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
+  /* Icon Sizes */
+  --icon-size-sm: 16px;
+  --icon-size-md: 20px;
+  --icon-size-lg: 24px;
+
   /* Line Heights */
   --line-height-tight: 1.25;
   --line-height-normal: 1.5;

@@ -10,13 +10,8 @@
   import FileMenu from "./FileMenu.svelte";
   import SettingsMenu from "./SettingsMenu.svelte";
   import LogoLockup from "./LogoLockup.svelte";
+  import Icon from "@iconify/svelte";
   import { IconImageLabel } from "./icons";
-  import Plus from "@lucide/svelte/icons/plus";
-  import Undo from "@lucide/svelte/icons/undo";
-  import Redo from "@lucide/svelte/icons/redo";
-  import Minimize from "@lucide/svelte/icons/minimize";
-  import Type from "@lucide/svelte/icons/type";
-  import ImageIcon from "@lucide/svelte/icons/image";
   import type { DisplayMode } from "$lib/types";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
@@ -169,7 +164,7 @@
         onclick={handleNewRack}
         data-testid="btn-new-rack"
       >
-        <Plus size={18} />
+        <Icon icon="iconoir:plus" />
       </button>
     </Tooltip>
 
@@ -185,7 +180,7 @@
         onclick={handleUndo}
         data-testid="btn-undo"
       >
-        <Undo size={18} />
+        <Icon icon="iconoir:undo" />
       </button>
     </Tooltip>
 
@@ -201,7 +196,7 @@
         onclick={handleRedo}
         data-testid="btn-redo"
       >
-        <Redo size={18} />
+        <Icon icon="iconoir:redo" />
       </button>
     </Tooltip>
 
@@ -217,11 +212,11 @@
         data-testid="btn-display-mode"
       >
         {#if displayMode === "label"}
-          <Type size={18} />
+          <Icon icon="iconoir:text" />
         {:else if displayMode === "image"}
-          <ImageIcon size={18} />
+          <Icon icon="iconoir:media-image" />
         {:else}
-          <IconImageLabel size={18} />
+          <IconImageLabel size={20} />
         {/if}
       </button>
     </Tooltip>
@@ -233,7 +228,7 @@
         onclick={handleFitAll}
         data-testid="btn-fit-all"
       >
-        <Minimize size={18} />
+        <Icon icon="iconoir:compress" />
       </button>
     </Tooltip>
   </div>
@@ -334,11 +329,18 @@
     border: none;
     border-radius: var(--radius-md);
     background: transparent;
-    color: var(--colour-text-muted);
+    color: var(--colour-text);
     cursor: pointer;
     transition:
       background-color var(--duration-fast) var(--ease-out),
       color var(--duration-fast) var(--ease-out);
+  }
+
+  /* Icon sizing via CSS tokens */
+  .toolbar-icon-btn :global(svg),
+  :global(.toolbar-icon-btn svg) {
+    width: var(--icon-size-md);
+    height: var(--icon-size-md);
   }
 
   .toolbar-icon-btn:hover:not(:disabled),

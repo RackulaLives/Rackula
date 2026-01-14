@@ -1,11 +1,11 @@
 <!--
   FileMenu Component
   Dropdown for file operations: Save, Load, Export, Share
-  Uses bits-ui DropdownMenu with Lucide folder trigger
+  Uses bits-ui DropdownMenu with Iconoir folder trigger
 -->
 <script lang="ts">
   import { DropdownMenu } from "bits-ui";
-  import Folder from "@lucide/svelte/icons/folder";
+  import Icon from "@iconify/svelte";
 
   interface Props {
     onsave?: () => void;
@@ -29,7 +29,7 @@
 
 <DropdownMenu.Root bind:open>
   <DropdownMenu.Trigger class="toolbar-icon-btn" aria-label="File menu">
-    <Folder size={18} />
+    <Icon icon="iconoir:folder" />
   </DropdownMenu.Trigger>
 
   <DropdownMenu.Portal>
