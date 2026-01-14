@@ -889,6 +889,7 @@
       theme={uiStore.theme}
       displayMode={uiStore.displayMode}
       showAnnotations={uiStore.showAnnotations}
+      showBanana={uiStore.showBanana}
       {partyMode}
       onnewrack={handleNewRack}
       onsave={handleSave}
@@ -900,6 +901,7 @@
       ontoggletheme={handleToggleTheme}
       ontoggledisplaymode={handleToggleDisplayMode}
       ontoggleannotations={handleToggleAnnotations}
+      ontogglebanana={() => uiStore.toggleBanana()}
       onhelp={handleHelp}
     />
 
@@ -1083,12 +1085,7 @@
       onclose={handleShareClose}
     />
 
-    <HelpPanel
-      open={helpPanelOpen}
-      showBanana={uiStore.showBanana}
-      onclose={handleHelpClose}
-      ontogglebanana={() => uiStore.toggleBanana()}
-    />
+    <HelpPanel open={helpPanelOpen} onclose={handleHelpClose} />
 
     <ToastContainer />
 

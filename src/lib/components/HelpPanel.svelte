@@ -17,19 +17,10 @@
 
   interface Props {
     open: boolean;
-    /** Whether banana for scale easter egg is enabled */
-    showBanana?: boolean;
     onclose?: () => void;
-    /** Toggle banana for scale easter egg */
-    ontogglebanana?: () => void;
   }
 
-  let {
-    open = $bindable(),
-    showBanana = false,
-    onclose,
-    ontogglebanana,
-  }: Props = $props();
+  let { open = $bindable(), onclose }: Props = $props();
 
   const toastStore = getToastStore();
 
@@ -383,23 +374,6 @@
             </button>
           </section>
 
-          <!-- Easter Eggs section -->
-          <section class="easter-eggs-section">
-            <h4>Easter Eggs</h4>
-            <label class="toggle-row">
-              <input
-                type="checkbox"
-                checked={showBanana}
-                onchange={() => ontogglebanana?.()}
-                aria-label="Banana for scale"
-              />
-              <span class="toggle-label">Banana for scale</span>
-              <span class="toggle-description">
-                Show an accurately-scaled banana next to the rack
-              </span>
-            </label>
-          </section>
-
           <p class="made-in">Made in Canada with love</p>
         </div>
       </div>
@@ -646,47 +620,5 @@
     font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
     text-align: center;
-  }
-
-  /* Easter Eggs section */
-  .easter-eggs-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    padding-top: var(--space-3);
-    border-top: 1px solid var(--colour-border);
-  }
-
-  .easter-eggs-section h4 {
-    margin: 0;
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    color: var(--colour-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .toggle-row {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-2);
-    cursor: pointer;
-  }
-
-  .toggle-row input[type="checkbox"] {
-    margin-top: 2px;
-    cursor: pointer;
-  }
-
-  .toggle-label {
-    font-size: var(--font-size-sm);
-    color: var(--colour-text);
-    font-weight: 500;
-  }
-
-  .toggle-description {
-    font-size: var(--font-size-xs);
-    color: var(--colour-text-muted);
-    margin-left: auto;
   }
 </style>
