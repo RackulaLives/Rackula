@@ -481,7 +481,7 @@ function deleteRack(id: string): void {
 function validateBayedGroupHeights(rackIds: string[]): string | undefined {
   if (rackIds.length <= 1) return undefined;
 
-  // Plain Set is intentional - this is a utility function, not reactive state
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Plain Set is intentional: utility function, not reactive state
   const heights = new Set<number>();
   for (const rackId of rackIds) {
     const rack = layout.racks.find((r) => r.id === rackId);
@@ -568,8 +568,14 @@ function updateRackGroup(
   }
 
   // Validate bayed preset height requirement
-  if (updates.layout_preset === "bayed") {
-    const heightError = validateBayedGroupHeights(group.rack_ids);
+  // Check when: (1) switching to bayed, or (2) updating rack_ids on existing bayed group
+  const effectivePreset = updates.layout_preset ?? group.layout_preset;
+  const effectiveRackIds = updates.rack_ids ?? group.rack_ids;
+  if (
+    effectivePreset === "bayed" &&
+    (updates.layout_preset === "bayed" || updates.rack_ids)
+  ) {
+    const heightError = validateBayedGroupHeights(effectiveRackIds);
     if (heightError) {
       return { error: heightError };
     }
