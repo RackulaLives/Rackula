@@ -15,7 +15,6 @@ import type {
   RackView,
   DisplayMode,
   Cable,
-  RackGroupLayoutPreset,
 } from "$lib/types";
 import { DEFAULT_DEVICE_FACE, MAX_RACKS } from "$lib/types/constants";
 import { canPlaceDevice, findValidDropPositions } from "$lib/utils/collision";
@@ -26,7 +25,7 @@ import {
   type CreateDeviceTypeInput,
 } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
-import { debug } from "$lib/utils/debug";
+import { debug, layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { generateRackId } from "$lib/utils/rack";
 import { instantiatePorts } from "$lib/utils/port-utils";
@@ -439,8 +438,14 @@ function addBayedRackGroup(
     id: generateId(),
     name: groupName,
     rack_ids: newRacks.map((r) => r.id),
-    layout_preset: "bayed" as RackGroupLayoutPreset,
+    layout_preset: "bayed",
   };
+
+  layoutDebug.state(
+    "addBayedRackGroup: created %d racks for group %s",
+    newRacks.length,
+    groupName,
+  );
 
   // Update layout state
   const isFirstRack = layout.racks.length === 0;
@@ -458,6 +463,13 @@ function addBayedRackGroup(
   // Mark as started
   hasStarted = true;
   saveHasStarted(true);
+
+  layoutDebug.state(
+    "addBayedRackGroup: state updated - activeRackId=%s, isDirty=%s, hasStarted=%s",
+    activeRackId,
+    isDirty,
+    hasStarted,
+  );
 
   return { group, racks: newRacks };
 }

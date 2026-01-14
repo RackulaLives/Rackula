@@ -297,6 +297,17 @@ describe("Layout Store", () => {
       store.addBayedRackGroup("Server Bay", 2, 12);
       expect(store.hasStarted).toBe(true);
     });
+
+    it("creates racks with non-default width (23 inch)", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Wide Bay", 2, 12, 23);
+      expect(result).not.toBeNull();
+      expect(result!.racks[0].width).toBe(23);
+      expect(result!.racks[1].width).toBe(23);
+      expect(result!.group.id).toBeDefined();
+      expect(result!.group.rack_ids).toContain(result!.racks[0].id);
+      expect(result!.group.rack_ids).toContain(result!.racks[1].id);
+    });
   });
 
   describe("updateRack", () => {
