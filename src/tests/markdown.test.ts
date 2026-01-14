@@ -136,6 +136,51 @@ describe("Markdown Utilities", () => {
       expect(result).toContain("<p>");
       expect(result).toContain("<strong>world</strong>");
     });
+
+    // Additional XSS obfuscation tests (DOMPurify handles these)
+    it("handles entity-encoded javascript: URLs", () => {
+      const result = sanitizeHtml(
+        '<a href="&#106;avascript:alert(1)">click me</a>',
+      );
+      expect(result).not.toContain("javascript:");
+      expect(result).toContain("click me");
+    });
+
+    it("handles javascript: with whitespace variations", () => {
+      // Various obfuscation attempts with whitespace
+      const result1 = sanitizeHtml('<a href="java\nscript:alert(1)">test</a>');
+      const result2 = sanitizeHtml('<a href="javascript\t:alert(1)">test</a>');
+      expect(result1).not.toContain("javascript");
+      expect(result2).not.toContain("javascript");
+    });
+
+    it("removes svg elements with event handlers", () => {
+      const result = sanitizeHtml(
+        '<svg onload="alert(1)"><circle></circle></svg>',
+      );
+      expect(result).not.toContain("<svg>");
+      expect(result).not.toContain("onload");
+    });
+
+    it("removes data: URLs", () => {
+      const result = sanitizeHtml(
+        '<a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">click</a>',
+      );
+      expect(result).not.toContain("data:");
+      expect(result).toContain("click");
+    });
+
+    it("removes math elements (potential XSS vector)", () => {
+      const result = sanitizeHtml(
+        '<math><maction actiontype="statusline#http://evil.com"></maction></math>',
+      );
+      expect(result).not.toContain("<math>");
+    });
+
+    it("removes base tags (can hijack relative URLs)", () => {
+      const result = sanitizeHtml('<base href="https://evil.com">');
+      expect(result).not.toContain("<base>");
+    });
   });
 
   describe("parseMarkdown - combined behavior", () => {

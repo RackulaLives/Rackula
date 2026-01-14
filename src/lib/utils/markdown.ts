@@ -1,8 +1,9 @@
 /**
  * Markdown utilities for parsing and sanitizing user-provided markdown content.
- * Uses the marked library for parsing with custom configuration for security.
+ * Uses the marked library for parsing with DOMPurify for XSS protection.
  */
-import { marked, type MarkedOptions } from "marked";
+import { marked, type MarkedOptions, type Tokens } from "marked";
+import DOMPurify from "dompurify";
 
 /**
  * Configuration for marked parser.
@@ -17,82 +18,61 @@ const markedOptions: MarkedOptions = {
 /**
  * Custom renderer that adds security attributes to links.
  * All links open in new tabs with noopener noreferrer.
+ * Uses marked v17 token-based API.
  */
 const secureRenderer = new marked.Renderer();
 const originalLinkRenderer = secureRenderer.link.bind(secureRenderer);
 
-secureRenderer.link = function (href, title, text) {
-  const html = originalLinkRenderer(href, title, text);
+secureRenderer.link = function (token: Tokens.Link) {
+  const html = originalLinkRenderer(token);
   return html.replace("<a ", '<a target="_blank" rel="noopener noreferrer" ');
 };
 
 /**
- * List of HTML tags that are dangerous and should be removed.
+ * Configure DOMPurify for safe markdown rendering.
+ * Allow only elements that markdown can produce.
  */
-const DANGEROUS_TAGS = [
-  "script",
-  "style",
-  "iframe",
-  "object",
-  "embed",
-  "form",
-] as const;
+const purifyConfig: DOMPurify.Config = {
+  ALLOWED_TAGS: [
+    "p",
+    "br",
+    "strong",
+    "b",
+    "em",
+    "i",
+    "code",
+    "pre",
+    "a",
+    "ul",
+    "ol",
+    "li",
+    "blockquote",
+    "hr",
+    "del",
+    "s",
+  ],
+  ALLOWED_ATTR: ["href", "target", "rel"],
+  // Force all links to open in new tab
+  ADD_ATTR: ["target", "rel"],
+};
 
 /**
- * Sanitizes HTML to prevent XSS attacks.
- *
- * Removes:
- * - Dangerous tags (script, style, iframe, etc.)
- * - Event handler attributes (onclick, onerror, etc.)
- * - javascript: URLs in href and src attributes
+ * Sanitizes HTML to prevent XSS attacks using DOMPurify.
  *
  * @param html - Raw HTML string to sanitize
  * @returns Sanitized HTML string safe for rendering
  */
 export function sanitizeHtml(html: string): string {
-  // Use DOMParser for proper HTML parsing
-  const doc = new DOMParser().parseFromString(html, "text/html");
+  // DOMPurify.sanitize handles all XSS vectors including:
+  // - Dangerous tags (script, style, iframe, svg, etc.)
+  // - Event handler attributes (onclick, onerror, etc.)
+  // - javascript: and data: URLs
+  // - Entity-encoded and obfuscated attacks
+  const clean = DOMPurify.sanitize(html, purifyConfig);
 
-  // Remove dangerous elements
-  for (const tag of DANGEROUS_TAGS) {
-    const elements = doc.getElementsByTagName(tag);
-    while (elements.length > 0) {
-      elements[0].remove();
-    }
-  }
-
-  // Remove dangerous attributes from all elements
-  const allElements = doc.body.getElementsByTagName("*");
-  for (const element of allElements) {
-    // Remove event handlers (onclick, onerror, etc.) and javascript: in attribute values
-    const attrs = [...element.attributes];
-    for (const attr of attrs) {
-      if (
-        attr.name.startsWith("on") ||
-        attr.value.toLowerCase().includes("javascript:")
-      ) {
-        element.removeAttribute(attr.name);
-      }
-    }
-
-    // Remove src attributes with javascript: protocol
-    if (
-      element.hasAttribute("src") &&
-      element.getAttribute("src")?.toLowerCase().includes("javascript:")
-    ) {
-      element.removeAttribute("src");
-    }
-
-    // Neutralize href attributes with javascript: protocol
-    if (
-      element.hasAttribute("href") &&
-      element.getAttribute("href")?.toLowerCase().startsWith("javascript:")
-    ) {
-      element.setAttribute("href", "#");
-    }
-  }
-
-  return doc.body.innerHTML;
+  // Post-process to ensure links have security attributes
+  // DOMPurify strips target/rel if not in ALLOWED_ATTR, so we re-add them
+  return clean.replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ');
 }
 
 /**
@@ -102,7 +82,7 @@ export function sanitizeHtml(html: string): string {
  * - GFM support for lists
  * - Line breaks preserved
  * - Links open in new tabs with security attributes
- * - HTML sanitized to prevent XSS
+ * - HTML sanitized via DOMPurify to prevent XSS
  *
  * @param markdown - Raw markdown string to parse
  * @returns Sanitized HTML string
