@@ -2,6 +2,10 @@
   DeviceContextMenu Component
   Right-click context menu for placed devices in racks.
   Uses bits-ui ContextMenu with dark overlay styling matching ToolbarMenu.
+
+  Supports two modes:
+  1. Wrapper mode: Pass children snippet to wrap an element as the trigger
+  2. Virtual trigger mode: Pass x/y coordinates for SVG/programmatic use
 -->
 <script lang="ts">
   import { ContextMenu } from "bits-ui";
@@ -27,8 +31,21 @@
     canMoveUp?: boolean;
     /** Whether move down is available */
     canMoveDown?: boolean;
-    /** Trigger element (the device) */
-    children: Snippet;
+    /**
+     * Trigger element (the device) - for wrapper mode.
+     * Omit when using virtual trigger mode with x/y coordinates.
+     */
+    children?: Snippet;
+    /**
+     * X coordinate for virtual trigger (screen position).
+     * Use with y prop for SVG elements that can't be wrapped.
+     */
+    x?: number;
+    /**
+     * Y coordinate for virtual trigger (screen position).
+     * Use with x prop for SVG elements that can't be wrapped.
+     */
+    y?: number;
   }
 
   let {
@@ -42,7 +59,12 @@
     canMoveUp = true,
     canMoveDown = true,
     children,
+    x,
+    y,
   }: Props = $props();
+
+  // Virtual trigger mode: x and y are provided, children is not
+  const useVirtualTrigger = $derived(x !== undefined && y !== undefined);
 
   function handleSelect(action?: () => void) {
     return () => {
@@ -58,9 +80,18 @@
 </script>
 
 <ContextMenu.Root {open} onOpenChange={handleOpenChange}>
-  <ContextMenu.Trigger asChild>
-    {@render children()}
-  </ContextMenu.Trigger>
+  {#if useVirtualTrigger}
+    <!-- Virtual trigger at cursor position for SVG elements -->
+    <ContextMenu.Trigger asChild>
+      <div
+        style="position: fixed; left: {x}px; top: {y}px; width: 1px; height: 1px; pointer-events: none;"
+      ></div>
+    </ContextMenu.Trigger>
+  {:else if children}
+    <ContextMenu.Trigger asChild>
+      {@render children()}
+    </ContextMenu.Trigger>
+  {/if}
 
   <ContextMenu.Portal>
     <ContextMenu.Content class="context-menu-content" sideOffset={5}>

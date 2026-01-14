@@ -6,8 +6,7 @@
 <script lang="ts">
   import type { Rack as RackType, DeviceType, DisplayMode } from "$lib/types";
   import RackDevice from "./RackDevice.svelte";
-  import { ContextMenu } from "bits-ui";
-  import "$lib/styles/context-menus.css";
+  import DeviceContextMenu from "./DeviceContextMenu.svelte";
   import {
     parseDragData,
     calculateDropPosition,
@@ -1257,77 +1256,23 @@
   </svg>
 </div>
 
-<!--
-  Device context menu (rendered via portal to body)
-  Note: Cannot reuse DeviceContextMenu.svelte here because SVG elements
-  require virtual trigger positioning at cursor coordinates. The wrapper
-  component expects to wrap DOM children as the trigger, but SVG <g>
-  elements can't be wrapped that way. The inline ContextMenu with a
-  virtual 1px div trigger solves this by positioning at the right-click
-  coordinates captured from the SVG contextmenu event.
--->
+<!-- Device context menu using virtual trigger mode for SVG elements -->
 {#if deviceContextMenuOpen && deviceContextMenuTarget}
-  <ContextMenu.Root
+  <DeviceContextMenu
     open={deviceContextMenuOpen}
+    x={deviceContextMenuTarget.x}
+    y={deviceContextMenuTarget.y}
+    onedit={handleDeviceContextEdit}
+    onduplicate={handleDeviceContextDuplicate}
+    onmoveup={handleDeviceContextMoveUp}
+    onmovedown={handleDeviceContextMoveDown}
+    ondelete={handleDeviceContextDelete}
+    canMoveUp={getCanMoveUp(deviceContextMenuTarget.deviceIndex)}
+    canMoveDown={getCanMoveDown(deviceContextMenuTarget.deviceIndex)}
     onOpenChange={(open) => {
       if (!open) closeDeviceContextMenu();
     }}
-  >
-    <!-- Virtual trigger at cursor position -->
-    <ContextMenu.Trigger asChild>
-      <div
-        style="position: fixed; left: {deviceContextMenuTarget.x}px; top: {deviceContextMenuTarget.y}px; width: 1px; height: 1px; pointer-events: none;"
-      ></div>
-    </ContextMenu.Trigger>
-    <ContextMenu.Portal>
-      <ContextMenu.Content class="context-menu-content" sideOffset={5}>
-        <ContextMenu.Item
-          class="context-menu-item"
-          onSelect={handleDeviceContextEdit}
-        >
-          <span class="context-menu-label">Edit</span>
-        </ContextMenu.Item>
-
-        <ContextMenu.Item
-          class="context-menu-item"
-          onSelect={handleDeviceContextDuplicate}
-        >
-          <span class="context-menu-label">Duplicate</span>
-          <span class="context-menu-shortcut">Ctrl+D</span>
-        </ContextMenu.Item>
-
-        <ContextMenu.Separator class="context-menu-separator" />
-
-        <ContextMenu.Item
-          class="context-menu-item"
-          disabled={!getCanMoveUp(deviceContextMenuTarget.deviceIndex)}
-          onSelect={handleDeviceContextMoveUp}
-        >
-          <span class="context-menu-label">Move Up</span>
-          <span class="context-menu-shortcut">&uarr;</span>
-        </ContextMenu.Item>
-
-        <ContextMenu.Item
-          class="context-menu-item"
-          disabled={!getCanMoveDown(deviceContextMenuTarget.deviceIndex)}
-          onSelect={handleDeviceContextMoveDown}
-        >
-          <span class="context-menu-label">Move Down</span>
-          <span class="context-menu-shortcut">&darr;</span>
-        </ContextMenu.Item>
-
-        <ContextMenu.Separator class="context-menu-separator" />
-
-        <ContextMenu.Item
-          class="context-menu-item context-menu-item--destructive"
-          onSelect={handleDeviceContextDelete}
-        >
-          <span class="context-menu-label">Delete</span>
-          <span class="context-menu-shortcut">Del</span>
-        </ContextMenu.Item>
-      </ContextMenu.Content>
-    </ContextMenu.Portal>
-  </ContextMenu.Root>
+  />
 {/if}
 
 <style>
