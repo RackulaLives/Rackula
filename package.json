@@ -33,7 +33,7 @@
     "refresh-lockfile": "rm -rf node_modules package-lock.json && npm install"
   },
   "devDependencies": {
-    "@eslint/compat": "^1.4.0",
+    "@eslint/compat": "^2.0.1",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.56.1",
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
