@@ -1,13 +1,22 @@
 <!--
   Toolbar Component
-  Minimalist toolbar with hamburger menu and essential actions.
-  Inspired by Beszel and Gesimar design principles.
+  Geismar-minimal three-zone layout:
+  - Left: Logo lockup (clickable for help)
+  - Center: Action cluster (New, Undo, Redo, View, Fit)
+  - Right: Dropdown menus (File, Settings)
 -->
 <script lang="ts">
   import Tooltip from "./Tooltip.svelte";
-  import ToolbarMenu from "./ToolbarMenu.svelte";
+  import FileMenu from "./FileMenu.svelte";
+  import SettingsMenu from "./SettingsMenu.svelte";
   import LogoLockup from "./LogoLockup.svelte";
-  import { IconPlus, IconUndo, IconRedo } from "./icons";
+  import { IconImageLabel } from "./icons";
+  import Plus from "@lucide/svelte/icons/plus";
+  import Undo from "@lucide/svelte/icons/undo";
+  import Redo from "@lucide/svelte/icons/redo";
+  import Minimize from "@lucide/svelte/icons/minimize";
+  import Type from "@lucide/svelte/icons/type";
+  import ImageIcon from "@lucide/svelte/icons/image";
   import type { DisplayMode } from "$lib/types";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
@@ -19,6 +28,7 @@
     theme?: "dark" | "light";
     displayMode?: DisplayMode;
     showAnnotations?: boolean;
+    showBanana?: boolean;
     partyMode?: boolean;
     onnewrack?: () => void;
     onsave?: () => void;
@@ -30,6 +40,7 @@
     ontoggletheme?: () => void;
     ontoggledisplaymode?: () => void;
     ontoggleannotations?: () => void;
+    ontogglebanana?: () => void;
     onhelp?: () => void;
   }
 
@@ -39,6 +50,7 @@
     theme = "dark",
     displayMode = "label",
     showAnnotations = false,
+    showBanana = false,
     partyMode = false,
     onnewrack,
     onsave,
@@ -50,11 +62,19 @@
     ontoggletheme,
     ontoggledisplaymode,
     ontoggleannotations,
+    ontogglebanana,
     onhelp,
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
+
+  // View mode labels for tooltip
+  const displayModeLabels: Record<DisplayMode, string> = {
+    label: "Labels",
+    image: "Images",
+    "image-label": "Both",
+  };
 
   function handleUndo() {
     if (!layoutStore.canUndo) return;
@@ -98,11 +118,6 @@
     onshare?.();
   }
 
-  function handleDelete() {
-    analytics.trackToolbarClick("delete");
-    ondelete?.();
-  }
-
   function handleFitAll() {
     analytics.trackToolbarClick("fit-all");
     onfitall?.();
@@ -122,10 +137,15 @@
     analytics.trackToolbarClick("annotations");
     ontoggleannotations?.();
   }
+
+  function handleToggleBanana() {
+    analytics.trackToolbarClick("banana");
+    ontogglebanana?.();
+  }
 </script>
 
 <header class="toolbar">
-  <!-- Left section: Logo, New Rack, Menu -->
+  <!-- Left: Logo -->
   <div class="toolbar-section toolbar-left">
     <Tooltip text="About & Shortcuts" shortcut="?" position="bottom">
       <button
@@ -138,48 +158,21 @@
         <LogoLockup size={32} {partyMode} />
       </button>
     </Tooltip>
+  </div>
 
+  <!-- Center: Action cluster -->
+  <div class="toolbar-section toolbar-center">
     <Tooltip text="New Rack" position="bottom">
       <button
-        class="btn-new-rack"
+        class="toolbar-icon-btn"
         aria-label="New Rack"
         onclick={handleNewRack}
         data-testid="btn-new-rack"
       >
-        <IconPlus size={14} />
-        <span>New Rack</span>
+        <Plus size={18} />
       </button>
     </Tooltip>
 
-    <ToolbarMenu
-      onsave={handleSave}
-      onload={handleLoad}
-      onexport={handleExport}
-      onshare={handleShare}
-      {hasRacks}
-      onundo={handleUndo}
-      onredo={handleRedo}
-      ondelete={handleDelete}
-      canUndo={layoutStore.canUndo}
-      canRedo={layoutStore.canRedo}
-      {hasSelection}
-      undoDescription={layoutStore.undoDescription}
-      redoDescription={layoutStore.redoDescription}
-      onfitall={handleFitAll}
-      ontoggledisplaymode={handleToggleDisplayMode}
-      ontoggleannotations={handleToggleAnnotations}
-      ontoggletheme={handleToggleTheme}
-      {displayMode}
-      {showAnnotations}
-      {theme}
-    />
-  </div>
-
-  <!-- Spacer -->
-  <div class="toolbar-spacer"></div>
-
-  <!-- Right section: Undo/Redo -->
-  <div class="toolbar-section toolbar-right">
     <Tooltip
       text={layoutStore.undoDescription ?? "Undo"}
       shortcut="Ctrl+Z"
@@ -192,7 +185,7 @@
         onclick={handleUndo}
         data-testid="btn-undo"
       >
-        <IconUndo size={18} />
+        <Undo size={18} />
       </button>
     </Tooltip>
 
@@ -208,9 +201,61 @@
         onclick={handleRedo}
         data-testid="btn-redo"
       >
-        <IconRedo size={18} />
+        <Redo size={18} />
       </button>
     </Tooltip>
+
+    <Tooltip
+      text="Display: {displayModeLabels[displayMode]}"
+      shortcut="I"
+      position="bottom"
+    >
+      <button
+        class="toolbar-icon-btn"
+        aria-label="Toggle display mode"
+        onclick={handleToggleDisplayMode}
+        data-testid="btn-display-mode"
+      >
+        {#if displayMode === "label"}
+          <Type size={18} />
+        {:else if displayMode === "image"}
+          <ImageIcon size={18} />
+        {:else}
+          <IconImageLabel size={18} />
+        {/if}
+      </button>
+    </Tooltip>
+
+    <Tooltip text="Reset View" shortcut="F" position="bottom">
+      <button
+        class="toolbar-icon-btn"
+        aria-label="Reset View"
+        onclick={handleFitAll}
+        data-testid="btn-fit-all"
+      >
+        <Minimize size={18} />
+      </button>
+    </Tooltip>
+  </div>
+
+  <!-- Right: Dropdown menus -->
+  <div class="toolbar-section toolbar-right">
+    <FileMenu
+      onsave={handleSave}
+      onload={handleLoad}
+      onexport={handleExport}
+      onshare={handleShare}
+      {hasRacks}
+    />
+
+    <SettingsMenu
+      {theme}
+      {showAnnotations}
+      {showBanana}
+      ontoggletheme={handleToggleTheme}
+      ontoggleannotations={handleToggleAnnotations}
+      ontogglebanana={handleToggleBanana}
+    />
   </div>
 </header>
 
@@ -218,6 +263,7 @@
   .toolbar {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     height: var(--toolbar-height);
     padding: 0 var(--space-4);
     background: var(--colour-toolbar-bg, var(--toolbar-bg));
@@ -237,8 +283,9 @@
     flex: 0 0 auto;
   }
 
-  .toolbar-spacer {
-    flex: 1;
+  .toolbar-center {
+    flex: 0 0 auto;
+    gap: var(--space-1);
   }
 
   .toolbar-right {
@@ -246,7 +293,7 @@
     gap: var(--space-1);
   }
 
-  /* Logo button - minimal, clickable */
+  /* Logo button */
   .toolbar-brand {
     display: flex;
     align-items: center;
@@ -275,43 +322,9 @@
       0 0 0 4px var(--colour-focus-ring);
   }
 
-  /* New Rack button - Beszel-inspired outline style */
-  .btn-new-rack {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--colour-primary);
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--colour-primary);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    white-space: nowrap;
-    transition:
-      background-color var(--duration-fast) var(--ease-out),
-      color var(--duration-fast) var(--ease-out);
-  }
-
-  .btn-new-rack:hover {
-    background: var(--colour-primary);
-    color: var(--colour-text-on-primary);
-  }
-
-  .btn-new-rack:focus-visible {
-    outline: none;
-    box-shadow:
-      0 0 0 2px var(--colour-bg),
-      0 0 0 4px var(--colour-primary);
-  }
-
-  .btn-new-rack:active {
-    transform: scale(0.98);
-  }
-
-  /* Icon-only buttons - borderless, monochrome */
-  .toolbar-icon-btn {
+  /* Icon buttons - shared by toolbar and dropdown triggers */
+  .toolbar-icon-btn,
+  :global(.toolbar-icon-btn) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -328,31 +341,35 @@
       color var(--duration-fast) var(--ease-out);
   }
 
-  .toolbar-icon-btn:hover:not(:disabled) {
+  .toolbar-icon-btn:hover:not(:disabled),
+  :global(.toolbar-icon-btn:hover:not(:disabled)) {
     background: var(--colour-surface-hover);
     color: var(--colour-text);
   }
 
-  .toolbar-icon-btn:focus-visible {
+  .toolbar-icon-btn:focus-visible,
+  :global(.toolbar-icon-btn:focus-visible) {
     outline: none;
     box-shadow:
       0 0 0 2px var(--colour-bg),
       0 0 0 4px var(--colour-focus-ring);
   }
 
-  .toolbar-icon-btn:disabled {
+  .toolbar-icon-btn:disabled,
+  :global(.toolbar-icon-btn:disabled) {
     opacity: 0.4;
     cursor: not-allowed;
   }
 
-  /* Responsive: Hide text on narrow screens */
-  @media (max-width: 600px) {
-    .btn-new-rack span {
-      display: none;
-    }
+  :global(.toolbar-icon-btn[data-state="open"]) {
+    background: var(--colour-surface-hover);
+    color: var(--colour-text);
+  }
 
-    .btn-new-rack {
-      padding: var(--space-2);
+  /* Responsive: tighter gaps on narrow screens */
+  @media (max-width: 600px) {
+    .toolbar-center {
+      gap: 0;
     }
   }
 </style>

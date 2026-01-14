@@ -1,11 +1,11 @@
 <!--
   SettingsMenu Component
   Dropdown for settings: Theme, Annotations, Banana for Scale
-  Uses bits-ui DropdownMenu with Iconoir settings trigger
+  Uses bits-ui DropdownMenu with Lucide settings trigger
 -->
 <script lang="ts">
   import { DropdownMenu } from "bits-ui";
-  import { SettingsIcon } from "@indaco/svelte-iconoir/settings";
+  import Settings from "@lucide/svelte/icons/settings";
 
   interface Props {
     theme?: "dark" | "light";
@@ -30,7 +30,7 @@
 
 <DropdownMenu.Root bind:open>
   <DropdownMenu.Trigger class="toolbar-icon-btn" aria-label="Settings menu">
-    <SettingsIcon width={18} height={18} />
+    <Settings size={18} />
   </DropdownMenu.Trigger>
 
   <DropdownMenu.Portal>
