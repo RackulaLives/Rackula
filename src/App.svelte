@@ -10,7 +10,7 @@
   import { PaneGroup, Pane, PaneResizer } from "paneforge";
   import DevicePalette from "$lib/components/DevicePalette.svelte";
   import EditPanel from "$lib/components/EditPanel.svelte";
-  import NewRackForm from "$lib/components/NewRackForm.svelte";
+  import { NewRackWizard, type CreateRackData } from "$lib/components/wizard";
   import AddDeviceForm from "$lib/components/AddDeviceForm.svelte";
   import ImportFromNetBoxDialog from "$lib/components/ImportFromNetBoxDialog.svelte";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
@@ -198,12 +198,26 @@
     dialogStore.open("newRack");
   }
 
-  function handleNewRackCreate(data: {
-    name: string;
-    height: number;
-    width: number;
-  }) {
-    layoutStore.addRack(data.name, data.height, data.width);
+  function handleNewRackCreate(data: CreateRackData) {
+    if (data.layoutType === "bayed" && data.bayCount) {
+      // Create bayed rack group
+      const result = layoutStore.addBayedRackGroup(
+        data.name,
+        data.bayCount,
+        data.height,
+        data.width,
+      );
+      if (!result) {
+        toastStore.showToast(
+          "Could not create bayed group: insufficient capacity",
+          "error",
+        );
+        return;
+      }
+    } else {
+      // Create single column rack
+      layoutStore.addRack(data.name, data.height, data.width);
+    }
     dialogStore.close();
   }
 
@@ -1011,7 +1025,7 @@
       {/if}
     {/if}
 
-    <NewRackForm
+    <NewRackWizard
       open={newRackFormOpen}
       rackCount={layoutStore.rackCount}
       oncreate={handleNewRackCreate}

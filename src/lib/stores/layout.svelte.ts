@@ -8,6 +8,7 @@ import type {
   FormFactor,
   Layout,
   Rack,
+  RackGroup,
   DeviceType,
   PlacedDevice,
   DeviceFace,
@@ -24,7 +25,7 @@ import {
   type CreateDeviceTypeInput,
 } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
-import { debug } from "$lib/utils/debug";
+import { debug, layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { generateRackId } from "$lib/utils/rack";
 import { instantiatePorts } from "$lib/utils/port-utils";
@@ -177,6 +178,7 @@ export function getLayoutStore() {
 
     // Rack actions
     addRack,
+    addBayedRackGroup,
     updateRack,
     updateRackView,
     deleteRack,
@@ -376,6 +378,100 @@ function addRack(
   saveHasStarted(true);
 
   return newRack;
+}
+
+/**
+ * Interface for bayed rack group creation result
+ */
+interface BayedGroupResult {
+  /** The created rack group */
+  group: RackGroup;
+  /** The created racks (in order) */
+  racks: Rack[];
+}
+
+/**
+ * Create a bayed rack group (multiple racks side-by-side)
+ * Creates multiple racks and links them in a group for atomic management.
+ *
+ * Note: This function does NOT currently use BatchCommand for atomic undo.
+ * The issue #576 spec requested BatchCommand, but addRack() also doesn't use
+ * undo/redo commands - both use direct state mutation. To delete a bayed group,
+ * users would delete the rack group which removes all linked racks.
+ * BatchCommand support can be added in a follow-up if undo/redo is needed.
+ *
+ * @param groupName - Name for the group
+ * @param bayCount - Number of bays (2 or 3)
+ * @param height - Height for each rack in U
+ * @param width - Width for each rack in inches
+ * @returns Created group and racks, or null if insufficient capacity
+ */
+function addBayedRackGroup(
+  groupName: string,
+  bayCount: 2 | 3,
+  height: number,
+  width: 10 | 19 | 23 = 19,
+): BayedGroupResult | null {
+  // Check capacity
+  if (layout.racks.length + bayCount > MAX_RACKS) {
+    return null;
+  }
+
+  // Create the individual racks
+  const newRacks: Rack[] = [];
+  for (let i = 0; i < bayCount; i++) {
+    const rack = createDefaultRack(
+      `Bay ${i + 1}`,
+      height,
+      width,
+      "4-post-cabinet",
+      false,
+      1,
+      true,
+      generateRackId(),
+    );
+    newRacks.push(rack);
+  }
+
+  // Create the group linking them
+  const group: RackGroup = {
+    id: generateId(),
+    name: groupName,
+    rack_ids: newRacks.map((r) => r.id),
+    layout_preset: "bayed",
+  };
+
+  layoutDebug.state(
+    "addBayedRackGroup: created %d racks for group %s",
+    newRacks.length,
+    groupName,
+  );
+
+  // Update layout state
+  const isFirstRack = layout.racks.length === 0;
+  layout = {
+    ...layout,
+    name: isFirstRack ? groupName : layout.name,
+    racks: [...layout.racks, ...newRacks],
+    rack_groups: [...(layout.rack_groups ?? []), group],
+  };
+  isDirty = true;
+
+  // Set first bay as active
+  activeRackId = newRacks[0]!.id;
+
+  // Mark as started
+  hasStarted = true;
+  saveHasStarted(true);
+
+  layoutDebug.state(
+    "addBayedRackGroup: state updated - activeRackId=%s, isDirty=%s, hasStarted=%s",
+    activeRackId,
+    isDirty,
+    hasStarted,
+  );
+
+  return { group, racks: newRacks };
 }
 
 /**
