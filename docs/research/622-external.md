@@ -304,7 +304,7 @@ A simpler ~200 SLOC alternative:
 - Edits `.drawio`, `.drawio.svg`, `.drawio.png` files
 - `.drawio.svg` can be embedded in GitHub READMEs
 
-**github.dev Integration:**
+**GitHub.dev Integration:**
 
 - Web-based VS Code in browser
 - Install draw.io extension

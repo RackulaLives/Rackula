@@ -173,7 +173,7 @@ Implement OAuth flow with a minimal Cloudflare Worker to handle token exchange. 
 
 **Architecture:**
 
-```
+```text
 User → Rackula App → GitHub OAuth Login
                           ↓
                     Authorize popup
@@ -288,7 +288,7 @@ Implement full git semantics in the browser using isomorphic-git. Clone repos, c
 
 **Architecture:**
 
-```
+```text
 Browser
 ├── LightningFS (IndexedDB-backed virtual filesystem)
 ├── isomorphic-git (git operations)
