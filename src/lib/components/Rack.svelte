@@ -6,6 +6,7 @@
 <script lang="ts">
   import type { Rack as RackType, DeviceType, DisplayMode } from "$lib/types";
   import RackDevice from "./RackDevice.svelte";
+  import { ContextMenu } from "bits-ui";
   import {
     parseDragData,
     calculateDropPosition,
@@ -109,6 +110,15 @@
   let justFinishedDrag = $state(false);
   // Track Shift key state for fine-positioning mode
   let shiftKeyHeld = $state(false);
+
+  // Device context menu state
+  let deviceContextMenuOpen = $state(false);
+  let deviceContextMenuTarget = $state<{
+    rackId: string;
+    deviceIndex: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Look up device by device_type (slug)
   function getDeviceBySlug(slug: string): DeviceType | undefined {
@@ -545,6 +555,126 @@
       selectionStore.selectDevice(rackId, result.device.id);
       toastStore.showToast("Device duplicated", "success");
     }
+  }
+
+  /**
+   * Handle device context menu open
+   */
+  function handleDeviceContextMenuOpen(
+    event: CustomEvent<{
+      rackId: string;
+      deviceIndex: number;
+      x: number;
+      y: number;
+    }>,
+  ) {
+    deviceContextMenuTarget = event.detail;
+    deviceContextMenuOpen = true;
+  }
+
+  /**
+   * Close device context menu
+   */
+  function closeDeviceContextMenu() {
+    deviceContextMenuOpen = false;
+    deviceContextMenuTarget = null;
+  }
+
+  /**
+   * Handle device context menu: Edit (select the device)
+   */
+  function handleDeviceContextEdit() {
+    if (!deviceContextMenuTarget) return;
+    const { rackId, deviceIndex } = deviceContextMenuTarget;
+    const device = rack.devices[deviceIndex];
+    if (device) {
+      selectionStore.selectDevice(rackId, device.id);
+    }
+    closeDeviceContextMenu();
+  }
+
+  /**
+   * Handle device context menu: Duplicate
+   */
+  function handleDeviceContextDuplicate() {
+    if (!deviceContextMenuTarget) return;
+    const { rackId, deviceIndex } = deviceContextMenuTarget;
+    const result = layoutStore.duplicateDevice(rackId, deviceIndex);
+    if (result.error) {
+      toastStore.showToast(result.error, "error");
+    } else if (result.device) {
+      selectionStore.selectDevice(rackId, result.device.id);
+      toastStore.showToast("Device duplicated", "success");
+    }
+    closeDeviceContextMenu();
+  }
+
+  /**
+   * Handle device context menu: Move Up
+   */
+  function handleDeviceContextMoveUp() {
+    if (!deviceContextMenuTarget) return;
+    const { deviceIndex } = deviceContextMenuTarget;
+    const device = rack.devices[deviceIndex];
+    if (!device) return;
+
+    const deviceType = getDeviceBySlug(device.device_type);
+    if (!deviceType) return;
+
+    // Move up = increase position (higher U number)
+    const newPosition = device.position + 1;
+    layoutStore.moveDevice(rack.id, deviceIndex, newPosition);
+    closeDeviceContextMenu();
+  }
+
+  /**
+   * Handle device context menu: Move Down
+   */
+  function handleDeviceContextMoveDown() {
+    if (!deviceContextMenuTarget) return;
+    const { deviceIndex } = deviceContextMenuTarget;
+    const device = rack.devices[deviceIndex];
+    if (!device) return;
+
+    // Move down = decrease position (lower U number)
+    const newPosition = device.position - 1;
+    if (newPosition >= 1) {
+      layoutStore.moveDevice(rack.id, deviceIndex, newPosition);
+    }
+    closeDeviceContextMenu();
+  }
+
+  /**
+   * Handle device context menu: Delete
+   */
+  function handleDeviceContextDelete() {
+    if (!deviceContextMenuTarget) return;
+    const { rackId, deviceIndex } = deviceContextMenuTarget;
+    layoutStore.removeDeviceFromRack(rackId, deviceIndex);
+    selectionStore.clearSelection();
+    closeDeviceContextMenu();
+  }
+
+  /**
+   * Get whether device can move up
+   */
+  function getCanMoveUp(deviceIndex: number): boolean {
+    const device = rack.devices[deviceIndex];
+    if (!device) return false;
+    const deviceType = getDeviceBySlug(device.device_type);
+    if (!deviceType) return false;
+    // Can move up if not at max position
+    const maxPosition = rack.height - deviceType.u_height + 1;
+    return device.position < maxPosition;
+  }
+
+  /**
+   * Get whether device can move down
+   */
+  function getCanMoveDown(deviceIndex: number): boolean {
+    const device = rack.devices[deviceIndex];
+    if (!device) return false;
+    return device.position > 1;
   }
 
   function handleDrop(event: DragEvent) {
@@ -1008,6 +1138,7 @@
             ondragstart={() => handleDeviceDragStart(originalIndex)}
             ondragend={handleDeviceDragEnd}
             onduplicate={handleDeviceDuplicate}
+            oncontextmenuopen={handleDeviceContextMenuOpen}
           />
         {/if}
       {/each}
@@ -1124,6 +1255,71 @@
     {/if}
   </svg>
 </div>
+
+<!-- Device context menu (rendered via portal to body) -->
+{#if deviceContextMenuOpen && deviceContextMenuTarget}
+  <ContextMenu.Root
+    open={deviceContextMenuOpen}
+    onOpenChange={(open) => {
+      if (!open) closeDeviceContextMenu();
+    }}
+  >
+    <!-- Virtual trigger at cursor position -->
+    <ContextMenu.Trigger asChild>
+      <div
+        style="position: fixed; left: {deviceContextMenuTarget.x}px; top: {deviceContextMenuTarget.y}px; width: 1px; height: 1px; pointer-events: none;"
+      ></div>
+    </ContextMenu.Trigger>
+    <ContextMenu.Portal>
+      <ContextMenu.Content class="context-menu-content" sideOffset={5}>
+        <ContextMenu.Item
+          class="context-menu-item"
+          onSelect={handleDeviceContextEdit}
+        >
+          <span class="context-menu-label">Edit</span>
+        </ContextMenu.Item>
+
+        <ContextMenu.Item
+          class="context-menu-item"
+          onSelect={handleDeviceContextDuplicate}
+        >
+          <span class="context-menu-label">Duplicate</span>
+          <span class="context-menu-shortcut">Ctrl+D</span>
+        </ContextMenu.Item>
+
+        <ContextMenu.Separator class="context-menu-separator" />
+
+        <ContextMenu.Item
+          class="context-menu-item"
+          disabled={!getCanMoveUp(deviceContextMenuTarget.deviceIndex)}
+          onSelect={handleDeviceContextMoveUp}
+        >
+          <span class="context-menu-label">Move Up</span>
+          <span class="context-menu-shortcut">&uarr;</span>
+        </ContextMenu.Item>
+
+        <ContextMenu.Item
+          class="context-menu-item"
+          disabled={!getCanMoveDown(deviceContextMenuTarget.deviceIndex)}
+          onSelect={handleDeviceContextMoveDown}
+        >
+          <span class="context-menu-label">Move Down</span>
+          <span class="context-menu-shortcut">&darr;</span>
+        </ContextMenu.Item>
+
+        <ContextMenu.Separator class="context-menu-separator" />
+
+        <ContextMenu.Item
+          class="context-menu-item context-menu-item--destructive"
+          onSelect={handleDeviceContextDelete}
+        >
+          <span class="context-menu-label">Delete</span>
+          <span class="context-menu-shortcut">Del</span>
+        </ContextMenu.Item>
+      </ContextMenu.Content>
+    </ContextMenu.Portal>
+  </ContextMenu.Root>
+{/if}
 
 <style>
   .rack-container {
