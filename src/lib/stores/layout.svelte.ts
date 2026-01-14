@@ -394,8 +394,13 @@ interface BayedGroupResult {
 /**
  * Create a bayed rack group (multiple racks side-by-side)
  * Creates multiple racks and links them in a group for atomic management.
- * Note: This is NOT an undo-able action - bayed group creation happens once.
- * To undo, users would delete the group which deletes all racks.
+ *
+ * Note: This function does NOT currently use BatchCommand for atomic undo.
+ * The issue #576 spec requested BatchCommand, but addRack() also doesn't use
+ * undo/redo commands - both use direct state mutation. To delete a bayed group,
+ * users would delete the rack group which removes all linked racks.
+ * BatchCommand support can be added in a follow-up if undo/redo is needed.
+ *
  * @param groupName - Name for the group
  * @param bayCount - Number of bays (2 or 3)
  * @param height - Height for each rack in U

@@ -209,6 +209,7 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       const result = store.addBayedRackGroup("Server Bay", 2, 12);
       expect(result).not.toBeNull();
+      // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: bayCount=2 creates exactly 2 racks
       expect(result!.racks).toHaveLength(2);
       expect(result!.racks[0].name).toBe("Bay 1");
       expect(result!.racks[1].name).toBe("Bay 2");
@@ -218,6 +219,7 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       const result = store.addBayedRackGroup("Server Bay", 3, 12);
       expect(result).not.toBeNull();
+      // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: bayCount=3 creates exactly 3 racks
       expect(result!.racks).toHaveLength(3);
       expect(result!.racks[0].name).toBe("Bay 1");
       expect(result!.racks[1].name).toBe("Bay 2");
@@ -237,6 +239,7 @@ describe("Layout Store", () => {
       const result = store.addBayedRackGroup("Server Bay", 2, 12);
       expect(result).not.toBeNull();
       expect(result!.group.name).toBe("Server Bay");
+      // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: rack_ids contains exactly bayCount IDs
       expect(result!.group.rack_ids).toHaveLength(2);
       expect(result!.group.rack_ids).toContain(result!.racks[0].id);
       expect(result!.group.rack_ids).toContain(result!.racks[1].id);
@@ -247,6 +250,7 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       const result = store.addBayedRackGroup("Server Bay", 2, 12);
       expect(result).not.toBeNull();
+      // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: creating 1 group adds exactly 1 entry
       expect(store.rack_groups).toHaveLength(1);
       expect(store.rack_groups[0].id).toBe(result!.group.id);
     });

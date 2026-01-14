@@ -105,8 +105,10 @@
     return config.width === 10 ? SMALL_RACK_HEIGHTS : COMMON_RACK_HEIGHTS;
   });
 
-  // Max bay count based on remaining capacity
-  const maxBayCount = $derived(Math.min(3, remainingCapacity) as 2 | 3);
+  // Max bay count based on remaining capacity (clamped to valid range 2-3)
+  const maxBayCount = $derived(
+    Math.max(2, Math.min(3, remainingCapacity)) as 2 | 3,
+  );
 
   // Can proceed to next step?
   const canProceed = $derived.by(() => {
@@ -181,7 +183,7 @@
         }
         return true;
 
-      case 3:
+      case 3: {
         const height = getCurrentHeight();
         if (config.layoutType === "column") {
           if (height < MIN_RACK_HEIGHT || height > MAX_RACK_HEIGHT) {
@@ -195,6 +197,7 @@
           }
         }
         return true;
+      }
 
       default:
         return true;
@@ -569,7 +572,7 @@
   .bay-btn.selected {
     background: var(--colour-selection);
     border-color: var(--colour-selection);
-    color: white;
+    color: var(--colour-text-on-primary);
   }
 
   /* Height buttons */
@@ -597,7 +600,7 @@
   .height-btn.selected {
     background: var(--colour-selection);
     border-color: var(--colour-selection);
-    color: white;
+    color: var(--colour-text-on-primary);
   }
 
   /* Custom height input */

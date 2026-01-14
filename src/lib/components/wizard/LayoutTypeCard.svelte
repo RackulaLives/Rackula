@@ -48,13 +48,6 @@
       onclick?.();
     }
   }
-
-  function handleKeyDown(event: KeyboardEvent) {
-    if (!disabled && (event.key === "Enter" || event.key === " ")) {
-      event.preventDefault();
-      onclick?.();
-    }
-  }
 </script>
 
 <button
@@ -63,7 +56,6 @@
   class:selected
   class:disabled
   onclick={handleClick}
-  onkeydown={handleKeyDown}
   aria-pressed={selected}
   aria-disabled={disabled}
 >
@@ -158,7 +150,7 @@
 
   .disabled-message {
     font-size: var(--font-size-xs, 0.75rem);
-    color: var(--colour-warning, #f1fa8c);
+    color: var(--colour-warning);
     margin-top: var(--space-1);
   }
 </style>
