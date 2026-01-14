@@ -40,3 +40,4 @@ playwright-browserstack-sdk.config.ts
 
 # Git worktrees
 .worktree/
+.worktrees/
