@@ -4,7 +4,12 @@
   Accepts device drops for placement
 -->
 <script lang="ts">
-  import type { Rack as RackType, DeviceType, DisplayMode } from "$lib/types";
+  import type {
+    Rack as RackType,
+    DeviceType,
+    DisplayMode,
+    PlacedDevice,
+  } from "$lib/types";
   import RackDevice from "./RackDevice.svelte";
   import DeviceContextMenu from "./DeviceContextMenu.svelte";
   import {
@@ -125,6 +130,30 @@
   // Look up device by device_type (slug)
   function getDeviceBySlug(slug: string): DeviceType | undefined {
     return deviceLibrary.find((d) => d.slug === slug);
+  }
+
+  /**
+   * Get container context for child devices (for accessibility announcements)
+   * Returns undefined if the device is not a child of a container.
+   */
+  function getContainerContext(childDevice: PlacedDevice) {
+    if (!childDevice.container_id) return undefined;
+
+    const container = rack.devices.find(
+      (d) => d.id === childDevice.container_id,
+    );
+    if (!container) return undefined;
+
+    const containerType = getDeviceBySlug(container.device_type);
+    if (!containerType) return undefined;
+
+    const slot = containerType.slots?.find((s) => s.id === childDevice.slot_id);
+
+    return {
+      containerName: containerType.model ?? containerType.slug,
+      containerPosition: container.position,
+      slotName: slot?.name ?? childDevice.slot_id ?? "Unknown",
+    };
   }
 
   // CSS custom property values (fallbacks match app.css)
@@ -1159,6 +1188,9 @@
     <g transform="translate(0, {RACK_PADDING + RAIL_WIDTH})">
       {#each visibleDevices as { placedDevice, originalIndex } (placedDevice.device_type + "-" + placedDevice.position)}
         {@const device = getDeviceBySlug(placedDevice.device_type)}
+        {@const containerCtx = placedDevice.container_id
+          ? getContainerContext(placedDevice)
+          : undefined}
         {#if device}
           <RackDevice
             {device}
@@ -1176,6 +1208,7 @@
             placedDeviceId={placedDevice.id}
             colourOverride={placedDevice.colour_override}
             slotPosition={placedDevice.slot_position}
+            containerContext={containerCtx}
             onselect={ondeviceselect}
             ondragstart={() => handleDeviceDragStart(originalIndex)}
             ondragend={handleDeviceDragEnd}
