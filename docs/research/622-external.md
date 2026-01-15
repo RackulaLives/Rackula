@@ -166,9 +166,9 @@ Traditional OAuth requires a backend server for token exchange because:
 
 **Workaround:** Use a serverless function (Cloudflare Worker, Vercel Edge) for token exchange.
 
-### GitHub Apps with PKCE (Recommended for SPAs in 2025)
+### GitHub Apps with PKCE (Announced July 2025)
 
-As of [July 2025](https://github.blog/changelog/2025-07-14-pkce-support-for-oauth-and-github-app-authentication/), GitHub now supports PKCE for OAuth and GitHub Apps.
+As of [July 2025](https://github.blog/changelog/2025-07-14-pkce-support-for-oauth-and-github-app-authentication/), GitHub added PKCE support for OAuth and GitHub Apps.
 
 **What This Means:**
 
@@ -177,7 +177,7 @@ As of [July 2025](https://github.blog/changelog/2025-07-14-pkce-support-for-oaut
 - Uses `code_challenge`/`code_verifier` pattern
 - Only S256 method supported
 
-**Current Limitations (as of research date):**
+**Limitations (as of January 2026):**
 
 - CORS on token endpoint still being implemented
 - Client secret still required (public client distinction not yet available)
@@ -401,7 +401,7 @@ When GitHub removes client secret requirement for public clients:
 3. No backend needed
 4. Better UX (OAuth popup vs PAT copy-paste)
 
-**Status:** PKCE announced July 2025, but client secret still required. Monitor GitHub changelog.
+**Status (January 2026):** PKCE was announced in July 2025 (~6 months ago), but the client secret requirement for public clients has not yet been removed. Monitor [GitHub's changelog](https://github.blog/changelog/) for updates on public client support.
 
 ### Draw.io-Inspired Approach
 

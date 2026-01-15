@@ -58,10 +58,15 @@ User provides a Personal Access Token (fine-grained). Rackula stores it in local
 import { Octokit } from "@octokit/rest";
 import YAML from "yaml";
 
+// Browser-safe base64 encoding (handles Unicode)
+function toBase64(str: string): string {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
 async function saveToGitHub(layout: Layout, config: GitHubConfig) {
   const octokit = new Octokit({ auth: config.pat });
   // Use YAML format for git-friendly, human-readable diffs
-  const content = Buffer.from(YAML.stringify(layout)).toString("base64");
+  const content = toBase64(YAML.stringify(layout));
 
   // Get current file SHA if exists (required for update)
   let sha: string | undefined;
@@ -125,6 +130,8 @@ Use GitHub Gists instead of repositories. Simpler model: each layout = one gist.
 **Implementation:**
 
 ```typescript
+import YAML from "yaml";
+
 async function saveToGist(layout: Layout, gistId?: string) {
   const octokit = new Octokit({ auth: pat });
 
@@ -132,12 +139,12 @@ async function saveToGist(layout: Layout, gistId?: string) {
     // Update existing gist
     await octokit.rest.gists.update({
       gist_id: gistId,
-      files: { "layout.yaml": { content: yamlSerialize(layout) } },
+      files: { "layout.yaml": { content: YAML.stringify(layout) } },
     });
   } else {
     // Create new gist
     const { data } = await octokit.rest.gists.create({
-      files: { "layout.yaml": { content: yamlSerialize(layout) } },
+      files: { "layout.yaml": { content: YAML.stringify(layout) } },
       description: `Rackula layout: ${layout.name}`,
       public: false, // Secret gist
     });
@@ -216,6 +223,7 @@ export default {
 
     // Return HTML that uses postMessage to securely send token to opener
     // This avoids exposing the token in URL query strings or server logs
+    // Note: JSON.stringify safely escapes the token to prevent XSS
     const html = `<!DOCTYPE html>
 <html>
 <head><title>Authenticating...</title></head>
@@ -223,7 +231,7 @@ export default {
 <script>
   if (window.opener) {
     window.opener.postMessage(
-      { type: 'github-oauth', access_token: '${access_token}' },
+      { type: 'github-oauth', access_token: ${JSON.stringify(access_token)} },
       'https://count.racku.la'
     );
     window.close();
