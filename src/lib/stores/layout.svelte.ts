@@ -18,7 +18,11 @@ import type {
   Cable,
 } from "$lib/types";
 import { DEFAULT_DEVICE_FACE, MAX_RACKS } from "$lib/types/constants";
-import { canPlaceDevice, findValidDropPositions } from "$lib/utils/collision";
+import {
+  canPlaceDevice,
+  canPlaceInContainer,
+  findValidDropPositions,
+} from "$lib/utils/collision";
 import { createLayout, createDefaultRack } from "$lib/utils/serialization";
 import {
   createDeviceType as createDeviceTypeHelper,
@@ -220,6 +224,7 @@ export function getLayoutStore() {
 
     // Placement actions
     placeDevice,
+    placeInContainer,
     moveDevice,
     moveDeviceToRack,
     removeDeviceFromRack,
@@ -1309,6 +1314,87 @@ function placeDevice(
   // Delegate to recorded version for undo/redo support
   // Face is determined by placeDeviceRecorded based on device depth if not specified
   return placeDeviceRecorded(rackId, deviceTypeSlug, position, face);
+}
+
+/**
+ * Place a device inside a container slot
+ * Uses undo/redo support via command pattern
+ * @param rackId - Target rack ID
+ * @param deviceTypeSlug - Device type slug of child device
+ * @param containerId - ID of parent container PlacedDevice
+ * @param slotId - Slot ID within the container
+ * @param position - Position within container (0-indexed from bottom)
+ * @returns true if placed successfully, false if invalid
+ */
+function placeInContainer(
+  rackId: string,
+  deviceTypeSlug: string,
+  containerId: string,
+  slotId: string,
+  position: number,
+): boolean {
+  // Validate rack exists
+  const targetRack = getRackById(rackId);
+  if (!targetRack) return false;
+
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
+  // Find container device
+  const container = targetRack.devices.find((d) => d.id === containerId);
+  if (!container) return false;
+
+  // Find device types
+  const containerType = layout.device_types.find(
+    (d) => d.slug === container.device_type,
+  );
+  const childType = findDeviceType(deviceTypeSlug, layout.device_types);
+
+  // Auto-import if found in starter/brand but not yet in layout
+  if (
+    childType &&
+    !layout.device_types.find((dt) => dt.slug === deviceTypeSlug)
+  ) {
+    layout.device_types = [...layout.device_types, childType];
+  }
+
+  if (!containerType || !childType) return false;
+
+  // Check collision within container
+  if (
+    !canPlaceInContainer(
+      targetRack,
+      layout.device_types,
+      container,
+      containerType,
+      childType,
+      slotId,
+      position,
+    )
+  ) {
+    return false;
+  }
+
+  // Create placed device with container reference
+  const placedDevice: PlacedDevice = {
+    id: crypto.randomUUID(),
+    device_type: deviceTypeSlug,
+    position, // 0-indexed within container
+    face: container.face, // Inherit parent face
+    container_id: containerId,
+    slot_id: slotId,
+    ports: instantiatePorts(childType),
+  };
+
+  // Use command for undo/redo
+  const deviceName = childType.model ?? childType.slug;
+  const history = getHistoryStore();
+  const adapter = getCommandStoreAdapter();
+  const command = createPlaceDeviceCommand(placedDevice, adapter, deviceName);
+  history.execute(command);
+  isDirty = true;
+
+  return true;
 }
 
 /**

@@ -1499,6 +1499,230 @@ describe("Layout Store", () => {
     });
   });
 
+  describe("placeInContainer", () => {
+    beforeEach(() => {
+      resetLayoutStore();
+    });
+
+    it("places device in container slot with container_id and slot_id", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+
+      // Create container type with slots
+      const containerType = store.addDeviceType({
+        name: "Test Shelf",
+        u_height: 2,
+        category: "server",
+        colour: "#8B4513",
+        slots: [
+          {
+            id: "slot-left",
+            position: { row: 0, col: 0 },
+            width_fraction: 0.5,
+          },
+          {
+            id: "slot-right",
+            position: { row: 0, col: 1 },
+            width_fraction: 0.5,
+          },
+        ],
+      });
+      const childType = store.addDeviceType({
+        name: "Mini PC",
+        u_height: 1,
+        category: "server",
+        colour: "#4A90D9",
+      });
+
+      // Place container at rack level
+      store.placeDevice(rack!.id, containerType.slug, 10);
+      const container = store.activeRack!.devices[0]!;
+
+      // Place child in container slot
+      const success = store.placeInContainer(
+        rack!.id,
+        childType.slug,
+        container.id,
+        "slot-left",
+        0,
+      );
+
+      expect(success).toBe(true);
+      const child = store.activeRack!.devices[1]!;
+      expect(child.container_id).toBe(container.id);
+      expect(child.slot_id).toBe("slot-left");
+      expect(child.position).toBe(0);
+    });
+
+    it("returns false when container not found", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const childType = store.addDeviceType({
+        name: "Mini PC",
+        u_height: 1,
+        category: "server",
+        colour: "#4A90D9",
+      });
+
+      const success = store.placeInContainer(
+        rack!.id,
+        childType.slug,
+        "nonexistent-id",
+        "slot-left",
+        0,
+      );
+
+      expect(success).toBe(false);
+    });
+
+    it("inherits face from container", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+
+      // Create half-depth container so we can set explicit face
+      const containerType = store.addDeviceType({
+        name: "Test Shelf",
+        u_height: 2,
+        category: "server",
+        colour: "#8B4513",
+        is_full_depth: false,
+        slots: [
+          {
+            id: "slot-left",
+            position: { row: 0, col: 0 },
+            width_fraction: 0.5,
+          },
+        ],
+      });
+      const childType = store.addDeviceType({
+        name: "Mini PC",
+        u_height: 1,
+        category: "server",
+        colour: "#4A90D9",
+      });
+
+      // Place container on rear face
+      store.placeDevice(rack!.id, containerType.slug, 10, "rear");
+      const container = store.activeRack!.devices[0]!;
+      expect(container.face).toBe("rear");
+
+      // Place child in container
+      store.placeInContainer(
+        rack!.id,
+        childType.slug,
+        container.id,
+        "slot-left",
+        0,
+      );
+
+      const child = store.activeRack!.devices[1]!;
+      expect(child.face).toBe("rear");
+    });
+
+    it("supports undo/redo for container placement", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+
+      const containerType = store.addDeviceType({
+        name: "Test Shelf",
+        u_height: 2,
+        category: "server",
+        colour: "#8B4513",
+        slots: [
+          {
+            id: "slot-left",
+            position: { row: 0, col: 0 },
+            width_fraction: 0.5,
+          },
+        ],
+      });
+      const childType = store.addDeviceType({
+        name: "Mini PC",
+        u_height: 1,
+        category: "server",
+        colour: "#4A90D9",
+      });
+
+      store.placeDevice(rack!.id, containerType.slug, 10);
+      const container = store.activeRack!.devices[0]!;
+
+      // Clear history for clean test
+      store.clearHistory();
+
+      const initialDeviceCount = store.activeRack!.devices.length;
+      store.placeInContainer(
+        rack!.id,
+        childType.slug,
+        container.id,
+        "slot-left",
+        0,
+      );
+      expect(store.activeRack!.devices.length).toBe(initialDeviceCount + 1);
+
+      // Undo should remove the child
+      store.undo();
+      expect(store.activeRack!.devices.length).toBe(initialDeviceCount);
+
+      // Redo should restore the child
+      store.redo();
+      expect(store.activeRack!.devices.length).toBe(initialDeviceCount + 1);
+    });
+
+    it("returns false when rack not found", () => {
+      const store = getLayoutStore();
+      store.addRack("Test Rack", 42);
+
+      const childType = store.addDeviceType({
+        name: "Mini PC",
+        u_height: 1,
+        category: "server",
+        colour: "#4A90D9",
+      });
+
+      const success = store.placeInContainer(
+        "nonexistent-rack",
+        childType.slug,
+        "container-id",
+        "slot-left",
+        0,
+      );
+
+      expect(success).toBe(false);
+    });
+
+    it("returns false when child device type not found", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+
+      const containerType = store.addDeviceType({
+        name: "Test Shelf",
+        u_height: 2,
+        category: "server",
+        colour: "#8B4513",
+        slots: [
+          {
+            id: "slot-left",
+            position: { row: 0, col: 0 },
+            width_fraction: 0.5,
+          },
+        ],
+      });
+
+      store.placeDevice(rack!.id, containerType.slug, 10);
+      const container = store.activeRack!.devices[0]!;
+
+      const success = store.placeInContainer(
+        rack!.id,
+        "nonexistent-device-type",
+        container.id,
+        "slot-left",
+        0,
+      );
+
+      expect(success).toBe(false);
+    });
+  });
+
   describe("placeDevice with brand pack devices", () => {
     beforeEach(() => {
       resetLayoutStore();
