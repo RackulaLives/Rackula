@@ -173,7 +173,6 @@
     return `${GITHUB_URL}/issues/new?${params.toString()}`;
   });
 
-  const featureRequestUrl = `${GITHUB_URL}/issues/new?template=feature-request.yml`;
   const discussionsUrl = `${GITHUB_URL}/discussions`;
 </script>
 
@@ -266,25 +265,6 @@
                 />
               </svg>
               Report Bug
-            </a>
-            <a
-              href={featureRequestUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="quick-link"
-            >
-              <svg
-                viewBox="0 0 16 16"
-                width="16"
-                height="16"
-                aria-hidden="true"
-              >
-                <path
-                  fill="currentColor"
-                  d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm7.25-3.25v2.5h2.5a.75.75 0 0 1 0 1.5h-2.5v2.5a.75.75 0 0 1-1.5 0v-2.5h-2.5a.75.75 0 0 1 0-1.5h2.5v-2.5a.75.75 0 0 1 1.5 0Z"
-                />
-              </svg>
-              Request Feature
             </a>
             <a
               href={discussionsUrl}
