@@ -2,8 +2,8 @@
   New Rack Wizard Component
   3-step wizard for creating column (single) or bayed (grouped) racks.
 
-  Step 1: Rack Details - Name and width selection
-  Step 2: Layout Type - Column vs Bayed visual selection
+  Step 1: Rack Details - Name and layout type (column vs bayed) selection
+  Step 2: Width - Selectable for column, locked to 19" for bayed
   Step 3: Dimensions - Height (column) or bay count + height (bayed)
 -->
 <script lang="ts">
@@ -114,10 +114,13 @@
   const canProceed = $derived.by(() => {
     switch (currentStep) {
       case 1:
-        return config.name.trim().length > 0;
+        // Step 1: Name must be filled and layout type selected
+        return config.name.trim().length > 0 && config.layoutType !== undefined;
       case 2:
-        return config.layoutType !== undefined;
+        // Step 2: Width - always valid (bayed is locked, column has default)
+        return true;
       case 3: {
+        // Step 3: Height must be in valid range
         const height = config.isCustomHeight
           ? config.customHeight
           : config.height;
@@ -146,11 +149,13 @@
     }
   });
 
-  // Reset height when layout type changes
+  // Reset height and width when layout type changes
   $effect(() => {
     if (config.layoutType === "bayed") {
       config.height = BAYED_DEFAULT_HEIGHT;
       config.isCustomHeight = false;
+      // Bayed racks are always 19" standard width
+      config.width = 19;
     } else {
       config.height = 42;
     }
@@ -268,13 +273,7 @@
   showClose={false}
   onclose={oncancel}
 >
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <form
-    class="wizard-form"
-    onsubmit={(e) => e.preventDefault()}
-    onkeydown={handleKeyDown}
-  >
-    <!-- Step indicator -->
+  {#snippet headerActions()}
     <div
       class="step-indicator"
       role="progressbar"
@@ -284,8 +283,14 @@
     >
       <span class="step-text">Step {currentStep} of 3</span>
     </div>
-
-    <!-- Step 1: Rack Details -->
+  {/snippet}
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <form
+    class="wizard-form"
+    onsubmit={(e) => e.preventDefault()}
+    onkeydown={handleKeyDown}
+  >
+    <!-- Step 1: Name and Layout Type -->
     {#if currentStep === 1}
       <div class="step-content">
         <div class="form-group">
@@ -304,42 +309,51 @@
         </div>
 
         <div class="form-group">
-          <span class="form-label">Rack Width</span>
-          <div class="width-options" role="group" aria-label="Rack width">
-            {#each ALLOWED_RACK_WIDTHS as width (width)}
-              <label class="width-option">
-                <input
-                  type="radio"
-                  name="rack-width"
-                  value={width}
-                  checked={config.width === width}
-                  onchange={() => (config.width = width)}
-                />
-                <span class="width-label">{width}"</span>
-              </label>
-            {/each}
+          <span class="form-label">Layout Type</span>
+          <div class="layout-cards">
+            <LayoutTypeCard
+              type="column"
+              selected={config.layoutType === "column"}
+              onclick={() => selectLayoutType("column")}
+            />
+            <LayoutTypeCard
+              type="bayed"
+              selected={config.layoutType === "bayed"}
+              disabled={!canCreateBayed}
+              disabledMessage={bayedDisabledMessage}
+              onclick={() => selectLayoutType("bayed")}
+            />
           </div>
         </div>
       </div>
     {/if}
 
-    <!-- Step 2: Layout Type -->
+    <!-- Step 2: Rack Width -->
     {#if currentStep === 2}
       <div class="step-content">
-        <span class="form-label">Layout Type</span>
-        <div class="layout-cards">
-          <LayoutTypeCard
-            type="column"
-            selected={config.layoutType === "column"}
-            onclick={() => selectLayoutType("column")}
-          />
-          <LayoutTypeCard
-            type="bayed"
-            selected={config.layoutType === "bayed"}
-            disabled={!canCreateBayed}
-            disabledMessage={bayedDisabledMessage}
-            onclick={() => selectLayoutType("bayed")}
-          />
+        <div class="form-group">
+          <span class="form-label">Rack Width</span>
+          {#if config.layoutType === "bayed"}
+            <div class="width-locked">
+              <span class="width-value">19"</span>
+              <span class="width-note">Standard width for bayed racks</span>
+            </div>
+          {:else}
+            <div class="width-options" role="group" aria-label="Rack width">
+              {#each ALLOWED_RACK_WIDTHS as width (width)}
+                <label class="width-option">
+                  <input
+                    type="radio"
+                    name="rack-width"
+                    value={width}
+                    checked={config.width === width}
+                    onchange={() => (config.width = width)}
+                  />
+                  <span class="width-label">{width}"</span>
+                </label>
+              {/each}
+            </div>
+          {/if}
         </div>
       </div>
     {/if}
@@ -462,12 +476,27 @@
 
   .step-indicator {
     display: flex;
-    justify-content: flex-end;
-    padding-bottom: var(--space-2);
-    border-bottom: 1px solid var(--colour-border);
   }
 
   .step-text {
+    font-size: var(--font-size-sm);
+    color: var(--colour-text-muted);
+  }
+
+  /* Locked width display for bayed racks */
+  .width-locked {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .width-value {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-medium);
+    color: var(--colour-text);
+  }
+
+  .width-note {
     font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
   }

@@ -13,6 +13,7 @@
     showClose?: boolean;
     onclose?: () => void;
     children?: Snippet;
+    headerActions?: Snippet;
   }
 
   let {
@@ -22,6 +23,7 @@
     showClose = true,
     onclose,
     children,
+    headerActions,
   }: Props = $props();
 
   function handleOpenChange(newOpen: boolean) {
@@ -41,24 +43,29 @@
     >
       <div class="dialog-header">
         <Dialog.Title class="dialog-title">{title}</Dialog.Title>
-        {#if showClose}
-          <Dialog.Close class="dialog-close" aria-label="Close dialog">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M15 5L5 15M5 5L15 15"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
-          </Dialog.Close>
-        {/if}
+        <div class="dialog-header-actions">
+          {#if headerActions}
+            {@render headerActions()}
+          {/if}
+          {#if showClose}
+            <Dialog.Close class="dialog-close" aria-label="Close dialog">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M15 5L5 15M5 5L15 15"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </Dialog.Close>
+          {/if}
+        </div>
       </div>
       <div class="dialog-content">
         {#if children}
@@ -84,7 +91,12 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--space-4) var(--space-5);
-    border-bottom: 1px solid var(--colour-border);
+  }
+
+  .dialog-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
   }
 
   .dialog-content {
