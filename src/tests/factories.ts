@@ -23,6 +23,7 @@ import type {
   LayoutSettings,
   Airflow,
   Slot,
+  RackWidth,
 } from "$lib/types";
 import type { Command, CommandType } from "$lib/stores/commands/types";
 
@@ -64,6 +65,7 @@ export interface CreateTestDeviceTypeOptions {
   is_full_depth?: boolean;
   airflow?: Airflow;
   face?: DeviceFace;
+  rack_widths?: RackWidth[];
 }
 
 /**
@@ -112,6 +114,7 @@ export function createTestDeviceType(
   if (options.is_full_depth !== undefined)
     result.is_full_depth = options.is_full_depth;
   if (options.airflow) result.airflow = options.airflow;
+  if (options.rack_widths) result.rack_widths = options.rack_widths;
 
   return result;
 }
