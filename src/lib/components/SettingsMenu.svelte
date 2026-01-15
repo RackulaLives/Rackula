@@ -30,7 +30,7 @@
 
 <DropdownMenu.Root bind:open>
   <DropdownMenu.Trigger class="toolbar-icon-btn" aria-label="Settings menu">
-    <Icon icon="iconoir:settings" />
+    <Icon icon="ph:gear-bold" />
   </DropdownMenu.Trigger>
 
   <DropdownMenu.Portal>

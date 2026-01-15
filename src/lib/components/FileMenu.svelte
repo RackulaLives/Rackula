@@ -29,7 +29,7 @@
 
 <DropdownMenu.Root bind:open>
   <DropdownMenu.Trigger class="toolbar-icon-btn" aria-label="File menu">
-    <Icon icon="iconoir:folder" />
+    <Icon icon="ph:folder-bold" />
   </DropdownMenu.Trigger>
 
   <DropdownMenu.Portal>

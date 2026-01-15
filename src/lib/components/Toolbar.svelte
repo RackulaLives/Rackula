@@ -164,7 +164,7 @@
         onclick={handleNewRack}
         data-testid="btn-new-rack"
       >
-        <Icon icon="iconoir:plus" />
+        <Icon icon="ph:plus-bold" />
       </button>
     </Tooltip>
 
@@ -180,7 +180,7 @@
         onclick={handleUndo}
         data-testid="btn-undo"
       >
-        <Icon icon="iconoir:undo" />
+        <Icon icon="ph:arrow-counter-clockwise-bold" />
       </button>
     </Tooltip>
 
@@ -196,7 +196,7 @@
         onclick={handleRedo}
         data-testid="btn-redo"
       >
-        <Icon icon="iconoir:redo" />
+        <Icon icon="ph:arrow-clockwise-bold" />
       </button>
     </Tooltip>
 
@@ -212,11 +212,11 @@
         data-testid="btn-display-mode"
       >
         {#if displayMode === "label"}
-          <Icon icon="iconoir:text" />
+          <Icon icon="ph:text-t-bold" />
         {:else if displayMode === "image"}
-          <Icon icon="iconoir:media-image" />
+          <Icon icon="ph:image-bold" />
         {:else}
-          <IconImageLabel size={20} />
+          <IconImageLabel size={24} />
         {/if}
       </button>
     </Tooltip>
@@ -228,7 +228,7 @@
         onclick={handleFitAll}
         data-testid="btn-fit-all"
       >
-        <Icon icon="iconoir:compress" />
+        <Icon icon="ph:arrows-in-cardinal-bold" />
       </button>
     </Tooltip>
   </div>
