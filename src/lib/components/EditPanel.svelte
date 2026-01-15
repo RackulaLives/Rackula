@@ -558,6 +558,43 @@
       ? rack.height - pos + 1 // Inverted: bottom (pos=1) shows as highest U
       : pos; // Normal: position = display
   });
+
+  // Get container context if device is a child (has container_id)
+  const containerContext = $derived.by(() => {
+    if (!selectedDeviceInfo) return null;
+    const { placedDevice, rack } = selectedDeviceInfo;
+
+    // Check if this is a child device
+    if (!placedDevice.container_id) return null;
+
+    // Find parent container
+    const container = rack.devices.find(
+      (d) => d.id === placedDevice.container_id,
+    );
+    if (!container) return null;
+
+    const containerType = layoutStore.device_types.find(
+      (d) => d.slug === container.device_type,
+    );
+    if (!containerType) return null;
+
+    // Find the slot
+    const slot = containerType.slots?.find(
+      (s) => s.id === placedDevice.slot_id,
+    );
+
+    // Transform container position for display (same logic as displayPosition)
+    const containerDisplayPosition = rack.desc_units
+      ? rack.height - container.position + 1
+      : container.position;
+
+    return {
+      containerName: containerType.model ?? containerType.slug,
+      containerPosition: containerDisplayPosition,
+      slotName: slot?.name ?? placedDevice.slot_id ?? "Unknown",
+      totalSlots: containerType.slots?.length ?? 0,
+    };
+  });
 </script>
 
 <Drawer
@@ -765,6 +802,45 @@
           </span>
         </div>
       </div>
+
+      <!-- Container context for child devices -->
+      {#if containerContext}
+        <div class="container-context">
+          <div class="context-header">
+            <svg
+              class="context-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="2" y="3" width="20" height="18" rx="2" />
+              <line x1="2" y1="9" x2="22" y2="9" />
+              <line x1="2" y1="15" x2="22" y2="15" />
+            </svg>
+            <span class="context-label">Inside Container</span>
+          </div>
+          <div class="context-details">
+            <div class="context-row">
+              <span class="context-key">Container</span>
+              <span class="context-value">{containerContext.containerName}</span
+              >
+            </div>
+            <div class="context-row">
+              <span class="context-key">Container U</span>
+              <span class="context-value"
+                >U{containerContext.containerPosition}</span
+              >
+            </div>
+            <div class="context-row">
+              <span class="context-key">Slot</span>
+              <span class="context-value">{containerContext.slotName}</span>
+            </div>
+          </div>
+        </div>
+      {/if}
 
       <div class="info-section">
         <div class="info-row">
@@ -1415,5 +1491,49 @@
     margin-bottom: var(--space-1);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  /* Container context for child devices */
+  .container-context {
+    background: var(--colour-surface-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+  }
+
+  .context-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+    font-weight: var(--font-weight-semibold);
+    color: var(--dracula-purple);
+  }
+
+  .context-icon {
+    flex-shrink: 0;
+  }
+
+  .context-label {
+    font-size: var(--font-size-sm);
+  }
+
+  .context-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .context-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--font-size-sm);
+  }
+
+  .context-key {
+    color: var(--colour-text-muted);
+  }
+
+  .context-value {
+    color: var(--colour-text);
   }
 </style>
