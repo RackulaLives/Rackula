@@ -131,6 +131,7 @@
   --icon-size-sm: 16px;
   --icon-size-md: 20px;
   --icon-size-lg: 24px;
+  --icon-size-xl: 28px;
 
   /* Line Heights */
   --line-height-tight: 1.25;
@@ -321,7 +322,7 @@
   --colour-blocked-icon: rgba(239, 68, 68, 0.7); /* Directional arrow icon */
 
   /* Toolbar */
-  --toolbar-height: 56px;
+  --toolbar-height: 40px;
   --toolbar-bg: var(--dracula-bg-darker);
   --toolbar-border: var(--dracula-bg-light);
 

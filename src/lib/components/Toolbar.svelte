@@ -280,12 +280,12 @@
 
   .toolbar-center {
     flex: 0 0 auto;
-    gap: var(--space-1);
+    gap: var(--space-2);
   }
 
   .toolbar-right {
     flex: 0 0 auto;
-    gap: var(--space-1);
+    gap: var(--space-2);
   }
 
   /* Logo button */
@@ -323,8 +323,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     padding: 0;
     border: none;
     border-radius: var(--radius-md);
@@ -339,8 +339,8 @@
   /* Icon sizing via CSS tokens */
   .toolbar-icon-btn :global(svg),
   :global(.toolbar-icon-btn svg) {
-    width: var(--icon-size-md);
-    height: var(--icon-size-md);
+    width: var(--icon-size-lg);
+    height: var(--icon-size-lg);
   }
 
   .toolbar-icon-btn:hover:not(:disabled),
