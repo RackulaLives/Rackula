@@ -8,6 +8,7 @@
   import { VERSION } from "$lib/version";
   import LogoLockup from "./LogoLockup.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
+  import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { formatShortcut } from "$lib/utils/platform";
   import { analytics } from "$lib/utils/analytics";
   import {
@@ -23,6 +24,7 @@
   let { open = $bindable(), onclose }: Props = $props();
 
   const toastStore = getToastStore();
+  const layoutStore = getLayoutStore();
 
   /**
    * Handle dialog open state changes.
@@ -96,6 +98,25 @@
 
     // Line 3: Browser
     lines.push(`Browser: ${userAgent}`);
+
+    // Line 4: Screen dimensions with pixel ratio
+    if (typeof window !== "undefined") {
+      const dpr = window.devicePixelRatio || 1;
+      lines.push(`Screen: ${window.innerWidth}×${window.innerHeight} @${dpr}x`);
+    }
+
+    // Line 5: Platform
+    if (typeof navigator !== "undefined" && navigator.platform) {
+      lines.push(`Platform: ${navigator.platform}`);
+    }
+
+    // Line 6: Layout state
+    const layoutName = layoutStore.layout.name || "Untitled";
+    const rackCount = layoutStore.rackCount;
+    const deviceCount = layoutStore.totalDeviceCount;
+    lines.push(
+      `Layout: ${layoutName} (${rackCount} rack${rackCount !== 1 ? "s" : ""}, ${deviceCount} device${deviceCount !== 1 ? "s" : ""})`,
+    );
 
     const text = lines.join("\n");
 

@@ -466,23 +466,68 @@ The rainbow wave uses all Dracula accent colours in a cycling gradient:
 
 ## Logo Mark
 
+The Rackula logo mark is a **rack frame with vampire fangs** — two triangular points extending downward from the top edge, with three horizontal device slots inside.
+
+### Design
+
+```svg
+<!-- Canonical 32x32 logo mark -->
+<path d="M5 0L12 0L16 6L20 0L27 0L27 32L5 32Z"/>  <!-- Frame with fangs -->
+<rect x="8" y="7" width="16" height="5"/>          <!-- Slot 1 -->
+<rect x="8" y="15" width="16" height="5"/>         <!-- Slot 2 -->
+<rect x="8" y="23" width="16" height="5"/>         <!-- Slot 3 -->
+```
+
 ### Specifications
 
-| Property       | Value                      |
-| -------------- | -------------------------- |
-| ViewBox        | `0 0 32 32`                |
-| Frame          | Sharp corners (radius: 0)  |
-| Colour (dark)  | `#BD93F9` (purple)         |
-| Colour (light) | `#644AC9` (alucard purple) |
-| Minimum size   | 16x16px                    |
-| Clear space    | 25% of width               |
+| Property        | Value                      |
+| --------------- | -------------------------- |
+| ViewBox         | `0 0 32 32`                |
+| Content bounds  | x: 5-27, y: 0-32 (22×32)   |
+| Frame           | Sharp corners (radius: 0)  |
+| Fang depth      | 6 units (tip at y=6)       |
+| Fang span       | 8 units total (shoulders at x=12,20, center at x=16) |
+| Slot height     | 5 units                    |
+| Slot gaps       | 3 units between slots      |
+| Top margin      | 1 unit (fang to slot)      |
+| Bottom margin   | 4 units (slot to frame)    |
+| Colour (dark)   | `#BD93F9` (Dracula purple) |
+| Colour (light)  | `#644AC9` (Alucard purple) |
+| Minimum size    | 16x16px                    |
+| Clear space     | 25% of width               |
 
-### Files
+### Colour Variants
 
-| File                        | Usage              |
-| --------------------------- | ------------------ |
-| `/static/favicon.svg`       | Dark mode favicon  |
-| `/static/favicon-light.svg` | Light mode favicon |
+| File                              | Colour         | Hex       | Usage                |
+| --------------------------------- | -------------- | --------- | -------------------- |
+| `static/brand/logo-mark.svg`      | Dracula Purple | `#BD93F9` | Default/canonical    |
+| `static/brand/logo-mark-alucard.svg` | Alucard Purple | `#644AC9` | Light theme          |
+| `static/brand/logo-mark-mono-black.svg` | Black     | `#000000` | Light backgrounds    |
+| `static/brand/logo-mark-mono-white.svg` | White     | `#FFFFFF` | Dark backgrounds     |
+
+### Raster Assets
+
+| File                          | Size    | Usage                 |
+| ----------------------------- | ------- | --------------------- |
+| `static/brand/logo-mark-16.png`  | 16×16   | Browser tabs          |
+| `static/brand/logo-mark-32.png`  | 32×32   | Retina tabs           |
+| `static/brand/logo-mark-48.png`  | 48×48   | Windows taskbar       |
+| `static/brand/logo-mark-64.png`  | 64×64   | Small icons           |
+| `static/brand/logo-mark-128.png` | 128×128 | App icons             |
+| `static/brand/logo-mark-192.png` | 192×192 | Android home screen   |
+| `static/brand/logo-mark-256.png` | 256×256 | High-res icons        |
+| `static/brand/logo-mark-512.png` | 512×512 | App store / marketing |
+| `static/brand/favicon.ico`       | Multi   | 16-256px ICO bundle   |
+| `static/brand/apple-touch-icon.png` | 180×180 | iOS home screen    |
+
+### Files (Root)
+
+| File                        | Usage                        |
+| --------------------------- | ---------------------------- |
+| `/static/favicon.svg`       | Dark mode favicon            |
+| `/static/favicon-light.svg` | Light mode favicon           |
+| `/static/favicon.ico`       | Multi-size ICO (copy)        |
+| `/static/apple-touch-icon.png` | iOS Add to Home Screen    |
 
 ---
 
@@ -637,6 +682,15 @@ Official URLs for use throughout the application:
 ---
 
 ## Changelog
+
+### v0.6.17 (2026-01-15)
+
+- Refined logo mark design with deeper fangs (6px) and wider shoulders
+- Added comprehensive brand asset suite in `static/brand/`
+- Added SVG colour variants (Dracula, Alucard, mono-black, mono-white)
+- Added PNG exports at 8 sizes (16-512px)
+- Added multi-size ICO and Apple Touch Icon
+- Updated logo mark specifications with exact geometry
 
 ### v0.6.0 (2025-12-15)
 

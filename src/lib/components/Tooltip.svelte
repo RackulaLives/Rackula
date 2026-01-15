@@ -89,11 +89,11 @@
 
   :global(.tooltip-shortcut) {
     padding: 1px 4px;
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: var(--colour-shortcut-bg);
     border-radius: 2px;
     font-size: var(--font-size-xs);
     font-family: var(--font-mono, monospace);
-    color: var(--colour-text-muted-inverse, rgba(255, 255, 255, 0.7));
+    color: var(--colour-text-muted-inverse);
   }
 
   /* Reduced motion */

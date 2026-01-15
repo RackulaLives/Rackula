@@ -105,6 +105,16 @@ export const SlotPositionSchema = z.enum(["left", "right", "full"]);
 export const SlotWidthSchema = z.union([z.literal(1), z.literal(2)]);
 
 /**
+ * Rack width in inches (physical rack standard widths).
+ * Rackula-specific extension (not in NetBox DeviceType schema).
+ */
+export const RackWidthSchema = z.union([
+  z.literal(10),
+  z.literal(19),
+  z.literal(23),
+]);
+
+/**
  * Network interface type enum (NetBox-compatible subset)
  */
 export const InterfaceTypeSchema = z.enum([
@@ -475,6 +485,7 @@ export const DeviceTypeSchema = z
       .max(50, "Height cannot exceed 50U")
       .refine((val) => val % 0.5 === 0, "Height must be a multiple of 0.5U"),
     slot_width: SlotWidthSchema.optional(),
+    rack_widths: z.array(RackWidthSchema).optional(),
     is_full_depth: z.boolean().optional(),
     is_powered: z.boolean().optional(),
     weight: z.number().positive().optional(),
@@ -923,6 +934,7 @@ export type Airflow = z.infer<typeof AirflowSchema>;
 export type SubdeviceRole = z.infer<typeof SubdeviceRoleSchema>;
 export type SlotPosition = z.infer<typeof SlotPositionSchema>;
 export type SlotWidth = z.infer<typeof SlotWidthSchema>;
+export type RackWidth = z.infer<typeof RackWidthSchema>;
 export type InterfaceType = z.infer<typeof InterfaceTypeSchema>;
 export type PoEType = z.infer<typeof PoETypeSchema>;
 export type PoEMode = z.infer<typeof PoEModeSchema>;

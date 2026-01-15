@@ -107,6 +107,16 @@ export type SlotPosition = "left" | "right" | "full";
 export type SlotWidth = 1 | 2;
 
 /**
+ * Rack width in inches (physical rack standard widths)
+ * - 10: 10-inch mini racks (common for home/desktop setups)
+ * - 19: Standard 19-inch racks (most common)
+ * - 23: 23-inch racks (telecom/broadcast industry)
+ *
+ * This is a Rackula-specific extension; NetBox does not have this field on DeviceType.
+ */
+export type RackWidth = 10 | 19 | 23;
+
+/**
  * Network interface type (NetBox-compatible subset)
  * Common physical interface types for rack equipment
  */
@@ -446,6 +456,12 @@ export interface DeviceType {
   u_height: number;
   /** Width in slots (1 = half-width, 2 = full-width). Default: 2 */
   slot_width?: SlotWidth;
+  /**
+   * Compatible rack widths in inches.
+   * Rackula-specific extension (not in NetBox schema).
+   * Devices without this field are assumed to be 19" compatible (standard racks).
+   */
+  rack_widths?: RackWidth[];
   /** Whether device occupies full rack depth (default: true) */
   is_full_depth?: boolean;
   /** Whether device is powered (false for patch panels, shelves) */

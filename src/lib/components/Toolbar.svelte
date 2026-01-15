@@ -25,7 +25,6 @@
   import { analytics } from "$lib/utils/analytics";
 
   interface Props {
-    hasSelection?: boolean;
     hasRacks?: boolean;
     theme?: "dark" | "light";
     displayMode?: DisplayMode;
@@ -37,7 +36,6 @@
     onload?: () => void;
     onexport?: () => void;
     onshare?: () => void;
-    ondelete?: () => void;
     onfitall?: () => void;
     ontoggletheme?: () => void;
     ontoggledisplaymode?: () => void;
@@ -47,7 +45,6 @@
   }
 
   let {
-    hasSelection = false,
     hasRacks = false,
     theme = "dark",
     displayMode = "label",
@@ -59,7 +56,6 @@
     onload,
     onexport,
     onshare,
-    ondelete,
     onfitall,
     ontoggletheme,
     ontoggledisplaymode,

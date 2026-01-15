@@ -4,7 +4,7 @@
  */
 
 import Fuse from "fuse.js";
-import type { DeviceType, DeviceCategory } from "$lib/types";
+import type { DeviceType, DeviceCategory, RackWidth } from "$lib/types";
 
 /**
  * Fuse.js configuration for fuzzy search.
@@ -192,4 +192,41 @@ export function sortDevicesAlphabetically(devices: DeviceType[]): DeviceType[] {
     const bName = (b.model ?? b.slug).toLowerCase();
     return aName.localeCompare(bName);
   });
+}
+
+/**
+ * Check if a device is compatible with a specific rack width.
+ * Devices without `rack_widths` are assumed to be 19" compatible (standard racks).
+ *
+ * @param device - The device type to check
+ * @param rackWidth - The rack width in inches (10, 19, or 23)
+ * @returns True if the device is compatible with the given rack width
+ */
+export function isDeviceCompatibleWithRackWidth(
+  device: DeviceType,
+  rackWidth: RackWidth,
+): boolean {
+  // Devices without rack_widths are assumed to be 19" compatible
+  if (!device.rack_widths || device.rack_widths.length === 0) {
+    return rackWidth === 19;
+  }
+
+  return device.rack_widths.includes(rackWidth);
+}
+
+/**
+ * Filter devices by rack width compatibility.
+ * Devices without `rack_widths` are assumed to be 19" compatible (standard racks).
+ *
+ * @param devices - Array of device types to filter
+ * @param rackWidth - The rack width in inches (10, 19, or 23)
+ * @returns Filtered array of devices compatible with the given rack width
+ */
+export function filterDevicesByRackWidth(
+  devices: DeviceType[],
+  rackWidth: RackWidth,
+): DeviceType[] {
+  return devices.filter((device) =>
+    isDeviceCompatibleWithRackWidth(device, rackWidth),
+  );
 }
