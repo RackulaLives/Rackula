@@ -12,7 +12,9 @@
     calculateDropPosition,
     getDropFeedback,
     getCurrentDragData,
+    detectContainerDropTarget,
     type DropFeedback,
+    type ContainerDropTarget,
   } from "$lib/utils/dragdrop";
   import { findCollisions } from "$lib/utils/collision";
   import { getDeviceDisplayName } from "$lib/utils/device";
@@ -711,6 +713,46 @@
       U_HEIGHT,
       RACK_PADDING,
     );
+
+    // Check for container slot drop (requires container to be selected)
+    // Calculate x offset within rack interior for slot detection
+    const xOffsetInRack = svgCoords.x - RAIL_WIDTH;
+
+    const containerTarget = detectContainerDropTarget(
+      rack,
+      layoutStore.device_types,
+      targetU,
+      xOffsetInRack,
+      RACK_WIDTH,
+      selectedDeviceId,
+    );
+
+    if (containerTarget) {
+      // Drop into container slot
+      const success = layoutStore.placeInContainer(
+        rack.id,
+        dragData.device.slug,
+        containerTarget.containerId,
+        containerTarget.slotId,
+        containerTarget.position,
+      );
+
+      if (success) {
+        // Handle source cleanup for rack-device moves
+        if (
+          dragData.type === "rack-device" &&
+          dragData.sourceRackId &&
+          dragData.sourceIndex !== undefined
+        ) {
+          layoutStore.removeDeviceFromRack(
+            dragData.sourceRackId,
+            dragData.sourceIndex,
+          );
+        }
+        return;
+      }
+      // If container placement failed, fall through to rack-level placement
+    }
 
     // For internal moves, exclude the source device from collision checks
     // Cross-rack and palette drops don't need exclusion

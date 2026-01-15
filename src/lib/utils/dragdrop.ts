@@ -5,6 +5,7 @@
 
 import type { DeviceType, DeviceFace, Rack, SlotPosition } from "$lib/types";
 import { canPlaceDevice } from "./collision";
+import { RAIL_WIDTH } from "$lib/constants/layout";
 
 /**
  * Shared drag state - workaround for browser security restriction
@@ -229,4 +230,77 @@ function getTransparentDragImage(): HTMLCanvasElement {
  */
 export function hideNativeDragGhost(dataTransfer: DataTransfer): void {
   dataTransfer.setDragImage(getTransparentDragImage(), 0, 0);
+}
+
+/**
+ * Container drop target information
+ * Returned when a drop position is detected within a container slot
+ */
+export interface ContainerDropTarget {
+  /** ID of the container PlacedDevice */
+  containerId: string;
+  /** Slot ID within the container */
+  slotId: string;
+  /** Position within the slot (0-indexed from bottom) */
+  position: number;
+}
+
+/**
+ * Detect if a drop position is within a container slot
+ * Used during drag-drop to determine if device should be placed in container vs rack
+ *
+ * @param rack - Target rack containing the container
+ * @param deviceLibrary - Device library for type lookup
+ * @param targetU - Target U position being dropped on
+ * @param xOffsetInRack - X offset within rack interior (pixels from left rail)
+ * @param rackWidth - Total rack width in pixels
+ * @param selectedContainerId - ID of currently selected container (UX: must select container first)
+ * @returns ContainerDropTarget if drop is on a slot, null otherwise
+ */
+export function detectContainerDropTarget(
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  targetU: number,
+  xOffsetInRack: number,
+  rackWidth: number,
+  selectedContainerId?: string | null,
+): ContainerDropTarget | null {
+  // Only check selected container (UX: must select container first)
+  if (!selectedContainerId) return null;
+
+  // Find the selected container device
+  const container = rack.devices.find((d) => d.id === selectedContainerId);
+  if (!container) return null;
+
+  const containerType = deviceLibrary.find(
+    (d) => d.slug === container.device_type,
+  );
+  if (!containerType?.slots || containerType.slots.length === 0) return null;
+
+  // Check if targetU is within container bounds
+  const containerTop = container.position + containerType.u_height - 1;
+  const containerBottom = container.position;
+  if (targetU < containerBottom || targetU > containerTop) return null;
+
+  // Calculate interior width (between rails)
+  const interiorWidth = rackWidth - RAIL_WIDTH * 2;
+
+  // Determine which slot based on x position
+  let accumulatedWidth = 0;
+  for (const slot of containerType.slots) {
+    const slotWidth = interiorWidth * (slot.width_fraction ?? 1.0);
+    if (
+      xOffsetInRack >= accumulatedWidth &&
+      xOffsetInRack < accumulatedWidth + slotWidth
+    ) {
+      return {
+        containerId: container.id,
+        slotId: slot.id,
+        position: 0, // Place at bottom of slot
+      };
+    }
+    accumulatedWidth += slotWidth;
+  }
+
+  return null;
 }
