@@ -41,9 +41,22 @@
   // Get slots from container type, defaulting to empty array
   const slots = $derived(containerType.slots ?? []);
 
+  // Pre-compute cumulative x offsets for all slots (O(n) instead of O(n²))
+  // Each slot lookup becomes O(1) since we just read from this array by index
+  const cumulativeXOffsets = $derived.by(() => {
+    const offsets: number[] = [];
+    let cumulative = 0;
+    for (const slot of slots) {
+      offsets.push(cumulative);
+      cumulative += containerWidth * (slot.width_fraction ?? 1.0);
+    }
+    return offsets;
+  });
+
   /**
    * Calculate the geometry (position and dimensions) for a slot.
    * Slots are laid out horizontally based on their width_fraction and column index.
+   * Uses precomputed cumulative x offsets for O(1) lookup per slot.
    *
    * @param slot - The slot to calculate geometry for
    * @param index - The index of the slot in the slots array
@@ -56,20 +69,14 @@
     const widthFraction = slot.width_fraction ?? 1.0;
     const width = containerWidth * widthFraction;
 
-    // Calculate x offset by summing widths of all preceding slots
-    let xOffset = 0;
-    for (let i = 0; i < index; i++) {
-      const prevSlot = slots[i];
-      if (prevSlot) {
-        xOffset += containerWidth * (prevSlot.width_fraction ?? 1.0);
-      }
-    }
+    // Use precomputed offset (O(1) lookup)
+    const xOffset = cumulativeXOffsets[index] ?? 0;
 
     // Default slot height to container height (single row)
     // Future: support multi-row containers via height_units
     const heightUnits = slot.height_units ?? 1;
     const totalRowHeight = containerHeight;
-    const height = (heightUnits / 1) * totalRowHeight; // Normalized for single-row
+    const height = heightUnits * totalRowHeight;
 
     return { x: xOffset, y: 0, width, height };
   }
@@ -178,17 +185,17 @@
   }
 
   .container-slot.valid-drop-target {
-    stroke: var(--dracula-green);
+    stroke: var(--colour-dnd-valid);
     stroke-width: 2;
     stroke-dasharray: none;
-    fill: rgba(80, 250, 123, 0.1);
+    fill: var(--colour-dnd-valid-bg);
   }
 
   .container-slot.invalid-drop-target {
-    stroke: var(--dracula-red);
+    stroke: var(--colour-dnd-invalid);
     stroke-width: 2;
     stroke-dasharray: 4 2;
-    fill: rgba(255, 85, 85, 0.1);
+    fill: var(--colour-dnd-invalid-bg);
   }
 
   /* Respect reduced motion preference */
