@@ -32,29 +32,31 @@
     <Icon icon="ph:folder-bold" />
   </DropdownMenu.Trigger>
 
-  <DropdownMenu.Portal>
-    <DropdownMenu.Content class="menu-content" sideOffset={8} align="end">
-      <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onsave)}>
-        <span class="menu-label">Save</span>
-        <span class="menu-shortcut">Ctrl+S</span>
-      </DropdownMenu.Item>
-      <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onload)}>
-        <span class="menu-label">Load</span>
-        <span class="menu-shortcut">Ctrl+O</span>
-      </DropdownMenu.Item>
-      <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onexport)}>
-        <span class="menu-label">Export</span>
-        <span class="menu-shortcut">Ctrl+E</span>
-      </DropdownMenu.Item>
-      <DropdownMenu.Item
-        class="menu-item"
-        disabled={!hasRacks}
-        onSelect={handleSelect(onshare)}
-      >
-        <span class="menu-label">Share</span>
-      </DropdownMenu.Item>
-    </DropdownMenu.Content>
-  </DropdownMenu.Portal>
+  <DropdownMenu.Content
+    class="menu-content menu-inline"
+    sideOffset={4}
+    align="end"
+  >
+    <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onsave)}>
+      <span class="menu-label">Save</span>
+      <span class="menu-shortcut">Ctrl+S</span>
+    </DropdownMenu.Item>
+    <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onload)}>
+      <span class="menu-label">Load</span>
+      <span class="menu-shortcut">Ctrl+O</span>
+    </DropdownMenu.Item>
+    <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onexport)}>
+      <span class="menu-label">Export</span>
+      <span class="menu-shortcut">Ctrl+E</span>
+    </DropdownMenu.Item>
+    <DropdownMenu.Item
+      class="menu-item"
+      disabled={!hasRacks}
+      onSelect={handleSelect(onshare)}
+    >
+      <span class="menu-label">Share</span>
+    </DropdownMenu.Item>
+  </DropdownMenu.Content>
 </DropdownMenu.Root>
 
 <style>
@@ -120,5 +122,10 @@
     :global(.menu-content) {
       animation: none;
     }
+  }
+
+  :global(.menu-inline) {
+    box-shadow: none;
+    border: 1px solid var(--colour-border);
   }
 </style>

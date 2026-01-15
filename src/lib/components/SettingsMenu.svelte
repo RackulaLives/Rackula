@@ -33,49 +33,50 @@
     <Icon icon="ph:gear-bold" />
   </DropdownMenu.Trigger>
 
-  <DropdownMenu.Portal>
-    <DropdownMenu.Content class="menu-content" sideOffset={8} align="end">
-      <DropdownMenu.Item
-        class="menu-item"
-        onSelect={() => {
-          ontoggletheme?.();
-          open = false;
-        }}
+  <DropdownMenu.Content
+    class="menu-content menu-inline"
+    sideOffset={4}
+    align="end"
+  >
+    <DropdownMenu.Item
+      class="menu-item"
+      onSelect={() => {
+        ontoggletheme?.();
+        open = false;
+      }}
+    >
+      <span class="menu-label">{theme === "dark" ? "Light" : "Dark"} Theme</span
       >
-        <span class="menu-label"
-          >{theme === "dark" ? "Light" : "Dark"} Theme</span
-        >
-      </DropdownMenu.Item>
+    </DropdownMenu.Item>
 
-      <DropdownMenu.CheckboxItem
-        class="menu-item"
-        checked={showAnnotations}
-        onCheckedChange={() => {
-          ontoggleannotations?.();
-          open = false;
-        }}
-      >
-        {#snippet children({ checked })}
-          <span class="menu-checkbox">{checked ? "✓" : ""}</span>
-          <span class="menu-label">Show Annotations</span>
-        {/snippet}
-      </DropdownMenu.CheckboxItem>
+    <DropdownMenu.CheckboxItem
+      class="menu-item"
+      checked={showAnnotations}
+      onCheckedChange={() => {
+        ontoggleannotations?.();
+        open = false;
+      }}
+    >
+      {#snippet children({ checked })}
+        <span class="menu-checkbox">{checked ? "✓" : ""}</span>
+        <span class="menu-label">Show Annotations</span>
+      {/snippet}
+    </DropdownMenu.CheckboxItem>
 
-      <DropdownMenu.CheckboxItem
-        class="menu-item"
-        checked={showBanana}
-        onCheckedChange={() => {
-          ontogglebanana?.();
-          open = false;
-        }}
-      >
-        {#snippet children({ checked })}
-          <span class="menu-checkbox">{checked ? "✓" : ""}</span>
-          <span class="menu-label">Banana for Scale</span>
-        {/snippet}
-      </DropdownMenu.CheckboxItem>
-    </DropdownMenu.Content>
-  </DropdownMenu.Portal>
+    <DropdownMenu.CheckboxItem
+      class="menu-item"
+      checked={showBanana}
+      onCheckedChange={() => {
+        ontogglebanana?.();
+        open = false;
+      }}
+    >
+      {#snippet children({ checked })}
+        <span class="menu-checkbox">{checked ? "✓" : ""}</span>
+        <span class="menu-label">Banana for Scale</span>
+      {/snippet}
+    </DropdownMenu.CheckboxItem>
+  </DropdownMenu.Content>
 </DropdownMenu.Root>
 
 <style>
