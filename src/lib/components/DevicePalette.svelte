@@ -192,7 +192,7 @@
       activeRackWidth,
     ),
   );
-  const allDevices = $derived(rackWidthFilteredAllDevices);
+  const _allDevices = $derived(rackWidthFilteredAllDevices);
   const filteredAllDevices = $derived(
     searchDevices(rackWidthFilteredAllDevices, searchQuery),
   );

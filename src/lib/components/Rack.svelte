@@ -19,7 +19,6 @@
     getCurrentDragData,
     detectContainerDropTarget,
     type DropFeedback,
-    type ContainerDropTarget,
   } from "$lib/utils/dragdrop";
   import { findCollisions } from "$lib/utils/collision";
   import { getDeviceDisplayName } from "$lib/utils/device";

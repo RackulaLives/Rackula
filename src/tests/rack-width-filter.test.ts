@@ -106,6 +106,7 @@ describe("filterDevicesByRackWidth", () => {
   it("filters devices for 10-inch rack correctly", () => {
     const result = filterDevicesByRackWidth(devices, 10);
 
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: filter should return exactly 2 compatible devices
     expect(result).toHaveLength(2);
     expect(result.map((d) => d.slug)).toContain("deskpi-device");
     expect(result.map((d) => d.slug)).toContain("universal-shelf");
@@ -116,6 +117,7 @@ describe("filterDevicesByRackWidth", () => {
   it("filters devices for 19-inch rack correctly", () => {
     const result = filterDevicesByRackWidth(devices, 19);
 
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: filter should return exactly 4 compatible devices
     expect(result).toHaveLength(4);
     expect(result.map((d) => d.slug)).toContain("standard-server-1");
     expect(result.map((d) => d.slug)).toContain("standard-server-2");
@@ -128,6 +130,7 @@ describe("filterDevicesByRackWidth", () => {
   it("filters devices for 23-inch rack correctly", () => {
     const result = filterDevicesByRackWidth(devices, 23);
 
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: filter should return exactly 2 compatible devices
     expect(result).toHaveLength(2);
     expect(result.map((d) => d.slug)).toContain("telecom-device");
     expect(result.map((d) => d.slug)).toContain("universal-shelf");
@@ -142,6 +145,7 @@ describe("filterDevicesByRackWidth", () => {
 
     const result = filterDevicesByRackWidth(onlyTenInchDevices, 23);
 
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: no devices match 23-inch requirement
     expect(result).toHaveLength(0);
   });
 
@@ -159,12 +163,14 @@ describe("filterDevicesByRackWidth", () => {
 
     const result = filterDevicesByRackWidth(universalDevices, 10);
 
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: all 2 universal devices should match
     expect(result).toHaveLength(2);
   });
 
   it("handles empty input array", () => {
     const result = filterDevicesByRackWidth([], 19);
 
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: empty input produces empty output
     expect(result).toHaveLength(0);
   });
 });
