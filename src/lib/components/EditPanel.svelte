@@ -589,10 +589,11 @@
       : container.position;
 
     return {
-      containerName: containerType.model ?? containerType.slug,
+      // Prefer custom name on container, then fall back to type model/slug
+      containerName:
+        container.name ?? containerType.model ?? containerType.slug,
       containerPosition: containerDisplayPosition,
       slotName: slot?.name ?? placedDevice.slot_id ?? "Unknown",
-      totalSlots: containerType.slots?.length ?? 0,
     };
   });
 </script>
