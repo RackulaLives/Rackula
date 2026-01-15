@@ -244,10 +244,11 @@
 
     // Tab into container slots when container is selected
     if (event.key === "Tab" && !event.shiftKey && isContainer && selected) {
-      event.preventDefault();
       // Focus first slot within this device group
       const firstSlot = groupElement?.querySelector("[data-slot-id]");
       if (firstSlot instanceof SVGElement) {
+        // Only prevent default if we found a focusable slot to avoid keyboard trap
+        event.preventDefault();
         (firstSlot as unknown as HTMLElement).focus();
       }
     }
