@@ -130,7 +130,7 @@
 ## Status
 
 - [x] Design exploration complete
-- [ ] Proportions implemented
-- [ ] Solid icons tested
-- [ ] Hover states implemented
-- [ ] Inline dropdowns prototyped
+- [x] Proportions implemented (40/24/32 on 8pt grid)
+- [x] Solid icons tested (Phosphor Bold)
+- [x] Hover states implemented (color + underline + brightness)
+- [x] Inline dropdowns prototyped (removed Portal wrappers)
