@@ -1,0 +1,79 @@
+/**
+ * Shared dropdown menu styles
+ * Used by FileMenu and SettingsMenu components
+ */
+
+.menu-content {
+  z-index: var(--z-dropdown);
+  min-width: 160px;
+  padding: var(--space-2);
+  background-color: var(--colour-surface-overlay);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  animation: menu-fade-in var(--duration-fast) var(--ease-out);
+}
+
+@keyframes menu-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--colour-text-inverse);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+  outline: none;
+}
+
+.menu-item:hover,
+.menu-item[data-highlighted] {
+  background-color: var(--colour-overlay-hover);
+}
+
+.menu-item[data-disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.menu-label {
+  flex: 1;
+}
+
+.menu-shortcut {
+  padding: 2px 6px;
+  background-color: var(--colour-overlay-hover);
+  border-radius: 3px;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono, monospace);
+  color: var(--colour-text-muted-inverse);
+}
+
+.menu-checkbox {
+  width: 16px;
+  font-size: var(--font-size-sm);
+  color: var(--colour-text-inverse);
+}
+
+.menu-inline {
+  box-shadow: none;
+  border: 1px solid var(--colour-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-content {
+    animation: none;
+  }
+}

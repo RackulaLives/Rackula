@@ -340,10 +340,11 @@
   /* Z-Index Layers */
   --z-toolbar: 20;
   --z-sidebar: 10;
+  --z-placement-indicator: 50;
   --z-drawer-backdrop: 99;
   --z-drawer: 100;
-  --z-placement-indicator: 50;
   --z-fab: 100;
+  --z-dropdown: 150; /* Above drawer, below modal */
   --z-bottom-sheet: 200;
   --z-modal: 200;
   --z-toast: 300;

@@ -6,6 +6,7 @@
 <script lang="ts">
   import { DropdownMenu } from "bits-ui";
   import Icon from "@iconify/svelte";
+  import "$lib/styles/menu.css";
 
   interface Props {
     theme?: "dark" | "light";
@@ -78,11 +79,3 @@
     </DropdownMenu.CheckboxItem>
   </DropdownMenu.Content>
 </DropdownMenu.Root>
-
-<style>
-  :global(.menu-checkbox) {
-    width: 16px;
-    font-size: var(--font-size-sm);
-    color: var(--colour-text-inverse);
-  }
-</style>
