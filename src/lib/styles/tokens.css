@@ -202,6 +202,12 @@
     255,
     0.1
   ); /* Borders/separators on overlays */
+  --colour-shortcut-bg: rgba(
+    255,
+    255,
+    255,
+    0.15
+  ); /* Keyboard shortcut badge background on overlays */
 
   /* Text */
   --colour-text: var(--dracula-foreground);
