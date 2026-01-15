@@ -486,7 +486,7 @@ The Rackula logo mark is a **rack frame with vampire fangs** — two triangular 
 | Content bounds  | x: 5-27, y: 0-32 (22×32)   |
 | Frame           | Sharp corners (radius: 0)  |
 | Fang depth      | 6 units (tip at y=6)       |
-| Fang width      | 8 units per side (x=12,20) |
+| Fang span       | 8 units total (shoulders at x=12,20, center at x=16) |
 | Slot height     | 5 units                    |
 | Slot gaps       | 3 units between slots      |
 | Top margin      | 1 unit (fang to slot)      |
@@ -511,6 +511,7 @@ The Rackula logo mark is a **rack frame with vampire fangs** — two triangular 
 | ----------------------------- | ------- | --------------------- |
 | `static/brand/logo-mark-16.png`  | 16×16   | Browser tabs          |
 | `static/brand/logo-mark-32.png`  | 32×32   | Retina tabs           |
+| `static/brand/logo-mark-48.png`  | 48×48   | Windows taskbar       |
 | `static/brand/logo-mark-64.png`  | 64×64   | Small icons           |
 | `static/brand/logo-mark-128.png` | 128×128 | App icons             |
 | `static/brand/logo-mark-192.png` | 192×192 | Android home screen   |

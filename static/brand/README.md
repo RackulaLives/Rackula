@@ -103,7 +103,7 @@ rsvg-convert -w 180 -h 180 apple-touch-icon.svg -o apple-touch-icon.png
 - **ViewBox:** 0 0 32 32
 - **Content bounds:** x: 5-27, y: 0-32 (22×32 actual content)
 - **Fang depth:** 6 units from top edge (tip at y=6)
-- **Fang width:** 8 units per side (shoulders at x=12 and x=20)
+- **Fang span:** 8 units total (shoulders at x=12 and x=20, center at x=16)
 - **Slot height:** 5 units
 - **Slot gaps:** 3 units between slots
 - **Top margin:** 1 unit (fang tip to first slot)
