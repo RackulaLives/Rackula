@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill-rule="evenodd">
-  <!-- Rackula Logo Mark: Monochrome (inherits currentColor) -->
-  <!-- Uses fill-rule:evenodd for slot cutouts -->
-  <path d="M7 0L14 0L16 3L19 0L26 0L26 32L7 32ZM9 7h15v3H9zM9 14h15v3H9zM9 21h15v3H9z" fill="currentColor"/>
-</svg>

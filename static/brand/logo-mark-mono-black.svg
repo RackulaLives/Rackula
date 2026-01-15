@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Rackula Logo Mark: Monochrome black -->
+  <path d="M5 0L12 0L16 6L20 0L27 0L27 32L5 32Z" fill="#000000"/>
+  <rect x="8" y="7" width="16" height="5" fill="#FFFFFF"/>
+  <rect x="8" y="15" width="16" height="5" fill="#FFFFFF"/>
+  <rect x="8" y="23" width="16" height="5" fill="#FFFFFF"/>
+</svg>
