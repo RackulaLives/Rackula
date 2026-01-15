@@ -11,6 +11,7 @@
     SlotPosition,
   } from "$lib/types";
   import PortIndicators from "./PortIndicators.svelte";
+  import ContainerSlots from "./ContainerSlots.svelte";
   import {
     createRackDeviceDragData,
     setCurrentDragData,
@@ -205,6 +206,11 @@
 
   // Unique clipPath ID for this device instance
   const clipId = $derived(`clip-${device.slug}-${position}`);
+
+  // Detect if this device is a container (has slots)
+  const isContainer = $derived(
+    Array.isArray(device.slots) && device.slots.length > 0,
+  );
 
   // Aria label for accessibility
   const ariaLabel = $derived(
@@ -522,6 +528,16 @@
       {deviceHeight}
       {rackView}
       {onPortClick}
+    />
+  {/if}
+
+  <!-- Container slot grid (shown when selected container) -->
+  {#if isContainer && selected}
+    <ContainerSlots
+      containerType={device}
+      containerWidth={deviceWidth}
+      containerHeight={deviceHeight}
+      selectedSlotId={null}
     />
   {/if}
 </g>
