@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <!-- Apple Touch Icon with Dracula background and centered logo -->
+  <rect width="180" height="180" fill="#282A36"/>
+  <!-- Logo mark scaled to fit with 20% padding (144px / 32 = 4.5 scale, offset 18px) -->
+  <g transform="translate(18, 18) scale(4.5)">
+    <path d="M6 4L13 4L16 7L19 4L26 4L26 28L6 28ZM10 9h12v4H10zM10 15h12v4H10zM10 21h12v4H10z" fill="#BD93F9" fill-rule="evenodd"/>
+  </g>
+</svg>
