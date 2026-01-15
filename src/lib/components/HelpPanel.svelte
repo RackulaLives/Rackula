@@ -7,6 +7,7 @@
   import { Dialog } from "bits-ui";
   import { VERSION } from "$lib/version";
   import LogoLockup from "./LogoLockup.svelte";
+  import { IconClose } from "./icons";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { formatShortcut } from "$lib/utils/platform";
@@ -204,20 +205,7 @@
       <div class="dialog-header">
         <Dialog.Title class="dialog-title">About</Dialog.Title>
         <Dialog.Close class="dialog-close" aria-label="Close dialog">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M15 5L5 15M5 5L15 15"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
-          </svg>
+          <IconClose />
         </Dialog.Close>
       </div>
       <Dialog.Description class="help-dialog-description">

@@ -35,3 +35,6 @@ export { default as IconImageBold } from "./IconImageBold.svelte";
 export { default as IconFitAllBold } from "./IconFitAllBold.svelte";
 export { default as IconFolderBold } from "./IconFolderBold.svelte";
 export { default as IconGearBold } from "./IconGearBold.svelte";
+
+// Iconoir icons via @iconify/svelte
+export { default as IconClose } from "./IconClose.svelte";

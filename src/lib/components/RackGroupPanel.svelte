@@ -7,6 +7,7 @@
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import type { RackGroup, RackGroupLayoutPreset } from "$lib/types";
+  import { IconClose } from "./icons";
 
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
@@ -61,18 +62,7 @@
             aria-label="Delete group {group.name ?? 'unnamed'}"
             title="Delete group (keeps racks)"
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              aria-hidden="true"
-            >
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
+            <IconClose />
           </button>
         </div>
         <div class="group-racks">
@@ -166,6 +156,11 @@
     cursor: pointer;
     opacity: 0.6;
     transition: all var(--duration-fast) var(--ease-out);
+  }
+
+  .delete-btn :global(svg) {
+    width: var(--icon-size-sm);
+    height: var(--icon-size-sm);
   }
 
   .delete-btn:hover {

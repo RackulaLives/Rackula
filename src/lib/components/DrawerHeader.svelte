@@ -3,75 +3,69 @@
   Header section for drawers with title and optional close button
 -->
 <script lang="ts">
-	interface Props {
-		title: string;
-		showClose?: boolean;
-		onclose?: () => void;
-	}
+  import { IconClose } from "./icons";
 
-	let { title, showClose = true, onclose }: Props = $props();
+  interface Props {
+    title: string;
+    showClose?: boolean;
+    onclose?: () => void;
+  }
+
+  let { title, showClose = true, onclose }: Props = $props();
 </script>
 
 <div class="drawer-header">
-	<h2 class="drawer-title">{title}</h2>
-	{#if showClose}
-		<button type="button" class="close-button" aria-label="Close drawer" onclick={onclose}>
-			<svg
-				width="20"
-				height="20"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				aria-hidden="true"
-			>
-				<line x1="18" y1="6" x2="6" y2="18" />
-				<line x1="6" y1="6" x2="18" y2="18" />
-			</svg>
-		</button>
-	{/if}
+  <h2 class="drawer-title">{title}</h2>
+  {#if showClose}
+    <button
+      type="button"
+      class="close-button"
+      aria-label="Close drawer"
+      onclick={onclose}
+    >
+      <IconClose />
+    </button>
+  {/if}
 </div>
 
 <style>
-	.drawer-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: var(--space-3) var(--space-4);
-		border-bottom: 1px solid var(--colour-border);
-		flex-shrink: 0;
-	}
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--colour-border);
+    flex-shrink: 0;
+  }
 
-	.drawer-title {
-		font-size: var(--font-size-md);
-		font-weight: 600;
-		margin: 0;
-		color: var(--colour-text);
-	}
+  .drawer-title {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    margin: 0;
+    color: var(--colour-text);
+  }
 
-	.close-button {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 32px;
-		height: 32px;
-		border-radius: var(--radius-md);
-		background: transparent;
-		color: var(--colour-text-muted);
-		transition:
-			background-color var(--transition-fast),
-			color var(--transition-fast);
-	}
+  .close-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--colour-text-muted);
+    transition:
+      background-color var(--transition-fast),
+      color var(--transition-fast);
+  }
 
-	.close-button:hover {
-		background: var(--colour-surface-hover);
-		color: var(--colour-text);
-	}
+  .close-button:hover {
+    background: var(--colour-surface-hover);
+    color: var(--colour-text);
+  }
 
-	.close-button:focus-visible {
-		outline: 2px solid var(--colour-selection);
-		outline-offset: 2px;
-	}
+  .close-button:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
+  }
 </style>

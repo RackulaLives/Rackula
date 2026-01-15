@@ -5,6 +5,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { Dialog } from "bits-ui";
+  import { IconClose } from "./icons";
 
   interface Props {
     open: boolean;
@@ -49,20 +50,7 @@
           {/if}
           {#if showClose}
             <Dialog.Close class="dialog-close" aria-label="Close dialog">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M15 5L5 15M5 5L15 15"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                />
-              </svg>
+              <IconClose />
             </Dialog.Close>
           {/if}
         </div>
