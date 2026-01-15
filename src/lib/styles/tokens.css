@@ -127,6 +127,12 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
+  /* Icon Sizes */
+  --icon-size-sm: 16px;
+  --icon-size-md: 20px;
+  --icon-size-lg: 24px;
+  --icon-size-xl: 28px;
+
   /* Line Heights */
   --line-height-tight: 1.25;
   --line-height-normal: 1.5;
@@ -316,7 +322,7 @@
   --colour-blocked-icon: rgba(239, 68, 68, 0.7); /* Directional arrow icon */
 
   /* Toolbar */
-  --toolbar-height: 56px;
+  --toolbar-height: 40px;
   --toolbar-bg: var(--dracula-bg-darker);
   --toolbar-border: var(--dracula-bg-light);
 
@@ -334,10 +340,11 @@
   /* Z-Index Layers */
   --z-toolbar: 20;
   --z-sidebar: 10;
+  --z-placement-indicator: 50;
   --z-drawer-backdrop: 99;
   --z-drawer: 100;
-  --z-placement-indicator: 50;
   --z-fab: 100;
+  --z-dropdown: 150; /* Above drawer, below modal */
   --z-bottom-sheet: 200;
   --z-modal: 200;
   --z-toast: 300;
