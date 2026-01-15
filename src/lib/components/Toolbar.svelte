@@ -345,16 +345,18 @@
 
   .toolbar-icon-btn:hover:not(:disabled),
   :global(.toolbar-icon-btn:hover:not(:disabled)) {
-    background: var(--colour-surface-hover);
-    color: var(--colour-text);
+    color: var(--dracula-cyan);
+    filter: brightness(1.1);
+    box-shadow: inset 0 -2px 0 currentColor;
   }
 
   .toolbar-icon-btn:focus-visible,
   :global(.toolbar-icon-btn:focus-visible) {
     outline: none;
+    color: var(--dracula-cyan);
     box-shadow:
-      0 0 0 2px var(--colour-bg),
-      0 0 0 4px var(--colour-focus-ring);
+      inset 0 -2px 0 currentColor,
+      0 0 0 2px var(--colour-focus-ring);
   }
 
   .toolbar-icon-btn:disabled,
@@ -364,8 +366,8 @@
   }
 
   :global(.toolbar-icon-btn[data-state="open"]) {
-    background: var(--colour-surface-hover);
-    color: var(--colour-text);
+    color: var(--dracula-cyan);
+    box-shadow: inset 0 -2px 0 currentColor;
   }
 
   /* Responsive: tighter gaps on narrow screens */
