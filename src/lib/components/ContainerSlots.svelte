@@ -98,8 +98,19 @@
   }
 
   function handleSlotKeydown(event: KeyboardEvent, slotId: string) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      // Return focus to parent container device
+      const container = (event.target as Element).closest(".rack-device");
+      if (container instanceof SVGElement) {
+        (container as unknown as HTMLElement).focus();
+      }
+    }
+
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
+      event.stopPropagation();
       handleSlotClick(slotId);
     }
   }

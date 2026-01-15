@@ -217,7 +217,7 @@
     `${deviceName}, ${device.u_height}U ${device.category} at U${position}${selected ? ", selected" : ""}`,
   );
 
-  // Handle keyboard activation (Enter/Space to select)
+  // Handle keyboard activation (Enter/Space to select, Tab to enter container)
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -225,6 +225,16 @@
       onselect?.(
         new CustomEvent("select", { detail: { slug: device.slug, position } }),
       );
+    }
+
+    // Tab into container slots when container is selected
+    if (event.key === "Tab" && !event.shiftKey && isContainer && selected) {
+      event.preventDefault();
+      // Focus first slot within this device group
+      const firstSlot = groupElement?.querySelector("[data-slot-id]");
+      if (firstSlot instanceof SVGElement) {
+        (firstSlot as unknown as HTMLElement).focus();
+      }
     }
   }
 
