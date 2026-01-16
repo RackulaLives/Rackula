@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
+import { toInternalUnits } from "$lib/utils/position";
 
 describe("Layout Store - Undo/Redo Integration", () => {
   let initialDeviceTypeCount: number;
@@ -111,7 +112,7 @@ describe("Layout Store - Undo/Redo Integration", () => {
       store.undo();
       expect(store.device_types.length).toBe(countAfterAdd);
       expect(store.rack.devices.length).toBe(1);
-      expect(store.rack.devices[0]?.position).toBe(5);
+      expect(store.rack.devices[0]?.position).toBe(toInternalUnits(5));
     });
   });
 
@@ -147,10 +148,10 @@ describe("Layout Store - Undo/Redo Integration", () => {
 
       store.placeDeviceRecorded(rack.id, dt.slug, 10);
       store.moveDeviceRecorded(rack.id, 0, 20);
-      expect(store.rack.devices[0]?.position).toBe(20);
+      expect(store.rack.devices[0]?.position).toBe(toInternalUnits(20));
 
       store.undo();
-      expect(store.rack.devices[0]?.position).toBe(10);
+      expect(store.rack.devices[0]?.position).toBe(toInternalUnits(10));
     });
 
     it("removeDeviceRecorded can be undone", () => {
@@ -164,7 +165,7 @@ describe("Layout Store - Undo/Redo Integration", () => {
 
       store.undo();
       expect(store.rack.devices.length).toBe(1);
-      expect(store.rack.devices[0]?.position).toBe(10);
+      expect(store.rack.devices[0]?.position).toBe(toInternalUnits(10));
     });
 
     it("updateDeviceFaceRecorded can be undone", () => {
@@ -328,11 +329,11 @@ describe("Layout Store - Undo/Redo Integration", () => {
       store.placeDeviceRecorded(rack.id, dt.slug, 5);
       store.moveDeviceRecorded(rack.id, 0, 15);
 
-      // State: device at position 15
-      expect(store.rack.devices[0]?.position).toBe(15);
+      // State: device at position 15 (stored as internal units)
+      expect(store.rack.devices[0]?.position).toBe(toInternalUnits(15));
 
       store.undo(); // Undo move
-      expect(store.rack.devices[0]?.position).toBe(5);
+      expect(store.rack.devices[0]?.position).toBe(toInternalUnits(5));
 
       store.undo(); // Undo place
       expect(store.rack.devices.length).toBe(0);
@@ -368,10 +369,10 @@ describe("Layout Store - Undo/Redo Integration", () => {
 
       store.redo(); // Redo place
       expect(store.rack.devices.length).toBe(1);
-      expect(store.rack.devices[0]?.position).toBe(5);
+      expect(store.rack.devices[0]?.position).toBe(toInternalUnits(5));
 
       store.redo(); // Redo move
-      expect(store.rack.devices[0]?.position).toBe(15);
+      expect(store.rack.devices[0]?.position).toBe(toInternalUnits(15));
     });
   });
 });

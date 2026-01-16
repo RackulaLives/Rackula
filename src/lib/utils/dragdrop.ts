@@ -6,6 +6,7 @@
 import type { DeviceType, DeviceFace, Rack, SlotPosition } from "$lib/types";
 import { canPlaceDevice } from "./collision";
 import { RAIL_WIDTH } from "$lib/constants/layout";
+import { toInternalUnits } from "./position";
 
 /**
  * Shared drag state - workaround for browser security restriction
@@ -118,7 +119,7 @@ export function getDropFeedback(
   targetFace: DeviceFace = "front",
   targetSlot: SlotPosition = "full",
 ): DropFeedback {
-  // Check bounds first
+  // Check bounds first (in human U units)
   if (targetU < 1) {
     return "invalid";
   }
@@ -127,13 +128,16 @@ export function getDropFeedback(
     return "invalid";
   }
 
+  // Convert to internal units for collision check
+  const targetPositionInternal = toInternalUnits(targetU);
+
   // Check for collisions with face-aware and slot-aware validation
   // Face is authoritative: only the explicit face value matters for collision
   const canPlace = canPlaceDevice(
     rack,
     deviceLibrary,
     deviceHeight,
-    targetU,
+    targetPositionInternal,
     excludeIndex,
     targetFace,
     targetSlot,

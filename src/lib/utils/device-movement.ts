@@ -6,6 +6,11 @@
 
 import type { Rack, DeviceType, PlacedDevice } from "$lib/types";
 import { canPlaceDevice } from "./collision";
+import {
+  UNITS_PER_U,
+  toInternalUnits,
+  heightToInternalUnits,
+} from "./position";
 
 /**
  * Result of attempting to find a valid position for device movement
@@ -56,30 +61,39 @@ export function findNextValidPosition(
     return { success: false, newPosition: null, reason: "no_valid_position" };
   }
 
-  // Movement increment: use override if provided, otherwise device height
-  const moveIncrement = stepOverride ?? deviceType.u_height;
+  // Movement increment in internal units:
+  // If stepOverride is provided (in human U), convert it; otherwise use device height
+  const moveIncrementInternal = stepOverride
+    ? toInternalUnits(stepOverride)
+    : heightToInternalUnits(deviceType.u_height);
 
-  // Calculate initial target position
-  let newPosition = placedDevice.position + direction * moveIncrement;
+  // Calculate initial target position (all positions are in internal units)
+  let newPosition = placedDevice.position + direction * moveIncrementInternal;
+
+  // Boundary values in internal units
+  const deviceHeightInternal = heightToInternalUnits(deviceType.u_height);
+  const maxValidTop = rack.height * UNITS_PER_U + (UNITS_PER_U - 1);
 
   // Check if we're already at the boundary before any movement
   if (direction === 1) {
     // Moving up: check if device is already at top
-    const maxPosition = rack.height - deviceType.u_height + 1;
-    if (placedDevice.position >= maxPosition) {
+    // Max bottom position = maxValidTop - deviceHeightInternal + 1
+    const maxBottomPosition = maxValidTop - deviceHeightInternal + 1;
+    if (placedDevice.position >= maxBottomPosition) {
       return { success: false, newPosition: null, reason: "at_boundary" };
     }
   } else {
-    // Moving down: check if device is already at bottom
-    if (placedDevice.position <= 1) {
+    // Moving down: check if device is already at bottom (U1 = UNITS_PER_U)
+    if (placedDevice.position <= UNITS_PER_U) {
       return { success: false, newPosition: null, reason: "at_boundary" };
     }
   }
 
   // Keep looking for a valid position, leapfrogging over blocking devices
+  // Min position = UNITS_PER_U (U1), max top = maxValidTop
   while (
-    newPosition >= 1 &&
-    newPosition + deviceType.u_height - 1 <= rack.height
+    newPosition >= UNITS_PER_U &&
+    newPosition + deviceHeightInternal - 1 <= maxValidTop
   ) {
     // Use canPlaceDevice for face-aware collision detection
     // Face is authoritative: the device's face value determines blocking
@@ -98,7 +112,7 @@ export function findNextValidPosition(
     }
 
     // Position blocked, try next position in direction (using device height increment)
-    newPosition += direction * moveIncrement;
+    newPosition += direction * moveIncrementInternal;
   }
 
   // No valid position found in that direction

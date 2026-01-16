@@ -16,6 +16,7 @@ import {
 import { resetUIStore } from "$lib/stores/ui.svelte";
 import { resetToastStore, getToastStore } from "$lib/stores/toast.svelte";
 import { canPlaceDevice, findCollisions } from "$lib/utils/collision";
+import { toInternalUnits } from "$lib/utils/position";
 import type { DeviceType, Rack } from "$lib/types";
 
 describe("Face Change Collision Detection (#450)", () => {
@@ -69,13 +70,13 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "front-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "front",
           },
           {
             id: "rear-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "rear",
           },
         ],
@@ -86,7 +87,7 @@ describe("Face Change Collision Detection (#450)", () => {
         rack,
         deviceLibrary,
         1, // u_height
-        1, // position
+        toInternalUnits(1), // position
         0, // excludeIndex (the front device)
         "both", // target face
       );
@@ -105,13 +106,13 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "front-device",
             device_type: "server-2u",
-            position: 1, // U1-U2
+            position: toInternalUnits(1), // U1-U2
             face: "front",
           },
           {
             id: "rear-device",
             device_type: "server-2u",
-            position: 2, // U2-U3 (overlaps at U2)
+            position: toInternalUnits(2), // U2-U3 (overlaps at U2)
             face: "rear",
           },
         ],
@@ -122,7 +123,7 @@ describe("Face Change Collision Detection (#450)", () => {
         rack,
         deviceLibrary,
         2, // u_height
-        1, // position
+        toInternalUnits(1), // position
         0, // excludeIndex (the front device)
         "both", // target face
       );
@@ -141,13 +142,13 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "front-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "front",
           },
           {
             id: "rear-device",
             device_type: "server-1u",
-            position: 3, // No overlap with U1
+            position: toInternalUnits(3), // No overlap with U1
             face: "rear",
           },
         ],
@@ -157,7 +158,7 @@ describe("Face Change Collision Detection (#450)", () => {
         rack,
         deviceLibrary,
         1, // u_height
-        1, // position
+        toInternalUnits(1), // position
         0, // excludeIndex
         "both", // target face
       );
@@ -176,14 +177,14 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "left-front",
             device_type: "switch-half",
-            position: 1,
+            position: toInternalUnits(1),
             face: "front",
             slot_position: "left",
           },
           {
             id: "right-rear",
             device_type: "switch-half",
-            position: 1,
+            position: toInternalUnits(1),
             face: "rear",
             slot_position: "right",
           },
@@ -195,7 +196,7 @@ describe("Face Change Collision Detection (#450)", () => {
         rack,
         deviceLibrary,
         1,
-        1,
+        toInternalUnits(1),
         0,
         "both",
         "left", // keep same slot
@@ -215,14 +216,14 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "full-front",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "front",
             slot_position: "full",
           },
           {
             id: "left-rear",
             device_type: "switch-half",
-            position: 1,
+            position: toInternalUnits(1),
             face: "rear",
             slot_position: "left",
           },
@@ -234,7 +235,7 @@ describe("Face Change Collision Detection (#450)", () => {
         rack,
         deviceLibrary,
         1,
-        1,
+        toInternalUnits(1),
         0,
         "both",
         "full",
@@ -256,13 +257,13 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "both-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "both",
           },
           {
             id: "rear-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "rear", // Device on rear - but we're moving TO front, so no conflict
           },
         ],
@@ -270,7 +271,14 @@ describe("Face Change Collision Detection (#450)", () => {
 
       // Changing from 'both' to 'front' should work (reduces collision surface)
       // The rear device at position 1 won't conflict with our front-only placement
-      const canPlace = canPlaceDevice(rack, deviceLibrary, 1, 1, 0, "front");
+      const canPlace = canPlaceDevice(
+        rack,
+        deviceLibrary,
+        1,
+        toInternalUnits(1),
+        0,
+        "front",
+      );
 
       expect(canPlace).toBe(true);
     });
@@ -288,20 +296,27 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "both-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "both",
           },
           {
             id: "front-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "front", // Device on front - but we're moving TO rear, so no conflict
           },
         ],
       };
 
       // Changing from 'both' to 'rear' should work (reduces collision surface)
-      const canPlace = canPlaceDevice(rack, deviceLibrary, 1, 1, 0, "rear");
+      const canPlace = canPlaceDevice(
+        rack,
+        deviceLibrary,
+        1,
+        toInternalUnits(1),
+        0,
+        "rear",
+      );
 
       expect(canPlace).toBe(true);
     });
@@ -317,14 +332,21 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "only-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "front",
           },
         ],
       };
 
       // Device should not collide with itself when checking face change
-      const canPlace = canPlaceDevice(rack, deviceLibrary, 1, 1, 0, "both");
+      const canPlace = canPlaceDevice(
+        rack,
+        deviceLibrary,
+        1,
+        toInternalUnits(1),
+        0,
+        "both",
+      );
 
       expect(canPlace).toBe(true);
     });
@@ -340,13 +362,13 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "front-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "front",
           },
           {
             id: "rear-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "rear",
           },
         ],
@@ -356,7 +378,7 @@ describe("Face Change Collision Detection (#450)", () => {
         rack,
         deviceLibrary,
         1,
-        1,
+        toInternalUnits(1),
         0, // exclude front device
         "both",
       );
@@ -378,20 +400,27 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "front-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "front",
           },
           {
             id: "rear-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "rear",
           },
         ],
       };
 
       // Front device trying to move to rear should be blocked
-      const canPlace = canPlaceDevice(rack, deviceLibrary, 1, 1, 0, "rear");
+      const canPlace = canPlaceDevice(
+        rack,
+        deviceLibrary,
+        1,
+        toInternalUnits(1),
+        0,
+        "rear",
+      );
 
       expect(canPlace).toBe(false);
     });
@@ -407,20 +436,27 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "front-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "front",
           },
           {
             id: "rear-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "rear",
           },
         ],
       };
 
       // Rear device (index 1) trying to move to front should be blocked
-      const canPlace = canPlaceDevice(rack, deviceLibrary, 1, 1, 1, "front");
+      const canPlace = canPlaceDevice(
+        rack,
+        deviceLibrary,
+        1,
+        toInternalUnits(1),
+        1,
+        "front",
+      );
 
       expect(canPlace).toBe(false);
     });
@@ -436,20 +472,27 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "front-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "front",
           },
           {
             id: "rear-device-elsewhere",
             device_type: "server-1u",
-            position: 5, // Different U position
+            position: toInternalUnits(5), // Different U position
             face: "rear",
           },
         ],
       };
 
       // Front device can move to rear since no rear device at U1
-      const canPlace = canPlaceDevice(rack, deviceLibrary, 1, 1, 0, "rear");
+      const canPlace = canPlaceDevice(
+        rack,
+        deviceLibrary,
+        1,
+        toInternalUnits(1),
+        0,
+        "rear",
+      );
 
       expect(canPlace).toBe(true);
     });
@@ -465,20 +508,27 @@ describe("Face Change Collision Detection (#450)", () => {
           {
             id: "front-device-elsewhere",
             device_type: "server-1u",
-            position: 5, // Different U position
+            position: toInternalUnits(5), // Different U position
             face: "front",
           },
           {
             id: "rear-device",
             device_type: "server-1u",
-            position: 1,
+            position: toInternalUnits(1),
             face: "rear",
           },
         ],
       };
 
       // Rear device (index 1) can move to front since no front device at U1
-      const canPlace = canPlaceDevice(rack, deviceLibrary, 1, 1, 1, "front");
+      const canPlace = canPlaceDevice(
+        rack,
+        deviceLibrary,
+        1,
+        toInternalUnits(1),
+        1,
+        "front",
+      );
 
       expect(canPlace).toBe(true);
     });

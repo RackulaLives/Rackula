@@ -3,6 +3,7 @@ import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { getImageStore, resetImageStore } from "$lib/stores/images.svelte";
 import type { Layout } from "$lib/types";
 import { VERSION } from "$lib/version";
+import { toInternalUnits } from "$lib/utils/position";
 
 describe("Layout Store", () => {
   beforeEach(() => {
@@ -581,7 +582,7 @@ describe("Layout Store", () => {
         store.rack.devices.find((d) => d.device_type === deviceType.slug),
       ).toBeDefined();
       expect(store.rack.devices[0]!.device_type).toBe(deviceType.slug);
-      expect(store.rack.devices[0]!.position).toBe(5);
+      expect(store.rack.devices[0]!.position).toBe(toInternalUnits(5));
     });
 
     it("places device with depth-based face default (undefined = full depth = both)", () => {
@@ -714,7 +715,7 @@ describe("Layout Store", () => {
 
       const result = store.moveDevice(rack!.id, 0, 10);
       expect(result).toBe(true);
-      expect(store.rack.devices[0]!.position).toBe(10);
+      expect(store.rack.devices[0]!.position).toBe(toInternalUnits(10));
     });
 
     it("returns false for collision", () => {
@@ -739,7 +740,7 @@ describe("Layout Store", () => {
       // Try to move first device to 10 (would collide with second device)
       const result = store.moveDevice(rack!.id, 0, 10);
       expect(result).toBe(false);
-      expect(store.rack.devices[0]!.position).toBe(5);
+      expect(store.rack.devices[0]!.position).toBe(toInternalUnits(5));
     });
 
     it("sets isDirty to true on success", () => {
@@ -775,7 +776,7 @@ describe("Layout Store", () => {
       // Same rack move should work (delegates to moveDevice)
       const result = store.moveDeviceToRack(rack!.id, 0, rack!.id, 10);
       expect(result).toBe(true);
-      expect(store.rack.devices[0]!.position).toBe(10);
+      expect(store.rack.devices[0]!.position).toBe(toInternalUnits(10));
     });
   });
 
@@ -992,8 +993,10 @@ describe("Layout Store", () => {
       );
       expect(result2).toBe(true);
 
-      // Both devices should exist at position 5
-      const devicesAtU5 = store.rack.devices.filter((d) => d.position === 5);
+      // Both devices should exist at position U5 (stored as internal units)
+      const devicesAtU5 = store.rack.devices.filter(
+        (d) => d.position === toInternalUnits(5),
+      );
       // eslint-disable-next-line no-restricted-syntax -- Testing half-depth pairing (front + rear = 2 devices at same U)
       expect(devicesAtU5).toHaveLength(2);
     });
@@ -1116,8 +1119,10 @@ describe("Layout Store", () => {
       const result = store.moveDevice(rack!.id, 1, 5);
       expect(result).toBe(true);
 
-      // Both devices should be at position 5
-      const devicesAtU5 = store.rack.devices.filter((d) => d.position === 5);
+      // Both devices should be at position U5 (stored as internal units)
+      const devicesAtU5 = store.rack.devices.filter(
+        (d) => d.position === toInternalUnits(5),
+      );
       // eslint-disable-next-line no-restricted-syntax -- Testing half-depth pairing (rear + front = 2 devices at same U)
       expect(devicesAtU5).toHaveLength(2);
     });
@@ -1154,7 +1159,7 @@ describe("Layout Store", () => {
       expect(result).toBe(false);
 
       // Device at index 1 should still be at U10
-      expect(store.rack.devices[1]!.position).toBe(10);
+      expect(store.rack.devices[1]!.position).toBe(toInternalUnits(10));
     });
   });
 
@@ -1174,12 +1179,12 @@ describe("Layout Store", () => {
       // Place at position 1
       const placed = store.placeDevice(rack!.id, halfUType.slug, 1, "front");
       expect(placed).toBe(true);
-      expect(store.rack.devices[0]!.position).toBe(1);
+      expect(store.rack.devices[0]!.position).toBe(toInternalUnits(1));
 
       // Move to position 1.5 - should succeed
       const result = store.moveDevice(rack!.id, 0, 1.5);
       expect(result).toBe(true);
-      expect(store.rack.devices[0]!.position).toBe(1.5);
+      expect(store.rack.devices[0]!.position).toBe(toInternalUnits(1.5));
     });
 
     it("allows moving 0.5U device to integer positions", () => {
@@ -1201,7 +1206,7 @@ describe("Layout Store", () => {
       // Move to position 2 - should succeed
       const result = store.moveDevice(rack!.id, 0, 2);
       expect(result).toBe(true);
-      expect(store.rack.devices[0]!.position).toBe(2);
+      expect(store.rack.devices[0]!.position).toBe(toInternalUnits(2));
     });
 
     it("blocks 0.5U device from exceeding rack height", () => {
@@ -1268,7 +1273,7 @@ describe("Layout Store", () => {
       // Move second device to U5.5 - should succeed (adjacent, no overlap)
       const result = store.moveDevice(rack!.id, 1, 5.5);
       expect(result).toBe(true);
-      expect(store.rack.devices[1]!.position).toBe(5.5);
+      expect(store.rack.devices[1]!.position).toBe(toInternalUnits(5.5));
     });
   });
 
@@ -1356,8 +1361,8 @@ describe("Layout Store", () => {
       const result = store.duplicateDevice(rack!.id, 0);
 
       expect(result.device).toBeDefined();
-      // Should prefer adjacent slot (either U9 or U11)
-      const adjacentPositions = [9, 11];
+      // Should prefer adjacent slot (either U9 or U11) - stored as internal units
+      const adjacentPositions = [toInternalUnits(9), toInternalUnits(11)];
       expect(adjacentPositions).toContain(result.device!.position);
     });
 
@@ -1748,7 +1753,7 @@ describe("Layout Store", () => {
       expect(store.rack.devices[0]!.device_type).toBe(
         "ubiquiti-unifi-switch-24-pro",
       );
-      expect(store.rack.devices[0]!.position).toBe(5);
+      expect(store.rack.devices[0]!.position).toBe(toInternalUnits(5));
     });
 
     it("places Mikrotik brand pack device successfully", () => {

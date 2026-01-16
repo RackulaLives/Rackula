@@ -238,17 +238,20 @@ describe("Collision Detection", () => {
       const rack = createTestRack(10); // 10U rack = 60 internal units
       const deviceLibrary: DeviceType[] = [];
 
-      // 1U device (6 internal units) can go at positions 6-55
+      // 1U device (6 internal units) can go at positions 6-60
       // (U1 to U10, device ends at top of rack)
+      // Max position calculation: maxValidTop - deviceHeight + 1
+      // maxValidTop = rack.height * UNITS_PER_U + (UNITS_PER_U - 1) = 65
+      // maxPosition = 65 - 6 + 1 = 60
       const positions1U = findValidDropPositions(rack, deviceLibrary, 1);
-      // Should have 55 - 6 + 1 = 50 positions (every internal unit from 6 to 55)
       expect(positions1U[0]).toBe(6); // U1
-      expect(positions1U[positions1U.length - 1]).toBe(55); // Top of U10 minus device height
+      expect(positions1U[positions1U.length - 1]).toBe(60); // U10 (device top at 65)
 
-      // 2U device (12 internal units) can go at positions 6-49
+      // 2U device (12 internal units) can go at positions 6-54
+      // maxPosition = 65 - 12 + 1 = 54
       const positions2U = findValidDropPositions(rack, deviceLibrary, 2);
       expect(positions2U[0]).toBe(6);
-      expect(positions2U[positions2U.length - 1]).toBe(49);
+      expect(positions2U[positions2U.length - 1]).toBe(54);
     });
 
     it("excludes positions that would collide", () => {

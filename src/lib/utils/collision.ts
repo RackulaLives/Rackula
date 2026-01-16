@@ -159,9 +159,11 @@ export function canPlaceDevice(
   }
 
   // Device must fit within rack height (convert rack height to internal units)
+  // A device at position P with height H occupies P to P + H*UNITS_PER_U - 1
+  // For a rack of height N, the max valid top is the top of UN = N*UNITS_PER_U + (UNITS_PER_U - 1)
   const topPosition = targetPosition + heightToInternalUnits(deviceHeight) - 1;
-  const rackHeightInternal = rack.height * UNITS_PER_U;
-  if (topPosition > rackHeightInternal) {
+  const maxValidTop = rack.height * UNITS_PER_U + (UNITS_PER_U - 1);
+  if (topPosition > maxValidTop) {
     return false;
   }
 
@@ -288,9 +290,11 @@ export function findValidDropPositions(
 
   // Check each possible position in internal units
   // Start at U1 (UNITS_PER_U) and go up to the max position where device fits
+  // Max valid top = rack.height * UNITS_PER_U + (UNITS_PER_U - 1)
+  // Max valid bottom = maxValidTop - deviceHeightInternal + 1
   const deviceHeightInternal = heightToInternalUnits(deviceHeight);
-  const rackHeightInternal = rack.height * UNITS_PER_U;
-  const maxPosition = rackHeightInternal - deviceHeightInternal + 1;
+  const maxValidTop = rack.height * UNITS_PER_U + (UNITS_PER_U - 1);
+  const maxPosition = maxValidTop - deviceHeightInternal + 1;
 
   for (let position = UNITS_PER_U; position <= maxPosition; position++) {
     if (

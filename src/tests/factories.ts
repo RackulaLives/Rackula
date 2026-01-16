@@ -26,6 +26,7 @@ import type {
   RackWidth,
 } from "$lib/types";
 import type { Command, CommandType } from "$lib/stores/commands/types";
+import { toInternalUnits } from "$lib/utils/position";
 
 // =============================================================================
 // Rack Factory
@@ -126,16 +127,24 @@ export function createTestDeviceType(
 /**
  * Creates a test PlacedDevice with sensible defaults.
  * Schema v1.0.0: PlacedDevice now requires a UUID id field
+ *
+ * @param overrides.position - Human units (e.g., U10). Converted to internal units.
  */
 export function createTestDevice(
   overrides: Partial<PlacedDevice> = {},
 ): PlacedDevice {
+  // Convert position from human units to internal units
+  const positionInHumanUnits = overrides.position ?? 10;
   return {
     id: overrides.id ?? crypto.randomUUID(),
     device_type: "test-device",
-    position: 10,
+    position: toInternalUnits(positionInHumanUnits),
     face: "front",
     ...overrides,
+    // Ensure position override is converted
+    ...(overrides.position !== undefined
+      ? { position: toInternalUnits(overrides.position) }
+      : {}),
   };
 }
 

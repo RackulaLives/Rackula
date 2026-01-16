@@ -13,6 +13,7 @@ import {
 } from "$lib/stores/selection.svelte";
 import { getUIStore, resetUIStore } from "$lib/stores/ui.svelte";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
+import { UNITS_PER_U, toInternalUnits } from "$lib/utils/position";
 
 describe("Keyboard Utilities", () => {
   describe("shouldIgnoreKeyboard", () => {
@@ -181,8 +182,10 @@ describe("KeyboardHandler Component", () => {
       const initialPosition = layoutStore.rack!.devices[0]!.position;
       await fireEvent.keyDown(window, { key: "ArrowUp" });
 
-      // Device should move up (higher U number)
-      expect(layoutStore.rack!.devices[0]!.position).toBe(initialPosition + 1);
+      // Device should move up (higher U number) - 1U device moves by 1U = UNITS_PER_U internal units
+      expect(layoutStore.rack!.devices[0]!.position).toBe(
+        initialPosition + UNITS_PER_U,
+      );
     });
 
     it("ArrowDown moves selected device down 1U", async () => {
@@ -209,8 +212,10 @@ describe("KeyboardHandler Component", () => {
       const initialPosition = layoutStore.rack!.devices[0]!.position;
       await fireEvent.keyDown(window, { key: "ArrowDown" });
 
-      // Device should move down (lower U number)
-      expect(layoutStore.rack!.devices[0]!.position).toBe(initialPosition - 1);
+      // Device should move down (lower U number) - 1U device moves by 1U = UNITS_PER_U internal units
+      expect(layoutStore.rack!.devices[0]!.position).toBe(
+        initialPosition - UNITS_PER_U,
+      );
     });
 
     it("ArrowDown does not move device below U1", async () => {
@@ -236,8 +241,8 @@ describe("KeyboardHandler Component", () => {
 
       await fireEvent.keyDown(window, { key: "ArrowDown" });
 
-      // Device should stay at position 1
-      expect(layoutStore.rack!.devices[0]!.position).toBe(1);
+      // Device should stay at position U1 (internal units = UNITS_PER_U)
+      expect(layoutStore.rack!.devices[0]!.position).toBe(UNITS_PER_U);
     });
   });
 
@@ -654,9 +659,9 @@ describe("KeyboardHandler Component", () => {
       const initialPosition = layoutStore.rack!.devices[0]!.position;
       await fireEvent.keyDown(window, { key: "ArrowUp", shiftKey: true });
 
-      // Should move by 0.5U instead of full device height
+      // Should move by 0.5U instead of full device height (0.5U = UNITS_PER_U / 2 = 3 internal units)
       expect(layoutStore.rack!.devices[0]!.position).toBe(
-        initialPosition + 0.5,
+        initialPosition + UNITS_PER_U / 2,
       );
     });
 
@@ -681,9 +686,9 @@ describe("KeyboardHandler Component", () => {
       const initialPosition = layoutStore.rack!.devices[0]!.position;
       await fireEvent.keyDown(window, { key: "ArrowDown", shiftKey: true });
 
-      // Should move by 0.5U instead of full device height
+      // Should move by 0.5U instead of full device height (0.5U = UNITS_PER_U / 2 = 3 internal units)
       expect(layoutStore.rack!.devices[0]!.position).toBe(
-        initialPosition - 0.5,
+        initialPosition - UNITS_PER_U / 2,
       );
     });
 
@@ -707,8 +712,8 @@ describe("KeyboardHandler Component", () => {
 
       await fireEvent.keyDown(window, { key: "ArrowDown", shiftKey: true });
 
-      // Should stay at position 1 (cannot go below)
-      expect(layoutStore.rack!.devices[0]!.position).toBe(1);
+      // Should stay at position U1 (internal units = UNITS_PER_U)
+      expect(layoutStore.rack!.devices[0]!.position).toBe(UNITS_PER_U);
     });
 
     it("Shift+Arrow still respects collision detection", async () => {
@@ -724,23 +729,26 @@ describe("KeyboardHandler Component", () => {
         colour: CATEGORY_COLOURS.server,
       });
 
-      // Place two adjacent devices
+      // Place devices with a 1U gap at U5 and U7
+      // This allows the U5 device to move up 0.5U without collision
       layoutStore.placeDevice(rackId, deviceType.slug, 5);
       const firstDeviceId = layoutStore.rack!.devices[0]!.id;
-      layoutStore.placeDevice(rackId, deviceType.slug, 6);
+      layoutStore.placeDevice(rackId, deviceType.slug, 7);
 
       // Select the first device by ID
       selectionStore.selectDevice(rackId, firstDeviceId);
 
       render(KeyboardHandler);
 
-      // Move up 0.5U - position 5.5 is valid (no collision with device at 6)
+      // Move up 0.5U - position 5.5 is valid (no collision - device at U7)
+      // U5.5 = toInternalUnits(5.5) = 33
       await fireEvent.keyDown(window, { key: "ArrowUp", shiftKey: true });
-      expect(layoutStore.rack!.devices[0]!.position).toBe(5.5);
+      expect(layoutStore.rack!.devices[0]!.position).toBe(toInternalUnits(5.5));
 
-      // Move up another 0.5U - position 6 is blocked, should leapfrog to 6.5
+      // Move up another 0.5U - position 6 is valid (gap exists before U7)
+      // U6 = toInternalUnits(6) = 36
       await fireEvent.keyDown(window, { key: "ArrowUp", shiftKey: true });
-      expect(layoutStore.rack!.devices[0]!.position).toBe(6.5);
+      expect(layoutStore.rack!.devices[0]!.position).toBe(toInternalUnits(6));
     });
 
     it("2U device with Shift+Arrow moves by 0.5U not 2U", async () => {
@@ -764,9 +772,9 @@ describe("KeyboardHandler Component", () => {
       const initialPosition = layoutStore.rack!.devices[0]!.position;
       await fireEvent.keyDown(window, { key: "ArrowUp", shiftKey: true });
 
-      // Should move by 0.5U, not by device height (2U)
+      // Should move by 0.5U, not by device height (2U) - 0.5U = UNITS_PER_U / 2 = 3 internal units
       expect(layoutStore.rack!.devices[0]!.position).toBe(
-        initialPosition + 0.5,
+        initialPosition + UNITS_PER_U / 2,
       );
     });
   });
@@ -793,8 +801,10 @@ describe("KeyboardHandler Component", () => {
       const initialPosition = layoutStore.rack!.devices[0]!.position;
       await fireEvent.keyDown(window, { key: "ArrowUp" });
 
-      // 2U device should move by 2U
-      expect(layoutStore.rack!.devices[0]!.position).toBe(initialPosition + 2);
+      // 2U device should move by 2U = 12 internal units
+      expect(layoutStore.rack!.devices[0]!.position).toBe(
+        initialPosition + 2 * UNITS_PER_U,
+      );
     });
 
     it("leapfrogs over blocking devices", async () => {
@@ -823,8 +833,8 @@ describe("KeyboardHandler Component", () => {
 
       await fireEvent.keyDown(window, { key: "ArrowUp" });
 
-      // Should leapfrog over the blocking device at 6, land at 7
-      expect(layoutStore.rack!.devices[0]!.position).toBe(7);
+      // Should leapfrog over the blocking device at 6, land at U7 (internal units = 42)
+      expect(layoutStore.rack!.devices[0]!.position).toBe(toInternalUnits(7));
     });
   });
 });

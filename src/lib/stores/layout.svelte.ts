@@ -1192,18 +1192,21 @@ function duplicateDevice(
   }
 
   // Prefer adjacent slot (above or below the source device)
-  // Adjacent above: sourceDevice.position + deviceType.u_height
-  // Adjacent below: sourceDevice.position - deviceType.u_height
-  const adjacentAbove = sourceDevice.position + deviceType.u_height;
-  const adjacentBelow = sourceDevice.position - deviceType.u_height;
+  // Device positions and heights are in internal units
+  const heightInternal = toInternalUnits(deviceType.u_height);
+  const adjacentAbove = sourceDevice.position + heightInternal;
+  const adjacentBelow = sourceDevice.position - heightInternal;
 
   let targetPosition: number;
 
   // Check if adjacent above is valid
   if (validPositions.includes(adjacentAbove)) {
     targetPosition = adjacentAbove;
-  } else if (adjacentBelow >= 1 && validPositions.includes(adjacentBelow)) {
-    // Check if adjacent below is valid (and within rack bounds)
+  } else if (
+    adjacentBelow >= UNITS_PER_U &&
+    validPositions.includes(adjacentBelow)
+  ) {
+    // Check if adjacent below is valid (and within rack bounds - U1 = UNITS_PER_U)
     targetPosition = adjacentBelow;
   } else {
     // Fall back to first available position

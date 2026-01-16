@@ -18,6 +18,7 @@ import {
   createTestDeviceType,
   createTestDevice,
 } from "./factories";
+import { toInternalUnits } from "$lib/utils/position";
 import type { Layout } from "$lib/types";
 
 // =============================================================================
@@ -555,12 +556,12 @@ describe("share integration", () => {
     const encoded = requireEncoded(layout);
     const decoded = requireDecoded(encoded);
 
-    // Check devices are present at first and last positions
+    // Check devices are present at first and last positions (positions are in internal units)
     expect(
-      decoded.racks[0].devices.find((d) => d.position === 1),
+      decoded.racks[0].devices.find((d) => d.position === toInternalUnits(1)),
     ).toBeDefined();
     expect(
-      decoded.racks[0].devices.find((d) => d.position === 20),
+      decoded.racks[0].devices.find((d) => d.position === toInternalUnits(20)),
     ).toBeDefined();
     expect(decoded.racks[0].devices.length).toBeGreaterThan(0);
 

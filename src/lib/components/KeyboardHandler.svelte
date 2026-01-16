@@ -14,6 +14,7 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { findNextValidPosition } from "$lib/utils/device-movement";
+  import { toHumanUnits } from "$lib/utils/position";
   import { analytics } from "$lib/utils/analytics";
 
   interface Props {
@@ -297,10 +298,12 @@
     );
 
     if (result.success && result.newPosition !== null) {
+      // Convert internal units back to human units for the store API
+      const humanPosition = toHumanUnits(result.newPosition);
       layoutStore.moveDevice(
         selectionStore.selectedRackId!,
         deviceIndex,
-        result.newPosition,
+        humanPosition,
       );
     }
   }

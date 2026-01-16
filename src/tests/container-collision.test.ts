@@ -21,6 +21,7 @@ import {
   createTestContainerType,
   createTestContainerChild,
 } from "./factories";
+import { toInternalUnits } from "$lib/utils/position";
 import type { PlacedDevice, DeviceType, Rack } from "$lib/types";
 
 // =============================================================================
@@ -96,15 +97,21 @@ describe("Container devices at rack level", () => {
   it("container devices collide at rack level (existing behavior)", () => {
     const { rack, deviceLibrary } = createRackWithContainer(5);
     // Container is at 5-8 (4U), trying to place at 7 should fail
-    expect(canPlaceDevice(rack, deviceLibrary, 2, 7)).toBe(false);
+    expect(canPlaceDevice(rack, deviceLibrary, 2, toInternalUnits(7))).toBe(
+      false,
+    );
   });
 
   it("container devices block adjacent rack-level placements correctly", () => {
     const { rack, deviceLibrary } = createRackWithContainer(5);
     // Container is at 5-8 (4U), position 9 should be free
-    expect(canPlaceDevice(rack, deviceLibrary, 1, 9)).toBe(true);
+    expect(canPlaceDevice(rack, deviceLibrary, 1, toInternalUnits(9))).toBe(
+      true,
+    );
     // Position 4 should also be free
-    expect(canPlaceDevice(rack, deviceLibrary, 1, 4)).toBe(true);
+    expect(canPlaceDevice(rack, deviceLibrary, 1, toInternalUnits(4))).toBe(
+      true,
+    );
   });
 
   it("rack-level devices still block container placement", () => {
@@ -124,7 +131,9 @@ describe("Container devices at rack level", () => {
     });
 
     // Container at 8-11 would overlap with server at 10
-    expect(canPlaceDevice(rack, [serverType, containerType], 4, 8)).toBe(false);
+    expect(
+      canPlaceDevice(rack, [serverType, containerType], 4, toInternalUnits(8)),
+    ).toBe(false);
   });
 });
 
@@ -140,7 +149,9 @@ describe("Child devices excluded from rack-level collision", () => {
     ]);
 
     // Even though child exists, rack-level placement should work at position 10
-    expect(canPlaceDevice(rack, deviceLibrary, 1, 10)).toBe(true);
+    expect(canPlaceDevice(rack, deviceLibrary, 1, toInternalUnits(10))).toBe(
+      true,
+    );
   });
 
   it("rack-level device does not collide with child device at same U", () => {
@@ -151,10 +162,14 @@ describe("Child devices excluded from rack-level collision", () => {
     ]);
 
     // Placing at position 5 still blocked by container, not by child
-    expect(canPlaceDevice(rack, deviceLibrary, 1, 5)).toBe(false);
+    expect(canPlaceDevice(rack, deviceLibrary, 1, toInternalUnits(5))).toBe(
+      false,
+    );
 
     // But position 10 is valid - child doesn't block it
-    expect(canPlaceDevice(rack, deviceLibrary, 1, 10)).toBe(true);
+    expect(canPlaceDevice(rack, deviceLibrary, 1, toInternalUnits(10))).toBe(
+      true,
+    );
   });
 
   it("findCollisions does not include child devices", () => {
@@ -163,7 +178,12 @@ describe("Child devices excluded from rack-level collision", () => {
     ]);
 
     // Collisions at position 5 should only include the container, not the child
-    const collisions = findCollisions(rack, deviceLibrary, 1, 5);
+    const collisions = findCollisions(
+      rack,
+      deviceLibrary,
+      1,
+      toInternalUnits(5),
+    );
     // eslint-disable-next-line no-restricted-syntax -- Testing collision count (exactly 1: the container)
     expect(collisions).toHaveLength(1);
     expect(collisions[0]?.container_id).toBeUndefined(); // It's the container, not a child
@@ -176,16 +196,16 @@ describe("Child devices excluded from rack-level collision", () => {
 
     const validPositions = findValidDropPositions(rack, deviceLibrary, 1);
 
-    // Container occupies 5-8, so those positions should be excluded
-    expect(validPositions).not.toContain(5);
-    expect(validPositions).not.toContain(6);
-    expect(validPositions).not.toContain(7);
-    expect(validPositions).not.toContain(8);
+    // Container occupies 5-8, so those positions should be excluded (in internal units)
+    expect(validPositions).not.toContain(toInternalUnits(5));
+    expect(validPositions).not.toContain(toInternalUnits(6));
+    expect(validPositions).not.toContain(toInternalUnits(7));
+    expect(validPositions).not.toContain(toInternalUnits(8));
 
-    // Positions 1-4 and 9-42 should be valid (for 1U device)
-    expect(validPositions).toContain(1);
-    expect(validPositions).toContain(4);
-    expect(validPositions).toContain(9);
+    // Positions 1-4 and 9-42 should be valid (for 1U device, in internal units)
+    expect(validPositions).toContain(toInternalUnits(1));
+    expect(validPositions).toContain(toInternalUnits(4));
+    expect(validPositions).toContain(toInternalUnits(9));
   });
 });
 

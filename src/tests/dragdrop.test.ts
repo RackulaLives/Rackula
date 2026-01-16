@@ -6,7 +6,28 @@ import {
   hideNativeDragGhost,
   type DragData,
 } from "$lib/utils/dragdrop";
-import type { Rack, DeviceType } from "$lib/types";
+import type { Rack, DeviceType, PlacedDevice } from "$lib/types";
+import { toInternalUnits } from "$lib/utils/position";
+
+// Helper to create a placed device with internal unit position
+function pd(
+  id: string,
+  device_type: string,
+  positionU: number,
+  face: "front" | "rear" | "both",
+  slot_position?: "left" | "right" | "full",
+): PlacedDevice {
+  const device: PlacedDevice = {
+    id,
+    device_type,
+    position: toInternalUnits(positionU),
+    face,
+  };
+  if (slot_position) {
+    device.slot_position = slot_position;
+  }
+  return device;
+}
 
 describe("Drag and Drop Utilities", () => {
   // Constants matching component implementation
@@ -123,14 +144,7 @@ describe("Drag and Drop Utilities", () => {
     it('returns "blocked" for collision with existing device', () => {
       const rackWithDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "dd-test-1",
-            device_type: "device-1",
-            position: 5,
-            face: "front",
-          },
-        ], // Device at U5-U6
+        devices: [pd("dd-test-1", "device-1", 5, "front")], // Device at U5-U6
       };
 
       // Trying to place at U5 (would collide)
@@ -141,14 +155,7 @@ describe("Drag and Drop Utilities", () => {
     it('returns "blocked" for partial collision', () => {
       const rackWithDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "dd-test-2",
-            device_type: "device-1",
-            position: 5,
-            face: "front",
-          },
-        ], // Device at U5-U6
+        devices: [pd("dd-test-2", "device-1", 5, "front")], // Device at U5-U6
       };
 
       // 2U device at position 4 would occupy U4-U5 (collides with U5)
@@ -159,14 +166,7 @@ describe("Drag and Drop Utilities", () => {
     it('returns "valid" for position adjacent to existing device', () => {
       const rackWithDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "dd-test-3",
-            device_type: "device-1",
-            position: 5,
-            face: "front",
-          },
-        ], // Device at U5-U6
+        devices: [pd("dd-test-3", "device-1", 5, "front")], // Device at U5-U6
       };
 
       // 2U device at position 7 would occupy U7-U8 (no collision)
@@ -221,14 +221,7 @@ describe("Drag and Drop Utilities", () => {
     it("allows drop on rear when half-depth front device exists at same U", () => {
       const rackWithFrontDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "front-1",
-            device_type: "patch-panel",
-            position: 5,
-            face: "front",
-          },
-        ],
+        devices: [pd("front-1", "patch-panel", 5, "front")],
       };
 
       // Dropping half-depth device on rear at U5 should be valid
@@ -246,14 +239,7 @@ describe("Drag and Drop Utilities", () => {
     it("allows drop on front when half-depth rear device exists at same U", () => {
       const rackWithRearDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "rear-1",
-            device_type: "patch-panel",
-            position: 5,
-            face: "rear",
-          },
-        ],
+        devices: [pd("rear-1", "patch-panel", 5, "rear")],
       };
 
       // Dropping half-depth device on front at U5 should be valid
@@ -272,14 +258,7 @@ describe("Drag and Drop Utilities", () => {
       // Face-authoritative: face: "front" only blocks front, regardless of is_full_depth
       const rackWithFrontOnlyDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "front-full",
-            device_type: "full-server", // is_full_depth: true
-            position: 5,
-            face: "front", // Explicitly set to front, so only blocks front
-          },
-        ],
+        devices: [pd("front-full", "full-server", 5, "front")],
       };
 
       // Dropping on rear at U5 should be valid (face: "front" doesn't block rear)
@@ -297,14 +276,7 @@ describe("Drag and Drop Utilities", () => {
     it("blocks drop on rear when device has face set to both", () => {
       const rackWithBothFaceDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "both-device",
-            device_type: "full-server",
-            position: 5,
-            face: "both", // Blocks both faces
-          },
-        ],
+        devices: [pd("both-device", "full-server", 5, "both")],
       };
 
       // Dropping on rear at U5 should be blocked (face: "both" blocks everything)
@@ -323,14 +295,7 @@ describe("Drag and Drop Utilities", () => {
       // With face-authoritative model, face: "front" doesn't block rear
       const rackWithFrontDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "front-half",
-            device_type: "patch-panel",
-            position: 5,
-            face: "front",
-          },
-        ],
+        devices: [pd("front-half", "patch-panel", 5, "front")],
       };
 
       // Dropping device on rear at U5 should be valid (existing device only blocks front)
@@ -348,14 +313,7 @@ describe("Drag and Drop Utilities", () => {
     it("blocks drop when devices overlap on same face", () => {
       const rackWithFrontDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "front-1",
-            device_type: "patch-panel",
-            position: 5,
-            face: "front",
-          },
-        ],
+        devices: [pd("front-1", "patch-panel", 5, "front")],
       };
 
       // Dropping device on front at U5 should be blocked (same face)
@@ -373,14 +331,7 @@ describe("Drag and Drop Utilities", () => {
     it("defaults to front face when targetFace not provided", () => {
       const rackWithRearDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "rear-1",
-            device_type: "patch-panel",
-            position: 5,
-            face: "rear",
-          },
-        ],
+        devices: [pd("rear-1", "patch-panel", 5, "rear")],
       };
 
       // Without face param, defaults to 'front' - opposite faces don't collide
@@ -473,15 +424,7 @@ describe("Drag and Drop Utilities", () => {
     it("allows two half-width devices in different slots at same U", () => {
       const rackWithLeftDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "left-1",
-            device_type: "half-width-switch",
-            position: 5,
-            face: "front",
-            slot_position: "left",
-          },
-        ],
+        devices: [pd("left-1", "half-width-switch", 5, "front", "left")],
       };
 
       // Dropping half-width device in right slot at U5 should be valid
@@ -500,15 +443,7 @@ describe("Drag and Drop Utilities", () => {
     it("blocks half-width device in same slot at same U", () => {
       const rackWithLeftDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "left-1",
-            device_type: "half-width-switch",
-            position: 5,
-            face: "front",
-            slot_position: "left",
-          },
-        ],
+        devices: [pd("left-1", "half-width-switch", 5, "front", "left")],
       };
 
       // Dropping half-width device in left slot at U5 should be blocked
@@ -527,15 +462,7 @@ describe("Drag and Drop Utilities", () => {
     it("blocks full-width device when half-width device exists in same U", () => {
       const rackWithHalfWidthDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "half-1",
-            device_type: "half-width-switch",
-            position: 5,
-            face: "front",
-            slot_position: "left",
-          },
-        ],
+        devices: [pd("half-1", "half-width-switch", 5, "front", "left")],
       };
 
       // Dropping full-width device at U5 should be blocked
@@ -554,15 +481,7 @@ describe("Drag and Drop Utilities", () => {
     it("blocks half-width device when full-width device exists in same U", () => {
       const rackWithFullWidthDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "full-1",
-            device_type: "full-width-server",
-            position: 5,
-            face: "front",
-            slot_position: "full",
-          },
-        ],
+        devices: [pd("full-1", "full-width-server", 5, "front", "full")],
       };
 
       // Dropping half-width device at U5 should be blocked (full occupies both slots)
@@ -595,15 +514,7 @@ describe("Drag and Drop Utilities", () => {
     it("allows devices on opposite faces at same U and slot", () => {
       const rackWithFrontDevice: Rack = {
         ...emptyRack,
-        devices: [
-          {
-            id: "front-left",
-            device_type: "half-width-switch",
-            position: 5,
-            face: "front",
-            slot_position: "left",
-          },
-        ],
+        devices: [pd("front-left", "half-width-switch", 5, "front", "left")],
       };
 
       // Dropping on rear at same U and slot should be valid

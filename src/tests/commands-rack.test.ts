@@ -8,6 +8,7 @@ import {
 } from "$lib/stores/commands/rack";
 import type { Rack, PlacedDevice } from "$lib/types";
 import { createTestRack, createTestDevice } from "./factories";
+import { toInternalUnits } from "$lib/utils/position";
 
 function createMockStore(rack: Rack = createTestRack()): RackCommandStore & {
   updateRackRaw: ReturnType<typeof vi.fn>;
@@ -139,11 +140,11 @@ describe("Rack Commands", () => {
 
       command.execute();
 
-      // Should use original values
+      // Should use original values (createTestDevice converts to internal units)
       expect(store.replaceRackRaw).toHaveBeenCalledWith(
         expect.objectContaining({
           devices: expect.arrayContaining([
-            expect.objectContaining({ position: 10 }),
+            expect.objectContaining({ position: toInternalUnits(10) }),
           ]),
         }),
       );
@@ -153,7 +154,7 @@ describe("Rack Commands", () => {
       expect(store.replaceRackRaw).toHaveBeenLastCalledWith(
         expect.objectContaining({
           devices: expect.arrayContaining([
-            expect.objectContaining({ position: 5 }),
+            expect.objectContaining({ position: toInternalUnits(5) }),
           ]),
         }),
       );
@@ -215,9 +216,16 @@ describe("Rack Commands", () => {
       command.undo();
 
       expect(store.restoreRackDevicesRaw).toHaveBeenCalledTimes(1);
+      // createTestDevice converts position to internal units
       expect(store.restoreRackDevicesRaw).toHaveBeenCalledWith([
-        expect.objectContaining({ position: 5, device_type: "device-a" }),
-        expect.objectContaining({ position: 10, device_type: "device-b" }),
+        expect.objectContaining({
+          position: toInternalUnits(5),
+          device_type: "device-a",
+        }),
+        expect.objectContaining({
+          position: toInternalUnits(10),
+          device_type: "device-b",
+        }),
       ]);
     });
 
@@ -233,9 +241,9 @@ describe("Rack Commands", () => {
       command.execute();
       command.undo();
 
-      // Should restore with original position
+      // Should restore with original position (createTestDevice converts to internal units)
       expect(store.restoreRackDevicesRaw).toHaveBeenCalledWith([
-        expect.objectContaining({ position: 5 }),
+        expect.objectContaining({ position: toInternalUnits(5) }),
       ]);
     });
   });
