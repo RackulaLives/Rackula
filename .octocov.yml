@@ -3,13 +3,16 @@
 
 # Coverage reporting from vitest LCOV output
 # Badges are generated as shields.io endpoint JSON files by the workflow
+# Philosophy: Visibility over enforcement. Alert on regressions, not arbitrary thresholds.
 coverage:
   paths:
     - coverage/lcov.info
-  acceptable: current >= 70%
+  # No hard threshold - flag significant drops instead
+  acceptable: diff >= -5%
 
 # Code to test ratio
 # Measures lines of source code vs test code
+# Prevents test bloat while ensuring adequate coverage
 codeToTestRatio:
   code:
     - "src/lib/**/*.ts"
@@ -20,11 +23,14 @@ codeToTestRatio:
     - "src/**/*.test.ts"
     - "src/**/*.spec.ts"
     - "tests/**/*.ts"
-  acceptable: current >= 0.5
+  # Alert if ratio drops significantly
+  acceptable: diff >= -0.1
 
 # Test execution time (GitHub Actions only)
 testExecutionTime:
-  acceptable: current <= 300sec
+  # Keep tests fast - alert if they slow down significantly
+  # Note: octocov doesn't support compound conditions; CI timeout acts as absolute cap
+  acceptable: diff <= 30sec
 
 # PR comment configuration
 comment:

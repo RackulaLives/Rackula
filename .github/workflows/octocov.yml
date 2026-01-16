@@ -43,30 +43,44 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Parse coverage percentage from the coverage summary
+          # Parse current coverage
           if [ -f "coverage/coverage-summary.json" ]; then
             COVERAGE=$(jq -r '.total.lines.pct' coverage/coverage-summary.json 2>/dev/null || echo "0")
           else
-            # Fallback: parse from lcov.info
             COVERAGE=$(awk -F: '/^LF:/{total+=$2} /^LH:/{hit+=$2} END{if(total>0) printf "%.1f", hit/total*100; else print "0"}' coverage/lcov.info 2>/dev/null || echo "0")
           fi
 
-          # Round to integer for comparison
-          COV_INT=${COVERAGE%.*}
+          # Try to get previous coverage from octocov artifact for comparison
+          # If no previous data, we'll just report current coverage
+          PREV_COVERAGE=""
+          if [ -f ".octocov/report.json" ]; then
+            PREV_COVERAGE=$(jq -r '.coverage.covered / .coverage.total * 100' .octocov/report.json 2>/dev/null || echo "")
+          fi
 
-          # The Count has opinions based on coverage level
-          if [ "$COV_INT" -ge 80 ]; then
-            QUOTE="*\"$COVERAGE percent! That is a WONDERFUL number to count! $COVERAGE! Ah ah ah!\"* 🦇"
-            MOOD="is DELIGHTED"
-          elif [ "$COV_INT" -ge 60 ]; then
-            QUOTE="*\"$COVERAGE percent... Yes, yes, I can count this. $COVERAGE is... acceptable. Ah ah ah.\"* 🦇"
-            MOOD="is satisfied"
-          elif [ "$COV_INT" -ge 40 ]; then
-            QUOTE="*\"$COVERAGE percent? That is not very many things to count. The Count is... disappointed. Ah ah ah.\"* 🌙"
-            MOOD="is concerned"
+          # Calculate delta if we have previous coverage
+          if [ -n "$PREV_COVERAGE" ] && [ "$PREV_COVERAGE" != "null" ]; then
+            DELTA=$(echo "$COVERAGE - $PREV_COVERAGE" | bc 2>/dev/null || echo "0")
+            DELTA_FMT=$(printf "%.1f" "$DELTA" 2>/dev/null || echo "$DELTA")
+            DELTA_INT=${DELTA%.*}
+
+            # The Count reacts to CHANGE, not absolute values
+            if [ "$DELTA_INT" -gt 2 ]; then
+              QUOTE="*\"$COVERAGE%! That is MORE than before! +${DELTA_FMT}% more things to count! Ah ah ah!\"* 🦇"
+              MOOD="is DELIGHTED"
+            elif [ "$DELTA_INT" -ge 0 ]; then
+              QUOTE="*\"$COVERAGE%... The same as before. Consistent! The Count appreciates consistency. Ah ah ah.\"* 🦇"
+              MOOD="is satisfied"
+            elif [ "$DELTA_INT" -ge -5 ]; then
+              QUOTE="*\"$COVERAGE%... That is ${DELTA_FMT}% fewer things to count. The Count notices. Ah ah ah.\"* 🌙"
+              MOOD="is watching"
+            else
+              QUOTE="*\"$COVERAGE%?! That is ${DELTA_FMT}% FEWER! The Count does not like losing things to count! Ah ah ah!\"* ⚰️"
+              MOOD="is CONCERNED"
+            fi
           else
-            QUOTE="*\"$COVERAGE percent?! The Count does not get out of his coffin for less than 40 percent! Ah ah ah!\"* ⚰️"
-            MOOD="is VERY disappointed"
+            # No previous data - just report current
+            QUOTE="*\"$COVERAGE%! The Count has begun counting. Ah ah ah!\"* 🦇"
+            MOOD="is counting"
           fi
 
           # Post The Count's reaction

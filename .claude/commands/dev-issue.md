@@ -385,19 +385,40 @@ Mark complete in progress file after each passes.
 
 If failures: see Error Recovery section.
 
-### 3e. Commit and Push
+### 3e. CodeRabbit CLI Review (MANDATORY)
+
+**ALWAYS run CodeRabbit CLI before pushing any PR.** This catches issues early and improves PR success rate.
+
+```bash
+(cd "$WORKTREE_DIR" && coderabbit --prompt-only --type committed)
+```
+
+**Flags:**
+
+- `--prompt-only` — Token-efficient output optimized for Claude Code
+- `--type committed` — Reviews committed changes on current branch
+
+**If CodeRabbit suggests changes:**
+
+1. Address actionable suggestions in follow-up commits
+2. For suggestions that are out of scope, document why (e.g., "Out of scope: <reason>")
+3. Re-run CodeRabbit to verify fixes
+
+**Only proceed to push after:** CodeRabbit passes OR all suggestions are explicitly addressed/documented.
+
+### 3f. Commit and Push
 
 Commit with conventional format: `<type>: <description>` with `Fixes #<number>` in body.
 Push to origin with `-u` flag.
 
-### 3f. Create PR
+### 3g. Create PR
 
 Use `gh pr create` with:
 
 - Title: `<type>: <description> (#<number>)`
 - Body: Summary bullets, files changed, test plan checklist, `Closes #<number>`
 
-### 3g. Merge
+### 3h. Merge
 
 **Use:** `superpowers:finishing-a-development-branch`
 
@@ -408,7 +429,7 @@ gh pr checks --watch
 gh pr merge --squash --delete-branch --auto
 ```
 
-### 3h. Cleanup
+### 3i. Cleanup
 
 1. **Release the lock** — remove `in-progress` label (issue will close via PR merge):
 

@@ -2,9 +2,8 @@
   Bug Report icon using Iconoir via Iconify
   Part of #608 icon standardization
 
-  Note: Uses iconoir:warning-circle as specified in issue #673 for the
-  "Report Bug" link. The warning-circle icon was chosen over a literal bug
-  icon to convey "report an issue" rather than "software bug".
+  Uses iconoir:warning-triangle for the "Report Bug" link. The warning
+  triangle (⚠️) is universally recognized for reporting issues/problems.
 
   Sizing: Uses --icon-size-md (20px) by default.
   Override via parent CSS: .parent :global(svg) { width: var(--icon-size-sm); }
@@ -16,7 +15,7 @@
   import Icon from "@iconify/svelte";
 </script>
 
-<Icon icon="iconoir:warning-circle" class="icon-bug" aria-hidden="true" />
+<Icon icon="iconoir:warning-triangle" class="icon-bug" aria-hidden="true" />
 
 <style>
   :global(.icon-bug) {
