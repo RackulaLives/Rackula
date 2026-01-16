@@ -34,6 +34,13 @@
   }: Props = $props();
 
   let open = $state(false);
+
+  function handleSelect(action?: () => void) {
+    return () => {
+      action?.();
+      open = false;
+    };
+  }
 </script>
 
 <DropdownMenu.Root bind:open>
@@ -49,10 +56,7 @@
     >
       <DropdownMenu.Item
         class="menu-item"
-        onSelect={() => {
-          ontoggletheme?.();
-          open = false;
-        }}
+        onSelect={handleSelect(ontoggletheme)}
       >
         <span class="menu-icon">
           {#if theme === "dark"}
@@ -69,10 +73,7 @@
       <DropdownMenu.CheckboxItem
         class="menu-item"
         checked={showAnnotations}
-        onCheckedChange={() => {
-          ontoggleannotations?.();
-          open = false;
-        }}
+        onCheckedChange={handleSelect(ontoggleannotations)}
       >
         {#snippet children({ checked })}
           <span class="menu-checkbox">
@@ -89,10 +90,7 @@
       <DropdownMenu.CheckboxItem
         class="menu-item"
         checked={showBanana}
-        onCheckedChange={() => {
-          ontogglebanana?.();
-          open = false;
-        }}
+        onCheckedChange={handleSelect(ontogglebanana)}
       >
         {#snippet children({ checked })}
           <span class="menu-checkbox">
