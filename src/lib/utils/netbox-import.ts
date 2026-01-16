@@ -3,7 +3,12 @@
  * Parses NetBox devicetype-library YAML format and converts to Rackula DeviceType
  */
 
-import type { DeviceType, DeviceCategory, Airflow } from "$lib/types";
+import type {
+  DeviceType,
+  DeviceCategory,
+  Airflow,
+  RackWidth,
+} from "$lib/types";
 import type { InterfaceTemplate } from "$lib/types";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import { parseYaml } from "./yaml";
@@ -337,6 +342,7 @@ export function convertToDeviceType(
   options?: {
     category?: DeviceCategory;
     colour?: string;
+    rack_widths?: RackWidth[];
   },
 ): ImportResult {
   const warnings: string[] = [];
@@ -358,6 +364,11 @@ export function convertToDeviceType(
     colour,
     category,
   };
+
+  // Apply rack_widths if provided (NetBox doesn't have this field)
+  if (options?.rack_widths && options.rack_widths.length > 0) {
+    deviceType.rack_widths = options.rack_widths;
+  }
 
   // Optional fields
   if (netbox.part_number) {

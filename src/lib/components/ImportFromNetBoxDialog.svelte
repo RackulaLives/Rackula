@@ -7,8 +7,17 @@
   import Dialog from "./Dialog.svelte";
   import { Tabs } from "$lib/components/ui/Tabs";
   import { IconUpload } from "./icons";
-  import type { DeviceCategory } from "$lib/types";
+  import type { DeviceCategory, RackWidth } from "$lib/types";
   import { ALL_CATEGORIES, CATEGORY_COLOURS } from "$lib/types/constants";
+
+  // Rack width selection options
+  type RackWidthOption = "10" | "19" | "23" | "universal";
+  const RACK_WIDTH_OPTIONS: { value: RackWidthOption; label: string }[] = [
+    { value: "10", label: '10"' },
+    { value: "19", label: '19"' },
+    { value: "23", label: '23"' },
+    { value: "universal", label: "Universal" },
+  ];
   import {
     parseNetBoxYaml,
     convertToDeviceType,
@@ -42,6 +51,7 @@
   let categoryOverride = $state<DeviceCategory | null>(null);
   let colourOverride = $state<string | null>(null);
   let userChangedColour = $state(false);
+  let rackWidthSelection = $state<RackWidthOption>("19");
 
   // Computed values
   let inferredCategory = $derived(
@@ -68,6 +78,7 @@
     categoryOverride = null;
     colourOverride = null;
     userChangedColour = false;
+    rackWidthSelection = "19";
     isParsing = false;
   }
 
@@ -110,6 +121,7 @@
         categoryOverride = null;
         colourOverride = null;
         userChangedColour = false;
+        rackWidthSelection = "19";
       }
     } catch (err) {
       parseError = err instanceof Error ? err.message : "Unknown error";
@@ -159,12 +171,26 @@
     userChangedColour = true;
   }
 
+  function getRackWidths(): RackWidth[] {
+    switch (rackWidthSelection) {
+      case "10":
+        return [10];
+      case "19":
+        return [19];
+      case "23":
+        return [23];
+      case "universal":
+        return [10, 19, 23];
+    }
+  }
+
   function handleImport() {
     if (!parsedData) return;
 
     const result = convertToDeviceType(parsedData, {
       category: categoryOverride ?? undefined,
       colour: colourOverride ?? undefined,
+      rack_widths: getRackWidths(),
     });
 
     onimport?.(result);
@@ -316,6 +342,31 @@ is_full_depth: false"
               />
               <span class="colour-hex">{effectiveColour}</span>
             </div>
+          </div>
+        </div>
+
+        <!-- Rack Width Selection -->
+        <div class="override-group">
+          <span class="group-label" id="rack-width-label"
+            >Rack Width Compatibility</span
+          >
+          <div
+            class="rack-width-selector"
+            role="radiogroup"
+            aria-labelledby="rack-width-label"
+          >
+            {#each RACK_WIDTH_OPTIONS as option (option.value)}
+              <button
+                type="button"
+                class="rack-width-btn"
+                class:selected={rackWidthSelection === option.value}
+                onclick={() => (rackWidthSelection = option.value)}
+                role="radio"
+                aria-checked={rackWidthSelection === option.value}
+              >
+                {option.label}
+              </button>
+            {/each}
           </div>
         </div>
 
@@ -563,7 +614,8 @@ is_full_depth: false"
     gap: var(--space-1-5);
   }
 
-  .override-group label {
+  .override-group label,
+  .override-group .group-label {
     font-weight: var(--font-weight-medium);
     color: var(--colour-text);
     font-size: var(--font-size-sm);
@@ -609,6 +661,43 @@ is_full_depth: false"
     font-family: var(--font-mono);
     font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
+  }
+
+  .rack-width-selector {
+    display: flex;
+    gap: var(--space-1);
+    background: var(--colour-surface);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-1);
+  }
+
+  .rack-width-btn {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--colour-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .rack-width-btn:hover {
+    color: var(--colour-text);
+    background: var(--colour-surface-hover);
+  }
+
+  .rack-width-btn.selected {
+    background: var(--colour-selection);
+    color: var(--colour-text-on-primary);
+  }
+
+  .rack-width-btn:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
   }
 
   .reset-btn {
