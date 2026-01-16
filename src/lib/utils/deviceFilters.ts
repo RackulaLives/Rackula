@@ -4,7 +4,7 @@
  */
 
 import Fuse from "fuse.js";
-import type { DeviceType, DeviceCategory, RackWidth } from "$lib/types";
+import type { DeviceType, DeviceCategory } from "$lib/types";
 
 /**
  * Fuse.js configuration for fuzzy search.
@@ -196,35 +196,43 @@ export function sortDevicesAlphabetically(devices: DeviceType[]): DeviceType[] {
 
 /**
  * Check if a device is compatible with a specific rack width.
+ * Uses "minimum width" logic: a device fits if the rack width >= any supported device width.
+ * This allows 19" devices to fit in 21" and 23" racks (which have the same mounting holes).
+ *
  * Devices without `rack_widths` are assumed to be 19" compatible (standard racks).
  *
+ * Examples:
+ * - 10" device fits any rack (10" is smallest form factor)
+ * - 19" device fits 19", 21", 23" racks
+ * - 23" device only fits 23" rack (needs full width)
+ *
  * @param device - The device type to check
- * @param rackWidth - The rack width in inches (10, 19, or 23)
+ * @param rackWidth - The rack width in inches (any number, typically 10, 19, 21, or 23)
  * @returns True if the device is compatible with the given rack width
  */
 export function isDeviceCompatibleWithRackWidth(
   device: DeviceType,
-  rackWidth: RackWidth,
+  rackWidth: number,
 ): boolean {
   // Devices without rack_widths are assumed to be 19" compatible
-  if (!device.rack_widths || device.rack_widths.length === 0) {
-    return rackWidth === 19;
-  }
+  const deviceWidths = device.rack_widths?.length ? device.rack_widths : [19];
 
-  return device.rack_widths.includes(rackWidth);
+  // Device is compatible if rack width >= any of the device's supported widths
+  return deviceWidths.some((deviceWidth) => rackWidth >= deviceWidth);
 }
 
 /**
  * Filter devices by rack width compatibility.
+ * Uses "minimum width" logic - see isDeviceCompatibleWithRackWidth for details.
  * Devices without `rack_widths` are assumed to be 19" compatible (standard racks).
  *
  * @param devices - Array of device types to filter
- * @param rackWidth - The rack width in inches (10, 19, or 23)
+ * @param rackWidth - The rack width in inches (any number, typically 10, 19, 21, or 23)
  * @returns Filtered array of devices compatible with the given rack width
  */
 export function filterDevicesByRackWidth(
   devices: DeviceType[],
-  rackWidth: RackWidth,
+  rackWidth: number,
 ): DeviceType[] {
   return devices.filter((device) =>
     isDeviceCompatibleWithRackWidth(device, rackWidth),
