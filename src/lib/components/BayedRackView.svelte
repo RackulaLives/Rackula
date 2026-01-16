@@ -15,6 +15,7 @@
   } from "$lib/types";
   import Rack from "./Rack.svelte";
   import RackContextMenu from "./RackContextMenu.svelte";
+  import ULabels from "./ULabels.svelte";
   import { useLongPress } from "$lib/utils/gestures";
 
   interface Props {
@@ -252,48 +253,7 @@
   <div class="bayed-row front-row">
     <!-- U-labels column (left side of front row) -->
     <div class="u-labels-column">
-      <svg
-        class="u-labels-svg"
-        width="32"
-        height={uColumnHeight}
-        viewBox="0 0 32 {uColumnHeight}"
-        role="img"
-        aria-label="U position labels"
-      >
-        <rect
-          x="0"
-          y="0"
-          width="32"
-          height={uColumnHeight}
-          class="u-column-bg"
-        />
-        <rect
-          x="0"
-          y="0"
-          width="32"
-          height={RAIL_WIDTH}
-          class="u-column-rail"
-        />
-        <rect
-          x="0"
-          y={uColumnHeight - RAIL_WIDTH}
-          width="32"
-          height={RAIL_WIDTH}
-          class="u-column-rail"
-        />
-        {#each uLabels as { uNumber, yPosition } (uNumber)}
-          <text
-            x="16"
-            y={yPosition}
-            class="u-label"
-            class:u-label-highlight={uNumber % 5 === 0}
-            text-anchor="middle"
-            dominant-baseline="middle"
-          >
-            {uNumber}
-          </text>
-        {/each}
-      </svg>
+      <ULabels {uLabels} {uColumnHeight} railWidth={RAIL_WIDTH} />
     </div>
     {#each racks as rack, bayIndex (rack.id)}
       {@const isActive = rack.id === activeRackId}
@@ -389,54 +349,16 @@
     {/each}
     <!-- U-labels column (right side of rear row) -->
     <div class="u-labels-column">
-      <svg
-        class="u-labels-svg"
-        width="32"
-        height={uColumnHeight}
-        viewBox="0 0 32 {uColumnHeight}"
-        role="img"
-        aria-label="U position labels"
-      >
-        <rect
-          x="0"
-          y="0"
-          width="32"
-          height={uColumnHeight}
-          class="u-column-bg"
-        />
-        <rect
-          x="0"
-          y="0"
-          width="32"
-          height={RAIL_WIDTH}
-          class="u-column-rail"
-        />
-        <rect
-          x="0"
-          y={uColumnHeight - RAIL_WIDTH}
-          width="32"
-          height={RAIL_WIDTH}
-          class="u-column-rail"
-        />
-        {#each uLabels as { uNumber, yPosition } (uNumber)}
-          <text
-            x="16"
-            y={yPosition}
-            class="u-label"
-            class:u-label-highlight={uNumber % 5 === 0}
-            text-anchor="middle"
-            dominant-baseline="middle"
-          >
-            {uNumber}
-          </text>
-        {/each}
-      </svg>
+      <ULabels {uLabels} {uColumnHeight} railWidth={RAIL_WIDTH} />
     </div>
   </div>
 </div>
 
 <style>
   .bayed-rack-view {
+    /* Shared variable for bay-label and u-labels-column alignment */
+    --bay-label-block-height: calc(var(--font-size-xs) + var(--space-1) * 2);
+
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -538,31 +460,6 @@
     align-items: center;
     justify-content: flex-start;
     /* Match bay-label height so U-labels align with rack content */
-    padding-top: calc(var(--font-size-xs) + var(--space-1) * 2);
-  }
-
-  .u-labels-svg {
-    display: block;
-  }
-
-  .u-column-bg {
-    fill: var(--rack-interior);
-  }
-
-  .u-column-rail {
-    fill: var(--rack-rail);
-  }
-
-  .u-label {
-    fill: var(--rack-text);
-    font-size: var(--font-size-2xs);
-    font-family: var(--font-mono, monospace);
-    font-variant-numeric: tabular-nums;
-    user-select: none;
-  }
-
-  .u-label-highlight {
-    font-weight: var(--font-weight-semibold, 600);
-    fill: var(--rack-text-highlight);
+    padding-top: var(--bay-label-block-height);
   }
 </style>

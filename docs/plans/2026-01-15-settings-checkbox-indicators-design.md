@@ -1,8 +1,8 @@
 # Settings Menu Checkbox Indicators Design
 
 **Date:** 2026-01-15
-**Status:** Draft
-**Issue:** TBD
+**Status:** Approved
+**Issue:** #677
 
 ## Problem
 
@@ -19,7 +19,7 @@ Replace text checkmarks with filled/empty square SVG icons that clearly indicate
 
 ### Layout
 
-```
+```text
 [ ■ ] Show Annotations
 [ □ ] Banana for Scale
 ```
@@ -92,4 +92,6 @@ Update `src/lib/components/SettingsMenu.svelte`:
 
 ## Future Considerations
 
-The `ICON_SIZE` constants establish a pattern that can be adopted across the codebase to replace hardcoded pixel values in icon components. This is currently technical debt - icons throughout the app use `size={16}` etc. A follow-up chore could migrate existing usages.
+The `ICON_SIZE` constants establish a pattern that can be adopted across the codebase to replace hardcoded pixel values in icon components. This is currently technical debt - icons throughout the app use `size={16}` etc.
+
+**Tracking issue:** [#692 - Migrate hardcoded icon sizes to ICON_SIZE constants](https://github.com/RackulaLives/Rackula/issues/692)
