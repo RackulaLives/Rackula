@@ -1,9 +1,9 @@
 <!--
   BayedRackView Component
   Renders bayed/touring racks in stacked layout:
-  - Front row on top (Bay 1, Bay 2, Bay 3... left to right)
-  - Shared U-labels column in center
-  - Rear row below (mirrored: Bay 1 on right, Bay 3 on left)
+  - Front row on top: [U-labels] [Bay 1] [Bay 2] [Bay 3] (left to right)
+  - Rear row below: [Bay 3] [Bay 2] [Bay 1] [U-labels] (mirrored, U-labels on right)
+  U-labels flank each row for easy slot reference.
 -->
 <script lang="ts">
   import type {
@@ -248,8 +248,53 @@
   <!-- Front row label -->
   <div class="row-label">FRONT</div>
 
-  <!-- Front row: racks left-to-right (Bay 1, Bay 2, Bay 3...) -->
+  <!-- Front row: U-labels on left, then racks left-to-right -->
   <div class="bayed-row front-row">
+    <!-- U-labels column (left side of front row) -->
+    <div class="u-labels-column">
+      <svg
+        class="u-labels-svg"
+        width="32"
+        height={uColumnHeight}
+        viewBox="0 0 32 {uColumnHeight}"
+        role="img"
+        aria-label="U position labels"
+      >
+        <rect
+          x="0"
+          y="0"
+          width="32"
+          height={uColumnHeight}
+          class="u-column-bg"
+        />
+        <rect
+          x="0"
+          y="0"
+          width="32"
+          height={RAIL_WIDTH}
+          class="u-column-rail"
+        />
+        <rect
+          x="0"
+          y={uColumnHeight - RAIL_WIDTH}
+          width="32"
+          height={RAIL_WIDTH}
+          class="u-column-rail"
+        />
+        {#each uLabels as { uNumber, yPosition } (uNumber)}
+          <text
+            x="16"
+            y={yPosition}
+            class="u-label"
+            class:u-label-highlight={uNumber % 5 === 0}
+            text-anchor="middle"
+            dominant-baseline="middle"
+          >
+            {uNumber}
+          </text>
+        {/each}
+      </svg>
+    </div>
     {#each racks as rack, bayIndex (rack.id)}
       {@const isActive = rack.id === activeRackId}
       {@const isSelected = rack.id === selectedRackId}
@@ -292,47 +337,6 @@
         </div>
       </RackContextMenu>
     {/each}
-  </div>
-
-  <!-- Center U-labels column -->
-  <div class="u-labels-column">
-    <svg
-      class="u-labels-svg"
-      width="32"
-      height={uColumnHeight}
-      viewBox="0 0 32 {uColumnHeight}"
-      role="img"
-      aria-label="U position labels"
-    >
-      <!-- Background -->
-      <rect x="0" y="0" width="32" height={uColumnHeight} class="u-column-bg" />
-
-      <!-- Top bar -->
-      <rect x="0" y="0" width="32" height={RAIL_WIDTH} class="u-column-rail" />
-
-      <!-- Bottom bar -->
-      <rect
-        x="0"
-        y={uColumnHeight - RAIL_WIDTH}
-        width="32"
-        height={RAIL_WIDTH}
-        class="u-column-rail"
-      />
-
-      <!-- U labels -->
-      {#each uLabels as { uNumber, yPosition } (uNumber)}
-        <text
-          x="16"
-          y={yPosition}
-          class="u-label"
-          class:u-label-highlight={uNumber % 5 === 0}
-          text-anchor="middle"
-          dominant-baseline="middle"
-        >
-          {uNumber}
-        </text>
-      {/each}
-    </svg>
   </div>
 
   <!-- Rear row label -->
@@ -383,6 +387,51 @@
         </div>
       </RackContextMenu>
     {/each}
+    <!-- U-labels column (right side of rear row) -->
+    <div class="u-labels-column">
+      <svg
+        class="u-labels-svg"
+        width="32"
+        height={uColumnHeight}
+        viewBox="0 0 32 {uColumnHeight}"
+        role="img"
+        aria-label="U position labels"
+      >
+        <rect
+          x="0"
+          y="0"
+          width="32"
+          height={uColumnHeight}
+          class="u-column-bg"
+        />
+        <rect
+          x="0"
+          y="0"
+          width="32"
+          height={RAIL_WIDTH}
+          class="u-column-rail"
+        />
+        <rect
+          x="0"
+          y={uColumnHeight - RAIL_WIDTH}
+          width="32"
+          height={RAIL_WIDTH}
+          class="u-column-rail"
+        />
+        {#each uLabels as { uNumber, yPosition } (uNumber)}
+          <text
+            x="16"
+            y={yPosition}
+            class="u-label"
+            class:u-label-highlight={uNumber % 5 === 0}
+            text-anchor="middle"
+            dominant-baseline="middle"
+          >
+            {uNumber}
+          </text>
+        {/each}
+      </svg>
+    </div>
   </div>
 </div>
 
@@ -482,12 +531,14 @@
     outline: none !important;
   }
 
-  /* U-labels center column */
+  /* U-labels flanking columns (left of front row, right of rear row) */
   .u-labels-column {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: var(--space-2) 0;
+    justify-content: flex-start;
+    /* Match bay-label height so U-labels align with rack content */
+    padding-top: calc(var(--font-size-xs) + var(--space-1) * 2);
   }
 
   .u-labels-svg {
