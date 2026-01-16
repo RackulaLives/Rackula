@@ -41,29 +41,31 @@
     <IconFolderBold size={20} />
   </DropdownMenu.Trigger>
 
-  <DropdownMenu.Content
-    class="menu-content menu-inline"
-    sideOffset={4}
-    align="end"
-  >
-    <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onsave)}>
-      <span class="menu-label">Save</span>
-      <span class="menu-shortcut">{shortcuts.save}</span>
-    </DropdownMenu.Item>
-    <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onload)}>
-      <span class="menu-label">Load</span>
-      <span class="menu-shortcut">{shortcuts.load}</span>
-    </DropdownMenu.Item>
-    <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onexport)}>
-      <span class="menu-label">Export</span>
-      <span class="menu-shortcut">{shortcuts.export}</span>
-    </DropdownMenu.Item>
-    <DropdownMenu.Item
-      class="menu-item"
-      disabled={!hasRacks}
-      onSelect={handleSelect(onshare)}
+  <DropdownMenu.Portal>
+    <DropdownMenu.Content
+      class="menu-content menu-inline"
+      sideOffset={4}
+      align="end"
     >
-      <span class="menu-label">Share</span>
-    </DropdownMenu.Item>
-  </DropdownMenu.Content>
+      <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onsave)}>
+        <span class="menu-label">Save</span>
+        <span class="menu-shortcut">{shortcuts.save}</span>
+      </DropdownMenu.Item>
+      <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onload)}>
+        <span class="menu-label">Load</span>
+        <span class="menu-shortcut">{shortcuts.load}</span>
+      </DropdownMenu.Item>
+      <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onexport)}>
+        <span class="menu-label">Export</span>
+        <span class="menu-shortcut">{shortcuts.export}</span>
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="menu-item"
+        disabled={!hasRacks}
+        onSelect={handleSelect(onshare)}
+      >
+        <span class="menu-label">Share</span>
+      </DropdownMenu.Item>
+    </DropdownMenu.Content>
+  </DropdownMenu.Portal>
 </DropdownMenu.Root>

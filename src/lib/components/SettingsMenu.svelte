@@ -35,60 +35,63 @@
     <IconGearBold size={20} />
   </DropdownMenu.Trigger>
 
-  <DropdownMenu.Content
-    class="menu-content menu-inline"
-    sideOffset={4}
-    align="end"
-  >
-    <DropdownMenu.Item
-      class="menu-item"
-      onSelect={() => {
-        ontoggletheme?.();
-        open = false;
-      }}
+  <DropdownMenu.Portal>
+    <DropdownMenu.Content
+      class="menu-content menu-inline"
+      sideOffset={4}
+      align="end"
     >
-      <span class="menu-label">{theme === "dark" ? "Light" : "Dark"} Theme</span
+      <DropdownMenu.Item
+        class="menu-item"
+        onSelect={() => {
+          ontoggletheme?.();
+          open = false;
+        }}
       >
-    </DropdownMenu.Item>
+        <span class="menu-label"
+          >{theme === "dark" ? "Light" : "Dark"} Theme</span
+        >
+      </DropdownMenu.Item>
 
-    <DropdownMenu.CheckboxItem
-      class="menu-item"
-      checked={showAnnotations}
-      onCheckedChange={() => {
-        ontoggleannotations?.();
-        open = false;
-      }}
-    >
-      {#snippet children({ checked })}
-        <span class="menu-checkbox">
-          {#if checked}
-            <IconSquareFilled size={ICON_SIZE.sm} />
-          {:else}
-            <IconSquare size={ICON_SIZE.sm} />
-          {/if}
-        </span>
-        <span class="menu-label">Show Annotations</span>
-      {/snippet}
-    </DropdownMenu.CheckboxItem>
+      <DropdownMenu.CheckboxItem
+        class="menu-item"
+        checked={showAnnotations}
+        onCheckedChange={() => {
+          ontoggleannotations?.();
+          open = false;
+        }}
+      >
+        {#snippet children({ checked })}
+          <span class="menu-checkbox">
+            {#if checked}
+              <IconSquareFilled size={ICON_SIZE.sm} />
+            {:else}
+              <IconSquare size={ICON_SIZE.sm} />
+            {/if}
+          </span>
+          <span class="menu-label">Show Annotations</span>
+        {/snippet}
+      </DropdownMenu.CheckboxItem>
 
-    <DropdownMenu.CheckboxItem
-      class="menu-item"
-      checked={showBanana}
-      onCheckedChange={() => {
-        ontogglebanana?.();
-        open = false;
-      }}
-    >
-      {#snippet children({ checked })}
-        <span class="menu-checkbox">
-          {#if checked}
-            <IconSquareFilled size={ICON_SIZE.sm} />
-          {:else}
-            <IconSquare size={ICON_SIZE.sm} />
-          {/if}
-        </span>
-        <span class="menu-label">Banana for Scale</span>
-      {/snippet}
-    </DropdownMenu.CheckboxItem>
-  </DropdownMenu.Content>
+      <DropdownMenu.CheckboxItem
+        class="menu-item"
+        checked={showBanana}
+        onCheckedChange={() => {
+          ontogglebanana?.();
+          open = false;
+        }}
+      >
+        {#snippet children({ checked })}
+          <span class="menu-checkbox">
+            {#if checked}
+              <IconSquareFilled size={ICON_SIZE.sm} />
+            {:else}
+              <IconSquare size={ICON_SIZE.sm} />
+            {/if}
+          </span>
+          <span class="menu-label">Banana for Scale</span>
+        {/snippet}
+      </DropdownMenu.CheckboxItem>
+    </DropdownMenu.Content>
+  </DropdownMenu.Portal>
 </DropdownMenu.Root>
