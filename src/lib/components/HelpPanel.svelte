@@ -37,15 +37,17 @@
   /**
    * Handle dialog open state changes.
    * Tracks analytics and calls onclose callback when dialog closes.
+   * Important: Set open state FIRST to ensure bits-ui state stays in sync
+   * before triggering parent callbacks that may cause re-renders.
    */
   function handleOpenChange(newOpen: boolean) {
+    open = newOpen;
     if (newOpen) {
       analytics.trackPanelOpen("help");
     } else {
       analytics.trackPanelClose("help");
       onclose?.();
     }
-    open = newOpen;
   }
 
   // Get browser user agent for troubleshooting
@@ -336,7 +338,7 @@
             </button>
           </section>
 
-          <p class="made-in">Made in Canada with love</p>
+          <p class="made-in">Made in Canada 🇨🇦 with ❤️</p>
         </div>
       </div>
     </Dialog.Content>

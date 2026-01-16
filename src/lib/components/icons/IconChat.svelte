@@ -1,22 +1,26 @@
 <!--
-  Chat/Discussion icon using Iconoir via Iconify
-  Part of #608 icon standardization
-
-  Sizing: Uses --icon-size-md (20px) by default.
-  Override via parent CSS: .parent :global(svg) { width: var(--icon-size-sm); }
-
-  Note: :global() is required because @iconify/svelte generates the SVG
-  internally, so Svelte's scoped styles cannot target it directly.
+  Chat/Discussion icon (Iconoir message-text)
+  Converted to inline SVG for offline support
 -->
 <script lang="ts">
-  import Icon from "@iconify/svelte";
+  interface Props {
+    size?: number;
+  }
+
+  let { size = 20 }: Props = $props();
 </script>
 
-<Icon icon="iconoir:message-text" class="icon-chat" aria-hidden="true" />
-
-<style>
-  :global(.icon-chat) {
-    width: var(--icon-size-md, 20px);
-    height: var(--icon-size-md, 20px);
-  }
-</style>
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  aria-hidden="true"
+>
+  <path stroke-linecap="round" stroke-linejoin="round" d="M7 12h10M7 8h6" />
+  <path
+    d="M3 20.29V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7.961a2 2 0 0 0-1.561.75l-2.331 2.914A.6.6 0 0 1 3 20.29Z"
+  />
+</svg>
