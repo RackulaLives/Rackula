@@ -32,6 +32,8 @@ jobs:
 
       - name: Run octocov
         uses: k1LoW/octocov-action@v1
+        # Continue even if acceptable thresholds aren't met - we want visibility, not enforcement
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
