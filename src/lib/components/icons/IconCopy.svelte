@@ -4,6 +4,9 @@
 
   Sizing: Uses --icon-size-md (20px) by default.
   Override via parent CSS: .parent :global(svg) { width: var(--icon-size-sm); }
+
+  Note: :global() is required because @iconify/svelte generates the SVG
+  internally, so Svelte's scoped styles cannot target it directly.
 -->
 <script lang="ts">
   import Icon from "@iconify/svelte";
@@ -13,7 +16,7 @@
 
 <style>
   :global(.icon-copy) {
-    width: var(--icon-size-md);
-    height: var(--icon-size-md);
+    width: var(--icon-size-md, 20px);
+    height: var(--icon-size-md, 20px);
   }
 </style>
