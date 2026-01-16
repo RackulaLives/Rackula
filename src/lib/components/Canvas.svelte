@@ -245,6 +245,7 @@
     // Only clear selection if clicking directly on the canvas (not on a rack)
     if (event.target === event.currentTarget) {
       selectionStore.clearSelection();
+      layoutStore.setActiveRack(null);
     }
   }
 

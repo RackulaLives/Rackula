@@ -83,8 +83,9 @@
             onfitall?.();
             return;
           }
-          // Otherwise clear selection and close drawers
+          // Otherwise clear selection, active rack, and close drawers
           selectionStore.clearSelection();
+          layoutStore.setActiveRack(null);
           uiStore.closeLeftDrawer();
           uiStore.closeRightDrawer();
         },
