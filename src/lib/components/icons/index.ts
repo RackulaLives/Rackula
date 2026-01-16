@@ -75,3 +75,5 @@ export { default as IconImageBold } from "./IconImageBold.svelte";
 export { default as IconFitAllBold } from "./IconFitAllBold.svelte";
 export { default as IconFolderBold } from "./IconFolderBold.svelte";
 export { default as IconGearBold } from "./IconGearBold.svelte";
+export { default as IconSunBold } from "./IconSunBold.svelte";
+export { default as IconMoonBold } from "./IconMoonBold.svelte";

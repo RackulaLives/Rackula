@@ -61,9 +61,13 @@
   color: var(--colour-text-muted-inverse);
 }
 
+.menu-icon,
 .menu-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 16px;
-  font-size: var(--font-size-sm);
+  flex-shrink: 0;
   color: var(--colour-text-inverse);
 }
 

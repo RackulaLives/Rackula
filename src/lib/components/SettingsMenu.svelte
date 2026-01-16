@@ -5,7 +5,13 @@
 -->
 <script lang="ts">
   import { DropdownMenu } from "bits-ui";
-  import { IconGearBold, IconSquare, IconSquareFilled } from "./icons";
+  import {
+    IconGearBold,
+    IconSquare,
+    IconSquareFilled,
+    IconSunBold,
+    IconMoonBold,
+  } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import "$lib/styles/menu.css";
 
@@ -48,6 +54,13 @@
           open = false;
         }}
       >
+        <span class="menu-icon">
+          {#if theme === "dark"}
+            <IconSunBold size={ICON_SIZE.sm} />
+          {:else}
+            <IconMoonBold size={ICON_SIZE.sm} />
+          {/if}
+        </span>
         <span class="menu-label"
           >{theme === "dark" ? "Light" : "Dark"} Theme</span
         >
