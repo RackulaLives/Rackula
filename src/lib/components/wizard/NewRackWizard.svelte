@@ -305,6 +305,7 @@
             class="input-field"
             bind:value={config.name}
             placeholder="e.g., Main Server Rack"
+            maxlength="50"
             class:error={nameError}
           />
           {#if nameError}

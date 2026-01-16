@@ -618,6 +618,7 @@
           bind:value={rackName}
           onblur={handleNameBlur}
           onkeydown={handleNameKeydown}
+          maxlength="50"
         />
       </div>
 
