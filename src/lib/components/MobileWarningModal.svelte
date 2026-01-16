@@ -7,6 +7,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { AlertDialog } from "bits-ui";
+  import { IconMobile } from "./icons";
 
   const STORAGE_KEY = "rackula-mobile-warning-dismissed";
   const BREAKPOINT = 1024;
@@ -37,24 +38,7 @@
     <AlertDialog.Overlay class="modal-backdrop" />
     <AlertDialog.Content class="modal">
       <div class="modal-icon" aria-hidden="true">
-        <svg
-          width="48"
-          height="48"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-        >
-          <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-          <line
-            x1="12"
-            y1="18"
-            x2="12"
-            y2="18.01"
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-        </svg>
+        <IconMobile />
       </div>
 
       <AlertDialog.Title class="modal-title">
@@ -106,6 +90,11 @@
   .modal-icon {
     color: var(--colour-primary);
     opacity: 0.8;
+  }
+
+  .modal-icon :global(svg) {
+    width: var(--icon-size-2xl);
+    height: var(--icon-size-2xl);
   }
 
   :global(.modal-title) {

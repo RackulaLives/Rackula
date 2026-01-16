@@ -38,6 +38,10 @@ export { default as IconGearBold } from "./IconGearBold.svelte";
 
 // Iconoir icons via @iconify/svelte
 export { default as IconClose } from "./IconClose.svelte";
+export { default as IconEdit } from "./IconEdit.svelte";
+export { default as IconMobile } from "./IconMobile.svelte";
+export { default as IconUpload } from "./IconUpload.svelte";
+export { default as IconPlusIconoir } from "./IconPlusIconoir.svelte";
 
 // Checkbox indicator icons
 export { default as IconSquare } from "./IconSquare.svelte";

@@ -6,6 +6,7 @@
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
   import { Tabs } from "$lib/components/ui/Tabs";
+  import { IconUpload } from "./icons";
   import type { DeviceCategory } from "$lib/types";
   import { ALL_CATEGORIES, CATEGORY_COLOURS } from "$lib/types/constants";
   import {
@@ -218,27 +219,7 @@ is_full_depth: false"
             id="yaml-file"
           />
           <label for="yaml-file" class="file-label">
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 16V8M12 8L9 11M12 8L15 11"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M3 15V17C3 18.1046 3.89543 19 5 19H19C20.1046 19 21 18.1046 21 17V15"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
+            <IconUpload />
             <span>Choose a .yaml or .yml file</span>
           </label>
           {#if yamlInput}
@@ -472,6 +453,11 @@ is_full_depth: false"
 
   .file-label:hover {
     color: var(--colour-selection);
+  }
+
+  .file-label :global(svg) {
+    width: var(--icon-size-lg);
+    height: var(--icon-size-lg);
   }
 
   .file-loaded {

@@ -11,6 +11,7 @@
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
   import MarkdownPreview from "./MarkdownPreview.svelte";
+  import { IconEdit } from "./icons";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -761,22 +762,7 @@
                 selectedDeviceInfo.device.model ??
                 selectedDeviceInfo.device.slug}
             </span>
-            <svg
-              class="edit-icon"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-              />
-              <path
-                d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-              />
-            </svg>
+            <span class="edit-icon-wrapper"><IconEdit /></span>
           </button>
         {/if}
       </div>
@@ -1347,12 +1333,19 @@
     white-space: nowrap;
   }
 
-  .edit-icon {
+  .edit-icon-wrapper {
     flex-shrink: 0;
     opacity: 0.6;
+    display: flex;
+    align-items: center;
   }
 
-  .display-name-display:hover .edit-icon {
+  .edit-icon-wrapper :global(svg) {
+    width: var(--icon-size-xs);
+    height: var(--icon-size-xs);
+  }
+
+  .display-name-display:hover .edit-icon-wrapper {
     opacity: 1;
   }
 
