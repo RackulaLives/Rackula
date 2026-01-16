@@ -11,7 +11,7 @@
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
   import MarkdownPreview from "./MarkdownPreview.svelte";
-  import { IconEdit } from "./icons";
+  import { IconEdit, IconChevronUp, IconChevronDown } from "./icons";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -853,16 +853,7 @@
                 aria-label="Move down 1U"
                 title="Move down 1U"
               >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                >
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
+                <IconChevronDown />
               </button>
               <button
                 type="button"
@@ -872,16 +863,7 @@
                 aria-label="Move up 1U"
                 title="Move up 1U"
               >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                >
-                  <polyline points="18 15 12 9 6 15"></polyline>
-                </svg>
+                <IconChevronUp />
               </button>
               <span class="position-divider"></span>
               <button
@@ -1425,6 +1407,11 @@
     transition:
       background-color var(--duration-fast),
       border-color var(--duration-fast);
+  }
+
+  .position-btn :global(svg) {
+    width: var(--icon-size-xs);
+    height: var(--icon-size-xs);
   }
 
   .position-btn:hover:not(:disabled) {

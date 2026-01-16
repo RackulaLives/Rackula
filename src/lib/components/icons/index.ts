@@ -46,3 +46,7 @@ export { default as IconPlusIconoir } from "./IconPlusIconoir.svelte";
 // Checkbox indicator icons
 export { default as IconSquare } from "./IconSquare.svelte";
 export { default as IconSquareFilled } from "./IconSquareFilled.svelte";
+
+// Navigation chevron icons
+export { default as IconChevronUp } from "./IconChevronUp.svelte";
+export { default as IconChevronDown } from "./IconChevronDown.svelte";
