@@ -15,7 +15,6 @@
   let { activeTab, onchange }: Props = $props();
 
   const tabs: { id: SidebarTab; label: string; icon: string }[] = [
-    { id: "hide", label: "Hide", icon: "←" },
     { id: "devices", label: "Devices", icon: "⬡" },
     { id: "racks", label: "Racks", icon: "▤" },
   ];

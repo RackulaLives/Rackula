@@ -380,9 +380,6 @@ describe("UI Store", () => {
       store.setSidebarTab("racks");
       expect(store.sidebarTab).toBe("racks");
 
-      store.setSidebarTab("hide");
-      expect(store.sidebarTab).toBe("hide");
-
       store.setSidebarTab("devices");
       expect(store.sidebarTab).toBe("devices");
     });
