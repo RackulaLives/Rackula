@@ -13,7 +13,7 @@
     getCategoryDisplayName,
     sortDevicesByBrandThenModel,
     sortDevicesAlphabetically,
-    filterDevicesByRackWidth,
+    isDeviceCompatibleWithRackWidth,
   } from "$lib/utils/deviceFilters";
   import {
     loadGroupingModeFromStorage,
@@ -129,9 +129,29 @@
   // Get brand packs
   const brandPacks = getBrandPacks();
 
-  // Get active rack width for filtering (defaults to 19" standard if no active rack)
+  // Get active rack width for compatibility check (defaults to 19" standard if no active rack)
   // Uses minimum-width logic: devices fit if rack width >= device width
   const activeRackWidth = $derived(layoutStore.activeRack?.width ?? 19);
+
+  /**
+   * Check if a device is compatible with the current active rack width.
+   */
+  function checkDeviceCompatibility(device: DeviceType): boolean {
+    return isDeviceCompatibleWithRackWidth(device, activeRackWidth);
+  }
+
+  /**
+   * Generate tooltip text explaining why a device is incompatible with the current rack.
+   * Returns empty string if the device is compatible.
+   */
+  function getIncompatibilityReason(device: DeviceType): string {
+    if (checkDeviceCompatibility(device)) {
+      return "";
+    }
+    const deviceWidths = device.rack_widths?.length ? device.rack_widths : [19];
+    const minWidth = Math.min(...deviceWidths);
+    return `Requires ${minWidth}" rack (current: ${activeRackWidth}")`;
+  }
 
   // Merge starter library with layout device types for display
   // Starter library is always available; layout.device_types contains placed/custom devices
@@ -154,25 +174,21 @@
     ];
   });
 
-  // Filter generic devices (merged starter + layout) by rack width compatibility then search
-  const rackWidthFilteredGenericDevices = $derived(
-    filterDevicesByRackWidth(allGenericDevices, activeRackWidth),
-  );
+  // Search generic devices (merged starter + layout) - no longer filtering by rack width
+  // Compatibility is now shown visually instead of hiding devices
   const filteredGenericDevices = $derived(
-    searchDevices(rackWidthFilteredGenericDevices, searchQuery),
+    searchDevices(allGenericDevices, searchQuery),
   );
   const groupedGenericDevices = $derived(
     groupDevicesByCategory(filteredGenericDevices),
   );
 
-  // Filter brand pack devices by rack width compatibility then search
+  // Search brand pack devices - no longer filtering by rack width
+  // Compatibility is now shown visually instead of hiding devices
   const filteredBrandPacks = $derived(
     brandPacks.map((pack) => ({
       ...pack,
-      devices: searchDevices(
-        filterDevicesByRackWidth(pack.devices, activeRackWidth),
-        searchQuery,
-      ),
+      devices: searchDevices(pack.devices, searchQuery),
     })),
   );
 
@@ -183,16 +199,14 @@
     ),
   );
 
-  // All devices combined (for category and flat modes), filtered by rack width
-  const rackWidthFilteredAllDevices = $derived(
-    filterDevicesByRackWidth(
-      [...allGenericDevices, ...brandPacks.flatMap((p) => p.devices)],
-      activeRackWidth,
-    ),
-  );
-  const _allDevices = $derived(rackWidthFilteredAllDevices);
+  // All devices combined (for category and flat modes) - no longer filtering by rack width
+  // Compatibility is now shown visually instead of hiding devices
+  const allDevicesCombined = $derived([
+    ...allGenericDevices,
+    ...brandPacks.flatMap((p) => p.devices),
+  ]);
   const filteredAllDevices = $derived(
-    searchDevices(rackWidthFilteredAllDevices, searchQuery),
+    searchDevices(allDevicesCombined, searchQuery),
   );
 
   // Category order for consistent display
@@ -468,6 +482,10 @@
                             <DevicePaletteItem
                               {device}
                               searchQuery={isSearchActive ? searchQuery : ""}
+                              isCompatible={checkDeviceCompatibility(device)}
+                              incompatibilityReason={getIncompatibilityReason(
+                                device,
+                              )}
                               onselect={handleDeviceSelect}
                             />
                           {/each}
@@ -482,6 +500,8 @@
                       <DevicePaletteItem
                         {device}
                         searchQuery={isSearchActive ? searchQuery : ""}
+                        isCompatible={checkDeviceCompatibility(device)}
+                        incompatibilityReason={getIncompatibilityReason(device)}
                         onselect={handleDeviceSelect}
                       />
                     {/each}
