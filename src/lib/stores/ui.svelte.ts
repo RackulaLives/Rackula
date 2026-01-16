@@ -19,8 +19,9 @@ import type { DisplayMode, AnnotationField } from "$lib/types";
 // Sidebar tab type (hide removed - collapse is now gesture-based)
 export type SidebarTab = "devices" | "racks";
 
-// localStorage key for sidebar tab
+// localStorage keys
 const SIDEBAR_TAB_KEY = "Rackula_sidebar_tab";
+const WARN_UNSAVED_KEY = "Rackula_warn_unsaved";
 
 /**
  * Valid sidebar tab values for runtime validation
@@ -66,6 +67,32 @@ function saveSidebarTabToStorage(tab: SidebarTab): void {
   }
 }
 
+/**
+ * Load warn on unsaved changes setting from localStorage
+ */
+function loadWarnUnsavedFromStorage(): boolean {
+  try {
+    const stored = localStorage.getItem(WARN_UNSAVED_KEY);
+    if (stored !== null) {
+      return stored === "true";
+    }
+  } catch {
+    // localStorage not available
+  }
+  return true; // default to warning enabled
+}
+
+/**
+ * Save warn on unsaved changes setting to localStorage
+ */
+function saveWarnUnsavedToStorage(warn: boolean): void {
+  try {
+    localStorage.setItem(WARN_UNSAVED_KEY, String(warn));
+  } catch {
+    // localStorage not available
+  }
+}
+
 // Zoom constants
 export const ZOOM_MIN = 50;
 export const ZOOM_MAX = 200;
@@ -75,6 +102,7 @@ export const ZOOM_STEP = 25;
 const initialTheme = loadThemeFromStorage();
 const initialSidebarCollapsed = loadSidebarCollapsedFromStorage();
 const initialSidebarTab = loadSidebarTabFromStorage();
+const initialWarnUnsaved = loadWarnUnsavedFromStorage();
 
 // Module-level state (using $state rune)
 let theme = $state<Theme>(initialTheme);
@@ -87,6 +115,7 @@ let annotationField = $state<AnnotationField>("name");
 let showBanana = $state(false);
 let sidebarCollapsed = $state(initialSidebarCollapsed);
 let sidebarTab = $state<SidebarTab>(initialSidebarTab);
+let warnOnUnsavedChanges = $state(initialWarnUnsaved);
 
 // Derived values (using $derived rune)
 const canZoomIn = $derived(zoom < ZOOM_MAX);
@@ -114,6 +143,7 @@ export function resetUIStore(): void {
   showBanana = false;
   sidebarCollapsed = loadSidebarCollapsedFromStorage();
   sidebarTab = loadSidebarTabFromStorage();
+  warnOnUnsavedChanges = loadWarnUnsavedFromStorage();
   applyThemeToDocument(theme);
 }
 
@@ -181,6 +211,9 @@ export function getUIStore() {
     get sidebarTab() {
       return sidebarTab;
     },
+    get warnOnUnsavedChanges() {
+      return warnOnUnsavedChanges;
+    },
 
     // Theme actions
     toggleTheme,
@@ -216,6 +249,9 @@ export function getUIStore() {
     collapseSidebar,
     expandSidebar,
     setSidebarTab,
+
+    // Unsaved changes warning action
+    toggleWarnOnUnsavedChanges,
   };
 }
 
@@ -415,4 +451,12 @@ function setSidebarTab(tab: SidebarTab): void {
   if (!isValidSidebarTab(tab)) return;
   sidebarTab = tab;
   saveSidebarTabToStorage(tab);
+}
+
+/**
+ * Toggle warn on unsaved changes setting
+ */
+function toggleWarnOnUnsavedChanges(): void {
+  warnOnUnsavedChanges = !warnOnUnsavedChanges;
+  saveWarnUnsavedToStorage(warnOnUnsavedChanges);
 }

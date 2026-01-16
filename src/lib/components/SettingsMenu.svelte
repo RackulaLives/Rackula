@@ -19,18 +19,22 @@
     theme?: "dark" | "light";
     showAnnotations?: boolean;
     showBanana?: boolean;
+    warnOnUnsavedChanges?: boolean;
     ontoggletheme?: () => void;
     ontoggleannotations?: () => void;
     ontogglebanana?: () => void;
+    ontogglewarnunsaved?: () => void;
   }
 
   let {
     theme = "dark",
     showAnnotations = false,
     showBanana = false,
+    warnOnUnsavedChanges = true,
     ontoggletheme,
     ontoggleannotations,
     ontogglebanana,
+    ontogglewarnunsaved,
   }: Props = $props();
 
   let open = $state(false);
@@ -101,6 +105,25 @@
             {/if}
           </span>
           <span class="menu-label">Banana for Scale</span>
+        {/snippet}
+      </DropdownMenu.CheckboxItem>
+
+      <DropdownMenu.Separator class="menu-separator" />
+
+      <DropdownMenu.CheckboxItem
+        class="menu-item"
+        checked={warnOnUnsavedChanges}
+        onCheckedChange={handleSelect(ontogglewarnunsaved)}
+      >
+        {#snippet children({ checked })}
+          <span class="menu-checkbox">
+            {#if checked}
+              <IconSquareFilled size={ICON_SIZE.sm} />
+            {:else}
+              <IconSquare size={ICON_SIZE.sm} />
+            {/if}
+          </span>
+          <span class="menu-label">Warn on Unsaved Changes</span>
         {/snippet}
       </DropdownMenu.CheckboxItem>
     </DropdownMenu.Content>

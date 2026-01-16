@@ -30,6 +30,7 @@
     displayMode?: DisplayMode;
     showAnnotations?: boolean;
     showBanana?: boolean;
+    warnOnUnsavedChanges?: boolean;
     partyMode?: boolean;
     onnewrack?: () => void;
     onsave?: () => void;
@@ -41,6 +42,7 @@
     ontoggledisplaymode?: () => void;
     ontoggleannotations?: () => void;
     ontogglebanana?: () => void;
+    ontogglewarnunsaved?: () => void;
     onhelp?: () => void;
   }
 
@@ -50,6 +52,7 @@
     displayMode = "label",
     showAnnotations = false,
     showBanana = false,
+    warnOnUnsavedChanges = true,
     partyMode = false,
     onnewrack,
     onsave,
@@ -61,6 +64,7 @@
     ontoggledisplaymode,
     ontoggleannotations,
     ontogglebanana,
+    ontogglewarnunsaved,
     onhelp,
   }: Props = $props();
 
@@ -139,6 +143,11 @@
   function handleToggleBanana() {
     analytics.trackToolbarClick("banana");
     ontogglebanana?.();
+  }
+
+  function handleToggleWarnUnsaved() {
+    analytics.trackToolbarClick("warn-unsaved");
+    ontogglewarnunsaved?.();
   }
 </script>
 
@@ -250,9 +259,11 @@
       {theme}
       {showAnnotations}
       {showBanana}
+      {warnOnUnsavedChanges}
       ontoggletheme={handleToggleTheme}
       ontoggleannotations={handleToggleAnnotations}
       ontogglebanana={handleToggleBanana}
+      ontogglewarnunsaved={handleToggleWarnUnsaved}
     />
   </div>
 </header>

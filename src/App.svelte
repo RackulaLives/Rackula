@@ -669,7 +669,7 @@
 
   // Beforeunload handler for unsaved changes
   function handleBeforeUnload(event: BeforeUnloadEvent) {
-    if (layoutStore.isDirty) {
+    if (uiStore.warnOnUnsavedChanges && layoutStore.isDirty) {
       event.preventDefault();
       // Modern browsers ignore custom messages, but we set it for legacy support
       event.returnValue = "You have unsaved changes. Leave anyway?";
@@ -917,6 +917,7 @@
       displayMode={uiStore.displayMode}
       showAnnotations={uiStore.showAnnotations}
       showBanana={uiStore.showBanana}
+      warnOnUnsavedChanges={uiStore.warnOnUnsavedChanges}
       {partyMode}
       onnewrack={handleNewRack}
       onsave={handleSave}
@@ -929,6 +930,7 @@
       ontoggledisplaymode={handleToggleDisplayMode}
       ontoggleannotations={handleToggleAnnotations}
       ontogglebanana={() => uiStore.toggleBanana()}
+      ontogglewarnunsaved={() => uiStore.toggleWarnOnUnsavedChanges()}
       onhelp={handleHelp}
     />
 
