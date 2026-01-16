@@ -7,7 +7,14 @@
   import { Dialog } from "bits-ui";
   import { VERSION } from "$lib/version";
   import LogoLockup from "./LogoLockup.svelte";
-  import { IconClose } from "./icons";
+  import {
+    IconClose,
+    IconGitHub,
+    IconBug,
+    IconChat,
+    IconCheck,
+    IconCopy,
+  } from "./icons";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { formatShortcut } from "$lib/utils/platform";
@@ -243,17 +250,7 @@
               rel="noopener noreferrer"
               class="quick-link"
             >
-              <svg
-                viewBox="0 0 16 16"
-                width="16"
-                height="16"
-                aria-hidden="true"
-              >
-                <path
-                  fill="currentColor"
-                  d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
-                />
-              </svg>
+              <IconGitHub />
               Project
             </a>
             <a
@@ -262,17 +259,7 @@
               rel="noopener noreferrer"
               class="quick-link"
             >
-              <svg
-                viewBox="0 0 16 16"
-                width="16"
-                height="16"
-                aria-hidden="true"
-              >
-                <path
-                  fill="currentColor"
-                  d="M4.72.22a.75.75 0 0 1 1.06 0l1 1a.75.75 0 0 1 0 1.06l-.22.22.439.44a5.02 5.02 0 0 1 2.022 0l.439-.44-.22-.22a.75.75 0 1 1 1.06-1.06l1 1a.75.75 0 0 1 0 1.06l-.22.22c.224.264.42.554.583.862L13 4.75a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-.75.75h-1.173a5.013 5.013 0 0 1 0 1.498H13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-.75.75h-1.341a4.997 4.997 0 0 1-.583.862l.22.22a.75.75 0 1 1-1.06 1.06l-1-1a.75.75 0 0 1 0-1.06l.22-.22a4.96 4.96 0 0 1-.439-.44 5.02 5.02 0 0 1-2.022 0l-.44.44.221.22a.75.75 0 1 1-1.06 1.06l-1-1a.75.75 0 0 1 0-1.06l.22-.22a4.997 4.997 0 0 1-.583-.862H3a.75.75 0 0 1-.75-.75v-1.5a.75.75 0 0 1 .75-.75h1.173a5.013 5.013 0 0 1 0-1.498H3a.75.75 0 0 1-.75-.75v-1.5A.75.75 0 0 1 3 4.75h1.341c.163-.308.359-.598.583-.862l-.22-.22a.75.75 0 0 1 0-1.06l1-1Zm2.78 5.53a3.5 3.5 0 1 0 5 5 3.5 3.5 0 0 0-5-5Z"
-                />
-              </svg>
+              <IconBug />
               Report Bug
             </a>
             <a
@@ -281,17 +268,7 @@
               rel="noopener noreferrer"
               class="quick-link"
             >
-              <svg
-                viewBox="0 0 16 16"
-                width="16"
-                height="16"
-                aria-hidden="true"
-              >
-                <path
-                  fill="currentColor"
-                  d="M1.75 1h8.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 10.25 10H7.061l-2.574 2.573A1.458 1.458 0 0 1 2 11.543V10h-.25A1.75 1.75 0 0 1 0 8.25v-5.5C0 1.784.784 1 1.75 1ZM1.5 2.75v5.5c0 .138.112.25.25.25h1a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h3.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13 2a.25.25 0 0 0-.25-.25h-.5a.75.75 0 0 1 0-1.5h.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 14.25 12H14v1.543a1.458 1.458 0 0 1-2.487 1.03L9.22 12.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215l2.22 2.22v-2.19a.75.75 0 0 1 .75-.75h1a.25.25 0 0 0 .25-.25Z"
-                />
-              </svg>
+              <IconChat />
               Share Ideas
             </a>
           </div>
@@ -350,34 +327,10 @@
               onclick={copyBuildInfo}
             >
               {#if copied}
-                <svg
-                  viewBox="0 0 16 16"
-                  width="14"
-                  height="14"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill="currentColor"
-                    d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"
-                  />
-                </svg>
+                <IconCheck />
                 Copied!
               {:else}
-                <svg
-                  viewBox="0 0 16 16"
-                  width="14"
-                  height="14"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill="currentColor"
-                    d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
-                  />
-                </svg>
+                <IconCopy />
                 Copy for bug report
               {/if}
             </button>
@@ -540,6 +493,12 @@
     border-style: solid;
   }
 
+  /* Override icon sizes within copy button to match previous inline SVGs (14px) */
+  .copy-info-btn :global(svg) {
+    width: var(--icon-size-xs);
+    height: var(--icon-size-xs);
+  }
+
   /* Shortcut groups */
   .shortcut-group {
     display: flex;
@@ -621,6 +580,12 @@
   .quick-link:focus-visible {
     outline: 2px solid var(--colour-selection);
     outline-offset: 2px;
+  }
+
+  /* Override icon sizes within quick links to match previous inline SVGs */
+  .quick-link :global(svg) {
+    width: var(--icon-size-sm);
+    height: var(--icon-size-sm);
   }
 
   .made-in {

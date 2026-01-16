@@ -50,3 +50,9 @@ export { default as IconSquareFilled } from "./IconSquareFilled.svelte";
 // Navigation chevron icons
 export { default as IconChevronUp } from "./IconChevronUp.svelte";
 export { default as IconChevronDown } from "./IconChevronDown.svelte";
+
+// HelpPanel icons
+export { default as IconGitHub } from "./IconGitHub.svelte";
+export { default as IconBug } from "./IconBug.svelte";
+export { default as IconChat } from "./IconChat.svelte";
+export { default as IconCheck } from "./IconCheck.svelte";
