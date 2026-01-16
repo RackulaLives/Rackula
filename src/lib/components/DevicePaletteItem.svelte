@@ -25,6 +25,10 @@
     device: DeviceType;
     librarySelected?: boolean;
     searchQuery?: string;
+    /** Whether device is compatible with current rack width. Defaults to true. */
+    isCompatible?: boolean;
+    /** Tooltip text to show when device is incompatible */
+    incompatibilityReason?: string;
     onselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
   }
 
@@ -32,6 +36,8 @@
     device,
     librarySelected = false,
     searchQuery = "",
+    isCompatible = true,
+    incompatibilityReason = "",
     onselect,
   }: Props = $props();
 
@@ -56,6 +62,12 @@
   }
 
   function handleDragStart(event: DragEvent) {
+    // Prevent dragging incompatible devices
+    if (!isCompatible) {
+      event.preventDefault();
+      return;
+    }
+
     if (!event.dataTransfer) return;
 
     const dragData = createPaletteDragData(device);
@@ -94,16 +106,20 @@
   class="device-palette-item"
   class:dragging={isDragging}
   class:library-selected={librarySelected}
+  class:incompatible={!isCompatible}
   role="listitem"
   tabindex="0"
-  draggable="true"
+  draggable={isCompatible}
   data-testid="device-palette-item"
+  title={!isCompatible ? incompatibilityReason : undefined}
   onclick={handleClick}
   onkeydown={handleKeyDown}
   ondragstart={handleDragStart}
   ondrag={handleDrag}
   ondragend={handleDragEnd}
-  aria-label="{deviceName}, {device.u_height}U {device.category}"
+  aria-label="{deviceName}, {device.u_height}U {device.category}{!isCompatible
+    ? ` (${incompatibilityReason})`
+    : ''}"
 >
   <span class="drag-handle" aria-hidden="true">
     <IconGrip size={16} />
@@ -178,6 +194,28 @@
       transparent
     );
     border: 1px solid var(--colour-selection);
+  }
+
+  /* Incompatible device styling */
+  .device-palette-item.incompatible {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .device-palette-item.incompatible:hover {
+    /* Override normal hover effects - keep muted appearance */
+    transform: none;
+    box-shadow: none;
+    background-color: transparent;
+  }
+
+  .device-palette-item.incompatible .device-name {
+    text-decoration: line-through;
+    text-decoration-color: var(--colour-text-muted);
+  }
+
+  .device-palette-item.incompatible .drag-handle {
+    opacity: 0.3;
   }
 
   .drag-handle {
