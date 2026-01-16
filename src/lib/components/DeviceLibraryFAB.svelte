@@ -6,6 +6,7 @@
 <script lang="ts">
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { analytics } from "$lib/utils/analytics";
+  import { IconPlusIconoir } from "./icons";
 
   interface Props {
     onclick?: () => void;
@@ -28,21 +29,7 @@
     onclick={handleClick}
     aria-label="Open device library"
   >
-    <!-- Plus icon -->
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-    >
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
+    <IconPlusIconoir />
   </button>
 {/if}
 
@@ -90,6 +77,11 @@
   .device-library-fab:focus-visible {
     outline: 2px solid var(--colour-selection);
     outline-offset: 2px;
+  }
+
+  .device-library-fab :global(svg) {
+    width: var(--icon-size-lg);
+    height: var(--icon-size-lg);
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -11,6 +11,12 @@
 </p>
 
 <p align="center">
+  <img src="docs/badges/coverage.svg" alt="Coverage">
+  <img src="docs/badges/ratio.svg" alt="Code to Test Ratio">
+  <img src="docs/badges/time.svg" alt="Test Time">
+</p>
+
+<p align="center">
   <strong>Drag and drop rack visualizer</strong>
 </p>
 

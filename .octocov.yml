@@ -1,0 +1,53 @@
+# octocov configuration
+# See: https://github.com/k1LoW/octocov
+
+# Coverage reporting from vitest LCOV output
+coverage:
+  paths:
+    - coverage/lcov.info
+  acceptable: current >= 70%
+  badge:
+    path: docs/badges/coverage.svg
+
+# Code to test ratio
+# Measures lines of source code vs test code
+codeToTestRatio:
+  code:
+    - "src/lib/**/*.ts"
+    - "src/lib/**/*.svelte"
+    - "!src/lib/**/*.test.ts"
+    - "!src/lib/**/*.spec.ts"
+  test:
+    - "src/**/*.test.ts"
+    - "src/**/*.spec.ts"
+    - "tests/**/*.ts"
+  acceptable: current >= 0.5
+  badge:
+    path: docs/badges/ratio.svg
+
+# Test execution time (GitHub Actions only)
+testExecutionTime:
+  acceptable: current <= 300sec
+  badge:
+    path: docs/badges/time.svg
+
+# PR comment configuration
+comment:
+  hideFooterLink: false
+  deletePrevious: true
+  if: is_pull_request
+
+# Summary for GitHub Actions Job Summary
+summary:
+  if: true
+
+# Store reports for diff comparison
+report:
+  datastores:
+    - artifact://${GITHUB_REPOSITORY}
+
+# Compare against previous reports
+diff:
+  datastores:
+    - artifact://${GITHUB_REPOSITORY}
+  if: is_pull_request

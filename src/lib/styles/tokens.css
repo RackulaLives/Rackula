@@ -128,10 +128,12 @@
   --font-weight-bold: 700;
 
   /* Icon Sizes */
+  --icon-size-xs: 14px;
   --icon-size-sm: 16px;
   --icon-size-md: 20px;
   --icon-size-lg: 24px;
   --icon-size-xl: 28px;
+  --icon-size-2xl: 48px;
 
   /* Line Heights */
   --line-height-tight: 1.25;
