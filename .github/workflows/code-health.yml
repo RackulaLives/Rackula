@@ -1,0 +1,271 @@
+name: "The Count's Weekly Census"
+
+on:
+  schedule:
+    # Run weekly on Sunday at 2am UTC
+    - cron: "0 2 * * 0"
+  workflow_dispatch:
+    inputs:
+      skip_mutations:
+        description: "Skip mutation testing (faster)"
+        required: false
+        default: "false"
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  code-health:
+    name: "Deep Analysis"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ============================================
+      # MUTATION TESTING (Stryker)
+      # ============================================
+      - name: Run Mutation Testing
+        id: mutations
+        if: ${{ github.event.inputs.skip_mutations != 'true' }}
+        continue-on-error: true
+        run: |
+          # Run Stryker on utils directory (limited scope for speed)
+          npx stryker run --reporters json,clear-text || true
+
+          # Parse mutation score
+          if [ -f "reports/mutation/mutation.json" ]; then
+            MUTATION_SCORE=$(jq -r '.schemaVersion // empty' reports/mutation/mutation.json >/dev/null && \
+              jq -r '[.files[].mutants[] | select(.status == "Killed")] | length as $killed |
+                     [.files[].mutants[]] | length as $total |
+                     if $total > 0 then ($killed / $total * 100 | floor) else 0 end' reports/mutation/mutation.json 2>/dev/null || echo "0")
+          else
+            MUTATION_SCORE="N/A"
+          fi
+
+          echo "mutation_score=$MUTATION_SCORE" >> $GITHUB_OUTPUT
+
+      # ============================================
+      # FLAKY TEST DETECTION
+      # ============================================
+      - name: Detect Flaky Tests
+        id: flaky
+        run: |
+          mkdir -p reports/flaky
+          FLAKY_TESTS=""
+          FAILED_RUNS=0
+
+          # Run tests 5 times, collect results
+          for i in 1 2 3 4 5; do
+            echo "=== Test Run $i ===" >> reports/flaky/runs.log
+            npm run test:run -- --reporter=json > "reports/flaky/run-$i.json" 2>&1 || true
+
+            # Extract test names and results
+            if [ -f "reports/flaky/run-$i.json" ]; then
+              jq -r '.testResults[]?.assertionResults[]? | "\(.ancestorTitles | join(" > ")) > \(.title): \(.status)"' \
+                "reports/flaky/run-$i.json" 2>/dev/null >> "reports/flaky/run-$i.txt" || true
+            fi
+          done
+
+          # Compare runs to find inconsistent tests
+          if [ -f "reports/flaky/run-1.txt" ]; then
+            # Find tests that had different results across runs
+            cat reports/flaky/run-*.txt 2>/dev/null | sort | uniq -c | \
+              awk '$1 != 5 && $1 > 0 {print substr($0, index($0,$2))}' | \
+              sort -u > reports/flaky/flaky-candidates.txt || true
+
+            if [ -s reports/flaky/flaky-candidates.txt ]; then
+              FLAKY_COUNT=$(wc -l < reports/flaky/flaky-candidates.txt | tr -d ' ')
+              FLAKY_TESTS=$(cat reports/flaky/flaky-candidates.txt | head -10)
+            else
+              FLAKY_COUNT=0
+            fi
+          else
+            FLAKY_COUNT=0
+          fi
+
+          echo "flaky_count=$FLAKY_COUNT" >> $GITHUB_OUTPUT
+
+          # Store flaky tests for later (handle multiline)
+          {
+            echo "flaky_tests<<EOF"
+            echo "$FLAKY_TESTS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      # ============================================
+      # COMPLEXITY ANALYSIS
+      # ============================================
+      - name: Analyze Complexity
+        id: complexity
+        run: |
+          mkdir -p reports/complexity
+
+          # Run ESLint with complexity rule and capture high-complexity functions
+          npx eslint src/lib --rule 'complexity: ["warn", 10]' --format json > reports/complexity/eslint.json 2>/dev/null || true
+
+          # Count high-complexity functions
+          if [ -f "reports/complexity/eslint.json" ]; then
+            COMPLEX_COUNT=$(jq '[.[].messages[] | select(.ruleId == "complexity")] | length' reports/complexity/eslint.json 2>/dev/null || echo "0")
+
+            # Get top offenders
+            COMPLEX_FUNCTIONS=$(jq -r '.[].messages[] | select(.ruleId == "complexity") |
+              "\(.message) in \(input_filename // "unknown"):\(.line)"' reports/complexity/eslint.json 2>/dev/null | head -5 || echo "")
+          else
+            COMPLEX_COUNT=0
+            COMPLEX_FUNCTIONS=""
+          fi
+
+          echo "complex_count=$COMPLEX_COUNT" >> $GITHUB_OUTPUT
+
+          {
+            echo "complex_functions<<EOF"
+            echo "$COMPLEX_FUNCTIONS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      # ============================================
+      # CODE METRICS
+      # ============================================
+      - name: Gather Code Metrics
+        id: metrics
+        run: |
+          # Lines of code
+          CODE_LINES=$(find src/lib -name "*.ts" -o -name "*.svelte" | grep -v test | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
+          TEST_LINES=$(find src -name "*.test.ts" -o -name "*.spec.ts" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
+
+          # File counts
+          CODE_FILES=$(find src/lib -name "*.ts" -o -name "*.svelte" | grep -v test | wc -l | tr -d ' ')
+          TEST_FILES=$(find src -name "*.test.ts" -o -name "*.spec.ts" | wc -l | tr -d ' ')
+
+          echo "code_lines=$CODE_LINES" >> $GITHUB_OUTPUT
+          echo "test_lines=$TEST_LINES" >> $GITHUB_OUTPUT
+          echo "code_files=$CODE_FILES" >> $GITHUB_OUTPUT
+          echo "test_files=$TEST_FILES" >> $GITHUB_OUTPUT
+
+      # ============================================
+      # CREATE WEEKLY REPORT ISSUE
+      # ============================================
+      - name: The Count's Weekly Report
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          MUTATION_SCORE="${{ steps.mutations.outputs.mutation_score }}"
+          FLAKY_COUNT="${{ steps.flaky.outputs.flaky_count }}"
+          COMPLEX_COUNT="${{ steps.complexity.outputs.complex_count }}"
+          CODE_LINES="${{ steps.metrics.outputs.code_lines }}"
+          TEST_LINES="${{ steps.metrics.outputs.test_lines }}"
+          CODE_FILES="${{ steps.metrics.outputs.code_files }}"
+          TEST_FILES="${{ steps.metrics.outputs.test_files }}"
+
+          # The Count's mood based on overall health
+          if [ "$FLAKY_COUNT" -gt 5 ] || [ "$COMPLEX_COUNT" -gt 10 ]; then
+            MOOD="is CONCERNED"
+            EMOJI="⚰️"
+            QUOTE="*\"The Count has found... problems. Many problems to count! Ah ah ah!\"*"
+          elif [ "$FLAKY_COUNT" -gt 0 ] || [ "$COMPLEX_COUNT" -gt 5 ]; then
+            MOOD="is watching"
+            EMOJI="🌙"
+            QUOTE="*\"Some things need attention. The Count is watching. Ah ah ah.\"*"
+          else
+            MOOD="is DELIGHTED"
+            EMOJI="🦇"
+            QUOTE="*\"Wonderful! Clean code, reliable tests! The Count approves! Ah ah ah!\"*"
+          fi
+
+          # Format date for title
+          WEEK_DATE=$(date +"%Y-%m-%d")
+
+          # Build flaky tests section
+          FLAKY_SECTION=""
+          if [ "$FLAKY_COUNT" -gt 0 ]; then
+            FLAKY_SECTION="### Flaky Tests Detected
+
+          The following tests showed inconsistent results across 5 runs:
+
+          \`\`\`
+          ${{ steps.flaky.outputs.flaky_tests }}
+          \`\`\`
+          "
+          fi
+
+          # Build complexity section
+          COMPLEX_SECTION=""
+          if [ "$COMPLEX_COUNT" -gt 0 ]; then
+            COMPLEX_SECTION="### High Complexity Functions
+
+          Functions exceeding complexity threshold (10):
+
+          \`\`\`
+          ${{ steps.complexity.outputs.complex_functions }}
+          \`\`\`
+          "
+          fi
+
+          # Create the weekly report issue
+          gh issue create \
+            --title "🧛 Weekly Code Health Report - $WEEK_DATE" \
+            --label "automated" \
+            --body "## $EMOJI The Count $MOOD
+
+          $QUOTE
+
+          ---
+
+          ## Code Metrics
+
+          | Metric | Value |
+          |--------|-------|
+          | Source Files | $CODE_FILES |
+          | Test Files | $TEST_FILES |
+          | Source LOC | $CODE_LINES |
+          | Test LOC | $TEST_LINES |
+          | Code:Test Ratio | 1:$(echo "scale=2; $TEST_LINES / $CODE_LINES" | bc 2>/dev/null || echo "N/A") |
+
+          ## Test Quality
+
+          | Metric | Value | Status |
+          |--------|-------|--------|
+          | Mutation Score | ${MUTATION_SCORE}% | $([ \"$MUTATION_SCORE\" = \"N/A\" ] && echo \"⏭️ Skipped\" || ([ \"$MUTATION_SCORE\" -ge 70 ] && echo \"✅\" || echo \"⚠️\")) |
+          | Flaky Tests | $FLAKY_COUNT | $([ \"$FLAKY_COUNT\" -eq 0 ] && echo \"✅\" || echo \"⚠️\") |
+          | High Complexity | $COMPLEX_COUNT | $([ \"$COMPLEX_COUNT\" -le 5 ] && echo \"✅\" || echo \"⚠️\") |
+
+          $FLAKY_SECTION
+          $COMPLEX_SECTION
+
+          ---
+
+          <sub>*One weekly report! Ah ah ah!* 🦇</sub>
+          <sub>Generated by [The Count's Weekly Census](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>
+          "
+
+      # ============================================
+      # JOB SUMMARY
+      # ============================================
+      - name: Write Job Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## 🧛 The Count's Weekly Census Complete
+
+          | Metric | Value |
+          |--------|-------|
+          | Mutation Score | ${{ steps.mutations.outputs.mutation_score }}% |
+          | Flaky Tests | ${{ steps.flaky.outputs.flaky_count }} |
+          | High Complexity Functions | ${{ steps.complexity.outputs.complex_count }} |
+          | Source LOC | ${{ steps.metrics.outputs.code_lines }} |
+          | Test LOC | ${{ steps.metrics.outputs.test_lines }} |
+
+          *Ah ah ah!* 🦇
+          EOF

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "reporters": ["json", "clear-text", "progress"],
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "mutate": [
+    "src/lib/utils/**/*.ts",
+    "!src/lib/utils/**/*.test.ts",
+    "!src/lib/utils/**/*.spec.ts",
+    "!src/lib/utils/debug.ts"
+  ],
+  "coverageAnalysis": "perTest",
+  "concurrency": 2,
+  "timeoutMS": 60000,
+  "timeoutFactor": 2.5,
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  },
+  "disableTypeChecks": "{src/lib/**/*.ts,src/lib/**/*.svelte}",
+  "checkers": [],
+  "ignoreStatic": true
+}
