@@ -29,6 +29,7 @@ codeToTestRatio:
 # Test execution time (GitHub Actions only)
 testExecutionTime:
   # Keep tests fast - alert if they slow down significantly
+  # Note: octocov doesn't support compound conditions; CI timeout acts as absolute cap
   acceptable: diff <= 30sec
 
 # PR comment configuration
