@@ -66,6 +66,13 @@ export const MIN_DEVICE_HEIGHT = 0.5;
 export const MAX_DEVICE_HEIGHT = 42;
 
 /**
+ * Number of internal units per rack unit (1U).
+ * Positions are stored as multiples of 1/6U for precision.
+ * 6 is the LCM of 2 and 3, supporting both 1/2U and 1/3U increments.
+ */
+export const UNITS_PER_U = 6;
+
+/**
  * Maximum number of racks allowed per layout
  * v0.6.0: Multi-rack support enabled
  */
@@ -74,7 +81,7 @@ export const MAX_RACKS = 10;
 /**
  * Current layout schema version
  */
-export const CURRENT_VERSION = "1.0.0";
+export const CURRENT_VERSION = "1.1.0";
 
 /**
  * Standard rack width in inches (19" rack)

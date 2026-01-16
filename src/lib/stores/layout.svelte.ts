@@ -17,7 +17,12 @@ import type {
   DisplayMode,
   Cable,
 } from "$lib/types";
-import { DEFAULT_DEVICE_FACE, MAX_RACKS } from "$lib/types/constants";
+import {
+  DEFAULT_DEVICE_FACE,
+  MAX_RACKS,
+  UNITS_PER_U,
+} from "$lib/types/constants";
+import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
 import {
   canPlaceDevice,
   canPlaceInContainer,
@@ -2110,22 +2115,25 @@ function deleteDeviceTypeRecorded(slug: string): void {
  * Face defaults based on device depth: full-depth -> 'both', half-depth -> 'front'
  * @param rackId - Target rack ID
  * @param deviceTypeSlug - Device type slug
- * @param position - U position
+ * @param positionU - U position (human-readable, e.g., 1, 5, 10)
  * @param face - Optional face assignment
  * @returns true if placed successfully
  */
 function placeDeviceRecorded(
   rackId: string,
   deviceTypeSlug: string,
-  position: number,
+  positionU: number,
   face?: DeviceFace,
 ): boolean {
+  // Convert human U position to internal units
+  const positionInternal = toInternalUnits(positionU);
+
   // Validate rack exists
   const targetRack = getRackById(rackId);
   if (!targetRack) {
     debug.devicePlace({
       slug: deviceTypeSlug,
-      position,
+      position: positionU,
       passedFace: face,
       effectiveFace: "N/A",
       deviceName: "unknown",
@@ -2153,7 +2161,7 @@ function placeDeviceRecorded(
   if (!deviceType) {
     debug.devicePlace({
       slug: deviceTypeSlug,
-      position,
+      position: positionU,
       passedFace: face,
       effectiveFace: "N/A",
       deviceName: "unknown",
@@ -2177,14 +2185,14 @@ function placeDeviceRecorded(
       targetRack,
       layout.device_types,
       deviceType.u_height,
-      position,
+      positionInternal,
       undefined,
       effectiveFace,
     )
   ) {
     debug.devicePlace({
       slug: deviceTypeSlug,
-      position,
+      position: positionU,
       passedFace: face,
       effectiveFace,
       deviceName,
@@ -2197,7 +2205,7 @@ function placeDeviceRecorded(
   const device: PlacedDevice = {
     id: generateId(),
     device_type: deviceTypeSlug,
-    position,
+    position: positionInternal,
     face: effectiveFace,
     ports: instantiatePorts(deviceType),
   };
@@ -2211,7 +2219,7 @@ function placeDeviceRecorded(
 
   debug.devicePlace({
     slug: deviceTypeSlug,
-    position,
+    position: positionU,
     passedFace: face,
     effectiveFace,
     deviceName,
@@ -2226,14 +2234,17 @@ function placeDeviceRecorded(
  * Move a device with undo/redo support
  * @param rackId - Rack ID
  * @param deviceIndex - Device index
- * @param newPosition - New position
+ * @param newPositionU - New position in U (human-readable)
  * @returns true if moved successfully
  */
 function moveDeviceRecorded(
   rackId: string,
   deviceIndex: number,
-  newPosition: number,
+  newPositionU: number,
 ): boolean {
+  // Convert to internal units
+  const newPositionInternal = toInternalUnits(newPositionU);
+
   const targetRack = getRackById(rackId);
   if (!targetRack) {
     debug.deviceMove({
@@ -2241,7 +2252,7 @@ function moveDeviceRecorded(
       deviceName: "unknown",
       face: "unknown",
       fromPosition: -1,
-      toPosition: newPosition,
+      toPosition: newPositionU,
       result: "not_found",
     });
     return false;
@@ -2256,7 +2267,7 @@ function moveDeviceRecorded(
       deviceName: "unknown",
       face: "unknown",
       fromPosition: -1,
-      toPosition: newPosition,
+      toPosition: newPositionU,
       result: "not_found",
     });
     return false;
@@ -2272,15 +2283,16 @@ function moveDeviceRecorded(
       index: deviceIndex,
       deviceName: device.device_type,
       face: device.face ?? "front",
-      fromPosition: device.position,
-      toPosition: newPosition,
+      fromPosition: toHumanUnits(device.position),
+      toPosition: newPositionU,
       result: "not_found",
     });
     return false;
   }
 
   const deviceName = deviceType.model ?? deviceType.slug;
-  const oldPosition = device.position;
+  const oldPositionInternal = device.position;
+  const oldPositionU = toHumanUnits(oldPositionInternal);
 
   // Use canPlaceDevice for bounds and collision checking (face and depth aware)
   const isFullDepth = deviceType.is_full_depth !== false;
@@ -2289,7 +2301,7 @@ function moveDeviceRecorded(
       targetRack,
       layout.device_types,
       deviceType.u_height,
-      newPosition,
+      newPositionInternal,
       deviceIndex,
       device.face,
       isFullDepth,
@@ -2297,14 +2309,15 @@ function moveDeviceRecorded(
   ) {
     // Determine if it's out of bounds or collision
     const isOutOfBounds =
-      newPosition < 1 ||
-      newPosition + deviceType.u_height - 1 > targetRack.height;
+      newPositionInternal < UNITS_PER_U ||
+      newPositionInternal + toInternalUnits(deviceType.u_height) - 1 >
+        targetRack.height * UNITS_PER_U;
     debug.deviceMove({
       index: deviceIndex,
       deviceName,
       face: device.face ?? "front",
-      fromPosition: oldPosition,
-      toPosition: newPosition,
+      fromPosition: oldPositionU,
+      toPosition: newPositionU,
       result: isOutOfBounds ? "out_of_bounds" : "collision",
     });
     return false;
@@ -2315,8 +2328,8 @@ function moveDeviceRecorded(
 
   const command = createMoveDeviceCommand(
     deviceIndex,
-    oldPosition,
-    newPosition,
+    oldPositionInternal,
+    newPositionInternal,
     adapter,
     deviceName,
   );
@@ -2327,8 +2340,8 @@ function moveDeviceRecorded(
     index: deviceIndex,
     deviceName,
     face: device.face ?? "front",
-    fromPosition: oldPosition,
-    toPosition: newPosition,
+    fromPosition: oldPositionU,
+    toPosition: newPositionU,
     result: "success",
   });
 

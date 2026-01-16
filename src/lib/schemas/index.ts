@@ -1,10 +1,11 @@
 /**
  * Layout Zod Validation Schemas
- * Schema v1.0.0 - Flat structure with NetBox-compatible fields
+ * Schema v1.1.0 - Internal position units (1/6U)
  */
 
 import { z } from "../zod";
 import { nanoid } from "nanoid";
+import { UNITS_PER_U } from "$lib/types/constants";
 
 /**
  * Slug pattern: lowercase alphanumeric with hyphens, no leading/trailing/consecutive hyphens
@@ -729,11 +730,52 @@ const LayoutSchemaInput = z
   .passthrough();
 
 /**
+ * Check if a layout uses the old position format (pre-1.1.0)
+ * Old format: positions are 1-indexed U values (e.g., 1, 2, 1.5)
+ * New format: positions are internal units (e.g., 6, 12, 9)
+ *
+ * Detection: If any rack-level device (non-container child) has a position < UNITS_PER_U,
+ * it's using the old format (since U1 = 6 in internal units).
+ */
+function needsPositionMigration(version: string | undefined): boolean {
+  if (!version) return true; // No version means old format
+  // Compare versions: < 1.1.0 needs migration
+  const [major, minor] = version.split(".").map(Number);
+  if (major === undefined || minor === undefined) return true;
+  return major < 1 || (major === 1 && minor < 1);
+}
+
+/**
+ * Migrate device positions from old format to internal units
+ * Old: position = U number (1, 2, 1.5)
+ * New: position = internal units (6, 12, 9)
+ *
+ * Container children (with container_id) are NOT migrated since they use
+ * 0-indexed positions relative to the container.
+ */
+function migrateDevicePositions(
+  devices: { position: number; container_id?: string }[],
+): { position: number; container_id?: string }[] {
+  return devices.map((device) => {
+    // Container children keep their 0-indexed positions
+    if (device.container_id !== undefined) {
+      return device;
+    }
+    // Rack-level devices: multiply position by UNITS_PER_U
+    return {
+      ...device,
+      position: Math.round(device.position * UNITS_PER_U),
+    };
+  });
+}
+
+/**
  * Complete layout schema (base, with migration transform)
  * Uses racks array for multi-rack support
  * Transform handles:
  * - Legacy rack → racks[0] migration
  * - Generating nanoid for racks missing id field
+ * - Position migration from U values to internal units (v1.1.0)
  */
 const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
   // Determine the racks array
@@ -750,10 +792,16 @@ const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
     racks = [];
   }
 
-  // Generate IDs for racks missing them
+  // Check if positions need migration (pre-1.1.0 format)
+  const migratePositions = needsPositionMigration(data.version);
+
+  // Generate IDs for racks missing them and migrate positions if needed
   const racksWithIds = racks.map((rack) => ({
     ...rack,
     id: rack.id ?? nanoid(),
+    devices: migratePositions
+      ? migrateDevicePositions(rack.devices)
+      : rack.devices,
   }));
 
   // Build the output without the legacy 'rack' field

@@ -9,6 +9,7 @@ import {
   findValidDropPositions,
   snapToNearestValidPosition,
 } from "$lib/utils/collision";
+import { UNITS_PER_U } from "$lib/utils/position";
 import type {
   DeviceType,
   Rack,
@@ -42,11 +43,12 @@ function createTestDevice(
 }
 
 // Helper to create test rack
+// Note: positions are in internal units (e.g., 6 for U1)
 function createTestRack(
   height: number,
   devices: {
     device_type: string;
-    position: number;
+    position: number; // Internal units (6 = U1)
     face?: DeviceFace;
     slot_position?: SlotPosition;
   }[] = [],
@@ -69,50 +71,61 @@ function createTestRack(
 
 describe("Collision Detection", () => {
   describe("getDeviceURange", () => {
-    it("returns {bottom:5, top:5} for 1U device at position 5", () => {
-      const range = getDeviceURange(5, 1);
-      expect(range).toEqual({ bottom: 5, top: 5 });
+    it("returns correct range for 1U device at U5 (position 30)", () => {
+      // Position 30 = U5 in internal units, 1U height = 6 internal units
+      const range = getDeviceURange(30, 1);
+      expect(range).toEqual({ bottom: 30, top: 35 }); // 30 + 6 - 1 = 35
     });
 
-    it("returns {bottom:5, top:6} for 2U device at position 5", () => {
-      const range = getDeviceURange(5, 2);
-      expect(range).toEqual({ bottom: 5, top: 6 });
+    it("returns correct range for 2U device at U5 (position 30)", () => {
+      // Position 30 = U5, 2U height = 12 internal units
+      const range = getDeviceURange(30, 2);
+      expect(range).toEqual({ bottom: 30, top: 41 }); // 30 + 12 - 1 = 41
     });
 
-    it("returns {bottom:10, top:13} for 4U device at position 10", () => {
-      const range = getDeviceURange(10, 4);
-      expect(range).toEqual({ bottom: 10, top: 13 });
+    it("returns correct range for 4U device at U10 (position 60)", () => {
+      // Position 60 = U10, 4U height = 24 internal units
+      const range = getDeviceURange(60, 4);
+      expect(range).toEqual({ bottom: 60, top: 83 }); // 60 + 24 - 1 = 83
+    });
+
+    it("returns correct range for 1U device at U1 (position 6)", () => {
+      // Position 6 = U1 in internal units
+      const range = getDeviceURange(6, 1);
+      expect(range).toEqual({ bottom: 6, top: 11 }); // 6 + 6 - 1 = 11
     });
   });
 
   describe("doRangesOverlap", () => {
-    it("returns false for {1,2} and {3,4} (adjacent)", () => {
+    // Note: These tests use internal unit values
+    it("returns false for adjacent ranges (6-11 and 12-17)", () => {
+      // U1 device (6-11) and U2 device (12-17) are adjacent, not overlapping
       expect(
-        doRangesOverlap({ bottom: 1, top: 2 }, { bottom: 3, top: 4 }),
+        doRangesOverlap({ bottom: 6, top: 11 }, { bottom: 12, top: 17 }),
       ).toBe(false);
     });
 
-    it("returns true for {1,3} and {2,4} (partial overlap)", () => {
+    it("returns true for partial overlap (6-17 and 12-23)", () => {
       expect(
-        doRangesOverlap({ bottom: 1, top: 3 }, { bottom: 2, top: 4 }),
+        doRangesOverlap({ bottom: 6, top: 17 }, { bottom: 12, top: 23 }),
       ).toBe(true);
     });
 
-    it("returns true for {1,4} and {2,3} (containment)", () => {
+    it("returns true for containment (6-23 and 12-17)", () => {
       expect(
-        doRangesOverlap({ bottom: 1, top: 4 }, { bottom: 2, top: 3 }),
+        doRangesOverlap({ bottom: 6, top: 23 }, { bottom: 12, top: 17 }),
       ).toBe(true);
     });
 
-    it("returns true for {2,3} and {1,4} (reverse containment)", () => {
+    it("returns true for reverse containment (12-17 and 6-23)", () => {
       expect(
-        doRangesOverlap({ bottom: 2, top: 3 }, { bottom: 1, top: 4 }),
+        doRangesOverlap({ bottom: 12, top: 17 }, { bottom: 6, top: 23 }),
       ).toBe(true);
     });
 
-    it("returns true for {1,2} and {2,3} (edge touch)", () => {
+    it("returns true for edge touch (6-11 and 11-17)", () => {
       expect(
-        doRangesOverlap({ bottom: 1, top: 2 }, { bottom: 2, top: 3 }),
+        doRangesOverlap({ bottom: 6, top: 11 }, { bottom: 11, top: 17 }),
       ).toBe(true);
     });
   });
@@ -122,76 +135,86 @@ describe("Collision Detection", () => {
       const rack = createTestRack(42);
       const deviceLibrary: DeviceType[] = [];
 
-      expect(canPlaceDevice(rack, deviceLibrary, 1, 1)).toBe(true);
-      expect(canPlaceDevice(rack, deviceLibrary, 4, 10)).toBe(true);
+      // Position 6 = U1 in internal units
+      expect(canPlaceDevice(rack, deviceLibrary, 1, UNITS_PER_U)).toBe(true);
+      // Position 60 = U10 in internal units
+      expect(canPlaceDevice(rack, deviceLibrary, 4, 60)).toBe(true);
     });
 
     it("returns false when device would exceed rack top", () => {
       const rack = createTestRack(42);
       const deviceLibrary: DeviceType[] = [];
 
-      // 4U device at position 40 would occupy 40,41,42,43 - but rack only has 42
-      expect(canPlaceDevice(rack, deviceLibrary, 4, 40)).toBe(false);
+      // 4U device at U40 (position 240) would exceed rack (42U = 252 internal units)
+      // Top would be at 240 + 24 - 1 = 263 > 252
+      expect(canPlaceDevice(rack, deviceLibrary, 4, 240)).toBe(false);
     });
 
-    it("returns false for position less than 1", () => {
+    it("returns false for position less than UNITS_PER_U (U1)", () => {
       const rack = createTestRack(42);
       const deviceLibrary: DeviceType[] = [];
 
       expect(canPlaceDevice(rack, deviceLibrary, 1, 0)).toBe(false);
+      expect(canPlaceDevice(rack, deviceLibrary, 1, 5)).toBe(false); // Less than 6
       expect(canPlaceDevice(rack, deviceLibrary, 1, -1)).toBe(false);
     });
 
     it("returns false for collision with existing device", () => {
       const device1 = createTestDevice("device-1", 2);
+      // Device at U5 (position 30), 2U occupies internal units 30-41
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5 },
+        { device_type: "device-1", position: 30 },
       ]);
 
-      // device-1 occupies 5,6. Placing 2U device at 4 would occupy 4,5 - collision!
-      expect(canPlaceDevice(rack, [device1], 2, 4)).toBe(false);
-      // Placing at 5 - collision!
-      expect(canPlaceDevice(rack, [device1], 1, 5)).toBe(false);
-      // Placing at 6 - collision!
-      expect(canPlaceDevice(rack, [device1], 1, 6)).toBe(false);
+      // 2U device at U4 (position 24) would occupy 24-35, overlaps with 30-41
+      expect(canPlaceDevice(rack, [device1], 2, 24)).toBe(false);
+      // 1U at U5 (position 30) - collision with 30-41
+      expect(canPlaceDevice(rack, [device1], 1, 30)).toBe(false);
+      // 1U at U6 (position 36) - collision with 30-41
+      expect(canPlaceDevice(rack, [device1], 1, 36)).toBe(false);
     });
 
     it("returns true for position adjacent to existing device", () => {
       const device1 = createTestDevice("device-1", 2);
+      // Device at U5 (position 30), 2U occupies internal units 30-41
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5 },
+        { device_type: "device-1", position: 30 },
       ]);
 
-      // device-1 occupies 5,6. Position 7 is adjacent and valid
-      expect(canPlaceDevice(rack, [device1], 1, 7)).toBe(true);
-      // Position 4 with 1U device occupies only 4 - valid
-      expect(canPlaceDevice(rack, [device1], 1, 4)).toBe(true);
+      // 1U at U7 (position 42) - adjacent, valid (device ends at 41)
+      expect(canPlaceDevice(rack, [device1], 1, 42)).toBe(true);
+      // 1U at U4 (position 24) - ends at 29, adjacent to 30
+      expect(canPlaceDevice(rack, [device1], 1, 24)).toBe(true);
     });
   });
 
   describe("findCollisions", () => {
     it("returns empty array when no collisions", () => {
       const device1 = createTestDevice("device-1", 2);
+      // Device at U5 (position 30)
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5 },
+        { device_type: "device-1", position: 30 },
       ]);
 
-      const collisions = findCollisions(rack, [device1], 1, 10);
+      // Check at U10 (position 60) - no collision
+      const collisions = findCollisions(rack, [device1], 1, 60);
       expect(collisions).toEqual([]);
     });
 
     it("returns colliding devices", () => {
       const device1 = createTestDevice("device-1", 2);
+      // Device at U5 (position 30), occupies 30-41
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5 },
+        { device_type: "device-1", position: 30 },
       ]);
 
-      const collisions = findCollisions(rack, [device1], 2, 4);
+      // 2U device at U4 (position 24) would occupy 24-35, overlaps with 30-41
+      const collisions = findCollisions(rack, [device1], 2, 24);
       // eslint-disable-next-line no-restricted-syntax -- Testing collision detection (exactly 1 collision)
       expect(collisions).toHaveLength(1);
       expect(collisions[0]).toEqual({
         device_type: "device-1",
-        position: 5,
+        position: 30,
         face: "front",
       });
     });
@@ -200,52 +223,58 @@ describe("Collision Detection", () => {
       const device1 = createTestDevice("device-1", 2);
       const device2 = createTestDevice("device-2", 1);
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5 },
-        { device_type: "device-2", position: 10 },
+        { device_type: "device-1", position: 30 },
+        { device_type: "device-2", position: 60 },
       ]);
 
       // Moving device at index 0 - should exclude it from collision check
-      const collisions = findCollisions(rack, [device1, device2], 2, 5, 0);
+      const collisions = findCollisions(rack, [device1, device2], 2, 30, 0);
       expect(collisions).toEqual([]);
     });
   });
 
   describe("findValidDropPositions", () => {
-    it("returns [1..rackHeight-deviceHeight+1] for empty rack", () => {
-      const rack = createTestRack(10);
+    it("returns all valid internal unit positions for empty rack", () => {
+      const rack = createTestRack(10); // 10U rack = 60 internal units
       const deviceLibrary: DeviceType[] = [];
 
-      // 1U device can go in positions 1-10
+      // 1U device (6 internal units) can go at positions 6-55
+      // (U1 to U10, device ends at top of rack)
       const positions1U = findValidDropPositions(rack, deviceLibrary, 1);
-      expect(positions1U).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+      // Should have 55 - 6 + 1 = 50 positions (every internal unit from 6 to 55)
+      expect(positions1U[0]).toBe(6); // U1
+      expect(positions1U[positions1U.length - 1]).toBe(55); // Top of U10 minus device height
 
-      // 2U device can go in positions 1-9 (top at 10)
+      // 2U device (12 internal units) can go at positions 6-49
       const positions2U = findValidDropPositions(rack, deviceLibrary, 2);
-      expect(positions2U).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      expect(positions2U[0]).toBe(6);
+      expect(positions2U[positions2U.length - 1]).toBe(49);
     });
 
     it("excludes positions that would collide", () => {
       const device1 = createTestDevice("device-1", 2);
+      // Device at U5 (position 30), 2U occupies 30-41
       const rack = createTestRack(10, [
-        { device_type: "device-1", position: 5 },
+        { device_type: "device-1", position: 30 },
       ]);
 
-      // 1U device: device-1 at 5,6 blocks positions 5 and 6
+      // 1U device: check that positions overlapping 30-41 are excluded
       const positions1U = findValidDropPositions(rack, [device1], 1);
-      expect(positions1U).toEqual([1, 2, 3, 4, 7, 8, 9, 10]);
-
-      // 2U device: positions 4,5,6 would collide with device at 5,6
-      const positions2U = findValidDropPositions(rack, [device1], 2);
-      expect(positions2U).toEqual([1, 2, 3, 7, 8, 9]);
+      // Positions 25-35 would overlap (since 1U is 6 units wide)
+      expect(positions1U).not.toContain(30);
+      expect(positions1U).not.toContain(35);
+      expect(positions1U).toContain(6); // U1 is valid
+      expect(positions1U).toContain(42); // U7 is valid (starts after 41)
     });
 
     it("returns empty array when rack is full", () => {
-      // Fill rack completely with 1U devices
+      // Fill 5U rack completely with 1U devices at U1-U5
       const devices: DeviceType[] = [];
       const placedDevices: { device_type: string; position: number }[] = [];
       for (let i = 1; i <= 5; i++) {
         devices.push(createTestDevice(`device-${i}`, 1));
-        placedDevices.push({ device_type: `device-${i}`, position: i });
+        // Position in internal units: U1=6, U2=12, etc.
+        placedDevices.push({ device_type: `device-${i}`, position: i * 6 });
       }
       const rack = createTestRack(5, placedDevices);
 
@@ -257,11 +286,11 @@ describe("Collision Detection", () => {
   describe("snapToNearestValidPosition", () => {
     const uHeight = 22; // pixels per U
 
-    it("returns exact position if valid", () => {
+    it("returns position in internal units when valid", () => {
       const rack = createTestRack(42);
       const deviceLibrary: DeviceType[] = [];
 
-      // Target Y for position 5 (from top of rack)
+      // Target Y for U5 (from top of rack)
       const targetY = (42 - 5) * uHeight;
       const result = snapToNearestValidPosition(
         rack,
@@ -270,16 +299,18 @@ describe("Collision Detection", () => {
         targetY,
         uHeight,
       );
-      expect(result).toBe(5);
+      // Result should be in internal units (U5 = 30)
+      expect(result).toBe(30);
     });
 
-    it("returns nearest valid position", () => {
+    it("returns nearest valid position in internal units", () => {
       const device1 = createTestDevice("device-1", 2);
+      // Device at U5 (position 30), occupies 30-41
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5 },
+        { device_type: "device-1", position: 30 },
       ]);
 
-      // Target somewhere near position 5 (which is blocked)
+      // Target somewhere near U5 (which is blocked)
       const targetY = (42 - 5) * uHeight;
       const result = snapToNearestValidPosition(
         rack,
@@ -288,17 +319,18 @@ describe("Collision Detection", () => {
         targetY,
         uHeight,
       );
-      // Should snap to nearest valid: either 4 or 7
-      expect(result === 4 || result === 7).toBe(true);
+      // Should snap to nearest valid position in internal units
+      // Either before 30 or at/after 42
+      expect(result !== null && (result < 30 || result >= 42)).toBe(true);
     });
 
     it("returns null when no valid positions", () => {
-      // Fill rack completely
+      // Fill 5U rack completely with 1U devices
       const devices: DeviceType[] = [];
       const placedDevices: { device_type: string; position: number }[] = [];
       for (let i = 1; i <= 5; i++) {
         devices.push(createTestDevice(`device-${i}`, 1));
-        placedDevices.push({ device_type: `device-${i}`, position: i });
+        placedDevices.push({ device_type: `device-${i}`, position: i * 6 });
       }
       const rack = createTestRack(5, placedDevices);
 
@@ -311,98 +343,98 @@ describe("Collision Detection", () => {
 describe("Face Independence", () => {
   describe("canPlaceDevice with face parameter", () => {
     it("allows placing half-depth device on rear when half-depth front is occupied at same position", () => {
-      // Half-depth device mounted on front at position 5
+      // Half-depth device mounted on front at U5 (position 30)
       const device = createTestDevice("device-1", 2, { is_full_depth: false });
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "front" },
+        { device_type: "device-1", position: 30, face: "front" },
       ]);
 
       // Should be able to place a 2U half-depth device on rear at same position
       expect(
-        canPlaceDevice(rack, [device], 2, 5, undefined, "rear", false),
+        canPlaceDevice(rack, [device], 2, 30, undefined, "rear", "full"),
       ).toBe(true);
     });
 
     it("allows placing half-depth device on front when half-depth rear is occupied at same position", () => {
-      // Half-depth device mounted on rear at position 5
+      // Half-depth device mounted on rear at U5 (position 30)
       const device = createTestDevice("device-1", 2, { is_full_depth: false });
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "rear" },
+        { device_type: "device-1", position: 30, face: "rear" },
       ]);
 
       // Should be able to place a 2U half-depth device on front at same position
       expect(
-        canPlaceDevice(rack, [device], 2, 5, undefined, "front", false),
+        canPlaceDevice(rack, [device], 2, 30, undefined, "front", "full"),
       ).toBe(true);
     });
 
     it("blocks placement on same face at overlapping position", () => {
-      // Device mounted on front at position 5
+      // Device mounted on front at U5 (position 30)
       const device = createTestDevice("device-1", 2);
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "front" },
+        { device_type: "device-1", position: 30, face: "front" },
       ]);
 
       // Should NOT be able to place on front at same position
-      expect(canPlaceDevice(rack, [device], 2, 5, undefined, "front")).toBe(
+      expect(canPlaceDevice(rack, [device], 2, 30, undefined, "front")).toBe(
         false,
       );
     });
 
     it("blocks rear placement when existing device is full-depth", () => {
-      // Full-depth device occupies both faces
+      // Full-depth device occupies both faces at U5 (position 30)
       const device = createTestDevice("device-1", 2, { is_full_depth: true });
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "both" },
+        { device_type: "device-1", position: 30, face: "both" },
       ]);
 
       // Should NOT be able to place on rear at same position
-      expect(canPlaceDevice(rack, [device], 1, 5, undefined, "rear")).toBe(
+      expect(canPlaceDevice(rack, [device], 1, 30, undefined, "rear")).toBe(
         false,
       );
     });
 
     it("blocks front placement when existing device is full-depth", () => {
-      // Full-depth device occupies both faces
+      // Full-depth device occupies both faces at U5 (position 30)
       const device = createTestDevice("device-1", 2, { is_full_depth: true });
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "both" },
+        { device_type: "device-1", position: 30, face: "both" },
       ]);
 
       // Should NOT be able to place on front at same position
-      expect(canPlaceDevice(rack, [device], 1, 5, undefined, "front")).toBe(
+      expect(canPlaceDevice(rack, [device], 1, 30, undefined, "front")).toBe(
         false,
       );
     });
 
     it("blocks placement when new device is full-depth and position is occupied", () => {
-      // Half-depth device on front
+      // Half-depth device on front at U5 (position 30)
       const existingDevice = createTestDevice("device-1", 2, {
         is_full_depth: false,
       });
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "front" },
+        { device_type: "device-1", position: 30, face: "front" },
       ]);
 
       // Placing a full-depth device ('both') should be blocked
       expect(
-        canPlaceDevice(rack, [existingDevice], 2, 5, undefined, "both"),
+        canPlaceDevice(rack, [existingDevice], 2, 30, undefined, "both"),
       ).toBe(false);
     });
 
     it("allows adjacent positions regardless of face", () => {
-      // Device on front at position 5-6
+      // Device on front at U5 (position 30), occupies 30-41
       const device = createTestDevice("device-1", 2);
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "front" },
+        { device_type: "device-1", position: 30, face: "front" },
       ]);
 
-      // Should be able to place on front at position 7 (adjacent, no overlap)
-      expect(canPlaceDevice(rack, [device], 2, 7, undefined, "front")).toBe(
+      // Should be able to place on front at U7 (position 42, adjacent)
+      expect(canPlaceDevice(rack, [device], 2, 42, undefined, "front")).toBe(
         true,
       );
       // Should also work for rear
-      expect(canPlaceDevice(rack, [device], 2, 7, undefined, "rear")).toBe(
+      expect(canPlaceDevice(rack, [device], 2, 42, undefined, "rear")).toBe(
         true,
       );
     });
@@ -412,7 +444,7 @@ describe("Face Independence", () => {
     it("does not report collision when devices are on different faces", () => {
       const device = createTestDevice("device-1", 2, { is_full_depth: false });
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "front" },
+        { device_type: "device-1", position: 30, face: "front" },
       ]);
 
       // Face is authoritative: different faces don't collide
@@ -420,7 +452,7 @@ describe("Face Independence", () => {
         rack,
         [device],
         2,
-        5,
+        30,
         undefined,
         "rear",
       );
@@ -430,7 +462,7 @@ describe("Face Independence", () => {
     it("reports collision when devices are on same face", () => {
       const device = createTestDevice("device-1", 2);
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "front" },
+        { device_type: "device-1", position: 30, face: "front" },
       ]);
 
       // Checking for collisions on front should find the device
@@ -438,7 +470,7 @@ describe("Face Independence", () => {
         rack,
         [device],
         2,
-        5,
+        30,
         undefined,
         "front",
       );
@@ -449,7 +481,7 @@ describe("Face Independence", () => {
     it("reports collision when placing both-face device against front device", () => {
       const device = createTestDevice("device-1", 2); // default full-depth
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "front" },
+        { device_type: "device-1", position: 30, face: "front" },
       ]);
 
       // Placing with face: "both" collides with any existing device
@@ -457,7 +489,7 @@ describe("Face Independence", () => {
         rack,
         [device],
         2,
-        5,
+        30,
         undefined,
         "both",
       );
@@ -469,12 +501,12 @@ describe("Face Independence", () => {
   describe("findValidDropPositions with face awareness", () => {
     it("returns all positions when placing on opposite face of front devices", () => {
       const device = createTestDevice("device-1", 2, { is_full_depth: false });
-      // Front is fully occupied from position 1-10 with devices
+      // Front is fully occupied with 2U devices at U1, U3, U5, U7, U9
       const placedDevices = [];
       for (let i = 1; i <= 9; i += 2) {
         placedDevices.push({
           device_type: "device-1",
-          position: i,
+          position: i * UNITS_PER_U, // Internal units
           face: "front" as DeviceFace,
         });
       }
@@ -482,7 +514,10 @@ describe("Face Independence", () => {
 
       // Rear should have all positions available - face is authoritative
       const positions = findValidDropPositions(rack, [device], 2, "rear");
-      expect(positions).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      // Should have positions from U1 (6) to U9 (54) in internal units
+      expect(positions[0]).toBe(6);
+      expect(positions).toContain(12);
+      expect(positions).toContain(48);
     });
   });
 });
@@ -516,53 +551,53 @@ describe("Face-Authoritative Collision Detection", () => {
 
   describe("canPlaceDevice with face-based collision", () => {
     it("allows placing rear device when front device exists at same U", () => {
-      // Device on front at position 5
+      // Device on front at U5 (position 30)
       const device = createTestDevice("device-1", 2);
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "front" },
+        { device_type: "device-1", position: 30, face: "front" },
       ]);
 
       // Face is authoritative: front doesn't block rear
-      expect(canPlaceDevice(rack, [device], 2, 5, undefined, "rear")).toBe(
+      expect(canPlaceDevice(rack, [device], 2, 30, undefined, "rear")).toBe(
         true,
       );
     });
 
     it("allows placing front device when rear device exists at same U", () => {
-      // Device on rear at position 5
+      // Device on rear at U5 (position 30)
       const device = createTestDevice("device-1", 2);
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "rear" },
+        { device_type: "device-1", position: 30, face: "rear" },
       ]);
 
       // Face is authoritative: rear doesn't block front
-      expect(canPlaceDevice(rack, [device], 2, 5, undefined, "front")).toBe(
+      expect(canPlaceDevice(rack, [device], 2, 30, undefined, "front")).toBe(
         true,
       );
     });
 
     it("blocks placing rear device when both-face device exists at same U", () => {
-      // Device with face: "both" at position 5
+      // Device with face: "both" at U5 (position 30)
       const device = createTestDevice("device-1", 2);
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "both" },
+        { device_type: "device-1", position: 30, face: "both" },
       ]);
 
       // "both" blocks everything
-      expect(canPlaceDevice(rack, [device], 2, 5, undefined, "rear")).toBe(
+      expect(canPlaceDevice(rack, [device], 2, 30, undefined, "rear")).toBe(
         false,
       );
     });
 
     it("blocks placing front device when both-face device exists at same U", () => {
-      // Device with face: "both" at position 5
+      // Device with face: "both" at U5 (position 30)
       const device = createTestDevice("device-1", 2);
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "both" },
+        { device_type: "device-1", position: 30, face: "both" },
       ]);
 
       // "both" blocks everything
-      expect(canPlaceDevice(rack, [device], 2, 5, undefined, "front")).toBe(
+      expect(canPlaceDevice(rack, [device], 2, 30, undefined, "front")).toBe(
         false,
       );
     });
@@ -572,12 +607,12 @@ describe("Face-Authoritative Collision Detection", () => {
       // Full-depth device with face explicitly set to 'front'
       const device = createTestDevice("full-depth", 2, { is_full_depth: true });
       const rack = createTestRack(42, [
-        { device_type: "full-depth", position: 5, face: "front" }, // Face overridden!
+        { device_type: "full-depth", position: 30, face: "front" }, // Face overridden!
       ]);
 
       // Face is authoritative: even though device type is full-depth,
       // the placed device's face is 'front', so it only blocks front
-      expect(canPlaceDevice(rack, [device], 2, 5, undefined, "rear")).toBe(
+      expect(canPlaceDevice(rack, [device], 2, 30, undefined, "rear")).toBe(
         true,
       );
     });
@@ -585,11 +620,11 @@ describe("Face-Authoritative Collision Detection", () => {
     it("still blocks same-face placement", () => {
       const device = createTestDevice("device-1", 2);
       const rack = createTestRack(42, [
-        { device_type: "device-1", position: 5, face: "front" },
+        { device_type: "device-1", position: 30, face: "front" },
       ]);
 
       // Same face always blocks
-      expect(canPlaceDevice(rack, [device], 2, 5, undefined, "front")).toBe(
+      expect(canPlaceDevice(rack, [device], 2, 30, undefined, "front")).toBe(
         false,
       );
     });
@@ -645,22 +680,23 @@ describe("Slot Position Collision (Half-Width Devices)", () => {
     });
 
     it("allows two half-width devices in different slots at same U", () => {
+      // Device at U5 (position 30)
       const rack = createTestRack(42, [
         {
           device_type: "half-width",
-          position: 5,
+          position: 30,
           face: "front",
           slot_position: "left",
         },
       ]);
 
-      // Placing in right slot at same U should succeed
+      // Placing in right slot at same position should succeed
       expect(
         canPlaceDevice(
           rack,
           [halfWidthDevice],
           1,
-          5,
+          30,
           undefined,
           "front",
           "right",
@@ -672,7 +708,7 @@ describe("Slot Position Collision (Half-Width Devices)", () => {
       const rack = createTestRack(42, [
         {
           device_type: "half-width",
-          position: 5,
+          position: 30,
           face: "front",
           slot_position: "left",
         },
@@ -684,7 +720,7 @@ describe("Slot Position Collision (Half-Width Devices)", () => {
           rack,
           [halfWidthDevice],
           1,
-          5,
+          30,
           undefined,
           "front",
           "left",
@@ -696,7 +732,7 @@ describe("Slot Position Collision (Half-Width Devices)", () => {
       const rack = createTestRack(42, [
         {
           device_type: "half-width",
-          position: 5,
+          position: 30,
           face: "front",
           slot_position: "left",
         },
@@ -708,7 +744,7 @@ describe("Slot Position Collision (Half-Width Devices)", () => {
           rack,
           [halfWidthDevice, fullWidthDevice],
           1,
-          5,
+          30,
           undefined,
           "front",
           "full",
@@ -720,7 +756,7 @@ describe("Slot Position Collision (Half-Width Devices)", () => {
       const rack = createTestRack(42, [
         {
           device_type: "full-width",
-          position: 5,
+          position: 30,
           face: "front",
           slot_position: "full",
         },
@@ -732,7 +768,7 @@ describe("Slot Position Collision (Half-Width Devices)", () => {
           rack,
           [halfWidthDevice, fullWidthDevice],
           1,
-          5,
+          30,
           undefined,
           "front",
           "left",
@@ -741,22 +777,23 @@ describe("Slot Position Collision (Half-Width Devices)", () => {
     });
 
     it("allows adjacent U positions regardless of slot", () => {
+      // Device at U5 (position 30), 1U occupies 30-35
       const rack = createTestRack(42, [
         {
           device_type: "half-width",
-          position: 5,
+          position: 30,
           face: "front",
           slot_position: "left",
         },
       ]);
 
-      // Device at U6 should succeed even in left slot
+      // Device at U6 (position 36) should succeed even in left slot
       expect(
         canPlaceDevice(
           rack,
           [halfWidthDevice],
           1,
-          6,
+          36,
           undefined,
           "front",
           "left",

@@ -537,7 +537,13 @@ export interface PlacedDevice {
   id: string;
   /** Reference to DeviceType.slug */
   device_type: string;
-  /** Bottom U position (1-indexed, U1 is at the bottom) */
+  /**
+   * Position in internal units (1/6U).
+   * - Rack-level devices: position in internal units from bottom (e.g., 6 = U1)
+   * - Container children: position is 0-indexed relative to container
+   * Use toInternalUnits/toHumanUnits from $lib/utils/position for conversion.
+   * @see UNITS_PER_U for the internal units constant (6 units per 1U)
+   */
   position: number;
   /** Which face(s) of the rack the device occupies */
   face: DeviceFace;

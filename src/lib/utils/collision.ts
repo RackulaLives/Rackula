@@ -16,6 +16,7 @@ import type {
   Rack,
   SlotPosition,
 } from "$lib/types";
+import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 
 // Re-export SlotPosition for test imports
 export type { SlotPosition } from "$lib/types";
@@ -37,15 +38,35 @@ export interface URange {
 }
 
 /**
- * Get the U range occupied by a device at a given position
- * @param position - Bottom U position (1-indexed)
- * @param height - Device height in U
- * @returns Range of U positions {bottom, top}
+ * Get the range occupied by a device at a given position in internal units.
+ * For rack-level devices, position is in internal units (6 = U1).
+ * For container children, use getContainerChildRange instead.
+ *
+ * @param position - Bottom position in internal units (e.g., 6 for U1)
+ * @param heightU - Device height in U (e.g., 2 for a 2U device)
+ * @returns Range of internal unit positions {bottom, top}
  */
-export function getDeviceURange(position: number, height: number): URange {
+export function getDeviceURange(position: number, heightU: number): URange {
+  const heightInternal = heightToInternalUnits(heightU);
   return {
     bottom: position,
-    top: position + height - 1,
+    top: position + heightInternal - 1,
+  };
+}
+
+/**
+ * Get the range occupied by a container child device.
+ * Container children use 0-indexed positions relative to the container,
+ * and do NOT use the internal unit system.
+ *
+ * @param position - 0-indexed position from container bottom
+ * @param heightU - Device height in U
+ * @returns Range of positions {bottom, top}
+ */
+function getContainerChildRange(position: number, heightU: number): URange {
+  return {
+    bottom: position,
+    top: position + heightU - 1,
   };
 }
 
@@ -116,8 +137,8 @@ export function doSlotsOverlap(
  *
  * @param rack - The rack to check
  * @param deviceLibrary - The device library
- * @param deviceHeight - Height of device to place
- * @param targetPosition - Target bottom U position
+ * @param deviceHeight - Height of device to place (in U)
+ * @param targetPosition - Target bottom position in internal units (e.g., 6 for U1)
  * @param excludeIndex - Optional index in rack.devices to exclude (for move operations)
  * @param targetFace - Optional face to place device on (default: 'front')
  * @param targetSlot - Optional slot position (default: 'full')
@@ -132,14 +153,15 @@ export function canPlaceDevice(
   targetFace: DeviceFace = "front",
   targetSlot: SlotPosition = "full",
 ): boolean {
-  // Position must be >= 1
-  if (targetPosition < 1) {
+  // Position must be >= UNITS_PER_U (U1 in internal units)
+  if (targetPosition < UNITS_PER_U) {
     return false;
   }
 
-  // Device must fit within rack height
-  const topPosition = targetPosition + deviceHeight - 1;
-  if (topPosition > rack.height) {
+  // Device must fit within rack height (convert rack height to internal units)
+  const topPosition = targetPosition + heightToInternalUnits(deviceHeight) - 1;
+  const rackHeightInternal = rack.height * UNITS_PER_U;
+  if (topPosition > rackHeightInternal) {
     return false;
   }
 
@@ -250,10 +272,10 @@ export function findCollisions(
  * Find all valid positions where a device of given height can be placed
  * @param rack - The rack to check
  * @param deviceLibrary - The device library
- * @param deviceHeight - Height of device to place
+ * @param deviceHeight - Height of device to place (in U)
  * @param targetFace - Optional face to place device on (default: 'front')
  * @param targetSlot - Optional slot position (default: 'full')
- * @returns Array of valid bottom U positions, sorted ascending
+ * @returns Array of valid bottom positions in internal units, sorted ascending
  */
 export function findValidDropPositions(
   rack: Rack,
@@ -264,9 +286,13 @@ export function findValidDropPositions(
 ): number[] {
   const validPositions: number[] = [];
 
-  // Check each possible position from 1 to (rack.height - deviceHeight + 1)
-  const maxPosition = rack.height - deviceHeight + 1;
-  for (let position = 1; position <= maxPosition; position++) {
+  // Check each possible position in internal units
+  // Start at U1 (UNITS_PER_U) and go up to the max position where device fits
+  const deviceHeightInternal = heightToInternalUnits(deviceHeight);
+  const rackHeightInternal = rack.height * UNITS_PER_U;
+  const maxPosition = rackHeightInternal - deviceHeightInternal + 1;
+
+  for (let position = UNITS_PER_U; position <= maxPosition; position++) {
     if (
       canPlaceDevice(
         rack,
@@ -286,26 +312,31 @@ export function findValidDropPositions(
 }
 
 /**
- * Convert Y coordinate to U position
+ * Convert Y coordinate to internal unit position
  * @param y - Y coordinate (0 at top of rack SVG)
  * @param rackHeight - Total rack height in U
  * @param uHeight - Height of one U in pixels
- * @returns U position (1-indexed from bottom)
+ * @returns Position in internal units (e.g., 6 for U1)
  */
-function yToUPosition(y: number, rackHeight: number, uHeight: number): number {
+function yToInternalPosition(
+  y: number,
+  rackHeight: number,
+  uHeight: number,
+): number {
   // SVG has y=0 at top, U=1 at bottom
-  // position = rackHeight - floor(y / uHeight)
-  return rackHeight - Math.floor(y / uHeight);
+  // First get U position, then convert to internal units
+  const uPosition = rackHeight - Math.floor(y / uHeight);
+  return uPosition * UNITS_PER_U;
 }
 
 /**
  * Snap to the nearest valid drop position
  * @param rack - The rack to check
  * @param deviceLibrary - The device library
- * @param deviceHeight - Height of device to place
+ * @param deviceHeight - Height of device to place (in U)
  * @param targetY - Target Y coordinate in pixels
  * @param uHeight - Height of one U in pixels
- * @returns Nearest valid U position, or null if no valid positions
+ * @returns Nearest valid position in internal units, or null if no valid positions
  */
 export function snapToNearestValidPosition(
   rack: Rack,
@@ -324,15 +355,15 @@ export function snapToNearestValidPosition(
     return null;
   }
 
-  // Convert target Y to approximate U position
-  const targetU = yToUPosition(targetY, rack.height, uHeight);
+  // Convert target Y to approximate internal unit position
+  const targetPosition = yToInternalPosition(targetY, rack.height, uHeight);
 
   // Find the closest valid position
   let closestPosition = validPositions[0]!;
-  let closestDistance = Math.abs(targetU - closestPosition);
+  let closestDistance = Math.abs(targetPosition - closestPosition);
 
   for (const position of validPositions) {
-    const distance = Math.abs(targetU - position);
+    const distance = Math.abs(targetPosition - position);
     if (distance < closestDistance) {
       closestDistance = distance;
       closestPosition = position;
@@ -383,7 +414,8 @@ export function canPlaceInContainer(
   }
 
   // Find all sibling devices in the same container and slot
-  const newRange = getDeviceURange(targetPosition, childType.u_height);
+  // Container children use 0-indexed positions, not internal units
+  const newRange = getContainerChildRange(targetPosition, childType.u_height);
 
   for (const device of rack.devices) {
     // Only check devices in the same container
@@ -409,7 +441,8 @@ export function canPlaceInContainer(
       continue;
     }
 
-    const existingRange = getDeviceURange(
+    // Container children use 0-indexed positions, not internal units
+    const existingRange = getContainerChildRange(
       device.position,
       siblingType.u_height,
     );
