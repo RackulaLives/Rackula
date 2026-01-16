@@ -1,32 +1,72 @@
 // Icon components barrel export
-export { default as IconPlus } from "./IconPlus.svelte";
-export { default as IconSave } from "./IconSave.svelte";
-export { default as IconLoad } from "./IconLoad.svelte";
-export { default as IconExport } from "./IconExport.svelte";
-export { default as IconTrash } from "./IconTrash.svelte";
-export { default as IconSun } from "./IconSun.svelte";
-export { default as IconMoon } from "./IconMoon.svelte";
-export { default as IconHelp } from "./IconHelp.svelte";
-export { default as IconFitAll } from "./IconFitAll.svelte";
-export { default as IconGrip } from "./IconGrip.svelte";
-export { default as IconLabel } from "./IconLabel.svelte";
-export { default as IconImage } from "./IconImage.svelte";
-export { default as IconImageLabel } from "./IconImageLabel.svelte";
-export { default as IconLogo } from "./IconLogo.svelte";
-export { default as IconUndo } from "./IconUndo.svelte";
-export { default as IconRedo } from "./IconRedo.svelte";
-export { default as IconMenu } from "./IconMenu.svelte";
-export { default as IconShare } from "./IconShare.svelte";
-export { default as IconCopy } from "./IconCopy.svelte";
-export { default as IconDownload } from "./IconDownload.svelte";
-export { default as IconQRCode } from "./IconQRCode.svelte";
-export { default as IconNote } from "./IconNote.svelte";
+//
+// Icon Categories:
+// - Brand: Custom brand-specific icons (logo, rack illustrations)
+// - Iconoir: Standard UI icons via @iconify/svelte
+// - Custom: App-specific composite icons
 
-// Rack icons for wizard layout type selection
+// =============================================================================
+// Brand Icons
+// =============================================================================
+
+// Brand mark (not replaceable with standard icon library)
+export { default as IconLogo } from "./IconLogo.svelte";
+
+// Domain-specific rack illustrations for wizard layout type selection
 export { default as ColumnRackIcon } from "./ColumnRackIcon.svelte";
 export { default as BayedRackIcon } from "./BayedRackIcon.svelte";
 
-// Phosphor Bold icons for toolbar
+// =============================================================================
+// Custom Composite Icons
+// =============================================================================
+
+// Combined icon for "Both" display mode (image + label)
+export { default as IconImageLabel } from "./IconImageLabel.svelte";
+
+// =============================================================================
+// Iconoir Icons (via @iconify/svelte wrappers)
+// =============================================================================
+
+// Action icons
+export { default as IconPlus } from "./IconPlus.svelte";
+export { default as IconPlusIconoir } from "./IconPlusIconoir.svelte";
+export { default as IconTrash } from "./IconTrash.svelte";
+export { default as IconEdit } from "./IconEdit.svelte";
+export { default as IconCopy } from "./IconCopy.svelte";
+export { default as IconDownload } from "./IconDownload.svelte";
+export { default as IconUpload } from "./IconUpload.svelte";
+export { default as IconClose } from "./IconClose.svelte";
+
+// Navigation icons
+export { default as IconChevronUp } from "./IconChevronUp.svelte";
+export { default as IconChevronDown } from "./IconChevronDown.svelte";
+
+// Undo/Redo icons
+export { default as IconUndo } from "./IconUndo.svelte";
+export { default as IconRedo } from "./IconRedo.svelte";
+
+// Display mode icons
+export { default as IconImage } from "./IconImage.svelte";
+
+// Canvas control icons
+export { default as IconFitAll } from "./IconFitAll.svelte";
+export { default as IconGrip } from "./IconGrip.svelte";
+export { default as IconMobile } from "./IconMobile.svelte";
+
+// Checkbox indicator icons
+export { default as IconSquare } from "./IconSquare.svelte";
+export { default as IconSquareFilled } from "./IconSquareFilled.svelte";
+
+// HelpPanel icons
+export { default as IconGitHub } from "./IconGitHub.svelte";
+export { default as IconBug } from "./IconBug.svelte";
+export { default as IconChat } from "./IconChat.svelte";
+export { default as IconCheck } from "./IconCheck.svelte";
+
+// =============================================================================
+// Phosphor Bold Icons (for toolbar - higher visual weight)
+// =============================================================================
+
 export { default as IconPlusBold } from "./IconPlusBold.svelte";
 export { default as IconUndoBold } from "./IconUndoBold.svelte";
 export { default as IconRedoBold } from "./IconRedoBold.svelte";
@@ -35,24 +75,3 @@ export { default as IconImageBold } from "./IconImageBold.svelte";
 export { default as IconFitAllBold } from "./IconFitAllBold.svelte";
 export { default as IconFolderBold } from "./IconFolderBold.svelte";
 export { default as IconGearBold } from "./IconGearBold.svelte";
-
-// Iconoir icons via @iconify/svelte
-export { default as IconClose } from "./IconClose.svelte";
-export { default as IconEdit } from "./IconEdit.svelte";
-export { default as IconMobile } from "./IconMobile.svelte";
-export { default as IconUpload } from "./IconUpload.svelte";
-export { default as IconPlusIconoir } from "./IconPlusIconoir.svelte";
-
-// Checkbox indicator icons
-export { default as IconSquare } from "./IconSquare.svelte";
-export { default as IconSquareFilled } from "./IconSquareFilled.svelte";
-
-// Navigation chevron icons
-export { default as IconChevronUp } from "./IconChevronUp.svelte";
-export { default as IconChevronDown } from "./IconChevronDown.svelte";
-
-// HelpPanel icons
-export { default as IconGitHub } from "./IconGitHub.svelte";
-export { default as IconBug } from "./IconBug.svelte";
-export { default as IconChat } from "./IconChat.svelte";
-export { default as IconCheck } from "./IconCheck.svelte";
