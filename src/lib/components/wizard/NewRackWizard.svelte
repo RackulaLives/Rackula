@@ -149,15 +149,19 @@
     }
   });
 
-  // Reset height and width when layout type changes
+  // Reset height, width, and name when layout type changes
   $effect(() => {
     if (config.layoutType === "bayed") {
       config.height = BAYED_DEFAULT_HEIGHT;
       config.isCustomHeight = false;
       // Bayed racks are always 19" standard width
       config.width = 19;
+      // Use fun default name for bayed racks
+      config.name = "Bayoncé";
     } else {
       config.height = 42;
+      // Use fun default name for column racks
+      config.name = "Racky McRackface";
     }
   });
 

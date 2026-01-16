@@ -5,7 +5,8 @@
 -->
 <script lang="ts">
   import { DropdownMenu } from "bits-ui";
-  import { IconGearBold } from "./icons";
+  import { IconGearBold, IconSquare, IconSquareFilled } from "./icons";
+  import { ICON_SIZE } from "$lib/constants/sizing";
   import "$lib/styles/menu.css";
 
   interface Props {
@@ -59,7 +60,13 @@
       }}
     >
       {#snippet children({ checked })}
-        <span class="menu-checkbox">{checked ? "✓" : ""}</span>
+        <span class="menu-checkbox">
+          {#if checked}
+            <IconSquareFilled size={ICON_SIZE.sm} />
+          {:else}
+            <IconSquare size={ICON_SIZE.sm} />
+          {/if}
+        </span>
         <span class="menu-label">Show Annotations</span>
       {/snippet}
     </DropdownMenu.CheckboxItem>
@@ -73,7 +80,13 @@
       }}
     >
       {#snippet children({ checked })}
-        <span class="menu-checkbox">{checked ? "✓" : ""}</span>
+        <span class="menu-checkbox">
+          {#if checked}
+            <IconSquareFilled size={ICON_SIZE.sm} />
+          {:else}
+            <IconSquare size={ICON_SIZE.sm} />
+          {/if}
+        </span>
         <span class="menu-label">Banana for Scale</span>
       {/snippet}
     </DropdownMenu.CheckboxItem>

@@ -129,6 +129,10 @@
   // Reversed racks for rear row (mirrored layout)
   const reversedRacks = $derived([...racks].reverse());
 
+  // Compute if ANY bay in the group is active/selected (for whole-group highlighting)
+  const isGroupActive = $derived(racks.some((r) => r.id === activeRackId));
+  const isGroupSelected = $derived(racks.some((r) => r.id === selectedRackId));
+
   // Element reference for long press
   let containerElement: HTMLDivElement | null = $state(null);
 
@@ -228,6 +232,8 @@
   bind:this={containerElement}
   class="bayed-rack-view"
   class:long-press-active={longPressActive}
+  class:active={isGroupActive}
+  class:selected={isGroupSelected}
   tabindex="0"
   role="group"
   aria-label="{group.name ?? 'Bayed Rack Group'}, {racks.length} bays"
@@ -272,6 +278,7 @@
             {partyMode}
             faceFilter="front"
             hideRackName={true}
+            hideULabels={true}
             onselect={() =>
               onselect?.(
                 new CustomEvent("select", { detail: { rackId: rack.id } }),
@@ -362,6 +369,7 @@
             {partyMode}
             faceFilter="rear"
             hideRackName={true}
+            hideULabels={true}
             onselect={() =>
               onselect?.(
                 new CustomEvent("select", { detail: { rackId: rack.id } }),
@@ -391,6 +399,16 @@
   }
 
   .bayed-rack-view:focus {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
+  }
+
+  /* Selection highlight for entire bayed rack group */
+  .bayed-rack-view.active {
+    box-shadow: 0 0 0 2px var(--colour-selection);
+  }
+
+  .bayed-rack-view.selected {
     outline: 2px solid var(--colour-selection);
     outline-offset: 2px;
   }
@@ -441,17 +459,10 @@
     flex-direction: column;
     align-items: center;
     border-radius: var(--radius-sm);
-    transition: box-shadow var(--duration-fast) var(--ease-out);
   }
 
-  .bay-container.active {
-    box-shadow: 0 0 0 2px var(--colour-selection);
-  }
-
-  .bay-container.selected {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
-  }
+  /* Per-bay active/selected classes kept for device selection context,
+     but visual highlight is applied to the whole bayed-rack-view */
 
   .bay-label {
     font-size: var(--font-size-xs);

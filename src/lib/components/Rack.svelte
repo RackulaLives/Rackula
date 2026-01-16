@@ -61,6 +61,8 @@
     viewLabel?: string;
     /** Hide the rack name (useful when container shows it instead) */
     hideRackName?: boolean;
+    /** Hide the U labels (useful when bayed rack view shows shared labels) */
+    hideULabels?: boolean;
     /** Party mode visual effects active */
     partyMode?: boolean;
     onselect?: (event: CustomEvent<{ rackId: string }>) => void;
@@ -101,6 +103,7 @@
     faceFilter,
     viewLabel,
     hideRackName = false,
+    hideULabels = false,
     partyMode = false,
     onselect,
     ondeviceselect,
@@ -1067,18 +1070,20 @@
       />
     {/each}
 
-    <!-- U labels (always on left rail) -->
-    {#each uLabels as { uNumber, yPosition } (uNumber)}
-      <text
-        x={RAIL_WIDTH / 2}
-        y={yPosition}
-        class="u-label"
-        class:u-label-highlight={uNumber % 5 === 0}
-        dominant-baseline="middle"
-      >
-        {uNumber}
-      </text>
-    {/each}
+    <!-- U labels (always on left rail) - hidden when bayed rack view shows shared labels -->
+    {#if !hideULabels}
+      {#each uLabels as { uNumber, yPosition } (uNumber)}
+        <text
+          x={RAIL_WIDTH / 2}
+          y={yPosition}
+          class="u-label"
+          class:u-label-highlight={uNumber % 5 === 0}
+          dominant-baseline="middle"
+        >
+          {uNumber}
+        </text>
+      {/each}
+    {/if}
 
     <!-- SVG Defs for blocked slots pattern -->
     <defs>
