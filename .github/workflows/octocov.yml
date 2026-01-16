@@ -1,0 +1,88 @@
+name: Code Metrics
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        # Continue even if coverage thresholds aren't met - we want metrics regardless
+        run: npm run test:run -- --coverage || true
+
+      - name: Run octocov
+        uses: k1LoW/octocov-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply brand colors to badges
+        run: |
+          # Apply Dracula brand colors to octocov-generated badges
+          # Brand colors from docs/reference/BRAND.md:
+          # - Cyan #8BE9FD (info, coverage)
+          # - Purple #BD93F9 (ratio)
+          # - Green #50FA7B (success, time)
+          # - Label background #44475A (Dracula selection)
+
+          for badge in docs/badges/*.svg; do
+            if [ -f "$badge" ]; then
+              # Replace common octocov badge colors with brand colors
+              # Green variants -> brand green
+              sed -i 's/#4c1/#50fa7b/gi' "$badge"
+              sed -i 's/#97ca00/#50fa7b/gi' "$badge"
+              sed -i 's/#44cc11/#50fa7b/gi' "$badge"
+              # Yellow/orange variants -> brand orange
+              sed -i 's/#dfb317/#ffb86c/gi' "$badge"
+              sed -i 's/#fe7d37/#ffb86c/gi' "$badge"
+              # Red variants -> brand red
+              sed -i 's/#e05d44/#ff5555/gi' "$badge"
+              # Grey label background -> Dracula selection
+              sed -i 's/#555/#44475a/gi' "$badge"
+              sed -i 's/#555555/#44475a/gi' "$badge"
+              sed -i 's/#5c5c5c/#44475a/gi' "$badge"
+              # Apply specific colors per badge type
+              case "$badge" in
+                *coverage*)
+                  # Coverage uses cyan for the value background
+                  sed -i 's/#50fa7b/#8be9fd/g' "$badge"
+                  ;;
+                *ratio*)
+                  # Ratio uses purple for the value background
+                  sed -i 's/#50fa7b/#bd93f9/g' "$badge"
+                  sed -i 's/#8be9fd/#bd93f9/g' "$badge"
+                  ;;
+              esac
+            fi
+          done
+
+      - name: Update badges on main
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          # Check if badges were generated
+          if [ -d "docs/badges" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add docs/badges/
+            git diff --staged --quiet || git commit -m "chore: update code metrics badges [skip ci]"
+            git push
+          fi

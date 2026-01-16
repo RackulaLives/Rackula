@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="106" height="20">
+  <linearGradient id="b" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <mask id="a">
+    <rect width="106" height="20" rx="3" fill="#fff"/>
+  </mask>
+  <g mask="url(#a)">
+    <path fill="#44475a" d="M0 0h61v20H0z"/>
+    <path fill="#8be9fd" d="M61 0h45v20H61z"/>
+    <path fill="url(#b)" d="M0 0h106v20H0z"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+    <text x="30.5" y="15" fill="#010101" fill-opacity=".3">coverage</text>
+    <text x="30.5" y="14">coverage</text>
+    <text x="82.5" y="15" fill="#010101" fill-opacity=".3">--%</text>
+    <text x="82.5" y="14">--%</text>
+  </g>
+</svg>
