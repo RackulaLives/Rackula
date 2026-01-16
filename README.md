@@ -11,9 +11,9 @@
 </p>
 
 <p align="center">
-  <img src="docs/badges/coverage.svg" alt="Coverage">
-  <img src="docs/badges/ratio.svg" alt="Code to Test Ratio">
-  <img src="docs/badges/time.svg" alt="Test Time">
+  <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FRackulaLives%2FRackula%2Fmain%2Fdocs%2Fbadges%2Fcoverage.json&style=for-the-badge&labelColor=44475a" alt="Coverage">
+  <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FRackulaLives%2FRackula%2Fmain%2Fdocs%2Fbadges%2Fratio.json&style=for-the-badge&labelColor=44475a" alt="Code to Test Ratio">
+  <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FRackulaLives%2FRackula%2Fmain%2Fdocs%2Fbadges%2Ftime.json&style=for-the-badge&labelColor=44475a" alt="Test Time">
 </p>
 
 <p align="center">

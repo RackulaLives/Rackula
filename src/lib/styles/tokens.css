@@ -352,7 +352,7 @@
   --z-drawer-backdrop: 99;
   --z-drawer: 100;
   --z-fab: 100;
-  --z-dropdown: 150; /* Above drawer, below modal */
+  --z-dropdown: 250; /* Above drawer AND modal - toolbar menus must appear above edit panel */
   --z-bottom-sheet: 200;
   --z-modal: 200;
   --z-toast: 300;

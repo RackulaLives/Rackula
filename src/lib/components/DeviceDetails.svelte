@@ -6,6 +6,7 @@
 <script lang="ts">
   import type { PlacedDevice, DeviceType, RackView } from "$lib/types";
   import CategoryIcon from "./CategoryIcon.svelte";
+  import { IconChevronUp, IconChevronDown, IconTrash } from "./icons";
 
   interface Props {
     device: PlacedDevice;
@@ -129,18 +130,7 @@
           disabled={!canMoveUp}
           aria-label="Move device up"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="18 15 12 9 6 15"></polyline>
-          </svg>
+          <IconChevronUp />
           Move Up
         </button>
         <button
@@ -150,18 +140,7 @@
           disabled={!canMoveDown}
           aria-label="Move device down"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
+          <IconChevronDown />
           Move Down
         </button>
       </div>
@@ -171,21 +150,7 @@
         onclick={onremove}
         aria-label="Remove device from rack"
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="3 6 5 6 21 6"></polyline>
-          <path
-            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-          ></path>
-        </svg>
+        <IconTrash size={16} />
         Remove from Rack
       </button>
     </div>
@@ -303,6 +268,11 @@
     flex: 1;
     background: var(--colour-surface-secondary);
     color: var(--colour-text);
+  }
+
+  .btn-secondary :global(svg) {
+    width: var(--icon-size-sm);
+    height: var(--icon-size-sm);
   }
 
   .btn-secondary:hover:not(:disabled) {

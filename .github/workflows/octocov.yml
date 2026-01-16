@@ -1,4 +1,4 @@
-name: Code Metrics
+name: The Count's Code Census
 
 on:
   push:
@@ -12,7 +12,8 @@ permissions:
   actions: read
 
 jobs:
-  metrics:
+  count:
+    name: "Collect Metrics"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,50 +38,105 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Apply brand colors to badges
+      - name: The Count's Commentary
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Apply Dracula brand colors to octocov-generated badges
-          # Brand colors from docs/reference/BRAND.md:
-          # - Cyan #8BE9FD (info, coverage)
-          # - Purple #BD93F9 (ratio)
-          # - Green #50FA7B (success, time)
-          # - Label background #44475A (Dracula selection)
+          # Parse coverage percentage from the coverage summary
+          if [ -f "coverage/coverage-summary.json" ]; then
+            COVERAGE=$(jq -r '.total.lines.pct' coverage/coverage-summary.json 2>/dev/null || echo "0")
+          else
+            # Fallback: parse from lcov.info
+            COVERAGE=$(awk -F: '/^LF:/{total+=$2} /^LH:/{hit+=$2} END{if(total>0) printf "%.1f", hit/total*100; else print "0"}' coverage/lcov.info 2>/dev/null || echo "0")
+          fi
 
-          for badge in docs/badges/*.svg; do
-            if [ -f "$badge" ]; then
-              # Replace common octocov badge colors with brand colors
-              # Green variants -> brand green
-              sed -i 's/#4c1/#50fa7b/gi' "$badge"
-              sed -i 's/#97ca00/#50fa7b/gi' "$badge"
-              sed -i 's/#44cc11/#50fa7b/gi' "$badge"
-              # Yellow/orange variants -> brand orange
-              sed -i 's/#dfb317/#ffb86c/gi' "$badge"
-              sed -i 's/#fe7d37/#ffb86c/gi' "$badge"
-              # Red variants -> brand red
-              sed -i 's/#e05d44/#ff5555/gi' "$badge"
-              # Grey label background -> Dracula selection
-              sed -i 's/#555/#44475a/gi' "$badge"
-              sed -i 's/#555555/#44475a/gi' "$badge"
-              sed -i 's/#5c5c5c/#44475a/gi' "$badge"
-              # Apply specific colors per badge type
-              case "$badge" in
-                *coverage*)
-                  # Coverage uses cyan for the value background
-                  sed -i 's/#50fa7b/#8be9fd/g' "$badge"
-                  ;;
-                *ratio*)
-                  # Ratio uses purple for the value background
-                  sed -i 's/#50fa7b/#bd93f9/g' "$badge"
-                  sed -i 's/#8be9fd/#bd93f9/g' "$badge"
-                  ;;
-              esac
-            fi
-          done
+          # Round to integer for comparison
+          COV_INT=${COVERAGE%.*}
+
+          # The Count has opinions based on coverage level
+          if [ "$COV_INT" -ge 80 ]; then
+            QUOTE="*\"$COVERAGE percent! That is a WONDERFUL number to count! $COVERAGE! Ah ah ah!\"* 🦇"
+            MOOD="is DELIGHTED"
+          elif [ "$COV_INT" -ge 60 ]; then
+            QUOTE="*\"$COVERAGE percent... Yes, yes, I can count this. $COVERAGE is... acceptable. Ah ah ah.\"* 🦇"
+            MOOD="is satisfied"
+          elif [ "$COV_INT" -ge 40 ]; then
+            QUOTE="*\"$COVERAGE percent? That is not very many things to count. The Count is... disappointed. Ah ah ah.\"* 🌙"
+            MOOD="is concerned"
+          else
+            QUOTE="*\"$COVERAGE percent?! The Count does not get out of his coffin for less than 40 percent! Ah ah ah!\"* ⚰️"
+            MOOD="is VERY disappointed"
+          fi
+
+          # Post The Count's reaction
+          gh pr comment ${{ github.event.pull_request.number }} --body "## 🧛 The Count $MOOD
+
+          $QUOTE
+
+          ---
+          <sub>*One coverage report! Ah ah ah!*</sub>"
+
+      - name: Generate shields.io endpoint JSON
+        run: |
+          # Generate JSON files for shields.io endpoint badges
+          # These match the style of existing badges (for-the-badge, Dracula colors)
+          mkdir -p docs/badges
+
+          # Parse coverage
+          if [ -f "coverage/coverage-summary.json" ]; then
+            COVERAGE=$(jq -r '.total.lines.pct' coverage/coverage-summary.json 2>/dev/null || echo "0")
+          else
+            COVERAGE=$(awk -F: '/^LF:/{total+=$2} /^LH:/{hit+=$2} END{if(total>0) printf "%.1f", hit/total*100; else print "0"}' coverage/lcov.info 2>/dev/null || echo "0")
+          fi
+
+          # Parse code-to-test ratio from octocov output or calculate
+          CODE_LINES=$(find src/lib -name "*.ts" -o -name "*.svelte" | grep -v test | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
+          TEST_LINES=$(find src -name "*.test.ts" -o -name "*.spec.ts" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
+          if [ "$CODE_LINES" -gt 0 ] && [ "$TEST_LINES" -gt 0 ]; then
+            RATIO=$(echo "scale=1; $TEST_LINES / $CODE_LINES" | bc)
+            RATIO_DISPLAY="1:$RATIO"
+          else
+            RATIO_DISPLAY="--"
+          fi
+
+          # Get test execution time from environment or estimate
+          TIME_DISPLAY="${TEST_TIME:-~60s}"
+
+          # Coverage badge JSON (purple - bd93f9)
+          cat > docs/badges/coverage.json << EOF
+          {
+            "schemaVersion": 1,
+            "label": "coverage",
+            "message": "${COVERAGE}%",
+            "color": "bd93f9"
+          }
+          EOF
+
+          # Ratio badge JSON (pink - ff79c6)
+          cat > docs/badges/ratio.json << EOF
+          {
+            "schemaVersion": 1,
+            "label": "code:test",
+            "message": "$RATIO_DISPLAY",
+            "color": "ff79c6"
+          }
+          EOF
+
+          # Time badge JSON (green - 50fa7b)
+          cat > docs/badges/time.json << EOF
+          {
+            "schemaVersion": 1,
+            "label": "tests",
+            "message": "$TIME_DISPLAY",
+            "color": "50fa7b"
+          }
+          EOF
 
       - name: Update badges on main
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          # Check if badges were generated
+          # Check if badge JSON was generated
           if [ -d "docs/badges" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
