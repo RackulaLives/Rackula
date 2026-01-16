@@ -41,8 +41,9 @@ function isValidSidebarTab(tab: string): tab is SidebarTab {
 function loadSidebarTabFromStorage(): SidebarTab {
   try {
     const stored = localStorage.getItem(SIDEBAR_TAB_KEY);
-    // Handle legacy "hide" value - migrate to "devices"
+    // Handle legacy "hide" value - migrate to "devices" and persist
     if (stored === "hide") {
+      localStorage.setItem(SIDEBAR_TAB_KEY, "devices");
       return "devices";
     }
     if (stored && isValidSidebarTab(stored)) {

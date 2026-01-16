@@ -111,19 +111,19 @@
   let selectedDeviceForSheet = $derived(dialogStore.selectedDeviceIndex);
   let exportQrCodeDataUrl = $derived(dialogStore.exportQrCodeDataUrl);
 
-  // Sidebar collapse state (managed via paneforge callbacks)
-  let sidebarCollapsed = $state(false);
+  // Sidebar collapse state (derived from store for persistence)
+  let sidebarCollapsed = $derived(uiStore.sidebarCollapsed);
   // Pane instance for programmatic expand/collapse
   let sidebarPane: { collapse: () => void; expand: () => void } | undefined =
     $state(undefined);
 
-  // Handlers for sidebar collapse gestures
+  // Handlers for sidebar collapse gestures - update store for persistence
   function handleSidebarCollapse() {
-    sidebarCollapsed = true;
+    uiStore.collapseSidebar();
   }
 
   function handleSidebarExpand() {
-    sidebarCollapsed = false;
+    uiStore.expandSidebar();
   }
 
   function toggleSidebarCollapse() {
@@ -1205,7 +1205,8 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    min-width: var(--sidebar-width-min);
+    /* Use CSS variable so collapsed state can override without !important */
+    min-width: var(--sidebar-collapsed-min-width, var(--sidebar-width-min));
   }
 
   :global(.resize-handle) {
@@ -1227,9 +1228,9 @@
     overflow: hidden;
   }
 
-  /* Collapsed sidebar pane */
+  /* Collapsed sidebar pane - override CSS variable for min-width */
   :global(.sidebar-pane.collapsed) {
-    min-width: 0 !important;
+    --sidebar-collapsed-min-width: 0;
     overflow: hidden;
   }
 
