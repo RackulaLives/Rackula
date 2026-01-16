@@ -15,7 +15,6 @@
     sortDevicesAlphabetically,
     filterDevicesByRackWidth,
   } from "$lib/utils/deviceFilters";
-  import type { RackWidth } from "$lib/types";
   import {
     loadGroupingModeFromStorage,
     saveGroupingModeToStorage,
@@ -131,9 +130,8 @@
   const brandPacks = getBrandPacks();
 
   // Get active rack width for filtering (defaults to 19" standard if no active rack)
-  const activeRackWidth = $derived<RackWidth>(
-    (layoutStore.activeRack?.width as RackWidth) ?? 19,
-  );
+  // Uses minimum-width logic: devices fit if rack width >= device width
+  const activeRackWidth = $derived(layoutStore.activeRack?.width ?? 19);
 
   // Merge starter library with layout device types for display
   // Starter library is always available; layout.device_types contains placed/custom devices
