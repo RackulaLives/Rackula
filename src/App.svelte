@@ -73,6 +73,7 @@
   import { debug } from "$lib/utils/debug";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { Tooltip } from "bits-ui";
+  import SidebarEdgeHandle from "$lib/components/SidebarEdgeHandle.svelte";
   import { pointerCapture } from "$lib/utils/pointer-capture";
 
   // Build-time environment constant from vite.config.ts
@@ -109,6 +110,31 @@
   let deleteTarget = $derived(dialogStore.deleteTarget);
   let selectedDeviceForSheet = $derived(dialogStore.selectedDeviceIndex);
   let exportQrCodeDataUrl = $derived(dialogStore.exportQrCodeDataUrl);
+
+  // Sidebar collapse state (derived from store for persistence)
+  let sidebarCollapsed = $derived(uiStore.sidebarCollapsed);
+  // Pane instance for programmatic expand/collapse
+  let sidebarPane: { collapse: () => void; expand: () => void } | undefined =
+    $state(undefined);
+
+  // Handlers for sidebar collapse gestures - update store for persistence
+  function handleSidebarCollapse() {
+    uiStore.collapseSidebar();
+  }
+
+  function handleSidebarExpand() {
+    uiStore.expandSidebar();
+  }
+
+  function toggleSidebarCollapse() {
+    if (sidebarPane) {
+      if (sidebarCollapsed) {
+        sidebarPane.expand();
+      } else {
+        sidebarPane.collapse();
+      }
+    }
+  }
 
   // Party Mode easter egg (triggered by Konami code)
   let partyMode = $state(false);
@@ -908,37 +934,30 @@
 
     <main class="app-main" class:mobile={viewportStore.isMobile}>
       {#if !viewportStore.isMobile}
-        <!-- Show sidebar toggle when hidden -->
-        {#if uiStore.sidebarTab === "hide"}
-          <button
-            type="button"
-            class="sidebar-show-btn"
-            onclick={() => uiStore.setSidebarTab("devices")}
-            aria-label="Show sidebar"
-            title="Show sidebar"
-          >
-            <span aria-hidden="true">→</span>
-          </button>
+        <!-- Edge handle shown when sidebar is collapsed -->
+        {#if sidebarCollapsed}
+          <SidebarEdgeHandle onexpand={() => sidebarPane?.expand()} />
         {/if}
 
         <PaneGroup
           direction="horizontal"
-          autoSaveId={uiStore.sidebarTab !== "hide"
-            ? "rackula-main-layout"
-            : "rackula-main-layout-no-sidebar"}
+          autoSaveId="rackula-main-layout"
           keyboardResizeBy={10}
           class="pane-group"
         >
-          {#if uiStore.sidebarTab !== "hide"}
-            <Pane
-              defaultSize={20}
-              minSize={10}
-              maxSize={40}
-              collapsible={true}
-              collapsedSize={3}
-              id="sidebar-pane"
-              class="sidebar-pane"
-            >
+          <Pane
+            bind:pane={sidebarPane}
+            defaultSize={20}
+            minSize={15}
+            maxSize={40}
+            collapsible={true}
+            collapsedSize={0}
+            onCollapse={handleSidebarCollapse}
+            onExpand={handleSidebarExpand}
+            id="sidebar-pane"
+            class={sidebarCollapsed ? "sidebar-pane collapsed" : "sidebar-pane"}
+          >
+            {#if !sidebarCollapsed}
               <SidebarTabs
                 activeTab={uiStore.sidebarTab}
                 onchange={(tab) => uiStore.setSidebarTab(tab)}
@@ -951,14 +970,18 @@
               {:else if uiStore.sidebarTab === "racks"}
                 <RackList onaddrack={handleNewRack} />
               {/if}
-            </Pane>
+            {/if}
+          </Pane>
 
-            <PaneResizer class="resize-handle">
-              {#snippet child({ props })}
-                <div use:pointerCapture {...props}></div>
-              {/snippet}
-            </PaneResizer>
-          {/if}
+          <PaneResizer class="resize-handle">
+            {#snippet child({ props })}
+              <div
+                use:pointerCapture
+                ondblclick={toggleSidebarCollapse}
+                {...props}
+              ></div>
+            {/snippet}
+          </PaneResizer>
 
           <Pane class="main-pane">
             <Canvas
@@ -1182,7 +1205,8 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    min-width: var(--sidebar-width-min);
+    /* Use CSS variable so collapsed state can override without !important */
+    min-width: var(--sidebar-collapsed-min-width, var(--sidebar-width-min));
   }
 
   :global(.resize-handle) {
@@ -1204,37 +1228,10 @@
     overflow: hidden;
   }
 
-  /* Show sidebar button when sidebar is hidden */
-  .sidebar-show-btn {
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 10;
-    width: 24px;
-    height: 48px;
-    padding: 0;
-    background: var(--colour-surface);
-    border: 1px solid var(--colour-border);
-    border-left: none;
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-    color: var(--colour-text-muted);
-    font-size: var(--font-size-base);
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .sidebar-show-btn:hover {
-    background: var(--colour-surface-hover);
-    color: var(--colour-text);
-  }
-
-  .sidebar-show-btn:focus-visible {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: -2px;
+  /* Collapsed sidebar pane - override CSS variable for min-width */
+  :global(.sidebar-pane.collapsed) {
+    --sidebar-collapsed-min-width: 0;
+    overflow: hidden;
   }
 
   /* Note: Mobile overscroll prevention should be in global styles (index.html or app.css) */

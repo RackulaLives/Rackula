@@ -16,8 +16,8 @@ import {
 } from "$lib/utils/sidebarWidth";
 import type { DisplayMode, AnnotationField } from "$lib/types";
 
-// Sidebar tab type
-export type SidebarTab = "hide" | "devices" | "racks";
+// Sidebar tab type (hide removed - collapse is now gesture-based)
+export type SidebarTab = "devices" | "racks";
 
 // localStorage key for sidebar tab
 const SIDEBAR_TAB_KEY = "Rackula_sidebar_tab";
@@ -25,11 +25,7 @@ const SIDEBAR_TAB_KEY = "Rackula_sidebar_tab";
 /**
  * Valid sidebar tab values for runtime validation
  */
-const VALID_SIDEBAR_TABS: readonly SidebarTab[] = [
-  "hide",
-  "devices",
-  "racks",
-] as const;
+const VALID_SIDEBAR_TABS: readonly SidebarTab[] = ["devices", "racks"] as const;
 
 /**
  * Check if a value is a valid SidebarTab
@@ -40,10 +36,16 @@ function isValidSidebarTab(tab: string): tab is SidebarTab {
 
 /**
  * Load sidebar tab from localStorage
+ * Note: Legacy "hide" values are migrated to "devices"
  */
 function loadSidebarTabFromStorage(): SidebarTab {
   try {
     const stored = localStorage.getItem(SIDEBAR_TAB_KEY);
+    // Handle legacy "hide" value - migrate to "devices" and persist
+    if (stored === "hide") {
+      localStorage.setItem(SIDEBAR_TAB_KEY, "devices");
+      return "devices";
+    }
     if (stored && isValidSidebarTab(stored)) {
       return stored;
     }
