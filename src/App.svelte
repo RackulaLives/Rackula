@@ -73,6 +73,7 @@
   import { debug } from "$lib/utils/debug";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { Tooltip } from "bits-ui";
+  import { pointerCapture } from "$lib/utils/pointer-capture";
 
   // Build-time environment constant from vite.config.ts
   declare const __BUILD_ENV__: string;
@@ -952,7 +953,11 @@
               {/if}
             </Pane>
 
-            <PaneResizer class="resize-handle" />
+            <PaneResizer class="resize-handle">
+              {#snippet child({ props })}
+                <div use:pointerCapture {...props}></div>
+              {/snippet}
+            </PaneResizer>
           {/if}
 
           <Pane class="main-pane">
