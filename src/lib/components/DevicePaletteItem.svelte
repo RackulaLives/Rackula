@@ -7,6 +7,7 @@
   import type { DeviceType } from "$lib/types";
   import IconGrip from "./icons/IconGrip.svelte";
   import CategoryIcon from "./CategoryIcon.svelte";
+  import { ICON_SIZE } from "$lib/constants/sizing";
   import ImageIndicator from "./ImageIndicator.svelte";
   import {
     createPaletteDragData,
@@ -122,10 +123,10 @@
     : ''}"
 >
   <span class="drag-handle" aria-hidden="true">
-    <IconGrip size={16} />
+    <IconGrip size={ICON_SIZE.sm} />
   </span>
   <span class="category-icon-indicator" style="color: {device.colour}">
-    <CategoryIcon category={device.category} size={16} />
+    <CategoryIcon category={device.category} size={ICON_SIZE.sm} />
   </span>
   <span class="device-name">
     {#each highlightedSegments as segment, i (i)}

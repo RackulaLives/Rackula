@@ -6,6 +6,7 @@
 <script lang="ts">
   import { DropdownMenu } from "bits-ui";
   import { IconFolderBold } from "./icons";
+  import { ICON_SIZE } from "$lib/constants/sizing";
   import { formatShortcut } from "$lib/utils/platform";
   import "$lib/styles/menu.css";
 
@@ -38,7 +39,7 @@
 
 <DropdownMenu.Root bind:open>
   <DropdownMenu.Trigger class="toolbar-icon-btn" aria-label="File menu">
-    <IconFolderBold size={20} />
+    <IconFolderBold size={ICON_SIZE.md} />
   </DropdownMenu.Trigger>
 
   <DropdownMenu.Portal>

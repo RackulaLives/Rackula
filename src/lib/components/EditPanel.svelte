@@ -24,6 +24,7 @@
     getConflictDetails,
     formatConflictMessage,
   } from "$lib/utils/rack-resize";
+  import { ICON_SIZE } from "$lib/constants/sizing";
   import { canPlaceDevice, findCollisions } from "$lib/utils/collision";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getDeviceDisplayName } from "$lib/utils/device";
@@ -773,7 +774,10 @@
         <div class="info-row">
           <span class="info-label">Device Type</span>
           <span class="info-value device-type">
-            <ColourSwatch colour={selectedDeviceInfo.device.colour} size={16} />
+            <ColourSwatch
+              colour={selectedDeviceInfo.device.colour}
+              size={ICON_SIZE.sm}
+            />
             {selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug}
           </span>
         </div>
@@ -784,7 +788,7 @@
               slug={getManufacturerIconSlug(
                 selectedDeviceInfo.device.manufacturer,
               )}
-              size={16}
+              size={ICON_SIZE.sm}
             />
             {selectedDeviceInfo.device.manufacturer ?? "Generic"}
           </span>
@@ -902,7 +906,7 @@
             <ColourSwatch
               colour={selectedDeviceInfo.placedDevice.colour_override ??
                 selectedDeviceInfo.device.colour}
-              size={16}
+              size={ICON_SIZE.sm}
             />
             {#if selectedDeviceInfo.placedDevice.colour_override}
               {selectedDeviceInfo.placedDevice.colour_override}

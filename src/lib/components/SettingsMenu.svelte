@@ -49,7 +49,7 @@
 
 <DropdownMenu.Root bind:open>
   <DropdownMenu.Trigger class="toolbar-icon-btn" aria-label="Settings menu">
-    <IconGearBold size={20} />
+    <IconGearBold size={ICON_SIZE.md} />
   </DropdownMenu.Trigger>
 
   <DropdownMenu.Portal>

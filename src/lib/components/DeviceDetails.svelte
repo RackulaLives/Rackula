@@ -7,6 +7,7 @@
   import type { PlacedDevice, DeviceType, RackView } from "$lib/types";
   import CategoryIcon from "./CategoryIcon.svelte";
   import { IconChevronUp, IconChevronDown, IconTrash } from "./icons";
+  import { ICON_SIZE } from "$lib/constants/sizing";
 
   interface Props {
     device: PlacedDevice;
@@ -81,7 +82,7 @@
     <div class="info-row">
       <span class="info-label">Category</span>
       <span class="info-value category-value">
-        <CategoryIcon category={deviceType.category} size={16} />
+        <CategoryIcon category={deviceType.category} size={ICON_SIZE.sm} />
         <span>{deviceType.category}</span>
       </span>
     </div>
@@ -150,7 +151,7 @@
         onclick={onremove}
         aria-label="Remove device from rack"
       >
-        <IconTrash size={16} />
+        <IconTrash size={ICON_SIZE.sm} />
         Remove from Rack
       </button>
     </div>

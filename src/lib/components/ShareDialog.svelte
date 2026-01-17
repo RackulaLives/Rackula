@@ -5,6 +5,7 @@
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
   import { IconCopy, IconDownload } from "./icons";
+  import { ICON_SIZE } from "$lib/constants/sizing";
   import { generateShareUrl, encodeLayout } from "$lib/utils/share";
   import {
     generateQRCode,
@@ -119,7 +120,7 @@
           aria-label="Copy link to clipboard"
           data-testid="share-copy-btn"
         >
-          <IconCopy size={16} />
+          <IconCopy size={ICON_SIZE.sm} />
         </button>
       </div>
       <p class="url-info">
@@ -176,7 +177,7 @@
           title="Recommended print size: {QR_MIN_PRINT_CM}cm minimum"
           data-testid="qr-download-btn"
         >
-          <IconDownload size={16} />
+          <IconDownload size={ICON_SIZE.sm} />
           Download QR
         </button>
       {/if}

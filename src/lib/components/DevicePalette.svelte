@@ -29,6 +29,7 @@
   import DevicePaletteItem from "./DevicePaletteItem.svelte";
   import BrandIcon from "./BrandIcon.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
+  import { ICON_SIZE } from "$lib/constants/sizing";
   import type { DeviceType } from "$lib/types";
 
   interface Props {
@@ -444,7 +445,7 @@
               >
                 <span class="section-header">
                   {#if section.icon || section.id === "apc"}
-                    <BrandIcon slug={section.icon} size={16} />
+                    <BrandIcon slug={section.icon} size={ICON_SIZE.sm} />
                   {/if}
                   <span class="section-title">{section.title}</span>
                 </span>

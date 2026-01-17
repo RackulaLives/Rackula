@@ -19,6 +19,7 @@
     IconFitAllBold,
     IconImageLabel,
   } from "./icons";
+  import { ICON_SIZE } from "$lib/constants/sizing";
   import type { DisplayMode } from "$lib/types";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
@@ -176,7 +177,7 @@
         onclick={handleNewRack}
         data-testid="btn-new-rack"
       >
-        <IconPlusBold size={20} />
+        <IconPlusBold size={ICON_SIZE.md} />
       </button>
     </Tooltip>
 
@@ -192,7 +193,7 @@
         onclick={handleUndo}
         data-testid="btn-undo"
       >
-        <IconUndoBold size={20} />
+        <IconUndoBold size={ICON_SIZE.md} />
       </button>
     </Tooltip>
 
@@ -208,7 +209,7 @@
         onclick={handleRedo}
         data-testid="btn-redo"
       >
-        <IconRedoBold size={20} />
+        <IconRedoBold size={ICON_SIZE.md} />
       </button>
     </Tooltip>
 
@@ -224,11 +225,11 @@
         data-testid="btn-display-mode"
       >
         {#if displayMode === "label"}
-          <IconTextBold size={20} />
+          <IconTextBold size={ICON_SIZE.md} />
         {:else if displayMode === "image"}
-          <IconImageBold size={20} />
+          <IconImageBold size={ICON_SIZE.md} />
         {:else}
-          <IconImageLabel size={24} />
+          <IconImageLabel size={ICON_SIZE.lg} />
         {/if}
       </button>
     </Tooltip>
@@ -240,7 +241,7 @@
         onclick={handleFitAll}
         data-testid="btn-fit-all"
       >
-        <IconFitAllBold size={20} />
+        <IconFitAllBold size={ICON_SIZE.md} />
       </button>
     </Tooltip>
   </div>
