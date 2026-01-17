@@ -24,6 +24,7 @@ import type {
   Airflow,
   Slot,
   RackWidth,
+  SlotWidth,
 } from "$lib/types";
 import type { Command, CommandType } from "$lib/stores/commands/types";
 import { toInternalUnits } from "$lib/utils/position";
@@ -67,6 +68,7 @@ export interface CreateTestDeviceTypeOptions {
   airflow?: Airflow;
   face?: DeviceFace;
   rack_widths?: RackWidth[];
+  slot_width?: SlotWidth;
 }
 
 /**
@@ -116,6 +118,7 @@ export function createTestDeviceType(
     result.is_full_depth = options.is_full_depth;
   if (options.airflow) result.airflow = options.airflow;
   if (options.rack_widths) result.rack_widths = options.rack_widths;
+  if (options.slot_width !== undefined) result.slot_width = options.slot_width;
 
   return result;
 }

@@ -39,7 +39,11 @@ function createRackWithContainer(
     slug: "blade-chassis",
     u_height: 4,
   });
-  const childType = createTestDeviceType({ slug: "blade-server", u_height: 1 });
+  const childType = createTestDeviceType({
+    slug: "blade-server",
+    u_height: 1,
+    slot_width: 1, // Half-width device fits in 0.5 fraction slots
+  });
 
   const containerId = "container-1";
   const containerDevice = createTestDevice({
@@ -222,6 +226,7 @@ describe("canPlaceInContainer", () => {
     const childType = createTestDeviceType({
       slug: "blade-server",
       u_height: 1,
+      slot_width: 1, // Half-width device fits in 0.5 fraction slots
     });
     const container = createTestDevice({
       id: "container-1",
@@ -251,6 +256,7 @@ describe("canPlaceInContainer", () => {
     const childType = createTestDeviceType({
       slug: "blade-server",
       u_height: 1,
+      slot_width: 1, // Half-width device fits in 0.5 fraction slots
     });
 
     const container = createTestDevice({
@@ -303,6 +309,7 @@ describe("canPlaceInContainer", () => {
     const childType = createTestDeviceType({
       slug: "blade-server",
       u_height: 1,
+      slot_width: 1, // Half-width device fits in 0.5 fraction slots
     });
 
     const container = createTestDevice({
@@ -340,6 +347,7 @@ describe("canPlaceInContainer", () => {
     const childType = createTestDeviceType({
       slug: "blade-server",
       u_height: 1,
+      slot_width: 1, // Half-width device fits in 0.5 fraction slots
     });
 
     const container = createTestDevice({
@@ -377,6 +385,7 @@ describe("canPlaceInContainer", () => {
     const childType = createTestDeviceType({
       slug: "blade-server",
       u_height: 1,
+      slot_width: 1, // Half-width device fits in 0.5 fraction slots
     });
 
     const container = createTestDevice({
@@ -409,6 +418,7 @@ describe("canPlaceInContainer", () => {
     const childType = createTestDeviceType({
       slug: "blade-server",
       u_height: 1,
+      slot_width: 1, // Half-width device fits in 0.5 fraction slots
     });
 
     const container = createTestDevice({
@@ -440,6 +450,7 @@ describe("canPlaceInContainer", () => {
     const childType = createTestDeviceType({
       slug: "blade-server-2u",
       u_height: 2,
+      slot_width: 1, // Half-width device fits in 0.5 fraction slots
     });
 
     const container = createTestDevice({
@@ -477,6 +488,7 @@ describe("Children collide only with siblings in same container", () => {
     const childType = createTestDeviceType({
       slug: "blade-server",
       u_height: 1,
+      slot_width: 1, // Half-width device fits in 0.5 fraction slots
     });
 
     const container1 = createTestDevice({
@@ -521,6 +533,7 @@ describe("Children collide only with siblings in same container", () => {
     const childType = createTestDeviceType({
       slug: "blade-server",
       u_height: 2,
+      slot_width: 1, // Half-width device fits in 0.5 fraction slots
     });
 
     const container = createTestDevice({
@@ -564,6 +577,7 @@ describe("Face inheritance for container children", () => {
     const childType = createTestDeviceType({
       slug: "blade-server",
       u_height: 1,
+      slot_width: 1, // Half-width device fits in 0.5 fraction slots
     });
 
     // Container on rear face
@@ -603,6 +617,7 @@ describe("Container collision edge cases", () => {
     const childType = createTestDeviceType({
       slug: "blade-server",
       u_height: 1,
+      slot_width: 1, // Half-width device fits in 0.5 fraction slots
     });
 
     const container = createTestDevice({
@@ -636,6 +651,7 @@ describe("Container collision edge cases", () => {
     const childType = createTestDeviceType({
       slug: "blade-server",
       u_height: 1,
+      slot_width: 1, // Half-width device fits in 0.5 fraction slots
     });
 
     const container = createTestDevice({

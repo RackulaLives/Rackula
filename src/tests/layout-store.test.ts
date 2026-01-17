@@ -1537,6 +1537,8 @@ describe("Layout Store", () => {
         u_height: 1,
         category: "server",
         colour: "#4A90D9",
+        slot_width: 1, // Half-width device fits in 0.5 fraction slot
+        is_full_depth: false, // Half-width devices must be half-depth
       });
 
       // Place container at rack level
@@ -1604,6 +1606,8 @@ describe("Layout Store", () => {
         u_height: 1,
         category: "server",
         colour: "#4A90D9",
+        slot_width: 1, // Half-width device fits in 0.5 fraction slot
+        is_full_depth: false, // Half-width devices must be half-depth
       });
 
       // Place container on rear face
@@ -1646,6 +1650,8 @@ describe("Layout Store", () => {
         u_height: 1,
         category: "server",
         colour: "#4A90D9",
+        slot_width: 1, // Half-width device fits in 0.5 fraction slot
+        is_full_depth: false, // Half-width devices must be half-depth
       });
 
       store.placeDevice(rack!.id, containerType.slug, 10);

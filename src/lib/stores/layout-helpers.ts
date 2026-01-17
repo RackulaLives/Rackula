@@ -13,6 +13,7 @@ import type {
   WeightUnit,
   InterfaceTemplate,
   Slot,
+  SlotWidth,
 } from "$lib/types";
 import { generateDeviceSlug } from "$lib/utils/slug";
 import { generateId } from "$lib/utils/device";
@@ -37,6 +38,8 @@ export interface CreateDeviceTypeInput {
   interfaces?: InterfaceTemplate[];
   /** Container slots for shelf/enclosure devices */
   slots?: Slot[];
+  /** Slot width for container-child devices (1=half-width, 2=full-width) */
+  slot_width?: SlotWidth;
 }
 
 /**
@@ -96,6 +99,9 @@ export function createDeviceType(data: CreateDeviceTypeInput): DeviceType {
   }
   if (data.slots && data.slots.length > 0) {
     deviceType.slots = data.slots;
+  }
+  if (data.slot_width !== undefined) {
+    deviceType.slot_width = data.slot_width;
   }
 
   return deviceType;
