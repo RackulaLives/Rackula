@@ -717,7 +717,7 @@
 
   .category-header {
     margin: 0;
-    padding: var(--space-2) var(--space-3) 4px;
+    padding: var(--space-2) var(--space-3) var(--space-1);
     font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
@@ -751,7 +751,7 @@
   }
 
   .empty-hint {
-    margin: 4px 0 0;
+    margin: var(--space-1) 0 0;
     font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
   }
@@ -772,7 +772,7 @@
     justify-content: center;
     gap: var(--space-1-5);
     flex: 1;
-    padding: 10px var(--space-3);
+    padding: var(--space-3) var(--space-3);
     font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--colour-text);

@@ -1187,11 +1187,11 @@
   .height-presets {
     display: flex;
     gap: var(--space-2);
-    margin-top: 4px;
+    margin-top: var(--space-1);
   }
 
   .preset-btn {
-    padding: 4px var(--space-2);
+    padding: var(--space-1) var(--space-2);
     background: var(--button-bg);
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-sm);
@@ -1356,7 +1356,7 @@
 
   .btn-danger {
     width: 100%;
-    padding: 10px var(--space-4);
+    padding: var(--space-3) var(--space-4);
     background: var(--colour-error);
     border: none;
     border-radius: var(--radius-sm);
