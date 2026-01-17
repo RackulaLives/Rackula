@@ -10,7 +10,12 @@
  * All branded devices have been moved to brandPacks/
  */
 
-import type { DeviceType, DeviceCategory, Slot } from "$lib/types";
+import type {
+  DeviceType,
+  DeviceCategory,
+  Slot,
+  SubdeviceRole,
+} from "$lib/types";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 
 interface StarterDeviceSpec {
@@ -21,8 +26,10 @@ interface StarterDeviceSpec {
   is_full_depth?: boolean;
   /** Width in slots: 1 = half-width, 2 = full-width. Default: 2 */
   slot_width?: 1 | 2;
-  /** Container slots for shelf/container devices */
+  /** Container slots for shelf/container/chassis devices */
   slots?: Slot[];
+  /** Subdevice role: parent (container) or child (fits in parent bay) */
+  subdevice_role?: SubdeviceRole;
 }
 
 const STARTER_DEVICES: StarterDeviceSpec[] = [
@@ -360,6 +367,109 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     is_full_depth: false,
   },
 
+  // Blade Chassis and Blade Servers (4)
+  // Blade chassis are containers that hold blade server modules
+  {
+    slug: "blade-chassis-4u",
+    model: "Blade Chassis (4-Bay)",
+    u_height: 4,
+    category: "chassis",
+    subdevice_role: "parent",
+    slots: [
+      {
+        id: "bay-1",
+        name: "Bay 1",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.5,
+        height_units: 2,
+        accepts: ["server"],
+      },
+      {
+        id: "bay-2",
+        name: "Bay 2",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.5,
+        height_units: 2,
+        accepts: ["server"],
+      },
+      {
+        id: "bay-3",
+        name: "Bay 3",
+        position: { row: 1, col: 0 },
+        width_fraction: 0.5,
+        height_units: 2,
+        accepts: ["server"],
+      },
+      {
+        id: "bay-4",
+        name: "Bay 4",
+        position: { row: 1, col: 1 },
+        width_fraction: 0.5,
+        height_units: 2,
+        accepts: ["server"],
+      },
+    ],
+  },
+  {
+    slug: "blade-chassis-7u",
+    model: "Blade Chassis (8-Bay)",
+    u_height: 7,
+    category: "chassis",
+    subdevice_role: "parent",
+    slots: [
+      {
+        id: "bay-1",
+        name: "Bay 1",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.25,
+        height_units: 7,
+        accepts: ["server"],
+      },
+      {
+        id: "bay-2",
+        name: "Bay 2",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.25,
+        height_units: 7,
+        accepts: ["server"],
+      },
+      {
+        id: "bay-3",
+        name: "Bay 3",
+        position: { row: 0, col: 2 },
+        width_fraction: 0.25,
+        height_units: 7,
+        accepts: ["server"],
+      },
+      {
+        id: "bay-4",
+        name: "Bay 4",
+        position: { row: 0, col: 3 },
+        width_fraction: 0.25,
+        height_units: 7,
+        accepts: ["server"],
+      },
+    ],
+  },
+  {
+    slug: "blade-server-half",
+    model: "Blade Server (Half-Height)",
+    u_height: 2,
+    category: "server",
+    subdevice_role: "child",
+    slot_width: 1,
+    is_full_depth: false,
+  },
+  {
+    slug: "blade-server-full",
+    model: "Blade Server (Full-Height)",
+    u_height: 4,
+    category: "server",
+    subdevice_role: "child",
+    slot_width: 1,
+    is_full_depth: false,
+  },
+
   // Blanks (5)
   {
     slug: "0-5u-blank",
@@ -505,6 +615,7 @@ export function getStarterLibrary(): DeviceType[] {
       colour: CATEGORY_COLOURS[spec.category],
       category: spec.category,
       slots: spec.slots,
+      subdevice_role: spec.subdevice_role,
     }));
   }
   return cachedStarterLibrary;

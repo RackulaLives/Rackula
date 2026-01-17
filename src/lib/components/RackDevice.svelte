@@ -7,9 +7,11 @@
     DeviceType,
     DisplayMode,
     InterfaceTemplate,
+    PlacedDevice,
     RackView,
     SlotPosition,
   } from "$lib/types";
+  import { SvelteMap } from "svelte/reactivity";
   import PortIndicators from "./PortIndicators.svelte";
   import ContainerSlots from "./ContainerSlots.svelte";
   import {
@@ -60,6 +62,15 @@
       containerPosition: number;
       slotName: string;
     };
+    /** Device library for looking up child device types */
+    deviceLibrary?: DeviceType[];
+    /** Child devices placed inside this container (if container) */
+    containerChildDevices?: Array<{
+      placedDevice: PlacedDevice;
+      originalIndex: number;
+    }>;
+    /** ID of currently selected child device (for highlighting) */
+    selectedChildId?: string | null;
     onselect?: (event: CustomEvent<{ slug: string; position: number }>) => void;
     ondragstart?: (
       event: CustomEvent<{ rackId: string; deviceIndex: number }>,
@@ -97,6 +108,9 @@
     colourOverride,
     slotPosition = "full",
     containerContext,
+    deviceLibrary = [],
+    containerChildDevices = [],
+    selectedChildId = null,
     onselect,
     ondragstart: ondragstartProp,
     ondragend: ondragendProp,
@@ -180,6 +194,35 @@
   );
   // X offset within the interior: 0 for left/full, half for right
   const slotXOffset = $derived(slotPosition === "right" ? fullWidth / 2 : 0);
+
+  // Container helper: compute slot x offsets and widths for child positioning
+  const slotGeometry = $derived.by(() => {
+    if (!device.slots?.length)
+      return new SvelteMap<string, { x: number; width: number }>();
+
+    const geometry = new SvelteMap<string, { x: number; width: number }>();
+    let cumulativeX = 0;
+
+    for (const slot of device.slots) {
+      const widthFraction = slot.width_fraction ?? 1.0;
+      const width = deviceWidth * widthFraction;
+      geometry.set(slot.id, { x: cumulativeX, width });
+      cumulativeX += width;
+    }
+
+    return geometry;
+  });
+
+  // Helper to get child device type from library
+  function getChildDeviceType(slug: string): DeviceType | undefined {
+    return deviceLibrary.find((d) => d.slug === slug);
+  }
+
+  // Calculate child device position within container
+  // Position is 0-indexed from bottom of container, Y is SVG coordinate (origin at top)
+  function getChildY(childPosition: number, childUHeight: number): number {
+    return deviceHeight - (childPosition + childUHeight) * uHeight;
+  }
 
   // Calculate available width for centered text (accounting for icon areas)
   // Uses shared constants from text-sizing.ts for consistency with exports
@@ -566,6 +609,74 @@
       selectedSlotId={null}
     />
   {/if}
+
+  <!-- Container children: devices placed inside this container's slots -->
+  {#if isContainer && containerChildDevices.length > 0}
+    <g class="container-children">
+      {#each containerChildDevices as { placedDevice: child } (child.id)}
+        {@const childType = getChildDeviceType(child.device_type)}
+        {@const slotGeo = child.slot_id
+          ? slotGeometry.get(child.slot_id)
+          : undefined}
+        {#if childType && slotGeo}
+          {@const childHeight = childType.u_height * uHeight}
+          {@const childY = getChildY(child.position, childType.u_height)}
+          {@const childWidth = slotGeo.width}
+          {@const childX = slotGeo.x}
+          {@const childColour =
+            child.colour_override ??
+            childType.colour ??
+            "var(--colour-device-default)"}
+          {@const childName = child.name ?? childType.model ?? childType.slug}
+          {@const isChildSelected = selectedChildId === child.id}
+          <g
+            class="container-child"
+            class:selected={isChildSelected}
+            transform="translate({childX}, {childY})"
+          >
+            <!-- Child device rectangle -->
+            <rect
+              class="child-device-rect"
+              x={2}
+              y={1}
+              width={childWidth - 4}
+              height={childHeight - 2}
+              fill={childColour}
+              rx="2"
+              ry="2"
+            />
+            <!-- Selection highlight -->
+            {#if isChildSelected}
+              <rect
+                class="child-selection-highlight"
+                x={0}
+                y={0}
+                width={childWidth}
+                height={childHeight}
+                fill="none"
+                stroke="var(--colour-selection)"
+                stroke-width="2"
+                rx="3"
+                ry="3"
+              />
+            {/if}
+            <!-- Child device label -->
+            <text
+              class="child-device-label"
+              x={childWidth / 2}
+              y={childHeight / 2}
+              text-anchor="middle"
+              dominant-baseline="middle"
+              font-size={Math.min(11, childHeight * 0.6)}
+              fill="var(--colour-text-on-device)"
+            >
+              {childName.length > 12 ? childName.slice(0, 10) + "…" : childName}
+            </text>
+          </g>
+        {/if}
+      {/each}
+    </g>
+  {/if}
 </g>
 
 <style>
@@ -668,5 +779,40 @@
     .rack-device.dragging {
       transform: none;
     }
+  }
+
+  /* Container child device styles */
+  .container-children {
+    pointer-events: none;
+  }
+
+  .container-child {
+    pointer-events: auto;
+  }
+
+  .child-device-rect {
+    stroke: var(--neutral-600);
+    stroke-width: 0.5;
+    transition: filter var(--duration-fast, 150ms) ease-out;
+  }
+
+  .container-child:hover .child-device-rect {
+    filter: brightness(1.1);
+  }
+
+  .container-child.selected .child-device-rect {
+    filter: brightness(1.05);
+  }
+
+  .child-selection-highlight {
+    pointer-events: none;
+  }
+
+  .child-device-label {
+    font-family: var(--font-family, system-ui, sans-serif);
+    font-weight: 500;
+    pointer-events: none;
+    user-select: none;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
   }
 </style>

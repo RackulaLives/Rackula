@@ -21,6 +21,7 @@ export const CATEGORY_COLOURS: Record<DeviceCategory, string> = {
   kvm: "#A87A4A", // muted orange (4.5:1)
   "av-media": "#A85A7A", // muted pink (4.7:1)
   cooling: "#8A8A4A", // muted yellow (4.6:1)
+  chassis: "#5A6A8A", // muted blue-gray for blade chassis (4.5:1)
 
   // Passive categories - Dracula neutrals (unchanged)
   shelf: "#6272A4", // comment - utility
@@ -45,6 +46,7 @@ export const ALL_CATEGORIES: readonly DeviceCategory[] = [
   "shelf",
   "blank",
   "cable-management",
+  "chassis",
   "other",
 ] as const;
 

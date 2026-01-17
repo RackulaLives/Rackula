@@ -379,8 +379,9 @@ export function snapToNearestValidPosition(
 }
 
 /**
- * Check if a device type fits within a slot's dimensions.
- * Validates that the child device's width and height fit within the slot.
+ * Check if a device type fits within a slot's dimensions and category restrictions.
+ * Validates that the child device's width and height fit within the slot,
+ * and that the device category is allowed by the slot (if slot.accepts is defined).
  *
  * slot_width mapping:
  * - 1 = half-width device (requires width_fraction >= 0.5)
@@ -389,9 +390,17 @@ export function snapToNearestValidPosition(
  *
  * @param childType - The device type to place
  * @param slot - The target slot
- * @returns true if device fits, false otherwise
+ * @returns true if device fits and is allowed, false otherwise
  */
 export function canPlaceInSlot(childType: DeviceType, slot: Slot): boolean {
+  // Check category is allowed (if slot.accepts is defined)
+  // Empty accepts array or undefined means all categories allowed
+  if (slot.accepts && slot.accepts.length > 0) {
+    if (!slot.accepts.includes(childType.category)) {
+      return false;
+    }
+  }
+
   // Convert slot_width to fraction (1=0.5, 2=1.0)
   // Default slot_width is 2 (full-width), which requires full width_fraction
   const slotWidth = childType.slot_width ?? 2;

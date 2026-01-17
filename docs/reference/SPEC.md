@@ -87,7 +87,7 @@ type RackView = "front" | "rear";
 type DeviceFace = "front" | "rear" | "both";
 type DisplayMode = "label" | "image" | "image-label";
 
-// Device categories (12 types)
+// Device categories (13 types)
 type DeviceCategory =
   | "server"
   | "network"
@@ -100,6 +100,7 @@ type DeviceCategory =
   | "shelf"
   | "blank"
   | "cable-management"
+  | "chassis" // Blade chassis, modular switches (v0.7.0)
   | "other";
 
 // Airflow directions (7 types, NetBox-compatible)
@@ -183,6 +184,8 @@ interface DeviceType {
 ```
 
 > **Container Identification:** A DeviceType with `slots.length > 0` is a container. No separate boolean flag is needed.
+>
+> **Blade Chassis Support (v0.7.0):** Blade chassis and modular switches use the same container model as shelves. The `subdevice_role: "parent"` field from NetBox is metadata-only and is NOT used for container detection. Instead, container capability is determined solely by the presence of `slots[]`. The `chassis` device category is used for blade chassis visual styling with more prominent bay borders.
 
 ### 3.X Slot (Container Bay Definition)
 
@@ -431,14 +434,14 @@ settings:
 
 ### 5.1 Core Components
 
-| Component                | Purpose                              |
-| ------------------------ | ------------------------------------ |
-| `Canvas.svelte`          | Main viewport with panzoom           |
-| `Rack.svelte`            | SVG rack visualization               |
-| `RackDevice.svelte`      | Device rendering with selection      |
-| `RackDualView.svelte`    | Front/rear side-by-side view         |
-| `BayedRackView.svelte`   | Bayed/touring rack stacked layout    |
-| `AnnotationColumn.svelte`| Device metadata annotations (see §21)|
+| Component                 | Purpose                               |
+| ------------------------- | ------------------------------------- |
+| `Canvas.svelte`           | Main viewport with panzoom            |
+| `Rack.svelte`             | SVG rack visualization                |
+| `RackDevice.svelte`       | Device rendering with selection       |
+| `RackDualView.svelte`     | Front/rear side-by-side view          |
+| `BayedRackView.svelte`    | Bayed/touring rack stacked layout     |
+| `AnnotationColumn.svelte` | Device metadata annotations (see §21) |
 
 ### 5.2 UI Panels
 
@@ -2331,14 +2334,14 @@ Annotations display device metadata (name, IP, notes, etc.) aligned with device 
 
 **Annotation Fields:**
 
-| Field          | Description                           | Source                      |
-| -------------- | ------------------------------------- | --------------------------- |
-| `name`         | Custom instance name or device model  | `PlacedDevice.name` fallback to `DeviceType.model` |
-| `ip`           | IP address                            | `PlacedDevice.custom_fields.ip` |
-| `notes`        | User notes                            | `PlacedDevice.notes`        |
-| `asset_tag`    | Asset identifier                      | `DeviceType.asset_tag`      |
-| `serial`       | Serial number                         | `DeviceType.serial_number`  |
-| `manufacturer` | Device manufacturer                   | `DeviceType.manufacturer`   |
+| Field          | Description                          | Source                                             |
+| -------------- | ------------------------------------ | -------------------------------------------------- |
+| `name`         | Custom instance name or device model | `PlacedDevice.name` fallback to `DeviceType.model` |
+| `ip`           | IP address                           | `PlacedDevice.custom_fields.ip`                    |
+| `notes`        | User notes                           | `PlacedDevice.notes`                               |
+| `asset_tag`    | Asset identifier                     | `DeviceType.asset_tag`                             |
+| `serial`       | Serial number                        | `DeviceType.serial_number`                         |
+| `manufacturer` | Device manufacturer                  | `DeviceType.manufacturer`                          |
 
 ### 21.2 Single Rack Annotations
 
@@ -2367,23 +2370,25 @@ Bayed racks (`BayedRackView`) use a **per-bay annotation** model where each bay 
 #### 21.3.1 Layout Structure
 
 **Front Row:**
+
 ```text
 [U-labels] [Ann1][Bay 1] [Ann2][Bay 2] [Ann3][Bay 3]
 ```
 
 **Rear Row (mirrored):**
+
 ```text
 [Bay 3][Ann3] [Bay 2][Ann2] [Bay 1][Ann1] [U-labels]
 ```
 
 **Key Differences from Single Rack:**
 
-| Aspect            | Single Rack               | Bayed Rack                  |
-| ----------------- | ------------------------- | --------------------------- |
-| Column count      | 1 (shared across views)   | N (one per bay)             |
-| Position          | Left of front view only   | Adjacent to each bay        |
-| Face filtering    | None (shows all devices)  | Front-only or rear-only     |
-| Mirroring         | Not applicable            | Rear row annotations on right side of bay |
+| Aspect         | Single Rack              | Bayed Rack                                |
+| -------------- | ------------------------ | ----------------------------------------- |
+| Column count   | 1 (shared across views)  | N (one per bay)                           |
+| Position       | Left of front view only  | Adjacent to each bay                      |
+| Face filtering | None (shows all devices) | Front-only or rear-only                   |
+| Mirroring      | Not applicable           | Rear row annotations on right side of bay |
 
 #### 21.3.2 Face Filtering
 
@@ -2442,10 +2447,10 @@ interface AnnotationColumnProps {
 
 Annotations are toggled via the Settings menu:
 
-| Setting            | Options                                              | Default  |
-| ------------------ | ---------------------------------------------------- | -------- |
-| Show Annotations   | On/Off toggle                                        | Off      |
-| Annotation Field   | name, ip, notes, asset_tag, serial, manufacturer     | name     |
+| Setting          | Options                                          | Default |
+| ---------------- | ------------------------------------------------ | ------- |
+| Show Annotations | On/Off toggle                                    | Off     |
+| Annotation Field | name, ip, notes, asset_tag, serial, manufacturer | name    |
 
 Keyboard shortcut: No dedicated shortcut (accessed via Settings menu).
 
@@ -2456,7 +2461,7 @@ Annotation text uses design tokens for consistency:
 ```css
 .annotation-text {
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-2xs);  /* 10px */
+  font-size: var(--font-size-2xs); /* 10px */
   fill: var(--colour-text);
 }
 

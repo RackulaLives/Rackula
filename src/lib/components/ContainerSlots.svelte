@@ -41,8 +41,15 @@
   // Get slots from container type, defaulting to empty array
   const slots = $derived(containerType.slots ?? []);
 
-  // Detect if this is a shelf container for visual styling
+  // Detect container type for visual styling variants
   const isShelf = $derived(containerType.category === "shelf");
+  // Chassis-style: blade chassis, modular switches, or subdevice_role="parent"
+  const isChassis = $derived(
+    !isShelf &&
+      (containerType.subdevice_role === "parent" ||
+        containerType.category === "chassis" ||
+        (containerType.slots?.length ?? 0) > 2), // Many slots suggests blade chassis
+  );
 
   // Pre-compute cumulative x offsets for all slots (O(n) instead of O(n²))
   // Each slot lookup becomes O(1) since we just read from this array by index
@@ -126,7 +133,11 @@
   }
 </script>
 
-<g class="container-slots" class:shelf-style={isShelf}>
+<g
+  class="container-slots"
+  class:shelf-style={isShelf}
+  class:chassis-style={isChassis}
+>
   {#each slots as slot, index (slot.id)}
     {@const geometry = getSlotGeometry(slot, index)}
     {@const slotClass = getSlotClass(slot.id)}
@@ -148,6 +159,18 @@
         ? ', selected'
         : ''}"
     />
+    <!-- Bay label for chassis containers (when slot has a name) -->
+    {#if isChassis && slot.name}
+      <text
+        class="bay-label"
+        x={geometry.x + geometry.width / 2}
+        y={geometry.y + 12}
+        text-anchor="middle"
+        font-size="9"
+      >
+        {slot.name}
+      </text>
+    {/if}
   {/each}
 </g>
 
@@ -226,6 +249,59 @@
     stroke: var(--colour-selection);
     stroke-width: 1.5;
     stroke-dasharray: none;
+    opacity: 1;
+  }
+
+  /* Chassis-specific styling - blade chassis, modular switches
+     More prominent borders to indicate enclosed device bays */
+  .chassis-style .container-slot {
+    stroke: var(--neutral-600);
+    stroke-width: 1.5;
+    stroke-dasharray: none;
+    fill: rgba(0, 0, 0, 0.08);
+  }
+
+  .chassis-style .container-slot:hover {
+    stroke: var(--colour-selection);
+    stroke-width: 2;
+    fill: rgba(var(--colour-selection-rgb, 74, 122, 138), 0.15);
+  }
+
+  .chassis-style .container-slot:focus {
+    stroke: var(--colour-focus-ring);
+    stroke-width: 2.5;
+    fill: rgba(var(--colour-selection-rgb, 74, 122, 138), 0.1);
+  }
+
+  .chassis-style .container-slot.selected {
+    stroke: var(--colour-selection);
+    stroke-width: 2.5;
+    fill: rgba(var(--colour-selection-rgb, 74, 122, 138), 0.12);
+  }
+
+  .chassis-style .container-slot.valid-drop-target {
+    stroke: var(--colour-dnd-valid);
+    stroke-width: 2.5;
+    fill: var(--colour-dnd-valid-bg);
+  }
+
+  .chassis-style .container-slot.invalid-drop-target {
+    stroke: var(--colour-dnd-invalid);
+    stroke-width: 2;
+    fill: var(--colour-dnd-invalid-bg);
+  }
+
+  /* Bay label styling for chassis containers */
+  .bay-label {
+    fill: var(--neutral-500);
+    font-family: var(--font-family, system-ui, sans-serif);
+    font-weight: 500;
+    pointer-events: none;
+    user-select: none;
+    opacity: 0.8;
+  }
+
+  .chassis-style:hover .bay-label {
     opacity: 1;
   }
 

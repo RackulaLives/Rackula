@@ -32,7 +32,7 @@
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { hapticError, hapticCancel } from "$lib/utils/haptics";
-  import { SvelteSet } from "svelte/reactivity";
+  import { SvelteSet, SvelteMap } from "svelte/reactivity";
 
   const canvasStore = getCanvasStore();
   const viewportStore = getViewportStore();
@@ -219,10 +219,13 @@
   // - face="rear": device only shows on rear view
   // Note: is_full_depth on DeviceType only affects default face assignment and collision detection,
   // it does NOT override the user's explicit face selection (Issue #383).
+  // Also filter out container children - they render inside their parent container.
   const visibleDevices = $derived(
     rack.devices
       .map((placedDevice, originalIndex) => ({ placedDevice, originalIndex }))
       .filter(({ placedDevice }) => {
+        // Skip container children - they render inside their parent
+        if (placedDevice.container_id) return false;
         const { face } = placedDevice;
         // Both-face devices visible in all views
         if (face === "both") return true;
@@ -232,6 +235,30 @@
         return false;
       }),
   );
+
+  // Group container children by their parent container_id for rendering inside containers.
+  // Map: container_id -> array of { placedDevice, originalIndex }
+  const containerChildren = $derived.by(() => {
+    const childrenMap = new SvelteMap<
+      string,
+      Array<{ placedDevice: PlacedDevice; originalIndex: number }>
+    >();
+
+    rack.devices.forEach((placedDevice, originalIndex) => {
+      if (!placedDevice.container_id) return;
+
+      // Apply same face filter as rack-level devices
+      const { face } = placedDevice;
+      const isVisible = face === "both" || face === effectiveFaceFilter;
+      if (!isVisible) return;
+
+      const children = childrenMap.get(placedDevice.container_id) ?? [];
+      children.push({ placedDevice, originalIndex });
+      childrenMap.set(placedDevice.container_id, children);
+    });
+
+    return childrenMap;
+  });
 
   // Calculate blocked slots for this view (only when faceFilter is set)
   const blockedSlots = $derived(
@@ -1195,6 +1222,7 @@
         {@const containerCtx = placedDevice.container_id
           ? getContainerContext(placedDevice)
           : undefined}
+        {@const children = containerChildren.get(placedDevice.id) ?? []}
         {#if device}
           <RackDevice
             {device}
@@ -1213,6 +1241,9 @@
             colourOverride={placedDevice.colour_override}
             slotPosition={placedDevice.slot_position}
             containerContext={containerCtx}
+            {deviceLibrary}
+            containerChildDevices={children}
+            selectedChildId={selectedDeviceId}
             onselect={ondeviceselect}
             ondragstart={() => handleDeviceDragStart(originalIndex)}
             ondragend={handleDeviceDragEnd}

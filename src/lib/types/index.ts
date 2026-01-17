@@ -18,7 +18,7 @@ export type RackView = "front" | "rear";
 export type DeviceFace = "front" | "rear" | "both";
 
 /**
- * Device category types - 12 predefined categories
+ * Device category types - 13 predefined categories
  */
 export type DeviceCategory =
   | "server"
@@ -32,6 +32,7 @@ export type DeviceCategory =
   | "shelf"
   | "blank"
   | "cable-management"
+  | "chassis"
   | "other";
 
 /**
