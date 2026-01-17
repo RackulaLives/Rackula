@@ -41,6 +41,9 @@
   // Get slots from container type, defaulting to empty array
   const slots = $derived(containerType.slots ?? []);
 
+  // Detect if this is a shelf container for visual styling
+  const isShelf = $derived(containerType.category === "shelf");
+
   // Pre-compute cumulative x offsets for all slots (O(n) instead of O(n²))
   // Each slot lookup becomes O(1) since we just read from this array by index
   const cumulativeXOffsets = $derived.by(() => {
@@ -123,7 +126,7 @@
   }
 </script>
 
-<g class="container-slots">
+<g class="container-slots" class:shelf-style={isShelf}>
   {#each slots as slot, index (slot.id)}
     {@const geometry = getSlotGeometry(slot, index)}
     {@const slotClass = getSlotClass(slot.id)}
@@ -196,6 +199,34 @@
     stroke-width: 2;
     stroke-dasharray: 4 2;
     fill: var(--colour-dnd-invalid-bg);
+  }
+
+  /* Shelf-specific styling - lighter, more subtle */
+  .shelf-style .container-slot {
+    stroke: var(--neutral-400);
+    stroke-width: 0.5;
+    stroke-dasharray: 2 4;
+    opacity: 0.7;
+  }
+
+  .shelf-style .container-slot:hover {
+    stroke: var(--colour-selection);
+    stroke-dasharray: none;
+    opacity: 1;
+  }
+
+  .shelf-style .container-slot:focus {
+    stroke: var(--colour-focus-ring);
+    stroke-width: 2;
+    stroke-dasharray: none;
+    opacity: 1;
+  }
+
+  .shelf-style .container-slot.selected {
+    stroke: var(--colour-selection);
+    stroke-width: 1.5;
+    stroke-dasharray: none;
+    opacity: 1;
   }
 
   /* Respect reduced motion preference */

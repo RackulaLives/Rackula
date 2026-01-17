@@ -12,6 +12,7 @@ import type {
   Airflow,
   WeightUnit,
   InterfaceTemplate,
+  Slot,
 } from "$lib/types";
 import { generateDeviceSlug } from "$lib/utils/slug";
 import { generateId } from "$lib/utils/device";
@@ -34,6 +35,8 @@ export interface CreateDeviceTypeInput {
   notes?: string;
   tags?: string[];
   interfaces?: InterfaceTemplate[];
+  /** Container slots for shelf/enclosure devices */
+  slots?: Slot[];
 }
 
 /**
@@ -90,6 +93,9 @@ export function createDeviceType(data: CreateDeviceTypeInput): DeviceType {
   }
   if (data.interfaces && data.interfaces.length > 0) {
     deviceType.interfaces = data.interfaces;
+  }
+  if (data.slots && data.slots.length > 0) {
+    deviceType.slots = data.slots;
   }
 
   return deviceType;

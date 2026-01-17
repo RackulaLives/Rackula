@@ -15,6 +15,7 @@ import type {
   PlacedDevice,
   Rack,
   SlotPosition,
+  Slot,
 } from "$lib/types";
 import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 
@@ -378,6 +379,41 @@ export function snapToNearestValidPosition(
 }
 
 /**
+ * Check if a device type fits within a slot's dimensions.
+ * Validates that the child device's width and height fit within the slot.
+ *
+ * slot_width mapping:
+ * - 1 = fits in ~1/3 width slot (width_fraction ~0.33)
+ * - 2 = fits in ~1/2 width slot (width_fraction ~0.5)
+ * - Default (2) = full width device
+ *
+ * @param childType - The device type to place
+ * @param slot - The target slot
+ * @returns true if device fits, false otherwise
+ */
+export function canPlaceInSlot(childType: DeviceType, slot: Slot): boolean {
+  // Convert slot_width to fraction (1=0.33, 2=0.5)
+  // Default slot_width is 2 (full-width), which requires at least 0.5 width_fraction
+  const slotWidth = childType.slot_width ?? 2;
+  const requiredFraction = slotWidth === 1 ? 0.33 : 0.5;
+
+  // Check width fits
+  const availableFraction = slot.width_fraction ?? 1.0;
+  if (requiredFraction > availableFraction + 0.01) {
+    // +0.01 for floating point tolerance
+    return false;
+  }
+
+  // Check height fits (child u_height <= slot height_units)
+  const slotHeight = slot.height_units ?? 1;
+  if (childType.u_height > slotHeight) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Check if a device can be placed inside a container at a specific slot and position
  *
  * Container children:
@@ -414,6 +450,17 @@ export function canPlaceInContainer(
   // Child device must fit within container height
   const topPosition = targetPosition + childType.u_height - 1;
   if (topPosition >= containerType.u_height) {
+    return false;
+  }
+
+  // Validate target slot exists and check dimension fit
+  const targetSlot = containerType.slots?.find((s) => s.id === targetSlotId);
+  if (!targetSlot) {
+    return false;
+  }
+
+  // Check if child device dimensions fit within the slot
+  if (!canPlaceInSlot(childType, targetSlot)) {
     return false;
   }
 

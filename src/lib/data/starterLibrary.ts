@@ -2,13 +2,15 @@
  * Starter Device Type Library
  * Generic rack devices for quick prototyping and universal fallbacks
  *
- * Total devices: 51 generic devices (no manufacturer)
+ * Total devices: 62 generic devices
  * - 43 full-width devices
  * - 8 half-width devices (slot_width: 1)
+ * - 4 shelf containers with slots
+ * - 7 mini devices for shelf placement
  * All branded devices have been moved to brandPacks/
  */
 
-import type { DeviceType, DeviceCategory } from "$lib/types";
+import type { DeviceType, DeviceCategory, Slot } from "$lib/types";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 
 interface StarterDeviceSpec {
@@ -19,6 +21,8 @@ interface StarterDeviceSpec {
   is_full_depth?: boolean;
   /** Width in slots: 1 = half-width, 2 = full-width. Default: 2 */
   slot_width?: 1 | 2;
+  /** Container slots for shelf/container devices */
+  slots?: Slot[];
 }
 
 const STARTER_DEVICES: StarterDeviceSpec[] = [
@@ -176,7 +180,7 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     is_full_depth: false,
   },
 
-  // Shelves (4)
+  // Shelves - Static (4)
   {
     slug: "1u-cantilever-shelf",
     model: "Cantilever Shelf",
@@ -191,6 +195,169 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     model: "Vented Shelf",
     u_height: 1,
     category: "shelf",
+  },
+
+  // Shelf Containers - with slots for mini devices (4)
+  {
+    slug: "shelf-1u-2slot",
+    model: "Shelf (2 Slot)",
+    u_height: 1,
+    category: "shelf",
+    slots: [
+      {
+        id: "left",
+        name: "Left",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.5,
+        height_units: 1,
+      },
+      {
+        id: "right",
+        name: "Right",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.5,
+        height_units: 1,
+      },
+    ],
+  },
+  {
+    slug: "shelf-1u-3slot",
+    model: "Shelf (3 Slot)",
+    u_height: 1,
+    category: "shelf",
+    slots: [
+      {
+        id: "left",
+        name: "Left",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.33,
+        height_units: 1,
+      },
+      {
+        id: "center",
+        name: "Center",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.34,
+        height_units: 1,
+      },
+      {
+        id: "right",
+        name: "Right",
+        position: { row: 0, col: 2 },
+        width_fraction: 0.33,
+        height_units: 1,
+      },
+    ],
+  },
+  {
+    slug: "shelf-2u-2slot",
+    model: "Shelf (2 Slot)",
+    u_height: 2,
+    category: "shelf",
+    slots: [
+      {
+        id: "left",
+        name: "Left",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.5,
+        height_units: 2,
+      },
+      {
+        id: "right",
+        name: "Right",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.5,
+        height_units: 2,
+      },
+    ],
+  },
+  {
+    slug: "shelf-2u-3slot",
+    model: "Shelf (3 Slot)",
+    u_height: 2,
+    category: "shelf",
+    slots: [
+      {
+        id: "left",
+        name: "Left",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.33,
+        height_units: 2,
+      },
+      {
+        id: "center",
+        name: "Center",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.34,
+        height_units: 2,
+      },
+      {
+        id: "right",
+        name: "Right",
+        position: { row: 0, col: 2 },
+        width_fraction: 0.33,
+        height_units: 2,
+      },
+    ],
+  },
+
+  // Mini Devices - for placement on shelf slots (7)
+  // Note: Brand names in model field, no manufacturer (keeps starter library generic)
+  {
+    slug: "generic-mini-pc",
+    model: "Mini PC",
+    u_height: 1,
+    category: "server",
+    slot_width: 1,
+    is_full_depth: false,
+  },
+  {
+    slug: "intel-nuc",
+    model: "Intel NUC",
+    u_height: 1,
+    category: "server",
+    slot_width: 1,
+    is_full_depth: false,
+  },
+  {
+    slug: "beelink-mini-s12-pro",
+    model: "Beelink Mini S12 Pro",
+    u_height: 1,
+    category: "server",
+    slot_width: 1,
+    is_full_depth: false,
+  },
+  {
+    slug: "raspberry-pi-5",
+    model: "Raspberry Pi 5",
+    u_height: 0.5,
+    category: "server",
+    slot_width: 1,
+    is_full_depth: false,
+  },
+  {
+    slug: "raspberry-pi-4",
+    model: "Raspberry Pi 4",
+    u_height: 0.5,
+    category: "server",
+    slot_width: 1,
+    is_full_depth: false,
+  },
+  {
+    slug: "zimaboard",
+    model: "Zimaboard",
+    u_height: 0.5,
+    category: "server",
+    slot_width: 1,
+    is_full_depth: false,
+  },
+  {
+    slug: "apple-mac-mini",
+    model: "Mac Mini",
+    u_height: 1,
+    category: "server",
+    slot_width: 1,
+    is_full_depth: false,
   },
 
   // Blanks (5)
@@ -337,6 +504,7 @@ export function getStarterLibrary(): DeviceType[] {
       slot_width: spec.slot_width ?? 2,
       colour: CATEGORY_COLOURS[spec.category],
       category: spec.category,
+      slots: spec.slots,
     }));
   }
   return cachedStarterLibrary;
