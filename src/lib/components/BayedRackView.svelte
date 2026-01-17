@@ -16,6 +16,7 @@
   import Rack from "./Rack.svelte";
   import RackContextMenu from "./RackContextMenu.svelte";
   import ULabels from "./ULabels.svelte";
+  import AnnotationColumn from "./AnnotationColumn.svelte";
   import { useLongPress } from "$lib/utils/gestures";
 
   interface Props {
@@ -93,8 +94,8 @@
     displayMode = "label",
     showLabelsOnImages = false,
     partyMode = false,
-    showAnnotations: _showAnnotations = false, // Reserved for future annotation support
-    annotationField: _annotationField = "name", // Reserved for future annotation support
+    showAnnotations = false,
+    annotationField = "name",
     enableLongPress = false,
     onselect,
     ondeviceselect,
@@ -258,6 +259,17 @@
     {#each racks as rack, bayIndex (rack.id)}
       {@const isActive = rack.id === activeRackId}
       {@const isSelected = rack.id === selectedRackId}
+      <!-- Annotation column LEFT of front bay -->
+      {#if showAnnotations}
+        <div class="annotation-wrapper">
+          <AnnotationColumn
+            {rack}
+            {deviceLibrary}
+            {annotationField}
+            faceFilter="front"
+          />
+        </div>
+      {/if}
       <RackContextMenu
         onadddevice={() => onadddevice?.(rack.id)}
         onedit={() => onedit?.(rack.id)}
@@ -346,6 +358,17 @@
           />
         </div>
       </RackContextMenu>
+      <!-- Annotation column RIGHT of rear bay (mirrored) -->
+      {#if showAnnotations}
+        <div class="annotation-wrapper">
+          <AnnotationColumn
+            {rack}
+            {deviceLibrary}
+            {annotationField}
+            faceFilter="rear"
+          />
+        </div>
+      {/if}
     {/each}
     <!-- U-labels column (right side of rear row) -->
     <div class="u-labels-column">
@@ -460,6 +483,16 @@
     align-items: center;
     justify-content: flex-start;
     /* Match bay-label height so U-labels align with rack content */
+    padding-top: var(--bay-label-block-height);
+  }
+
+  /* Annotation column wrapper - align with rack content below bay label */
+  .annotation-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    /* Match bay-label height so annotations align with rack content */
     padding-top: var(--bay-label-block-height);
   }
 </style>

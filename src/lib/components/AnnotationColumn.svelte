@@ -22,9 +22,17 @@
     annotationField: AnnotationField;
     /** Width of the annotation column in pixels */
     width?: number;
+    /** Filter to show only front or rear mounted devices */
+    faceFilter?: "front" | "rear";
   }
 
-  let { rack, deviceLibrary, annotationField, width = 100 }: Props = $props();
+  let {
+    rack,
+    deviceLibrary,
+    annotationField,
+    width = 100,
+    faceFilter,
+  }: Props = $props();
 
   // Padding from right edge for text alignment
   const TEXT_PADDING = 8;
@@ -78,9 +86,16 @@
     RACK_PADDING_HIDDEN + RAIL_WIDTH * 2 + rack.height * U_HEIGHT_PX,
   );
 
-  // Get annotations for all devices
+  // Filter devices by face if faceFilter is provided
+  const filteredDevices = $derived(
+    faceFilter
+      ? rack.devices.filter((d) => d.face === faceFilter)
+      : rack.devices,
+  );
+
+  // Get annotations for filtered devices
   const annotations = $derived(
-    rack.devices.map((device) => {
+    filteredDevices.map((device) => {
       const deviceType = deviceTypeMap.get(device.device_type);
       const uHeight = deviceType?.u_height ?? 1;
       const value = getAnnotationValue(device, deviceType, annotationField);
