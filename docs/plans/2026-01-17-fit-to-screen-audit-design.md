@@ -42,7 +42,7 @@ Add a ResizeObserver in `Canvas.svelte`:
 // In Canvas.svelte onMount
 const resizeObserver = new ResizeObserver(
   debounce(() => {
-    canvasStore.fitAll(layoutStore.racks);
+    canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
   }, 300),
 );
 resizeObserver.observe(canvasElement);

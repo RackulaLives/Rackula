@@ -176,7 +176,9 @@ const BAYED_GROUP_NAME_HEIGHT = 24;
  * Shows front and rear views side-by-side.
  */
 function getDualViewDimensions(rack: Rack): { width: number; height: number } {
-  const width = BASE_RACK_WIDTH * 2 + DUAL_VIEW_GAP;
+  // Scale rack width based on nominal width (BASE_RACK_WIDTH is calibrated for 19" racks)
+  const rackWidthPx = Math.round((BASE_RACK_WIDTH * rack.width) / 19);
+  const width = rackWidthPx * 2 + DUAL_VIEW_GAP;
   const height =
     BASE_RACK_PADDING +
     RAIL_WIDTH * 2 +

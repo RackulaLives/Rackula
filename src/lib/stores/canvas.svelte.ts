@@ -4,7 +4,7 @@
  */
 
 import type panzoom from "panzoom";
-import type { Rack, RackGroup } from "$lib/types";
+import type { Rack, RackGroup, DeviceType } from "$lib/types";
 import { calculateFitAll, racksToPositions } from "$lib/utils/canvas";
 import { debug } from "$lib/utils/debug";
 import {
@@ -258,22 +258,10 @@ function fitAll(racks: Rack[], rackGroups: RackGroup[] = []): void {
   debug.log("Current transform before:", panzoomInstance.getTransform());
   debug.groupEnd();
 
-  // Check for reduced motion preference
-  const prefersReducedMotion = window.matchMedia(
-    "(prefers-reduced-motion: reduce)",
-  ).matches;
-
-  // Apply zoom first, then pan
-  // This ensures the pan offset is correct for the zoom level
-  if (prefersReducedMotion) {
-    // Instant: zoom at origin (doesn't matter where we zoom since we're moving after)
-    panzoomInstance.zoomAbs(0, 0, zoom);
-    panzoomInstance.moveTo(panX, panY);
-  } else {
-    // Smooth: zoom at origin then smoothly pan
-    panzoomInstance.zoomAbs(0, 0, zoom);
-    panzoomInstance.moveTo(panX, panY);
-  }
+  // Apply zoom and pan (instant - fitAll is typically called after viewport changes
+  // where smooth animation would feel laggy or disorienting)
+  panzoomInstance.zoomAbs(0, 0, zoom);
+  panzoomInstance.moveTo(panX, panY);
 
   debug.log("Transform after fitAll:", panzoomInstance.getTransform());
 }
@@ -287,7 +275,7 @@ function fitAll(racks: Rack[], rackGroups: RackGroup[] = []): void {
 function zoomToDevice(
   rack: Rack,
   deviceIndex: number,
-  deviceTypes: import("$lib/types").DeviceType[],
+  deviceTypes: DeviceType[],
 ): void {
   if (!panzoomInstance || !canvasElement) return;
   if (deviceIndex < 0 || deviceIndex >= rack.devices.length) return;
