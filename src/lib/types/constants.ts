@@ -53,7 +53,7 @@ export const ALL_CATEGORIES: readonly DeviceCategory[] = [
 /**
  * Common rack heights for quick selection
  */
-export const COMMON_RACK_HEIGHTS: readonly number[] = [12, 18, 24, 42] as const;
+export const COMMON_RACK_HEIGHTS: readonly number[] = [12, 18, 24, 42, 48] as const;
 
 /**
  * Rack height constraints
