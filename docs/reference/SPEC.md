@@ -431,12 +431,14 @@ settings:
 
 ### 5.1 Core Components
 
-| Component             | Purpose                         |
-| --------------------- | ------------------------------- |
-| `Canvas.svelte`       | Main viewport with panzoom      |
-| `Rack.svelte`         | SVG rack visualization          |
-| `RackDevice.svelte`   | Device rendering with selection |
-| `RackDualView.svelte` | Front/rear side-by-side view    |
+| Component                | Purpose                              |
+| ------------------------ | ------------------------------------ |
+| `Canvas.svelte`          | Main viewport with panzoom           |
+| `Rack.svelte`            | SVG rack visualization               |
+| `RackDevice.svelte`      | Device rendering with selection      |
+| `RackDualView.svelte`    | Front/rear side-by-side view         |
+| `BayedRackView.svelte`   | Bayed/touring rack stacked layout    |
+| `AnnotationColumn.svelte`| Device metadata annotations (see §21)|
 
 ### 5.2 UI Panels
 
@@ -2318,6 +2320,157 @@ Session properties are set via `umami.identify()` on script load:
 ### 20.7 Production Deployment
 
 The hosted app at `app.racku.la` uses a self-hosted Umami instance at `t.racku.la`. Both dev and prod environments share the same Umami instance with separate website IDs.
+
+---
+
+## 21. Annotation System
+
+### 21.1 Overview
+
+Annotations display device metadata (name, IP, notes, etc.) aligned with device U positions, providing at-a-glance information without opening the edit panel. Annotations are rendered as a separate SVG column adjacent to the rack view.
+
+**Annotation Fields:**
+
+| Field          | Description                           | Source                      |
+| -------------- | ------------------------------------- | --------------------------- |
+| `name`         | Custom instance name or device model  | `PlacedDevice.name` fallback to `DeviceType.model` |
+| `ip`           | IP address                            | `PlacedDevice.custom_fields.ip` |
+| `notes`        | User notes                            | `PlacedDevice.notes`        |
+| `asset_tag`    | Asset identifier                      | `DeviceType.asset_tag`      |
+| `serial`       | Serial number                         | `DeviceType.serial_number`  |
+| `manufacturer` | Device manufacturer                   | `DeviceType.manufacturer`   |
+
+### 21.2 Single Rack Annotations
+
+For single racks (`RackDualView`), annotations are positioned LEFT of the front view:
+
+```text
+                    [Rack Name]
+
+[Annotations] [FRONT] ←gap→ [REAR] [Spacer]
+              ↑                        ↑
+          100px wide              Balancing spacer
+```
+
+**Layout Details:**
+
+- Annotation column width: 100px (default)
+- A matching spacer is added to the right to keep the rack centered
+- Annotations show all devices (both front and rear facing) since the column spans both views
+- Text is right-aligned for proximity to rack content
+- Empty values display as em-dash (—) with reduced opacity
+
+### 21.3 Bayed Rack Annotations
+
+Bayed racks (`BayedRackView`) use a **per-bay annotation** model where each bay gets its own annotation column. Annotations are mirrored between front and rear rows to maintain positional consistency.
+
+#### 21.3.1 Layout Structure
+
+**Front Row:**
+```text
+[U-labels] [Ann1][Bay 1] [Ann2][Bay 2] [Ann3][Bay 3]
+```
+
+**Rear Row (mirrored):**
+```text
+[Bay 3][Ann3] [Bay 2][Ann2] [Bay 1][Ann1] [U-labels]
+```
+
+**Key Differences from Single Rack:**
+
+| Aspect            | Single Rack               | Bayed Rack                  |
+| ----------------- | ------------------------- | --------------------------- |
+| Column count      | 1 (shared across views)   | N (one per bay)             |
+| Position          | Left of front view only   | Adjacent to each bay        |
+| Face filtering    | None (shows all devices)  | Front-only or rear-only     |
+| Mirroring         | Not applicable            | Rear row annotations on right side of bay |
+
+#### 21.3.2 Face Filtering
+
+Bayed rack annotations use the `faceFilter` prop to show only devices mounted on the visible face:
+
+- **Front row annotations:** `faceFilter="front"` — Only devices with `face: "front"` or `face: "both"`
+- **Rear row annotations:** `faceFilter="rear"` — Only devices with `face: "rear"` or `face: "both"`
+
+This prevents duplicate annotations for devices that appear on both faces.
+
+#### 21.3.3 Visual Layout
+
+**2-Bay Configuration Example:**
+
+```text
+                    [Touring Case A]
+
+                        FRONT
+┌──────────────────────────────────────────────┐
+│ U42│ name1 │▓▓▓▓▓▓│ name3 │▓▓▓▓▓▓│          │
+│ U41│       │▓▓▓▓▓▓│       │▓▓▓▓▓▓│          │
+│ U40│ name2 │▓▓▓▓▓▓│       │▓▓▓▓▓▓│          │
+│ ...│       │      │       │      │          │
+│  U1│       │▓▓▓▓▓▓│       │▓▓▓▓▓▓│          │
+└──────────────────────────────────────────────┘
+       ↑    ↑    ↑       ↑       ↑
+     U-lbl Ann1 Bay1   Ann2    Bay2
+
+                        REAR
+┌──────────────────────────────────────────────┐
+│          │▓▓▓▓▓▓│ rear3 │▓▓▓▓▓▓│ rear1 │ U42│
+│          │▓▓▓▓▓▓│       │▓▓▓▓▓▓│       │ U41│
+│          │▓▓▓▓▓▓│       │▓▓▓▓▓▓│ rear2 │ U40│
+│          │      │       │      │       │ ...│
+│          │▓▓▓▓▓▓│       │▓▓▓▓▓▓│       │  U1│
+└──────────────────────────────────────────────┘
+              ↑      ↑       ↑      ↑       ↑
+            Bay2   Ann2    Bay1   Ann1   U-lbl
+```
+
+### 21.4 Component Interface
+
+```typescript
+interface AnnotationColumnProps {
+  rack: Rack;
+  deviceLibrary: DeviceType[];
+  annotationField: AnnotationField;
+  /** Width of the annotation column in pixels (default: 100) */
+  width?: number;
+  /** Filter to show only front or rear mounted devices */
+  faceFilter?: "front" | "rear";
+}
+```
+
+### 21.5 UI Controls
+
+Annotations are toggled via the Settings menu:
+
+| Setting            | Options                                              | Default  |
+| ------------------ | ---------------------------------------------------- | -------- |
+| Show Annotations   | On/Off toggle                                        | Off      |
+| Annotation Field   | name, ip, notes, asset_tag, serial, manufacturer     | name     |
+
+Keyboard shortcut: No dedicated shortcut (accessed via Settings menu).
+
+### 21.6 Styling
+
+Annotation text uses design tokens for consistency:
+
+```css
+.annotation-text {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-2xs);  /* 10px */
+  fill: var(--colour-text);
+}
+
+.annotation-text.empty {
+  fill: var(--colour-text-muted);
+  opacity: 0.5;
+}
+```
+
+**Text Handling:**
+
+- Long values are truncated to 15 characters with ellipsis (…)
+- Full text is available via tooltip (`<title>` element)
+- Text is vertically centered on each device's U range
 
 ---
 
