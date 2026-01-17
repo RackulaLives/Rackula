@@ -446,7 +446,7 @@
     hapticCancel();
     placementStore.cancelPlacement();
     // Reset view to show full rack after placement is cancelled
-    canvasStore.fitAll(layoutStore.racks);
+    canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
   }
 
   function handleClick(_event: MouseEvent) {

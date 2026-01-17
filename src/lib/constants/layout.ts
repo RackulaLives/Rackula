@@ -96,6 +96,12 @@ export const FIT_ALL_PADDING = 48;
  */
 export const FIT_ALL_MAX_ZOOM = 2;
 
+/**
+ * Padding around racks to account for selection highlight
+ * Selection uses: 2px outline + 4px outline-offset = 6px, plus 2px buffer
+ */
+export const SELECTION_HIGHLIGHT_PADDING = 8;
+
 // =============================================================================
 // Helper Functions
 // =============================================================================

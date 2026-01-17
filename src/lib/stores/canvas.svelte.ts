@@ -3,19 +3,19 @@
  * Manages panzoom instance and canvas state for zoom/pan functionality
  */
 
-import type panzoom from 'panzoom';
-import type { Rack } from '$lib/types';
-import { calculateFitAll, racksToPositions } from '$lib/utils/canvas';
-import { debug } from '$lib/utils/debug';
+import type panzoom from "panzoom";
+import type { Rack, RackGroup } from "$lib/types";
+import { calculateFitAll, racksToPositions } from "$lib/utils/canvas";
+import { debug } from "$lib/utils/debug";
 import {
-	U_HEIGHT_PX,
-	BASE_RACK_WIDTH,
-	RAIL_WIDTH,
-	BASE_RACK_PADDING,
-	RACK_ROW_PADDING,
-	DUAL_VIEW_GAP,
-	DUAL_VIEW_EXTRA_HEIGHT
-} from '$lib/constants/layout';
+  U_HEIGHT_PX,
+  BASE_RACK_WIDTH,
+  RAIL_WIDTH,
+  BASE_RACK_PADDING,
+  RACK_ROW_PADDING,
+  DUAL_VIEW_GAP,
+  DUAL_VIEW_EXTRA_HEIGHT,
+} from "$lib/constants/layout";
 
 // Panzoom constants
 export const ZOOM_MIN = 0.25; // 25% - allows fitting 6+ large racks
@@ -39,13 +39,13 @@ const zoomPercentage = $derived(Math.round(currentZoom * 100));
  * Reset the store to initial state (primarily for testing)
  */
 export function resetCanvasStore(): void {
-	if (panzoomInstance) {
-		panzoomInstance.dispose();
-	}
-	panzoomInstance = null;
-	currentZoom = 1;
-	canvasElement = null;
-	isPanning = false;
+  if (panzoomInstance) {
+    panzoomInstance.dispose();
+  }
+  panzoomInstance = null;
+  currentZoom = 1;
+  canvasElement = null;
+  isPanning = false;
 }
 
 /**
@@ -53,104 +53,104 @@ export function resetCanvasStore(): void {
  * @returns Store object with state and actions
  */
 export function getCanvasStore() {
-	return {
-		// State getters
-		get zoom() {
-			return currentZoom;
-		},
-		get zoomPercentage() {
-			return zoomPercentage;
-		},
-		get canZoomIn() {
-			return canZoomIn;
-		},
-		get canZoomOut() {
-			return canZoomOut;
-		},
-		get hasPanzoom() {
-			return panzoomInstance !== null;
-		},
-		get isPanning() {
-			return isPanning;
-		},
+  return {
+    // State getters
+    get zoom() {
+      return currentZoom;
+    },
+    get zoomPercentage() {
+      return zoomPercentage;
+    },
+    get canZoomIn() {
+      return canZoomIn;
+    },
+    get canZoomOut() {
+      return canZoomOut;
+    },
+    get hasPanzoom() {
+      return panzoomInstance !== null;
+    },
+    get isPanning() {
+      return isPanning;
+    },
 
-		// Actions
-		setPanzoomInstance,
-		setCanvasElement,
-		disposePanzoom,
-		zoomIn,
-		zoomOut,
-		setZoom,
-		resetZoom,
-		getTransform,
-		moveTo,
-		smoothMoveTo,
-		fitAll,
-		zoomToDevice
-	};
+    // Actions
+    setPanzoomInstance,
+    setCanvasElement,
+    disposePanzoom,
+    zoomIn,
+    zoomOut,
+    setZoom,
+    resetZoom,
+    getTransform,
+    moveTo,
+    smoothMoveTo,
+    fitAll,
+    zoomToDevice,
+  };
 }
 
 /**
  * Set the panzoom instance (called from Canvas component on mount)
  */
 function setPanzoomInstance(instance: PanzoomInstance): void {
-	panzoomInstance = instance;
+  panzoomInstance = instance;
 
-	// Listen for zoom changes to keep state in sync
-	instance.on('zoom', () => {
-		const transform = instance.getTransform();
-		currentZoom = transform.scale;
-	});
+  // Listen for zoom changes to keep state in sync
+  instance.on("zoom", () => {
+    const transform = instance.getTransform();
+    currentZoom = transform.scale;
+  });
 
-	// Track panning state to prevent accidental selection after pan
-	instance.on('panstart', () => {
-		isPanning = true;
-	});
-	instance.on('panend', () => {
-		// Small delay to let click event fire first, then reset
-		setTimeout(() => {
-			isPanning = false;
-		}, 50);
-	});
+  // Track panning state to prevent accidental selection after pan
+  instance.on("panstart", () => {
+    isPanning = true;
+  });
+  instance.on("panend", () => {
+    // Small delay to let click event fire first, then reset
+    setTimeout(() => {
+      isPanning = false;
+    }, 50);
+  });
 
-	// Initialize currentZoom from panzoom
-	const transform = instance.getTransform();
-	currentZoom = transform.scale;
+  // Initialize currentZoom from panzoom
+  const transform = instance.getTransform();
+  currentZoom = transform.scale;
 }
 
 /**
  * Dispose panzoom instance (called from Canvas component on unmount)
  */
 function disposePanzoom(): void {
-	if (panzoomInstance) {
-		panzoomInstance.dispose();
-		panzoomInstance = null;
-	}
+  if (panzoomInstance) {
+    panzoomInstance.dispose();
+    panzoomInstance = null;
+  }
 }
 
 /**
  * Zoom in by one step
  */
 function zoomIn(): void {
-	if (!panzoomInstance || currentZoom >= ZOOM_MAX) return;
+  if (!panzoomInstance || currentZoom >= ZOOM_MAX) return;
 
-	const newZoom = Math.min(currentZoom + ZOOM_STEP, ZOOM_MAX);
-	const transform = panzoomInstance.getTransform();
+  const newZoom = Math.min(currentZoom + ZOOM_STEP, ZOOM_MAX);
+  const transform = panzoomInstance.getTransform();
 
-	// Zoom centered on current view
-	panzoomInstance.zoomAbs(transform.x, transform.y, newZoom);
+  // Zoom centered on current view
+  panzoomInstance.zoomAbs(transform.x, transform.y, newZoom);
 }
 
 /**
  * Zoom out by one step
  */
 function zoomOut(): void {
-	if (!panzoomInstance || currentZoom <= ZOOM_MIN) return;
+  if (!panzoomInstance || currentZoom <= ZOOM_MIN) return;
 
-	const newZoom = Math.max(currentZoom - ZOOM_STEP, ZOOM_MIN);
-	const transform = panzoomInstance.getTransform();
+  const newZoom = Math.max(currentZoom - ZOOM_STEP, ZOOM_MIN);
+  const transform = panzoomInstance.getTransform();
 
-	panzoomInstance.zoomAbs(transform.x, transform.y, newZoom);
+  panzoomInstance.zoomAbs(transform.x, transform.y, newZoom);
 }
 
 /**
@@ -158,114 +158,124 @@ function zoomOut(): void {
  * @param scale - Zoom scale (1 = 100%)
  */
 function setZoom(scale: number): void {
-	if (!panzoomInstance) return;
+  if (!panzoomInstance) return;
 
-	const clampedScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, scale));
-	const transform = panzoomInstance.getTransform();
+  const clampedScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, scale));
+  const transform = panzoomInstance.getTransform();
 
-	panzoomInstance.zoomAbs(transform.x, transform.y, clampedScale);
+  panzoomInstance.zoomAbs(transform.x, transform.y, clampedScale);
 }
 
 /**
  * Reset zoom to 100% and center
  */
 function resetZoom(): void {
-	if (!panzoomInstance) return;
+  if (!panzoomInstance) return;
 
-	panzoomInstance.zoomAbs(0, 0, 1);
-	panzoomInstance.moveTo(0, 0);
+  panzoomInstance.zoomAbs(0, 0, 1);
+  panzoomInstance.moveTo(0, 0);
 }
 
 /**
  * Get current transform state
  */
 function getTransform(): { x: number; y: number; scale: number } {
-	if (!panzoomInstance) {
-		return { x: 0, y: 0, scale: 1 };
-	}
-	return panzoomInstance.getTransform();
+  if (!panzoomInstance) {
+    return { x: 0, y: 0, scale: 1 };
+  }
+  return panzoomInstance.getTransform();
 }
 
 /**
  * Move to specific position
  */
 function moveTo(x: number, y: number): void {
-	if (!panzoomInstance) return;
-	panzoomInstance.moveTo(x, y);
+  if (!panzoomInstance) return;
+  panzoomInstance.moveTo(x, y);
 }
 
 /**
  * Smooth animated move to position with zoom
  */
 function smoothMoveTo(x: number, y: number, scale: number): void {
-	if (!panzoomInstance) return;
+  if (!panzoomInstance) return;
 
-	// Check for reduced motion preference
-	const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Check for reduced motion preference
+  const prefersReducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
 
-	// First apply zoom, then apply pan offset
-	// Note: zoomAbs takes screen coords for zoom center, not pan offset
-	// So we zoom at origin (0,0) then apply the pan
-	if (prefersReducedMotion) {
-		panzoomInstance.zoomAbs(0, 0, scale);
-		panzoomInstance.moveTo(x, y);
-	} else {
-		// For smooth animation, we need to zoom then pan
-		// Use smooth zoom at origin
-		panzoomInstance.smoothZoomAbs(0, 0, scale);
-		// Wait a tick for zoom to start, then move
-		setTimeout(() => {
-			if (panzoomInstance) {
-				panzoomInstance.moveTo(x, y);
-			}
-		}, 0);
-	}
+  // First apply zoom, then apply pan offset
+  // Note: zoomAbs takes screen coords for zoom center, not pan offset
+  // So we zoom at origin (0,0) then apply the pan
+  if (prefersReducedMotion) {
+    panzoomInstance.zoomAbs(0, 0, scale);
+    panzoomInstance.moveTo(x, y);
+  } else {
+    // For smooth animation, we need to zoom then pan
+    // Use smooth zoom at origin
+    panzoomInstance.smoothZoomAbs(0, 0, scale);
+    // Wait a tick for zoom to start, then move
+    setTimeout(() => {
+      if (panzoomInstance) {
+        panzoomInstance.moveTo(x, y);
+      }
+    }, 0);
+  }
 }
 
 /**
  * Set the canvas container element (for viewport measurements)
  */
 function setCanvasElement(element: HTMLElement): void {
-	canvasElement = element;
+  canvasElement = element;
 }
 
 /**
  * Fit all racks in the viewport
+ * @param racks - Array of racks from the layout store
+ * @param rackGroups - Array of rack groups (for bayed rack handling)
  */
-function fitAll(racks: Rack[]): void {
-	if (!panzoomInstance || !canvasElement || racks.length === 0) return;
+function fitAll(racks: Rack[], rackGroups: RackGroup[] = []): void {
+  if (!panzoomInstance || !canvasElement || racks.length === 0) return;
 
-	// Get viewport dimensions
-	const viewportWidth = canvasElement.clientWidth;
-	const viewportHeight = canvasElement.clientHeight;
+  // Get viewport dimensions
+  const viewportWidth = canvasElement.clientWidth;
+  const viewportHeight = canvasElement.clientHeight;
 
-	// Convert racks to positions and calculate fit
-	const rackPositions = racksToPositions(racks);
-	const { zoom, panX, panY } = calculateFitAll(rackPositions, viewportWidth, viewportHeight);
+  // Convert racks to positions and calculate fit
+  const rackPositions = racksToPositions(racks, rackGroups);
+  const { zoom, panX, panY } = calculateFitAll(
+    rackPositions,
+    viewportWidth,
+    viewportHeight,
+  );
 
-	debug.group('Fit All Calculation');
-	debug.log('Viewport:', { width: viewportWidth, height: viewportHeight });
-	debug.log('Rack positions:', rackPositions);
-	debug.log('Calculated:', { zoom, panX, panY });
-	debug.log('Current transform before:', panzoomInstance.getTransform());
-	debug.groupEnd();
+  debug.group("Fit All Calculation");
+  debug.log("Viewport:", { width: viewportWidth, height: viewportHeight });
+  debug.log("Rack positions:", rackPositions);
+  debug.log("Calculated:", { zoom, panX, panY });
+  debug.log("Current transform before:", panzoomInstance.getTransform());
+  debug.groupEnd();
 
-	// Check for reduced motion preference
-	const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Check for reduced motion preference
+  const prefersReducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
 
-	// Apply zoom first, then pan
-	// This ensures the pan offset is correct for the zoom level
-	if (prefersReducedMotion) {
-		// Instant: zoom at origin (doesn't matter where we zoom since we're moving after)
-		panzoomInstance.zoomAbs(0, 0, zoom);
-		panzoomInstance.moveTo(panX, panY);
-	} else {
-		// Smooth: zoom at origin then smoothly pan
-		panzoomInstance.zoomAbs(0, 0, zoom);
-		panzoomInstance.moveTo(panX, panY);
-	}
+  // Apply zoom first, then pan
+  // This ensures the pan offset is correct for the zoom level
+  if (prefersReducedMotion) {
+    // Instant: zoom at origin (doesn't matter where we zoom since we're moving after)
+    panzoomInstance.zoomAbs(0, 0, zoom);
+    panzoomInstance.moveTo(panX, panY);
+  } else {
+    // Smooth: zoom at origin then smoothly pan
+    panzoomInstance.zoomAbs(0, 0, zoom);
+    panzoomInstance.moveTo(panX, panY);
+  }
 
-	debug.log('Transform after fitAll:', panzoomInstance.getTransform());
+  debug.log("Transform after fitAll:", panzoomInstance.getTransform());
 }
 
 /**
@@ -274,59 +284,77 @@ function fitAll(racks: Rack[]): void {
  * @param deviceIndex - Index of the device in the rack's devices array
  * @param deviceTypes - Array of device types from the layout
  */
-function zoomToDevice(rack: Rack, deviceIndex: number, deviceTypes: import('$lib/types').DeviceType[]): void {
-	if (!panzoomInstance || !canvasElement) return;
-	if (deviceIndex < 0 || deviceIndex >= rack.devices.length) return;
+function zoomToDevice(
+  rack: Rack,
+  deviceIndex: number,
+  deviceTypes: import("$lib/types").DeviceType[],
+): void {
+  if (!panzoomInstance || !canvasElement) return;
+  if (deviceIndex < 0 || deviceIndex >= rack.devices.length) return;
 
-	const device = rack.devices[deviceIndex];
-	if (!device) return;
+  const device = rack.devices[deviceIndex];
+  if (!device) return;
 
-	// Find device type to get u_height
-	const deviceType = deviceTypes.find((dt) => dt.slug === device.device_type);
-	if (!deviceType) return;
+  // Find device type to get u_height
+  const deviceType = deviceTypes.find((dt) => dt.slug === device.device_type);
+  if (!deviceType) return;
 
-	// Calculate device position in SVG coordinates
-	// Device Y position: from top of SVG viewBox
-	const rackHeight = rack.height;
-	const deviceYInRack = (rackHeight - device.position - deviceType.u_height + 1) * U_HEIGHT_PX;
-	const deviceHeight = deviceType.u_height * U_HEIGHT_PX;
+  // Calculate device position in SVG coordinates
+  // Device Y position: from top of SVG viewBox
+  const rackHeight = rack.height;
+  const deviceYInRack =
+    (rackHeight - device.position - deviceType.u_height + 1) * U_HEIGHT_PX;
+  const deviceHeight = deviceType.u_height * U_HEIGHT_PX;
 
-	// Device absolute Y: includes rack padding, top rail, and dual-view extra height
-	const deviceAbsY =
-		RACK_ROW_PADDING + DUAL_VIEW_EXTRA_HEIGHT + BASE_RACK_PADDING + RAIL_WIDTH + deviceYInRack;
+  // Device absolute Y: includes rack padding, top rail, and dual-view extra height
+  const deviceAbsY =
+    RACK_ROW_PADDING +
+    DUAL_VIEW_EXTRA_HEIGHT +
+    BASE_RACK_PADDING +
+    RAIL_WIDTH +
+    deviceYInRack;
 
-	// Device X position: centered between two rack views in dual-view mode
-	const dualViewWidth = BASE_RACK_WIDTH * 2 + DUAL_VIEW_GAP;
-	const deviceAbsX = RACK_ROW_PADDING + dualViewWidth / 2;
+  // Device X position: centered between two rack views in dual-view mode
+  const dualViewWidth = BASE_RACK_WIDTH * 2 + DUAL_VIEW_GAP;
+  const deviceAbsX = RACK_ROW_PADDING + dualViewWidth / 2;
 
-	// Get viewport dimensions
-	const viewportWidth = canvasElement.clientWidth;
-	const viewportHeight = canvasElement.clientHeight;
+  // Get viewport dimensions
+  const viewportWidth = canvasElement.clientWidth;
+  const viewportHeight = canvasElement.clientHeight;
 
-	// Target zoom: make device take up about 40% of viewport height
-	const targetDeviceHeightRatio = 0.4;
-	const targetZoom = Math.min(
-		(viewportHeight * targetDeviceHeightRatio) / deviceHeight,
-		ZOOM_MAX
-	);
-	const zoom = Math.max(ZOOM_MIN, targetZoom);
+  // Target zoom: make device take up about 40% of viewport height
+  const targetDeviceHeightRatio = 0.4;
+  const targetZoom = Math.min(
+    (viewportHeight * targetDeviceHeightRatio) / deviceHeight,
+    ZOOM_MAX,
+  );
+  const zoom = Math.max(ZOOM_MIN, targetZoom);
 
-	// Calculate pan to center device in viewport
-	// Pan formula: deviceCenter * zoom - viewportCenter = panOffset
-	const deviceCenterX = deviceAbsX;
-	const deviceCenterY = deviceAbsY + deviceHeight / 2;
+  // Calculate pan to center device in viewport
+  // Pan formula: deviceCenter * zoom - viewportCenter = panOffset
+  const deviceCenterX = deviceAbsX;
+  const deviceCenterY = deviceAbsY + deviceHeight / 2;
 
-	// Invert panzoom transform: panOffset = viewportCenter - deviceCenter * zoom
-	const panX = viewportWidth / 2 - deviceCenterX * zoom;
-	const panY = viewportHeight / 2 - deviceCenterY * zoom;
+  // Invert panzoom transform: panOffset = viewportCenter - deviceCenter * zoom
+  const panX = viewportWidth / 2 - deviceCenterX * zoom;
+  const panY = viewportHeight / 2 - deviceCenterY * zoom;
 
-	debug.group('Zoom to Device');
-	debug.log('Device:', { index: deviceIndex, position: device.position, uHeight: deviceType.u_height });
-	debug.log('SVG coords:', { deviceYInRack, deviceHeight, deviceAbsX, deviceAbsY });
-	debug.log('Viewport:', { width: viewportWidth, height: viewportHeight });
-	debug.log('Calculated:', { zoom, panX, panY });
-	debug.groupEnd();
+  debug.group("Zoom to Device");
+  debug.log("Device:", {
+    index: deviceIndex,
+    position: device.position,
+    uHeight: deviceType.u_height,
+  });
+  debug.log("SVG coords:", {
+    deviceYInRack,
+    deviceHeight,
+    deviceAbsX,
+    deviceAbsY,
+  });
+  debug.log("Viewport:", { width: viewportWidth, height: viewportHeight });
+  debug.log("Calculated:", { zoom, panX, panY });
+  debug.groupEnd();
 
-	// Apply zoom and pan
-	smoothMoveTo(panX, panY, zoom);
+  // Apply zoom and pan
+  smoothMoveTo(panX, panY, zoom);
 }

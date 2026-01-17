@@ -127,7 +127,7 @@
       hapticSuccess();
       placementStore.completePlacement();
       // Reset view to show full rack after placement completes
-      canvasStore.fitAll(layoutStore.racks);
+      canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
     }
   }
 
@@ -231,12 +231,40 @@
 
       // Center content on initial load
       requestAnimationFrame(() => {
-        canvasStore.fitAll(racks);
+        canvasStore.fitAll(racks, rackGroups);
       });
+
+      // Set up ResizeObserver to auto-fit when viewport changes (sidebar collapse, etc.)
+      let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+      let initialLoadComplete = false;
+
+      // Mark initial load as complete after a short delay
+      const initTimeout = setTimeout(() => {
+        initialLoadComplete = true;
+      }, 100);
+
+      const resizeObserver = new ResizeObserver(() => {
+        // Skip if initial load hasn't completed (fitAll already called above)
+        if (!initialLoadComplete) return;
+
+        // Debounce resize events (300ms)
+        if (resizeTimeout) clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          debug.log("ResizeObserver: viewport changed, calling fitAll");
+          canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+        }, 300);
+      });
+
+      if (canvasContainer) {
+        resizeObserver.observe(canvasContainer);
+      }
 
       return () => {
         debug.log("Disposing panzoom");
         canvasStore.disposePanzoom();
+        if (resizeTimeout) clearTimeout(resizeTimeout);
+        clearTimeout(initTimeout);
+        resizeObserver.disconnect();
       };
     }
   });
@@ -362,7 +390,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (role="application" makes this interactive per WAI-ARIA) -->
 <CanvasContextMenu
   onnewrack={handleNewRack}
-  onfitall={() => onfitall?.() ?? canvasStore.fitAll(racks)}
+  onfitall={() => onfitall?.() ?? canvasStore.fitAll(racks, rackGroups)}
   onresetzoom={() => onresetzoom?.() ?? canvasStore.resetZoom()}
   {ontoggletheme}
   theme={uiStore.theme}

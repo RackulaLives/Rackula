@@ -186,7 +186,7 @@
 
         // Reset view to center the loaded rack after DOM updates
         requestAnimationFrame(() => {
-          canvasStore.fitAll(layoutStore.racks);
+          canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
         });
         return; // Don't check autosave or show new rack dialog
       } else {
@@ -204,7 +204,7 @@
       // Don't show new rack dialog - user has work in progress
       // Reset view to center the loaded rack after DOM updates
       requestAnimationFrame(() => {
-        canvasStore.fitAll(layoutStore.racks);
+        canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
       });
       return;
     }
@@ -342,7 +342,7 @@
 
       // Reset view to center the loaded rack after DOM updates
       requestAnimationFrame(() => {
-        canvasStore.fitAll(layoutStore.racks);
+        canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
       });
 
       // Show appropriate toast based on image loading results
@@ -570,7 +570,7 @@
   }
 
   function handleFitAll() {
-    canvasStore.fitAll(layoutStore.racks);
+    canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
   }
 
   function handleToggleTheme() {
@@ -725,7 +725,7 @@
           "[Mobile] Device deselected, closing bottom sheet and fitting all",
         );
         dialogStore.closeSheet();
-        canvasStore.fitAll(layoutStore.racks);
+        canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
       }
     }
   });
