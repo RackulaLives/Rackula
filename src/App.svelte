@@ -953,7 +953,7 @@
             minSize={15}
             maxSize={40}
             collapsible={true}
-            collapsedSize={0}
+            collapsedSize={1}
             onCollapse={handleSidebarCollapse}
             onExpand={handleSidebarExpand}
             id="sidebar-pane"
