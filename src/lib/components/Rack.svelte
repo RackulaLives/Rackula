@@ -1398,11 +1398,7 @@
     outline-offset: 2px;
   }
 
-  .rack-container[aria-selected="true"] {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
-  }
-
+  .rack-container[aria-selected="true"],
   .rack-container.selected {
     outline: 2px solid var(--colour-selection);
     outline-offset: 4px;

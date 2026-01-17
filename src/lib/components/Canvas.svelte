@@ -587,10 +587,8 @@
     transition: box-shadow var(--duration-fast) var(--ease-out);
   }
 
-  .rack-wrapper.active {
-    /* Active rack visual indicator - accent outline */
-    box-shadow: 0 0 0 3px var(--colour-selection);
-  }
+  /* NOTE: .rack-wrapper.active box-shadow removed - selection outline in
+     RackDualView/BayedRackView now handles visual feedback to avoid double rings */
 
   /* Rack group visual container (for non-bayed groups; bayed uses BayedRackView) */
   .rack-group {
