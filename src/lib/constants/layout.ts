@@ -69,10 +69,21 @@ export const RACK_ROW_PADDING = 16;
 export const DUAL_VIEW_GAP = 24;
 
 /**
- * Extra height added by dual-view wrapper
- * Includes: padding (12+12) + gap (8) + name (~20) + margin (4) = ~56px
+ * Extra height added by dual-view wrapper (RackDualView.svelte)
+ *
+ * CSS breakdown:
+ * - padding-top: var(--space-3) = 12px
+ * - gap: var(--space-2) = 8px (between name and container)
+ * - name height: ~24px (var(--font-size-xl) 20px × ~1.2 line-height)
+ * - name margin-bottom: 4px
+ * - padding-bottom: var(--space-3) = 12px
+ *
+ * Total: 12 + 8 + 24 + 4 + 12 = 60px
+ * Added 4px buffer for browser rendering differences = 64px
+ *
+ * This ensures tall racks (48U) don't get cut off during fit-to-screen.
  */
-export const DUAL_VIEW_EXTRA_HEIGHT = 56;
+export const DUAL_VIEW_EXTRA_HEIGHT = 64;
 
 /**
  * Gap between racks in multi-rack canvas mode (unused in v0.1.1 single-rack)
