@@ -102,7 +102,7 @@
   let currentStep = $state(1);
   let config = $state<WizardConfig>({
     name: "",
-    width: STANDARD_RACK_WIDTH as 10 | 19 | 23,
+    width: STANDARD_RACK_WIDTH as WizardConfig["width"],
     layoutType: "column",
     height: 42,
     bayCount: 2,
@@ -180,7 +180,7 @@
       currentStep = 1;
       config = {
         name: "Racky McRackface",
-        width: STANDARD_RACK_WIDTH as 10 | 19 | 23,
+        width: STANDARD_RACK_WIDTH as WizardConfig["width"],
         layoutType: "column",
         height: 42,
         bayCount: 2,
