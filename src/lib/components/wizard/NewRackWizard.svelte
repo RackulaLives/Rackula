@@ -1,10 +1,15 @@
 <!--
   New Rack Wizard Component
-  3-step wizard for creating column (single) or bayed (grouped) racks.
+  Multi-step wizard for creating column (single) or bayed (grouped) racks.
 
-  Step 1: Rack Details - Name and layout type (column vs bayed) selection
-  Step 2: Width - Selectable for column, locked to 19" for bayed
-  Step 3: Dimensions - Height (column) or bay count + height (bayed)
+  Column racks (2 steps):
+    Step 1: Rack Details - Name and layout type selection
+    Step 2: Size - Width (vertical list with descriptions) and Height on same view
+
+  Bayed racks (3 steps):
+    Step 1: Rack Details - Name and layout type selection
+    Step 2: Width - Locked to 19" standard
+    Step 3: Dimensions - Bay count and height
 -->
 <script lang="ts">
   import Dialog from "$lib/components/Dialog.svelte";
@@ -14,12 +19,39 @@
     MIN_RACK_HEIGHT,
     MAX_RACK_HEIGHT,
     STANDARD_RACK_WIDTH,
-    ALLOWED_RACK_WIDTHS,
     MAX_RACKS,
   } from "$lib/types/constants";
 
   // Height options for 10" racks (smaller form factor)
   const SMALL_RACK_HEIGHTS = [4, 6, 8, 12];
+
+  // Width options with descriptive labels for vertical list display
+  const WIDTH_OPTIONS = [
+    {
+      value: 10 as const,
+      label: "Half-Width",
+      size: '10"',
+      description: "Compact racks for small setups",
+    },
+    {
+      value: 19 as const,
+      label: "Standard",
+      size: '19"',
+      description: "Industry standard, universal compatibility",
+    },
+    {
+      value: 21 as const,
+      label: "Broadcast",
+      size: '21"',
+      description: "Audio/video production equipment",
+    },
+    {
+      value: 23 as const,
+      label: "Telecom",
+      size: '23"',
+      description: "Telecommunications equipment",
+    },
+  ] as const;
 
   // Bayed rack constraints
   const BAYED_MIN_HEIGHT = 10;
@@ -31,7 +63,7 @@
 
   interface WizardConfig {
     name: string;
-    width: 10 | 19 | 23;
+    width: 10 | 19 | 21 | 23;
     layoutType: LayoutType;
     height: number;
     bayCount: BayCount;
@@ -57,7 +89,7 @@
     /** Rack height in U */
     height: number;
     /** Rack width in inches */
-    width: 10 | 19 | 23;
+    width: 10 | 19 | 21 | 23;
     /** Layout type selected */
     layoutType: LayoutType;
     /** Number of bays (only for bayed layout) */
@@ -91,6 +123,9 @@
       : undefined,
   );
 
+  // Total steps depends on layout type: column = 2, bayed = 3
+  const totalSteps = $derived(config.layoutType === "column" ? 2 : 3);
+
   // Available heights based on rack width and layout type
   const availableHeights = $derived.by(() => {
     if (config.layoutType === "bayed") {
@@ -101,7 +136,7 @@
       }
       return heights;
     }
-    // Column racks use standard heights
+    // Column racks use standard heights (10" gets small heights, others get common)
     return config.width === 10 ? SMALL_RACK_HEIGHTS : COMMON_RACK_HEIGHTS;
   });
 
@@ -110,17 +145,25 @@
     Math.max(2, Math.min(3, remainingCapacity)) as 2 | 3,
   );
 
-  // Can proceed to next step?
+  // Can proceed to next step (or create)?
   const canProceed = $derived.by(() => {
     switch (currentStep) {
       case 1:
         // Step 1: Name must be filled and layout type selected
         return config.name.trim().length > 0 && config.layoutType !== undefined;
-      case 2:
-        // Step 2: Width - always valid (bayed is locked, column has default)
+      case 2: {
+        if (config.layoutType === "column") {
+          // Column Step 2: Width + Height combined - validate height
+          const height = config.isCustomHeight
+            ? config.customHeight
+            : config.height;
+          return height >= MIN_RACK_HEIGHT && height <= MAX_RACK_HEIGHT;
+        }
+        // Bayed Step 2: Width - always valid (locked to 19")
         return true;
+      }
       case 3: {
-        // Step 3: Height must be in valid range
+        // Bayed Step 3: Height must be in valid range
         const height = config.isCustomHeight
           ? config.customHeight
           : config.height;
@@ -192,18 +235,25 @@
         }
         return true;
 
-      case 3: {
-        const height = getCurrentHeight();
+      case 2: {
+        // Column: Step 2 has both width and height
         if (config.layoutType === "column") {
+          const height = getCurrentHeight();
           if (height < MIN_RACK_HEIGHT || height > MAX_RACK_HEIGHT) {
             heightError = `Height must be between ${MIN_RACK_HEIGHT} and ${MAX_RACK_HEIGHT}U`;
             return false;
           }
-        } else {
-          if (height < BAYED_MIN_HEIGHT || height > BAYED_MAX_HEIGHT) {
-            heightError = `Bayed rack height must be between ${BAYED_MIN_HEIGHT} and ${BAYED_MAX_HEIGHT}U`;
-            return false;
-          }
+        }
+        // Bayed: Step 2 is just width (locked), always valid
+        return true;
+      }
+
+      case 3: {
+        // Bayed: Step 3 has height
+        const height = getCurrentHeight();
+        if (height < BAYED_MIN_HEIGHT || height > BAYED_MAX_HEIGHT) {
+          heightError = `Bayed rack height must be between ${BAYED_MIN_HEIGHT} and ${BAYED_MAX_HEIGHT}U`;
+          return false;
         }
         return true;
       }
@@ -216,7 +266,7 @@
   function nextStep() {
     if (!validateStep()) return;
 
-    if (currentStep < 3) {
+    if (currentStep < totalSteps) {
       currentStep++;
     } else {
       handleCreate();
@@ -283,9 +333,9 @@
       role="progressbar"
       aria-valuenow={currentStep}
       aria-valuemin={1}
-      aria-valuemax={3}
+      aria-valuemax={totalSteps}
     >
-      <span class="step-text">Step {currentStep} of 3</span>
+      <span class="step-text">Step {currentStep} of {totalSteps}</span>
     </div>
   {/snippet}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -333,71 +383,131 @@
       </div>
     {/if}
 
-    <!-- Step 2: Rack Width -->
+    <!-- Step 2: Width (bayed) or Width+Height combined (column) -->
     {#if currentStep === 2}
       <div class="step-content">
-        <div class="form-group">
-          <span class="form-label">Rack Width</span>
-          {#if config.layoutType === "bayed"}
+        {#if config.layoutType === "bayed"}
+          <!-- Bayed: Just show locked width -->
+          <div class="form-group">
+            <span class="form-label">Rack Width</span>
             <div class="width-locked">
               <span class="width-value">19"</span>
               <span class="width-note">Standard width for bayed racks</span>
             </div>
-          {:else}
-            <div class="width-options" role="group" aria-label="Rack width">
-              {#each ALLOWED_RACK_WIDTHS as width (width)}
-                <label class="width-option">
+          </div>
+        {:else}
+          <!-- Column: Width (vertical list) + Height (with animation) -->
+          <div class="form-group">
+            <span class="form-label">Rack Width</span>
+            <div
+              class="width-options-vertical"
+              role="radiogroup"
+              aria-label="Rack width"
+            >
+              {#each WIDTH_OPTIONS as option (option.value)}
+                <label
+                  class="width-card"
+                  class:selected={config.width === option.value}
+                >
                   <input
                     type="radio"
                     name="rack-width"
-                    value={width}
-                    checked={config.width === width}
-                    onchange={() => (config.width = width)}
+                    value={option.value}
+                    checked={config.width === option.value}
+                    onchange={() => (config.width = option.value)}
                   />
-                  <span class="width-label">{width}"</span>
+                  <div class="width-card-content">
+                    <div class="width-card-header">
+                      <span class="width-card-label">{option.label}</span>
+                      <span class="width-card-size">{option.size}</span>
+                    </div>
+                    <span class="width-card-description"
+                      >{option.description}</span
+                    >
+                  </div>
                 </label>
               {/each}
             </div>
-          {/if}
-        </div>
+          </div>
+
+          <!-- Height section with fade+slide animation -->
+          <div class="form-group height-section">
+            <span class="form-label">Height</span>
+            <div class="height-buttons" role="group" aria-label="Rack height">
+              {#each availableHeights as height (height)}
+                <button
+                  type="button"
+                  class="height-btn"
+                  class:selected={!config.isCustomHeight &&
+                    config.height === height}
+                  onclick={() => selectPresetHeight(height)}
+                >
+                  {height}U
+                </button>
+              {/each}
+              <button
+                type="button"
+                class="height-btn"
+                class:selected={config.isCustomHeight}
+                onclick={selectCustomHeight}
+              >
+                Custom
+              </button>
+            </div>
+
+            {#if config.isCustomHeight}
+              <div class="custom-height-input">
+                <label for="custom-height" class="sr-only">Custom Height</label>
+                <input
+                  type="number"
+                  id="custom-height"
+                  class="input-field"
+                  bind:value={config.customHeight}
+                  min={MIN_RACK_HEIGHT}
+                  max={MAX_RACK_HEIGHT}
+                  class:error={heightError}
+                />
+                <span class="unit">U</span>
+              </div>
+            {/if}
+
+            {#if heightError}
+              <span class="error-message">{heightError}</span>
+            {/if}
+          </div>
+        {/if}
       </div>
     {/if}
 
-    <!-- Step 3: Dimensions -->
-    {#if currentStep === 3}
+    <!-- Step 3: Bayed rack dimensions (bay count + height) -->
+    {#if currentStep === 3 && config.layoutType === "bayed"}
       <div class="step-content">
-        <!-- Bay count (bayed only) -->
-        {#if config.layoutType === "bayed"}
-          <div class="form-group">
-            <span class="form-label">Number of Bays</span>
-            <div class="bay-buttons" role="group" aria-label="Number of bays">
+        <div class="form-group">
+          <span class="form-label">Number of Bays</span>
+          <div class="bay-buttons" role="group" aria-label="Number of bays">
+            <button
+              type="button"
+              class="bay-btn"
+              class:selected={config.bayCount === 2}
+              onclick={() => (config.bayCount = 2)}
+            >
+              2 Bays
+            </button>
+            {#if maxBayCount >= 3}
               <button
                 type="button"
                 class="bay-btn"
-                class:selected={config.bayCount === 2}
-                onclick={() => (config.bayCount = 2)}
+                class:selected={config.bayCount === 3}
+                onclick={() => (config.bayCount = 3)}
               >
-                2 Bays
+                3 Bays
               </button>
-              {#if maxBayCount >= 3}
-                <button
-                  type="button"
-                  class="bay-btn"
-                  class:selected={config.bayCount === 3}
-                  onclick={() => (config.bayCount = 3)}
-                >
-                  3 Bays
-                </button>
-              {/if}
-            </div>
+            {/if}
           </div>
-        {/if}
+        </div>
 
-        <!-- Height selection -->
         <div class="form-group">
-          <span class="form-label">
-            {config.layoutType === "bayed" ? "Height (per bay)" : "Height"}
-          </span>
+          <span class="form-label">Height (per bay)</span>
           <div class="height-buttons" role="group" aria-label="Rack height">
             {#each availableHeights as height (height)}
               <button
@@ -410,34 +520,7 @@
                 {height}U
               </button>
             {/each}
-            {#if config.layoutType === "column"}
-              <button
-                type="button"
-                class="height-btn"
-                class:selected={config.isCustomHeight}
-                onclick={selectCustomHeight}
-              >
-                Custom
-              </button>
-            {/if}
           </div>
-
-          {#if config.isCustomHeight && config.layoutType === "column"}
-            <div class="custom-height-input">
-              <label for="custom-height" class="sr-only">Custom Height</label>
-              <input
-                type="number"
-                id="custom-height"
-                class="input-field"
-                aria-label="Custom height"
-                bind:value={config.customHeight}
-                min={MIN_RACK_HEIGHT}
-                max={MAX_RACK_HEIGHT}
-                class:error={heightError}
-              />
-              <span class="unit">U</span>
-            </div>
-          {/if}
 
           {#if heightError}
             <span class="error-message">{heightError}</span>
@@ -462,7 +545,7 @@
         onclick={nextStep}
         disabled={!canProceed}
       >
-        {#if currentStep === 3}
+        {#if currentStep === totalSteps}
           {config.layoutType === "bayed" ? "Create Bayed Group" : "Create Rack"}
         {:else}
           Next
@@ -550,29 +633,85 @@
     color: var(--colour-error);
   }
 
-  /* Width options */
-  .width-options {
+  /* Width options (vertical card list) */
+  .width-options-vertical {
     display: flex;
-    gap: var(--space-4);
+    flex-direction: column;
+    gap: var(--space-2);
   }
 
-  .width-option {
+  .width-card {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: var(--colour-button-bg);
+    border: 2px solid var(--colour-border);
+    border-radius: var(--radius-md);
     cursor: pointer;
+    transition: all var(--transition-fast);
   }
 
-  .width-option input[type="radio"] {
+  .width-card:hover {
+    background: var(--colour-button-hover);
+    border-color: var(--colour-border-hover, var(--colour-border));
+  }
+
+  .width-card.selected {
+    background: color-mix(in srgb, var(--colour-selection) 15%, transparent);
+    border-color: var(--colour-selection);
+  }
+
+  .width-card input[type="radio"] {
     width: 18px;
     height: 18px;
     accent-color: var(--colour-selection);
     cursor: pointer;
+    flex-shrink: 0;
   }
 
-  .width-label {
-    font-size: var(--font-size-base);
+  .width-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .width-card-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  .width-card-label {
+    font-weight: var(--font-weight-medium);
     color: var(--colour-text);
+    font-size: var(--font-size-base);
+  }
+
+  .width-card-size {
+    font-size: var(--font-size-sm);
+    color: var(--colour-text-muted);
+  }
+
+  .width-card-description {
+    font-size: var(--font-size-sm);
+    color: var(--colour-text-muted);
+  }
+
+  /* Height section with fade+slide animation */
+  .height-section {
+    animation: fadeSlideIn 0.3s ease-out;
+  }
+
+  @keyframes fadeSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   /* Layout cards */
