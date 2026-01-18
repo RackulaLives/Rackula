@@ -1,0 +1,33 @@
+version: "0.6.0"
+name: "Legacy Test Layout"
+racks:
+  - id: "rack-1"
+    name: "Test Rack"
+    height: 42
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: "4-post-cabinet"
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: "server-1"
+        device_type: "test-server"
+        position: 10
+        face: "front"
+      - id: "switch-1"
+        device_type: "test-switch"
+        position: 1
+        face: "front"
+device_types:
+  - slug: "test-server"
+    u_height: 2
+    colour: "#4A7A8A"
+    category: "server"
+  - slug: "test-switch"
+    u_height: 1
+    colour: "#7B6BA8"
+    category: "network"
+settings:
+  display_mode: "label"
+  show_labels_on_images: false

@@ -1,11 +1,12 @@
 /**
  * Layout Zod Validation Schemas
- * Schema v1.1.0 - Internal position units (1/6U)
+ * v0.7.0+ uses internal position units (1/6U)
  */
 
 import { z } from "../zod";
 import { nanoid } from "nanoid";
 import { UNITS_PER_U } from "$lib/types/constants";
+import { VERSION } from "$lib/version";
 
 /**
  * Slug pattern: lowercase alphanumeric with hyphens, no leading/trailing/consecutive hyphens
@@ -709,10 +710,11 @@ export const LayoutSettingsSchema = z
 /**
  * Layout schema input (accepts legacy format)
  * Handles migration from Layout.rack → Layout.racks[]
+ * Version is optional to support very old layouts without version field
  */
 const LayoutSchemaInput = z
   .object({
-    version: z.string(),
+    version: z.string().optional(),
     name: z
       .string()
       .min(1, "Name is required")
@@ -731,19 +733,53 @@ const LayoutSchemaInput = z
   .passthrough();
 
 /**
- * Check if a layout uses the old position format (pre-1.1.0)
- * Old format: positions are 1-indexed U values (e.g., 1, 2, 1.5)
- * New format: positions are internal units (e.g., 6, 12, 9)
- *
- * Detection: If any rack-level device (non-container child) has a position < UNITS_PER_U,
- * it's using the old format (since U1 = 6 in internal units).
+ * Compare two semver version strings
+ * Returns: -1 if a < b, 0 if a == b, 1 if a > b
+ * Note: Pre-release suffixes (e.g., -dev) are ignored
  */
-function needsPositionMigration(version: string | undefined): boolean {
-  if (!version) return true; // No version means old format
-  // Compare versions: < 1.1.0 needs migration
-  const [major, minor] = version.split(".").map(Number);
-  if (major === undefined || minor === undefined) return true;
-  return major < 1 || (major === 1 && minor < 1);
+function compareVersions(a: string, b: string): number {
+  const partsA = a.split(".").map((p) => parseInt(p) || 0);
+  const partsB = b.split(".").map((p) => parseInt(p) || 0);
+
+  for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+    const partA = partsA[i] ?? 0;
+    const partB = partsB[i] ?? 0;
+    if (partA < partB) return -1;
+    if (partA > partB) return 1;
+  }
+  return 0;
+}
+
+/**
+ * Check if a layout needs position migration.
+ * Uses two checks (belt and suspenders):
+ * 1. Version < 0.7.0 (when internal units were introduced)
+ * 2. Heuristic: any rack-level device with position < UNITS_PER_U
+ */
+function needsPositionMigration(
+  version: string | undefined,
+  devices: { position: number; container_id?: string }[],
+): boolean {
+  // Check 1: Version-based detection
+  // Layouts before 0.7.0 use old U-value positions
+  if (!version || compareVersions(version, "0.7.0") < 0) {
+    return true;
+  }
+
+  // Check 2: Heuristic fallback
+  // If any rack-level device has position < UNITS_PER_U, it's old format
+  // (U1 in new format = UNITS_PER_U, so valid positions are >= UNITS_PER_U)
+  const hasOldFormatPosition = devices.some(
+    (d) =>
+      d.container_id === undefined &&
+      d.position >= 1 &&
+      d.position < UNITS_PER_U,
+  );
+  if (hasOldFormatPosition) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -776,7 +812,7 @@ function migrateDevicePositions(
  * Transform handles:
  * - Legacy rack → racks[0] migration
  * - Generating nanoid for racks missing id field
- * - Position migration from U values to internal units (v1.1.0)
+ * - Position migration from U values to internal units (v0.7.0)
  */
 const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
   // Determine the racks array
@@ -793,8 +829,11 @@ const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
     racks = [];
   }
 
-  // Check if positions need migration (pre-1.1.0 format)
-  const migratePositions = needsPositionMigration(data.version);
+  // Collect all devices across all racks for heuristic check
+  const allDevices = racks.flatMap((r) => r.devices);
+
+  // Check if positions need migration (pre-0.7.0 format)
+  const migratePositions = needsPositionMigration(data.version, allDevices);
 
   // Generate IDs for racks missing them and migrate positions if needed
   const racksWithIds = racks.map((rack) => ({
@@ -812,6 +851,8 @@ const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
 
   return {
     ...rest,
+    // After migration, stamp with current app version
+    version: migratePositions ? VERSION : data.version,
     racks: racksWithIds,
   };
 });
