@@ -1,14 +1,12 @@
 <!--
   RackList Component
   Displays list of all racks with selection and delete actions
-  Also shows rack groups if any exist
 -->
 <script lang="ts">
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
-  import RackGroupPanel from "./RackGroupPanel.svelte";
 
   interface Props {
     onaddrack?: () => void;
@@ -74,9 +72,6 @@
 </script>
 
 <div class="rack-list">
-  <!-- Rack groups panel (shown above rack list if groups exist) -->
-  <RackGroupPanel />
-
   <div class="rack-list-header">
     <span class="rack-count"
       >{racks.length} rack{racks.length !== 1 ? "s" : ""}</span
