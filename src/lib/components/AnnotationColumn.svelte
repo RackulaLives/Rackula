@@ -14,6 +14,10 @@
     U_HEIGHT_PX,
     RAIL_WIDTH,
     RACK_PADDING_HIDDEN,
+    ANNOTATION_WIDTH,
+    ANNOTATION_TRUNCATE_LENGTH,
+    ANNOTATION_TRUNCATE_LENGTH_COMPACT,
+    ANNOTATION_WIDTH_COMPACT,
   } from "$lib/constants/layout";
   import { toHumanUnits } from "$lib/utils/position";
 
@@ -31,9 +35,16 @@
     rack,
     deviceLibrary,
     annotationField,
-    width = 100,
+    width = ANNOTATION_WIDTH,
     faceFilter,
   }: Props = $props();
+
+  // Determine truncation length based on width
+  const truncateLength = $derived(
+    width <= ANNOTATION_WIDTH_COMPACT
+      ? ANNOTATION_TRUNCATE_LENGTH_COMPACT
+      : ANNOTATION_TRUNCATE_LENGTH,
+  );
 
   // Padding from right edge for text alignment
   const TEXT_PADDING = 8;
@@ -114,7 +125,7 @@
   );
 
   // Truncate long values
-  function truncate(value: string, maxLength: number = 15): string {
+  function truncate(value: string, maxLength: number): string {
     if (value.length <= maxLength) return value;
     return value.slice(0, maxLength - 1) + "…";
   }
@@ -139,7 +150,7 @@
         text-anchor="end"
       >
         <title>{annotation.value}</title>
-        {truncate(annotation.value)}
+        {truncate(annotation.value, truncateLength)}
       </text>
     {/each}
   </svg>

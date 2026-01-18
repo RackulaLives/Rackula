@@ -19,7 +19,10 @@
   import ULabels from "./ULabels.svelte";
   import AnnotationColumn from "./AnnotationColumn.svelte";
   import { useLongPress } from "$lib/utils/gestures";
-  import { RACK_PADDING_HIDDEN } from "$lib/constants/layout";
+  import {
+    RACK_PADDING_HIDDEN,
+    ANNOTATION_WIDTH_COMPACT,
+  } from "$lib/constants/layout";
 
   interface Props {
     group: RackGroup;
@@ -269,6 +272,7 @@
             {rack}
             {deviceLibrary}
             {annotationField}
+            width={ANNOTATION_WIDTH_COMPACT}
             faceFilter="front"
           />
         </div>
@@ -380,6 +384,7 @@
             {rack}
             {deviceLibrary}
             {annotationField}
+            width={ANNOTATION_WIDTH_COMPACT}
             faceFilter="rear"
           />
         </div>

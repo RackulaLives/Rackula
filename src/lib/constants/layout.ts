@@ -114,6 +114,39 @@ export const FIT_ALL_MAX_ZOOM = 2;
 export const SELECTION_HIGHLIGHT_PADDING = 8;
 
 // =============================================================================
+// Annotation Column
+// =============================================================================
+
+/**
+ * Default width of annotation columns for standalone racks
+ */
+export const ANNOTATION_WIDTH = 100;
+
+/**
+ * Compact width for annotation columns in bayed racks
+ * Narrower to prevent horizontal overflow with multiple bays
+ */
+export const ANNOTATION_WIDTH_COMPACT = 80;
+
+/**
+ * Max characters before truncation for standard annotation width (100px)
+ *
+ * Assumes ~6px per character at 10px monospace font.
+ * Width (100px) - padding (8px right) = 92px usable / ~6px = ~15 chars
+ * Keep in sync with ANNOTATION_WIDTH.
+ */
+export const ANNOTATION_TRUNCATE_LENGTH = 15;
+
+/**
+ * Max characters before truncation for compact annotation width (80px)
+ *
+ * Assumes ~6px per character at 10px monospace font.
+ * Width (80px) - padding (8px right) = 72px usable / ~6px = ~12 chars
+ * Using 11 for safety margin. Keep in sync with ANNOTATION_WIDTH_COMPACT.
+ */
+export const ANNOTATION_TRUNCATE_LENGTH_COMPACT = 11;
+
+// =============================================================================
 // Helper Functions
 // =============================================================================
 
