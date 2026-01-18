@@ -19,6 +19,7 @@
   import ULabels from "./ULabels.svelte";
   import AnnotationColumn from "./AnnotationColumn.svelte";
   import { useLongPress } from "$lib/utils/gestures";
+  import { RACK_PADDING_HIDDEN } from "$lib/constants/layout";
 
   interface Props {
     group: RackGroup;
@@ -122,12 +123,17 @@
   const uLabels = $derived(
     Array.from({ length: maxHeight }, (_, i) => {
       const uNumber = maxHeight - i;
-      const yPosition = i * U_HEIGHT + U_HEIGHT / 2 + RAIL_WIDTH;
+      // Match Rack.svelte yPosition: includes RACK_PADDING_HIDDEN to align with hidden rack name mode
+      const yPosition =
+        i * U_HEIGHT + U_HEIGHT / 2 + RACK_PADDING_HIDDEN + RAIL_WIDTH;
       return { uNumber, yPosition };
     }),
   );
 
-  const uColumnHeight = $derived(maxHeight * U_HEIGHT + RAIL_WIDTH * 2);
+  // Column height must match Rack.svelte viewBoxHeight when hideRackName=true
+  const uColumnHeight = $derived(
+    RACK_PADDING_HIDDEN + maxHeight * U_HEIGHT + RAIL_WIDTH * 2,
+  );
 
   // Reversed racks for rear row (mirrored layout)
   const reversedRacks = $derived([...racks].reverse());
