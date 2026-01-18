@@ -99,7 +99,7 @@
     if (rackToDelete) {
       if (rackToDelete.isGroup) {
         // Delete all racks in the group, then the group
-        const group = rackGroups.find((g) => g.id === rackToDelete!.id);
+        const group = rackGroups.find((g) => g.id === rackToDelete.id);
         if (group) {
           // Delete racks first
           for (const rackId of group.rack_ids) {

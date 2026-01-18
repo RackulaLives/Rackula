@@ -856,27 +856,45 @@ function addBayToGroup(groupId: string): { rackId?: string; error?: string } {
     return { error: "Maximum rack limit reached" };
   }
 
-  // Create new rack with matching height
-  const newRackId = crypto.randomUUID();
+  // Create new rack with matching height, using createDefaultRack for proper field initialization
+  const newRackId = generateRackId();
   const bayNumber = group.rack_ids.length + 1;
-  const newRack: Rack = {
-    id: newRackId,
-    name: `Bay ${bayNumber}`,
-    height: existingRack.height,
-    width: existingRack.width,
-    devices: [],
-  };
+  // Validate width - bayed racks should only use standard widths (10/19/23), default to 19
+  const validWidths = [10, 19, 23];
+  const width = (
+    validWidths.includes(existingRack.width) ? existingRack.width : 19
+  ) as 10 | 19 | 23;
+  const newRack = createDefaultRack(
+    `Bay ${bayNumber}`,
+    existingRack.height,
+    width,
+    existingRack.form_factor,
+    existingRack.desc_units,
+    existingRack.starting_unit,
+    existingRack.show_rear,
+    newRackId,
+  );
 
-  // Add rack to layout
-  layout.racks.push(newRack);
+  // Add rack to layout (immutable update for Svelte reactivity)
+  layout = { ...layout, racks: [...layout.racks, newRack] };
 
   // Add to group
   const result = addRackToGroup(groupId, newRackId);
   if (result.error) {
     // Rollback rack creation
-    layout.racks = layout.racks.filter((r) => r.id !== newRackId);
+    layout = {
+      ...layout,
+      racks: layout.racks.filter((r) => r.id !== newRackId),
+    };
     return { error: result.error };
   }
+
+  layoutDebug.group(
+    "addBayToGroup: added bay %d (rack %s) to group %s",
+    bayNumber,
+    newRackId,
+    groupId,
+  );
 
   return { rackId: newRackId };
 }
@@ -920,25 +938,38 @@ function removeBayFromGroup(groupId: string): { error?: string } {
     };
   }
 
+  const bayNumber = group.rack_ids.length;
+
   layoutDebug.group(
     "removeBayFromGroup: removing bay %d (rack %s) from group %s",
-    group.rack_ids.length,
+    bayNumber,
     lastRackId,
     groupId,
   );
 
-  // Remove from group
-  removeRackFromGroup(groupId, lastRackId);
+  // Delete the rack using the command pattern for proper undo/redo support.
+  // deleteRack handles both rack deletion and group membership cleanup atomically.
+  deleteRack(lastRackId);
 
-  // Delete the rack
-  layout.racks = layout.racks.filter((r) => r.id !== lastRackId);
+  layoutDebug.group(
+    "removeBayFromGroup: successfully removed bay %d (rack %s) from group %s",
+    bayNumber,
+    lastRackId,
+    groupId,
+  );
 
   return {};
 }
 
 /**
- * Set the bay count for a bayed rack group atomically
- * Validates all changes upfront before making any mutations
+ * Set the bay count for a bayed rack group.
+ *
+ * Performs full upfront validation to catch all errors before making changes,
+ * then applies mutations sequentially via addBayToGroup and removeBayFromGroup.
+ * Note: This is not a true atomic operation - if an unexpected error occurs
+ * mid-loop, partial state changes may persist. Consider implementing a
+ * batch-apply approach if true atomicity is required.
+ *
  * @param groupId - Group ID
  * @param targetCount - Desired bay count (must be >= 2)
  * @returns Error if validation fails
