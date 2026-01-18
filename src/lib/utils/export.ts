@@ -25,7 +25,7 @@ import {
   RAIL_WIDTH,
   RACK_PADDING_HIDDEN,
 } from "$lib/constants/layout";
-import { toHumanUnits } from "$lib/utils/position";
+import { toHumanUnits, formatPosition } from "$lib/utils/position";
 
 // Note: jsPDF is imported dynamically in exportAsPDF() to avoid loading
 // the large jsPDF + html2canvas bundle (~200KB) on app startup.
@@ -1441,7 +1441,7 @@ export function exportToCSV(rack: Rack, deviceTypes: DeviceType[]): string {
     const deviceType = deviceTypeMap.get(device.device_type);
     if (!deviceType) continue; // Skip unknown device types
 
-    const position = String(device.position);
+    const position = formatPosition(device.position);
     const name = escapeCSVField(device.name || "");
     const model = escapeCSVField(deviceType.model || deviceType.slug);
     const manufacturer = escapeCSVField(deviceType.manufacturer || "");

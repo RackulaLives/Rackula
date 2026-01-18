@@ -26,7 +26,11 @@
   } from "$lib/utils/rack-resize";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { canPlaceDevice, findCollisions } from "$lib/utils/collision";
-  import { toHumanUnits, toInternalUnits } from "$lib/utils/position";
+  import {
+    toHumanUnits,
+    toInternalUnits,
+    formatPosition,
+  } from "$lib/utils/position";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getDeviceDisplayName } from "$lib/utils/device";
   import { COMMON_RACK_HEIGHTS } from "$lib/types/constants";
@@ -557,18 +561,25 @@
     );
   });
 
-  // Transform internal position to display position (matches ruler labels)
-  // PlacedDevice.position is in internal units (1/6U), convert to human U first
+  // Transform internal position to display position with fraction glyphs
+  // PlacedDevice.position is in internal units (1/6U)
   // Display with desc_units=false: U1 at bottom (ascending)
   // Display with desc_units=true: U1 at top (descending)
   const displayPosition = $derived.by(() => {
     if (!selectedDeviceInfo) return null;
     const { placedDevice, rack } = selectedDeviceInfo;
-    // Convert from internal units to human U
-    const positionU = toHumanUnits(placedDevice.position);
-    return rack.desc_units
-      ? rack.height - positionU + 1 // Inverted: bottom (pos=1) shows as highest U
-      : positionU; // Normal: position = display
+
+    if (rack.desc_units) {
+      // Descending units: transform whole U part, keep fractional part
+      const positionU = toHumanUnits(placedDevice.position);
+      const wholeU = Math.floor(positionU);
+      const fraction = positionU - wholeU;
+      const displayWholeU = rack.height - wholeU + 1 - (fraction > 0 ? 1 : 0);
+      const displayInternal = toInternalUnits(displayWholeU + fraction);
+      return formatPosition(displayInternal);
+    }
+    // Normal: format position directly
+    return formatPosition(placedDevice.position);
   });
 
   // Get container context if device is a child (has container_id)
@@ -595,18 +606,24 @@
       (s) => s.id === placedDevice.slot_id,
     );
 
-    // Transform container position for display (same logic as displayPosition)
-    // Convert from internal units to human U first
-    const containerPositionU = toHumanUnits(container.position);
-    const containerDisplayPosition = rack.desc_units
-      ? rack.height - containerPositionU + 1
-      : containerPositionU;
+    // Transform container position for display with fraction glyphs
+    let containerPositionDisplay: string;
+    if (rack.desc_units) {
+      const containerPositionU = toHumanUnits(container.position);
+      const wholeU = Math.floor(containerPositionU);
+      const fraction = containerPositionU - wholeU;
+      const displayWholeU = rack.height - wholeU + 1 - (fraction > 0 ? 1 : 0);
+      const displayInternal = toInternalUnits(displayWholeU + fraction);
+      containerPositionDisplay = formatPosition(displayInternal);
+    } else {
+      containerPositionDisplay = formatPosition(container.position);
+    }
 
     return {
       // Prefer custom name on container, then fall back to type model/slug
       containerName:
         container.name ?? containerType.model ?? containerType.slug,
-      containerPosition: containerDisplayPosition,
+      containerPosition: containerPositionDisplay,
       slotName: slot?.name ?? placedDevice.slot_id ?? "Unknown",
     };
   });
@@ -835,7 +852,7 @@
             <div class="context-row">
               <span class="context-key">Container U</span>
               <span class="context-value"
-                >U{containerContext.containerPosition}</span
+                >{containerContext.containerPosition}</span
               >
             </div>
             <div class="context-row">
@@ -860,7 +877,7 @@
         <div class="info-row position-row">
           <span class="info-label">Position</span>
           <div class="position-controls">
-            <span class="info-value position-value">U{displayPosition}</span>
+            <span class="info-value position-value">{displayPosition}</span>
             <div class="position-buttons">
               <button
                 type="button"

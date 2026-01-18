@@ -8,7 +8,7 @@
   import CategoryIcon from "./CategoryIcon.svelte";
   import { IconChevronUp, IconChevronDown, IconTrash } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
-  import { toHumanUnits } from "$lib/utils/position";
+  import { formatPosition, UNITS_PER_U } from "$lib/utils/position";
 
   interface Props {
     device: PlacedDevice;
@@ -47,13 +47,22 @@
     device.name ?? deviceType.model ?? deviceType.slug,
   );
 
-  // Format position display (e.g., "U12-U13, Front")
+  // Format position display with fraction glyphs (e.g., "U12-U13, Front" or "U1⅓, Front")
   const positionDisplay = $derived.by(() => {
-    // Convert from internal units to human U for display
-    const positionU = toHumanUnits(device.position);
-    const topU = positionU + deviceType.u_height - 1;
+    // Format bottom position with fraction glyphs
+    const bottomPosition = formatPosition(device.position);
+
+    // Calculate top position in internal units and format
+    const topInternal =
+      device.position + (deviceType.u_height - 1) * UNITS_PER_U;
+    const topPosition = formatPosition(topInternal);
+
+    // For multi-U devices, show range; for 1U devices, show single position
     const positionStr =
-      deviceType.u_height === 1 ? `U${positionU}` : `U${positionU}-U${topU}`;
+      deviceType.u_height === 1
+        ? bottomPosition
+        : `${bottomPosition}-${topPosition}`;
+
     const faceStr =
       device.face === "both"
         ? "Both Faces"
