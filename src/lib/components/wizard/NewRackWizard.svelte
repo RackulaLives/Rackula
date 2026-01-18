@@ -157,6 +157,9 @@
         const height = config.isCustomHeight
           ? config.customHeight
           : config.height;
+        if (config.layoutType === "bayed") {
+          return height >= BAYED_MIN_HEIGHT && height <= BAYED_MAX_HEIGHT;
+        }
         return height >= MIN_RACK_HEIGHT && height <= MAX_RACK_HEIGHT;
       }
       default:
