@@ -20,15 +20,53 @@
 
   // Delete confirmation state
   let deleteConfirmOpen = $state(false);
-  let rackToDelete = $state<{ id: string; name: string } | null>(null);
+  let rackToDelete = $state<{
+    id: string;
+    name: string;
+    isGroup?: boolean;
+    deviceCount?: number;
+  } | null>(null);
 
   const racks = $derived(layoutStore.racks);
   const activeRackId = $derived(layoutStore.activeRackId);
   const canAddRack = $derived(layoutStore.canAddRack);
+  const rackGroups = $derived(layoutStore.rack_groups);
+
+  // Get set of rack IDs that belong to groups
+  const groupedRackIds = $derived(
+    new Set(rackGroups.flatMap((g) => g.rack_ids)),
+  );
+
+  // Ungrouped racks only
+  const ungroupedRacks = $derived(
+    racks.filter((r) => !groupedRackIds.has(r.id)),
+  );
+
+  // Get total device count for a bayed rack group
+  function getGroupDeviceCount(group: { rack_ids: string[] }): number {
+    return group.rack_ids.reduce((sum, rackId) => {
+      const rack = layoutStore.getRackById(rackId);
+      return sum + (rack?.devices.length ?? 0);
+    }, 0);
+  }
+
+  // Get the first rack in a group (for height info)
+  function getGroupFirstRack(group: { rack_ids: string[] }) {
+    return layoutStore.getRackById(group.rack_ids[0]);
+  }
 
   function handleRackClick(rackId: string) {
     layoutStore.setActiveRack(rackId);
     selectionStore.selectRack(rackId);
+  }
+
+  function handleGroupClick(groupId: string) {
+    const group = rackGroups.find((g) => g.id === groupId);
+    if (group && group.rack_ids.length > 0) {
+      // Select the first rack in the group to make the whole group active
+      layoutStore.setActiveRack(group.rack_ids[0]);
+      selectionStore.selectRack(group.rack_ids[0]);
+    }
   }
 
   function handleDeleteClick(
@@ -40,16 +78,48 @@
     deleteConfirmOpen = true;
   }
 
+  function handleGroupDeleteClick(
+    event: MouseEvent,
+    group: { id: string; name?: string; rack_ids: string[] },
+  ) {
+    event.stopPropagation();
+    // Check for devices in any bay
+    const deviceCount = getGroupDeviceCount(group);
+    rackToDelete = {
+      id: group.id,
+      name: group.name ?? "Bayed Rack",
+      isGroup: true,
+      deviceCount,
+    };
+    deleteConfirmOpen = true;
+  }
+
   function confirmDelete() {
     if (rackToDelete) {
-      const deviceCount =
-        layoutStore.getRackById(rackToDelete.id)?.devices.length ?? 0;
-      layoutStore.deleteRack(rackToDelete.id);
+      if (rackToDelete.isGroup) {
+        // Delete all racks in the group, then the group
+        const group = rackGroups.find((g) => g.id === rackToDelete!.id);
+        if (group) {
+          // Delete racks first
+          for (const rackId of group.rack_ids) {
+            layoutStore.deleteRack(rackId);
+          }
+          // Group auto-deletes when last rack removed
+        }
+        toastStore.showToast(
+          `Deleted "${rackToDelete.name}"${rackToDelete.deviceCount ? ` (${rackToDelete.deviceCount} devices removed)` : ""}`,
+          "info",
+        );
+      } else {
+        const deviceCount =
+          layoutStore.getRackById(rackToDelete.id)?.devices.length ?? 0;
+        layoutStore.deleteRack(rackToDelete.id);
+        toastStore.showToast(
+          `Deleted "${rackToDelete.name}"${deviceCount > 0 ? ` (${deviceCount} devices removed)` : ""}`,
+          "info",
+        );
+      }
       selectionStore.clearSelection();
-      toastStore.showToast(
-        `Deleted "${rackToDelete.name}"${deviceCount > 0 ? ` (${deviceCount} devices removed)` : ""}`,
-        "info",
-      );
     }
     deleteConfirmOpen = false;
     rackToDelete = null;
@@ -62,6 +132,13 @@
 
   function getDeleteMessage(): string {
     if (!rackToDelete) return "";
+    if (rackToDelete.isGroup) {
+      const count = rackToDelete.deviceCount ?? 0;
+      if (count > 0) {
+        return `Delete "${rackToDelete.name}"? This will remove ${count} device${count === 1 ? "" : "s"} across all bays.`;
+      }
+      return `Delete "${rackToDelete.name}"? All bays will be removed.`;
+    }
     const deviceCount =
       layoutStore.getRackById(rackToDelete.id)?.devices.length ?? 0;
     if (deviceCount > 0) {
@@ -73,13 +150,59 @@
 
 <div class="rack-list">
   <div class="rack-list-header">
-    <span class="rack-count"
-      >{racks.length} rack{racks.length !== 1 ? "s" : ""}</span
-    >
+    <span class="rack-count">
+      {rackGroups.length + ungroupedRacks.length} rack{rackGroups.length +
+        ungroupedRacks.length !==
+      1
+        ? "s"
+        : ""}
+    </span>
   </div>
 
   <div class="rack-items" role="listbox" aria-label="Rack list">
-    {#each racks as rack (rack.id)}
+    <!-- Bayed rack groups as single entries -->
+    {#each rackGroups as group (group.id)}
+      {@const firstRack = getGroupFirstRack(group)}
+      {@const isActive = group.rack_ids.includes(activeRackId ?? "")}
+      {@const deviceCount = getGroupDeviceCount(group)}
+      {@const bayCount = group.rack_ids.length}
+      <div
+        class="rack-item"
+        class:active={isActive}
+        onclick={() => handleGroupClick(group.id)}
+        onkeydown={(e) =>
+          (e.key === "Enter" || e.key === " ") && handleGroupClick(group.id)}
+        role="option"
+        aria-selected={isActive}
+        tabindex="0"
+        data-testid="rack-item-group-{group.id}"
+      >
+        <span class="rack-indicator" aria-hidden="true">
+          {isActive ? "●" : "○"}
+        </span>
+        <span class="rack-info">
+          <span class="rack-name">{group.name ?? "Bayed Rack"}</span>
+          <span class="rack-meta"
+            >{firstRack?.height ?? "?"}U · {bayCount}-bay · {deviceCount} device{deviceCount !==
+            1
+              ? "s"
+              : ""}</span
+          >
+        </span>
+        <button
+          type="button"
+          class="rack-delete"
+          onclick={(e) => handleGroupDeleteClick(e, group)}
+          aria-label="Delete {group.name ?? 'bayed rack'}"
+          title="Delete bayed rack"
+        >
+          ✕
+        </button>
+      </div>
+    {/each}
+
+    <!-- Ungrouped racks -->
+    {#each ungroupedRacks as rack (rack.id)}
       {@const isActive = rack.id === activeRackId}
       {@const deviceCount = rack.devices.length}
       <div
@@ -117,7 +240,7 @@
       </div>
     {/each}
 
-    {#if racks.length === 0}
+    {#if rackGroups.length === 0 && ungroupedRacks.length === 0}
       <div class="empty-state">
         <p class="empty-message">No racks yet</p>
         <p class="empty-hint">Create your first rack to get started</p>
