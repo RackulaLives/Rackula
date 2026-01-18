@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
-  loadSidebarCollapsedFromStorage,
-  saveSidebarCollapsedToStorage,
-  getEffectiveSidebarWidth,
-  SIDEBAR_OPEN_WIDTH,
-  SIDEBAR_COLLAPSED_WIDTH,
+  loadSidebarWidthFromStorage,
+  saveSidebarWidthToStorage,
 } from "$lib/utils/sidebarWidth";
 
 describe("sidebarWidth", () => {
@@ -30,42 +27,51 @@ describe("sidebarWidth", () => {
     vi.stubGlobal("localStorage", localStorageMock);
   });
 
-  describe("loadSidebarCollapsedFromStorage", () => {
-    it("returns false when no value stored", () => {
-      expect(loadSidebarCollapsedFromStorage()).toBe(false);
+  describe("loadSidebarWidthFromStorage", () => {
+    it("returns null when no value stored", () => {
+      expect(loadSidebarWidthFromStorage()).toBe(null);
     });
 
-    it('returns true when "true" is stored', () => {
-      localStorageMock.setItem("Rackula-sidebar-collapsed", "true");
-      expect(loadSidebarCollapsedFromStorage()).toBe(true);
+    it("returns stored width as number", () => {
+      localStorageMock.setItem("Rackula-sidebar-width", "350");
+      expect(loadSidebarWidthFromStorage()).toBe(350);
     });
 
-    it("returns false for any other stored value", () => {
-      localStorageMock.setItem("Rackula-sidebar-collapsed", "false");
-      expect(loadSidebarCollapsedFromStorage()).toBe(false);
+    it("returns null for invalid stored value", () => {
+      localStorageMock.setItem("Rackula-sidebar-width", "invalid");
+      expect(loadSidebarWidthFromStorage()).toBe(null);
     });
 
-    it("returns false when localStorage throws", () => {
+    it("returns null for zero or negative width", () => {
+      localStorageMock.setItem("Rackula-sidebar-width", "0");
+      expect(loadSidebarWidthFromStorage()).toBe(null);
+
+      localStorageMock.setItem("Rackula-sidebar-width", "-100");
+      expect(loadSidebarWidthFromStorage()).toBe(null);
+    });
+
+    it("returns null when localStorage throws", () => {
       localStorageMock.getItem.mockImplementationOnce(() => {
         throw new Error("localStorage disabled");
       });
-      expect(loadSidebarCollapsedFromStorage()).toBe(false);
+      expect(loadSidebarWidthFromStorage()).toBe(null);
     });
   });
 
-  describe("saveSidebarCollapsedToStorage", () => {
-    it('sets "true" when collapsed is true', () => {
-      saveSidebarCollapsedToStorage(true);
+  describe("saveSidebarWidthToStorage", () => {
+    it("saves width as string", () => {
+      saveSidebarWidthToStorage(320);
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        "Rackula-sidebar-collapsed",
-        "true",
+        "Rackula-sidebar-width",
+        "320",
       );
     });
 
-    it("removes key when collapsed is false", () => {
-      saveSidebarCollapsedToStorage(false);
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith(
-        "Rackula-sidebar-collapsed",
+    it("rounds fractional widths", () => {
+      saveSidebarWidthToStorage(320.7);
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        "Rackula-sidebar-width",
+        "321",
       );
     });
 
@@ -73,27 +79,7 @@ describe("sidebarWidth", () => {
       localStorageMock.setItem.mockImplementationOnce(() => {
         throw new Error("QuotaExceeded");
       });
-      expect(() => saveSidebarCollapsedToStorage(true)).not.toThrow();
-    });
-  });
-
-  describe("width constants", () => {
-    it("open width is 320px", () => {
-      expect(SIDEBAR_OPEN_WIDTH).toBe(320);
-    });
-
-    it("collapsed width is 40px", () => {
-      expect(SIDEBAR_COLLAPSED_WIDTH).toBe(40);
-    });
-  });
-
-  describe("getEffectiveSidebarWidth", () => {
-    it("returns collapsed width when collapsed", () => {
-      expect(getEffectiveSidebarWidth(true)).toBe(40);
-    });
-
-    it("returns open width when not collapsed", () => {
-      expect(getEffectiveSidebarWidth(false)).toBe(320);
+      expect(() => saveSidebarWidthToStorage(320)).not.toThrow();
     });
   });
 });

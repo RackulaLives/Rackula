@@ -1,58 +1,44 @@
 /**
  * Sidebar Width Utilities
- * Persistence and management for device library panel collapsed state
+ * Persistence and management for device library panel width
  */
 
-/** Width when sidebar is open */
-export const SIDEBAR_OPEN_WIDTH = 320;
-
-/** Width when sidebar is collapsed */
-export const SIDEBAR_COLLAPSED_WIDTH = 40;
-
-/** localStorage key for collapsed state */
-const COLLAPSED_STORAGE_KEY = "Rackula-sidebar-collapsed";
+/** localStorage key for sidebar width */
+const WIDTH_STORAGE_KEY = "Rackula-sidebar-width";
 
 /**
- * Load sidebar collapsed state from localStorage
- * @returns The saved collapsed state, or false as default
+ * Load sidebar width from localStorage
+ * @returns The saved width in pixels, or null if not set
  */
-export function loadSidebarCollapsedFromStorage(): boolean {
+export function loadSidebarWidthFromStorage(): number | null {
   try {
-    const stored = localStorage.getItem(COLLAPSED_STORAGE_KEY);
-    return stored === "true";
-  } catch (e) {
-    console.warn(
-      "[Rackula] Failed to load sidebar collapsed state from localStorage:",
-      e,
-    );
-  }
-  return false;
-}
-
-/**
- * Save sidebar collapsed state to localStorage
- * @param collapsed - Whether the sidebar is collapsed
- */
-export function saveSidebarCollapsedToStorage(collapsed: boolean): void {
-  try {
-    if (collapsed) {
-      localStorage.setItem(COLLAPSED_STORAGE_KEY, "true");
-    } else {
-      localStorage.removeItem(COLLAPSED_STORAGE_KEY);
+    const stored = localStorage.getItem(WIDTH_STORAGE_KEY);
+    if (stored !== null) {
+      const width = parseInt(stored, 10);
+      if (!isNaN(width) && width > 0) {
+        return width;
+      }
     }
   } catch (e) {
     console.warn(
-      "[Rackula] Failed to save sidebar collapsed state to localStorage:",
+      "[Rackula] Failed to load sidebar width from localStorage:",
       e,
     );
   }
+  return null;
 }
 
 /**
- * Calculate the effective sidebar width in pixels
- * @param collapsed - Whether the sidebar is collapsed
- * @returns Effective pixel width
+ * Save sidebar width to localStorage
+ * @param width - Width in pixels
  */
-export function getEffectiveSidebarWidth(collapsed: boolean): number {
-  return collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_OPEN_WIDTH;
+export function saveSidebarWidthToStorage(width: number): void {
+  try {
+    localStorage.setItem(WIDTH_STORAGE_KEY, String(Math.round(width)));
+  } catch (e) {
+    console.warn(
+      "[Rackula] Failed to save sidebar width to localStorage:",
+      e,
+    );
+  }
 }

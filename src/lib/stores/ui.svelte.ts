@@ -10,9 +10,8 @@ import {
   type Theme,
 } from "$lib/utils/theme";
 import {
-  loadSidebarCollapsedFromStorage,
-  saveSidebarCollapsedToStorage,
-  getEffectiveSidebarWidth,
+  loadSidebarWidthFromStorage,
+  saveSidebarWidthToStorage,
 } from "$lib/utils/sidebarWidth";
 import type { DisplayMode, AnnotationField } from "$lib/types";
 
@@ -100,7 +99,7 @@ export const ZOOM_STEP = 25;
 
 // Load initial values from storage
 const initialTheme = loadThemeFromStorage();
-const initialSidebarCollapsed = loadSidebarCollapsedFromStorage();
+const initialSidebarWidth = loadSidebarWidthFromStorage();
 const initialSidebarTab = loadSidebarTabFromStorage();
 const initialWarnUnsaved = loadWarnUnsavedFromStorage();
 
@@ -113,7 +112,7 @@ let displayMode = $state<DisplayMode>("label");
 let showAnnotations = $state(false);
 let annotationField = $state<AnnotationField>("name");
 let showBanana = $state(false);
-let sidebarCollapsed = $state(initialSidebarCollapsed);
+let sidebarWidth = $state<number | null>(initialSidebarWidth);
 let sidebarTab = $state<SidebarTab>(initialSidebarTab);
 let warnOnUnsavedChanges = $state(initialWarnUnsaved);
 
@@ -123,8 +122,6 @@ const canZoomOut = $derived(zoom > ZOOM_MIN);
 const zoomScale = $derived(zoom / 100);
 // Derive showLabelsOnImages from displayMode for backward compatibility
 const showLabelsOnImages = $derived(displayMode === "image-label");
-// Derive effective sidebar width in pixels based on collapsed state
-const sidebarWidthPx = $derived(getEffectiveSidebarWidth(sidebarCollapsed));
 
 // Apply initial theme to document (using the non-reactive initial value)
 applyThemeToDocument(initialTheme);
@@ -141,7 +138,7 @@ export function resetUIStore(): void {
   showAnnotations = false;
   annotationField = "name";
   showBanana = false;
-  sidebarCollapsed = loadSidebarCollapsedFromStorage();
+  sidebarWidth = loadSidebarWidthFromStorage();
   sidebarTab = loadSidebarTabFromStorage();
   warnOnUnsavedChanges = loadWarnUnsavedFromStorage();
   applyThemeToDocument(theme);
@@ -202,11 +199,8 @@ export function getUIStore() {
     },
 
     // Sidebar state getters
-    get sidebarCollapsed() {
-      return sidebarCollapsed;
-    },
-    get sidebarWidthPx() {
-      return sidebarWidthPx;
+    get sidebarWidth() {
+      return sidebarWidth;
     },
     get sidebarTab() {
       return sidebarTab;
@@ -245,9 +239,7 @@ export function getUIStore() {
     toggleBanana,
 
     // Sidebar actions
-    toggleSidebarCollapsed,
-    collapseSidebar,
-    expandSidebar,
+    setSidebarWidth: setSidebarWidthAction,
     setSidebarTab,
 
     // Unsaved changes warning action
@@ -416,31 +408,16 @@ function toggleBanana(): void {
 }
 
 /**
- * Toggle sidebar collapsed state
+ * Set the sidebar width
+ * @param width - Width in pixels (must be finite and positive)
  */
-function toggleSidebarCollapsed(): void {
-  sidebarCollapsed = !sidebarCollapsed;
-  saveSidebarCollapsedToStorage(sidebarCollapsed);
-}
-
-/**
- * Collapse the sidebar
- */
-function collapseSidebar(): void {
-  if (!sidebarCollapsed) {
-    sidebarCollapsed = true;
-    saveSidebarCollapsedToStorage(true);
+function setSidebarWidthAction(width: number): void {
+  // Validate input: must be a finite positive number
+  if (!Number.isFinite(width) || width <= 0) {
+    return;
   }
-}
-
-/**
- * Expand the sidebar
- */
-function expandSidebar(): void {
-  if (sidebarCollapsed) {
-    sidebarCollapsed = false;
-    saveSidebarCollapsedToStorage(false);
-  }
+  sidebarWidth = width;
+  saveSidebarWidthToStorage(width);
 }
 
 /**

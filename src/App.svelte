@@ -74,11 +74,22 @@
   import { debug } from "$lib/utils/debug";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { Tooltip } from "bits-ui";
-  import SidebarEdgeHandle from "$lib/components/SidebarEdgeHandle.svelte";
-  import { pointerCapture } from "$lib/utils/pointer-capture";
 
   // Build-time environment constant from vite.config.ts
   declare const __BUILD_ENV__: string;
+
+  // Sidebar size configuration (in pixels)
+  interface Props {
+    sidePanelSizeMin?: number;
+    sidePanelSizeMax?: number;
+    sidePanelSizeDefault?: number;
+  }
+
+  let {
+    sidePanelSizeMin = 290,
+    sidePanelSizeMax = 420,
+    sidePanelSizeDefault = 320,
+  }: Props = $props();
 
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
@@ -112,32 +123,35 @@
   let selectedDeviceForSheet = $derived(dialogStore.selectedDeviceIndex);
   let exportQrCodeDataUrl = $derived(dialogStore.exportQrCodeDataUrl);
 
-  // Sidebar collapse state (derived from store for persistence)
-  let sidebarCollapsed = $derived(uiStore.sidebarCollapsed);
-  // Pane instance for programmatic expand/collapse
-  let sidebarPane: { collapse: () => void; expand: () => void } | undefined =
-    $state(undefined);
+  // Sidebar width - initial value from store (not reactive to avoid loops)
+  const initialSidebarWidthPx = uiStore.sidebarWidth ?? sidePanelSizeDefault;
 
   // Device library import file input ref
   let deviceImportInputRef = $state<HTMLInputElement | null>(null);
 
-  // Handlers for sidebar collapse gestures - update store for persistence
-  function handleSidebarCollapse() {
-    uiStore.collapseSidebar();
+  // Safe viewport width: use viewportStore if available, else fallback to default
+  // Guards against SSR/test environments where window may not exist
+  function getSafeViewportWidth(): number {
+    const width = viewportStore.width;
+    return width > 0 ? width : sidePanelSizeDefault;
   }
 
-  function handleSidebarExpand() {
-    uiStore.expandSidebar();
-  }
+  // Convert pixel sizes to percentages based on viewport width
+  let sidebarMinPercent = $derived(
+    (sidePanelSizeMin / getSafeViewportWidth()) * 100,
+  );
+  let sidebarMaxPercent = $derived(
+    (sidePanelSizeMax / getSafeViewportWidth()) * 100,
+  );
+  // Initial default size - computed once, not reactive
+  const sidebarDefaultPercent =
+    (initialSidebarWidthPx / getSafeViewportWidth()) * 100;
 
-  function toggleSidebarCollapse() {
-    if (sidebarPane) {
-      if (sidebarCollapsed) {
-        sidebarPane.expand();
-      } else {
-        sidebarPane.collapse();
-      }
-    }
+  // Handle resize - convert percentage back to pixels and persist
+  function handleSidebarResize(size: number) {
+    const viewportWidth = getSafeViewportWidth();
+    const widthPx = (size / 100) * viewportWidth;
+    uiStore.setSidebarWidth(widthPx);
   }
 
   // Party Mode easter egg (triggered by Konami code)
@@ -955,7 +969,7 @@
 <Tooltip.Provider delayDuration={500}>
   <div
     class="app-layout"
-    style="--sidebar-width: min({uiStore.sidebarWidthPx}px, var(--sidebar-width-max))"
+    style="--sidebar-width: min({uiStore.sidebarWidth ?? sidePanelSizeDefault}px, var(--sidebar-width-max))"
   >
     <Toolbar
       hasSelection={selectionStore.hasSelection}
@@ -986,51 +1000,34 @@
 
     <main class="app-main" class:mobile={viewportStore.isMobile}>
       {#if !viewportStore.isMobile}
-        <!-- Edge handle shown when sidebar is collapsed -->
-        {#if sidebarCollapsed}
-          <SidebarEdgeHandle onexpand={() => sidebarPane?.expand()} />
-        {/if}
-
         <PaneGroup
           direction="horizontal"
-          autoSaveId="rackula-main-layout"
           keyboardResizeBy={10}
           class="pane-group"
         >
           <Pane
-            bind:pane={sidebarPane}
-            defaultSize={20}
-            minSize={15}
-            maxSize={40}
-            collapsible={true}
-            collapsedSize={1}
-            onCollapse={handleSidebarCollapse}
-            onExpand={handleSidebarExpand}
+            defaultSize={sidebarDefaultPercent}
+            minSize={sidebarMinPercent}
+            maxSize={sidebarMaxPercent}
+            onResize={handleSidebarResize}
             id="sidebar-pane"
-            class={sidebarCollapsed ? "sidebar-pane collapsed" : "sidebar-pane"}
+            class="sidebar-pane"
           >
-            {#if !sidebarCollapsed}
-              <SidebarTabs
-                activeTab={uiStore.sidebarTab}
-                onchange={(tab) => uiStore.setSidebarTab(tab)}
+            <SidebarTabs
+              activeTab={uiStore.sidebarTab}
+              onchange={(tab) => uiStore.setSidebarTab(tab)}
+            />
+            {#if uiStore.sidebarTab === "devices"}
+              <DevicePalette
+                onadddevice={handleAddDevice}
+                onimportfromnetbox={handleImportFromNetBox}
               />
-              {#if uiStore.sidebarTab === "devices"}
-                <DevicePalette />
-              {:else if uiStore.sidebarTab === "racks"}
-                <RackList onaddrack={handleNewRack} />
-              {/if}
+            {:else if uiStore.sidebarTab === "racks"}
+              <RackList onaddrack={handleNewRack} />
             {/if}
           </Pane>
 
-          <PaneResizer class="resize-handle">
-            {#snippet child({ props })}
-              <div
-                use:pointerCapture
-                ondblclick={toggleSidebarCollapse}
-                {...props}
-              ></div>
-            {/snippet}
-          </PaneResizer>
+          <PaneResizer class="resize-handle" />
 
           <Pane class="main-pane">
             <Canvas
@@ -1260,8 +1257,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* Use CSS variable so collapsed state can override without !important */
-    min-width: var(--sidebar-collapsed-min-width, var(--sidebar-width-min));
+    min-width: var(--sidebar-width-min);
   }
 
   :global(.resize-handle) {
@@ -1280,12 +1276,6 @@
   :global(.main-pane) {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-  }
-
-  /* Collapsed sidebar pane - override CSS variable for min-width */
-  :global(.sidebar-pane.collapsed) {
-    --sidebar-collapsed-min-width: 0;
     overflow: hidden;
   }
 
