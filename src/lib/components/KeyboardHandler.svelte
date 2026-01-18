@@ -100,16 +100,16 @@
         key: "ArrowDown",
         action: () => moveSelectedDevice(-1),
       },
-      // Shift+Arrow keys - move by 0.5U (fine movement)
+      // Shift+Arrow keys - move by 1/3U (fine movement to align with rack holes)
       {
         key: "ArrowUp",
         shift: true,
-        action: () => moveSelectedDevice(1, 0.5),
+        action: () => moveSelectedDevice(1, 1 / 3),
       },
       {
         key: "ArrowDown",
         shift: true,
-        action: () => moveSelectedDevice(-1, 0.5),
+        action: () => moveSelectedDevice(-1, 1 / 3),
       },
       // Left/Right arrows - move selected rack (disabled in single-rack mode)
       {
@@ -271,7 +271,7 @@
    * Move the selected device up or down, using shared movement utility.
    * Leapfrogs over blocking devices to find valid positions.
    * @param direction - 1 for up (higher U), -1 for down (lower U)
-   * @param stepOverride - Optional step size (default: device height). Use 0.5 for fine movement.
+   * @param stepOverride - Optional step size (default: device height). Use 1/3 for fine movement.
    */
   function moveSelectedDevice(direction: 1 | -1, stepOverride?: number) {
     if (!selectionStore.isDeviceSelected) return;

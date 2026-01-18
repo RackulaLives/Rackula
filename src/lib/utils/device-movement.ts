@@ -39,7 +39,7 @@ export type MoveDirection = 1 | -1;
  * @param deviceTypes - Device type definitions for collision checking
  * @param deviceIndex - Index of the device in rack.devices array
  * @param direction - 1 for up (higher U), -1 for down (lower U)
- * @param stepOverride - Optional step size (default: device height). Use 0.5 for fine movement.
+ * @param stepOverride - Optional step size in U (default: device height). Use 1/3 for fine movement.
  * @returns MoveResult indicating success/failure and new position
  */
 export function findNextValidPosition(

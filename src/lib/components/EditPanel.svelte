@@ -904,7 +904,7 @@
             </div>
           </div>
         </div>
-        <p class="helper-text position-hint">Use ↑↓ keys (Shift for 0.5U)</p>
+        <p class="helper-text position-hint">Use ↑↓ keys (Shift for ⅓U)</p>
         <!-- Colour row - clickable to open picker -->
         <button
           type="button"

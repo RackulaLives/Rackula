@@ -178,7 +178,7 @@
       shortcuts: [
         { key: "Delete", action: "Delete selected" },
         { key: "↑ / ↓", action: "Move device up/down" },
-        { key: "Shift + ↑ / ↓", action: "Move device 0.5U (fine)" },
+        { key: "Shift + ↑ / ↓", action: "Move device ⅓U (fine)" },
       ],
     },
     {

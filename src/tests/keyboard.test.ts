@@ -637,8 +637,8 @@ describe("KeyboardHandler Component", () => {
     });
   });
 
-  describe("Fine Movement (0.5U) with Shift+Arrow", () => {
-    it("Shift+ArrowUp moves device up by 0.5U", async () => {
+  describe("Fine Movement (1/3U) with Shift+Arrow", () => {
+    it("Shift+ArrowUp moves device up by 1/3U", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
 
@@ -659,13 +659,13 @@ describe("KeyboardHandler Component", () => {
       const initialPosition = layoutStore.rack!.devices[0]!.position;
       await fireEvent.keyDown(window, { key: "ArrowUp", shiftKey: true });
 
-      // Should move by 0.5U instead of full device height (0.5U = UNITS_PER_U / 2 = 3 internal units)
+      // Should move by 1/3U instead of full device height (1/3U = UNITS_PER_U / 3 = 2 internal units)
       expect(layoutStore.rack!.devices[0]!.position).toBe(
-        initialPosition + UNITS_PER_U / 2,
+        initialPosition + UNITS_PER_U / 3,
       );
     });
 
-    it("Shift+ArrowDown moves device down by 0.5U", async () => {
+    it("Shift+ArrowDown moves device down by 1/3U", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
 
@@ -686,9 +686,9 @@ describe("KeyboardHandler Component", () => {
       const initialPosition = layoutStore.rack!.devices[0]!.position;
       await fireEvent.keyDown(window, { key: "ArrowDown", shiftKey: true });
 
-      // Should move by 0.5U instead of full device height (0.5U = UNITS_PER_U / 2 = 3 internal units)
+      // Should move by 1/3U instead of full device height (1/3U = UNITS_PER_U / 3 = 2 internal units)
       expect(layoutStore.rack!.devices[0]!.position).toBe(
-        initialPosition - UNITS_PER_U / 2,
+        initialPosition - UNITS_PER_U / 3,
       );
     });
 
@@ -730,7 +730,7 @@ describe("KeyboardHandler Component", () => {
       });
 
       // Place devices with a 1U gap at U5 and U7
-      // This allows the U5 device to move up 0.5U without collision
+      // This allows the U5 device to move up 1/3U without collision
       layoutStore.placeDevice(rackId, deviceType.slug, 5);
       const firstDeviceId = layoutStore.rack!.devices[0]!.id;
       layoutStore.placeDevice(rackId, deviceType.slug, 7);
@@ -740,18 +740,27 @@ describe("KeyboardHandler Component", () => {
 
       render(KeyboardHandler);
 
-      // Move up 0.5U - position 5.5 is valid (no collision - device at U7)
-      // U5.5 = toInternalUnits(5.5) = 33
+      // Move up 1/3U - position 5⅓ is valid (no collision - device at U7)
+      // U5⅓ = 5 * 6 + 2 = 32 internal units
       await fireEvent.keyDown(window, { key: "ArrowUp", shiftKey: true });
-      expect(layoutStore.rack!.devices[0]!.position).toBe(toInternalUnits(5.5));
+      expect(layoutStore.rack!.devices[0]!.position).toBe(
+        toInternalUnits(5) + 2,
+      );
 
-      // Move up another 0.5U - position 6 is valid (gap exists before U7)
-      // U6 = toInternalUnits(6) = 36
+      // Move up another 1/3U - position 5⅔ is valid (gap exists before U7)
+      // U5⅔ = 5 * 6 + 4 = 34 internal units
+      await fireEvent.keyDown(window, { key: "ArrowUp", shiftKey: true });
+      expect(layoutStore.rack!.devices[0]!.position).toBe(
+        toInternalUnits(5) + 4,
+      );
+
+      // Move up another 1/3U - position 6 is valid
+      // U6 = 6 * 6 = 36 internal units
       await fireEvent.keyDown(window, { key: "ArrowUp", shiftKey: true });
       expect(layoutStore.rack!.devices[0]!.position).toBe(toInternalUnits(6));
     });
 
-    it("2U device with Shift+Arrow moves by 0.5U not 2U", async () => {
+    it("2U device with Shift+Arrow moves by 1/3U not 2U", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
 
@@ -772,9 +781,9 @@ describe("KeyboardHandler Component", () => {
       const initialPosition = layoutStore.rack!.devices[0]!.position;
       await fireEvent.keyDown(window, { key: "ArrowUp", shiftKey: true });
 
-      // Should move by 0.5U, not by device height (2U) - 0.5U = UNITS_PER_U / 2 = 3 internal units
+      // Should move by 1/3U, not by device height (2U) - 1/3U = UNITS_PER_U / 3 = 2 internal units
       expect(layoutStore.rack!.devices[0]!.position).toBe(
-        initialPosition + UNITS_PER_U / 2,
+        initialPosition + UNITS_PER_U / 3,
       );
     });
   });
