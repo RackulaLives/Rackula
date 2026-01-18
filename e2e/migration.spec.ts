@@ -11,7 +11,8 @@ test.describe("Position Migration", () => {
       localStorage.setItem("Rackula_has_started", "true");
     });
     await page.reload();
-    await page.waitForTimeout(500);
+    // Wait for the app to fully initialize by checking for the rack container
+    await page.locator(".rack-container").first().waitFor({ state: "visible" });
   });
 
   test("loads legacy layout and migrates positions correctly", async ({
@@ -80,7 +81,7 @@ test.describe("Position Migration", () => {
     // Verify file was downloaded
     expect(download.suggestedFilename()).toMatch(/Legacy Test Layout/);
 
-    // The saved file should have version 0.7.0-dev and migrated positions
+    // The saved file should have version 0.7.0 and migrated positions
     // This is verified by the unit tests; E2E confirms the workflow works end-to-end
   });
 
@@ -106,8 +107,9 @@ test.describe("Position Migration", () => {
     await page.keyboard.press("Control+s");
     const download = await downloadPromise;
 
-    // Save the downloaded file temporarily
-    const savedPath = await download.path();
+    // Save the downloaded file to a stable test output location
+    const savedPath = test.info().outputPath("migrated-layout.yaml");
+    await download.saveAs(savedPath);
 
     // Clear and reload the page
     await page.evaluate(() => {
@@ -116,13 +118,14 @@ test.describe("Position Migration", () => {
       localStorage.setItem("Rackula_has_started", "true");
     });
     await page.reload();
-    await page.waitForTimeout(500);
+    // Wait for the app to fully initialize by checking for the rack container
+    await page.locator(".rack-container").first().waitFor({ state: "visible" });
 
     // Load the saved file
     const fileChooserPromise2 = page.waitForEvent("filechooser");
     await page.click('.toolbar-action-btn[aria-label="Load Layout"]');
     const fileChooser2 = await fileChooserPromise2;
-    await fileChooser2.setFiles(savedPath!);
+    await fileChooser2.setFiles(savedPath);
 
     await expect(page.locator(".toast--success")).toBeVisible({
       timeout: 10000,

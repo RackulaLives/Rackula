@@ -735,11 +735,16 @@ const LayoutSchemaInput = z
 /**
  * Compare two semver version strings
  * Returns: -1 if a < b, 0 if a == b, 1 if a > b
- * Note: Pre-release suffixes (e.g., -dev) are ignored
+ * Note: Pre-release suffixes (e.g., -dev, -alpha.1) and build metadata are stripped
  */
 function compareVersions(a: string, b: string): number {
-  const partsA = a.split(".").map((p) => parseInt(p) || 0);
-  const partsB = b.split(".").map((p) => parseInt(p) || 0);
+  // Strip pre-release (-dev, -alpha.1, etc.) and build metadata (+build)
+  const stripSuffix = (v: string) => v.split(/[-+]/)[0] ?? v;
+  const cleanA = stripSuffix(a.trim());
+  const cleanB = stripSuffix(b.trim());
+
+  const partsA = cleanA.split(".").map((p) => parseInt(p) || 0);
+  const partsB = cleanB.split(".").map((p) => parseInt(p) || 0);
 
   for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
     const partA = partsA[i] ?? 0;

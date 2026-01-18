@@ -27,7 +27,10 @@ import {
   createTestDevice,
   createTestContainerChild,
   createTestDeviceType,
+  createTestRack,
+  createTestLayoutSettings,
 } from "./factories";
+import { VERSION } from "$lib/version";
 
 // ============================================================================
 // SlugSchema Tests
@@ -1902,35 +1905,23 @@ describe("LayoutSchema container validation", () => {
 // ============================================================================
 
 describe("LayoutSchema position migration", () => {
-  const baseSettings = {
-    display_mode: "label" as const,
-    show_labels_on_images: true,
-  };
-
-  const createTestLayout = (version: string, devices: unknown[]) => ({
+  // Helper to create migration test layouts using shared factories
+  const createMigrationTestLayout = (version: string, devices: unknown[]) => ({
     version,
     name: "Test Layout",
     racks: [
-      {
+      createTestRack({
         id: "rack-1",
-        name: "Main Rack",
-        height: 42,
-        width: 19 as const,
-        desc_units: false,
-        show_rear: true,
-        form_factor: "4-post-cabinet" as const,
-        starting_unit: 1,
-        position: 0,
-        devices,
-      },
+        devices: devices as Parameters<typeof createTestRack>[0]["devices"],
+      }),
     ],
     device_types: [],
-    settings: baseSettings,
+    settings: createTestLayoutSettings({ show_labels_on_images: true }),
   });
 
   describe("version-based detection", () => {
     it("migrates positions for version < 0.7.0", () => {
-      const layout = createTestLayout("0.6.16", [
+      const layout = createMigrationTestLayout("0.6.16", [
         { id: "device-1", device_type: "server", position: 10, face: "front" },
       ]);
 
@@ -1943,7 +1934,7 @@ describe("LayoutSchema position migration", () => {
     });
 
     it("does not migrate positions for version >= 0.7.0", () => {
-      const layout = createTestLayout("0.7.0", [
+      const layout = createMigrationTestLayout("0.7.0", [
         { id: "device-1", device_type: "server", position: 60, face: "front" },
       ]);
 
@@ -1958,28 +1949,20 @@ describe("LayoutSchema position migration", () => {
       const layout = {
         name: "Test Layout",
         racks: [
-          {
+          createTestRack({
             id: "rack-1",
-            name: "Main Rack",
-            height: 42,
-            width: 19 as const,
-            desc_units: false,
-            show_rear: true,
-            form_factor: "4-post-cabinet" as const,
-            starting_unit: 1,
-            position: 0,
             devices: [
               {
                 id: "device-1",
                 device_type: "server",
                 position: 5,
-                face: "front",
+                face: "front" as const,
               },
             ],
-          },
+          }),
         ],
         device_types: [],
-        settings: baseSettings,
+        settings: createTestLayoutSettings({ show_labels_on_images: true }),
       };
 
       const result = LayoutSchema.safeParse(layout);
@@ -1994,7 +1977,7 @@ describe("LayoutSchema position migration", () => {
   describe("heuristic fallback", () => {
     it("migrates when position < 6 even if version >= 0.7.0", () => {
       // Edge case: version says new, but data says old
-      const layout = createTestLayout("0.7.0", [
+      const layout = createMigrationTestLayout("0.7.0", [
         { id: "device-1", device_type: "server", position: 5, face: "front" },
       ]);
 
@@ -2008,7 +1991,7 @@ describe("LayoutSchema position migration", () => {
 
     it("does not migrate container children based on heuristic", () => {
       // Container children can have position 0, 1, etc. - don't trigger heuristic
-      const layout = createTestLayout("0.7.0", [
+      const layout = createMigrationTestLayout("0.7.0", [
         {
           id: "container-1",
           device_type: "chassis",
@@ -2038,7 +2021,7 @@ describe("LayoutSchema position migration", () => {
 
   describe("version stamping after migration", () => {
     it("stamps migrated layouts with current app version", () => {
-      const layout = createTestLayout("0.6.16", [
+      const layout = createMigrationTestLayout("0.6.16", [
         { id: "device-1", device_type: "server", position: 10, face: "front" },
       ]);
 
@@ -2046,12 +2029,12 @@ describe("LayoutSchema position migration", () => {
       expect(result.success).toBe(true);
       if (result.success) {
         // Version should be updated to current app version
-        expect(result.data.version).toBe("0.7.0-dev");
+        expect(result.data.version).toBe(VERSION);
       }
     });
 
     it("preserves version for layouts that don't need migration", () => {
-      const layout = createTestLayout("0.7.0", [
+      const layout = createMigrationTestLayout("0.7.0", [
         { id: "device-1", device_type: "server", position: 60, face: "front" },
       ]);
 
