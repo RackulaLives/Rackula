@@ -38,6 +38,9 @@
     onload?: () => void;
     onexport?: () => void;
     onshare?: () => void;
+    onimportdevices?: () => void;
+    onimportnetbox?: () => void;
+    onnewcustomdevice?: () => void;
     onfitall?: () => void;
     ontoggletheme?: () => void;
     ontoggledisplaymode?: () => void;
@@ -60,6 +63,9 @@
     onload,
     onexport,
     onshare,
+    onimportdevices,
+    onimportnetbox,
+    onnewcustomdevice,
     onfitall,
     ontoggletheme,
     ontoggledisplaymode,
@@ -119,6 +125,21 @@
   function handleShare() {
     analytics.trackToolbarClick("share");
     onshare?.();
+  }
+
+  function handleImportDevices() {
+    analytics.trackToolbarClick("import-devices");
+    onimportdevices?.();
+  }
+
+  function handleImportNetBox() {
+    analytics.trackToolbarClick("import-netbox");
+    onimportnetbox?.();
+  }
+
+  function handleNewCustomDevice() {
+    analytics.trackToolbarClick("new-custom-device");
+    onnewcustomdevice?.();
   }
 
   function handleFitAll() {
@@ -253,6 +274,9 @@
       onload={handleLoad}
       onexport={handleExport}
       onshare={handleShare}
+      onimportdevices={handleImportDevices}
+      onimportnetbox={handleImportNetBox}
+      onnewcustomdevice={handleNewCustomDevice}
       {hasRacks}
     />
 

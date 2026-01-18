@@ -68,6 +68,7 @@
   } from "$lib/utils/export";
   import type { ExportOptions } from "$lib/types";
   import type { ImportResult } from "$lib/utils/netbox-import";
+  import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { analytics } from "$lib/utils/analytics";
   import { hapticTap } from "$lib/utils/haptics";
   import { debug } from "$lib/utils/debug";
@@ -116,6 +117,9 @@
   // Pane instance for programmatic expand/collapse
   let sidebarPane: { collapse: () => void; expand: () => void } | undefined =
     $state(undefined);
+
+  // Device library import file input ref
+  let deviceImportInputRef = $state<HTMLInputElement | null>(null);
 
   // Handlers for sidebar collapse gestures - update store for persistence
   function handleSidebarCollapse() {
@@ -667,6 +671,49 @@
     dialogStore.close();
   }
 
+  // Device library JSON import handlers
+  function handleImportDevices() {
+    deviceImportInputRef?.click();
+  }
+
+  async function handleDeviceImportFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+
+      // Get existing device slugs for duplicate detection
+      const existingSlugs = layoutStore.device_types.map((d) => d.slug);
+
+      // Parse and validate the import (returns DeviceType[])
+      const result = parseDeviceLibraryImport(text, existingSlugs);
+
+      // Add imported devices to library
+      for (const deviceType of result.devices) {
+        layoutStore.addDeviceTypeRaw(deviceType);
+      }
+
+      // Track successful import
+      analytics.trackPaletteImport();
+
+      // Show success toast
+      const message =
+        result.skipped > 0
+          ? `Imported ${result.devices.length} devices (${result.skipped} skipped)`
+          : `Imported ${result.devices.length} ${result.devices.length === 1 ? "device" : "devices"}`;
+
+      toastStore.showToast(message, "success");
+    } catch {
+      toastStore.showToast("Failed to import device library", "error");
+    } finally {
+      // Reset file input
+      input.value = "";
+    }
+  }
+
   // Beforeunload handler for unsaved changes
   function handleBeforeUnload(event: BeforeUnloadEvent) {
     if (uiStore.warnOnUnsavedChanges && layoutStore.isDirty) {
@@ -924,6 +971,9 @@
       onload={handleLoad}
       onexport={handleExport}
       onshare={handleShare}
+      onimportdevices={handleImportDevices}
+      onimportnetbox={handleImportFromNetBox}
+      onnewcustomdevice={handleAddDevice}
       ondelete={handleDelete}
       onfitall={handleFitAll}
       ontoggletheme={handleToggleTheme}
@@ -965,10 +1015,7 @@
                 onchange={(tab) => uiStore.setSidebarTab(tab)}
               />
               {#if uiStore.sidebarTab === "devices"}
-                <DevicePalette
-                  onadddevice={handleAddDevice}
-                  onimportfromnetbox={handleImportFromNetBox}
-                />
+                <DevicePalette />
               {:else if uiStore.sidebarTab === "racks"}
                 <RackList onaddrack={handleNewRack} />
               {/if}
@@ -1134,11 +1181,7 @@
         title="Device Library"
         onclose={handleDeviceLibrarySheetClose}
       >
-        <DevicePalette
-          onadddevice={handleAddDevice}
-          onimportfromnetbox={handleImportFromNetBox}
-          ondeviceselect={handleMobileDeviceSelect}
-        />
+        <DevicePalette ondeviceselect={handleMobileDeviceSelect} />
       </BottomSheet>
     {/if}
 
@@ -1169,6 +1212,16 @@
 
     <!-- Global SVG gradient definitions for animations -->
     <AnimationDefs />
+
+    <!-- Hidden file input for device library JSON import -->
+    <input
+      bind:this={deviceImportInputRef}
+      type="file"
+      accept=".json,application/json"
+      onchange={handleDeviceImportFileChange}
+      style="display: none;"
+      aria-label="Import device library file"
+    />
   </div>
 </Tooltip.Provider>
 

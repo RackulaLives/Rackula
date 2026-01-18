@@ -6,7 +6,6 @@
 <script lang="ts">
   import { Accordion } from "bits-ui";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
-  import { getToastStore } from "$lib/stores/toast.svelte";
   import {
     searchDevices,
     groupDevicesByCategory,
@@ -22,10 +21,8 @@
   } from "$lib/utils/deviceGrouping";
   import { debounce } from "$lib/utils/debounce";
   import { truncateWithEllipsis } from "$lib/utils/searchHighlight";
-  import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { getBrandPacks, getBrandSlugs } from "$lib/data/brandPacks";
   import { getStarterLibrary, getStarterSlugs } from "$lib/data/starterLibrary";
-  import { analytics } from "$lib/utils/analytics";
   import DevicePaletteItem from "./DevicePaletteItem.svelte";
   import BrandIcon from "./BrandIcon.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
@@ -33,15 +30,12 @@
   import type { DeviceType } from "$lib/types";
 
   interface Props {
-    onadddevice?: () => void;
-    onimportfromnetbox?: () => void;
     ondeviceselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
   }
 
-  let { onadddevice, onimportfromnetbox, ondeviceselect }: Props = $props();
+  let { ondeviceselect }: Props = $props();
 
   const layoutStore = getLayoutStore();
-  const toastStore = getToastStore();
 
   // Search state with debouncing
   let searchQueryRaw = $state("");
@@ -105,9 +99,6 @@
   const updateSearchQuery = debounce((value: string) => {
     searchQuery = value;
   }, 150);
-
-  // File import ref
-  let fileInputRef = $state<HTMLInputElement | null>(null);
 
   /**
    * Device section definition for collapsible groups
@@ -338,14 +329,6 @@
     }
   });
 
-  function handleAddDevice() {
-    onadddevice?.();
-  }
-
-  function handleImportFromNetBox() {
-    onimportfromnetbox?.();
-  }
-
   function handleDeviceSelect(event: CustomEvent<{ device: DeviceType }>) {
     ondeviceselect?.(event);
   }
@@ -355,48 +338,6 @@
     if (accordionMode === "multiple" && !isSearchActive) {
       accordionMode = "single";
       // The clicked section will be set by the accordion component
-    }
-  }
-
-  function handleImportClick() {
-    fileInputRef?.click();
-  }
-
-  async function handleFileChange(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-
-    if (!file) return;
-
-    try {
-      const text = await file.text();
-
-      // Get existing device slugs for duplicate detection
-      const existingSlugs = layoutStore.device_types.map((d) => d.slug);
-
-      // Parse and validate the import (returns DeviceType[])
-      const result = parseDeviceLibraryImport(text, existingSlugs);
-
-      // Add imported devices to library
-      for (const deviceType of result.devices) {
-        layoutStore.addDeviceTypeRaw(deviceType);
-      }
-
-      // Track successful import
-      analytics.trackPaletteImport();
-
-      // Show success toast
-      const message =
-        result.skipped > 0
-          ? `Imported ${result.devices.length} devices (${result.skipped} skipped)`
-          : `Imported ${result.devices.length} ${result.devices.length === 1 ? "device" : "devices"}`;
-
-      toastStore.showToast(message, "success");
-    } catch {
-      toastStore.showToast("Failed to import device library", "error");
-    } finally {
-      // Reset file input
-      input.value = "";
     }
   }
 </script>
@@ -514,51 +455,6 @@
         {/each}
       </Accordion.Root>
     {/if}
-  </div>
-
-  <!-- Hidden file input for import -->
-  <input
-    bind:this={fileInputRef}
-    type="file"
-    accept=".json,application/json"
-    onchange={handleFileChange}
-    style="display: none;"
-    aria-label="Import device library file"
-  />
-
-  <!-- Actions -->
-  <div class="actions">
-    <div class="actions-row">
-      <button
-        class="import-button"
-        type="button"
-        onclick={handleImportClick}
-        aria-label="Import device library"
-        data-testid="btn-import-devices"
-      >
-        <span class="import-icon">↓</span>
-        Import
-      </button>
-      <button
-        class="add-device-button"
-        type="button"
-        onclick={handleAddDevice}
-        aria-label="Add custom device"
-        data-testid="btn-add-device"
-      >
-        <span class="add-icon">+</span>
-        Add Device
-      </button>
-    </div>
-    <button
-      class="netbox-import-button"
-      type="button"
-      onclick={handleImportFromNetBox}
-      aria-label="Import from NetBox device type library"
-      data-testid="btn-import-netbox"
-    >
-      Import from NetBox YAML
-    </button>
   </div>
 </div>
 
@@ -754,81 +650,5 @@
     margin: var(--space-1) 0 0;
     font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
-  }
-
-  .actions {
-    padding: var(--space-3);
-  }
-
-  .actions-row {
-    display: flex;
-    gap: var(--space-2);
-  }
-
-  .import-button,
-  .add-device-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-1-5);
-    flex: 1;
-    padding: var(--space-3) var(--space-3);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    color: var(--colour-text);
-    background-color: var(--button-bg);
-    border: 1px solid var(--button-border);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition:
-      background-color 0.15s ease,
-      transform 0.1s ease;
-  }
-
-  .import-button:hover,
-  .add-device-button:hover {
-    background-color: var(--button-bg-hover);
-  }
-
-  .import-button:active,
-  .add-device-button:active {
-    transform: scale(0.98);
-  }
-
-  .import-button:focus,
-  .add-device-button:focus {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
-  }
-
-  .import-icon,
-  .add-icon {
-    font-size: var(--font-size-base);
-    font-weight: bold;
-  }
-
-  .netbox-import-button {
-    width: 100%;
-    padding: var(--space-2) var(--space-3);
-    margin-top: var(--space-2);
-    font-size: var(--font-size-xs);
-    color: var(--colour-text-muted);
-    background: transparent;
-    border: 1px dashed var(--button-border);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition:
-      color 0.15s ease,
-      border-color 0.15s ease;
-  }
-
-  .netbox-import-button:hover {
-    color: var(--colour-text);
-    border-color: var(--colour-text);
-  }
-
-  .netbox-import-button:focus {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
   }
 </style>

@@ -1,6 +1,6 @@
 <!--
   FileMenu Component
-  Dropdown for file operations: Save, Load, Export, Share
+  Dropdown for file operations: Save, Load, Export, Share, Import Devices
   Uses bits-ui DropdownMenu with Iconoir folder trigger
 -->
 <script lang="ts">
@@ -15,10 +15,22 @@
     onload?: () => void;
     onexport?: () => void;
     onshare?: () => void;
+    onimportdevices?: () => void;
+    onimportnetbox?: () => void;
+    onnewcustomdevice?: () => void;
     hasRacks?: boolean;
   }
 
-  let { onsave, onload, onexport, onshare, hasRacks = false }: Props = $props();
+  let {
+    onsave,
+    onload,
+    onexport,
+    onshare,
+    onimportdevices,
+    onimportnetbox,
+    onnewcustomdevice,
+    hasRacks = false,
+  }: Props = $props();
 
   let open = $state(false);
 
@@ -66,6 +78,25 @@
         onSelect={handleSelect(onshare)}
       >
         <span class="menu-label">Share</span>
+      </DropdownMenu.Item>
+      <DropdownMenu.Separator class="menu-separator" />
+      <DropdownMenu.Item
+        class="menu-item"
+        onSelect={handleSelect(onimportdevices)}
+      >
+        <span class="menu-label">Import Devices</span>
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="menu-item"
+        onSelect={handleSelect(onimportnetbox)}
+      >
+        <span class="menu-label">Import from NetBox</span>
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="menu-item"
+        onSelect={handleSelect(onnewcustomdevice)}
+      >
+        <span class="menu-label">New Custom Device</span>
       </DropdownMenu.Item>
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
