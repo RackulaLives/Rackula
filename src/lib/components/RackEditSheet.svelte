@@ -121,37 +121,16 @@
     attemptHeightChange(preset);
   }
 
-  // Handle bay count change
+  // Handle bay count change atomically
   function handleBayCountChange(newCount: number) {
     if (!rackGroup) return;
 
     bayCountError = null;
 
-    if (newCount < 2) {
-      bayCountError = "Bayed racks must have at least 2 bays";
-      return;
-    }
-
-    const currentCount = rackGroup.rack_ids.length;
-
-    if (newCount > currentCount) {
-      // Adding bays
-      for (let i = currentCount; i < newCount; i++) {
-        const result = layoutStore.addBayToGroup(rackGroup.id);
-        if (result.error) {
-          bayCountError = result.error;
-          return;
-        }
-      }
-    } else if (newCount < currentCount) {
-      // Removing bays (from the end)
-      for (let i = currentCount; i > newCount; i--) {
-        const result = layoutStore.removeBayFromGroup(rackGroup.id);
-        if (result.error) {
-          bayCountError = result.error;
-          return;
-        }
-      }
+    // Use atomic setBayCount which validates upfront before making changes
+    const result = layoutStore.setBayCount(rackGroup.id, newCount);
+    if (result.error) {
+      bayCountError = result.error;
     }
   }
 
@@ -216,8 +195,12 @@
     <!-- Bay Count (only for bayed racks) -->
     {#if isBayedRack}
       <div class="form-group">
-        <label for="bay-count-mobile">Bay Count</label>
-        <div class="bay-count-controls">
+        <span class="form-label">Bay Count</span>
+        <div
+          class="bay-count-controls"
+          role="group"
+          aria-label="Bay count controls"
+        >
           <button
             type="button"
             class="bay-btn"
@@ -339,7 +322,8 @@
     gap: var(--space-1);
   }
 
-  .form-group label {
+  .form-group label,
+  .form-group .form-label {
     font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--colour-text-secondary);

@@ -52,6 +52,7 @@
 
   // Get the first rack in a group (for height info)
   function getGroupFirstRack(group: { rack_ids: string[] }) {
+    if (!group.rack_ids || group.rack_ids.length === 0) return undefined;
     return layoutStore.getRackById(group.rack_ids[0]);
   }
 
@@ -170,8 +171,10 @@
         class="rack-item"
         class:active={isActive}
         onclick={() => handleGroupClick(group.id)}
-        onkeydown={(e) =>
-          (e.key === "Enter" || e.key === " ") && handleGroupClick(group.id)}
+        onkeydown={(e) => {
+          if (e.key === " ") e.preventDefault();
+          if (e.key === "Enter" || e.key === " ") handleGroupClick(group.id);
+        }}
         role="option"
         aria-selected={isActive}
         tabindex="0"
@@ -209,8 +212,10 @@
         class="rack-item"
         class:active={isActive}
         onclick={() => handleRackClick(rack.id)}
-        onkeydown={(e) =>
-          (e.key === "Enter" || e.key === " ") && handleRackClick(rack.id)}
+        onkeydown={(e) => {
+          if (e.key === " ") e.preventDefault();
+          if (e.key === "Enter" || e.key === " ") handleRackClick(rack.id);
+        }}
         role="option"
         aria-selected={isActive}
         tabindex="0"

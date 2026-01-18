@@ -212,6 +212,7 @@ export function getLayoutStore() {
     removeRackFromGroup,
     addBayToGroup,
     removeBayFromGroup,
+    setBayCount,
     getRackGroupById,
     getRackGroupForRack,
     reorderRacksInGroup,
@@ -888,28 +889,119 @@ function addBayToGroup(groupId: string): { rackId?: string; error?: string } {
 function removeBayFromGroup(groupId: string): { error?: string } {
   const group = getRackGroupById(groupId);
   if (!group) {
+    layoutDebug.group("removeBayFromGroup: group %s not found", groupId);
     return { error: "Group not found" };
   }
 
   if (group.rack_ids.length <= 2) {
+    layoutDebug.group(
+      "removeBayFromGroup: group %s has only %d bays, cannot remove",
+      groupId,
+      group.rack_ids.length,
+    );
     return { error: "Bayed racks must have at least 2 bays" };
   }
 
   // Get the last rack
   const lastRackId = group.rack_ids[group.rack_ids.length - 1];
+  if (!lastRackId) {
+    return { error: "Group has no racks" };
+  }
   const lastRack = layout.racks.find((r) => r.id === lastRackId);
 
   if (lastRack && lastRack.devices.length > 0) {
+    layoutDebug.group(
+      "removeBayFromGroup: bay %d has %d devices, cannot remove",
+      group.rack_ids.length,
+      lastRack.devices.length,
+    );
     return {
       error: `Bay ${group.rack_ids.length} contains ${lastRack.devices.length} device(s). Remove them first.`,
     };
   }
+
+  layoutDebug.group(
+    "removeBayFromGroup: removing bay %d (rack %s) from group %s",
+    group.rack_ids.length,
+    lastRackId,
+    groupId,
+  );
 
   // Remove from group
   removeRackFromGroup(groupId, lastRackId);
 
   // Delete the rack
   layout.racks = layout.racks.filter((r) => r.id !== lastRackId);
+
+  return {};
+}
+
+/**
+ * Set the bay count for a bayed rack group atomically
+ * Validates all changes upfront before making any mutations
+ * @param groupId - Group ID
+ * @param targetCount - Desired bay count (must be >= 2)
+ * @returns Error if validation fails
+ */
+function setBayCount(groupId: string, targetCount: number): { error?: string } {
+  const group = getRackGroupById(groupId);
+  if (!group) {
+    return { error: "Group not found" };
+  }
+
+  if (group.layout_preset !== "bayed") {
+    return { error: "Can only modify bay count for bayed rack groups" };
+  }
+
+  if (targetCount < 2) {
+    return { error: "Bayed racks must have at least 2 bays" };
+  }
+
+  const currentCount = group.rack_ids.length;
+  if (targetCount === currentCount) {
+    return {}; // No change needed
+  }
+
+  // Validate upfront before making any changes
+  if (targetCount > currentCount) {
+    // Adding bays - check capacity
+    const baysToAdd = targetCount - currentCount;
+    if (layout.racks.length + baysToAdd > MAX_RACKS) {
+      return { error: "Maximum rack limit would be exceeded" };
+    }
+  } else {
+    // Removing bays - check for devices in bays to be removed
+    for (let i = currentCount - 1; i >= targetCount; i--) {
+      const rackId = group.rack_ids[i];
+      const rack = layout.racks.find((r) => r.id === rackId);
+      if (rack && rack.devices.length > 0) {
+        return {
+          error: `Bay ${i + 1} contains ${rack.devices.length} device(s). Remove them first.`,
+        };
+      }
+    }
+  }
+
+  // All validation passed - now apply changes
+  if (targetCount > currentCount) {
+    // Add bays
+    for (let i = currentCount; i < targetCount; i++) {
+      const result = addBayToGroup(groupId);
+      if (result.error) {
+        // This shouldn't happen due to upfront validation, but handle it
+        return { error: result.error };
+      }
+    }
+  } else {
+    // Remove bays
+    for (let i = currentCount; i > targetCount; i--) {
+      const result = removeBayFromGroup(groupId);
+      if (result.error) {
+        // This shouldn't happen due to upfront validation, but handle it
+        return { error: result.error };
+      }
+    }
+  }
 
   return {};
 }
