@@ -192,6 +192,14 @@
       </div>
     </div>
 
+    <!-- Width (read-only for bayed racks) -->
+    {#if isBayedRack}
+      <div class="form-group">
+        <span class="form-label">Width</span>
+        <div class="read-only-value">19" (Standard)</div>
+      </div>
+    {/if}
+
     <!-- Bay Count (only for bayed racks) -->
     {#if isBayedRack}
       <div class="form-group">
@@ -366,6 +374,18 @@
 
   .helper-text.error {
     color: var(--colour-error);
+  }
+
+  .read-only-value {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-base);
+    color: var(--colour-text-secondary);
+    background: var(--colour-surface-secondary);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    min-height: var(--touch-target-min);
+    display: flex;
+    align-items: center;
   }
 
   .height-presets {
