@@ -26,6 +26,7 @@
   } from "$lib/utils/rack-resize";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { canPlaceDevice, findCollisions } from "$lib/utils/collision";
+  import { toHumanUnits, toInternalUnits } from "$lib/utils/position";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getDeviceDisplayName } from "$lib/utils/device";
   import { COMMON_RACK_HEIGHTS } from "$lib/types/constants";
@@ -491,28 +492,32 @@
 
     const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
 
-    // Calculate new position
-    let newPosition = placedDevice.position + direction * step;
+    // Convert internal units to human U for calculations
+    const currentPositionU = toHumanUnits(placedDevice.position);
 
-    // Clamp to valid range
-    if (newPosition < 1) newPosition = 1;
-    if (newPosition + device.u_height - 1 > rack.height) {
-      newPosition = rack.height - device.u_height + 1;
+    // Calculate new position in human U
+    let newPositionU = currentPositionU + direction * step;
+
+    // Clamp to valid range (human U: 1 to rack.height)
+    if (newPositionU < 1) newPositionU = 1;
+    if (newPositionU + device.u_height - 1 > rack.height) {
+      newPositionU = rack.height - device.u_height + 1;
     }
 
-    // Check if new position is valid
+    // Check if new position is valid (canPlaceDevice expects internal units)
     // Face is authoritative: the device's face value determines blocking
     const isValid = canPlaceDevice(
       rack,
       layoutStore.device_types,
       device.u_height,
-      newPosition,
+      toInternalUnits(newPositionU),
       deviceIndex,
       placedDevice.face,
     );
 
     if (isValid) {
-      layoutStore.moveDevice(currentRackId!, deviceIndex, newPosition);
+      // layoutStore.moveDevice expects human U
+      layoutStore.moveDevice(currentRackId!, deviceIndex, newPositionU);
     }
   }
 
@@ -520,13 +525,15 @@
   const canMoveUp = $derived.by(() => {
     if (!selectedDeviceInfo) return false;
     const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-    const newPosition = placedDevice.position + 1;
-    if (newPosition + device.u_height - 1 > rack.height) return false;
+    // Convert to human U and add 1
+    const newPositionU = toHumanUnits(placedDevice.position) + 1;
+    if (newPositionU + device.u_height - 1 > rack.height) return false;
+    // canPlaceDevice expects internal units
     return canPlaceDevice(
       rack,
       layoutStore.device_types,
       device.u_height,
-      newPosition,
+      toInternalUnits(newPositionU),
       deviceIndex,
       placedDevice.face,
     );
@@ -536,29 +543,32 @@
   const canMoveDown = $derived.by(() => {
     if (!selectedDeviceInfo) return false;
     const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-    const newPosition = placedDevice.position - 1;
-    if (newPosition < 1) return false;
+    // Convert to human U and subtract 1
+    const newPositionU = toHumanUnits(placedDevice.position) - 1;
+    if (newPositionU < 1) return false;
+    // canPlaceDevice expects internal units
     return canPlaceDevice(
       rack,
       layoutStore.device_types,
       device.u_height,
-      newPosition,
+      toInternalUnits(newPositionU),
       deviceIndex,
       placedDevice.face,
     );
   });
 
   // Transform internal position to display position (matches ruler labels)
-  // Internal: position 1 = bottom of rack, position N = top
-  // Display with desc_units=false: U1 at bottom (same as internal)
-  // Display with desc_units=true: U1 at top (inverted)
+  // PlacedDevice.position is in internal units (1/6U), convert to human U first
+  // Display with desc_units=false: U1 at bottom (ascending)
+  // Display with desc_units=true: U1 at top (descending)
   const displayPosition = $derived.by(() => {
     if (!selectedDeviceInfo) return null;
     const { placedDevice, rack } = selectedDeviceInfo;
-    const pos = placedDevice.position;
+    // Convert from internal units to human U
+    const positionU = toHumanUnits(placedDevice.position);
     return rack.desc_units
-      ? rack.height - pos + 1 // Inverted: bottom (pos=1) shows as highest U
-      : pos; // Normal: position = display
+      ? rack.height - positionU + 1 // Inverted: bottom (pos=1) shows as highest U
+      : positionU; // Normal: position = display
   });
 
   // Get container context if device is a child (has container_id)
@@ -586,9 +596,11 @@
     );
 
     // Transform container position for display (same logic as displayPosition)
+    // Convert from internal units to human U first
+    const containerPositionU = toHumanUnits(container.position);
     const containerDisplayPosition = rack.desc_units
-      ? rack.height - container.position + 1
-      : container.position;
+      ? rack.height - containerPositionU + 1
+      : containerPositionU;
 
     return {
       // Prefer custom name on container, then fall back to type model/slug

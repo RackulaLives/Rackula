@@ -33,6 +33,7 @@
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { hapticError, hapticCancel } from "$lib/utils/haptics";
   import { SvelteSet, SvelteMap } from "svelte/reactivity";
+  import { toHumanUnits } from "$lib/utils/position";
 
   const canvasStore = getCanvasStore();
   const viewportStore = getViewportStore();
@@ -153,7 +154,7 @@
 
     return {
       containerName: containerType.model ?? containerType.slug,
-      containerPosition: container.position,
+      containerPosition: toHumanUnits(container.position),
       slotName: slot?.name ?? childDevice.slot_id ?? "Unknown",
     };
   }
@@ -682,8 +683,10 @@
     if (!deviceType) return;
 
     // Move up = increase position (higher U number)
-    const newPosition = device.position + 1;
-    layoutStore.moveDevice(rack.id, deviceIndex, newPosition);
+    // Convert to human U, add 1, pass to moveDevice (which expects human U)
+    const currentPositionU = toHumanUnits(device.position);
+    const newPositionU = currentPositionU + 1;
+    layoutStore.moveDevice(rack.id, deviceIndex, newPositionU);
     closeDeviceContextMenu();
   }
 
@@ -697,9 +700,11 @@
     if (!device) return;
 
     // Move down = decrease position (lower U number)
-    const newPosition = device.position - 1;
-    if (newPosition >= 1) {
-      layoutStore.moveDevice(rack.id, deviceIndex, newPosition);
+    // Convert to human U, subtract 1, pass to moveDevice (which expects human U)
+    const currentPositionU = toHumanUnits(device.position);
+    const newPositionU = currentPositionU - 1;
+    if (newPositionU >= 1) {
+      layoutStore.moveDevice(rack.id, deviceIndex, newPositionU);
     }
     closeDeviceContextMenu();
   }
@@ -723,9 +728,10 @@
     if (!device) return false;
     const deviceType = getDeviceBySlug(device.device_type);
     if (!deviceType) return false;
-    // Can move up if not at max position
+    // Can move up if not at max position (both in human U)
     const maxPosition = rack.height - deviceType.u_height + 1;
-    return device.position < maxPosition;
+    const positionU = toHumanUnits(device.position);
+    return positionU < maxPosition;
   }
 
   /**
@@ -734,7 +740,9 @@
   function getCanMoveDown(deviceIndex: number): boolean {
     const device = rack.devices[deviceIndex];
     if (!device) return false;
-    return device.position > 1;
+    // Convert to human U for comparison
+    const positionU = toHumanUnits(device.position);
+    return positionU > 1;
   }
 
   function handleDrop(event: DragEvent) {

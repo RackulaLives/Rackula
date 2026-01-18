@@ -7,6 +7,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import DeviceDetails from "$lib/components/DeviceDetails.svelte";
 import type { DeviceType, PlacedDevice } from "$lib/types";
+import { toInternalUnits } from "$lib/utils/position";
 
 describe("DeviceDetails", () => {
   // Helper to create test device type
@@ -24,14 +25,20 @@ describe("DeviceDetails", () => {
   }
 
   // Helper to create test placed device
+  // Position is expected in human U and converted to internal units
   function createTestPlacedDevice(
     overrides: Partial<PlacedDevice> = {},
   ): PlacedDevice {
+    const humanPosition = overrides.position ?? 5;
     return {
       device_type: "test-server",
-      position: 5,
+      position: toInternalUnits(humanPosition),
       face: "front",
       ...overrides,
+      // Ensure position override is converted
+      ...(overrides.position !== undefined
+        ? { position: toInternalUnits(overrides.position) }
+        : {}),
     };
   }
 

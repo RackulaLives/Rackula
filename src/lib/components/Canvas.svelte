@@ -19,6 +19,7 @@
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   // Note: getViewportStore removed - was only used for PlacementIndicator condition
   import { hapticSuccess } from "$lib/utils/haptics";
+  import { toHumanUnits } from "$lib/utils/position";
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
   import WelcomeScreen from "./WelcomeScreen.svelte";
@@ -367,13 +368,14 @@
     const activeRack = layoutStore.activeRack;
     if (!activeRack || activeRack.devices.length === 0) return "";
     const deviceNames = [...activeRack.devices]
-      .sort((a, b) => b.position - a.position) // Top to bottom
+      .sort((a, b) => b.position - a.position) // Top to bottom (internal units preserve order)
       .map((d) => {
         const deviceType = layoutStore.device_types.find(
           (dt) => dt.slug === d.device_type,
         );
         const name = d.label || deviceType?.model || d.device_type;
-        return `U${d.position}: ${name}`;
+        // Convert internal units to human U for display
+        return `U${toHumanUnits(d.position)}: ${name}`;
       });
     return `Active rack devices from top to bottom: ${deviceNames.join(", ")}`;
   });

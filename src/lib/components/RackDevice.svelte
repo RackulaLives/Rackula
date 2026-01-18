@@ -37,6 +37,7 @@
     DEVICE_LABEL_ICON_SPACE_LEFT,
     DEVICE_LABEL_ICON_SPACE_RIGHT,
   } from "$lib/utils/text-sizing";
+  import { toHumanUnits } from "$lib/utils/position";
 
   interface Props {
     device: DeviceType;
@@ -180,10 +181,14 @@
   // Real equipment extends past the rails; this creates realistic front-mounting appearance
   const IMAGE_OVERFLOW = 4;
 
+  // Convert position from internal units (1/6U) to human U units for rendering
+  // PlacedDevice.position is stored in internal units (e.g., 6 = U1, 252 = U42)
+  const positionHuman = $derived(toHumanUnits(position));
+
   // Position calculation (SVG y-coordinate, origin at top)
-  // y = (rackHeight - position - device.u_height + 1) * uHeight
+  // y = (rackHeight - positionHuman - device.u_height + 1) * uHeight
   const yPosition = $derived(
-    (rackHeight - position - device.u_height + 1) * uHeight,
+    (rackHeight - positionHuman - device.u_height + 1) * uHeight,
   );
   const deviceHeight = $derived(device.u_height * uHeight);
   // Full interior width (between rails)
@@ -272,7 +277,7 @@
     }
 
     // Rack-level device: standard announcement
-    return `${base} at U${position}${selected ? ", selected" : ""}`;
+    return `${base} at U${positionHuman}${selected ? ", selected" : ""}`;
   });
 
   // Handle keyboard activation (Enter/Space to select, Tab to enter container)

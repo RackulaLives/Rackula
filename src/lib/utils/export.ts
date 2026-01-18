@@ -25,6 +25,7 @@ import {
   RAIL_WIDTH,
   RACK_PADDING_HIDDEN,
 } from "$lib/constants/layout";
+import { toHumanUnits } from "$lib/utils/position";
 
 // Note: jsPDF is imported dynamically in exportAsPDF() to avoid loading
 // the large jsPDF + html2canvas bundle (~200KB) on app startup.
@@ -734,8 +735,10 @@ export function generateExportSVG(
       const deviceDisplayName = device.model ?? device.slug;
 
       // Device Y position matches Rack.svelte: includes RACK_PADDING + RAIL_WIDTH offset
+      // Convert position from internal units to human U
+      const positionU = toHumanUnits(placedDevice.position);
       const deviceY =
-        (rack.height - placedDevice.position - device.u_height + 1) * U_HEIGHT +
+        (rack.height - positionU - device.u_height + 1) * U_HEIGHT +
         RACK_PADDING +
         RAIL_WIDTH;
       const deviceHeight = device.u_height * U_HEIGHT - 2;
