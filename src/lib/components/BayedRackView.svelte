@@ -1,9 +1,10 @@
 <!--
   BayedRackView Component
   Renders bayed/touring racks in stacked layout:
-  - Front row on top: [U-labels] [Bay 1] [Bay 2] [Bay 3] (left to right)
-  - Rear row below: [Bay 3] [Bay 2] [Bay 1] [U-labels] (mirrored, U-labels on right)
-  U-labels flank each row for easy slot reference.
+  - Front row on top: [Bay 1] [U-labels] [Bay 2] [U-labels] [Bay 3] (left to right)
+  - Rear row below: [Bay 3] [U-labels] [Bay 2] [U-labels] [Bay 1] (mirrored)
+  U-labels appear between adjacent bays for easy slot reference.
+  For N bays, N-1 U-label columns are rendered.
 -->
 <script lang="ts">
   import type {
@@ -250,12 +251,8 @@
   <!-- Front row label -->
   <div class="row-label">FRONT</div>
 
-  <!-- Front row: U-labels on left, then racks left-to-right -->
+  <!-- Front row: racks left-to-right with U-labels between adjacent bays -->
   <div class="bayed-row front-row">
-    <!-- U-labels column (left side of front row) -->
-    <div class="u-labels-column">
-      <ULabels {uLabels} {uColumnHeight} railWidth={RAIL_WIDTH} />
-    </div>
     {#each racks as rack, bayIndex (rack.id)}
       {@const isActive = rack.id === activeRackId}
       {@const isSelected = rack.id === selectedRackId}
@@ -308,18 +305,30 @@
           />
         </div>
       </RackContextMenu>
+      <!-- U-labels column between adjacent bays (not after last bay) -->
+      {#if bayIndex < racks.length - 1}
+        <div class="u-labels-column">
+          <ULabels {uLabels} {uColumnHeight} railWidth={RAIL_WIDTH} />
+        </div>
+      {/if}
     {/each}
   </div>
 
   <!-- Rear row label -->
   <div class="row-label">REAR</div>
 
-  <!-- Rear row: racks right-to-left (mirrored: Bay 1 on right) -->
+  <!-- Rear row: racks right-to-left with U-labels between adjacent bays (mirrored: Bay 1 on right) -->
   <div class="bayed-row rear-row">
     {#each reversedRacks as rack, reversedIndex (rack.id)}
       {@const bayIndex = racks.length - 1 - reversedIndex}
       {@const isActive = rack.id === activeRackId}
       {@const isSelected = rack.id === selectedRackId}
+      <!-- U-labels column between adjacent bays (not before first bay in reversed order) -->
+      {#if reversedIndex > 0}
+        <div class="u-labels-column">
+          <ULabels {uLabels} {uColumnHeight} railWidth={RAIL_WIDTH} />
+        </div>
+      {/if}
       <RackContextMenu
         onadddevice={() => onadddevice?.(rack.id)}
         onedit={() => onedit?.(rack.id)}
@@ -370,10 +379,6 @@
         </div>
       {/if}
     {/each}
-    <!-- U-labels column (right side of rear row) -->
-    <div class="u-labels-column">
-      <ULabels {uLabels} {uColumnHeight} railWidth={RAIL_WIDTH} />
-    </div>
   </div>
 </div>
 
@@ -476,7 +481,7 @@
     outline: none !important;
   }
 
-  /* U-labels flanking columns (left of front row, right of rear row) */
+  /* U-labels columns between adjacent bays */
   .u-labels-column {
     display: flex;
     flex-direction: column;
