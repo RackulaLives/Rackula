@@ -210,6 +210,8 @@ export function getLayoutStore() {
     deleteRackGroup,
     addRackToGroup,
     removeRackFromGroup,
+    addBayToGroup,
+    removeBayFromGroup,
     getRackGroupById,
     getRackGroupForRack,
     reorderRacksInGroup,
@@ -824,6 +826,92 @@ function removeRackFromGroup(groupId: string, rackId: string): void {
   } else {
     updateRackGroup(groupId, { rack_ids: newRackIds });
   }
+}
+
+/**
+ * Add a new empty bay to a bayed rack group
+ * Creates a new rack with matching height and adds to group
+ * @param groupId - Group ID
+ * @returns The new rack ID or error
+ */
+function addBayToGroup(groupId: string): { rackId?: string; error?: string } {
+  const group = getRackGroupById(groupId);
+  if (!group) {
+    return { error: "Group not found" };
+  }
+
+  if (group.layout_preset !== "bayed") {
+    return { error: "Can only add bays to bayed rack groups" };
+  }
+
+  // Get height from existing rack in group
+  const existingRack = layout.racks.find((r) => r.id === group.rack_ids[0]);
+  if (!existingRack) {
+    return { error: "Group has no existing racks" };
+  }
+
+  // Check capacity
+  if (layout.racks.length >= MAX_RACKS) {
+    return { error: "Maximum rack limit reached" };
+  }
+
+  // Create new rack with matching height
+  const newRackId = crypto.randomUUID();
+  const bayNumber = group.rack_ids.length + 1;
+  const newRack: Rack = {
+    id: newRackId,
+    name: `Bay ${bayNumber}`,
+    height: existingRack.height,
+    width: existingRack.width,
+    devices: [],
+  };
+
+  // Add rack to layout
+  layout.racks.push(newRack);
+
+  // Add to group
+  const result = addRackToGroup(groupId, newRackId);
+  if (result.error) {
+    // Rollback rack creation
+    layout.racks = layout.racks.filter((r) => r.id !== newRackId);
+    return { error: result.error };
+  }
+
+  return { rackId: newRackId };
+}
+
+/**
+ * Remove the last bay from a bayed rack group
+ * @param groupId - Group ID
+ * @returns Error if bay has devices or group would have < 2 bays
+ */
+function removeBayFromGroup(groupId: string): { error?: string } {
+  const group = getRackGroupById(groupId);
+  if (!group) {
+    return { error: "Group not found" };
+  }
+
+  if (group.rack_ids.length <= 2) {
+    return { error: "Bayed racks must have at least 2 bays" };
+  }
+
+  // Get the last rack
+  const lastRackId = group.rack_ids[group.rack_ids.length - 1];
+  const lastRack = layout.racks.find((r) => r.id === lastRackId);
+
+  if (lastRack && lastRack.devices.length > 0) {
+    return {
+      error: `Bay ${group.rack_ids.length} contains ${lastRack.devices.length} device(s). Remove them first.`,
+    };
+  }
+
+  // Remove from group
+  removeRackFromGroup(groupId, lastRackId);
+
+  // Delete the rack
+  layout.racks = layout.racks.filter((r) => r.id !== lastRackId);
+
+  return {};
 }
 
 /**
