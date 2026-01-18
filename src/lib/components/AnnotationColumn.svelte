@@ -15,6 +15,7 @@
     RAIL_WIDTH,
     RACK_PADDING_HIDDEN,
   } from "$lib/constants/layout";
+  import { toHumanUnits } from "$lib/utils/position";
 
   interface Props {
     rack: RackType;
@@ -70,12 +71,15 @@
   }
 
   // Calculate Y position for a device annotation (vertically centered)
-  function getAnnotationY(position: number, uHeight: number): number {
-    // SVG Y = (rackHeight - position - u_height + 1) * U_HEIGHT + offset
+  // Position is in internal units (1/6U), must convert to human U for calculation
+  function getAnnotationY(positionInternal: number, uHeight: number): number {
+    // Convert internal units to human U
+    const positionU = toHumanUnits(positionInternal);
+    // SVG Y = (rackHeight - positionU - u_height + 1) * U_HEIGHT + offset
     // We add RACK_PADDING_HIDDEN (since dual-view hides rack name) + RAIL_WIDTH (top bar)
     const topOffset = RACK_PADDING_HIDDEN + RAIL_WIDTH;
     const deviceTopY =
-      (rack.height - position - uHeight + 1) * U_HEIGHT_PX + topOffset;
+      (rack.height - positionU - uHeight + 1) * U_HEIGHT_PX + topOffset;
     const deviceHeight = uHeight * U_HEIGHT_PX;
     // Return center Y position
     return deviceTopY + deviceHeight / 2;

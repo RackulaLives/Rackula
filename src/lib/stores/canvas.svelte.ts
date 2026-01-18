@@ -16,6 +16,7 @@ import {
   DUAL_VIEW_GAP,
   DUAL_VIEW_EXTRA_HEIGHT,
 } from "$lib/constants/layout";
+import { toHumanUnits } from "$lib/utils/position";
 
 // Panzoom constants
 export const ZOOM_MIN = 0.25; // 25% - allows fitting 6+ large racks
@@ -289,9 +290,11 @@ function zoomToDevice(
 
   // Calculate device position in SVG coordinates
   // Device Y position: from top of SVG viewBox
+  // Convert device.position from internal units to human U
   const rackHeight = rack.height;
+  const positionU = toHumanUnits(device.position);
   const deviceYInRack =
-    (rackHeight - device.position - deviceType.u_height + 1) * U_HEIGHT_PX;
+    (rackHeight - positionU - deviceType.u_height + 1) * U_HEIGHT_PX;
   const deviceHeight = deviceType.u_height * U_HEIGHT_PX;
 
   // Device absolute Y: includes rack padding, top rail, and dual-view extra height
