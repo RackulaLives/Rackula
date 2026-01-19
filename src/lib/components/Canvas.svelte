@@ -156,6 +156,32 @@
     return { groupEntries, ungroupedRacks };
   });
 
+  // Determine the rightmost rack ID for "banana for scale" display
+  // Visual layout: groups render left-to-right, then ungrouped racks
+  const rightmostRackId = $derived.by(() => {
+    const { groupEntries, ungroupedRacks } = organizedRacks;
+
+    // Ungrouped racks appear after groups, so rightmost is last ungrouped rack
+    if (ungroupedRacks.length > 0) {
+      return ungroupedRacks[ungroupedRacks.length - 1].id;
+    }
+
+    // No ungrouped racks - check last group entry
+    if (groupEntries.length > 0) {
+      const lastGroup = groupEntries[groupEntries.length - 1];
+      // For bayed groups, banana isn't supported (BayedRackView doesn't render it)
+      // For non-bayed groups, rightmost is the last rack in the group
+      if (
+        lastGroup.group.layout_preset !== "bayed" &&
+        lastGroup.racks.length > 0
+      ) {
+        return lastGroup.racks[lastGroup.racks.length - 1].id;
+      }
+    }
+
+    return null;
+  });
+
   // Panzoom container reference
   let panzoomContainer: HTMLDivElement | null = $state(null);
   let canvasContainer: HTMLDivElement | null = $state(null);
@@ -482,7 +508,8 @@
                         showLabelsOnImages={uiStore.showLabelsOnImages}
                         showAnnotations={uiStore.showAnnotations}
                         annotationField={uiStore.annotationField}
-                        showBanana={uiStore.showBanana}
+                        showBanana={uiStore.showBanana &&
+                          rack.id === rightmostRackId}
                         {partyMode}
                         {enableLongPress}
                         onselect={(e) => handleRackSelect(e)}
@@ -525,7 +552,7 @@
                 showLabelsOnImages={uiStore.showLabelsOnImages}
                 showAnnotations={uiStore.showAnnotations}
                 annotationField={uiStore.annotationField}
-                showBanana={uiStore.showBanana}
+                showBanana={uiStore.showBanana && rack.id === rightmostRackId}
                 {partyMode}
                 {enableLongPress}
                 onselect={(e) => handleRackSelect(e)}
