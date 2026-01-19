@@ -123,7 +123,12 @@
   let selectedDeviceForSheet = $derived(dialogStore.selectedDeviceIndex);
   let exportQrCodeDataUrl = $derived(dialogStore.exportQrCodeDataUrl);
 
-  // Sidebar width - initial value from store (not reactive to avoid loops)
+  // Sidebar width: read once from the UI store.
+  // This is intentionally NOT reactive because changes to sidebarWidth are driven
+  // by layout / resize logic elsewhere that also writes back to uiStore. If this
+  // value were reactive, it could participate in a feedback loop (store → layout
+  // recompute → store) and cause jittery or repeated layout updates. We only need
+  // an initial width to seed the layout; subsequent updates use the store directly.
   const initialSidebarWidthPx = uiStore.sidebarWidth ?? sidePanelSizeDefault;
 
   // Device library import file input ref
@@ -131,6 +136,15 @@
 
   // Safe viewport width: use viewportStore if available, else fallback to reasonable default
   // Guards against SSR/test environments where window may not exist
+  /**
+   * Returns a safe viewport width in pixels for layout calculations.
+   *
+   * Uses the current value from {@link viewportStore.width} when it is greater than 0.
+   * In SSR or test environments (or when the width is not yet initialized), it falls
+   * back to a sensible default of 1280px to keep percentage-based sizing stable.
+   *
+   * @returns A positive viewport width in pixels, defaulting to 1280 when unavailable.
+   */
   function getSafeViewportWidth(): number {
     const width = viewportStore.width;
     // Fallback to 1280px (common desktop width) to ensure sensible percentage calculations
@@ -484,10 +498,11 @@
         analytics.trackExportPDF(exportViewOrDefault);
       } else if (options.format === "csv") {
         // CSV export only supports single rack - warn if multiple racks exist
-        const csvContent = exportToCSV(
-          racksToExport[0]!,
-          layoutStore.device_types,
-        );
+        const firstRack = racksToExport[0];
+        if (!firstRack) {
+          throw new Error("No rack available for CSV export");
+        }
+        const csvContent = exportToCSV(firstRack, layoutStore.device_types);
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
         const filename = generateExportFilename(
           layoutStore.layout.name,
@@ -497,7 +512,7 @@
         downloadBlob(blob, filename);
         const successMsg =
           racksToExport.length > 1
-            ? `CSV exported (first rack only - "${racksToExport[0]!.name}")`
+            ? `CSV exported (first rack only - "${firstRack.name}")`
             : "CSV exported successfully";
         toastStore.showToast(successMsg, "success");
         analytics.trackExportCSV();
@@ -721,7 +736,8 @@
           : `Imported ${result.devices.length} ${result.devices.length === 1 ? "device" : "devices"}`;
 
       toastStore.showToast(message, "success");
-    } catch {
+    } catch (error) {
+      console.error("Failed to import device library:", error);
       toastStore.showToast("Failed to import device library", "error");
     } finally {
       // Reset file input
