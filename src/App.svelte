@@ -484,10 +484,11 @@
         analytics.trackExportPDF(exportViewOrDefault);
       } else if (options.format === "csv") {
         // CSV export only supports single rack - warn if multiple racks exist
-        const csvContent = exportToCSV(
-          racksToExport[0]!,
-          layoutStore.device_types,
-        );
+        const firstRack = racksToExport[0];
+        if (!firstRack) {
+          throw new Error("No rack available for CSV export");
+        }
+        const csvContent = exportToCSV(firstRack, layoutStore.device_types);
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
         const filename = generateExportFilename(
           layoutStore.layout.name,
@@ -497,7 +498,7 @@
         downloadBlob(blob, filename);
         const successMsg =
           racksToExport.length > 1
-            ? `CSV exported (first rack only - "${racksToExport[0]!.name}")`
+            ? `CSV exported (first rack only - "${firstRack.name}")`
             : "CSV exported successfully";
         toastStore.showToast(successMsg, "success");
         analytics.trackExportCSV();
