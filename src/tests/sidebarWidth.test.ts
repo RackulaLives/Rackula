@@ -79,7 +79,16 @@ describe("sidebarWidth", () => {
       localStorageMock.setItem.mockImplementationOnce(() => {
         throw new Error("QuotaExceeded");
       });
-      expect(() => saveSidebarWidthToStorage(320)).not.toThrow();
+      const consoleWarnSpy = vi
+        .spyOn(console, "warn")
+        // prevent actual logging during the test
+        .mockImplementation(() => {});
+      try {
+        expect(() => saveSidebarWidthToStorage(320)).not.toThrow();
+        expect(consoleWarnSpy).toHaveBeenCalled();
+      } finally {
+        consoleWarnSpy.mockRestore();
+      }
     });
   });
 });
