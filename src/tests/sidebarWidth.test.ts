@@ -52,14 +52,16 @@ describe("sidebarWidth", () => {
     });
 
     it("returns null when localStorage is unavailable", () => {
-      const originalLocalStorage = (globalThis as any).localStorage;
+      const originalLocalStorage = (globalThis as { localStorage?: Storage })
+        .localStorage;
       try {
         // Simulate environments where localStorage is not defined
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete (globalThis as any).localStorage;
+        delete (globalThis as { localStorage?: Storage }).localStorage;
         expect(loadSidebarWidthFromStorage()).toBe(null);
       } finally {
-        (globalThis as any).localStorage = originalLocalStorage;
+        (globalThis as { localStorage?: Storage }).localStorage =
+          originalLocalStorage;
       }
     });
 
