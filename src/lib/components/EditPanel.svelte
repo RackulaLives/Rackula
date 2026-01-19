@@ -11,7 +11,7 @@
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
   import MarkdownPreview from "./MarkdownPreview.svelte";
-  import { IconEdit, IconChevronUp, IconChevronDown } from "./icons";
+  import { IconEdit } from "./icons";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -884,39 +884,39 @@
                 class="position-btn"
                 onclick={() => moveDevice(-1)}
                 disabled={!canMoveDown}
-                aria-label="Move down 1U"
+                aria-label="Move device down by 1 rack unit"
                 title="Move down 1U"
               >
-                <IconChevronDown />
+                <span class="arrow-label">↓</span>
               </button>
               <button
                 type="button"
                 class="position-btn"
                 onclick={() => moveDevice(1)}
                 disabled={!canMoveUp}
-                aria-label="Move up 1U"
+                aria-label="Move device up by 1 rack unit"
                 title="Move up 1U"
               >
-                <IconChevronUp />
+                <span class="arrow-label">↑</span>
               </button>
               <span class="position-divider"></span>
               <button
                 type="button"
                 class="position-btn position-btn-fine"
-                onclick={() => moveDevice(-1, 0.5)}
-                aria-label="Move down 0.5U"
-                title="Move down 0.5U (fine)"
+                onclick={() => moveDevice(-1, 1 / 3)}
+                aria-label="Move device down by one-third rack unit"
+                title="Move down ⅓U (fine)"
               >
-                <span class="fine-label">-½</span>
+                <span class="fine-label">-⅓</span>
               </button>
               <button
                 type="button"
                 class="position-btn position-btn-fine"
-                onclick={() => moveDevice(1, 0.5)}
-                aria-label="Move up 0.5U"
-                title="Move up 0.5U (fine)"
+                onclick={() => moveDevice(1, 1 / 3)}
+                aria-label="Move device up by one-third rack unit"
+                title="Move up ⅓U (fine)"
               >
-                <span class="fine-label">+½</span>
+                <span class="fine-label">+⅓</span>
               </button>
             </div>
           </div>
@@ -1476,6 +1476,12 @@
   .fine-label {
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
+  }
+
+  .arrow-label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
   }
 
   .position-divider {
