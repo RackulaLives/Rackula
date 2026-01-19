@@ -50,6 +50,18 @@ describe("sidebarWidth", () => {
       expect(loadSidebarWidthFromStorage()).toBe(null);
     });
 
+    it("returns null when localStorage is unavailable", () => {
+      const originalLocalStorage = (globalThis as any).localStorage;
+      try {
+        // Simulate environments where localStorage is not defined
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete (globalThis as any).localStorage;
+        expect(loadSidebarWidthFromStorage()).toBe(null);
+      } finally {
+        (globalThis as any).localStorage = originalLocalStorage;
+      }
+    });
+
     it("returns null when localStorage throws", () => {
       localStorageMock.getItem.mockImplementationOnce(() => {
         throw new Error("localStorage disabled");
