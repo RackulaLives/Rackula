@@ -123,7 +123,12 @@
   let selectedDeviceForSheet = $derived(dialogStore.selectedDeviceIndex);
   let exportQrCodeDataUrl = $derived(dialogStore.exportQrCodeDataUrl);
 
-  // Sidebar width - initial value from store (not reactive to avoid loops)
+  // Sidebar width: read once from the UI store.
+  // This is intentionally NOT reactive because changes to sidebarWidth are driven
+  // by layout / resize logic elsewhere that also writes back to uiStore. If this
+  // value were reactive, it could participate in a feedback loop (store → layout
+  // recompute → store) and cause jittery or repeated layout updates. We only need
+  // an initial width to seed the layout; subsequent updates use the store directly.
   const initialSidebarWidthPx = uiStore.sidebarWidth ?? sidePanelSizeDefault;
 
   // Device library import file input ref
