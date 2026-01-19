@@ -131,6 +131,15 @@
 
   // Safe viewport width: use viewportStore if available, else fallback to reasonable default
   // Guards against SSR/test environments where window may not exist
+  /**
+   * Returns a safe viewport width in pixels for layout calculations.
+   *
+   * Uses the current value from {@link viewportStore.width} when it is greater than 0.
+   * In SSR or test environments (or when the width is not yet initialized), it falls
+   * back to a sensible default of 1280px to keep percentage-based sizing stable.
+   *
+   * @returns A positive viewport width in pixels, defaulting to 1280 when unavailable.
+   */
   function getSafeViewportWidth(): number {
     const width = viewportStore.width;
     // Fallback to 1280px (common desktop width) to ensure sensible percentage calculations
