@@ -721,7 +721,8 @@
           : `Imported ${result.devices.length} ${result.devices.length === 1 ? "device" : "devices"}`;
 
       toastStore.showToast(message, "success");
-    } catch {
+    } catch (error) {
+      console.error("Failed to import device library:", error);
       toastStore.showToast("Failed to import device library", "error");
     } finally {
       // Reset file input
