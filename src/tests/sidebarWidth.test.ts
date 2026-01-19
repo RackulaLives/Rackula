@@ -23,6 +23,7 @@ describe("sidebarWidth", () => {
   })();
 
   beforeEach(() => {
+    vi.clearAllMocks();
     localStorageMock.clear();
     vi.stubGlobal("localStorage", localStorageMock);
   });
