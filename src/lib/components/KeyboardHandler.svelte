@@ -21,6 +21,7 @@
     onsave?: () => void;
     onload?: () => void;
     onexport?: () => void;
+    onshare?: () => void;
     ondelete?: () => void;
     onfitall?: () => void;
     onhelp?: () => void;
@@ -32,6 +33,7 @@
     onsave,
     onload,
     onexport,
+    onshare,
     ondelete,
     onfitall,
     onhelp,
@@ -227,6 +229,18 @@
         key: "e",
         meta: true,
         action: () => onexport?.(),
+      },
+
+      // Ctrl/Cmd+H - share
+      {
+        key: "h",
+        ctrl: true,
+        action: () => onshare?.(),
+      },
+      {
+        key: "h",
+        meta: true,
+        action: () => onshare?.(),
       },
 
       // Ctrl/Cmd+D - duplicate selected (device or rack)

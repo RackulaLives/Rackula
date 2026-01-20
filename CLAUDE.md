@@ -430,6 +430,7 @@ layoutDebug.device("placed device %s at U%d", slug, position);
 | `Ctrl+S`       | Save layout                    |
 | `Ctrl+O`       | Load layout                    |
 | `Ctrl+E`       | Export                         |
+| `Ctrl+H`       | Share                          |
 | `Ctrl+D`       | Duplicate selected device/rack |
 | `I`            | Toggle display mode            |
 | `F`            | Fit all                        |
