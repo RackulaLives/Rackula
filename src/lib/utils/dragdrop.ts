@@ -3,7 +3,13 @@
  * Handles drag data, position calculation, and drop validation
  */
 
-import type { DeviceType, DeviceFace, Rack, SlotPosition } from "$lib/types";
+import type {
+  DeviceType,
+  DeviceFace,
+  Rack,
+  Slot,
+  SlotPosition,
+} from "$lib/types";
 import { canPlaceDevice } from "./collision";
 import { RAIL_WIDTH } from "$lib/constants/layout";
 import { toInternalUnits } from "./position";
@@ -307,4 +313,114 @@ export function detectContainerDropTarget(
   }
 
   return null;
+}
+
+/**
+ * Container hover information for drag overlay
+ * Used to show slot grid during drag-over
+ */
+export interface ContainerHoverInfo {
+  /** ID of the container PlacedDevice */
+  containerId: string;
+  /** The slot ID currently under cursor (null if between slots) */
+  targetSlotId: string | null;
+  /** Whether the current slot is a valid drop target for the dragged device */
+  isValidTarget: boolean;
+}
+
+/**
+ * Detect if cursor is hovering over any container during drag
+ * Unlike detectContainerDropTarget, this doesn't require pre-selection
+ * and returns info for showing the slot overlay.
+ *
+ * @param rack - The rack to search
+ * @param deviceLibrary - Device library for looking up device types
+ * @param draggedDevice - The device being dragged (for compatibility check)
+ * @param targetU - The U position under cursor
+ * @param xOffsetInRack - X position relative to rack interior (0 = left rail)
+ * @param rackWidth - Total rack width in pixels
+ * @returns ContainerHoverInfo if hovering over a container, null otherwise
+ */
+export function detectContainerHover(
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  draggedDevice: DeviceType,
+  targetU: number,
+  xOffsetInRack: number,
+  rackWidth: number,
+): ContainerHoverInfo | null {
+  // Find any container at this U position
+  for (const placedDevice of rack.devices) {
+    // Skip container children
+    if (placedDevice.container_id) continue;
+
+    const deviceType = deviceLibrary.find(
+      (d) => d.slug === placedDevice.device_type,
+    );
+    if (!deviceType?.slots || deviceType.slots.length === 0) continue;
+
+    // Check if targetU is within container bounds
+    const containerTop = placedDevice.position + deviceType.u_height - 1;
+    const containerBottom = placedDevice.position;
+    if (targetU < containerBottom || targetU > containerTop) continue;
+
+    // Found a container at this position - determine which slot
+    const interiorWidth = rackWidth - RAIL_WIDTH * 2;
+    let accumulatedWidth = 0;
+    let targetSlotId: string | null = null;
+    let isValidTarget = false;
+
+    for (const slot of deviceType.slots) {
+      const slotWidth = interiorWidth * (slot.width_fraction ?? 1.0);
+      if (
+        xOffsetInRack >= accumulatedWidth &&
+        xOffsetInRack < accumulatedWidth + slotWidth
+      ) {
+        targetSlotId = slot.id;
+        // Check if dragged device is compatible with this slot
+        isValidTarget = isSlotCompatible(slot, draggedDevice);
+        break;
+      }
+      accumulatedWidth += slotWidth;
+    }
+
+    return {
+      containerId: placedDevice.id,
+      targetSlotId,
+      isValidTarget,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Check if a device is compatible with a slot.
+ * A device is compatible if:
+ * - The slot's accepts array is empty (accepts all) OR includes the device's category
+ * - The device fits within the slot dimensions
+ */
+function isSlotCompatible(slot: Slot, device: DeviceType): boolean {
+  // Check category is allowed (empty accepts = all allowed)
+  if (slot.accepts && slot.accepts.length > 0) {
+    if (!slot.accepts.includes(device.category)) {
+      return false;
+    }
+  }
+
+  // Check width fits (slot_width 1 = half, 2 = full)
+  const slotWidth = device.slot_width ?? 2;
+  const requiredFraction = slotWidth === 1 ? 0.5 : 1.0;
+  const availableFraction = slot.width_fraction ?? 1.0;
+  if (requiredFraction > availableFraction + 0.01) {
+    return false;
+  }
+
+  // Check height fits
+  const slotHeight = slot.height_units ?? 1;
+  if (device.u_height > slotHeight) {
+    return false;
+  }
+
+  return true;
 }

@@ -72,6 +72,12 @@
     }>;
     /** ID of currently selected child device (for highlighting) */
     selectedChildId?: string | null;
+    /** Whether a device is being dragged over this container (shows slot overlay) */
+    isDragOverContainer?: boolean;
+    /** The slot ID currently targeted during drag (null if none) */
+    dragTargetSlotId?: string | null;
+    /** Whether the current drag target slot is valid for the dragged device */
+    isDragTargetValid?: boolean;
     onselect?: (event: CustomEvent<{ slug: string; position: number }>) => void;
     ondragstart?: (
       event: CustomEvent<{ rackId: string; deviceIndex: number }>,
@@ -112,6 +118,9 @@
     deviceLibrary = [],
     containerChildDevices = [],
     selectedChildId = null,
+    isDragOverContainer = false,
+    dragTargetSlotId = null,
+    isDragTargetValid = false,
     onselect,
     ondragstart: ondragstartProp,
     ondragend: ondragendProp,
@@ -605,13 +614,15 @@
     />
   {/if}
 
-  <!-- Container slot grid (shown when selected container) -->
-  {#if isContainer && selected}
+  <!-- Container slot grid (shown when selected OR during drag-over) -->
+  {#if isContainer && (selected || isDragOverContainer)}
     <ContainerSlots
       containerType={device}
       containerWidth={deviceWidth}
       containerHeight={deviceHeight}
       selectedSlotId={null}
+      dropTargetSlotId={isDragOverContainer ? dragTargetSlotId : null}
+      isValidDropTarget={isDragTargetValid}
     />
   {/if}
 

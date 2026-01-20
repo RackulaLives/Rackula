@@ -18,7 +18,9 @@
     getDropFeedback,
     getCurrentDragData,
     detectContainerDropTarget,
+    detectContainerHover,
     type DropFeedback,
+    type ContainerHoverInfo,
   } from "$lib/utils/dragdrop";
   import { findCollisions } from "$lib/utils/collision";
   import { getDeviceDisplayName } from "$lib/utils/device";
@@ -198,6 +200,9 @@
     feedback: DropFeedback;
   } | null>(null);
 
+  // Container hover state for showing slot overlay during drag
+  let containerHoverInfo = $state<ContainerHoverInfo | null>(null);
+
   // Generate U labels based on desc_units and starting_unit
   // When desc_units=false (default): U1 at bottom, numbers increase upward
   // When desc_units=true: U1 at top, numbers increase downward
@@ -335,6 +340,19 @@
         RACK_PADDING,
       );
 
+      // Calculate X offset within rack interior for container hover detection
+      const xOffsetInRack = svgCoords.x - RAIL_WIDTH;
+
+      // Detect if hovering over a container slot
+      containerHoverInfo = detectContainerHover(
+        rack,
+        deviceLibrary,
+        device,
+        targetU,
+        xOffsetInRack,
+        RACK_WIDTH,
+      );
+
       // For internal moves, exclude the source device from collision checks
       const excludeIndex = isInternalMove
         ? event.detail.deviceIndex
@@ -365,8 +383,9 @@
         deviceIndex,
       } = event.detail;
 
-      // Clear preview
+      // Clear preview and container hover
       dropPreview = null;
+      containerHoverInfo = null;
       _draggingDeviceIndex = null;
 
       // Determine if this is an internal move (cross-rack is simply !isInternalMove)
@@ -573,6 +592,19 @@
       RACK_PADDING,
     );
 
+    // Calculate X offset within rack interior for container hover detection
+    const xOffsetInRack = svgCoords.x - RAIL_WIDTH;
+
+    // Detect if hovering over a container slot
+    containerHoverInfo = detectContainerHover(
+      rack,
+      deviceLibrary,
+      dragData.device,
+      targetU,
+      xOffsetInRack,
+      RACK_WIDTH,
+    );
+
     // For internal moves, exclude the source device from collision checks
     const excludeIndex = isInternalMove ? dragData.sourceIndex : undefined;
     const feedback = getDropFeedback(
@@ -601,6 +633,7 @@
     const relatedTarget = event.relatedTarget as Node | null;
     if (!relatedTarget || !svg.contains(relatedTarget)) {
       dropPreview = null;
+      containerHoverInfo = null;
     }
   }
 
@@ -1274,6 +1307,14 @@
             {deviceLibrary}
             containerChildDevices={children}
             selectedChildId={selectedDeviceId}
+            isDragOverContainer={containerHoverInfo?.containerId ===
+              placedDevice.id}
+            dragTargetSlotId={containerHoverInfo?.containerId ===
+            placedDevice.id
+              ? containerHoverInfo.targetSlotId
+              : null}
+            isDragTargetValid={containerHoverInfo?.containerId ===
+              placedDevice.id && containerHoverInfo.isValidTarget}
             onselect={ondeviceselect}
             ondragstart={() => handleDeviceDragStart(originalIndex)}
             ondragend={handleDeviceDragEnd}
