@@ -4,7 +4,6 @@
 -->
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
-  import { onMount } from "svelte";
 
   interface Props {
     open: boolean;
@@ -50,26 +49,6 @@
   function handleCancel() {
     oncancel?.();
   }
-
-  // Handle keyboard shortcuts
-  function handleKeyDown(event: KeyboardEvent) {
-    if (!open) return;
-
-    if (event.key === "Enter") {
-      event.preventDefault();
-      handleKeepAll();
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      handleCancel();
-    }
-  }
-
-  onMount(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  });
 </script>
 
 <Dialog
@@ -99,7 +78,7 @@
       <button type="button" class="btn btn-secondary" onclick={handleCancel}>
         Cancel
       </button>
-      <button type="button" class="btn btn-secondary" onclick={handleKeepAll}>
+      <button type="button" class="btn btn-secondary" onclick={handleKeepAll} autofocus>
         Keep All
       </button>
       <button type="button" class="btn btn-primary" onclick={handleReview}>
@@ -170,7 +149,7 @@
 
   .btn-primary {
     background: var(--colour-selection);
-    color: white;
+    color: var(--colour-text-on-primary);
   }
 
   .btn-primary:hover {
