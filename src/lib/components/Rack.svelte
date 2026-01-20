@@ -118,8 +118,20 @@
   let _draggingDeviceIndex = $state<number | null>(null);
   // Track if we just finished dragging a device (to prevent rack selection on release)
   let justFinishedDrag = $state(false);
+  // Track the drag debounce timeout for cleanup on unmount
+  let dragDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
   // Track Shift key state for fine-positioning mode
   let shiftKeyHeld = $state(false);
+
+  // Cleanup timeout on unmount to prevent stale state updates
+  $effect(() => {
+    return () => {
+      if (dragDebounceTimeout) {
+        clearTimeout(dragDebounceTimeout);
+        dragDebounceTimeout = null;
+      }
+    };
+  });
 
   // Device context menu state
   let deviceContextMenuOpen = $state(false);
@@ -414,8 +426,13 @@
 
       // Set flag to prevent rack selection on the click that follows
       justFinishedDrag = true;
-      setTimeout(() => {
+      // Clear any existing timeout to avoid race conditions
+      if (dragDebounceTimeout) {
+        clearTimeout(dragDebounceTimeout);
+      }
+      dragDebounceTimeout = setTimeout(() => {
         justFinishedDrag = false;
+        dragDebounceTimeout = null;
       }, DRAG_CLICK_DEBOUNCE_MS);
     }
 
@@ -595,9 +612,14 @@
     _draggingDeviceIndex = null;
     // Set flag to prevent rack selection on the click that follows drag end
     justFinishedDrag = true;
+    // Clear any existing timeout to avoid race conditions
+    if (dragDebounceTimeout) {
+      clearTimeout(dragDebounceTimeout);
+    }
     // Reset the flag after a short delay (in case no click event follows)
-    setTimeout(() => {
+    dragDebounceTimeout = setTimeout(() => {
       justFinishedDrag = false;
+      dragDebounceTimeout = null;
     }, DRAG_CLICK_DEBOUNCE_MS);
   }
 
