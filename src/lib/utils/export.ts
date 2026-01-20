@@ -1536,7 +1536,10 @@ export async function exportAsMultiPagePDF(
     const imgHeight = parseInt(svg.getAttribute("height") || "0", 10);
 
     if (imgWidth === 0 || imgHeight === 0) {
-      continue; // Skip invalid SVGs
+      console.warn(
+        `Skipping rack "${rack.name}" due to invalid SVG dimensions (${imgWidth}x${imgHeight})`,
+      );
+      continue;
     }
 
     // Determine page orientation based on rack aspect ratio
