@@ -15,6 +15,7 @@
   import ImportFromNetBoxDialog from "$lib/components/ImportFromNetBoxDialog.svelte";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import ConfirmReplaceDialog from "$lib/components/ConfirmReplaceDialog.svelte";
+  import CleanupDialog from "$lib/components/CleanupDialog.svelte";
   import ToastContainer from "$lib/components/ToastContainer.svelte";
   import PortTooltip from "$lib/components/PortTooltip.svelte";
   import DragTooltip from "$lib/components/DragTooltip.svelte";
@@ -110,6 +111,7 @@
   let helpPanelOpen = $derived(dialogStore.isOpen("help"));
   let importFromNetBoxOpen = $derived(dialogStore.isOpen("importNetBox"));
   let showReplaceDialog = $derived(dialogStore.isOpen("confirmReplace"));
+  let cleanupDialogOpen = $derived(dialogStore.isOpen("cleanupDialog"));
 
   // Mobile bottom sheet state - managed by dialogStore
   let bottomSheetOpen = $derived(dialogStore.isSheetOpen("deviceDetails"));
@@ -634,6 +636,14 @@
     handleFitAll();
   }
 
+  function handleOpenCleanupDialog() {
+    dialogStore.open("cleanupDialog");
+  }
+
+  function handleCleanupDialogClose() {
+    dialogStore.close();
+  }
+
   function handleAddDevice() {
     // Close bottom sheet first to avoid z-index conflict on mobile
     dialogStore.closeSheet();
@@ -1022,6 +1032,7 @@
       showAnnotations={uiStore.showAnnotations}
       showBanana={uiStore.showBanana}
       warnOnUnsavedChanges={uiStore.warnOnUnsavedChanges}
+      promptCleanupOnSave={uiStore.promptCleanupOnSave}
       {partyMode}
       onnewrack={handleNewRack}
       onsave={handleSave}
@@ -1038,6 +1049,8 @@
       ontoggleannotations={handleToggleAnnotations}
       ontogglebanana={() => uiStore.toggleBanana()}
       ontogglewarnunsaved={() => uiStore.toggleWarnOnUnsavedChanges()}
+      ontogglepromptcleanup={() => uiStore.togglePromptCleanupOnSave()}
+      onopencleanup={handleOpenCleanupDialog}
       onhelp={handleHelp}
     />
 
@@ -1203,6 +1216,11 @@
     />
 
     <HelpPanel open={helpPanelOpen} onclose={handleHelpClose} />
+
+    <CleanupDialog
+      open={cleanupDialogOpen}
+      onclose={handleCleanupDialogClose}
+    />
 
     <ToastContainer />
 

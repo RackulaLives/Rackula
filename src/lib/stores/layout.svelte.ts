@@ -35,7 +35,7 @@ import {
   findDeviceType as findDeviceTypeInArray,
   type CreateDeviceTypeInput,
 } from "$lib/stores/layout-helpers";
-import { findDeviceType } from "$lib/utils/device-lookup";
+import { findDeviceType, isCustomDevice } from "$lib/utils/device-lookup";
 import { debug, layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { generateRackId, generateGroupId } from "$lib/utils/rack";
@@ -61,6 +61,7 @@ import {
   createCreateRackGroupCommand,
   createUpdateRackGroupCommand,
   createDeleteRackGroupCommand,
+  createBatchCommand,
   type DeviceTypeCommandStore,
   type DeviceCommandStore,
   type RackCommandStore,
@@ -279,11 +280,13 @@ export function getLayoutStore() {
 
     // Utility
     getUsedDeviceTypeSlugs,
+    getUnusedCustomDeviceTypes,
 
     // Recorded actions (use undo/redo)
     addDeviceTypeRecorded,
     updateDeviceTypeRecorded,
     deleteDeviceTypeRecorded,
+    deleteMultipleDeviceTypesRecorded,
     placeDeviceRecorded,
     moveDeviceRecorded,
     removeDeviceRecorded,
@@ -2210,6 +2213,33 @@ function getUsedDeviceTypeSlugs(): Set<string> {
   return slugs;
 }
 
+/**
+ * Get custom device types that have zero placements across all racks
+ * Used for cleanup prompts and bulk deletion
+ * @returns Array of DeviceType objects that are custom and unused
+ */
+function getUnusedCustomDeviceTypes(): DeviceType[] {
+  // Get all device type slugs that are actually placed in racks
+  // Plain Set is intentional - this is a utility function, not reactive state
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
+  const placedSlugs = new Set<string>();
+  for (const rack of layout.racks) {
+    for (const device of rack.devices) {
+      placedSlugs.add(device.device_type);
+    }
+  }
+
+  // Filter to custom device types (not in starter/brand) that have no placements
+  return layout.device_types.filter((dt) => {
+    // Must be a custom device (not in starter or brand packs)
+    if (!isCustomDevice(dt.slug)) {
+      return false;
+    }
+    // Must have no placements
+    return !placedSlugs.has(dt.slug);
+  });
+}
+
 // =============================================================================
 // Command Store Adapter
 // Creates an adapter that implements the command store interfaces
@@ -2330,6 +2360,71 @@ function deleteDeviceTypeRecorded(slug: string): void {
   );
   history.execute(command);
   isDirty = true;
+}
+
+/**
+ * Delete multiple device types with single undo/redo support
+ * Used for bulk cleanup operations
+ * @param slugs - Array of device type slugs to delete
+ * @returns Number of device types actually deleted
+ */
+function deleteMultipleDeviceTypesRecorded(slugs: string[]): number {
+  layoutDebug.state(
+    "deleteMultipleDeviceTypesRecorded: received %d slugs",
+    slugs.length,
+  );
+
+  if (slugs.length === 0) {
+    layoutDebug.state(
+      "deleteMultipleDeviceTypesRecorded: early return - no slugs",
+    );
+    return 0;
+  }
+
+  const history = getHistoryStore();
+  const adapter = getCommandStoreAdapter();
+  const commands: ReturnType<typeof createDeleteDeviceTypeCommand>[] = [];
+
+  for (const slug of slugs) {
+    const existing = findDeviceTypeInArray(layout.device_types, slug);
+    if (!existing) continue;
+
+    const placedDevices = getPlacedDevicesForType(slug);
+    const command = createDeleteDeviceTypeCommand(
+      existing,
+      placedDevices,
+      adapter,
+    );
+    commands.push(command);
+  }
+
+  if (commands.length === 0) {
+    layoutDebug.state(
+      "deleteMultipleDeviceTypesRecorded: no valid commands created",
+    );
+    return 0;
+  }
+
+  // Create a batch command for single undo
+  const count = commands.length;
+  const description =
+    count === 1 ? "Delete device type" : `Delete ${count} device types`;
+
+  layoutDebug.state(
+    "deleteMultipleDeviceTypesRecorded: executing batch command - %s",
+    description,
+  );
+
+  const batchCommand = createBatchCommand(description, commands);
+  history.execute(batchCommand);
+  isDirty = true;
+
+  layoutDebug.state(
+    "deleteMultipleDeviceTypesRecorded: completed - deleted %d device types",
+    count,
+  );
+
+  return count;
 }
 
 /**

@@ -32,6 +32,7 @@
     showAnnotations?: boolean;
     showBanana?: boolean;
     warnOnUnsavedChanges?: boolean;
+    promptCleanupOnSave?: boolean;
     partyMode?: boolean;
     onnewrack?: () => void;
     onsave?: () => void;
@@ -47,6 +48,8 @@
     ontoggleannotations?: () => void;
     ontogglebanana?: () => void;
     ontogglewarnunsaved?: () => void;
+    ontogglepromptcleanup?: () => void;
+    onopencleanup?: () => void;
     onhelp?: () => void;
   }
 
@@ -57,6 +60,7 @@
     showAnnotations = false,
     showBanana = false,
     warnOnUnsavedChanges = true,
+    promptCleanupOnSave = true,
     partyMode = false,
     onnewrack,
     onsave,
@@ -72,6 +76,8 @@
     ontoggleannotations,
     ontogglebanana,
     ontogglewarnunsaved,
+    ontogglepromptcleanup,
+    onopencleanup,
     onhelp,
   }: Props = $props();
 
@@ -170,6 +176,16 @@
   function handleToggleWarnUnsaved() {
     analytics.trackToolbarClick("warn-unsaved");
     ontogglewarnunsaved?.();
+  }
+
+  function handleTogglePromptCleanup() {
+    analytics.trackToolbarClick("prompt-cleanup");
+    ontogglepromptcleanup?.();
+  }
+
+  function handleOpenCleanup() {
+    analytics.trackToolbarClick("open-cleanup");
+    onopencleanup?.();
   }
 </script>
 
@@ -285,10 +301,13 @@
       {showAnnotations}
       {showBanana}
       {warnOnUnsavedChanges}
+      {promptCleanupOnSave}
       ontoggletheme={handleToggleTheme}
       ontoggleannotations={handleToggleAnnotations}
       ontogglebanana={handleToggleBanana}
       ontogglewarnunsaved={handleToggleWarnUnsaved}
+      ontogglepromptcleanup={handleTogglePromptCleanup}
+      onopencleanup={handleOpenCleanup}
     />
   </div>
 </header>

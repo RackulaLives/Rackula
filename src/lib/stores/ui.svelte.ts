@@ -21,6 +21,7 @@ export type SidebarTab = "devices" | "racks";
 // localStorage keys
 const SIDEBAR_TAB_KEY = "Rackula_sidebar_tab";
 const WARN_UNSAVED_KEY = "Rackula_warn_unsaved";
+const PROMPT_CLEANUP_KEY = "Rackula_prompt_cleanup";
 
 /**
  * Valid sidebar tab values for runtime validation
@@ -92,6 +93,32 @@ function saveWarnUnsavedToStorage(warn: boolean): void {
   }
 }
 
+/**
+ * Load prompt cleanup on save setting from localStorage
+ */
+function loadPromptCleanupFromStorage(): boolean {
+  try {
+    const stored = localStorage.getItem(PROMPT_CLEANUP_KEY);
+    if (stored !== null) {
+      return stored === "true";
+    }
+  } catch {
+    // localStorage not available
+  }
+  return true; // default to prompting enabled
+}
+
+/**
+ * Save prompt cleanup on save setting to localStorage
+ */
+function savePromptCleanupToStorage(prompt: boolean): void {
+  try {
+    localStorage.setItem(PROMPT_CLEANUP_KEY, String(prompt));
+  } catch {
+    // localStorage not available
+  }
+}
+
 // Zoom constants
 export const ZOOM_MIN = 50;
 export const ZOOM_MAX = 200;
@@ -102,6 +129,7 @@ const initialTheme = loadThemeFromStorage();
 const initialSidebarWidth = loadSidebarWidthFromStorage();
 const initialSidebarTab = loadSidebarTabFromStorage();
 const initialWarnUnsaved = loadWarnUnsavedFromStorage();
+const initialPromptCleanup = loadPromptCleanupFromStorage();
 
 // Module-level state (using $state rune)
 let theme = $state<Theme>(initialTheme);
@@ -115,6 +143,7 @@ let showBanana = $state(false);
 let sidebarWidth = $state<number | null>(initialSidebarWidth);
 let sidebarTab = $state<SidebarTab>(initialSidebarTab);
 let warnOnUnsavedChanges = $state(initialWarnUnsaved);
+let promptCleanupOnSave = $state(initialPromptCleanup);
 
 // Derived values (using $derived rune)
 const canZoomIn = $derived(zoom < ZOOM_MAX);
@@ -141,6 +170,7 @@ export function resetUIStore(): void {
   sidebarWidth = loadSidebarWidthFromStorage();
   sidebarTab = loadSidebarTabFromStorage();
   warnOnUnsavedChanges = loadWarnUnsavedFromStorage();
+  promptCleanupOnSave = loadPromptCleanupFromStorage();
   applyThemeToDocument(theme);
 }
 
@@ -208,6 +238,9 @@ export function getUIStore() {
     get warnOnUnsavedChanges() {
       return warnOnUnsavedChanges;
     },
+    get promptCleanupOnSave() {
+      return promptCleanupOnSave;
+    },
 
     // Theme actions
     toggleTheme,
@@ -244,6 +277,10 @@ export function getUIStore() {
 
     // Unsaved changes warning action
     toggleWarnOnUnsavedChanges,
+
+    // Cleanup prompt actions
+    togglePromptCleanupOnSave,
+    setPromptCleanupOnSave,
   };
 }
 
@@ -436,4 +473,21 @@ function setSidebarTab(tab: SidebarTab): void {
 function toggleWarnOnUnsavedChanges(): void {
   warnOnUnsavedChanges = !warnOnUnsavedChanges;
   saveWarnUnsavedToStorage(warnOnUnsavedChanges);
+}
+
+/**
+ * Toggle prompt cleanup on save setting
+ */
+function togglePromptCleanupOnSave(): void {
+  promptCleanupOnSave = !promptCleanupOnSave;
+  savePromptCleanupToStorage(promptCleanupOnSave);
+}
+
+/**
+ * Set prompt cleanup on save setting
+ * @param prompt - Whether to prompt for cleanup
+ */
+function setPromptCleanupOnSave(prompt: boolean): void {
+  promptCleanupOnSave = prompt;
+  savePromptCleanupToStorage(prompt);
 }

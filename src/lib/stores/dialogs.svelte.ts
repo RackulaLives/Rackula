@@ -16,7 +16,8 @@ export type DialogId =
   | "share"
   | "help"
   | "importNetBox"
-  | "confirmReplace";
+  | "confirmReplace"
+  | "cleanupDialog";
 
 export type SheetId = "deviceDetails" | "deviceLibrary" | "rackEdit";
 
