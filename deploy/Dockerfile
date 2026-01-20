@@ -19,16 +19,22 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# Production stage - non-root nginx
+FROM nginxinc/nginx-unprivileged:alpine
+
+# OCI labels
+LABEL org.opencontainers.image.source="https://github.com/RackulaLives/Rackula"
+LABEL org.opencontainers.image.description="Rack Layout Designer for Homelabbers"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.title="Rackula"
 
 # Copy nginx config and built assets
 COPY ./deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Health check
+# Health check (port 8080 for unprivileged nginx, busybox wget is built-in)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://127.0.0.1/health || exit 1
+  CMD wget -q --spider http://127.0.0.1:8080/health || exit 1
 
-EXPOSE 80
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]

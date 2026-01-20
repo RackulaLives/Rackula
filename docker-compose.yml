@@ -1,8 +1,38 @@
 services:
-  Rackula:
+  rackula:
     image: ghcr.io/rackulalives/rackula:latest
     # To build locally instead, comment out 'image' and uncomment 'build':
     # build: ./deploy
+    container_name: rackula
     ports:
-      - "8080:80"
+      - "${RACKULA_PORT:-8080}:8080"
     restart: unless-stopped
+    stop_grace_period: 10s
+
+    # Resource limits (requires Docker Compose v2)
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+        reservations:
+          cpus: "0.10"
+          memory: 16M
+
+    # Security hardening (no cap_add needed with non-root nginx)
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=10M
+      - /var/run:size=1M
+      - /tmp:size=5M
+
+    # Logging
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
