@@ -45,6 +45,18 @@
   // Device display name: model or slug
   const deviceName = $derived(device.model ?? device.slug);
 
+  // Check if device is half-width
+  const isHalfWidth = $derived(device.slot_width === 1);
+
+  // Build accessible description for device
+  const ariaDescription = $derived.by(() => {
+    const parts = [deviceName, `${device.u_height}U`, device.category];
+    if (isHalfWidth) parts.push("half-width");
+    if (!isCompatible && incompatibilityReason)
+      parts.push(`(${incompatibilityReason})`);
+    return parts.join(", ");
+  });
+
   // Highlighted text segments for search matching
   const highlightedSegments = $derived(highlightMatch(deviceName, searchQuery));
 
@@ -118,9 +130,7 @@
   ondragstart={handleDragStart}
   ondrag={handleDrag}
   ondragend={handleDragEnd}
-  aria-label="{deviceName}, {device.u_height}U {device.category}{!isCompatible
-    ? ` (${incompatibilityReason})`
-    : ''}"
+  aria-label={ariaDescription}
 >
   <span class="drag-handle" aria-hidden="true">
     <IconGrip size={ICON_SIZE.sm} />
@@ -145,6 +155,13 @@
     />
   {/if}
   <span class="device-height">{device.u_height}U</span>
+  {#if isHalfWidth}
+    <span
+      class="width-indicator"
+      title="Half-width: Occupies left or right half of rack"
+      aria-label="Half-width device">½</span
+    >
+  {/if}
   {#if device.is_full_depth === false}
     <span
       class="depth-indicator"
@@ -261,6 +278,17 @@
   }
 
   .depth-indicator {
+    background-color: var(--colour-surface-hover);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--colour-text-muted);
+    flex-shrink: 0;
+    cursor: help;
+  }
+
+  .width-indicator {
     background-color: var(--colour-surface-hover);
     padding: 2px var(--space-2);
     border-radius: var(--radius-full);

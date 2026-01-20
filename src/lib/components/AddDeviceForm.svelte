@@ -24,6 +24,7 @@
       colour: string;
       notes: string;
       isFullDepth: boolean;
+      isHalfWidth: boolean;
       frontImage?: ImageData;
       rearImage?: ImageData;
     }) => void;
@@ -39,6 +40,7 @@
   let colour = $state(getDefaultColour("server"));
   let notes = $state("");
   let isFullDepth = $state(true);
+  let isHalfWidth = $state(false);
   let userChangedColour = $state(false);
 
   // Image state (v0.1.0)
@@ -58,6 +60,7 @@
       colour = getDefaultColour("server");
       notes = "";
       isFullDepth = true;
+      isHalfWidth = false;
       userChangedColour = false;
       nameError = "";
       heightError = "";
@@ -127,6 +130,7 @@
         colour,
         notes: notes.trim(),
         isFullDepth,
+        isHalfWidth,
         frontImage,
         rearImage,
       });
@@ -255,6 +259,21 @@
         <span class="toggle-text">Full Depth</span>
       </label>
       <span class="helper-text">Occupies both front and rear rack faces</span>
+    </div>
+
+    <!-- Half-width toggle (#833) -->
+    <div class="form-group toggle-group">
+      <label class="toggle-label">
+        <input
+          type="checkbox"
+          id="device-half-width"
+          bind:checked={isHalfWidth}
+          class="toggle-input"
+        />
+        <span class="toggle-switch"></span>
+        <span class="toggle-text">Half Width</span>
+      </label>
+      <span class="helper-text">Occupies left or right half of rack width</span>
     </div>
 
     <!-- Image uploads (v0.1.0) -->

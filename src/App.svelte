@@ -647,6 +647,7 @@
     colour: string;
     notes: string;
     isFullDepth: boolean;
+    isHalfWidth: boolean;
     frontImage?: ImageData;
     rearImage?: ImageData;
   }) {
@@ -657,6 +658,7 @@
       colour: data.colour,
       comments: data.notes || undefined,
       is_full_depth: data.isFullDepth ? undefined : false,
+      slot_width: data.isHalfWidth ? 1 : undefined,
     });
 
     // Store images if provided (v0.1.0)

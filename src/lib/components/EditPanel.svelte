@@ -912,6 +912,12 @@
             >{getCategoryDisplayName(selectedDeviceInfo.device.category)}</span
           >
         </div>
+        {#if selectedDeviceInfo.device.slot_width === 1}
+          <div class="info-row">
+            <span class="info-label">Width</span>
+            <span class="info-value">Half</span>
+          </div>
+        {/if}
         <div class="info-row position-row">
           <span class="info-label">Position</span>
           <div class="position-controls">
