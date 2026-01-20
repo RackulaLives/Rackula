@@ -6,6 +6,7 @@
 <script lang="ts">
   import { Accordion } from "bits-ui";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getToastStore } from "$lib/stores/toast.svelte";
   import {
     searchDevices,
     groupDevicesByCategory,
@@ -38,6 +39,7 @@
   let { ondeviceselect, oncreatedevice }: Props = $props();
 
   const layoutStore = getLayoutStore();
+  const toastStore = getToastStore();
 
   // Search state with debouncing
   let searchQueryRaw = $state("");
@@ -145,6 +147,86 @@
     const deviceWidths = device.rack_widths?.length ? device.rack_widths : [19];
     const minWidth = Math.min(...deviceWidths);
     return `Requires ${minWidth}" rack (current: ${activeRackWidth}")`;
+  }
+
+  // Get unused custom device type slugs for showing delete buttons
+  // This is reactive and updates when devices are placed/removed
+  const unusedCustomDeviceSlugs = $derived.by(() => {
+    const unused = layoutStore.getUnusedCustomDeviceTypes();
+    return new Set(unused.map((d) => d.slug));
+  });
+
+  /**
+   * Check if a device type can be deleted (is an unused custom type)
+   */
+  function canDeleteDevice(device: DeviceType): boolean {
+    return unusedCustomDeviceSlugs.has(device.slug);
+  }
+
+  // Batch delete state for grouping rapid successive deletes
+  let pendingDeletes: DeviceType[] = [];
+  let pendingToastId: string | null = null;
+  let batchTimeout: ReturnType<typeof setTimeout> | null = null;
+  const BATCH_DELAY = 500; // ms to wait before showing toast
+
+  /**
+   * Show batch toast for pending deletes
+   */
+  function showBatchToast() {
+    if (pendingDeletes.length === 0) return;
+
+    const deletedTypes = [...pendingDeletes];
+    pendingDeletes = [];
+
+    // Dismiss any existing pending toast
+    if (pendingToastId) {
+      toastStore.dismissToast(pendingToastId);
+      pendingToastId = null;
+    }
+
+    const message =
+      deletedTypes.length === 1
+        ? `Deleted "${deletedTypes[0].model ?? deletedTypes[0].slug}"`
+        : `Deleted ${deletedTypes.length} device types`;
+
+    const actionLabel = deletedTypes.length === 1 ? "Undo" : "Undo All";
+
+    pendingToastId = toastStore.showToast(message, "info", 5000, {
+      label: actionLabel,
+      onClick: () => {
+        // Undo: re-add all deleted device types
+        for (const dt of deletedTypes) {
+          layoutStore.addDeviceTypeRaw(dt);
+        }
+        pendingToastId = null;
+      },
+    });
+
+    // Clear toast ID after it auto-dismisses
+    setTimeout(() => {
+      pendingToastId = null;
+    }, 5500);
+  }
+
+  /**
+   * Handle device type deletion with toast undo support
+   * Groups rapid successive deletes into a batch toast
+   */
+  function handleDeviceDelete(event: CustomEvent<{ device: DeviceType }>) {
+    const device = event.detail.device;
+
+    // Store the device type for potential undo
+    const deletedDeviceType = { ...device };
+    pendingDeletes.push(deletedDeviceType);
+
+    // Delete the device type (each delete is recorded for Ctrl+Z undo)
+    layoutStore.deleteDeviceTypeRecorded(device.slug);
+
+    // Reset batch timer - wait for more potential deletes
+    if (batchTimeout) {
+      clearTimeout(batchTimeout);
+    }
+    batchTimeout = setTimeout(showBatchToast, BATCH_DELAY);
   }
 
   // Merge starter library with layout device types for display
@@ -445,7 +527,9 @@
                               incompatibilityReason={getIncompatibilityReason(
                                 device,
                               )}
+                              canDelete={canDeleteDevice(device)}
                               onselect={handleDeviceSelect}
+                              ondelete={handleDeviceDelete}
                             />
                           {/each}
                         </div>
@@ -461,7 +545,9 @@
                         searchQuery={isSearchActive ? searchQuery : ""}
                         isCompatible={checkDeviceCompatibility(device)}
                         incompatibilityReason={getIncompatibilityReason(device)}
+                        canDelete={canDeleteDevice(device)}
                         onselect={handleDeviceSelect}
+                        ondelete={handleDeviceDelete}
                       />
                     {/each}
                   </div>

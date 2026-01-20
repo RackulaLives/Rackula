@@ -35,7 +35,7 @@ import {
   findDeviceType as findDeviceTypeInArray,
   type CreateDeviceTypeInput,
 } from "$lib/stores/layout-helpers";
-import { findDeviceType, isCustomDevice } from "$lib/utils/device-lookup";
+import { findDeviceType } from "$lib/utils/device-lookup";
 import { debug, layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { generateRackId, generateGroupId } from "$lib/utils/rack";
@@ -43,6 +43,8 @@ import { instantiatePorts } from "$lib/utils/port-utils";
 import { sanitizeFilename } from "$lib/utils/imageUpload";
 import { getHistoryStore } from "./history.svelte";
 import { getImageStore } from "./images.svelte";
+import { getStarterSlugs } from "$lib/data/starterLibrary";
+import { getBrandSlugs } from "$lib/data/brandPacks";
 import {
   createAddDeviceTypeCommand,
   createUpdateDeviceTypeCommand,
@@ -281,6 +283,8 @@ export function getLayoutStore() {
     // Utility
     getUsedDeviceTypeSlugs,
     getUnusedCustomDeviceTypes,
+    isCustomDeviceType,
+    hasDeviceTypePlacements,
 
     // Recorded actions (use undo/redo)
     addDeviceTypeRecorded,
@@ -2214,30 +2218,61 @@ function getUsedDeviceTypeSlugs(): Set<string> {
 }
 
 /**
- * Get custom device types that have zero placements across all racks
- * Used for cleanup prompts and bulk deletion
- * @returns Array of DeviceType objects that are custom and unused
+ * Get device type slugs that are currently placed in any rack
+ * Only counts actual placements, not just defined types
  */
-function getUnusedCustomDeviceTypes(): DeviceType[] {
-  // Get all device type slugs that are actually placed in racks
+function getPlacedDeviceTypeSlugs(): Set<string> {
   // Plain Set is intentional - this is a utility function, not reactive state
   // eslint-disable-next-line svelte/prefer-svelte-reactivity
-  const placedSlugs = new Set<string>();
+  const slugs = new Set<string>();
+
   for (const rack of layout.racks) {
     for (const device of rack.devices) {
-      placedSlugs.add(device.device_type);
+      slugs.add(device.device_type);
     }
   }
 
-  // Filter to custom device types (not in starter/brand) that have no placements
+  return slugs;
+}
+
+/**
+ * Get unused custom device types
+ * Returns device types that:
+ * 1. Are in layout.device_types (custom/user-defined)
+ * 2. Are NOT in starter library
+ * 3. Are NOT in brand packs
+ * 4. Have zero placements across all racks
+ */
+function getUnusedCustomDeviceTypes(): DeviceType[] {
+  const starterSlugs = getStarterSlugs();
+  const brandSlugs = getBrandSlugs();
+  const placedSlugs = getPlacedDeviceTypeSlugs();
+
   return layout.device_types.filter((dt) => {
-    // Must be a custom device (not in starter or brand packs)
-    if (!isCustomDevice(dt.slug)) {
-      return false;
-    }
-    // Must have no placements
-    return !placedSlugs.has(dt.slug);
+    // Must not be a starter library device
+    if (starterSlugs.has(dt.slug)) return false;
+    // Must not be a brand pack device
+    if (brandSlugs.has(dt.slug)) return false;
+    // Must not have any placements
+    if (placedSlugs.has(dt.slug)) return false;
+    return true;
   });
+}
+
+/**
+ * Check if a device type slug is a custom type (not starter or brand)
+ */
+function isCustomDeviceType(slug: string): boolean {
+  const starterSlugs = getStarterSlugs();
+  const brandSlugs = getBrandSlugs();
+  return !starterSlugs.has(slug) && !brandSlugs.has(slug);
+}
+
+/**
+ * Check if a device type has any placements in any rack
+ */
+function hasDeviceTypePlacements(slug: string): boolean {
+  return getPlacedDeviceTypeSlugs().has(slug);
 }
 
 // =============================================================================

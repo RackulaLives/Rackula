@@ -6,9 +6,11 @@
 <script lang="ts">
   import type { DeviceType } from "$lib/types";
   import IconGrip from "./icons/IconGrip.svelte";
+  import IconTrash from "./icons/IconTrash.svelte";
   import CategoryIcon from "./CategoryIcon.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import ImageIndicator from "./ImageIndicator.svelte";
+  import Tooltip from "./Tooltip.svelte";
   import {
     createPaletteDragData,
     serializeDragData,
@@ -30,7 +32,11 @@
     isCompatible?: boolean;
     /** Tooltip text to show when device is incompatible */
     incompatibilityReason?: string;
+    /** Whether this device type can be deleted (unused custom type) */
+    canDelete?: boolean;
     onselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
+    /** Called when user clicks delete button for unused custom device */
+    ondelete?: (event: CustomEvent<{ device: DeviceType }>) => void;
   }
 
   let {
@@ -39,11 +45,25 @@
     searchQuery = "",
     isCompatible = true,
     incompatibilityReason = "",
+    canDelete = false,
     onselect,
+    ondelete,
   }: Props = $props();
 
   // Device display name: model or slug
   const deviceName = $derived(device.model ?? device.slug);
+
+  // Check if device is half-width
+  const isHalfWidth = $derived(device.slot_width === 1);
+
+  // Build accessible description for device
+  const ariaDescription = $derived.by(() => {
+    const parts = [deviceName, `${device.u_height}U`, device.category];
+    if (isHalfWidth) parts.push("half-width");
+    if (!isCompatible && incompatibilityReason)
+      parts.push(`(${incompatibilityReason})`);
+    return parts.join(", ");
+  });
 
   // Highlighted text segments for search matching
   const highlightedSegments = $derived(highlightMatch(deviceName, searchQuery));
@@ -59,6 +79,20 @@
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       onselect?.(new CustomEvent("select", { detail: { device } }));
+    }
+  }
+
+  function handleDeleteClick(event: MouseEvent) {
+    // Prevent triggering the parent click handler
+    event.stopPropagation();
+    ondelete?.(new CustomEvent("delete", { detail: { device } }));
+  }
+
+  function handleDeleteKeyDown(event: KeyboardEvent) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      event.stopPropagation();
+      ondelete?.(new CustomEvent("delete", { detail: { device } }));
     }
   }
 
@@ -118,9 +152,7 @@
   ondragstart={handleDragStart}
   ondrag={handleDrag}
   ondragend={handleDragEnd}
-  aria-label="{deviceName}, {device.u_height}U {device.category}{!isCompatible
-    ? ` (${incompatibilityReason})`
-    : ''}"
+  aria-label={ariaDescription}
 >
   <span class="drag-handle" aria-hidden="true">
     <IconGrip size={ICON_SIZE.sm} />
@@ -145,12 +177,33 @@
     />
   {/if}
   <span class="device-height">{device.u_height}U</span>
+  {#if isHalfWidth}
+    <span
+      class="width-indicator"
+      title="Half-width: Occupies left or right half of rack"
+      aria-label="Half-width device">½</span
+    >
+  {/if}
   {#if device.is_full_depth === false}
     <span
       class="depth-indicator"
       title="Half-depth: Mounts on one face only"
       aria-label="Half-depth device">½D</span
     >
+  {/if}
+  {#if canDelete}
+    <Tooltip text="Delete unused device type" position="left">
+      <button
+        type="button"
+        class="delete-btn"
+        onclick={handleDeleteClick}
+        onkeydown={handleDeleteKeyDown}
+        aria-label="Delete {deviceName}"
+        data-testid="delete-device-type-btn"
+      >
+        <IconTrash size={ICON_SIZE.sm} />
+      </button>
+    </Tooltip>
   {/if}
 </div>
 
@@ -269,5 +322,52 @@
     color: var(--colour-text-muted);
     flex-shrink: 0;
     cursor: help;
+  }
+
+  .width-indicator {
+    background-color: var(--colour-surface-hover);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--colour-text-muted);
+    flex-shrink: 0;
+    cursor: help;
+  }
+
+  .delete-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-6);
+    height: var(--space-6);
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--colour-text-muted);
+    opacity: 0;
+    transition:
+      opacity var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+    flex-shrink: 0;
+  }
+
+  .device-palette-item:hover .delete-btn,
+  .device-palette-item:focus-within .delete-btn {
+    opacity: 1;
+  }
+
+  .delete-btn:hover {
+    color: var(--colour-error);
+    background-color: var(--colour-surface-active);
+  }
+
+  .delete-btn:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--colour-focus-ring);
+    outline-offset: 1px;
   }
 </style>
