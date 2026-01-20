@@ -12,49 +12,63 @@ import { afterEach, beforeEach, vi } from "vitest";
  *    when aborting pending fetch operations during teardown. This is expected
  *    cleanup behavior and not indicative of test failures.
  *
- * Strategy:
+ * Strategy (5 mechanisms):
  * 1. vi.clearAllTimers() in afterEach prevents most timer-related errors
- * 2. Console.error filter catches remaining scroll lock and abort messages
- * 3. Process uncaughtException handler catches async cleanup errors
+ * 2. console.error filter catches scroll lock and Happy-DOM abort messages
+ * 3. process.on('uncaughtException') handler catches async cleanup errors
+ * 4. process.on('unhandledRejection') handler catches async cleanup rejections
+ * 5. process.stderr.write interception filters Happy-DOM abort output
  *
  * This targeted approach replaces the blanket dangerouslyIgnoreUnhandledErrors.
  */
+
+// Shared helper functions for error detection
+const isAbortMessage = (message: string): boolean =>
+  message.includes("AbortError") ||
+  message.includes("The operation was aborted");
+
+const isFromHappyDom = (message: string): boolean =>
+  message.includes("happy-dom") || message.includes("AsyncTaskManager");
+
+const isHappyDomAbortMessage = (message: string): boolean =>
+  isAbortMessage(message) && isFromHappyDom(message);
+
+const isScrollLockMessage = (message: string): boolean =>
+  message.includes("resetBodyStyle") || message.includes("body-scroll-lock");
+
+// Error object helpers (for exceptions with stack traces)
+const isHappyDomAbortError = (error: Error): boolean => {
+  const stack = error.stack ?? "";
+  const message = error.message ?? "";
+  // Require Happy-DOM markers even for AbortError name to avoid hiding legitimate aborts
+  if (error.name === "AbortError") {
+    return stack.includes("happy-dom") || stack.includes("AsyncTaskManager");
+  }
+  return isAbortMessage(message) && isFromHappyDom(stack);
+};
+
+const isScrollLockError = (error: Error): boolean => {
+  const stack = error.stack ?? "";
+  return (
+    (error.message?.includes("document is not defined") ?? false) &&
+    stack.includes("body-scroll-lock")
+  );
+};
+
+// Console.error filter
 const originalConsoleError = console.error;
 console.error = (...args: unknown[]) => {
   const message = String(args[0]);
-  // Suppress bits-ui scroll lock errors
-  if (
-    message.includes("resetBodyStyle") ||
-    message.includes("body-scroll-lock")
-  ) {
-    return;
-  }
-  // Suppress Happy-DOM AbortError - check for stack trace markers to avoid
-  // hiding legitimate abort errors from application code
-  const isAbortMessage =
-    message.includes("AbortError") ||
-    message.includes("The operation was aborted");
-  const isFromHappyDom =
-    message.includes("happy-dom") || message.includes("AsyncTaskManager");
-  if (isAbortMessage && isFromHappyDom) {
+  if (isScrollLockMessage(message) || isHappyDomAbortMessage(message)) {
     return;
   }
   originalConsoleError.apply(console, args);
 };
 
-// Handle uncaught exceptions and unhandled rejections from cleanup
+// Process event handlers for uncaught exceptions and rejections
 if (typeof process !== "undefined" && process.on) {
-  const isAbortError = (error: Error): boolean =>
-    error.name === "AbortError" ||
-    (error.message?.includes("The operation was aborted") &&
-      error.stack?.includes("happy-dom"));
-
-  const isScrollLockError = (error: Error): boolean =>
-    error.message?.includes("document is not defined") &&
-    error.stack?.includes("body-scroll-lock");
-
   process.on("uncaughtException", (error: Error) => {
-    if (isScrollLockError(error) || isAbortError(error)) {
+    if (isScrollLockError(error) || isHappyDomAbortError(error)) {
       return;
     }
     throw error;
@@ -62,7 +76,7 @@ if (typeof process !== "undefined" && process.on) {
 
   process.on("unhandledRejection", (reason: unknown) => {
     if (reason instanceof Error) {
-      if (isScrollLockError(reason) || isAbortError(reason)) {
+      if (isScrollLockError(reason) || isHappyDomAbortError(reason)) {
         return;
       }
     }
@@ -71,8 +85,7 @@ if (typeof process !== "undefined" && process.on) {
   });
 }
 
-// Suppress Happy-DOM AbortError messages written to stderr during cleanup
-// These occur when AsyncTaskManager.abortAll() cancels pending fetch/stream operations
+// Stderr write interception for Happy-DOM abort messages
 // The stderr output includes the full stack trace with "happy-dom" and "AsyncTaskManager"
 if (typeof process !== "undefined" && process.stderr) {
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
@@ -82,13 +95,7 @@ if (typeof process !== "undefined" && process.stderr) {
     callback?: (err?: Error) => void,
   ): boolean => {
     const message = typeof chunk === "string" ? chunk : chunk.toString();
-    // Only suppress AbortError if it comes from Happy-DOM (check stack trace markers)
-    const isAbortMessage =
-      message.includes("AbortError") ||
-      message.includes("The operation was aborted");
-    const isFromHappyDom =
-      message.includes("happy-dom") || message.includes("AsyncTaskManager");
-    if (isAbortMessage && isFromHappyDom) {
+    if (isHappyDomAbortMessage(message)) {
       // Suppress Happy-DOM abort errors, but still call callback if provided
       const cb =
         typeof encodingOrCallback === "function"
