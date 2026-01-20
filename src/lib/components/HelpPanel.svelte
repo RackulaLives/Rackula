@@ -187,6 +187,7 @@
         { key: formatShortcut("mod", "S"), action: "Save layout" },
         { key: formatShortcut("mod", "O"), action: "Load layout" },
         { key: formatShortcut("mod", "E"), action: "Export image" },
+        { key: formatShortcut("mod", "H"), action: "Share" },
         { key: formatShortcut("mod", "Z"), action: "Undo" },
         { key: formatShortcut("mod", "shift", "Z"), action: "Redo" },
       ],
