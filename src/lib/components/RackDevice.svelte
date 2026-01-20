@@ -48,6 +48,8 @@
     selected: boolean;
     uHeight: number;
     rackWidth: number;
+    /** Physical rack width in inches (10, 19, 23). Used for slot calculation. */
+    rackPhysicalWidth?: number;
     displayMode?: DisplayMode;
     rackView?: RackView;
     showLabelsOnImages?: boolean;
@@ -107,6 +109,7 @@
     selected,
     uHeight,
     rackWidth,
+    rackPhysicalWidth = 19,
     displayMode = "label",
     rackView = "front",
     showLabelsOnImages = false,
@@ -206,7 +209,14 @@
   // Defensive rendering: device type's slot_width is the source of truth
   // A full-width device (slot_width: 2 or undefined) always renders full-width,
   // even if placement data has incorrect slot_position
-  const isDeviceTypeHalfWidth = $derived(device.slot_width === 1);
+  //
+  // 10-inch racks have only 1 slot - all devices render full-width regardless
+  // of their slot_width. This allows 10" devices to work correctly in both
+  // 10" racks (full-width) and 19" racks (half-width).
+  const rackHasTwoSlots = $derived(rackPhysicalWidth > 10);
+  const isDeviceTypeHalfWidth = $derived(
+    device.slot_width === 1 && rackHasTwoSlots,
+  );
   const effectiveSlotPosition = $derived(
     isDeviceTypeHalfWidth ? slotPosition : "full",
   );

@@ -1344,6 +1344,7 @@
             selected={selectedDeviceId === placedDevice.id}
             uHeight={U_HEIGHT}
             rackWidth={RACK_WIDTH}
+            rackPhysicalWidth={rack.width}
             {displayMode}
             rackView={effectiveFaceFilter}
             {showLabelsOnImages}
