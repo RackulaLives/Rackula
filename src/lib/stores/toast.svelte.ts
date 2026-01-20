@@ -62,9 +62,7 @@ function showToast(
 function showUndoToast(message: string, onUndo: () => void): string {
   return showToast(message, "info", DEFAULT_DURATION, {
     label: "Undo",
-    onClick: () => {
-      onUndo();
-    },
+    onClick: onUndo,
   });
 }
 

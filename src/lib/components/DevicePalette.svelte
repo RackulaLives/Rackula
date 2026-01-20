@@ -164,9 +164,10 @@
   }
 
   // Batch delete state for grouping rapid successive deletes
-  let pendingDeletes: DeviceType[] = [];
-  let pendingToastId: string | null = null;
-  let batchTimeout: ReturnType<typeof setTimeout> | null = null;
+  // Using $state for HMR compatibility and proper reactivity
+  let pendingDeletes = $state<DeviceType[]>([]);
+  let pendingToastId = $state<string | null>(null);
+  let batchTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
   const BATCH_DELAY = 500; // ms to wait before showing toast
 
   /**
@@ -191,20 +192,26 @@
 
     const actionLabel = deletedTypes.length === 1 ? "Undo" : "Undo All";
 
-    pendingToastId = toastStore.showToast(message, "info", 5000, {
+    // Capture current toast ID for race condition check
+    const thisToastId = toastStore.showToast(message, "info", 5000, {
       label: actionLabel,
       onClick: () => {
-        // Undo: re-add all deleted device types
-        for (const dt of deletedTypes) {
-          layoutStore.addDeviceTypeRaw(dt);
+        // Undo: call undo() for each deleted device type to maintain history consistency
+        // This properly removes the delete actions from history
+        for (let i = 0; i < deletedTypes.length; i++) {
+          layoutStore.undo();
         }
         pendingToastId = null;
       },
     });
+    pendingToastId = thisToastId;
 
-    // Clear toast ID after it auto-dismisses
+    // Clear toast ID after it auto-dismisses, with race condition check
     setTimeout(() => {
-      pendingToastId = null;
+      // Only clear if this is still the active toast (wasn't manually dismissed or replaced)
+      if (pendingToastId === thisToastId) {
+        pendingToastId = null;
+      }
     }, 5500);
   }
 
