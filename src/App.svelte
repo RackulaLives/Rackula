@@ -1036,7 +1036,7 @@
               onchange={(tab) => uiStore.setSidebarTab(tab)}
             />
             {#if uiStore.sidebarTab === "devices"}
-              <DevicePalette />
+              <DevicePalette oncreatedevice={handleAddDevice} />
             {:else if uiStore.sidebarTab === "racks"}
               <RackList onaddrack={handleNewRack} />
             {/if}
@@ -1193,7 +1193,10 @@
         title="Device Library"
         onclose={handleDeviceLibrarySheetClose}
       >
-        <DevicePalette ondeviceselect={handleMobileDeviceSelect} />
+        <DevicePalette
+          ondeviceselect={handleMobileDeviceSelect}
+          oncreatedevice={handleAddDevice}
+        />
       </BottomSheet>
     {/if}
 

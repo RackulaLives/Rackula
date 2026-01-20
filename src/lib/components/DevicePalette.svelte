@@ -26,14 +26,16 @@
   import DevicePaletteItem from "./DevicePaletteItem.svelte";
   import BrandIcon from "./BrandIcon.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
+  import Tooltip from "./Tooltip.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import type { DeviceType } from "$lib/types";
 
   interface Props {
     ondeviceselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
+    oncreatedevice?: () => void;
   }
 
-  let { ondeviceselect }: Props = $props();
+  let { ondeviceselect, oncreatedevice }: Props = $props();
 
   const layoutStore = getLayoutStore();
 
@@ -351,15 +353,30 @@
       onchange={handleGroupingModeChange}
       ariaLabel="Grouping mode"
     />
-    <input
-      type="search"
-      class="search-input"
-      placeholder="Search devices..."
-      bind:value={searchQueryRaw}
-      oninput={() => updateSearchQuery(searchQueryRaw)}
-      aria-label="Search devices"
-      data-testid="search-devices"
-    />
+    <div class="search-row">
+      <input
+        type="search"
+        class="search-input"
+        placeholder="Search devices..."
+        bind:value={searchQueryRaw}
+        oninput={() => updateSearchQuery(searchQueryRaw)}
+        aria-label="Search devices"
+        data-testid="search-devices"
+      />
+      {#if oncreatedevice}
+        <Tooltip text="Create custom device" position="bottom">
+          <button
+            type="button"
+            class="create-device-btn"
+            onclick={oncreatedevice}
+            aria-label="Create custom device"
+            data-testid="btn-create-custom-device"
+          >
+            +
+          </button>
+        </Tooltip>
+      {/if}
+    </div>
   </div>
 
   <!-- Device List -->
@@ -473,7 +490,14 @@
     padding: var(--space-2) var(--space-2) var(--space-3);
   }
 
+  .search-row {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+  }
+
   .search-input {
+    flex: 1;
     padding: var(--space-2) var(--space-3);
     font-size: var(--font-size-sm);
     color: var(--colour-text);
@@ -484,6 +508,42 @@
     transition:
       border-color var(--duration-fast) ease,
       box-shadow var(--duration-fast) ease;
+  }
+
+  .create-device-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-8);
+    height: var(--space-8);
+    padding: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 400;
+    line-height: 1;
+    color: var(--colour-text-muted);
+    background: var(--colour-surface-secondary);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) ease,
+      color var(--duration-fast) ease,
+      border-color var(--duration-fast) ease;
+  }
+
+  .create-device-btn:hover {
+    color: var(--colour-text);
+    background: var(--colour-surface-hover);
+    border-color: var(--colour-border-hover);
+  }
+
+  .create-device-btn:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
+  }
+
+  .create-device-btn:active {
+    background: var(--colour-surface-active);
   }
 
   .search-input::placeholder {
