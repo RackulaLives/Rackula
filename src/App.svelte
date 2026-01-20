@@ -935,6 +935,31 @@
     }
   }
 
+  async function handleRackContextExport(rackIds: string[]) {
+    if (rackIds.length === 0) {
+      toastStore.showToast("No racks to export", "warning");
+      return;
+    }
+
+    // Generate QR code for the share URL (for optional embedding in export)
+    try {
+      const shareUrl = generateShareUrl(layoutStore.layout);
+      if (canFitInQR(shareUrl)) {
+        dialogStore.exportQrCodeDataUrl = await generateQRCode(shareUrl, {
+          width: 444,
+        });
+      } else {
+        dialogStore.exportQrCodeDataUrl = undefined;
+      }
+    } catch {
+      dialogStore.exportQrCodeDataUrl = undefined;
+    }
+
+    // Set pre-selected rack IDs for export dialog
+    dialogStore.exportSelectedRackIds = rackIds;
+    dialogStore.open("export");
+  }
+
   // Handle mobile device selection from palette (enters placement mode)
   function handleMobileDeviceSelect(
     event: CustomEvent<{ device: import("$lib/types").DeviceType }>,
@@ -1038,7 +1063,7 @@
             {#if uiStore.sidebarTab === "devices"}
               <DevicePalette oncreatedevice={handleAddDevice} />
             {:else if uiStore.sidebarTab === "racks"}
-              <RackList />
+              <RackList onexport={handleRackContextExport} />
             {/if}
           </Pane>
 
@@ -1055,6 +1080,7 @@
               enableLongPress={false}
               onracklongpress={handleRackLongPress}
               onrackadddevice={handleRackContextAddDevice}
+              onrackexport={handleRackContextExport}
               onrackedit={handleRackContextEdit}
               onrackrename={handleRackContextRename}
               onrackduplicate={handleRackContextDuplicate}
@@ -1075,6 +1101,7 @@
           enableLongPress={viewportStore.isMobile && !placementStore.isPlacing}
           onracklongpress={handleRackLongPress}
           onrackadddevice={handleRackContextAddDevice}
+          onrackexport={handleRackContextExport}
           onrackedit={handleRackContextEdit}
           onrackrename={handleRackContextRename}
           onrackduplicate={handleRackContextDuplicate}
@@ -1163,6 +1190,7 @@
       selectedRackId={selectionStore.isRackSelected
         ? selectionStore.selectedRackId
         : null}
+      selectedRackIds={dialogStore.exportSelectedRackIds}
       qrCodeDataUrl={exportQrCodeDataUrl}
       onexport={(e) => handleExportSubmit(e.detail)}
       oncancel={handleExportCancel}

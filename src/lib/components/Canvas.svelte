@@ -76,6 +76,8 @@
     onrackduplicate?: (rackId: string) => void;
     /** Rack context menu: delete rack callback */
     onrackdelete?: (rackId: string) => void;
+    /** Rack context menu: export rack callback */
+    onrackexport?: (rackIds: string[]) => void;
   }
 
   let {
@@ -97,6 +99,7 @@
     onrackrename,
     onrackduplicate,
     onrackdelete,
+    onrackexport,
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
@@ -499,6 +502,7 @@
                 }}
                 onlongpress={(e) => onracklongpress?.(e)}
                 onadddevice={(rackId) => onrackadddevice?.(rackId)}
+                onexport={(rackIds) => onrackexport?.(rackIds)}
                 onedit={(rackId) => onrackedit?.(rackId)}
                 onrename={(rackId) => onrackrename?.(rackId)}
                 onduplicate={(rackId) => onrackduplicate?.(rackId)}
@@ -540,6 +544,7 @@
                         onplacementtap={(e) => handlePlacementTap(rack.id, e)}
                         onlongpress={(e) => onracklongpress?.(e)}
                         onadddevice={() => onrackadddevice?.(rack.id)}
+                        onexport={() => onrackexport?.([rack.id])}
                         onedit={() => onrackedit?.(rack.id)}
                         onrename={() => onrackrename?.(rack.id)}
                         onduplicate={() => onrackduplicate?.(rack.id)}
@@ -583,6 +588,7 @@
                 onplacementtap={(e) => handlePlacementTap(rack.id, e)}
                 onlongpress={(e) => onracklongpress?.(e)}
                 onadddevice={() => onrackadddevice?.(rack.id)}
+                onexport={() => onrackexport?.([rack.id])}
                 onedit={() => onrackedit?.(rack.id)}
                 onrename={() => onrackrename?.(rack.id)}
                 onduplicate={() => onrackduplicate?.(rack.id)}

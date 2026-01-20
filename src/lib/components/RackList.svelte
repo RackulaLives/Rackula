@@ -1,12 +1,20 @@
 <!--
   RackList Component
-  Displays list of all racks with selection and delete actions
+  Displays list of all racks with selection, delete, and context menu actions
 -->
 <script lang="ts">
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
+  import RackContextMenu from "./RackContextMenu.svelte";
+
+  interface Props {
+    /** Context menu: export rack callback */
+    onexport?: (rackIds: string[]) => void;
+  }
+
+  let { onexport }: Props = $props();
 
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
@@ -160,82 +168,86 @@
       {@const isActive = group.rack_ids.includes(activeRackId ?? "")}
       {@const deviceCount = getGroupDeviceCount(group)}
       {@const bayCount = group.rack_ids.length}
-      <div
-        class="rack-item"
-        class:active={isActive}
-        onclick={() => handleGroupClick(group.id)}
-        onkeydown={(e) => {
-          if (e.key === " ") e.preventDefault();
-          if (e.key === "Enter" || e.key === " ") handleGroupClick(group.id);
-        }}
-        role="option"
-        aria-selected={isActive}
-        tabindex="0"
-        data-testid="rack-item-group-{group.id}"
-      >
-        <span class="rack-indicator" aria-hidden="true">
-          {isActive ? "●" : "○"}
-        </span>
-        <span class="rack-info">
-          <span class="rack-name">{group.name ?? "Bayed Rack"}</span>
-          <span class="rack-meta"
-            >{firstRack?.height ?? "?"}U · {bayCount}-bay · {deviceCount} device{deviceCount !==
-            1
-              ? "s"
-              : ""}</span
-          >
-        </span>
-        <button
-          type="button"
-          class="rack-delete"
-          onclick={(e) => handleGroupDeleteClick(e, group)}
-          aria-label="Delete {group.name ?? 'bayed rack'}"
-          title="Delete bayed rack"
+      <RackContextMenu onexport={() => onexport?.(group.rack_ids)}>
+        <div
+          class="rack-item"
+          class:active={isActive}
+          onclick={() => handleGroupClick(group.id)}
+          onkeydown={(e) => {
+            if (e.key === " ") e.preventDefault();
+            if (e.key === "Enter" || e.key === " ") handleGroupClick(group.id);
+          }}
+          role="option"
+          aria-selected={isActive}
+          tabindex="0"
+          data-testid="rack-item-group-{group.id}"
         >
-          ✕
-        </button>
-      </div>
+          <span class="rack-indicator" aria-hidden="true">
+            {isActive ? "●" : "○"}
+          </span>
+          <span class="rack-info">
+            <span class="rack-name">{group.name ?? "Bayed Rack"}</span>
+            <span class="rack-meta"
+              >{firstRack?.height ?? "?"}U · {bayCount}-bay · {deviceCount} device{deviceCount !==
+              1
+                ? "s"
+                : ""}</span
+            >
+          </span>
+          <button
+            type="button"
+            class="rack-delete"
+            onclick={(e) => handleGroupDeleteClick(e, group)}
+            aria-label="Delete {group.name ?? 'bayed rack'}"
+            title="Delete bayed rack"
+          >
+            ✕
+          </button>
+        </div>
+      </RackContextMenu>
     {/each}
 
     <!-- Ungrouped racks -->
     {#each ungroupedRacks as rack (rack.id)}
       {@const isActive = rack.id === activeRackId}
       {@const deviceCount = rack.devices.length}
-      <div
-        class="rack-item"
-        class:active={isActive}
-        onclick={() => handleRackClick(rack.id)}
-        onkeydown={(e) => {
-          if (e.key === " ") e.preventDefault();
-          if (e.key === "Enter" || e.key === " ") handleRackClick(rack.id);
-        }}
-        role="option"
-        aria-selected={isActive}
-        tabindex="0"
-        data-testid="rack-item-{rack.id}"
-      >
-        <span class="rack-indicator" aria-hidden="true">
-          {isActive ? "●" : "○"}
-        </span>
-        <span class="rack-info">
-          <span class="rack-name">{rack.name}</span>
-          <span class="rack-meta"
-            >{rack.height}U · {deviceCount} device{deviceCount !== 1
-              ? "s"
-              : ""}</span
-          >
-        </span>
-        <button
-          type="button"
-          class="rack-delete"
-          onclick={(e) =>
-            handleDeleteClick(e, { id: rack.id, name: rack.name })}
-          aria-label="Delete {rack.name}"
-          title="Delete rack"
+      <RackContextMenu onexport={() => onexport?.([rack.id])}>
+        <div
+          class="rack-item"
+          class:active={isActive}
+          onclick={() => handleRackClick(rack.id)}
+          onkeydown={(e) => {
+            if (e.key === " ") e.preventDefault();
+            if (e.key === "Enter" || e.key === " ") handleRackClick(rack.id);
+          }}
+          role="option"
+          aria-selected={isActive}
+          tabindex="0"
+          data-testid="rack-item-{rack.id}"
         >
-          ✕
-        </button>
-      </div>
+          <span class="rack-indicator" aria-hidden="true">
+            {isActive ? "●" : "○"}
+          </span>
+          <span class="rack-info">
+            <span class="rack-name">{rack.name}</span>
+            <span class="rack-meta"
+              >{rack.height}U · {deviceCount} device{deviceCount !== 1
+                ? "s"
+                : ""}</span
+            >
+          </span>
+          <button
+            type="button"
+            class="rack-delete"
+            onclick={(e) =>
+              handleDeleteClick(e, { id: rack.id, name: rack.name })}
+            aria-label="Delete {rack.name}"
+            title="Delete rack"
+          >
+            ✕
+          </button>
+        </div>
+      </RackContextMenu>
     {/each}
 
     {#if rackGroups.length === 0 && ungroupedRacks.length === 0}

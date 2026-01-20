@@ -82,6 +82,8 @@
     onlongpress?: (event: CustomEvent<{ rackId: string }>) => void;
     /** Context menu: add device callback */
     onadddevice?: (rackId: string) => void;
+    /** Context menu: export rack callback (passes all rack IDs in the group) */
+    onexport?: (rackIds: string[]) => void;
     /** Context menu: edit rack callback */
     onedit?: (rackId: string) => void;
     /** Context menu: rename rack callback */
@@ -114,6 +116,7 @@
     onplacementtap,
     onlongpress,
     onadddevice,
+    onexport,
     onedit,
     onrename,
     onduplicate,
@@ -284,6 +287,7 @@
       {/if}
       <RackContextMenu
         onadddevice={() => onadddevice?.(rack.id)}
+        onexport={() => onexport?.(group.rack_ids)}
         onedit={() => onedit?.(rack.id)}
         onrename={() => onrename?.(rack.id)}
         onduplicate={() => onduplicate?.(rack.id)}
@@ -358,6 +362,7 @@
       {/if}
       <RackContextMenu
         onadddevice={() => onadddevice?.(rack.id)}
+        onexport={() => onexport?.(group.rack_ids)}
         onedit={() => onedit?.(rack.id)}
         onrename={() => onrename?.(rack.id)}
         onduplicate={() => onduplicate?.(rack.id)}

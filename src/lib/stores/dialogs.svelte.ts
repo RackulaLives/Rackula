@@ -30,6 +30,8 @@ let openDialog = $state<DialogId | null>(null);
 let deleteTarget = $state<DeleteTarget | null>(null);
 let pendingSaveFirst = $state(false);
 let exportQrCodeDataUrl = $state<string | undefined>(undefined);
+/** Pre-selected rack IDs for export dialog (from context menu) */
+let exportSelectedRackIds = $state<string[] | undefined>(undefined);
 
 // Mobile sheet state
 let openSheet = $state<SheetId | null>(null);
@@ -50,6 +52,7 @@ function close() {
   deleteTarget = null;
   pendingSaveFirst = false;
   exportQrCodeDataUrl = undefined;
+  exportSelectedRackIds = undefined;
 }
 
 /**
@@ -107,6 +110,12 @@ export const dialogStore = {
   },
   set exportQrCodeDataUrl(value: string | undefined) {
     exportQrCodeDataUrl = value;
+  },
+  get exportSelectedRackIds() {
+    return exportSelectedRackIds;
+  },
+  set exportSelectedRackIds(value: string[] | undefined) {
+    exportSelectedRackIds = value;
   },
 
   // Dialog actions

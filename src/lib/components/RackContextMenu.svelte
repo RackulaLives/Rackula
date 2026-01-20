@@ -15,6 +15,8 @@
     onOpenChange?: (open: boolean) => void;
     /** Add device callback (opens device library) */
     onadddevice?: () => void;
+    /** Export rack callback (opens export dialog with this rack pre-selected) */
+    onexport?: () => void;
     /** Edit rack callback (opens rack settings) */
     onedit?: () => void;
     /** Rename rack callback */
@@ -31,6 +33,7 @@
     open = $bindable(false),
     onOpenChange,
     onadddevice,
+    onexport,
     onedit,
     onrename,
     onduplicate,
@@ -63,6 +66,13 @@
         onSelect={handleSelect(onadddevice)}
       >
         <span class="context-menu-label">Add Device</span>
+      </ContextMenu.Item>
+
+      <ContextMenu.Item
+        class="context-menu-item"
+        onSelect={handleSelect(onexport)}
+      >
+        <span class="context-menu-label">Export...</span>
       </ContextMenu.Item>
 
       <ContextMenu.Item
