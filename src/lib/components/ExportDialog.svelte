@@ -1,7 +1,7 @@
 <!--
   Export Dialog Component
   Allows user to configure export options for rack layouts
-  Features LogoLoader during export and shimmer preview
+  Features LogoLoader during export, shimmer preview, rack selection for multi-rack exports
 -->
 <script lang="ts">
   import type {
@@ -19,6 +19,7 @@
   import Shimmer from "./Shimmer.svelte";
   import { generateExportSVG, generateExportFilename } from "$lib/utils/export";
   import { analytics } from "$lib/utils/analytics";
+  import { SvelteSet } from "svelte/reactivity";
 
   interface Props {
     open: boolean;
@@ -28,8 +29,12 @@
     displayMode?: DisplayMode;
     layoutName?: string;
     selectedRackId: string | null;
+    /** Pre-selected rack IDs for multi-rack export (from context menu) */
+    selectedRackIds?: string[];
     isExporting?: boolean;
     exportMessage?: string;
+    /** Progress for multi-rack exports (0-100) */
+    exportProgress?: number;
     qrCodeDataUrl?: string;
     onexport?: (event: CustomEvent<ExportOptions>) => void;
     oncancel?: () => void;
@@ -43,8 +48,10 @@
     displayMode = "label",
     layoutName = "layout",
     selectedRackId: _selectedRackId,
+    selectedRackIds: initialSelectedRackIds,
     isExporting = false,
     exportMessage = "Exporting...",
+    exportProgress,
     qrCodeDataUrl,
     onexport,
     oncancel,
@@ -58,6 +65,26 @@
   let transparent = $state(false);
   let includeQR = $state(false);
 
+  // Rack selection state (for multi-rack export)
+  let selectedRacks = new SvelteSet<string>();
+
+  // Preview pagination state (for 4+ racks)
+  let previewIndex = $state(0);
+
+  // Initialize rack selection when dialog opens or selectedRackIds changes
+  $effect(() => {
+    if (open) {
+      if (initialSelectedRackIds && initialSelectedRackIds.length > 0) {
+        // Pre-select specified racks (from context menu)
+        selectedRacks = new SvelteSet(initialSelectedRackIds);
+      } else {
+        // Default: all racks selected
+        selectedRacks = new SvelteSet(racks.map((r) => r.id));
+      }
+      previewIndex = 0;
+    }
+  });
+
   // Computed: Is CSV format (data export - no image options)
   const isCSV = $derived(format === "csv");
 
@@ -67,18 +94,47 @@
   // Computed: Can include QR code (when QR code data URL is available and not CSV)
   const canIncludeQR = $derived(!isCSV && !!qrCodeDataUrl);
 
-  // Computed: Can export (has racks)
-  const canExport = $derived(racks.length > 0);
+  // Computed: Show rack selection (only when 2+ racks)
+  const showRackSelection = $derived(racks.length >= 2);
+
+  // Computed: Selected racks array (ordered by position)
+  const selectedRacksArray = $derived(
+    racks.filter((r) => selectedRacks.has(r.id)),
+  );
+
+  // Computed: Will export as multi-file (ZIP for images, multi-page for PDF)
+  const isMultiFileExport = $derived(selectedRacksArray.length >= 4 && !isCSV);
+
+  // Computed: Can export (has racks selected)
+  const canExport = $derived(selectedRacksArray.length > 0);
 
   // Computed: Preview filename
   const previewFilename = $derived(
-    generateExportFilename(layoutName, isCSV ? null : exportView, format),
+    isMultiFileExport && format !== "pdf"
+      ? generateExportFilename(layoutName, null, "zip")
+      : generateExportFilename(layoutName, isCSV ? null : exportView, format),
+  );
+
+  // Computed: Info message for multi-file export
+  const multiFileMessage = $derived(
+    !isMultiFileExport
+      ? null
+      : format === "pdf"
+        ? `${selectedRacksArray.length} racks selected — will export as multi-page PDF`
+        : `${selectedRacksArray.length} racks selected — will export as ZIP with one image per rack`,
   );
 
   // Reset transparent when switching to format that doesn't support it
   $effect(() => {
     if (!canSelectTransparent && transparent) {
       transparent = false;
+    }
+  });
+
+  // Reset preview index when selection changes
+  $effect(() => {
+    if (previewIndex >= selectedRacksArray.length) {
+      previewIndex = Math.max(0, selectedRacksArray.length - 1);
     }
   });
 
@@ -91,7 +147,7 @@
 
   // Generate preview when options change (for non-CSV formats)
   $effect(() => {
-    if (!open || isCSV || racks.length === 0) {
+    if (!open || isCSV || selectedRacksArray.length === 0) {
       previewSvgString = null;
       previewDimensions = null;
       previewError = null;
@@ -113,7 +169,24 @@
     };
 
     try {
-      const svg = generateExportSVG(racks, deviceTypes, previewOptions, images);
+      // For multi-file export (4+ racks), show paginated single-rack preview
+      // For composite export (1-3 racks), show all selected racks together
+      const racksToPreview = isMultiFileExport
+        ? [selectedRacksArray[previewIndex]].filter(Boolean)
+        : selectedRacksArray;
+
+      if (racksToPreview.length === 0) {
+        previewSvgString = null;
+        previewDimensions = null;
+        return;
+      }
+
+      const svg = generateExportSVG(
+        racksToPreview,
+        deviceTypes,
+        previewOptions,
+        images,
+      );
       const width = parseInt(svg.getAttribute("width") || "0", 10);
       const height = parseInt(svg.getAttribute("height") || "0", 10);
 
@@ -142,6 +215,7 @@
       exportView,
       includeQR: canIncludeQR ? includeQR : false,
       qrCodeDataUrl: canIncludeQR && includeQR ? qrCodeDataUrl : undefined,
+      selectedRackIds: Array.from(selectedRacks),
     };
     onexport?.(new CustomEvent("export", { detail: options }));
   }
@@ -157,6 +231,32 @@
     }
   }
 
+  // Rack selection helpers
+  function toggleRack(rackId: string) {
+    if (selectedRacks.has(rackId)) {
+      selectedRacks.delete(rackId);
+    } else {
+      selectedRacks.add(rackId);
+    }
+  }
+
+  function selectAllRacks() {
+    selectedRacks = new SvelteSet(racks.map((r) => r.id));
+  }
+
+  function deselectAllRacks() {
+    selectedRacks = new SvelteSet();
+  }
+
+  // Preview pagination
+  function prevPreview() {
+    previewIndex = Math.max(0, previewIndex - 1);
+  }
+
+  function nextPreview() {
+    previewIndex = Math.min(selectedRacksArray.length - 1, previewIndex + 1);
+  }
+
   // Add/remove event listener based on open state and track panel open
   $effect(() => {
     if (open) {
@@ -169,7 +269,7 @@
   });
 </script>
 
-<Dialog {open} title="Export" width="456px" onclose={handleCancel}>
+<Dialog {open} title="Export" width="480px" onclose={handleCancel}>
   <div class="export-form">
     <div class="form-group">
       <label for="export-format">Format</label>
@@ -188,6 +288,55 @@
         models, and categories.
       </p>
     {:else}
+      <!-- Rack Selection (for 2+ racks) -->
+      {#if showRackSelection}
+        <div class="form-group rack-selection">
+          <div class="rack-selection-header">
+            <span class="section-label">Racks</span>
+            <div class="rack-selection-actions">
+              <button
+                type="button"
+                class="btn-link"
+                onclick={selectAllRacks}
+                disabled={selectedRacks.size === racks.length}
+              >
+                Select All
+              </button>
+              <span class="separator">|</span>
+              <button
+                type="button"
+                class="btn-link"
+                onclick={deselectAllRacks}
+                disabled={selectedRacks.size === 0}
+              >
+                Deselect All
+              </button>
+            </div>
+          </div>
+          <div class="rack-checklist">
+            {#each racks as rack (rack.id)}
+              <label class="rack-item">
+                <input
+                  type="checkbox"
+                  checked={selectedRacks.has(rack.id)}
+                  onchange={() => toggleRack(rack.id)}
+                />
+                <span class="rack-name">{rack.name}</span>
+                <span class="rack-height">{rack.height}U</span>
+              </label>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Multi-file export info message -->
+        {#if multiFileMessage}
+          <div class="info-message">
+            <span class="info-icon">ℹ️</span>
+            <span>{multiFileMessage}</span>
+          </div>
+        {/if}
+      {/if}
+
       <div class="form-group">
         <label for="export-view">View</label>
         <select id="export-view" bind:value={exportView}>
@@ -244,9 +393,14 @@
         <!-- Show loader during export -->
         <div class="preview-loading">
           <LogoLoader size={48} message={exportMessage} />
+          {#if exportProgress !== undefined}
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: {exportProgress}%"></div>
+            </div>
+          {/if}
         </div>
-      {:else if racks.length === 0}
-        <div class="preview-placeholder">No rack to preview</div>
+      {:else if selectedRacksArray.length === 0}
+        <div class="preview-placeholder">No rack selected</div>
       {:else if previewError}
         <!-- Show error when preview generation fails -->
         <div class="preview-error" role="alert">
@@ -265,6 +419,37 @@
             {@html previewSvgString}
           </div>
         </Shimmer>
+
+        <!-- Pagination for 4+ racks -->
+        {#if isMultiFileExport && selectedRacksArray.length > 1}
+          <div class="preview-pagination">
+            <button
+              type="button"
+              class="btn-icon"
+              onclick={prevPreview}
+              disabled={previewIndex === 0}
+              aria-label="Previous rack"
+            >
+              ◀
+            </button>
+            <span class="pagination-info">
+              {previewIndex + 1} of {selectedRacksArray.length}
+            </span>
+            <button
+              type="button"
+              class="btn-icon"
+              onclick={nextPreview}
+              disabled={previewIndex === selectedRacksArray.length - 1}
+              aria-label="Next rack"
+            >
+              ▶
+            </button>
+          </div>
+          <div class="preview-rack-name">
+            {selectedRacksArray[previewIndex]?.name ?? ""}
+            ({selectedRacksArray[previewIndex]?.height ?? 0}U)
+          </div>
+        {/if}
       {/if}
     </div>
   {/if}
@@ -342,6 +527,114 @@
     padding: var(--space-2) 0;
   }
 
+  /* Rack Selection */
+  .rack-selection {
+    gap: var(--space-2);
+  }
+
+  .rack-selection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .section-label {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    color: var(--colour-text);
+  }
+
+  .rack-selection-actions {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+  }
+
+  .btn-link {
+    background: none;
+    border: none;
+    color: var(--colour-selection);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .btn-link:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+
+  .btn-link:disabled {
+    color: var(--colour-text-muted);
+    cursor: not-allowed;
+  }
+
+  .separator {
+    color: var(--colour-text-muted);
+  }
+
+  .rack-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    max-height: 120px;
+    overflow-y: auto;
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2);
+  }
+
+  .rack-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    padding: var(--space-1);
+    border-radius: var(--radius-sm);
+    font-weight: var(--font-weight-normal);
+  }
+
+  .rack-item:hover {
+    background: var(--colour-surface-hover);
+  }
+
+  .rack-item input[type="checkbox"] {
+    width: var(--space-4);
+    height: var(--space-4);
+    accent-color: var(--colour-selection);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .rack-name {
+    flex: 1;
+    font-size: var(--font-size-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rack-height {
+    font-size: var(--font-size-xs);
+    color: var(--colour-text-muted);
+    flex-shrink: 0;
+  }
+
+  /* Info message */
+  .info-message {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--colour-surface-hover);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    color: var(--colour-text);
+  }
+
+  .info-icon {
+    flex-shrink: 0;
+  }
+
   .preview-section {
     display: flex;
     flex-direction: column;
@@ -403,10 +696,67 @@
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-sm);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: var(--space-3);
     background: var(--colour-surface);
     padding: var(--space-4);
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--colour-border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--colour-selection);
+    transition: width 0.2s ease;
+  }
+
+  /* Preview pagination */
+  .preview-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+  }
+
+  .btn-icon {
+    background: var(--colour-surface);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-1) var(--space-2);
+    cursor: pointer;
+    color: var(--colour-text);
+    font-size: var(--font-size-sm);
+  }
+
+  .btn-icon:hover:not(:disabled) {
+    background: var(--colour-surface-hover);
+  }
+
+  .btn-icon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .pagination-info {
+    font-size: var(--font-size-sm);
+    color: var(--colour-text-muted);
+  }
+
+  .preview-rack-name {
+    text-align: center;
+    font-size: var(--font-size-sm);
+    color: var(--colour-text);
+    margin-top: var(--space-1);
   }
 
   .checkbox-group {

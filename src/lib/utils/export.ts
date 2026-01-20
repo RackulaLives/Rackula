@@ -1405,6 +1405,197 @@ export function downloadBlob(blob: Blob, filename: string): void {
 }
 
 /**
+ * Generate an SVG element for a single rack
+ * This is a simpler version of generateExportSVG for multi-rack exports
+ *
+ * @param rack - Single rack to export
+ * @param deviceLibrary - Device library for device definitions
+ * @param options - Export options
+ * @param images - Optional map of device images
+ */
+export function generateSingleRackSVG(
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  options: ExportOptions,
+  images?: ImageStoreMap,
+): SVGElement {
+  return generateExportSVG([rack], deviceLibrary, options, images);
+}
+
+/**
+ * Progress callback for multi-rack exports
+ */
+export type ExportProgressCallback = (progress: {
+  current: number;
+  total: number;
+  rackName: string;
+}) => void;
+
+/**
+ * Export multiple racks as a ZIP file containing one image per rack
+ *
+ * @param racks - Racks to export
+ * @param deviceLibrary - Device library for device definitions
+ * @param options - Export options (format must be png, jpeg, or svg)
+ * @param images - Optional map of device images
+ * @param onProgress - Optional progress callback
+ * @returns Promise resolving to ZIP blob
+ */
+export async function exportAsZip(
+  racks: Rack[],
+  deviceLibrary: DeviceType[],
+  options: ExportOptions,
+  images?: ImageStoreMap,
+  onProgress?: ExportProgressCallback,
+): Promise<Blob> {
+  // Dynamically import JSZip wrapper
+  const { createZip, generateRackFilename } = await import("./zip");
+
+  const format = options.format === "jpeg" ? "jpg" : options.format;
+  const files: { name: string; blob: Blob }[] = [];
+
+  for (let i = 0; i < racks.length; i++) {
+    const rack = racks[i];
+    onProgress?.({ current: i + 1, total: racks.length, rackName: rack.name });
+
+    // Generate SVG for this rack
+    const svg = generateSingleRackSVG(rack, deviceLibrary, options, images);
+
+    // Convert to the requested format
+    let blob: Blob;
+    if (options.format === "svg") {
+      const svgString = exportAsSVG(svg);
+      blob = new Blob([svgString], { type: "image/svg+xml" });
+    } else if (options.format === "png") {
+      blob = await exportAsPNG(svg);
+    } else if (options.format === "jpeg") {
+      blob = await exportAsJPEG(svg);
+    } else {
+      throw new Error(`Unsupported format for ZIP export: ${options.format}`);
+    }
+
+    // Generate filename for this rack
+    const view = options.exportView || "both";
+    const filename = generateRackFilename(rack.name, view, format);
+
+    // Ensure unique filenames by appending index if duplicate
+    const existingNames = files.map((f) => f.name);
+    let finalName = filename;
+    let counter = 1;
+    while (existingNames.includes(finalName)) {
+      const ext = filename.split(".").pop();
+      const base = filename.replace(`.${ext}`, "");
+      finalName = `${base}-${counter}.${ext}`;
+      counter++;
+    }
+
+    files.push({ name: finalName, blob });
+  }
+
+  return createZip(files);
+}
+
+/**
+ * Export SVG string as multi-page PDF (one rack per page)
+ *
+ * @param racks - Racks to export (one per page)
+ * @param deviceLibrary - Device library for device definitions
+ * @param options - Export options
+ * @param images - Optional map of device images
+ * @param onProgress - Optional progress callback
+ * @returns Promise resolving to PDF blob
+ */
+export async function exportAsMultiPagePDF(
+  racks: Rack[],
+  deviceLibrary: DeviceType[],
+  options: ExportOptions,
+  images?: ImageStoreMap,
+  onProgress?: ExportProgressCallback,
+): Promise<Blob> {
+  // Dynamically import jsPDF to avoid loading it on app startup
+  const { jsPDF } = await import("jspdf");
+
+  // US Letter dimensions in points (72 dpi)
+  const letterWidth = 612; // 8.5 inches
+  const letterHeight = 792; // 11 inches
+  const margin = 36; // 0.5 inch margins
+  const headerHeight = 30; // Space for rack name header
+
+  let pdf: InstanceType<typeof jsPDF> | null = null;
+
+  for (let i = 0; i < racks.length; i++) {
+    const rack = racks[i];
+    onProgress?.({ current: i + 1, total: racks.length, rackName: rack.name });
+
+    // Generate SVG for this rack
+    const svg = generateSingleRackSVG(rack, deviceLibrary, options, images);
+    const svgString = new XMLSerializer().serializeToString(svg);
+
+    // Parse SVG to get dimensions
+    const imgWidth = parseInt(svg.getAttribute("width") || "0", 10);
+    const imgHeight = parseInt(svg.getAttribute("height") || "0", 10);
+
+    if (imgWidth === 0 || imgHeight === 0) {
+      console.warn(
+        `Skipping rack "${rack.name}" due to invalid SVG dimensions (${imgWidth}x${imgHeight})`,
+      );
+      continue;
+    }
+
+    // Determine page orientation based on rack aspect ratio
+    const isLandscape = imgWidth > imgHeight;
+    const pageWidth = isLandscape ? letterHeight : letterWidth;
+    const pageHeight = isLandscape ? letterWidth : letterHeight;
+    const availableWidth = pageWidth - margin * 2;
+    const availableHeight = pageHeight - margin * 2 - headerHeight;
+
+    // Calculate scaling to fit on page
+    const scale = Math.min(
+      availableWidth / imgWidth,
+      availableHeight / imgHeight,
+    );
+    const scaledWidth = imgWidth * scale;
+    const scaledHeight = imgHeight * scale;
+
+    // Center on page
+    const x = (pageWidth - scaledWidth) / 2;
+    const y = margin + headerHeight + (availableHeight - scaledHeight) / 2;
+
+    // Initialize PDF or add new page
+    if (pdf === null) {
+      pdf = new jsPDF({
+        orientation: isLandscape ? "landscape" : "portrait",
+        unit: "pt",
+        format: "letter",
+      });
+    } else {
+      pdf.addPage("letter", isLandscape ? "landscape" : "portrait");
+    }
+
+    // Add rack name as header
+    pdf.setFontSize(14);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(rack.name, pageWidth / 2, margin + 20, { align: "center" });
+
+    // Convert SVG to canvas and add to PDF
+    const canvas = await svgToCanvas(
+      svgString,
+      imgWidth,
+      imgHeight,
+      options.background,
+    );
+    const imgData = canvas.toDataURL("image/png");
+    pdf.addImage(imgData, "PNG", x, y, scaledWidth, scaledHeight);
+  }
+
+  if (!pdf) {
+    throw new Error("No valid racks to export");
+  }
+
+  return pdf.output("blob");
+}
+
+/**
  * Escape a CSV field value
  * - Wraps in quotes if contains comma, quote, or newline
  * - Doubles any existing quotes

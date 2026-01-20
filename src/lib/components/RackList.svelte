@@ -8,12 +8,6 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
 
-  interface Props {
-    onaddrack?: () => void;
-  }
-
-  let { onaddrack }: Props = $props();
-
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
   const toastStore = getToastStore();
@@ -29,7 +23,6 @@
 
   const racks = $derived(layoutStore.racks);
   const activeRackId = $derived(layoutStore.activeRackId);
-  const canAddRack = $derived(layoutStore.canAddRack);
   const rackGroups = $derived(layoutStore.rack_groups);
 
   // Get set of rack IDs that belong to groups
@@ -252,20 +245,6 @@
       </div>
     {/if}
   </div>
-
-  {#if canAddRack}
-    <button
-      type="button"
-      class="add-rack-btn"
-      onclick={onaddrack}
-      data-testid="btn-add-rack-sidebar"
-    >
-      <span class="add-icon">+</span>
-      Add Rack
-    </button>
-  {:else}
-    <p class="rack-limit-message">Maximum 10 racks reached</p>
-  {/if}
 </div>
 
 <ConfirmDialog
@@ -407,45 +386,5 @@
     margin: var(--space-1) 0 0;
     font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
-  }
-
-  .add-rack-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    margin: var(--space-3);
-    padding: var(--space-2) var(--space-4);
-    background: var(--colour-surface-secondary);
-    border: 1px solid var(--colour-border);
-    border-radius: var(--radius-sm);
-    color: var(--colour-text);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
-  }
-
-  .add-rack-btn:hover {
-    background: var(--colour-surface-hover);
-    border-color: var(--colour-selection);
-  }
-
-  .add-rack-btn:focus-visible {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
-  }
-
-  .add-icon {
-    font-size: var(--font-size-lg);
-    font-weight: bold;
-  }
-
-  .rack-limit-message {
-    margin: var(--space-3);
-    padding: var(--space-2);
-    font-size: var(--font-size-sm);
-    color: var(--colour-text-muted);
-    text-align: center;
   }
 </style>

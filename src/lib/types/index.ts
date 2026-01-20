@@ -777,4 +777,10 @@ export interface ExportOptions {
   includeAnnotations?: boolean;
   /** Which field to show in annotation column */
   annotationField?: AnnotationField;
+  /**
+   * Selected rack IDs for multi-rack export.
+   * When provided, only these racks will be exported.
+   * Used by ExportDialog rack selection checklist.
+   */
+  selectedRackIds?: string[];
 }
