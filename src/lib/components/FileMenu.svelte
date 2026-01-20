@@ -39,6 +39,7 @@
     save: formatShortcut("mod", "S"),
     load: formatShortcut("mod", "O"),
     export: formatShortcut("mod", "E"),
+    share: formatShortcut("mod", "H"),
   };
 
   function handleSelect(action?: () => void) {
@@ -78,6 +79,7 @@
         onSelect={handleSelect(onshare)}
       >
         <span class="menu-label">Share</span>
+        <span class="menu-shortcut">{shortcuts.share}</span>
       </DropdownMenu.Item>
       <DropdownMenu.Separator class="menu-separator" />
       <DropdownMenu.Item

@@ -16,10 +16,10 @@ jobs:
     name: "Collect Metrics"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v4
         with:
           node-version: "22"
           cache: "npm"
@@ -35,7 +35,7 @@ jobs:
         run: npm run test:run -- --coverage || true
 
       - name: Run octocov
-        uses: k1LoW/octocov-action@98b913772e0216831bbb756274ea6a3a97e1de96 # v1
+        uses: k1LoW/octocov-action@73d561f65d59e66899ed5c87e4621a913b5d5c20 # v1
         # Continue even if acceptable thresholds aren't met - we want visibility, not enforcement
         continue-on-error: true
         env:
