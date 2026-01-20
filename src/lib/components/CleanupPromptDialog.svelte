@@ -26,6 +26,13 @@
 
   let dontAskAgain = $state(false);
 
+  // Reset checkbox state when dialog opens
+  $effect(() => {
+    if (open) {
+      dontAskAgain = false;
+    }
+  });
+
   function handleReview() {
     if (dontAskAgain) {
       ondontaskagain?.();
@@ -79,10 +86,14 @@
       saving?
     </p>
 
-    <label class="dont-ask-again">
-      <input type="checkbox" bind:checked={dontAskAgain} />
-      <span>Don't ask again</span>
-    </label>
+    <div class="dont-ask-again">
+      <input
+        type="checkbox"
+        id="dont-ask-again-checkbox"
+        bind:checked={dontAskAgain}
+      />
+      <label for="dont-ask-again-checkbox">Don't ask again</label>
+    </div>
 
     <div class="actions">
       <button type="button" class="btn btn-secondary" onclick={handleCancel}>
@@ -118,6 +129,9 @@
     gap: var(--space-2);
     font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
+  }
+
+  .dont-ask-again label {
     cursor: pointer;
   }
 
