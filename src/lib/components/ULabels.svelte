@@ -16,9 +16,11 @@
     uColumnHeight: number;
     /** Height of the top/bottom rail bars in pixels */
     railWidth: number;
+    /** Padding at top of column (to match rack padding) */
+    topPadding?: number;
   }
 
-  let { uLabels, uColumnHeight, railWidth }: Props = $props();
+  let { uLabels, uColumnHeight, railWidth, topPadding = 0 }: Props = $props();
 </script>
 
 <svg
@@ -32,8 +34,14 @@
   <!-- Background -->
   <rect x="0" y="0" width="32" height={uColumnHeight} class="u-column-bg" />
 
-  <!-- Top rail -->
-  <rect x="0" y="0" width="32" height={railWidth} class="u-column-rail" />
+  <!-- Top rail (offset by topPadding to match Rack.svelte layout) -->
+  <rect
+    x="0"
+    y={topPadding}
+    width="32"
+    height={railWidth}
+    class="u-column-rail"
+  />
 
   <!-- Bottom rail -->
   <rect

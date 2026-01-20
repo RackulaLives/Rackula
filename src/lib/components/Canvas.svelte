@@ -311,6 +311,20 @@
     onrackselect?.(event);
   }
 
+  function handleGroupSelect(event: CustomEvent<{ groupId: string }>) {
+    const { groupId } = event.detail;
+    // Find the first rack in the group to set as active (for device operations)
+    const group = layoutStore.rack_groups.find((g) => g.id === groupId);
+    if (group && group.rack_ids.length > 0) {
+      // Find the first rack in the group
+      const firstRack = racks.find((r) => r.id === group.rack_ids[0]);
+      if (firstRack) {
+        layoutStore.setActiveRack(firstRack.id);
+      }
+    }
+    selectionStore.selectGroup(groupId);
+  }
+
   function handleDeviceSelect(
     rackId: string,
     event: CustomEvent<{ slug: string; position: number }>,
@@ -459,13 +473,16 @@
                 selectedRackId={selectionStore.selectedType === "rack"
                   ? selectionStore.selectedRackId
                   : null}
+                selectedGroupId={selectionStore.selectedType === "group"
+                  ? selectionStore.selectedGroupId
+                  : null}
                 displayMode={uiStore.displayMode}
                 showLabelsOnImages={uiStore.showLabelsOnImages}
                 showAnnotations={uiStore.showAnnotations}
                 annotationField={uiStore.annotationField}
                 {partyMode}
                 {enableLongPress}
-                onselect={(e) => handleRackSelect(e)}
+                ongroupselect={handleGroupSelect}
                 ondeviceselect={(e) => {
                   const rackId = activeRackId ?? groupRacks[0]?.id;
                   if (rackId) handleDeviceSelect(rackId, e);

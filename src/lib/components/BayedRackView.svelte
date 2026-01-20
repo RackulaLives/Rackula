@@ -34,6 +34,8 @@
     selectedDeviceId?: string | null;
     /** ID of the selected rack */
     selectedRackId?: string | null;
+    /** ID of the selected group (for bayed rack group selection) */
+    selectedGroupId?: string | null;
     displayMode?: DisplayMode;
     showLabelsOnImages?: boolean;
     /** Party mode visual effects active */
@@ -44,7 +46,8 @@
     annotationField?: AnnotationField;
     /** Enable long press gesture for mobile rack editing */
     enableLongPress?: boolean;
-    onselect?: (event: CustomEvent<{ rackId: string }>) => void;
+    /** Callback when the entire group is selected (bayed racks select as a unit) */
+    ongroupselect?: (event: CustomEvent<{ groupId: string }>) => void;
     ondeviceselect?: (
       event: CustomEvent<{ slug: string; position: number }>,
     ) => void;
@@ -96,13 +99,14 @@
     activeRackId = null,
     selectedDeviceId = null,
     selectedRackId = null,
+    selectedGroupId = null,
     displayMode = "label",
     showLabelsOnImages = false,
     partyMode = false,
     showAnnotations = false,
     annotationField = "name",
     enableLongPress = false,
-    onselect,
+    ongroupselect,
     ondeviceselect,
     ondevicedrop,
     ondevicemove,
@@ -143,7 +147,10 @@
 
   // Compute if ANY bay in the group is active/selected (for whole-group highlighting)
   const isGroupActive = $derived(racks.some((r) => r.id === activeRackId));
-  const isGroupSelected = $derived(racks.some((r) => r.id === selectedRackId));
+  // Group is selected when the group ID matches OR any individual rack in the group is selected
+  const isGroupSelected = $derived(
+    selectedGroupId === group.id || racks.some((r) => r.id === selectedRackId),
+  );
 
   // Element reference for long press
   let containerElement: HTMLDivElement | null = $state(null);
@@ -228,12 +235,10 @@
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      // Select first rack in group if none selected
-      if (racks.length > 0 && !activeRackId) {
-        onselect?.(
-          new CustomEvent("select", { detail: { rackId: racks[0].id } }),
-        );
-      }
+      // Select the entire group
+      ongroupselect?.(
+        new CustomEvent("groupselect", { detail: { groupId: group.id } }),
+      );
     }
   }
 </script>
@@ -304,8 +309,10 @@
             hideRackName={true}
             hideULabels={true}
             onselect={() =>
-              onselect?.(
-                new CustomEvent("select", { detail: { rackId: rack.id } }),
+              ongroupselect?.(
+                new CustomEvent("groupselect", {
+                  detail: { groupId: group.id },
+                }),
               )}
             {ondeviceselect}
             ondevicedrop={(e) => handleFrontDeviceDrop(rack.id, e)}
@@ -318,7 +325,12 @@
       <!-- U-labels column between adjacent bays (not after last bay) -->
       {#if bayIndex < racks.length - 1}
         <div class="u-labels-column">
-          <ULabels {uLabels} {uColumnHeight} railWidth={RAIL_WIDTH} />
+          <ULabels
+            {uLabels}
+            {uColumnHeight}
+            railWidth={RAIL_WIDTH}
+            topPadding={RACK_PADDING_HIDDEN}
+          />
         </div>
       {/if}
     {/each}
@@ -336,7 +348,12 @@
       <!-- U-labels column between adjacent bays (not before first bay in reversed order) -->
       {#if reversedIndex > 0}
         <div class="u-labels-column">
-          <ULabels {uLabels} {uColumnHeight} railWidth={RAIL_WIDTH} />
+          <ULabels
+            {uLabels}
+            {uColumnHeight}
+            railWidth={RAIL_WIDTH}
+            topPadding={RACK_PADDING_HIDDEN}
+          />
         </div>
       {/if}
       <RackContextMenu
@@ -366,8 +383,10 @@
             hideRackName={true}
             hideULabels={true}
             onselect={() =>
-              onselect?.(
-                new CustomEvent("select", { detail: { rackId: rack.id } }),
+              ongroupselect?.(
+                new CustomEvent("groupselect", {
+                  detail: { groupId: group.id },
+                }),
               )}
             {ondeviceselect}
             ondevicedrop={(e) => handleRearDeviceDrop(rack.id, e)}
@@ -402,7 +421,7 @@
     flex-direction: column;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-3);
+    padding: var(--space-2);
     border-radius: var(--radius-md);
     background: transparent;
     position: relative;
@@ -410,7 +429,7 @@
 
   .bayed-rack-view:focus {
     outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
+    outline-offset: 1px;
   }
 
   /* Selection highlight for entire bayed rack group */
@@ -420,13 +439,13 @@
 
   .bayed-rack-view.selected {
     outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
+    outline-offset: 1px;
   }
 
   /* Long press visual feedback */
   .bayed-rack-view.long-press-active {
     outline: 3px solid var(--dracula-pink, #ff79c6);
-    outline-offset: 2px;
+    outline-offset: 1px;
     box-shadow: inset 0 0 0 calc(var(--long-press-progress, 0) * 4px)
       rgba(255, 121, 198, 0.15);
   }

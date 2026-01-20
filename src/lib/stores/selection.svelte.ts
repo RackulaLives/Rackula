@@ -7,28 +7,31 @@
  * - Selection remains valid after device additions/deletions
  */
 
-import type { PlacedDevice } from '$lib/types';
+import type { PlacedDevice } from "$lib/types";
 
 // Selection types
-type SelectionType = 'rack' | 'device' | null;
+type SelectionType = "rack" | "group" | "device" | null;
 
 // Module-level state (using $state rune)
 let selectedType = $state<SelectionType>(null);
 let selectedRackId = $state<string | null>(null);
+let selectedGroupId = $state<string | null>(null);
 let selectedDeviceId = $state<string | null>(null);
 
 // Derived values (using $derived rune)
 const hasSelection = $derived(selectedType !== null);
-const isRackSelected = $derived(selectedType === 'rack');
-const isDeviceSelected = $derived(selectedType === 'device');
+const isRackSelected = $derived(selectedType === "rack");
+const isGroupSelected = $derived(selectedType === "group");
+const isDeviceSelected = $derived(selectedType === "device");
 
 /**
  * Reset the store to initial state (primarily for testing)
  */
 export function resetSelectionStore(): void {
-	selectedType = null;
-	selectedRackId = null;
-	selectedDeviceId = null;
+  selectedType = null;
+  selectedRackId = null;
+  selectedGroupId = null;
+  selectedDeviceId = null;
 }
 
 /**
@@ -36,37 +39,44 @@ export function resetSelectionStore(): void {
  * @returns Store object with state and actions
  */
 export function getSelectionStore() {
-	return {
-		// State getters
-		get selectedType() {
-			return selectedType;
-		},
-		get selectedRackId() {
-			return selectedRackId;
-		},
-		get selectedDeviceId() {
-			return selectedDeviceId;
-		},
+  return {
+    // State getters
+    get selectedType() {
+      return selectedType;
+    },
+    get selectedRackId() {
+      return selectedRackId;
+    },
+    get selectedGroupId() {
+      return selectedGroupId;
+    },
+    get selectedDeviceId() {
+      return selectedDeviceId;
+    },
 
-		// Derived getters
-		get hasSelection() {
-			return hasSelection;
-		},
-		get isRackSelected() {
-			return isRackSelected;
-		},
-		get isDeviceSelected() {
-			return isDeviceSelected;
-		},
+    // Derived getters
+    get hasSelection() {
+      return hasSelection;
+    },
+    get isRackSelected() {
+      return isRackSelected;
+    },
+    get isGroupSelected() {
+      return isGroupSelected;
+    },
+    get isDeviceSelected() {
+      return isDeviceSelected;
+    },
 
-		// Actions
-		selectRack,
-		selectDevice,
-		clearSelection,
+    // Actions
+    selectRack,
+    selectGroup,
+    selectDevice,
+    clearSelection,
 
-		// Helpers
-		getSelectedDeviceIndex
-	};
+    // Helpers
+    getSelectedDeviceIndex,
+  };
 }
 
 /**
@@ -74,9 +84,21 @@ export function getSelectionStore() {
  * @param rackId - ID of the rack to select
  */
 function selectRack(rackId: string): void {
-	selectedType = 'rack';
-	selectedRackId = rackId;
-	selectedDeviceId = null;
+  selectedType = "rack";
+  selectedRackId = rackId;
+  selectedGroupId = null;
+  selectedDeviceId = null;
+}
+
+/**
+ * Select a rack group (bayed rack)
+ * @param groupId - ID of the group to select
+ */
+function selectGroup(groupId: string): void {
+  selectedType = "group";
+  selectedRackId = null;
+  selectedGroupId = groupId;
+  selectedDeviceId = null;
 }
 
 /**
@@ -85,18 +107,20 @@ function selectRack(rackId: string): void {
  * @param deviceId - Unique ID of the placed device (UUID)
  */
 function selectDevice(rackId: string, deviceId: string): void {
-	selectedType = 'device';
-	selectedRackId = rackId;
-	selectedDeviceId = deviceId;
+  selectedType = "device";
+  selectedRackId = rackId;
+  selectedGroupId = null;
+  selectedDeviceId = deviceId;
 }
 
 /**
  * Clear the current selection
  */
 function clearSelection(): void {
-	selectedType = null;
-	selectedRackId = null;
-	selectedDeviceId = null;
+  selectedType = null;
+  selectedRackId = null;
+  selectedGroupId = null;
+  selectedDeviceId = null;
 }
 
 /**
@@ -105,7 +129,7 @@ function clearSelection(): void {
  * @returns The index of the selected device, or null if not found
  */
 function getSelectedDeviceIndex(devices: PlacedDevice[]): number | null {
-	if (!selectedDeviceId) return null;
-	const index = devices.findIndex((d) => d.id === selectedDeviceId);
-	return index >= 0 ? index : null;
+  if (!selectedDeviceId) return null;
+  const index = devices.findIndex((d) => d.id === selectedDeviceId);
+  return index >= 0 ? index : null;
 }
