@@ -352,8 +352,17 @@
         RACK_PADDING,
       );
 
-      // Calculate X offset within rack interior for container hover detection
+      // Calculate X offset within rack interior for container hover detection and slot position
       const xOffsetInRack = svgCoords.x - RAIL_WIDTH;
+
+      // Calculate slot position for half-width devices
+      const deviceSlotWidth = device.slot_width ?? 2;
+      const slotPosition = calculateDropSlotPosition(
+        xOffsetInRack,
+        interiorWidth,
+        deviceSlotWidth,
+      );
+      const isHalfWidth = deviceSlotWidth === 1;
 
       // Detect if hovering over a container slot
       containerHoverInfo = detectContainerHover(
@@ -376,12 +385,15 @@
         targetU,
         excludeIndex,
         effectiveFaceFilter,
+        slotPosition,
       );
 
       dropPreview = {
         position: targetU,
         height: device.u_height,
         feedback,
+        slotPosition,
+        isHalfWidth,
       };
     }
 
