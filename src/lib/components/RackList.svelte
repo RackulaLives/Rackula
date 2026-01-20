@@ -152,7 +152,7 @@
 <div class="rack-list">
   <div class="rack-list-header">
     <span class="rack-count">
-      {rackGroups.length + ungroupedRacks.length} rack{rackGroups.length +
+      {rackGroups.length + ungroupedRacks.length} Rack{rackGroups.length +
         ungroupedRacks.length !==
       1
         ? "s"
