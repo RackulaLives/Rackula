@@ -3,14 +3,18 @@ import { cleanup } from "@testing-library/svelte";
 import { afterEach, beforeEach, vi } from "vitest";
 
 /*
- * Targeted bits-ui error suppression
+ * Targeted error suppression for test noise
  *
- * bits-ui's body-scroll-lock sets timeouts that can fire after test teardown,
- * causing "document is not defined" errors. This is benign in tests.
+ * 1. bits-ui's body-scroll-lock sets timeouts that can fire after test teardown,
+ *    causing "document is not defined" errors. This is benign in tests.
+ *
+ * 2. Happy-DOM's AsyncTaskManager.abortAll() logs DOMException [AbortError]
+ *    when aborting pending fetch operations during teardown. This is expected
+ *    cleanup behavior and not indicative of test failures.
  *
  * Strategy:
  * 1. vi.clearAllTimers() in afterEach prevents most timer-related errors
- * 2. Console.error filter catches remaining scroll lock messages
+ * 2. Console.error filter catches remaining scroll lock and abort messages
  * 3. Process uncaughtException handler catches async cleanup errors
  *
  * This targeted approach replaces the blanket dangerouslyIgnoreUnhandledErrors.
@@ -20,25 +24,69 @@ console.error = (...args: unknown[]) => {
   const message = String(args[0]);
   if (
     message.includes("resetBodyStyle") ||
-    message.includes("body-scroll-lock")
+    message.includes("body-scroll-lock") ||
+    message.includes("AbortError") ||
+    message.includes("The operation was aborted")
   ) {
-    return; // Suppress bits-ui scroll lock errors
+    return; // Suppress bits-ui scroll lock and Happy-DOM abort errors
   }
   originalConsoleError.apply(console, args);
 };
 
-// Also handle uncaught exceptions from bits-ui cleanup
+// Handle uncaught exceptions and unhandled rejections from cleanup
 if (typeof process !== "undefined" && process.on) {
+  const isAbortError = (error: Error): boolean =>
+    error.name === "AbortError" ||
+    (error.message?.includes("The operation was aborted") &&
+      error.stack?.includes("happy-dom"));
+
+  const isScrollLockError = (error: Error): boolean =>
+    error.message?.includes("document is not defined") &&
+    error.stack?.includes("body-scroll-lock");
+
   process.on("uncaughtException", (error: Error) => {
-    if (
-      error.message?.includes("document is not defined") &&
-      error.stack?.includes("body-scroll-lock")
-    ) {
-      // Suppress bits-ui scroll lock cleanup errors
+    if (isScrollLockError(error) || isAbortError(error)) {
       return;
     }
     throw error;
   });
+
+  process.on("unhandledRejection", (reason: unknown) => {
+    if (reason instanceof Error) {
+      if (isScrollLockError(reason) || isAbortError(reason)) {
+        return;
+      }
+    }
+    // Re-throw as uncaught exception to maintain default behavior for real errors
+    throw reason;
+  });
+}
+
+// Suppress Happy-DOM AbortError messages written to stderr during cleanup
+// These occur when AsyncTaskManager.abortAll() cancels pending fetch/stream operations
+if (typeof process !== "undefined" && process.stderr) {
+  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  process.stderr.write = ((
+    chunk: Uint8Array | string,
+    encodingOrCallback?: BufferEncoding | ((err?: Error) => void),
+    callback?: (err?: Error) => void,
+  ): boolean => {
+    const message = typeof chunk === "string" ? chunk : chunk.toString();
+    if (
+      message.includes("AbortError") ||
+      message.includes("The operation was aborted")
+    ) {
+      // Suppress Happy-DOM abort errors, but still call callback if provided
+      const cb =
+        typeof encodingOrCallback === "function"
+          ? encodingOrCallback
+          : callback;
+      if (cb) cb();
+      return true;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return originalStderrWrite(chunk, encodingOrCallback as any, callback);
+  }) as typeof process.stderr.write;
 }
 
 // Global test setup for Rackula
