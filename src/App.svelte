@@ -1215,6 +1215,7 @@
       onsave={handleSave}
       onload={handleLoad}
       onexport={handleExport}
+      onshare={handleShare}
       ondelete={handleDelete}
       onfitall={handleFitAll}
       onhelp={handleHelp}
