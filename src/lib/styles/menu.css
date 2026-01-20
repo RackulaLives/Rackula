@@ -58,7 +58,7 @@
   font-weight: var(--font-weight-medium);
   color: var(--colour-text-muted-inverse);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 .menu-shortcut {

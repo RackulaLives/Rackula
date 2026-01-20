@@ -287,7 +287,7 @@
 
   .btn-destructive {
     background: var(--colour-error);
-    color: white;
+    color: var(--colour-text-inverse);
   }
 
   .btn-destructive:hover:not(:disabled) {
