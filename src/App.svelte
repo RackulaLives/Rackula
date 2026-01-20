@@ -1038,7 +1038,7 @@
             {#if uiStore.sidebarTab === "devices"}
               <DevicePalette oncreatedevice={handleAddDevice} />
             {:else if uiStore.sidebarTab === "racks"}
-              <RackList onaddrack={handleNewRack} />
+              <RackList />
             {/if}
           </Pane>
 
