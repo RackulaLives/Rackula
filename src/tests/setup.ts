@@ -22,13 +22,22 @@ import { afterEach, beforeEach, vi } from "vitest";
 const originalConsoleError = console.error;
 console.error = (...args: unknown[]) => {
   const message = String(args[0]);
+  // Suppress bits-ui scroll lock errors
   if (
     message.includes("resetBodyStyle") ||
-    message.includes("body-scroll-lock") ||
-    message.includes("AbortError") ||
-    message.includes("The operation was aborted")
+    message.includes("body-scroll-lock")
   ) {
-    return; // Suppress bits-ui scroll lock and Happy-DOM abort errors
+    return;
+  }
+  // Suppress Happy-DOM AbortError - check for stack trace markers to avoid
+  // hiding legitimate abort errors from application code
+  const isAbortMessage =
+    message.includes("AbortError") ||
+    message.includes("The operation was aborted");
+  const isFromHappyDom =
+    message.includes("happy-dom") || message.includes("AsyncTaskManager");
+  if (isAbortMessage && isFromHappyDom) {
+    return;
   }
   originalConsoleError.apply(console, args);
 };
@@ -64,6 +73,7 @@ if (typeof process !== "undefined" && process.on) {
 
 // Suppress Happy-DOM AbortError messages written to stderr during cleanup
 // These occur when AsyncTaskManager.abortAll() cancels pending fetch/stream operations
+// The stderr output includes the full stack trace with "happy-dom" and "AsyncTaskManager"
 if (typeof process !== "undefined" && process.stderr) {
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
   process.stderr.write = ((
@@ -72,10 +82,13 @@ if (typeof process !== "undefined" && process.stderr) {
     callback?: (err?: Error) => void,
   ): boolean => {
     const message = typeof chunk === "string" ? chunk : chunk.toString();
-    if (
+    // Only suppress AbortError if it comes from Happy-DOM (check stack trace markers)
+    const isAbortMessage =
       message.includes("AbortError") ||
-      message.includes("The operation was aborted")
-    ) {
+      message.includes("The operation was aborted");
+    const isFromHappyDom =
+      message.includes("happy-dom") || message.includes("AsyncTaskManager");
+    if (isAbortMessage && isFromHappyDom) {
       // Suppress Happy-DOM abort errors, but still call callback if provided
       const cb =
         typeof encodingOrCallback === "function"
