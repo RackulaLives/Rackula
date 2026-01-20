@@ -16,6 +16,7 @@ import type {
   RackView,
   DisplayMode,
   Cable,
+  SlotPosition,
 } from "$lib/types";
 import {
   DEFAULT_DEVICE_FACE,
@@ -1522,6 +1523,7 @@ function deleteDeviceType(slug: string): void {
  * @param deviceTypeSlug - Device type slug
  * @param position - U position (bottom of device)
  * @param face - Optional face assignment (auto-determined from depth if not specified)
+ * @param slotPosition - Optional slot position for half-width devices ('left', 'right', or 'full')
  * @returns true if placed successfully, false otherwise
  */
 function placeDevice(
@@ -1529,10 +1531,17 @@ function placeDevice(
   deviceTypeSlug: string,
   position: number,
   face?: DeviceFace,
+  slotPosition?: SlotPosition,
 ): boolean {
   // Delegate to recorded version for undo/redo support
   // Face is determined by placeDeviceRecorded based on device depth if not specified
-  return placeDeviceRecorded(rackId, deviceTypeSlug, position, face);
+  return placeDeviceRecorded(
+    rackId,
+    deviceTypeSlug,
+    position,
+    face,
+    slotPosition,
+  );
 }
 
 /**
@@ -2331,6 +2340,7 @@ function deleteDeviceTypeRecorded(slug: string): void {
  * @param deviceTypeSlug - Device type slug
  * @param positionU - U position (human-readable, e.g., 1, 5, 10)
  * @param face - Optional face assignment
+ * @param slotPosition - Optional slot position for half-width devices ('left', 'right', or 'full')
  * @returns true if placed successfully
  */
 function placeDeviceRecorded(
@@ -2338,6 +2348,7 @@ function placeDeviceRecorded(
   deviceTypeSlug: string,
   positionU: number,
   face?: DeviceFace,
+  slotPosition?: SlotPosition,
 ): boolean {
   // Convert human U position to internal units
   const positionInternal = toInternalUnits(positionU);
@@ -2394,6 +2405,12 @@ function placeDeviceRecorded(
     : (face ?? DEFAULT_DEVICE_FACE);
   const deviceName = deviceType.model ?? deviceType.slug;
 
+  // Determine effective slot position
+  // Full-width devices (slot_width !== 1) always use 'full'
+  const deviceSlotWidth = deviceType.slot_width ?? 2;
+  const effectiveSlotPosition: SlotPosition =
+    deviceSlotWidth === 1 ? (slotPosition ?? "full") : "full";
+
   if (
     !canPlaceDevice(
       targetRack,
@@ -2402,6 +2419,7 @@ function placeDeviceRecorded(
       positionInternal,
       undefined,
       effectiveFace,
+      effectiveSlotPosition,
     )
   ) {
     debug.devicePlace({
@@ -2421,6 +2439,7 @@ function placeDeviceRecorded(
     device_type: deviceTypeSlug,
     position: positionInternal,
     face: effectiveFace,
+    slot_position: effectiveSlotPosition,
     ports: instantiatePorts(deviceType),
   };
 

@@ -47,6 +47,7 @@
         slug: string;
         position: number;
         face: "front" | "rear";
+        slot_position?: import("$lib/types").SlotPosition;
       }>,
     ) => void;
     ondevicemove?: (
@@ -360,10 +361,11 @@
       slug: string;
       position: number;
       face: "front" | "rear";
+      slot_position?: import("$lib/types").SlotPosition;
     }>,
   ) {
-    const { rackId, slug, position, face } = event.detail;
-    layoutStore.placeDevice(rackId, slug, position, face);
+    const { rackId, slug, position, face, slot_position } = event.detail;
+    layoutStore.placeDevice(rackId, slug, position, face, slot_position);
     ondevicedrop?.(event);
   }
 

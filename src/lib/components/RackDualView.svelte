@@ -9,6 +9,7 @@
     DeviceType,
     DisplayMode,
     AnnotationField,
+    SlotPosition,
   } from "$lib/types";
   import Rack from "./Rack.svelte";
   import AnnotationColumn from "./AnnotationColumn.svelte";
@@ -46,6 +47,7 @@
         slug: string;
         position: number;
         face: "front" | "rear";
+        slot_position?: SlotPosition;
       }>,
     ) => void;
     ondevicemove?: (
@@ -170,7 +172,12 @@
 
   // Handle device drop on front view - add face: 'front' to the event
   function handleFrontDeviceDrop(
-    event: CustomEvent<{ rackId: string; slug: string; position: number }>,
+    event: CustomEvent<{
+      rackId: string;
+      slug: string;
+      position: number;
+      slot_position?: SlotPosition;
+    }>,
   ) {
     ondevicedrop?.(
       new CustomEvent("devicedrop", {
@@ -184,7 +191,12 @@
 
   // Handle device drop on rear view - add face: 'rear' to the event
   function handleRearDeviceDrop(
-    event: CustomEvent<{ rackId: string; slug: string; position: number }>,
+    event: CustomEvent<{
+      rackId: string;
+      slug: string;
+      position: number;
+      slot_position?: SlotPosition;
+    }>,
   ) {
     ondevicedrop?.(
       new CustomEvent("devicedrop", {

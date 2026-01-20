@@ -9,12 +9,14 @@
     DeviceType,
     DisplayMode,
     PlacedDevice,
+    SlotPosition,
   } from "$lib/types";
   import RackDevice from "./RackDevice.svelte";
   import DeviceContextMenu from "./DeviceContextMenu.svelte";
   import {
     parseDragData,
     calculateDropPosition,
+    calculateDropSlotPosition,
     getDropFeedback,
     getCurrentDragData,
     detectContainerDropTarget,
@@ -73,7 +75,12 @@
       event: CustomEvent<{ slug: string; position: number }>,
     ) => void;
     ondevicedrop?: (
-      event: CustomEvent<{ rackId: string; slug: string; position: number }>,
+      event: CustomEvent<{
+        rackId: string;
+        slug: string;
+        position: number;
+        slot_position?: SlotPosition;
+      }>,
     ) => void;
     ondevicemove?: (
       event: CustomEvent<{
@@ -201,6 +208,8 @@
     position: number;
     height: number;
     feedback: DropFeedback;
+    slotPosition?: SlotPosition;
+    isHalfWidth?: boolean;
   } | null>(null);
 
   // Container hover state for showing slot overlay during drag
@@ -595,8 +604,17 @@
       RACK_PADDING,
     );
 
-    // Calculate X offset within rack interior for container hover detection
+    // Calculate X offset within rack interior for container hover detection and slot position
     const xOffsetInRack = svgCoords.x - RAIL_WIDTH;
+
+    // Calculate slot position for half-width devices
+    const deviceSlotWidth = dragData.device.slot_width ?? 2;
+    const slotPosition = calculateDropSlotPosition(
+      xOffsetInRack,
+      interiorWidth,
+      deviceSlotWidth,
+    );
+    const isHalfWidth = deviceSlotWidth === 1;
 
     // Detect if hovering over a container slot
     containerHoverInfo = detectContainerHover(
@@ -617,12 +635,15 @@
       targetU,
       excludeIndex,
       effectiveFaceFilter,
+      slotPosition,
     );
 
     dropPreview = {
       position: targetU,
       height: dragData.device.u_height,
       feedback,
+      slotPosition,
+      isHalfWidth,
     };
   }
 
@@ -839,8 +860,16 @@
     );
 
     // Check for container slot drop (requires container to be selected)
-    // Calculate x offset within rack interior for slot detection
+    // Calculate x offset within rack interior for slot detection and slot position
     const xOffsetInRack = svgCoords.x - RAIL_WIDTH;
+
+    // Calculate slot position for half-width devices
+    const deviceSlotWidth = dragData.device.slot_width ?? 2;
+    const slotPosition = calculateDropSlotPosition(
+      xOffsetInRack,
+      interiorWidth,
+      deviceSlotWidth,
+    );
 
     const containerTarget = detectContainerDropTarget(
       rack,
@@ -888,6 +917,7 @@
       targetU,
       excludeIndex,
       effectiveFaceFilter,
+      slotPosition,
     );
 
     if (feedback === "valid") {
@@ -926,6 +956,7 @@
               rackId: rack.id,
               slug: dragData.device.slug,
               position: targetU,
+              slot_position: slotPosition,
             },
           }),
         );
@@ -1330,10 +1361,26 @@
 
     <!-- Drop preview -->
     {#if dropPreview}
+      <!-- Split line for half-width devices -->
+      {#if dropPreview.isHalfWidth}
+        <line
+          x1={RAIL_WIDTH + interiorWidth / 2}
+          y1={dropPreviewY}
+          x2={RAIL_WIDTH + interiorWidth / 2}
+          y2={dropPreviewY + dropPreview.height * U_HEIGHT}
+          class="slot-divider"
+          stroke-dasharray="4 2"
+        />
+      {/if}
+      <!-- Drop preview rectangle (half-width for half-width devices) -->
       <rect
-        x={RAIL_WIDTH + 2}
+        x={dropPreview.isHalfWidth && dropPreview.slotPosition === "right"
+          ? RAIL_WIDTH + interiorWidth / 2 + 2
+          : RAIL_WIDTH + 2}
         y={dropPreviewY}
-        width={interiorWidth - 4}
+        width={dropPreview.isHalfWidth
+          ? interiorWidth / 2 - 4
+          : interiorWidth - 4}
         height={dropPreview.height * U_HEIGHT - 2}
         class="drop-preview"
         class:drop-valid={dropPreview.feedback === "valid"}
@@ -1586,6 +1633,13 @@
     fill: var(--colour-dnd-invalid-bg);
     stroke: var(--colour-dnd-invalid);
     stroke-width: 2;
+  }
+
+  .slot-divider {
+    stroke: var(--colour-selection);
+    stroke-width: 1;
+    opacity: 0.7;
+    pointer-events: none;
   }
 
   /* Blocked Slots - Crosshatch pattern for half-depth conflicts
