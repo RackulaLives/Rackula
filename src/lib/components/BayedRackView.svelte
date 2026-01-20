@@ -287,7 +287,7 @@
       {/if}
       <RackContextMenu
         onadddevice={() => onadddevice?.(rack.id)}
-        onexport={() => onexport?.(group.rack_ids)}
+        onexport={() => onexport?.(racks.map((r) => r.id))}
         onedit={() => onedit?.(rack.id)}
         onrename={() => onrename?.(rack.id)}
         onduplicate={() => onduplicate?.(rack.id)}
@@ -362,7 +362,7 @@
       {/if}
       <RackContextMenu
         onadddevice={() => onadddevice?.(rack.id)}
-        onexport={() => onexport?.(group.rack_ids)}
+        onexport={() => onexport?.(racks.map((r) => r.id))}
         onedit={() => onedit?.(rack.id)}
         onrename={() => onrename?.(rack.id)}
         onduplicate={() => onduplicate?.(rack.id)}
