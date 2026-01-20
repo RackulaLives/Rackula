@@ -16,6 +16,7 @@
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import ConfirmReplaceDialog from "$lib/components/ConfirmReplaceDialog.svelte";
   import CleanupDialog from "$lib/components/CleanupDialog.svelte";
+  import CleanupPromptDialog from "$lib/components/CleanupPromptDialog.svelte";
   import ToastContainer from "$lib/components/ToastContainer.svelte";
   import PortTooltip from "$lib/components/PortTooltip.svelte";
   import DragTooltip from "$lib/components/DragTooltip.svelte";
@@ -112,6 +113,7 @@
   let importFromNetBoxOpen = $derived(dialogStore.isOpen("importNetBox"));
   let showReplaceDialog = $derived(dialogStore.isOpen("confirmReplace"));
   let cleanupDialogOpen = $derived(dialogStore.isOpen("cleanupDialog"));
+  let cleanupPromptOpen = $derived(dialogStore.isOpen("cleanupPrompt"));
 
   // Mobile bottom sheet state - managed by dialogStore
   let bottomSheetOpen = $derived(dialogStore.isSheetOpen("deviceDetails"));
@@ -307,6 +309,106 @@
 
   function handleCancelReplace() {
     dialogStore.close();
+  }
+
+  /**
+   * Check if we should show the cleanup prompt before save/export
+   * @param operation - "save" or "export"
+   * @returns true if we should proceed with the operation, false if we showed the prompt
+   */
+  function shouldShowCleanupPrompt(operation: "save" | "export"): boolean {
+    // Check if prompt is enabled
+    if (!uiStore.promptCleanupOnSave) {
+      return false;
+    }
+
+    // Check if there are unused custom device types
+    const unusedTypes = layoutStore.getUnusedCustomDeviceTypes();
+    if (unusedTypes.length === 0) {
+      return false;
+    }
+
+    // Show the cleanup prompt
+    dialogStore.pendingCleanupOperation = operation;
+    dialogStore.open("cleanupPrompt");
+    return true;
+  }
+
+  /**
+   * Get count of unused custom device types
+   */
+  function getUnusedCustomTypeCount(): number {
+    return layoutStore.getUnusedCustomDeviceTypes().length;
+  }
+
+  /**
+   * Handle "Review & Clean Up" button in cleanup prompt
+   * Opens the bulk cleanup dialog (issue #832 - to be implemented)
+   */
+  function handleCleanupReview() {
+    const pendingOp = dialogStore.pendingCleanupOperation;
+    dialogStore.close();
+    // TODO: When issue #832 is implemented, open the bulk cleanup dialog here
+    // For now, just proceed with the operation
+    if (pendingOp === "save") {
+      handleSave();
+    } else if (pendingOp === "export") {
+      handleExport();
+    }
+  }
+
+  /**
+   * Handle "Keep All" button in cleanup prompt
+   * Proceeds with the pending operation without cleanup
+   */
+  function handleCleanupKeepAll() {
+    const pendingOp = dialogStore.pendingCleanupOperation;
+    dialogStore.close();
+    if (pendingOp === "save") {
+      handleSave();
+    } else if (pendingOp === "export") {
+      handleExport();
+    }
+  }
+
+  /**
+   * Handle "Cancel" button in cleanup prompt
+   * Aborts the pending operation
+   */
+  function handleCleanupCancel() {
+    dialogStore.close();
+  }
+
+  /**
+   * Handle "Don't ask again" checkbox
+   * Disables the cleanup prompt setting
+   */
+  function handleCleanupDontAskAgain() {
+    uiStore.setPromptCleanupOnSave(false);
+  }
+
+  /**
+   * Entry point for save operation triggered by Ctrl+S or menu
+   * Checks for unused custom types and shows prompt if needed
+   */
+  function maybeSave() {
+    // If cleanup prompt should be shown, don't proceed with save yet
+    if (shouldShowCleanupPrompt("save")) {
+      return;
+    }
+    handleSave();
+  }
+
+  /**
+   * Entry point for export operation triggered by Ctrl+E or menu
+   * Checks for unused custom types and shows prompt if needed
+   */
+  function maybeExport() {
+    // If cleanup prompt should be shown, don't proceed with export yet
+    if (shouldShowCleanupPrompt("export")) {
+      return;
+    }
+    handleExport();
   }
 
   async function handleSave() {
@@ -1037,9 +1139,9 @@
       promptCleanupOnSave={uiStore.promptCleanupOnSave}
       {partyMode}
       onnewrack={handleNewRack}
-      onsave={handleSave}
+      onsave={maybeSave}
       onload={handleLoad}
-      onexport={handleExport}
+      onexport={maybeExport}
       onshare={handleShare}
       onimportdevices={handleImportDevices}
       onimportnetbox={handleImportFromNetBox}
@@ -1195,6 +1297,15 @@
       onCancel={handleCancelReplace}
     />
 
+    <CleanupPromptDialog
+      open={cleanupPromptOpen}
+      unusedCount={getUnusedCustomTypeCount()}
+      onreview={handleCleanupReview}
+      onkeepall={handleCleanupKeepAll}
+      oncancel={handleCleanupCancel}
+      ondontaskagain={handleCleanupDontAskAgain}
+    />
+
     <ExportDialog
       open={exportDialogOpen}
       racks={layoutStore.racks}
@@ -1263,9 +1374,9 @@
     {/if}
 
     <KeyboardHandler
-      onsave={handleSave}
+      onsave={maybeSave}
       onload={handleLoad}
-      onexport={handleExport}
+      onexport={maybeExport}
       onshare={handleShare}
       ondelete={handleDelete}
       onfitall={handleFitAll}

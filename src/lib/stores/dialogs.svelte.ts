@@ -17,7 +17,8 @@ export type DialogId =
   | "help"
   | "importNetBox"
   | "confirmReplace"
-  | "cleanupDialog";
+  | "cleanupDialog"
+  | "cleanupPrompt";
 
 export type SheetId = "deviceDetails" | "deviceLibrary" | "rackEdit";
 
@@ -33,6 +34,8 @@ let pendingSaveFirst = $state(false);
 let exportQrCodeDataUrl = $state<string | undefined>(undefined);
 /** Pre-selected rack IDs for export dialog (from context menu) */
 let exportSelectedRackIds = $state<string[] | undefined>(undefined);
+/** Pending operation that triggered cleanup prompt (save or export) */
+let pendingCleanupOperation = $state<"save" | "export" | null>(null);
 
 // Mobile sheet state
 let openSheet = $state<SheetId | null>(null);
@@ -54,6 +57,7 @@ function close() {
   pendingSaveFirst = false;
   exportQrCodeDataUrl = undefined;
   exportSelectedRackIds = undefined;
+  pendingCleanupOperation = null;
 }
 
 /**
@@ -117,6 +121,12 @@ export const dialogStore = {
   },
   set exportSelectedRackIds(value: string[] | undefined) {
     exportSelectedRackIds = value;
+  },
+  get pendingCleanupOperation() {
+    return pendingCleanupOperation;
+  },
+  set pendingCleanupOperation(value: "save" | "export" | null) {
+    pendingCleanupOperation = value;
   },
 
   // Dialog actions

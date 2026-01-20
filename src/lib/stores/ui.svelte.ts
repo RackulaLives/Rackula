@@ -485,7 +485,7 @@ function togglePromptCleanupOnSave(): void {
 
 /**
  * Set prompt cleanup on save setting
- * @param prompt - Whether to prompt for cleanup
+ * @param prompt - Whether to prompt for cleanup before save/export
  */
 function setPromptCleanupOnSave(prompt: boolean): void {
   promptCleanupOnSave = prompt;

@@ -36,6 +36,8 @@ import {
   type CreateDeviceTypeInput,
 } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
+import { getStarterSlugs } from "$lib/data/starterLibrary";
+import { getBrandSlugs } from "$lib/data/brandPacks";
 import { debug, layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { generateRackId, generateGroupId } from "$lib/utils/rack";
