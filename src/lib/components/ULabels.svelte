@@ -31,8 +31,16 @@
   role="img"
   aria-label="U position labels"
 >
-  <!-- Background -->
-  <rect x="0" y="0" width="32" height={uColumnHeight} class="u-column-bg" />
+  <!-- Background - starts at topPadding to match Rack.svelte behavior where
+       the y=0 to y=RACK_PADDING area is transparent. This prevents visible
+       artifacts from slight alignment differences between ULabels and Rack. -->
+  <rect
+    x="0"
+    y={topPadding}
+    width="32"
+    height={uColumnHeight - topPadding}
+    class="u-column-bg"
+  />
 
   <!-- Top rail (offset by topPadding to match Rack.svelte layout) -->
   <rect
