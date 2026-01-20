@@ -48,7 +48,8 @@ The `/release` skill will:
 3. Preview and confirm with you
 4. Update CHANGELOG.md, bump version, tag, and push
 
-**Important:** CHANGELOG.md is the source of truth. GitHub releases are auto-generated from changelog entries. The release workflow will fail if no changelog entry exists.
+**Important:** CHANGELOG.md is the source of truth. GitHub releases are auto-generated
+from changelog entries. The release workflow will fail if no changelog entry exists.
 
 **Tag format:** Always use `v` prefix (e.g., `v0.5.8`, not `0.5.8`)
 
@@ -63,7 +64,7 @@ The `/release` skill will:
 
 Documentation is organized by purpose:
 
-```
+```text
 docs/
 ├── ARCHITECTURE.md          → High-level overview and entry points
 ├── guides/
@@ -150,7 +151,8 @@ gh pr view <number> --comments
 
 ## Development Philosophy
 
-**Greenfield approach:** Do not use migration or legacy support concepts in this project. Implement features as if they are the first and only implementation.
+**Greenfield approach:** Do not use migration or legacy support concepts in this project.
+Implement features as if they are the first and only implementation.
 
 ---
 
@@ -218,7 +220,8 @@ Skip tests entirely for:
 - **Thin wrappers** with no logic of their own
 - **Components where the only possible test is "renders without throwing"**
 
-If an issue's Acceptance Criteria requests tests for something in this list, the testing policy overrides the AC. Don't write low-value tests just because an issue asked for them.
+If an issue's Acceptance Criteria requests tests for something in this list, the testing
+policy overrides the AC. Don't write low-value tests just because an issue asked for them.
 
 **If tests ARE needed**, follow TDD:
 
@@ -243,9 +246,11 @@ These are the ONLY categories worth testing. If your component doesn't fit one o
 - Properties already validated by Zod schemas
 - Simple getters, trivial functions, pass-through code
 
-**The Zero-Change Rule:** Adding a device to a brand pack should require ZERO test file changes. If tests break, they're testing data, not behavior.
+**The Zero-Change Rule:** Adding a device to a brand pack should require ZERO test file
+changes. If tests break, they're testing data, not behavior.
 
-**Trust the Schema:** If `DeviceTypeSchema.parse()` passes, don't re-test individual fields. One schema validation test covers all devices.
+**Trust the Schema:** If `DeviceTypeSchema.parse()` passes, don't re-test individual
+fields. One schema validation test covers all devices.
 
 See `docs/guides/TESTING.md` for comprehensive testing guidelines.
 
@@ -258,7 +263,7 @@ _These rules apply when you've decided tests ARE needed (see TDD Protocol above)
 **BEFORE writing any test, ask:** "Would this test break if I made a legitimate code change?"
 If yes, **DON'T WRITE IT.**
 
-### NEVER Write Tests That:
+### NEVER Write Tests That
 
 ❌ **Assert exact array lengths on data arrays**
 
@@ -270,7 +275,8 @@ expect(dellDevices).toHaveLength(68);
 expect(dellDevices.length).toBeGreaterThan(0);
 ```
 
-**Exception:** Behavioral invariants (deduplication, pagination) may use exact lengths with `eslint-disable-next-line` and justification:
+**Exception:** Behavioral invariants (deduplication, pagination) may use exact lengths
+with `eslint-disable-next-line` and justification:
 
 ```typescript
 // GOOD: Behavioral invariant with justification
@@ -323,7 +329,7 @@ expect(device.slug).toBeDefined();
 expect(typeof device.u_height).toBe("number");
 ```
 
-### ALWAYS Write Tests That:
+### ALWAYS Write Tests That
 
 ✅ **Test user-visible behavior**
 
@@ -372,7 +378,10 @@ const device = createTestDeviceType({ u_height: 2 });
 
 These rules are enforced by ESLint on every commit and will fail the build if violated.
 
-**Why these rules exist:** The project had 136 unit test files (46k LOC) causing OOM crashes and high token usage. We deleted 78 low-value files (57% reduction) to fix this. ESLint rules prevent re-accumulation by blocking the specific anti-patterns that caused bloat.
+**Why these rules exist:** The project had 136 unit test files (46k LOC) causing OOM
+crashes and high token usage. We deleted 78 low-value files (57% reduction) to fix this.
+ESLint rules prevent re-accumulation by blocking the specific anti-patterns that caused
+bloat.
 
 ---
 
@@ -388,7 +397,8 @@ npm run lint         # ESLint check
 npm run refresh-lockfile  # Regenerate package-lock.json from scratch
 ```
 
-**Lockfile issues:** If CI fails with "package.json and package-lock.json are out of sync", run `npm run refresh-lockfile` to regenerate the lockfile from a clean state.
+**Lockfile issues:** If CI fails with "package.json and package-lock.json are out of
+sync", run `npm run refresh-lockfile` to regenerate the lockfile from a clean state.
 
 ### Debug Logging
 
@@ -462,12 +472,12 @@ layoutDebug.device("placed device %s at U%d", slug, position);
 
 ## Repository
 
-| Location    | URL                                            |
-| ----------- | ---------------------------------------------- |
-| Production  | https://count.racku.la/                        |
-| Dev/Preview | https://d.racku.la/                            |
-| Primary     | https://github.com/RackulaLives/Rackula        |
-| Issues      | https://github.com/RackulaLives/Rackula/issues |
+| Location    | URL                                              |
+| ----------- | ------------------------------------------------ |
+| Production  | <https://count.racku.la/>                        |
+| Dev/Preview | <https://d.racku.la/>                            |
+| Primary     | <https://github.com/RackulaLives/Rackula>        |
+| Issues      | <https://github.com/RackulaLives/Rackula/issues> |
 
 ## Deployment
 
@@ -502,4 +512,6 @@ git push && git push --tags  # Triggers: Docker build → push to ghcr.io → VP
 3. Test on dev environment
 4. Tag release → auto-deploys to count.racku.la
 
-**Analytics:** Umami (self-hosted at `t.racku.la`) - privacy-focused, no cookies. Separate website IDs for dev and prod environments. Configure via `VITE_UMAMI_*` env vars. Analytics utility at `src/lib/utils/analytics.ts`.
+**Analytics:** Umami (self-hosted at `t.racku.la`) - privacy-focused, no cookies.
+Separate website IDs for dev and prod environments. Configure via `VITE_UMAMI_*` env vars.
+Analytics utility at `src/lib/utils/analytics.ts`.
