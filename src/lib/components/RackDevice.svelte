@@ -202,12 +202,23 @@
   const deviceHeight = $derived(device.u_height * uHeight);
   // Full interior width (between rails)
   const fullWidth = $derived(rackWidth - RAIL_WIDTH * 2);
-  // Device width depends on slot position: half-width for left/right, full for full
+
+  // Defensive rendering: device type's slot_width is the source of truth
+  // A full-width device (slot_width: 2 or undefined) always renders full-width,
+  // even if placement data has incorrect slot_position
+  const isDeviceTypeHalfWidth = $derived(device.slot_width === 1);
+  const effectiveSlotPosition = $derived(
+    isDeviceTypeHalfWidth ? slotPosition : "full",
+  );
+
+  // Device width depends on effective slot position: half-width for left/right, full for full
   const deviceWidth = $derived(
-    slotPosition === "full" ? fullWidth : fullWidth / 2,
+    effectiveSlotPosition === "full" ? fullWidth : fullWidth / 2,
   );
   // X offset within the interior: 0 for left/full, half for right
-  const slotXOffset = $derived(slotPosition === "right" ? fullWidth / 2 : 0);
+  const slotXOffset = $derived(
+    effectiveSlotPosition === "right" ? fullWidth / 2 : 0,
+  );
 
   // Container helper: compute slot x offsets and widths for child positioning
   const slotGeometry = $derived.by(() => {
