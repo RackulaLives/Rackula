@@ -154,7 +154,6 @@
   }
 
   function handleContinueOffline() {
-    // Load from localStorage if available, otherwise start fresh
     onClose();
   }
 

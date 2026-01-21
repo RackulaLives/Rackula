@@ -25,15 +25,6 @@ export interface SavedLayoutItem {
  */
 export type SaveStatus = "idle" | "saving" | "saved" | "error" | "offline";
 
-interface ListResponse {
-  layouts: SavedLayoutItem[];
-}
-
-interface SaveResponse {
-  id: string;
-  message: string;
-}
-
 interface ErrorResponse {
   error: string;
 }
@@ -86,7 +77,7 @@ export async function listSavedLayouts(): Promise<SavedLayoutItem[]> {
     );
   }
 
-  const data = (await response.json()) as ListResponse;
+  const data = (await response.json()) as { layouts: SavedLayoutItem[] };
   return data.layouts;
 }
 
@@ -154,8 +145,8 @@ export async function saveLayoutToServer(
     );
   }
 
-  const data = (await response.json()) as SaveResponse;
-  return data.id;
+  const { id } = (await response.json()) as { id: string };
+  return id;
 }
 
 /**

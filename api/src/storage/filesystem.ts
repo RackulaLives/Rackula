@@ -213,21 +213,3 @@ export async function deleteLayout(id: string): Promise<boolean> {
 export function getAssetsDir(): string {
   return join(DATA_DIR, ASSETS_DIR);
 }
-
-/**
- * Get asset path for a specific layout/device/face
- */
-export function getAssetPath(
-  layoutId: string,
-  deviceSlug: string,
-  face: "front" | "rear",
-  ext: string,
-): string {
-  // Validate layoutId to prevent path traversal attacks
-  const parsed = LayoutIdSchema.safeParse(layoutId);
-  if (!parsed.success) {
-    throw new Error(`Invalid layout ID: ${layoutId}`);
-  }
-
-  return join(getAssetsDir(), layoutId, deviceSlug, `${face}.${ext}`);
-}
