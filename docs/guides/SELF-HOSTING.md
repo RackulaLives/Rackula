@@ -80,7 +80,7 @@ Access at `http://localhost:8080`. Layouts save automatically to the server.
 │  │  /              → SPA│    │  GET  /api/layouts     │   │
 │  │  /api/*   → proxy ──┼───►│  PUT  /api/layouts/:id │   │
 │  │  /health  → proxy   │    │  DELETE /api/layouts/:id│   │
-│  │                     │    │  POST /api/assets/:id  │   │
+│  │                     │    │  PUT /api/assets/:id   │   │
 │  └─────────────────────┘    └─────────────────────────┘   │
 │                                        │                    │
 │                                        ▼                    │
