@@ -11,6 +11,7 @@ import {
   saveAsset,
   deleteAsset,
   isValidImageType,
+  MAX_SIZE,
 } from "../storage/assets";
 
 const assets = new Hono();
@@ -92,13 +93,19 @@ assets.put("/:layoutId/:deviceSlug/:face", async (c) => {
   const contentLength = c.req.header("Content-Length");
   if (contentLength) {
     const size = parseInt(contentLength, 10);
-    if (size > 5 * 1024 * 1024) {
+    if (size > MAX_SIZE) {
       return c.json({ error: "File too large. Maximum size is 5MB" }, 413);
     }
   }
 
   try {
     const data = await c.req.arrayBuffer();
+
+    // Verify actual size (Content-Length can be spoofed)
+    if (data.byteLength > MAX_SIZE) {
+      return c.json({ error: "File too large. Maximum size is 5MB" }, 413);
+    }
+
     await saveAsset(layoutId, deviceSlug, face, data, contentType);
 
     return c.json({ message: "Asset uploaded" }, 200);

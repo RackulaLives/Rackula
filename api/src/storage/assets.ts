@@ -20,7 +20,7 @@ import { LayoutIdSchema } from "../schemas/layout";
 // Allowed image types
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const ALLOWED_EXTS = new Set(["png", "jpg", "webp"]);
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+export const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 // Schema for device slug validation (similar to LayoutIdSchema)
 // Prevents path traversal attacks
