@@ -6,8 +6,6 @@
  * DELETE /api/layouts/:id - Delete layout
  */
 import { Hono } from "hono";
-import { YAMLException } from "js-yaml";
-import { ZodError } from "zod";
 import { LayoutIdSchema } from "../schemas/layout";
 import {
   listLayouts,
@@ -80,12 +78,14 @@ layouts.put("/:id", async (c) => {
   } catch (error) {
     console.error(`Failed to save layout ${idResult.data}:`, error);
 
-    if (error instanceof YAMLException) {
-      return c.json({ error: `Invalid YAML: ${error.message}` }, 400);
-    }
-
-    if (error instanceof ZodError) {
-      return c.json({ error: `Invalid layout: ${error.message}` }, 400);
+    // saveLayout throws Error with message prefixes for validation failures
+    if (error instanceof Error) {
+      if (error.message.startsWith("Invalid YAML:")) {
+        return c.json({ error: error.message }, 400);
+      }
+      if (error.message.startsWith("Invalid layout metadata:")) {
+        return c.json({ error: error.message }, 400);
+      }
     }
 
     return c.json({ error: "Failed to save layout" }, 500);
