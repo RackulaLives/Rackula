@@ -71,7 +71,7 @@ Then open `http://localhost:8080` and get after it.
 For layouts that persist across sessions, clone and build with persistence enabled:
 
 ```bash
-git clone https://github.com/rackulalives/rackula.git
+git clone https://github.com/RackulaLives/Rackula.git
 cd rackula
 mkdir -p data
 # Edit docker-compose.yml: uncomment 'build' section, comment out 'image'
@@ -83,7 +83,7 @@ See [Self-Hosting Guide](docs/guides/SELF-HOSTING.md) for details.
 ### Build from source
 
 ```bash
-git clone https://github.com/rackulalives/rackula.git
+git clone https://github.com/RackulaLives/Rackula.git
 cd Rackula && npm install && npm run build
 ```
 
