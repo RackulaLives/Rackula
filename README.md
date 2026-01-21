@@ -68,13 +68,14 @@ Then open `http://localhost:8080` and get after it.
 
 ### Persistent Storage (Self-Hosted)
 
-For layouts that persist across sessions, clone the repo first:
+For layouts that persist across sessions, clone and build with persistence enabled:
 
 ```bash
 git clone https://github.com/rackulalives/rackula.git
 cd rackula
 mkdir -p data
-docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
+# Edit docker-compose.yml: uncomment 'build' section, comment out 'image'
+docker compose --profile persist up -d --build
 ```
 
 See [Self-Hosting Guide](docs/guides/SELF-HOSTING.md) for details.

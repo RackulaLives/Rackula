@@ -119,5 +119,5 @@ jobs:
       - name: Deploy to prod
         run: |
           cd /opt/rackula/rackula-app
-          docker compose -f docker-compose.yml -f docker-compose.persist.yml pull
-          docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
+          docker compose --profile persist pull
+          docker compose --profile persist up -d
