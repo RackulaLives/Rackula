@@ -18,6 +18,8 @@
     IconImageBold,
     IconFitAllBold,
     IconImageLabel,
+    IconDownloadBold,
+    IconShareBold,
   } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import type { DisplayMode } from "$lib/types";
@@ -279,6 +281,30 @@
         data-testid="btn-fit-all"
       >
         <IconFitAllBold size={ICON_SIZE.md} />
+      </button>
+    </Tooltip>
+
+    <Tooltip text="Export" shortcut="Ctrl+E" position="bottom">
+      <button
+        class="toolbar-icon-btn"
+        aria-label="Export"
+        disabled={!hasRacks}
+        onclick={handleExport}
+        data-testid="btn-export"
+      >
+        <IconDownloadBold size={ICON_SIZE.md} />
+      </button>
+    </Tooltip>
+
+    <Tooltip text="Share" shortcut="Ctrl+H" position="bottom">
+      <button
+        class="toolbar-icon-btn"
+        aria-label="Share"
+        disabled={!hasRacks}
+        onclick={handleShare}
+        data-testid="btn-share"
+      >
+        <IconShareBold size={ICON_SIZE.md} />
       </button>
     </Tooltip>
   </div>
