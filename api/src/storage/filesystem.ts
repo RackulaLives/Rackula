@@ -10,9 +10,13 @@ import {
   stat,
   mkdir,
 } from "node:fs/promises";
-import { join, basename } from "node:path";
+import { join } from "node:path";
 import * as yaml from "js-yaml";
-import { LayoutMetadataSchema, type LayoutListItem } from "../schemas/layout";
+import {
+  LayoutMetadataSchema,
+  LayoutIdSchema,
+  type LayoutListItem,
+} from "../schemas/layout";
 
 const DATA_DIR = process.env.DATA_DIR ?? "/data";
 const ASSETS_DIR = "assets";
@@ -69,7 +73,7 @@ export async function listLayouts(): Promise<LayoutListItem[]> {
 
   for (const file of yamlFiles) {
     const filePath = join(DATA_DIR, file);
-    const id = basename(file, ".yaml").replace(".yml", "");
+    const id = file.replace(/\.(yaml|yml)$/, "");
 
     try {
       const content = await readFile(filePath, "utf-8");
@@ -127,6 +131,10 @@ export async function listLayouts(): Promise<LayoutListItem[]> {
  * Get a single layout by ID
  */
 export async function getLayout(id: string): Promise<string | null> {
+  // Validate ID to prevent path traversal attacks
+  const parsed = LayoutIdSchema.safeParse(id);
+  if (!parsed.success) return null;
+
   await ensureDataDir();
 
   // Try .yaml first, then .yml
@@ -157,11 +165,6 @@ export async function saveLayout(
   const metadata = LayoutMetadataSchema.parse(parsed);
   const newId = slugify(metadata.name);
 
-  // If updating and the ID changed (name changed), delete the old file
-  if (existingId && existingId !== newId) {
-    await deleteLayout(existingId);
-  }
-
   const filePath = join(DATA_DIR, `${newId}.yaml`);
 
   // Check if this is a new layout
@@ -173,7 +176,13 @@ export async function saveLayout(
     // File doesn't exist, it's new
   }
 
+  // Write first, then delete old file to prevent data loss if write fails
   await writeFile(filePath, yamlContent, "utf-8");
+
+  // If updating and the ID changed (name changed), delete the old file
+  if (existingId && existingId !== newId) {
+    await deleteLayout(existingId);
+  }
 
   return { id: newId, isNew };
 }
@@ -182,6 +191,10 @@ export async function saveLayout(
  * Delete a layout by ID
  */
 export async function deleteLayout(id: string): Promise<boolean> {
+  // Validate ID to prevent path traversal attacks
+  const parsed = LayoutIdSchema.safeParse(id);
+  if (!parsed.success) return false;
+
   for (const ext of [".yaml", ".yml"]) {
     const filePath = join(DATA_DIR, `${id}${ext}`);
     try {
@@ -210,5 +223,11 @@ export function getAssetPath(
   face: "front" | "rear",
   ext: string,
 ): string {
+  // Validate layoutId to prevent path traversal attacks
+  const parsed = LayoutIdSchema.safeParse(layoutId);
+  if (!parsed.success) {
+    throw new Error(`Invalid layout ID: ${layoutId}`);
+  }
+
   return join(getAssetsDir(), layoutId, deviceSlug, `${face}.${ext}`);
 }
