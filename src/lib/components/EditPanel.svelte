@@ -825,10 +825,17 @@
             { value: "hide", label: "Hide" },
           ]}
           value={selectedRack.show_rear ? "show" : "hide"}
-          onchange={(value) =>
-            layoutStore.updateRack(currentRackId!, {
-              show_rear: value === "show",
-            })}
+          onchange={(value) => {
+            const showRear = value === "show";
+            if (selectedGroup) {
+              // For bayed racks, update all racks in the group
+              for (const rackId of selectedGroup.rack_ids) {
+                layoutStore.updateRack(rackId, { show_rear: showRear });
+              }
+            } else {
+              layoutStore.updateRack(currentRackId!, { show_rear: showRear });
+            }
+          }}
           ariaLabel="Show rear view on canvas"
         />
       </div>

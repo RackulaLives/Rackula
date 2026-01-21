@@ -40,6 +40,8 @@
     showLabelsOnImages?: boolean;
     /** Party mode visual effects active */
     partyMode?: boolean;
+    /** Show rear row of bayed rack group (controlled by Edit Panel toggle) */
+    showRear?: boolean;
     /** Show annotation column */
     showAnnotations?: boolean;
     /** Which field to display in annotation column */
@@ -105,6 +107,7 @@
     displayMode = "label",
     showLabelsOnImages = false,
     partyMode = false,
+    showRear = true,
     showAnnotations = false,
     annotationField = "name",
     enableLongPress = false,
@@ -340,81 +343,84 @@
     {/each}
   </div>
 
-  <!-- Rear row label -->
-  <div class="row-label">REAR</div>
+  <!-- Rear row (conditionally rendered based on showRear toggle) -->
+  {#if showRear}
+    <!-- Rear row label -->
+    <div class="row-label">REAR</div>
 
-  <!-- Rear row: racks right-to-left with U-labels between adjacent bays (mirrored: Bay 1 on right) -->
-  <div class="bayed-row rear-row">
-    {#each reversedRacks as rack, reversedIndex (rack.id)}
-      {@const bayIndex = racks.length - 1 - reversedIndex}
-      {@const isActive = rack.id === activeRackId}
-      {@const isSelected = rack.id === selectedRackId}
-      <!-- U-labels column between adjacent bays (not before first bay in reversed order) -->
-      {#if reversedIndex > 0}
-        <div class="u-labels-column">
-          <ULabels
-            {uLabels}
-            {uColumnHeight}
-            railWidth={RAIL_WIDTH}
-            topPadding={RACK_PADDING_HIDDEN}
-          />
-        </div>
-      {/if}
-      <RackContextMenu
-        onexport={() => onexport?.(racks.map((r) => r.id))}
-        onfocus={() => onfocus?.(racks.map((r) => r.id))}
-        onedit={() => onedit?.(rack.id)}
-        onrename={() => onrename?.(rack.id)}
-        onduplicate={() => onduplicate?.(rack.id)}
-        ondelete={() => ondelete?.(rack.id)}
-      >
-        <div
-          class="bay-container"
-          class:active={isActive}
-          class:selected={isSelected}
-          role="presentation"
-          onpointerdown={() => (longPressRackId = rack.id)}
+    <!-- Rear row: racks right-to-left with U-labels between adjacent bays (mirrored: Bay 1 on right) -->
+    <div class="bayed-row rear-row">
+      {#each reversedRacks as rack, reversedIndex (rack.id)}
+        {@const bayIndex = racks.length - 1 - reversedIndex}
+        {@const isActive = rack.id === activeRackId}
+        {@const isSelected = rack.id === selectedRackId}
+        <!-- U-labels column between adjacent bays (not before first bay in reversed order) -->
+        {#if reversedIndex > 0}
+          <div class="u-labels-column">
+            <ULabels
+              {uLabels}
+              {uColumnHeight}
+              railWidth={RAIL_WIDTH}
+              topPadding={RACK_PADDING_HIDDEN}
+            />
+          </div>
+        {/if}
+        <RackContextMenu
+          onexport={() => onexport?.(racks.map((r) => r.id))}
+          onfocus={() => onfocus?.(racks.map((r) => r.id))}
+          onedit={() => onedit?.(rack.id)}
+          onrename={() => onrename?.(rack.id)}
+          onduplicate={() => onduplicate?.(rack.id)}
+          ondelete={() => ondelete?.(rack.id)}
         >
-          <div class="bay-label">Bay {bayIndex + 1}</div>
-          <Rack
-            {rack}
-            {deviceLibrary}
-            selected={false}
-            selectedDeviceId={isActive ? selectedDeviceId : null}
-            {displayMode}
-            {showLabelsOnImages}
-            {partyMode}
-            faceFilter="rear"
-            hideRackName={true}
-            hideULabels={true}
-            onselect={() =>
-              ongroupselect?.(
-                new CustomEvent("groupselect", {
-                  detail: { groupId: group.id },
-                }),
-              )}
-            {ondeviceselect}
-            ondevicedrop={(e) => handleRearDeviceDrop(rack.id, e)}
-            {ondevicemove}
-            {ondevicemoverack}
-            {onplacementtap}
-          />
-        </div>
-      </RackContextMenu>
-      <!-- Annotation column RIGHT of rear bay (mirrored) -->
-      {#if showAnnotations}
-        <div class="annotation-wrapper">
-          <AnnotationColumn
-            {rack}
-            {deviceLibrary}
-            {annotationField}
-            width={ANNOTATION_WIDTH_COMPACT}
-            faceFilter="rear"
-          />
-        </div>
-      {/if}
-    {/each}
-  </div>
+          <div
+            class="bay-container"
+            class:active={isActive}
+            class:selected={isSelected}
+            role="presentation"
+            onpointerdown={() => (longPressRackId = rack.id)}
+          >
+            <div class="bay-label">Bay {bayIndex + 1}</div>
+            <Rack
+              {rack}
+              {deviceLibrary}
+              selected={false}
+              selectedDeviceId={isActive ? selectedDeviceId : null}
+              {displayMode}
+              {showLabelsOnImages}
+              {partyMode}
+              faceFilter="rear"
+              hideRackName={true}
+              hideULabels={true}
+              onselect={() =>
+                ongroupselect?.(
+                  new CustomEvent("groupselect", {
+                    detail: { groupId: group.id },
+                  }),
+                )}
+              {ondeviceselect}
+              ondevicedrop={(e) => handleRearDeviceDrop(rack.id, e)}
+              {ondevicemove}
+              {ondevicemoverack}
+              {onplacementtap}
+            />
+          </div>
+        </RackContextMenu>
+        <!-- Annotation column RIGHT of rear bay (mirrored) -->
+        {#if showAnnotations}
+          <div class="annotation-wrapper">
+            <AnnotationColumn
+              {rack}
+              {deviceLibrary}
+              {annotationField}
+              width={ANNOTATION_WIDTH_COMPACT}
+              faceFilter="rear"
+            />
+          </div>
+        {/if}
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>

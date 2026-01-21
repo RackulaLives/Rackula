@@ -469,6 +469,7 @@
           {#each organizedRacks.groupEntries as { group, racks: groupRacks } (group.id)}
             {#if group.layout_preset === "bayed"}
               <!-- Bayed/touring racks use special stacked view -->
+              <!-- showRear derived from first rack in group (all bays share the same setting) -->
               <BayedRackView
                 {group}
                 racks={groupRacks}
@@ -486,6 +487,7 @@
                   : null}
                 displayMode={uiStore.displayMode}
                 showLabelsOnImages={uiStore.showLabelsOnImages}
+                showRear={groupRacks[0]?.show_rear ?? true}
                 showAnnotations={uiStore.showAnnotations}
                 annotationField={uiStore.annotationField}
                 {partyMode}
