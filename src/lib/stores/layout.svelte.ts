@@ -60,6 +60,8 @@ import {
   createUpdateDevicePlacementImageCommand,
   createUpdateDeviceColourCommand,
   createUpdateDeviceSlotPositionCommand,
+  createUpdateDeviceNotesCommand,
+  createUpdateDeviceIpCommand,
   createAddRackCommand,
   createDeleteRackCommand,
   createUpdateRackCommand,
@@ -249,6 +251,8 @@ export function getLayoutStore() {
     updateDevicePlacementImage,
     updateDeviceColour,
     updateDeviceSlotPosition,
+    updateDeviceNotes,
+    updateDeviceIp,
 
     // Settings actions
     updateDisplayMode,
@@ -1767,6 +1771,38 @@ function updateDeviceSlotPosition(
 }
 
 /**
+ * Update a device's notes
+ * Uses undo/redo support via updateDeviceNotesRecorded
+ * @param rackId - Rack ID
+ * @param deviceIndex - Index of device in rack's devices array
+ * @param notes - New notes (undefined or empty to clear)
+ */
+function updateDeviceNotes(
+  rackId: string,
+  deviceIndex: number,
+  notes: string | undefined,
+): void {
+  // Delegate to recorded version for undo/redo support
+  updateDeviceNotesRecorded(rackId, deviceIndex, notes);
+}
+
+/**
+ * Update a device's IP address/hostname
+ * Uses undo/redo support via updateDeviceIpRecorded
+ * @param rackId - Rack ID
+ * @param deviceIndex - Index of device in rack's devices array
+ * @param ip - New IP address/hostname (undefined or empty to clear)
+ */
+function updateDeviceIp(
+  rackId: string,
+  deviceIndex: number,
+  ip: string | undefined,
+): void {
+  // Delegate to recorded version for undo/redo support
+  updateDeviceIpRecorded(rackId, deviceIndex, ip);
+}
+
+/**
  * Mark the layout as having unsaved changes
  */
 function markDirty(): void {
@@ -2102,6 +2138,79 @@ function updateDeviceSlotPositionRaw(
 }
 
 /**
+ * Update a device's notes directly (raw)
+ * @param rackId - Rack ID (for multi-rack support)
+ * @param index - Device index
+ * @param notes - Notes string (undefined to clear)
+ */
+function updateDeviceNotesRaw(
+  rackId: string,
+  index: number,
+  notes: string | undefined,
+): void {
+  const target = getTargetRack(rackId);
+  if (!target) return;
+  if (index < 0 || index >= target.rack.devices.length) return;
+
+  // Normalize empty string to undefined
+  const normalizedNotes = notes?.trim() || undefined;
+
+  updateRackAtIndex(target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.map((d, i) =>
+      i === index ? { ...d, notes: normalizedNotes } : d,
+    ),
+  }));
+}
+
+/**
+ * Update a device's IP address/hostname directly (raw)
+ * @param rackId - Rack ID (for multi-rack support)
+ * @param index - Device index
+ * @param ip - IP address/hostname string (undefined to clear)
+ */
+function updateDeviceIpRaw(
+  rackId: string,
+  index: number,
+  ip: string | undefined,
+): void {
+  const target = getTargetRack(rackId);
+  if (!target) return;
+  if (index < 0 || index >= target.rack.devices.length) return;
+
+  // Normalize empty string to undefined
+  const normalizedIp = ip?.trim() || undefined;
+
+  updateRackAtIndex(target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.map((d, i) => {
+      if (i !== index) return d;
+
+      // Handle custom_fields object lifecycle
+      const currentCustomFields = d.custom_fields;
+
+      if (normalizedIp === undefined) {
+        // Removing IP - clean up custom_fields if it becomes empty
+        if (!currentCustomFields || !currentCustomFields.ip) {
+          return d; // No change needed
+        }
+        const { ip: _ip, ...restFields } = currentCustomFields;
+        // If no other custom fields, set to undefined rather than empty object
+        const newCustomFields =
+          Object.keys(restFields).length > 0 ? restFields : undefined;
+        return { ...d, custom_fields: newCustomFields };
+      } else {
+        // Setting IP - create or update custom_fields
+        return {
+          ...d,
+          custom_fields: { ...currentCustomFields, ip: normalizedIp },
+        };
+      }
+    }),
+  }));
+}
+
+/**
  * Get a device at a specific index from the active rack
  * @param index - Device index
  * @returns The device or undefined
@@ -2368,6 +2477,24 @@ function getCommandStoreAdapter(): DeviceTypeCommandStore &
         return;
       }
       updateDeviceSlotPositionRaw(rackId, index, slotPosition);
+    },
+    updateDeviceNotesRaw: (index, notes) => {
+      // Resolve rack ID: use active rack, fall back to first rack
+      const rackId = activeRackId ?? getTargetRack()?.rack.id;
+      if (!rackId) {
+        debug.log("updateDeviceNotesRaw: No rack available");
+        return;
+      }
+      updateDeviceNotesRaw(rackId, index, notes);
+    },
+    updateDeviceIpRaw: (index, ip) => {
+      // Resolve rack ID: use active rack, fall back to first rack
+      const rackId = activeRackId ?? getTargetRack()?.rack.id;
+      if (!rackId) {
+        debug.log("updateDeviceIpRaw: No rack available");
+        return;
+      }
+      updateDeviceIpRaw(rackId, index, ip);
     },
     getDeviceAtIndex,
 
@@ -3021,6 +3148,92 @@ function updateDeviceSlotPositionRecorded(
   history.execute(command);
   isDirty = true;
   return true;
+}
+
+/**
+ * Update device notes with undo/redo support
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
+ * @param notes - New notes (undefined to clear)
+ */
+function updateDeviceNotesRecorded(
+  rackId: string,
+  deviceIndex: number,
+  notes: string | undefined,
+): void {
+  const targetRack = getRackById(rackId);
+  if (!targetRack) return;
+  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
+
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
+  const device = targetRack.devices[deviceIndex]!;
+  const oldNotes = device.notes;
+  const deviceType = findDeviceTypeInArray(
+    layout.device_types,
+    device.device_type,
+  );
+  const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
+
+  // Normalize empty string to undefined
+  const normalizedNotes = notes?.trim() || undefined;
+
+  const history = getHistoryStore();
+  const adapter = getCommandStoreAdapter();
+
+  const command = createUpdateDeviceNotesCommand(
+    deviceIndex,
+    oldNotes,
+    normalizedNotes,
+    adapter,
+    deviceName,
+  );
+  history.execute(command);
+  isDirty = true;
+}
+
+/**
+ * Update device IP address/hostname with undo/redo support
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
+ * @param ip - New IP address/hostname (undefined to clear)
+ */
+function updateDeviceIpRecorded(
+  rackId: string,
+  deviceIndex: number,
+  ip: string | undefined,
+): void {
+  const targetRack = getRackById(rackId);
+  if (!targetRack) return;
+  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
+
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
+  const device = targetRack.devices[deviceIndex]!;
+  const oldIp = device.custom_fields?.ip;
+  const deviceType = findDeviceTypeInArray(
+    layout.device_types,
+    device.device_type,
+  );
+  const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
+
+  // Normalize empty string to undefined
+  const normalizedIp = ip?.trim() || undefined;
+
+  const history = getHistoryStore();
+  const adapter = getCommandStoreAdapter();
+
+  const command = createUpdateDeviceIpCommand(
+    deviceIndex,
+    oldIp,
+    normalizedIp,
+    adapter,
+    deviceName,
+  );
+  history.execute(command);
+  isDirty = true;
 }
 
 /**

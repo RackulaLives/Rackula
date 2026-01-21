@@ -3,6 +3,7 @@
   Right drawer for editing selected racks and viewing device info
 -->
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import Drawer from "./Drawer.svelte";
   import ColourSwatch from "./ColourSwatch.svelte";
   import ColourPicker from "./ColourPicker.svelte";
@@ -11,6 +12,7 @@
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
   import MarkdownPreview from "./MarkdownPreview.svelte";
+  import Tooltip from "./Tooltip.svelte";
   import { IconEdit } from "./icons";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
@@ -96,6 +98,24 @@
 
   // State for delete device type confirmation dialog
   let showDeleteConfirm = $state(false);
+
+  // State for save feedback indicators
+  let notesSaved = $state(false);
+  let notesSavedTimeout: ReturnType<typeof setTimeout> | undefined;
+  let ipSaved = $state(false);
+  let ipSavedTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  // Cleanup timeouts on component destroy
+  onDestroy(() => {
+    if (notesSavedTimeout) {
+      clearTimeout(notesSavedTimeout);
+      notesSavedTimeout = undefined;
+    }
+    if (ipSavedTimeout) {
+      clearTimeout(ipSavedTimeout);
+      ipSavedTimeout = undefined;
+    }
+  });
 
   // Get the selected group if a bayed rack is selected
   const selectedGroup = $derived.by(() => {
@@ -459,47 +479,45 @@
 
   // Update device notes
   function handleDeviceNotesBlur() {
-    if (selectedDeviceInfo) {
+    if (selectedDeviceInfo && currentRackId) {
       const trimmedNotes = deviceNotes.trim();
       const notesToSave = trimmedNotes === "" ? undefined : trimmedNotes;
-      // Update via updateRack - modify the device in the rack's devices array
-      const activeRack = layoutStore.activeRack;
-      if (!activeRack) return;
-      const updatedDevices = [...activeRack.devices];
-      updatedDevices[selectedDeviceInfo.deviceIndex] = {
-        ...updatedDevices[selectedDeviceInfo.deviceIndex]!,
-        notes: notesToSave,
-      };
-      layoutStore.updateRack(currentRackId!, { devices: updatedDevices });
+
+      // Use the dedicated function with undo/redo support
+      layoutStore.updateDeviceNotes(
+        currentRackId,
+        selectedDeviceInfo.deviceIndex,
+        notesToSave,
+      );
+
+      // Show saved indicator
+      clearTimeout(notesSavedTimeout);
+      notesSaved = true;
+      notesSavedTimeout = setTimeout(() => {
+        notesSaved = false;
+      }, 2000);
     }
   }
 
   // Update device IP address
   function handleDeviceIpBlur() {
-    if (selectedDeviceInfo) {
+    if (selectedDeviceInfo && currentRackId) {
       const trimmedIp = deviceIp.trim();
-      const activeRack = layoutStore.activeRack;
-      if (!activeRack) return;
-      const updatedDevices = [...activeRack.devices];
-      const currentDevice = updatedDevices[selectedDeviceInfo.deviceIndex]!;
-      const currentCustomFields = currentDevice.custom_fields ?? {};
+      const ipToSave = trimmedIp === "" ? undefined : trimmedIp;
 
-      // Build new custom_fields object
-      let newCustomFields: Record<string, unknown> | undefined;
-      if (trimmedIp === "") {
-        // Remove ip from custom_fields
-        const { ip: _, ...rest } = currentCustomFields;
-        void _; // Explicitly mark as intentionally unused
-        newCustomFields = Object.keys(rest).length > 0 ? rest : undefined;
-      } else {
-        newCustomFields = { ...currentCustomFields, ip: trimmedIp };
-      }
+      // Use the dedicated function with undo/redo support
+      layoutStore.updateDeviceIp(
+        currentRackId,
+        selectedDeviceInfo.deviceIndex,
+        ipToSave,
+      );
 
-      updatedDevices[selectedDeviceInfo.deviceIndex] = {
-        ...currentDevice,
-        custom_fields: newCustomFields,
-      };
-      layoutStore.updateRack(currentRackId!, { devices: updatedDevices });
+      // Show saved indicator
+      clearTimeout(ipSavedTimeout);
+      ipSaved = true;
+      ipSavedTimeout = setTimeout(() => {
+        ipSaved = false;
+      }, 2000);
     }
   }
 
@@ -1183,9 +1201,16 @@
         </div>
       {/if}
 
-      <!-- IP Address (editable) -->
+      <!-- IP Address/Hostname (editable) -->
       <div class="form-group">
-        <label for="device-ip">IP Address</label>
+        <label for="device-ip">
+          IP Address/Hostname
+          {#if ipSaved}
+            <Tooltip text="Saved">
+              <span class="saved-indicator">✓</span>
+            </Tooltip>
+          {/if}
+        </label>
         <input
           type="text"
           id="device-ip"
@@ -1198,7 +1223,14 @@
 
       <!-- Placement Notes (editable) -->
       <div class="form-group">
-        <label for="device-notes">Notes</label>
+        <label for="device-notes">
+          Notes
+          {#if notesSaved}
+            <Tooltip text="Saved">
+              <span class="saved-indicator">✓</span>
+            </Tooltip>
+          {/if}
+        </label>
         <textarea
           id="device-notes"
           class="input-field textarea"
@@ -1267,6 +1299,24 @@
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-medium);
     color: var(--colour-text);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .saved-indicator {
+    color: var(--colour-success);
+    font-size: var(--font-size-sm);
+    animation: fade-in var(--duration-fast) ease-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   .form-group input {

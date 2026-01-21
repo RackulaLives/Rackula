@@ -21,6 +21,8 @@ export interface DeviceCommandStore {
   ): void;
   updateDeviceColourRaw(index: number, colour: string | undefined): void;
   updateDeviceSlotPositionRaw(index: number, slotPosition: SlotPosition): void;
+  updateDeviceNotesRaw(index: number, notes: string | undefined): void;
+  updateDeviceIpRaw(index: number, ip: string | undefined): void;
   getDeviceAtIndex(index: number): PlacedDevice | undefined;
 }
 
@@ -211,6 +213,52 @@ export function createUpdateDeviceSlotPositionCommand(
     },
     undo() {
       store.updateDeviceSlotPositionRaw(index, oldSlotPosition);
+    },
+  };
+}
+
+/**
+ * Create a command to update a device's notes
+ */
+export function createUpdateDeviceNotesCommand(
+  index: number,
+  oldNotes: string | undefined,
+  newNotes: string | undefined,
+  store: DeviceCommandStore,
+  deviceName: string = "device",
+): Command {
+  return {
+    type: "UPDATE_DEVICE_NOTES",
+    description: `Update ${deviceName} notes`,
+    timestamp: Date.now(),
+    execute() {
+      store.updateDeviceNotesRaw(index, newNotes);
+    },
+    undo() {
+      store.updateDeviceNotesRaw(index, oldNotes);
+    },
+  };
+}
+
+/**
+ * Create a command to update a device's IP address/hostname
+ */
+export function createUpdateDeviceIpCommand(
+  index: number,
+  oldIp: string | undefined,
+  newIp: string | undefined,
+  store: DeviceCommandStore,
+  deviceName: string = "device",
+): Command {
+  return {
+    type: "UPDATE_DEVICE_IP",
+    description: `Update ${deviceName} IP`,
+    timestamp: Date.now(),
+    execute() {
+      store.updateDeviceIpRaw(index, newIp);
+    },
+    undo() {
+      store.updateDeviceIpRaw(index, oldIp);
     },
   };
 }

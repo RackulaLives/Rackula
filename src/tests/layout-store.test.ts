@@ -940,6 +940,277 @@ describe("Layout Store", () => {
     });
   });
 
+  describe("updateDeviceNotes", () => {
+    it("updates placed device notes", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      // Device should not have notes initially
+      expect(store.rack.devices[0]!.notes).toBeUndefined();
+
+      // Set notes
+      store.updateDeviceNotes(rack!.id, 0, "Production database server");
+      expect(store.rack.devices[0]!.notes).toBe("Production database server");
+    });
+
+    it("clears notes when set to undefined", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      // Set notes first
+      store.updateDeviceNotes(rack!.id, 0, "Production database server");
+      expect(store.rack.devices[0]!.notes).toBe("Production database server");
+
+      // Clear notes
+      store.updateDeviceNotes(rack!.id, 0, undefined);
+      expect(store.rack.devices[0]!.notes).toBeUndefined();
+    });
+
+    it("clears notes when set to empty string", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      store.updateDeviceNotes(rack!.id, 0, "Some notes");
+      store.updateDeviceNotes(rack!.id, 0, "");
+      expect(store.rack.devices[0]!.notes).toBeUndefined();
+    });
+
+    it("trims whitespace-only notes to undefined", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      store.updateDeviceNotes(rack!.id, 0, "   ");
+      expect(store.rack.devices[0]!.notes).toBeUndefined();
+    });
+
+    it("sets isDirty to true", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+      store.markClean();
+
+      store.updateDeviceNotes(rack!.id, 0, "Some notes");
+      expect(store.isDirty).toBe(true);
+    });
+
+    it("supports undo/redo for notes changes", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      // Set notes
+      store.updateDeviceNotes(rack!.id, 0, "Production server notes");
+      expect(store.rack.devices[0]!.notes).toBe("Production server notes");
+
+      // Undo should restore undefined
+      store.undo();
+      expect(store.rack.devices[0]!.notes).toBeUndefined();
+
+      // Redo should restore the notes
+      store.redo();
+      expect(store.rack.devices[0]!.notes).toBe("Production server notes");
+    });
+  });
+
+  describe("updateDeviceIp", () => {
+    it("updates placed device IP address", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      // Device should not have IP initially
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBeUndefined();
+
+      // Set IP
+      store.updateDeviceIp(rack!.id, 0, "192.168.1.100");
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBe("192.168.1.100");
+    });
+
+    it("supports hostname values", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      store.updateDeviceIp(rack!.id, 0, "db-primary.local");
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBe("db-primary.local");
+    });
+
+    it("clears IP when set to undefined", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      // Set IP first
+      store.updateDeviceIp(rack!.id, 0, "192.168.1.100");
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBe("192.168.1.100");
+
+      // Clear IP
+      store.updateDeviceIp(rack!.id, 0, undefined);
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBeUndefined();
+    });
+
+    it("clears IP when set to empty string", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      store.updateDeviceIp(rack!.id, 0, "192.168.1.100");
+      store.updateDeviceIp(rack!.id, 0, "");
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBeUndefined();
+    });
+
+    it("removes empty custom_fields object when clearing last field", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      // Set IP which creates custom_fields
+      store.updateDeviceIp(rack!.id, 0, "192.168.1.100");
+      expect(store.rack.devices[0]!.custom_fields).toBeDefined();
+
+      // Clear IP should remove empty custom_fields
+      store.updateDeviceIp(rack!.id, 0, undefined);
+      expect(store.rack.devices[0]!.custom_fields).toBeUndefined();
+    });
+
+    it("sets isDirty to true", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+      store.markClean();
+
+      store.updateDeviceIp(rack!.id, 0, "192.168.1.100");
+      expect(store.isDirty).toBe(true);
+    });
+
+    it("supports undo/redo for IP changes", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      // Set IP
+      store.updateDeviceIp(rack!.id, 0, "192.168.1.100");
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBe("192.168.1.100");
+
+      // Undo should restore undefined
+      store.undo();
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBeUndefined();
+
+      // Redo should restore the IP
+      store.redo();
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBe("192.168.1.100");
+    });
+
+    it("preserves IP through multiple updates with undo", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType({
+        name: "Generic Server",
+        u_height: 2,
+        category: "server",
+        colour: "#4A90D9",
+      });
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      store.updateDeviceIp(rack!.id, 0, "192.168.1.1");
+      store.updateDeviceIp(rack!.id, 0, "192.168.1.2");
+      store.updateDeviceIp(rack!.id, 0, "192.168.1.3");
+
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBe("192.168.1.3");
+
+      store.undo();
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBe("192.168.1.2");
+
+      store.undo();
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBe("192.168.1.1");
+
+      store.undo();
+      expect(store.rack.devices[0]!.custom_fields?.ip).toBeUndefined();
+    });
+  });
+
   describe("dirty tracking", () => {
     it("markDirty sets isDirty to true", () => {
       const store = getLayoutStore();
