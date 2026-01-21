@@ -5,9 +5,10 @@
 <script lang="ts">
   interface Props {
     size?: number;
+    label?: string;
   }
 
-  let { size = 20 }: Props = $props();
+  let { size = 20, label }: Props = $props();
 </script>
 
 <svg
@@ -19,7 +20,9 @@
   stroke-width="1.5"
   stroke-linecap="round"
   stroke-linejoin="round"
-  aria-hidden="true"
+  aria-hidden={label ? undefined : "true"}
+  aria-label={label}
+  role={label ? "img" : undefined}
 >
   <!-- Cloud shape -->
   <path
