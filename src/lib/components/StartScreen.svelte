@@ -270,6 +270,7 @@
                     }
                   }}
                   disabled={deletingId === item.id}
+                  aria-label={`Delete layout ${item.name}`}
                   title="Delete layout"
                 >
                   <IconTrash size={16} />
