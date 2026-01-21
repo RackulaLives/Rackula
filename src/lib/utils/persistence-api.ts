@@ -53,10 +53,6 @@ export interface SavedLayoutItem {
  */
 export type SaveStatus = "idle" | "saving" | "saved" | "error" | "offline";
 
-interface ErrorResponse {
-  error: string;
-}
-
 /**
  * Custom error for API failures
  */
