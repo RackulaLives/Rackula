@@ -73,6 +73,8 @@
     onlongpress?: (event: CustomEvent<{ rackId: string }>) => void;
     /** Context menu: export rack callback */
     onexport?: () => void;
+    /** Context menu: focus rack callback (pans and zooms canvas to fit this rack) */
+    onfocus?: () => void;
     /** Context menu: edit rack callback */
     onedit?: () => void;
     /** Context menu: rename rack callback */
@@ -104,6 +106,7 @@
     onplacementtap,
     onlongpress,
     onexport,
+    onfocus,
     onedit,
     onrename,
     onduplicate,
@@ -206,7 +209,14 @@
   }
 </script>
 
-<RackContextMenu {onexport} {onedit} {onrename} {onduplicate} {ondelete}>
+<RackContextMenu
+  {onexport}
+  {onfocus}
+  {onedit}
+  {onrename}
+  {onduplicate}
+  {ondelete}
+>
   <div
     bind:this={containerElement}
     class="rack-dual-view"

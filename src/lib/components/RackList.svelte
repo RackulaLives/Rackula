@@ -15,6 +15,8 @@
     onnewrack?: () => void;
     /** Context menu: export rack callback */
     onexport?: (rackIds: string[]) => void;
+    /** Context menu: focus rack callback (pans and zooms canvas to fit the rack) */
+    onfocus?: (rackIds: string[]) => void;
     /** Context menu: edit rack callback */
     onedit?: (rackId: string) => void;
     /** Context menu: rename rack callback */
@@ -23,7 +25,8 @@
     onduplicate?: (rackId: string) => void;
   }
 
-  let { onnewrack, onexport, onedit, onrename, onduplicate }: Props = $props();
+  let { onnewrack, onexport, onfocus, onedit, onrename, onduplicate }: Props =
+    $props();
 
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
@@ -209,6 +212,7 @@
       {@const bayCount = group.rack_ids.length}
       <RackContextMenu
         onexport={() => onexport?.(group.rack_ids)}
+        onfocus={() => onfocus?.(group.rack_ids)}
         onedit={() => {
           // For groups, edit the first rack in the group
           if (group.rack_ids[0]) onedit?.(group.rack_ids[0]);
@@ -267,6 +271,7 @@
       {@const deviceCount = rack.devices.length}
       <RackContextMenu
         onexport={() => onexport?.([rack.id])}
+        onfocus={() => onfocus?.([rack.id])}
         onedit={() => onedit?.(rack.id)}
         onrename={() => onrename?.(rack.id)}
         onduplicate={() => onduplicate?.(rack.id)}

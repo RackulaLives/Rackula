@@ -1067,6 +1067,11 @@
     dialogStore.open("export");
   }
 
+  function handleRackContextFocus(rackIds: string[]) {
+    if (rackIds.length === 0) return;
+    canvasStore.focusRack(rackIds, layoutStore.racks, layoutStore.rack_groups);
+  }
+
   // Handle mobile device selection from palette (enters placement mode)
   function handleMobileDeviceSelect(
     event: CustomEvent<{ device: import("$lib/types").DeviceType }>,
@@ -1175,6 +1180,7 @@
               <RackList
                 onnewrack={handleNewRack}
                 onexport={handleRackContextExport}
+                onfocus={handleRackContextFocus}
                 onedit={handleRackContextEdit}
                 onrename={handleRackContextRename}
                 onduplicate={handleRackContextDuplicate}
@@ -1195,6 +1201,7 @@
               enableLongPress={false}
               onracklongpress={handleRackLongPress}
               onrackexport={handleRackContextExport}
+              onrackfocus={handleRackContextFocus}
               onrackedit={handleRackContextEdit}
               onrackrename={handleRackContextRename}
               onrackduplicate={handleRackContextDuplicate}
@@ -1215,6 +1222,7 @@
           enableLongPress={viewportStore.isMobile && !placementStore.isPlacing}
           onracklongpress={handleRackLongPress}
           onrackexport={handleRackContextExport}
+          onrackfocus={handleRackContextFocus}
           onrackedit={handleRackContextEdit}
           onrackrename={handleRackContextRename}
           onrackduplicate={handleRackContextDuplicate}

@@ -5,6 +5,7 @@
 
   Menu items (unified across both contexts):
   - Export...
+  - Focus (pans and zooms canvas to fit the rack)
   - Edit Rack
   - Rename
   - Duplicate Rack
@@ -23,6 +24,8 @@
     onOpenChange?: (open: boolean) => void;
     /** Export rack callback (opens export dialog with this rack pre-selected) */
     onexport?: () => void;
+    /** Focus rack callback (pans and zooms canvas to fit this rack) */
+    onfocus?: () => void;
     /** Edit rack callback (opens rack settings) */
     onedit?: () => void;
     /** Rename rack callback */
@@ -39,6 +42,7 @@
     open = $bindable(false),
     onOpenChange,
     onexport,
+    onfocus,
     onedit,
     onrename,
     onduplicate,
@@ -75,6 +79,15 @@
         </ContextMenu.Item>
       {/if}
 
+      {#if onfocus}
+        <ContextMenu.Item
+          class="context-menu-item"
+          onSelect={handleSelect(onfocus)}
+        >
+          <span class="context-menu-label">Focus</span>
+        </ContextMenu.Item>
+      {/if}
+
       {#if onedit}
         <ContextMenu.Item
           class="context-menu-item"
@@ -102,7 +115,7 @@
         </ContextMenu.Item>
       {/if}
 
-      {#if ondelete && (onexport || onedit || onrename || onduplicate)}
+      {#if ondelete && (onexport || onfocus || onedit || onrename || onduplicate)}
         <ContextMenu.Separator class="context-menu-separator" />
       {/if}
 

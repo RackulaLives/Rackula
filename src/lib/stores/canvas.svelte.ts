@@ -87,6 +87,7 @@ export function getCanvasStore() {
     moveTo,
     smoothMoveTo,
     fitAll,
+    focusRack,
     zoomToDevice,
   };
 }
@@ -265,6 +266,67 @@ function fitAll(racks: Rack[], rackGroups: RackGroup[] = []): void {
   panzoomInstance.moveTo(panX, panY);
 
   debug.log("Transform after fitAll:", panzoomInstance.getTransform());
+}
+
+/**
+ * Focus on specific rack(s) by panning and zooming to fit them comfortably in the viewport.
+ * Works for both individual racks and bayed rack groups.
+ *
+ * @param rackIds - Array of rack IDs to focus on (pass group rack_ids for bayed groups)
+ * @param allRacks - All racks from the layout store (for looking up rack data)
+ * @param rackGroups - All rack groups from the layout store (for bayed rack handling)
+ */
+function focusRack(
+  rackIds: string[],
+  allRacks: Rack[],
+  rackGroups: RackGroup[] = [],
+): void {
+  if (!panzoomInstance || !canvasElement || rackIds.length === 0) return;
+
+  // Filter to only the racks we want to focus on
+  const targetRacks = allRacks.filter((r) => rackIds.includes(r.id));
+  if (targetRacks.length === 0) return;
+
+  // Find groups that contain ANY of the target racks
+  // If focusing on a rack in a bayed group, we focus on the entire group
+  const targetRackIdSet = new Set(rackIds);
+  const relevantGroups = rackGroups.filter(
+    (g) =>
+      g.layout_preset === "bayed" &&
+      g.rack_ids.some((id) => targetRackIdSet.has(id)),
+  );
+
+  // Collect all racks we need to focus on (including all racks in relevant bayed groups)
+  const allRelevantRackIds = new Set(rackIds);
+  for (const group of relevantGroups) {
+    for (const rackId of group.rack_ids) {
+      allRelevantRackIds.add(rackId);
+    }
+  }
+  const focusRacks = allRacks.filter((r) => allRelevantRackIds.has(r.id));
+
+  // Get viewport dimensions
+  const viewportWidth = canvasElement.clientWidth;
+  const viewportHeight = canvasElement.clientHeight;
+
+  // Calculate positions for only the focus racks
+  const rackPositions = racksToPositions(focusRacks, relevantGroups);
+  const { zoom, panX, panY } = calculateFitAll(
+    rackPositions,
+    viewportWidth,
+    viewportHeight,
+  );
+
+  debug.group("Focus Rack Calculation");
+  debug.log("Target rack IDs:", rackIds);
+  debug.log("All relevant rack IDs:", [...allRelevantRackIds]);
+  debug.log("Viewport:", { width: viewportWidth, height: viewportHeight });
+  debug.log("Rack positions:", rackPositions);
+  debug.log("Calculated:", { zoom, panX, panY });
+  debug.groupEnd();
+
+  // Apply zoom and pan with smooth animation
+  smoothMoveTo(panX, panY, zoom);
 }
 
 /**
