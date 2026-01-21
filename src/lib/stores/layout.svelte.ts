@@ -28,6 +28,7 @@ import {
   canPlaceDevice,
   canPlaceInContainer,
   findValidDropPositions,
+  isSlotOccupied,
 } from "$lib/utils/collision";
 import { createLayout, createDefaultRack } from "$lib/utils/serialization";
 import {
@@ -58,6 +59,7 @@ import {
   createUpdateDeviceNameCommand,
   createUpdateDevicePlacementImageCommand,
   createUpdateDeviceColourCommand,
+  createUpdateDeviceSlotPositionCommand,
   createAddRackCommand,
   createDeleteRackCommand,
   createUpdateRackCommand,
@@ -246,6 +248,7 @@ export function getLayoutStore() {
     updateDeviceName,
     updateDevicePlacementImage,
     updateDeviceColour,
+    updateDeviceSlotPosition,
 
     // Settings actions
     updateDisplayMode,
@@ -1747,6 +1750,23 @@ function updateDeviceColour(
 }
 
 /**
+ * Update a device's slot position (for half-width devices)
+ * Uses undo/redo support via updateDeviceSlotPositionRecorded
+ * @param rackId - Rack ID
+ * @param deviceIndex - Index of device in rack's devices array
+ * @param slotPosition - New slot position ('left' or 'right')
+ * @returns true if successful, false if blocked by another device
+ */
+function updateDeviceSlotPosition(
+  rackId: string,
+  deviceIndex: number,
+  slotPosition: SlotPosition,
+): boolean {
+  // Delegate to recorded version for undo/redo support
+  return updateDeviceSlotPositionRecorded(rackId, deviceIndex, slotPosition);
+}
+
+/**
  * Mark the layout as having unsaved changes
  */
 function markDirty(): void {
@@ -2059,6 +2079,29 @@ function updateDeviceColourRaw(
 }
 
 /**
+ * Update a device's slot position directly (raw)
+ * @param rackId - Rack ID (for multi-rack support)
+ * @param index - Device index
+ * @param slotPosition - New slot position ('left', 'right', or 'full')
+ */
+function updateDeviceSlotPositionRaw(
+  rackId: string,
+  index: number,
+  slotPosition: SlotPosition,
+): void {
+  const target = getTargetRack(rackId);
+  if (!target) return;
+  if (index < 0 || index >= target.rack.devices.length) return;
+
+  updateRackAtIndex(target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.map((d, i) =>
+      i === index ? { ...d, slot_position: slotPosition } : d,
+    ),
+  }));
+}
+
+/**
  * Get a device at a specific index from the active rack
  * @param index - Device index
  * @returns The device or undefined
@@ -2316,6 +2359,15 @@ function getCommandStoreAdapter(): DeviceTypeCommandStore &
         return;
       }
       updateDeviceColourRaw(rackId, index, colour);
+    },
+    updateDeviceSlotPositionRaw: (index, slotPosition) => {
+      // Resolve rack ID: use active rack, fall back to first rack
+      const rackId = activeRackId ?? getTargetRack()?.rack.id;
+      if (!rackId) {
+        debug.log("updateDeviceSlotPositionRaw: No rack available");
+        return;
+      }
+      updateDeviceSlotPositionRaw(rackId, index, slotPosition);
     },
     getDeviceAtIndex,
 
@@ -2912,6 +2964,63 @@ function updateDeviceColourRecorded(
   );
   history.execute(command);
   isDirty = true;
+}
+
+/**
+ * Update device slot position with undo/redo support (for half-width devices)
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
+ * @param slotPosition - New slot position ('left' or 'right')
+ * @returns true if successful, false if blocked
+ */
+function updateDeviceSlotPositionRecorded(
+  rackId: string,
+  deviceIndex: number,
+  slotPosition: SlotPosition,
+): boolean {
+  const targetRack = getRackById(rackId);
+  if (!targetRack) return false;
+  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return false;
+
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
+  const device = targetRack.devices[deviceIndex]!;
+
+  const deviceType = findDeviceTypeInArray(
+    layout.device_types,
+    device.device_type,
+  );
+
+  // Only half-width devices can have their slot position changed
+  if (!deviceType || deviceType.slot_width !== 1) {
+    return false;
+  }
+
+  const oldSlotPosition = device.slot_position ?? "full";
+  const deviceName = deviceType.model ?? deviceType.slug ?? "device";
+
+  // No change needed
+  if (oldSlotPosition === slotPosition) return true;
+
+  // Check if target slot is occupied using shared collision utility
+  if (isSlotOccupied(targetRack, device.position, slotPosition, deviceIndex)) {
+    return false;
+  }
+
+  const history = getHistoryStore();
+  const adapter = getCommandStoreAdapter();
+
+  const command = createUpdateDeviceSlotPositionCommand(
+    deviceIndex,
+    oldSlotPosition,
+    slotPosition,
+    adapter,
+    deviceName,
+  );
+  history.execute(command);
+  isDirty = true;
+  return true;
 }
 
 /**

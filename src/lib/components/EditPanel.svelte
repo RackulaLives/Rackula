@@ -25,7 +25,11 @@
     formatConflictMessage,
   } from "$lib/utils/rack-resize";
   import { ICON_SIZE } from "$lib/constants/sizing";
-  import { canPlaceDevice, findCollisions } from "$lib/utils/collision";
+  import {
+    canPlaceDevice,
+    findCollisions,
+    isSlotOccupied,
+  } from "$lib/utils/collision";
   import {
     toHumanUnits,
     toInternalUnits,
@@ -40,6 +44,7 @@
     PlacedDevice,
     DeviceFace,
     AnnotationField,
+    SlotPosition,
   } from "$lib/types";
   import type { ImageData } from "$lib/types/images";
 
@@ -599,6 +604,56 @@
     );
   });
 
+  // Check if selected device is half-width
+  const isHalfWidth = $derived.by(() => {
+    if (!selectedDeviceInfo) return false;
+    return selectedDeviceInfo.device.slot_width === 1;
+  });
+
+  // Get current slot position
+  const currentSlot = $derived.by(() => {
+    if (!selectedDeviceInfo) return "full" as SlotPosition;
+    return (selectedDeviceInfo.placedDevice.slot_position ??
+      "full") as SlotPosition;
+  });
+
+  // Check if device can move to left slot
+  const canMoveLeft = $derived.by(() => {
+    if (!selectedDeviceInfo || !isHalfWidth) return false;
+    if (currentSlot === "left") return false;
+
+    const { placedDevice, rack, deviceIndex } = selectedDeviceInfo;
+    return !isSlotOccupied(rack, placedDevice.position, "left", deviceIndex);
+  });
+
+  // Check if device can move to right slot
+  const canMoveRight = $derived.by(() => {
+    if (!selectedDeviceInfo || !isHalfWidth) return false;
+    if (currentSlot === "right") return false;
+
+    const { placedDevice, rack, deviceIndex } = selectedDeviceInfo;
+    return !isSlotOccupied(rack, placedDevice.position, "right", deviceIndex);
+  });
+
+  /**
+   * Move device to specified slot position
+   * @param targetSlot - 'left' or 'right'
+   */
+  function moveSlot(targetSlot: SlotPosition) {
+    if (!selectedDeviceInfo || !currentRackId) return;
+    const { deviceIndex } = selectedDeviceInfo;
+
+    const success = layoutStore.updateDeviceSlotPosition(
+      currentRackId,
+      deviceIndex,
+      targetSlot,
+    );
+
+    if (!success) {
+      toastStore.showToast(`${targetSlot} slot is occupied`, "error");
+    }
+  }
+
   // Transform internal position to display position with fraction glyphs
   // PlacedDevice.position is in internal units (1/6U)
   // Display with desc_units=false: U1 at bottom (ascending)
@@ -912,11 +967,38 @@
             >{getCategoryDisplayName(selectedDeviceInfo.device.category)}</span
           >
         </div>
-        {#if selectedDeviceInfo.device.slot_width === 1}
-          <div class="info-row">
-            <span class="info-label">Width</span>
-            <span class="info-value">Half</span>
+        {#if isHalfWidth}
+          <div class="info-row position-row">
+            <span class="info-label">Slot</span>
+            <div class="position-controls">
+              <span class="info-value position-value"
+                >{currentSlot === "left" ? "Left" : "Right"}</span
+              >
+              <div class="position-buttons">
+                <button
+                  type="button"
+                  class="position-btn"
+                  onclick={() => moveSlot("left")}
+                  disabled={!canMoveLeft}
+                  aria-label="Move device to left slot"
+                  title="Move to left slot"
+                >
+                  <span class="arrow-label">←</span>
+                </button>
+                <button
+                  type="button"
+                  class="position-btn"
+                  onclick={() => moveSlot("right")}
+                  disabled={!canMoveRight}
+                  aria-label="Move device to right slot"
+                  title="Move to right slot"
+                >
+                  <span class="arrow-label">→</span>
+                </button>
+              </div>
+            </div>
           </div>
+          <p class="helper-text position-hint">Use ←→ keys to move slot</p>
         {/if}
         <div class="info-row position-row">
           <span class="info-label">Position</span>
