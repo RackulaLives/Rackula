@@ -10,6 +10,31 @@ import { persistenceDebug } from "./debug";
 
 const log = persistenceDebug.api;
 
+/** Default timeout for API requests (10 seconds) */
+const API_TIMEOUT_MS = 10_000;
+
+/**
+ * Safely parse JSON from response, falling back to text or default message
+ */
+async function safeParseErrorJson(
+  response: Response,
+): Promise<{ error: string }> {
+  try {
+    const data = await response.json();
+    if (data && typeof data === "object" && "error" in data) {
+      return data as { error: string };
+    }
+    return { error: response.statusText || "Unknown error" };
+  } catch {
+    try {
+      const text = await response.text();
+      return { error: text || response.statusText || "Unknown error" };
+    } catch {
+      return { error: response.statusText || "Unknown error" };
+    }
+  }
+}
+
 /**
  * Layout list item from API
  */
@@ -87,10 +112,12 @@ export async function listSavedLayouts(): Promise<SavedLayoutItem[]> {
   const url = `${API_BASE_URL}/layouts`;
   log("listSavedLayouts: fetching %s", url);
 
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
+  });
 
   if (!response.ok) {
-    const error = (await response.json()) as ErrorResponse;
+    const error = await safeParseErrorJson(response);
     log(
       "listSavedLayouts: error status=%d message=%s",
       response.status,
@@ -121,14 +148,16 @@ export async function loadSavedLayout(id: string): Promise<Layout> {
   const url = `${API_BASE_URL}/layouts/${encodeURIComponent(id)}`;
   log("loadSavedLayout: fetching %s", url);
 
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
+  });
 
   if (!response.ok) {
     if (response.status === 404) {
       log("loadSavedLayout: not found id=%s", id);
       throw new PersistenceError("Layout not found", 404);
     }
-    const error = (await response.json()) as ErrorResponse;
+    const error = await safeParseErrorJson(response);
     log(
       "loadSavedLayout: error status=%d message=%s",
       response.status,
@@ -170,7 +199,7 @@ export async function saveLayoutToServer(
     yamlContent.length,
   );
 
-  // Pass current ID as query param for rename handling
+  // Use current ID in path for rename handling (not a query param)
   const url =
     currentId && currentId !== newId
       ? `${API_BASE_URL}/layouts/${encodeURIComponent(currentId)}`
@@ -182,10 +211,11 @@ export async function saveLayoutToServer(
     method: "PUT",
     headers: { "Content-Type": "text/yaml" },
     body: yamlContent,
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
   });
 
   if (!response.ok) {
-    const error = (await response.json()) as ErrorResponse;
+    const error = await safeParseErrorJson(response);
     log(
       "saveLayoutToServer: error status=%d message=%s",
       response.status,
@@ -218,6 +248,7 @@ export async function deleteSavedLayout(id: string): Promise<void> {
 
   const response = await fetch(url, {
     method: "DELETE",
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -225,7 +256,7 @@ export async function deleteSavedLayout(id: string): Promise<void> {
       log("deleteSavedLayout: not found id=%s", id);
       throw new PersistenceError("Layout not found", 404);
     }
-    const error = (await response.json()) as ErrorResponse;
+    const error = await safeParseErrorJson(response);
     log(
       "deleteSavedLayout: error status=%d message=%s",
       response.status,
@@ -270,10 +301,11 @@ export async function uploadAsset(
     method: "PUT",
     headers: { "Content-Type": blob.type },
     body: blob,
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
   });
 
   if (!response.ok) {
-    const error = (await response.json()) as ErrorResponse;
+    const error = await safeParseErrorJson(response);
     log(
       "uploadAsset: error status=%d message=%s",
       response.status,
