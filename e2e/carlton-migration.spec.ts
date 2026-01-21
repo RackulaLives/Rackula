@@ -13,6 +13,10 @@ import path from "path";
  * 2. All 9 devices are present
  * 3. The position 1.5 is correctly migrated to internal unit 9 (1.5 * 6)
  * 4. Save/reload cycle works
+ *
+ * Note: The actual position migration (1.5 → 9 internal units) is verified by
+ * unit tests in src/tests/schemas.test.ts. E2E tests verify the user-visible
+ * behavior (file loads, devices render, layout persists).
  */
 test.describe("Carlton Migration (#879)", () => {
   const fixturePath = path.join(
@@ -21,6 +25,9 @@ test.describe("Carlton Migration (#879)", () => {
     "fixtures",
     "carlton-5123home.Rackula.zip",
   );
+
+  // Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux)
+  const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
@@ -36,7 +43,7 @@ test.describe("Carlton Migration (#879)", () => {
   });
 
   /**
-   * Helper to load a file using keyboard shortcut (Ctrl+O)
+   * Helper to load a file using keyboard shortcut (Ctrl/Cmd+O)
    * More stable than clicking through dropdown menu
    */
   async function loadFileViaKeyboard(
@@ -44,7 +51,7 @@ test.describe("Carlton Migration (#879)", () => {
     filePath: string,
   ) {
     const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press("Control+o");
+    await page.keyboard.press(`${modifier}+o`);
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(filePath);
   }
@@ -52,9 +59,6 @@ test.describe("Carlton Migration (#879)", () => {
   test("loads Carlton's zip file with decimal position successfully", async ({
     page,
   }) => {
-    // Wait for app to be ready
-    await expect(page.locator(".rack-container").first()).toBeVisible();
-
     // Load the fixture file via keyboard shortcut
     await loadFileViaKeyboard(page, fixturePath);
 
@@ -71,9 +75,6 @@ test.describe("Carlton Migration (#879)", () => {
   });
 
   test("all devices load and UnRaid Server is present", async ({ page }) => {
-    // Wait for app to be ready
-    await expect(page.locator(".rack-container").first()).toBeVisible();
-
     // Load the fixture file via keyboard shortcut
     await loadFileViaKeyboard(page, fixturePath);
 
@@ -82,9 +83,9 @@ test.describe("Carlton Migration (#879)", () => {
       timeout: 10000,
     });
 
-    // Verify devices are present - the file has 9 devices
-    // We check that the rack has devices rendered
-    await expect(page.locator(".rack-device").first()).toBeVisible({
+    // Verify all 9 devices are present
+    // Dual-view renders: 6 front-only + 1 rear-only + 2 both-face (×2 views) = 11 total
+    await expect(page.locator(".rack-device")).toHaveCount(11, {
       timeout: 5000,
     });
 
@@ -97,9 +98,6 @@ test.describe("Carlton Migration (#879)", () => {
   });
 
   test("save and reload preserves layout", async ({ page }) => {
-    // Wait for app to be ready
-    await expect(page.locator(".rack-container").first()).toBeVisible();
-
     // Load the fixture file via keyboard shortcut
     await loadFileViaKeyboard(page, fixturePath);
 
@@ -113,9 +111,9 @@ test.describe("Carlton Migration (#879)", () => {
       timeout: 5000,
     });
 
-    // Save the layout via keyboard shortcut
+    // Save the layout via keyboard shortcut (Ctrl/Cmd+S)
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press("Control+s");
+    await page.keyboard.press(`${modifier}+s`);
     const download = await downloadPromise;
 
     // Verify filename has correct extension
