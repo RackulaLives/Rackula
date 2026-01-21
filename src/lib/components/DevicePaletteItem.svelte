@@ -181,7 +181,7 @@
     <span
       class="width-indicator"
       title="Half-width: Occupies left or right half of rack"
-      aria-label="Half-width device">½</span
+      aria-label="Half-width device">½W</span
     >
   {/if}
   {#if device.is_full_depth === false}
