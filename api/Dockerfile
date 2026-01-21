@@ -1,0 +1,43 @@
+# Rackula API Sidecar
+# Tiny Bun-based API for layout persistence
+FROM oven/bun:1-alpine AS base
+
+# Install dependencies
+FROM base AS deps
+WORKDIR /app
+COPY package.json bun.lockb* ./
+RUN bun install --frozen-lockfile --production
+
+# Production image
+FROM base AS runner
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup --system --gid 1001 rackula && \
+    adduser --system --uid 1001 rackula
+
+# Copy dependencies and source
+COPY --from=deps /app/node_modules ./node_modules
+COPY src/ ./src/
+
+# Create data directory
+RUN mkdir -p /data && chown rackula:rackula /data
+
+# OCI labels
+LABEL org.opencontainers.image.source="https://github.com/RackulaLives/Rackula"
+LABEL org.opencontainers.image.description="Rackula API Sidecar for persistent storage"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.title="Rackula API"
+
+USER rackula
+
+ENV NODE_ENV=production
+ENV PORT=3001
+ENV DATA_DIR=/data
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget -q --spider http://127.0.0.1:3001/health || exit 1
+
+CMD ["bun", "src/index.ts"]
