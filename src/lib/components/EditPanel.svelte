@@ -25,7 +25,11 @@
     formatConflictMessage,
   } from "$lib/utils/rack-resize";
   import { ICON_SIZE } from "$lib/constants/sizing";
-  import { canPlaceDevice, findCollisions } from "$lib/utils/collision";
+  import {
+    canPlaceDevice,
+    findCollisions,
+    isSlotOccupied,
+  } from "$lib/utils/collision";
   import {
     toHumanUnits,
     toInternalUnits,
@@ -619,14 +623,7 @@
     if (currentSlot === "left") return false;
 
     const { placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-    // Check if left slot is occupied by another device at the same position
-    const conflictingDevice = rack.devices.find((d, i) => {
-      if (i === deviceIndex) return false;
-      if (d.position !== placedDevice.position) return false;
-      const existingSlot = d.slot_position ?? "full";
-      return existingSlot === "full" || existingSlot === "left";
-    });
-    return !conflictingDevice;
+    return !isSlotOccupied(rack, placedDevice.position, "left", deviceIndex);
   });
 
   // Check if device can move to right slot
@@ -635,14 +632,7 @@
     if (currentSlot === "right") return false;
 
     const { placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-    // Check if right slot is occupied by another device at the same position
-    const conflictingDevice = rack.devices.find((d, i) => {
-      if (i === deviceIndex) return false;
-      if (d.position !== placedDevice.position) return false;
-      const existingSlot = d.slot_position ?? "full";
-      return existingSlot === "full" || existingSlot === "right";
-    });
-    return !conflictingDevice;
+    return !isSlotOccupied(rack, placedDevice.position, "right", deviceIndex);
   });
 
   /**

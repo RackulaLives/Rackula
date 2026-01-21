@@ -28,6 +28,7 @@ import {
   canPlaceDevice,
   canPlaceInContainer,
   findValidDropPositions,
+  isSlotOccupied,
 } from "$lib/utils/collision";
 import { createLayout, createDefaultRack } from "$lib/utils/serialization";
 import {
@@ -2985,29 +2986,25 @@ function updateDeviceSlotPositionRecorded(
   activeRackId = rackId;
 
   const device = targetRack.devices[deviceIndex]!;
-  const oldSlotPosition = device.slot_position ?? "full";
-
-  // No change needed
-  if (oldSlotPosition === slotPosition) return true;
 
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
     device.device_type,
   );
-  const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
 
-  // Check if target slot is occupied by another device at the same position
-  const devicePosition = device.position;
-  const conflictingDevice = targetRack.devices.find((d, i) => {
-    if (i === deviceIndex) return false;
-    if (d.position !== devicePosition) return false;
-    const existingSlot = d.slot_position ?? "full";
-    // Full-width devices block everything, same-side blocks same-side
-    return existingSlot === "full" || existingSlot === slotPosition;
-  });
+  // Only half-width devices can have their slot position changed
+  if (!deviceType || deviceType.slot_width !== 1) {
+    return false;
+  }
 
-  if (conflictingDevice) {
-    // Slot is occupied
+  const oldSlotPosition = device.slot_position ?? "full";
+  const deviceName = deviceType.model ?? deviceType.slug ?? "device";
+
+  // No change needed
+  if (oldSlotPosition === slotPosition) return true;
+
+  // Check if target slot is occupied using shared collision utility
+  if (isSlotOccupied(targetRack, device.position, slotPosition, deviceIndex)) {
     return false;
   }
 

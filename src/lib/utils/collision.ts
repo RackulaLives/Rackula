@@ -131,6 +131,36 @@ export function doSlotsOverlap(
 }
 
 /**
+ * Check if a slot position is occupied at a given position in the rack.
+ * Used to validate half-width device slot movement.
+ *
+ * @param rack - The rack to check
+ * @param position - The position (in internal units) to check
+ * @param targetSlot - The slot position to check ('left', 'right', or 'full')
+ * @param excludeIndex - Optional device index to exclude (for current device)
+ * @returns true if the target slot is occupied by another device
+ */
+export function isSlotOccupied(
+  rack: Rack,
+  position: number,
+  targetSlot: SlotPosition,
+  excludeIndex?: number,
+): boolean {
+  return rack.devices.some((device, i) => {
+    // Skip the device being moved
+    if (excludeIndex !== undefined && i === excludeIndex) return false;
+    // Only check devices at the same position
+    if (device.position !== position) return false;
+    // Skip container children - they're in a different collision space
+    if (device.container_id) return false;
+
+    const existingSlot = device.slot_position ?? "full";
+    // Check if the slots would overlap
+    return doSlotsOverlap(existingSlot, targetSlot);
+  });
+}
+
+/**
  * Check if a device can be placed at a given position (rack-level placement)
  *
  * Container children (devices with container_id set) are excluded from rack-level

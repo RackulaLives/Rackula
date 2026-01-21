@@ -351,8 +351,8 @@
 
     // Get device type to check if half-width
     const deviceType = findDeviceType(
-      layoutStore.device_types,
       placedDevice.device_type,
+      layoutStore.device_types,
     );
     if (!deviceType || deviceType.slot_width !== 1) {
       // Not a half-width device, ignore
@@ -360,7 +360,7 @@
     }
 
     // Check if already in target slot
-    const currentSlot = placedDevice.slot_position ?? "left";
+    const currentSlot = placedDevice.slot_position ?? "full";
     if (currentSlot === targetSlot) return;
 
     // Attempt to move to target slot (collision check is done in store)
