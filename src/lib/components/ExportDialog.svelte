@@ -87,7 +87,8 @@
   let includeQR = $state(false);
 
   // Rack selection state (stores rack IDs, not item IDs)
-  let selectedRacks = new SvelteSet<string>();
+  // Using SvelteSet for reactive mutations (.add/.delete/.clear)
+  const selectedRacks = new SvelteSet<string>();
 
   // Preview pagination state (for 4+ racks)
   let previewIndex = $state(0);
@@ -146,12 +147,18 @@
   // Initialize rack selection when dialog opens or selectedRackIds changes
   $effect(() => {
     if (open) {
+      // Clear and repopulate the set (mutation triggers reactivity)
+      selectedRacks.clear();
       if (initialSelectedRackIds && initialSelectedRackIds.length > 0) {
         // Pre-select specified racks (from context menu)
-        selectedRacks = new SvelteSet(initialSelectedRackIds);
+        for (const id of initialSelectedRackIds) {
+          selectedRacks.add(id);
+        }
       } else {
         // Default: all racks selected
-        selectedRacks = new SvelteSet(racks.map((r) => r.id));
+        for (const rack of racks) {
+          selectedRacks.add(rack.id);
+        }
       }
       previewIndex = 0;
     }
