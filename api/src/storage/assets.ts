@@ -18,6 +18,7 @@ import { LayoutIdSchema } from "../schemas/layout";
 
 // Allowed image types
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const ALLOWED_EXTS = new Set(["png", "jpg", "webp"]);
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 // Schema for device slug validation (similar to LayoutIdSchema)
@@ -99,12 +100,12 @@ function validateDeviceSlug(deviceSlug: string): string | null {
 
 /**
  * Build asset path with validation
- * Throws if layoutId or deviceSlug are invalid
+ * Throws if layoutId, deviceSlug, or ext are invalid
  */
 function buildAssetPath(
   layoutId: string,
   deviceSlug: string,
-  face: string,
+  face: "front" | "rear",
   ext: string,
 ): string {
   const validLayoutId = validateLayoutId(layoutId);
@@ -115,6 +116,10 @@ function buildAssetPath(
   const validDeviceSlug = validateDeviceSlug(deviceSlug);
   if (!validDeviceSlug) {
     throw new Error(`Invalid device slug: ${deviceSlug}`);
+  }
+
+  if (!ALLOWED_EXTS.has(ext)) {
+    throw new Error(`Invalid extension: ${ext}`);
   }
 
   return join(getAssetsDir(), validLayoutId, validDeviceSlug, `${face}.${ext}`);
@@ -147,7 +152,7 @@ export async function saveAsset(
   await mkdir(dirname(assetPath), { recursive: true });
 
   // Delete any existing file with different extension
-  for (const oldExt of ["png", "jpg", "webp"]) {
+  for (const oldExt of ALLOWED_EXTS) {
     if (oldExt !== ext) {
       try {
         await unlink(buildAssetPath(layoutId, deviceSlug, face, oldExt));
@@ -170,7 +175,7 @@ export async function getAsset(
   face: "front" | "rear",
 ): Promise<{ data: Buffer; contentType: string } | null> {
   // Try each extension
-  for (const ext of ["png", "jpg", "webp"]) {
+  for (const ext of ALLOWED_EXTS) {
     try {
       const assetPath = buildAssetPath(layoutId, deviceSlug, face, ext);
       const data = await readFile(assetPath);
@@ -196,7 +201,7 @@ export async function deleteAsset(
 ): Promise<boolean> {
   let deleted = false;
 
-  for (const ext of ["png", "jpg", "webp"]) {
+  for (const ext of ALLOWED_EXTS) {
     try {
       const assetPath = buildAssetPath(layoutId, deviceSlug, face, ext);
       await unlink(assetPath);
@@ -255,14 +260,18 @@ export async function listLayoutAssets(layoutId: string): Promise<AssetInfo[]> {
           const match = file.match(/^(front|rear)\.(png|jpg|webp)$/);
           if (match) {
             const filePath = join(deviceDir, file);
-            const fileStat = await stat(filePath);
-            assets.push({
-              layoutId: validLayoutId,
-              deviceSlug,
-              face: match[1] as "front" | "rear",
-              ext: match[2],
-              size: fileStat.size,
-            });
+            try {
+              const fileStat = await stat(filePath);
+              assets.push({
+                layoutId: validLayoutId,
+                deviceSlug,
+                face: match[1] as "front" | "rear",
+                ext: match[2],
+                size: fileStat.size,
+              });
+            } catch {
+              // File was deleted between readdir and stat, skip it
+            }
           }
         }
       } catch {
