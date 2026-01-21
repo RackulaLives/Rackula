@@ -1759,6 +1759,22 @@ git commit -m "feat: add SaveStatus component with bits-ui Progress"
     // Load from localStorage if available, otherwise start fresh
     onClose();
   }
+```
+
+**Note: Future Enhancement - Persistence Integration**
+
+The current import flow loads layout and images into memory stores but doesn't automatically sync to the persistence API. For v1, this is acceptable because:
+
+1. Auto-save will trigger after import, persisting the layout
+2. Images remain in browser memory until explicitly uploaded via custom device type creation
+
+Future improvements could:
+
+- Upload each image via `uploadAsset()` after import
+- Detect name collisions with existing layouts
+- Mark layouts as "pending sync" if API is unavailable
+
+```svelte
 
   function formatDate(isoString: string): string {
     const date = new Date(isoString);
@@ -2179,6 +2195,20 @@ $effect(() => {
   return () => clearInterval(intervalId);
 });
 ```
+
+**Note: Multi-Tab Behavior**
+
+The current design uses last-write-wins for multiple tabs. This is intentional for a single-user tool:
+
+1. Adding tab detection adds complexity (BroadcastChannel, storage events)
+2. Most users won't have multiple tabs open editing the same layout
+3. The "Single-User Design" section in SELF-HOSTING.md documents this
+
+Future improvements could add lightweight detection:
+
+- Generate tabId, write to localStorage key "activeTab"
+- Listen to storage events, warn if another tab is editing
+- But this is YAGNI for v1
 
 #### Step 4: Update StartScreen handler
 
