@@ -112,7 +112,8 @@ describe("listLayouts", () => {
     await writeFile(join(testDir, "test-layout.yaml"), yaml);
 
     const layouts = await listLayouts();
-    expect(layouts.length).toBe(1);
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: one file created = one layout returned
+    expect(layouts).toHaveLength(1);
     expect(layouts[0]?.id).toBe("test-layout");
     expect(layouts[0]?.name).toBe("Test Layout");
     expect(layouts[0]?.rackCount).toBe(2);
@@ -124,7 +125,8 @@ describe("listLayouts", () => {
     await writeFile(join(testDir, "invalid-layout.yaml"), `not valid yaml: [`);
 
     const layouts = await listLayouts();
-    expect(layouts.length).toBe(1);
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: one file created = one layout returned
+    expect(layouts).toHaveLength(1);
     expect(layouts[0]?.id).toBe("invalid-layout");
     expect(layouts[0]?.valid).toBe(false);
   });
