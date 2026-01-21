@@ -5,15 +5,17 @@
  * Used for rendering visual indicators in dual-view mode.
  */
 
-import type { Rack, DeviceType, RackView } from "$lib/types";
+import type { Rack, DeviceType, RackView, SlotPosition } from "$lib/types";
 import { toHumanUnits } from "$lib/utils/position";
 
 /**
- * Represents a range of U positions (inclusive)
+ * Represents a range of U positions (inclusive) with optional slot positioning
  */
 export interface URange {
   bottom: number; // Lower U position
   top: number; // Upper U position
+  /** Slot position for half-width devices. undefined = full-width */
+  slotPosition?: SlotPosition;
 }
 
 /**
@@ -64,7 +66,12 @@ export function getBlockedSlots(
     const bottom = positionU;
     const top = positionU + deviceType.u_height - 1;
 
-    blocked.push({ bottom, top });
+    // Determine slot position for half-width devices
+    // slot_width: 1 = half-width, 2 or undefined = full-width
+    const isHalfWidth = deviceType.slot_width === 1;
+    const slotPosition = isHalfWidth ? placedDevice.slot_position : undefined;
+
+    blocked.push({ bottom, top, slotPosition });
   }
 
   return blocked;

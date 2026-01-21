@@ -194,4 +194,124 @@ describe("getBlockedSlots", () => {
       expect(blockedSlots.length).toBe(0);
     });
   });
+
+  describe("slot position", () => {
+    it("returns undefined slotPosition for full-width devices", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "full-width-half-depth",
+            position: 10,
+            face: "front",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "full-width-half-depth",
+          u_height: 1,
+          is_full_depth: false,
+          slot_width: 2, // Full-width
+        }),
+      ];
+
+      const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      expect(blockedSlots.length).toBe(1);
+      expect(blockedSlots[0].slotPosition).toBeUndefined();
+    });
+
+    it("returns left slotPosition for half-width device in left slot", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "half-width-half-depth",
+            position: 10,
+            face: "front",
+            slot_position: "left",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "half-width-half-depth",
+          u_height: 1,
+          is_full_depth: false,
+          slot_width: 1, // Half-width
+        }),
+      ];
+
+      const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      expect(blockedSlots.length).toBe(1);
+      expect(blockedSlots[0].slotPosition).toBe("left");
+    });
+
+    it("returns right slotPosition for half-width device in right slot", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "half-width-half-depth",
+            position: 10,
+            face: "rear",
+            slot_position: "right",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "half-width-half-depth",
+          u_height: 1,
+          is_full_depth: false,
+          slot_width: 1, // Half-width
+        }),
+      ];
+
+      const blockedSlots = getBlockedSlots(rack, "front", deviceLibrary);
+
+      expect(blockedSlots.length).toBe(1);
+      expect(blockedSlots[0].slotPosition).toBe("right");
+    });
+
+    it("handles multiple half-width devices with different positions", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "half-width-half-depth",
+            position: 10,
+            face: "front",
+            slot_position: "left",
+          }),
+          createTestDevice({
+            device_type: "half-width-half-depth",
+            position: 10,
+            face: "front",
+            slot_position: "right",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "half-width-half-depth",
+          u_height: 1,
+          is_full_depth: false,
+          slot_width: 1,
+        }),
+      ];
+
+      const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      expect(blockedSlots.length).toBe(2);
+      expect(blockedSlots[0].slotPosition).toBe("left");
+      expect(blockedSlots[1].slotPosition).toBe("right");
+    });
+  });
 });
