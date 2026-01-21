@@ -1133,11 +1133,7 @@ export function generateExportSVG(
     // Rear row: render each bay's rear view (mirrored order)
     reversedRacks.forEach((rack, reversedIndex) => {
       const bayX = reversedIndex * RACK_WIDTH;
-      const groupMaxHeightForRear = Math.max(
-        ...groupRacks.map((r) => r.height),
-        0,
-      );
-      const bayY = currentY + (groupMaxHeightForRear - rack.height) * U_HEIGHT;
+      const bayY = currentY + (groupMaxHeight - rack.height) * U_HEIGHT;
       const rearView = renderRackView(rack, bayX, bayY, "rear");
       bayedGroup.appendChild(rearView);
     });
