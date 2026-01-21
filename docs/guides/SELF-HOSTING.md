@@ -464,13 +464,13 @@ services:
 2. Look for API calls to `/api/layouts/*` in Network tab
 3. If no API calls, the SPA was built without `VITE_PERSIST_ENABLED=true`
 
-**Verify using correct image:**
+**Verify persistence is working:**
 
-```bash
-# Check if persistence is enabled in the build
-docker run --rm ghcr.io/rackulalives/rackula:persist \
-  grep -r "PERSIST" /usr/share/nginx/html/
-```
+1. Open browser DevTools (F12) → Network tab
+2. Create or modify a layout
+3. Look for `PUT /api/layouts/*` requests
+4. If you see these requests, persistence is enabled
+5. If no API calls appear, the image was built without `VITE_PERSIST_ENABLED=true`
 
 **Check API is receiving requests:**
 
