@@ -17,6 +17,10 @@
     label?: string;
     /** Helper text displayed below the switch */
     helperText?: string;
+    /** Accessible label when no visible label is provided */
+    ariaLabel?: string;
+    /** ID of element that describes this switch */
+    ariaDescribedby?: string;
     /** Callback when checked state changes */
     onchange?: (checked: boolean) => void;
   }
@@ -27,12 +31,25 @@
     id: providedId,
     label,
     helperText,
+    ariaLabel,
+    ariaDescribedby,
     onchange,
   }: Props = $props();
 
   // Generate a stable fallback ID if none provided
   const fallbackId = `switch-${Math.random().toString(36).slice(2, 9)}`;
   const id = $derived(providedId || fallbackId);
+
+  // Generate unique ID for helper text element
+  const helperTextId = $derived(helperText ? `${id}-helper` : undefined);
+
+  // Combine ariaDescribedby and helperTextId when helper text present
+  const describedBy = $derived(
+    [ariaDescribedby, helperTextId].filter(Boolean).join(" ") || undefined,
+  );
+
+  // Only use aria-label when no visible label is provided
+  const computedAriaLabel = $derived(label ? undefined : ariaLabel);
 
   function handleCheckedChange(newChecked: boolean) {
     checked = newChecked;
@@ -48,6 +65,8 @@
       {checked}
       onCheckedChange={handleCheckedChange}
       class="switch-root"
+      aria-label={computedAriaLabel}
+      aria-describedby={describedBy}
     >
       <Switch.Thumb class="switch-thumb" />
     </Switch.Root>
@@ -56,7 +75,7 @@
     {/if}
   </div>
   {#if helperText}
-    <span class="helper-text">{helperText}</span>
+    <span class="helper-text" id={helperTextId}>{helperText}</span>
   {/if}
 </div>
 

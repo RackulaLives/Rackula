@@ -56,6 +56,7 @@ export { default as IconMobile } from "./IconMobile.svelte";
 // Checkbox indicator icons
 export { default as IconSquare } from "./IconSquare.svelte";
 export { default as IconSquareFilled } from "./IconSquareFilled.svelte";
+export { default as IconSquareMinus } from "./IconSquareMinus.svelte";
 
 // HelpPanel icons
 export { default as IconGitHub } from "./IconGitHub.svelte";

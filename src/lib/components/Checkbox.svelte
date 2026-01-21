@@ -5,11 +5,11 @@
 -->
 <script lang="ts">
   import { Checkbox } from "bits-ui";
-  import { IconSquare, IconSquareFilled } from "./icons";
+  import { IconSquare, IconSquareFilled, IconSquareMinus } from "./icons";
 
   interface Props {
-    /** Current checked state */
-    checked?: boolean;
+    /** Current checked state - supports boolean or "indeterminate" */
+    checked?: boolean | "indeterminate";
     /** Whether the checkbox is disabled */
     disabled?: boolean;
     /** ID for form labeling */
@@ -17,11 +17,11 @@
     /** Label text to display next to checkbox */
     label?: string;
     /** Callback when checked state changes */
-    onchange?: (checked: boolean) => void;
+    onchange?: (checked: boolean | "indeterminate") => void;
   }
 
   let {
-    checked = $bindable(false),
+    checked = $bindable<boolean | "indeterminate">(false),
     disabled = false,
     id: providedId,
     label,
@@ -33,10 +33,8 @@
   const id = $derived(providedId || fallbackId);
 
   function handleCheckedChange(newChecked: boolean | "indeterminate") {
-    if (newChecked !== "indeterminate") {
-      checked = newChecked;
-      onchange?.(newChecked);
-    }
+    checked = newChecked;
+    onchange?.(newChecked);
   }
 </script>
 
@@ -47,9 +45,11 @@
     {checked}
     onCheckedChange={handleCheckedChange}
   >
-    {#snippet children({ checked: isChecked })}
+    {#snippet children({ checked: isChecked, indeterminate })}
       <span class="checkbox-indicator">
-        {#if isChecked}
+        {#if indeterminate}
+          <IconSquareMinus size={16} />
+        {:else if isChecked}
           <IconSquareFilled size={16} />
         {:else}
           <IconSquare size={16} />
@@ -97,7 +97,8 @@
     cursor: not-allowed;
   }
 
-  .checkbox-wrapper :global(button[data-state="checked"]) {
+  .checkbox-wrapper :global(button[data-state="checked"]),
+  .checkbox-wrapper :global(button[data-state="indeterminate"]) {
     color: var(--colour-selection);
   }
 
