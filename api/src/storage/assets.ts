@@ -275,7 +275,7 @@ export async function listLayoutAssets(layoutId: string): Promise<AssetInfo[]> {
 
         for (const file of files) {
           const match = file.match(/^(front|rear)\.(png|jpg|webp)$/);
-          if (match) {
+          if (match && match[1] && match[2]) {
             const filePath = join(deviceDir, file);
             try {
               const fileStat = await stat(filePath);

@@ -331,13 +331,14 @@ function focusRack(
     viewportHeight,
   );
 
-  debug.group("Focus Rack Calculation");
-  debug.log("Target rack IDs:", rackIds);
-  debug.log("All relevant rack IDs:", [...allRelevantRackIds]);
-  debug.log("Viewport:", { width: viewportWidth, height: viewportHeight });
-  debug.log("Rack positions:", rackPositions);
-  debug.log("Calculated:", { zoom, panX, panY });
-  debug.groupEnd();
+  canvasDebug.focus("Target rack IDs: %o", rackIds);
+  canvasDebug.focus("All relevant rack IDs: %o", [...allRelevantRackIds]);
+  canvasDebug.focus("Viewport: %o", {
+    width: viewportWidth,
+    height: viewportHeight,
+  });
+  canvasDebug.focus("Rack positions: %o", rackPositions);
+  canvasDebug.focus("Calculated: %o", { zoom, panX, panY });
 
   // Apply zoom and pan with smooth animation
   smoothMoveTo(panX, panY, zoom);

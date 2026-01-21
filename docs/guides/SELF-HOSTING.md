@@ -358,23 +358,68 @@ docker exec rackula-api ls -la /data
 
 The `rackula` user (UID 1001) must own the data directory.
 
-**Fix with bind mount:**
+#### Bind Mount Permissions
+
+When using a bind mount (e.g., `./data:/data`), the host directory must have the correct
+ownership and permissions for the container's non-root user. The API container runs as
+UID 1001 by default.
+
+**Set up the host directory:**
 
 ```bash
-# Create directory with correct ownership
+# Create the directory and set ownership to container's UID
 mkdir -p ./data
 sudo chown 1001:1001 ./data
 
-# Or run API as root (not recommended)
-docker run --user root ...
+# Ensure read/write permissions
+sudo chmod 755 ./data
 ```
 
-**Fix with named volume** (automatic):
+**Using a different UID:**
+
+If you run the container with a different user ID (via `--user`), adjust the ownership
+accordingly:
+
+```bash
+# Example: running as UID 1000
+sudo chown 1000:1000 ./data
+```
+
+**Permission modes:**
+
+| Mode  | Use Case                                 |
+| ----- | ---------------------------------------- |
+| `755` | Standard - owner read/write, others read |
+| `700` | Restrictive - owner only                 |
+| `775` | Group writable - shared access           |
+
+**Common permission errors:**
+
+- `EACCES: permission denied` - Directory not owned by container UID
+- `EROFS: read-only file system` - Directory mounted read-only or lacks write permission
+- `ENOENT: no such file or directory` - Host directory doesn't exist
+
+**Example docker-compose with bind mount:**
+
+```yaml
+services:
+  api:
+    image: ghcr.io/rackulalives/rackula-api:latest
+    volumes:
+      - ./data:/data # Host ./data must be owned by UID 1001
+```
+
+#### Named Volume Permissions
+
+Docker named volumes handle permissions automatically. The container's entrypoint
+typically sets correct ownership:
 
 ```yaml
 volumes:
   rackula-data: # Docker handles permissions
 ```
+
+This is the **recommended approach** for most deployments as it avoids permission issues.
 
 ### Health Check Failures
 

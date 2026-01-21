@@ -12,6 +12,8 @@
  *   - rackula:layout:device
  *   - rackula:canvas:transform
  *   - rackula:dnd:render
+ *   - rackula:persistence:api
+ *   - rackula:persistence:health
  */
 import Debug from "debug";
 

@@ -13,6 +13,59 @@ process.env.DATA_DIR = testDir;
 const { listLayouts, getLayout, saveLayout, deleteLayout, slugify } =
   await import("./filesystem");
 
+// ============================================================================
+// Test Helpers
+// ============================================================================
+
+/**
+ * Clean up all YAML files in the test directory
+ */
+async function cleanupTestDir(): Promise<void> {
+  const files = await readdir(testDir);
+  for (const file of files) {
+    if (file.endsWith(".yaml") || file.endsWith(".yml")) {
+      await rm(join(testDir, file));
+    }
+  }
+}
+
+interface DeviceInput {
+  id: string;
+}
+
+interface RackInput {
+  devices?: DeviceInput[];
+}
+
+interface LayoutYamlOptions {
+  name: string;
+  racks?: RackInput[];
+}
+
+/**
+ * Create valid layout YAML for testing
+ */
+function createLayoutYaml(options: LayoutYamlOptions): string {
+  const { name, racks = [] } = options;
+
+  const racksYaml =
+    racks.length === 0
+      ? "racks: []"
+      : `racks:\n${racks
+          .map((rack) => {
+            if (!rack.devices || rack.devices.length === 0) {
+              return "  - devices: []";
+            }
+            const devicesYaml = rack.devices
+              .map((d) => `      - id: ${d.id}`)
+              .join("\n");
+            return `  - devices:\n${devicesYaml}`;
+          })
+          .join("\n")}`;
+
+  return `version: "1.0.0"\nname: ${name}\n${racksYaml}`;
+}
+
 describe("slugify", () => {
   it("converts name to lowercase slug", () => {
     expect(slugify("My Home Lab")).toBe("my-home-lab");
@@ -40,13 +93,7 @@ describe("slugify", () => {
 
 describe("listLayouts", () => {
   beforeEach(async () => {
-    // Clean up test directory before each test
-    const files = await readdir(testDir);
-    for (const file of files) {
-      if (file.endsWith(".yaml") || file.endsWith(".yml")) {
-        await rm(join(testDir, file));
-      }
-    }
+    await cleanupTestDir();
   });
 
   it("returns empty array when no layouts exist", async () => {
@@ -55,25 +102,22 @@ describe("listLayouts", () => {
   });
 
   it("lists valid YAML files with counts", async () => {
-    await writeFile(
-      join(testDir, "test-layout.yaml"),
-      `version: "1.0.0"
-name: Test Layout
-racks:
-  - devices:
-      - id: d1
-      - id: d2
-  - devices:
-      - id: d3`,
-    );
+    const yaml = createLayoutYaml({
+      name: "Test Layout",
+      racks: [
+        { devices: [{ id: "d1" }, { id: "d2" }] },
+        { devices: [{ id: "d3" }] },
+      ],
+    });
+    await writeFile(join(testDir, "test-layout.yaml"), yaml);
 
     const layouts = await listLayouts();
     expect(layouts.length).toBe(1);
-    expect(layouts[0].id).toBe("test-layout");
-    expect(layouts[0].name).toBe("Test Layout");
-    expect(layouts[0].rackCount).toBe(2);
-    expect(layouts[0].deviceCount).toBe(3);
-    expect(layouts[0].valid).toBe(true);
+    expect(layouts[0]?.id).toBe("test-layout");
+    expect(layouts[0]?.name).toBe("Test Layout");
+    expect(layouts[0]?.rackCount).toBe(2);
+    expect(layouts[0]?.deviceCount).toBe(3);
+    expect(layouts[0]?.valid).toBe(true);
   });
 
   it("marks invalid YAML files with valid: false", async () => {
@@ -81,24 +125,18 @@ racks:
 
     const layouts = await listLayouts();
     expect(layouts.length).toBe(1);
-    expect(layouts[0].id).toBe("invalid-layout");
-    expect(layouts[0].valid).toBe(false);
+    expect(layouts[0]?.id).toBe("invalid-layout");
+    expect(layouts[0]?.valid).toBe(false);
   });
 });
 
 describe("saveLayout and getLayout", () => {
   beforeEach(async () => {
-    // Clean up test directory before each test
-    const files = await readdir(testDir);
-    for (const file of files) {
-      if (file.endsWith(".yaml") || file.endsWith(".yml")) {
-        await rm(join(testDir, file));
-      }
-    }
+    await cleanupTestDir();
   });
 
   it("saves and retrieves layout", async () => {
-    const yamlContent = 'version: "1.0.0"\nname: My Layout\nracks: []';
+    const yamlContent = createLayoutYaml({ name: "My Layout" });
     const result = await saveLayout(yamlContent);
 
     expect(result.id).toBe("my-layout");
@@ -109,7 +147,7 @@ describe("saveLayout and getLayout", () => {
   });
 
   it("detects existing layout as not new", async () => {
-    const yamlContent = 'version: "1.0.0"\nname: Existing\nracks: []';
+    const yamlContent = createLayoutYaml({ name: "Existing" });
 
     // First save - should be new
     const first = await saveLayout(yamlContent);
@@ -122,7 +160,7 @@ describe("saveLayout and getLayout", () => {
 
   it("handles rename by deleting old file", async () => {
     // Create original
-    const originalContent = 'version: "1.0.0"\nname: Original\nracks: []';
+    const originalContent = createLayoutYaml({ name: "Original" });
     await saveLayout(originalContent);
 
     // Verify original exists
@@ -130,7 +168,7 @@ describe("saveLayout and getLayout", () => {
     expect(original).not.toBeNull();
 
     // Rename by saving with new name but passing old ID
-    const renamedContent = 'version: "1.0.0"\nname: Renamed\nracks: []';
+    const renamedContent = createLayoutYaml({ name: "Renamed" });
     await saveLayout(renamedContent, "original");
 
     // Old file should be gone
@@ -155,20 +193,12 @@ describe("saveLayout and getLayout", () => {
 
 describe("deleteLayout", () => {
   beforeEach(async () => {
-    // Clean up test directory before each test
-    const files = await readdir(testDir);
-    for (const file of files) {
-      if (file.endsWith(".yaml") || file.endsWith(".yml")) {
-        await rm(join(testDir, file));
-      }
-    }
+    await cleanupTestDir();
   });
 
   it("deletes existing layout", async () => {
-    await writeFile(
-      join(testDir, "to-delete.yaml"),
-      'version: "1.0.0"\nname: To Delete\nracks: []',
-    );
+    const yaml = createLayoutYaml({ name: "To Delete" });
+    await writeFile(join(testDir, "to-delete.yaml"), yaml);
 
     const deleted = await deleteLayout("to-delete");
     expect(deleted).toBe(true);
