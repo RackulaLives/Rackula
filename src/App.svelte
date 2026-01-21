@@ -1203,6 +1203,22 @@
   function handleStartScreenClose(layoutId?: string) {
     currentLayoutId = layoutId;
     showStartScreen = false;
+
+    // If no layout was loaded from API (offline mode), check localStorage
+    if (!layoutId && layoutStore.rackCount === 0) {
+      const autosaved = loadSession();
+      if (autosaved) {
+        layoutStore.loadLayout(autosaved);
+        layoutStore.markDirty();
+        // Center the loaded rack after DOM updates
+        requestAnimationFrame(() => {
+          canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+        });
+      } else {
+        // No autosave and no API layout - show new rack dialog
+        dialogStore.open("newRack");
+      }
+    }
   }
 </script>
 
