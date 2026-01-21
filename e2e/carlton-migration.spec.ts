@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, Page } from "@playwright/test";
 import path from "path";
 
 /**
@@ -10,7 +10,8 @@ import path from "path";
  * The file contains a device with position: 1.5 (half-U offset).
  * This tests that:
  * 1. The file loads successfully
- * 2. All 9 devices are present
+ * 2. All 9 devices are present (renders as 11 elements in dual-view mode:
+ *    6 front-only + 1 rear-only + 2 both-face devices × 2 views = 11 total)
  * 3. The position 1.5 is correctly migrated to internal unit 9 (1.5 * 6)
  * 4. Save/reload cycle works
  *
@@ -31,29 +32,31 @@ test.describe("Carlton Migration (#879)", () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
-    // Clear storage and set hasStarted flag to skip welcome screen
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    // Wait for the app to fully initialize by checking for the rack container
-    await page.locator(".rack-container").first().waitFor({ state: "visible" });
+    await resetAppState(page);
   });
 
   /**
    * Helper to load a file using keyboard shortcut (Ctrl/Cmd+O)
    * More stable than clicking through dropdown menu
    */
-  async function loadFileViaKeyboard(
-    page: import("@playwright/test").Page,
-    filePath: string,
-  ) {
+  async function loadFileViaKeyboard(page: Page, filePath: string) {
     const fileChooserPromise = page.waitForEvent("filechooser");
     await page.keyboard.press(`${modifier}+o`);
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(filePath);
+  }
+
+  /**
+   * Helper to reset app state (clear storage, set hasStarted flag, reload)
+   */
+  async function resetAppState(page: Page) {
+    await page.evaluate(() => {
+      sessionStorage.clear();
+      localStorage.clear();
+      localStorage.setItem("Rackula_has_started", "true");
+    });
+    await page.reload();
+    await page.locator(".rack-container").first().waitFor({ state: "visible" });
   }
 
   test("loads Carlton's zip file with decimal position successfully", async ({
@@ -95,6 +98,18 @@ test.describe("Carlton Migration (#879)", () => {
     await expect(page.getByText("UnRaid Server").first()).toBeVisible({
       timeout: 5000,
     });
+
+    // Verify the position migration worked correctly (1.5 → 9 internal units)
+    // The device should have data-device-position="9" (1.5 * 6 = 9)
+    // Note: getByText returns the <text> element; the attribute is on the parent .rack-device
+    const unraidDeviceContainer = page
+      .locator('.rack-device:has-text("UnRaid Server")')
+      .first();
+    await expect(unraidDeviceContainer).toHaveAttribute(
+      "data-device-position",
+      "9",
+      { timeout: 5000 },
+    );
   });
 
   test("save and reload preserves layout", async ({ page }) => {
@@ -124,13 +139,7 @@ test.describe("Carlton Migration (#879)", () => {
     await download.saveAs(savedPath);
 
     // Reload page and clear state
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    await page.locator(".rack-container").first().waitFor({ state: "visible" });
+    await resetAppState(page);
 
     // Load the re-saved file via keyboard shortcut
     await loadFileViaKeyboard(page, savedPath);
