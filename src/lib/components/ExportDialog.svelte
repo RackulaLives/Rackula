@@ -18,6 +18,7 @@
   import Dialog from "./Dialog.svelte";
   import LogoLoader from "./LogoLoader.svelte";
   import Shimmer from "./Shimmer.svelte";
+  import Checkbox from "./Checkbox.svelte";
   import { generateExportSVG, generateExportFilename } from "$lib/utils/export";
   import { analytics } from "$lib/utils/analytics";
   import { SvelteSet } from "svelte/reactivity";
@@ -468,26 +469,29 @@
 
       {#if canSelectTransparent}
         <div class="form-group checkbox-group">
-          <label>
-            <input type="checkbox" bind:checked={transparent} />
-            Transparent background
-          </label>
+          <Checkbox
+            id="transparent-bg"
+            bind:checked={transparent}
+            label="Transparent background"
+          />
         </div>
       {/if}
 
       <div class="form-group checkbox-group">
-        <label>
-          <input type="checkbox" bind:checked={includeLegend} />
-          Include legend
-        </label>
+        <Checkbox
+          id="include-legend"
+          bind:checked={includeLegend}
+          label="Include legend"
+        />
       </div>
 
       {#if canIncludeQR}
         <div class="form-group checkbox-group">
-          <label>
-            <input type="checkbox" bind:checked={includeQR} />
-            Include sharing QR code
-          </label>
+          <Checkbox
+            id="include-qr"
+            bind:checked={includeQR}
+            label="Include sharing QR code"
+          />
         </div>
       {/if}
     {/if}
@@ -882,21 +886,6 @@
   .checkbox-group {
     flex-direction: row;
     align-items: center;
-  }
-
-  .checkbox-group label {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    cursor: pointer;
-    font-weight: var(--font-weight-normal);
-  }
-
-  .checkbox-group input[type="checkbox"] {
-    width: var(--space-4);
-    height: var(--space-4);
-    accent-color: var(--colour-selection);
-    cursor: pointer;
   }
 
   .form-group select:disabled {
