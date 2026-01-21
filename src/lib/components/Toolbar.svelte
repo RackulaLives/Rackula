@@ -10,6 +10,8 @@
   import FileMenu from "./FileMenu.svelte";
   import SettingsMenu from "./SettingsMenu.svelte";
   import LogoLockup from "./LogoLockup.svelte";
+  import SaveStatus from "./SaveStatus.svelte";
+  import type { SaveStatus as SaveStatusType } from "$lib/utils/persistence-api";
   import {
     IconUndoBold,
     IconRedoBold,
@@ -35,6 +37,7 @@
     warnOnUnsavedChanges?: boolean;
     promptCleanupOnSave?: boolean;
     partyMode?: boolean;
+    saveStatus?: SaveStatusType;
     onsave?: () => void;
     onload?: () => void;
     onexport?: () => void;
@@ -62,6 +65,7 @@
     warnOnUnsavedChanges = true,
     promptCleanupOnSave = true,
     partyMode = false,
+    saveStatus,
     onsave,
     onload,
     onexport,
@@ -291,6 +295,10 @@
 
   <!-- Right: Dropdown menus -->
   <div class="toolbar-section toolbar-right">
+    {#if saveStatus}
+      <SaveStatus status={saveStatus} />
+    {/if}
+
     <FileMenu
       onsave={handleSave}
       onload={handleLoad}
