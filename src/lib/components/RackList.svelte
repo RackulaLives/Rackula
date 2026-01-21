@@ -8,8 +8,11 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import RackContextMenu from "./RackContextMenu.svelte";
+  import Tooltip from "./Tooltip.svelte";
 
   interface Props {
+    /** Callback to create a new rack */
+    onnewrack?: () => void;
     /** Context menu: export rack callback */
     onexport?: (rackIds: string[]) => void;
     /** Context menu: edit rack callback */
@@ -18,11 +21,9 @@
     onrename?: (rackId: string) => void;
     /** Context menu: duplicate rack callback */
     onduplicate?: (rackId: string) => void;
-    /** Context menu: delete rack callback */
-    ondelete?: (rackId: string) => void;
   }
 
-  let { onexport, onedit, onrename, onduplicate, ondelete }: Props = $props();
+  let { onnewrack, onexport, onedit, onrename, onduplicate }: Props = $props();
 
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
@@ -84,8 +85,7 @@
     rack: { id: string; name: string },
   ) {
     event.stopPropagation(); // Prevent rack selection
-    rackToDelete = rack;
-    deleteConfirmOpen = true;
+    initiateRackDelete(rack);
   }
 
   function handleGroupDeleteClick(
@@ -93,7 +93,25 @@
     group: { id: string; name?: string; rack_ids: string[] },
   ) {
     event.stopPropagation();
-    // Check for devices in any bay
+    initiateGroupDelete(group);
+  }
+
+  /**
+   * Initiate delete flow for a single rack (used by X button and context menu)
+   */
+  function initiateRackDelete(rack: { id: string; name: string }) {
+    rackToDelete = rack;
+    deleteConfirmOpen = true;
+  }
+
+  /**
+   * Initiate delete flow for a bayed rack group (used by X button and context menu)
+   */
+  function initiateGroupDelete(group: {
+    id: string;
+    name?: string;
+    rack_ids: string[];
+  }) {
     const deviceCount = getGroupDeviceCount(group);
     rackToDelete = {
       id: group.id,
@@ -167,6 +185,19 @@
         ? "s"
         : ""}
     </span>
+    {#if onnewrack}
+      <Tooltip text="New Rack" position="bottom">
+        <button
+          type="button"
+          class="new-rack-btn"
+          onclick={onnewrack}
+          aria-label="New Rack"
+          data-testid="btn-new-rack"
+        >
+          +
+        </button>
+      </Tooltip>
+    {/if}
   </div>
 
   <div class="rack-items" role="listbox" aria-label="Rack list">
@@ -190,10 +221,7 @@
           // For groups, duplicate the first rack in the group
           if (group.rack_ids[0]) onduplicate?.(group.rack_ids[0]);
         }}
-        ondelete={() => {
-          // For groups, delete the first rack which triggers group deletion
-          if (group.rack_ids[0]) ondelete?.(group.rack_ids[0]);
-        }}
+        ondelete={() => initiateGroupDelete(group)}
       >
         <div
           class="rack-item"
@@ -242,7 +270,7 @@
         onedit={() => onedit?.(rack.id)}
         onrename={() => onrename?.(rack.id)}
         onduplicate={() => onduplicate?.(rack.id)}
-        ondelete={() => ondelete?.(rack.id)}
+        ondelete={() => initiateRackDelete({ id: rack.id, name: rack.name })}
       >
         <div
           class="rack-item"
@@ -308,13 +336,52 @@
   }
 
   .rack-list-header {
-    padding: var(--space-3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
     border-bottom: 1px solid var(--colour-border);
   }
 
   .rack-count {
     font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
+  }
+
+  .new-rack-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-8);
+    height: var(--space-8);
+    padding: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 400;
+    line-height: 1;
+    color: var(--colour-text-muted);
+    background: var(--colour-surface-secondary);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) ease,
+      color var(--duration-fast) ease,
+      border-color var(--duration-fast) ease;
+  }
+
+  .new-rack-btn:hover {
+    color: var(--colour-text);
+    background: var(--colour-surface-hover);
+    border-color: var(--colour-border-hover);
+  }
+
+  .new-rack-btn:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
+  }
+
+  .new-rack-btn:active {
+    background: var(--colour-surface-active);
   }
 
   .rack-items {

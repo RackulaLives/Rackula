@@ -152,7 +152,7 @@ export function isSlotOccupied(
     // Only check devices at the same position
     if (device.position !== position) return false;
     // Skip container children - they're in a different collision space
-    if (device.container_id) return false;
+    if (isContainerChild(device)) return false;
 
     const existingSlot = device.slot_position ?? "full";
     // Check if the slots would overlap

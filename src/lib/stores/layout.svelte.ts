@@ -2970,7 +2970,7 @@ function updateDeviceColourRecorded(
  * Update device slot position with undo/redo support (for half-width devices)
  * @param rackId - Rack ID
  * @param deviceIndex - Device index
- * @param slotPosition - New slot position ('left' or 'right')
+ * @param slotPosition - New slot position ('left', 'right', or 'full')
  * @returns true if successful, false if blocked
  */
 function updateDeviceSlotPositionRecorded(

@@ -1131,7 +1131,6 @@
       warnOnUnsavedChanges={uiStore.warnOnUnsavedChanges}
       promptCleanupOnSave={uiStore.promptCleanupOnSave}
       {partyMode}
-      onnewrack={handleNewRack}
       onsave={maybeSave}
       onload={handleLoad}
       onexport={maybeExport}
@@ -1174,11 +1173,11 @@
               <DevicePalette oncreatedevice={handleAddDevice} />
             {:else if uiStore.sidebarTab === "racks"}
               <RackList
+                onnewrack={handleNewRack}
                 onexport={handleRackContextExport}
                 onedit={handleRackContextEdit}
                 onrename={handleRackContextRename}
                 onduplicate={handleRackContextDuplicate}
-                ondelete={handleRackContextDelete}
               />
             {/if}
           </Pane>

@@ -2,7 +2,7 @@
   Toolbar Component
   Geismar-minimal three-zone layout:
   - Left: Logo lockup (clickable for help)
-  - Center: Action cluster (New, Undo, Redo, View, Fit)
+  - Center: Action cluster (Undo, Redo, View, Fit, Export, Share)
   - Right: Dropdown menus (File, Settings)
 -->
 <script lang="ts">
@@ -11,7 +11,6 @@
   import SettingsMenu from "./SettingsMenu.svelte";
   import LogoLockup from "./LogoLockup.svelte";
   import {
-    IconPlusBold,
     IconUndoBold,
     IconRedoBold,
     IconTextBold,
@@ -36,7 +35,6 @@
     warnOnUnsavedChanges?: boolean;
     promptCleanupOnSave?: boolean;
     partyMode?: boolean;
-    onnewrack?: () => void;
     onsave?: () => void;
     onload?: () => void;
     onexport?: () => void;
@@ -64,7 +62,6 @@
     warnOnUnsavedChanges = true,
     promptCleanupOnSave = true,
     partyMode = false,
-    onnewrack,
     onsave,
     onload,
     onexport,
@@ -107,12 +104,6 @@
     layoutStore.redo();
     toastStore.showToast(`Redid: ${desc}`, "info");
     analytics.trackToolbarClick("redo");
-  }
-
-  function handleNewRack() {
-    analytics.trackRackCreate();
-    analytics.trackToolbarClick("new-rack");
-    onnewrack?.();
   }
 
   function handleSave() {
@@ -209,17 +200,6 @@
 
   <!-- Center: Action cluster -->
   <div class="toolbar-section toolbar-center">
-    <Tooltip text="New Rack" position="bottom">
-      <button
-        class="toolbar-icon-btn"
-        aria-label="New Rack"
-        onclick={handleNewRack}
-        data-testid="btn-new-rack"
-      >
-        <IconPlusBold size={ICON_SIZE.md} />
-      </button>
-    </Tooltip>
-
     <Tooltip
       text={layoutStore.undoDescription ?? "Undo"}
       shortcut="Ctrl+Z"

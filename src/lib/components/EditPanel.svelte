@@ -650,7 +650,8 @@
     );
 
     if (!success) {
-      toastStore.showToast(`${targetSlot} slot is occupied`, "error");
+      const slotName = targetSlot.charAt(0).toUpperCase() + targetSlot.slice(1);
+      toastStore.showToast(`${slotName} slot is occupied`, "error");
     }
   }
 
