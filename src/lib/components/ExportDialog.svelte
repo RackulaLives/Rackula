@@ -421,6 +421,7 @@
               </button>
             </div>
           </div>
+          <!-- Native checkbox used here for indeterminate state support on bayed groups -->
           <div class="rack-checklist">
             {#each selectableItems as item (item.id)}
               <label class="rack-item" class:bayed-group={item.isBayedGroup}>
