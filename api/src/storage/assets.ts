@@ -12,6 +12,7 @@ import {
   stat,
   rename,
 } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { z } from "zod";
 import { getAssetsDir } from "./filesystem";
@@ -153,8 +154,9 @@ export async function saveAsset(
   // Ensure directory exists
   await mkdir(dirname(assetPath), { recursive: true });
 
-  // Use atomic write pattern: write to temp file, then rename
-  const tempPath = assetPath + ".tmp";
+  // Use atomic write pattern: write to unique temp file, then rename
+  // Unique suffix prevents races when concurrent writes target the same asset
+  const tempPath = `${assetPath}.${randomUUID().slice(0, 8)}.tmp`;
   try {
     // Write to temp file
     await writeFile(tempPath, Buffer.from(data));
