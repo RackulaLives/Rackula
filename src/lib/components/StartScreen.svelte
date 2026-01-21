@@ -361,7 +361,7 @@
     align-items: flex-start;
     gap: var(--space-4);
     padding: var(--space-4);
-    background: rgba(255, 184, 108, 0.1);
+    background: var(--colour-warning-bg);
     border: 1px solid var(--colour-warning);
     border-radius: var(--radius-md);
     margin-bottom: var(--space-8);
@@ -433,7 +433,7 @@
 
   .layout-item.invalid {
     border-color: var(--colour-error);
-    background: rgba(255, 85, 85, 0.05);
+    background: var(--colour-error-bg);
   }
 
   .layout-item.invalid:hover {
@@ -490,7 +490,7 @@
 
   .delete-btn:hover {
     color: var(--colour-error);
-    background: rgba(255, 85, 85, 0.1);
+    background: var(--colour-error-bg);
   }
 
   .loading,
