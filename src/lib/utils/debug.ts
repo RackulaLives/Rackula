@@ -25,6 +25,7 @@ export const layoutDebug = {
 export const canvasDebug = {
   transform: Debug("rackula:canvas:transform"),
   panzoom: Debug("rackula:canvas:panzoom"),
+  focus: Debug("rackula:canvas:focus"),
 };
 
 export const dndDebug = {

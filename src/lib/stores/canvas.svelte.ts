@@ -6,7 +6,7 @@
 import type panzoom from "panzoom";
 import type { Rack, RackGroup, DeviceType } from "$lib/types";
 import { calculateFitAll, racksToPositions } from "$lib/utils/canvas";
-import { debug } from "$lib/utils/debug";
+import { debug, canvasDebug } from "$lib/utils/debug";
 import {
   U_HEIGHT_PX,
   BASE_RACK_WIDTH,
@@ -297,13 +297,27 @@ function focusRack(
   );
 
   // Collect all racks we need to focus on (including all racks in relevant bayed groups)
-  const allRelevantRackIds = new Set(rackIds);
-  for (const group of relevantGroups) {
-    for (const rackId of group.rack_ids) {
-      allRelevantRackIds.add(rackId);
-    }
-  }
+  // Use immutable Set construction instead of mutation
+  const allRelevantRackIds = new Set([
+    ...rackIds,
+    ...relevantGroups.flatMap((g) => g.rack_ids),
+  ]);
   const focusRacks = allRacks.filter((r) => allRelevantRackIds.has(r.id));
+
+  canvasDebug.focus("focusRack called with rackIds: %o", rackIds);
+  canvasDebug.focus(
+    "targetRacks found: %o",
+    targetRacks.map((r) => r.id),
+  );
+  canvasDebug.focus(
+    "relevantGroups: %o",
+    relevantGroups.map((g) => ({ id: g.id, rack_ids: g.rack_ids })),
+  );
+  canvasDebug.focus("allRelevantRackIds: %o", [...allRelevantRackIds]);
+  canvasDebug.focus(
+    "focusRacks: %o",
+    focusRacks.map((r) => r.id),
+  );
 
   // Get viewport dimensions
   const viewportWidth = canvasElement.clientWidth;
