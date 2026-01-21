@@ -58,6 +58,7 @@ import {
   createUpdateDeviceNameCommand,
   createUpdateDevicePlacementImageCommand,
   createUpdateDeviceColourCommand,
+  createUpdateDeviceSlotPositionCommand,
   createAddRackCommand,
   createDeleteRackCommand,
   createUpdateRackCommand,
@@ -246,6 +247,7 @@ export function getLayoutStore() {
     updateDeviceName,
     updateDevicePlacementImage,
     updateDeviceColour,
+    updateDeviceSlotPosition,
 
     // Settings actions
     updateDisplayMode,
@@ -1747,6 +1749,23 @@ function updateDeviceColour(
 }
 
 /**
+ * Update a device's slot position (for half-width devices)
+ * Uses undo/redo support via updateDeviceSlotPositionRecorded
+ * @param rackId - Rack ID
+ * @param deviceIndex - Index of device in rack's devices array
+ * @param slotPosition - New slot position ('left' or 'right')
+ * @returns true if successful, false if blocked by another device
+ */
+function updateDeviceSlotPosition(
+  rackId: string,
+  deviceIndex: number,
+  slotPosition: SlotPosition,
+): boolean {
+  // Delegate to recorded version for undo/redo support
+  return updateDeviceSlotPositionRecorded(rackId, deviceIndex, slotPosition);
+}
+
+/**
  * Mark the layout as having unsaved changes
  */
 function markDirty(): void {
@@ -2059,6 +2078,29 @@ function updateDeviceColourRaw(
 }
 
 /**
+ * Update a device's slot position directly (raw)
+ * @param rackId - Rack ID (for multi-rack support)
+ * @param index - Device index
+ * @param slotPosition - New slot position ('left', 'right', or 'full')
+ */
+function updateDeviceSlotPositionRaw(
+  rackId: string,
+  index: number,
+  slotPosition: SlotPosition,
+): void {
+  const target = getTargetRack(rackId);
+  if (!target) return;
+  if (index < 0 || index >= target.rack.devices.length) return;
+
+  updateRackAtIndex(target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.map((d, i) =>
+      i === index ? { ...d, slot_position: slotPosition } : d,
+    ),
+  }));
+}
+
+/**
  * Get a device at a specific index from the active rack
  * @param index - Device index
  * @returns The device or undefined
@@ -2316,6 +2358,15 @@ function getCommandStoreAdapter(): DeviceTypeCommandStore &
         return;
       }
       updateDeviceColourRaw(rackId, index, colour);
+    },
+    updateDeviceSlotPositionRaw: (index, slotPosition) => {
+      // Resolve rack ID: use active rack, fall back to first rack
+      const rackId = activeRackId ?? getTargetRack()?.rack.id;
+      if (!rackId) {
+        debug.log("updateDeviceSlotPositionRaw: No rack available");
+        return;
+      }
+      updateDeviceSlotPositionRaw(rackId, index, slotPosition);
     },
     getDeviceAtIndex,
 
@@ -2912,6 +2963,67 @@ function updateDeviceColourRecorded(
   );
   history.execute(command);
   isDirty = true;
+}
+
+/**
+ * Update device slot position with undo/redo support (for half-width devices)
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
+ * @param slotPosition - New slot position ('left' or 'right')
+ * @returns true if successful, false if blocked
+ */
+function updateDeviceSlotPositionRecorded(
+  rackId: string,
+  deviceIndex: number,
+  slotPosition: SlotPosition,
+): boolean {
+  const targetRack = getRackById(rackId);
+  if (!targetRack) return false;
+  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return false;
+
+  // Set active rack so Raw functions target the correct rack
+  activeRackId = rackId;
+
+  const device = targetRack.devices[deviceIndex]!;
+  const oldSlotPosition = device.slot_position ?? "full";
+
+  // No change needed
+  if (oldSlotPosition === slotPosition) return true;
+
+  const deviceType = findDeviceTypeInArray(
+    layout.device_types,
+    device.device_type,
+  );
+  const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
+
+  // Check if target slot is occupied by another device at the same position
+  const devicePosition = device.position;
+  const conflictingDevice = targetRack.devices.find((d, i) => {
+    if (i === deviceIndex) return false;
+    if (d.position !== devicePosition) return false;
+    const existingSlot = d.slot_position ?? "full";
+    // Full-width devices block everything, same-side blocks same-side
+    return existingSlot === "full" || existingSlot === slotPosition;
+  });
+
+  if (conflictingDevice) {
+    // Slot is occupied
+    return false;
+  }
+
+  const history = getHistoryStore();
+  const adapter = getCommandStoreAdapter();
+
+  const command = createUpdateDeviceSlotPositionCommand(
+    deviceIndex,
+    oldSlotPosition,
+    slotPosition,
+    adapter,
+    deviceName,
+  );
+  history.execute(command);
+  isDirty = true;
+  return true;
 }
 
 /**

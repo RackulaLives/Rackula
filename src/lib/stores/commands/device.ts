@@ -3,7 +3,7 @@
  */
 
 import type { Command } from "./types";
-import type { PlacedDevice, DeviceFace } from "$lib/types";
+import type { PlacedDevice, DeviceFace, SlotPosition } from "$lib/types";
 
 /**
  * Interface for layout store operations needed by device commands
@@ -20,6 +20,7 @@ export interface DeviceCommandStore {
     filename: string | undefined,
   ): void;
   updateDeviceColourRaw(index: number, colour: string | undefined): void;
+  updateDeviceSlotPositionRaw(index: number, slotPosition: SlotPosition): void;
   getDeviceAtIndex(index: number): PlacedDevice | undefined;
 }
 
@@ -187,6 +188,29 @@ export function createUpdateDeviceColourCommand(
     },
     undo() {
       store.updateDeviceColourRaw(index, oldColour);
+    },
+  };
+}
+
+/**
+ * Create a command to update a device's slot position (for half-width devices)
+ */
+export function createUpdateDeviceSlotPositionCommand(
+  index: number,
+  oldSlotPosition: SlotPosition,
+  newSlotPosition: SlotPosition,
+  store: DeviceCommandStore,
+  deviceName: string = "device",
+): Command {
+  return {
+    type: "UPDATE_DEVICE_SLOT_POSITION",
+    description: `Move ${deviceName} to ${newSlotPosition} slot`,
+    timestamp: Date.now(),
+    execute() {
+      store.updateDeviceSlotPositionRaw(index, newSlotPosition);
+    },
+    undo() {
+      store.updateDeviceSlotPositionRaw(index, oldSlotPosition);
     },
   };
 }
