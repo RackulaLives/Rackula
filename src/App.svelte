@@ -558,6 +558,7 @@
         layoutStore.device_types,
         exportOptions,
         images,
+        layoutStore.rack_groups,
       );
 
       // Export based on selected format
