@@ -1,0 +1,150 @@
+<!--
+  SaveStatus - Subtle save status indicator for toolbar
+  Uses bits-ui Progress for indeterminate saving state
+
+  Shows transient save status feedback:
+  - "Saving..." with progress indicator during save
+  - "Saved" checkmark that auto-hides after 2 seconds
+  - "Save failed" error state
+  - "Offline" warning state
+-->
+<script lang="ts">
+  import { Progress } from "bits-ui";
+  import type { SaveStatus } from "$lib/utils/persistence-api";
+  import { fade } from "svelte/transition";
+  import IconBug from "./icons/IconBug.svelte";
+  import IconCloudOff from "./icons/IconCloudOff.svelte";
+
+  interface Props {
+    status: SaveStatus;
+  }
+
+  let { status }: Props = $props();
+
+  // Auto-hide "saved" after 2 seconds
+  // Note: This uses $effect with setTimeout intentionally - it's imperative
+  // timing logic that cannot be expressed as $derived
+  let showSaved = $state(false);
+
+  $effect(() => {
+    if (status === "saved") {
+      showSaved = true;
+      const timeout = setTimeout(() => {
+        showSaved = false;
+      }, 2000);
+      return () => clearTimeout(timeout);
+    } else {
+      showSaved = false;
+    }
+  });
+
+  const shouldShow = $derived(
+    status === "saving" ||
+      status === "error" ||
+      status === "offline" ||
+      (status === "saved" && showSaved),
+  );
+</script>
+
+{#if shouldShow}
+  <div class="save-status" transition:fade={{ duration: 150 }}>
+    {#if status === "saving"}
+      <Progress.Root
+        value={null}
+        class="progress-root"
+        aria-label="Saving layout"
+      >
+        <Progress.Indicator class="progress-indicator" />
+      </Progress.Root>
+      <span class="status-text">Saving...</span>
+    {:else if status === "saved"}
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+        class="icon-success"
+      >
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+      <span class="status-text">Saved</span>
+    {:else if status === "error"}
+      <IconBug size={14} />
+      <span class="status-text error">Save failed</span>
+    {:else if status === "offline"}
+      <IconCloudOff size={14} />
+      <span class="status-text warning">Offline</span>
+    {/if}
+  </div>
+{/if}
+
+<style>
+  .save-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 0.75rem;
+    color: var(--colour-text-muted);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--colour-surface);
+  }
+
+  .status-text {
+    white-space: nowrap;
+  }
+
+  .status-text.error {
+    color: var(--colour-error);
+  }
+
+  .status-text.warning {
+    color: var(--colour-warning);
+  }
+
+  .icon-success {
+    color: var(--colour-success);
+  }
+
+  :global(.progress-root) {
+    width: 40px;
+    height: 3px;
+    background: var(--colour-border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  :global(.progress-indicator) {
+    height: 100%;
+    width: 30%;
+    background: var(--colour-primary);
+    border-radius: 2px;
+    animation: indeterminate 1.5s ease-in-out infinite;
+  }
+
+  @keyframes indeterminate {
+    0% {
+      transform: translateX(-100%);
+    }
+    50% {
+      transform: translateX(200%);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    :global(.progress-indicator) {
+      animation: none;
+      width: 100%;
+      opacity: 0.5;
+    }
+  }
+</style>
