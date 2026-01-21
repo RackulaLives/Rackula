@@ -532,9 +532,11 @@ describe("PlacedDeviceSchema", () => {
       expect(PlacedDeviceSchema.safeParse(device).success).toBe(false);
     });
 
-    it("rejects non-integer position", () => {
+    it("accepts decimal position for legacy migration (#879)", () => {
+      // Decimal positions (like 1.5) are valid for legacy files (pre-0.7.0)
+      // Migration converts them to internal units via Math.round()
       const device = { ...validPlacedDevice, position: 1.5 };
-      expect(PlacedDeviceSchema.safeParse(device).success).toBe(false);
+      expect(PlacedDeviceSchema.safeParse(device).success).toBe(true);
     });
   });
 
@@ -1368,7 +1370,8 @@ describe("PlacedDeviceSchema container child support", () => {
       const result = PlacedDeviceSchema.safeParse(device);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0]?.message).toContain("at least 1");
+        // Changed from "at least 1" to "at least 0.5" to support half-U positions (#879)
+        expect(result.error.issues[0]?.message).toContain("at least 0.5");
       }
     });
   });
@@ -2043,6 +2046,64 @@ describe("LayoutSchema position migration", () => {
       if (result.success) {
         // Version should remain unchanged
         expect(result.data.version).toBe("0.7.0");
+      }
+    });
+  });
+
+  describe("decimal position migration (#879 - Carlton test)", () => {
+    it("migrates decimal U position 1.5 to internal units 9", () => {
+      // This is the exact scenario from issue #879
+      // User had position: 1.5 which was rejected before migration could run
+      const layout = createMigrationTestLayout("0.6.16", [
+        {
+          id: "device-1",
+          device_type: "server",
+          position: 1.5, // Half-U position
+          face: "front",
+        },
+      ]);
+
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        // 1.5 U * 6 units/U = 9 internal units
+        expect(result.data.racks[0]!.devices[0]!.position).toBe(9);
+      }
+    });
+
+    it("migrates decimal U position 0.5 (half-U at bottom) to internal units 3", () => {
+      // Edge case: device at half-U position at the very bottom
+      const layout = createMigrationTestLayout("0.6.16", [
+        {
+          id: "device-1",
+          device_type: "server",
+          position: 0.5,
+          face: "front",
+        },
+      ]);
+
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        // 0.5 U * 6 units/U = 3 internal units
+        expect(result.data.racks[0]!.devices[0]!.position).toBe(3);
+      }
+    });
+
+    it("migrates multiple devices including decimals", () => {
+      // Mix of integer and decimal positions (like Carlton's file)
+      const layout = createMigrationTestLayout("0.6.16", [
+        { id: "d1", device_type: "server", position: 30, face: "front" },
+        { id: "d2", device_type: "server", position: 1.5, face: "front" },
+        { id: "d3", device_type: "server", position: 15, face: "front" },
+      ]);
+
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.racks[0]!.devices[0]!.position).toBe(180); // 30 * 6
+        expect(result.data.racks[0]!.devices[1]!.position).toBe(9); // 1.5 * 6
+        expect(result.data.racks[0]!.devices[2]!.position).toBe(90); // 15 * 6
       }
     });
   });
