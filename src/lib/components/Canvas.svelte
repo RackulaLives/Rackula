@@ -67,8 +67,6 @@
     ) => void;
     /** Mobile long press for rack editing */
     onracklongpress?: (event: CustomEvent<{ rackId: string }>) => void;
-    /** Rack context menu: add device callback */
-    onrackadddevice?: (rackId: string) => void;
     /** Rack context menu: edit rack callback */
     onrackedit?: (rackId: string) => void;
     /** Rack context menu: rename rack callback */
@@ -95,7 +93,6 @@
     ondevicemove,
     ondevicemoverack,
     onracklongpress,
-    onrackadddevice,
     onrackedit,
     onrackrename,
     onrackduplicate,
@@ -503,7 +500,6 @@
                   if (rackId) handlePlacementTap(rackId, e);
                 }}
                 onlongpress={(e) => onracklongpress?.(e)}
-                onadddevice={(rackId) => onrackadddevice?.(rackId)}
                 onexport={(rackIds) => onrackexport?.(rackIds)}
                 onedit={(rackId) => onrackedit?.(rackId)}
                 onrename={(rackId) => onrackrename?.(rackId)}
@@ -545,7 +541,6 @@
                         ondevicemoverack={(e) => handleDeviceMoveRack(e)}
                         onplacementtap={(e) => handlePlacementTap(rack.id, e)}
                         onlongpress={(e) => onracklongpress?.(e)}
-                        onadddevice={() => onrackadddevice?.(rack.id)}
                         onexport={() => onrackexport?.([rack.id])}
                         onedit={() => onrackedit?.(rack.id)}
                         onrename={() => onrackrename?.(rack.id)}

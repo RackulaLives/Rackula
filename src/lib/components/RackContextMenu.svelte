@@ -1,7 +1,15 @@
 <!--
   RackContextMenu Component
-  Right-click context menu for racks on the canvas.
+  Right-click context menu for racks on the canvas and in the Racks panel.
   Uses bits-ui ContextMenu with dark overlay styling matching ToolbarMenu.
+
+  Menu items (unified across both contexts):
+  - Export...
+  - Edit Rack
+  - Rename
+  - Duplicate Rack
+  - [separator]
+  - Delete Rack (destructive)
 -->
 <script lang="ts">
   import { ContextMenu } from "bits-ui";
@@ -13,8 +21,6 @@
     open?: boolean;
     /** Callback when open state changes */
     onOpenChange?: (open: boolean) => void;
-    /** Add device callback (opens device library) */
-    onadddevice?: () => void;
     /** Export rack callback (opens export dialog with this rack pre-selected) */
     onexport?: () => void;
     /** Edit rack callback (opens rack settings) */
@@ -32,7 +38,6 @@
   let {
     open = $bindable(false),
     onOpenChange,
-    onadddevice,
     onexport,
     onedit,
     onrename,
@@ -61,15 +66,6 @@
 
   <ContextMenu.Portal>
     <ContextMenu.Content class="context-menu-content" sideOffset={5}>
-      {#if onadddevice}
-        <ContextMenu.Item
-          class="context-menu-item"
-          onSelect={handleSelect(onadddevice)}
-        >
-          <span class="context-menu-label">Add Device</span>
-        </ContextMenu.Item>
-      {/if}
-
       {#if onexport}
         <ContextMenu.Item
           class="context-menu-item"
@@ -106,7 +102,7 @@
         </ContextMenu.Item>
       {/if}
 
-      {#if ondelete && (onadddevice || onexport || onedit || onrename || onduplicate)}
+      {#if ondelete && (onexport || onedit || onrename || onduplicate)}
         <ContextMenu.Separator class="context-menu-separator" />
       {/if}
 

@@ -80,8 +80,6 @@
     ) => void;
     /** Mobile long press for rack editing */
     onlongpress?: (event: CustomEvent<{ rackId: string }>) => void;
-    /** Context menu: add device callback */
-    onadddevice?: (rackId: string) => void;
     /** Context menu: export rack callback (passes all rack IDs in the group) */
     onexport?: (rackIds: string[]) => void;
     /** Context menu: edit rack callback */
@@ -115,7 +113,6 @@
     ondevicemoverack,
     onplacementtap,
     onlongpress,
-    onadddevice,
     onexport,
     onedit,
     onrename,
@@ -286,7 +283,6 @@
         </div>
       {/if}
       <RackContextMenu
-        onadddevice={() => onadddevice?.(rack.id)}
         onexport={() => onexport?.(racks.map((r) => r.id))}
         onedit={() => onedit?.(rack.id)}
         onrename={() => onrename?.(rack.id)}
@@ -361,7 +357,6 @@
         </div>
       {/if}
       <RackContextMenu
-        onadddevice={() => onadddevice?.(rack.id)}
         onexport={() => onexport?.(racks.map((r) => r.id))}
         onedit={() => onedit?.(rack.id)}
         onrename={() => onrename?.(rack.id)}

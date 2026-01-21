@@ -12,9 +12,17 @@
   interface Props {
     /** Context menu: export rack callback */
     onexport?: (rackIds: string[]) => void;
+    /** Context menu: edit rack callback */
+    onedit?: (rackId: string) => void;
+    /** Context menu: rename rack callback */
+    onrename?: (rackId: string) => void;
+    /** Context menu: duplicate rack callback */
+    onduplicate?: (rackId: string) => void;
+    /** Context menu: delete rack callback */
+    ondelete?: (rackId: string) => void;
   }
 
-  let { onexport }: Props = $props();
+  let { onexport, onedit, onrename, onduplicate, ondelete }: Props = $props();
 
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
@@ -168,7 +176,25 @@
       {@const isActive = group.rack_ids.includes(activeRackId ?? "")}
       {@const deviceCount = getGroupDeviceCount(group)}
       {@const bayCount = group.rack_ids.length}
-      <RackContextMenu onexport={() => onexport?.(group.rack_ids)}>
+      <RackContextMenu
+        onexport={() => onexport?.(group.rack_ids)}
+        onedit={() => {
+          // For groups, edit the first rack in the group
+          if (group.rack_ids[0]) onedit?.(group.rack_ids[0]);
+        }}
+        onrename={() => {
+          // For groups, rename the first rack in the group
+          if (group.rack_ids[0]) onrename?.(group.rack_ids[0]);
+        }}
+        onduplicate={() => {
+          // For groups, duplicate the first rack in the group
+          if (group.rack_ids[0]) onduplicate?.(group.rack_ids[0]);
+        }}
+        ondelete={() => {
+          // For groups, delete the first rack which triggers group deletion
+          if (group.rack_ids[0]) ondelete?.(group.rack_ids[0]);
+        }}
+      >
         <div
           class="rack-item"
           class:active={isActive}
@@ -211,7 +237,13 @@
     {#each ungroupedRacks as rack (rack.id)}
       {@const isActive = rack.id === activeRackId}
       {@const deviceCount = rack.devices.length}
-      <RackContextMenu onexport={() => onexport?.([rack.id])}>
+      <RackContextMenu
+        onexport={() => onexport?.([rack.id])}
+        onedit={() => onedit?.(rack.id)}
+        onrename={() => onrename?.(rack.id)}
+        onduplicate={() => onduplicate?.(rack.id)}
+        ondelete={() => ondelete?.(rack.id)}
+      >
         <div
           class="rack-item"
           class:active={isActive}

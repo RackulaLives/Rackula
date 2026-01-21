@@ -1006,17 +1006,6 @@
   }
 
   // Rack context menu handlers
-  function handleRackContextAddDevice(rackId: string) {
-    // Set the rack as active and open device library
-    layoutStore.setActiveRack(rackId);
-    if (viewportStore.isMobile) {
-      dialogStore.openSheet("deviceLibrary");
-    } else {
-      // On desktop, focus the sidebar device palette
-      uiStore.setSidebarTab("devices");
-    }
-  }
-
   function handleRackContextEdit(rackId: string) {
     layoutStore.setActiveRack(rackId);
     selectionStore.selectRack(rackId);
@@ -1184,7 +1173,13 @@
             {#if uiStore.sidebarTab === "devices"}
               <DevicePalette oncreatedevice={handleAddDevice} />
             {:else if uiStore.sidebarTab === "racks"}
-              <RackList onexport={handleRackContextExport} />
+              <RackList
+                onexport={handleRackContextExport}
+                onedit={handleRackContextEdit}
+                onrename={handleRackContextRename}
+                onduplicate={handleRackContextDuplicate}
+                ondelete={handleRackContextDelete}
+              />
             {/if}
           </Pane>
 
@@ -1200,7 +1195,6 @@
               {partyMode}
               enableLongPress={false}
               onracklongpress={handleRackLongPress}
-              onrackadddevice={handleRackContextAddDevice}
               onrackexport={handleRackContextExport}
               onrackedit={handleRackContextEdit}
               onrackrename={handleRackContextRename}
@@ -1221,7 +1215,6 @@
           {partyMode}
           enableLongPress={viewportStore.isMobile && !placementStore.isPlacing}
           onracklongpress={handleRackLongPress}
-          onrackadddevice={handleRackContextAddDevice}
           onrackexport={handleRackContextExport}
           onrackedit={handleRackContextEdit}
           onrackrename={handleRackContextRename}

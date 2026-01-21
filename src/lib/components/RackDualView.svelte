@@ -71,8 +71,6 @@
     ) => void;
     /** Mobile long press for rack editing */
     onlongpress?: (event: CustomEvent<{ rackId: string }>) => void;
-    /** Context menu: add device callback */
-    onadddevice?: () => void;
     /** Context menu: export rack callback */
     onexport?: () => void;
     /** Context menu: edit rack callback */
@@ -105,7 +103,6 @@
     ondevicemoverack,
     onplacementtap,
     onlongpress,
-    onadddevice,
     onexport,
     onedit,
     onrename,
@@ -209,14 +206,7 @@
   }
 </script>
 
-<RackContextMenu
-  {onadddevice}
-  {onexport}
-  {onedit}
-  {onrename}
-  {onduplicate}
-  {ondelete}
->
+<RackContextMenu {onexport} {onedit} {onrename} {onduplicate} {ondelete}>
   <div
     bind:this={containerElement}
     class="rack-dual-view"
