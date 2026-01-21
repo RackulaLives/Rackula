@@ -334,7 +334,15 @@ export function createTestContainerChild(
  */
 export function setupStoreWithDevice() {
   const store = getLayoutStore();
+  if (!store) {
+    throw new Error("setupStoreWithDevice: getLayoutStore() returned null");
+  }
+
   const rack = store.addRack("Test Rack", 42);
+  if (!rack) {
+    throw new Error("setupStoreWithDevice: addRack() failed to create rack");
+  }
+
   const deviceType = createTestDeviceType({
     slug: "generic-server",
     model: "Generic Server",
@@ -343,8 +351,15 @@ export function setupStoreWithDevice() {
     colour: "#4A90D9",
   });
   store.addDeviceTypeRaw(deviceType);
-  store.placeDevice(rack!.id, deviceType.slug, 5);
-  return { store, rackId: rack!.id, deviceSlug: deviceType.slug };
+
+  const placed = store.placeDevice(rack.id, deviceType.slug, 5);
+  if (!placed) {
+    throw new Error(
+      `setupStoreWithDevice: placeDevice() failed for rack ${rack.id}, device ${deviceType.slug}`,
+    );
+  }
+
+  return { store, rackId: rack.id, deviceSlug: deviceType.slug };
 }
 
 // =============================================================================
