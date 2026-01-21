@@ -1,23 +1,28 @@
 <!--
-  Chevron Down icon using Iconoir via Iconify
+  Chevron Down icon (Iconoir nav-arrow-down)
   Part of #608 icon standardization
 
-  Sizing: Uses --icon-size-md (20px) by default.
-  Override via parent CSS: .parent :global(svg) { width: var(--icon-size-sm); }
+  Sizing: Uses size prop (default 20px).
+  Override by passing a different size value.
 -->
 <script lang="ts">
-  import Icon from "@iconify/svelte";
+  interface Props {
+    size?: number;
+  }
+
+  let { size = 20 }: Props = $props();
 </script>
 
-<Icon
-  icon="iconoir:nav-arrow-down"
-  class="icon-chevron-down"
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
   aria-hidden="true"
-/>
-
-<style>
-  :global(.icon-chevron-down) {
-    width: var(--icon-size-md);
-    height: var(--icon-size-md);
-  }
-</style>
+>
+  <path d="M6 9L12 15L18 9" />
+</svg>

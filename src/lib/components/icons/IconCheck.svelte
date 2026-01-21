@@ -1,22 +1,28 @@
 <!--
-  Check/Success icon using Iconoir via Iconify
+  Check/Success icon (Iconoir)
   Part of #608 icon standardization
 
-  Sizing: Uses --icon-size-md (20px) by default.
-  Override via parent CSS: .parent :global(svg) { width: var(--icon-size-sm); }
-
-  Note: :global() is required because @iconify/svelte generates the SVG
-  internally, so Svelte's scoped styles cannot target it directly.
+  Sizing: Uses size prop (default 20px).
+  Override by passing a different size value.
 -->
 <script lang="ts">
-  import Icon from "@iconify/svelte";
+  interface Props {
+    size?: number;
+  }
+
+  let { size = 20 }: Props = $props();
 </script>
 
-<Icon icon="iconoir:check" class="icon-check" aria-hidden="true" />
-
-<style>
-  :global(.icon-check) {
-    width: var(--icon-size-md, 20px);
-    height: var(--icon-size-md, 20px);
-  }
-</style>
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+>
+  <path d="M5 13L9 17L19 7" />
+</svg>

@@ -76,7 +76,6 @@
     ]
   },
   "dependencies": {
-    "@iconify/svelte": "^5.2.1",
     "@lucide/svelte": "^0.562.0",
     "bits-ui": "^2.15.4",
     "debug": "^4.4.3",

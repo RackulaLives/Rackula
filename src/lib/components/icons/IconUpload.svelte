@@ -1,19 +1,29 @@
 <!--
-  Upload icon using Iconoir via Iconify
+  Upload icon (Iconoir)
   Part of #608 icon standardization
 
-  Sizing: Uses --icon-size-md (20px) by default.
-  Override via parent CSS: .parent :global(svg) { width: var(--icon-size-lg); }
+  Sizing: Uses size prop (default 20px).
+  Override by passing a different size value.
 -->
 <script lang="ts">
-  import Icon from "@iconify/svelte";
+  interface Props {
+    size?: number;
+  }
+
+  let { size = 20 }: Props = $props();
 </script>
 
-<Icon icon="iconoir:upload" class="icon-upload" aria-hidden="true" />
-
-<style>
-  :global(.icon-upload) {
-    width: var(--icon-size-md);
-    height: var(--icon-size-md);
-  }
-</style>
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+>
+  <path d="M6 20L18 20" />
+  <path d="M12 16V4M12 4L15.5 7.5M12 4L8.5 7.5" />
+</svg>

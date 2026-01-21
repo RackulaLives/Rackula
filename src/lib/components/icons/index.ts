@@ -2,7 +2,7 @@
 //
 // Icon Categories:
 // - Brand: Custom brand-specific icons (logo, rack illustrations)
-// - Iconoir: Standard UI icons via @iconify/svelte
+// - Iconoir: Standard UI icons (bundled inline SVG for CSP compliance)
 // - Custom: App-specific composite icons
 
 // =============================================================================
@@ -24,7 +24,7 @@ export { default as BayedRackIcon } from "./BayedRackIcon.svelte";
 export { default as IconImageLabel } from "./IconImageLabel.svelte";
 
 // =============================================================================
-// Iconoir Icons (via @iconify/svelte wrappers)
+// Iconoir Icons (bundled inline SVG)
 // =============================================================================
 
 // Action icons
