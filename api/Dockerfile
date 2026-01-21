@@ -5,7 +5,7 @@ FROM oven/bun:1.1.45-alpine AS base
 # Install dependencies
 FROM base AS deps
 WORKDIR /app
-COPY package.json bun.lock ./
+COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile --production
 
 # Production image
