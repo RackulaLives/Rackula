@@ -304,21 +304,6 @@ function focusRack(
   ]);
   const focusRacks = allRacks.filter((r) => allRelevantRackIds.has(r.id));
 
-  canvasDebug.focus("focusRack called with rackIds: %o", rackIds);
-  canvasDebug.focus(
-    "targetRacks found: %o",
-    targetRacks.map((r) => r.id),
-  );
-  canvasDebug.focus(
-    "relevantGroups: %o",
-    relevantGroups.map((g) => ({ id: g.id, rack_ids: g.rack_ids })),
-  );
-  canvasDebug.focus("allRelevantRackIds: %o", [...allRelevantRackIds]);
-  canvasDebug.focus(
-    "focusRacks: %o",
-    focusRacks.map((r) => r.id),
-  );
-
   // Get viewport dimensions
   const viewportWidth = canvasElement.clientWidth;
   const viewportHeight = canvasElement.clientHeight;
