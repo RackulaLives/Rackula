@@ -72,13 +72,13 @@ git commit -m "test: use toHaveLength matcher in filesystem tests"
 
 Find (around line 83):
 
-```
+```text
 │  │  POST /api/assets/:id  │   │
 ```
 
 Replace with:
 
-```
+```text
 │  │  PUT /api/assets/:id  │   │
 ```
 

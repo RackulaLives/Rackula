@@ -1759,22 +1759,6 @@ git commit -m "feat: add SaveStatus component with bits-ui Progress"
     // Load from localStorage if available, otherwise start fresh
     onClose();
   }
-```
-
-**Note: Future Enhancement - Persistence Integration**
-
-The current import flow loads layout and images into memory stores but doesn't automatically sync to the persistence API. For v1, this is acceptable because:
-
-1. Auto-save will trigger after import, persisting the layout
-2. Images remain in browser memory until explicitly uploaded via custom device type creation
-
-Future improvements could:
-
-- Upload each image via `uploadAsset()` after import
-- Detect name collisions with existing layouts
-- Mark layouts as "pending sync" if API is unavailable
-
-```svelte
 
   function formatDate(isoString: string): string {
     const date = new Date(isoString);
@@ -2098,6 +2082,19 @@ Future improvements could:
   }
 </style>
 ```
+
+**Note: Future Enhancement - Persistence Integration**
+
+The current import flow loads layout and images into memory stores but doesn't automatically sync to the persistence API. For v1, this is acceptable because:
+
+1. Auto-save will trigger after import, persisting the layout
+2. Images remain in browser memory until explicitly uploaded via custom device type creation
+
+Future improvements could:
+
+- Upload each image via `uploadAsset()` after import
+- Detect name collisions with existing layouts
+- Mark layouts as "pending sync" if API is unavailable
 
 #### Step 2: Commit
 

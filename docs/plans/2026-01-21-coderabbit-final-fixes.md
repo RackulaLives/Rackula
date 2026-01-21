@@ -48,7 +48,7 @@ The pattern `.env.*` already matches `.env.local`, so line 7 is redundant.
 
 Find and remove line 7:
 
-```
+```text
 .env.local
 ```
 
