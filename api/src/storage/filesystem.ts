@@ -160,10 +160,25 @@ export async function saveLayout(
 ): Promise<{ id: string; isNew: boolean }> {
   await ensureDataDir();
 
-  // Parse to get the name for the filename
-  const parsed = yaml.load(yamlContent) as unknown;
-  const metadata = LayoutMetadataSchema.parse(parsed);
-  const newId = slugify(metadata.name);
+  // Parse YAML content with error handling
+  let parsed: unknown;
+  try {
+    parsed = yaml.load(yamlContent);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    throw new Error(`Invalid YAML: ${message}`);
+  }
+
+  // Validate metadata schema
+  const metadata = LayoutMetadataSchema.safeParse(parsed);
+  if (!metadata.success) {
+    const issues = metadata.error.issues
+      .map((i) => `${i.path.join(".")}: ${i.message}`)
+      .join("; ");
+    throw new Error(`Invalid layout metadata: ${issues}`);
+  }
+
+  const newId = slugify(metadata.data.name);
 
   const filePath = join(DATA_DIR, `${newId}.yaml`);
 

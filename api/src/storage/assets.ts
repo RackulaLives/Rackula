@@ -10,6 +10,7 @@ import {
   readdir,
   rm,
   stat,
+  rename,
 } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { z } from "zod";
@@ -49,6 +50,7 @@ export function isValidImageType(contentType: string): boolean {
 
 /**
  * Get extension from content type
+ * Throws for unsupported content types
  */
 export function getExtFromContentType(contentType: string): string {
   switch (contentType) {
@@ -59,7 +61,7 @@ export function getExtFromContentType(contentType: string): string {
     case "image/webp":
       return "webp";
     default:
-      return "png";
+      throw new Error(`Unsupported content type: ${contentType}`);
   }
 }
 
@@ -151,19 +153,34 @@ export async function saveAsset(
   // Ensure directory exists
   await mkdir(dirname(assetPath), { recursive: true });
 
-  // Delete any existing file with different extension
-  for (const oldExt of ALLOWED_EXTS) {
-    if (oldExt !== ext) {
-      try {
-        await unlink(buildAssetPath(layoutId, deviceSlug, face, oldExt));
-      } catch {
-        // Ignore if doesn't exist
+  // Use atomic write pattern: write to temp file, then rename
+  const tempPath = assetPath + ".tmp";
+  try {
+    // Write to temp file
+    await writeFile(tempPath, Buffer.from(data));
+
+    // Atomically replace the target file
+    await rename(tempPath, assetPath);
+
+    // Clean up old extensions after successful write
+    for (const oldExt of ALLOWED_EXTS) {
+      if (oldExt !== ext) {
+        try {
+          await unlink(buildAssetPath(layoutId, deviceSlug, face, oldExt));
+        } catch {
+          // Ignore if doesn't exist
+        }
       }
     }
+  } catch (error) {
+    // Clean up temp file on error
+    try {
+      await unlink(tempPath);
+    } catch {
+      // Ignore cleanup errors
+    }
+    throw error;
   }
-
-  // Write new file
-  await writeFile(assetPath, Buffer.from(data));
 }
 
 /**

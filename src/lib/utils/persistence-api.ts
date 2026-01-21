@@ -2,10 +2,13 @@
  * Persistence API Client
  * Communicates with the API sidecar for layout CRUD
  */
-import { API_BASE_URL, isPersistenceAvailable } from "./persistence-config";
+import { API_BASE_URL, PERSIST_ENABLED } from "./persistence-config";
 import type { Layout } from "$lib/types";
 import { serializeLayoutToYaml, parseLayoutYaml } from "./yaml";
 import { slugify } from "./slug";
+import { persistenceDebug } from "./debug";
+
+const log = persistenceDebug.api;
 
 /**
  * Layout list item from API
@@ -46,15 +49,28 @@ export class PersistenceError extends Error {
  * Check if API is reachable
  */
 export async function checkApiHealth(): Promise<boolean> {
-  if (!isPersistenceAvailable()) return false;
+  if (!PERSIST_ENABLED) {
+    log("checkApiHealth: persistence not available");
+    return false;
+  }
+
+  const baseUrl = new URL(API_BASE_URL);
+  const healthUrl = `${baseUrl.origin}/health`;
+  log("checkApiHealth: checking %s", healthUrl);
 
   try {
-    const response = await fetch(`${API_BASE_URL.replace("/api", "")}/health`, {
+    const response = await fetch(healthUrl, {
       method: "GET",
       signal: AbortSignal.timeout(3000),
     });
+    log(
+      "checkApiHealth: response status=%d ok=%s",
+      response.status,
+      response.ok,
+    );
     return response.ok;
-  } catch {
+  } catch (error) {
+    log("checkApiHealth: error %O", error);
     return false;
   }
 }
@@ -63,14 +79,23 @@ export async function checkApiHealth(): Promise<boolean> {
  * List all saved layouts
  */
 export async function listSavedLayouts(): Promise<SavedLayoutItem[]> {
-  if (!isPersistenceAvailable()) {
+  if (!PERSIST_ENABLED) {
+    log("listSavedLayouts: persistence not available");
     return [];
   }
 
-  const response = await fetch(`${API_BASE_URL}/layouts`);
+  const url = `${API_BASE_URL}/layouts`;
+  log("listSavedLayouts: fetching %s", url);
+
+  const response = await fetch(url);
 
   if (!response.ok) {
     const error = (await response.json()) as ErrorResponse;
+    log(
+      "listSavedLayouts: error status=%d message=%s",
+      response.status,
+      error.error,
+    );
     throw new PersistenceError(
       error.error ?? "Failed to list layouts",
       response.status,
@@ -78,6 +103,7 @@ export async function listSavedLayouts(): Promise<SavedLayoutItem[]> {
   }
 
   const data = (await response.json()) as { layouts: SavedLayoutItem[] };
+  log("listSavedLayouts: found %d layouts", data.layouts.length);
   return data.layouts;
 }
 
@@ -85,19 +111,29 @@ export async function listSavedLayouts(): Promise<SavedLayoutItem[]> {
  * Load a layout by ID
  */
 export async function loadSavedLayout(id: string): Promise<Layout> {
-  if (!isPersistenceAvailable()) {
+  log("loadSavedLayout: id=%s", id);
+
+  if (!PERSIST_ENABLED) {
+    log("loadSavedLayout: persistence not available");
     throw new PersistenceError("Persistence not available");
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/layouts/${encodeURIComponent(id)}`,
-  );
+  const url = `${API_BASE_URL}/layouts/${encodeURIComponent(id)}`;
+  log("loadSavedLayout: fetching %s", url);
+
+  const response = await fetch(url);
 
   if (!response.ok) {
     if (response.status === 404) {
+      log("loadSavedLayout: not found id=%s", id);
       throw new PersistenceError("Layout not found", 404);
     }
     const error = (await response.json()) as ErrorResponse;
+    log(
+      "loadSavedLayout: error status=%d message=%s",
+      response.status,
+      error.error,
+    );
     throw new PersistenceError(
       error.error ?? "Failed to load layout",
       response.status,
@@ -105,6 +141,7 @@ export async function loadSavedLayout(id: string): Promise<Layout> {
   }
 
   const yamlContent = await response.text();
+  log("loadSavedLayout: loaded id=%s size=%d bytes", id, yamlContent.length);
   return parseLayoutYaml(yamlContent);
 }
 
@@ -118,18 +155,28 @@ export async function saveLayoutToServer(
   layout: Layout,
   currentId?: string,
 ): Promise<string> {
-  if (!isPersistenceAvailable()) {
+  log("saveLayoutToServer: name=%s currentId=%s", layout.name, currentId);
+
+  if (!PERSIST_ENABLED) {
+    log("saveLayoutToServer: persistence not available");
     throw new PersistenceError("Persistence not available");
   }
 
   const newId = slugify(layout.name) || "untitled";
   const yamlContent = await serializeLayoutToYaml(layout);
+  log(
+    "saveLayoutToServer: newId=%s yamlSize=%d bytes",
+    newId,
+    yamlContent.length,
+  );
 
   // Pass current ID as query param for rename handling
   const url =
     currentId && currentId !== newId
       ? `${API_BASE_URL}/layouts/${encodeURIComponent(currentId)}`
       : `${API_BASE_URL}/layouts/${encodeURIComponent(newId)}`;
+
+  log("saveLayoutToServer: PUT %s", url);
 
   const response = await fetch(url, {
     method: "PUT",
@@ -139,6 +186,11 @@ export async function saveLayoutToServer(
 
   if (!response.ok) {
     const error = (await response.json()) as ErrorResponse;
+    log(
+      "saveLayoutToServer: error status=%d message=%s",
+      response.status,
+      error.error,
+    );
     throw new PersistenceError(
       error.error ?? "Failed to save layout",
       response.status,
@@ -146,6 +198,7 @@ export async function saveLayoutToServer(
   }
 
   const { id } = (await response.json()) as { id: string };
+  log("saveLayoutToServer: saved id=%s", id);
   return id;
 }
 
@@ -153,27 +206,38 @@ export async function saveLayoutToServer(
  * Delete a saved layout
  */
 export async function deleteSavedLayout(id: string): Promise<void> {
-  if (!isPersistenceAvailable()) {
+  log("deleteSavedLayout: id=%s", id);
+
+  if (!PERSIST_ENABLED) {
+    log("deleteSavedLayout: persistence not available");
     throw new PersistenceError("Persistence not available");
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/layouts/${encodeURIComponent(id)}`,
-    {
-      method: "DELETE",
-    },
-  );
+  const url = `${API_BASE_URL}/layouts/${encodeURIComponent(id)}`;
+  log("deleteSavedLayout: DELETE %s", url);
+
+  const response = await fetch(url, {
+    method: "DELETE",
+  });
 
   if (!response.ok) {
     if (response.status === 404) {
+      log("deleteSavedLayout: not found id=%s", id);
       throw new PersistenceError("Layout not found", 404);
     }
     const error = (await response.json()) as ErrorResponse;
+    log(
+      "deleteSavedLayout: error status=%d message=%s",
+      response.status,
+      error.error,
+    );
     throw new PersistenceError(
       error.error ?? "Failed to delete layout",
       response.status,
     );
   }
+
+  log("deleteSavedLayout: deleted id=%s", id);
 }
 
 /**
@@ -185,26 +249,48 @@ export async function uploadAsset(
   face: "front" | "rear",
   blob: Blob,
 ): Promise<void> {
-  if (!isPersistenceAvailable()) {
+  log(
+    "uploadAsset: layoutId=%s deviceSlug=%s face=%s size=%d type=%s",
+    layoutId,
+    deviceSlug,
+    face,
+    blob.size,
+    blob.type,
+  );
+
+  if (!PERSIST_ENABLED) {
+    log("uploadAsset: persistence not available");
     throw new PersistenceError("Persistence not available");
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/assets/${encodeURIComponent(layoutId)}/${encodeURIComponent(deviceSlug)}/${face}`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": blob.type },
-      body: blob,
-    },
-  );
+  const url = `${API_BASE_URL}/assets/${encodeURIComponent(layoutId)}/${encodeURIComponent(deviceSlug)}/${face}`;
+  log("uploadAsset: PUT %s", url);
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": blob.type },
+    body: blob,
+  });
 
   if (!response.ok) {
     const error = (await response.json()) as ErrorResponse;
+    log(
+      "uploadAsset: error status=%d message=%s",
+      response.status,
+      error.error,
+    );
     throw new PersistenceError(
       error.error ?? "Failed to upload asset",
       response.status,
     );
   }
+
+  log(
+    "uploadAsset: uploaded layoutId=%s deviceSlug=%s face=%s",
+    layoutId,
+    deviceSlug,
+    face,
+  );
 }
 
 /**

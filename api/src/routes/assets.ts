@@ -41,7 +41,7 @@ assets.get("/:layoutId/:deviceSlug/:face", async (c) => {
 
     return c.body(new Uint8Array(asset.data), 200, {
       "Content-Type": asset.contentType,
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cache-Control": "public, max-age=3600, must-revalidate",
     });
   } catch (error) {
     console.error(`Failed to get asset:`, error);

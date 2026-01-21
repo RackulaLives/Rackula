@@ -7,17 +7,16 @@
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "test": "bun test",
-    "lint": "eslint src/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "hono": "^4.7.0",
+    "hono": "^4.11.4",
     "zod": "^3.24.1",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.1"
   },
   "devDependencies": {
-    "@types/bun": "^1.1.14",
+    "@types/bun": "^1.2.21",
     "@types/js-yaml": "^4.0.9",
-    "typescript": "^5.7.3"
+    "typescript": "^5.8.3"
   }
 }

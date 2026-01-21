@@ -16,7 +16,7 @@ app.use("*", logger());
 app.use(
   "*",
   cors({
-    origin: "*",
+    origin: process.env.CORS_ORIGIN || "*",
     allowMethods: ["GET", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type"],
   }),

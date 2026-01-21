@@ -44,6 +44,11 @@ export const selectionDebug = {
   state: Debug("rackula:selection:state"),
 };
 
+export const persistenceDebug = {
+  api: Debug("rackula:persistence:api"),
+  health: Debug("rackula:persistence:health"),
+};
+
 // Create shared instances for reuse
 const generalLog = Debug("rackula:general");
 const infoLog = Debug("rackula:info");

@@ -258,7 +258,17 @@
                 </div>
                 <button
                   class="delete-btn"
-                  onclick={(e) => handleDeleteLayout(item, e)}
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteLayout(item, e);
+                  }}
+                  onkeydown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDeleteLayout(item, e as unknown as MouseEvent);
+                    }
+                  }}
                   disabled={deletingId === item.id}
                   title="Delete layout"
                 >

@@ -73,11 +73,11 @@
   import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { analytics } from "$lib/utils/analytics";
   import { hapticTap } from "$lib/utils/haptics";
-  import { debug } from "$lib/utils/debug";
+  import { debug, persistenceDebug } from "$lib/utils/debug";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { Tooltip } from "bits-ui";
   import StartScreen from "$lib/components/StartScreen.svelte";
-  import { isPersistenceAvailable } from "$lib/utils/persistence-config";
+  import { PERSIST_ENABLED } from "$lib/utils/persistence-config";
   import {
     saveLayoutToServer,
     checkApiHealth,
@@ -111,7 +111,7 @@
   const placementStore = getPlacementStore();
 
   // Persistence state
-  let showStartScreen = $state(isPersistenceAvailable());
+  let showStartScreen = $state(PERSIST_ENABLED);
   let currentLayoutId = $state<string | undefined>(undefined);
   let saveStatus = $state<SaveStatusType>("idle");
   let apiAvailable = $state(true);
@@ -1139,22 +1139,21 @@
   // Auto-save to server when persistence enabled
   let serverSaveTimer: ReturnType<typeof setTimeout> | null = null;
   $effect(() => {
-    if (!isPersistenceAvailable()) return;
+    if (!PERSIST_ENABLED) return;
     if (showStartScreen) return;
     if (!apiAvailable) return;
 
     const layout = layoutStore.layout;
     if (!layout.name) return;
 
-    // Debounced save with status tracking
-    saveStatus = "saving";
-
     // Clear existing timer
     if (serverSaveTimer) {
       clearTimeout(serverSaveTimer);
     }
 
+    // Debounced save with status tracking
     serverSaveTimer = setTimeout(async () => {
+      saveStatus = "saving";
       try {
         const newId = await saveLayoutToServer(layout, currentLayoutId);
         currentLayoutId = newId;
@@ -1182,14 +1181,18 @@
 
   // Periodically check API health when offline
   $effect(() => {
-    if (!isPersistenceAvailable()) return;
+    if (!PERSIST_ENABLED) return;
     if (apiAvailable) return;
 
+    persistenceDebug.health("API offline, starting health check interval");
     const intervalId = setInterval(async () => {
       const healthy = await checkApiHealth();
       if (healthy) {
+        persistenceDebug.health("API health check passed, marking available");
         apiAvailable = true;
         saveStatus = "idle";
+      } else {
+        persistenceDebug.health("API health check failed, still offline");
       }
     }, 30000); // Check every 30 seconds
 

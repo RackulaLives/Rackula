@@ -64,7 +64,7 @@ Access at `http://localhost:8080`. Layouts save automatically to the server.
 │  │                                                      │   │
 │  │  ┌──────────────┐    ┌──────────────────────────┐  │   │
 │  │  │ localStorage │    │ Persistence Service      │  │   │
-│  │  │ (fallback)   │    │ → POST /api/layouts/:id  │  │   │
+│  │  │ (fallback)   │    │ → PUT /api/layouts/:id   │  │   │
 │  │  └──────────────┘    │ → GET /api/layouts       │  │   │
 │  │                      └──────────────────────────┘  │   │
 │  └─────────────────────────────────────────────────────┘   │
@@ -143,7 +143,7 @@ racks:
         label: Proxmox Host
 ```
 
-**Asset files** are PNG images for custom device types with paths based on:
+**Asset files** are PNG files for custom device types with paths based on:
 
 - Layout name (slugified)
 - Device type slug
