@@ -173,6 +173,8 @@ docker build \
   -f deploy/Dockerfile .
 ```
 
+**Note:** Build-time variables are baked into the image. To change `VITE_PERSIST_ENABLED` or other `VITE_*` variables, you must rebuild the image with `--build-arg`. They cannot be changed at container runtime.
+
 ### Runtime Variables (API Sidecar)
 
 | Variable   | Default | Description                             |
@@ -245,7 +247,10 @@ services:
 
 - API only listens on internal Docker network (not exposed to host)
 - nginx proxies API requests, acting as a gateway
-- CORS allows all origins (assumes trusted network)
+- CORS allows all origins by default (`Access-Control-Allow-Origin: *`)
+  - **Security note:** This exposes the API to cross-origin requests from any website
+  - For production, set `CORS_ORIGIN` environment variable to your specific domain(s)
+  - Only use wildcard CORS in isolated/trusted network environments
 
 ### No Authentication
 
