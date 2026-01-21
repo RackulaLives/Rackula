@@ -40,14 +40,14 @@ layouts.get("/:id", async (c) => {
   }
 
   try {
-    const content = await getLayout(id);
+    const content = await getLayout(idResult.data);
     if (!content) {
       return c.json({ error: "Layout not found" }, 404);
     }
 
     return c.text(content, 200, { "Content-Type": "text/yaml" });
   } catch (error) {
-    console.error(`Failed to get layout ${id}:`, error);
+    console.error(`Failed to get layout ${idResult.data}:`, error);
     return c.json({ error: "Failed to get layout" }, 500);
   }
 });
@@ -68,7 +68,7 @@ layouts.put("/:id", async (c) => {
       return c.json({ error: "Request body is empty" }, 400);
     }
 
-    const result = await saveLayout(yamlContent, id);
+    const result = await saveLayout(yamlContent, idResult.data);
 
     return c.json(
       {
@@ -78,7 +78,7 @@ layouts.put("/:id", async (c) => {
       result.isNew ? 201 : 200,
     );
   } catch (error) {
-    console.error(`Failed to save layout ${id}:`, error);
+    console.error(`Failed to save layout ${idResult.data}:`, error);
 
     if (error instanceof YAMLException) {
       return c.json({ error: `Invalid YAML: ${error.message}` }, 400);
@@ -102,21 +102,24 @@ layouts.delete("/:id", async (c) => {
   }
 
   try {
-    const deleted = await deleteLayout(id);
+    const deleted = await deleteLayout(idResult.data);
     if (!deleted) {
       return c.json({ error: "Layout not found" }, 404);
     }
 
     // Best-effort asset cleanup (don't fail if assets can't be deleted)
     try {
-      await deleteLayoutAssets(id);
+      await deleteLayoutAssets(idResult.data);
     } catch (assetError) {
-      console.warn(`Failed to delete assets for layout ${id}:`, assetError);
+      console.warn(
+        `Failed to delete assets for layout ${idResult.data}:`,
+        assetError,
+      );
     }
 
     return c.json({ message: "Layout deleted" }, 200);
   } catch (error) {
-    console.error(`Failed to delete layout ${id}:`, error);
+    console.error(`Failed to delete layout ${idResult.data}:`, error);
     return c.json({ error: "Failed to delete layout" }, 500);
   }
 });
