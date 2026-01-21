@@ -128,6 +128,30 @@ export async function listLayouts(): Promise<LayoutListItem[]> {
 }
 
 /**
+ * Check if a layout with the given ID exists
+ */
+export async function layoutExists(id: string): Promise<boolean> {
+  // Validate ID to prevent path traversal attacks
+  const parsed = LayoutIdSchema.safeParse(id);
+  if (!parsed.success) return false;
+
+  await ensureDataDir();
+
+  // Check for .yaml or .yml extension
+  for (const ext of [".yaml", ".yml"]) {
+    const filePath = join(DATA_DIR, `${id}${ext}`);
+    try {
+      await stat(filePath);
+      return true;
+    } catch {
+      // File doesn't exist with this extension
+    }
+  }
+
+  return false;
+}
+
+/**
  * Get a single layout by ID
  */
 export async function getLayout(id: string): Promise<string | null> {

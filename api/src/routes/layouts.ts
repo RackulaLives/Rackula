@@ -6,12 +6,15 @@
  * DELETE /api/layouts/:id - Delete layout
  */
 import { Hono } from "hono";
-import { LayoutIdSchema } from "../schemas/layout";
+import * as yaml from "js-yaml";
+import { LayoutIdSchema, LayoutMetadataSchema } from "../schemas/layout";
 import {
   listLayouts,
   getLayout,
   saveLayout,
   deleteLayout,
+  layoutExists,
+  slugify,
 } from "../storage/filesystem";
 import { deleteLayoutAssets } from "../storage/assets";
 
@@ -64,6 +67,37 @@ layouts.put("/:id", async (c) => {
 
     if (!yamlContent.trim()) {
       return c.json({ error: "Request body is empty" }, 400);
+    }
+
+    // Parse YAML to check for rename conflicts before saving
+    let parsed: unknown;
+    try {
+      parsed = yaml.load(yamlContent);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return c.json({ error: `Invalid YAML: ${message}` }, 400);
+    }
+
+    const metadata = LayoutMetadataSchema.safeParse(parsed);
+    if (!metadata.success) {
+      const issues = metadata.error.issues
+        .map((i) => `${i.path.join(".")}: ${i.message}`)
+        .join("; ");
+      return c.json({ error: `Invalid layout metadata: ${issues}` }, 400);
+    }
+
+    // Check for rename conflicts
+    const newId = slugify(metadata.data.name);
+    if (newId !== idResult.data) {
+      const exists = await layoutExists(newId);
+      if (exists) {
+        return c.json(
+          {
+            error: `Cannot rename: a layout with the name "${metadata.data.name}" already exists`,
+          },
+          409,
+        );
+      }
     }
 
     const result = await saveLayout(yamlContent, idResult.data);
