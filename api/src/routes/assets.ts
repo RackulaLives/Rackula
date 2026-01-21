@@ -92,8 +92,8 @@ assets.put("/:layoutId/:deviceSlug/:face", async (c) => {
   // Check Content-Length before reading body (5MB limit)
   const contentLength = c.req.header("Content-Length");
   if (contentLength) {
-    const size = parseInt(contentLength, 10);
-    if (size > MAX_SIZE) {
+    const declaredSize = parseInt(contentLength, 10);
+    if (!Number.isNaN(declaredSize) && declaredSize > MAX_SIZE) {
       return c.json({ error: "File too large. Maximum size is 5MB" }, 413);
     }
   }
