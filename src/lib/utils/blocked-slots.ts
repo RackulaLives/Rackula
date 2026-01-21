@@ -5,14 +5,15 @@
  * Used for rendering visual indicators in dual-view mode.
  */
 
-import type { Rack, DeviceType, RackView } from '$lib/types';
+import type { Rack, DeviceType, RackView } from "$lib/types";
+import { toHumanUnits } from "$lib/utils/position";
 
 /**
  * Represents a range of U positions (inclusive)
  */
 export interface URange {
-	bottom: number; // Lower U position
-	top: number; // Upper U position
+  bottom: number; // Lower U position
+  top: number; // Upper U position
 }
 
 /**
@@ -30,35 +31,43 @@ export interface URange {
  * @param deviceLibrary - Array of device types to look up device heights
  * @returns Array of U ranges that should show hatching
  */
-export function getBlockedSlots(rack: Rack, view: RackView, deviceLibrary: DeviceType[]): URange[] {
-	const blocked: URange[] = [];
+export function getBlockedSlots(
+  rack: Rack,
+  view: RackView,
+  deviceLibrary: DeviceType[],
+): URange[] {
+  const blocked: URange[] = [];
 
-	for (const placedDevice of rack.devices) {
-		// Skip devices on the same face (they're visible, no need for hatching)
-		if (placedDevice.face === view) continue;
+  for (const placedDevice of rack.devices) {
+    // Skip devices on the same face (they're visible, no need for hatching)
+    if (placedDevice.face === view) continue;
 
-		// Skip 'both' face devices (they're visible on both faces)
-		if (placedDevice.face === 'both') continue;
+    // Skip 'both' face devices (they're visible on both faces)
+    if (placedDevice.face === "both") continue;
 
-		// Find the device type to get height and full-depth info
-		const deviceType = deviceLibrary.find((d) => d.slug === placedDevice.device_type);
-		if (!deviceType) continue;
+    // Find the device type to get height and full-depth info
+    const deviceType = deviceLibrary.find(
+      (d) => d.slug === placedDevice.device_type,
+    );
+    if (!deviceType) continue;
 
-		// Check if this device is half-depth
-		// Only half-depth devices need hatching (full-depth devices are visible from both sides)
-		const isFullDepth = deviceType.is_full_depth !== false; // undefined or true = full depth
+    // Check if this device is half-depth
+    // Only half-depth devices need hatching (full-depth devices are visible from both sides)
+    const isFullDepth = deviceType.is_full_depth !== false; // undefined or true = full depth
 
-		// Skip full-depth devices (they're visible from both sides, rendered as actual devices)
-		if (isFullDepth) continue;
+    // Skip full-depth devices (they're visible from both sides, rendered as actual devices)
+    if (isFullDepth) continue;
 
-		// Calculate the U range this half-depth device occupies
-		const bottom = placedDevice.position;
-		const top = placedDevice.position + deviceType.u_height - 1;
+    // Calculate the U range this half-depth device occupies
+    // Position is in internal units (6 per U), convert to human units for rendering
+    const positionU = toHumanUnits(placedDevice.position);
+    const bottom = positionU;
+    const top = positionU + deviceType.u_height - 1;
 
-		blocked.push({ bottom, top });
-	}
+    blocked.push({ bottom, top });
+  }
 
-	return blocked;
+  return blocked;
 }
 
 /**
@@ -68,8 +77,13 @@ export function getBlockedSlots(rack: Rack, view: RackView, deviceLibrary: Devic
  * @param position - The U position to check
  * @returns true if the position is blocked
  */
-export function isPositionBlocked(blockedSlots: URange[], position: number): boolean {
-	return blockedSlots.some((range) => position >= range.bottom && position <= range.top);
+export function isPositionBlocked(
+  blockedSlots: URange[],
+  position: number,
+): boolean {
+  return blockedSlots.some(
+    (range) => position >= range.bottom && position <= range.top,
+  );
 }
 
 /**
@@ -81,19 +95,19 @@ export function isPositionBlocked(blockedSlots: URange[], position: number): boo
  * @returns true if any part of the device would be in a blocked slot
  */
 export function wouldOverlapBlocked(
-	blockedSlots: URange[],
-	position: number,
-	height: number
+  blockedSlots: URange[],
+  position: number,
+  height: number,
 ): boolean {
-	const deviceTop = position + height - 1;
+  const deviceTop = position + height - 1;
 
-	return blockedSlots.some(
-		(range) =>
-			// Device starts within blocked range
-			(position >= range.bottom && position <= range.top) ||
-			// Device ends within blocked range
-			(deviceTop >= range.bottom && deviceTop <= range.top) ||
-			// Device spans entire blocked range
-			(position < range.bottom && deviceTop > range.top)
-	);
+  return blockedSlots.some(
+    (range) =>
+      // Device starts within blocked range
+      (position >= range.bottom && position <= range.top) ||
+      // Device ends within blocked range
+      (deviceTop >= range.bottom && deviceTop <= range.top) ||
+      // Device spans entire blocked range
+      (position < range.bottom && deviceTop > range.top),
+  );
 }
