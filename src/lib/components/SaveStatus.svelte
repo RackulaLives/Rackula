@@ -13,6 +13,7 @@
   import type { SaveStatus } from "$lib/utils/persistence-api";
   import { fade } from "svelte/transition";
   import IconBug from "./icons/IconBug.svelte";
+  import IconCheck from "./icons/IconCheck.svelte";
   import IconCloudOff from "./icons/IconCloudOff.svelte";
 
   interface Props {
@@ -58,20 +59,7 @@
       </Progress.Root>
       <span class="status-text">Saving...</span>
     {:else if status === "saved"}
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-        class="icon-success"
-      >
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
+      <IconCheck size={14} class="icon-success" />
       <span class="status-text">Saved</span>
     {:else if status === "error"}
       <IconBug size={14} />
@@ -107,7 +95,7 @@
     color: var(--colour-warning);
   }
 
-  .icon-success {
+  :global(.icon-success) {
     color: var(--colour-success);
   }
 

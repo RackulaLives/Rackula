@@ -93,8 +93,7 @@
     }
   }
 
-  async function handleDeleteLayout(item: SavedLayoutItem, event: MouseEvent) {
-    event.stopPropagation();
+  async function handleDeleteLayout(item: SavedLayoutItem) {
     if (deletingId) return;
 
     deletingId = item.id;
@@ -231,7 +230,8 @@
                 class:invalid={!item.valid}
                 class:deleting={deletingId === item.id}
                 role="button"
-                tabindex="0"
+                tabindex={item.valid ? 0 : -1}
+                aria-disabled={!item.valid}
                 onclick={() => handleOpenLayout(item)}
                 onkeydown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -260,13 +260,13 @@
                   class="delete-btn"
                   onclick={(e) => {
                     e.stopPropagation();
-                    handleDeleteLayout(item, e);
+                    handleDeleteLayout(item);
                   }}
                   onkeydown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       e.stopPropagation();
-                      handleDeleteLayout(item, e as unknown as MouseEvent);
+                      handleDeleteLayout(item);
                     }
                   }}
                   disabled={deletingId === item.id}
