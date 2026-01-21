@@ -107,8 +107,12 @@ layouts.delete("/:id", async (c) => {
       return c.json({ error: "Layout not found" }, 404);
     }
 
-    // Also delete associated assets
-    await deleteLayoutAssets(id);
+    // Best-effort asset cleanup (don't fail if assets can't be deleted)
+    try {
+      await deleteLayoutAssets(id);
+    } catch (assetError) {
+      console.warn(`Failed to delete assets for layout ${id}:`, assetError);
+    }
 
     return c.json({ message: "Layout deleted" }, 200);
   } catch (error) {
