@@ -4,9 +4,26 @@
 
 **Goal:** Enable self-hosted Rackula deployments to persist layouts to Docker volumes via an optional API sidecar, while maintaining the zero-config static deployment model for SaaS.
 
-**Architecture:** Filesystem-based persistence with a tiny API sidecar. The SPA communicates with `/api/layouts/*` endpoints when persistence is enabled. nginx proxies API requests to the sidecar container. When `RACKULA_PERSIST_ENABLED=false` (default), the app behaves exactly as today.
+**Architecture:** Filesystem-based persistence with a tiny API sidecar. The SPA communicates with `/api/layouts/*` and `/api/assets/*` endpoints when persistence is enabled. nginx proxies API requests to the sidecar container. When `RACKULA_PERSIST_ENABLED=false` (default), the app behaves exactly as today.
 
-**Tech Stack:** Bun (API sidecar), YAML files on disk, Docker Compose profiles, Zod validation
+**Tech Stack:** Bun (API sidecar), YAML files on disk, Docker Compose profiles, Zod validation, bits-ui Progress
+
+---
+
+## Design Decisions (from Architectural Review)
+
+| Decision          | Choice                                     | Rationale                                   |
+| ----------------- | ------------------------------------------ | ------------------------------------------- |
+| Image assets      | Add `/api/assets/*` endpoints              | Complete solution for custom device images  |
+| Conflict handling | Last-write-wins                            | KISS - users unlikely to have multiple tabs |
+| Save feedback     | Subtle status indicator (bits-ui Progress) | Non-intrusive but informative               |
+| ID collisions     | Track `currentLayoutId`, handle rename     | Explicit behavior, delete old + create new  |
+| Import support    | Add Import button to StartScreen           | Common onboarding flow                      |
+| List metadata     | Add rack/device counts                     | Lightweight, helps identify layouts         |
+| API fallback      | Fall back to localStorage with warning     | App remains usable if API down              |
+| Unicode names     | UUID suffix for empty slugs                | Supports all-Unicode names like "我的机架"  |
+| Corrupted files   | Show with error badge, block opening       | Users see their files, can delete them      |
+| Multi-user        | Document as single-user design             | KISS - no locking, no sessions              |
 
 ---
 
@@ -20,7 +37,7 @@
 - Create: `api/tsconfig.json`
 - Create: `api/.gitignore`
 
-**Step 1: Create package.json**
+#### Step 1: Create package.json
 
 ```json
 {
@@ -48,7 +65,7 @@
 }
 ```
 
-**Step 2: Create tsconfig.json**
+#### Step 2: Create tsconfig.json
 
 ```json
 {
@@ -68,14 +85,14 @@
 }
 ```
 
-**Step 3: Create .gitignore**
+#### Step 3: Create .gitignore
 
 ```
 node_modules/
 *.log
 ```
 
-**Step 4: Commit**
+#### Step 4: Commit
 
 ```bash
 git add api/
@@ -90,7 +107,7 @@ git commit -m "chore: scaffold API sidecar package structure"
 
 - Create: `api/src/schemas/layout.ts`
 
-**Step 1: Create the schema file**
+#### Step 1: Create the schema file
 
 ```typescript
 /**
@@ -104,6 +121,14 @@ import { z } from "zod";
 export const LayoutMetadataSchema = z.object({
   version: z.string(),
   name: z.string().min(1, "Layout name is required"),
+  racks: z
+    .array(
+      z.object({
+        devices: z.array(z.unknown()).optional().default([]),
+      }),
+    )
+    .optional()
+    .default([]),
 });
 
 // Schema for layout ID (filename without extension)
@@ -116,23 +141,26 @@ export const LayoutIdSchema = z
     "Layout ID must be lowercase alphanumeric with hyphens, not starting/ending with hyphen",
   );
 
-// Layout list item returned by GET /api/layouts
+// Layout list item returned by GET /api/layouts (with counts)
 export const LayoutListItemSchema = z.object({
   id: z.string(),
   name: z.string(),
   version: z.string(),
   updatedAt: z.string().datetime(),
+  rackCount: z.number(),
+  deviceCount: z.number(),
+  valid: z.boolean().default(true), // false if YAML is corrupted
 });
 
 export type LayoutMetadata = z.infer<typeof LayoutMetadataSchema>;
 export type LayoutListItem = z.infer<typeof LayoutListItemSchema>;
 ```
 
-**Step 2: Commit**
+#### Step 2: Commit
 
 ```bash
 git add api/src/schemas/layout.ts
-git commit -m "feat(api): add layout validation schemas"
+git commit -m "feat(api): add layout validation schemas with counts"
 ```
 
 ---
@@ -143,7 +171,7 @@ git commit -m "feat(api): add layout validation schemas"
 
 - Create: `api/src/storage/filesystem.ts`
 
-**Step 1: Create the storage layer**
+#### Step 1: Create the storage layer
 
 ```typescript
 /**
@@ -169,33 +197,41 @@ const ASSETS_DIR = "assets";
  * Ensure data directory exists
  */
 export async function ensureDataDir(): Promise<void> {
-  try {
-    await mkdir(DATA_DIR, { recursive: true });
-    await mkdir(join(DATA_DIR, ASSETS_DIR), { recursive: true });
-  } catch (error) {
-    // Directory already exists, ignore
-    if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
-      throw error;
-    }
-  }
+  await mkdir(DATA_DIR, { recursive: true });
+  await mkdir(join(DATA_DIR, ASSETS_DIR), { recursive: true });
 }
 
 /**
  * Slugify a layout name to create a safe filename
+ * Handles Unicode names by appending UUID suffix if result is empty
  */
 export function slugify(name: string): string {
-  return (
-    name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 100) || "untitled"
-  );
+  const slug = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100);
+
+  // Handle empty results (e.g., all-Unicode names like "我的机架")
+  if (!slug) {
+    const uuid = crypto.randomUUID().slice(0, 8);
+    return `untitled-${uuid}`;
+  }
+
+  return slug;
+}
+
+/**
+ * Count devices across all racks in a layout
+ */
+function countDevices(racks: Array<{ devices?: unknown[] }>): number {
+  return racks.reduce((sum, rack) => sum + (rack.devices?.length ?? 0), 0);
 }
 
 /**
  * List all layouts in the data directory
+ * Returns invalid files with valid: false so UI can show error badge
  */
 export async function listLayouts(): Promise<LayoutListItem[]> {
   await ensureDataDir();
@@ -208,24 +244,52 @@ export async function listLayouts(): Promise<LayoutListItem[]> {
   const layouts: LayoutListItem[] = [];
 
   for (const file of yamlFiles) {
+    const filePath = join(DATA_DIR, file);
+    const id = basename(file, ".yaml").replace(".yml", "");
+
     try {
-      const filePath = join(DATA_DIR, file);
       const content = await readFile(filePath, "utf-8");
       const parsed = yaml.load(content) as unknown;
       const metadata = LayoutMetadataSchema.safeParse(parsed);
+      const stats = await stat(filePath);
 
       if (metadata.success) {
-        const stats = await stat(filePath);
+        const racks = metadata.data.racks ?? [];
         layouts.push({
-          id: basename(file, ".yaml").replace(".yml", ""),
+          id,
           name: metadata.data.name,
           version: metadata.data.version,
           updatedAt: stats.mtime.toISOString(),
+          rackCount: racks.length,
+          deviceCount: countDevices(racks),
+          valid: true,
         });
+      } else {
+        // Invalid YAML structure - include with error flag
+        layouts.push({
+          id,
+          name: id, // Use filename as name
+          version: "unknown",
+          updatedAt: stats.mtime.toISOString(),
+          rackCount: 0,
+          deviceCount: 0,
+          valid: false,
+        });
+        console.warn(`Invalid layout file: ${file}`, metadata.error.message);
       }
-    } catch {
-      // Skip files that can't be parsed
-      console.warn(`Skipping invalid layout file: ${file}`);
+    } catch (e) {
+      // File read/parse error - include with error flag
+      const stats = await stat(filePath).catch(() => ({ mtime: new Date() }));
+      layouts.push({
+        id,
+        name: id,
+        version: "unknown",
+        updatedAt: stats.mtime.toISOString(),
+        rackCount: 0,
+        deviceCount: 0,
+        valid: false,
+      });
+      console.warn(`Failed to read layout file: ${file}`, e);
     }
   }
 
@@ -245,8 +309,7 @@ export async function getLayout(id: string): Promise<string | null> {
   for (const ext of [".yaml", ".yml"]) {
     const filePath = join(DATA_DIR, `${id}${ext}`);
     try {
-      const content = await readFile(filePath, "utf-8");
-      return content;
+      return await readFile(filePath, "utf-8");
     } catch {
       // File doesn't exist with this extension
     }
@@ -310,28 +373,282 @@ export async function deleteLayout(id: string): Promise<boolean> {
 /**
  * Get assets directory path for a layout
  */
-export function getAssetsPath(layoutId: string): string {
-  return join(DATA_DIR, ASSETS_DIR, layoutId);
+export function getAssetsDir(): string {
+  return join(DATA_DIR, ASSETS_DIR);
+}
+
+/**
+ * Get asset path for a specific layout/device/face
+ */
+export function getAssetPath(
+  layoutId: string,
+  deviceSlug: string,
+  face: "front" | "rear",
+  ext: string,
+): string {
+  return join(getAssetsDir(), layoutId, deviceSlug, `${face}.${ext}`);
 }
 ```
 
-**Step 2: Commit**
+#### Step 2: Commit
 
 ```bash
 git add api/src/storage/filesystem.ts
-git commit -m "feat(api): implement filesystem storage layer"
+git commit -m "feat(api): implement filesystem storage layer with counts"
 ```
 
 ---
 
-### Task 4: Implement Hono API Routes
+### Task 4: Implement Asset Storage Layer
+
+**Files:**
+
+- Create: `api/src/storage/assets.ts`
+
+#### Step 1: Create the asset storage layer
+
+```typescript
+/**
+ * Asset storage layer for device images
+ * Handles upload/download of images to DATA_DIR/assets/
+ */
+import {
+  readFile,
+  writeFile,
+  unlink,
+  mkdir,
+  readdir,
+  rm,
+} from "node:fs/promises";
+import { join, dirname, extname } from "node:path";
+import { getAssetsDir } from "./filesystem";
+
+// Allowed image types
+const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+
+export interface AssetInfo {
+  layoutId: string;
+  deviceSlug: string;
+  face: "front" | "rear";
+  ext: string;
+  size: number;
+}
+
+/**
+ * Validate image content type
+ */
+export function isValidImageType(contentType: string): boolean {
+  return ALLOWED_TYPES.has(contentType);
+}
+
+/**
+ * Get extension from content type
+ */
+export function getExtFromContentType(contentType: string): string {
+  switch (contentType) {
+    case "image/png":
+      return "png";
+    case "image/jpeg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    default:
+      return "png";
+  }
+}
+
+/**
+ * Get content type from extension
+ */
+export function getContentTypeFromExt(ext: string): string {
+  switch (ext.toLowerCase()) {
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "webp":
+      return "image/webp";
+    default:
+      return "application/octet-stream";
+  }
+}
+
+/**
+ * Build asset path
+ */
+function buildAssetPath(
+  layoutId: string,
+  deviceSlug: string,
+  face: string,
+  ext: string,
+): string {
+  return join(getAssetsDir(), layoutId, deviceSlug, `${face}.${ext}`);
+}
+
+/**
+ * Save an asset image
+ */
+export async function saveAsset(
+  layoutId: string,
+  deviceSlug: string,
+  face: "front" | "rear",
+  data: ArrayBuffer,
+  contentType: string,
+): Promise<void> {
+  if (!isValidImageType(contentType)) {
+    throw new Error(`Invalid content type: ${contentType}`);
+  }
+
+  if (data.byteLength > MAX_SIZE) {
+    throw new Error(
+      `Image too large: ${data.byteLength} bytes (max ${MAX_SIZE})`,
+    );
+  }
+
+  const ext = getExtFromContentType(contentType);
+  const assetPath = buildAssetPath(layoutId, deviceSlug, face, ext);
+
+  // Ensure directory exists
+  await mkdir(dirname(assetPath), { recursive: true });
+
+  // Delete any existing file with different extension
+  for (const oldExt of ["png", "jpg", "webp"]) {
+    if (oldExt !== ext) {
+      try {
+        await unlink(buildAssetPath(layoutId, deviceSlug, face, oldExt));
+      } catch {
+        // Ignore if doesn't exist
+      }
+    }
+  }
+
+  // Write new file
+  await writeFile(assetPath, Buffer.from(data));
+}
+
+/**
+ * Get an asset image
+ */
+export async function getAsset(
+  layoutId: string,
+  deviceSlug: string,
+  face: "front" | "rear",
+): Promise<{ data: Buffer; contentType: string } | null> {
+  // Try each extension
+  for (const ext of ["png", "jpg", "webp"]) {
+    const assetPath = buildAssetPath(layoutId, deviceSlug, face, ext);
+    try {
+      const data = await readFile(assetPath);
+      return {
+        data,
+        contentType: getContentTypeFromExt(ext),
+      };
+    } catch {
+      // Try next extension
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Delete an asset image
+ */
+export async function deleteAsset(
+  layoutId: string,
+  deviceSlug: string,
+  face: "front" | "rear",
+): Promise<boolean> {
+  let deleted = false;
+
+  for (const ext of ["png", "jpg", "webp"]) {
+    const assetPath = buildAssetPath(layoutId, deviceSlug, face, ext);
+    try {
+      await unlink(assetPath);
+      deleted = true;
+    } catch {
+      // Ignore if doesn't exist
+    }
+  }
+
+  return deleted;
+}
+
+/**
+ * Delete all assets for a layout
+ */
+export async function deleteLayoutAssets(layoutId: string): Promise<void> {
+  const layoutAssetsDir = join(getAssetsDir(), layoutId);
+  try {
+    await rm(layoutAssetsDir, { recursive: true });
+  } catch {
+    // Ignore if doesn't exist
+  }
+}
+
+/**
+ * List all assets for a layout
+ */
+export async function listLayoutAssets(layoutId: string): Promise<AssetInfo[]> {
+  const layoutAssetsDir = join(getAssetsDir(), layoutId);
+  const assets: AssetInfo[] = [];
+
+  try {
+    const deviceDirs = await readdir(layoutAssetsDir);
+
+    for (const deviceSlug of deviceDirs) {
+      const deviceDir = join(layoutAssetsDir, deviceSlug);
+      try {
+        const files = await readdir(deviceDir);
+
+        for (const file of files) {
+          const match = file.match(/^(front|rear)\.(png|jpg|webp)$/);
+          if (match) {
+            const filePath = join(deviceDir, file);
+            const { size } = await import("node:fs/promises").then((fs) =>
+              fs.stat(filePath),
+            );
+            assets.push({
+              layoutId,
+              deviceSlug,
+              face: match[1] as "front" | "rear",
+              ext: match[2],
+              size,
+            });
+          }
+        }
+      } catch {
+        // Skip invalid directories
+      }
+    }
+  } catch {
+    // Layout has no assets
+  }
+
+  return assets;
+}
+```
+
+#### Step 2: Commit
+
+```bash
+git add api/src/storage/assets.ts
+git commit -m "feat(api): implement asset storage layer for images"
+```
+
+---
+
+### Task 5: Implement Hono API Routes
 
 **Files:**
 
 - Create: `api/src/routes/layouts.ts`
+- Create: `api/src/routes/assets.ts`
 - Create: `api/src/index.ts`
 
-**Step 1: Create the layouts routes**
+#### Step 1: Create the layouts routes
 
 ```typescript
 /**
@@ -349,6 +666,7 @@ import {
   saveLayout,
   deleteLayout,
 } from "../storage/filesystem";
+import { deleteLayoutAssets } from "../storage/assets";
 
 const layouts = new Hono();
 
@@ -367,7 +685,6 @@ layouts.get("/", async (c) => {
 layouts.get("/:id", async (c) => {
   const id = c.req.param("id");
 
-  // Validate ID format
   const idResult = LayoutIdSchema.safeParse(id);
   if (!idResult.success) {
     return c.json({ error: "Invalid layout ID format" }, 400);
@@ -379,10 +696,7 @@ layouts.get("/:id", async (c) => {
       return c.json({ error: "Layout not found" }, 404);
     }
 
-    // Return raw YAML with appropriate content type
-    return c.text(content, 200, {
-      "Content-Type": "text/yaml",
-    });
+    return c.text(content, 200, { "Content-Type": "text/yaml" });
   } catch (error) {
     console.error(`Failed to get layout ${id}:`, error);
     return c.json({ error: "Failed to get layout" }, 500);
@@ -393,7 +707,6 @@ layouts.get("/:id", async (c) => {
 layouts.put("/:id", async (c) => {
   const id = c.req.param("id");
 
-  // Validate ID format
   const idResult = LayoutIdSchema.safeParse(id);
   if (!idResult.success) {
     return c.json({ error: "Invalid layout ID format" }, 400);
@@ -418,7 +731,6 @@ layouts.put("/:id", async (c) => {
   } catch (error) {
     console.error(`Failed to save layout ${id}:`, error);
 
-    // Check for validation errors
     if (error instanceof Error && error.message.includes("required")) {
       return c.json({ error: error.message }, 400);
     }
@@ -431,7 +743,6 @@ layouts.put("/:id", async (c) => {
 layouts.delete("/:id", async (c) => {
   const id = c.req.param("id");
 
-  // Validate ID format
   const idResult = LayoutIdSchema.safeParse(id);
   if (!idResult.success) {
     return c.json({ error: "Invalid layout ID format" }, 400);
@@ -443,6 +754,9 @@ layouts.delete("/:id", async (c) => {
       return c.json({ error: "Layout not found" }, 404);
     }
 
+    // Also delete associated assets
+    await deleteLayoutAssets(id);
+
     return c.json({ message: "Layout deleted" }, 200);
   } catch (error) {
     console.error(`Failed to delete layout ${id}:`, error);
@@ -453,7 +767,130 @@ layouts.delete("/:id", async (c) => {
 export default layouts;
 ```
 
-**Step 2: Create the main entry point**
+#### Step 2: Create the assets routes
+
+```typescript
+/**
+ * Asset API routes
+ * GET    /api/assets/:layoutId/:deviceSlug/:face - Get asset image
+ * PUT    /api/assets/:layoutId/:deviceSlug/:face - Upload asset image
+ * DELETE /api/assets/:layoutId/:deviceSlug/:face - Delete asset image
+ */
+import { Hono } from "hono";
+import { LayoutIdSchema } from "../schemas/layout";
+import {
+  getAsset,
+  saveAsset,
+  deleteAsset,
+  isValidImageType,
+} from "../storage/assets";
+
+const assets = new Hono();
+
+// Validate face parameter
+function isValidFace(face: string): face is "front" | "rear" {
+  return face === "front" || face === "rear";
+}
+
+// Get an asset
+assets.get("/:layoutId/:deviceSlug/:face", async (c) => {
+  const { layoutId, deviceSlug, face } = c.req.param();
+
+  const idResult = LayoutIdSchema.safeParse(layoutId);
+  if (!idResult.success) {
+    return c.json({ error: "Invalid layout ID format" }, 400);
+  }
+
+  if (!isValidFace(face)) {
+    return c.json({ error: "Face must be 'front' or 'rear'" }, 400);
+  }
+
+  try {
+    const asset = await getAsset(layoutId, deviceSlug, face);
+    if (!asset) {
+      return c.json({ error: "Asset not found" }, 404);
+    }
+
+    return c.body(asset.data, 200, {
+      "Content-Type": asset.contentType,
+      "Cache-Control": "public, max-age=31536000, immutable",
+    });
+  } catch (error) {
+    console.error(`Failed to get asset:`, error);
+    return c.json({ error: "Failed to get asset" }, 500);
+  }
+});
+
+// Upload an asset
+assets.put("/:layoutId/:deviceSlug/:face", async (c) => {
+  const { layoutId, deviceSlug, face } = c.req.param();
+
+  const idResult = LayoutIdSchema.safeParse(layoutId);
+  if (!idResult.success) {
+    return c.json({ error: "Invalid layout ID format" }, 400);
+  }
+
+  if (!isValidFace(face)) {
+    return c.json({ error: "Face must be 'front' or 'rear'" }, 400);
+  }
+
+  const contentType = c.req.header("Content-Type") ?? "";
+  if (!isValidImageType(contentType)) {
+    return c.json(
+      {
+        error:
+          "Invalid content type. Must be image/png, image/jpeg, or image/webp",
+      },
+      400,
+    );
+  }
+
+  try {
+    const data = await c.req.arrayBuffer();
+    await saveAsset(layoutId, deviceSlug, face, data, contentType);
+
+    return c.json({ message: "Asset uploaded" }, 200);
+  } catch (error) {
+    console.error(`Failed to save asset:`, error);
+
+    if (error instanceof Error && error.message.includes("too large")) {
+      return c.json({ error: error.message }, 413);
+    }
+
+    return c.json({ error: "Failed to save asset" }, 500);
+  }
+});
+
+// Delete an asset
+assets.delete("/:layoutId/:deviceSlug/:face", async (c) => {
+  const { layoutId, deviceSlug, face } = c.req.param();
+
+  const idResult = LayoutIdSchema.safeParse(layoutId);
+  if (!idResult.success) {
+    return c.json({ error: "Invalid layout ID format" }, 400);
+  }
+
+  if (!isValidFace(face)) {
+    return c.json({ error: "Face must be 'front' or 'rear'" }, 400);
+  }
+
+  try {
+    const deleted = await deleteAsset(layoutId, deviceSlug, face);
+    if (!deleted) {
+      return c.json({ error: "Asset not found" }, 404);
+    }
+
+    return c.json({ message: "Asset deleted" }, 200);
+  } catch (error) {
+    console.error(`Failed to delete asset:`, error);
+    return c.json({ error: "Failed to delete asset" }, 500);
+  }
+});
+
+export default assets;
+```
+
+#### Step 3: Create the main entry point
 
 ```typescript
 /**
@@ -464,6 +901,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import layouts from "./routes/layouts";
+import assets from "./routes/assets";
 import { ensureDataDir } from "./storage/filesystem";
 
 const app = new Hono();
@@ -473,7 +911,7 @@ app.use("*", logger());
 app.use(
   "*",
   cors({
-    origin: "*", // nginx handles CORS in production
+    origin: "*",
     allowMethods: ["GET", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type"],
   }),
@@ -484,6 +922,7 @@ app.get("/health", (c) => c.text("OK"));
 
 // Mount routes
 app.route("/api/layouts", layouts);
+app.route("/api/assets", assets);
 
 // 404 handler
 app.notFound((c) => c.json({ error: "Not found" }, 404));
@@ -497,7 +936,6 @@ app.onError((err, c) => {
 // Startup
 const port = parseInt(process.env.PORT ?? "3001", 10);
 
-// Ensure data directory exists before starting
 await ensureDataDir();
 
 console.log(`Rackula API listening on port ${port}`);
@@ -509,30 +947,30 @@ export default {
 };
 ```
 
-**Step 3: Commit**
+#### Step 4: Commit
 
 ```bash
 git add api/src/
-git commit -m "feat(api): implement Hono API routes for layout CRUD"
+git commit -m "feat(api): implement Hono API routes for layouts and assets"
 ```
 
 ---
 
-### Task 5: Add API Tests
+### Task 6: Add API Tests
 
 **Files:**
 
-- Create: `api/src/routes/layouts.test.ts`
 - Create: `api/src/storage/filesystem.test.ts`
+- Create: `api/src/routes/layouts.test.ts`
 
-**Step 1: Create storage tests**
+#### Step 1: Create storage tests
 
 ```typescript
 /**
  * Filesystem storage tests
  */
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
+import { describe, it, expect, beforeEach, afterAll } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -540,7 +978,6 @@ import { join } from "node:path";
 const testDir = await mkdtemp(join(tmpdir(), "rackula-test-"));
 process.env.DATA_DIR = testDir;
 
-// Now import storage functions
 const { listLayouts, getLayout, saveLayout, deleteLayout, slugify } =
   await import("./filesystem");
 
@@ -553,8 +990,14 @@ describe("slugify", () => {
     expect(slugify("Rack #1 (Main)")).toBe("rack-1-main");
   });
 
-  it("handles empty string", () => {
-    expect(slugify("")).toBe("untitled");
+  it("handles empty string with UUID suffix", () => {
+    const result = slugify("");
+    expect(result).toMatch(/^untitled-[a-f0-9]{8}$/);
+  });
+
+  it("handles all-Unicode names with UUID suffix", () => {
+    const result = slugify("我的机架");
+    expect(result).toMatch(/^untitled-[a-f0-9]{8}$/);
   });
 
   it("truncates long names", () => {
@@ -564,35 +1007,30 @@ describe("slugify", () => {
 });
 
 describe("listLayouts", () => {
-  beforeEach(async () => {
-    // Clean test directory
-    const files = await Bun.file(testDir).exists();
-  });
-
   it("returns empty array when no layouts exist", async () => {
     const layouts = await listLayouts();
     expect(layouts).toEqual([]);
   });
 
-  it("lists valid YAML files", async () => {
+  it("lists valid YAML files with counts", async () => {
     await writeFile(
       join(testDir, "test-layout.yaml"),
-      'version: "1.0.0"\nname: Test Layout\nracks: []',
+      `version: "1.0.0"
+name: Test Layout
+racks:
+  - devices:
+      - id: d1
+      - id: d2
+  - devices:
+      - id: d3`,
     );
 
     const layouts = await listLayouts();
     expect(layouts.length).toBe(1);
     expect(layouts[0].id).toBe("test-layout");
     expect(layouts[0].name).toBe("Test Layout");
-  });
-
-  afterEach(async () => {
-    // Clean up test files
-    try {
-      const files = await Bun.file(testDir).exists();
-    } catch {
-      // Ignore
-    }
+    expect(layouts[0].rackCount).toBe(2);
+    expect(layouts[0].deviceCount).toBe(3);
   });
 });
 
@@ -608,9 +1046,20 @@ describe("saveLayout and getLayout", () => {
     expect(retrieved).toBe(yamlContent);
   });
 
-  it("returns null for non-existent layout", async () => {
-    const result = await getLayout("does-not-exist");
-    expect(result).toBeNull();
+  it("handles rename by deleting old file", async () => {
+    // Create original
+    await saveLayout('version: "1.0.0"\nname: Original\nracks: []', "original");
+
+    // Rename by saving with new name but passing old ID
+    await saveLayout('version: "1.0.0"\nname: Renamed\nracks: []', "original");
+
+    // Old file should be gone
+    const oldLayout = await getLayout("original");
+    expect(oldLayout).toBeNull();
+
+    // New file should exist
+    const newLayout = await getLayout("renamed");
+    expect(newLayout).toContain("Renamed");
   });
 });
 
@@ -634,166 +1083,18 @@ describe("deleteLayout", () => {
   });
 });
 
-// Cleanup after all tests
-afterEach(async () => {
-  try {
-    await rm(testDir, { recursive: true });
-  } catch {
-    // Ignore cleanup errors
-  }
-});
-```
-
-**Step 2: Create API route tests**
-
-```typescript
-/**
- * Layout API route tests
- */
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
-// Setup test directory
-const testDir = await mkdtemp(join(tmpdir(), "rackula-api-test-"));
-process.env.DATA_DIR = testDir;
-
-// Import app after setting DATA_DIR
-const { default: app } = await import("../index");
-
-const testYaml = `version: "1.0.0"
-name: Test Layout
-racks: []
-device_types: []
-settings:
-  displayMode: label
-`;
-
-describe("GET /api/layouts", () => {
-  it("returns empty list initially", async () => {
-    const res = await app.fetch(new Request("http://localhost/api/layouts"));
-    expect(res.status).toBe(200);
-
-    const data = await res.json();
-    expect(data.layouts).toEqual([]);
-  });
-});
-
-describe("PUT /api/layouts/:id", () => {
-  it("creates new layout", async () => {
-    const res = await app.fetch(
-      new Request("http://localhost/api/layouts/test-layout", {
-        method: "PUT",
-        body: testYaml,
-        headers: { "Content-Type": "text/yaml" },
-      }),
-    );
-
-    expect(res.status).toBe(201);
-    const data = await res.json();
-    expect(data.id).toBe("test-layout");
-  });
-
-  it("rejects empty body", async () => {
-    const res = await app.fetch(
-      new Request("http://localhost/api/layouts/empty", {
-        method: "PUT",
-        body: "",
-      }),
-    );
-
-    expect(res.status).toBe(400);
-  });
-
-  it("rejects invalid ID format", async () => {
-    const res = await app.fetch(
-      new Request("http://localhost/api/layouts/../etc/passwd", {
-        method: "PUT",
-        body: testYaml,
-      }),
-    );
-
-    expect(res.status).toBe(400);
-  });
-});
-
-describe("GET /api/layouts/:id", () => {
-  it("returns layout content", async () => {
-    // First create a layout
-    await app.fetch(
-      new Request("http://localhost/api/layouts/get-test", {
-        method: "PUT",
-        body: testYaml,
-      }),
-    );
-
-    const res = await app.fetch(
-      new Request("http://localhost/api/layouts/get-test"),
-    );
-
-    expect(res.status).toBe(200);
-    expect(res.headers.get("Content-Type")).toBe("text/yaml");
-
-    const content = await res.text();
-    expect(content).toContain("Test Layout");
-  });
-
-  it("returns 404 for non-existent layout", async () => {
-    const res = await app.fetch(
-      new Request("http://localhost/api/layouts/does-not-exist"),
-    );
-
-    expect(res.status).toBe(404);
-  });
-});
-
-describe("DELETE /api/layouts/:id", () => {
-  it("deletes existing layout", async () => {
-    // First create a layout
-    await app.fetch(
-      new Request("http://localhost/api/layouts/delete-test", {
-        method: "PUT",
-        body: testYaml,
-      }),
-    );
-
-    const res = await app.fetch(
-      new Request("http://localhost/api/layouts/delete-test", {
-        method: "DELETE",
-      }),
-    );
-
-    expect(res.status).toBe(200);
-
-    // Verify it's gone
-    const getRes = await app.fetch(
-      new Request("http://localhost/api/layouts/delete-test"),
-    );
-    expect(getRes.status).toBe(404);
-  });
-});
-
-describe("GET /health", () => {
-  it("returns OK", async () => {
-    const res = await app.fetch(new Request("http://localhost/health"));
-    expect(res.status).toBe(200);
-    expect(await res.text()).toBe("OK");
-  });
-});
-
 // Cleanup
 afterAll(async () => {
   await rm(testDir, { recursive: true });
 });
 ```
 
-**Step 3: Run tests**
+#### Step 2: Run tests
 
 Run: `cd api && bun test`
 Expected: All tests pass
 
-**Step 4: Commit**
+#### Step 3: Commit
 
 ```bash
 git add api/src/*.test.ts
@@ -802,13 +1103,13 @@ git commit -m "test(api): add storage and route tests"
 
 ---
 
-### Task 6: Create API Dockerfile
+### Task 7: Create API Dockerfile
 
 **Files:**
 
 - Create: `api/Dockerfile`
 
-**Step 1: Create the Dockerfile**
+#### Step 1: Create the Dockerfile
 
 ```dockerfile
 # Rackula API Sidecar
@@ -856,12 +1157,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 CMD ["bun", "src/index.ts"]
 ```
 
-**Step 2: Build and test locally**
-
-Run: `cd api && docker build -t rackula-api:test .`
-Expected: Build succeeds
-
-**Step 3: Commit**
+#### Step 2: Commit
 
 ```bash
 git add api/Dockerfile
@@ -872,13 +1168,13 @@ git commit -m "build(api): add Dockerfile for API sidecar"
 
 ## Phase 2: SPA Client Integration
 
-### Task 7: Add Persistence Configuration
+### Task 8: Add Persistence Configuration
 
 **Files:**
 
 - Create: `src/lib/utils/persistence-config.ts`
 
-**Step 1: Create the configuration module**
+#### Step 1: Create the configuration module
 
 ```typescript
 /**
@@ -907,7 +1203,7 @@ export function isPersistenceAvailable(): boolean {
 }
 ```
 
-**Step 2: Commit**
+#### Step 2: Commit
 
 ```bash
 git add src/lib/utils/persistence-config.ts
@@ -916,13 +1212,13 @@ git commit -m "feat: add persistence configuration module"
 
 ---
 
-### Task 8: Implement Persistence API Client
+### Task 9: Implement Persistence API Client
 
 **Files:**
 
 - Create: `src/lib/utils/persistence-api.ts`
 
-**Step 1: Create the API client**
+#### Step 1: Create the API client
 
 ```typescript
 /**
@@ -942,11 +1238,16 @@ export interface SavedLayoutItem {
   name: string;
   version: string;
   updatedAt: string;
+  rackCount: number;
+  deviceCount: number;
+  valid: boolean; // false if YAML is corrupted
 }
 
 /**
- * API response types
+ * Save status for UI feedback
  */
+export type SaveStatus = "idle" | "saving" | "saved" | "error" | "offline";
+
 interface ListResponse {
   layouts: SavedLayoutItem[];
 }
@@ -1041,26 +1342,32 @@ export async function loadSavedLayout(id: string): Promise<Layout> {
 
 /**
  * Save a layout (create or update)
+ * @param layout - The layout to save
+ * @param currentId - The current layout ID (for rename detection)
  * @returns The saved layout ID
  */
-export async function saveLayoutToServer(layout: Layout): Promise<string> {
+export async function saveLayoutToServer(
+  layout: Layout,
+  currentId?: string,
+): Promise<string> {
   if (!isPersistenceAvailable()) {
     throw new PersistenceError("Persistence not available");
   }
 
-  const id = slugify(layout.name) || "untitled";
+  const newId = slugify(layout.name) || "untitled";
   const yamlContent = await serializeLayoutToYaml(layout);
 
-  const response = await fetch(
-    `${API_BASE_URL}/layouts/${encodeURIComponent(id)}`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "text/yaml",
-      },
-      body: yamlContent,
-    },
-  );
+  // Pass current ID as query param for rename handling
+  const url =
+    currentId && currentId !== newId
+      ? `${API_BASE_URL}/layouts/${encodeURIComponent(currentId)}`
+      : `${API_BASE_URL}/layouts/${encodeURIComponent(newId)}`;
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "text/yaml" },
+    body: yamlContent,
+  });
 
   if (!response.ok) {
     const error = (await response.json()) as ErrorResponse;
@@ -1100,29 +1407,210 @@ export async function deleteSavedLayout(id: string): Promise<void> {
     );
   }
 }
+
+/**
+ * Upload an asset image
+ */
+export async function uploadAsset(
+  layoutId: string,
+  deviceSlug: string,
+  face: "front" | "rear",
+  blob: Blob,
+): Promise<void> {
+  if (!isPersistenceAvailable()) {
+    throw new PersistenceError("Persistence not available");
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/assets/${encodeURIComponent(layoutId)}/${encodeURIComponent(deviceSlug)}/${face}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": blob.type },
+      body: blob,
+    },
+  );
+
+  if (!response.ok) {
+    const error = (await response.json()) as ErrorResponse;
+    throw new PersistenceError(
+      error.error ?? "Failed to upload asset",
+      response.status,
+    );
+  }
+}
+
+/**
+ * Get asset URL for display
+ */
+export function getAssetUrl(
+  layoutId: string,
+  deviceSlug: string,
+  face: "front" | "rear",
+): string {
+  return `${API_BASE_URL}/assets/${encodeURIComponent(layoutId)}/${encodeURIComponent(deviceSlug)}/${face}`;
+}
 ```
 
-**Step 2: Commit**
+#### Step 2: Commit
 
 ```bash
 git add src/lib/utils/persistence-api.ts
-git commit -m "feat: implement persistence API client"
+git commit -m "feat: implement persistence API client with asset support"
 ```
 
 ---
 
-### Task 9: Create Start Screen Component
+### Task 10: Create Save Status Indicator Component
+
+**Files:**
+
+- Create: `src/lib/components/SaveStatus.svelte`
+
+#### Step 1: Create the component using bits-ui Progress
+
+```svelte
+<!--
+  SaveStatus - Subtle save status indicator for toolbar
+  Uses bits-ui Progress for indeterminate saving state
+-->
+<script lang="ts">
+  import { Progress } from "bits-ui";
+  import type { SaveStatus } from "$lib/utils/persistence-api";
+  import { fade } from "svelte/transition";
+  import IconCheck from "./icons/IconCheck.svelte";
+  import IconWarning from "./icons/IconWarning.svelte";
+  import IconCloudOff from "./icons/IconCloudOff.svelte";
+
+  interface Props {
+    status: SaveStatus;
+  }
+
+  let { status }: Props = $props();
+
+  // Auto-hide "saved" after 2 seconds
+  let showSaved = $state(false);
+
+  $effect(() => {
+    if (status === "saved") {
+      showSaved = true;
+      const timeout = setTimeout(() => {
+        showSaved = false;
+      }, 2000);
+      return () => clearTimeout(timeout);
+    } else {
+      showSaved = false;
+    }
+  });
+
+  const shouldShow = $derived(
+    status === "saving" ||
+      status === "error" ||
+      status === "offline" ||
+      (status === "saved" && showSaved),
+  );
+</script>
+
+{#if shouldShow}
+  <div class="save-status" transition:fade={{ duration: 150 }}>
+    {#if status === "saving"}
+      <Progress.Root
+        value={null}
+        class="progress-root"
+        aria-label="Saving layout"
+      >
+        <Progress.Indicator class="progress-indicator" />
+      </Progress.Root>
+      <span class="status-text">Saving...</span>
+    {:else if status === "saved"}
+      <IconCheck size={14} />
+      <span class="status-text">Saved</span>
+    {:else if status === "error"}
+      <IconWarning size={14} />
+      <span class="status-text error">Save failed</span>
+    {:else if status === "offline"}
+      <IconCloudOff size={14} />
+      <span class="status-text warning">Offline</span>
+    {/if}
+  </div>
+{/if}
+
+<style>
+  .save-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+
+  .status-text {
+    white-space: nowrap;
+  }
+
+  .status-text.error {
+    color: var(--color-error);
+  }
+
+  .status-text.warning {
+    color: var(--color-warning);
+  }
+
+  :global(.progress-root) {
+    width: 40px;
+    height: 3px;
+    background: var(--color-border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  :global(.progress-indicator) {
+    height: 100%;
+    width: 30%;
+    background: var(--color-primary);
+    border-radius: 2px;
+    animation: indeterminate 1.5s ease-in-out infinite;
+  }
+
+  @keyframes indeterminate {
+    0% {
+      transform: translateX(-100%);
+    }
+    50% {
+      transform: translateX(200%);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+</style>
+```
+
+#### Step 2: Commit
+
+```bash
+git add src/lib/components/SaveStatus.svelte
+git commit -m "feat: add SaveStatus component with bits-ui Progress"
+```
+
+---
+
+### Task 11: Create Start Screen Component
 
 **Files:**
 
 - Create: `src/lib/components/StartScreen.svelte`
 
-**Step 1: Create the component**
+#### Step 1: Create the component with Import support and fallback handling
 
 ```svelte
 <!--
   StartScreen - Layout selection and creation
   Shown on app launch when persistence is enabled
+  Includes: New Layout, Import from File, Saved Layouts list
+  Falls back gracefully if API unavailable
 -->
 <script lang="ts">
   import { onMount } from "svelte";
@@ -1130,32 +1618,48 @@ git commit -m "feat: implement persistence API client"
     listSavedLayouts,
     loadSavedLayout,
     deleteSavedLayout,
+    checkApiHealth,
     type SavedLayoutItem,
     PersistenceError,
   } from "$lib/utils/persistence-api";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
+  import { getImageStore } from "$lib/stores/images.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
+  import { openFilePicker } from "$lib/utils/file";
+  import { extractFolderArchive } from "$lib/utils/archive";
   import IconPlus from "$lib/components/icons/IconPlus.svelte";
   import IconTrash from "$lib/components/icons/IconTrash.svelte";
   import IconFolderOpen from "$lib/components/icons/IconFolderOpen.svelte";
+  import IconUpload from "$lib/components/icons/IconUpload.svelte";
+  import IconWarning from "$lib/components/icons/IconWarning.svelte";
 
   interface Props {
-    onClose: () => void;
+    onClose: (layoutId?: string) => void;
   }
 
   let { onClose }: Props = $props();
 
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
+  const imageStore = getImageStore();
 
   let layouts = $state<SavedLayoutItem[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
+  let apiAvailable = $state(true);
   let deletingId = $state<string | null>(null);
 
   onMount(async () => {
-    await loadLayouts();
+    // Check API health first
+    apiAvailable = await checkApiHealth();
+
+    if (apiAvailable) {
+      await loadLayouts();
+    } else {
+      loading = false;
+      error = null; // Not an error, just offline mode
+    }
   });
 
   async function loadLayouts() {
@@ -1174,11 +1678,17 @@ git commit -m "feat: implement persistence API client"
   }
 
   async function handleOpenLayout(item: SavedLayoutItem) {
+    // Don't allow opening invalid layouts
+    if (!item.valid) {
+      toastStore.error(`"${item.name}" is corrupted and cannot be opened`);
+      return;
+    }
+
     try {
       const layout = await loadSavedLayout(item.id);
       layoutStore.loadLayout(layout);
       toastStore.info(`Opened "${item.name}"`);
-      onClose();
+      onClose(item.id);
     } catch (e) {
       const message =
         e instanceof PersistenceError ? e.message : "Failed to open layout";
@@ -1188,8 +1698,7 @@ git commit -m "feat: implement persistence API client"
 
   async function handleDeleteLayout(item: SavedLayoutItem, event: MouseEvent) {
     event.stopPropagation();
-
-    if (deletingId) return; // Prevent double-delete
+    if (deletingId) return;
 
     deletingId = item.id;
 
@@ -1212,6 +1721,45 @@ git commit -m "feat: implement persistence API client"
     onClose();
   }
 
+  async function handleImportFile() {
+    const file = await openFilePicker();
+    if (!file) return;
+
+    try {
+      const { layout, images, failedImages } = await extractFolderArchive(file);
+
+      layoutStore.loadLayout(layout);
+
+      // Load images into image store
+      for (const [key, deviceImages] of images) {
+        if (deviceImages.front) {
+          imageStore.setImage(key, "front", deviceImages.front);
+        }
+        if (deviceImages.rear) {
+          imageStore.setImage(key, "rear", deviceImages.rear);
+        }
+      }
+
+      if (failedImages.length > 0) {
+        toastStore.warning(
+          `Imported with ${failedImages.length} missing images`,
+        );
+      } else {
+        toastStore.info(`Imported "${layout.name}"`);
+      }
+
+      onClose();
+    } catch (e) {
+      toastStore.error("Failed to import file");
+      console.error("Import failed:", e);
+    }
+  }
+
+  function handleContinueOffline() {
+    // Load from localStorage if available, otherwise start fresh
+    onClose();
+  }
+
   function formatDate(isoString: string): string {
     const date = new Date(isoString);
     return date.toLocaleDateString(undefined, {
@@ -1221,6 +1769,13 @@ git commit -m "feat: implement persistence API client"
       hour: "2-digit",
       minute: "2-digit",
     });
+  }
+
+  function formatCounts(item: SavedLayoutItem): string {
+    const racks = item.rackCount === 1 ? "1 rack" : `${item.rackCount} racks`;
+    const devices =
+      item.deviceCount === 1 ? "1 device" : `${item.deviceCount} devices`;
+    return `${racks}, ${devices}`;
   }
 </script>
 
@@ -1236,50 +1791,85 @@ git commit -m "feat: implement persistence API client"
         <IconPlus size={20} />
         <span>New Layout</span>
       </button>
+      <button class="action-btn secondary" onclick={handleImportFile}>
+        <IconUpload size={20} />
+        <span>Import File</span>
+      </button>
     </div>
 
-    <section class="saved-layouts">
-      <h2>
-        <IconFolderOpen size={18} />
-        Saved Layouts
-      </h2>
-
-      {#if loading}
-        <div class="loading">Loading...</div>
-      {:else if error}
-        <div class="error">{error}</div>
-      {:else if layouts.length === 0}
-        <div class="empty">
-          <p>No saved layouts yet.</p>
-          <p>Create a new layout to get started!</p>
+    {#if !apiAvailable}
+      <div class="offline-warning">
+        <IconWarning size={18} />
+        <div>
+          <strong>Persistence API unavailable</strong>
+          <p>
+            Working in offline mode. Changes will be saved to browser storage.
+          </p>
         </div>
-      {:else}
-        <ul class="layout-list">
-          {#each layouts as item (item.id)}
-            <li>
-              <button
-                class="layout-item"
-                onclick={() => handleOpenLayout(item)}
-                disabled={deletingId === item.id}
-              >
-                <div class="layout-info">
-                  <span class="layout-name">{item.name}</span>
-                  <span class="layout-date">{formatDate(item.updatedAt)}</span>
-                </div>
+        <button class="continue-btn" onclick={handleContinueOffline}>
+          Continue
+        </button>
+      </div>
+    {:else}
+      <section class="saved-layouts">
+        <h2>
+          <IconFolderOpen size={18} />
+          Saved Layouts
+        </h2>
+
+        {#if loading}
+          <div class="loading">Loading...</div>
+        {:else if error}
+          <div class="error">{error}</div>
+        {:else if layouts.length === 0}
+          <div class="empty">
+            <p>No saved layouts yet.</p>
+            <p>Create a new layout or import an existing file!</p>
+          </div>
+        {:else}
+          <ul class="layout-list">
+            {#each layouts as item (item.id)}
+              <li>
                 <button
-                  class="delete-btn"
-                  onclick={(e) => handleDeleteLayout(item, e)}
+                  class="layout-item"
+                  class:invalid={!item.valid}
+                  onclick={() => handleOpenLayout(item)}
                   disabled={deletingId === item.id}
-                  title="Delete layout"
                 >
-                  <IconTrash size={16} />
+                  <div class="layout-info">
+                    <span class="layout-name">
+                      {item.name}
+                      {#if !item.valid}
+                        <span class="error-badge" title="Corrupted file">
+                          <IconWarning size={14} />
+                        </span>
+                      {/if}
+                    </span>
+                    <span class="layout-meta">
+                      {#if item.valid}
+                        {formatCounts(item)} · {formatDate(item.updatedAt)}
+                      {:else}
+                        <span class="error-text">File corrupted</span> · {formatDate(
+                          item.updatedAt,
+                        )}
+                      {/if}
+                    </span>
+                  </div>
+                  <button
+                    class="delete-btn"
+                    onclick={(e) => handleDeleteLayout(item, e)}
+                    disabled={deletingId === item.id}
+                    title="Delete layout"
+                  >
+                    <IconTrash size={16} />
+                  </button>
                 </button>
-              </button>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </section>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+    {/if}
   </div>
 </div>
 
@@ -1295,7 +1885,7 @@ git commit -m "feat: implement persistence API client"
   }
 
   .start-screen-content {
-    max-width: 480px;
+    max-width: 520px;
     width: 100%;
     padding: var(--spacing-lg);
   }
@@ -1319,6 +1909,7 @@ git commit -m "feat: implement persistence API client"
   .actions {
     display: flex;
     justify-content: center;
+    gap: var(--spacing-md);
     margin-bottom: var(--spacing-xl);
   }
 
@@ -1344,6 +1935,45 @@ git commit -m "feat: implement persistence API client"
     background: var(--color-primary-hover);
   }
 
+  .action-btn.secondary {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+  }
+
+  .action-btn.secondary:hover {
+    background: var(--color-surface-hover);
+  }
+
+  .offline-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--color-warning-bg);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-xl);
+    color: var(--color-warning);
+  }
+
+  .offline-warning p {
+    margin: var(--spacing-xs) 0 0;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+  }
+
+  .continue-btn {
+    margin-left: auto;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-warning);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
   .saved-layouts h2 {
     display: flex;
     align-items: center;
@@ -1357,6 +1987,8 @@ git commit -m "feat: implement persistence API client"
     list-style: none;
     padding: 0;
     margin: 0;
+    max-height: 320px;
+    overflow-y: auto;
   }
 
   .layout-item {
@@ -1383,10 +2015,31 @@ git commit -m "feat: implement persistence API client"
     cursor: not-allowed;
   }
 
+  .layout-item.invalid {
+    border-color: var(--color-error);
+    background: var(--color-error-bg);
+    cursor: not-allowed;
+  }
+
+  .layout-item.invalid:hover {
+    border-color: var(--color-error);
+  }
+
+  .error-badge {
+    display: inline-flex;
+    color: var(--color-error);
+    margin-left: var(--spacing-xs);
+    vertical-align: middle;
+  }
+
+  .error-text {
+    color: var(--color-error);
+  }
+
   .layout-info {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-xs);
+    gap: 2px;
   }
 
   .layout-name {
@@ -1394,8 +2047,8 @@ git commit -m "feat: implement persistence API client"
     color: var(--color-text);
   }
 
-  .layout-date {
-    font-size: 0.875rem;
+  .layout-meta {
+    font-size: 0.8rem;
     color: var(--color-text-muted);
   }
 
@@ -1430,42 +2083,50 @@ git commit -m "feat: implement persistence API client"
 </style>
 ```
 
-**Step 2: Commit**
+#### Step 2: Commit
 
 ```bash
 git add src/lib/components/StartScreen.svelte
-git commit -m "feat: add StartScreen component for layout selection"
+git commit -m "feat: add StartScreen with import and offline fallback"
 ```
 
 ---
 
-### Task 10: Integrate Start Screen into App
+### Task 12: Integrate Persistence into App.svelte
 
 **Files:**
 
 - Modify: `src/App.svelte`
 
-**Step 1: Add imports and state**
+#### Step 1: Add imports
 
-Add these imports near the top of the script section (after existing imports):
+Add after existing imports:
 
 ```typescript
 import StartScreen from "$lib/components/StartScreen.svelte";
+import SaveStatus from "$lib/components/SaveStatus.svelte";
 import { isPersistenceAvailable } from "$lib/utils/persistence-config";
 import {
   saveLayoutToServer,
+  checkApiHealth,
+  type SaveStatus as SaveStatusType,
   PersistenceError,
 } from "$lib/utils/persistence-api";
 ```
 
-Add state variable after existing state declarations:
+#### Step 2: Add state variables
+
+Add after existing state declarations:
 
 ```typescript
-// Start screen state (only when persistence enabled)
+// Persistence state
 let showStartScreen = $state(isPersistenceAvailable());
+let currentLayoutId = $state<string | undefined>(undefined);
+let saveStatus = $state<SaveStatusType>("idle");
+let apiAvailable = $state(true);
 ```
 
-**Step 2: Add auto-save effect**
+#### Step 3: Add auto-save effect with status tracking
 
 Add after existing `$effect` blocks:
 
@@ -1473,63 +2134,155 @@ Add after existing `$effect` blocks:
 // Auto-save to server when persistence enabled
 $effect(() => {
   if (!isPersistenceAvailable()) return;
-  if (showStartScreen) return; // Don't save while on start screen
+  if (showStartScreen) return;
+  if (!apiAvailable) return;
 
   const layout = layoutStore.layout;
-  if (!layout.name) return; // Don't save unnamed layouts
+  if (!layout.name) return;
 
-  // Debounced save
+  // Debounced save with status tracking
+  saveStatus = "saving";
+
   const timeoutId = setTimeout(async () => {
     try {
-      await saveLayoutToServer(layout);
+      const newId = await saveLayoutToServer(layout, currentLayoutId);
+      currentLayoutId = newId;
+      saveStatus = "saved";
     } catch (e) {
-      // Silent fail for auto-save, user can manually save
       console.warn("Auto-save failed:", e);
+      if (e instanceof PersistenceError && e.statusCode === undefined) {
+        // Network error - API might be down
+        apiAvailable = false;
+        saveStatus = "offline";
+      } else {
+        saveStatus = "error";
+      }
     }
   }, 2000);
 
   return () => clearTimeout(timeoutId);
 });
+
+// Periodically check API health when offline
+$effect(() => {
+  if (!isPersistenceAvailable()) return;
+  if (apiAvailable) return;
+
+  const intervalId = setInterval(async () => {
+    const healthy = await checkApiHealth();
+    if (healthy) {
+      apiAvailable = true;
+      saveStatus = "idle";
+    }
+  }, 30000); // Check every 30 seconds
+
+  return () => clearInterval(intervalId);
+});
 ```
 
-**Step 3: Add StartScreen to template**
+#### Step 4: Update StartScreen handler
 
-Add at the very beginning of the template (before `<AnimationDefs />`):
+```typescript
+function handleStartScreenClose(layoutId?: string) {
+  currentLayoutId = layoutId;
+  showStartScreen = false;
+}
+```
+
+#### Step 5: Update template
+
+Add StartScreen conditional at the beginning:
 
 ```svelte
 {#if showStartScreen}
-  <StartScreen onClose={() => (showStartScreen = false)} />
+  <StartScreen onClose={handleStartScreenClose} />
 {:else}
-  <!-- Existing app content -->
-  <AnimationDefs />
-  <!-- ... rest of template ... -->
+  <!-- existing app content -->
 {/if}
 ```
 
-**Step 4: Commit**
+#### Step 6: Add SaveStatus to Toolbar area
+
+In the Toolbar section, add the SaveStatus component (in the right zone):
+
+```svelte
+<Toolbar ...existing props...>
+  <!-- Add in right zone slot if available, or modify Toolbar -->
+  {#if isPersistenceAvailable()}
+    <SaveStatus status={saveStatus} />
+  {/if}
+</Toolbar>
+```
+
+#### Step 7: Commit
 
 ```bash
 git add src/App.svelte
-git commit -m "feat: integrate StartScreen with persistence auto-save"
+git commit -m "feat: integrate persistence with StartScreen and SaveStatus"
+```
+
+---
+
+### Task 13: Update Toolbar for SaveStatus
+
+**Files:**
+
+- Modify: `src/lib/components/Toolbar.svelte`
+
+#### Step 1: Add SaveStatus slot/prop
+
+Add to Props interface:
+
+```typescript
+saveStatus?: SaveStatusType;
+```
+
+Add to props destructure:
+
+```typescript
+saveStatus,
+```
+
+#### Step 2: Add SaveStatus in right zone
+
+Add before the FileMenu in the right zone:
+
+```svelte
+{#if saveStatus}
+  <SaveStatus status={saveStatus} />
+{/if}
+```
+
+#### Step 3: Add import
+
+```typescript
+import SaveStatus from "./SaveStatus.svelte";
+import type { SaveStatus as SaveStatusType } from "$lib/utils/persistence-api";
+```
+
+#### Step 4: Commit
+
+```bash
+git add src/lib/components/Toolbar.svelte
+git commit -m "feat: add SaveStatus indicator to Toolbar"
 ```
 
 ---
 
 ## Phase 3: Docker Configuration
 
-### Task 11: Update nginx Configuration
+### Task 14: Update nginx Configuration
 
 **Files:**
 
 - Modify: `deploy/nginx.conf`
 
-**Step 1: Add API proxy location**
+#### Step 1: Add API and assets proxy
 
-Add this location block before the SPA fallback (`location /`):
+Add before the SPA fallback (`location /`):
 
 ```nginx
     # API proxy (when sidecar is running)
-    # Falls back gracefully if API is unavailable
     location /api/ {
         proxy_pass http://rackula-api:3001/api/;
         proxy_http_version 1.1;
@@ -1538,7 +2291,6 @@ Add this location block before the SPA fallback (`location /`):
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # Timeout settings
         proxy_connect_timeout 5s;
         proxy_send_timeout 30s;
         proxy_read_timeout 30s;
@@ -1548,22 +2300,21 @@ Add this location block before the SPA fallback (`location /`):
         error_page 502 503 504 = @api_unavailable;
     }
 
-    # API unavailable fallback
     location @api_unavailable {
         default_type application/json;
         return 503 '{"error": "Persistence API unavailable"}';
     }
 ```
 
-**Step 2: Update CSP header for API**
+#### Step 2: Update CSP header
 
-Update the `connect-src` directive to include API:
+Update `connect-src` to include `/api/`:
 
 ```nginx
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://t.racku.la https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://t.racku.la https://static.cloudflareinsights.com /api/; frame-ancestors 'self';" always;
+connect-src 'self' https://t.racku.la https://static.cloudflareinsights.com /api/;
 ```
 
-**Step 3: Commit**
+#### Step 3: Commit
 
 ```bash
 git add deploy/nginx.conf
@@ -1572,24 +2323,20 @@ git commit -m "feat: add API proxy configuration to nginx"
 
 ---
 
-### Task 12: Create Persistence Docker Compose Override
+### Task 15: Create Docker Compose Override
 
 **Files:**
 
 - Create: `docker-compose.persist.yml`
 
-**Step 1: Create the override file**
+#### Step 1: Create the override file
 
 ```yaml
 # Docker Compose override for persistent storage
 # Usage: docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
-#
-# This adds the API sidecar container for layout persistence.
-# Layouts are stored as YAML files in the ./data volume.
 
 services:
   rackula:
-    # Rebuild with persistence enabled
     build:
       context: .
       dockerfile: deploy/Dockerfile
@@ -1601,10 +2348,6 @@ services:
 
   rackula-api:
     image: ghcr.io/rackulalives/rackula-api:latest
-    # Or build locally:
-    # build:
-    #   context: ./api
-    #   dockerfile: Dockerfile
     container_name: rackula-api
     restart: unless-stopped
     stop_grace_period: 10s
@@ -1616,7 +2359,6 @@ services:
       - DATA_DIR=/data
       - PORT=3001
 
-    # Resource limits
     deploy:
       resources:
         limits:
@@ -1626,7 +2368,6 @@ services:
           cpus: "0.05"
           memory: 16M
 
-    # Security hardening
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1635,7 +2376,6 @@ services:
     tmpfs:
       - /tmp:size=5M
 
-    # Healthcheck
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3001/health"]
       interval: 30s
@@ -1643,19 +2383,17 @@ services:
       start_period: 5s
       retries: 3
 
-    # Logging
     logging:
       driver: json-file
       options:
         max-size: "5m"
         max-file: "2"
 
-    # Internal network only (nginx proxies)
     expose:
       - "3001"
 ```
 
-**Step 2: Commit**
+#### Step 2: Commit
 
 ```bash
 git add docker-compose.persist.yml
@@ -1664,206 +2402,74 @@ git commit -m "feat: add Docker Compose override for persistence"
 
 ---
 
-### Task 13: Update Vite Config for Persistence Flag
+### Task 16: Update Build Configuration
 
 **Files:**
 
 - Modify: `vite.config.ts`
-
-**Step 1: Add persistence environment variable**
-
-Find the `define` section and add:
-
-```typescript
-define: {
-  __BUILD_ENV__: JSON.stringify(mode),
-  // Persistence flag (default false for SaaS)
-  'import.meta.env.VITE_PERSIST_ENABLED': JSON.stringify(
-    process.env.VITE_PERSIST_ENABLED ?? 'false'
-  ),
-},
-```
-
-**Step 2: Commit**
-
-```bash
-git add vite.config.ts
-git commit -m "build: add VITE_PERSIST_ENABLED to vite config"
-```
-
----
-
-### Task 14: Update Dockerfile Build Args
-
-**Files:**
-
 - Modify: `deploy/Dockerfile`
 
-**Step 1: Add persistence build arg**
+#### Step 1: Update vite.config.ts
 
-Add after the existing build args:
+Add to `define` section:
+
+```typescript
+'import.meta.env.VITE_PERSIST_ENABLED': JSON.stringify(
+  process.env.VITE_PERSIST_ENABLED ?? 'false'
+),
+```
+
+#### Step 2: Update Dockerfile
+
+Add after existing build args:
 
 ```dockerfile
-# Persistence configuration (default: disabled for SaaS)
 ARG VITE_PERSIST_ENABLED=false
 ```
 
-**Step 2: Commit**
+#### Step 3: Commit
 
 ```bash
-git add deploy/Dockerfile
-git commit -m "build: add VITE_PERSIST_ENABLED build arg to Dockerfile"
+git add vite.config.ts deploy/Dockerfile
+git commit -m "build: add VITE_PERSIST_ENABLED configuration"
 ```
 
 ---
 
 ## Phase 4: Documentation
 
-### Task 15: Add Self-Hosting Documentation
+### Task 17: Add Self-Hosting Guide
 
 **Files:**
 
 - Create: `docs/guides/SELF-HOSTING.md`
 
-**Step 1: Create the documentation**
+Create comprehensive self-hosting documentation covering:
 
-````markdown
-# Self-Hosting Rackula with Persistent Storage
+- Quick start (with and without persistence)
+- Architecture diagram
+- Data directory structure
+- Environment variables
+- Security considerations
+- Troubleshooting
+- **Single-user design note**: Document that persistence is designed for single-user deployments (personal homelab tool). Multiple users editing concurrently will have last-write-wins behavior without warnings. For multi-user scenarios, recommend separate Rackula instances per user.
 
-This guide explains how to run Rackula with persistent layout storage using Docker.
-
-## Quick Start (Without Persistence)
-
-The default deployment is a lightweight static site with no server-side storage:
-
-```bash
-docker compose up -d
-```
-````
-
-Layouts are saved to browser localStorage and can be exported/imported as `.Rackula.zip` files.
-
-## With Persistent Storage
-
-For layouts that persist across browser sessions and devices:
-
-```bash
-# Create data directory
-mkdir -p data
-
-# Start with persistence enabled
-docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
-```
-
-This adds an API sidecar that stores layouts as YAML files in the `./data` directory.
-
-## Architecture
-
-```
-┌─────────────────┐     ┌─────────────────┐
-│   Browser SPA   │────▶│     nginx       │
-└─────────────────┘     │  (port 8080)    │
-                        └────────┬────────┘
-                                 │
-                    ┌────────────┴────────────┐
-                    │                         │
-              Static Files              /api/* proxy
-                    │                         │
-                    ▼                         ▼
-           /usr/share/nginx/html    ┌─────────────────┐
-                                    │  rackula-api    │
-                                    │  (port 3001)    │
-                                    └────────┬────────┘
-                                             │
-                                             ▼
-                                    ┌─────────────────┐
-                                    │   ./data/       │
-                                    │  (YAML files)   │
-                                    └─────────────────┘
-```
-
-## Data Directory Structure
-
-```
-data/
-├── my-homelab.yaml
-├── datacenter-rack-a.yaml
-└── assets/
-    └── my-homelab/
-        └── custom-device-123/
-            └── front.png
-```
-
-Layouts are stored as human-readable YAML files. You can:
-
-- Edit them directly with any text editor
-- Version control them with git
-- Back them up with standard tools
-
-## Environment Variables
-
-| Variable               | Default | Description                       |
-| ---------------------- | ------- | --------------------------------- |
-| `RACKULA_PORT`         | `8080`  | Port for the web interface        |
-| `VITE_PERSIST_ENABLED` | `false` | Enable persistence features       |
-| `DATA_DIR`             | `/data` | Storage directory (API container) |
-
-## Security Considerations
-
-- The API container runs as non-root
-- Read-only filesystem except for `/data` volume
-- No external network access required
-- All capabilities dropped
-
-## Troubleshooting
-
-### "Persistence API unavailable"
-
-Check if the API container is running:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.persist.yml ps
-docker compose -f docker-compose.yml -f docker-compose.persist.yml logs rackula-api
-```
-
-### Data not persisting
-
-Ensure the data directory has correct permissions:
-
-```bash
-ls -la data/
-# Should be writable by UID 1001
-```
-
-### Layout not appearing in list
-
-Check if the YAML file is valid:
-
-```bash
-cat data/your-layout.yaml | head -5
-# Should show: version, name, racks fields
-```
-
-````
-
-**Step 2: Commit**
+**Commit:**
 
 ```bash
 git add docs/guides/SELF-HOSTING.md
 git commit -m "docs: add self-hosting guide with persistence"
-````
+```
 
 ---
 
-### Task 16: Update Main README
+### Task 18: Update README
 
 **Files:**
 
 - Modify: `README.md`
 
-**Step 1: Add persistence section**
-
-Add after the existing Docker section:
+Add persistence section after Docker section:
 
 ````markdown
 ### Persistent Storage (Self-Hosted)
@@ -1880,7 +2486,7 @@ See [Self-Hosting Guide](docs/guides/SELF-HOSTING.md) for details.
 
 ````
 
-**Step 2: Commit**
+**Commit:**
 
 ```bash
 git add README.md
@@ -1889,50 +2495,17 @@ git commit -m "docs: add persistent storage section to README"
 
 ---
 
-## Phase 5: CI/CD Updates
+## Phase 5: CI/CD
 
-### Task 17: Add API Image Build to CI
+### Task 19: Add API Image Build to CI
 
 **Files:**
 
-- Modify: `.github/workflows/deploy-prod.yml` (or relevant workflow)
+- Modify: `.github/workflows/deploy-prod.yml`
 
-**Step 1: Add API build job**
+Add job to build and push the API image to GHCR.
 
-Add a job to build and push the API image:
-
-```yaml
-build-api:
-  runs-on: ubuntu-latest
-  permissions:
-    contents: read
-    packages: write
-  steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Login to GHCR
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Build and push API image
-      uses: docker/build-push-action@v6
-      with:
-        context: ./api
-        push: true
-        tags: |
-          ghcr.io/rackulalives/rackula-api:latest
-          ghcr.io/rackulalives/rackula-api:${{ github.ref_name }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-```
-
-**Step 2: Commit**
+**Commit:**
 
 ```bash
 git add .github/workflows/
@@ -1943,27 +2516,27 @@ git commit -m "ci: add API image build to deployment workflow"
 
 ## Summary
 
-This plan implements persistent storage for self-hosted Rackula deployments with:
+This plan implements persistent storage with the following improvements from architectural review:
 
-1. **API Sidecar** - Tiny Bun-based API (~20MB image) for CRUD operations
-2. **Filesystem Storage** - YAML files on disk, version-control friendly
-3. **Docker Compose Profiles** - Easy opt-in via compose override file
-4. **Start Screen** - Layout list and selection on app launch
-5. **Auto-save** - Debounced saves when layouts change
-6. **Graceful Degradation** - Works without API (falls back to localStorage)
-7. **Security Hardening** - Non-root, read-only, capability-dropped containers
+| Feature                | Implementation                                                      |
+| ---------------------- | ------------------------------------------------------------------- |
+| **Asset endpoints**    | `/api/assets/:layoutId/:deviceSlug/:face` for image upload/download |
+| **Save feedback**      | `SaveStatus.svelte` with bits-ui Progress for indeterminate state   |
+| **ID tracking**        | `currentLayoutId` state in App.svelte for rename handling           |
+| **Import support**     | "Import File" button on StartScreen                                 |
+| **List metadata**      | `rackCount` and `deviceCount` in API response                       |
+| **API fallback**       | Graceful degradation to localStorage when API unavailable           |
+| **Unicode support**    | UUID suffix for slugs when all-Unicode names produce empty results  |
+| **Corrupted files**    | Show with `valid: false` flag and error badge, block opening        |
+| **Single-user design** | Documented in self-hosting guide, last-write-wins without warnings  |
 
-**Deployment modes:**
-
-- `docker compose up` → Static SPA only (SaaS mode)
-- `docker compose -f ... -f docker-compose.persist.yml up` → With persistence
+**Total tasks:** 19
+**Estimated commits:** 19
 
 ---
 
-Plan complete and saved to `docs/plans/2026-01-20-persistent-storage-design.md`. Two execution options:
+Plan complete. Ready for execution?
 
-**1. Subagent-Driven (this session)** - I dispatch fresh subagent per task, review between tasks, fast iteration
+**1. Subagent-Driven (this session)** - Fresh subagent per task, review between tasks
 
-**2. Parallel Session (separate)** - Open new session with executing-plans, batch execution with checkpoints
-
-Which approach?
+**2. Parallel Session (separate)** - New session with executing-plans skill

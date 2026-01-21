@@ -1250,29 +1250,6 @@
           stroke-width="1.5"
         />
       </pattern>
-
-      <!-- Arrow symbol pointing to indicate device is on opposite face -->
-      <symbol id="blocked-arrow-icon" viewBox="0 0 16 16">
-        <!-- Horizontal line -->
-        <line
-          x1="2"
-          y1="8"
-          x2="14"
-          y2="8"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        />
-        <!-- Arrow head -->
-        <polyline
-          points="9,4 14,8 9,12"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          fill="none"
-        />
-      </symbol>
     </defs>
 
     <!-- Blocked Slots Overlay (renders before devices so devices appear on top) -->
@@ -1282,43 +1259,35 @@
       {@const slotY = (slot: { bottom: number; top: number }) =>
         (rack.height - slot.top) * U_HEIGHT}
       {@const slotWidth = RACK_WIDTH - 2 * RAIL_WIDTH}
-      {@const iconSize = 14}
       <g
         class="blocked-slots-layer"
         transform="translate(0, {RACK_PADDING + RAIL_WIDTH})"
       >
-        {#each blockedSlots as slot (slot.bottom + "-" + slot.top)}
+        {#each blockedSlots as slot (slot.bottom + "-" + slot.top + "-" + (slot.slotPosition ?? "full"))}
+          {@const slotX =
+            slot.slotPosition === "right"
+              ? RAIL_WIDTH + slotWidth / 2
+              : RAIL_WIDTH}
+          {@const slotW =
+            slot.slotPosition === "left" || slot.slotPosition === "right"
+              ? slotWidth / 2
+              : slotWidth}
           <!-- Background wash with improved opacity -->
           <rect
             class="blocked-slot blocked-slot-bg"
-            x={RAIL_WIDTH}
+            x={slotX}
             y={slotY(slot)}
-            width={slotWidth}
+            width={slotW}
             height={slotHeight(slot)}
           />
           <!-- Crosshatch pattern for accessibility (visual texture, not just color) -->
           <rect
             class="blocked-slot blocked-slot-pattern"
-            x={RAIL_WIDTH}
+            x={slotX}
             y={slotY(slot)}
-            width={slotWidth}
+            width={slotW}
             height={slotHeight(slot)}
             fill="url(#blocked-crosshatch-pattern)"
-          />
-          <!-- Directional arrow icon indicating device is on opposite face.
-               Arrow points right for front view (device on rear),
-               arrow points left for rear view (device on front).
-               Centered vertically in the blocked slot area. -->
-          <use
-            href="#blocked-arrow-icon"
-            class="blocked-slot-icon"
-            x={RAIL_WIDTH + slotWidth / 2 - iconSize / 2}
-            y={slotY(slot) + slotHeight(slot) / 2 - iconSize / 2}
-            width={iconSize}
-            height={iconSize}
-            transform={faceFilter === "rear"
-              ? `rotate(180, ${RAIL_WIDTH + slotWidth / 2}, ${slotY(slot) + slotHeight(slot) / 2})`
-              : ""}
           />
         {/each}
       </g>
@@ -1668,13 +1637,6 @@
   .blocked-slot-pattern {
     pointer-events: none;
     opacity: 0.9;
-  }
-
-  /* Arrow icon indicating device is on opposite face */
-  .blocked-slot-icon {
-    color: var(--colour-blocked-icon, rgba(239, 68, 68, 0.7));
-    pointer-events: none;
-    opacity: 0.85;
   }
 
   /* Party mode: rainbow glow animation */

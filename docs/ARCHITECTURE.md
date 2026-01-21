@@ -176,10 +176,10 @@ No legacy support or migration code. Features are implemented as if they're the 
 └─────────────────────────────────────────────────────────────┘
 ```
 
-| Environment | URL           | Trigger        | Use Case         |
-| ----------- | ------------- | -------------- | ---------------- |
-| Dev         | dev.racku.la  | Push to `main` | Preview, testing |
-| Prod        | app.racku.la  | Git tag `v*`   | Live users       |
+| Environment | URL          | Trigger        | Use Case         |
+| ----------- | ------------ | -------------- | ---------------- |
+| Dev         | dev.racku.la | Push to `main` | Preview, testing |
+| Prod        | app.racku.la | Git tag `v*`   | Live users       |
 
 ## Documentation Map
 
@@ -191,6 +191,15 @@ No legacy support or migration code. Features are implemented as if they're the 
 | `docs/guides/TESTING.md`            | Testing patterns and commands         |
 | `docs/guides/ACCESSIBILITY.md`      | A11y compliance checklist             |
 | `docs/planning/ROADMAP.md`          | Version planning and vision           |
+
+### Design Plans
+
+Active design documents for features in development:
+
+| Document                                                      | Purpose                                    |
+| ------------------------------------------------------------- | ------------------------------------------ |
+| `docs/plans/2026-01-20-device-metadata-persistence-design.md` | Device IP/notes persistence fix (#859)     |
+| `docs/plans/2026-01-20-persistent-storage-design.md`          | Self-hosted persistence API implementation |
 
 ## See Also
 
