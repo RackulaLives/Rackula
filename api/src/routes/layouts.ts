@@ -114,10 +114,10 @@ layouts.put("/:id", async (c) => {
 
     // saveLayout throws Error with message prefixes for validation failures
     if (error instanceof Error) {
-      if (error.message.startsWith("Invalid YAML:")) {
-        return c.json({ error: error.message }, 400);
-      }
-      if (error.message.startsWith("Invalid layout metadata:")) {
+      const isValidationError =
+        error.message.startsWith("Invalid YAML:") ||
+        error.message.startsWith("Invalid layout metadata:");
+      if (isValidationError) {
         return c.json({ error: error.message }, 400);
       }
     }
