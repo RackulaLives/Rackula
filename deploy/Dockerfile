@@ -10,6 +10,9 @@ ARG VITE_UMAMI_ENABLED=false
 ARG VITE_UMAMI_WEBSITE_ID
 ARG VITE_UMAMI_SCRIPT_URL
 
+# Persistence feature flag (server-side storage)
+ARG VITE_PERSIST_ENABLED=false
+
 # Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install -g npm@11
