@@ -1,6 +1,11 @@
 /**
  * Share URL Encoding/Decoding
  * Converts Layout <-> MinimalLayout <-> compressed base64url string
+ *
+ * Position handling:
+ * - Internal state uses internal units (1/6U): position 9 = U1.5
+ * - Share links use human U-values for readability: position 1.5 = U1.5
+ * - Conversion happens on encode (internal→U) and decode (U→internal)
  */
 
 import pako from "pako";
@@ -15,6 +20,7 @@ import {
 } from "$lib/schemas/share";
 import { generateId } from "./device";
 import { createDefaultRack } from "./serialization";
+import { toHumanUnits, toInternalUnits } from "./position";
 
 // =============================================================================
 // Helper Functions
@@ -68,10 +74,10 @@ export function toMinimalLayout(layout: Layout): MinimalLayout {
       x: CATEGORY_TO_ABBREV[deviceType.category] ?? "o",
     }));
 
-  // Convert devices
+  // Convert devices (position: internal units → human U-values for URL readability)
   const devices: MinimalDevice[] = rack.devices.map((d) => ({
     t: d.device_type,
-    p: d.position,
+    p: toHumanUnits(d.position),
     f: d.face,
     ...(d.name ? { n: d.name } : {}),
   }));
@@ -104,11 +110,11 @@ export function fromMinimalLayout(minimal: MinimalLayout): Layout {
     category: ABBREV_TO_CATEGORY[dt.x] ?? "other",
   }));
 
-  // Convert devices with generated UUIDs
+  // Convert devices with generated UUIDs (position: human U-values → internal units)
   const devices: PlacedDevice[] = minimal.r.d.map((d) => ({
     id: generateId(),
     device_type: d.t,
-    position: d.p,
+    position: toInternalUnits(d.p),
     face: d.f,
     ...(d.n ? { name: d.n } : {}),
   }));

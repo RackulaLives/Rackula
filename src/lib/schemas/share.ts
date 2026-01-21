@@ -64,12 +64,14 @@ export const ABBREV_TO_CATEGORY: Record<string, DeviceCategory> =
 
 /**
  * Minimal device placement schema
+ * Position accepts decimals for legacy share links (pre-0.7.0 used U-values like 1.5)
+ * Modern share links use U-values for human readability, converted on encode/decode
  */
 export const MinimalDeviceSchema = z.object({
   /** device_type slug */
   t: z.string(),
-  /** position (1-indexed U) */
-  p: z.number().int().min(1),
+  /** position in U (accepts decimals for half-U positions like 1.5) */
+  p: z.number().min(0.5),
   /** face */
   f: z.enum(["front", "rear", "both"]),
   /** custom name (optional) */

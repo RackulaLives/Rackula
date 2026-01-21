@@ -550,9 +550,10 @@ export const PlacedDeviceSchema = z
     id: z.string().min(1, "ID is required"),
     device_type: SlugSchema,
     name: z.string().max(100, "Name must be 100 characters or less").optional(),
-    // Position is 1-indexed for rack-level, 0-indexed for container children
-    // Validation: min 0 to allow container children, superRefine validates rack-level >= 1
-    position: z.number().int().min(0, "Position must be non-negative"),
+    // Position accepts decimals on input for legacy migration (pre-0.7.0 files use U-values like 1.5)
+    // Migration in LayoutSchemaBase.transform converts to internal units using Math.round()
+    // Container children use 0-indexed positions, rack-level must be >= 0.5 (validated by refine)
+    position: z.number().min(0, "Position must be non-negative"),
     face: DeviceFaceSchema,
     slot_position: SlotPositionSchema.optional(),
 
@@ -602,14 +603,16 @@ export const PlacedDeviceSchema = z
   )
   .refine(
     (data) => {
-      // Rack-level devices (no container_id) must have position >= 1
-      if (!data.container_id && data.position < 1) {
+      // Rack-level devices (no container_id) must have position >= 0.5
+      // (allows half-U positions at bottom of rack in legacy files)
+      // After migration, positions become internal units (>= 3 for 0.5U)
+      if (!data.container_id && data.position < 0.5) {
         return false;
       }
       return true;
     },
     {
-      message: "Rack-level device position must be at least 1",
+      message: "Rack-level device position must be at least 0.5",
       path: ["position"],
     },
   );
