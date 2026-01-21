@@ -283,6 +283,7 @@
         deviceTypes,
         previewOptions,
         images,
+        rackGroups,
       );
       const width = parseInt(svg.getAttribute("width") || "0", 10);
       const height = parseInt(svg.getAttribute("height") || "0", 10);
