@@ -43,7 +43,7 @@ services:
       - /tmp:size=5M
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       start_period: 5s
