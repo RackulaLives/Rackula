@@ -1309,6 +1309,7 @@
     <ExportDialog
       open={exportDialogOpen}
       racks={layoutStore.racks}
+      rackGroups={layoutStore.rack_groups}
       deviceTypes={layoutStore.device_types}
       images={imageStore.getAllImages()}
       displayMode={uiStore.displayMode}

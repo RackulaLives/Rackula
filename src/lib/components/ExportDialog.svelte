@@ -6,6 +6,7 @@
 <script lang="ts">
   import type {
     Rack,
+    RackGroup,
     ExportFormat,
     ExportBackground,
     ExportOptions,
@@ -21,9 +22,28 @@
   import { analytics } from "$lib/utils/analytics";
   import { SvelteSet } from "svelte/reactivity";
 
+  /**
+   * Represents a selectable item in the export dialog.
+   * Can be either a standalone rack or a bayed rack group.
+   */
+  interface SelectableItem {
+    /** Unique identifier (rack ID for standalone, group ID for groups) */
+    id: string;
+    /** Display name */
+    name: string;
+    /** Height display (e.g., "42U" or "42U × 3-bay") */
+    heightDisplay: string;
+    /** All rack IDs included in this item */
+    rackIds: string[];
+    /** Whether this is a bayed group */
+    isBayedGroup: boolean;
+  }
+
   interface Props {
     open: boolean;
     racks: Rack[];
+    /** Rack groups for bayed rack consolidation */
+    rackGroups?: RackGroup[];
     deviceTypes: DeviceType[];
     images?: ImageStoreMap;
     displayMode?: DisplayMode;
@@ -43,6 +63,7 @@
   let {
     open,
     racks,
+    rackGroups = [],
     deviceTypes,
     images,
     displayMode = "label",
@@ -65,11 +86,62 @@
   let transparent = $state(false);
   let includeQR = $state(false);
 
-  // Rack selection state (for multi-rack export)
+  // Rack selection state (stores rack IDs, not item IDs)
   let selectedRacks = new SvelteSet<string>();
 
   // Preview pagination state (for 4+ racks)
   let previewIndex = $state(0);
+
+  // Build selectable items: consolidate bayed groups, keep standalone racks separate
+  const selectableItems = $derived.by((): SelectableItem[] => {
+    const items: SelectableItem[] = [];
+    const racksInGroups = new SvelteSet<string>();
+
+    // Get bayed groups only (layout_preset === 'bayed')
+    const bayedGroups = rackGroups.filter((g) => g.layout_preset === "bayed");
+
+    // Add bayed groups as single selectable items
+    for (const group of bayedGroups) {
+      const groupRacks = group.rack_ids
+        .map((id) => racks.find((r) => r.id === id))
+        .filter((r): r is Rack => r !== undefined);
+
+      if (groupRacks.length === 0) continue;
+
+      // Mark these racks as belonging to a group
+      for (const rackId of group.rack_ids) {
+        racksInGroups.add(rackId);
+      }
+
+      // Use group name if available, otherwise first rack's name
+      const displayName = group.name || groupRacks[0]!.name;
+      const height = groupRacks[0]!.height;
+      const bayCount = groupRacks.length;
+
+      items.push({
+        id: group.id,
+        name: displayName,
+        heightDisplay: `${height}U × ${bayCount}-bay`,
+        rackIds: group.rack_ids,
+        isBayedGroup: true,
+      });
+    }
+
+    // Add standalone racks (not part of any bayed group)
+    for (const rack of racks) {
+      if (!racksInGroups.has(rack.id)) {
+        items.push({
+          id: rack.id,
+          name: rack.name,
+          heightDisplay: `${rack.height}U`,
+          rackIds: [rack.id],
+          isBayedGroup: false,
+        });
+      }
+    }
+
+    return items;
+  });
 
   // Initialize rack selection when dialog opens or selectedRackIds changes
   $effect(() => {
@@ -94,12 +166,30 @@
   // Computed: Can include QR code (when QR code data URL is available and not CSV)
   const canIncludeQR = $derived(!isCSV && !!qrCodeDataUrl);
 
-  // Computed: Show rack selection (only when 2+ racks)
-  const showRackSelection = $derived(racks.length >= 2);
+  // Computed: Show rack selection (only when 2+ selectable items)
+  const showRackSelection = $derived(selectableItems.length >= 2);
 
   // Computed: Selected racks array (ordered by position)
   const selectedRacksArray = $derived(
     racks.filter((r) => selectedRacks.has(r.id)),
+  );
+
+  // Check if a selectable item is fully selected (all its racks are selected)
+  function isItemSelected(item: SelectableItem): boolean {
+    return item.rackIds.every((id) => selectedRacks.has(id));
+  }
+
+  // Check if a selectable item is partially selected (some but not all racks selected)
+  function isItemPartiallySelected(item: SelectableItem): boolean {
+    const selectedCount = item.rackIds.filter((id) =>
+      selectedRacks.has(id),
+    ).length;
+    return selectedCount > 0 && selectedCount < item.rackIds.length;
+  }
+
+  // Count of selected items (for select all/deselect all button state)
+  const selectedItemsCount = $derived(
+    selectableItems.filter((item) => isItemSelected(item)).length,
   );
 
   // Computed: Will export as multi-file (ZIP for images, multi-page for PDF)
@@ -231,21 +321,30 @@
     }
   }
 
-  // Rack selection helpers
-  function toggleRack(rackId: string) {
-    if (selectedRacks.has(rackId)) {
-      selectedRacks.delete(rackId);
+  // Selectable item toggle - toggles all racks in the item
+  function toggleItem(item: SelectableItem) {
+    if (isItemSelected(item)) {
+      // Deselect all racks in this item
+      for (const rackId of item.rackIds) {
+        selectedRacks.delete(rackId);
+      }
     } else {
-      selectedRacks.add(rackId);
+      // Select all racks in this item
+      for (const rackId of item.rackIds) {
+        selectedRacks.add(rackId);
+      }
     }
   }
 
-  function selectAllRacks() {
-    selectedRacks = new SvelteSet(racks.map((r) => r.id));
+  function selectAllItems() {
+    selectedRacks.clear();
+    for (const rack of racks) {
+      selectedRacks.add(rack.id);
+    }
   }
 
-  function deselectAllRacks() {
-    selectedRacks = new SvelteSet();
+  function deselectAllItems() {
+    selectedRacks.clear();
   }
 
   // Preview pagination
@@ -288,7 +387,7 @@
         models, and categories.
       </p>
     {:else}
-      <!-- Rack Selection (for 2+ racks) -->
+      <!-- Rack Selection (for 2+ selectable items) -->
       {#if showRackSelection}
         <div class="form-group rack-selection">
           <div class="rack-selection-header">
@@ -297,8 +396,8 @@
               <button
                 type="button"
                 class="btn-link"
-                onclick={selectAllRacks}
-                disabled={selectedRacks.size === racks.length}
+                onclick={selectAllItems}
+                disabled={selectedItemsCount === selectableItems.length}
               >
                 Select All
               </button>
@@ -306,7 +405,7 @@
               <button
                 type="button"
                 class="btn-link"
-                onclick={deselectAllRacks}
+                onclick={deselectAllItems}
                 disabled={selectedRacks.size === 0}
               >
                 Deselect All
@@ -314,15 +413,16 @@
             </div>
           </div>
           <div class="rack-checklist">
-            {#each racks as rack (rack.id)}
-              <label class="rack-item">
+            {#each selectableItems as item (item.id)}
+              <label class="rack-item" class:bayed-group={item.isBayedGroup}>
                 <input
                   type="checkbox"
-                  checked={selectedRacks.has(rack.id)}
-                  onchange={() => toggleRack(rack.id)}
+                  checked={isItemSelected(item)}
+                  indeterminate={isItemPartiallySelected(item)}
+                  onchange={() => toggleItem(item)}
                 />
-                <span class="rack-name">{rack.name}</span>
-                <span class="rack-height">{rack.height}U</span>
+                <span class="rack-name">{item.name}</span>
+                <span class="rack-height">{item.heightDisplay}</span>
               </label>
             {/each}
           </div>
@@ -617,6 +717,18 @@
     font-size: var(--font-size-xs);
     color: var(--colour-text-muted);
     flex-shrink: 0;
+  }
+
+  /* Bayed group indicator */
+  .rack-item.bayed-group .rack-name::before {
+    content: "";
+    display: inline-block;
+    width: var(--space-1-5);
+    height: var(--space-1-5);
+    background: var(--colour-selection);
+    border-radius: 50%;
+    margin-right: var(--space-1-5);
+    vertical-align: middle;
   }
 
   /* Info message */
