@@ -458,12 +458,6 @@ services:
 
 **Symptom:** Changes appear lost after refresh.
 
-**Check persistence is enabled:**
-
-1. Open browser DevTools (F12)
-2. Look for API calls to `/api/layouts/*` in Network tab
-3. If no API calls, the SPA was built without `VITE_PERSIST_ENABLED=true`
-
 **Verify persistence is working:**
 
 1. Open browser DevTools (F12) → Network tab

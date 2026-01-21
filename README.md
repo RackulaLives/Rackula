@@ -72,7 +72,7 @@ For layouts that persist across sessions, clone and build with persistence enabl
 
 ```bash
 git clone https://github.com/RackulaLives/Rackula.git
-cd rackula
+cd Rackula
 mkdir -p data
 # Edit docker-compose.yml: uncomment 'build' section, comment out 'image'
 docker compose --profile persist up -d --build
