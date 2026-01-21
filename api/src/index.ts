@@ -39,7 +39,9 @@ app.onError((err, c) => {
 });
 
 // Startup
-const port = parseInt(process.env.PORT ?? "3001", 10);
+const DEFAULT_PORT = 3001;
+const parsedPort = parseInt(process.env.PORT ?? String(DEFAULT_PORT), 10);
+const port = Number.isNaN(parsedPort) ? DEFAULT_PORT : parsedPort;
 
 await ensureDataDir();
 
