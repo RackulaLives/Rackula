@@ -48,6 +48,8 @@ services:
     stop_grace_period: 10s
 
     volumes:
+      # Note: Host directory must be writable by container user (uid 1001)
+      # Run: mkdir -p ./data && sudo chown 1001:1001 ./data
       - ./data:/data
 
     environment:
