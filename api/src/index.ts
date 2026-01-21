@@ -17,7 +17,7 @@ app.use(
   "*",
   cors({
     origin: process.env.CORS_ORIGIN || "*",
-    allowMethods: ["GET", "PUT", "DELETE", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type"],
   }),
 );
@@ -48,5 +48,5 @@ console.log(`Data directory: ${process.env.DATA_DIR ?? "/data"}`);
 
 export default {
   port,
-  fetch: app.fetch,
+  fetch: app.fetch.bind(app),
 };
