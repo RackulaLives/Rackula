@@ -5,6 +5,7 @@
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
   import ImageUpload from "./ImageUpload.svelte";
+  import Switch from "./Switch.svelte";
   import type { DeviceCategory } from "$lib/types";
   import type { ImageData } from "$lib/types/images";
   import {
@@ -247,33 +248,23 @@
     </div>
 
     <!-- Depth toggle (#241) -->
-    <div class="form-group toggle-group">
-      <label class="toggle-label">
-        <input
-          type="checkbox"
-          id="device-full-depth"
-          bind:checked={isFullDepth}
-          class="toggle-input"
-        />
-        <span class="toggle-switch"></span>
-        <span class="toggle-text">Full Depth</span>
-      </label>
-      <span class="helper-text">Occupies both front and rear rack faces</span>
+    <div class="form-group">
+      <Switch
+        id="device-full-depth"
+        bind:checked={isFullDepth}
+        label="Full Depth"
+        helperText="Occupies both front and rear rack faces"
+      />
     </div>
 
     <!-- Half-width toggle (#833) -->
-    <div class="form-group toggle-group">
-      <label class="toggle-label">
-        <input
-          type="checkbox"
-          id="device-half-width"
-          bind:checked={isHalfWidth}
-          class="toggle-input"
-        />
-        <span class="toggle-switch"></span>
-        <span class="toggle-text">Half Width</span>
-      </label>
-      <span class="helper-text">Occupies left or right half of rack width</span>
+    <div class="form-group">
+      <Switch
+        id="device-half-width"
+        bind:checked={isHalfWidth}
+        label="Half Width"
+        helperText="Occupies left or right half of rack width"
+      />
     </div>
 
     <!-- Image uploads (v0.1.0) -->
@@ -453,72 +444,5 @@
 
   .btn-primary:hover {
     background: var(--colour-selection-hover);
-  }
-
-  /* Toggle switch styles (#241) */
-  .toggle-group {
-    gap: var(--space-1);
-  }
-
-  .toggle-label {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    cursor: pointer;
-    user-select: none;
-  }
-
-  .toggle-input {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-
-  .toggle-switch {
-    position: relative;
-    width: 40px;
-    height: 22px;
-    background: var(--colour-surface-active);
-    border-radius: var(--radius-full);
-    transition: background var(--duration-fast) var(--ease-out);
-    flex-shrink: 0;
-  }
-
-  .toggle-switch::after {
-    content: "";
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 18px;
-    height: 18px;
-    background: var(--colour-text-muted);
-    border-radius: 50%;
-    transition: all var(--duration-fast) var(--ease-out);
-  }
-
-  .toggle-input:checked + .toggle-switch {
-    background: var(--colour-selection);
-  }
-
-  .toggle-input:checked + .toggle-switch::after {
-    transform: translateX(18px);
-    background: white;
-  }
-
-  .toggle-input:focus-visible + .toggle-switch {
-    outline: 2px solid var(--colour-focus-ring);
-    outline-offset: 2px;
-  }
-
-  .toggle-text {
-    font-weight: var(--font-weight-medium);
-    color: var(--colour-text);
-  }
-
-  .helper-text {
-    font-size: var(--font-size-sm);
-    color: var(--colour-text-muted);
-    margin-left: calc(40px + var(--space-2));
   }
 </style>
