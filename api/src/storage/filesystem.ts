@@ -182,17 +182,21 @@ export async function saveLayout(
 
   const filePath = join(DATA_DIR, `${newId}.yaml`);
 
-  // Check if this is a new layout
+  // Atomically determine if this is a new file by attempting exclusive create
+  // This avoids a TOCTOU race condition from stat() + writeFile()
   let isNew = true;
   try {
-    await stat(filePath);
-    isNew = false;
-  } catch {
-    // File doesn't exist, it's new
+    // Try exclusive create (fails if file exists)
+    await writeFile(filePath, yamlContent, { encoding: "utf-8", flag: "wx" });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+      // File exists, overwrite it
+      isNew = false;
+      await writeFile(filePath, yamlContent, "utf-8");
+    } else {
+      throw err;
+    }
   }
-
-  // Write first, then delete old file to prevent data loss if write fails
-  await writeFile(filePath, yamlContent, "utf-8");
 
   // If updating and the ID changed (name changed), delete the old file
   if (existingId && existingId !== newId) {
