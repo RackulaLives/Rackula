@@ -79,6 +79,7 @@ export function getContentTypeFromExt(ext: string): string {
     case "webp":
       return "image/webp";
     default:
+      console.warn(`Unknown extension for content type lookup: ${ext}`);
       return "application/octet-stream";
   }
 }
