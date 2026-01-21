@@ -22,6 +22,12 @@
 
   let { status }: Props = $props();
 
+  // Respect user's reduced motion preference
+  const prefersReducedMotion =
+    typeof window !== "undefined"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false;
+
   // Auto-hide "saved" after 2 seconds
   // Note: This uses $effect with setTimeout intentionally - it's imperative
   // timing logic that cannot be expressed as $derived
@@ -48,7 +54,25 @@
 </script>
 
 {#if shouldShow}
-  <div class="save-status" transition:fade={{ duration: 150 }}>
+  <div
+    class="save-status"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+    transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
+  >
+    <!-- Screen reader announcement -->
+    <span class="sr-only">
+      {#if status === "saving"}
+        Saving layout
+      {:else if status === "saved"}
+        Layout saved
+      {:else if status === "error"}
+        Save failed
+      {:else if status === "offline"}
+        Working offline
+      {/if}
+    </span>
     {#if status === "saving"}
       <Progress.Root
         value={null}
@@ -72,6 +96,19 @@
 {/if}
 
 <style>
+  /* Visually hidden but accessible to screen readers */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   .save-status {
     display: flex;
     align-items: center;
