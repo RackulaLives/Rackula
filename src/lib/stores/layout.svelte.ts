@@ -2186,13 +2186,13 @@ function updateDeviceIpRaw(
     devices: rack.devices.map((d, i) => {
       if (i !== index) return d;
 
-      // Handle custom_fields object lifecycle
-      const currentCustomFields = d.custom_fields;
+      // Handle custom_fields object lifecycle - default to empty object for safe spreading
+      const currentCustomFields = d.custom_fields ?? {};
 
       if (normalizedIp === undefined) {
         // Removing IP - clean up custom_fields if it becomes empty
-        if (!currentCustomFields || !currentCustomFields.ip) {
-          return d; // No change needed
+        if (!Object.prototype.hasOwnProperty.call(currentCustomFields, "ip")) {
+          return d; // No change needed - IP doesn't exist
         }
         const { ip: _ip, ...restFields } = currentCustomFields;
         // If no other custom fields, set to undefined rather than empty object

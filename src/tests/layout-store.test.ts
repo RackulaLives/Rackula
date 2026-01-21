@@ -4,6 +4,26 @@ import { getImageStore, resetImageStore } from "$lib/stores/images.svelte";
 import type { Layout } from "$lib/types";
 import { VERSION } from "$lib/version";
 import { toInternalUnits } from "$lib/utils/position";
+import { createTestDeviceType } from "./factories";
+
+/**
+ * Helper to set up a store with a rack and a placed device.
+ * Returns the store, rack ID, and device slug for test assertions.
+ */
+function setupStoreWithDevice() {
+  const store = getLayoutStore();
+  const rack = store.addRack("Test Rack", 42);
+  const deviceType = createTestDeviceType({
+    slug: "generic-server",
+    model: "Generic Server",
+    u_height: 2,
+    category: "server",
+    colour: "#4A90D9",
+  });
+  store.addDeviceTypeRaw(deviceType);
+  store.placeDevice(rack!.id, deviceType.slug, 5);
+  return { store, rackId: rack!.id, deviceSlug: deviceType.slug };
+}
 
 describe("Layout Store", () => {
   beforeEach(() => {
@@ -942,104 +962,56 @@ describe("Layout Store", () => {
 
   describe("updateDeviceNotes", () => {
     it("updates placed device notes", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
 
       // Device should not have notes initially
       expect(store.rack.devices[0]!.notes).toBeUndefined();
 
       // Set notes
-      store.updateDeviceNotes(rack!.id, 0, "Production database server");
+      store.updateDeviceNotes(rackId, 0, "Production database server");
       expect(store.rack.devices[0]!.notes).toBe("Production database server");
     });
 
     it("clears notes when set to undefined", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
 
       // Set notes first
-      store.updateDeviceNotes(rack!.id, 0, "Production database server");
+      store.updateDeviceNotes(rackId, 0, "Production database server");
       expect(store.rack.devices[0]!.notes).toBe("Production database server");
 
       // Clear notes
-      store.updateDeviceNotes(rack!.id, 0, undefined);
+      store.updateDeviceNotes(rackId, 0, undefined);
       expect(store.rack.devices[0]!.notes).toBeUndefined();
     });
 
     it("clears notes when set to empty string", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
 
-      store.updateDeviceNotes(rack!.id, 0, "Some notes");
-      store.updateDeviceNotes(rack!.id, 0, "");
+      store.updateDeviceNotes(rackId, 0, "Some notes");
+      store.updateDeviceNotes(rackId, 0, "");
       expect(store.rack.devices[0]!.notes).toBeUndefined();
     });
 
     it("trims whitespace-only notes to undefined", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
 
-      store.updateDeviceNotes(rack!.id, 0, "   ");
+      store.updateDeviceNotes(rackId, 0, "   ");
       expect(store.rack.devices[0]!.notes).toBeUndefined();
     });
 
     it("sets isDirty to true", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
       store.markClean();
 
-      store.updateDeviceNotes(rack!.id, 0, "Some notes");
+      store.updateDeviceNotes(rackId, 0, "Some notes");
       expect(store.isDirty).toBe(true);
     });
 
     it("supports undo/redo for notes changes", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
 
       // Set notes
-      store.updateDeviceNotes(rack!.id, 0, "Production server notes");
+      store.updateDeviceNotes(rackId, 0, "Production server notes");
       expect(store.rack.devices[0]!.notes).toBe("Production server notes");
 
       // Undo should restore undefined
@@ -1054,124 +1026,68 @@ describe("Layout Store", () => {
 
   describe("updateDeviceIp", () => {
     it("updates placed device IP address", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
 
       // Device should not have IP initially
       expect(store.rack.devices[0]!.custom_fields?.ip).toBeUndefined();
 
       // Set IP
-      store.updateDeviceIp(rack!.id, 0, "192.168.1.100");
+      store.updateDeviceIp(rackId, 0, "192.168.1.100");
       expect(store.rack.devices[0]!.custom_fields?.ip).toBe("192.168.1.100");
     });
 
     it("supports hostname values", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
 
-      store.updateDeviceIp(rack!.id, 0, "db-primary.local");
+      store.updateDeviceIp(rackId, 0, "db-primary.local");
       expect(store.rack.devices[0]!.custom_fields?.ip).toBe("db-primary.local");
     });
 
     it("clears IP when set to undefined", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
 
       // Set IP first
-      store.updateDeviceIp(rack!.id, 0, "192.168.1.100");
+      store.updateDeviceIp(rackId, 0, "192.168.1.100");
       expect(store.rack.devices[0]!.custom_fields?.ip).toBe("192.168.1.100");
 
       // Clear IP
-      store.updateDeviceIp(rack!.id, 0, undefined);
+      store.updateDeviceIp(rackId, 0, undefined);
       expect(store.rack.devices[0]!.custom_fields?.ip).toBeUndefined();
     });
 
     it("clears IP when set to empty string", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
 
-      store.updateDeviceIp(rack!.id, 0, "192.168.1.100");
-      store.updateDeviceIp(rack!.id, 0, "");
+      store.updateDeviceIp(rackId, 0, "192.168.1.100");
+      store.updateDeviceIp(rackId, 0, "");
       expect(store.rack.devices[0]!.custom_fields?.ip).toBeUndefined();
     });
 
     it("removes empty custom_fields object when clearing last field", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
 
       // Set IP which creates custom_fields
-      store.updateDeviceIp(rack!.id, 0, "192.168.1.100");
+      store.updateDeviceIp(rackId, 0, "192.168.1.100");
       expect(store.rack.devices[0]!.custom_fields).toBeDefined();
 
       // Clear IP should remove empty custom_fields
-      store.updateDeviceIp(rack!.id, 0, undefined);
+      store.updateDeviceIp(rackId, 0, undefined);
       expect(store.rack.devices[0]!.custom_fields).toBeUndefined();
     });
 
     it("sets isDirty to true", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
       store.markClean();
 
-      store.updateDeviceIp(rack!.id, 0, "192.168.1.100");
+      store.updateDeviceIp(rackId, 0, "192.168.1.100");
       expect(store.isDirty).toBe(true);
     });
 
     it("supports undo/redo for IP changes", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
 
       // Set IP
-      store.updateDeviceIp(rack!.id, 0, "192.168.1.100");
+      store.updateDeviceIp(rackId, 0, "192.168.1.100");
       expect(store.rack.devices[0]!.custom_fields?.ip).toBe("192.168.1.100");
 
       // Undo should restore undefined
@@ -1184,19 +1100,11 @@ describe("Layout Store", () => {
     });
 
     it("preserves IP through multiple updates with undo", () => {
-      const store = getLayoutStore();
-      const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
-      store.placeDevice(rack!.id, deviceType.slug, 5);
+      const { store, rackId } = setupStoreWithDevice();
 
-      store.updateDeviceIp(rack!.id, 0, "192.168.1.1");
-      store.updateDeviceIp(rack!.id, 0, "192.168.1.2");
-      store.updateDeviceIp(rack!.id, 0, "192.168.1.3");
+      store.updateDeviceIp(rackId, 0, "192.168.1.1");
+      store.updateDeviceIp(rackId, 0, "192.168.1.2");
+      store.updateDeviceIp(rackId, 0, "192.168.1.3");
 
       expect(store.rack.devices[0]!.custom_fields?.ip).toBe("192.168.1.3");
 

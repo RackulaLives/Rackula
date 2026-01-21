@@ -482,6 +482,10 @@
     if (selectedDeviceInfo && currentRackId) {
       const trimmedNotes = deviceNotes.trim();
       const notesToSave = trimmedNotes === "" ? undefined : trimmedNotes;
+      const existingNotes = selectedDeviceInfo.placedDevice.notes;
+
+      // Only update if value changed to avoid no-op history entries
+      if (notesToSave === existingNotes) return;
 
       // Use the dedicated function with undo/redo support
       layoutStore.updateDeviceNotes(
@@ -504,6 +508,10 @@
     if (selectedDeviceInfo && currentRackId) {
       const trimmedIp = deviceIp.trim();
       const ipToSave = trimmedIp === "" ? undefined : trimmedIp;
+      const existingIp = selectedDeviceInfo.placedDevice.custom_fields?.ip;
+
+      // Only update if value changed to avoid no-op history entries
+      if (ipToSave === existingIp) return;
 
       // Use the dedicated function with undo/redo support
       layoutStore.updateDeviceIp(
