@@ -18,8 +18,13 @@ import {
 
 describe("fitAll with multiple racks", () => {
   it("calculates positions for two 42U racks", () => {
-    const rack1 = createTestRack({ height: 42, width: 19 });
-    const rack2 = createTestRack({ height: 42, width: 19, position: 1 });
+    const rack1 = createTestRack({ id: "rack-1", height: 42, width: 19 });
+    const rack2 = createTestRack({
+      id: "rack-2",
+      height: 42,
+      width: 19,
+      position: 1,
+    });
 
     const positions = racksToPositions([rack1, rack2]);
 
@@ -33,11 +38,13 @@ describe("fitAll with multiple racks", () => {
 
   it("calculates correct width for single-view rack (show_rear: false)", () => {
     const singleViewRack = createTestRack({
+      id: "single-view-rack",
       height: 42,
       width: 19,
       show_rear: false,
     });
     const dualViewRack = createTestRack({
+      id: "dual-view-rack",
       height: 42,
       width: 19,
       show_rear: true,
@@ -63,11 +70,13 @@ describe("fitAll with multiple racks", () => {
 
   it("calculates correct bounding box for mixed single/dual view racks", () => {
     const singleViewRack = createTestRack({
+      id: "mixed-single-rack",
       height: 42,
       width: 19,
       show_rear: false,
     });
     const dualViewRack = createTestRack({
+      id: "mixed-dual-rack",
       height: 42,
       width: 19,
       show_rear: true,
@@ -89,8 +98,13 @@ describe("fitAll with multiple racks", () => {
   });
 
   it("fitAll result fits content in viewport", () => {
-    const rack1 = createTestRack({ height: 42, width: 19 });
-    const rack2 = createTestRack({ height: 42, width: 19, position: 1 });
+    const rack1 = createTestRack({ id: "fit-rack-1", height: 42, width: 19 });
+    const rack2 = createTestRack({
+      id: "fit-rack-2",
+      height: 42,
+      width: 19,
+      position: 1,
+    });
 
     const positions = racksToPositions([rack1, rack2]);
     const bounds = calculateRacksBoundingBox(positions);
