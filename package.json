@@ -48,7 +48,7 @@
     "@types/node": "^25.0.10",
     "@types/pako": "^2.0.4",
     "@types/umami-browser": "^2.18.0",
-    "@vitest/coverage-v8": "^4.0.17",
+    "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-svelte": "^3.13.0",
