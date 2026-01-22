@@ -116,9 +116,10 @@ export async function deselectDevice(page: Page): Promise<void> {
 }
 
 /**
- * Delete the currently selected device
+ * Remove the currently selected device from the rack
+ * Note: This removes immediately without a confirmation dialog
  */
 export async function deleteSelectedDevice(page: Page): Promise<void> {
-  await page.click('button[aria-label="Delete"]');
-  await page.click('[role="dialog"] button:has-text("Remove")');
+  // The remove button has aria-label="Remove from rack"
+  await page.click('button[aria-label="Remove from rack"]');
 }
