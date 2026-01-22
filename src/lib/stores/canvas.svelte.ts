@@ -316,20 +316,26 @@ function focusRack(
   // This returns positions with rack IDs, enabling direct mapping
   const allPositionsWithIds = racksToPositionsWithIds(allRacks, rackGroups);
 
-  // Build a map from rack ID to its canvas position
-  const rackIdToPosition = new Map<string, (typeof allPositionsWithIds)[0]>();
+  // Build a lookup from rack ID to its canvas position
+  // Note: All rack IDs in a bayed group map to the SAME position object reference
+  // from allPositionsWithIds. This shared reference is intentional and relied upon
+  // by the Set deduplication below.
+  const rackIdToPosition: Record<string, (typeof allPositionsWithIds)[0]> = {};
   for (const pos of allPositionsWithIds) {
     for (const rid of pos.rackIds) {
-      rackIdToPosition.set(rid, pos);
+      rackIdToPosition[rid] = pos;
     }
   }
 
   // Get the positions for only the racks we're focusing on
-  // Deduplicate since multiple racks in a bayed group share the same position
+  // Deduplicate using Set: bayed racks share the same position object reference,
+  // so Set correctly deduplicates them by reference equality. If positions are
+  // ever deep-copied instead of shared, this deduplication would need to change
+  // to use a different approach (e.g., comparing coordinates or using a Map).
   const rackPositions = [
     ...new Set(
       focusRacks
-        .map((r) => rackIdToPosition.get(r.id))
+        .map((r) => rackIdToPosition[r.id])
         .filter((p): p is (typeof allPositionsWithIds)[0] => p !== undefined),
     ),
   ];
