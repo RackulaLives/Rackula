@@ -701,6 +701,41 @@ export const RackGroupSchema = z
   .passthrough();
 
 /**
+ * UUID pattern for layout metadata.id
+ * Standard UUID format: 8-4-4-4-12 hex characters with hyphens
+ */
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Layout metadata schema for YAML file headers.
+ * Part of the data directory refactor (#570).
+ *
+ * @see docs/plans/2026-01-22-data-directory-refactor-design.md
+ */
+export const LayoutMetadataSchema = z
+  .object({
+    /** UUID - stable identity across renames/moves */
+    id: z
+      .string()
+      .min(1, "Metadata ID is required")
+      .regex(UUID_PATTERN, "Metadata ID must be a valid UUID format"),
+    /** Human-readable layout name */
+    name: z
+      .string()
+      .min(1, "Metadata name is required")
+      .max(100, "Metadata name must be 100 characters or less"),
+    /** Format version for future migrations (e.g., "1.0") */
+    schema_version: z.string().min(1, "Schema version is required"),
+    /** Optional notes about the layout */
+    description: z
+      .string()
+      .max(1000, "Description must be 1000 characters or less")
+      .optional(),
+  })
+  .passthrough();
+
+/**
  * Layout settings schema
  */
 export const LayoutSettingsSchema = z
@@ -722,6 +757,8 @@ const LayoutSchemaInput = z
       .string()
       .min(1, "Name is required")
       .max(100, "Name must be 100 characters or less"),
+    /** Optional metadata section for new YAML format (#570) */
+    metadata: LayoutMetadataSchema.optional(),
     // Modern format: racks array (optional in input for legacy migration)
     racks: z.array(RackSchemaInput).optional(),
     // Legacy format: single rack (optional, converted by transform)
@@ -1053,6 +1090,7 @@ export type RackZod = z.infer<typeof RackSchema>;
 export type RackGroupLayoutPreset = z.infer<typeof RackGroupLayoutPresetSchema>;
 export type RackGroupZod = z.infer<typeof RackGroupSchema>;
 export type LayoutSettingsZod = z.infer<typeof LayoutSettingsSchema>;
+export type LayoutMetadataZod = z.infer<typeof LayoutMetadataSchema>;
 export type LayoutZod = z.infer<typeof LayoutSchema>;
 export type CableType = z.infer<typeof CableTypeSchema>;
 export type CableStatus = z.infer<typeof CableStatusSchema>;

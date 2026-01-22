@@ -317,6 +317,7 @@ function focusRack(
   const allPositionsWithIds = racksToPositionsWithIds(allRacks, rackGroups);
 
   // Build a map from rack ID to its canvas position
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local variable in function, not reactive state
   const rackIdToPosition = new Map<string, (typeof allPositionsWithIds)[0]>();
   for (const pos of allPositionsWithIds) {
     for (const rid of pos.rackIds) {
