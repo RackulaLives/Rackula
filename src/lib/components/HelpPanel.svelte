@@ -7,14 +7,7 @@
   import { Dialog } from "bits-ui";
   import { VERSION } from "$lib/version";
   import LogoLockup from "./LogoLockup.svelte";
-  import {
-    IconClose,
-    IconGitHub,
-    IconBug,
-    IconChat,
-    IconCheck,
-    IconCopy,
-  } from "./icons";
+  import { IconGitHub, IconBug, IconChat, IconCheck, IconCopy } from "./icons";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { formatShortcut } from "$lib/utils/platform";
@@ -212,12 +205,8 @@
   <Dialog.Portal>
     <Dialog.Overlay class="dialog-backdrop" />
     <Dialog.Content class="help-dialog" style="width: 600px;">
-      <div class="dialog-header">
-        <Dialog.Title class="dialog-title">About</Dialog.Title>
-        <Dialog.Close class="dialog-close" aria-label="Close dialog">
-          <IconClose />
-        </Dialog.Close>
-      </div>
+      <!-- Visually hidden title for accessibility -->
+      <Dialog.Title class="sr-only">About Rackula</Dialog.Title>
       <Dialog.Description class="help-dialog-description">
         Application help, keyboard shortcuts, and build information
       </Dialog.Description>
@@ -367,20 +356,13 @@
     z-index: calc(var(--z-modal, 200) + 1);
   }
 
-  .dialog-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid var(--colour-border);
-  }
-
   .dialog-content {
     padding: var(--space-4);
     overflow-y: auto;
   }
 
   /* Screen reader only - visually hidden but accessible */
+  :global(.help-dialog .sr-only),
   :global(.help-dialog-description) {
     position: absolute;
     width: 1px;
