@@ -325,9 +325,14 @@ function focusRack(
   }
 
   // Get the positions for only the racks we're focusing on
-  const rackPositions = focusRacks
-    .map((r) => rackIdToPosition.get(r.id))
-    .filter((p): p is (typeof allPositionsWithIds)[0] => p !== undefined);
+  // Deduplicate since multiple racks in a bayed group share the same position
+  const rackPositions = [
+    ...new Set(
+      focusRacks
+        .map((r) => rackIdToPosition.get(r.id))
+        .filter((p): p is (typeof allPositionsWithIds)[0] => p !== undefined),
+    ),
+  ];
 
   canvasDebug.focus(
     "All %d racks -> %d positions",
