@@ -172,13 +172,19 @@ const BAYED_GROUP_NAME_HEIGHT = 24;
 // =============================================================================
 
 /**
- * Calculate dimensions for a single ungrouped rack in dual-view mode.
- * Shows front and rear views side-by-side.
+ * Calculate dimensions for a single ungrouped rack.
+ * When show_rear is true: dual-view mode (front and rear side-by-side)
+ * When show_rear is false: single-view mode (front only)
  */
 function getDualViewDimensions(rack: Rack): { width: number; height: number } {
   // Scale rack width based on nominal width (BASE_RACK_WIDTH is calibrated for 19" racks)
   const rackWidthPx = Math.round((BASE_RACK_WIDTH * rack.width) / 19);
-  const width = rackWidthPx * 2 + DUAL_VIEW_GAP;
+
+  // Width depends on whether rear view is shown
+  const width = rack.show_rear
+    ? rackWidthPx * 2 + DUAL_VIEW_GAP // Dual view: front + gap + rear
+    : rackWidthPx; // Single view: front only
+
   const height =
     BASE_RACK_PADDING +
     RAIL_WIDTH * 2 +
