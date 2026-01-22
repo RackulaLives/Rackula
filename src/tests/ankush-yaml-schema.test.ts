@@ -159,16 +159,18 @@ describe("LayoutMetadataSchema", () => {
       expect(result.success).toBe(false);
     });
 
-    it("accepts semantic version format", () => {
-      const versions = ["1.0", "1.0.0", "2.0", "1.1.0"];
-      for (const version of versions) {
-        const metadata = {
-          id: "550e8400-e29b-41d4-a716-446655440000",
-          name: "Test",
-          schema_version: version,
-        };
-        expect(LayoutMetadataSchema.safeParse(metadata).success).toBe(true);
-      }
+    it.each([
+      ["1.0", "major.minor"],
+      ["1.0.0", "major.minor.patch"],
+      ["2.0", "major version 2"],
+      ["1.1.0", "minor update"],
+    ])("accepts semantic version format: %s (%s)", (version) => {
+      const metadata = {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        name: "Test",
+        schema_version: version,
+      };
+      expect(LayoutMetadataSchema.safeParse(metadata).success).toBe(true);
     });
   });
 
@@ -322,7 +324,9 @@ describe("LayoutSchema metadata integration", () => {
       const result = LayoutSchema.safeParse(legacyLayout);
       expect(result.success).toBe(true);
       if (result.success) {
-        // Position should be migrated
+        // Position migrates from human-readable U (1-indexed) to internal units (6 per U).
+        // Legacy position 10 (U10) becomes 60 internal units (10 * 6).
+        // This migration is handled by LayoutSchema's transform for version < 0.7.0.
         expect(result.data.racks[0]!.devices[0]!.position).toBe(60);
         // metadata should be undefined
         expect(result.data.metadata).toBeUndefined();
