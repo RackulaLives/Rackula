@@ -76,7 +76,9 @@
   import { debug, persistenceDebug } from "$lib/utils/debug";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { Tooltip } from "bits-ui";
-  import StartScreen from "$lib/components/StartScreen.svelte";
+  import StartScreen, {
+    type StartScreenCloseOptions,
+  } from "$lib/components/StartScreen.svelte";
   import { PERSIST_ENABLED } from "$lib/utils/persistence-config";
   import {
     saveLayoutToServer,
@@ -1202,12 +1204,17 @@
   });
 
   // Handler for StartScreen close
-  function handleStartScreenClose(layoutId?: string) {
-    currentLayoutId = layoutId;
+  function handleStartScreenClose(options?: StartScreenCloseOptions) {
+    currentLayoutId = options?.layoutId;
     showStartScreen = false;
 
     // If no layout was loaded from API (offline mode), check localStorage
-    if (!layoutId && layoutStore.rackCount === 0) {
+    // Skip if user explicitly requested a new layout (skipAutosave flag)
+    if (
+      !options?.layoutId &&
+      !options?.skipAutosave &&
+      layoutStore.rackCount === 0
+    ) {
       const autosaved = loadSession();
       if (autosaved) {
         // Deep-clone to prevent race conditions with concurrent session changes

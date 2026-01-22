@@ -30,8 +30,16 @@
   import LogoLockup from "$lib/components/LogoLockup.svelte";
   import { VERSION } from "$lib/version";
 
+  /** Options passed to onClose callback */
+  export interface StartScreenCloseOptions {
+    /** Layout ID if a saved layout was selected */
+    layoutId?: string;
+    /** Skip loading autosaved session (used when creating new layout) */
+    skipAutosave?: boolean;
+  }
+
   interface Props {
-    onClose: (layoutId?: string) => void;
+    onClose: (options?: StartScreenCloseOptions) => void;
   }
 
   let { onClose }: Props = $props();
@@ -87,7 +95,7 @@
       const layout = await loadSavedLayout(item.id);
       layoutStore.loadLayout(layout);
       toastStore.showToast(`Opened "${item.name}"`, "info");
-      onClose(item.id);
+      onClose({ layoutId: item.id });
     } catch (e) {
       const message =
         e instanceof PersistenceError ? e.message : "Failed to open layout";
@@ -116,7 +124,8 @@
   function handleNewLayout() {
     layoutStore.resetLayout();
     dialogStore.open("newRack");
-    onClose();
+    // Skip autosave - user explicitly wants a fresh layout
+    onClose({ skipAutosave: true });
   }
 
   async function handleImportFile() {
