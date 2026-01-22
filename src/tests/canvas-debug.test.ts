@@ -14,7 +14,11 @@ import {
   SELECTION_HIGHLIGHT_PADDING,
   BASE_RACK_WIDTH,
   DUAL_VIEW_GAP,
+  FIT_ALL_MAX_ZOOM,
 } from "$lib/constants/layout";
+
+// Import zoom limits from canvas store (match the implementation)
+const FIT_ALL_MIN_ZOOM = 0.25;
 
 describe("fitAll with multiple racks", () => {
   it("calculates positions for two 42U racks", () => {
@@ -114,15 +118,16 @@ describe("fitAll with multiple racks", () => {
 
     const result = calculateFitAll(positions, viewportWidth, viewportHeight);
 
-    // Zoom should be between min and max
-    expect(result.zoom).toBeGreaterThanOrEqual(0.25);
-    expect(result.zoom).toBeLessThanOrEqual(2);
+    // Zoom should be between min and max (using exported constants)
+    expect(result.zoom).toBeGreaterThanOrEqual(FIT_ALL_MIN_ZOOM);
+    expect(result.zoom).toBeLessThanOrEqual(FIT_ALL_MAX_ZOOM);
 
     // Pan values should be defined
     expect(typeof result.panX).toBe("number");
     expect(typeof result.panY).toBe("number");
 
-    // Scaled content should fit in viewport (with some tolerance for padding)
+    // Scaled content should fit in viewport
+    // (bounds.width/height already represents the visual area that needs to fit)
     const scaledWidth = bounds.width * result.zoom;
     const scaledHeight = bounds.height * result.zoom;
     expect(scaledWidth).toBeLessThanOrEqual(viewportWidth);
