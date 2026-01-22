@@ -224,7 +224,12 @@ export async function saveLayout(
 
   // If updating and the ID changed (name changed), delete the old file
   if (existingId && existingId !== newId) {
-    await deleteLayout(existingId);
+    const deleted = await deleteLayout(existingId);
+    if (!deleted) {
+      console.warn(
+        `Layout rename: old file "${existingId}" was not found during cleanup (may have been externally deleted)`,
+      );
+    }
   }
 
   return { id: newId, isNew };

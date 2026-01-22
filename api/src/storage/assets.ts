@@ -23,9 +23,11 @@ const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const ALLOWED_EXTS = new Set(["png", "jpg", "webp"]);
 export const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
-// Schema for device slug validation (similar to LayoutIdSchema)
+// Schema for device slug validation
 // Prevents path traversal attacks
-const DeviceSlugSchema = z
+// Note: Device slugs allow underscores (unlike LayoutIdSchema) to support
+// device type slugs like "dell_r640" that come from external sources
+export const DeviceSlugSchema = z
   .string()
   .min(1)
   .max(200)
@@ -100,6 +102,13 @@ function validateLayoutId(layoutId: string): string | null {
 function validateDeviceSlug(deviceSlug: string): string | null {
   const parsed = DeviceSlugSchema.safeParse(deviceSlug);
   return parsed.success ? parsed.data : null;
+}
+
+/**
+ * Check if device slug is valid (exported for use in routes)
+ */
+export function isValidDeviceSlug(slug: string): boolean {
+  return DeviceSlugSchema.safeParse(slug).success;
 }
 
 /**

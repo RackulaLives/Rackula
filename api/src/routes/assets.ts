@@ -11,6 +11,7 @@ import {
   saveAsset,
   deleteAsset,
   isValidImageType,
+  isValidDeviceSlug,
   MAX_SIZE,
 } from "../storage/assets";
 
@@ -19,13 +20,6 @@ const assets = new Hono();
 // Validate face parameter
 function isValidFace(face: string): face is "front" | "rear" {
   return face === "front" || face === "rear";
-}
-
-// Validate device slug (prevent path traversal)
-// Must be lowercase alphanumeric with hyphens/underscores
-const DEVICE_SLUG_REGEX = /^[a-z0-9][a-z0-9_-]*[a-z0-9]$|^[a-z0-9]$/;
-function isValidDeviceSlug(slug: string): boolean {
-  return slug.length >= 1 && slug.length <= 200 && DEVICE_SLUG_REGEX.test(slug);
 }
 
 // Get an asset

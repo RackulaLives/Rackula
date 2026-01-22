@@ -22,11 +22,22 @@
 
   let { status }: Props = $props();
 
-  // Respect user's reduced motion preference
-  const prefersReducedMotion =
-    typeof window !== "undefined"
-      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      : false;
+  // Respect user's reduced motion preference (reactive to runtime changes)
+  let prefersReducedMotion = $state(false);
+
+  $effect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    prefersReducedMotion = mediaQuery.matches;
+
+    function handleChange(e: MediaQueryListEvent) {
+      prefersReducedMotion = e.matches;
+    }
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  });
 
   // Auto-hide "saved" after 2 seconds
   // Note: This uses $effect with setTimeout intentionally - it's imperative

@@ -1208,7 +1208,9 @@
     if (!layoutId && layoutStore.rackCount === 0) {
       const autosaved = loadSession();
       if (autosaved) {
-        layoutStore.loadLayout(autosaved);
+        // Deep-clone to prevent race conditions with concurrent session changes
+        const snapshot = structuredClone(autosaved);
+        layoutStore.loadLayout(snapshot);
         layoutStore.markDirty();
         // Center the loaded rack after DOM updates
         requestAnimationFrame(() => {
