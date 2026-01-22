@@ -27,6 +27,7 @@
     IconUpload,
     IconCloudOff,
   } from "$lib/components/icons";
+  import LogoLockup from "$lib/components/LogoLockup.svelte";
 
   interface Props {
     onClose: (layoutId?: string) => void;
@@ -178,7 +179,7 @@
 <div class="start-screen">
   <div class="start-screen-content">
     <header class="start-header">
-      <h1>Rackula</h1>
+      <LogoLockup size={48} showcase={true} />
       <p class="subtitle">Rack Layout Designer for Homelabbers</p>
     </header>
 
@@ -302,19 +303,21 @@
   }
 
   .start-header {
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     margin-bottom: var(--space-8);
   }
 
-  .start-header h1 {
-    font-size: 2.5rem;
-    color: var(--colour-primary);
-    margin: 0;
+  /* Ensure LogoLockup title stays visible on mobile (override default hide) */
+  .start-header :global(.logo-title) {
+    display: block !important;
   }
 
   .subtitle {
     color: var(--colour-text-muted);
     margin-top: var(--space-2);
+    text-align: center;
   }
 
   .actions {
