@@ -308,8 +308,74 @@ function focusRack(
   const viewportWidth = canvasElement.clientWidth;
   const viewportHeight = canvasElement.clientHeight;
 
-  // Calculate positions for only the focus racks
-  const rackPositions = racksToPositions(focusRacks, relevantGroups);
+  // Calculate positions for ALL racks to get correct canvas coordinates
+  // racksToPositions positions racks starting from x=0, so we need all racks
+  // to know where a specific rack is actually positioned on the canvas
+  const allRackPositions = racksToPositions(allRacks, rackGroups);
+
+  // Build a map from rack ID to its canvas position
+  // We need to match the same logic as racksToPositions:
+  // - Bayed groups become a single position (all racks in group share it)
+  // - Ungrouped racks each get their own position
+  // - Sorted by rack.position
+  const bayedGroups = rackGroups.filter((g) => g.layout_preset === "bayed");
+  const rackIdToBayedGroup = new Map<string, RackGroup>();
+  for (const group of bayedGroups) {
+    for (const rid of group.rack_ids) {
+      rackIdToBayedGroup.set(rid, group);
+    }
+  }
+
+  // Build visual elements in the same order as racksToPositions
+  interface VisualElement {
+    rackIds: string[];
+    sortPosition: number;
+  }
+  const elements: VisualElement[] = [];
+  const seenGroupIds = new Set<string>();
+
+  for (const rack of allRacks) {
+    const group = rackIdToBayedGroup.get(rack.id);
+    if (group) {
+      if (!seenGroupIds.has(group.id)) {
+        seenGroupIds.add(group.id);
+        const groupRacks = group.rack_ids
+          .map((id) => allRacks.find((r) => r.id === id))
+          .filter((r): r is Rack => r !== undefined);
+        elements.push({
+          rackIds: group.rack_ids,
+          sortPosition: Math.min(...groupRacks.map((r) => r.position)),
+        });
+      }
+    } else {
+      elements.push({
+        rackIds: [rack.id],
+        sortPosition: rack.position,
+      });
+    }
+  }
+  elements.sort((a, b) => a.sortPosition - b.sortPosition);
+
+  // Map each rack ID to its position
+  const rackIdToPosition = new Map<string, (typeof allRackPositions)[0]>();
+  for (let i = 0; i < elements.length && i < allRackPositions.length; i++) {
+    for (const rid of elements[i].rackIds) {
+      rackIdToPosition.set(rid, allRackPositions[i]);
+    }
+  }
+
+  // Get the positions for only the racks we're focusing on
+  const rackPositions = focusRacks
+    .map((r) => rackIdToPosition.get(r.id))
+    .filter((p): p is (typeof allRackPositions)[0] => p !== undefined);
+
+  canvasDebug.focus(
+    "All %d racks -> %d positions",
+    allRacks.length,
+    allRackPositions.length,
+  );
+  canvasDebug.focus("Focus rack positions: %o", rackPositions);
+
   const { zoom, panX, panY } = calculateFitAll(
     rackPositions,
     viewportWidth,
@@ -317,12 +383,10 @@ function focusRack(
   );
 
   canvasDebug.focus("Target rack IDs: %o", rackIds);
-  canvasDebug.focus("All relevant rack IDs: %o", [...allRelevantRackIds]);
   canvasDebug.focus("Viewport: %o", {
     width: viewportWidth,
     height: viewportHeight,
   });
-  canvasDebug.focus("Rack positions: %o", rackPositions);
   canvasDebug.focus("Calculated: %o", { zoom, panX, panY });
 
   // Apply zoom and pan with smooth animation

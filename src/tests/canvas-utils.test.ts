@@ -87,8 +87,9 @@ describe("Canvas Utils", () => {
       );
 
       // Height should include 2 * SELECTION_HIGHLIGHT_PADDING
+      // In dual-view mode, hideRackName=true so RACK_PADDING_HIDDEN is used
       const baseHeight =
-        BASE_RACK_PADDING +
+        RACK_PADDING_HIDDEN +
         RAIL_WIDTH * 2 +
         42 * U_HEIGHT_PX +
         DUAL_VIEW_EXTRA_HEIGHT;
@@ -146,8 +147,9 @@ describe("Canvas Utils", () => {
       expect(positions).toHaveLength(1);
 
       // Calculate expected height from the formula in getDualViewDimensions
+      // In dual-view mode, hideRackName=true so RACK_PADDING_HIDDEN is used
       const formulaHeight =
-        BASE_RACK_PADDING +
+        RACK_PADDING_HIDDEN +
         RAIL_WIDTH * 2 +
         48 * U_HEIGHT_PX +
         DUAL_VIEW_EXTRA_HEIGHT +

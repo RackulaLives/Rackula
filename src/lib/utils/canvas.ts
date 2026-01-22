@@ -9,7 +9,7 @@ import {
   U_HEIGHT_PX,
   BASE_RACK_WIDTH,
   RAIL_WIDTH,
-  BASE_RACK_PADDING,
+  RACK_PADDING_HIDDEN,
   RACK_GAP,
   RACK_ROW_PADDING,
   DUAL_VIEW_GAP,
@@ -130,22 +130,33 @@ export function calculateFitAll(
     Math.min(zoomX, zoomY, FIT_ALL_MAX_ZOOM),
   );
 
-  // Calculate pan to center the visual content (rack-row) in viewport
+  // Calculate pan to center the content in the viewport
+  // The content is at canvas position (bounds.x, bounds.y)
+  // We need to pan so the content's center appears at the viewport's center
+  //
+  // Panzoom transform: screenPos = canvasPos * zoom + pan
+  // To center: viewportCenter = contentCenter * zoom + pan
+  // Therefore: pan = viewportCenter - contentCenter * zoom
+
+  // Content center is the center of the actual bounds (not including visual padding)
+  const contentCenterX = bounds.x + bounds.width / 2;
+  const contentCenterY = bounds.y + bounds.height / 2;
+
+  let panX = viewportWidth / 2 - contentCenterX * zoom;
+  let panY = viewportHeight / 2 - contentCenterY * zoom;
+
+  // If content is larger than viewport, align to top-left with padding
   const scaledContentWidth = visualContentWidth * zoom;
   const scaledContentHeight = visualContentHeight * zoom;
 
-  // Pan formula: center the scaled content in the viewport
-  let panX = (viewportWidth - scaledContentWidth) / 2;
-  let panY = (viewportHeight - scaledContentHeight) / 2;
-
   if (scaledContentWidth > viewportWidth) {
-    // Content wider than viewport - align to left edge with small padding
-    panX = FIT_ALL_PADDING;
+    // Content wider than viewport - align left edge of content to left edge of viewport
+    panX = FIT_ALL_PADDING - bounds.x * zoom;
   }
 
   if (scaledContentHeight > viewportHeight) {
-    // Content taller than viewport - align to top edge with small padding
-    panY = FIT_ALL_PADDING;
+    // Content taller than viewport - align top edge of content to top edge of viewport
+    panY = FIT_ALL_PADDING - bounds.y * zoom;
   }
 
   return { zoom, panX, panY };
@@ -185,8 +196,9 @@ function getDualViewDimensions(rack: Rack): { width: number; height: number } {
     ? rackWidthPx * 2 + DUAL_VIEW_GAP // Dual view: front + gap + rear
     : rackWidthPx; // Single view: front only
 
+  // In dual-view mode, Rack component uses RACK_PADDING_HIDDEN (hideRackName=true)
   const height =
-    BASE_RACK_PADDING +
+    RACK_PADDING_HIDDEN +
     RAIL_WIDTH * 2 +
     rack.height * U_HEIGHT_PX +
     DUAL_VIEW_EXTRA_HEIGHT;
