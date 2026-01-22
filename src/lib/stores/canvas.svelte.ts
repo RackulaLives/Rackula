@@ -5,7 +5,11 @@
 
 import type panzoom from "panzoom";
 import type { Rack, RackGroup, DeviceType } from "$lib/types";
-import { calculateFitAll, racksToPositions } from "$lib/utils/canvas";
+import {
+  calculateFitAll,
+  racksToPositions,
+  racksToPositionsWithIds,
+} from "$lib/utils/canvas";
 import { canvasDebug } from "$lib/utils/debug";
 import {
   U_HEIGHT_PX,
@@ -308,71 +312,27 @@ function focusRack(
   const viewportWidth = canvasElement.clientWidth;
   const viewportHeight = canvasElement.clientHeight;
 
-  // Calculate positions for ALL racks to get correct canvas coordinates
-  // racksToPositions positions racks starting from x=0, so we need all racks
-  // to know where a specific rack is actually positioned on the canvas
-  const allRackPositions = racksToPositions(allRacks, rackGroups);
+  // Calculate positions for ALL racks using the authoritative helper
+  // This returns positions with rack IDs, enabling direct mapping
+  const allPositionsWithIds = racksToPositionsWithIds(allRacks, rackGroups);
 
   // Build a map from rack ID to its canvas position
-  // We need to match the same logic as racksToPositions:
-  // - Bayed groups become a single position (all racks in group share it)
-  // - Ungrouped racks each get their own position
-  // - Sorted by rack.position
-  const bayedGroups = rackGroups.filter((g) => g.layout_preset === "bayed");
-  const rackIdToBayedGroup = new Map<string, RackGroup>();
-  for (const group of bayedGroups) {
-    for (const rid of group.rack_ids) {
-      rackIdToBayedGroup.set(rid, group);
-    }
-  }
-
-  // Build visual elements in the same order as racksToPositions
-  interface VisualElement {
-    rackIds: string[];
-    sortPosition: number;
-  }
-  const elements: VisualElement[] = [];
-  const seenGroupIds = new Set<string>();
-
-  for (const rack of allRacks) {
-    const group = rackIdToBayedGroup.get(rack.id);
-    if (group) {
-      if (!seenGroupIds.has(group.id)) {
-        seenGroupIds.add(group.id);
-        const groupRacks = group.rack_ids
-          .map((id) => allRacks.find((r) => r.id === id))
-          .filter((r): r is Rack => r !== undefined);
-        elements.push({
-          rackIds: group.rack_ids,
-          sortPosition: Math.min(...groupRacks.map((r) => r.position)),
-        });
-      }
-    } else {
-      elements.push({
-        rackIds: [rack.id],
-        sortPosition: rack.position,
-      });
-    }
-  }
-  elements.sort((a, b) => a.sortPosition - b.sortPosition);
-
-  // Map each rack ID to its position
-  const rackIdToPosition = new Map<string, (typeof allRackPositions)[0]>();
-  for (let i = 0; i < elements.length && i < allRackPositions.length; i++) {
-    for (const rid of elements[i].rackIds) {
-      rackIdToPosition.set(rid, allRackPositions[i]);
+  const rackIdToPosition = new Map<string, (typeof allPositionsWithIds)[0]>();
+  for (const pos of allPositionsWithIds) {
+    for (const rid of pos.rackIds) {
+      rackIdToPosition.set(rid, pos);
     }
   }
 
   // Get the positions for only the racks we're focusing on
   const rackPositions = focusRacks
     .map((r) => rackIdToPosition.get(r.id))
-    .filter((p): p is (typeof allRackPositions)[0] => p !== undefined);
+    .filter((p): p is (typeof allPositionsWithIds)[0] => p !== undefined);
 
   canvasDebug.focus(
     "All %d racks -> %d positions",
     allRacks.length,
-    allRackPositions.length,
+    allPositionsWithIds.length,
   );
   canvasDebug.focus("Focus rack positions: %o", rackPositions);
 

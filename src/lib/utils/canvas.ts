@@ -40,6 +40,14 @@ export interface RackPosition {
 }
 
 /**
+ * Rack position with associated rack IDs
+ * Used for mapping positions back to specific racks
+ */
+export interface RackPositionWithIds extends RackPosition {
+  rackIds: string[];
+}
+
+/**
  * Fit-all result with zoom and pan values
  */
 export interface FitAllResult {
@@ -239,32 +247,40 @@ function getBayedGroupDimensions(
 }
 
 /**
- * Convert racks and groups to RackPosition array for bounding box calculation.
+ * Internal visual element for position calculation
+ */
+interface VisualElement {
+  rackIds: string[];
+  width: number;
+  height: number;
+  sortPosition: number;
+  // Tie-breaker for deterministic sort when positions are equal
+  // Using smallest rack ID ensures stable ordering
+  tieBreaker: string;
+}
+
+/**
+ * Convert racks and groups to RackPositionWithIds array.
+ * This is the authoritative function for rack positioning - both for
+ * bounding box calculation and for mapping positions back to racks.
+ *
  * Handles both bayed rack groups (stacked front/rear) and ungrouped racks (dual-view).
  * Includes selection highlight padding in all dimensions.
  *
  * @param racks - Array of racks from the layout store
  * @param rackGroups - Array of rack groups (optional, for bayed rack handling)
- * @returns Array of RackPosition objects with calculated coordinates
+ * @returns Array of RackPositionWithIds objects with calculated coordinates and rack IDs
  */
-export function racksToPositions(
+export function racksToPositionsWithIds(
   racks: Rack[],
   rackGroups: RackGroup[] = [],
-): RackPosition[] {
+): RackPositionWithIds[] {
   if (racks.length === 0) return [];
 
   // Separate racks into bayed groups and ungrouped
   const bayedGroups = rackGroups.filter((g) => g.layout_preset === "bayed");
   const bayedRackIds = new Set(bayedGroups.flatMap((g) => g.rack_ids));
   const ungroupedRacks = racks.filter((r) => !bayedRackIds.has(r.id));
-
-  // Build list of visual elements to position (each gets one RackPosition)
-  interface VisualElement {
-    type: "bayed" | "ungrouped";
-    width: number;
-    height: number;
-    position: number; // For sorting (use first rack's position for groups)
-  }
 
   const elements: VisualElement[] = [];
 
@@ -278,13 +294,16 @@ export function racksToPositions(
 
     const { width, height } = getBayedGroupDimensions(group, groupRacks);
     // Use minimum position of any rack in group for sorting
-    const position = Math.min(...groupRacks.map((r) => r.position));
+    const sortPosition = Math.min(...groupRacks.map((r) => r.position));
+    // Use smallest rack ID as tie-breaker for deterministic ordering
+    const tieBreaker = [...group.rack_ids].sort()[0];
 
     elements.push({
-      type: "bayed",
+      rackIds: group.rack_ids,
       width: width + SELECTION_HIGHLIGHT_PADDING * 2,
       height: height + SELECTION_HIGHLIGHT_PADDING * 2,
-      position,
+      sortPosition,
+      tieBreaker,
     });
   }
 
@@ -292,15 +311,21 @@ export function racksToPositions(
   for (const rack of ungroupedRacks) {
     const { width, height } = getDualViewDimensions(rack);
     elements.push({
-      type: "ungrouped",
+      rackIds: [rack.id],
       width: width + SELECTION_HIGHLIGHT_PADDING * 2,
       height: height + SELECTION_HIGHLIGHT_PADDING * 2,
-      position: rack.position,
+      sortPosition: rack.position,
+      tieBreaker: rack.id,
     });
   }
 
-  // Sort by position
-  elements.sort((a, b) => a.position - b.position);
+  // Sort by position with deterministic tie-breaker
+  elements.sort((a, b) => {
+    const positionDiff = a.sortPosition - b.sortPosition;
+    if (positionDiff !== 0) return positionDiff;
+    // Use string comparison for tie-breaker (smallest ID first)
+    return a.tieBreaker.localeCompare(b.tieBreaker);
+  });
 
   // Find max height for vertical alignment
   const maxHeight = Math.max(...elements.map((e) => e.height), 0);
@@ -310,13 +335,31 @@ export function racksToPositions(
   const startY = RACK_ROW_PADDING;
 
   return elements.map((element) => {
-    const position: RackPosition = {
+    const position: RackPositionWithIds = {
       x: currentX,
       y: startY + (maxHeight - element.height),
       width: element.width,
       height: element.height,
+      rackIds: element.rackIds,
     };
     currentX += element.width + RACK_GAP;
     return position;
   });
+}
+
+/**
+ * Convert racks and groups to RackPosition array for bounding box calculation.
+ * Wrapper around racksToPositionsWithIds that strips the rack ID information.
+ *
+ * @param racks - Array of racks from the layout store
+ * @param rackGroups - Array of rack groups (optional, for bayed rack handling)
+ * @returns Array of RackPosition objects with calculated coordinates
+ */
+export function racksToPositions(
+  racks: Rack[],
+  rackGroups: RackGroup[] = [],
+): RackPosition[] {
+  return racksToPositionsWithIds(racks, rackGroups).map(
+    ({ x, y, width, height }) => ({ x, y, width, height }),
+  );
 }
