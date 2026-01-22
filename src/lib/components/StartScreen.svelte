@@ -179,7 +179,7 @@
 <div class="start-screen">
   <div class="start-screen-content">
     <header class="start-header">
-      <LogoLockup size={48} showcase={true} />
+      <LogoLockup size={48} showcase={true} alwaysShowTitle={true} />
       <p class="subtitle">Rack Layout Designer for Homelabbers</p>
     </header>
 
@@ -307,11 +307,6 @@
     flex-direction: column;
     align-items: center;
     margin-bottom: var(--space-8);
-  }
-
-  /* Ensure LogoLockup title stays visible on mobile (override default hide) */
-  .start-header :global(.logo-title) {
-    display: block !important;
   }
 
   .subtitle {
