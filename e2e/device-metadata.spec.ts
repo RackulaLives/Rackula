@@ -244,7 +244,9 @@ test.describe("Device Metadata Persistence", () => {
   });
 
   test.describe("In-Session Persistence", () => {
-    test("metadata persists when switching between devices", async ({
+    // The Damien Test - named in honor of Damien (@deversmann) who reported #859
+    // where IP addresses weren't persisting when switching between devices
+    test("the Damien test: metadata persists when switching between devices", async ({
       page,
     }) => {
       // This test verifies that two devices maintain separate metadata
