@@ -243,16 +243,20 @@ export async function deleteLayout(id: string): Promise<boolean> {
   const parsed = LayoutIdSchema.safeParse(id);
   if (!parsed.success) return false;
 
+  let deleted = false;
   for (const ext of [".yaml", ".yml"]) {
     const filePath = join(DATA_DIR, `${id}${ext}`);
     try {
       await unlink(filePath);
-      return true;
-    } catch {
-      // File doesn't exist with this extension
+      deleted = true;
+    } catch (error) {
+      // Ignore ENOENT (file doesn't exist), rethrow other errors
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
     }
   }
-  return false;
+  return deleted;
 }
 
 /**

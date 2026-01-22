@@ -1152,10 +1152,12 @@
     }
 
     // Debounced save with status tracking
+    // Clone layout to prevent race conditions if it mutates during async save
+    const snapshot = structuredClone(layout);
     serverSaveTimer = setTimeout(async () => {
       saveStatus = "saving";
       try {
-        const newId = await saveLayoutToServer(layout, currentLayoutId);
+        const newId = await saveLayoutToServer(snapshot, currentLayoutId);
         currentLayoutId = newId;
         saveStatus = "saved";
       } catch (e) {

@@ -27,7 +27,12 @@ app.use(
 app.get("/health", (c) => c.text("OK"));
 
 // Apply body size limit to asset uploads (5MB default, configurable via env)
-const maxAssetSize = parseInt(process.env.MAX_ASSET_SIZE ?? "5242880", 10);
+const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
+const parsedMaxAssetSize = parseInt(process.env.MAX_ASSET_SIZE ?? "", 10);
+const maxAssetSize =
+  Number.isFinite(parsedMaxAssetSize) && parsedMaxAssetSize > 0
+    ? parsedMaxAssetSize
+    : DEFAULT_MAX_ASSET_SIZE;
 app.use(
   "/api/assets/*",
   bodyLimit({
