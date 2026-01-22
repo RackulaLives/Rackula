@@ -4,26 +4,7 @@ import { getImageStore, resetImageStore } from "$lib/stores/images.svelte";
 import type { Layout } from "$lib/types";
 import { VERSION } from "$lib/version";
 import { toInternalUnits } from "$lib/utils/position";
-import { createTestDeviceType } from "./factories";
-
-/**
- * Helper to set up a store with a rack and a placed device.
- * Returns the store, rack ID, and device slug for test assertions.
- */
-function setupStoreWithDevice() {
-  const store = getLayoutStore();
-  const rack = store.addRack("Test Rack", 42);
-  const deviceType = createTestDeviceType({
-    slug: "generic-server",
-    model: "Generic Server",
-    u_height: 2,
-    category: "server",
-    colour: "#4A90D9",
-  });
-  store.addDeviceTypeRaw(deviceType);
-  store.placeDevice(rack!.id, deviceType.slug, 5);
-  return { store, rackId: rack!.id, deviceSlug: deviceType.slug };
-}
+import { setupStoreWithDevice } from "./factories";
 
 describe("Layout Store", () => {
   beforeEach(() => {

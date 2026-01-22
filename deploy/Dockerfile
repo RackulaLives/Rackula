@@ -4,11 +4,19 @@ WORKDIR /app
 
 # Build configuration
 ARG VITE_ENV=production
+ENV VITE_ENV=${VITE_ENV}
 
 # Umami analytics configuration (passed as build args)
 ARG VITE_UMAMI_ENABLED=false
+ENV VITE_UMAMI_ENABLED=${VITE_UMAMI_ENABLED}
 ARG VITE_UMAMI_WEBSITE_ID
+ENV VITE_UMAMI_WEBSITE_ID=${VITE_UMAMI_WEBSITE_ID}
 ARG VITE_UMAMI_SCRIPT_URL
+ENV VITE_UMAMI_SCRIPT_URL=${VITE_UMAMI_SCRIPT_URL}
+
+# Persistence feature flag (server-side storage)
+ARG VITE_PERSIST_ENABLED=false
+ENV VITE_PERSIST_ENABLED=${VITE_PERSIST_ENABLED}
 
 # Copy package files and install dependencies
 COPY package*.json ./

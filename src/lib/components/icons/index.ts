@@ -64,6 +64,9 @@ export { default as IconBug } from "./IconBug.svelte";
 export { default as IconChat } from "./IconChat.svelte";
 export { default as IconCheck } from "./IconCheck.svelte";
 
+// Status icons
+export { default as IconCloudOff } from "./IconCloudOff.svelte";
+
 // =============================================================================
 // Phosphor Bold Icons (for toolbar - higher visual weight)
 // =============================================================================

@@ -506,9 +506,7 @@
                 }}
                 onlongpress={(e) => onracklongpress?.(e)}
                 onexport={(rackIds) => onrackexport?.(rackIds)}
-                onfocus={onrackfocus
-                  ? (rackIds) => onrackfocus(rackIds)
-                  : undefined}
+                onfocus={onrackfocus}
                 onedit={(rackId) => onrackedit?.(rackId)}
                 onrename={(rackId) => onrackrename?.(rackId)}
                 onduplicate={(rackId) => onrackduplicate?.(rackId)}

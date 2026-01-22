@@ -12,6 +12,8 @@
  *   - rackula:layout:device
  *   - rackula:canvas:transform
  *   - rackula:dnd:render
+ *   - rackula:persistence:api
+ *   - rackula:persistence:health
  */
 import Debug from "debug";
 
@@ -42,6 +44,11 @@ export const appDebug = {
 
 export const selectionDebug = {
   state: Debug("rackula:selection:state"),
+};
+
+export const persistenceDebug = {
+  api: Debug("rackula:persistence:api"),
+  health: Debug("rackula:persistence:health"),
 };
 
 // Create shared instances for reuse

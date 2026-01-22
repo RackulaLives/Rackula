@@ -257,6 +257,10 @@
   --colour-error: var(--dracula-red);
   --colour-info: var(--dracula-cyan);
 
+  /* Feedback State Backgrounds (10% opacity for subtle wash) */
+  --colour-warning-bg: rgba(255, 184, 108, 0.1);
+  --colour-error-bg: rgba(255, 85, 85, 0.1);
+
   /* Drag and Drop */
   --colour-dnd-valid: var(--dracula-green);
   --colour-dnd-valid-bg: rgba(80, 250, 123, 0.1);
@@ -541,6 +545,10 @@
   --colour-warning: var(--alucard-orange);
   --colour-error: var(--alucard-red);
   --colour-info: var(--alucard-cyan);
+
+  /* Feedback State Backgrounds (10% opacity for subtle wash) */
+  --colour-warning-bg: rgba(163, 77, 20, 0.1);
+  --colour-error-bg: rgba(203, 58, 42, 0.1);
 
   /* Drag and Drop */
   --colour-dnd-valid: var(--alucard-green);

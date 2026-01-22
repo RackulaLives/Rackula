@@ -6,7 +6,7 @@
 import type panzoom from "panzoom";
 import type { Rack, RackGroup, DeviceType } from "$lib/types";
 import { calculateFitAll, racksToPositions } from "$lib/utils/canvas";
-import { debug, canvasDebug } from "$lib/utils/debug";
+import { canvasDebug } from "$lib/utils/debug";
 import {
   U_HEIGHT_PX,
   BASE_RACK_WIDTH,
@@ -253,19 +253,19 @@ function fitAll(racks: Rack[], rackGroups: RackGroup[] = []): void {
     viewportHeight,
   );
 
-  debug.group("Fit All Calculation");
-  debug.log("Viewport:", { width: viewportWidth, height: viewportHeight });
-  debug.log("Rack positions:", rackPositions);
-  debug.log("Calculated:", { zoom, panX, panY });
-  debug.log("Current transform before:", panzoomInstance.getTransform());
-  debug.groupEnd();
+  canvasDebug.transform("fitAll viewport: %o", {
+    width: viewportWidth,
+    height: viewportHeight,
+  });
+  canvasDebug.transform("fitAll rack positions: %o", rackPositions);
+  canvasDebug.transform("fitAll calculated: %o", { zoom, panX, panY });
 
   // Apply zoom and pan (instant - fitAll is typically called after viewport changes
   // where smooth animation would feel laggy or disorienting)
   panzoomInstance.zoomAbs(0, 0, zoom);
   panzoomInstance.moveTo(panX, panY);
 
-  debug.log("Transform after fitAll:", panzoomInstance.getTransform());
+  canvasDebug.transform("fitAll applied: %o", panzoomInstance.getTransform());
 }
 
 /**
@@ -304,21 +304,6 @@ function focusRack(
   ]);
   const focusRacks = allRacks.filter((r) => allRelevantRackIds.has(r.id));
 
-  canvasDebug.focus("focusRack called with rackIds: %o", rackIds);
-  canvasDebug.focus(
-    "targetRacks found: %o",
-    targetRacks.map((r) => r.id),
-  );
-  canvasDebug.focus(
-    "relevantGroups: %o",
-    relevantGroups.map((g) => ({ id: g.id, rack_ids: g.rack_ids })),
-  );
-  canvasDebug.focus("allRelevantRackIds: %o", [...allRelevantRackIds]);
-  canvasDebug.focus(
-    "focusRacks: %o",
-    focusRacks.map((r) => r.id),
-  );
-
   // Get viewport dimensions
   const viewportWidth = canvasElement.clientWidth;
   const viewportHeight = canvasElement.clientHeight;
@@ -331,13 +316,14 @@ function focusRack(
     viewportHeight,
   );
 
-  debug.group("Focus Rack Calculation");
-  debug.log("Target rack IDs:", rackIds);
-  debug.log("All relevant rack IDs:", [...allRelevantRackIds]);
-  debug.log("Viewport:", { width: viewportWidth, height: viewportHeight });
-  debug.log("Rack positions:", rackPositions);
-  debug.log("Calculated:", { zoom, panX, panY });
-  debug.groupEnd();
+  canvasDebug.focus("Target rack IDs: %o", rackIds);
+  canvasDebug.focus("All relevant rack IDs: %o", [...allRelevantRackIds]);
+  canvasDebug.focus("Viewport: %o", {
+    width: viewportWidth,
+    height: viewportHeight,
+  });
+  canvasDebug.focus("Rack positions: %o", rackPositions);
+  canvasDebug.focus("Calculated: %o", { zoom, panX, panY });
 
   // Apply zoom and pan with smooth animation
   smoothMoveTo(panX, panY, zoom);
@@ -406,21 +392,13 @@ function zoomToDevice(
   const panX = viewportWidth / 2 - deviceCenterX * zoom;
   const panY = viewportHeight / 2 - deviceCenterY * zoom;
 
-  debug.group("Zoom to Device");
-  debug.log("Device:", {
-    index: deviceIndex,
+  canvasDebug.transform("zoomToDevice: %o", {
+    deviceIndex,
     position: device.position,
     uHeight: deviceType.u_height,
+    viewport: { width: viewportWidth, height: viewportHeight },
+    calculated: { zoom, panX, panY },
   });
-  debug.log("SVG coords:", {
-    deviceYInRack,
-    deviceHeight,
-    deviceAbsX,
-    deviceAbsY,
-  });
-  debug.log("Viewport:", { width: viewportWidth, height: viewportHeight });
-  debug.log("Calculated:", { zoom, panX, panY });
-  debug.groupEnd();
 
   // Apply zoom and pan
   smoothMoveTo(panX, panY, zoom);

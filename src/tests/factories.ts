@@ -28,6 +28,7 @@ import type {
 } from "$lib/types";
 import type { Command, CommandType } from "$lib/stores/commands/types";
 import { toInternalUnits } from "$lib/utils/position";
+import { getLayoutStore } from "$lib/stores/layout.svelte";
 
 // =============================================================================
 // Rack Factory
@@ -321,6 +322,44 @@ export function createTestContainerChild(
     ports: overrides.ports ?? [],
     ...overrides,
   };
+}
+
+// =============================================================================
+// Store Setup Helpers
+// =============================================================================
+
+/**
+ * Helper to set up a store with a rack and a placed device.
+ * Returns the store, rack ID, and device slug for test assertions.
+ */
+export function setupStoreWithDevice() {
+  const store = getLayoutStore();
+  if (!store) {
+    throw new Error("setupStoreWithDevice: getLayoutStore() returned null");
+  }
+
+  const rack = store.addRack("Test Rack", 42);
+  if (!rack) {
+    throw new Error("setupStoreWithDevice: addRack() failed to create rack");
+  }
+
+  const deviceType = createTestDeviceType({
+    slug: "generic-server",
+    model: "Generic Server",
+    u_height: 2,
+    category: "server",
+    colour: "#4A90D9",
+  });
+  store.addDeviceTypeRaw(deviceType);
+
+  const placed = store.placeDevice(rack.id, deviceType.slug, 5);
+  if (!placed) {
+    throw new Error(
+      `setupStoreWithDevice: placeDevice() failed for rack ${rack.id}, device ${deviceType.slug}`,
+    );
+  }
+
+  return { store, rackId: rack.id, deviceSlug: deviceType.slug };
 }
 
 // =============================================================================

@@ -8,3 +8,4 @@ declare const __BUILD_ENV__: string;
 declare const __UMAMI_ENABLED__: boolean;
 declare const __UMAMI_SCRIPT_URL__: string;
 declare const __UMAMI_WEBSITE_ID__: string;
+declare const __PERSIST_ENABLED__: boolean;

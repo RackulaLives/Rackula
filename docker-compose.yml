@@ -1,15 +1,18 @@
 services:
   rackula:
     image: ghcr.io/rackulalives/rackula:latest
-    # To build locally instead, comment out 'image' and uncomment 'build':
-    # build: ./deploy
+    # For persistence, build locally instead (uncomment below, comment out image):
+    # build:
+    #   context: .
+    #   dockerfile: deploy/Dockerfile
+    #   args:
+    #     VITE_PERSIST_ENABLED: "true"
     container_name: rackula
     ports:
       - "${RACKULA_PORT:-8080}:8080"
     restart: unless-stopped
     stop_grace_period: 10s
 
-    # Resource limits (requires Docker Compose v2)
     deploy:
       resources:
         limits:
@@ -19,7 +22,6 @@ services:
           cpus: "0.10"
           memory: 16M
 
-    # Security hardening (no cap_add needed with non-root nginx)
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -30,9 +32,59 @@ services:
       - /var/run:size=1M
       - /tmp:size=5M
 
-    # Logging
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+
+  # API sidecar for persistent storage (optional)
+  # Enable with: docker compose --profile persist up -d
+  rackula-api:
+    profiles: [persist]
+    image: ghcr.io/rackulalives/rackula-api:latest
+    container_name: rackula-api
+    restart: unless-stopped
+    stop_grace_period: 10s
+
+    volumes:
+      # Note: Host directory must be writable by container user (uid 1001)
+      # Run: mkdir -p ./data && sudo chown 1001:1001 ./data
+      - ./data:/data
+
+    environment:
+      - DATA_DIR=/data
+      - PORT=3001
+
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+        reservations:
+          cpus: "0.05"
+          memory: 16M
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=5M
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+    expose:
+      - "3001"

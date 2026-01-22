@@ -1,0 +1,21 @@
+node_modules/
+*.log
+
+# Environment files (may contain secrets)
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Build artifacts
+dist/
+coverage/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor artifacts
+*.swp
+*~

@@ -66,10 +66,24 @@ docker compose up -d
 
 Then open `http://localhost:8080` and get after it.
 
+### Persistent Storage (Self-Hosted)
+
+For layouts that persist across sessions, clone and build with persistence enabled:
+
+```bash
+git clone https://github.com/RackulaLives/Rackula.git
+cd Rackula
+mkdir -p data
+# Edit docker-compose.yml: uncomment 'build' section, comment out 'image'
+docker compose --profile persist up -d --build
+```
+
+See [Self-Hosting Guide](docs/guides/SELF-HOSTING.md) for details.
+
 ### Build from source
 
 ```bash
-git clone https://github.com/rackulalives/rackula.git
+git clone https://github.com/RackulaLives/Rackula.git
 cd Rackula && npm install && npm run build
 ```
 

@@ -58,6 +58,8 @@ export default defineConfig({
     __GIT_DIRTY__: JSON.stringify(gitInfo.isDirty),
     // Environment indicator
     __BUILD_ENV__: JSON.stringify(""),
+    // Persistence feature flag (disabled in tests by default)
+    __PERSIST_ENABLED__: JSON.stringify(false),
   },
   test: {
     environment: "happy-dom",
