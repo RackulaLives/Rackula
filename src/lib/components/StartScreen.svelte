@@ -28,6 +28,7 @@
     IconCloudOff,
   } from "$lib/components/icons";
   import LogoLockup from "$lib/components/LogoLockup.svelte";
+  import { VERSION } from "$lib/version";
 
   interface Props {
     onClose: (layoutId?: string) => void;
@@ -180,6 +181,7 @@
   <div class="start-screen-content">
     <header class="start-header">
       <LogoLockup size={48} showcase={true} alwaysShowTitle={true} />
+      <span class="version">v{VERSION}</span>
       <p class="subtitle">Rack Layout Designer for Homelabbers</p>
     </header>
 
@@ -309,9 +311,15 @@
     margin-bottom: var(--space-8);
   }
 
-  .subtitle {
+  .version {
+    font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
     margin-top: var(--space-2);
+  }
+
+  .subtitle {
+    color: var(--colour-text-muted);
+    margin-top: var(--space-1);
     text-align: center;
   }
 
