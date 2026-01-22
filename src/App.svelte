@@ -1294,7 +1294,14 @@
               {#if uiStore.sidebarTab === "devices"}
                 <DevicePalette oncreatedevice={handleAddDevice} />
               {:else if uiStore.sidebarTab === "racks"}
-                <RackList onexport={handleRackContextExport} />
+                <RackList
+                  onnewrack={handleNewRack}
+                  onexport={handleRackContextExport}
+                  onfocus={handleRackContextFocus}
+                  onedit={handleRackContextEdit}
+                  onrename={handleRackContextRename}
+                  onduplicate={handleRackContextDuplicate}
+                />
               {/if}
             </Pane>
 
