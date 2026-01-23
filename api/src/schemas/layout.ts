@@ -5,11 +5,18 @@
 import { z } from "zod";
 
 /**
- * UUID pattern for layout metadata.id
+ * UUID pattern for layout metadata.id (anchored for validation)
  * Standard UUID format: 8-4-4-4-12 hex characters with hyphens
  */
 export const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Unanchored UUID pattern for extraction from strings
+ * Used to find UUIDs within folder names like "My Homelab-550e8400-..."
+ */
+const UUID_EXTRACTION_PATTERN =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 /**
  * Check if a string is a valid UUID format
@@ -20,10 +27,10 @@ export function isUuid(str: string): boolean {
 
 /**
  * Extract UUID from folder name (format: "{Human Name}-{UUID}")
- * Returns null if folder name doesn't end with a valid UUID
+ * Returns null if folder name doesn't contain a valid UUID
  */
 export function extractUuidFromFolderName(folderName: string): string | null {
-  const match = folderName.match(UUID_PATTERN);
+  const match = folderName.match(UUID_EXTRACTION_PATTERN);
   return match ? match[0] : null;
 }
 
@@ -45,7 +52,8 @@ export function slugify(name: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 100);
+    .slice(0, 100)
+    .replace(/-+$/g, ""); // Remove trailing hyphens after truncation
 
   // Handle empty results (e.g., all-Unicode names like "...")
   if (!slug) {

@@ -91,7 +91,8 @@ async function readLayoutFromFolder(
 
   try {
     const content = await readFile(yamlPath, "utf-8");
-    const parsed = yaml.load(content) as unknown;
+    // Use JSON_SCHEMA to prevent JavaScript tag execution (security)
+    const parsed = yaml.load(content, { schema: yaml.JSON_SCHEMA }) as unknown;
     const metadata = LayoutFileSchema.safeParse(parsed);
     const stats = await stat(yamlPath);
 
@@ -211,9 +212,10 @@ export async function saveLayout(
   await ensureDataDir();
 
   // Parse YAML content with error handling
+  // Use JSON_SCHEMA to prevent JavaScript tag execution (security)
   let parsed: unknown;
   try {
-    parsed = yaml.load(yamlContent);
+    parsed = yaml.load(yamlContent, { schema: yaml.JSON_SCHEMA });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     throw new Error(`Invalid YAML: ${message}`);
@@ -228,14 +230,17 @@ export async function saveLayout(
     throw new Error(`Invalid layout metadata: ${issues}`);
   }
 
-  // Determine UUID: use metadata.id > existingUuid > generate new
-  const uuid = layout.data.metadata?.id ?? existingUuid ?? crypto.randomUUID();
-  const layoutName = layout.data.metadata?.name ?? layout.data.name;
-
-  // Validate UUID if provided
+  // Validate existingUuid if provided
   if (existingUuid && !isUuid(existingUuid)) {
     throw new Error(`Invalid UUID format: ${existingUuid}`);
   }
+
+  // Determine UUID: use validated metadata.id > existingUuid > generate new
+  // Validate metadata.id before using it to prevent malformed UUIDs
+  const metadataId = layout.data.metadata?.id;
+  const validMetadataId = metadataId && isUuid(metadataId) ? metadataId : null;
+  const uuid = validMetadataId ?? existingUuid ?? crypto.randomUUID();
+  const layoutName = layout.data.metadata?.name ?? layout.data.name;
 
   const folderName = buildFolderName(layoutName, uuid);
   const yamlFilename = buildYamlFilename(layoutName);
