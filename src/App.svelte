@@ -114,7 +114,8 @@
 
   // Persistence state
   let showStartScreen = $state(PERSIST_ENABLED);
-  let currentLayoutId = $state<string | undefined>(undefined);
+  // Diagnostic: tracks current layout UUID (assigned but not actively read - for debugging)
+  let _currentLayoutId = $state<string | undefined>(undefined);
   let saveStatus = $state<SaveStatusType>("idle");
   let apiAvailable = $state(true);
 
@@ -1159,8 +1160,9 @@
     serverSaveTimer = setTimeout(async () => {
       saveStatus = "saving";
       try {
-        const newId = await saveLayoutToServer(snapshot, currentLayoutId);
-        currentLayoutId = newId;
+        // UUID comes from layout metadata now, not passed as parameter
+        const newId = await saveLayoutToServer(snapshot);
+        _currentLayoutId = newId;
         saveStatus = "saved";
       } catch (e) {
         console.warn("Auto-save failed:", e);
@@ -1205,7 +1207,7 @@
 
   // Handler for StartScreen close
   function handleStartScreenClose(options?: StartScreenCloseOptions) {
-    currentLayoutId = options?.layoutId;
+    _currentLayoutId = options?.layoutId;
     showStartScreen = false;
 
     // If no layout was loaded from API (offline mode), check localStorage

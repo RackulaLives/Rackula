@@ -19,6 +19,14 @@ const UUID_EXTRACTION_PATTERN =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 /**
+ * UUID schema for route parameter validation.
+ * Used to validate :uuid route parameters in layout API routes.
+ */
+export const UuidSchema = z
+  .string()
+  .regex(UUID_PATTERN, "Invalid layout UUID format");
+
+/**
  * Check if a string is a valid UUID format
  */
 export function isUuid(str: string): boolean {
@@ -133,8 +141,10 @@ export const LayoutIdSchema = z
   );
 
 // Layout list item returned by GET /api/layouts (with counts)
+// Layout list item returned by GET /api/layouts (with counts)
+// The id field is the layout's UUID from metadata.id (stable identity)
 export const LayoutListItemSchema = z.object({
-  id: z.string(),
+  id: z.string().regex(UUID_PATTERN, "Invalid UUID format"),
   name: z.string(),
   version: z.string(),
   updatedAt: z.string().datetime(),

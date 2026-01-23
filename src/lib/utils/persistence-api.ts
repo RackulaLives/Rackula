@@ -1,11 +1,11 @@
 /**
  * Persistence API Client
  * Communicates with the API sidecar for layout CRUD
+ * Uses UUID-based routing for stable URLs across renames
  */
 import { API_BASE_URL, PERSIST_ENABLED } from "./persistence-config";
 import type { Layout } from "$lib/types";
 import { serializeLayoutToYaml, parseLayoutYaml } from "./yaml";
-import { slugify } from "./slug";
 import { persistenceDebug } from "./debug";
 
 const log = persistenceDebug.api;
@@ -37,8 +37,10 @@ async function safeParseErrorJson(
 
 /**
  * Layout list item from API
+ * The id field is a UUID - stable identity that doesn't change on renames
  */
 export interface SavedLayoutItem {
+  /** UUID - stable identity across renames/moves */
   id: string;
   name: string;
   version: string;
@@ -131,17 +133,18 @@ export async function listSavedLayouts(): Promise<SavedLayoutItem[]> {
 }
 
 /**
- * Load a layout by ID
+ * Load a layout by UUID
+ * @param uuid - The layout's UUID (stable identity)
  */
-export async function loadSavedLayout(id: string): Promise<Layout> {
-  log("loadSavedLayout: id=%s", id);
+export async function loadSavedLayout(uuid: string): Promise<Layout> {
+  log("loadSavedLayout: uuid=%s", uuid);
 
   if (!PERSIST_ENABLED) {
     log("loadSavedLayout: persistence not available");
     throw new PersistenceError("Persistence not available");
   }
 
-  const url = `${API_BASE_URL}/layouts/${encodeURIComponent(id)}`;
+  const url = `${API_BASE_URL}/layouts/${encodeURIComponent(uuid)}`;
   log("loadSavedLayout: fetching %s", url);
 
   const response = await fetch(url, {
@@ -150,7 +153,7 @@ export async function loadSavedLayout(id: string): Promise<Layout> {
 
   if (!response.ok) {
     if (response.status === 404) {
-      log("loadSavedLayout: not found id=%s", id);
+      log("loadSavedLayout: not found uuid=%s", uuid);
       throw new PersistenceError("Layout not found", 404);
     }
     const error = await safeParseErrorJson(response);
@@ -166,41 +169,55 @@ export async function loadSavedLayout(id: string): Promise<Layout> {
   }
 
   const yamlContent = await response.text();
-  log("loadSavedLayout: loaded id=%s size=%d bytes", id, yamlContent.length);
+  log(
+    "loadSavedLayout: loaded uuid=%s size=%d bytes",
+    uuid,
+    yamlContent.length,
+  );
   return parseLayoutYaml(yamlContent);
 }
 
 /**
  * Save a layout (create or update)
- * @param layout - The layout to save
- * @param currentId - The current layout ID (for rename detection)
- * @returns The saved layout ID
+ * Uses the UUID from layout metadata for routing
+ * @param layout - The layout to save (must have metadata.id for existing layouts)
+ * @returns The saved layout UUID
  */
-export async function saveLayoutToServer(
-  layout: Layout,
-  currentId?: string,
-): Promise<string> {
-  log("saveLayoutToServer: name=%s currentId=%s", layout.name, currentId);
+export async function saveLayoutToServer(layout: Layout): Promise<string> {
+  log("saveLayoutToServer: name=%s", layout.name);
 
   if (!PERSIST_ENABLED) {
     log("saveLayoutToServer: persistence not available");
     throw new PersistenceError("Persistence not available");
   }
 
-  const newId = slugify(layout.name) || "untitled";
+  // Extract UUID from layout metadata if present
+  // Type assertion to access metadata.id which may exist on Layout
+  const layoutWithMetadata = layout as Layout & {
+    metadata?: { id?: string };
+  };
+  const uuid =
+    layoutWithMetadata.metadata &&
+    typeof layoutWithMetadata.metadata === "object" &&
+    typeof layoutWithMetadata.metadata.id === "string"
+      ? layoutWithMetadata.metadata.id
+      : undefined;
+
+  if (!uuid) {
+    log("saveLayoutToServer: no UUID in layout metadata, cannot save");
+    throw new PersistenceError(
+      "Layout must have a metadata.id UUID to save to server",
+    );
+  }
+
   const yamlContent = await serializeLayoutToYaml(layout);
   log(
-    "saveLayoutToServer: newId=%s yamlSize=%d bytes",
-    newId,
+    "saveLayoutToServer: uuid=%s yamlSize=%d bytes",
+    uuid,
     yamlContent.length,
   );
 
-  // Use current ID in path for rename handling (not a query param)
-  const url =
-    currentId && currentId !== newId
-      ? `${API_BASE_URL}/layouts/${encodeURIComponent(currentId)}`
-      : `${API_BASE_URL}/layouts/${encodeURIComponent(newId)}`;
-
+  const url = `${API_BASE_URL}/layouts/${encodeURIComponent(uuid)}`;
   log("saveLayoutToServer: PUT %s", url);
 
   const response = await fetch(url, {
@@ -224,22 +241,23 @@ export async function saveLayoutToServer(
   }
 
   const { id } = (await response.json()) as { id: string };
-  log("saveLayoutToServer: saved id=%s", id);
+  log("saveLayoutToServer: saved uuid=%s", id);
   return id;
 }
 
 /**
- * Delete a saved layout
+ * Delete a saved layout by UUID
+ * @param uuid - The layout's UUID (stable identity)
  */
-export async function deleteSavedLayout(id: string): Promise<void> {
-  log("deleteSavedLayout: id=%s", id);
+export async function deleteSavedLayout(uuid: string): Promise<void> {
+  log("deleteSavedLayout: uuid=%s", uuid);
 
   if (!PERSIST_ENABLED) {
     log("deleteSavedLayout: persistence not available");
     throw new PersistenceError("Persistence not available");
   }
 
-  const url = `${API_BASE_URL}/layouts/${encodeURIComponent(id)}`;
+  const url = `${API_BASE_URL}/layouts/${encodeURIComponent(uuid)}`;
   log("deleteSavedLayout: DELETE %s", url);
 
   const response = await fetch(url, {
@@ -249,7 +267,7 @@ export async function deleteSavedLayout(id: string): Promise<void> {
 
   if (!response.ok) {
     if (response.status === 404) {
-      log("deleteSavedLayout: not found id=%s", id);
+      log("deleteSavedLayout: not found uuid=%s", uuid);
       throw new PersistenceError("Layout not found", 404);
     }
     const error = await safeParseErrorJson(response);
@@ -264,21 +282,22 @@ export async function deleteSavedLayout(id: string): Promise<void> {
     );
   }
 
-  log("deleteSavedLayout: deleted id=%s", id);
+  log("deleteSavedLayout: deleted uuid=%s", uuid);
 }
 
 /**
  * Upload an asset image
+ * @param layoutUuid - The layout's UUID
  */
 export async function uploadAsset(
-  layoutId: string,
+  layoutUuid: string,
   deviceSlug: string,
   face: "front" | "rear",
   blob: Blob,
 ): Promise<void> {
   log(
-    "uploadAsset: layoutId=%s deviceSlug=%s face=%s size=%d type=%s",
-    layoutId,
+    "uploadAsset: layoutUuid=%s deviceSlug=%s face=%s size=%d type=%s",
+    layoutUuid,
     deviceSlug,
     face,
     blob.size,
@@ -290,7 +309,7 @@ export async function uploadAsset(
     throw new PersistenceError("Persistence not available");
   }
 
-  const url = `${API_BASE_URL}/assets/${encodeURIComponent(layoutId)}/${encodeURIComponent(deviceSlug)}/${face}`;
+  const url = `${API_BASE_URL}/assets/${encodeURIComponent(layoutUuid)}/${encodeURIComponent(deviceSlug)}/${face}`;
   log("uploadAsset: PUT %s", url);
 
   const response = await fetch(url, {
@@ -314,8 +333,8 @@ export async function uploadAsset(
   }
 
   log(
-    "uploadAsset: uploaded layoutId=%s deviceSlug=%s face=%s",
-    layoutId,
+    "uploadAsset: uploaded layoutUuid=%s deviceSlug=%s face=%s",
+    layoutUuid,
     deviceSlug,
     face,
   );
@@ -323,11 +342,12 @@ export async function uploadAsset(
 
 /**
  * Get asset URL for display
+ * @param layoutUuid - The layout's UUID
  */
 export function getAssetUrl(
-  layoutId: string,
+  layoutUuid: string,
   deviceSlug: string,
   face: "front" | "rear",
 ): string {
-  return `${API_BASE_URL}/assets/${encodeURIComponent(layoutId)}/${encodeURIComponent(deviceSlug)}/${face}`;
+  return `${API_BASE_URL}/assets/${encodeURIComponent(layoutUuid)}/${encodeURIComponent(deviceSlug)}/${face}`;
 }
