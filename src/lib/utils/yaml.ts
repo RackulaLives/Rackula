@@ -193,11 +193,93 @@ function orderCableFields(cable: Cable): Record<string, unknown> {
 }
 
 /**
+ * Metadata for layout export with UUID support (#919)
+ * @see docs/plans/2026-01-22-data-directory-refactor-design.md
+ */
+export interface LayoutMetadata {
+  /** UUID - stable identity across renames/moves */
+  id: string;
+  /** Human-readable layout name */
+  name: string;
+  /** Format version for future migrations (e.g., "1.0") */
+  schema_version: string;
+  /** Optional notes about the layout */
+  description?: string;
+}
+
+/**
+ * Order metadata fields according to design spec
+ * Field order: id, name, schema_version, description
+ */
+function orderMetadataFields(
+  metadata: LayoutMetadata,
+): Record<string, unknown> {
+  const ordered: Record<string, unknown> = {};
+
+  ordered.id = metadata.id;
+  ordered.name = metadata.name;
+  ordered.schema_version = metadata.schema_version;
+  if (metadata.description !== undefined && metadata.description !== "") {
+    ordered.description = metadata.description;
+  }
+
+  return ordered;
+}
+
+/**
  * Serialize a layout to YAML string
  * Excludes runtime-only fields (view) and orders fields according to schema v1.0.0
  */
 export async function serializeLayoutToYaml(layout: Layout): Promise<string> {
   const layoutForSerialization: Record<string, unknown> = {
+    version: layout.version,
+    name: layout.name,
+    racks: layout.racks.map(orderRackFields),
+    device_types: layout.device_types.map(orderDeviceTypeFields),
+    settings: layout.settings,
+  };
+
+  // Only include rack_groups if present
+  if (layout.rack_groups !== undefined && layout.rack_groups.length > 0) {
+    layoutForSerialization.rack_groups = layout.rack_groups;
+  }
+
+  // Only include cables if present
+  if (layout.cables !== undefined && layout.cables.length > 0) {
+    layoutForSerialization.cables = layout.cables.map(orderCableFields);
+  }
+
+  return serializeToYaml(layoutForSerialization);
+}
+
+/**
+ * Serialize a layout to YAML string with metadata section (#919)
+ * Used for folder-based ZIP exports with UUID-based naming.
+ *
+ * Output format:
+ * ```yaml
+ * metadata:
+ *   id: 550e8400-e29b-41d4-a716-446655440000
+ *   name: My Homelab
+ *   schema_version: "1.0"
+ *   description: "Basement setup for home automation"
+ *
+ * version: "0.7.0"
+ * name: My Homelab
+ * racks: [...]
+ * ```
+ *
+ * @param layout - The layout to serialize
+ * @param metadata - Metadata with UUID, name, and version
+ */
+export async function serializeLayoutToYamlWithMetadata(
+  layout: Layout,
+  metadata: LayoutMetadata,
+): Promise<string> {
+  const layoutForSerialization: Record<string, unknown> = {
+    // Metadata section at the top
+    metadata: orderMetadataFields(metadata),
+    // Standard layout fields
     version: layout.version,
     name: layout.name,
     racks: layout.racks.map(orderRackFields),
