@@ -228,9 +228,9 @@ export async function extractFolderArchive(
   }
 
   // Prefer .rackula.yaml files, fall back to .yaml
-  const raculaYamlFiles = yamlFiles.filter((f) => f.endsWith(".rackula.yaml"));
+  const rackulaYamlFiles = yamlFiles.filter((f) => f.endsWith(".rackula.yaml"));
   const yamlPath =
-    raculaYamlFiles.length > 0 ? raculaYamlFiles[0]! : yamlFiles[0]!;
+    rackulaYamlFiles.length > 0 ? rackulaYamlFiles[0]! : yamlFiles[0]!;
 
   const yamlFile = zip.file(yamlPath);
   if (!yamlFile) {

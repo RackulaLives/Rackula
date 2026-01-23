@@ -7,13 +7,14 @@
  */
 
 /**
- * UUID v4 pattern: 8-4-4-4-12 hex characters with hyphens
+ * UUID format: 8-4-4-4-12 hex characters with hyphens
+ * Accepts any valid UUID (not just v4) since we generate UUIDs but may import from other sources
  */
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Check if a string is a valid UUID v4 format
+ * Check if a string is a valid UUID format
  */
 export function isUuid(str: string): boolean {
   return UUID_PATTERN.test(str);
@@ -28,10 +29,10 @@ export function isUuid(str: string): boolean {
  * // '550e8400-e29b-41d4-a716-446655440000'
  */
 export function extractUuidFromFolderName(folderName: string): string | null {
-  // UUID is always 36 characters at the end after a hyphen
-  // Pattern: {name}-{8-4-4-4-12}
+  // UUID is always 36 characters at the end after a hyphen separator
+  // Pattern: {name}-{8-4-4-4-12} (hyphen required before UUID)
   const match = folderName.match(
-    /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
+    /-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
   );
   return match ? match[1]! : null;
 }
@@ -44,6 +45,9 @@ export function extractUuidFromFolderName(folderName: string): string | null {
  * // 'My Homelab-550e8400-e29b-41d4-a716-446655440000'
  */
 export function buildFolderName(name: string, uuid: string): string {
+  if (!isUuid(uuid)) {
+    throw new Error(`Invalid UUID: ${uuid}`);
+  }
   return `${name}-${uuid}`;
 }
 
