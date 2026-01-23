@@ -5,13 +5,19 @@
  * Uses dynamic import for JSZip to reduce initial bundle size.
  * The library is only loaded when save/load operations are performed.
  *
- * Folder structure (#919):
+ * New folder structure (#919):
  * {Layout Name}-{UUID}/
  * ├── {slugified-name}.rackula.yaml
  * └── assets/                              # only if custom images exist
  *     └── {deviceSlug}/
  *         ├── front.png
  *         └── rear.png
+ *
+ * Old flat structure (backwards compatible):
+ * {layout-name}.yaml                       # YAML at root
+ * images/                                  # optional images folder
+ *   └── {device-slug}/
+ *       └── front.png
  *
  * @see docs/plans/2026-01-22-data-directory-refactor-design.md
  */
@@ -20,7 +26,11 @@ import type { Layout } from "$lib/types";
 import type { ImageData, ImageStoreMap } from "$lib/types/images";
 import { serializeLayoutToYamlWithMetadata, parseLayoutYaml } from "./yaml";
 import { generateId } from "./device";
-import { buildFolderName, buildYamlFilename } from "./folder-structure";
+import {
+  buildFolderName,
+  buildYamlFilename,
+  extractUuidFromFolderName,
+} from "./folder-structure";
 
 /**
  * Lazily load JSZip library
@@ -53,6 +63,82 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   jpeg: "image/jpeg",
   webp: "image/webp",
 };
+
+/**
+ * Supported image file extensions
+ */
+const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "svg"];
+
+/**
+ * Check if a file path is an image file
+ */
+function isImageFile(path: string): boolean {
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  return IMAGE_EXTENSIONS.includes(ext);
+}
+
+/**
+ * Detected ZIP format information
+ */
+interface ZipFormat {
+  /** Format type: new folder structure, old flat structure, or invalid */
+  type: "new-folder" | "old-flat" | "invalid";
+  /** Folder name for new format (e.g., "My Layout-UUID") */
+  folderName?: string;
+  /** Path to the YAML file within the zip */
+  yamlPath?: string;
+  /** Path to assets folder (new format) or images folder (old format) */
+  assetsPath?: string;
+}
+
+/**
+ * Detect the format of a ZIP archive
+ * Supports both new folder structure (#919) and old flat structure
+ */
+async function detectZipFormat(
+  zip: import("jszip").default,
+): Promise<ZipFormat> {
+  const entries = Object.keys(zip.files);
+
+  // Look for new format: folder with UUID and .rackula.yaml
+  for (const entry of entries) {
+    const parts = entry.split("/");
+    if (parts.length >= 2 && parts[0]) {
+      const folderName = parts[0];
+      const uuid = extractUuidFromFolderName(folderName);
+      if (uuid) {
+        // Found a UUID folder - look for .rackula.yaml
+        const yamlFile = entries.find(
+          (e) => e.startsWith(`${folderName}/`) && e.endsWith(".rackula.yaml"),
+        );
+        if (yamlFile) {
+          return {
+            type: "new-folder",
+            folderName,
+            yamlPath: yamlFile,
+            assetsPath: `${folderName}/assets/`,
+          };
+        }
+      }
+    }
+  }
+
+  // Look for old format: flat .yaml file at root
+  const flatYaml = entries.find(
+    (e) => !e.includes("/") && (e.endsWith(".yaml") || e.endsWith(".yml")),
+  );
+  if (flatYaml) {
+    // Check if there's an images/ folder
+    const hasImagesFolder = entries.some((e) => e.startsWith("images/"));
+    return {
+      type: "old-flat",
+      yamlPath: flatYaml,
+      assetsPath: hasImagesFolder ? "images/" : undefined,
+    };
+  }
+
+  return { type: "invalid" };
+}
 
 /**
  * Get file extension from MIME type
@@ -207,7 +293,7 @@ export async function createFolderArchive(
 
 /**
  * Extract a folder-based ZIP archive
- * Supports both new format ({Name}-{UUID}/) and legacy format ({slug}/)
+ * Supports both new format ({Name}-{UUID}/) and old flat format
  * Returns layout, images map, and list of any images that failed to load
  */
 export async function extractFolderArchive(
@@ -216,116 +302,230 @@ export async function extractFolderArchive(
   const JSZip = await getJSZip();
   const zip = await JSZip.loadAsync(blob);
 
-  // Find the YAML file - supports both .rackula.yaml and .yaml extensions
-  const yamlFiles = Object.keys(zip.files).filter(
-    (name) =>
-      (name.endsWith(".rackula.yaml") || name.endsWith(".yaml")) &&
-      !name.endsWith("/"),
-  );
+  // Detect format
+  const format = await detectZipFormat(zip);
 
-  if (yamlFiles.length === 0) {
-    throw new Error("No YAML file found in archive");
+  if (format.type === "invalid") {
+    throw new Error("No valid layout file found in archive");
   }
 
-  // Prefer .rackula.yaml files, fall back to .yaml
-  const rackulaYamlFiles = yamlFiles.filter((f) => f.endsWith(".rackula.yaml"));
-  const yamlPath =
-    rackulaYamlFiles.length > 0 ? rackulaYamlFiles[0]! : yamlFiles[0]!;
+  if (format.type === "new-folder") {
+    return await extractNewFormatZip(zip, format);
+  }
 
-  const yamlFile = zip.file(yamlPath);
+  // Old flat format
+  return await extractOldFormatZip(zip, format);
+}
+
+/**
+ * Extract from new folder-structure ZIP format (#919)
+ * Structure: {Name}-{UUID}/{slug}.rackula.yaml + assets/
+ */
+async function extractNewFormatZip(
+  zip: import("jszip").default,
+  format: ZipFormat,
+): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
+  // Extract YAML
+  const yamlFile = zip.file(format.yamlPath!);
   if (!yamlFile) {
-    throw new Error("Could not read YAML file from archive");
+    throw new Error(`YAML file not found: ${format.yamlPath}`);
   }
-
-  // Parse YAML content
   const yamlContent = await yamlFile.async("string");
   const layout = await parseLayoutYaml(yamlContent);
-
-  // Find the folder name (parent of the YAML file)
-  const folderName = yamlPath.split("/")[0] ?? "layout";
 
   // Extract images from assets folder
   const images: ImageStoreMap = new Map();
   const failedImages: string[] = [];
-  const assetsPrefix = `${folderName}/assets/`;
 
-  const imageFiles = Object.keys(zip.files).filter(
-    (name) =>
-      name.startsWith(assetsPrefix) &&
-      !name.endsWith("/") &&
-      (name.endsWith(".png") ||
-        name.endsWith(".jpg") ||
-        name.endsWith(".jpeg") ||
-        name.endsWith(".webp")),
-  );
+  if (format.assetsPath) {
+    const imageFiles = Object.keys(zip.files).filter(
+      (name) =>
+        name.startsWith(format.assetsPath!) &&
+        !name.endsWith("/") &&
+        isImageFile(name),
+    );
 
-  for (const imagePath of imageFiles) {
-    // Parse path: folder/assets/[slug]/[filename].[ext]
-    const relativePath = imagePath.substring(assetsPrefix.length);
-    const parts = relativePath.split("/");
+    for (const imagePath of imageFiles) {
+      // Parse path: folder/assets/[slug]/[filename].[ext]
+      const relativePath = imagePath.substring(format.assetsPath!.length);
+      const parts = relativePath.split("/");
 
-    if (parts.length !== 2) continue;
+      if (parts.length !== 2) continue;
 
-    const deviceSlug = parts[0];
-    const filename = parts[1];
-    if (!deviceSlug || !filename) continue;
+      const deviceSlug = parts[0];
+      const filename = parts[1];
+      if (!deviceSlug || !filename) continue;
 
-    // Check for device type image: front.{ext} or rear.{ext}
-    const deviceTypeFaceMatch = filename.match(/^(front|rear)\.\w+$/);
-
-    // Check for placement image: {deviceId}-front.{ext} or {deviceId}-rear.{ext}
-    const placementFaceMatch = filename.match(/^(.+)-(front|rear)\.\w+$/);
-
-    let imageKey: string;
-    let face: "front" | "rear";
-
-    if (deviceTypeFaceMatch) {
-      // Device type image
-      imageKey = deviceSlug;
-      face = deviceTypeFaceMatch[1] as "front" | "rear";
-    } else if (placementFaceMatch) {
-      // Placement-specific image
-      const deviceId = placementFaceMatch[1];
-      face = placementFaceMatch[2] as "front" | "rear";
-      imageKey = `placement-${deviceId}`;
-    } else {
-      continue; // Unknown format
-    }
-
-    const imageFile = zip.file(imagePath);
-
-    if (!imageFile) continue;
-
-    try {
-      const imageBlob = await imageFile.async("blob");
-      const dataUrl = await blobToDataUrl(imageBlob);
-
-      // Graceful degradation: skip images that fail to convert
-      if (!dataUrl) {
-        console.warn(`Failed to load image: ${imagePath}`);
-        failedImages.push(imagePath);
-        continue;
-      }
-
-      const imageData: ImageData = {
-        blob: imageBlob,
-        dataUrl,
+      const result = await extractImageFromZip(
+        zip,
+        imagePath,
+        deviceSlug,
         filename,
-      };
+      );
 
-      const existing = images.get(imageKey) ?? {};
-      images.set(imageKey, {
-        ...existing,
-        [face]: imageData,
-      });
-    } catch (error) {
-      // Catch any unexpected errors during blob extraction
-      console.warn(`Failed to extract image: ${imagePath}`, error);
-      failedImages.push(imagePath);
+      if (result.error) {
+        failedImages.push(imagePath);
+      } else if (result.imageKey && result.face && result.imageData) {
+        const existing = images.get(result.imageKey) ?? {};
+        images.set(result.imageKey, {
+          ...existing,
+          [result.face]: result.imageData,
+        });
+      }
     }
   }
 
   return { layout, images, failedImages };
+}
+
+/**
+ * Extract from old flat ZIP format (backwards compatibility)
+ * Structure: {name}.yaml at root, images/ folder optional
+ */
+async function extractOldFormatZip(
+  zip: import("jszip").default,
+  format: ZipFormat,
+): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
+  // Extract YAML from root
+  const yamlFile = zip.file(format.yamlPath!);
+  if (!yamlFile) {
+    throw new Error(`YAML file not found: ${format.yamlPath}`);
+  }
+  const yamlContent = await yamlFile.async("string");
+  const layout = await parseLayoutYaml(yamlContent);
+
+  // Old format: images at root level or in images/ folder
+  const images: ImageStoreMap = new Map();
+  const failedImages: string[] = [];
+
+  // Find all image files (both at root and in images/ folder)
+  const imageFiles = Object.keys(zip.files).filter(
+    (path) => !zip.files[path]!.dir && isImageFile(path) && path !== format.yamlPath,
+  );
+
+  for (const imagePath of imageFiles) {
+    // Normalize path: remove "images/" prefix if present
+    const normalizedPath = imagePath.replace(/^images\//, "");
+    const parts = normalizedPath.split("/");
+
+    // Expected structure: [slug]/[filename].[ext]
+    if (parts.length === 2) {
+      const deviceSlug = parts[0];
+      const filename = parts[1];
+      if (!deviceSlug || !filename) continue;
+
+      const result = await extractImageFromZip(
+        zip,
+        imagePath,
+        deviceSlug,
+        filename,
+      );
+
+      if (result.error) {
+        failedImages.push(imagePath);
+      } else if (result.imageKey && result.face && result.imageData) {
+        const existing = images.get(result.imageKey) ?? {};
+        images.set(result.imageKey, {
+          ...existing,
+          [result.face]: result.imageData,
+        });
+      }
+    } else if (parts.length === 1) {
+      // Single image at root - try to infer slug from filename
+      // e.g., "device-slug-front.png"
+      const filename = parts[0];
+      if (!filename) continue;
+
+      const match = filename.match(/^(.+)-(front|rear)\.\w+$/);
+      if (match) {
+        const deviceSlug = match[1]!;
+        const face = match[2] as "front" | "rear";
+
+        const result = await extractImageFromZip(
+          zip,
+          imagePath,
+          deviceSlug,
+          filename,
+        );
+
+        if (result.error) {
+          failedImages.push(imagePath);
+        } else if (result.imageData) {
+          const existing = images.get(deviceSlug) ?? {};
+          images.set(deviceSlug, {
+            ...existing,
+            [face]: result.imageData,
+          });
+        }
+      }
+    }
+  }
+
+  return { layout, images, failedImages };
+}
+
+/**
+ * Extract a single image from the ZIP file
+ * Returns image data or error
+ */
+async function extractImageFromZip(
+  zip: import("jszip").default,
+  imagePath: string,
+  deviceSlug: string,
+  filename: string,
+): Promise<{
+  imageKey?: string;
+  face?: "front" | "rear";
+  imageData?: ImageData;
+  error?: boolean;
+}> {
+  // Check for device type image: front.{ext} or rear.{ext}
+  const deviceTypeFaceMatch = filename.match(/^(front|rear)\.\w+$/);
+
+  // Check for placement image: {deviceId}-front.{ext} or {deviceId}-rear.{ext}
+  const placementFaceMatch = filename.match(/^(.+)-(front|rear)\.\w+$/);
+
+  let imageKey: string;
+  let face: "front" | "rear";
+
+  if (deviceTypeFaceMatch) {
+    // Device type image
+    imageKey = deviceSlug;
+    face = deviceTypeFaceMatch[1] as "front" | "rear";
+  } else if (placementFaceMatch) {
+    // Placement-specific image
+    const deviceId = placementFaceMatch[1];
+    face = placementFaceMatch[2] as "front" | "rear";
+    imageKey = `placement-${deviceId}`;
+  } else {
+    return {}; // Unknown format, skip
+  }
+
+  const imageFile = zip.file(imagePath);
+  if (!imageFile) return { error: true };
+
+  try {
+    const imageBlob = await imageFile.async("blob");
+    const dataUrl = await blobToDataUrl(imageBlob);
+
+    // Graceful degradation: skip images that fail to convert
+    if (!dataUrl) {
+      console.warn(`Failed to load image: ${imagePath}`);
+      return { error: true };
+    }
+
+    const imageData: ImageData = {
+      blob: imageBlob,
+      dataUrl,
+      filename,
+    };
+
+    return { imageKey, face, imageData };
+  } catch (error) {
+    // Catch any unexpected errors during blob extraction
+    console.warn(`Failed to extract image: ${imagePath}`, error);
+    return { error: true };
+  }
 }
 
 /**
