@@ -52,6 +52,8 @@ const MIME_TO_EXTENSION: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
+  "image/gif": "gif",
+  "image/svg+xml": "svg",
 };
 
 /**
@@ -62,6 +64,8 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
   webp: "image/webp",
+  gif: "image/gif",
+  svg: "image/svg+xml",
 };
 
 /**
