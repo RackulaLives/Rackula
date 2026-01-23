@@ -75,6 +75,51 @@ async function findYamlInFolder(folderPath: string): Promise<string | null> {
 }
 
 /**
+ * Read a legacy flat YAML file (old format: {name}.yaml directly in DATA_DIR)
+ * Returns LayoutListItem with slug as ID (will become UUID on save)
+ */
+async function readLegacyLayout(
+  filename: string,
+): Promise<LayoutListItem | null> {
+  const filepath = join(DATA_DIR, filename);
+  try {
+    const content = await readFile(filepath, "utf-8");
+    const parsed = yaml.load(content, { schema: yaml.JSON_SCHEMA }) as unknown;
+    const metadata = LayoutFileSchema.safeParse(parsed);
+    const stats = await stat(filepath);
+
+    // Generate slug from filename (strip extension)
+    const slug = filename.replace(/\.ya?ml$/i, "");
+
+    if (metadata.success) {
+      return {
+        // Use slug as ID for legacy layouts (will become UUID on save)
+        id: slug,
+        name: metadata.data.name,
+        version: metadata.data.version,
+        updatedAt: stats.mtime.toISOString(),
+        rackCount: metadata.data.racks?.length ?? 0,
+        deviceCount: countDevices(metadata.data.racks ?? []),
+        valid: true,
+      };
+    } else {
+      return {
+        id: slug,
+        name: filename.replace(/\.ya?ml$/i, ""),
+        version: "unknown",
+        updatedAt: stats.mtime.toISOString(),
+        rackCount: 0,
+        deviceCount: 0,
+        valid: false,
+      };
+    }
+  } catch (e) {
+    console.warn(`Failed to read legacy layout: ${filename}`, e);
+    return null;
+  }
+}
+
+/**
  * Read a layout from a folder structure
  */
 async function readLayoutFromFolder(
@@ -138,6 +183,7 @@ async function readLayoutFromFolder(
 /**
  * List all layouts in the data directory
  * Scans for folder-per-layout structure (folders ending with UUID)
+ * Also includes legacy flat YAML files for backwards compatibility
  * Returns invalid files with valid: false so UI can show error badge
  */
 export async function listLayouts(): Promise<LayoutListItem[]> {
@@ -159,6 +205,16 @@ export async function listLayouts(): Promise<LayoutListItem[]> {
     }
   }
 
+  // Also scan for old flat .yaml/.yml files (backwards compatibility)
+  for (const entry of entries) {
+    if (entry.isFile() && /\.ya?ml$/i.test(entry.name)) {
+      const layout = await readLegacyLayout(entry.name);
+      if (layout) {
+        layouts.push(layout);
+      }
+    }
+  }
+
   // Sort by most recently updated
   return layouts.sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -174,42 +230,151 @@ export async function layoutExists(uuid: string): Promise<boolean> {
 }
 
 /**
- * Get a single layout by UUID
+ * Get a single layout by UUID or legacy slug
  * Returns the YAML content or null if not found
  */
-export async function getLayout(uuid: string): Promise<string | null> {
-  // Validate UUID to prevent path traversal attacks
-  if (!isUuid(uuid)) {
+export async function getLayout(id: string): Promise<string | null> {
+  // First try UUID lookup (new format)
+  if (isUuid(id)) {
+    const folder = await findFolderByUuid(id);
+    if (folder) {
+      const yamlFilename = await findYamlInFolder(folder);
+      if (yamlFilename) {
+        try {
+          return await readFile(join(folder, yamlFilename), "utf-8");
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+
+  // Fallback: try reading legacy flat file by slug
+  // Validate slug to prevent path traversal (no slashes, dots, etc.)
+  if (/[/\\.]/.test(id) || id.includes("..")) {
     return null;
   }
 
-  const folder = await findFolderByUuid(uuid);
-  if (!folder) {
-    return null;
+  const legacyPaths = [
+    join(DATA_DIR, `${id}.yaml`),
+    join(DATA_DIR, `${id}.yml`),
+  ];
+
+  for (const path of legacyPaths) {
+    try {
+      return await readFile(path, "utf-8");
+    } catch {
+      // Continue to next
+    }
   }
 
-  const yamlFilename = await findYamlInFolder(folder);
-  if (!yamlFilename) {
-    return null;
+  return null;
+}
+
+/**
+ * Migrate a legacy flat YAML file to the new folder-per-layout structure
+ * Moves {slug}.yaml to {Name}-{UUID}/{name}.rackula.yaml
+ */
+async function migrateLegacyLayout(
+  oldSlug: string,
+  yamlContent: string,
+): Promise<{ id: string; isNew: boolean }> {
+  // Parse YAML
+  let parsed: unknown;
+  try {
+    parsed = yaml.load(yamlContent, { schema: yaml.JSON_SCHEMA });
+  } catch (e) {
+    throw new Error(`Invalid YAML: ${e instanceof Error ? e.message : e}`);
   }
+
+  const layout = LayoutFileSchema.safeParse(parsed);
+  if (!layout.success) {
+    const issues = layout.error.issues
+      .map((i) => `${i.path.join(".")}: ${i.message}`)
+      .join("; ");
+    throw new Error(`Invalid layout: ${issues}`);
+  }
+
+  // Generate UUID (use metadata.id if valid, else generate new)
+  const metadataId = layout.data.metadata?.id;
+  const uuid = metadataId && isUuid(metadataId) ? metadataId : crypto.randomUUID();
+
+  const layoutName = layout.data.metadata?.name ?? layout.data.name;
+  const folderName = buildFolderName(layoutName, uuid);
+  const folderPath = join(DATA_DIR, folderName);
+  const yamlFilename = buildYamlFilename(layoutName);
 
   try {
-    return await readFile(join(folder, yamlFilename), "utf-8");
-  } catch {
-    return null;
+    // Create new folder
+    await mkdir(folderPath, { recursive: true });
+
+    // Write YAML to new location
+    await writeFile(join(folderPath, yamlFilename), yamlContent, "utf-8");
+
+    // Move assets if they exist in old location
+    const oldAssetsDir = join(DATA_DIR, "assets", oldSlug);
+    const newAssetsDir = join(folderPath, "assets");
+    try {
+      await stat(oldAssetsDir);
+      await rename(oldAssetsDir, newAssetsDir);
+    } catch {
+      // No old assets, that's fine
+    }
+
+    // Delete old flat file(s)
+    for (const ext of [".yaml", ".yml"]) {
+      try {
+        await rm(join(DATA_DIR, `${oldSlug}${ext}`));
+      } catch {
+        // File doesn't exist, that's fine
+      }
+    }
+
+    return { id: uuid, isNew: false };
+  } catch (error) {
+    // Rollback: remove new folder
+    try {
+      await rm(folderPath, { recursive: true, force: true });
+    } catch {
+      // Best effort cleanup
+    }
+    throw error;
   }
+}
+
+/**
+ * Check if a legacy flat YAML file exists for the given slug
+ */
+async function legacyLayoutExists(slug: string): Promise<boolean> {
+  for (const ext of [".yaml", ".yml"]) {
+    try {
+      await stat(join(DATA_DIR, `${slug}${ext}`));
+      return true;
+    } catch {
+      // Continue
+    }
+  }
+  return false;
 }
 
 /**
  * Save a layout (create or update)
  * Creates folder structure: /data/{Name}-{UUID}/{name}.rackula.yaml
+ * Also handles migration from legacy flat YAML format
  * Returns the layout UUID and whether it was a new layout
  */
 export async function saveLayout(
   yamlContent: string,
-  existingUuid?: string,
+  existingId?: string,
 ): Promise<{ id: string; isNew: boolean }> {
   await ensureDataDir();
+
+  // Check if this is a legacy migration (existingId is slug, not UUID)
+  const isLegacyMigration = existingId && !isUuid(existingId) && await legacyLayoutExists(existingId);
+
+  if (isLegacyMigration) {
+    return await migrateLegacyLayout(existingId, yamlContent);
+  }
 
   // Parse YAML content with error handling
   // Use JSON_SCHEMA to prevent JavaScript tag execution (security)
@@ -230,16 +395,19 @@ export async function saveLayout(
     throw new Error(`Invalid layout metadata: ${issues}`);
   }
 
-  // Validate existingUuid if provided
-  if (existingUuid && !isUuid(existingUuid)) {
-    throw new Error(`Invalid UUID format: ${existingUuid}`);
+  // Validate existingId if provided as UUID
+  if (existingId && isUuid(existingId)) {
+    // existingId is a valid UUID, use it
+  } else if (existingId) {
+    // existingId is not a UUID and no legacy file exists - treat as new layout
+    existingId = undefined;
   }
 
-  // Determine UUID: use validated metadata.id > existingUuid > generate new
+  // Determine UUID: use validated metadata.id > existingId > generate new
   // Validate metadata.id before using it to prevent malformed UUIDs
   const metadataId = layout.data.metadata?.id;
   const validMetadataId = metadataId && isUuid(metadataId) ? metadataId : null;
-  const uuid = validMetadataId ?? existingUuid ?? crypto.randomUUID();
+  const uuid = validMetadataId ?? existingId ?? crypto.randomUUID();
   const layoutName = layout.data.metadata?.name ?? layout.data.name;
 
   const folderName = buildFolderName(layoutName, uuid);
