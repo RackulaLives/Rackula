@@ -1,6 +1,7 @@
 /**
  * Asset storage layer for device images
- * Handles upload/download of images to DATA_DIR/assets/
+ * Handles upload/download of images to layout-local assets folder:
+ * /data/{Layout Name}-{UUID}/assets/{deviceSlug}/{face}.{ext}
  */
 import {
   readFile,
@@ -15,8 +16,8 @@ import {
 import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { z } from "zod";
-import { getAssetsDir } from "./filesystem";
-import { LayoutIdSchema } from "../schemas/layout";
+import { getLayoutAssetsDir } from "./filesystem";
+import { isUuid } from "../schemas/layout";
 
 // Allowed image types
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -87,12 +88,11 @@ export function getContentTypeFromExt(ext: string): string {
 }
 
 /**
- * Validate and sanitize layout ID
+ * Validate layout UUID format
  * Returns null if invalid
  */
-function validateLayoutId(layoutId: string): string | null {
-  const parsed = LayoutIdSchema.safeParse(layoutId);
-  return parsed.success ? parsed.data : null;
+function validateLayoutUuid(layoutId: string): string | null {
+  return isUuid(layoutId) ? layoutId : null;
 }
 
 /**
@@ -113,17 +113,18 @@ export function isValidDeviceSlug(slug: string): boolean {
 
 /**
  * Build asset path with validation
+ * Returns the full path to the asset file
  * Throws if layoutId, deviceSlug, or ext are invalid
  */
-function buildAssetPath(
+async function buildAssetPath(
   layoutId: string,
   deviceSlug: string,
   face: "front" | "rear",
   ext: string,
-): string {
-  const validLayoutId = validateLayoutId(layoutId);
+): Promise<string> {
+  const validLayoutId = validateLayoutUuid(layoutId);
   if (!validLayoutId) {
-    throw new Error(`Invalid layout ID: ${layoutId}`);
+    throw new Error(`Invalid layout UUID: ${layoutId}`);
   }
 
   const validDeviceSlug = validateDeviceSlug(deviceSlug);
@@ -135,11 +136,17 @@ function buildAssetPath(
     throw new Error(`Invalid extension: ${ext}`);
   }
 
-  return join(getAssetsDir(), validLayoutId, validDeviceSlug, `${face}.${ext}`);
+  const assetsDir = await getLayoutAssetsDir(validLayoutId);
+  if (!assetsDir) {
+    throw new Error(`Layout not found: ${layoutId}`);
+  }
+
+  return join(assetsDir, validDeviceSlug, `${face}.${ext}`);
 }
 
 /**
  * Save an asset image
+ * Creates assets/ folder inside layout folder only when needed
  */
 export async function saveAsset(
   layoutId: string,
@@ -159,9 +166,9 @@ export async function saveAsset(
   }
 
   const ext = getExtFromContentType(contentType);
-  const assetPath = buildAssetPath(layoutId, deviceSlug, face, ext);
+  const assetPath = await buildAssetPath(layoutId, deviceSlug, face, ext);
 
-  // Ensure directory exists
+  // Ensure directory exists (creates assets/ and device folder only when needed)
   await mkdir(dirname(assetPath), { recursive: true });
 
   // Use atomic write pattern: write to unique temp file, then rename
@@ -178,7 +185,13 @@ export async function saveAsset(
     for (const oldExt of ALLOWED_EXTS) {
       if (oldExt !== ext) {
         try {
-          await unlink(buildAssetPath(layoutId, deviceSlug, face, oldExt));
+          const oldPath = await buildAssetPath(
+            layoutId,
+            deviceSlug,
+            face,
+            oldExt,
+          );
+          await unlink(oldPath);
         } catch {
           // Ignore if doesn't exist
         }
@@ -206,7 +219,7 @@ export async function getAsset(
   // Try each extension
   for (const ext of ALLOWED_EXTS) {
     try {
-      const assetPath = buildAssetPath(layoutId, deviceSlug, face, ext);
+      const assetPath = await buildAssetPath(layoutId, deviceSlug, face, ext);
       const data = await readFile(assetPath);
       return {
         data,
@@ -232,7 +245,7 @@ export async function deleteAsset(
 
   for (const ext of ALLOWED_EXTS) {
     try {
-      const assetPath = buildAssetPath(layoutId, deviceSlug, face, ext);
+      const assetPath = await buildAssetPath(layoutId, deviceSlug, face, ext);
       await unlink(assetPath);
       deleted = true;
     } catch {
@@ -245,16 +258,22 @@ export async function deleteAsset(
 
 /**
  * Delete all assets for a layout
+ * Removes the assets/ subfolder inside the layout folder
  */
 export async function deleteLayoutAssets(layoutId: string): Promise<void> {
-  const validLayoutId = validateLayoutId(layoutId);
+  const validLayoutId = validateLayoutUuid(layoutId);
   if (!validLayoutId) {
-    throw new Error(`Invalid layout ID: ${layoutId}`);
+    throw new Error(`Invalid layout UUID: ${layoutId}`);
   }
 
-  const layoutAssetsDir = join(getAssetsDir(), validLayoutId);
+  const assetsDir = await getLayoutAssetsDir(validLayoutId);
+  if (!assetsDir) {
+    // Layout doesn't exist, nothing to delete
+    return;
+  }
+
   try {
-    await rm(layoutAssetsDir, { recursive: true });
+    await rm(assetsDir, { recursive: true });
   } catch {
     // Ignore if doesn't exist
   }
@@ -264,16 +283,20 @@ export async function deleteLayoutAssets(layoutId: string): Promise<void> {
  * List all assets for a layout
  */
 export async function listLayoutAssets(layoutId: string): Promise<AssetInfo[]> {
-  const validLayoutId = validateLayoutId(layoutId);
+  const validLayoutId = validateLayoutUuid(layoutId);
   if (!validLayoutId) {
-    throw new Error(`Invalid layout ID: ${layoutId}`);
+    throw new Error(`Invalid layout UUID: ${layoutId}`);
   }
 
-  const layoutAssetsDir = join(getAssetsDir(), validLayoutId);
+  const assetsDir = await getLayoutAssetsDir(validLayoutId);
+  if (!assetsDir) {
+    throw new Error(`Layout not found: ${layoutId}`);
+  }
+
   const assets: AssetInfo[] = [];
 
   try {
-    const deviceDirs = await readdir(layoutAssetsDir);
+    const deviceDirs = await readdir(assetsDir);
 
     for (const deviceSlug of deviceDirs) {
       // Skip invalid device slugs
@@ -281,7 +304,7 @@ export async function listLayoutAssets(layoutId: string): Promise<AssetInfo[]> {
         continue;
       }
 
-      const deviceDir = join(layoutAssetsDir, deviceSlug);
+      const deviceDir = join(assetsDir, deviceSlug);
       try {
         const files = await readdir(deviceDir);
 
@@ -308,7 +331,7 @@ export async function listLayoutAssets(layoutId: string): Promise<AssetInfo[]> {
       }
     }
   } catch {
-    // Layout has no assets
+    // Layout has no assets folder (yet)
   }
 
   return assets;

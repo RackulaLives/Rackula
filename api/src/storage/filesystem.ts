@@ -1,53 +1,35 @@
 /**
  * Filesystem storage layer for layouts
- * Reads/writes YAML files to DATA_DIR
+ * Uses folder-per-layout structure: /data/{Name}-{UUID}/{name}.rackula.yaml
  */
 import {
   readdir,
   readFile,
   writeFile,
-  unlink,
   stat,
   mkdir,
+  rm,
+  rename,
 } from "node:fs/promises";
 import { join } from "node:path";
 import * as yaml from "js-yaml";
 import {
-  LayoutMetadataSchema,
-  LayoutIdSchema,
+  LayoutFileSchema,
+  isUuid,
+  extractUuidFromFolderName,
+  buildFolderName,
+  buildYamlFilename,
+  slugify,
   type LayoutListItem,
 } from "../schemas/layout";
 
 const DATA_DIR = process.env.DATA_DIR ?? "/data";
-const ASSETS_DIR = "assets";
 
 /**
  * Ensure data directory exists
  */
 export async function ensureDataDir(): Promise<void> {
   await mkdir(DATA_DIR, { recursive: true });
-  await mkdir(join(DATA_DIR, ASSETS_DIR), { recursive: true });
-}
-
-/**
- * Slugify a layout name to create a safe filename
- * Handles Unicode names by appending UUID suffix if result is empty
- */
-export function slugify(name: string): string {
-  const slug = name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 100);
-
-  // Handle empty results (e.g., all-Unicode names like "我的机架")
-  if (!slug) {
-    const uuid = crypto.randomUUID().slice(0, 8);
-    return `untitled-${uuid}`;
-  }
-
-  return slug;
 }
 
 /**
@@ -58,66 +40,121 @@ function countDevices(racks: Array<{ devices?: unknown[] }>): number {
 }
 
 /**
- * List all layouts in the data directory
- * Returns invalid files with valid: false so UI can show error badge
+ * Find a layout folder by UUID
+ * Scans DATA_DIR for folders ending with the given UUID
+ * Returns the full folder path or null if not found
  */
-export async function listLayouts(): Promise<LayoutListItem[]> {
+export async function findFolderByUuid(uuid: string): Promise<string | null> {
+  // Validate UUID format to prevent path traversal
+  if (!isUuid(uuid)) {
+    return null;
+  }
+
   await ensureDataDir();
 
-  const files = await readdir(DATA_DIR);
-  const yamlFiles = files.filter(
-    (f) => f.endsWith(".yaml") || f.endsWith(".yml"),
-  );
-
-  const layouts: LayoutListItem[] = [];
-
-  for (const file of yamlFiles) {
-    const filePath = join(DATA_DIR, file);
-    const id = file.replace(/\.(yaml|yml)$/, "");
-
-    try {
-      const content = await readFile(filePath, "utf-8");
-      const parsed = yaml.load(content) as unknown;
-      const metadata = LayoutMetadataSchema.safeParse(parsed);
-      const stats = await stat(filePath);
-
-      if (metadata.success) {
-        const racks = metadata.data.racks ?? [];
-        layouts.push({
-          id,
-          name: metadata.data.name,
-          version: metadata.data.version,
-          updatedAt: stats.mtime.toISOString(),
-          rackCount: racks.length,
-          deviceCount: countDevices(racks),
-          valid: true,
-        });
-      } else {
-        // Invalid YAML structure - include with error flag
-        layouts.push({
-          id,
-          name: id, // Use filename as name
-          version: "unknown",
-          updatedAt: stats.mtime.toISOString(),
-          rackCount: 0,
-          deviceCount: 0,
-          valid: false,
-        });
-        console.warn(`Invalid layout file: ${file}`, metadata.error.message);
+  const entries = await readdir(DATA_DIR, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      const extractedUuid = extractUuidFromFolderName(entry.name);
+      if (extractedUuid && extractedUuid.toLowerCase() === uuid.toLowerCase()) {
+        return join(DATA_DIR, entry.name);
       }
-    } catch (e) {
-      // File read/parse error - include with error flag
-      const stats = await stat(filePath).catch(() => ({ mtime: new Date() }));
-      layouts.push({
-        id,
-        name: id,
+    }
+  }
+  return null;
+}
+
+/**
+ * Find the .rackula.yaml file inside a layout folder
+ * Returns the filename (not full path) or null if not found
+ */
+async function findYamlInFolder(folderPath: string): Promise<string | null> {
+  const files = await readdir(folderPath);
+  const yamlFile = files.find((f) => f.endsWith(".rackula.yaml"));
+  return yamlFile ?? null;
+}
+
+/**
+ * Read a layout from a folder structure
+ */
+async function readLayoutFromFolder(
+  folderName: string,
+): Promise<LayoutListItem | null> {
+  const folderPath = join(DATA_DIR, folderName);
+  const uuid = extractUuidFromFolderName(folderName);
+  if (!uuid) return null;
+
+  const yamlFilename = await findYamlInFolder(folderPath);
+  if (!yamlFilename) return null;
+
+  const yamlPath = join(folderPath, yamlFilename);
+
+  try {
+    const content = await readFile(yamlPath, "utf-8");
+    const parsed = yaml.load(content) as unknown;
+    const metadata = LayoutFileSchema.safeParse(parsed);
+    const stats = await stat(yamlPath);
+
+    if (metadata.success) {
+      const racks = metadata.data.racks ?? [];
+      return {
+        id: uuid,
+        name: metadata.data.name,
+        version: metadata.data.version,
+        updatedAt: stats.mtime.toISOString(),
+        rackCount: racks.length,
+        deviceCount: countDevices(racks),
+        valid: true,
+      };
+    } else {
+      // Invalid YAML structure - include with error flag
+      return {
+        id: uuid,
+        name: folderName.replace(`-${uuid}`, ""), // Extract human name from folder
         version: "unknown",
         updatedAt: stats.mtime.toISOString(),
         rackCount: 0,
         deviceCount: 0,
         valid: false,
-      });
-      console.warn(`Failed to read layout file: ${file}`, e);
+      };
+    }
+  } catch (e) {
+    // File read/parse error - include with error flag
+    const stats = await stat(folderPath).catch(() => ({ mtime: new Date() }));
+    console.warn(`Failed to read layout from folder: ${folderName}`, e);
+    return {
+      id: uuid,
+      name: folderName.replace(`-${uuid}`, ""),
+      version: "unknown",
+      updatedAt: stats.mtime.toISOString(),
+      rackCount: 0,
+      deviceCount: 0,
+      valid: false,
+    };
+  }
+}
+
+/**
+ * List all layouts in the data directory
+ * Scans for folder-per-layout structure (folders ending with UUID)
+ * Returns invalid files with valid: false so UI can show error badge
+ */
+export async function listLayouts(): Promise<LayoutListItem[]> {
+  await ensureDataDir();
+
+  const entries = await readdir(DATA_DIR, { withFileTypes: true });
+  const layouts: LayoutListItem[] = [];
+
+  // Scan for folders with UUID suffix (new folder-per-layout format)
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      const uuid = extractUuidFromFolderName(entry.name);
+      if (uuid) {
+        const layout = await readLayoutFromFolder(entry.name);
+        if (layout) {
+          layouts.push(layout);
+        }
+      }
     }
   }
 
@@ -128,59 +165,48 @@ export async function listLayouts(): Promise<LayoutListItem[]> {
 }
 
 /**
- * Check if a layout with the given ID exists
+ * Check if a layout with the given UUID exists
  */
-export async function layoutExists(id: string): Promise<boolean> {
-  // Validate ID to prevent path traversal attacks
-  const parsed = LayoutIdSchema.safeParse(id);
-  if (!parsed.success) return false;
-
-  await ensureDataDir();
-
-  // Check for .yaml or .yml extension
-  for (const ext of [".yaml", ".yml"]) {
-    const filePath = join(DATA_DIR, `${id}${ext}`);
-    try {
-      await stat(filePath);
-      return true;
-    } catch {
-      // File doesn't exist with this extension
-    }
-  }
-
-  return false;
+export async function layoutExists(uuid: string): Promise<boolean> {
+  const folder = await findFolderByUuid(uuid);
+  return folder !== null;
 }
 
 /**
- * Get a single layout by ID
+ * Get a single layout by UUID
+ * Returns the YAML content or null if not found
  */
-export async function getLayout(id: string): Promise<string | null> {
-  // Validate ID to prevent path traversal attacks
-  const parsed = LayoutIdSchema.safeParse(id);
-  if (!parsed.success) return null;
-
-  await ensureDataDir();
-
-  // Try .yaml first, then .yml
-  for (const ext of [".yaml", ".yml"]) {
-    const filePath = join(DATA_DIR, `${id}${ext}`);
-    try {
-      return await readFile(filePath, "utf-8");
-    } catch {
-      // File doesn't exist with this extension
-    }
+export async function getLayout(uuid: string): Promise<string | null> {
+  // Validate UUID to prevent path traversal attacks
+  if (!isUuid(uuid)) {
+    return null;
   }
 
-  return null;
+  const folder = await findFolderByUuid(uuid);
+  if (!folder) {
+    return null;
+  }
+
+  const yamlFilename = await findYamlInFolder(folder);
+  if (!yamlFilename) {
+    return null;
+  }
+
+  try {
+    return await readFile(join(folder, yamlFilename), "utf-8");
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Save a layout (create or update)
- * Returns the layout ID (may differ from input if name changed)
+ * Creates folder structure: /data/{Name}-{UUID}/{name}.rackula.yaml
+ * Returns the layout UUID and whether it was a new layout
  */
 export async function saveLayout(
   yamlContent: string,
-  existingId?: string,
+  existingUuid?: string,
 ): Promise<{ id: string; isNew: boolean }> {
   await ensureDataDir();
 
@@ -193,75 +219,96 @@ export async function saveLayout(
     throw new Error(`Invalid YAML: ${message}`);
   }
 
-  // Validate metadata schema
-  const metadata = LayoutMetadataSchema.safeParse(parsed);
-  if (!metadata.success) {
-    const issues = metadata.error.issues
+  // Validate layout schema
+  const layout = LayoutFileSchema.safeParse(parsed);
+  if (!layout.success) {
+    const issues = layout.error.issues
       .map((i) => `${i.path.join(".")}: ${i.message}`)
       .join("; ");
     throw new Error(`Invalid layout metadata: ${issues}`);
   }
 
-  const newId = slugify(metadata.data.name);
+  // Determine UUID: use metadata.id > existingUuid > generate new
+  const uuid = layout.data.metadata?.id ?? existingUuid ?? crypto.randomUUID();
+  const layoutName = layout.data.metadata?.name ?? layout.data.name;
 
-  const filePath = join(DATA_DIR, `${newId}.yaml`);
-
-  // Atomically determine if this is a new file by attempting exclusive create
-  // This avoids a TOCTOU race condition from stat() + writeFile()
-  let isNew = true;
-  try {
-    // Try exclusive create (fails if file exists)
-    await writeFile(filePath, yamlContent, { encoding: "utf-8", flag: "wx" });
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "EEXIST") {
-      // File exists, overwrite it
-      isNew = false;
-      await writeFile(filePath, yamlContent, "utf-8");
-    } else {
-      throw err;
-    }
+  // Validate UUID if provided
+  if (existingUuid && !isUuid(existingUuid)) {
+    throw new Error(`Invalid UUID format: ${existingUuid}`);
   }
 
-  // If updating and the ID changed (name changed), delete the old file
-  if (existingId && existingId !== newId) {
-    const deleted = await deleteLayout(existingId);
-    if (!deleted) {
-      console.warn(
-        `Layout rename: old file "${existingId}" was not found during cleanup (may have been externally deleted)`,
-      );
-    }
-  }
+  const folderName = buildFolderName(layoutName, uuid);
+  const yamlFilename = buildYamlFilename(layoutName);
+  const folderPath = join(DATA_DIR, folderName);
 
-  return { id: newId, isNew };
-}
+  // Check if this is a new layout
+  const existingFolder = await findFolderByUuid(uuid);
+  const isNew = existingFolder === null;
 
-/**
- * Delete a layout by ID
- */
-export async function deleteLayout(id: string): Promise<boolean> {
-  // Validate ID to prevent path traversal attacks
-  const parsed = LayoutIdSchema.safeParse(id);
-  if (!parsed.success) return false;
+  // Handle rename: if the folder name changed (name change), rename the folder
+  if (existingFolder && existingFolder !== folderPath) {
+    // Rename folder to new name
+    await rename(existingFolder, folderPath);
 
-  let deleted = false;
-  for (const ext of [".yaml", ".yml"]) {
-    const filePath = join(DATA_DIR, `${id}${ext}`);
-    try {
-      await unlink(filePath);
-      deleted = true;
-    } catch (error) {
-      // Ignore ENOENT (file doesn't exist), rethrow other errors
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-        throw error;
+    // Delete old yaml file if it has a different name
+    const oldYamlFilename = await findYamlInFolder(folderPath);
+    if (oldYamlFilename && oldYamlFilename !== yamlFilename) {
+      try {
+        await rm(join(folderPath, oldYamlFilename));
+      } catch {
+        // Ignore if old file doesn't exist
       }
     }
   }
-  return deleted;
+
+  // Create folder if it doesn't exist
+  await mkdir(folderPath, { recursive: true });
+
+  // Write the YAML file
+  await writeFile(join(folderPath, yamlFilename), yamlContent, "utf-8");
+
+  return { id: uuid, isNew };
 }
 
 /**
- * Get assets directory path for a layout
+ * Delete a layout by UUID
+ * Removes the entire folder including assets
  */
-export function getAssetsDir(): string {
-  return join(DATA_DIR, ASSETS_DIR);
+export async function deleteLayout(uuid: string): Promise<boolean> {
+  // Validate UUID to prevent path traversal attacks
+  if (!isUuid(uuid)) {
+    return false;
+  }
+
+  const folder = await findFolderByUuid(uuid);
+  if (!folder) {
+    return false;
+  }
+
+  try {
+    await rm(folder, { recursive: true });
+    return true;
+  } catch (error) {
+    // Ignore ENOENT (folder doesn't exist), rethrow other errors
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+    return false;
+  }
 }
+
+/**
+ * Get assets directory path for a layout by UUID
+ * Returns the path to the assets folder inside the layout folder
+ * Returns null if the layout folder doesn't exist
+ */
+export async function getLayoutAssetsDir(uuid: string): Promise<string | null> {
+  const folder = await findFolderByUuid(uuid);
+  if (!folder) {
+    return null;
+  }
+  return join(folder, "assets");
+}
+
+// Re-export slugify from schemas for backwards compatibility
+export { slugify };

@@ -8,8 +8,60 @@ import { z } from "zod";
  * UUID pattern for layout metadata.id
  * Standard UUID format: 8-4-4-4-12 hex characters with hyphens
  */
-const UUID_PATTERN =
+export const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Check if a string is a valid UUID format
+ */
+export function isUuid(str: string): boolean {
+  return UUID_PATTERN.test(str);
+}
+
+/**
+ * Extract UUID from folder name (format: "{Human Name}-{UUID}")
+ * Returns null if folder name doesn't end with a valid UUID
+ */
+export function extractUuidFromFolderName(folderName: string): string | null {
+  const match = folderName.match(UUID_PATTERN);
+  return match ? match[0] : null;
+}
+
+/**
+ * Build folder name from layout name and UUID
+ * Format: "{Human Name}-{UUID}"
+ */
+export function buildFolderName(name: string, uuid: string): string {
+  return `${name}-${uuid}`;
+}
+
+/**
+ * Slugify a layout name to create a safe filename
+ * Handles Unicode names by returning "untitled" if result is empty
+ */
+export function slugify(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100);
+
+  // Handle empty results (e.g., all-Unicode names like "...")
+  if (!slug) {
+    return "untitled";
+  }
+
+  return slug;
+}
+
+/**
+ * Build YAML filename from layout name
+ * Format: "{slugified-name}.rackula.yaml"
+ */
+export function buildYamlFilename(name: string): string {
+  return `${slugify(name)}.rackula.yaml`;
+}
 
 /**
  * Layout YAML metadata section schema.
