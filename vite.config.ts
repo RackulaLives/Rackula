@@ -63,10 +63,8 @@ export default defineConfig(() => ({
     __UMAMI_WEBSITE_ID__: JSON.stringify(
       process.env.VITE_UMAMI_WEBSITE_ID || "",
     ),
-    // Persistence feature flag
-    __PERSIST_ENABLED__: JSON.stringify(
-      process.env.VITE_PERSIST_ENABLED === "true",
-    ),
+    // Note: __PERSIST_ENABLED__ removed - API availability is now detected at runtime
+    // See src/lib/stores/persistence.svelte.ts
   },
   resolve: {
     alias: {

@@ -3,7 +3,8 @@
  * Communicates with the API sidecar for layout CRUD
  * Uses UUID-based routing for stable URLs across renames
  */
-import { API_BASE_URL, PERSIST_ENABLED } from "./persistence-config";
+import { API_BASE_URL } from "./persistence-config";
+import { isApiAvailable } from "$lib/stores/persistence.svelte";
 import type { Layout } from "$lib/types";
 import { serializeLayoutToYaml, parseLayoutYaml } from "./yaml";
 import { persistenceDebug } from "./debug";
@@ -70,14 +71,13 @@ export class PersistenceError extends Error {
 
 /**
  * Check if API is reachable
+ * Note: This is called during initialization before API availability is known,
+ * so it does not check isApiAvailable() first.
  */
 export async function checkApiHealth(): Promise<boolean> {
-  if (!PERSIST_ENABLED) {
-    log("checkApiHealth: persistence not available");
-    return false;
-  }
-
-  const baseUrl = new URL(API_BASE_URL);
+  // Build health URL from API_BASE_URL
+  // Handle both relative (/api) and absolute URLs
+  const baseUrl = new URL(API_BASE_URL, window.location.origin);
   const healthUrl = `${baseUrl.origin}/health`;
   log("checkApiHealth: checking %s", healthUrl);
 
@@ -102,8 +102,8 @@ export async function checkApiHealth(): Promise<boolean> {
  * List all saved layouts
  */
 export async function listSavedLayouts(): Promise<SavedLayoutItem[]> {
-  if (!PERSIST_ENABLED) {
-    log("listSavedLayouts: persistence not available");
+  if (!isApiAvailable()) {
+    log("listSavedLayouts: API not available");
     return [];
   }
 
@@ -139,9 +139,9 @@ export async function listSavedLayouts(): Promise<SavedLayoutItem[]> {
 export async function loadSavedLayout(uuid: string): Promise<Layout> {
   log("loadSavedLayout: uuid=%s", uuid);
 
-  if (!PERSIST_ENABLED) {
-    log("loadSavedLayout: persistence not available");
-    throw new PersistenceError("Persistence not available");
+  if (!isApiAvailable()) {
+    log("loadSavedLayout: API not available");
+    throw new PersistenceError("API not available");
   }
 
   const url = `${API_BASE_URL}/layouts/${encodeURIComponent(uuid)}`;
@@ -186,9 +186,9 @@ export async function loadSavedLayout(uuid: string): Promise<Layout> {
 export async function saveLayoutToServer(layout: Layout): Promise<string> {
   log("saveLayoutToServer: name=%s", layout.name);
 
-  if (!PERSIST_ENABLED) {
-    log("saveLayoutToServer: persistence not available");
-    throw new PersistenceError("Persistence not available");
+  if (!isApiAvailable()) {
+    log("saveLayoutToServer: API not available");
+    throw new PersistenceError("API not available");
   }
 
   // Extract UUID from layout metadata if present
@@ -252,9 +252,9 @@ export async function saveLayoutToServer(layout: Layout): Promise<string> {
 export async function deleteSavedLayout(uuid: string): Promise<void> {
   log("deleteSavedLayout: uuid=%s", uuid);
 
-  if (!PERSIST_ENABLED) {
-    log("deleteSavedLayout: persistence not available");
-    throw new PersistenceError("Persistence not available");
+  if (!isApiAvailable()) {
+    log("deleteSavedLayout: API not available");
+    throw new PersistenceError("API not available");
   }
 
   const url = `${API_BASE_URL}/layouts/${encodeURIComponent(uuid)}`;
@@ -304,9 +304,9 @@ export async function uploadAsset(
     blob.type,
   );
 
-  if (!PERSIST_ENABLED) {
-    log("uploadAsset: persistence not available");
-    throw new PersistenceError("Persistence not available");
+  if (!isApiAvailable()) {
+    log("uploadAsset: API not available");
+    throw new PersistenceError("API not available");
   }
 
   const url = `${API_BASE_URL}/assets/${encodeURIComponent(layoutUuid)}/${encodeURIComponent(deviceSlug)}/${face}`;

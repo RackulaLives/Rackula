@@ -79,7 +79,11 @@
   import StartScreen, {
     type StartScreenCloseOptions,
   } from "$lib/components/StartScreen.svelte";
-  import { PERSIST_ENABLED } from "$lib/utils/persistence-config";
+  import {
+    isApiAvailable,
+    setApiAvailable,
+    getApiAvailableState,
+  } from "$lib/stores/persistence.svelte";
   import {
     saveLayoutToServer,
     checkApiHealth,
@@ -113,11 +117,11 @@
   const placementStore = getPlacementStore();
 
   // Persistence state
-  let showStartScreen = $state(PERSIST_ENABLED);
+  // StartScreen is always shown initially - it handles API detection and layout selection
+  let showStartScreen = $state(true);
   // Diagnostic: tracks current layout UUID (assigned but not actively read - for debugging)
   let _currentLayoutId = $state<string | undefined>(undefined);
   let saveStatus = $state<SaveStatusType>("idle");
-  let apiAvailable = $state(true);
 
   // Dialog state - now managed by dialogStore
   // Legacy local aliases for gradual migration
@@ -1139,12 +1143,12 @@
     };
   });
 
-  // Auto-save to server when persistence enabled
+  // Auto-save to server when API is available
   let serverSaveTimer: ReturnType<typeof setTimeout> | null = null;
   $effect(() => {
-    if (!PERSIST_ENABLED) return;
+    // Check runtime API availability instead of build-time flag
+    if (!isApiAvailable()) return;
     if (showStartScreen) return;
-    if (!apiAvailable) return;
 
     const layout = layoutStore.layout;
     if (!layout.name) return;
@@ -1168,7 +1172,7 @@
         console.warn("Auto-save failed:", e);
         if (e instanceof PersistenceError && e.statusCode === undefined) {
           // Network error - API might be down
-          apiAvailable = false;
+          setApiAvailable(false);
           saveStatus = "offline";
         } else {
           saveStatus = "error";
@@ -1187,15 +1191,17 @@
 
   // Periodically check API health when offline
   $effect(() => {
-    if (!PERSIST_ENABLED) return;
-    if (apiAvailable) return;
+    // Only run health checks if API was previously available but went offline
+    const apiState = getApiAvailableState();
+    if (apiState === null) return; // Not initialized yet
+    if (apiState === true) return; // API is available
 
     persistenceDebug.health("API offline, starting health check interval");
     const intervalId = setInterval(async () => {
       const healthy = await checkApiHealth();
       if (healthy) {
         persistenceDebug.health("API health check passed, marking available");
-        apiAvailable = true;
+        setApiAvailable(true);
         saveStatus = "idle";
       } else {
         persistenceDebug.health("API health check failed, still offline");

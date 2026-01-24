@@ -10,10 +10,10 @@
     listSavedLayouts,
     loadSavedLayout,
     deleteSavedLayout,
-    checkApiHealth,
     type SavedLayoutItem,
     PersistenceError,
   } from "$lib/utils/persistence-api";
+  import { initializePersistence } from "$lib/stores/persistence.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
@@ -55,8 +55,9 @@
   let deletingId = $state<string | null>(null);
 
   onMount(async () => {
-    // Check API health first
-    apiAvailable = await checkApiHealth();
+    // Initialize persistence and check API health
+    // This updates the global persistence store state
+    apiAvailable = await initializePersistence();
 
     if (apiAvailable) {
       await loadLayouts();
