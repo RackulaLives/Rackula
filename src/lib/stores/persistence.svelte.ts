@@ -125,6 +125,9 @@ export async function recheckApiAvailability(): Promise<boolean> {
 
 /**
  * Set API availability state directly (for error recovery)
+ * Note: Does NOT call markApiConnected() because this is for temporary
+ * overrides, not confirmed API connectivity. Only health checks should
+ * mark the API as "ever connected".
  */
 export function setApiAvailable(available: boolean): void {
   log("setApiAvailable: setting to %s", available);

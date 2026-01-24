@@ -13,7 +13,10 @@
     type SavedLayoutItem,
     PersistenceError,
   } from "$lib/utils/persistence-api";
-  import { initializePersistence } from "$lib/stores/persistence.svelte";
+  import {
+    initializePersistence,
+    hasEverConnectedToApi,
+  } from "$lib/stores/persistence.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
@@ -53,6 +56,9 @@
   let error = $state<string | null>(null);
   let apiAvailable = $state(true);
   let deletingId = $state<string | null>(null);
+
+  /** Only show offline warning if user previously had API working */
+  let showOfflineWarning = $derived(!apiAvailable && hasEverConnectedToApi());
 
   onMount(async () => {
     // Initialize persistence and check API health
@@ -206,7 +212,7 @@
       </button>
     </div>
 
-    {#if !apiAvailable}
+    {#if showOfflineWarning}
       <div class="offline-warning">
         <IconCloudOff size={18} />
         <div class="offline-text">
