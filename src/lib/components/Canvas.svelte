@@ -638,6 +638,7 @@
     /* Multi-rack mode: horizontal layout of all racks */
     display: flex;
     flex-direction: row;
+    align-items: flex-end; /* Bottom-align racks (matches racksToPositionsWithIds calculation) */
     gap: var(--space-6);
     padding: var(--space-4);
   }
