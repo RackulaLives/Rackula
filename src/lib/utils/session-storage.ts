@@ -71,7 +71,8 @@ function migrateLayout(raw: Record<string, unknown>): Layout | null {
     }
 
     return raw as unknown as Layout;
-  } catch {
+  } catch (error) {
+    console.warn("[SessionStorage] Migration failed:", error);
     return null;
   }
 }

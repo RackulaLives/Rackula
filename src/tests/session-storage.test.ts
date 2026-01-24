@@ -365,7 +365,7 @@ describe("Session Storage", () => {
             {
               id: "blade-1",
               device_type: "blade-server",
-              position: 0, // Relative to container - should NOT be migrated
+              position: 2, // Relative to container (0-indexed row 2) - should NOT be migrated
               container_id: "container-1",
               slot_id: "bay-1",
               face: "front",
@@ -392,8 +392,8 @@ describe("Session Storage", () => {
       expect(result).not.toBeNull();
       // Container position should be migrated
       expect(result!.racks[0].devices[0].position).toBe(5 * UNITS_PER_U);
-      // Child position should NOT be migrated (remains 0)
-      expect(result!.racks[0].devices[1].position).toBe(0);
+      // Child position should NOT be migrated (remains 2)
+      expect(result!.racks[0].devices[1].position).toBe(2);
     });
 
     it("does not migrate positions for v0.7.0+ layouts", () => {
