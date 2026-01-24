@@ -1,6 +1,6 @@
 ---
 created: 2025-11-27
-updated: 2025-12-16
+updated: 2026-01-23
 status: active
 ---
 
@@ -27,13 +27,12 @@ Rackula is a lightweight, FOSS, web-based rack layout designer for homelabbers. 
 - **Scope discipline** — Features stay in their designated version
 - **Spec-driven** — No implementation without specification
 - **User value** — Each release solves real problems
-- **Single rack focus** — One rack per project (permanent scope decision)
 
 ---
 
 ## Current Focus
 
-**v0.6.x** — Stability, polish, and public launch preparation
+**v0.6.x** — Stability, polish, and public launch preparation (multi-rack support complete)
 
 **v0.7.0** — [Theme TBD based on community feedback]
 
@@ -106,7 +105,6 @@ Unscheduled ideas. May or may not be implemented.
 
 Features that will **not** be implemented:
 
-- Multiple racks per project (single-rack is a permanent scope decision)
 - Backend/database requirements
 - User accounts (without cloud sync feature)
 - Internet Explorer support
