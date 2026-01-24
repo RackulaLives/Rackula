@@ -12,6 +12,31 @@ import { persistenceDebug } from "$lib/utils/debug";
 
 const log = persistenceDebug.health;
 
+/** localStorage key for tracking if API was ever successfully connected */
+const API_CONNECTED_KEY = "rackula.persistence.apiConnected";
+
+/**
+ * Check if user has ever successfully connected to persistence API
+ */
+export function hasEverConnectedToApi(): boolean {
+  try {
+    return localStorage.getItem(API_CONNECTED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Mark that user has successfully connected to persistence API
+ */
+function markApiConnected(): void {
+  try {
+    localStorage.setItem(API_CONNECTED_KEY, "true");
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
 // Reactive state for API availability
 let apiAvailable = $state<boolean | null>(null); // null = not checked yet
 let checking = $state(false);
@@ -66,6 +91,9 @@ export async function initializePersistence(): Promise<boolean> {
   pendingCheck = checkApiHealth()
     .then((result) => {
       apiAvailable = result;
+      if (result) {
+        markApiConnected();
+      }
       log("initializePersistence: API availability determined: %s", result);
       return result;
     })
@@ -85,6 +113,9 @@ export async function recheckApiAvailability(): Promise<boolean> {
   checking = true;
   try {
     apiAvailable = await checkApiHealth();
+    if (apiAvailable) {
+      markApiConnected();
+    }
     log("recheckApiAvailability: recheck result: %s", apiAvailable);
     return apiAvailable;
   } finally {
@@ -111,6 +142,7 @@ export const persistenceStore = {
   isApiAvailable,
   isCheckingApi,
   getApiAvailableState,
+  hasEverConnectedToApi,
   initializePersistence,
   recheckApiAvailability,
   setApiAvailable,
