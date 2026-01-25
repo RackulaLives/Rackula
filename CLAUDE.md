@@ -455,16 +455,17 @@ layoutDebug.device("placed device %s at U%d", slug, position);
 
 **Before starting any task, check if a skill applies:**
 
-| Task Type                 | Skill                                          | Why                                   |
-| ------------------------- | ---------------------------------------------- | ------------------------------------- |
-| Bug/issue investigation   | `/superpowers:systematic-debugging`            | Prevents guessing, forces evidence    |
-| New feature or component  | `/superpowers:brainstorming`                   | Explores requirements before code     |
-| Multi-step implementation | `/superpowers:writing-plans` then `/dev-issue` | Plan first, execute with discipline   |
-| Working on GitHub issue   | `/dev-issue <number>`                          | Full workflow with worktree isolation |
-| Research question         | `/research-spike <number>`                     | Structured investigation              |
-| Finishing a branch        | `/superpowers:finishing-a-development-branch`  | Merge/PR decision flow                |
-| Worktree cleanup needed   | `/worktree-cleanup`                            | List and remove stale worktrees       |
-| Debugging with context    | `/debug-with-memory`                           | Memory-assisted systematic debugging  |
+| Task Type                 | Skill                                          | Why                                     |
+| ------------------------- | ---------------------------------------------- | --------------------------------------- |
+| Bug/issue investigation   | `/superpowers:systematic-debugging`            | Prevents guessing, forces evidence      |
+| New feature or component  | `/superpowers:brainstorming`                   | Explores requirements before code       |
+| Multi-step implementation | `/superpowers:writing-plans` then `/dev-issue` | Plan first, execute with discipline     |
+| Working on GitHub issue   | `/dev-issue <number>`                          | Full workflow with worktree isolation   |
+| Research question         | `/research-spike <number>`                     | Structured investigation                |
+| Finishing a branch        | `/superpowers:finishing-a-development-branch`  | Merge/PR decision flow                  |
+| Worktree cleanup needed   | `/worktree-cleanup`                            | List and remove stale worktrees         |
+| Debugging with context    | `/debug-with-memory`                           | Memory-assisted systematic debugging    |
+| User-facing documentation | `/technical-writing`                           | Enforces verification, style, structure |
 
 **Default rule:** If uncertain, invoke `/superpowers:brainstorming` first.
 
