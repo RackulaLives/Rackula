@@ -18,7 +18,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Set lowercase image name
         run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
@@ -70,7 +70,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Set lowercase image name
         run: echo "API_IMAGE_NAME=${GITHUB_REPOSITORY,,}-api" >> $GITHUB_ENV
