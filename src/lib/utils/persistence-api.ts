@@ -78,7 +78,8 @@ export async function checkApiHealth(): Promise<boolean> {
   // Build health URL from API_BASE_URL
   // Handle both relative (/api) and absolute URLs
   const baseUrl = new URL(API_BASE_URL, window.location.origin);
-  const healthUrl = `${baseUrl.origin}/health`;
+  const basePath = baseUrl.pathname.replace(/\/$/, "");
+  const healthUrl = new URL(`${basePath}/health`, baseUrl.origin).toString();
   log("checkApiHealth: checking %s", healthUrl);
 
   try {
