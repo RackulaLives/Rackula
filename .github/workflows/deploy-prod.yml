@@ -94,7 +94,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}-persist
+            type=semver,pattern=v{{version}}-persist
             type=raw,value=persist
 
       - name: Build and push persist image
