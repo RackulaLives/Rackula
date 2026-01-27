@@ -7,12 +7,8 @@
 services:
   rackula:
     image: ghcr.io/rackulalives/rackula:latest
-    # For persistence, build locally instead (uncomment below, comment out image):
-    # build:
-    #   context: .
-    #   dockerfile: deploy/Dockerfile
-    #   args:
-    #     VITE_PERSIST_ENABLED: "true"
+    # For persistence, use the :persist image instead:
+    # image: ghcr.io/rackulalives/rackula:persist
     container_name: rackula
     ports:
       - "${RACKULA_PORT:-8080}:8080"
