@@ -36,8 +36,14 @@ LABEL org.opencontainers.image.description="Rack Layout Designer for Homelabbers
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.title="Rackula"
 
-# Copy nginx config and built assets
-COPY ./deploy/nginx.conf /etc/nginx/conf.d/default.conf
+# API proxy configuration (processed by nginx's envsubst on startup)
+# API_HOST: Hostname or IP of the API server (default: rackula-api)
+# API_PORT: Port the API listens on (default: 3001)
+ENV API_HOST=rackula-api
+ENV API_PORT=3001
+
+# Copy nginx config template (auto-processed by nginx's /docker-entrypoint.d/20-envsubst-on-templates.sh)
+COPY ./deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Health check (port 8080 for unprivileged nginx, busybox wget is built-in)
