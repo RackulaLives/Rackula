@@ -1,3 +1,12 @@
+# Rackula Development Docker Compose
+#
+# For self-hosting with persistence, use: deploy/docker-compose.persist.yml
+# Documentation: docs/guides/SELF-HOSTING.md
+#
+# Development usage:
+#   docker compose up -d                    # Frontend only (no persistence)
+#   docker compose --profile persist up -d  # With API sidecar
+#
 # Environment variables:
 #   RACKULA_PORT: Host port for frontend (default: 8080)
 #   RACKULA_API_PORT: Port the API listens on (default: 3001)

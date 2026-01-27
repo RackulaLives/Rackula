@@ -1,0 +1,63 @@
+# Rackula with Persistence - Self-Hosting Quick Start
+#
+# Usage:
+#   mkdir -p data && sudo chown 1001:1001 data
+#   docker compose up -d
+#   Open http://localhost:8080
+#
+# Documentation: https://github.com/RackulaLives/Rackula/blob/main/docs/guides/SELF-HOSTING.md
+
+services:
+  rackula:
+    image: ghcr.io/rackulalives/rackula:persist
+    container_name: rackula
+    ports:
+      - "${RACKULA_PORT:-8080}:8080"
+    environment:
+      - API_HOST=rackula-api
+      - API_PORT=${RACKULA_API_PORT:-3001}
+    restart: unless-stopped
+    depends_on:
+      rackula-api:
+        condition: service_healthy
+
+    # Security hardening (optional but recommended)
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=10M
+      - /var/run:size=1M
+      - /tmp:size=5M
+      - /etc/nginx/conf.d:size=1M,uid=101,gid=101
+
+  rackula-api:
+    image: ghcr.io/rackulalives/rackula-api:latest
+    container_name: rackula-api
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+    environment:
+      - DATA_DIR=/data
+      - RACKULA_API_PORT=${RACKULA_API_PORT:-3001}
+
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=5M
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${RACKULA_API_PORT:-3001}/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+
+    expose:
+      - "${RACKULA_API_PORT:-3001}"
