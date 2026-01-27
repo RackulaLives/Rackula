@@ -20,7 +20,7 @@ mkdir -p data && sudo chown 1001:1001 data
 docker compose up -d
 ```
 
-Open http://localhost:8080 - your layouts now save to `./data/`.
+Open <http://localhost:8080> - your layouts now save to `./data/`.
 
 ### Option 2: Without Persistence
 
@@ -41,7 +41,7 @@ docker run -d -p 8080:8080 ghcr.io/rackulalives/rackula:latest
 
 **Architecture:**
 
-```
+```text
 Browser → nginx (port 8080) → serves SPA
                             → proxies /api/* to API
          API (port 3001)    → reads/writes YAML to data directory
@@ -211,7 +211,7 @@ tar xzf rackula-backup.tar.gz -C ./data
 
 ### Data Directory Structure
 
-```
+```text
 ./data/
 ├── my-homelab.yaml           # Layout file
 ├── production-rack.yaml
