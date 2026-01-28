@@ -55,7 +55,7 @@
     "eslint-plugin-testing-library": "^7.3.0",
     "eslint-plugin-vitest": "^0.5.4",
     "globals": "^17.2.0",
-    "happy-dom": "^20.3.9",
+    "happy-dom": "^20.4.0",
     "husky": "^9.1.7",
     "jsdom": "^27.4.0",
     "lint-staged": "^16.1.0",
