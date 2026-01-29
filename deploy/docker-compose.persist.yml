@@ -16,6 +16,7 @@ services:
     environment:
       - API_HOST=rackula-api
       - API_PORT=${RACKULA_API_PORT:-3001}
+      - RACKULA_PORT=${RACKULA_PORT:-8080}
     restart: unless-stopped
     depends_on:
       rackula-api:
@@ -53,7 +54,11 @@ services:
       - /tmp:size=5M
 
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${RACKULA_API_PORT:-3001}/health"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:${RACKULA_API_PORT:-3001}/health",
+        ]
       interval: 30s
       timeout: 10s
       start_period: 5s
