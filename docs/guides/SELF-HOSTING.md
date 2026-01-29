@@ -99,7 +99,7 @@ All variables have sensible defaults. Only configure if you need to change somet
 
 | Variable           | Default       | Description                                 |
 | ------------------ | ------------- | ------------------------------------------- |
-| `RACKULA_PORT`     | `8080`        | Host port for the web UI                    |
+| `RACKULA_PORT`     | `8080`        | Host port and port to listen for the web UI |
 | `RACKULA_API_PORT` | `3001`        | Port the API listens on                     |
 | `API_HOST`         | `rackula-api` | Hostname of API container (for nginx proxy) |
 | `API_PORT`         | `3001`        | Port of API container (for nginx proxy)     |

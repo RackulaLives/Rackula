@@ -42,7 +42,7 @@ LABEL org.opencontainers.image.title="Rackula"
 # NGINX_ENVSUBST_FILTER: Regex filter - only substitute these env vars, leave nginx vars ($host etc.) alone
 ENV API_HOST=rackula-api
 ENV API_PORT=3001
-ENV NGINX_ENVSUBST_FILTER=^(API_HOST|API_PORT)$
+ENV NGINX_ENVSUBST_FILTER=^(API_HOST|API_PORT|RACKULA_PORT)$
 
 # Copy nginx config template (auto-processed by nginx's /docker-entrypoint.d/20-envsubst-on-templates.sh)
 COPY ./deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
