@@ -42,6 +42,7 @@ LABEL org.opencontainers.image.title="Rackula"
 # NGINX_ENVSUBST_FILTER: Regex filter - only substitute these env vars, leave nginx vars ($host etc.) alone
 ENV API_HOST=rackula-api
 ENV API_PORT=3001
+ENV RACKULA_PORT=8080
 ENV NGINX_ENVSUBST_FILTER=^(API_HOST|API_PORT|RACKULA_PORT)$
 
 # Copy nginx config template (auto-processed by nginx's /docker-entrypoint.d/20-envsubst-on-templates.sh)
@@ -50,7 +51,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 # Health check (port 8080 for unprivileged nginx, busybox wget is built-in)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -q --spider http://127.0.0.1:8080/health || exit 1
+  CMD wget -q --spider http://127.0.0.1:${RACKULA_PORT}/health || exit 1
 
-EXPOSE 8080
+EXPOSE ${RACKULA_PORT}
 CMD ["nginx", "-g", "daemon off;"]
