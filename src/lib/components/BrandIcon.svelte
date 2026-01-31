@@ -11,7 +11,15 @@
 		siSupermicro,
 		siTplink,
 		siHp,
-		siSchneiderelectric
+		siSchneiderelectric,
+		siFortinet,
+		siNetgear,
+		siPaloaltonetworks,
+		siCisco,
+		siQnap,
+		siLenovo,
+		siBlackmagicdesign,
+		siApple
 	} from 'simple-icons';
 	import { Zap } from '@lucide/svelte';
 
@@ -32,7 +40,15 @@
 		supermicro: siSupermicro,
 		tplink: siTplink,
 		hp: siHp,
-		schneiderelectric: siSchneiderelectric
+		schneiderelectric: siSchneiderelectric,
+		fortinet: siFortinet,
+		netgear: siNetgear,
+		paloaltonetworks: siPaloaltonetworks,
+		cisco: siCisco,
+		qnap: siQnap,
+		lenovo: siLenovo,
+		blackmagicdesign: siBlackmagicdesign,
+		apple: siApple
 	};
 
 	const icon = $derived(slug ? iconMap[slug] : undefined);
