@@ -3,7 +3,8 @@
  * Exports all brand-specific device packs
  */
 
-import type { DeviceType } from "$lib/types";
+import type { DeviceType, Airflow } from "$lib/types";
+import { debug } from "$lib/utils/debug";
 import { ubiquitiDevices } from "./ubiquiti";
 import { mikrotikDevices } from "./mikrotik";
 import { tplinkDevices } from "./tp-link";
@@ -330,23 +331,28 @@ export function getBrandSlugs(): Set<string> {
   if (!brandSlugsCache) {
     const devices = getAllBrandDevices();
     const slugs = new Set<string>();
-    const duplicates: string[] = [];
+    const duplicateSlugs = new Set<string>();
 
     for (const device of devices) {
       if (slugs.has(device.slug)) {
-        duplicates.push(device.slug);
+        duplicateSlugs.add(device.slug);
       } else {
         slugs.add(device.slug);
       }
     }
 
-    // Warn about duplicates in development mode
-    if (duplicates.length > 0 && !duplicateWarningShown) {
+    // Warn about duplicates in development mode only
+    if (
+      duplicateSlugs.size > 0 &&
+      !duplicateWarningShown &&
+      import.meta.env.DEV
+    ) {
       duplicateWarningShown = true;
-      console.warn(
-        `[Brand Packs] Duplicate device slugs detected (${duplicates.length}):`,
-        duplicates.join(", "),
-        "\nDuplicate slugs will cause incorrect device lookups. Please ensure all slugs are unique.",
+      const uniqueDuplicates = Array.from(duplicateSlugs);
+      debug.warn(
+        "[Brand Packs] Duplicate device slugs detected (%d): %s. Duplicate slugs will cause incorrect device lookups.",
+        uniqueDuplicates.length,
+        uniqueDuplicates.join(", "),
       );
     }
 
@@ -358,13 +364,15 @@ export function getBrandSlugs(): Set<string> {
 /**
  * Default airflow direction used when a device doesn't specify one
  */
-export const DEFAULT_AIRFLOW = "front-to-rear" as const;
+export const DEFAULT_AIRFLOW: Airflow = "front-to-rear";
 
 /**
  * Get a device with normalized properties (airflow defaults applied)
  * Use this when you need consistent device properties for rendering/logic
  */
-export function normalizeDevice(device: DeviceType): DeviceType & { airflow: string } {
+export function normalizeDevice(
+  device: DeviceType,
+): DeviceType & { airflow: Airflow } {
   return {
     ...device,
     airflow: device.airflow ?? DEFAULT_AIRFLOW,
@@ -377,7 +385,7 @@ export function normalizeDevice(device: DeviceType): DeviceType & { airflow: str
  */
 export function findBrandDeviceNormalized(
   slug: string,
-): (DeviceType & { airflow: string }) | undefined {
+): (DeviceType & { airflow: Airflow }) | undefined {
   const device = findBrandDevice(slug);
   return device ? normalizeDevice(device) : undefined;
 }
