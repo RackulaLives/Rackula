@@ -77,7 +77,7 @@
   },
   "dependencies": {
     "@lucide/svelte": "^0.563.1",
-    "bits-ui": "^2.15.4",
+    "bits-ui": "^2.15.5",
     "debug": "^4.4.3",
     "fuse.js": "^7.1.0",
     "js-yaml": "^4.1.1",
