@@ -317,13 +317,67 @@ export function findBrandDevice(slug: string): DeviceType | undefined {
 // Cached set of all brand device slugs
 let brandSlugsCache: Set<string> | null = null;
 
+// Track if we've already warned about duplicates (avoid spam in dev mode)
+let duplicateWarningShown = false;
+
 /**
  * Get a Set of all brand device slugs for fast lookup
  * Used to distinguish brand devices from custom devices
+ *
+ * Validates for duplicate slugs on first access and warns in development.
  */
 export function getBrandSlugs(): Set<string> {
   if (!brandSlugsCache) {
-    brandSlugsCache = new Set(getAllBrandDevices().map((d) => d.slug));
+    const devices = getAllBrandDevices();
+    const slugs = new Set<string>();
+    const duplicates: string[] = [];
+
+    for (const device of devices) {
+      if (slugs.has(device.slug)) {
+        duplicates.push(device.slug);
+      } else {
+        slugs.add(device.slug);
+      }
+    }
+
+    // Warn about duplicates in development mode
+    if (duplicates.length > 0 && !duplicateWarningShown) {
+      duplicateWarningShown = true;
+      console.warn(
+        `[Brand Packs] Duplicate device slugs detected (${duplicates.length}):`,
+        duplicates.join(", "),
+        "\nDuplicate slugs will cause incorrect device lookups. Please ensure all slugs are unique.",
+      );
+    }
+
+    brandSlugsCache = slugs;
   }
   return brandSlugsCache;
+}
+
+/**
+ * Default airflow direction used when a device doesn't specify one
+ */
+export const DEFAULT_AIRFLOW = "front-to-rear" as const;
+
+/**
+ * Get a device with normalized properties (airflow defaults applied)
+ * Use this when you need consistent device properties for rendering/logic
+ */
+export function normalizeDevice(device: DeviceType): DeviceType & { airflow: string } {
+  return {
+    ...device,
+    airflow: device.airflow ?? DEFAULT_AIRFLOW,
+  };
+}
+
+/**
+ * Find a device by slug and return it with normalized properties
+ * @returns The normalized DeviceType if found, undefined otherwise
+ */
+export function findBrandDeviceNormalized(
+  slug: string,
+): (DeviceType & { airflow: string }) | undefined {
+  const device = findBrandDevice(slug);
+  return device ? normalizeDevice(device) : undefined;
 }
