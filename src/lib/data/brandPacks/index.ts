@@ -25,6 +25,7 @@ import { blackmagicdesignDevices } from "./blackmagicdesign";
 import { deskpiDevices } from "./deskpi";
 import { acInfinityDevices } from "./ac-infinity";
 import { appleDevices } from "./apple";
+import { ciscoDevices } from "./cisco";
 
 export {
   ubiquitiDevices,
@@ -48,6 +49,7 @@ export {
   deskpiDevices,
   acInfinityDevices,
   appleDevices,
+  ciscoDevices,
 };
 
 /**
@@ -110,6 +112,13 @@ export function getBrandPacks(): BrandSection[] {
       devices: paloaltoDevices,
       defaultExpanded: false,
       icon: "paloaltonetworks",
+    },
+    {
+      id: "cisco",
+      title: "Cisco",
+      devices: ciscoDevices,
+      defaultExpanded: false,
+      icon: "cisco",
     },
     {
       id: "netgate",
@@ -260,6 +269,8 @@ export function getBrandDevices(brandId: string): DeviceType[] {
       return acInfinityDevices;
     case "apple":
       return appleDevices;
+    case "cisco":
+      return ciscoDevices;
     default:
       return [];
   }
@@ -291,6 +302,7 @@ export function getAllBrandDevices(): DeviceType[] {
     ...deskpiDevices,
     ...acInfinityDevices,
     ...appleDevices,
+    ...ciscoDevices,
   ];
 }
 
