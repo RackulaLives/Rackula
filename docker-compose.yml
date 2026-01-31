@@ -9,6 +9,7 @@
 #
 # Environment variables:
 #   RACKULA_PORT: Host port for frontend (default: 8080)
+#   RACKULA_LISTEN_PORT: Port nginx listens on inside container (default: 8080)
 #   RACKULA_API_PORT: Port the API listens on (default: 3001)
 #   API_HOST: API hostname for nginx proxy (default: rackula-api)
 #   API_PORT: Derived from RACKULA_API_PORT (for nginx proxy target)
@@ -20,11 +21,13 @@ services:
     # image: ghcr.io/rackulalives/rackula:persist
     container_name: rackula
     ports:
-      - "${RACKULA_PORT:-8080}:8080"
+      - "${RACKULA_PORT:-8080}:${RACKULA_LISTEN_PORT:-8080}"
     environment:
       # API proxy target (API_PORT derived from RACKULA_API_PORT)
       - API_HOST=${API_HOST:-rackula-api}
       - API_PORT=${RACKULA_API_PORT:-3001}
+      # nginx listen port inside container (allows matching host port if needed)
+      - RACKULA_LISTEN_PORT=${RACKULA_LISTEN_PORT:-8080}
     restart: unless-stopped
     stop_grace_period: 10s
 

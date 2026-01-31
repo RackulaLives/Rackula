@@ -97,13 +97,31 @@ All variables have sensible defaults. Only configure if you need to change somet
 
 ### Runtime Variables
 
-| Variable           | Default       | Description                                 |
-| ------------------ | ------------- | ------------------------------------------- |
-| `RACKULA_PORT`     | `8080`        | Host port for the web UI                    |
-| `RACKULA_API_PORT` | `3001`        | Port the API listens on                     |
-| `API_HOST`         | `rackula-api` | Hostname of API container (for nginx proxy) |
-| `API_PORT`         | `3001`        | Port of API container (for nginx proxy)     |
-| `DATA_DIR`         | `/data`       | Path to data directory inside API container |
+| Variable              | Default       | Description                                     |
+| --------------------- | ------------- | ----------------------------------------------- |
+| `RACKULA_PORT`        | `8080`        | Host port for the web UI                        |
+| `RACKULA_LISTEN_PORT` | `8080`        | Port nginx listens on inside the container      |
+| `RACKULA_API_PORT`    | `3001`        | Port the API listens on                         |
+| `API_HOST`            | `rackula-api` | Hostname of API container (for nginx proxy)     |
+| `API_PORT`            | `3001`        | Port of API container (for nginx proxy)         |
+| `DATA_DIR`            | `/data`       | Path to data directory inside API container     |
+
+**Port mapping explained:**
+
+By default, both `RACKULA_PORT` and `RACKULA_LISTEN_PORT` are `8080`, meaning:
+- Host port 8080 → Container port 8080 → nginx listening on 8080
+
+For most users, just set `RACKULA_PORT` to change the host port:
+
+```bash
+RACKULA_PORT=3000 docker compose up -d  # Access at localhost:3000
+```
+
+If you need nginx to listen on a specific port inside the container (e.g., for rootless Podman or specific orchestration requirements), set both:
+
+```bash
+RACKULA_PORT=3000 RACKULA_LISTEN_PORT=3000 docker compose up -d
+```
 
 ### Build-Time Variables
 

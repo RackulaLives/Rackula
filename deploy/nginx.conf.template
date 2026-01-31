@@ -1,6 +1,6 @@
 server {
-    listen 8080;
-    listen [::]:8080;
+    listen ${RACKULA_LISTEN_PORT};
+    listen [::]:${RACKULA_LISTEN_PORT};
     server_name localhost;
     root /usr/share/nginx/html;
     index index.html;
@@ -22,7 +22,7 @@ server {
     # Use variable to defer DNS resolution to request time (allows nginx to start without API)
     # Note: With variable-based proxy_pass, URI is NOT appended, so we pass to base URL
     # Configure via environment variables: API_HOST (default: rackula-api), API_PORT (default: 3001)
-    # Note: NGINX_ENVSUBST_FILTER in Dockerfile restricts substitution to API_HOST and API_PORT only
+    # Note: NGINX_ENVSUBST_FILTER in Dockerfile restricts substitution to API_HOST, API_PORT, and RACKULA_LISTEN_PORT only
     location /api/ {
         resolver 127.0.0.11 valid=30s;
         set $api_upstream ${API_HOST};

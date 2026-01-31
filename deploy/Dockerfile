@@ -39,10 +39,12 @@ LABEL org.opencontainers.image.title="Rackula"
 # API proxy configuration
 # API_HOST: Hostname or IP of the API server (default: rackula-api)
 # API_PORT: Port the API listens on (default: 3001)
+# RACKULA_LISTEN_PORT: Port nginx listens on inside the container (default: 8080)
 # NGINX_ENVSUBST_FILTER: Regex filter - only substitute these env vars, leave nginx vars ($host etc.) alone
 ENV API_HOST=rackula-api
 ENV API_PORT=3001
-ENV NGINX_ENVSUBST_FILTER=^(API_HOST|API_PORT)$
+ENV RACKULA_LISTEN_PORT=8080
+ENV NGINX_ENVSUBST_FILTER=^(API_HOST|API_PORT|RACKULA_LISTEN_PORT)$
 
 # Copy nginx config template (auto-processed by nginx's /docker-entrypoint.d/20-envsubst-on-templates.sh)
 COPY ./deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
