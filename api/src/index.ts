@@ -33,17 +33,23 @@ const maxAssetSize =
   Number.isFinite(parsedMaxAssetSize) && parsedMaxAssetSize > 0
     ? parsedMaxAssetSize
     : DEFAULT_MAX_ASSET_SIZE;
-app.use(
-  "/assets/*",
-  bodyLimit({
-    maxSize: maxAssetSize,
-    onError: (c) => c.json({ error: "File too large" }, 413),
-  }),
-);
+// Body size limits for asset uploads
+const assetBodyLimit = bodyLimit({
+  maxSize: maxAssetSize,
+  onError: (c) => c.json({ error: "File too large" }, 413),
+});
+app.use("/assets/*", assetBodyLimit);
+app.use("/api/assets/*", assetBodyLimit);
 
 // Mount routes at root paths (nginx strips /api prefix when proxying)
 app.route("/layouts", layouts);
 app.route("/assets", assets);
+
+// Compatibility aliases for direct API access (without nginx proxy)
+// These allow clients to use /api/* paths when accessing the API directly
+app.route("/api/layouts", layouts);
+app.route("/api/assets", assets);
+app.get("/api/health", (c) => c.text("OK"));
 
 // 404 handler
 app.notFound((c) => c.json({ error: "Not found" }, 404));
