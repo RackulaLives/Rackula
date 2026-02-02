@@ -37,6 +37,18 @@ server {
         # No fallback - let it fail to signal API unavailability
     }
     
+    # Handle /api and /api/ edge cases - return JSON error, not SPA fallback (#1010)
+    # These paths don't correspond to valid API endpoints
+    location = /api {
+        default_type application/json;
+        return 400 '{"error": "Invalid API path", "hint": "Use /api/layouts, /api/assets, or /api/health"}';
+    }
+
+    location = /api/ {
+        default_type application/json;
+        return 400 '{"error": "Invalid API path", "hint": "Use /api/layouts, /api/assets, or /api/health"}';
+    }
+
     location /api/ {
         resolver 127.0.0.11 valid=30s;
         set $api_upstream ${API_HOST};
