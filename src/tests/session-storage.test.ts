@@ -98,42 +98,26 @@ describe("Session Storage", () => {
     it("overwrites existing session with new timestamp", () => {
       // Use fake timers for deterministic timestamp testing
       vi.useFakeTimers();
-      const startTime = new Date("2026-02-01T12:00:00.000Z");
-      vi.setSystemTime(startTime);
+      try {
+        vi.setSystemTime(new Date("2026-02-01T12:00:00.000Z"));
 
-      // Save first layout
-      saveSession(mockLayout);
-      const firstStored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
-      expect(firstStored.savedAt).toBe("2026-02-01T12:00:00.000Z");
+        saveSession(mockLayout);
+        const firstStored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+        expect(firstStored.savedAt).toBe("2026-02-01T12:00:00.000Z");
 
-      // Advance time by 1 second
-      vi.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
 
-      // Save updated layout
-      const updatedLayout: Layout = {
-        racks: [
-          {
-            id: "rack-1",
-            name: "Updated Rack",
-            height: 24,
-            devices: [],
-          },
-        ],
-      } as Layout;
+        const updatedLayout: Layout = {
+          racks: [{ id: "rack-1", name: "Updated Rack", height: 24, devices: [] }],
+        } as Layout;
+        saveSession(updatedLayout);
 
-      saveSession(updatedLayout);
-
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const parsed = JSON.parse(stored!);
-      expect(parsed.layout).toEqual(updatedLayout);
-      // New save should have a newer timestamp (1 second later)
-      expect(parsed.savedAt).toBe("2026-02-01T12:00:01.000Z");
-      expect(new Date(parsed.savedAt).getTime()).toBeGreaterThan(
-        new Date(firstStored.savedAt).getTime(),
-      );
-
-      // Restore real timers
-      vi.useRealTimers();
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+        expect(parsed.layout).toEqual(updatedLayout);
+        expect(parsed.savedAt).toBe("2026-02-01T12:00:01.000Z");
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
