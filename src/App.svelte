@@ -321,7 +321,7 @@
         }
       } catch (error) {
         // If server check fails, fall through to localStorage
-        console.warn("Failed to load saved layouts from server:", error);
+        persistenceDebug.api("failed to load saved layouts from server: %O", error);
       }
     }
 

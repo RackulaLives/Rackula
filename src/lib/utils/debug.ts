@@ -51,6 +51,10 @@ export const persistenceDebug = {
   health: Debug("rackula:persistence:health"),
 };
 
+export const sessionDebug = {
+  storage: Debug("rackula:session:storage"),
+};
+
 // Create shared instances for reuse
 const generalLog = Debug("rackula:general");
 const infoLog = Debug("rackula:info");

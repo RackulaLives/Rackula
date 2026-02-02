@@ -1,6 +1,8 @@
 import type { Layout } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
+import { sessionDebug } from "./debug";
 
+const log = sessionDebug.storage;
 const STORAGE_KEY = "Rackula:autosave";
 
 /**
@@ -89,7 +91,7 @@ function migrateLayout(raw: Record<string, unknown>): Layout | null {
 
     return raw as unknown as Layout;
   } catch (error) {
-    console.warn("[SessionStorage] Migration failed:", error);
+    log("migration failed: %O", error);
     return null;
   }
 }
@@ -110,7 +112,7 @@ export function saveSession(layout: Layout): boolean {
     return true;
   } catch (error) {
     // Handle QuotaExceededError or other storage errors
-    console.warn("[SessionStorage] Failed to save session:", error);
+    log("failed to save session: %O", error);
     return false;
   }
 }
@@ -146,9 +148,7 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
       typeof parsed !== "object" ||
       Array.isArray(parsed)
     ) {
-      console.warn(
-        "[SessionStorage] Invalid session data format - expected object",
-      );
+      log("invalid session data format - expected object");
       return null;
     }
 
@@ -160,9 +160,17 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
       "savedAt" in obj &&
       typeof obj.savedAt === "string"
     ) {
-      // New format with timestamp wrapper
-      const layoutData = obj.layout as Record<string, unknown>;
-      const layout = migrateLayout(layoutData);
+      // New format with timestamp wrapper - validate layoutData before migration
+      const layoutData = obj.layout;
+      if (
+        layoutData === null ||
+        typeof layoutData !== "object" ||
+        Array.isArray(layoutData)
+      ) {
+        log("invalid layout data in session wrapper - expected object");
+        return null;
+      }
+      const layout = migrateLayout(layoutData as Record<string, unknown>);
       if (!layout) return null;
       return {
         layout,
@@ -178,7 +186,7 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
       savedAt: null, // No timestamp for legacy data
     };
   } catch (error) {
-    console.warn("[SessionStorage] Failed to load session:", error);
+    log("failed to load session: %O", error);
     return null;
   }
 }
@@ -190,7 +198,7 @@ export function clearSession(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch (error) {
-    console.warn("[SessionStorage] Failed to clear session:", error);
+    log("failed to clear session: %O", error);
   }
 }
 
@@ -215,8 +223,8 @@ export function isServerNewer(
 
     // Handle invalid dates - if either is invalid, prefer server
     if (isNaN(localDate.getTime()) || isNaN(serverDate.getTime())) {
-      console.warn(
-        "[SessionStorage] Invalid timestamp comparison:",
+      log(
+        "invalid timestamp comparison: local=%s server=%s",
         localTimestamp,
         serverTimestamp,
       );

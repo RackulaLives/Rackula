@@ -86,28 +86,28 @@ describe("Session Storage", () => {
         throw error;
       });
 
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
       const result = saveSession(mockLayout);
 
+      // Should return false on error (logs via debug logger, not console.warn)
       expect(result).toBe(false);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "[SessionStorage] Failed to save session:",
-        expect.any(Error),
-      );
 
       // Restore original implementation
       localStorage.setItem = originalSetItem;
-      consoleSpy.mockRestore();
     });
 
-    it("overwrites existing session with new timestamp", async () => {
+    it("overwrites existing session with new timestamp", () => {
+      // Use fake timers for deterministic timestamp testing
+      vi.useFakeTimers();
+      const startTime = new Date("2026-02-01T12:00:00.000Z");
+      vi.setSystemTime(startTime);
+
       // Save first layout
       saveSession(mockLayout);
       const firstStored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+      expect(firstStored.savedAt).toBe("2026-02-01T12:00:00.000Z");
 
-      // Wait a tiny bit to ensure different timestamp (1ms is enough for Date precision)
-      await new Promise((resolve) => setTimeout(resolve, 2));
+      // Advance time by 1 second
+      vi.advanceTimersByTime(1000);
 
       // Save updated layout
       const updatedLayout: Layout = {
@@ -126,11 +126,14 @@ describe("Session Storage", () => {
       const stored = localStorage.getItem(STORAGE_KEY);
       const parsed = JSON.parse(stored!);
       expect(parsed.layout).toEqual(updatedLayout);
-      // New save should have a different (newer or equal) timestamp
-      // Use greater than or equal because times can be identical in fast test execution
-      expect(new Date(parsed.savedAt).getTime()).toBeGreaterThanOrEqual(
+      // New save should have a newer timestamp (1 second later)
+      expect(parsed.savedAt).toBe("2026-02-01T12:00:01.000Z");
+      expect(new Date(parsed.savedAt).getTime()).toBeGreaterThan(
         new Date(firstStored.savedAt).getTime(),
       );
+
+      // Restore real timers
+      vi.useRealTimers();
     });
   });
 
@@ -152,17 +155,10 @@ describe("Session Storage", () => {
       // Store invalid JSON
       localStorage.setItem(STORAGE_KEY, "invalid-json");
 
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
       const result = loadSession();
 
+      // Should return null on parse error (logs via debug logger)
       expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "[SessionStorage] Failed to load session:",
-        expect.any(Error),
-      );
-
-      consoleSpy.mockRestore();
     });
 
     it("handles localStorage errors gracefully", () => {
@@ -172,19 +168,13 @@ describe("Session Storage", () => {
         throw new Error("Storage error");
       });
 
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
       const result = loadSession();
 
+      // Should return null on error (logs via debug logger)
       expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "[SessionStorage] Failed to load session:",
-        expect.any(Error),
-      );
 
       // Restore original implementation
       localStorage.getItem = originalGetItem;
-      consoleSpy.mockRestore();
     });
   });
 
@@ -210,17 +200,11 @@ describe("Session Storage", () => {
         throw new Error("Storage error");
       });
 
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
+      // Should not throw (logs via debug logger)
       expect(() => clearSession()).not.toThrow();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "[SessionStorage] Failed to clear session:",
-        expect.any(Error),
-      );
 
       // Restore original implementation
       localStorage.removeItem = originalRemoveItem;
-      consoleSpy.mockRestore();
     });
   });
 
@@ -539,16 +523,10 @@ describe("Session Storage", () => {
       // Store valid JSON but not an object (array case)
       localStorage.setItem(STORAGE_KEY, JSON.stringify([1, 2, 3]));
 
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
       const result = loadSession();
 
+      // Should return null for non-object data (logs via debug logger)
       expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "[SessionStorage] Invalid session data format - expected object",
-      );
-
-      consoleSpy.mockRestore();
     });
   });
 });
