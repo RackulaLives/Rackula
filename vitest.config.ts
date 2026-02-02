@@ -27,9 +27,9 @@ function getGitInfo() {
 
 const gitInfo = getGitInfo();
 
-// Compute maxForks: use VITEST_MAX_FORKS env var if set, otherwise use CPU count (capped at 4)
-function getMaxForks(): number {
-  const envValue = process.env.VITEST_MAX_FORKS;
+// Compute maxWorkers: use VITEST_MAX_WORKERS env var if set, otherwise use CPU count (capped at 4)
+function getMaxWorkers(): number {
+  const envValue = process.env.VITEST_MAX_WORKERS;
   if (envValue) {
     const parsed = parseInt(envValue, 10);
     if (!isNaN(parsed) && parsed >= 1) {
@@ -41,7 +41,7 @@ function getMaxForks(): number {
   return Math.max(2, Math.min(4, Math.floor(cpuCount / 2)));
 }
 
-const maxForks = getMaxForks();
+const maxWorkers = getMaxWorkers();
 
 export default defineConfig({
   plugins: [svelte({ hot: !process.env.VITEST })],
@@ -70,13 +70,9 @@ export default defineConfig({
     // bits-ui cleanup errors handled in setup.ts via targeted suppression
     // Use forks pool for memory isolation between test file batches
     // Each fork is a separate process, so memory is fully released when recycled
-    // Configure via VITEST_MAX_FORKS env var, defaults to CPU-aware value (2-4)
+    // Configure via VITEST_MAX_WORKERS env var, defaults to CPU-aware value (2-4)
     pool: "forks",
-    poolOptions: {
-      forks: {
-        maxForks,
-      },
-    },
+    maxWorkers,
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],
