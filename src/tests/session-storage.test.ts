@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   saveSession,
   loadSession,
+  loadSessionWithTimestamp,
   clearSession,
+  isServerNewer,
 } from "$lib/utils/session-storage";
 import type { Layout } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
@@ -55,13 +57,19 @@ describe("Session Storage", () => {
   });
 
   describe("saveSession", () => {
-    it("saves layout to localStorage", () => {
+    it("saves layout to localStorage with timestamp wrapper", () => {
       const result = saveSession(mockLayout);
 
       expect(result).toBe(true);
       const stored = localStorage.getItem(STORAGE_KEY);
       expect(stored).toBeTruthy();
-      expect(JSON.parse(stored!)).toEqual(mockLayout);
+      const parsed = JSON.parse(stored!);
+      // New format: { layout: Layout, savedAt: string }
+      expect(parsed.layout).toEqual(mockLayout);
+      expect(parsed.savedAt).toBeDefined();
+      expect(typeof parsed.savedAt).toBe("string");
+      // Verify it's a valid ISO timestamp
+      expect(new Date(parsed.savedAt).toISOString()).toBe(parsed.savedAt);
     });
 
     it("returns true on successful save", () => {
@@ -93,9 +101,13 @@ describe("Session Storage", () => {
       consoleSpy.mockRestore();
     });
 
-    it("overwrites existing session", () => {
+    it("overwrites existing session with new timestamp", async () => {
       // Save first layout
       saveSession(mockLayout);
+      const firstStored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+
+      // Wait a tiny bit to ensure different timestamp (1ms is enough for Date precision)
+      await new Promise((resolve) => setTimeout(resolve, 2));
 
       // Save updated layout
       const updatedLayout: Layout = {
@@ -108,10 +120,17 @@ describe("Session Storage", () => {
           },
         ],
       } as Layout;
+
       saveSession(updatedLayout);
 
       const stored = localStorage.getItem(STORAGE_KEY);
-      expect(JSON.parse(stored!)).toEqual(updatedLayout);
+      const parsed = JSON.parse(stored!);
+      expect(parsed.layout).toEqual(updatedLayout);
+      // New save should have a different (newer or equal) timestamp
+      // Use greater than or equal because times can be identical in fast test execution
+      expect(new Date(parsed.savedAt).getTime()).toBeGreaterThanOrEqual(
+        new Date(firstStored.savedAt).getTime(),
+      );
     });
   });
 
@@ -205,11 +224,88 @@ describe("Session Storage", () => {
     });
   });
 
+  describe("loadSessionWithTimestamp", () => {
+    it("returns null when no session exists", () => {
+      const result = loadSessionWithTimestamp();
+      expect(result).toBeNull();
+    });
+
+    it("loads new format with timestamp", () => {
+      const timestamp = "2026-02-01T12:00:00.000Z";
+      const sessionData = {
+        layout: mockLayout,
+        savedAt: timestamp,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
+
+      const result = loadSessionWithTimestamp();
+      expect(result).not.toBeNull();
+      expect(result!.layout).toEqual(mockLayout);
+      expect(result!.savedAt).toBe(timestamp);
+    });
+
+    it("loads legacy format without timestamp", () => {
+      // Legacy format: direct layout object without wrapper
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mockLayout));
+
+      const result = loadSessionWithTimestamp();
+      expect(result).not.toBeNull();
+      expect(result!.layout).toEqual(mockLayout);
+      expect(result!.savedAt).toBeNull(); // Legacy data has no timestamp
+    });
+  });
+
+  describe("isServerNewer", () => {
+    it("returns true when local timestamp is null (legacy data)", () => {
+      const serverTime = "2026-02-01T12:00:00.000Z";
+      expect(isServerNewer(null, serverTime)).toBe(true);
+    });
+
+    it("returns true when server is newer", () => {
+      const localTime = "2026-02-01T10:00:00.000Z";
+      const serverTime = "2026-02-01T12:00:00.000Z";
+      expect(isServerNewer(localTime, serverTime)).toBe(true);
+    });
+
+    it("returns false when local is newer", () => {
+      const localTime = "2026-02-01T14:00:00.000Z";
+      const serverTime = "2026-02-01T12:00:00.000Z";
+      expect(isServerNewer(localTime, serverTime)).toBe(false);
+    });
+
+    it("returns false when timestamps are equal", () => {
+      const timestamp = "2026-02-01T12:00:00.000Z";
+      expect(isServerNewer(timestamp, timestamp)).toBe(false);
+    });
+
+    it("returns true for invalid local timestamp", () => {
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const serverTime = "2026-02-01T12:00:00.000Z";
+      expect(isServerNewer("invalid-date", serverTime)).toBe(true);
+      consoleSpy.mockRestore();
+    });
+
+    it("returns true for invalid server timestamp", () => {
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const localTime = "2026-02-01T12:00:00.000Z";
+      expect(isServerNewer(localTime, "invalid-date")).toBe(true);
+      consoleSpy.mockRestore();
+    });
+  });
+
   describe("Integration", () => {
     it("round-trips save and load", () => {
       saveSession(mockLayout);
       const loaded = loadSession();
       expect(loaded).toEqual(mockLayout);
+    });
+
+    it("round-trips save and loadWithTimestamp", () => {
+      saveSession(mockLayout);
+      const result = loadSessionWithTimestamp();
+      expect(result).not.toBeNull();
+      expect(result!.layout).toEqual(mockLayout);
+      expect(result!.savedAt).toBeDefined();
     });
 
     it("clear removes saved session", () => {

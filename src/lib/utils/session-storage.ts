@@ -4,6 +4,23 @@ import { UNITS_PER_U } from "$lib/types/constants";
 const STORAGE_KEY = "Rackula:autosave";
 
 /**
+ * Session data wrapper with timestamp for conflict resolution
+ * @since v0.7.8
+ */
+interface SessionData {
+  layout: Layout;
+  savedAt: string; // ISO 8601 timestamp
+}
+
+/**
+ * Result of loading a session with timestamp information
+ */
+export interface SessionLoadResult {
+  layout: Layout;
+  savedAt: string | null; // null for legacy data without timestamp
+}
+
+/**
  * Compare semver versions (simplified).
  * Handles pre-release suffixes like -dev, -alpha.1, etc.
  * @returns -1 if a < b, 0 if a === b, 1 if a > b
@@ -78,13 +95,17 @@ function migrateLayout(raw: Record<string, unknown>): Layout | null {
 }
 
 /**
- * Save the current layout to localStorage.
+ * Save the current layout to localStorage with timestamp.
  * @param layout - The layout to save
  * @returns true if successful, false if failed (e.g., quota exceeded)
  */
 export function saveSession(layout: Layout): boolean {
   try {
-    const serialized = JSON.stringify(layout);
+    const sessionData: SessionData = {
+      layout,
+      savedAt: new Date().toISOString(),
+    };
+    const serialized = JSON.stringify(sessionData);
     localStorage.setItem(STORAGE_KEY, serialized);
     return true;
   } catch (error) {
@@ -98,8 +119,21 @@ export function saveSession(layout: Layout): boolean {
  * Load the autosaved layout from localStorage.
  * Handles migration from legacy formats (v0.6.x → v0.7.0+).
  * @returns The saved layout, or null if none exists or parsing failed
+ * @deprecated Use loadSessionWithTimestamp() for new code that needs conflict resolution
  */
 export function loadSession(): Layout | null {
+  const result = loadSessionWithTimestamp();
+  return result?.layout ?? null;
+}
+
+/**
+ * Load the autosaved layout from localStorage with timestamp information.
+ * Handles migration from:
+ * - Legacy formats (v0.6.x → v0.7.0+)
+ * - Old format without timestamp wrapper (pre-v0.7.8)
+ * @returns SessionLoadResult with layout and savedAt, or null if none exists
+ */
+export function loadSessionWithTimestamp(): SessionLoadResult | null {
   try {
     const serialized = localStorage.getItem(STORAGE_KEY);
     if (!serialized) {
@@ -117,7 +151,32 @@ export function loadSession(): Layout | null {
       );
       return null;
     }
-    return migrateLayout(parsed as Record<string, unknown>);
+
+    const obj = parsed as Record<string, unknown>;
+
+    // Check if this is the new SessionData format (has layout and savedAt)
+    if (
+      "layout" in obj &&
+      "savedAt" in obj &&
+      typeof obj.savedAt === "string"
+    ) {
+      // New format with timestamp wrapper
+      const layoutData = obj.layout as Record<string, unknown>;
+      const layout = migrateLayout(layoutData);
+      if (!layout) return null;
+      return {
+        layout,
+        savedAt: obj.savedAt as string,
+      };
+    }
+
+    // Legacy format: direct layout object without timestamp
+    const layout = migrateLayout(obj);
+    if (!layout) return null;
+    return {
+      layout,
+      savedAt: null, // No timestamp for legacy data
+    };
   } catch (error) {
     console.warn("[SessionStorage] Failed to load session:", error);
     return null;
@@ -132,5 +191,41 @@ export function clearSession(): void {
     localStorage.removeItem(STORAGE_KEY);
   } catch (error) {
     console.warn("[SessionStorage] Failed to clear session:", error);
+  }
+}
+
+/**
+ * Compare two ISO 8601 timestamps.
+ * @param localTimestamp - Local session timestamp (may be null for legacy data)
+ * @param serverTimestamp - Server layout updatedAt timestamp
+ * @returns true if server data is newer than local data
+ */
+export function isServerNewer(
+  localTimestamp: string | null,
+  serverTimestamp: string,
+): boolean {
+  // If local has no timestamp (legacy data), server is considered newer
+  if (!localTimestamp) {
+    return true;
+  }
+
+  try {
+    const localDate = new Date(localTimestamp);
+    const serverDate = new Date(serverTimestamp);
+
+    // Handle invalid dates - if either is invalid, prefer server
+    if (isNaN(localDate.getTime()) || isNaN(serverDate.getTime())) {
+      console.warn(
+        "[SessionStorage] Invalid timestamp comparison:",
+        localTimestamp,
+        serverTimestamp,
+      );
+      return true;
+    }
+
+    return serverDate.getTime() > localDate.getTime();
+  } catch {
+    // On any error, prefer server data as authoritative
+    return true;
   }
 }

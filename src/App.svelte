@@ -39,8 +39,9 @@
   import { generateQRCode, canFitInQR } from "$lib/utils/qrcode";
   import {
     saveSession,
-    loadSession,
+    loadSessionWithTimestamp,
     clearSession,
+    isServerNewer,
   } from "$lib/utils/session-storage";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
@@ -262,10 +263,71 @@
       }
     }
 
-    // Priority 2: Check for autosaved session from localStorage
-    const autosaved = loadSession();
-    if (autosaved) {
-      layoutStore.loadLayout(autosaved);
+    // Get localStorage session data (with timestamp if available)
+    const localSession = loadSessionWithTimestamp();
+
+    // Priority 2: When API is available, check server first and compare timestamps
+    // This prevents stale localStorage from overwriting newer server data (#1012)
+    if (isApiAvailable()) {
+      try {
+        const savedLayouts = await listSavedLayouts();
+        if (savedLayouts.length > 0) {
+          // Sort by updatedAt descending and get the most recent
+          const mostRecent = savedLayouts.toSorted(
+            (a, b) =>
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+          )[0]!;
+
+          // Compare timestamps: load server data if it's newer than localStorage
+          // or if localStorage has no timestamp (legacy data)
+          if (
+            !localSession ||
+            isServerNewer(localSession.savedAt, mostRecent.updatedAt)
+          ) {
+            const serverLayout = await loadSavedLayout(mostRecent.id);
+            layoutStore.loadLayout(serverLayout);
+            layoutStore.markClean();
+
+            // Clear stale localStorage to prevent future conflicts
+            if (localSession) {
+              clearSession();
+            }
+
+            toastStore.showToast(
+              `Loaded "${mostRecent.name}" from server`,
+              "success",
+            );
+
+            // Reset view to center the loaded rack after DOM updates
+            requestAnimationFrame(() => {
+              canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+            });
+            return;
+          }
+
+          // LocalStorage is newer than server - load it and warn user
+          // Their local changes will auto-save to server on next edit
+          layoutStore.loadLayout(localSession.layout);
+          layoutStore.markDirty();
+          toastStore.showToast(
+            "Loaded unsaved local changes (newer than server)",
+            "info",
+          );
+
+          requestAnimationFrame(() => {
+            canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+          });
+          return;
+        }
+      } catch (error) {
+        // If server check fails, fall through to localStorage
+        console.warn("Failed to load saved layouts from server:", error);
+      }
+    }
+
+    // Priority 3: No API or no server layouts - check localStorage autosave
+    if (localSession) {
+      layoutStore.loadLayout(localSession.layout);
       // Mark as dirty since this is an autosaved session (not explicitly saved)
       layoutStore.markDirty();
       // Don't show new rack dialog - user has work in progress
@@ -274,37 +336,6 @@
         canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
       });
       return;
-    }
-
-    // Priority 3: Check for saved layouts from server (if API is available)
-    if (isApiAvailable()) {
-      try {
-        const savedLayouts = await listSavedLayouts();
-        if (savedLayouts.length > 0) {
-          // Sort by updatedAt descending and load the most recent
-          const mostRecent = savedLayouts.toSorted(
-            (a, b) =>
-              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-          )[0]!;
-
-          const serverLayout = await loadSavedLayout(mostRecent.id);
-          layoutStore.loadLayout(serverLayout);
-          layoutStore.markClean();
-          toastStore.showToast(
-            `Loaded "${mostRecent.name}" from server`,
-            "success",
-          );
-
-          // Reset view to center the loaded rack after DOM updates
-          requestAnimationFrame(() => {
-            canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-          });
-          return;
-        }
-      } catch (error) {
-        // If loading fails, just continue to show new rack dialog
-        console.warn("Failed to load saved layouts from server:", error);
-      }
     }
 
     // Priority 4: No share link, autosave, or saved layouts - show new rack dialog if empty
@@ -1217,6 +1248,10 @@
         const newId = await saveLayoutToServer(snapshot);
         _currentLayoutId = newId;
         saveStatus = "saved";
+
+        // Clear localStorage after successful server save to prevent stale data (#1012)
+        // This ensures that if user returns on a different device, they get server data
+        clearSession();
       } catch (e) {
         console.warn("Auto-save failed:", e);
         if (e instanceof PersistenceError && e.statusCode === undefined) {
