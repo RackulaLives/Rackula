@@ -292,14 +292,14 @@
           layoutStore.markClean();
           toastStore.showToast(
             `Loaded "${mostRecent.name}" from server`,
-              "success",
-            );
+            "success",
+          );
 
-            // Reset view to center the loaded rack after DOM updates
-            requestAnimationFrame(() => {
-              canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-            });
-            return;
+          // Reset view to center the loaded rack after DOM updates
+          requestAnimationFrame(() => {
+            canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+          });
+          return;
         }
       } catch (error) {
         // If loading fails, just continue to show new rack dialog
@@ -1187,6 +1187,7 @@
   });
 
   // Auto-save to server when API is available
+  // Only saves layouts with meaningful content (user has interacted)
   let serverSaveTimer: ReturnType<typeof setTimeout> | null = null;
   $effect(() => {
     // Check runtime API availability instead of build-time flag
@@ -1194,6 +1195,12 @@
 
     const layout = layoutStore.layout;
     if (!layout.name) return;
+
+    // Don't auto-save empty layouts to server (fixes #1003)
+    // hasStarted is true when user has added a rack, loaded a layout, or placed a device
+    // This prevents polluting server with empty "Racky McRackface" layouts on every visit
+    // Note: localStorage session save (lines 1164-1186) still saves empty state for recovery
+    if (!layoutStore.hasStarted) return;
 
     // Clear existing timer
     if (serverSaveTimer) {
