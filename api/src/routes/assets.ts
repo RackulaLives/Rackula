@@ -1,8 +1,16 @@
 /**
  * Asset API routes
+ *
+ * When accessed directly (e.g., docker run -p 3001:3001 rackula-api):
+ * GET    /assets/:layoutId/:deviceSlug/:face - Get asset image
+ * PUT    /assets/:layoutId/:deviceSlug/:face - Upload asset image
+ * DELETE /assets/:layoutId/:deviceSlug/:face - Delete asset image
+ *
+ * When accessed through nginx proxy (recommended):
  * GET    /api/assets/:layoutId/:deviceSlug/:face - Get asset image
  * PUT    /api/assets/:layoutId/:deviceSlug/:face - Upload asset image
  * DELETE /api/assets/:layoutId/:deviceSlug/:face - Delete asset image
+ * (nginx strips /api prefix before forwarding to API)
  */
 import { Hono } from "hono";
 import { LayoutIdSchema } from "../schemas/layout";

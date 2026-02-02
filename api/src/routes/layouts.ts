@@ -1,9 +1,18 @@
 /**
  * Layout API routes (UUID-based)
+ *
+ * When accessed directly (e.g., docker run -p 3001:3001 rackula-api):
+ * GET    /layouts       - List all layouts
+ * GET    /layouts/:uuid - Get layout by UUID
+ * PUT    /layouts/:uuid - Create or update layout
+ * DELETE /layouts/:uuid - Delete layout
+ *
+ * When accessed through nginx proxy (recommended):
  * GET    /api/layouts       - List all layouts
  * GET    /api/layouts/:uuid - Get layout by UUID
  * PUT    /api/layouts/:uuid - Create or update layout
  * DELETE /api/layouts/:uuid - Delete layout
+ * (nginx strips /api prefix before forwarding to API)
  */
 import { Hono } from "hono";
 import { UuidSchema, LayoutFileSchema } from "../schemas/layout";

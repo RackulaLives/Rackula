@@ -40,7 +40,12 @@ server {
     location /api/ {
         resolver 127.0.0.11 valid=30s;
         set $api_upstream ${API_HOST};
-        proxy_pass http://$api_upstream:${API_PORT}$uri$is_args$args;
+
+        # Strip /api prefix: /api/layouts -> /layouts
+        # Using rewrite to capture path after /api and forward without prefix
+        rewrite ^/api(/.*)$ $1 break;
+
+        proxy_pass http://$api_upstream:${API_PORT};
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

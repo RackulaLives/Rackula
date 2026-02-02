@@ -34,16 +34,16 @@ const maxAssetSize =
     ? parsedMaxAssetSize
     : DEFAULT_MAX_ASSET_SIZE;
 app.use(
-  "/api/assets/*",
+  "/assets/*",
   bodyLimit({
     maxSize: maxAssetSize,
     onError: (c) => c.json({ error: "File too large" }, 413),
   }),
 );
 
-// Mount routes
-app.route("/api/layouts", layouts);
-app.route("/api/assets", assets);
+// Mount routes at root paths (nginx strips /api prefix when proxying)
+app.route("/layouts", layouts);
+app.route("/assets", assets);
 
 // 404 handler
 app.notFound((c) => c.json({ error: "Not found" }, 404));
