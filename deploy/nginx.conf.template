@@ -99,15 +99,16 @@ server {
 
     # Content Security Policy - defense-in-depth against XSS
     # See: https://github.com/RackulaLives/Rackula/issues/102
-    # - script-src: Allow scripts from self, analytics domains, and specific inline redirect script (via hash)
-    #   Hash is sha256 of the SPA redirect script in index.html - this removes need for 'unsafe-inline'
+    # - script-src: Allow scripts from self, Umami analytics, and specific inline scripts (via hash)
+    #   Script hashes (whitespace-sensitive, recompute if scripts change):
+    #   - sha256-4afnYZWgiqXvmE6yKMLV6jCv+mJKGuq8qikAiTfRgMc=
+    #     Source: index.html <script> tag (SPA redirect for GitHub Pages deep links)
+    #   - sha256-yei5Fza+Eyx4G0smvN0xBqEesIKumz6RSyGsU3FJowI=
+    #     Source: Dynamic inline script in bundled JS (exact origin unknown)
     # - style-src 'self' 'unsafe-inline': Allow inline styles (required for Svelte component scoped styles)
     # - img-src 'self' data: blob:: Allow images from same origin, data URLs, and blob URLs (for exports/previews)
     # - font-src 'self' fonts.gstatic.com: Allow fonts from same origin and Google Fonts
-    # - connect-src 'self' analytics: Allow XHR/fetch to same origin and analytics endpoints
+    # - connect-src 'self' t.racku.la: Allow XHR/fetch to same origin and Umami analytics
     # - frame-ancestors 'self': Prevent framing by other sites (reinforces X-Frame-Options)
-    # Analytics domains:
-    #   - t.racku.la: Self-hosted Umami analytics (privacy-focused, GDPR-compliant)
-    #   - static.cloudflareinsights.com: Cloudflare Web Analytics (privacy-focused, no cookies)
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-MS6/3FCg4WjP9gwgaBGwLpRCY6fZBgwmhVCdrPrNf3E=' https://t.racku.la https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://t.racku.la https://static.cloudflareinsights.com; frame-ancestors 'self';" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-4afnYZWgiqXvmE6yKMLV6jCv+mJKGuq8qikAiTfRgMc=' 'sha256-yei5Fza+Eyx4G0smvN0xBqEesIKumz6RSyGsU3FJowI=' https://t.racku.la; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://t.racku.la; frame-ancestors 'self';" always;
 }
