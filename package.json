@@ -81,7 +81,7 @@
     "debug": "^4.4.3",
     "fuse.js": "^7.1.0",
     "js-yaml": "^4.1.1",
-    "jspdf": "^4.0.0",
+    "jspdf": "^4.1.0",
     "jszip": "^3.10.1",
     "marked": "^17.0.1",
     "nanoid": "^5.1.6",
@@ -89,7 +89,7 @@
     "paneforge": "^1.0.2",
     "panzoom": "^9.4.3",
     "qrcode": "^1.5.4",
-    "simple-icons": "^16.6.1",
+    "simple-icons": "^16.7.0",
     "vaul-svelte": "^0.3.2",
     "zod": "^4.3.6"
   }
