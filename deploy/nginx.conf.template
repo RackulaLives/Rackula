@@ -17,15 +17,9 @@ server {
         expires 1y;
         add_header Cache-Control "public, immutable";
 
-        # NOTE: nginx drops ALL server-level add_header directives when a location
-        # block defines its own. We must repeat security headers here.
-        # See: https://nginx.org/en/docs/http/ngx_http_headers_module.html
-        add_header X-Frame-Options "SAMEORIGIN" always;
-        add_header X-Content-Type-Options "nosniff" always;
-        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-        add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-4afnYZWgiqXvmE6yKMLV6jCv+mJKGuq8qikAiTfRgMc=' 'sha256-yei5Fza+Eyx4G0smvN0xBqEesIKumz6RSyGsU3FJowI=' https://t.racku.la; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://t.racku.la; frame-ancestors 'self';" always;
+        # nginx drops ALL server-level add_header directives when a location block
+        # defines its own — include shared security headers to avoid drift.
+        include /etc/nginx/snippets/security-headers.conf;
     }
 
     # API proxy (when sidecar is running)
@@ -102,29 +96,6 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-
-    # HTTPS hardening — force secure connections for 1 year
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-
-    # Privacy controls — limit information leakage and browser feature access
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
-
-    # Content Security Policy - defense-in-depth against XSS
-    # See: https://github.com/RackulaLives/Rackula/issues/102
-    # - script-src: Allow scripts from self, Umami analytics, and specific inline scripts (via hash)
-    #   Script hashes (whitespace-sensitive, recompute if scripts change):
-    #   - sha256-4afnYZWgiqXvmE6yKMLV6jCv+mJKGuq8qikAiTfRgMc=
-    #     Source: index.html <script> tag (SPA redirect for GitHub Pages deep links)
-    #   - sha256-yei5Fza+Eyx4G0smvN0xBqEesIKumz6RSyGsU3FJowI=
-    #     Source: Dynamic inline script in bundled JS (exact origin unknown)
-    # - style-src 'self' 'unsafe-inline': Allow inline styles (required for Svelte component scoped styles)
-    # - img-src 'self' data: blob:: Allow images from same origin, data URLs, and blob URLs (for exports/previews)
-    # - font-src 'self' fonts.gstatic.com: Allow fonts from same origin and Google Fonts
-    # - connect-src 'self' t.racku.la: Allow XHR/fetch to same origin and Umami analytics
-    # - frame-ancestors 'self': Prevent framing by other sites (reinforces X-Frame-Options)
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-4afnYZWgiqXvmE6yKMLV6jCv+mJKGuq8qikAiTfRgMc=' 'sha256-yei5Fza+Eyx4G0smvN0xBqEesIKumz6RSyGsU3FJowI=' https://t.racku.la; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://t.racku.la; frame-ancestors 'self';" always;
+    # Security headers (single source of truth: deploy/security-headers.conf)
+    include /etc/nginx/snippets/security-headers.conf;
 }

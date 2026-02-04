@@ -18,6 +18,12 @@ app.use("*", logger());
 // reverse-proxies the API at /api/*, making frontend and API share the same origin.
 // The wildcard only applies when accessing the API directly (development/testing).
 // For production with external API access, set CORS_ORIGIN=https://your-domain.com
+if (!process.env.CORS_ORIGIN && process.env.NODE_ENV === "production") {
+  console.warn(
+    "⚠ CORS_ORIGIN is not set — API will accept requests from any origin.",
+    "Set CORS_ORIGIN=https://your-domain.com for production deployments.",
+  );
+}
 app.use(
   "*",
   cors({
@@ -46,6 +52,7 @@ app.use("/assets/*", assetBodyLimit);
 app.use("/api/assets/*", assetBodyLimit);
 
 // Body size limits for layout data (YAML)
+// Hono's /* wildcard compiles to (?:|/.*) — matches both /layouts and /layouts/*
 const layoutBodyLimit = bodyLimit({
   maxSize: 1 * 1024 * 1024, // 1MB — rack layouts are typically 10-50KB
   onError: (c) => c.json({ error: "Layout data too large" }, 413),

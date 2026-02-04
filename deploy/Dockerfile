@@ -48,6 +48,9 @@ ENV NGINX_ENVSUBST_FILTER=^(API_HOST|API_PORT|RACKULA_LISTEN_PORT)$
 
 # Copy nginx config template (auto-processed by nginx's /docker-entrypoint.d/20-envsubst-on-templates.sh)
 COPY ./deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
+# Security headers snippet — shared between server block and /assets/ location
+# (nginx drops server-level add_header when a location defines its own)
+COPY ./deploy/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Health check (port 8080 for unprivileged nginx, busybox wget is built-in)
