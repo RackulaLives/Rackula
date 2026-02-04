@@ -14,6 +14,10 @@ const app = new Hono();
 
 // Middleware
 app.use("*", logger());
+// CORS: Default wildcard is intentional for self-hosted deployments where nginx
+// reverse-proxies the API at /api/*, making frontend and API share the same origin.
+// The wildcard only applies when accessing the API directly (development/testing).
+// For production with external API access, set CORS_ORIGIN=https://your-domain.com
 app.use(
   "*",
   cors({
@@ -40,6 +44,14 @@ const assetBodyLimit = bodyLimit({
 });
 app.use("/assets/*", assetBodyLimit);
 app.use("/api/assets/*", assetBodyLimit);
+
+// Body size limits for layout data (YAML)
+const layoutBodyLimit = bodyLimit({
+  maxSize: 1 * 1024 * 1024, // 1MB — rack layouts are typically 10-50KB
+  onError: (c) => c.json({ error: "Layout data too large" }, 413),
+});
+app.use("/layouts/*", layoutBodyLimit);
+app.use("/api/layouts/*", layoutBodyLimit);
 
 // Mount routes at root paths (nginx strips /api prefix when proxying)
 app.route("/layouts", layouts);

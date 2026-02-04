@@ -12,10 +12,20 @@ server {
     gzip_proxied expired no-cache no-store private auth;
     gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml application/javascript application/json image/svg+xml;
 
-    # Cache static assets
+    # Cache static assets (fingerprinted by Vite — safe to cache forever)
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
+
+        # NOTE: nginx drops ALL server-level add_header directives when a location
+        # block defines its own. We must repeat security headers here.
+        # See: https://nginx.org/en/docs/http/ngx_http_headers_module.html
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-4afnYZWgiqXvmE6yKMLV6jCv+mJKGuq8qikAiTfRgMc=' 'sha256-yei5Fza+Eyx4G0smvN0xBqEesIKumz6RSyGsU3FJowI=' https://t.racku.la; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://t.racku.la; frame-ancestors 'self';" always;
     }
 
     # API proxy (when sidecar is running)
@@ -95,7 +105,13 @@ server {
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
+
+    # HTTPS hardening — force secure connections for 1 year
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # Privacy controls — limit information leakage and browser feature access
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
 
     # Content Security Policy - defense-in-depth against XSS
     # See: https://github.com/RackulaLives/Rackula/issues/102

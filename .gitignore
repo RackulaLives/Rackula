@@ -42,3 +42,7 @@ playwright-browserstack-sdk.config.ts
 # Git worktrees
 .worktree/
 .worktrees/
+
+# Claude Memory — auto-generated context files (preserve root /CLAUDE.md)
+**/CLAUDE.md
+!/CLAUDE.md
