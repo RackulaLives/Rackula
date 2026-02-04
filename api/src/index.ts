@@ -20,8 +20,7 @@ app.use("*", logger());
 // For production with external API access, set CORS_ORIGIN=https://your-domain.com
 if (!process.env.CORS_ORIGIN && process.env.NODE_ENV === "production") {
   console.warn(
-    "⚠ CORS_ORIGIN is not set — API will accept requests from any origin.",
-    "Set CORS_ORIGIN=https://your-domain.com for production deployments.",
+    "⚠ CORS_ORIGIN is not set — API will accept requests from any origin. Set CORS_ORIGIN=https://your-domain.com for production deployments.",
   );
 }
 app.use(
