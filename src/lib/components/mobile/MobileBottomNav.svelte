@@ -112,7 +112,7 @@
   }
 
   .nav-label {
-    font-size: 0.625rem;
+    font-size: var(--font-size-2xs);
     line-height: 1;
   }
 </style>
