@@ -1,28 +1,43 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/svelte";
 import { resetViewportStore } from "$lib/utils/viewport.svelte";
 import ToolbarTestWrapper from "./helpers/ToolbarTestWrapper.svelte";
+
+const originalMatchMedia = window.matchMedia;
 
 function mockMobileViewport(matches: boolean): void {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     configurable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
+    value: vi.fn().mockImplementation(
+      (query: string): MediaQueryList =>
+        ({
+          matches,
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }) as MediaQueryList,
+    ),
   });
 }
 
 describe("Toolbar mobile quick actions", () => {
   beforeEach(() => {
     mockMobileViewport(true);
+    resetViewportStore();
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: originalMatchMedia,
+    });
+    vi.restoreAllMocks();
     resetViewportStore();
   });
 

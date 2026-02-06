@@ -9,7 +9,14 @@
     onexport?: () => void;
   }
 
-  let { hasRacks = false, onsave, onload, onexport }: Props = $props();
+  const noop = () => {};
+
+  let {
+    hasRacks = false,
+    onsave = noop,
+    onload = noop,
+    onexport = noop,
+  }: Props = $props();
 </script>
 
 <Tooltip.Provider delayDuration={0}>
