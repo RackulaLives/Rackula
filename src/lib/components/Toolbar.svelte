@@ -3,7 +3,7 @@
   Geismar-minimal three-zone layout:
   - Left: Logo lockup (clickable for help)
   - Center: Action cluster (Undo, Redo, View, Fit, Export, Share)
-  - Right: Dropdown menus (File, Settings)
+  - Right: Dropdown menus (desktop) / quick file actions (mobile)
 -->
 <script lang="ts">
   import Tooltip from "./Tooltip.svelte";
@@ -21,7 +21,6 @@
     IconImageLabel,
     IconDownloadBold,
     IconShareBold,
-    IconQuestionBold,
   } from "./icons";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
@@ -303,7 +302,7 @@
     </div>
   {/if}
 
-  <!-- Right: Dropdown menus (desktop) / Help button (mobile) -->
+  <!-- Right: Dropdown menus (desktop) / quick file actions (mobile) -->
   {#if !viewportStore.isMobile}
     <div class="toolbar-section toolbar-right">
       {#if saveStatus}
@@ -336,15 +335,38 @@
       />
     </div>
   {:else}
-    <div class="toolbar-section toolbar-right">
+    <div
+      class="toolbar-section toolbar-right toolbar-right-mobile"
+      role="group"
+      aria-label="Quick file actions"
+    >
       <button
-        class="toolbar-icon-btn"
+        class="toolbar-mobile-action-btn"
         type="button"
-        aria-label="About & Shortcuts"
-        onclick={handleHelp}
-        data-testid="btn-mobile-help"
+        aria-label="Save layout"
+        onclick={handleSave}
+        data-testid="btn-mobile-save"
       >
-        <IconQuestionBold size={ICON_SIZE.md} />
+        Save
+      </button>
+      <button
+        class="toolbar-mobile-action-btn"
+        type="button"
+        aria-label="Load layout"
+        onclick={handleLoad}
+        data-testid="btn-mobile-load"
+      >
+        Load
+      </button>
+      <button
+        class="toolbar-mobile-action-btn"
+        type="button"
+        aria-label="Export layout"
+        disabled={!hasRacks}
+        onclick={handleExport}
+        data-testid="btn-mobile-export"
+      >
+        Export
       </button>
     </div>
   {/if}
@@ -382,6 +404,10 @@
   .toolbar-right {
     flex: 0 0 auto;
     gap: var(--space-2);
+  }
+
+  .toolbar-right-mobile {
+    gap: var(--space-1);
   }
 
   /* Logo button */
@@ -464,6 +490,40 @@
   :global(.toolbar-icon-btn[data-state="open"]) {
     color: var(--dracula-cyan);
     box-shadow: inset 0 -2px 0 currentColor;
+  }
+
+  .toolbar-mobile-action-btn {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    padding: 0 var(--space-2);
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--colour-text);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .toolbar-mobile-action-btn:hover:not(:disabled) {
+      color: var(--dracula-cyan);
+      background: var(--colour-surface-hover);
+    }
+  }
+
+  .toolbar-mobile-action-btn:focus-visible {
+    outline: none;
+    color: var(--dracula-cyan);
+    box-shadow: 0 0 0 2px var(--colour-focus-ring);
+  }
+
+  .toolbar-mobile-action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
   /* Responsive: tighter gaps on narrow screens */
