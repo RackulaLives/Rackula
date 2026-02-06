@@ -1055,49 +1055,56 @@
     ontouchend={handleTouchEnd}
     style="overflow: visible"
   >
-    <!-- Rack background (interior) -->
+    <!-- Rack background (interior)
+         Inline style duplicates class fill as Safari iOS workaround:
+         Safari 18.x mis-resolves CSS custom properties in scoped SVG fill declarations -->
     <rect
       x={RAIL_WIDTH}
       y={RACK_PADDING + RAIL_WIDTH}
       width={interiorWidth}
       height={totalHeight}
       class="rack-interior"
+      style="fill: var(--rack-interior)"
     />
 
-    <!-- Top bar (horizontal) -->
+    <!-- Top bar (horizontal) — inline fill: Safari iOS workaround (see interior comment) -->
     <rect
       x="0"
       y={RACK_PADDING}
       width={RACK_WIDTH}
       height={RAIL_WIDTH}
       class="rack-rail"
+      style="fill: var(--rack-rail)"
     />
 
-    <!-- Bottom bar (horizontal) -->
+    <!-- Bottom bar (horizontal) — inline fill: Safari iOS workaround (see interior comment) -->
     <rect
       x="0"
       y={RACK_PADDING + RAIL_WIDTH + totalHeight}
       width={RACK_WIDTH}
       height={RAIL_WIDTH}
       class="rack-rail"
+      style="fill: var(--rack-rail)"
     />
 
-    <!-- Left rail (vertical) -->
+    <!-- Left rail (vertical) — inline fill: Safari iOS workaround (see interior comment) -->
     <rect
       x="0"
       y={RACK_PADDING + RAIL_WIDTH}
       width={RAIL_WIDTH}
       height={totalHeight}
       class="rack-rail"
+      style="fill: var(--rack-rail)"
     />
 
-    <!-- Right rail (vertical) -->
+    <!-- Right rail (vertical) — inline fill: Safari iOS workaround (see interior comment) -->
     <rect
       x={RACK_WIDTH - RAIL_WIDTH}
       y={RACK_PADDING + RAIL_WIDTH}
       width={RAIL_WIDTH}
       height={totalHeight}
       class="rack-rail"
+      style="fill: var(--rack-rail)"
     />
 
     <!-- U slot backgrounds (for drop zone highlighting) -->
