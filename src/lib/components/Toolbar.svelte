@@ -245,7 +245,7 @@
       </Tooltip>
 
       <Tooltip
-        text="Display: {displayModeLabels[displayMode]}"
+        text={`Display: ${displayModeLabels[displayMode]}`}
         shortcut="I"
         position="bottom"
       >
