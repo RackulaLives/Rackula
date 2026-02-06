@@ -33,6 +33,9 @@
   import MobileViewSheet from "$lib/components/mobile/MobileViewSheet.svelte";
   import SidebarTabs from "$lib/components/SidebarTabs.svelte";
   import RackList from "$lib/components/RackList.svelte";
+  import StartScreen, {
+    type StartScreenCloseOptions,
+  } from "$lib/components/StartScreen.svelte";
   import {
     getShareParam,
     clearShareParam,
@@ -202,6 +205,7 @@
   // Party Mode easter egg (triggered by Konami code)
   let partyMode = $state(false);
   let partyModeTimeout: ReturnType<typeof setTimeout> | null = null;
+  let showStartScreen = $state(false);
 
   // Konami detector for party mode
   const konamiDetector = createKonamiDetector(() => {
@@ -271,8 +275,15 @@
     // Get localStorage session data (with timestamp if available)
     const localSession = loadSessionWithTimestamp();
 
-    // Priority 2: When API is available, check server first and compare timestamps
-    // This prevents stale localStorage from overwriting newer server data (#1012)
+    // Priority 2: If API is available and there's no local session,
+    // show Start Screen so user can choose saved layout/new/import.
+    if (isApiAvailable() && !localSession) {
+      showStartScreen = true;
+      return;
+    }
+
+    // Priority 3: When API and local session are both available,
+    // compare server and local timestamps to avoid stale overwrite (#1012).
     if (isApiAvailable()) {
       try {
         const savedLayouts = await listSavedLayouts();
@@ -285,10 +296,7 @@
 
           // Compare timestamps: load server data if it's newer than localStorage
           // or if localStorage has no timestamp (legacy data)
-          if (
-            !localSession ||
-            isServerNewer(localSession.savedAt, mostRecent.updatedAt)
-          ) {
+          if (isServerNewer(localSession.savedAt, mostRecent.updatedAt)) {
             const serverLayout = await loadSavedLayout(mostRecent.id);
             layoutStore.loadLayout(serverLayout);
             layoutStore.markClean();
@@ -333,7 +341,7 @@
       }
     }
 
-    // Priority 3: No API or no server layouts - check localStorage autosave
+    // Priority 4: No API or no server layouts - check localStorage autosave
     if (localSession) {
       layoutStore.loadLayout(localSession.layout);
       // Mark as dirty since this is an autosaved session (not explicitly saved)
@@ -346,11 +354,31 @@
       return;
     }
 
-    // Priority 4: No share link, autosave, or saved layouts - show new rack dialog if empty
+    // Priority 5: No share link, autosave, or saved layouts - show new rack dialog if empty
     if (layoutStore.rackCount === 0) {
       dialogStore.open("newRack");
     }
   });
+
+  function handleStartScreenClose(options?: StartScreenCloseOptions) {
+    showStartScreen = false;
+
+    // User explicitly requested a fresh layout; StartScreen already opened NewRack.
+    if (options?.skipAutosave) {
+      return;
+    }
+
+    // Continue flow fallback: no loaded/imported layout, open wizard.
+    if (layoutStore.rackCount === 0) {
+      dialogStore.open("newRack");
+      return;
+    }
+
+    // Layout was loaded/imported; center it after Start Screen closes.
+    requestAnimationFrame(() => {
+      canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+    });
+  }
 
   // Toolbar event handlers
   function handleNewRack() {
@@ -1357,6 +1385,10 @@
 
 <!-- Tooltip.Provider enables shared tooltip state - only one tooltip shows at a time -->
 <Tooltip.Provider delayDuration={500}>
+  {#if showStartScreen}
+    <StartScreen onClose={handleStartScreenClose} />
+  {/if}
+
   <div
     class="app-layout"
     style="--sidebar-width: min({uiStore.sidebarWidth ??
