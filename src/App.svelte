@@ -1552,7 +1552,12 @@
 
     <!-- Mobile bottom navigation bar -->
     <MobileBottomNav
-      activeTab={fileSheetOpen ? "file" : (deviceLibrarySheetOpen ? "devices" : null)}
+      activeTab={fileSheetOpen
+        ? "file"
+        : deviceLibrarySheetOpen
+          ? "devices"
+          : null}
+      hidden={false}
       onfileclick={handleFileTabClick}
       onviewclick={() => {
         /* noop — future #643 */
@@ -1653,7 +1658,7 @@
     overscroll-behavior: none;
     /* Account for fixed bottom nav */
     padding-bottom: calc(
-      var(--touch-target-comfortable) + env(safe-area-inset-bottom, 0px)
+      var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px)
     );
   }
 

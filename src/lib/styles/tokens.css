@@ -372,6 +372,19 @@
   --touch-target-min: 48px;
   --touch-target-comfortable: 56px;
 
+  /* Bottom Navigation (Framework7-inspired) */
+  --bottom-nav-height: 64px;
+  --bottom-nav-icon-size: 28px;
+  --bottom-nav-label-size: var(--font-size-2xs);
+  --bottom-nav-bg: rgba(33, 34, 44, 0.85);
+  --bottom-nav-border: rgba(52, 55, 70, 0.6);
+  --bottom-nav-blur: 20px;
+  --bottom-nav-active-pill-bg: rgba(139, 233, 253, 0.12);
+  --bottom-nav-active-colour: var(--colour-primary);
+  --bottom-nav-inactive-colour: var(--colour-text-muted);
+  --bottom-nav-transition: 400ms;
+  --bottom-nav-pill-radius: 16px;
+
   /* Overlays & Shadows */
   --colour-backdrop: rgba(0, 0, 0, 0.5);
   --shadow-sheet: 0 -4px 20px rgba(0, 0, 0, 0.15);
@@ -597,6 +610,10 @@
 
   --toast-bg: var(--alucard-floating);
   --toast-border: var(--alucard-bg-light);
+
+  --bottom-nav-bg: rgba(239, 237, 220, 0.85);
+  --bottom-nav-border: rgba(222, 220, 207, 0.6);
+  --bottom-nav-active-pill-bg: rgba(3, 106, 150, 0.1);
 
   --colour-error-hover: #b33030;
 
