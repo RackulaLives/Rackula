@@ -1,6 +1,6 @@
 <!--
   MobileWarningModal Component
-  Shows a warning to users on small viewports that Rackula is designed for desktop.
+  Welcomes mobile users and sets expectations about the mobile experience.
   Dismissible and remembers dismissal for the session.
   Uses bits-ui AlertDialog for accessibility and focus management.
 -->
@@ -42,18 +42,20 @@
       </div>
 
       <AlertDialog.Title class="modal-title">
-        Rackula works best on desktop
+        Welcome to Rackula Mobile
       </AlertDialog.Title>
 
       <AlertDialog.Description class="modal-description">
-        This app is designed for screens 1024px or wider. For the best
-        experience, please visit on a desktop or laptop computer.
+        View and reference your rack layouts on the go. For full editing
+        features, visit on a desktop browser.
       </AlertDialog.Description>
 
-      <p class="modal-note">Mobile support is coming soon!</p>
+      <p class="modal-note">
+        Load a layout from the File menu or scan a Share QR code.
+      </p>
 
       <AlertDialog.Cancel class="continue-button">
-        Continue anyway
+        Got it
       </AlertDialog.Cancel>
     </AlertDialog.Content>
   </AlertDialog.Portal>

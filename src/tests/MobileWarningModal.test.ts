@@ -25,7 +25,7 @@ describe("MobileWarningModal", () => {
 
       expect(screen.getByRole("alertdialog")).toBeInTheDocument();
       expect(
-        screen.getByText("Rackula works best on desktop"),
+        screen.getByText("Welcome to Rackula Mobile"),
       ).toBeInTheDocument();
     });
 
@@ -61,31 +61,31 @@ describe("MobileWarningModal", () => {
       render(MobileWarningModal);
 
       expect(
-        screen.getByText("Rackula works best on desktop"),
+        screen.getByText("Welcome to Rackula Mobile"),
       ).toBeInTheDocument();
     });
 
-    it("shows description about screen size", () => {
+    it("shows description about mobile experience", () => {
       render(MobileWarningModal);
 
       expect(
-        screen.getByText(/designed for screens 1024px or wider/i),
+        screen.getByText(/rack layouts on the go/i),
       ).toBeInTheDocument();
     });
 
-    it("shows mobile support coming soon message", () => {
+    it("shows file menu tip", () => {
       render(MobileWarningModal);
 
       expect(
-        screen.getByText(/mobile support is coming soon/i),
+        screen.getByText(/load a layout from the file menu/i),
       ).toBeInTheDocument();
     });
 
-    it("shows continue button", () => {
+    it("shows got it button", () => {
       render(MobileWarningModal);
 
       expect(
-        screen.getByRole("button", { name: /continue anyway/i }),
+        screen.getByRole("button", { name: /got it/i }),
       ).toBeInTheDocument();
     });
   });
@@ -98,16 +98,16 @@ describe("MobileWarningModal", () => {
     it("closes modal when continue button is clicked", async () => {
       render(MobileWarningModal);
 
-      const button = screen.getByRole("button", { name: /continue anyway/i });
+      const button = screen.getByRole("button", { name: /got it/i });
       await fireEvent.click(button);
 
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
 
-    it("saves dismissal to sessionStorage when continue is clicked", async () => {
+    it("saves dismissal to sessionStorage when got it is clicked", async () => {
       render(MobileWarningModal);
 
-      const button = screen.getByRole("button", { name: /continue anyway/i });
+      const button = screen.getByRole("button", { name: /got it/i });
       await fireEvent.click(button);
 
       expect(sessionStorage.getItem("rackula-mobile-warning-dismissed")).toBe(
