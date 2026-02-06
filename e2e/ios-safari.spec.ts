@@ -10,7 +10,8 @@
  *
  * @see https://github.com/RackulaLives/Rackula/issues/228
  */
-import { test, expect, Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+import { openDeviceLibraryFromBottomNav } from "./helpers/mobile-navigation";
 
 // iOS Device viewport matrix
 const iosDevices = [
@@ -92,26 +93,26 @@ async function addDeviceToRack(page: Page) {
 }
 
 // ============================================================================
-// FAB Button Tests
+// Devices Tab Tests
 // ============================================================================
 
-test.describe("FAB Button (Device Library)", () => {
+test.describe("Devices Tab (Device Library)", () => {
   for (const device of mobileDevices.slice(0, 2)) {
     test.describe(device.name, () => {
       test.beforeEach(async ({ page }) => {
         await setupMobileViewport(page, device);
       });
 
-      test("FAB is visible on mobile viewport", async ({ page }) => {
-        const fab = page.locator(".device-library-fab");
-        await expect(fab).toBeVisible();
+      test("Devices tab is visible on mobile viewport", async ({ page }) => {
+        const devicesTab = page.getByRole("button", { name: "Devices" });
+        await expect(devicesTab).toBeVisible();
       });
 
-      test("FAB has minimum 48px touch target", async ({ page }) => {
-        const fab = page.locator(".device-library-fab");
-        await expect(fab).toBeVisible();
+      test("Devices tab has minimum 48px touch target", async ({ page }) => {
+        const devicesTab = page.getByRole("button", { name: "Devices" });
+        await expect(devicesTab).toBeVisible();
 
-        const box = await fab.boundingBox();
+        const box = await devicesTab.boundingBox();
         expect(box).toBeTruthy();
         if (box) {
           expect(box.width).toBeGreaterThanOrEqual(48);
@@ -119,10 +120,10 @@ test.describe("FAB Button (Device Library)", () => {
         }
       });
 
-      test("FAB is tappable and opens bottom sheet", async ({ page }) => {
-        const fab = page.locator(".device-library-fab");
-        await expect(fab).toBeVisible();
-        await fab.tap();
+      test("Devices tab is tappable and opens bottom sheet", async ({
+        page,
+      }) => {
+        await openDeviceLibraryFromBottomNav(page);
 
         const bottomSheet = page.locator(".bottom-sheet");
         await expect(bottomSheet).toBeVisible({ timeout: 2000 });
@@ -130,14 +131,14 @@ test.describe("FAB Button (Device Library)", () => {
     });
   }
 
-  test("FAB is NOT visible on iPad Pro 12.9 (desktop mode)", async ({
+  test("Device library FAB is removed in desktop mode", async ({
     page,
   }) => {
     const device = iosDevices.find((d) => d.name === "iPad Pro 12.9")!;
     await setupMobileViewport(page, device);
 
-    const fab = page.locator(".device-library-fab");
-    await expect(fab).not.toBeVisible();
+    await expect(page.locator(".device-library-fab")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Devices" })).toHaveCount(0);
   });
 });
 
@@ -152,25 +153,22 @@ test.describe("Bottom Sheet", () => {
     await setupMobileViewport(page, device);
   });
 
-  test("bottom sheet opens when FAB is tapped", async ({ page }) => {
-    const fab = page.locator(".device-library-fab");
-    await fab.tap();
+  test("bottom sheet opens when Devices tab is tapped", async ({ page }) => {
+    await openDeviceLibraryFromBottomNav(page);
 
     const bottomSheet = page.locator(".bottom-sheet");
     await expect(bottomSheet).toBeVisible();
   });
 
   test("bottom sheet has drag handle visible", async ({ page }) => {
-    const fab = page.locator(".device-library-fab");
-    await fab.tap();
+    await openDeviceLibraryFromBottomNav(page);
 
     const dragHandle = page.locator(".drag-handle-bar");
     await expect(dragHandle).toBeVisible();
   });
 
   test("bottom sheet closes on backdrop click", async ({ page }) => {
-    const fab = page.locator(".device-library-fab");
-    await fab.tap();
+    await openDeviceLibraryFromBottomNav(page);
 
     const bottomSheet = page.locator(".bottom-sheet");
     await expect(bottomSheet).toBeVisible();
@@ -182,8 +180,7 @@ test.describe("Bottom Sheet", () => {
   });
 
   test("bottom sheet closes on Escape key", async ({ page }) => {
-    const fab = page.locator(".device-library-fab");
-    await fab.tap();
+    await openDeviceLibraryFromBottomNav(page);
 
     const bottomSheet = page.locator(".bottom-sheet");
     await expect(bottomSheet).toBeVisible();

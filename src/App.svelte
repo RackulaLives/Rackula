@@ -1079,8 +1079,8 @@
     }
   }
 
-  // Handle device library FAB click (mobile)
-  function handleDeviceLibraryFABClick() {
+  // Handle device library tab click (mobile bottom nav)
+  function handleDeviceLibraryTabClick() {
     dialogStore.openSheet("deviceLibrary");
   }
 
@@ -1547,7 +1547,7 @@
       onviewclick={() => {
         /* noop — future #643 */
       }}
-      ondevicesclick={handleDeviceLibraryFABClick}
+      ondevicesclick={handleDeviceLibraryTabClick}
     />
 
     {#if viewportStore.isMobile && deviceLibrarySheetOpen}
