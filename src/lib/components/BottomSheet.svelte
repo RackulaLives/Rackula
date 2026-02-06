@@ -10,7 +10,7 @@
     children?: import("svelte").Snippet;
   }
 
-  let { open = $bindable(false), title, onclose, children }: Props = $props();
+  let { open = false, title, onclose, children }: Props = $props();
 
   let sheetElement: HTMLDivElement | null = $state(null);
   let startY = $state(0);
@@ -32,7 +32,6 @@
   }
 
   function closeSheet() {
-    open = false;
     onclose?.();
   }
 
