@@ -26,6 +26,7 @@
   import HelpPanel from "$lib/components/HelpPanel.svelte";
   import BottomSheet from "$lib/components/BottomSheet.svelte";
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
+  import MobileFileSheet from "$lib/components/MobileFileSheet.svelte";
   import MobileBottomNav from "$lib/components/mobile/MobileBottomNav.svelte";
   import RackIndicator from "$lib/components/mobile/RackIndicator.svelte";
   import RackEditSheet from "$lib/components/RackEditSheet.svelte";
@@ -139,6 +140,7 @@
 
   // Mobile bottom sheet state - managed by dialogStore
   let bottomSheetOpen = $derived(dialogStore.isSheetOpen("deviceDetails"));
+  let fileSheetOpen = $derived(dialogStore.isSheetOpen("fileActions"));
   let deviceLibrarySheetOpen = $derived(
     dialogStore.isSheetOpen("deviceLibrary"),
   );
@@ -1084,6 +1086,16 @@
     dialogStore.openSheet("deviceLibrary");
   }
 
+  // Handle file tab click (mobile)
+  function handleFileTabClick() {
+    dialogStore.openSheet("fileActions");
+  }
+
+  // Handle file sheet close
+  function handleFileSheetClose() {
+    dialogStore.closeSheet();
+  }
+
   // Handle device library sheet close
   function handleDeviceLibrarySheetClose() {
     dialogStore.closeSheet();
@@ -1540,15 +1552,29 @@
 
     <!-- Mobile bottom navigation bar -->
     <MobileBottomNav
-      activeTab={deviceLibrarySheetOpen ? "devices" : null}
-      onfileclick={() => {
-        /* noop — future #642 */
-      }}
+      activeTab={fileSheetOpen ? "file" : (deviceLibrarySheetOpen ? "devices" : null)}
+      onfileclick={handleFileTabClick}
       onviewclick={() => {
         /* noop — future #643 */
       }}
       ondevicesclick={handleDeviceLibraryFABClick}
     />
+
+    {#if viewportStore.isMobile && fileSheetOpen}
+      <BottomSheet
+        bind:open={fileSheetOpen}
+        title="File"
+        onclose={handleFileSheetClose}
+      >
+        <MobileFileSheet
+          onload={handleLoad}
+          onsave={handleSave}
+          onexport={handleExport}
+          onshare={handleShare}
+          onclose={handleFileSheetClose}
+        />
+      </BottomSheet>
+    {/if}
 
     {#if viewportStore.isMobile && deviceLibrarySheetOpen}
       <BottomSheet
