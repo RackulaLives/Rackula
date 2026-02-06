@@ -1062,6 +1062,7 @@
       width={interiorWidth}
       height={totalHeight}
       class="rack-interior"
+      style="fill: var(--rack-interior)"
     />
 
     <!-- Top bar (horizontal) -->
@@ -1071,6 +1072,7 @@
       width={RACK_WIDTH}
       height={RAIL_WIDTH}
       class="rack-rail"
+      style="fill: var(--rack-rail)"
     />
 
     <!-- Bottom bar (horizontal) -->
@@ -1080,6 +1082,7 @@
       width={RACK_WIDTH}
       height={RAIL_WIDTH}
       class="rack-rail"
+      style="fill: var(--rack-rail)"
     />
 
     <!-- Left rail (vertical) -->
@@ -1089,6 +1092,7 @@
       width={RAIL_WIDTH}
       height={totalHeight}
       class="rack-rail"
+      style="fill: var(--rack-rail)"
     />
 
     <!-- Right rail (vertical) -->
@@ -1098,6 +1102,7 @@
       width={RAIL_WIDTH}
       height={totalHeight}
       class="rack-rail"
+      style="fill: var(--rack-rail)"
     />
 
     <!-- U slot backgrounds (for drop zone highlighting) -->
