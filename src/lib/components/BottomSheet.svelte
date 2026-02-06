@@ -6,7 +6,7 @@
   interface Props {
     open: boolean;
     title?: string;
-    onclose?: () => void;
+    onclose: () => void;
     children?: import("svelte").Snippet;
   }
 
@@ -32,7 +32,7 @@
   }
 
   function closeSheet() {
-    onclose?.();
+    onclose();
   }
 
   // Swipe-to-dismiss gesture handlers
