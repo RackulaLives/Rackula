@@ -1108,10 +1108,15 @@
     dialogStore.openSheet("view");
   }
 
-  // Handle view sheet close
+  // Handle view sheet close (manual dismiss — re-fits canvas)
   function handleViewSheetClose() {
     dialogStore.closeSheet();
     handleFitAll();
+  }
+
+  // Handle view sheet close after an action (no re-fit)
+  function handleViewSheetActionClose() {
+    dialogStore.closeSheet();
   }
 
   // Handle device library tab click (mobile bottom nav)
@@ -1625,7 +1630,7 @@
           onthemechange={handleSetTheme}
           onfitall={handleFitAll}
           onresetzoom={() => canvasStore.resetZoom()}
-          onclose={handleViewSheetClose}
+          onclose={handleViewSheetActionClose}
         />
       </BottomSheet>
     {/if}

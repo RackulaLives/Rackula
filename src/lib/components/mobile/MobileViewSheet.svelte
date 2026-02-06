@@ -157,6 +157,11 @@
     border-color: var(--colour-text-muted);
   }
 
+  .action-button:active {
+    background: var(--colour-surface-hover);
+    scale: 0.98;
+  }
+
   .action-button:focus-visible {
     outline: 2px solid var(--colour-focus-ring);
     outline-offset: 2px;
