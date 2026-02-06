@@ -8,10 +8,12 @@
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import { getSelectionStore } from "$lib/stores/selection.svelte";
 
   const viewportStore = getViewportStore();
   const layoutStore = getLayoutStore();
   const canvasStore = getCanvasStore();
+  const selectionStore = getSelectionStore();
 
   const DOT_THRESHOLD = 7;
 
@@ -28,7 +30,9 @@
   let useDots = $derived(layoutStore.racks.length <= DOT_THRESHOLD);
 
   function handleDotClick(rackId: string) {
+    if (rackId === layoutStore.activeRackId) return;
     layoutStore.setActiveRack(rackId);
+    selectionStore.selectRack(rackId);
     canvasStore.focusRack(
       [rackId],
       layoutStore.racks,
@@ -41,8 +45,8 @@
 {#if shouldShow}
   <div class="rack-indicator">
     <span class="rack-name">{activeRackName}</span>
-    <div class="rack-nav">
-      {#if useDots}
+    {#if useDots}
+      <nav class="rack-nav" aria-label="Rack navigation">
         {#each layoutStore.racks as rack (rack.id)}
           <button
             class="dot"
@@ -54,12 +58,14 @@
             <span class="dot-indicator"></span>
           </button>
         {/each}
-      {:else}
+      </nav>
+    {:else}
+      <div class="rack-nav">
         <span class="rack-counter"
           >{activeIndex + 1}/{layoutStore.racks.length}</span
         >
-      {/if}
-    </div>
+      </div>
+    {/if}
   </div>
 {/if}
 
