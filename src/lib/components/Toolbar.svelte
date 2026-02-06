@@ -21,7 +21,9 @@
     IconImageLabel,
     IconDownloadBold,
     IconShareBold,
+    IconQuestionBold,
   } from "./icons";
+  import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import type { DisplayMode } from "$lib/types";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
@@ -86,6 +88,7 @@
 
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
+  const viewportStore = getViewportStore();
 
   // View mode labels for tooltip
   const displayModeLabels: Record<DisplayMode, string> = {
@@ -184,6 +187,11 @@
     analytics.trackToolbarClick("open-cleanup");
     onopencleanup?.();
   }
+
+  function handleHelp() {
+    analytics.trackToolbarClick("help");
+    onhelp?.();
+  }
 </script>
 
 <header class="toolbar">
@@ -194,7 +202,7 @@
         class="toolbar-brand"
         type="button"
         aria-label="About & Shortcuts"
-        onclick={onhelp}
+        onclick={handleHelp}
         data-testid="btn-logo-about"
       >
         <LogoLockup size={32} {partyMode} />
@@ -202,128 +210,144 @@
     </Tooltip>
   </div>
 
-  <!-- Center: Action cluster -->
-  <div class="toolbar-section toolbar-center">
-    <Tooltip
-      text={layoutStore.undoDescription ?? "Undo"}
-      shortcut="Ctrl+Z"
-      position="bottom"
-    >
+  <!-- Center: Action cluster (desktop only) -->
+  {#if !viewportStore.isMobile}
+    <div class="toolbar-section toolbar-center">
+      <Tooltip
+        text={layoutStore.undoDescription ?? "Undo"}
+        shortcut="Ctrl+Z"
+        position="bottom"
+      >
+        <button
+          class="toolbar-icon-btn"
+          aria-label={layoutStore.undoDescription ?? "Undo"}
+          disabled={!layoutStore.canUndo}
+          onclick={handleUndo}
+          data-testid="btn-undo"
+        >
+          <IconUndoBold size={ICON_SIZE.md} />
+        </button>
+      </Tooltip>
+
+      <Tooltip
+        text={layoutStore.redoDescription ?? "Redo"}
+        shortcut="Ctrl+Shift+Z"
+        position="bottom"
+      >
+        <button
+          class="toolbar-icon-btn"
+          aria-label={layoutStore.redoDescription ?? "Redo"}
+          disabled={!layoutStore.canRedo}
+          onclick={handleRedo}
+          data-testid="btn-redo"
+        >
+          <IconRedoBold size={ICON_SIZE.md} />
+        </button>
+      </Tooltip>
+
+      <Tooltip
+        text="Display: {displayModeLabels[displayMode]}"
+        shortcut="I"
+        position="bottom"
+      >
+        <button
+          class="toolbar-icon-btn"
+          aria-label="Toggle display mode"
+          onclick={handleToggleDisplayMode}
+          data-testid="btn-display-mode"
+        >
+          {#if displayMode === "label"}
+            <IconTextBold size={ICON_SIZE.md} />
+          {:else if displayMode === "image"}
+            <IconImageBold size={ICON_SIZE.md} />
+          {:else}
+            <IconImageLabel size={ICON_SIZE.lg} />
+          {/if}
+        </button>
+      </Tooltip>
+
+      <Tooltip text="Reset View" shortcut="F" position="bottom">
+        <button
+          class="toolbar-icon-btn"
+          aria-label="Reset View"
+          onclick={handleFitAll}
+          data-testid="btn-fit-all"
+        >
+          <IconFitAllBold size={ICON_SIZE.md} />
+        </button>
+      </Tooltip>
+
+      <Tooltip text="Export" shortcut="Ctrl+E" position="bottom">
+        <button
+          class="toolbar-icon-btn"
+          aria-label="Export"
+          disabled={!hasRacks}
+          onclick={handleExport}
+          data-testid="btn-export"
+        >
+          <IconDownloadBold size={ICON_SIZE.md} />
+        </button>
+      </Tooltip>
+
+      <Tooltip text="Share" shortcut="Ctrl+H" position="bottom">
+        <button
+          class="toolbar-icon-btn"
+          aria-label="Share"
+          disabled={!hasRacks}
+          onclick={handleShare}
+          data-testid="btn-share"
+        >
+          <IconShareBold size={ICON_SIZE.md} />
+        </button>
+      </Tooltip>
+    </div>
+  {/if}
+
+  <!-- Right: Dropdown menus (desktop) / Help button (mobile) -->
+  {#if !viewportStore.isMobile}
+    <div class="toolbar-section toolbar-right">
+      {#if saveStatus}
+        <SaveStatus status={saveStatus} />
+      {/if}
+
+      <FileMenu
+        onsave={handleSave}
+        onload={handleLoad}
+        onexport={handleExport}
+        onshare={handleShare}
+        onimportdevices={handleImportDevices}
+        onimportnetbox={handleImportNetBox}
+        onnewcustomdevice={handleNewCustomDevice}
+        {hasRacks}
+      />
+
+      <SettingsMenu
+        {theme}
+        {showAnnotations}
+        {showBanana}
+        {warnOnUnsavedChanges}
+        {promptCleanupOnSave}
+        ontoggletheme={handleToggleTheme}
+        ontoggleannotations={handleToggleAnnotations}
+        ontogglebanana={handleToggleBanana}
+        ontogglewarnunsaved={handleToggleWarnUnsaved}
+        ontogglepromptcleanup={handleTogglePromptCleanup}
+        onopencleanup={handleOpenCleanup}
+      />
+    </div>
+  {:else}
+    <div class="toolbar-section toolbar-right">
       <button
         class="toolbar-icon-btn"
-        aria-label={layoutStore.undoDescription ?? "Undo"}
-        disabled={!layoutStore.canUndo}
-        onclick={handleUndo}
-        data-testid="btn-undo"
+        type="button"
+        aria-label="About & Shortcuts"
+        onclick={handleHelp}
+        data-testid="btn-mobile-help"
       >
-        <IconUndoBold size={ICON_SIZE.md} />
+        <IconQuestionBold size={ICON_SIZE.md} />
       </button>
-    </Tooltip>
-
-    <Tooltip
-      text={layoutStore.redoDescription ?? "Redo"}
-      shortcut="Ctrl+Shift+Z"
-      position="bottom"
-    >
-      <button
-        class="toolbar-icon-btn"
-        aria-label={layoutStore.redoDescription ?? "Redo"}
-        disabled={!layoutStore.canRedo}
-        onclick={handleRedo}
-        data-testid="btn-redo"
-      >
-        <IconRedoBold size={ICON_SIZE.md} />
-      </button>
-    </Tooltip>
-
-    <Tooltip
-      text="Display: {displayModeLabels[displayMode]}"
-      shortcut="I"
-      position="bottom"
-    >
-      <button
-        class="toolbar-icon-btn"
-        aria-label="Toggle display mode"
-        onclick={handleToggleDisplayMode}
-        data-testid="btn-display-mode"
-      >
-        {#if displayMode === "label"}
-          <IconTextBold size={ICON_SIZE.md} />
-        {:else if displayMode === "image"}
-          <IconImageBold size={ICON_SIZE.md} />
-        {:else}
-          <IconImageLabel size={ICON_SIZE.lg} />
-        {/if}
-      </button>
-    </Tooltip>
-
-    <Tooltip text="Reset View" shortcut="F" position="bottom">
-      <button
-        class="toolbar-icon-btn"
-        aria-label="Reset View"
-        onclick={handleFitAll}
-        data-testid="btn-fit-all"
-      >
-        <IconFitAllBold size={ICON_SIZE.md} />
-      </button>
-    </Tooltip>
-
-    <Tooltip text="Export" shortcut="Ctrl+E" position="bottom">
-      <button
-        class="toolbar-icon-btn"
-        aria-label="Export"
-        disabled={!hasRacks}
-        onclick={handleExport}
-        data-testid="btn-export"
-      >
-        <IconDownloadBold size={ICON_SIZE.md} />
-      </button>
-    </Tooltip>
-
-    <Tooltip text="Share" shortcut="Ctrl+H" position="bottom">
-      <button
-        class="toolbar-icon-btn"
-        aria-label="Share"
-        disabled={!hasRacks}
-        onclick={handleShare}
-        data-testid="btn-share"
-      >
-        <IconShareBold size={ICON_SIZE.md} />
-      </button>
-    </Tooltip>
-  </div>
-
-  <!-- Right: Dropdown menus -->
-  <div class="toolbar-section toolbar-right">
-    {#if saveStatus}
-      <SaveStatus status={saveStatus} />
-    {/if}
-
-    <FileMenu
-      onsave={handleSave}
-      onload={handleLoad}
-      onexport={handleExport}
-      onshare={handleShare}
-      onimportdevices={handleImportDevices}
-      onimportnetbox={handleImportNetBox}
-      onnewcustomdevice={handleNewCustomDevice}
-      {hasRacks}
-    />
-
-    <SettingsMenu
-      {theme}
-      {showAnnotations}
-      {showBanana}
-      {warnOnUnsavedChanges}
-      {promptCleanupOnSave}
-      ontoggletheme={handleToggleTheme}
-      ontoggleannotations={handleToggleAnnotations}
-      ontogglebanana={handleToggleBanana}
-      ontogglewarnunsaved={handleToggleWarnUnsaved}
-      ontogglepromptcleanup={handleTogglePromptCleanup}
-      onopencleanup={handleOpenCleanup}
-    />
-  </div>
+    </div>
+  {/if}
 </header>
 
 <style>
