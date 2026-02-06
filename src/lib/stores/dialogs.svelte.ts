@@ -24,7 +24,8 @@ export type SheetId =
   | "deviceDetails"
   | "deviceLibrary"
   | "rackEdit"
-  | "fileActions";
+  | "fileActions"
+  | "view";
 
 export interface DeleteTarget {
   type: "rack" | "device";

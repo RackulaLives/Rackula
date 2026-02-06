@@ -30,6 +30,7 @@
   import MobileBottomNav from "$lib/components/mobile/MobileBottomNav.svelte";
   import RackIndicator from "$lib/components/mobile/RackIndicator.svelte";
   import RackEditSheet from "$lib/components/RackEditSheet.svelte";
+  import MobileViewSheet from "$lib/components/mobile/MobileViewSheet.svelte";
   import SidebarTabs from "$lib/components/SidebarTabs.svelte";
   import RackList from "$lib/components/RackList.svelte";
   import {
@@ -72,7 +73,7 @@
     downloadBlob,
     generateExportFilename,
   } from "$lib/utils/export";
-  import type { ExportOptions } from "$lib/types";
+  import type { DisplayMode, ExportOptions } from "$lib/types";
   import type { ImportResult } from "$lib/utils/netbox-import";
   import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { analytics } from "$lib/utils/analytics";
@@ -145,6 +146,7 @@
     dialogStore.isSheetOpen("deviceLibrary"),
   );
   let rackEditSheetOpen = $derived(dialogStore.isSheetOpen("rackEdit"));
+  let viewSheetOpen = $derived(dialogStore.isSheetOpen("view"));
 
   // Aliases to dialogStore properties for template access
   let deleteTarget = $derived(dialogStore.deleteTarget);
@@ -831,8 +833,30 @@
     analytics.trackDisplayModeToggle(uiStore.displayMode);
   }
 
+  function handleSetDisplayMode(mode: DisplayMode) {
+    if (uiStore.displayMode === mode) return;
+    uiStore.setDisplayMode(mode);
+    // Sync with layout settings
+    layoutStore.updateDisplayMode(uiStore.displayMode);
+    // Also sync showLabelsOnImages for backward compatibility
+    layoutStore.updateShowLabelsOnImages(uiStore.showLabelsOnImages);
+    // Track display mode change
+    analytics.trackDisplayModeToggle(uiStore.displayMode);
+  }
+
   function handleToggleAnnotations() {
     uiStore.toggleAnnotations();
+  }
+
+  function handleSetAnnotations(enabled: boolean) {
+    if (uiStore.showAnnotations !== enabled) {
+      uiStore.toggleAnnotations();
+    }
+  }
+
+  function handleSetTheme(theme: "dark" | "light") {
+    if (uiStore.theme === theme) return;
+    uiStore.setTheme(theme);
   }
 
   function handleHelp() {
@@ -1079,6 +1103,16 @@
         );
       }
     }
+  }
+
+  // Handle view tab click (mobile)
+  function handleViewSheetClick() {
+    dialogStore.openSheet("view");
+  }
+
+  // Handle view sheet close
+  function handleViewSheetClose() {
+    dialogStore.closeSheet();
   }
 
   // Handle device library tab click (mobile bottom nav)
@@ -1554,14 +1588,14 @@
     <MobileBottomNav
       activeTab={fileSheetOpen
         ? "file"
-        : deviceLibrarySheetOpen
-          ? "devices"
-          : null}
+        : viewSheetOpen
+          ? "view"
+          : deviceLibrarySheetOpen
+            ? "devices"
+            : null}
       hidden={false}
       onfileclick={handleFileTabClick}
-      onviewclick={() => {
-        /* noop — future #643 */
-      }}
+      onviewclick={handleViewSheetClick}
       ondevicesclick={handleDeviceLibraryTabClick}
     />
 
@@ -1577,6 +1611,22 @@
           onexport={handleExport}
           onshare={handleShare}
           onclose={handleFileSheetClose}
+        />
+      </BottomSheet>
+    {/if}
+
+    {#if viewportStore.isMobile && viewSheetOpen}
+      <BottomSheet bind:open={viewSheetOpen} title="View" onclose={handleViewSheetClose}>
+        <MobileViewSheet
+          displayMode={uiStore.displayMode}
+          showAnnotations={uiStore.showAnnotations}
+          theme={uiStore.theme}
+          ondisplaymodechange={handleSetDisplayMode}
+          onannotationschange={handleSetAnnotations}
+          onthemechange={handleSetTheme}
+          onfitall={handleFitAll}
+          onresetzoom={() => canvasStore.resetZoom()}
+          onclose={handleViewSheetClose}
         />
       </BottomSheet>
     {/if}
