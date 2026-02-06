@@ -27,6 +27,7 @@
   import BottomSheet from "$lib/components/BottomSheet.svelte";
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
   import MobileBottomNav from "$lib/components/mobile/MobileBottomNav.svelte";
+  import RackIndicator from "$lib/components/mobile/RackIndicator.svelte";
   import RackEditSheet from "$lib/components/RackEditSheet.svelte";
   import SidebarTabs from "$lib/components/SidebarTabs.svelte";
   import RackList from "$lib/components/RackList.svelte";
@@ -1340,6 +1341,8 @@
       onopencleanup={handleOpenCleanupDialog}
       onhelp={handleHelp}
     />
+
+    <RackIndicator />
 
     <main class="app-main" class:mobile={viewportStore.isMobile}>
       {#if !viewportStore.isMobile}
