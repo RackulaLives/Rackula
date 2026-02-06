@@ -327,6 +327,16 @@ describe("UI Store", () => {
       expect(store.showAnnotations).toBe(false);
     });
 
+    it("setAnnotations sets showAnnotations explicitly", () => {
+      const store = getUIStore();
+
+      store.setAnnotations(true);
+      expect(store.showAnnotations).toBe(true);
+
+      store.setAnnotations(false);
+      expect(store.showAnnotations).toBe(false);
+    });
+
     it("setAnnotationField sets the annotation field", () => {
       const store = getUIStore();
 

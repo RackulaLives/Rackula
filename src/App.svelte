@@ -849,9 +849,7 @@
   }
 
   function handleSetAnnotations(enabled: boolean) {
-    if (uiStore.showAnnotations !== enabled) {
-      uiStore.toggleAnnotations();
-    }
+    uiStore.setAnnotations(enabled);
   }
 
   function handleSetTheme(theme: "dark" | "light") {
@@ -1113,6 +1111,7 @@
   // Handle view sheet close
   function handleViewSheetClose() {
     dialogStore.closeSheet();
+    handleFitAll();
   }
 
   // Handle device library tab click (mobile bottom nav)

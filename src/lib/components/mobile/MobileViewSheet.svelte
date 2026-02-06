@@ -36,6 +36,9 @@
     { value: "image", label: "Image" },
     { value: "image-label", label: "Image + Label" },
   ];
+  const themeLabel = $derived(
+    `Theme (${theme === "dark" ? "Dark" : "Light"})`,
+  );
 
   function handleDisplayModeChange(mode: DisplayMode) {
     ondisplaymodechange?.(mode);
@@ -84,7 +87,7 @@
     <Switch
       id="mobile-view-theme"
       checked={theme === "dark"}
-      label="Theme ({theme === 'dark' ? 'Dark' : 'Light'})"
+      label={themeLabel}
       onchange={handleThemeChange}
     />
   </section>

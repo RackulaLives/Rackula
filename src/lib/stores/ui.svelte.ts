@@ -266,6 +266,7 @@ export function getUIStore() {
 
     // Annotation actions
     toggleAnnotations,
+    setAnnotations,
     setAnnotationField,
 
     // Easter egg actions
@@ -406,6 +407,14 @@ function setDisplayMode(mode: DisplayMode): void {
  */
 function toggleAnnotations(): void {
   showAnnotations = !showAnnotations;
+}
+
+/**
+ * Set annotation column visibility explicitly
+ * @param enabled - Whether annotations should be visible
+ */
+function setAnnotations(enabled: boolean): void {
+  showAnnotations = enabled;
 }
 
 /**
