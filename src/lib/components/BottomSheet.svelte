@@ -24,7 +24,9 @@
   const CLOSE_THRESHOLD = 100;
 
   function handleBackdropClick(event: MouseEvent) {
-    if (event.target === event.currentTarget) {
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (!sheetElement || !sheetElement.contains(target)) {
       closeSheet();
     }
   }
