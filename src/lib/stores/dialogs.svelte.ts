@@ -20,7 +20,11 @@ export type DialogId =
   | "cleanupDialog"
   | "cleanupPrompt";
 
-export type SheetId = "deviceDetails" | "deviceLibrary" | "rackEdit";
+export type SheetId =
+  | "deviceDetails"
+  | "deviceLibrary"
+  | "rackEdit"
+  | "fileActions";
 
 export interface DeleteTarget {
   type: "rack" | "device";
