@@ -1537,6 +1537,7 @@
 
     <!-- Mobile bottom navigation bar -->
     <MobileBottomNav
+      activeTab={deviceLibrarySheetOpen ? "devices" : null}
       onfileclick={() => {
         /* noop — future #642 */
       }}
