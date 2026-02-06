@@ -84,3 +84,4 @@ export { default as IconMoonBold } from "./IconMoonBold.svelte";
 export { default as IconDownloadBold } from "./IconDownloadBold.svelte";
 export { default as IconShareBold } from "./IconShareBold.svelte";
 export { default as IconQuestionBold } from "./IconQuestionBold.svelte";
+export { default as IconServerBold } from "./IconServerBold.svelte";

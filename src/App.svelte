@@ -26,7 +26,7 @@
   import HelpPanel from "$lib/components/HelpPanel.svelte";
   import BottomSheet from "$lib/components/BottomSheet.svelte";
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
-  import DeviceLibraryFAB from "$lib/components/DeviceLibraryFAB.svelte";
+  import MobileBottomNav from "$lib/components/mobile/MobileBottomNav.svelte";
   import RackEditSheet from "$lib/components/RackEditSheet.svelte";
   import SidebarTabs from "$lib/components/SidebarTabs.svelte";
   import RackList from "$lib/components/RackList.svelte";
@@ -321,7 +321,10 @@
         }
       } catch (error) {
         // If server check fails, fall through to localStorage
-        persistenceDebug.api("failed to load saved layouts from server: %O", error);
+        persistenceDebug.api(
+          "failed to load saved layouts from server: %O",
+          error,
+        );
       }
     }
 
@@ -1532,8 +1535,16 @@
     <!-- Drag tooltip for device name/U-height during drag -->
     <DragTooltip />
 
-    <!-- Mobile device library FAB and bottom sheet -->
-    <DeviceLibraryFAB onclick={handleDeviceLibraryFABClick} />
+    <!-- Mobile bottom navigation bar -->
+    <MobileBottomNav
+      onfileclick={() => {
+        /* noop — future #642 */
+      }}
+      onviewclick={() => {
+        /* noop — future #643 */
+      }}
+      ondevicesclick={handleDeviceLibraryFABClick}
+    />
 
     {#if viewportStore.isMobile && deviceLibrarySheetOpen}
       <BottomSheet
@@ -1610,6 +1621,10 @@
   .app-main.mobile {
     /* Prevent overscroll/bounce on iOS */
     overscroll-behavior: none;
+    /* Account for fixed bottom nav */
+    padding-bottom: calc(
+      var(--touch-target-comfortable) + env(safe-area-inset-bottom, 0px)
+    );
   }
 
   /* PaneForge styles */
