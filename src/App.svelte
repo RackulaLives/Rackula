@@ -1652,7 +1652,11 @@
     {/if}
 
     {#if viewportStore.isMobile && viewSheetOpen}
-      <BottomSheet bind:open={viewSheetOpen} title="View" onclose={handleViewSheetClose}>
+      <BottomSheet
+        open={viewSheetOpen}
+        title="View"
+        onclose={handleViewSheetClose}
+      >
         <MobileViewSheet
           displayMode={uiStore.displayMode}
           showAnnotations={uiStore.showAnnotations}
