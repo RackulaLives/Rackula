@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/svelte";
 import { resetViewportStore } from "$lib/utils/viewport.svelte";
 import ToolbarTestWrapper from "./helpers/ToolbarTestWrapper.svelte";
 
-const originalMatchMedia = window.matchMedia;
+let originalMatchMedia: typeof window.matchMedia | undefined;
 
 function mockMobileViewport(matches: boolean): void {
   Object.defineProperty(window, "matchMedia", {
@@ -27,16 +27,21 @@ function mockMobileViewport(matches: boolean): void {
 
 describe("Toolbar mobile quick actions", () => {
   beforeEach(() => {
+    if (typeof window !== "undefined") {
+      originalMatchMedia = window.matchMedia;
+    }
     mockMobileViewport(true);
     resetViewportStore();
   });
 
   afterEach(() => {
-    Object.defineProperty(window, "matchMedia", {
-      writable: true,
-      configurable: true,
-      value: originalMatchMedia,
-    });
+    if (typeof window !== "undefined" && originalMatchMedia) {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: originalMatchMedia,
+      });
+    }
     vi.restoreAllMocks();
     resetViewportStore();
   });
