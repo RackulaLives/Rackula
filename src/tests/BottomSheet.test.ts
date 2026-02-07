@@ -79,4 +79,31 @@ describe("BottomSheet", () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("does not call onclose when swipe is below threshold", () => {
+    renderSheet();
+
+    const dialog = screen.getByRole("dialog");
+    ensurePointerCaptureApi(dialog);
+
+    // 100 -> 150 is only a 50px swipe, below the closing threshold.
+    dialog.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        pointerType: "touch",
+        clientY: 100,
+        pointerId: 1,
+      }),
+    );
+    dialog.dispatchEvent(
+      new PointerEvent("pointerup", {
+        bubbles: true,
+        pointerType: "touch",
+        clientY: 150,
+        pointerId: 1,
+      }),
+    );
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
