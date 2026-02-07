@@ -105,6 +105,10 @@ Built for the [r/homelab](https://reddit.com/r/homelab) and [r/selfhosted](https
 
 See [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md) for full credits.
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=RackulaLives/Rackula&type=Date)](https://star-history.com/#RackulaLives/Rackula&Date)
+
 ## Licence
 
 [MIT](LICENSE) - Copyright (c) 2025 Gareth Evans
