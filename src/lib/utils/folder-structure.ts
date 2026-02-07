@@ -48,7 +48,30 @@ export function buildFolderName(name: string, uuid: string): string {
   if (!isUuid(uuid)) {
     throw new Error(`Invalid UUID: ${uuid}`);
   }
-  return `${name}-${uuid}`;
+
+  const sanitizedName = sanitizeFolderNameForZip(name);
+  return `${sanitizedName}-${uuid}`;
+}
+
+/**
+ * Sanitize layout name for ZIP folder component safety.
+ * Removes path separators/control chars and strips "."/".." segments.
+ */
+function sanitizeFolderNameForZip(name: string): string {
+  const cleaned = name
+    .replace(/[\\/]/g, " ")
+    .split("")
+    .map((char) => {
+      const code = char.charCodeAt(0);
+      return code < 32 || code === 127 ? " " : char;
+    })
+    .join("")
+    .split(/\s+/)
+    .filter((segment) => segment !== "." && segment !== "..")
+    .join(" ")
+    .trim();
+
+  return cleaned || "layout";
 }
 
 /**
