@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, expectTypeOf, it } from "vitest";
-import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
+import {
+  getLayoutStore,
+  HAS_STARTED_KEY,
+  resetLayoutStore,
+} from "$lib/stores/layout.svelte";
 import { getHistoryStore, resetHistoryStore } from "$lib/stores/history.svelte";
 
-const HAS_STARTED_KEY = "Rackula_has_started";
 /**
  * Compile-time API contract for the public LayoutStore surface.
  * This tuple is intentionally type-level only (not a runtime Object.keys assertion):
