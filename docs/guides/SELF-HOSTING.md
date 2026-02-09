@@ -36,7 +36,7 @@ docker run -d -p 8080:8080 ghcr.io/rackulalives/rackula:latest
 
 - **Layouts saved as YAML** in `./data/layout-name.yaml`
 - **Access from any browser** on your network
-- **No accounts or passwords** - add your own auth via reverse proxy if needed
+- **Optional write-route token auth** for `PUT`/`DELETE` API routes
 - **Custom device images** stored in `./data/assets/`
 
 **Architecture:**
@@ -88,6 +88,7 @@ Rackula has no built-in auth. Use your reverse proxy:
 - **Basic auth** via Traefik/Caddy/nginx
 - **OAuth/OIDC** with Authelia or Authentik
 - **VPN** with Tailscale or WireGuard
+- **Write-route token auth** with `RACKULA_API_WRITE_TOKEN` for API `PUT`/`DELETE`
 
 ---
 
@@ -104,6 +105,9 @@ All variables have sensible defaults. Only configure if you need to change somet
 | `RACKULA_API_PORT`    | `3001`        | Port the API listens on                         |
 | `API_HOST`            | `rackula-api` | Hostname of API container (for nginx proxy)     |
 | `API_PORT`            | `3001`        | Port of API container (for nginx proxy)         |
+| `CORS_ORIGIN`         | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default) |
+| `RACKULA_API_WRITE_TOKEN` | _unset_    | Optional bearer token required for API `PUT`/`DELETE` |
+| `ALLOW_INSECURE_CORS` | `false`       | Explicitly allow wildcard CORS in production (not recommended) |
 | `DATA_DIR`            | `/data`       | Path to data directory inside API container     |
 
 **Port mapping explained:**
@@ -117,11 +121,29 @@ For most users, just set `RACKULA_PORT` to change the host port:
 RACKULA_PORT=3000 docker compose up -d  # Access at localhost:3000
 ```
 
+If you change the host/domain, set `CORS_ORIGIN` to the exact browser origin:
+
+```bash
+RACKULA_PORT=3000 CORS_ORIGIN=http://localhost:3000 docker compose up -d
+```
+
 If you need nginx to listen on a specific port inside the container (e.g., for rootless Podman or specific orchestration requirements), set both:
 
 ```bash
 RACKULA_PORT=3000 RACKULA_LISTEN_PORT=3000 docker compose up -d
 ```
+
+### Secure Production Example
+
+For Internet-facing deployments, set explicit CORS and a write token:
+
+```bash
+CORS_ORIGIN=https://rack.example.com
+RACKULA_API_WRITE_TOKEN=replace-with-long-random-secret
+docker compose up -d
+```
+
+`RACKULA_API_WRITE_TOKEN` is injected by nginx to API requests and enforced on mutating API routes.
 
 ### Build-Time Variables
 
@@ -248,6 +270,8 @@ The provided docker-compose.persist.yml includes:
 - `no-new-privileges` - Prevent privilege escalation
 - `cap_drop: ALL` - Drop all Linux capabilities
 - tmpfs mounts for writable directories
+- production-safe CORS defaults (`CORS_ORIGIN`, `ALLOW_INSECURE_CORS=false`)
+- optional write-route bearer auth (`RACKULA_API_WRITE_TOKEN`)
 
 ### Single-User Design
 

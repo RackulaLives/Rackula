@@ -80,6 +80,35 @@ docker compose --profile persist up -d --build
 
 See [Self-Hosting Guide](docs/guides/SELF-HOSTING.md) for details.
 
+For production/self-hosted API security:
+
+- `CORS_ORIGIN` should be your real app URL (restricts which browser origins can call the API).
+- `RACKULA_API_WRITE_TOKEN` protects API `PUT`/`DELETE` routes (optional, strongly recommended). If unset, write routes remain open.
+
+Generate a strong token:
+
+```bash
+openssl rand -hex 32
+```
+
+Set values in a `.env` file beside `docker-compose.yml`:
+
+```bash
+cat > .env <<'EOF'
+CORS_ORIGIN=https://rack.example.com
+RACKULA_API_WRITE_TOKEN=replace-with-generated-token
+EOF
+docker compose up -d
+```
+
+Or pass them inline:
+
+```bash
+CORS_ORIGIN=https://rack.example.com \
+RACKULA_API_WRITE_TOKEN=replace-with-generated-token \
+docker compose up -d
+```
+
 ### Build from source
 
 ```bash
