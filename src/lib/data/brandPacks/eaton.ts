@@ -4,187 +4,238 @@
  * Source: NetBox community devicetype-library
  */
 
-import type { DeviceType } from '$lib/types';
-import { CATEGORY_COLOURS } from '$lib/types/constants';
+import type { DeviceType } from "$lib/types";
+import { CATEGORY_COLOURS } from "$lib/types/constants";
 
 /**
  * Eaton device definitions (20 devices)
  */
 export const eatonDevices: DeviceType[] = [
-	{
-		slug: 'eaton-5px1500irt',
-		u_height: 2,
-		manufacturer: 'Eaton',
-		model: '5PX1500iRT',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-5px2200irt',
-		u_height: 2,
-		manufacturer: 'Eaton',
-		model: '5PX2200IRT',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-5px3000irt2u',
-		u_height: 2,
-		manufacturer: 'Eaton',
-		model: '5PX3000IRT2U',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-5px3000rtn',
-		u_height: 2,
-		manufacturer: 'Eaton',
-		model: '5PX3000RTN',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-5sx1750rau',
-		u_height: 2,
-		manufacturer: 'Eaton',
-		model: '5SX1750RAU',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-9px-1000i-rt-2u',
-		u_height: 2,
-		manufacturer: 'Eaton',
-		model: '9PX 1000i RT 2U',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-9px-3000i-rt-2u',
-		u_height: 2,
-		manufacturer: 'Eaton',
-		model: '9PX 3000i RT 2U',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-9px3000irt3u',
-		u_height: 3,
-		manufacturer: 'Eaton',
-		model: '9PX3000iRT3U',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-9px5kirtn',
-		u_height: 3,
-		manufacturer: 'Eaton',
-		model: '9PX5KIRTN',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-9px6k',
-		u_height: 3,
-		manufacturer: 'Eaton',
-		model: '9PX6K',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-9pxebm180',
-		u_height: 3,
-		manufacturer: 'Eaton',
-		model: '9PXEBM180',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-9pxebm72rt2u',
-		u_height: 2,
-		manufacturer: 'Eaton',
-		model: '9PXEBM72RT2U',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-emat08-10',
-		u_height: 1,
-		manufacturer: 'Eaton',
-		model: 'EMAT08-10',
-		is_full_depth: false,
-		airflow: 'passive',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-pdumh30hvnet',
-		u_height: 2,
-		manufacturer: 'Eaton',
-		model: 'PDUMH30HVNET',
-		is_full_depth: false,
-		airflow: 'passive',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-pw103ba1u405',
-		u_height: 1,
-		manufacturer: 'Eaton',
-		model: 'PW103BA1U405',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-tripp-lite-b040-008-19',
-		u_height: 1,
-		manufacturer: 'Eaton',
-		model: 'Tripp Lite B040-008-19',
-		airflow: 'passive',
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-tripp-lite-b064-016-02-ipg',
-		u_height: 1,
-		manufacturer: 'Eaton',
-		model: 'Tripp Lite B064-016-02-IPG',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-tripp-lite-b064-032-01-ipg',
-		u_height: 1,
-		manufacturer: 'Eaton',
-		model: 'Tripp Lite B064-032-01-IPG',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-tripp-lite-b072-032-ip2',
-		u_height: 1,
-		manufacturer: 'Eaton',
-		model: 'Tripp Lite B072-032-IP2',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	},
-	{
-		slug: 'eaton-tripp-lite-b096-016',
-		u_height: 1,
-		manufacturer: 'Eaton',
-		model: 'Tripp Lite B096-016',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.power,
-		category: 'power'
-	}
+  {
+    slug: "eaton-5px1500irt",
+    u_height: 2,
+    manufacturer: "Eaton",
+    model: "5PX1500iRT",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-5px2200irt",
+    u_height: 2,
+    manufacturer: "Eaton",
+    model: "5PX2200IRT",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-5px3000irt2u",
+    u_height: 2,
+    manufacturer: "Eaton",
+    model: "5PX3000IRT2U",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-5px3000rtn",
+    u_height: 2,
+    manufacturer: "Eaton",
+    model: "5PX3000RTN",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-5sx1750rau",
+    u_height: 2,
+    manufacturer: "Eaton",
+    model: "5SX1750RAU",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-9px-1000i-rt-2u",
+    u_height: 2,
+    manufacturer: "Eaton",
+    model: "9PX 1000i RT 2U",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-9px-3000i-rt-2u",
+    u_height: 2,
+    manufacturer: "Eaton",
+    model: "9PX 3000i RT 2U",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-9px3000irt3u",
+    u_height: 3,
+    manufacturer: "Eaton",
+    model: "9PX3000iRT3U",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-9px5kirtn",
+    u_height: 3,
+    manufacturer: "Eaton",
+    model: "9PX5KIRTN",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-9px6k",
+    u_height: 3,
+    manufacturer: "Eaton",
+    model: "9PX6K",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-9pxebm180",
+    u_height: 3,
+    manufacturer: "Eaton",
+    model: "9PXEBM180",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-9pxebm72rt2u",
+    u_height: 2,
+    manufacturer: "Eaton",
+    model: "9PXEBM72RT2U",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-emat08-10",
+    u_height: 1,
+    manufacturer: "Eaton",
+    model: "EMAT08-10",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-pdumh30hvnet",
+    u_height: 2,
+    manufacturer: "Eaton",
+    model: "PDUMH30HVNET",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-pw103ba1u405",
+    u_height: 1,
+    manufacturer: "Eaton",
+    model: "PW103BA1U405",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-tripp-lite-b040-008-19",
+    u_height: 1,
+    manufacturer: "Eaton",
+    model: "Tripp Lite B040-008-19",
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-tripp-lite-b064-016-02-ipg",
+    u_height: 1,
+    manufacturer: "Eaton",
+    model: "Tripp Lite B064-016-02-IPG",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-tripp-lite-b064-032-01-ipg",
+    u_height: 1,
+    manufacturer: "Eaton",
+    model: "Tripp Lite B064-032-01-IPG",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-tripp-lite-b072-032-ip2",
+    u_height: 1,
+    manufacturer: "Eaton",
+    model: "Tripp Lite B072-032-IP2",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+  {
+    slug: "eaton-tripp-lite-b096-016",
+    u_height: 1,
+    manufacturer: "Eaton",
+    model: "Tripp Lite B096-016",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+  },
+
+  // Additional devices from NetBox library (Issue #1109 Phase 1)
+  {
+    slug: "eaton-tripp-lite-pdumh15at",
+    u_height: 1,
+    manufacturer: "Eaton",
+    model: "Tripp Lite PDUMH15AT",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+    front_image: true,
+    rear_image: true,
+  },
+
+  {
+    slug: "eaton-tripp-lite-pdumh20hvat",
+    u_height: 1,
+    manufacturer: "Eaton",
+    model: "Tripp Lite PDUMH20HVAT",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+    front_image: true,
+    rear_image: true,
+  },
+
+  {
+    slug: "eaton-tripp-lite-b096-032",
+    u_height: 1,
+    manufacturer: "Eaton",
+    model: "Tripp Lite B096-032",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+    front_image: true,
+    rear_image: true,
+  },
+
+  {
+    slug: "eaton-tripp-lite-b097-016",
+    u_height: 1,
+    manufacturer: "Eaton",
+    model: "Tripp Lite B097-016",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+    front_image: true,
+    rear_image: true,
+  },
 ];

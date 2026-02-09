@@ -101,7 +101,9 @@ function main(): void {
   );
 
   console.log("");
-  console.log(`TOTAL_STARTUP_JS\traw=${formatKb(totalRaw)}\tgzip=${formatKb(totalGzip)}`);
+  console.log(
+    `TOTAL_STARTUP_JS\traw=${formatKb(totalRaw)}\tgzip=${formatKb(totalGzip)}`,
+  );
   if (brandpacks.raw > 0 || brandpacks.gzip > 0) {
     console.log(
       `DATA_BRANDPACKS\traw=${formatKb(brandpacks.raw)}\tgzip=${formatKb(brandpacks.gzip)}`,

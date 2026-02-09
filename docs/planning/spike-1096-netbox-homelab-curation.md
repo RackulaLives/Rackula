@@ -96,27 +96,30 @@ Per-item density model (derived from current bundle):
 
 ## Projected Impact by Tranche
 
-| Tranche | Devices | Image-mapped slugs | Projected raw delta | Projected gzip delta | Est. startup delta* |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Phase 1 | 40 | 37 | ~11.2 KB | ~1.9 KB | ~+10 ms |
-| Phase 2 | 45 | 45 | ~13.1 KB | ~2.2 KB | ~+11 ms |
-| Phase 3 | 55 | 5 | ~9.5 KB | ~1.2 KB | ~+7 ms |
-| **Total** | **140** | **87** | **~33.8 KB** | **~5.3 KB** | **~+28 ms** |
+| Tranche   | Devices | Image-mapped slugs | Projected raw delta | Projected gzip delta | Est. startup delta\* |
+| --------- | ------: | -----------------: | ------------------: | -------------------: | -------------------: |
+| Phase 1   |      40 |                 37 |            ~11.2 KB |              ~1.9 KB |              ~+10 ms |
+| Phase 2   |      45 |                 45 |            ~13.1 KB |              ~2.2 KB |              ~+11 ms |
+| Phase 3   |      55 |                  5 |             ~9.5 KB |              ~1.2 KB |               ~+7 ms |
+| **Total** | **140** |             **87** |        **~33.8 KB** |          **~5.3 KB** |          **~+28 ms** |
 
 \* Estimated transfer on slow mobile (~200 KB/s effective gzip throughput) plus minimal parse overhead.
 
 ## Guardrails and Rollout Rules
 
 1. **Payload guardrails**
+
 - `TOTAL_STARTUP_JS gzip` must stay `<= 304 KB` through Phase 2.
 - `DATA_BRANDPACKS gzip` must stay `<= 14 KB` through Phase 2.
 - Any Phase 3 import that raises `TOTAL_STARTUP_JS gzip` above `306 KB` requires lazy-loading changes before merge.
 
 2. **Image strategy guardrails**
+
 - Phase 1/2 prioritize image-backed devices.
 - Phase 3 no-image entries should default to category-colored rendering and avoid large image-bundle growth.
 
 3. **Mitigation trigger**
+
 - If any tranche breaches guardrails, split brand packs into deferred vendor chunks before continuing imports.
 
 ## Repeatable Perf-Check Workflow

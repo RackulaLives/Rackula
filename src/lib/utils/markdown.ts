@@ -4,6 +4,7 @@
  */
 import { marked, type MarkedOptions, type Tokens } from "marked";
 import DOMPurify from "dompurify";
+import type { Config as DOMPurifyConfig } from "dompurify";
 
 /**
  * Configuration for marked parser.
@@ -32,7 +33,7 @@ secureRenderer.link = function (token: Tokens.Link) {
  * Configure DOMPurify for safe markdown rendering.
  * Allow only elements that markdown can produce.
  */
-const purifyConfig: DOMPurify.Config = {
+const purifyConfig: DOMPurifyConfig = {
   ALLOWED_TAGS: [
     "p",
     "br",
@@ -54,6 +55,7 @@ const purifyConfig: DOMPurify.Config = {
   ALLOWED_ATTR: ["href", "target", "rel"],
   // Force all links to open in new tab
   ADD_ATTR: ["target", "rel"],
+  RETURN_TRUSTED_TYPE: false,
 };
 
 /**

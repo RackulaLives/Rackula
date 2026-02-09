@@ -17,6 +17,8 @@ services:
       - API_HOST=rackula-api
       - API_PORT=${RACKULA_API_PORT:-3001}
       - RACKULA_LISTEN_PORT=${RACKULA_LISTEN_PORT:-8080}
+      # Optional: token forwarded to API for PUT/DELETE route auth
+      - API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN:-}
     restart: unless-stopped
     depends_on:
       rackula-api:
@@ -43,6 +45,14 @@ services:
     environment:
       - DATA_DIR=/data
       - RACKULA_API_PORT=${RACKULA_API_PORT:-3001}
+      # Production: explicitly set CORS_ORIGIN to your real app origin,
+      # keep ALLOW_INSECURE_CORS=false, and set RACKULA_API_WRITE_TOKEN.
+      # The localhost default is only for local development convenience.
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:8080}
+      # Optional (recommended): protects PUT/DELETE routes via Bearer token
+      - RACKULA_API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN:-}
+      # Explicit insecure fallback (use only for isolated/local testing)
+      - ALLOW_INSECURE_CORS=${ALLOW_INSECURE_CORS:-false}
 
     # Security hardening
     security_opt:

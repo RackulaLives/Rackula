@@ -44,6 +44,7 @@ export const CATEGORY_TO_ABBREV: Record<DeviceCategory, string> = {
   shelf: "f",
   blank: "b",
   "cable-management": "c",
+  chassis: "h",
   other: "o",
 };
 

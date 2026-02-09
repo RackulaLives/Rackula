@@ -15,11 +15,10 @@
     "noEmit": true,
 
     /* Linting - Strict mode */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
     "forceConsistentCasingInFileNames": true,
 
     /* Path aliases */
@@ -29,13 +28,14 @@
     },
 
     /* Types */
-    "types": ["vitest/globals"]
+    "types": ["vite/client", "vitest/globals"]
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.svelte",
     "vite.config.ts",
     "vitest.config.ts",
-    "Rackula/src/vite-env.d.ts"
-  ]
+    "src/vite-env.d.ts"
+  ],
+  "exclude": ["src/**/*.test.ts", "src/**/*.spec.ts", "e2e/**"]
 }

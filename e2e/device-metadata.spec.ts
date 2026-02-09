@@ -1,4 +1,10 @@
 import { test, expect, Page } from "@playwright/test";
+import {
+  gotoWithRack,
+  dragDeviceToRack,
+  selectDevice,
+  deselectDevice,
+} from "./helpers";
 
 /**
  * E2E tests for device metadata persistence
@@ -28,113 +34,6 @@ const TEST_METADATA_2 = {
 
 // Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux)
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
-
-/**
- * Helper to drag a device from palette to rack
- * @param page - Playwright page
- * @param yOffsetPercent - Vertical offset as percentage (0-100) for positioning within the rack.
- *                         Use different values to place multiple devices without collision.
- * @returns The number of devices in DOM after the drag
- */
-async function dragDeviceToRack(
-  page: Page,
-  yOffsetPercent: number = 10,
-): Promise<number> {
-  await expect(page.locator(".device-palette-item").first()).toBeVisible();
-
-  // Count existing devices before drag
-  const deviceCountBefore = await page.locator(".rack-device").count();
-
-  await page.evaluate((yPercent) => {
-    const deviceItem = document.querySelector(".device-palette-item");
-    const rack = document.querySelector(".rack-svg");
-
-    if (!deviceItem || !rack) {
-      throw new Error("Could not find device item or rack");
-    }
-
-    const rackRect = rack.getBoundingClientRect();
-    // Calculate drop position - use yPercent to place at different U positions
-    const dropX = rackRect.left + rackRect.width / 2;
-    const dropY = rackRect.top + (rackRect.height * yPercent) / 100;
-
-    const dataTransfer = new DataTransfer();
-
-    deviceItem.dispatchEvent(
-      new DragEvent("dragstart", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-      }),
-    );
-
-    rack.dispatchEvent(
-      new DragEvent("dragover", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-        clientX: dropX,
-        clientY: dropY,
-      }),
-    );
-
-    rack.dispatchEvent(
-      new DragEvent("drop", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-        clientX: dropX,
-        clientY: dropY,
-      }),
-    );
-
-    deviceItem.dispatchEvent(
-      new DragEvent("dragend", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-      }),
-    );
-  }, yOffsetPercent);
-
-  // Wait for device count to increase (dual-view mode renders each device twice)
-  await expect(async () => {
-    const currentCount = await page.locator(".rack-device").count();
-    expect(currentCount).toBeGreaterThan(deviceCountBefore);
-  }).toPass({ timeout: 5000 });
-
-  // Return current count for callers that need to verify
-  return await page.locator(".rack-device").count();
-}
-
-/**
- * Helper to select a device by clicking on it
- * Uses .rack-front to avoid selecting from rear view when dual-view is active
- */
-async function selectDevice(page: Page, index: number = 0) {
-  // Use .rack-front to select only from front view (avoids duplicate selections in dual-view mode)
-  const frontViewDevices = page.locator(".rack-front .rack-device");
-  const frontCount = await frontViewDevices.count();
-
-  // If no front-view devices found, fall back to any .rack-device (single view mode)
-  const device =
-    frontCount > 0
-      ? frontViewDevices.nth(index)
-      : page.locator(".rack-device").nth(index);
-
-  await device.click();
-  // Wait for edit panel to open
-  await expect(page.locator("aside.drawer-right.open")).toBeVisible();
-}
-
-/**
- * Helper to deselect by pressing Escape
- */
-async function deselectDevice(page: Page) {
-  await page.keyboard.press("Escape");
-  // Wait for edit panel to close
-  await expect(page.locator("aside.drawer-right.open")).not.toBeVisible();
-}
 
 /**
  * Helper to wait for the saved indicator after a blur
@@ -232,19 +131,14 @@ async function getDeviceMetadata(page: Page) {
 
 test.describe("Device Metadata Persistence", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    // Wait for app to fully initialize by checking for the rack container
-    await page.locator(".rack-container").first().waitFor({ state: "visible" });
+    // Use share link to load pre-built rack - no wizard interaction needed
+    await gotoWithRack(page);
   });
 
   test.describe("In-Session Persistence", () => {
-    test("metadata persists when switching between devices", async ({
+    // The Damien Test - named in honor of Damien (@deversmann) who reported #859
+    // where IP addresses weren't persisting when switching between devices
+    test("the Damien test: metadata persists when switching between devices", async ({
       page,
     }) => {
       // This test verifies that two devices maintain separate metadata
@@ -252,7 +146,7 @@ test.describe("Device Metadata Persistence", () => {
       // we use unique names to identify which device we're working with.
 
       // Add first device at top of rack and set unique metadata
-      await dragDeviceToRack(page, 10);
+      await dragDeviceToRack(page, { yOffsetPercent: 10 });
       await expect(page.locator(".rack-device").first()).toBeVisible();
 
       // Select and configure the first device
@@ -262,7 +156,7 @@ test.describe("Device Metadata Persistence", () => {
       await deselectDevice(page);
 
       // Add second device at bottom of rack (different position to avoid collision)
-      await dragDeviceToRack(page, 80);
+      await dragDeviceToRack(page, { yOffsetPercent: 80 });
 
       // Get all devices and find the one without our custom name (the new one)
       // We'll iterate through all visible devices to find and configure the second one

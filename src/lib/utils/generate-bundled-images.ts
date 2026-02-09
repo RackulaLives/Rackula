@@ -6,23 +6,23 @@
  */
 
 export interface ParsedImage {
-	vendor: string;
-	slug: string;
-	face: 'front' | 'rear';
-	filename: string;
+  vendor: string;
+  slug: string;
+  face: "front" | "rear";
+  filename: string;
 }
 
 export interface GroupedImages {
-	[slug: string]: {
-		vendor: string;
-		front?: string;
-		rear?: string;
-	};
+  [slug: string]: {
+    vendor: string;
+    front?: string;
+    rear?: string;
+  };
 }
 
 export interface ImportNames {
-	front?: string;
-	rear?: string;
+  front?: string;
+  rear?: string;
 }
 
 /**
@@ -32,17 +32,19 @@ export interface ImportNames {
  * @returns Parsed image info or null if invalid
  */
 export function parseImagePath(relativePath: string): ParsedImage | null {
-	// Expected format: vendor/slug.face.webp
-	const match = relativePath.match(/^([^/]+)\/(.+)\.(front|rear)\.webp$/);
-	if (!match) return null;
+  // Expected format: vendor/slug.face.webp
+  // Ignore nested subdirectories (e.g. "apple/apple-assets/device.front.webp") because
+  // they do not map to valid device slugs and can generate invalid identifiers.
+  const match = relativePath.match(/^([^/]+)\/([^/]+)\.(front|rear)\.webp$/);
+  if (!match) return null;
 
-	const [, vendor, slug, face] = match;
-	return {
-		vendor,
-		slug,
-		face: face as 'front' | 'rear',
-		filename: `${slug}.${face}.webp`
-	};
+  const [, vendor, slug, face] = match;
+  return {
+    vendor,
+    slug,
+    face: face as "front" | "rear",
+    filename: `${slug}.${face}.webp`,
+  };
 }
 
 /**
@@ -52,18 +54,21 @@ export function parseImagePath(relativePath: string): ParsedImage | null {
  * @param face - Image face ("front" or "rear")
  * @returns camelCase variable name (e.g., "hpeProliantDl380Gen10Front")
  */
-export function generateImportName(slug: string, face: 'front' | 'rear'): string {
-	// Convert slug to camelCase
-	const camelSlug = slug
-		.split('-')
-		.map((part, index) => {
-			if (index === 0) return part.toLowerCase();
-			return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-		})
-		.join('');
+export function generateImportName(
+  slug: string,
+  face: "front" | "rear",
+): string {
+  // Convert slug to camelCase
+  const camelSlug = slug
+    .split("-")
+    .map((part, index) => {
+      if (index === 0) return part.toLowerCase();
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join("");
 
-	// Append face with capital letter
-	return camelSlug + face.charAt(0).toUpperCase() + face.slice(1);
+  // Append face with capital letter
+  return camelSlug + face.charAt(0).toUpperCase() + face.slice(1);
 }
 
 /**
@@ -75,12 +80,12 @@ export function generateImportName(slug: string, face: 'front' | 'rear'): string
  * @returns Import statement string
  */
 export function generateImportStatement(
-	vendor: string,
-	slug: string,
-	face: 'front' | 'rear'
+  vendor: string,
+  slug: string,
+  face: "front" | "rear",
 ): string {
-	const importName = generateImportName(slug, face);
-	return `import ${importName} from '$lib/assets/device-images/${vendor}/${slug}.${face}.webp';`;
+  const importName = generateImportName(slug, face);
+  return `import ${importName} from '$lib/assets/device-images/${vendor}/${slug}.${face}.webp';`;
 }
 
 /**
@@ -90,15 +95,18 @@ export function generateImportStatement(
  * @param importNames - Object with front and/or rear import variable names
  * @returns Manifest entry string
  */
-export function generateManifestEntry(slug: string, importNames: ImportNames): string {
-	const parts: string[] = [];
-	if (importNames.front) {
-		parts.push(`front: ${importNames.front}`);
-	}
-	if (importNames.rear) {
-		parts.push(`rear: ${importNames.rear}`);
-	}
-	return `'${slug}': { ${parts.join(', ')} }`;
+export function generateManifestEntry(
+  slug: string,
+  importNames: ImportNames,
+): string {
+  const parts: string[] = [];
+  if (importNames.front) {
+    parts.push(`front: ${importNames.front}`);
+  }
+  if (importNames.rear) {
+    parts.push(`rear: ${importNames.rear}`);
+  }
+  return `'${slug}': { ${parts.join(", ")} }`;
 }
 
 /**
@@ -108,14 +116,14 @@ export function generateManifestEntry(slug: string, importNames: ImportNames): s
  * @returns Object mapping slug to vendor and filenames
  */
 export function groupImagesBySlug(images: ParsedImage[]): GroupedImages {
-	const grouped: GroupedImages = {};
+  const grouped: GroupedImages = {};
 
-	for (const image of images) {
-		if (!grouped[image.slug]) {
-			grouped[image.slug] = { vendor: image.vendor };
-		}
-		grouped[image.slug][image.face] = image.filename;
-	}
+  for (const image of images) {
+    if (!grouped[image.slug]) {
+      grouped[image.slug] = { vendor: image.vendor };
+    }
+    grouped[image.slug][image.face] = image.filename;
+  }
 
-	return grouped;
+  return grouped;
 }

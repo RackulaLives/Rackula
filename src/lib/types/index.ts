@@ -130,7 +130,7 @@ export type SlotWidth = 1 | 2;
  *
  * This is a Rackula-specific extension; NetBox does not have this field on DeviceType.
  */
-export type RackWidth = 10 | 19 | 23;
+export type RackWidth = 10 | 19 | 21 | 23;
 
 /**
  * Network interface type (NetBox-compatible subset)
@@ -156,6 +156,7 @@ export type InterfaceType =
   | "400gbase-x-qsfpdd" // 400 GbE QSFP-DD
   // Console & Management
   | "console" // Console port (RJ45/USB)
+  | "management" // Dedicated management/OOB interface
   | "usb-a" // USB Type A
   | "usb-b" // USB Type B
   | "usb-c" // USB Type C
@@ -460,6 +461,8 @@ export interface DeviceType {
   // --- Core Identity ---
   /** Unique identifier, kebab-case slug */
   slug: string;
+  /** Optional human-readable name (legacy compatibility) */
+  name?: string;
   /** Manufacturer name */
   manufacturer?: string;
   /** Model name */
@@ -506,6 +509,8 @@ export interface DeviceType {
   // --- Extension Fields ---
   /** Notes/comments */
   notes?: string;
+  /** Legacy comments field from NetBox imports */
+  comments?: string;
   /** Serial number */
   serial_number?: string;
   /** Asset tag */
@@ -534,6 +539,8 @@ export interface DeviceType {
   // --- Power Device Properties ---
   /** VA capacity (e.g., 1500, 3000) - for UPS devices */
   va_rating?: number;
+  /** Legacy outlet count summary for power devices */
+  outlet_count?: number;
 
   // --- Container Support (v0.6.0) ---
   /**
@@ -567,10 +574,12 @@ export interface PlacedDevice {
   slot_position?: SlotPosition;
   /** Optional custom display name for this placement */
   name?: string;
+  /** Legacy placement label alias */
+  label?: string;
 
   // --- Port Instances ---
   /** Instantiated ports from DeviceType.interfaces with stable UUIDs */
-  ports: PlacedPort[];
+  ports?: PlacedPort[];
 
   // --- Placement Image Override ---
   /** Custom front image for this specific placement (overrides device type image) */
@@ -650,6 +659,8 @@ export interface Rack {
  * - 'row': Side-by-side layout (default)
  */
 export type RackGroupLayoutPreset = "bayed" | "row";
+/** @deprecated Use RackGroupLayoutPreset */
+export type LayoutPreset = RackGroupLayoutPreset;
 
 /**
  * A group of racks with shared layout behavior
@@ -751,7 +762,7 @@ export interface CreateRackData {
 /**
  * Export format options
  */
-export type ExportFormat = "png" | "jpeg" | "svg" | "pdf" | "csv";
+export type ExportFormat = "png" | "jpeg" | "svg" | "pdf" | "csv" | "zip";
 
 /**
  * Export scope options

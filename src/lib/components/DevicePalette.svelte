@@ -80,23 +80,19 @@
     }
   }
 
-  // Using single binding value that will hold either string or string[] based on mode
-  // Initial value uses static default; $effect below syncs when groupingMode changes
-  let accordionValue = $state<string | string[]>("generic");
-  let preSearchState = $state<{
-    mode: "single" | "multiple";
-    value: string | string[];
-  }>({
-    mode: "single",
-    value: "generic",
-  });
+  // Keep single/multiple values separate to satisfy bits-ui's discriminated prop types.
+  let accordionSingleValue = $state("generic");
+  let accordionMultipleValue = $state<string[]>(["generic"]);
+  let preSearchSingleValue = $state("generic");
 
   // Sync accordion value when grouping mode changes
   $effect(() => {
     // Reset accordion to default expanded section when mode changes
     const defaultValue = getDefaultAccordionValue(groupingMode);
-    accordionValue = defaultValue;
-    preSearchState = { mode: "single", value: defaultValue };
+    accordionSingleValue = defaultValue;
+    accordionMultipleValue = [defaultValue];
+    preSearchSingleValue = defaultValue;
+    accordionMode = "single";
   });
 
   // Debounce search input
@@ -387,10 +383,7 @@
     if (isSearchActive) {
       // Entering search: save current state and switch to multi-mode
       if (accordionMode === "single") {
-        preSearchState = {
-          mode: "single",
-          value: accordionValue,
-        };
+        preSearchSingleValue = accordionSingleValue;
       }
       accordionMode = "multiple";
 
@@ -398,11 +391,11 @@
       const sectionsWithMatches = sections
         .filter((s) => !s.isEmpty && s.devices.length > 0)
         .map((s) => s.id);
-      accordionValue = sectionsWithMatches;
-    } else if (accordionMode === "multiple" && preSearchState) {
+      accordionMultipleValue = sectionsWithMatches;
+    } else if (accordionMode === "multiple") {
       // Exiting search: restore previous state but stay in multi-mode
       // (will switch back to single on user interaction)
-      accordionValue = preSearchState.value;
+      accordionMultipleValue = [preSearchSingleValue];
     }
   });
 
@@ -414,8 +407,16 @@
     // When user manually clicks accordion after search, switch back to single mode
     if (accordionMode === "multiple" && !isSearchActive) {
       accordionMode = "single";
+      accordionSingleValue = accordionMultipleValue[0] ?? preSearchSingleValue;
       // The clicked section will be set by the accordion component
     }
+  }
+
+  function isSectionExpanded(sectionId: string): boolean {
+    if (accordionMode === "multiple") {
+      return accordionMultipleValue.includes(sectionId);
+    }
+    return accordionSingleValue === sectionId;
   }
 </script>
 
@@ -466,7 +467,7 @@
         <p class="empty-message">No devices match your search</p>
       </div>
     {:else}
-      <Accordion.Root type={accordionMode} bind:value={accordionValue}>
+      {#snippet accordionSections()}
         {#each sections as section (section.id)}
           <Accordion.Item value={section.id} class="accordion-item">
             <Accordion.Header>
@@ -486,7 +487,7 @@
                 {#if isSearchActive && section.matchCount !== undefined}
                   <span class="match-info">
                     <span class="match-count">({section.matchCount})</span>
-                    {#if section.firstMatch && Array.isArray(accordionValue) && !accordionValue.includes(section.id)}
+                    {#if section.firstMatch && !isSectionExpanded(section.id)}
                       <span class="match-preview">
                         -
                         {truncateWithEllipsis(
@@ -543,7 +544,17 @@
             </Accordion.Content>
           </Accordion.Item>
         {/each}
-      </Accordion.Root>
+      {/snippet}
+
+      {#if accordionMode === "multiple"}
+        <Accordion.Root type="multiple" bind:value={accordionMultipleValue}>
+          {@render accordionSections()}
+        </Accordion.Root>
+      {:else}
+        <Accordion.Root type="single" bind:value={accordionSingleValue}>
+          {@render accordionSections()}
+        </Accordion.Root>
+      {/if}
     {/if}
   </div>
 </div>

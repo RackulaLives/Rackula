@@ -35,7 +35,7 @@
     <Drawer.Content class="vaul-sheet">
       <!-- Drag handle -->
       <div class="sheet-header">
-        <Drawer.Handle class="drag-handle" />
+        <div class="drag-handle" aria-hidden="true"></div>
         <div class="header-row">
           {#if title}
             <Drawer.Title class="sheet-title">{title}</Drawer.Title>

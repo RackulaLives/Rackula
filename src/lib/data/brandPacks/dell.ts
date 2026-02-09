@@ -4,630 +4,682 @@
  * Source: NetBox community devicetype-library
  */
 
-import type { DeviceType } from '$lib/types';
-import { CATEGORY_COLOURS } from '$lib/types/constants';
+import type { DeviceType } from "$lib/types";
+import { CATEGORY_COLOURS } from "$lib/types/constants";
 
 /**
  * Dell PowerEdge device definitions (25 rack-mountable servers)
  */
 export const dellDevices: DeviceType[] = [
-	// ============================================
-	// 1U Servers - Current Generation
-	// ============================================
-	{
-		slug: 'poweredge-r650',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R650',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r660',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R660',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
+  // ============================================
+  // 1U Servers - Current Generation
+  // ============================================
+  {
+    slug: "poweredge-r650",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R650",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r660",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R660",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
 
-	// ============================================
-	// 1U Servers - Previous Generations
-	// ============================================
-	{
-		slug: 'poweredge-r640',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R640',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r630',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R630',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r620',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R620',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r610',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R610',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
+  // ============================================
+  // 1U Servers - Previous Generations
+  // ============================================
+  {
+    slug: "poweredge-r640",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R640",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r630",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R630",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r620",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R620",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r610",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R610",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
 
-	// ============================================
-	// 2U Servers - Current Generation
-	// ============================================
-	{
-		slug: 'poweredge-r750',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R750',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r750xs',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R750xs',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r760',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R760',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
+  // ============================================
+  // 2U Servers - Current Generation
+  // ============================================
+  {
+    slug: "poweredge-r750",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R750",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r750xs",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R750xs",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r760",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R760",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
 
-	// ============================================
-	// 2U Servers - Previous Generations
-	// ============================================
-	{
-		slug: 'poweredge-r740',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R740',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r740xd',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R740xd',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r730',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R730',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r730xd',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R730xd',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r720',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R720',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r720xd',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R720xd',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r710',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R710',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
+  // ============================================
+  // 2U Servers - Previous Generations
+  // ============================================
+  {
+    slug: "poweredge-r740",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R740",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r740xd",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R740xd",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r730",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R730",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r730xd",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R730xd",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r720",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R720",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r720xd",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R720xd",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r710",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R710",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
 
-	// ============================================
-	// 2U Servers - AMD EPYC
-	// ============================================
-	{
-		slug: 'poweredge-r6515',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R6515',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r6525',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R6525',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r7515',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R7515',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r7525',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R7525',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
+  // ============================================
+  // 2U Servers - AMD EPYC
+  // ============================================
+  {
+    slug: "poweredge-r6515",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R6515",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r6525",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R6525",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r7515",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R7515",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r7525",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R7525",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
 
-	// ============================================
-	// 2U Servers - Entry Level
-	// ============================================
-	{
-		slug: 'poweredge-r550',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R550',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r540',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R540',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r530',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R530',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r520',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R520',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'poweredge-r510',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R510',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
+  // ============================================
+  // 2U Servers - Entry Level
+  // ============================================
+  {
+    slug: "poweredge-r550",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R550",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r540",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R540",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r530",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R530",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r520",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R520",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "poweredge-r510",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R510",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
 
-	// Additional devices from NetBox library
-	{
-		slug: 'dell-poweredge-1950',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge 1950',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-c6400',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge C6400',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-m1000e',
-		u_height: 10,
-		manufacturer: 'Dell',
-		model: 'PowerEdge M1000e',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-mx7000',
-		u_height: 7,
-		manufacturer: 'Dell',
-		model: 'PowerEdge MX7000',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r320',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R320',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r330',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R330',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r340',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R340',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r350',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R350',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r360',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R360',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r420',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R420',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r540',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R540',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r610',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R610',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r620',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R620',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r630',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R630',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r640',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R640',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r650',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R650',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r650xs',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R650xs',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r6515',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R6515',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r6525',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R6525',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r660',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R660',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r660xs',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R660xs',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r6615',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R6615',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r6625',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R6625',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r6715',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R6715',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r6725',
-		u_height: 1,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R6725',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r720',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R720',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r720xd',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R720xd',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r730',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R730',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r730xd',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R730xd',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r740',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R740',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r740xd',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R740xd',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r740xd2',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R740xd2',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r750xs',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R750xs',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r7515',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R7515',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r7525',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R7525',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r7615',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R7615',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r7625',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R7625',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r7715',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R7715',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r7725',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R7725',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r815',
-		u_height: 2,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R815',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-r940',
-		u_height: 3,
-		manufacturer: 'Dell',
-		model: 'PowerEdge R940',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-t630',
-		u_height: 5,
-		manufacturer: 'Dell',
-		model: 'PowerEdge T630',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'dell-poweredge-t640',
-		u_height: 5,
-		manufacturer: 'Dell',
-		model: 'PowerEdge T640',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	}
+  // Additional devices from NetBox library
+  {
+    slug: "dell-poweredge-1950",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge 1950",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-c6400",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge C6400",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-m1000e",
+    u_height: 10,
+    manufacturer: "Dell",
+    model: "PowerEdge M1000e",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-mx7000",
+    u_height: 7,
+    manufacturer: "Dell",
+    model: "PowerEdge MX7000",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r320",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R320",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r330",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R330",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r340",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R340",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r350",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R350",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r360",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R360",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r420",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R420",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r540",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R540",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r610",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R610",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r620",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R620",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r630",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R630",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r640",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R640",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r650",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R650",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r650xs",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R650xs",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r6515",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R6515",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r6525",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R6525",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r660",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R660",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r660xs",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R660xs",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r6615",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R6615",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r6625",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R6625",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r6715",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R6715",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r6725",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerEdge R6725",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r720",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R720",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r720xd",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R720xd",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r730",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R730",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r730xd",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R730xd",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r740",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R740",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r740xd",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R740xd",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r740xd2",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R740xd2",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r750xs",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R750xs",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r7515",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R7515",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r7525",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R7525",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r7615",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R7615",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r7625",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R7625",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r7715",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R7715",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r7725",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R7725",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r815",
+    u_height: 2,
+    manufacturer: "Dell",
+    model: "PowerEdge R815",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-r940",
+    u_height: 3,
+    manufacturer: "Dell",
+    model: "PowerEdge R940",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-t630",
+    u_height: 5,
+    manufacturer: "Dell",
+    model: "PowerEdge T630",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "dell-poweredge-t640",
+    u_height: 5,
+    manufacturer: "Dell",
+    model: "PowerEdge T640",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+
+  // Additional devices from NetBox library (Issue #1109 Phase 1)
+  {
+    slug: "dell-powerswitch-n2048",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerSwitch N2048",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+  },
+
+  {
+    slug: "dell-powerswitch-n3248p-on",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerSwitch N3248P-ON",
+    is_full_depth: true,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+  },
+
+  {
+    slug: "dell-powerswitch-s4128f-on",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerSwitch S4128F-ON",
+    is_full_depth: true,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+  },
+
+  {
+    slug: "dell-powerswitch-n1548",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerSwitch N1548",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+  },
 ];
