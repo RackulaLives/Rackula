@@ -5,6 +5,10 @@
 
 const DEFAULT_LONG_PRESS_DURATION = 500; // ms
 const MOVE_THRESHOLD = 10; // px
+export const RACK_SWIPE_MIN_DISTANCE = 50; // px
+export const RACK_SWIPE_PAN_THRESHOLD = 20; // px
+const DEFAULT_HORIZONTAL_DOMINANCE_RATIO = 1.5;
+const DEFAULT_MAX_SWIPE_DURATION = 300; // ms
 
 /**
  * Options for useLongPress
@@ -18,6 +22,76 @@ export interface LongPressOptions {
   onStart?: (x: number, y: number) => void;
   /** Called when long press is cancelled */
   onCancel?: () => void;
+}
+
+/**
+ * Direction for rack swipe navigation.
+ */
+export type RackSwipeDirection = "next" | "previous";
+
+/**
+ * Input for rack swipe gesture classification.
+ */
+export interface RackSwipeGestureInput {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  durationMs: number;
+  isMultiTouch: boolean;
+}
+
+/**
+ * Configuration for rack swipe gesture classification.
+ */
+export interface RackSwipeGestureOptions {
+  minSwipeDistance?: number;
+  panThreshold?: number;
+  horizontalDominanceRatio?: number;
+  maxSwipeDurationMs?: number;
+}
+
+/**
+ * Classify a touch gesture as rack swipe navigation or non-swipe.
+ * Returns `next`/`previous` only when a horizontal single-touch flick is detected.
+ */
+export function classifyRackSwipeGesture(
+  input: RackSwipeGestureInput,
+  options: RackSwipeGestureOptions = {},
+): RackSwipeDirection | null {
+  if (input.isMultiTouch) {
+    return null;
+  }
+
+  const minSwipeDistance = options.minSwipeDistance ?? RACK_SWIPE_MIN_DISTANCE;
+  const panThreshold = options.panThreshold ?? RACK_SWIPE_PAN_THRESHOLD;
+  const horizontalDominanceRatio =
+    options.horizontalDominanceRatio ?? DEFAULT_HORIZONTAL_DOMINANCE_RATIO;
+  const maxSwipeDurationMs =
+    options.maxSwipeDurationMs ?? DEFAULT_MAX_SWIPE_DURATION;
+
+  const deltaX = input.endX - input.startX;
+  const deltaY = input.endY - input.startY;
+  const absDeltaX = Math.abs(deltaX);
+  const absDeltaY = Math.abs(deltaY);
+  const totalDistance = Math.hypot(deltaX, deltaY);
+
+  const isHorizontalFlick =
+    absDeltaX >= minSwipeDistance &&
+    absDeltaX > absDeltaY * horizontalDominanceRatio &&
+    input.durationMs <= maxSwipeDurationMs;
+
+  // If movement exceeded pan threshold but did not meet swipe criteria, treat as pan.
+  if (totalDistance > panThreshold && !isHorizontalFlick) {
+    return null;
+  }
+
+  if (!isHorizontalFlick) {
+    return null;
+  }
+
+  // Swipe left -> next rack, swipe right -> previous rack.
+  return deltaX < 0 ? "next" : "previous";
 }
 
 /**

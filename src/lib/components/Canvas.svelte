@@ -5,7 +5,7 @@
   Uses panzoom for zoom and pan functionality
 -->
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import panzoom from "panzoom";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
@@ -17,7 +17,11 @@
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { debug } from "$lib/utils/debug";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
-  // Note: getViewportStore removed - was only used for PlacementIndicator condition
+  import { getViewportStore } from "$lib/utils/viewport.svelte";
+  import {
+    classifyRackSwipeGesture,
+    type RackSwipeDirection,
+  } from "$lib/utils/gestures";
   import { hapticSuccess } from "$lib/utils/haptics";
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
@@ -102,8 +106,20 @@
   const selectionStore = getSelectionStore();
   const canvasStore = getCanvasStore();
   const uiStore = getUIStore();
-  // Note: viewportStore removed - was only used for PlacementIndicator condition
+  const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
+
+  const SWIPE_SWITCH_ANIMATION_MS = 200;
+  const SWIPE_HORIZONTAL_LOCK_THRESHOLD = 20;
+
+  interface SwipeGestureState {
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+    startTime: number;
+    isMultiTouch: boolean;
+  }
 
   // Note: handlePlacementCancel removed - now handled in Rack.svelte
 
@@ -158,11 +174,21 @@
   // Panzoom container reference
   let panzoomContainer: HTMLDivElement | null = $state(null);
   let canvasContainer: HTMLDivElement | null = $state(null);
+  let swipeGesture: SwipeGestureState | null = $state(null);
+  let swipeAnimationDirection: RackSwipeDirection | null = $state(null);
+  let swipeAnimationTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Set canvas element for viewport measurements
   onMount(() => {
     if (canvasContainer) {
       canvasStore.setCanvasElement(canvasContainer);
+    }
+  });
+
+  onDestroy(() => {
+    if (swipeAnimationTimeout) {
+      clearTimeout(swipeAnimationTimeout);
+      swipeAnimationTimeout = null;
     }
   });
 
@@ -355,6 +381,126 @@
       selectionStore.clearSelection();
     }
   }
+
+  function triggerSwipeAnimation(direction: RackSwipeDirection) {
+    if (swipeAnimationTimeout) {
+      clearTimeout(swipeAnimationTimeout);
+    }
+
+    swipeAnimationDirection = direction;
+    swipeAnimationTimeout = setTimeout(() => {
+      swipeAnimationDirection = null;
+      swipeAnimationTimeout = null;
+    }, SWIPE_SWITCH_ANIMATION_MS);
+  }
+
+  function switchRackFromSwipe(direction: RackSwipeDirection) {
+    if (!viewportStore.isMobile || racks.length < 2) {
+      return;
+    }
+
+    const currentId = layoutStore.activeRackId;
+    const currentIndex = currentId
+      ? racks.findIndex((rack) => rack.id === currentId)
+      : -1;
+
+    let nextIndex: number;
+    if (currentIndex === -1) {
+      nextIndex = direction === "next" ? 0 : racks.length - 1;
+    } else {
+      const delta = direction === "next" ? 1 : -1;
+      nextIndex = (currentIndex + delta + racks.length) % racks.length;
+    }
+
+    const nextRack = racks[nextIndex];
+    if (!nextRack || nextRack.id === currentId) {
+      return;
+    }
+
+    triggerSwipeAnimation(direction);
+    layoutStore.setActiveRack(nextRack.id);
+    selectionStore.selectRack(nextRack.id);
+    canvasStore.focusRack([nextRack.id], racks, rackGroups, 0);
+  }
+
+  function handleCanvasTouchStart(event: TouchEvent) {
+    if (
+      !viewportStore.isMobile ||
+      racks.length < 2 ||
+      placementStore.isPlacing ||
+      event.touches.length !== 1
+    ) {
+      swipeGesture = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+    if (!touch) {
+      swipeGesture = null;
+      return;
+    }
+
+    swipeGesture = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      currentX: touch.clientX,
+      currentY: touch.clientY,
+      startTime: performance.now(),
+      isMultiTouch: false,
+    };
+  }
+
+  function handleCanvasTouchMove(event: TouchEvent) {
+    if (!swipeGesture) return;
+
+    if (event.touches.length !== 1) {
+      swipeGesture = { ...swipeGesture, isMultiTouch: true };
+      return;
+    }
+
+    const touch = event.touches[0];
+    if (!touch) return;
+
+    swipeGesture = {
+      ...swipeGesture,
+      currentX: touch.clientX,
+      currentY: touch.clientY,
+    };
+  }
+
+  function handleCanvasTouchEnd(event: TouchEvent) {
+    if (!swipeGesture) return;
+
+    const changedTouch = event.changedTouches[0];
+    const endX = changedTouch?.clientX ?? swipeGesture.currentX;
+    const endY = changedTouch?.clientY ?? swipeGesture.currentY;
+    const durationMs = performance.now() - swipeGesture.startTime;
+    const horizontalLock =
+      Math.abs(endX - swipeGesture.startX) > SWIPE_HORIZONTAL_LOCK_THRESHOLD;
+
+    if (!horizontalLock) {
+      swipeGesture = null;
+      return;
+    }
+
+    const direction = classifyRackSwipeGesture({
+      startX: swipeGesture.startX,
+      startY: swipeGesture.startY,
+      endX,
+      endY,
+      durationMs,
+      isMultiTouch: swipeGesture.isMultiTouch,
+    });
+
+    swipeGesture = null;
+
+    if (!direction) return;
+    switchRackFromSwipe(direction);
+  }
+
+  function handleCanvasTouchCancel() {
+    swipeGesture = null;
+  }
 </script>
 
 <!-- eslint-disable-next-line svelte/no-unused-svelte-ignore -- these warnings appear in Vite build but not ESLint -->
@@ -376,6 +522,10 @@
     bind:this={canvasContainer}
     onclick={handleCanvasClick}
     onkeydown={handleCanvasKeydown}
+    ontouchstart={handleCanvasTouchStart}
+    ontouchmove={handleCanvasTouchMove}
+    ontouchend={handleCanvasTouchEnd}
+    ontouchcancel={handleCanvasTouchCancel}
   >
     <!-- Note: Mobile placement indicator now integrated into Rack.svelte -->
 
@@ -386,7 +536,11 @@
     {#if hasRacks}
       <div class="panzoom-container" bind:this={panzoomContainer}>
         <!-- Multi-rack mode: render racks with visual grouping -->
-        <div class="racks-wrapper">
+        <div
+          class="racks-wrapper"
+          class:swipe-next={swipeAnimationDirection === "next"}
+          class:swipe-previous={swipeAnimationDirection === "previous"}
+        >
           <!-- Render grouped racks with group labels -->
           {#each organizedRacks.groupEntries as { group, racks: groupRacks } (group.id)}
             {#if group.layout_preset === "bayed"}
@@ -552,6 +706,44 @@
     padding: var(--space-4);
   }
 
+  .racks-wrapper.swipe-next {
+    animation: rack-swipe-next 200ms var(--ease-out, ease-out);
+  }
+
+  .racks-wrapper.swipe-previous {
+    animation: rack-swipe-previous 200ms var(--ease-out, ease-out);
+  }
+
+  @keyframes rack-swipe-next {
+    0% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    50% {
+      opacity: 0.9;
+      transform: translateX(-18px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes rack-swipe-previous {
+    0% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    50% {
+      opacity: 0.9;
+      transform: translateX(18px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
   .rack-wrapper {
     /* Individual rack container - selection styling handled by RackDualView */
     display: inline-block;
@@ -608,6 +800,11 @@
   /* Respect reduced motion preference */
   @media (prefers-reduced-motion: reduce) {
     .canvas.party-mode {
+      animation: none;
+    }
+
+    .racks-wrapper.swipe-next,
+    .racks-wrapper.swipe-previous {
       animation: none;
     }
   }

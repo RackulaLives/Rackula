@@ -4,7 +4,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { useLongPress } from "$lib/utils/gestures";
+import {
+  useLongPress,
+  classifyRackSwipeGesture,
+  RACK_SWIPE_MIN_DISTANCE,
+  RACK_SWIPE_PAN_THRESHOLD,
+} from "$lib/utils/gestures";
 
 describe("useLongPress", () => {
   let element: HTMLElement;
@@ -334,5 +339,88 @@ describe("useLongPress", () => {
       vi.advanceTimersByTime(300);
       expect(callback).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("classifyRackSwipeGesture", () => {
+  it("returns next for a fast left swipe above threshold", () => {
+    const direction = classifyRackSwipeGesture({
+      startX: 200,
+      startY: 100,
+      endX: 120,
+      endY: 108,
+      durationMs: 180,
+      isMultiTouch: false,
+    });
+
+    expect(direction).toBe("next");
+  });
+
+  it("returns previous for a fast right swipe above threshold", () => {
+    const direction = classifyRackSwipeGesture({
+      startX: 100,
+      startY: 150,
+      endX: 170,
+      endY: 154,
+      durationMs: 160,
+      isMultiTouch: false,
+    });
+
+    expect(direction).toBe("previous");
+  });
+
+  it("returns null when swipe distance is below 50px threshold", () => {
+    const direction = classifyRackSwipeGesture({
+      startX: 100,
+      startY: 100,
+      endX: 100 + (RACK_SWIPE_MIN_DISTANCE - 1),
+      endY: 102,
+      durationMs: 120,
+      isMultiTouch: false,
+    });
+
+    expect(direction).toBeNull();
+  });
+
+  it("returns null for multi-touch gestures (pinch/zoom)", () => {
+    const direction = classifyRackSwipeGesture({
+      startX: 180,
+      startY: 180,
+      endX: 100,
+      endY: 178,
+      durationMs: 120,
+      isMultiTouch: true,
+    });
+
+    expect(direction).toBeNull();
+  });
+
+  it("returns null for pan-like gestures over pan threshold without horizontal flick", () => {
+    const direction = classifyRackSwipeGesture({
+      startX: 100,
+      startY: 100,
+      endX: 125,
+      endY: 150,
+      durationMs: 260,
+      isMultiTouch: false,
+    });
+
+    expect(
+      Math.hypot(25, 50) > RACK_SWIPE_PAN_THRESHOLD,
+    ).toBeTruthy();
+    expect(direction).toBeNull();
+  });
+
+  it("returns null for slow horizontal drags", () => {
+    const direction = classifyRackSwipeGesture({
+      startX: 200,
+      startY: 140,
+      endX: 120,
+      endY: 144,
+      durationMs: 700,
+      isMultiTouch: false,
+    });
+
+    expect(direction).toBeNull();
   });
 });
