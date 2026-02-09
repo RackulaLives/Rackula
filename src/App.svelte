@@ -28,6 +28,7 @@
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
   import MobileFileSheet from "$lib/components/MobileFileSheet.svelte";
   import MobileBottomNav from "$lib/components/mobile/MobileBottomNav.svelte";
+  import MobileHistoryControls from "$lib/components/mobile/MobileHistoryControls.svelte";
   import RackIndicator from "$lib/components/mobile/RackIndicator.svelte";
   import RackEditSheet from "$lib/components/RackEditSheet.svelte";
   import MobileViewSheet from "$lib/components/mobile/MobileViewSheet.svelte";
@@ -1439,6 +1440,8 @@
     <RackIndicator />
 
     <main class="app-main" class:mobile={viewportStore.isMobile}>
+      <MobileHistoryControls />
+
       {#if !viewportStore.isMobile}
         <PaneGroup
           direction="horizontal"
