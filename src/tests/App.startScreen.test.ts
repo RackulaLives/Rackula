@@ -103,16 +103,22 @@ describe("App Start Screen integration", () => {
     dialogStore.close();
     dialogStore.closeSheet();
 
+    shareMocks.getShareParam.mockReset();
     shareMocks.getShareParam.mockReturnValue(null);
+    shareMocks.decodeLayout.mockReset();
     shareMocks.decodeLayout.mockReturnValue(null);
     shareMocks.clearShareParam.mockReset();
 
+    persistenceStoreMocks.initializePersistence.mockReset();
     persistenceStoreMocks.initializePersistence.mockResolvedValue(true);
+    persistenceStoreMocks.isApiAvailable.mockReset();
     persistenceStoreMocks.isApiAvailable.mockReturnValue(true);
 
+    persistenceApiMocks.listSavedLayouts.mockReset();
     persistenceApiMocks.listSavedLayouts.mockResolvedValue([]);
     persistenceApiMocks.loadSavedLayout.mockReset();
 
+    sessionStorageMocks.loadSessionWithTimestamp.mockReset();
     sessionStorageMocks.loadSessionWithTimestamp.mockReturnValue(null);
     sessionStorageMocks.clearSession.mockReset();
   });
@@ -120,7 +126,14 @@ describe("App Start Screen integration", () => {
   it("shows Start Screen on load when API is available and no share link", async () => {
     render(App);
 
-    expect(await screen.findByRole("button", { name: "New Layout" })).toBeVisible();
+    await waitFor(() => {
+      expect(screen.getByTestId("start-screen")).toBeVisible();
+    });
+
+    expect(shareMocks.getShareParam).toHaveBeenCalledTimes(1);
+    expect(shareMocks.decodeLayout).not.toHaveBeenCalled();
+    expect(sessionStorageMocks.loadSessionWithTimestamp).toHaveBeenCalledTimes(1);
+    expect(persistenceStoreMocks.initializePersistence).toHaveBeenCalled();
   });
 
   it("skips Start Screen when loading a share link", async () => {
@@ -138,9 +151,8 @@ describe("App Start Screen integration", () => {
       expect(shareMocks.decodeLayout).toHaveBeenCalledWith("encoded");
     });
 
-    expect(
-      screen.queryByRole("button", { name: "New Layout" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("start-screen")).not.toBeInTheDocument();
     expect(shareMocks.clearShareParam).toHaveBeenCalledTimes(1);
+    expect(sessionStorageMocks.loadSessionWithTimestamp).not.toHaveBeenCalled();
   });
 });
