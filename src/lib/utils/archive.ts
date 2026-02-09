@@ -36,13 +36,20 @@ import {
  * Lazily load JSZip library
  * Cached after first load for subsequent calls
  */
-let jsZipModule: typeof import("jszip") | null = null;
+type JSZipConstructor = typeof import("jszip");
+type JSZipInstance = ReturnType<JSZipConstructor>;
 
-async function getJSZip(): Promise<typeof import("jszip").default> {
-  if (!jsZipModule) {
-    jsZipModule = await import("jszip");
+let jsZipConstructor: JSZipConstructor | null = null;
+
+async function getJSZip(): Promise<JSZipConstructor> {
+  if (!jsZipConstructor) {
+    const module = (await import("jszip")) as unknown as {
+      default?: JSZipConstructor;
+    };
+    jsZipConstructor =
+      module.default ?? (module as unknown as JSZipConstructor);
   }
-  return jsZipModule.default;
+  return jsZipConstructor;
 }
 
 /**
@@ -100,7 +107,7 @@ interface ZipFormat {
  * Supports both new folder structure (#919) and old flat structure
  */
 async function detectZipFormat(
-  zip: import("jszip").default,
+  zip: JSZipInstance,
 ): Promise<ZipFormat> {
   const entries = Object.keys(zip.files);
 
@@ -312,7 +319,7 @@ export async function extractFolderArchive(
  * Structure: {Name}-{UUID}/{slug}.rackula.yaml + assets/
  */
 async function extractNewFormatZip(
-  zip: import("jszip").default,
+  zip: JSZipInstance,
   format: ZipFormat,
 ): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
   // Extract YAML
@@ -373,7 +380,7 @@ async function extractNewFormatZip(
  * Structure: {name}.yaml at root, images/ folder optional
  */
 async function extractOldFormatZip(
-  zip: import("jszip").default,
+  zip: JSZipInstance,
   format: ZipFormat,
 ): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
   // Extract YAML from root
@@ -460,7 +467,7 @@ async function extractOldFormatZip(
  * Returns image data or error
  */
 async function extractImageFromZip(
-  zip: import("jszip").default,
+  zip: JSZipInstance,
   imagePath: string,
   deviceSlug: string,
   filename: string,

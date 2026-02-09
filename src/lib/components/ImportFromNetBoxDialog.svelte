@@ -95,6 +95,7 @@
       shelf: "Shelf",
       blank: "Blank Panel",
       "cable-management": "Cable Management",
+      chassis: "Chassis",
       other: "Other",
     };
     return labels[cat];
@@ -113,7 +114,7 @@
     try {
       const result = await parseNetBoxYaml(yamlInput);
 
-      if (!result.success) {
+      if (result.success === false) {
         parseError = result.error;
       } else {
         parsedData = result.data;

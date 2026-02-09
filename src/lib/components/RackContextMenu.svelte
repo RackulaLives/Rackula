@@ -64,7 +64,7 @@
 </script>
 
 <ContextMenu.Root {open} onOpenChange={handleOpenChange}>
-  <ContextMenu.Trigger asChild>
+  <ContextMenu.Trigger>
     {@render children()}
   </ContextMenu.Trigger>
 

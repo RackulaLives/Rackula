@@ -130,6 +130,7 @@
       shelf: "Shelf",
       blank: "Blank Panel",
       "cable-management": "Cable Management",
+      chassis: "Chassis",
       other: "Other",
     };
     return labels[cat];

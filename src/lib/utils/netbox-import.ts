@@ -460,7 +460,7 @@ export async function importFromNetBoxYaml(
 > {
   const parseResult = await parseNetBoxYaml(yamlString);
 
-  if (!parseResult.success) {
+  if (parseResult.success === false) {
     return { success: false, error: parseResult.error };
   }
 
