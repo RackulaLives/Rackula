@@ -204,7 +204,7 @@
 <Dialog.Root {open} onOpenChange={handleOpenChange}>
   <Dialog.Portal>
     <Dialog.Overlay class="dialog-backdrop" />
-    <Dialog.Content class="help-dialog" style="width: 600px;">
+    <Dialog.Content class="dialog help-dialog" style="--dialog-width: 600px;">
       <!-- Visually hidden title for accessibility -->
       <Dialog.Title class="sr-only">About Rackula</Dialog.Title>
       <Dialog.Description class="help-dialog-description">
@@ -339,26 +339,18 @@
   /* Base dialog styles (.dialog-backdrop, .dialog-title, .dialog-close)
      are defined in src/lib/styles/dialogs.css and imported globally */
 
-  /* HelpPanel-specific dialog container with size constraints */
+  /* HelpPanel-specific size constraints on top of shared dialog styling */
   :global(.help-dialog) {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--colour-dialog-bg, var(--colour-bg));
-    border: 1px solid var(--colour-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
+    width: var(--dialog-width, 600px);
     max-width: 90vw;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-    z-index: calc(var(--z-modal, 200) + 1);
+    max-height: min(90vh, 90dvh);
   }
 
   .dialog-content {
     padding: var(--space-4);
     overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   /* Screen reader only - visually hidden but accessible */
@@ -378,6 +370,15 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
+  }
+
+  @media (max-width: 430px) {
+    .dialog-content {
+      padding-bottom: max(
+        var(--space-4),
+        calc(env(safe-area-inset-bottom, 0px) + var(--space-2))
+      );
+    }
   }
 
   /* Header row: Logo + Version */

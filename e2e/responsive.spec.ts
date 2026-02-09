@@ -143,6 +143,94 @@ test.describe("Responsive Layout", () => {
     });
   });
 
+  test.describe("Phone viewport dialogs (375px)", () => {
+    test.beforeEach(async ({ page }) => {
+      await page.setViewportSize({ width: 375, height: 667 });
+      await page.goto("/");
+      await page.evaluate(() => {
+        sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
+        localStorage.setItem("Rackula_has_started", "true");
+      });
+      await page.reload();
+      await page.waitForTimeout(300);
+    });
+
+    test("new rack dialog is fully visible and touch-friendly", async ({
+      page,
+    }) => {
+      await expect(page.locator(".dialog-title")).toHaveText("New Rack");
+      const dialog = page.locator('.dialog[role="dialog"]').first();
+      await expect(dialog).toBeVisible();
+
+      const box = await dialog.boundingBox();
+      expect(box).toBeTruthy();
+      if (box) {
+        expect(box.x).toBeGreaterThanOrEqual(-1);
+        expect(box.width).toBeGreaterThanOrEqual(374);
+        expect(box.y).toBeGreaterThanOrEqual(-1);
+        expect(box.y + box.height).toBeLessThanOrEqual(668);
+      }
+
+      const style = await dialog.evaluate((element) => {
+        const computed = window.getComputedStyle(element);
+        return {
+          position: computed.position,
+          left: computed.left,
+          right: computed.right,
+          bottom: computed.bottom,
+        };
+      });
+
+      expect(style.position).toBe("fixed");
+      expect(style.left).toBe("0px");
+      expect(style.right).toBe("0px");
+      expect(style.bottom).toBe("0px");
+
+      const actions = dialog.locator(".form-actions");
+      await expect(actions).toBeVisible();
+      const actionButtons = actions.locator("button");
+      const actionCount = await actionButtons.count();
+      expect(actionCount).toBeGreaterThanOrEqual(2);
+
+      const actionsBox = await actions.boundingBox();
+      expect(actionsBox).toBeTruthy();
+      if (actionsBox) {
+        for (let i = 0; i < actionCount; i++) {
+          const buttonBox = await actionButtons.nth(i).boundingBox();
+          expect(buttonBox).toBeTruthy();
+          if (buttonBox) {
+            expect(buttonBox.width).toBeGreaterThanOrEqual(
+              actionsBox.width * 0.95,
+            );
+          }
+        }
+      }
+
+      const cancelButton = actions.getByRole("button", { name: "Cancel" });
+      const cancelBox = await cancelButton.boundingBox();
+      expect(cancelBox).toBeTruthy();
+      if (cancelBox) {
+        expect(cancelBox.height).toBeGreaterThanOrEqual(44);
+      }
+
+      const overflowY = await dialog
+        .locator(".dialog-content")
+        .evaluate((element) => window.getComputedStyle(element).overflowY);
+      expect(["auto", "scroll"]).toContain(overflowY);
+
+      // Simulate virtual keyboard reducing visible viewport height.
+      await page.setViewportSize({ width: 375, height: 420 });
+      await expect(dialog).toBeVisible();
+
+      const compactBox = await dialog.boundingBox();
+      expect(compactBox).toBeTruthy();
+      if (compactBox) {
+        expect(compactBox.y).toBeGreaterThanOrEqual(-1);
+        expect(compactBox.y + compactBox.height).toBeLessThanOrEqual(421);
+      }
+    });
+  });
+
   test.describe("Panzoom at narrow viewport", () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: 800, height: 600 });
