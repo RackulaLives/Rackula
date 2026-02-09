@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render } from "@testing-library/svelte";
 import Canvas from "$lib/components/Canvas.svelte";
 import {
@@ -31,6 +31,11 @@ describe("Canvas touch listener lifecycle", () => {
       removeEventListener: () => {},
       dispatchEvent: () => true,
     }));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("attaches and detaches touch listeners across remount without duplicates", () => {

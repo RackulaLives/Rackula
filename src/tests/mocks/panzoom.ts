@@ -14,7 +14,9 @@ export function createMockPanzoom(initialScale = 1) {
         y: y - (y - transform.y) * scaleRatio,
         scale,
       };
-      listeners["zoom"]?.forEach((cb) => cb());
+      listeners["zoom"]?.forEach((cb) => {
+        cb();
+      });
     }),
     smoothZoomAbs: vi.fn((x: number, y: number, scale: number) => {
       const oldScale = transform.scale || 1;
@@ -24,7 +26,9 @@ export function createMockPanzoom(initialScale = 1) {
         y: y - (y - transform.y) * scaleRatio,
         scale,
       };
-      listeners["zoom"]?.forEach((cb) => cb());
+      listeners["zoom"]?.forEach((cb) => {
+        cb();
+      });
     }),
     moveTo: vi.fn((x: number, y: number) => {
       transform.x = x;
