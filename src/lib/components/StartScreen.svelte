@@ -193,7 +193,7 @@
   }
 </script>
 
-<div class="start-screen">
+<div class="start-screen" data-testid="start-screen">
   <div class="start-screen-content">
     <header class="start-header">
       <LogoLockup size={48} showcase={true} alwaysShowTitle={true} />
