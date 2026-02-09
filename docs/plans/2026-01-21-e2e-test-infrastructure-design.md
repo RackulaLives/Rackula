@@ -4,6 +4,8 @@
 **Status:** Ready for implementation
 **Related Issue:** #901 (superseded by this design)
 
+> Note: this design remains under `docs/plans/` to preserve existing issue links. Roadmap-level docs continue to live in `docs/planning/`.
+
 ## Problem
 
 Multiple E2E tests fail because the `beforeEach` hook expects a rack to exist, but the app shows the "New Rack" wizard instead. Setting `hasStarted=true` in localStorage doesn't create racks - it only controls UI visibility.
@@ -31,29 +33,30 @@ Use the existing share link mechanism (`?l=<encoded>`) to load pre-built test la
 Create `e2e/helpers/test-layouts.ts` with pre-encoded share links:
 
 ```typescript
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import pako from "pako";
+import type { MinimalLayout } from "../../src/lib/schemas/share";
 
-const APP_VERSION = "0.7.0";
+const { version: APP_VERSION } = JSON.parse(
+  readFileSync(resolve(process.cwd(), "package.json"), "utf8"),
+) as { version: MinimalLayout["v"] };
 
 const EMPTY_RACK_MINIMAL = {
   v: APP_VERSION,
   n: "Test Layout",
   r: { n: "Test Rack", h: 42, w: 19, d: [] },
   dt: [],
+} satisfies MinimalLayout;
+
+const EMPTY_12U_RACK: MinimalLayout = {
+  ...EMPTY_RACK_MINIMAL,
+  n: "Small Test Layout",
+  r: { ...EMPTY_RACK_MINIMAL.r, n: "Small Rack", h: 12 },
 };
 
-function encodeMinimal(obj: object): string {
-  const json = JSON.stringify(obj);
-  const compressed = pako.deflate(json);
-  const base64 = btoa(String.fromCharCode(...compressed));
-  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
 export const EMPTY_RACK_SHARE = encodeMinimal(EMPTY_RACK_MINIMAL);
-export const SMALL_RACK_SHARE = encodeMinimal({
-  ...EMPTY_RACK_MINIMAL,
-  r: { ...EMPTY_RACK_MINIMAL.r, h: 12 },
-});
+export const SMALL_RACK_SHARE = encodeMinimal(EMPTY_12U_RACK);
 ```
 
 ### 2. Test Usage Pattern
@@ -113,13 +116,22 @@ export async function completeWizardWithKeyboard(
     name?: string;
     heightPreset?: 1 | 2 | 3 | 4;
     layout?: "column" | "bayed";
+    bayCount?: 2 | 3;
   },
 ) {
   if (options?.name) {
+    await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.type(options.name);
   }
+  if (options?.layout === "bayed") {
+    await page.keyboard.press("ArrowRight");
+  }
+  await page.keyboard.press("Enter");
   if (options?.heightPreset) {
     await page.keyboard.press(String(options.heightPreset));
+  }
+  if (options?.layout === "bayed" && options.bayCount === 3) {
+    await page.keyboard.press("ArrowRight");
   }
   await page.keyboard.press("Enter");
   await page.locator(".rack-container").first().waitFor({ state: "visible" });

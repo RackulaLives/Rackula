@@ -61,8 +61,6 @@ function setupErrorCollection(
 }
 
 test.describe("Smoke Tests - JavaScript Initialization", () => {
-  // No beforeEach needed - each test sets up error collection and uses gotoWithRack
-
   test("app loads without JavaScript errors", async ({ page }) => {
     const errors = setupErrorCollection(page);
 
@@ -138,8 +136,6 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
 });
 
 test.describe("Smoke Tests - Console Warnings", () => {
-  // No beforeEach needed - each test uses gotoWithRack
-
   test("no unhandled promise rejections during load", async ({ page }) => {
     const rejections = setupErrorCollection(page, {
       filter: (m) => m.includes("Unhandled"),

@@ -8,11 +8,42 @@ interface WizardOptions {
   name?: string;
   heightPreset?: 1 | 2 | 3 | 4; // 1=12U, 2=18U, 3=24U, 4=42U
   layout?: "column" | "bayed";
-  customHeight?: number;
+  bayCount?: 2 | 3;
+  height?: number;
+}
+
+const HEIGHT_BY_PRESET: Record<NonNullable<WizardOptions["heightPreset"]>, number> = {
+  1: 12,
+  2: 18,
+  3: 24,
+  4: 42,
+};
+
+function resolveHeight(options?: WizardOptions): number {
+  if (typeof options?.height === "number") {
+    return options.height;
+  }
+  if (options?.heightPreset) {
+    return HEIGHT_BY_PRESET[options.heightPreset];
+  }
+  return 42;
+}
+
+async function selectHeight(page: Page, height: number): Promise<void> {
+  const presetHeights = [12, 18, 24, 42];
+  if (presetHeights.includes(height)) {
+    await page.click(`.height-btn:has-text("${height}U")`);
+    return;
+  }
+
+  await page.click('.height-btn:has-text("Custom")');
+  await page.fill("#custom-height", String(height));
 }
 
 /**
  * Complete the New Rack wizard using keyboard shortcuts
+ * Note: Keyboard flow supports preset heights only (12/18/24/42) via HEIGHT_BY_PRESET.
+ * For custom heights, use completeWizardWithClicks, which delegates to selectHeight.
  * @param page - Playwright page
  * @param options - Wizard configuration
  */
@@ -26,7 +57,7 @@ export async function completeWizardWithKeyboard(
   // Step 1: Name field is auto-focused with default text selected
   if (options?.name) {
     // Clear default and type new name
-    await page.keyboard.press("Control+a");
+    await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.type(options.name);
   }
 
@@ -39,8 +70,21 @@ export async function completeWizardWithKeyboard(
   await page.keyboard.press("Enter");
 
   // Step 2: Select height with number key
-  if (options?.heightPreset) {
-    await page.keyboard.press(String(options.heightPreset));
+  const selectedHeight = resolveHeight(options);
+  const selectedPreset = Object.entries(HEIGHT_BY_PRESET).find(
+    ([, value]) => value === selectedHeight,
+  )?.[0];
+  if (selectedPreset) {
+    await page.keyboard.press(selectedPreset);
+  } else {
+    throw new Error(
+      `completeWizardWithKeyboard only supports preset heights (12, 18, 24, 42). Received: ${selectedHeight}`,
+    );
+  }
+
+  // Bay count shortcuts on step 2 (default is 2 bays)
+  if (options?.layout === "bayed" && options.bayCount === 3) {
+    await page.keyboard.press("ArrowRight");
   }
 
   // Press Enter to create
@@ -57,7 +101,7 @@ export async function completeWizardWithKeyboard(
  */
 export async function completeWizardWithClicks(
   page: Page,
-  options?: { name?: string; height?: number; layout?: "column" | "bayed" },
+  options?: WizardOptions,
 ): Promise<void> {
   // Wait for wizard
   await expect(page.locator('[role="dialog"]')).toBeVisible();
@@ -75,15 +119,13 @@ export async function completeWizardWithClicks(
   // Click Next
   await page.click('button:has-text("Next")');
 
-  // Select height if provided
-  const height = options?.height ?? 42;
-  const presetHeights = [12, 18, 24, 42];
-  if (presetHeights.includes(height)) {
-    await page.click(`.height-btn:has-text("${height}U")`);
-  } else {
-    await page.click('.height-btn:has-text("Custom")');
-    await page.fill("#custom-height", String(height));
+  // Bay count selection for bayed layouts (default is 2)
+  if (options?.layout === "bayed" && options.bayCount === 3) {
+    await page.click('.bay-btn:has-text("3 Bays")');
   }
+
+  // Select height (preset or custom)
+  await selectHeight(page, resolveHeight(options));
 
   // Click Create
   await page.click('button:has-text("Create")');
@@ -101,12 +143,5 @@ export async function fillRackForm(
   height: number,
 ): Promise<void> {
   await page.fill("#rack-name", name);
-
-  const presetHeights = [12, 18, 24, 42];
-  if (presetHeights.includes(height)) {
-    await page.click(`.height-btn:has-text("${height}U")`);
-  } else {
-    await page.click('.height-btn:has-text("Custom")');
-    await page.fill("#custom-height", String(height));
-  }
+  await selectHeight(page, height);
 }

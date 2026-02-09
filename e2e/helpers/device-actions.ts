@@ -120,6 +120,15 @@ export async function deselectDevice(page: Page): Promise<void> {
  * Note: This removes immediately without a confirmation dialog
  */
 export async function deleteSelectedDevice(page: Page): Promise<void> {
-  // The remove button has aria-label="Remove from rack"
+  const devices = page.locator(".rack-device");
+  const countBeforeDelete = await devices.count();
+
   await page.click('button[aria-label="Remove from rack"]');
+
+  await expect(async () => {
+    const countAfterDelete = await devices.count();
+    expect(countAfterDelete).toBeLessThan(countBeforeDelete);
+  }).toPass({ timeout: 5000 });
+
+  await expect(page.locator("aside.drawer-right.open")).not.toBeVisible();
 }

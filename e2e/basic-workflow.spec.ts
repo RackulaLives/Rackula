@@ -21,16 +21,16 @@ test.describe("Basic Workflow", () => {
     await expect(page.locator(".rack-dual-view-name")).toBeVisible();
   });
 
-  // Skip these tests - the "Replace Rack" flow was part of v0.2 behavior
-  // The current app has a different workflow for creating new racks
-  test.skip("can replace current rack with a new one", async ({
+  // FIXME(#903): Restore when replace-rack flow is reintroduced with current UX.
+  test.fixme("can replace current rack with a new one", async ({
     page: _page,
   }) => {
     // The v0.2 "Replace" flow used a toolbar button + replace dialog
     // This may have changed in the current app version
   });
 
-  test.skip("rack appears on canvas after replacement", async ({
+  // FIXME(#903): Restore when replace-rack flow is reintroduced with current UX.
+  test.fixme("rack appears on canvas after replacement", async ({
     page: _page,
   }) => {
     // Same as above - v0.2 replace flow may have changed
@@ -99,9 +99,8 @@ test.describe("Basic Workflow", () => {
     await expect(page.locator(".rack-device")).not.toBeVisible();
   });
 
-  // Skip this test - rack deletion flow may have changed from v0.2
-  // The UI for selecting and deleting a rack (vs device) needs investigation
-  test.skip("can clear rack (v0.2 does not remove the rack)", async ({
+  // FIXME(#903): Restore when rack deletion flow is validated in current UX.
+  test.fixme("can clear rack (v0.2 does not remove the rack)", async ({
     page: _page,
   }) => {
     // This test clicks on the rack-svg to select the rack, then expects a Delete button
