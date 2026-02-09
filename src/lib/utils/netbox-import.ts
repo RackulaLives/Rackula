@@ -8,8 +8,8 @@ import type {
   DeviceCategory,
   Airflow,
   RackWidth,
+  InterfaceTemplate,
 } from "$lib/types";
-import type { InterfaceTemplate } from "$lib/types";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import { parseYaml } from "./yaml";
 

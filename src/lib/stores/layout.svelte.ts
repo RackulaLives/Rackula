@@ -2198,7 +2198,7 @@ function updateDeviceIpRaw(
 
       if (normalizedIp === undefined) {
         // Removing IP - clean up custom_fields if it becomes empty
-        if (!Object.prototype.hasOwnProperty.call(currentCustomFields, "ip")) {
+        if (!Object.hasOwn(currentCustomFields, "ip")) {
           return d; // No change needed - IP doesn't exist
         }
         const { ip: _ip, ...restFields } = currentCustomFields;
@@ -2913,7 +2913,7 @@ function removeDeviceRecorded(rackId: string, deviceIndex: number): void {
 
   // Get a snapshot to convert from reactive proxy to plain object
   // structuredClone in the command factory requires a plain object
-  const device = $state.snapshot(targetRack.devices[deviceIndex]!);
+  const device = $state.snapshot(targetRack.devices[deviceIndex]);
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
     device.device_type,

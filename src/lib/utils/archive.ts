@@ -323,9 +323,13 @@ async function extractNewFormatZip(
   format: ZipFormat,
 ): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
   // Extract YAML
-  const yamlFile = zip.file(format.yamlPath!);
+  const yamlPath = format.yamlPath;
+  if (!yamlPath) {
+    throw new Error("YAML path missing for new-format archive");
+  }
+  const yamlFile = zip.file(yamlPath);
   if (!yamlFile) {
-    throw new Error(`YAML file not found: ${format.yamlPath}`);
+    throw new Error(`YAML file not found: ${yamlPath}`);
   }
   const yamlContent = await yamlFile.async("string");
   const layout = await parseLayoutYaml(yamlContent);
@@ -334,17 +338,18 @@ async function extractNewFormatZip(
   const images: ImageStoreMap = new Map();
   const failedImages: string[] = [];
 
-  if (format.assetsPath) {
+  const assetsPath = format.assetsPath;
+  if (assetsPath) {
     const imageFiles = Object.keys(zip.files).filter(
       (name) =>
-        name.startsWith(format.assetsPath!) &&
+        name.startsWith(assetsPath) &&
         !name.endsWith("/") &&
         isImageFile(name),
     );
 
     for (const imagePath of imageFiles) {
       // Parse path: folder/assets/[slug]/[filename].[ext]
-      const relativePath = imagePath.substring(format.assetsPath!.length);
+      const relativePath = imagePath.substring(assetsPath.length);
       const parts = relativePath.split("/");
 
       if (parts.length !== 2) continue;
@@ -384,9 +389,13 @@ async function extractOldFormatZip(
   format: ZipFormat,
 ): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
   // Extract YAML from root
-  const yamlFile = zip.file(format.yamlPath!);
+  const yamlPath = format.yamlPath;
+  if (!yamlPath) {
+    throw new Error("YAML path missing for old-format archive");
+  }
+  const yamlFile = zip.file(yamlPath);
   if (!yamlFile) {
-    throw new Error(`YAML file not found: ${format.yamlPath}`);
+    throw new Error(`YAML file not found: ${yamlPath}`);
   }
   const yamlContent = await yamlFile.async("string");
   const layout = await parseLayoutYaml(yamlContent);
@@ -434,10 +443,11 @@ async function extractOldFormatZip(
       const filename = parts[0];
       if (!filename) continue;
 
-      const match = filename.match(/^(.+)-(front|rear)\.\w+$/);
+      const match = /^(.+)-(front|rear)\.\w+$/.exec(filename);
       if (match) {
-        const deviceSlug = match[1]!;
-        const face = match[2] as "front" | "rear";
+        const [, deviceSlug, faceToken] = match;
+        if (!deviceSlug || !faceToken) continue;
+        const face = faceToken as "front" | "rear";
 
         const result = await extractImageFromZip(
           zip,
@@ -478,10 +488,10 @@ async function extractImageFromZip(
   error?: boolean;
 }> {
   // Check for device type image: front.{ext} or rear.{ext}
-  const deviceTypeFaceMatch = filename.match(/^(front|rear)\.\w+$/);
+  const deviceTypeFaceMatch = /^(front|rear)\.\w+$/.exec(filename);
 
   // Check for placement image: {deviceId}-front.{ext} or {deviceId}-rear.{ext}
-  const placementFaceMatch = filename.match(/^(.+)-(front|rear)\.\w+$/);
+  const placementFaceMatch = /^(.+)-(front|rear)\.\w+$/.exec(filename);
 
   let imageKey: string;
   let face: "front" | "rear";
