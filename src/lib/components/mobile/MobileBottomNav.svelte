@@ -70,7 +70,7 @@
 <style>
   .bottom-nav {
     position: fixed;
-    bottom: 0;
+    bottom: var(--keyboard-height, 0px);
     left: 0;
     right: 0;
     z-index: var(--z-bottom-nav, 100);
@@ -78,7 +78,7 @@
     justify-content: space-around;
     align-items: stretch;
     height: var(--bottom-nav-height);
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--safe-area-bottom, 0px);
     background: var(--bottom-nav-bg);
     backdrop-filter: blur(var(--bottom-nav-blur));
     -webkit-backdrop-filter: blur(var(--bottom-nav-blur));
