@@ -354,6 +354,32 @@ describe('Canvas Store', () => {
 			expect(store.zoom).toBe(initialZoom);
 		});
 
+		it('fitAll does nothing when canvas element is cleared', () => {
+			const store = getCanvasStore();
+			const mockPanzoom = createMockPanzoom(1);
+
+			store.setPanzoomInstance(mockPanzoom as ReturnType<typeof import('panzoom').default>);
+			store.setCanvasElement(null);
+
+			const mockRacks = [
+				{
+					name: 'Test',
+					height: 42,
+					width: 19 as const,
+					position: 0,
+					desc_units: false,
+					form_factor: '4-post' as const,
+					starting_unit: 1,
+					devices: []
+				}
+			] as Parameters<typeof store.fitAll>[0];
+
+			store.fitAll(mockRacks);
+
+			expect(mockPanzoom.zoomAbs).not.toHaveBeenCalled();
+			expect(mockPanzoom.moveTo).not.toHaveBeenCalled();
+		});
+
 		it('fitAll centers rack in viewport when panzoom is available', () => {
 			const store = getCanvasStore();
 			const mockPanzoom = createMockPanzoom(1);

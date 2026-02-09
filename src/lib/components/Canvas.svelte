@@ -114,6 +114,9 @@
   const SWIPE_SWITCH_ANIMATION_MS = 200;
   const TOUCH_MOVE_LOG_INTERVAL_MS = 120;
   const TOUCH_LISTENER_OPTIONS: AddEventListenerOptions = {
+    // Capture keeps swipe tracking robust even if child components stop bubbling.
+    // Because listeners are passive and never call stopPropagation/preventDefault,
+    // child touch handlers still run and panzoom keeps gesture ownership.
     capture: true,
     passive: true,
   };
@@ -237,6 +240,7 @@
         handleCanvasTouchCancel,
         TOUCH_LISTENER_OPTIONS,
       );
+      canvasStore.setCanvasElement(null);
     };
   });
 

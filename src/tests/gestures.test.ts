@@ -424,6 +424,33 @@ describe("classifyRackSwipeGesture", () => {
     expect(direction).toBe("next");
   });
 
+  it("returns null for short fast diagonal swipes below minimum distance", () => {
+    const direction = classifyRackSwipeGesture({
+      startX: 220,
+      startY: 180,
+      endX: 220 - (RACK_SWIPE_MIN_DISTANCE - 5),
+      endY: 156,
+      durationMs: 90,
+      isMultiTouch: false,
+    });
+
+    expect(direction).toBeNull();
+  });
+
+  it("keeps horizontal-dominant diagonal swipes over pan threshold valid", () => {
+    const direction = classifyRackSwipeGesture({
+      startX: 250,
+      startY: 110,
+      endX: 172,
+      endY: 68,
+      durationMs: 170,
+      isMultiTouch: false,
+    });
+
+    expect(Math.hypot(78, 42)).toBeGreaterThan(RACK_SWIPE_PAN_THRESHOLD);
+    expect(direction).toBe("next");
+  });
+
   it("returns null for slow horizontal drags", () => {
     const direction = classifyRackSwipeGesture({
       startX: 200,
