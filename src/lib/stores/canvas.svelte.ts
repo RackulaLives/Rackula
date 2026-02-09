@@ -231,9 +231,9 @@ function smoothMoveTo(x: number, y: number, scale: number): void {
 }
 
 /**
- * Set the canvas container element (for viewport measurements)
+ * Set or clear the canvas container element (for viewport measurements)
  */
-function setCanvasElement(element: HTMLElement): void {
+function setCanvasElement(element: HTMLElement | null): void {
   canvasElement = element;
 }
 

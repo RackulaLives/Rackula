@@ -19,6 +19,9 @@
   import ULabels from "./ULabels.svelte";
   import AnnotationColumn from "./AnnotationColumn.svelte";
   import { useLongPress } from "$lib/utils/gestures";
+  import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
+  import { appDebug } from "$lib/utils/debug";
+  import { hapticTap } from "$lib/utils/haptics";
   import {
     RACK_PADDING_HIDDEN,
     ANNOTATION_WIDTH_COMPACT,
@@ -160,49 +163,101 @@
 
   // Element reference for long press
   let containerElement: HTMLDivElement | null = $state(null);
+  const bayedLongPressDebug = appDebug.mobile.extend("bayed-rack-view");
 
   // Long press state (per-rack)
   let longPressRackId = $state<string | null>(null);
   let longPressProgress = $state(0);
   let longPressActive = $state(false);
+  let longPressPoint = $state<{ x: number; y: number } | null>(null);
+  let longPressTarget = $state<Element | null>(null);
+  let longPressTriggerElement = $state<HTMLElement | null>(null);
 
   // Attach long press gesture when enabled
   $effect(() => {
-    if (!enableLongPress || !containerElement || !onlongpress) {
+    if (!enableLongPress || !containerElement) {
       longPressActive = false;
       longPressProgress = 0;
+      longPressPoint = null;
+      longPressTarget = null;
+      longPressRackId = null;
+      longPressTriggerElement = null;
       return;
     }
 
     const cleanup = useLongPress(
       containerElement,
       () => {
-        if (longPressRackId) {
-          longPressActive = false;
-          longPressProgress = 0;
-          onlongpress(
+        const rackId = longPressRackId;
+        const point = longPressPoint;
+        const target = longPressTarget;
+        const triggerElement = longPressTriggerElement;
+
+        longPressActive = false;
+        longPressProgress = 0;
+        longPressPoint = null;
+        longPressTarget = null;
+        longPressRackId = null;
+        longPressTriggerElement = null;
+
+        if (!rackId) return;
+
+        if (!point) {
+          onlongpress?.(
             new CustomEvent("longpress", {
-              detail: { rackId: longPressRackId },
+              detail: { rackId },
             }),
           );
+          return;
         }
+
+        // Device long-press has its own context menu behavior.
+        if (target?.closest(".rack-device")) {
+          bayedLongPressDebug(
+            "skip rack context menu: device target rackId=%s point=%o",
+            rackId,
+            point,
+          );
+          return;
+        }
+
+        hapticTap();
+        const fallbackTarget = triggerElement ?? containerElement ?? document.body;
+        bayedLongPressDebug(
+          "dispatch rack context menu rackId=%s point=%o hasTarget=%s",
+          rackId,
+          point,
+          Boolean(target),
+        );
+        dispatchContextMenuAtPoint(point.x, point.y, fallbackTarget);
       },
       {
         onProgress: (progress) => {
           longPressProgress = progress;
         },
-        onStart: () => {
+        onStart: (x, y) => {
           longPressActive = true;
+          longPressPoint = { x, y };
+          longPressTarget = document.elementFromPoint(x, y);
         },
         onCancel: () => {
           longPressActive = false;
           longPressProgress = 0;
+          longPressPoint = null;
+          longPressTarget = null;
+          longPressRackId = null;
+          longPressTriggerElement = null;
         },
       },
     );
 
     return cleanup;
   });
+
+  function handleBayPointerDown(event: PointerEvent, rackId: string) {
+    longPressRackId = rackId;
+    longPressTriggerElement = event.currentTarget as HTMLElement;
+  }
 
   // Handle device drop on front view - add face: 'front' to the event
   function handleFrontDeviceDrop(
@@ -301,7 +356,7 @@
           class:active={isActive}
           class:selected={isSelected}
           role="presentation"
-          onpointerdown={() => (longPressRackId = rack.id)}
+          onpointerdown={(event) => handleBayPointerDown(event, rack.id)}
         >
           <div class="bay-label">Bay {bayIndex + 1}</div>
           <Rack
@@ -378,7 +433,7 @@
             class:active={isActive}
             class:selected={isSelected}
             role="presentation"
-            onpointerdown={() => (longPressRackId = rack.id)}
+            onpointerdown={(event) => handleBayPointerDown(event, rack.id)}
           >
             <div class="bay-label">Bay {bayIndex + 1}</div>
             <Rack

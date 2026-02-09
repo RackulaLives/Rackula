@@ -28,6 +28,7 @@
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { useLongPress } from "$lib/utils/gestures";
+  import { hapticTap } from "$lib/utils/haptics";
   import { RAIL_WIDTH } from "$lib/constants/layout";
   import {
     fitTextToWidth,
@@ -178,6 +179,7 @@
 
   // SVG group element ref for long-press gesture
   let groupElement: SVGGElement | null = $state(null);
+  let longPressPoint = $state<{ x: number; y: number } | null>(null);
 
   // Rect element ref for pointer capture (Safari 18.x fix #411)
   let rectElement: SVGRectElement | null = $state(null);
@@ -472,18 +474,7 @@
     activePointerId = null;
   }
 
-  // Long-press handler for mobile (triggers selection + details)
-  function handleLongPress() {
-    onselect?.(
-      new CustomEvent("select", { detail: { slug: device.slug, position } }),
-    );
-  }
-
-  // Context menu handler (right-click) - opens device context menu
-  function handleContextMenu(event: MouseEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-
+  function openDeviceContextMenu(x: number, y: number) {
     // If context menu handler is provided, use it; otherwise fall back to duplicate
     if (oncontextmenuopen) {
       oncontextmenuopen(
@@ -491,23 +482,47 @@
           detail: {
             rackId,
             deviceIndex,
-            x: event.clientX,
-            y: event.clientY,
+            x,
+            y,
           },
         }),
       );
-    } else {
-      // Fallback to legacy duplicate behavior
-      onduplicate?.(
-        new CustomEvent("duplicate", { detail: { rackId, deviceIndex } }),
-      );
+      return;
     }
+
+    // Fallback to legacy duplicate behavior
+    onduplicate?.(
+      new CustomEvent("duplicate", { detail: { rackId, deviceIndex } }),
+    );
+  }
+
+  // Long-press handler for mobile/tablet (opens device actions)
+  function handleLongPress() {
+    if (!longPressPoint) return;
+
+    hapticTap();
+    openDeviceContextMenu(longPressPoint.x, longPressPoint.y);
+    longPressPoint = null;
+  }
+
+  // Context menu handler (right-click) - opens device context menu
+  function handleContextMenu(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    openDeviceContextMenu(event.clientX, event.clientY);
   }
 
   // Set up long-press gesture on mobile (reactive to viewport changes)
   $effect(() => {
     if (viewportStore.isMobile && groupElement) {
-      const cleanup = useLongPress(groupElement, handleLongPress);
+      const cleanup = useLongPress(groupElement, handleLongPress, {
+        onStart: (x, y) => {
+          longPressPoint = { x, y };
+        },
+        onCancel: () => {
+          longPressPoint = null;
+        },
+      });
       return cleanup;
     }
   });
