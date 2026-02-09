@@ -50,11 +50,6 @@
   } from "$lib/types";
   import type { ImageData } from "$lib/types/images";
 
-  // Use dynamic active rack ID from store
-  const currentRackId = $derived(
-    layoutStore.activeRackId ?? layoutStore.racks[0]?.id ?? null,
-  );
-
   // Map manufacturer names to simple-icons slugs
   const manufacturerIconMap: Record<string, string> = {
     Ubiquiti: "ubiquiti",
@@ -78,6 +73,11 @@
   const toastStore = getToastStore();
   const canvasStore = getCanvasStore();
   const imageStore = getImageStore();
+
+  // Use dynamic active rack ID from store
+  const currentRackId = $derived(
+    layoutStore.activeRackId ?? layoutStore.racks[0]?.id ?? null,
+  );
 
   // Local state for form fields
   let rackName = $state("");

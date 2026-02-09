@@ -4,6 +4,7 @@
  */
 
 import Fuse from "fuse.js";
+import type { IFuseOptions } from "fuse.js";
 import type { DeviceType, DeviceCategory } from "$lib/types";
 
 /**
@@ -11,7 +12,7 @@ import type { DeviceType, DeviceCategory } from "$lib/types";
  * Threshold of 0.3 balances typo tolerance with precision.
  * Lower = stricter matching, higher = more lenient.
  */
-const fuseOptions: Fuse.IFuseOptions<DeviceType> = {
+const fuseOptions: IFuseOptions<DeviceType> = {
   keys: [
     { name: "model", weight: 3 },
     { name: "manufacturer", weight: 2 },
@@ -145,6 +146,7 @@ export function getCategoryDisplayName(category: DeviceCategory): string {
     shelf: "Shelves",
     blank: "Blanks",
     "cable-management": "Cable Management",
+    chassis: "Chassis",
     other: "Other",
   };
 

@@ -140,7 +140,7 @@
   }
 
   function confirmClearRack() {
-    layoutStore.clearRackDevices(rack.id);
+    layoutStore.clearRackRecorded(rack.id);
     showClearConfirm = false;
     onclose?.();
   }
@@ -306,14 +306,17 @@
 
 <!-- Clear Rack Confirmation Dialog -->
 <ConfirmDialog
-  bind:open={showClearConfirm}
+  open={showClearConfirm}
   title="Clear Rack"
   message="Remove all {deviceCount} {deviceCount === 1
     ? 'device'
     : 'devices'} from this rack? This action can be undone."
-  confirmText="Clear"
-  danger={true}
+  confirmLabel="Clear"
+  destructive={true}
   onconfirm={confirmClearRack}
+  oncancel={() => {
+    showClearConfirm = false;
+  }}
 />
 
 <style>

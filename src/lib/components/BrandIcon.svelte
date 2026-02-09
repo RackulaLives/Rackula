@@ -24,6 +24,7 @@
   import { Zap } from "@lucide/svelte";
   import {
     acInfinityPath,
+    aristaPath,
     cyberPowerPath,
     deskPiPath,
     netgatePath,
@@ -56,6 +57,7 @@
     blackmagicdesign: siBlackmagicdesign,
     apple: siApple,
     // Custom brand icons (not in simple-icons)
+    arista: { path: aristaPath, hex: "FFFFFF" },
     acinfinity: { path: acInfinityPath, hex: "FFFFFF" },
     cyberpower: { path: cyberPowerPath, hex: "FFFFFF" },
     deskpi: { path: deskPiPath, hex: "FFFFFF" },

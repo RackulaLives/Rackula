@@ -242,20 +242,11 @@ function parseArgs(argv: string[]): ScriptOptions {
     } else if (arg === "--limit" && argv[i + 1]) {
       options.limit = parseNonNegativeInt("--limit", argv[++i]);
     } else if (arg === "--phase1-limit" && argv[i + 1]) {
-      options.phase1Limit = parseNonNegativeInt(
-        "--phase1-limit",
-        argv[++i],
-      );
+      options.phase1Limit = parseNonNegativeInt("--phase1-limit", argv[++i]);
     } else if (arg === "--phase2-limit" && argv[i + 1]) {
-      options.phase2Limit = parseNonNegativeInt(
-        "--phase2-limit",
-        argv[++i],
-      );
+      options.phase2Limit = parseNonNegativeInt("--phase2-limit", argv[++i]);
     } else if (arg === "--phase3-limit" && argv[i + 1]) {
-      options.phase3Limit = parseNonNegativeInt(
-        "--phase3-limit",
-        argv[++i],
-      );
+      options.phase3Limit = parseNonNegativeInt("--phase3-limit", argv[++i]);
     } else if (arg === "--output-dir" && argv[i + 1]) {
       options.outputDir = argv[++i];
     }
@@ -280,10 +271,7 @@ function resolveDefaultNetboxRoot(): string {
   return "";
 }
 
-function parseNonNegativeInt(
-  flagName: string,
-  value: string,
-): number {
+function parseNonNegativeInt(flagName: string, value: string): number {
   const parsed = Number(value);
   if (Number.isInteger(parsed) && parsed >= 0) return parsed;
   if (Number.isFinite(parsed) && parsed >= 0) return Math.floor(parsed);
@@ -297,11 +285,19 @@ function getExistingRackulaSlugs(repoRoot: string): Set<string> {
   const slugRegex = /slug:\s*["']([^"']+)["']/g;
   const sourceFiles: string[] = [];
 
-  const starterLibraryPath = join(repoRoot, "src", "lib", "data", "starterLibrary.ts");
+  const starterLibraryPath = join(
+    repoRoot,
+    "src",
+    "lib",
+    "data",
+    "starterLibrary.ts",
+  );
   if (existsSync(starterLibraryPath)) {
     sourceFiles.push(starterLibraryPath);
   } else {
-    console.warn(`Warning: starter library file missing (${starterLibraryPath})`);
+    console.warn(
+      `Warning: starter library file missing (${starterLibraryPath})`,
+    );
   }
 
   const brandPacksDir = join(repoRoot, "src", "lib", "data", "brandPacks");
@@ -328,7 +324,9 @@ function getExistingRackulaSlugs(repoRoot: string): Set<string> {
 
 function shouldKeepVendorModel(vendor: string, rawText: string): boolean {
   if (vendor === "Cisco") {
-    return /(catalyst|nexus|isr|asa|small business|\bcbs\d|\bsg\d)/i.test(rawText);
+    return /(catalyst|nexus|isr|asa|small business|\bcbs\d|\bsg\d)/i.test(
+      rawText,
+    );
   }
   if (vendor === "Juniper") {
     return /(\bex\d|\bsrx\d)/i.test(rawText);
@@ -358,7 +356,9 @@ function shouldKeepVendorModel(vendor: string, rawText: string): boolean {
     return /(sys-|as-|ssg-|superstorage)/i.test(rawText);
   }
   if (vendor === "Ubiquiti") {
-    return /(unifi|usw|udm|unvr|usp|edgeswitch|edgerouter|gateway)/i.test(rawText);
+    return /(unifi|usw|udm|unvr|usp|edgeswitch|edgerouter|gateway)/i.test(
+      rawText,
+    );
   }
   if (vendor === "MikroTik") {
     return /(\bccr|\bcrs|\brb\d|\bcss|routerboard)/i.test(rawText);
@@ -383,7 +383,11 @@ function shouldKeepVendorModel(vendor: string, rawText: string): boolean {
 }
 
 function inferCategory(vendor: string, rawText: string): DeviceCategory {
-  if (/(switch|router|firewall|gateway|fortigate|fortiswitch|catalyst|nexus|\bex\d|\bsrx\d)/i.test(rawText)) {
+  if (
+    /(switch|router|firewall|gateway|fortigate|fortiswitch|catalyst|nexus|\bex\d|\bsrx\d)/i.test(
+      rawText,
+    )
+  ) {
     return "network";
   }
   if (/(pdu|ups|smart-ups)/i.test(rawText)) {
@@ -434,7 +438,9 @@ function getNetBoxGitInfo(netboxRoot: string): {
   remote: string;
 } {
   const runGit = (args: string[]): string =>
-    execFileSync("git", ["-C", netboxRoot, ...args], { encoding: "utf8" }).trim();
+    execFileSync("git", ["-C", netboxRoot, ...args], {
+      encoding: "utf8",
+    }).trim();
 
   try {
     const branch = runGit(["rev-parse", "--abbrev-ref", "HEAD"]);
@@ -605,7 +611,9 @@ function selectPhase2AndPhase3(
   phase3Limit: number,
 ): { phase2: Candidate[]; phase3: Candidate[] } {
   const phase1Slugs = new Set(phase1.map((candidate) => candidate.slug));
-  const remaining = ranked.filter((candidate) => !phase1Slugs.has(candidate.slug));
+  const remaining = ranked.filter(
+    (candidate) => !phase1Slugs.has(candidate.slug),
+  );
 
   const phase2ImagePreferred = remaining.filter(
     (candidate) => candidate.frontImage || candidate.rearImage,
@@ -618,7 +626,9 @@ function selectPhase2AndPhase3(
 
   if (phase2.length < phase2Limit) {
     const usedSlugs = new Set(phase2.map((candidate) => candidate.slug));
-    const fallback = remaining.filter((candidate) => !usedSlugs.has(candidate.slug));
+    const fallback = remaining.filter(
+      (candidate) => !usedSlugs.has(candidate.slug),
+    );
     phase2 = [
       ...phase2,
       ...selectBalanced(
@@ -729,7 +739,11 @@ function main(): void {
 
   const existingSlugs = getExistingRackulaSlugs(REPO_ROOT);
   const allCandidates = collectCandidates(options, existingSlugs);
-  const ranked = selectBalanced(allCandidates, options.limit, RANKED_VENDOR_CAP);
+  const ranked = selectBalanced(
+    allCandidates,
+    options.limit,
+    RANKED_VENDOR_CAP,
+  );
   const phase1 = selectPhase1(ranked, options.phase1Limit);
   const { phase2, phase3 } = selectPhase2AndPhase3(
     ranked,
@@ -755,7 +769,10 @@ function main(): void {
     options.outputDir,
     "netbox-homelab-phase3-1096.csv",
   );
-  const summaryPath = join(options.outputDir, "netbox-homelab-summary-1096.json");
+  const summaryPath = join(
+    options.outputDir,
+    "netbox-homelab-summary-1096.json",
+  );
 
   writeFileSync(rankedCsvPath, `${toCsvRows(ranked).join("\n")}\n`, "utf8");
   writeFileSync(phase1CsvPath, `${toCsvRows(phase1).join("\n")}\n`, "utf8");

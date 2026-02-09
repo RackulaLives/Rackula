@@ -78,7 +78,7 @@
     downloadBlob,
     generateExportFilename,
   } from "$lib/utils/export";
-  import type { DisplayMode, ExportOptions } from "$lib/types";
+  import type { DisplayMode, ExportOptions, RackWidth } from "$lib/types";
   import type { ImportResult } from "$lib/utils/netbox-import";
   import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { analytics } from "$lib/utils/analytics";
@@ -100,9 +100,6 @@
     type SaveStatus as SaveStatusType,
     PersistenceError,
   } from "$lib/utils/persistence-api";
-
-  // Build-time environment constant from vite.config.ts
-  declare const __BUILD_ENV__: string;
 
   // Sidebar size configuration (in pixels)
   interface Props {
@@ -929,7 +926,7 @@
     notes: string;
     isFullDepth: boolean;
     isHalfWidth: boolean;
-    rackWidths: number[];
+    rackWidths: RackWidth[];
     frontImage?: ImageData;
     rearImage?: ImageData;
   }) {
@@ -938,7 +935,7 @@
       u_height: data.height,
       category: data.category,
       colour: data.colour,
-      comments: data.notes || undefined,
+      notes: data.notes || undefined,
       is_full_depth: data.isFullDepth ? undefined : false,
       slot_width: data.isHalfWidth ? 1 : undefined,
       rack_widths: data.rackWidths,
@@ -1417,7 +1414,6 @@
       sidePanelSizeDefault}px, var(--sidebar-width-max))"
   >
     <Toolbar
-      hasSelection={selectionStore.hasSelection}
       hasRacks={layoutStore.hasRack}
       theme={uiStore.theme}
       displayMode={uiStore.displayMode}
@@ -1434,7 +1430,6 @@
       onimportdevices={handleImportDevices}
       onimportnetbox={handleImportFromNetBox}
       onnewcustomdevice={handleAddDevice}
-      ondelete={handleDelete}
       onfitall={handleFitAll}
       ontoggletheme={handleToggleTheme}
       ontoggledisplaymode={handleToggleDisplayMode}

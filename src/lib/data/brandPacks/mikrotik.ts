@@ -582,4 +582,41 @@ export const mikrotikDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
   },
+
+  // Additional devices from NetBox library (Issue #1109 Phase 1)
+  {
+    slug: "mikrotik-crs112-8p-4s-in",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS112-8P-4S-IN",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+  },
+
+  {
+    slug: "mikrotik-css318-16g-2s-plus-in",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CSS318-16G-2S+IN",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+  },
+
+  {
+    slug: "mikrotik-crs106-1c-5s",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CRS106-1C-5S",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
 ];

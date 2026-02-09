@@ -1,4 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
+import { gotoWithRack } from "./helpers";
 
 /**
  * Smoke tests to catch JavaScript initialization errors in production builds.
@@ -60,24 +61,11 @@ function setupErrorCollection(
 }
 
 test.describe("Smoke Tests - JavaScript Initialization", () => {
-  test.beforeEach(async ({ page }) => {
-    // Set hasStarted flag before navigation so main app UI is displayed (skips welcome page)
-    await page.addInitScript(() => {
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-  });
-
   test("app loads without JavaScript errors", async ({ page }) => {
     const errors = setupErrorCollection(page);
 
-    // Navigate to the app (will show main UI due to hasStarted flag set in init script)
-    await page.goto("/");
-
-    // Wait for the app to fully initialize
-    // The rack container appears when Svelte components have mounted
-    await expect(page.locator(".rack-container").first()).toBeVisible({
-      timeout: 10000,
-    });
+    // Use share link to load pre-built rack - bypasses wizard and tests full UI
+    await gotoWithRack(page);
 
     // Assert no JavaScript errors occurred during initialization
     // eslint-disable-next-line no-restricted-syntax -- behavioral test: verifying zero errors is the requirement
@@ -92,8 +80,8 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
   }) => {
     const errors = setupErrorCollection(page);
 
-    // Navigate to app (hasStarted is set via addInitScript in beforeEach)
-    await page.goto("/");
+    // Use share link to load app with rack
+    await gotoWithRack(page);
 
     // bits-ui Accordion is used in the device palette for category sections
     // Look for the accordion trigger (category header) - they use data-accordion-trigger
@@ -118,8 +106,8 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
   test("all critical UI components render", async ({ page }) => {
     const errors = setupErrorCollection(page);
 
-    // Navigate to app (hasStarted is set via addInitScript in beforeEach)
-    await page.goto("/");
+    // Use share link to load app with rack
+    await gotoWithRack(page);
 
     // Verify critical components are present
     // Toolbar
@@ -148,23 +136,14 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
 });
 
 test.describe("Smoke Tests - Console Warnings", () => {
-  test.beforeEach(async ({ page }) => {
-    // Set hasStarted flag before navigation so main app UI is displayed (skips welcome page)
-    await page.addInitScript(() => {
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-  });
-
   test("no unhandled promise rejections during load", async ({ page }) => {
     const rejections = setupErrorCollection(page, {
       filter: (m) => m.includes("Unhandled"),
       includeConsole: false,
     });
 
-    await page.goto("/");
-    await expect(page.locator(".rack-container").first()).toBeVisible({
-      timeout: 10000,
-    });
+    // Use share link to load app with rack
+    await gotoWithRack(page);
 
     // eslint-disable-next-line no-restricted-syntax -- behavioral test: verifying zero rejections is the requirement
     expect(rejections, "Expected no unhandled promise rejections").toHaveLength(

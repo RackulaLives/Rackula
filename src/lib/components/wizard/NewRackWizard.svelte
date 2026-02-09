@@ -300,9 +300,68 @@
   }
 
   function handleKeyDown(event: KeyboardEvent) {
+    // Global shortcuts
+    if (event.key === "Escape") {
+      event.preventDefault();
+      handleCancel();
+      return;
+    }
+
     if (event.key === "Enter" && canProceed) {
       event.preventDefault();
       nextStep();
+      return;
+    }
+
+    if (event.key === "Backspace" && currentStep > 1) {
+      // Only go back if not in an input field
+      const target = event.target as HTMLElement;
+      if (target.tagName !== "INPUT") {
+        event.preventDefault();
+        prevStep();
+        return;
+      }
+    }
+
+    // Step 1: Layout type selection with arrow keys
+    if (currentStep === 1) {
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        const newType = config.layoutType === "column" ? "bayed" : "column";
+        if (newType === "bayed" && !canCreateBayed) return;
+        config.layoutType = newType;
+        return;
+      }
+    }
+
+    // Step 2: Height presets with number keys
+    if (currentStep === 2) {
+      const presetMap: Record<string, number> = {
+        "1": availableHeights[0] ?? 12,
+        "2": availableHeights[1] ?? 18,
+        "3": availableHeights[2] ?? 24,
+        "4": availableHeights[3] ?? 42,
+      };
+
+      if (event.key in presetMap) {
+        event.preventDefault();
+        selectPresetHeight(presetMap[event.key]!);
+        return;
+      }
+
+      // Arrow keys for bay count (bayed layout only)
+      if (config.layoutType === "bayed") {
+        if (event.key === "ArrowLeft" && config.bayCount > 2) {
+          event.preventDefault();
+          config.bayCount = 2;
+          return;
+        }
+        if (event.key === "ArrowRight" && config.bayCount < maxBayCount) {
+          event.preventDefault();
+          config.bayCount = 3;
+          return;
+        }
+      }
     }
   }
 </script>

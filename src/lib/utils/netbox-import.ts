@@ -8,8 +8,8 @@ import type {
   DeviceCategory,
   Airflow,
   RackWidth,
+  InterfaceTemplate,
 } from "$lib/types";
-import type { InterfaceTemplate } from "$lib/types";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import { parseYaml } from "./yaml";
 
@@ -460,7 +460,7 @@ export async function importFromNetBoxYaml(
 > {
   const parseResult = await parseNetBoxYaml(yamlString);
 
-  if (!parseResult.success) {
+  if (parseResult.success === false) {
     return { success: false, error: parseResult.error };
   }
 

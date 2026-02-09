@@ -82,13 +82,13 @@
 <ContextMenu.Root {open} onOpenChange={handleOpenChange}>
   {#if useVirtualTrigger}
     <!-- Virtual trigger at cursor position for SVG elements -->
-    <ContextMenu.Trigger asChild>
+    <ContextMenu.Trigger>
       <div
         style="position: fixed; left: {x}px; top: {y}px; width: 1px; height: 1px; pointer-events: none;"
       ></div>
     </ContextMenu.Trigger>
   {:else if children}
-    <ContextMenu.Trigger asChild>
+    <ContextMenu.Trigger>
       {@render children()}
     </ContextMenu.Trigger>
   {/if}

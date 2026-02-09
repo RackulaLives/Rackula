@@ -136,8 +136,8 @@
 
       <DropdownMenu.Separator class="menu-separator" />
 
-      <DropdownMenu.Label class="menu-label-header"
-        >Device Library</DropdownMenu.Label
+      <DropdownMenu.GroupHeading class="menu-label-header"
+        >Device Library</DropdownMenu.GroupHeading
       >
 
       <DropdownMenu.CheckboxItem

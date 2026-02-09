@@ -147,10 +147,10 @@
         action: () => uiStore.toggleLeftDrawer(),
       },
 
-      // A - toggle airflow display
+      // A - toggle annotations
       {
         key: "a",
-        action: () => uiStore.toggleAirflow(),
+        action: () => ontoggleannotations?.(),
       },
 
       // [ - cycle to previous rack

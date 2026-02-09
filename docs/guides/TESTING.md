@@ -383,6 +383,72 @@ test.describe("Feature", () => {
 });
 ```
 
+### E2E Test Helpers
+
+All E2E tests should use the shared helpers in `e2e/helpers/`:
+
+#### Loading a Test Rack
+
+**DO NOT** manipulate localStorage/sessionStorage directly. Use the share link pattern:
+
+```typescript
+import { gotoWithRack, EMPTY_RACK_SHARE } from "./helpers";
+
+test.beforeEach(async ({ page }) => {
+  // Loads app with pre-built 42U rack via ?l= share param
+  await gotoWithRack(page);
+});
+```
+
+Available fixtures:
+
+- `EMPTY_RACK_SHARE` - 42U standard rack, empty
+- `SMALL_RACK_SHARE` - 12U rack, empty
+- `RACK_WITH_DEVICE_SHARE` - 42U with one 1U server
+
+#### Device Actions
+
+```typescript
+import {
+  dragDeviceToRack,
+  selectDevice,
+  deselectDevice,
+  deleteSelectedDevice,
+} from "./helpers";
+
+// Drag first palette device to rack at 10% from top
+await dragDeviceToRack(page);
+
+// Drag to specific position
+await dragDeviceToRack(page, { yOffsetPercent: 80 });
+
+// Select device (handles dual-view mode)
+await selectDevice(page, 0);
+
+// Deselect with Escape
+await deselectDevice(page);
+
+// Remove selected device from rack
+await deleteSelectedDevice(page);
+```
+
+#### Wizard Completion
+
+For tests that specifically test the wizard:
+
+```typescript
+import {
+  completeWizardWithKeyboard,
+  completeWizardWithClicks,
+} from "./helpers";
+
+// Keyboard-driven (fast)
+await completeWizardWithKeyboard(page, { name: "My Rack", heightPreset: 4 });
+
+// Click-driven (when testing specific UI elements)
+await completeWizardWithClicks(page, { name: "My Rack", height: 42 });
+```
+
 ## Coverage
 
 Coverage thresholds are configured in `vitest.config.ts`:

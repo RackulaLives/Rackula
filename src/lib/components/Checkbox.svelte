@@ -31,10 +31,20 @@
   // Generate a stable fallback ID if none provided
   const fallbackId = `checkbox-${Math.random().toString(36).slice(2, 9)}`;
   const id = $derived(providedId || fallbackId);
+  const checkedValue = $derived(checked === true);
+  const indeterminateValue = $derived(checked === "indeterminate");
 
-  function handleCheckedChange(newChecked: boolean | "indeterminate") {
+  function handleCheckedChange(newChecked: boolean) {
     checked = newChecked;
     onchange?.(newChecked);
+  }
+
+  function handleIndeterminateChange(newIndeterminate: boolean) {
+    const nextState: boolean | "indeterminate" = newIndeterminate
+      ? "indeterminate"
+      : checkedValue;
+    checked = nextState;
+    onchange?.(nextState);
   }
 </script>
 
@@ -42,14 +52,16 @@
   <Checkbox.Root
     {id}
     {disabled}
-    {checked}
+    checked={checkedValue}
+    indeterminate={indeterminateValue}
     onCheckedChange={handleCheckedChange}
+    onIndeterminateChange={handleIndeterminateChange}
   >
     {#snippet children({ checked: isChecked, indeterminate })}
       <span class="checkbox-indicator">
         {#if indeterminate}
           <IconSquareMinus size={16} />
-        {:else if isChecked}
+        {:else if isChecked === true}
           <IconSquareFilled size={16} />
         {:else}
           <IconSquare size={16} />

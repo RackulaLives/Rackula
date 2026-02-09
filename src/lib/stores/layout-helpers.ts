@@ -14,6 +14,7 @@ import type {
   InterfaceTemplate,
   Slot,
   SlotWidth,
+  RackWidth,
 } from "$lib/types";
 import { generateDeviceSlug } from "$lib/utils/slug";
 import { generateId } from "$lib/utils/device";
@@ -41,7 +42,9 @@ export interface CreateDeviceTypeInput {
   /** Slot width for container-child devices (1=half-width, 2=full-width) */
   slot_width?: SlotWidth;
   /** Rack widths this device is compatible with (e.g., [10], [19], [10, 19]) */
-  rack_widths?: number[];
+  rack_widths?: RackWidth[];
+  /** Legacy alias for notes */
+  comments?: string;
 }
 
 /**
@@ -92,6 +95,8 @@ export function createDeviceType(data: CreateDeviceTypeInput): DeviceType {
   }
   if (data.notes) {
     deviceType.notes = data.notes;
+  } else if (data.comments) {
+    deviceType.notes = data.comments;
   }
   if (data.tags && data.tags.length > 0) {
     deviceType.tags = data.tags;
@@ -132,6 +137,7 @@ export function createDevice(
     device_type,
     position,
     face,
+    ports: [],
   };
 
   if (name !== undefined) {

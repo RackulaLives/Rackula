@@ -400,7 +400,7 @@ function loadLayout(layoutData: Layout): void {
 function addRack(
   name: string,
   height: number,
-  width?: number,
+  width?: Rack["width"],
   form_factor?: FormFactor,
   desc_units?: boolean,
   starting_unit?: number,
@@ -413,7 +413,7 @@ function addRack(
   const newRack = createDefaultRack(
     name,
     height,
-    (width as 10 | 19) ?? 19,
+    width ?? 19,
     form_factor ?? "4-post-cabinet",
     desc_units ?? false,
     starting_unit ?? 1,
@@ -474,7 +474,7 @@ function addBayedRackGroup(
   groupName: string,
   bayCount: 2 | 3,
   height: number,
-  width: 10 | 19 | 23 = 19,
+  width: Rack["width"] = 19,
 ): BayedGroupResult | null {
   // Check capacity
   if (layout.racks.length + bayCount > MAX_RACKS) {
@@ -883,11 +883,11 @@ function addBayToGroup(groupId: string): { rackId?: string; error?: string } {
   // Create new rack with matching height, using createDefaultRack for proper field initialization
   const newRackId = generateRackId();
   const bayNumber = group.rack_ids.length + 1;
-  // Validate width - bayed racks should only use standard widths (10/19/23), default to 19
-  const validWidths = [10, 19, 23];
+  // Validate width - default to 19 if the persisted value is unexpected.
+  const validWidths: Rack["width"][] = [10, 19, 21, 23];
   const width = (
     validWidths.includes(existingRack.width) ? existingRack.width : 19
-  ) as 10 | 19 | 23;
+  ) as Rack["width"];
   const newRack = createDefaultRack(
     `Bay ${bayNumber}`,
     existingRack.height,
@@ -2198,7 +2198,7 @@ function updateDeviceIpRaw(
 
       if (normalizedIp === undefined) {
         // Removing IP - clean up custom_fields if it becomes empty
-        if (!Object.prototype.hasOwnProperty.call(currentCustomFields, "ip")) {
+        if (!Object.hasOwn(currentCustomFields, "ip")) {
           return d; // No change needed - IP doesn't exist
         }
         const { ip: _ip, ...restFields } = currentCustomFields;
@@ -2846,7 +2846,6 @@ function moveDeviceRecorded(
   const oldPositionU = toHumanUnits(oldPositionInternal);
 
   // Use canPlaceDevice for bounds and collision checking (face and depth aware)
-  const isFullDepth = deviceType.is_full_depth !== false;
   if (
     !canPlaceDevice(
       targetRack,
@@ -2855,7 +2854,7 @@ function moveDeviceRecorded(
       newPositionInternal,
       deviceIndex,
       device.face,
-      isFullDepth,
+      device.slot_position ?? "full",
     )
   ) {
     // Determine if it's out of bounds or collision
@@ -2914,7 +2913,7 @@ function removeDeviceRecorded(rackId: string, deviceIndex: number): void {
 
   // Get a snapshot to convert from reactive proxy to plain object
   // structuredClone in the command factory requires a plain object
-  const device = $state.snapshot(targetRack.devices[deviceIndex]!);
+  const device = $state.snapshot(targetRack.devices[deviceIndex]);
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
     device.device_type,
@@ -3219,7 +3218,10 @@ function updateDeviceIpRecorded(
   activeRackId = rackId;
 
   const device = targetRack.devices[deviceIndex]!;
-  const oldIp = device.custom_fields?.ip;
+  const oldIp =
+    typeof device.custom_fields?.ip === "string"
+      ? device.custom_fields.ip
+      : undefined;
   const deviceType = findDeviceTypeInArray(
     layout.device_types,
     device.device_type,
@@ -3277,9 +3279,12 @@ function updateRackRecorded(
 
 /**
  * Clear rack devices with undo/redo support
- * Uses active rack
+ * Uses active rack unless a rackId override is provided
  */
-function clearRackRecorded(): void {
+function clearRackRecorded(rackId?: string): void {
+  if (rackId) {
+    activeRackId = rackId;
+  }
   const target = getTargetRack();
   if (!target || target.rack.devices.length === 0) return;
 

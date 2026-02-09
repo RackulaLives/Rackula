@@ -9,7 +9,6 @@
   - "Offline" warning state
 -->
 <script lang="ts">
-  import { Progress } from "bits-ui";
   import type { SaveStatus } from "$lib/utils/persistence-api";
   import { fade } from "svelte/transition";
   import IconBug from "./icons/IconBug.svelte";
@@ -85,13 +84,9 @@
       {/if}
     </span>
     {#if status === "saving"}
-      <Progress.Root
-        value={null}
-        class="progress-root"
-        aria-label="Saving layout"
-      >
-        <Progress.Indicator class="progress-indicator" />
-      </Progress.Root>
+      <div class="progress-root" aria-hidden="true">
+        <div class="progress-indicator"></div>
+      </div>
       <span class="status-text">Saving...</span>
     {:else if status === "saved"}
       <IconCheck size={14} class="icon-success" />
