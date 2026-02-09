@@ -21,9 +21,11 @@
   import {
     classifyRackSwipeGesture,
     RACK_SWIPE_PAN_THRESHOLD,
+    useLongPress,
     type RackSwipeDirection,
   } from "$lib/utils/gestures";
-  import { hapticSuccess } from "$lib/utils/haptics";
+  import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
+  import { hapticSuccess, hapticTap } from "$lib/utils/haptics";
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
   import WelcomeScreen from "./WelcomeScreen.svelte";
@@ -188,6 +190,17 @@
   let swipeAnimationTimeout: ReturnType<typeof setTimeout> | null = null;
   let swipeAnimationEpoch = 0;
   let lastTouchMoveLogAt = 0;
+  let canvasLongPressPoint = $state<{ x: number; y: number } | null>(null);
+  let canvasLongPressTarget = $state<Element | null>(null);
+
+  function isCanvasRackTarget(target: Element | null): boolean {
+    if (!target) return false;
+    return Boolean(
+      target.closest(
+        ".rack-device, .rack-container, .rack-wrapper, .rack-dual-view, .bayed-rack-view",
+      ),
+    );
+  }
 
   // Keep touch listener lifecycle synced to the current bound canvas element.
   // We intentionally use passive listeners and never call preventDefault here so
@@ -242,6 +255,42 @@
       );
       canvasStore.setCanvasElement(null);
     };
+  });
+
+  // Long-press on empty canvas opens canvas context menu on mobile/tablet.
+  $effect(() => {
+    if (!enableLongPress || !canvasContainer) {
+      canvasLongPressPoint = null;
+      canvasLongPressTarget = null;
+      return;
+    }
+
+    const cleanup = useLongPress(
+      canvasContainer,
+      () => {
+        const point = canvasLongPressPoint;
+        const target = canvasLongPressTarget;
+        canvasLongPressPoint = null;
+        canvasLongPressTarget = null;
+
+        if (!point || isCanvasRackTarget(target)) return;
+
+        hapticTap();
+        dispatchContextMenuAtPoint(point.x, point.y, canvasContainer);
+      },
+      {
+        onStart: (x, y) => {
+          canvasLongPressPoint = { x, y };
+          canvasLongPressTarget = document.elementFromPoint(x, y);
+        },
+        onCancel: () => {
+          canvasLongPressPoint = null;
+          canvasLongPressTarget = null;
+        },
+      },
+    );
+
+    return cleanup;
   });
 
   onDestroy(() => {

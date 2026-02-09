@@ -122,6 +122,7 @@ export function useLongPress(
   let startTime = 0;
   let hasMoved = false;
   let isActive = false;
+  let activePointerId: number | null = null;
 
   const cancelLongPress = () => {
     if (timeoutId) {
@@ -136,6 +137,7 @@ export function useLongPress(
       isActive = false;
       onCancel?.();
     }
+    activePointerId = null;
   };
 
   const updateProgress = () => {
@@ -151,10 +153,21 @@ export function useLongPress(
   };
 
   const handlePointerDown = (e: PointerEvent) => {
-    // Only handle primary pointer (ignore multi-touch)
-    if (!e.isPrimary) return;
+    // Cancel active long press if a second pointer touches (pinch/zoom gesture).
+    if (!e.isPrimary) {
+      if (isActive) {
+        cancelLongPress();
+      }
+      return;
+    }
+
+    // Defensive reset if a previous gesture somehow remained active.
+    if (isActive) {
+      cancelLongPress();
+    }
 
     // Store initial position
+    activePointerId = e.pointerId;
     startX = e.clientX;
     startY = e.clientY;
     startTime = performance.now();
@@ -180,26 +193,25 @@ export function useLongPress(
       // Ensure final progress is delivered before callback
       onProgress?.(1);
 
-      // Trigger haptic feedback if available
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-
       isActive = false;
+      activePointerId = null;
       callback();
       timeoutId = null;
     }, duration);
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: PointerEvent) => {
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
     cancelLongPress();
   };
 
-  const handlePointerCancel = () => {
+  const handlePointerCancel = (e: PointerEvent) => {
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
     cancelLongPress();
   };
 
   const handlePointerMove = (e: PointerEvent) => {
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
     if (!timeoutId || hasMoved) return;
 
     // Calculate distance moved

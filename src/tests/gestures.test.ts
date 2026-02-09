@@ -21,13 +21,6 @@ describe("useLongPress", () => {
     callback = vi.fn();
     cleanup = undefined;
 
-    // Mock navigator.vibrate
-    Object.defineProperty(navigator, "vibrate", {
-      value: vi.fn(),
-      writable: true,
-      configurable: true,
-    });
-
     vi.useFakeTimers();
   });
 
@@ -196,37 +189,29 @@ describe("useLongPress", () => {
       vi.advanceTimersByTime(500);
       expect(callback).toHaveBeenCalledTimes(1);
     });
-  });
 
-  describe("haptic feedback", () => {
-    it("triggers haptic feedback if available", () => {
+    it("cancels active long press when a second pointer starts", () => {
       cleanup = useLongPress(element, callback);
 
       element.dispatchEvent(
-        new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          pointerId: 1,
+          isPrimary: true,
+        }),
       );
-      vi.advanceTimersByTime(500);
-
-      expect(navigator.vibrate).toHaveBeenCalledWith(50);
-    });
-
-    it("handles missing vibrate API gracefully", () => {
-      // Remove vibrate API
-      Object.defineProperty(navigator, "vibrate", {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
-
-      cleanup = useLongPress(element, callback);
+      vi.advanceTimersByTime(200);
 
       element.dispatchEvent(
-        new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          pointerId: 2,
+          isPrimary: false,
+        }),
       );
-      vi.advanceTimersByTime(500);
 
-      // Should still call callback
-      expect(callback).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(400);
+      expect(callback).not.toHaveBeenCalled();
     });
   });
 
