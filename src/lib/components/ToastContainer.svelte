@@ -18,7 +18,9 @@
 <style>
 	.toast-container {
 		position: fixed;
-		bottom: 1.5rem;
+		bottom: calc(
+			1.5rem + var(--safe-area-bottom, 0px) + var(--keyboard-height, 0px)
+		);
 		right: 1.5rem;
 		z-index: 9999;
 		display: flex;
@@ -36,7 +38,9 @@
 		.toast-container {
 			left: 1rem;
 			right: 1rem;
-			bottom: 1rem;
+			bottom: calc(
+				1rem + var(--safe-area-bottom, 0px) + var(--keyboard-height, 0px)
+			);
 		}
 
 		.toast-container :global(.toast) {

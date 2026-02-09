@@ -207,7 +207,10 @@
   // panzoom retains control for pan/pinch behavior.
   $effect(() => {
     const element = canvasContainer;
-    if (!element) return;
+    if (!element) {
+      canvasStore.setCanvasElement(null);
+      return;
+    }
 
     canvasStore.setCanvasElement(element);
 

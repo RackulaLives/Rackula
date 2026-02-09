@@ -194,7 +194,12 @@
     position: relative;
     width: 100%;
     /* Extend to just below toolbar */
-    max-height: calc(100vh - var(--toolbar-height, 56px));
+    max-height: calc(
+      100vh - var(--toolbar-height, 56px) - var(--keyboard-height, 0px)
+    );
+    max-height: calc(
+      100dvh - var(--toolbar-height, 56px) - var(--keyboard-height, 0px)
+    );
     background: var(--colour-bg);
     border-top-left-radius: 0.75rem;
     border-top-right-radius: 0.75rem;
@@ -205,6 +210,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    padding-bottom: var(--safe-area-bottom, 0px);
   }
 
   @media (prefers-reduced-motion: reduce) {
