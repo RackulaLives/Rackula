@@ -43,7 +43,7 @@ function isEditableElement(element: Element | null): element is HTMLElement {
     ].includes(element.type);
   }
 
-  return element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement;
+  return element instanceof HTMLTextAreaElement;
 }
 
 /**

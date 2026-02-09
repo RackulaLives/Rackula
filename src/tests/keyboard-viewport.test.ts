@@ -165,4 +165,42 @@ describe("keyboard viewport adaptation", () => {
     cleanup();
     input.remove();
   });
+
+  it("does not scroll focused select elements into view", () => {
+    const { viewport, getResizeHandler } = createMockVisualViewport();
+    setVisualViewport(viewport as unknown as VisualViewport);
+
+    const select = document.createElement("select");
+    const scrollIntoView = vi.fn();
+    select.scrollIntoView = scrollIntoView;
+    select.getBoundingClientRect = vi.fn(() => ({
+      x: 0,
+      y: 700,
+      width: 200,
+      height: 32,
+      top: 700,
+      right: 200,
+      bottom: 732,
+      left: 0,
+      toJSON: () => ({}),
+    }));
+    document.body.appendChild(select);
+    select.focus();
+
+    const cleanup = setupKeyboardViewportAdaptation({
+      isMobile: () => true,
+      debounceMs: 0,
+      keyboardThresholdPx: 0,
+    });
+
+    viewport.height = 560;
+    const resizeHandler = getResizeHandler();
+    resizeHandler(new Event("resize"));
+    vi.runAllTimers();
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    cleanup();
+    select.remove();
+  });
 });
