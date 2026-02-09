@@ -58,6 +58,7 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
+  import { setupKeyboardViewportAdaptation } from "$lib/utils/keyboard-viewport";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { createKonamiDetector } from "$lib/utils/konami";
   import type { ImageData } from "$lib/types/images";
@@ -212,6 +213,14 @@
   const konamiDetector = createKonamiDetector(() => {
     activatePartyMode();
   });
+
+  // Mobile keyboard adaptation: keeps bottom UI above virtual keyboards and
+  // updates --keyboard-height for CSS consumers.
+  onMount(() =>
+    setupKeyboardViewportAdaptation({
+      isMobile: () => viewportStore.isMobile,
+    }),
+  );
 
   function activatePartyMode() {
     // Check for reduced motion preference
@@ -1763,7 +1772,8 @@
     overscroll-behavior: none;
     /* Account for fixed bottom nav */
     padding-bottom: calc(
-      var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px)
+      var(--bottom-nav-height) + var(--safe-area-bottom, 0px) +
+        var(--keyboard-height, 0px)
     );
   }
 

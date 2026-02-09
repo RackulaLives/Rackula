@@ -5,6 +5,11 @@
 @import "./lib/styles/animations.css";
 @import "./lib/styles/dialogs.css";
 
+:root {
+  --keyboard-height: 0px;
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* ==========================================================================
    FONT FACE DECLARATIONS
    Self-hosted fonts for Dracula/Alucard design system
