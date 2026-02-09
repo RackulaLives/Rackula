@@ -377,7 +377,7 @@
   });
 </script>
 
-<Dialog {open} title="Export" width="480px" onclose={handleCancel}>
+<Dialog {open} title="Export" width="min(480px, 90vw)" onclose={handleCancel}>
   <div class="export-form">
     <div class="form-group">
       <label for="export-format">Format</label>
@@ -599,6 +599,8 @@
     flex-direction: column;
     gap: var(--space-4);
     padding: var(--space-2) 0;
+    width: 100%;
+    min-width: 0;
   }
 
   .form-group {
@@ -647,8 +649,10 @@
 
   .rack-selection-header {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
+    gap: var(--space-2);
   }
 
   .section-label {
@@ -659,6 +663,7 @@
 
   .rack-selection-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--space-2);
     align-items: center;
   }
@@ -765,6 +770,7 @@
     flex-direction: column;
     gap: var(--space-2);
     margin-top: var(--space-2);
+    width: 100%;
   }
 
   .preview-label {
@@ -774,7 +780,7 @@
   }
 
   .preview-container {
-    max-width: 200px;
+    width: min(100%, 200px);
     max-height: 300px;
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-sm);
@@ -804,7 +810,7 @@
   }
 
   .preview-placeholder {
-    max-width: 200px;
+    width: min(100%, 200px);
     height: 100px;
     border: 1px dashed var(--colour-border);
     border-radius: var(--radius-sm);
@@ -816,7 +822,7 @@
   }
 
   .preview-loading {
-    max-width: 200px;
+    width: min(100%, 200px);
     min-height: 120px;
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-sm);
@@ -896,10 +902,12 @@
 
   .filename-preview {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-2) 0;
     margin-top: var(--space-2);
+    min-width: 0;
   }
 
   .filename-label {
@@ -909,6 +917,8 @@
   }
 
   .filename-value {
+    flex: 1;
+    min-width: 0;
     font-size: var(--font-size-sm);
     font-family: monospace;
     color: var(--colour-text);
@@ -922,6 +932,7 @@
 
   .dialog-actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: var(--space-3);
     margin-top: var(--space-4);
@@ -973,7 +984,7 @@
 
   /* Preview error state */
   .preview-error {
-    max-width: 200px;
+    width: min(100%, 200px);
     min-height: 100px;
     border: 1px solid var(--colour-error);
     border-radius: var(--radius-sm);
@@ -1002,5 +1013,12 @@
     font-size: var(--font-size-xs);
     color: var(--colour-text-muted);
     text-align: center;
+  }
+
+  @media (max-width: 480px) {
+    .btn-secondary,
+    .btn-primary {
+      flex: 1 1 100%;
+    }
   }
 </style>

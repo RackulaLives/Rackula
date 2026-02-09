@@ -95,7 +95,7 @@
 <Dialog
   {open}
   title="Share Layout"
-  width="420px"
+  width="min(420px, 90vw)"
   showClose={false}
   onclose={handleClose}
 >
@@ -190,6 +190,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
+    width: 100%;
+    min-width: 0;
   }
 
   .share-section {
@@ -211,6 +213,7 @@
 
   .url-input {
     flex: 1;
+    min-width: 0;
     padding: var(--space-2) var(--space-3);
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-sm);
@@ -262,14 +265,18 @@
     flex-direction: column;
     align-items: center;
     gap: var(--space-2);
+    width: 100%;
+    max-width: 100%;
     padding: var(--space-4);
+    box-sizing: border-box;
     background: white;
     border-radius: var(--radius-md);
   }
 
   .qr-image {
-    width: 280px;
-    height: 280px;
+    width: min(280px, 100%);
+    max-width: 100%;
+    height: auto;
     image-rendering: pixelated;
   }
 
@@ -315,6 +322,7 @@
   /* Action Buttons */
   .actions {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--space-3);
     justify-content: flex-end;
     margin-top: var(--space-2);
@@ -350,5 +358,12 @@
 
   .btn-secondary:hover {
     background: var(--colour-surface-hover);
+  }
+
+  @media (max-width: 480px) {
+    .btn {
+      flex: 1 1 140px;
+      justify-content: center;
+    }
   }
 </style>
