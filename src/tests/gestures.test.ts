@@ -436,6 +436,39 @@ describe("classifyRackSwipeGesture", () => {
     expect(direction).toBe("next");
   });
 
+  it("keeps near-diagonal swipes valid with permissive dominance ratios", () => {
+    const direction = classifyRackSwipeGesture(
+      {
+        startX: 240,
+        startY: 120,
+        endX: 160,
+        endY: 215,
+        durationMs: 170,
+        isMultiTouch: false,
+      },
+      { horizontalDominanceRatio: 0.8 },
+    );
+
+    expect(Math.hypot(80, 95)).toBeGreaterThan(RACK_SWIPE_PAN_THRESHOLD);
+    expect(direction).toBe("next");
+  });
+
+  it("returns null for short diagonal movement even with permissive ratios", () => {
+    const direction = classifyRackSwipeGesture(
+      {
+        startX: 180,
+        startY: 120,
+        endX: 140,
+        endY: 150,
+        durationMs: 110,
+        isMultiTouch: false,
+      },
+      { horizontalDominanceRatio: 0.8 },
+    );
+
+    expect(direction).toBeNull();
+  });
+
   it("returns null for slow horizontal drags", () => {
     const direction = classifyRackSwipeGesture({
       startX: 200,
