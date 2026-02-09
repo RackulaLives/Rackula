@@ -27,6 +27,9 @@ import { deskpiDevices } from "./deskpi";
 import { acInfinityDevices } from "./ac-infinity";
 import { appleDevices } from "./apple";
 import { ciscoDevices } from "./cisco";
+import { aristaDevices } from "./arista";
+import { juniperDevices } from "./juniper";
+import { vertivDevices } from "./vertiv";
 
 export {
   ubiquitiDevices,
@@ -51,6 +54,9 @@ export {
   acInfinityDevices,
   appleDevices,
   ciscoDevices,
+  aristaDevices,
+  juniperDevices,
+  vertivDevices,
 };
 
 /**
@@ -122,6 +128,20 @@ export function getBrandPacks(): BrandSection[] {
       icon: "cisco",
     },
     {
+      id: "arista",
+      title: "Arista",
+      devices: aristaDevices,
+      defaultExpanded: false,
+      icon: "arista",
+    },
+    {
+      id: "juniper",
+      title: "Juniper",
+      devices: juniperDevices,
+      defaultExpanded: false,
+      icon: "junipernetworks",
+    },
+    {
       id: "netgate",
       title: "Netgate",
       devices: netgateDevices,
@@ -157,6 +177,13 @@ export function getBrandPacks(): BrandSection[] {
       devices: eatonDevices,
       defaultExpanded: false,
       icon: "eaton",
+    },
+    {
+      id: "vertiv",
+      title: "Vertiv",
+      devices: vertivDevices,
+      defaultExpanded: false,
+      icon: "vertiv",
     },
     {
       id: "cyberpower",
@@ -276,6 +303,12 @@ export function getBrandDevices(brandId: string): DeviceType[] {
       return appleDevices;
     case "cisco":
       return ciscoDevices;
+    case "arista":
+      return aristaDevices;
+    case "juniper":
+      return juniperDevices;
+    case "vertiv":
+      return vertivDevices;
     default:
       return [];
   }
@@ -308,6 +341,9 @@ export function getAllBrandDevices(): DeviceType[] {
     ...acInfinityDevices,
     ...appleDevices,
     ...ciscoDevices,
+    ...aristaDevices,
+    ...juniperDevices,
+    ...vertivDevices,
   ];
 }
 

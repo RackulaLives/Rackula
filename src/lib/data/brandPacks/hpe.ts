@@ -4,474 +4,514 @@
  * Source: NetBox community devicetype-library
  */
 
-import type { DeviceType } from '$lib/types';
-import { CATEGORY_COLOURS } from '$lib/types/constants';
+import type { DeviceType } from "$lib/types";
+import { CATEGORY_COLOURS } from "$lib/types/constants";
 
 /**
  * HPE device definitions (homelab-relevant rack-mountable devices)
  */
 export const hpeDevices: DeviceType[] = [
-	// ============================================
-	// ProLiant DL Series - 1U Servers
-	// ============================================
-	{
-		slug: 'hpe-proliant-dl20-gen11',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL20 Gen11',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server',
-		front_image: true,
-		rear_image: true,
-		airflow: 'front-to-rear'
-	},
-	{
-		slug: 'hpe-proliant-dl360-gen11',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL360 Gen11',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server',
-		front_image: true,
-		rear_image: true,
-		airflow: 'front-to-rear'
-	},
-	{
-		slug: 'hpe-proliant-dl360-gen10',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL360 Gen10',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server',
-		front_image: true,
-		rear_image: true,
-		airflow: 'front-to-rear'
-	},
-	{
-		slug: 'hpe-proliant-dl360-gen9',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL360 Gen9',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server',
-		front_image: true,
-		rear_image: true,
-		airflow: 'front-to-rear'
-	},
+  // ============================================
+  // ProLiant DL Series - 1U Servers
+  // ============================================
+  {
+    slug: "hpe-proliant-dl20-gen11",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL20 Gen11",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+    front_image: true,
+    rear_image: true,
+    airflow: "front-to-rear",
+  },
+  {
+    slug: "hpe-proliant-dl360-gen11",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL360 Gen11",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+    front_image: true,
+    rear_image: true,
+    airflow: "front-to-rear",
+  },
+  {
+    slug: "hpe-proliant-dl360-gen10",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL360 Gen10",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+    front_image: true,
+    rear_image: true,
+    airflow: "front-to-rear",
+  },
+  {
+    slug: "hpe-proliant-dl360-gen9",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL360 Gen9",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+    front_image: true,
+    rear_image: true,
+    airflow: "front-to-rear",
+  },
 
-	// ============================================
-	// ProLiant DL Series - 2U Servers
-	// ============================================
-	{
-		slug: 'hpe-proliant-dl380-gen11',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL380 Gen11',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server',
-		front_image: true,
-		rear_image: true,
-		airflow: 'front-to-rear'
-	},
-	{
-		slug: 'hpe-proliant-dl380-gen10',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL380 Gen10',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server',
-		front_image: true,
-		rear_image: true,
-		airflow: 'front-to-rear'
-	},
-	{
-		slug: 'hpe-proliant-dl380-gen9',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL380 Gen9',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server',
-		airflow: 'front-to-rear'
-	},
-	{
-		slug: 'hpe-proliant-dl380p-gen8',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL380p Gen8',
-		is_full_depth: true,
-		colour: CATEGORY_COLOURS.server,
-		category: 'server',
-		front_image: true,
-		rear_image: true,
-		airflow: 'front-to-rear'
-	},
+  // ============================================
+  // ProLiant DL Series - 2U Servers
+  // ============================================
+  {
+    slug: "hpe-proliant-dl380-gen11",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL380 Gen11",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+    front_image: true,
+    rear_image: true,
+    airflow: "front-to-rear",
+  },
+  {
+    slug: "hpe-proliant-dl380-gen10",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL380 Gen10",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+    front_image: true,
+    rear_image: true,
+    airflow: "front-to-rear",
+  },
+  {
+    slug: "hpe-proliant-dl380-gen9",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL380 Gen9",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+    airflow: "front-to-rear",
+  },
+  {
+    slug: "hpe-proliant-dl380p-gen8",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL380p Gen8",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+    front_image: true,
+    rear_image: true,
+    airflow: "front-to-rear",
+  },
 
-	// ============================================
-	// Aruba Switches - 1930 Series (Entry-Level Smart Managed)
-	// ============================================
-	{
-		slug: 'hpe-aruba-1930-24g',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'Aruba 1930 24G',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network',
-		airflow: 'passive'
-	},
-	{
-		slug: 'hpe-aruba-1930-48g',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'Aruba 1930 48G',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network',
-		front_image: true,
-		rear_image: true,
-		airflow: 'passive'
-	},
+  // ============================================
+  // Aruba Switches - 1930 Series (Entry-Level Smart Managed)
+  // ============================================
+  {
+    slug: "hpe-aruba-1930-24g",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "Aruba 1930 24G",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    airflow: "passive",
+  },
+  {
+    slug: "hpe-aruba-1930-48g",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "Aruba 1930 48G",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+    airflow: "passive",
+  },
 
-	// ============================================
-	// Aruba Switches - 2530 Series (Layer 2+ Managed)
-	// ============================================
-	{
-		slug: 'hpe-aruba-2530-24g',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'Aruba 2530-24G',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network',
-		front_image: true
-	},
-	{
-		slug: 'hpe-aruba-2530-48g',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'Aruba 2530-48G',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network',
-		front_image: true
-	},
+  // ============================================
+  // Aruba Switches - 2530 Series (Layer 2+ Managed)
+  // ============================================
+  {
+    slug: "hpe-aruba-2530-24g",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "Aruba 2530-24G",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+  },
+  {
+    slug: "hpe-aruba-2530-48g",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "Aruba 2530-48G",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+  },
 
-	// ============================================
-	// Aruba Switches - 6000 Series (Layer 3 Managed)
-	// ============================================
-	{
-		slug: 'hpe-aruba-6000-24g-4sfp',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'Aruba 6000-24G-4SFP',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network',
-		front_image: true,
-		rear_image: true
-	},
-	{
-		slug: 'hpe-aruba-6000-48g-4sfp',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'Aruba 6000-48G-4SFP',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network',
-		front_image: true,
-		rear_image: true
-	},
+  // ============================================
+  // Aruba Switches - 6000 Series (Layer 3 Managed)
+  // ============================================
+  {
+    slug: "hpe-aruba-6000-24g-4sfp",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "Aruba 6000-24G-4SFP",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+  },
+  {
+    slug: "hpe-aruba-6000-48g-4sfp",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "Aruba 6000-48G-4SFP",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+  },
 
-	// Additional devices from NetBox library
-	{
-		slug: 'hpe-proliant-dl180-gen6',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL180 Gen6',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl20-gen10',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL20 Gen10',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl325-gen10',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL325 Gen10',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl325-gen10-plus',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL325 Gen10 Plus',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl325-gen10-plus-v2',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL325 Gen10 Plus v2',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl325-gen11',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL325 Gen11',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl345-gen11',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL345 Gen11',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl360-gen10-plus',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL360 Gen10 Plus',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl360-gen7',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL360 Gen7',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl360e-gen8',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL360e Gen8',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl360p-gen8',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL360p Gen8',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl365-gen11',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL365 Gen11',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl380-gen10-plus',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL380 Gen10 Plus',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl380-gen5',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL380 Gen5',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl380e-gen8',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL380e Gen8',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl385-gen10-plus-v2',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL385 Gen10 Plus v2',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl385-gen11',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL385 Gen11',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl385p-gen8',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL385p Gen8',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl560-gen10',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL560 Gen10',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl580-gen10',
-		u_height: 4,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL580 Gen10',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl580-gen9',
-		u_height: 4,
-		manufacturer: 'HPE',
-		model: 'ProLiant DL580 Gen9',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dx360-gen10',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant DX360 Gen10',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dx385-gen10-plus',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DX385 Gen10 Plus',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dx385-gen10-plus-v2',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant DX385 Gen10 Plus V2',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-ml110-gen10',
-		u_height: 3,
-		manufacturer: 'HPE',
-		model: 'ProLiant ML110 Gen10',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-ml110-gen9',
-		u_height: 3,
-		manufacturer: 'HPE',
-		model: 'ProLiant ML110 Gen9',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-ml30-gen10-plus',
-		u_height: 4,
-		manufacturer: 'HPE',
-		model: 'ProLiant ML30 Gen10 Plus',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-ml350-gen10',
-		u_height: 4,
-		manufacturer: 'HPE',
-		model: 'ProLiant ML350 Gen10',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-ml350-gen9',
-		u_height: 4,
-		manufacturer: 'HPE',
-		model: 'ProLiant ML350 Gen9',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-ml350p-gen8',
-		u_height: 4,
-		manufacturer: 'HPE',
-		model: 'ProLiant ML350p Gen8',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-xl420-gen9',
-		u_height: 2,
-		manufacturer: 'HPE',
-		model: 'ProLiant XL420 Gen9',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl120-gen7',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant-DL120-Gen7',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	},
-	{
-		slug: 'hpe-proliant-dl320-gen6',
-		u_height: 1,
-		manufacturer: 'HPE',
-		model: 'ProLiant-DL320-Gen6',
-		airflow: 'front-to-rear',
-		colour: CATEGORY_COLOURS.server,
-		category: 'server'
-	}
+  // Additional devices from NetBox library
+  {
+    slug: "hpe-proliant-dl180-gen6",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL180 Gen6",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl20-gen10",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL20 Gen10",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl325-gen10",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL325 Gen10",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl325-gen10-plus",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL325 Gen10 Plus",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl325-gen10-plus-v2",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL325 Gen10 Plus v2",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl325-gen11",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL325 Gen11",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl345-gen11",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL345 Gen11",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl360-gen10-plus",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL360 Gen10 Plus",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl360-gen7",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL360 Gen7",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl360e-gen8",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL360e Gen8",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl360p-gen8",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL360p Gen8",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl365-gen11",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DL365 Gen11",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl380-gen10-plus",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL380 Gen10 Plus",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl380-gen5",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL380 Gen5",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl380e-gen8",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL380e Gen8",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl385-gen10-plus-v2",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL385 Gen10 Plus v2",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl385-gen11",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL385 Gen11",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl385p-gen8",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL385p Gen8",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl560-gen10",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DL560 Gen10",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl580-gen10",
+    u_height: 4,
+    manufacturer: "HPE",
+    model: "ProLiant DL580 Gen10",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl580-gen9",
+    u_height: 4,
+    manufacturer: "HPE",
+    model: "ProLiant DL580 Gen9",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dx360-gen10",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant DX360 Gen10",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dx385-gen10-plus",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DX385 Gen10 Plus",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dx385-gen10-plus-v2",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant DX385 Gen10 Plus V2",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-ml110-gen10",
+    u_height: 3,
+    manufacturer: "HPE",
+    model: "ProLiant ML110 Gen10",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-ml110-gen9",
+    u_height: 3,
+    manufacturer: "HPE",
+    model: "ProLiant ML110 Gen9",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-ml30-gen10-plus",
+    u_height: 4,
+    manufacturer: "HPE",
+    model: "ProLiant ML30 Gen10 Plus",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-ml350-gen10",
+    u_height: 4,
+    manufacturer: "HPE",
+    model: "ProLiant ML350 Gen10",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-ml350-gen9",
+    u_height: 4,
+    manufacturer: "HPE",
+    model: "ProLiant ML350 Gen9",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-ml350p-gen8",
+    u_height: 4,
+    manufacturer: "HPE",
+    model: "ProLiant ML350p Gen8",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-xl420-gen9",
+    u_height: 2,
+    manufacturer: "HPE",
+    model: "ProLiant XL420 Gen9",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl120-gen7",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant-DL120-Gen7",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+  {
+    slug: "hpe-proliant-dl320-gen6",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "ProLiant-DL320-Gen6",
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+  },
+
+  // Additional devices from NetBox library (Issue #1109 Phase 1)
+  {
+    slug: "hpe-aruba-3810m-24g-1-slot-switch",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "Aruba 3810M 24G 1-slot Switch",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+  },
+
+  {
+    slug: "hpe-aruba-2530-8g",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "Aruba 2530-8G",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+  },
+
+  {
+    slug: "hpe-aruba-2530-8g-poep",
+    u_height: 1,
+    manufacturer: "HPE",
+    model: "Aruba 2530-8G-PoE+",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+  },
 ];
