@@ -77,7 +77,8 @@ export function classifyRackSwipeGesture(
   const totalDistance = Math.hypot(deltaX, deltaY);
 
   const isVerticalPan =
-    totalDistance > panThreshold && absDeltaY > absDeltaX;
+    totalDistance > panThreshold &&
+    absDeltaY > absDeltaX * horizontalDominanceRatio;
 
   if (isVerticalPan) {
     return null;

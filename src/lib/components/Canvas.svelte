@@ -5,7 +5,7 @@
   Uses panzoom for zoom and pan functionality
 -->
 <script lang="ts">
-  import { onDestroy, onMount } from "svelte";
+  import { onDestroy } from "svelte";
   import panzoom from "panzoom";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
@@ -112,6 +112,11 @@
   const mobileDebug = appDebug.mobile;
 
   const SWIPE_SWITCH_ANIMATION_MS = 200;
+  const TOUCH_MOVE_LOG_INTERVAL_MS = 120;
+  const TOUCH_LISTENER_OPTIONS: AddEventListenerOptions = {
+    capture: true,
+    passive: true,
+  };
 
   interface SwipeGestureState {
     startX: number;
@@ -179,61 +184,58 @@
   let swipeAnimationDirection: RackSwipeDirection | null = $state(null);
   let swipeAnimationTimeout: ReturnType<typeof setTimeout> | null = null;
   let swipeAnimationEpoch = 0;
+  let lastTouchMoveLogAt = 0;
 
-  // Set canvas element and capture touch gestures before panzoom.
+  // Keep touch listener lifecycle synced to the current bound canvas element.
   // We intentionally use passive listeners and never call preventDefault here so
   // panzoom retains control for pan/pinch behavior.
-  onMount(() => {
-    if (!canvasContainer) return;
+  $effect(() => {
+    const element = canvasContainer;
+    if (!element) return;
 
-    canvasStore.setCanvasElement(canvasContainer);
+    canvasStore.setCanvasElement(element);
 
-    const touchListenerOptions: AddEventListenerOptions = {
-      capture: true,
-      passive: true,
-    };
-
-    canvasContainer.addEventListener(
+    element.addEventListener(
       "touchstart",
       handleCanvasTouchStart,
-      touchListenerOptions,
+      TOUCH_LISTENER_OPTIONS,
     );
-    canvasContainer.addEventListener(
+    element.addEventListener(
       "touchmove",
       handleCanvasTouchMove,
-      touchListenerOptions,
+      TOUCH_LISTENER_OPTIONS,
     );
-    canvasContainer.addEventListener(
+    element.addEventListener(
       "touchend",
       handleCanvasTouchEnd,
-      touchListenerOptions,
+      TOUCH_LISTENER_OPTIONS,
     );
-    canvasContainer.addEventListener(
+    element.addEventListener(
       "touchcancel",
       handleCanvasTouchCancel,
-      touchListenerOptions,
+      TOUCH_LISTENER_OPTIONS,
     );
 
     return () => {
-      canvasContainer?.removeEventListener(
+      element.removeEventListener(
         "touchstart",
         handleCanvasTouchStart,
-        touchListenerOptions,
+        TOUCH_LISTENER_OPTIONS,
       );
-      canvasContainer?.removeEventListener(
+      element.removeEventListener(
         "touchmove",
         handleCanvasTouchMove,
-        touchListenerOptions,
+        TOUCH_LISTENER_OPTIONS,
       );
-      canvasContainer?.removeEventListener(
+      element.removeEventListener(
         "touchend",
         handleCanvasTouchEnd,
-        touchListenerOptions,
+        TOUCH_LISTENER_OPTIONS,
       );
-      canvasContainer?.removeEventListener(
+      element.removeEventListener(
         "touchcancel",
         handleCanvasTouchCancel,
-        touchListenerOptions,
+        TOUCH_LISTENER_OPTIONS,
       );
     };
   });
@@ -510,11 +512,14 @@
       startTime: performance.now(),
       isMultiTouch: false,
     };
-    mobileDebug(
-      "canvas touchstart: x=%d y=%d",
-      swipeGesture.startX,
-      swipeGesture.startY,
-    );
+    lastTouchMoveLogAt = 0;
+    if (mobileDebug.enabled) {
+      mobileDebug(
+        "canvas touchstart: x=%d y=%d",
+        swipeGesture.startX,
+        swipeGesture.startY,
+      );
+    }
   }
 
   function handleCanvasTouchMove(event: TouchEvent) {
@@ -522,7 +527,9 @@
 
     if (event.touches.length !== 1) {
       swipeGesture.isMultiTouch = true;
-      mobileDebug("canvas touchmove: multitouch detected");
+      if (mobileDebug.enabled) {
+        mobileDebug("canvas touchmove: multitouch detected");
+      }
       return;
     }
 
@@ -531,11 +538,17 @@
 
     swipeGesture.currentX = touch.clientX;
     swipeGesture.currentY = touch.clientY;
-    mobileDebug(
-      "canvas touchmove: x=%d y=%d",
-      swipeGesture.currentX,
-      swipeGesture.currentY,
-    );
+    if (mobileDebug.enabled) {
+      const now = performance.now();
+      if (now - lastTouchMoveLogAt >= TOUCH_MOVE_LOG_INTERVAL_MS) {
+        mobileDebug(
+          "canvas touchmove: x=%d y=%d",
+          swipeGesture.currentX,
+          swipeGesture.currentY,
+        );
+        lastTouchMoveLogAt = now;
+      }
+    }
   }
 
   function handleCanvasTouchEnd(event: TouchEvent) {
@@ -549,7 +562,9 @@
       Math.abs(endX - swipeGesture.startX) > RACK_SWIPE_PAN_THRESHOLD;
 
     if (!horizontalLock) {
-      mobileDebug("canvas touchend: below horizontal lock threshold");
+      if (mobileDebug.enabled) {
+        mobileDebug("canvas touchend: below horizontal lock threshold");
+      }
       swipeGesture = null;
       return;
     }
@@ -563,21 +578,27 @@
       isMultiTouch: swipeGesture.isMultiTouch,
     });
 
-    mobileDebug(
-      "canvas touchend: direction=%s duration=%dms",
-      direction ?? "none",
-      Math.round(durationMs),
-    );
+    if (mobileDebug.enabled) {
+      mobileDebug(
+        "canvas touchend: direction=%s duration=%dms",
+        direction ?? "none",
+        Math.round(durationMs),
+      );
+    }
 
     swipeGesture = null;
 
     if (!direction) return;
-    mobileDebug("Swipe detected: %s, switching rack", direction);
+    if (mobileDebug.enabled) {
+      mobileDebug("Swipe detected: %s, switching rack", direction);
+    }
     switchRackFromSwipe(direction);
   }
 
   function handleCanvasTouchCancel() {
-    mobileDebug("canvas touchcancel: gesture reset");
+    if (mobileDebug.enabled) {
+      mobileDebug("canvas touchcancel: gesture reset");
+    }
     swipeGesture = null;
   }
 </script>
