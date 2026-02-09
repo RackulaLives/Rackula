@@ -54,6 +54,7 @@ export interface RackSwipeGestureOptions {
 /**
  * Classify a touch gesture as rack swipe navigation or non-swipe.
  * Returns `next`/`previous` only when a horizontal single-touch flick is detected.
+ * Threshold order: multi-touch rejection -> vertical-pan rejection -> horizontal flick checks.
  */
 export function classifyRackSwipeGesture(
   input: RackSwipeGestureInput,
@@ -65,8 +66,13 @@ export function classifyRackSwipeGesture(
 
   const minSwipeDistance = options.minSwipeDistance ?? RACK_SWIPE_MIN_DISTANCE;
   const panThreshold = options.panThreshold ?? RACK_SWIPE_PAN_THRESHOLD;
-  const horizontalDominanceRatio =
+  const configuredDominanceRatio =
     options.horizontalDominanceRatio ?? DEFAULT_HORIZONTAL_DOMINANCE_RATIO;
+  const horizontalDominanceRatio =
+    configuredDominanceRatio > 0
+      ? configuredDominanceRatio
+      : DEFAULT_HORIZONTAL_DOMINANCE_RATIO;
+  const verticalDominanceRatio = 1 / horizontalDominanceRatio;
   const maxSwipeDurationMs =
     options.maxSwipeDurationMs ?? DEFAULT_MAX_SWIPE_DURATION;
 
@@ -75,10 +81,11 @@ export function classifyRackSwipeGesture(
   const absDeltaX = Math.abs(deltaX);
   const absDeltaY = Math.abs(deltaY);
   const totalDistance = Math.hypot(deltaX, deltaY);
+  const isHorizontalDominant = absDeltaX > absDeltaY * horizontalDominanceRatio;
 
   const isVerticalPan =
     totalDistance > panThreshold &&
-    absDeltaY > absDeltaX * horizontalDominanceRatio;
+    absDeltaY > absDeltaX * verticalDominanceRatio;
 
   if (isVerticalPan) {
     return null;
@@ -86,7 +93,7 @@ export function classifyRackSwipeGesture(
 
   const isHorizontalFlick =
     absDeltaX >= minSwipeDistance &&
-    absDeltaX > absDeltaY * horizontalDominanceRatio &&
+    isHorizontalDominant &&
     input.durationMs <= maxSwipeDurationMs;
 
   if (!isHorizontalFlick) {
