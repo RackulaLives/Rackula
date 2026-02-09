@@ -89,15 +89,10 @@ function main(): void {
     );
   }
 
-  const aggregate = (assets: AssetStat[]): { raw: number; gzip: number } =>
-    assets.reduce(
-      (sum, item) => {
-        sum.raw += item.rawBytes;
-        sum.gzip += item.gzipBytes;
-        return sum;
-      },
-      { raw: 0, gzip: 0 },
-    );
+  const aggregate = (assets: AssetStat[]): { raw: number; gzip: number } => ({
+    raw: assets.reduce((sum, item) => sum + item.rawBytes, 0),
+    gzip: assets.reduce((sum, item) => sum + item.gzipBytes, 0),
+  });
   const brandpacks = aggregate(
     stats.filter((stat) => stat.asset.includes("data-brandpacks")),
   );
