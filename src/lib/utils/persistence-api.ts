@@ -87,12 +87,69 @@ export async function checkApiHealth(): Promise<boolean> {
       method: "GET",
       signal: AbortSignal.timeout(3000),
     });
+    if (!response.ok) {
+      log(
+        "checkApiHealth: response status=%d ok=%s",
+        response.status,
+        response.ok,
+      );
+      return false;
+    }
+
+    // Guard against frontend SPA fallback responses (text/html), which can return
+    // 200 for unknown paths in dev/proxy environments and cause false positives.
+    const contentType =
+      response.headers.get("content-type")?.toLowerCase() ?? "";
+    const body = (await response.text()).trim();
+    const normalized = body.toLowerCase();
+    const looksLikeHtml =
+      contentType.includes("text/html") ||
+      normalized.startsWith("<!doctype html") ||
+      normalized.startsWith("<html");
+
+    if (looksLikeHtml) {
+      log(
+        "checkApiHealth: rejecting HTML fallback response from %s",
+        healthUrl,
+      );
+      return false;
+    }
+
+    // API currently returns plain-text "OK". Accept a few common health payloads
+    // for compatibility with local mocks and reverse proxies.
+    if (!body) return true;
+    if (
+      normalized === "ok" ||
+      normalized === "healthy" ||
+      normalized === "up"
+    ) {
+      return true;
+    }
+
+    if (contentType.includes("application/json") || body.startsWith("{")) {
+      try {
+        const data = JSON.parse(body) as {
+          ok?: boolean;
+          status?: string;
+          healthy?: boolean;
+        };
+        if (data.ok === true || data.healthy === true) return true;
+        if (
+          typeof data.status === "string" &&
+          ["ok", "healthy", "up"].includes(data.status.toLowerCase())
+        ) {
+          return true;
+        }
+      } catch {
+        // Fall through to false below
+      }
+    }
+
     log(
-      "checkApiHealth: response status=%d ok=%s",
+      "checkApiHealth: unexpected health payload (status=%d)",
       response.status,
-      response.ok,
     );
-    return response.ok;
+    return false;
   } catch (error) {
     log("checkApiHealth: error %O", error);
     return false;

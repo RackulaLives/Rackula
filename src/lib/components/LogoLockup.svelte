@@ -47,56 +47,51 @@
   // Calculate proportional title height (logo should be slightly taller)
   const titleHeight = $derived(size * 1.2);
 
-  // Determine which gradient to use based on state (priority order)
-  const gradientId = $derived(
+  type ActiveGradientKind = "rainbow" | "celebrate" | "party" | "showcase";
+  type GradientIds = Record<ActiveGradientKind, string>;
+
+  function createGradientIds(prefix: string): GradientIds {
+    return {
+      rainbow: `${prefix}-rainbow`,
+      celebrate: `${prefix}-celebrate`,
+      party: `${prefix}-party`,
+      showcase: `${prefix}-showcase`,
+    };
+  }
+
+  // Unique IDs per LogoLockup instance avoid collisions across Toolbar/StartScreen/Help.
+  const gradientIdSuffix = Math.random().toString(36).slice(2, 9);
+  const markGradientIds = createGradientIds(`lockup-mark-${gradientIdSuffix}`);
+  const titleGradientIds = createGradientIds(
+    `lockup-title-${gradientIdSuffix}`,
+  );
+
+  // Determine active gradient based on state (priority order).
+  const activeGradient = $derived<ActiveGradientKind | null>(
     partyMode
-      ? "url(#lockup-party)"
+      ? "party"
       : celebrate
-        ? "url(#lockup-celebrate)"
+        ? "celebrate"
         : showcase
-          ? "url(#lockup-showcase)"
+          ? "showcase"
           : hovering
-            ? "url(#lockup-rainbow)"
+            ? "rainbow"
             : null,
+  );
+
+  const markGradientUrl = $derived(
+    activeGradient ? `url(#${markGradientIds[activeGradient]})` : undefined,
+  );
+  const titleGradientUrl = $derived(
+    activeGradient ? `url(#${titleGradientIds[activeGradient]})` : undefined,
   );
 </script>
 
-<div
-  class="logo-lockup"
-  onmouseenter={() => (hovering = true)}
-  onmouseleave={() => (hovering = false)}
-  role="presentation"
->
-  <!-- Hidden SVG for gradient definitions (1x1 to avoid browser image serialization errors) -->
-  <svg
-    width="1"
-    height="1"
-    style="position: absolute; visibility: hidden;"
-    aria-hidden="true"
-  >
-    <defs>
-      <!-- Idle gradient: very slow rotating purple tones (30s cycle) -->
-      <linearGradient id="lockup-idle" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%">
-          <animate
-            attributeName="stop-color"
-            values="#BD93F9;#9580FF;#FF79C6;#BD93F9"
-            dur="30s"
-            repeatCount="indefinite"
-          />
-        </stop>
-        <stop offset="100%">
-          <animate
-            attributeName="stop-color"
-            values="#9580FF;#FF79C6;#BD93F9;#9580FF"
-            dur="30s"
-            repeatCount="indefinite"
-          />
-        </stop>
-      </linearGradient>
-
+{#snippet activeGradientDef(kind: ActiveGradientKind, id: string)}
+  <defs>
+    {#if kind === "rainbow"}
       <!-- Animated rainbow gradient for hover (Dracula colors, 6s cycle) -->
-      <linearGradient id="lockup-rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient {id} x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%">
           <animate
             attributeName="stop-color"
@@ -122,9 +117,9 @@
           />
         </stop>
       </linearGradient>
-
+    {:else if kind === "celebrate"}
       <!-- Celebrate gradient (3s one-shot rainbow wave) -->
-      <linearGradient id="lockup-celebrate" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient {id} x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%">
           <animate
             attributeName="stop-color"
@@ -153,9 +148,9 @@
           />
         </stop>
       </linearGradient>
-
+    {:else if kind === "party"}
       <!-- Party mode gradient (fast 0.5s rainbow cycle) -->
-      <linearGradient id="lockup-party" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient {id} x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%">
           <animate
             attributeName="stop-color"
@@ -181,37 +176,23 @@
           />
         </stop>
       </linearGradient>
-
-      <!-- Showcase gradient (slow 12s rainbow wave for About/Help) -->
-      <linearGradient id="lockup-showcase" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%">
-          <animate
-            attributeName="stop-color"
-            values="#BD93F9;#FF79C6;#8BE9FD;#50FA7B;#FFB86C;#FF5555;#F1FA8C;#BD93F9"
-            dur="12s"
-            repeatCount="indefinite"
-          />
-        </stop>
-        <stop offset="50%">
-          <animate
-            attributeName="stop-color"
-            values="#FF79C6;#8BE9FD;#50FA7B;#FFB86C;#FF5555;#F1FA8C;#BD93F9;#FF79C6"
-            dur="12s"
-            repeatCount="indefinite"
-          />
-        </stop>
-        <stop offset="100%">
-          <animate
-            attributeName="stop-color"
-            values="#8BE9FD;#50FA7B;#FFB86C;#FF5555;#F1FA8C;#BD93F9;#FF79C6;#8BE9FD"
-            dur="12s"
-            repeatCount="indefinite"
-          />
-        </stop>
+    {:else}
+      <!-- Showcase gradient: static fallback to avoid Firefox image decode errors on initial load -->
+      <linearGradient {id} x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#BD93F9" />
+        <stop offset="50%" stop-color="#8BE9FD" />
+        <stop offset="100%" stop-color="#50FA7B" />
       </linearGradient>
-    </defs>
-  </svg>
+    {/if}
+  </defs>
+{/snippet}
 
+<div
+  class="logo-lockup"
+  onmouseenter={() => (hovering = true)}
+  onmouseleave={() => (hovering = false)}
+  role="presentation"
+>
   <!-- Logo mark with widow's peak + optional Christmas hat -->
   <div class="logo-mark-container">
     <svg
@@ -220,16 +201,23 @@
       class:logo-mark--party={partyMode}
       class:logo-mark--showcase={showcase}
       class:logo-mark--hover={hovering && !partyMode && !celebrate && !showcase}
+      xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 32 32"
       width={size}
       height={size}
       aria-hidden="true"
       fill-rule="evenodd"
-      style={gradientId ? `--active-gradient: ${gradientId}` : undefined}
     >
+      {#if activeGradient}
+        {@render activeGradientDef(
+          activeGradient,
+          markGradientIds[activeGradient],
+        )}
+      {/if}
       <!-- Widow's peak frame with device slots as negative space -->
       <path
         d="M6 4 L13 4 L16 7 L19 4 L26 4 L26 28 L6 28 Z M10 9 h12 v4 h-12 z M10 15 h12 v4 h-12 z M10 21 h12 v4 h-12 z"
+        fill={markGradientUrl}
       />
     </svg>
     {#if showChristmasHat}
@@ -248,15 +236,21 @@
     class:logo-title--showcase={showcase}
     class:logo-title--hover={hovering && !partyMode && !celebrate && !showcase}
     class:logo-title--always-visible={alwaysShowTitle}
+    xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 {showEnvPrefix ? 180 : 160} 50"
     height={titleHeight}
     role="img"
     aria-label={showEnvPrefix
       ? "DRackula - development environment"
       : "Rackula"}
-    style={gradientId ? `--active-gradient: ${gradientId}` : undefined}
   >
-    <text x="0" y="38"
+    {#if activeGradient}
+      {@render activeGradientDef(
+        activeGradient,
+        titleGradientIds[activeGradient],
+      )}
+    {/if}
+    <text x="0" y="38" fill={titleGradientUrl}
       >{#if showEnvPrefix}<tspan class="env-prefix" font-size="44">D</tspan
         >{/if}<tspan>Rackula</tspan></text
     >
@@ -322,21 +316,11 @@
 
   /* Celebrate state: rainbow wave for 3s */
   .logo-mark--celebrate,
-  .logo-title--celebrate text {
-    fill: var(--active-gradient, url(#lockup-celebrate)) !important;
-  }
-
-  .logo-mark--celebrate,
   .logo-title--celebrate {
     filter: drop-shadow(0 0 20px rgba(189, 147, 249, 0.4));
   }
 
   /* Party mode: fast rainbow + wobble */
-  .logo-mark--party,
-  .logo-title--party text {
-    fill: var(--active-gradient, url(#lockup-party)) !important;
-  }
-
   .logo-mark--party,
   .logo-title--party {
     filter: drop-shadow(0 0 24px rgba(189, 147, 249, 0.5));
@@ -345,21 +329,11 @@
 
   /* Showcase mode: slow rainbow wave for About/Help */
   .logo-mark--showcase,
-  .logo-title--showcase text {
-    fill: var(--active-gradient, url(#lockup-showcase)) !important;
-  }
-
-  .logo-mark--showcase,
   .logo-title--showcase {
     filter: drop-shadow(0 0 16px rgba(189, 147, 249, 0.4));
   }
 
   /* Hover state: 6s rainbow cycle */
-  .logo-mark--hover,
-  .logo-title--hover text {
-    fill: var(--active-gradient, url(#lockup-rainbow)) !important;
-  }
-
   .logo-mark--hover,
   .logo-title--hover {
     filter: drop-shadow(0 0 12px rgba(189, 147, 249, 0.4));
@@ -383,7 +357,7 @@
     }
 
     /* Static purple for hover state (no animation) - logo stays purple, text goes purple */
-    .logo-mark--hover {
+    .logo-mark--hover path {
       fill: var(--dracula-purple) !important;
       filter: drop-shadow(0 0 8px rgba(189, 147, 249, 0.3));
     }
@@ -397,9 +371,9 @@
     }
 
     /* Static purple for special states (no animation) */
-    .logo-mark--celebrate,
-    .logo-mark--party,
-    .logo-mark--showcase,
+    .logo-mark--celebrate path,
+    .logo-mark--party path,
+    .logo-mark--showcase path,
     .logo-title--celebrate text,
     .logo-title--party text,
     .logo-title--showcase text {

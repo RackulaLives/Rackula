@@ -338,6 +338,9 @@
           "failed to load saved layouts from server: %O",
           error,
         );
+        // Treat server data failures as offline and fall back gracefully.
+        setApiAvailable(false);
+        saveStatus = "offline";
       }
     }
 
@@ -1336,12 +1339,21 @@
         clearSession();
       } catch (e) {
         console.warn("Auto-save failed:", e);
-        if (e instanceof PersistenceError && e.statusCode === undefined) {
-          // Network error - API might be down
+        // Degrade to offline mode for network/proxy/routing failures.
+        if (e instanceof PersistenceError) {
+          if (
+            e.statusCode === undefined ||
+            e.statusCode === 404 ||
+            (typeof e.statusCode === "number" && e.statusCode >= 500)
+          ) {
+            setApiAvailable(false);
+            saveStatus = "offline";
+          } else {
+            saveStatus = "error";
+          }
+        } else {
           setApiAvailable(false);
           saveStatus = "offline";
-        } else {
-          saveStatus = "error";
         }
       }
       serverSaveTimer = null;
