@@ -411,6 +411,19 @@ describe("classifyRackSwipeGesture", () => {
     expect(direction).toBeNull();
   });
 
+  it("keeps horizontal swipes valid with moderate vertical drift", () => {
+    const direction = classifyRackSwipeGesture({
+      startX: 200,
+      startY: 120,
+      endX: 116,
+      endY: 168,
+      durationMs: 190,
+      isMultiTouch: false,
+    });
+
+    expect(direction).toBe("next");
+  });
+
   it("returns null for slow horizontal drags", () => {
     const direction = classifyRackSwipeGesture({
       startX: 200,

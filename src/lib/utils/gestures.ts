@@ -76,15 +76,17 @@ export function classifyRackSwipeGesture(
   const absDeltaY = Math.abs(deltaY);
   const totalDistance = Math.hypot(deltaX, deltaY);
 
+  const isVerticalPan =
+    totalDistance > panThreshold && absDeltaY > absDeltaX;
+
+  if (isVerticalPan) {
+    return null;
+  }
+
   const isHorizontalFlick =
     absDeltaX >= minSwipeDistance &&
     absDeltaX > absDeltaY * horizontalDominanceRatio &&
     input.durationMs <= maxSwipeDurationMs;
-
-  // If movement exceeded pan threshold but did not meet swipe criteria, treat as pan.
-  if (totalDistance > panThreshold && !isHorizontalFlick) {
-    return null;
-  }
 
   if (!isHorizontalFlick) {
     return null;
