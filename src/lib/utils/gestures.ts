@@ -5,6 +5,10 @@
 
 const DEFAULT_LONG_PRESS_DURATION = 500; // ms
 const MOVE_THRESHOLD = 10; // px
+export const RACK_SWIPE_MIN_DISTANCE = 50; // px
+export const RACK_SWIPE_PAN_THRESHOLD = 20; // px
+const DEFAULT_HORIZONTAL_DOMINANCE_RATIO = 1.5;
+const DEFAULT_MAX_SWIPE_DURATION = 300; // ms
 
 /**
  * Options for useLongPress
@@ -18,6 +22,79 @@ export interface LongPressOptions {
   onStart?: (x: number, y: number) => void;
   /** Called when long press is cancelled */
   onCancel?: () => void;
+}
+
+/**
+ * Direction for rack swipe navigation.
+ */
+export type RackSwipeDirection = "next" | "previous";
+
+/**
+ * Input for rack swipe gesture classification.
+ */
+export interface RackSwipeGestureInput {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  durationMs: number;
+  isMultiTouch: boolean;
+}
+
+/**
+ * Configuration for rack swipe gesture classification.
+ */
+export interface RackSwipeGestureOptions {
+  minSwipeDistance?: number;
+  panThreshold?: number;
+  horizontalDominanceRatio?: number;
+  maxSwipeDurationMs?: number;
+}
+
+/**
+ * Classify a touch gesture as rack swipe navigation or non-swipe.
+ * Returns `next`/`previous` only when a horizontal single-touch flick is detected.
+ */
+export function classifyRackSwipeGesture(
+  input: RackSwipeGestureInput,
+  options: RackSwipeGestureOptions = {},
+): RackSwipeDirection | null {
+  if (input.isMultiTouch) {
+    return null;
+  }
+
+  const minSwipeDistance = options.minSwipeDistance ?? RACK_SWIPE_MIN_DISTANCE;
+  const panThreshold = options.panThreshold ?? RACK_SWIPE_PAN_THRESHOLD;
+  const horizontalDominanceRatio =
+    options.horizontalDominanceRatio ?? DEFAULT_HORIZONTAL_DOMINANCE_RATIO;
+  const maxSwipeDurationMs =
+    options.maxSwipeDurationMs ?? DEFAULT_MAX_SWIPE_DURATION;
+
+  const deltaX = input.endX - input.startX;
+  const deltaY = input.endY - input.startY;
+  const absDeltaX = Math.abs(deltaX);
+  const absDeltaY = Math.abs(deltaY);
+  const totalDistance = Math.hypot(deltaX, deltaY);
+
+  const isVerticalPan =
+    totalDistance > panThreshold &&
+    absDeltaY > absDeltaX * horizontalDominanceRatio;
+
+  if (isVerticalPan) {
+    return null;
+  }
+
+  const isHorizontalFlick =
+    absDeltaX >= minSwipeDistance &&
+    absDeltaX > absDeltaY * horizontalDominanceRatio &&
+    input.durationMs <= maxSwipeDurationMs;
+
+  if (!isHorizontalFlick) {
+    return null;
+  }
+
+  // Swipe left -> next rack, swipe right -> previous rack.
+  return deltaX < 0 ? "next" : "previous";
 }
 
 /**
@@ -45,6 +122,7 @@ export function useLongPress(
   let startTime = 0;
   let hasMoved = false;
   let isActive = false;
+  let activePointerId: number | null = null;
 
   const cancelLongPress = () => {
     if (timeoutId) {
@@ -59,6 +137,7 @@ export function useLongPress(
       isActive = false;
       onCancel?.();
     }
+    activePointerId = null;
   };
 
   const updateProgress = () => {
@@ -74,10 +153,21 @@ export function useLongPress(
   };
 
   const handlePointerDown = (e: PointerEvent) => {
-    // Only handle primary pointer (ignore multi-touch)
-    if (!e.isPrimary) return;
+    // Cancel active long press if a second pointer touches (pinch/zoom gesture).
+    if (!e.isPrimary) {
+      if (isActive) {
+        cancelLongPress();
+      }
+      return;
+    }
+
+    // Defensive reset if a previous gesture somehow remained active.
+    if (isActive) {
+      cancelLongPress();
+    }
 
     // Store initial position
+    activePointerId = e.pointerId;
     startX = e.clientX;
     startY = e.clientY;
     startTime = performance.now();
@@ -103,26 +193,25 @@ export function useLongPress(
       // Ensure final progress is delivered before callback
       onProgress?.(1);
 
-      // Trigger haptic feedback if available
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-
       isActive = false;
+      activePointerId = null;
       callback();
       timeoutId = null;
     }, duration);
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: PointerEvent) => {
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
     cancelLongPress();
   };
 
-  const handlePointerCancel = () => {
+  const handlePointerCancel = (e: PointerEvent) => {
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
     cancelLongPress();
   };
 
   const handlePointerMove = (e: PointerEvent) => {
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
     if (!timeoutId || hasMoved) return;
 
     // Calculate distance moved

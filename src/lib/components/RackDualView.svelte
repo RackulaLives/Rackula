@@ -16,6 +16,9 @@
   import BananaForScale from "./BananaForScale.svelte";
   import RackContextMenu from "./RackContextMenu.svelte";
   import { useLongPress } from "$lib/utils/gestures";
+  import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
+  import { appDebug } from "$lib/utils/debug";
+  import { hapticTap } from "$lib/utils/haptics";
 
   interface Props {
     rack: RackType;
@@ -115,38 +118,83 @@
 
   // Element reference for long press
   let containerElement: HTMLDivElement | null = $state(null);
+  const rackDualLongPressDebug = appDebug.mobile.extend("rack-dual-view");
 
   // Long press visual feedback state
   let longPressProgress = $state(0);
   let longPressActive = $state(false);
+  let longPressPoint = $state<{ x: number; y: number } | null>(null);
+  let longPressTarget = $state<Element | null>(null);
 
   // Attach long press gesture when enabled
   $effect(() => {
-    if (!enableLongPress || !containerElement || !onlongpress) {
+    if (!enableLongPress || !containerElement) {
       longPressActive = false;
       longPressProgress = 0;
+      longPressPoint = null;
+      longPressTarget = null;
       return;
     }
 
     const cleanup = useLongPress(
       containerElement,
       () => {
+        const point = longPressPoint;
+        const target = longPressTarget;
+
         longPressActive = false;
         longPressProgress = 0;
-        onlongpress(
-          new CustomEvent("longpress", { detail: { rackId: rack.id } }),
+        longPressPoint = null;
+        longPressTarget = null;
+
+        if (!point) {
+          onlongpress?.(
+            new CustomEvent("longpress", { detail: { rackId: rack.id } }),
+          );
+          return;
+        }
+
+        // Device long-press has its own context menu behavior.
+        if (target?.closest(".rack-device")) {
+          rackDualLongPressDebug(
+            "skip rack context menu: device target rackId=%s point=%o",
+            rack.id,
+            point,
+          );
+          return;
+        }
+
+        hapticTap();
+        const fallbackTarget =
+          (target?.closest(".rack-dual-view") as Element | null) ??
+          containerElement ??
+          document.body;
+        rackDualLongPressDebug(
+          "dispatch rack context menu rackId=%s point=%o hasTarget=%s",
+          rack.id,
+          point,
+          Boolean(target),
+        );
+        dispatchContextMenuAtPoint(
+          point.x,
+          point.y,
+          fallbackTarget,
         );
       },
       {
         onProgress: (progress) => {
           longPressProgress = progress;
         },
-        onStart: () => {
+        onStart: (x, y) => {
           longPressActive = true;
+          longPressPoint = { x, y };
+          longPressTarget = document.elementFromPoint(x, y);
         },
         onCancel: () => {
           longPressActive = false;
           longPressProgress = 0;
+          longPressPoint = null;
+          longPressTarget = null;
         },
       },
     );

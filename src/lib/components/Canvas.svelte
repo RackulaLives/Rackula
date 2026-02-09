@@ -5,7 +5,7 @@
   Uses panzoom for zoom and pan functionality
 -->
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onDestroy } from "svelte";
   import panzoom from "panzoom";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
@@ -15,10 +15,17 @@
     ZOOM_MAX,
   } from "$lib/stores/canvas.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
-  import { debug } from "$lib/utils/debug";
+  import { debug, appDebug } from "$lib/utils/debug";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
-  // Note: getViewportStore removed - was only used for PlacementIndicator condition
-  import { hapticSuccess } from "$lib/utils/haptics";
+  import { getViewportStore } from "$lib/utils/viewport.svelte";
+  import {
+    classifyRackSwipeGesture,
+    RACK_SWIPE_PAN_THRESHOLD,
+    useLongPress,
+    type RackSwipeDirection,
+  } from "$lib/utils/gestures";
+  import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
+  import { hapticSuccess, hapticTap } from "$lib/utils/haptics";
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
   import WelcomeScreen from "./WelcomeScreen.svelte";
@@ -102,8 +109,28 @@
   const selectionStore = getSelectionStore();
   const canvasStore = getCanvasStore();
   const uiStore = getUIStore();
-  // Note: viewportStore removed - was only used for PlacementIndicator condition
+  const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
+  const mobileDebug = appDebug.mobile;
+
+  const SWIPE_SWITCH_ANIMATION_MS = 200;
+  const TOUCH_MOVE_LOG_INTERVAL_MS = 120;
+  const TOUCH_LISTENER_OPTIONS: AddEventListenerOptions = {
+    // Capture keeps swipe tracking robust even if child components stop bubbling.
+    // Because listeners are passive and never call stopPropagation/preventDefault,
+    // child touch handlers still run and panzoom keeps gesture ownership.
+    capture: true,
+    passive: true,
+  };
+
+  interface SwipeGestureState {
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+    startTime: number;
+    isMultiTouch: boolean;
+  }
 
   // Note: handlePlacementCancel removed - now handled in Rack.svelte
 
@@ -158,11 +185,118 @@
   // Panzoom container reference
   let panzoomContainer: HTMLDivElement | null = $state(null);
   let canvasContainer: HTMLDivElement | null = $state(null);
+  let swipeGesture: SwipeGestureState | null = null;
+  let swipeAnimationDirection: RackSwipeDirection | null = $state(null);
+  let swipeAnimationTimeout: ReturnType<typeof setTimeout> | null = null;
+  let swipeAnimationEpoch = 0;
+  let lastTouchMoveLogAt = 0;
+  let canvasLongPressPoint = $state<{ x: number; y: number } | null>(null);
+  let canvasLongPressTarget = $state<Element | null>(null);
 
-  // Set canvas element for viewport measurements
-  onMount(() => {
-    if (canvasContainer) {
-      canvasStore.setCanvasElement(canvasContainer);
+  function isCanvasRackTarget(target: Element | null): boolean {
+    if (!target) return false;
+    return Boolean(
+      target.closest(
+        ".rack-device, .rack-container, .rack-wrapper, .rack-dual-view, .bayed-rack-view",
+      ),
+    );
+  }
+
+  // Keep touch listener lifecycle synced to the current bound canvas element.
+  // We intentionally use passive listeners and never call preventDefault here so
+  // panzoom retains control for pan/pinch behavior.
+  $effect(() => {
+    const element = canvasContainer;
+    if (!element) return;
+
+    canvasStore.setCanvasElement(element);
+
+    element.addEventListener(
+      "touchstart",
+      handleCanvasTouchStart,
+      TOUCH_LISTENER_OPTIONS,
+    );
+    element.addEventListener(
+      "touchmove",
+      handleCanvasTouchMove,
+      TOUCH_LISTENER_OPTIONS,
+    );
+    element.addEventListener(
+      "touchend",
+      handleCanvasTouchEnd,
+      TOUCH_LISTENER_OPTIONS,
+    );
+    element.addEventListener(
+      "touchcancel",
+      handleCanvasTouchCancel,
+      TOUCH_LISTENER_OPTIONS,
+    );
+
+    return () => {
+      element.removeEventListener(
+        "touchstart",
+        handleCanvasTouchStart,
+        TOUCH_LISTENER_OPTIONS,
+      );
+      element.removeEventListener(
+        "touchmove",
+        handleCanvasTouchMove,
+        TOUCH_LISTENER_OPTIONS,
+      );
+      element.removeEventListener(
+        "touchend",
+        handleCanvasTouchEnd,
+        TOUCH_LISTENER_OPTIONS,
+      );
+      element.removeEventListener(
+        "touchcancel",
+        handleCanvasTouchCancel,
+        TOUCH_LISTENER_OPTIONS,
+      );
+      canvasStore.setCanvasElement(null);
+    };
+  });
+
+  // Long-press on empty canvas opens canvas context menu on mobile/tablet.
+  $effect(() => {
+    if (!enableLongPress || !canvasContainer) {
+      canvasLongPressPoint = null;
+      canvasLongPressTarget = null;
+      return;
+    }
+
+    const cleanup = useLongPress(
+      canvasContainer,
+      () => {
+        const point = canvasLongPressPoint;
+        const target = canvasLongPressTarget;
+        canvasLongPressPoint = null;
+        canvasLongPressTarget = null;
+
+        if (!point || isCanvasRackTarget(target)) return;
+
+        hapticTap();
+        dispatchContextMenuAtPoint(point.x, point.y, canvasContainer);
+      },
+      {
+        onStart: (x, y) => {
+          canvasLongPressPoint = { x, y };
+          canvasLongPressTarget = document.elementFromPoint(x, y);
+        },
+        onCancel: () => {
+          canvasLongPressPoint = null;
+          canvasLongPressTarget = null;
+        },
+      },
+    );
+
+    return cleanup;
+  });
+
+  onDestroy(() => {
+    if (swipeAnimationTimeout) {
+      clearTimeout(swipeAnimationTimeout);
+      swipeAnimationTimeout = null;
     }
   });
 
@@ -355,6 +489,171 @@
       selectionStore.clearSelection();
     }
   }
+
+  function triggerSwipeAnimation(direction: RackSwipeDirection) {
+    if (swipeAnimationTimeout) {
+      clearTimeout(swipeAnimationTimeout);
+      swipeAnimationTimeout = null;
+    }
+
+    const epoch = ++swipeAnimationEpoch;
+    swipeAnimationDirection = null;
+
+    Promise.resolve().then(() => {
+      if (epoch !== swipeAnimationEpoch) return;
+
+      swipeAnimationDirection = direction;
+      swipeAnimationTimeout = setTimeout(() => {
+        if (epoch !== swipeAnimationEpoch) return;
+        swipeAnimationDirection = null;
+        swipeAnimationTimeout = null;
+      }, SWIPE_SWITCH_ANIMATION_MS);
+    });
+  }
+
+  function switchRackFromSwipe(direction: RackSwipeDirection) {
+    if (!viewportStore.isMobile || racks.length < 2) {
+      return;
+    }
+
+    const currentId = layoutStore.activeRackId;
+    const currentIndex = currentId
+      ? racks.findIndex((rack) => rack.id === currentId)
+      : -1;
+
+    let nextIndex: number;
+    if (currentIndex === -1) {
+      nextIndex = direction === "next" ? 0 : racks.length - 1;
+    } else {
+      const delta = direction === "next" ? 1 : -1;
+      nextIndex = (currentIndex + delta + racks.length) % racks.length;
+    }
+
+    const nextRack = racks[nextIndex];
+    if (!nextRack || nextRack.id === currentId) {
+      return;
+    }
+
+    triggerSwipeAnimation(direction);
+    layoutStore.setActiveRack(nextRack.id);
+    selectionStore.selectRack(nextRack.id);
+    canvasStore.focusRack([nextRack.id], racks, rackGroups, 0);
+  }
+
+  function handleCanvasTouchStart(event: TouchEvent) {
+    if (
+      !viewportStore.isMobile ||
+      racks.length < 2 ||
+      placementStore.isPlacing ||
+      event.touches.length !== 1
+    ) {
+      swipeGesture = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+    if (!touch) {
+      swipeGesture = null;
+      return;
+    }
+
+    swipeGesture = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      currentX: touch.clientX,
+      currentY: touch.clientY,
+      startTime: performance.now(),
+      isMultiTouch: false,
+    };
+    lastTouchMoveLogAt = 0;
+    if (mobileDebug.enabled) {
+      mobileDebug(
+        "canvas touchstart: x=%d y=%d",
+        swipeGesture.startX,
+        swipeGesture.startY,
+      );
+    }
+  }
+
+  function handleCanvasTouchMove(event: TouchEvent) {
+    if (!swipeGesture) return;
+
+    if (event.touches.length !== 1) {
+      swipeGesture.isMultiTouch = true;
+      if (mobileDebug.enabled) {
+        mobileDebug("canvas touchmove: multitouch detected");
+      }
+      return;
+    }
+
+    const touch = event.touches[0];
+    if (!touch) return;
+
+    swipeGesture.currentX = touch.clientX;
+    swipeGesture.currentY = touch.clientY;
+    if (mobileDebug.enabled) {
+      const now = performance.now();
+      if (now - lastTouchMoveLogAt >= TOUCH_MOVE_LOG_INTERVAL_MS) {
+        mobileDebug(
+          "canvas touchmove: x=%d y=%d",
+          swipeGesture.currentX,
+          swipeGesture.currentY,
+        );
+        lastTouchMoveLogAt = now;
+      }
+    }
+  }
+
+  function handleCanvasTouchEnd(event: TouchEvent) {
+    if (!swipeGesture) return;
+
+    const changedTouch = event.changedTouches[0];
+    const endX = changedTouch?.clientX ?? swipeGesture.currentX;
+    const endY = changedTouch?.clientY ?? swipeGesture.currentY;
+    const durationMs = performance.now() - swipeGesture.startTime;
+    const horizontalLock =
+      Math.abs(endX - swipeGesture.startX) > RACK_SWIPE_PAN_THRESHOLD;
+
+    if (!horizontalLock) {
+      if (mobileDebug.enabled) {
+        mobileDebug("canvas touchend: below horizontal lock threshold");
+      }
+      swipeGesture = null;
+      return;
+    }
+
+    const direction = classifyRackSwipeGesture({
+      startX: swipeGesture.startX,
+      startY: swipeGesture.startY,
+      endX,
+      endY,
+      durationMs,
+      isMultiTouch: swipeGesture.isMultiTouch,
+    });
+
+    if (mobileDebug.enabled) {
+      mobileDebug(
+        "canvas touchend: direction=%s duration=%dms",
+        direction ?? "none",
+        Math.round(durationMs),
+      );
+    }
+
+    swipeGesture = null;
+
+    if (!direction) return;
+    if (mobileDebug.enabled) {
+      mobileDebug("Swipe detected: %s, switching rack", direction);
+    }
+    switchRackFromSwipe(direction);
+  }
+
+  function handleCanvasTouchCancel() {
+    if (mobileDebug.enabled) {
+      mobileDebug("canvas touchcancel: gesture reset");
+    }
+    swipeGesture = null;
+  }
 </script>
 
 <!-- eslint-disable-next-line svelte/no-unused-svelte-ignore -- these warnings appear in Vite build but not ESLint -->
@@ -386,7 +685,11 @@
     {#if hasRacks}
       <div class="panzoom-container" bind:this={panzoomContainer}>
         <!-- Multi-rack mode: render racks with visual grouping -->
-        <div class="racks-wrapper">
+        <div
+          class="racks-wrapper"
+          class:swipe-next={swipeAnimationDirection === "next"}
+          class:swipe-previous={swipeAnimationDirection === "previous"}
+        >
           <!-- Render grouped racks with group labels -->
           {#each organizedRacks.groupEntries as { group, racks: groupRacks } (group.id)}
             {#if group.layout_preset === "bayed"}
@@ -552,6 +855,44 @@
     padding: var(--space-4);
   }
 
+  .racks-wrapper.swipe-next {
+    animation: rack-swipe-next 200ms var(--ease-out, ease-out);
+  }
+
+  .racks-wrapper.swipe-previous {
+    animation: rack-swipe-previous 200ms var(--ease-out, ease-out);
+  }
+
+  @keyframes rack-swipe-next {
+    0% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    50% {
+      opacity: 0.9;
+      transform: translateX(-18px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes rack-swipe-previous {
+    0% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    50% {
+      opacity: 0.9;
+      transform: translateX(18px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
   .rack-wrapper {
     /* Individual rack container - selection styling handled by RackDualView */
     display: inline-block;
@@ -608,6 +949,11 @@
   /* Respect reduced motion preference */
   @media (prefers-reduced-motion: reduce) {
     .canvas.party-mode {
+      animation: none;
+    }
+
+    .racks-wrapper.swipe-next,
+    .racks-wrapper.swipe-previous {
       animation: none;
     }
   }
