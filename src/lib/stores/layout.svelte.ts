@@ -76,7 +76,7 @@ import {
 } from "./commands";
 
 // localStorage key for tracking if user has started (created/loaded a rack)
-const HAS_STARTED_KEY = "Rackula_has_started";
+export const HAS_STARTED_KEY = "Rackula_has_started";
 
 // Check if user has previously started (created or loaded a rack)
 function loadHasStarted(): boolean {
