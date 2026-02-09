@@ -6,35 +6,7 @@ import {
 	ZOOM_MAX,
 	ZOOM_STEP
 } from '$lib/stores/canvas.svelte';
-
-// Mock panzoom instance
-function createMockPanzoom(initialScale = 1) {
-	let transform = { x: 0, y: 0, scale: initialScale };
-	const listeners: Record<string, Array<() => void>> = {};
-
-	const mock = {
-		getTransform: () => ({ ...transform }),
-		zoomAbs: vi.fn((x: number, y: number, scale: number) => {
-			transform = { x, y, scale };
-			listeners['zoom']?.forEach((cb) => cb());
-		}),
-		smoothZoomAbs: vi.fn((x: number, y: number, scale: number) => {
-			transform = { x, y, scale };
-			listeners['zoom']?.forEach((cb) => cb());
-		}),
-		moveTo: vi.fn((x: number, y: number) => {
-			transform.x = x;
-			transform.y = y;
-		}),
-		on: vi.fn((event: string, callback: () => void) => {
-			if (!listeners[event]) listeners[event] = [];
-			listeners[event].push(callback);
-		}),
-		dispose: vi.fn()
-	};
-
-	return mock as typeof mock & ReturnType<typeof import('panzoom').default>;
-}
+import { createMockPanzoom } from './mocks/panzoom';
 
 describe('Canvas Store', () => {
 	beforeEach(() => {
@@ -357,7 +329,11 @@ describe('Canvas Store', () => {
 		it('fitAll does nothing when canvas element is cleared', () => {
 			const store = getCanvasStore();
 			const mockPanzoom = createMockPanzoom(1);
+			const mockCanvas = document.createElement('div');
+			Object.defineProperty(mockCanvas, 'clientWidth', { value: 800 });
+			Object.defineProperty(mockCanvas, 'clientHeight', { value: 600 });
 
+			store.setCanvasElement(mockCanvas);
 			store.setPanzoomInstance(mockPanzoom as ReturnType<typeof import('panzoom').default>);
 			store.setCanvasElement(null);
 
