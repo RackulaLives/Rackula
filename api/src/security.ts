@@ -37,7 +37,7 @@ function parseCorsOrigins(raw: string): string | string[] {
     );
   }
 
-  return origins.length === 1 ? origins[0]! : origins;
+  return origins.length === 1 ? origins[0] : origins;
 }
 
 function hasWildcardOrigin(origin: string | string[]): boolean {
