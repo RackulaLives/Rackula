@@ -339,8 +339,12 @@
   /* Base dialog styles (.dialog-backdrop, .dialog-title, .dialog-close)
      are defined in src/lib/styles/dialogs.css and imported globally */
 
+  /* Keep HelpPanel denser than default dialog spacing, especially on mobile. */
   .dialog-content {
-    padding: var(--space-4);
+    --dialog-content-padding: var(--space-4);
+    --dialog-content-mobile-padding: var(--space-4);
+    --dialog-content-mobile-padding-bottom-min: var(--space-4);
+    --dialog-content-mobile-safe-area-offset: var(--space-2);
   }
 
   /* Screen reader only - visually hidden but accessible */
@@ -360,15 +364,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-  }
-
-  @media (max-width: 430px) {
-    .dialog-content {
-      padding-bottom: max(
-        var(--space-4),
-        calc(env(safe-area-inset-bottom, 0px) + var(--space-2))
-      );
-    }
   }
 
   /* Header row: Logo + Version */

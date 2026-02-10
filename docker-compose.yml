@@ -13,6 +13,8 @@
 #   RACKULA_API_PORT: Port the API listens on (default: 3001)
 #   API_HOST: API hostname for nginx proxy (default: rackula-api)
 #   API_PORT: Derived from RACKULA_API_PORT (for nginx proxy target)
+#   RACKULA_CONTAINER_NAME: Frontend container name (default: rackula)
+#   RACKULA_API_CONTAINER_NAME: API container name (default: rackula-api)
 #   CORS_ORIGIN: Allowed browser origin(s) for API CORS (default: http://localhost:8080)
 #   RACKULA_API_WRITE_TOKEN: Optional token protecting API PUT/DELETE routes
 #   ALLOW_INSECURE_CORS: Explicit insecure fallback for wildcard CORS in production (default: false)
@@ -22,7 +24,7 @@ services:
     image: ghcr.io/rackulalives/rackula:latest
     # For persistence, use the :persist image instead:
     # image: ghcr.io/rackulalives/rackula:persist
-    container_name: rackula
+    container_name: ${RACKULA_CONTAINER_NAME:-rackula}
     ports:
       - "${RACKULA_PORT:-8080}:${RACKULA_LISTEN_PORT:-8080}"
     environment:
@@ -67,7 +69,7 @@ services:
   rackula-api:
     profiles: [persist]
     image: ghcr.io/rackulalives/rackula-api:latest
-    container_name: rackula-api
+    container_name: ${RACKULA_API_CONTAINER_NAME:-rackula-api}
     restart: unless-stopped
     stop_grace_period: 10s
 

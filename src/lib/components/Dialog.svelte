@@ -85,10 +85,6 @@
     gap: var(--space-3);
   }
 
-  .dialog-content {
-    padding: var(--space-5);
-  }
-
   @media (max-width: 430px) {
     .dialog-header {
       padding: var(--space-3) var(--space-4);
@@ -96,14 +92,6 @@
 
     .dialog-header-actions {
       gap: var(--space-2);
-    }
-
-    .dialog-content {
-      padding: var(--space-4);
-      padding-bottom: max(
-        var(--space-5),
-        calc(env(safe-area-inset-bottom, 0px) + var(--space-3))
-      );
     }
   }
 </style>
