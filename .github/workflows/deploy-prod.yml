@@ -170,14 +170,11 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - name: rackula-latest
-            repo_suffix: ""
+          - repo_suffix: ""
             tag: latest
-          - name: rackula-persist
-            repo_suffix: ""
+          - repo_suffix: ""
             tag: persist
-          - name: rackula-api-latest
-            repo_suffix: "-api"
+          - repo_suffix: "-api"
             tag: latest
 
     steps:
@@ -191,7 +188,10 @@ jobs:
       - name: Set image ref
         run: |
           IMAGE_NAME_LC=$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE_REF=${REGISTRY}/${IMAGE_NAME_LC}${{ matrix.image.repo_suffix }}:${{ matrix.image.tag }}" >> $GITHUB_ENV
+          IMAGE_REF="${REGISTRY}/${IMAGE_NAME_LC}${{ matrix.image.repo_suffix }}:${{ matrix.image.tag }}"
+          IMAGE_CATEGORY=$(echo "${IMAGE_REF}" | tr '/:' '--' | tr -cd '[:alnum:]._-')
+          echo "IMAGE_REF=${IMAGE_REF}" >> $GITHUB_ENV
+          echo "IMAGE_CATEGORY=${IMAGE_CATEGORY}" >> $GITHUB_ENV
 
       - name: Scan image
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
@@ -208,12 +208,13 @@ jobs:
         uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
         with:
           sarif_file: trivy-results.sarif
-          category: trivy-${{ matrix.image.name }}
+          category: trivy-${{ env.IMAGE_CATEGORY }}
 
   deploy:
-    # Scan runs after image push to GHCR:
-    # - A scan failure blocks deploy.
-    # - Already-pushed images remain published (trade-off for current pipeline simplicity).
+    # `build-and-deploy`, `build-persist`, and `build-api` push images first.
+    # `scan-images` then scans those pushed tags before deploy executes.
+    # Trade-off: scan failures block `deploy`, but already-pushed images remain published.
+    # (Alternative future flow: scan tar/filesystem artifacts before push.)
     needs: [build-and-deploy, build-persist, build-api, scan-images]
     runs-on: [self-hosted, vps-rackula]
     permissions:
