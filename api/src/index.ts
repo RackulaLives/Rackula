@@ -5,13 +5,7 @@
 import { createApp } from "./app";
 import { ensureDataDir } from "./storage/filesystem";
 
-let app: ReturnType<typeof createApp>;
-try {
-  app = createApp();
-} catch (error) {
-  console.error("Failed to initialize Rackula API configuration:", error);
-  process.exit(1);
-}
+const app = createApp();
 
 // Startup
 // RACKULA_API_PORT preferred, PORT for backwards compatibility

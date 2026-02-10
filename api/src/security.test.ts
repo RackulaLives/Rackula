@@ -1,14 +1,8 @@
 import { describe, it, expect } from "bun:test";
 import { createApp } from "./app";
-import {
-  createSignedAuthSessionToken,
-  resolveApiSecurityConfig,
-  verifySignedAuthSessionToken,
-  type EnvMap,
-} from "./security";
+import { resolveApiSecurityConfig, type EnvMap } from "./security";
 
 const TEST_TOKEN = "test-write-token";
-const TEST_AUTH_SECRET = "rackula-auth-session-secret-for-tests-0123456789";
 
 function buildEnv(overrides: EnvMap = {}): EnvMap {
   return {
@@ -17,66 +11,11 @@ function buildEnv(overrides: EnvMap = {}): EnvMap {
   };
 }
 
-function buildAuthEnabledEnv(overrides: EnvMap = {}): EnvMap {
-  return buildEnv({
-    RACKULA_AUTH_MODE: "oidc",
-    RACKULA_AUTH_SESSION_SECRET: TEST_AUTH_SECRET,
-    CORS_ORIGIN: "https://rack.example.com",
-    ...overrides,
-  });
-}
-
-function buildAuthCookie(subject = "admin@example.com"): string {
-  const issuedAt = Math.floor(Date.now() / 1000);
-  const token = createSignedAuthSessionToken(
-    {
-      sub: subject,
-      iat: issuedAt,
-      exp: issuedAt + 300,
-    },
-    TEST_AUTH_SECRET,
-  );
-  return `rackula_auth_session=${token}`;
-}
-
 describe("resolveApiSecurityConfig", () => {
   it("uses wildcard CORS in non-production by default", () => {
     const config = resolveApiSecurityConfig(buildEnv());
     expect(config.corsOrigin).toBe("*");
     expect(config.isProduction).toBe(false);
-    expect(config.authMode).toBe("none");
-    expect(config.authEnabled).toBe(false);
-  });
-
-  it("rejects invalid auth mode", () => {
-    expect(() =>
-      resolveApiSecurityConfig(
-        buildEnv({
-          RACKULA_AUTH_MODE: "jwt",
-        }),
-      ),
-    ).toThrow("Invalid auth mode");
-  });
-
-  it("requires auth session secret when auth mode is enabled", () => {
-    expect(() =>
-      resolveApiSecurityConfig(
-        buildEnv({
-          RACKULA_AUTH_MODE: "oidc",
-        }),
-      ),
-    ).toThrow("RACKULA_AUTH_SESSION_SECRET");
-  });
-
-  it("rejects short auth session secret when auth mode is enabled", () => {
-    expect(() =>
-      resolveApiSecurityConfig(
-        buildEnv({
-          RACKULA_AUTH_MODE: "oidc",
-          RACKULA_AUTH_SESSION_SECRET: "too-short",
-        }),
-      ),
-    ).toThrow("at least 32 characters");
   });
 
   it("rejects production startup when CORS_ORIGIN is missing", () => {
@@ -114,139 +53,6 @@ describe("resolveApiSecurityConfig", () => {
       }),
     );
     expect(config.corsOrigin).toBe("https://rack.example.com");
-  });
-});
-
-describe("signed session tokens", () => {
-  it("rejects oversized token payloads before parsing", () => {
-    const oversized = "a".repeat(8193);
-    const claims = verifySignedAuthSessionToken(oversized, TEST_AUTH_SECRET);
-    expect(claims).toBeNull();
-  });
-
-  it("rejects expired signed auth session tokens", () => {
-    const now = Math.floor(Date.now() / 1000);
-    const token = createSignedAuthSessionToken(
-      {
-        sub: "admin@example.com",
-        exp: now - 30,
-      },
-      TEST_AUTH_SECRET,
-    );
-
-    const claims = verifySignedAuthSessionToken(token, TEST_AUTH_SECRET);
-    expect(claims).toBeNull();
-  });
-
-  it("rejects stale signed tokens without exp using max-age policy", () => {
-    const now = Math.floor(Date.now() / 1000);
-    const token = createSignedAuthSessionToken(
-      {
-        sub: "admin@example.com",
-        iat: now - 86_500,
-      },
-      TEST_AUTH_SECRET,
-    );
-
-    const claims = verifySignedAuthSessionToken(token, TEST_AUTH_SECRET);
-    expect(claims).toBeNull();
-  });
-
-  it("accepts non-expired signed auth session tokens", () => {
-    const now = Math.floor(Date.now() / 1000);
-    const token = createSignedAuthSessionToken(
-      {
-        sub: "admin@example.com",
-        iat: now,
-        exp: now + 300,
-      },
-      TEST_AUTH_SECRET,
-    );
-
-    const claims = verifySignedAuthSessionToken(token, TEST_AUTH_SECRET);
-    expect(claims).not.toBeNull();
-    expect(claims?.sub).toBe("admin@example.com");
-    expect(claims?.iat).toBe(now);
-    expect(claims?.exp).toBe(now + 300);
-  });
-});
-
-describe("authentication gate", () => {
-  it("rejects anonymous API request when auth is enabled", async () => {
-    const app = createApp(buildAuthEnabledEnv());
-
-    const response = await app.request("/layouts/not-a-uuid");
-    expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({
-      error: "Unauthorized",
-      message: "Authentication required.",
-    });
-  });
-
-  it("redirects anonymous app routes to login when auth is enabled", async () => {
-    const app = createApp(buildAuthEnabledEnv());
-
-    const response = await app.request("/dashboard");
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/auth/login?next=%2Fdashboard");
-  });
-
-  it("allows signed-session requests through the auth gate", async () => {
-    const app = createApp(buildAuthEnabledEnv());
-
-    const response = await app.request("/layouts/not-a-uuid", {
-      headers: {
-        Cookie: buildAuthCookie(),
-      },
-    });
-
-    // Auth gate passed; route-level UUID validation should run.
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: "Invalid layout UUID format",
-    });
-  });
-
-  it("keeps health/login/callback routes reachable when auth is enabled", async () => {
-    const app = createApp(buildAuthEnabledEnv());
-
-    const health = await app.request("/health");
-    expect(health.status).toBe(200);
-    expect(await health.text()).toBe("OK");
-
-    const login = await app.request("/auth/login");
-    expect(login.status).toBe(501);
-
-    const callback = await app.request("/auth/callback");
-    expect(callback.status).toBe(501);
-  });
-
-  it("returns auth check endpoint status for nginx auth_request usage", async () => {
-    const app = createApp(buildAuthEnabledEnv());
-
-    const unauthorized = await app.request("/auth/check");
-    expect(unauthorized.status).toBe(401);
-    expect(await unauthorized.json()).toEqual({
-      error: "Unauthorized",
-      message: "Authentication required.",
-    });
-
-    const authorized = await app.request("/auth/check", {
-      headers: {
-        Cookie: buildAuthCookie(),
-      },
-    });
-    expect(authorized.status).toBe(204);
-  });
-
-  it("preserves existing behavior when auth mode is disabled", async () => {
-    const app = createApp(buildEnv());
-
-    const response = await app.request("/layouts/not-a-uuid");
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: "Invalid layout UUID format",
-    });
   });
 });
 
@@ -313,8 +119,7 @@ describe("write-route authentication", () => {
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({
       error: "Unauthorized",
-      message:
-        "Malformed Authorization header. Expected format: Bearer <token>.",
+      message: "Malformed Authorization header. Expected format: Bearer <token>.",
     });
   });
 
