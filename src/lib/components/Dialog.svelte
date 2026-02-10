@@ -33,12 +33,18 @@
       onclose?.();
     }
   }
+
+  const normalizedWidth = $derived.by(() => {
+    const value = width.trim();
+    if (!value) return "400px";
+    return /^\d+(\.\d+)?$/.test(value) ? `${value}px` : value;
+  });
 </script>
 
 <Dialog.Root {open} onOpenChange={handleOpenChange}>
   <Dialog.Portal>
     <Dialog.Overlay class="dialog-backdrop" data-testid="dialog-backdrop" />
-    <Dialog.Content class="dialog" style="--dialog-width: {width};">
+    <Dialog.Content class="dialog" style="--dialog-width: {normalizedWidth};">
       <div class="dialog-header">
         <Dialog.Title class="dialog-title">{title}</Dialog.Title>
         <div class="dialog-header-actions">

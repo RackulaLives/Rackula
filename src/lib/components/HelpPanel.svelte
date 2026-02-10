@@ -339,13 +339,6 @@
   /* Base dialog styles (.dialog-backdrop, .dialog-title, .dialog-close)
      are defined in src/lib/styles/dialogs.css and imported globally */
 
-  /* HelpPanel-specific size constraints on top of shared dialog styling */
-  :global(.help-dialog) {
-    width: var(--dialog-width, 600px);
-    max-width: 90vw;
-    max-height: min(90vh, 90dvh);
-  }
-
   .dialog-content {
     padding: var(--space-4);
     overflow-y: auto;

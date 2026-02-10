@@ -153,6 +153,16 @@ test.describe("Responsive Layout", () => {
       });
       await page.reload();
       await page.waitForTimeout(300);
+
+      // Explicitly open the New Rack dialog to avoid relying on auto-open behavior.
+      const newRackTitle = page.locator(".dialog-title").filter({
+        hasText: "New Rack",
+      });
+      if (!(await newRackTitle.first().isVisible())) {
+        await page.locator(".toolbar-brand").click();
+        await page.waitForTimeout(200);
+        await page.locator('.drawer-item:has-text("New Rack")').click();
+      }
     });
 
     test("new rack dialog is fully visible and touch-friendly", async ({
