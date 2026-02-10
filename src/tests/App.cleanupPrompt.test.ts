@@ -111,6 +111,49 @@ function openCleanupPrompt(operation: "save" | "export"): void {
   dialogStore.open("cleanupPrompt");
 }
 
+function resetHoistedMocks(): void {
+  shareMocks.getShareParam.mockReset();
+  shareMocks.getShareParam.mockReturnValue(null);
+  shareMocks.clearShareParam.mockReset();
+  shareMocks.decodeLayout.mockReset();
+  shareMocks.decodeLayout.mockReturnValue(null);
+  shareMocks.generateShareUrl.mockReset();
+  shareMocks.generateShareUrl.mockReturnValue(null);
+
+  persistenceStoreMocks.initializePersistence.mockReset();
+  persistenceStoreMocks.initializePersistence.mockResolvedValue(false);
+  persistenceStoreMocks.isApiAvailable.mockReset();
+  persistenceStoreMocks.isApiAvailable.mockReturnValue(false);
+  persistenceStoreMocks.setApiAvailable.mockReset();
+  persistenceStoreMocks.getApiAvailableState.mockReset();
+  persistenceStoreMocks.getApiAvailableState.mockReturnValue(false);
+  persistenceStoreMocks.hasEverConnectedToApi.mockReset();
+  persistenceStoreMocks.hasEverConnectedToApi.mockReturnValue(false);
+
+  persistenceApiMocks.saveLayoutToServer.mockReset();
+  persistenceApiMocks.saveLayoutToServer.mockResolvedValue("layout-1");
+  persistenceApiMocks.checkApiHealth.mockReset();
+  persistenceApiMocks.checkApiHealth.mockResolvedValue(false);
+  persistenceApiMocks.listSavedLayouts.mockReset();
+  persistenceApiMocks.listSavedLayouts.mockResolvedValue([]);
+  persistenceApiMocks.loadSavedLayout.mockReset();
+  persistenceApiMocks.deleteSavedLayout.mockReset();
+  persistenceApiMocks.deleteSavedLayout.mockResolvedValue(undefined);
+
+  sessionStorageMocks.saveSession.mockReset();
+  sessionStorageMocks.loadSessionWithTimestamp.mockReset();
+  sessionStorageMocks.loadSessionWithTimestamp.mockReturnValue(null);
+  sessionStorageMocks.clearSession.mockReset();
+  sessionStorageMocks.isServerNewer.mockReset();
+  sessionStorageMocks.isServerNewer.mockReturnValue(false);
+
+  archiveMocks.downloadArchive.mockReset();
+  archiveMocks.downloadArchive.mockResolvedValue(undefined);
+  archiveMocks.generateArchiveFilename.mockReset();
+  archiveMocks.generateArchiveFilename.mockReturnValue("cleanup-test.Rackula.zip");
+  archiveMocks.extractFolderArchive.mockReset();
+}
+
 describe("App cleanup prompt flow", () => {
   const layoutStore = getLayoutStore();
   const uiStore = getUIStore();
@@ -127,20 +170,7 @@ describe("App cleanup prompt flow", () => {
     resetViewportStore();
     dialogStore.close();
     dialogStore.closeSheet();
-
-    shareMocks.getShareParam.mockReset();
-    shareMocks.getShareParam.mockReturnValue(null);
-    shareMocks.decodeLayout.mockReset();
-    shareMocks.decodeLayout.mockReturnValue(null);
-    shareMocks.clearShareParam.mockReset();
-
-    persistenceStoreMocks.initializePersistence.mockReset();
-    persistenceStoreMocks.initializePersistence.mockResolvedValue(false);
-    persistenceStoreMocks.isApiAvailable.mockReset();
-    persistenceStoreMocks.isApiAvailable.mockReturnValue(false);
-
-    persistenceApiMocks.listSavedLayouts.mockReset();
-    persistenceApiMocks.listSavedLayouts.mockResolvedValue([]);
+    resetHoistedMocks();
 
     const layoutWithUnusedType = createTestLayout({
       name: "Cleanup Prompt Test Layout",
@@ -154,19 +184,10 @@ describe("App cleanup prompt flow", () => {
     });
     layoutStore.loadLayout(layoutWithUnusedType);
 
-    sessionStorageMocks.loadSessionWithTimestamp.mockReset();
     sessionStorageMocks.loadSessionWithTimestamp.mockReturnValue({
       layout: layoutWithUnusedType,
       savedAt: new Date("2026-02-09T00:00:00.000Z").toISOString(),
     });
-    sessionStorageMocks.clearSession.mockReset();
-
-    archiveMocks.downloadArchive.mockReset();
-    archiveMocks.downloadArchive.mockResolvedValue(undefined);
-    archiveMocks.generateArchiveFilename.mockReset();
-    archiveMocks.generateArchiveFilename.mockReturnValue(
-      "cleanup-test.Rackula.zip",
-    );
   });
 
   it("routes Review & Clean Up into cleanup workflow and then saves after deletion", async () => {

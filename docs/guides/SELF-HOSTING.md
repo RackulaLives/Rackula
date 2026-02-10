@@ -34,10 +34,10 @@ docker run -d -p 8080:8080 ghcr.io/rackulalives/rackula:latest
 
 ## What You Get
 
-- **Layouts saved as YAML** in `./data/layout-name.yaml`
+- **Layouts saved as YAML** in per-layout folders under `./data/`
 - **Access from any browser** on your network
 - **Optional write-route token auth** for `PUT`/`DELETE` API routes
-- **Custom device images** stored in `./data/assets/`
+- **Custom device images** stored under each layout folder in `assets/`
 
 **Architecture:**
 
@@ -699,13 +699,14 @@ tar xzf rackula-backup.tar.gz -C ./data
 
 ```text
 ./data/
-├── my-homelab.yaml           # Layout file
-├── production-rack.yaml
-└── assets/                   # Custom device images
-    └── my-homelab/
-        └── custom-nas/
-            ├── front.png
-            └── rear.png
+├── my-homelab-11111111-1111-4111-8111-111111111111/
+│   ├── my-homelab.rackula.yaml
+│   └── assets/
+│       └── custom-nas/
+│           ├── front.png
+│           └── rear.png
+└── production-rack-22222222-2222-4222-8222-222222222222/
+    └── production-rack.rackula.yaml
 ```
 
 ### Security Hardening
