@@ -1,0 +1,26 @@
+name: Compose Parity
+
+on:
+  pull_request:
+    paths:
+      - "docker-compose.yml"
+      - "deploy/docker-compose.persist.yml"
+      - "scripts/check-compose-persist-parity.sh"
+      - ".github/workflows/deploy-dev.yml"
+      - ".github/workflows/deploy-prod.yml"
+      - ".github/workflows/test.yml"
+      - "README.md"
+      - ".env.example"
+      - "docs/guides/SELF-HOSTING.md"
+      - "docs/plans/2026-02-10-container-selfhosting-audit-checklist.md"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Check compose parity
+        run: bash scripts/check-compose-persist-parity.sh

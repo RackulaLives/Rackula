@@ -54,7 +54,7 @@ You might ask, why should I make an imaginary rack like some sort of IT cosplay?
 #### Docker Run
 
 ```bash
-docker run -d -p 8080:80 ghcr.io/rackulalives/rackula:latest
+docker run -d -p 8080:8080 ghcr.io/rackulalives/rackula:latest
 ```
 
 #### Docker Compose

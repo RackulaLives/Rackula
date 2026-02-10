@@ -57,7 +57,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 # Health check (port 8080 for unprivileged nginx, busybox wget is built-in)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -q --spider http://127.0.0.1:8080/health || exit 1
+  CMD wget -q --spider http://127.0.0.1:${RACKULA_LISTEN_PORT:-8080}/health || exit 1
 
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint-wrapper.sh"]

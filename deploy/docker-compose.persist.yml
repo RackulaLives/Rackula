@@ -20,9 +20,19 @@ services:
       # Optional: token forwarded to API for PUT/DELETE route auth
       - API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN:-}
     restart: unless-stopped
+    stop_grace_period: 10s
     depends_on:
       rackula-api:
         condition: service_healthy
+
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+        reservations:
+          cpus: "0.10"
+          memory: 16M
 
     # Security hardening (optional but recommended)
     security_opt:
@@ -36,10 +46,17 @@ services:
       - /tmp:size=5M
       - /etc/nginx/conf.d:size=1M,uid=101,gid=101
 
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   rackula-api:
     image: ghcr.io/rackulalives/rackula-api:latest
     container_name: rackula-api
     restart: unless-stopped
+    stop_grace_period: 10s
     volumes:
       - ./data:/data
     environment:
@@ -53,6 +70,15 @@ services:
       - RACKULA_API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN:-}
       # Explicit insecure fallback (use only for isolated/local testing)
       - ALLOW_INSECURE_CORS=${ALLOW_INSECURE_CORS:-false}
+
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+        reservations:
+          cpus: "0.05"
+          memory: 16M
 
     # Security hardening
     security_opt:
@@ -69,6 +95,12 @@ services:
       timeout: 10s
       start_period: 5s
       retries: 3
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
 
     expose:
       - "${RACKULA_API_PORT:-3001}"

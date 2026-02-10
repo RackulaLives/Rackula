@@ -159,8 +159,49 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:buildcache,mode=max
 
-  deploy:
+  scan-images:
     needs: [build-and-deploy, build-persist, build-api]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: rackula-latest
+            ref: ghcr.io/rackulalives/rackula:latest
+          - name: rackula-persist
+            ref: ghcr.io/rackulalives/rackula:persist
+          - name: rackula-api-latest
+            ref: ghcr.io/rackulalives/rackula-api:latest
+
+    steps:
+      - name: Log in to Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan image
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          image-ref: ${{ matrix.image.ref }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Upload scan results
+        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-${{ matrix.image.name }}
+
+  deploy:
+    needs: [build-and-deploy, build-persist, build-api, scan-images]
     runs-on: [self-hosted, vps-rackula]
     permissions:
       contents: read

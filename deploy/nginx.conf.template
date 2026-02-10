@@ -70,8 +70,9 @@ server {
         # Optional bearer token for write-route auth on the API side.
         # If API_WRITE_TOKEN is empty, preserve any client Authorization header.
         set $rackula_api_authorization $http_authorization;
-        if ("${API_WRITE_TOKEN}" != "") {
-            set $rackula_api_authorization "Bearer ${API_WRITE_TOKEN}";
+        set $rackula_api_write_token "${API_WRITE_TOKEN}";
+        if ($rackula_api_write_token != "") {
+            set $rackula_api_authorization "Bearer $rackula_api_write_token";
         }
         proxy_set_header Authorization $rackula_api_authorization;
 

@@ -100,6 +100,8 @@ jobs:
           install -m 600 /dev/null /opt/rackula/rackula-dev/.env
           cat > /opt/rackula/rackula-dev/.env << 'EOF'
           RACKULA_PORT=127.0.0.1:8081
+          RACKULA_IMAGE=ghcr.io/rackulalives/rackula:main
+          RACKULA_API_IMAGE=ghcr.io/rackulalives/rackula-api:main
           RACKULA_CONTAINER_NAME=rackula-dev
           RACKULA_API_CONTAINER_NAME=rackula-api-dev
           CORS_ORIGIN=https://d.racku.la

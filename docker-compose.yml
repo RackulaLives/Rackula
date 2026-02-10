@@ -15,13 +15,15 @@
 #   API_PORT: Derived from RACKULA_API_PORT (for nginx proxy target)
 #   RACKULA_CONTAINER_NAME: Frontend container name (default: rackula)
 #   RACKULA_API_CONTAINER_NAME: API container name (default: rackula-api)
+#   RACKULA_IMAGE: Frontend image override (default: ghcr.io/rackulalives/rackula:latest)
+#   RACKULA_API_IMAGE: API image override (default: ghcr.io/rackulalives/rackula-api:latest)
 #   CORS_ORIGIN: Allowed browser origin(s) for API CORS (default: http://localhost:8080)
 #   RACKULA_API_WRITE_TOKEN: Optional token protecting API PUT/DELETE routes
 #   ALLOW_INSECURE_CORS: Explicit insecure fallback for wildcard CORS in production (default: false)
 
 services:
   rackula:
-    image: ghcr.io/rackulalives/rackula:latest
+    image: ${RACKULA_IMAGE:-ghcr.io/rackulalives/rackula:latest}
     # For persistence, use the :persist image instead:
     # image: ghcr.io/rackulalives/rackula:persist
     container_name: ${RACKULA_CONTAINER_NAME:-rackula}
@@ -68,7 +70,7 @@ services:
   # Enable with: docker compose --profile persist up -d
   rackula-api:
     profiles: [persist]
-    image: ghcr.io/rackulalives/rackula-api:latest
+    image: ${RACKULA_API_IMAGE:-ghcr.io/rackulalives/rackula-api:latest}
     container_name: ${RACKULA_API_CONTAINER_NAME:-rackula-api}
     restart: unless-stopped
     stop_grace_period: 10s
