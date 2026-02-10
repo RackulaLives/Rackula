@@ -45,6 +45,7 @@
   overflow-y: auto;
   flex: 1 1 auto;
   min-height: 0;
+  padding: var(--dialog-content-padding, var(--space-5));
 }
 
 /* Dialog close button */
@@ -89,6 +90,17 @@
   .dialog-close {
     width: 44px;
     height: 44px;
+  }
+
+  .dialog .dialog-content {
+    padding: var(--dialog-content-mobile-padding, var(--space-4));
+    padding-bottom: max(
+      var(--dialog-content-mobile-padding-bottom-min, var(--space-5)),
+      calc(
+        env(safe-area-inset-bottom, 0px) +
+          var(--dialog-content-mobile-safe-area-offset, var(--space-3))
+      )
+    );
   }
 
   .dialog
