@@ -324,12 +324,29 @@ textarea {
   }
 }
 
+@keyframes dialog-sheet-in {
+  from {
+    transform: translateY(12%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 .dialog-backdrop {
   animation: dialog-fade-in var(--duration-fast) var(--ease-out);
 }
 
 .dialog {
   animation: dialog-scale-in var(--duration-normal) var(--ease-out);
+}
+
+@media (max-width: 430px) {
+  .dialog {
+    animation: dialog-sheet-in var(--duration-normal) var(--ease-out);
+  }
 }
 
 /* Selection Pulse - For selected elements */

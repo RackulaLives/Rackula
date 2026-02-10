@@ -143,6 +143,142 @@ test.describe("Responsive Layout", () => {
     });
   });
 
+  test.describe("Phone viewport dialogs (375px)", () => {
+    test.beforeEach(async ({ page }) => {
+      await page.setViewportSize({ width: 375, height: 667 });
+      await page.goto("/");
+      await page.evaluate(() => {
+        sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
+        localStorage.setItem("Rackula_has_started", "true");
+      });
+      await page.reload();
+      await page.waitForSelector(".toolbar-brand");
+
+      // Explicitly open the New Rack dialog to avoid relying on auto-open behavior.
+      const newRackTitle = page.locator(".dialog-title").filter({
+        hasText: "New Rack",
+      });
+      if (!(await newRackTitle.first().isVisible())) {
+        await page.locator(".toolbar-brand").click();
+        const newRackDrawerItem = page.locator(
+          '.drawer-item:has-text("New Rack")',
+        );
+        await expect(newRackDrawerItem).toBeVisible();
+        await newRackDrawerItem.click();
+      }
+    });
+
+    test("new rack dialog is fully visible and touch-friendly", async ({
+      page,
+    }) => {
+      const dialog = page.locator('.dialog[role="dialog"]').first();
+      await test.step("Dialog is visible and positioned correctly", async () => {
+        await expect(page.locator(".dialog-title")).toHaveText("New Rack");
+        await expect(dialog).toBeVisible();
+        await expect
+          .poll(async () => {
+            const viewportHeight = await page.evaluate(() => window.innerHeight);
+            const box = await dialog.boundingBox();
+            if (!box) {
+              return Number.POSITIVE_INFINITY;
+            }
+            return box.y + box.height - (viewportHeight + 1);
+          })
+          .toBeLessThanOrEqual(0);
+
+        const box = await dialog.boundingBox();
+        expect(box).toBeTruthy();
+        if (box) {
+          const viewportHeight = await page.evaluate(() => window.innerHeight);
+          expect(box.x).toBeGreaterThanOrEqual(-1);
+          expect(box.width).toBeGreaterThanOrEqual(374);
+          expect(box.y).toBeGreaterThanOrEqual(-1);
+          expect(box.y + box.height).toBeLessThanOrEqual(viewportHeight + 1);
+        }
+
+        const style = await dialog.evaluate((element) => {
+          const computed = window.getComputedStyle(element);
+          return {
+            position: computed.position,
+            left: computed.left,
+            right: computed.right,
+            bottom: computed.bottom,
+          };
+        });
+
+        expect(style.position).toBe("fixed");
+        expect(style.left).toBe("0px");
+        expect(style.right).toBe("0px");
+        expect(style.bottom).toBe("0px");
+      });
+
+      await test.step("Action buttons are full-width and touch-friendly", async () => {
+        const actions = dialog.locator(".form-actions");
+        await expect(actions).toBeVisible();
+        const actionButtons = actions.locator("button");
+        const actionCount = await actionButtons.count();
+        expect(actionCount).toBeGreaterThanOrEqual(2);
+
+        const actionsBox = await actions.boundingBox();
+        expect(actionsBox).toBeTruthy();
+        if (actionsBox) {
+          for (let i = 0; i < actionCount; i++) {
+            const buttonBox = await actionButtons.nth(i).boundingBox();
+            expect(buttonBox).toBeTruthy();
+            if (buttonBox) {
+              expect(buttonBox.width).toBeGreaterThanOrEqual(
+                actionsBox.width * 0.95,
+              );
+            }
+          }
+        }
+
+        const cancelButton = actions.getByRole("button", { name: "Cancel" });
+        const cancelBox = await cancelButton.boundingBox();
+        expect(cancelBox).toBeTruthy();
+        if (cancelBox) {
+          expect(cancelBox.height).toBeGreaterThanOrEqual(44);
+        }
+      });
+
+      await test.step("Dialog content is scrollable", async () => {
+        const overflowY = await dialog
+          .locator(".dialog-content")
+          .evaluate((element) => window.getComputedStyle(element).overflowY);
+        expect(["auto", "scroll"]).toContain(overflowY);
+      });
+
+      await test.step("Dialog survives virtual keyboard resize", async () => {
+        await page.setViewportSize({ width: 375, height: 420 });
+        await expect(dialog).toBeVisible();
+        await expect
+          .poll(async () => {
+            const compactViewportHeight = await page.evaluate(
+              () => window.innerHeight,
+            );
+            const compactBox = await dialog.boundingBox();
+            if (!compactBox) {
+              return Number.POSITIVE_INFINITY;
+            }
+            return compactBox.y + compactBox.height - (compactViewportHeight + 1);
+          })
+          .toBeLessThanOrEqual(0);
+
+        const compactBox = await dialog.boundingBox();
+        expect(compactBox).toBeTruthy();
+        if (compactBox) {
+          const compactViewportHeight = await page.evaluate(
+            () => window.innerHeight,
+          );
+          expect(compactBox.y).toBeGreaterThanOrEqual(-1);
+          expect(compactBox.y + compactBox.height).toBeLessThanOrEqual(
+            compactViewportHeight + 1,
+          );
+        }
+      });
+    });
+  });
+
   test.describe("Panzoom at narrow viewport", () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: 800, height: 600 });
