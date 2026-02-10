@@ -102,7 +102,6 @@ jobs:
           CORS_ORIGIN=https://d.racku.la
           ALLOW_INSECURE_CORS=false
           EOF
-          chmod 600 /opt/rackula/rackula-dev/.env
 
       - name: Deploy to dev
         run: |
