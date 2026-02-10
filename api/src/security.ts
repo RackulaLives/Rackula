@@ -37,7 +37,7 @@ function parseCorsOrigins(raw: string): string | string[] {
     );
   }
 
-  return origins.length === 1 ? origins[0] : origins;
+  return origins.length === 1 ? origins[0]! : origins;
 }
 
 function hasWildcardOrigin(origin: string | string[]): boolean {
@@ -86,7 +86,7 @@ export function resolveApiSecurityConfig(env: EnvMap = process.env): ApiSecurity
 export function createWriteAuthMiddleware(
   writeAuthToken?: string,
 ): MiddlewareHandler {
-  return (c, next) => {
+  return async (c, next) => {
     if (!WRITE_METHODS.has(c.req.method)) {
       return next();
     }
