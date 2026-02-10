@@ -12,7 +12,7 @@ on:
       - "README.md"
       - ".env.example"
       - "docs/guides/SELF-HOSTING.md"
-      - "docs/plans/2026-02-10-container-selfhosting-audit-checklist.md"
+      - "docs/plans/*.md"
   workflow_dispatch:
 
 jobs:
