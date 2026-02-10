@@ -87,9 +87,6 @@
 
   .dialog-content {
     padding: var(--space-5);
-    overflow-y: auto;
-    flex: 1 1 auto;
-    min-height: 0;
   }
 
   @media (max-width: 430px) {

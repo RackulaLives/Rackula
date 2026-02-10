@@ -341,9 +341,6 @@
 
   .dialog-content {
     padding: var(--space-4);
-    overflow-y: auto;
-    flex: 1 1 auto;
-    min-height: 0;
   }
 
   /* Screen reader only - visually hidden but accessible */
