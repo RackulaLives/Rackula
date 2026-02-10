@@ -248,6 +248,18 @@
   // Also handles loading shared layouts from URL params
   // Uses onMount to run once on initial load, not reactively
   onMount(async () => {
+    // Start API health check immediately so all startup paths (including share links)
+    // initialize persistence and can enable server autosave when available.
+    const persistenceInitPromise = initializePersistence().catch((error) => {
+      console.error(
+        "Persistence initialization failed; continuing without server persistence:",
+        error,
+      );
+      setApiAvailable(false);
+      saveStatus = "offline";
+      return false;
+    });
+
     // Priority 1: Check for shared layout in URL (highest priority)
     const shareParam = getShareParam();
     if (shareParam) {
@@ -268,17 +280,6 @@
         toastStore.showToast("Invalid share link", "error");
       }
     }
-
-    // Start API health check in parallel so Start Screen can render immediately.
-    const persistenceInitPromise = initializePersistence().catch((error) => {
-      console.error(
-        "Persistence initialization failed; continuing without server persistence:",
-        error,
-      );
-      setApiAvailable(false);
-      saveStatus = "offline";
-      return false;
-    });
 
     // Get localStorage session data (with timestamp if available)
     const localSession = loadSessionWithTimestamp();
