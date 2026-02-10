@@ -3,7 +3,7 @@
   Main application component
 -->
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import AnimationDefs from "$lib/components/AnimationDefs.svelte";
   import Toolbar from "$lib/components/Toolbar.svelte";
   import Canvas from "$lib/components/Canvas.svelte";
@@ -163,7 +163,8 @@
   // value were reactive, it could participate in a feedback loop (store → layout
   // recompute → store) and cause jittery or repeated layout updates. We only need
   // an initial width to seed the layout; subsequent updates use the store directly.
-  const initialSidebarWidthPx = uiStore.sidebarWidth ?? sidePanelSizeDefault;
+  const initialSidebarWidthPx =
+    uiStore.sidebarWidth ?? untrack(() => sidePanelSizeDefault);
 
   // Device library import file input ref
   let deviceImportInputRef = $state<HTMLInputElement | null>(null);
