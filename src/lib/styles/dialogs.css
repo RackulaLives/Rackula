@@ -18,11 +18,18 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  width: var(--dialog-width, 400px);
+  max-width: 90vw;
+  max-height: min(90vh, 90dvh);
   background: var(--colour-dialog-bg, var(--colour-bg));
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   z-index: calc(var(--z-modal, 200) + 1);
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 /* Dialog title */
@@ -31,6 +38,13 @@
   font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--colour-text);
+}
+
+/* Shared dialog body behavior used by dialog wrappers/components. */
+.dialog .dialog-content {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* Dialog close button */
@@ -57,4 +71,48 @@
 .dialog-close:focus-visible {
   outline: 2px solid var(--colour-selection);
   outline-offset: 2px;
+}
+
+@media (max-width: 430px) {
+  .dialog {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    transform: none;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .dialog-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .dialog
+    :is(
+      .actions,
+      .form-actions,
+      .dialog-actions,
+      .file-sheet-actions,
+      .rack-selection-actions
+    ) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dialog
+    :is(
+      .actions,
+      .form-actions,
+      .dialog-actions,
+      .file-sheet-actions,
+      .rack-selection-actions
+    )
+    > button {
+    width: 100%;
+    min-height: 44px;
+  }
 }
