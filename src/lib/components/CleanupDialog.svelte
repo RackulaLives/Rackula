@@ -12,7 +12,7 @@
 
   interface Props {
     open: boolean;
-    onclose?: () => void;
+    onclose?: (action: "delete" | "cancel") => void;
   }
 
   let { open = $bindable(), onclose }: Props = $props();
@@ -73,12 +73,12 @@
     const slugsToDelete = Array.from(selectedSlugs);
     layoutStore.deleteMultipleDeviceTypesRecorded(slugsToDelete);
 
-    handleClose();
+    handleClose("delete");
   }
 
-  function handleClose() {
+  function handleClose(action: "delete" | "cancel" = "cancel") {
     open = false;
-    onclose?.();
+    onclose?.(action);
   }
 
   function getCategoryLabel(dt: DeviceType): string {
@@ -89,7 +89,7 @@
 <Dialog
   {open}
   title="Clean Up Device Library"
-  onclose={handleClose}
+  onclose={() => handleClose("cancel")}
   width="480px"
 >
   <div class="cleanup-dialog">
@@ -144,14 +144,22 @@
         >
           Delete Selected ({selectedCount})
         </button>
-        <button type="button" class="btn btn-secondary" onclick={handleClose}>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          onclick={() => handleClose("cancel")}
+        >
           Cancel
         </button>
       </div>
     {:else}
       <p class="empty-state">No unused device types found.</p>
       <div class="actions actions-centered">
-        <button type="button" class="btn btn-secondary" onclick={handleClose}>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          onclick={() => handleClose("cancel")}
+        >
           Close
         </button>
       </div>

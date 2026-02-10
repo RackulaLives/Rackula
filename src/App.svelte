@@ -140,6 +140,8 @@
   let showReplaceDialog = $derived(dialogStore.isOpen("confirmReplace"));
   let cleanupDialogOpen = $derived(dialogStore.isOpen("cleanupDialog"));
   let cleanupPromptOpen = $derived(dialogStore.isOpen("cleanupPrompt"));
+  let cleanupPromptOperation = $derived(dialogStore.pendingCleanupOperation);
+  let cleanupReviewPendingOperation = $state<"save" | "export" | null>(null);
 
   // Mobile bottom sheet state - managed by dialogStore
   let bottomSheetOpen = $derived(dialogStore.isSheetOpen("deviceDetails"));
@@ -482,18 +484,13 @@
 
   /**
    * Handle "Review & Clean Up" button in cleanup prompt
-   * Opens the bulk cleanup dialog (issue #832 - to be implemented)
+   * Opens bulk cleanup workflow before continuing with pending operation.
    */
   function handleCleanupReview() {
     const pendingOp = dialogStore.pendingCleanupOperation;
+    cleanupReviewPendingOperation = pendingOp;
     dialogStore.close();
-    // TODO: When issue #832 is implemented, open the bulk cleanup dialog here
-    // For now, just proceed with the operation
-    if (pendingOp === "save") {
-      handleSave();
-    } else if (pendingOp === "export") {
-      handleExport();
-    }
+    dialogStore.open("cleanupDialog");
   }
 
   /**
@@ -502,6 +499,7 @@
    */
   function handleCleanupKeepAll() {
     const pendingOp = dialogStore.pendingCleanupOperation;
+    cleanupReviewPendingOperation = null;
     dialogStore.close();
     if (pendingOp === "save") {
       handleSave();
@@ -515,6 +513,7 @@
    * Aborts the pending operation
    */
   function handleCleanupCancel() {
+    cleanupReviewPendingOperation = null;
     dialogStore.close();
   }
 
@@ -904,11 +903,30 @@
   }
 
   function handleOpenCleanupDialog() {
+    cleanupReviewPendingOperation = null;
     dialogStore.open("cleanupDialog");
   }
 
-  function handleCleanupDialogClose() {
+  function handleCleanupDialogClose(action: "delete" | "cancel" = "cancel") {
+    const pendingOp = cleanupReviewPendingOperation;
+    cleanupReviewPendingOperation = null;
     dialogStore.close();
+
+    // Settings-triggered cleanup has no pending operation to continue.
+    if (!pendingOp) {
+      return;
+    }
+
+    // User cancelled review flow from cleanup dialog.
+    if (action !== "delete") {
+      return;
+    }
+
+    if (pendingOp === "save") {
+      handleSave();
+    } else {
+      handleExport();
+    }
   }
 
   function handleAddDevice() {
@@ -1593,6 +1611,7 @@
 
     <CleanupPromptDialog
       open={cleanupPromptOpen}
+      operation={cleanupPromptOperation}
       unusedCount={getUnusedCustomTypeCount()}
       onreview={handleCleanupReview}
       onkeepall={handleCleanupKeepAll}
