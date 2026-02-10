@@ -182,9 +182,7 @@ describe("App cleanup prompt flow", () => {
     ).toBeInTheDocument();
     expect(archiveMocks.downloadArchive).not.toHaveBeenCalled();
 
-    await fireEvent.click(
-      screen.getByRole("button", { name: /Delete Selected \(1\)/ }),
-    );
+    await fireEvent.click(screen.getByRole("button", { name: /Delete Selected/ }));
 
     await waitFor(() => {
       expect(archiveMocks.downloadArchive).toHaveBeenCalledTimes(1);
