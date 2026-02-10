@@ -20,6 +20,13 @@ map "$rackula_is_write_method:$rackula_has_api_write_token" $rackula_api_authori
     "1:1" "Bearer ${API_WRITE_TOKEN}";
 }
 
+# Track whether auth mode is effectively disabled for fallback behavior.
+map "${RACKULA_AUTH_MODE}" $rackula_auth_mode_none {
+    default 0;
+    "" 1;
+    ~*^none$ 1;
+}
+
 server {
     listen ${RACKULA_LISTEN_PORT};
     listen [::]:${RACKULA_LISTEN_PORT};
@@ -48,7 +55,7 @@ server {
     # Use variable to defer DNS resolution to request time (allows nginx to start without API)
     # Using $uri$is_args$args for normalized path+query (safer than $request_uri)
     # Configure via environment variables: API_HOST (default: rackula-api), API_PORT (default: 3001), API_WRITE_TOKEN (optional)
-    # Note: NGINX_ENVSUBST_FILTER in Dockerfile restricts substitution to API_HOST, API_PORT, API_WRITE_TOKEN, and RACKULA_LISTEN_PORT only
+    # Note: NGINX_ENVSUBST_FILTER in Dockerfile restricts substitution to runtime variables only
     
     # API health check - used by frontend to detect persistence API availability
     # Returns 502/503 if API is unavailable (intentional - signals API is down)
@@ -61,6 +68,34 @@ server {
         proxy_connect_timeout 3s;
         proxy_read_timeout 3s;
         # No fallback - let it fail to signal API unavailability
+    }
+
+    # Public auth bootstrap endpoints.
+    # When auth mode is enabled, these remain reachable for login/callback flow.
+    location = /auth/login {
+        resolver 127.0.0.11 valid=30s;
+        set $api_upstream ${API_HOST};
+        proxy_pass http://$api_upstream:${API_PORT}/auth/login$is_args$args;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 15s;
+    }
+
+    location = /auth/callback {
+        resolver 127.0.0.11 valid=30s;
+        set $api_upstream ${API_HOST};
+        proxy_pass http://$api_upstream:${API_PORT}/auth/callback$is_args$args;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 15s;
     }
     
     # Handle /api and /api/ edge cases - return JSON error, not SPA fallback (#1010)
@@ -106,6 +141,37 @@ server {
         return 503 '{"error": "Persistence API unavailable"}';
     }
 
+    # Internal auth probe for app-route protection.
+    # API validates the signed session cookie and returns 204 (ok) or 401 (unauthorized).
+    location = /_rackula_auth_check {
+        internal;
+        resolver 127.0.0.11 valid=30s;
+        set $api_upstream ${API_HOST};
+        proxy_pass http://$api_upstream:${API_PORT}/auth/check;
+        proxy_http_version 1.1;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 3s;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Cookie $http_cookie;
+        proxy_set_header X-Original-URI $request_uri;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_intercept_errors on;
+        error_page 502 503 504 = @auth_check_upstream_error;
+    }
+
+    # If API is unavailable, fail open only when auth mode is explicitly disabled.
+    location @auth_check_upstream_error {
+        if ($rackula_auth_mode_none) {
+            return 204;
+        }
+        return 401;
+    }
+
+    location @auth_login_redirect {
+        return 302 /auth/login;
+    }
+
     # Container health check - used by Docker/K8s for liveness/readiness probes
     # Always returns 200 OK because nginx can serve the frontend even without API
     # This endpoint checks the frontend container health, not API availability
@@ -117,6 +183,9 @@ server {
 
     # SPA fallback - all routes to index.html
     location / {
+        auth_request /_rackula_auth_check;
+        error_page 401 = @auth_login_redirect;
+        error_page 403 = @auth_login_redirect;
         try_files $uri $uri/ /index.html;
     }
 

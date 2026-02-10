@@ -85,8 +85,13 @@ For production/self-hosted API security:
 
 - `CORS_ORIGIN` should be your real app URL (restricts which browser origins can call the API).
 - `RACKULA_API_WRITE_TOKEN` protects API `PUT`/`DELETE` routes (optional, strongly recommended). If unset, write routes remain open.
+- `RACKULA_AUTH_MODE` enables centralized auth gate behavior:
+  - `none`: no app/API auth gate
+  - `oidc`: external OpenID Connect provider mode
+  - `local`: built-in username/password mode
+- `RACKULA_AUTH_SESSION_SECRET` is required when auth mode is enabled (minimum 32 characters).
 
-Generate a strong token:
+Generate strong secrets (32 random bytes as hex):
 
 ```bash
 openssl rand -hex 32
@@ -98,9 +103,24 @@ Set values in a `.env` file beside `docker-compose.yml`:
 cat > .env <<'EOF'
 CORS_ORIGIN=https://rack.example.com
 RACKULA_API_WRITE_TOKEN=replace-with-generated-token
+RACKULA_AUTH_MODE=none
+# Enable auth mode by setting both values below:
+# RACKULA_AUTH_MODE=local
+# RACKULA_AUTH_SESSION_SECRET=replace-with-32-byte-hex
 EOF
 docker compose up -d
 ```
+
+Example `.env` with auth mode enabled:
+
+```bash
+CORS_ORIGIN=https://rack.example.com
+RACKULA_API_WRITE_TOKEN=replace-with-generated-token
+RACKULA_AUTH_MODE=local
+RACKULA_AUTH_SESSION_SECRET=replace-with-32-byte-hex
+```
+
+See [Self-Hosting Guide](docs/guides/SELF-HOSTING.md) for deployment and hardening details.
 
 Or pass them inline:
 

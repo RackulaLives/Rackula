@@ -19,6 +19,8 @@
 #   RACKULA_API_IMAGE: API image override (default: ghcr.io/rackulalives/rackula-api:latest)
 #   CORS_ORIGIN: Allowed browser origin(s) for API CORS (default: http://localhost:8080)
 #   RACKULA_API_WRITE_TOKEN: Optional token protecting API PUT/DELETE routes
+#   RACKULA_AUTH_MODE: Auth mode toggle (none|oidc|local, default: none)
+#   RACKULA_AUTH_SESSION_SECRET: Required when auth mode != none (min 32 chars)
 #   ALLOW_INSECURE_CORS: Explicit insecure fallback for wildcard CORS in production (default: false)
 
 services:
@@ -37,6 +39,8 @@ services:
       - RACKULA_LISTEN_PORT=${RACKULA_LISTEN_PORT:-8080}
       # Optional: token forwarded to API for PUT/DELETE route auth
       - API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN:-}
+      # Auth gate mode for app-route checks in nginx
+      - RACKULA_AUTH_MODE=${RACKULA_AUTH_MODE:-none}
     restart: unless-stopped
     stop_grace_period: 10s
 
@@ -88,6 +92,10 @@ services:
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:8080}
       # Optional (recommended): protects PUT/DELETE routes via Bearer token
       - RACKULA_API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN:-}
+      # Optional auth mode model: none | oidc | local
+      - RACKULA_AUTH_MODE=${RACKULA_AUTH_MODE:-none}
+      # Required when auth mode is enabled (oidc/local)
+      - RACKULA_AUTH_SESSION_SECRET=${RACKULA_AUTH_SESSION_SECRET:-}
       # Explicit insecure fallback (use only for isolated/local testing)
       - ALLOW_INSECURE_CORS=${ALLOW_INSECURE_CORS:-false}
 
