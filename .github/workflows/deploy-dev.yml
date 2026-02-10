@@ -91,10 +91,18 @@ jobs:
     permissions: {}
 
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Sync docker-compose.yml to dev
+        run: |
+          cp docker-compose.yml /opt/rackula/rackula-dev/docker-compose.yml
+
       - name: Deploy to dev
         run: |
           cd /opt/rackula/rackula-dev
           docker compose --profile persist pull
+          CORS_ORIGIN=https://d.racku.la \
+          ALLOW_INSECURE_CORS=false \
           docker compose --profile persist up -d
 
   smoke-test:
