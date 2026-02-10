@@ -25,8 +25,8 @@ server {
     # API proxy (when sidecar is running)
     # Use variable to defer DNS resolution to request time (allows nginx to start without API)
     # Using $uri$is_args$args for normalized path+query (safer than $request_uri)
-    # Configure via environment variables: API_HOST (default: rackula-api), API_PORT (default: 3001)
-    # Note: NGINX_ENVSUBST_FILTER in Dockerfile restricts substitution to API_HOST, API_PORT, and RACKULA_LISTEN_PORT only
+    # Configure via environment variables: API_HOST (default: rackula-api), API_PORT (default: 3001), API_WRITE_TOKEN (optional)
+    # Note: NGINX_ENVSUBST_FILTER in Dockerfile restricts substitution to API_HOST, API_PORT, API_WRITE_TOKEN, and RACKULA_LISTEN_PORT only
     
     # API health check - used by frontend to detect persistence API availability
     # Returns 502/503 if API is unavailable (intentional - signals API is down)
@@ -67,6 +67,13 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # Optional bearer token for write-route auth on the API side.
+        # If API_WRITE_TOKEN is empty, preserve any client Authorization header.
+        set $rackula_api_authorization $http_authorization;
+        if ("${API_WRITE_TOKEN}" != "") {
+            set $rackula_api_authorization "Bearer ${API_WRITE_TOKEN}";
+        }
+        proxy_set_header Authorization $rackula_api_authorization;
 
         proxy_connect_timeout 5s;
         proxy_send_timeout 30s;

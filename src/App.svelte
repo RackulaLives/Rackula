@@ -78,7 +78,7 @@
     downloadBlob,
     generateExportFilename,
   } from "$lib/utils/export";
-  import type { DisplayMode, ExportOptions } from "$lib/types";
+  import type { DisplayMode, ExportOptions, RackWidth } from "$lib/types";
   import type { ImportResult } from "$lib/utils/netbox-import";
   import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { analytics } from "$lib/utils/analytics";
@@ -100,9 +100,6 @@
     type SaveStatus as SaveStatusType,
     PersistenceError,
   } from "$lib/utils/persistence-api";
-
-  // Build-time environment constant from vite.config.ts
-  declare const __BUILD_ENV__: string;
 
   // Sidebar size configuration (in pixels)
   interface Props {
@@ -143,6 +140,8 @@
   let showReplaceDialog = $derived(dialogStore.isOpen("confirmReplace"));
   let cleanupDialogOpen = $derived(dialogStore.isOpen("cleanupDialog"));
   let cleanupPromptOpen = $derived(dialogStore.isOpen("cleanupPrompt"));
+  let cleanupPromptOperation = $derived(dialogStore.pendingCleanupOperation);
+  let cleanupReviewPendingOperation = $state<"save" | "export" | null>(null);
 
   // Mobile bottom sheet state - managed by dialogStore
   let bottomSheetOpen = $derived(dialogStore.isSheetOpen("deviceDetails"));
@@ -486,18 +485,13 @@
 
   /**
    * Handle "Review & Clean Up" button in cleanup prompt
-   * Opens the bulk cleanup dialog (issue #832 - to be implemented)
+   * Opens bulk cleanup workflow before continuing with pending operation.
    */
   function handleCleanupReview() {
     const pendingOp = dialogStore.pendingCleanupOperation;
+    cleanupReviewPendingOperation = pendingOp;
     dialogStore.close();
-    // TODO: When issue #832 is implemented, open the bulk cleanup dialog here
-    // For now, just proceed with the operation
-    if (pendingOp === "save") {
-      handleSave();
-    } else if (pendingOp === "export") {
-      handleExport();
-    }
+    dialogStore.open("cleanupDialog");
   }
 
   /**
@@ -506,6 +500,7 @@
    */
   function handleCleanupKeepAll() {
     const pendingOp = dialogStore.pendingCleanupOperation;
+    cleanupReviewPendingOperation = null;
     dialogStore.close();
     if (pendingOp === "save") {
       handleSave();
@@ -519,6 +514,7 @@
    * Aborts the pending operation
    */
   function handleCleanupCancel() {
+    cleanupReviewPendingOperation = null;
     dialogStore.close();
   }
 
@@ -908,11 +904,30 @@
   }
 
   function handleOpenCleanupDialog() {
+    cleanupReviewPendingOperation = null;
     dialogStore.open("cleanupDialog");
   }
 
-  function handleCleanupDialogClose() {
+  function handleCleanupDialogClose(action: "delete" | "cancel" = "cancel") {
+    const pendingOp = cleanupReviewPendingOperation;
+    cleanupReviewPendingOperation = null;
     dialogStore.close();
+
+    // Settings-triggered cleanup has no pending operation to continue.
+    if (!pendingOp) {
+      return;
+    }
+
+    // User cancelled review flow from cleanup dialog.
+    if (action !== "delete") {
+      return;
+    }
+
+    if (pendingOp === "save") {
+      handleSave();
+    } else {
+      handleExport();
+    }
   }
 
   function handleAddDevice() {
@@ -929,7 +944,7 @@
     notes: string;
     isFullDepth: boolean;
     isHalfWidth: boolean;
-    rackWidths: number[];
+    rackWidths: RackWidth[];
     frontImage?: ImageData;
     rearImage?: ImageData;
   }) {
@@ -938,7 +953,7 @@
       u_height: data.height,
       category: data.category,
       colour: data.colour,
-      comments: data.notes || undefined,
+      notes: data.notes || undefined,
       is_full_depth: data.isFullDepth ? undefined : false,
       slot_width: data.isHalfWidth ? 1 : undefined,
       rack_widths: data.rackWidths,
@@ -1417,7 +1432,6 @@
       sidePanelSizeDefault}px, var(--sidebar-width-max))"
   >
     <Toolbar
-      hasSelection={selectionStore.hasSelection}
       hasRacks={layoutStore.hasRack}
       theme={uiStore.theme}
       displayMode={uiStore.displayMode}
@@ -1434,7 +1448,6 @@
       onimportdevices={handleImportDevices}
       onimportnetbox={handleImportFromNetBox}
       onnewcustomdevice={handleAddDevice}
-      ondelete={handleDelete}
       onfitall={handleFitAll}
       ontoggletheme={handleToggleTheme}
       ontoggledisplaymode={handleToggleDisplayMode}
@@ -1599,6 +1612,7 @@
 
     <CleanupPromptDialog
       open={cleanupPromptOpen}
+      operation={cleanupPromptOperation}
       unusedCount={getUnusedCustomTypeCount()}
       onreview={handleCleanupReview}
       onkeepall={handleCleanupKeepAll}

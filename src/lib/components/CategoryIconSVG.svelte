@@ -44,6 +44,7 @@
     shelf: AlignEndHorizontal,
     blank: CircleOff,
     "cable-management": Cable,
+    chassis: Server,
     other: CircleQuestionMark,
   };
 

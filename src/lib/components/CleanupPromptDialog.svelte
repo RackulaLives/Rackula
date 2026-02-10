@@ -7,6 +7,7 @@
 
   interface Props {
     open: boolean;
+    operation?: "save" | "export" | null;
     unusedCount: number;
     onreview?: () => void;
     onkeepall?: () => void;
@@ -16,6 +17,7 @@
 
   let {
     open,
+    operation = null,
     unusedCount,
     onreview,
     onkeepall,
@@ -49,6 +51,14 @@
   function handleCancel() {
     oncancel?.();
   }
+
+  const operationAction = $derived(
+    operation === "export"
+      ? "exporting"
+      : operation === "save"
+        ? "saving"
+        : "continuing",
+  );
 </script>
 
 <Dialog
@@ -62,7 +72,12 @@
       You have {unusedCount} unused custom device {unusedCount === 1
         ? "type"
         : "types"}. Would you like to remove {unusedCount === 1 ? "it" : "them"} before
-      saving?
+      {operationAction}?
+    </p>
+
+    <p class="message hint">
+      Review & Clean Up opens a checklist where you can choose which unused types
+      to delete first.
     </p>
 
     <div class="dont-ask-again">
@@ -100,6 +115,11 @@
     font-size: var(--font-size-base);
     line-height: 1.5;
     color: var(--colour-text);
+  }
+
+  .hint {
+    font-size: var(--font-size-sm);
+    color: var(--colour-text-muted);
   }
 
   .dont-ask-again {

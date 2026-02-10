@@ -36,13 +36,20 @@ import {
  * Lazily load JSZip library
  * Cached after first load for subsequent calls
  */
-let jsZipModule: typeof import("jszip") | null = null;
+type JSZipConstructor = typeof import("jszip");
+type JSZipInstance = ReturnType<JSZipConstructor>;
 
-async function getJSZip(): Promise<typeof import("jszip").default> {
-  if (!jsZipModule) {
-    jsZipModule = await import("jszip");
+let jsZipConstructor: JSZipConstructor | null = null;
+
+async function getJSZip(): Promise<JSZipConstructor> {
+  if (!jsZipConstructor) {
+    const module = (await import("jszip")) as unknown as {
+      default?: JSZipConstructor;
+    };
+    jsZipConstructor =
+      module.default ?? (module as unknown as JSZipConstructor);
   }
-  return jsZipModule.default;
+  return jsZipConstructor;
 }
 
 /**
@@ -100,7 +107,7 @@ interface ZipFormat {
  * Supports both new folder structure (#919) and old flat structure
  */
 async function detectZipFormat(
-  zip: import("jszip").default,
+  zip: JSZipInstance,
 ): Promise<ZipFormat> {
   const entries = Object.keys(zip.files);
 
@@ -312,13 +319,17 @@ export async function extractFolderArchive(
  * Structure: {Name}-{UUID}/{slug}.rackula.yaml + assets/
  */
 async function extractNewFormatZip(
-  zip: import("jszip").default,
+  zip: JSZipInstance,
   format: ZipFormat,
 ): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
   // Extract YAML
-  const yamlFile = zip.file(format.yamlPath!);
+  const yamlPath = format.yamlPath;
+  if (!yamlPath) {
+    throw new Error("YAML path missing for new-format archive");
+  }
+  const yamlFile = zip.file(yamlPath);
   if (!yamlFile) {
-    throw new Error(`YAML file not found: ${format.yamlPath}`);
+    throw new Error(`YAML file not found: ${yamlPath}`);
   }
   const yamlContent = await yamlFile.async("string");
   const layout = await parseLayoutYaml(yamlContent);
@@ -327,17 +338,18 @@ async function extractNewFormatZip(
   const images: ImageStoreMap = new Map();
   const failedImages: string[] = [];
 
-  if (format.assetsPath) {
+  const assetsPath = format.assetsPath;
+  if (assetsPath) {
     const imageFiles = Object.keys(zip.files).filter(
       (name) =>
-        name.startsWith(format.assetsPath!) &&
+        name.startsWith(assetsPath) &&
         !name.endsWith("/") &&
         isImageFile(name),
     );
 
     for (const imagePath of imageFiles) {
       // Parse path: folder/assets/[slug]/[filename].[ext]
-      const relativePath = imagePath.substring(format.assetsPath!.length);
+      const relativePath = imagePath.substring(assetsPath.length);
       const parts = relativePath.split("/");
 
       if (parts.length !== 2) continue;
@@ -373,13 +385,17 @@ async function extractNewFormatZip(
  * Structure: {name}.yaml at root, images/ folder optional
  */
 async function extractOldFormatZip(
-  zip: import("jszip").default,
+  zip: JSZipInstance,
   format: ZipFormat,
 ): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
   // Extract YAML from root
-  const yamlFile = zip.file(format.yamlPath!);
+  const yamlPath = format.yamlPath;
+  if (!yamlPath) {
+    throw new Error("YAML path missing for old-format archive");
+  }
+  const yamlFile = zip.file(yamlPath);
   if (!yamlFile) {
-    throw new Error(`YAML file not found: ${format.yamlPath}`);
+    throw new Error(`YAML file not found: ${yamlPath}`);
   }
   const yamlContent = await yamlFile.async("string");
   const layout = await parseLayoutYaml(yamlContent);
@@ -427,10 +443,11 @@ async function extractOldFormatZip(
       const filename = parts[0];
       if (!filename) continue;
 
-      const match = filename.match(/^(.+)-(front|rear)\.\w+$/);
+      const match = /^(.+)-(front|rear)\.\w+$/.exec(filename);
       if (match) {
-        const deviceSlug = match[1]!;
-        const face = match[2] as "front" | "rear";
+        const [, deviceSlug, faceToken] = match;
+        if (!deviceSlug || !faceToken) continue;
+        const face = faceToken as "front" | "rear";
 
         const result = await extractImageFromZip(
           zip,
@@ -460,7 +477,7 @@ async function extractOldFormatZip(
  * Returns image data or error
  */
 async function extractImageFromZip(
-  zip: import("jszip").default,
+  zip: JSZipInstance,
   imagePath: string,
   deviceSlug: string,
   filename: string,
@@ -471,10 +488,10 @@ async function extractImageFromZip(
   error?: boolean;
 }> {
   // Check for device type image: front.{ext} or rear.{ext}
-  const deviceTypeFaceMatch = filename.match(/^(front|rear)\.\w+$/);
+  const deviceTypeFaceMatch = /^(front|rear)\.\w+$/.exec(filename);
 
   // Check for placement image: {deviceId}-front.{ext} or {deviceId}-rear.{ext}
-  const placementFaceMatch = filename.match(/^(.+)-(front|rear)\.\w+$/);
+  const placementFaceMatch = /^(.+)-(front|rear)\.\w+$/.exec(filename);
 
   let imageKey: string;
   let face: "front" | "rear";

@@ -72,8 +72,10 @@
     ) => void;
     /** Mobile long press for rack editing */
     onracklongpress?: (event: CustomEvent<{ rackId: string }>) => void;
-    /** Rack context menu: add device callback */
-    onrackadddevice?: (rackId: string) => void;
+    /** Rack context menu: focus rack/group callback */
+    onrackfocus?: (rackIds: string[]) => void;
+    /** Rack context menu: export rack/group callback */
+    onrackexport?: (rackIds: string[]) => void;
     /** Rack context menu: edit rack callback */
     onrackedit?: (rackId: string) => void;
     /** Rack context menu: rename rack callback */
@@ -98,7 +100,8 @@
     ondevicemove,
     ondevicemoverack,
     onracklongpress,
-    onrackadddevice,
+    onrackfocus,
+    onrackexport,
     onrackedit,
     onrackrename,
     onrackduplicate,
@@ -390,6 +393,18 @@
     layoutStore.setActiveRack(rackId);
     selectionStore.selectRack(rackId);
     onrackselect?.(event);
+  }
+
+  function handleGroupSelect(event: CustomEvent<{ groupId: string }>) {
+    const { groupId } = event.detail;
+    const group = layoutStore.getRackGroupById(groupId);
+    if (!group || group.rack_ids.length === 0) return;
+    const activeRackInGroup =
+      activeRackId && group.rack_ids.includes(activeRackId)
+        ? activeRackId
+        : group.rack_ids[0];
+    layoutStore.setActiveRack(activeRackInGroup ?? null);
+    selectionStore.selectGroup(groupId, activeRackInGroup);
   }
 
   function handleDeviceSelect(
@@ -714,7 +729,7 @@
                 annotationField={uiStore.annotationField}
                 {partyMode}
                 {enableLongPress}
-                onselect={(e) => handleRackSelect(e)}
+                ongroupselect={(e) => handleGroupSelect(e)}
                 ondeviceselect={(e) => {
                   const rackId = activeRackId ?? groupRacks[0]?.id;
                   if (rackId) handleDeviceSelect(rackId, e);
@@ -727,7 +742,8 @@
                   if (rackId) handlePlacementTap(rackId, e);
                 }}
                 onlongpress={(e) => onracklongpress?.(e)}
-                onadddevice={(rackId) => onrackadddevice?.(rackId)}
+                onfocus={(rackIds) => onrackfocus?.(rackIds)}
+                onexport={(rackIds) => onrackexport?.(rackIds)}
                 onedit={(rackId) => onrackedit?.(rackId)}
                 onrename={(rackId) => onrackrename?.(rackId)}
                 onduplicate={(rackId) => onrackduplicate?.(rackId)}
@@ -767,7 +783,8 @@
                         ondevicemoverack={(e) => handleDeviceMoveRack(e)}
                         onplacementtap={(e) => handlePlacementTap(rack.id, e)}
                         onlongpress={(e) => onracklongpress?.(e)}
-                        onadddevice={() => onrackadddevice?.(rack.id)}
+                        onfocus={() => onrackfocus?.([rack.id])}
+                        onexport={() => onrackexport?.([rack.id])}
                         onedit={() => onrackedit?.(rack.id)}
                         onrename={() => onrackrename?.(rack.id)}
                         onduplicate={() => onrackduplicate?.(rack.id)}
@@ -810,7 +827,8 @@
                 ondevicemoverack={(e) => handleDeviceMoveRack(e)}
                 onplacementtap={(e) => handlePlacementTap(rack.id, e)}
                 onlongpress={(e) => onracklongpress?.(e)}
-                onadddevice={() => onrackadddevice?.(rack.id)}
+                onfocus={() => onrackfocus?.([rack.id])}
+                onexport={() => onrackexport?.([rack.id])}
                 onedit={() => onrackedit?.(rack.id)}
                 onrename={() => onrackrename?.(rack.id)}
                 onduplicate={() => onrackduplicate?.(rack.id)}

@@ -68,17 +68,47 @@ Then open `http://localhost:8080` and get after it.
 
 ### Persistent Storage (Self-Hosted)
 
-For layouts that persist across sessions, clone and build with persistence enabled:
+For layouts that persist across sessions:
 
 ```bash
 git clone https://github.com/RackulaLives/Rackula.git
 cd Rackula
+curl -fsSL https://raw.githubusercontent.com/RackulaLives/Rackula/main/deploy/docker-compose.persist.yml -o docker-compose.yml
 mkdir -p data
-# Edit docker-compose.yml: uncomment 'build' section, comment out 'image'
-docker compose --profile persist up -d --build
+sudo chown 1001:1001 data
+docker compose up -d
 ```
 
 See [Self-Hosting Guide](docs/guides/SELF-HOSTING.md) for details.
+
+For production/self-hosted API security:
+
+- `CORS_ORIGIN` should be your real app URL (restricts which browser origins can call the API).
+- `RACKULA_API_WRITE_TOKEN` protects API `PUT`/`DELETE` routes (optional, strongly recommended). If unset, write routes remain open.
+
+Generate a strong token:
+
+```bash
+openssl rand -hex 32
+```
+
+Set values in a `.env` file beside `docker-compose.yml`:
+
+```bash
+cat > .env <<'EOF'
+CORS_ORIGIN=https://rack.example.com
+RACKULA_API_WRITE_TOKEN=replace-with-generated-token
+EOF
+docker compose up -d
+```
+
+Or pass them inline:
+
+```bash
+CORS_ORIGIN=https://rack.example.com \
+RACKULA_API_WRITE_TOKEN=replace-with-generated-token \
+docker compose up -d
+```
 
 ### Build from source
 

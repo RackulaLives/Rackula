@@ -12,7 +12,7 @@
  * const device = createTestDevice({ position: 5 });
  */
 
-import { vi } from "vitest";
+import { vi, type Mock } from "vitest";
 import type {
   Rack,
   DeviceType,
@@ -165,15 +165,17 @@ export function createMockCommand(
   description: string,
   type: CommandType = "PLACE_DEVICE",
 ): Command & {
-  execute: ReturnType<typeof vi.fn>;
-  undo: ReturnType<typeof vi.fn>;
+  execute: Mock<() => void>;
+  undo: Mock<() => void>;
 } {
+  const execute = vi.fn<() => void>();
+  const undo = vi.fn<() => void>();
   return {
     type,
     description,
     timestamp: Date.now(),
-    execute: vi.fn(),
-    undo: vi.fn(),
+    execute,
+    undo,
   };
 }
 

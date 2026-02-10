@@ -1,0 +1,105 @@
+{
+  "generatedAt": "2026-02-09T08:29:58.129Z",
+  "options": {
+    "netboxRoot": "$NETBOX_ROOT",
+    "limit": 140,
+    "phase1Limit": 40,
+    "phase2Limit": 45,
+    "phase3Limit": 55,
+    "outputDir": "docs/research/data"
+  },
+  "netbox": {
+    "branch": "master",
+    "shortSha": "494336dd",
+    "remote": "git@github.com:netbox-community/devicetype-library.git"
+  },
+  "existingRackulaSlugs": 646,
+  "allCandidateCount": 1324,
+  "rankedCount": 140,
+  "phase1Count": 40,
+  "phase2Count": 45,
+  "phase3Count": 55,
+  "rankedImageCoverage": {
+    "both": 81,
+    "single": 6,
+    "none": 53
+  },
+  "phase1ImageCoverage": {
+    "both": 33,
+    "single": 4,
+    "none": 3
+  },
+  "phase2ImageCoverage": {
+    "both": 43,
+    "single": 2,
+    "none": 0
+  },
+  "phase3ImageCoverage": {
+    "both": 5,
+    "single": 0,
+    "none": 50
+  },
+  "rankedByVendor": {
+    "Ubiquiti": 8,
+    "MikroTik": 10,
+    "APC": 10,
+    "Eaton": 10,
+    "Vertiv": 8,
+    "Dell": 10,
+    "Supermicro": 10,
+    "HPE": 10,
+    "Lenovo": 1,
+    "Netgear": 9,
+    "TP-Link": 1,
+    "Fortinet": 9,
+    "Palo Alto": 9,
+    "Juniper": 9,
+    "Cisco": 9,
+    "Arista": 9,
+    "SonicWall": 8
+  },
+  "phase1ByVendor": {
+    "Ubiquiti": 3,
+    "MikroTik": 3,
+    "APC": 6,
+    "Eaton": 4,
+    "Dell": 4,
+    "Supermicro": 3,
+    "HPE": 3,
+    "Lenovo": 1,
+    "Netgear": 1,
+    "Fortinet": 3,
+    "Palo Alto": 2,
+    "Juniper": 2,
+    "Cisco": 2,
+    "Arista": 2,
+    "Vertiv": 1
+  },
+  "phase2ByVendor": {
+    "APC": 4,
+    "Eaton": 3,
+    "Dell": 2,
+    "HPE": 6,
+    "Fortinet": 6,
+    "Palo Alto": 6,
+    "Juniper": 6,
+    "Cisco": 6,
+    "Arista": 6
+  },
+  "phase3ByVendor": {
+    "Ubiquiti": 5,
+    "MikroTik": 7,
+    "Eaton": 3,
+    "Vertiv": 7,
+    "Dell": 4,
+    "Supermicro": 7,
+    "HPE": 1,
+    "Netgear": 8,
+    "TP-Link": 1,
+    "Palo Alto": 1,
+    "Juniper": 1,
+    "Cisco": 1,
+    "Arista": 1,
+    "SonicWall": 8
+  }
+}

@@ -17,6 +17,8 @@ import type {
 } from "$lib/types";
 import { LayoutSchema, type LayoutZod } from "$lib/schemas";
 
+const STANDARD_RACK_WIDTH = 19;
+
 /**
  * Lazily load js-yaml library
  * Cached after first load for subsequent calls
@@ -318,6 +320,8 @@ function toRuntimeLayout(parsed: LayoutZod): Layout {
     ...parsed,
     racks: parsed.racks.map((rack) => ({
       ...rack,
+      // Older/legacy inputs can omit width in transformed type inference.
+      width: rack.width ?? STANDARD_RACK_WIDTH,
       view: "front",
     })),
     rack_groups: parsed.rack_groups,

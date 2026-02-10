@@ -835,9 +835,9 @@ function needsPositionMigration(
  * Container children (with container_id) are NOT migrated since they use
  * 0-indexed positions relative to the container.
  */
-function migrateDevicePositions(
-  devices: { position: number; container_id?: string }[],
-): { position: number; container_id?: string }[] {
+function migrateDevicePositions<T extends { position: number; container_id?: string }>(
+  devices: T[],
+): T[] {
   return devices.map((device) => {
     // Container children keep their 0-indexed positions
     if (device.container_id !== undefined) {
@@ -847,7 +847,7 @@ function migrateDevicePositions(
     return {
       ...device,
       position: Math.round(device.position * UNITS_PER_U),
-    };
+    } as T;
   });
 }
 
