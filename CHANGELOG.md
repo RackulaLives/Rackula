@@ -5,6 +5,73 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-02-10
+
+### Added
+
+- Mobile bottom navigation bar with Framework7-inspired design (#641, PR #1055, #1062, #1063)
+- Slim toolbar mode for mobile viewports (PR #1054)
+- Mobile file actions sheet (PR #1059)
+- Rack indicator strip with navigation dots (PR #1056)
+- Mobile view sheet controls (#643, PR #1058)
+- Compact mobile toolbar quick actions (PR #1060)
+- Mobile device library trigger in bottom nav (PR #1061)
+- Mobile rack swipe navigation (PR #1076)
+- Touch long-press context menus (PR #1086)
+- Mobile floating undo/redo controls (#1046, PR #1098)
+- Virtual keyboard viewport adaptation (#1049, PR #1097)
+- Phase 1 NetBox homelab device import: 40 image-priority devices (#1109, PR #1134)
+- E2E test infrastructure and wizard keyboard shortcuts (#903, PR #1128)
+- Layout store contract safety net tests (#910, PR #1083)
+- BottomSheet interaction test coverage (PR #1072)
+
+### Changed
+
+- Mobile warning modal updated with positive messaging (PR #1053)
+- Mobile export/share dialogs made responsive (#1047, PR #1123, #1126)
+- BottomSheet refactored to one-way open prop (PR #1073)
+- Tokenized shared dialog mobile content padding (#1162, PR #1165)
+
+### Fixed
+
+- Start Screen startup path stabilized (#1122, PR #1168)
+- Svelte a11y build warnings resolved (#1028, PR #1172)
+- App.svelte state_referenced_locally warning resolved (#1171, PR #1179)
+- Stale canvas touch listener lifecycle hardened (#1089, PR #1099)
+- Swipe pan rejection aligned with dominance ratio (#1090, PR #1093)
+- Swipe listener lifecycle and logging tightened (PR #1082)
+- Swipe gesture review follow-ups addressed (PR #1081)
+- Two-way binding to derived sheet state avoided (PR #1064)
+- Selection store sync, a11y improvements, and Safari iOS dark rack colours (PR #1057)
+- Persistence Start Screen integration into app launch flow (PR #1065)
+- Firefox logo SVG decode errors and persistence health handling hardened (PR #1092)
+- Keyboard viewport scroll excluded from select elements (#1103)
+- Zip export folder names sanitized (PR #1074)
+- Review & Clean Up action routed through real cleanup workflow (#1125, PR #1138)
+- Dev deploy env persistence and checkout permissions fixed (#1147, PR #1148, #1149)
+
+### Security
+
+- API CORS hardened and write-route auth defaults tightened (#1124, PR #1135)
+- CORS explicitly configured for dev domain
+
+### Technical
+
+- Restored svelte-check/typecheck baseline (#1121, PR #1136)
+- NetBox homelab device curation spike delivered (#1096, PR #1118)
+- Authentication v1 architecture spike and ADR (#1100, PR #1167)
+- Security threat model research document added (#1069, PR #1070)
+- Nginx auth hardening section added to self-hosting guide (#1112, PR #1127)
+- Self-hosting docs: storage paths, persistence setup, and audit checklist updated (PR #1156, #1157, #1159, #1163)
+- Container/self-hosting runtime and CI guardrails tightened (#1155, PR #1161, #1169)
+- .env.example expanded for persistence and API security vars (#1153, PR #1159)
+- Deploy dev workflow and docker-compose updated
+- Hoisted mock resets in cleanup prompt spec (#1150, PR #1158)
+- Star history chart added to README (PR #1071, #1075)
+- Bumped dependencies: svelte 5.49.1→5.50.0, simple-icons, @types/node, eslint, Playwright, and others (PR #1139, #1140, #1141, #1142, #1143, #1146)
+- Updated copyright year and owner in LICENSE (PR #1166)
+- YAML viewer/editor spike recommendations (#573, PR #1173)
+
 ## [0.7.9] - 2026-02-03
 
 ### Security
