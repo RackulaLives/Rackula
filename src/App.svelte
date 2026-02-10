@@ -250,15 +250,17 @@
   // Also handles loading shared layouts from URL params
   // Uses onMount to run once on initial load, not reactively
   onMount(async () => {
-    // Non-blocking: start API health check in background for server persistence
-    try {
-      await initializePersistence();
-    } catch (error) {
+    // Start API health check immediately so all startup paths (including share links)
+    // initialize persistence and can enable server autosave when available.
+    const persistenceInitPromise = initializePersistence().catch((error) => {
       console.error(
         "Persistence initialization failed; continuing without server persistence:",
         error,
       );
-    }
+      setApiAvailable(false);
+      saveStatus = "offline";
+      return false;
+    });
 
     // Priority 1: Check for shared layout in URL (highest priority)
     const shareParam = getShareParam();
@@ -274,7 +276,7 @@
         requestAnimationFrame(() => {
           canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
         });
-        return; // Don't check autosave or show new rack dialog
+        return; // Don't check autosave or show start screen
       } else {
         clearShareParam();
         toastStore.showToast("Invalid share link", "error");
@@ -284,16 +286,18 @@
     // Get localStorage session data (with timestamp if available)
     const localSession = loadSessionWithTimestamp();
 
-    // Priority 2: If API is available and there's no local session,
-    // show Start Screen so user can choose saved layout/new/import.
-    if (isApiAvailable() && !localSession) {
+    // Priority 2: With no local session, show Start Screen immediately.
+    // It handles loading/offline state while API health check resolves.
+    if (!localSession) {
       showStartScreen = true;
       return;
     }
 
+    const apiAvailable = await persistenceInitPromise;
+
     // Priority 3: When API and local session are both available,
     // compare server and local timestamps to avoid stale overwrite (#1012).
-    if (isApiAvailable()) {
+    if (apiAvailable) {
       try {
         const savedLayouts = await listSavedLayouts();
         if (savedLayouts.length > 0) {
@@ -364,11 +368,6 @@
         canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
       });
       return;
-    }
-
-    // Priority 5: No share link, autosave, or saved layouts - show new rack dialog if empty
-    if (layoutStore.rackCount === 0) {
-      dialogStore.open("newRack");
     }
   });
 
