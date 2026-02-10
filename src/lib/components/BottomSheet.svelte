@@ -13,9 +13,11 @@
   let { open = false, title, onclose, children }: Props = $props();
 
   let sheetElement: HTMLDivElement | null = $state(null);
+  let closeButtonElement: HTMLButtonElement | null = $state(null);
   let startY = $state(0);
   let currentY = $state(0);
   let isDragging = $state(false);
+  let restoreFocusElement: HTMLElement | null = null;
 
   // Transform value for dragging (positive = dragging down)
   const translateY = $derived(isDragging ? Math.max(0, currentY - startY) : 0);
@@ -83,6 +85,30 @@
     }
   }
 
+  // Move focus into the dialog while open, then restore prior focus on close.
+  $effect(() => {
+    if (!open) return;
+    restoreFocusElement =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
+    const frame = requestAnimationFrame(() => {
+      const firstInteractiveElement = sheetElement?.querySelector<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      (closeButtonElement ?? firstInteractiveElement ?? sheetElement)?.focus();
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      if (restoreFocusElement && document.contains(restoreFocusElement)) {
+        restoreFocusElement.focus();
+      }
+      restoreFocusElement = null;
+    };
+  });
+
   // Prevent body scroll when sheet is open
   $effect(() => {
     if (open) {
@@ -116,6 +142,7 @@
       class:dragging={isDragging}
       style:transform={isDragging ? `translateY(${translateY}px)` : ""}
       role="dialog"
+      tabindex="-1"
       aria-modal="true"
       onpointerdown={handlePointerDown}
       onpointermove={handlePointerMove}
@@ -132,6 +159,7 @@
             <div></div>
           {/if}
           <button
+            bind:this={closeButtonElement}
             type="button"
             class="close-button"
             onclick={closeSheet}

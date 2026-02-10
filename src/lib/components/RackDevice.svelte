@@ -557,6 +557,8 @@
     fill={effectiveColour}
     rx="2"
     ry="2"
+    role="presentation"
+    aria-hidden="true"
     onpointerdown={handlePointerDown}
     onpointermove={handlePointerMove}
     onpointerup={handlePointerUp}

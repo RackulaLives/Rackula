@@ -26,12 +26,25 @@
   }: Props = $props();
 
   let dontAskAgain = $state(false);
+  let keepAllButton: HTMLButtonElement | null = $state(null);
 
   // Reset checkbox state when dialog opens
   $effect(() => {
     if (open) {
       dontAskAgain = false;
     }
+  });
+
+  // Focus the first non-destructive action when the dialog opens.
+  $effect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      keepAllButton?.focus();
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
   });
 
   function handleReview() {
@@ -93,7 +106,12 @@
       <button type="button" class="btn btn-secondary" onclick={handleCancel}>
         Cancel
       </button>
-      <button type="button" class="btn btn-secondary" onclick={handleKeepAll} autofocus>
+      <button
+        bind:this={keepAllButton}
+        type="button"
+        class="btn btn-secondary"
+        onclick={handleKeepAll}
+      >
         Keep All
       </button>
       <button type="button" class="btn btn-primary" onclick={handleReview}>
