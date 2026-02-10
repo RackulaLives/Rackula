@@ -1,3 +1,25 @@
+# Authorization header handling for API proxying.
+# - If API_WRITE_TOKEN is configured and request method is PUT/DELETE,
+#   inject "Bearer <token>" for upstream write-route auth.
+# - Otherwise preserve any incoming Authorization header.
+# This avoids per-request `if` usage and limits token injection to write methods.
+# Note: Authorization headers are not logged by default nginx access log formats.
+map $request_method $rackula_is_write_method {
+    default 0;
+    PUT 1;
+    DELETE 1;
+}
+
+map "${API_WRITE_TOKEN}" $rackula_has_api_write_token {
+    default 1;
+    "" 0;
+}
+
+map "$rackula_is_write_method:$rackula_has_api_write_token" $rackula_api_authorization {
+    default $http_authorization;
+    "1:1" "Bearer ${API_WRITE_TOKEN}";
+}
+
 server {
     listen ${RACKULA_LISTEN_PORT};
     listen [::]:${RACKULA_LISTEN_PORT};
@@ -67,13 +89,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        # Optional bearer token for write-route auth on the API side.
-        # If API_WRITE_TOKEN is empty, preserve any client Authorization header.
-        set $rackula_api_authorization $http_authorization;
-        set $rackula_api_write_token "${API_WRITE_TOKEN}";
-        if ($rackula_api_write_token != "") {
-            set $rackula_api_authorization "Bearer $rackula_api_write_token";
-        }
+        # Authorization resolved by map directives at config scope above.
         proxy_set_header Authorization $rackula_api_authorization;
 
         proxy_connect_timeout 5s;

@@ -55,7 +55,8 @@ COPY ./deploy/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --chmod=755 ./deploy/docker-entrypoint-wrapper.sh /usr/local/bin/docker-entrypoint-wrapper.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Health check (port 8080 for unprivileged nginx, busybox wget is built-in)
+# Health check tracks runtime listen port; busybox wget is present in base image.
+# EXPOSE remains 8080 as an advisory default for tooling/docs.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget -q --spider http://127.0.0.1:${RACKULA_LISTEN_PORT:-8080}/health || exit 1
 

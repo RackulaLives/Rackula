@@ -171,36 +171,49 @@ jobs:
       matrix:
         image:
           - name: rackula-latest
-            ref: ghcr.io/rackulalives/rackula:latest
+            repo_suffix: ""
+            tag: latest
           - name: rackula-persist
-            ref: ghcr.io/rackulalives/rackula:persist
+            repo_suffix: ""
+            tag: persist
           - name: rackula-api-latest
-            ref: ghcr.io/rackulalives/rackula-api:latest
+            repo_suffix: "-api"
+            tag: latest
 
     steps:
       - name: Log in to Container Registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image ref
+        run: |
+          IMAGE_NAME_LC=$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_REF=${REGISTRY}/${IMAGE_NAME_LC}${{ matrix.image.repo_suffix }}:${{ matrix.image.tag }}" >> $GITHUB_ENV
 
       - name: Scan image
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
         with:
-          image-ref: ${{ matrix.image.ref }}
+          image-ref: ${{ env.IMAGE_REF }}
           format: sarif
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          exit-code: 1
 
       - name: Upload scan results
+        if: always()
         uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-${{ matrix.image.name }}
 
   deploy:
+    # Scan runs after image push to GHCR:
+    # - A scan failure blocks deploy.
+    # - Already-pushed images remain published (trade-off for current pipeline simplicity).
     needs: [build-and-deploy, build-persist, build-api, scan-images]
     runs-on: [self-hosted, vps-rackula]
     permissions:
