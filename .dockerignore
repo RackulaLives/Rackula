@@ -40,3 +40,7 @@ npm-debug.log*
 
 # Claude
 .claude
+
+# Local worktree snapshots
+.worktree
+.worktrees

@@ -36,7 +36,7 @@
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.2",
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^9.39.2",
     "@playwright/test": "^1.58.2",
     "@stryker-mutator/core": "^9.5.1",
     "@stryker-mutator/vitest-runner": "^9.5.1",
@@ -50,11 +50,11 @@
     "@types/pako": "^2.0.4",
     "@types/umami-browser": "^2.18.0",
     "@vitest/coverage-v8": "^4.0.18",
-    "eslint": "^10.0.0",
+    "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-svelte": "^3.13.0",
     "eslint-plugin-testing-library": "^7.3.0",
-    "eslint-plugin-vitest": "^0.5.4",
+    "@vitest/eslint-plugin": "^1.6.7",
     "globals": "^17.3.0",
     "happy-dom": "^20.6.0",
     "husky": "^9.1.7",
@@ -91,7 +91,7 @@
     "panzoom": "^9.4.3",
     "qrcode": "^1.5.4",
     "simple-icons": "^16.8.0",
-    "vaul-svelte": "^0.3.2",
+    "vaul-svelte": "^1.0.0-next.7",
     "zod": "^4.3.6"
   }
 }
