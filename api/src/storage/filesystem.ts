@@ -112,7 +112,7 @@ async function readLegacyLayout(
     } else {
       return {
         id: slug,
-        name: filename.replace(/\.ya?ml$/i, ""),
+        name: slug,
         version: "unknown",
         updatedAt: stats.mtime.toISOString(),
         rackCount: 0,
@@ -141,12 +141,13 @@ async function readLegacyLayout(
  */
 async function readLayoutFromFolder(
   folderName: string,
+  yamlFilenameFromList?: string,
 ): Promise<LayoutListItem | null> {
   const folderPath = join(getDataDir(), folderName);
   const uuid = extractUuidFromFolderName(folderName);
   if (!uuid) return null;
 
-  const yamlFilename = await findYamlInFolder(folderPath);
+  const yamlFilename = yamlFilenameFromList ?? await findYamlInFolder(folderPath);
   if (!yamlFilename) return null;
 
   const yamlPath = join(folderPath, yamlFilename);
@@ -206,15 +207,23 @@ async function readLayoutFromFolder(
 export async function listLayouts(): Promise<LayoutListItem[]> {
   await ensureDataDir();
 
-  const entries = await readdir(getDataDir(), { withFileTypes: true });
+  const dataDir = getDataDir();
+  const entries = await readdir(dataDir, { withFileTypes: true });
   const layouts: LayoutListItem[] = [];
+  const migratedLegacySlugs = new Set<string>();
 
   // Scan for folders with UUID suffix (new folder-per-layout format)
   for (const entry of entries) {
     if (entry.isDirectory()) {
       const uuid = extractUuidFromFolderName(entry.name);
       if (uuid) {
-        const layout = await readLayoutFromFolder(entry.name);
+        const folderPath = join(dataDir, entry.name);
+        const yamlFilename = await findYamlInFolder(folderPath);
+        if (yamlFilename) {
+          migratedLegacySlugs.add(yamlFilename.replace(/\.rackula\.yaml$/i, ""));
+        }
+
+        const layout = await readLayoutFromFolder(entry.name, yamlFilename ?? undefined);
         if (layout) {
           layouts.push(layout);
         }
@@ -225,6 +234,11 @@ export async function listLayouts(): Promise<LayoutListItem[]> {
   // Also scan for old flat .yaml/.yml files (backwards compatibility)
   for (const entry of entries) {
     if (entry.isFile() && /\.ya?ml$/i.test(entry.name)) {
+      const legacySlug = entry.name.replace(/\.ya?ml$/i, "");
+      if (migratedLegacySlugs.has(legacySlug)) {
+        continue;
+      }
+
       const layout = await readLegacyLayout(entry.name);
       if (layout) {
         layouts.push(layout);

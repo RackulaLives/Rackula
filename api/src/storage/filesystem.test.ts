@@ -136,6 +136,23 @@ describe("listLayouts", () => {
     expect(isUuid(created.id)).toBe(true);
   });
 
+  it("deduplicates legacy files when migrated folder layout exists", async () => {
+    const yaml = createLayoutYaml({ name: "Duplicate Layout" });
+    const created = await saveLayout(yaml);
+
+    // Simulate interrupted migration where old flat file was not deleted yet.
+    await writeFile(join(testDir, "duplicate-layout.yaml"), yaml);
+
+    const layouts = await listLayouts();
+    const folderLayout = layouts.find((layout) => layout.id === created.id);
+    const legacyLayout = layouts.find((layout) => layout.id === "duplicate-layout");
+
+    expect(folderLayout).toBeDefined();
+    expect(legacyLayout).toBeUndefined();
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: duplicate migration state should return one logical layout
+    expect(layouts).toHaveLength(1);
+  });
+
   it("marks invalid YAML files with valid: false", async () => {
     await writeFile(join(testDir, "invalid-layout.yaml"), `not valid yaml: [`);
 
