@@ -7,6 +7,7 @@ describe("MobileFileSheet", () => {
   let onSave: ReturnType<typeof vi.fn>;
   let onExport: ReturnType<typeof vi.fn>;
   let onShare: ReturnType<typeof vi.fn>;
+  let onViewYaml: ReturnType<typeof vi.fn>;
   let onClose: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -14,6 +15,7 @@ describe("MobileFileSheet", () => {
     onSave = vi.fn();
     onExport = vi.fn();
     onShare = vi.fn();
+    onViewYaml = vi.fn();
     onClose = vi.fn();
   });
 
@@ -24,6 +26,7 @@ describe("MobileFileSheet", () => {
         onsave: onSave,
         onexport: onExport,
         onshare: onShare,
+        onviewyaml: onViewYaml,
         onclose: onClose,
       },
     });
@@ -44,6 +47,7 @@ describe("MobileFileSheet", () => {
     expect(
       screen.getByRole("button", { name: "Share Link" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View YAML" })).toBeInTheDocument();
   });
 
   it("calls load handler and closes sheet", async () => {
@@ -55,6 +59,7 @@ describe("MobileFileSheet", () => {
     expect(onSave).not.toHaveBeenCalled();
     expect(onExport).not.toHaveBeenCalled();
     expect(onShare).not.toHaveBeenCalled();
+    expect(onViewYaml).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -67,6 +72,7 @@ describe("MobileFileSheet", () => {
     expect(onLoad).not.toHaveBeenCalled();
     expect(onExport).not.toHaveBeenCalled();
     expect(onShare).not.toHaveBeenCalled();
+    expect(onViewYaml).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -79,6 +85,7 @@ describe("MobileFileSheet", () => {
     expect(onLoad).not.toHaveBeenCalled();
     expect(onSave).not.toHaveBeenCalled();
     expect(onShare).not.toHaveBeenCalled();
+    expect(onViewYaml).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -91,6 +98,20 @@ describe("MobileFileSheet", () => {
     expect(onLoad).not.toHaveBeenCalled();
     expect(onSave).not.toHaveBeenCalled();
     expect(onExport).not.toHaveBeenCalled();
+    expect(onViewYaml).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls view YAML handler and closes sheet", async () => {
+    renderSheet();
+
+    await fireEvent.click(screen.getByRole("button", { name: "View YAML" }));
+
+    expect(onViewYaml).toHaveBeenCalledTimes(1);
+    expect(onLoad).not.toHaveBeenCalled();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onExport).not.toHaveBeenCalled();
+    expect(onShare).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

@@ -17,12 +17,14 @@
   import ConfirmReplaceDialog from "$lib/components/ConfirmReplaceDialog.svelte";
   import CleanupDialog from "$lib/components/CleanupDialog.svelte";
   import CleanupPromptDialog from "$lib/components/CleanupPromptDialog.svelte";
+  import Dialog from "$lib/components/Dialog.svelte";
   import ToastContainer from "$lib/components/ToastContainer.svelte";
   import PortTooltip from "$lib/components/PortTooltip.svelte";
   import DragTooltip from "$lib/components/DragTooltip.svelte";
   import KeyboardHandler from "$lib/components/KeyboardHandler.svelte";
   import ExportDialog from "$lib/components/ExportDialog.svelte";
   import ShareDialog from "$lib/components/ShareDialog.svelte";
+  import LayoutYamlPanel from "$lib/components/LayoutYamlPanel.svelte";
   import HelpPanel from "$lib/components/HelpPanel.svelte";
   import BottomSheet from "$lib/components/BottomSheet.svelte";
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
@@ -78,7 +80,7 @@
     downloadBlob,
     generateExportFilename,
   } from "$lib/utils/export";
-  import type { DisplayMode, ExportOptions, RackWidth } from "$lib/types";
+  import type { DisplayMode, ExportOptions, Layout, RackWidth } from "$lib/types";
   import type { ImportResult } from "$lib/utils/netbox-import";
   import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { analytics } from "$lib/utils/analytics";
@@ -135,6 +137,7 @@
   let confirmDeleteOpen = $derived(dialogStore.isOpen("confirmDelete"));
   let exportDialogOpen = $derived(dialogStore.isOpen("export"));
   let shareDialogOpen = $derived(dialogStore.isOpen("share"));
+  let yamlEditorDialogOpen = $derived(dialogStore.isOpen("yamlEditor"));
   let helpPanelOpen = $derived(dialogStore.isOpen("help"));
   let importFromNetBoxOpen = $derived(dialogStore.isOpen("importNetBox"));
   let showReplaceDialog = $derived(dialogStore.isOpen("confirmReplace"));
@@ -149,6 +152,7 @@
   let deviceLibrarySheetOpen = $derived(
     dialogStore.isSheetOpen("deviceLibrary"),
   );
+  let yamlEditorSheetOpen = $derived(dialogStore.isSheetOpen("yamlEditor"));
   let rackEditSheetOpen = $derived(dialogStore.isSheetOpen("rackEdit"));
   let viewSheetOpen = $derived(dialogStore.isSheetOpen("view"));
 
@@ -793,6 +797,34 @@
   function handleShareClose() {
     dialogStore.close();
     handleFitAll();
+  }
+
+  function handleOpenYamlEditor() {
+    if (viewportStore.isMobile) {
+      dialogStore.openSheet("yamlEditor");
+      return;
+    }
+
+    dialogStore.open("yamlEditor");
+  }
+
+  function handleYamlEditorClose() {
+    dialogStore.close();
+  }
+
+  function handleYamlEditorSheetClose() {
+    dialogStore.closeSheet();
+  }
+
+  function handleYamlApply(nextLayout: Layout) {
+    layoutStore.loadLayout(nextLayout);
+    layoutStore.markDirty();
+    selectionStore.clearSelection();
+    toastStore.showToast("YAML applied", "success");
+
+    requestAnimationFrame(() => {
+      handleFitAll();
+    });
   }
 
   function handleDelete() {
@@ -1445,6 +1477,7 @@
       onload={handleLoad}
       onexport={maybeExport}
       onshare={handleShare}
+      onviewyaml={handleOpenYamlEditor}
       onimportdevices={handleImportDevices}
       onimportnetbox={handleImportFromNetBox}
       onnewcustomdevice={handleAddDevice}
@@ -1643,6 +1676,19 @@
       onclose={handleShareClose}
     />
 
+    <Dialog
+      open={yamlEditorDialogOpen}
+      title="Layout YAML"
+      width="min(980px, 95vw)"
+      onclose={handleYamlEditorClose}
+    >
+      <LayoutYamlPanel
+        open={yamlEditorDialogOpen}
+        layout={layoutStore.layout}
+        onapply={handleYamlApply}
+      />
+    </Dialog>
+
     <HelpPanel open={helpPanelOpen} onclose={handleHelpClose} />
 
     <CleanupDialog
@@ -1684,6 +1730,7 @@
           onsave={handleSave}
           onexport={handleExport}
           onshare={handleShare}
+          onviewyaml={handleOpenYamlEditor}
           onclose={handleFileSheetClose}
         />
       </BottomSheet>
@@ -1718,6 +1765,20 @@
         <DevicePalette
           ondeviceselect={handleMobileDeviceSelect}
           oncreatedevice={handleAddDevice}
+        />
+      </BottomSheet>
+    {/if}
+
+    {#if viewportStore.isMobile && yamlEditorSheetOpen}
+      <BottomSheet
+        open={yamlEditorSheetOpen}
+        title="Layout YAML"
+        onclose={handleYamlEditorSheetClose}
+      >
+        <LayoutYamlPanel
+          open={yamlEditorSheetOpen}
+          layout={layoutStore.layout}
+          onapply={handleYamlApply}
         />
       </BottomSheet>
     {/if}

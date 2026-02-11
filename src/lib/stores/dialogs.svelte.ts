@@ -14,6 +14,7 @@ export type DialogId =
   | "confirmDelete"
   | "export"
   | "share"
+  | "yamlEditor"
   | "help"
   | "importNetBox"
   | "confirmReplace"
@@ -25,7 +26,8 @@ export type SheetId =
   | "deviceLibrary"
   | "rackEdit"
   | "fileActions"
-  | "view";
+  | "view"
+  | "yamlEditor";
 
 export interface DeleteTarget {
   type: "rack" | "device";

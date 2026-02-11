@@ -43,6 +43,7 @@
     onload?: () => void;
     onexport?: () => void;
     onshare?: () => void;
+    onviewyaml?: () => void;
     onimportdevices?: () => void;
     onimportnetbox?: () => void;
     onnewcustomdevice?: () => void;
@@ -71,6 +72,7 @@
     onload,
     onexport,
     onshare,
+    onviewyaml,
     onimportdevices,
     onimportnetbox,
     onnewcustomdevice,
@@ -130,6 +132,10 @@
   function handleShare() {
     analytics.trackToolbarClick("share");
     onshare?.();
+  }
+
+  function handleViewYaml() {
+    onviewyaml?.();
   }
 
   function handleImportDevices() {
@@ -314,6 +320,7 @@
         onload={handleLoad}
         onexport={handleExport}
         onshare={handleShare}
+        onviewyaml={handleViewYaml}
         onimportdevices={handleImportDevices}
         onimportnetbox={handleImportNetBox}
         onnewcustomdevice={handleNewCustomDevice}

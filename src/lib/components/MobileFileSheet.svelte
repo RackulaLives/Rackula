@@ -9,6 +9,7 @@
     IconDownload,
     IconDownloadBold,
     IconShareBold,
+    IconTextBold,
   } from "./icons";
 
   interface Props {
@@ -16,14 +17,16 @@
     onsave?: () => void;
     onexport?: () => void;
     onshare?: () => void;
+    onviewyaml?: () => void;
     onclose?: () => void;
   }
 
-  let { onload, onsave, onexport, onshare, onclose }: Props = $props();
+  let { onload, onsave, onexport, onshare, onviewyaml, onclose }: Props =
+    $props();
 
   function handleAction(action?: () => void) {
-    action?.();
     onclose?.();
+    action?.();
   }
 </script>
 
@@ -66,6 +69,16 @@
   >
     <span class="action-icon"><IconShareBold size={ICON_SIZE.md} /></span>
     <span class="action-label">Share Link</span>
+  </button>
+
+  <button
+    type="button"
+    class="file-action"
+    onclick={() => handleAction(onviewyaml)}
+    aria-label="View YAML"
+  >
+    <span class="action-icon"><IconTextBold size={ICON_SIZE.md} /></span>
+    <span class="action-label">View YAML</span>
   </button>
 </div>
 

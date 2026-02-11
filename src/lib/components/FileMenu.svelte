@@ -1,6 +1,6 @@
 <!--
   FileMenu Component
-  Dropdown for file operations: Save, Load, Export, Share, Import Devices
+  Dropdown for file operations: Save, Load, Export, Share, View YAML, Import Devices
   Uses bits-ui DropdownMenu with Iconoir folder trigger
 -->
 <script lang="ts">
@@ -15,6 +15,7 @@
     onload?: () => void;
     onexport?: () => void;
     onshare?: () => void;
+    onviewyaml?: () => void;
     onimportdevices?: () => void;
     onimportnetbox?: () => void;
     onnewcustomdevice?: () => void;
@@ -26,6 +27,7 @@
     onload,
     onexport,
     onshare,
+    onviewyaml,
     onimportdevices,
     onimportnetbox,
     onnewcustomdevice,
@@ -80,6 +82,13 @@
       >
         <span class="menu-label">Share</span>
         <span class="menu-shortcut">{shortcuts.share}</span>
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="menu-item"
+        disabled={!hasRacks}
+        onSelect={handleSelect(onviewyaml)}
+      >
+        <span class="menu-label">View YAML</span>
       </DropdownMenu.Item>
       <DropdownMenu.Separator class="menu-separator" />
       <DropdownMenu.Item
