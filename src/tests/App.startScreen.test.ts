@@ -142,7 +142,7 @@ describe("App Start Screen integration", () => {
   it("skips server persistence calls when startup health check resolves unavailable", async () => {
     persistenceStoreMocks.initializePersistence.mockResolvedValue(false);
     persistenceStoreMocks.isApiAvailable.mockReturnValue(false);
-    persistenceStoreMocks.getApiAvailableState.mockReturnValue(false);
+    persistenceStoreMocks.getApiAvailableState.mockImplementationOnce(() => false);
 
     sessionStorageMocks.loadSessionWithTimestamp.mockReturnValue({
       layout: createTestLayout({
