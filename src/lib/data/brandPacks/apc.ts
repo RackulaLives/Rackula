@@ -533,4 +533,57 @@ export const apcDevices: DeviceType[] = [
     front_image: true,
     rear_image: true,
   },
+
+  // Additional devices from NetBox library (Issue #1111 Phase 2)
+  {
+    slug: "apc-ap4434a",
+    u_height: 1,
+    manufacturer: "APC",
+    model: "AP4434A",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "apc-ap4450a",
+    u_height: 1,
+    manufacturer: "APC",
+    model: "AP4450A",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "apc-ap4450aj",
+    u_height: 1,
+    manufacturer: "APC",
+    model: "AP4450AJ",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "apc-ap4452a",
+    u_height: 1,
+    manufacturer: "APC",
+    model: "AP4452A",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+    front_image: true,
+    rear_image: true
+  },
 ];

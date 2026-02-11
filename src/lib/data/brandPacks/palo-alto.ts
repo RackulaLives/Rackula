@@ -177,4 +177,80 @@ export const paloaltoDevices: DeviceType[] = [
     front_image: true,
     rear_image: true,
   },
+
+  // Additional devices from NetBox library (Issue #1111 Phase 2)
+  {
+    slug: "palo-alto-pa-5430",
+    u_height: 2,
+    manufacturer: "Palo Alto",
+    model: "PA-5430",
+    is_full_depth: true,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "palo-alto-pa-5440",
+    u_height: 2,
+    manufacturer: "Palo Alto",
+    model: "PA-5440",
+    is_full_depth: true,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "palo-alto-pa-820",
+    u_height: 1,
+    manufacturer: "Palo Alto",
+    model: "PA-820",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "palo-alto-pa-850",
+    u_height: 1,
+    manufacturer: "Palo Alto",
+    model: "PA-850",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "palo-alto-pa-5220",
+    u_height: 3,
+    manufacturer: "Palo Alto",
+    model: "PA-5220",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "palo-alto-pa-5250",
+    u_height: 3,
+    manufacturer: "Palo Alto",
+    model: "PA-5250",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
 ];

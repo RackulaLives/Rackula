@@ -682,4 +682,29 @@ export const dellDevices: DeviceType[] = [
     category: "network",
     front_image: true,
   },
+
+  // Additional devices from NetBox library (Issue #1111 Phase 2)
+  {
+    slug: "dell-powerswitch-s5232f-on",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerSwitch S5232F-ON",
+    is_full_depth: true,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+  },
+
+  {
+    slug: "dell-powerswitch-s5248f-on",
+    u_height: 1,
+    manufacturer: "Dell",
+    model: "PowerSwitch S5248F-ON",
+    is_full_depth: true,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+  },
 ];
