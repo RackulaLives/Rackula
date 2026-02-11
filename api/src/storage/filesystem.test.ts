@@ -2,7 +2,7 @@
  * Filesystem storage tests
  */
 import { describe, it, expect, beforeEach, afterAll } from "bun:test";
-import { mkdtemp, rm, writeFile, readdir, readFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isUuid } from "../schemas/layout";
@@ -118,6 +118,24 @@ describe("listLayouts", () => {
     expect(layouts[0]?.valid).toBe(true);
   });
 
+  it("lists UUID-based folder layouts with counts", async () => {
+    const yaml = createLayoutYaml({
+      name: "Folder Layout",
+      racks: [{ devices: [{ id: "d1" }] }],
+    });
+    const created = await saveLayout(yaml);
+
+    const layouts = await listLayouts();
+    const found = layouts.find((layout) => layout.id === created.id);
+
+    expect(found).toBeDefined();
+    expect(found?.name).toBe("Folder Layout");
+    expect(found?.rackCount).toBe(1);
+    expect(found?.deviceCount).toBe(1);
+    expect(found?.valid).toBe(true);
+    expect(isUuid(created.id)).toBe(true);
+  });
+
   it("marks invalid YAML files with valid: false", async () => {
     await writeFile(join(testDir, "invalid-layout.yaml"), `not valid yaml: [`);
 
@@ -203,6 +221,23 @@ describe("saveLayout and getLayout", () => {
       await rm(outsidePath, { force: true });
     }
   });
+
+  it("restores legacy assets when migration rolls back", async () => {
+    const slug = "legacy-layout";
+    const yamlContent = createLayoutYaml({ name: "Legacy Layout" });
+
+    await writeFile(join(testDir, `${slug}.yml`), yamlContent);
+    await mkdir(join(testDir, `${slug}.yaml`));
+
+    const legacyAssetsDir = join(testDir, "assets", slug);
+    await mkdir(legacyAssetsDir, { recursive: true });
+    await writeFile(join(legacyAssetsDir, "front.png"), "asset-data");
+
+    await expect(saveLayout(yamlContent, slug)).rejects.toThrow();
+
+    const restoredAsset = await readFile(join(legacyAssetsDir, "front.png"), "utf-8");
+    expect(restoredAsset).toBe("asset-data");
+  });
 });
 
 describe("deleteLayout", () => {
@@ -222,7 +257,7 @@ describe("deleteLayout", () => {
   });
 
   it("returns false for non-existent layout", async () => {
-    const deleted = await deleteLayout("does-not-exist");
+    const deleted = await deleteLayout(crypto.randomUUID());
     expect(deleted).toBe(false);
   });
 

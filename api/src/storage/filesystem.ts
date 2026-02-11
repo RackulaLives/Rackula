@@ -121,11 +121,12 @@ async function readLegacyLayout(
       };
     }
   } catch (e) {
+    const slug = filename.replace(/\.ya?ml$/i, "");
     const stats = await stat(filepath).catch(() => ({ mtime: new Date() }));
     console.warn(`Failed to read legacy layout: ${filename}`, e);
     return {
-      id: filename.replace(/\.ya?ml$/i, ""),
-      name: filename.replace(/\.ya?ml$/i, ""),
+      id: slug,
+      name: slug,
       version: "unknown",
       updatedAt: stats.mtime.toISOString(),
       rackCount: 0,
@@ -325,6 +326,9 @@ async function migrateLegacyLayout(
   const folderName = buildFolderName(layoutName, uuid);
   const folderPath = join(dataDir, folderName);
   const yamlFilename = buildYamlFilename(layoutName);
+  const oldAssetsDir = join(dataDir, "assets", oldSlug);
+  const newAssetsDir = join(folderPath, "assets");
+  let assetsMoved = false;
 
   try {
     // Create new folder
@@ -334,12 +338,14 @@ async function migrateLegacyLayout(
     await writeFile(join(folderPath, yamlFilename), yamlContent, "utf-8");
 
     // Move assets if they exist in old location
-    const oldAssetsDir = join(dataDir, "assets", oldSlug);
-    const newAssetsDir = join(folderPath, "assets");
     try {
       await stat(oldAssetsDir);
       await rename(oldAssetsDir, newAssetsDir);
-    } catch {
+      assetsMoved = true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
       // No old assets, that's fine
     }
 
@@ -347,13 +353,25 @@ async function migrateLegacyLayout(
     for (const ext of [".yaml", ".yml"]) {
       try {
         await rm(join(dataDir, `${oldSlug}${ext}`));
-      } catch {
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          throw error;
+        }
         // File doesn't exist, that's fine
       }
     }
 
     return { id: uuid, isNew: false };
   } catch (error) {
+    if (assetsMoved) {
+      try {
+        await mkdir(join(dataDir, "assets"), { recursive: true });
+        await rename(newAssetsDir, oldAssetsDir);
+      } catch (restoreError) {
+        console.warn(`Failed to restore legacy assets for ${oldSlug}`, restoreError);
+      }
+    }
+
     // Rollback: remove new folder
     try {
       await rm(folderPath, { recursive: true, force: true });
@@ -396,19 +414,17 @@ export async function saveLayout(
 ): Promise<{ id: string; isNew: boolean }> {
   await ensureDataDir();
 
-  // Check if this is a legacy migration (existingId is slug, not UUID)
-  let legacyMigrationId: string | undefined;
-  if (
-    existingId &&
-    !isUuid(existingId) &&
-    isSafeLegacySlug(existingId) &&
-    (await legacyLayoutExists(existingId))
-  ) {
-    legacyMigrationId = existingId;
-  }
+  const existingUuid = existingId && isUuid(existingId) ? existingId : undefined;
+  const legacySlug =
+    existingId && !existingUuid && isSafeLegacySlug(existingId)
+      ? existingId
+      : undefined;
+  const isLegacyMigration = legacySlug
+    ? await legacyLayoutExists(legacySlug)
+    : false;
 
-  if (legacyMigrationId) {
-    return await migrateLegacyLayout(legacyMigrationId, yamlContent);
+  if (isLegacyMigration && legacySlug) {
+    return await migrateLegacyLayout(legacySlug, yamlContent);
   }
 
   // Parse YAML content with error handling
@@ -430,19 +446,11 @@ export async function saveLayout(
     throw new Error(`Invalid layout metadata: ${issues}`);
   }
 
-  // Validate existingId if provided as UUID
-  if (existingId && isUuid(existingId)) {
-    // existingId is a valid UUID, use it
-  } else if (existingId) {
-    // existingId is not a UUID and no legacy file exists - treat as new layout
-    existingId = undefined;
-  }
-
   // Determine UUID: use validated metadata.id > existingId > generate new
   // Validate metadata.id before using it to prevent malformed UUIDs
   const metadataId = layout.data.metadata?.id;
   const validMetadataId = metadataId && isUuid(metadataId) ? metadataId : null;
-  const uuid = validMetadataId ?? existingId ?? crypto.randomUUID();
+  const uuid = validMetadataId ?? existingUuid ?? crypto.randomUUID();
   const layoutName = layout.data.metadata?.name ?? layout.data.name;
 
   const folderName = buildFolderName(layoutName, uuid);
@@ -451,20 +459,32 @@ export async function saveLayout(
 
   // Check if this is a new layout
   const existingFolder = await findFolderByUuid(uuid);
-  const isNew = existingFolder === null;
+  let isNew = existingFolder === null;
 
   // Handle rename: if the folder name changed (name change), rename the folder
   if (existingFolder && existingFolder !== folderPath) {
-    // Rename folder to new name
-    await rename(existingFolder, folderPath);
+    // Handle concurrent folder changes gracefully.
+    try {
+      await rename(existingFolder, folderPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+      isNew = true;
+    }
 
     // Delete old yaml file if it has a different name
-    const oldYamlFilename = await findYamlInFolder(folderPath);
+    const oldYamlFilename = await findYamlInFolder(folderPath).catch(() => null);
     if (oldYamlFilename && oldYamlFilename !== yamlFilename) {
       try {
         await rm(join(folderPath, oldYamlFilename));
-      } catch {
-        // Ignore if old file doesn't exist
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          console.warn(
+            `Failed to delete stale YAML file "${oldYamlFilename}" in "${folderPath}"`,
+            error,
+          );
+        }
       }
     }
   }
