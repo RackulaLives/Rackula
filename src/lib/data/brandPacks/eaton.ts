@@ -238,4 +238,41 @@ export const eatonDevices: DeviceType[] = [
     front_image: true,
     rear_image: true,
   },
+
+  // Additional devices from NetBox library (Issue #1111 Phase 2)
+  {
+    slug: "eaton-tripp-lite-smart1500lcd",
+    u_height: 2,
+    manufacturer: "Eaton",
+    model: "Tripp Lite SMART1500LCD",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "eaton-tripp-lite-smart1500rmxl2ua",
+    u_height: 2,
+    manufacturer: "Eaton",
+    model: "Tripp Lite SMART1500RMXL2UA",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "eaton-tripp-lite-smart2200crmxl",
+    u_height: 4,
+    manufacturer: "Eaton",
+    model: "Tripp Lite SMART2200CRMXL",
+    is_full_depth: true,
+    colour: CATEGORY_COLOURS.power,
+    category: "power",
+    front_image: true,
+    rear_image: true
+  },
 ];

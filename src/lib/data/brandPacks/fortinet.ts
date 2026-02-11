@@ -238,4 +238,83 @@ export const fortinetDevices: DeviceType[] = [
     front_image: true,
     rear_image: true,
   },
+
+  // Additional devices from NetBox library (Issue #1111 Phase 2)
+  {
+    slug: "fortinet-fs-3032g",
+    u_height: 1,
+    manufacturer: "Fortinet",
+    model: "FortiSwitch 3032G",
+    is_full_depth: true,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "fortinet-fs-424e-fiber",
+    u_height: 1,
+    manufacturer: "Fortinet",
+    model: "FortiSwitch 424E-Fiber",
+    is_full_depth: false,
+    airflow: "side-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "fortinet-fs-424e-fpoe",
+    u_height: 1,
+    manufacturer: "Fortinet",
+    model: "FortiSwitch 424E-FPOE",
+    is_full_depth: false,
+    airflow: "side-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "fortinet-fs-424e-poe",
+    u_height: 1,
+    manufacturer: "Fortinet",
+    model: "FortiSwitch 424E-POE",
+    is_full_depth: false,
+    airflow: "side-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "fortinet-fs-t1024e",
+    u_height: 1,
+    manufacturer: "Fortinet",
+    model: "FortiSwitch T1024E",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "fortinet-fg-1000f",
+    u_height: 2,
+    manufacturer: "Fortinet",
+    model: "FortiGate 1000F",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
 ];

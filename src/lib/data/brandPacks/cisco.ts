@@ -366,4 +366,83 @@ export const ciscoDevices: DeviceType[] = [
     front_image: true,
     rear_image: true,
   },
+
+  // Additional devices from NetBox library (Issue #1111 Phase 2)
+  {
+    slug: "cisco-c1300-12xs",
+    u_height: 1,
+    manufacturer: "Cisco",
+    model: "Catalyst 1300-12XS",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "cisco-c1300-12xt-2x",
+    u_height: 1,
+    manufacturer: "Cisco",
+    model: "Catalyst 1300-12XT-2X",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "cisco-c1300-16p-4x",
+    u_height: 1,
+    manufacturer: "Cisco",
+    model: "Catalyst 1300-16P-4X",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "cisco-c1300-16t-2g",
+    u_height: 1,
+    manufacturer: "Cisco",
+    model: "Catalyst 1300-16T-2G",
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "cisco-c1300-16xts",
+    u_height: 1,
+    manufacturer: "Cisco",
+    model: "Catalyst 1300-16XTS",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
+
+  {
+    slug: "cisco-c1300-24mgp-4x",
+    u_height: 1,
+    manufacturer: "Cisco",
+    model: "Catalyst 1300-24MGP-4X",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true
+  },
 ];
