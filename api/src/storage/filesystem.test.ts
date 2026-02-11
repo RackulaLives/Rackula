@@ -2,7 +2,7 @@
  * Filesystem storage tests
  */
 import { describe, it, expect, beforeEach, afterAll } from "bun:test";
-import { mkdtemp, rm, writeFile, readdir } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isUuid } from "../schemas/layout";
@@ -203,6 +203,23 @@ describe("saveLayout and getLayout", () => {
   it("rejects path traversal attempts", async () => {
     const result = await getLayout("../../../etc/passwd");
     expect(result).toBeNull();
+  });
+
+  it("restores legacy assets when migration rolls back", async () => {
+    const slug = "legacy-layout";
+    const yamlContent = createLayoutYaml({ name: "Legacy Layout" });
+
+    await writeFile(join(testDir, `${slug}.yml`), yamlContent);
+    await mkdir(join(testDir, `${slug}.yaml`));
+
+    const legacyAssetsDir = join(testDir, "assets", slug);
+    await mkdir(legacyAssetsDir, { recursive: true });
+    await writeFile(join(legacyAssetsDir, "front.png"), "asset-data");
+
+    await expect(saveLayout(yamlContent, slug)).rejects.toThrow();
+
+    const restoredAsset = await readFile(join(legacyAssetsDir, "front.png"), "utf-8");
+    expect(restoredAsset).toBe("asset-data");
   });
 });
 
