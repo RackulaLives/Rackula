@@ -104,8 +104,15 @@ if (typeof process !== "undefined" && process.stderr) {
       if (cb) cb();
       return true;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return originalStderrWrite(chunk, encodingOrCallback as any, callback);
+    if (typeof encodingOrCallback === "function") {
+      return originalStderrWrite(chunk, encodingOrCallback);
+    }
+
+    if (callback) {
+      return originalStderrWrite(chunk, encodingOrCallback, callback);
+    }
+
+    return originalStderrWrite(chunk, encodingOrCallback);
   }) as typeof process.stderr.write;
 }
 
@@ -169,6 +176,44 @@ Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: createMatchMediaMock,
 });
+
+// Happy DOM may not implement Web Animations; Svelte transitions call element.animate().
+if (
+  typeof Element !== "undefined" &&
+  typeof Element.prototype.animate !== "function"
+) {
+  Object.defineProperty(Element.prototype, "animate", {
+    configurable: true,
+    writable: true,
+    value: () => {
+      let cancelled = false;
+      let resolveFinished: (() => void) | null = null;
+      const finished = new Promise<void>((resolve) => {
+        resolveFinished = resolve;
+      });
+      const animation = {
+        currentTime: 0,
+        effect: null,
+        finished,
+        onfinish: null as ((event?: Event) => void) | null,
+        playState: "running",
+        cancel: () => {
+          cancelled = true;
+        },
+      };
+
+      queueMicrotask(() => {
+        if (!cancelled) {
+          animation.playState = "finished";
+          animation.onfinish?.();
+          resolveFinished?.();
+        }
+      });
+
+      return animation;
+    },
+  });
+}
 
 // Global cleanup after each test to prevent memory accumulation
 // Clearing timers prevents bits-ui cleanup timers from firing after test teardown

@@ -52,9 +52,10 @@ const sessionStorageMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("$lib/utils/share", async () => {
-  const actual = await vi.importActual<typeof import("$lib/utils/share")>(
-    "$lib/utils/share",
-  );
+  const actual =
+    await vi.importActual<typeof import("$lib/utils/share")>(
+      "$lib/utils/share",
+    );
 
   return {
     ...actual,
@@ -132,8 +133,35 @@ describe("App Start Screen integration", () => {
 
     expect(shareMocks.getShareParam).toHaveBeenCalledTimes(1);
     expect(shareMocks.decodeLayout).not.toHaveBeenCalled();
-    expect(sessionStorageMocks.loadSessionWithTimestamp).toHaveBeenCalledTimes(1);
+    expect(sessionStorageMocks.loadSessionWithTimestamp).toHaveBeenCalledTimes(
+      1,
+    );
     expect(persistenceStoreMocks.initializePersistence).toHaveBeenCalled();
+  });
+
+  it("skips server persistence calls when startup health check resolves unavailable", async () => {
+    persistenceStoreMocks.initializePersistence.mockResolvedValue(false);
+    persistenceStoreMocks.isApiAvailable.mockReturnValue(false);
+    persistenceStoreMocks.getApiAvailableState.mockReturnValue(false);
+
+    sessionStorageMocks.loadSessionWithTimestamp.mockReturnValue({
+      layout: createTestLayout({
+        name: "Offline session",
+        racks: [createTestRack({ id: "rack-offline", name: "Rack Offline" })],
+      }),
+      savedAt: new Date("2026-02-11T00:00:00.000Z").toISOString(),
+    });
+
+    render(App);
+
+    await waitFor(() => {
+      expect(persistenceStoreMocks.initializePersistence).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+
+    expect(persistenceApiMocks.listSavedLayouts).not.toHaveBeenCalled();
+    expect(persistenceApiMocks.saveLayoutToServer).not.toHaveBeenCalled();
   });
 
   it("skips Start Screen when loading a share link", async () => {

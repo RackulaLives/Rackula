@@ -119,7 +119,8 @@ describe("write-route authentication", () => {
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({
       error: "Unauthorized",
-      message: "Malformed Authorization header. Expected format: Bearer <token>.",
+      message:
+        "Malformed Authorization header. Expected format: Bearer <token>.",
     });
   });
 
@@ -223,5 +224,33 @@ describe("CORS behavior", () => {
     expect(response.headers.get("access-control-allow-origin")).toBe(
       "https://rack.example.com",
     );
+  });
+});
+
+describe("health endpoints", () => {
+  it("returns structured JSON payload for both health routes", async () => {
+    const app = createApp(buildEnv());
+    const assertHealthPayload = (payload: unknown): void => {
+      expect(payload).toMatchObject({ ok: true, status: "ok" });
+      expect(payload).toEqual(
+        expect.objectContaining({
+          service: expect.any(String),
+          version: expect.any(Number),
+        }),
+      );
+      expect((payload as { service: string }).service.length).toBeGreaterThan(0);
+    };
+
+    const rootHealth = await app.request("/health");
+    expect(rootHealth.status).toBe(200);
+    expect(rootHealth.headers.get("content-type")).toContain(
+      "application/json",
+    );
+    assertHealthPayload(await rootHealth.json());
+
+    const apiHealth = await app.request("/api/health");
+    expect(apiHealth.status).toBe(200);
+    expect(apiHealth.headers.get("content-type")).toContain("application/json");
+    assertHealthPayload(await apiHealth.json());
   });
 });

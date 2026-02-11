@@ -295,6 +295,9 @@
     }
 
     const apiAvailable = await persistenceInitPromise;
+    if (!apiAvailable) {
+      saveStatus = "offline";
+    }
 
     // Priority 3: When API and local session are both available,
     // compare server and local timestamps to avoid stale overwrite (#1012).

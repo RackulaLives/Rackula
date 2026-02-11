@@ -12,6 +12,12 @@ import {
 
 const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
 const DEFAULT_MAX_LAYOUT_SIZE = 1 * 1024 * 1024; // 1MB
+const HEALTH_RESPONSE = {
+  ok: true,
+  status: "ok",
+  service: "rackula-persistence-api",
+  version: 1,
+} as const;
 
 export function createApp(env: EnvMap = process.env): Hono {
   const app = new Hono();
@@ -49,8 +55,8 @@ export function createApp(env: EnvMap = process.env): Hono {
   app.use("/api/assets/*", writeAuth);
 
   // Health check
-  app.get("/health", (c) => c.text("OK"));
-  app.get("/api/health", (c) => c.text("OK"));
+  app.get("/health", (c) => c.json(HEALTH_RESPONSE));
+  app.get("/api/health", (c) => c.json(HEALTH_RESPONSE));
 
   // Apply body size limit to asset uploads (5MB default, configurable via env)
   const parsedMaxAssetSize = Number.parseInt(env.MAX_ASSET_SIZE ?? "", 10);

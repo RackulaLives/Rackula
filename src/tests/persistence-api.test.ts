@@ -2,22 +2,34 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { checkApiHealth } from "$lib/utils/persistence-api";
 
 describe("checkApiHealth", () => {
+  function stubBrowserGlobals(): void {
+    vi.stubGlobal("window", { location: { origin: "https://example.com" } });
+    vi.stubGlobal("AbortSignal", {
+      timeout: () => new AbortController().signal,
+    });
+  }
+
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it("resolves health URL against API_BASE_URL path", async () => {
-    vi.stubGlobal("window", { location: { origin: "https://example.com" } });
-    vi.stubGlobal("AbortSignal", {
-      timeout: () => new AbortController().signal,
-    });
+  it("returns true for valid persistence health JSON payload", async () => {
+    stubBrowserGlobals();
     const fetchMock = vi.fn(
       async () =>
-        new Response("OK", {
-          status: 200,
-          headers: { "Content-Type": "text/plain" },
-        }),
+        new Response(
+          JSON.stringify({
+            ok: true,
+            status: "ok",
+            service: "rackula-persistence-api",
+            version: 1,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json; charset=utf-8" },
+          },
+        ),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -28,18 +40,49 @@ describe("checkApiHealth", () => {
     expect(healthy).toBe(true);
   });
 
-  it("returns false for HTML fallback responses", async () => {
-    vi.stubGlobal("window", { location: { origin: "https://example.com" } });
-    vi.stubGlobal("AbortSignal", {
-      timeout: () => new AbortController().signal,
-    });
+  it("returns false for non-JSON responses", async () => {
+    stubBrowserGlobals();
     vi.stubGlobal(
       "fetch",
       vi.fn(
         async () =>
-          new Response("<!doctype html><html><body>spa</body></html>", {
+          new Response("OK", {
             status: 200,
-            headers: { "Content-Type": "text/html" },
+            headers: { "Content-Type": "text/plain" },
+          }),
+      ),
+    );
+
+    const healthy = await checkApiHealth();
+    expect(healthy).toBe(false);
+  });
+
+  it("returns false when JSON payload is malformed", async () => {
+    stubBrowserGlobals();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response("{invalid-json", {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+      ),
+    );
+
+    const healthy = await checkApiHealth();
+    expect(healthy).toBe(false);
+  });
+
+  it("returns false when required health fields are missing", async () => {
+    stubBrowserGlobals();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ ok: true, status: "ok" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
           }),
       ),
     );

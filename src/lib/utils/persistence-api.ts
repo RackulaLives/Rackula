@@ -14,6 +14,30 @@ const log = persistenceDebug.api;
 /** Default timeout for API requests (10 seconds) */
 const API_TIMEOUT_MS = 10_000;
 
+interface PersistenceHealthPayload {
+  ok: true;
+  status: "ok";
+  service: "rackula-persistence-api";
+  version: number;
+}
+
+function isPersistenceHealthPayload(
+  value: unknown,
+): value is PersistenceHealthPayload {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const payload = value as Record<string, unknown>;
+  return (
+    payload.ok === true &&
+    payload.status === "ok" &&
+    payload.service === "rackula-persistence-api" &&
+    typeof payload.version === "number" &&
+    Number.isFinite(payload.version)
+  );
+}
+
 /**
  * Safely parse JSON from response, falling back to text or default message
  */
@@ -96,60 +120,32 @@ export async function checkApiHealth(): Promise<boolean> {
       return false;
     }
 
-    // Guard against frontend SPA fallback responses (text/html), which can return
-    // 200 for unknown paths in dev/proxy environments and cause false positives.
+    // Guard against frontend SPA fallback responses and other false positives.
+    // Only structured JSON health payloads from the persistence API are accepted.
     const contentType =
       response.headers.get("content-type")?.toLowerCase() ?? "";
-    const body = (await response.text()).trim();
-    const normalized = body.toLowerCase();
-    const looksLikeHtml =
-      contentType.includes("text/html") ||
-      normalized.startsWith("<!doctype html") ||
-      normalized.startsWith("<html");
-
-    if (looksLikeHtml) {
+    if (!contentType.includes("application/json")) {
       log(
-        "checkApiHealth: rejecting HTML fallback response from %s",
-        healthUrl,
+        "checkApiHealth: rejecting non-JSON health response content-type=%s",
+        contentType || "(missing)",
       );
       return false;
     }
 
-    // API currently returns plain-text "OK". Accept a few common health payloads
-    // for compatibility with local mocks and reverse proxies.
-    if (!body) return true;
-    if (
-      normalized === "ok" ||
-      normalized === "healthy" ||
-      normalized === "up"
-    ) {
-      return true;
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch (error) {
+      log("checkApiHealth: failed to parse JSON payload %O", error);
+      return false;
     }
 
-    if (contentType.includes("application/json") || body.startsWith("{")) {
-      try {
-        const data = JSON.parse(body) as {
-          ok?: boolean;
-          status?: string;
-          healthy?: boolean;
-        };
-        if (data.ok === true || data.healthy === true) return true;
-        if (
-          typeof data.status === "string" &&
-          ["ok", "healthy", "up"].includes(data.status.toLowerCase())
-        ) {
-          return true;
-        }
-      } catch {
-        // Fall through to false below
-      }
+    if (!isPersistenceHealthPayload(payload)) {
+      log("checkApiHealth: unexpected health payload shape %O", payload);
+      return false;
     }
 
-    log(
-      "checkApiHealth: unexpected health payload (status=%d)",
-      response.status,
-    );
-    return false;
+    return true;
   } catch (error) {
     log("checkApiHealth: error %O", error);
     return false;
