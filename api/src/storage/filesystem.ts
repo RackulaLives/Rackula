@@ -28,7 +28,18 @@ function getDataDir(): string {
 }
 
 function isSafeLegacySlug(id: string): boolean {
-  return /^[^/\\.\x00-\x1F\x7F]+$/.test(id);
+  if (!id || id.includes("/") || id.includes("\\") || id.includes(".")) {
+    return false;
+  }
+
+  for (let i = 0; i < id.length; i += 1) {
+    const code = id.charCodeAt(i);
+    if (code < 0x20 || code === 0x7f) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**
