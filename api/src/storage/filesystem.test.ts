@@ -205,6 +205,23 @@ describe("saveLayout and getLayout", () => {
     expect(result).toBeNull();
   });
 
+  it("does not use traversal-style existingId for legacy file migration", async () => {
+    const marker = `rackula-traversal-${Date.now()}`;
+    const outsidePath = join(testDir, "..", `${marker}.yaml`);
+    await writeFile(outsidePath, "version: 1.0.0\nname: Outside\nracks: []");
+
+    try {
+      const yamlContent = createLayoutYaml({ name: "Safe Save" });
+      const result = await saveLayout(yamlContent, `../${marker}`);
+
+      expect(isUuid(result.id)).toBe(true);
+      expect(result.isNew).toBe(true);
+      expect(await readFile(outsidePath, "utf-8")).toContain("Outside");
+    } finally {
+      await rm(outsidePath, { force: true });
+    }
+  });
+
   it("restores legacy assets when migration rolls back", async () => {
     const slug = "legacy-layout";
     const yamlContent = createLayoutYaml({ name: "Legacy Layout" });
