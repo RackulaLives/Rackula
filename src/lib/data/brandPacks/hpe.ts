@@ -523,10 +523,10 @@ export const hpeDevices: DeviceType[] = [
     model: "Aruba 2930F-12G-PoE+-2SFP+",
     is_full_depth: false,
     airflow: "passive",
-    colour: CATEGORY_COLOURS.server,
-    category: "server",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -535,10 +535,10 @@ export const hpeDevices: DeviceType[] = [
     manufacturer: "HPE",
     model: "Aruba 2930F-48G-PoE+-4SFP",
     is_full_depth: false,
-    colour: CATEGORY_COLOURS.server,
-    category: "server",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -548,10 +548,10 @@ export const hpeDevices: DeviceType[] = [
     model: "Aruba 2930F-8G-PoE+-2SFP+",
     is_full_depth: false,
     airflow: "passive",
-    colour: CATEGORY_COLOURS.server,
-    category: "server",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -560,10 +560,10 @@ export const hpeDevices: DeviceType[] = [
     manufacturer: "HPE",
     model: "Aruba 2930M-24G",
     is_full_depth: false,
-    colour: CATEGORY_COLOURS.server,
-    category: "server",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -572,10 +572,10 @@ export const hpeDevices: DeviceType[] = [
     manufacturer: "HPE",
     model: "Aruba 2930M-48G",
     is_full_depth: false,
-    colour: CATEGORY_COLOURS.server,
-    category: "server",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -584,9 +584,9 @@ export const hpeDevices: DeviceType[] = [
     manufacturer: "HPE",
     model: "Aruba 2930M-48G-PoE+",
     is_full_depth: false,
-    colour: CATEGORY_COLOURS.server,
-    category: "server",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 ];

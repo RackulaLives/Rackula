@@ -690,9 +690,10 @@ export const dellDevices: DeviceType[] = [
     manufacturer: "Dell",
     model: "PowerSwitch S5232F-ON",
     is_full_depth: true,
+    airflow: "front-to-rear",
     colour: CATEGORY_COLOURS.network,
     category: "network",
-    front_image: true
+    front_image: true,
   },
 
   {
@@ -701,8 +702,9 @@ export const dellDevices: DeviceType[] = [
     manufacturer: "Dell",
     model: "PowerSwitch S5248F-ON",
     is_full_depth: true,
+    airflow: "front-to-rear",
     colour: CATEGORY_COLOURS.network,
     category: "network",
-    front_image: true
+    front_image: true,
   },
 ];
