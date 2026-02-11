@@ -370,10 +370,13 @@ export async function saveLayout(
   await ensureDataDir();
 
   // Check if this is a legacy migration (existingId is slug, not UUID)
-  const isLegacyMigration = existingId && !isUuid(existingId) && await legacyLayoutExists(existingId);
+  const legacySlug =
+    existingId && !isUuid(existingId) && (await legacyLayoutExists(existingId))
+      ? existingId
+      : undefined;
 
-  if (isLegacyMigration) {
-    return await migrateLegacyLayout(existingId, yamlContent);
+  if (legacySlug) {
+    return await migrateLegacyLayout(legacySlug, yamlContent);
   }
 
   // Parse YAML content with error handling

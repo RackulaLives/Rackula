@@ -11,6 +11,8 @@ export interface ApiSecurityConfig {
 export type EnvMap = Record<string, string | undefined>;
 
 const WRITE_METHODS = new Set(["PUT", "DELETE"]);
+const CORS_ORIGIN_EMPTY_ERROR =
+  "CORS_ORIGIN is set but empty. Provide at least one origin.";
 
 function timingSafeTokenCompare(
   presentedToken: string,
@@ -26,18 +28,20 @@ function parseBoolean(value: string | undefined): boolean {
 }
 
 function parseCorsOrigins(raw: string): string | string[] {
-  const origins = raw
+  const [firstOrigin, ...remainingOrigins] = raw
     .split(",")
     .map((origin) => origin.trim())
     .filter((origin) => origin.length > 0);
 
-  if (origins.length === 0) {
-    throw new Error(
-      "CORS_ORIGIN is set but empty. Provide at least one origin.",
-    );
+  if (!firstOrigin) {
+    throw new Error(CORS_ORIGIN_EMPTY_ERROR);
   }
 
-  return origins.length === 1 ? origins[0] : origins;
+  if (remainingOrigins.length === 0) {
+    return firstOrigin;
+  }
+
+  return [firstOrigin, ...remainingOrigins];
 }
 
 function hasWildcardOrigin(origin: string | string[]): boolean {
@@ -86,13 +90,13 @@ export function resolveApiSecurityConfig(env: EnvMap = process.env): ApiSecurity
 export function createWriteAuthMiddleware(
   writeAuthToken?: string,
 ): MiddlewareHandler {
-  return (c, next) => {
+  return async (c, next): Promise<void | Response> => {
     if (!WRITE_METHODS.has(c.req.method)) {
-      return next();
+      return await next();
     }
 
     if (!writeAuthToken) {
-      return next();
+      return await next();
     }
 
     const authorization = c.req.header("Authorization");
@@ -133,6 +137,6 @@ export function createWriteAuthMiddleware(
       );
     }
 
-    return next();
+    return await next();
   };
 }
