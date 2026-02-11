@@ -24,7 +24,7 @@ import {
 } from "../schemas/layout";
 
 function getDataDir(): string {
-  return process.env.DATA_DIR ?? "/data";
+  return process.env.DATA_DIR || "/data";
 }
 
 /**

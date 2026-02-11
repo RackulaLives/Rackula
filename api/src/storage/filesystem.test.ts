@@ -118,6 +118,24 @@ describe("listLayouts", () => {
     expect(layouts[0]?.valid).toBe(true);
   });
 
+  it("lists UUID-based folder layouts with counts", async () => {
+    const yaml = createLayoutYaml({
+      name: "Folder Layout",
+      racks: [{ devices: [{ id: "d1" }] }],
+    });
+    const created = await saveLayout(yaml);
+
+    const layouts = await listLayouts();
+    const found = layouts.find((layout) => layout.id === created.id);
+
+    expect(found).toBeDefined();
+    expect(found?.name).toBe("Folder Layout");
+    expect(found?.rackCount).toBe(1);
+    expect(found?.deviceCount).toBe(1);
+    expect(found?.valid).toBe(true);
+    expect(isUuid(created.id)).toBe(true);
+  });
+
   it("marks invalid YAML files with valid: false", async () => {
     await writeFile(join(testDir, "invalid-layout.yaml"), `not valid yaml: [`);
 
@@ -205,7 +223,7 @@ describe("deleteLayout", () => {
   });
 
   it("returns false for non-existent layout", async () => {
-    const deleted = await deleteLayout("does-not-exist");
+    const deleted = await deleteLayout(crypto.randomUUID());
     expect(deleted).toBe(false);
   });
 
