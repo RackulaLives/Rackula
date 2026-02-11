@@ -1,6 +1,11 @@
 import { describe, it, expect } from "bun:test";
+import { Hono } from "hono";
 import { createApp } from "./app";
-import { resolveApiSecurityConfig, type EnvMap } from "./security";
+import {
+  createWriteAuthMiddleware,
+  resolveApiSecurityConfig,
+  type EnvMap,
+} from "./security";
 
 const TEST_TOKEN = "test-write-token";
 
@@ -200,6 +205,23 @@ describe("write-route authentication", () => {
     expect(await response.json()).toEqual({
       error: "Invalid layout UUID format",
     });
+  });
+
+  it("propagates async next() for authorized write requests", async () => {
+    const app = new Hono();
+    app.use("/protected/*", createWriteAuthMiddleware(TEST_TOKEN));
+    app.put("/protected/check", async (c) => {
+      await Promise.resolve();
+      return c.json({ ok: true }, 200);
+    });
+
+    const response = await app.request("/protected/check", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${TEST_TOKEN}` },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
   });
 });
 

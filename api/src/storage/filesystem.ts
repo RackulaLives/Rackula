@@ -27,6 +27,10 @@ function getDataDir(): string {
   return process.env.DATA_DIR ?? "/data";
 }
 
+function isSafeLegacySlug(id: string): boolean {
+  return /^[^/\\.\x00-\x1F\x7F]+$/.test(id);
+}
+
 /**
  * Ensure data directory exists
  */
@@ -263,7 +267,7 @@ export async function getLayout(id: string): Promise<string | null> {
 
   // Fallback: try reading legacy flat file by slug
   // Validate slug to prevent path traversal (no slashes, dots, etc.)
-  if (/[/\\.]/.test(id) || id.includes("..")) {
+  if (!isSafeLegacySlug(id)) {
     return null;
   }
 
@@ -292,6 +296,10 @@ async function migrateLegacyLayout(
   oldSlug: string,
   yamlContent: string,
 ): Promise<{ id: string; isNew: boolean }> {
+  if (!isSafeLegacySlug(oldSlug)) {
+    throw new Error("Invalid legacy layout id");
+  }
+
   const dataDir = getDataDir();
   // Parse YAML
   let parsed: unknown;
@@ -360,6 +368,10 @@ async function migrateLegacyLayout(
  * Check if a legacy flat YAML file exists for the given slug
  */
 async function legacyLayoutExists(slug: string): Promise<boolean> {
+  if (!isSafeLegacySlug(slug)) {
+    return false;
+  }
+
   const dataDir = getDataDir();
   for (const ext of [".yaml", ".yml"]) {
     try {
@@ -386,7 +398,12 @@ export async function saveLayout(
 
   // Check if this is a legacy migration (existingId is slug, not UUID)
   let legacyMigrationId: string | undefined;
-  if (existingId && !isUuid(existingId) && (await legacyLayoutExists(existingId))) {
+  if (
+    existingId &&
+    !isUuid(existingId) &&
+    isSafeLegacySlug(existingId) &&
+    (await legacyLayoutExists(existingId))
+  ) {
     legacyMigrationId = existingId;
   }
 
