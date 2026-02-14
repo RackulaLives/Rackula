@@ -1,0 +1,24 @@
+[Unit]
+Description=Rackula Persistence API
+After=network.target
+
+[Service]
+Type=simple
+User=rackula
+Group=rackula
+WorkingDirectory=/opt/rackula/api
+EnvironmentFile=/opt/rackula/data/.env
+ExecStart=/usr/local/bin/bun src/index.ts
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=DATA_DIR=/opt/rackula/data
+Environment=RACKULA_API_PORT=3001
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/rackula/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

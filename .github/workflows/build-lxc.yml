@@ -1,0 +1,80 @@
+name: Build LXC Tarball
+
+# Fires after release.yml creates the GitHub Release from a v* tag push.
+# Builds a self-contained tarball (frontend + API + config) for LXC install scripts.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-lxc-tarball:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Extract version
+        id: version
+        run: echo "version=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Build frontend
+        env:
+          VITE_ENV: production
+          VITE_PERSIST_ENABLED: "true"
+          VITE_UMAMI_ENABLED: "false"
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install API production dependencies
+        run: |
+          cd api
+          bun install --frozen-lockfile --production
+
+      - name: Assemble tarball
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TARBALL_DIR="rackula-lxc-${VERSION}"
+
+          mkdir -p "${TARBALL_DIR}/frontend"
+          mkdir -p "${TARBALL_DIR}/api"
+          mkdir -p "${TARBALL_DIR}/config"
+
+          # Frontend build output
+          cp -r dist/* "${TARBALL_DIR}/frontend/"
+
+          # API source + production deps (Bun runs TS natively)
+          cp -r api/src "${TARBALL_DIR}/api/src"
+          cp -r api/node_modules "${TARBALL_DIR}/api/node_modules"
+          cp api/package.json "${TARBALL_DIR}/api/package.json"
+          cp api/tsconfig.json "${TARBALL_DIR}/api/tsconfig.json"
+
+          # LXC-specific config files
+          cp deploy/lxc/nginx.conf "${TARBALL_DIR}/config/"
+          cp deploy/lxc/rackula-api.service "${TARBALL_DIR}/config/"
+          cp deploy/lxc/security-headers.conf "${TARBALL_DIR}/config/"
+
+          tar czf "rackula-lxc-${VERSION}.tar.gz" "${TARBALL_DIR}"
+          echo "TARBALL=rackula-lxc-${VERSION}.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload tarball to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ steps.version.outputs.version }}" \
+            "${TARBALL}" \
+            --clobber
