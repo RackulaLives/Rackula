@@ -68,6 +68,11 @@ function update_script() {
     msg_ok "Updated ${APP} to ${RELEASE}"
 
     msg_info "Starting Services"
+    nginx -t || {
+      msg_error "Nginx config test failed — restoring backup"
+      cp -a /opt/rackula/data.bak /opt/rackula/data
+      exit 1
+    }
     systemctl start rackula-api
     systemctl start nginx
     msg_ok "Started Services"

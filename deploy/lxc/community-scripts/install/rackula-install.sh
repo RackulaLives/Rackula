@@ -15,8 +15,6 @@ update_os
 
 msg_info "Installing Dependencies"
 $STD apt-get install -y \
-  ca-certificates \
-  curl \
   nginx \
   openssl \
   unzip
@@ -71,11 +69,13 @@ msg_ok "Installed Rackula"
 msg_info "Generating API write token"
 API_WRITE_TOKEN=$(openssl rand -hex 32)
 
+# Detect container IP for CORS
+CONTAINER_IP=$(hostname -I | awk '{print $1}')
+
 # Write API environment file
 cat <<EOF >/opt/rackula/data/.env
 RACKULA_API_WRITE_TOKEN=${API_WRITE_TOKEN}
-CORS_ORIGIN=http://localhost
-ALLOW_INSECURE_CORS=true
+CORS_ORIGIN=http://${CONTAINER_IP}
 EOF
 chown rackula:rackula /opt/rackula/data/.env
 chmod 600 /opt/rackula/data/.env
@@ -226,6 +226,10 @@ EOF
 
 systemctl daemon-reload
 systemctl enable -q --now rackula-api
+nginx -t || {
+  msg_error "Nginx configuration test failed"
+  exit 1
+}
 systemctl enable -q --now nginx
 msg_ok "Created Services"
 
