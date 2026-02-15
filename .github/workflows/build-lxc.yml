@@ -5,6 +5,11 @@ name: Build LXC Tarball
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (e.g. v0.8.0)"
+        required: true
 
 permissions:
   contents: write
@@ -18,7 +23,12 @@ jobs:
 
       - name: Extract version
         id: version
-        run: echo "version=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -75,6 +85,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ steps.version.outputs.version }}" \
-            "${TARBALL}" \
-            --clobber
+          VERSION="${{ steps.version.outputs.version }}"
+          if ! gh release view "$VERSION" &>/dev/null; then
+            gh release create "$VERSION" --draft --title "$VERSION (LXC test)"
+          fi
+          gh release upload "$VERSION" "${TARBALL}" --clobber
