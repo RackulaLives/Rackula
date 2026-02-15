@@ -32,7 +32,7 @@ useradd --system --user-group --home-dir /opt/rackula --shell /usr/sbin/nologin 
 msg_ok "Created rackula user"
 
 msg_info "Installing Rackula"
-RELEASE=$(get_latest_github_release "RackulaLives/Rackula")
+RELEASE=$(get_latest_github_release "RackulaLives/Rackula" false)
 TARBALL_URL="https://github.com/RackulaLives/Rackula/releases/download/${RELEASE}/rackula-lxc-${RELEASE}.tar.gz"
 $STD curl -fsSL "$TARBALL_URL" -o /tmp/rackula-lxc.tar.gz
 tar xzf /tmp/rackula-lxc.tar.gz -C /tmp

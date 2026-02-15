@@ -29,7 +29,7 @@ function update_script() {
     exit
   fi
 
-  RELEASE=$(get_latest_github_release "RackulaLives/Rackula")
+  RELEASE=$(get_latest_github_release "RackulaLives/Rackula" false)
   if check_for_gh_release "rackula" "RackulaLives/Rackula"; then
     msg_info "Stopping Services"
     systemctl stop rackula-api
