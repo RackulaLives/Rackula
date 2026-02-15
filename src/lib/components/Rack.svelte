@@ -430,6 +430,12 @@
 
       // Validate placement
       const excludeIndex = isInternalMove ? deviceIndex : undefined;
+
+      // Preserve existing slot_position for pointer-based moves
+      // Always read from the source rack so cross-rack moves keep the correct slot
+      const sourceRack = layoutStore.getRackById(sourceRackId);
+      const existingSlot = sourceRack?.devices[deviceIndex]?.slot_position;
+
       const feedback = getDropFeedback(
         rack,
         deviceLibrary,
@@ -437,13 +443,10 @@
         targetU,
         excludeIndex,
         effectiveFaceFilter,
+        existingSlot,
       );
 
       if (feedback === "valid") {
-        // Preserve existing slot_position for pointer-based moves
-        // Always read from the source rack so cross-rack moves keep the correct slot
-        const sourceRack = layoutStore.getRackById(sourceRackId);
-        const existingSlot = sourceRack?.devices[deviceIndex]?.slot_position;
         if (isInternalMove && deviceIndex !== undefined) {
           // Internal move within same rack
           ondevicemove?.(
