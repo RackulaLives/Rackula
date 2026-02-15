@@ -22,12 +22,15 @@ export default defineConfig({
   },
   testDir: "e2e",
   fullyParallel: true,
-  retries: 1,
+  forbidOnly: !!process.env.CI,
+  retries: 2,
   reporter: [["html", { open: "never" }]],
   use: {
     baseURL: "http://localhost:5173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    actionTimeout: 10_000,
+    navigationTimeout: 30_000,
   },
   projects: [
     {

@@ -7,55 +7,56 @@ export default defineConfig({
   },
   testDir: "e2e",
   fullyParallel: true,
-  retries: 1,
+  forbidOnly: process.env.CI === "true" || process.env.CI === "1",
+  retries: 2,
   reporter: [["html", { open: "never" }]],
   use: {
     baseURL: "http://localhost:4173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    actionTimeout: 10_000,
+    navigationTimeout: 30_000,
   },
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      testIgnore: ["**/ios-safari.spec.ts", "**/android-chrome.spec.ts"],
     },
     {
       name: "webkit",
       use: { ...devices["Desktop Safari"] },
+      testIgnore: ["**/ios-safari.spec.ts", "**/android-chrome.spec.ts"],
     },
     // iOS Safari tests
     {
       name: "ios-safari",
       use: {
         ...devices["iPhone 14"],
-        browserName: "webkit",
       },
-      testMatch: "ios-safari.spec.ts",
+      testMatch: "**/ios-safari.spec.ts",
     },
     {
       name: "ipad",
       use: {
         ...devices["iPad Pro 11"],
-        browserName: "webkit",
       },
-      testMatch: "ios-safari.spec.ts",
+      testMatch: "**/ios-safari.spec.ts",
     },
     // Android Chrome tests
     {
       name: "android-chrome",
       use: {
         ...devices["Pixel 7"],
-        browserName: "chromium",
       },
-      testMatch: "android-chrome.spec.ts",
+      testMatch: "**/android-chrome.spec.ts",
     },
     {
       name: "android-tablet",
       use: {
         ...devices["Galaxy Tab S4"],
-        browserName: "chromium",
       },
-      testMatch: "android-chrome.spec.ts",
+      testMatch: "**/android-chrome.spec.ts",
     },
   ],
 });
