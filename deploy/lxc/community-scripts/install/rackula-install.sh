@@ -24,7 +24,8 @@ msg_ok "Installed Dependencies"
 
 msg_info "Installing Bun"
 $STD curl -fsSL https://bun.sh/install | bash
-ln -sf /root/.bun/bin/bun /usr/local/bin/bun
+cp /root/.bun/bin/bun /usr/local/bin/bun
+chmod 755 /usr/local/bin/bun
 msg_ok "Installed Bun"
 
 msg_info "Creating rackula user"
