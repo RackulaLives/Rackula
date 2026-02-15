@@ -15,9 +15,11 @@ update_os
 
 msg_info "Installing Dependencies"
 $STD apt-get install -y \
+  ca-certificates \
+  curl \
   nginx \
-  unzip \
-  curl
+  openssl \
+  unzip
 msg_ok "Installed Dependencies"
 
 msg_info "Installing Bun"
