@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { gotoWithRack, dragDeviceToRack } from "./helpers";
 
 /**
  * E2E Tests for Starter Library
@@ -7,15 +8,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Starter Library", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    // Clear storage and set hasStarted flag
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    await page.waitForTimeout(500);
+    await gotoWithRack(page);
   });
 
   test("device palette is visible and contains starter library devices", async ({
@@ -218,7 +211,6 @@ test.describe("Starter Library", () => {
 
     // Search for "Switch"
     await searchInput.fill("Switch");
-    await page.waitForTimeout(100);
 
     // Should show 2 switch items (24-Port Switch, 48-Port Switch)
     await expect(
@@ -229,7 +221,6 @@ test.describe("Starter Library", () => {
   test("can search for cable management devices", async ({ page }) => {
     const searchInput = page.locator('.device-palette input[type="search"]');
     await searchInput.fill("Cable");
-    await page.waitForTimeout(100);
 
     // Should show cable management item
     await expect(
@@ -240,7 +231,6 @@ test.describe("Starter Library", () => {
   test("can search for brush panel", async ({ page }) => {
     const searchInput = page.locator('.device-palette input[type="search"]');
     await searchInput.fill("Brush");
-    await page.waitForTimeout(100);
 
     // Should show brush panel
     await expect(
@@ -252,55 +242,8 @@ test.describe("Starter Library", () => {
     // Ensure rack is visible
     await expect(page.locator(".rack-container").first()).toBeVisible();
 
-    // Find the specific device item
-    const deviceItem = page.locator(
-      '.device-palette-item:has-text("24-Port Switch")',
-    );
-    await expect(deviceItem).toBeVisible();
-
-    // Drag device to rack using JavaScript simulation
-    await page.evaluate(() => {
-      const deviceItem = Array.from(
-        document.querySelectorAll(".device-palette-item"),
-      ).find((el) => el.textContent?.includes("24-Port Switch"));
-      const rack = document.querySelector(".rack-svg");
-
-      if (!deviceItem || !rack) {
-        throw new Error("Could not find device item or rack");
-      }
-
-      const dataTransfer = new DataTransfer();
-
-      const dragStartEvent = new DragEvent("dragstart", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-      });
-      deviceItem.dispatchEvent(dragStartEvent);
-
-      const dragOverEvent = new DragEvent("dragover", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-      });
-      rack.dispatchEvent(dragOverEvent);
-
-      const dropEvent = new DragEvent("drop", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-      });
-      rack.dispatchEvent(dropEvent);
-
-      const dragEndEvent = new DragEvent("dragend", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-      });
-      deviceItem.dispatchEvent(dragEndEvent);
-    });
-
-    await page.waitForTimeout(200);
+    // Drag first device to rack using shared helper
+    await dragDeviceToRack(page);
 
     // Verify device appears in rack
     await expect(page.locator(".rack-device").first()).toBeVisible({
@@ -316,7 +259,6 @@ test.describe("Starter Library", () => {
     await expect(cableMgmtItem).toBeVisible();
 
     // Check the color indicator (assuming the device preview has a color element)
-    // The actual implementation may vary based on how colors are displayed
     const colorIndicator = cableMgmtItem.locator(
       ".device-preview rect, .category-colour",
     );

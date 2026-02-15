@@ -1,108 +1,14 @@
-import { test, expect, Page } from "@playwright/test";
-
-/**
- * Helper to fill the rack creation form
- * Uses #rack-name for name and height preset buttons or custom input
- */
-async function fillRackForm(page: Page, name: string, height: number) {
-  await page.fill("#rack-name", name);
-
-  const presetHeights = [12, 18, 24, 42];
-  if (presetHeights.includes(height)) {
-    // Click the preset button
-    await page.click(`.height-btn:has-text("${height}U")`);
-  } else {
-    // Click Custom and fill the input
-    await page.click('.height-btn:has-text("Custom")');
-    await page.fill("#custom-height", String(height));
-  }
-}
-
-/**
- * Helper to replace the current rack (v0.2 flow)
- * In v0.2, a rack always exists. To create a new one, we go through the replace dialog.
- */
-async function replaceRack(page: Page, name: string, height: number) {
-  await page.click('.toolbar-action-btn[aria-label="New Rack"]');
-  await page.click('button:has-text("Replace")');
-  await fillRackForm(page, name, height);
-  await page.click('button:has-text("Create")');
-}
-
-/**
- * Helper to drag a device from palette to rack using manual events
- * Manually dispatches HTML5 drag events for more reliable DnD testing
- */
-async function dragDeviceToRack(page: Page) {
-  // Device palette is always visible in the fixed sidebar
-  await expect(page.locator(".device-palette-item").first()).toBeVisible();
-
-  // Get element handles using Playwright locators
-  // In dual-view mode, there are two rack-svg elements - use first one
-  const deviceHandle = await page
-    .locator(".device-palette-item")
-    .first()
-    .elementHandle();
-  const rackHandle = await page.locator(".rack-svg").first().elementHandle();
-
-  if (!deviceHandle || !rackHandle) {
-    throw new Error("Could not find device item or rack");
-  }
-
-  await page.evaluate(
-    ([device, rack]) => {
-      const dataTransfer = new DataTransfer();
-
-      device.dispatchEvent(
-        new DragEvent("dragstart", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        }),
-      );
-      rack.dispatchEvent(
-        new DragEvent("dragover", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        }),
-      );
-      rack.dispatchEvent(
-        new DragEvent("drop", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        }),
-      );
-      device.dispatchEvent(
-        new DragEvent("dragend", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        }),
-      );
-    },
-    [deviceHandle, rackHandle] as const,
-  );
-
-  // Wait a bit for state to update
-  await page.waitForTimeout(100);
-}
+import { test, expect } from "@playwright/test";
+import {
+  gotoWithRack,
+  SMALL_RACK_SHARE,
+  dragDeviceToRack,
+  clickNewRack,
+} from "./helpers";
 
 test.describe("Keyboard Shortcuts", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    // Clear both storage types - hasStarted flag is in localStorage
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    await page.waitForTimeout(500);
-
-    // In v0.2, rack already exists. Replace it with a specific one for testing.
-    await replaceRack(page, "Test Rack", 12);
+    await gotoWithRack(page, SMALL_RACK_SHARE);
   });
 
   test("Delete key clears rack devices (v0.2 cannot remove the rack)", async ({
@@ -189,8 +95,8 @@ test.describe("Keyboard Shortcuts", () => {
   });
 
   test("Escape closes dialogs", async ({ page }) => {
-    // Open new rack dialog (this shows replace dialog in v0.2)
-    await page.click('.toolbar-action-btn[aria-label="New Rack"]');
+    // Open new rack dialog (this shows replace dialog)
+    await clickNewRack(page);
     await expect(page.locator(".dialog")).toBeVisible();
 
     // Press Escape

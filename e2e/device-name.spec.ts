@@ -1,63 +1,9 @@
-import { test, expect, Page } from "@playwright/test";
-
-/**
- * Helper to drag a device from palette to rack using manual events
- */
-async function dragDeviceToRack(page: Page) {
-  await expect(page.locator(".device-palette-item").first()).toBeVisible();
-
-  await page.evaluate(() => {
-    const deviceItem = document.querySelector(".device-palette-item");
-    const rack = document.querySelector(".rack-svg");
-
-    if (!deviceItem || !rack) {
-      throw new Error("Could not find device item or rack");
-    }
-
-    const dataTransfer = new DataTransfer();
-
-    const dragStartEvent = new DragEvent("dragstart", {
-      bubbles: true,
-      cancelable: true,
-      dataTransfer,
-    });
-    deviceItem.dispatchEvent(dragStartEvent);
-
-    const dragOverEvent = new DragEvent("dragover", {
-      bubbles: true,
-      cancelable: true,
-      dataTransfer,
-    });
-    rack.dispatchEvent(dragOverEvent);
-
-    const dropEvent = new DragEvent("drop", {
-      bubbles: true,
-      cancelable: true,
-      dataTransfer,
-    });
-    rack.dispatchEvent(dropEvent);
-
-    const dragEndEvent = new DragEvent("dragend", {
-      bubbles: true,
-      cancelable: true,
-      dataTransfer,
-    });
-    deviceItem.dispatchEvent(dragEndEvent);
-  });
-
-  await page.waitForTimeout(100);
-}
+import { test, expect } from "@playwright/test";
+import { gotoWithRack, dragDeviceToRack } from "./helpers";
 
 test.describe("Device Custom Names", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    await page.waitForTimeout(500);
+    await gotoWithRack(page);
   });
 
   test("can edit device display name", async ({ page }) => {
@@ -88,9 +34,6 @@ test.describe("Device Custom Names", () => {
     // Press Enter to save
     await nameInput.press("Enter");
 
-    // Wait for update to apply
-    await page.waitForTimeout(100);
-
     // The new name should be visible in the rack device
     await expect(page.locator(".rack-device .device-name").first()).toHaveText(
       "Primary Database Server",
@@ -113,7 +56,6 @@ test.describe("Device Custom Names", () => {
     await expect(nameInput).toBeVisible();
     await nameInput.fill("Storage Server");
     await nameInput.press("Enter");
-    await page.waitForTimeout(100);
 
     // Verify the name shows
     await expect(page.locator(".rack-device .device-name").first()).toHaveText(
@@ -127,14 +69,8 @@ test.describe("Device Custom Names", () => {
     const downloadPath = await download.path();
     expect(downloadPath).toBeTruthy();
 
-    // Clear and reload
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    await page.waitForTimeout(500);
+    // Reload with a fresh rack
+    await gotoWithRack(page);
 
     // Load the saved file
     const fileChooserPromise = page.waitForEvent("filechooser");
@@ -143,7 +79,6 @@ test.describe("Device Custom Names", () => {
     await fileChooser.setFiles(downloadPath!);
 
     // Wait for load to complete and rack to appear
-    await page.waitForTimeout(1000);
     await expect(page.locator(".rack-device").first()).toBeVisible({
       timeout: 10000,
     });
@@ -176,7 +111,6 @@ test.describe("Device Custom Names", () => {
     await expect(nameInput).toBeVisible();
     await nameInput.fill("Custom Name");
     await nameInput.press("Enter");
-    await page.waitForTimeout(100);
 
     // Verify new name
     await expect(page.locator(".rack-device .device-name").first()).toHaveText(
@@ -185,7 +119,6 @@ test.describe("Device Custom Names", () => {
 
     // Click on canvas area to ensure keyboard shortcuts work (not in input)
     await page.locator(".canvas").first().click();
-    await page.waitForTimeout(100);
 
     // Undo (Ctrl+Z)
     await page.keyboard.press("Control+z");
@@ -230,7 +163,6 @@ test.describe("Device Custom Names", () => {
     await expect(nameInput).toBeVisible();
     await nameInput.fill("Custom Name");
     await nameInput.press("Enter");
-    await page.waitForTimeout(100);
 
     // Verify custom name is shown
     await expect(page.locator(".rack-device .device-name").first()).toHaveText(
@@ -243,7 +175,6 @@ test.describe("Device Custom Names", () => {
     await expect(nameInput).toBeVisible();
     await nameInput.fill("");
     await nameInput.press("Enter");
-    await page.waitForTimeout(100);
 
     // Should revert to device type name
     await expect(page.locator(".rack-device .device-name").first()).toHaveText(

@@ -4,109 +4,44 @@
  * Tests mobile-specific functionality across Android device viewports.
  * Uses Playwright Chromium as a baseline for catching rendering and interaction issues.
  *
- * Note: Playwright's Chromium is a desktop build, not actual Android Chrome.
- * For comprehensive Android coverage, these tests should also run on real devices
- * via BrowserStack or LambdaTest (see docs/guides/TESTING.md).
- *
- * Android-specific considerations:
- * - Device fragmentation (Samsung, Google, Xiaomi, etc.)
- * - Variable DPI densities (ldpi to xxxhdpi)
- * - WebView version differences
- * - OEM-specific browser modifications
- * - navigator.vibrate() IS supported (unlike iOS)
- *
  * @see https://github.com/RackulaLives/Rackula/issues/229
  */
 import { test, expect, type Page } from "@playwright/test";
 import { openDeviceLibraryFromBottomNav } from "./helpers/mobile-navigation";
+import { EMPTY_RACK_SHARE, dragDeviceToRack } from "./helpers";
 
 // Android Device viewport matrix
 const androidDevices = [
-  // Phones - Various DPI densities
+  // Phones
   { name: "Pixel 7", width: 412, height: 915, mobile: true },
   { name: "Pixel 8 Pro", width: 448, height: 998, mobile: true },
   { name: "Samsung Galaxy S23", width: 360, height: 780, mobile: true },
   { name: "Samsung Galaxy S24 Ultra", width: 480, height: 1067, mobile: true },
-  { name: "Samsung Galaxy A54", width: 412, height: 915, mobile: true }, // Mid-range
-
+  { name: "Samsung Galaxy A54", width: 412, height: 915, mobile: true },
   // Tablets
   { name: "Samsung Galaxy Tab S9", width: 800, height: 1280, mobile: false },
   { name: "Pixel Tablet", width: 1280, height: 800, mobile: false },
-
   // Foldables
-  { name: "Samsung Galaxy Z Fold5", width: 904, height: 1842, mobile: true }, // Unfolded inner
+  { name: "Samsung Galaxy Z Fold5", width: 904, height: 1842, mobile: true },
   { name: "Samsung Galaxy Z Flip5", width: 412, height: 919, mobile: true },
 ] as const;
 
-// Mobile-only devices (width < 1024px triggers mobile mode)
-// Note: mobileDevices includes tablets, phoneDevices is phones only
-const _mobileDevices = androidDevices.filter((d) => d.width < 1024);
 const phoneDevices = androidDevices.filter((d) => d.mobile && d.width < 600);
 
 /**
- * Setup helper for mobile viewport tests
+ * Setup helper for mobile viewport tests - uses share link instead of v0.2 flow
  */
 async function setupMobileViewport(
   page: Page,
   device: (typeof androidDevices)[number],
 ) {
   await page.setViewportSize({ width: device.width, height: device.height });
-  await page.goto("/");
-
-  // Clear storage and set started flag for consistent state
+  await page.goto(`/?l=${EMPTY_RACK_SHARE}`);
+  // Dismiss mobile warning modal for tests
   await page.evaluate(() => {
-    sessionStorage.clear();
-    localStorage.clear();
-    localStorage.setItem("Rackula_has_started", "true");
-    // Dismiss mobile warning modal for tests
     sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
   });
-  await page.reload();
-  await page.waitForTimeout(300);
-}
-
-/**
- * Helper to add a device to the rack via drag simulation
- */
-async function addDeviceToRack(page: Page) {
-  await page.evaluate(() => {
-    const deviceItem = document.querySelector(".device-palette-item");
-    const rack = document.querySelector(".rack-svg");
-
-    if (!deviceItem || !rack) {
-      throw new Error("Could not find device item or rack");
-    }
-
-    const dataTransfer = new DataTransfer();
-    const dragStartEvent = new DragEvent("dragstart", {
-      bubbles: true,
-      cancelable: true,
-      dataTransfer,
-    });
-    deviceItem.dispatchEvent(dragStartEvent);
-
-    const dragOverEvent = new DragEvent("dragover", {
-      bubbles: true,
-      cancelable: true,
-      dataTransfer,
-    });
-    rack.dispatchEvent(dragOverEvent);
-
-    const dropEvent = new DragEvent("drop", {
-      bubbles: true,
-      cancelable: true,
-      dataTransfer,
-    });
-    rack.dispatchEvent(dropEvent);
-
-    const dragEndEvent = new DragEvent("dragend", {
-      bubbles: true,
-      cancelable: true,
-      dataTransfer,
-    });
-    deviceItem.dispatchEvent(dragEndEvent);
-  });
-  await page.waitForTimeout(100);
+  await page.locator(".rack-container").first().waitFor({ state: "visible" });
 }
 
 // ============================================================================
@@ -148,9 +83,7 @@ test.describe("Devices Tab (Device Library)", () => {
     });
   }
 
-  test("Device library FAB is removed in desktop mode", async ({
-    page,
-  }) => {
+  test("Device library FAB is removed in desktop mode", async ({ page }) => {
     const device = androidDevices.find((d) => d.name === "Pixel Tablet")!;
     await setupMobileViewport(page, device);
 
@@ -217,7 +150,6 @@ test.describe("Bottom Sheet", () => {
     const bottomSheet = page.locator(".bottom-sheet");
     await expect(bottomSheet).toBeVisible();
 
-    // Simulate a vertical swipe (not from edge)
     const box = await bottomSheet.boundingBox();
     if (box) {
       const startY = box.y + 50;
@@ -229,7 +161,6 @@ test.describe("Bottom Sheet", () => {
       await page.mouse.up();
     }
 
-    // Sheet should close from swipe-to-dismiss, not Android back
     await expect(bottomSheet).not.toBeVisible({ timeout: 2000 });
   });
 });
@@ -244,7 +175,7 @@ test.describe("Device Label Positioning", () => {
       device.name + " - device labels render within bounds",
       async ({ page }) => {
         await setupMobileViewport(page, device);
-        await addDeviceToRack(page);
+        await dragDeviceToRack(page);
 
         const rackDevice = page.locator(".rack-device").first();
         await expect(rackDevice).toBeVisible({ timeout: 5000 });
@@ -255,11 +186,10 @@ test.describe("Device Label Positioning", () => {
     );
   }
 
-  // Test across different DPI density devices
   test.describe("DPI Density Variations", () => {
     const dpiTestDevices = [
-      { ...phoneDevices[0], dpi: "medium" }, // Pixel 7
-      { ...phoneDevices[2], dpi: "high" }, // Samsung Galaxy S23
+      { ...phoneDevices[0], dpi: "medium" },
+      { ...phoneDevices[2], dpi: "high" },
     ];
 
     for (const device of dpiTestDevices) {
@@ -267,18 +197,16 @@ test.describe("Device Label Positioning", () => {
         page,
       }) => {
         await setupMobileViewport(page, device);
-        await addDeviceToRack(page);
+        await dragDeviceToRack(page);
 
         const rackDevice = page.locator(".rack-device").first();
         await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
-        // Verify foreignObject content renders
         const foreignObject = page
           .locator(".rack-device foreignObject")
           .first();
         const foExists = (await foreignObject.count()) > 0;
 
-        // Either foreignObject works or fallback text renders
         if (foExists) {
           await expect(foreignObject).toBeVisible();
         } else {
@@ -323,8 +251,6 @@ test.describe("Haptic Feedback", () => {
       return typeof navigator.vibrate === "function";
     });
 
-    // Note: In Playwright desktop Chromium, vibrate may or may not be available
-    // On real Android devices, it should always be available
     expect(typeof vibrateSupported).toBe("boolean");
   });
 
@@ -336,8 +262,8 @@ test.describe("Haptic Feedback", () => {
         // eslint-disable-next-line no-restricted-syntax -- Testing browser API availability, not TypeScript types
         if (typeof navigator.vibrate === "function") {
           navigator.vibrate(50);
-          navigator.vibrate([50, 100, 50]); // Pattern
-          navigator.vibrate(0); // Cancel
+          navigator.vibrate([50, 100, 50]);
+          navigator.vibrate(0);
         }
         return true;
       } catch {
@@ -351,7 +277,6 @@ test.describe("Haptic Feedback", () => {
   test("haptic feedback fires during device placement", async ({ page }) => {
     await setupMobileViewport(page, phoneDevices[0]);
 
-    // Track if vibrate was called
     const vibrateCalled = await page.evaluate(() => {
       let called = false;
       const originalVibrate = navigator.vibrate?.bind(navigator);
@@ -364,8 +289,6 @@ test.describe("Haptic Feedback", () => {
       return called;
     });
 
-    // Note: This just verifies the setup works - actual haptic testing
-    // requires real device verification via BrowserStack
     expect(typeof vibrateCalled).toBe("boolean");
   });
 });
@@ -382,14 +305,13 @@ test.describe("Touch Interactions", () => {
   });
 
   test("tap-to-select works on placed device", async ({ page }) => {
-    await addDeviceToRack(page);
+    await dragDeviceToRack(page);
 
     const rackDevice = page.locator(".rack-device").first();
     await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
     await rackDevice.tap();
 
-    // Device should be selected (shown by selection indicator or class)
     // eslint-disable-next-line no-restricted-syntax -- E2E test verifying device selection (user-visible state)
     await expect(rackDevice).toHaveClass(/selected/, { timeout: 2000 });
   });
@@ -397,15 +319,12 @@ test.describe("Touch Interactions", () => {
   test("touch coordinates are accurate on different viewports", async ({
     page,
   }) => {
-    // This test verifies touch event coordinates are properly calculated
-    // across different viewport sizes
     const rackSvg = page.locator(".rack-svg");
     await expect(rackSvg).toBeVisible();
 
     const box = await rackSvg.boundingBox();
     expect(box).toBeTruthy();
     if (box) {
-      // Touch should register within the rack bounds
       expect(box.width).toBeGreaterThan(0);
       expect(box.height).toBeGreaterThan(0);
     }
@@ -424,25 +343,22 @@ test.describe("Long-Press Gesture", () => {
   });
 
   test("long-press does not trigger Android context menu", async ({ page }) => {
-    await addDeviceToRack(page);
+    await dragDeviceToRack(page);
 
     const rackDevice = page.locator(".rack-device").first();
     await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
-    // Simulate long-press (500ms)
     const box = await rackDevice.boundingBox();
     if (box) {
       await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
 
-      // Hold for 500ms+ to trigger long-press
       const startPos = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
       await page.mouse.move(startPos.x, startPos.y);
       await page.mouse.down();
-      await page.waitForTimeout(600); // 500ms threshold + buffer
+      await page.waitForTimeout(600);
       await page.mouse.up();
     }
 
-    // Context menu should NOT be visible
     const contextMenu = page.locator('[role="menu"]');
     await expect(contextMenu).not.toBeVisible();
   });
@@ -463,11 +379,9 @@ test.describe("Foldable Devices", () => {
       async ({ page }) => {
         await setupMobileViewport(page, device);
 
-        // Verify the app renders correctly at foldable dimensions
         const rackSvg = page.locator(".rack-svg");
         await expect(rackSvg).toBeVisible();
 
-        // For mobile widths, verify Devices tab trigger is visible
         const devicesTab = page.getByRole("button", { name: "Devices" });
         if (device.width < 1024) {
           await expect(devicesTab).toBeVisible();
@@ -490,24 +404,19 @@ test.describe("WebView Compatibility", () => {
   }) => {
     await setupMobileViewport(page, phoneDevices[0]);
 
-    // Test basic rendering
     const rackSvg = page.locator(".rack-svg");
     await expect(rackSvg).toBeVisible();
 
-    // Test basic interaction
-    await addDeviceToRack(page);
+    await dragDeviceToRack(page);
     const rackDevice = page.locator(".rack-device").first();
     await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
-    // Verify no JavaScript errors occurred
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
 
-    // Navigate and check for errors
     await page.reload();
-    await page.waitForTimeout(500);
+    await page.locator(".rack-container").first().waitFor({ state: "visible" });
 
-    // Filter out expected warnings
     const criticalErrors = errors.filter(
       (e) => !e.includes("warning") && !e.includes("deprecated"),
     );

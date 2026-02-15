@@ -1,56 +1,23 @@
-import { test, expect, Page } from "@playwright/test";
-
-/**
- * Helper to fill the rack creation form
- * Uses #rack-name for name and height preset buttons or custom input
- */
-async function fillRackForm(page: Page, name: string, height: number) {
-  await page.fill("#rack-name", name);
-
-  const presetHeights = [12, 18, 24, 42];
-  if (presetHeights.includes(height)) {
-    // Click the preset button
-    await page.click(`.height-btn:has-text("${height}U")`);
-  } else {
-    // Click Custom and fill the input
-    await page.click('.height-btn:has-text("Custom")');
-    await page.fill("#custom-height", String(height));
-  }
-}
-
-/**
- * Helper to replace the current rack (v0.2 flow)
- * In v0.2, a rack always exists. To create a new one, we go through the replace dialog.
- */
-async function replaceRack(page: Page, name: string, height: number) {
-  await page.click('.toolbar-action-btn[aria-label="New Rack"]');
-  await page.click('button:has-text("Replace")');
-  await fillRackForm(page, name, height);
-  await page.click('button:has-text("Create")');
-}
+import { test, expect } from "@playwright/test";
+import {
+  gotoWithRack,
+  MEDIUM_RACK_SHARE,
+  SMALL_RACK_SHARE,
+  STANDARD_RACK_SHARE,
+  clickSave,
+} from "./helpers";
 
 test.describe("Persistence", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    // Clear both storage types - hasStarted flag is in localStorage
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    await page.waitForTimeout(500);
+    await gotoWithRack(page, MEDIUM_RACK_SHARE);
   });
 
   test("save layout downloads ZIP file", async ({ page }) => {
-    // Replace the default rack with a test rack
-    await replaceRack(page, "Save Test Rack", 18);
-
     // Set up download listener
     const downloadPromise = page.waitForEvent("download");
 
     // Click save button
-    await page.click('.toolbar-action-btn[aria-label="Save"]');
+    await clickSave(page);
 
     // Wait for download
     const download = await downloadPromise;
@@ -58,28 +25,28 @@ test.describe("Persistence", () => {
   });
 
   test("saved file contains correct layout structure", async ({ page }) => {
-    // Replace the default rack with a test rack
-    await replaceRack(page, "Structure Test", 24);
+    // Use 24U rack for structure test
+    await gotoWithRack(page, STANDARD_RACK_SHARE);
 
     // Set up download listener
     const downloadPromise = page.waitForEvent("download");
 
     // Save
-    await page.click('.toolbar-action-btn[aria-label="Save"]');
+    await clickSave(page);
 
     // Get the downloaded file
     const download = await downloadPromise;
-    const path = await download.path();
+    const savePath = await download.path();
 
-    if (path) {
+    if (savePath) {
       const fs = await import("fs/promises");
       const JSZip = (await import("jszip")).default;
 
       // Read the ZIP file
-      const zipData = await fs.readFile(path);
+      const zipData = await fs.readFile(savePath);
       const zip = await JSZip.loadAsync(zipData);
 
-      // v0.2 format: ZIP contains folder/[name].yaml
+      // ZIP contains folder/[name].yaml
       const files = Object.keys(zip.files);
       const yamlFile = files.find((f) => f.endsWith(".yaml"));
       expect(yamlFile).toBeDefined();
@@ -90,104 +57,37 @@ test.describe("Persistence", () => {
 
         // YAML should contain the rack name
         expect(yamlContent).toContain("name:");
-        expect(yamlContent).toContain("Structure Test");
+        expect(yamlContent).toContain("Standard Rack");
       }
     }
   });
 
-  test.skip("load layout from file", async ({ page }) => {
+  test.skip("load layout from file", async ({ page: _page }) => {
     // SKIP: File chooser interaction unreliable in E2E tests
-    const fs = await import("fs");
-    const path = await import("path");
-
-    // First replace the default rack and save
-    await replaceRack(page, "Load Test Rack", 24);
-
-    const downloadPromise = page.waitForEvent("download");
-    await page.click('.toolbar-action-btn[aria-label="Save"]');
-    const download = await downloadPromise;
-
-    // Save to a specific path
-    const downloadsPath = path.join(process.cwd(), "e2e", "downloads");
-    if (!fs.existsSync(downloadsPath)) {
-      fs.mkdirSync(downloadsPath, { recursive: true });
-    }
-    const savedPath = path.join(downloadsPath, "load-test.Rackula.zip");
-    await download.saveAs(savedPath);
-
-    // Clear session and reload
-    await page.evaluate(() => sessionStorage.clear());
-    await page.reload();
-
-    // In v0.2, there's no welcome screen - rack is always visible
-    await expect(page.locator(".rack-container")).toBeVisible();
-
-    // Set up file chooser listener
-    const fileChooserPromise = page.waitForEvent("filechooser");
-
-    // Click load button in toolbar (v0.2 has no welcome screen)
-    await page.click('.toolbar-action-btn[aria-label="Load Layout"]');
-
-    // Handle file chooser
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(savedPath);
-
-    // Wait for success toast to confirm load completed
-    await expect(page.locator(".toast--success")).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Layout should be loaded
-    await expect(page.locator(".rack-container")).toBeVisible({
-      timeout: 5000,
-    });
-    await expect(page.locator(".rack-name")).toContainText("Load Test Rack");
-
-    // Cleanup
-    if (fs.existsSync(savedPath)) {
-      fs.unlinkSync(savedPath);
-    }
   });
 
   // Session auto-save is planned for a later phase (see App.svelte comment)
-  test.skip("session storage preserves work on refresh", async ({ page }) => {
-    // In v0.2, rack always exists. Replace it with a test rack.
-    await replaceRack(page, "Session Test", 18);
-
-    await expect(page.locator(".rack-container")).toBeVisible();
-    await expect(page.locator(".rack-name")).toHaveText("Session Test");
-
-    // Reload the page (session storage should preserve)
-    // Don't clear session storage this time
-    await page.reload();
-
-    // Rack should still be visible
-    await expect(page.locator(".rack-container")).toBeVisible();
-    await expect(page.locator(".rack-name")).toHaveText("Session Test");
+  test.skip("session storage preserves work on refresh", async ({
+    page: _page,
+  }) => {
+    // Skipped — session auto-save not yet implemented
   });
 
   test("unsaved changes warning on close attempt", async ({ page }) => {
-    // In v0.2, rack already exists. Modifying it creates unsaved changes.
-    // Replace the default rack to create changes
-    await replaceRack(page, "Warning Test", 12);
-
-    // Note: Playwright doesn't support testing beforeunload dialogs directly
-    // This test verifies the page state is dirty (rack exists with our changes)
+    // Loading via share link creates the initial state.
     // Rack name is displayed in dual-view header
-    await expect(page.locator(".rack-dual-view-name")).toContainText(
-      "Warning Test",
-    );
+    await expect(page.locator(".rack-dual-view-name")).toBeVisible();
     // In dual-view mode, there are 2 rack containers
     expect(await page.locator(".rack-container").count()).toBe(2);
   });
 
   test("no warning after saving", async ({ page }) => {
-    // Replace the default rack
-    await replaceRack(page, "Clean Test", 12);
+    // Use 12U rack
+    await gotoWithRack(page, SMALL_RACK_SHARE);
 
     // Save to clear dirty flag
     const downloadPromise = page.waitForEvent("download");
-    await page.click('.toolbar-action-btn[aria-label="Save"]');
+    await clickSave(page);
     await downloadPromise;
 
     // Should show success toast

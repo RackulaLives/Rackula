@@ -1,18 +1,17 @@
 import { test, expect } from "@playwright/test";
+import { gotoWithRack } from "./helpers";
 
 test.describe("Responsive Layout", () => {
   test.describe("Desktop viewport (1200px)", () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: 1200, height: 800 });
-      await page.goto("/");
+      await gotoWithRack(page);
     });
 
     test("toolbar buttons show text labels", async ({ page }) => {
-      // At desktop size, buttons should show text
       const saveButton = page.getByRole("button", { name: /save/i });
       await expect(saveButton).toBeVisible();
 
-      // Button should contain visible text "Save"
       const buttonText = await saveButton.textContent();
       expect(buttonText).toContain("Save");
     });
@@ -21,7 +20,6 @@ test.describe("Responsive Layout", () => {
       const brandName = page.locator(".brand-name");
       await expect(brandName).toBeVisible();
       await expect(brandName).toHaveText("Rackula");
-      // Note: Tagline was removed from toolbar in v0.4.5 (moved to Help panel)
     });
 
     test("sidebar is visible", async ({ page }) => {
@@ -30,7 +28,6 @@ test.describe("Responsive Layout", () => {
     });
 
     test("no horizontal scroll", async ({ page }) => {
-      // Check that document doesn't have horizontal overflow
       const hasHorizontalScroll = await page.evaluate(() => {
         return (
           document.documentElement.scrollWidth >
@@ -41,19 +38,14 @@ test.describe("Responsive Layout", () => {
     });
 
     test("brand click does NOT open drawer in full mode", async ({ page }) => {
-      // At 1200px (>= 1024px), clicking brand should NOT open drawer
-      // In full mode, brand is a div, not a button
       const brand = page.locator(".toolbar-brand");
       await brand.click();
-      await page.waitForTimeout(200);
 
-      // Drawer should NOT have the .open class
       const drawer = page.locator(".toolbar-drawer.open");
       await expect(drawer).not.toBeVisible();
     });
 
     test("hamburger icon is NOT visible in full mode", async ({ page }) => {
-      // At 1200px, hamburger icon should be hidden
       const hamburgerIcon = page.locator(".hamburger-icon");
       await expect(hamburgerIcon).not.toBeVisible();
     });
@@ -62,20 +54,16 @@ test.describe("Responsive Layout", () => {
   test.describe("Medium viewport (900px)", () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: 900, height: 800 });
-      await page.goto("/");
+      await gotoWithRack(page);
     });
 
     test("hamburger mode is active", async ({ page }) => {
-      // At 900px (< 1024px breakpoint), toolbar is in hamburger mode
-      // The hamburger icon should be visible
       const hamburgerIcon = page.locator(".hamburger-icon");
       await expect(hamburgerIcon).toBeVisible();
 
-      // The toolbar-center (action buttons) should be hidden
       const toolbarCenter = page.locator(".toolbar-center");
       await expect(toolbarCenter).not.toBeVisible();
     });
-    // Note: Tagline test removed - tagline was removed from toolbar in v0.4.5
 
     test("brand name is still visible", async ({ page }) => {
       const brandName = page.locator(".brand-name");
@@ -86,9 +74,8 @@ test.describe("Responsive Layout", () => {
       const sidebar = page.locator("aside.sidebar");
       await expect(sidebar).toBeVisible();
 
-      // Sidebar should be 200px at this breakpoint
       const box = await sidebar.boundingBox();
-      expect(box?.width).toBeLessThanOrEqual(210); // Allow some tolerance
+      expect(box?.width).toBeLessThanOrEqual(210);
       expect(box?.width).toBeGreaterThanOrEqual(190);
     });
 
@@ -103,15 +90,11 @@ test.describe("Responsive Layout", () => {
     });
 
     test("drawer menu opens on hamburger click", async ({ page }) => {
-      // Click the toolbar brand to open the drawer
       await page.locator(".toolbar-brand").click();
-      await page.waitForTimeout(200);
 
-      // Drawer should be visible with menu items
       const drawer = page.locator(".toolbar-drawer");
       await expect(drawer).toBeVisible();
 
-      // Should contain action items
       await expect(page.locator('.drawer-item:has-text("Save")')).toBeVisible();
     });
   });
@@ -119,15 +102,13 @@ test.describe("Responsive Layout", () => {
   test.describe("Small viewport (600px)", () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: 600, height: 800 });
-      await page.goto("/");
+      await gotoWithRack(page);
     });
 
     test("brand name is hidden, logo visible", async ({ page }) => {
-      // At 600px, brand name should be hidden
       const brandName = page.locator(".brand-name");
       await expect(brandName).toBeHidden();
 
-      // Logo (SVG) should still be visible - use specific class
       const logo = page.locator(".toolbar-brand .logo-icon");
       await expect(logo).toBeVisible();
     });
@@ -146,15 +127,14 @@ test.describe("Responsive Layout", () => {
   test.describe("Phone viewport dialogs (375px)", () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 });
-      await page.goto("/");
+      await gotoWithRack(page);
+
+      // Dismiss mobile warning if present
       await page.evaluate(() => {
         sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
-        localStorage.setItem("Rackula_has_started", "true");
       });
-      await page.reload();
-      await page.waitForSelector(".toolbar-brand");
 
-      // Explicitly open the New Rack dialog to avoid relying on auto-open behavior.
+      // Open the New Rack dialog
       const newRackTitle = page.locator(".dialog-title").filter({
         hasText: "New Rack",
       });
@@ -177,7 +157,9 @@ test.describe("Responsive Layout", () => {
         await expect(dialog).toBeVisible();
         await expect
           .poll(async () => {
-            const viewportHeight = await page.evaluate(() => window.innerHeight);
+            const viewportHeight = await page.evaluate(
+              () => window.innerHeight,
+            );
             const box = await dialog.boundingBox();
             if (!box) {
               return Number.POSITIVE_INFINITY;
@@ -260,7 +242,9 @@ test.describe("Responsive Layout", () => {
             if (!compactBox) {
               return Number.POSITIVE_INFINITY;
             }
-            return compactBox.y + compactBox.height - (compactViewportHeight + 1);
+            return (
+              compactBox.y + compactBox.height - (compactViewportHeight + 1)
+            );
           })
           .toBeLessThanOrEqual(0);
 
@@ -282,31 +266,7 @@ test.describe("Responsive Layout", () => {
   test.describe("Panzoom at narrow viewport", () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: 800, height: 600 });
-      await page.goto("/");
-      // Clear storage and set started flag
-      await page.evaluate(() => {
-        sessionStorage.clear();
-        localStorage.clear();
-        localStorage.setItem("Rackula_has_started", "true");
-      });
-      await page.reload();
-      await page.waitForTimeout(500);
-
-      // At 800px viewport, toolbar is in hamburger mode
-      // Open hamburger menu by clicking on toolbar brand
-      await page.locator(".toolbar-brand").click();
-      await page.waitForTimeout(200);
-
-      // Click New Rack in the drawer
-      await page.locator('.drawer-item:has-text("New Rack")').click();
-
-      // Wait for dialog and click Create
-      await page.locator('button:has-text("Replace")').click();
-      const createBtn = page.locator('button:has-text("Create")');
-      await createBtn.click();
-
-      // Wait for rack to be visible
-      await page.waitForSelector(".rack-dual-view", { timeout: 5000 });
+      await gotoWithRack(page);
     });
 
     test("canvas is visible and interactive", async ({ page }) => {
@@ -315,18 +275,15 @@ test.describe("Responsive Layout", () => {
     });
 
     test("can pan the canvas", async ({ page }) => {
-      // Get the rack element position before panning
       const rack = page.locator(".rack-dual-view");
       await expect(rack).toBeVisible();
 
       const initialBox = await rack.boundingBox();
       expect(initialBox).toBeTruthy();
 
-      // Perform a drag to pan
       const canvas = page.locator(".canvas");
       await canvas.hover();
 
-      // Mouse drag to pan
       const canvasBox = await canvas.boundingBox();
       if (canvasBox) {
         const startX = canvasBox.x + canvasBox.width / 2;
@@ -338,23 +295,18 @@ test.describe("Responsive Layout", () => {
         await page.mouse.up();
       }
 
-      // Verify panzoom container has moved (transform applied)
       const panzoomContainer = page.locator(".panzoom-container");
       const transform = await panzoomContainer.getAttribute("style");
       expect(transform).toContain("matrix");
     });
 
     test("reset view button works", async ({ page }) => {
-      // Rack should already be created from beforeEach
       // At 800px viewport, need to use hamburger menu
       await page.locator(".toolbar-brand").click();
-      await page.waitForTimeout(200);
 
-      // Click Reset View in the drawer
       const resetButton = page.locator('.drawer-item:has-text("Reset View")');
       await resetButton.click();
 
-      // Verify drawer closed (button click worked)
       await expect(
         page.locator('.toolbar-drawer:not([aria-hidden="true"])'),
       ).not.toBeVisible();
