@@ -21,6 +21,7 @@
 
   interface Props {
     onsave?: () => void;
+    onsaveas?: () => void;
     onload?: () => void;
     onexport?: () => void;
     onshare?: () => void;
@@ -33,6 +34,7 @@
 
   let {
     onsave,
+    onsaveas,
     onload,
     onexport,
     onshare,
@@ -207,6 +209,20 @@
         key: "s",
         meta: true,
         action: () => onsave?.(),
+      },
+
+      // Ctrl/Cmd+Shift+S - save as (download ZIP)
+      {
+        key: "s",
+        ctrl: true,
+        shift: true,
+        action: () => onsaveas?.(),
+      },
+      {
+        key: "s",
+        meta: true,
+        shift: true,
+        action: () => onsaveas?.(),
       },
 
       // Ctrl/Cmd+O - load

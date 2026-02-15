@@ -40,6 +40,7 @@
     partyMode?: boolean;
     saveStatus?: SaveStatusType;
     onsave?: () => void;
+    onsaveas?: () => void;
     onload?: () => void;
     onexport?: () => void;
     onshare?: () => void;
@@ -68,6 +69,7 @@
     partyMode = false,
     saveStatus,
     onsave,
+    onsaveas,
     onload,
     onexport,
     onshare,
@@ -115,6 +117,11 @@
   function handleSave() {
     analytics.trackToolbarClick("save");
     onsave?.();
+  }
+
+  function handleSaveAs() {
+    analytics.trackToolbarClick("save-as");
+    onsaveas?.();
   }
 
   function handleLoad() {
@@ -311,6 +318,7 @@
 
       <FileMenu
         onsave={handleSave}
+        onsaveas={handleSaveAs}
         onload={handleLoad}
         onexport={handleExport}
         onshare={handleShare}

@@ -178,6 +178,7 @@
       name: "File",
       shortcuts: [
         { key: formatShortcut("mod", "S"), action: "Save layout" },
+        { key: formatShortcut("mod", "shift", "S"), action: "Save As (ZIP)" },
         { key: formatShortcut("mod", "O"), action: "Load layout" },
         { key: formatShortcut("mod", "E"), action: "Export image" },
         { key: formatShortcut("mod", "H"), action: "Share" },

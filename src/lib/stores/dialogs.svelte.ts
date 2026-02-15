@@ -40,7 +40,7 @@ let exportQrCodeDataUrl = $state<string | undefined>(undefined);
 /** Pre-selected rack IDs for export dialog (from context menu) */
 let exportSelectedRackIds = $state<string[] | undefined>(undefined);
 /** Pending operation that triggered cleanup prompt (save or export) */
-let pendingCleanupOperation = $state<"save" | "export" | null>(null);
+let pendingCleanupOperation = $state<"save" | "saveAs" | "export" | null>(null);
 
 // Mobile sheet state
 let openSheet = $state<SheetId | null>(null);
@@ -130,7 +130,7 @@ export const dialogStore = {
   get pendingCleanupOperation() {
     return pendingCleanupOperation;
   },
-  set pendingCleanupOperation(value: "save" | "export" | null) {
+  set pendingCleanupOperation(value: "save" | "saveAs" | "export" | null) {
     pendingCleanupOperation = value;
   },
 

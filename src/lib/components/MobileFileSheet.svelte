@@ -7,6 +7,7 @@
   import {
     IconUpload,
     IconDownload,
+    IconFileDownloadBold,
     IconDownloadBold,
     IconShareBold,
   } from "./icons";
@@ -14,12 +15,14 @@
   interface Props {
     onload?: () => void;
     onsave?: () => void;
+    onsaveas?: () => void;
     onexport?: () => void;
     onshare?: () => void;
     onclose?: () => void;
   }
 
-  let { onload, onsave, onexport, onshare, onclose }: Props = $props();
+  let { onload, onsave, onsaveas, onexport, onshare, onclose }: Props =
+    $props();
 
   function handleAction(action?: () => void) {
     action?.();
@@ -46,6 +49,17 @@
   >
     <span class="action-icon"><IconDownload size={ICON_SIZE.md} /></span>
     <span class="action-label">Save Layout</span>
+  </button>
+
+  <button
+    type="button"
+    class="file-action"
+    onclick={() => handleAction(onsaveas)}
+    aria-label="Save As ZIP"
+  >
+    <span class="action-icon"><IconFileDownloadBold size={ICON_SIZE.md} /></span
+    >
+    <span class="action-label">Save As ZIP</span>
   </button>
 
   <button

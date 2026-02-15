@@ -12,6 +12,7 @@
 
   interface Props {
     onsave?: () => void;
+    onsaveas?: () => void;
     onload?: () => void;
     onexport?: () => void;
     onshare?: () => void;
@@ -23,6 +24,7 @@
 
   let {
     onsave,
+    onsaveas,
     onload,
     onexport,
     onshare,
@@ -37,6 +39,7 @@
   // Platform-aware shortcuts (Cmd on Mac, Ctrl on Windows/Linux)
   const shortcuts = {
     save: formatShortcut("mod", "S"),
+    saveAs: formatShortcut("mod", "shift", "S"),
     load: formatShortcut("mod", "O"),
     export: formatShortcut("mod", "E"),
     share: formatShortcut("mod", "H"),
@@ -64,6 +67,10 @@
       <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onsave)}>
         <span class="menu-label">Save</span>
         <span class="menu-shortcut">{shortcuts.save}</span>
+      </DropdownMenu.Item>
+      <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onsaveas)}>
+        <span class="menu-label">Save As...</span>
+        <span class="menu-shortcut">{shortcuts.saveAs}</span>
       </DropdownMenu.Item>
       <DropdownMenu.Item class="menu-item" onSelect={handleSelect(onload)}>
         <span class="menu-label">Load</span>

@@ -141,7 +141,9 @@
   let cleanupDialogOpen = $derived(dialogStore.isOpen("cleanupDialog"));
   let cleanupPromptOpen = $derived(dialogStore.isOpen("cleanupPrompt"));
   let cleanupPromptOperation = $derived(dialogStore.pendingCleanupOperation);
-  let cleanupReviewPendingOperation = $state<"save" | "export" | null>(null);
+  let cleanupReviewPendingOperation = $state<
+    "save" | "saveAs" | "export" | null
+  >(null);
 
   // Mobile bottom sheet state - managed by dialogStore
   let bottomSheetOpen = $derived(dialogStore.isSheetOpen("deviceDetails"));
@@ -438,18 +440,18 @@
   async function handleSaveFirst() {
     dialogStore.close();
     dialogStore.pendingSaveFirst = true;
-    await handleSave();
+    if (isApiAvailable()) {
+      await handleSaveToServer();
+    } else {
+      await handleSaveAsArchive();
+    }
   }
 
   function handleReplace() {
     dialogStore.close();
-    layoutStore.resetLayout();
-    // Clean up orphaned user images (layout is now empty)
-    const usedSlugs = layoutStore.getUsedDeviceTypeSlugs();
-    imageStore.cleanupOrphanedImages(usedSlugs);
     // Clear autosaved session when explicitly creating new rack
     clearSession();
-    dialogStore.open("newRack");
+    resetAndOpenNewRack();
   }
 
   function handleCancelReplace() {
@@ -458,10 +460,12 @@
 
   /**
    * Check if we should show the cleanup prompt before save/export
-   * @param operation - "save" or "export"
+   * @param operation - "save", "saveAs", or "export"
    * @returns true if we should proceed with the operation, false if we showed the prompt
    */
-  function shouldShowCleanupPrompt(operation: "save" | "export"): boolean {
+  function shouldShowCleanupPrompt(
+    operation: "save" | "saveAs" | "export",
+  ): boolean {
     // Check if prompt is enabled
     if (!uiStore.promptCleanupOnSave) {
       return false;
@@ -506,7 +510,13 @@
     cleanupReviewPendingOperation = null;
     dialogStore.close();
     if (pendingOp === "save") {
-      handleSave();
+      if (isApiAvailable()) {
+        handleSaveToServer();
+      } else {
+        handleSaveAsArchive();
+      }
+    } else if (pendingOp === "saveAs") {
+      handleSaveAsArchive();
     } else if (pendingOp === "export") {
       handleExport();
     }
@@ -531,14 +541,29 @@
 
   /**
    * Entry point for save operation triggered by Ctrl+S or menu
+   * Routes to server save (when API available) or ZIP download
    * Checks for unused custom types and shows prompt if needed
    */
   function maybeSave() {
-    // If cleanup prompt should be shown, don't proceed with save yet
     if (shouldShowCleanupPrompt("save")) {
       return;
     }
-    handleSave();
+    if (isApiAvailable()) {
+      handleSaveToServer();
+    } else {
+      handleSaveAsArchive();
+    }
+  }
+
+  /**
+   * Entry point for "Save As" operation triggered by Ctrl+Shift+S or menu
+   * Always downloads ZIP archive regardless of API availability
+   */
+  function maybeSaveAs() {
+    if (shouldShowCleanupPrompt("saveAs")) {
+      return;
+    }
+    handleSaveAsArchive();
   }
 
   /**
@@ -553,7 +578,86 @@
     handleExport();
   }
 
-  async function handleSave() {
+  /**
+   * Reset the layout, clean up orphaned images, and open the new rack dialog.
+   * Shared by handleReplace, handleSaveToServer, and handleSaveAsArchive.
+   */
+  function resetAndOpenNewRack() {
+    layoutStore.resetLayout();
+    const usedSlugs = layoutStore.getUsedDeviceTypeSlugs();
+    imageStore.cleanupOrphanedImages(usedSlugs);
+    dialogStore.open("newRack");
+  }
+
+  /**
+   * Classify a persistence error and update saveStatus / API availability.
+   * @param e - The caught error (unknown type from catch block)
+   * @param notify - Show toast messages (true for manual saves, false for auto-save)
+   */
+  function handlePersistenceError(e: unknown, notify = false) {
+    if (e instanceof PersistenceError) {
+      if (
+        e.statusCode === undefined ||
+        e.statusCode === 404 ||
+        (typeof e.statusCode === "number" && e.statusCode >= 500)
+      ) {
+        setApiAvailable(false);
+        saveStatus = "offline";
+        if (notify)
+          toastStore.showToast("Save failed — backend unavailable", "error");
+      } else {
+        saveStatus = "error";
+        if (notify) toastStore.showToast("Save failed", "error");
+      }
+    } else {
+      setApiAvailable(false);
+      saveStatus = "offline";
+      if (notify)
+        toastStore.showToast("Save failed — backend unavailable", "error");
+    }
+  }
+
+  /**
+   * Save to backend API (immediate, no debounce).
+   * Cancels pending auto-save to avoid duplicate writes.
+   */
+  async function handleSaveToServer() {
+    try {
+      saveStatus = "saving";
+      // Cancel pending auto-save to avoid duplicate
+      if (serverSaveTimer) {
+        clearTimeout(serverSaveTimer);
+        serverSaveTimer = null;
+      }
+      const snapshot = structuredClone($state.snapshot(layoutStore.layout));
+      const newId = await saveLayoutToServer(snapshot);
+      _currentLayoutId = newId;
+      saveStatus = "saved";
+      layoutStore.markClean();
+      clearSession();
+      // No toast — SaveStatus indicator provides feedback
+
+      // Track save event (total devices across all racks)
+      analytics.trackSave(layoutStore.totalDeviceCount);
+
+      // After save, if pendingSaveFirst, reset and open new rack form
+      if (dialogStore.pendingSaveFirst) {
+        dialogStore.pendingSaveFirst = false;
+        resetAndOpenNewRack();
+      }
+    } catch (e) {
+      dialogStore.pendingSaveFirst = false;
+      console.warn("Manual save failed:", e);
+      handlePersistenceError(e, true);
+      // NO auto-fallback to ZIP — per issue spec
+    }
+  }
+
+  /**
+   * Download layout as ZIP archive.
+   * Used for "Save As" (always) and for "Save" when no API is available.
+   */
+  async function handleSaveAsArchive() {
     try {
       // Get user images (exclude bundled images) for archive
       const images = imageStore.getUserImages();
@@ -574,13 +678,10 @@
       // After save, if pendingSaveFirst, reset and open new rack form
       if (dialogStore.pendingSaveFirst) {
         dialogStore.pendingSaveFirst = false;
-        layoutStore.resetLayout();
-        // Clean up orphaned user images (layout is now empty)
-        const usedSlugs = layoutStore.getUsedDeviceTypeSlugs();
-        imageStore.cleanupOrphanedImages(usedSlugs);
-        dialogStore.open("newRack");
+        resetAndOpenNewRack();
       }
     } catch (error) {
+      dialogStore.pendingSaveFirst = false;
       console.error("Failed to save layout:", error);
       toastStore.showToast(
         error instanceof Error ? error.message : "Failed to save layout",
@@ -927,8 +1028,14 @@
     }
 
     if (pendingOp === "save") {
-      handleSave();
-    } else {
+      if (isApiAvailable()) {
+        handleSaveToServer();
+      } else {
+        handleSaveAsArchive();
+      }
+    } else if (pendingOp === "saveAs") {
+      handleSaveAsArchive();
+    } else if (pendingOp === "export") {
       handleExport();
     }
   }
@@ -1368,21 +1475,7 @@
       } catch (e) {
         console.warn("Auto-save failed:", e);
         // Degrade to offline mode for network/proxy/routing failures.
-        if (e instanceof PersistenceError) {
-          if (
-            e.statusCode === undefined ||
-            e.statusCode === 404 ||
-            (typeof e.statusCode === "number" && e.statusCode >= 500)
-          ) {
-            setApiAvailable(false);
-            saveStatus = "offline";
-          } else {
-            saveStatus = "error";
-          }
-        } else {
-          setApiAvailable(false);
-          saveStatus = "offline";
-        }
+        handlePersistenceError(e);
       }
       serverSaveTimer = null;
     }, 2000);
@@ -1445,6 +1538,7 @@
       {partyMode}
       {saveStatus}
       onsave={maybeSave}
+      onsaveas={maybeSaveAs}
       onload={handleLoad}
       onexport={maybeExport}
       onshare={handleShare}
@@ -1684,7 +1778,8 @@
       >
         <MobileFileSheet
           onload={handleLoad}
-          onsave={handleSave}
+          onsave={maybeSave}
+          onsaveas={maybeSaveAs}
           onexport={handleExport}
           onshare={handleShare}
           onclose={handleFileSheetClose}
@@ -1741,6 +1836,7 @@
 
     <KeyboardHandler
       onsave={maybeSave}
+      onsaveas={maybeSaveAs}
       onload={handleLoad}
       onexport={maybeExport}
       onshare={handleShare}
