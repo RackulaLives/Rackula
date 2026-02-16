@@ -47,7 +47,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: deploy/Dockerfile
@@ -98,7 +98,7 @@ jobs:
             type=raw,value=persist
 
       - name: Build and push persist image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: deploy/Dockerfile
@@ -148,7 +148,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push API image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./api
           file: ./api/Dockerfile
@@ -194,7 +194,7 @@ jobs:
           echo "IMAGE_CATEGORY=${IMAGE_CATEGORY}" >> $GITHUB_ENV
 
       - name: Scan image
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # 0.34.0
         with:
           image-ref: ${{ env.IMAGE_REF }}
           format: sarif
@@ -205,7 +205,7 @@ jobs:
 
       - name: Upload scan results
         if: always()
-        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        uses: github/codeql-action/upload-sarif@9e907b5e64f6b83e7804b09294d44122997950d6 # v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-${{ env.IMAGE_CATEGORY }}
