@@ -1,18 +1,11 @@
 import { test, expect } from "@playwright/test";
 import path from "path";
+import { gotoWithRack, clickLoad } from "./helpers";
 
 test.describe("Position Migration", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    // Clear both storage types
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    // Wait for the app to fully initialize by checking for the rack container
-    await page.locator(".rack-container").first().waitFor({ state: "visible" });
+    // Load a rack via share link so the app is in a ready state for file loading
+    await gotoWithRack(page);
   });
 
   test("loads legacy layout and migrates positions correctly", async ({
@@ -25,7 +18,7 @@ test.describe("Position Migration", () => {
     const fileChooserPromise = page.waitForEvent("filechooser");
 
     // Click load button in toolbar
-    await page.click('.toolbar-action-btn[aria-label="Load Layout"]');
+    await clickLoad(page);
 
     // Handle file chooser with our legacy fixture
     const fileChooser = await fileChooserPromise;
@@ -61,7 +54,7 @@ test.describe("Position Migration", () => {
 
     // Load the legacy fixture
     const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.click('.toolbar-action-btn[aria-label="Load Layout"]');
+    await clickLoad(page);
     const fileChooser = await fileChooserPromise;
     const fixturePath = path.join(
       __dirname,
@@ -74,8 +67,9 @@ test.describe("Position Migration", () => {
     });
 
     // Save the layout
+    const modifier = process.platform === "darwin" ? "Meta" : "Control";
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press("Control+s");
+    await page.keyboard.press(`${modifier}+s`);
     const download = await downloadPromise;
 
     // Verify file was downloaded
@@ -86,11 +80,12 @@ test.describe("Position Migration", () => {
   });
 
   test("reload after save does not double-migrate", async ({ page }) => {
-    // Load legacy fixture
+    // Wait for app to be ready
     await expect(page.locator(".rack-container").first()).toBeVisible();
 
+    // Load legacy fixture
     const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.click('.toolbar-action-btn[aria-label="Load Layout"]');
+    await clickLoad(page);
     const fileChooser = await fileChooserPromise;
     const fixturePath = path.join(
       __dirname,
@@ -103,27 +98,21 @@ test.describe("Position Migration", () => {
     });
 
     // Save the layout
+    const modifier = process.platform === "darwin" ? "Meta" : "Control";
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press("Control+s");
+    await page.keyboard.press(`${modifier}+s`);
     const download = await downloadPromise;
 
     // Save the downloaded file to a stable test output location
     const savedPath = test.info().outputPath("migrated-layout.yaml");
     await download.saveAs(savedPath);
 
-    // Clear and reload the page
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    // Wait for the app to fully initialize by checking for the rack container
-    await page.locator(".rack-container").first().waitFor({ state: "visible" });
+    // Reload with a fresh rack state
+    await gotoWithRack(page);
 
     // Load the saved file
     const fileChooserPromise2 = page.waitForEvent("filechooser");
-    await page.click('.toolbar-action-btn[aria-label="Load Layout"]');
+    await clickLoad(page);
     const fileChooser2 = await fileChooserPromise2;
     await fileChooser2.setFiles(savedPath);
 

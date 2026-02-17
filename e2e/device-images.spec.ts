@@ -1,35 +1,13 @@
-import { test, expect, Page } from "@playwright/test";
-import path from "path";
+import { test, expect } from "@playwright/test";
 import fs from "fs";
-
-/**
- * Helper to replace the current rack (v0.2 flow)
- * In v0.2, a rack always exists. To create a new one, we go through the replace dialog.
- */
-async function _replaceRack(page: Page, name: string, height: number = 24) {
-  await page.click('.toolbar-action-btn[aria-label="New Rack"]');
-  await page.click('button:has-text("Replace")');
-
-  await page.fill("#rack-name", name);
-
-  const presetHeights = [12, 18, 24, 42];
-  if (presetHeights.includes(height)) {
-    await page.click(`.height-btn:has-text("${height}U")`);
-  } else {
-    await page.click('.height-btn:has-text("Custom")');
-    await page.fill("#custom-height", String(height));
-  }
-
-  await page.click('button:has-text("Create")');
-  // In dual-view mode, there are two rack containers
-  await expect(page.locator(".rack-container").first()).toBeVisible();
-}
+import { gotoWithRack } from "./helpers";
 
 test.describe("Device Images", () => {
-  const testImagePath = path.join(process.cwd(), "e2e", "test-image.png");
+  let testImagePath: string;
 
   test.beforeAll(async () => {
-    // Create a minimal valid PNG file for testing
+    // Create a minimal valid PNG file for testing in a temp location
+    testImagePath = test.info().outputPath("test-image.png");
     const pngSignature = Buffer.from([
       0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
     ]);
@@ -63,15 +41,7 @@ test.describe("Device Images", () => {
   });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    // Clear both storage types - hasStarted flag is in localStorage
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    await page.waitForTimeout(500);
+    await gotoWithRack(page);
   });
 
   test("can upload front image when adding device", async ({ page }) => {
@@ -119,9 +89,6 @@ test.describe("Device Images", () => {
     // Press I to toggle display mode - should not throw error
     await page.keyboard.press("i");
 
-    // Give it time to process
-    await page.waitForTimeout(100);
-
     // Rack should still be visible (no crash)
     await expect(page.locator(".rack-container").first()).toBeVisible();
   });
@@ -132,7 +99,6 @@ test.describe("Device Images", () => {
 
     // Toggle to image mode with I key
     await page.keyboard.press("i");
-    await page.waitForTimeout(100);
 
     // In image mode, toolbar should still be visible
     await expect(page.locator(".toolbar")).toBeVisible();

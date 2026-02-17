@@ -39,9 +39,10 @@ function parseSemver(version) {
  * Returns: -1 if a < b, 0 if a == b, 1 if a > b
  */
 function compareSemver(a, b) {
-  if (a.major !== b.major) return a.major - b.major;
-  if (a.minor !== b.minor) return a.minor - b.minor;
-  return a.patch - b.patch;
+  if (a.major !== b.major) return a.major < b.major ? -1 : 1;
+  if (a.minor !== b.minor) return a.minor < b.minor ? -1 : 1;
+  if (a.patch !== b.patch) return a.patch < b.patch ? -1 : 1;
+  return 0;
 }
 
 /**
@@ -70,9 +71,11 @@ function fetchMilestones() {
       .filter((line) => line.trim())
       .map((line) => JSON.parse(line));
   } catch (_error) {
+    const fallbackMilestoneTitle = "v0.8.1";
+
     console.error("Warning: Could not fetch milestones from GitHub API.");
-    console.error("Using fallback milestone v0.7.0");
-    return [{ title: "v0.7.0", open_issues: 1 }];
+    console.error(`Using fallback milestone ${fallbackMilestoneTitle}`);
+    return [{ title: fallbackMilestoneTitle, open_issues: 1 }];
   }
 }
 
@@ -83,7 +86,7 @@ function findNextMilestone(currentVersion, milestones) {
   const current = parseSemver(currentVersion);
   if (!current) {
     console.error(`Could not parse current version: ${currentVersion}`);
-    return milestones[0]?.title || "v0.7.0";
+    return milestones[0]?.title || "v0.8.1";
   }
 
   // Filter to milestones > current version
@@ -94,7 +97,7 @@ function findNextMilestone(currentVersion, milestones) {
 
   if (futureMilestones.length === 0) {
     console.warn("No future milestones found, using first available");
-    return milestones[0]?.title || "v0.7.0";
+    return milestones[0]?.title || "v0.8.1";
   }
 
   return futureMilestones[0].title;

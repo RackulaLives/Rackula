@@ -1,5 +1,6 @@
 import { test, expect, Page } from "@playwright/test";
 import path from "path";
+import { gotoWithRack } from "./helpers";
 
 /**
  * Carlton Migration Test (#883)
@@ -31,8 +32,8 @@ test.describe("Carlton Migration (#879)", () => {
   const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await resetAppState(page);
+    // Load a rack via share link so the app is in a ready state for file loading
+    await gotoWithRack(page);
   });
 
   /**
@@ -44,19 +45,6 @@ test.describe("Carlton Migration (#879)", () => {
     await page.keyboard.press(`${modifier}+o`);
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(filePath);
-  }
-
-  /**
-   * Helper to reset app state (clear storage, set hasStarted flag, reload)
-   */
-  async function resetAppState(page: Page) {
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    await page.locator(".rack-container").first().waitFor({ state: "visible" });
   }
 
   test("loads Carlton's zip file with decimal position successfully", async ({
@@ -138,8 +126,8 @@ test.describe("Carlton Migration (#879)", () => {
     const savedPath = test.info().outputPath("carlton-resaved.Rackula.zip");
     await download.saveAs(savedPath);
 
-    // Reload page and clear state
-    await resetAppState(page);
+    // Reload with a fresh rack state
+    await gotoWithRack(page);
 
     // Load the re-saved file via keyboard shortcut
     await loadFileViaKeyboard(page, savedPath);

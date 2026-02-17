@@ -1,4 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
+import { gotoWithRack } from "./helpers";
 
 /**
  * Helper to get the current panzoom transform
@@ -16,43 +17,9 @@ async function getPanzoomTransform(page: Page) {
   });
 }
 
-/**
- * Create a rack through the wizard (step 1: name and type, step 2: height)
- */
-async function createRackViaWizard(page: Page, name: string, height: number) {
-  // Step 1: Name and type (already visible)
-  await expect(page.locator("#rack-name")).toBeVisible({ timeout: 10000 });
-  await page.fill("#rack-name", name);
-
-  // Select Column layout (single rack)
-  await page.click('button:has-text("Column")');
-  await page.click('button:has-text("Next")');
-
-  // Step 2: Height
-  const presetHeights = [12, 18, 24, 42];
-  if (presetHeights.includes(height)) {
-    await page.click(`.height-btn:has-text("${height}U")`);
-  } else {
-    await page.click('.height-btn:has-text("Custom")');
-    await page.fill("#custom-height", String(height));
-  }
-  await page.click('button:has-text("Create")');
-
-  // Wait for rack to appear
-  await expect(page.locator(".rack-container").first()).toBeVisible({
-    timeout: 10000,
-  });
-}
-
 test.describe("Rack Context Menu Focus", () => {
   test.beforeEach(async ({ page }) => {
-    // Set hasStarted flag before navigation so welcome page is skipped
-    await page.addInitScript(() => {
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.goto("/");
-    // Create a rack through the wizard (appears when no autosave)
-    await createRackViaWizard(page, "Test Rack", 42);
+    await gotoWithRack(page);
   });
 
   test("Focus option in canvas context menu triggers focus function", async ({
@@ -79,16 +46,13 @@ test.describe("Rack Context Menu Focus", () => {
     // Focus recalculates and applies optimal zoom/pan for the rack.
     // Even from the initial position, Focus will center the rack.
     // Wait for transform to potentially change (animation may take time)
-    await page.waitForTimeout(350); // Allow smooth animation to complete
-
-    // Get transform after Focus
-    const transformAfter = await getPanzoomTransform(page);
-    expect(transformAfter).toBeTruthy();
-
-    // The transforms should exist and have valid values
-    expect(transformAfter?.scale).toBeDefined();
-    expect(transformAfter?.x).toBeDefined();
-    expect(transformAfter?.y).toBeDefined();
+    await expect(async () => {
+      const transformAfter = await getPanzoomTransform(page);
+      expect(transformAfter).toBeTruthy();
+      expect(transformAfter?.scale).toBeDefined();
+      expect(transformAfter?.x).toBeDefined();
+      expect(transformAfter?.y).toBeDefined();
+    }).toPass({ timeout: 1000 });
   });
 
   test("Focus option in Racks panel context menu works", async ({ page }) => {
@@ -117,14 +81,13 @@ test.describe("Rack Context Menu Focus", () => {
     // Click Focus - this triggers the focusRack function via callback chain
     await focusItem.click();
 
-    // Wait for any animation to complete
-    await page.waitForTimeout(350);
-
     // Verify the transform exists (Focus was applied)
-    const transformAfter = await getPanzoomTransform(page);
-    expect(transformAfter).toBeTruthy();
-    expect(transformAfter?.scale).toBeDefined();
-    expect(transformAfter?.x).toBeDefined();
-    expect(transformAfter?.y).toBeDefined();
+    await expect(async () => {
+      const transformAfter = await getPanzoomTransform(page);
+      expect(transformAfter).toBeTruthy();
+      expect(transformAfter?.scale).toBeDefined();
+      expect(transformAfter?.x).toBeDefined();
+      expect(transformAfter?.y).toBeDefined();
+    }).toPass({ timeout: 1000 });
   });
 });

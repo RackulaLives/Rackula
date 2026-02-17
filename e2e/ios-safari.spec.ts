@@ -4,14 +4,11 @@
  * Tests mobile-specific functionality across iOS device viewports.
  * Uses Playwright WebKit as a baseline for catching rendering and interaction issues.
  *
- * Note: Playwright's WebKit is a desktop build, not actual Mobile Safari.
- * For comprehensive iOS coverage, these tests should also run on real devices
- * via BrowserStack or LambdaTest (see docs/guides/TESTING.md).
- *
  * @see https://github.com/RackulaLives/Rackula/issues/228
  */
 import { test, expect, type Page } from "@playwright/test";
 import { openDeviceLibraryFromBottomNav } from "./helpers/mobile-navigation";
+import { EMPTY_RACK_SHARE, dragDeviceToRack } from "./helpers";
 
 // iOS Device viewport matrix
 const iosDevices = [
@@ -23,73 +20,22 @@ const iosDevices = [
   { name: "iPad Pro 12.9", width: 1024, height: 1366, mobile: false },
 ] as const;
 
-// Mobile-only devices (width < 1024px triggers mobile mode)
 const mobileDevices = iosDevices.filter((d) => d.width < 1024);
 
 /**
- * Setup helper for mobile viewport tests
+ * Setup helper for mobile viewport tests - uses share link instead of v0.2 flow
  */
 async function setupMobileViewport(
   page: Page,
   device: (typeof iosDevices)[number],
 ) {
   await page.setViewportSize({ width: device.width, height: device.height });
-  await page.goto("/");
-
-  // Clear storage and set started flag for consistent state
+  await page.goto(`/?l=${EMPTY_RACK_SHARE}`);
+  // Dismiss mobile warning modal for tests
   await page.evaluate(() => {
-    sessionStorage.clear();
-    localStorage.clear();
-    localStorage.setItem("Rackula_has_started", "true");
-    // Dismiss mobile warning modal for tests
     sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
   });
-  await page.reload();
-  await page.waitForTimeout(300);
-}
-
-/**
- * Helper to add a device to the rack via drag simulation
- */
-async function addDeviceToRack(page: Page) {
-  await page.evaluate(() => {
-    const deviceItem = document.querySelector(".device-palette-item");
-    const rack = document.querySelector(".rack-svg");
-
-    if (!deviceItem || !rack) {
-      throw new Error("Could not find device item or rack");
-    }
-
-    const dataTransfer = new DataTransfer();
-    const dragStartEvent = new DragEvent("dragstart", {
-      bubbles: true,
-      cancelable: true,
-      dataTransfer,
-    });
-    deviceItem.dispatchEvent(dragStartEvent);
-
-    const dragOverEvent = new DragEvent("dragover", {
-      bubbles: true,
-      cancelable: true,
-      dataTransfer,
-    });
-    rack.dispatchEvent(dragOverEvent);
-
-    const dropEvent = new DragEvent("drop", {
-      bubbles: true,
-      cancelable: true,
-      dataTransfer,
-    });
-    rack.dispatchEvent(dropEvent);
-
-    const dragEndEvent = new DragEvent("dragend", {
-      bubbles: true,
-      cancelable: true,
-      dataTransfer,
-    });
-    deviceItem.dispatchEvent(dragEndEvent);
-  });
-  await page.waitForTimeout(100);
+  await page.locator(".rack-container").first().waitFor({ state: "visible" });
 }
 
 // ============================================================================
@@ -131,9 +77,7 @@ test.describe("Devices Tab (Device Library)", () => {
     });
   }
 
-  test("Device library FAB is removed in desktop mode", async ({
-    page,
-  }) => {
+  test("Device library FAB is removed in desktop mode", async ({ page }) => {
     const device = iosDevices.find((d) => d.name === "iPad Pro 12.9")!;
     await setupMobileViewport(page, device);
 
@@ -201,7 +145,7 @@ test.describe("Device Label Positioning", () => {
       device.name + " - device labels render within bounds",
       async ({ page }) => {
         await setupMobileViewport(page, device);
-        await addDeviceToRack(page);
+        await dragDeviceToRack(page);
 
         const rackDevice = page.locator(".rack-device").first();
         await expect(rackDevice).toBeVisible({ timeout: 5000 });
@@ -248,7 +192,7 @@ test.describe("Haptic Feedback", () => {
 
     expect(typeof vibrateSupported).toBe("boolean");
 
-    await addDeviceToRack(page);
+    await dragDeviceToRack(page);
 
     const device = page.locator(".rack-device").first();
     await expect(device).toBeVisible({ timeout: 5000 });

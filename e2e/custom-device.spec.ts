@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { gotoWithRack, dragDeviceToRack } from "./helpers";
 
 /**
  * E2E Tests for Custom Device Creation and Placement (Issue #166)
@@ -7,15 +8,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Custom Device Height (Issue #166)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    // Clear storage and set hasStarted flag
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
-      localStorage.setItem("Rackula_has_started", "true");
-    });
-    await page.reload();
-    await page.waitForTimeout(500);
+    await gotoWithRack(page);
   });
 
   test("custom 4U device renders with correct height after placement", async ({
@@ -32,7 +25,6 @@ test.describe("Custom Device Height (Issue #166)", () => {
 
     // 3. Submit the form
     await page.click('button:has-text("Add Device")');
-    await page.waitForTimeout(300);
 
     // 4. Verify custom device appears in palette
     const customDevice = page.locator(
@@ -40,56 +32,9 @@ test.describe("Custom Device Height (Issue #166)", () => {
     );
     await expect(customDevice).toBeVisible();
 
-    // 5. Drag device to rack using JavaScript simulation
-    await page.evaluate(() => {
-      const deviceItem = Array.from(
-        document.querySelectorAll(".device-palette-item"),
-      ).find((el) => el.textContent?.includes("RACKOWL 4U Server"));
-      const rack = document.querySelector(".rack-svg");
-
-      if (!deviceItem || !rack) {
-        throw new Error("Could not find device item or rack");
-      }
-
-      const dataTransfer = new DataTransfer();
-
-      const dragStartEvent = new DragEvent("dragstart", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-      });
-      deviceItem.dispatchEvent(dragStartEvent);
-
-      const rackRect = rack.getBoundingClientRect();
-      const dropY = rackRect.top + rackRect.height / 2;
-
-      const dragOverEvent = new DragEvent("dragover", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-        clientX: rackRect.left + rackRect.width / 2,
-        clientY: dropY,
-      });
-      rack.dispatchEvent(dragOverEvent);
-
-      const dropEvent = new DragEvent("drop", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-        clientX: rackRect.left + rackRect.width / 2,
-        clientY: dropY,
-      });
-      rack.dispatchEvent(dropEvent);
-
-      const dragEndEvent = new DragEvent("dragend", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-      });
-      deviceItem.dispatchEvent(dragEndEvent);
-    });
-
-    await page.waitForTimeout(300);
+    // 5. Drag device to rack using shared helper (new device is last in list)
+    const deviceCount = await page.locator(".device-palette-item").count();
+    await dragDeviceToRack(page, { deviceIndex: deviceCount - 1 });
 
     // 6. Verify device appears in rack
     const rackDevice = page.locator(".rack-device").first();
@@ -117,57 +62,10 @@ test.describe("Custom Device Height (Issue #166)", () => {
 
     // 3. Submit the form
     await page.click('button:has-text("Add Device")');
-    await page.waitForTimeout(300);
 
-    // 4. Drag device to rack at position ~U20
-    await page.evaluate(() => {
-      const deviceItem = Array.from(
-        document.querySelectorAll(".device-palette-item"),
-      ).find((el) => el.textContent?.includes("Test 2U Storage"));
-      const rack = document.querySelector(".rack-svg");
-
-      if (!deviceItem || !rack) {
-        throw new Error("Could not find device item or rack");
-      }
-
-      const dataTransfer = new DataTransfer();
-
-      const dragStartEvent = new DragEvent("dragstart", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-      });
-      deviceItem.dispatchEvent(dragStartEvent);
-
-      const rackRect = rack.getBoundingClientRect();
-
-      const dragOverEvent = new DragEvent("dragover", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-        clientX: rackRect.left + rackRect.width / 2,
-        clientY: rackRect.top + rackRect.height / 2,
-      });
-      rack.dispatchEvent(dragOverEvent);
-
-      const dropEvent = new DragEvent("drop", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-        clientX: rackRect.left + rackRect.width / 2,
-        clientY: rackRect.top + rackRect.height / 2,
-      });
-      rack.dispatchEvent(dropEvent);
-
-      const dragEndEvent = new DragEvent("dragend", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-      });
-      deviceItem.dispatchEvent(dragEndEvent);
-    });
-
-    await page.waitForTimeout(300);
+    // 4. Drag device to rack (new device is last in list)
+    const deviceCount = await page.locator(".device-palette-item").count();
+    await dragDeviceToRack(page, { deviceIndex: deviceCount - 1 });
 
     // 5. Verify device renders with 2U height
     const deviceRect = page.locator(".rack-device .device-rect").first();

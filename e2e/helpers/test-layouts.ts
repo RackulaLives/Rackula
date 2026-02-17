@@ -34,6 +34,26 @@ const EMPTY_12U_RACK: MinimalLayout = {
   },
 };
 
+const EMPTY_18U_RACK: MinimalLayout = {
+  ...EMPTY_RACK_MINIMAL,
+  n: "Medium Test Layout",
+  r: {
+    ...EMPTY_RACK_MINIMAL.r,
+    n: "Medium Rack",
+    h: 18,
+  },
+};
+
+const EMPTY_24U_RACK: MinimalLayout = {
+  ...EMPTY_RACK_MINIMAL,
+  n: "Standard Test Layout",
+  r: {
+    ...EMPTY_RACK_MINIMAL.r,
+    n: "Standard Rack",
+    h: 24,
+  },
+};
+
 const RACK_WITH_DEVICE: MinimalLayout = {
   ...EMPTY_RACK_MINIMAL,
   n: "Test Layout with Device",
@@ -72,6 +92,12 @@ export const EMPTY_RACK_SHARE = encodeMinimal(EMPTY_RACK_MINIMAL);
 
 /** Empty 12U rack - for compact layout tests */
 export const SMALL_RACK_SHARE = encodeMinimal(EMPTY_12U_RACK);
+
+/** Empty 18U rack */
+export const MEDIUM_RACK_SHARE = encodeMinimal(EMPTY_18U_RACK);
+
+/** Empty 24U rack */
+export const STANDARD_RACK_SHARE = encodeMinimal(EMPTY_24U_RACK);
 
 /** Rack with one 1U server device pre-placed */
 export const RACK_WITH_DEVICE_SHARE = encodeMinimal(RACK_WITH_DEVICE);
