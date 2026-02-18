@@ -1,22 +1,29 @@
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
-import { readFileSync } from "fs";
-import { execSync } from "child_process";
+import { existsSync, readFileSync } from "fs";
+import { execFileSync } from "child_process";
 
 // Read version from package.json
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
 
 // Git info helpers with graceful fallbacks
+function runGit(args: string[]): string {
+  return execFileSync("git", args, {
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "ignore"],
+  }).trim();
+}
+
 function getGitInfo() {
+  // Docker builds exclude .git via .dockerignore.
+  if (!existsSync(".git")) {
+    return { commitHash: "", branchName: "", isDirty: false };
+  }
+
   try {
-    const commitHash = execSync("git rev-parse --short HEAD", {
-      encoding: "utf-8",
-    }).trim();
-    const branchName = execSync("git rev-parse --abbrev-ref HEAD", {
-      encoding: "utf-8",
-    }).trim();
-    const isDirty =
-      execSync("git status --porcelain", { encoding: "utf-8" }).trim() !== "";
+    const commitHash = runGit(["rev-parse", "--short", "HEAD"]);
+    const branchName = runGit(["rev-parse", "--abbrev-ref", "HEAD"]);
+    const isDirty = runGit(["status", "--porcelain"]) !== "";
     return { commitHash, branchName, isDirty };
   } catch {
     // Git not available or not a git repo
