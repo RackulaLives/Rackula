@@ -85,8 +85,20 @@ For production/self-hosted API security:
 
 - `CORS_ORIGIN` should be your real app URL (restricts which browser origins can call the API).
 - `RACKULA_API_WRITE_TOKEN` protects API `PUT`/`DELETE` routes (optional, strongly recommended). If unset, write routes remain open.
+- `RACKULA_AUTH_MODE` controls centralized auth gate behavior:
+  - `none`: auth gate disabled (best for local/trusted development only)
+  - `oidc`: use an OpenID Connect provider (requires provider config plus `RACKULA_AUTH_SESSION_SECRET`)
+  - `local`: local auth mode (requires `RACKULA_AUTH_SESSION_SECRET`; tracking: [#1117](https://github.com/RackulaLives/Rackula/issues/1117))
+- `RACKULA_AUTH_SESSION_SECRET` is required when auth mode is enabled (minimum 32 characters). Use a random secret and rotate it when needed.
+- Current stable auth hardening: deny-by-default gate, signed session cookies, timeout/rotation policy, CSRF enforcement.
+- Current auth flow maturity: OIDC/local login provider wiring is still in progress.
+- For HTTPS deployments, set `RACKULA_AUTH_SESSION_COOKIE_SECURE=true` (compose templates default to this). Only set `false` for local HTTP testing.
+- Session hardening defaults are enabled when auth is on:
+  - `HttpOnly` cookie, `SameSite=Lax`, `Secure` in production
+  - bounded absolute + idle session lifetime
+  - CSRF checks on state-changing cookie-authenticated requests
 
-Generate a strong token:
+Generate strong secrets:
 
 ```bash
 openssl rand -hex 32
@@ -98,6 +110,12 @@ Set values in a `.env` file beside `docker-compose.yml`:
 cat > .env <<'EOF'
 CORS_ORIGIN=https://rack.example.com
 RACKULA_API_WRITE_TOKEN=replace-with-generated-token
+RACKULA_AUTH_MODE=none
+# To enable auth gate:
+# RACKULA_AUTH_MODE=oidc
+# RACKULA_AUTH_MODE=local
+# RACKULA_AUTH_SESSION_SECRET=replace-with-generated-secret
+# RACKULA_AUTH_SESSION_COOKIE_SECURE=true
 EOF
 docker compose up -d
 ```
