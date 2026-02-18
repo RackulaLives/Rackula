@@ -93,6 +93,7 @@ const MAX_INVALIDATED_AUTH_SESSIONS = 10_000;
 // This is acceptable for the current single-process baseline but does not survive
 // restarts or coordinate across replicas. For distributed/HA deployments, replace
 // this map with a shared TTL-backed store (for example Redis).
+// Tracking: https://github.com/RackulaLives/Rackula/issues/1269
 const invalidatedAuthSessionIds = new Map<string, number>();
 
 function timingSafeTokenCompare(
@@ -635,6 +636,8 @@ export function invalidateAuthSession(
   }
 
   // Bound in-memory invalidation tracking to avoid unbounded growth.
+  // TODO: if MAX_INVALIDATED_AUTH_SESSIONS is increased materially, replace
+  // this linear scan with a min-heap or shared sorted-set backend.
   while (invalidatedAuthSessionIds.size >= MAX_INVALIDATED_AUTH_SESSIONS) {
     let earliestExpiry = Number.POSITIVE_INFINITY;
     let earliestExpirySessionId: string | undefined;

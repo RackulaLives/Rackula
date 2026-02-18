@@ -23,7 +23,6 @@ map "$rackula_is_write_method:$rackula_has_api_write_token" $rackula_api_authori
 # Track whether auth mode is effectively disabled for fallback behavior.
 map "${RACKULA_AUTH_MODE}" $rackula_auth_mode_none {
     default 0;
-    "" 1;
     ~*^none$ 1;
 }
 
@@ -82,6 +81,8 @@ server {
         set $api_upstream ${API_HOST};
         proxy_pass http://$api_upstream:${API_PORT}/auth/login$is_args$args;
         include /etc/nginx/snippets/auth-proxy.conf;
+        proxy_intercept_errors on;
+        error_page 502 503 504 = @auth_service_unavailable;
     }
 
     location = /auth/callback {
@@ -89,6 +90,13 @@ server {
         set $api_upstream ${API_HOST};
         proxy_pass http://$api_upstream:${API_PORT}/auth/callback$is_args$args;
         include /etc/nginx/snippets/auth-proxy.conf;
+        proxy_intercept_errors on;
+        error_page 502 503 504 = @auth_service_unavailable;
+    }
+
+    location @auth_service_unavailable {
+        default_type text/html;
+        return 503 '<!doctype html><html><head><meta charset="utf-8"><title>Authentication Unavailable</title></head><body><h1>Authentication temporarily unavailable</h1><p>The authentication service is currently unreachable. Please try again in a few moments.</p></body></html>';
     }
     
     # Handle /api and /api/ edge cases - return JSON error, not SPA fallback (#1010)
@@ -165,7 +173,7 @@ server {
     }
 
     location @auth_login_redirect {
-        return 302 /auth/login;
+        return 302 /auth/login?next=$request_uri;
     }
 
     # Container health check - used by Docker/K8s for liveness/readiness probes
