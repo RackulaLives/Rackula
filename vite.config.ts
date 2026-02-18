@@ -1,34 +1,51 @@
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
-import { existsSync, readFileSync } from "fs";
+import { readFileSync } from "fs";
 import { execFileSync } from "child_process";
 
 // Read version from package.json
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
 
 // Git info helpers with graceful fallbacks
-function runGit(args: string[]): string {
-  return execFileSync("git", args, {
-    encoding: "utf-8",
-    stdio: ["ignore", "pipe", "ignore"],
-  }).trim();
+interface GitInfo {
+  commitHash: string;
+  branchName: string;
+  isDirty: boolean;
 }
 
-function getGitInfo() {
-  // Docker builds exclude .git via .dockerignore.
-  if (!existsSync(".git")) {
+const GIT_COMMAND_TIMEOUT_MS = 3000;
+
+function runGit(args: string[]): string {
+  try {
+    return execFileSync("git", args, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: GIT_COMMAND_TIMEOUT_MS,
+    }).trim();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to run git ${args.join(" ")}: ${detail}`);
+  }
+}
+
+function tryRunGit(args: string[]): string {
+  try {
+    return runGit(args);
+  } catch {
+    return "";
+  }
+}
+
+function getGitInfo(): GitInfo {
+  const commitHash = tryRunGit(["rev-parse", "--short", "HEAD"]);
+  const branchName = tryRunGit(["rev-parse", "--abbrev-ref", "HEAD"]);
+  const dirtyOutput = tryRunGit(["status", "--porcelain"]);
+
+  if (!commitHash && !branchName && !dirtyOutput) {
     return { commitHash: "", branchName: "", isDirty: false };
   }
 
-  try {
-    const commitHash = runGit(["rev-parse", "--short", "HEAD"]);
-    const branchName = runGit(["rev-parse", "--abbrev-ref", "HEAD"]);
-    const isDirty = runGit(["status", "--porcelain"]) !== "";
-    return { commitHash, branchName, isDirty };
-  } catch {
-    // Git not available or not a git repo
-    return { commitHash: "", branchName: "", isDirty: false };
-  }
+  return { commitHash, branchName, isDirty: dirtyOutput !== "" };
 }
 
 const gitInfo = getGitInfo();
