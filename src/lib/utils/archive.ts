@@ -41,7 +41,7 @@ type JSZipInstance = ReturnType<JSZipConstructor>;
 
 let jsZipConstructor: JSZipConstructor | null = null;
 
-async function getJSZip(): Promise<JSZipConstructor> {
+export async function getJSZip(): Promise<JSZipConstructor> {
   if (!jsZipConstructor) {
     const module = (await import("jszip")) as unknown as {
       default?: JSZipConstructor;
@@ -106,9 +106,7 @@ interface ZipFormat {
  * Detect the format of a ZIP archive
  * Supports both new folder structure (#919) and old flat structure
  */
-async function detectZipFormat(
-  zip: JSZipInstance,
-): Promise<ZipFormat> {
+async function detectZipFormat(zip: JSZipInstance): Promise<ZipFormat> {
   const entries = Object.keys(zip.files);
 
   // Look for new format: folder with UUID and .rackula.yaml
@@ -342,9 +340,7 @@ async function extractNewFormatZip(
   if (assetsPath) {
     const imageFiles = Object.keys(zip.files).filter(
       (name) =>
-        name.startsWith(assetsPath) &&
-        !name.endsWith("/") &&
-        isImageFile(name),
+        name.startsWith(assetsPath) && !name.endsWith("/") && isImageFile(name),
     );
 
     for (const imagePath of imageFiles) {
