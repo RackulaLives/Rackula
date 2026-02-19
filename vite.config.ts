@@ -1,6 +1,6 @@
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { execFileSync } from "child_process";
 
 // Read version from package.json
@@ -37,6 +37,10 @@ function tryRunGit(args: string[]): string {
 }
 
 function getGitInfo(): GitInfo {
+  if (!existsSync(".git")) {
+    return { commitHash: "", branchName: "", isDirty: false };
+  }
+
   const commitHash = tryRunGit(["rev-parse", "--short", "HEAD"]);
   const branchName = tryRunGit(["rev-parse", "--abbrev-ref", "HEAD"]);
   const dirtyOutput = tryRunGit(["status", "--porcelain"]);
