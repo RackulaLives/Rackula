@@ -3,7 +3,7 @@
  * Provides a simple interface for creating ZIP archives with images
  */
 
-import JSZip from "jszip";
+import { getJSZip } from "./archive";
 
 export interface ZipFile {
   /** Filename within the ZIP (e.g., 'rack-name-front.png') */
@@ -19,6 +19,7 @@ export interface ZipFile {
  * @returns Promise resolving to the ZIP file as a Blob
  */
 export async function createZip(files: ZipFile[]): Promise<Blob> {
+  const JSZip = await getJSZip();
   const zip = new JSZip();
 
   for (const file of files) {
