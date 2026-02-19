@@ -47,7 +47,7 @@ ENV API_HOST=rackula-api
 ENV API_PORT=3001
 ENV RACKULA_AUTH_MODE=none
 ENV RACKULA_LISTEN_PORT=8080
-ENV NGINX_ENVSUBST_FILTER=^(API_HOST|API_PORT|API_WRITE_TOKEN|RACKULA_AUTH_MODE|RACKULA_LISTEN_PORT)$
+ENV NGINX_ENVSUBST_FILTER=^(API_HOST|API_PORT|API_WRITE_TOKEN|RACKULA_AUTH_MODE|AUTH_MODE|RACKULA_LISTEN_PORT)$
 
 # Copy nginx config template (auto-processed by nginx's /docker-entrypoint.d/20-envsubst-on-templates.sh)
 COPY ./deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
