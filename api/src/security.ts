@@ -1048,6 +1048,7 @@ export function createAuthGateMiddleware(
     const claims = resolveAuthenticatedSessionClaims(c.req.raw, securityConfig);
     if (claims) {
       c.set("authSubject", claims.sub);
+      c.set("authClaims", claims);
 
       const refreshedCookie = createRefreshedAuthSessionCookieHeader(
         claims,
