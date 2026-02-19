@@ -152,6 +152,16 @@ describe("resolveApiSecurityConfig", () => {
     ).toThrow("RACKULA_AUTH_SESSION_MAX_AGE_SECONDS must be an integer >= 60");
   });
 
+  it("rejects malformed session generation values with trailing characters", () => {
+    expect(() =>
+      resolveApiSecurityConfig(
+        buildAuthEnabledEnv({
+          RACKULA_AUTH_SESSION_GENERATION: "0abc",
+        }),
+      ),
+    ).toThrow("RACKULA_AUTH_SESSION_GENERATION must be an integer >= 0");
+  });
+
   it("rejects auth login paths that begin with double slash", () => {
     expect(() =>
       resolveApiSecurityConfig(

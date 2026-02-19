@@ -254,11 +254,20 @@ function parseNonNegativeInteger(
   value: string | undefined,
   fallback: number,
 ): number {
-  if (value === undefined || value.trim().length === 0) {
+  if (value === undefined) {
     return fallback;
   }
 
-  const parsed = Number.parseInt(value, 10);
+  const trimmedValue = value.trim();
+  if (trimmedValue.length === 0) {
+    return fallback;
+  }
+
+  if (!/^\d+$/.test(trimmedValue)) {
+    throw new Error(`${name} must be an integer >= 0.`);
+  }
+
+  const parsed = Number.parseInt(trimmedValue, 10);
   if (!Number.isFinite(parsed) || parsed < 0) {
     throw new Error(`${name} must be an integer >= 0.`);
   }

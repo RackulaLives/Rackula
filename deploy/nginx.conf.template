@@ -97,6 +97,24 @@ server {
         error_page 502 503 504 = @auth_service_unavailable;
     }
 
+    location = /auth/check {
+        resolver 127.0.0.11 valid=30s;
+        set $api_upstream ${API_HOST};
+        proxy_pass http://$api_upstream:${API_PORT}/auth/check$is_args$args;
+        include /etc/nginx/snippets/auth-proxy.conf;
+        proxy_intercept_errors on;
+        error_page 502 503 504 = @auth_service_unavailable;
+    }
+
+    location = /auth/logout {
+        resolver 127.0.0.11 valid=30s;
+        set $api_upstream ${API_HOST};
+        proxy_pass http://$api_upstream:${API_PORT}/auth/logout$is_args$args;
+        include /etc/nginx/snippets/auth-proxy.conf;
+        proxy_intercept_errors on;
+        error_page 502 503 504 = @auth_service_unavailable;
+    }
+
     location @auth_service_unavailable {
         default_type text/html;
         return 503 '<!doctype html><html><head><meta charset="utf-8"><title>Authentication Unavailable</title></head><body><h1>Authentication temporarily unavailable</h1><p>The authentication service is currently unreachable. Please try again in a few moments.</p></body></html>';
@@ -179,7 +197,8 @@ server {
     }
 
     location @auth_login_redirect {
-        return 302 /auth/login?next=$request_uri;
+        # Use normalized URI here to avoid passing raw query delimiters in next.
+        return 302 /auth/login?next=$uri;
     }
 
     # Container health check - used by Docker/K8s for liveness/readiness probes
