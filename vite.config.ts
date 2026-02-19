@@ -15,25 +15,71 @@ interface GitInfo {
 
 const GIT_COMMAND_TIMEOUT_MS = 3000;
 
+function getGitStderr(error: unknown): string {
+  if (!error || typeof error !== "object") {
+    return "";
+  }
+
+  const stderr = (error as { stderr?: unknown }).stderr;
+  if (typeof stderr === "string") {
+    return stderr.trim();
+  }
+  if (stderr instanceof Uint8Array) {
+    return Buffer.from(stderr).toString("utf-8").trim();
+  }
+
+  return "";
+}
+
+function isGitTimeoutError(error: unknown): boolean {
+  const hasTimeoutMarker = (value: string): boolean =>
+    value.includes("ETIMEDOUT") || value.toLowerCase().includes("timed out");
+
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if (hasTimeoutMarker(error.message)) {
+    return true;
+  }
+
+  const cause = (error as Error & { cause?: unknown }).cause;
+  if (cause instanceof Error && hasTimeoutMarker(cause.message)) {
+    return true;
+  }
+  if (cause && typeof cause === "object") {
+    return (cause as { code?: unknown }).code === "ETIMEDOUT";
+  }
+
+  return false;
+}
+
 function runGit(args: string[]): string {
   try {
     return execFileSync("git", args, {
       encoding: "utf-8",
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: ["ignore", "pipe", "pipe"],
       timeout: GIT_COMMAND_TIMEOUT_MS,
     }).trim();
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to run git ${args.join(" ")}: ${detail}`, {
+    const stderr = getGitStderr(error);
+    const message = stderr
+      ? `Failed to run git ${args.join(" ")}: ${detail} | stderr: ${stderr}`
+      : `Failed to run git ${args.join(" ")}: ${detail}`;
+    throw new Error(message, {
       cause: error,
     });
   }
 }
 
-function tryRunGit(args: string[]): string {
+function tryRunGit(args: string[]): string | null {
   try {
     return runGit(args);
-  } catch {
+  } catch (error) {
+    if (isGitTimeoutError(error)) {
+      return null;
+    }
     return "";
   }
 }
@@ -43,13 +89,18 @@ function getGitInfo(): GitInfo {
     return { commitHash: "", branchName: "", isDirty: false };
   }
 
-  const commitHash = tryRunGit(["rev-parse", "--short", "HEAD"]);
-  const branchName = tryRunGit(["rev-parse", "--abbrev-ref", "HEAD"]);
+  const commitHash = tryRunGit(["rev-parse", "--short", "HEAD"]) ?? "";
+  const branchName = tryRunGit(["rev-parse", "--abbrev-ref", "HEAD"]) ?? "";
   // Intentionally include untracked files in dirtyOutput so isDirty reflects
   // any local workspace deviation, not only tracked-file modifications.
   const dirtyOutput = tryRunGit(["status", "--porcelain"]);
+  if (dirtyOutput === null) {
+    process.emitWarning(
+      "[vite] git status timed out; treating dirty state as unknown and defaulting isDirty=true.",
+    );
+  }
 
-  return { commitHash, branchName, isDirty: dirtyOutput !== "" };
+  return { commitHash, branchName, isDirty: dirtyOutput === null || dirtyOutput !== "" };
 }
 
 const gitInfo = getGitInfo();
