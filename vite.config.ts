@@ -24,7 +24,9 @@ function runGit(args: string[]): string {
     }).trim();
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to run git ${args.join(" ")}: ${detail}`);
+    throw new Error(`Failed to run git ${args.join(" ")}: ${detail}`, {
+      cause: error,
+    });
   }
 }
 
@@ -43,6 +45,8 @@ function getGitInfo(): GitInfo {
 
   const commitHash = tryRunGit(["rev-parse", "--short", "HEAD"]);
   const branchName = tryRunGit(["rev-parse", "--abbrev-ref", "HEAD"]);
+  // Intentionally include untracked files in dirtyOutput so isDirty reflects
+  // any local workspace deviation, not only tracked-file modifications.
   const dirtyOutput = tryRunGit(["status", "--porcelain"]);
 
   return { commitHash, branchName, isDirty: dirtyOutput !== "" };
