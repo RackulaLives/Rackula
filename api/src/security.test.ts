@@ -34,6 +34,9 @@ function buildAuthEnabledEnv(overrides: EnvMap = {}): EnvMap {
   });
 }
 
+// Default cookie carries role: "admin" so existing integration tests covering
+// the auth gate and CSRF layer also pass the admin authorization check on write
+// routes. Override role explicitly when testing non-admin behaviour.
 function buildAuthCookie(
   overrides: Partial<AuthSessionClaimsInput> = {},
 ): string {
@@ -864,7 +867,7 @@ describe("authorization", () => {
     const response = await app.request("/layouts/not-a-uuid", {
       method: "PUT",
       headers: {
-        Cookie: buildAuthCookie({ role: "admin" }),
+        Cookie: buildAuthCookie(),
         Origin: "https://rack.example.com",
         "Content-Type": "text/plain",
       },
@@ -958,5 +961,29 @@ describe("authorization", () => {
 
     // No auth gate, no admin check, hits route validation
     expect(response.status).toBe(400);
+  });
+
+  it("writeAuth accepts token but requireAdmin blocks non-admin", async () => {
+    const app = createApp(
+      buildAuthEnabledEnv({ RACKULA_API_WRITE_TOKEN: TEST_TOKEN }),
+    );
+
+    const response = await app.request("/layouts/not-a-uuid", {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${TEST_TOKEN}`,
+        Cookie: buildAuthCookie({ role: "viewer", sid: "non-admin-token-session" }),
+        Origin: "https://rack.example.com",
+        "Content-Type": "text/plain",
+      },
+      body: "version: 1.0.0",
+    });
+
+    // writeAuth passes (valid token), requireAdmin rejects (not admin)
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: "Forbidden",
+      message: "Admin role required.",
+    });
   });
 });

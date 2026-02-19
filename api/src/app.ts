@@ -61,7 +61,7 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
     "*",
     cors({
       origin: securityConfig.corsOrigin,
-      allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type", "Authorization"],
     }),
   );
