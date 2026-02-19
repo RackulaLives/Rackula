@@ -41,10 +41,6 @@ function getGitInfo(): GitInfo {
   const branchName = tryRunGit(["rev-parse", "--abbrev-ref", "HEAD"]);
   const dirtyOutput = tryRunGit(["status", "--porcelain"]);
 
-  if (!commitHash && !branchName && !dirtyOutput) {
-    return { commitHash: "", branchName: "", isDirty: false };
-  }
-
   return { commitHash, branchName, isDirty: dirtyOutput !== "" };
 }
 
