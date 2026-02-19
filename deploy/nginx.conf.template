@@ -27,13 +27,6 @@ map "${RACKULA_AUTH_MODE}" $rackula_auth_mode_none {
     ~*^none$ 1;
 }
 
-# Select auth_request target by mode. "off" disables auth subrequests.
-map "${RACKULA_AUTH_MODE}" $rackula_auth_request_uri {
-    "" "off";
-    ~*^none$ "off";
-    default "/_rackula_auth_check";
-}
-
 log_format rackula_auth_upstream_failure
     'auth_upstream_unavailable '
     'remote_addr=$remote_addr request_uri=$request_uri '
@@ -154,6 +147,9 @@ server {
     # API validates the signed session cookie and returns 204 (ok) or 401 (unauthorized).
     location = /_rackula_auth_check {
         internal;
+        if ($rackula_auth_mode_none) {
+            return 204;
+        }
         resolver 127.0.0.11 valid=30s;
         set $api_upstream ${API_HOST};
         proxy_pass http://$api_upstream:${API_PORT}/auth/check;
@@ -195,7 +191,7 @@ server {
 
     # SPA fallback - all routes to index.html
     location / {
-        auth_request $rackula_auth_request_uri;
+        auth_request /_rackula_auth_check;
         error_page 401 = @auth_login_redirect;
         error_page 403 = @auth_login_redirect;
         try_files $uri $uri/ /index.html;

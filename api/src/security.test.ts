@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { Hono } from "hono";
+import { createHmac } from "node:crypto";
 import { createApp } from "./app";
 import {
   clearInvalidatedAuthSessions,
@@ -282,6 +283,34 @@ describe("signed session tokens", () => {
     expect(afterRevocation).toBeNull();
   });
 
+  it("rejects tokens signed without the session signature context prefix", () => {
+    const now = Math.floor(Date.now() / 1000);
+    const payloadPart = Buffer.from(
+      JSON.stringify({
+        v: 2,
+        sub: "admin@example.com",
+        sid: "legacy-signature-session",
+        iat: now - 30,
+        exp: now + 300,
+        idleExp: now + 120,
+        generation: 0,
+      }),
+      "utf-8",
+    ).toString("base64url");
+    const legacySignature = createHmac("sha256", TEST_AUTH_SECRET)
+      .update(payloadPart)
+      .digest("base64url");
+    const token = `${payloadPart}.${legacySignature}`;
+
+    const claims = verifySignedAuthSessionToken(token, TEST_AUTH_SECRET, {
+      expectedGeneration: 0,
+      maxSessionMaxAgeSeconds: 3600,
+      nowSeconds: now,
+    });
+
+    expect(claims).toBeNull();
+  });
+
   it("accepts non-expired signed auth session tokens", () => {
     const now = Math.floor(Date.now() / 1000);
     const token = createSignedAuthSessionToken(
@@ -491,6 +520,23 @@ describe("csrf protection", () => {
     expect(await response.json()).toEqual({
       error: "Forbidden",
       message: "CSRF validation failed: request origin is not allowed.",
+    });
+  });
+
+  it("rejects logout requests without origin headers", async () => {
+    const app = createApp(buildAuthEnabledEnv());
+
+    const response = await app.request("/auth/logout", {
+      method: "POST",
+      headers: {
+        Cookie: buildAuthCookie({ sid: "csrf-logout-missing-origin" }),
+      },
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: "Forbidden",
+      message: "CSRF validation failed: missing Origin or Referer header.",
     });
   });
 

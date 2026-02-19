@@ -67,11 +67,9 @@ const AUTH_PUBLIC_PATHS = new Set([
   "/auth/login",
   "/auth/callback",
   "/auth/check",
-  "/auth/logout",
   "/api/auth/login",
   "/api/auth/callback",
   "/api/auth/check",
-  "/api/auth/logout",
 ]);
 const API_ROUTE_PREFIXES = ["/api", "/layouts", "/assets"];
 const SESSION_SECRET_MIN_LENGTH = 32;
@@ -87,6 +85,8 @@ const MIN_AUTH_SESSION_TIMEOUT_SECONDS = 60;
 const MAX_AUTH_SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 const AUTH_SESSION_REFRESH_THRESHOLD_SECONDS = 60;
 const DEFAULT_AUTH_SESSION_SAME_SITE: AuthSessionSameSite = "Lax";
+// Domain-separates session HMAC signatures from other potential HMAC uses.
+const AUTH_SESSION_SIGNATURE_CONTEXT = "rackula:session:v2:";
 const MAX_INVALIDATED_AUTH_SESSIONS = 10_000;
 
 // Session invalidations are stored in-memory for the current API process only.
@@ -337,7 +337,10 @@ function extractCookieValue(
 }
 
 function createSessionSignature(payloadPart: string, secret: string): Buffer {
-  return createHmac("sha256", secret).update(payloadPart).digest();
+  return createHmac("sha256", secret)
+    .update(AUTH_SESSION_SIGNATURE_CONTEXT)
+    .update(payloadPart)
+    .digest();
 }
 
 function cleanupInvalidatedAuthSessions(nowSeconds: number): void {
