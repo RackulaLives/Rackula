@@ -124,47 +124,71 @@ describe("keyboard viewport adaptation", () => {
     cleanup();
   });
 
-  it("scrolls focused input into view when keyboard is visible", () => {
-    const { viewport, getResizeHandler } = createMockVisualViewport();
-    setVisualViewport(viewport as unknown as VisualViewport);
+  it.each([
+    {
+      name: "input",
+      createElement: () => document.createElement("input"),
+    },
+    {
+      name: "textarea",
+      createElement: () => document.createElement("textarea"),
+    },
+    {
+      name: "contentEditable element",
+      createElement: () => {
+        const editable = document.createElement("div");
+        editable.tabIndex = -1;
+        Object.defineProperty(editable, "isContentEditable", {
+          value: true,
+          configurable: true,
+        });
+        return editable;
+      },
+    },
+  ])(
+    "scrolls focused $name into view when keyboard is visible",
+    ({ createElement }) => {
+      const { viewport, getResizeHandler } = createMockVisualViewport();
+      setVisualViewport(viewport as unknown as VisualViewport);
 
-    const input = document.createElement("input");
-    const scrollIntoView = vi.fn();
-    input.scrollIntoView = scrollIntoView;
-    input.getBoundingClientRect = vi.fn(() => ({
-      x: 0,
-      y: 700,
-      width: 200,
-      height: 32,
-      top: 700,
-      right: 200,
-      bottom: 732,
-      left: 0,
-      toJSON: () => ({}),
-    }));
-    document.body.appendChild(input);
-    input.focus();
+      const element = createElement();
+      const scrollIntoView = vi.fn();
+      element.scrollIntoView = scrollIntoView;
+      element.getBoundingClientRect = vi.fn(() => ({
+        x: 0,
+        y: 700,
+        width: 200,
+        height: 80,
+        top: 700,
+        right: 200,
+        bottom: 780,
+        left: 0,
+        toJSON: () => ({}),
+      }));
+      document.body.appendChild(element);
+      element.focus();
 
-    const cleanup = setupKeyboardViewportAdaptation({
-      isMobile: () => true,
-      debounceMs: 0,
-      keyboardThresholdPx: 0,
-    });
+      const cleanup = setupKeyboardViewportAdaptation({
+        isMobile: () => true,
+        debounceMs: 0,
+        keyboardThresholdPx: 0,
+      });
 
-    viewport.height = 560;
-    const resizeHandler = getResizeHandler();
-    resizeHandler(new Event("resize"));
-    vi.runAllTimers();
+      viewport.height = 560;
+      const resizeHandler = getResizeHandler();
+      resizeHandler(new Event("resize"));
+      vi.runAllTimers();
 
-    expect(scrollIntoView).toHaveBeenCalledWith({
-      block: "center",
-      inline: "nearest",
-      behavior: "smooth",
-    });
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        block: "center",
+        inline: "nearest",
+        behavior: "smooth",
+      });
 
-    cleanup();
-    input.remove();
-  });
+      cleanup();
+      element.remove();
+    },
+  );
 
   it("does not scroll focused select elements into view", () => {
     const { viewport, getResizeHandler } = createMockVisualViewport();
