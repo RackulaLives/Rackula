@@ -71,6 +71,17 @@ describe("resolveApiSecurityConfig", () => {
     expect(config.authEnabled).toBe(false);
   });
 
+  it("treats blank auth mode as none", () => {
+    const config = resolveApiSecurityConfig(
+      buildEnv({
+        RACKULA_AUTH_MODE: "   ",
+      }),
+    );
+
+    expect(config.authMode).toBe("none");
+    expect(config.authEnabled).toBe(false);
+  });
+
   it("rejects invalid auth mode", () => {
     expect(() =>
       resolveApiSecurityConfig(
@@ -323,6 +334,26 @@ describe("authentication gate", () => {
     const response = await app.request("/layouts/not-a-uuid", {
       headers: {
         Cookie: buildAuthCookie(),
+      },
+    });
+
+    // Auth gate passed; route-level UUID validation should run.
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Invalid layout UUID format",
+    });
+  });
+
+  it("accepts quoted auth session cookie values", async () => {
+    const app = createApp(buildAuthEnabledEnv());
+    const cookie = buildAuthCookie({ sid: "quoted-cookie-session" });
+    const separatorIndex = cookie.indexOf("=");
+    const cookieName = cookie.slice(0, separatorIndex);
+    const cookieValue = cookie.slice(separatorIndex + 1);
+
+    const response = await app.request("/layouts/not-a-uuid", {
+      headers: {
+        Cookie: `${cookieName}="${cookieValue}"`,
       },
     });
 

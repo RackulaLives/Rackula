@@ -155,9 +155,10 @@ function hasWildcardOrigin(origin: string | string[]): boolean {
 }
 
 function parseAuthMode(value: string | undefined): AuthMode {
-  const normalized = value?.trim().toLowerCase() ?? "none";
-  if (AUTH_MODES.has(normalized as AuthMode)) {
-    return normalized as AuthMode;
+  const normalized = value?.trim().toLowerCase();
+  const authMode = normalized || "none";
+  if (AUTH_MODES.has(authMode as AuthMode)) {
+    return authMode as AuthMode;
   }
 
   throw new Error(
@@ -315,11 +316,16 @@ function extractCookieValue(
     const name = trimmed.slice(0, separatorIndex);
     if (name !== cookieName) continue;
 
-    const value = trimmed.slice(separatorIndex + 1).trim();
+    let value = trimmed.slice(separatorIndex + 1).trim();
+    if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
+      value = value.slice(1, -1).replace(/\\(["\\])/g, "$1");
+    }
+
     if (!value) {
       return undefined;
     }
 
+    // buildSessionCookieHeader() encodes values with encodeURIComponent().
     try {
       return decodeURIComponent(value);
     } catch {
@@ -428,6 +434,15 @@ interface AuthSessionPayload {
   generation: number;
 }
 
+/**
+ * Creates a signed auth session token from validated claims.
+ *
+ * @param claims - Session claims to encode into the signed payload.
+ * @param secret - HMAC secret used to sign the payload.
+ * @param options - Optional issuance-time and policy overrides.
+ * @returns Signed session token string in `payload.signature` format.
+ * @throws Error when claims or policy-derived timestamps are invalid.
+ */
 export function createSignedAuthSessionToken(
   claims: AuthSessionClaimsInput,
   secret: string,
@@ -502,6 +517,16 @@ export function createSignedAuthSessionToken(
   return `${payloadPart}.${signaturePart}`;
 }
 
+/**
+ * Verifies and decodes a signed auth session token.
+ *
+ * @param token - Signed token produced by {@link createSignedAuthSessionToken}.
+ * @param secret - HMAC secret expected to match the token signature.
+ * @param options - Optional verification constraints for time and generation.
+ * @returns Auth session claims when the token is valid; otherwise `null`.
+ * @remarks This function returns `null` for all validation failures rather than throwing.
+ * @remarks Side effect: expired in-memory invalidation entries may be pruned.
+ */
 export function verifySignedAuthSessionToken(
   token: string,
   secret: string,
@@ -619,6 +644,14 @@ export function verifySignedAuthSessionToken(
   return claims;
 }
 
+/**
+ * Marks a session id as invalidated until its absolute expiration time.
+ *
+ * @param sessionId - Session id to revoke.
+ * @param expiresAtSeconds - Absolute token expiration epoch seconds.
+ * @returns `void`.
+ * @remarks Side effect: mutates the in-memory invalidation map and prunes expired entries.
+ */
 export function invalidateAuthSession(
   sessionId: string,
   expiresAtSeconds: number,
@@ -659,10 +692,24 @@ export function invalidateAuthSession(
   invalidatedAuthSessionIds.set(trimmedSessionId, expiresAtSeconds);
 }
 
+/**
+ * Clears all in-memory invalidated session ids.
+ *
+ * @returns `void`.
+ * @remarks Side effect: empties the in-memory invalidation map.
+ */
 export function clearInvalidatedAuthSessions(): void {
   invalidatedAuthSessionIds.clear();
 }
 
+/**
+ * Builds a `Set-Cookie` header value for an active auth session token.
+ *
+ * @param token - Signed auth session token.
+ * @param expiresAtSeconds - Absolute cookie expiration epoch seconds.
+ * @param securityConfig - Cookie naming and security attributes.
+ * @returns Serialized `Set-Cookie` header value.
+ */
 export function createAuthSessionCookieHeader(
   token: string,
   expiresAtSeconds: number,
@@ -676,6 +723,12 @@ export function createAuthSessionCookieHeader(
   return buildSessionCookieHeader(token, expiresAtSeconds, securityConfig);
 }
 
+/**
+ * Builds a `Set-Cookie` header value that expires the auth session cookie immediately.
+ *
+ * @param securityConfig - Cookie naming and security attributes.
+ * @returns Serialized `Set-Cookie` header value with `Max-Age=0`.
+ */
 export function createExpiredAuthSessionCookieHeader(
   securityConfig: Pick<
     ApiSecurityConfig,
@@ -700,6 +753,14 @@ export function createExpiredAuthSessionCookieHeader(
   return parts.join("; ");
 }
 
+/**
+ * Creates a refreshed auth session cookie when idle timeout is near expiry.
+ *
+ * @param claims - Verified claims from the current session token.
+ * @param securityConfig - Signing and cookie policy used for refresh decisions.
+ * @returns Refreshed `Set-Cookie` header value, or `null` when no refresh is needed.
+ * @throws Error when refreshed claims fail token creation validation.
+ */
 export function createRefreshedAuthSessionCookieHeader(
   claims: AuthSessionClaims,
   securityConfig: Pick<
@@ -747,6 +808,14 @@ export function createRefreshedAuthSessionCookieHeader(
   return createAuthSessionCookieHeader(refreshedToken, claims.exp, securityConfig);
 }
 
+/**
+ * Resolves authenticated session claims from the request cookie.
+ *
+ * @param request - Incoming HTTP request.
+ * @param securityConfig - Auth enablement, cookie name, and verification policy.
+ * @returns Verified claims when authentication succeeds; otherwise `null`.
+ * @remarks Returns `null` when auth is disabled, cookie is missing, or token validation fails.
+ */
 export function resolveAuthenticatedSessionClaims(
   request: Request,
   securityConfig: Pick<
@@ -777,6 +846,13 @@ export function resolveAuthenticatedSessionClaims(
   });
 }
 
+/**
+ * Resolves and validates API security configuration from environment variables.
+ *
+ * @param env - Environment key/value map.
+ * @returns Normalized security configuration used by API middleware.
+ * @throws Error when required values are missing or invalid for the selected mode.
+ */
 export function resolveApiSecurityConfig(
   env: EnvMap = process.env,
 ): ApiSecurityConfig {
@@ -905,6 +981,13 @@ export function resolveApiSecurityConfig(
   };
 }
 
+/**
+ * Creates middleware that enforces auth for non-public routes.
+ *
+ * @param securityConfig - Auth gate settings and session verification parameters.
+ * @returns Hono middleware that allows authenticated requests and blocks anonymous access.
+ * @remarks Side effects: sets `authSubject` on the request context and may append refreshed cookies.
+ */
 export function createAuthGateMiddleware(
   securityConfig: Pick<
     ApiSecurityConfig,
@@ -961,6 +1044,13 @@ export function createAuthGateMiddleware(
   };
 }
 
+/**
+ * Creates middleware that enforces origin-based CSRF checks for session-authenticated writes.
+ *
+ * @param securityConfig - CSRF enablement, trusted origins, and session cookie name.
+ * @returns Hono middleware that returns `403` JSON for CSRF failures.
+ * @remarks CSRF checks are skipped for non-state-changing methods and requests without session cookies.
+ */
 export function createCsrfProtectionMiddleware(
   securityConfig: Pick<
     ApiSecurityConfig,
@@ -1021,6 +1111,13 @@ export function createCsrfProtectionMiddleware(
   };
 }
 
+/**
+ * Creates middleware that enforces bearer-token authorization on write routes.
+ *
+ * @param writeAuthToken - Expected bearer token for protected write operations.
+ * @returns Hono middleware that returns `401/403` on missing or invalid tokens.
+ * @remarks When `writeAuthToken` is undefined, middleware becomes a pass-through.
+ */
 export function createWriteAuthMiddleware(
   writeAuthToken?: string,
 ): MiddlewareHandler {

@@ -23,7 +23,15 @@ map "$rackula_is_write_method:$rackula_has_api_write_token" $rackula_api_authori
 # Track whether auth mode is effectively disabled for fallback behavior.
 map "${RACKULA_AUTH_MODE}" $rackula_auth_mode_none {
     default 0;
+    "" 1;
     ~*^none$ 1;
+}
+
+# Select auth_request target by mode. "off" disables auth subrequests.
+map "${RACKULA_AUTH_MODE}" $rackula_auth_request_uri {
+    "" "off";
+    ~*^none$ "off";
+    default "/_rackula_auth_check";
 }
 
 log_format rackula_auth_upstream_failure
@@ -187,7 +195,7 @@ server {
 
     # SPA fallback - all routes to index.html
     location / {
-        auth_request /_rackula_auth_check;
+        auth_request $rackula_auth_request_uri;
         error_page 401 = @auth_login_redirect;
         error_page 403 = @auth_login_redirect;
         try_files $uri $uri/ /index.html;

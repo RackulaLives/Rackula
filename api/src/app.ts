@@ -25,8 +25,14 @@ const HEALTH_RESPONSE = {
   version: 1,
 } as const;
 
-export function createApp(env: EnvMap = process.env): Hono {
-  const app = new Hono();
+type AppEnv = {
+  Variables: {
+    authSubject: string;
+  };
+};
+
+export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
   const securityConfig = resolveApiSecurityConfig(env);
 
   if (securityConfig.isProduction && securityConfig.allowInsecureCors) {
