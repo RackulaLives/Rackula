@@ -20,15 +20,8 @@ function getGitStderr(error: unknown): string {
     return "";
   }
 
-  const stderr = (error as { stderr?: unknown }).stderr;
-  if (typeof stderr === "string") {
-    return stderr.trim();
-  }
-  if (stderr instanceof Uint8Array) {
-    return Buffer.from(stderr).toString("utf-8").trim();
-  }
-
-  return "";
+  const stderr = (error as { stderr?: string }).stderr;
+  return typeof stderr === "string" ? stderr.trim() : "";
 }
 
 function isGitTimeoutError(error: unknown): boolean {
