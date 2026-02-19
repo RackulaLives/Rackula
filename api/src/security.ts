@@ -178,6 +178,11 @@ function parseAuthCookieName(value: string | undefined): string {
 
 function parseLoginPath(value: string | undefined): string {
   const path = value?.trim() || DEFAULT_AUTH_LOGIN_PATH;
+  if (path.startsWith("//")) {
+    throw new Error(
+      `Invalid auth login path: "${path}". External URLs are not allowed.`,
+    );
+  }
   if (!path.startsWith("/")) {
     throw new Error(
       `Invalid auth login path: "${path}". Expected an absolute path like "/auth/login".`,
@@ -219,11 +224,20 @@ function parseBoundedPositiveInteger(
   min: number,
   max?: number,
 ): number {
-  if (value === undefined || value.trim().length === 0) {
+  if (value === undefined) {
     return fallback;
   }
 
-  const parsed = Number.parseInt(value, 10);
+  const trimmedValue = value.trim();
+  if (trimmedValue.length === 0) {
+    return fallback;
+  }
+
+  if (!/^\d+$/.test(trimmedValue)) {
+    throw new Error(`${name} must be an integer >= ${min}.`);
+  }
+
+  const parsed = Number.parseInt(trimmedValue, 10);
   if (!Number.isFinite(parsed) || parsed < min) {
     throw new Error(`${name} must be an integer >= ${min}.`);
   }
@@ -292,8 +306,13 @@ function isStateChangingMethod(method: string): boolean {
 }
 
 function buildLoginRedirectUrl(requestUrl: string, loginPath: string): string {
+  if (loginPath.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(loginPath)) {
+    throw new Error(`Invalid auth login path: "${loginPath}". External URLs are not allowed.`);
+  }
+
   const url = new URL(requestUrl);
-  const next = `${url.pathname}${url.search}`;
+  const safePath = url.pathname.replace(/^\/+/, "/");
+  const next = `${safePath}${url.search}${url.hash}`;
   return `${loginPath}?next=${encodeURIComponent(next)}`;
 }
 
@@ -898,7 +917,7 @@ export function resolveApiSecurityConfig(
 
   if (authEnabled && !authSessionSecret) {
     throw new Error(
-      "AUTH_MODE is enabled but RACKULA_AUTH_SESSION_SECRET is not set.",
+      "RACKULA_AUTH_MODE is enabled but RACKULA_AUTH_SESSION_SECRET is not set.",
     );
   }
 

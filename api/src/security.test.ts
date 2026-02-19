@@ -93,15 +93,18 @@ describe("resolveApiSecurityConfig", () => {
     ).toThrow("Invalid auth mode");
   });
 
-  it("requires auth session secret when auth mode is enabled", () => {
-    expect(() =>
+  it("requires auth session secret and references RACKULA_AUTH_MODE when auth is enabled", () => {
+    const run = () =>
       resolveApiSecurityConfig(
         buildEnv({
           RACKULA_AUTH_MODE: "oidc",
           CORS_ORIGIN: "https://rack.example.com",
         }),
-      ),
-    ).toThrow("RACKULA_AUTH_SESSION_SECRET");
+      );
+
+    expect(run).toThrow(
+      /(?=.*RACKULA_AUTH_SESSION_SECRET)(?=.*RACKULA_AUTH_MODE is enabled)/,
+    );
   });
 
   it("rejects short auth session secret when auth mode is enabled", () => {
@@ -137,6 +140,26 @@ describe("resolveApiSecurityConfig", () => {
         }),
       ),
     ).toThrow("RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS must be <= 300");
+  });
+
+  it("rejects malformed session timeout values with trailing characters", () => {
+    expect(() =>
+      resolveApiSecurityConfig(
+        buildAuthEnabledEnv({
+          RACKULA_AUTH_SESSION_MAX_AGE_SECONDS: "300s",
+        }),
+      ),
+    ).toThrow("RACKULA_AUTH_SESSION_MAX_AGE_SECONDS must be an integer >= 60");
+  });
+
+  it("rejects auth login paths that begin with double slash", () => {
+    expect(() =>
+      resolveApiSecurityConfig(
+        buildAuthEnabledEnv({
+          RACKULA_AUTH_LOGIN_PATH: "//evil.example.com/login",
+        }),
+      ),
+    ).toThrow("External URLs are not allowed");
   });
 
   it("rejects SameSite=None without Secure cookie flag", () => {
@@ -355,6 +378,16 @@ describe("authentication gate", () => {
     const response = await app.request("/dashboard");
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("/auth/login?next=%2Fdashboard");
+  });
+
+  it("normalizes leading slashes in redirect next path", async () => {
+    const app = createApp(buildAuthEnabledEnv());
+
+    const response = await app.request("https://rack.example.com//dashboard?tab=1");
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "/auth/login?next=%2Fdashboard%3Ftab%3D1",
+    );
   });
 
   it("allows signed-session requests through the auth gate", async () => {

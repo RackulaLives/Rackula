@@ -193,7 +193,6 @@ server {
     location / {
         auth_request /_rackula_auth_check;
         error_page 401 = @auth_login_redirect;
-        error_page 403 = @auth_login_redirect;
         try_files $uri $uri/ /index.html;
     }
 
