@@ -104,6 +104,17 @@ Use it to:
 
 **Note:** Dev deployment only succeeds if lint and tests pass.
 
+### Required CI Checks
+
+Branch protection should require the core CI validation check from `.github/workflows/test.yml`:
+
+- **Check name:** `Test / validate`
+
+This check runs on:
+
+- Pull requests targeting `main` (pre-merge gate)
+- Pushes to `main` (post-merge validation)
+
 ## Philosophy
 
 We follow the **Testing Trophy** approach:

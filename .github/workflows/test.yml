@@ -1,11 +1,20 @@
 name: Test
 
 on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
   workflow_call:
 
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  validate:
+    name: validate
     runs-on: ubuntu-latest
     permissions:
       contents: read
