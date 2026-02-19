@@ -30,7 +30,7 @@ const HEALTH_RESPONSE = {
 type AppEnv = {
   Variables: {
     authSubject: string;
-    authClaims: AuthSessionClaims;
+    authClaims: AuthSessionClaims | undefined;
   };
 };
 
