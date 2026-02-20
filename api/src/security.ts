@@ -1,5 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { logAuthEvent } from "./auth-logger";
 
 export type AuthMode = "none" | "oidc" | "local";
 export type AuthSessionSameSite = "Lax" | "Strict" | "None";
@@ -1061,6 +1062,10 @@ export function createAuthGateMiddleware(
       await next();
       return;
     }
+
+    logAuthEvent("auth.session.invalid", c.req.raw, {
+      reason: "missing or invalid session cookie",
+    });
 
     if (isApiRequestPath(pathname)) {
       return c.json(
