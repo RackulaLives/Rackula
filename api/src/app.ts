@@ -17,7 +17,7 @@ import {
   type EnvMap,
 } from "./security";
 import { createRequireAdminMiddleware } from "./authorization";
-import { logAuthEvent } from "./auth-logger";
+import { configureAuthLogHashKey, logAuthEvent } from "./auth-logger";
 
 const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
 const DEFAULT_MAX_LAYOUT_SIZE = 1 * 1024 * 1024; // 1MB
@@ -38,6 +38,7 @@ type AppEnv = {
 export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
   const securityConfig = resolveApiSecurityConfig(env);
+  configureAuthLogHashKey(securityConfig.authLogHashKey);
 
   if (securityConfig.isProduction && securityConfig.allowInsecureCors) {
     console.warn(

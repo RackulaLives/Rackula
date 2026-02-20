@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import {
+  configureAuthLogHashKey,
   emitAuthEvent,
   extractRequestContext,
-  logAuthEvent,
+  pseudonymizeIdentifier,
   redactHeaders,
+  resetAuthLogHashConfigForTests,
   type AuthEvent,
 } from "./auth-logger";
 import { createApp } from "./app";
@@ -59,6 +61,8 @@ function buildAuthCookie(
 
 beforeEach(() => {
   clearInvalidatedAuthSessions();
+  resetAuthLogHashConfigForTests();
+  configureAuthLogHashKey("rackula-auth-log-test-key");
 });
 
 describe("redactHeaders", () => {
@@ -102,13 +106,23 @@ describe("extractRequestContext", () => {
 });
 
 describe("emitAuthEvent", () => {
-  it("writes JSON line to stdout", () => {
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
+  let writeSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    writeSpy.mockRestore();
+  });
+
+  it("writes JSON line to stdout with pseudonymized identifiers", () => {
 
     const event: AuthEvent = {
       timestamp: "2026-02-19T10:00:00.000Z",
       event: "auth.logout",
       subject: "user@example.com",
+      ip: "10.0.0.9",
       method: "POST",
       path: "/auth/logout",
     };
@@ -119,15 +133,14 @@ describe("emitAuthEvent", () => {
     const output = writeSpy.mock.calls[0][0] as string;
     const parsed = JSON.parse(output.trim());
     expect(parsed.event).toBe("auth.logout");
-    expect(parsed.subject).toBe("user@example.com");
+    expect(parsed.subject).toBe(
+      pseudonymizeIdentifier("user@example.com", "subject"),
+    );
+    expect(parsed.ip).toBe(pseudonymizeIdentifier("10.0.0.9", "ip"));
     expect(parsed.timestamp).toBe("2026-02-19T10:00:00.000Z");
-
-    writeSpy.mockRestore();
   });
 
   it("never includes raw tokens or session IDs in output", () => {
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
-
     emitAuthEvent({
       timestamp: new Date().toISOString(),
       event: "auth.session.invalid",
@@ -140,14 +153,21 @@ describe("emitAuthEvent", () => {
     // Verify no common secret patterns leak
     expect(output).not.toContain("Bearer");
     expect(output).not.toContain("rackula_auth_session=");
-
-    writeSpy.mockRestore();
   });
 });
 
 describe("auth event integration", () => {
+  let writeSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    writeSpy.mockRestore();
+  });
+
   it("logs auth.session.invalid when anonymous request hits auth gate", async () => {
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
     const app = createApp(buildAuthEnabledEnv());
 
     await app.request("/api/layouts");
@@ -166,12 +186,9 @@ describe("auth event integration", () => {
     const event = authEvents.find((e) => e.event === "auth.session.invalid");
     expect(event.reason).toBe("missing or invalid session cookie");
     expect(event.path).toBe("/api/layouts");
-
-    writeSpy.mockRestore();
   });
 
   it("logs auth.logout on successful logout", async () => {
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
     const app = createApp(buildAuthEnabledEnv());
 
     await app.request("/auth/logout", {
@@ -194,13 +211,12 @@ describe("auth event integration", () => {
 
     expect(authEvents.some((e) => e.event === "auth.logout")).toBe(true);
     const event = authEvents.find((e) => e.event === "auth.logout");
-    expect(event.subject).toBe("admin@example.com");
-
-    writeSpy.mockRestore();
+    expect(event.subject).toBe(
+      pseudonymizeIdentifier("admin@example.com", "subject"),
+    );
   });
 
   it("logs auth.denied when non-admin attempts write", async () => {
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
     const app = createApp(buildAuthEnabledEnv());
 
     await app.request("/layouts/not-a-uuid", {
@@ -225,14 +241,13 @@ describe("auth event integration", () => {
 
     expect(authEvents.some((e) => e.event === "auth.denied")).toBe(true);
     const event = authEvents.find((e) => e.event === "auth.denied");
-    expect(event.subject).toBe("admin@example.com");
+    expect(event.subject).toBe(
+      pseudonymizeIdentifier("admin@example.com", "subject"),
+    );
     expect(event.reason).toContain("viewer");
-
-    writeSpy.mockRestore();
   });
 
   it("logs auth.login.success on valid auth check", async () => {
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
     const app = createApp(buildAuthEnabledEnv());
 
     await app.request("/auth/check", {
@@ -253,12 +268,13 @@ describe("auth event integration", () => {
       .filter((e) => e?.event?.startsWith("auth."));
 
     expect(authEvents.some((e) => e.event === "auth.login.success")).toBe(true);
-
-    writeSpy.mockRestore();
+    const event = authEvents.find((e) => e.event === "auth.login.success");
+    expect(event.subject).toBe(
+      pseudonymizeIdentifier("admin@example.com", "subject"),
+    );
   });
 
   it("logs auth.login.failure on invalid auth check", async () => {
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
     const app = createApp(buildAuthEnabledEnv());
 
     await app.request("/auth/check");
@@ -274,12 +290,9 @@ describe("auth event integration", () => {
       .filter((e) => e?.event?.startsWith("auth."));
 
     expect(authEvents.some((e) => e.event === "auth.login.failure")).toBe(true);
-
-    writeSpy.mockRestore();
   });
 
   it("never logs raw session tokens or cookies", async () => {
-    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
     const app = createApp(buildAuthEnabledEnv());
 
     const cookie = buildAuthCookie({ sid: "redaction-test" });
@@ -309,7 +322,5 @@ describe("auth event integration", () => {
       expect(line).not.toContain(tokenValue);
       expect(line).not.toContain("rackula_auth_session=");
     }
-
-    writeSpy.mockRestore();
   });
 });
