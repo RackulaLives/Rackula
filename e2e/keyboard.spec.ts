@@ -80,18 +80,14 @@ test.describe("Keyboard Shortcuts", () => {
 
   test("Ctrl+S triggers save", async ({ page }) => {
     // Set up download listener
-    const downloadPromise = page
-      .waitForEvent("download", { timeout: 5000 })
-      .catch(() => null);
+    const downloadPromise = page.waitForEvent("download", { timeout: 5000 });
 
     // Press Ctrl+S
     await page.keyboard.press("Control+s");
 
     // Should trigger download
     const download = await downloadPromise;
-    if (download) {
-      expect(download.suggestedFilename()).toContain(".Rackula.zip");
-    }
+    expect(download.suggestedFilename()).toMatch(/\.zip$/);
   });
 
   test("Escape closes dialogs", async ({ page }) => {
@@ -107,19 +103,27 @@ test.describe("Keyboard Shortcuts", () => {
   });
 
   test("Arrow keys move device in rack", async ({ page }) => {
-    // Add a device to the rack
-    await dragDeviceToRack(page);
+    // Add a device lower in the rack so ArrowUp can move it.
+    await dragDeviceToRack(page, { yOffsetPercent: 70 });
 
-    // Wait for device
-    await expect(page.locator(".rack-device").first()).toBeVisible();
+    const device = page.locator(".rack-front .rack-device").first();
+    await expect(device).toBeVisible();
 
-    // Select the device (first one in dual-view)
-    await page.locator(".rack-device").first().click();
+    await device.click();
+    const beforePosition = await device.boundingBox();
+    expect(beforePosition).not.toBeNull();
+    if (!beforePosition) {
+      throw new Error("Could not determine device position before ArrowUp");
+    }
 
     // Press Arrow Up
     await page.keyboard.press("ArrowUp");
 
-    // Note: This test verifies the key is handled, actual movement depends on implementation
-    await expect(page.locator(".rack-device").first()).toBeVisible();
+    await expect
+      .poll(async () => {
+        const afterPosition = await device.boundingBox();
+        return afterPosition?.y ?? beforePosition.y;
+      })
+      .not.toBe(beforePosition.y);
   });
 });
