@@ -10,9 +10,14 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+concurrency:
+  group: deploy-prod-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -65,6 +70,7 @@ jobs:
 
   build-persist:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -114,6 +120,7 @@ jobs:
 
   build-api:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
@@ -162,6 +169,7 @@ jobs:
   scan-images:
     needs: [build-and-deploy, build-persist, build-api]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: read
@@ -194,18 +202,21 @@ jobs:
           echo "IMAGE_CATEGORY=${IMAGE_CATEGORY}" >> $GITHUB_ENV
 
       - name: Scan image
-        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # 0.34.0
+        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # 0.34.1
         with:
           image-ref: ${{ env.IMAGE_REF }}
           format: sarif
           output: trivy-results.sarif
+          # Keep the release gate aligned with configured severity thresholds.
+          # Without this, SARIF mode can include lower severities and trip exit-code.
+          limit-severities-for-sarif: true
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: 1
 
       - name: Upload scan results
         if: always()
-        uses: github/codeql-action/upload-sarif@9e907b5e64f6b83e7804b09294d44122997950d6 # v4
+        uses: github/codeql-action/upload-sarif@89a39a4e59826350b863aa6b6252a07ad50cf83e # v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-${{ env.IMAGE_CATEGORY }}
@@ -217,6 +228,7 @@ jobs:
     # (Alternative future flow: scan tar/filesystem artifacts before push.)
     needs: [build-and-deploy, build-persist, build-api, scan-images]
     runs-on: [self-hosted, vps-rackula]
+    timeout-minutes: 20
     permissions:
       contents: read
 
@@ -247,6 +259,7 @@ jobs:
   smoke-test:
     needs: deploy
     runs-on: [self-hosted, vps-rackula]
+    timeout-minutes: 5
     permissions: {}
 
     steps:
@@ -254,3 +267,133 @@ jobs:
         run: |
           sleep 5
           curl -sf --retry 5 --retry-delay 3 https://count.racku.la
+
+  notify-failure:
+    if: ${{ always() && (failure() || cancelled()) }}
+    needs: [build-and-deploy, build-persist, build-api, scan-images, deploy, smoke-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    steps:
+      - name: Summarize failing jobs
+        id: summarize
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const runId = context.runId;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
+
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner,
+              repo,
+              run_id: runId,
+              per_page: 100,
+            });
+
+            const failedJobs = jobs.filter((job) =>
+              ["failure", "cancelled", "timed_out", "action_required"].includes(job.conclusion),
+            );
+
+            const failedLines = failedJobs.length
+              ? failedJobs.map((job) => `- ${job.name}: ${job.conclusion} (${job.html_url})`)
+              : ["- No failed jobs found; inspect workflow graph for skipped dependencies."];
+
+            const normalizedRef = context.ref.replace(/^refs\/(tags|heads)\//, "");
+
+            core.setOutput("run_url", runUrl);
+            core.setOutput("failed_jobs", failedLines.join("\n"));
+            core.setOutput("tag_name", normalizedRef || context.ref);
+
+            await core.summary
+              .addHeading("Deploy Prod Failure Alert")
+              .addRaw(`Run: ${runUrl}\n\n`)
+              .addRaw("Failed jobs:\n")
+              .addRaw(failedLines.join("\n"))
+              .write();
+
+      - name: Ensure alert labels exist
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const labels = [
+              {
+                name: "ci-alert",
+                color: "B60205",
+                description: "Automated CI/CD failure alerts",
+              },
+              {
+                name: "automated",
+                color: "1D76DB",
+                description: "Created or updated by GitHub Actions automation",
+              },
+            ];
+
+            for (const label of labels) {
+              try {
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  ...label,
+                });
+              } catch (error) {
+                if (error.status !== 422) {
+                  throw error;
+                }
+              }
+            }
+
+      - name: Create or update alert issue
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          TAG_NAME: ${{ steps.summarize.outputs.tag_name }}
+          RUN_URL: ${{ steps.summarize.outputs.run_url }}
+          FAILED_JOBS: ${{ steps.summarize.outputs.failed_jobs }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const tagName = process.env.TAG_NAME || "unknown-tag";
+            const runUrl = process.env.RUN_URL;
+            const failedJobs = process.env.FAILED_JOBS;
+            const title = `CI Alert: Deploy Prod failed for ${tagName}`;
+
+            const body = [
+              `Deploy pipeline failure detected for \`${tagName}\`.`,
+              "",
+              `Run: ${runUrl}`,
+              "",
+              "Failed jobs:",
+              failedJobs,
+            ].join("\n");
+
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+
+            const existing = openIssues.find((issue) => issue.title === title);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body: `Another failure occurred.\n\n${body}`,
+              });
+              core.notice(`Updated existing alert issue #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body,
+                labels: ["ci-alert", "automated"],
+              });
+              core.notice(`Created alert issue #${created.data.number}`);
+            }

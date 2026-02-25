@@ -1,21 +1,21 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { bodyLimit } from "hono/body-limit";
 import layouts from "./routes/layouts";
 import assets from "./routes/assets";
 import {
-  createAuthGateMiddleware,
   createCsrfProtectionMiddleware,
-  createExpiredAuthSessionCookieHeader,
-  createRefreshedAuthSessionCookieHeader,
   createWriteAuthMiddleware,
-  invalidateAuthSession,
-  resolveAuthenticatedSessionClaims,
   resolveApiSecurityConfig,
   type AuthSessionClaims,
   type EnvMap,
 } from "./security";
+import {
+  createAuthHandler,
+  createOptionalAuthMiddleware,
+} from "./middleware/auth";
+import { createAuth } from "./auth/config";
 import { createRequireAdminMiddleware } from "./authorization";
 import { configureAuthLogHashKey, safeLogAuthEvent } from "./auth-logger";
 
@@ -68,23 +68,16 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
     }),
   );
 
-  const authSessionConfig = {
-    authEnabled: securityConfig.authEnabled,
-    authSessionSecret: securityConfig.authSessionSecret,
-    authSessionCookieName: securityConfig.authSessionCookieName,
-    authSessionCookieSecure: securityConfig.authSessionCookieSecure,
-    authSessionCookieSameSite: securityConfig.authSessionCookieSameSite,
-    authSessionIdleTimeoutSeconds: securityConfig.authSessionIdleTimeoutSeconds,
-    authSessionGeneration: securityConfig.authSessionGeneration,
-    authSessionMaxAgeSeconds: securityConfig.authSessionMaxAgeSeconds,
-  };
+  // Better Auth instance — created with validated session secret
+  const auth = securityConfig.authSessionSecret
+    ? createAuth(securityConfig.authSessionSecret)
+    : undefined;
 
-  const authGateConfig = {
-    ...authSessionConfig,
-    authLoginPath: securityConfig.authLoginPath,
-  };
-
-  app.use("*", createAuthGateMiddleware(authGateConfig));
+  // Better Auth optional middleware - attaches session if present, never blocks
+  // This preserves core value: "design with zero friction" (unauthenticated read access)
+  if (auth) {
+    app.use("*", createOptionalAuthMiddleware(auth));
+  }
 
   app.use(
     "*",
@@ -96,72 +89,13 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
     }),
   );
 
-  const authNotConfiguredResponse = {
-    error: "Auth provider not configured",
-    message:
-      "Authentication is enabled, but login/callback handlers are not implemented yet.",
-  };
-
-  const authNotConfiguredHandler = (c: Context) =>
-    c.json(
-      {
-        ...authNotConfiguredResponse,
-        mode: securityConfig.authMode,
-      },
-      501,
-    );
-
-  const authCheckRouteHandler = (c: Context) => {
-    if (!securityConfig.authEnabled) {
-      return c.body(null, 204);
-    }
-
-    const claims = resolveAuthenticatedSessionClaims(c.req.raw, authSessionConfig);
-    if (!claims) {
-      safeLogAuthEvent("auth.login.failure", c.req.raw, {
-        reason: "invalid or missing session on auth check",
-      });
-      return c.json(
-        {
-          error: "Unauthorized",
-          message: "Authentication required.",
-        },
-        401,
-      );
-    }
-
-    safeLogAuthEvent("auth.login.success", c.req.raw, { subject: claims.sub });
-
-    const refreshedCookie = createRefreshedAuthSessionCookieHeader(
-      claims,
-      authSessionConfig,
-    );
-    if (refreshedCookie) {
-      c.header("Set-Cookie", refreshedCookie, { append: true });
-    }
-
-    return c.body(null, 204);
-  };
-
-  const authLogoutRouteHandler = (c: Context) => {
-    const claims = resolveAuthenticatedSessionClaims(c.req.raw, authSessionConfig);
-    if (claims) {
-      invalidateAuthSession(claims.sid, claims.exp);
-      safeLogAuthEvent("auth.logout", c.req.raw, { subject: claims.sub });
-    }
-
-    c.header(
-      "Set-Cookie",
-      createExpiredAuthSessionCookieHeader({
-        authSessionCookieName: authSessionConfig.authSessionCookieName,
-        authSessionCookieSecure: authSessionConfig.authSessionCookieSecure,
-        authSessionCookieSameSite: authSessionConfig.authSessionCookieSameSite,
-      }),
-      { append: true },
-    );
-
-    return c.body(null, 204);
-  };
+  // Better Auth routes handle all authentication endpoints
+  // Mounted at both /auth/* and /api/auth/* for compatibility
+  if (auth) {
+    const authHandler = createAuthHandler(auth);
+    app.on(["POST", "GET"], "/auth/*", authHandler);
+    app.on(["POST", "GET"], "/api/auth/*", authHandler);
+  }
 
   // Hono's "/path/*" pattern matches both "/path" and "/path/...".
   // Keep write-auth and body-limit middleware on matching wildcard path sets:
@@ -185,15 +119,6 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
   // Health check
   app.get("/health", (c) => c.json(HEALTH_RESPONSE));
   app.get("/api/health", (c) => c.json(HEALTH_RESPONSE));
-
-  app.get("/auth/login", authNotConfiguredHandler);
-  app.get("/api/auth/login", authNotConfiguredHandler);
-  app.get("/auth/callback", authNotConfiguredHandler);
-  app.get("/api/auth/callback", authNotConfiguredHandler);
-  app.get("/auth/check", authCheckRouteHandler);
-  app.get("/api/auth/check", authCheckRouteHandler);
-  app.post("/auth/logout", authLogoutRouteHandler);
-  app.post("/api/auth/logout", authLogoutRouteHandler);
 
   // Apply body size limit to asset uploads (5MB default, configurable via env)
   const parsedMaxAssetSize = Number.parseInt(env.MAX_ASSET_SIZE ?? "", 10);
