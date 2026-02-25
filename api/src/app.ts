@@ -13,8 +13,10 @@ import {
   invalidateAuthSession,
   resolveAuthenticatedSessionClaims,
   resolveApiSecurityConfig,
+  type AuthSessionClaims,
   type EnvMap,
 } from "./security";
+import { createRequireAdminMiddleware } from "./authorization";
 
 const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
 const DEFAULT_MAX_LAYOUT_SIZE = 1 * 1024 * 1024; // 1MB
@@ -28,6 +30,7 @@ const HEALTH_RESPONSE = {
 type AppEnv = {
   Variables: {
     authSubject: string;
+    authClaims: AuthSessionClaims | undefined;
   };
 };
 
@@ -58,7 +61,7 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
     "*",
     cors({
       origin: securityConfig.corsOrigin,
-      allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type", "Authorization"],
     }),
   );
@@ -160,6 +163,16 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
   app.use("/assets/*", writeAuth);
   app.use("/api/layouts/*", writeAuth);
   app.use("/api/assets/*", writeAuth);
+
+  // Admin authorization for write operations when auth is enabled.
+  // Runs after auth gate (which sets authClaims) and write-token auth.
+  if (securityConfig.authEnabled) {
+    const requireAdmin = createRequireAdminMiddleware();
+    app.use("/layouts/*", requireAdmin);
+    app.use("/assets/*", requireAdmin);
+    app.use("/api/layouts/*", requireAdmin);
+    app.use("/api/assets/*", requireAdmin);
+  }
 
   // Health check
   app.get("/health", (c) => c.json(HEALTH_RESPONSE));

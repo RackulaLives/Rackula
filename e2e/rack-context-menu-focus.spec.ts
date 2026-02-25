@@ -17,6 +17,15 @@ async function getPanzoomTransform(page: Page) {
   });
 }
 
+async function setPanzoomTransform(page: Page, transform: string) {
+  await page.evaluate((nextTransform) => {
+    const panzoomContainer = document.querySelector(".panzoom-container");
+    if (panzoomContainer) {
+      (panzoomContainer as HTMLElement).style.transform = nextTransform;
+    }
+  }, transform);
+}
+
 test.describe("Rack Context Menu Focus", () => {
   test.beforeEach(async ({ page }) => {
     await gotoWithRack(page);
@@ -28,12 +37,23 @@ test.describe("Rack Context Menu Focus", () => {
     // Rack should be visible
     await expect(page.locator(".rack-container").first()).toBeVisible();
 
-    // Get the initial transform
+    // Force a non-focused transform so Focus must change it.
+    await setPanzoomTransform(page, "matrix(0.4, 0, 0, 0.4, 0, 0)");
     const transformBefore = await getPanzoomTransform(page);
     expect(transformBefore).toBeTruthy();
+    expect(transformBefore?.scale).toBe(0.4);
 
-    // Right-click on the rack-svg (inside the dual view)
-    await page.locator(".rack-svg").first().click({ button: "right" });
+    // Open the canvas context menu directly on the rack element.
+    await page.evaluate(() => {
+      const rack = document.querySelector(".rack-svg");
+      if (!rack) throw new Error("Could not find rack svg");
+      rack.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
 
     // Wait for context menu to appear
     await expect(page.locator(".context-menu-content")).toBeVisible();
@@ -43,21 +63,29 @@ test.describe("Rack Context Menu Focus", () => {
     await expect(focusItem).toBeVisible();
     await focusItem.click();
 
-    // Focus recalculates and applies optimal zoom/pan for the rack.
-    // Even from the initial position, Focus will center the rack.
-    // Wait for transform to potentially change (animation may take time)
-    await expect(async () => {
-      const transformAfter = await getPanzoomTransform(page);
-      expect(transformAfter).toBeTruthy();
-      expect(transformAfter?.scale).toBeDefined();
-      expect(transformAfter?.x).toBeDefined();
-      expect(transformAfter?.y).toBeDefined();
-    }).toPass({ timeout: 1000 });
+    await expect
+      .poll(async () => {
+        const transformAfter = await getPanzoomTransform(page);
+        if (!transformBefore || !transformAfter) return false;
+
+        return (
+          transformAfter.scale !== transformBefore.scale ||
+          transformAfter.x !== transformBefore.x ||
+          transformAfter.y !== transformBefore.y
+        );
+      })
+      .toBe(true);
   });
 
   test("Focus option in Racks panel context menu works", async ({ page }) => {
     // Rack should be visible
     await expect(page.locator(".rack-container").first()).toBeVisible();
+
+    // Force a non-focused transform so Focus must change it.
+    await setPanzoomTransform(page, "matrix(0.4, 0, 0, 0.4, 0, 0)");
+    const transformBefore = await getPanzoomTransform(page);
+    expect(transformBefore).toBeTruthy();
+    expect(transformBefore?.scale).toBe(0.4);
 
     // Switch to the Racks tab in the sidebar
     // This test requires the sidebar to be visible (desktop viewport)
@@ -81,13 +109,17 @@ test.describe("Rack Context Menu Focus", () => {
     // Click Focus - this triggers the focusRack function via callback chain
     await focusItem.click();
 
-    // Verify the transform exists (Focus was applied)
-    await expect(async () => {
-      const transformAfter = await getPanzoomTransform(page);
-      expect(transformAfter).toBeTruthy();
-      expect(transformAfter?.scale).toBeDefined();
-      expect(transformAfter?.x).toBeDefined();
-      expect(transformAfter?.y).toBeDefined();
-    }).toPass({ timeout: 1000 });
+    await expect
+      .poll(async () => {
+        const transformAfter = await getPanzoomTransform(page);
+        if (!transformBefore || !transformAfter) return false;
+
+        return (
+          transformAfter.scale !== transformBefore.scale ||
+          transformAfter.x !== transformBefore.x ||
+          transformAfter.y !== transformBefore.y
+        );
+      })
+      .toBe(true);
   });
 });

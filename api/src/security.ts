@@ -59,7 +59,7 @@ export interface ApiSecurityConfig {
 export type EnvMap = Record<string, string | undefined>;
 
 const WRITE_METHODS = new Set(["PUT", "DELETE"]);
-const STATE_CHANGING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+export const STATE_CHANGING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const AUTH_MODES = new Set<AuthMode>(["none", "oidc", "local"]);
 const AUTH_PUBLIC_PATHS = new Set([
   "/health",
@@ -1048,6 +1048,7 @@ export function createAuthGateMiddleware(
     const claims = resolveAuthenticatedSessionClaims(c.req.raw, securityConfig);
     if (claims) {
       c.set("authSubject", claims.sub);
+      c.set("authClaims", claims);
 
       const refreshedCookie = createRefreshedAuthSessionCookieHeader(
         claims,

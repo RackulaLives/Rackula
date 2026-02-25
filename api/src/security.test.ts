@@ -34,6 +34,9 @@ function buildAuthEnabledEnv(overrides: EnvMap = {}): EnvMap {
   });
 }
 
+// Default cookie carries role: "admin" so existing integration tests covering
+// the auth gate and CSRF layer also pass the admin authorization check on write
+// routes. Override role explicitly when testing non-admin behaviour.
 function buildAuthCookie(
   overrides: Partial<AuthSessionClaimsInput> = {},
 ): string {
@@ -42,6 +45,7 @@ function buildAuthCookie(
     {
       sub: "admin@example.com",
       sid: "session-default",
+      role: "admin",
       iat: now - 30,
       exp: now + 600,
       idleExp: now + 120,
@@ -853,5 +857,133 @@ describe("health endpoints", () => {
     expect(apiHealth.status).toBe(200);
     expect(apiHealth.headers.get("content-type")).toContain("application/json");
     assertHealthPayload(await apiHealth.json());
+  });
+});
+
+describe("authorization", () => {
+  it("allows admin to write layouts", async () => {
+    const app = createApp(buildAuthEnabledEnv());
+
+    const response = await app.request("/layouts/not-a-uuid", {
+      method: "PUT",
+      headers: {
+        Cookie: buildAuthCookie(),
+        Origin: "https://rack.example.com",
+        "Content-Type": "text/plain",
+      },
+      body: "version: 1.0.0",
+    });
+
+    // Admin passes auth gate and authorization; hits route-level UUID validation
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 403 for authenticated non-admin on write", async () => {
+    const app = createApp(buildAuthEnabledEnv());
+
+    const response = await app.request("/layouts/not-a-uuid", {
+      method: "PUT",
+      headers: {
+        Cookie: buildAuthCookie({ role: "viewer", sid: "viewer-session" }),
+        Origin: "https://rack.example.com",
+        "Content-Type": "text/plain",
+      },
+      body: "version: 1.0.0",
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: "Forbidden",
+      message: "Admin role required.",
+    });
+  });
+
+  it("returns 403 for authenticated user with no role on write", async () => {
+    const app = createApp(buildAuthEnabledEnv());
+
+    const response = await app.request("/assets/bad-layout/device/front", {
+      method: "DELETE",
+      headers: {
+        Cookie: buildAuthCookie({ role: undefined, sid: "no-role-session" }),
+        Origin: "https://rack.example.com",
+      },
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: "Forbidden",
+      message: "Admin role required.",
+    });
+  });
+
+  it("allows non-admin to read when auth is enabled", async () => {
+    const app = createApp(buildAuthEnabledEnv());
+
+    const response = await app.request("/layouts/not-a-uuid", {
+      headers: {
+        Cookie: buildAuthCookie({ role: "viewer", sid: "viewer-read" }),
+      },
+    });
+
+    // Auth gate passes, authorization skips for GET, hits route validation
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 401 for unauthenticated write when auth is enabled", async () => {
+    const app = createApp(buildAuthEnabledEnv());
+
+    const response = await app.request("/layouts/not-a-uuid", {
+      method: "PUT",
+      headers: {
+        Origin: "https://rack.example.com",
+        "Content-Type": "text/plain",
+      },
+      body: "version: 1.0.0",
+    });
+
+    // Auth gate blocks before authorization runs
+    expect(response.status).toBe(401);
+  });
+
+  it("skips authorization when auth is disabled", async () => {
+    const app = createApp(
+      buildEnv({ RACKULA_API_WRITE_TOKEN: TEST_TOKEN }),
+    );
+
+    const response = await app.request("/layouts/not-a-uuid", {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${TEST_TOKEN}`,
+        "Content-Type": "text/plain",
+      },
+      body: "version: 1.0.0",
+    });
+
+    // No auth gate, no admin check, hits route validation
+    expect(response.status).toBe(400);
+  });
+
+  it("writeAuth accepts token but requireAdmin blocks non-admin", async () => {
+    const app = createApp(
+      buildAuthEnabledEnv({ RACKULA_API_WRITE_TOKEN: TEST_TOKEN }),
+    );
+
+    const response = await app.request("/layouts/not-a-uuid", {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${TEST_TOKEN}`,
+        Cookie: buildAuthCookie({ role: "viewer", sid: "non-admin-token-session" }),
+        Origin: "https://rack.example.com",
+        "Content-Type": "text/plain",
+      },
+      body: "version: 1.0.0",
+    });
+
+    // writeAuth passes (valid token), requireAdmin rejects (not admin)
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: "Forbidden",
+      message: "Admin role required.",
+    });
   });
 });

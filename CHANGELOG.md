@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] - 2026-02-20
+
+### Fixed
+
+- Prevented container startup crash in persist deployments caused by unresolved `AUTH_MODE` values rendering invalid nginx config (`unknown "auth_mode" variable`) (#1297)
+- Normalized auth mode at container entrypoint and restricted nginx auth-mode mapping to sanitized `RACKULA_AUTH_MODE` values (`none|oidc|local`) with safe fallback to `none`
+
+### Security
+
+- Remediated open Dependabot alerts by upgrading vulnerable dependencies: `jspdf` to `4.2.0`, `svelte` to `5.53.0` (with patched `devalue` `5.6.3`), and `hono` to `4.12.0`
+
+## [0.8.3] - 2026-02-20
+
+### Fixed
+
+- Production deploy workflow now keeps Trivy SARIF gating aligned with configured severity (`HIGH,CRITICAL`) via `limit-severities-for-sarif`, preventing medium/low advisories from blocking deploy
+
+## [0.8.2] - 2026-02-20
+
+### Technical
+
+- Recut release after the `v0.8.1` deploy workflow was cancelled during `build-persist`, to republish `persist` and `v0.8.2-persist` container tags
+
 ## [0.8.1] - 2026-02-17
 
 ### Added

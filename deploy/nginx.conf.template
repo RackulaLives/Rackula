@@ -21,12 +21,11 @@ map "$rackula_is_write_method:$rackula_has_api_write_token" $rackula_api_authori
 }
 
 # Track whether auth mode is effectively disabled for fallback behavior.
-# Mirrors API auth-mode intent: RACKULA_AUTH_MODE primary, AUTH_MODE fallback.
-map "${RACKULA_AUTH_MODE}:${AUTH_MODE}" $rackula_auth_mode_none {
+# RACKULA_AUTH_MODE is normalized by the Docker entrypoint wrapper.
+map "${RACKULA_AUTH_MODE}" $rackula_auth_mode_none {
     default 0;
-    ":" 1;
-    ~*^none:.*$ 1;
-    ~*^:none$ 1;
+    "" 1;
+    ~*^none$ 1;
 }
 
 log_format rackula_auth_upstream_failure
