@@ -218,6 +218,7 @@
           bind:value={height}
           min={MIN_DEVICE_HEIGHT}
           max={MAX_DEVICE_HEIGHT}
+          step="0.5"
           class:error={heightError}
         />
         {#if heightError}
