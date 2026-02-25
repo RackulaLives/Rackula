@@ -56,7 +56,7 @@ export async function parseYaml<T = unknown>(yamlString: string): Promise<T> {
 
 /**
  * Order DeviceType fields according to schema v1.0.0
- * Field order: slug, manufacturer, model, part_number, u_height, is_full_depth, is_powered,
+ * Field order: slug, manufacturer, model, part_number, u_height, slot_width, is_full_depth, is_powered,
  *              weight, weight_unit, airflow, front_image, rear_image, colour, category, tags,
  *              notes, serial_number, asset_tag, links, custom_fields, interfaces, power_ports,
  *              power_outlets, device_bays, inventory_items, subdevice_role, va_rating
@@ -72,6 +72,7 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
 
   // --- Physical Properties ---
   ordered.u_height = dt.u_height;
+  if (dt.slot_width !== undefined) ordered.slot_width = dt.slot_width;
   if (dt.is_full_depth !== undefined) ordered.is_full_depth = dt.is_full_depth;
   if (dt.is_powered !== undefined) ordered.is_powered = dt.is_powered;
   if (dt.weight !== undefined) ordered.weight = dt.weight;
@@ -118,7 +119,7 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
 
 /**
  * Order PlacedDevice fields according to schema v1.0.0
- * Field order: id, device_type, name, position, face, front_image, rear_image,
+ * Field order: id, device_type, name, position, face, slot_position, front_image, rear_image,
  *              parent_device, device_bay, notes, custom_fields
  */
 function orderPlacedDeviceFields(
@@ -132,6 +133,8 @@ function orderPlacedDeviceFields(
   if (device.name !== undefined) ordered.name = device.name;
   ordered.position = device.position;
   ordered.face = device.face;
+  if (device.slot_position !== undefined)
+    ordered.slot_position = device.slot_position;
 
   // --- Placement Image Override ---
   if (device.front_image !== undefined)

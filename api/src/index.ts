@@ -16,7 +16,7 @@ const port = Number.isNaN(parsedPort) ? 3001 : parsedPort;
 await ensureDataDir();
 
 console.log(`Rackula API listening on port ${port}`);
-console.log(`Data directory: ${process.env.DATA_DIR ?? "/data"}`);
+console.log(`Data directory: ${process.env.DATA_DIR ?? "./data"}`);
 
 export default {
   port,

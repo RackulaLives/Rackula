@@ -199,6 +199,43 @@ describe("resolveApiSecurityConfig", () => {
     expect(config.csrfTrustedOrigins).toEqual(["https://rack.example.com"]);
   });
 
+  it("derives auth log hash key from auth session secret by default", () => {
+    const first = resolveApiSecurityConfig(buildAuthEnabledEnv());
+    const second = resolveApiSecurityConfig(buildAuthEnabledEnv());
+    expect(first.authLogHashKey).toBe(second.authLogHashKey);
+    expect(first.authLogHashKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(first.authLogHashKey).not.toBe(TEST_AUTH_SECRET);
+  });
+
+  it("accepts explicit auth log hash key override", () => {
+    const config = resolveApiSecurityConfig(
+      buildAuthEnabledEnv({
+        RACKULA_AUTH_LOG_HASH_KEY: "rackula-auth-log-key-override",
+      }),
+    );
+
+    expect(config.authLogHashKey).toBe("rackula-auth-log-key-override");
+  });
+
+  it("rejects short auth log hash key overrides", () => {
+    expect(() =>
+      resolveApiSecurityConfig(
+        buildAuthEnabledEnv({
+          RACKULA_AUTH_LOG_HASH_KEY: "too-short",
+        }),
+      ),
+    ).toThrow("RACKULA_AUTH_LOG_HASH_KEY must be at least 16 characters.");
+  });
+
+  it("generates ephemeral auth log hash keys without configured secrets", () => {
+    const first = resolveApiSecurityConfig(buildEnv());
+    const second = resolveApiSecurityConfig(buildEnv());
+
+    expect(first.authLogHashKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(second.authLogHashKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(first.authLogHashKey).not.toBe(second.authLogHashKey);
+  });
+
   it("rejects production startup when CORS_ORIGIN is missing", () => {
     expect(() =>
       resolveApiSecurityConfig(buildEnv({ NODE_ENV: "production" })),
