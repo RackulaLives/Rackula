@@ -451,6 +451,7 @@ function getNetBoxGitInfo(netboxRoot: string): {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
       `Failed to read git metadata from NetBox root "${netboxRoot}": ${message}`,
+      { cause: error },
     );
   }
 }
@@ -472,7 +473,7 @@ function collectCandidates(
       if (!file.endsWith(".yaml")) continue;
 
       const yamlPath = join(vendorDir, file);
-      let parsed: NetBoxDoc | null = null;
+      let parsed: NetBoxDoc | null;
       try {
         parsed = yaml.load(readFileSync(yamlPath, "utf8")) as NetBoxDoc;
       } catch (error) {

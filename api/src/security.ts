@@ -281,7 +281,7 @@ function normalizeOrigin(input: string): string {
     return url.origin;
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(`Invalid CORS origin "${input}": ${reason}`);
+    throw new Error(`Invalid CORS origin "${input}": ${reason}`, { cause: error });
   }
 }
 
