@@ -167,12 +167,8 @@ describe("auth event integration", () => {
     writeSpy.mockRestore();
   });
 
-  it("logs auth.session.invalid when anonymous request hits auth gate", async () => {
-    const app = createApp(buildAuthEnabledEnv());
-
-    await app.request("/api/layouts");
-
-    const authEvents = writeSpy.mock.calls
+  function extractAuthEvents(spy: ReturnType<typeof spyOn>): Array<Record<string, unknown>> {
+    return spy.mock.calls
       .map((call) => {
         try {
           return JSON.parse((call[0] as string).trim());
@@ -180,12 +176,23 @@ describe("auth event integration", () => {
           return null;
         }
       })
-      .filter((e) => e?.event?.startsWith("auth."));
+      .filter((e): e is Record<string, unknown> =>
+        typeof e?.event === "string" && (e.event as string).startsWith("auth."),
+      );
+  }
+
+  it("logs auth.session.invalid when anonymous request hits auth gate", async () => {
+    const app = createApp(buildAuthEnabledEnv());
+
+    await app.request("/api/layouts");
+
+    const authEvents = extractAuthEvents(writeSpy);
 
     expect(authEvents.some((e) => e.event === "auth.session.invalid")).toBe(true);
     const event = authEvents.find((e) => e.event === "auth.session.invalid");
-    expect(event.reason).toBe("missing or invalid session cookie");
-    expect(event.path).toBe("/api/layouts");
+    expect(event).toBeDefined();
+    expect(event!.reason).toBe("missing or invalid session cookie");
+    expect(event!.path).toBe("/api/layouts");
   });
 
   it("logs auth.logout on successful logout", async () => {
@@ -199,19 +206,12 @@ describe("auth event integration", () => {
       },
     });
 
-    const authEvents = writeSpy.mock.calls
-      .map((call) => {
-        try {
-          return JSON.parse((call[0] as string).trim());
-        } catch {
-          return null;
-        }
-      })
-      .filter((e) => e?.event?.startsWith("auth."));
+    const authEvents = extractAuthEvents(writeSpy);
 
     expect(authEvents.some((e) => e.event === "auth.logout")).toBe(true);
     const event = authEvents.find((e) => e.event === "auth.logout");
-    expect(event.subject).toBe(
+    expect(event).toBeDefined();
+    expect(event!.subject).toBe(
       pseudonymizeIdentifier("admin@example.com", "subject"),
     );
   });
@@ -229,22 +229,15 @@ describe("auth event integration", () => {
       body: "version: 1.0.0",
     });
 
-    const authEvents = writeSpy.mock.calls
-      .map((call) => {
-        try {
-          return JSON.parse((call[0] as string).trim());
-        } catch {
-          return null;
-        }
-      })
-      .filter((e) => e?.event?.startsWith("auth."));
+    const authEvents = extractAuthEvents(writeSpy);
 
     expect(authEvents.some((e) => e.event === "auth.denied")).toBe(true);
     const event = authEvents.find((e) => e.event === "auth.denied");
-    expect(event.subject).toBe(
+    expect(event).toBeDefined();
+    expect(event!.subject).toBe(
       pseudonymizeIdentifier("admin@example.com", "subject"),
     );
-    expect(event.reason).toContain("viewer");
+    expect(event!.reason).toContain("viewer");
   });
 
   it("logs auth.login.success on valid auth check", async () => {
@@ -257,19 +250,12 @@ describe("auth event integration", () => {
       },
     });
 
-    const authEvents = writeSpy.mock.calls
-      .map((call) => {
-        try {
-          return JSON.parse((call[0] as string).trim());
-        } catch {
-          return null;
-        }
-      })
-      .filter((e) => e?.event?.startsWith("auth."));
+    const authEvents = extractAuthEvents(writeSpy);
 
     expect(authEvents.some((e) => e.event === "auth.login.success")).toBe(true);
     const event = authEvents.find((e) => e.event === "auth.login.success");
-    expect(event.subject).toBe(
+    expect(event).toBeDefined();
+    expect(event!.subject).toBe(
       pseudonymizeIdentifier("admin@example.com", "subject"),
     );
   });
@@ -279,15 +265,7 @@ describe("auth event integration", () => {
 
     await app.request("/auth/check");
 
-    const authEvents = writeSpy.mock.calls
-      .map((call) => {
-        try {
-          return JSON.parse((call[0] as string).trim());
-        } catch {
-          return null;
-        }
-      })
-      .filter((e) => e?.event?.startsWith("auth."));
+    const authEvents = extractAuthEvents(writeSpy);
 
     expect(authEvents.some((e) => e.event === "auth.login.failure")).toBe(true);
   });

@@ -17,7 +17,7 @@ import {
   type EnvMap,
 } from "./security";
 import { createRequireAdminMiddleware } from "./authorization";
-import { configureAuthLogHashKey, logAuthEvent } from "./auth-logger";
+import { configureAuthLogHashKey, safeLogAuthEvent } from "./auth-logger";
 
 const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
 const DEFAULT_MAX_LAYOUT_SIZE = 1 * 1024 * 1024; // 1MB
@@ -118,7 +118,7 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
 
     const claims = resolveAuthenticatedSessionClaims(c.req.raw, authSessionConfig);
     if (!claims) {
-      logAuthEvent("auth.login.failure", c.req.raw, {
+      safeLogAuthEvent("auth.login.failure", c.req.raw, {
         reason: "invalid or missing session on auth check",
       });
       return c.json(
@@ -130,7 +130,7 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
       );
     }
 
-    logAuthEvent("auth.login.success", c.req.raw, { subject: claims.sub });
+    safeLogAuthEvent("auth.login.success", c.req.raw, { subject: claims.sub });
 
     const refreshedCookie = createRefreshedAuthSessionCookieHeader(
       claims,
@@ -147,7 +147,7 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
     const claims = resolveAuthenticatedSessionClaims(c.req.raw, authSessionConfig);
     if (claims) {
       invalidateAuthSession(claims.sid, claims.exp);
-      logAuthEvent("auth.logout", c.req.raw, { subject: claims.sub });
+      safeLogAuthEvent("auth.logout", c.req.raw, { subject: claims.sub });
     }
 
     c.header(

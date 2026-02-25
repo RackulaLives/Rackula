@@ -24,7 +24,7 @@ export interface AuthEvent {
 }
 
 const DEFAULT_AUTH_LOG_HASH_KEY = "rackula:auth-log:v1:default";
-const MIN_AUTH_LOG_HASH_KEY_LENGTH = 16;
+export const MIN_AUTH_LOG_HASH_KEY_LENGTH = 16;
 type AuthIdentifierType = "subject" | "ip";
 let authLogHashKey: string | undefined;
 let hasWarnedDefaultHashKey = false;
@@ -65,7 +65,7 @@ export function configureAuthLogHashKey(hashKey: string | undefined): void {
   } else {
     authLogHashKey = normalizedLength > 0 ? normalized : undefined;
     if (authLogHashKey) {
-      console.info(
+      console.debug(
         `[auth-logger] Auth log hash key configured (>=${MIN_AUTH_LOG_HASH_KEY_LENGTH} chars).`,
       );
     }
@@ -135,6 +135,10 @@ function pseudonymizeOptionalIdentifier(
 
 /**
  * Extracts minimal, safe request context for logging.
+ *
+ * Uses `x-real-ip` exclusively for client IP — this header is set by the trusted
+ * reverse proxy (nginx). `x-forwarded-for` is intentionally excluded because it
+ * is client-spoofable and is already listed in {@link REDACTED_FIELDS}.
  */
 export function extractRequestContext(
   request: Request,
@@ -191,4 +195,22 @@ export function logAuthEvent(
     ...ctx,
     ...extra,
   });
+}
+
+/**
+ * Fault-tolerant wrapper around {@link logAuthEvent}.
+ *
+ * Swallows and logs errors so that a logging failure (e.g. HMAC misconfiguration)
+ * never crashes the request handler that called it.
+ */
+export function safeLogAuthEvent(
+  eventType: AuthEventType,
+  request: Request,
+  extra?: { subject?: string; reason?: string },
+): void {
+  try {
+    logAuthEvent(eventType, request, extra);
+  } catch (err) {
+    console.error("[auth-logger] Failed to log auth event:", err);
+  }
 }

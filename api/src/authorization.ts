@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { STATE_CHANGING_METHODS, type AuthSessionClaims } from "./security";
-import { logAuthEvent } from "./auth-logger";
+import { safeLogAuthEvent } from "./auth-logger";
 
 // Role constants — single admin role for MVP.
 // Future roles (editor, viewer) can be added here without changing middleware shape.
@@ -43,7 +43,7 @@ export function createRequireAdminMiddleware(): MiddlewareHandler {
     }
 
     if (!isAdmin(claims)) {
-      logAuthEvent("auth.denied", c.req.raw, {
+      safeLogAuthEvent("auth.denied", c.req.raw, {
         subject: claims.sub,
         reason: `role "${claims.role ?? "none"}" is not admin`,
       });

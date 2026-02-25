@@ -6,7 +6,7 @@ import {
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
-import { logAuthEvent } from "./auth-logger";
+import { safeLogAuthEvent, MIN_AUTH_LOG_HASH_KEY_LENGTH } from "./auth-logger";
 
 export type AuthMode = "none" | "oidc" | "local";
 export type AuthSessionSameSite = "Lax" | "Strict" | "None";
@@ -90,7 +90,6 @@ const CORS_ORIGIN_EMPTY_ERROR =
 const DEFAULT_AUTH_SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
 const DEFAULT_AUTH_SESSION_IDLE_TIMEOUT_SECONDS = 30 * 60;
 const AUTH_LOG_HASH_CONTEXT = "rackula:auth-log:v1:";
-const MIN_AUTH_LOG_HASH_KEY_LENGTH = 16;
 const GENERATED_AUTH_LOG_HASH_KEY_BYTES = 32;
 const MIN_AUTH_SESSION_TIMEOUT_SECONDS = 60;
 const MAX_AUTH_SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
@@ -1117,7 +1116,7 @@ export function createAuthGateMiddleware(
       return;
     }
 
-    logAuthEvent("auth.session.invalid", c.req.raw, {
+    safeLogAuthEvent("auth.session.invalid", c.req.raw, {
       reason: "missing or invalid session cookie",
     });
 
