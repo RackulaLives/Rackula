@@ -24,7 +24,6 @@ describe("YAML layout round-trip", () => {
               id: "placed-1",
               device_type: halfWidth.slug,
               position: 10,
-              face: "front",
               slot_position: "left",
             }),
           ],
