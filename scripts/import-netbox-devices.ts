@@ -317,8 +317,8 @@ async function importDevice(
   // e.g., device.slug = 'hpe-proliant-dl360-gen10'
   const imageSlug = device.slug;
 
-  let frontImage = false;
-  let rearImage = false;
+  let frontImage: boolean;
+  let rearImage: boolean;
 
   // Try to download front image (try .png first, then .jpg)
   const frontDest = join(destDir, `${imageSlug}.front.png`);

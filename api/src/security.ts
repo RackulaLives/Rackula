@@ -1,5 +1,12 @@
 import type { MiddlewareHandler } from "hono";
-import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual,
+} from "node:crypto";
+import { safeLogAuthEvent, MIN_AUTH_LOG_HASH_KEY_LENGTH } from "./auth-logger";
 
 export type AuthMode = "none" | "oidc" | "local";
 export type AuthSessionSameSite = "Lax" | "Strict" | "None";
@@ -45,6 +52,7 @@ export interface ApiSecurityConfig {
   authMode: AuthMode;
   authEnabled: boolean;
   authSessionSecret?: string;
+  authLogHashKey: string;
   authSessionCookieName: string;
   authSessionCookieSecure: boolean;
   authSessionCookieSameSite: AuthSessionSameSite;
@@ -81,6 +89,8 @@ const CORS_ORIGIN_EMPTY_ERROR =
   "CORS_ORIGIN is set but empty. Provide at least one origin.";
 const DEFAULT_AUTH_SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
 const DEFAULT_AUTH_SESSION_IDLE_TIMEOUT_SECONDS = 30 * 60;
+const AUTH_LOG_HASH_CONTEXT = "rackula:auth-log:v1:";
+const GENERATED_AUTH_LOG_HASH_KEY_BYTES = 32;
 const MIN_AUTH_SESSION_TIMEOUT_SECONDS = 60;
 const MAX_AUTH_SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 const AUTH_SESSION_REFRESH_THRESHOLD_SECONDS = 60;
@@ -107,6 +117,40 @@ function timingSafeTokenCompare(
 
 function parseBoolean(value: string | undefined): boolean {
   return value?.toLowerCase() === "true";
+}
+
+function deriveAuthLogHashKey(authSessionSecret: string): string {
+  return createHmac("sha256", authSessionSecret)
+    .update(AUTH_LOG_HASH_CONTEXT)
+    .digest("hex");
+}
+
+function resolveAuthLogHashKey(options: {
+  authLogHashKeyRaw: string | undefined;
+  authSessionSecret: string | undefined;
+  isProduction: boolean;
+}): string {
+  const normalizedAuthLogHashKey = options.authLogHashKeyRaw?.trim();
+  if (normalizedAuthLogHashKey) {
+    if (normalizedAuthLogHashKey.length < MIN_AUTH_LOG_HASH_KEY_LENGTH) {
+      throw new Error(
+        `RACKULA_AUTH_LOG_HASH_KEY must be at least ${MIN_AUTH_LOG_HASH_KEY_LENGTH} characters.`,
+      );
+    }
+    return normalizedAuthLogHashKey;
+  }
+
+  if (options.authSessionSecret) {
+    return deriveAuthLogHashKey(options.authSessionSecret);
+  }
+
+  if (options.isProduction) {
+    console.warn(
+      "⚠ Auth log hash key is not configured and no auth session secret is available. Generating an ephemeral per-process key. Set RACKULA_AUTH_LOG_HASH_KEY in production for stable pseudonymization.",
+    );
+  }
+
+  return randomBytes(GENERATED_AUTH_LOG_HASH_KEY_BYTES).toString("hex");
 }
 
 function parseOptionalBoolean(
@@ -281,7 +325,9 @@ function normalizeOrigin(input: string): string {
     return url.origin;
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(`Invalid CORS origin "${input}": ${reason}`);
+    throw new Error(`Invalid CORS origin "${input}": ${reason}`, {
+      cause: error,
+    });
   }
 }
 
@@ -923,6 +969,7 @@ export function resolveApiSecurityConfig(
   const authSessionSecretRaw =
     env.RACKULA_AUTH_SESSION_SECRET ?? env.AUTH_SESSION_SECRET;
   const authSessionSecret = authSessionSecretRaw?.trim() || undefined;
+  const authLogHashKeyRaw = env.RACKULA_AUTH_LOG_HASH_KEY ?? env.AUTH_LOG_HASH_KEY;
 
   if (authEnabled && !authSessionSecret) {
     throw new Error(
@@ -939,6 +986,12 @@ export function resolveApiSecurityConfig(
       `RACKULA_AUTH_SESSION_SECRET must be at least ${SESSION_SECRET_MIN_LENGTH} characters when auth is enabled.`,
     );
   }
+
+  const authLogHashKey = resolveAuthLogHashKey({
+    authLogHashKeyRaw,
+    authSessionSecret,
+    isProduction,
+  });
 
   const authSessionMaxAgeSeconds = parseBoundedPositiveInteger(
     "RACKULA_AUTH_SESSION_MAX_AGE_SECONDS",
@@ -1000,6 +1053,7 @@ export function resolveApiSecurityConfig(
     authMode,
     authEnabled,
     authSessionSecret,
+    authLogHashKey,
     authSessionCookieName,
     authSessionCookieSecure,
     authSessionCookieSameSite,
@@ -1061,6 +1115,10 @@ export function createAuthGateMiddleware(
       await next();
       return;
     }
+
+    safeLogAuthEvent("auth.session.invalid", c.req.raw, {
+      reason: "missing or invalid session cookie",
+    });
 
     if (isApiRequestPath(pathname)) {
       return c.json(

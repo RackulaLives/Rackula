@@ -335,7 +335,7 @@ async function migrateLegacyLayout(
   try {
     parsed = yaml.load(yamlContent, { schema: yaml.JSON_SCHEMA });
   } catch (e) {
-    throw new Error(`Invalid YAML: ${e instanceof Error ? e.message : e}`);
+    throw new Error(`Invalid YAML: ${e instanceof Error ? e.message : e}`, { cause: e });
   }
 
   const layout = LayoutFileSchema.safeParse(parsed);
@@ -467,7 +467,7 @@ export async function saveLayout(
     parsed = yaml.load(yamlContent, { schema: yaml.JSON_SCHEMA });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    throw new Error(`Invalid YAML: ${message}`);
+    throw new Error(`Invalid YAML: ${message}`, { cause: e });
   }
 
   // Validate layout schema
