@@ -248,6 +248,12 @@ RACKULA_OIDC_ISSUER=https://authelia.example.com
 
 # Keycloak
 RACKULA_OIDC_ISSUER=https://keycloak.example.com/realms/homelab
+
+# Microsoft Entra ID (single tenant)
+RACKULA_OIDC_ISSUER=https://login.microsoftonline.com/<tenant-id>/v2.0
+
+# Microsoft Entra ID (multi-tenant)
+RACKULA_OIDC_ISSUER=https://login.microsoftonline.com/common/v2.0
 ```
 
 ### Step 4: Restart Rackula API
@@ -561,9 +567,12 @@ Maintain separate configurations for development and production:
    - Authentik: `https://authentik.example.com/application/o/rackula/`
    - Authelia: `https://authelia.example.com`
    - Keycloak: `https://keycloak.example.com/realms/{realm-name}`
-2. Check IdP application exists and is enabled
-3. Verify client ID matches: `RACKULA_OIDC_CLIENT_ID` = IdP client ID
-4. Check IdP logs for more specific error details
+   - Entra (single tenant): `https://login.microsoftonline.com/<tenant-id>/v2.0`
+   - Entra (multi-tenant): `https://login.microsoftonline.com/common/v2.0`
+2. For Entra `common`, ensure discovery issuer and token issuer use the tenant-specific `.../<tenant-id>/v2.0` value after login (Rackula accepts this when `RACKULA_OIDC_ISSUER` is `common`).
+3. Check IdP application exists and is enabled
+4. Verify client ID matches: `RACKULA_OIDC_CLIENT_ID` = IdP client ID
+5. Check IdP logs for more specific error details
 
 ### Session cookie not set in browser
 

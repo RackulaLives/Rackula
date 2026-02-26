@@ -23,6 +23,7 @@ import { configureAuthLogHashKey, safeLogAuthEvent } from "./auth-logger";
 
 const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
 const DEFAULT_MAX_LAYOUT_SIZE = 1 * 1024 * 1024; // 1MB
+const OIDC_PROVIDER_ID = "oidc";
 const HEALTH_RESPONSE = {
   ok: true,
   status: "ok",
@@ -36,6 +37,43 @@ type AppEnv = {
     authClaims: AuthSessionClaims | undefined;
   };
 };
+
+function normalizeNextPath(next: string | undefined): string {
+  if (!next) {
+    return "/";
+  }
+
+  const trimmed = next.trim();
+  if (!trimmed.startsWith("/")) {
+    return "/";
+  }
+
+  if (trimmed.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    return "/";
+  }
+
+  return trimmed;
+}
+
+function readSetCookieHeaders(headers: Headers | undefined): string[] {
+  if (!headers) {
+    return [];
+  }
+
+  const withGetSetCookie = headers as Headers & { getSetCookie?: () => string[] };
+  if (typeof withGetSetCookie.getSetCookie === "function") {
+    return withGetSetCookie.getSetCookie();
+  }
+
+  const rawSetCookie = headers.get("set-cookie");
+  return rawSetCookie ? [rawSetCookie] : [];
+}
+
+function appendSetCookieHeaders(c: Context, headers: Headers | undefined): void {
+  for (const setCookieHeader of readSetCookieHeaders(headers)) {
+    c.header("Set-Cookie", setCookieHeader, { append: true });
+  }
+}
 
 export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
@@ -72,7 +110,7 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
 
   // Better Auth instance — created with validated session secret
   const auth = securityConfig.authSessionSecret
-    ? createAuth(securityConfig.authSessionSecret)
+    ? createAuth(securityConfig.authSessionSecret, env)
     : undefined;
 
   const authSessionConfig = {
@@ -113,11 +151,12 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
       : [];
     const oidcApiAvailable =
       Boolean(auth) &&
+      securityConfig.authMode === "oidc" &&
       authPlugins.some(
         (plugin) => (plugin as { id?: unknown }).id === "generic-oauth",
       ) &&
-      typeof authApi.signInSocial === "function" &&
-      typeof authApi.callbackOAuth === "function";
+      typeof authApi.signInWithOAuth2 === "function" &&
+      typeof authApi.oAuth2Callback === "function";
 
     const authUnavailableRouteHandler = (c: Context<AppEnv>) =>
       c.json(
@@ -129,25 +168,62 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
         501,
       );
 
-    const authLoginRouteHandler = (c: Context<AppEnv>) => {
+    const authLoginRouteHandler = async (c: Context<AppEnv>) => {
       if (!oidcApiAvailable) {
         return authUnavailableRouteHandler(c);
       }
 
-      const loginTarget = new URL("/api/auth/sign-in/social", c.req.url);
-      loginTarget.searchParams.set("provider", "oidc");
-      return c.redirect(`${loginTarget.pathname}${loginTarget.search}`);
+      try {
+        const signInWithOAuth2 = authApi.signInWithOAuth2 as (options: {
+          headers: Headers;
+          body: {
+            providerId: string;
+            callbackURL: string;
+          };
+          returnHeaders: boolean;
+        }) => Promise<{ headers?: Headers; response?: { url?: string } }>;
+
+        const signInResult = await signInWithOAuth2({
+          headers: c.req.raw.headers,
+          body: {
+            providerId: OIDC_PROVIDER_ID,
+            callbackURL: normalizeNextPath(c.req.query("next")),
+          },
+          returnHeaders: true,
+        });
+
+        appendSetCookieHeaders(c, signInResult.headers);
+
+        const redirectUrl = signInResult.response?.url;
+        if (!redirectUrl) {
+          throw new Error("OIDC provider did not return an authorization URL.");
+        }
+
+        return c.redirect(redirectUrl, 302);
+      } catch (error) {
+        console.error("OIDC login initiation failed:", error);
+        return c.json(
+          {
+            error: "Authentication failed",
+            message: "Unable to initiate OIDC login.",
+          },
+          502,
+        );
+      }
     };
 
-    const authCallbackRouteHandler = (c: Context<AppEnv>) => {
+    const authCallbackRouteHandler = async (c: Context<AppEnv>) => {
       if (!oidcApiAvailable) {
         return authUnavailableRouteHandler(c);
       }
 
-      const requestUrl = new URL(c.req.url);
-      const callbackTarget = new URL("/api/auth/callback/oidc", c.req.url);
-      callbackTarget.search = requestUrl.search;
-      return c.redirect(`${callbackTarget.pathname}${callbackTarget.search}`);
+      const callbackUrl = new URL(c.req.url);
+      callbackUrl.pathname = "/api/auth/oauth2/callback/oidc";
+      const proxyRequest = new Request(callbackUrl.toString(), {
+        method: c.req.raw.method,
+        headers: c.req.raw.headers,
+      });
+      return auth!.handler(proxyRequest);
     };
 
     const authCheckRouteHandler = (c: Context<AppEnv>) => {
