@@ -130,9 +130,13 @@
     const runId = ++syncRun;
     debug("syncing from layout, runId=%d", runId);
     const editingAtStart = isEditing;
+    const textAtStart = yamlText;
     const serialized = await serializeLayoutToYaml(sourceLayout);
     if (runId !== syncRun) return;
-    if (!options.allowWhileEditing && editingAtStart) return;
+    if (!options.allowWhileEditing && isEditing) {
+      // Preserve in-flight user edits made while initial hydration was running.
+      if (editingAtStart || yamlText !== textAtStart) return;
+    }
 
     baselineYaml = serialized;
     yamlText = serialized;

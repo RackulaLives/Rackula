@@ -96,16 +96,12 @@ describe("LayoutYamlPanel", () => {
   it("shows revision conflict prompt when layout changed in parallel", async () => {
     const onApply = vi.fn();
     const originalSerialize = yamlUtils.serializeLayoutToYaml;
-    let baselineSerializations = 0;
-    // Mock returns a different layout name on the 2nd+ baseline serialization
-    // to simulate a concurrent edit, triggering the conflict prompt.
+    let simulateConcurrentChange = false;
+    // Start returning a changed baseline only once the test enters apply flow.
     vi.spyOn(yamlUtils, "serializeLayoutToYaml").mockImplementation(
       async (layout: Layout) => {
         const serialized = await originalSerialize(layout);
-        if (layout.name === "Baseline Layout") {
-          baselineSerializations += 1;
-        }
-        if (baselineSerializations >= 2 && layout.name === "Baseline Layout") {
+        if (simulateConcurrentChange && layout.name === "Baseline Layout") {
           return serialized.replace(
             "name: Baseline Layout",
             "name: Concurrent Layout",
@@ -134,6 +130,7 @@ describe("LayoutYamlPanel", () => {
     await fireEvent.input(textarea, { target: { value: editedYaml } });
     await waitForValidation(/YAML is valid/i);
 
+    simulateConcurrentChange = true;
     await fireEvent.click(screen.getByRole("button", { name: "Apply YAML" }));
 
     await waitFor(() => {
@@ -147,5 +144,48 @@ describe("LayoutYamlPanel", () => {
       expect(onApply).toHaveBeenCalledTimes(1);
     });
     expect(onApply.mock.calls[0]?.[0]?.name).toBe("Edited Layout");
+  });
+
+  it("does not overwrite edits when hydration resolves after entering edit mode", async () => {
+    const originalSerialize = yamlUtils.serializeLayoutToYaml;
+    const baselineYaml = await originalSerialize(baseLayout);
+
+    let releaseBaselineSync: ((value: string) => void) | null = null;
+    const baselineSyncPromise = new Promise<string>((resolve) => {
+      releaseBaselineSync = resolve;
+    });
+
+    let delayedBaselineSync = true;
+    vi.spyOn(yamlUtils, "serializeLayoutToYaml").mockImplementation(
+      async (layout: Layout) => {
+        if (layout.name === "Baseline Layout" && delayedBaselineSync) {
+          delayedBaselineSync = false;
+          return baselineSyncPromise;
+        }
+        return originalSerialize(layout);
+      },
+    );
+
+    render(LayoutYamlPanel, {
+      props: { open: true, layout: baseLayout, onapply: vi.fn() },
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "Edit YAML" }));
+    const textarea = screen.getByTestId("yaml-textarea");
+
+    const userDraft = 'name: User Draft\nversion: "1.0"';
+    await fireEvent.input(textarea, {
+      target: {
+        value: userDraft,
+      },
+    });
+
+    releaseBaselineSync?.(baselineYaml);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("yaml-textarea")).toHaveDisplayValue(
+        /name: User Draft/,
+      );
+    });
   });
 });
