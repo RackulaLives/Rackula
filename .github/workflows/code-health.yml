@@ -369,7 +369,7 @@ jobs:
 
           | Metric | Value |
           |--------|-------|
-          | Mutation Score | ${{ steps.mutations.outputs.mutation_score }}% |
+          | Mutation Score | ${{ steps.mutations.outputs.mutation_score == 'N/A' && 'N/A' || format('{0}%', steps.mutations.outputs.mutation_score) }} |
           | Flaky Tests | ${{ steps.flaky.outputs.flaky_count }} |
           | High Complexity Functions | ${{ steps.complexity.outputs.complex_count }} |
           | Source LOC | ${{ steps.metrics.outputs.code_lines }} |
