@@ -347,6 +347,13 @@ jobs:
               const created = await github.rest.issues.create({
                 owner, repo, title, body, labels: ['automated', 'code-health']
               });
+              // Seed baseline comment so next run can compute deltas from bot history.
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: created.data.number,
+                body: comment,
+              });
               core.notice(`Created rolling report issue #${created.data.number}`);
             }
 
