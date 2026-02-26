@@ -203,7 +203,7 @@
         placeholder="e.g., Dell PowerEdge R740"
         class:error={nameError}
         oninput={() => {
-          if (nameError) nameError = "";
+          if (nameError && name.trim()) nameError = "";
         }}
       />
       {#if nameError}
@@ -224,7 +224,12 @@
           step="0.5"
           class:error={heightError}
           oninput={() => {
-            if (heightError) heightError = "";
+            if (
+              heightError &&
+              height >= MIN_DEVICE_HEIGHT &&
+              height <= MAX_DEVICE_HEIGHT
+            )
+              heightError = "";
           }}
         />
         {#if heightError}
