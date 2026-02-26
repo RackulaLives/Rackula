@@ -11,14 +11,16 @@ on:
     branches: [main]
 
 permissions:
-  contents: write  # Required: push badge JSON to orphan 'badges' branch
-  pull-requests: write
-  actions: read
+  contents: read
 
 jobs:
   count:
     name: "Collect Metrics"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
@@ -152,8 +154,30 @@ jobs:
           }
           EOF
 
-      - name: Publish badges to badges branch
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      - name: Upload badge artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: badge-json
+          path: docs/badges/
+          retention-days: 1
+
+  publish-badges:
+    name: "Publish Badges"
+    needs: [count]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - name: Download badge artifacts
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        with:
+          name: badge-json
+          path: docs/badges/
+
+      - name: Push badges to badges branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
