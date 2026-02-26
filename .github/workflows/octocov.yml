@@ -189,6 +189,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add *.json
+          git diff --cached --quiet && echo "No badge changes to commit" && exit 0
           git commit -m "chore: update coverage badges [skip ci]"
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
           git push origin badges --force
