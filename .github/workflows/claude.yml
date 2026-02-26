@@ -54,14 +54,28 @@ jobs:
         id: fork-check
         if: |
           github.event_name == 'pull_request_review_comment' ||
-          github.event_name == 'pull_request_review'
+          github.event_name == 'pull_request_review' ||
+          github.event_name == 'issue_comment'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             // For PR-related events, check if the PR comes from a fork
             const pr = context.payload.pull_request;
-            if (pr && pr.head.repo.fork) {
-              core.setFailed('Blocked: Claude Code does not run on fork PRs for security reasons.');
+            if (pr && pr.head && pr.head.repo && pr.head.repo.fork) {
+              core.setFailed('Blocked: Claude Code does not run on fork PRs.');
+              return;
+            }
+            // For issue_comment events on PRs, fetch PR details
+            const issue = context.payload.issue;
+            if (issue && issue.pull_request) {
+              const { data: prData } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: issue.number
+              });
+              if (prData.head.repo && prData.head.repo.fork) {
+                core.setFailed('Blocked: Claude Code does not run on fork PRs.');
+              }
             }
 
       - name: Checkout repository
