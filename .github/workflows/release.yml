@@ -4,15 +4,37 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: "Skip full E2E (emergency hotfix only)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
+  full-test:
+    if: ${{ github.event.inputs.skip_tests != 'true' }}
+    uses: ./.github/workflows/test-full.yml
+    permissions:
+      contents: read
+      issues: write
+
   create-release:
+    needs: [full-test]
+    if: ${{ always() && (needs.full-test.result == 'success' || needs.full-test.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Warn if tests were skipped
+        if: ${{ needs.full-test.result == 'skipped' }}
+        run: |
+          echo "::warning::Release created with skip_tests=true — full E2E tests were bypassed"
+          echo "⚠️ **Tests bypassed**: This release was created with \`skip_tests=true\`. Full E2E tests were not run." >> $GITHUB_STEP_SUMMARY
 
       - name: Extract version number
         id: version

@@ -17,7 +17,7 @@ import {
 } from "./middleware/auth";
 import { createAuth } from "./auth/config";
 import { createRequireAdminMiddleware } from "./authorization";
-import { configureAuthLogHashKey, safeLogAuthEvent } from "./auth-logger";
+import { configureAuthLogHashKey } from "./auth-logger";
 
 const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
 const DEFAULT_MAX_LAYOUT_SIZE = 1 * 1024 * 1024; // 1MB
