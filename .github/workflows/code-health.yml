@@ -1,4 +1,9 @@
 name: "The Count's Weekly Census"
+# Rolling code health report: runs weekly deep analysis (mutation testing,
+# flaky test detection, complexity analysis) and maintains a single rolling
+# GitHub issue instead of creating new issues each week.
+# Weekly delta is preserved as issue comments for trend tracking.
+# Raw metrics are uploaded as artifacts (90-day retention) for historical reference.
 
 on:
   schedule:
@@ -159,100 +164,153 @@ jobs:
           echo "test_files=$TEST_FILES" >> $GITHUB_OUTPUT
 
       # ============================================
-      # CREATE WEEKLY REPORT ISSUE
+      # CREATE/UPDATE ROLLING REPORT ISSUE
       # ============================================
-      - name: The Count's Weekly Report
+      - name: The Count's Rolling Report
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          MUTATION_SCORE="${{ steps.mutations.outputs.mutation_score }}"
-          FLAKY_COUNT="${{ steps.flaky.outputs.flaky_count }}"
-          COMPLEX_COUNT="${{ steps.complexity.outputs.complex_count }}"
-          CODE_LINES="${{ steps.metrics.outputs.code_lines }}"
-          TEST_LINES="${{ steps.metrics.outputs.test_lines }}"
-          CODE_FILES="${{ steps.metrics.outputs.code_files }}"
-          TEST_FILES="${{ steps.metrics.outputs.test_files }}"
+          MUTATION_SCORE: ${{ steps.mutations.outputs.mutation_score }}
+          FLAKY_COUNT: ${{ steps.flaky.outputs.flaky_count }}
+          COMPLEX_COUNT: ${{ steps.complexity.outputs.complex_count }}
+          CODE_LINES: ${{ steps.metrics.outputs.code_lines }}
+          TEST_LINES: ${{ steps.metrics.outputs.test_lines }}
+          CODE_FILES: ${{ steps.metrics.outputs.code_files }}
+          TEST_FILES: ${{ steps.metrics.outputs.test_files }}
+          FLAKY_TESTS: ${{ steps.flaky.outputs.flaky_tests }}
+          COMPLEX_FUNCTIONS: ${{ steps.complexity.outputs.complex_functions }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const now = new Date().toISOString().split('T')[0];
 
-          # The Count's mood based on overall health
-          if [ "$FLAKY_COUNT" -gt 5 ] || [ "$COMPLEX_COUNT" -gt 10 ]; then
-            MOOD="is CONCERNED"
-            EMOJI="⚰️"
-            QUOTE="*\"The Count has found... problems. Many problems to count! Ah ah ah!\"*"
-          elif [ "$FLAKY_COUNT" -gt 0 ] || [ "$COMPLEX_COUNT" -gt 5 ]; then
-            MOOD="is watching"
-            EMOJI="🌙"
-            QUOTE="*\"Some things need attention. The Count is watching. Ah ah ah.\"*"
-          else
-            MOOD="is DELIGHTED"
-            EMOJI="🦇"
-            QUOTE="*\"Wonderful! Clean code, reliable tests! The Count approves! Ah ah ah!\"*"
-          fi
+            const mutationScore = process.env.MUTATION_SCORE || 'N/A';
+            const flakyCount = parseInt(process.env.FLAKY_COUNT || '0', 10);
+            const complexCount = parseInt(process.env.COMPLEX_COUNT || '0', 10);
+            const codeLines = process.env.CODE_LINES || '0';
+            const testLines = process.env.TEST_LINES || '0';
+            const codeFiles = process.env.CODE_FILES || '0';
+            const testFiles = process.env.TEST_FILES || '0';
+            const flakyTests = process.env.FLAKY_TESTS || '';
+            const complexFunctions = process.env.COMPLEX_FUNCTIONS || '';
 
-          # Format date for title
-          WEEK_DATE=$(date +"%Y-%m-%d")
+            // The Count's mood
+            let mood, emoji, quote;
+            if (flakyCount > 5 || complexCount > 10) {
+              mood = 'is CONCERNED'; emoji = '⚰️';
+              quote = '*"The Count has found... problems. Many problems to count! Ah ah ah!"*';
+            } else if (flakyCount > 0 || complexCount > 5) {
+              mood = 'is watching'; emoji = '🌙';
+              quote = '*"Some things need attention. The Count is watching. Ah ah ah."*';
+            } else {
+              mood = 'is DELIGHTED'; emoji = '🦇';
+              quote = '*"Wonderful! Clean code, reliable tests! The Count approves! Ah ah ah!"*';
+            }
 
-          # Build flaky tests section
-          FLAKY_SECTION=""
-          if [ "$FLAKY_COUNT" -gt 0 ]; then
-            FLAKY_SECTION="### Flaky Tests Detected
+            const ratio = parseInt(codeLines) > 0
+              ? (parseInt(testLines) / parseInt(codeLines)).toFixed(2)
+              : 'N/A';
 
-          The following tests showed inconsistent results across 5 runs:
+            let flakySec = '';
+            if (flakyCount > 0) {
+              flakySec = `\n### Flaky Tests Detected\n\nThe following tests showed inconsistent results across 5 runs:\n\n\`\`\`\n${flakyTests}\n\`\`\`\n`;
+            }
 
-          \`\`\`
-          ${{ steps.flaky.outputs.flaky_tests }}
-          \`\`\`
-          "
-          fi
+            let complexSec = '';
+            if (complexCount > 0) {
+              complexSec = `\n### High Complexity Functions\n\nFunctions exceeding complexity threshold (10):\n\n\`\`\`\n${complexFunctions}\n\`\`\`\n`;
+            }
 
-          # Build complexity section
-          COMPLEX_SECTION=""
-          if [ "$COMPLEX_COUNT" -gt 0 ]; then
-            COMPLEX_SECTION="### High Complexity Functions
+            // Build issue body (current state)
+            const body = `## ${emoji} The Count ${mood}
 
-          Functions exceeding complexity threshold (10):
+            ${quote}
 
-          \`\`\`
-          ${{ steps.complexity.outputs.complex_functions }}
-          \`\`\`
-          "
-          fi
+            ---
 
-          # Create the weekly report issue
-          gh issue create \
-            --title "🧛 Weekly Code Health Report - $WEEK_DATE" \
-            --label "automated" \
-            --body "## $EMOJI The Count $MOOD
+            ## Code Metrics
 
-          $QUOTE
+            | Metric | Value |
+            |--------|-------|
+            | Source Files | ${codeFiles} |
+            | Test Files | ${testFiles} |
+            | Source LOC | ${codeLines} |
+            | Test LOC | ${testLines} |
+            | Code:Test Ratio | 1:${ratio} |
 
-          ---
+            ## Test Quality
 
-          ## Code Metrics
+            | Metric | Value | Status |
+            |--------|-------|--------|
+            | Mutation Score | ${mutationScore}% | ${mutationScore === 'N/A' ? '⏭️ Skipped' : (parseInt(mutationScore) >= 70 ? '✅' : '⚠️')} |
+            | Flaky Tests | ${flakyCount} | ${flakyCount === 0 ? '✅' : '⚠️'} |
+            | High Complexity | ${complexCount} | ${complexCount <= 5 ? '✅' : '⚠️'} |
+            ${flakySec}${complexSec}
+            ---
 
-          | Metric | Value |
-          |--------|-------|
-          | Source Files | $CODE_FILES |
-          | Test Files | $TEST_FILES |
-          | Source LOC | $CODE_LINES |
-          | Test LOC | $TEST_LINES |
-          | Code:Test Ratio | 1:$(echo "scale=2; $TEST_LINES / $CODE_LINES" | bc 2>/dev/null || echo "N/A") |
+            <sub>*One rolling report! Ah ah ah!* 🦇</sub>
+            <sub>Last updated: ${now} by [The Count's Weekly Census](${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId})</sub>
+            `.replace(/^ {12}/gm, '');
 
-          ## Test Quality
+            // Build delta comment
+            const comment = `### 📊 Weekly Update — ${now}
 
-          | Metric | Value | Status |
-          |--------|-------|--------|
-          | Mutation Score | ${MUTATION_SCORE}% | $([ \"$MUTATION_SCORE\" = \"N/A\" ] && echo \"⏭️ Skipped\" || ([ \"$MUTATION_SCORE\" -ge 70 ] && echo \"✅\" || echo \"⚠️\")) |
-          | Flaky Tests | $FLAKY_COUNT | $([ \"$FLAKY_COUNT\" -eq 0 ] && echo \"✅\" || echo \"⚠️\") |
-          | High Complexity | $COMPLEX_COUNT | $([ \"$COMPLEX_COUNT\" -le 5 ] && echo \"✅\" || echo \"⚠️\") |
+            | Metric | Value |
+            |--------|-------|
+            | Mutation Score | ${mutationScore}% |
+            | Flaky Tests | ${flakyCount} |
+            | High Complexity | ${complexCount} |
+            | Source LOC | ${codeLines} |
+            | Test LOC | ${testLines} |
 
-          $FLAKY_SECTION
-          $COMPLEX_SECTION
+            [Workflow run](${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId})
+            `.replace(/^ {12}/gm, '');
 
-          ---
+            // Ensure labels exist
+            for (const label of [
+              { name: 'automated', color: '1D76DB', description: 'Created or updated by GitHub Actions automation' },
+              { name: 'code-health', color: '0E8A16', description: 'Rolling code health metrics report' }
+            ]) {
+              try {
+                await github.rest.issues.createLabel({ owner, repo, ...label });
+              } catch (e) {
+                if (e.status !== 422) throw e;
+              }
+            }
 
-          <sub>*One weekly report! Ah ah ah!* 🦇</sub>
-          <sub>Generated by [The Count's Weekly Census](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>
-          "
+            // Find existing rolling report
+            const title = '🧛 Rolling Code Health Report';
+            const issues = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', labels: 'automated,code-health', per_page: 10
+            });
+
+            const existing = issues.data.find(i => i.title === title);
+
+            if (existing) {
+              // Update the issue body with current metrics
+              await github.rest.issues.update({
+                owner, repo, issue_number: existing.number, body
+              });
+              // Add weekly delta as comment
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: existing.number, body: comment
+              });
+              core.notice(`Updated rolling report issue #${existing.number}`);
+            } else {
+              // First run — create the issue
+              const created = await github.rest.issues.create({
+                owner, repo, title, body, labels: ['automated', 'code-health']
+              });
+              core.notice(`Created rolling report issue #${created.data.number}`);
+            }
+
+      - name: Upload metrics artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: code-health-metrics-${{ github.run_number }}
+          retention-days: 90
+          path: |
+            reports/
+            coverage/
 
       # ============================================
       # JOB SUMMARY
