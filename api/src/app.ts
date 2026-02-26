@@ -106,7 +106,12 @@ function toEpochSeconds(value: Date | string | number | undefined): number | nul
   }
 
   if (typeof value === "number") {
-    return Number.isFinite(value) ? Math.floor(value) : null;
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+    // Handle millisecond timestamps (common for JS Date.getTime()) as well as second timestamps.
+    const seconds = value > 1e11 ? Math.floor(value / 1000) : Math.floor(value);
+    return Number.isFinite(seconds) ? seconds : null;
   }
 
   return null;
