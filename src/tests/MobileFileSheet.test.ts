@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
+import type { ComponentProps } from "svelte";
 import MobileFileSheet from "$lib/components/MobileFileSheet.svelte";
 
 describe("MobileFileSheet", () => {
@@ -17,7 +18,9 @@ describe("MobileFileSheet", () => {
     onClose = vi.fn();
   });
 
-  function renderSheet() {
+  function renderSheet(
+    overrides: Partial<ComponentProps<typeof MobileFileSheet>> = {},
+  ) {
     return render(MobileFileSheet, {
       props: {
         onload: onLoad,
@@ -25,6 +28,7 @@ describe("MobileFileSheet", () => {
         onexport: onExport,
         onshare: onShare,
         onclose: onClose,
+        ...overrides,
       },
     });
   }
@@ -83,7 +87,7 @@ describe("MobileFileSheet", () => {
   });
 
   it("calls share handler and closes sheet", async () => {
-    renderSheet();
+    renderSheet({ hasRacks: true });
 
     await fireEvent.click(screen.getByRole("button", { name: "Share Link" }));
 
@@ -92,5 +96,22 @@ describe("MobileFileSheet", () => {
     expect(onSave).not.toHaveBeenCalled();
     expect(onExport).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls view yaml handler and closes sheet when hasRacks", async () => {
+    const onViewYaml = vi.fn();
+    renderSheet({ hasRacks: true, onviewyaml: onViewYaml });
+
+    await fireEvent.click(screen.getByRole("button", { name: "View YAML" }));
+
+    expect(onViewYaml).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables share and view yaml buttons when no racks", () => {
+    renderSheet({ hasRacks: false });
+
+    expect(screen.getByRole("button", { name: "Share Link" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "View YAML" })).toBeDisabled();
   });
 });

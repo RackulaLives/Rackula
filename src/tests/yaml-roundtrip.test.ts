@@ -8,7 +8,7 @@ import {
 } from "./factories";
 
 describe("YAML layout round-trip", () => {
-  it("preserves half-width slot width and slot position", async () => {
+  it("omits deprecated slot_width and slot_position from YAML output", async () => {
     const halfWidth = createTestDeviceType({
       slug: "half-width-device",
       u_height: 1,
@@ -33,9 +33,14 @@ describe("YAML layout round-trip", () => {
     });
 
     const yaml = await serializeLayoutToYaml(layout);
-    const restored = await parseLayoutYaml(yaml);
 
-    expect(restored.device_types[0]?.slot_width).toBe(1);
-    expect(restored.racks[0]?.devices[0]?.slot_position).toBe("left");
+    // Deprecated NetBox fields should not appear in serialised output
+    expect(yaml).not.toContain("slot_width");
+    expect(yaml).not.toContain("slot_position");
+
+    // Round-trip should still produce a valid layout
+    const restored = await parseLayoutYaml(yaml);
+    expect(restored.racks.length).toBeGreaterThan(0);
+    expect(restored.device_types.length).toBeGreaterThan(0);
   });
 });

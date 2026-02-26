@@ -18,14 +18,16 @@ export type DialogId =
   | "importNetBox"
   | "confirmReplace"
   | "cleanupDialog"
-  | "cleanupPrompt";
+  | "cleanupPrompt"
+  | "yamlEditor";
 
 export type SheetId =
   | "deviceDetails"
   | "deviceLibrary"
   | "rackEdit"
   | "fileActions"
-  | "view";
+  | "view"
+  | "yamlEditor";
 
 export interface DeleteTarget {
   type: "rack" | "device";

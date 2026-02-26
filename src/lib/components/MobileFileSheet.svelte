@@ -10,6 +10,7 @@
     IconFileDownloadBold,
     IconDownloadBold,
     IconShareBold,
+    IconTextBold,
   } from "./icons";
 
   interface Props {
@@ -18,15 +19,30 @@
     onsaveas?: () => void;
     onexport?: () => void;
     onshare?: () => void;
+    onviewyaml?: () => void;
     onclose?: () => void;
+    hasRacks?: boolean;
   }
 
-  let { onload, onsave, onsaveas, onexport, onshare, onclose }: Props =
-    $props();
+  let {
+    onload,
+    onsave,
+    onsaveas,
+    onexport,
+    onshare,
+    onviewyaml,
+    onclose,
+    hasRacks = false,
+  }: Props = $props();
 
   function handleAction(action?: () => void) {
     action?.();
     onclose?.();
+  }
+
+  function handleViewYaml(): void {
+    onclose?.();
+    onviewyaml?.();
   }
 </script>
 
@@ -75,11 +91,23 @@
   <button
     type="button"
     class="file-action"
+    disabled={!hasRacks}
     onclick={() => handleAction(onshare)}
     aria-label="Share Link"
   >
     <span class="action-icon"><IconShareBold size={ICON_SIZE.md} /></span>
     <span class="action-label">Share Link</span>
+  </button>
+
+  <button
+    type="button"
+    class="file-action"
+    disabled={!hasRacks}
+    onclick={handleViewYaml}
+    aria-label="View YAML"
+  >
+    <span class="action-icon"><IconTextBold size={ICON_SIZE.md} /></span>
+    <span class="action-label">View YAML</span>
   </button>
 </div>
 
@@ -113,7 +141,7 @@
     border-top: 1px solid var(--colour-border);
   }
 
-  .file-action:hover {
+  .file-action:hover:not(:disabled) {
     background: var(--colour-surface-hover);
     color: var(--colour-primary);
   }
@@ -123,7 +151,12 @@
     outline-offset: -2px;
   }
 
-  .file-action:active {
+  .file-action:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .file-action:active:not(:disabled) {
     background: var(--colour-surface-active);
   }
 
