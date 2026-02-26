@@ -194,6 +194,9 @@ jobs:
             const complexFunctions = process.env.COMPLEX_FUNCTIONS || '';
 
             const mutationScoreDisplay = mutationScore === 'N/A' ? 'N/A' : `${mutationScore}%`;
+            const mutationScoreValue = mutationScore === 'N/A' ? Number.NaN : Number(mutationScore);
+            const codeLinesValue = parseInt(codeLines, 10);
+            const testLinesValue = parseInt(testLines, 10);
 
             // The Count's mood
             let mood, emoji, quote;
@@ -208,8 +211,8 @@ jobs:
               quote = '*"Wonderful! Clean code, reliable tests! The Count approves! Ah ah ah!"*';
             }
 
-            const ratio = parseInt(codeLines) > 0
-              ? (parseInt(testLines) / parseInt(codeLines)).toFixed(2)
+            const ratio = codeLinesValue > 0
+              ? (testLinesValue / codeLinesValue).toFixed(2)
               : 'N/A';
 
             let flakySec = '';
@@ -276,19 +279,28 @@ jobs:
             // Find previous bot comment for delta calculation
             let prevMetrics = null;
             if (existing) {
-              const comments = await github.rest.issues.listComments({
-                owner, repo, issue_number: existing.number, per_page: 100
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: existing.number,
+                per_page: 100,
               });
-              const botComments = comments.data
+              const botComments = comments
                 .filter(c => c.user.login === 'github-actions[bot]' && c.body.includes('Weekly Update'))
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
               if (botComments.length > 0) {
                 const prev = botComments[0].body;
                 const parseVal = (label) => {
-                  const m = prev.match(new RegExp(`\\| ${label} \\| ([\\d.]+|N/A)`));
-                  return m ? (m[1] === 'N/A' ? null : Number(m[1])) : null;
+                  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                  const m = prev.match(new RegExp(`\\| ${escapedLabel} \\|\\s*([^|]+)\\|`));
+                  if (!m) return null;
+                  const raw = m[1].trim().replace(/%$/, '');
+                  if (raw === 'N/A') return null;
+                  const value = Number(raw);
+                  return Number.isFinite(value) ? value : null;
                 };
                 prevMetrics = {
+                  mutationScore: parseVal('Mutation Score'),
                   flakyCount: parseVal('Flaky Tests'),
                   complexCount: parseVal('High Complexity'),
                   codeLines: parseVal('Source LOC'),
@@ -296,18 +308,26 @@ jobs:
                 };
               }
             }
-            const delta = (curr, prev) => prev == null ? '' : ` (${curr - prev >= 0 ? '+' : ''}${curr - prev})`;
+            const formatDelta = (current, previous, suffix = '') => {
+              if (previous == null || Number.isNaN(current)) return 'N/A';
+              const change = current - previous;
+              const formatted = Number.isInteger(change)
+                ? String(change)
+                : change.toFixed(2).replace(/\.?0+$/, '');
+              const sign = change > 0 ? '+' : '';
+              return `${sign}${formatted}${suffix}`;
+            };
 
             // Build delta comment
             const comment = `### 📊 Weekly Update — ${now}
 
-            | Metric | Value |
-            |--------|-------|
-            | Mutation Score | ${mutationScoreDisplay} |
-            | Flaky Tests | ${flakyCount}${delta(flakyCount, prevMetrics?.flakyCount)} |
-            | High Complexity | ${complexCount}${delta(complexCount, prevMetrics?.complexCount)} |
-            | Source LOC | ${parseInt(codeLines)}${delta(parseInt(codeLines), prevMetrics?.codeLines)} |
-            | Test LOC | ${parseInt(testLines)}${delta(parseInt(testLines), prevMetrics?.testLines)} |
+            | Metric | Current | Δ vs last |
+            |--------|---------|-----------|
+            | Mutation Score | ${mutationScoreDisplay} | ${formatDelta(mutationScoreValue, prevMetrics?.mutationScore, '%')} |
+            | Flaky Tests | ${flakyCount} | ${formatDelta(flakyCount, prevMetrics?.flakyCount)} |
+            | High Complexity | ${complexCount} | ${formatDelta(complexCount, prevMetrics?.complexCount)} |
+            | Source LOC | ${codeLinesValue} | ${formatDelta(codeLinesValue, prevMetrics?.codeLines)} |
+            | Test LOC | ${testLinesValue} | ${formatDelta(testLinesValue, prevMetrics?.testLines)} |
 
             [Workflow run](${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId})
             `.replace(/^ {12}/gm, '');
