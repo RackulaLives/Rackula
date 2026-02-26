@@ -44,7 +44,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run smoke E2E tests
-        run: npm run test:e2e:ci-smoke
+        run: npm run test:e2e:smoke
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

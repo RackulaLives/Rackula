@@ -6,14 +6,11 @@ const smokeTestUrl = process.env.SMOKE_TEST_URL;
  * Playwright configuration for smoke tests.
  *
  * Two modes:
- * - CI mode (no SMOKE_TEST_URL): builds locally and serves on port 4173
- * - Post-deploy mode (SMOKE_TEST_URL set): tests against a live URL
+ * - Local mode (no SMOKE_TEST_URL): builds locally and serves on port 4173
+ * - Deploy mode (SMOKE_TEST_URL set): tests against a live URL
  *
  * @example
- * # CI smoke tests (local build)
- * npm run test:e2e:ci-smoke
- *
- * # Test dev environment
+ * # Local/CI smoke tests (local build)
  * npm run test:e2e:smoke
  *
  * # Test production
@@ -46,6 +43,7 @@ export default defineConfig({
         webServer: {
           command: "npm run build && npm run preview",
           port: 4173,
+          timeout: 120_000,
           reuseExistingServer: !process.env.CI,
         },
       }),
