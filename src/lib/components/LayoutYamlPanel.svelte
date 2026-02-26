@@ -335,7 +335,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    width: min(100%, 100%);
+    width: 100%;
     min-height: min(68vh, 700px);
   }
 

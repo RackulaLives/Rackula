@@ -142,6 +142,7 @@
   }
 
   function handleViewYaml() {
+    analytics.trackToolbarClick("view-yaml");
     onviewyaml?.();
   }
 
