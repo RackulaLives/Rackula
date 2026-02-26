@@ -1,0 +1,33 @@
+name: Label Sync
+
+# Sync canonical labels from .github/labels.yml to GitHub
+# Runs on push to main (when labels.yml changes) and weekly for drift detection
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/labels.yml"]
+  schedule:
+    # Weekly drift check: Sunday 3am UTC
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync:
+    name: "Sync Labels"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Sync labels
+        uses: EndBug/label-sync@52074158190acb45f3f576b9c22b34b73df5fdbe # v2
+        with:
+          config-file: .github/labels.yml
+          # Don't delete labels not in config — allows ad-hoc labels
+          delete-other-labels: false
+          token: ${{ secrets.GITHUB_TOKEN }}

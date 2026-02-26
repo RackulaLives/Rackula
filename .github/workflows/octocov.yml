@@ -1,4 +1,8 @@
 name: The Count's Code Census
+# Metrics pipeline: runs tests with coverage, publishes octocov report,
+# generates shields.io badge JSON, and pushes badges to orphan 'badges' branch.
+# Main branch is never directly mutated by this workflow.
+# Badge URLs: https://raw.githubusercontent.com/RackulaLives/Rackula/report/badges/*.json
 
 on:
   push:
@@ -7,14 +11,16 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
-  pull-requests: write
-  actions: read
+  contents: read
 
 jobs:
   count:
     name: "Collect Metrics"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
@@ -36,8 +42,6 @@ jobs:
 
       - name: Run octocov
         uses: k1LoW/octocov-action@73d561f65d59e66899ed5c87e4621a913b5d5c20 # v1
-        # Continue even if acceptable thresholds aren't met - we want visibility, not enforcement
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -150,15 +154,42 @@ jobs:
           }
           EOF
 
-      - name: Update badges on main
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        continue-on-error: true  # Branch protection may block direct pushes
+      - name: Upload badge artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: badge-json
+          path: docs/badges/
+          retention-days: 1
+
+  publish-badges:
+    name: "Publish Badges"
+    needs: [count]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - name: Download badge artifacts
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        with:
+          name: badge-json
+          path: docs/badges/
+
+      - name: Push badges to badges branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Check if badge JSON was generated
-          if [ -d "docs/badges" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add docs/badges/
-            git diff --staged --quiet || git commit -m "chore: update code metrics badges [skip ci]"
-            git push
-          fi
+          # Push badge JSON files to a dedicated orphan branch.
+          # This keeps main clean while providing stable URLs for shields.io.
+          # If this step fails, badges show last successful values — re-run to retry.
+          cd docs/badges
+          git init --initial-branch=report/badges
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add *.json
+          git diff --cached --quiet && echo "No badge changes to commit" && exit 0
+          git commit -m "chore: update coverage badges [skip ci]"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          git push origin report/badges --force

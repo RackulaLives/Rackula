@@ -1,3 +1,16 @@
+# Trust policy:
+# - Triggers: issue comments, PR review comments, PR reviews, new issues mentioning @claude
+# - Trust boundary: OWNER, MEMBER, COLLABORATOR only (not CONTRIBUTOR)
+#   CONTRIBUTOR is excluded because any merged PR author gets this association,
+#   which is too broad for granting write access via Claude.
+# - Fork PRs are blocked to prevent exfiltration of secrets.
+# Permissions:
+#   contents:write     - Claude needs to push commits to branches
+#   pull-requests:write - Claude needs to create/update PRs and post comments
+#   issues:write       - Claude needs to comment on and update issues
+#   id-token:write     - Required by claude-code-action for OIDC authentication
+#   actions:read       - Claude reads CI results to understand PR status
+
 name: Claude Code
 
 on:
@@ -15,16 +28,16 @@ jobs:
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') &&
        (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'MEMBER' ||
-        github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'CONTRIBUTOR')) ||
+        github.event.comment.author_association == 'COLLABORATOR')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') &&
        (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'MEMBER' ||
-        github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'CONTRIBUTOR')) ||
+        github.event.comment.author_association == 'COLLABORATOR')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') &&
        (github.event.review.author_association == 'OWNER' || github.event.review.author_association == 'MEMBER' ||
-        github.event.review.author_association == 'COLLABORATOR' || github.event.review.author_association == 'CONTRIBUTOR')) ||
+        github.event.review.author_association == 'COLLABORATOR')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
        (github.event.issue.author_association == 'OWNER' || github.event.issue.author_association == 'MEMBER' ||
-        github.event.issue.author_association == 'COLLABORATOR' || github.event.issue.author_association == 'CONTRIBUTOR'))
+        github.event.issue.author_association == 'COLLABORATOR'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
@@ -37,6 +50,34 @@ jobs:
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
+      - name: Check for fork context
+        id: fork-check
+        if: |
+          github.event_name == 'pull_request_review_comment' ||
+          github.event_name == 'pull_request_review' ||
+          github.event_name == 'issue_comment'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            // For PR-related events, check if the PR comes from a fork
+            const pr = context.payload.pull_request;
+            if (pr && pr.head && pr.head.repo && pr.head.repo.fork) {
+              core.setFailed('Blocked: Claude Code does not run on fork PRs.');
+              return;
+            }
+            // For issue_comment events on PRs, fetch PR details
+            const issue = context.payload.issue;
+            if (issue && issue.pull_request) {
+              const { data: prData } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: issue.number
+              });
+              if (prData.head.repo && prData.head.repo.fork) {
+                core.setFailed('Blocked: Claude Code does not run on fork PRs.');
+              }
+            }
+
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:

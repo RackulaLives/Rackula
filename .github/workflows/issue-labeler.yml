@@ -66,3 +66,38 @@ jobs:
                 }
               }
             }
+
+  label-type:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Apply type label from template
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const labels = issue.labels.map(l => l.name);
+
+            // Map template markers to type labels
+            // Templates set their own labels, but we reinforce and fill gaps
+            const typeMap = [
+              // Spike template doesn't set a type label — only sets 'triage'
+              { match: /### Research Question/i, label: 'spike', unless: ['spike'] },
+              // Implementation task — ensure 'chore' if no type present
+              { match: /### Acceptance Criteria/i, label: 'chore', unless: ['bug', 'feature', 'chore', 'spike', 'ci', 'documentation', 'design', 'performance', 'security'] },
+            ];
+
+            for (const { match, label, unless } of typeMap) {
+              if (match.test(body) && !unless.some(l => labels.includes(l))) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: [label]
+                });
+                console.log(`Applied type label: ${label}`);
+                break; // Only apply one type label
+              }
+            }

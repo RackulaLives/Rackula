@@ -1,0 +1,285 @@
+# Canonical label taxonomy for Rackula
+# Synced by .github/workflows/label-sync.yml
+# Format: EndBug/label-sync compatible
+#
+# Taxonomy standard: every issue should have type + area (minimum)
+# Size and priority are applied as needed.
+
+# ── Type labels ──────────────────────────────────────────────
+- name: bug
+  color: "d73a4a"
+  description: "Something isn't working"
+
+- name: feature
+  color: "A2EEEF"
+  description: "New feature or request"
+
+- name: chore
+  color: "FEF2C0"
+  description: "Maintenance, refactoring, or housekeeping"
+
+- name: spike
+  color: "FBCA04"
+  description: "Research or investigation task"
+
+- name: ci
+  color: "ededed"
+  description: "CI/CD pipeline changes"
+
+- name: documentation
+  color: "0075ca"
+  description: "Improvements or additions to documentation"
+
+- name: design
+  color: "7057ff"
+  description: "Design and UX improvements"
+
+- name: performance
+  color: "ededed"
+  description: "Performance improvements"
+
+- name: security
+  color: "D93F0B"
+  description: "Security-related changes"
+
+# ── Area labels ──────────────────────────────────────────────
+- name: "area:a11y"
+  color: "C5DEF5"
+  description: "Accessibility features and compliance"
+
+- name: "area:authentication"
+  color: "aa49f3"
+  description: "Authentication and identity"
+
+- name: "area:canvas"
+  color: "BFD4F2"
+  description: "Canvas rendering and interaction"
+
+- name: "area:container"
+  color: "d678d8"
+  description: "Docker containerisation"
+
+- name: "area:data-schema"
+  color: "6F42C1"
+  description: "Data model and schema definitions"
+
+- name: "area:data-schema-persistence"
+  color: "d3f6cc"
+  description: "Saving and loading data to disk"
+  aliases: ["area:data-schema-persistance"]
+
+- name: "area:devices"
+  color: "D4C5F9"
+  description: "Device library and device types"
+
+- name: "area:docs"
+  color: "D4D4D4"
+  description: "Documentation area"
+
+- name: "area:export"
+  color: "F9D0C4"
+  description: "Export and sharing features"
+
+- name: "area:i18n"
+  color: "e263aa"
+  description: "Internationalisation"
+
+- name: "area:lxc"
+  color: "D678D8"
+  description: "LXC container distribution and scripts"
+
+- name: "area:testing"
+  color: "0E8A16"
+  description: "Test infrastructure and quality"
+
+- name: "area:ui"
+  color: "FEF2C0"
+  description: "User interface components"
+
+# ── Size labels (manual issue estimates from templates) ──────
+- name: "size:small"
+  color: "C5DEF5"
+  description: "Small task (<1 hour)"
+
+- name: "size:medium"
+  color: "7DC4E8"
+  description: "Medium task (1-4 hours)"
+
+- name: "size:large"
+  color: "0052CC"
+  description: "Large task (needs breakdown)"
+
+# ── Size labels (automated PR sizing by bot) ─────────────────
+- name: "size:XS"
+  color: "1d76db"
+  description: "PR changes 0-9 lines"
+
+- name: "size:S"
+  color: "e99695"
+  description: "PR changes 10-29 lines"
+
+- name: "size:M"
+  color: "c5def5"
+  description: "PR changes 30-99 lines"
+
+- name: "size:L"
+  color: "bfd4f2"
+  description: "PR changes 100-499 lines"
+
+- name: "size:XL"
+  color: "d4c5f9"
+  description: "PR changes 500-999 lines"
+
+- name: "size:XXL"
+  color: "d1bcf9"
+  description: "PR changes 1000+ lines"
+
+# ── Priority labels ──────────────────────────────────────────
+- name: "priority:urgent"
+  color: "B60205"
+  description: "Needs immediate attention"
+
+- name: "priority:high"
+  color: "D93F0B"
+  description: "Should be addressed soon"
+
+- name: "priority:medium"
+  color: "FBCA04"
+  description: "Normal priority"
+
+- name: "priority:low"
+  color: "C2E0C6"
+  description: "Nice to have, no rush"
+
+# ── Status / workflow labels ─────────────────────────────────
+- name: triage
+  color: "D93F0B"
+  description: "Needs triage and categorisation"
+
+- name: ready
+  color: "0E8A16"
+  description: "Ready for implementation"
+
+- name: blocked
+  color: "B60205"
+  description: "Blocked by external dependency"
+
+- name: in-progress
+  color: "1D76DB"
+  description: "Currently being worked on"
+
+- name: in-review
+  color: "8B5CF6"
+  description: "PR open, awaiting review"
+
+- name: defer
+  color: "CCCCCC"
+  description: "Deferred — needs simplification or user demand"
+
+- name: waiting-for-response
+  color: "dc6d05"
+  description: "Waiting on external response"
+
+# ── Scope / planning labels ──────────────────────────────────
+- name: epic
+  color: "3E4B9E"
+  description: "Large initiative spanning multiple issues"
+
+- name: initiative
+  color: "6B21A8"
+  description: "Strategic initiative spanning multiple epics"
+
+# ── Platform labels ──────────────────────────────────────────
+- name: "platform:desktop"
+  color: "5785d6"
+  description: "Desktop browser issues"
+
+- name: "platform:mobile/phone"
+  color: "212204"
+  description: "Phone browser issues"
+
+- name: "platform:mobile/tablet"
+  color: "a98ab0"
+  description: "Tablet browser issues"
+
+# ── Use-case labels ──────────────────────────────────────────
+- name: "use:enterprise"
+  color: "963C4A"
+  description: "Enterprise use cases"
+
+- name: "use:homelab"
+  color: "034fd9"
+  description: "Homelab server rack use cases"
+
+- name: "use:touring-AV"
+  color: "d738d4"
+  description: "Touring audio/video rack use cases"
+
+# ── Feature sub-labels ───────────────────────────────────────
+- name: "feature/Attributes"
+  color: "7B68EE"
+  description: "Device metadata display (IP, notes, serial, asset_tag)"
+
+- name: "feature/network"
+  color: "5319E7"
+  description: "Network interface and connection features"
+
+- name: "feature/power"
+  color: "FFA500"
+  description: "Power and PDU related features"
+
+# ── Automation labels ────────────────────────────────────────
+- name: automated
+  color: "1D76DB"
+  description: "Created or updated by GitHub Actions automation"
+
+- name: ci-alert
+  color: "B60205"
+  description: "Automated CI/CD failure alerts"
+
+- name: code-health
+  color: "0E8A16"
+  description: "Rolling code health metrics report"
+
+- name: dependencies
+  color: "0366d6"
+  description: "Pull requests that update a dependency file"
+
+# ── Bug sub-labels ───────────────────────────────────────────
+- name: "bug/environment"
+  color: "3ef6c7"
+  description: "Bugs caused by environment issues (not our code)"
+
+- name: "bug/regression"
+  color: "b2319c"
+  description: "Bugs introduced after a code change"
+
+- name: browser-bug
+  color: "5319e7"
+  description: "Caused by browser bug, not our code"
+
+# ── Contributor labels ───────────────────────────────────────
+- name: "good first issue"
+  color: "7057ff"
+  description: "Good for newcomers"
+
+- name: "help wanted"
+  color: "008672"
+  description: "Extra attention is needed"
+
+# ── Misc (GitHub defaults we keep) ───────────────────────────
+- name: duplicate
+  color: "cfd3d7"
+  description: "This issue or pull request already exists"
+
+- name: invalid
+  color: "e4e669"
+  description: "This doesn't seem right"
+
+- name: question
+  color: "d876e3"
+  description: "Further information is requested"
+
+- name: wontfix
+  color: "ffffff"
+  description: "This will not be worked on"
