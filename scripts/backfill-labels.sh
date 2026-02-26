@@ -26,7 +26,7 @@ run() {
     echo "  [dry-run] $*"
   else
     echo "  → $*"
-    eval "$@"
+    "$@" 2>/dev/null || echo "    (label not found, skipping)"
   fi
 }
 
@@ -36,7 +36,7 @@ echo ""
 
 # Rename preserves all issue/PR associations
 echo "Renaming 'area:data-schema-persistance' → 'area:data-schema-persistence'"
-run "gh label edit 'area:data-schema-persistance' --name 'area:data-schema-persistence' --repo '$REPO' 2>/dev/null || echo '    (label not found, skipping)'"
+run gh label edit "area:data-schema-persistance" --name "area:data-schema-persistence" --repo "$REPO"
 
 echo ""
 echo "=== Phase 2: Merge duplicate labels ==="
@@ -94,6 +94,9 @@ delete_label() {
     return
   fi
 
+  local count
+  count=$(gh issue list --label "$label" --state all --repo "$REPO" --json number --jq 'length' 2>/dev/null || echo "0")
+  echo "  Label has $count issues/PRs"
   gh label delete "$label" --yes --repo "$REPO" 2>/dev/null || echo "  (label not found)"
 }
 

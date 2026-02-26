@@ -96,7 +96,7 @@
   color: "FEF2C0"
   description: "User interface components"
 
-# ── Size labels (issue estimates from templates) ─────────────
+# ── Size labels (manual issue estimates from templates) ──────
 - name: "size:small"
   color: "C5DEF5"
   description: "Small task (<1 hour)"
@@ -109,7 +109,7 @@
   color: "0052CC"
   description: "Large task (needs breakdown)"
 
-# ── Size labels (automated PR sizing) ───────────────────────
+# ── Size labels (automated PR sizing by bot) ─────────────────
 - name: "size:XS"
   color: "1d76db"
   description: "PR changes 0-9 lines"

@@ -86,7 +86,7 @@ jobs:
               // Spike template doesn't set a type label — only sets 'triage'
               { match: /### Research Question/i, label: 'spike', unless: ['spike'] },
               // Implementation task — ensure 'chore' if no type present
-              { match: /### Acceptance Criteria/i, label: 'chore', unless: ['bug', 'feature', 'chore', 'spike', 'ci', 'design', 'performance', 'security'] },
+              { match: /### Acceptance Criteria/i, label: 'chore', unless: ['bug', 'feature', 'chore', 'spike', 'ci', 'documentation', 'design', 'performance', 'security'] },
             ];
 
             for (const { match, label, unless } of typeMap) {
