@@ -1,37 +1,33 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const smokeTestUrl = process.env.SMOKE_TEST_URL;
+
 /**
- * Playwright configuration for post-deploy smoke tests.
+ * Playwright configuration for smoke tests.
  *
- * Runs against live URLs (d.racku.la or count.racku.la) to verify
- * deployment succeeded and the app is working.
- *
- * Environment variables:
- * - SMOKE_TEST_URL: Target URL to test (default: https://d.racku.la)
+ * Two modes:
+ * - Local mode (no SMOKE_TEST_URL): builds locally and serves on port 4173
+ * - Deploy mode (SMOKE_TEST_URL set): tests against a live URL
  *
  * @example
- * # Test dev environment
+ * # Local/CI smoke tests (local build)
  * npm run test:e2e:smoke
  *
  * # Test production
  * SMOKE_TEST_URL=https://count.racku.la npm run test:e2e:smoke
  */
 export default defineConfig({
-  // No webServer - we're testing a deployed URL
   testDir: "e2e",
-  // Only run smoke tests - not the full E2E suite
-  testMatch: "smoke.spec.ts",
+  testMatch: ["smoke.spec.ts", "basic-workflow.spec.ts"],
   fullyParallel: true,
-  // More retries for live environment
   retries: 2,
-  // Longer timeouts for network latency
   timeout: 60000,
   expect: {
     timeout: 15000,
   },
   reporter: [["html", { open: "never" }]],
   use: {
-    baseURL: process.env.SMOKE_TEST_URL || "https://d.racku.la",
+    baseURL: smokeTestUrl || "http://localhost:4173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -40,6 +36,15 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
-    // Only chromium for smoke tests - speed over coverage
   ],
+  ...(smokeTestUrl
+    ? {}
+    : {
+        webServer: {
+          command: "npm run build && npm run preview",
+          port: 4173,
+          timeout: 120_000,
+          reuseExistingServer: !process.env.CI,
+        },
+      }),
 });
