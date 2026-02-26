@@ -2,7 +2,7 @@ name: The Count's Code Census
 # Metrics pipeline: runs tests with coverage, publishes octocov report,
 # generates shields.io badge JSON, and pushes badges to orphan 'badges' branch.
 # Main branch is never directly mutated by this workflow.
-# Badge URLs: https://raw.githubusercontent.com/RackulaLives/Rackula/badges/*.json
+# Badge URLs: https://raw.githubusercontent.com/RackulaLives/Rackula/report/badges/*.json
 
 on:
   push:
@@ -185,11 +185,11 @@ jobs:
           # This keeps main clean while providing stable URLs for shields.io.
           # If this step fails, badges show last successful values — re-run to retry.
           cd docs/badges
-          git init --initial-branch=badges
+          git init --initial-branch=report/badges
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add *.json
           git diff --cached --quiet && echo "No badge changes to commit" && exit 0
           git commit -m "chore: update coverage badges [skip ci]"
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
-          git push origin badges --force
+          git push origin report/badges --force
