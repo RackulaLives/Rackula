@@ -45,21 +45,24 @@ jobs:
           else
             TAG="${GITHUB_REF#refs/tags/}"
           fi
-          VERSION="${TAG#v}"
-          MAJOR_MINOR="${VERSION%.*}"
-          {
-            echo "tag=$TAG"
-            echo "version=$VERSION"
-            echo "major_minor=$MAJOR_MINOR"
-          } >> "$GITHUB_OUTPUT"
 
-      - name: Validate tag format
-        run: |
-          TAG="${{ steps.tag.outputs.tag }}"
+          if [[ "$TAG" == *$'\n'* || "$TAG" == *$'\r'* ]]; then
+            echo "::error::Invalid tag format '$TAG'. Tag must be a single line."
+            exit 1
+          fi
+
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Invalid tag format '$TAG'. Expected semver like v1.2.3"
             exit 1
           fi
+
+          VERSION="${TAG#v}"
+          MAJOR_MINOR="${VERSION%.*}"
+          {
+            printf 'tag=%s\n' "$TAG"
+            printf 'version=%s\n' "$VERSION"
+            printf 'major_minor=%s\n' "$MAJOR_MINOR"
+          } >> "$GITHUB_OUTPUT"
           echo "✅ Tag format valid: $TAG"
 
       - name: Verify tag exists (manual dispatch)
@@ -353,11 +356,14 @@ jobs:
       - name: Summarize failing jobs
         id: summarize
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          VALIDATED_TAG: ${{ needs.validate.outputs.tag }}
         with:
           script: |
             const { owner, repo } = context.repo;
             const runId = context.runId;
             const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
+            const validatedTag = process.env.VALIDATED_TAG || "unknown-tag";
 
             const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
               owner,
@@ -374,11 +380,9 @@ jobs:
               ? failedJobs.map((job) => `- ${job.name}: ${job.conclusion} (${job.html_url})`)
               : ["- No failed jobs found; inspect workflow graph for skipped dependencies."];
 
-            const normalizedRef = context.ref.replace(/^refs\/(tags|heads)\//, "");
-
             core.setOutput("run_url", runUrl);
             core.setOutput("failed_jobs", failedLines.join("\n"));
-            core.setOutput("tag_name", normalizedRef || context.ref);
+            core.setOutput("tag_name", validatedTag);
 
             await core.summary
               .addHeading("Deploy Prod Failure Alert")
