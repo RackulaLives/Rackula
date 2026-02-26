@@ -1125,6 +1125,7 @@
     // Track custom device creation
     analytics.trackCustomDeviceCreate(data.category);
 
+    toastStore.showToast(`"${data.name}" added to device library`, "success");
     dialogStore.close();
   }
 
