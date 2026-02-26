@@ -286,7 +286,7 @@ jobs:
                 per_page: 100,
               });
               const botComments = comments
-                .filter(c => c.user.login === 'github-actions[bot]' && c.body.includes('Weekly Update'))
+                .filter(c => c.user?.login === 'github-actions[bot]' && c.body?.includes('Weekly Update'))
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
               if (botComments.length > 0) {
                 const prev = botComments[0].body;
@@ -369,7 +369,7 @@ jobs:
 
           | Metric | Value |
           |--------|-------|
-          | Mutation Score | ${{ steps.mutations.outputs.mutation_score == 'N/A' && 'N/A' || format('{0}%', steps.mutations.outputs.mutation_score) }} |
+          | Mutation Score | ${{ (steps.mutations.outputs.mutation_score == 'N/A' || steps.mutations.outputs.mutation_score == '') && 'N/A' || format('{0}%', steps.mutations.outputs.mutation_score) }} |
           | Flaky Tests | ${{ steps.flaky.outputs.flaky_count }} |
           | High Complexity Functions | ${{ steps.complexity.outputs.complex_count }} |
           | Source LOC | ${{ steps.metrics.outputs.code_lines }} |
