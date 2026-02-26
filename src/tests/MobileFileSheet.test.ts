@@ -94,4 +94,21 @@ describe("MobileFileSheet", () => {
     expect(onExport).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("calls view yaml handler and closes sheet when hasRacks", async () => {
+    const onViewYaml = vi.fn();
+    renderSheet({ hasRacks: true, onviewyaml: onViewYaml });
+
+    await fireEvent.click(screen.getByRole("button", { name: "View YAML" }));
+
+    expect(onViewYaml).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables share and view yaml buttons when no racks", () => {
+    renderSheet({ hasRacks: false });
+
+    expect(screen.getByRole("button", { name: "Share Link" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "View YAML" })).toBeDisabled();
+  });
 });
