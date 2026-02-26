@@ -193,6 +193,8 @@ jobs:
             const flakyTests = process.env.FLAKY_TESTS || '';
             const complexFunctions = process.env.COMPLEX_FUNCTIONS || '';
 
+            const mutationScoreDisplay = mutationScore === 'N/A' ? 'N/A' : `${mutationScore}%`;
+
             // The Count's mood
             let mood, emoji, quote;
             if (flakyCount > 5 || complexCount > 10) {
@@ -241,7 +243,7 @@ jobs:
 
             | Metric | Value | Status |
             |--------|-------|--------|
-            | Mutation Score | ${mutationScore}% | ${mutationScore === 'N/A' ? '⏭️ Skipped' : (parseInt(mutationScore) >= 70 ? '✅' : '⚠️')} |
+            | Mutation Score | ${mutationScoreDisplay} | ${mutationScore === 'N/A' ? '⏭️ Skipped' : (parseInt(mutationScore) >= 70 ? '✅' : '⚠️')} |
             | Flaky Tests | ${flakyCount} | ${flakyCount === 0 ? '✅' : '⚠️'} |
             | High Complexity | ${complexCount} | ${complexCount <= 5 ? '✅' : '⚠️'} |
             ${flakySec}${complexSec}
@@ -249,20 +251,6 @@ jobs:
 
             <sub>*One rolling report! Ah ah ah!* 🦇</sub>
             <sub>Last updated: ${now} by [The Count's Weekly Census](${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId})</sub>
-            `.replace(/^ {12}/gm, '');
-
-            // Build delta comment
-            const comment = `### 📊 Weekly Update — ${now}
-
-            | Metric | Value |
-            |--------|-------|
-            | Mutation Score | ${mutationScore}% |
-            | Flaky Tests | ${flakyCount} |
-            | High Complexity | ${complexCount} |
-            | Source LOC | ${codeLines} |
-            | Test LOC | ${testLines} |
-
-            [Workflow run](${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId})
             `.replace(/^ {12}/gm, '');
 
             // Ensure labels exist
@@ -279,11 +267,50 @@ jobs:
 
             // Find existing rolling report
             const title = '🧛 Rolling Code Health Report';
-            const issues = await github.rest.issues.listForRepo({
-              owner, repo, state: 'open', labels: 'automated,code-health', per_page: 10
+            const allIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: 'open', labels: 'automated,code-health', per_page: 100
             });
+            const issues = allIssues.filter(i => !i.pull_request);
+            const existing = issues.find(i => i.title === title);
 
-            const existing = issues.data.find(i => i.title === title);
+            // Find previous bot comment for delta calculation
+            let prevMetrics = null;
+            if (existing) {
+              const comments = await github.rest.issues.listComments({
+                owner, repo, issue_number: existing.number, per_page: 100
+              });
+              const botComments = comments.data
+                .filter(c => c.user.login === 'github-actions[bot]' && c.body.includes('Weekly Update'))
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              if (botComments.length > 0) {
+                const prev = botComments[0].body;
+                const parseVal = (label) => {
+                  const m = prev.match(new RegExp(`\\| ${label} \\| ([\\d.]+|N/A)`));
+                  return m ? (m[1] === 'N/A' ? null : Number(m[1])) : null;
+                };
+                prevMetrics = {
+                  flakyCount: parseVal('Flaky Tests'),
+                  complexCount: parseVal('High Complexity'),
+                  codeLines: parseVal('Source LOC'),
+                  testLines: parseVal('Test LOC'),
+                };
+              }
+            }
+            const delta = (curr, prev) => prev == null ? '' : ` (${curr - prev >= 0 ? '+' : ''}${curr - prev})`;
+
+            // Build delta comment
+            const comment = `### 📊 Weekly Update — ${now}
+
+            | Metric | Value |
+            |--------|-------|
+            | Mutation Score | ${mutationScoreDisplay} |
+            | Flaky Tests | ${flakyCount}${delta(flakyCount, prevMetrics?.flakyCount)} |
+            | High Complexity | ${complexCount}${delta(complexCount, prevMetrics?.complexCount)} |
+            | Source LOC | ${parseInt(codeLines)}${delta(parseInt(codeLines), prevMetrics?.codeLines)} |
+            | Test LOC | ${parseInt(testLines)}${delta(parseInt(testLines), prevMetrics?.testLines)} |
+
+            [Workflow run](${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId})
+            `.replace(/^ {12}/gm, '');
 
             if (existing) {
               // Update the issue body with current metrics
