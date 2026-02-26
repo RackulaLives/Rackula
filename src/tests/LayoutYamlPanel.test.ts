@@ -31,9 +31,9 @@ describe("LayoutYamlPanel", () => {
     });
 
     await waitFor(() => {
-      expect(
-        (screen.getByTestId("yaml-textarea") as HTMLTextAreaElement).value,
-      ).toContain("name: Baseline Layout");
+      expect(screen.getByTestId("yaml-textarea")).toHaveDisplayValue(
+        /name: Baseline Layout/,
+      );
     });
 
     await fireEvent.click(screen.getByRole("button", { name: "Edit YAML" }));
@@ -73,9 +73,9 @@ describe("LayoutYamlPanel", () => {
     });
 
     await waitFor(() => {
-      expect(
-        (screen.getByTestId("yaml-textarea") as HTMLTextAreaElement).value,
-      ).toContain("name: Baseline Layout");
+      expect(screen.getByTestId("yaml-textarea")).toHaveDisplayValue(
+        /name: Baseline Layout/,
+      );
     });
 
     await fireEvent.click(screen.getByRole("button", { name: "Edit YAML" }));
@@ -124,9 +124,9 @@ describe("LayoutYamlPanel", () => {
     });
 
     await waitFor(() => {
-      expect(
-        (screen.getByTestId("yaml-textarea") as HTMLTextAreaElement).value,
-      ).toContain("name: Baseline Layout");
+      expect(screen.getByTestId("yaml-textarea")).toHaveDisplayValue(
+        /name: Baseline Layout/,
+      );
     });
 
     await fireEvent.click(screen.getByRole("button", { name: "Edit YAML" }));

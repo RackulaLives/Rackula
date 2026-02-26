@@ -39,6 +39,11 @@
     action?.();
     onclose?.();
   }
+
+  function handleViewYaml(): void {
+    onclose?.();
+    onviewyaml?.();
+  }
 </script>
 
 <div class="file-sheet-actions" role="group" aria-label="File actions">
@@ -98,7 +103,7 @@
     type="button"
     class="file-action"
     disabled={!hasRacks}
-    onclick={() => handleAction(onviewyaml)}
+    onclick={handleViewYaml}
     aria-label="View YAML"
   >
     <span class="action-icon"><IconTextBold size={ICON_SIZE.md} /></span>

@@ -933,6 +933,12 @@
     selectionStore.clearSelection();
     toastStore.showToast("YAML applied", "success");
 
+    if (viewportStore.isMobile) {
+      dialogStore.closeSheet();
+    } else {
+      dialogStore.close();
+    }
+
     requestAnimationFrame(() => {
       handleFitAll();
     });

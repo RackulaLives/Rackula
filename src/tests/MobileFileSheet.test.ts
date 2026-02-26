@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
+import type { ComponentProps } from "svelte";
 import MobileFileSheet from "$lib/components/MobileFileSheet.svelte";
 
 describe("MobileFileSheet", () => {
@@ -17,7 +18,9 @@ describe("MobileFileSheet", () => {
     onClose = vi.fn();
   });
 
-  function renderSheet(overrides: Record<string, unknown> = {}) {
+  function renderSheet(
+    overrides: Partial<ComponentProps<typeof MobileFileSheet>> = {},
+  ) {
     return render(MobileFileSheet, {
       props: {
         onload: onLoad,

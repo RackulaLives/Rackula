@@ -8,6 +8,7 @@
     parseYaml,
     serializeLayoutToYaml,
   } from "$lib/utils/yaml";
+  import { layoutDebug } from "$lib/utils/debug";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { IconCopy, IconDownload } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
@@ -21,6 +22,7 @@
   let { open, layout, onapply }: Props = $props();
 
   const toastStore = getToastStore();
+  const debug = layoutDebug.state;
 
   let yamlText = $state("");
   let baselineYaml = $state("");
@@ -66,6 +68,27 @@
   });
 
   $effect(() => {
+    if (open) return;
+
+    ++applyIntentId;
+    ++syncRun;
+    ++validationRun;
+    if (validationTimer) {
+      clearTimeout(validationTimer);
+      validationTimer = null;
+    }
+
+    isEditing = false;
+    isApplying = false;
+    isValidating = false;
+    syntaxError = null;
+    schemaError = null;
+    showConflictPrompt = false;
+    latestYamlAtConflict = null;
+    pendingLayout = null;
+  });
+
+  $effect(() => {
     if (!open || !isEditing) return;
 
     const text = yamlText;
@@ -105,6 +128,7 @@
     options: { allowWhileEditing: boolean } = { allowWhileEditing: true },
   ): Promise<void> {
     const runId = ++syncRun;
+    debug("syncing from layout, runId=%d", runId);
     const editingAtStart = isEditing;
     const serialized = await serializeLayoutToYaml(sourceLayout);
     if (runId !== syncRun) return;
@@ -128,6 +152,7 @@
       syntaxError = "YAML cannot be empty.";
       schemaError = null;
       isValidating = false;
+      debug("validation complete, hasErrors=%o", { syntaxError, schemaError });
       return;
     }
 
@@ -140,6 +165,7 @@
       syntaxError = toErrorMessage(error);
       schemaError = null;
       isValidating = false;
+      debug("validation complete, hasErrors=%o", { syntaxError, schemaError });
       return;
     }
 
@@ -157,6 +183,7 @@
     }
 
     isValidating = false;
+    debug("validation complete, hasErrors=%o", { syntaxError, schemaError });
   }
 
   function handleEditModeToggle(): void {
@@ -207,6 +234,7 @@
   async function handleApply(): Promise<void> {
     if (applyDisabled) return;
     const intent = ++applyIntentId;
+    debug("apply started, intent=%d", intent);
 
     let parsedLayout: Layout;
     try {
@@ -221,6 +249,7 @@
     if (intent !== applyIntentId) return;
 
     if (latestYaml !== baselineYaml) {
+      debug("conflict detected, baselineYaml differs from latestYaml");
       pendingLayout = parsedLayout;
       latestYamlAtConflict = latestYaml;
       showConflictPrompt = true;
@@ -237,8 +266,11 @@
   }
 
   async function handleReloadLatest(): Promise<void> {
-    const latest =
-      latestYamlAtConflict ?? (await serializeLayoutToYaml(layout));
+    const intent = ++applyIntentId;
+    const latestAtStart = latestYamlAtConflict;
+    const latest = latestAtStart ?? (await serializeLayoutToYaml(layout));
+    if (intent !== applyIntentId) return;
+    if (latestAtStart !== latestYamlAtConflict) return;
     baselineYaml = latest;
     yamlText = latest;
     showConflictPrompt = false;
