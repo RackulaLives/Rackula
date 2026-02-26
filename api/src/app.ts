@@ -1,23 +1,25 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { bodyLimit } from "hono/body-limit";
 import layouts from "./routes/layouts";
 import assets from "./routes/assets";
 import {
+  createAuthGateMiddleware,
   createCsrfProtectionMiddleware,
+  createExpiredAuthSessionCookieHeader,
+  createRefreshedAuthSessionCookieHeader,
   createWriteAuthMiddleware,
+  invalidateAuthSession,
+  resolveAuthenticatedSessionClaims,
   resolveApiSecurityConfig,
   type AuthSessionClaims,
   type EnvMap,
 } from "./security";
-import {
-  createAuthHandler,
-  createOptionalAuthMiddleware,
-} from "./middleware/auth";
+import { createAuthHandler } from "./middleware/auth";
 import { createAuth } from "./auth/config";
 import { createRequireAdminMiddleware } from "./authorization";
-import { configureAuthLogHashKey } from "./auth-logger";
+import { configureAuthLogHashKey, safeLogAuthEvent } from "./auth-logger";
 
 const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
 const DEFAULT_MAX_LAYOUT_SIZE = 1 * 1024 * 1024; // 1MB
@@ -73,10 +75,25 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
     ? createAuth(securityConfig.authSessionSecret)
     : undefined;
 
-  // Better Auth optional middleware - attaches session if present, never blocks
-  // This preserves core value: "design with zero friction" (unauthenticated read access)
-  if (auth) {
-    app.use("*", createOptionalAuthMiddleware(auth));
+  const authSessionConfig = {
+    authEnabled: securityConfig.authEnabled,
+    authSessionSecret: securityConfig.authSessionSecret,
+    authSessionCookieName: securityConfig.authSessionCookieName,
+    authSessionCookieSecure: securityConfig.authSessionCookieSecure,
+    authSessionCookieSameSite: securityConfig.authSessionCookieSameSite,
+    authSessionIdleTimeoutSeconds: securityConfig.authSessionIdleTimeoutSeconds,
+    authSessionGeneration: securityConfig.authSessionGeneration,
+    authSessionMaxAgeSeconds: securityConfig.authSessionMaxAgeSeconds,
+  };
+
+  if (securityConfig.authEnabled) {
+    app.use(
+      "*",
+      createAuthGateMiddleware({
+        ...authSessionConfig,
+        authLoginPath: securityConfig.authLoginPath,
+      }),
+    );
   }
 
   app.use(
@@ -89,11 +106,116 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
     }),
   );
 
-  // Better Auth routes handle all authentication endpoints
-  // Mounted at both /auth/* and /api/auth/* for compatibility
+  if (securityConfig.authEnabled) {
+    const authApi = (auth?.api ?? {}) as Record<string, unknown>;
+    const authPlugins = Array.isArray(auth?.options?.plugins)
+      ? auth?.options?.plugins
+      : [];
+    const oidcApiAvailable =
+      Boolean(auth) &&
+      authPlugins.some(
+        (plugin) => (plugin as { id?: unknown }).id === "generic-oauth",
+      ) &&
+      typeof authApi.signInSocial === "function" &&
+      typeof authApi.callbackOAuth === "function";
+
+    const authUnavailableRouteHandler = (c: Context<AppEnv>) =>
+      c.json(
+        {
+          error: "Auth provider not configured",
+          message:
+            "Authentication is enabled, but login/callback handlers are not available.",
+        },
+        501,
+      );
+
+    const authLoginRouteHandler = (c: Context<AppEnv>) => {
+      if (!oidcApiAvailable) {
+        return authUnavailableRouteHandler(c);
+      }
+
+      const loginTarget = new URL("/api/auth/sign-in/social", c.req.url);
+      loginTarget.searchParams.set("provider", "oidc");
+      return c.redirect(`${loginTarget.pathname}${loginTarget.search}`);
+    };
+
+    const authCallbackRouteHandler = (c: Context<AppEnv>) => {
+      if (!oidcApiAvailable) {
+        return authUnavailableRouteHandler(c);
+      }
+
+      const requestUrl = new URL(c.req.url);
+      const callbackTarget = new URL("/api/auth/callback/oidc", c.req.url);
+      callbackTarget.search = requestUrl.search;
+      return c.redirect(`${callbackTarget.pathname}${callbackTarget.search}`);
+    };
+
+    const authCheckRouteHandler = (c: Context<AppEnv>) => {
+      const claims = resolveAuthenticatedSessionClaims(
+        c.req.raw,
+        authSessionConfig,
+      );
+      if (!claims) {
+        safeLogAuthEvent("auth.session.invalid", c.req.raw, {
+          reason: "missing or invalid session cookie",
+        });
+        return c.json(
+          {
+            error: "Unauthorized",
+            message: "Authentication required.",
+          },
+          401,
+        );
+      }
+
+      c.set("authSubject", claims.sub);
+      c.set("authClaims", claims);
+
+      const refreshedCookie = createRefreshedAuthSessionCookieHeader(
+        claims,
+        authSessionConfig,
+      );
+      if (refreshedCookie) {
+        c.header("Set-Cookie", refreshedCookie, { append: true });
+      }
+
+      return c.body(null, 204);
+    };
+
+    const authLogoutRouteHandler = (c: Context<AppEnv>) => {
+      const claims = resolveAuthenticatedSessionClaims(
+        c.req.raw,
+        authSessionConfig,
+      );
+      if (claims) {
+        c.set("authSubject", claims.sub);
+        c.set("authClaims", claims);
+        invalidateAuthSession(claims.sid, claims.exp);
+        safeLogAuthEvent("auth.logout", c.req.raw, { subject: claims.sub });
+      }
+
+      c.header(
+        "Set-Cookie",
+        createExpiredAuthSessionCookieHeader(authSessionConfig),
+        { append: true },
+      );
+      return c.body(null, 204);
+    };
+
+    app.get("/auth/login", authLoginRouteHandler);
+    app.get("/auth/callback", authCallbackRouteHandler);
+    app.get("/auth/check", authCheckRouteHandler);
+    app.post("/auth/logout", authLogoutRouteHandler);
+
+    app.get("/api/auth/login", authLoginRouteHandler);
+    app.get("/api/auth/callback", authCallbackRouteHandler);
+    app.get("/api/auth/check", authCheckRouteHandler);
+    app.post("/api/auth/logout", authLogoutRouteHandler);
+  }
+
+  // Better Auth routes handle auth endpoints for API consumers.
   if (auth) {
     const authHandler = createAuthHandler(auth);
-    app.on(["POST", "GET"], "/auth/*", authHandler);
     app.on(["POST", "GET"], "/api/auth/*", authHandler);
   }
 

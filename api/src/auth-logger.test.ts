@@ -117,7 +117,6 @@ describe("emitAuthEvent", () => {
   });
 
   it("writes JSON line to stdout with pseudonymized identifiers", () => {
-
     const event: AuthEvent = {
       timestamp: "2026-02-19T10:00:00.000Z",
       event: "auth.logout",
@@ -167,7 +166,9 @@ describe("auth event integration", () => {
     writeSpy.mockRestore();
   });
 
-  function extractAuthEvents(spy: ReturnType<typeof spyOn>): Array<Record<string, unknown>> {
+  function extractAuthEvents(
+    spy: ReturnType<typeof spyOn>,
+  ): Array<Record<string, unknown>> {
     return spy.mock.calls
       .map((call) => {
         try {
@@ -176,8 +177,10 @@ describe("auth event integration", () => {
           return null;
         }
       })
-      .filter((e): e is Record<string, unknown> =>
-        typeof e?.event === "string" && (e.event as string).startsWith("auth."),
+      .filter(
+        (e): e is Record<string, unknown> =>
+          typeof e?.event === "string" &&
+          (e.event as string).startsWith("auth."),
       );
   }
 
@@ -188,7 +191,9 @@ describe("auth event integration", () => {
 
     const authEvents = extractAuthEvents(writeSpy);
 
-    expect(authEvents.some((e) => e.event === "auth.session.invalid")).toBe(true);
+    expect(authEvents.some((e) => e.event === "auth.session.invalid")).toBe(
+      true,
+    );
     const event = authEvents.find((e) => e.event === "auth.session.invalid");
     expect(event).toBeDefined();
     expect(event!.reason).toBe("missing or invalid session cookie");
@@ -240,7 +245,7 @@ describe("auth event integration", () => {
     expect(event!.reason).toContain("viewer");
   });
 
-  it("logs auth.login.success on valid auth check", async () => {
+  it("does not log auth.session.invalid on valid auth check", async () => {
     const app = createApp(buildAuthEnabledEnv());
 
     await app.request("/auth/check", {
@@ -252,22 +257,21 @@ describe("auth event integration", () => {
 
     const authEvents = extractAuthEvents(writeSpy);
 
-    expect(authEvents.some((e) => e.event === "auth.login.success")).toBe(true);
-    const event = authEvents.find((e) => e.event === "auth.login.success");
-    expect(event).toBeDefined();
-    expect(event!.subject).toBe(
-      pseudonymizeIdentifier("admin@example.com", "subject"),
+    expect(authEvents.some((e) => e.event === "auth.session.invalid")).toBe(
+      false,
     );
   });
 
-  it("logs auth.login.failure on invalid auth check", async () => {
+  it("logs auth.session.invalid on invalid auth check", async () => {
     const app = createApp(buildAuthEnabledEnv());
 
     await app.request("/auth/check");
 
     const authEvents = extractAuthEvents(writeSpy);
 
-    expect(authEvents.some((e) => e.event === "auth.login.failure")).toBe(true);
+    expect(authEvents.some((e) => e.event === "auth.session.invalid")).toBe(
+      true,
+    );
   });
 
   it("never logs raw session tokens or cookies", async () => {
@@ -285,16 +289,14 @@ describe("auth event integration", () => {
     });
 
     const allOutput = writeSpy.mock.calls.map((c) => c[0] as string).join("");
-    const authLines = allOutput
-      .split("\n")
-      .filter((line) => {
-        try {
-          const parsed = JSON.parse(line);
-          return parsed.event?.startsWith("auth.");
-        } catch {
-          return false;
-        }
-      });
+    const authLines = allOutput.split("\n").filter((line) => {
+      try {
+        const parsed = JSON.parse(line);
+        return parsed.event?.startsWith("auth.");
+      } catch {
+        return false;
+      }
+    });
 
     for (const line of authLines) {
       expect(line).not.toContain(tokenValue);
