@@ -231,7 +231,8 @@
   }
 
   async function handleApplyAnyway(): Promise<void> {
-    if (!pendingLayout) return;
+    if (!pendingLayout || isApplying) return;
+    ++applyIntentId;
     await commitParsedLayout(pendingLayout);
   }
 
