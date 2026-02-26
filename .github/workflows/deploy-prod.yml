@@ -29,6 +29,9 @@ jobs:
     name: "Validate Release Context"
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions: {}
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - name: Determine tag
         id: tag
@@ -53,7 +56,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
-          if ! git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+          if ! git ls-remote --tags "https://github.com/${{ github.repository }}" "refs/tags/$TAG" | grep -q "$TAG"; then
             echo "::error::Tag '$TAG' does not exist in remote. Push the tag first."
             exit 1
           fi
@@ -69,6 +72,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
 
       - name: Set lowercase image name
         run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
@@ -123,6 +128,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
 
       - name: Set lowercase image name
         run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
@@ -174,6 +181,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
 
       - name: Set lowercase image name
         run: echo "API_IMAGE_NAME=${GITHUB_REPOSITORY,,}-api" >> $GITHUB_ENV
