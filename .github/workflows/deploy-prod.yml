@@ -1,10 +1,20 @@
 name: Deploy Prod
 
+# Release flow:
+# 1. Normal: push a semver tag (v*) → triggers automatically
+# 2. Manual: workflow_dispatch with explicit tag → validates tag exists and format
+# Both paths run through validate → build → scan → deploy → smoke-test
+
 on:
   push:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to deploy (e.g. v0.7.6). Required for manual dispatch.'
+        required: true
+        type: string
 
 env:
   REGISTRY: ghcr.io
@@ -15,7 +25,42 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    name: "Validate Release Context"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Validate tag format
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid tag format '$TAG'. Expected semver like v1.2.3"
+            exit 1
+          fi
+          echo "✅ Tag format valid: $TAG"
+
+      - name: Verify tag exists (manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          if ! git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+            echo "::error::Tag '$TAG' does not exist in remote. Push the tag first."
+            exit 1
+          fi
+          echo "✅ Tag exists in remote: $TAG"
+
   build-and-deploy:
+    needs: [validate]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -69,6 +114,7 @@ jobs:
             VITE_UMAMI_WEBSITE_ID=${{ vars.UMAMI_PROD_WEBSITE_ID }}
 
   build-persist:
+    needs: [validate]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -119,6 +165,7 @@ jobs:
             VITE_PERSIST_ENABLED=true
 
   build-api:
+    needs: [validate]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -270,7 +317,7 @@ jobs:
 
   notify-failure:
     if: ${{ always() && (failure() || cancelled()) }}
-    needs: [build-and-deploy, build-persist, build-api, scan-images, deploy, smoke-test]
+    needs: [validate, build-and-deploy, build-persist, build-api, scan-images, deploy, smoke-test]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
