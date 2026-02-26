@@ -21,6 +21,7 @@
     onshare?: () => void;
     onviewyaml?: () => void;
     onclose?: () => void;
+    hasRacks?: boolean;
   }
 
   let {
@@ -31,6 +32,7 @@
     onshare,
     onviewyaml,
     onclose,
+    hasRacks = false,
   }: Props = $props();
 
   function handleAction(action?: () => void) {
@@ -84,6 +86,7 @@
   <button
     type="button"
     class="file-action"
+    disabled={!hasRacks}
     onclick={() => handleAction(onshare)}
     aria-label="Share Link"
   >
@@ -94,6 +97,7 @@
   <button
     type="button"
     class="file-action"
+    disabled={!hasRacks}
     onclick={() => handleAction(onviewyaml)}
     aria-label="View YAML"
   >
@@ -132,7 +136,7 @@
     border-top: 1px solid var(--colour-border);
   }
 
-  .file-action:hover {
+  .file-action:hover:not(:disabled) {
     background: var(--colour-surface-hover);
     color: var(--colour-primary);
   }
@@ -142,7 +146,12 @@
     outline-offset: -2px;
   }
 
-  .file-action:active {
+  .file-action:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .file-action:active:not(:disabled) {
     background: var(--colour-surface-active);
   }
 

@@ -97,6 +97,8 @@ describe("LayoutYamlPanel", () => {
     const onApply = vi.fn();
     const originalSerialize = yamlUtils.serializeLayoutToYaml;
     let baselineSerializations = 0;
+    // Mock returns a different layout name on the 2nd+ baseline serialization
+    // to simulate a concurrent edit, triggering the conflict prompt.
     vi.spyOn(yamlUtils, "serializeLayoutToYaml").mockImplementation(
       async (layout: Layout) => {
         const serialized = await originalSerialize(layout);

@@ -919,10 +919,12 @@
 
   function handleYamlEditorClose() {
     dialogStore.close();
+    handleFitAll();
   }
 
   function handleYamlEditorSheetClose() {
     dialogStore.closeSheet();
+    handleFitAll();
   }
 
   function handleYamlApply(nextLayout: Layout) {
@@ -1835,6 +1837,7 @@
           onshare={handleShare}
           onviewyaml={handleOpenYamlEditor}
           onclose={handleFileSheetClose}
+          hasRacks={layoutStore.hasRack}
         />
       </BottomSheet>
     {/if}

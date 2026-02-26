@@ -17,7 +17,7 @@ describe("MobileFileSheet", () => {
     onClose = vi.fn();
   });
 
-  function renderSheet() {
+  function renderSheet(overrides: Record<string, unknown> = {}) {
     return render(MobileFileSheet, {
       props: {
         onload: onLoad,
@@ -25,6 +25,7 @@ describe("MobileFileSheet", () => {
         onexport: onExport,
         onshare: onShare,
         onclose: onClose,
+        ...overrides,
       },
     });
   }
@@ -83,7 +84,7 @@ describe("MobileFileSheet", () => {
   });
 
   it("calls share handler and closes sheet", async () => {
-    renderSheet();
+    renderSheet({ hasRacks: true });
 
     await fireEvent.click(screen.getByRole("button", { name: "Share Link" }));
 
