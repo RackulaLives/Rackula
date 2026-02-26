@@ -202,8 +202,9 @@
         bind:value={name}
         placeholder="e.g., Dell PowerEdge R740"
         class:error={nameError}
-        oninput={() => {
-          if (nameError && name.trim()) nameError = "";
+        oninput={(e: Event) => {
+          const val = (e.target as HTMLInputElement).value;
+          if (nameError && val.trim()) nameError = "";
         }}
       />
       {#if nameError}
@@ -223,11 +224,13 @@
           max={MAX_DEVICE_HEIGHT}
           step="0.5"
           class:error={heightError}
-          oninput={() => {
+          oninput={(e: Event) => {
+            const val = parseFloat((e.target as HTMLInputElement).value);
             if (
               heightError &&
-              height >= MIN_DEVICE_HEIGHT &&
-              height <= MAX_DEVICE_HEIGHT
+              !Number.isNaN(val) &&
+              val >= MIN_DEVICE_HEIGHT &&
+              val <= MAX_DEVICE_HEIGHT
             )
               heightError = "";
           }}
