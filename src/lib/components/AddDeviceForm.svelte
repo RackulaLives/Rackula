@@ -202,6 +202,9 @@
         bind:value={name}
         placeholder="e.g., Dell PowerEdge R740"
         class:error={nameError}
+        oninput={() => {
+          if (nameError && name.trim()) nameError = "";
+        }}
       />
       {#if nameError}
         <span class="error-message">{nameError}</span>
@@ -220,6 +223,14 @@
           max={MAX_DEVICE_HEIGHT}
           step="0.5"
           class:error={heightError}
+          oninput={() => {
+            if (
+              heightError &&
+              height >= MIN_DEVICE_HEIGHT &&
+              height <= MAX_DEVICE_HEIGHT
+            )
+              heightError = "";
+          }}
         />
         {#if heightError}
           <span class="error-message">{heightError}</span>
