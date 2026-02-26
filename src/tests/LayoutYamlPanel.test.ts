@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import type { Layout } from "$lib/types";
 import * as yamlUtils from "$lib/utils/yaml";
@@ -18,6 +18,10 @@ describe("LayoutYamlPanel", () => {
 
   beforeEach(() => {
     baseLayout = createTestLayout({ name: "Baseline Layout" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("blocks invalid YAML apply and applies once content is valid", async () => {

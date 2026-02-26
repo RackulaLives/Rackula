@@ -36,6 +36,7 @@
   let validationTimer: ReturnType<typeof setTimeout> | null = null;
   let validationRun = 0;
   let syncRun = 0;
+  let applyIntentId = 0;
 
   const applyDisabled = $derived(
     !isEditing ||
@@ -104,9 +105,10 @@
     options: { allowWhileEditing: boolean } = { allowWhileEditing: true },
   ): Promise<void> {
     const runId = ++syncRun;
+    const editingAtStart = isEditing;
     const serialized = await serializeLayoutToYaml(sourceLayout);
     if (runId !== syncRun) return;
-    if (!options.allowWhileEditing && isEditing) return;
+    if (!options.allowWhileEditing && editingAtStart) return;
 
     baselineYaml = serialized;
     yamlText = serialized;
@@ -192,16 +194,19 @@
       await onapply?.(nextLayout);
       await syncFromLayout(nextLayout);
       isEditing = false;
-    } finally {
-      isApplying = false;
       showConflictPrompt = false;
       latestYamlAtConflict = null;
       pendingLayout = null;
+    } catch (_error) {
+      toastStore.showToast("Failed to apply YAML layout", "error");
+    } finally {
+      isApplying = false;
     }
   }
 
   async function handleApply(): Promise<void> {
     if (applyDisabled) return;
+    const intent = ++applyIntentId;
 
     let parsedLayout: Layout;
     try {
@@ -210,8 +215,11 @@
       schemaError = toErrorMessage(error);
       return;
     }
+    if (intent !== applyIntentId) return;
 
     const latestYaml = await serializeLayoutToYaml(layout);
+    if (intent !== applyIntentId) return;
+
     if (latestYaml !== baselineYaml) {
       pendingLayout = parsedLayout;
       latestYamlAtConflict = latestYaml;
