@@ -300,7 +300,9 @@
 
     // Priority 2: With no local session, show Start Screen immediately.
     // It handles loading/offline state while API health check resolves.
+    // Reset layout to clear any stale hasStarted flag from a previous session (#1326)
     if (!localSession) {
+      layoutStore.resetLayout();
       showStartScreen = true;
       return;
     }
@@ -1498,6 +1500,9 @@
     // This prevents polluting server with empty "Racky McRackface" layouts on every visit
     // Note: localStorage session save (lines 1164-1186) still saves empty state for recovery
     if (!layoutStore.hasStarted) return;
+
+    // Don't auto-save layouts with no racks — even if hasStarted is stale (#1326)
+    if (layout.racks.length === 0) return;
 
     // Clear existing timer
     if (serverSaveTimer) {
