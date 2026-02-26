@@ -286,6 +286,7 @@ http {
         location / {
             auth_basic "Rackula Protected";
             auth_basic_user_file /run/secrets/rackula_htpasswd;
+            limit_req zone=api_per_ip burst=20 nodelay;
 
             proxy_pass http://rackula_upstream;
             proxy_http_version 1.1;
@@ -325,6 +326,19 @@ http {
 
         # Explicit API allowlist: asset CRUD
         location ~ ^/api/assets/.+/(front|rear)$ {
+            auth_basic "Rackula Protected";
+            auth_basic_user_file /run/secrets/rackula_htpasswd;
+
+            limit_req zone=api_per_ip burst=20 nodelay;
+            proxy_pass http://rackula_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # Explicit API allowlist: auth contract endpoints
+        location ~ ^/api/auth(/.*)?$ {
             auth_basic "Rackula Protected";
             auth_basic_user_file /run/secrets/rackula_htpasswd;
 
