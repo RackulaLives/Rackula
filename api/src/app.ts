@@ -5,6 +5,7 @@ import { bodyLimit } from "hono/body-limit";
 import layouts from "./routes/layouts";
 import assets from "./routes/assets";
 import {
+  createSignedAuthSessionToken,
   createAuthGateMiddleware,
   createCsrfProtectionMiddleware,
   createExpiredAuthSessionCookieHeader,
@@ -13,6 +14,7 @@ import {
   invalidateAuthSession,
   resolveAuthenticatedSessionClaims,
   resolveApiSecurityConfig,
+  verifySignedAuthSessionToken,
   type AuthSessionClaims,
   type EnvMap,
 } from "./security";
@@ -36,6 +38,23 @@ type AppEnv = {
     authSubject: string;
     authClaims: AuthSessionClaims | undefined;
   };
+};
+
+type BetterAuthSessionLike = {
+  session: {
+    id?: string;
+    createdAt?: Date | string | number;
+    expiresAt?: Date | string | number;
+  };
+  user: {
+    id?: string | null;
+    email?: string | null;
+  };
+};
+
+type BetterAuthSessionApiResult = {
+  headers?: Headers;
+  response?: BetterAuthSessionLike | null;
 };
 
 function normalizeNextPath(next: string | undefined): string {
@@ -72,6 +91,102 @@ function readSetCookieHeaders(headers: Headers | undefined): string[] {
 function appendSetCookieHeaders(c: Context, headers: Headers | undefined): void {
   for (const setCookieHeader of readSetCookieHeaders(headers)) {
     c.header("Set-Cookie", setCookieHeader, { append: true });
+  }
+}
+
+function toEpochSeconds(value: Date | string | number | undefined): number | null {
+  if (value instanceof Date) {
+    const epochSeconds = Math.floor(value.getTime() / 1000);
+    return Number.isFinite(epochSeconds) ? epochSeconds : null;
+  }
+
+  if (typeof value === "string") {
+    const epochSeconds = Math.floor(new Date(value).getTime() / 1000);
+    return Number.isFinite(epochSeconds) ? epochSeconds : null;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? Math.floor(value) : null;
+  }
+
+  return null;
+}
+
+function mapFallbackSessionClaims(
+  session: BetterAuthSessionLike,
+  authSessionConfig: {
+    authSessionGeneration: number;
+    authSessionIdleTimeoutSeconds: number;
+  },
+): AuthSessionClaims | null {
+  const sessionId = session.session.id?.trim();
+  if (!sessionId) {
+    return null;
+  }
+
+  const issuedAt = toEpochSeconds(session.session.createdAt);
+  const expiresAt = toEpochSeconds(session.session.expiresAt);
+  if (!issuedAt || !expiresAt || expiresAt <= issuedAt) {
+    return null;
+  }
+
+  // Use persisted creation metadata as fallback idle-timeout source of truth.
+  // Do not derive idle expiry from request-time "now", which permits silent extension.
+  const idleExpiresAt = Math.min(
+    expiresAt,
+    issuedAt + authSessionConfig.authSessionIdleTimeoutSeconds,
+  );
+  if (idleExpiresAt <= issuedAt) {
+    return null;
+  }
+
+  const fallbackSubject =
+    session.user.email?.trim() || session.user.id?.trim() || "oidc-user";
+  if (!fallbackSubject) {
+    return null;
+  }
+
+  return {
+    sub: fallbackSubject,
+    sid: sessionId,
+    iat: issuedAt,
+    exp: expiresAt,
+    idleExp: idleExpiresAt,
+    generation: authSessionConfig.authSessionGeneration,
+    role: "admin",
+  };
+}
+
+function validateFallbackSessionClaims(
+  claims: AuthSessionClaims,
+  authSessionConfig: {
+    authSessionSecret?: string;
+    authSessionGeneration: number;
+    authSessionMaxAgeSeconds: number;
+    authSessionIdleTimeoutSeconds: number;
+  },
+): AuthSessionClaims | null {
+  if (!authSessionConfig.authSessionSecret) {
+    return null;
+  }
+
+  try {
+    const token = createSignedAuthSessionToken(
+      claims,
+      authSessionConfig.authSessionSecret,
+      {
+        sessionGeneration: authSessionConfig.authSessionGeneration,
+        sessionMaxAgeSeconds: authSessionConfig.authSessionMaxAgeSeconds,
+        sessionIdleTimeoutSeconds: authSessionConfig.authSessionIdleTimeoutSeconds,
+      },
+    );
+
+    return verifySignedAuthSessionToken(token, authSessionConfig.authSessionSecret, {
+      expectedGeneration: authSessionConfig.authSessionGeneration,
+      maxSessionMaxAgeSeconds: authSessionConfig.authSessionMaxAgeSeconds,
+    });
+  } catch {
+    return null;
   }
 }
 
@@ -112,6 +227,7 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
   const auth = securityConfig.authSessionSecret
     ? createAuth(securityConfig.authSessionSecret, env)
     : undefined;
+  const authApi = (auth?.api ?? {}) as Record<string, unknown>;
 
   const authSessionConfig = {
     authEnabled: securityConfig.authEnabled,
@@ -124,13 +240,45 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
     authSessionMaxAgeSeconds: securityConfig.authSessionMaxAgeSeconds,
   };
 
+  const resolveFallbackClaims = async (
+    requestHeaders: Headers,
+  ): Promise<AuthSessionClaims | null> => {
+    const getSession = authApi.getSession as
+      | ((options: {
+          headers: Headers;
+          returnHeaders: boolean;
+        }) => Promise<BetterAuthSessionApiResult>)
+      | undefined;
+
+    if (typeof getSession !== "function") {
+      return null;
+    }
+
+    try {
+      const fallbackSessionResult = await getSession({
+        headers: requestHeaders,
+        returnHeaders: true,
+      });
+
+      const mappedFallbackClaims = fallbackSessionResult.response
+        ? mapFallbackSessionClaims(fallbackSessionResult.response, authSessionConfig)
+        : null;
+      return mappedFallbackClaims
+        ? validateFallbackSessionClaims(mappedFallbackClaims, authSessionConfig)
+        : null;
+    } catch (error) {
+      console.debug("auth: fallback session check failed", error);
+      return null;
+    }
+  };
+
   if (securityConfig.authEnabled) {
     app.use(
       "*",
       createAuthGateMiddleware({
         ...authSessionConfig,
         authLoginPath: securityConfig.authLoginPath,
-      }),
+      }, (request) => resolveFallbackClaims(request.headers)),
     );
   }
 
@@ -145,7 +293,6 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
   );
 
   if (securityConfig.authEnabled) {
-    const authApi = (auth?.api ?? {}) as Record<string, unknown>;
     const authPlugins = Array.isArray(auth?.options?.plugins)
       ? auth?.options?.plugins
       : [];
@@ -226,48 +373,87 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
       return auth!.handler(proxyRequest);
     };
 
-    const authCheckRouteHandler = (c: Context<AppEnv>) => {
-      const claims = resolveAuthenticatedSessionClaims(
+    const authCheckRouteHandler = async (c: Context<AppEnv>) => {
+      const signedClaims = resolveAuthenticatedSessionClaims(
         c.req.raw,
         authSessionConfig,
       );
-      if (!claims) {
-        safeLogAuthEvent("auth.session.invalid", c.req.raw, {
-          reason: "missing or invalid session cookie",
-        });
-        return c.json(
-          {
-            error: "Unauthorized",
-            message: "Authentication required.",
-          },
-          401,
+
+      if (signedClaims) {
+        c.set("authSubject", signedClaims.sub);
+        c.set("authClaims", signedClaims);
+
+        const refreshedCookie = createRefreshedAuthSessionCookieHeader(
+          signedClaims,
+          authSessionConfig,
         );
+        if (refreshedCookie) {
+          c.header("Set-Cookie", refreshedCookie, { append: true });
+        }
+
+        return c.body(null, 204);
       }
 
-      c.set("authSubject", claims.sub);
-      c.set("authClaims", claims);
+      const fallbackClaims = await resolveFallbackClaims(c.req.raw.headers);
+      if (fallbackClaims) {
+        c.set("authSubject", fallbackClaims.sub);
+        c.set("authClaims", fallbackClaims);
+        return c.body(null, 204);
+      }
 
-      const refreshedCookie = createRefreshedAuthSessionCookieHeader(
-        claims,
-        authSessionConfig,
+      safeLogAuthEvent("auth.session.invalid", c.req.raw, {
+        reason: "missing or invalid session cookie",
+      });
+      return c.json(
+        {
+          error: "Unauthorized",
+          message: "Authentication required.",
+        },
+        401,
       );
-      if (refreshedCookie) {
-        c.header("Set-Cookie", refreshedCookie, { append: true });
-      }
-
-      return c.body(null, 204);
     };
 
-    const authLogoutRouteHandler = (c: Context<AppEnv>) => {
-      const claims = resolveAuthenticatedSessionClaims(
+    const authLogoutRouteHandler = async (c: Context<AppEnv>) => {
+      const signedClaims = resolveAuthenticatedSessionClaims(
         c.req.raw,
         authSessionConfig,
       );
-      if (claims) {
-        c.set("authSubject", claims.sub);
-        c.set("authClaims", claims);
-        invalidateAuthSession(claims.sid, claims.exp);
-        safeLogAuthEvent("auth.logout", c.req.raw, { subject: claims.sub });
+      let logoutSubject: string | undefined = signedClaims?.sub;
+
+      if (signedClaims) {
+        c.set("authSubject", signedClaims.sub);
+        c.set("authClaims", signedClaims);
+        invalidateAuthSession(signedClaims.sid, signedClaims.exp);
+      }
+
+      const fallbackClaims = await resolveFallbackClaims(c.req.raw.headers);
+      if (fallbackClaims) {
+        invalidateAuthSession(fallbackClaims.sid, fallbackClaims.exp);
+        if (!logoutSubject) {
+          logoutSubject = fallbackClaims.sub;
+        }
+      }
+
+      const signOut = authApi.signOut as
+        | ((options: {
+            headers: Headers;
+            returnHeaders: boolean;
+          }) => Promise<{ headers?: Headers }>)
+        | undefined;
+      if (typeof signOut === "function") {
+        try {
+          const signOutResult = await signOut({
+            headers: c.req.raw.headers,
+            returnHeaders: true,
+          });
+          appendSetCookieHeaders(c, signOutResult.headers);
+        } catch (error) {
+          console.debug("auth: provider sign-out failed", error);
+        }
+      }
+
+      if (logoutSubject) {
+        safeLogAuthEvent("auth.logout", c.req.raw, { subject: logoutSubject });
       }
 
       c.header(

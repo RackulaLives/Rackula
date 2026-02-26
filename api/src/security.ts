@@ -1086,6 +1086,9 @@ export function createAuthGateMiddleware(
     | "authSessionGeneration"
     | "authSessionMaxAgeSeconds"
   >,
+  resolveFallbackClaims?: (
+    request: Request,
+  ) => Promise<AuthSessionClaims | null>,
 ): MiddlewareHandler {
   return async (c, next): Promise<void | Response> => {
     if (!securityConfig.authEnabled) {
@@ -1099,13 +1102,16 @@ export function createAuthGateMiddleware(
       return;
     }
 
-    const claims = resolveAuthenticatedSessionClaims(c.req.raw, securityConfig);
-    if (claims) {
-      c.set("authSubject", claims.sub);
-      c.set("authClaims", claims);
+    const signedClaims = resolveAuthenticatedSessionClaims(
+      c.req.raw,
+      securityConfig,
+    );
+    if (signedClaims) {
+      c.set("authSubject", signedClaims.sub);
+      c.set("authClaims", signedClaims);
 
       const refreshedCookie = createRefreshedAuthSessionCookieHeader(
-        claims,
+        signedClaims,
         securityConfig,
       );
       if (refreshedCookie) {
@@ -1114,6 +1120,16 @@ export function createAuthGateMiddleware(
 
       await next();
       return;
+    }
+
+    if (resolveFallbackClaims) {
+      const fallbackClaims = await resolveFallbackClaims(c.req.raw);
+      if (fallbackClaims) {
+        c.set("authSubject", fallbackClaims.sub);
+        c.set("authClaims", fallbackClaims);
+        await next();
+        return;
+      }
     }
 
     safeLogAuthEvent("auth.session.invalid", c.req.raw, {

@@ -51,6 +51,10 @@ function cookieHeaderFromSetCookies(setCookies: string[]): string {
     .join("; ");
 }
 
+function mergeCookieHeaders(...cookieHeaders: Array<string | null | undefined>): string {
+  return cookieHeaders.filter((value): value is string => Boolean(value)).join("; ");
+}
+
 async function createSignedIdToken(overrides: {
   audience?: string | string[];
   issuer?: string;
@@ -183,36 +187,52 @@ async function installMockOidcFetch(options: {
 }
 
 describe("OIDC integration", () => {
+  async function completeOidcLogin(app: ReturnType<typeof createApp>): Promise<string> {
+    const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
+    expect(loginResponse.status).toBe(302);
+
+    const loginUrl = new URL(loginResponse.headers.get("location")!);
+    const state = loginUrl.searchParams.get("state");
+    expect(state).not.toBeNull();
+
+    const loginCookieHeader = cookieHeaderFromSetCookies(
+      readSetCookies(loginResponse.headers),
+    );
+
+    const callbackResponse = await app.request(
+      `/auth/callback?code=entra-code&state=${encodeURIComponent(state!)}`,
+      {
+        headers: {
+          Cookie: loginCookieHeader,
+        },
+      },
+    );
+
+    expect(callbackResponse.status).toBe(302);
+    const callbackCookies = readSetCookies(callbackResponse.headers);
+    expect(callbackCookies.some((cookie) => cookie.includes("rackula_auth_session="))).toBe(
+      true,
+    );
+
+    return mergeCookieHeaders(
+      loginCookieHeader,
+      cookieHeaderFromSetCookies(callbackCookies),
+    );
+  }
+
   it("accepts Entra common issuer config when discovery returns tenant issuer", async () => {
     const mock = await installMockOidcFetch();
     try {
       const app = createApp(buildOidcEnv());
+      const authedCookieHeader = await completeOidcLogin(app);
 
-      const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
-      expect(loginResponse.status).toBe(302);
-
-      const loginUrl = new URL(loginResponse.headers.get("location")!);
-      const state = loginUrl.searchParams.get("state");
-      expect(state).not.toBeNull();
-
-      const loginCookieHeader = cookieHeaderFromSetCookies(
-        readSetCookies(loginResponse.headers),
-      );
-
-      const callbackResponse = await app.request(
-        `/auth/callback?code=entra-code&state=${encodeURIComponent(state!)}`,
-        {
-          headers: {
-            Cookie: loginCookieHeader,
-          },
+      const checkResponse = await app.request("/auth/check", {
+        headers: {
+          Cookie: authedCookieHeader,
+          Origin: "https://rack.example.com",
         },
-      );
-
-      expect(callbackResponse.status).toBe(302);
-      const callbackCookies = readSetCookies(callbackResponse.headers);
-      expect(callbackCookies.some((cookie) => cookie.includes("rackula_auth_session="))).toBe(
-        true,
-      );
+      });
+      expect(checkResponse.status).toBe(204);
     } finally {
       mock.restore();
     }
@@ -250,6 +270,126 @@ describe("OIDC integration", () => {
       expect(callbackCookies.some((cookie) => cookie.includes("rackula_auth_session="))).toBe(
         false,
       );
+    } finally {
+      mock.restore();
+    }
+  });
+
+  it("enforces fallback idle timeout based on persisted session metadata", async () => {
+    const mock = await installMockOidcFetch();
+    const originalNow = Date.now;
+    try {
+      const app = createApp(
+        buildOidcEnv({
+          RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS: "60",
+        }),
+      );
+
+      const authedCookieHeader = await completeOidcLogin(app);
+      const baselineNow = originalNow();
+
+      Date.now = () => baselineNow + 1_000;
+      const firstCheck = await app.request("/auth/check", {
+        headers: {
+          Cookie: authedCookieHeader,
+          Origin: "https://rack.example.com",
+        },
+      });
+      expect(firstCheck.status).toBe(204);
+
+      Date.now = () => baselineNow + 65_000;
+      const expiredCheck = await app.request("/auth/check", {
+        headers: {
+          Cookie: authedCookieHeader,
+          Origin: "https://rack.example.com",
+        },
+      });
+      expect(expiredCheck.status).toBe(401);
+      expect(await expiredCheck.json()).toEqual({
+        error: "Unauthorized",
+        message: "Authentication required.",
+      });
+    } finally {
+      Date.now = originalNow;
+      mock.restore();
+    }
+  });
+
+  it("does not extend fallback idle expiry just by repeated auth checks", async () => {
+    const mock = await installMockOidcFetch();
+    const originalNow = Date.now;
+    try {
+      const app = createApp(
+        buildOidcEnv({
+          RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS: "60",
+        }),
+      );
+
+      const authedCookieHeader = await completeOidcLogin(app);
+      const baselineNow = originalNow();
+
+      Date.now = () => baselineNow + 1_000;
+      const firstCheck = await app.request("/auth/check", {
+        headers: {
+          Cookie: authedCookieHeader,
+          Origin: "https://rack.example.com",
+        },
+      });
+      expect(firstCheck.status).toBe(204);
+
+      Date.now = () => baselineNow + 20_000;
+      const secondCheck = await app.request("/auth/check", {
+        headers: {
+          Cookie: authedCookieHeader,
+          Origin: "https://rack.example.com",
+        },
+      });
+      expect(secondCheck.status).toBe(204);
+
+      Date.now = () => baselineNow + 65_000;
+      const thirdCheck = await app.request("/auth/check", {
+        headers: {
+          Cookie: authedCookieHeader,
+          Origin: "https://rack.example.com",
+        },
+      });
+      expect(thirdCheck.status).toBe(401);
+    } finally {
+      Date.now = originalNow;
+      mock.restore();
+    }
+  });
+
+  it("invalidates fallback OIDC sessions on logout and blocks replay", async () => {
+    const mock = await installMockOidcFetch();
+    try {
+      const app = createApp(buildOidcEnv());
+      const authedCookieHeader = await completeOidcLogin(app);
+
+      const beforeLogout = await app.request("/auth/check", {
+        headers: {
+          Cookie: authedCookieHeader,
+          Origin: "https://rack.example.com",
+        },
+      });
+      expect(beforeLogout.status).toBe(204);
+
+      const logoutResponse = await app.request("/auth/logout", {
+        method: "POST",
+        headers: {
+          Cookie: authedCookieHeader,
+          Origin: "https://rack.example.com",
+        },
+      });
+      expect(logoutResponse.status).toBe(204);
+
+      const replayResponse = await app.request("/auth/check", {
+        headers: {
+          Cookie: authedCookieHeader,
+          Origin: "https://rack.example.com",
+        },
+      });
+      expect(replayResponse.status).toBe(401);
     } finally {
       mock.restore();
     }
