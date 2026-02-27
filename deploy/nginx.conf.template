@@ -196,8 +196,10 @@ server {
     }
 
     location @auth_login_redirect {
-        # Preserve normalized path + query so deep links survive login.
-        return 302 /auth/login?next=$uri$is_args$args;
+        # Pass path only — query strings are not preserved across login because
+        # raw & in $args would split into separate query params, breaking the next= value.
+        # Standard nginx lacks URI-encoding support (requires OpenResty set_escape_uri).
+        return 302 /auth/login?next=$uri;
     }
 
     # Container health check - used by Docker/K8s for liveness/readiness probes
