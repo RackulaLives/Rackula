@@ -68,7 +68,7 @@ If you deploy Rackula behind Nginx auth_request, keep this contract consistent:
   - `GET /auth/callback`
   - `GET /auth/check`
   - `POST /auth/logout`
-- API compatibility routes (also available):
+- API compatibility routes (also available, same methods):
   - `GET /api/auth/login`
   - `GET /api/auth/callback`
   - `GET /api/auth/check`
@@ -78,7 +78,7 @@ If you deploy Rackula behind Nginx auth_request, keep this contract consistent:
   - `401` = unauthenticated
 
 When protecting app routes with `auth_request`, redirect unauthorized requests to:
-- `/auth/login?next=<path>` (path only; query strings are not preserved across login redirects because standard nginx cannot URI-encode the `next` value)
+- `/auth/login?next=<path>` (path and query string are preserved; caveat: if the original URL contains multiple `&`-delimited query params, only the first segment stays in `next=` because standard nginx cannot URI-encode the value)
 
 ## Prerequisites
 

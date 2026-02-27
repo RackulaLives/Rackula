@@ -196,10 +196,11 @@ server {
     }
 
     location @auth_login_redirect {
-        # Pass path only — query strings are not preserved across login because
-        # raw & in $args would split into separate query params, breaking the next= value.
-        # Standard nginx lacks URI-encoding support (requires OpenResty set_escape_uri).
-        return 302 /auth/login?next=$uri;
+        # Preserve path and query string in the next= parameter.
+        # Limitation: if $args contains & characters, nginx will split them into
+        # separate query params. Only the first segment stays in next=.
+        # Full URI-encoding requires OpenResty (set_escape_uri), unavailable here.
+        return 302 /auth/login?next=$uri$is_args$args;
     }
 
     # Container health check - used by Docker/K8s for liveness/readiness probes
