@@ -14,6 +14,7 @@ import type { ImageStoreMap } from "$lib/types/images";
 import { loadSavedLayout, PersistenceError } from "./persistence-api";
 import { extractFolderArchive } from "./archive";
 import { openFilePicker } from "./file";
+import { layoutDebug } from "./debug";
 
 /**
  * Common layout loading process
@@ -30,9 +31,11 @@ export function finalizeLayoutLoad(
   const selectionStore = getSelectionStore();
   const canvasStore = getCanvasStore();
 
-  // Clear and restore images if provided
+  // Always reset images: clear → load bundled base → overlay custom
+  imageStore.clearAllImages();
+  imageStore.loadBundledImages();
+
   if (images) {
-    imageStore.clearAllImages();
     for (const [deviceSlug, deviceImages] of images) {
       if (deviceImages.front) {
         imageStore.setDeviceImage(deviceSlug, "front", deviceImages.front);
@@ -42,9 +45,6 @@ export function finalizeLayoutLoad(
       }
     }
   }
-
-  // Always ensure bundled images are loaded
-  imageStore.loadBundledImages();
 
   // Load layout into store
   layoutStore.loadLayout(layout);
@@ -106,7 +106,7 @@ export async function loadFromFile(file?: File) {
     finalizeLayoutLoad(layout, images, failedImages.length);
     return true;
   } catch (error) {
-    console.error("Failed to load layout:", error);
+    layoutDebug.state("loadFromFile: failed %O", error);
     toastStore.showToast(
       error instanceof Error ? error.message : "Failed to load layout file",
       "error",

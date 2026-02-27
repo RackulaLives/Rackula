@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { finalizeLayoutLoad, loadFromApi, loadFromFile } from "$lib/utils/load-pipeline";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
@@ -38,12 +38,6 @@ vi.mock("$lib/utils/file", () => ({
   openFilePicker: vi.fn(),
 }));
 
-// Mock requestAnimationFrame
-vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-  callback(0);
-  return 0;
-});
-
 describe("load-pipeline", () => {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
@@ -52,6 +46,14 @@ describe("load-pipeline", () => {
     vi.resetAllMocks();
     resetLayoutStore();
     resetToastStore();
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 0;
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   describe("finalizeLayoutLoad", () => {

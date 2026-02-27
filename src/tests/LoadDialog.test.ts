@@ -123,6 +123,41 @@ describe("LoadDialog", () => {
     expect(dialogStore.isOpen("load")).toBe(false);
   });
 
+  it("fetches layouts when API becomes available after initial render", async () => {
+    const mockLayouts: persistenceApi.SavedLayoutItem[] = [
+      {
+        id: "uuid-delayed",
+        name: "Delayed Layout",
+        version: "1.0",
+        updatedAt: new Date().toISOString(),
+        rackCount: 2,
+        deviceCount: 10,
+        valid: true,
+      },
+    ];
+    // Start with API unavailable
+    (persistenceStore.isApiAvailable as vi.Mock).mockReturnValue(false);
+    (persistenceApi.listSavedLayouts as vi.Mock).mockResolvedValue(mockLayouts);
+
+    dialogStore.open("load");
+    render(LoadDialog);
+    await tick();
+
+    // API not available yet — listSavedLayouts should not be called
+    expect(persistenceApi.listSavedLayouts).not.toHaveBeenCalled();
+
+    // Simulate API becoming available
+    (persistenceStore.isApiAvailable as vi.Mock).mockReturnValue(true);
+    // Trigger reactivity by re-rendering (the $effect watches apiActive which is $derived)
+    // In real app, the persistence store would trigger this. In test, we need to
+    // re-render since mocked isApiAvailable isn't reactive.
+    dialogStore.close();
+    dialogStore.open("load");
+    render(LoadDialog);
+
+    expect(await screen.findByText("Delayed Layout")).toBeInTheDocument();
+  });
+
   it("shows error state when API fails to list layouts", async () => {
     (persistenceApi.listSavedLayouts as vi.Mock).mockRejectedValue(
       new persistenceApi.PersistenceError("Server error"),

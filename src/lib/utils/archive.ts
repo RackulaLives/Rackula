@@ -38,17 +38,6 @@ import {
  */
 type JSZipConstructor = typeof import("jszip");
 type JSZipInstance = ReturnType<JSZipConstructor>;
-type JSZipObject = JSZipInstance["files"][string];
-
-/**
- * Internal JSZipObject state for guardrail checks
- * (JSZip doesn't officially expose uncompressedSize until extraction)
- */
-interface InternalJSZipObject extends JSZipObject {
-  _data?: {
-    uncompressedSize: number;
-  };
-}
 
 let jsZipConstructor: JSZipConstructor | null = null;
 
@@ -321,6 +310,11 @@ export async function createFolderArchive(
 export async function extractFolderArchive(
   blob: Blob,
 ): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
+  // Guardrail: Empty blob
+  if (blob.size === 0) {
+    throw new Error("Archive file is empty (0 bytes).");
+  }
+
   // Guardrail: Max ZIP size
   if (blob.size > LIMITS.MAX_ZIP_SIZE_BYTES) {
     throw new Error(
@@ -331,11 +325,6 @@ export async function extractFolderArchive(
   const JSZip = await getJSZip();
   const zip = await JSZip.loadAsync(blob);
 
-  // Guardrail: Empty blob
-  if (blob.size === 0) {
-    throw new Error("Archive file is empty (0 bytes).");
-  }
-
   // Guardrail: Max entry count
   const entries = Object.keys(zip.files);
   if (entries.length > LIMITS.MAX_ENTRY_COUNT) {
@@ -345,15 +334,16 @@ export async function extractFolderArchive(
   }
 
   // Guardrail: Total uncompressed size and compression ratio
+  // Uses public API (async decompression) instead of private JSZip internals.
+  // This decompresses each entry once here; extraction functions later decompress
+  // only the YAML/image files they need. The overlap is small and the trade-off
+  // (slightly more work vs lower peak memory from not caching all entries) is acceptable.
   let totalUncompressedSize = 0;
   for (const name of entries) {
-    const file = zip.files[name] as InternalJSZipObject;
-    if (!file) continue;
-    // JSZip uses _data internally for uncompressed size if available, but
-    // public API doesn't guarantee it before async call.
-    // However, it is present on the ZipObject.
-    const uncompressedSize = file._data?.uncompressedSize ?? 0;
-    totalUncompressedSize += uncompressedSize;
+    const file = zip.files[name];
+    if (!file || file.dir) continue;
+    const bytes = await file.async("uint8array");
+    totalUncompressedSize += bytes.byteLength;
   }
 
   if (totalUncompressedSize > LIMITS.MAX_TOTAL_UNCOMPRESSED_BYTES) {
@@ -402,16 +392,15 @@ async function extractNewFormatZip(
     throw new Error(`YAML file not found: ${yamlPath}`);
   }
 
-  // Guardrail: Max YAML bytes
-  const yamlUncompressedSize =
-    (yamlFile as InternalJSZipObject)._data?.uncompressedSize ?? 0;
-  if (yamlUncompressedSize > LIMITS.MAX_YAML_BYTES) {
+  // Guardrail: Max YAML bytes (decompress once, reuse for parsing)
+  const yamlBytes = await yamlFile.async("uint8array");
+  if (yamlBytes.byteLength > LIMITS.MAX_YAML_BYTES) {
     throw new Error(
-      `Layout file too large (${Math.round(yamlUncompressedSize / 1024 / 1024)}MB).`,
+      `Layout file too large (${Math.round(yamlBytes.byteLength / 1024 / 1024)}MB).`,
     );
   }
 
-  const yamlContent = await yamlFile.async("string");
+  const yamlContent = new TextDecoder().decode(yamlBytes);
   const layout = await parseLayoutYaml(yamlContent);
 
   // Extract images from assets folder
@@ -476,16 +465,15 @@ async function extractOldFormatZip(
     throw new Error(`YAML file not found: ${yamlPath}`);
   }
 
-  // Guardrail: Max YAML bytes
-  const yamlUncompressedSize =
-    (yamlFile as InternalJSZipObject)._data?.uncompressedSize ?? 0;
-  if (yamlUncompressedSize > LIMITS.MAX_YAML_BYTES) {
+  // Guardrail: Max YAML bytes (decompress once, reuse for parsing)
+  const yamlBytes = await yamlFile.async("uint8array");
+  if (yamlBytes.byteLength > LIMITS.MAX_YAML_BYTES) {
     throw new Error(
-      `Layout file too large (${Math.round(yamlUncompressedSize / 1024 / 1024)}MB).`,
+      `Layout file too large (${Math.round(yamlBytes.byteLength / 1024 / 1024)}MB).`,
     );
   }
 
-  const yamlContent = await yamlFile.async("string");
+  const yamlContent = new TextDecoder().decode(yamlBytes);
   const layout = await parseLayoutYaml(yamlContent);
 
   // Old format: images at root level or in images/ folder

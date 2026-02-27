@@ -202,9 +202,8 @@ export async function listSavedLayouts(): Promise<SavedLayoutItem[]> {
     );
   }
 
-  const rawData = await response.json();
-
   try {
+    const rawData: unknown = await response.json();
     const data = LayoutListResponseSchema.parse(rawData);
     log("listSavedLayouts: found %d layouts", data.layouts.length);
     return data.layouts;

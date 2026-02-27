@@ -3,6 +3,11 @@ import JSZip from "jszip";
 import { extractFolderArchive } from "$lib/utils/archive";
 
 describe("Archive Guardrails", () => {
+  it("rejects empty (zero-byte) archives", async () => {
+    const emptyBlob = new Blob([], { type: "application/zip" });
+    await expect(extractFolderArchive(emptyBlob)).rejects.toThrow(/empty/i);
+  });
+
   it("rejects archives exceeding MAX_ZIP_SIZE_BYTES (50MB)", async () => {
     // Create a tiny zip but lie about its size
     const zip = new JSZip();

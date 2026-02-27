@@ -3,7 +3,6 @@
   Allows choosing between persisted (API) layouts and local file import
 -->
 <script lang="ts">
-  import { onMount } from "svelte";
   import {
     listSavedLayouts,
     deleteSavedLayout,
@@ -14,6 +13,7 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { loadFromApi, loadFromFile } from "$lib/utils/load-pipeline";
+  import { persistenceDebug } from "$lib/utils/debug";
   import {
     IconTrash,
     IconFolderBold,
@@ -35,12 +35,13 @@
     layouts.find((l) => l.id === confirmingDeleteId),
   );
 
-  onMount(async () => {
-    if (apiActive) {
-      await loadLayouts();
-    } else {
+  $effect(() => {
+    if (!dialogStore.isOpen("load")) return;
+    if (!apiActive) {
       loading = false;
+      return;
     }
+    void loadLayouts();
   });
 
   async function loadLayouts() {
@@ -52,7 +53,7 @@
     } catch (e) {
       error =
         e instanceof PersistenceError ? e.message : "Failed to load layouts";
-      console.error("Failed to load layouts:", e);
+      persistenceDebug.api("loadLayouts: failed %O", e);
     } finally {
       loading = false;
     }
