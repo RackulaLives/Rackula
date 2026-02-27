@@ -60,9 +60,9 @@ test.describe("Responsive Layout", () => {
     });
 
     test("mobile action buttons are shown", async ({ page }) => {
-      const saveBtn = page.getByRole("button", { name: "Save layout" });
-      const loadBtn = page.getByRole("button", { name: "Load layout" });
-      const exportBtn = page.getByRole("button", { name: "Export layout" });
+      const saveBtn = page.getByRole("button", { name: /save layout/i });
+      const loadBtn = page.getByRole("button", { name: /load layout/i });
+      const exportBtn = page.getByRole("button", { name: /export layout/i });
 
       await expect(saveBtn).toBeVisible();
       await expect(loadBtn).toBeVisible();
@@ -70,7 +70,7 @@ test.describe("Responsive Layout", () => {
     });
 
     test("bottom navigation is visible", async ({ page }) => {
-      const bottomNav = page.getByRole("button", { name: "Devices" });
+      const bottomNav = page.getByRole("button", { name: /devices/i });
       await expect(bottomNav).toBeVisible();
     });
 
@@ -152,10 +152,27 @@ test.describe("Responsive Layout", () => {
     });
 
     test("reset view via keyboard shortcut", async ({ page }) => {
-      await page.keyboard.press("f");
-
       const panzoomContainer = page.locator(".panzoom-container");
-      await expect(panzoomContainer).toBeVisible();
+
+      // Pan the view to a non-default position
+      await page.evaluate(() => {
+        const container = document.querySelector(".panzoom-container");
+        if (container) {
+          (container as HTMLElement).style.transform =
+            "matrix(0.5, 0, 0, 0.5, -300, -300)";
+        }
+      });
+
+      const transformBefore = await panzoomContainer.getAttribute("style");
+      expect(transformBefore).toContain("-300");
+
+      // Press "f" to reset view
+      await page.keyboard.press("f");
+      await page.waitForTimeout(300);
+
+      // Verify the transform changed back from the offset position
+      const transformAfter = await panzoomContainer.getAttribute("style");
+      expect(transformAfter).not.toContain("-300");
     });
   });
 });
