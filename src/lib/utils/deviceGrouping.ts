@@ -4,6 +4,7 @@
  */
 
 const GROUPING_STORAGE_KEY = "Rackula-device-grouping";
+const COMPATIBLE_ONLY_STORAGE_KEY = "Rackula-device-compatible-only";
 
 /**
  * Device grouping mode for the DevicePalette
@@ -46,5 +47,37 @@ export function saveGroupingModeToStorage(mode: DeviceGroupingMode): void {
     localStorage.setItem(GROUPING_STORAGE_KEY, mode);
   } catch (e) {
     console.warn("[Rackula] Failed to save grouping mode to localStorage:", e);
+  }
+}
+
+/**
+ * Load the saved compatible-only preference from localStorage.
+ * @returns Stored boolean value, or true by default.
+ */
+export function loadCompatibleOnlyFromStorage(): boolean {
+  try {
+    const stored = localStorage.getItem(COMPATIBLE_ONLY_STORAGE_KEY);
+    if (stored === "true") return true;
+    if (stored === "false") return false;
+  } catch (e) {
+    console.warn(
+      "[Rackula] Failed to load compatible-only mode from localStorage:",
+      e,
+    );
+  }
+  return true;
+}
+
+/**
+ * Save compatible-only preference to localStorage.
+ */
+export function saveCompatibleOnlyToStorage(value: boolean): void {
+  try {
+    localStorage.setItem(COMPATIBLE_ONLY_STORAGE_KEY, String(value));
+  } catch (e) {
+    console.warn(
+      "[Rackula] Failed to save compatible-only mode to localStorage:",
+      e,
+    );
   }
 }

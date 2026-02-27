@@ -31,7 +31,7 @@
     /** Whether device is compatible with current rack width. Defaults to true. */
     isCompatible?: boolean;
     /** Tooltip text to show when device is incompatible */
-    incompatibilityReason?: string;
+    incompatibilityReason?: string | null;
     /** Whether this device type can be deleted (unused custom type) */
     canDelete?: boolean;
     onselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
@@ -44,7 +44,7 @@
     librarySelected = false,
     searchQuery = "",
     isCompatible = true,
-    incompatibilityReason = "",
+    incompatibilityReason = null,
     canDelete = false,
     onselect,
     ondelete,
@@ -149,7 +149,7 @@
   tabindex="0"
   draggable={isCompatible}
   data-testid="device-palette-item"
-  title={!isCompatible ? incompatibilityReason : undefined}
+  title={!isCompatible ? (incompatibilityReason ?? undefined) : undefined}
   onclick={handleClick}
   onkeydown={handleKeyDown}
   ondragstart={handleDragStart}

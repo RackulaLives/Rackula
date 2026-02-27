@@ -13,11 +13,15 @@
     getCategoryDisplayName,
     sortDevicesByBrandThenModel,
     sortDevicesAlphabetically,
-    filterDevicesByRackWidth,
+    filterPaletteDevicesByRackWidth,
+    isDeviceCompatibleWithRackWidth,
+    getRackWidthIncompatibilityReason,
   } from "$lib/utils/deviceFilters";
   import {
     loadGroupingModeFromStorage,
     saveGroupingModeToStorage,
+    loadCompatibleOnlyFromStorage,
+    saveCompatibleOnlyToStorage,
     type DeviceGroupingMode,
   } from "$lib/utils/deviceGrouping";
   import { debounce } from "$lib/utils/debounce";
@@ -48,6 +52,8 @@
 
   // Grouping mode state with localStorage persistence
   let groupingMode = $state<DeviceGroupingMode>(loadGroupingModeFromStorage());
+  // Palette visibility toggle: default to safe mode showing compatible devices only
+  let compatibleOnly = $state(loadCompatibleOnlyFromStorage());
 
   // Grouping mode options for SegmentedControl
   const groupingModeOptions: { value: DeviceGroupingMode; label: string }[] = [
@@ -93,6 +99,10 @@
     accordionMultipleValue = [defaultValue];
     preSearchSingleValue = defaultValue;
     accordionMode = "single";
+  });
+
+  $effect(() => {
+    saveCompatibleOnlyToStorage(compatibleOnly);
   });
 
   // Debounce search input
@@ -233,9 +243,39 @@
   });
 
   // Filter and search generic devices - only show devices compatible with active rack
+  const allPaletteDevices = $derived([
+    ...allGenericDevices,
+    ...brandPacks.flatMap((pack) => pack.devices),
+  ]);
+  const deviceCompatibilityBySlug = $derived.by(() => {
+    const compatibility: Record<
+      string,
+      { isCompatible: boolean; incompatibilityReason: string | null }
+    > = {};
+
+    for (const device of allPaletteDevices) {
+      const compatible = isDeviceCompatibleWithRackWidth(device, activeRackWidth);
+      compatibility[device.slug] = {
+        isCompatible: compatible,
+        incompatibilityReason: compatible
+          ? null
+          : getRackWidthIncompatibilityReason(device, activeRackWidth),
+      };
+    }
+
+    return compatibility;
+  });
+
+  const visibleGenericDevices = $derived(
+    filterPaletteDevicesByRackWidth(
+      allGenericDevices,
+      activeRackWidth,
+      compatibleOnly,
+    ),
+  );
   const filteredGenericDevices = $derived(
     searchDevices(
-      filterDevicesByRackWidth(allGenericDevices, activeRackWidth),
+      visibleGenericDevices,
       searchQuery,
     ),
   );
@@ -248,7 +288,11 @@
     brandPacks.map((pack) => ({
       ...pack,
       devices: searchDevices(
-        filterDevicesByRackWidth(pack.devices, activeRackWidth),
+        filterPaletteDevicesByRackWidth(
+          pack.devices,
+          activeRackWidth,
+          compatibleOnly,
+        ),
         searchQuery,
       ),
     })),
@@ -263,9 +307,10 @@
 
   // All devices combined (for category and flat modes) - filtered by rack width
   const allDevicesCombined = $derived(
-    filterDevicesByRackWidth(
-      [...allGenericDevices, ...brandPacks.flatMap((p) => p.devices)],
+    filterPaletteDevicesByRackWidth(
+      allPaletteDevices,
       activeRackWidth,
+      compatibleOnly,
     ),
   );
   const filteredAllDevices = $derived(
@@ -418,6 +463,14 @@
     }
     return accordionSingleValue === sectionId;
   }
+
+  function isCompatible(device: DeviceType): boolean {
+    return deviceCompatibilityBySlug[device.slug]?.isCompatible ?? true;
+  }
+
+  function incompatibilityReason(device: DeviceType): string | null {
+    return deviceCompatibilityBySlug[device.slug]?.incompatibilityReason ?? null;
+  }
 </script>
 
 <div class="device-palette">
@@ -453,6 +506,14 @@
         </Tooltip>
       {/if}
     </div>
+    <label class="compatibility-toggle">
+      <input
+        type="checkbox"
+        bind:checked={compatibleOnly}
+        aria-label="Show compatible devices only"
+      />
+      <span>Compatible only</span>
+    </label>
   </div>
 
   <!-- Device List -->
@@ -517,6 +578,10 @@
                             <DevicePaletteItem
                               {device}
                               searchQuery={isSearchActive ? searchQuery : ""}
+                              isCompatible={isCompatible(device)}
+                              incompatibilityReason={incompatibilityReason(
+                                device,
+                              )}
                               canDelete={canDeleteDevice(device)}
                               onselect={handleDeviceSelect}
                               ondelete={handleDeviceDelete}
@@ -533,6 +598,8 @@
                       <DevicePaletteItem
                         {device}
                         searchQuery={isSearchActive ? searchQuery : ""}
+                        isCompatible={isCompatible(device)}
+                        incompatibilityReason={incompatibilityReason(device)}
                         canDelete={canDeleteDevice(device)}
                         onselect={handleDeviceSelect}
                         ondelete={handleDeviceDelete}
@@ -578,6 +645,22 @@
     display: flex;
     gap: var(--space-2);
     align-items: center;
+  }
+
+  .compatibility-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-xs);
+    color: var(--colour-text-muted);
+    user-select: none;
+    width: fit-content;
+    cursor: pointer;
+  }
+
+  .compatibility-toggle input {
+    margin: 0;
+    cursor: pointer;
   }
 
   .search-input {

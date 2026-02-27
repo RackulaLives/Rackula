@@ -7,6 +7,8 @@ import Fuse from "fuse.js";
 import type { IFuseOptions } from "fuse.js";
 import type { DeviceType, DeviceCategory } from "$lib/types";
 
+const DEFAULT_RACK_WIDTHS = [19];
+
 /**
  * Fuse.js configuration for fuzzy search.
  * Threshold of 0.3 balances typo tolerance with precision.
@@ -216,8 +218,7 @@ export function isDeviceCompatibleWithRackWidth(
   device: DeviceType,
   rackWidth: number,
 ): boolean {
-  // Devices without rack_widths are assumed to be 19" compatible
-  const deviceWidths = device.rack_widths?.length ? device.rack_widths : [19];
+  const deviceWidths = resolveDeviceRackWidths(device);
 
   // Device is compatible if rack width >= any of the device's supported widths
   return deviceWidths.some((deviceWidth) => rackWidth >= deviceWidth);
@@ -239,4 +240,38 @@ export function filterDevicesByRackWidth(
   return devices.filter((device) =>
     isDeviceCompatibleWithRackWidth(device, rackWidth),
   );
+}
+
+/**
+ * Filter palette devices by compatibility mode.
+ * When compatibleOnly is false, returns all devices for discoverability.
+ */
+export function filterPaletteDevicesByRackWidth(
+  devices: DeviceType[],
+  rackWidth: number,
+  compatibleOnly: boolean,
+): DeviceType[] {
+  return compatibleOnly ? filterDevicesByRackWidth(devices, rackWidth) : devices;
+}
+
+/**
+ * Get a user-facing incompatibility message for palette items.
+ * Returns null when device is compatible with the active rack width.
+ */
+export function getRackWidthIncompatibilityReason(
+  device: DeviceType,
+  rackWidth: number,
+): string | null {
+  if (isDeviceCompatibleWithRackWidth(device, rackWidth)) {
+    return null;
+  }
+
+  const supportedWidths = resolveDeviceRackWidths(device);
+  const minRequiredWidth = Math.min(...supportedWidths);
+
+  return `Requires at least ${minRequiredWidth}" rack width (current: ${rackWidth}")`;
+}
+
+function resolveDeviceRackWidths(device: DeviceType): number[] {
+  return device.rack_widths?.length ? device.rack_widths : DEFAULT_RACK_WIDTHS;
 }

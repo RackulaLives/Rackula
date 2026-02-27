@@ -10,6 +10,8 @@ import { describe, it, expect } from "vitest";
 import {
   isDeviceCompatibleWithRackWidth,
   filterDevicesByRackWidth,
+  filterPaletteDevicesByRackWidth,
+  getRackWidthIncompatibilityReason,
 } from "$lib/utils/deviceFilters";
 import { createTestDeviceType } from "./factories";
 
@@ -240,5 +242,47 @@ describe("filterDevicesByRackWidth", () => {
 
     // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: empty input produces empty output
     expect(result).toHaveLength(0);
+  });
+});
+
+describe("filterPaletteDevicesByRackWidth", () => {
+  const compatibleDevice = createTestDeviceType({
+    slug: "compatible-10",
+    rack_widths: [10],
+  });
+  const incompatibleInTenInchRack = createTestDeviceType({
+    slug: "incompatible-19",
+    rack_widths: [19],
+  });
+  const devices = [compatibleDevice, incompatibleInTenInchRack];
+
+  it("keeps current behavior when compatible-only mode is enabled", () => {
+    const result = filterPaletteDevicesByRackWidth(devices, 10, true);
+    const slugs = result.map((d) => d.slug);
+
+    expect(slugs).toContain("compatible-10");
+    expect(slugs).not.toContain("incompatible-19");
+  });
+
+  it("shows all devices when compatible-only mode is disabled", () => {
+    const result = filterPaletteDevicesByRackWidth(devices, 10, false);
+    const slugs = result.map((d) => d.slug);
+
+    expect(slugs).toContain("compatible-10");
+    expect(slugs).toContain("incompatible-19");
+  });
+});
+
+describe("getRackWidthIncompatibilityReason", () => {
+  it("returns null for compatible devices", () => {
+    const device = createTestDeviceType({ rack_widths: [10] });
+    expect(getRackWidthIncompatibilityReason(device, 10)).toBeNull();
+  });
+
+  it("explains minimum required rack width for incompatible devices", () => {
+    const device = createTestDeviceType({ rack_widths: [19, 23] });
+    expect(getRackWidthIncompatibilityReason(device, 10)).toContain(
+      'Requires at least 19" rack width',
+    );
   });
 });
