@@ -166,13 +166,11 @@ test.describe("Responsive Layout", () => {
       const transformBefore = await panzoomContainer.getAttribute("style");
       expect(transformBefore).toContain("-300");
 
-      // Press "f" to reset view
+      // Press "f" to reset view — auto-retry until transform changes
       await page.keyboard.press("f");
-      await page.waitForTimeout(300);
-
-      // Verify the transform changed back from the offset position
-      const transformAfter = await panzoomContainer.getAttribute("style");
-      expect(transformAfter).not.toContain("-300");
+      await expect
+        .poll(() => panzoomContainer.getAttribute("style"), { timeout: 2000 })
+        .not.toContain("-300");
     });
   });
 });
