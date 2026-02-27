@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/svelte";
 import App from "../App.svelte";
+
+vi.mock("$lib/utils/load-pipeline", () => ({
+  loadFromApi: vi.fn(async () => true),
+  loadFromFile: vi.fn(async () => true),
+  finalizeLayoutLoad: vi.fn(),
+}));
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetSelectionStore } from "$lib/stores/selection.svelte";

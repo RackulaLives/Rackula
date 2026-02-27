@@ -1,8 +1,6 @@
 <!--
-  StartScreen - Layout selection and creation
-  Shown on app launch when persistence is enabled
-  Includes: New Layout, Import from File, Saved Layouts list
-  Falls back gracefully if API unavailable
+  LoadDialog - Unified Load Interface
+  Allows choosing between persisted (API) layouts and local file import
 -->
 <script lang="ts">
   import { onMount } from "svelte";
@@ -12,60 +10,36 @@
     type SavedLayoutItem,
     PersistenceError,
   } from "$lib/utils/persistence-api";
-  import {
-    initializePersistence,
-    hasEverConnectedToApi,
-  } from "$lib/stores/persistence.svelte";
-  import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { isApiAvailable } from "$lib/stores/persistence.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { loadFromApi, loadFromFile } from "$lib/utils/load-pipeline";
   import {
-    IconPlus,
     IconTrash,
     IconFolderBold,
     IconUpload,
-    IconCloudOff,
   } from "$lib/components/icons";
-  import LogoLockup from "$lib/components/LogoLockup.svelte";
-  import { VERSION } from "$lib/version";
+  import Dialog from "./Dialog.svelte";
+  import ConfirmDialog from "./ConfirmDialog.svelte";
 
-  /** Options passed to onClose callback */
-  export interface StartScreenCloseOptions {
-    /** Layout ID if a saved layout was selected */
-    layoutId?: string;
-    /** Skip loading autosaved session (used when creating new layout) */
-    skipAutosave?: boolean;
-  }
-
-  interface Props {
-    onClose: (options?: StartScreenCloseOptions) => void;
-  }
-
-  let { onClose }: Props = $props();
-
-  const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
 
   let layouts = $state<SavedLayoutItem[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let apiAvailable = $state(true);
   let deletingId = $state<string | null>(null);
+  let confirmingDeleteId = $state<string | null>(null);
+  let apiActive = $derived(isApiAvailable());
 
-  /** Only show offline warning if user previously had API working */
-  let showOfflineWarning = $derived(!apiAvailable && hasEverConnectedToApi());
+  const confirmingDeleteItem = $derived(
+    layouts.find((l) => l.id === confirmingDeleteId),
+  );
 
   onMount(async () => {
-    // Initialize persistence and check API health
-    // This updates the global persistence store state
-    apiAvailable = await initializePersistence();
-
-    if (apiAvailable) {
+    if (apiActive) {
       await loadLayouts();
     } else {
       loading = false;
-      error = null; // Not an error, just offline mode
     }
   });
 
@@ -85,7 +59,6 @@
   }
 
   async function handleOpenLayout(item: SavedLayoutItem) {
-    // Don't allow opening invalid layouts
     if (!item.valid) {
       toastStore.showToast(
         `"${item.name}" is corrupted and cannot be opened`,
@@ -96,14 +69,21 @@
 
     const success = await loadFromApi(item.id);
     if (success) {
-      onClose({ layoutId: item.id });
+      dialogStore.close();
     }
   }
 
-  async function handleDeleteLayout(item: SavedLayoutItem) {
+  function handleDeleteLayout(item: SavedLayoutItem) {
     if (deletingId) return;
+    confirmingDeleteId = item.id;
+  }
 
+  async function confirmDelete() {
+    if (!confirmingDeleteItem) return;
+
+    const item = confirmingDeleteItem;
     deletingId = item.id;
+    confirmingDeleteId = null;
 
     try {
       await deleteSavedLayout(item.id);
@@ -118,22 +98,11 @@
     }
   }
 
-  function handleNewLayout() {
-    layoutStore.resetLayout();
-    dialogStore.open("newRack");
-    // Skip autosave - user explicitly wants a fresh layout
-    onClose({ skipAutosave: true });
-  }
-
   async function handleImportFile() {
     const success = await loadFromFile();
     if (success) {
-      onClose();
+      dialogStore.close();
     }
-  }
-
-  function handleContinueOffline() {
-    onClose();
   }
 
   function formatDate(isoString: string): string {
@@ -155,53 +124,40 @@
   }
 </script>
 
-<div class="start-screen" data-testid="start-screen">
-  <div class="start-screen-content">
-    <header class="start-header">
-      <LogoLockup size={48} showcase={true} alwaysShowTitle={true} />
-      <span class="version">v{VERSION}</span>
-      <p class="subtitle">Drag and drop rack visualizer</p>
-    </header>
-
+<Dialog
+  open={dialogStore.isOpen("load")}
+  title="Load Layout"
+  width="min(520px, 95vw)"
+  onclose={() => dialogStore.close()}
+>
+  <div class="load-dialog-content">
     <div class="actions">
-      <button class="action-btn primary" onclick={handleNewLayout}>
-        <IconPlus size={20} />
-        <span>New Layout</span>
-      </button>
-      <button class="action-btn secondary" onclick={handleImportFile}>
-        <IconUpload />
-        <span>Import File</span>
+      <button class="import-file-btn" onclick={handleImportFile}>
+        <IconUpload size={18} />
+        <span>Import from local file (.zip)</span>
       </button>
     </div>
 
-    {#if showOfflineWarning}
-      <div class="offline-warning">
-        <IconCloudOff size={18} />
-        <div class="offline-text">
-          <strong>Persistence API unavailable</strong>
-          <p>
-            Working in offline mode. Changes will be saved to browser storage.
-          </p>
-        </div>
-        <button class="continue-btn" onclick={handleContinueOffline}>
-          Continue
-        </button>
-      </div>
-    {:else}
+    {#if apiActive}
       <section class="saved-layouts">
-        <h2>
-          <IconFolderBold size={18} />
-          Saved Layouts
-        </h2>
+        <h3>
+          <IconFolderBold size={16} />
+          Saved on Server
+        </h3>
 
         {#if loading}
-          <div class="loading">Loading...</div>
+          <div class="status-box">
+            <div class="spinner-loader" data-testid="spinner-loader"></div>
+            <span>Loading saved layouts...</span>
+          </div>
         {:else if error}
-          <div class="error-message">{error}</div>
-        {:else if layouts.length === 0}
-          <div class="empty">
-            <p>No saved layouts yet.</p>
-            <p>Create a new layout or import an existing file!</p>
+          <div class="status-box error">
+            <span>{error}</span>
+            <button class="retry-link" onclick={loadLayouts}>Retry</button>
+          </div>
+        {:else if !layouts || layouts.length === 0}
+          <div class="status-box empty">
+            <p>No layouts saved on server yet.</p>
           </div>
         {:else}
           <div class="layout-list">
@@ -243,13 +199,6 @@
                     e.stopPropagation();
                     handleDeleteLayout(item);
                   }}
-                  onkeydown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleDeleteLayout(item);
-                    }
-                  }}
                   disabled={deletingId === item.id}
                   aria-label={`Delete layout ${item.name}`}
                   title="Delete layout"
@@ -263,124 +212,98 @@
       </section>
     {/if}
   </div>
-</div>
+</Dialog>
+
+<ConfirmDialog
+  open={!!confirmingDeleteId}
+  title="Delete Layout?"
+  message={confirmingDeleteItem
+    ? `Are you sure you want to delete "${confirmingDeleteItem.name}"? This cannot be undone.`
+    : ""}
+  onconfirm={confirmDelete}
+  oncancel={() => (confirmingDeleteId = null)}
+/>
 
 <style>
-  .start-screen {
-    position: fixed;
-    inset: 0;
-    background: var(--colour-bg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  .start-screen-content {
-    max-width: 520px;
-    width: 100%;
-    padding: var(--space-6);
-  }
-
-  .start-header {
+  .load-dialog-content {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    margin-bottom: var(--space-8);
+    gap: var(--space-6);
+    padding: var(--space-1);
   }
 
-  .version {
-    font-size: var(--font-size-sm);
-    color: var(--colour-text-muted);
-    margin-top: var(--space-2);
-  }
-
-  .subtitle {
-    color: var(--colour-text-muted);
-    margin-top: var(--space-1);
-    text-align: center;
-  }
-
-  .actions {
+  .import-file-btn {
     display: flex;
+    align-items: center;
     justify-content: center;
-    gap: var(--space-4);
-    margin-bottom: var(--space-8);
-  }
-
-  .action-btn {
-    display: flex;
-    align-items: center;
     gap: var(--space-2);
-    padding: var(--space-3) var(--space-6);
+    width: 100%;
+    padding: var(--space-4);
+    background: var(--colour-surface);
+    border: 2px dashed var(--colour-border);
     border-radius: var(--radius-md);
+    color: var(--colour-text);
     font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
-    border: none;
-    transition: background-color 0.15s;
+    transition:
+      border-color 0.15s,
+      background-color 0.15s;
   }
 
-  .action-btn.primary {
-    background: var(--colour-button-primary);
-    color: var(--colour-text-on-primary);
-  }
-
-  .action-btn.primary:hover {
-    background: var(--colour-button-primary-hover);
-  }
-
-  .action-btn.secondary {
-    background: var(--colour-surface);
-    color: var(--colour-text);
-    border: 1px solid var(--colour-border);
-  }
-
-  .action-btn.secondary:hover {
+  .import-file-btn:hover {
+    border-color: var(--colour-primary);
     background: var(--colour-surface-hover);
   }
 
-  .offline-warning {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-4);
-    padding: var(--space-4);
-    background: var(--colour-warning-bg);
-    border: 1px solid var(--colour-warning);
-    border-radius: var(--radius-md);
-    margin-bottom: var(--space-8);
-    color: var(--colour-warning);
-  }
-
-  .offline-text p {
-    margin: var(--space-2) 0 0;
-    font-size: 0.875rem;
-    color: var(--colour-text-muted);
-  }
-
-  .continue-btn {
-    margin-left: auto;
-    padding: var(--space-2) var(--space-4);
-    background: var(--colour-warning);
-    color: var(--colour-bg);
-    border: none;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    white-space: nowrap;
-    font-weight: 500;
-  }
-
-  .continue-btn:hover {
-    filter: brightness(1.1);
-  }
-
-  .saved-layouts h2 {
+  .saved-layouts h3 {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    font-size: 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
     color: var(--colour-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     margin-bottom: var(--space-4);
+  }
+
+  .status-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: var(--space-8);
+    background: var(--colour-surface);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    color: var(--colour-text-muted);
+    text-align: center;
+  }
+
+  .spinner-loader {
+    width: var(--icon-size-lg);
+    height: var(--icon-size-lg);
+    border: 2px solid var(--colour-border);
+    border-radius: var(--radius-full);
+    border-top-color: var(--colour-primary);
+    animation: spin 1s linear infinite;
+  }
+
+  .status-box.error {
+    color: var(--colour-error);
+    background: var(--colour-error-bg);
+    border-color: var(--colour-error);
+  }
+
+  .retry-link {
+    background: none;
+    border: none;
+    color: var(--colour-primary);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 0.875rem;
   }
 
   .layout-list {
@@ -388,25 +311,27 @@
     flex-direction: column;
     max-height: 320px;
     overflow-y: auto;
+    padding-right: var(--space-1);
   }
 
   .layout-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: 100%;
     padding: var(--space-4);
     background: var(--colour-surface);
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-md);
     margin-bottom: var(--space-2);
     cursor: pointer;
-    text-align: left;
-    transition: border-color 0.15s;
+    transition:
+      border-color 0.15s,
+      background-color 0.15s;
   }
 
   .layout-item:hover {
     border-color: var(--colour-primary);
+    background: var(--colour-surface-hover);
   }
 
   .layout-item.deleting {
@@ -418,30 +343,6 @@
   .layout-item.invalid {
     border-color: var(--colour-error);
     background: var(--colour-error-bg);
-  }
-
-  .layout-item.invalid:hover {
-    border-color: var(--colour-error);
-    cursor: not-allowed;
-  }
-
-  .error-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    background: var(--colour-error);
-    color: white;
-    font-size: 0.75rem;
-    font-weight: bold;
-    border-radius: var(--radius-full);
-    margin-left: var(--space-2);
-    vertical-align: middle;
-  }
-
-  .error-text {
-    color: var(--colour-error);
   }
 
   .layout-info {
@@ -456,8 +357,26 @@
   }
 
   .layout-meta {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--colour-text-muted);
+  }
+
+  .error-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    background: var(--colour-error);
+    color: white;
+    font-size: 0.625rem;
+    font-weight: bold;
+    border-radius: 50%;
+    margin-left: var(--space-2);
+  }
+
+  .error-text {
+    color: var(--colour-error);
   }
 
   .delete-btn {
@@ -477,15 +396,16 @@
     background: var(--colour-error-bg);
   }
 
-  .loading,
-  .error-message,
-  .empty {
-    text-align: center;
-    padding: var(--space-8);
-    color: var(--colour-text-muted);
+  :global(.spinner) {
+    animation: spin 1s linear infinite;
   }
 
-  .error-message {
-    color: var(--colour-error);
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>
