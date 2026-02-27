@@ -81,7 +81,7 @@ server {
     location = /auth/login {
         resolver 127.0.0.11 valid=30s;
         set $api_upstream ${API_HOST};
-        proxy_pass http://$api_upstream:${API_PORT}/auth/login$is_args$args;
+        proxy_pass http://$api_upstream:${API_PORT}/api/auth/login$is_args$args;
         include /etc/nginx/snippets/auth-proxy.conf;
         proxy_intercept_errors on;
         error_page 502 503 504 = @auth_service_unavailable;
@@ -90,7 +90,7 @@ server {
     location = /auth/callback {
         resolver 127.0.0.11 valid=30s;
         set $api_upstream ${API_HOST};
-        proxy_pass http://$api_upstream:${API_PORT}/auth/callback$is_args$args;
+        proxy_pass http://$api_upstream:${API_PORT}/api/auth/callback$is_args$args;
         include /etc/nginx/snippets/auth-proxy.conf;
         proxy_intercept_errors on;
         error_page 502 503 504 = @auth_service_unavailable;
@@ -99,7 +99,7 @@ server {
     location = /auth/check {
         resolver 127.0.0.11 valid=30s;
         set $api_upstream ${API_HOST};
-        proxy_pass http://$api_upstream:${API_PORT}/auth/check$is_args$args;
+        proxy_pass http://$api_upstream:${API_PORT}/api/auth/check$is_args$args;
         include /etc/nginx/snippets/auth-proxy.conf;
         proxy_intercept_errors on;
         error_page 502 503 504 = @auth_service_unavailable;
@@ -108,7 +108,7 @@ server {
     location = /auth/logout {
         resolver 127.0.0.11 valid=30s;
         set $api_upstream ${API_HOST};
-        proxy_pass http://$api_upstream:${API_PORT}/auth/logout$is_args$args;
+        proxy_pass http://$api_upstream:${API_PORT}/api/auth/logout$is_args$args;
         include /etc/nginx/snippets/auth-proxy.conf;
         proxy_intercept_errors on;
         error_page 502 503 504 = @auth_service_unavailable;
@@ -123,12 +123,12 @@ server {
     # These paths don't correspond to valid API endpoints
     location = /api {
         default_type application/json;
-        return 400 '{"error": "Invalid API path", "hint": "Use /api/layouts, /api/assets, or /api/health"}';
+        return 400 '{"error": "Invalid API path", "hint": "Use /api/layouts, /api/assets, /api/auth/*, or /api/health"}';
     }
 
     location = /api/ {
         default_type application/json;
-        return 400 '{"error": "Invalid API path", "hint": "Use /api/layouts, /api/assets, or /api/health"}';
+        return 400 '{"error": "Invalid API path", "hint": "Use /api/layouts, /api/assets, /api/auth/*, or /api/health"}';
     }
 
     location /api/ {
@@ -163,7 +163,7 @@ server {
     }
 
     # Internal auth probe for app-route protection.
-    # API validates the signed session cookie and returns 204 (ok) or 401 (unauthorized).
+    # API validates the signed session cookie and returns 204 (authorized) or 401 (unauthorized).
     location = /_rackula_auth_check {
         internal;
         if ($rackula_auth_mode_none) {
@@ -171,7 +171,7 @@ server {
         }
         resolver 127.0.0.11 valid=30s;
         set $api_upstream ${API_HOST};
-        proxy_pass http://$api_upstream:${API_PORT}/auth/check;
+        proxy_pass http://$api_upstream:${API_PORT}/api/auth/check;
         proxy_http_version 1.1;
         proxy_connect_timeout 3s;
         proxy_read_timeout 3s;
@@ -196,8 +196,11 @@ server {
     }
 
     location @auth_login_redirect {
-        # Use normalized URI here to avoid passing raw query delimiters in next.
-        return 302 /auth/login?next=$uri;
+        # Preserve path and query string in the next= parameter.
+        # Limitation: if $args contains & characters, nginx will split them into
+        # separate query params. Only the first segment stays in next=.
+        # Full URI-encoding requires OpenResty (set_escape_uri), unavailable here.
+        return 302 /auth/login?next=$uri$is_args$args;
     }
 
     # Container health check - used by Docker/K8s for liveness/readiness probes

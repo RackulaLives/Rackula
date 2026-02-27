@@ -6,7 +6,7 @@ Rackula uses **Better Auth** with stateless cookie-based sessions to provide per
 
 - **Generic OIDC support** - Works with any OIDC-compliant identity provider
 - **Stateless sessions** - Cookie-only sessions that survive container restarts without server-side storage
-- **Read-only unauthenticated access** - Users can design rack layouts without authentication; authentication required only for saving/managing layouts
+- **Optional auth mode** - `RACKULA_AUTH_MODE=none` allows anonymous access; non-`none` modes block anonymous access on protected routes
 - **Security hardening** - Production-ready defaults with HttpOnly cookies, SameSite protection, and HTTPS enforcement
 
 ### Architecture
@@ -31,6 +31,7 @@ Rackula uses **Better Auth** with stateless cookie-based sessions to provide per
 │  │  - /auth/login → redirects to IdP        │   │
 │  │  - /auth/callback → handles OIDC return  │   │
 │  │  - /auth/logout → clears session         │   │
+│  │  - /api/auth/* compatibility routes      │   │
 │  │  - Session validation middleware         │   │
 │  └─────────────────────────────────────────┘   │
 └────────────┬────────────────────────────────────┘
@@ -52,11 +53,32 @@ Rackula uses **Better Auth** with stateless cookie-based sessions to provide per
 - Sessions survive container restarts (stored in browser, not server memory)
 - No database required for session storage
 
-**Read-Only Access:**
+**Access Control:**
 
-- Unauthenticated users can access the full design interface
-- Authentication required only when saving layouts or managing saved layouts
-- Core design principle: "zero friction for rack design"
+- `RACKULA_AUTH_MODE=none`: routes follow existing unauthenticated behavior
+- `RACKULA_AUTH_MODE=oidc|local`: anonymous access to protected routes is denied by default
+- Auth check endpoint returns `204` for valid sessions and `401` for invalid/missing sessions
+
+### Reverse Proxy Auth Contract (Nginx)
+
+If you deploy Rackula behind Nginx auth_request, keep this contract consistent:
+
+- Browser-facing auth routes:
+  - `GET /auth/login`
+  - `GET /auth/callback`
+  - `GET /auth/check`
+  - `POST /auth/logout`
+- API compatibility routes (also available, same methods):
+  - `GET /api/auth/login`
+  - `GET /api/auth/callback`
+  - `GET /api/auth/check`
+  - `POST /api/auth/logout`
+- Internal auth probe contract:
+  - `204` = authenticated
+  - `401` = unauthenticated
+
+When protecting app routes with `auth_request`, redirect unauthorized requests to:
+- `/auth/login?next=<path>` (path and query string are preserved; caveat: if the original URL contains multiple `&`-delimited query params, only the first segment stays in `next=` because standard nginx cannot URI-encode the value)
 
 ## Prerequisites
 

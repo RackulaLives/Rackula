@@ -267,7 +267,7 @@ http {
     }
 
     # Per-client API throttle; tune for your environment.
-    limit_req_zone $binary_remote_addr zone=api_per_ip:10m rate=10r/s;
+    limit_req_zone $binary_remote_addr zone=per_ip:10m rate=10r/s;
 
     server {
         listen 8080;
@@ -286,6 +286,7 @@ http {
         location / {
             auth_basic "Rackula Protected";
             auth_basic_user_file /run/secrets/rackula_htpasswd;
+            limit_req zone=per_ip burst=20 nodelay;
 
             proxy_pass http://rackula_upstream;
             proxy_http_version 1.1;
@@ -302,7 +303,7 @@ http {
             auth_basic "Rackula Protected";
             auth_basic_user_file /run/secrets/rackula_htpasswd;
 
-            limit_req zone=api_per_ip burst=20 nodelay;
+            limit_req zone=per_ip burst=20 nodelay;
             proxy_pass http://rackula_upstream;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
@@ -315,7 +316,7 @@ http {
             auth_basic "Rackula Protected";
             auth_basic_user_file /run/secrets/rackula_htpasswd;
 
-            limit_req zone=api_per_ip burst=20 nodelay;
+            limit_req zone=per_ip burst=20 nodelay;
             proxy_pass http://rackula_upstream;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
@@ -328,7 +329,20 @@ http {
             auth_basic "Rackula Protected";
             auth_basic_user_file /run/secrets/rackula_htpasswd;
 
-            limit_req zone=api_per_ip burst=20 nodelay;
+            limit_req zone=per_ip burst=20 nodelay;
+            proxy_pass http://rackula_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # Explicit API allowlist: auth contract endpoints
+        location ~ ^/api/auth(/.*)?$ {
+            auth_basic "Rackula Protected";
+            auth_basic_user_file /run/secrets/rackula_htpasswd;
+
+            limit_req zone=per_ip burst=20 nodelay;
             proxy_pass http://rackula_upstream;
             proxy_http_version 1.1;
             proxy_set_header Host $host;

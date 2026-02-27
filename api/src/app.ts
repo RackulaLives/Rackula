@@ -320,14 +320,12 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
 
   if (securityConfig.authEnabled) {
     const authPlugins = Array.isArray(auth?.options?.plugins)
-      ? auth?.options?.plugins
+      ? auth.options.plugins
       : [];
     const oidcApiAvailable =
       Boolean(auth) &&
       securityConfig.authMode === "oidc" &&
-      authPlugins.some(
-        (plugin) => (plugin as { id?: unknown }).id === "generic-oauth",
-      ) &&
+      authPlugins.length > 0 &&
       typeof authApi.signInWithOAuth2 === "function" &&
       typeof authApi.oAuth2Callback === "function";
 
