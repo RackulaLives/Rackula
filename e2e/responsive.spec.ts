@@ -69,8 +69,10 @@ test.describe("Responsive Layout", () => {
       await expect(exportBtn).toBeVisible();
     });
 
-    test("bottom navigation is visible", async ({ page }) => {
-      const bottomNav = page.getByRole("button", { name: /devices/i });
+    test("mobile bottom navigation is visible", async ({ page }) => {
+      const bottomNav = page.getByRole("navigation", {
+        name: /mobile navigation/i,
+      });
       await expect(bottomNav).toBeVisible();
     });
 
@@ -154,7 +156,7 @@ test.describe("Responsive Layout", () => {
     test("reset view via keyboard shortcut", async ({ page }) => {
       const panzoomContainer = page.locator(".panzoom-container");
 
-      // Pan the view to a non-default position
+      // Set a non-default transform (matches pattern in view-reset.spec.ts)
       await page.evaluate(() => {
         const container = document.querySelector(".panzoom-container");
         if (container) {
