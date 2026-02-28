@@ -1,6 +1,10 @@
 <p align="center">
-  <a href="https://app.racku.la">
-    <img src="assets/Rackula-lockup-dark.svg#gh-dark-mode-only" alt="Rackula" width="420">
+  <a href="https://count.racku.la">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="assets/Rackula-lockup-dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset="assets/Rackula-lockup-light.svg">
+      <img src="assets/Rackula-lockup-dark.svg" alt="Rackula" width="420">
+    </picture>
   </a>
 </p>
 
