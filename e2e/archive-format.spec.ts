@@ -52,6 +52,20 @@ test.describe("Archive Format", () => {
   });
 
   test("save creates .Rackula.zip file", async ({ page }) => {
+    // Neutralize native File System Access API before navigation so the app
+    // falls back to anchor download, which Playwright can intercept.
+    // Without this, Chromium's showSaveFilePicker opens a native dialog that
+    // hangs in headless mode with no way for Playwright to dismiss it.
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "showSaveFilePicker", {
+        value: undefined,
+        writable: true,
+        configurable: true,
+      });
+    });
+    // Re-navigate so the init script takes effect
+    await gotoWithRack(page, STANDARD_RACK_SHARE);
+
     await dragDeviceToRack(page);
     await expect(page.locator(".rack-device").first()).toBeVisible({
       timeout: 5000,

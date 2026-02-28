@@ -692,6 +692,10 @@
         resetAndOpenNewRack();
       }
     } catch (error) {
+      // User cancelled native save dialog — not an error
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
       dialogStore.pendingSaveFirst = false;
       console.error("Failed to save layout:", error);
       toastStore.showToast(
