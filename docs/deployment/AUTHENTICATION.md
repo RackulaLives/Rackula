@@ -347,7 +347,7 @@ Set the following environment variables:
 RACKULA_AUTH_MODE=local
 RACKULA_LOCAL_USERNAME=admin
 RACKULA_LOCAL_PASSWORD=your-secure-password-here   # minimum 12 characters
-RACKULA_AUTH_SESSION_SECRET=your-random-secret-here # minimum 16 characters
+RACKULA_AUTH_SESSION_SECRET=your-random-secret-here # minimum 32 characters
 ```
 
 All session-related variables from the OIDC section also apply (`RACKULA_AUTH_SESSION_MAX_AGE_SECONDS`, `RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS`, `RACKULA_AUTH_SESSION_COOKIE_SECURE`, etc.).

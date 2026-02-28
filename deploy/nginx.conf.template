@@ -234,6 +234,13 @@ server {
         return 200 "OK";
     }
 
+    # Local auth login page — bypass auth_request to prevent redirect loop.
+    # When auth_mode=local, GET /auth/login rewrites to /login.html, which must
+    # be servable without authentication.
+    location = /login.html {
+        try_files /login.html =404;
+    }
+
     # SPA fallback - all routes to index.html
     location / {
         auth_request /_rackula_auth_check;

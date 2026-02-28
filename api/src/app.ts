@@ -556,7 +556,7 @@ export async function createApp(
       });
 
       const localLoginHandler = async (c: Context<AppEnv>) => {
-        const contentType = c.req.header("content-type");
+        const contentType = c.req.header("content-type")?.toLowerCase();
         if (!contentType || !contentType.includes("application/json")) {
           return c.json(
             {
