@@ -87,7 +87,7 @@ describe("load-pipeline", () => {
   describe("loadFromApi", () => {
     it("fetches from API and finalizes load on success", async () => {
       const layout = createTestLayout({ name: "API Load" });
-      (persistenceApi.loadSavedLayout as vi.Mock).mockResolvedValue(layout);
+      vi.mocked(persistenceApi.loadSavedLayout).mockResolvedValue(layout);
 
       const result = await loadFromApi("uuid-1");
 
@@ -97,7 +97,7 @@ describe("load-pipeline", () => {
     });
 
     it("shows error toast on API failure", async () => {
-      (persistenceApi.loadSavedLayout as vi.Mock).mockRejectedValue(
+      vi.mocked(persistenceApi.loadSavedLayout).mockRejectedValue(
         new persistenceApi.PersistenceError("Not found"),
       );
 
@@ -115,8 +115,8 @@ describe("load-pipeline", () => {
       const layout = createTestLayout({ name: "File Load" });
       const mockFile = new File(["test"], "test.zip", { type: "application/zip" });
       
-      (fileUtils.openFilePicker as vi.Mock).mockResolvedValue(mockFile);
-      (archive.extractFolderArchive as vi.Mock).mockResolvedValue({
+      vi.mocked(fileUtils.openFilePicker).mockResolvedValue(mockFile);
+      vi.mocked(archive.extractFolderArchive).mockResolvedValue({
         layout,
         images: new Map(),
         failedImages: [],
@@ -131,7 +131,7 @@ describe("load-pipeline", () => {
     });
 
     it("returns false when file picker is cancelled", async () => {
-      (fileUtils.openFilePicker as vi.Mock).mockResolvedValue(null);
+      vi.mocked(fileUtils.openFilePicker).mockResolvedValue(null);
 
       const result = await loadFromFile();
 

@@ -167,39 +167,40 @@
                 class="layout-item"
                 class:invalid={!item.valid}
                 class:deleting={deletingId === item.id}
-                role="button"
-                tabindex={item.valid ? 0 : -1}
-                aria-disabled={!item.valid}
-                onclick={() => handleOpenLayout(item)}
-                onkeydown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleOpenLayout(item);
-                  }
-                }}
               >
-                <div class="layout-info">
-                  <span class="layout-name">
-                    {item.name}
-                    {#if !item.valid}
-                      <span class="error-badge" title="Corrupted file">!</span>
-                    {/if}
-                  </span>
-                  <span class="layout-meta">
-                    {#if item.valid}
-                      {formatCounts(item)} - {formatDate(item.updatedAt)}
-                    {:else}
-                      <span class="error-text">File corrupted</span> -
-                      {formatDate(item.updatedAt)}
-                    {/if}
-                  </span>
+                <div
+                  class="layout-row"
+                  role="button"
+                  tabindex={item.valid ? 0 : -1}
+                  aria-disabled={!item.valid}
+                  onclick={() => handleOpenLayout(item)}
+                  onkeydown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleOpenLayout(item);
+                    }
+                  }}
+                >
+                  <div class="layout-info">
+                    <span class="layout-name">
+                      {item.name}
+                      {#if !item.valid}
+                        <span class="error-badge" title="Corrupted file">!</span>
+                      {/if}
+                    </span>
+                    <span class="layout-meta">
+                      {#if item.valid}
+                        {formatCounts(item)} - {formatDate(item.updatedAt)}
+                      {:else}
+                        <span class="error-text">File corrupted</span> -
+                        {formatDate(item.updatedAt)}
+                      {/if}
+                    </span>
+                  </div>
                 </div>
                 <button
                   class="delete-btn"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteLayout(item);
-                  }}
+                  onclick={() => handleDeleteLayout(item)}
                   disabled={deletingId === item.id}
                   aria-label={`Delete layout ${item.name}`}
                   title="Delete layout"
@@ -318,13 +319,10 @@
   .layout-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: var(--space-4);
     background: var(--colour-surface);
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-md);
     margin-bottom: var(--space-2);
-    cursor: pointer;
     transition:
       border-color 0.15s,
       background-color 0.15s;
@@ -333,6 +331,13 @@
   .layout-item:hover {
     border-color: var(--colour-primary);
     background: var(--colour-surface-hover);
+  }
+
+  .layout-row {
+    flex: 1;
+    min-width: 0;
+    padding: var(--space-4);
+    cursor: pointer;
   }
 
   .layout-item.deleting {
@@ -382,6 +387,7 @@
 
   .delete-btn {
     padding: var(--space-2);
+    margin-right: var(--space-2);
     border: none;
     background: transparent;
     color: var(--colour-text-muted);

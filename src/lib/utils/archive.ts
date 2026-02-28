@@ -344,12 +344,11 @@ export async function extractFolderArchive(
     if (!file || file.dir) continue;
     const bytes = await file.async("uint8array");
     totalUncompressedSize += bytes.byteLength;
-  }
-
-  if (totalUncompressedSize > LIMITS.MAX_TOTAL_UNCOMPRESSED_BYTES) {
-    throw new Error(
-      `Archive uncompressed size is too large (${Math.round(totalUncompressedSize / 1024 / 1024)}MB).`,
-    );
+    if (totalUncompressedSize > LIMITS.MAX_TOTAL_UNCOMPRESSED_BYTES) {
+      throw new Error(
+        `Archive uncompressed size is too large (${Math.round(totalUncompressedSize / 1024 / 1024)}MB).`,
+      );
+    }
   }
 
   const ratio = totalUncompressedSize / blob.size;

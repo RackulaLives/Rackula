@@ -35,7 +35,7 @@ describe("LoadDialog", () => {
     vi.resetAllMocks();
     resetToastStore();
     dialogStore.close();
-    (persistenceStore.isApiAvailable as vi.Mock).mockReturnValue(true);
+    vi.mocked(persistenceStore.isApiAvailable).mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -47,7 +47,7 @@ describe("LoadDialog", () => {
     const pendingPromise = new Promise((resolve) => {
       resolveLayouts = resolve;
     });
-    (persistenceApi.listSavedLayouts as vi.Mock).mockReturnValue(pendingPromise);
+    vi.mocked(persistenceApi.listSavedLayouts).mockReturnValue(pendingPromise as never);
 
     dialogStore.open("load");
     render(LoadDialog);
@@ -76,7 +76,7 @@ describe("LoadDialog", () => {
         valid: true,
       },
     ];
-    (persistenceApi.listSavedLayouts as vi.Mock).mockResolvedValue(mockLayouts);
+    vi.mocked(persistenceApi.listSavedLayouts).mockResolvedValue(mockLayouts);
 
     dialogStore.open("load");
     render(LoadDialog);
@@ -97,8 +97,8 @@ describe("LoadDialog", () => {
         valid: true,
       },
     ];
-    (persistenceApi.listSavedLayouts as vi.Mock).mockResolvedValue(mockLayouts);
-    (loadPipeline.loadFromApi as vi.Mock).mockResolvedValue(true);
+    vi.mocked(persistenceApi.listSavedLayouts).mockResolvedValue(mockLayouts);
+    vi.mocked(loadPipeline.loadFromApi).mockResolvedValue(true);
 
     dialogStore.open("load");
     render(LoadDialog);
@@ -111,7 +111,7 @@ describe("LoadDialog", () => {
   });
 
   it("calls loadFromFile and closes when import button is clicked", async () => {
-    (loadPipeline.loadFromFile as vi.Mock).mockResolvedValue(true);
+    vi.mocked(loadPipeline.loadFromFile).mockResolvedValue(true);
 
     dialogStore.open("load");
     render(LoadDialog);
@@ -136,8 +136,8 @@ describe("LoadDialog", () => {
       },
     ];
     // Start with API unavailable
-    (persistenceStore.isApiAvailable as vi.Mock).mockReturnValue(false);
-    (persistenceApi.listSavedLayouts as vi.Mock).mockResolvedValue(mockLayouts);
+    vi.mocked(persistenceStore.isApiAvailable).mockReturnValue(false);
+    vi.mocked(persistenceApi.listSavedLayouts).mockResolvedValue(mockLayouts);
 
     dialogStore.open("load");
     render(LoadDialog);
@@ -147,7 +147,7 @@ describe("LoadDialog", () => {
     expect(persistenceApi.listSavedLayouts).not.toHaveBeenCalled();
 
     // Simulate API becoming available
-    (persistenceStore.isApiAvailable as vi.Mock).mockReturnValue(true);
+    vi.mocked(persistenceStore.isApiAvailable).mockReturnValue(true);
     // Trigger reactivity by re-rendering (the $effect watches apiActive which is $derived)
     // In real app, the persistence store would trigger this. In test, we need to
     // re-render since mocked isApiAvailable isn't reactive.
@@ -159,7 +159,7 @@ describe("LoadDialog", () => {
   });
 
   it("shows error state when API fails to list layouts", async () => {
-    (persistenceApi.listSavedLayouts as vi.Mock).mockRejectedValue(
+    vi.mocked(persistenceApi.listSavedLayouts).mockRejectedValue(
       new persistenceApi.PersistenceError("Server error"),
     );
 
