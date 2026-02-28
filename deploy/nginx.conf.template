@@ -33,6 +33,13 @@ map "${RACKULA_AUTH_MODE}" $rackula_auth_mode_local {
     ~*^local$ 1;
 }
 
+# Serve static login page only for GET requests in local auth mode.
+# POST /auth/login must pass through to the API for credential validation.
+map "$request_method:$rackula_auth_mode_local" $rackula_serve_local_login_page {
+    default 0;
+    "GET:1" 1;
+}
+
 log_format rackula_auth_upstream_failure
     'auth_upstream_unavailable '
     'remote_addr=$remote_addr request_uri=$request_uri '
@@ -84,8 +91,9 @@ server {
     # Public auth bootstrap endpoints.
     # When auth mode is enabled, these remain reachable for login/callback flow.
     location = /auth/login {
-        # Local auth mode: serve static login page from built frontend
-        if ($rackula_auth_mode_local) {
+        # Local auth mode: serve static login page for GET requests only.
+        # POST requests pass through to the API for credential validation.
+        if ($rackula_serve_local_login_page) {
             rewrite ^ /login.html last;
         }
         # OIDC mode: proxy to API for IdP redirect

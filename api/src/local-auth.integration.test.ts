@@ -70,6 +70,8 @@ describe("POST /api/auth/login", () => {
       c.startsWith("rackula_auth_session="),
     );
     expect(sessionCookie).toBeDefined();
+    expect(sessionCookie).toContain("HttpOnly");
+    expect(sessionCookie).toContain("SameSite=");
   });
 
   it("returns 401 for invalid password", async () => {

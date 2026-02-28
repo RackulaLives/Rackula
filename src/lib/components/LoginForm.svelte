@@ -83,6 +83,7 @@
         <label for="username">Username</label>
         <input
           id="username"
+          name="username"
           type="text"
           autocomplete="username"
           bind:value={username}
@@ -95,6 +96,7 @@
         <label for="password">Password</label>
         <input
           id="password"
+          name="password"
           type="password"
           autocomplete="current-password"
           bind:value={password}

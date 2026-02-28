@@ -132,26 +132,26 @@ describe("createLoginRateLimiter", () => {
     expect(limiter.check("1.2.3.4")).toEqual({ allowed: true });
   });
 
-  it("allows up to 5 failures on same IP", () => {
+  it("blocks at exactly 5 failures", () => {
     limiter = createLoginRateLimiter();
     const ip = "10.0.0.1";
-    for (let i = 0; i < 5; i++) {
-      limiter.recordFailure(ip);
-    }
-    const result = limiter.check(ip);
-    expect(result.allowed).toBe(false);
-    expect(result.retryAfterMs).toBeGreaterThan(0);
-  });
-
-  it("blocks after exactly 5 failures", () => {
-    limiter = createLoginRateLimiter();
-    const ip = "10.0.0.2";
     for (let i = 0; i < 4; i++) {
       limiter.recordFailure(ip);
     }
     expect(limiter.check(ip).allowed).toBe(true);
     limiter.recordFailure(ip);
     expect(limiter.check(ip).allowed).toBe(false);
+  });
+
+  it("provides retryAfterMs when blocked", () => {
+    limiter = createLoginRateLimiter();
+    const ip = "10.0.0.2";
+    for (let i = 0; i < 5; i++) {
+      limiter.recordFailure(ip);
+    }
+    const result = limiter.check(ip);
+    expect(result.allowed).toBe(false);
+    expect(result.retryAfterMs).toBeGreaterThan(0);
   });
 
   it("resets counter on success", () => {

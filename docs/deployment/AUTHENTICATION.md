@@ -355,7 +355,7 @@ All session-related variables from the OIDC section also apply (`RACKULA_AUTH_SE
 ### How It Works
 
 1. **Startup:** The API hashes the configured password with Argon2id (OWASP-recommended parameters) and holds the hash in memory. The plaintext password is never stored.
-2. **Login:** Users POST credentials to `/api/auth/login`. The API performs timing-safe username comparison and Argon2id password verification.
+2. **Login:** Users POST credentials to `/auth/login` (or `/api/auth/login`). The API performs timing-safe username comparison and Argon2id password verification.
 3. **Session:** On successful login, the API issues the same HMAC-signed session cookie used by OIDC mode. Sessions are stateless and survive container restarts.
 4. **Rate limiting:** A sliding-window rate limiter (5 attempts per 60 seconds per IP) protects against brute-force attacks.
 5. **Logout:** POST to `/auth/logout` invalidates the session and expires the cookie.
