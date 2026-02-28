@@ -236,8 +236,11 @@ server {
 
     # Local auth login page — bypass auth_request to prevent redirect loop.
     # When auth_mode=local, GET /auth/login rewrites to /login.html, which must
-    # be servable without authentication.
+    # be servable without authentication. Return 404 in other modes.
     location = /login.html {
+        if ($rackula_auth_mode_local = 0) {
+            return 404;
+        }
         try_files /login.html =404;
     }
 
