@@ -36,6 +36,7 @@
   import MobileViewSheet from "$lib/components/mobile/MobileViewSheet.svelte";
   import SidebarTabs from "$lib/components/SidebarTabs.svelte";
   import RackList from "$lib/components/RackList.svelte";
+  import LoadDialog from "$lib/components/LoadDialog.svelte";
   import StartScreen, {
     type StartScreenCloseOptions,
   } from "$lib/components/StartScreen.svelte";
@@ -64,11 +65,9 @@
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { createKonamiDetector } from "$lib/utils/konami";
   import type { ImageData } from "$lib/types/images";
-  import { openFilePicker } from "$lib/utils/file";
   import {
     downloadArchive,
     generateArchiveFilename,
-    extractFolderArchive,
   } from "$lib/utils/archive";
   import {
     generateExportSVG,
@@ -91,6 +90,7 @@
   import { analytics } from "$lib/utils/analytics";
   import { hapticTap } from "$lib/utils/haptics";
   import { debug, persistenceDebug } from "$lib/utils/debug";
+  import { loadFromFile } from "$lib/utils/load-pipeline";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { Tooltip } from "bits-ui";
   import {
@@ -702,59 +702,10 @@
   }
 
   async function handleLoad() {
-    try {
-      const file = await openFilePicker();
-      if (!file) {
-        // User cancelled
-        return;
-      }
-
-      // Load folder archive (.Rackula.zip)
-      const { layout, images, failedImages } = await extractFolderArchive(file);
-
-      // Clear and restore images from archive
-      imageStore.clearAllImages();
-      for (const [deviceSlug, deviceImages] of images) {
-        if (deviceImages.front) {
-          imageStore.setDeviceImage(deviceSlug, "front", deviceImages.front);
-        }
-        if (deviceImages.rear) {
-          imageStore.setDeviceImage(deviceSlug, "rear", deviceImages.rear);
-        }
-      }
-      // Reload bundled images (they were cleared above but not saved in archives)
-      imageStore.loadBundledImages();
-
-      layoutStore.loadLayout(layout);
-      layoutStore.markClean();
-      // Clear autosaved session when explicitly loading
-      clearSession();
-      selectionStore.clearSelection();
-
-      // Reset view to center the loaded rack after DOM updates
-      requestAnimationFrame(() => {
-        canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-      });
-
-      // Show appropriate toast based on image loading results
-      if (failedImages.length > 0) {
-        const count = failedImages.length;
-        toastStore.showToast(
-          `Layout loaded with ${count} image${count > 1 ? "s" : ""} that couldn't be read`,
-          "warning",
-        );
-      } else {
-        toastStore.showToast("Layout loaded successfully", "success");
-      }
-
-      // Track load event (total devices across all racks)
-      analytics.trackLoad(layoutStore.totalDeviceCount);
-    } catch (error) {
-      console.error("Failed to load layout:", error);
-      toastStore.showToast(
-        error instanceof Error ? error.message : "Failed to load layout file",
-        "error",
-      );
+    if (isApiAvailable()) {
+      dialogStore.open("load");
+    } else {
+      await loadFromFile();
     }
   }
 
@@ -1811,6 +1762,8 @@
       open={cleanupDialogOpen}
       onclose={handleCleanupDialogClose}
     />
+
+    <LoadDialog />
 
     <ToastContainer />
 

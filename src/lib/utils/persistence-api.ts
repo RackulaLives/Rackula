@@ -8,11 +8,32 @@ import { isApiAvailable } from "$lib/stores/persistence.svelte";
 import type { Layout } from "$lib/types";
 import { serializeLayoutToYaml, parseLayoutYaml } from "./yaml";
 import { persistenceDebug } from "./debug";
+import { z } from "zod";
 
 const log = persistenceDebug.api;
 
 /** Default timeout for API requests (10 seconds) */
 const API_TIMEOUT_MS = 10_000;
+
+/**
+ * Zod schema for SavedLayoutItem
+ */
+const SavedLayoutItemSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  version: z.string(),
+  updatedAt: z.string().datetime(),
+  rackCount: z.number().int().nonnegative(),
+  deviceCount: z.number().int().nonnegative(),
+  valid: z.boolean(),
+});
+
+/**
+ * Layout list response schema
+ */
+const LayoutListResponseSchema = z.object({
+  layouts: z.array(SavedLayoutItemSchema),
+});
 
 interface PersistenceHealthPayload {
   ok: true;
@@ -181,9 +202,15 @@ export async function listSavedLayouts(): Promise<SavedLayoutItem[]> {
     );
   }
 
-  const data = (await response.json()) as { layouts: SavedLayoutItem[] };
-  log("listSavedLayouts: found %d layouts", data.layouts.length);
-  return data.layouts;
+  try {
+    const rawData: unknown = await response.json();
+    const data = LayoutListResponseSchema.parse(rawData);
+    log("listSavedLayouts: found %d layouts", data.layouts.length);
+    return data.layouts;
+  } catch (error) {
+    log("listSavedLayouts: validation failed %O", error);
+    throw new PersistenceError("Invalid response from API server");
+  }
 }
 
 /**

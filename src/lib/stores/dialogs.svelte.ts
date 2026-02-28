@@ -19,7 +19,8 @@ export type DialogId =
   | "confirmReplace"
   | "cleanupDialog"
   | "cleanupPrompt"
-  | "yamlEditor";
+  | "yamlEditor"
+  | "load";
 
 export type SheetId =
   | "deviceDetails"

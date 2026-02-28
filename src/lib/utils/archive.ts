@@ -81,6 +81,22 @@ const EXTENSION_TO_MIME: Record<string, string> = {
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "svg"];
 
 /**
+ * Archive extraction limits (guardrails)
+ */
+const LIMITS = {
+  /** Max ZIP file size: 50MB */
+  MAX_ZIP_SIZE_BYTES: 50 * 1024 * 1024,
+  /** Max uncompressed size: 250MB */
+  MAX_TOTAL_UNCOMPRESSED_BYTES: 250 * 1024 * 1024,
+  /** Max files in archive: 500 */
+  MAX_ENTRY_COUNT: 500,
+  /** Max YAML file size: 5MB */
+  MAX_YAML_BYTES: 5 * 1024 * 1024,
+  /** Max compression ratio: 100:1 */
+  MAX_COMPRESSION_RATIO: 100,
+};
+
+/**
  * Check if a file path is an image file
  */
 function isImageFile(path: string): boolean {
@@ -294,8 +310,53 @@ export async function createFolderArchive(
 export async function extractFolderArchive(
   blob: Blob,
 ): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
+  // Guardrail: Empty blob
+  if (blob.size === 0) {
+    throw new Error("Archive file is empty (0 bytes).");
+  }
+
+  // Guardrail: Max ZIP size
+  if (blob.size > LIMITS.MAX_ZIP_SIZE_BYTES) {
+    throw new Error(
+      `Archive too large (${Math.round(blob.size / 1024 / 1024)}MB). Max size is 50MB.`,
+    );
+  }
+
   const JSZip = await getJSZip();
   const zip = await JSZip.loadAsync(blob);
+
+  // Guardrail: Max entry count
+  const entries = Object.keys(zip.files);
+  if (entries.length > LIMITS.MAX_ENTRY_COUNT) {
+    throw new Error(
+      `Archive contains too many files (${entries.length}). Max is 500.`,
+    );
+  }
+
+  // Guardrail: Total uncompressed size and compression ratio
+  // Uses public API (async decompression) instead of private JSZip internals.
+  // This decompresses each entry once here; extraction functions later decompress
+  // only the YAML/image files they need. The overlap is small and the trade-off
+  // (slightly more work vs lower peak memory from not caching all entries) is acceptable.
+  let totalUncompressedSize = 0;
+  for (const name of entries) {
+    const file = zip.files[name];
+    if (!file || file.dir) continue;
+    const bytes = await file.async("uint8array");
+    totalUncompressedSize += bytes.byteLength;
+    if (totalUncompressedSize > LIMITS.MAX_TOTAL_UNCOMPRESSED_BYTES) {
+      throw new Error(
+        `Archive uncompressed size is too large (${Math.round(totalUncompressedSize / 1024 / 1024)}MB).`,
+      );
+    }
+  }
+
+  const ratio = totalUncompressedSize / blob.size;
+  if (ratio > LIMITS.MAX_COMPRESSION_RATIO) {
+    throw new Error(
+      `Archive has suspicious compression ratio (${Math.round(ratio)}:1).`,
+    );
+  }
 
   // Detect format
   const format = await detectZipFormat(zip);
@@ -329,7 +390,16 @@ async function extractNewFormatZip(
   if (!yamlFile) {
     throw new Error(`YAML file not found: ${yamlPath}`);
   }
-  const yamlContent = await yamlFile.async("string");
+
+  // Guardrail: Max YAML bytes (decompress once, reuse for parsing)
+  const yamlBytes = await yamlFile.async("uint8array");
+  if (yamlBytes.byteLength > LIMITS.MAX_YAML_BYTES) {
+    throw new Error(
+      `Layout file too large (${Math.round(yamlBytes.byteLength / 1024 / 1024)}MB).`,
+    );
+  }
+
+  const yamlContent = new TextDecoder().decode(yamlBytes);
   const layout = await parseLayoutYaml(yamlContent);
 
   // Extract images from assets folder
@@ -393,7 +463,16 @@ async function extractOldFormatZip(
   if (!yamlFile) {
     throw new Error(`YAML file not found: ${yamlPath}`);
   }
-  const yamlContent = await yamlFile.async("string");
+
+  // Guardrail: Max YAML bytes (decompress once, reuse for parsing)
+  const yamlBytes = await yamlFile.async("uint8array");
+  if (yamlBytes.byteLength > LIMITS.MAX_YAML_BYTES) {
+    throw new Error(
+      `Layout file too large (${Math.round(yamlBytes.byteLength / 1024 / 1024)}MB).`,
+    );
+  }
+
+  const yamlContent = new TextDecoder().decode(yamlBytes);
   const layout = await parseLayoutYaml(yamlContent);
 
   // Old format: images at root level or in images/ folder

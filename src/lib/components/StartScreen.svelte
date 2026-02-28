@@ -8,7 +8,6 @@
   import { onMount } from "svelte";
   import {
     listSavedLayouts,
-    loadSavedLayout,
     deleteSavedLayout,
     type SavedLayoutItem,
     PersistenceError,
@@ -19,10 +18,8 @@
   } from "$lib/stores/persistence.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
-  import { getImageStore } from "$lib/stores/images.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
-  import { openFilePicker } from "$lib/utils/file";
-  import { extractFolderArchive } from "$lib/utils/archive";
+  import { loadFromApi, loadFromFile } from "$lib/utils/load-pipeline";
   import {
     IconPlus,
     IconTrash,
@@ -49,7 +46,6 @@
 
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
-  const imageStore = getImageStore();
 
   let layouts = $state<SavedLayoutItem[]>([]);
   let loading = $state(true);
@@ -98,15 +94,9 @@
       return;
     }
 
-    try {
-      const layout = await loadSavedLayout(item.id);
-      layoutStore.loadLayout(layout);
-      toastStore.showToast(`Opened "${item.name}"`, "info");
+    const success = await loadFromApi(item.id);
+    if (success) {
       onClose({ layoutId: item.id });
-    } catch (e) {
-      const message =
-        e instanceof PersistenceError ? e.message : "Failed to open layout";
-      toastStore.showToast(message, "error");
     }
   }
 
@@ -136,37 +126,9 @@
   }
 
   async function handleImportFile() {
-    const file = await openFilePicker();
-    if (!file) return;
-
-    try {
-      const { layout, images, failedImages } = await extractFolderArchive(file);
-
-      layoutStore.loadLayout(layout);
-
-      // Load images into image store
-      for (const [key, deviceImages] of images) {
-        if (deviceImages.front) {
-          imageStore.setDeviceImage(key, "front", deviceImages.front);
-        }
-        if (deviceImages.rear) {
-          imageStore.setDeviceImage(key, "rear", deviceImages.rear);
-        }
-      }
-
-      if (failedImages.length > 0) {
-        toastStore.showToast(
-          `Imported with ${failedImages.length} missing images`,
-          "warning",
-        );
-      } else {
-        toastStore.showToast(`Imported "${layout.name}"`, "info");
-      }
-
+    const success = await loadFromFile();
+    if (success) {
       onClose();
-    } catch (e) {
-      toastStore.showToast("Failed to import file", "error");
-      console.error("Import failed:", e);
     }
   }
 
