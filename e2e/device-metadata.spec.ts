@@ -1,4 +1,5 @@
-import { test, expect, Page } from "@playwright/test";
+import { test, expect } from "./helpers/base-test";
+import type { Page } from "@playwright/test";
 import {
   gotoWithRack,
   dragDeviceToRack,

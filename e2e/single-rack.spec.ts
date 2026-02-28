@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/base-test";
 import { gotoWithRack, fillRackForm, clickNewRack } from "./helpers";
 
 test.describe("Single Rack Mode (v0.2)", () => {

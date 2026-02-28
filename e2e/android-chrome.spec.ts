@@ -6,7 +6,8 @@
  *
  * @see https://github.com/RackulaLives/Rackula/issues/229
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "./helpers/base-test";
+import type { Page } from "@playwright/test";
 import { openDeviceLibraryFromBottomNav } from "./helpers/mobile-navigation";
 import { EMPTY_RACK_SHARE, dragDeviceToRack } from "./helpers";
 

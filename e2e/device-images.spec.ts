@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/base-test";
 import fs from "fs";
 import { gotoWithRack } from "./helpers";
 
