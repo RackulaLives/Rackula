@@ -659,8 +659,9 @@ export function generateArchiveFilename(
 /**
  * Save a layout as a folder-based ZIP archive.
  *
- * On Chromium, shows a native "Save As" dialog via the File System Access API.
- * Falls back to anchor download on Firefox, Safari, and headless environments.
+ * Uses browser-fs-access fileSave() which provides:
+ * - Native "Save As" dialog on Chromium (File System Access API)
+ * - Anchor download fallback on Firefox/Safari
  *
  * @param layout - The layout to save
  * @param images - Map of device images
@@ -674,6 +675,8 @@ export async function downloadArchive(
   metadata?: LayoutMetadata,
   filename?: string,
 ): Promise<void> {
+  const { fileSave } = await import("browser-fs-access");
+
   // Generate metadata if not provided (used for both archive and filename)
   const layoutMetadata: LayoutMetadata = metadata ?? {
     id: generateId(),
@@ -686,39 +689,12 @@ export async function downloadArchive(
   const suggestedName =
     filename ?? generateArchiveFilename(layout, layoutMetadata);
 
-  // Try native File System Access API (Chromium)
-  if (typeof globalThis.showSaveFilePicker === "function") {
-    try {
-      const handle = await globalThis.showSaveFilePicker({
-        suggestedName,
-        types: [
-          {
-            description: "Rackula Layout Archive",
-            accept: { "application/zip": [".Rackula.zip", ".zip"] },
-          },
-        ],
-      });
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return;
-    } catch (err) {
-      // Re-throw user cancellation
-      if (err instanceof DOMException && err.name === "AbortError") throw err;
-      // Fall through to anchor download for other errors (e.g. SecurityError)
-    }
-  }
-
-  // Fallback: anchor download (Firefox, Safari, headless environments)
-  const url = URL.createObjectURL(blob);
-  try {
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = suggestedName;
-    anchor.click();
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  // fileSave: native save dialog on Chromium, anchor fallback on FF/Safari
+  await fileSave(blob, {
+    fileName: suggestedName,
+    extensions: [".Rackula.zip", ".zip"],
+    description: "Rackula Layout Archive",
+  });
 }
 
 // Re-export folder structure utilities for convenience
