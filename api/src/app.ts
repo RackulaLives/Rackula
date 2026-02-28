@@ -6,6 +6,7 @@ import layouts from "./routes/layouts";
 import assets from "./routes/assets";
 import {
   createSignedAuthSessionToken,
+  createAuthSessionCookieHeader,
   createAuthGateMiddleware,
   createCsrfProtectionMiddleware,
   createExpiredAuthSessionCookieHeader,
@@ -22,6 +23,11 @@ import { createAuthHandler } from "./middleware/auth";
 import { createAuth } from "./auth/config";
 import { createRequireAdminMiddleware } from "./authorization";
 import { configureAuthLogHashKey, safeLogAuthEvent } from "./auth-logger";
+import {
+  bootstrapLocalCredentials,
+  createLoginRateLimiter,
+  verifyCredentials,
+} from "./local-auth";
 
 const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
 const DEFAULT_MAX_LAYOUT_SIZE = 1 * 1024 * 1024; // 1MB
@@ -210,10 +216,26 @@ function validateFallbackSessionClaims(
   }
 }
 
-export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
+export async function createApp(
+  env: EnvMap = process.env,
+): Promise<Hono<AppEnv>> {
   const app = new Hono<AppEnv>();
   const securityConfig = resolveApiSecurityConfig(env);
   configureAuthLogHashKey(securityConfig.authLogHashKey);
+
+  // Bootstrap local credentials when auth mode is local
+  if (securityConfig.authMode === "local") {
+    const localCreds = await bootstrapLocalCredentials(env);
+    securityConfig.localCredentials = localCreds;
+    if (
+      securityConfig.isProduction &&
+      !securityConfig.authSessionCookieSecure
+    ) {
+      console.warn(
+        "⚠ Local auth mode in production without Secure cookies. Set RACKULA_AUTH_SESSION_COOKIE_SECURE=true.",
+      );
+    }
+  }
 
   if (securityConfig.isProduction && securityConfig.allowInsecureCors) {
     console.warn(
@@ -339,7 +361,22 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
         501,
       );
 
+    const isLocalAuth = securityConfig.authMode === "local";
+
     const authLoginRouteHandler = async (c: Context<AppEnv>) => {
+      if (isLocalAuth) {
+        // For local auth, the GET /auth/login serves the static login page via nginx.
+        // If the API receives a GET request directly, return a fallback message.
+        return c.json(
+          {
+            error: "Login page not available",
+            message:
+              "Navigate to /auth/login in your browser to access the login page.",
+          },
+          501,
+        );
+      }
+
       if (!oidcApiAvailable) {
         return authUnavailableRouteHandler(c);
       }
@@ -384,6 +421,10 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
     };
 
     const authCallbackRouteHandler = async (c: Context<AppEnv>) => {
+      if (isLocalAuth) {
+        return c.json({ error: "Not found" }, 404);
+      }
+
       if (!oidcApiAvailable) {
         return authUnavailableRouteHandler(c);
       }
@@ -497,6 +538,151 @@ export function createApp(env: EnvMap = process.env): Hono<AppEnv> {
     app.get("/api/auth/callback", authCallbackRouteHandler);
     app.get("/api/auth/check", authCheckRouteHandler);
     app.post("/api/auth/logout", authLogoutRouteHandler);
+
+    // Local auth: POST /auth/login for username/password authentication
+    if (
+      isLocalAuth &&
+      securityConfig.localCredentials &&
+      securityConfig.authSessionSecret
+    ) {
+      const rateLimiter = createLoginRateLimiter();
+      const localCredentials = securityConfig.localCredentials;
+      const sessionSecret = securityConfig.authSessionSecret;
+      const LOGIN_BODY_MAX_SIZE = 8 * 1024; // 8KB
+
+      const localLoginBodyLimit = bodyLimit({
+        maxSize: LOGIN_BODY_MAX_SIZE,
+        onError: (c) => c.json({ error: "Request body too large" }, 413),
+      });
+
+      const localLoginHandler = async (c: Context<AppEnv>) => {
+        const contentType = c.req.header("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          return c.json(
+            {
+              error: "Bad Request",
+              message: "Content-Type must be application/json.",
+            },
+            400,
+          );
+        }
+
+        let body: unknown;
+        try {
+          body = await c.req.json();
+        } catch {
+          return c.json(
+            { error: "Bad Request", message: "Invalid JSON body." },
+            400,
+          );
+        }
+
+        if (!body || typeof body !== "object") {
+          return c.json(
+            {
+              error: "Bad Request",
+              message: "Request body must be a JSON object.",
+            },
+            400,
+          );
+        }
+
+        const { username, password } = body as Record<string, unknown>;
+        if (
+          typeof username !== "string" ||
+          !username.trim() ||
+          typeof password !== "string" ||
+          !password
+        ) {
+          return c.json(
+            {
+              error: "Bad Request",
+              message: "Username and password are required.",
+            },
+            400,
+          );
+        }
+
+        if (username.length > 255 || password.length > 1024) {
+          return c.json(
+            { error: "Bad Request", message: "Invalid credential length." },
+            400,
+          );
+        }
+
+        const ip = c.req.header("x-real-ip") ?? "unknown";
+        const rateCheck = rateLimiter.check(ip);
+        if (!rateCheck.allowed) {
+          const retryAfterSeconds = Math.ceil(
+            (rateCheck.retryAfterMs ?? 0) / 1000,
+          );
+          c.header("Retry-After", String(retryAfterSeconds));
+          safeLogAuthEvent("auth.login.failure", c.req.raw, {
+            reason: "rate limited",
+          });
+          return c.json(
+            {
+              error: "Too Many Requests",
+              message: "Too many login attempts. Try again later.",
+            },
+            429,
+          );
+        }
+
+        const valid = await verifyCredentials(
+          username,
+          password,
+          localCredentials,
+        );
+        if (!valid) {
+          rateLimiter.recordFailure(ip);
+          safeLogAuthEvent("auth.login.failure", c.req.raw, {
+            reason: "invalid credentials",
+          });
+          return c.json(
+            { error: "Unauthorized", message: "Invalid username or password." },
+            401,
+          );
+        }
+
+        rateLimiter.recordSuccess(ip);
+
+        const token = createSignedAuthSessionToken(
+          { sub: username, role: "admin" },
+          sessionSecret,
+          {
+            sessionMaxAgeSeconds: securityConfig.authSessionMaxAgeSeconds,
+            sessionIdleTimeoutSeconds:
+              securityConfig.authSessionIdleTimeoutSeconds,
+            sessionGeneration: securityConfig.authSessionGeneration,
+          },
+        );
+
+        // Compute expiration for cookie header
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        const expiresAtSeconds =
+          nowSeconds + securityConfig.authSessionMaxAgeSeconds;
+
+        c.header(
+          "Set-Cookie",
+          createAuthSessionCookieHeader(
+            token,
+            expiresAtSeconds,
+            securityConfig,
+          ),
+          { append: true },
+        );
+
+        safeLogAuthEvent("auth.login.success", c.req.raw, {
+          subject: username,
+        });
+
+        return c.json({ ok: true });
+      };
+
+      app.post("/auth/login", localLoginBodyLimit, localLoginHandler);
+      app.post("/api/auth/login", localLoginBodyLimit, localLoginHandler);
+    }
   }
 
   // Better Auth routes handle auth endpoints for API consumers.

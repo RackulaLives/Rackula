@@ -75,6 +75,9 @@ services:
       # Required when auth mode is enabled (oidc/local)
       # API startup validation fails fast if this is missing/short (minimum 32 chars).
       - RACKULA_AUTH_SESSION_SECRET=${RACKULA_AUTH_SESSION_SECRET:-}
+      # Local auth credentials (required when RACKULA_AUTH_MODE=local)
+      - RACKULA_LOCAL_USERNAME=${RACKULA_LOCAL_USERNAME:-}
+      - RACKULA_LOCAL_PASSWORD=${RACKULA_LOCAL_PASSWORD:-}
       # Session hardening defaults
       - RACKULA_AUTH_SESSION_MAX_AGE_SECONDS=${RACKULA_AUTH_SESSION_MAX_AGE_SECONDS:-43200}
       - RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS=${RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS:-1800}

@@ -5,7 +5,7 @@
 import { createApp } from "./app";
 import { ensureDataDir } from "./storage/filesystem";
 
-const app = createApp();
+const app = await createApp();
 
 // Startup
 // RACKULA_API_PORT preferred, PORT for backwards compatibility

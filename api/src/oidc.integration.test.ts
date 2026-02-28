@@ -11,8 +11,10 @@ const ENTRA_DISCOVERY_URL =
   "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration";
 const ENTRA_AUTHORIZATION_URL =
   "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
-const ENTRA_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
-const ENTRA_JWKS_URL = "https://login.microsoftonline.com/common/discovery/v2.0/keys";
+const ENTRA_TOKEN_URL =
+  "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+const ENTRA_JWKS_URL =
+  "https://login.microsoftonline.com/common/discovery/v2.0/keys";
 
 function buildOidcEnv(overrides: EnvMap = {}): EnvMap {
   return {
@@ -30,7 +32,9 @@ function buildOidcEnv(overrides: EnvMap = {}): EnvMap {
 }
 
 function readSetCookies(headers: Headers): string[] {
-  const withGetSetCookie = headers as Headers & { getSetCookie: () => string[] };
+  const withGetSetCookie = headers as Headers & {
+    getSetCookie: () => string[];
+  };
   try {
     const setCookies = withGetSetCookie.getSetCookie();
     if (Array.isArray(setCookies)) {
@@ -51,14 +55,20 @@ function cookieHeaderFromSetCookies(setCookies: string[]): string {
     .join("; ");
 }
 
-function mergeCookieHeaders(...cookieHeaders: Array<string | null | undefined>): string {
-  return cookieHeaders.filter((value): value is string => Boolean(value)).join("; ");
+function mergeCookieHeaders(
+  ...cookieHeaders: Array<string | null | undefined>
+): string {
+  return cookieHeaders
+    .filter((value): value is string => Boolean(value))
+    .join("; ");
 }
 
-async function createSignedIdToken(overrides: {
-  audience?: string | string[];
-  issuer?: string;
-} = {}): Promise<{ token: string; publicJwk: JsonWebKey }> {
+async function createSignedIdToken(
+  overrides: {
+    audience?: string | string[];
+    issuer?: string;
+  } = {},
+): Promise<{ token: string; publicJwk: JsonWebKey }> {
   const { publicKey, privateKey } = await generateKeyPair("RS256");
   const publicJwk = await exportJWK(publicKey);
   publicJwk.kid = "rackula-test-kid";
@@ -86,18 +96,22 @@ async function createSignedIdToken(overrides: {
   return { token, publicJwk };
 }
 
-async function installMockOidcFetch(options: {
-  idTokenAudience?: string | string[];
-  idTokenIssuer?: string;
-  failTokenExchange?: boolean;
-} = {}): Promise<{ restore: () => void }> {
+async function installMockOidcFetch(
+  options: {
+    idTokenAudience?: string | string[];
+    idTokenIssuer?: string;
+    failTokenExchange?: boolean;
+  } = {},
+): Promise<{ restore: () => void }> {
   const originalFetch = globalThis.fetch;
   const signedIdToken = await createSignedIdToken({
     audience: options.idTokenAudience,
     issuer: options.idTokenIssuer,
   });
 
-  const mockFetch = async (...args: Parameters<typeof fetch>): Promise<Response> => {
+  const mockFetch = async (
+    ...args: Parameters<typeof fetch>
+  ): Promise<Response> => {
     const [input, init] = args;
     const url =
       typeof input === "string"
@@ -175,7 +189,8 @@ async function installMockOidcFetch(options: {
   };
 
   const patchedFetch = Object.assign(mockFetch, {
-    preconnect: (originalFetch as typeof fetch & { preconnect?: typeof fetch }).preconnect,
+    preconnect: (originalFetch as typeof fetch & { preconnect?: typeof fetch })
+      .preconnect,
   }) as typeof fetch;
   globalThis.fetch = patchedFetch;
 
@@ -187,7 +202,9 @@ async function installMockOidcFetch(options: {
 }
 
 describe("OIDC integration", () => {
-  async function completeOidcLogin(app: ReturnType<typeof createApp>): Promise<string> {
+  async function completeOidcLogin(
+    app: Awaited<ReturnType<typeof createApp>>,
+  ): Promise<string> {
     const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
     expect(loginResponse.status).toBe(302);
 
@@ -210,9 +227,11 @@ describe("OIDC integration", () => {
 
     expect(callbackResponse.status).toBe(302);
     const callbackCookies = readSetCookies(callbackResponse.headers);
-    expect(callbackCookies.some((cookie) => cookie.includes("rackula_auth_session="))).toBe(
-      true,
-    );
+    expect(
+      callbackCookies.some((cookie) =>
+        cookie.includes("rackula_auth_session="),
+      ),
+    ).toBe(true);
 
     return mergeCookieHeaders(
       loginCookieHeader,
@@ -223,7 +242,7 @@ describe("OIDC integration", () => {
   it("accepts Entra common issuer config when discovery returns tenant issuer", async () => {
     const mock = await installMockOidcFetch();
     try {
-      const app = createApp(buildOidcEnv());
+      const app = await createApp(buildOidcEnv());
       const authedCookieHeader = await completeOidcLogin(app);
 
       const checkResponse = await app.request("/auth/check", {
@@ -243,7 +262,7 @@ describe("OIDC integration", () => {
       idTokenAudience: "wrong-client-id",
     });
     try {
-      const app = createApp(buildOidcEnv());
+      const app = await createApp(buildOidcEnv());
 
       const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
       expect(loginResponse.status).toBe(302);
@@ -264,12 +283,16 @@ describe("OIDC integration", () => {
       );
 
       expect(callbackResponse.status).toBe(302);
-      expect(callbackResponse.headers.get("location")).toContain("user_info_is_missing");
+      expect(callbackResponse.headers.get("location")).toContain(
+        "user_info_is_missing",
+      );
 
       const callbackCookies = readSetCookies(callbackResponse.headers);
-      expect(callbackCookies.some((cookie) => cookie.includes("rackula_auth_session="))).toBe(
-        false,
-      );
+      expect(
+        callbackCookies.some((cookie) =>
+          cookie.includes("rackula_auth_session="),
+        ),
+      ).toBe(false);
     } finally {
       mock.restore();
     }
@@ -279,7 +302,7 @@ describe("OIDC integration", () => {
     const mock = await installMockOidcFetch();
     const originalNow = Date.now;
     try {
-      const app = createApp(
+      const app = await createApp(
         buildOidcEnv({
           RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS: "60",
         }),
@@ -319,7 +342,7 @@ describe("OIDC integration", () => {
     const mock = await installMockOidcFetch();
     const originalNow = Date.now;
     try {
-      const app = createApp(
+      const app = await createApp(
         buildOidcEnv({
           RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS: "60",
         }),
@@ -363,7 +386,7 @@ describe("OIDC integration", () => {
   it("invalidates fallback OIDC sessions on logout and blocks replay", async () => {
     const mock = await installMockOidcFetch();
     try {
-      const app = createApp(buildOidcEnv());
+      const app = await createApp(buildOidcEnv());
       const authedCookieHeader = await completeOidcLogin(app);
 
       const beforeLogout = await app.request("/auth/check", {

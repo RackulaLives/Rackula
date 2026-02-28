@@ -348,12 +348,18 @@ describe("signed session tokens", () => {
       TEST_AUTH_SECRET,
     );
 
-    const beforeRevocation = verifySignedAuthSessionToken(token, TEST_AUTH_SECRET);
+    const beforeRevocation = verifySignedAuthSessionToken(
+      token,
+      TEST_AUTH_SECRET,
+    );
     expect(beforeRevocation).not.toBeNull();
 
     invalidateAuthSession("revoked-session", now + 300);
 
-    const afterRevocation = verifySignedAuthSessionToken(token, TEST_AUTH_SECRET);
+    const afterRevocation = verifySignedAuthSessionToken(
+      token,
+      TEST_AUTH_SECRET,
+    );
     expect(afterRevocation).toBeNull();
   });
 
@@ -413,7 +419,7 @@ describe("signed session tokens", () => {
 
 describe("authentication gate", () => {
   it("rejects anonymous API request when auth is enabled", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/layouts/not-a-uuid");
     expect(response.status).toBe(401);
@@ -424,17 +430,21 @@ describe("authentication gate", () => {
   });
 
   it("redirects anonymous app routes to login when auth is enabled", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/dashboard");
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/auth/login?next=%2Fdashboard");
+    expect(response.headers.get("location")).toBe(
+      "/auth/login?next=%2Fdashboard",
+    );
   });
 
   it("normalizes leading slashes in redirect next path", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
-    const response = await app.request("https://rack.example.com//dashboard?tab=1");
+    const response = await app.request(
+      "https://rack.example.com//dashboard?tab=1",
+    );
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe(
       "/auth/login?next=%2Fdashboard%3Ftab%3D1",
@@ -442,7 +452,7 @@ describe("authentication gate", () => {
   });
 
   it("allows signed-session requests through the auth gate", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/layouts/not-a-uuid", {
       headers: {
@@ -458,7 +468,7 @@ describe("authentication gate", () => {
   });
 
   it("accepts quoted auth session cookie values", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
     const cookie = buildAuthCookie({ sid: "quoted-cookie-session" });
     const separatorIndex = cookie.indexOf("=");
     const cookieName = cookie.slice(0, separatorIndex);
@@ -478,7 +488,7 @@ describe("authentication gate", () => {
   });
 
   it("keeps health/login/callback routes reachable when auth is enabled", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const health = await app.request("/health");
     expect(health.status).toBe(200);
@@ -492,7 +502,7 @@ describe("authentication gate", () => {
   });
 
   it("refreshes auth cookies with secure defaults on auth check", async () => {
-    const app = createApp(
+    const app = await createApp(
       buildAuthEnabledEnv({
         NODE_ENV: "production",
         RACKULA_AUTH_SESSION_MAX_AGE_SECONDS: "1800",
@@ -524,7 +534,7 @@ describe("authentication gate", () => {
   });
 
   it("invalidates sessions on logout and rejects replayed cookies", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
     const cookie = buildAuthCookie({ sid: "logout-session" });
 
     const authorizedBeforeLogout = await app.request("/auth/check", {
@@ -557,7 +567,7 @@ describe("authentication gate", () => {
   });
 
   it("preserves existing behavior when auth mode is disabled", async () => {
-    const app = createApp(buildEnv());
+    const app = await createApp(buildEnv());
 
     const response = await app.request("/layouts/not-a-uuid");
     expect(response.status).toBe(400);
@@ -569,7 +579,7 @@ describe("authentication gate", () => {
 
 describe("csrf protection", () => {
   it("rejects state-changing session requests without origin headers", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/layouts/not-a-uuid", {
       method: "PUT",
@@ -588,7 +598,7 @@ describe("csrf protection", () => {
   });
 
   it("rejects state-changing session requests from untrusted origins", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/layouts/not-a-uuid", {
       method: "PUT",
@@ -608,7 +618,7 @@ describe("csrf protection", () => {
   });
 
   it("rejects logout requests without origin headers", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/auth/logout", {
       method: "POST",
@@ -625,7 +635,7 @@ describe("csrf protection", () => {
   });
 
   it("allows trusted-origin authenticated writes to continue", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/layouts/not-a-uuid", {
       method: "PUT",
@@ -647,7 +657,7 @@ describe("csrf protection", () => {
 
 describe("write-route authentication", () => {
   it("returns 401 for write request without token when token auth is enabled", async () => {
-    const app = createApp(
+    const app = await createApp(
       buildEnv({
         CORS_ORIGIN: "https://rack.example.com",
         RACKULA_API_WRITE_TOKEN: TEST_TOKEN,
@@ -669,7 +679,7 @@ describe("write-route authentication", () => {
   });
 
   it("returns 403 for write request with wrong token", async () => {
-    const app = createApp(
+    const app = await createApp(
       buildEnv({
         CORS_ORIGIN: "https://rack.example.com",
         RACKULA_API_WRITE_TOKEN: TEST_TOKEN,
@@ -689,7 +699,7 @@ describe("write-route authentication", () => {
   });
 
   it("returns 401 for malformed Authorization header on write route", async () => {
-    const app = createApp(
+    const app = await createApp(
       buildEnv({
         CORS_ORIGIN: "https://rack.example.com",
         RACKULA_API_WRITE_TOKEN: TEST_TOKEN,
@@ -714,7 +724,7 @@ describe("write-route authentication", () => {
   });
 
   it("returns 401 for asset PUT without token when token auth is enabled", async () => {
-    const app = createApp(
+    const app = await createApp(
       buildEnv({
         CORS_ORIGIN: "https://rack.example.com",
         RACKULA_API_WRITE_TOKEN: TEST_TOKEN,
@@ -738,7 +748,7 @@ describe("write-route authentication", () => {
   });
 
   it("allows authorized write request to reach route validation", async () => {
-    const app = createApp(
+    const app = await createApp(
       buildEnv({
         CORS_ORIGIN: "https://rack.example.com",
         RACKULA_API_WRITE_TOKEN: TEST_TOKEN,
@@ -758,7 +768,7 @@ describe("write-route authentication", () => {
   });
 
   it("requires write token in auth-enabled mode when configured", async () => {
-    const app = createApp(
+    const app = await createApp(
       buildAuthEnabledEnv({
         RACKULA_API_WRITE_TOKEN: TEST_TOKEN,
       }),
@@ -794,7 +804,7 @@ describe("write-route authentication", () => {
   });
 
   it("keeps read routes public when write token is enabled", async () => {
-    const app = createApp(
+    const app = await createApp(
       buildEnv({
         CORS_ORIGIN: "https://rack.example.com",
         RACKULA_API_WRITE_TOKEN: TEST_TOKEN,
@@ -809,7 +819,7 @@ describe("write-route authentication", () => {
   });
 
   it("keeps local dev write workflow working without token", async () => {
-    const app = createApp(
+    const app = await createApp(
       buildEnv({
         NODE_ENV: "development",
       }),
@@ -848,7 +858,7 @@ describe("write-route authentication", () => {
 
 describe("CORS behavior", () => {
   it("returns configured production origin in CORS header", async () => {
-    const app = createApp(
+    const app = await createApp(
       buildEnv({
         NODE_ENV: "production",
         CORS_ORIGIN: "https://rack.example.com",
@@ -871,7 +881,7 @@ describe("CORS behavior", () => {
 
 describe("health endpoints", () => {
   it("returns structured JSON payload for both health routes", async () => {
-    const app = createApp(buildEnv());
+    const app = await createApp(buildEnv());
     const assertHealthPayload = (payload: unknown): void => {
       expect(payload).toMatchObject({ ok: true, status: "ok" });
       expect(payload).toEqual(
@@ -880,7 +890,9 @@ describe("health endpoints", () => {
           version: expect.any(Number),
         }),
       );
-      expect((payload as { service: string }).service.length).toBeGreaterThan(0);
+      expect((payload as { service: string }).service.length).toBeGreaterThan(
+        0,
+      );
     };
 
     const rootHealth = await app.request("/health");
@@ -899,7 +911,7 @@ describe("health endpoints", () => {
 
 describe("authorization", () => {
   it("allows admin to write layouts", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/layouts/not-a-uuid", {
       method: "PUT",
@@ -916,7 +928,7 @@ describe("authorization", () => {
   });
 
   it("returns 403 for authenticated non-admin on write", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/layouts/not-a-uuid", {
       method: "PUT",
@@ -936,7 +948,7 @@ describe("authorization", () => {
   });
 
   it("returns 403 for authenticated user with no role on write", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/assets/bad-layout/device/front", {
       method: "DELETE",
@@ -954,7 +966,7 @@ describe("authorization", () => {
   });
 
   it("allows non-admin to read when auth is enabled", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/layouts/not-a-uuid", {
       headers: {
@@ -967,7 +979,7 @@ describe("authorization", () => {
   });
 
   it("returns 401 for unauthenticated write when auth is enabled", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/layouts/not-a-uuid", {
       method: "PUT",
@@ -983,7 +995,7 @@ describe("authorization", () => {
   });
 
   it("skips authorization when auth is disabled", async () => {
-    const app = createApp(
+    const app = await createApp(
       buildEnv({ RACKULA_API_WRITE_TOKEN: TEST_TOKEN }),
     );
 
@@ -1001,7 +1013,7 @@ describe("authorization", () => {
   });
 
   it("writeAuth accepts token but requireAdmin blocks non-admin", async () => {
-    const app = createApp(
+    const app = await createApp(
       buildAuthEnabledEnv({ RACKULA_API_WRITE_TOKEN: TEST_TOKEN }),
     );
 
@@ -1009,7 +1021,10 @@ describe("authorization", () => {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${TEST_TOKEN}`,
-        Cookie: buildAuthCookie({ role: "viewer", sid: "non-admin-token-session" }),
+        Cookie: buildAuthCookie({
+          role: "viewer",
+          sid: "non-admin-token-session",
+        }),
         Origin: "https://rack.example.com",
         "Content-Type": "text/plain",
       },

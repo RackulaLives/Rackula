@@ -7,6 +7,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { safeLogAuthEvent, MIN_AUTH_LOG_HASH_KEY_LENGTH } from "./auth-logger";
+import type { LocalCredentials } from "./local-auth";
 
 export type AuthMode = "none" | "oidc" | "local";
 export type AuthSessionSameSite = "Lax" | "Strict" | "None";
@@ -62,6 +63,7 @@ export interface ApiSecurityConfig {
   authLoginPath: string;
   csrfProtectionEnabled: boolean;
   csrfTrustedOrigins: string[];
+  localCredentials?: LocalCredentials;
 }
 
 export type EnvMap = Record<string, string | undefined>;

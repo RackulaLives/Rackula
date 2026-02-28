@@ -185,7 +185,7 @@ describe("auth event integration", () => {
   }
 
   it("logs auth.session.invalid when anonymous request hits auth gate", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/api/layouts");
     expect(response.status).toBe(401);
@@ -202,7 +202,7 @@ describe("auth event integration", () => {
   });
 
   it("logs auth.logout on successful logout", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     await app.request("/auth/logout", {
       method: "POST",
@@ -223,7 +223,7 @@ describe("auth event integration", () => {
   });
 
   it("logs auth.denied when non-admin attempts write", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     await app.request("/layouts/not-a-uuid", {
       method: "PUT",
@@ -247,7 +247,7 @@ describe("auth event integration", () => {
   });
 
   it("does not log auth.session.invalid on valid auth check", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/auth/check", {
       headers: {
@@ -265,7 +265,7 @@ describe("auth event integration", () => {
   });
 
   it("logs auth.session.invalid on invalid auth check", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const response = await app.request("/auth/check");
     expect(response.status).toBe(401);
@@ -278,7 +278,7 @@ describe("auth event integration", () => {
   });
 
   it("never logs raw session tokens or cookies", async () => {
-    const app = createApp(buildAuthEnabledEnv());
+    const app = await createApp(buildAuthEnabledEnv());
 
     const cookie = buildAuthCookie({ sid: "redaction-test" });
     const tokenValue = cookie.split("=")[1];

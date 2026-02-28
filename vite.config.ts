@@ -2,6 +2,7 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
 import { existsSync, readFileSync } from "fs";
 import { execFileSync } from "child_process";
+import { resolve } from "path";
 
 // Read version from package.json
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
@@ -93,7 +94,11 @@ function getGitInfo(): GitInfo {
     );
   }
 
-  return { commitHash, branchName, isDirty: dirtyOutput === null || dirtyOutput !== "" };
+  return {
+    commitHash,
+    branchName,
+    isDirty: dirtyOutput === null || dirtyOutput !== "",
+  };
 }
 
 const gitInfo = getGitInfo();
@@ -148,6 +153,10 @@ export default defineConfig(() => ({
     // This prevents the data-images chunk from containing base64 data
     assetsInlineLimit: 0,
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, "index.html"),
+        login: resolve(__dirname, "login.html"),
+      },
       output: {
         // Manual chunks to reduce main bundle size below 500kB
         manualChunks(id: string): string | undefined {

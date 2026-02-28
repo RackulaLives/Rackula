@@ -28,6 +28,11 @@ map "${RACKULA_AUTH_MODE}" $rackula_auth_mode_none {
     ~*^none$ 1;
 }
 
+map "${RACKULA_AUTH_MODE}" $rackula_auth_mode_local {
+    default 0;
+    ~*^local$ 1;
+}
+
 log_format rackula_auth_upstream_failure
     'auth_upstream_unavailable '
     'remote_addr=$remote_addr request_uri=$request_uri '
@@ -79,6 +84,11 @@ server {
     # Public auth bootstrap endpoints.
     # When auth mode is enabled, these remain reachable for login/callback flow.
     location = /auth/login {
+        # Local auth mode: serve static login page from built frontend
+        if ($rackula_auth_mode_local) {
+            rewrite ^ /login.html last;
+        }
+        # OIDC mode: proxy to API for IdP redirect
         resolver 127.0.0.11 valid=30s;
         set $api_upstream ${API_HOST};
         proxy_pass http://$api_upstream:${API_PORT}/api/auth/login$is_args$args;
@@ -88,6 +98,10 @@ server {
     }
 
     location = /auth/callback {
+        # Local auth mode: no OIDC callback needed
+        if ($rackula_auth_mode_local) {
+            return 404;
+        }
         resolver 127.0.0.11 valid=30s;
         set $api_upstream ${API_HOST};
         proxy_pass http://$api_upstream:${API_PORT}/api/auth/callback$is_args$args;
