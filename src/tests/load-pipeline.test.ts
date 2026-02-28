@@ -132,6 +132,21 @@ describe("load-pipeline", () => {
       expect(layoutStore.layout.name).toBe("File Load");
     });
 
+    it("shows error toast when extraction fails", async () => {
+      const mockFile = new File(["bad"], "bad.zip", { type: "application/zip" });
+      vi.mocked(fileUtils.openFilePicker).mockResolvedValue(mockFile);
+      vi.mocked(archive.extractFolderArchive).mockRejectedValue(
+        new Error("Invalid archive format"),
+      );
+
+      const result = await loadFromFile();
+
+      expect(result).toBe(false);
+      expect(toastStore.toasts).toContainEqual(
+        expect.objectContaining({ message: "Invalid archive format", type: "error" }),
+      );
+    });
+
     it("returns false when file picker is cancelled", async () => {
       vi.mocked(fileUtils.openFilePicker).mockResolvedValue(null);
 
