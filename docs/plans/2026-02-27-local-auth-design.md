@@ -142,7 +142,7 @@ Plus `Set-Cookie: rackula_auth_session=<signed-token>; Path=/; HttpOnly; Secure;
 
 ```
 1. Rate limit check (per-IP sliding window)
-2. Timing-safe username comparison (SHA-256 hash equality, not string compare)
+2. Timing-safe username comparison (padded buffers + timingSafeEqual)
 3. Argon2id password verification
 4. Both must pass -> create session
 5. Either fails -> 401 (generic message, no leak of which failed)
@@ -302,7 +302,7 @@ The auth logger (`auth-logger.ts`) already redacts `authorization`, `cookie`, `s
 
 ### Timing Attack Prevention
 
-- **Username:** Compare via `timingSafeEqual` on SHA-256 digests (constant-time regardless of length)
+- **Username:** Compare via `timingSafeEqual` on padded equal-length buffers (constant-time regardless of input length)
 - **Password:** Argon2 verification is timing-safe by design
 - **Combined response:** Generic "Invalid username or password" regardless of which failed
 
