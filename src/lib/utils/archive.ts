@@ -692,7 +692,7 @@ export async function downloadArchive(
   // fileSave: native save dialog on Chromium, anchor fallback on FF/Safari
   await fileSave(blob, {
     fileName: suggestedName,
-    extensions: [".Rackula.zip", ".zip"],
+    extensions: [ARCHIVE_EXTENSION, ".zip"],
     description: "Rackula Layout Archive",
   });
 }
