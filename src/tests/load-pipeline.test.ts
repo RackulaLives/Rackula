@@ -23,9 +23,11 @@ vi.mock("$lib/stores/images.svelte", () => ({
 vi.mock("$lib/utils/persistence-api", () => ({
   loadSavedLayout: vi.fn(),
   PersistenceError: class PersistenceError extends Error {
-    constructor(message: string) {
+    statusCode?: number;
+    constructor(message: string, statusCode?: number) {
       super(message);
       this.name = "PersistenceError";
+      this.statusCode = statusCode;
     }
   },
 }));

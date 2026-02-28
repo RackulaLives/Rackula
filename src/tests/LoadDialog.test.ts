@@ -14,9 +14,11 @@ vi.mock("$lib/utils/persistence-api", () => ({
   deleteSavedLayout: vi.fn(),
   loadSavedLayout: vi.fn(),
   PersistenceError: class PersistenceError extends Error {
-    constructor(message: string) {
+    statusCode?: number;
+    constructor(message: string, statusCode?: number) {
       super(message);
       this.name = "PersistenceError";
+      this.statusCode = statusCode;
     }
   },
 }));
@@ -140,11 +142,14 @@ describe("LoadDialog", () => {
     vi.mocked(persistenceApi.listSavedLayouts).mockResolvedValue(mockLayouts);
 
     dialogStore.open("load");
-    render(LoadDialog);
+    const { unmount } = render(LoadDialog);
     await tick();
 
     // API not available yet — listSavedLayouts should not be called
     expect(persistenceApi.listSavedLayouts).not.toHaveBeenCalled();
+
+    // Clean up first instance before re-rendering
+    unmount();
 
     // Simulate API becoming available
     vi.mocked(persistenceStore.isApiAvailable).mockReturnValue(true);
