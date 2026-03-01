@@ -34,6 +34,11 @@ export interface LoginRateLimiter {
   stopCleanup(): void;
 }
 
+/**
+ * Hash a password using Argon2id with OWASP-recommended parameters.
+ * @param password - The plaintext password to hash.
+ * @returns The Argon2id hash string.
+ */
 export async function hashPassword(password: string): Promise<string> {
   return hash(password, {
     algorithm: Algorithm.Argon2id,
@@ -43,6 +48,12 @@ export async function hashPassword(password: string): Promise<string> {
   });
 }
 
+/**
+ * Verify a plaintext password against an Argon2id hash.
+ * @param hashed - The stored Argon2id hash string.
+ * @param password - The plaintext password to verify.
+ * @returns `true` if the password matches; `false` otherwise (including invalid hashes).
+ */
 export async function verifyPasswordHash(
   hashed: string,
   password: string,
