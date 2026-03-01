@@ -26,6 +26,7 @@ import { configureAuthLogHashKey, safeLogAuthEvent } from "./auth-logger";
 import {
   bootstrapLocalCredentials,
   createLoginRateLimiter,
+  MAX_PASSWORD_LENGTH,
   verifyCredentials,
 } from "./local-auth";
 
@@ -603,7 +604,7 @@ export async function createApp(
           );
         }
 
-        if (username.length > 255 || password.length > 1024) {
+        if (username.length > 255 || password.length > MAX_PASSWORD_LENGTH) {
           return c.json(
             { error: "Bad Request", message: "Invalid credential length." },
             400,

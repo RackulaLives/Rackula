@@ -12,6 +12,7 @@ const ARGON2_MEMORY_COST = 65536; // 64 MiB
 const ARGON2_TIME_COST = 3;
 const ARGON2_PARALLELISM = 4;
 const MIN_PASSWORD_LENGTH = 12;
+export const MAX_PASSWORD_LENGTH = 1024;
 const MAX_USERNAME_LENGTH = 255;
 
 // Rate limiter defaults
@@ -73,6 +74,11 @@ export async function bootstrapLocalCredentials(
   if (password.length < MIN_PASSWORD_LENGTH) {
     throw new Error(
       `RACKULA_LOCAL_PASSWORD must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+    );
+  }
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    throw new Error(
+      `RACKULA_LOCAL_PASSWORD must be at most ${MAX_PASSWORD_LENGTH} characters.`,
     );
   }
 
@@ -160,7 +166,11 @@ export async function verifyCredentials(
   credentials: LocalCredentials,
 ): Promise<boolean> {
   // Timing-safe username comparison using padded buffers
-  const maxLen = Math.max(username.length, credentials.username.length, 1);
+  const maxLen = Math.max(
+    Buffer.byteLength(username, "utf-8"),
+    Buffer.byteLength(credentials.username, "utf-8"),
+    1,
+  );
   const presentedBuf = Buffer.alloc(maxLen, 0);
   const expectedBuf = Buffer.alloc(maxLen, 0);
   presentedBuf.write(username, "utf-8");
