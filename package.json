@@ -55,7 +55,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-svelte": "^3.15.0",
     "eslint-plugin-testing-library": "^7.16.0",
-    "globals": "^17.3.0",
+    "globals": "^17.4.0",
     "happy-dom": "^20.7.0",
     "husky": "^9.1.7",
     "jsdom": "^28.1.0",
