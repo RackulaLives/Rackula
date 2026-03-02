@@ -350,7 +350,12 @@ RACKULA_LOCAL_PASSWORD=your-secure-password-here   # minimum 12 characters
 RACKULA_AUTH_SESSION_SECRET=your-random-secret-here # minimum 32 characters
 ```
 
-All session-related variables from the OIDC section also apply (`RACKULA_AUTH_SESSION_MAX_AGE_SECONDS`, `RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS`, `RACKULA_AUTH_SESSION_COOKIE_SECURE`, etc.).
+All session-related variables from the OIDC section also apply:
+
+- `RACKULA_AUTH_SESSION_MAX_AGE_SECONDS` — absolute session lifetime (default: 43200 / 12 hours)
+- `RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS` — inactivity timeout (default: 1800 / 30 minutes)
+- `RACKULA_AUTH_SESSION_COOKIE_SECURE` — require HTTPS for cookies (default: true)
+- `RACKULA_AUTH_SESSION_COOKIE_SAMESITE` — SameSite cookie policy (default: Lax)
 
 ### How It Works
 

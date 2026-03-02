@@ -217,6 +217,16 @@ function validateFallbackSessionClaims(
   }
 }
 
+/**
+ * Create and configure the Hono application with all middleware and routes.
+ *
+ * Bootstraps auth credentials (when AUTH_MODE=local), configures CORS, CSRF,
+ * auth gate, rate limiting, and mounts layout/asset routes.
+ *
+ * @param env - Environment variable map (defaults to `process.env`).
+ * @returns Fully configured Hono application instance.
+ * @throws If required environment variables are missing or invalid during bootstrap.
+ */
 export async function createApp(
   env: EnvMap = process.env,
 ): Promise<Hono<AppEnv>> {
@@ -611,7 +621,10 @@ export async function createApp(
           );
         }
 
-        const ip = c.req.header("x-real-ip") ?? "unknown";
+        const forwardedFor = c.req.header("x-forwarded-for");
+        const proxyIp = forwardedFor?.split(",")[0]?.trim();
+        const realIp = c.req.header("x-real-ip")?.trim();
+        const ip = (proxyIp || realIp || "unknown").slice(0, 64);
         const rateCheck = rateLimiter.check(ip);
         if (!rateCheck.allowed) {
           const retryAfterSeconds = Math.ceil(

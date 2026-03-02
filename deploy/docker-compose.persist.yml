@@ -76,6 +76,8 @@ services:
       # API startup validation fails fast if this is missing/short (minimum 32 chars).
       - RACKULA_AUTH_SESSION_SECRET=${RACKULA_AUTH_SESSION_SECRET:-}
       # Local auth credentials (required when RACKULA_AUTH_MODE=local)
+      # In production, prefer Docker secrets or an .env file with restricted permissions
+      # rather than inline values visible in container metadata.
       - RACKULA_LOCAL_USERNAME=${RACKULA_LOCAL_USERNAME:-}
       - RACKULA_LOCAL_PASSWORD=${RACKULA_LOCAL_PASSWORD:-}
       # Session hardening defaults
