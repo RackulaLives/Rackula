@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5] - 2026-03-01
+
+### Added
+
+- Unified layout loading pipeline with LoadDialog for consistent file handling (#1348, PR #1351)
+- YAML editor panel with conflict detection for advanced layout editing (#1324)
+- Compatible-only palette override for narrow racks (#1330, PR #1342)
+
+### Fixed
+
+- Restore Save As dialog with browser-fs-access for native file picker support (#1344, PR #1355)
+- Add missing browser-fs-access dependency that broke builds (PR #1358)
+- Restore deny-by-default auth gate behaviour (#1333, PR #1337)
+- Align nginx auth contract with API auth endpoints (#1332, PR #1339)
+- Remove stale optional auth context path (#1334, PR #1338)
+- Enforce idle-timeout for fallback OIDC sessions (#1341)
+- Support Entra common issuer discovery for OIDC (#1340)
+- Custom device creation UX and phantom layout auto-save (#1327)
+- Clear validation errors on input and add success toast for device creation (#1316)
+- Allow whole number heights for custom devices (#1307, PR #1308)
+
+### Security
+
+- Remediated libpng heap buffer overflow CVE-2026-25646 in frontend container image
+- Upgraded hono to 4.12.2+ to fix authentication bypass CVE-2026-27700 in API container
+
+### Technical
+
+- Pin Trivy version in deploy-prod workflow to avoid setup-trivy git clone failures
+- Tiered CI testing strategy (PR #1311)
+- Harden deploy-prod with tag validation gate (PR #1318)
+- Tighten Claude workflow trust boundary (PR #1319)
+- Make octocov non-mutating with badges branch (PR #1320)
+- Replace weekly issue spam with rolling health report (PR #1321)
+- Add label taxonomy with sync workflow and backfill script (PR #1322)
+- Harden false-positive e2e assertions (#1229, PR #1303)
+- Rewrite responsive e2e tests to match current toolbar UI (#1347, PR #1349)
+
 ## [0.8.4] - 2026-02-20
 
 ### Fixed

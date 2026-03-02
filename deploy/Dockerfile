@@ -29,6 +29,10 @@ RUN npm run build
 
 # Production stage - non-root nginx
 FROM nginxinc/nginx-unprivileged:alpine
+# Patch system packages to resolve known CVEs (e.g. libpng)
+USER root
+RUN apk upgrade --no-cache
+USER nginx
 
 # OCI labels
 LABEL org.opencontainers.image.source="https://github.com/RackulaLives/Rackula"
