@@ -238,6 +238,8 @@ export async function createApp(
   if (securityConfig.authMode === "local") {
     const localCreds = await bootstrapLocalCredentials(env);
     securityConfig.localCredentials = localCreds;
+    // Scrub plaintext password from environment after hashing
+    delete env.RACKULA_LOCAL_PASSWORD;
     if (
       securityConfig.isProduction &&
       !securityConfig.authSessionCookieSecure
@@ -598,10 +600,13 @@ export async function createApp(
           );
         }
 
-        const { username, password } = body as Record<string, unknown>;
+        const { username: rawUsername, password } = body as Record<
+          string,
+          unknown
+        >;
         if (
-          typeof username !== "string" ||
-          !username.trim() ||
+          typeof rawUsername !== "string" ||
+          !rawUsername.trim() ||
           typeof password !== "string" ||
           !password
         ) {
@@ -614,6 +619,7 @@ export async function createApp(
           );
         }
 
+        const username = rawUsername.trim();
         if (username.length > 255 || password.length > MAX_PASSWORD_LENGTH) {
           return c.json(
             { error: "Bad Request", message: "Invalid credential length." },
@@ -621,10 +627,12 @@ export async function createApp(
           );
         }
 
-        const forwardedFor = c.req.header("x-forwarded-for");
-        const proxyIp = forwardedFor?.split(",")[0]?.trim();
+        // Prefer X-Real-IP (set by nginx to $remote_addr, not client-spoofable).
+        // Fall back to the LAST X-Forwarded-For entry (closest proxy, harder to spoof).
         const realIp = c.req.header("x-real-ip")?.trim();
-        const ip = (proxyIp || realIp || "unknown").slice(0, 64);
+        const forwardedFor = c.req.header("x-forwarded-for");
+        const lastProxy = forwardedFor?.split(",").pop()?.trim();
+        const ip = (realIp || lastProxy || "unknown").slice(0, 64);
         const rateCheck = rateLimiter.check(ip);
         if (!rateCheck.allowed) {
           const retryAfterSeconds = Math.ceil(
@@ -643,13 +651,17 @@ export async function createApp(
           );
         }
 
+        // Record a tentative failure BEFORE the async verification to prevent
+        // concurrent requests from bypassing the rate limit window.
+        rateLimiter.recordFailure(ip);
+
         const valid = await verifyCredentials(
           username,
           password,
           localCredentials,
         );
         if (!valid) {
-          rateLimiter.recordFailure(ip);
+          // Failure already recorded above
           safeLogAuthEvent("auth.login.failure", c.req.raw, {
             reason: "invalid credentials",
           });
@@ -659,6 +671,7 @@ export async function createApp(
           );
         }
 
+        // Success — clear the pre-recorded failure
         rateLimiter.recordSuccess(ip);
 
         const token = createSignedAuthSessionToken(

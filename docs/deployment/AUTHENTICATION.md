@@ -348,7 +348,12 @@ RACKULA_AUTH_MODE=local
 RACKULA_LOCAL_USERNAME=admin
 RACKULA_LOCAL_PASSWORD=your-secure-password-here   # minimum 12 characters
 RACKULA_AUTH_SESSION_SECRET=your-random-secret-here # minimum 32 characters
+CORS_ORIGIN=https://your-rackula-domain.com        # CSRF protection requires this
 ```
+
+> **Password quoting:** If your password contains shell metacharacters (`$`, `!`, `\`, etc.), use single quotes when setting via shell export: `export RACKULA_LOCAL_PASSWORD='my$ecure!pass'`. In Docker `.env` files and `docker-compose.yml`, quoting is generally not needed unless the value contains `#` (comment character).
+
+> **HTTP deployments:** If accessing Rackula over plain HTTP (no TLS), you must set `RACKULA_AUTH_SESSION_COOKIE_SECURE=false`. Without this, login will appear to succeed but the browser silently rejects the `Secure`-flagged session cookie, and every subsequent request fails authentication. This is the most common deployment pitfall for homelab setups without a reverse proxy terminating TLS.
 
 All session-related variables from the OIDC section also apply:
 
@@ -375,7 +380,9 @@ To change the password:
 
 1. Update `RACKULA_LOCAL_PASSWORD` in your environment configuration
 2. Restart the API service (`docker compose restart api`)
-3. The new password hash is computed at startup; existing sessions remain valid until they expire
+3. The new password hash is computed at startup
+
+> **Important:** Changing the password does **not** invalidate existing sessions. Anyone with a valid session cookie can continue accessing Rackula until the session expires naturally. To force all sessions to expire immediately, rotate `RACKULA_AUTH_SESSION_SECRET` at the same time as the password change.
 
 ### Migrating Between Auth Modes
 
