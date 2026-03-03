@@ -170,7 +170,7 @@ describe("auth event integration", () => {
     spy: ReturnType<typeof spyOn>,
   ): Array<Record<string, unknown>> {
     return spy.mock.calls
-      .map((call) => {
+      .map((call: unknown[]) => {
         try {
           return JSON.parse((call[0] as string).trim());
         } catch {
@@ -178,7 +178,7 @@ describe("auth event integration", () => {
         }
       })
       .filter(
-        (e): e is Record<string, unknown> =>
+        (e: Record<string, unknown> | null): e is Record<string, unknown> =>
           typeof e?.event === "string" &&
           (e.event as string).startsWith("auth."),
       );
