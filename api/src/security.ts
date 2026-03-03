@@ -103,14 +103,14 @@ const AUTH_PUBLIC_PATHS = new Set([
   "/api/auth/logout",
 ]);
 // Paths that bypass CSRF validation — only safe GET-like auth bootstrap endpoints.
+// Login paths are intentionally NOT exempt: the middleware's "no session cookie → skip"
+// gate already allows initial logins, while re-auth with an existing session gets CSRF-checked.
 // Logout is intentionally excluded: it's a state-changing POST that needs CSRF protection.
 const CSRF_EXEMPT_AUTH_PATHS = new Set([
   "/health",
   "/api/health",
-  "/auth/login",
   "/auth/callback",
   "/auth/check",
-  "/api/auth/login",
   "/api/auth/callback",
   "/api/auth/check",
 ]);
