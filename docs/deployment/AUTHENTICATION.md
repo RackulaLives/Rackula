@@ -536,7 +536,7 @@ Rackula includes structured authentication event logging via `auth-logger.ts`:
 
 - **Events logged:** `auth.login.success`, `auth.login.failure`, `auth.logout`, `auth.session.invalid`, `auth.denied`
 - **Format:** Structured JSON events to stdout (compatible with log aggregators)
-- **Privacy:** User identifiers are pseudonymised via HMAC (configurable with `RACKULA_AUTH_LOG_HASH_KEY`)
+- **Privacy:** User identifiers are pseudonymized via HMAC (configurable with `RACKULA_AUTH_LOG_HASH_KEY`)
 - **Security:** Sensitive headers (e.g., `Authorization`, `Cookie`) are automatically redacted
 
 ## Troubleshooting
