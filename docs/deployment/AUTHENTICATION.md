@@ -236,6 +236,9 @@ Create or edit `api/.env` file with the following configuration:
 # Authentication (Better Auth + OIDC)
 # ========================================
 
+# Auth Mode (REQUIRED — set to 'oidc' for OIDC authentication)
+RACKULA_AUTH_MODE=oidc
+
 # Session Secret (REQUIRED)
 # Generate with: openssl rand -base64 32
 RACKULA_AUTH_SESSION_SECRET=your-generated-secret-here-minimum-32-chars
@@ -251,7 +254,7 @@ RACKULA_OIDC_REDIRECT_URI=https://your-rackula.example.com/auth/callback
 # Session expires after this many seconds of inactivity
 RACKULA_AUTH_SESSION_MAX_AGE_SECONDS=43200  # 12 hours
 # Session refreshes if this many seconds remain until expiry
-RACKULA_AUTH_SESSION_UPDATE_AGE_SECONDS=21600  # 6 hours
+RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS=1800  # 30 minutes (inactivity timeout)
 
 # Cookie Security Settings (production defaults)
 # Set to false only for local development over HTTP
@@ -312,7 +315,7 @@ Follow this testing checklist to verify authentication is working correctly:
 
 4. **Verify session cookie:**
    - Open browser DevTools → Application → Cookies
-   - Look for cookie with `better-auth` prefix
+   - Look for cookie named `rackula_auth_session`
    - Verify flags: `HttpOnly`, `Secure`, `SameSite=Lax`
 
 5. **Access protected routes:**
@@ -495,36 +498,9 @@ echo "your-oidc-client-secret" > secrets/oidc_client_secret.txt
 chmod 400 secrets/*.txt
 ```
 
-**2. Update auth/config.ts to read secrets from files:**
+**2. `_FILE` suffixed env vars (future enhancement):**
 
-```typescript
-// Read secret from file if _FILE env var is provided
-const sessionSecret = (() => {
-  const secretFile = process.env.RACKULA_AUTH_SESSION_SECRET_FILE;
-  if (secretFile) {
-    try {
-      return require("fs").readFileSync(secretFile, "utf8").trim();
-    } catch (error) {
-      console.error("Failed to read session secret from file:", error);
-      throw new Error("Session secret file not found or unreadable");
-    }
-  }
-  return process.env.RACKULA_AUTH_SESSION_SECRET || "";
-})();
-
-const oidcClientSecret = (() => {
-  const secretFile = process.env.RACKULA_OIDC_CLIENT_SECRET_FILE;
-  if (secretFile) {
-    try {
-      return require("fs").readFileSync(secretFile, "utf8").trim();
-    } catch (error) {
-      console.error("Failed to read OIDC client secret from file:", error);
-      throw new Error("OIDC client secret file not found or unreadable");
-    }
-  }
-  return process.env.RACKULA_OIDC_CLIENT_SECRET || "";
-})();
-```
+The `_FILE` env var pattern (e.g., `RACKULA_AUTH_SESSION_SECRET_FILE`) shown in the Docker Compose snippet above is a planned feature. Currently, set the secret values directly via environment variables or use Docker Compose `environment` directives that read from files at compose-up time. No code changes are needed — Docker Compose handles the file-to-env mapping.
 
 **3. Never commit secrets to version control:**
 
@@ -547,11 +523,14 @@ Maintain separate configurations for development and production:
 .env.production      # Production (HTTPS required, shorter TTL)
 ```
 
-**5. Monitor authentication logs (future enhancement):**
+**5. Monitor authentication logs:**
 
-- Current limitation: No built-in auth event logging in v0.9.0
-- Planned for v2: Structured logging of login attempts, session creation, failures
-- Workaround: Monitor IdP logs for authentication events
+Rackula includes structured authentication event logging via `auth-logger.ts`:
+
+- **Events logged:** `auth.login.success`, `auth.login.failure`, `auth.logout`, `auth.session.invalid`, `auth.denied`
+- **Format:** Structured JSON events to stdout (compatible with log aggregators)
+- **Privacy:** User identifiers are pseudonymised via HMAC (configurable with `RACKULA_AUTH_LOG_HASH_KEY`)
+- **Security:** Sensitive headers (e.g., `Authorization`, `Cookie`) are automatically redacted
 
 ## Troubleshooting
 
@@ -630,7 +609,7 @@ Maintain separate configurations for development and production:
 
 1. Verify session cookie is present:
    - Open DevTools → Application → Cookies
-   - Look for cookie with `better-auth` prefix
+   - Look for cookie named `rackula_auth_session`
 2. Check session has not expired:
    - Cookie should have Max-Age or Expires in future
    - Default TTL: 12 hours from login
@@ -694,47 +673,27 @@ Maintain separate configurations for development and production:
 
 The current authentication implementation has the following known limitations:
 
-### 1. No Server-Side Session Revocation
+### 1. Single-Process Session Revocation Only
+
+**Current state:**
+In-memory session ID invalidation exists via `invalidateAuthSession()` in `security.ts`. Individual sessions can be revoked within a single API process.
 
 **Limitation:**
-Stateless sessions stored in signed cookies cannot be revoked server-side until they expire naturally.
+Session revocation state is held in-process memory and is not shared across replicas. In a multi-replica deployment, a session revoked on one replica remains valid on others until it expires naturally.
 
 **Impact:**
 
-- If a user's session is compromised, it remains valid until expiration (12 hours by default)
-- No "force logout" capability for administrators
-- Cannot immediately revoke access when user permissions change
+- Single-replica deployments (typical homelab): session revocation works as expected
+- Multi-replica deployments: revoked sessions may still be accepted by other replicas
+- Tracked in [#1269](https://github.com/RackulaLives/Rackula/issues/1269)
 
 **Workarounds:**
 
 - Keep session TTL short (default 12 hours, reduce if needed)
-- Change `RACKULA_AUTH_SESSION_SECRET` to invalidate all sessions (forces all users to re-login)
+- Rotate `RACKULA_AUTH_SESSION_SECRET` to invalidate all sessions across all replicas
 - Revoke access at IdP level (user cannot create new sessions)
 
-**When to address:**
-Upgrade to database-backed sessions if instant revocation is required. See Phase 2 planning for migration path.
-
-### 2. No Authentication Event Logging
-
-**Limitation:**
-No built-in logging of authentication events (login attempts, session creation, failures).
-
-**Impact:**
-
-- Cannot track failed login attempts
-- No audit trail for compliance requirements
-- Difficult to debug authentication issues without IdP logs
-
-**Workarounds:**
-
-- Monitor IdP logs for authentication events
-- Use IdP's built-in audit logging features
-- Implement reverse proxy logging (e.g., Traefik access logs)
-
-**When to address:**
-Planned for v2.0 (structured logging of auth events).
-
-### 3. No Multi-Factor Authentication (MFA) in Rackula
+### 2. No Multi-Factor Authentication (MFA) in Rackula
 
 **Limitation:**
 MFA is delegated entirely to the identity provider. Rackula does not enforce or verify MFA.
@@ -753,7 +712,7 @@ MFA is delegated entirely to the identity provider. Rackula does not enforce or 
 **When to address:**
 No plans to implement in Rackula; IdP-based MFA is sufficient for target use case.
 
-### 4. No User Management UI in Rackula
+### 3. No User Management UI in Rackula
 
 **Limitation:**
 All user management (create users, reset passwords, manage permissions) must be done in IdP admin console.
@@ -776,7 +735,6 @@ No plans to implement; IdP-based user management is appropriate for homelab depl
 These features are not implemented in v0.9.0 but may be added in future versions:
 
 - **Database-backed sessions** - Enable instant server-side session revocation
-- **Structured authentication logging** - Audit trail for login attempts, session creation, failures
 - **Session secret rotation** - Automated rotation without invalidating all sessions
 - **Session management UI** - View active sessions, revoke specific sessions
 
