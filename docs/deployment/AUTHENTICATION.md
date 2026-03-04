@@ -251,10 +251,10 @@ RACKULA_OIDC_CLIENT_SECRET=your-oidc-client-secret
 RACKULA_OIDC_REDIRECT_URI=https://your-rackula.example.com/auth/callback
 
 # Session Configuration (optional, defaults shown)
-# Session expires after this many seconds of inactivity
-RACKULA_AUTH_SESSION_MAX_AGE_SECONDS=43200  # 12 hours
-# Session refreshes if this many seconds remain until expiry
-RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS=1800  # 30 minutes (inactivity timeout)
+# Absolute maximum session lifetime (seconds) — session expires regardless of activity
+RACKULA_AUTH_SESSION_MAX_AGE_SECONDS=43200
+# Inactivity timeout (seconds) — session expires after this many idle seconds
+RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS=1800
 
 # Cookie Security Settings (production defaults)
 # Set to false only for local development over HTTP
@@ -500,7 +500,14 @@ chmod 400 secrets/*.txt
 
 **2. `_FILE` suffixed env vars (future enhancement):**
 
-The `_FILE` env var pattern (e.g., `RACKULA_AUTH_SESSION_SECRET_FILE`) shown in the Docker Compose snippet above is a planned feature. Currently, set the secret values directly via environment variables or use Docker Compose `environment` directives that read from files at compose-up time. No code changes are needed — Docker Compose handles the file-to-env mapping.
+The `_FILE` env var pattern (e.g., `RACKULA_AUTH_SESSION_SECRET_FILE`) shown in the Docker Compose snippet above is a planned feature. Docker Compose secrets are mounted as files under `/run/secrets/<secret_name>` — they are **not** automatically exported as environment variables. Until `_FILE` support is implemented, you can use an entrypoint script to read secret files into env vars:
+
+```bash
+# Example entrypoint wrapper
+export RACKULA_AUTH_SESSION_SECRET=$(cat /run/secrets/auth_session_secret)
+export RACKULA_OIDC_CLIENT_SECRET=$(cat /run/secrets/oidc_client_secret)
+exec "$@"
+```
 
 **3. Never commit secrets to version control:**
 
