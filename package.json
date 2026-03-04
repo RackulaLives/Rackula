@@ -77,15 +77,15 @@
     ]
   },
   "dependencies": {
-    "@lucide/svelte": "^0.576.0",
-    "bits-ui": "^2.16.2",
+    "@lucide/svelte": "^0.577.0",
+    "bits-ui": "^2.16.3",
     "browser-fs-access": "^0.38.0",
     "debug": "^4.4.3",
     "fuse.js": "^7.1.0",
     "js-yaml": "^4.1.1",
     "jspdf": "^4.2.0",
     "jszip": "^3.10.1",
-    "marked": "^17.0.3",
+    "marked": "^17.0.4",
     "nanoid": "^5.1.6",
     "pako": "^2.1.0",
     "paneforge": "^1.0.2",
