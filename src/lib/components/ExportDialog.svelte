@@ -791,6 +791,7 @@
     max-width: var(--preview-max-width);
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-sm);
+    overflow: hidden;
     overflow: clip;
     background: var(--colour-surface);
   }
