@@ -343,6 +343,17 @@ export function createAuth(secret: string, env: EnvMap = process.env) {
       );
     }
 
+    const hasExplicitDiscoveryUrl = !!readEnv(
+      env,
+      "RACKULA_OIDC_DISCOVERY_URL",
+    );
+    if (hasExplicitDiscoveryUrl && !oidcIssuer) {
+      throw new Error(
+        "RACKULA_OIDC_DISCOVERY_URL requires RACKULA_OIDC_ISSUER to be set for issuer pinning. " +
+          "Without issuer validation, a compromised discovery endpoint could redirect to a malicious provider.",
+      );
+    }
+
     plugins.push(
       genericOAuth({
         config: [

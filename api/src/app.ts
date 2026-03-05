@@ -64,13 +64,17 @@ type BetterAuthSessionApiResult = {
   response?: BetterAuthSessionLike | null;
 };
 
-function normalizeNextPath(next: string | undefined): string {
+export function normalizeNextPath(next: string | undefined): string {
   if (!next) {
     return "/";
   }
 
   const trimmed = next.trim();
   if (!trimmed.startsWith("/")) {
+    return "/";
+  }
+
+  if (/[\r\n\0]/.test(trimmed)) {
     return "/";
   }
 
