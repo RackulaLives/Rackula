@@ -366,15 +366,29 @@ function loadLayout(layoutData: Layout): void {
       }
       seenIds.add(rackId);
 
-      // Deduplicate device IDs — defence-in-depth for non-YAML load paths (#1363)
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral validation set, not reactive state
+      // Deduplicate device IDs and remap container_id references — defence-in-depth (#1363)
+      /* eslint-disable svelte/prefer-svelte-reactivity -- ephemeral validation collections, not reactive state */
       const seenDeviceIds = new Set<string>();
+      const idRemap = new Map<string, string>();
+      /* eslint-enable svelte/prefer-svelte-reactivity */
       const devices = r.devices.map((d) => {
-        if (!d.id || seenDeviceIds.has(d.id)) {
-          return { ...d, id: generateId() };
+        const originalId = d.id;
+        let nextId = originalId;
+        if (!nextId || seenDeviceIds.has(nextId)) {
+          nextId = generateUniqueDeviceId(seenDeviceIds);
+          if (originalId) {
+            idRemap.set(originalId, nextId);
+          }
+        } else {
+          seenDeviceIds.add(nextId);
         }
-        seenDeviceIds.add(d.id);
-        return d;
+        const nextContainerId =
+          d.container_id && idRemap.has(d.container_id)
+            ? idRemap.get(d.container_id)!
+            : d.container_id;
+        return nextId === originalId && nextContainerId === d.container_id
+          ? d
+          : { ...d, id: nextId, container_id: nextContainerId };
       });
 
       return {
@@ -1922,6 +1936,16 @@ function getTargetRack(
  * @param updater - Function to update the rack
  */
 /**
+ * Generate a unique device ID that doesn't collide with the given set (#1363)
+ */
+function generateUniqueDeviceId(seen: Set<string>): string {
+  let id = generateId();
+  while (seen.has(id)) id = generateId();
+  seen.add(id);
+  return id;
+}
+
+/**
  * Dev-mode invariant: warn if a rack contains duplicate device IDs (#1363)
  */
 function assertUniqueDeviceIds(rack: Rack): void {
@@ -2011,7 +2035,7 @@ function placeDeviceRaw(device: PlacedDevice): number {
   // Guard: regenerate ID if it already exists in this rack (#1363)
   const existingIds = new Set(target.rack.devices.map((d) => d.id));
   const safeDevice = existingIds.has(device.id)
-    ? { ...device, id: generateId() }
+    ? { ...device, id: generateUniqueDeviceId(existingIds) }
     : device;
 
   const newDevices = [...target.rack.devices, safeDevice];
@@ -2341,7 +2365,7 @@ function restoreRackDevicesRaw(devices: PlacedDevice[]): void {
   const seenIds = new Set<string>();
   const safeDevices = devices.map((d) => {
     if (seenIds.has(d.id)) {
-      return { ...d, id: generateId() };
+      return { ...d, id: generateUniqueDeviceId(seenIds) };
     }
     seenIds.add(d.id);
     return d;

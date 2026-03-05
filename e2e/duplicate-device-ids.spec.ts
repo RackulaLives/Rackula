@@ -1,5 +1,7 @@
 import { test, expect } from "./helpers/base-test";
 import fs from "fs";
+import os from "node:os";
+import path from "node:path";
 import JSZip from "jszip";
 import { gotoWithRack, clickLoad } from "./helpers";
 
@@ -44,7 +46,8 @@ settings:
 `;
 
 test.describe("Duplicate Device ID Handling (#1363)", () => {
-  let zipPath: string;
+  let zipPath: string | undefined;
+  let tempDir: string | undefined;
 
   test.beforeAll(async () => {
     // Create a .Rackula.zip fixture with duplicate device IDs
@@ -54,13 +57,17 @@ test.describe("Duplicate Device ID Handling (#1363)", () => {
     zip.file(`${folderName}/duplicate-device-id-layout.rackula.yaml`, LAYOUT_YAML);
 
     const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
-    zipPath = `/tmp/duplicate-device-ids-test.Rackula.zip`;
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rackula-dup-ids-"));
+    zipPath = path.join(tempDir, "duplicate-device-ids-test.Rackula.zip");
     fs.writeFileSync(zipPath, zipBuffer);
   });
 
   test.afterAll(() => {
-    if (fs.existsSync(zipPath)) {
+    if (zipPath && fs.existsSync(zipPath)) {
       fs.unlinkSync(zipPath);
+    }
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmdirSync(tempDir);
     }
   });
 

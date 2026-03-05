@@ -885,11 +885,14 @@ const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
     // Deduplicate device IDs to prevent Svelte each_key_duplicate errors (#1363)
     const seenDeviceIds = new Set<string>();
     const deduplicatedDevices = rack.devices.map((d) => {
-      if (seenDeviceIds.has(d.id)) {
-        return { ...d, id: nanoid() };
+      let nextId = d.id;
+      if (seenDeviceIds.has(nextId)) {
+        do {
+          nextId = nanoid();
+        } while (seenDeviceIds.has(nextId));
       }
-      seenDeviceIds.add(d.id);
-      return d;
+      seenDeviceIds.add(nextId);
+      return nextId === d.id ? d : { ...d, id: nextId };
     });
 
     return {
