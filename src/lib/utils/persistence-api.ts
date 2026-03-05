@@ -99,7 +99,13 @@ export interface SavedLayoutItem {
 /**
  * Save status for UI feedback
  */
-export type SaveStatus = "idle" | "saving" | "saved" | "error" | "offline";
+export type SaveStatus =
+  | "idle"
+  | "saving"
+  | "saved"
+  | "error"
+  | "offline"
+  | "disabled";
 
 /**
  * Custom error for API failures

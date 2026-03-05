@@ -95,6 +95,7 @@
     setApiAvailable,
     getApiAvailableState,
     initializePersistence,
+    hasEverConnectedToApi,
   } from "$lib/stores/persistence.svelte";
   import {
     saveLayoutToServer,
@@ -267,7 +268,11 @@
         error,
       );
       setApiAvailable(false);
-      saveStatus = "offline";
+      if (hasEverConnectedToApi()) {
+        saveStatus = "offline";
+      } else {
+        saveStatus = "disabled";
+      }
       return false;
     });
 
@@ -306,7 +311,7 @@
 
     const apiAvailable = await persistenceInitPromise;
     if (!apiAvailable) {
-      saveStatus = "offline";
+      saveStatus = hasEverConnectedToApi() ? "offline" : "disabled";
     }
 
     // Priority 3: When API and local session are both available,
@@ -367,7 +372,11 @@
         );
         // Treat server data failures as offline and fall back gracefully.
         setApiAvailable(false);
-        saveStatus = "offline";
+        if (hasEverConnectedToApi()) {
+          saveStatus = "offline";
+        } else {
+          saveStatus = "disabled";
+        }
       }
     }
 
@@ -1498,6 +1507,10 @@
     const apiState = getApiAvailableState();
     if (apiState === null) return; // Not initialized yet
     if (apiState === true) return; // API is available
+    if (!hasEverConnectedToApi()) return; // Never had API — don't poll
+    // Defence-in-depth: saveStatus could be set to "disabled" independently of
+    // hasEverConnectedToApi() in future code paths, so check both signals.
+    if (saveStatus === "disabled") return;
 
     persistenceDebug.health("API offline, starting health check interval");
     const intervalId = setInterval(async () => {
