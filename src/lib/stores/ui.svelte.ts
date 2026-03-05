@@ -22,6 +22,7 @@ export type SidebarTab = "devices" | "racks";
 const SIDEBAR_TAB_KEY = "Rackula_sidebar_tab";
 const WARN_UNSAVED_KEY = "Rackula_warn_unsaved";
 const PROMPT_CLEANUP_KEY = "Rackula_prompt_cleanup";
+const COMPATIBLE_ONLY_KEY = "Rackula-device-compatible-only";
 
 /**
  * Valid sidebar tab values for runtime validation
@@ -94,6 +95,31 @@ function saveWarnUnsavedToStorage(warn: boolean): void {
 }
 
 /**
+ * Load compatible-only preference from localStorage
+ */
+function loadCompatibleOnlyFromStorage(): boolean {
+  try {
+    const stored = localStorage.getItem(COMPATIBLE_ONLY_KEY);
+    if (stored === "true") return true;
+    if (stored === "false") return false;
+  } catch {
+    // localStorage not available
+  }
+  return true; // default to compatible-only enabled
+}
+
+/**
+ * Save compatible-only preference to localStorage
+ */
+function saveCompatibleOnlyToStorage(value: boolean): void {
+  try {
+    localStorage.setItem(COMPATIBLE_ONLY_KEY, String(value));
+  } catch {
+    // localStorage not available
+  }
+}
+
+/**
  * Load prompt cleanup on save setting from localStorage
  */
 function loadPromptCleanupFromStorage(): boolean {
@@ -130,6 +156,7 @@ const initialSidebarWidth = loadSidebarWidthFromStorage();
 const initialSidebarTab = loadSidebarTabFromStorage();
 const initialWarnUnsaved = loadWarnUnsavedFromStorage();
 const initialPromptCleanup = loadPromptCleanupFromStorage();
+const initialCompatibleOnly = loadCompatibleOnlyFromStorage();
 
 // Module-level state (using $state rune)
 let theme = $state<Theme>(initialTheme);
@@ -144,6 +171,7 @@ let sidebarWidth = $state<number | null>(initialSidebarWidth);
 let sidebarTab = $state<SidebarTab>(initialSidebarTab);
 let warnOnUnsavedChanges = $state(initialWarnUnsaved);
 let promptCleanupOnSave = $state(initialPromptCleanup);
+let compatibleOnly = $state(initialCompatibleOnly);
 
 // Derived values (using $derived rune)
 const canZoomIn = $derived(zoom < ZOOM_MAX);
@@ -171,6 +199,7 @@ export function resetUIStore(): void {
   sidebarTab = loadSidebarTabFromStorage();
   warnOnUnsavedChanges = loadWarnUnsavedFromStorage();
   promptCleanupOnSave = loadPromptCleanupFromStorage();
+  compatibleOnly = loadCompatibleOnlyFromStorage();
   applyThemeToDocument(theme);
 }
 
@@ -241,6 +270,9 @@ export function getUIStore() {
     get promptCleanupOnSave() {
       return promptCleanupOnSave;
     },
+    get compatibleOnly() {
+      return compatibleOnly;
+    },
 
     // Theme actions
     toggleTheme,
@@ -282,6 +314,9 @@ export function getUIStore() {
     // Cleanup prompt actions
     togglePromptCleanupOnSave,
     setPromptCleanupOnSave,
+
+    // Compatible-only filter action
+    toggleCompatibleOnly,
   };
 }
 
@@ -499,4 +534,12 @@ function togglePromptCleanupOnSave(): void {
 function setPromptCleanupOnSave(prompt: boolean): void {
   promptCleanupOnSave = prompt;
   savePromptCleanupToStorage(prompt);
+}
+
+/**
+ * Toggle compatible-only device filter
+ */
+function toggleCompatibleOnly(): void {
+  compatibleOnly = !compatibleOnly;
+  saveCompatibleOnlyToStorage(compatibleOnly);
 }

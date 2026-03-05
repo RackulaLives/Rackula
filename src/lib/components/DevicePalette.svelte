@@ -20,10 +20,9 @@
   import {
     loadGroupingModeFromStorage,
     saveGroupingModeToStorage,
-    loadCompatibleOnlyFromStorage,
-    saveCompatibleOnlyToStorage,
     type DeviceGroupingMode,
   } from "$lib/utils/deviceGrouping";
+  import { getUIStore } from "$lib/stores/ui.svelte";
   import { debounce } from "$lib/utils/debounce";
   import { truncateWithEllipsis } from "$lib/utils/searchHighlight";
   import { getBrandPacks, getBrandSlugs } from "$lib/data/brandPacks";
@@ -44,6 +43,7 @@
 
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
+  const uiStore = getUIStore();
 
   // Search state with debouncing
   let searchQueryRaw = $state("");
@@ -52,8 +52,6 @@
 
   // Grouping mode state with localStorage persistence
   let groupingMode = $state<DeviceGroupingMode>(loadGroupingModeFromStorage());
-  // Palette visibility toggle: default to safe mode showing compatible devices only
-  let compatibleOnly = $state(loadCompatibleOnlyFromStorage());
 
   // Grouping mode options for SegmentedControl
   const groupingModeOptions: { value: DeviceGroupingMode; label: string }[] = [
@@ -99,10 +97,6 @@
     accordionMultipleValue = [defaultValue];
     preSearchSingleValue = defaultValue;
     accordionMode = "single";
-  });
-
-  $effect(() => {
-    saveCompatibleOnlyToStorage(compatibleOnly);
   });
 
   // Debounce search input
@@ -254,7 +248,10 @@
     > = {};
 
     for (const device of allPaletteDevices) {
-      const compatible = isDeviceCompatibleWithRackWidth(device, activeRackWidth);
+      const compatible = isDeviceCompatibleWithRackWidth(
+        device,
+        activeRackWidth,
+      );
       compatibility[device.slug] = {
         isCompatible: compatible,
         incompatibilityReason: compatible
@@ -270,14 +267,11 @@
     filterPaletteDevicesByRackWidth(
       allGenericDevices,
       activeRackWidth,
-      compatibleOnly,
+      uiStore.compatibleOnly,
     ),
   );
   const filteredGenericDevices = $derived(
-    searchDevices(
-      visibleGenericDevices,
-      searchQuery,
-    ),
+    searchDevices(visibleGenericDevices, searchQuery),
   );
   const groupedGenericDevices = $derived(
     groupDevicesByCategory(filteredGenericDevices),
@@ -291,7 +285,7 @@
         filterPaletteDevicesByRackWidth(
           pack.devices,
           activeRackWidth,
-          compatibleOnly,
+          uiStore.compatibleOnly,
         ),
         searchQuery,
       ),
@@ -310,7 +304,7 @@
     filterPaletteDevicesByRackWidth(
       allPaletteDevices,
       activeRackWidth,
-      compatibleOnly,
+      uiStore.compatibleOnly,
     ),
   );
   const filteredAllDevices = $derived(
@@ -469,7 +463,9 @@
   }
 
   function incompatibilityReason(device: DeviceType): string | null {
-    return deviceCompatibilityBySlug[device.slug]?.incompatibilityReason ?? null;
+    return (
+      deviceCompatibilityBySlug[device.slug]?.incompatibilityReason ?? null
+    );
   }
 </script>
 
@@ -506,14 +502,6 @@
         </Tooltip>
       {/if}
     </div>
-    <label class="compatibility-toggle">
-      <input
-        type="checkbox"
-        bind:checked={compatibleOnly}
-        aria-label="Show compatible devices only"
-      />
-      <span>Compatible only</span>
-    </label>
   </div>
 
   <!-- Device List -->
@@ -645,22 +633,6 @@
     display: flex;
     gap: var(--space-2);
     align-items: center;
-  }
-
-  .compatibility-toggle {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    font-size: var(--font-size-xs);
-    color: var(--colour-text-muted);
-    user-select: none;
-    width: fit-content;
-    cursor: pointer;
-  }
-
-  .compatibility-toggle input {
-    margin: 0;
-    cursor: pointer;
   }
 
   .search-input {

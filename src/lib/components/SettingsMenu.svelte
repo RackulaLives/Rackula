@@ -20,11 +20,13 @@
     theme?: "dark" | "light";
     showAnnotations?: boolean;
     showBanana?: boolean;
+    compatibleOnly?: boolean;
     warnOnUnsavedChanges?: boolean;
     promptCleanupOnSave?: boolean;
     ontoggletheme?: () => void;
     ontoggleannotations?: () => void;
     ontogglebanana?: () => void;
+    ontogglecompatibleonly?: () => void;
     ontogglewarnunsaved?: () => void;
     ontogglepromptcleanup?: () => void;
     onopencleanup?: () => void;
@@ -34,11 +36,13 @@
     theme = "dark",
     showAnnotations = false,
     showBanana = false,
+    compatibleOnly = true,
     warnOnUnsavedChanges = true,
     promptCleanupOnSave = true,
     ontoggletheme,
     ontoggleannotations,
     ontogglebanana,
+    ontogglecompatibleonly,
     ontogglewarnunsaved,
     ontogglepromptcleanup,
     onopencleanup,
@@ -112,6 +116,23 @@
             {/if}
           </span>
           <span class="menu-label">Banana for Scale</span>
+        {/snippet}
+      </DropdownMenu.CheckboxItem>
+
+      <DropdownMenu.CheckboxItem
+        class="menu-item"
+        checked={compatibleOnly}
+        onCheckedChange={handleSelect(ontogglecompatibleonly)}
+      >
+        {#snippet children({ checked })}
+          <span class="menu-checkbox">
+            {#if checked}
+              <IconSquareFilled size={ICON_SIZE.sm} />
+            {:else}
+              <IconSquare size={ICON_SIZE.sm} />
+            {/if}
+          </span>
+          <span class="menu-label">Compatible Devices Only</span>
         {/snippet}
       </DropdownMenu.CheckboxItem>
 

@@ -35,6 +35,7 @@
     displayMode?: DisplayMode;
     showAnnotations?: boolean;
     showBanana?: boolean;
+    compatibleOnly?: boolean;
     warnOnUnsavedChanges?: boolean;
     promptCleanupOnSave?: boolean;
     partyMode?: boolean;
@@ -53,6 +54,7 @@
     ontoggledisplaymode?: () => void;
     ontoggleannotations?: () => void;
     ontogglebanana?: () => void;
+    ontogglecompatibleonly?: () => void;
     ontogglewarnunsaved?: () => void;
     ontogglepromptcleanup?: () => void;
     onopencleanup?: () => void;
@@ -65,6 +67,7 @@
     displayMode = "label",
     showAnnotations = false,
     showBanana = false,
+    compatibleOnly = true,
     warnOnUnsavedChanges = true,
     promptCleanupOnSave = true,
     partyMode = false,
@@ -83,6 +86,7 @@
     ontoggledisplaymode,
     ontoggleannotations,
     ontogglebanana,
+    ontogglecompatibleonly,
     ontogglewarnunsaved,
     ontogglepromptcleanup,
     onopencleanup,
@@ -184,6 +188,11 @@
   function handleToggleBanana() {
     analytics.trackToolbarClick("banana");
     ontogglebanana?.();
+  }
+
+  function handleToggleCompatibleOnly() {
+    analytics.trackToolbarClick("compatible-only");
+    ontogglecompatibleonly?.();
   }
 
   function handleToggleWarnUnsaved() {
@@ -340,11 +349,13 @@
         {theme}
         {showAnnotations}
         {showBanana}
+        {compatibleOnly}
         {warnOnUnsavedChanges}
         {promptCleanupOnSave}
         ontoggletheme={handleToggleTheme}
         ontoggleannotations={handleToggleAnnotations}
         ontogglebanana={handleToggleBanana}
+        ontogglecompatibleonly={handleToggleCompatibleOnly}
         ontogglewarnunsaved={handleToggleWarnUnsaved}
         ontogglepromptcleanup={handleTogglePromptCleanup}
         onopencleanup={handleOpenCleanup}

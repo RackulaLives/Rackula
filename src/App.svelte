@@ -65,10 +65,7 @@
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { createKonamiDetector } from "$lib/utils/konami";
   import type { ImageData } from "$lib/types/images";
-  import {
-    downloadArchive,
-    generateArchiveFilename,
-  } from "$lib/utils/archive";
+  import { downloadArchive, generateArchiveFilename } from "$lib/utils/archive";
   import {
     generateExportSVG,
     exportAsSVG,
@@ -1540,6 +1537,7 @@
       displayMode={uiStore.displayMode}
       showAnnotations={uiStore.showAnnotations}
       showBanana={uiStore.showBanana}
+      compatibleOnly={uiStore.compatibleOnly}
       warnOnUnsavedChanges={uiStore.warnOnUnsavedChanges}
       promptCleanupOnSave={uiStore.promptCleanupOnSave}
       {partyMode}
@@ -1558,6 +1556,7 @@
       ontoggledisplaymode={handleToggleDisplayMode}
       ontoggleannotations={handleToggleAnnotations}
       ontogglebanana={() => uiStore.toggleBanana()}
+      ontogglecompatibleonly={() => uiStore.toggleCompatibleOnly()}
       ontogglewarnunsaved={() => uiStore.toggleWarnOnUnsavedChanges()}
       ontogglepromptcleanup={() => uiStore.togglePromptCleanupOnSave()}
       onopencleanup={handleOpenCleanupDialog}
