@@ -1953,10 +1953,7 @@ function assertUniqueDeviceIds(rack: Rack): void {
   const ids = rack.devices.map((d) => d.id);
   const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
   if (dupes.length > 0) {
-    layoutDebug.state(
-      `Duplicate device IDs in rack "${rack.name}":`,
-      dupes,
-    );
+    layoutDebug.state(`Duplicate device IDs in rack "${rack.name}":`, dupes);
   }
 }
 
@@ -2363,13 +2360,25 @@ function restoreRackDevicesRaw(devices: PlacedDevice[]): void {
   // Guard: deduplicate IDs in restored device list (#1363)
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral validation set, not reactive state
   const seenIds = new Set<string>();
-  const safeDevices = devices.map((d) => {
-    if (seenIds.has(d.id)) {
-      return { ...d, id: generateUniqueDeviceId(seenIds) };
-    }
-    seenIds.add(d.id);
-    return d;
-  });
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral remap, not reactive state
+  const idRemap = new Map<string, string>();
+  const safeDevices = devices
+    .map((d) => {
+      if (seenIds.has(d.id)) {
+        const newId = generateUniqueDeviceId(seenIds);
+        idRemap.set(d.id, newId);
+        return { ...d, id: newId };
+      }
+      seenIds.add(d.id);
+      return d;
+    })
+    .map((d) => {
+      // Second pass: remap container_id references
+      if (d.container_id && idRemap.has(d.container_id)) {
+        return { ...d, container_id: idRemap.get(d.container_id)! };
+      }
+      return d;
+    });
 
   updateRackAtIndex(target.index, (rack) => ({
     ...rack,
