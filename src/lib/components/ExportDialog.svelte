@@ -789,10 +789,9 @@
   .preview-container {
     width: 100%;
     max-width: var(--preview-max-width);
-    max-height: 300px;
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-sm);
-    overflow: hidden;
+    overflow: clip;
     background: var(--colour-surface);
   }
 
