@@ -64,6 +64,16 @@ type BetterAuthSessionApiResult = {
   response?: BetterAuthSessionLike | null;
 };
 
+/**
+ * Sanitise a `next` redirect path from a query parameter into a safe relative path.
+ *
+ * Rejects absolute URLs, protocol-relative URLs (`//`), and paths containing
+ * control characters (`\r`, `\n`, `\0`) to prevent open-redirect and CRLF
+ * injection attacks. Falls back to `"/"` for any invalid input.
+ *
+ * @param next - Raw query-parameter value; may be `undefined` or any string.
+ * @returns A root-relative path starting with `"/"`, safe for use in redirects.
+ */
 export function normalizeNextPath(next: string | undefined): string {
   if (!next) {
     return "/";
