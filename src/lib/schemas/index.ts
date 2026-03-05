@@ -880,14 +880,26 @@ const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
   // Check if positions need migration (pre-0.7.0 format)
   const migratePositions = needsPositionMigration(data.version, allDevices);
 
-  // Generate IDs for racks missing them and migrate positions if needed
-  const racksWithIds = racks.map((rack) => ({
-    ...rack,
-    id: rack.id ?? nanoid(),
-    devices: migratePositions
-      ? migrateDevicePositions(rack.devices)
-      : rack.devices,
-  }));
+  // Generate IDs for racks missing them, deduplicate device IDs, and migrate positions if needed
+  const racksWithIds = racks.map((rack) => {
+    // Deduplicate device IDs to prevent Svelte each_key_duplicate errors (#1363)
+    const seenDeviceIds = new Set<string>();
+    const deduplicatedDevices = rack.devices.map((d) => {
+      if (seenDeviceIds.has(d.id)) {
+        return { ...d, id: nanoid() };
+      }
+      seenDeviceIds.add(d.id);
+      return d;
+    });
+
+    return {
+      ...rack,
+      id: rack.id ?? nanoid(),
+      devices: migratePositions
+        ? migrateDevicePositions(deduplicatedDevices)
+        : deduplicatedDevices,
+    };
+  });
 
   // Build the output without the legacy 'rack' field
   const { rack: _legacyRack, racks: _inputRacks, ...rest } = data;

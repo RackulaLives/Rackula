@@ -4,7 +4,11 @@ import { getImageStore, resetImageStore } from "$lib/stores/images.svelte";
 import type { Layout } from "$lib/types";
 import { VERSION } from "$lib/version";
 import { toInternalUnits } from "$lib/utils/position";
-import { setupStoreWithDevice } from "./factories";
+import {
+  setupStoreWithDevice,
+  createTestDevice,
+  createTestDeviceType,
+} from "./factories";
 
 describe("Layout Store", () => {
   beforeEach(() => {
@@ -150,6 +154,87 @@ describe("Layout Store", () => {
         },
       });
       expect(store.isDirty).toBe(false);
+    });
+
+    it("deduplicates device IDs within a rack (#1363)", () => {
+      const store = getLayoutStore();
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Dupe Device Test",
+        racks: [
+          {
+            id: "rack-1",
+            name: "Test Rack",
+            height: 42,
+            width: 19,
+            desc_units: false,
+            form_factor: "4-post-cabinet",
+            starting_unit: 1,
+            position: 0,
+            devices: [
+              { id: "same-id", device_type: "server-a", position: 100, face: "front" as const },
+              { id: "same-id", device_type: "server-b", position: 200, face: "front" as const },
+              { id: "ok-id", device_type: "server-c", position: 300, face: "front" as const },
+            ],
+          },
+        ],
+        device_types: [
+          { slug: "server-a", u_height: 1, colour: "#4A90A4", category: "server" as const },
+          { slug: "server-b", u_height: 1, colour: "#4A90A4", category: "server" as const },
+          { slug: "server-c", u_height: 1, colour: "#4A90A4", category: "server" as const },
+        ],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      const devices = store.layout.racks[0].devices;
+      const ids = devices.map((d) => d.id);
+      const uniqueIds = new Set(ids);
+      expect(uniqueIds.size).toBe(ids.length);
+      // First keeps original, second gets regenerated
+      expect(ids[0]).toBe("same-id");
+      expect(ids[1]).not.toBe("same-id");
+      expect(ids[2]).toBe("ok-id");
+    });
+
+    it("regenerates empty device IDs (#1363)", () => {
+      const store = getLayoutStore();
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Empty ID Test",
+        racks: [
+          {
+            id: "rack-1",
+            name: "Test Rack",
+            height: 42,
+            width: 19,
+            desc_units: false,
+            form_factor: "4-post-cabinet",
+            starting_unit: 1,
+            position: 0,
+            devices: [
+              { id: "", device_type: "server-a", position: 100, face: "front" as const },
+              { id: "valid-id", device_type: "server-b", position: 200, face: "front" as const },
+            ],
+          },
+        ],
+        device_types: [
+          { slug: "server-a", u_height: 1, colour: "#4A90A4", category: "server" as const },
+          { slug: "server-b", u_height: 1, colour: "#4A90A4", category: "server" as const },
+        ],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      const devices = store.layout.racks[0].devices;
+      // Empty ID should be regenerated
+      expect(devices[0].id.length).toBeGreaterThan(0);
+      expect(devices[0].id).not.toBe("");
+      expect(devices[1].id).toBe("valid-id");
     });
   });
 
@@ -2231,6 +2316,74 @@ describe("Layout Store", () => {
       // Position 19 (below) and 24 (above) should be available
       expect(store.placeDevice(rack!.id, smallDevice.slug, 19)).toBe(true);
       expect(store.placeDevice(rack!.id, smallDevice.slug, 24)).toBe(true);
+    });
+  });
+
+  describe("duplicate device ID guards (#1363)", () => {
+    it("placeDeviceRaw regenerates ID when duplicate exists in rack", () => {
+      const store = getLayoutStore();
+      store.addRack("Test Rack", 42);
+      const deviceType = createTestDeviceType({
+        slug: "server-1",
+        u_height: 1,
+        category: "server",
+      });
+      store.addDeviceTypeRaw(deviceType);
+
+      // Place first device with a known ID
+      const device1 = createTestDevice({
+        id: "dupe-id",
+        device_type: "server-1",
+        position: 5,
+      });
+      store.placeDeviceRaw(device1);
+
+      // Place second device with the same ID
+      const device2 = createTestDevice({
+        id: "dupe-id",
+        device_type: "server-1",
+        position: 10,
+      });
+      store.placeDeviceRaw(device2);
+
+      const devices = store.layout.racks[0].devices;
+      // eslint-disable-next-line no-restricted-syntax -- dedup invariant: 2 inputs must produce exactly 2 outputs
+      expect(devices).toHaveLength(2);
+      // First device keeps its ID, second gets regenerated
+      expect(devices[0].id).toBe("dupe-id");
+      expect(devices[1].id).not.toBe("dupe-id");
+    });
+
+    it("restoreRackDevicesRaw deduplicates IDs in restored array", () => {
+      const store = getLayoutStore();
+      store.addRack("Test Rack", 42);
+
+      const devicesWithDupes = [
+        createTestDevice({ id: "same-id", device_type: "server", position: 5 }),
+        createTestDevice({
+          id: "same-id",
+          device_type: "server",
+          position: 10,
+        }),
+        createTestDevice({
+          id: "unique-id",
+          device_type: "server",
+          position: 15,
+        }),
+      ];
+
+      store.restoreRackDevicesRaw(devicesWithDupes);
+
+      const devices = store.layout.racks[0].devices;
+      // eslint-disable-next-line no-restricted-syntax -- dedup invariant: 3 inputs must produce exactly 3 outputs
+      expect(devices).toHaveLength(3);
+      // First keeps its ID, second gets regenerated, third keeps its unique ID
+      expect(devices[0].id).toBe("same-id");
+      expect(devices[1].id).not.toBe("same-id");
+      expect(devices[2].id).toBe("unique-id");
+      // All IDs are unique
+      const ids = new Set(devices.map((d) => d.id));
+      expect(ids.size).toBe(3);
     });
   });
 });

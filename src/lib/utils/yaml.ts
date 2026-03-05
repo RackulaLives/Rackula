@@ -226,6 +226,17 @@ function orderMetadataFields(
  * Includes metadata if present
  */
 export async function serializeLayoutToYaml(layout: Layout): Promise<string> {
+  // Warn if duplicate device IDs are about to be persisted (#1363)
+  for (const rack of layout.racks) {
+    const ids = rack.devices.map((d) => d.id);
+    const uniqueIds = new Set(ids);
+    if (uniqueIds.size !== ids.length) {
+      console.warn(
+        `[rackula] Saving layout with duplicate device IDs in rack "${rack.name}". This may cause load errors.`,
+      );
+    }
+  }
+
   const layoutForSerialization: Record<string, unknown> = {};
 
   // Include metadata at the top if present
@@ -287,6 +298,17 @@ export async function serializeLayoutToYamlWithMetadata(
   layout: Layout,
   metadata: LayoutMetadata,
 ): Promise<string> {
+  // Warn if duplicate device IDs are about to be persisted (#1363)
+  for (const rack of layout.racks) {
+    const ids = rack.devices.map((d) => d.id);
+    const uniqueIds = new Set(ids);
+    if (uniqueIds.size !== ids.length) {
+      console.warn(
+        `[rackula] Saving layout with duplicate device IDs in rack "${rack.name}". This may cause load errors.`,
+      );
+    }
+  }
+
   const layoutForSerialization: Record<string, unknown> = {
     // Metadata section at the top
     metadata: orderMetadataFields(metadata),

@@ -1577,6 +1577,113 @@ describe("LayoutSchema rack ID uniqueness validation", () => {
   });
 });
 
+describe("LayoutSchema device ID deduplication (#1363)", () => {
+  const baseSettings = {
+    display_mode: "label" as const,
+    show_labels_on_images: true,
+  };
+
+  it("regenerates duplicate device IDs within a rack", () => {
+    const layout = {
+      version: "0.7.0",
+      name: "Duplicate Device ID Layout",
+      racks: [
+        {
+          id: "rack-1",
+          name: "Rack 1",
+          height: 42,
+          width: 19 as const,
+          desc_units: false,
+          show_rear: true,
+          form_factor: "4-post-cabinet" as const,
+          starting_unit: 1,
+          position: 0,
+          devices: [
+            { id: "dupe-id", device_type: "server-a", position: 100, face: "front" as const },
+            { id: "dupe-id", device_type: "server-b", position: 200, face: "front" as const },
+            { id: "unique-id", device_type: "server-c", position: 300, face: "front" as const },
+          ],
+        },
+      ],
+      device_types: [
+        { slug: "server-a", u_height: 1, colour: "#4A90A4", category: "server" as const },
+        { slug: "server-b", u_height: 1, colour: "#4A90A4", category: "server" as const },
+        { slug: "server-c", u_height: 1, colour: "#4A90A4", category: "server" as const },
+      ],
+      settings: baseSettings,
+    };
+
+    const result = LayoutSchema.safeParse(layout);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const deviceIds = result.data.racks[0].devices.map((d) => d.id);
+      const uniqueIds = new Set(deviceIds);
+      expect(uniqueIds.size).toBe(deviceIds.length);
+      // The first occurrence keeps its original ID
+      expect(deviceIds[0]).toBe("dupe-id");
+      // The second occurrence gets a new ID
+      expect(deviceIds[1]).not.toBe("dupe-id");
+      // The unique one is untouched
+      expect(deviceIds[2]).toBe("unique-id");
+    }
+  });
+
+  it("regenerates duplicate device IDs across multiple racks", () => {
+    const layout = {
+      version: "0.7.0",
+      name: "Multi-Rack Dupe Layout",
+      racks: [
+        {
+          id: "rack-1",
+          name: "Rack 1",
+          height: 42,
+          width: 19 as const,
+          desc_units: false,
+          show_rear: true,
+          form_factor: "4-post-cabinet" as const,
+          starting_unit: 1,
+          position: 0,
+          devices: [
+            { id: "dupe-id", device_type: "server-a", position: 100, face: "front" as const },
+            { id: "dupe-id", device_type: "server-b", position: 200, face: "front" as const },
+          ],
+        },
+        {
+          id: "rack-2",
+          name: "Rack 2",
+          height: 42,
+          width: 19 as const,
+          desc_units: false,
+          show_rear: true,
+          form_factor: "4-post-cabinet" as const,
+          starting_unit: 1,
+          position: 1,
+          devices: [
+            { id: "dupe-id-2", device_type: "server-a", position: 100, face: "front" as const },
+            { id: "dupe-id-2", device_type: "server-c", position: 200, face: "front" as const },
+          ],
+        },
+      ],
+      device_types: [
+        { slug: "server-a", u_height: 1, colour: "#4A90A4", category: "server" as const },
+        { slug: "server-b", u_height: 1, colour: "#4A90A4", category: "server" as const },
+        { slug: "server-c", u_height: 1, colour: "#4A90A4", category: "server" as const },
+      ],
+      settings: baseSettings,
+    };
+
+    const result = LayoutSchema.safeParse(layout);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      for (const rack of result.data.racks) {
+        const deviceIds = rack.devices.map((d) => d.id);
+        const uniqueIds = new Set(deviceIds);
+        expect(uniqueIds.size).toBe(deviceIds.length);
+      }
+    }
+  });
+});
+
 describe("LayoutSchema bayed group height validation", () => {
   const createRack = (id: string, height: number, position: number) => ({
     id,

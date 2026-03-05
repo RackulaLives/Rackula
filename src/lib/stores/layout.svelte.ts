@@ -366,9 +366,21 @@ function loadLayout(layoutData: Layout): void {
       }
       seenIds.add(rackId);
 
+      // Deduplicate device IDs — defence-in-depth for non-YAML load paths (#1363)
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral validation set, not reactive state
+      const seenDeviceIds = new Set<string>();
+      const devices = r.devices.map((d) => {
+        if (!d.id || seenDeviceIds.has(d.id)) {
+          return { ...d, id: generateId() };
+        }
+        seenDeviceIds.add(d.id);
+        return d;
+      });
+
       return {
         ...r,
         id: rackId,
+        devices,
         position: Number.isFinite(r.position) ? r.position : index,
         view: r.view ?? "front",
         show_rear: r.show_rear ?? true,
@@ -1909,10 +1921,30 @@ function getTargetRack(
  * @param index - Rack index
  * @param updater - Function to update the rack
  */
+/**
+ * Dev-mode invariant: warn if a rack contains duplicate device IDs (#1363)
+ */
+function assertUniqueDeviceIds(rack: Rack): void {
+  if (!import.meta.env.DEV) return;
+  const ids = rack.devices.map((d) => d.id);
+  const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
+  if (dupes.length > 0) {
+    layoutDebug.state(
+      `Duplicate device IDs in rack "${rack.name}":`,
+      dupes,
+    );
+  }
+}
+
 function updateRackAtIndex(index: number, updater: (rack: Rack) => Rack): void {
   layout = {
     ...layout,
-    racks: layout.racks.map((r, i) => (i === index ? updater(r) : r)),
+    racks: layout.racks.map((r, i) => {
+      if (i !== index) return r;
+      const updated = updater(r);
+      assertUniqueDeviceIds(updated);
+      return updated;
+    }),
   };
 }
 
@@ -1976,7 +2008,13 @@ function placeDeviceRaw(device: PlacedDevice): number {
   const target = getTargetRack();
   if (!target) return -1;
 
-  const newDevices = [...target.rack.devices, device];
+  // Guard: regenerate ID if it already exists in this rack (#1363)
+  const existingIds = new Set(target.rack.devices.map((d) => d.id));
+  const safeDevice = existingIds.has(device.id)
+    ? { ...device, id: generateId() }
+    : device;
+
+  const newDevices = [...target.rack.devices, safeDevice];
   updateRackAtIndex(target.index, (rack) => ({
     ...rack,
     devices: newDevices,
@@ -2298,9 +2336,20 @@ function restoreRackDevicesRaw(devices: PlacedDevice[]): void {
   const target = getTargetRack();
   if (!target) return;
 
+  // Guard: deduplicate IDs in restored device list (#1363)
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral validation set, not reactive state
+  const seenIds = new Set<string>();
+  const safeDevices = devices.map((d) => {
+    if (seenIds.has(d.id)) {
+      return { ...d, id: generateId() };
+    }
+    seenIds.add(d.id);
+    return d;
+  });
+
   updateRackAtIndex(target.index, (rack) => ({
     ...rack,
-    devices: [...devices],
+    devices: [...safeDevices],
   }));
 }
 
