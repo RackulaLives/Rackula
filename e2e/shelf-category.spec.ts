@@ -32,7 +32,9 @@ test.describe("Shelf Category", () => {
     await dragDeviceToRack(page);
 
     // Verify shelf is placed in rack
-    await expect(page.locator(".rack-device")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator(".rack-device").first()).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test("shelf icon displays correctly", async ({ page }) => {
