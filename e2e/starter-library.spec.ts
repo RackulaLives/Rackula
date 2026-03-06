@@ -23,35 +23,35 @@ test.describe("Starter Library", () => {
   });
 
   test("all 12 categories are represented in the palette", async ({ page }) => {
-    // Use getByRole with exact name to avoid strict mode violations
+    // Aria-label format: "${model}, ${u_height}U, ${category}"
 
     // Server category (3 items)
     await expect(
-      page.getByRole("listitem", { name: "1U Server, 1U server", exact: true }),
+      page.getByRole("listitem", { name: "Server, 1U, server", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("listitem", { name: "2U Server, 2U server", exact: true }),
+      page.getByRole("listitem", { name: "Server, 2U, server", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("listitem", { name: "4U Server, 4U server", exact: true }),
+      page.getByRole("listitem", { name: "Server, 4U, server", exact: true }),
     ).toBeVisible();
 
     // Network category (3 items)
     await expect(
       page.getByRole("listitem", {
-        name: "24-Port Switch, 1U network",
+        name: "Switch (24-Port), 1U, network",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", {
-        name: "48-Port Switch, 1U network",
+        name: "Switch (48-Port), 1U, network",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", {
-        name: "1U Router/Firewall, 1U network",
+        name: "Router/Firewall, 1U, network",
         exact: true,
       }),
     ).toBeVisible();
@@ -59,13 +59,13 @@ test.describe("Starter Library", () => {
     // Patch Panel category (2 items)
     await expect(
       page.getByRole("listitem", {
-        name: "24-Port Patch Panel, 1U patch-panel",
+        name: "Patch Panel (24-Port), 1U, patch-panel",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", {
-        name: "48-Port Patch Panel, 2U patch-panel",
+        name: "Patch Panel (48-Port), 2U, patch-panel",
         exact: true,
       }),
     ).toBeVisible();
@@ -73,41 +73,44 @@ test.describe("Starter Library", () => {
     // Storage category (3 items)
     await expect(
       page.getByRole("listitem", {
-        name: "1U Storage, 1U storage",
+        name: "Storage, 1U, storage",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", {
-        name: "2U Storage, 2U storage",
+        name: "Storage, 2U, storage",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", {
-        name: "4U Storage, 4U storage",
+        name: "Storage, 4U, storage",
         exact: true,
       }),
     ).toBeVisible();
 
     // Power category (3 items)
     await expect(
-      page.getByRole("listitem", { name: "1U PDU, 1U power", exact: true }),
+      page.getByRole("listitem", { name: "PDU, 1U, power", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("listitem", { name: "2U UPS, 2U power", exact: true }),
+      page.getByRole("listitem", { name: "UPS, 2U, power", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("listitem", { name: "4U UPS, 4U power", exact: true }),
+      page.getByRole("listitem", { name: "UPS, 4U, power", exact: true }),
     ).toBeVisible();
 
     // KVM category (2 items)
     await expect(
-      page.getByRole("listitem", { name: "1U KVM, 1U kvm", exact: true }),
+      page.getByRole("listitem", {
+        name: "KVM Switch, 1U, kvm",
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", {
-        name: "1U Console Drawer, 1U kvm",
+        name: "Console Drawer, 1U, kvm",
         exact: true,
       }),
     ).toBeVisible();
@@ -115,13 +118,13 @@ test.describe("Starter Library", () => {
     // AV/Media category (2 items)
     await expect(
       page.getByRole("listitem", {
-        name: "1U Receiver, 1U av-media",
+        name: "AV Receiver, 1U, av-media",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", {
-        name: "2U Amplifier, 2U av-media",
+        name: "Amplifier, 2U, av-media",
         exact: true,
       }),
     ).toBeVisible();
@@ -129,7 +132,7 @@ test.describe("Starter Library", () => {
     // Cooling category (1 item)
     await expect(
       page.getByRole("listitem", {
-        name: "1U Fan Panel, 1U cooling",
+        name: "Fan Panel, 1U, cooling",
         exact: true,
       }),
     ).toBeVisible();
@@ -137,35 +140,41 @@ test.describe("Starter Library", () => {
     // Blank category (3 items)
     await expect(
       page.getByRole("listitem", {
-        name: "0.5U Blank, 0.5U blank",
+        name: "Blank Panel, 0.5U, blank",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole("listitem", { name: "1U Blank, 1U blank", exact: true }),
+      page.getByRole("listitem", {
+        name: "Blank Panel, 1U, blank",
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(
-      page.getByRole("listitem", { name: "2U Blank, 2U blank", exact: true }),
+      page.getByRole("listitem", {
+        name: "Blank Panel, 2U, blank",
+        exact: true,
+      }),
     ).toBeVisible();
 
     // Shelf category (2 items)
     await expect(
-      page.getByRole("listitem", { name: "1U Shelf, 1U shelf", exact: true }),
+      page.getByRole("listitem", { name: "Shelf, 1U, shelf", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("listitem", { name: "2U Shelf, 2U shelf", exact: true }),
+      page.getByRole("listitem", { name: "Shelf, 2U, shelf", exact: true }),
     ).toBeVisible();
 
     // Cable Management category (2 items)
     await expect(
       page.getByRole("listitem", {
-        name: "1U Brush Panel, 1U cable-management",
+        name: "Brush Panel, 1U, cable-management",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", {
-        name: "1U Cable Management, 1U cable-management",
+        name: "Cable Manager, 1U, cable-management",
         exact: true,
       }),
     ).toBeVisible();
@@ -206,7 +215,7 @@ test.describe("Starter Library", () => {
   });
 
   test("can search for devices by name", async ({ page }) => {
-    const searchInput = page.locator('.device-palette input[type="search"]');
+    const searchInput = page.locator('[data-testid="search-devices"]');
     await expect(searchInput).toBeVisible();
 
     // Search for "Switch"
@@ -219,22 +228,22 @@ test.describe("Starter Library", () => {
   });
 
   test("can search for cable management devices", async ({ page }) => {
-    const searchInput = page.locator('.device-palette input[type="search"]');
+    const searchInput = page.locator('[data-testid="search-devices"]');
     await searchInput.fill("Cable");
 
     // Should show cable management item
     await expect(
-      page.locator('.device-palette-item:has-text("1U Cable Management")'),
+      page.locator('.device-palette-item:has-text("Cable Manager")'),
     ).toBeVisible();
   });
 
   test("can search for brush panel", async ({ page }) => {
-    const searchInput = page.locator('.device-palette input[type="search"]');
+    const searchInput = page.locator('[data-testid="search-devices"]');
     await searchInput.fill("Brush");
 
     // Should show brush panel
     await expect(
-      page.locator('.device-palette-item:has-text("1U Brush Panel")'),
+      page.locator('.device-palette-item:has-text("Brush Panel")'),
     ).toBeVisible();
   });
 
@@ -254,7 +263,7 @@ test.describe("Starter Library", () => {
   test("cable management category has Steel Blue color", async ({ page }) => {
     // Find cable management device
     const cableMgmtItem = page.locator(
-      '.device-palette-item:has-text("1U Cable Management")',
+      '.device-palette-item:has-text("Cable Manager")',
     );
     await expect(cableMgmtItem).toBeVisible();
 
