@@ -66,7 +66,10 @@
     try {
       qrDataUrl = await generateQRCode(shareUrl!, { width: 444 });
     } catch (error) {
-      qrError = "Failed to generate QR code";
+      qrError =
+        error instanceof Error
+          ? `QR generation failed: ${error.message}`
+          : "Failed to generate QR code";
       console.error("QR generation failed:", error);
     } finally {
       isGeneratingQR = false;

@@ -302,7 +302,10 @@
       console.error("Export preview generation failed:", error);
       previewSvgString = null;
       previewDimensions = null;
-      previewError = "Preview generation failed";
+      previewError =
+        error instanceof Error
+          ? `Preview failed: ${error.message}`
+          : "Preview generation failed";
     }
   });
 
