@@ -126,7 +126,63 @@ describe("keyboard viewport adaptation", () => {
 
   it.each([
     {
-      name: "input",
+      name: "text input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "text";
+        return el;
+      },
+    },
+    {
+      name: "search input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "search";
+        return el;
+      },
+    },
+    {
+      name: "tel input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "tel";
+        return el;
+      },
+    },
+    {
+      name: "url input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "url";
+        return el;
+      },
+    },
+    {
+      name: "email input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "email";
+        return el;
+      },
+    },
+    {
+      name: "password input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "password";
+        return el;
+      },
+    },
+    {
+      name: "number input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "number";
+        return el;
+      },
+    },
+    {
+      name: "input with no type (defaults to text)",
       createElement: () => document.createElement("input"),
     },
     {
@@ -190,41 +246,121 @@ describe("keyboard viewport adaptation", () => {
     },
   );
 
-  it("does not scroll focused select elements into view", () => {
-    const { viewport, getResizeHandler } = createMockVisualViewport();
-    setVisualViewport(viewport as unknown as VisualViewport);
+  it.each([
+    {
+      name: "select",
+      createElement: () => document.createElement("select"),
+    },
+    {
+      name: "button input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "button";
+        return el;
+      },
+    },
+    {
+      name: "checkbox input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "checkbox";
+        return el;
+      },
+    },
+    {
+      name: "color input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "color";
+        return el;
+      },
+    },
+    {
+      name: "file input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "file";
+        return el;
+      },
+    },
+    {
+      name: "hidden input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "hidden";
+        return el;
+      },
+    },
+    {
+      name: "radio input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "radio";
+        return el;
+      },
+    },
+    {
+      name: "range input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "range";
+        return el;
+      },
+    },
+    {
+      name: "reset input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "reset";
+        return el;
+      },
+    },
+    {
+      name: "submit input",
+      createElement: () => {
+        const el = document.createElement("input");
+        el.type = "submit";
+        return el;
+      },
+    },
+  ])(
+    "does not scroll focused $name into view",
+    ({ createElement }) => {
+      const { viewport, getResizeHandler } = createMockVisualViewport();
+      setVisualViewport(viewport as unknown as VisualViewport);
 
-    const select = document.createElement("select");
-    const scrollIntoView = vi.fn();
-    select.scrollIntoView = scrollIntoView;
-    select.getBoundingClientRect = vi.fn(() => ({
-      x: 0,
-      y: 700,
-      width: 200,
-      height: 32,
-      top: 700,
-      right: 200,
-      bottom: 732,
-      left: 0,
-      toJSON: () => ({}),
-    }));
-    document.body.appendChild(select);
-    select.focus();
+      const element = createElement();
+      const scrollIntoView = vi.fn();
+      element.scrollIntoView = scrollIntoView;
+      element.getBoundingClientRect = vi.fn(() => ({
+        x: 0,
+        y: 700,
+        width: 200,
+        height: 32,
+        top: 700,
+        right: 200,
+        bottom: 732,
+        left: 0,
+        toJSON: () => ({}),
+      }));
+      document.body.appendChild(element);
+      element.focus();
 
-    const cleanup = setupKeyboardViewportAdaptation({
-      isMobile: () => true,
-      debounceMs: 0,
-      keyboardThresholdPx: 0,
-    });
+      const cleanup = setupKeyboardViewportAdaptation({
+        isMobile: () => true,
+        debounceMs: 0,
+        keyboardThresholdPx: 0,
+      });
 
-    viewport.height = 560;
-    const resizeHandler = getResizeHandler();
-    resizeHandler(new Event("resize"));
-    vi.runAllTimers();
+      viewport.height = 560;
+      const resizeHandler = getResizeHandler();
+      resizeHandler(new Event("resize"));
+      vi.runAllTimers();
 
-    expect(scrollIntoView).not.toHaveBeenCalled();
+      expect(scrollIntoView).not.toHaveBeenCalled();
 
-    cleanup();
-    select.remove();
-  });
+      cleanup();
+      element.remove();
+    },
+  );
 });
