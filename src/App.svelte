@@ -611,7 +611,12 @@
    * @param e - The caught error (unknown type from catch block)
    * @param notify - Show toast messages (true for manual saves, false for auto-save)
    */
-  function handlePersistenceError(e: unknown, notify = false) {
+  function handlePersistenceError(
+    e: unknown,
+    notify = false,
+    onRetry?: () => void,
+  ) {
+    const action = onRetry ? { label: "Retry", onClick: onRetry } : undefined;
     if (e instanceof PersistenceError) {
       if (
         e.statusCode === undefined ||
@@ -621,16 +626,27 @@
         setApiAvailable(false);
         saveStatus = "offline";
         if (notify)
-          toastStore.showToast("Save failed — backend unavailable", "error");
+          toastStore.showToast(
+            "Save failed — backend unavailable",
+            "error",
+            undefined,
+            action,
+          );
       } else {
         saveStatus = "error";
-        if (notify) toastStore.showToast("Save failed", "error");
+        if (notify)
+          toastStore.showToast("Save failed", "error", undefined, action);
       }
     } else {
       setApiAvailable(false);
       saveStatus = "offline";
       if (notify)
-        toastStore.showToast("Save failed — backend unavailable", "error");
+        toastStore.showToast(
+          "Save failed — backend unavailable",
+          "error",
+          undefined,
+          action,
+        );
     }
   }
 
@@ -665,7 +681,7 @@
     } catch (e) {
       dialogStore.pendingSaveFirst = false;
       console.warn("Manual save failed:", e);
-      handlePersistenceError(e, true);
+      handlePersistenceError(e, true, () => handleSaveToServer());
       // NO auto-fallback to ZIP — per issue spec
     }
   }

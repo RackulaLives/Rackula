@@ -84,8 +84,18 @@ export async function loadFromApi(uuid: string) {
     finalizeLayoutLoad(layout);
     return true;
   } catch (e) {
-    const message =
-      e instanceof PersistenceError ? e.message : "Failed to open layout";
+    let message: string;
+    if (e instanceof PersistenceError) {
+      if (e.statusCode !== undefined && e.statusCode >= 500) {
+        message = "Server error — please try again later";
+      } else if (e.statusCode === 404) {
+        message = "Layout not found — it may have been deleted";
+      } else {
+        message = e.message;
+      }
+    } else {
+      message = "Failed to open layout — check your connection";
+    }
     toastStore.showToast(message, "error");
     return false;
   }
