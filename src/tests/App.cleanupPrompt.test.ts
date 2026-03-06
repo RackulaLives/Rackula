@@ -64,9 +64,10 @@ const archiveMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("$lib/utils/share", async () => {
-  const actual = await vi.importActual<typeof import("$lib/utils/share")>(
-    "$lib/utils/share",
-  );
+  const actual =
+    await vi.importActual<typeof import("$lib/utils/share")>(
+      "$lib/utils/share",
+    );
   return {
     ...actual,
     getShareParam: shareMocks.getShareParam,
@@ -101,9 +102,10 @@ vi.mock("$lib/utils/session-storage", () => ({
 }));
 
 vi.mock("$lib/utils/archive", async () => {
-  const actual = await vi.importActual<typeof import("$lib/utils/archive")>(
-    "$lib/utils/archive",
-  );
+  const actual =
+    await vi.importActual<typeof import("$lib/utils/archive")>(
+      "$lib/utils/archive",
+    );
   return {
     ...actual,
     downloadArchive: archiveMocks.downloadArchive,
@@ -122,7 +124,7 @@ function resetHoistedMocks(): void {
   shareMocks.getShareParam.mockReturnValue(null);
   shareMocks.clearShareParam.mockReset();
   shareMocks.decodeLayout.mockReset();
-  shareMocks.decodeLayout.mockReturnValue(null);
+  shareMocks.decodeLayout.mockReturnValue({ layout: null });
   shareMocks.generateShareUrl.mockReset();
   shareMocks.generateShareUrl.mockReturnValue(null);
 
@@ -156,7 +158,9 @@ function resetHoistedMocks(): void {
   archiveMocks.downloadArchive.mockReset();
   archiveMocks.downloadArchive.mockResolvedValue(undefined);
   archiveMocks.generateArchiveFilename.mockReset();
-  archiveMocks.generateArchiveFilename.mockReturnValue("cleanup-test.Rackula.zip");
+  archiveMocks.generateArchiveFilename.mockReturnValue(
+    "cleanup-test.Rackula.zip",
+  );
   archiveMocks.extractFolderArchive.mockReset();
 }
 
@@ -209,7 +213,9 @@ describe("App cleanup prompt flow", () => {
     ).toBeInTheDocument();
     expect(archiveMocks.downloadArchive).not.toHaveBeenCalled();
 
-    await fireEvent.click(screen.getByRole("button", { name: /Delete Selected/ }));
+    await fireEvent.click(
+      screen.getByRole("button", { name: /Delete Selected/ }),
+    );
 
     await waitFor(() => {
       expect(archiveMocks.downloadArchive).toHaveBeenCalledTimes(1);

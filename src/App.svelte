@@ -279,7 +279,8 @@
     // Priority 1: Check for shared layout in URL (highest priority)
     const shareParam = getShareParam();
     if (shareParam) {
-      const sharedLayout = decodeLayout(shareParam);
+      const { layout: sharedLayout, error: shareError } =
+        decodeLayout(shareParam);
       if (sharedLayout) {
         layoutStore.loadLayout(sharedLayout);
         layoutStore.markClean();
@@ -293,7 +294,7 @@
         return; // Don't check autosave or show start screen
       } else {
         clearShareParam();
-        toastStore.showToast("Invalid share link", "error");
+        toastStore.showToast(shareError ?? "Invalid share link", "error");
       }
     }
 
@@ -1156,6 +1157,11 @@
 
       // Parse and validate the import (returns DeviceType[])
       const result = parseDeviceLibraryImport(text, existingSlugs);
+
+      if (result.error) {
+        toastStore.showToast(`Import failed: ${result.error}`, "error");
+        return;
+      }
 
       // Add imported devices to library
       for (const deviceType of result.devices) {

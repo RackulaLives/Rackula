@@ -84,6 +84,8 @@ export interface ParseDeviceLibraryResult {
   devices: DeviceType[];
   /** Count of invalid devices that were skipped */
   skipped: number;
+  /** Error message if parsing failed entirely */
+  error?: string;
 }
 
 /**
@@ -127,7 +129,7 @@ export function parseDeviceLibraryImport(
     data = JSON.parse(json);
   } catch (e) {
     console.warn("[Rackula] Failed to parse device library JSON:", e);
-    return { devices: [], skipped: 0 };
+    return { devices: [], skipped: 0, error: "Invalid JSON format" };
   }
 
   // Check for devices array
@@ -137,7 +139,11 @@ export function parseDeviceLibraryImport(
     !("devices" in data) ||
     !Array.isArray(data.devices)
   ) {
-    return { devices: [], skipped: 0 };
+    return {
+      devices: [],
+      skipped: 0,
+      error: "Invalid format — expected { devices: [...] }",
+    };
   }
 
   const devices: DeviceType[] = [];

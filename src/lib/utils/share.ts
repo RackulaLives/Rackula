@@ -187,11 +187,16 @@ export function encodeLayout(layout: Layout): string | null {
   }
 }
 
+export interface DecodeResult {
+  layout: Layout | null;
+  error?: string;
+}
+
 /**
  * Decode URL-safe compressed string to Layout
- * Returns null if decoding fails (invalid format, validation error, etc.)
+ * Returns DecodeResult with layout and optional error context
  */
-export function decodeLayout(encoded: string): Layout | null {
+export function decodeLayout(encoded: string): DecodeResult {
   try {
     const compressed = base64UrlDecode(encoded);
     const json = pako.inflate(compressed, { to: "string" });
@@ -201,13 +206,13 @@ export function decodeLayout(encoded: string): Layout | null {
     const result = MinimalLayoutSchema.safeParse(parsed);
     if (!result.success) {
       console.warn("Share link validation failed:", result.error);
-      return null;
+      return { layout: null, error: "Layout format is invalid or outdated" };
     }
 
-    return fromMinimalLayout(result.data);
+    return { layout: fromMinimalLayout(result.data) };
   } catch (error) {
     console.warn("Share link decode failed:", error);
-    return null;
+    return { layout: null, error: "Could not decode share link" };
   }
 }
 

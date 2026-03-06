@@ -113,7 +113,7 @@ describe("App Start Screen integration", () => {
     shareMocks.getShareParam.mockReset();
     shareMocks.getShareParam.mockReturnValue(null);
     shareMocks.decodeLayout.mockReset();
-    shareMocks.decodeLayout.mockReturnValue(null);
+    shareMocks.decodeLayout.mockReturnValue({ layout: null });
     shareMocks.clearShareParam.mockReset();
 
     persistenceStoreMocks.initializePersistence.mockReset();
@@ -148,7 +148,9 @@ describe("App Start Screen integration", () => {
   it("skips server persistence calls when startup health check resolves unavailable", async () => {
     persistenceStoreMocks.initializePersistence.mockResolvedValue(false);
     persistenceStoreMocks.isApiAvailable.mockReturnValue(false);
-    persistenceStoreMocks.getApiAvailableState.mockImplementationOnce(() => false);
+    persistenceStoreMocks.getApiAvailableState.mockImplementationOnce(
+      () => false,
+    );
 
     sessionStorageMocks.loadSessionWithTimestamp.mockReturnValue({
       layout: createTestLayout({
@@ -177,7 +179,7 @@ describe("App Start Screen integration", () => {
     });
 
     shareMocks.getShareParam.mockReturnValue("encoded");
-    shareMocks.decodeLayout.mockReturnValue(sharedLayout);
+    shareMocks.decodeLayout.mockReturnValue({ layout: sharedLayout });
 
     render(App);
 

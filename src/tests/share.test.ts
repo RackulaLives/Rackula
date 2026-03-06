@@ -42,11 +42,11 @@ function requireEncoded(layout: Layout): string {
  * Use this to safely get decoded values in tests.
  */
 function requireDecoded(encoded: string): Layout {
-  const decoded = decodeLayout(encoded);
-  if (!decoded) {
-    throw new Error("decodeLayout returned null");
+  const { layout } = decodeLayout(encoded);
+  if (!layout) {
+    throw new Error("decodeLayout returned null layout");
   }
-  return decoded;
+  return layout;
 }
 
 /**
@@ -282,10 +282,11 @@ describe("encodeLayout", () => {
 });
 
 describe("decodeLayout", () => {
-  it("returns null for invalid input", () => {
-    expect(decodeLayout("invalid")).toBeNull();
-    expect(decodeLayout("")).toBeNull();
-    expect(decodeLayout("!!!")).toBeNull();
+  it("returns null layout with error for invalid input", () => {
+    expect(decodeLayout("invalid").layout).toBeNull();
+    expect(decodeLayout("invalid").error).toBeDefined();
+    expect(decodeLayout("").layout).toBeNull();
+    expect(decodeLayout("!!!").layout).toBeNull();
   });
 
   it("round-trips layout through encode/decode", () => {
