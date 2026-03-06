@@ -8,6 +8,7 @@
   import { onMount } from "svelte";
   import { AlertDialog } from "bits-ui";
   import { IconMobile } from "./icons";
+  import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 
   const STORAGE_KEY = "rackula-mobile-warning-dismissed";
   const BREAKPOINT = 1024;
@@ -17,7 +18,7 @@
   onMount(() => {
     // Only show on small viewports that haven't dismissed
     const isMobile = window.innerWidth < BREAKPOINT;
-    const isDismissed = sessionStorage.getItem(STORAGE_KEY) === "true";
+    const isDismissed = safeGetItem(STORAGE_KEY, "session") === "true";
 
     if (isMobile && !isDismissed) {
       open = true;
@@ -28,7 +29,7 @@
     open = isOpen;
     // Persist dismissal when dialog closes
     if (!isOpen) {
-      sessionStorage.setItem(STORAGE_KEY, "true");
+      safeSetItem(STORAGE_KEY, "true", "session");
     }
   }
 </script>
@@ -54,9 +55,7 @@
         Load a layout from the File menu or scan a Share QR code.
       </p>
 
-      <AlertDialog.Cancel class="continue-button">
-        Got it
-      </AlertDialog.Cancel>
+      <AlertDialog.Cancel class="continue-button">Got it</AlertDialog.Cancel>
     </AlertDialog.Content>
   </AlertDialog.Portal>
 </AlertDialog.Root>
