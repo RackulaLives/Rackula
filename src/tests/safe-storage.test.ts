@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import {
   safeGetItem,
   safeSetItem,
@@ -6,6 +6,10 @@ import {
 } from "$lib/utils/safe-storage";
 
 describe("safeStorage", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe("safeGetItem", () => {
     it("returns value when storage is available", () => {
       localStorage.setItem("test-key", "test-value");
@@ -14,12 +18,10 @@ describe("safeStorage", () => {
     });
 
     it("returns null when storage throws", () => {
-      const original = localStorage.getItem;
-      localStorage.getItem = vi.fn(() => {
+      vi.spyOn(localStorage, "getItem").mockImplementation(() => {
         throw new Error("SecurityError");
       });
       expect(safeGetItem("test-key")).toBeNull();
-      localStorage.getItem = original;
     });
 
     it("reads from sessionStorage when type is session", () => {
@@ -36,23 +38,19 @@ describe("safeStorage", () => {
     });
 
     it("returns false when storage throws", () => {
-      const original = localStorage.setItem;
-      localStorage.setItem = vi.fn(() => {
+      vi.spyOn(localStorage, "setItem").mockImplementation(() => {
         throw new Error("QuotaExceeded");
       });
       expect(safeSetItem("test-key", "value")).toBe(false);
-      localStorage.setItem = original;
     });
   });
 
   describe("safeRemoveItem", () => {
     it("does not throw when storage is unavailable", () => {
-      const original = localStorage.removeItem;
-      localStorage.removeItem = vi.fn(() => {
+      vi.spyOn(localStorage, "removeItem").mockImplementation(() => {
         throw new Error("SecurityError");
       });
       expect(() => safeRemoveItem("test-key")).not.toThrow();
-      localStorage.removeItem = original;
     });
   });
 });
