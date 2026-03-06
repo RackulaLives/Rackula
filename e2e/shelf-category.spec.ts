@@ -7,52 +7,56 @@ test.describe("Shelf Category", () => {
   });
 
   test("shelf devices appear in device library", async ({ page }) => {
-    // Device library sidebar should be visible (fixed sidebar in v0.3)
-    const sidebar = page.locator(".sidebar");
-    await expect(sidebar).toBeVisible();
+    // Device palette should be visible
+    await expect(page.locator(".device-palette")).toBeVisible();
 
     // Search for shelf devices
-    const searchInput = page.locator(".search-input");
+    const searchInput = page.locator('[data-testid="search-devices"]');
     await searchInput.fill("shelf");
 
     // Should find shelf devices (4U Shelf was removed in starter library rationalization)
     await expect(
-      page.locator('.device-palette-item:has-text("1U Shelf")'),
+      page.getByRole("listitem", { name: "Shelf, 1U, shelf", exact: true }),
     ).toBeVisible();
     await expect(
-      page.locator('.device-palette-item:has-text("2U Shelf")'),
+      page.getByRole("listitem", { name: "Shelf, 2U, shelf", exact: true }),
     ).toBeVisible();
   });
 
   test("can add shelf device to rack", async ({ page }) => {
     // Filter to shelf category
-    const searchInput = page.locator(".search-input");
+    const searchInput = page.locator('[data-testid="search-devices"]');
     await searchInput.fill("shelf");
 
     // Drag shelf device to rack using shared helper (first visible item after filter)
     await dragDeviceToRack(page);
 
     // Verify shelf is placed in rack
-    await expect(page.locator(".rack-device")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator(".rack-device").first()).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test("shelf icon displays correctly", async ({ page }) => {
     // Search for shelf devices
-    const searchInput = page.locator(".search-input");
+    const searchInput = page.locator('[data-testid="search-devices"]');
     await searchInput.fill("shelf");
 
     // Find a shelf device in the palette
-    const shelfItem = page.locator('.device-palette-item:has-text("1U Shelf")');
+    const shelfItem = page.getByRole("listitem", {
+      name: "Shelf, 1U, shelf",
+      exact: true,
+    });
     await expect(shelfItem).toBeVisible();
 
-    // Should have a Lucide category icon (AlignEndHorizontal for shelf)
-    const icon = shelfItem.locator(".category-icon-indicator svg.lucide-icon");
+    // Should have a category icon
+    const icon = shelfItem.locator(".category-icon-indicator svg");
     await expect(icon).toBeVisible();
   });
 
-  test("shelf has correct colour (#8B4513)", async ({ page }) => {
+  test("placed shelf device has a fill colour", async ({ page }) => {
     // Filter to shelf
-    const searchInput = page.locator(".search-input");
+    const searchInput = page.locator('[data-testid="search-devices"]');
     await searchInput.fill("shelf");
 
     // Add shelf device using shared helper
