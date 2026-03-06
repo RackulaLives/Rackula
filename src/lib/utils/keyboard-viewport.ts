@@ -24,23 +24,23 @@ function setKeyboardHeight(heightPx: number): void {
   );
 }
 
+/** Input types that trigger a mobile keyboard and should activate scroll behaviour. */
+const TEXT_INPUT_TYPES = new Set([
+  "text",
+  "search",
+  "tel",
+  "url",
+  "email",
+  "password",
+  "number",
+]);
+
 function isEditableElement(element: Element | null): element is HTMLElement {
   if (!(element instanceof HTMLElement)) return false;
   if (element.isContentEditable) return true;
 
   if (element instanceof HTMLInputElement) {
-    return ![
-      "button",
-      "checkbox",
-      "color",
-      "file",
-      "hidden",
-      "image",
-      "radio",
-      "range",
-      "reset",
-      "submit",
-    ].includes(element.type);
+    return TEXT_INPUT_TYPES.has(element.type);
   }
 
   return element instanceof HTMLTextAreaElement;
