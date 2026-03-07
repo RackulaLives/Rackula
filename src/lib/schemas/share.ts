@@ -126,6 +126,47 @@ export const MinimalLayoutSchema = z.object({
 });
 
 // =============================================================================
+// V2 Multi-Rack Schemas
+// =============================================================================
+
+/**
+ * Minimal rack schema with short ID for multi-rack support
+ */
+export const MinimalRackV2Schema = MinimalRackSchema.extend({
+  /** Short sequential rack ID (e.g., "0", "1", "2") */
+  i: z.string(),
+});
+
+/**
+ * Minimal rack group schema for bayed/linked rack configurations
+ */
+export const MinimalRackGroupSchema = z.object({
+  /** Short rack IDs referencing MinimalRackV2.i values */
+  rs: z.array(z.string()),
+  /** Optional group name */
+  n: z.string().optional(),
+  /** Layout preset */
+  p: z.enum(["bayed", "row"]).optional(),
+});
+
+/**
+ * Minimal layout schema v2 (multi-rack)
+ * Detected by presence of `rs` field (vs `r` for v1)
+ */
+export const MinimalLayoutV2Schema = z.object({
+  /** version */
+  v: z.string(),
+  /** name */
+  n: z.string(),
+  /** racks array (v2) */
+  rs: z.array(MinimalRackV2Schema),
+  /** rack groups (optional) */
+  rg: z.array(MinimalRackGroupSchema).optional(),
+  /** device_types (only used ones) */
+  dt: z.array(MinimalDeviceTypeSchema),
+});
+
+// =============================================================================
 // Type Exports
 // =============================================================================
 
@@ -133,3 +174,6 @@ export type MinimalLayout = z.infer<typeof MinimalLayoutSchema>;
 export type MinimalDevice = z.infer<typeof MinimalDeviceSchema>;
 export type MinimalDeviceType = z.infer<typeof MinimalDeviceTypeSchema>;
 export type MinimalRack = z.infer<typeof MinimalRackSchema>;
+export type MinimalRackV2 = z.infer<typeof MinimalRackV2Schema>;
+export type MinimalRackGroup = z.infer<typeof MinimalRackGroupSchema>;
+export type MinimalLayoutV2 = z.infer<typeof MinimalLayoutV2Schema>;

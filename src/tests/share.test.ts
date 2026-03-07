@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import pako from "pako";
 import {
   encodeLayout,
   decodeLayout,
@@ -11,6 +12,7 @@ import {
   generateShareUrl,
   getShareParam,
   clearShareParam,
+  base64UrlEncode,
 } from "$lib/utils/share";
 import {
   createTestLayout,
@@ -91,9 +93,9 @@ describe("toMinimalLayout", () => {
 
     expect(minimal.v).toBe(layout.version);
     expect(minimal.n).toBe(layout.name);
-    expect(minimal.r.n).toBe(layout.racks[0].name);
-    expect(minimal.r.h).toBe(layout.racks[0].height);
-    expect(minimal.r.w).toBe(19);
+    expect(minimal.rs[0].n).toBe(layout.racks[0].name);
+    expect(minimal.rs[0].h).toBe(layout.racks[0].height);
+    expect(minimal.rs[0].w).toBe(19);
   });
 
   it("normalizes rack width 10 to 10", () => {
@@ -102,7 +104,7 @@ describe("toMinimalLayout", () => {
     });
     const minimal = toMinimalLayout(layout);
 
-    expect(minimal.r.w).toBe(10);
+    expect(minimal.rs[0].w).toBe(10);
   });
 
   it("normalizes rack width 19 to 19", () => {
@@ -111,7 +113,7 @@ describe("toMinimalLayout", () => {
     });
     const minimal = toMinimalLayout(layout);
 
-    expect(minimal.r.w).toBe(19);
+    expect(minimal.rs[0].w).toBe(19);
   });
 
   it("normalizes non-standard rack width 21 to 19", () => {
@@ -121,7 +123,7 @@ describe("toMinimalLayout", () => {
     });
     const minimal = toMinimalLayout(layout);
 
-    expect(minimal.r.w).toBe(19);
+    expect(minimal.rs[0].w).toBe(19);
   });
 
   it("normalizes non-standard rack width 23 to 19", () => {
@@ -131,7 +133,7 @@ describe("toMinimalLayout", () => {
     });
     const minimal = toMinimalLayout(layout);
 
-    expect(minimal.r.w).toBe(19);
+    expect(minimal.rs[0].w).toBe(19);
   });
 
   it("only includes device types that are placed", () => {
@@ -192,7 +194,7 @@ describe("toMinimalLayout", () => {
 
     const minimal = toMinimalLayout(layout);
 
-    expect(minimal.r.d[0].n).toBe("Primary DB");
+    expect(minimal.rs[0].d[0].n).toBe("Primary DB");
   });
 });
 
@@ -568,5 +570,232 @@ describe("share integration", () => {
 
     // Output should still be reasonable for QR codes
     expect(encoded.length).toBeLessThan(1600);
+  });
+});
+
+// =============================================================================
+// Multi-Rack Tests (v2 schema)
+// =============================================================================
+
+describe("multi-rack share", () => {
+  it("round-trips multi-rack layout with devices", () => {
+    const serverType = createTestDeviceType({
+      slug: "server-1u",
+      u_height: 1,
+      category: "server",
+    });
+    const switchType = createTestDeviceType({
+      slug: "switch-1u",
+      u_height: 1,
+      category: "network",
+    });
+
+    const rack1 = createTestRack({
+      id: "rack-a",
+      name: "Rack A",
+      height: 42,
+      devices: [
+        createTestDevice({
+          device_type: "server-1u",
+          position: 1,
+          face: "front",
+        }),
+      ],
+    });
+    const rack2 = createTestRack({
+      id: "rack-b",
+      name: "Rack B",
+      height: 24,
+      devices: [
+        createTestDevice({
+          device_type: "switch-1u",
+          position: 3,
+          face: "front",
+        }),
+      ],
+    });
+
+    const layout = createTestLayout({
+      name: "Multi-Rack Layout",
+      racks: [rack1, rack2],
+      device_types: [serverType, switchType],
+    });
+
+    const encoded = requireEncoded(layout);
+    const decoded = requireDecoded(encoded);
+
+    // eslint-disable-next-line no-restricted-syntax -- round-trip must preserve exact rack count
+    expect(decoded.racks).toHaveLength(2);
+    expect(decoded.racks[0].name).toBe("Rack A");
+    expect(decoded.racks[0].height).toBe(42);
+    expect(decoded.racks[1].name).toBe("Rack B");
+    expect(decoded.racks[1].height).toBe(24);
+    expect(
+      decoded.racks[0].devices.find((d) => d.device_type === "server-1u"),
+    ).toBeDefined();
+    expect(
+      decoded.racks[1].devices.find((d) => d.device_type === "switch-1u"),
+    ).toBeDefined();
+  });
+
+  it("round-trips bayed rack group", () => {
+    const deviceType = createTestDeviceType({ slug: "device-1u" });
+    const rack1 = createTestRack({
+      id: "bay-1",
+      name: "Bay 1",
+      height: 42,
+      devices: [createTestDevice({ device_type: "device-1u", position: 1 })],
+    });
+    const rack2 = createTestRack({
+      id: "bay-2",
+      name: "Bay 2",
+      height: 42,
+      devices: [createTestDevice({ device_type: "device-1u", position: 2 })],
+    });
+
+    const layout = createTestLayout({
+      name: "Bayed Layout",
+      racks: [rack1, rack2],
+      rack_groups: [
+        {
+          id: "group-1",
+          name: "Server Bay",
+          rack_ids: ["bay-1", "bay-2"],
+          layout_preset: "bayed",
+        },
+      ],
+      device_types: [deviceType],
+    });
+
+    const encoded = requireEncoded(layout);
+    const decoded = requireDecoded(encoded);
+
+    // eslint-disable-next-line no-restricted-syntax -- round-trip must preserve exact rack count
+    expect(decoded.racks).toHaveLength(2);
+    expect(decoded.rack_groups).toBeDefined();
+    // eslint-disable-next-line no-restricted-syntax -- round-trip must preserve exact group count
+    expect(decoded.rack_groups).toHaveLength(1);
+    const group = decoded.rack_groups![0];
+    expect(group.name).toBe("Server Bay");
+    expect(group.layout_preset).toBe("bayed");
+    // eslint-disable-next-line no-restricted-syntax -- round-trip must preserve exact rack_ids count
+    expect(group.rack_ids).toHaveLength(2);
+    expect(group.rack_ids).toContain(decoded.racks[0].id);
+    expect(group.rack_ids).toContain(decoded.racks[1].id);
+  });
+
+  it("deduplicates device types used across multiple racks", () => {
+    const sharedType = createTestDeviceType({ slug: "shared-device" });
+    const rack1 = createTestRack({
+      id: "r1",
+      name: "Rack 1",
+      devices: [
+        createTestDevice({ device_type: "shared-device", position: 1 }),
+      ],
+    });
+    const rack2 = createTestRack({
+      id: "r2",
+      name: "Rack 2",
+      devices: [
+        createTestDevice({ device_type: "shared-device", position: 2 }),
+      ],
+    });
+
+    const layout = createTestLayout({
+      racks: [rack1, rack2],
+      device_types: [sharedType],
+    });
+
+    const minimal = toMinimalLayout(layout);
+
+    // Should have exactly one device type entry despite being used in both racks
+    const matchingTypes = minimal.dt.filter((dt) => dt.s === "shared-device");
+    // eslint-disable-next-line no-restricted-syntax -- deduplication behavioral invariant
+    expect(matchingTypes).toHaveLength(1);
+  });
+
+  it("preserves rack ordering across round-trip", () => {
+    const deviceType = createTestDeviceType({ slug: "generic" });
+    const racks = ["Alpha", "Beta", "Gamma"].map((name, i) =>
+      createTestRack({
+        id: `rack-${i}`,
+        name,
+        devices: [createTestDevice({ device_type: "generic", position: 1 })],
+      }),
+    );
+
+    const layout = createTestLayout({
+      racks,
+      device_types: [deviceType],
+    });
+
+    const encoded = requireEncoded(layout);
+    const decoded = requireDecoded(encoded);
+
+    expect(decoded.racks[0].name).toBe("Alpha");
+    expect(decoded.racks[1].name).toBe("Beta");
+    expect(decoded.racks[2].name).toBe("Gamma");
+  });
+
+  it("decodes v1 share links (backward compatibility)", () => {
+    // Manually construct a v1 payload (single rack with `r` field)
+    const v1Payload = {
+      v: "1.0",
+      n: "Legacy Layout",
+      r: {
+        n: "Old Rack",
+        h: 42,
+        w: 19,
+        d: [{ t: "legacy-server", p: 5, f: "front" as const }],
+      },
+      dt: [{ s: "legacy-server", h: 2, c: "#336699", x: "s" }],
+    };
+
+    const json = JSON.stringify(v1Payload);
+    const compressed = pako.deflate(json);
+    const encoded = base64UrlEncode(compressed);
+
+    const { layout: decoded } = decodeLayout(encoded);
+
+    expect(decoded).not.toBeNull();
+    expect(decoded!.name).toBe("Legacy Layout");
+    expect(decoded!.racks[0].name).toBe("Old Rack");
+    expect(decoded!.racks[0].height).toBe(42);
+    expect(
+      decoded!.racks[0].devices.find((d) => d.device_type === "legacy-server"),
+    ).toBeDefined();
+    expect(
+      decoded!.device_types.find((dt) => dt.slug === "legacy-server"),
+    ).toBeDefined();
+  });
+
+  it("assigns sequential short IDs to racks in minimal format", () => {
+    const deviceType = createTestDeviceType({ slug: "test-dev" });
+    const racks = [0, 1, 2].map((i) =>
+      createTestRack({
+        id: `rack-${i}`,
+        name: `Rack ${i}`,
+        devices: [createTestDevice({ device_type: "test-dev", position: 1 })],
+      }),
+    );
+
+    const layout = createTestLayout({
+      racks,
+      device_types: [deviceType],
+    });
+
+    const minimal = toMinimalLayout(layout);
+
+    expect(minimal.rs[0].i).toBe("0");
+    expect(minimal.rs[1].i).toBe("1");
+    expect(minimal.rs[2].i).toBe("2");
+  });
+
+  it("omits rack_groups when layout has none", () => {
+    const layout = createLayoutWithDevices();
+    const encoded = requireEncoded(layout);
+    const decoded = requireDecoded(encoded);
+
+    expect(decoded.rack_groups).toBeUndefined();
   });
 });
