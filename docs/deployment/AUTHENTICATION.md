@@ -27,12 +27,14 @@ Rackula uses **Better Auth** with stateless cookie-based sessions to provide per
 ┌────────────▼────────────────────────────────────┐
 │              Rackula API (Hono + Bun)           │
 │  ┌─────────────────────────────────────────┐   │
-│  │         Better Auth                      │   │
+│  │    Better Auth (OIDC mode only)          │   │
 │  │  - /auth/login → redirects to IdP        │   │
 │  │  - /auth/callback → handles OIDC return  │   │
 │  │  - /auth/logout → clears session         │   │
 │  │  - /api/auth/* compatibility routes      │   │
 │  │  - Session validation middleware         │   │
+│  │  (local mode bypasses Better Auth —      │   │
+│  │   direct credential validation instead)  │   │
 │  └─────────────────────────────────────────┘   │
 └────────────┬────────────────────────────────────┘
              │
@@ -55,9 +57,23 @@ Rackula uses **Better Auth** with stateless cookie-based sessions to provide per
 
 **Access Control:**
 
-- `RACKULA_AUTH_MODE=none`: routes follow existing unauthenticated behavior
-- `RACKULA_AUTH_MODE=oidc|local`: anonymous access to protected routes is denied by default
-- Auth check endpoint returns `204` for valid sessions and `401` for invalid/missing sessions
+- `RACKULA_AUTH_MODE=none`: all routes follow existing unauthenticated behaviour
+- `RACKULA_AUTH_MODE=oidc|local`: anonymous access to protected routes is denied — auth is all-or-nothing with no per-route exceptions
+
+When auth is enabled (`oidc` or `local`), the following routes remain publicly accessible:
+
+| Route | Purpose |
+|-------|---------|
+| `/auth/login`, `/auth/callback`, `/auth/logout` | Browser-facing auth flow |
+| `/api/auth/login`, `/api/auth/callback`, `/api/auth/logout` | API compatibility auth routes |
+| `/health`, `/api/health` | Container and API health checks |
+
+All other routes require a valid session. Unauthenticated requests are handled differently depending on the route type:
+
+- **API routes** (`/api/*`): return `401 Unauthorized` with a JSON error body
+- **SPA routes** (`/` and all other paths): redirect to `/auth/login?next=<path>` so the user returns to their original page after login
+
+**CORS requirement:** When auth is enabled, `CORS_ORIGIN` must be set to your Rackula domain (e.g., `https://your-rackula.example.com`) for CSRF protection to function correctly.
 
 ### Reverse Proxy Auth Contract (Nginx)
 
@@ -538,6 +554,85 @@ Rackula includes structured authentication event logging via `auth-logger.ts`:
 - **Format:** Structured JSON events to stdout (compatible with log aggregators)
 - **Privacy:** User identifiers are pseudonymized via HMAC (configurable with `RACKULA_AUTH_LOG_HASH_KEY`)
 - **Security:** Sensitive headers (e.g., `Authorization`, `Cookie`) are automatically redacted
+
+## Reverse Proxy Defense-in-Depth
+
+Rackula's production deployment uses nginx as a reverse proxy with `auth_request` to enforce authentication at the edge — before requests reach the API. This section documents the architecture for operators who need to understand or customise the proxy layer.
+
+### Auth Request Contract
+
+Nginx uses an internal subrequest to validate sessions:
+
+1. For every protected route, nginx sends an internal request to `/_rackula_auth_check`
+2. The API validates the session cookie and responds:
+   - `204` — session valid, request proceeds
+   - `401` — session invalid or missing, nginx redirects to login
+3. When `RACKULA_AUTH_MODE=none`, the auth check short-circuits to `204` without contacting the API
+
+The `/_rackula_auth_check` location is marked `internal` — it cannot be accessed directly by clients.
+
+### Fail-Closed Behaviour
+
+When the API is unavailable and auth is enabled (`oidc` or `local`), nginx returns `401` rather than `502`. This is a deliberate fail-closed design: if the auth service cannot verify a session, access is denied.
+
+When `RACKULA_AUTH_MODE=none`, the proxy fails open (returns `204`) since there is nothing to verify.
+
+Upstream auth failures are logged with the `rackula_auth_upstream_failure` log format for monitoring.
+
+### Write-Token Separation
+
+Nginx conditionally injects an `Authorization: Bearer` header for write operations (PUT/DELETE) when `API_WRITE_TOKEN` is configured. Read-only requests (GET, POST) pass through the original `Authorization` header unchanged. This separates read and write access at the proxy layer, providing an additional authorization boundary beyond session cookies.
+
+### Security Headers
+
+All responses include security headers from a single shared configuration (`deploy/security-headers.conf`):
+
+- **HSTS** — `Strict-Transport-Security` with 1-year max-age (requires TLS termination upstream)
+- **CSP** — Content Security Policy restricting script/style/image sources
+- **X-Frame-Options** — `SAMEORIGIN` to prevent clickjacking
+- **X-Content-Type-Options** — `nosniff` to prevent MIME-type sniffing
+- **Referrer-Policy** — `strict-origin-when-cross-origin`
+- **Permissions-Policy** — disables geolocation, microphone, and camera APIs
+
+These headers are included at the server level and re-included in any location block that defines its own `add_header` (nginx drops inherited headers in that case).
+
+## Deployment Scenarios
+
+Different deployment contexts call for different auth configurations. Use this table to choose the right mode:
+
+| Scenario | Recommended Mode | Notes |
+|----------|-----------------|-------|
+| Solo homelab | `local` or `none` | Simplest setup; `none` if behind VPN/firewall already |
+| Homelab team (2–5 users) | `oidc` with Authentik or Authelia | Individual accounts, shared access, audit trail |
+| School lab / classroom | `oidc` with school IdP | AD/LDAP-backed OIDC for per-student access |
+| Enterprise / multi-team | `oidc` with organisation IdP | Enforce MFA via IdP policies, centralised user management |
+
+### When Local Mode Is Insufficient
+
+Local auth provides a single shared credential. Consider switching to OIDC when:
+
+- **Multiple users** need individual accounts (local mode has one username/password)
+- **Audit requirements** demand per-user attribution (auth logs show the same pseudonymised ID for all local users)
+- **MFA is required** (local mode has no MFA support; OIDC delegates MFA to the IdP)
+
+### Active Directory Integration
+
+Organisations using Active Directory can integrate via OIDC without exposing LDAP directly:
+
+- **Keycloak**: Configure an LDAP User Federation provider pointing at your AD domain controller, then create an OIDC client for Rackula
+- **Microsoft Entra ID**: Use `RACKULA_OIDC_ISSUER=https://login.microsoftonline.com/<tenant-id>/v2.0` — Entra natively federates with on-premises AD via Entra Connect
+- **Authentik**: Add an LDAP Source under Directory → Federation to sync AD users, then configure the OIDC provider as described in the setup guide above
+
+### Audit Logging
+
+All auth modes emit structured log events via `auth-logger.ts`:
+
+- `auth.login.success` / `auth.login.failure` — login attempts with pseudonymised user IDs
+- `auth.logout` — explicit session termination
+- `auth.session.invalid` — expired or tampered session detected
+- `auth.denied` — access denied to protected route
+
+Events are written to stdout as structured JSON, compatible with log aggregators (Loki, ELK, Datadog). User identifiers are HMAC-pseudonymised by default; configure `RACKULA_AUTH_LOG_HASH_KEY` to control the hash key.
 
 ## Troubleshooting
 
