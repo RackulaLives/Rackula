@@ -64,8 +64,8 @@ When auth is enabled (`oidc` or `local`), the following routes remain publicly a
 
 | Route | Purpose |
 |-------|---------|
-| `/auth/login`, `/auth/callback`, `/auth/logout` | Browser-facing auth flow |
-| `/api/auth/login`, `/api/auth/callback`, `/api/auth/logout` | API compatibility auth routes |
+| `/auth/login`, `/auth/callback`, `/auth/check`, `/auth/logout` | Browser-facing auth flow |
+| `/api/auth/login`, `/api/auth/callback`, `/api/auth/check`, `/api/auth/logout` | API compatibility auth routes |
 | `/health`, `/api/health` | Container and API health checks |
 
 All other routes require a valid session. Unauthenticated requests are handled differently depending on the route type:
@@ -319,7 +319,7 @@ Follow this testing checklist to verify authentication is working correctly:
 
 1. **Visit Rackula homepage (unauthenticated):**
    - URL: `https://your-rackula-domain.com/`
-   - Expected: App loads, read-only mode (can design layouts but not save)
+   - Expected: Redirect to `/auth/login` (when `RACKULA_AUTH_MODE` is `oidc` or `local`, unauthenticated requests are redirected to the login page)
 
 2. **Access login endpoint:**
    - URL: `https://your-rackula-domain.com/auth/login`
