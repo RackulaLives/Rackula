@@ -15,7 +15,7 @@ test.describe("Custom Device Height (Issue #166)", () => {
     page,
   }) => {
     // 1. Open Add Device form
-    const addDeviceButton = page.locator('[aria-label="Add custom device"]');
+    const addDeviceButton = page.locator('[data-testid="btn-create-custom-device"]');
     await addDeviceButton.click();
 
     // 2. Fill in custom device details
@@ -24,7 +24,7 @@ test.describe("Custom Device Height (Issue #166)", () => {
     await page.selectOption("#device-category", "server");
 
     // 3. Submit the form
-    await page.click('button:has-text("Add Device")');
+    await page.click('button:has-text("Add")');
 
     // 4. Verify custom device appears in palette
     const customDevice = page.locator(
@@ -52,7 +52,7 @@ test.describe("Custom Device Height (Issue #166)", () => {
     page,
   }) => {
     // 1. Open Add Device form
-    const addDeviceButton = page.locator('[aria-label="Add custom device"]');
+    const addDeviceButton = page.locator('[data-testid="btn-create-custom-device"]');
     await addDeviceButton.click();
 
     // 2. Create a custom 2U device
@@ -61,7 +61,7 @@ test.describe("Custom Device Height (Issue #166)", () => {
     await page.selectOption("#device-category", "storage");
 
     // 3. Submit the form
-    await page.click('button:has-text("Add Device")');
+    await page.click('button:has-text("Add")');
 
     // 4. Drag device to rack (new device is last in list)
     const deviceCount = await page.locator(".device-palette-item").count();

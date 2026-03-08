@@ -11,8 +11,8 @@ test.describe("Device Custom Names", () => {
     await dragDeviceToRack(page);
     await expect(page.locator(".rack-device").first()).toBeVisible();
 
-    // Click on the device to select it (use the foreignObject drag-handle inside)
-    await page.locator(".rack-device .drag-handle").first().click();
+    // Click on the device to select it
+    await page.locator(".rack-device").first().click();
 
     // Wait for edit panel drawer to open
     await expect(page.locator("aside.drawer-right.open")).toBeVisible();
