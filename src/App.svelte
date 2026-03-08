@@ -1187,8 +1187,20 @@
     }
   }
 
+  // Flush any pending session save debounce immediately
+  function flushSessionSave() {
+    if (saveDebounceTimer && layoutStore.hasRack) {
+      clearTimeout(saveDebounceTimer);
+      saveDebounceTimer = null;
+      saveSession(layoutStore.layout);
+    }
+  }
+
   // Beforeunload handler for unsaved changes
   function handleBeforeUnload(event: BeforeUnloadEvent) {
+    // Flush pending session save before the page unloads
+    flushSessionSave();
+
     if (uiStore.warnOnUnsavedChanges && layoutStore.isDirty) {
       event.preventDefault();
       // Modern browsers ignore custom messages, but we set it for legacy support
@@ -1198,6 +1210,15 @@
   }
 
   onMount(() => {
+    // Flush pending session save when page becomes hidden (tab close, navigate away)
+    // visibilitychange fires reliably on mobile unlike beforeunload
+    function handleVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        flushSessionSave();
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     // Apply theme from storage (already done in ui store init)
     // Session restore will be implemented in a later phase
 
@@ -1220,6 +1241,10 @@
     if (envPrefix) {
       document.title = `${envPrefix}${document.title}`;
     }
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   });
 
   // Watch for device selection changes to trigger mobile bottom sheet

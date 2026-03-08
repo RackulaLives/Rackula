@@ -5,6 +5,7 @@ import {
   SMALL_RACK_SHARE,
   STANDARD_RACK_SHARE,
   clickSave,
+  dragDeviceToRack,
 } from "./helpers";
 
 test.describe("Persistence", () => {
@@ -66,11 +67,26 @@ test.describe("Persistence", () => {
     // SKIP: File chooser interaction unreliable in E2E tests
   });
 
-  // Session auto-save is planned for a later phase (see App.svelte comment)
-  test.skip("session storage preserves work on refresh", async ({
-    page: _page,
-  }) => {
-    // Skipped — session auto-save not yet implemented
+  test("session storage preserves work on refresh", async ({ page }) => {
+    // Place a device so we have something to verify after reload
+    await dragDeviceToRack(page);
+    await expect(page.locator(".rack-device").first()).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Wait for the 1s debounce to flush session save
+    await page.waitForTimeout(1500);
+
+    // Reload the page — beforeunload/visibilitychange will also flush
+    await page.reload();
+
+    // Session restore should show the rack with our placed device
+    await expect(page.locator(".rack-container").first()).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.locator(".rack-device").first()).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("unsaved changes warning on close attempt", async ({ page }) => {
