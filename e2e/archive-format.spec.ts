@@ -51,7 +51,7 @@ test.describe("Archive Format", () => {
     await gotoWithRack(page, STANDARD_RACK_SHARE);
   });
 
-  test("save creates .Rackula.zip file", async ({ page }) => {
+  test("save creates ZIP file", async ({ page }) => {
     await dragDeviceToRack(page);
     await expect(page.locator(".rack-device").first()).toBeVisible({
       timeout: 5000,
@@ -66,8 +66,8 @@ test.describe("Archive Format", () => {
     // Wait for download
     const download = await downloadPromise;
 
-    // Check filename has .Rackula.zip extension
-    expect(download.suggestedFilename()).toMatch(/\.Rackula\.zip$/);
+    // Check filename has .zip extension
+    expect(download.suggestedFilename()).toMatch(/\.zip$/);
 
     // Save and verify contents
     const downloadPath = test.info().outputPath(download.suggestedFilename());
@@ -81,7 +81,7 @@ test.describe("Archive Format", () => {
     expect(files.some((f) => f.endsWith(".yaml"))).toBe(true);
   });
 
-  test.skip("load saved .Rackula.zip restores layout", async ({ page }) => {
+  test.skip("load saved ZIP restores layout", async ({ page }) => {
     // SKIP: File chooser interaction unreliable in E2E tests
     await dragDeviceToRack(page);
     await expect(page.locator(".rack-device")).toBeVisible({ timeout: 5000 });

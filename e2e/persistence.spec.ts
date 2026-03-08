@@ -21,7 +21,7 @@ test.describe("Persistence", () => {
 
     // Wait for download
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/\.Rackula\.zip$/);
+    expect(download.suggestedFilename()).toMatch(/\.zip$/);
   });
 
   test("saved file contains correct layout structure", async ({ page }) => {
