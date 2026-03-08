@@ -356,6 +356,7 @@ test.describe("Long-Press Gesture", () => {
       const startPos = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
       await page.mouse.move(startPos.x, startPos.y);
       await page.mouse.down();
+      // 600ms simulates Android long-press threshold — timing is the behaviour under test
       await page.waitForTimeout(600);
       await page.mouse.up();
     }

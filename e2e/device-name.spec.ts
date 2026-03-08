@@ -122,7 +122,6 @@ test.describe("Device Custom Names", () => {
 
     // Undo (Ctrl+Z)
     await page.keyboard.press("Control+z");
-    await page.waitForTimeout(300);
 
     // Should restore original name
     await expect(page.locator(".rack-device .device-name").first()).toHaveText(
@@ -131,7 +130,6 @@ test.describe("Device Custom Names", () => {
 
     // Redo (Ctrl+Shift+Z)
     await page.keyboard.press("Control+Shift+z");
-    await page.waitForTimeout(300);
 
     // Should restore custom name
     await expect(page.locator(".rack-device .device-name").first()).toHaveText(

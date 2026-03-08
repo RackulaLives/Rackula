@@ -46,18 +46,16 @@ test.describe("View Reset on Rack Changes", () => {
     await page.click('button:has-text("Create")');
     await expect(page.locator(".rack-container").first()).toBeVisible();
 
-    // Wait for the view to reset
-    await page.waitForTimeout(300);
-
-    const transformAfter = await getPanzoomTransform(page);
-    expect(transformAfter).toBeTruthy();
-
-    if (transformBefore && transformAfter) {
-      const viewChanged =
-        transformAfter.x !== transformBefore.x ||
-        transformAfter.y !== transformBefore.y;
-      expect(viewChanged).toBe(true);
-    }
+    // Wait for the view to reset (transform should change from panned position)
+    await expect
+      .poll(async () => {
+        const t = await getPanzoomTransform(page);
+        return (
+          t !== null &&
+          (t.x !== transformBefore!.x || t.y !== transformBefore!.y)
+        );
+      })
+      .toBeTruthy();
   });
 
   test("view resets when resizing rack height in EditPanel", async ({
@@ -83,16 +81,16 @@ test.describe("View Reset on Rack Changes", () => {
     // Click on a different height preset (e.g., 42U)
     await page.locator('.drawer-right .preset-btn:has-text("42U")').click();
 
-    await page.waitForTimeout(300);
-
-    const transformAfter = await getPanzoomTransform(page);
-    expect(transformAfter).toBeTruthy();
-    if (transformBefore && transformAfter) {
-      const viewChanged =
-        transformAfter.x !== transformBefore.x ||
-        transformAfter.y !== transformBefore.y;
-      expect(viewChanged).toBe(true);
-    }
+    // Wait for the view to reset (transform should change from panned position)
+    await expect
+      .poll(async () => {
+        const t = await getPanzoomTransform(page);
+        return (
+          t !== null &&
+          (t.x !== transformBefore!.x || t.y !== transformBefore!.y)
+        );
+      })
+      .toBeTruthy();
   });
 
   test("view resets when resizing rack with numeric height input", async ({
@@ -119,15 +117,15 @@ test.describe("View Reset on Rack Changes", () => {
     await page.locator(".drawer-right #rack-height").fill("36");
     await page.locator(".drawer-right #rack-height").blur();
 
-    await page.waitForTimeout(300);
-
-    const transformAfter = await getPanzoomTransform(page);
-    expect(transformAfter).toBeTruthy();
-    if (transformBefore && transformAfter) {
-      const viewChanged =
-        transformAfter.x !== transformBefore.x ||
-        transformAfter.y !== transformBefore.y;
-      expect(viewChanged).toBe(true);
-    }
+    // Wait for the view to reset (transform should change from panned position)
+    await expect
+      .poll(async () => {
+        const t = await getPanzoomTransform(page);
+        return (
+          t !== null &&
+          (t.x !== transformBefore!.x || t.y !== transformBefore!.y)
+        );
+      })
+      .toBeTruthy();
   });
 });

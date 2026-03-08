@@ -61,8 +61,8 @@ async function setDeviceIp(page: Page, ip: string, waitForSave = true) {
   if (waitForSave && ip.trim()) {
     await waitForSaved(page, "ip");
   } else {
-    // For empty values, just wait a bit for the blur handler
-    await page.waitForTimeout(200);
+    // For empty/whitespace values, wait for blur handler to clear the field
+    await expect(ipInput).toHaveValue("");
   }
 }
 
@@ -76,7 +76,8 @@ async function setDeviceNotes(page: Page, notes: string, waitForSave = true) {
   if (waitForSave && notes.trim()) {
     await waitForSaved(page, "notes");
   } else {
-    await page.waitForTimeout(200);
+    // For empty/whitespace values, wait for blur handler to clear the field
+    await expect(notesInput).toHaveValue("");
   }
 }
 
@@ -90,7 +91,8 @@ async function setDeviceName(page: Page, name: string) {
   await expect(nameInput).toBeVisible();
   await nameInput.fill(name);
   await nameInput.press("Enter");
-  await page.waitForTimeout(100);
+  // Wait for edit mode to close (input disappears)
+  await expect(nameInput).not.toBeVisible();
 }
 
 /**
@@ -105,7 +107,8 @@ async function setDeviceColour(page: Page, colour: string) {
   const hexInput = page.locator('.colour-picker-container input[type="text"]');
   await hexInput.fill(colour);
   await hexInput.blur();
-  await page.waitForTimeout(100);
+  // Wait for colour to be applied
+  await expect(hexInput).toHaveValue(colour);
 }
 
 /**
