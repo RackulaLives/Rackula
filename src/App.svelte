@@ -133,6 +133,11 @@
   let _currentLayoutId = $state<string | undefined>(undefined);
   let saveStatus = $state<SaveStatusType>("idle");
 
+  // Circuit breaker: stops auto-save retries after consecutive failures (#1088)
+  // Prevents infinite bounce when health check passes but layout endpoints fail.
+  const MAX_SAVE_FAILURES = 3;
+  let _consecutiveSaveFailures = 0;
+
   // Dialog state - now managed by dialogStore
   // Legacy local aliases for gradual migration
   let newRackFormOpen = $derived(dialogStore.isOpen("newRack"));
@@ -608,6 +613,36 @@
   }
 
   /**
+   * Mark API as unavailable and open circuit breaker after repeated failures.
+   * Shared by both PersistenceError and unknown error branches.
+   */
+  function handleSaveFailure(
+    notify: boolean,
+    action?: { label: string; onClick: () => void },
+  ) {
+    _consecutiveSaveFailures++;
+    setApiAvailable(false);
+    saveStatus = "offline";
+    if (_consecutiveSaveFailures >= MAX_SAVE_FAILURES) {
+      persistenceDebug.api(
+        "circuit breaker open after %d consecutive failures — auto-save paused",
+        _consecutiveSaveFailures,
+      );
+      toastStore.showToast(
+        "Server save unavailable — working offline. Use Ctrl+S to retry.",
+        "warning",
+      );
+    } else if (notify) {
+      toastStore.showToast(
+        "Save failed — backend unavailable",
+        "error",
+        undefined,
+        action,
+      );
+    }
+  }
+
+  /**
    * Classify a persistence error and update saveStatus / API availability.
    * @param e - The caught error (unknown type from catch block)
    * @param notify - Show toast messages (true for manual saves, false for auto-save)
@@ -624,30 +659,14 @@
         e.statusCode === 404 ||
         (typeof e.statusCode === "number" && e.statusCode >= 500)
       ) {
-        setApiAvailable(false);
-        saveStatus = "offline";
-        if (notify)
-          toastStore.showToast(
-            "Save failed — backend unavailable",
-            "error",
-            undefined,
-            action,
-          );
+        handleSaveFailure(notify, action);
       } else {
         saveStatus = "error";
         if (notify)
           toastStore.showToast("Save failed", "error", undefined, action);
       }
     } else {
-      setApiAvailable(false);
-      saveStatus = "offline";
-      if (notify)
-        toastStore.showToast(
-          "Save failed — backend unavailable",
-          "error",
-          undefined,
-          action,
-        );
+      handleSaveFailure(notify, action);
     }
   }
 
@@ -666,6 +685,7 @@
       const snapshot = structuredClone($state.snapshot(layoutStore.layout));
       const newId = await saveLayoutToServer(snapshot);
       _currentLayoutId = newId;
+      _consecutiveSaveFailures = 0; // Reset circuit breaker on success
       saveStatus = "saved";
       layoutStore.markClean();
       clearSession();
@@ -1501,6 +1521,10 @@
     // Check runtime API availability instead of build-time flag
     if (!isApiAvailable()) return;
 
+    // Circuit breaker: stop auto-saving after repeated failures (#1088)
+    // Manual save (Ctrl+S) bypasses this and resets the counter on success.
+    if (_consecutiveSaveFailures >= MAX_SAVE_FAILURES) return;
+
     const layout = layoutStore.layout;
     if (!layout.name) return;
 
@@ -1527,6 +1551,7 @@
         // UUID comes from layout metadata now, not passed as parameter
         const newId = await saveLayoutToServer(snapshot);
         _currentLayoutId = newId;
+        _consecutiveSaveFailures = 0; // Reset circuit breaker on success
         saveStatus = "saved";
 
         // Clear localStorage after successful server save to prevent stale data (#1012)
@@ -1559,11 +1584,15 @@
     // hasEverConnectedToApi() in future code paths, so check both signals.
     if (saveStatus === "disabled") return;
 
+    // Don't poll if circuit breaker is open — user must retry manually (#1088)
+    if (_consecutiveSaveFailures >= MAX_SAVE_FAILURES) return;
+
     persistenceDebug.health("API offline, starting health check interval");
     const intervalId = setInterval(async () => {
       const healthy = await checkApiHealth();
       if (healthy) {
         persistenceDebug.health("API health check passed, marking available");
+        _consecutiveSaveFailures = 0; // Reset circuit breaker on recovery
         setApiAvailable(true);
         saveStatus = "idle";
       } else {
