@@ -39,12 +39,12 @@ test.describe("Position Migration", () => {
     );
 
     // Verify rack is visible with devices
-    await expect(page.locator(".placed-device").first()).toBeVisible();
+    await expect(page.locator(".rack-device").first()).toBeVisible();
 
     // The server at U10 should now be at internal position 60
     // The switch at U1 should now be at internal position 6
     // Visual verification: both devices should be visible in the rack
-    const devices = await page.locator(".placed-device").count();
+    const devices = await page.locator(".rack-device").count();
     expect(devices).toBe(2);
   });
 
@@ -121,7 +121,7 @@ test.describe("Position Migration", () => {
     });
 
     // Verify devices are still in correct positions (not double-migrated)
-    const devices = await page.locator(".placed-device").count();
+    const devices = await page.locator(".rack-device").count();
     expect(devices).toBe(2);
 
     // Layout name should still be preserved

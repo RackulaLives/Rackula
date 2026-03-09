@@ -46,7 +46,7 @@ test.describe("Device Images", () => {
 
   test("can upload front image when adding device", async ({ page }) => {
     // Click add device button in sidebar
-    await page.click('button:has-text("Add Device")');
+    await page.click('button:has-text("Add")');
 
     const dialog = page.locator(".dialog");
     await expect(dialog).toBeVisible();

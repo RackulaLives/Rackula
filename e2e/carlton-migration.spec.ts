@@ -121,7 +121,8 @@ test.describe("Carlton Migration (#879)", () => {
     const download = await downloadPromise;
 
     // Verify filename has correct extension
-    expect(download.suggestedFilename()).toMatch(/\.Rackula\.zip$/);
+    expect(download.suggestedFilename()).toContain("5123home");
+    expect(download.suggestedFilename()).toMatch(/\.zip$/);
 
     // Save to stable test output location
     const savedPath = test.info().outputPath("carlton-resaved.Rackula.zip");
