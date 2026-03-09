@@ -35,7 +35,7 @@
     "deps:status": "npm outdated || true"
   },
   "devDependencies": {
-    "@eslint/compat": "^2.0.2",
+    "@eslint/compat": "^2.0.3",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
     "@stryker-mutator/core": "^9.6.0",
@@ -51,9 +51,9 @@
     "@types/umami-browser": "^2.18.0",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/eslint-plugin": "^1.6.10",
-    "eslint": "^10.0.2",
+    "eslint": "^10.0.3",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-svelte": "^3.15.0",
+    "eslint-plugin-svelte": "^3.15.1",
     "eslint-plugin-testing-library": "^7.16.0",
     "globals": "^17.4.0",
     "happy-dom": "^20.8.3",
