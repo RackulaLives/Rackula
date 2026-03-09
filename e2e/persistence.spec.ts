@@ -74,10 +74,8 @@ test.describe("Persistence", () => {
       timeout: 5000,
     });
 
-    // Wait for the 1s debounce to flush session save
-    await page.waitForTimeout(1500);
-
-    // Reload the page — beforeunload/visibilitychange will also flush
+    // Reload immediately while the 1s debounce is still pending —
+    // this exercises the beforeunload/visibilitychange flush path
     await page.reload();
 
     // Session restore should show the rack with our placed device
