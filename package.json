@@ -91,7 +91,7 @@
     "paneforge": "^1.0.2",
     "panzoom": "^9.4.3",
     "qrcode": "^1.5.4",
-    "simple-icons": "^16.10.0",
+    "simple-icons": "^16.11.0",
     "vaul-svelte": "^1.0.0-next.7",
     "zod": "^4.3.6"
   }
