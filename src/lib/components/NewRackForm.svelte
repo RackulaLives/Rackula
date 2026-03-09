@@ -135,6 +135,7 @@
       <input
         type="text"
         id="rack-name"
+        data-testid="input-rack-name"
         class="input-field"
         bind:value={name}
         placeholder="e.g., Main Server Rack"
@@ -153,6 +154,7 @@
             <input
               type="radio"
               name="rack-width"
+              data-testid="radio-width-{width}"
               value={width}
               checked={selectedWidth === width}
               onchange={() => (selectedWidth = width)}
@@ -170,6 +172,7 @@
           <button
             type="button"
             class="height-btn"
+            data-testid="btn-height-{height}"
             class:selected={!isCustomHeight && selectedHeight === height}
             onclick={() => selectPresetHeight(height)}
           >
@@ -179,6 +182,7 @@
         <button
           type="button"
           class="height-btn"
+          data-testid="btn-height-custom"
           class:selected={isCustomHeight}
           onclick={selectCustomHeight}
         >
@@ -191,6 +195,7 @@
           <input
             type="number"
             id="custom-height"
+            data-testid="input-custom-height"
             class="input-field"
             aria-label="Custom height"
             bind:value={customHeight}
@@ -207,10 +212,10 @@
     </div>
 
     <div class="form-actions">
-      <button type="button" class="btn btn-secondary" onclick={handleCancel}>
+      <button type="button" class="btn btn-secondary" data-testid="btn-cancel-rack" onclick={handleCancel}>
         Cancel
       </button>
-      <button type="submit" class="btn btn-primary" onclick={handleSubmit}>
+      <button type="submit" class="btn btn-primary" data-testid="btn-create-rack" onclick={handleSubmit}>
         Create
       </button>
     </div>

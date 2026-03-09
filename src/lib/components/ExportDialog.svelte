@@ -389,7 +389,7 @@
   <div class="export-form">
     <div class="form-group">
       <label for="export-format">Format</label>
-      <select id="export-format" bind:value={format}>
+      <select id="export-format" data-testid="select-export-format" bind:value={format}>
         <option value="png">PNG</option>
         <option value="jpeg">JPEG</option>
         <option value="svg">SVG</option>
@@ -457,7 +457,7 @@
 
       <div class="form-group">
         <label for="export-view">View</label>
-        <select id="export-view" bind:value={exportView}>
+        <select id="export-view" data-testid="select-export-view" bind:value={exportView}>
           <option value="both">Front & Rear (Side-by-Side)</option>
           <option value="front">Front Only</option>
           <option value="rear">Rear Only</option>
@@ -468,6 +468,7 @@
         <label for="export-theme">Theme</label>
         <select
           id="export-theme"
+          data-testid="select-export-theme"
           bind:value={background}
           disabled={transparent}
         >
@@ -489,6 +490,7 @@
       <div class="form-group checkbox-group">
         <Checkbox
           id="include-legend"
+          data-testid="checkbox-export-legend"
           bind:checked={includeLegend}
           label="Include legend"
         />
@@ -585,6 +587,7 @@
     <button
       type="button"
       class="btn-secondary"
+      data-testid="btn-export-cancel"
       onclick={handleCancel}
       disabled={isExporting}
     >
@@ -593,6 +596,7 @@
     <button
       type="button"
       class="btn-primary"
+      data-testid="btn-export-confirm"
       onclick={handleExport}
       disabled={!canExport || isExporting}
     >

@@ -350,7 +350,7 @@
       <button type="button" class="btn btn-secondary" onclick={handleCancel}>
         Cancel
       </button>
-      <button type="submit" class="btn btn-primary" onclick={handleSubmit}>
+      <button type="submit" class="btn btn-primary" data-testid="btn-add-device" onclick={handleSubmit}>
         Add
       </button>
     </div>

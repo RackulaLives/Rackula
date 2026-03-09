@@ -59,12 +59,13 @@
 		<p class="message">{message}</p>
 
 		<div class="actions">
-			<button type="button" class="btn btn-secondary" onclick={handleCancel}>
+			<button type="button" class="btn btn-secondary" data-testid="btn-cancel-confirm" onclick={handleCancel}>
 				{cancelLabel}
 			</button>
 			<button
 				type="button"
 				class="btn {destructive ? 'btn-destructive' : 'btn-primary'}"
+				data-testid="btn-confirm-action"
 				onclick={handleConfirm}
 			>
 				{confirmLabel}

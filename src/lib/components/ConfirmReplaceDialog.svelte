@@ -46,13 +46,13 @@
       <Dialog.Description class="message">{message}</Dialog.Description>
 
       <div class="actions">
-        <button type="button" class="btn btn-secondary" onclick={onCancel}>
+        <button type="button" class="btn btn-secondary" data-testid="btn-cancel-replace" onclick={onCancel}>
           Cancel
         </button>
-        <button type="button" class="btn btn-primary" onclick={onSaveFirst}>
+        <button type="button" class="btn btn-primary" data-testid="btn-save-first" onclick={onSaveFirst}>
           Save First
         </button>
-        <button type="button" class="btn btn-destructive" onclick={onReplace}>
+        <button type="button" class="btn btn-destructive" data-testid="btn-replace-rack" onclick={onReplace}>
           Replace
         </button>
       </div>

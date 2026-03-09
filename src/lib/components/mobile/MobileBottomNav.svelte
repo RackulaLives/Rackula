@@ -36,6 +36,7 @@
       class="nav-tab"
       class:active={activeTab === "file"}
       type="button"
+      data-testid="nav-tab-file"
       aria-current={activeTab === "file" ? "page" : undefined}
       onclick={onfileclick}
     >
@@ -47,6 +48,7 @@
       class="nav-tab"
       class:active={activeTab === "view"}
       type="button"
+      data-testid="nav-tab-view"
       aria-current={activeTab === "view" ? "page" : undefined}
       onclick={onviewclick}
     >
@@ -58,6 +60,7 @@
       class="nav-tab"
       class:active={activeTab === "devices"}
       type="button"
+      data-testid="nav-tab-devices"
       aria-current={activeTab === "devices" ? "page" : undefined}
       onclick={ondevicesclick}
     >
