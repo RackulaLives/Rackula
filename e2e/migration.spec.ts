@@ -1,7 +1,7 @@
 import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
 import path from "path";
-import { gotoWithRack } from "./helpers";
+import { gotoWithRack, PLATFORM_MODIFIER } from "./helpers";
 
 test.describe("Position Migration", () => {
   const fixturePath = path.join(
@@ -11,16 +11,13 @@ test.describe("Position Migration", () => {
     "Legacy Test Layout.Rackula.zip",
   );
 
-  // Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux)
-  const modifier = process.platform === "darwin" ? "Meta" : "Control";
-
   /**
    * Helper to load a file using keyboard shortcut (Ctrl/Cmd+O)
    * More stable than clicking through dropdown menu
    */
   async function loadFileViaKeyboard(page: Page, filePath: string) {
     const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press(`${modifier}+o`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+o`);
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(filePath);
   }
@@ -75,7 +72,7 @@ test.describe("Position Migration", () => {
 
     // Save the layout
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press(`${modifier}+s`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
     const download = await downloadPromise;
 
     // Verify file was downloaded with correct name
@@ -99,7 +96,7 @@ test.describe("Position Migration", () => {
 
     // Save the layout
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press(`${modifier}+s`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
     const download = await downloadPromise;
 
     // Save the downloaded file to a stable test output location
