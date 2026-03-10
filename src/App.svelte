@@ -136,7 +136,7 @@
   // Circuit breaker: stops auto-save retries after consecutive failures (#1088)
   // Prevents infinite bounce when health check passes but layout endpoints fail.
   const MAX_SAVE_FAILURES = 3;
-  let _consecutiveSaveFailures = 0;
+  let _consecutiveSaveFailures = $state(0);
 
   // Dialog state - now managed by dialogStore
   // Legacy local aliases for gradual migration
@@ -1592,7 +1592,6 @@
       const healthy = await checkApiHealth();
       if (healthy) {
         persistenceDebug.health("API health check passed, marking available");
-        _consecutiveSaveFailures = 0; // Reset circuit breaker on recovery
         setApiAvailable(true);
         saveStatus = "idle";
       } else {
