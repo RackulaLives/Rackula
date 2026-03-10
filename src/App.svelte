@@ -571,7 +571,10 @@
     if (shouldShowCleanupPrompt("save")) {
       return;
     }
-    if (isApiAvailable()) {
+    // Try server save if we've ever had API connectivity — even when currently
+    // offline, a manual Ctrl+S should retry the server (closes circuit breaker
+    // on success). Only fall back to ZIP when no API has ever been detected.
+    if (isApiAvailable() || hasEverConnectedToApi()) {
       handleSaveToServer();
     } else {
       handleSaveAsArchive();
@@ -686,6 +689,7 @@
       const newId = await saveLayoutToServer(snapshot);
       _currentLayoutId = newId;
       _consecutiveSaveFailures = 0; // Reset circuit breaker on success
+      setApiAvailable(true); // Re-enable auto-save after successful manual retry
       saveStatus = "saved";
       layoutStore.markClean();
       clearSession();
