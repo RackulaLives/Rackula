@@ -509,8 +509,11 @@ async function extractOldFormatZip(
   );
 
   for (const imagePath of imageFiles) {
-    // Normalize path: remove "images/" prefix if present
-    const normalizedPath = imagePath.replace(/^images\//, "");
+    // Normalize path: strip the detected assets prefix (or legacy "images/")
+    const prefix = format.assetsPath ?? "images/";
+    const normalizedPath = imagePath.startsWith(prefix)
+      ? imagePath.substring(prefix.length)
+      : imagePath;
     const parts = normalizedPath.split("/");
 
     // Expected structure: [slug]/[filename].[ext]

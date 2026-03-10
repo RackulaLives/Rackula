@@ -108,6 +108,7 @@ test.describe("Position Migration", () => {
 
     // Reload with a fresh rack state
     await gotoWithRack(page);
+    await expect(page.locator(".rack-container").first()).toBeVisible();
 
     // Load the saved file via keyboard shortcut
     await loadFileViaKeyboard(page, savedPath);
