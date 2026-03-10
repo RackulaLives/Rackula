@@ -82,6 +82,7 @@ test.describe("Persistence", () => {
 
     // Reload with a fresh rack (no devices)
     await gotoWithRack(page, MEDIUM_RACK_SHARE);
+    await expect(page.locator(".rack-device")).not.toBeVisible();
 
     // Load the saved file via keyboard shortcut
     const fileChooserPromise = page.waitForEvent("filechooser");
