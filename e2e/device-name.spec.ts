@@ -89,7 +89,7 @@ test.describe("Device Custom Names", () => {
     );
   });
 
-  test.skip("undo/redo works for display name changes", async ({ page }) => {
+  test("undo/redo works for display name changes", async ({ page }) => {
     // Place a device
     await dragDeviceToRack(page);
     await expect(page.locator(".rack-device").first()).toBeVisible();
@@ -117,8 +117,9 @@ test.describe("Device Custom Names", () => {
       "Custom Name",
     );
 
-    // Click on canvas area to ensure keyboard shortcuts work (not in input)
-    await page.locator(".canvas").first().click();
+    // Deselect device to ensure keyboard shortcuts target the app, not the edit panel
+    await page.keyboard.press("Escape");
+    await expect(page.locator("aside.drawer-right.open")).not.toBeVisible();
 
     // Undo (Ctrl+Z)
     await page.keyboard.press("Control+z");

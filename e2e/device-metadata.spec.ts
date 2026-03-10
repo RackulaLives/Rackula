@@ -5,6 +5,8 @@ import {
   dragDeviceToRack,
   selectDevice,
   deselectDevice,
+  clickNewRack,
+  completeWizardWithClicks,
 } from "./helpers";
 
 /**
@@ -288,14 +290,33 @@ test.describe("Device Metadata Persistence", () => {
       expect(ip).toBe("");
     });
 
-    // Skip multi-rack test for now - complex UI interaction with rack list button
-    // The core metadata persistence is tested by the other tests
-    test.skip("metadata persists across different racks", async ({
-      page: _page,
-    }) => {
-      // This test requires clicking the "New Rack" button in the rack list
-      // which has a different selector than expected. Skipping for now.
-      // The core metadata persistence behavior is validated by the other tests.
+    test("metadata persists across different racks", async ({ page }) => {
+      // Add a device to the first rack and set metadata
+      await dragDeviceToRack(page);
+      await expect(page.locator(".rack-device").first()).toBeVisible();
+
+      await selectDevice(page, 0);
+      await setDeviceIp(page, TEST_METADATA.ip);
+      await setDeviceName(page, TEST_METADATA.name);
+      await deselectDevice(page);
+
+      // Create a second rack via replace flow (single-rack mode)
+      await clickNewRack(page);
+      await page.click('[data-testid="btn-replace-rack"]');
+      await completeWizardWithClicks(page, { name: "Second Rack", height: 24 });
+
+      // Add a device to the second rack
+      await dragDeviceToRack(page);
+      await expect(page.locator(".rack-device").first()).toBeVisible();
+
+      await selectDevice(page, 0);
+      await setDeviceIp(page, TEST_METADATA_2.ip);
+      await setDeviceName(page, TEST_METADATA_2.name);
+
+      // Verify the second rack's device has its own metadata
+      const metadata = await getDeviceMetadata(page);
+      expect(metadata.ip).toBe(TEST_METADATA_2.ip);
+      expect(metadata.name).toBe(TEST_METADATA_2.name);
     });
   });
 
