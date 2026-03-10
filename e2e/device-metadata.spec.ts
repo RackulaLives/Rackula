@@ -7,6 +7,7 @@ import {
   deselectDevice,
   clickNewRack,
   completeWizardWithClicks,
+  PLATFORM_MODIFIER,
 } from "./helpers";
 
 /**
@@ -35,8 +36,6 @@ const TEST_METADATA_2 = {
   colour: "#6BCB77",
 };
 
-// Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux)
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
 /**
  * Helper to wait for the saved indicator after a blur
@@ -337,7 +336,7 @@ test.describe("Device Metadata Persistence", () => {
 
       // Trigger save and capture download (use platform-aware modifier)
       const downloadPromise = page.waitForEvent("download");
-      await page.keyboard.press(`${modifier}+s`);
+      await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
       const download = await downloadPromise;
 
       // Get the downloaded file

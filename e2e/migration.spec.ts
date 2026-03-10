@@ -1,6 +1,6 @@
 import { test, expect } from "./helpers/base-test";
 import path from "path";
-import { gotoWithRack, clickLoad } from "./helpers";
+import { gotoWithRack, clickLoad, PLATFORM_MODIFIER } from "./helpers";
 
 test.describe("Position Migration", () => {
   test.beforeEach(async ({ page }) => {
@@ -67,9 +67,8 @@ test.describe("Position Migration", () => {
     });
 
     // Save the layout
-    const modifier = process.platform === "darwin" ? "Meta" : "Control";
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press(`${modifier}+s`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
     const download = await downloadPromise;
 
     // Verify file was downloaded
@@ -98,9 +97,8 @@ test.describe("Position Migration", () => {
     });
 
     // Save the layout
-    const modifier = process.platform === "darwin" ? "Meta" : "Control";
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press(`${modifier}+s`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
     const download = await downloadPromise;
 
     // Save the downloaded file to a stable test output location

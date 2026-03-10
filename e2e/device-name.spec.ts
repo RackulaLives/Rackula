@@ -1,8 +1,5 @@
 import { test, expect } from "./helpers/base-test";
-import { gotoWithRack, dragDeviceToRack } from "./helpers";
-
-// Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux)
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
+import { gotoWithRack, dragDeviceToRack, PLATFORM_MODIFIER } from "./helpers";
 
 test.describe("Device Custom Names", () => {
   test.beforeEach(async ({ page }) => {
@@ -20,15 +17,11 @@ test.describe("Device Custom Names", () => {
     // Wait for edit panel drawer to open
     await expect(page.locator("aside.drawer-right.open")).toBeVisible();
 
-    // Find and click the display name field to start editing
-    const displayNameSection = page.locator(".display-name-section");
-    await expect(displayNameSection).toBeVisible({ timeout: 10000 });
-
-    // Click on the name display to start editing
-    await displayNameSection.locator(".display-name-display").click();
+    // Click the display name button to start editing
+    await page.locator("button.display-name-display").click();
 
     // Input field should appear
-    const nameInput = displayNameSection.locator(".display-name-input");
+    const nameInput = page.locator("input#device-display-name");
     await expect(nameInput).toBeVisible();
 
     // Clear and type new name
@@ -51,11 +44,10 @@ test.describe("Device Custom Names", () => {
 
     // Wait for edit panel to open
     await expect(page.locator("aside.drawer-right.open")).toBeVisible();
-    await expect(page.locator(".display-name-section")).toBeVisible();
 
     // Edit the name
-    await page.locator(".display-name-display").click();
-    const nameInput = page.locator(".display-name-input");
+    await page.locator("button.display-name-display").click();
+    const nameInput = page.locator("input#device-display-name");
     await expect(nameInput).toBeVisible();
     await nameInput.fill("Storage Server");
     await nameInput.press("Enter");
@@ -67,7 +59,7 @@ test.describe("Device Custom Names", () => {
 
     // Save the layout via keyboard shortcut
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press(`${modifier}+s`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
     const download = await downloadPromise;
 
     // Save to stable test output path
@@ -79,7 +71,7 @@ test.describe("Device Custom Names", () => {
 
     // Load the saved file via keyboard shortcut
     const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press(`${modifier}+o`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+o`);
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(savedPath);
 
@@ -107,7 +99,6 @@ test.describe("Device Custom Names", () => {
 
     // Wait for edit panel to open
     await expect(page.locator("aside.drawer-right.open")).toBeVisible();
-    await expect(page.locator(".display-name-section")).toBeVisible();
 
     // Get the original device type name
     const originalName = await page
@@ -116,8 +107,8 @@ test.describe("Device Custom Names", () => {
       .textContent();
 
     // Edit the name
-    await page.locator(".display-name-display").click();
-    const nameInput = page.locator(".display-name-input");
+    await page.locator("button.display-name-display").click();
+    const nameInput = page.locator("input#device-display-name");
     await expect(nameInput).toBeVisible();
     await nameInput.fill("Custom Name");
     await nameInput.press("Enter");
@@ -158,7 +149,6 @@ test.describe("Device Custom Names", () => {
 
     // Wait for edit panel to open
     await expect(page.locator("aside.drawer-right.open")).toBeVisible();
-    await expect(page.locator(".display-name-section")).toBeVisible();
 
     // Get the original device type name
     const originalName = await page
@@ -167,8 +157,8 @@ test.describe("Device Custom Names", () => {
       .textContent();
 
     // Edit the name to something custom
-    await page.locator(".display-name-display").click();
-    let nameInput = page.locator(".display-name-input");
+    await page.locator("button.display-name-display").click();
+    let nameInput = page.locator("input#device-display-name");
     await expect(nameInput).toBeVisible();
     await nameInput.fill("Custom Name");
     await nameInput.press("Enter");
@@ -179,8 +169,8 @@ test.describe("Device Custom Names", () => {
     );
 
     // Click again and clear the name
-    await page.locator(".display-name-display").click();
-    nameInput = page.locator(".display-name-input");
+    await page.locator("button.display-name-display").click();
+    nameInput = page.locator("input#device-display-name");
     await expect(nameInput).toBeVisible();
     await nameInput.fill("");
     await nameInput.press("Enter");

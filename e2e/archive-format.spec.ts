@@ -5,13 +5,11 @@ import JSZip from "jszip";
 import {
   gotoWithRack,
   STANDARD_RACK_SHARE,
+  PLATFORM_MODIFIER,
   dragDeviceToRack,
   clickSave,
   clickLoad,
 } from "./helpers";
-
-// Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux)
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
 test.describe("Archive Format", () => {
   let legacyJsonPath: string;
@@ -92,7 +90,7 @@ test.describe("Archive Format", () => {
 
     // Save via keyboard shortcut
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press(`${modifier}+s`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
     const download = await downloadPromise;
 
     const savedPath = test.info().outputPath("saved-layout.Rackula.zip");
@@ -103,7 +101,7 @@ test.describe("Archive Format", () => {
 
     // Load the saved file via keyboard shortcut
     const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press(`${modifier}+o`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+o`);
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(savedPath);
 

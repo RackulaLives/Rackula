@@ -1,7 +1,7 @@
 import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
 import path from "path";
-import { gotoWithRack } from "./helpers";
+import { gotoWithRack, PLATFORM_MODIFIER } from "./helpers";
 
 /**
  * Carlton Migration Test (#883)
@@ -29,8 +29,6 @@ test.describe("Carlton Migration (#879)", () => {
     "carlton-5123home.Rackula.zip",
   );
 
-  // Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux)
-  const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
   test.beforeEach(async ({ page }) => {
     // Load a rack via share link so the app is in a ready state for file loading
@@ -43,7 +41,7 @@ test.describe("Carlton Migration (#879)", () => {
    */
   async function loadFileViaKeyboard(page: Page, filePath: string) {
     const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press(`${modifier}+o`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+o`);
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(filePath);
   }
@@ -117,7 +115,7 @@ test.describe("Carlton Migration (#879)", () => {
 
     // Save the layout via keyboard shortcut (Ctrl/Cmd+S)
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press(`${modifier}+s`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
     const download = await downloadPromise;
 
     // Verify filename has correct extension

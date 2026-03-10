@@ -38,3 +38,9 @@ export {
 
 // Mobile navigation
 export { openDeviceLibraryFromBottomNav } from "./mobile-navigation";
+
+// Platform utilities
+
+/** Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux) */
+export const PLATFORM_MODIFIER =
+  process.platform === "darwin" ? "Meta" : "Control";

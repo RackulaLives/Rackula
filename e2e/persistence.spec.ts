@@ -4,12 +4,10 @@ import {
   MEDIUM_RACK_SHARE,
   SMALL_RACK_SHARE,
   STANDARD_RACK_SHARE,
+  PLATFORM_MODIFIER,
   clickSave,
   dragDeviceToRack,
 } from "./helpers";
-
-// Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux)
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
 test.describe("Persistence", () => {
   test.beforeEach(async ({ page }) => {
@@ -75,7 +73,7 @@ test.describe("Persistence", () => {
 
     // Save the layout via keyboard shortcut
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press(`${modifier}+s`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
     const download = await downloadPromise;
 
     // Save to stable test output path
@@ -87,7 +85,7 @@ test.describe("Persistence", () => {
 
     // Load the saved file via keyboard shortcut
     const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press(`${modifier}+o`);
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+o`);
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(savedPath);
 
