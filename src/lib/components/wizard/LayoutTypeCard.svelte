@@ -53,6 +53,7 @@
 <button
   type="button"
   class="layout-card"
+  data-testid="btn-layout-{type}"
   class:selected
   class:disabled
   onclick={handleClick}

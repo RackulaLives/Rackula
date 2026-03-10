@@ -46,7 +46,7 @@ test.describe("Device Images", () => {
 
   test("can upload front image when adding device", async ({ page }) => {
     // Click add device button in sidebar
-    await page.click('button:has-text("Add")');
+    await page.click('[data-testid="btn-add-device"]');
 
     const dialog = page.locator(".dialog");
     await expect(dialog).toBeVisible();
@@ -66,7 +66,7 @@ test.describe("Device Images", () => {
     await expect(preview.first()).toBeVisible({ timeout: 5000 });
 
     // Submit the form - click the button inside the dialog
-    await dialog.locator('button:has-text("Add")').click();
+    await dialog.locator('[data-testid="btn-add-device"]').click();
 
     // Device should be added to library
     await expect(

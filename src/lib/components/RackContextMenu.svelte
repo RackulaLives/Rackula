@@ -82,6 +82,7 @@
       {#if onfocus}
         <ContextMenu.Item
           class="context-menu-item"
+          data-testid="ctx-menu-focus"
           onSelect={handleSelect(onfocus)}
         >
           <span class="context-menu-label">Focus</span>

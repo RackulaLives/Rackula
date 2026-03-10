@@ -183,6 +183,7 @@
           <button
             type="button"
             class="preset-btn"
+            data-testid="btn-preset-height-{preset}"
             class:active={rackHeight === preset}
             onclick={() => handlePresetClick(preset)}
           >

@@ -215,7 +215,7 @@ test.describe("Dual-View Export", () => {
     await page.selectOption("#export-view", "both");
 
     const downloadPromise = page.waitForEvent("download");
-    await page.click('button:has-text("Export"):not([aria-label])');
+    await page.click('[data-testid="btn-export-confirm"]');
 
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/\.(png|svg|jpe?g)$/);
@@ -227,7 +227,7 @@ test.describe("Dual-View Export", () => {
     await page.selectOption("#export-view", "front");
 
     const downloadPromise = page.waitForEvent("download");
-    await page.click('button:has-text("Export"):not([aria-label])');
+    await page.click('[data-testid="btn-export-confirm"]');
 
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/\.(png|svg|jpe?g)$/);
@@ -239,7 +239,7 @@ test.describe("Dual-View Export", () => {
     await page.selectOption("#export-view", "rear");
 
     const downloadPromise = page.waitForEvent("download");
-    await page.click('button:has-text("Export"):not([aria-label])');
+    await page.click('[data-testid="btn-export-confirm"]');
 
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/\.(png|svg|jpe?g)$/);
@@ -254,7 +254,7 @@ test.describe("Dual-View Export", () => {
     await page.selectOption("#export-view", "both");
 
     const downloadPromise = page.waitForEvent("download");
-    await page.click('button:has-text("Export"):not([aria-label])');
+    await page.click('[data-testid="btn-export-confirm"]');
 
     const download = await downloadPromise;
     const stream = await download.createReadStream();

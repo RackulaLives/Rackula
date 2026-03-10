@@ -35,11 +35,11 @@ function resolveHeight(options?: WizardOptions): number {
 async function selectHeight(page: Page, height: number): Promise<void> {
   const presetHeights = [12, 18, 24, 42];
   if (presetHeights.includes(height)) {
-    await page.click(`.height-btn:has-text("${height}U")`);
+    await page.click(`[data-testid="btn-height-${height}"]`);
     return;
   }
 
-  await page.click('.height-btn:has-text("Custom")');
+  await page.click('[data-testid="btn-height-custom"]');
   await page.fill("#custom-height", String(height));
 }
 
@@ -116,22 +116,22 @@ export async function completeWizardWithClicks(
 
   // Select layout type
   if (options?.layout === "bayed") {
-    await page.click('button:has-text("Bayed")');
+    await page.click('[data-testid="btn-layout-bayed"]');
   }
 
   // Click Next
-  await page.click('button:has-text("Next")');
+  await page.click('[data-testid="btn-wizard-next"]');
 
   // Bay count selection for bayed layouts (default is 2)
   if (options?.layout === "bayed" && options.bayCount === 3) {
-    await page.click('.bay-btn:has-text("3 Bays")');
+    await page.click('[data-testid="btn-bay-3"]');
   }
 
   // Select height (preset or custom)
   await selectHeight(page, resolveHeight(options));
 
   // Click Create
-  await page.click('button:has-text("Create")');
+  await page.click('[data-testid="btn-wizard-next"]');
 
   // Wait for rack
   await page.locator(".rack-container").first().waitFor({ state: "visible" });

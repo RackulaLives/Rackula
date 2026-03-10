@@ -47,7 +47,7 @@ test.describe("Export Functionality", () => {
     const downloadPromise = page.waitForEvent("download");
 
     // Click export button
-    await page.click('button:has-text("Export"):not([aria-label])');
+    await page.click('[data-testid="btn-export-confirm"]');
 
     // Wait for download
     const download = await downloadPromise;
@@ -64,7 +64,7 @@ test.describe("Export Functionality", () => {
     const downloadPromise = page.waitForEvent("download");
 
     // Click export button
-    await page.click('button:has-text("Export"):not([aria-label])');
+    await page.click('[data-testid="btn-export-confirm"]');
 
     // Wait for download
     const download = await downloadPromise;
@@ -81,7 +81,7 @@ test.describe("Export Functionality", () => {
     const downloadPromise = page.waitForEvent("download");
 
     // Click export button
-    await page.click('button:has-text("Export"):not([aria-label])');
+    await page.click('[data-testid="btn-export-confirm"]');
 
     // Wait for download
     const download = await downloadPromise;
@@ -93,7 +93,7 @@ test.describe("Export Functionality", () => {
 
     // Check include legend checkbox - the label contains the text
     const legendCheckbox = page.locator(
-      'label:has-text("Include legend") input[type="checkbox"]',
+      '[data-testid="checkbox-export-legend"] input[type="checkbox"]',
     );
     await expect(legendCheckbox).toBeVisible();
     await legendCheckbox.check();
@@ -102,7 +102,7 @@ test.describe("Export Functionality", () => {
     const downloadPromise = page.waitForEvent("download");
 
     // Export
-    await page.click('button:has-text("Export"):not([aria-label])');
+    await page.click('[data-testid="btn-export-confirm"]');
 
     await downloadPromise;
     // Legend inclusion is reflected in the exported file content
@@ -113,7 +113,7 @@ test.describe("Export Functionality", () => {
     await expect(page.locator(".dialog")).toBeVisible();
 
     // Click cancel
-    await page.click('button:has-text("Cancel")');
+    await page.click('[data-testid="btn-export-cancel"]');
 
     // Dialog should close
     await expect(page.locator(".dialog")).not.toBeVisible();

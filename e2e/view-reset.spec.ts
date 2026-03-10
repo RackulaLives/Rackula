@@ -40,10 +40,10 @@ test.describe("View Reset on Rack Changes", () => {
 
     // Create a new rack (replace existing) via the replace flow
     await clickNewRack(page);
-    await page.click('button:has-text("Replace")');
+    await page.click('[data-testid="btn-replace-rack"]');
     await page.fill("#rack-name", "Test Rack");
-    await page.click('.height-btn:has-text("24U")');
-    await page.click('button:has-text("Create")');
+    await page.click('[data-testid="btn-height-24"]');
+    await page.click('[data-testid="btn-wizard-next"]');
     await expect(page.locator(".rack-container").first()).toBeVisible();
 
     // Wait for the view to reset (transform should change from panned position)
@@ -79,7 +79,7 @@ test.describe("View Reset on Rack Changes", () => {
     expect(transformBefore?.x).toBe(-300);
 
     // Click on a different height preset (e.g., 42U)
-    await page.locator('.drawer-right .preset-btn:has-text("42U")').click();
+    await page.locator('.drawer-right [data-testid="btn-preset-height-42"]').click();
 
     // Wait for the view to reset (transform should change from panned position)
     await expect

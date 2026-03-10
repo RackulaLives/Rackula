@@ -440,6 +440,7 @@
               <button
                 type="button"
                 class="bay-btn"
+                data-testid="btn-bay-2"
                 class:selected={config.bayCount === 2}
                 onclick={() => (config.bayCount = 2)}
               >
@@ -449,6 +450,7 @@
                 <button
                   type="button"
                   class="bay-btn"
+                  data-testid="btn-bay-3"
                   class:selected={config.bayCount === 3}
                   onclick={() => (config.bayCount = 3)}
                 >
@@ -465,6 +467,7 @@
                 <button
                   type="button"
                   class="height-btn"
+                  data-testid="btn-height-{height}"
                   class:selected={!config.isCustomHeight &&
                     config.height === height}
                   onclick={() => selectPresetHeight(height)}
@@ -495,6 +498,7 @@
                   <input
                     type="radio"
                     name="rack-width"
+                    data-testid="radio-width-{option.value}"
                     value={option.value}
                     checked={config.width === option.value}
                     onchange={() => (config.width = option.value)}
@@ -521,6 +525,7 @@
                 <button
                   type="button"
                   class="height-btn"
+                  data-testid="btn-height-{height}"
                   class:selected={!config.isCustomHeight &&
                     config.height === height}
                   onclick={() => selectPresetHeight(height)}
@@ -531,6 +536,7 @@
               <button
                 type="button"
                 class="height-btn"
+                data-testid="btn-height-custom"
                 class:selected={config.isCustomHeight}
                 onclick={selectCustomHeight}
               >
@@ -575,6 +581,7 @@
       <button
         type="button"
         class="btn btn-primary"
+        data-testid="btn-wizard-next"
         onclick={nextStep}
         disabled={!canProceed}
       >

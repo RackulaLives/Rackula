@@ -23,17 +23,17 @@ test.describe("Single Rack Mode (v0.2)", () => {
     await expect(
       page.locator('h2:has-text("Replace Current Rack?")'),
     ).toBeVisible();
-    await expect(page.locator('button:has-text("Save First")')).toBeVisible();
-    await expect(page.locator('button:has-text("Replace")')).toBeVisible();
-    await expect(page.locator('button:has-text("Cancel")')).toBeVisible();
+    await expect(page.locator('[data-testid="btn-save-first"]')).toBeVisible();
+    await expect(page.locator('[data-testid="btn-replace-rack"]')).toBeVisible();
+    await expect(page.locator('[data-testid="btn-cancel-replace"]')).toBeVisible();
   });
 
   test("Replace button clears rack and opens form", async ({ page }) => {
     // First create a named rack via replace dialog
     await clickNewRack(page);
-    await page.click('button:has-text("Replace")');
+    await page.click('[data-testid="btn-replace-rack"]');
     await fillRackForm(page, "Old Rack", 24);
-    await page.click('button:has-text("Create")');
+    await page.click('[data-testid="btn-wizard-next"]');
 
     // Verify rack exists (dual-view header shows name)
     await expect(page.locator(".rack-dual-view-name")).toContainText(
@@ -45,7 +45,7 @@ test.describe("Single Rack Mode (v0.2)", () => {
     await expect(
       page.locator('h2:has-text("Replace Current Rack?")'),
     ).toBeVisible();
-    await page.click('button:has-text("Replace")');
+    await page.click('[data-testid="btn-replace-rack"]');
 
     // Dialog should close
     await expect(
@@ -58,7 +58,7 @@ test.describe("Single Rack Mode (v0.2)", () => {
 
     // Create new rack
     await fillRackForm(page, "New Rack", 42);
-    await page.click('button:has-text("Create")');
+    await page.click('[data-testid="btn-wizard-next"]');
 
     // Only new rack should exist (2 rack containers in dual-view mode)
     await expect(page.locator(".rack-container")).toHaveCount(2);
@@ -73,9 +73,9 @@ test.describe("Single Rack Mode (v0.2)", () => {
   test("Cancel preserves existing rack", async ({ page }) => {
     // Create a named rack first
     await clickNewRack(page);
-    await page.click('button:has-text("Replace")');
+    await page.click('[data-testid="btn-replace-rack"]');
     await fillRackForm(page, "My Rack", 42);
-    await page.click('button:has-text("Create")');
+    await page.click('[data-testid="btn-wizard-next"]');
 
     // Verify rack exists (dual-view header shows name)
     await expect(page.locator(".rack-dual-view-name")).toContainText("My Rack");
@@ -85,7 +85,7 @@ test.describe("Single Rack Mode (v0.2)", () => {
     await expect(
       page.locator('h2:has-text("Replace Current Rack?")'),
     ).toBeVisible();
-    await page.click('button:has-text("Cancel")');
+    await page.click('[data-testid="btn-cancel-replace"]');
 
     // Dialog should close
     await expect(
@@ -103,9 +103,9 @@ test.describe("Single Rack Mode (v0.2)", () => {
   test("Escape key triggers Cancel", async ({ page }) => {
     // Create a named rack first
     await clickNewRack(page);
-    await page.click('button:has-text("Replace")');
+    await page.click('[data-testid="btn-replace-rack"]');
     await fillRackForm(page, "Test Rack", 24);
-    await page.click('button:has-text("Create")');
+    await page.click('[data-testid="btn-wizard-next"]');
 
     // Click New Rack to show dialog
     await clickNewRack(page);
@@ -141,7 +141,7 @@ test.describe("Single Rack Mode (v0.2)", () => {
     ).toBeVisible();
 
     // Cancel the dialog
-    await page.click('button:has-text("Cancel")');
+    await page.click('[data-testid="btn-cancel-replace"]');
 
     // Should still have only the dual-view containers (2)
     await expect(page.locator(".rack-container")).toHaveCount(2);
@@ -150,9 +150,9 @@ test.describe("Single Rack Mode (v0.2)", () => {
   test("dialog shows correct rack name and device count", async ({ page }) => {
     // Create a named rack via replace
     await clickNewRack(page);
-    await page.click('button:has-text("Replace")');
+    await page.click('[data-testid="btn-replace-rack"]');
     await fillRackForm(page, "Production Server Rack", 42);
-    await page.click('button:has-text("Create")');
+    await page.click('[data-testid="btn-wizard-next"]');
 
     // Try to create second rack
     await clickNewRack(page);

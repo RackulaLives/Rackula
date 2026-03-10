@@ -60,7 +60,7 @@ test.describe("Rack Context Menu Focus", () => {
     await expect(page.locator(".context-menu-content")).toBeVisible();
 
     // Verify Focus option is present and click it
-    const focusItem = page.locator('.context-menu-item:has-text("Focus")');
+    const focusItem = page.locator('[data-testid="ctx-menu-focus"]');
     await expect(focusItem).toBeVisible();
     await focusItem.click();
 
@@ -90,7 +90,7 @@ test.describe("Rack Context Menu Focus", () => {
 
     // Switch to the Racks tab in the sidebar
     // This test requires the sidebar to be visible (desktop viewport)
-    const racksTab = page.locator('button[role="tab"]:has-text("Racks")');
+    const racksTab = page.locator('[data-testid="sidebar-tab-racks"]');
     await expect(racksTab).toBeVisible({
       timeout: 5000,
     });
@@ -104,7 +104,7 @@ test.describe("Rack Context Menu Focus", () => {
     await expect(page.locator(".context-menu-content")).toBeVisible();
 
     // Verify Focus option is present
-    const focusItem = page.locator('.context-menu-item:has-text("Focus")');
+    const focusItem = page.locator('[data-testid="ctx-menu-focus"]');
     await expect(focusItem).toBeVisible();
 
     // Click Focus - this triggers the focusRack function via callback chain

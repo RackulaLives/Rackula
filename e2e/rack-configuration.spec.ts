@@ -8,7 +8,7 @@ import { gotoWithRack, clickNewRack } from "./helpers";
  */
 async function openNewRackForm(page: Page) {
   await clickNewRack(page);
-  await page.click('button:has-text("Replace")');
+  await page.click('[data-testid="btn-replace-rack"]');
   await expect(page.locator(".dialog")).toBeVisible();
 }
 
@@ -22,12 +22,12 @@ test.describe("Rack Configuration", () => {
 
     // Fill in rack details
     await page.fill("#rack-name", "Narrow Rack");
-    await page.click('.height-btn:has-text("24U")');
+    await page.click('[data-testid="btn-height-24"]');
 
     // Select 10" width using radio button
-    await page.click('.width-option:has-text("10")');
+    await page.click('[data-testid="radio-width-10"]');
 
-    await page.click('button:has-text("Create")');
+    await page.click('[data-testid="btn-wizard-next"]');
 
     // Rack should be visible (dual-view has 2 containers)
     await expect(page.locator(".rack-container").first()).toBeVisible();
@@ -49,10 +49,10 @@ test.describe("Rack Configuration", () => {
     await openNewRackForm(page);
 
     await page.fill("#rack-name", "Standard Rack");
-    await page.click('.height-btn:has-text("42U")');
+    await page.click('[data-testid="btn-height-42"]');
     // 19" is default, no need to change
 
-    await page.click('button:has-text("Create")');
+    await page.click('[data-testid="btn-wizard-next"]');
 
     // Rack should be visible (dual-view has 2 containers)
     await expect(page.locator(".rack-container").first()).toBeVisible();
@@ -81,11 +81,11 @@ test.describe("Rack Configuration", () => {
     await openNewRackForm(page);
 
     await page.fill("#rack-name", "Ascending Rack");
-    await page.click('.height-btn:has-text("Custom")');
+    await page.click('[data-testid="btn-height-custom"]');
     await page.fill("#custom-height", "10");
 
     // Uses defaults: desc_units=false (ascending), starting_unit=1
-    await page.click('button:has-text("Create")');
+    await page.click('[data-testid="btn-wizard-next"]');
 
     // Rack should be visible (dual-view has 2 containers)
     await expect(page.locator(".rack-container").first()).toBeVisible();

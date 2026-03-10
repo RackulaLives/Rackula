@@ -26,7 +26,7 @@ test.describe("Keyboard Shortcuts", () => {
 
     // Confirm deletion - button text is "Delete Rack" for racks
     await expect(page.locator(".dialog")).toBeVisible();
-    await page.click('[role="dialog"] button:has-text("Delete Rack")');
+    await page.click('[data-testid="btn-confirm-action"]');
 
     // In v0.2, rack still exists but devices are cleared
     await expect(page.locator(".rack-container").first()).toBeVisible();
@@ -48,7 +48,7 @@ test.describe("Keyboard Shortcuts", () => {
 
     // Confirm deletion - button text is "Delete Rack" for racks
     await expect(page.locator(".dialog")).toBeVisible();
-    await page.click('[role="dialog"] button:has-text("Delete Rack")');
+    await page.click('[data-testid="btn-confirm-action"]');
 
     // In v0.2, rack still exists but devices are cleared
     await expect(page.locator(".rack-container").first()).toBeVisible();
