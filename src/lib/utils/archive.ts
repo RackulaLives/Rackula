@@ -163,6 +163,28 @@ async function detectZipFormat(zip: JSZipInstance): Promise<ZipFormat> {
     };
   }
 
+  // Look for legacy folder format: folder without UUID containing a .yaml file
+  // e.g., "5123home/5123home.yaml" (pre-#919 archives)
+  const folderYaml = entries.find((e) => {
+    const parts = e.split("/");
+    return (
+      parts.length === 2 &&
+      parts[0] !== "" &&
+      (parts[1]!.endsWith(".yaml") || parts[1]!.endsWith(".yml"))
+    );
+  });
+  if (folderYaml) {
+    const folderName = folderYaml.split("/")[0]!;
+    const hasAssetsFolder = entries.some(
+      (e) => e.startsWith(`${folderName}/assets/`),
+    );
+    return {
+      type: "old-flat",
+      yamlPath: folderYaml,
+      assetsPath: hasAssetsFolder ? `${folderName}/assets/` : undefined,
+    };
+  }
+
   return { type: "invalid" };
 }
 

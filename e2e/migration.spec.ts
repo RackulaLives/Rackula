@@ -1,8 +1,30 @@
 import { test, expect } from "./helpers/base-test";
+import type { Page } from "@playwright/test";
 import path from "path";
-import { gotoWithRack, clickLoad, PLATFORM_MODIFIER } from "./helpers";
+import { gotoWithRack } from "./helpers";
 
 test.describe("Position Migration", () => {
+  const fixturePath = path.join(
+    process.cwd(),
+    "e2e",
+    "fixtures",
+    "Legacy Test Layout.Rackula.zip",
+  );
+
+  // Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux)
+  const modifier = process.platform === "darwin" ? "Meta" : "Control";
+
+  /**
+   * Helper to load a file using keyboard shortcut (Ctrl/Cmd+O)
+   * More stable than clicking through dropdown menu
+   */
+  async function loadFileViaKeyboard(page: Page, filePath: string) {
+    const fileChooserPromise = page.waitForEvent("filechooser");
+    await page.keyboard.press(`${modifier}+o`);
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles(filePath);
+  }
+
   test.beforeEach(async ({ page }) => {
     // Load a rack via share link so the app is in a ready state for file loading
     await gotoWithRack(page);
@@ -14,32 +36,23 @@ test.describe("Position Migration", () => {
     // Wait for app to be ready
     await expect(page.locator(".rack-container").first()).toBeVisible();
 
-    // Set up file chooser listener
-    const fileChooserPromise = page.waitForEvent("filechooser");
+    // Load the legacy fixture file via keyboard shortcut
+    await loadFileViaKeyboard(page, fixturePath);
 
-    // Click load button in toolbar
-    await clickLoad(page);
+    // Wait for file load success toast (distinct from share link toast)
+    await expect(
+      page.getByText("Layout loaded successfully"),
+    ).toBeVisible({ timeout: 10000 });
 
-    // Handle file chooser with our legacy fixture
-    const fileChooser = await fileChooserPromise;
-    const fixturePath = path.join(
-      __dirname,
-      "fixtures/legacy-layout-v0.6.yaml",
-    );
-    await fileChooser.setFiles(fixturePath);
-
-    // Wait for success toast to confirm load completed
-    await expect(page.locator(".toast--success")).toBeVisible({
-      timeout: 10000,
+    // Verify the rack name from the fixture is visible
+    await expect(page.getByText("Test Rack")).toBeVisible({
+      timeout: 5000,
     });
 
-    // Verify the layout name was loaded
-    await expect(page.locator('[data-testid="layout-name"]')).toContainText(
-      "Legacy Test Layout",
-    );
-
     // Verify rack is visible with devices
-    await expect(page.locator(".rack-device").first()).toBeVisible();
+    await expect(page.locator(".rack-device").first()).toBeVisible({
+      timeout: 5000,
+    });
 
     // The server at U10 should now be at internal position 60
     // The switch at U1 should now be at internal position 6
@@ -52,26 +65,20 @@ test.describe("Position Migration", () => {
     // Wait for app to be ready
     await expect(page.locator(".rack-container").first()).toBeVisible();
 
-    // Load the legacy fixture
-    const fileChooserPromise = page.waitForEvent("filechooser");
-    await clickLoad(page);
-    const fileChooser = await fileChooserPromise;
-    const fixturePath = path.join(
-      __dirname,
-      "fixtures/legacy-layout-v0.6.yaml",
-    );
-    await fileChooser.setFiles(fixturePath);
+    // Load the legacy fixture via keyboard shortcut
+    await loadFileViaKeyboard(page, fixturePath);
 
-    await expect(page.locator(".toast--success")).toBeVisible({
-      timeout: 10000,
-    });
+    // Wait for file load success
+    await expect(
+      page.getByText("Layout loaded successfully"),
+    ).toBeVisible({ timeout: 10000 });
 
     // Save the layout
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
+    await page.keyboard.press(`${modifier}+s`);
     const download = await downloadPromise;
 
-    // Verify file was downloaded
+    // Verify file was downloaded with correct name
     expect(download.suggestedFilename()).toMatch(/Legacy Test Layout/);
 
     // The saved file should have version 0.7.0 and migrated positions
@@ -82,49 +89,41 @@ test.describe("Position Migration", () => {
     // Wait for app to be ready
     await expect(page.locator(".rack-container").first()).toBeVisible();
 
-    // Load legacy fixture
-    const fileChooserPromise = page.waitForEvent("filechooser");
-    await clickLoad(page);
-    const fileChooser = await fileChooserPromise;
-    const fixturePath = path.join(
-      __dirname,
-      "fixtures/legacy-layout-v0.6.yaml",
-    );
-    await fileChooser.setFiles(fixturePath);
+    // Load legacy fixture via keyboard shortcut
+    await loadFileViaKeyboard(page, fixturePath);
 
-    await expect(page.locator(".toast--success")).toBeVisible({
-      timeout: 10000,
-    });
+    // Wait for file load success
+    await expect(
+      page.getByText("Layout loaded successfully"),
+    ).toBeVisible({ timeout: 10000 });
 
     // Save the layout
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
+    await page.keyboard.press(`${modifier}+s`);
     const download = await downloadPromise;
 
     // Save the downloaded file to a stable test output location
-    const savedPath = test.info().outputPath("migrated-layout.yaml");
+    const savedPath = test.info().outputPath("migrated-layout.Rackula.zip");
     await download.saveAs(savedPath);
 
     // Reload with a fresh rack state
     await gotoWithRack(page);
 
-    // Load the saved file
-    const fileChooserPromise2 = page.waitForEvent("filechooser");
-    await clickLoad(page);
-    const fileChooser2 = await fileChooserPromise2;
-    await fileChooser2.setFiles(savedPath);
+    // Load the saved file via keyboard shortcut
+    await loadFileViaKeyboard(page, savedPath);
 
-    await expect(page.locator(".toast--success")).toBeVisible({
-      timeout: 10000,
-    });
+    // Wait for file load success
+    await expect(
+      page.getByText("Layout loaded successfully"),
+    ).toBeVisible({ timeout: 10000 });
 
     // Verify devices are still in correct positions (not double-migrated)
     const devices = await page.locator(".rack-device").count();
     expect(devices).toBe(2);
 
-    // Layout name should still be preserved
-    await expect(page.locator('[data-testid="layout-name"]')).toContainText(
-      "Legacy Test Layout",
-    );
+    // Verify the rack name is preserved
+    await expect(page.getByText("Test Rack")).toBeVisible({
+      timeout: 5000,
+    });
   });
 });
