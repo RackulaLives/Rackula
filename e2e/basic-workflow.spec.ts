@@ -21,7 +21,7 @@ test.describe("Basic Workflow", () => {
     await expect(page.locator(".rack-dual-view-name")).toBeVisible();
   });
 
-  // FIXME(#903): Restore when replace-rack flow is reintroduced with current UX.
+  // FIXME(#1438): Restore when replace-rack flow is reintroduced with current UX.
   test.fixme("can replace current rack with a new one", async ({
     page: _page,
   }) => {
@@ -29,7 +29,7 @@ test.describe("Basic Workflow", () => {
     // This may have changed in the current app version
   });
 
-  // FIXME(#903): Restore when replace-rack flow is reintroduced with current UX.
+  // FIXME(#1438): Restore when replace-rack flow is reintroduced with current UX.
   test.fixme("rack appears on canvas after replacement", async ({
     page: _page,
   }) => {
@@ -99,7 +99,7 @@ test.describe("Basic Workflow", () => {
     await expect(page.locator(".rack-device")).not.toBeVisible();
   });
 
-  // FIXME(#903): Restore when rack deletion flow is validated in current UX.
+  // FIXME(#1438): Restore when rack deletion flow is validated in current UX.
   test.fixme("can clear rack (v0.2 does not remove the rack)", async ({
     page: _page,
   }) => {

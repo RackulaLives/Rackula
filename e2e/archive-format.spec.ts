@@ -10,6 +10,9 @@ import {
   clickLoad,
 } from "./helpers";
 
+// Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux)
+const modifier = process.platform === "darwin" ? "Meta" : "Control";
+
 test.describe("Archive Format", () => {
   let legacyJsonPath: string;
 
@@ -81,13 +84,15 @@ test.describe("Archive Format", () => {
     expect(files.some((f) => f.endsWith(".yaml"))).toBe(true);
   });
 
-  test.skip("load saved ZIP restores layout", async ({ page }) => {
-    // SKIP: File chooser interaction unreliable in E2E tests
+  test("load saved ZIP restores layout", async ({ page }) => {
     await dragDeviceToRack(page);
-    await expect(page.locator(".rack-device")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator(".rack-device").first()).toBeVisible({
+      timeout: 5000,
+    });
 
+    // Save via keyboard shortcut
     const downloadPromise = page.waitForEvent("download");
-    await clickSave(page);
+    await page.keyboard.press(`${modifier}+s`);
     const download = await downloadPromise;
 
     const savedPath = test.info().outputPath("saved-layout.Rackula.zip");
@@ -96,9 +101,9 @@ test.describe("Archive Format", () => {
     // Reload with a fresh rack
     await gotoWithRack(page, STANDARD_RACK_SHARE);
 
-    // Load the saved file
+    // Load the saved file via keyboard shortcut
     const fileChooserPromise = page.waitForEvent("filechooser");
-    await clickLoad(page);
+    await page.keyboard.press(`${modifier}+o`);
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(savedPath);
 
@@ -108,8 +113,8 @@ test.describe("Archive Format", () => {
     });
 
     // Verify layout is restored
-    await expect(page.locator(".rack-container")).toBeVisible();
-    await expect(page.locator(".rack-device")).toBeVisible();
+    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(".rack-device").first()).toBeVisible();
   });
 
   test("legacy .Rackula.json file shows error (v0.4.0 removed legacy support)", async ({

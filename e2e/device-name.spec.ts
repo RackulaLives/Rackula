@@ -1,6 +1,9 @@
 import { test, expect } from "./helpers/base-test";
 import { gotoWithRack, dragDeviceToRack } from "./helpers";
 
+// Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux)
+const modifier = process.platform === "darwin" ? "Meta" : "Control";
+
 test.describe("Device Custom Names", () => {
   test.beforeEach(async ({ page }) => {
     await gotoWithRack(page);
@@ -40,7 +43,7 @@ test.describe("Device Custom Names", () => {
     );
   });
 
-  test.skip("display name persists after save/load", async ({ page }) => {
+  test("display name persists after save/load", async ({ page }) => {
     // Place a device and give it a custom name
     await dragDeviceToRack(page);
     await expect(page.locator(".rack-device").first()).toBeVisible();
@@ -62,23 +65,30 @@ test.describe("Device Custom Names", () => {
       "Storage Server",
     );
 
-    // Save the layout (Ctrl+S)
+    // Save the layout via keyboard shortcut
     const downloadPromise = page.waitForEvent("download");
-    await page.keyboard.press("Control+s");
+    await page.keyboard.press(`${modifier}+s`);
     const download = await downloadPromise;
-    const downloadPath = await download.path();
-    expect(downloadPath).toBeTruthy();
+
+    // Save to stable test output path
+    const savedPath = test.info().outputPath("device-name-test.Rackula.zip");
+    await download.saveAs(savedPath);
 
     // Reload with a fresh rack
     await gotoWithRack(page);
 
-    // Load the saved file
+    // Load the saved file via keyboard shortcut
     const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press("Control+o");
+    await page.keyboard.press(`${modifier}+o`);
     const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(downloadPath!);
+    await fileChooser.setFiles(savedPath);
 
-    // Wait for load to complete and rack to appear
+    // Wait for success toast to confirm load completed
+    await expect(page.locator(".toast--success")).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Wait for device to appear
     await expect(page.locator(".rack-device").first()).toBeVisible({
       timeout: 10000,
     });

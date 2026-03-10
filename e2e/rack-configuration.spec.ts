@@ -69,11 +69,8 @@ test.describe("Rack Configuration", () => {
     }
   });
 
-  test.skip("rack with descending units shows U1 at top", async ({
-    page: _page,
-  }) => {
-    // SKIP: Descending units checkbox not yet implemented in NewRackForm
-  });
+  // Descending units, custom starting unit, and form factor tests
+  // are tracked by #1402. Stubs removed by #1226 triage.
 
   test("rack with ascending units shows U1 at bottom (default desc_units=false, starting_unit=1)", async ({
     page,
@@ -103,13 +100,4 @@ test.describe("Rack Configuration", () => {
     await expect(lastLabel).toHaveText("1");
   });
 
-  test.skip("rack with custom starting unit displays correct labels", async ({
-    page: _page,
-  }) => {
-    // SKIP: Starting unit input not yet implemented in NewRackForm
-  });
-
-  test.skip("form factor selection is available", async ({ page: _page }) => {
-    // SKIP: Form factor dropdown not yet implemented in NewRackForm
-  });
 });
