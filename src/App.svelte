@@ -37,6 +37,7 @@
   import SidebarTabs from "$lib/components/SidebarTabs.svelte";
   import RackList from "$lib/components/RackList.svelte";
   import LoadDialog from "$lib/components/LoadDialog.svelte";
+  import PersistenceEffects from "$lib/components/PersistenceEffects.svelte";
   import StartScreen, {
     type StartScreenCloseOptions,
   } from "$lib/components/StartScreen.svelte";
@@ -44,11 +45,8 @@
     getShareParam,
     clearShareParam,
     decodeLayout,
-    generateShareUrl,
   } from "$lib/utils/share";
-  import { generateQRCode, canFitInQR } from "$lib/utils/qrcode";
   import {
-    saveSession,
     loadSessionWithTimestamp,
     clearSession,
     isServerNewer,
@@ -57,54 +55,45 @@
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
-  import { DRAWER_WIDTH } from "$lib/constants/layout";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
-  import { setupKeyboardViewportAdaptation } from "$lib/utils/keyboard-viewport";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { createKonamiDetector } from "$lib/utils/konami";
   import type { ImageData } from "$lib/types/images";
-  import { downloadArchive, generateArchiveFilename } from "$lib/utils/archive";
-  import {
-    generateExportSVG,
-    exportAsSVG,
-    exportAsPNG,
-    exportAsJPEG,
-    exportAsPDF,
-    exportToCSV,
-    downloadBlob,
-    generateExportFilename,
-  } from "$lib/utils/export";
-  import type {
-    DisplayMode,
-    ExportOptions,
-    Layout,
-    RackWidth,
-  } from "$lib/types";
+  import type { DisplayMode, Layout, RackWidth } from "$lib/types";
   import type { ImportResult } from "$lib/utils/netbox-import";
   import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { analytics } from "$lib/utils/analytics";
   import { hapticTap } from "$lib/utils/haptics";
   import { debug, persistenceDebug } from "$lib/utils/debug";
-  import { loadFromFile } from "$lib/utils/load-pipeline";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { Tooltip } from "bits-ui";
   import {
     isApiAvailable,
     setApiAvailable,
-    getApiAvailableState,
     initializePersistence,
     hasEverConnectedToApi,
   } from "$lib/stores/persistence.svelte";
   import {
-    saveLayoutToServer,
-    checkApiHealth,
     listSavedLayouts,
     loadSavedLayout,
-    type SaveStatus as SaveStatusType,
-    PersistenceError,
   } from "$lib/utils/persistence-api";
+  import {
+    getSaveStatus,
+    setSaveStatus,
+    maybeSave,
+    maybeSaveAs,
+    maybeExport,
+    handleLoad,
+    handleExport,
+    handleExportSubmit,
+    handleShare,
+    handleSaveToServer,
+    handleSaveAsArchive,
+    handleFitAll,
+    resetAndOpenNewRack,
+  } from "$lib/utils/persistence-manager.svelte";
 
   // Sidebar size configuration (in pixels)
   interface Props {
@@ -128,15 +117,8 @@
   const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
 
-  // Persistence state
-  // Diagnostic: tracks current layout UUID (assigned but not actively read - for debugging)
-  let _currentLayoutId = $state<string | undefined>(undefined);
-  let saveStatus = $state<SaveStatusType>("idle");
-
-  // Circuit breaker: stops auto-save retries after consecutive failures (#1088)
-  // Prevents infinite bounce when health check passes but layout endpoints fail.
-  const MAX_SAVE_FAILURES = 3;
-  let _consecutiveSaveFailures = $state(0);
+  // Persistence state — delegated to persistence-manager module
+  let saveStatus = $derived(getSaveStatus());
 
   // Dialog state - now managed by dialogStore
   // Legacy local aliases for gradual migration
@@ -228,14 +210,6 @@
     activatePartyMode();
   });
 
-  // Mobile keyboard adaptation: keeps bottom UI above virtual keyboards and
-  // updates --keyboard-height for CSS consumers.
-  onMount(() =>
-    setupKeyboardViewportAdaptation({
-      isMobile: () => viewportStore.isMobile,
-    }),
-  );
-
   function activatePartyMode() {
     // Check for reduced motion preference
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -274,9 +248,9 @@
       );
       setApiAvailable(false);
       if (hasEverConnectedToApi()) {
-        saveStatus = "offline";
+        setSaveStatus("offline");
       } else {
-        saveStatus = "disabled";
+        setSaveStatus("disabled");
       }
       return false;
     });
@@ -317,7 +291,7 @@
 
     const apiAvailable = await persistenceInitPromise;
     if (!apiAvailable) {
-      saveStatus = hasEverConnectedToApi() ? "offline" : "disabled";
+      setSaveStatus(hasEverConnectedToApi() ? "offline" : "disabled");
     }
 
     // Priority 3: When API and local session are both available,
@@ -379,9 +353,9 @@
         // Treat server data failures as offline and fall back gracefully.
         setApiAvailable(false);
         if (hasEverConnectedToApi()) {
-          saveStatus = "offline";
+          setSaveStatus("offline");
         } else {
-          saveStatus = "disabled";
+          setSaveStatus("disabled");
         }
       }
     }
@@ -482,31 +456,6 @@
   }
 
   /**
-   * Check if we should show the cleanup prompt before save/export
-   * @param operation - "save", "saveAs", or "export"
-   * @returns true if we should proceed with the operation, false if we showed the prompt
-   */
-  function shouldShowCleanupPrompt(
-    operation: "save" | "saveAs" | "export",
-  ): boolean {
-    // Check if prompt is enabled
-    if (!uiStore.promptCleanupOnSave) {
-      return false;
-    }
-
-    // Check if there are unused custom device types
-    const unusedTypes = layoutStore.getUnusedCustomDeviceTypes();
-    if (unusedTypes.length === 0) {
-      return false;
-    }
-
-    // Show the cleanup prompt
-    dialogStore.pendingCleanupOperation = operation;
-    dialogStore.open("cleanupPrompt");
-    return true;
-  }
-
-  /**
    * Get count of unused custom device types
    */
   function getUnusedCustomTypeCount(): number {
@@ -562,350 +511,9 @@
     uiStore.setPromptCleanupOnSave(false);
   }
 
-  /**
-   * Entry point for save operation triggered by Ctrl+S or menu
-   * Routes to server save (when API available) or ZIP download
-   * Checks for unused custom types and shows prompt if needed
-   */
-  function maybeSave() {
-    if (shouldShowCleanupPrompt("save")) {
-      return;
-    }
-    // Try server save if we've ever had API connectivity — even when currently
-    // offline, a manual Ctrl+S should retry the server (closes circuit breaker
-    // on success). Only fall back to ZIP when no API has ever been detected.
-    if (isApiAvailable() || hasEverConnectedToApi()) {
-      handleSaveToServer();
-    } else {
-      handleSaveAsArchive();
-    }
-  }
-
-  /**
-   * Entry point for "Save As" operation triggered by Ctrl+Shift+S or menu
-   * Always downloads ZIP archive regardless of API availability
-   */
-  function maybeSaveAs() {
-    if (shouldShowCleanupPrompt("saveAs")) {
-      return;
-    }
-    handleSaveAsArchive();
-  }
-
-  /**
-   * Entry point for export operation triggered by Ctrl+E or menu
-   * Checks for unused custom types and shows prompt if needed
-   */
-  function maybeExport() {
-    // If cleanup prompt should be shown, don't proceed with export yet
-    if (shouldShowCleanupPrompt("export")) {
-      return;
-    }
-    handleExport();
-  }
-
-  /**
-   * Reset the layout, clean up orphaned images, and open the new rack dialog.
-   * Shared by handleReplace, handleSaveToServer, and handleSaveAsArchive.
-   */
-  function resetAndOpenNewRack() {
-    layoutStore.resetLayout();
-    const usedSlugs = layoutStore.getUsedDeviceTypeSlugs();
-    imageStore.cleanupOrphanedImages(usedSlugs);
-    dialogStore.open("newRack");
-  }
-
-  /**
-   * Mark API as unavailable and open circuit breaker after repeated failures.
-   * Shared by both PersistenceError and unknown error branches.
-   */
-  function handleSaveFailure(
-    notify: boolean,
-    action?: { label: string; onClick: () => void },
-  ) {
-    _consecutiveSaveFailures++;
-    setApiAvailable(false);
-    saveStatus = "offline";
-    if (_consecutiveSaveFailures >= MAX_SAVE_FAILURES) {
-      persistenceDebug.api(
-        "circuit breaker open after %d consecutive failures — auto-save paused",
-        _consecutiveSaveFailures,
-      );
-      toastStore.showToast(
-        "Server save unavailable — working offline. Use Ctrl+S to retry.",
-        "warning",
-      );
-    } else if (notify) {
-      toastStore.showToast(
-        "Save failed — backend unavailable",
-        "error",
-        undefined,
-        action,
-      );
-    }
-  }
-
-  /**
-   * Classify a persistence error and update saveStatus / API availability.
-   * @param e - The caught error (unknown type from catch block)
-   * @param notify - Show toast messages (true for manual saves, false for auto-save)
-   */
-  function handlePersistenceError(
-    e: unknown,
-    notify = false,
-    onRetry?: () => void,
-  ) {
-    const action = onRetry ? { label: "Retry", onClick: onRetry } : undefined;
-    if (e instanceof PersistenceError) {
-      if (
-        e.statusCode === undefined ||
-        e.statusCode === 404 ||
-        (typeof e.statusCode === "number" && e.statusCode >= 500)
-      ) {
-        handleSaveFailure(notify, action);
-      } else {
-        saveStatus = "error";
-        if (notify)
-          toastStore.showToast("Save failed", "error", undefined, action);
-      }
-    } else {
-      handleSaveFailure(notify, action);
-    }
-  }
-
-  /**
-   * Save to backend API (immediate, no debounce).
-   * Cancels pending auto-save to avoid duplicate writes.
-   */
-  async function handleSaveToServer() {
-    try {
-      saveStatus = "saving";
-      // Cancel pending auto-save to avoid duplicate
-      if (serverSaveTimer) {
-        clearTimeout(serverSaveTimer);
-        serverSaveTimer = null;
-      }
-      const snapshot = structuredClone($state.snapshot(layoutStore.layout));
-      const newId = await saveLayoutToServer(snapshot);
-      _currentLayoutId = newId;
-      _consecutiveSaveFailures = 0; // Reset circuit breaker on success
-      setApiAvailable(true); // Re-enable auto-save after successful manual retry
-      saveStatus = "saved";
-      layoutStore.markClean();
-      clearSession();
-      // No toast — SaveStatus indicator provides feedback
-
-      // Track save event (total devices across all racks)
-      analytics.trackSave(layoutStore.totalDeviceCount);
-
-      // After save, if pendingSaveFirst, reset and open new rack form
-      if (dialogStore.pendingSaveFirst) {
-        dialogStore.pendingSaveFirst = false;
-        resetAndOpenNewRack();
-      }
-    } catch (e) {
-      dialogStore.pendingSaveFirst = false;
-      console.warn("Manual save failed:", e);
-      handlePersistenceError(e, true, () => handleSaveToServer());
-      // NO auto-fallback to ZIP — per issue spec
-    }
-  }
-
-  /**
-   * Download layout as ZIP archive.
-   * Used for "Save As" (always) and for "Save" when no API is available.
-   */
-  async function handleSaveAsArchive() {
-    try {
-      // Get user images (exclude bundled images) for archive
-      const images = imageStore.getUserImages();
-
-      // Get the filename for the toast message
-      const filename = generateArchiveFilename(layoutStore.layout);
-
-      // Save as folder archive (.Rackula.zip)
-      await downloadArchive(layoutStore.layout, images);
-      layoutStore.markClean();
-      // Clear autosaved session when explicitly saving
-      clearSession();
-      toastStore.showToast(`Saved ${filename}`, "success", 3000);
-
-      // Track save event (total devices across all racks)
-      analytics.trackSave(layoutStore.totalDeviceCount);
-
-      // After save, if pendingSaveFirst, reset and open new rack form
-      if (dialogStore.pendingSaveFirst) {
-        dialogStore.pendingSaveFirst = false;
-        resetAndOpenNewRack();
-      }
-    } catch (error) {
-      // User cancelled native save dialog — not an error, but clear pending state
-      if (error instanceof DOMException && error.name === "AbortError") {
-        dialogStore.pendingSaveFirst = false;
-        return;
-      }
-      dialogStore.pendingSaveFirst = false;
-      console.error("Failed to save layout:", error);
-      toastStore.showToast(
-        error instanceof Error ? error.message : "Failed to save layout",
-        "error",
-      );
-    }
-  }
-
-  async function handleLoad() {
-    if (isApiAvailable()) {
-      dialogStore.open("load");
-    } else {
-      await loadFromFile();
-    }
-  }
-
-  async function handleExport() {
-    if (!layoutStore.hasRack) {
-      toastStore.showToast("No racks to export", "warning");
-      return;
-    }
-
-    // Generate QR code for the share URL (for optional embedding in export)
-    try {
-      const shareUrl = generateShareUrl(layoutStore.layout);
-      if (canFitInQR(shareUrl)) {
-        dialogStore.exportQrCodeDataUrl = await generateQRCode(shareUrl, {
-          width: 444,
-        });
-      } else {
-        // Layout too large for QR code
-        dialogStore.exportQrCodeDataUrl = undefined;
-      }
-    } catch {
-      // If QR generation fails, continue without it
-      dialogStore.exportQrCodeDataUrl = undefined;
-    }
-
-    dialogStore.open("export");
-  }
-
-  async function handleExportSubmit(options: ExportOptions) {
-    dialogStore.close();
-
-    try {
-      // Filter racks based on user selection, or use all if none selected
-      const racksToExport = options.selectedRackIds?.length
-        ? layoutStore.racks.filter((r) =>
-            options.selectedRackIds!.includes(r.id),
-          )
-        : layoutStore.racks;
-
-      if (racksToExport.length === 0) {
-        toastStore.showToast("No rack to export", "warning");
-        return;
-      }
-
-      // Add current display mode to export options
-      const exportOptions = {
-        ...options,
-        displayMode: uiStore.displayMode,
-      };
-
-      // Generate the SVG with images if in image mode
-      const images = imageStore.getAllImages();
-      const svg = generateExportSVG(
-        racksToExport,
-        layoutStore.device_types,
-        exportOptions,
-        images,
-        layoutStore.rack_groups,
-      );
-
-      // Export based on selected format
-      const exportViewOrDefault = options.exportView ?? "both";
-      if (options.format === "svg") {
-        const svgString = exportAsSVG(svg);
-        const blob = new Blob([svgString], { type: "image/svg+xml" });
-        const filename = generateExportFilename(
-          layoutStore.layout.name,
-          exportViewOrDefault,
-          options.format,
-        );
-        downloadBlob(blob, filename);
-        toastStore.showToast("SVG exported successfully", "success");
-        analytics.trackExportImage("svg", exportViewOrDefault);
-      } else if (options.format === "png") {
-        const imageBlob = await exportAsPNG(svg);
-        const filename = generateExportFilename(
-          layoutStore.layout.name,
-          exportViewOrDefault,
-          options.format,
-        );
-        downloadBlob(imageBlob, filename);
-        toastStore.showToast("PNG exported successfully", "success");
-        analytics.trackExportImage("png", exportViewOrDefault);
-      } else if (options.format === "jpeg") {
-        const imageBlob = await exportAsJPEG(svg);
-        const filename = generateExportFilename(
-          layoutStore.layout.name,
-          exportViewOrDefault,
-          options.format,
-        );
-        downloadBlob(imageBlob, filename);
-        toastStore.showToast("JPEG exported successfully", "success");
-        analytics.trackExportImage("jpeg", exportViewOrDefault);
-      } else if (options.format === "pdf") {
-        const svgString = exportAsSVG(svg);
-        const pdfBlob = await exportAsPDF(svgString, options.background);
-        const filename = generateExportFilename(
-          layoutStore.layout.name,
-          exportViewOrDefault,
-          options.format,
-        );
-        downloadBlob(pdfBlob, filename);
-        toastStore.showToast("PDF exported successfully", "success");
-        analytics.trackExportPDF(exportViewOrDefault);
-      } else if (options.format === "csv") {
-        // CSV export only supports single rack - warn if multiple racks exist
-        const firstRack = racksToExport[0];
-        if (!firstRack) {
-          throw new Error("No rack available for CSV export");
-        }
-        const csvContent = exportToCSV(firstRack, layoutStore.device_types);
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
-        const filename = generateExportFilename(
-          layoutStore.layout.name,
-          null,
-          options.format,
-        );
-        downloadBlob(blob, filename);
-        const successMsg =
-          racksToExport.length > 1
-            ? `CSV exported (first rack only - "${firstRack.name}")`
-            : "CSV exported successfully";
-        toastStore.showToast(successMsg, "success");
-        analytics.trackExportCSV();
-      }
-    } catch (error) {
-      console.error("Export failed:", error);
-      toastStore.showToast(
-        error instanceof Error ? error.message : "Export failed",
-        "error",
-      );
-    }
-  }
-
   function handleExportCancel() {
     dialogStore.close();
     handleFitAll();
-  }
-
-  function handleShare() {
-    if (!layoutStore.hasRack) {
-      toastStore.showToast("No rack to share", "warning");
-      return;
-    }
-    dialogStore.open("share");
-
-    // Track share event (total devices across all racks)
-    analytics.trackShare(layoutStore.totalDeviceCount);
   }
 
   function handleShareClose() {
@@ -1003,11 +611,6 @@
   function handleCancelDelete() {
     dialogStore.close();
     handleFitAll();
-  }
-
-  function handleFitAll() {
-    const rightOffset = uiStore.rightDrawerOpen ? DRAWER_WIDTH : 0;
-    canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups, rightOffset);
   }
 
   function handleToggleTheme() {
@@ -1210,66 +813,6 @@
       input.value = "";
     }
   }
-
-  // Flush any pending session save debounce immediately
-  function flushSessionSave() {
-    if (saveDebounceTimer && layoutStore.hasRack) {
-      clearTimeout(saveDebounceTimer);
-      saveDebounceTimer = null;
-      saveSession(layoutStore.layout);
-    }
-  }
-
-  // Beforeunload handler for unsaved changes
-  function handleBeforeUnload(event: BeforeUnloadEvent) {
-    // Flush pending session save before the page unloads
-    flushSessionSave();
-
-    if (uiStore.warnOnUnsavedChanges && layoutStore.isDirty) {
-      event.preventDefault();
-      // Modern browsers ignore custom messages, but we set it for legacy support
-      event.returnValue = "You have unsaved changes. Leave anyway?";
-      return event.returnValue;
-    }
-  }
-
-  onMount(() => {
-    // Flush pending session save when page becomes hidden (tab close, navigate away)
-    // visibilitychange fires reliably on mobile unlike beforeunload
-    function handleVisibilityChange() {
-      if (document.visibilityState === "hidden") {
-        flushSessionSave();
-      }
-    }
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // Apply theme from storage (already done in ui store init)
-    // Session restore will be implemented in a later phase
-
-    // Load bundled images for starter library devices
-    imageStore.loadBundledImages();
-
-    // Set window title with environment prefix in non-production environments
-    const buildEnv = typeof __BUILD_ENV__ !== "undefined" ? __BUILD_ENV__ : "";
-    const isLocalhost =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
-
-    let envPrefix = "";
-    if (isLocalhost) {
-      envPrefix = "LOCAL - ";
-    } else if (buildEnv === "development") {
-      envPrefix = "DEV - ";
-    }
-
-    if (envPrefix) {
-      document.title = `${envPrefix}${document.title}`;
-    }
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  });
 
   // Watch for device selection changes to trigger mobile bottom sheet
   $effect(() => {
@@ -1487,130 +1030,9 @@
     // Close all sheets when entering placement mode
     dialogStore.closeSheet();
   }
-
-  // Auto-save layout to localStorage with debouncing
-  let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-  $effect(() => {
-    // Watch layout changes (triggered when layout.rack or any property changes)
-    // Access the layout to track it
-    const currentLayout = layoutStore.layout;
-
-    // Only save if there's a rack to save
-    if (layoutStore.hasRack) {
-      // Clear existing timer
-      if (saveDebounceTimer) {
-        clearTimeout(saveDebounceTimer);
-      }
-
-      // Debounce saves (1000ms)
-      saveDebounceTimer = setTimeout(() => {
-        saveSession(currentLayout);
-        saveDebounceTimer = null;
-      }, 1000);
-    }
-
-    // Cleanup on component destroy or effect re-run
-    return () => {
-      if (saveDebounceTimer) {
-        clearTimeout(saveDebounceTimer);
-        saveDebounceTimer = null;
-      }
-    };
-  });
-
-  // Auto-save to server when API is available
-  // Only saves layouts with meaningful content (user has interacted)
-  let serverSaveTimer: ReturnType<typeof setTimeout> | null = null;
-  $effect(() => {
-    // Check runtime API availability instead of build-time flag
-    if (!isApiAvailable()) return;
-
-    // Circuit breaker: stop auto-saving after repeated failures (#1088)
-    // Manual save (Ctrl+S) bypasses this and resets the counter on success.
-    if (_consecutiveSaveFailures >= MAX_SAVE_FAILURES) return;
-
-    const layout = layoutStore.layout;
-    if (!layout.name) return;
-
-    // Don't auto-save empty layouts to server (fixes #1003)
-    // hasStarted is true when user has added a rack, loaded a layout, or placed a device
-    // This prevents polluting server with empty "Racky McRackface" layouts on every visit
-    // Note: localStorage session save (lines 1164-1186) still saves empty state for recovery
-    if (!layoutStore.hasStarted) return;
-
-    // Don't auto-save layouts with no racks — even if hasStarted is stale (#1326)
-    if (layout.racks.length === 0) return;
-
-    // Clear existing timer
-    if (serverSaveTimer) {
-      clearTimeout(serverSaveTimer);
-    }
-
-    // Debounced save with status tracking
-    // Use $state.snapshot to get plain object from Svelte 5 proxy, then clone
-    const snapshot = structuredClone($state.snapshot(layout));
-    serverSaveTimer = setTimeout(async () => {
-      saveStatus = "saving";
-      try {
-        // UUID comes from layout metadata now, not passed as parameter
-        const newId = await saveLayoutToServer(snapshot);
-        _currentLayoutId = newId;
-        _consecutiveSaveFailures = 0; // Reset circuit breaker on success
-        saveStatus = "saved";
-
-        // Clear localStorage after successful server save to prevent stale data (#1012)
-        // This ensures that if user returns on a different device, they get server data
-        clearSession();
-      } catch (e) {
-        console.warn("Auto-save failed:", e);
-        // Degrade to offline mode for network/proxy/routing failures.
-        handlePersistenceError(e);
-      }
-      serverSaveTimer = null;
-    }, 2000);
-
-    return () => {
-      if (serverSaveTimer) {
-        clearTimeout(serverSaveTimer);
-        serverSaveTimer = null;
-      }
-    };
-  });
-
-  // Periodically check API health when offline
-  $effect(() => {
-    // Only run health checks if API was previously available but went offline
-    const apiState = getApiAvailableState();
-    if (apiState === null) return; // Not initialized yet
-    if (apiState === true) return; // API is available
-    if (!hasEverConnectedToApi()) return; // Never had API — don't poll
-    // Defence-in-depth: saveStatus could be set to "disabled" independently of
-    // hasEverConnectedToApi() in future code paths, so check both signals.
-    if (saveStatus === "disabled") return;
-
-    // Don't poll if circuit breaker is open — user must retry manually (#1088)
-    if (_consecutiveSaveFailures >= MAX_SAVE_FAILURES) return;
-
-    persistenceDebug.health("API offline, starting health check interval");
-    const intervalId = setInterval(async () => {
-      const healthy = await checkApiHealth();
-      if (healthy) {
-        persistenceDebug.health("API health check passed, marking available");
-        setApiAvailable(true);
-        saveStatus = "idle";
-      } else {
-        persistenceDebug.health("API health check failed, still offline");
-      }
-    }, 30000); // Check every 30 seconds
-
-    return () => clearInterval(intervalId);
-  });
 </script>
 
-<svelte:window
-  onbeforeunload={handleBeforeUnload}
-  onkeydown={(e) => konamiDetector.handleKeyDown(e)}
-/>
+<svelte:window onkeydown={(e) => konamiDetector.handleKeyDown(e)} />
 
 <!-- Tooltip.Provider enables shared tooltip state - only one tooltip shows at a time -->
 <Tooltip.Provider delayDuration={500}>
@@ -1976,6 +1398,8 @@
       ontoggledisplaymode={handleToggleDisplayMode}
       ontoggleannotations={handleToggleAnnotations}
     />
+
+    <PersistenceEffects />
 
     <!-- Global SVG gradient definitions for animations -->
     <AnimationDefs />
