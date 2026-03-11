@@ -106,6 +106,9 @@
     }
   }
 
+  // Clean up document listener if component unmounts mid-drag
+  $effect(() => () => document.removeEventListener("dragover", handleDocumentDragOver));
+
   function handleDragStart(event: DragEvent) {
     // Prevent dragging incompatible devices
     if (!isCompatible) {
