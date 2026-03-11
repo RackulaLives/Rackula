@@ -10,34 +10,16 @@
   import { PaneGroup, Pane, PaneResizer } from "paneforge";
   import DevicePalette from "$lib/components/DevicePalette.svelte";
   import EditPanel from "$lib/components/EditPanel.svelte";
-  import { NewRackWizard, type CreateRackData } from "$lib/components/wizard";
-  import AddDeviceForm from "$lib/components/AddDeviceForm.svelte";
-  import ImportFromNetBoxDialog from "$lib/components/ImportFromNetBoxDialog.svelte";
-  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
-  import ConfirmReplaceDialog from "$lib/components/ConfirmReplaceDialog.svelte";
-  import CleanupDialog from "$lib/components/CleanupDialog.svelte";
-  import CleanupPromptDialog from "$lib/components/CleanupPromptDialog.svelte";
   import ToastContainer from "$lib/components/ToastContainer.svelte";
   import PortTooltip from "$lib/components/PortTooltip.svelte";
   import DragTooltip from "$lib/components/DragTooltip.svelte";
   import KeyboardHandler from "$lib/components/KeyboardHandler.svelte";
-  import ExportDialog from "$lib/components/ExportDialog.svelte";
-  import ShareDialog from "$lib/components/ShareDialog.svelte";
-  import LayoutYamlPanel from "$lib/components/LayoutYamlPanel.svelte";
-  import Dialog from "$lib/components/Dialog.svelte";
-  import HelpPanel from "$lib/components/HelpPanel.svelte";
-  import BottomSheet from "$lib/components/BottomSheet.svelte";
-  import DeviceDetails from "$lib/components/DeviceDetails.svelte";
-  import MobileFileSheet from "$lib/components/MobileFileSheet.svelte";
-  import MobileBottomNav from "$lib/components/mobile/MobileBottomNav.svelte";
   import MobileHistoryControls from "$lib/components/mobile/MobileHistoryControls.svelte";
   import RackIndicator from "$lib/components/mobile/RackIndicator.svelte";
-  import RackEditSheet from "$lib/components/RackEditSheet.svelte";
-  import MobileViewSheet from "$lib/components/mobile/MobileViewSheet.svelte";
   import SidebarTabs from "$lib/components/SidebarTabs.svelte";
   import RackList from "$lib/components/RackList.svelte";
-  import LoadDialog from "$lib/components/LoadDialog.svelte";
   import PersistenceEffects from "$lib/components/PersistenceEffects.svelte";
+  import DialogOrchestrator from "$lib/components/DialogOrchestrator.svelte";
   import StartScreen, {
     type StartScreenCloseOptions,
   } from "$lib/components/StartScreen.svelte";
@@ -56,21 +38,17 @@
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
-  import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { createKonamiDetector } from "$lib/utils/konami";
-  import type { ImageData } from "$lib/types/images";
-  import type { DisplayMode, Layout, RackWidth } from "$lib/types";
-  import type { ImportResult } from "$lib/utils/netbox-import";
-  import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { analytics } from "$lib/utils/analytics";
-  import { hapticTap } from "$lib/utils/haptics";
-  import { debug, persistenceDebug } from "$lib/utils/debug";
+  import { persistenceDebug } from "$lib/utils/debug";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
+  import { generateShareUrl } from "$lib/utils/share";
+  import { generateQRCode, canFitInQR } from "$lib/utils/qrcode";
+  import { DRAWER_WIDTH } from "$lib/constants/layout";
   import { Tooltip } from "bits-ui";
   import {
-    isApiAvailable,
     setApiAvailable,
     initializePersistence,
     hasEverConnectedToApi,
@@ -86,13 +64,8 @@
     maybeSaveAs,
     maybeExport,
     handleLoad,
-    handleExport,
-    handleExportSubmit,
     handleShare,
-    handleSaveToServer,
-    handleSaveAsArchive,
     handleFitAll,
-    resetAndOpenNewRack,
   } from "$lib/utils/persistence-manager.svelte";
 
   // Sidebar size configuration (in pixels)
@@ -113,45 +86,11 @@
   const uiStore = getUIStore();
   const canvasStore = getCanvasStore();
   const toastStore = getToastStore();
-  const imageStore = getImageStore();
   const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
 
   // Persistence state — delegated to persistence-manager module
   let saveStatus = $derived(getSaveStatus());
-
-  // Dialog state - now managed by dialogStore
-  // Legacy local aliases for gradual migration
-  let newRackFormOpen = $derived(dialogStore.isOpen("newRack"));
-  let addDeviceFormOpen = $derived(dialogStore.isOpen("addDevice"));
-  let confirmDeleteOpen = $derived(dialogStore.isOpen("confirmDelete"));
-  let exportDialogOpen = $derived(dialogStore.isOpen("export"));
-  let shareDialogOpen = $derived(dialogStore.isOpen("share"));
-  let yamlEditorDialogOpen = $derived(dialogStore.isOpen("yamlEditor"));
-  let helpPanelOpen = $derived(dialogStore.isOpen("help"));
-  let importFromNetBoxOpen = $derived(dialogStore.isOpen("importNetBox"));
-  let showReplaceDialog = $derived(dialogStore.isOpen("confirmReplace"));
-  let cleanupDialogOpen = $derived(dialogStore.isOpen("cleanupDialog"));
-  let cleanupPromptOpen = $derived(dialogStore.isOpen("cleanupPrompt"));
-  let cleanupPromptOperation = $derived(dialogStore.pendingCleanupOperation);
-  let cleanupReviewPendingOperation = $state<
-    "save" | "saveAs" | "export" | null
-  >(null);
-
-  // Mobile bottom sheet state - managed by dialogStore
-  let bottomSheetOpen = $derived(dialogStore.isSheetOpen("deviceDetails"));
-  let fileSheetOpen = $derived(dialogStore.isSheetOpen("fileActions"));
-  let deviceLibrarySheetOpen = $derived(
-    dialogStore.isSheetOpen("deviceLibrary"),
-  );
-  let yamlEditorSheetOpen = $derived(dialogStore.isSheetOpen("yamlEditor"));
-  let rackEditSheetOpen = $derived(dialogStore.isSheetOpen("rackEdit"));
-  let viewSheetOpen = $derived(dialogStore.isSheetOpen("view"));
-
-  // Aliases to dialogStore properties for template access
-  let deleteTarget = $derived(dialogStore.deleteTarget);
-  let selectedDeviceForSheet = $derived(dialogStore.selectedDeviceIndex);
-  let exportQrCodeDataUrl = $derived(dialogStore.exportQrCodeDataUrl);
 
   // Sidebar width: read once from the UI store.
   // This is intentionally NOT reactive because changes to sidebarWidth are driven
@@ -161,9 +100,6 @@
   // an initial width to seed the layout; subsequent updates use the store directly.
   const initialSidebarWidthPx =
     uiStore.sidebarWidth ?? untrack(() => sidePanelSizeDefault);
-
-  // Device library import file input ref
-  let deviceImportInputRef = $state<HTMLInputElement | null>(null);
 
   // Safe viewport width: use viewportStore if available, else fallback to reasonable default
   // Guards against SSR/test environments where window may not exist
@@ -394,9 +330,10 @@
     });
   }
 
-  // Toolbar event handlers
+  // --- Thin wrappers for Toolbar/Canvas/KeyboardHandler callbacks ---
+  // These delegate to dialogStore; the actual dialog logic lives in DialogOrchestrator.
+
   function handleNewRack() {
-    // Multi-rack mode: always open new rack form (no replace dialog)
     if (!layoutStore.canAddRack) {
       toastStore.showToast("Maximum number of racks reached", "warning");
       return;
@@ -404,162 +341,8 @@
     dialogStore.open("newRack");
   }
 
-  function handleNewRackCreate(data: CreateRackData) {
-    if (data.layoutType === "bayed" && data.bayCount) {
-      // Create bayed rack group
-      const result = layoutStore.addBayedRackGroup(
-        data.name,
-        data.bayCount,
-        data.height,
-        data.width,
-      );
-      if (!result) {
-        toastStore.showToast(
-          "Could not create Bayed Rack: insufficient capacity",
-          "error",
-        );
-        return;
-      }
-    } else {
-      // Create single column rack
-      layoutStore.addRack(data.name, data.height, data.width);
-    }
-    dialogStore.close();
-    // Auto-fit after creating new rack so it's visible
-    requestAnimationFrame(() => handleFitAll());
-  }
-
-  function handleNewRackCancel() {
-    dialogStore.close();
-  }
-
-  // Replace dialog handlers (single-rack mode)
-  async function handleSaveFirst() {
-    dialogStore.close();
-    dialogStore.pendingSaveFirst = true;
-    if (isApiAvailable()) {
-      await handleSaveToServer();
-    } else {
-      await handleSaveAsArchive();
-    }
-  }
-
-  function handleReplace() {
-    dialogStore.close();
-    // Clear autosaved session when explicitly creating new rack
-    clearSession();
-    resetAndOpenNewRack();
-  }
-
-  function handleCancelReplace() {
-    dialogStore.close();
-  }
-
-  /**
-   * Get count of unused custom device types
-   */
-  function getUnusedCustomTypeCount(): number {
-    return layoutStore.getUnusedCustomDeviceTypes().length;
-  }
-
-  /**
-   * Handle "Review & Clean Up" button in cleanup prompt
-   * Opens bulk cleanup workflow before continuing with pending operation.
-   */
-  function handleCleanupReview() {
-    const pendingOp = dialogStore.pendingCleanupOperation;
-    cleanupReviewPendingOperation = pendingOp;
-    dialogStore.close();
-    dialogStore.open("cleanupDialog");
-  }
-
-  /**
-   * Handle "Keep All" button in cleanup prompt
-   * Proceeds with the pending operation without cleanup
-   */
-  function handleCleanupKeepAll() {
-    const pendingOp = dialogStore.pendingCleanupOperation;
-    cleanupReviewPendingOperation = null;
-    dialogStore.close();
-    if (pendingOp === "save") {
-      if (isApiAvailable()) {
-        handleSaveToServer();
-      } else {
-        handleSaveAsArchive();
-      }
-    } else if (pendingOp === "saveAs") {
-      handleSaveAsArchive();
-    } else if (pendingOp === "export") {
-      handleExport();
-    }
-  }
-
-  /**
-   * Handle "Cancel" button in cleanup prompt
-   * Aborts the pending operation
-   */
-  function handleCleanupCancel() {
-    cleanupReviewPendingOperation = null;
-    dialogStore.close();
-  }
-
-  /**
-   * Handle "Don't ask again" checkbox
-   * Disables the cleanup prompt setting
-   */
-  function handleCleanupDontAskAgain() {
-    uiStore.setPromptCleanupOnSave(false);
-  }
-
-  function handleExportCancel() {
-    dialogStore.close();
-    handleFitAll();
-  }
-
-  function handleShareClose() {
-    dialogStore.close();
-    handleFitAll();
-  }
-
-  function handleOpenYamlEditor() {
-    if (viewportStore.isMobile) {
-      dialogStore.openSheet("yamlEditor");
-      return;
-    }
-
-    dialogStore.open("yamlEditor");
-  }
-
-  function handleYamlEditorClose() {
-    dialogStore.close();
-    handleFitAll();
-  }
-
-  function handleYamlEditorSheetClose() {
-    dialogStore.closeSheet();
-    handleFitAll();
-  }
-
-  function handleYamlApply(nextLayout: Layout) {
-    layoutStore.loadLayout(nextLayout);
-    layoutStore.markDirty();
-    selectionStore.clearSelection();
-    toastStore.showToast("YAML applied", "success");
-
-    if (viewportStore.isMobile) {
-      dialogStore.closeSheet();
-    } else {
-      dialogStore.close();
-    }
-
-    requestAnimationFrame(() => {
-      handleFitAll();
-    });
-  }
-
   function handleDelete() {
     if (selectionStore.isRackSelected && selectionStore.selectedRackId) {
-      // Get the selected rack by ID
       const rack = layoutStore.getRackById(selectionStore.selectedRackId);
       if (rack) {
         dialogStore.deleteTarget = { type: "rack", name: rack.name };
@@ -570,7 +353,6 @@
         selectionStore.selectedRackId !== null &&
         selectionStore.selectedDeviceId !== null
       ) {
-        // Get the rack containing the selected device
         const rack = layoutStore.getRackById(selectionStore.selectedRackId);
         const deviceIndex = selectionStore.getSelectedDeviceIndex(
           rack?.devices ?? [],
@@ -590,51 +372,14 @@
     }
   }
 
-  function handleConfirmDelete() {
-    if (deleteTarget?.type === "rack" && selectionStore.selectedRackId) {
-      layoutStore.deleteRack(selectionStore.selectedRackId);
-      selectionStore.clearSelection();
-    } else if (deleteTarget?.type === "device") {
-      const rackId = selectionStore.selectedRackId;
-      const rack = rackId ? layoutStore.getRackById(rackId) : null;
-      const deviceIndex = selectionStore.getSelectedDeviceIndex(
-        rack?.devices ?? [],
-      );
-      if (rackId !== null && deviceIndex !== null) {
-        layoutStore.removeDeviceFromRack(rackId, deviceIndex);
-        selectionStore.clearSelection();
-      }
-    }
-    dialogStore.close();
-  }
-
-  function handleCancelDelete() {
-    dialogStore.close();
-    handleFitAll();
-  }
-
   function handleToggleTheme() {
     uiStore.toggleTheme();
   }
 
   function handleToggleDisplayMode() {
     uiStore.toggleDisplayMode();
-    // Sync with layout settings
     layoutStore.updateDisplayMode(uiStore.displayMode);
-    // Also sync showLabelsOnImages for backward compatibility
     layoutStore.updateShowLabelsOnImages(uiStore.showLabelsOnImages);
-    // Track display mode change
-    analytics.trackDisplayModeToggle(uiStore.displayMode);
-  }
-
-  function handleSetDisplayMode(mode: DisplayMode) {
-    if (uiStore.displayMode === mode) return;
-    uiStore.setDisplayMode(mode);
-    // Sync with layout settings
-    layoutStore.updateDisplayMode(uiStore.displayMode);
-    // Also sync showLabelsOnImages for backward compatibility
-    layoutStore.updateShowLabelsOnImages(uiStore.showLabelsOnImages);
-    // Track display mode change
     analytics.trackDisplayModeToggle(uiStore.displayMode);
   }
 
@@ -642,323 +387,54 @@
     uiStore.toggleAnnotations();
   }
 
-  function handleSetAnnotations(enabled: boolean) {
-    uiStore.setAnnotations(enabled);
-  }
-
-  function handleSetTheme(theme: "dark" | "light") {
-    if (uiStore.theme === theme) return;
-    uiStore.setTheme(theme);
-  }
-
   function handleHelp() {
     dialogStore.open("help");
   }
 
-  function handleHelpClose() {
-    dialogStore.close();
-    handleFitAll();
-  }
-
-  function handleOpenCleanupDialog() {
-    cleanupReviewPendingOperation = null;
-    dialogStore.open("cleanupDialog");
-  }
-
-  function handleCleanupDialogClose(action: "delete" | "cancel" = "cancel") {
-    const pendingOp = cleanupReviewPendingOperation;
-    cleanupReviewPendingOperation = null;
-    dialogStore.close();
-
-    // Settings-triggered cleanup has no pending operation to continue.
-    if (!pendingOp) {
-      return;
-    }
-
-    // User cancelled review flow from cleanup dialog.
-    if (action !== "delete") {
-      return;
-    }
-
-    if (pendingOp === "save") {
-      if (isApiAvailable()) {
-        handleSaveToServer();
-      } else {
-        handleSaveAsArchive();
-      }
-    } else if (pendingOp === "saveAs") {
-      handleSaveAsArchive();
-    } else if (pendingOp === "export") {
-      handleExport();
-    }
-  }
-
   function handleAddDevice() {
-    // Close bottom sheet first to avoid z-index conflict on mobile
     dialogStore.closeSheet();
     dialogStore.open("addDevice");
   }
 
-  function handleAddDeviceCreate(data: {
-    name: string;
-    height: number;
-    category: import("$lib/types").DeviceCategory;
-    colour: string;
-    notes: string;
-    isFullDepth: boolean;
-    isHalfWidth: boolean;
-    rackWidths: RackWidth[];
-    frontImage?: ImageData;
-    rearImage?: ImageData;
-  }) {
-    const device = layoutStore.addDeviceType({
-      name: data.name,
-      u_height: data.height,
-      category: data.category,
-      colour: data.colour,
-      notes: data.notes || undefined,
-      is_full_depth: data.isFullDepth ? undefined : false,
-      slot_width: data.isHalfWidth ? 1 : undefined,
-      rack_widths: data.rackWidths,
-    });
-
-    // Store images if provided (v0.1.0)
-    if (data.frontImage) {
-      imageStore.setDeviceImage(device.slug, "front", data.frontImage);
-    }
-    if (data.rearImage) {
-      imageStore.setDeviceImage(device.slug, "rear", data.rearImage);
-    }
-
-    // Track custom device creation
-    analytics.trackCustomDeviceCreate(data.category);
-
-    toastStore.showToast(`"${data.name}" added to device library`, "success");
-    dialogStore.close();
-  }
-
-  function handleAddDeviceCancel() {
-    dialogStore.close();
-  }
-
-  // NetBox import handlers
   function handleImportFromNetBox() {
     dialogStore.open("importNetBox");
   }
 
-  function handleNetBoxImport(result: ImportResult) {
-    // Add the imported device type to the library
-    layoutStore.addDeviceTypeRaw(result.deviceType);
-    layoutStore.markDirty();
-
-    // Track the import
-    analytics.trackCustomDeviceCreate(result.deviceType.category);
-
-    toastStore.showToast(
-      `Imported "${result.deviceType.model}" to device library`,
-      "success",
-    );
-    dialogStore.close();
-  }
-
-  function handleNetBoxImportCancel() {
-    dialogStore.close();
-  }
-
-  // Device library JSON import handlers
   function handleImportDevices() {
-    deviceImportInputRef?.click();
+    // Delegates to DialogOrchestrator's hidden file input via dialogStore
+    // The DialogOrchestrator handles the actual file input click
+    dialogOrchestrator.handleImportDevices();
   }
 
-  async function handleDeviceImportFileChange(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-
-    if (!file) return;
-
-    try {
-      const text = await file.text();
-
-      // Get existing device slugs for duplicate detection
-      const existingSlugs = layoutStore.device_types.map((d) => d.slug);
-
-      // Parse and validate the import (returns DeviceType[])
-      const result = parseDeviceLibraryImport(text, existingSlugs);
-
-      if (result.error) {
-        toastStore.showToast(`Import failed: ${result.error}`, "error");
-        return;
-      }
-
-      // Add imported devices to library
-      for (const deviceType of result.devices) {
-        layoutStore.addDeviceTypeRaw(deviceType);
-      }
-
-      // Track successful import
-      analytics.trackPaletteImport();
-
-      // Show success toast
-      const message =
-        result.skipped > 0
-          ? `Imported ${result.devices.length} devices (${result.skipped} skipped)`
-          : `Imported ${result.devices.length} ${result.devices.length === 1 ? "device" : "devices"}`;
-
-      toastStore.showToast(message, "success");
-    } catch (error) {
-      console.error("Failed to import device library:", error);
-      toastStore.showToast("Failed to import device library", "error");
-    } finally {
-      // Reset file input
-      input.value = "";
+  function handleOpenYamlEditor() {
+    if (viewportStore.isMobile) {
+      dialogStore.openSheet("yamlEditor");
+      return;
     }
+    dialogStore.open("yamlEditor");
   }
 
-  // Watch for device selection changes to trigger mobile bottom sheet
-  $effect(() => {
-    const activeRack = layoutStore.activeRack;
-    if (viewportStore.isMobile && selectionStore.isDeviceSelected) {
-      const deviceIndex = selectionStore.getSelectedDeviceIndex(
-        activeRack?.devices ?? [],
-      );
-      debug.log("[Mobile] Device selected:", {
-        deviceIndex,
-        hasRack: !!activeRack,
-      });
-      if (deviceIndex !== null && activeRack) {
-        dialogStore.openSheet("deviceDetails", deviceIndex);
-        debug.log("[Mobile] Opening bottom sheet for device", deviceIndex);
-        // Note: Not zooming because bottom sheet covers most of viewport
-      }
-    } else if (!selectionStore.isDeviceSelected) {
-      // When device deselected, close sheet and fit all
-      if (viewportStore.isMobile && bottomSheetOpen) {
-        debug.log(
-          "[Mobile] Device deselected, closing bottom sheet and fitting all",
-        );
-        dialogStore.closeSheet();
-        canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-      }
-    }
-  });
-
-  // Handle bottom sheet close
-  function handleBottomSheetClose() {
-    dialogStore.closeSheet();
-    selectionStore.clearSelection();
-    handleFitAll();
+  function handleOpenCleanupDialog() {
+    dialogOrchestrator.handleOpenCleanupDialog();
   }
 
-  // Handle mobile device actions (remove, move)
-  function handleMobileRemoveDevice() {
-    const activeRack = layoutStore.activeRack;
-    if (selectedDeviceForSheet !== null && activeRack) {
-      layoutStore.removeDeviceFromRack(activeRack.id, selectedDeviceForSheet);
-      handleBottomSheetClose();
-    }
-  }
+  // Rack interaction handlers (used by Canvas and RackList)
 
-  function handleMobileMoveDeviceUp() {
-    const activeRack = layoutStore.activeRack;
-    if (selectedDeviceForSheet !== null && activeRack) {
-      const device = activeRack.devices[selectedDeviceForSheet];
-      const deviceType = layoutStore.device_types.find(
-        (dt) => dt.slug === device?.device_type,
-      );
-      if (device && deviceType) {
-        // Move up = increase position (higher U number)
-        const newPosition = device.position + 1;
-        layoutStore.moveDevice(
-          activeRack.id,
-          selectedDeviceForSheet,
-          newPosition,
-        );
-      }
-    }
-  }
-
-  function handleMobileMoveDeviceDown() {
-    const activeRack = layoutStore.activeRack;
-    if (selectedDeviceForSheet !== null && activeRack) {
-      const device = activeRack.devices[selectedDeviceForSheet];
-      if (device && device.position > 1) {
-        // Move down = decrease position (lower U number)
-        const newPosition = device.position - 1;
-        layoutStore.moveDevice(
-          activeRack.id,
-          selectedDeviceForSheet,
-          newPosition,
-        );
-      }
-    }
-  }
-
-  // Handle view tab click (mobile)
-  function handleViewSheetClick() {
-    dialogStore.openSheet("view");
-  }
-
-  // Handle view sheet close (manual dismiss — re-fits canvas)
-  function handleViewSheetClose() {
-    dialogStore.closeSheet();
-    handleFitAll();
-  }
-
-  // Handle view sheet close after an action (no re-fit)
-  function handleViewSheetActionClose() {
-    dialogStore.closeSheet();
-  }
-
-  // Handle device library tab click (mobile bottom nav)
-  function handleDeviceLibraryTabClick() {
-    dialogStore.openSheet("deviceLibrary");
-  }
-
-  // Handle file tab click (mobile)
-  function handleFileTabClick() {
-    dialogStore.openSheet("fileActions");
-  }
-
-  // Handle file sheet close
-  function handleFileSheetClose() {
-    dialogStore.closeSheet();
-  }
-
-  // Handle device library sheet close
-  function handleDeviceLibrarySheetClose() {
-    dialogStore.closeSheet();
-    handleFitAll();
-  }
-
-  // Handle rack long press (mobile rack editing)
   function handleRackLongPress(_event: CustomEvent<{ rackId: string }>) {
-    // Ignore if in placement mode (handled by enableLongPress prop, but double-check)
     if (placementStore.isPlacing) return;
-
-    // Close any other open sheets first
     dialogStore.closeSheet();
-    // Open rack edit sheet
     dialogStore.openSheet("rackEdit");
   }
 
-  // Handle rack edit sheet close
-  function handleRackEditSheetClose() {
-    dialogStore.closeSheet();
-    handleFitAll();
-  }
-
-  // Rack context menu handlers
   function handleRackContextEdit(rackId: string) {
     layoutStore.setActiveRack(rackId);
     selectionStore.selectRack(rackId);
     if (viewportStore.isMobile) {
       dialogStore.openSheet("rackEdit");
     }
-    // On desktop, the EditPanel automatically shows for selected rack
   }
 
   function handleRackContextRename(rackId: string) {
-    // Same as edit for now - opens the edit panel where name can be changed
     handleRackContextEdit(rackId);
   }
 
@@ -968,7 +444,6 @@
       toastStore.showToast(result.error, "error");
     } else {
       toastStore.showToast("Rack duplicated", "success");
-      // Fit all to show the new rack
       handleFitAll();
     }
   }
@@ -976,7 +451,6 @@
   function handleRackContextDelete(rackId: string) {
     const rack = layoutStore.getRackById(rackId);
     if (rack) {
-      // Set up and show delete confirmation
       layoutStore.setActiveRack(rackId);
       selectionStore.selectRack(rackId);
       dialogStore.deleteTarget = { type: "rack", name: rack.name };
@@ -990,7 +464,6 @@
       return;
     }
 
-    // Generate QR code for the share URL (for optional embedding in export)
     try {
       const shareUrl = generateShareUrl(layoutStore.layout);
       if (canFitInQR(shareUrl)) {
@@ -1004,7 +477,6 @@
       dialogStore.exportQrCodeDataUrl = undefined;
     }
 
-    // Set pre-selected rack IDs for export dialog
     dialogStore.exportSelectedRackIds = rackIds;
     dialogStore.open("export");
   }
@@ -1020,16 +492,8 @@
     );
   }
 
-  // Handle mobile device selection from palette (enters placement mode)
-  function handleMobileDeviceSelect(
-    event: CustomEvent<{ device: import("$lib/types").DeviceType }>,
-  ) {
-    const { device } = event.detail;
-    hapticTap(); // Fire haptic immediately for snappier feedback
-    placementStore.startPlacement(device);
-    // Close all sheets when entering placement mode
-    dialogStore.closeSheet();
-  }
+  // DialogOrchestrator component reference for delegating calls
+  let dialogOrchestrator: DialogOrchestrator;
 </script>
 
 <svelte:window onkeydown={(e) => konamiDetector.handleKeyDown(e)} />
@@ -1157,234 +621,7 @@
       {/if}
     </main>
 
-    <!-- Mobile bottom sheet for device details -->
-    {#if viewportStore.isMobile && bottomSheetOpen && selectedDeviceForSheet !== null && layoutStore.activeRack}
-      {@const activeRack = layoutStore.activeRack}
-      {@const device = activeRack.devices[selectedDeviceForSheet]}
-      {@const deviceType = device
-        ? layoutStore.device_types.find((dt) => dt.slug === device.device_type)
-        : null}
-      {#if device && deviceType}
-        {@const rackHeight = activeRack.height}
-        {@const maxPosition = rackHeight - deviceType.u_height + 1}
-        {@const canMoveUp = device.position < maxPosition}
-        {@const canMoveDown = device.position > 1}
-        <BottomSheet
-          open={bottomSheetOpen}
-          title={deviceType.model}
-          onclose={handleBottomSheetClose}
-        >
-          <DeviceDetails
-            {device}
-            {deviceType}
-            rackView={activeRack.view}
-            {rackHeight}
-            showActions={true}
-            onremove={handleMobileRemoveDevice}
-            onmoveup={handleMobileMoveDeviceUp}
-            onmovedown={handleMobileMoveDeviceDown}
-            {canMoveUp}
-            {canMoveDown}
-          />
-        </BottomSheet>
-      {/if}
-    {/if}
-
-    <NewRackWizard
-      open={newRackFormOpen}
-      rackCount={layoutStore.rackCount}
-      oncreate={handleNewRackCreate}
-      oncancel={handleNewRackCancel}
-    />
-
-    <AddDeviceForm
-      open={addDeviceFormOpen}
-      activeRackWidth={layoutStore.activeRack?.width}
-      onadd={handleAddDeviceCreate}
-      oncancel={handleAddDeviceCancel}
-    />
-
-    <ImportFromNetBoxDialog
-      open={importFromNetBoxOpen}
-      onimport={handleNetBoxImport}
-      oncancel={handleNetBoxImportCancel}
-    />
-
-    <ConfirmDialog
-      open={confirmDeleteOpen}
-      title={deleteTarget?.type === "rack" ? "Delete Rack" : "Remove Device"}
-      message={deleteTarget?.type === "rack"
-        ? `Are you sure you want to delete "${deleteTarget?.name}"? All devices in this rack will be removed.`
-        : `Are you sure you want to remove "${deleteTarget?.name}" from this rack?`}
-      confirmLabel={deleteTarget?.type === "rack" ? "Delete Rack" : "Remove"}
-      onconfirm={handleConfirmDelete}
-      oncancel={handleCancelDelete}
-    />
-
-    <ConfirmReplaceDialog
-      open={showReplaceDialog}
-      onSaveFirst={handleSaveFirst}
-      onReplace={handleReplace}
-      onCancel={handleCancelReplace}
-    />
-
-    <CleanupPromptDialog
-      open={cleanupPromptOpen}
-      operation={cleanupPromptOperation}
-      unusedCount={getUnusedCustomTypeCount()}
-      onreview={handleCleanupReview}
-      onkeepall={handleCleanupKeepAll}
-      oncancel={handleCleanupCancel}
-      ondontaskagain={handleCleanupDontAskAgain}
-    />
-
-    <ExportDialog
-      open={exportDialogOpen}
-      racks={layoutStore.racks}
-      rackGroups={layoutStore.rack_groups}
-      deviceTypes={layoutStore.device_types}
-      images={imageStore.getAllImages()}
-      displayMode={uiStore.displayMode}
-      layoutName={layoutStore.layout.name}
-      selectedRackId={selectionStore.isRackSelected
-        ? selectionStore.selectedRackId
-        : null}
-      selectedRackIds={dialogStore.exportSelectedRackIds}
-      qrCodeDataUrl={exportQrCodeDataUrl}
-      onexport={(e) => handleExportSubmit(e.detail)}
-      oncancel={handleExportCancel}
-    />
-
-    <ShareDialog
-      open={shareDialogOpen}
-      layout={layoutStore.layout}
-      onclose={handleShareClose}
-    />
-
-    <Dialog
-      open={yamlEditorDialogOpen}
-      title="Layout YAML"
-      width="min(980px, 95vw)"
-      onclose={handleYamlEditorClose}
-    >
-      <LayoutYamlPanel
-        open={yamlEditorDialogOpen}
-        layout={layoutStore.layout}
-        onapply={handleYamlApply}
-      />
-    </Dialog>
-
-    <HelpPanel open={helpPanelOpen} onclose={handleHelpClose} />
-
-    <CleanupDialog
-      open={cleanupDialogOpen}
-      onclose={handleCleanupDialogClose}
-    />
-
-    <LoadDialog />
-
-    <ToastContainer />
-
-    <!-- Port tooltip for network interface hover -->
-    <PortTooltip />
-
-    <!-- Drag tooltip for device name/U-height during drag -->
-    <DragTooltip />
-
-    <!-- Mobile bottom navigation bar -->
-    <MobileBottomNav
-      activeTab={fileSheetOpen
-        ? "file"
-        : viewSheetOpen
-          ? "view"
-          : deviceLibrarySheetOpen
-            ? "devices"
-            : null}
-      hidden={false}
-      onfileclick={handleFileTabClick}
-      onviewclick={handleViewSheetClick}
-      ondevicesclick={handleDeviceLibraryTabClick}
-    />
-
-    {#if viewportStore.isMobile && fileSheetOpen}
-      <BottomSheet
-        open={fileSheetOpen}
-        title="File"
-        onclose={handleFileSheetClose}
-      >
-        <MobileFileSheet
-          onload={handleLoad}
-          onsave={maybeSave}
-          onsaveas={maybeSaveAs}
-          onexport={handleExport}
-          onshare={handleShare}
-          onviewyaml={handleOpenYamlEditor}
-          onclose={handleFileSheetClose}
-          hasRacks={layoutStore.hasRack}
-        />
-      </BottomSheet>
-    {/if}
-
-    {#if viewportStore.isMobile && yamlEditorSheetOpen}
-      <BottomSheet
-        open={yamlEditorSheetOpen}
-        title="Layout YAML"
-        onclose={handleYamlEditorSheetClose}
-      >
-        <LayoutYamlPanel
-          open={yamlEditorSheetOpen}
-          layout={layoutStore.layout}
-          onapply={handleYamlApply}
-        />
-      </BottomSheet>
-    {/if}
-
-    {#if viewportStore.isMobile && viewSheetOpen}
-      <BottomSheet
-        open={viewSheetOpen}
-        title="View"
-        onclose={handleViewSheetClose}
-      >
-        <MobileViewSheet
-          displayMode={uiStore.displayMode}
-          showAnnotations={uiStore.showAnnotations}
-          theme={uiStore.theme}
-          ondisplaymodechange={handleSetDisplayMode}
-          onannotationschange={handleSetAnnotations}
-          onthemechange={handleSetTheme}
-          onfitall={handleFitAll}
-          onresetzoom={() => canvasStore.resetZoom()}
-          onclose={handleViewSheetActionClose}
-        />
-      </BottomSheet>
-    {/if}
-
-    {#if viewportStore.isMobile && deviceLibrarySheetOpen}
-      <BottomSheet
-        open={deviceLibrarySheetOpen}
-        title="Device Library"
-        onclose={handleDeviceLibrarySheetClose}
-      >
-        <DevicePalette
-          ondeviceselect={handleMobileDeviceSelect}
-          oncreatedevice={handleAddDevice}
-        />
-      </BottomSheet>
-    {/if}
-
-    <!-- Mobile rack edit sheet (opened via long press on rack) -->
-    {#if viewportStore.isMobile && rackEditSheetOpen && layoutStore.activeRack}
-      <BottomSheet
-        open={rackEditSheetOpen}
-        title="Edit Rack"
-        onclose={handleRackEditSheetClose}
-      >
-        <RackEditSheet
-          rack={layoutStore.activeRack}
-          onclose={handleRackEditSheetClose}
-        />
-      </BottomSheet>
-    {/if}
+    <DialogOrchestrator bind:this={dialogOrchestrator} />
 
     <KeyboardHandler
       onsave={maybeSave}
@@ -1404,15 +641,13 @@
     <!-- Global SVG gradient definitions for animations -->
     <AnimationDefs />
 
-    <!-- Hidden file input for device library JSON import -->
-    <input
-      bind:this={deviceImportInputRef}
-      type="file"
-      accept=".json,application/json"
-      onchange={handleDeviceImportFileChange}
-      style="display: none;"
-      aria-label="Import device library file"
-    />
+    <ToastContainer />
+
+    <!-- Port tooltip for network interface hover -->
+    <PortTooltip />
+
+    <!-- Drag tooltip for device name/U-height during drag -->
+    <DragTooltip />
   </div>
 </Tooltip.Provider>
 

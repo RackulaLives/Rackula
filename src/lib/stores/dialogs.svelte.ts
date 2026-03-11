@@ -2,7 +2,7 @@
  * Centralized dialog state management
  *
  * Provides a single source of truth for all dialog/sheet open states.
- * Handlers remain in App.svelte as they require access to other stores.
+ * Handlers live in DialogOrchestrator.svelte (dialog/sheet UI) and App.svelte (triggers).
  *
  * Only one dialog can be open at a time (enforced by using single openDialog state).
  * Sheets (mobile bottom sheets) use a separate state since they coexist with dialogs.
