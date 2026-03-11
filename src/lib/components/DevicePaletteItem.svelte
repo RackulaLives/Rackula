@@ -106,8 +106,23 @@
     }
   }
 
-  // Clean up document listener if component unmounts mid-drag
-  $effect(() => () => document.removeEventListener("dragover", handleDocumentDragOver));
+  // Shared teardown for all drag cleanup paths (dragend, drop fallback, unmount)
+  function teardownDrag() {
+    document.removeEventListener("dragover", handleDocumentDragOver);
+    document.removeEventListener("drop", handleDocumentDrop);
+    setCurrentDragData(null);
+    isDragging = false;
+    hideDragTooltip();
+  }
+
+  // Fallback cleanup: Firefox sometimes fails to fire dragend during rapid
+  // dragging. A document-level drop listener ensures cleanup always runs.
+  function handleDocumentDrop() {
+    teardownDrag();
+  }
+
+  // Clean up document listeners if component unmounts mid-drag
+  $effect(() => teardownDrag);
 
   function handleDragStart(event: DragEvent) {
     // Prevent dragging incompatible devices
@@ -137,13 +152,12 @@
 
     // Track tooltip position via document dragover (works in all browsers)
     document.addEventListener("dragover", handleDocumentDragOver);
+    // Fallback: document drop listener ensures cleanup if dragend doesn't fire
+    document.addEventListener("drop", handleDocumentDrop);
   }
 
   function handleDragEnd() {
-    document.removeEventListener("dragover", handleDocumentDragOver);
-    setCurrentDragData(null);
-    isDragging = false;
-    hideDragTooltip();
+    teardownDrag();
   }
 </script>
 
