@@ -67,6 +67,7 @@ Documentation is organized by purpose:
 ```text
 docs/
 ├── ARCHITECTURE.md          → High-level overview and entry points
+├── deployment/              → Deployment-specific docs (auth, hosting)
 ├── guides/
 │   ├── TESTING.md           → Testing patterns and commands
 │   └── ACCESSIBILITY.md     → A11y compliance checklist
@@ -74,12 +75,29 @@ docs/
 │   ├── SPEC.md              → Technical overview and design principles
 │   ├── BRAND.md             → Design system quick reference
 │   └── GITHUB-WORKFLOW.md   → GitHub Issues workflow
-└── planning/
-    └── ROADMAP.md           → Version planning
+├── planning/
+│   └── ROADMAP.md           → Version planning
+├── plans/                   → Implementation plans (YYYY-MM-DD-kebab-case.md)
+├── research/                → Research spikes by issue ({ISSUE}-{type}.md)
+├── spikes/                  → Active spike investigations
+└── superpowers/
+    └── specs/               → Brainstorming design specs (created on first use)
 ```
 
 **Start here:** `docs/ARCHITECTURE.md` for codebase overview.
 **Reference:** `docs/reference/SPEC.md` for technical overview and design principles.
+
+### Design Documents
+
+Project overrides for Superpowers v5 document locations:
+
+| Document Type          | Location                  | Naming Convention                  |
+| ---------------------- | ------------------------- | ---------------------------------- |
+| Specs (brainstorming)  | `docs/superpowers/specs/` | `YYYY-MM-DD-<topic>-design.md`     |
+| Plans (execution)      | `docs/plans/`             | `YYYY-MM-DD-<feature-name>.md`     |
+| Research spikes        | `docs/research/`          | `{ISSUE}-{type}.md`                |
+
+Plans use `docs/plans/` (project override — v5 defaults to `docs/superpowers/plans/`).
 
 ## GitHub Issues Workflow
 
@@ -159,6 +177,9 @@ Implement features as if they are the first and only implementation.
 ## Autonomous Mode
 
 When given an overnight execution prompt:
+
+**Execution model:** Plan execution uses subagent-driven development. Stopping conditions
+below apply to the orchestrating session, not individual subagent turns.
 
 - You have explicit permission to work without pausing between prompts
 - Do NOT ask for review or confirmation mid-session
@@ -459,7 +480,7 @@ layoutDebug.device("placed device %s at U%d", slug, position);
 | ------------------------- | ---------------------------------------------- | --------------------------------------- |
 | Bug/issue investigation   | `/superpowers:systematic-debugging`            | Prevents guessing, forces evidence      |
 | New feature or component  | `/superpowers:brainstorming`                   | Explores requirements before code       |
-| Multi-step implementation | `/superpowers:writing-plans` then `/dev-issue` | Plan first, execute with discipline     |
+| Multi-step implementation | `/superpowers:writing-plans`                   | Plans auto-route to subagent execution  |
 | Working on GitHub issue   | `/dev-issue <number>`                          | Full workflow with worktree isolation   |
 | Research question         | `/research-spike <number>`                     | Structured investigation                |
 | Finishing a branch        | `/superpowers:finishing-a-development-branch`  | Merge/PR decision flow                  |
