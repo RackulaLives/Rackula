@@ -15,7 +15,7 @@
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
     "better-auth": "^1.4.18",
-    "hono": "^4.12.5",
+    "hono": "^4.12.7",
     "js-yaml": "^4.1.1",
     "zod": "^3.24.1"
   },
