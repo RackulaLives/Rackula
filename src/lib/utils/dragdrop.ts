@@ -229,6 +229,13 @@ function getTransparentDragImage(): HTMLCanvasElement {
     transparentDragImage = document.createElement("canvas");
     transparentDragImage.width = 1;
     transparentDragImage.height = 1;
+    // Safari requires drag image element to be in the DOM
+    transparentDragImage.style.position = "fixed";
+    transparentDragImage.style.left = "-9999px";
+    transparentDragImage.style.top = "-9999px";
+    transparentDragImage.style.opacity = "0";
+    transparentDragImage.style.pointerEvents = "none";
+    document.body.appendChild(transparentDragImage);
   }
   return transparentDragImage;
 }

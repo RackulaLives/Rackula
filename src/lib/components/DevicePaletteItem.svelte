@@ -96,6 +96,16 @@
     }
   }
 
+  // Document-level dragover listener for tooltip position tracking.
+  // Firefox reports 0,0 for clientX/clientY on source-element `drag` events,
+  // so we use `dragover` on the document which provides correct coordinates
+  // in all browsers.
+  function handleDocumentDragOver(event: DragEvent) {
+    if (event.clientX !== 0 || event.clientY !== 0) {
+      updateDragTooltipPosition(event.clientX, event.clientY);
+    }
+  }
+
   function handleDragStart(event: DragEvent) {
     // Prevent dragging incompatible devices
     if (!isCompatible) {
@@ -121,17 +131,13 @@
 
     // Show drag tooltip at initial cursor position
     showDragTooltip(device, event.clientX, event.clientY);
-  }
 
-  function handleDrag(event: DragEvent) {
-    // Update tooltip position during drag
-    // Note: Some browsers report 0,0 for clientX/clientY at drag end
-    if (event.clientX !== 0 || event.clientY !== 0) {
-      updateDragTooltipPosition(event.clientX, event.clientY);
-    }
+    // Track tooltip position via document dragover (works in all browsers)
+    document.addEventListener("dragover", handleDocumentDragOver);
   }
 
   function handleDragEnd() {
+    document.removeEventListener("dragover", handleDocumentDragOver);
     setCurrentDragData(null);
     isDragging = false;
     hideDragTooltip();
@@ -153,7 +159,6 @@
   onclick={handleClick}
   onkeydown={handleKeyDown}
   ondragstart={handleDragStart}
-  ondrag={handleDrag}
   ondragend={handleDragEnd}
   aria-label={ariaDescription}
 >
@@ -222,7 +227,6 @@
     /* Safari drag support: prevent text selection during drag */
     -webkit-user-select: none;
     user-select: none;
-    -webkit-user-drag: element;
     transition:
       transform var(--duration-fast) var(--ease-out),
       box-shadow var(--duration-fast) var(--ease-out),
