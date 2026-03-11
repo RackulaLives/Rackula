@@ -96,27 +96,36 @@
     }
   }
 
+  // Tracks whether this instance owns the current drag session.
+  // Prevents unmounting non-dragging instances from clearing shared drag state.
+  let ownsDrag = false;
+
   // Document-level dragover listener for tooltip position tracking.
   // Firefox reports 0,0 for clientX/clientY on source-element `drag` events,
   // so we use `dragover` on the document which provides correct coordinates
-  // in all browsers.
+  // in all browsers. Registered in capture phase so stopPropagation() in
+  // descendant handlers cannot prevent it from firing.
   function handleDocumentDragOver(event: DragEvent) {
     if (event.clientX !== 0 || event.clientY !== 0) {
       updateDragTooltipPosition(event.clientX, event.clientY);
     }
   }
 
-  // Shared teardown for all drag cleanup paths (dragend, drop fallback, unmount)
+  // Shared teardown for all drag cleanup paths (dragend, drop fallback, unmount).
+  // Only clears shared state if this instance owns the active drag.
   function teardownDrag() {
-    document.removeEventListener("dragover", handleDocumentDragOver);
-    document.removeEventListener("drop", handleDocumentDrop);
-    setCurrentDragData(null);
-    isDragging = false;
-    hideDragTooltip();
+    document.removeEventListener("dragover", handleDocumentDragOver, true);
+    document.removeEventListener("drop", handleDocumentDrop, true);
+    if (ownsDrag) {
+      ownsDrag = false;
+      setCurrentDragData(null);
+      isDragging = false;
+      hideDragTooltip();
+    }
   }
 
   // Fallback cleanup: Firefox sometimes fails to fire dragend during rapid
-  // dragging. A document-level drop listener ensures cleanup always runs.
+  // dragging. A capture-phase document drop listener ensures cleanup always runs.
   function handleDocumentDrop() {
     teardownDrag();
   }
@@ -145,15 +154,17 @@
 
     // Set shared drag state for dragover (browsers block getData during dragover)
     setCurrentDragData(dragData);
+    ownsDrag = true;
     isDragging = true;
 
     // Show drag tooltip at initial cursor position
     showDragTooltip(device, event.clientX, event.clientY);
 
-    // Track tooltip position via document dragover (works in all browsers)
-    document.addEventListener("dragover", handleDocumentDragOver);
-    // Fallback: document drop listener ensures cleanup if dragend doesn't fire
-    document.addEventListener("drop", handleDocumentDrop);
+    // Track tooltip position via document dragover (capture phase so
+    // stopPropagation in descendant handlers cannot block it)
+    document.addEventListener("dragover", handleDocumentDragOver, true);
+    // Fallback: capture-phase drop listener ensures cleanup if dragend doesn't fire
+    document.addEventListener("drop", handleDocumentDrop, true);
   }
 
   function handleDragEnd() {
