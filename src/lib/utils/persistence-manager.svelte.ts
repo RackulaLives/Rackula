@@ -191,7 +191,7 @@ export async function handleSaveAsArchive(): Promise<void> {
       return;
     }
     dialogStore.pendingSaveFirst = false;
-    console.error("Failed to save layout:", error);
+    persistenceDebug.api("Failed to save layout: %O", error);
     toastStore.showToast(
       error instanceof Error ? error.message : "Failed to save layout",
       "error",
@@ -293,48 +293,58 @@ export async function handleExportSubmit(
     );
 
     const exportViewOrDefault = options.exportView ?? "both";
-    if (options.format === "svg") {
-      const svgString = exportAsSVG(svg);
-      const blob = new Blob([svgString], { type: "image/svg+xml" });
-      const filename = generateExportFilename(
-        layoutStore.layout.name,
-        exportViewOrDefault,
-        options.format,
-      );
-      downloadBlob(blob, filename);
-      toastStore.showToast("SVG exported successfully", "success");
-      analytics.trackExportImage("svg", exportViewOrDefault);
-    } else if (options.format === "png") {
-      const imageBlob = await exportAsPNG(svg);
-      const filename = generateExportFilename(
-        layoutStore.layout.name,
-        exportViewOrDefault,
-        options.format,
-      );
-      downloadBlob(imageBlob, filename);
-      toastStore.showToast("PNG exported successfully", "success");
-      analytics.trackExportImage("png", exportViewOrDefault);
-    } else if (options.format === "jpeg") {
-      const imageBlob = await exportAsJPEG(svg);
-      const filename = generateExportFilename(
-        layoutStore.layout.name,
-        exportViewOrDefault,
-        options.format,
-      );
-      downloadBlob(imageBlob, filename);
-      toastStore.showToast("JPEG exported successfully", "success");
-      analytics.trackExportImage("jpeg", exportViewOrDefault);
-    } else if (options.format === "pdf") {
-      const svgString = exportAsSVG(svg);
-      const pdfBlob = await exportAsPDF(svgString, options.background);
-      const filename = generateExportFilename(
-        layoutStore.layout.name,
-        exportViewOrDefault,
-        options.format,
-      );
-      downloadBlob(pdfBlob, filename);
-      toastStore.showToast("PDF exported successfully", "success");
-      analytics.trackExportPDF(exportViewOrDefault);
+
+    const imageFormatHandlers: Record<
+      string,
+      (
+        svg: SVGSVGElement,
+        layoutName: string,
+        exportView: string,
+      ) => Promise<void>
+    > = {
+      svg: async (svgEl, layoutName, exportView) => {
+        const svgString = exportAsSVG(svgEl);
+        const blob = new Blob([svgString], { type: "image/svg+xml" });
+        downloadBlob(
+          blob,
+          generateExportFilename(layoutName, exportView, "svg"),
+        );
+        toastStore.showToast("SVG exported successfully", "success");
+        analytics.trackExportImage("svg", exportView);
+      },
+      png: async (svgEl, layoutName, exportView) => {
+        const blob = await exportAsPNG(svgEl);
+        downloadBlob(
+          blob,
+          generateExportFilename(layoutName, exportView, "png"),
+        );
+        toastStore.showToast("PNG exported successfully", "success");
+        analytics.trackExportImage("png", exportView);
+      },
+      jpeg: async (svgEl, layoutName, exportView) => {
+        const blob = await exportAsJPEG(svgEl);
+        downloadBlob(
+          blob,
+          generateExportFilename(layoutName, exportView, "jpeg"),
+        );
+        toastStore.showToast("JPEG exported successfully", "success");
+        analytics.trackExportImage("jpeg", exportView);
+      },
+      pdf: async (svgEl, layoutName, exportView) => {
+        const svgString = exportAsSVG(svgEl);
+        const blob = await exportAsPDF(svgString, options.background);
+        downloadBlob(
+          blob,
+          generateExportFilename(layoutName, exportView, "pdf"),
+        );
+        toastStore.showToast("PDF exported successfully", "success");
+        analytics.trackExportPDF(exportView);
+      },
+    };
+
+    const handler = imageFormatHandlers[options.format];
+    if (handler) {
+      await handler(svg, layoutStore.layout.name, exportViewOrDefault);
     } else if (options.format === "csv") {
       const firstRack = racksToExport[0];
       if (!firstRack) {
@@ -342,12 +352,10 @@ export async function handleExportSubmit(
       }
       const csvContent = exportToCSV(firstRack, layoutStore.device_types);
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
-      const filename = generateExportFilename(
-        layoutStore.layout.name,
-        null,
-        options.format,
+      downloadBlob(
+        blob,
+        generateExportFilename(layoutStore.layout.name, null, "csv"),
       );
-      downloadBlob(blob, filename);
       const successMsg =
         racksToExport.length > 1
           ? `CSV exported (first rack only - "${firstRack.name}")`
@@ -356,7 +364,7 @@ export async function handleExportSubmit(
       analytics.trackExportCSV();
     }
   } catch (error) {
-    console.error("Export failed:", error);
+    persistenceDebug.api("Export failed: %O", error);
     toastStore.showToast(
       error instanceof Error ? error.message : "Export failed",
       "error",

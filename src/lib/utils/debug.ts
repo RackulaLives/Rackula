@@ -14,6 +14,7 @@
  *   - rackula:dnd:render
  *   - rackula:persistence:api
  *   - rackula:persistence:health
+ *   - rackula:dialog:import
  */
 import Debug from "debug";
 
@@ -44,6 +45,10 @@ export const appDebug = {
 
 export const selectionDebug = {
   state: Debug("rackula:selection:state"),
+};
+
+export const dialogDebug = {
+  import: Debug("rackula:dialog:import"),
 };
 
 export const persistenceDebug = {

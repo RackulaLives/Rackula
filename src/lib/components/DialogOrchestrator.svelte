@@ -55,7 +55,7 @@
   import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { analytics } from "$lib/utils/analytics";
   import { hapticTap } from "$lib/utils/haptics";
-  import { debug } from "$lib/utils/debug";
+  import { appDebug, dialogDebug } from "$lib/utils/debug";
   import type { ImageData } from "$lib/types/images";
   import type { DisplayMode, Layout, RackWidth } from "$lib/types";
   import type { ImportResult } from "$lib/utils/netbox-import";
@@ -404,7 +404,7 @@
 
       toastStore.showToast(message, "success");
     } catch (error) {
-      console.error("Failed to import device library:", error);
+      dialogDebug.import("Failed to import device library: %O", error);
       toastStore.showToast("Failed to import device library", "error");
     } finally {
       input.value = "";
@@ -420,18 +420,18 @@
       const deviceIndex = selectionStore.getSelectedDeviceIndex(
         activeRack?.devices ?? [],
       );
-      debug.log("[Mobile] Device selected:", {
+      appDebug.mobile("Device selected: %O", {
         deviceIndex,
         hasRack: !!activeRack,
       });
       if (deviceIndex !== null && activeRack) {
         dialogStore.openSheet("deviceDetails", deviceIndex);
-        debug.log("[Mobile] Opening bottom sheet for device", deviceIndex);
+        appDebug.mobile("Opening bottom sheet for device %d", deviceIndex);
       }
     } else if (!selectionStore.isDeviceSelected) {
       if (viewportStore.isMobile && bottomSheetOpen) {
-        debug.log(
-          "[Mobile] Device deselected, closing bottom sheet and fitting all",
+        appDebug.mobile(
+          "Device deselected, closing bottom sheet and fitting all",
         );
         dialogStore.closeSheet();
         canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
