@@ -420,8 +420,11 @@
 
   // Rack interaction handlers (used by Canvas and RackList)
 
-  function handleRackLongPress(_event: CustomEvent<{ rackId: string }>) {
+  function handleRackLongPress(event: CustomEvent<{ rackId: string }>) {
     if (placementStore.isPlacing) return;
+    const { rackId } = event.detail;
+    layoutStore.setActiveRack(rackId);
+    selectionStore.selectRack(rackId);
     dialogStore.closeSheet();
     dialogStore.openSheet("rackEdit");
   }

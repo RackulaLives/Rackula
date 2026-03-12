@@ -40,6 +40,7 @@
   import {
     maybeSave,
     maybeSaveAs,
+    maybeExport,
     handleLoad,
     handleExport,
     handleExportSubmit,
@@ -392,6 +393,7 @@
       for (const deviceType of result.devices) {
         layoutStore.addDeviceTypeRaw(deviceType);
       }
+      layoutStore.markDirty();
 
       analytics.trackPaletteImport();
 
@@ -698,7 +700,7 @@
       onload={handleLoad}
       onsave={maybeSave}
       onsaveas={maybeSaveAs}
-      onexport={handleExport}
+      onexport={maybeExport}
       onshare={handleShare}
       onviewyaml={handleOpenYamlEditor}
       onclose={handleFileSheetClose}
