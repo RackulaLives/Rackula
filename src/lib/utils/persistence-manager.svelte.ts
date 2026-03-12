@@ -200,7 +200,7 @@ export async function handleSaveAsArchive(): Promise<void> {
 }
 
 export function shouldSaveToServer(): boolean {
-  return isApiAvailable() || hasEverConnectedToApi();
+  return isApiAvailable();
 }
 
 export function maybeSave(): void {
