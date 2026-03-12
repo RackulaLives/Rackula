@@ -399,6 +399,12 @@ export function initPersistenceEffects(): void {
         saveSession(currentLayout);
         saveDebounceTimer = null;
       }, 1000);
+    } else {
+      if (saveDebounceTimer) {
+        clearTimeout(saveDebounceTimer);
+        saveDebounceTimer = null;
+      }
+      clearSession();
     }
     return () => {
       if (saveDebounceTimer) {
