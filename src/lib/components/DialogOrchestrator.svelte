@@ -35,7 +35,6 @@
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
-  import { isApiAvailable } from "$lib/stores/persistence.svelte";
 
   import {
     maybeSave,
@@ -49,6 +48,7 @@
     handleSaveAsArchive,
     handleFitAll,
     resetAndOpenNewRack,
+    shouldSaveToServer,
   } from "$lib/utils/persistence-manager.svelte";
 
   import { clearSession } from "$lib/utils/session-storage";
@@ -137,7 +137,7 @@
   async function handleSaveFirst() {
     dialogStore.close();
     dialogStore.pendingSaveFirst = true;
-    if (isApiAvailable()) {
+    if (shouldSaveToServer()) {
       await handleSaveToServer();
     } else {
       await handleSaveAsArchive();
@@ -172,7 +172,7 @@
     cleanupReviewPendingOperation = null;
     dialogStore.close();
     if (pendingOp === "save") {
-      if (isApiAvailable()) {
+      if (shouldSaveToServer()) {
         handleSaveToServer();
       } else {
         handleSaveAsArchive();
@@ -212,7 +212,7 @@
     }
 
     if (pendingOp === "save") {
-      if (isApiAvailable()) {
+      if (shouldSaveToServer()) {
         handleSaveToServer();
       } else {
         handleSaveAsArchive();

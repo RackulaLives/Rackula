@@ -164,7 +164,7 @@ export async function handleSaveToServer(): Promise<void> {
     }
   } catch (e) {
     dialogStore.pendingSaveFirst = false;
-    console.warn("Manual save failed:", e);
+    persistenceDebug.api("Manual save failed: %O", e);
     handlePersistenceError(e, true, () => handleSaveToServer());
   }
 }
@@ -199,9 +199,13 @@ export async function handleSaveAsArchive(): Promise<void> {
   }
 }
 
+export function shouldSaveToServer(): boolean {
+  return isApiAvailable() || hasEverConnectedToApi();
+}
+
 export function maybeSave(): void {
   if (shouldShowCleanupPrompt("save")) return;
-  if (isApiAvailable() || hasEverConnectedToApi()) {
+  if (shouldSaveToServer()) {
     handleSaveToServer();
   } else {
     handleSaveAsArchive();
@@ -425,7 +429,7 @@ export function initPersistenceEffects(): void {
         _saveStatus = "saved";
         clearSession();
       } catch (e) {
-        console.warn("Auto-save failed:", e);
+        persistenceDebug.api("Auto-save failed: %O", e);
         handlePersistenceError(e);
       }
       serverSaveTimer = null;
