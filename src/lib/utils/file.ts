@@ -43,7 +43,9 @@ export function openFilePicker(): Promise<File | null> {
 
     // Handle cancel (window regains focus without a file being selected)
     const handleFocus = () => {
-      // Delay to allow change event to fire first
+      // 300ms debounce for cancel detection — no browser API exists to detect
+      // when the user cancels a file picker; this delay gives the change event
+      // enough time to fire before we assume cancellation.
       setTimeout(() => {
         // Only treat as cancel if no change event was received
         if (resolved || changeReceived) return;

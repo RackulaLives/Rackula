@@ -5,9 +5,7 @@
  * Export/Share are direct toolbar buttons, and "New Rack" is in the sidebar Racks tab.
  */
 import type { Page } from "@playwright/test";
-
-/** Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux) */
-const MODIFIER = process.platform === "darwin" ? "Meta" : "Control";
+import { PLATFORM_MODIFIER } from "./index";
 
 /**
  * Click the "New Rack" button in the sidebar Racks tab.
@@ -49,6 +47,16 @@ export async function clickExport(page: Page): Promise<void> {
 }
 
 /**
+ * Wait for the hidden file input to appear, then set the file directly.
+ * Shared by loadFileFromDisk() and loadFileFromDiskViaMenu().
+ */
+async function setFileAndWait(page: Page, filePath: string): Promise<void> {
+  const fileInput = page.locator('[data-testid="file-input-load"]');
+  await fileInput.waitFor({ state: "attached", timeout: 5000 });
+  await fileInput.setInputFiles(filePath);
+}
+
+/**
  * Load a layout file using page.setInputFiles() on the hidden file input.
  *
  * Triggers the load action via Ctrl/Cmd+O, waits for the hidden file input
@@ -59,15 +67,8 @@ export async function loadFileFromDisk(
   page: Page,
   filePath: string,
 ): Promise<void> {
-  // Trigger the load action so the hidden file input is created
-  await page.keyboard.press(`${MODIFIER}+o`);
-
-  // Wait for the hidden file input to appear
-  const fileInput = page.locator('[data-testid="file-input-load"]');
-  await fileInput.waitFor({ state: "attached", timeout: 5000 });
-
-  // Set the file directly — no filechooser event needed
-  await fileInput.setInputFiles(filePath);
+  await page.keyboard.press(`${PLATFORM_MODIFIER}+o`);
+  await setFileAndWait(page, filePath);
 }
 
 /**
@@ -80,13 +81,6 @@ export async function loadFileFromDiskViaMenu(
   page: Page,
   filePath: string,
 ): Promise<void> {
-  // Trigger load via menu
   await clickLoad(page);
-
-  // Wait for the hidden file input to appear
-  const fileInput = page.locator('[data-testid="file-input-load"]');
-  await fileInput.waitFor({ state: "attached", timeout: 5000 });
-
-  // Set the file directly
-  await fileInput.setInputFiles(filePath);
+  await setFileAndWait(page, filePath);
 }
