@@ -1,5 +1,10 @@
 import { test, expect } from "./helpers/base-test";
-import { gotoWithRack, dragDeviceToRack, PLATFORM_MODIFIER } from "./helpers";
+import {
+  gotoWithRack,
+  dragDeviceToRack,
+  PLATFORM_MODIFIER,
+  loadFileFromDisk,
+} from "./helpers";
 
 test.describe("Device Custom Names", () => {
   test.beforeEach(async ({ page }) => {
@@ -69,11 +74,8 @@ test.describe("Device Custom Names", () => {
     // Reload with a fresh rack
     await gotoWithRack(page);
 
-    // Load the saved file via keyboard shortcut
-    const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press(`${PLATFORM_MODIFIER}+o`);
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(savedPath);
+    // Load the saved file
+    await loadFileFromDisk(page, savedPath);
 
     // Wait for success toast to confirm load completed
     await expect(page.locator(".toast--success")).toBeVisible({

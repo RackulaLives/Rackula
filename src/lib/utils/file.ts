@@ -9,12 +9,21 @@
  */
 export function openFilePicker(): Promise<File | null> {
   return new Promise((resolve) => {
-    // Create a temporary file input
+    // Create a temporary file input and attach it to the DOM so that
+    // Playwright's page.setInputFiles() can target it in E2E tests.
     const input = document.createElement("input");
     input.type = "file";
+    input.setAttribute("data-testid", "file-input-load");
     // Accept ZIP files (including .Rackula.zip which is a zip file)
     // Using application/zip MIME type is more reliable across browsers
     input.accept = ".zip,application/zip,application/x-zip-compressed";
+    // Hide visually but keep in DOM for Playwright access
+    input.style.position = "absolute";
+    input.style.opacity = "0";
+    input.style.pointerEvents = "none";
+    input.style.width = "0";
+    input.style.height = "0";
+    document.body.appendChild(input);
 
     let resolved = false;
     // Track change event separately to prevent race condition with focus timeout
@@ -47,6 +56,7 @@ export function openFilePicker(): Promise<File | null> {
     const cleanup = () => {
       input.removeEventListener("change", handleChange);
       window.removeEventListener("focus", handleFocus);
+      input.remove();
     };
 
     input.addEventListener("change", handleChange);

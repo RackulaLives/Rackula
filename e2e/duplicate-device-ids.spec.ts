@@ -3,7 +3,7 @@ import fs from "fs";
 import os from "node:os";
 import path from "node:path";
 import JSZip from "jszip";
-import { gotoWithRack, clickLoad } from "./helpers";
+import { gotoWithRack, loadFileFromDiskViaMenu } from "./helpers";
 
 // Positions in internal units (6 per U): U1=6, U3=18, U5=30
 const LAYOUT_YAML = `version: "0.7.6"
@@ -90,10 +90,7 @@ test.describe("Duplicate Device ID Handling (#1363)", () => {
     });
 
     // Load the ZIP fixture with duplicate device IDs
-    const fileChooserPromise = page.waitForEvent("filechooser");
-    await clickLoad(page);
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(zipPath);
+    await loadFileFromDiskViaMenu(page, zipPath!);
 
     // Wait for success toast — confirms load completed without crash
     await expect(page.locator(".toast--success")).toBeVisible({

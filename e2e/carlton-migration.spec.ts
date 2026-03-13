@@ -1,7 +1,6 @@
 import { test, expect } from "./helpers/base-test";
-import type { Page } from "@playwright/test";
 import path from "path";
-import { gotoWithRack, PLATFORM_MODIFIER } from "./helpers";
+import { gotoWithRack, PLATFORM_MODIFIER, loadFileFromDisk } from "./helpers";
 
 /**
  * Carlton Migration Test (#883)
@@ -35,22 +34,11 @@ test.describe("Carlton Migration (#879)", () => {
     await gotoWithRack(page);
   });
 
-  /**
-   * Helper to load a file using keyboard shortcut (Ctrl/Cmd+O)
-   * More stable than clicking through dropdown menu
-   */
-  async function loadFileViaKeyboard(page: Page, filePath: string) {
-    const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press(`${PLATFORM_MODIFIER}+o`);
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(filePath);
-  }
-
   test("loads Carlton's zip file with decimal position successfully", async ({
     page,
   }) => {
-    // Load the fixture file via keyboard shortcut
-    await loadFileViaKeyboard(page, fixturePath);
+    // Load the fixture file
+    await loadFileFromDisk(page, fixturePath);
 
     // Wait for success toast to confirm load completed
     await expect(page.locator(".toast--success")).toBeVisible({
@@ -65,8 +53,8 @@ test.describe("Carlton Migration (#879)", () => {
   });
 
   test("all devices load and UnRaid Server is present", async ({ page }) => {
-    // Load the fixture file via keyboard shortcut
-    await loadFileViaKeyboard(page, fixturePath);
+    // Load the fixture file
+    await loadFileFromDisk(page, fixturePath);
 
     // Wait for success toast
     await expect(page.locator(".toast--success")).toBeVisible({
@@ -100,8 +88,8 @@ test.describe("Carlton Migration (#879)", () => {
   });
 
   test("save and reload preserves layout", async ({ page }) => {
-    // Load the fixture file via keyboard shortcut
-    await loadFileViaKeyboard(page, fixturePath);
+    // Load the fixture file
+    await loadFileFromDisk(page, fixturePath);
 
     // Wait for success toast
     await expect(page.locator(".toast--success")).toBeVisible({
@@ -129,8 +117,8 @@ test.describe("Carlton Migration (#879)", () => {
     // Reload with a fresh rack state
     await gotoWithRack(page);
 
-    // Load the re-saved file via keyboard shortcut
-    await loadFileViaKeyboard(page, savedPath);
+    // Load the re-saved file
+    await loadFileFromDisk(page, savedPath);
 
     // Verify it loads successfully
     await expect(page.locator(".toast--success")).toBeVisible({

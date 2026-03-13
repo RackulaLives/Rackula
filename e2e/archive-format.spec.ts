@@ -8,7 +8,8 @@ import {
   PLATFORM_MODIFIER,
   dragDeviceToRack,
   clickSave,
-  clickLoad,
+  loadFileFromDisk,
+  loadFileFromDiskViaMenu,
 } from "./helpers";
 
 test.describe("Archive Format", () => {
@@ -99,11 +100,8 @@ test.describe("Archive Format", () => {
     // Reload with a fresh rack
     await gotoWithRack(page, STANDARD_RACK_SHARE);
 
-    // Load the saved file via keyboard shortcut
-    const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press(`${PLATFORM_MODIFIER}+o`);
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(savedPath);
+    // Load the saved file
+    await loadFileFromDisk(page, savedPath);
 
     // Wait for success toast to confirm load completed
     await expect(page.locator(".toast--success")).toBeVisible({
@@ -119,10 +117,7 @@ test.describe("Archive Format", () => {
     page,
   }) => {
     // In v0.4.0, legacy format support was removed
-    const fileChooserPromise = page.waitForEvent("filechooser");
-    await clickLoad(page);
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(legacyJsonPath);
+    await loadFileFromDiskViaMenu(page, legacyJsonPath);
 
     // Should show error toast - legacy format no longer supported
     const toast = page.locator('.toast-error, .toast.error, [role="alert"]');
@@ -134,10 +129,7 @@ test.describe("Archive Format", () => {
     fs.writeFileSync(corruptedPath, "not a zip file");
 
     // Load corrupted file
-    const fileChooserPromise = page.waitForEvent("filechooser");
-    await clickLoad(page);
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(corruptedPath);
+    await loadFileFromDiskViaMenu(page, corruptedPath);
 
     // Should show error toast
     const toast = page.locator('.toast-error, .toast.error, [role="alert"]');

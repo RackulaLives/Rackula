@@ -7,6 +7,7 @@ import {
   PLATFORM_MODIFIER,
   clickSave,
   dragDeviceToRack,
+  loadFileFromDisk,
 } from "./helpers";
 
 test.describe("Persistence", () => {
@@ -84,11 +85,8 @@ test.describe("Persistence", () => {
     await gotoWithRack(page, MEDIUM_RACK_SHARE);
     await expect(page.locator(".rack-device")).not.toBeVisible();
 
-    // Load the saved file via keyboard shortcut
-    const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press(`${PLATFORM_MODIFIER}+o`);
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(savedPath);
+    // Load the saved file
+    await loadFileFromDisk(page, savedPath);
 
     // Wait for success toast to confirm load completed
     await expect(page.locator(".toast--success")).toBeVisible({

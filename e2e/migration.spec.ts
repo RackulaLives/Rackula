@@ -1,7 +1,6 @@
 import { test, expect } from "./helpers/base-test";
-import type { Page } from "@playwright/test";
 import path from "path";
-import { gotoWithRack, PLATFORM_MODIFIER } from "./helpers";
+import { gotoWithRack, PLATFORM_MODIFIER, loadFileFromDisk } from "./helpers";
 
 test.describe("Position Migration", () => {
   const fixturePath = path.join(
@@ -10,17 +9,6 @@ test.describe("Position Migration", () => {
     "fixtures",
     "Legacy Test Layout.Rackula.zip",
   );
-
-  /**
-   * Helper to load a file using keyboard shortcut (Ctrl/Cmd+O)
-   * More stable than clicking through dropdown menu
-   */
-  async function loadFileViaKeyboard(page: Page, filePath: string) {
-    const fileChooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press(`${PLATFORM_MODIFIER}+o`);
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(filePath);
-  }
 
   test.beforeEach(async ({ page }) => {
     // Load a rack via share link so the app is in a ready state for file loading
@@ -34,7 +22,7 @@ test.describe("Position Migration", () => {
     await expect(page.locator(".rack-container").first()).toBeVisible();
 
     // Load the legacy fixture file via keyboard shortcut
-    await loadFileViaKeyboard(page, fixturePath);
+    await loadFileFromDisk(page, fixturePath);
 
     // Wait for file load success toast (distinct from share link toast)
     await expect(
@@ -63,7 +51,7 @@ test.describe("Position Migration", () => {
     await expect(page.locator(".rack-container").first()).toBeVisible();
 
     // Load the legacy fixture via keyboard shortcut
-    await loadFileViaKeyboard(page, fixturePath);
+    await loadFileFromDisk(page, fixturePath);
 
     // Wait for file load success
     await expect(
@@ -87,7 +75,7 @@ test.describe("Position Migration", () => {
     await expect(page.locator(".rack-container").first()).toBeVisible();
 
     // Load legacy fixture via keyboard shortcut
-    await loadFileViaKeyboard(page, fixturePath);
+    await loadFileFromDisk(page, fixturePath);
 
     // Wait for file load success
     await expect(
@@ -108,7 +96,7 @@ test.describe("Position Migration", () => {
     await expect(page.locator(".rack-container").first()).toBeVisible();
 
     // Load the saved file via keyboard shortcut
-    await loadFileViaKeyboard(page, savedPath);
+    await loadFileFromDisk(page, savedPath);
 
     // Wait for file load success
     await expect(

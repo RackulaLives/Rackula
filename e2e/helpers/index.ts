@@ -34,6 +34,8 @@ export {
   clickSave,
   clickLoad,
   clickExport,
+  loadFileFromDisk,
+  loadFileFromDiskViaMenu,
 } from "./toolbar-actions";
 
 // Mobile navigation
