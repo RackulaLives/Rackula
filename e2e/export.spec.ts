@@ -1,14 +1,20 @@
 import { test, expect } from "./helpers/base-test";
 import {
   gotoWithRack,
-  SMALL_RACK_SHARE,
+  createTestLayout,
   dragDeviceToRack,
   clickExport,
 } from "./helpers";
 
+const smallRack = createTestLayout({
+  name: "Small Test Layout",
+  rackName: "Small Rack",
+  rackHeight: 12,
+});
+
 test.describe("Export Functionality", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoWithRack(page, SMALL_RACK_SHARE);
+    await gotoWithRack(page, smallRack);
 
     // Add a device (drag to first rack-svg which is front view)
     await dragDeviceToRack(page);

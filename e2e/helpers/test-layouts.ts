@@ -103,6 +103,78 @@ export const STANDARD_RACK_SHARE = encodeMinimal(EMPTY_24U_RACK);
 export const RACK_WITH_DEVICE_SHARE = encodeMinimal(RACK_WITH_DEVICE);
 
 /**
+ * Build a test layout with readable options and return an encoded share link string.
+ *
+ * All fields are optional — sensible defaults produce a 42U, 19" empty rack
+ * named "Test Layout".
+ *
+ * @example
+ *   // Empty 12U rack
+ *   createTestLayout({ rackHeight: 12 });
+ *
+ *   // Rack with a pre-placed device
+ *   createTestLayout({
+ *     devices: [{ type: "my-server", position: 1, face: "front" }],
+ *     customTypes: [{ slug: "my-server", height: 2, colour: "#AA0000", category: "s" }],
+ *   });
+ */
+export function createTestLayout(overrides?: {
+  name?: string;
+  rackName?: string;
+  rackHeight?: number;
+  rackWidth?: 10 | 19;
+  devices?: Array<{
+    type: string;
+    position: number;
+    face: "front" | "rear";
+    name?: string;
+  }>;
+  customTypes?: Array<{
+    slug: string;
+    height: number;
+    colour: string;
+    category: string;
+    manufacturer?: string;
+    model?: string;
+  }>;
+}): string {
+  const {
+    name = "Test Layout",
+    rackName = "Test Rack",
+    rackHeight = 42,
+    rackWidth = 19,
+    devices = [],
+    customTypes = [],
+  } = overrides ?? {};
+
+  const layout: MinimalLayout = {
+    v: APP_VERSION,
+    n: name,
+    r: {
+      n: rackName,
+      h: rackHeight,
+      w: rackWidth,
+      d: devices.map((d) => ({
+        t: d.type,
+        p: d.position,
+        f: d.face,
+        ...(d.name ? { n: d.name } : {}),
+      })),
+    },
+    dt: customTypes.map((ct) => ({
+      s: ct.slug,
+      h: ct.height,
+      c: ct.colour,
+      x: ct.category,
+      ...(ct.manufacturer ? { mf: ct.manufacturer } : {}),
+      ...(ct.model ? { m: ct.model } : {}),
+    })),
+  };
+
+  return encodeMinimal(layout);
+}
+
+/**
  * Navigate to app with pre-loaded rack
  * @param page - Playwright page
  * @param shareParam - Encoded share param (default: EMPTY_RACK_SHARE)
