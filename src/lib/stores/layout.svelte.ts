@@ -1,6 +1,9 @@
 /**
  * Layout Store
  * Central state management for the application using Svelte 5 runes
+ *
+ * This is the facade that owns the reactive $state and delegates to
+ * extracted domain modules via the LayoutStateAccess bridge pattern.
  */
 
 import { SvelteSet } from "svelte/reactivity";
@@ -18,21 +21,13 @@ import type {
   Cable,
   SlotPosition,
 } from "$lib/types";
+import { MAX_RACKS } from "$lib/types/constants";
 import {
-  DEFAULT_DEVICE_FACE,
-  MAX_RACKS,
-  UNITS_PER_U,
-} from "$lib/types/constants";
-import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
-import {
-  canPlaceDevice,
   canPlaceInContainer,
   findValidDropPositions,
-  isSlotOccupied,
 } from "$lib/utils/collision";
 import { createLayout } from "$lib/utils/serialization";
 import {
-  createDeviceType as createDeviceTypeHelper,
   findDeviceType as findDeviceTypeInArray,
   type CreateDeviceTypeInput,
 } from "$lib/stores/layout-helpers";
@@ -42,31 +37,11 @@ import { getBrandSlugs } from "$lib/data/brandPacks";
 import { debug, layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { generateRackId } from "$lib/utils/rack";
+import { toInternalUnits } from "$lib/utils/position";
 import { instantiatePorts } from "$lib/utils/port-utils";
-import { sanitizeFilename } from "$lib/utils/imageUpload";
+import { UNITS_PER_U } from "$lib/types/constants";
 import { getHistoryStore } from "./history.svelte";
-import { getImageStore } from "./images.svelte";
-import {
-  createAddDeviceTypeCommand,
-  createUpdateDeviceTypeCommand,
-  createDeleteDeviceTypeCommand,
-  createPlaceDeviceCommand,
-  createMoveDeviceCommand,
-  createRemoveDeviceCommand,
-  createUpdateDeviceFaceCommand,
-  createUpdateDeviceNameCommand,
-  createUpdateDevicePlacementImageCommand,
-  createUpdateDeviceColourCommand,
-  createUpdateDeviceSlotPositionCommand,
-  createUpdateDeviceNotesCommand,
-  createUpdateDeviceIpCommand,
-  createUpdateRackCommand,
-  createClearRackCommand,
-  createBatchCommand,
-  type DeviceTypeCommandStore,
-  type DeviceCommandStore,
-  type RackCommandStore,
-} from "./commands";
+import { createPlaceDeviceCommand } from "./commands";
 import type { LayoutStateAccess } from "./layout/types";
 import {
   addRack as addRackImpl,
@@ -94,6 +69,48 @@ import {
   updateRackGroupRaw as updateRackGroupRawImpl,
   deleteRackGroupRaw as deleteRackGroupRawImpl,
 } from "./layout/rack-groups";
+import {
+  addDeviceTypeRaw as addDeviceTypeRawImpl,
+  removeDeviceTypeRaw as removeDeviceTypeRawImpl,
+  updateDeviceTypeRaw as updateDeviceTypeRawImpl,
+  placeDeviceRaw as placeDeviceRawImpl,
+  removeDeviceAtIndexRaw as removeDeviceAtIndexRawImpl,
+  moveDeviceRaw as moveDeviceRawImpl,
+  updateDeviceFaceRaw as updateDeviceFaceRawImpl,
+  updateDeviceNameRaw as updateDeviceNameRawImpl,
+  updateDevicePlacementImageRaw as updateDevicePlacementImageRawImpl,
+  updateDeviceColourRaw as updateDeviceColourRawImpl,
+  getDeviceAtIndex as getDeviceAtIndexImpl,
+  getPlacedDevicesForType as getPlacedDevicesForTypeImpl,
+  updateRackRaw as updateRackRawImpl,
+  replaceRackRaw as replaceRackRawImpl,
+  clearRackDevicesRaw as clearRackDevicesRawImpl,
+  restoreRackDevicesRaw as restoreRackDevicesRawImpl,
+  addCableRaw as addCableRawImpl,
+  updateCableRaw as updateCableRawImpl,
+  removeCableRaw as removeCableRawImpl,
+  removeCablesRaw as removeCablesRawImpl,
+  generateUniqueDeviceId,
+} from "./layout/mutators";
+import {
+  getCommandStoreAdapter as getCommandStoreAdapterImpl,
+  addDeviceTypeRecorded as addDeviceTypeRecordedImpl,
+  updateDeviceTypeRecorded as updateDeviceTypeRecordedImpl,
+  deleteDeviceTypeRecorded as deleteDeviceTypeRecordedImpl,
+  deleteMultipleDeviceTypesRecorded as deleteMultipleDeviceTypesRecordedImpl,
+  placeDeviceRecorded as placeDeviceRecordedImpl,
+  moveDeviceRecorded as moveDeviceRecordedImpl,
+  removeDeviceRecorded as removeDeviceRecordedImpl,
+  updateDeviceFaceRecorded as updateDeviceFaceRecordedImpl,
+  updateDeviceNameRecorded as updateDeviceNameRecordedImpl,
+  updateDevicePlacementImageRecorded as updateDevicePlacementImageRecordedImpl,
+  updateDeviceColourRecorded as updateDeviceColourRecordedImpl,
+  updateDeviceSlotPositionRecorded as updateDeviceSlotPositionRecordedImpl,
+  updateDeviceNotesRecorded as updateDeviceNotesRecordedImpl,
+  updateDeviceIpRecorded as updateDeviceIpRecordedImpl,
+  updateRackRecorded as updateRackRecordedImpl,
+  clearRackRecorded as clearRackRecordedImpl,
+} from "./layout/command-adapters";
 
 // localStorage key for tracking if user has started (created/loaded a rack)
 export const HAS_STARTED_KEY = "Rackula_has_started";
@@ -374,6 +391,10 @@ export function getLayoutStore() {
   };
 }
 
+// =============================================================================
+// Layout Actions
+// =============================================================================
+
 /**
  * Create a new layout with the given name
  * @param name - Layout name
@@ -458,7 +479,9 @@ function loadLayout(layoutData: Layout): void {
   saveHasStarted(true);
 }
 
-// Rack actions — delegated to layout/rack-actions.ts and layout/rack-groups.ts
+// =============================================================================
+// Rack Actions — delegated to layout/rack-actions.ts
+// =============================================================================
 
 function addRack(
   name: string,
@@ -530,8 +553,6 @@ function updateRackView(id: string, view: RackView): void {
   updateRack(id, { view });
 }
 
-// Rack actions — delegated to layout/rack-actions.ts
-
 function deleteRack(id: string): void {
   deleteRackImpl(stateAccess, id);
 }
@@ -544,7 +565,9 @@ function duplicateRack(id: string) {
   return duplicateRackImpl(stateAccess, id);
 }
 
-// Rack group actions — delegated to layout/rack-groups.ts
+// =============================================================================
+// Rack Group Actions — delegated to layout/rack-groups.ts
+// =============================================================================
 
 function createRackGroup(name: string, rackIds: string[], preset?: LayoutPreset) {
   return createRackGroupImpl(stateAccess, name, rackIds, preset);
@@ -590,7 +613,7 @@ function reorderRacksInGroup(groupId: string, newOrder: string[]) {
   return reorderRacksInGroupImpl(stateAccess, groupId, newOrder);
 }
 
-// Rack group raw actions — delegated to layout/rack-groups.ts (for undo/redo system)
+// Rack group raw actions (for undo/redo system)
 
 function createRackGroupRaw(group: RackGroup): void {
   createRackGroupRawImpl(stateAccess, group);
@@ -603,6 +626,10 @@ function updateRackGroupRaw(id: string, updates: Partial<RackGroup>): void {
 function deleteRackGroupRaw(id: string): RackGroup | undefined {
   return deleteRackGroupRawImpl(stateAccess, id);
 }
+
+// =============================================================================
+// Device Actions
+// =============================================================================
 
 /**
  * Duplicate a placed device within a rack
@@ -688,7 +715,7 @@ function duplicateDevice(
 
   // Use the undo/redo system via placeDeviceRaw and history
   const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
+  const adapter = getCommandStoreAdapterImpl(stateAccess);
   const deviceName = deviceType.model ?? deviceType.slug;
 
   const command = createPlaceDeviceCommand(
@@ -710,25 +737,23 @@ function setActiveRack(id: string | null): void {
   setActiveRackImpl(stateAccess, id);
 }
 
+// =============================================================================
+// Device Type Actions
+// =============================================================================
+
 /**
  * Add a device type to the library
  * Uses undo/redo support via addDeviceTypeRecorded
- * @param data - Device type data
- * @returns The created device type
  */
 function addDeviceType(data: CreateDeviceTypeInput): DeviceType {
-  // Delegate to recorded version for undo/redo support
   return addDeviceTypeRecorded(data);
 }
 
 /**
  * Update a device type in the library
  * Uses undo/redo support via updateDeviceTypeRecorded
- * @param slug - Device type slug
- * @param updates - Properties to update
  */
 function updateDeviceType(slug: string, updates: Partial<DeviceType>): void {
-  // Delegate to recorded version for undo/redo support
   updateDeviceTypeRecorded(slug, updates);
 }
 
@@ -736,23 +761,18 @@ function updateDeviceType(slug: string, updates: Partial<DeviceType>): void {
  * Delete a device type from the library
  * Also removes all placed devices referencing it
  * Uses undo/redo support via deleteDeviceTypeRecorded
- * @param slug - Device type slug
  */
 function deleteDeviceType(slug: string): void {
-  // Delegate to recorded version for undo/redo support
   deleteDeviceTypeRecorded(slug);
 }
+
+// =============================================================================
+// Placement Actions
+// =============================================================================
 
 /**
  * Place a device from the library into a rack
  * Uses undo/redo support via placeDeviceRecorded
- * Face defaults based on device depth: full-depth -> 'both', half-depth -> 'front'
- * @param rackId - Target rack ID
- * @param deviceTypeSlug - Device type slug
- * @param position - U position (bottom of device)
- * @param face - Optional face assignment (auto-determined from depth if not specified)
- * @param slotPosition - Optional slot position for half-width devices ('left', 'right', or 'full')
- * @returns true if placed successfully, false otherwise
  */
 function placeDevice(
   rackId: string,
@@ -761,26 +781,12 @@ function placeDevice(
   face?: DeviceFace,
   slotPosition?: SlotPosition,
 ): boolean {
-  // Delegate to recorded version for undo/redo support
-  // Face is determined by placeDeviceRecorded based on device depth if not specified
-  return placeDeviceRecorded(
-    rackId,
-    deviceTypeSlug,
-    position,
-    face,
-    slotPosition,
-  );
+  return placeDeviceRecorded(rackId, deviceTypeSlug, position, face, slotPosition);
 }
 
 /**
  * Place a device inside a container slot
  * Uses undo/redo support via command pattern
- * @param rackId - Target rack ID
- * @param deviceTypeSlug - Device type slug of child device
- * @param containerId - ID of parent container PlacedDevice
- * @param slotId - Slot ID within the container
- * @param position - Position within container (0-indexed from bottom)
- * @returns true if placed successfully, false if invalid
  */
 function placeInContainer(
   rackId: string,
@@ -845,7 +851,7 @@ function placeInContainer(
   // Use command for undo/redo
   const deviceName = childType.model ?? childType.slug;
   const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
+  const adapter = getCommandStoreAdapterImpl(stateAccess);
   const command = createPlaceDeviceCommand(placedDevice, adapter, deviceName);
   history.execute(command);
   isDirty = true;
@@ -856,10 +862,6 @@ function placeInContainer(
 /**
  * Move a device within a rack
  * Uses undo/redo support via moveDeviceRecorded
- * @param rackId - Rack ID
- * @param deviceIndex - Index of device in rack's devices array
- * @param newPosition - New U position
- * @returns true if moved successfully, false otherwise
  */
 function moveDevice(
   rackId: string,
@@ -867,7 +869,6 @@ function moveDevice(
   newPosition: number,
   slotPosition?: SlotPosition,
 ): boolean {
-  // Delegate to recorded version for undo/redo support
   return moveDeviceRecorded(rackId, deviceIndex, newPosition, slotPosition);
 }
 
@@ -893,53 +894,35 @@ function moveDeviceToRack(
 /**
  * Remove a device from a rack
  * Uses undo/redo support via removeDeviceRecorded
- * @param rackId - Rack ID
- * @param deviceIndex - Index of device in rack's devices array
  */
 function removeDeviceFromRack(rackId: string, deviceIndex: number): void {
-  // Delegate to recorded version for undo/redo support
   removeDeviceRecorded(rackId, deviceIndex);
 }
 
 /**
  * Update a device's face property
- * Uses undo/redo support via updateDeviceFaceRecorded
- * @param rackId - Rack ID
- * @param deviceIndex - Index of device in rack's devices array
- * @param face - New face value
  */
 function updateDeviceFace(
   rackId: string,
   deviceIndex: number,
   face: DeviceFace,
 ): void {
-  // Delegate to recorded version for undo/redo support
   updateDeviceFaceRecorded(rackId, deviceIndex, face);
 }
 
 /**
  * Update a device's custom display name
- * Uses undo/redo support via updateDeviceNameRecorded
- * @param rackId - Rack ID
- * @param deviceIndex - Index of device in rack's devices array
- * @param name - New custom name (undefined or empty to clear)
  */
 function updateDeviceName(
   rackId: string,
   deviceIndex: number,
   name: string | undefined,
 ): void {
-  // Delegate to recorded version for undo/redo support
   updateDeviceNameRecorded(rackId, deviceIndex, name);
 }
 
 /**
  * Update a device's placement image filename
- * Uses undo/redo support via updateDevicePlacementImageRecorded
- * @param rackId - Rack ID
- * @param deviceIndex - Index of device in rack's devices array
- * @param face - Which face to update ('front' or 'rear')
- * @param filename - Image filename (undefined to clear)
  */
 function updateDevicePlacementImage(
   rackId: string,
@@ -947,72 +930,50 @@ function updateDevicePlacementImage(
   face: "front" | "rear",
   filename: string | undefined,
 ): void {
-  // Delegate to recorded version for undo/redo support
   updateDevicePlacementImageRecorded(rackId, deviceIndex, face, filename);
 }
 
 /**
  * Update a device's colour override
- * Uses undo/redo support via updateDeviceColourRecorded
- * @param rackId - Rack ID
- * @param deviceIndex - Index of device in rack's devices array
- * @param colour - Hex colour string (undefined to clear and use device type colour)
  */
 function updateDeviceColour(
   rackId: string,
   deviceIndex: number,
   colour: string | undefined,
 ): void {
-  // Delegate to recorded version for undo/redo support
   updateDeviceColourRecorded(rackId, deviceIndex, colour);
 }
 
 /**
  * Update a device's slot position (for half-width devices)
- * Uses undo/redo support via updateDeviceSlotPositionRecorded
- * @param rackId - Rack ID
- * @param deviceIndex - Index of device in rack's devices array
- * @param slotPosition - New slot position ('left' or 'right')
- * @returns true if successful, false if blocked by another device
  */
 function updateDeviceSlotPosition(
   rackId: string,
   deviceIndex: number,
   slotPosition: SlotPosition,
 ): boolean {
-  // Delegate to recorded version for undo/redo support
   return updateDeviceSlotPositionRecorded(rackId, deviceIndex, slotPosition);
 }
 
 /**
  * Update a device's notes
- * Uses undo/redo support via updateDeviceNotesRecorded
- * @param rackId - Rack ID
- * @param deviceIndex - Index of device in rack's devices array
- * @param notes - New notes (undefined or empty to clear)
  */
 function updateDeviceNotes(
   rackId: string,
   deviceIndex: number,
   notes: string | undefined,
 ): void {
-  // Delegate to recorded version for undo/redo support
   updateDeviceNotesRecorded(rackId, deviceIndex, notes);
 }
 
 /**
  * Update a device's IP address/hostname
- * Uses undo/redo support via updateDeviceIpRecorded
- * @param rackId - Rack ID
- * @param deviceIndex - Index of device in rack's devices array
- * @param ip - New IP address/hostname (undefined or empty to clear)
  */
 function updateDeviceIp(
   rackId: string,
   deviceIndex: number,
   ip: string | undefined,
 ): void {
-  // Delegate to recorded version for undo/redo support
   updateDeviceIpRecorded(rackId, deviceIndex, ip);
 }
 
@@ -1034,24 +995,18 @@ function setLayoutName(name: string): void {
   }
 }
 
-/**
- * Mark the layout as having unsaved changes
- */
+// =============================================================================
+// Settings Actions
+// =============================================================================
+
 function markDirty(): void {
   isDirty = true;
 }
 
-/**
- * Mark the layout as saved (no unsaved changes)
- */
 function markClean(): void {
   isDirty = false;
 }
 
-/**
- * Mark that the user has started (created or loaded a rack)
- * This hides the WelcomeScreen and persists to localStorage
- */
 function markStarted(): void {
   hasStarted = true;
   saveHasStarted(true);
@@ -1059,7 +1014,6 @@ function markStarted(): void {
 
 /**
  * Update the display mode in layout settings
- * @param mode - Display mode to set ('label', 'image', or 'image-label')
  */
 function updateDisplayMode(mode: DisplayMode): void {
   layout = {
@@ -1071,7 +1025,6 @@ function updateDisplayMode(mode: DisplayMode): void {
 
 /**
  * Update the showLabelsOnImages setting
- * @param value - Boolean value to set
  */
 function updateShowLabelsOnImages(value: boolean): void {
   layout = {
@@ -1082,529 +1035,126 @@ function updateShowLabelsOnImages(value: boolean): void {
 }
 
 // =============================================================================
-// Rack Helper Functions
-// =============================================================================
-
-function getTargetRack(rackId?: string) {
-  return getTargetRackImpl(stateAccess, rackId);
-}
-
-/**
- * Update a rack at a specific index
- * @param index - Rack index
- * @param updater - Function to update the rack
- */
-/**
- * Generate a unique device ID that doesn't collide with the given set (#1363)
- */
-function generateUniqueDeviceId(seen: Set<string>): string {
-  let id = generateId();
-  while (seen.has(id)) id = generateId();
-  seen.add(id);
-  return id;
-}
-
-/**
- * Dev-mode invariant: warn if a rack contains duplicate device IDs (#1363)
- */
-function assertUniqueDeviceIds(rack: Rack): void {
-  if (!import.meta.env.DEV) return;
-  const ids = rack.devices.map((d) => d.id);
-  const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
-  if (dupes.length > 0) {
-    layoutDebug.state(`Duplicate device IDs in rack "${rack.name}":`, dupes);
-  }
-}
-
-function updateRackAtIndex(index: number, updater: (rack: Rack) => Rack): void {
-  layout = {
-    ...layout,
-    racks: layout.racks.map((r, i) => {
-      if (i !== index) return r;
-      const updated = updater(r);
-      assertUniqueDeviceIds(updated);
-      return updated;
-    }),
-  };
-}
-
-// =============================================================================
-// Raw Actions for Undo/Redo System
+// Raw Actions — delegated to layout/mutators.ts
 // These bypass dirty tracking and validation - used by the command pattern
-// Operations use the active rack unless a rackId is specified
 // =============================================================================
 
-/**
- * Add a device type directly (raw)
- * @param deviceType - Device type to add
- */
 function addDeviceTypeRaw(deviceType: DeviceType): void {
-  layout = {
-    ...layout,
-    device_types: [...layout.device_types, deviceType],
-  };
+  addDeviceTypeRawImpl(stateAccess, deviceType);
 }
 
-/**
- * Remove a device type directly (raw)
- * Also removes any placed devices of this type from ALL racks
- * @param slug - Device type slug to remove
- */
 function removeDeviceTypeRaw(slug: string): void {
-  layout = {
-    ...layout,
-    device_types: layout.device_types.filter((dt) => dt.slug !== slug),
-    racks: layout.racks.map((rack) => ({
-      ...rack,
-      devices: rack.devices.filter((d) => d.device_type !== slug),
-    })),
-  };
-
-  // Clean up associated images to prevent memory leaks
-  getImageStore().removeAllDeviceImages(slug);
+  removeDeviceTypeRawImpl(stateAccess, slug);
 }
 
-/**
- * Update a device type directly (raw)
- * @param slug - Device type slug to update
- * @param updates - Properties to update
- */
 function updateDeviceTypeRaw(slug: string, updates: Partial<DeviceType>): void {
-  layout = {
-    ...layout,
-    device_types: layout.device_types.map((dt) =>
-      dt.slug === slug ? { ...dt, ...updates } : dt,
-    ),
-  };
+  updateDeviceTypeRawImpl(stateAccess, slug, updates);
 }
 
-/**
- * Place a device directly (raw) - no validation
- * Uses active rack
- * @param device - Device to place
- * @returns Index where device was placed, or -1 if no rack available
- */
 function placeDeviceRaw(device: PlacedDevice): number {
-  const target = getTargetRack();
-  if (!target) return -1;
-
-  // Guard: regenerate ID if it already exists in this rack (#1363)
-  const existingIds = new Set(target.rack.devices.map((d) => d.id));
-  const safeDevice = existingIds.has(device.id)
-    ? { ...device, id: generateUniqueDeviceId(existingIds) }
-    : device;
-
-  const newDevices = [...target.rack.devices, safeDevice];
-  updateRackAtIndex(target.index, (rack) => ({
-    ...rack,
-    devices: newDevices,
-  }));
-  return newDevices.length - 1;
+  return placeDeviceRawImpl(stateAccess, device);
 }
 
-/**
- * Remove a device at index directly (raw)
- * Uses active rack
- * @param index - Device index to remove
- * @returns The removed device or undefined
- */
 function removeDeviceAtIndexRaw(index: number): PlacedDevice | undefined {
-  const target = getTargetRack();
-  if (!target) return undefined;
-  if (index < 0 || index >= target.rack.devices.length) return undefined;
-
-  const removed = target.rack.devices[index];
-
-  // Clean up placement-specific images for this device
-  if (removed) {
-    const imageStore = getImageStore();
-    imageStore.removeAllDeviceImages(`placement-${removed.id}`);
-  }
-
-  updateRackAtIndex(target.index, (rack) => ({
-    ...rack,
-    devices: rack.devices.filter((_, i) => i !== index),
-  }));
-  return removed;
+  return removeDeviceAtIndexRawImpl(stateAccess, index);
 }
 
-/**
- * Move a device directly (raw) - no collision checking
- * Uses active rack
- * @param index - Device index
- * @param newPosition - New position
- * @returns true if moved
- */
 function moveDeviceRaw(index: number, newPosition: number): boolean {
-  const target = getTargetRack();
-  if (!target) return false;
-  if (index < 0 || index >= target.rack.devices.length) return false;
-
-  updateRackAtIndex(target.index, (rack) => ({
-    ...rack,
-    devices: rack.devices.map((d, i) =>
-      i === index ? { ...d, position: newPosition } : d,
-    ),
-  }));
-  return true;
+  return moveDeviceRawImpl(stateAccess, index, newPosition);
 }
 
-/**
- * Update a device's face directly (raw)
- * Uses active rack
- * @param index - Device index
- * @param face - New face value
- */
 function updateDeviceFaceRaw(index: number, face: DeviceFace): void {
-  const target = getTargetRack();
-  if (!target) return;
-  if (index < 0 || index >= target.rack.devices.length) return;
-
-  updateRackAtIndex(target.index, (rack) => ({
-    ...rack,
-    devices: rack.devices.map((d, i) => (i === index ? { ...d, face } : d)),
-  }));
+  updateDeviceFaceRawImpl(stateAccess, index, face);
 }
 
-/**
- * Update a device's custom display name directly (raw)
- * Uses active rack
- * @param index - Device index
- * @param name - New custom name (undefined to clear)
- */
 function updateDeviceNameRaw(index: number, name: string | undefined): void {
-  const target = getTargetRack();
-  if (!target) return;
-  if (index < 0 || index >= target.rack.devices.length) return;
-
-  // Normalize empty string to undefined
-  const normalizedName = name?.trim() || undefined;
-
-  updateRackAtIndex(target.index, (rack) => ({
-    ...rack,
-    devices: rack.devices.map((d, i) =>
-      i === index ? { ...d, name: normalizedName } : d,
-    ),
-  }));
+  updateDeviceNameRawImpl(stateAccess, index, name);
 }
 
-/**
- * Update a device's placement image directly (raw)
- * @param rackId - Rack ID (for multi-rack support)
- * @param index - Device index
- * @param face - Which face to update ('front' or 'rear')
- * @param filename - Image filename (undefined to clear)
- */
 function updateDevicePlacementImageRaw(
-  rackId: string,
   index: number,
   face: "front" | "rear",
   filename: string | undefined,
 ): void {
-  const target = getTargetRack(rackId);
-  if (!target) return;
-  if (index < 0 || index >= target.rack.devices.length) return;
-
-  // Sanitize filename to prevent path traversal attacks
-  const sanitizedFilename = filename ? sanitizeFilename(filename) : undefined;
-
-  // Update the appropriate field based on face
-  const fieldName = face === "front" ? "front_image" : "rear_image";
-
-  updateRackAtIndex(target.index, (rack) => ({
-    ...rack,
-    devices: rack.devices.map((d, i) =>
-      i === index ? { ...d, [fieldName]: sanitizedFilename } : d,
-    ),
-  }));
+  // Resolve rack ID: use active rack, fall back to first rack
+  const rackId = activeRackId ?? getTargetRackImpl(stateAccess)?.rack.id;
+  if (!rackId) {
+    debug.log("updateDevicePlacementImageRaw: No rack available");
+    return;
+  }
+  updateDevicePlacementImageRawImpl(stateAccess, rackId, index, face, filename);
 }
 
-/**
- * Update a device's colour override directly (raw)
- * @param rackId - Rack ID (for multi-rack support)
- * @param index - Device index
- * @param colour - Hex colour string (undefined to clear and use device type colour)
- */
-function updateDeviceColourRaw(
-  rackId: string,
-  index: number,
-  colour: string | undefined,
-): void {
-  const target = getTargetRack(rackId);
-  if (!target) return;
-  if (index < 0 || index >= target.rack.devices.length) return;
-
-  updateRackAtIndex(target.index, (rack) => ({
-    ...rack,
-    devices: rack.devices.map((d, i) =>
-      i === index ? { ...d, colour_override: colour } : d,
-    ),
-  }));
+function updateDeviceColourRaw(index: number, colour: string | undefined): void {
+  // Resolve rack ID: use active rack, fall back to first rack
+  const rackId = activeRackId ?? getTargetRackImpl(stateAccess)?.rack.id;
+  if (!rackId) {
+    debug.log("updateDeviceColourRaw: No rack available");
+    return;
+  }
+  updateDeviceColourRawImpl(stateAccess, rackId, index, colour);
 }
 
-/**
- * Update a device's slot position directly (raw)
- * @param rackId - Rack ID (for multi-rack support)
- * @param index - Device index
- * @param slotPosition - New slot position ('left', 'right', or 'full')
- */
-function updateDeviceSlotPositionRaw(
-  rackId: string,
-  index: number,
-  slotPosition: SlotPosition,
-): void {
-  const target = getTargetRack(rackId);
-  if (!target) return;
-  if (index < 0 || index >= target.rack.devices.length) return;
-
-  updateRackAtIndex(target.index, (rack) => ({
-    ...rack,
-    devices: rack.devices.map((d, i) =>
-      i === index ? { ...d, slot_position: slotPosition } : d,
-    ),
-  }));
-}
-
-/**
- * Update a device's notes directly (raw)
- * @param rackId - Rack ID (for multi-rack support)
- * @param index - Device index
- * @param notes - Notes string (undefined to clear)
- */
-function updateDeviceNotesRaw(
-  rackId: string,
-  index: number,
-  notes: string | undefined,
-): void {
-  const target = getTargetRack(rackId);
-  if (!target) return;
-  if (index < 0 || index >= target.rack.devices.length) return;
-
-  // Normalize empty string to undefined
-  const normalizedNotes = notes?.trim() || undefined;
-
-  updateRackAtIndex(target.index, (rack) => ({
-    ...rack,
-    devices: rack.devices.map((d, i) =>
-      i === index ? { ...d, notes: normalizedNotes } : d,
-    ),
-  }));
-}
-
-/**
- * Update a device's IP address/hostname directly (raw)
- * @param rackId - Rack ID (for multi-rack support)
- * @param index - Device index
- * @param ip - IP address/hostname string (undefined to clear)
- */
-function updateDeviceIpRaw(
-  rackId: string,
-  index: number,
-  ip: string | undefined,
-): void {
-  const target = getTargetRack(rackId);
-  if (!target) return;
-  if (index < 0 || index >= target.rack.devices.length) return;
-
-  // Normalize empty string to undefined
-  const normalizedIp = ip?.trim() || undefined;
-
-  updateRackAtIndex(target.index, (rack) => ({
-    ...rack,
-    devices: rack.devices.map((d, i) => {
-      if (i !== index) return d;
-
-      // Handle custom_fields object lifecycle - default to empty object for safe spreading
-      const currentCustomFields = d.custom_fields ?? {};
-
-      if (normalizedIp === undefined) {
-        // Removing IP - clean up custom_fields if it becomes empty
-        if (!Object.hasOwn(currentCustomFields, "ip")) {
-          return d; // No change needed - IP doesn't exist
-        }
-        const { ip: _ip, ...restFields } = currentCustomFields;
-        // If no other custom fields, set to undefined rather than empty object
-        const newCustomFields =
-          Object.keys(restFields).length > 0 ? restFields : undefined;
-        return { ...d, custom_fields: newCustomFields };
-      } else {
-        // Setting IP - create or update custom_fields
-        return {
-          ...d,
-          custom_fields: { ...currentCustomFields, ip: normalizedIp },
-        };
-      }
-    }),
-  }));
-}
-
-/**
- * Get a device at a specific index from the active rack
- * @param index - Device index
- * @returns The device or undefined
- */
 function getDeviceAtIndex(index: number): PlacedDevice | undefined {
-  const target = getTargetRack();
-  if (!target) return undefined;
-  return target.rack.devices[index];
+  return getDeviceAtIndexImpl(stateAccess, index);
 }
 
-/**
- * Get all placed devices for a device type across all racks
- * @param slug - Device type slug
- * @returns Array of placed devices
- */
 function getPlacedDevicesForType(slug: string): PlacedDevice[] {
-  // Collect from all racks for proper deletion handling
-  return layout.racks.flatMap((rack) =>
-    rack.devices.filter((d) => d.device_type === slug),
-  );
+  return getPlacedDevicesForTypeImpl(stateAccess, slug);
 }
 
-/**
- * Update rack settings directly (raw)
- * Uses active rack
- * @param updates - Settings to update
- */
 function updateRackRaw(updates: Partial<Omit<Rack, "devices" | "view">>): void {
-  const target = getTargetRack();
-  if (!target) return;
-
-  updateRackAtIndex(target.index, (rack) => ({ ...rack, ...updates }));
+  updateRackRawImpl(stateAccess, updates);
 }
 
-/**
- * Replace the entire rack directly (raw)
- * Uses active rack
- * @param newRack - New rack data
- */
 function replaceRackRaw(newRack: Rack): void {
-  const target = getTargetRack();
-  if (!target) return;
-
-  updateRackAtIndex(target.index, () => newRack);
+  replaceRackRawImpl(stateAccess, newRack);
 }
 
-/**
- * Clear all devices from the active rack directly (raw)
- * @returns The removed devices
- */
 function clearRackDevicesRaw(): PlacedDevice[] {
-  const target = getTargetRack();
-  if (!target) return [];
-
-  const removed = [...target.rack.devices];
-  updateRackAtIndex(target.index, (rack) => ({ ...rack, devices: [] }));
-  return removed;
+  return clearRackDevicesRawImpl(stateAccess);
 }
 
-/**
- * Restore devices to the active rack directly (raw)
- * @param devices - Devices to restore
- */
 function restoreRackDevicesRaw(devices: PlacedDevice[]): void {
-  const target = getTargetRack();
-  if (!target) return;
-
-  // Guard: deduplicate IDs in restored device list (#1363)
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral validation set, not reactive state
-  const seenIds = new Set<string>();
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral remap, not reactive state
-  const idRemap = new Map<string, string>();
-  const safeDevices = devices
-    .map((d) => {
-      if (seenIds.has(d.id)) {
-        const newId = generateUniqueDeviceId(seenIds);
-        idRemap.set(d.id, newId);
-        return { ...d, id: newId };
-      }
-      seenIds.add(d.id);
-      return d;
-    })
-    .map((d) => {
-      // Second pass: remap container_id references
-      if (d.container_id && idRemap.has(d.container_id)) {
-        return { ...d, container_id: idRemap.get(d.container_id)! };
-      }
-      return d;
-    });
-
-  updateRackAtIndex(target.index, (rack) => ({
-    ...rack,
-    devices: [...safeDevices],
-  }));
+  restoreRackDevicesRawImpl(stateAccess, devices);
 }
 
-// =============================================================================
-// Cable Raw Actions
-// These perform immutable updates to layout.cables without dirty tracking
-// =============================================================================
+// Cable raw actions
 
-/**
- * Add a cable directly (raw)
- * @param cable - Cable to add
- */
 function addCableRaw(cable: Cable): void {
-  layout = {
-    ...layout,
-    cables: [...(layout.cables ?? []), cable],
-  };
+  addCableRawImpl(stateAccess, cable);
 }
 
-/**
- * Update a cable directly (raw)
- * @param id - Cable ID to update
- * @param updates - Properties to update
- */
 function updateCableRaw(id: string, updates: Partial<Omit<Cable, "id">>): void {
-  layout = {
-    ...layout,
-    cables: (layout.cables ?? []).map((c) =>
-      c.id === id ? { ...c, ...updates } : c,
-    ),
-  };
+  updateCableRawImpl(stateAccess, id, updates);
 }
 
-/**
- * Remove a cable directly (raw)
- * @param id - Cable ID to remove
- */
 function removeCableRaw(id: string): void {
-  layout = {
-    ...layout,
-    cables: (layout.cables ?? []).filter((c) => c.id !== id),
-  };
+  removeCableRawImpl(stateAccess, id);
 }
 
-/**
- * Remove multiple cables directly (raw)
- * @param ids - Set of cable IDs to remove
- */
 function removeCablesRaw(ids: Set<string>): void {
-  layout = {
-    ...layout,
-    cables: (layout.cables ?? []).filter((c) => !ids.has(c.id)),
-  };
+  removeCablesRawImpl(stateAccess, ids);
 }
+
+// =============================================================================
+// Utility Functions
+// =============================================================================
 
 /**
  * Get all device type slugs currently in use
- * Includes both defined device types and placed device references from ALL racks
- * Use this for image store cleanup to identify orphaned images
  */
 function getUsedDeviceTypeSlugs(): Set<string> {
   // Plain Set is intentional - this is a utility function, not reactive state
   // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const slugs = new Set<string>();
 
-  // Add all defined device types
   for (const dt of layout.device_types) {
     slugs.add(dt.slug);
   }
 
-  // Add all placed device references from all racks (in case of orphaned references)
-  for (const rack of layout.racks) {
-    for (const device of rack.devices) {
+  for (const r of layout.racks) {
+    for (const device of r.devices) {
       slugs.add(device.device_type);
     }
   }
@@ -1614,15 +1164,14 @@ function getUsedDeviceTypeSlugs(): Set<string> {
 
 /**
  * Get device type slugs that are currently placed in any rack
- * Only counts actual placements, not just defined types
  */
 function getPlacedDeviceTypeSlugs(): Set<string> {
   // Plain Set is intentional - this is a utility function, not reactive state
   // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const slugs = new Set<string>();
 
-  for (const rack of layout.racks) {
-    for (const device of rack.devices) {
+  for (const r of layout.racks) {
+    for (const device of r.devices) {
       slugs.add(device.device_type);
     }
   }
@@ -1632,11 +1181,6 @@ function getPlacedDeviceTypeSlugs(): Set<string> {
 
 /**
  * Get unused custom device types
- * Returns device types that:
- * 1. Are in layout.device_types (custom/user-defined)
- * 2. Are NOT in starter library
- * 3. Are NOT in brand packs
- * 4. Have zero placements across all racks
  */
 function getUnusedCustomDeviceTypes(): DeviceType[] {
   const starterSlugs = getStarterSlugs();
@@ -1644,11 +1188,8 @@ function getUnusedCustomDeviceTypes(): DeviceType[] {
   const placedSlugs = getPlacedDeviceTypeSlugs();
 
   return layout.device_types.filter((dt) => {
-    // Must not be a starter library device
     if (starterSlugs.has(dt.slug)) return false;
-    // Must not be a brand pack device
     if (brandSlugs.has(dt.slug)) return false;
-    // Must not have any placements
     if (placedSlugs.has(dt.slug)) return false;
     return true;
   });
@@ -1671,230 +1212,28 @@ function hasDeviceTypePlacements(slug: string): boolean {
 }
 
 // =============================================================================
-// Command Store Adapter
-// Creates an adapter that implements the command store interfaces
-// Operations target the active rack
+// Recorded Actions — delegated to layout/command-adapters.ts
 // =============================================================================
 
-function getCommandStoreAdapter(): DeviceTypeCommandStore &
-  DeviceCommandStore &
-  RackCommandStore {
-  return {
-    // DeviceTypeCommandStore
-    addDeviceTypeRaw,
-    removeDeviceTypeRaw,
-    updateDeviceTypeRaw,
-    placeDeviceRaw,
-    removeDeviceAtIndexRaw,
-    getPlacedDevicesForType,
-
-    // DeviceCommandStore
-    moveDeviceRaw,
-    updateDeviceFaceRaw,
-    updateDeviceNameRaw,
-    updateDevicePlacementImageRaw: (index, face, filename) => {
-      // Resolve rack ID: use active rack, fall back to first rack
-      const rackId = activeRackId ?? getTargetRack()?.rack.id;
-      if (!rackId) {
-        debug.log("updateDevicePlacementImageRaw: No rack available");
-        return;
-      }
-      updateDevicePlacementImageRaw(rackId, index, face, filename);
-    },
-    updateDeviceColourRaw: (index, colour) => {
-      // Resolve rack ID: use active rack, fall back to first rack
-      const rackId = activeRackId ?? getTargetRack()?.rack.id;
-      if (!rackId) {
-        debug.log("updateDeviceColourRaw: No rack available");
-        return;
-      }
-      updateDeviceColourRaw(rackId, index, colour);
-    },
-    updateDeviceSlotPositionRaw: (index, slotPosition) => {
-      // Resolve rack ID: use active rack, fall back to first rack
-      const rackId = activeRackId ?? getTargetRack()?.rack.id;
-      if (!rackId) {
-        debug.log("updateDeviceSlotPositionRaw: No rack available");
-        return;
-      }
-      updateDeviceSlotPositionRaw(rackId, index, slotPosition);
-    },
-    updateDeviceNotesRaw: (index, notes) => {
-      // Resolve rack ID: use active rack, fall back to first rack
-      const rackId = activeRackId ?? getTargetRack()?.rack.id;
-      if (!rackId) {
-        debug.log("updateDeviceNotesRaw: No rack available");
-        return;
-      }
-      updateDeviceNotesRaw(rackId, index, notes);
-    },
-    updateDeviceIpRaw: (index, ip) => {
-      // Resolve rack ID: use active rack, fall back to first rack
-      const rackId = activeRackId ?? getTargetRack()?.rack.id;
-      if (!rackId) {
-        debug.log("updateDeviceIpRaw: No rack available");
-        return;
-      }
-      updateDeviceIpRaw(rackId, index, ip);
-    },
-    getDeviceAtIndex,
-
-    // RackCommandStore
-    updateRackRaw,
-    replaceRackRaw,
-    clearRackDevicesRaw,
-    restoreRackDevicesRaw,
-    getRack: () => {
-      const target = getTargetRack();
-      if (!target && layout.racks.length === 0) {
-        throw new Error("No rack available in RackCommandStore");
-      }
-      return target?.rack ?? layout.racks[0];
-    },
-  };
-}
-
-// =============================================================================
-// Recorded Actions (with Undo/Redo support)
-// These create commands and execute them through the history system
-// Operations set activeRackId before executing to ensure Raw functions target the correct rack
-// =============================================================================
-
-/**
- * Add a device type with undo/redo support
- */
 function addDeviceTypeRecorded(data: CreateDeviceTypeInput): DeviceType {
-  const deviceType = createDeviceTypeHelper(data);
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createAddDeviceTypeCommand(deviceType, adapter);
-  history.execute(command);
-  isDirty = true;
-
-  return deviceType;
+  return addDeviceTypeRecordedImpl(stateAccess, data);
 }
 
-/**
- * Update a device type with undo/redo support
- */
 function updateDeviceTypeRecorded(
   slug: string,
   updates: Partial<DeviceType>,
 ): void {
-  const existing = findDeviceTypeInArray(layout.device_types, slug);
-  if (!existing) return;
-
-  // Capture before state for the fields being updated
-  const before: Partial<DeviceType> = {};
-  for (const key of Object.keys(updates) as (keyof DeviceType)[]) {
-    before[key] = existing[key] as never;
-  }
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createUpdateDeviceTypeCommand(slug, before, updates, adapter);
-  history.execute(command);
-  isDirty = true;
+  updateDeviceTypeRecordedImpl(stateAccess, slug, updates);
 }
 
-/**
- * Delete a device type with undo/redo support
- */
 function deleteDeviceTypeRecorded(slug: string): void {
-  const existing = findDeviceTypeInArray(layout.device_types, slug);
-  if (!existing) return;
-
-  const placedDevices = getPlacedDevicesForType(slug);
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createDeleteDeviceTypeCommand(
-    existing,
-    placedDevices,
-    adapter,
-  );
-  history.execute(command);
-  isDirty = true;
+  deleteDeviceTypeRecordedImpl(stateAccess, slug);
 }
 
-/**
- * Delete multiple device types with single undo/redo support
- * Used for bulk cleanup operations
- * @param slugs - Array of device type slugs to delete
- * @returns Number of device types actually deleted
- */
 function deleteMultipleDeviceTypesRecorded(slugs: string[]): number {
-  layoutDebug.state(
-    "deleteMultipleDeviceTypesRecorded: received %d slugs",
-    slugs.length,
-  );
-
-  if (slugs.length === 0) {
-    layoutDebug.state(
-      "deleteMultipleDeviceTypesRecorded: early return - no slugs",
-    );
-    return 0;
-  }
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-  const commands: ReturnType<typeof createDeleteDeviceTypeCommand>[] = [];
-
-  for (const slug of slugs) {
-    const existing = findDeviceTypeInArray(layout.device_types, slug);
-    if (!existing) continue;
-
-    const placedDevices = getPlacedDevicesForType(slug);
-    const command = createDeleteDeviceTypeCommand(
-      existing,
-      placedDevices,
-      adapter,
-    );
-    commands.push(command);
-  }
-
-  if (commands.length === 0) {
-    layoutDebug.state(
-      "deleteMultipleDeviceTypesRecorded: no valid commands created",
-    );
-    return 0;
-  }
-
-  // Create a batch command for single undo
-  const count = commands.length;
-  const description =
-    count === 1 ? "Delete device type" : `Delete ${count} device types`;
-
-  layoutDebug.state(
-    "deleteMultipleDeviceTypesRecorded: executing batch command - %s",
-    description,
-  );
-
-  const batchCommand = createBatchCommand(description, commands);
-  history.execute(batchCommand);
-  isDirty = true;
-
-  layoutDebug.state(
-    "deleteMultipleDeviceTypesRecorded: completed - deleted %d device types",
-    count,
-  );
-
-  return count;
+  return deleteMultipleDeviceTypesRecordedImpl(stateAccess, slugs);
 }
 
-/**
- * Place a device with undo/redo support
- * Auto-imports brand pack devices if not already in device library
- * Face defaults based on device depth: full-depth -> 'both', half-depth -> 'front'
- * @param rackId - Target rack ID
- * @param deviceTypeSlug - Device type slug
- * @param positionU - U position (human-readable, e.g., 1, 5, 10)
- * @param face - Optional face assignment
- * @param slotPosition - Optional slot position for half-width devices ('left', 'right', or 'full')
- * @returns true if placed successfully
- */
 function placeDeviceRecorded(
   rackId: string,
   deviceTypeSlug: string,
@@ -1902,644 +1241,118 @@ function placeDeviceRecorded(
   face?: DeviceFace,
   slotPosition?: SlotPosition,
 ): boolean {
-  // Convert human U position to internal units
-  const positionInternal = toInternalUnits(positionU);
-
-  // Validate rack exists
-  const targetRack = getRackById(rackId);
-  if (!targetRack) {
-    debug.devicePlace({
-      slug: deviceTypeSlug,
-      position: positionU,
-      passedFace: face,
-      effectiveFace: "N/A",
-      deviceName: "unknown",
-      isFullDepth: false,
-      result: "not_found",
-    });
-    return false;
-  }
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  // Find device type across all sources (layout → starter → brand)
-  const deviceType = findDeviceType(deviceTypeSlug, layout.device_types);
-
-  // Auto-import if found in starter/brand but not yet in layout
-  if (
-    deviceType &&
-    !layout.device_types.find((dt) => dt.slug === deviceTypeSlug)
-  ) {
-    layout.device_types = [...layout.device_types, deviceType];
-  }
-
-  // If not found, device type doesn't exist
-  if (!deviceType) {
-    debug.devicePlace({
-      slug: deviceTypeSlug,
-      position: positionU,
-      passedFace: face,
-      effectiveFace: "N/A",
-      deviceName: "unknown",
-      isFullDepth: false,
-      result: "not_found",
-    });
-    return false;
-  }
-
-  // Determine face based on device depth
-  // Full-depth devices ALWAYS use 'both' (they physically occupy front and rear)
-  // Half-depth devices use the specified face, or default to 'front'
-  const isFullDepth = deviceType.is_full_depth !== false;
-  const effectiveFace: DeviceFace = isFullDepth
-    ? "both"
-    : (face ?? DEFAULT_DEVICE_FACE);
-  const deviceName = deviceType.model ?? deviceType.slug;
-
-  // Determine effective slot position
-  // Full-width devices (slot_width !== 1) always use 'full'
-  const deviceSlotWidth = deviceType.slot_width ?? 2;
-  const effectiveSlotPosition: SlotPosition =
-    deviceSlotWidth === 1 ? (slotPosition ?? "full") : "full";
-
-  if (
-    !canPlaceDevice(
-      targetRack,
-      layout.device_types,
-      deviceType.u_height,
-      positionInternal,
-      undefined,
-      effectiveFace,
-      effectiveSlotPosition,
-    )
-  ) {
-    debug.devicePlace({
-      slug: deviceTypeSlug,
-      position: positionU,
-      passedFace: face,
-      effectiveFace,
-      deviceName,
-      isFullDepth,
-      result: "collision",
-    });
-    return false;
-  }
-
-  const device: PlacedDevice = {
-    id: generateId(),
-    device_type: deviceTypeSlug,
-    position: positionInternal,
-    face: effectiveFace,
-    slot_position: effectiveSlotPosition,
-    ports: instantiatePorts(deviceType),
-  };
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createPlaceDeviceCommand(device, adapter, deviceName);
-  history.execute(command);
-  isDirty = true;
-
-  debug.devicePlace({
-    slug: deviceTypeSlug,
-    position: positionU,
-    passedFace: face,
-    effectiveFace,
-    deviceName,
-    isFullDepth,
-    result: "success",
-  });
-
-  return true;
+  return placeDeviceRecordedImpl(
+    stateAccess,
+    rackId,
+    deviceTypeSlug,
+    positionU,
+    face,
+    slotPosition,
+  );
 }
 
-/**
- * Move a device with undo/redo support
- * @param rackId - Rack ID
- * @param deviceIndex - Device index
- * @param newPositionU - New position in U (human-readable)
- * @returns true if moved successfully
- */
 function moveDeviceRecorded(
   rackId: string,
   deviceIndex: number,
   newPositionU: number,
   newSlotPosition?: SlotPosition,
 ): boolean {
-  // Convert to internal units
-  const newPositionInternal = toInternalUnits(newPositionU);
-
-  const targetRack = getRackById(rackId);
-  if (!targetRack) {
-    debug.deviceMove({
-      index: deviceIndex,
-      deviceName: "unknown",
-      face: "unknown",
-      fromPosition: -1,
-      toPosition: newPositionU,
-      result: "not_found",
-    });
-    return false;
-  }
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) {
-    debug.deviceMove({
-      index: deviceIndex,
-      deviceName: "unknown",
-      face: "unknown",
-      fromPosition: -1,
-      toPosition: newPositionU,
-      result: "not_found",
-    });
-    return false;
-  }
-
-  const device = targetRack.devices[deviceIndex]!;
-  const deviceType = findDeviceTypeInArray(
-    layout.device_types,
-    device.device_type,
-  );
-  if (!deviceType) {
-    debug.deviceMove({
-      index: deviceIndex,
-      deviceName: device.device_type,
-      face: device.face ?? "front",
-      fromPosition: toHumanUnits(device.position),
-      toPosition: newPositionU,
-      result: "not_found",
-    });
-    return false;
-  }
-
-  const deviceName = deviceType.model ?? deviceType.slug;
-  const oldPositionInternal = device.position;
-  const oldPositionU = toHumanUnits(oldPositionInternal);
-
-  // Use canPlaceDevice for bounds and collision checking (face and depth aware)
-  // Use new slot_position if provided (e.g., from D&D target), otherwise keep existing
-  const effectiveSlot = newSlotPosition ?? device.slot_position ?? "full";
-  if (
-    !canPlaceDevice(
-      targetRack,
-      layout.device_types,
-      deviceType.u_height,
-      newPositionInternal,
-      deviceIndex,
-      device.face,
-      effectiveSlot,
-    )
-  ) {
-    // Determine if it's out of bounds or collision
-    const isOutOfBounds =
-      newPositionInternal < UNITS_PER_U ||
-      newPositionInternal + toInternalUnits(deviceType.u_height) - 1 >
-        targetRack.height * UNITS_PER_U;
-    debug.deviceMove({
-      index: deviceIndex,
-      deviceName,
-      face: device.face ?? "front",
-      fromPosition: oldPositionU,
-      toPosition: newPositionU,
-      result: isOutOfBounds ? "out_of_bounds" : "collision",
-    });
-    return false;
-  }
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createMoveDeviceCommand(
+  return moveDeviceRecordedImpl(
+    stateAccess,
+    rackId,
     deviceIndex,
-    oldPositionInternal,
-    newPositionInternal,
-    adapter,
-    deviceName,
+    newPositionU,
+    newSlotPosition,
   );
-  history.execute(command);
-  isDirty = true;
-
-  // Update slot_position if changed (not tracked by move command undo/redo)
-  if (newSlotPosition && newSlotPosition !== device.slot_position) {
-    const freshRack = getRackById(rackId);
-    if (freshRack && freshRack.devices[deviceIndex]) {
-      freshRack.devices[deviceIndex]!.slot_position = newSlotPosition;
-    }
-  }
-
-  debug.deviceMove({
-    index: deviceIndex,
-    deviceName,
-    face: device.face ?? "front",
-    fromPosition: oldPositionU,
-    toPosition: newPositionU,
-    result: "success",
-  });
-
-  return true;
 }
 
-/**
- * Remove a device with undo/redo support
- * @param rackId - Rack ID
- * @param deviceIndex - Device index
- */
 function removeDeviceRecorded(rackId: string, deviceIndex: number): void {
-  const targetRack = getRackById(rackId);
-  if (!targetRack) return;
-  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  // Get a snapshot to convert from reactive proxy to plain object
-  // structuredClone in the command factory requires a plain object
-  const device = $state.snapshot(targetRack.devices[deviceIndex]);
-  const deviceType = findDeviceTypeInArray(
-    layout.device_types,
-    device.device_type,
-  );
-  const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createRemoveDeviceCommand(
+  // $state.snapshot() is a Svelte rune — must be called from this .svelte.ts file
+  removeDeviceRecordedImpl(
+    stateAccess,
+    rackId,
     deviceIndex,
-    device,
-    adapter,
-    deviceName,
+    (device) => $state.snapshot(device),
   );
-  history.execute(command);
-  isDirty = true;
 }
 
-/**
- * Update device face with undo/redo support
- * @param rackId - Rack ID
- * @param deviceIndex - Device index
- * @param face - New face value
- */
 function updateDeviceFaceRecorded(
   rackId: string,
   deviceIndex: number,
   face: DeviceFace,
 ): void {
-  const targetRack = getRackById(rackId);
-  if (!targetRack) return;
-  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  const device = targetRack.devices[deviceIndex]!;
-  const oldFace = device.face ?? "front";
-  const deviceType = findDeviceTypeInArray(
-    layout.device_types,
-    device.device_type,
-  );
-  const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createUpdateDeviceFaceCommand(
-    deviceIndex,
-    oldFace,
-    face,
-    adapter,
-    deviceName,
-  );
-  history.execute(command);
-  isDirty = true;
+  updateDeviceFaceRecordedImpl(stateAccess, rackId, deviceIndex, face);
 }
 
-/**
- * Update device custom name with undo/redo support
- * @param rackId - Rack ID
- * @param deviceIndex - Device index
- * @param name - New name
- */
 function updateDeviceNameRecorded(
   rackId: string,
   deviceIndex: number,
   name: string | undefined,
 ): void {
-  const targetRack = getRackById(rackId);
-  if (!targetRack) return;
-  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  const device = targetRack.devices[deviceIndex]!;
-  const oldName = device.name;
-  const deviceType = findDeviceTypeInArray(
-    layout.device_types,
-    device.device_type,
-  );
-  const deviceTypeName = deviceType?.model ?? deviceType?.slug ?? "device";
-
-  // Normalize empty string to undefined
-  const normalizedName = name?.trim() || undefined;
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createUpdateDeviceNameCommand(
-    deviceIndex,
-    oldName,
-    normalizedName,
-    adapter,
-    deviceTypeName,
-  );
-  history.execute(command);
-  isDirty = true;
+  updateDeviceNameRecordedImpl(stateAccess, rackId, deviceIndex, name);
 }
 
-/**
- * Update device placement image with undo/redo support
- * @param rackId - Rack ID
- * @param deviceIndex - Device index
- * @param face - Which face to update ('front' or 'rear')
- * @param filename - New image filename (undefined to clear)
- */
 function updateDevicePlacementImageRecorded(
   rackId: string,
   deviceIndex: number,
   face: "front" | "rear",
   filename: string | undefined,
 ): void {
-  const targetRack = getRackById(rackId);
-  if (!targetRack) return;
-  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  const device = targetRack.devices[deviceIndex]!;
-  const oldFilename = face === "front" ? device.front_image : device.rear_image;
-  const deviceType = findDeviceTypeInArray(
-    layout.device_types,
-    device.device_type,
-  );
-  const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createUpdateDevicePlacementImageCommand(
+  updateDevicePlacementImageRecordedImpl(
+    stateAccess,
+    rackId,
     deviceIndex,
     face,
-    oldFilename,
     filename,
-    adapter,
-    deviceName,
   );
-  history.execute(command);
-  isDirty = true;
 }
 
-/**
- * Update device colour with undo/redo support
- * @param rackId - Rack ID
- * @param deviceIndex - Device index
- * @param colour - New colour (undefined to clear and use device type colour)
- */
 function updateDeviceColourRecorded(
   rackId: string,
   deviceIndex: number,
   colour: string | undefined,
 ): void {
-  const targetRack = getRackById(rackId);
-  if (!targetRack) return;
-  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  const device = targetRack.devices[deviceIndex]!;
-  const oldColour = device.colour_override;
-  const deviceType = findDeviceTypeInArray(
-    layout.device_types,
-    device.device_type,
-  );
-  const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createUpdateDeviceColourCommand(
-    deviceIndex,
-    oldColour,
-    colour,
-    adapter,
-    deviceName,
-  );
-  history.execute(command);
-  isDirty = true;
+  updateDeviceColourRecordedImpl(stateAccess, rackId, deviceIndex, colour);
 }
 
-/**
- * Update device slot position with undo/redo support (for half-width devices)
- * @param rackId - Rack ID
- * @param deviceIndex - Device index
- * @param slotPosition - New slot position ('left', 'right', or 'full')
- * @returns true if successful, false if blocked
- */
 function updateDeviceSlotPositionRecorded(
   rackId: string,
   deviceIndex: number,
   slotPosition: SlotPosition,
 ): boolean {
-  const targetRack = getRackById(rackId);
-  if (!targetRack) return false;
-  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return false;
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  const device = targetRack.devices[deviceIndex]!;
-
-  const deviceType = findDeviceTypeInArray(
-    layout.device_types,
-    device.device_type,
-  );
-
-  // Only half-width devices can have their slot position changed
-  if (!deviceType || deviceType.slot_width !== 1) {
-    return false;
-  }
-
-  const oldSlotPosition = device.slot_position ?? "full";
-  const deviceName = deviceType.model ?? deviceType.slug ?? "device";
-
-  // No change needed
-  if (oldSlotPosition === slotPosition) return true;
-
-  // Check if target slot is occupied using shared collision utility
-  if (isSlotOccupied(targetRack, device.position, slotPosition, deviceIndex)) {
-    return false;
-  }
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createUpdateDeviceSlotPositionCommand(
+  return updateDeviceSlotPositionRecordedImpl(
+    stateAccess,
+    rackId,
     deviceIndex,
-    oldSlotPosition,
     slotPosition,
-    adapter,
-    deviceName,
   );
-  history.execute(command);
-  isDirty = true;
-  return true;
 }
 
-/**
- * Update device notes with undo/redo support
- * @param rackId - Rack ID
- * @param deviceIndex - Device index
- * @param notes - New notes (undefined to clear)
- */
 function updateDeviceNotesRecorded(
   rackId: string,
   deviceIndex: number,
   notes: string | undefined,
 ): void {
-  const targetRack = getRackById(rackId);
-  if (!targetRack) return;
-  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  const device = targetRack.devices[deviceIndex]!;
-  const oldNotes = device.notes;
-  const deviceType = findDeviceTypeInArray(
-    layout.device_types,
-    device.device_type,
-  );
-  const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
-
-  // Normalize empty string to undefined
-  const normalizedNotes = notes?.trim() || undefined;
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createUpdateDeviceNotesCommand(
-    deviceIndex,
-    oldNotes,
-    normalizedNotes,
-    adapter,
-    deviceName,
-  );
-  history.execute(command);
-  isDirty = true;
+  updateDeviceNotesRecordedImpl(stateAccess, rackId, deviceIndex, notes);
 }
 
-/**
- * Update device IP address/hostname with undo/redo support
- * @param rackId - Rack ID
- * @param deviceIndex - Device index
- * @param ip - New IP address/hostname (undefined to clear)
- */
 function updateDeviceIpRecorded(
   rackId: string,
   deviceIndex: number,
   ip: string | undefined,
 ): void {
-  const targetRack = getRackById(rackId);
-  if (!targetRack) return;
-  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  const device = targetRack.devices[deviceIndex]!;
-  const oldIp =
-    typeof device.custom_fields?.ip === "string"
-      ? device.custom_fields.ip
-      : undefined;
-  const deviceType = findDeviceTypeInArray(
-    layout.device_types,
-    device.device_type,
-  );
-  const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
-
-  // Normalize empty string to undefined
-  const normalizedIp = ip?.trim() || undefined;
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createUpdateDeviceIpCommand(
-    deviceIndex,
-    oldIp,
-    normalizedIp,
-    adapter,
-    deviceName,
-  );
-  history.execute(command);
-  isDirty = true;
+  updateDeviceIpRecordedImpl(stateAccess, rackId, deviceIndex, ip);
 }
 
-/**
- * Update rack settings with undo/redo support
- * @param rackId - Rack ID
- * @param updates - Settings to update
- */
 function updateRackRecorded(
   rackId: string,
   updates: Partial<Omit<Rack, "devices" | "view">>,
 ): void {
-  const targetRack = getRackById(rackId);
-  if (!targetRack) return;
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  // Capture before state
-  const before: Partial<Omit<Rack, "devices" | "view">> = {};
-  for (const key of Object.keys(updates) as (keyof Omit<
-    Rack,
-    "devices" | "view"
-  >)[]) {
-    before[key] = targetRack[key] as never;
-  }
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createUpdateRackCommand(before, updates, adapter);
-  history.execute(command);
-  isDirty = true;
+  updateRackRecordedImpl(stateAccess, rackId, updates);
 }
 
-/**
- * Clear rack devices with undo/redo support
- * Uses active rack unless a rackId override is provided
- */
 function clearRackRecorded(rackId?: string): void {
-  if (rackId) {
-    activeRackId = rackId;
-  }
-  const target = getTargetRack();
-  if (!target || target.rack.devices.length === 0) return;
-
-  const devices = [...target.rack.devices];
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapter();
-
-  const command = createClearRackCommand(devices, adapter);
-  history.execute(command);
-  isDirty = true;
+  clearRackRecordedImpl(stateAccess, rackId);
 }
 
 // =============================================================================
