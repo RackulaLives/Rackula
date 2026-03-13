@@ -237,7 +237,7 @@ export function getTargetRack(
 
 /**
  * Add a new rack to the layout
- * If this is the first rack, it also sets the layout name
+ * Layout name is managed independently via setLayoutName
  * Uses undo/redo support via command pattern
  * @param ctx - Layout state access
  * @param name - Rack name
@@ -274,12 +274,6 @@ export function addRack(
     true, // show_rear
     generateRackId(), // id - pass directly
   );
-
-  // If this is the first rack, sync layout name
-  const isFirstRack = layout.racks.length === 0;
-  if (isFirstRack) {
-    ctx.setLayout({ ...layout, name });
-  }
 
   // Use recorded action for undo/redo support
   const history = getHistoryStore();
@@ -363,10 +357,8 @@ export function addBayedRackGroup(
   );
 
   // Update layout state
-  const isFirstRack = layout.racks.length === 0;
   ctx.setLayout({
     ...layout,
-    name: isFirstRack ? groupName : layout.name,
     racks: [...layout.racks, ...newRacks],
     rack_groups: [...(layout.rack_groups ?? []), group],
   });

@@ -487,12 +487,6 @@ export function updateRackRaw(
   if (!target) return;
 
   updateRackAtIndex(ctx, target.index, (rack) => ({ ...rack, ...updates }));
-
-  // Sync layout name with first rack name
-  if (updates.name !== undefined && target.index === 0) {
-    const layout = ctx.getLayout();
-    ctx.setLayout({ ...layout, name: updates.name });
-  }
 }
 
 /**
@@ -506,12 +500,6 @@ export function replaceRackRaw(ctx: LayoutStateAccess, newRack: Rack): void {
   if (!target) return;
 
   updateRackAtIndex(ctx, target.index, () => newRack);
-
-  // Sync layout name with first rack name
-  if (target.index === 0) {
-    const layout = ctx.getLayout();
-    ctx.setLayout({ ...layout, name: newRack.name });
-  }
 }
 
 /**
