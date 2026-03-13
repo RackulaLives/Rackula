@@ -126,7 +126,7 @@ export function createTestLayout(overrides?: {
   devices?: Array<{
     type: string;
     position: number;
-    face: "front" | "rear";
+    face: "front" | "rear" | "both";
     name?: string;
   }>;
   customTypes?: Array<{
