@@ -125,7 +125,7 @@ test.describe("Device Custom Names", () => {
     await expect(page.locator("aside.drawer-right.open")).not.toBeVisible();
 
     // Undo (Ctrl+Z)
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+z`);
 
     // Should restore original name
     await expect(page.locator(".rack-device .device-name").first()).toHaveText(
@@ -133,7 +133,7 @@ test.describe("Device Custom Names", () => {
     );
 
     // Redo (Ctrl+Shift+Z)
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+Shift+z`);
 
     // Should restore custom name
     await expect(page.locator(".rack-device .device-name").first()).toHaveText(

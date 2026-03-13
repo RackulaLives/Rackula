@@ -29,6 +29,7 @@ export function openFilePicker(): Promise<File | null> {
     // Track change event separately to prevent race condition with focus timeout
     // This flag is set immediately when change fires, before any other logic
     let changeReceived = false;
+    let cancelTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Handle file selection
     const handleChange = () => {
@@ -46,7 +47,8 @@ export function openFilePicker(): Promise<File | null> {
       // 300ms debounce for cancel detection — no browser API exists to detect
       // when the user cancels a file picker; this delay gives the change event
       // enough time to fire before we assume cancellation.
-      setTimeout(() => {
+      if (cancelTimer) clearTimeout(cancelTimer);
+      cancelTimer = setTimeout(() => {
         // Only treat as cancel if no change event was received
         if (resolved || changeReceived) return;
         resolved = true;
@@ -56,6 +58,10 @@ export function openFilePicker(): Promise<File | null> {
     };
 
     const cleanup = () => {
+      if (cancelTimer) {
+        clearTimeout(cancelTimer);
+        cancelTimer = null;
+      }
       input.removeEventListener("change", handleChange);
       window.removeEventListener("focus", handleFocus);
       input.remove();
