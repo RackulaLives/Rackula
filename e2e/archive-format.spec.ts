@@ -10,6 +10,7 @@ import {
   clickSave,
   loadFileFromDisk,
   loadFileFromDiskViaMenu,
+  locators,
 } from "./helpers";
 
 test.describe("Archive Format", () => {
@@ -55,7 +56,7 @@ test.describe("Archive Format", () => {
 
   test("save creates ZIP file", async ({ page }) => {
     await dragDeviceToRack(page);
-    await expect(page.locator(".rack-device").first()).toBeVisible({
+    await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 5000,
     });
 
@@ -85,7 +86,7 @@ test.describe("Archive Format", () => {
 
   test("load saved ZIP restores layout", async ({ page }) => {
     await dragDeviceToRack(page);
-    await expect(page.locator(".rack-device").first()).toBeVisible({
+    await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 5000,
     });
 
@@ -104,13 +105,13 @@ test.describe("Archive Format", () => {
     await loadFileFromDisk(page, savedPath);
 
     // Wait for success toast to confirm load completed
-    await expect(page.locator(".toast--success")).toBeVisible({
+    await expect(page.locator(locators.toast.success)).toBeVisible({
       timeout: 10000,
     });
 
     // Verify layout is restored
-    await expect(page.locator(".rack-container").first()).toBeVisible();
-    await expect(page.locator(".rack-device").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
   });
 
   test("legacy .Rackula.json file shows error (v0.4.0 removed legacy support)", async ({

@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import pako from "pako";
 import type { MinimalLayout } from "../../src/lib/schemas/share";
+import { locators } from "./locators";
 
 const { version: APP_VERSION } = JSON.parse(
   readFileSync(resolve(process.cwd(), "package.json"), "utf8"),
@@ -112,5 +113,5 @@ export async function gotoWithRack(
   shareParam: string = EMPTY_RACK_SHARE,
 ): Promise<void> {
   await page.goto(`/?l=${shareParam}`);
-  await page.locator(".rack-container").first().waitFor({ state: "visible" });
+  await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
 }

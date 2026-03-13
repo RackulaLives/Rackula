@@ -1,5 +1,5 @@
 import { test, expect } from "./helpers/base-test";
-import { gotoWithRack, dragDeviceToRack } from "./helpers";
+import { gotoWithRack, dragDeviceToRack, locators } from "./helpers";
 
 /**
  * E2E Tests for Starter Library
@@ -15,10 +15,10 @@ test.describe("Starter Library", () => {
     page,
   }) => {
     // Device palette should be visible
-    await expect(page.locator(".device-palette")).toBeVisible();
+    await expect(page.locator(locators.device.palette)).toBeVisible();
 
     // Should have 26 device items (the starter library)
-    const deviceItems = page.locator(".device-palette-item");
+    const deviceItems = page.locator(locators.device.paletteItem);
     await expect(deviceItems).toHaveCount(26);
   });
 
@@ -249,13 +249,13 @@ test.describe("Starter Library", () => {
 
   test("can drag 24-Port Switch from palette to rack", async ({ page }) => {
     // Ensure rack is visible
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Drag first device to rack using shared helper
     await dragDeviceToRack(page);
 
     // Verify device appears in rack
-    await expect(page.locator(".rack-device").first()).toBeVisible({
+    await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 5000,
     });
   });

@@ -1,6 +1,6 @@
 import { test, expect } from "./helpers/base-test";
 import path from "path";
-import { gotoWithRack, PLATFORM_MODIFIER, loadFileFromDisk } from "./helpers";
+import { gotoWithRack, PLATFORM_MODIFIER, loadFileFromDisk, locators } from "./helpers";
 
 /**
  * Carlton Migration Test (#883)
@@ -41,7 +41,7 @@ test.describe("Carlton Migration (#879)", () => {
     await loadFileFromDisk(page, fixturePath);
 
     // Wait for success toast to confirm load completed
-    await expect(page.locator(".toast--success")).toBeVisible({
+    await expect(page.locator(locators.toast.success)).toBeVisible({
       timeout: 10000,
     });
 
@@ -57,13 +57,13 @@ test.describe("Carlton Migration (#879)", () => {
     await loadFileFromDisk(page, fixturePath);
 
     // Wait for success toast
-    await expect(page.locator(".toast--success")).toBeVisible({
+    await expect(page.locator(locators.toast.success)).toBeVisible({
       timeout: 10000,
     });
 
     // Verify all 9 devices are present
     // Dual-view renders: 6 front-only + 1 rear-only + 2 both-face (×2 views) = 11 total
-    await expect(page.locator(".rack-device")).toHaveCount(11, {
+    await expect(page.locator(locators.rack.device)).toHaveCount(11, {
       timeout: 5000,
     });
 
@@ -78,7 +78,8 @@ test.describe("Carlton Migration (#879)", () => {
     // The device should have data-device-position="9" (1.5 * 6 = 9)
     // Note: getByText returns the <text> element; the attribute is on the parent .rack-device
     const unraidDeviceContainer = page
-      .locator('.rack-device:has-text("UnRaid Server")')
+      .locator(locators.rack.device)
+      .filter({ hasText: "UnRaid Server" })
       .first();
     await expect(unraidDeviceContainer).toHaveAttribute(
       "data-device-position",
@@ -92,7 +93,7 @@ test.describe("Carlton Migration (#879)", () => {
     await loadFileFromDisk(page, fixturePath);
 
     // Wait for success toast
-    await expect(page.locator(".toast--success")).toBeVisible({
+    await expect(page.locator(locators.toast.success)).toBeVisible({
       timeout: 10000,
     });
 
@@ -121,7 +122,7 @@ test.describe("Carlton Migration (#879)", () => {
     await loadFileFromDisk(page, savedPath);
 
     // Verify it loads successfully
-    await expect(page.locator(".toast--success")).toBeVisible({
+    await expect(page.locator(locators.toast.success)).toBeVisible({
       timeout: 10000,
     });
 

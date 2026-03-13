@@ -9,7 +9,7 @@
 import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
 import { openDeviceLibraryFromBottomNav } from "./helpers/mobile-navigation";
-import { EMPTY_RACK_SHARE, dragDeviceToRack } from "./helpers";
+import { EMPTY_RACK_SHARE, dragDeviceToRack, locators } from "./helpers";
 
 // Android Device viewport matrix
 const androidDevices = [
@@ -42,7 +42,7 @@ async function setupMobileViewport(
   await page.evaluate(() => {
     sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
   });
-  await page.locator(".rack-container").first().waitFor({ state: "visible" });
+  await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
 }
 
 // ============================================================================
@@ -78,7 +78,7 @@ test.describe("Devices Tab (Device Library)", () => {
       }) => {
         await openDeviceLibraryFromBottomNav(page);
 
-        const bottomSheet = page.locator(".bottom-sheet");
+        const bottomSheet = page.locator(locators.mobile.bottomSheet);
         await expect(bottomSheet).toBeVisible({ timeout: 2000 });
       });
     });
@@ -88,7 +88,7 @@ test.describe("Devices Tab (Device Library)", () => {
     const device = androidDevices.find((d) => d.name === "Pixel Tablet")!;
     await setupMobileViewport(page, device);
 
-    await expect(page.locator(".device-library-fab")).toHaveCount(0);
+    await expect(page.locator(locators.mobile.deviceLibraryFab)).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Devices" })).toHaveCount(0);
   });
 });
@@ -107,7 +107,7 @@ test.describe("Bottom Sheet", () => {
   test("bottom sheet opens when Devices tab is tapped", async ({ page }) => {
     await openDeviceLibraryFromBottomNav(page);
 
-    const bottomSheet = page.locator(".bottom-sheet");
+    const bottomSheet = page.locator(locators.mobile.bottomSheet);
     await expect(bottomSheet).toBeVisible();
     // eslint-disable-next-line no-restricted-syntax -- E2E test verifying bottom sheet opens (user-visible state)
     await expect(bottomSheet).toHaveClass(/open/);
@@ -116,17 +116,17 @@ test.describe("Bottom Sheet", () => {
   test("bottom sheet has drag handle visible", async ({ page }) => {
     await openDeviceLibraryFromBottomNav(page);
 
-    const dragHandle = page.locator(".drag-handle-bar");
+    const dragHandle = page.locator(locators.mobile.dragHandleBar);
     await expect(dragHandle).toBeVisible();
   });
 
   test("bottom sheet closes on backdrop click", async ({ page }) => {
     await openDeviceLibraryFromBottomNav(page);
 
-    const bottomSheet = page.locator(".bottom-sheet");
+    const bottomSheet = page.locator(locators.mobile.bottomSheet);
     await expect(bottomSheet).toBeVisible();
 
-    const backdrop = page.locator(".backdrop");
+    const backdrop = page.locator(locators.mobile.backdrop);
     await backdrop.click({ force: true });
 
     await expect(bottomSheet).not.toBeVisible({ timeout: 2000 });
@@ -135,7 +135,7 @@ test.describe("Bottom Sheet", () => {
   test("bottom sheet closes on Escape key", async ({ page }) => {
     await openDeviceLibraryFromBottomNav(page);
 
-    const bottomSheet = page.locator(".bottom-sheet");
+    const bottomSheet = page.locator(locators.mobile.bottomSheet);
     await expect(bottomSheet).toBeVisible();
 
     await page.keyboard.press("Escape");
@@ -148,7 +148,7 @@ test.describe("Bottom Sheet", () => {
   }) => {
     await openDeviceLibraryFromBottomNav(page);
 
-    const bottomSheet = page.locator(".bottom-sheet");
+    const bottomSheet = page.locator(locators.mobile.bottomSheet);
     await expect(bottomSheet).toBeVisible();
 
     const box = await bottomSheet.boundingBox();
@@ -178,7 +178,7 @@ test.describe("Device Label Positioning", () => {
         await setupMobileViewport(page, device);
         await dragDeviceToRack(page);
 
-        const rackDevice = page.locator(".rack-device").first();
+        const rackDevice = page.locator(locators.rack.device).first();
         await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
         const deviceBox = await rackDevice.boundingBox();
@@ -200,18 +200,18 @@ test.describe("Device Label Positioning", () => {
         await setupMobileViewport(page, device);
         await dragDeviceToRack(page);
 
-        const rackDevice = page.locator(".rack-device").first();
+        const rackDevice = page.locator(locators.rack.device).first();
         await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
         const foreignObject = page
-          .locator(".rack-device foreignObject")
+          .locator(locators.rack.deviceForeignObject)
           .first();
         const foExists = (await foreignObject.count()) > 0;
 
         if (foExists) {
           await expect(foreignObject).toBeVisible();
         } else {
-          const labelText = page.locator(".rack-device text").first();
+          const labelText = page.locator(locators.rack.deviceText).first();
           await expect(labelText).toBeVisible();
         }
       });
@@ -308,7 +308,7 @@ test.describe("Touch Interactions", () => {
   test("tap-to-select works on placed device", async ({ page }) => {
     await dragDeviceToRack(page);
 
-    const rackDevice = page.locator(".rack-device").first();
+    const rackDevice = page.locator(locators.rack.device).first();
     await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
     await rackDevice.tap();
@@ -320,7 +320,7 @@ test.describe("Touch Interactions", () => {
   test("touch coordinates are accurate on different viewports", async ({
     page,
   }) => {
-    const rackSvg = page.locator(".rack-svg");
+    const rackSvg = page.locator(locators.rack.svg);
     await expect(rackSvg).toBeVisible();
 
     const box = await rackSvg.boundingBox();
@@ -346,7 +346,7 @@ test.describe("Long-Press Gesture", () => {
   test("long-press does not trigger Android context menu", async ({ page }) => {
     await dragDeviceToRack(page);
 
-    const rackDevice = page.locator(".rack-device").first();
+    const rackDevice = page.locator(locators.rack.device).first();
     await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
     const box = await rackDevice.boundingBox();
@@ -381,7 +381,7 @@ test.describe("Foldable Devices", () => {
       async ({ page }) => {
         await setupMobileViewport(page, device);
 
-        const rackSvg = page.locator(".rack-svg");
+        const rackSvg = page.locator(locators.rack.svg);
         await expect(rackSvg).toBeVisible();
 
         const devicesTab = page.getByRole("button", { name: "Devices" });
@@ -390,7 +390,7 @@ test.describe("Foldable Devices", () => {
         } else {
           await expect(devicesTab).toHaveCount(0);
         }
-        await expect(page.locator(".device-library-fab")).toHaveCount(0);
+        await expect(page.locator(locators.mobile.deviceLibraryFab)).toHaveCount(0);
       },
     );
   }
@@ -406,18 +406,18 @@ test.describe("WebView Compatibility", () => {
   }) => {
     await setupMobileViewport(page, phoneDevices[0]);
 
-    const rackSvg = page.locator(".rack-svg");
+    const rackSvg = page.locator(locators.rack.svg);
     await expect(rackSvg).toBeVisible();
 
     await dragDeviceToRack(page);
-    const rackDevice = page.locator(".rack-device").first();
+    const rackDevice = page.locator(locators.rack.device).first();
     await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
 
     await page.reload();
-    await page.locator(".rack-container").first().waitFor({ state: "visible" });
+    await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
 
     const criticalErrors = errors.filter(
       (e) => !e.includes("warning") && !e.includes("deprecated"),

@@ -5,6 +5,7 @@ import {
   dragDeviceToRack,
   clickNewRack,
   PLATFORM_MODIFIER,
+  locators,
 } from "./helpers";
 
 test.describe("Keyboard Shortcuts", () => {
@@ -17,21 +18,21 @@ test.describe("Keyboard Shortcuts", () => {
   }) => {
     // Add a device first
     await dragDeviceToRack(page);
-    await expect(page.locator(".rack-device").first()).toBeVisible();
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
 
     // Select the rack (click on first rack-svg in dual-view)
-    await page.locator(".rack-svg").first().click();
+    await page.locator(locators.rack.svg).first().click();
 
     // Press Delete
     await page.keyboard.press("Delete");
 
     // Confirm deletion - button text is "Delete Rack" for racks
-    await expect(page.locator(".dialog")).toBeVisible();
+    await expect(page.locator(locators.dialog.root)).toBeVisible();
     await page.click('[data-testid="btn-confirm-action"]');
 
     // In v0.2, rack still exists but devices are cleared
-    await expect(page.locator(".rack-container").first()).toBeVisible();
-    await expect(page.locator(".rack-device")).not.toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
+    await expect(page.locator(locators.rack.device)).not.toBeVisible();
   });
 
   test("Backspace key clears rack devices (v0.2 cannot remove the rack)", async ({
@@ -39,35 +40,35 @@ test.describe("Keyboard Shortcuts", () => {
   }) => {
     // Add a device first
     await dragDeviceToRack(page);
-    await expect(page.locator(".rack-device").first()).toBeVisible();
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
 
     // Select the rack (click on first rack-svg in dual-view)
-    await page.locator(".rack-svg").first().click();
+    await page.locator(locators.rack.svg).first().click();
 
     // Press Backspace
     await page.keyboard.press("Backspace");
 
     // Confirm deletion - button text is "Delete Rack" for racks
-    await expect(page.locator(".dialog")).toBeVisible();
+    await expect(page.locator(locators.dialog.root)).toBeVisible();
     await page.click('[data-testid="btn-confirm-action"]');
 
     // In v0.2, rack still exists but devices are cleared
-    await expect(page.locator(".rack-container").first()).toBeVisible();
-    await expect(page.locator(".rack-device")).not.toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
+    await expect(page.locator(locators.rack.device)).not.toBeVisible();
   });
 
   test("Escape clears selection", async ({ page }) => {
     // Select the rack (click on first rack-svg in dual-view)
-    await page.locator(".rack-svg").first().click();
+    await page.locator(locators.rack.svg).first().click();
 
     // Edit panel should open
-    await expect(page.locator(".drawer-right.open")).toBeVisible();
+    await expect(page.locator(locators.drawer.rightOpenBare)).toBeVisible();
 
     // Press Escape
     await page.keyboard.press("Escape");
 
     // Edit panel should close
-    await expect(page.locator(".drawer-right.open")).not.toBeVisible();
+    await expect(page.locator(locators.drawer.rightOpenBare)).not.toBeVisible();
   });
 
   test("? key opens help dialog", async ({ page }) => {
@@ -75,8 +76,8 @@ test.describe("Keyboard Shortcuts", () => {
     await page.keyboard.type("?");
 
     // Help dialog should open (HelpPanel uses Dialog component)
-    await expect(page.locator(".dialog")).toBeVisible({ timeout: 2000 });
-    await expect(page.locator(".dialog-title")).toHaveText("Help");
+    await expect(page.locator(locators.dialog.root)).toBeVisible({ timeout: 2000 });
+    await expect(page.locator(locators.dialog.title)).toHaveText("Help");
   });
 
   test("Ctrl+S triggers save", async ({ page }) => {
@@ -94,20 +95,20 @@ test.describe("Keyboard Shortcuts", () => {
   test("Escape closes dialogs", async ({ page }) => {
     // Open new rack dialog (this shows replace dialog)
     await clickNewRack(page);
-    await expect(page.locator(".dialog")).toBeVisible();
+    await expect(page.locator(locators.dialog.root)).toBeVisible();
 
     // Press Escape
     await page.keyboard.press("Escape");
 
     // Dialog should close
-    await expect(page.locator(".dialog")).not.toBeVisible();
+    await expect(page.locator(locators.dialog.root)).not.toBeVisible();
   });
 
   test("Arrow keys move device in rack", async ({ page }) => {
     // Add a device lower in the rack so ArrowUp can move it.
     await dragDeviceToRack(page, { yOffsetPercent: 70 });
 
-    const device = page.locator(".rack-front .rack-device").first();
+    const device = page.locator(locators.rackView.frontDevice).first();
     await expect(device).toBeVisible();
 
     await device.click();

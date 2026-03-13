@@ -3,6 +3,7 @@
  */
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { locators } from "./locators";
 
 interface WizardOptions {
   name?: string;
@@ -94,7 +95,7 @@ export async function completeWizardWithKeyboard(
   await page.keyboard.press("Enter");
 
   // Wait for rack to appear
-  await page.locator(".rack-container").first().waitFor({ state: "visible" });
+  await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
 }
 
 /**
@@ -134,7 +135,7 @@ export async function completeWizardWithClicks(
   await page.click('[data-testid="btn-wizard-next"]');
 
   // Wait for rack
-  await page.locator(".rack-container").first().waitFor({ state: "visible" });
+  await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
 }
 
 /**

@@ -1,5 +1,5 @@
 import { test, expect } from "./helpers/base-test";
-import { gotoWithRack } from "./helpers";
+import { gotoWithRack, locators } from "./helpers";
 
 test.describe("Responsive Layout", () => {
   test.describe("Desktop viewport (1200px)", () => {
@@ -9,19 +9,19 @@ test.describe("Responsive Layout", () => {
     });
 
     test("toolbar action cluster is visible", async ({ page }) => {
-      const toolbarCenter = page.locator(".toolbar-center");
+      const toolbarCenter = page.locator(locators.toolbar.center);
       await expect(toolbarCenter).toBeVisible();
     });
 
     test("brand name visible", async ({ page }) => {
-      const brandTitle = page.locator(".toolbar-brand").getByRole("img", {
+      const brandTitle = page.locator(locators.toolbar.brand).getByRole("img", {
         name: /Rackula/,
       });
       await expect(brandTitle).toBeVisible();
     });
 
     test("sidebar pane is visible", async ({ page }) => {
-      const sidebar = page.locator(".sidebar-pane");
+      const sidebar = page.locator(locators.sidebar.pane);
       await expect(sidebar).toBeVisible();
     });
 
@@ -48,12 +48,12 @@ test.describe("Responsive Layout", () => {
     });
 
     test("mobile mode is active — action cluster hidden", async ({ page }) => {
-      const toolbarCenter = page.locator(".toolbar-center");
+      const toolbarCenter = page.locator(locators.toolbar.center);
       await expect(toolbarCenter).not.toBeVisible();
     });
 
     test("brand name is still visible", async ({ page }) => {
-      const brandTitle = page.locator(".toolbar-brand").getByRole("img", {
+      const brandTitle = page.locator(locators.toolbar.brand).getByRole("img", {
         name: /Rackula/,
       });
       await expect(brandTitle).toBeVisible();
@@ -94,14 +94,14 @@ test.describe("Responsive Layout", () => {
     });
 
     test("brand name remains visible in toolbar", async ({ page }) => {
-      const brandTitle = page.locator(".toolbar-brand").getByRole("img", {
+      const brandTitle = page.locator(locators.toolbar.brand).getByRole("img", {
         name: /Rackula/,
       });
       await expect(brandTitle).toBeVisible();
     });
 
     test("logo mark is visible", async ({ page }) => {
-      const logo = page.locator(".toolbar-brand .logo-mark");
+      const logo = page.locator(locators.toolbar.brandLogoMark);
       await expect(logo).toBeVisible();
     });
 
@@ -123,18 +123,18 @@ test.describe("Responsive Layout", () => {
     });
 
     test("canvas is visible and interactive", async ({ page }) => {
-      const canvas = page.locator(".canvas");
+      const canvas = page.locator(locators.canvas.root);
       await expect(canvas).toBeVisible();
     });
 
     test("can pan the canvas", async ({ page }) => {
-      const rack = page.locator(".rack-dual-view");
+      const rack = page.locator(locators.rackView.dualView);
       await expect(rack).toBeVisible();
 
       const initialBox = await rack.boundingBox();
       expect(initialBox).toBeTruthy();
 
-      const canvas = page.locator(".canvas");
+      const canvas = page.locator(locators.canvas.root);
       await canvas.hover();
 
       const canvasBox = await canvas.boundingBox();
@@ -148,13 +148,13 @@ test.describe("Responsive Layout", () => {
         await page.mouse.up();
       }
 
-      const panzoomContainer = page.locator(".panzoom-container");
+      const panzoomContainer = page.locator(locators.canvas.panzoomContainer);
       const transform = await panzoomContainer.getAttribute("style");
       expect(transform).toContain("matrix");
     });
 
     test("reset view via keyboard shortcut", async ({ page }) => {
-      const panzoomContainer = page.locator(".panzoom-container");
+      const panzoomContainer = page.locator(locators.canvas.panzoomContainer);
 
       // Set a non-default transform (matches pattern in view-reset.spec.ts)
       await page.evaluate(() => {

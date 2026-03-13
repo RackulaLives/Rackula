@@ -8,6 +8,7 @@ import {
   clickNewRack,
   completeWizardWithClicks,
   PLATFORM_MODIFIER,
+  locators,
 } from "./helpers";
 
 /**
@@ -87,8 +88,8 @@ async function setDeviceNotes(page: Page, notes: string, waitForSave = true) {
  */
 async function setDeviceName(page: Page, name: string) {
   // Click the display name button to start editing
-  await page.locator("button.display-name-display").click();
-  const nameInput = page.locator("input#device-display-name");
+  await page.locator(locators.editPanel.displayNameButton).click();
+  const nameInput = page.locator(locators.editPanel.displayNameInput);
   await expect(nameInput).toBeVisible();
   await nameInput.fill(name);
   await nameInput.press("Enter");
@@ -101,11 +102,11 @@ async function setDeviceName(page: Page, name: string) {
  */
 async function setDeviceColour(page: Page, colour: string) {
   // Click the colour row to open picker
-  await page.locator("button.colour-row-btn").click();
-  await expect(page.locator(".colour-picker-container")).toBeVisible();
+  await page.locator(locators.deviceDetail.colourRowButton).click();
+  await expect(page.locator(locators.deviceDetail.colourPickerContainer)).toBeVisible();
 
   // Find the hex input and set the colour
-  const hexInput = page.locator('.colour-picker-container input[type="text"]');
+  const hexInput = page.locator(locators.deviceDetail.colourPickerInput);
   await hexInput.fill(colour);
   await hexInput.blur();
   // Wait for colour to be applied
@@ -120,10 +121,10 @@ async function getDeviceMetadata(page: Page) {
   const notes = await page.locator("#device-notes").inputValue();
 
   // Get name from the display text (not the input which only shows when editing)
-  const name = (await page.locator(".display-name-text").textContent()) ?? "";
+  const name = (await page.locator(locators.deviceDetail.displayNameText).textContent()) ?? "";
 
   // Get colour from the colour info display
-  const colourText = await page.locator(".colour-info").textContent();
+  const colourText = await page.locator(locators.deviceDetail.colourInfo).textContent();
   // Extract hex colour from text (e.g., "#FF6B6B custom")
   const colourMatch = colourText?.match(/#[A-Fa-f0-9]{6}/);
   const colour = colourMatch ? colourMatch[0] : "";
@@ -152,7 +153,7 @@ test.describe("Device Metadata Persistence", () => {
 
       // Add first device at top of rack and set unique metadata
       await dragDeviceToRack(page, { yOffsetPercent: 10 });
-      await expect(page.locator(".rack-device").first()).toBeVisible();
+      await expect(page.locator(locators.rack.device).first()).toBeVisible();
 
       // Select and configure the first device
       await selectDevice(page, 0);
@@ -165,13 +166,13 @@ test.describe("Device Metadata Persistence", () => {
 
       // Get all devices and find the one without our custom name (the new one)
       // We'll iterate through all visible devices to find and configure the second one
-      const allDevices = page.locator(".rack-device");
+      const allDevices = page.locator(locators.rack.device);
       const count = await allDevices.count();
 
       let secondDeviceIndex = -1;
       for (let i = 0; i < count; i++) {
         await allDevices.nth(i).click();
-        await expect(page.locator("aside.drawer-right.open")).toBeVisible();
+        await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
         const meta = await getDeviceMetadata(page);
         if (meta.name !== TEST_METADATA.name) {
           // This is the new device (doesn't have our custom name)
@@ -194,7 +195,7 @@ test.describe("Device Metadata Persistence", () => {
 
       for (let i = 0; i < count; i++) {
         await allDevices.nth(i).click();
-        await expect(page.locator("aside.drawer-right.open")).toBeVisible();
+        await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
         const meta = await getDeviceMetadata(page);
 
         if (meta.name === TEST_METADATA.name) {
@@ -223,7 +224,7 @@ test.describe("Device Metadata Persistence", () => {
     test("metadata persists after deselecting device", async ({ page }) => {
       // Add device
       await dragDeviceToRack(page);
-      await expect(page.locator(".rack-device").first()).toBeVisible();
+      await expect(page.locator(locators.rack.device).first()).toBeVisible();
 
       // Select and set metadata
       await selectDevice(page, 0);
@@ -247,7 +248,7 @@ test.describe("Device Metadata Persistence", () => {
     test("clearing metadata values works correctly", async ({ page }) => {
       // Add device
       await dragDeviceToRack(page);
-      await expect(page.locator(".rack-device").first()).toBeVisible();
+      await expect(page.locator(locators.rack.device).first()).toBeVisible();
 
       // Select and set IP
       await selectDevice(page, 0);
@@ -275,7 +276,7 @@ test.describe("Device Metadata Persistence", () => {
     test("whitespace-only input clears the field", async ({ page }) => {
       // Add device
       await dragDeviceToRack(page);
-      await expect(page.locator(".rack-device").first()).toBeVisible();
+      await expect(page.locator(locators.rack.device).first()).toBeVisible();
 
       // Select and set IP
       await selectDevice(page, 0);
@@ -292,7 +293,7 @@ test.describe("Device Metadata Persistence", () => {
     test("metadata persists across different racks", async ({ page }) => {
       // Add a device to the first rack and set metadata
       await dragDeviceToRack(page);
-      await expect(page.locator(".rack-device").first()).toBeVisible();
+      await expect(page.locator(locators.rack.device).first()).toBeVisible();
 
       await selectDevice(page, 0);
       await setDeviceIp(page, TEST_METADATA.ip);
@@ -306,7 +307,7 @@ test.describe("Device Metadata Persistence", () => {
 
       // Add a device to the second rack
       await dragDeviceToRack(page);
-      await expect(page.locator(".rack-device").first()).toBeVisible();
+      await expect(page.locator(locators.rack.device).first()).toBeVisible();
 
       await selectDevice(page, 0);
       await setDeviceIp(page, TEST_METADATA_2.ip);
@@ -323,7 +324,7 @@ test.describe("Device Metadata Persistence", () => {
     test("metadata is correctly serialized in saved YAML", async ({ page }) => {
       // Add device and set all metadata
       await dragDeviceToRack(page);
-      await expect(page.locator(".rack-device").first()).toBeVisible();
+      await expect(page.locator(locators.rack.device).first()).toBeVisible();
 
       await selectDevice(page, 0);
       await setDeviceIp(page, TEST_METADATA.ip);

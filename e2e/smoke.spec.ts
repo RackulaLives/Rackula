@@ -1,6 +1,6 @@
 import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
-import { gotoWithRack } from "./helpers";
+import { gotoWithRack, locators } from "./helpers";
 
 /**
  * Smoke tests to catch JavaScript initialization errors in production builds.
@@ -112,13 +112,13 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
 
     // Verify critical components are present
     // Toolbar
-    await expect(page.locator(".toolbar")).toBeVisible({ timeout: 10000 });
+    await expect(page.locator(locators.toolbar.root)).toBeVisible({ timeout: 10000 });
 
     // Rack view (dual-view has two containers)
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Device palette (sidebar)
-    await expect(page.locator(".device-palette")).toBeVisible();
+    await expect(page.locator(locators.device.palette)).toBeVisible();
 
     // At least one device category should be rendered (using bits-ui accordion)
     await expect(

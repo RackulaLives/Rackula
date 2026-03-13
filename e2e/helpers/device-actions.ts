@@ -4,6 +4,7 @@
  */
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { locators } from "./locators";
 
 /**
  * Drag a device from palette to rack using manual DragEvent dispatch
@@ -19,9 +20,9 @@ export async function dragDeviceToRack(
   const yPercent = options?.yOffsetPercent ?? 10;
   const deviceIndex = options?.deviceIndex ?? 0;
 
-  await expect(page.locator(".device-palette-item").first()).toBeVisible();
+  await expect(page.locator(locators.device.paletteItem).first()).toBeVisible();
 
-  const deviceCountBefore = await page.locator(".rack-device").count();
+  const deviceCountBefore = await page.locator(locators.rack.device).count();
 
   await page.evaluate(
     ({ yPercent, deviceIndex }) => {
@@ -80,11 +81,11 @@ export async function dragDeviceToRack(
 
   // Wait for device count to increase
   await expect(async () => {
-    const currentCount = await page.locator(".rack-device").count();
+    const currentCount = await page.locator(locators.rack.device).count();
     expect(currentCount).toBeGreaterThan(deviceCountBefore);
   }).toPass({ timeout: 5000 });
 
-  return await page.locator(".rack-device").count();
+  return await page.locator(locators.rack.device).count();
 }
 
 /**
@@ -95,16 +96,16 @@ export async function selectDevice(
   page: Page,
   index: number = 0,
 ): Promise<void> {
-  const frontViewDevices = page.locator(".rack-front .rack-device");
+  const frontViewDevices = page.locator(locators.rackView.frontDevice);
   const frontCount = await frontViewDevices.count();
 
   const device =
     frontCount > 0
       ? frontViewDevices.nth(index)
-      : page.locator(".rack-device").nth(index);
+      : page.locator(locators.rack.device).nth(index);
 
   await device.click();
-  await expect(page.locator("aside.drawer-right.open")).toBeVisible();
+  await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
 }
 
 /**
@@ -112,7 +113,7 @@ export async function selectDevice(
  */
 export async function deselectDevice(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
-  await expect(page.locator("aside.drawer-right.open")).not.toBeVisible();
+  await expect(page.locator(locators.drawer.rightOpen)).not.toBeVisible();
 }
 
 /**
@@ -120,7 +121,7 @@ export async function deselectDevice(page: Page): Promise<void> {
  * Note: This removes immediately without a confirmation dialog
  */
 export async function deleteSelectedDevice(page: Page): Promise<void> {
-  const devices = page.locator(".rack-device");
+  const devices = page.locator(locators.rack.device);
   const countBeforeDelete = await devices.count();
 
   await page.click('button[aria-label="Remove from rack"]');
@@ -130,5 +131,5 @@ export async function deleteSelectedDevice(page: Page): Promise<void> {
     expect(countAfterDelete).toBeLessThan(countBeforeDelete);
   }).toPass({ timeout: 5000 });
 
-  await expect(page.locator("aside.drawer-right.open")).not.toBeVisible();
+  await expect(page.locator(locators.drawer.rightOpen)).not.toBeVisible();
 }

@@ -4,6 +4,7 @@ import {
   SMALL_RACK_SHARE,
   dragDeviceToRack,
   clickExport,
+  locators,
 } from "./helpers";
 
 test.describe("Export Functionality", () => {
@@ -12,7 +13,7 @@ test.describe("Export Functionality", () => {
 
     // Add a device (drag to first rack-svg which is front view)
     await dragDeviceToRack(page);
-    await expect(page.locator(".rack-device").first()).toBeVisible();
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
   });
 
   test("export dialog opens", async ({ page }) => {
@@ -20,8 +21,8 @@ test.describe("Export Functionality", () => {
     await clickExport(page);
 
     // Dialog should open
-    await expect(page.locator(".dialog")).toBeVisible();
-    await expect(page.locator(".dialog-title")).toHaveText("Export");
+    await expect(page.locator(locators.dialog.root)).toBeVisible();
+    await expect(page.locator(locators.dialog.title)).toHaveText("Export");
   });
 
   test("export dialog has format options", async ({ page }) => {
@@ -110,12 +111,12 @@ test.describe("Export Functionality", () => {
 
   test("export dialog can be cancelled", async ({ page }) => {
     await clickExport(page);
-    await expect(page.locator(".dialog")).toBeVisible();
+    await expect(page.locator(locators.dialog.root)).toBeVisible();
 
     // Click cancel
     await page.click('[data-testid="btn-export-cancel"]');
 
     // Dialog should close
-    await expect(page.locator(".dialog")).not.toBeVisible();
+    await expect(page.locator(locators.dialog.root)).not.toBeVisible();
   });
 });
