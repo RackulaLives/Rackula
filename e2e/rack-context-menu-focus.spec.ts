@@ -1,6 +1,6 @@
 import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
-import { gotoWithRack } from "./helpers";
+import { gotoWithRack, locators } from "./helpers";
 
 /**
  * Helper to get the current panzoom transform
@@ -36,7 +36,7 @@ test.describe("Rack Context Menu Focus", () => {
     page,
   }) => {
     // Rack should be visible
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Force a non-focused transform so Focus must change it.
     await setPanzoomTransform(page, "matrix(0.4, 0, 0, 0.4, 0, 0)");
@@ -57,7 +57,7 @@ test.describe("Rack Context Menu Focus", () => {
     });
 
     // Wait for context menu to appear
-    await expect(page.locator(".context-menu-content")).toBeVisible();
+    await expect(page.locator(locators.contextMenu.content)).toBeVisible();
 
     // Verify Focus option is present and click it
     const focusItem = page.locator('[data-testid="ctx-menu-focus"]');
@@ -80,7 +80,7 @@ test.describe("Rack Context Menu Focus", () => {
 
   test("Focus option in Racks panel context menu works", async ({ page }) => {
     // Rack should be visible
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Force a non-focused transform so Focus must change it.
     await setPanzoomTransform(page, "matrix(0.4, 0, 0, 0.4, 0, 0)");
@@ -97,11 +97,11 @@ test.describe("Rack Context Menu Focus", () => {
     await racksTab.click();
 
     // Right-click on the rack item in the Racks panel
-    const rackItem = page.locator(".rack-item").first();
+    const rackItem = page.locator(locators.rack.item).first();
     await rackItem.click({ button: "right" });
 
     // Wait for context menu to appear
-    await expect(page.locator(".context-menu-content")).toBeVisible();
+    await expect(page.locator(locators.contextMenu.content)).toBeVisible();
 
     // Verify Focus option is present
     const focusItem = page.locator('[data-testid="ctx-menu-focus"]');

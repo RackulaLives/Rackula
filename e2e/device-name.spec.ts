@@ -1,5 +1,10 @@
 import { test, expect } from "./helpers/base-test";
-import { gotoWithRack, dragDeviceToRack, PLATFORM_MODIFIER } from "./helpers";
+import {
+  gotoWithRack,
+  dragDeviceToRack,
+  PLATFORM_MODIFIER,
+  locators,
+} from "./helpers";
 
 test.describe("Device Custom Names", () => {
   test.beforeEach(async ({ page }) => {
@@ -9,13 +14,13 @@ test.describe("Device Custom Names", () => {
   test("can edit device display name", async ({ page }) => {
     // Place a device
     await dragDeviceToRack(page);
-    await expect(page.locator(".rack-device").first()).toBeVisible();
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
 
     // Click on the device to select it
-    await page.locator(".rack-device").first().click();
+    await page.locator(locators.rack.device).first().click();
 
     // Wait for edit panel drawer to open
-    await expect(page.locator("aside.drawer-right.open")).toBeVisible();
+    await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
 
     // Click the display name button to start editing
     await page.locator("button.display-name-display").click();
@@ -31,7 +36,7 @@ test.describe("Device Custom Names", () => {
     await nameInput.press("Enter");
 
     // The new name should be visible in the rack device
-    await expect(page.locator(".rack-device .device-name").first()).toHaveText(
+    await expect(page.locator(locators.rack.deviceName).first()).toHaveText(
       "Primary Database Server",
     );
   });
@@ -39,11 +44,11 @@ test.describe("Device Custom Names", () => {
   test("display name persists after save/load", async ({ page }) => {
     // Place a device and give it a custom name
     await dragDeviceToRack(page);
-    await expect(page.locator(".rack-device").first()).toBeVisible();
-    await page.locator(".rack-device").first().click();
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
+    await page.locator(locators.rack.device).first().click();
 
     // Wait for edit panel to open
-    await expect(page.locator("aside.drawer-right.open")).toBeVisible();
+    await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
 
     // Edit the name
     await page.locator("button.display-name-display").click();
@@ -53,7 +58,7 @@ test.describe("Device Custom Names", () => {
     await nameInput.press("Enter");
 
     // Verify the name shows
-    await expect(page.locator(".rack-device .device-name").first()).toHaveText(
+    await expect(page.locator(locators.rack.deviceName).first()).toHaveText(
       "Storage Server",
     );
 
@@ -76,17 +81,17 @@ test.describe("Device Custom Names", () => {
     await fileChooser.setFiles(savedPath);
 
     // Wait for success toast to confirm load completed
-    await expect(page.locator(".toast--success")).toBeVisible({
+    await expect(page.locator(locators.toast.success)).toBeVisible({
       timeout: 10000,
     });
 
     // Wait for device to appear
-    await expect(page.locator(".rack-device").first()).toBeVisible({
+    await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 10000,
     });
 
     // Verify the custom name is restored
-    await expect(page.locator(".rack-device .device-name").first()).toHaveText(
+    await expect(page.locator(locators.rack.deviceName).first()).toHaveText(
       "Storage Server",
     );
   });
@@ -94,15 +99,15 @@ test.describe("Device Custom Names", () => {
   test("undo/redo works for display name changes", async ({ page }) => {
     // Place a device
     await dragDeviceToRack(page);
-    await expect(page.locator(".rack-device").first()).toBeVisible();
-    await page.locator(".rack-device").first().click();
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
+    await page.locator(locators.rack.device).first().click();
 
     // Wait for edit panel to open
-    await expect(page.locator("aside.drawer-right.open")).toBeVisible();
+    await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
 
     // Get the original device type name
     const originalName = await page
-      .locator(".rack-device .device-name")
+      .locator(locators.rack.deviceName)
       .first()
       .textContent();
 
@@ -114,19 +119,19 @@ test.describe("Device Custom Names", () => {
     await nameInput.press("Enter");
 
     // Verify new name
-    await expect(page.locator(".rack-device .device-name").first()).toHaveText(
+    await expect(page.locator(locators.rack.deviceName).first()).toHaveText(
       "Custom Name",
     );
 
     // Deselect device to ensure keyboard shortcuts target the app, not the edit panel
     await page.keyboard.press("Escape");
-    await expect(page.locator("aside.drawer-right.open")).not.toBeVisible();
+    await expect(page.locator(locators.drawer.rightOpen)).not.toBeVisible();
 
     // Undo (Ctrl+Z)
     await page.keyboard.press("Control+z");
 
     // Should restore original name
-    await expect(page.locator(".rack-device .device-name").first()).toHaveText(
+    await expect(page.locator(locators.rack.deviceName).first()).toHaveText(
       originalName!,
     );
 
@@ -134,7 +139,7 @@ test.describe("Device Custom Names", () => {
     await page.keyboard.press("Control+Shift+z");
 
     // Should restore custom name
-    await expect(page.locator(".rack-device .device-name").first()).toHaveText(
+    await expect(page.locator(locators.rack.deviceName).first()).toHaveText(
       "Custom Name",
     );
   });
@@ -144,15 +149,15 @@ test.describe("Device Custom Names", () => {
   }) => {
     // Place a device
     await dragDeviceToRack(page);
-    await expect(page.locator(".rack-device").first()).toBeVisible();
-    await page.locator(".rack-device").first().click();
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
+    await page.locator(locators.rack.device).first().click();
 
     // Wait for edit panel to open
-    await expect(page.locator("aside.drawer-right.open")).toBeVisible();
+    await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
 
     // Get the original device type name
     const originalName = await page
-      .locator(".rack-device .device-name")
+      .locator(locators.rack.deviceName)
       .first()
       .textContent();
 
@@ -164,7 +169,7 @@ test.describe("Device Custom Names", () => {
     await nameInput.press("Enter");
 
     // Verify custom name is shown
-    await expect(page.locator(".rack-device .device-name").first()).toHaveText(
+    await expect(page.locator(locators.rack.deviceName).first()).toHaveText(
       "Custom Name",
     );
 
@@ -176,7 +181,7 @@ test.describe("Device Custom Names", () => {
     await nameInput.press("Enter");
 
     // Should revert to device type name
-    await expect(page.locator(".rack-device .device-name").first()).toHaveText(
+    await expect(page.locator(locators.rack.deviceName).first()).toHaveText(
       originalName!,
     );
   });

@@ -1,5 +1,5 @@
 import { test, expect } from "./helpers/base-test";
-import { gotoWithRack, dragDeviceToRack } from "./helpers";
+import { gotoWithRack, dragDeviceToRack, locators } from "./helpers";
 
 /**
  * E2E Tests for Custom Device Creation and Placement (Issue #166)
@@ -33,15 +33,15 @@ test.describe("Custom Device Height (Issue #166)", () => {
     await expect(customDevice).toBeVisible();
 
     // 5. Drag device to rack using shared helper (new device is last in list)
-    const deviceCount = await page.locator(".device-palette-item").count();
+    const deviceCount = await page.locator(locators.device.paletteItem).count();
     await dragDeviceToRack(page, { deviceIndex: deviceCount - 1 });
 
     // 6. Verify device appears in rack
-    const rackDevice = page.locator(".rack-device").first();
+    const rackDevice = page.locator(locators.rack.device).first();
     await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
     // 7. CRITICAL: Verify device has correct height (4U = 4 * 22px = 88px)
-    const deviceRect = page.locator(".rack-device .device-rect").first();
+    const deviceRect = page.locator(locators.rack.deviceRect).first();
     const height = await deviceRect.getAttribute("height");
 
     // U_HEIGHT constant is 22px
@@ -64,11 +64,11 @@ test.describe("Custom Device Height (Issue #166)", () => {
     await page.click('[data-testid="btn-add-device"]');
 
     // 4. Drag device to rack (new device is last in list)
-    const deviceCount = await page.locator(".device-palette-item").count();
+    const deviceCount = await page.locator(locators.device.paletteItem).count();
     await dragDeviceToRack(page, { deviceIndex: deviceCount - 1 });
 
     // 5. Verify device renders with 2U height
-    const deviceRect = page.locator(".rack-device .device-rect").first();
+    const deviceRect = page.locator(locators.rack.deviceRect).first();
     const height = await deviceRect.getAttribute("height");
 
     // U_HEIGHT constant is 22px

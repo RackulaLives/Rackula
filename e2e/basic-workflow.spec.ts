@@ -4,6 +4,7 @@ import {
   dragDeviceToRack,
   selectDevice,
   deleteSelectedDevice,
+  locators,
 } from "./helpers";
 
 test.describe("Basic Workflow", () => {
@@ -16,9 +17,9 @@ test.describe("Basic Workflow", () => {
     page,
   }) => {
     // In v0.4 dual-view mode, two rack containers exist (front and rear)
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
     // Default rack name is displayed in dual-view header
-    await expect(page.locator(".rack-dual-view-name")).toBeVisible();
+    await expect(page.locator(locators.rackView.dualViewName)).toBeVisible();
   });
 
   // FIXME(#1438): Restore when replace-rack flow is reintroduced with current UX.
@@ -38,56 +39,56 @@ test.describe("Basic Workflow", () => {
 
   test("can drag device from palette to rack", async ({ page }) => {
     // In v0.4 dual-view mode, two rack containers exist
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Drag device using helper (drops on first .rack-svg which is front view)
     await dragDeviceToRack(page);
 
     // Verify device appears in rack
-    await expect(page.locator(".rack-device").first()).toBeVisible({
+    await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 5000,
     });
   });
 
   test("device appears at correct position in rack", async ({ page }) => {
     // Rack already exists in v0.4 dual-view mode
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Drag device
     await dragDeviceToRack(page);
 
     // Verify device is in the rack
-    await expect(page.locator(".rack-device").first()).toBeVisible();
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
   });
 
   test("can move device within rack", async ({ page }) => {
     // Rack exists by default
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Drag device
     await dragDeviceToRack(page);
 
     // Wait for device to appear
-    await expect(page.locator(".rack-device").first()).toBeVisible();
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
 
     // Move the device within the rack using arrow keys
-    const device = page.locator(".rack-device").first();
+    const device = page.locator(locators.rack.device).first();
     await device.click();
     await page.keyboard.press("ArrowUp");
 
     // Device should still be visible
-    await expect(page.locator(".rack-device").first()).toBeVisible();
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
   });
 
   test("can delete device from rack", async ({ page }) => {
     // Rack exists by default
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Drag device
     await dragDeviceToRack(page);
 
     // Wait for device
-    await expect(page.locator(".rack-device").first()).toBeVisible();
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
 
     // Select the device (opens edit panel with Delete button)
     await selectDevice(page, 0);
@@ -96,7 +97,7 @@ test.describe("Basic Workflow", () => {
     await deleteSelectedDevice(page);
 
     // Device should be removed
-    await expect(page.locator(".rack-device")).not.toBeVisible();
+    await expect(page.locator(locators.rack.device)).not.toBeVisible();
   });
 
   // FIXME(#1438): Restore when rack deletion flow is validated in current UX.

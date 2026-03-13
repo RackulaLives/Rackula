@@ -1,6 +1,6 @@
 import { test, expect } from "./helpers/base-test";
 import fs from "fs";
-import { gotoWithRack } from "./helpers";
+import { gotoWithRack, locators } from "./helpers";
 
 test.describe("Device Images", () => {
   let testImagePath: string;
@@ -48,7 +48,7 @@ test.describe("Device Images", () => {
     // Click add device button in sidebar
     await page.click('[data-testid="btn-add-device"]');
 
-    const dialog = page.locator(".dialog");
+    const dialog = page.locator(locators.dialog.root);
     await expect(dialog).toBeVisible();
 
     // Fill in device details
@@ -62,7 +62,7 @@ test.describe("Device Images", () => {
     await fileInput.setInputFiles(testImagePath);
 
     // Preview should appear (img element in the upload area)
-    const preview = dialog.locator(".image-upload img, .image-preview img");
+    const preview = dialog.locator(locators.deviceDetail.imagePreview);
     await expect(preview.first()).toBeVisible({ timeout: 5000 });
 
     // Submit the form - click the button inside the dialog
@@ -76,31 +76,31 @@ test.describe("Device Images", () => {
 
   test("display mode toggle exists in toolbar", async ({ page }) => {
     // In v0.4 dual-view mode, two rack containers exist
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Should have toolbar with display mode related controls
-    await expect(page.locator(".toolbar")).toBeVisible();
+    await expect(page.locator(locators.toolbar.root)).toBeVisible();
   });
 
   test("keyboard shortcut I triggers display mode toggle", async ({ page }) => {
     // In v0.4 dual-view mode, two rack containers exist
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Press I to toggle display mode - should not throw error
     await page.keyboard.press("i");
 
     // Rack should still be visible (no crash)
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
   });
 
   test("labels toggle visible when in image mode", async ({ page }) => {
     // In v0.4 dual-view mode, two rack containers exist
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Toggle to image mode with I key
     await page.keyboard.press("i");
 
     // In image mode, toolbar should still be visible
-    await expect(page.locator(".toolbar")).toBeVisible();
+    await expect(page.locator(locators.toolbar.root)).toBeVisible();
   });
 });

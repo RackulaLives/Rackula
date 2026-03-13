@@ -1,6 +1,11 @@
 import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
-import { gotoWithRack, SMALL_RACK_SHARE, clickNewRack } from "./helpers";
+import {
+  gotoWithRack,
+  SMALL_RACK_SHARE,
+  clickNewRack,
+  locators,
+} from "./helpers";
 
 /**
  * Helper to get the current panzoom transform
@@ -24,7 +29,7 @@ test.describe("View Reset on Rack Changes", () => {
 
   test("view resets when creating a new rack", async ({ page }) => {
     // Pan the view to an offset position first
-    const canvas = page.locator(".canvas");
+    const canvas = page.locator(locators.canvas.root);
     await canvas.click();
 
     await page.evaluate(() => {
@@ -44,7 +49,7 @@ test.describe("View Reset on Rack Changes", () => {
     await page.fill("#rack-name", "Test Rack");
     await page.click('[data-testid="btn-height-24"]');
     await page.click('[data-testid="btn-wizard-next"]');
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Wait for the view to reset (transform should change from panned position)
     await expect
@@ -62,8 +67,8 @@ test.describe("View Reset on Rack Changes", () => {
     page,
   }) => {
     // Select the rack to open EditPanel BEFORE panning away
-    await page.locator(".rack-svg").first().click();
-    await expect(page.locator(".drawer-right.open")).toBeVisible();
+    await page.locator(locators.rack.svg).first().click();
+    await expect(page.locator(locators.drawer.rightOpenBare)).toBeVisible();
 
     // Pan the view to an offset position
     await page.evaluate(() => {
@@ -97,8 +102,8 @@ test.describe("View Reset on Rack Changes", () => {
     page,
   }) => {
     // Select the rack BEFORE panning away
-    await page.locator(".rack-svg").first().click();
-    await expect(page.locator(".drawer-right.open")).toBeVisible();
+    await page.locator(locators.rack.svg).first().click();
+    await expect(page.locator(locators.drawer.rightOpenBare)).toBeVisible();
 
     // Pan away after selection
     await page.evaluate(() => {
@@ -114,8 +119,8 @@ test.describe("View Reset on Rack Changes", () => {
     expect(transformBefore?.x).toBe(-200);
 
     // Use the numeric height input field to change height
-    await page.locator(".drawer-right #rack-height").fill("36");
-    await page.locator(".drawer-right #rack-height").blur();
+    await page.locator(locators.drawer.rightRackHeight).fill("36");
+    await page.locator(locators.drawer.rightRackHeight).blur();
 
     // Wait for the view to reset (transform should change from panned position)
     await expect

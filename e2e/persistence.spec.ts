@@ -7,6 +7,7 @@ import {
   PLATFORM_MODIFIER,
   clickSave,
   dragDeviceToRack,
+  locators,
 } from "./helpers";
 
 test.describe("Persistence", () => {
@@ -67,7 +68,7 @@ test.describe("Persistence", () => {
   test("load layout from file restores rack", async ({ page }) => {
     // Place a device so the saved layout has content
     await dragDeviceToRack(page);
-    await expect(page.locator(".rack-device").first()).toBeVisible({
+    await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 5000,
     });
 
@@ -82,7 +83,7 @@ test.describe("Persistence", () => {
 
     // Reload with a fresh rack (no devices)
     await gotoWithRack(page, MEDIUM_RACK_SHARE);
-    await expect(page.locator(".rack-device")).not.toBeVisible();
+    await expect(page.locator(locators.rack.device)).not.toBeVisible();
 
     // Load the saved file via keyboard shortcut
     const fileChooserPromise = page.waitForEvent("filechooser");
@@ -91,12 +92,12 @@ test.describe("Persistence", () => {
     await fileChooser.setFiles(savedPath);
 
     // Wait for success toast to confirm load completed
-    await expect(page.locator(".toast--success")).toBeVisible({
+    await expect(page.locator(locators.toast.success)).toBeVisible({
       timeout: 10000,
     });
 
     // Verify layout is restored with the device
-    await expect(page.locator(".rack-device").first()).toBeVisible({
+    await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 10000,
     });
   });
@@ -104,7 +105,7 @@ test.describe("Persistence", () => {
   test("session storage preserves work on refresh", async ({ page }) => {
     // Place a device so we have something to verify after reload
     await dragDeviceToRack(page);
-    await expect(page.locator(".rack-device").first()).toBeVisible({
+    await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 5000,
     });
 
@@ -113,10 +114,10 @@ test.describe("Persistence", () => {
     await page.reload();
 
     // Session restore should show the rack with our placed device
-    await expect(page.locator(".rack-container").first()).toBeVisible({
+    await expect(page.locator(locators.rack.container).first()).toBeVisible({
       timeout: 10000,
     });
-    await expect(page.locator(".rack-device").first()).toBeVisible({
+    await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 10000,
     });
   });
@@ -124,9 +125,9 @@ test.describe("Persistence", () => {
   test("unsaved changes warning on close attempt", async ({ page }) => {
     // Loading via share link creates the initial state.
     // Rack name is displayed in dual-view header
-    await expect(page.locator(".rack-dual-view-name")).toBeVisible();
+    await expect(page.locator(locators.rackView.dualViewName)).toBeVisible();
     // In dual-view mode, there are 2 rack containers
-    expect(await page.locator(".rack-container").count()).toBe(2);
+    expect(await page.locator(locators.rack.container).count()).toBe(2);
   });
 
   test("no warning after saving", async ({ page }) => {
@@ -139,6 +140,6 @@ test.describe("Persistence", () => {
     await downloadPromise;
 
     // Should show success toast
-    await expect(page.locator(".toast")).toBeVisible();
+    await expect(page.locator(locators.toast.root)).toBeVisible();
   });
 });

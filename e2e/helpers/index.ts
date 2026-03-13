@@ -39,6 +39,9 @@ export {
 // Mobile navigation
 export { openDeviceLibraryFromBottomNav } from "./mobile-navigation";
 
+// Centralised CSS selectors
+export { locators } from "./locators";
+
 // Platform utilities
 
 /** Platform-aware modifier key (Cmd on macOS, Ctrl on Windows/Linux) */

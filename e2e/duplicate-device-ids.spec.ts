@@ -3,7 +3,7 @@ import fs from "fs";
 import os from "node:os";
 import path from "node:path";
 import JSZip from "jszip";
-import { gotoWithRack, clickLoad } from "./helpers";
+import { gotoWithRack, clickLoad, locators } from "./helpers";
 
 // Positions in internal units (6 per U): U1=6, U3=18, U5=30
 const LAYOUT_YAML = `version: "0.7.6"
@@ -78,7 +78,7 @@ test.describe("Duplicate Device ID Handling (#1363)", () => {
   test("loads layout with duplicate device IDs without crashing", async ({
     page,
   }) => {
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Listen for console errors — the Svelte each_key_duplicate error
     // would appear here before the fix
@@ -96,15 +96,15 @@ test.describe("Duplicate Device ID Handling (#1363)", () => {
     await fileChooser.setFiles(zipPath);
 
     // Wait for success toast — confirms load completed without crash
-    await expect(page.locator(".toast--success")).toBeVisible({
+    await expect(page.locator(locators.toast.success)).toBeVisible({
       timeout: 10000,
     });
 
     // All 3 devices should render (the duplicate ID was regenerated, not dropped)
-    await expect(page.locator(".rack-device").first()).toBeVisible({
+    await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 5000,
     });
-    const devices = await page.locator(".rack-device").count();
+    const devices = await page.locator(locators.rack.device).count();
     expect(devices).toBe(3);
 
     // No each_key_duplicate errors

@@ -1,6 +1,6 @@
 import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
-import { gotoWithRack, clickNewRack } from "./helpers";
+import { gotoWithRack, clickNewRack, locators } from "./helpers";
 
 /**
  * Helper to open the New Rack form via the replace flow.
@@ -9,7 +9,7 @@ import { gotoWithRack, clickNewRack } from "./helpers";
 async function openNewRackForm(page: Page) {
   await clickNewRack(page);
   await page.click('[data-testid="btn-replace-rack"]');
-  await expect(page.locator(".dialog")).toBeVisible();
+  await expect(page.locator(locators.dialog.root)).toBeVisible();
 }
 
 test.describe("Rack Configuration", () => {
@@ -30,10 +30,10 @@ test.describe("Rack Configuration", () => {
     await page.click('[data-testid="btn-wizard-next"]');
 
     // Rack should be visible (dual-view has 2 containers)
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // The rack SVG should have a narrower viewBox for 10" rack
-    const rackSvg = page.locator(".rack-svg").first();
+    const rackSvg = page.locator(locators.rack.svg).first();
     const viewBox = await rackSvg.getAttribute("viewBox");
     expect(viewBox).toBeDefined();
 
@@ -55,9 +55,9 @@ test.describe("Rack Configuration", () => {
     await page.click('[data-testid="btn-wizard-next"]');
 
     // Rack should be visible (dual-view has 2 containers)
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
-    const rackSvg = page.locator(".rack-svg").first();
+    const rackSvg = page.locator(locators.rack.svg).first();
     const viewBox = await rackSvg.getAttribute("viewBox");
     expect(viewBox).toBeDefined();
 
@@ -85,11 +85,11 @@ test.describe("Rack Configuration", () => {
     await page.click('[data-testid="btn-wizard-next"]');
 
     // Rack should be visible (dual-view has 2 containers)
-    await expect(page.locator(".rack-container").first()).toBeVisible();
+    await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // In dual-view mode, each view has its own U labels - scope to first view
-    const firstRackSvg = page.locator(".rack-svg").first();
-    const uLabels = firstRackSvg.locator(".u-label");
+    const firstRackSvg = page.locator(locators.rack.svg).first();
+    const uLabels = firstRackSvg.locator(locators.rack.uLabel);
     const count = await uLabels.count();
     expect(count).toBe(10);
 

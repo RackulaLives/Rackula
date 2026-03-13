@@ -1,5 +1,10 @@
 import { test, expect } from "./helpers/base-test";
-import { gotoWithRack, STANDARD_RACK_SHARE, dragDeviceToRack } from "./helpers";
+import {
+  gotoWithRack,
+  STANDARD_RACK_SHARE,
+  dragDeviceToRack,
+  locators,
+} from "./helpers";
 
 test.describe("Shelf Category", () => {
   test.beforeEach(async ({ page }) => {
@@ -8,7 +13,7 @@ test.describe("Shelf Category", () => {
 
   test("shelf devices appear in device library", async ({ page }) => {
     // Device palette should be visible
-    await expect(page.locator(".device-palette")).toBeVisible();
+    await expect(page.locator(locators.device.palette)).toBeVisible();
 
     // Search for shelf devices
     const searchInput = page.locator('[data-testid="search-devices"]');
@@ -32,7 +37,7 @@ test.describe("Shelf Category", () => {
     await dragDeviceToRack(page);
 
     // Verify shelf is placed in rack
-    await expect(page.locator(".rack-device").first()).toBeVisible({
+    await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 5000,
     });
   });
@@ -50,7 +55,7 @@ test.describe("Shelf Category", () => {
     await expect(shelfItem).toBeVisible();
 
     // Should have a category icon
-    const icon = shelfItem.locator(".category-icon-indicator svg");
+    const icon = shelfItem.locator(locators.deviceDetail.categoryIconIndicator);
     await expect(icon).toBeVisible();
   });
 
@@ -63,7 +68,7 @@ test.describe("Shelf Category", () => {
     await dragDeviceToRack(page);
 
     // Check the device has the shelf colour
-    const placedDevice = page.locator(".rack-device").first();
+    const placedDevice = page.locator(locators.rack.device).first();
     await expect(placedDevice).toBeVisible({ timeout: 5000 });
 
     // The fill should be the shelf colour #8B4513

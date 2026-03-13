@@ -1,5 +1,10 @@
 import { test, expect } from "./helpers/base-test";
-import { gotoWithRack, fillRackForm, clickNewRack } from "./helpers";
+import {
+  gotoWithRack,
+  fillRackForm,
+  clickNewRack,
+  locators,
+} from "./helpers";
 
 test.describe("Single Rack Mode (v0.2)", () => {
   test.beforeEach(async ({ page }) => {
@@ -10,9 +15,9 @@ test.describe("Single Rack Mode (v0.2)", () => {
     page,
   }) => {
     // In v0.4 dual-view mode, there are 2 rack containers (front and rear)
-    await expect(page.locator(".rack-container")).toHaveCount(2);
+    await expect(page.locator(locators.rack.container)).toHaveCount(2);
     // Rack name is displayed in dual-view header
-    await expect(page.locator(".rack-dual-view-name")).toBeVisible();
+    await expect(page.locator(locators.rackView.dualViewName)).toBeVisible();
   });
 
   test("shows confirmation dialog when clicking New Rack", async ({ page }) => {
@@ -36,7 +41,7 @@ test.describe("Single Rack Mode (v0.2)", () => {
     await page.click('[data-testid="btn-wizard-next"]');
 
     // Verify rack exists (dual-view header shows name)
-    await expect(page.locator(".rack-dual-view-name")).toContainText(
+    await expect(page.locator(locators.rackView.dualViewName)).toContainText(
       "Old Rack",
     );
 
@@ -61,12 +66,12 @@ test.describe("Single Rack Mode (v0.2)", () => {
     await page.click('[data-testid="btn-wizard-next"]');
 
     // Only new rack should exist (2 rack containers in dual-view mode)
-    await expect(page.locator(".rack-container")).toHaveCount(2);
+    await expect(page.locator(locators.rack.container)).toHaveCount(2);
     await expect(
-      page.locator(".rack-dual-view-name", { hasText: "New Rack" }),
+      page.locator(locators.rackView.dualViewName, { hasText: "New Rack" }),
     ).toBeVisible();
     await expect(
-      page.locator(".rack-dual-view-name", { hasText: "Old Rack" }),
+      page.locator(locators.rackView.dualViewName, { hasText: "Old Rack" }),
     ).not.toBeVisible();
   });
 
@@ -78,7 +83,7 @@ test.describe("Single Rack Mode (v0.2)", () => {
     await page.click('[data-testid="btn-wizard-next"]');
 
     // Verify rack exists (dual-view header shows name)
-    await expect(page.locator(".rack-dual-view-name")).toContainText("My Rack");
+    await expect(page.locator(locators.rackView.dualViewName)).toContainText("My Rack");
 
     // Click New Rack, then Cancel
     await clickNewRack(page);
@@ -93,8 +98,8 @@ test.describe("Single Rack Mode (v0.2)", () => {
     ).not.toBeVisible();
 
     // Rack should still exist (2 containers in dual-view)
-    await expect(page.locator(".rack-container")).toHaveCount(2);
-    await expect(page.locator(".rack-dual-view-name")).toContainText("My Rack");
+    await expect(page.locator(locators.rack.container)).toHaveCount(2);
+    await expect(page.locator(locators.rackView.dualViewName)).toContainText("My Rack");
 
     // New Rack form should NOT be open
     await expect(page.locator('h2:has-text("New Rack")')).not.toBeVisible();
@@ -122,15 +127,15 @@ test.describe("Single Rack Mode (v0.2)", () => {
     ).not.toBeVisible();
 
     // Rack should still exist (2 containers in dual-view)
-    await expect(page.locator(".rack-container")).toHaveCount(2);
-    await expect(page.locator(".rack-dual-view-name")).toContainText(
+    await expect(page.locator(locators.rack.container)).toHaveCount(2);
+    await expect(page.locator(locators.rackView.dualViewName)).toContainText(
       "Test Rack",
     );
   });
 
   test("enforces maximum 1 rack", async ({ page }) => {
     // Verify rack exists (2 containers in dual-view for the single rack)
-    await expect(page.locator(".rack-container")).toHaveCount(2);
+    await expect(page.locator(locators.rack.container)).toHaveCount(2);
 
     // Try to create a 2nd rack should show confirmation dialog
     await clickNewRack(page);
@@ -144,7 +149,7 @@ test.describe("Single Rack Mode (v0.2)", () => {
     await page.click('[data-testid="btn-cancel-replace"]');
 
     // Should still have only the dual-view containers (2)
-    await expect(page.locator(".rack-container")).toHaveCount(2);
+    await expect(page.locator(locators.rack.container)).toHaveCount(2);
   });
 
   test("dialog shows correct rack name and device count", async ({ page }) => {

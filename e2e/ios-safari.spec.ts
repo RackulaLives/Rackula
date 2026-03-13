@@ -9,7 +9,7 @@
 import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
 import { openDeviceLibraryFromBottomNav } from "./helpers/mobile-navigation";
-import { EMPTY_RACK_SHARE, dragDeviceToRack } from "./helpers";
+import { EMPTY_RACK_SHARE, dragDeviceToRack, locators } from "./helpers";
 
 // iOS Device viewport matrix
 const iosDevices = [
@@ -36,7 +36,7 @@ async function setupMobileViewport(
   await page.evaluate(() => {
     sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
   });
-  await page.locator(".rack-container").first().waitFor({ state: "visible" });
+  await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
 }
 
 // ============================================================================
@@ -72,7 +72,7 @@ test.describe("Devices Tab (Device Library)", () => {
       }) => {
         await openDeviceLibraryFromBottomNav(page);
 
-        const bottomSheet = page.locator(".bottom-sheet");
+        const bottomSheet = page.locator(locators.mobile.bottomSheet);
         await expect(bottomSheet).toBeVisible({ timeout: 2000 });
       });
     });
@@ -82,7 +82,7 @@ test.describe("Devices Tab (Device Library)", () => {
     const device = iosDevices.find((d) => d.name === "iPad Pro 12.9")!;
     await setupMobileViewport(page, device);
 
-    await expect(page.locator(".device-library-fab")).toHaveCount(0);
+    await expect(page.locator(locators.mobile.deviceLibraryFab)).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Devices" })).toHaveCount(0);
   });
 });
@@ -101,24 +101,24 @@ test.describe("Bottom Sheet", () => {
   test("bottom sheet opens when Devices tab is tapped", async ({ page }) => {
     await openDeviceLibraryFromBottomNav(page);
 
-    const bottomSheet = page.locator(".bottom-sheet");
+    const bottomSheet = page.locator(locators.mobile.bottomSheet);
     await expect(bottomSheet).toBeVisible();
   });
 
   test("bottom sheet has drag handle visible", async ({ page }) => {
     await openDeviceLibraryFromBottomNav(page);
 
-    const dragHandle = page.locator(".drag-handle-bar");
+    const dragHandle = page.locator(locators.mobile.dragHandleBar);
     await expect(dragHandle).toBeVisible();
   });
 
   test("bottom sheet closes on backdrop click", async ({ page }) => {
     await openDeviceLibraryFromBottomNav(page);
 
-    const bottomSheet = page.locator(".bottom-sheet");
+    const bottomSheet = page.locator(locators.mobile.bottomSheet);
     await expect(bottomSheet).toBeVisible();
 
-    const backdrop = page.locator(".backdrop");
+    const backdrop = page.locator(locators.mobile.backdrop);
     await backdrop.click({ force: true });
 
     await expect(bottomSheet).not.toBeVisible({ timeout: 2000 });
@@ -127,7 +127,7 @@ test.describe("Bottom Sheet", () => {
   test("bottom sheet closes on Escape key", async ({ page }) => {
     await openDeviceLibraryFromBottomNav(page);
 
-    const bottomSheet = page.locator(".bottom-sheet");
+    const bottomSheet = page.locator(locators.mobile.bottomSheet);
     await expect(bottomSheet).toBeVisible();
 
     await page.keyboard.press("Escape");
@@ -148,7 +148,7 @@ test.describe("Device Label Positioning", () => {
         await setupMobileViewport(page, device);
         await dragDeviceToRack(page);
 
-        const rackDevice = page.locator(".rack-device").first();
+        const rackDevice = page.locator(locators.rack.device).first();
         await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
         const deviceBox = await rackDevice.boundingBox();
@@ -195,7 +195,7 @@ test.describe("Haptic Feedback", () => {
 
     await dragDeviceToRack(page);
 
-    const device = page.locator(".rack-device").first();
+    const device = page.locator(locators.rack.device).first();
     await expect(device).toBeVisible({ timeout: 5000 });
   });
 });
