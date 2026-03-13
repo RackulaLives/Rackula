@@ -88,8 +88,8 @@ async function setDeviceNotes(page: Page, notes: string, waitForSave = true) {
  */
 async function setDeviceName(page: Page, name: string) {
   // Click the display name button to start editing
-  await page.locator("button.display-name-display").click();
-  const nameInput = page.locator("input#device-display-name");
+  await page.locator(locators.editPanel.displayNameButton).click();
+  const nameInput = page.locator(locators.editPanel.displayNameInput);
   await expect(nameInput).toBeVisible();
   await nameInput.fill(name);
   await nameInput.press("Enter");

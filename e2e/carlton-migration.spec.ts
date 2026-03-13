@@ -90,7 +90,8 @@ test.describe("Carlton Migration (#879)", () => {
     // The device should have data-device-position="9" (1.5 * 6 = 9)
     // Note: getByText returns the <text> element; the attribute is on the parent .rack-device
     const unraidDeviceContainer = page
-      .locator('.rack-device:has-text("UnRaid Server")')
+      .locator(locators.rack.device)
+      .filter({ hasText: "UnRaid Server" })
       .first();
     await expect(unraidDeviceContainer).toHaveAttribute(
       "data-device-position",

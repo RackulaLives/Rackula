@@ -80,6 +80,11 @@ export const locators = {
     deviceLibraryFab: ".device-library-fab",
   },
 
+  editPanel: {
+    displayNameButton: "button.display-name-display",
+    displayNameInput: "input#device-display-name",
+  },
+
   deviceDetail: {
     colourPickerContainer: ".colour-picker-container",
     displayNameText: ".display-name-text",
