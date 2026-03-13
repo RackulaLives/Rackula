@@ -91,6 +91,8 @@ export const locators = {
     colourInfo: ".colour-info",
     categoryIconIndicator: ".category-icon-indicator svg",
     imagePreview: ".image-upload img, .image-preview img",
+    colourRowButton: "button.colour-row-btn",
+    colourPickerInput: '.colour-picker-container input[type="text"]',
   },
 
   contextMenu: {

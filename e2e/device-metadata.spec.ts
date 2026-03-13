@@ -102,11 +102,11 @@ async function setDeviceName(page: Page, name: string) {
  */
 async function setDeviceColour(page: Page, colour: string) {
   // Click the colour row to open picker
-  await page.locator("button.colour-row-btn").click();
+  await page.locator(locators.deviceDetail.colourRowButton).click();
   await expect(page.locator(locators.deviceDetail.colourPickerContainer)).toBeVisible();
 
   // Find the hex input and set the colour
-  const hexInput = page.locator('.colour-picker-container input[type="text"]');
+  const hexInput = page.locator(locators.deviceDetail.colourPickerInput);
   await hexInput.fill(colour);
   await hexInput.blur();
   // Wait for colour to be applied
