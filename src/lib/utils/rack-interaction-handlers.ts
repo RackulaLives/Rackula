@@ -7,12 +7,7 @@
  * reactive getters for the values they need from the component.
  */
 
-import type {
-  Rack,
-  DeviceType,
-  DeviceFace,
-  SlotPosition,
-} from "$lib/types";
+import type { Rack, DeviceType, DeviceFace, SlotPosition } from "$lib/types";
 import {
   parseDragData,
   getCurrentDragData,
@@ -123,12 +118,10 @@ export function handleDragLeave(
 /**
  * Handle native drop events on the rack SVG.
  */
-export function handleDrop(
-  event: DragEvent,
-  ctx: RackHandlerContext,
-): void {
+export function handleDrop(event: DragEvent, ctx: RackHandlerContext): void {
   event.preventDefault();
   ctx.setDropPreview(null);
+  ctx.setContainerHoverInfo(null);
 
   if (!event.dataTransfer) return;
 
