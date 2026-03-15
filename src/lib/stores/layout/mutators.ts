@@ -459,6 +459,24 @@ export function getPlacedDevicesForType(
     );
 }
 
+/**
+ * Get all placed devices for a device type with their source rack IDs.
+ * Used by DELETE_DEVICE_TYPE to restore devices to their original racks on undo.
+ * @param ctx - Layout state access
+ * @param slug - Device type slug
+ * @returns Array of { rackId, device } pairs
+ */
+export function getPlacedDevicesWithRackForType(
+  ctx: LayoutStateAccess,
+  slug: string,
+): { rackId: string; device: PlacedDevice }[] {
+  return ctx.getLayout().racks.flatMap((rack) =>
+    rack.devices
+      .filter((d) => d.device_type === slug)
+      .map((d) => ({ rackId: rack.id, device: d })),
+  );
+}
+
 // =============================================================================
 // Rack Settings Raw Mutators
 // =============================================================================

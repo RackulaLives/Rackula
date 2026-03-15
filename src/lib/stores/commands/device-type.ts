@@ -17,6 +17,8 @@ export interface DeviceTypeCommandStore {
 	placeDeviceRaw(device: PlacedDevice): number;
 	removeDeviceAtIndexRaw(index: number): void;
 	getPlacedDevicesForType(slug: string): PlacedDevice[];
+	setActiveRackId(id: string | null): void;
+	getActiveRackId(): string | null;
 }
 
 /**
@@ -63,13 +65,17 @@ export function createUpdateDeviceTypeCommand(
 
 /**
  * Create a command to delete a device type (including placed instances)
+ * Accepts rack-aware device data so undo restores devices to their original racks.
  */
 export function createDeleteDeviceTypeCommand(
 	deviceType: DeviceType,
-	placedDevices: PlacedDevice[],
+	placedDevices: { rackId: string; device: PlacedDevice }[],
 	store: DeviceTypeCommandStore
 ): Command {
-	const deviceData = placedDevices.map((d) => JSON.parse(JSON.stringify(d)) as PlacedDevice);
+	const deviceData = placedDevices.map((d) => ({
+		rackId: d.rackId,
+		device: JSON.parse(JSON.stringify(d.device)) as PlacedDevice,
+	}));
 	const deviceTypeCopy = JSON.parse(JSON.stringify(deviceType)) as DeviceType;
 
 	// Snapshot all images associated with this device type
@@ -80,7 +86,7 @@ export function createDeleteDeviceTypeCommand(
 	// Snapshot placement-specific images for each placed device
 	const placementSnapshots = new Map<string, DeviceImageData>();
 	for (const d of placedDevices) {
-		const key = `placement-${d.id}`;
+		const key = `placement-${d.device.id}`;
 		const snap = imageStore.getAllImages().get(key);
 		if (snap) placementSnapshots.set(key, structuredClone(snap));
 	}
@@ -100,9 +106,13 @@ export function createDeleteDeviceTypeCommand(
 		},
 		undo() {
 			store.addDeviceTypeRaw(deviceTypeCopy);
-			deviceData.forEach((device) => {
+			// Restore devices to their original racks
+			const previousActiveRack = store.getActiveRackId();
+			for (const { rackId, device } of deviceData) {
+				store.setActiveRackId(rackId);
 				store.placeDeviceRaw(device);
-			});
+			}
+			store.setActiveRackId(previousActiveRack);
 			// Restore images
 			const imgStore = getImageStore();
 			if (typeImageCopy) {

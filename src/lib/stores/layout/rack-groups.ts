@@ -211,8 +211,13 @@ export function createRackGroup(
     }
   }
 
-  // Validate bayed preset height requirement
+  // Validate bayed preset minimum rack count
   const actualPreset = preset ?? "row";
+  if (actualPreset === "bayed" && rackIds.length < 2) {
+    return { error: "Bayed groups require at least 2 racks" };
+  }
+
+  // Validate bayed preset height requirement
   if (actualPreset === "bayed") {
     const heightError = validateBayedGroupHeights(ctx, rackIds);
     if (heightError) {
@@ -273,10 +278,15 @@ export function updateRackGroup(
     }
   }
 
-  // Validate bayed preset height requirement
-  // Check when: (1) switching to bayed, or (2) updating rack_ids on existing bayed group
+  // Validate bayed preset minimum rack count
   const effectivePreset = updates.layout_preset ?? group.layout_preset;
   const effectiveRackIds = updates.rack_ids ?? group.rack_ids;
+  if (effectivePreset === "bayed" && effectiveRackIds.length < 2) {
+    return { error: "Bayed groups require at least 2 racks" };
+  }
+
+  // Validate bayed preset height requirement
+  // Check when: (1) switching to bayed, or (2) updating rack_ids on existing bayed group
   if (
     effectivePreset === "bayed" &&
     (updates.layout_preset === "bayed" || updates.rack_ids)

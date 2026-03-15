@@ -73,6 +73,7 @@ import {
   updateDeviceIpRaw,
   getDeviceAtIndex,
   getPlacedDevicesForType,
+  getPlacedDevicesWithRackForType,
   updateRackRaw,
   replaceRackRaw,
   clearRackDevicesRaw,
@@ -121,6 +122,8 @@ export function getCommandStoreAdapter(
     placeDeviceRaw: (device) => placeDeviceRaw(ctx, device),
     removeDeviceAtIndexRaw: (index) => removeDeviceAtIndexRaw(ctx, index),
     getPlacedDevicesForType: (slug) => getPlacedDevicesForType(ctx, slug),
+    setActiveRackId: (id) => ctx.setActiveRackId(id),
+    getActiveRackId: () => ctx.getActiveRackId(),
 
     // DeviceCommandStore
     moveDeviceRaw: (index, newPosition) =>
@@ -267,7 +270,7 @@ export function deleteDeviceTypeRecorded(
   const existing = findDeviceTypeInArray(layout.device_types, slug);
   if (!existing) return;
 
-  const placedDevices = getPlacedDevicesForType(ctx, slug);
+  const placedDevices = getPlacedDevicesWithRackForType(ctx, slug);
   const history = getHistoryStore();
   const adapter = getCommandStoreAdapter(ctx);
 
@@ -312,7 +315,7 @@ export function deleteMultipleDeviceTypesRecorded(
     const existing = findDeviceTypeInArray(layout.device_types, slug);
     if (!existing) continue;
 
-    const placedDevices = getPlacedDevicesForType(ctx, slug);
+    const placedDevices = getPlacedDevicesWithRackForType(ctx, slug);
     const command = createDeleteDeviceTypeCommand(
       existing,
       placedDevices,

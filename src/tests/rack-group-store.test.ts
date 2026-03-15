@@ -159,14 +159,15 @@ describe("Rack Group Store", () => {
       expect(result.group).toBeUndefined();
     });
 
-    it("allows single-rack bayed group", () => {
+    it("rejects single-rack bayed group", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Solo Rack", 20);
 
       const result = store.createRackGroup("Solo Bay", [rack!.id], "bayed");
 
-      expect(result.group).toBeDefined();
-      expect(result.group!.layout_preset).toBe("bayed");
+      expect(result.error).toBeDefined();
+      expect(result.error).toContain("at least 2 racks");
+      expect(result.group).toBeUndefined();
     });
   });
 
@@ -231,8 +232,9 @@ describe("Rack Group Store", () => {
 
     it("updates layout_preset", () => {
       const store = getLayoutStore();
-      const rack = store.addRack("Rack 1", 42);
-      const { group } = store.createRackGroup("Test Group", [rack!.id], "row");
+      const rack1 = store.addRack("Rack 1", 42);
+      const rack2 = store.addRack("Rack 2", 42);
+      const { group } = store.createRackGroup("Test Group", [rack1!.id, rack2!.id], "row");
 
       store.updateRackGroup(group!.id, { layout_preset: "bayed" });
 
@@ -290,10 +292,11 @@ describe("Rack Group Store", () => {
     it("validates bayed group height requirement", () => {
       const store = getLayoutStore();
       const rack1 = store.addRack("Rack 1", 20);
+      const rack1b = store.addRack("Rack 1b", 20); // Same height for valid bayed group
       const rack2 = store.addRack("Rack 2", 12); // Different height
       const { group } = store.createRackGroup(
         "Bayed Group",
-        [rack1!.id],
+        [rack1!.id, rack1b!.id],
         "bayed",
       );
 

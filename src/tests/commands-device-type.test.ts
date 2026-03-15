@@ -16,7 +16,10 @@ function createMockStore(): DeviceTypeCommandStore & {
   placeDeviceRaw: ReturnType<typeof vi.fn>;
   removeDeviceAtIndexRaw: ReturnType<typeof vi.fn>;
   getPlacedDevicesForType: ReturnType<typeof vi.fn>;
+  setActiveRackId: ReturnType<typeof vi.fn>;
+  getActiveRackId: ReturnType<typeof vi.fn>;
 } {
+  let activeRackId: string | null = null;
   return {
     addDeviceTypeRaw: vi.fn(),
     removeDeviceTypeRaw: vi.fn(),
@@ -24,6 +27,8 @@ function createMockStore(): DeviceTypeCommandStore & {
     placeDeviceRaw: vi.fn().mockReturnValue(0),
     removeDeviceAtIndexRaw: vi.fn(),
     getPlacedDevicesForType: vi.fn().mockReturnValue([]),
+    setActiveRackId: vi.fn((id: string | null) => { activeRackId = id; }),
+    getActiveRackId: vi.fn(() => activeRackId),
   };
 }
 
@@ -189,12 +194,12 @@ describe("Device Type Commands", () => {
       expect(store.addDeviceTypeRaw).toHaveBeenCalledWith(deviceType);
     });
 
-    it("undo restores placed devices", () => {
+    it("undo restores placed devices to their original racks", () => {
       const store = createMockStore();
       const deviceType = createTestDeviceType({ slug: "server-type" });
-      const placedDevices: PlacedDevice[] = [
-        createTestDevice({ device_type: "server-type", position: 5 }),
-        createTestDevice({ device_type: "server-type", position: 10 }),
+      const placedDevices = [
+        { rackId: "rack-a", device: createTestDevice({ device_type: "server-type", position: 5 }) },
+        { rackId: "rack-b", device: createTestDevice({ device_type: "server-type", position: 10 }) },
       ];
 
       const command = createDeleteDeviceTypeCommand(
@@ -206,6 +211,9 @@ describe("Device Type Commands", () => {
       command.undo();
 
       expect(store.placeDeviceRaw).toHaveBeenCalledTimes(2);
+      // Verify devices restored with correct active rack targeting
+      expect(store.setActiveRackId).toHaveBeenCalledWith("rack-a");
+      expect(store.setActiveRackId).toHaveBeenCalledWith("rack-b");
       // createTestDevice converts position to internal units
       expect(store.placeDeviceRaw).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -224,7 +232,9 @@ describe("Device Type Commands", () => {
     it("stores copies of placed devices to avoid mutation", () => {
       const store = createMockStore();
       const deviceType = createTestDeviceType();
-      const placedDevices: PlacedDevice[] = [createTestDevice({ position: 5 })];
+      const placedDevices = [
+        { rackId: "rack-1", device: createTestDevice({ position: 5 }) },
+      ];
 
       const command = createDeleteDeviceTypeCommand(
         deviceType,
@@ -233,7 +243,7 @@ describe("Device Type Commands", () => {
       );
 
       // Mutate original array
-      placedDevices[0]!.position = 99;
+      placedDevices[0]!.device.position = 99;
 
       command.execute();
       command.undo();

@@ -55,6 +55,7 @@ function createMockDeviceTypeStore(
 	deviceTypes: DeviceType[],
 	devices: PlacedDevice[]
 ): DeviceTypeCommandStore {
+	let activeRackId: string | null = null;
 	return {
 		addDeviceTypeRaw(dt: DeviceType) {
 			deviceTypes.push(dt);
@@ -75,7 +76,9 @@ function createMockDeviceTypeStore(
 		removeDeviceAtIndexRaw() {},
 		getPlacedDevicesForType(slug: string) {
 			return devices.filter((d) => d.device_type === slug);
-		}
+		},
+		setActiveRackId(id: string | null) { activeRackId = id; },
+		getActiveRackId() { return activeRackId; },
 	};
 }
 
@@ -169,7 +172,10 @@ describe('Image Undo — Device Type Deletion', () => {
 		imageStore.setDeviceImage('placement-placed-1', 'front', createMockImageData('placed-1-front.png'));
 		imageStore.setDeviceImage('placement-placed-2', 'rear', createMockImageData('placed-2-rear.png'));
 
-		const cmd = createDeleteDeviceTypeCommand(deviceType, [device1, device2], store);
+		const cmd = createDeleteDeviceTypeCommand(deviceType, [
+			{ rackId: 'rack-1', device: device1 },
+			{ rackId: 'rack-1', device: device2 },
+		], store);
 
 		// Execute: deletes type, devices, and images
 		cmd.execute();
