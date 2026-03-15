@@ -5,7 +5,7 @@ import {
   createDeleteDeviceTypeCommand,
   type DeviceTypeCommandStore,
 } from "$lib/stores/commands/device-type";
-import type { DeviceType, PlacedDevice } from "$lib/types";
+import type { DeviceType } from "$lib/types";
 import { createTestDeviceType, createTestDevice } from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
 
