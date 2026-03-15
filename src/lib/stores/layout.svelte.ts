@@ -41,7 +41,11 @@ import { toInternalUnits } from "$lib/utils/position";
 import { instantiatePorts } from "$lib/utils/port-utils";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { getHistoryStore } from "./history.svelte";
-import { createPlaceDeviceCommand } from "./commands";
+import {
+  createPlaceDeviceCommand,
+  createAddDeviceTypeCommand,
+  createBatchCommand,
+} from "./commands";
 import type { LayoutStateAccess } from "./layout/types";
 import {
   addRack as addRackImpl,
@@ -812,14 +816,6 @@ function placeInContainer(
   );
   const childType = findDeviceType(deviceTypeSlug, layout.device_types);
 
-  // Auto-import if found in starter/brand but not yet in layout
-  if (
-    childType &&
-    !layout.device_types.find((dt) => dt.slug === deviceTypeSlug)
-  ) {
-    layout.device_types = [...layout.device_types, childType];
-  }
-
   if (!containerType || !childType) return false;
 
   // Check collision within container
@@ -852,8 +848,20 @@ function placeInContainer(
   const deviceName = childType.model ?? childType.slug;
   const history = getHistoryStore();
   const adapter = getCommandStoreAdapterImpl(stateAccess);
-  const command = createPlaceDeviceCommand(placedDevice, adapter, deviceName);
-  history.execute(command);
+
+  const autoImport =
+    childType && !layout.device_types.find((dt) => dt.slug === deviceTypeSlug)
+      ? childType
+      : undefined;
+  const placeCommand = createPlaceDeviceCommand(placedDevice, adapter, deviceName);
+
+  if (autoImport) {
+    const importCommand = createAddDeviceTypeCommand(autoImport, adapter);
+    const batch = createBatchCommand(`Place ${deviceName}`, [importCommand, placeCommand]);
+    history.execute(batch);
+  } else {
+    history.execute(placeCommand);
+  }
   isDirty = true;
 
   return true;

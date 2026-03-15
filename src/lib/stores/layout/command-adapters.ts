@@ -86,6 +86,24 @@ import {
 // =============================================================================
 
 /**
+ * Check if a device type needs auto-importing from starter/brand packs.
+ * Returns the device type if it needs importing, undefined otherwise.
+ */
+function getAutoImportDeviceType(
+  ctx: LayoutStateAccess,
+  deviceTypeSlug: string,
+  resolvedType: DeviceType | undefined,
+): DeviceType | undefined {
+  if (
+    resolvedType &&
+    !ctx.getLayout().device_types.find((dt) => dt.slug === deviceTypeSlug)
+  ) {
+    return resolvedType;
+  }
+  return undefined;
+}
+
+/**
  * Create a command store adapter implementing DeviceTypeCommandStore,
  * DeviceCommandStore, and RackCommandStore interfaces.
  * Used by the command (undo/redo) system to call raw mutators.
@@ -378,17 +396,6 @@ export function placeDeviceRecorded(
   // Find device type across all sources (layout -> starter -> brand)
   const deviceType = findDeviceType(deviceTypeSlug, layout.device_types);
 
-  // Auto-import if found in starter/brand but not yet in layout
-  if (
-    deviceType &&
-    !layout.device_types.find((dt) => dt.slug === deviceTypeSlug)
-  ) {
-    ctx.setLayout({
-      ...layout,
-      device_types: [...layout.device_types, deviceType],
-    });
-  }
-
   // If not found, device type doesn't exist
   if (!deviceType) {
     debug.devicePlace({
@@ -453,8 +460,16 @@ export function placeDeviceRecorded(
   const history = getHistoryStore();
   const adapter = getCommandStoreAdapter(ctx);
 
-  const command = createPlaceDeviceCommand(device, adapter, deviceName);
-  history.execute(command);
+  const autoImport = getAutoImportDeviceType(ctx, deviceTypeSlug, deviceType);
+  const placeCommand = createPlaceDeviceCommand(device, adapter, deviceName);
+
+  if (autoImport) {
+    const importCommand = createAddDeviceTypeCommand(autoImport, adapter);
+    const batch = createBatchCommand(`Place ${deviceName}`, [importCommand, placeCommand]);
+    history.execute(batch);
+  } else {
+    history.execute(placeCommand);
+  }
   ctx.markDirty();
 
   debug.devicePlace({
@@ -572,23 +587,28 @@ export function moveDeviceRecorded(
   const history = getHistoryStore();
   const adapter = getCommandStoreAdapter(ctx);
 
-  const command = createMoveDeviceCommand(
+  const moveCommand = createMoveDeviceCommand(
     deviceIndex,
     oldPositionInternal,
     newPositionInternal,
     adapter,
     deviceName,
   );
-  history.execute(command);
-  ctx.markDirty();
 
-  // Update slot_position if changed (not tracked by move command undo/redo)
-  if (newSlotPosition && newSlotPosition !== device.slot_position) {
-    const freshRack = getRackById(ctx, rackId);
-    if (freshRack && freshRack.devices[deviceIndex]) {
-      freshRack.devices[deviceIndex]!.slot_position = newSlotPosition;
-    }
+  if (newSlotPosition && newSlotPosition !== (device.slot_position ?? "full")) {
+    const slotCommand = createUpdateDeviceSlotPositionCommand(
+      deviceIndex,
+      device.slot_position ?? "full",
+      newSlotPosition,
+      adapter,
+      deviceName,
+    );
+    const batchCommand = createBatchCommand(`Move ${deviceName}`, [moveCommand, slotCommand]);
+    history.execute(batchCommand);
+  } else {
+    history.execute(moveCommand);
   }
+  ctx.markDirty();
 
   debug.deviceMove({
     index: deviceIndex,
