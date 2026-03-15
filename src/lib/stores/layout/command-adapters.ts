@@ -137,7 +137,7 @@ export function getCommandStoreAdapter(
       const rackId =
         ctx.getActiveRackId() ?? getTargetRack(ctx)?.rack.id;
       if (!rackId) {
-        debug.log("updateDevicePlacementImageRaw: No rack available");
+        layoutDebug.device("updateDevicePlacementImageRaw: No rack available");
         return;
       }
       updateDevicePlacementImageRaw(ctx, rackId, index, face, filename);
@@ -147,7 +147,7 @@ export function getCommandStoreAdapter(
       const rackId =
         ctx.getActiveRackId() ?? getTargetRack(ctx)?.rack.id;
       if (!rackId) {
-        debug.log("updateDeviceColourRaw: No rack available");
+        layoutDebug.device("updateDeviceColourRaw: No rack available");
         return;
       }
       updateDeviceColourRaw(ctx, rackId, index, colour);
@@ -157,7 +157,7 @@ export function getCommandStoreAdapter(
       const rackId =
         ctx.getActiveRackId() ?? getTargetRack(ctx)?.rack.id;
       if (!rackId) {
-        debug.log("updateDeviceSlotPositionRaw: No rack available");
+        layoutDebug.device("updateDeviceSlotPositionRaw: No rack available");
         return;
       }
       updateDeviceSlotPositionRaw(ctx, rackId, index, slotPosition);
@@ -167,7 +167,7 @@ export function getCommandStoreAdapter(
       const rackId =
         ctx.getActiveRackId() ?? getTargetRack(ctx)?.rack.id;
       if (!rackId) {
-        debug.log("updateDeviceNotesRaw: No rack available");
+        layoutDebug.device("updateDeviceNotesRaw: No rack available");
         return;
       }
       updateDeviceNotesRaw(ctx, rackId, index, notes);
@@ -177,7 +177,7 @@ export function getCommandStoreAdapter(
       const rackId =
         ctx.getActiveRackId() ?? getTargetRack(ctx)?.rack.id;
       if (!rackId) {
-        debug.log("updateDeviceIpRaw: No rack available");
+        layoutDebug.device("updateDeviceIpRaw: No rack available");
         return;
       }
       updateDeviceIpRaw(ctx, rackId, index, ip);
@@ -431,7 +431,7 @@ export function placeDeviceRecorded(
   if (
     !canPlaceDevice(
       targetRack,
-      ctx.getLayout().device_types,
+      layout.device_types,
       deviceType.u_height,
       positionInternal,
       undefined,
