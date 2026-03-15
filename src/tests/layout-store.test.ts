@@ -2121,6 +2121,26 @@ describe("Layout Store", () => {
       // But should still contain all original items plus the new one
       expect(store.device_types.length).toBe(originalDeviceTypes.length + 1);
     });
+
+    it("failed placement does not auto-import or mark dirty (#1470)", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+
+      // Place a brand device at position 5 to create a collision target
+      store.placeDevice(rack!.id, "ubiquiti-unifi-switch-24-pro", 5);
+      store.markClean();
+      expect(store.isDirty).toBe(false);
+
+      const typeCountBefore = store.device_types.length;
+
+      // Place a different brand device at the same position (collision)
+      const result = store.placeDevice(rack!.id, "ubiquiti-unifi-dream-machine-pro", 5);
+
+      // Placement failed — nothing should have been imported or dirtied
+      expect(result).toBe(false);
+      expect(store.isDirty).toBe(false);
+      expect(store.device_types.length).toBe(typeCountBefore);
+    });
   });
 
   describe("placeDevice face defaults based on depth", () => {

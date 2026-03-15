@@ -2981,23 +2981,28 @@ function moveDeviceRecorded(
   const history = getHistoryStore();
   const adapter = getCommandStoreAdapter();
 
-  const command = createMoveDeviceCommand(
+  const moveCommand = createMoveDeviceCommand(
     deviceIndex,
     oldPositionInternal,
     newPositionInternal,
     adapter,
     deviceName,
   );
-  history.execute(command);
-  isDirty = true;
 
-  // Update slot_position if changed (not tracked by move command undo/redo)
-  if (newSlotPosition && newSlotPosition !== device.slot_position) {
-    const freshRack = getRackById(rackId);
-    if (freshRack && freshRack.devices[deviceIndex]) {
-      freshRack.devices[deviceIndex]!.slot_position = newSlotPosition;
-    }
+  if (newSlotPosition && newSlotPosition !== (device.slot_position ?? "full")) {
+    const slotCommand = createUpdateDeviceSlotPositionCommand(
+      deviceIndex,
+      device.slot_position ?? "full",
+      newSlotPosition,
+      adapter,
+      deviceName,
+    );
+    const batchCommand = createBatchCommand(`Move ${deviceName}`, [moveCommand, slotCommand]);
+    history.execute(batchCommand);
+  } else {
+    history.execute(moveCommand);
   }
+  isDirty = true;
 
   debug.deviceMove({
     index: deviceIndex,
