@@ -21,7 +21,6 @@ import type {
 import { layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { sanitizeFilename } from "$lib/utils/imageUpload";
-import { getImageStore } from "../images.svelte";
 import type { LayoutStateAccess } from "./types";
 import { getTargetRack } from "./rack-actions";
 
@@ -114,9 +113,6 @@ export function removeDeviceTypeRaw(
       devices: rack.devices.filter((d) => d.device_type !== slug),
     })),
   });
-
-  // Clean up associated images to prevent memory leaks
-  getImageStore().removeAllDeviceImages(slug);
 }
 
 /**
@@ -187,12 +183,6 @@ export function removeDeviceAtIndexRaw(
   if (index < 0 || index >= target.rack.devices.length) return undefined;
 
   const removed = target.rack.devices[index];
-
-  // Clean up placement-specific images for this device
-  if (removed) {
-    const imageStore = getImageStore();
-    imageStore.removeAllDeviceImages(`placement-${removed.id}`);
-  }
 
   updateRackAtIndex(ctx, target.index, (rack) => ({
     ...rack,

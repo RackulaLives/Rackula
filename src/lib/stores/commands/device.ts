@@ -4,6 +4,7 @@
 
 import type { Command } from "./types";
 import type { PlacedDevice, DeviceFace, SlotPosition } from "$lib/types";
+import { getImageStore } from "../images.svelte";
 
 /**
  * Interface for layout store operations needed by device commands
@@ -87,15 +88,29 @@ export function createRemoveDeviceCommand(
   // structuredClone handles nested objects like ports and custom_fields
   const deviceCopy = structuredClone(device);
 
+  // Snapshot placement images before removal for undo restoration
+  const imageStore = getImageStore();
+  const imageKey = `placement-${device.id}`;
+  const imageSnapshot = imageStore.getAllImages().get(imageKey);
+  const snapshotCopy = imageSnapshot ? structuredClone(imageSnapshot) : undefined;
+
   return {
     type: "REMOVE_DEVICE",
     description: `Remove ${deviceName}`,
     timestamp: Date.now(),
     execute() {
+      // Clean up placement images (moved from raw mutator)
+      getImageStore().removeAllDeviceImages(imageKey);
       store.removeDeviceAtIndexRaw(index);
     },
     undo() {
       store.placeDeviceRaw(deviceCopy);
+      // Restore placement images
+      if (snapshotCopy) {
+        const imgStore = getImageStore();
+        if (snapshotCopy.front) imgStore.setDeviceImage(imageKey, 'front', snapshotCopy.front);
+        if (snapshotCopy.rear) imgStore.setDeviceImage(imageKey, 'rear', snapshotCopy.rear);
+      }
     },
   };
 }

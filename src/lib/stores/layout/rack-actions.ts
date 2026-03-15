@@ -15,9 +15,13 @@ import { getHistoryStore } from "../history.svelte";
 import {
   createAddRackCommand,
   createDeleteRackCommand,
+  createBatchCommand,
+  createCreateRackGroupCommand,
+  type Command,
   type RackLifecycleCommandStore,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
+import { getRackGroupCommandAdapter } from "./rack-groups";
 
 // =============================================================================
 // Raw Mutators (for undo/redo system — bypass history)
@@ -356,12 +360,17 @@ export function addBayedRackGroup(
     groupName,
   );
 
-  // Update layout state
-  ctx.setLayout({
-    ...layout,
-    racks: [...layout.racks, ...newRacks],
-    rack_groups: [...(layout.rack_groups ?? []), group],
-  });
+  // Use command pattern for undo/redo support
+  const history = getHistoryStore();
+  const rackAdapter = getRackLifecycleCommandAdapter(ctx);
+  const groupAdapter = getRackGroupCommandAdapter(ctx);
+
+  const commands: Command[] = [
+    ...newRacks.map((rack) => createAddRackCommand(rack, rackAdapter)),
+    createCreateRackGroupCommand(group, groupAdapter),
+  ];
+  const batch = createBatchCommand(`Create bayed group "${groupName}"`, commands);
+  history.execute(batch);
   ctx.markDirty();
 
   // Set first bay as active
@@ -472,29 +481,25 @@ export function duplicateRack(
     sourceRack.devices.map((d) => [d.id, generateId()]),
   );
 
-  const duplicatedRack = {
-    ...sourceRack,
-    id: newRackId,
-    name: `${sourceRack.name} (Copy)`,
-    position: layout.racks.length, // Set position to append index
-    devices: sourceRack.devices.map((d) => {
-      const newId = idMap.get(d.id)!;
-      // Remap container_id if present
-      const newContainerId = d.container_id
-        ? idMap.get(d.container_id)
-        : undefined;
-      return {
-        ...d,
-        id: newId,
-        container_id: newContainerId,
-      };
-    }),
-  };
-
-  ctx.setLayout({
-    ...layout,
-    racks: [...layout.racks, duplicatedRack],
+  // Deep clone to avoid shared references with nested objects (ports, etc.)
+  // Uses JSON round-trip as structuredClone cannot handle Svelte reactive proxies
+  const cloned = JSON.parse(JSON.stringify(sourceRack)) as typeof sourceRack;
+  cloned.id = newRackId;
+  cloned.name = `${sourceRack.name} (Copy)`;
+  cloned.position = layout.racks.length;
+  cloned.devices = cloned.devices.map((d) => {
+    const newId = idMap.get(d.id)!;
+    const newContainerId = d.container_id
+      ? idMap.get(d.container_id)
+      : undefined;
+    return { ...d, id: newId, container_id: newContainerId };
   });
+  const duplicatedRack = cloned;
+
+  const history = getHistoryStore();
+  const adapter = getRackLifecycleCommandAdapter(ctx);
+  const command = createAddRackCommand(duplicatedRack, adapter);
+  history.execute(command);
   ctx.markDirty();
 
   // Set as active rack

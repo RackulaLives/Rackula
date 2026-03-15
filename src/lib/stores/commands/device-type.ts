@@ -4,6 +4,8 @@
 
 import type { Command } from './types';
 import type { DeviceType, PlacedDevice } from '$lib/types';
+import { getImageStore } from '../images.svelte';
+import type { DeviceImageData } from '$lib/types/images';
 
 /**
  * Interface for layout store operations needed by device type commands
@@ -67,24 +69,50 @@ export function createDeleteDeviceTypeCommand(
 	placedDevices: PlacedDevice[],
 	store: DeviceTypeCommandStore
 ): Command {
-	// Store device indices for restoration (in reverse order for proper undo)
-	const deviceData = placedDevices.map((d) => ({ ...d }));
+	const deviceData = placedDevices.map((d) => JSON.parse(JSON.stringify(d)) as PlacedDevice);
+	const deviceTypeCopy = JSON.parse(JSON.stringify(deviceType)) as DeviceType;
+
+	// Snapshot all images associated with this device type
+	const imageStore = getImageStore();
+	const typeImageSnapshot = imageStore.getAllImages().get(deviceType.slug);
+	const typeImageCopy = typeImageSnapshot ? structuredClone(typeImageSnapshot) : undefined;
+
+	// Snapshot placement-specific images for each placed device
+	const placementSnapshots = new Map<string, DeviceImageData>();
+	for (const d of placedDevices) {
+		const key = `placement-${d.id}`;
+		const snap = imageStore.getAllImages().get(key);
+		if (snap) placementSnapshots.set(key, structuredClone(snap));
+	}
 
 	return {
 		type: 'DELETE_DEVICE_TYPE',
 		description: `Delete ${deviceType.model ?? deviceType.slug}`,
 		timestamp: Date.now(),
 		execute() {
-			// Remove device type (this should also remove placed instances via store logic)
-			store.removeDeviceTypeRaw(deviceType.slug);
+			// Clean up images (moved from raw mutator)
+			const imgStore = getImageStore();
+			imgStore.removeAllDeviceImages(deviceTypeCopy.slug);
+			for (const key of placementSnapshots.keys()) {
+				imgStore.removeAllDeviceImages(key);
+			}
+			store.removeDeviceTypeRaw(deviceTypeCopy.slug);
 		},
 		undo() {
-			// First restore the device type
-			store.addDeviceTypeRaw(deviceType);
-			// Then restore all placed instances
+			store.addDeviceTypeRaw(deviceTypeCopy);
 			deviceData.forEach((device) => {
 				store.placeDeviceRaw(device);
 			});
+			// Restore images
+			const imgStore = getImageStore();
+			if (typeImageCopy) {
+				if (typeImageCopy.front) imgStore.setDeviceImage(deviceTypeCopy.slug, 'front', typeImageCopy.front);
+				if (typeImageCopy.rear) imgStore.setDeviceImage(deviceTypeCopy.slug, 'rear', typeImageCopy.rear);
+			}
+			for (const [key, snap] of placementSnapshots) {
+				if (snap.front) imgStore.setDeviceImage(key, 'front', snap.front);
+				if (snap.rear) imgStore.setDeviceImage(key, 'rear', snap.rear);
+			}
 		}
 	};
 }

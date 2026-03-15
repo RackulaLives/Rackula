@@ -15,8 +15,12 @@ import {
   createCreateRackGroupCommand,
   createUpdateRackGroupCommand,
   createDeleteRackGroupCommand,
+  createAddRackCommand,
+  createBatchCommand,
+  type Command,
   type RackGroupCommandStore,
 } from "../commands";
+import { getRackLifecycleCommandAdapter } from "./rack-actions";
 import type { LayoutStateAccess } from "./types";
 
 // =============================================================================
@@ -449,20 +453,21 @@ export function addBayToGroup(
     newRackId,
   );
 
-  // Add rack to layout (immutable update for Svelte reactivity)
-  ctx.setLayout({ ...layout, racks: [...layout.racks, newRack] });
+  // Use BatchCommand for atomic undo/redo
+  const history = getHistoryStore();
+  const rackAdapter = getRackLifecycleCommandAdapter(ctx);
+  const groupAdapter = getRackGroupCommandAdapter(ctx);
 
-  // Add to group
-  const result = addRackToGroup(ctx, groupId, newRackId);
-  if (result.error) {
-    // Rollback rack creation
-    const currentLayout = ctx.getLayout();
-    ctx.setLayout({
-      ...currentLayout,
-      racks: currentLayout.racks.filter((r) => r.id !== newRackId),
-    });
-    return { error: result.error };
-  }
+  const oldRackIds = [...group.rack_ids];
+  const newRackIds = [...oldRackIds, newRackId];
+
+  const commands: Command[] = [
+    createAddRackCommand(newRack, rackAdapter),
+    createUpdateRackGroupCommand(groupId, { rack_ids: oldRackIds }, { rack_ids: newRackIds }, groupAdapter),
+  ];
+  const batch = createBatchCommand(`Add bay ${bayNumber} to "${group.name}"`, commands);
+  history.execute(batch);
+  ctx.markDirty();
 
   layoutDebug.group(
     "addBayToGroup: added bay %d (rack %s) to group %s",
