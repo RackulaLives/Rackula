@@ -308,6 +308,70 @@ describe("Layout Store - Undo/Redo Integration", () => {
     });
   });
 
+  describe("Auto-import with placement", () => {
+    it("placing a starter device auto-imports its type", () => {
+      const { store, rack } = setupStoreWithRack();
+
+      store.placeDeviceRecorded(rack.id, "1u-server", 5);
+
+      expect(
+        store.device_types.find((dt) => dt.slug === "1u-server"),
+      ).toBeDefined();
+      expect(store.rack.devices.length).toBeGreaterThan(0);
+    });
+
+    it("undo reverses both placement and auto-import", () => {
+      const { store, rack } = setupStoreWithRack();
+
+      store.placeDeviceRecorded(rack.id, "1u-server", 5);
+      expect(
+        store.device_types.find((dt) => dt.slug === "1u-server"),
+      ).toBeDefined();
+
+      store.undo();
+
+      expect(store.rack.devices.length).toBe(0);
+      expect(
+        store.device_types.find((dt) => dt.slug === "1u-server"),
+      ).toBeUndefined();
+    });
+
+    it("redo restores both placement and auto-import", () => {
+      const { store, rack } = setupStoreWithRack();
+
+      store.placeDeviceRecorded(rack.id, "1u-server", 5);
+      store.undo();
+
+      expect(
+        store.device_types.find((dt) => dt.slug === "1u-server"),
+      ).toBeUndefined();
+      expect(store.rack.devices.length).toBe(0);
+
+      store.redo();
+
+      expect(
+        store.device_types.find((dt) => dt.slug === "1u-server"),
+      ).toBeDefined();
+      expect(store.rack.devices.length).toBeGreaterThan(0);
+    });
+
+    it("failed placement does not import type", () => {
+      const { store, rack } = setupStoreWithRack();
+
+      // Place first device successfully
+      store.placeDeviceRecorded(rack.id, "1u-server", 5);
+
+      // Try to place a different starter device at the same position (collision)
+      const placed = store.placeDeviceRecorded(rack.id, "1u-storage", 5);
+      expect(placed).toBe(false);
+
+      // Second type should NOT have been imported
+      expect(
+        store.device_types.find((dt) => dt.slug === "1u-storage"),
+      ).toBeUndefined();
+    });
+  });
+
   describe("Multiple Operations", () => {
     it("can undo multiple operations in sequence", () => {
       const { store, rack } = setupStoreWithRack();
