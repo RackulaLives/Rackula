@@ -87,6 +87,27 @@ import {
 // =============================================================================
 
 /**
+ * Resolve the rack ID for adapter operations.
+ * Uses active rack, validates it exists, and warns on fallback.
+ */
+function resolveAdapterRackId(ctx: LayoutStateAccess, caller: string): string | undefined {
+  const activeId = ctx.getActiveRackId();
+  if (activeId) {
+    // Validate the active rack still exists
+    if (ctx.findRack(activeId)) {
+      return activeId;
+    }
+    layoutDebug.device("%s: activeRackId '%s' is stale (rack no longer exists), falling back", caller, activeId);
+  }
+  // Fall back to first rack
+  const target = getTargetRack(ctx);
+  if (target) {
+    return target.rack.id;
+  }
+  return undefined;
+}
+
+/**
  * Check if a device type needs auto-importing from starter/brand packs.
  * Returns the device type if it needs importing, undefined otherwise.
  */
@@ -133,9 +154,7 @@ export function getCommandStoreAdapter(
     updateDeviceNameRaw: (index, name) =>
       updateDeviceNameRaw(ctx, index, name),
     updateDevicePlacementImageRaw: (index, face, filename) => {
-      // Resolve rack ID: use active rack, fall back to first rack
-      const rackId =
-        ctx.getActiveRackId() ?? getTargetRack(ctx)?.rack.id;
+      const rackId = resolveAdapterRackId(ctx, "updateDevicePlacementImageRaw");
       if (!rackId) {
         layoutDebug.device("updateDevicePlacementImageRaw: No rack available");
         return;
@@ -143,9 +162,7 @@ export function getCommandStoreAdapter(
       updateDevicePlacementImageRaw(ctx, rackId, index, face, filename);
     },
     updateDeviceColourRaw: (index, colour) => {
-      // Resolve rack ID: use active rack, fall back to first rack
-      const rackId =
-        ctx.getActiveRackId() ?? getTargetRack(ctx)?.rack.id;
+      const rackId = resolveAdapterRackId(ctx, "updateDeviceColourRaw");
       if (!rackId) {
         layoutDebug.device("updateDeviceColourRaw: No rack available");
         return;
@@ -153,9 +170,7 @@ export function getCommandStoreAdapter(
       updateDeviceColourRaw(ctx, rackId, index, colour);
     },
     updateDeviceSlotPositionRaw: (index, slotPosition) => {
-      // Resolve rack ID: use active rack, fall back to first rack
-      const rackId =
-        ctx.getActiveRackId() ?? getTargetRack(ctx)?.rack.id;
+      const rackId = resolveAdapterRackId(ctx, "updateDeviceSlotPositionRaw");
       if (!rackId) {
         layoutDebug.device("updateDeviceSlotPositionRaw: No rack available");
         return;
@@ -163,9 +178,7 @@ export function getCommandStoreAdapter(
       updateDeviceSlotPositionRaw(ctx, rackId, index, slotPosition);
     },
     updateDeviceNotesRaw: (index, notes) => {
-      // Resolve rack ID: use active rack, fall back to first rack
-      const rackId =
-        ctx.getActiveRackId() ?? getTargetRack(ctx)?.rack.id;
+      const rackId = resolveAdapterRackId(ctx, "updateDeviceNotesRaw");
       if (!rackId) {
         layoutDebug.device("updateDeviceNotesRaw: No rack available");
         return;
@@ -173,9 +186,7 @@ export function getCommandStoreAdapter(
       updateDeviceNotesRaw(ctx, rackId, index, notes);
     },
     updateDeviceIpRaw: (index, ip) => {
-      // Resolve rack ID: use active rack, fall back to first rack
-      const rackId =
-        ctx.getActiveRackId() ?? getTargetRack(ctx)?.rack.id;
+      const rackId = resolveAdapterRackId(ctx, "updateDeviceIpRaw");
       if (!rackId) {
         layoutDebug.device("updateDeviceIpRaw: No rack available");
         return;

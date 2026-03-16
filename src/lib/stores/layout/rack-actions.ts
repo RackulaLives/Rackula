@@ -45,15 +45,16 @@ export function addRackRaw(ctx: LayoutStateAccess, rack: Rack): void {
  * Removes the rack and cleans up group memberships
  * @param ctx - Layout state access
  * @param id - Rack ID to delete
- * @returns The deleted rack and affected groups (with original rack_ids), or undefined if not found
+ * @returns The deleted rack, its original index, and affected groups (with original rack_ids), or undefined if not found
  */
 export function deleteRackRaw(
   ctx: LayoutStateAccess,
   id: string,
-): { rack: Rack; groups: RackGroup[] } | undefined {
+): { rack: Rack; index: number; groups: RackGroup[] } | undefined {
   const layout = ctx.getLayout();
-  const rack = layout.racks.find((r) => r.id === id);
-  if (!rack) return undefined;
+  const rackIndex = layout.racks.findIndex((r) => r.id === id);
+  if (rackIndex === -1) return undefined;
+  const rack = layout.racks[rackIndex];
 
   // Find groups that contain this rack (capture their state before modification)
   const affectedGroups = (layout.rack_groups ?? [])
@@ -82,7 +83,7 @@ export function deleteRackRaw(
     ctx.setActiveRackId(newRacks[0]?.id ?? null);
   }
 
-  return { rack, groups: affectedGroups };
+  return { rack, index: rackIndex, groups: affectedGroups };
 }
 
 /**
@@ -91,18 +92,26 @@ export function deleteRackRaw(
  * @param ctx - Layout state access
  * @param rack - Rack to restore
  * @param groups - Groups to restore (with original rack_ids including this rack)
+ * @param originalIndex - Original position in the racks array (inserts at that position, or appends if omitted)
  */
 export function restoreRackRaw(
   ctx: LayoutStateAccess,
   rack: Rack,
   groups: RackGroup[],
+  originalIndex?: number,
 ): void {
   let layout = ctx.getLayout();
 
-  // Add the rack back
+  // Insert the rack at its original position (or append if no index given)
+  const racks = [...layout.racks];
+  if (originalIndex !== undefined && originalIndex >= 0 && originalIndex <= racks.length) {
+    racks.splice(originalIndex, 0, rack);
+  } else {
+    racks.push(rack);
+  }
   layout = {
     ...layout,
-    racks: [...layout.racks, rack],
+    racks,
   };
   ctx.setLayout(layout);
 
@@ -142,8 +151,8 @@ export function getRackLifecycleCommandAdapter(
   return {
     addRackRaw: (rack: Rack) => addRackRaw(ctx, rack),
     deleteRackRaw: (id: string) => deleteRackRaw(ctx, id),
-    restoreRackRaw: (rack: Rack, groups: RackGroup[]) =>
-      restoreRackRaw(ctx, rack, groups),
+    restoreRackRaw: (rack: Rack, groups: RackGroup[], originalIndex?: number) =>
+      restoreRackRaw(ctx, rack, groups, originalIndex),
   };
 }
 

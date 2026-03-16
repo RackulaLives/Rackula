@@ -141,16 +141,18 @@ export function updateDeviceTypeRaw(
 
 /**
  * Place a device directly (raw) - no validation
- * Uses active rack
+ * Targets the specified rack, or falls back to active rack
  * @param ctx - Layout state access
  * @param device - Device to place
+ * @param rackId - Optional rack ID to target (uses active rack if not provided)
  * @returns Index where device was placed, or -1 if no rack available
  */
 export function placeDeviceRaw(
   ctx: LayoutStateAccess,
   device: PlacedDevice,
+  rackId?: string,
 ): number {
-  const target = getTargetRack(ctx);
+  const target = getTargetRack(ctx, rackId);
   if (!target) return -1;
 
   // Guard: regenerate ID if it already exists in this rack (#1363)
