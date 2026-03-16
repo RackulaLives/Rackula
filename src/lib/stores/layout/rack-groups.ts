@@ -16,6 +16,7 @@ import {
   createUpdateRackGroupCommand,
   createDeleteRackGroupCommand,
   createAddRackCommand,
+  createDeleteRackCommand,
   createBatchCommand,
   type Command,
   type RackGroupCommandStore,
@@ -560,23 +561,20 @@ export function removeBayFromGroup(
 /**
  * Set the bay count for a bayed rack group.
  *
- * Performs full upfront validation to catch all errors before making changes,
- * then applies mutations sequentially via addBayToGroup and removeBayFromGroup.
- * Note: This is not a true atomic operation - if an unexpected error occurs
- * mid-loop, partial state changes may persist. Consider implementing a
- * batch-apply approach if true atomicity is required.
+ * Performs full upfront validation, then builds all rack and group mutations
+ * as a single BatchCommand for atomic undo/redo.
  *
  * @param ctx - Layout state access
  * @param groupId - Group ID
  * @param targetCount - Desired bay count (must be >= 2)
- * @param deleteRackFn - Function to delete a rack (injected to avoid circular dep)
+ * @param deleteRackFn - Function to delete a rack (injected to avoid circular dep; unused in batch path)
  * @returns Error if validation fails
  */
 export function setBayCount(
   ctx: LayoutStateAccess,
   groupId: string,
   targetCount: number,
-  deleteRackFn: (id: string) => void,
+  _deleteRackFn: (id: string) => void,
 ): { error?: string } {
   const group = getRackGroupById(ctx, groupId);
   if (!group) {
@@ -600,13 +598,11 @@ export function setBayCount(
 
   // Validate upfront before making any changes
   if (targetCount > currentCount) {
-    // Adding bays - check capacity
     const baysToAdd = targetCount - currentCount;
     if (layout.racks.length + baysToAdd > MAX_RACKS) {
       return { error: "Maximum rack limit would be exceeded" };
     }
   } else {
-    // Removing bays - check for devices in bays to be removed
     for (let i = currentCount - 1; i >= targetCount; i--) {
       const rackId = group.rack_ids[i];
       const rack = layout.racks.find((r) => r.id === rackId);
@@ -618,26 +614,77 @@ export function setBayCount(
     }
   }
 
-  // All validation passed - now apply changes
+  // Build all mutations as a single BatchCommand
+  const history = getHistoryStore();
+  const rackAdapter = getRackLifecycleCommandAdapter(ctx);
+  const groupAdapter = getRackGroupCommandAdapter(ctx);
+  const oldRackIds = [...group.rack_ids];
+  const commands: Command[] = [];
+
   if (targetCount > currentCount) {
-    // Add bays
-    for (let i = currentCount; i < targetCount; i++) {
-      const result = addBayToGroup(ctx, groupId);
-      if (result.error) {
-        // This shouldn't happen due to upfront validation, but handle it
-        return { error: result.error };
-      }
+    // Adding bays — create racks, then update group with all new IDs
+    const existingRack = layout.racks.find((r) => r.id === group.rack_ids[0]);
+    if (!existingRack) {
+      return { error: "Group has no existing racks" };
     }
+
+    const validWidths: Rack["width"][] = [10, 19, 21, 23];
+    const width = (
+      validWidths.includes(existingRack.width) ? existingRack.width : 19
+    ) as Rack["width"];
+
+    const newRackIds: string[] = [];
+    for (let i = currentCount; i < targetCount; i++) {
+      const newRackId = generateRackId();
+      const bayNumber = i + 1;
+      const newRack = createDefaultRack(
+        `Bay ${bayNumber}`,
+        existingRack.height,
+        width,
+        existingRack.form_factor,
+        existingRack.desc_units,
+        existingRack.starting_unit,
+        existingRack.show_rear,
+        newRackId,
+      );
+      commands.push(createAddRackCommand(newRack, rackAdapter));
+      newRackIds.push(newRackId);
+    }
+
+    commands.push(
+      createUpdateRackGroupCommand(
+        groupId,
+        { rack_ids: oldRackIds },
+        { rack_ids: [...oldRackIds, ...newRackIds] },
+        groupAdapter,
+      ),
+    );
   } else {
-    // Remove bays
-    for (let i = currentCount; i > targetCount; i--) {
-      const result = removeBayFromGroup(ctx, groupId, deleteRackFn);
-      if (result.error) {
-        // This shouldn't happen due to upfront validation, but handle it
-        return { error: result.error };
+    // Removing bays — update group first (so rack_ids shrinks), then delete racks
+    const rackIdsToKeep = oldRackIds.slice(0, targetCount);
+    const rackIdsToRemove = oldRackIds.slice(targetCount);
+
+    commands.push(
+      createUpdateRackGroupCommand(
+        groupId,
+        { rack_ids: oldRackIds },
+        { rack_ids: rackIdsToKeep },
+        groupAdapter,
+      ),
+    );
+
+    // Delete racks that are being removed (reverse order for cleaner undo)
+    for (const rackId of rackIdsToRemove.reverse()) {
+      const rack = layout.racks.find((r) => r.id === rackId);
+      if (rack) {
+        commands.push(createDeleteRackCommand(rack, [], rackAdapter));
       }
     }
   }
+
+  const batch = createBatchCommand(`Set bay count to ${targetCount}`, commands);
+  history.execute(batch);
+  ctx.markDirty();
 
   return {};
 }

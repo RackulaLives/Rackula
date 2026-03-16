@@ -28,6 +28,7 @@ export interface RackLifecycleCommandStore {
   addRackRaw(rack: Rack): void;
   deleteRackRaw(id: string): { rack: Rack; index: number; groups: RackGroup[] } | undefined;
   restoreRackRaw(rack: Rack, groups: RackGroup[], originalIndex?: number): void;
+  setActiveRackId(id: string | null): void;
 }
 
 /**
@@ -36,6 +37,8 @@ export interface RackLifecycleCommandStore {
 export function createAddRackCommand(
   rack: Rack,
   store: RackLifecycleCommandStore,
+  /** When true, execute() will also set this rack as active (for redo) */
+  setActive = false,
 ): Command {
   // Deep copy to avoid mutation issues
   const rackCopy = JSON.parse(JSON.stringify(rack)) as Rack;
@@ -46,6 +49,9 @@ export function createAddRackCommand(
     timestamp: Date.now(),
     execute() {
       store.addRackRaw(rackCopy);
+      if (setActive) {
+        store.setActiveRackId(rackCopy.id);
+      }
     },
     undo() {
       store.deleteRackRaw(rackCopy.id);

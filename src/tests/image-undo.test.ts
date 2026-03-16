@@ -77,6 +77,7 @@ function createMockDeviceTypeStore(
 		getPlacedDevicesForType(slug: string) {
 			return devices.filter((d) => d.device_type === slug);
 		},
+		getDeviceAtIndex(index: number) { return devices[index]; },
 		setActiveRackId(id: string | null) { activeRackId = id; },
 		getActiveRackId() { return activeRackId; },
 	};

@@ -16,6 +16,7 @@ function createMockStore(): DeviceTypeCommandStore & {
   placeDeviceRaw: ReturnType<typeof vi.fn>;
   removeDeviceAtIndexRaw: ReturnType<typeof vi.fn>;
   getPlacedDevicesForType: ReturnType<typeof vi.fn>;
+  getDeviceAtIndex: ReturnType<typeof vi.fn>;
   setActiveRackId: ReturnType<typeof vi.fn>;
   getActiveRackId: ReturnType<typeof vi.fn>;
 } {
@@ -27,6 +28,7 @@ function createMockStore(): DeviceTypeCommandStore & {
     placeDeviceRaw: vi.fn().mockReturnValue(0),
     removeDeviceAtIndexRaw: vi.fn(),
     getPlacedDevicesForType: vi.fn().mockReturnValue([]),
+    getDeviceAtIndex: vi.fn().mockReturnValue(undefined),
     setActiveRackId: vi.fn((id: string | null) => { activeRackId = id; }),
     getActiveRackId: vi.fn(() => activeRackId),
   };

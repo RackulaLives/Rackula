@@ -76,12 +76,12 @@ describe("Rack Actions Undo/Redo", () => {
       // Duplicate the rack
       const result = store.duplicateRack(rack!.id);
       expect(result.rack).toBeDefined();
-      expect(store.layout.racks.length).toBe(initialRackCount + 1);
+      expect(store.layout.racks).toHaveLength(initialRackCount + 1);
 
       // Undo should remove the duplicate
       const undone = store.undo();
       expect(undone).toBe(true);
-      expect(store.layout.racks.length).toBe(initialRackCount);
+      expect(store.layout.racks).toHaveLength(initialRackCount);
       expect(
         store.layout.racks.find((r) => r.id === result.rack!.id),
       ).toBeUndefined();
@@ -89,7 +89,7 @@ describe("Rack Actions Undo/Redo", () => {
       // Redo should restore the duplicate
       const redone = store.redo();
       expect(redone).toBe(true);
-      expect(store.layout.racks.length).toBe(initialRackCount + 1);
+      expect(store.layout.racks).toHaveLength(initialRackCount + 1);
       expect(
         store.layout.racks.find((r) => r.id === result.rack!.id),
       ).toBeDefined();
@@ -105,14 +105,15 @@ describe("Rack Actions Undo/Redo", () => {
       // Create a bayed rack group with 2 bays
       const result = store.addBayedRackGroup("Test Group", 2, 42);
       expect(result).not.toBeNull();
-      expect(result!.racks.length).toBe(2);
+      // eslint-disable-next-line no-restricted-syntax -- creation invariant: 2-bay group produces exactly 2 racks
+      expect(result!.racks).toHaveLength(2);
       expect(result!.group).toBeDefined();
 
       const groupId = result!.group.id;
       const rackIds = result!.racks.map((r) => r.id);
 
       // Verify racks and group were created
-      expect(store.layout.racks.length).toBe(initialRackCount + 2);
+      expect(store.layout.racks).toHaveLength(initialRackCount + 2);
       expect(store.layout.rack_groups).toBeDefined();
       expect(
         store.layout.rack_groups!.find((g) => g.id === groupId),
@@ -122,7 +123,7 @@ describe("Rack Actions Undo/Redo", () => {
       // The batch command should undo in reverse: group first, then racks
       const undone = store.undo();
       expect(undone).toBe(true);
-      expect(store.layout.racks.length).toBe(initialRackCount);
+      expect(store.layout.racks).toHaveLength(initialRackCount);
       for (const rackId of rackIds) {
         expect(
           store.layout.racks.find((r) => r.id === rackId),
@@ -135,7 +136,7 @@ describe("Rack Actions Undo/Redo", () => {
       // Redo should restore everything
       const redone = store.redo();
       expect(redone).toBe(true);
-      expect(store.layout.racks.length).toBe(initialRackCount + 2);
+      expect(store.layout.racks).toHaveLength(initialRackCount + 2);
       for (const rackId of rackIds) {
         expect(
           store.layout.racks.find((r) => r.id === rackId),

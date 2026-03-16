@@ -17,6 +17,7 @@ export interface DeviceTypeCommandStore {
 	placeDeviceRaw(device: PlacedDevice): number;
 	removeDeviceAtIndexRaw(index: number): void;
 	getPlacedDevicesForType(slug: string): PlacedDevice[];
+	getDeviceAtIndex(index: number): PlacedDevice | undefined;
 	setActiveRackId(id: string | null): void;
 	getActiveRackId(): string | null;
 }
@@ -99,8 +100,9 @@ export function createDeleteDeviceTypeCommand(
 			// Clean up images (moved from raw mutator)
 			const imgStore = getImageStore();
 			imgStore.removeAllDeviceImages(deviceTypeCopy.slug);
-			for (const key of placementSnapshots.keys()) {
-				imgStore.removeAllDeviceImages(key);
+			// Remove placement images — check both original and potentially remapped keys
+			for (const { device } of deviceData) {
+				imgStore.removeAllDeviceImages(`placement-${device.id}`);
 			}
 			store.removeDeviceTypeRaw(deviceTypeCopy.slug);
 		},
@@ -108,20 +110,27 @@ export function createDeleteDeviceTypeCommand(
 			store.addDeviceTypeRaw(deviceTypeCopy);
 			// Restore devices to their original racks
 			const previousActiveRack = store.getActiveRackId();
+			const imgStore = getImageStore();
 			for (const { rackId, device } of deviceData) {
 				store.setActiveRackId(rackId);
-				store.placeDeviceRaw(device);
+				const placedIdx = store.placeDeviceRaw(device);
+				// Read back actual device — placeDeviceRaw may remap the ID (#1363 dedup guard)
+				const placed = store.getDeviceAtIndex(placedIdx);
+				const actualId = placed?.id ?? device.id;
+				// Restore placement images under the (possibly remapped) key
+				const originalKey = `placement-${device.id}`;
+				const snap = placementSnapshots.get(originalKey);
+				if (snap) {
+					const actualKey = `placement-${actualId}`;
+					if (snap.front) imgStore.setDeviceImage(actualKey, 'front', snap.front);
+					if (snap.rear) imgStore.setDeviceImage(actualKey, 'rear', snap.rear);
+				}
 			}
 			store.setActiveRackId(previousActiveRack);
-			// Restore images
-			const imgStore = getImageStore();
+			// Restore type-level images
 			if (typeImageCopy) {
 				if (typeImageCopy.front) imgStore.setDeviceImage(deviceTypeCopy.slug, 'front', typeImageCopy.front);
 				if (typeImageCopy.rear) imgStore.setDeviceImage(deviceTypeCopy.slug, 'rear', typeImageCopy.rear);
-			}
-			for (const [key, snap] of placementSnapshots) {
-				if (snap.front) imgStore.setDeviceImage(key, 'front', snap.front);
-				if (snap.rear) imgStore.setDeviceImage(key, 'rear', snap.rear);
 			}
 		}
 	};

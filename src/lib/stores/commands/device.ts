@@ -104,12 +104,16 @@ export function createRemoveDeviceCommand(
       store.removeDeviceAtIndexRaw(index);
     },
     undo() {
-      store.placeDeviceRaw(deviceCopy);
-      // Restore placement images
+      const placedIdx = store.placeDeviceRaw(deviceCopy);
+      // Read back actual device — placeDeviceRaw may remap the ID (#1363 dedup guard)
+      const placed = store.getDeviceAtIndex(placedIdx);
+      const actualId = placed?.id ?? deviceCopy.id;
+      // Restore placement images under the (possibly remapped) key
       if (snapshotCopy) {
         const imgStore = getImageStore();
-        if (snapshotCopy.front) imgStore.setDeviceImage(imageKey, 'front', snapshotCopy.front);
-        if (snapshotCopy.rear) imgStore.setDeviceImage(imageKey, 'rear', snapshotCopy.rear);
+        const actualKey = `placement-${actualId}`;
+        if (snapshotCopy.front) imgStore.setDeviceImage(actualKey, 'front', snapshotCopy.front);
+        if (snapshotCopy.rear) imgStore.setDeviceImage(actualKey, 'rear', snapshotCopy.rear);
       }
     },
   };

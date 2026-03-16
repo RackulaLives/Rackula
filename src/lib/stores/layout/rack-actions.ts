@@ -153,6 +153,7 @@ export function getRackLifecycleCommandAdapter(
     deleteRackRaw: (id: string) => deleteRackRaw(ctx, id),
     restoreRackRaw: (rack: Rack, groups: RackGroup[], originalIndex?: number) =>
       restoreRackRaw(ctx, rack, groups, originalIndex),
+    setActiveRackId: (id: string | null) => ctx.setActiveRackId(id),
   };
 }
 
@@ -289,14 +290,12 @@ export function addRack(
   );
 
   // Use recorded action for undo/redo support
+  // setActive: true ensures redo also restores the active rack selection
   const history = getHistoryStore();
   const adapter = getRackLifecycleCommandAdapter(ctx);
-  const command = createAddRackCommand(newRack, adapter);
+  const command = createAddRackCommand(newRack, adapter, true);
   history.execute(command);
   ctx.markDirty();
-
-  // Set as active rack
-  ctx.setActiveRackId(newRack.id);
 
   // Mark as started (user has created a rack)
   ctx.markStarted();
@@ -370,20 +369,18 @@ export function addBayedRackGroup(
   );
 
   // Use command pattern for undo/redo support
+  // First rack gets setActive: true so redo also restores active rack selection
   const history = getHistoryStore();
   const rackAdapter = getRackLifecycleCommandAdapter(ctx);
   const groupAdapter = getRackGroupCommandAdapter(ctx);
 
   const commands: Command[] = [
-    ...newRacks.map((rack) => createAddRackCommand(rack, rackAdapter)),
+    ...newRacks.map((rack, i) => createAddRackCommand(rack, rackAdapter, i === 0)),
     createCreateRackGroupCommand(group, groupAdapter),
   ];
   const batch = createBatchCommand(`Create bayed group "${groupName}"`, commands);
   history.execute(batch);
   ctx.markDirty();
-
-  // Set first bay as active
-  ctx.setActiveRackId(newRacks[0]!.id);
 
   // Mark as started
   ctx.markStarted();
@@ -505,14 +502,12 @@ export function duplicateRack(
   });
   const duplicatedRack = cloned;
 
+  // setActive: true ensures redo also restores the active rack selection
   const history = getHistoryStore();
   const adapter = getRackLifecycleCommandAdapter(ctx);
-  const command = createAddRackCommand(duplicatedRack, adapter);
+  const command = createAddRackCommand(duplicatedRack, adapter, true);
   history.execute(command);
   ctx.markDirty();
-
-  // Set as active rack
-  ctx.setActiveRackId(newRackId);
 
   return { rack: duplicatedRack };
 }
