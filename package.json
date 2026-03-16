@@ -48,7 +48,7 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.5.0",
     "@types/pako": "^2.0.4",
-    "@types/umami-browser": "^2.18.0",
+    "@types/umami-browser": "^2.18.1",
     "@vitest/coverage-v8": "^4.1.0",
     "@vitest/eslint-plugin": "^1.6.11",
     "eslint": "^10.0.3",
