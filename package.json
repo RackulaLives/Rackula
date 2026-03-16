@@ -86,12 +86,12 @@
     "jspdf": "^4.2.0",
     "jszip": "^3.10.1",
     "marked": "^17.0.4",
-    "nanoid": "^5.1.6",
+    "nanoid": "^5.1.7",
     "pako": "^2.1.0",
     "paneforge": "^1.0.2",
     "panzoom": "^9.4.3",
     "qrcode": "^1.5.4",
-    "simple-icons": "^16.11.0",
+    "simple-icons": "^16.12.0",
     "vaul-svelte": "^1.0.0-next.7",
     "zod": "^4.3.6"
   }
