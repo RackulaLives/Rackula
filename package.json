@@ -58,7 +58,7 @@
     "globals": "^17.4.0",
     "happy-dom": "^20.8.4",
     "husky": "^9.1.7",
-    "jsdom": "^29.0.0",
+    "jsdom": "^29.0.1",
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
     "prettier-plugin-svelte": "^3.5.1",
