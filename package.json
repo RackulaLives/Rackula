@@ -51,7 +51,7 @@
     "@types/umami-browser": "^2.18.1",
     "@vitest/coverage-v8": "^4.1.0",
     "@vitest/eslint-plugin": "^1.6.12",
-    "eslint": "^10.0.3",
+    "eslint": "^10.1.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-svelte": "^3.15.2",
     "eslint-plugin-testing-library": "^7.16.1",
