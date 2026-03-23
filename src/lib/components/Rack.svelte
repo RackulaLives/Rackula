@@ -91,19 +91,57 @@
     hideULabels?: boolean;
     partyMode?: boolean;
     onselect?: (event: CustomEvent<{ rackId: string }>) => void;
-    ondeviceselect?: (event: CustomEvent<{ slug: string; position: number }>) => void;
-    ondevicedrop?: (event: CustomEvent<{ rackId: string; slug: string; position: number; slot_position?: SlotPosition }>) => void;
-    ondevicemove?: (event: CustomEvent<{ rackId: string; deviceIndex: number; newPosition: number; slot_position?: SlotPosition }>) => void;
-    ondevicemoverack?: (event: CustomEvent<{ sourceRackId: string; sourceIndex: number; targetRackId: string; targetPosition: number; slot_position?: SlotPosition }>) => void;
-    onplacementtap?: (event: CustomEvent<{ position: number; face: "front" | "rear" }>) => void;
+    ondeviceselect?: (
+      event: CustomEvent<{ slug: string; position: number }>,
+    ) => void;
+    ondevicedrop?: (
+      event: CustomEvent<{
+        rackId: string;
+        slug: string;
+        position: number;
+        slot_position?: SlotPosition;
+      }>,
+    ) => void;
+    ondevicemove?: (
+      event: CustomEvent<{
+        rackId: string;
+        deviceIndex: number;
+        newPosition: number;
+        slot_position?: SlotPosition;
+      }>,
+    ) => void;
+    ondevicemoverack?: (
+      event: CustomEvent<{
+        sourceRackId: string;
+        sourceIndex: number;
+        targetRackId: string;
+        targetPosition: number;
+        slot_position?: SlotPosition;
+      }>,
+    ) => void;
+    onplacementtap?: (
+      event: CustomEvent<{ position: number; face: "front" | "rear" }>,
+    ) => void;
   }
 
   let {
-    rack, deviceLibrary, selected, selectedDeviceId = null,
-    displayMode = "label", showLabelsOnImages = false,
-    faceFilter, viewLabel, hideRackName = false, hideULabels = false,
-    partyMode = false, onselect, ondeviceselect, ondevicedrop,
-    ondevicemove, ondevicemoverack, onplacementtap,
+    rack,
+    deviceLibrary,
+    selected,
+    selectedDeviceId = null,
+    displayMode = "label",
+    showLabelsOnImages = false,
+    faceFilter,
+    viewLabel,
+    hideRackName = false,
+    hideULabels = false,
+    partyMode = false,
+    onselect,
+    ondeviceselect,
+    ondevicedrop,
+    ondevicemove,
+    ondevicemoverack,
+    onplacementtap,
   }: Props = $props();
 
   // --- Drag state ---
@@ -117,12 +155,20 @@
 
   // --- Context menu state ---
   let contextMenuOpen = $state(false);
-  let contextMenuTarget = $state<{ rackId: string; deviceIndex: number; x: number; y: number } | null>(null);
+  let contextMenuTarget = $state<{
+    rackId: string;
+    deviceIndex: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Cleanup timeout on unmount
   $effect(() => {
     return () => {
-      if (dragDebounceTimeout) { clearTimeout(dragDebounceTimeout); dragDebounceTimeout = null; }
+      if (dragDebounceTimeout) {
+        clearTimeout(dragDebounceTimeout);
+        dragDebounceTimeout = null;
+      }
     };
   });
 
@@ -133,7 +179,9 @@
 
   function getContainerContext(childDevice: PlacedDevice) {
     if (!childDevice.container_id) return undefined;
-    const container = rack.devices.find((d) => d.id === childDevice.container_id);
+    const container = rack.devices.find(
+      (d) => d.id === childDevice.container_id,
+    );
     if (!container) return undefined;
     const containerType = getDeviceBySlug(container.device_type);
     if (!containerType) return undefined;
@@ -151,7 +199,9 @@
   const NAME_Y_OFFSET = NAME_Y_OFFSET_CONST;
 
   const RACK_WIDTH = $derived(Math.round((BASE_RACK_WIDTH * rack.width) / 19));
-  const RACK_PADDING = $derived(hideRackName ? RACK_PADDING_HIDDEN : BASE_RACK_PADDING_CONST);
+  const RACK_PADDING = $derived(
+    hideRackName ? RACK_PADDING_HIDDEN : BASE_RACK_PADDING_CONST,
+  );
   const viewBoxYOffset = $derived(hideRackName ? 0 : NAME_Y_OFFSET);
   const totalHeight = $derived(rack.height * U_HEIGHT);
   const viewBoxHeight = $derived(RACK_PADDING + RAIL_WIDTH * 2 + totalHeight);
@@ -159,28 +209,43 @@
   const effectiveFaceFilter = $derived(faceFilter ?? rack.view);
 
   const rackDims = $derived<RackDimensions>({
-    rackHeight: rack.height, rackWidth: RACK_WIDTH, interiorWidth,
-    uHeight: U_HEIGHT, rackPadding: RACK_PADDING, railWidth: RAIL_WIDTH,
+    rackHeight: rack.height,
+    rackWidth: RACK_WIDTH,
+    interiorWidth,
+    uHeight: U_HEIGHT,
+    rackPadding: RACK_PADDING,
+    railWidth: RAIL_WIDTH,
   });
 
   const eventCallbacks = $derived<RackEventCallbacks>({
-    ondevicemove, ondevicemoverack, ondevicedrop,
+    ondevicemove,
+    ondevicemoverack,
+    ondevicedrop,
   });
 
   // --- Context menu & action helpers ---
-  const contextActions = createContextMenuActions(layoutStore, selectionStore, toastStore);
+  const contextActions = createContextMenuActions(
+    layoutStore,
+    selectionStore,
+    toastStore,
+  );
 
   const ctxMenu = createContextMenuHandlers(
     contextActions,
     () => ({ open: contextMenuOpen, target: contextMenuTarget }),
-    (s) => { contextMenuOpen = s.open; contextMenuTarget = s.target; },
+    (s) => {
+      contextMenuOpen = s.open;
+      contextMenuTarget = s.target;
+    },
   );
 
   // --- Derived data for rendering ---
   const uLabels = $derived(
     Array.from({ length: rack.height }, (_, i) => {
       const startUnit = rack.starting_unit ?? 1;
-      const uNumber = rack.desc_units ? startUnit + i : startUnit + (rack.height - 1) - i;
+      const uNumber = rack.desc_units
+        ? startUnit + i
+        : startUnit + (rack.height - 1) - i;
       const yPosition = i * U_HEIGHT + U_HEIGHT / 2 + RACK_PADDING + RAIL_WIDTH;
       return { uNumber, yPosition };
     }),
@@ -191,12 +256,18 @@
       .map((placedDevice, originalIndex) => ({ placedDevice, originalIndex }))
       .filter(({ placedDevice }) => {
         if (placedDevice.container_id) return false;
-        return placedDevice.face === "both" || placedDevice.face === effectiveFaceFilter;
+        return (
+          placedDevice.face === "both" ||
+          placedDevice.face === effectiveFaceFilter
+        );
       }),
   );
 
   const containerChildren = $derived.by(() => {
-    const map = new SvelteMap<string, Array<{ placedDevice: PlacedDevice; originalIndex: number }>>();
+    const map = new SvelteMap<
+      string,
+      Array<{ placedDevice: PlacedDevice; originalIndex: number }>
+    >();
     rack.devices.forEach((pd, idx) => {
       if (!pd.container_id) return;
       if (pd.face !== "both" && pd.face !== effectiveFaceFilter) return;
@@ -207,15 +278,29 @@
     return map;
   });
 
-  const blockedSlots = $derived(faceFilter ? getBlockedSlots(rack, faceFilter, deviceLibrary) : []);
-  const isPlacementMode = $derived(viewportStore.isMobile && placementStore.isPlacing);
+  const blockedSlots = $derived(
+    faceFilter ? getBlockedSlots(rack, faceFilter, deviceLibrary) : [],
+  );
+  const isPlacementMode = $derived(
+    viewportStore.isMobile && placementStore.isPlacing,
+  );
 
   const validPlacementSlots = $derived.by(() => {
-    if (!isPlacementMode || !placementStore.pendingDevice) return new SvelteSet<number>();
+    if (!isPlacementMode || !placementStore.pendingDevice)
+      return new SvelteSet<number>();
     const { u_height: deviceHeight } = placementStore.pendingDevice;
     const validSlots = new SvelteSet<number>();
     for (let startU = 1; startU <= rack.height - deviceHeight + 1; startU++) {
-      if (getDropFeedback(rack, deviceLibrary, deviceHeight, startU, undefined, effectiveFaceFilter) === "valid") {
+      if (
+        getDropFeedback(
+          rack,
+          deviceLibrary,
+          deviceHeight,
+          startU,
+          undefined,
+          effectiveFaceFilter,
+        ) === "valid"
+      ) {
         for (let u = startU; u < startU + deviceHeight; u++) validSlots.add(u);
       }
     }
@@ -230,8 +315,12 @@
     getFaceFilter: () => effectiveFaceFilter,
     getSelectedDeviceId: () => selectedDeviceId,
     getEventCallbacks: () => eventCallbacks,
-    setDropPreview: (p) => { dropPreview = p; },
-    setContainerHoverInfo: (i) => { containerHoverInfo = i; },
+    setDropPreview: (p) => {
+      dropPreview = p;
+    },
+    setContainerHoverInfo: (i) => {
+      containerHoverInfo = i;
+    },
     layoutStore,
     toastStore,
   });
@@ -256,9 +345,15 @@
       getFaceFilter: () => effectiveFaceFilter,
       getSelectedDeviceId: () => selectedDeviceId,
       getEventCallbacks: () => eventCallbacks,
-      setDropPreview: (p) => { dropPreview = p; },
-      setContainerHoverInfo: (i) => { containerHoverInfo = i; },
-      clearDraggingIndex: () => { _draggingDeviceIndex = null; },
+      setDropPreview: (p) => {
+        dropPreview = p;
+      },
+      setContainerHoverInfo: (i) => {
+        containerHoverInfo = i;
+      },
+      clearDraggingIndex: () => {
+        _draggingDeviceIndex = null;
+      },
       onDragFinished: setDragFinished,
       layoutStore,
       toastStore,
@@ -274,7 +369,10 @@
 
   function handleClick() {
     if (canvasStore.isPanning) return;
-    if (justFinishedDrag) { justFinishedDrag = false; return; }
+    if (justFinishedDrag) {
+      justFinishedDrag = false;
+      return;
+    }
     onselect?.(new CustomEvent("select", { detail: { rackId: rack.id } }));
   }
 
@@ -285,8 +383,12 @@
     }
   }
 
-  function handleShiftDown(event: KeyboardEvent) { if (event.key === "Shift") shiftKeyHeld = true; }
-  function handleShiftUp(event: KeyboardEvent) { if (event.key === "Shift") shiftKeyHeld = false; }
+  function handleShiftDown(event: KeyboardEvent) {
+    if (event.key === "Shift") shiftKeyHeld = true;
+  }
+  function handleShiftUp(event: KeyboardEvent) {
+    if (event.key === "Shift") shiftKeyHeld = false;
+  }
 </script>
 
 <svelte:window onkeydown={handleShiftDown} onkeyup={handleShiftUp} />
@@ -313,7 +415,10 @@
     ondragover={(e) => onDragOver(e, handlerCtx)}
     ondragenter={onDragEnter}
     ondragleave={(e) => onDragLeave(e, handlerCtx)}
-    ondrop={(e) => { onDrop(e, handlerCtx); _draggingDeviceIndex = null; }}
+    ondrop={(e) => {
+      onDrop(e, handlerCtx);
+      _draggingDeviceIndex = null;
+    }}
     ontouchend={(e) => {
       if (!viewportStore.isMobile || !placementStore.isPlacing) return;
       const device = placementStore.pendingDevice;
@@ -324,11 +429,23 @@
   >
     <!-- Layer 1: Static rack frame -->
     <RackFrame
-      rackWidth={RACK_WIDTH} {interiorWidth} railWidth={RAIL_WIDTH}
-      rackPadding={RACK_PADDING} uHeight={U_HEIGHT} {totalHeight}
-      rackHeight={rack.height} {uLabels} {hideULabels} {hideRackName}
-      rackName={rack.name} {viewLabel} nameYOffset={NAME_Y_OFFSET}
-      {shiftKeyHeld} {blockedSlots} {dropPreview} {isPlacementMode}
+      rackWidth={RACK_WIDTH}
+      {interiorWidth}
+      railWidth={RAIL_WIDTH}
+      rackPadding={RACK_PADDING}
+      uHeight={U_HEIGHT}
+      {totalHeight}
+      rackHeight={rack.height}
+      {uLabels}
+      {hideULabels}
+      {hideRackName}
+      rackName={rack.name}
+      {viewLabel}
+      nameYOffset={NAME_Y_OFFSET}
+      {shiftKeyHeld}
+      {blockedSlots}
+      {dropPreview}
+      {isPlacementMode}
       {validPlacementSlots}
     />
 
@@ -336,28 +453,50 @@
     <g transform="translate(0, {RACK_PADDING + RAIL_WIDTH})">
       {#each visibleDevices as { placedDevice, originalIndex } (placedDevice.id)}
         {@const device = getDeviceBySlug(placedDevice.device_type)}
-        {@const containerCtx = placedDevice.container_id ? getContainerContext(placedDevice) : undefined}
+        {@const containerCtx = placedDevice.container_id
+          ? getContainerContext(placedDevice)
+          : undefined}
         {@const children = containerChildren.get(placedDevice.id) ?? []}
         {#if device}
-          {@const isHoveredContainer = containerHoverInfo?.containerId === placedDevice.id}
+          {@const isHoveredContainer =
+            containerHoverInfo?.containerId === placedDevice.id}
           <RackDevice
-            {device} position={placedDevice.position} rackHeight={rack.height}
-            rackId={rack.id} deviceIndex={originalIndex}
+            {device}
+            position={placedDevice.position}
+            rackHeight={rack.height}
+            rackId={rack.id}
+            deviceIndex={originalIndex}
             selected={selectedDeviceId === placedDevice.id}
-            uHeight={U_HEIGHT} rackWidth={RACK_WIDTH} rackPhysicalWidth={rack.width}
-            {displayMode} rackView={effectiveFaceFilter} {showLabelsOnImages}
-            placedDeviceName={placedDevice.name} placedDeviceId={placedDevice.id}
+            uHeight={U_HEIGHT}
+            rackWidth={RACK_WIDTH}
+            rackPhysicalWidth={rack.width}
+            {displayMode}
+            rackView={effectiveFaceFilter}
+            {showLabelsOnImages}
+            placedDeviceName={placedDevice.name}
+            placedDeviceId={placedDevice.id}
             colourOverride={placedDevice.colour_override}
             slotPosition={placedDevice.slot_position}
-            containerContext={containerCtx} {deviceLibrary}
-            containerChildDevices={children} selectedChildId={selectedDeviceId}
+            containerContext={containerCtx}
+            {deviceLibrary}
+            containerChildDevices={children}
+            selectedChildId={selectedDeviceId}
             isDragOverContainer={isHoveredContainer}
-            dragTargetSlotId={isHoveredContainer ? containerHoverInfo.targetSlotId : null}
-            isDragTargetValid={isHoveredContainer && containerHoverInfo.isValidTarget}
+            dragTargetSlotId={isHoveredContainer
+              ? containerHoverInfo.targetSlotId
+              : null}
+            isDragTargetValid={isHoveredContainer &&
+              containerHoverInfo.isValidTarget}
             onselect={ondeviceselect}
-            ondragstart={() => { _draggingDeviceIndex = originalIndex; }}
-            ondragend={() => { _draggingDeviceIndex = null; setDragFinished(); }}
-            onduplicate={(e) => contextActions.handleDuplicate(rack, { ...e.detail, x: 0, y: 0 })}
+            ondragstart={() => {
+              _draggingDeviceIndex = originalIndex;
+            }}
+            ondragend={() => {
+              _draggingDeviceIndex = null;
+              setDragFinished();
+            }}
+            onduplicate={(e) =>
+              contextActions.handleDuplicate(rack, { ...e.detail, x: 0, y: 0 })}
             oncontextmenuopen={ctxMenu.handleOpen}
           />
         {/if}
@@ -367,10 +506,15 @@
     <!-- Layer 3: Drop preview -->
     {#if dropPreview}
       <RackDropZone
-        position={dropPreview.position} height={dropPreview.height}
-        feedback={dropPreview.feedback} slotPosition={dropPreview.slotPosition}
-        isHalfWidth={dropPreview.isHalfWidth} railWidth={RAIL_WIDTH}
-        {interiorWidth} uHeight={U_HEIGHT} rackHeight={rack.height}
+        position={dropPreview.position}
+        height={dropPreview.height}
+        feedback={dropPreview.feedback}
+        slotPosition={dropPreview.slotPosition}
+        isHalfWidth={dropPreview.isHalfWidth}
+        railWidth={RAIL_WIDTH}
+        {interiorWidth}
+        uHeight={U_HEIGHT}
+        rackHeight={rack.height}
         rackPadding={RACK_PADDING}
       />
     {/if}
@@ -378,7 +522,8 @@
     <!-- Layer 4: Placement header (mobile) -->
     {#if isPlacementMode && placementStore.pendingDevice}
       <RackPlacementHeader
-        rackWidth={RACK_WIDTH} rackPadding={RACK_PADDING}
+        rackWidth={RACK_WIDTH}
+        rackPadding={RACK_PADDING}
         deviceModel={placementStore.pendingDevice.model}
         oncancel={handleCancelPlacement}
       />
@@ -395,15 +540,26 @@
 {#if contextMenuOpen && contextMenuTarget}
   <DeviceContextMenu
     open={contextMenuOpen}
-    x={contextMenuTarget.x} y={contextMenuTarget.y}
+    x={contextMenuTarget.x}
+    y={contextMenuTarget.y}
     onedit={() => ctxMenu.handleEdit(rack)}
     onduplicate={() => ctxMenu.handleDuplicate(rack)}
     onmoveup={() => ctxMenu.handleMoveUp(rack, deviceLibrary)}
     onmovedown={() => ctxMenu.handleMoveDown(rack)}
     ondelete={() => ctxMenu.handleDelete()}
-    canMoveUp={contextActions.getCanMoveUp(rack, deviceLibrary, contextMenuTarget.deviceIndex)}
-    canMoveDown={contextActions.getCanMoveDown(rack, contextMenuTarget.deviceIndex)}
-    onOpenChange={(open) => { if (!open) ctxMenu.close(); }}
+    canMoveUp={contextActions.getCanMoveUp(
+      rack,
+      deviceLibrary,
+      contextMenuTarget.deviceIndex,
+    )}
+    canMoveDown={contextActions.getCanMoveDown(
+      rack,
+      deviceLibrary,
+      contextMenuTarget.deviceIndex,
+    )}
+    onOpenChange={(open) => {
+      if (!open) ctxMenu.close();
+    }}
   />
 {/if}
 
@@ -432,14 +588,26 @@
   }
 
   @keyframes party-glow {
-    0% { filter: drop-shadow(0 0 8px hsl(0, 100%, 50%)); }
-    25% { filter: drop-shadow(0 0 8px hsl(90, 100%, 50%)); }
-    50% { filter: drop-shadow(0 0 8px hsl(180, 100%, 50%)); }
-    75% { filter: drop-shadow(0 0 8px hsl(270, 100%, 50%)); }
-    100% { filter: drop-shadow(0 0 8px hsl(360, 100%, 50%)); }
+    0% {
+      filter: drop-shadow(0 0 8px hsl(0, 100%, 50%));
+    }
+    25% {
+      filter: drop-shadow(0 0 8px hsl(90, 100%, 50%));
+    }
+    50% {
+      filter: drop-shadow(0 0 8px hsl(180, 100%, 50%));
+    }
+    75% {
+      filter: drop-shadow(0 0 8px hsl(270, 100%, 50%));
+    }
+    100% {
+      filter: drop-shadow(0 0 8px hsl(360, 100%, 50%));
+    }
   }
 
-  .rack-container.party-mode .rack-svg { animation: party-glow 3s linear infinite; }
+  .rack-container.party-mode .rack-svg {
+    animation: party-glow 3s linear infinite;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .rack-container.party-mode .rack-svg {
@@ -459,6 +627,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .rack-container.placement-mode { transition: none; }
+    .rack-container.placement-mode {
+      transition: none;
+    }
   }
 </style>

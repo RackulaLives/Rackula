@@ -7,7 +7,8 @@ import type { Rack as RackType, DeviceType } from "$lib/types";
 import type { getLayoutStore } from "$lib/stores/layout.svelte";
 import type { getSelectionStore } from "$lib/stores/selection.svelte";
 import type { getToastStore } from "$lib/stores/toast.svelte";
-import { toHumanUnits } from "$lib/utils/position";
+import { toHumanUnits, toInternalUnits } from "$lib/utils/position";
+import { canPlaceDevice } from "$lib/utils/collision";
 
 /** Identifies a right-clicked device and the screen position for the context menu. */
 export interface ContextMenuTarget {
@@ -35,14 +36,18 @@ export interface RackContextActions {
   handleMoveDown(rack: RackType, target: ContextMenuTarget): void;
   /** Remove the device from the rack. */
   handleDelete(target: ContextMenuTarget): void;
-  /** Whether the device can move up (bounds check only; collisions validated by the store). */
+  /** Whether the device can move up (checks bounds and collisions). */
   getCanMoveUp(
     rack: RackType,
     deviceLibrary: DeviceType[],
     deviceIndex: number,
   ): boolean;
-  /** Whether the device can move down (bounds check only; collisions validated by the store). */
-  getCanMoveDown(rack: RackType, deviceIndex: number): boolean;
+  /** Whether the device can move down (checks bounds and collisions). */
+  getCanMoveDown(
+    rack: RackType,
+    deviceLibrary: DeviceType[],
+    deviceIndex: number,
+  ): boolean;
 }
 
 /**
@@ -80,9 +85,7 @@ export function createContextMenuActions(
     const device = rack.devices[target.deviceIndex];
     if (!device) return;
 
-    const deviceType = deviceLibrary.find(
-      (d) => d.slug === device.device_type,
-    );
+    const deviceType = deviceLibrary.find((d) => d.slug === device.device_type);
     if (!deviceType) return;
 
     const currentPositionU = toHumanUnits(device.position);
@@ -113,20 +116,41 @@ export function createContextMenuActions(
   ): boolean {
     const device = rack.devices[deviceIndex];
     if (!device) return false;
-    const deviceType = deviceLibrary.find(
-      (d) => d.slug === device.device_type,
-    );
+    const deviceType = deviceLibrary.find((d) => d.slug === device.device_type);
     if (!deviceType) return false;
-    const maxPosition = rack.height - deviceType.u_height + 1;
-    const positionU = toHumanUnits(device.position);
-    return positionU < maxPosition;
+    const currentPositionU = toHumanUnits(device.position);
+    const targetPositionInternal = toInternalUnits(currentPositionU + 1);
+    return canPlaceDevice(
+      rack,
+      deviceLibrary,
+      deviceType.u_height,
+      targetPositionInternal,
+      deviceIndex,
+      device.face,
+      device.slot_position ?? "full",
+    );
   }
 
-  function getCanMoveDown(rack: RackType, deviceIndex: number): boolean {
+  function getCanMoveDown(
+    rack: RackType,
+    deviceLibrary: DeviceType[],
+    deviceIndex: number,
+  ): boolean {
     const device = rack.devices[deviceIndex];
     if (!device) return false;
-    const positionU = toHumanUnits(device.position);
-    return positionU > 1;
+    const deviceType = deviceLibrary.find((d) => d.slug === device.device_type);
+    if (!deviceType) return false;
+    const currentPositionU = toHumanUnits(device.position);
+    const targetPositionInternal = toInternalUnits(currentPositionU - 1);
+    return canPlaceDevice(
+      rack,
+      deviceLibrary,
+      deviceType.u_height,
+      targetPositionInternal,
+      deviceIndex,
+      device.face,
+      device.slot_position ?? "full",
+    );
   }
 
   return {
