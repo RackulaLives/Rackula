@@ -429,6 +429,7 @@
   >
     <!-- Layer 1: Static rack frame -->
     <RackFrame
+      rackId={rack.id}
       rackWidth={RACK_WIDTH}
       {interiorWidth}
       railWidth={RAIL_WIDTH}
