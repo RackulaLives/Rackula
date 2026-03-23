@@ -76,6 +76,11 @@
     isPlacementMode = false,
     validPlacementSlots,
   }: Props = $props();
+
+  // Sanitise rackId + viewLabel into a safe SVG fragment identifier
+  const patternId = $derived(
+    `blocked-crosshatch-${rackId.replace(/[^a-zA-Z0-9_-]/g, "_")}${viewLabel ? `-${viewLabel.toLowerCase()}` : ""}`,
+  );
 </script>
 
 <!-- Rack background (interior)
@@ -256,7 +261,7 @@
   <!-- Crosshatch pattern for blocked slots - uses two overlapping diagonal line sets
        for better visibility and accessibility (not relying solely on color) -->
   <pattern
-    id="blocked-crosshatch-{rackId}"
+    id={patternId}
     patternUnits="userSpaceOnUse"
     width="8"
     height="8"
@@ -317,7 +322,7 @@
         y={slotY(slot)}
         width={slotW}
         height={slotHeight(slot)}
-        fill="url(#blocked-crosshatch-{rackId})"
+        fill="url(#{patternId})"
       />
     {/each}
   </g>
