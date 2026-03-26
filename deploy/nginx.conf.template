@@ -47,7 +47,7 @@ log_format rackula_auth_upstream_failure
 
 server {
     listen ${RACKULA_LISTEN_PORT};
-    listen [::]:${RACKULA_LISTEN_PORT};
+    ${RACKULA_IPV6_LISTEN}
     server_name localhost;
     root /usr/share/nginx/html;
     index index.html;

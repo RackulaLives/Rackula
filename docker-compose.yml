@@ -10,6 +10,7 @@
 # Environment variables:
 #   RACKULA_PORT: Host port for frontend (default: 8080)
 #   RACKULA_LISTEN_PORT: Port nginx listens on inside container (default: 8080)
+#   RACKULA_ENABLE_IPV6: IPv6 listen auto-detection (auto|true|false, default: auto)
 #   RACKULA_API_PORT: Port the API listens on (default: 3001)
 #   API_HOST: API hostname for nginx proxy (default: rackula-api)
 #   API_PORT: Derived from RACKULA_API_PORT (for nginx proxy target)
@@ -47,6 +48,8 @@ services:
       - API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN:-}
       # Auth mode for nginx routing behavior
       - RACKULA_AUTH_MODE=${RACKULA_AUTH_MODE:-none}
+      # IPv6 listen: auto-detect (default), force on, or force off
+      - RACKULA_ENABLE_IPV6=${RACKULA_ENABLE_IPV6:-auto}
     restart: unless-stopped
     stop_grace_period: 10s
 
