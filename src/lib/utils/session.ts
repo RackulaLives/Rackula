@@ -47,7 +47,8 @@ export function loadFromSession(): Layout | null {
 
     return result.data as Layout;
   } catch {
-    // Invalid JSON
+    // Invalid JSON — clear corrupted entry to prevent repeated parse failures
+    clearSession();
     return null;
   }
 }

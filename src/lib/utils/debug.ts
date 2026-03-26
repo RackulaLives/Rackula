@@ -17,6 +17,7 @@
  *   - rackula:dialog:import
  */
 import Debug from "debug";
+import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 
 // Module-level loggers
 export const layoutDebug = {
@@ -102,13 +103,10 @@ if (typeof window !== "undefined") {
   const isTest = import.meta.env.MODE === "test";
 
   // Auto-enable in dev mode (unless already configured)
-  try {
-    if (isDev && !isTest && !localStorage.getItem("debug")) {
-      localStorage.setItem("debug", "rackula:*");
+  if (isDev && !isTest && !safeGetItem("debug")) {
+    if (safeSetItem("debug", "rackula:*")) {
       // Enable immediately so logs work without page reload
       Debug.enable("rackula:*");
     }
-  } catch {
-    // localStorage not available (private browsing)
   }
 }
