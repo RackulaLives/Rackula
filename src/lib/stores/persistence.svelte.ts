@@ -9,6 +9,7 @@
 
 import { checkApiHealth } from "$lib/utils/persistence-api";
 import { persistenceDebug } from "$lib/utils/debug";
+import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 
 const log = persistenceDebug.health;
 
@@ -19,22 +20,14 @@ const API_CONNECTED_KEY = "rackula.persistence.apiConnected";
  * Check if user has ever successfully connected to persistence API
  */
 export function hasEverConnectedToApi(): boolean {
-  try {
-    return localStorage.getItem(API_CONNECTED_KEY) === "true";
-  } catch {
-    return false;
-  }
+  return safeGetItem(API_CONNECTED_KEY) === "true";
 }
 
 /**
  * Mark that user has successfully connected to persistence API
  */
 function markApiConnected(): void {
-  try {
-    localStorage.setItem(API_CONNECTED_KEY, "true");
-  } catch {
-    // Ignore localStorage errors
-  }
+  safeSetItem(API_CONNECTED_KEY, "true");
 }
 
 // Reactive state for API availability

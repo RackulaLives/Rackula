@@ -102,9 +102,13 @@ if (typeof window !== "undefined") {
   const isTest = import.meta.env.MODE === "test";
 
   // Auto-enable in dev mode (unless already configured)
-  if (isDev && !isTest && !localStorage.getItem("debug")) {
-    localStorage.setItem("debug", "rackula:*");
-    // Enable immediately so logs work without page reload
-    Debug.enable("rackula:*");
+  try {
+    if (isDev && !isTest && !localStorage.getItem("debug")) {
+      localStorage.setItem("debug", "rackula:*");
+      // Enable immediately so logs work without page reload
+      Debug.enable("rackula:*");
+    }
+  } catch {
+    // localStorage not available (private browsing)
   }
 }

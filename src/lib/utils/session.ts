@@ -5,6 +5,11 @@
 
 import type { Layout } from "$lib/types";
 import { LayoutSchema } from "$lib/schemas";
+import {
+  safeGetItem,
+  safeSetItem,
+  safeRemoveItem,
+} from "$lib/utils/safe-storage";
 
 export const STORAGE_KEY = "Rackula_session";
 
@@ -15,10 +20,9 @@ export const STORAGE_KEY = "Rackula_session";
 export function saveToSession(layout: Layout): void {
   try {
     const json = JSON.stringify(layout);
-    sessionStorage.setItem(STORAGE_KEY, json);
-  } catch (e) {
-    // sessionStorage not available or quota exceeded
-    console.warn("[Rackula] Failed to save layout to sessionStorage:", e);
+    safeSetItem(STORAGE_KEY, json, "session");
+  } catch {
+    // JSON.stringify failed
   }
 }
 
@@ -28,7 +32,7 @@ export function saveToSession(layout: Layout): void {
  */
 export function loadFromSession(): Layout | null {
   try {
-    const json = sessionStorage.getItem(STORAGE_KEY);
+    const json = safeGetItem(STORAGE_KEY, "session");
     if (!json) return null;
 
     const parsed: unknown = JSON.parse(json);
@@ -42,9 +46,8 @@ export function loadFromSession(): Layout | null {
     }
 
     return result.data as Layout;
-  } catch (e) {
-    // sessionStorage not available or invalid JSON
-    console.warn("[Rackula] Failed to load layout from sessionStorage:", e);
+  } catch {
+    // Invalid JSON
     return null;
   }
 }
@@ -53,12 +56,7 @@ export function loadFromSession(): Layout | null {
  * Clear session from sessionStorage
  */
 export function clearSession(): void {
-  try {
-    sessionStorage.removeItem(STORAGE_KEY);
-  } catch (e) {
-    // sessionStorage not available
-    console.warn("[Rackula] Failed to clear sessionStorage:", e);
-  }
+  safeRemoveItem(STORAGE_KEY, "session");
 }
 
 /**
