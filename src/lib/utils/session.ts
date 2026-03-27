@@ -10,6 +10,7 @@ import {
   safeSetItem,
   safeRemoveItem,
 } from "$lib/utils/safe-storage";
+import { sessionDebug } from "$lib/utils/debug";
 
 export const STORAGE_KEY = "Rackula_session";
 
@@ -20,9 +21,12 @@ export const STORAGE_KEY = "Rackula_session";
 export function saveToSession(layout: Layout): void {
   try {
     const json = JSON.stringify(layout);
-    safeSetItem(STORAGE_KEY, json, "session");
-  } catch {
-    // JSON.stringify failed
+    const success = safeSetItem(STORAGE_KEY, json, "session");
+    if (!success) {
+      sessionDebug.storage("failed to save session to storage");
+    }
+  } catch (err) {
+    sessionDebug.storage("failed to serialize layout: %O", err);
   }
 }
 
