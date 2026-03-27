@@ -17,6 +17,22 @@ export function safeGetItem(
 }
 
 /**
+ * Safely reads a value from Web Storage, reporting whether access failed.
+ * Unlike `safeGetItem`, this distinguishes "key missing" from "storage unavailable".
+ */
+export function safeGetItemWithStatus(
+  key: string,
+  type: StorageType = "local",
+): { value: string | null; failed: boolean } {
+  try {
+    const storage = type === "local" ? localStorage : sessionStorage;
+    return { value: storage.getItem(key), failed: false };
+  } catch {
+    return { value: null, failed: true };
+  }
+}
+
+/**
  * Safely writes a value to Web Storage.
  * Returns `false` when storage access is unavailable or the write fails.
  */

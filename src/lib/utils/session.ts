@@ -6,7 +6,7 @@
 import type { Layout } from "$lib/types";
 import { LayoutSchema } from "$lib/schemas";
 import {
-  safeGetItem,
+  safeGetItemWithStatus,
   safeSetItem,
   safeRemoveItem,
 } from "$lib/utils/safe-storage";
@@ -36,7 +36,14 @@ export function saveToSession(layout: Layout): void {
  */
 export function loadFromSession(): Layout | null {
   try {
-    const json = safeGetItem(STORAGE_KEY, "session");
+    const { value: json, failed } = safeGetItemWithStatus(
+      STORAGE_KEY,
+      "session",
+    );
+    if (failed) {
+      sessionDebug.storage("failed to read session from storage");
+      return null;
+    }
     if (json === null) return null;
 
     const parsed: unknown = JSON.parse(json);
