@@ -33,7 +33,7 @@ export function saveToSession(layout: Layout): void {
 export function loadFromSession(): Layout | null {
   try {
     const json = safeGetItem(STORAGE_KEY, "session");
-    if (!json) return null;
+    if (json === null) return null;
 
     const parsed: unknown = JSON.parse(json);
 
