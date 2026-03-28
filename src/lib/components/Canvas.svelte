@@ -744,14 +744,14 @@
                 {enableLongPress}
                 ongroupselect={(e) => handleGroupSelect(e)}
                 ondeviceselect={(e) => {
-                  const rackId = activeRackId ?? groupRacks[0]?.id;
+                  const rackId = e.detail.rackId;
                   if (rackId) handleDeviceSelect(rackId, e);
                 }}
                 ondevicedrop={(e) => handleDeviceDrop(e)}
                 ondevicemove={(e) => handleDeviceMove(e)}
                 ondevicemoverack={(e) => handleDeviceMoveRack(e)}
                 onplacementtap={(e) => {
-                  const rackId = activeRackId ?? groupRacks[0]?.id;
+                  const rackId = e.detail.rackId;
                   if (rackId) handlePlacementTap(rackId, e);
                 }}
                 onlongpress={(e) => onracklongpress?.(e)}

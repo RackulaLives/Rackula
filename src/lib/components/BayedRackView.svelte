@@ -55,7 +55,7 @@
     /** Callback when the entire group is selected (bayed racks select as a unit) */
     ongroupselect?: (event: CustomEvent<{ groupId: string }>) => void;
     ondeviceselect?: (
-      event: CustomEvent<{ slug: string; position: number }>,
+      event: CustomEvent<{ rackId: string; slug: string; position: number }>,
     ) => void;
     ondevicedrop?: (
       event: CustomEvent<{
@@ -82,7 +82,11 @@
     ) => void;
     /** Mobile tap-to-place event */
     onplacementtap?: (
-      event: CustomEvent<{ position: number; face: "front" | "rear" }>,
+      event: CustomEvent<{
+        rackId: string;
+        position: number;
+        face: "front" | "rear";
+      }>,
     ) => void;
     /** Mobile long press for rack editing */
     onlongpress?: (event: CustomEvent<{ rackId: string }>) => void;
@@ -307,6 +311,38 @@
     );
   }
 
+  // Handle device select - inject the correct rackId into the event
+  function handleDeviceSelect(
+    rackId: string,
+    event: CustomEvent<{ slug: string; position: number }>,
+  ) {
+    ondeviceselect?.(
+      new CustomEvent("deviceselect", {
+        detail: {
+          rackId,
+          slug: event.detail.slug,
+          position: event.detail.position,
+        },
+      }),
+    );
+  }
+
+  // Handle placement tap - inject the correct rackId into the event
+  function handlePlacementTap(
+    rackId: string,
+    event: CustomEvent<{ position: number; face: "front" | "rear" }>,
+  ) {
+    onplacementtap?.(
+      new CustomEvent("placementtap", {
+        detail: {
+          rackId,
+          position: event.detail.position,
+          face: event.detail.face,
+        },
+      }),
+    );
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -390,11 +426,11 @@
                   detail: { groupId: group.id },
                 }),
               )}
-            {ondeviceselect}
+            ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
             ondevicedrop={(e) => handleFrontDeviceDrop(rack.id, e)}
             {ondevicemove}
             {ondevicemoverack}
-            {onplacementtap}
+            onplacementtap={(e) => handlePlacementTap(rack.id, e)}
           />
         </div>
       </RackContextMenu>
@@ -467,11 +503,11 @@
                     detail: { groupId: group.id },
                   }),
                 )}
-              {ondeviceselect}
+              ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
               ondevicedrop={(e) => handleRearDeviceDrop(rack.id, e)}
               {ondevicemove}
               {ondevicemoverack}
-              {onplacementtap}
+              onplacementtap={(e) => handlePlacementTap(rack.id, e)}
             />
           </div>
         </RackContextMenu>
