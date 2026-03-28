@@ -51,14 +51,14 @@ export function loadFromSession(): Layout | null {
     // Validate against current schema
     const result = LayoutSchema.safeParse(parsed);
     if (!result.success) {
-      // Invalid or outdated format, clear it
+      sessionDebug.storage("session schema validation failed, clearing");
       clearSession();
       return null;
     }
 
     return result.data as Layout;
-  } catch {
-    // Invalid JSON — clear corrupted entry to prevent repeated parse failures
+  } catch (err) {
+    sessionDebug.storage("failed to parse session JSON: %O", err);
     clearSession();
     return null;
   }
