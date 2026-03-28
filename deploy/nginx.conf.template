@@ -79,7 +79,7 @@ server {
     # Returns 502/503 if API is unavailable (intentional - signals API is down)
     # Preserves query parameters for potential diagnostics/verbosity flags
     location = /api/health {
-        resolver 127.0.0.11 valid=30s;
+        resolver ${NGINX_RESOLVER} valid=30s;
         set $api_upstream ${API_HOST};
         proxy_pass http://$api_upstream:${API_PORT}/health$is_args$args;
         proxy_http_version 1.1;
@@ -97,7 +97,7 @@ server {
             rewrite ^ /login.html last;
         }
         # OIDC mode: proxy to API for IdP redirect
-        resolver 127.0.0.11 valid=30s;
+        resolver ${NGINX_RESOLVER} valid=30s;
         set $api_upstream ${API_HOST};
         proxy_pass http://$api_upstream:${API_PORT}/api/auth/login$is_args$args;
         include /etc/nginx/snippets/auth-proxy.conf;
@@ -110,7 +110,7 @@ server {
         if ($rackula_auth_mode_local) {
             return 404;
         }
-        resolver 127.0.0.11 valid=30s;
+        resolver ${NGINX_RESOLVER} valid=30s;
         set $api_upstream ${API_HOST};
         proxy_pass http://$api_upstream:${API_PORT}/api/auth/callback$is_args$args;
         include /etc/nginx/snippets/auth-proxy.conf;
@@ -119,7 +119,7 @@ server {
     }
 
     location = /auth/check {
-        resolver 127.0.0.11 valid=30s;
+        resolver ${NGINX_RESOLVER} valid=30s;
         set $api_upstream ${API_HOST};
         proxy_pass http://$api_upstream:${API_PORT}/api/auth/check$is_args$args;
         include /etc/nginx/snippets/auth-proxy.conf;
@@ -128,7 +128,7 @@ server {
     }
 
     location = /auth/logout {
-        resolver 127.0.0.11 valid=30s;
+        resolver ${NGINX_RESOLVER} valid=30s;
         set $api_upstream ${API_HOST};
         proxy_pass http://$api_upstream:${API_PORT}/api/auth/logout$is_args$args;
         include /etc/nginx/snippets/auth-proxy.conf;
@@ -154,7 +154,7 @@ server {
     }
 
     location /api/ {
-        resolver 127.0.0.11 valid=30s;
+        resolver ${NGINX_RESOLVER} valid=30s;
         set $api_upstream ${API_HOST};
 
         # Strip /api prefix: /api/layouts -> /layouts
@@ -191,7 +191,7 @@ server {
         if ($rackula_auth_mode_none) {
             return 204;
         }
-        resolver 127.0.0.11 valid=30s;
+        resolver ${NGINX_RESOLVER} valid=30s;
         set $api_upstream ${API_HOST};
         proxy_pass http://$api_upstream:${API_PORT}/api/auth/check;
         proxy_http_version 1.1;

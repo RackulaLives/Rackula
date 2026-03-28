@@ -81,6 +81,32 @@ services:
       - "8080" # Don't bind to host port
 ```
 
+### Kubernetes
+
+Rackula's nginx config defers DNS resolution to request time using nginx's `resolver`
+directive. Two settings need adjustment for Kubernetes:
+
+1. **`NGINX_RESOLVER`** — Set to your cluster DNS IP (check with
+   `kubectl get svc -n kube-system kube-dns -o jsonpath='{.spec.clusterIP}'`)
+2. **`API_HOST`** — Must be a FQDN because nginx's resolver doesn't use search domains
+   (e.g., `rackula-api.default.svc.cluster.local`)
+
+Example pod environment:
+
+```yaml
+env:
+  - name: NGINX_RESOLVER
+    value: "10.96.0.10"  # Your cluster DNS IP
+  - name: API_HOST
+    value: "rackula-api.default.svc.cluster.local"
+  - name: API_PORT
+    value: "3001"
+```
+
+**Troubleshooting:** If you see `send() failed (111: Connection refused) while resolving`
+in nginx logs, your `NGINX_RESOLVER` value is wrong. Check `kubectl logs <pod>` for the
+startup line showing the configured resolver.
+
 ### Add Authentication
 
 Rackula has no built-in auth. Use your reverse proxy:
@@ -568,6 +594,7 @@ All variables have sensible defaults. Only configure if you need to change somet
 | `CORS_ORIGIN`         | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default) |
 | `RACKULA_API_WRITE_TOKEN` | _unset_    | Optional bearer token required for API `PUT`/`DELETE` |
 | `ALLOW_INSECURE_CORS` | `false`       | Explicitly allow wildcard CORS in production (not recommended) |
+| `NGINX_RESOLVER`      | `127.0.0.11`  | DNS resolver for nginx upstream resolution (override for Kubernetes) |
 | `DATA_DIR`            | `/data`       | Path to data directory inside API container     |
 
 **Port mapping explained:**

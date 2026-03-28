@@ -58,4 +58,23 @@ else
 fi
 export RACKULA_IPV6_LISTEN
 
+# Default resolver for nginx upstream DNS resolution.
+# Docker uses 127.0.0.11 (embedded DNS). Override via NGINX_RESOLVER for other
+# environments (e.g., Kubernetes cluster DNS IP).
+: "${NGINX_RESOLVER:=127.0.0.11}"
+export NGINX_RESOLVER
+
+# Log configuration for debugging connectivity issues.
+echo "Rackula: DNS resolver=${NGINX_RESOLVER} API upstream=${API_HOST}:${API_PORT}" >&2
+
+# Warn Kubernetes users if API_HOST is a bare hostname (no dots).
+# nginx resolver doesn't apply search domains, so bare names won't resolve
+# in Kubernetes — FQDN like rackula-api.<ns>.svc.cluster.local is required.
+if [ -n "${KUBERNETES_SERVICE_HOST:-}" ]; then
+  case "${API_HOST}" in
+    *.*) ;;  # Contains dots — likely FQDN or IP, fine
+    *) echo "WARN: Kubernetes detected with bare API_HOST='${API_HOST}'. nginx requires FQDN (e.g., ${API_HOST}.default.svc.cluster.local). Set NGINX_RESOLVER to your cluster DNS IP if not 127.0.0.11." >&2 ;;
+  esac
+fi
+
 exec /docker-entrypoint.sh "$@"

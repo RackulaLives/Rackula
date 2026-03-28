@@ -47,13 +47,15 @@ LABEL org.opencontainers.image.title="Rackula"
 # RACKULA_AUTH_MODE: Auth mode toggle for app/API anonymous access gate (none|oidc|local)
 # RACKULA_LISTEN_PORT: Port nginx listens on inside the container (default: 8080)
 # RACKULA_ENABLE_IPV6: IPv6 listen auto-detection (auto|true|false; default: auto)
+# NGINX_RESOLVER: DNS resolver for nginx upstream resolution (default: 127.0.0.11 for Docker; override for Kubernetes)
 # NGINX_ENVSUBST_FILTER: Regex filter - only substitute these env vars, leave nginx vars ($host etc.) alone
 ENV API_HOST=rackula-api
 ENV API_PORT=3001
 ENV RACKULA_AUTH_MODE=none
 ENV RACKULA_LISTEN_PORT=8080
 ENV RACKULA_ENABLE_IPV6=auto
-ENV NGINX_ENVSUBST_FILTER=^(API_HOST|API_PORT|API_WRITE_TOKEN|RACKULA_AUTH_MODE|AUTH_MODE|RACKULA_LISTEN_PORT|RACKULA_IPV6_LISTEN)$
+ENV NGINX_RESOLVER=127.0.0.11
+ENV NGINX_ENVSUBST_FILTER=^(API_HOST|API_PORT|API_WRITE_TOKEN|RACKULA_AUTH_MODE|AUTH_MODE|RACKULA_LISTEN_PORT|RACKULA_IPV6_LISTEN|NGINX_RESOLVER)$
 
 # Copy nginx config template (auto-processed by nginx's /docker-entrypoint.d/20-envsubst-on-templates.sh)
 COPY ./deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
