@@ -117,7 +117,7 @@ jobs:
             type=raw,value=${{ needs.validate.outputs.major_minor }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: .
           file: deploy/Dockerfile
@@ -173,7 +173,7 @@ jobs:
             type=raw,value=v${{ needs.validate.outputs.version }}-persist,enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push persist image
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: .
           file: deploy/Dockerfile
@@ -229,7 +229,7 @@ jobs:
             type=raw,value=${{ needs.validate.outputs.major_minor }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push API image
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: ./api
           file: ./api/Dockerfile
@@ -356,7 +356,7 @@ jobs:
     steps:
       - name: Summarize failing jobs
         id: summarize
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           VALIDATED_TAG: ${{ needs.validate.outputs.tag }}
         with:
@@ -393,7 +393,7 @@ jobs:
               .write();
 
       - name: Ensure alert labels exist
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -425,7 +425,7 @@ jobs:
             }
 
       - name: Create or update alert issue
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           TAG_NAME: ${{ steps.summarize.outputs.tag_name }}
           RUN_URL: ${{ steps.summarize.outputs.run_url }}
