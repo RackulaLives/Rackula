@@ -56,7 +56,7 @@
     "eslint-plugin-svelte": "^3.17.0",
     "eslint-plugin-testing-library": "^7.16.2",
     "globals": "^17.5.0",
-    "happy-dom": "^20.8.9",
+    "happy-dom": "^20.9.0",
     "husky": "^9.1.7",
     "jsdom": "^29.0.2",
     "lint-staged": "^16.4.0",
