@@ -50,7 +50,7 @@
     "@types/pako": "^2.0.4",
     "@types/umami-browser": "^2.18.1",
     "@vitest/coverage-v8": "^4.1.4",
-    "@vitest/eslint-plugin": "^1.6.15",
+    "@vitest/eslint-plugin": "^1.6.16",
     "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-svelte": "^3.17.0",
