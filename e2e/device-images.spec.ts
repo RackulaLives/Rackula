@@ -45,8 +45,8 @@ test.describe("Device Images", () => {
   });
 
   test("can upload front image when adding device", async ({ page }) => {
-    // Click add device button in sidebar
-    await page.click('[data-testid="btn-add-device"]');
+    // Click "Create Custom Device" button in sidebar to open AddDeviceForm dialog
+    await page.click('[data-testid="btn-create-custom-device"]');
 
     const dialog = page.locator(locators.dialog.root);
     await expect(dialog).toBeVisible();

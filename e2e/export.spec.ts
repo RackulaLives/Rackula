@@ -98,12 +98,11 @@ test.describe("Export Functionality", () => {
   test("export with legend option", async ({ page }) => {
     await clickExport(page);
 
-    // Check include legend checkbox - the label contains the text
-    const legendCheckbox = page.locator(
-      '[data-testid="checkbox-export-legend"] input[type="checkbox"]',
-    );
-    await expect(legendCheckbox).toBeVisible();
-    await legendCheckbox.check();
+    // Toggle include legend — bits-ui Checkbox renders as a button, not native input.
+    // Click the label which is linked to the checkbox via htmlFor.
+    const legendLabel = page.getByText("Include legend");
+    await expect(legendLabel).toBeVisible();
+    await legendLabel.click();
 
     // Set up download listener
     const downloadPromise = page.waitForEvent("download");

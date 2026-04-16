@@ -41,13 +41,14 @@ test.describe("Carlton Migration (#879)", () => {
     await loadFileFromDisk(page, fixturePath);
 
     // Wait for success toast to confirm load completed
-    await expect(page.locator(locators.toast.success)).toBeVisible({
+    await expect(page.locator(locators.toast.success).first()).toBeVisible({
       timeout: 10000,
     });
 
     // Verify layout loaded - rack name "5123home" should be visible
     // Uses getByText for reliable text matching across SVG/HTML
-    await expect(page.getByText("5123home")).toBeVisible({
+    // Text appears in toolbar name + dual-view name — use .first() to avoid strict mode
+    await expect(page.getByText("5123home").first()).toBeVisible({
       timeout: 5000,
     });
   });
@@ -57,7 +58,7 @@ test.describe("Carlton Migration (#879)", () => {
     await loadFileFromDisk(page, fixturePath);
 
     // Wait for success toast
-    await expect(page.locator(locators.toast.success)).toBeVisible({
+    await expect(page.locator(locators.toast.success).first()).toBeVisible({
       timeout: 10000,
     });
 
@@ -93,12 +94,13 @@ test.describe("Carlton Migration (#879)", () => {
     await loadFileFromDisk(page, fixturePath);
 
     // Wait for success toast
-    await expect(page.locator(locators.toast.success)).toBeVisible({
+    await expect(page.locator(locators.toast.success).first()).toBeVisible({
       timeout: 10000,
     });
 
     // Verify initial load worked - rack name should be visible
-    await expect(page.getByText("5123home")).toBeVisible({
+    // Text appears in toolbar name + dual-view name — use .first() to avoid strict mode
+    await expect(page.getByText("5123home").first()).toBeVisible({
       timeout: 5000,
     });
 
@@ -122,12 +124,13 @@ test.describe("Carlton Migration (#879)", () => {
     await loadFileFromDisk(page, savedPath);
 
     // Verify it loads successfully
-    await expect(page.locator(locators.toast.success)).toBeVisible({
+    await expect(page.locator(locators.toast.success).first()).toBeVisible({
       timeout: 10000,
     });
 
     // Verify layout is preserved - rack name should be visible
-    await expect(page.getByText("5123home")).toBeVisible({
+    // Text appears in toolbar name + dual-view name — use .first() to avoid strict mode
+    await expect(page.getByText("5123home").first()).toBeVisible({
       timeout: 5000,
     });
 

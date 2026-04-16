@@ -93,7 +93,7 @@ test.describe("Duplicate Device ID Handling (#1363)", () => {
     await loadFileFromDiskViaMenu(page, zipPath!);
 
     // Wait for success toast — confirms load completed without crash
-    await expect(page.locator(locators.toast.success)).toBeVisible({
+    await expect(page.locator(locators.toast.success).first()).toBeVisible({
       timeout: 10000,
     });
 
