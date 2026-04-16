@@ -56,6 +56,9 @@ test.describe("Multi-Rack Mode", () => {
   });
 
   test("max rack limit shows toast warning", async ({ page }) => {
+    // Creating 9 racks sequentially through the wizard can take a while on CI
+    test.setTimeout(60000);
+
     // Create 9 more racks (already have 1 from share link) to hit the limit of 10
     for (let i = 2; i <= 10; i++) {
       await clickNewRack(page);
@@ -65,8 +68,9 @@ test.describe("Multi-Rack Mode", () => {
     // Attempt to create 11th rack — should show toast warning
     await clickNewRack(page);
 
-    // Wizard should NOT open
-    await expect(page.locator("#rack-name")).not.toBeVisible();
+    // Wizard should NOT open — wait for hidden to ensure the warning path was taken
+    // rather than racing against wizard mount
+    await expect(page.locator("#rack-name")).toBeHidden();
 
     // Toast warning should appear
     await expect(page.locator(locators.toast.root)).toBeVisible();

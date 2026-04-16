@@ -364,6 +364,12 @@ test.describe("Long-Press Gesture", () => {
     // Open bottom sheet to expose palette items on mobile
     await mobileDragDeviceToRack(page);
 
+    // Close the bottom sheet so the backdrop/sheet doesn't intercept the
+    // mouse-based long-press on the placed device. Escape is a no-op if the
+    // sheet already auto-closed after drag.
+    await page.keyboard.press("Escape");
+    await expect(page.locator(locators.mobile.bottomSheet)).toBeHidden();
+
     const rackDevice = page.locator(locators.rack.device).first();
     await expect(rackDevice).toBeVisible({ timeout: 5000 });
 

@@ -304,6 +304,11 @@ test.describe("Device Metadata Persistence", () => {
       await clickNewRack(page);
       await completeWizardWithClicks(page, { name: "Second Rack", height: 24 });
 
+      // Wait for the second rack container to mount before continuing —
+      // otherwise dragDeviceToRack({ rackIndex: 1 }) can race against the mount
+      const rackFronts = page.locator(".rack-front");
+      await expect(rackFronts).toHaveCount(2);
+
       // Switch back to Devices tab (clickNewRack switches to Racks tab)
       await page.getByTestId("sidebar-tab-devices").click();
 
@@ -311,7 +316,7 @@ test.describe("Device Metadata Persistence", () => {
       await dragDeviceToRack(page, { rackIndex: 1 });
 
       // Scope assertions to the second rack container
-      const secondRack = page.locator(".rack-front").nth(1);
+      const secondRack = rackFronts.nth(1);
       await expect(secondRack.locator(locators.rack.device).first()).toBeVisible();
 
       // Click the device in the second rack specifically
@@ -331,7 +336,7 @@ test.describe("Device Metadata Persistence", () => {
       await deselectDevice(page);
 
       // Switch back to first rack and verify original metadata is intact
-      const firstRack = page.locator(".rack-front").nth(0);
+      const firstRack = rackFronts.nth(0);
       await firstRack.locator(locators.rack.device).first().click();
       await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
       const rack1Meta = await getDeviceMetadata(page);

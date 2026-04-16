@@ -91,13 +91,13 @@ test.describe("Keyboard Shortcuts", () => {
   test("Escape closes dialogs", async ({ page }) => {
     // Open new rack wizard dialog
     await clickNewRack(page);
-    await expect(page.locator('[role="dialog"]')).toBeVisible();
+    await expect(page.locator(locators.dialog.root)).toBeVisible();
 
     // Press Escape
     await page.keyboard.press("Escape");
 
     // Dialog should close
-    await expect(page.locator('[role="dialog"]')).not.toBeVisible();
+    await expect(page.locator(locators.dialog.root)).not.toBeVisible();
   });
 
   test("Arrow keys move device in rack", async ({ page }) => {
