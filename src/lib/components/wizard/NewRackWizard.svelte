@@ -13,6 +13,7 @@
 <script lang="ts">
   import Dialog from "$lib/components/Dialog.svelte";
   import LayoutTypeCard from "./LayoutTypeCard.svelte";
+  import { shouldIgnoreKeyboard } from "$lib/utils/keyboard";
   import {
     COMMON_RACK_HEIGHTS,
     MIN_RACK_HEIGHT,
@@ -336,6 +337,9 @@
 
     // Step 2: Height presets with number keys
     if (currentStep === 2) {
+      // Digits must reach the custom-height input when it has focus.
+      if (shouldIgnoreKeyboard(event)) return;
+
       const presetMap: Record<string, number> = {
         "1": availableHeights[0] ?? 12,
         "2": availableHeights[1] ?? 18,

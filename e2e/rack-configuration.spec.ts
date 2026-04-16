@@ -105,4 +105,21 @@ test.describe("Rack Configuration", () => {
     await expect(lastLabel).toHaveText("1");
   });
 
+  test("custom height accepts digits that collide with preset shortcuts", async ({ page }) => {
+    await openWizardStep2(page, "Custom 32 Rack");
+
+    await page.click('[data-testid="btn-height-custom"]');
+
+    const customInput = page.locator("#custom-height");
+    await expect(customInput).toBeVisible();
+
+    // pressSequentially fires real keydown events; fill() would bypass the
+    // form's keyboard handler and miss the preset-shortcut collision.
+    await customInput.fill("");
+    await customInput.pressSequentially("32");
+
+    await expect(customInput).toBeVisible();
+    await expect(customInput).toHaveValue("32");
+  });
+
 });
