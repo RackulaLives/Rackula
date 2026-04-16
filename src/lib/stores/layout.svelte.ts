@@ -35,6 +35,11 @@ import { findDeviceType } from "$lib/utils/device-lookup";
 import { getStarterSlugs } from "$lib/data/starterLibrary";
 import { getBrandSlugs } from "$lib/data/brandPacks";
 import { debug, layoutDebug } from "$lib/utils/debug";
+import {
+  safeGetItem,
+  safeSetItem,
+  safeRemoveItem,
+} from "$lib/utils/safe-storage";
 import { generateId } from "$lib/utils/device";
 import { generateRackId } from "$lib/utils/rack";
 import { toInternalUnits } from "$lib/utils/position";
@@ -121,23 +126,15 @@ export const HAS_STARTED_KEY = "Rackula_has_started";
 
 // Check if user has previously started (created or loaded a rack)
 function loadHasStarted(): boolean {
-  try {
-    return localStorage.getItem(HAS_STARTED_KEY) === "true";
-  } catch {
-    return false;
-  }
+  return safeGetItem(HAS_STARTED_KEY) === "true";
 }
 
 // Persist the hasStarted flag to localStorage
 function saveHasStarted(value: boolean): void {
-  try {
-    if (value) {
-      localStorage.setItem(HAS_STARTED_KEY, "true");
-    } else {
-      localStorage.removeItem(HAS_STARTED_KEY);
-    }
-  } catch {
-    // localStorage not available
+  if (value) {
+    safeSetItem(HAS_STARTED_KEY, "true");
+  } else {
+    safeRemoveItem(HAS_STARTED_KEY);
   }
 }
 

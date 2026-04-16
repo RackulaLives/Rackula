@@ -743,17 +743,11 @@
                 {partyMode}
                 {enableLongPress}
                 ongroupselect={(e) => handleGroupSelect(e)}
-                ondeviceselect={(e) => {
-                  const rackId = activeRackId ?? groupRacks[0]?.id;
-                  if (rackId) handleDeviceSelect(rackId, e);
-                }}
+                ondeviceselect={(e) => handleDeviceSelect(e.detail.rackId, e)}
                 ondevicedrop={(e) => handleDeviceDrop(e)}
                 ondevicemove={(e) => handleDeviceMove(e)}
                 ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-                onplacementtap={(e) => {
-                  const rackId = activeRackId ?? groupRacks[0]?.id;
-                  if (rackId) handlePlacementTap(rackId, e);
-                }}
+                onplacementtap={(e) => handlePlacementTap(e.detail.rackId, e)}
                 onlongpress={(e) => onracklongpress?.(e)}
                 onfocus={(rackIds) => onrackfocus?.(rackIds)}
                 onexport={(rackIds) => onrackexport?.(rackIds)}

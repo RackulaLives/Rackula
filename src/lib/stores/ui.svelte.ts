@@ -14,6 +14,7 @@ import {
   saveSidebarWidthToStorage,
 } from "$lib/utils/sidebarWidth";
 import type { DisplayMode, AnnotationField } from "$lib/types";
+import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 
 // Sidebar tab type (hide removed - collapse is now gesture-based)
 export type SidebarTab = "devices" | "racks";
@@ -41,18 +42,14 @@ function isValidSidebarTab(tab: string): tab is SidebarTab {
  * Note: Legacy "hide" values are migrated to "devices"
  */
 function loadSidebarTabFromStorage(): SidebarTab {
-  try {
-    const stored = localStorage.getItem(SIDEBAR_TAB_KEY);
-    // Handle legacy "hide" value - migrate to "devices" and persist
-    if (stored === "hide") {
-      localStorage.setItem(SIDEBAR_TAB_KEY, "devices");
-      return "devices";
-    }
-    if (stored && isValidSidebarTab(stored)) {
-      return stored;
-    }
-  } catch {
-    // localStorage not available
+  const stored = safeGetItem(SIDEBAR_TAB_KEY);
+  // Handle legacy "hide" value - migrate to "devices" and persist
+  if (stored === "hide") {
+    safeSetItem(SIDEBAR_TAB_KEY, "devices");
+    return "devices";
+  }
+  if (stored && isValidSidebarTab(stored)) {
+    return stored;
   }
   return "devices"; // default
 }
@@ -61,24 +58,16 @@ function loadSidebarTabFromStorage(): SidebarTab {
  * Save sidebar tab to localStorage
  */
 function saveSidebarTabToStorage(tab: SidebarTab): void {
-  try {
-    localStorage.setItem(SIDEBAR_TAB_KEY, tab);
-  } catch {
-    // localStorage not available
-  }
+  safeSetItem(SIDEBAR_TAB_KEY, tab);
 }
 
 /**
  * Load warn on unsaved changes setting from localStorage
  */
 function loadWarnUnsavedFromStorage(): boolean {
-  try {
-    const stored = localStorage.getItem(WARN_UNSAVED_KEY);
-    if (stored !== null) {
-      return stored === "true";
-    }
-  } catch {
-    // localStorage not available
+  const stored = safeGetItem(WARN_UNSAVED_KEY);
+  if (stored !== null) {
+    return stored === "true";
   }
   return true; // default to warning enabled
 }
@@ -87,24 +76,16 @@ function loadWarnUnsavedFromStorage(): boolean {
  * Save warn on unsaved changes setting to localStorage
  */
 function saveWarnUnsavedToStorage(warn: boolean): void {
-  try {
-    localStorage.setItem(WARN_UNSAVED_KEY, String(warn));
-  } catch {
-    // localStorage not available
-  }
+  safeSetItem(WARN_UNSAVED_KEY, String(warn));
 }
 
 /**
  * Load compatible-only preference from localStorage
  */
 function loadCompatibleOnlyFromStorage(): boolean {
-  try {
-    const stored = localStorage.getItem(COMPATIBLE_ONLY_KEY);
-    if (stored === "true") return true;
-    if (stored === "false") return false;
-  } catch {
-    // localStorage not available
-  }
+  const stored = safeGetItem(COMPATIBLE_ONLY_KEY);
+  if (stored === "true") return true;
+  if (stored === "false") return false;
   return true; // default to compatible-only enabled
 }
 
@@ -112,24 +93,16 @@ function loadCompatibleOnlyFromStorage(): boolean {
  * Save compatible-only preference to localStorage
  */
 function saveCompatibleOnlyToStorage(value: boolean): void {
-  try {
-    localStorage.setItem(COMPATIBLE_ONLY_KEY, String(value));
-  } catch {
-    // localStorage not available
-  }
+  safeSetItem(COMPATIBLE_ONLY_KEY, String(value));
 }
 
 /**
  * Load prompt cleanup on save setting from localStorage
  */
 function loadPromptCleanupFromStorage(): boolean {
-  try {
-    const stored = localStorage.getItem(PROMPT_CLEANUP_KEY);
-    if (stored !== null) {
-      return stored === "true";
-    }
-  } catch {
-    // localStorage not available
+  const stored = safeGetItem(PROMPT_CLEANUP_KEY);
+  if (stored !== null) {
+    return stored === "true";
   }
   return true; // default to prompting enabled
 }
@@ -138,11 +111,7 @@ function loadPromptCleanupFromStorage(): boolean {
  * Save prompt cleanup on save setting to localStorage
  */
 function savePromptCleanupToStorage(prompt: boolean): void {
-  try {
-    localStorage.setItem(PROMPT_CLEANUP_KEY, String(prompt));
-  } catch {
-    // localStorage not available
-  }
+  safeSetItem(PROMPT_CLEANUP_KEY, String(prompt));
 }
 
 // Zoom constants

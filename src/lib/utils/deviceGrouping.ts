@@ -3,6 +3,8 @@
  * Handles localStorage persistence for device library grouping preferences
  */
 
+import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
+
 const GROUPING_STORAGE_KEY = "Rackula-device-grouping";
 /**
  * Device grouping mode for the DevicePalette
@@ -22,16 +24,9 @@ const VALID_MODES: DeviceGroupingMode[] = ["brand", "category", "flat"];
  * @returns The stored mode or 'brand' as default
  */
 export function loadGroupingModeFromStorage(): DeviceGroupingMode {
-  try {
-    const stored = localStorage.getItem(GROUPING_STORAGE_KEY);
-    if (stored && VALID_MODES.includes(stored as DeviceGroupingMode)) {
-      return stored as DeviceGroupingMode;
-    }
-  } catch (e) {
-    console.warn(
-      "[Rackula] Failed to load grouping mode from localStorage:",
-      e,
-    );
+  const stored = safeGetItem(GROUPING_STORAGE_KEY);
+  if (stored && VALID_MODES.includes(stored as DeviceGroupingMode)) {
+    return stored as DeviceGroupingMode;
   }
   return "brand";
 }
@@ -41,9 +36,5 @@ export function loadGroupingModeFromStorage(): DeviceGroupingMode {
  * @param mode The grouping mode to persist
  */
 export function saveGroupingModeToStorage(mode: DeviceGroupingMode): void {
-  try {
-    localStorage.setItem(GROUPING_STORAGE_KEY, mode);
-  } catch (e) {
-    console.warn("[Rackula] Failed to save grouping mode to localStorage:", e);
-  }
+  safeSetItem(GROUPING_STORAGE_KEY, mode);
 }
