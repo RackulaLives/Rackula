@@ -13,9 +13,7 @@ test.describe("Keyboard Shortcuts", () => {
     await gotoWithRack(page, SMALL_RACK_SHARE);
   });
 
-  test("Delete key clears rack devices (v0.2 cannot remove the rack)", async ({
-    page,
-  }) => {
+  test("Delete key removes rack after confirmation", async ({ page }) => {
     // Add a device first
     await dragDeviceToRack(page);
     await expect(page.locator(locators.rack.device).first()).toBeVisible();
@@ -26,18 +24,15 @@ test.describe("Keyboard Shortcuts", () => {
     // Press Delete
     await page.keyboard.press("Delete");
 
-    // Confirm deletion - button text is "Delete Rack" for racks
+    // Confirm deletion
     await expect(page.locator(locators.dialog.root)).toBeVisible();
     await page.click('[data-testid="btn-confirm-action"]');
 
-    // In v0.2, rack still exists but devices are cleared
-    await expect(page.locator(locators.rack.container).first()).toBeVisible();
+    // In multi-rack mode, deleting the only rack removes it entirely
     await expect(page.locator(locators.rack.device)).not.toBeVisible();
   });
 
-  test("Backspace key clears rack devices (v0.2 cannot remove the rack)", async ({
-    page,
-  }) => {
+  test("Backspace key removes rack after confirmation", async ({ page }) => {
     // Add a device first
     await dragDeviceToRack(page);
     await expect(page.locator(locators.rack.device).first()).toBeVisible();
@@ -48,12 +43,11 @@ test.describe("Keyboard Shortcuts", () => {
     // Press Backspace
     await page.keyboard.press("Backspace");
 
-    // Confirm deletion - button text is "Delete Rack" for racks
+    // Confirm deletion
     await expect(page.locator(locators.dialog.root)).toBeVisible();
     await page.click('[data-testid="btn-confirm-action"]');
 
-    // In v0.2, rack still exists but devices are cleared
-    await expect(page.locator(locators.rack.container).first()).toBeVisible();
+    // In multi-rack mode, deleting the only rack removes it entirely
     await expect(page.locator(locators.rack.device)).not.toBeVisible();
   });
 
@@ -76,8 +70,10 @@ test.describe("Keyboard Shortcuts", () => {
     await page.keyboard.type("?");
 
     // Help dialog should open (HelpPanel uses Dialog component)
+    // The Dialog.Title is sr-only with text "About Rackula" — check dialog is visible
     await expect(page.locator(locators.dialog.root)).toBeVisible({ timeout: 2000 });
-    await expect(page.locator(locators.dialog.title)).toHaveText("Help");
+    // Verify it's the help dialog by checking for the logo or keyboard shortcuts content
+    await expect(page.locator(".help-dialog")).toBeVisible();
   });
 
   test("Ctrl+S triggers save", async ({ page }) => {
@@ -93,7 +89,7 @@ test.describe("Keyboard Shortcuts", () => {
   });
 
   test("Escape closes dialogs", async ({ page }) => {
-    // Open new rack dialog (this shows replace dialog)
+    // Open new rack wizard dialog
     await clickNewRack(page);
     await expect(page.locator(locators.dialog.root)).toBeVisible();
 

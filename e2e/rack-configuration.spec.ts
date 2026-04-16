@@ -3,13 +3,16 @@ import type { Page } from "@playwright/test";
 import { gotoWithRack, clickNewRack, locators } from "./helpers";
 
 /**
- * Helper to open the New Rack form via the replace flow.
- * With a rack already loaded via share link, clicking New Rack shows replace dialog.
+ * Helper to open the New Rack wizard and advance past step 1 (name/type).
+ * In multi-rack mode, clicking New Rack opens the wizard directly.
+ * Fills name in step 1, clicks Next to reach step 2 (width + height).
  */
-async function openNewRackForm(page: Page) {
+async function openWizardStep2(page: Page, name: string) {
   await clickNewRack(page);
-  await page.click('[data-testid="btn-replace-rack"]');
-  await expect(page.locator(locators.dialog.root)).toBeVisible();
+  await expect(page.locator('[role="dialog"]')).toBeVisible();
+  await page.fill("#rack-name", name);
+  // Advance from step 1 (Name/Type) to step 2 (Width/Height)
+  await page.click('[data-testid="btn-wizard-next"]');
 }
 
 test.describe("Rack Configuration", () => {
@@ -18,22 +21,22 @@ test.describe("Rack Configuration", () => {
   });
 
   test("can create 10-inch rack with narrower render", async ({ page }) => {
-    await openNewRackForm(page);
+    await openWizardStep2(page, "Narrow Rack");
 
-    // Fill in rack details
-    await page.fill("#rack-name", "Narrow Rack");
-    await page.click('[data-testid="btn-height-24"]');
-
-    // Select 10" width using radio button
+    // Step 2: Select 10" width using radio button, then height
+    // 10" racks only offer 4U, 6U, 8U, 12U heights (not 24U)
     await page.click('[data-testid="radio-width-10"]');
+    await page.click('[data-testid="btn-height-12"]');
 
+    // Create rack
     await page.click('[data-testid="btn-wizard-next"]');
 
-    // Rack should be visible (dual-view has 2 containers)
-    await expect(page.locator(locators.rack.container).first()).toBeVisible();
+    // New rack should be visible — scope to it by name
+    const narrowRack = page.locator(locators.rackView.dualView).filter({ hasText: "Narrow Rack" });
+    await expect(narrowRack).toBeVisible();
 
     // The rack SVG should have a narrower viewBox for 10" rack
-    const rackSvg = page.locator(locators.rack.svg).first();
+    const rackSvg = narrowRack.locator(locators.rackView.frontSvg);
     const viewBox = await rackSvg.getAttribute("viewBox");
     expect(viewBox).toBeDefined();
 
@@ -46,18 +49,19 @@ test.describe("Rack Configuration", () => {
   });
 
   test("can create 19-inch rack with standard render", async ({ page }) => {
-    await openNewRackForm(page);
+    await openWizardStep2(page, "Standard Rack");
 
-    await page.fill("#rack-name", "Standard Rack");
+    // Step 2: 19" is default, just select height
     await page.click('[data-testid="btn-height-42"]');
-    // 19" is default, no need to change
 
+    // Create rack
     await page.click('[data-testid="btn-wizard-next"]');
 
-    // Rack should be visible (dual-view has 2 containers)
-    await expect(page.locator(locators.rack.container).first()).toBeVisible();
+    // New rack should be visible — scope to it by name
+    const stdRack = page.locator(locators.rackView.dualView).filter({ hasText: "Standard Rack" });
+    await expect(stdRack).toBeVisible();
 
-    const rackSvg = page.locator(locators.rack.svg).first();
+    const rackSvg = stdRack.locator(locators.rackView.frontSvg);
     const viewBox = await rackSvg.getAttribute("viewBox");
     expect(viewBox).toBeDefined();
 
@@ -75,20 +79,21 @@ test.describe("Rack Configuration", () => {
   test("rack with ascending units shows U1 at bottom (default desc_units=false, starting_unit=1)", async ({
     page,
   }) => {
-    await openNewRackForm(page);
+    await openWizardStep2(page, "Ascending Rack");
 
-    await page.fill("#rack-name", "Ascending Rack");
+    // Step 2: Use custom height of 10U
     await page.click('[data-testid="btn-height-custom"]');
     await page.fill("#custom-height", "10");
 
-    // Uses defaults: desc_units=false (ascending), starting_unit=1
+    // Create rack
     await page.click('[data-testid="btn-wizard-next"]');
 
-    // Rack should be visible (dual-view has 2 containers)
-    await expect(page.locator(locators.rack.container).first()).toBeVisible();
+    // New rack should be visible — scope to it by name
+    const ascRack = page.locator(locators.rackView.dualView).filter({ hasText: "Ascending Rack" });
+    await expect(ascRack).toBeVisible();
 
-    // In dual-view mode, each view has its own U labels - scope to first view
-    const firstRackSvg = page.locator(locators.rack.svg).first();
+    // Scope U labels to the front view of the new rack
+    const firstRackSvg = ascRack.locator(locators.rackView.frontSvg);
     const uLabels = firstRackSvg.locator(locators.rack.uLabel);
     const count = await uLabels.count();
     expect(count).toBe(10);

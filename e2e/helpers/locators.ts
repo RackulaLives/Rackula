@@ -71,6 +71,7 @@ export const locators = {
   toast: {
     root: ".toast",
     success: ".toast--success",
+    warning: ".toast--warning",
   },
 
   mobile: {

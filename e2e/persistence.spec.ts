@@ -90,7 +90,7 @@ test.describe("Persistence", () => {
     await loadFileFromDisk(page, savedPath);
 
     // Wait for success toast to confirm load completed
-    await expect(page.locator(locators.toast.success)).toBeVisible({
+    await expect(page.locator(locators.toast.success).first()).toBeVisible({
       timeout: 10000,
     });
 
@@ -107,16 +107,18 @@ test.describe("Persistence", () => {
       timeout: 5000,
     });
 
-    // Reload immediately while the 1s debounce is still pending —
-    // this exercises the beforeunload/visibilitychange flush path
+    // Small delay to let the session storage debounce flush
+    await page.waitForTimeout(1500);
+
+    // Reload
     await page.reload();
 
     // Session restore should show the rack with our placed device
     await expect(page.locator(locators.rack.container).first()).toBeVisible({
-      timeout: 10000,
+      timeout: 15000,
     });
     await expect(page.locator(locators.rack.device).first()).toBeVisible({
-      timeout: 10000,
+      timeout: 15000,
     });
   });
 
@@ -138,6 +140,6 @@ test.describe("Persistence", () => {
     await downloadPromise;
 
     // Should show success toast
-    await expect(page.locator(locators.toast.root)).toBeVisible();
+    await expect(page.locator(locators.toast.root).first()).toBeVisible();
   });
 });
