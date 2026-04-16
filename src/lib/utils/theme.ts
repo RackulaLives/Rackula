@@ -2,6 +2,8 @@
  * Theme utilities for persistence and document updates
  */
 
+import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
+
 const THEME_STORAGE_KEY = "Rackula_theme";
 
 export type Theme = "dark" | "light";
@@ -11,14 +13,9 @@ export type Theme = "dark" | "light";
  * @returns The stored theme, or 'dark' as default
  */
 export function loadThemeFromStorage(): Theme {
-  try {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored === "light" || stored === "dark") {
-      return stored;
-    }
-  } catch (e) {
-    // localStorage not available (SSR or privacy mode)
-    console.warn("[Rackula] Failed to load theme from localStorage:", e);
+  const stored = safeGetItem(THEME_STORAGE_KEY);
+  if (stored === "light" || stored === "dark") {
+    return stored;
   }
   return "dark";
 }
@@ -28,12 +25,7 @@ export function loadThemeFromStorage(): Theme {
  * @param theme - Theme to save
  */
 export function saveThemeToStorage(theme: Theme): void {
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-  } catch (e) {
-    // localStorage not available (SSR or privacy mode)
-    console.warn("[Rackula] Failed to save theme to localStorage:", e);
-  }
+  safeSetItem(THEME_STORAGE_KEY, theme);
 }
 
 /**

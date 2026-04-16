@@ -1,5 +1,10 @@
 import type { Layout } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
+import {
+  safeGetItem,
+  safeSetItem,
+  safeRemoveItem,
+} from "$lib/utils/safe-storage";
 import { sessionDebug } from "./debug";
 
 const log = sessionDebug.storage;
@@ -108,7 +113,10 @@ export function saveSession(layout: Layout): boolean {
       savedAt: new Date().toISOString(),
     };
     const serialized = JSON.stringify(sessionData);
-    localStorage.setItem(STORAGE_KEY, serialized);
+    if (!safeSetItem(STORAGE_KEY, serialized)) {
+      log("failed to save session: storage unavailable or quota exceeded");
+      return false;
+    }
     return true;
   } catch (error) {
     // Handle QuotaExceededError or other storage errors
@@ -137,7 +145,7 @@ export function loadSession(): Layout | null {
  */
 export function loadSessionWithTimestamp(): SessionLoadResult | null {
   try {
-    const serialized = localStorage.getItem(STORAGE_KEY);
+    const serialized = safeGetItem(STORAGE_KEY);
     if (!serialized) {
       return null;
     }
@@ -195,11 +203,7 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
  * Clear the autosaved session from localStorage.
  */
 export function clearSession(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch (error) {
-    log("failed to clear session: %O", error);
-  }
+  safeRemoveItem(STORAGE_KEY);
 }
 
 /**
