@@ -11,27 +11,36 @@ import { locators } from "./locators";
  * @param page - Playwright page
  * @param options.yOffsetPercent - Vertical position in rack (0-100), default 10
  * @param options.deviceIndex - Which palette device to drag (default 0 = first)
+ * @param options.rackIndex - Zero-based index of the target rack in multi-rack layouts (default 0)
  * @returns Number of devices in rack after drag
  */
 export async function dragDeviceToRack(
   page: Page,
-  options?: { yOffsetPercent?: number; deviceIndex?: number },
+  options?: { yOffsetPercent?: number; deviceIndex?: number; rackIndex?: number },
 ): Promise<number> {
   const yPercent = options?.yOffsetPercent ?? 10;
   const deviceIndex = options?.deviceIndex ?? 0;
+  const rackIndex = options?.rackIndex ?? 0;
 
   await expect(page.locator(locators.device.paletteItem).first()).toBeVisible();
 
   const deviceCountBefore = await page.locator(locators.rack.device).count();
 
   await page.evaluate(
-    ({ yPercent, deviceIndex }) => {
+    ({ yPercent, deviceIndex, rackIndex }) => {
       const deviceItems = document.querySelectorAll(".device-palette-item");
       const deviceItem = deviceItems[deviceIndex];
-      const rack = document.querySelector(".rack-svg");
+      // Use front-view SVGs so rackIndex maps directly to rack number
+      const rackSvgs = document.querySelectorAll(".rack-front .rack-svg");
+      const rack = rackSvgs[rackIndex];
+      if (!rack) {
+        throw new Error(
+          `Rack at index ${rackIndex} not found (${rackSvgs.length} rack(s) available)`,
+        );
+      }
 
-      if (!deviceItem || !rack) {
-        throw new Error("Could not find device item or rack");
+      if (!deviceItem) {
+        throw new Error(`Device item at index ${deviceIndex} not found`);
       }
 
       const rackRect = rack.getBoundingClientRect();
@@ -76,7 +85,7 @@ export async function dragDeviceToRack(
         }),
       );
     },
-    { yPercent, deviceIndex },
+    { yPercent, deviceIndex, rackIndex },
   );
 
   // Wait for device count to increase

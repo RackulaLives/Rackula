@@ -646,7 +646,7 @@ function generateDeviceEntry(device: ImportedDevice): string {
 }
 
 function escapeString(str: string): string {
-  return str.replace(/'/g, "\\'").replace(/\\/g, "\\\\");
+  return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
 // Generic devices to keep from existing library

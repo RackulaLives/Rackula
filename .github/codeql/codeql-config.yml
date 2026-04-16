@@ -1,0 +1,8 @@
+name: "Rackula CodeQL config"
+
+# Dev-time tooling under scripts/ (e.g. NetBox import utilities) performs
+# fetch -> writeFile by design. These utilities target trusted upstreams
+# and are not shipped with the app, so exclude them from analysis to stop
+# spurious alerts for js/http-to-file-access and similar patterns.
+paths-ignore:
+  - "scripts/**"

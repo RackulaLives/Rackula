@@ -300,23 +300,48 @@ test.describe("Device Metadata Persistence", () => {
       await setDeviceName(page, TEST_METADATA.name);
       await deselectDevice(page);
 
-      // Create a second rack via replace flow (single-rack mode)
+      // Create a second rack (multi-rack mode — wizard opens directly)
       await clickNewRack(page);
-      await page.click('[data-testid="btn-replace-rack"]');
       await completeWizardWithClicks(page, { name: "Second Rack", height: 24 });
 
-      // Add a device to the second rack
-      await dragDeviceToRack(page);
-      await expect(page.locator(locators.rack.device).first()).toBeVisible();
+      // Wait for the second rack container to mount before continuing —
+      // otherwise dragDeviceToRack({ rackIndex: 1 }) can race against the mount
+      const rackFronts = page.locator(locators.rackView.front);
+      await expect(rackFronts).toHaveCount(2);
 
-      await selectDevice(page, 0);
+      // Switch back to Devices tab (clickNewRack switches to Racks tab)
+      await page.getByTestId("sidebar-tab-devices").click();
+
+      // Add a device to the second rack (rackIndex 1)
+      await dragDeviceToRack(page, { rackIndex: 1 });
+
+      // Scope assertions to the second rack container
+      const secondRack = rackFronts.nth(1);
+      await expect(secondRack.locator(locators.rack.device).first()).toBeVisible();
+
+      // Click the device in the second rack specifically
+      await secondRack.locator(locators.rack.device).first().click();
+      await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+
       await setDeviceIp(page, TEST_METADATA_2.ip);
       await setDeviceName(page, TEST_METADATA_2.name);
+      await deselectDevice(page);
 
-      // Verify the second rack's device has its own metadata
-      const metadata = await getDeviceMetadata(page);
-      expect(metadata.ip).toBe(TEST_METADATA_2.ip);
-      expect(metadata.name).toBe(TEST_METADATA_2.name);
+      // Verify second rack's device has its own metadata
+      await secondRack.locator(locators.rack.device).first().click();
+      await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+      const rack2Meta = await getDeviceMetadata(page);
+      expect(rack2Meta.ip).toBe(TEST_METADATA_2.ip);
+      expect(rack2Meta.name).toBe(TEST_METADATA_2.name);
+      await deselectDevice(page);
+
+      // Switch back to first rack and verify original metadata is intact
+      const firstRack = rackFronts.nth(0);
+      await firstRack.locator(locators.rack.device).first().click();
+      await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+      const rack1Meta = await getDeviceMetadata(page);
+      expect(rack1Meta.ip).toBe(TEST_METADATA.ip);
+      expect(rack1Meta.name).toBe(TEST_METADATA.name);
     });
   });
 

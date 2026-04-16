@@ -104,8 +104,8 @@ test.describe("Archive Format", () => {
     // Load the saved file
     await loadFileFromDisk(page, savedPath);
 
-    // Wait for success toast to confirm load completed
-    await expect(page.locator(locators.toast.success)).toBeVisible({
+    // Wait for load success toast (use .last() — share link toast may still be visible)
+    await expect(page.locator(locators.toast.success).last()).toBeVisible({
       timeout: 10000,
     });
 

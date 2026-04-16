@@ -43,10 +43,10 @@ test.describe("View Reset on Rack Changes", () => {
     const transformBefore = await getPanzoomTransform(page);
     expect(transformBefore).toBeTruthy();
 
-    // Create a new rack (replace existing) via the replace flow
+    // Create a new rack via wizard (multi-rack mode — no replace dialog)
     await clickNewRack(page);
-    await page.click('[data-testid="btn-replace-rack"]');
     await page.fill("#rack-name", "Test Rack");
+    await page.click('[data-testid="btn-wizard-next"]');
     await page.click('[data-testid="btn-height-24"]');
     await page.click('[data-testid="btn-wizard-next"]');
     await expect(page.locator(locators.rack.container).first()).toBeVisible();

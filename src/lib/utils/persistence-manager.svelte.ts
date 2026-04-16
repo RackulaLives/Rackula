@@ -389,9 +389,13 @@ export function initPersistenceEffects(): void {
   const layoutStore = getLayoutStore();
 
   // Effect 1: Auto-save layout to localStorage with debouncing
+  // Guard: skip clearing on initial run to avoid wiping saved session
+  // before App.onMount can restore it (race condition fix)
+  let hasEverHadRack = false;
   $effect(() => {
     const currentLayout = layoutStore.layout;
     if (layoutStore.hasRack) {
+      hasEverHadRack = true;
       if (saveDebounceTimer) {
         clearTimeout(saveDebounceTimer);
       }
@@ -404,7 +408,11 @@ export function initPersistenceEffects(): void {
         clearTimeout(saveDebounceTimer);
         saveDebounceTimer = null;
       }
-      clearSession();
+      // Only clear session if we previously had a rack — prevents wiping
+      // localStorage before App.onMount restores the session on page load
+      if (hasEverHadRack) {
+        clearSession();
+      }
     }
     return () => {
       if (saveDebounceTimer) {
