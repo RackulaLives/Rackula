@@ -306,7 +306,7 @@ test.describe("Device Metadata Persistence", () => {
 
       // Wait for the second rack container to mount before continuing —
       // otherwise dragDeviceToRack({ rackIndex: 1 }) can race against the mount
-      const rackFronts = page.locator(".rack-front");
+      const rackFronts = page.locator(locators.rackView.front);
       await expect(rackFronts).toHaveCount(2);
 
       // Switch back to Devices tab (clickNewRack switches to Racks tab)

@@ -223,22 +223,25 @@ test.describe("Starter Library", () => {
 
     // Should show switch items (KVM Switch, 24-Port Switch, 48-Port Switch)
     const results = page.locator(locators.device.paletteItem);
-    expect(await results.count()).toBeGreaterThan(0);
-
-    const names = await results.allTextContents();
-    const matchingNames = names.map((n) => n.trim()).filter((n) => /switch/i.test(n));
-    expect(matchingNames.length).toBeGreaterThan(0);
+    const names = (await results.allTextContents()).map((n) => n.trim());
+    const matchingNames = names.filter((n) => /switch/i.test(n));
     expect(matchingNames.some((n) => /KVM Switch/i.test(n))).toBe(true);
     expect(matchingNames.some((n) => /24-Port/i.test(n))).toBe(true);
+    expect(matchingNames.some((n) => /48-Port/i.test(n))).toBe(true);
+    // Unrelated items should be filtered out by the search
+    expect(names.some((n) => /\bServer\b/i.test(n))).toBe(false);
   });
 
   test("can search for cable management devices", async ({ page }) => {
     const searchInput = page.locator('[data-testid="search-devices"]');
     await searchInput.fill("Cable Manager");
 
-    // Should show cable management items (Cable Manager)
+    // Should show cable management items (Cable Manager 1U/2U)
     const results = page.locator(locators.device.paletteItem);
-    expect(await results.count()).toBeGreaterThan(0);
+    const names = (await results.allTextContents()).map((n) => n.trim());
+    expect(names.some((n) => /Cable Manager/i.test(n))).toBe(true);
+    // Unrelated items should be filtered out by the search
+    expect(names.some((n) => /\bServer\b/i.test(n))).toBe(false);
   });
 
   test("can search for brush panel", async ({ page }) => {

@@ -24,7 +24,7 @@ test.describe("Multi-Rack Mode", () => {
     await clickNewRack(page);
 
     // Wizard should open directly — no ConfirmReplaceDialog
-    await expect(page.locator('[role="dialog"]')).toBeVisible();
+    await expect(page.locator(locators.dialog.root)).toBeVisible();
     await expect(page.locator("#rack-name")).toBeVisible();
   });
 
@@ -73,14 +73,14 @@ test.describe("Multi-Rack Mode", () => {
     await expect(page.locator("#rack-name")).toBeHidden();
 
     // Toast warning should appear
-    await expect(page.locator(locators.toast.root)).toBeVisible();
+    await expect(page.locator(locators.toast.warning)).toBeVisible();
   });
 
   test("Escape closes wizard dialog", async ({ page }) => {
     await clickNewRack(page);
-    await expect(page.locator('[role="dialog"]')).toBeVisible();
+    await expect(page.locator(locators.dialog.root)).toBeVisible();
 
     await page.keyboard.press("Escape");
-    await expect(page.locator('[role="dialog"]')).not.toBeVisible();
+    await expect(page.locator(locators.dialog.root)).not.toBeVisible();
   });
 });
