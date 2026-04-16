@@ -44,6 +44,7 @@ docs/planning/
 # Git worktrees
 .worktree/
 .worktrees/
+.claude/worktrees/
 
 # Claude Memory — auto-generated context files (preserve root /CLAUDE.md)
 **/CLAUDE.md
