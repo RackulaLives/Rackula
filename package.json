@@ -67,8 +67,8 @@
     "svelte-check": "^4.4.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.58.2",
-    "vite": "^8.0.8",
+    "typescript-eslint": "^8.59.0",
+    "vite": "^8.0.9",
     "vitest": "^4.0.17"
   },
   "lint-staged": {
