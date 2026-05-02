@@ -24,6 +24,7 @@ const ROOT_DIR = join(__dirname, "..");
 // NetBox repository URLs
 const NETBOX_RAW_BASE =
   "https://raw.githubusercontent.com/netbox-community/devicetype-library/master";
+const MAX_RATE_LIMIT_RETRIES = 5;
 const NETBOX_API_BASE =
   "https://api.github.com/repos/netbox-community/devicetype-library/contents";
 
@@ -257,7 +258,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
+async function fetchJson<T>(url: string, retryCount = 0): Promise<T> {
   await sleep(RATE_LIMIT_DELAY);
   const response = await fetch(url, {
     headers: {
@@ -268,9 +269,16 @@ async function fetchJson<T>(url: string): Promise<T> {
 
   if (!response.ok) {
     if (response.status === 403) {
-      console.log("Rate limited, waiting 60s...");
+      if (retryCount >= MAX_RATE_LIMIT_RETRIES) {
+        throw new Error(
+          `Failed to fetch ${url}: rate limited after ${MAX_RATE_LIMIT_RETRIES} retries (HTTP 403)`,
+        );
+      }
+      console.log(
+        `Rate limited, waiting 60s before retry ${retryCount + 1}/${MAX_RATE_LIMIT_RETRIES}...`,
+      );
       await sleep(60000);
-      return fetchJson(url);
+      return fetchJson(url, retryCount + 1);
     }
     throw new Error(`Failed to fetch ${url}: ${response.status}`);
   }
@@ -369,6 +377,7 @@ function inferCategory(
 
 async function downloadImage(url: string, destPath: string): Promise<boolean> {
   try {
+    await sleep(RATE_LIMIT_DELAY);
     const response = await fetch(url, {
       headers: { "User-Agent": "Rackula-Bulk-Import" },
     });
@@ -852,7 +861,7 @@ function getGenericDevices(): ImportedDevice[] {
 
     // Blanks
     {
-      slug: "0-5u-blank",
+      slug: "0.5u-blank",
       model: "Blank",
       u_height: 0.5,
       is_full_depth: false,

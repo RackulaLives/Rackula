@@ -6,14 +6,14 @@ Rackula is currently in active development. Security updates are applied to the 
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.9.1   | :white_check_mark: |
-| < 0.9.1 | :x:                |
+| 0.9.4   | :white_check_mark: |
+| < 0.9.4 | :x:                |
 
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability in Rackula, please report it by:
 
-1. **Email**: Create an issue at https://github.com/RackulaLives/Rackula/issues (or the primary repository)
+1. **Private Report**: Submit a private vulnerability report via GitHub Security Advisories at https://github.com/RackulaLives/Rackula/security/advisories/new
 2. **Response Time**: We aim to acknowledge reports within 48 hours
 3. **Disclosure**: Please allow us time to address the issue before public disclosure
 

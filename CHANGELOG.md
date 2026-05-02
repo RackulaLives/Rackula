@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2026-05-01
+
+### Added
+
+- Separate layout naming from rack naming — layouts and racks can now have independent names (#1005)
+
+### Fixed
+
+- Device type auto-import integrates with command system for proper undo/redo (#1470)
+- Batch auto-import with placement command for atomic undo/redo
+- Context menu move up/down now checks collisions (#1462, PR #1504)
+- Unique SVG pattern IDs per rack instance to prevent cross-rack rendering conflicts (#1466, PR #1505)
+- Auto-detect IPv6 availability to prevent nginx startup failure (#1516, PR #1527)
+- Show error/warning toasts for device import failures (#1391, PR #1506)
+- Preserve slot_position and slot_width in YAML serialization (#1564, contributed by @lorenzowood)
+- Guard preset shortcuts when custom-height input is focused in new-rack wizard (#1580, PR #1604)
+- Double bay device selection (#1522, PR #1545)
+- Storage resilience — use safeStorage for all web storage access (#1392, PR #1530)
+- Make nginx DNS resolver configurable for Kubernetes (#1535, PR #1538)
+- Drop broken `npm install -g npm@11` from Dockerfile that broke dev/prod image builds (follow-up to PR #1600)
+
+### Security
+
+- Fix escape order in NetBox importer to prevent double-escaping, scope CodeQL to src (#1595, PR #1601)
+- Bump hono to 4.12.14 and dompurify to 3.4.0, closing 7 CVEs (#1594, PR #1596)
+
+### Technical
+
+- Decompose App.svelte and Rack.svelte into rendering and interaction layers (#1395, #1451)
+- Extract drag-drop and context menu logic from Rack.svelte
+- Centralise E2E CSS selectors into locators.ts (#1458)
+- E2E test suite recovery — 58 failures resolved (#1508)
+- Remove root npm package-lock.json (project uses bun) (#1603)
+- Dependency updates: Svelte 5.55.5, Vite 8.0.10, marked 18.0.2, hono 4.12.14
+
 ## [0.9.1] - 2026-03-10
 
 ### Added
