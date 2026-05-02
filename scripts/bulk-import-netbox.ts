@@ -369,6 +369,7 @@ function inferCategory(
 
 async function downloadImage(url: string, destPath: string): Promise<boolean> {
   try {
+    await sleep(RATE_LIMIT_DELAY);
     const response = await fetch(url, {
       headers: { "User-Agent": "Rackula-Bulk-Import" },
     });
