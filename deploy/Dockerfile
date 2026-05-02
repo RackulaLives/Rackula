@@ -20,7 +20,6 @@ ENV VITE_PERSIST_ENABLED=${VITE_PERSIST_ENABLED}
 
 # Copy package files and install dependencies
 COPY package*.json ./
-RUN npm install -g npm@11
 RUN npm ci
 
 # Copy source code and build

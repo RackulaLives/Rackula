@@ -19,11 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unique SVG pattern IDs per rack instance to prevent cross-rack rendering conflicts (#1466, PR #1505)
 - Auto-detect IPv6 availability to prevent nginx startup failure (#1516, PR #1527)
 - Show error/warning toasts for device import failures (#1391, PR #1506)
-- Preserve slot_position and slot_width in YAML serialization (#1564)
+- Preserve slot_position and slot_width in YAML serialization (#1564, contributed by @lorenzowood)
 - Guard preset shortcuts when custom-height input is focused in new-rack wizard (#1580, PR #1604)
 - Double bay device selection (#1522, PR #1545)
 - Storage resilience — use safeStorage for all web storage access (#1392, PR #1530)
 - Make nginx DNS resolver configurable for Kubernetes (#1535, PR #1538)
+- Drop broken `npm install -g npm@11` from Dockerfile that broke dev/prod image builds (follow-up to PR #1600)
 
 ### Security
 
