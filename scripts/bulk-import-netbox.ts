@@ -852,7 +852,7 @@ function getGenericDevices(): ImportedDevice[] {
 
     // Blanks
     {
-      slug: "0-5u-blank",
+      slug: "0.5u-blank",
       model: "Blank",
       u_height: 0.5,
       is_full_depth: false,
