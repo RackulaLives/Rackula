@@ -78,7 +78,7 @@
   },
   "dependencies": {
     "@lucide/svelte": "^1.14.0",
-    "bits-ui": "^2.18.0",
+    "bits-ui": "^2.18.1",
     "browser-fs-access": "^0.38.0",
     "debug": "^4.4.3",
     "dompurify": "^3.4.2",
@@ -92,8 +92,8 @@
     "paneforge": "^1.0.2",
     "panzoom": "^9.4.4",
     "qrcode": "^1.5.4",
-    "simple-icons": "^16.18.0",
+    "simple-icons": "^16.18.1",
     "vaul-svelte": "^1.0.0-next.7",
-    "zod": "^4.4.2"
+    "zod": "^4.4.3"
   }
 }
