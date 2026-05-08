@@ -40,7 +40,7 @@
     "@playwright/test": "^1.59.1",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
-    "@sveltejs/vite-plugin-svelte": "^7.1.0",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/svelte": "^5.2.6",
     "@testing-library/user-event": "^14.6.1",
@@ -59,7 +59,7 @@
     "happy-dom": "^20.9.0",
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
-    "lint-staged": "^16.4.0",
+    "lint-staged": "^17.0.3",
     "prettier": "^3.8.3",
     "prettier-plugin-svelte": "^3.5.1",
     "sharp": "^0.34.5",
@@ -68,7 +68,7 @@
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.10",
+    "vite": "^8.0.11",
     "vitest": "^4.0.17"
   },
   "lint-staged": {
