@@ -28,6 +28,7 @@
     cyberPowerPath,
     deskPiPath,
     netgatePath,
+    fsPath,
   } from "./customBrandIcons";
 
   interface Props {
@@ -62,6 +63,7 @@
     cyberpower: { path: cyberPowerPath, hex: "FFFFFF" },
     deskpi: { path: deskPiPath, hex: "FFFFFF" },
     netgate: { path: netgatePath, hex: "FFFFFF" },
+    fs: { path: fsPath, hex: "E31837" },
   };
 
   const icon = $derived(slug ? iconMap[slug] : undefined);

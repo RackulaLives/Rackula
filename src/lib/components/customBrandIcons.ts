@@ -22,3 +22,7 @@ export const netgatePath =
 // Arista - simplified custom glyph for brand section icon
 export const aristaPath =
   "M12 2L2 22h4l2-4h8l2 4h4L12 2zm0 5.3L9.5 13h5L12 7.3z";
+
+// FS.COM - circular emblem with three horizontal bars (traced from brand logo)
+export const fsPath =
+  "M12 2A10 10 0 0 1 22 12A10 10 0 0 1 12 22A10 10 0 0 1 2 12A10 10 0 0 1 12 2Z M4 7.5L4 9L19 9L19 7.5Z M4 11L4 12.5L16 12.5L16 11Z M4 14.5L4 16L14 16L14 14.5Z";

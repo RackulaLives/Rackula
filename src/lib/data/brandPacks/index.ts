@@ -155,6 +155,7 @@ export function getBrandPacks(): BrandSection[] {
       title: "FS.COM",
       devices: fsDevices,
       defaultExpanded: false,
+      icon: "fs",
     },
     // Storage
     {
