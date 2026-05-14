@@ -30,6 +30,7 @@ import { ciscoDevices } from "./cisco";
 import { aristaDevices } from "./arista";
 import { juniperDevices } from "./juniper";
 import { vertivDevices } from "./vertiv";
+import { fsDevices } from "./fs";
 
 export {
   ubiquitiDevices,
@@ -57,6 +58,7 @@ export {
   aristaDevices,
   juniperDevices,
   vertivDevices,
+  fsDevices,
 };
 
 /**
@@ -147,6 +149,12 @@ export function getBrandPacks(): BrandSection[] {
       devices: netgateDevices,
       defaultExpanded: false,
       icon: "netgate",
+    },
+    {
+      id: "fs",
+      title: "FS.COM",
+      devices: fsDevices,
+      defaultExpanded: false,
     },
     // Storage
     {
@@ -309,6 +317,8 @@ export function getBrandDevices(brandId: string): DeviceType[] {
       return juniperDevices;
     case "vertiv":
       return vertivDevices;
+    case "fs":
+      return fsDevices;
     default:
       return [];
   }
@@ -344,6 +354,7 @@ export function getAllBrandDevices(): DeviceType[] {
     ...aristaDevices,
     ...juniperDevices,
     ...vertivDevices,
+    ...fsDevices,
   ];
 }
 
