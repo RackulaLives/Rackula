@@ -1,22 +1,15 @@
 name: Claude Code Review
 
-# SECURITY NOTE:
-# This workflow uses `pull_request_target` so secrets (ANTHROPIC_API_KEY) and
-# `id-token: write` are available for fork PRs — fork PRs are the ones that most
-# need automated review. The safety contract is:
-#   1. Checkout pins to the PR head SHA (not a mutable ref) so a force-push
-#      mid-run cannot swap the code being reviewed.
-#   2. `persist-credentials: false` — no GITHUB_TOKEN left in .git/config that
-#      fork-controlled code could read.
-#   3. We never run `npm install`, build, or test steps on the PR's code in
-#      this workflow. Only the action's own pinned dependencies execute.
-#   4. Claude is denied Bash/Write/Edit/NotebookEdit, so it can read the diff
-#      but cannot execute fork code or modify anything.
-# Residual risk: prompt injection in the diff could produce a misleading review
-# comment, but cannot exfiltrate secrets without an execution tool.
+# Fork PRs are skipped: GitHub strips secrets and `id-token: write` from
+# `pull_request` runs triggered by forks, so the action cannot authenticate.
+# `pull_request_target` would expose secrets but Anthropic's app-token exchange
+# rejects OIDC tokens with `event_name: pull_request_target`
+# (see https://github.com/anthropics/claude-code-action/issues/713). Until that
+# is fixed upstream, fork PRs go unreviewed by this workflow — use the
+# `@claude` comment trigger in claude.yml for on-demand review of fork PRs.
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
     # Optional: Only run on specific file changes
     # paths:
@@ -33,8 +26,11 @@ jobs:
     #   github.event.pull_request.user.login == 'new-developer' ||
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
 
-    # Skip drafts and Dependabot PRs (no access to secrets)
-    if: github.event.pull_request.draft != true && github.actor != 'dependabot[bot]'
+    # Skip drafts, Dependabot PRs, and fork PRs (no access to secrets/OIDC).
+    if: >-
+      github.event.pull_request.draft != true
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+      && github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
@@ -47,12 +43,12 @@ jobs:
       id-token: write
 
     steps:
-      - name: Checkout PR head (pinned to SHA, no credentials persisted)
+      - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Run Claude Code Review
         id: claude-review
