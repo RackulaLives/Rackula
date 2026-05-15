@@ -12,6 +12,10 @@ RUN bun install --frozen-lockfile --production
 FROM base AS runner
 WORKDIR /app
 
+# Patch system packages to resolve known CVEs (libssl3/libcrypto3
+# CVE-2026-31789 et al.). Mirrors the pattern in deploy/Dockerfile.
+RUN apk upgrade --no-cache
+
 # Create non-root user with matching group
 RUN addgroup --system --gid 1001 rackula && \
     adduser --system --uid 1001 --ingroup rackula rackula
