@@ -1,7 +1,22 @@
 name: Claude Code Review
 
+# SECURITY NOTE:
+# This workflow uses `pull_request_target` so secrets (ANTHROPIC_API_KEY) and
+# `id-token: write` are available for fork PRs — fork PRs are the ones that most
+# need automated review. The safety contract is:
+#   1. Checkout pins to the PR head SHA (not a mutable ref) so a force-push
+#      mid-run cannot swap the code being reviewed.
+#   2. `persist-credentials: false` — no GITHUB_TOKEN left in .git/config that
+#      fork-controlled code could read.
+#   3. We never run `npm install`, build, or test steps on the PR's code in
+#      this workflow. Only the action's own pinned dependencies execute.
+#   4. Claude is denied Bash/Write/Edit/NotebookEdit, so it can read the diff
+#      but cannot execute fork code or modify anything.
+# Residual risk: prompt injection in the diff could produce a misleading review
+# comment, but cannot exfiltrate secrets without an execution tool.
+
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, ready_for_review, reopened]
     # Optional: Only run on specific file changes
     # paths:
@@ -32,9 +47,11 @@ jobs:
       id-token: write
 
     steps:
-      - name: Checkout repository
+      - name: Checkout PR head (pinned to SHA, no credentials persisted)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
           fetch-depth: 1
 
       - name: Run Claude Code Review
@@ -43,6 +60,6 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: '/code-review'
-          claude_args: '--system-prompt "Review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"'
+          claude_args: '--system-prompt "Review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}" --disallowedTools "Bash,Write,Edit,NotebookEdit"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
