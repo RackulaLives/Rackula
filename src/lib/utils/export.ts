@@ -820,14 +820,35 @@ export function generateExportSVG(
         RACK_PADDING +
         RAIL_WIDTH;
       const deviceHeight = device.u_height * U_HEIGHT - 2;
-      const deviceWidth = RACK_WIDTH - RAIL_WIDTH * 2 - 4;
+
+      // Half-width slot geometry (mirrors RackDevice.svelte:218-233).
+      // Only two-slot racks (>10") split into left/right; everything else is full-width.
+      // Outer-rail edges keep the export's 2px padding; the inner midline edges meet
+      // so two half-width devices touch like in the live preview.
+      const fullInteriorWidth = RACK_WIDTH - RAIL_WIDTH * 2;
+      const isHalfWidth = device.slot_width === 1 && rack.width > 10;
+      const effectiveSlotPosition = isHalfWidth
+        ? (placedDevice.slot_position ?? "full")
+        : "full";
+      let deviceX: number;
+      let deviceWidth: number;
+      if (effectiveSlotPosition === "right") {
+        deviceX = RAIL_WIDTH + fullInteriorWidth / 2;
+        deviceWidth = fullInteriorWidth / 2 - 2;
+      } else if (effectiveSlotPosition === "left") {
+        deviceX = RAIL_WIDTH + 2;
+        deviceWidth = fullInteriorWidth / 2 - 2;
+      } else {
+        deviceX = RAIL_WIDTH + 2;
+        deviceWidth = fullInteriorWidth - 4;
+      }
 
       // Always render device rect as background
       const deviceRect = document.createElementNS(
         "http://www.w3.org/2000/svg",
         "rect",
       );
-      deviceRect.setAttribute("x", String(RAIL_WIDTH + 2));
+      deviceRect.setAttribute("x", String(deviceX));
       deviceRect.setAttribute("y", String(deviceY + 1));
       deviceRect.setAttribute("width", String(deviceWidth));
       deviceRect.setAttribute("height", String(deviceHeight));
@@ -855,7 +876,7 @@ export function generateExportSVG(
           "http://www.w3.org/2000/svg",
           "image",
         );
-        imageEl.setAttribute("x", String(RAIL_WIDTH + 2));
+        imageEl.setAttribute("x", String(deviceX));
         imageEl.setAttribute("y", String(deviceY + 1));
         imageEl.setAttribute("width", String(deviceWidth));
         imageEl.setAttribute("height", String(deviceHeight));
@@ -874,7 +895,7 @@ export function generateExportSVG(
           "http://www.w3.org/2000/svg",
           "rect",
         );
-        clipRect.setAttribute("x", String(RAIL_WIDTH + 2));
+        clipRect.setAttribute("x", String(deviceX));
         clipRect.setAttribute("y", String(deviceY + 1));
         clipRect.setAttribute("width", String(deviceWidth));
         clipRect.setAttribute("height", String(deviceHeight));
@@ -887,7 +908,7 @@ export function generateExportSVG(
         // Category icon (only for devices tall enough and with a category)
         if (deviceHeight >= 20 && device.category) {
           const iconSize = 12;
-          const iconX = RAIL_WIDTH + 6;
+          const iconX = deviceX + 4;
           const iconY = deviceY + (deviceHeight - iconSize) / 2 + 1;
 
           const iconSvg = document.createElementNS(
@@ -937,7 +958,7 @@ export function generateExportSVG(
         "http://www.w3.org/2000/svg",
         "text",
       );
-      deviceNameEl.setAttribute("x", String(RACK_WIDTH / 2));
+      deviceNameEl.setAttribute("x", String(deviceX + deviceWidth / 2));
       deviceNameEl.setAttribute("y", String(deviceY + deviceHeight / 2 + 1));
       deviceNameEl.setAttribute("fill", "#ffffff");
       deviceNameEl.setAttribute("font-size", String(fittedLabel.fontSize));
