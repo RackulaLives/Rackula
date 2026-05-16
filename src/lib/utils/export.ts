@@ -73,28 +73,19 @@ const DARK_GRID = "#505050";
 const LIGHT_GRID = "#a0a0a0";
 
 /**
- * Filter devices by face for export
- * Full-depth devices are visible from both sides, so they're included on both faces
+ * Filter devices by face for export.
+ *
+ * Mirrors the live preview in Rack.svelte: a device is visible on a face when
+ * its placement face is "both" or matches the requested face. Full-depth
+ * placements are normalised to face: "both" at placement time, so they fall
+ * through the "both" branch without a per-device library lookup.
  */
 function filterDevicesByFace(
   devices: Rack["devices"],
   faceFilter: "front" | "rear" | undefined,
-  deviceLibrary: DeviceType[],
 ): Rack["devices"] {
   if (!faceFilter) return devices;
-  return devices.filter((d) => {
-    // Both-face devices are always visible
-    if (d.face === "both") return true;
-    // Devices on this face are visible
-    if (d.face === faceFilter) return true;
-    // Full-depth devices on the opposite face are also visible
-    const deviceType = deviceLibrary.find((dt) => dt.slug === d.device_type);
-    if (deviceType) {
-      const isFullDepth = deviceType.is_full_depth !== false;
-      if (isFullDepth) return true;
-    }
-    return false;
-  });
+  return devices.filter((d) => d.face === "both" || d.face === faceFilter);
 }
 
 /**
@@ -798,11 +789,7 @@ export function generateExportSVG(
     }
 
     // Filter and render devices
-    const filteredDevices = filterDevicesByFace(
-      rack.devices,
-      faceFilter,
-      deviceLibrary,
-    );
+    const filteredDevices = filterDevicesByFace(rack.devices, faceFilter);
     for (const placedDevice of filteredDevices) {
       const device = deviceLibrary.find(
         (d) => d.slug === placedDevice.device_type,
