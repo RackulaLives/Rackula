@@ -1,44 +1,137 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
+name: Trivy Security Scan
 
-name: trivy
+# On-demand Trivy vulnerability scan that complements the release-time scan
+# in deploy-prod.yml. Lets us re-scan published images and the current repo
+# state without cutting a release. Image categories match deploy-prod's scan
+# so findings refresh the same alert set instead of stacking duplicates.
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
   schedule:
-    - cron: '18 19 * * 0'
+    # Weekly Sunday 19:18 UTC — offset from CodeQL (Sundays 11:35 UTC)
+    # to spread scheduler load.
+    - cron: "18 19 * * 0"
 
 permissions:
   contents: read
 
+env:
+  REGISTRY: ghcr.io
+  TRIVY_VERSION: "v0.70.0"
+
+concurrency:
+  group: trivy-scan-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
-    permissions:
-      contents: read # for actions/checkout to fetch code
-      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
-    name: Build
+  scan-filesystem:
+    name: Scan filesystem (${{ matrix.target.name }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: app
+            path: "."
+            category: filesystem-app
+          - name: api
+            path: ./api
+            category: filesystem-api
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Build an image from Dockerfile
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ matrix.target.path }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          # Without this, SARIF can include severities below the filter.
+          limit-severities-for-sarif: true
+          exit-code: 0
+          version: ${{ env.TRIVY_VERSION }}
+
+      - name: Upload SARIF to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-${{ matrix.target.category }}
+
+  scan-images:
+    name: Scan image (${{ matrix.image.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: app-latest
+            repo_suffix: ""
+            tag: latest
+          - name: app-persist
+            repo_suffix: ""
+            tag: persist
+          - name: api-latest
+            repo_suffix: "-api"
+            tag: latest
+
+    steps:
+      - name: Log in to Container Registry
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image reference
+        env:
+          IMAGE_NAME: ${{ github.repository }}
+          REPO_SUFFIX: ${{ matrix.image.repo_suffix }}
+          TAG: ${{ matrix.image.tag }}
         run: |
-          docker build -t docker.io/my-organization/my-app:${{ github.sha }} .
+          IMAGE_NAME_LC=$(echo "$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')
+          IMAGE_REF="${REGISTRY}/${IMAGE_NAME_LC}${REPO_SUFFIX}:${TAG}"
+          IMAGE_CATEGORY=$(echo "$IMAGE_REF" | tr '/:' '--' | tr -cd '[:alnum:]._-')
+          {
+            echo "IMAGE_REF=${IMAGE_REF}"
+            echo "IMAGE_CATEGORY=${IMAGE_CATEGORY}"
+          } >> "$GITHUB_ENV"
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
+      - name: Run Trivy image scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
-          image-ref: 'docker.io/my-organization/my-app:${{ github.sha }}'
-          format: 'template'
-          template: '@/contrib/sarif.tpl'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
+          image-ref: ${{ env.IMAGE_REF }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          limit-severities-for-sarif: true
+          exit-code: 0
+          version: ${{ env.TRIVY_VERSION }}
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Upload SARIF to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: trivy-results.sarif
+          # Match deploy-prod's category so on-demand runs refresh the
+          # release-time alert set rather than creating duplicates.
+          category: trivy-${{ env.IMAGE_CATEGORY }}
