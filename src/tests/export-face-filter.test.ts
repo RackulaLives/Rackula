@@ -24,6 +24,9 @@ const baseOptions: Omit<ExportOptions, "exportView"> = {
   displayMode: "label",
 };
 
+// Devices are rendered as <rect> elements coloured with the device type's
+// `colour` value, so filtering rects by fill counts how many of a given
+// device type made it into the rendered view.
 function rectsWithFill(svg: SVGElement, fill: string) {
   return Array.from(svg.getElementsByTagName("rect")).filter(
     (r) => r.getAttribute("fill") === fill,
