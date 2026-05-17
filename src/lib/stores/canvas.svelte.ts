@@ -60,10 +60,7 @@ export function resetCanvasStore(): void {
   currentZoom = 1;
   canvasElement = null;
   isPanning = false;
-  if (viewportSaveTimer) {
-    clearTimeout(viewportSaveTimer);
-    viewportSaveTimer = null;
-  }
+  cancelViewportSave();
   suppressViewportSave = false;
 }
 
@@ -117,6 +114,11 @@ function scheduleViewportSave(): void {
   viewportSaveTimer = setTimeout(() => {
     if (panzoomInstance) {
       const t = panzoomInstance.getTransform();
+      canvasDebug.transform("viewport save: %o", {
+        x: t.x,
+        y: t.y,
+        scale: t.scale,
+      });
       safeSetItem(
         VIEWPORT_KEY,
         JSON.stringify({ x: t.x, y: t.y, scale: t.scale }),
@@ -126,12 +128,11 @@ function scheduleViewportSave(): void {
   }, 500);
 }
 
-function clearSavedViewport(): void {
+function cancelViewportSave(): void {
   if (viewportSaveTimer) {
     clearTimeout(viewportSaveTimer);
     viewportSaveTimer = null;
   }
-  safeRemoveItem(VIEWPORT_KEY);
 }
 
 /**
@@ -146,18 +147,27 @@ function restoreViewport(): boolean {
   try {
     const saved = JSON.parse(raw) as { x: number; y: number; scale: number };
     if (
-      typeof saved.x !== "number" ||
-      typeof saved.y !== "number" ||
-      typeof saved.scale !== "number"
+      !Number.isFinite(saved.x) ||
+      !Number.isFinite(saved.y) ||
+      !Number.isFinite(saved.scale)
     ) {
+      // Remove corrupted entry so future saves can work correctly
+      safeRemoveItem(VIEWPORT_KEY);
       return false;
     }
     const scale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, saved.scale));
+    canvasDebug.transform("viewport restore: %o", {
+      x: saved.x,
+      y: saved.y,
+      scale,
+    });
     panzoomInstance.zoomAbs(0, 0, scale);
     panzoomInstance.moveTo(saved.x, saved.y);
     currentZoom = scale;
     return true;
   } catch {
+    // Remove unparseable entry so it doesn't block future restores
+    safeRemoveItem(VIEWPORT_KEY);
     return false;
   }
 }
@@ -247,7 +257,7 @@ function resetZoom(): void {
   if (!panzoomInstance) return;
 
   suppressViewportSave = true;
-  clearSavedViewport();
+  cancelViewportSave();
   panzoomInstance.zoomAbs(0, 0, 1);
   panzoomInstance.moveTo(0, 0);
   suppressViewportSave = false;
@@ -322,7 +332,7 @@ function fitAll(
   if (!panzoomInstance || !canvasElement || racks.length === 0) return;
 
   suppressViewportSave = true;
-  clearSavedViewport();
+  cancelViewportSave();
 
   // Get viewport dimensions, accounting for any right-side overlay
   const viewportWidth = canvasElement.clientWidth - rightOffset;
