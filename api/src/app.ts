@@ -779,13 +779,17 @@ export async function createApp(
   app.use("/layouts/*", layoutBodyLimit);
   app.use("/api/layouts/*", layoutBodyLimit);
 
-  // Mount routes at root paths (nginx strips /api prefix when proxying)
-  app.route("/layouts", layouts);
-  app.route("/assets", assets);
+  // Mount each router at the root path (nginx strips /api when proxying) and
+  // at the /api/* alias for direct access. Using a helper keeps the two
+  // mounts adjacent so a new router can't be added at one path and silently
+  // missed at the other.
+  const mountWithAlias = (path: `/${string}`, router: Hono) => {
+    app.route(path, router);
+    app.route(`/api${path}`, router);
+  };
 
-  // Compatibility aliases for direct API access (without nginx proxy)
-  app.route("/api/layouts", layouts);
-  app.route("/api/assets", assets);
+  mountWithAlias("/layouts", layouts);
+  mountWithAlias("/assets", assets);
 
   // 404 handler
   app.notFound((c) => c.json({ error: "Not found" }, 404));
