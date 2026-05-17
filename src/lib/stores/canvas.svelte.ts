@@ -105,6 +105,7 @@ export function getCanvasStore() {
     focusRack,
     zoomToDevice,
     restoreViewport,
+    clearSavedViewport,
   };
 }
 
@@ -133,6 +134,11 @@ function cancelViewportSave(): void {
     clearTimeout(viewportSaveTimer);
     viewportSaveTimer = null;
   }
+}
+
+function clearSavedViewport(): void {
+  cancelViewportSave();
+  safeRemoveItem(VIEWPORT_KEY);
 }
 
 /**
@@ -206,6 +212,7 @@ function setPanzoomInstance(instance: PanzoomInstance): void {
  * Dispose panzoom instance (called from Canvas component on unmount)
  */
 function disposePanzoom(): void {
+  cancelViewportSave();
   if (panzoomInstance) {
     panzoomInstance.dispose();
     panzoomInstance = null;
@@ -257,7 +264,7 @@ function resetZoom(): void {
   if (!panzoomInstance) return;
 
   suppressViewportSave = true;
-  cancelViewportSave();
+  clearSavedViewport();
   panzoomInstance.zoomAbs(0, 0, 1);
   panzoomInstance.moveTo(0, 0);
   suppressViewportSave = false;
