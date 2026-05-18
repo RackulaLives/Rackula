@@ -20,7 +20,17 @@ export interface DeviceTypeCommandStore {
   getDeviceAtIndex(index: number): PlacedDevice | undefined;
   setActiveRackId(id: string | null): void;
   getActiveRackId(): string | null;
+  /**
+   * Append a cable in place — not recorded by the history system.
+   * `createDeleteDeviceTypeCommand` calls this from its undo path to restore
+   * cables snapshotted at command creation; the surrounding command provides
+   * the redo entry, so this mutator must not record one itself.
+   */
   addCableRaw(cable: Cable): void;
+  /**
+   * Remove the cable with the given id in place — not recorded by the history
+   * system. Counterpart to `addCableRaw`; same non-recording contract.
+   */
   removeCableRaw(id: string): void;
 }
 
