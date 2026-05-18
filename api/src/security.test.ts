@@ -97,6 +97,22 @@ describe("resolveApiSecurityConfig", () => {
     ).toThrow("Invalid auth mode");
   });
 
+  it("ignores unprefixed env vars so security config cannot diverge from createAuth", () => {
+    const config = resolveApiSecurityConfig(
+      buildEnv({
+        AUTH_MODE: "oidc",
+        AUTH_SESSION_SECRET: TEST_AUTH_SECRET,
+        AUTH_SESSION_COOKIE_NAME: "shadow_session",
+        AUTH_LOG_HASH_KEY: "rackula-auth-log-key-override",
+        API_WRITE_TOKEN: TEST_TOKEN,
+      }),
+    );
+
+    expect(config.authMode).toBe("none");
+    expect(config.authSessionCookieName).toBe("rackula_auth_session");
+    expect(config.writeAuthToken).toBeUndefined();
+  });
+
   it("requires auth session secret and references RACKULA_AUTH_MODE when auth is enabled", () => {
     const run = () =>
       resolveApiSecurityConfig(

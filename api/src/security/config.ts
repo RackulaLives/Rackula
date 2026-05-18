@@ -257,7 +257,7 @@ export function resolveApiSecurityConfig(
   const isProduction = env.NODE_ENV === "production";
   const allowInsecureCors = parseBoolean(env.ALLOW_INSECURE_CORS);
   const configuredOrigin = env.CORS_ORIGIN?.trim();
-  const authMode = parseAuthMode(env.RACKULA_AUTH_MODE ?? env.AUTH_MODE);
+  const authMode = parseAuthMode(env.RACKULA_AUTH_MODE);
   const authEnabled = authMode !== "none";
 
   let corsOrigin: string | string[];
@@ -280,18 +280,16 @@ export function resolveApiSecurityConfig(
     );
   }
 
-  const writeAuthTokenRaw = env.RACKULA_API_WRITE_TOKEN ?? env.API_WRITE_TOKEN;
+  const writeAuthTokenRaw = env.RACKULA_API_WRITE_TOKEN;
   const writeAuthToken = writeAuthTokenRaw?.trim() || undefined;
 
   const authSessionCookieName = parseAuthCookieName(
-    env.RACKULA_AUTH_SESSION_COOKIE_NAME ?? env.AUTH_SESSION_COOKIE_NAME,
+    env.RACKULA_AUTH_SESSION_COOKIE_NAME,
   );
   const authLoginPath = parseLoginPath(env.RACKULA_AUTH_LOGIN_PATH);
-  const authSessionSecretRaw =
-    env.RACKULA_AUTH_SESSION_SECRET ?? env.AUTH_SESSION_SECRET;
+  const authSessionSecretRaw = env.RACKULA_AUTH_SESSION_SECRET;
   const authSessionSecret = authSessionSecretRaw?.trim() || undefined;
-  const authLogHashKeyRaw =
-    env.RACKULA_AUTH_LOG_HASH_KEY ?? env.AUTH_LOG_HASH_KEY;
+  const authLogHashKeyRaw = env.RACKULA_AUTH_LOG_HASH_KEY;
 
   if (authEnabled && !authSessionSecret) {
     throw new Error(
