@@ -11,6 +11,7 @@
  */
 
 import type {
+  Cable,
   DeviceFace,
   DeviceType,
   PlacedDevice,
@@ -19,10 +20,7 @@ import type {
 } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
-import {
-  canPlaceDevice,
-  isSlotOccupied,
-} from "$lib/utils/collision";
+import { canPlaceDevice, isSlotOccupied } from "$lib/utils/collision";
 import {
   createDeviceType as createDeviceTypeHelper,
   findDeviceType as findDeviceTypeInArray,
@@ -78,6 +76,8 @@ import {
   replaceRackRaw,
   clearRackDevicesRaw,
   restoreRackDevicesRaw,
+  addCableRaw,
+  removeCableRaw,
 } from "./mutators";
 
 // =============================================================================
@@ -90,14 +90,21 @@ import {
  * Resolve the rack ID for adapter operations.
  * Uses active rack, validates it exists, and warns on fallback.
  */
-function resolveAdapterRackId(ctx: LayoutStateAccess, caller: string): string | undefined {
+function resolveAdapterRackId(
+  ctx: LayoutStateAccess,
+  caller: string,
+): string | undefined {
   const activeId = ctx.getActiveRackId();
   if (activeId) {
     // Validate the active rack still exists
     if (ctx.findRack(activeId)) {
       return activeId;
     }
-    layoutDebug.device("%s: activeRackId '%s' is stale (rack no longer exists), falling back", caller, activeId);
+    layoutDebug.device(
+      "%s: activeRackId '%s' is stale (rack no longer exists), falling back",
+      caller,
+      activeId,
+    );
   }
   // Fall back to first rack
   const target = getTargetRack(ctx);
@@ -145,14 +152,14 @@ export function getCommandStoreAdapter(
     getPlacedDevicesForType: (slug) => getPlacedDevicesForType(ctx, slug),
     setActiveRackId: (id) => ctx.setActiveRackId(id),
     getActiveRackId: () => ctx.getActiveRackId(),
+    addCableRaw: (cable) => addCableRaw(ctx, cable),
+    removeCableRaw: (id) => removeCableRaw(ctx, id),
 
     // DeviceCommandStore
     moveDeviceRaw: (index, newPosition) =>
       moveDeviceRaw(ctx, index, newPosition),
-    updateDeviceFaceRaw: (index, face) =>
-      updateDeviceFaceRaw(ctx, index, face),
-    updateDeviceNameRaw: (index, name) =>
-      updateDeviceNameRaw(ctx, index, name),
+    updateDeviceFaceRaw: (index, face) => updateDeviceFaceRaw(ctx, index, face),
+    updateDeviceNameRaw: (index, name) => updateDeviceNameRaw(ctx, index, name),
     updateDevicePlacementImageRaw: (index, face, filename) => {
       const rackId = resolveAdapterRackId(ctx, "updateDevicePlacementImageRaw");
       if (!rackId) {
@@ -269,6 +276,24 @@ export function updateDeviceTypeRecorded(
 }
 
 /**
+ * Find cables connected to any of the given placed devices.
+ * Used so DELETE_DEVICE_TYPE can clean up dangling cable endpoints (#1483).
+ */
+function findCablesForDevices(
+  ctx: LayoutStateAccess,
+  placedDevices: { rackId: string; device: PlacedDevice }[],
+): Cable[] {
+  const layout = ctx.getLayout();
+  const cables = layout.cables;
+  if (!cables || cables.length === 0) return [];
+  const deviceIds = new Set(placedDevices.map((p) => p.device.id));
+  if (deviceIds.size === 0) return [];
+  return cables.filter(
+    (c) => deviceIds.has(c.a_device_id) || deviceIds.has(c.b_device_id),
+  );
+}
+
+/**
  * Delete a device type with undo/redo support
  * @param ctx - Layout state access
  * @param slug - Device type slug
@@ -282,6 +307,7 @@ export function deleteDeviceTypeRecorded(
   if (!existing) return;
 
   const placedDevices = getPlacedDevicesWithRackForType(ctx, slug);
+  const connectedCables = findCablesForDevices(ctx, placedDevices);
   const history = getHistoryStore();
   const adapter = getCommandStoreAdapter(ctx);
 
@@ -289,6 +315,7 @@ export function deleteDeviceTypeRecorded(
     existing,
     placedDevices,
     adapter,
+    connectedCables,
   );
   history.execute(command);
   ctx.markDirty();
@@ -327,10 +354,12 @@ export function deleteMultipleDeviceTypesRecorded(
     if (!existing) continue;
 
     const placedDevices = getPlacedDevicesWithRackForType(ctx, slug);
+    const connectedCables = findCablesForDevices(ctx, placedDevices);
     const command = createDeleteDeviceTypeCommand(
       existing,
       placedDevices,
       adapter,
+      connectedCables,
     );
     commands.push(command);
   }
@@ -479,7 +508,10 @@ export function placeDeviceRecorded(
 
   if (autoImport) {
     const importCommand = createAddDeviceTypeCommand(autoImport, adapter);
-    const batch = createBatchCommand(`Place ${deviceName}`, [importCommand, placeCommand]);
+    const batch = createBatchCommand(`Place ${deviceName}`, [
+      importCommand,
+      placeCommand,
+    ]);
     history.execute(batch);
   } else {
     history.execute(placeCommand);
@@ -617,7 +649,10 @@ export function moveDeviceRecorded(
       adapter,
       deviceName,
     );
-    const batchCommand = createBatchCommand(`Move ${deviceName}`, [moveCommand, slotCommand]);
+    const batchCommand = createBatchCommand(`Move ${deviceName}`, [
+      moveCommand,
+      slotCommand,
+    ]);
     history.execute(batchCommand);
   } else {
     history.execute(moveCommand);

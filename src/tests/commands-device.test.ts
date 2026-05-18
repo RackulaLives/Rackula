@@ -305,6 +305,8 @@ describe("Device Commands", () => {
         removeDeviceTypeRaw: vi.fn(),
         updateDeviceTypeRaw: vi.fn(),
         getPlacedDevicesForType: vi.fn().mockReturnValue([]),
+        addCableRaw: vi.fn(),
+        removeCableRaw: vi.fn(),
       };
     }
 
