@@ -480,12 +480,7 @@ describe("DeviceTypeSchema", () => {
 // ============================================================================
 
 describe("DeviceTypeSchema half-depth interface position validation", () => {
-  const validBase = {
-    slug: "test-device",
-    u_height: 1,
-    colour: "#4A90D9",
-    category: "server" as const,
-  };
+  const validBase = createTestDeviceType({ slug: "test-device" });
 
   it("accepts half-depth device with all-front interfaces", () => {
     const device = {
@@ -547,6 +542,22 @@ describe("DeviceTypeSchema half-depth interface position validation", () => {
       interfaces: [
         { name: "eth0", type: "1000base-t", position: "front" },
         { name: "mgmt", type: "console", position: "rear" },
+      ],
+    };
+    const result = DeviceTypeSchema.safeParse(device);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toContain("interfaces");
+    }
+  });
+
+  it("rejects half-depth device with implicit-front and explicit-rear interfaces", () => {
+    const device = {
+      ...validBase,
+      is_full_depth: false,
+      interfaces: [
+        { name: "eth0", type: "1000base-t", position: "rear" },
+        { name: "eth1", type: "1000base-t" }, // no position = implicit front
       ],
     };
     const result = DeviceTypeSchema.safeParse(device);
