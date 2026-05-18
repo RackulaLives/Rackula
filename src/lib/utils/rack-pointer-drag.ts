@@ -66,7 +66,14 @@ export function attachPointerDragListeners(
     const svgElement = ctx.getSvgElement();
     if (!svgElement) return;
     const { clientX, clientY, device } = event.detail;
-    if (isPointerOutsideSvg(svgElement, clientX, clientY)) return;
+    if (isPointerOutsideSvg(svgElement, clientX, clientY)) {
+      // Pointer left this rack — clear any preview/hover state we set earlier.
+      // Otherwise a stale drop preview remains visible while the user drags
+      // over a sibling rack.
+      ctx.setContainerHoverInfo(null);
+      ctx.setDropPreview(null);
+      return;
+    }
     const rack = ctx.getRack();
     const isInternalMove = event.detail.rackId === rack.id;
     const excludeIndex = isInternalMove ? event.detail.deviceIndex : undefined;
