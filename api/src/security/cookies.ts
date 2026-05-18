@@ -1,5 +1,13 @@
 import type { ApiSecurityConfig } from "./types";
 
+/**
+ * Extracts and URL-decodes a named cookie value from a `Cookie` header string.
+ *
+ * @param cookieHeader - Raw `Cookie` header value, or `null`/`undefined` when absent.
+ * @param cookieName - Cookie name to resolve.
+ * @returns Decoded cookie value, or `undefined` when the header is missing, the
+ * named cookie is not present, the stored value is empty, or decoding fails.
+ */
 export function extractCookieValue(
   cookieHeader: string | null | undefined,
   cookieName: string,
