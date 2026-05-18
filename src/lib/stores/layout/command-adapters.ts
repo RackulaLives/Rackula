@@ -348,13 +348,22 @@ export function deleteMultipleDeviceTypesRecorded(
   const history = getHistoryStore();
   const adapter = getCommandStoreAdapter(ctx);
   const commands: ReturnType<typeof createDeleteDeviceTypeCommand>[] = [];
+  // A cable connecting devices of two different types would otherwise be
+  // snapshotted by both per-type delete commands, restoring it twice on undo.
+  const claimedCableIds = new Set<string>();
 
   for (const slug of slugs) {
     const existing = findDeviceTypeInArray(layout.device_types, slug);
     if (!existing) continue;
 
     const placedDevices = getPlacedDevicesWithRackForType(ctx, slug);
-    const connectedCables = findCablesForDevices(ctx, placedDevices);
+    const connectedCables = findCablesForDevices(ctx, placedDevices).filter(
+      (cable) => {
+        if (claimedCableIds.has(cable.id)) return false;
+        claimedCableIds.add(cable.id);
+        return true;
+      },
+    );
     const command = createDeleteDeviceTypeCommand(
       existing,
       placedDevices,

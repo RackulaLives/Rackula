@@ -123,12 +123,15 @@ export function createDeleteDeviceTypeCommand(
       // Restore devices to their original racks
       const previousActiveRack = store.getActiveRackId();
       const imgStore = getImageStore();
+      // Track old→new device IDs so we can rewrite cable endpoints below
+      // (placeDeviceRaw may remap the ID — see #1363 dedup guard).
+      const deviceIdMap = new Map<string, string>();
       for (const { rackId, device } of deviceData) {
         store.setActiveRackId(rackId);
         const placedIdx = store.placeDeviceRaw(device);
-        // Read back actual device — placeDeviceRaw may remap the ID (#1363 dedup guard)
         const placed = store.getDeviceAtIndex(placedIdx);
         const actualId = placed?.id ?? device.id;
+        deviceIdMap.set(device.id, actualId);
         // Restore placement images under the (possibly remapped) key
         const originalKey = `placement-${device.id}`;
         const snap = placementSnapshots.get(originalKey);
@@ -155,9 +158,14 @@ export function createDeleteDeviceTypeCommand(
             typeImageCopy.rear,
           );
       }
-      // Restore cables once their endpoint devices are back in the layout.
+      // Restore cables, rewriting endpoint IDs through the remap map so any
+      // device whose id was changed by placeDeviceRaw stays reachable.
       for (const cable of cableData) {
-        store.addCableRaw(cable);
+        store.addCableRaw({
+          ...cable,
+          a_device_id: deviceIdMap.get(cable.a_device_id) ?? cable.a_device_id,
+          b_device_id: deviceIdMap.get(cable.b_device_id) ?? cable.b_device_id,
+        });
       }
     },
   };
