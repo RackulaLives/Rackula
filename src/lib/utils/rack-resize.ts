@@ -63,8 +63,12 @@ export function canResizeRackTo(
 
   for (const device of rack.devices) {
     const deviceType = deviceTypes.find((dt) => dt.slug === device.device_type);
-    const uHeight = deviceType?.u_height ?? 1; // Default to 1U if unknown
-    const heightInternal = heightToInternalUnits(uHeight);
+    if (!deviceType) {
+      throw new Error(
+        `Cannot validate resize: unknown device type "${device.device_type}" for device ${device.name ?? device.id}`,
+      );
+    }
+    const heightInternal = heightToInternalUnits(deviceType.u_height);
     const deviceTopInternal = device.position + heightInternal - 1;
 
     if (deviceTopInternal > maxValidTopInternal) {
@@ -93,9 +97,13 @@ export function getDeviceRangeText(
   device: PlacedDevice,
   deviceType: DeviceType | undefined,
 ): string {
-  const uHeight = deviceType?.u_height ?? 1;
+  if (!deviceType) {
+    throw new Error(
+      `Cannot format device range: unknown device type "${device.device_type}" for device ${device.name ?? device.id}`,
+    );
+  }
   const bottom = Math.ceil(toHumanUnits(device.position));
-  const top = bottom + Math.ceil(uHeight) - 1;
+  const top = bottom + Math.ceil(deviceType.u_height) - 1;
 
   if (top === bottom) {
     return `U${bottom}`;
