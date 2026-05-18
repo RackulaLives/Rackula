@@ -28,7 +28,8 @@ import type {
 } from "$lib/types";
 import type { Command, CommandType } from "$lib/stores/commands/types";
 import { toInternalUnits } from "$lib/utils/position";
-import { getLayoutStore } from "$lib/stores/layout.svelte";
+import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
+import { resetHistoryStore } from "$lib/stores/history.svelte";
 import { generateId } from "$lib/utils/device";
 
 // =============================================================================
@@ -385,6 +386,45 @@ export function setupStoreWithRack(height: number = 42): {
   }
 
   return { store, rack };
+}
+
+// =============================================================================
+// Layout Store Factory
+// =============================================================================
+
+export interface CreateTestLayoutStoreOptions {
+  /**
+   * Optional layout name to pre-set on the freshly-reset store.
+   * When omitted, the default name from createLayout() ("My Layout") is used.
+   */
+  layoutName?: string;
+}
+
+/**
+ * Reset the singleton layout store and (optionally) seed it with a layout name.
+ * Also resets the history store so undo/redo tests start clean.
+ *
+ * Use this when a test needs a known, named layout without any racks yet
+ * (e.g., verifying that the first rack creation syncs `layout.name`).
+ *
+ * @example
+ * const store = createTestLayoutStore({ layoutName: "My Lab" });
+ * store.addRack("Server Rack A", 42);
+ * expect(store.layout.name).toBe("Server Rack A");
+ */
+export function createTestLayoutStore(
+  options: CreateTestLayoutStoreOptions = {},
+) {
+  resetLayoutStore();
+  resetHistoryStore();
+  const store = getLayoutStore();
+  if (!store) {
+    throw new Error("createTestLayoutStore: getLayoutStore() returned null");
+  }
+  if (options.layoutName !== undefined) {
+    store.setLayoutName(options.layoutName);
+  }
+  return store;
 }
 
 // =============================================================================

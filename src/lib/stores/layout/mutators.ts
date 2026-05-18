@@ -472,11 +472,13 @@ export function getPlacedDevicesWithRackForType(
   ctx: LayoutStateAccess,
   slug: string,
 ): { rackId: string; device: PlacedDevice }[] {
-  return ctx.getLayout().racks.flatMap((rack) =>
-    rack.devices
-      .filter((d) => d.device_type === slug)
-      .map((d) => ({ rackId: rack.id, device: d })),
-  );
+  return ctx
+    .getLayout()
+    .racks.flatMap((rack) =>
+      rack.devices
+        .filter((d) => d.device_type === slug)
+        .map((d) => ({ rackId: rack.id, device: d })),
+    );
 }
 
 // =============================================================================
@@ -563,6 +565,42 @@ export function restoreRackDevicesRaw(
     ...rack,
     devices: [...safeDevices],
   }));
+}
+
+// =============================================================================
+// Layout-Level Raw Mutators
+// =============================================================================
+
+/**
+ * Write both `layout.name` and `layout.metadata.name` directly (raw).
+ *
+ * This bypasses the `setLayoutName` action's trim/empty-skip guard so that
+ * undo can faithfully restore any previously-captured value (including
+ * pre-trimmed names). Used by `createAddRackCommand` when syncing the
+ * layout name on first-rack creation (#1482).
+ *
+ * @param ctx - Layout state access
+ * @param name - New value for `layout.name` (written verbatim)
+ * @param metadataName - New value for `layout.metadata.name`. When
+ *   `undefined` or when the layout has no metadata block, `metadata.name`
+ *   is left untouched.
+ */
+export function setLayoutNamesRaw(
+  ctx: LayoutStateAccess,
+  name: string,
+  metadataName: string | undefined,
+): void {
+  const layout = ctx.getLayout();
+  const nextMetadata =
+    metadataName !== undefined && layout.metadata
+      ? { ...layout.metadata, name: metadataName }
+      : layout.metadata;
+
+  ctx.setLayout({
+    ...layout,
+    name,
+    metadata: nextMetadata,
+  });
 }
 
 // =============================================================================
