@@ -64,7 +64,7 @@ jobs:
 
       - name: Upload SARIF to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-${{ matrix.target.category }}
@@ -129,7 +129,7 @@ jobs:
 
       - name: Upload SARIF to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4
         with:
           sarif_file: trivy-results.sarif
           # Match deploy-prod's category so on-demand runs refresh the
