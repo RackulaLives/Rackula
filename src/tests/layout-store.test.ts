@@ -534,6 +534,11 @@ describe("Layout Store", () => {
       const result = store.addBayedRackGroup("Bayed", 3, 12);
       expect(result).not.toBeNull();
       const groupRackIds = result!.racks.map((r) => r.id);
+      // Capture initial values rather than assuming defaults — keeps the
+      // test honest if createDefaultRack's defaults change.
+      const initialDesc = new Map(
+        result!.racks.map((r) => [r.id, r.desc_units ?? false]),
+      );
 
       store.updateRack(result!.racks[1].id, { desc_units: true });
       for (const r of store.layout.racks.filter((r) =>
@@ -548,7 +553,7 @@ describe("Layout Store", () => {
       for (const r of store.layout.racks.filter((r) =>
         groupRackIds.includes(r.id),
       )) {
-        expect(r.desc_units).toBe(false);
+        expect(r.desc_units).toBe(initialDesc.get(r.id));
       }
 
       store.redo();
