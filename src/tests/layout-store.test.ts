@@ -473,6 +473,61 @@ describe("Layout Store", () => {
       store.updateRack(rack!.id, { name: "Updated" });
       expect(store.isDirty).toBe(true);
     });
+
+    it("propagates desc_units across a bayed group (#1520)", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Bayed", 3, 12);
+      expect(result).not.toBeNull();
+      // Sanity: all bays start with desc_units=false
+      for (const r of result!.racks) {
+        expect(r.desc_units).toBe(false);
+      }
+
+      // Edit the middle bay — the shared U-label column reads from racks[0],
+      // and bays must stay in sync regardless of which one the user edits.
+      store.updateRack(result!.racks[1].id, { desc_units: true });
+
+      const groupRackIds = result!.racks.map((r) => r.id);
+      const updated = store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      );
+      for (const r of updated) {
+        expect(r.desc_units).toBe(true);
+      }
+    });
+
+    it("propagates starting_unit across a bayed group (#1520)", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Bayed", 2, 12);
+      expect(result).not.toBeNull();
+
+      store.updateRack(result!.racks[1].id, { starting_unit: 10 });
+
+      const groupRackIds = result!.racks.map((r) => r.id);
+      const updated = store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      );
+      for (const r of updated) {
+        expect(r.starting_unit).toBe(10);
+      }
+    });
+
+    it("does not propagate non-numbering settings across a bayed group", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Bayed", 2, 12);
+      expect(result).not.toBeNull();
+
+      store.updateRack(result!.racks[0].id, { name: "Renamed Bay 1" });
+
+      const bay1 = store.layout.racks.find(
+        (r) => r.id === result!.racks[0].id,
+      )!;
+      const bay2 = store.layout.racks.find(
+        (r) => r.id === result!.racks[1].id,
+      )!;
+      expect(bay1.name).toBe("Renamed Bay 1");
+      expect(bay2.name).toBe("Bay 2");
+    });
   });
 
   describe("deleteRack", () => {

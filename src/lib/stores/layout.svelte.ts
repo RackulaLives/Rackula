@@ -492,7 +492,15 @@ function addRack(
   desc_units?: boolean,
   starting_unit?: number,
 ) {
-  return addRackImpl(stateAccess, name, height, width, form_factor, desc_units, starting_unit);
+  return addRackImpl(
+    stateAccess,
+    name,
+    height,
+    width,
+    form_factor,
+    desc_units,
+    starting_unit,
+  );
 }
 
 function addBayedRackGroup(
@@ -542,6 +550,35 @@ function updateRack(id: string, updates: Partial<Rack>): void {
   const { view: _view, devices: _devices, ...recordableUpdates } = updates;
   if (Object.keys(recordableUpdates).length > 0) {
     updateRackRecorded(id, recordableUpdates);
+
+    // Propagate U-numbering settings across a bayed group: the BayedRackView
+    // renders a single shared U-label column, so all bays must agree on
+    // desc_units / starting_unit. Without this, edits to one bay leave the
+    // visible labels (read from racks[0]) unchanged (#1520).
+    const numberingKeys = ["desc_units", "starting_unit"] as const;
+    const numberingUpdates: Partial<Rack> = {};
+    for (const key of numberingKeys) {
+      if (key in recordableUpdates) {
+        numberingUpdates[key] = recordableUpdates[key] as never;
+      }
+    }
+    if (Object.keys(numberingUpdates).length > 0) {
+      const group = getRackGroupForRack(id);
+      if (group?.layout_preset === "bayed") {
+        for (const peerId of group.rack_ids) {
+          if (peerId === id) continue;
+          const peer = layout.racks.find((r) => r.id === peerId);
+          if (!peer) continue;
+          // Skip if already in sync to avoid extra history entries
+          const needsUpdate = (
+            Object.keys(numberingUpdates) as (keyof Rack)[]
+          ).some((k) => peer[k] !== numberingUpdates[k]);
+          if (needsUpdate) {
+            updateRackRecorded(peerId, numberingUpdates);
+          }
+        }
+      }
+    }
   }
 }
 
@@ -570,7 +607,11 @@ function duplicateRack(id: string) {
 // Rack Group Actions — delegated to layout/rack-groups.ts
 // =============================================================================
 
-function createRackGroup(name: string, rackIds: string[], preset?: LayoutPreset) {
+function createRackGroup(
+  name: string,
+  rackIds: string[],
+  preset?: LayoutPreset,
+) {
   return createRackGroupImpl(stateAccess, name, rackIds, preset);
 }
 
@@ -782,7 +823,13 @@ function placeDevice(
   face?: DeviceFace,
   slotPosition?: SlotPosition,
 ): boolean {
-  return placeDeviceRecorded(rackId, deviceTypeSlug, position, face, slotPosition);
+  return placeDeviceRecorded(
+    rackId,
+    deviceTypeSlug,
+    position,
+    face,
+    slotPosition,
+  );
 }
 
 /**
@@ -850,11 +897,18 @@ function placeInContainer(
     childType && !layout.device_types.find((dt) => dt.slug === deviceTypeSlug)
       ? childType
       : undefined;
-  const placeCommand = createPlaceDeviceCommand(placedDevice, adapter, deviceName);
+  const placeCommand = createPlaceDeviceCommand(
+    placedDevice,
+    adapter,
+    deviceName,
+  );
 
   if (autoImport) {
     const importCommand = createAddDeviceTypeCommand(autoImport, adapter);
-    const batch = createBatchCommand(`Place ${deviceName}`, [importCommand, placeCommand]);
+    const batch = createBatchCommand(`Place ${deviceName}`, [
+      importCommand,
+      placeCommand,
+    ]);
     history.execute(batch);
   } else {
     history.execute(placeCommand);
@@ -1090,7 +1144,10 @@ function updateDevicePlacementImageRaw(
   updateDevicePlacementImageRawImpl(stateAccess, rackId, index, face, filename);
 }
 
-function updateDeviceColourRaw(index: number, colour: string | undefined): void {
+function updateDeviceColourRaw(
+  index: number,
+  colour: string | undefined,
+): void {
   // Resolve rack ID: use active rack, fall back to first rack
   const rackId = activeRackId ?? getTargetRackImpl(stateAccess)?.rack.id;
   if (!rackId) {
@@ -1273,11 +1330,8 @@ function moveDeviceRecorded(
 
 function removeDeviceRecorded(rackId: string, deviceIndex: number): void {
   // $state.snapshot() is a Svelte rune — must be called from this .svelte.ts file
-  removeDeviceRecordedImpl(
-    stateAccess,
-    rackId,
-    deviceIndex,
-    (device) => $state.snapshot(device),
+  removeDeviceRecordedImpl(stateAccess, rackId, deviceIndex, (device) =>
+    $state.snapshot(device),
   );
 }
 
