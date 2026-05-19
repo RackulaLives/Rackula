@@ -105,9 +105,9 @@
   }
 
   function handleContextMenu(event: MouseEvent) {
-    if (!canDelete) return;
     event.preventDefault();
     event.stopPropagation();
+    if (!canDelete) return;
     contextMenuX = event.clientX;
     contextMenuY = event.clientY;
     contextMenuOpen = true;
