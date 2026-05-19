@@ -118,6 +118,7 @@ import {
   updateDeviceNotesRecorded as updateDeviceNotesRecordedImpl,
   updateDeviceIpRecorded as updateDeviceIpRecordedImpl,
   updateRackRecorded as updateRackRecordedImpl,
+  updateRacksBatchRecorded as updateRacksBatchRecordedImpl,
   clearRackRecorded as clearRackRecordedImpl,
 } from "./layout/command-adapters";
 
@@ -492,7 +493,15 @@ function addRack(
   desc_units?: boolean,
   starting_unit?: number,
 ) {
-  return addRackImpl(stateAccess, name, height, width, form_factor, desc_units, starting_unit);
+  return addRackImpl(
+    stateAccess,
+    name,
+    height,
+    width,
+    form_factor,
+    desc_units,
+    starting_unit,
+  );
 }
 
 function addBayedRackGroup(
@@ -540,9 +549,41 @@ function updateRack(id: string, updates: Partial<Rack>): void {
 
   // For other properties, use recorded version for undo/redo support
   const { view: _view, devices: _devices, ...recordableUpdates } = updates;
-  if (Object.keys(recordableUpdates).length > 0) {
-    updateRackRecorded(id, recordableUpdates);
+  if (Object.keys(recordableUpdates).length === 0) return;
+
+  // BayedRackView renders one shared U-label column read from racks[0], so
+  // all bays must agree on desc_units / starting_unit. When the change
+  // touches those keys on a member of a bayed group, fold the origin and
+  // every diverging peer into a single batch — one undo reverts the whole
+  // group together (#1520).
+  const numberingKeys = ["desc_units", "starting_unit"] as const;
+  const numberingUpdates: Partial<Omit<Rack, "devices" | "view">> = {};
+  for (const key of numberingKeys) {
+    if (key in recordableUpdates) {
+      numberingUpdates[key] = recordableUpdates[key] as never;
+    }
   }
+
+  const group =
+    Object.keys(numberingUpdates).length > 0
+      ? getRackGroupForRack(id)
+      : undefined;
+
+  if (group?.layout_preset === "bayed" && group.rack_ids.length > 1) {
+    // Origin gets the full update; peers only get the numbering keys.
+    const targets: {
+      rackId: string;
+      updates: Partial<Omit<Rack, "devices" | "view">>;
+    }[] = [{ rackId: id, updates: recordableUpdates }];
+    for (const peerId of group.rack_ids) {
+      if (peerId === id) continue;
+      targets.push({ rackId: peerId, updates: numberingUpdates });
+    }
+    updateRacksBatchRecorded(targets, "Update bayed rack");
+    return;
+  }
+
+  updateRackRecorded(id, recordableUpdates);
 }
 
 /**
@@ -570,7 +611,11 @@ function duplicateRack(id: string) {
 // Rack Group Actions — delegated to layout/rack-groups.ts
 // =============================================================================
 
-function createRackGroup(name: string, rackIds: string[], preset?: LayoutPreset) {
+function createRackGroup(
+  name: string,
+  rackIds: string[],
+  preset?: LayoutPreset,
+) {
   return createRackGroupImpl(stateAccess, name, rackIds, preset);
 }
 
@@ -782,7 +827,13 @@ function placeDevice(
   face?: DeviceFace,
   slotPosition?: SlotPosition,
 ): boolean {
-  return placeDeviceRecorded(rackId, deviceTypeSlug, position, face, slotPosition);
+  return placeDeviceRecorded(
+    rackId,
+    deviceTypeSlug,
+    position,
+    face,
+    slotPosition,
+  );
 }
 
 /**
@@ -850,11 +901,18 @@ function placeInContainer(
     childType && !layout.device_types.find((dt) => dt.slug === deviceTypeSlug)
       ? childType
       : undefined;
-  const placeCommand = createPlaceDeviceCommand(placedDevice, adapter, deviceName);
+  const placeCommand = createPlaceDeviceCommand(
+    placedDevice,
+    adapter,
+    deviceName,
+  );
 
   if (autoImport) {
     const importCommand = createAddDeviceTypeCommand(autoImport, adapter);
-    const batch = createBatchCommand(`Place ${deviceName}`, [importCommand, placeCommand]);
+    const batch = createBatchCommand(`Place ${deviceName}`, [
+      importCommand,
+      placeCommand,
+    ]);
     history.execute(batch);
   } else {
     history.execute(placeCommand);
@@ -1090,7 +1148,10 @@ function updateDevicePlacementImageRaw(
   updateDevicePlacementImageRawImpl(stateAccess, rackId, index, face, filename);
 }
 
-function updateDeviceColourRaw(index: number, colour: string | undefined): void {
+function updateDeviceColourRaw(
+  index: number,
+  colour: string | undefined,
+): void {
   // Resolve rack ID: use active rack, fall back to first rack
   const rackId = activeRackId ?? getTargetRackImpl(stateAccess)?.rack.id;
   if (!rackId) {
@@ -1273,11 +1334,8 @@ function moveDeviceRecorded(
 
 function removeDeviceRecorded(rackId: string, deviceIndex: number): void {
   // $state.snapshot() is a Svelte rune — must be called from this .svelte.ts file
-  removeDeviceRecordedImpl(
-    stateAccess,
-    rackId,
-    deviceIndex,
-    (device) => $state.snapshot(device),
+  removeDeviceRecordedImpl(stateAccess, rackId, deviceIndex, (device) =>
+    $state.snapshot(device),
   );
 }
 
@@ -1354,6 +1412,16 @@ function updateRackRecorded(
   updates: Partial<Omit<Rack, "devices" | "view">>,
 ): void {
   updateRackRecordedImpl(stateAccess, rackId, updates);
+}
+
+function updateRacksBatchRecorded(
+  targets: {
+    rackId: string;
+    updates: Partial<Omit<Rack, "devices" | "view">>;
+  }[],
+  description: string,
+): void {
+  updateRacksBatchRecordedImpl(stateAccess, targets, description);
 }
 
 function clearRackRecorded(rackId?: string): void {

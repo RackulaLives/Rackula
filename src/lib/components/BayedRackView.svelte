@@ -137,13 +137,21 @@
   // Calculate max height for U-label column (use tallest rack)
   const maxHeight = $derived(Math.max(...racks.map((r) => r.height), 0));
 
-  // Generate U labels for center column (ascending: U1 at bottom)
+  // Generate U labels for center column.
+  // Use the primary (first) rack's desc_units and starting_unit so the shared
+  // labels respond to per-rack U-numbering edits (#1520). Mirrors the formula
+  // in Rack.svelte.
   const U_HEIGHT = 22;
   const RAIL_WIDTH = 17;
 
   const uLabels = $derived(
     Array.from({ length: maxHeight }, (_, i) => {
-      const uNumber = maxHeight - i;
+      const primary = racks[0];
+      const startUnit = primary?.starting_unit ?? 1;
+      const descUnits = primary?.desc_units ?? false;
+      const uNumber = descUnits
+        ? startUnit + i
+        : startUnit + (maxHeight - 1) - i;
       // Match Rack.svelte yPosition: includes RACK_PADDING_HIDDEN to align with hidden rack name mode
       const yPosition =
         i * U_HEIGHT + U_HEIGHT / 2 + RACK_PADDING_HIDDEN + RAIL_WIDTH;
