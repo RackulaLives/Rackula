@@ -23,7 +23,7 @@ describe("rack-resize", () => {
 
       const result = canResizeRackTo(rack, 42, [dt]);
       expect(result.allowed).toBe(true);
-      expect(result.conflicts).toHaveLength(0);
+      expect(result.conflicts).toEqual([]);
     });
 
     it("allows shrinking when all devices fit in the new height (#1683)", () => {
@@ -39,7 +39,7 @@ describe("rack-resize", () => {
 
       const result = canResizeRackTo(rack, 12, [dt]);
       expect(result.allowed).toBe(true);
-      expect(result.conflicts).toHaveLength(0);
+      expect(result.conflicts).toEqual([]);
     });
 
     it("blocks shrinking when a device would exceed the new height", () => {
