@@ -79,8 +79,8 @@ describe("rack-resize", () => {
 
     it("displays human U, not internal units (#1683)", () => {
       // Without conversion, this would render as "U228" because the device's
-      // internal position is 5 * UNITS_PER_U = 30 and earlier code wrote that
-      // raw value into the U message.
+      // internal position is 38 * UNITS_PER_U = 228 and earlier code wrote
+      // that raw value into the U message.
       const device = createTestDevice({ position: 38 });
       const dt = createTestDeviceType({
         slug: device.device_type,
