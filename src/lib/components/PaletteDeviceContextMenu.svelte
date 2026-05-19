@@ -14,7 +14,7 @@
     /** Callback when open state changes */
     onOpenChange?: (open: boolean) => void;
     /** Delete device callback */
-    ondelete?: () => void;
+    onDelete?: () => void;
     /** X coordinate for virtual trigger (screen position) */
     x?: number;
     /** Y coordinate for virtual trigger (screen position) */
@@ -24,7 +24,7 @@
   let {
     open = $bindable(false),
     onOpenChange,
-    ondelete,
+    onDelete,
     x = 0,
     y = 0,
   }: Props = $props();
@@ -47,7 +47,7 @@
       <ContextMenu.Item
         class="context-menu-item context-menu-item--destructive"
         onSelect={() => {
-          ondelete?.();
+          onDelete?.();
           open = false;
         }}
       >
