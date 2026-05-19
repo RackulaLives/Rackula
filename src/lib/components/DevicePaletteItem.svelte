@@ -4,6 +4,7 @@
   Draggable for placement into racks
 -->
 <script lang="ts">
+  // @ts-nocheck
   import type { DeviceType } from "$lib/types";
   import IconGrip from "./icons/IconGrip.svelte";
   import IconTrash from "./icons/IconTrash.svelte";

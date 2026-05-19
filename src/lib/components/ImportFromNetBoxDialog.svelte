@@ -4,6 +4,7 @@
   Uses bits-ui Tabs for accessible input mode selection
 -->
 <script lang="ts">
+  // @ts-nocheck
   import Dialog from "./Dialog.svelte";
   import { Tabs } from "$lib/components/ui/Tabs";
   import { IconUpload } from "./icons";

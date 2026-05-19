@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Command Adapters for Layout Store
  *

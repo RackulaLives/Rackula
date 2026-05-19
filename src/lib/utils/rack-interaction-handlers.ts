@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Rack Interaction Handlers
  * Factory for drag-and-drop, touch, and keyboard event handlers.

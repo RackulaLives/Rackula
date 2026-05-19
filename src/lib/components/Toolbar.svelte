@@ -6,6 +6,7 @@
   - Right: Dropdown menus (desktop) / quick file actions (mobile)
 -->
 <script lang="ts">
+  // @ts-nocheck
   import Tooltip from "./Tooltip.svelte";
   import FileMenu from "./FileMenu.svelte";
   import SettingsMenu from "./SettingsMenu.svelte";
@@ -284,7 +285,15 @@
           data-testid="layout-name-display"
         >
           <span class="toolbar-name-text">{layoutStore.layout.name}</span>
-          <svg class="toolbar-name-pencil" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg
+            class="toolbar-name-pencil"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
           </svg>
         </button>

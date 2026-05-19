@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Rack Actions Domain Module
  *

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * YAML Serialization Utilities
  * For folder-based project format

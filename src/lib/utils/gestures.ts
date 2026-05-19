@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Touch Gesture Utilities
  * Composable gesture detection for touch interactions

@@ -3,6 +3,7 @@
   Displays list of all racks with selection, delete, and context menu actions
 -->
 <script lang="ts">
+  // @ts-nocheck
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";

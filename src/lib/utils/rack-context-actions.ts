@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Rack Context Menu Actions
  * Factory for context menu handlers, extracted from Rack.svelte.

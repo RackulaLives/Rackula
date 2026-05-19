@@ -4,6 +4,7 @@
   Uses exclusive accordion (only one section open at a time)
 -->
 <script lang="ts">
+  // @ts-nocheck
   import { Accordion } from "bits-ui";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";

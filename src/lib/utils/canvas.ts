@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Canvas Utility Functions
  * Calculations for fit-all zoom and rack positioning

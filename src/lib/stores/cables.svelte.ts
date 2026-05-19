@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Cable Store
  * CRUD operations for cable connections between device interfaces

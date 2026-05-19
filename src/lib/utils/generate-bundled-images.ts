@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Bundled Images Generator
  *

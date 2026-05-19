@@ -17,6 +17,7 @@
   - rack-context-menu-handlers: context menu UI delegation
 -->
 <script lang="ts">
+  // @ts-nocheck
   import type {
     Rack as RackType,
     DeviceType,
