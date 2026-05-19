@@ -24,6 +24,7 @@ export const layoutDebug = {
   state: Debug("rackula:layout:state"),
   device: Debug("rackula:layout:device"),
   group: Debug("rackula:layout:group"),
+  schema: Debug("rackula:layout:schema"),
 };
 
 export const canvasDebug = {
