@@ -528,6 +528,57 @@ describe("Layout Store", () => {
       expect(bay1.name).toBe("Renamed Bay 1");
       expect(bay2.name).toBe("Bay 2");
     });
+
+    it("undoes bayed desc_units propagation atomically (#1520)", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Bayed", 3, 12);
+      expect(result).not.toBeNull();
+      const groupRackIds = result!.racks.map((r) => r.id);
+
+      store.updateRack(result!.racks[1].id, { desc_units: true });
+      for (const r of store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      )) {
+        expect(r.desc_units).toBe(true);
+      }
+
+      // One undo must revert ALL bays — otherwise the shared U-label column
+      // ends up out of sync with the other bays.
+      store.undo();
+      for (const r of store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      )) {
+        expect(r.desc_units).toBe(false);
+      }
+
+      store.redo();
+      for (const r of store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      )) {
+        expect(r.desc_units).toBe(true);
+      }
+    });
+
+    it("undoes bayed starting_unit propagation atomically (#1520)", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Bayed", 2, 12);
+      expect(result).not.toBeNull();
+      const groupRackIds = result!.racks.map((r) => r.id);
+
+      store.updateRack(result!.racks[0].id, { starting_unit: 10 });
+      for (const r of store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      )) {
+        expect(r.starting_unit).toBe(10);
+      }
+
+      store.undo();
+      for (const r of store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      )) {
+        expect(r.starting_unit).toBe(1);
+      }
+    });
   });
 
   describe("deleteRack", () => {
