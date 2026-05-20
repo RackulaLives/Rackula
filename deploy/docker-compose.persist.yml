@@ -25,6 +25,10 @@ services:
       - RACKULA_ENABLE_IPV6=${RACKULA_ENABLE_IPV6:-auto}
       # DNS resolver for nginx upstream resolution (override for Kubernetes)
       - NGINX_RESOLVER=${NGINX_RESOLVER:-127.0.0.11}
+      # Set to 1 when Rackula is behind a trusted reverse proxy that sets
+      # X-Forwarded-Proto. Enables correct https:// scheme in auth redirects.
+      # Leave at 0 (default) for direct access — prevents open-redirect abuse.
+      - RACKULA_TRUST_PROXY=${RACKULA_TRUST_PROXY:-0}
     restart: unless-stopped
     stop_grace_period: 10s
     depends_on:
