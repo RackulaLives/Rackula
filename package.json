@@ -49,7 +49,7 @@
     "@types/node": "^25.9.1",
     "@types/pako": "^2.0.4",
     "@types/umami-browser": "^2.18.1",
-    "@vitest/coverage-v8": "^4.1.6",
+    "@vitest/coverage-v8": "^4.1.7",
     "@vitest/eslint-plugin": "^1.6.17",
     "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
