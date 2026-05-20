@@ -61,7 +61,7 @@
     "jsdom": "^29.1.1",
     "lint-staged": "^17.0.5",
     "prettier": "^3.8.3",
-    "prettier-plugin-svelte": "^3.5.2",
+    "prettier-plugin-svelte": "^4.0.0",
     "sharp": "^0.34.5",
     "svelte": "^5.55.8",
     "svelte-check": "^4.4.8",
