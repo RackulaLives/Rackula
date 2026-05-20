@@ -40,6 +40,19 @@ map "$request_method:$rackula_auth_mode_local" $rackula_serve_local_login_page {
     "GET:1" 1;
 }
 
+# When behind a reverse proxy, use X-Forwarded-Proto/Host for the correct
+# external scheme and hostname in auth redirects. Falls back to nginx's own
+# $scheme/$http_host when no forwarded headers are present (direct access).
+map "$http_x_forwarded_proto" $real_scheme {
+    default $scheme;
+    ~^(\w+) $1;
+}
+
+map "$http_x_forwarded_host" $real_host {
+    default $http_host;
+    ~^([^,\s]+) $1;
+}
+
 log_format rackula_auth_upstream_failure
     'auth_upstream_unavailable '
     'remote_addr=$remote_addr request_uri=$request_uri '
@@ -222,7 +235,9 @@ server {
         # Limitation: if $args contains & characters, nginx will split them into
         # separate query params. Only the first segment stays in next=.
         # Full URI-encoding requires OpenResty (set_escape_uri), unavailable here.
-        return 302 /auth/login?next=$uri$is_args$args;
+        # Use $real_scheme/$real_host (resolved from X-Forwarded-* headers above)
+        # so the absolute redirect URL is correct when nginx is behind a reverse proxy.
+        return 302 $real_scheme://$real_host/auth/login?next=$uri$is_args$args;
     }
 
     # Container health check - used by Docker/K8s for liveness/readiness probes
