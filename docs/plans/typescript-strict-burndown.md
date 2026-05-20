@@ -15,16 +15,16 @@
 ## Progress Tracker
 
 - [ ] **Batch 1: Types, constants, schemas** (0 files — already strict)
-- [ ] **Batch 2: Utils** (11 files)
+- [ ] **Batch 2: Utils** (11 files, 49 errors)
 - [ ] **Batch 3: Data** (0 files — already strict)
-- [ ] **Batch 4: Stores** (3 files)
+- [ ] **Batch 4: Stores** (3 files, 8 errors)
 - [ ] **Batch 5: Icon components** (0 files — already strict)
-- [ ] **Batch 6: Top-level components** (9 files)
-- [ ] **Batch 7: Root and config** (1 file + 2 test helpers)
+- [ ] **Batch 6: Top-level components** (9 files, 23 errors)
+- [ ] **Batch 7: Test helpers** (2 files, 4 errors)
 
 ## File Checklist
 
-### Batch 2: Utils (11 files, 48 errors)
+### Batch 2: Utils (11 files, 49 errors)
 
 - [ ] `src/lib/utils/export.ts` — strictNullChecks, noUncheckedIndexedAccess (17 errors)
 - [ ] `src/lib/utils/persistence-manager.svelte.ts` — string vs literal types, SVGElement cast, noUnusedLocals (12 errors)
@@ -44,7 +44,7 @@
 - [ ] `src/lib/stores/cables.svelte.ts` — strictNullChecks, null (2 errors)
 - [ ] `src/lib/stores/layout/command-adapters.ts` — strictNullChecks, return type (1 error)
 
-### Batch 6: Top-level components (9 files, 19 errors)
+### Batch 6: Top-level components (9 files, 23 errors)
 
 - [ ] `src/lib/components/ExportDialog.svelte` — strictNullChecks, unknown prop (2 errors)
 - [ ] `src/lib/components/DialogOrchestrator.svelte` — type mismatch, union type (2 errors)
@@ -56,7 +56,7 @@
 - [ ] `src/lib/components/ImportFromNetBoxDialog.svelte` — noUnusedLocals (1 error)
 - [ ] `src/App.svelte` — strictNullChecks, null (2 errors)
 
-### Batch 7: Root and config (3 files, 4 errors)
+### Batch 7: Test helpers (2 files, 4 errors)
 
 - [ ] `src/tests/factories.ts` — noUncheckedIndexedAccess (2 errors)
 - [ ] `src/tests/setup.ts` — callback type mismatch (2 errors)
