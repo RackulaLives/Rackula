@@ -10,15 +10,15 @@
  * Schema versions:
  * - v1: Single rack (`r` field) — legacy, decode-only
  * - v2: Multi-rack (`rs` field) with optional rack groups (`rg`)
+ *
+ * Encoding formats:
+ * - New (default): lz-string compressToEncodedURIComponent
+ * - Legacy (decode-only): pako gzip + base64url
  */
 
 import pako from "pako";
-import type {
-  Layout,
-  DeviceType,
-  PlacedDevice,
-  RackGroup,
-} from "$lib/types";
+import LZString from "lz-string";
+import type { Layout, DeviceType, PlacedDevice, RackGroup } from "$lib/types";
 import {
   MinimalLayoutSchema,
   MinimalLayoutV2Schema,
@@ -148,9 +148,7 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
   const rg: MinimalRackGroup[] | undefined =
     layout.rack_groups && layout.rack_groups.length > 0
       ? layout.rack_groups.map((group, groupIndex) => {
-          const missingIds = group.rack_ids.filter(
-            (id) => !rackIdMap.has(id),
-          );
+          const missingIds = group.rack_ids.filter((id) => !rackIdMap.has(id));
           if (missingIds.length > 0) {
             console.warn(
               `Share encode: rack group ${group.name ?? `#${groupIndex}`} references unknown rack IDs: ${missingIds.join(", ")}`,
@@ -318,8 +316,7 @@ export function encodeLayout(layout: Layout): string | null {
   try {
     const minimal = toMinimalLayout(layout);
     const json = JSON.stringify(minimal);
-    const compressed = pako.deflate(json);
-    return base64UrlEncode(compressed);
+    return LZString.compressToEncodedURIComponent(json);
   } catch (error) {
     console.warn("Share link encode failed:", error);
     return null;
@@ -339,8 +336,14 @@ export interface DecodeResult {
  */
 export function decodeLayout(encoded: string): DecodeResult {
   try {
-    const compressed = base64UrlDecode(encoded);
-    const json = pako.inflate(compressed, { to: "string" });
+    // Try lz-string first (new format); returns null for legacy pako-encoded URLs
+    let json = LZString.decompressFromEncodedURIComponent(encoded);
+
+    if (!json) {
+      // Fall back to pako for URLs encoded before the lz-string migration
+      const compressed = base64UrlDecode(encoded);
+      json = pako.inflate(compressed, { to: "string" });
+    }
     const parsed = JSON.parse(json);
 
     // Detect v1 vs v2 by field presence

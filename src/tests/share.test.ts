@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import pako from "pako";
+import LZString from "lz-string";
 import {
   encodeLayout,
   decodeLayout,
@@ -256,11 +257,25 @@ describe("encodeLayout", () => {
     expect(encoded).not.toBeNull();
   });
 
-  it("produces URL-safe output (no +, /, =)", () => {
+  it("produces output with no slashes or equals signs (URL query-param safe)", () => {
     const layout = createLayoutWithDevices();
     const encoded = requireEncoded(layout);
 
-    expect(encoded).not.toMatch(/[+/=]/);
+    // lz-string uses + intentionally in its alphabet; decompressFromEncodedURIComponent
+    // handles the + -> space conversion that URLSearchParams applies when parsing query params
+    expect(encoded).not.toMatch(/[/=]/);
+  });
+
+  it("round-trips correctly through URLSearchParams (+ decoded as space)", () => {
+    const layout = createLayoutWithDevices();
+    const encoded = requireEncoded(layout);
+
+    // Simulate URLSearchParams converting + to space (standard query-string decoding)
+    const fromUrlParams = encoded.replace(/\+/g, " ");
+    const decoded = requireDecoded(fromUrlParams);
+
+    expect(decoded.name).toBe(layout.name);
+    expect(decoded.racks[0].name).toBe(layout.racks[0].name);
   });
 
   it("produces reasonably sized output for QR codes", () => {
@@ -767,6 +782,47 @@ describe("multi-rack share", () => {
     expect(
       decoded!.device_types.find((dt) => dt.slug === "legacy-server"),
     ).toBeDefined();
+  });
+
+  it("decodes pako-encoded v2 share links (backward compatibility)", () => {
+    // Construct a pako-encoded v2 payload to verify pre-migration URLs still decode
+    const serverType = createTestDeviceType({ slug: "pako-server" });
+    const rack = createTestRack({
+      id: "legacy-rack",
+      name: "Legacy Rack",
+      height: 24,
+      devices: [createTestDevice({ device_type: "pako-server", position: 2 })],
+    });
+    const layout = createTestLayout({
+      name: "Pako Layout",
+      racks: [rack],
+      device_types: [serverType],
+    });
+    const minimal = toMinimalLayout(layout);
+    const json = JSON.stringify(minimal);
+    const compressed = pako.deflate(json);
+    const encoded = base64UrlEncode(compressed);
+
+    const { layout: decoded } = decodeLayout(encoded);
+
+    expect(decoded).not.toBeNull();
+    expect(decoded!.name).toBe("Pako Layout");
+    expect(decoded!.racks[0].name).toBe("Legacy Rack");
+    expect(
+      decoded!.racks[0].devices.find((d) => d.device_type === "pako-server"),
+    ).toBeDefined();
+  });
+
+  it("uses lz-string encoding for new share links", () => {
+    const layout = createLayoutWithDevices();
+    const encoded = requireEncoded(layout);
+
+    // lz-string output should decompress successfully with LZString
+    const decompressed = LZString.decompressFromEncodedURIComponent(encoded);
+    expect(decompressed).not.toBeNull();
+    expect(decompressed).not.toBe("");
+    const parsed = JSON.parse(decompressed!);
+    expect(parsed).toHaveProperty("rs");
   });
 
   it("assigns sequential short IDs to racks in minimal format", () => {
