@@ -6,15 +6,20 @@
   import Dialog from "./Dialog.svelte";
   import { IconCopy, IconDownload } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
-  import { generateShareUrl, encodeLayout } from "$lib/utils/share";
+  import { generateShareUrl } from "$lib/utils/share";
   import {
     generateQRCode,
     canFitInQR,
     QR_MIN_PRINT_CM,
   } from "$lib/utils/qrcode";
+  import { serializeLayoutToYaml } from "$lib/utils/yaml";
+  import { downloadBlob } from "$lib/utils/export";
+  import { buildYamlFilename } from "$lib/utils/folder-structure";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { analytics } from "$lib/utils/analytics";
   import type { Layout } from "$lib/types";
+
+  const URL_LENGTH_WARNING = 1800;
 
   interface Props {
     open: boolean;
@@ -33,7 +38,8 @@
 
   // Generate share URL
   const shareUrl = $derived(generateShareUrl(layout));
-  const encodedLength = $derived(encodeLayout(layout)?.length ?? 0);
+  const urlLength = $derived(shareUrl?.length ?? 0);
+  const isTooLong = $derived(urlLength > URL_LENGTH_WARNING);
   const fitsInQR = $derived(shareUrl ? canFitInQR(shareUrl) : false);
 
   // QR code generation state
@@ -94,6 +100,17 @@
     link.download = `${layout.name.replace(/[^a-zA-Z0-9]/g, "-")}-qr.png`;
     link.click();
   }
+
+  async function downloadLayoutFile() {
+    try {
+      const yaml = await serializeLayoutToYaml(layout);
+      const blob = new Blob([yaml], { type: "text/yaml" });
+      downloadBlob(blob, buildYamlFilename(layout.name));
+      toastStore.showToast("Layout file downloaded", "success", 3000);
+    } catch {
+      toastStore.showToast("Failed to download layout", "error");
+    }
+  }
 </script>
 
 <Dialog
@@ -128,9 +145,11 @@
         </button>
       </div>
       <p class="url-info">
-        {encodedLength} characters
-        {#if encodedLength > 2000}
-          <span class="warning"> (may be too long for some browsers)</span>
+        {urlLength} characters
+        {#if isTooLong}
+          <span class="warning">
+            &mdash; too long for some browsers; download the file instead</span
+          >
         {/if}
       </p>
     </div>
@@ -173,7 +192,17 @@
       <button type="button" class="btn btn-secondary" onclick={onclose}>
         Cancel
       </button>
-      {#if qrDataUrl}
+      {#if isTooLong}
+        <button
+          type="button"
+          class="btn btn-primary"
+          onclick={downloadLayoutFile}
+          data-testid="layout-download-btn"
+        >
+          <IconDownload size={ICON_SIZE.sm} />
+          Download Layout File
+        </button>
+      {:else if qrDataUrl}
         <button
           type="button"
           class="btn btn-primary"
