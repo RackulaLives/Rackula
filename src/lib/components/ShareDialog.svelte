@@ -19,6 +19,8 @@
   import { analytics } from "$lib/utils/analytics";
   import type { Layout } from "$lib/types";
 
+  // Threshold is checked against the full URL (encoded payload + ~30-char static prefix),
+  // consistent with how canFitInQR() measures the share URL.
   const URL_LENGTH_WARNING = 1800;
 
   interface Props {
@@ -57,6 +59,13 @@
     } else {
       qrDataUrl = null;
       qrError = null;
+    }
+  });
+
+  // Clear stale QR image if layout grows too large while dialog is open
+  $effect(() => {
+    if (isTooLong) {
+      qrDataUrl = null;
     }
   });
 
