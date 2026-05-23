@@ -20,6 +20,7 @@
     onimportdevices?: () => void;
     onimportnetbox?: () => void;
     onnewcustomdevice?: () => void;
+    onlayouts?: () => void;
     hasRacks?: boolean;
   }
 
@@ -33,6 +34,7 @@
     onimportdevices,
     onimportnetbox,
     onnewcustomdevice,
+    onlayouts,
     hasRacks = false,
   }: Props = $props();
 
@@ -66,19 +68,35 @@
       sideOffset={4}
       align="end"
     >
-      <DropdownMenu.Item class="menu-item" data-testid="menu-save" onSelect={handleSelect(onsave)}>
+      <DropdownMenu.Item
+        class="menu-item"
+        data-testid="menu-save"
+        onSelect={handleSelect(onsave)}
+      >
         <span class="menu-label">Save</span>
         <span class="menu-shortcut">{shortcuts.save}</span>
       </DropdownMenu.Item>
-      <DropdownMenu.Item class="menu-item" data-testid="menu-save-as" onSelect={handleSelect(onsaveas)}>
+      <DropdownMenu.Item
+        class="menu-item"
+        data-testid="menu-save-as"
+        onSelect={handleSelect(onsaveas)}
+      >
         <span class="menu-label">Save As...</span>
         <span class="menu-shortcut">{shortcuts.saveAs}</span>
       </DropdownMenu.Item>
-      <DropdownMenu.Item class="menu-item" data-testid="menu-load" onSelect={handleSelect(onload)}>
+      <DropdownMenu.Item
+        class="menu-item"
+        data-testid="menu-load"
+        onSelect={handleSelect(onload)}
+      >
         <span class="menu-label">Load</span>
         <span class="menu-shortcut">{shortcuts.load}</span>
       </DropdownMenu.Item>
-      <DropdownMenu.Item class="menu-item" data-testid="menu-export" onSelect={handleSelect(onexport)}>
+      <DropdownMenu.Item
+        class="menu-item"
+        data-testid="menu-export"
+        onSelect={handleSelect(onexport)}
+      >
         <span class="menu-label">Export</span>
         <span class="menu-shortcut">{shortcuts.export}</span>
       </DropdownMenu.Item>
@@ -116,6 +134,16 @@
       >
         <span class="menu-label">New Custom Device</span>
       </DropdownMenu.Item>
+      {#if onlayouts}
+        <DropdownMenu.Separator class="menu-separator" />
+        <DropdownMenu.Item
+          class="menu-item"
+          data-testid="menu-layouts"
+          onSelect={handleSelect(onlayouts)}
+        >
+          <span class="menu-label">Layouts...</span>
+        </DropdownMenu.Item>
+      {/if}
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
