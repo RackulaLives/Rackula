@@ -14,7 +14,7 @@
     /** Callback when open state changes */
     onOpenChange?: (open: boolean) => void;
     /** Delete device callback */
-    onDelete?: () => void;
+    ondelete?: () => void;
     /** X coordinate for virtual trigger (screen position) */
     x?: number;
     /** Y coordinate for virtual trigger (screen position) */
@@ -24,10 +24,18 @@
   let {
     open = $bindable(false),
     onOpenChange,
-    onDelete,
+    ondelete,
     x = 0,
     y = 0,
   }: Props = $props();
+
+  // Anchor the menu to the cursor's viewport coordinates via a Measurable
+  // virtual element. The menu is opened programmatically (the real right-click
+  // lands on the palette item, not on a bits-ui trigger), so without an anchor
+  // bits-ui positions the menu at the top-left origin.
+  const virtualAnchor = $derived({
+    getBoundingClientRect: () => new DOMRect(x, y, 0, 0),
+  });
 
   function handleOpenChange(newOpen: boolean) {
     open = newOpen;
@@ -36,18 +44,19 @@
 </script>
 
 <ContextMenu.Root {open} onOpenChange={handleOpenChange}>
-  <ContextMenu.Trigger>
-    <div
-      style="position: fixed; left: {x}px; top: {y}px; width: 1px; height: 1px; pointer-events: none;"
-    ></div>
-  </ContextMenu.Trigger>
+  <!-- Virtual trigger mode: opened programmatically, positioned via customAnchor. -->
+  <ContextMenu.Trigger />
 
   <ContextMenu.Portal>
-    <ContextMenu.Content class="context-menu-content" sideOffset={5}>
+    <ContextMenu.Content
+      class="context-menu-content"
+      sideOffset={5}
+      customAnchor={virtualAnchor}
+    >
       <ContextMenu.Item
         class="context-menu-item context-menu-item--destructive"
         onSelect={() => {
-          onDelete?.();
+          ondelete?.();
           open = false;
         }}
       >

@@ -66,6 +66,17 @@
   // Virtual trigger mode: x and y are provided, children is not
   const useVirtualTrigger = $derived(x !== undefined && y !== undefined);
 
+  // Anchor the menu to the cursor's viewport coordinates via a Measurable
+  // virtual element. We can't anchor to a positioned DOM element here: the
+  // menu is rendered inside the panzoom container whose CSS `transform`
+  // re-bases `position: fixed`, so a fixed trigger div lands in the wrong
+  // place (and bits-ui otherwise defaults the menu to the top-left origin).
+  const virtualAnchor = $derived(
+    useVirtualTrigger
+      ? { getBoundingClientRect: () => new DOMRect(x ?? 0, y ?? 0, 0, 0) }
+      : null,
+  );
+
   function handleSelect(action?: () => void) {
     return () => {
       action?.();
@@ -81,12 +92,9 @@
 
 <ContextMenu.Root {open} onOpenChange={handleOpenChange}>
   {#if useVirtualTrigger}
-    <!-- Virtual trigger at cursor position for SVG elements -->
-    <ContextMenu.Trigger>
-      <div
-        style="position: fixed; left: {x}px; top: {y}px; width: 1px; height: 1px; pointer-events: none;"
-      ></div>
-    </ContextMenu.Trigger>
+    <!-- Virtual trigger mode: the menu is opened programmatically and
+         positioned via customAnchor below, so no trigger element is needed. -->
+    <ContextMenu.Trigger />
   {:else if children}
     <ContextMenu.Trigger>
       {@render children()}
@@ -94,7 +102,11 @@
   {/if}
 
   <ContextMenu.Portal>
-    <ContextMenu.Content class="context-menu-content" sideOffset={5}>
+    <ContextMenu.Content
+      class="context-menu-content"
+      sideOffset={5}
+      customAnchor={virtualAnchor}
+    >
       <ContextMenu.Item
         class="context-menu-item"
         onSelect={handleSelect(onedit)}
