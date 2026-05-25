@@ -15,18 +15,20 @@
     onOpenChange?: (open: boolean) => void;
     /** Delete device callback */
     ondelete?: () => void;
-    /** X coordinate for virtual trigger (screen position) */
-    x?: number;
-    /** Y coordinate for virtual trigger (screen position) */
-    y?: number;
+    /** X coordinate for the menu anchor (cursor screen position). Required: a
+     *  default would silently pin the menu to the top-left origin. */
+    x: number;
+    /** Y coordinate for the menu anchor (cursor screen position). Required: a
+     *  default would silently pin the menu to the top-left origin. */
+    y: number;
   }
 
   let {
     open = $bindable(false),
     onOpenChange,
     ondelete,
-    x = 0,
-    y = 0,
+    x,
+    y,
   }: Props = $props();
 
   // Anchor the menu to the cursor's viewport coordinates via a Measurable
