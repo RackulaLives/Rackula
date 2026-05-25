@@ -170,16 +170,31 @@ No legacy support or migration code. Features are implemented as if they're the 
 | Dev         | dev.racku.la | Push to `main` | Preview, testing |
 | Prod        | app.racku.la | Git tag `v*`   | Live users       |
 
+### Version Alignment
+
+A single release tag produces three images (default frontend, `:persist`
+frontend, and `rackula-api`). Each reports its version at runtime so they can be
+verified to match:
+
+- **Frontend** (default and `:persist`): `GET /version.json`
+- **API** (`rackula-api`): `GET /api/version`
+
+Both return `{ version, commit, buildTime }`. The git tag is the single source
+of truth - injected into the API via the `APP_VERSION` build arg, and read from
+`package.json` for the frontend. A `verify-version-alignment` CI job runs every
+published image and fails the release if their versions diverge, preventing
+mismatched releases (e.g. a stale `:persist` image, as in discussion #1563).
+
 ## Documentation Map
 
-| Document                            | Purpose                               |
-| ----------------------------------- | ------------------------------------- |
+| Document                            | Purpose                                  |
+| ----------------------------------- | ---------------------------------------- |
 | `docs/reference/SPEC.md`            | Technical overview and design principles |
-| `docs/reference/BRAND.md`           | Design system quick reference         |
-| `docs/reference/GITHUB-WORKFLOW.md` | GitHub Issues workflow                |
-| `docs/guides/TESTING.md`            | Testing patterns and commands         |
-| `docs/guides/ACCESSIBILITY.md`      | A11y compliance checklist             |
-| `docs/planning/ROADMAP.md`          | Version planning and vision           |
+| `docs/reference/BRAND.md`           | Design system quick reference            |
+| `docs/reference/GITHUB-WORKFLOW.md` | GitHub Issues workflow                   |
+| `docs/guides/TESTING.md`            | Testing patterns and commands            |
+| `docs/guides/ACCESSIBILITY.md`      | A11y compliance checklist                |
+| `docs/planning/ROADMAP.md`          | Version planning and vision              |
 
 ### Design Plans
 

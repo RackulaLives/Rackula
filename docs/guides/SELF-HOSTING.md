@@ -96,7 +96,7 @@ Example pod environment:
 ```yaml
 env:
   - name: NGINX_RESOLVER
-    value: "10.96.0.10"  # Your cluster DNS IP
+    value: "10.96.0.10" # Your cluster DNS IP
   - name: API_HOST
     value: "rackula-api.default.svc.cluster.local"
   - name: API_PORT
@@ -126,6 +126,7 @@ This section adds an interim authentication layer for self-hosted Rackula using 
 It is designed for internal deployments that need immediate protection while first-class app auth is in progress.
 
 Tracking:
+
 - Epic: <https://github.com/RackulaLives/Rackula/issues/1095>
 - Long-term auth docs plan: <https://github.com/RackulaLives/Rackula/issues/1107>
 
@@ -143,6 +144,7 @@ This guide aligns with current public guidance:
 - Add API rate limiting at the proxy to reduce abuse impact (NGINX `limit_req`, OWASP API4:2023).
 
 This section's defaults:
+
 - Protect both `/` and `/api/*`.
 - Block all anonymous API access (read and write).
 - Do not use trusted-IP password bypass.
@@ -166,6 +168,7 @@ Browser
 ```
 
 Hardening goal:
+
 - Only `auth-proxy` is published to host ports.
 - `rackula` and `rackula-api` are internal-only via Docker networking (`expose`, not `ports`).
 
@@ -447,6 +450,7 @@ curl -i http://localhost:3001/health
 ```
 
 Expected:
+
 - `rackula-api` has no `0.0.0.0:3001->...` mapping.
 - direct host call to `:3001` fails.
 
@@ -534,6 +538,7 @@ docker compose up -d --force-recreate auth-proxy
 #### 401 Unauthorized for valid users
 
 Check:
+
 - Username/password typo.
 - Secret file mounted and readable at `/run/secrets/rackula_htpasswd`.
 - NGINX is using the expected config.
@@ -584,22 +589,23 @@ All variables have sensible defaults. Only configure if you need to change somet
 
 ### Runtime Variables
 
-| Variable              | Default       | Description                                     |
-| --------------------- | ------------- | ----------------------------------------------- |
-| `RACKULA_PORT`        | `8080`        | Host port for the web UI                        |
-| `RACKULA_LISTEN_PORT` | `8080`        | Port nginx listens on inside the container      |
-| `RACKULA_API_PORT`    | `3001`        | Port the API listens on                         |
-| `API_HOST`            | `rackula-api` | Hostname of API container (for nginx proxy)     |
-| `API_PORT`            | `3001`        | Port of API container (for nginx proxy)         |
-| `CORS_ORIGIN`         | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default) |
-| `RACKULA_API_WRITE_TOKEN` | _unset_    | Optional bearer token required for API `PUT`/`DELETE` |
-| `ALLOW_INSECURE_CORS` | `false`       | Explicitly allow wildcard CORS in production (not recommended) |
-| `NGINX_RESOLVER`      | `127.0.0.11`  | DNS resolver for nginx upstream resolution (override for Kubernetes) |
-| `DATA_DIR`            | `/data`       | Path to data directory inside API container     |
+| Variable                  | Default                 | Description                                                          |
+| ------------------------- | ----------------------- | -------------------------------------------------------------------- |
+| `RACKULA_PORT`            | `8080`                  | Host port for the web UI                                             |
+| `RACKULA_LISTEN_PORT`     | `8080`                  | Port nginx listens on inside the container                           |
+| `RACKULA_API_PORT`        | `3001`                  | Port the API listens on                                              |
+| `API_HOST`                | `rackula-api`           | Hostname of API container (for nginx proxy)                          |
+| `API_PORT`                | `3001`                  | Port of API container (for nginx proxy)                              |
+| `CORS_ORIGIN`             | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default)   |
+| `RACKULA_API_WRITE_TOKEN` | _unset_                 | Optional bearer token required for API `PUT`/`DELETE`                |
+| `ALLOW_INSECURE_CORS`     | `false`                 | Explicitly allow wildcard CORS in production (not recommended)       |
+| `NGINX_RESOLVER`          | `127.0.0.11`            | DNS resolver for nginx upstream resolution (override for Kubernetes) |
+| `DATA_DIR`                | `/data`                 | Path to data directory inside API container                          |
 
 **Port mapping explained:**
 
 By default, both `RACKULA_PORT` and `RACKULA_LISTEN_PORT` are `8080`, meaning:
+
 - Host port 8080 → Container port 8080 → nginx listening on 8080
 
 For most users, just set `RACKULA_PORT` to change the host port:
@@ -698,6 +704,38 @@ docker logs rackula-api
 2. Create or modify a layout
 3. Look for `PUT /api/layouts/*` requests
 4. If no API calls appear, you're using the wrong setup - use Option 1 (persistence compose file) not Option 2 (simple docker run)
+
+### Checking the Version
+
+Both the web UI and the API report their version over HTTP:
+
+```bash
+# Frontend (served by nginx) - works for both the default and :persist images
+curl -fsS http://localhost:8080/version.json
+
+# API backend
+curl -fsS http://localhost:8080/api/version
+```
+
+Each returns `{ "version": "...", "commit": "...", "buildTime": "..." }`.
+
+**Version alignment:** every image published for a given release - the default
+frontend, the `:persist` frontend, and `rackula-api` - reports the **same**
+version. If `/version.json` and `/api/version` disagree, your containers are
+from different releases. Pull the matching tags and recreate:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Official images released together are guaranteed to match: a release-time CI
+check runs every published image and fails the release if their versions
+diverge, so a mismatch locally means stale tags rather than a bad release.
+
+> Using the stop-gap auth proxy above? `/version.json` sits behind Basic auth
+> like the rest of `/`, and `/api/version` is not in the API allowlist - add it
+> the same way as `/api/health` if you want to query it through the proxy.
 
 ---
 

@@ -42,14 +42,26 @@ describe("resolveVersionInfo", () => {
 });
 
 describe("version endpoint", () => {
-  it("serves the resolved version at both /version and /api/version", async () => {
-    const app = await createApp(buildEnv({ APP_VERSION: "1.2.3" }));
+  it("serves the full version contract at both /version and /api/version", async () => {
+    const app = await createApp(
+      buildEnv({
+        APP_VERSION: "1.2.3",
+        APP_COMMIT: "deadbee",
+        APP_BUILD_TIME: "2026-05-25T12:00:00.000Z",
+      }),
+    );
 
     for (const path of ["/version", "/api/version"]) {
       const res = await app.request(path);
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { version: string };
+      const body = (await res.json()) as {
+        version: string;
+        commit: string;
+        buildTime: string;
+      };
       expect(body.version).toBe("1.2.3");
+      expect(body.commit).toBe("deadbee");
+      expect(body.buildTime).toBe("2026-05-25T12:00:00.000Z");
     }
   });
 

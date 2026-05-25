@@ -50,6 +50,11 @@ checked=0
 verify_image() {
   local label="$1" image="$2" container_port="$3" path="$4"
 
+  # Count the attempt up front so every exit path (including failures below)
+  # leaves a non-zero "checked" total — otherwise a sole image that fails here
+  # would misreport as "no images to check".
+  checked=$((checked + 1))
+
   echo "→ ${label}: starting ${image}"
   local cid
   cid="$(docker run -d -P "$image")"
@@ -68,14 +73,13 @@ verify_image() {
   local body="" actual=""
   local attempt
   for attempt in $(seq 1 30); do
-    if body="$(curl -fsS "$url" 2>/dev/null)"; then
+    if body="$(curl -fsS --connect-timeout 5 --max-time 10 "$url" 2>/dev/null)"; then
       actual="$(printf '%s' "$body" | jq -r '.version // empty')"
       [[ -n "$actual" ]] && break
     fi
     sleep 1
   done
 
-  checked=$((checked + 1))
   if [[ "$actual" == "$EXPECTED_VERSION" ]]; then
     echo "  ✓ reports ${actual}"
   else
