@@ -36,6 +36,16 @@ LABEL org.opencontainers.image.title="Rackula API"
 
 USER rackula
 
+# Version metadata injected at build time from the release tag (single source
+# of truth). Surfaced at runtime via GET /version for cross-image alignment checks.
+# api/package.json's version is only a local-dev fallback (see resolveVersionInfo).
+ARG APP_VERSION=""
+ARG APP_COMMIT=""
+ARG APP_BUILD_TIME=""
+ENV APP_VERSION=${APP_VERSION} \
+    APP_COMMIT=${APP_COMMIT} \
+    APP_BUILD_TIME=${APP_BUILD_TIME}
+
 ENV NODE_ENV=production PORT=3001 DATA_DIR=/data
 
 EXPOSE 3001

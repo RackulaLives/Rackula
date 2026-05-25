@@ -11,6 +11,8 @@ const WRITE_METHODS = new Set(["PUT", "DELETE"]);
 const AUTH_PUBLIC_PATHS = new Set([
   "/health",
   "/api/health",
+  "/version",
+  "/api/version",
   "/auth/login",
   "/auth/callback",
   "/auth/check",

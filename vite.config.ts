@@ -1,5 +1,5 @@
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import { existsSync, readFileSync } from "fs";
 import { execFileSync } from "child_process";
 import { resolve } from "path";
@@ -103,13 +103,48 @@ function getGitInfo(): GitInfo {
 
 const gitInfo = getGitInfo();
 
+// Single build timestamp reused by the __BUILD_TIME__ define and version.json
+// so they never drift within one build.
+const buildTime = new Date().toISOString();
+
+/**
+ * Emit a static `version.json` (`{ version, commit, buildTime }`) into the build
+ * output, served at `/version.json`. This makes the frontend's version readable
+ * over HTTP without executing JS, powering the post-release version-alignment
+ * test. Exposes only build metadata — no secrets.
+ */
+function emitVersionJson(info: {
+  version: string;
+  commit: string;
+  buildTime: string;
+}): Plugin {
+  return {
+    name: "rackula:version-json",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "version.json",
+        source: `${JSON.stringify(info, null, 2)}\n`,
+      });
+    },
+  };
+}
+
 export default defineConfig(() => ({
   // VITE_BASE_PATH env var allows different base paths per deployment:
   // - GitHub Pages: /Rackula/ (set in workflow)
   // - Docker/local: / (default)
   base: process.env.VITE_BASE_PATH || "/",
   publicDir: "static",
-  plugins: [svelte()],
+  plugins: [
+    svelte(),
+    emitVersionJson({
+      version: pkg.version,
+      commit: gitInfo.commitHash,
+      buildTime,
+    }),
+  ],
   server: {
     watch: {
       // Ignore git worktrees and other development artifacts
@@ -121,7 +156,7 @@ export default defineConfig(() => ({
     // Inject version at build time
     __APP_VERSION__: JSON.stringify(pkg.version),
     // Inject build timestamp at build time (ISO 8601)
-    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    __BUILD_TIME__: JSON.stringify(buildTime),
     // Git commit hash (short form, e.g., "e2bf857")
     __COMMIT_HASH__: JSON.stringify(gitInfo.commitHash),
     // Git branch name (e.g., "main", "feat/414-dev-build-info")

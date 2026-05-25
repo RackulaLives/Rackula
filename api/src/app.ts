@@ -29,6 +29,7 @@ import {
   MAX_PASSWORD_LENGTH,
   verifyCredentials,
 } from "./local-auth";
+import pkg from "../package.json";
 
 const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
 const DEFAULT_MAX_LAYOUT_SIZE = 1 * 1024 * 1024; // 1MB
@@ -39,6 +40,33 @@ const HEALTH_RESPONSE = {
   service: "rackula-persistence-api",
   version: 1,
 } as const;
+
+export interface VersionInfo {
+  /** Release version (e.g. "0.9.5"), used for cross-image version-alignment checks. */
+  version: string;
+  /** Short git commit hash the image was built from, or "" when not injected. */
+  commit: string;
+  /** ISO 8601 build timestamp, or "" when not injected. */
+  buildTime: string;
+}
+
+/**
+ * Resolve the app version reported by `/version`.
+ *
+ * The deployed version is injected at build time via the `APP_VERSION` build
+ * arg (sourced from the release tag — the single source of truth). When unset,
+ * as in local development, it falls back to `api/package.json`'s version.
+ *
+ * @param env - Environment map (defaults to `process.env`).
+ * @returns Version metadata served unauthenticated at `/version` and `/api/version`.
+ */
+export function resolveVersionInfo(env: EnvMap = process.env): VersionInfo {
+  return {
+    version: env.APP_VERSION?.trim() || pkg.version,
+    commit: env.APP_COMMIT?.trim() || "",
+    buildTime: env.APP_BUILD_TIME?.trim() || "",
+  };
+}
 
 type AppEnv = {
   Variables: {
@@ -754,6 +782,14 @@ export async function createApp(
   // Health check
   app.get("/health", (c) => c.json(HEALTH_RESPONSE));
   app.get("/api/health", (c) => c.json(HEALTH_RESPONSE));
+
+  // Version endpoint — public, unauthenticated (see AUTH_PUBLIC_PATHS).
+  // Used by the post-release version-alignment test to confirm every image
+  // published under a release tag reports the same version. Exposes only build
+  // metadata — no secrets, env, or internal paths.
+  const versionInfo = resolveVersionInfo(env);
+  app.get("/version", (c) => c.json(versionInfo));
+  app.get("/api/version", (c) => c.json(versionInfo));
 
   // Apply body size limit to asset uploads (5MB default, configurable via env)
   const parsedMaxAssetSize = Number.parseInt(env.MAX_ASSET_SIZE ?? "", 10);

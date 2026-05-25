@@ -209,6 +209,9 @@ jobs:
       - name: Set lowercase image name
         run: echo "API_IMAGE_NAME=${GITHUB_REPOSITORY,,}-api" >> $GITHUB_ENV
 
+      - name: Set build timestamp
+        run: echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
         with:
@@ -247,6 +250,49 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:buildcache,mode=max
+          # Inject the release version so the API reports it at GET /version.
+          # The git tag is the single source of truth; api/package.json is only a
+          # local-dev fallback.
+          build-args: |
+            APP_VERSION=${{ needs.validate.outputs.version }}
+            APP_COMMIT=${{ github.sha }}
+            APP_BUILD_TIME=${{ env.BUILD_TIME }}
+
+  verify-version-alignment:
+    name: "Verify Version Alignment"
+    needs: [validate, build-and-deploy, build-persist, build-api]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+          sparse-checkout: |
+            scripts/verify-version-alignment.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Set lowercase image name
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify all published images report the release version
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          chmod +x scripts/verify-version-alignment.sh
+          FRONTEND_IMAGE="${REGISTRY}/${IMAGE_NAME_LC}:${VERSION}" \
+          PERSIST_IMAGE="${REGISTRY}/${IMAGE_NAME_LC}:v${VERSION}-persist" \
+          API_IMAGE="${REGISTRY}/${IMAGE_NAME_LC}-api:${VERSION}" \
+            scripts/verify-version-alignment.sh "$VERSION"
 
   scan-images:
     needs: [build-and-deploy, build-persist, build-api]
@@ -309,7 +355,15 @@ jobs:
     # `scan-images` then scans those pushed tags before deploy executes.
     # Trade-off: scan failures block `deploy`, but already-pushed images remain published.
     # (Alternative future flow: scan tar/filesystem artifacts before push.)
-    needs: [validate, build-and-deploy, build-persist, build-api, scan-images]
+    needs:
+      [
+        validate,
+        build-and-deploy,
+        build-persist,
+        build-api,
+        verify-version-alignment,
+        scan-images,
+      ]
     runs-on: [self-hosted, vps-rackula]
     timeout-minutes: 20
     permissions:
@@ -341,7 +395,7 @@ jobs:
           docker compose up -d --remove-orphans
 
   smoke-test:
-    needs: deploy
+    needs: [validate, deploy]
     runs-on: [self-hosted, vps-rackula]
     timeout-minutes: 5
     permissions: {}
@@ -352,9 +406,37 @@ jobs:
           sleep 5
           curl -sf --retry 5 --retry-delay 3 https://count.racku.la
 
+      - name: Verify live version alignment
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          # Extract .version from JSON without depending on jq being installed
+          # on the self-hosted runner.
+          extract_version() {
+            grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' \
+              | head -n1 \
+              | sed 's/.*:[[:space:]]*"\([^"]*\)".*/\1/'
+          }
+          fe="$(curl -sf --retry 5 --retry-delay 3 https://count.racku.la/version.json | extract_version)"
+          api="$(curl -sf --retry 5 --retry-delay 3 https://count.racku.la/api/version | extract_version)"
+          echo "frontend=${fe} api=${api} expected=${VERSION}"
+          [ "$fe" = "$VERSION" ] || { echo "::error::Live frontend version '${fe}' != '${VERSION}'"; exit 1; }
+          [ "$api" = "$VERSION" ] || { echo "::error::Live API version '${api}' != '${VERSION}'"; exit 1; }
+          echo "✓ Live stack reports ${VERSION}"
+
   notify-failure:
     if: ${{ always() && (failure() || cancelled()) }}
-    needs: [validate, build-and-deploy, build-persist, build-api, scan-images, deploy, smoke-test]
+    needs:
+      [
+        validate,
+        build-and-deploy,
+        build-persist,
+        build-api,
+        verify-version-alignment,
+        scan-images,
+        deploy,
+        smoke-test,
+      ]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
