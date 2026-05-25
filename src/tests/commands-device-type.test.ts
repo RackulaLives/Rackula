@@ -19,6 +19,8 @@ function createMockStore(): DeviceTypeCommandStore & {
   getDeviceAtIndex: ReturnType<typeof vi.fn>;
   setActiveRackId: ReturnType<typeof vi.fn>;
   getActiveRackId: ReturnType<typeof vi.fn>;
+  addCableRaw: ReturnType<typeof vi.fn>;
+  removeCableRaw: ReturnType<typeof vi.fn>;
 } {
   let activeRackId: string | null = null;
   return {
@@ -29,8 +31,12 @@ function createMockStore(): DeviceTypeCommandStore & {
     removeDeviceAtIndexRaw: vi.fn(),
     getPlacedDevicesForType: vi.fn().mockReturnValue([]),
     getDeviceAtIndex: vi.fn().mockReturnValue(undefined),
-    setActiveRackId: vi.fn((id: string | null) => { activeRackId = id; }),
+    setActiveRackId: vi.fn((id: string | null) => {
+      activeRackId = id;
+    }),
     getActiveRackId: vi.fn(() => activeRackId),
+    addCableRaw: vi.fn(),
+    removeCableRaw: vi.fn(),
   };
 }
 
@@ -200,8 +206,17 @@ describe("Device Type Commands", () => {
       const store = createMockStore();
       const deviceType = createTestDeviceType({ slug: "server-type" });
       const placedDevices = [
-        { rackId: "rack-a", device: createTestDevice({ device_type: "server-type", position: 5 }) },
-        { rackId: "rack-b", device: createTestDevice({ device_type: "server-type", position: 10 }) },
+        {
+          rackId: "rack-a",
+          device: createTestDevice({ device_type: "server-type", position: 5 }),
+        },
+        {
+          rackId: "rack-b",
+          device: createTestDevice({
+            device_type: "server-type",
+            position: 10,
+          }),
+        },
       ];
 
       const command = createDeleteDeviceTypeCommand(
@@ -253,6 +268,51 @@ describe("Device Type Commands", () => {
       // Should restore with original position (5 in internal units), not mutated (99)
       expect(store.placeDeviceRaw).toHaveBeenCalledWith(
         expect.objectContaining({ position: toInternalUnits(5) }),
+      );
+    });
+
+    it("removes connected cables on execute and restores them on undo (#1483)", () => {
+      const store = createMockStore();
+      const deviceType = createTestDeviceType({ slug: "switch-type" });
+      const devA = createTestDevice({
+        device_type: "switch-type",
+        position: 1,
+      });
+      const devB = createTestDevice({
+        device_type: "switch-type",
+        position: 2,
+      });
+      const placedDevices = [
+        { rackId: "rack-1", device: devA },
+        { rackId: "rack-1", device: devB },
+      ];
+      const cables = [
+        {
+          id: "cable-1",
+          a_device_id: devA.id,
+          a_interface: "eth0",
+          b_device_id: devB.id,
+          b_interface: "eth1",
+        },
+      ];
+
+      const command = createDeleteDeviceTypeCommand(
+        deviceType,
+        placedDevices,
+        store,
+        cables,
+      );
+
+      command.execute();
+      expect(store.removeCableRaw).toHaveBeenCalledWith("cable-1");
+
+      command.undo();
+      expect(store.addCableRaw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "cable-1",
+          a_device_id: devA.id,
+          b_device_id: devB.id,
+        }),
       );
     });
   });

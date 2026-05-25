@@ -276,7 +276,9 @@
           );
 
           requestAnimationFrame(() => {
-            canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+            if (!canvasStore.restoreViewport()) {
+              canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+            }
           });
           return;
         }
@@ -302,9 +304,11 @@
       // Mark as dirty since this is an autosaved session (not explicitly saved)
       layoutStore.markDirty();
       // Don't show new rack dialog - user has work in progress
-      // Reset view to center the loaded rack after DOM updates
+      // Restore saved viewport if available, otherwise fit all racks
       requestAnimationFrame(() => {
-        canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+        if (!canvasStore.restoreViewport()) {
+          canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+        }
       });
       return;
     }

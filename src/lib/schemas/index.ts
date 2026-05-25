@@ -537,7 +537,29 @@ export const DeviceTypeSchema = z
      */
     slots: z.array(SlotSchema).optional(),
   })
-  .passthrough();
+  .passthrough()
+  .superRefine((data, ctx) => {
+    // Half-depth devices have one physical face; interfaces cannot span both.
+    // Unspecified position defaults to 'front', so implicit-front + explicit-rear is also invalid.
+    if (
+      data.is_full_depth === false &&
+      data.interfaces &&
+      data.interfaces.length > 0
+    ) {
+      const positions = data.interfaces.map(
+        (iface: { position?: string }) => iface.position ?? "front",
+      );
+      const uniquePositions = new Set(positions);
+      if (uniquePositions.size > 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "Half-depth device cannot have interfaces on both front and rear faces",
+          path: ["interfaces"],
+        });
+      }
+    }
+  });
 
 /**
  * Placed device schema - instance in rack

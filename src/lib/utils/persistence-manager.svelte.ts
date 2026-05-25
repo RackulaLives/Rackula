@@ -65,6 +65,7 @@ export function handleFitAll(): void {
   const uiStore = getUIStore();
   const canvasStore = getCanvasStore();
   const rightOffset = uiStore.rightDrawerOpen ? DRAWER_WIDTH : 0;
+  canvasStore.clearSavedViewport();
   canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups, rightOffset);
 }
 

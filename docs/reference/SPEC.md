@@ -43,9 +43,9 @@ Homelabbers planning rack layouts. Desktop browser users for creation/editing, m
 
 Rackula supports two deployment modes:
 
-| Mode       | Backend  | Persistence             | Use Case                   |
-| ---------- | -------- | ----------------------- | -------------------------- |
-| **Static** | None     | File download/upload    | GitHub Pages, simple hosts |
+| Mode        | Backend  | Persistence            | Use Case                   |
+| ----------- | -------- | ---------------------- | -------------------------- |
+| **Static**  | None     | File download/upload   | GitHub Pages, simple hosts |
 | **Persist** | Hono/Bun | API server (save/load) | Self-hosted Docker         |
 
 In static mode, Rackula is a pure client-side SPA with no network dependencies. In persist mode, an optional API server provides layout storage, authentication, and multi-device sync.
@@ -119,6 +119,13 @@ The `face` property is the single source of truth for collision detection:
 - Half-depth devices (`is_full_depth: false`) default to `face: "front"`
 - Users can override face via EditPanel; the override takes precedence for collision detection
 
+**Interface Position Constraints:**
+
+Half-depth device types (`is_full_depth: false`) have a single physical face. Their interface
+templates cannot have mixed `position` values — all explicitly positioned interfaces must use
+the same face (`front` or `rear`). Unpositioned interfaces default to `front`. This constraint
+is enforced by `DeviceTypeSchema`.
+
 **Interaction Consistency:**
 
 Both drag-and-drop and keyboard movement use face-aware validation:
@@ -175,10 +182,10 @@ my-rack.Rackula.zip
 
 ## See Also
 
-| Document                                  | Purpose                           |
-| ----------------------------------------- | --------------------------------- |
-| [ARCHITECTURE.md](../ARCHITECTURE.md)     | Codebase overview and entry points |
-| [SCHEMA.md](./SCHEMA.md)                  | Complete data schema reference    |
-| [BRAND.md](./BRAND.md)                    | Design system and brand colours   |
-| [CLAUDE.md](../../CLAUDE.md)              | Development workflow and commands |
-| [CHANGELOG.md](../../CHANGELOG.md)        | Version history                   |
+| Document                              | Purpose                            |
+| ------------------------------------- | ---------------------------------- |
+| [ARCHITECTURE.md](../ARCHITECTURE.md) | Codebase overview and entry points |
+| [SCHEMA.md](./SCHEMA.md)              | Complete data schema reference     |
+| [BRAND.md](./BRAND.md)                | Design system and brand colours    |
+| [CLAUDE.md](../../CLAUDE.md)          | Development workflow and commands  |
+| [CHANGELOG.md](../../CHANGELOG.md)    | Version history                    |

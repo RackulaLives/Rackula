@@ -38,15 +38,42 @@ export interface PointerDragContext {
   toastStore: ReturnType<typeof getToastStore>;
 }
 
+// Document-level drag events fire on every rack listener. Without a bounds
+// check, racks process events whose pointer is over a sibling rack, causing
+// stale previews and incorrect drop dispatch in multi-rack layouts (#1467).
+function isPointerOutsideSvg(
+  svg: SVGSVGElement,
+  clientX: number,
+  clientY: number,
+): boolean {
+  const rect = svg.getBoundingClientRect();
+  return (
+    clientX < rect.left ||
+    clientX > rect.right ||
+    clientY < rect.top ||
+    clientY > rect.bottom
+  );
+}
+
 /**
  * Create and attach pointer drag event listeners.
  * Returns a cleanup function that removes the listeners.
  */
-export function attachPointerDragListeners(ctx: PointerDragContext): () => void {
+export function attachPointerDragListeners(
+  ctx: PointerDragContext,
+): () => void {
   function handleDragMove(event: CustomEvent) {
     const svgElement = ctx.getSvgElement();
     if (!svgElement) return;
     const { clientX, clientY, device } = event.detail;
+    if (isPointerOutsideSvg(svgElement, clientX, clientY)) {
+      // Pointer left this rack — clear any preview/hover state we set earlier.
+      // Otherwise a stale drop preview remains visible while the user drags
+      // over a sibling rack.
+      ctx.setContainerHoverInfo(null);
+      ctx.setDropPreview(null);
+      return;
+    }
     const rack = ctx.getRack();
     const isInternalMove = event.detail.rackId === rack.id;
     const excludeIndex = isInternalMove ? event.detail.deviceIndex : undefined;
@@ -68,11 +95,27 @@ export function attachPointerDragListeners(ctx: PointerDragContext): () => void 
   function handleDragEnd(event: CustomEvent) {
     const svgElement = ctx.getSvgElement();
     if (!svgElement) return;
-    const { clientX, clientY, device, rackId: sourceRackId, deviceIndex } = event.detail;
+    const {
+      clientX,
+      clientY,
+      device,
+      rackId: sourceRackId,
+      deviceIndex,
+    } = event.detail;
 
+    // Always clear this rack's local drag state, even if the drop landed
+    // elsewhere — the source rack still needs its dragging-index cleared.
     ctx.setDropPreview(null);
     ctx.setContainerHoverInfo(null);
     ctx.clearDraggingIndex();
+
+    // Only the rack containing the pointer at drop time should dispatch the
+    // drop action. Other racks must skip dispatch to avoid duplicate/incorrect
+    // drops in multi-rack layouts (#1467).
+    if (isPointerOutsideSvg(svgElement, clientX, clientY)) {
+      ctx.onDragFinished();
+      return;
+    }
 
     // Preserve existing slot_position for pointer-based moves
     const sourceRack = ctx.layoutStore.getRackById(sourceRackId);
@@ -109,11 +152,20 @@ export function attachPointerDragListeners(ctx: PointerDragContext): () => void 
     ctx.onDragFinished();
   }
 
-  document.addEventListener("rackula:dragmove", handleDragMove as EventListener);
+  document.addEventListener(
+    "rackula:dragmove",
+    handleDragMove as EventListener,
+  );
   document.addEventListener("rackula:dragend", handleDragEnd as EventListener);
 
   return () => {
-    document.removeEventListener("rackula:dragmove", handleDragMove as EventListener);
-    document.removeEventListener("rackula:dragend", handleDragEnd as EventListener);
+    document.removeEventListener(
+      "rackula:dragmove",
+      handleDragMove as EventListener,
+    );
+    document.removeEventListener(
+      "rackula:dragend",
+      handleDragEnd as EventListener,
+    );
   };
 }

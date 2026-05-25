@@ -8,6 +8,7 @@ import {
   setupStoreWithDevice,
   createTestDevice,
   createTestDeviceType,
+  createTestLayoutStore,
 } from "./factories";
 
 describe("Layout Store", () => {
@@ -172,16 +173,46 @@ describe("Layout Store", () => {
             starting_unit: 1,
             position: 0,
             devices: [
-              { id: "same-id", device_type: "server-a", position: 100, face: "front" as const },
-              { id: "same-id", device_type: "server-b", position: 200, face: "front" as const },
-              { id: "ok-id", device_type: "server-c", position: 300, face: "front" as const },
+              {
+                id: "same-id",
+                device_type: "server-a",
+                position: 100,
+                face: "front" as const,
+              },
+              {
+                id: "same-id",
+                device_type: "server-b",
+                position: 200,
+                face: "front" as const,
+              },
+              {
+                id: "ok-id",
+                device_type: "server-c",
+                position: 300,
+                face: "front" as const,
+              },
             ],
           },
         ],
         device_types: [
-          { slug: "server-a", u_height: 1, colour: "#4A90A4", category: "server" as const },
-          { slug: "server-b", u_height: 1, colour: "#4A90A4", category: "server" as const },
-          { slug: "server-c", u_height: 1, colour: "#4A90A4", category: "server" as const },
+          {
+            slug: "server-a",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+          {
+            slug: "server-b",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+          {
+            slug: "server-c",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
         ],
         settings: {
           display_mode: "label",
@@ -215,14 +246,34 @@ describe("Layout Store", () => {
             starting_unit: 1,
             position: 0,
             devices: [
-              { id: "", device_type: "server-a", position: 100, face: "front" as const },
-              { id: "valid-id", device_type: "server-b", position: 200, face: "front" as const },
+              {
+                id: "",
+                device_type: "server-a",
+                position: 100,
+                face: "front" as const,
+              },
+              {
+                id: "valid-id",
+                device_type: "server-b",
+                position: 200,
+                face: "front" as const,
+              },
             ],
           },
         ],
         device_types: [
-          { slug: "server-a", u_height: 1, colour: "#4A90A4", category: "server" as const },
-          { slug: "server-b", u_height: 1, colour: "#4A90A4", category: "server" as const },
+          {
+            slug: "server-a",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+          {
+            slug: "server-b",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
         ],
         settings: {
           display_mode: "label",
@@ -421,6 +472,129 @@ describe("Layout Store", () => {
       store.markClean();
       store.updateRack(rack!.id, { name: "Updated" });
       expect(store.isDirty).toBe(true);
+    });
+
+    it("propagates desc_units across a bayed group (#1520)", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Bayed", 3, 12);
+      expect(result).not.toBeNull();
+      // Sanity: all bays start with desc_units=false
+      for (const r of result!.racks) {
+        expect(r.desc_units).toBe(false);
+      }
+
+      // Edit the middle bay — the shared U-label column reads from racks[0],
+      // and bays must stay in sync regardless of which one the user edits.
+      store.updateRack(result!.racks[1].id, { desc_units: true });
+
+      const groupRackIds = result!.racks.map((r) => r.id);
+      const updated = store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      );
+      for (const r of updated) {
+        expect(r.desc_units).toBe(true);
+      }
+    });
+
+    it("propagates starting_unit across a bayed group (#1520)", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Bayed", 2, 12);
+      expect(result).not.toBeNull();
+
+      store.updateRack(result!.racks[1].id, { starting_unit: 10 });
+
+      const groupRackIds = result!.racks.map((r) => r.id);
+      const updated = store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      );
+      for (const r of updated) {
+        expect(r.starting_unit).toBe(10);
+      }
+    });
+
+    it("does not propagate non-numbering settings across a bayed group", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Bayed", 2, 12);
+      expect(result).not.toBeNull();
+
+      store.updateRack(result!.racks[0].id, { name: "Renamed Bay 1" });
+
+      const bay1 = store.layout.racks.find(
+        (r) => r.id === result!.racks[0].id,
+      )!;
+      const bay2 = store.layout.racks.find(
+        (r) => r.id === result!.racks[1].id,
+      )!;
+      expect(bay1.name).toBe("Renamed Bay 1");
+      expect(bay2.name).toBe("Bay 2");
+    });
+
+    it("undoes bayed desc_units propagation atomically (#1520)", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Bayed", 3, 12);
+      expect(result).not.toBeNull();
+      const groupRackIds = result!.racks.map((r) => r.id);
+      // Capture initial values rather than assuming defaults — keeps the
+      // test honest if createDefaultRack's defaults change.
+      const initialDesc = new Map(
+        result!.racks.map((r) => [r.id, r.desc_units ?? false]),
+      );
+
+      store.updateRack(result!.racks[1].id, { desc_units: true });
+      for (const r of store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      )) {
+        expect(r.desc_units).toBe(true);
+      }
+
+      // One undo must revert ALL bays — otherwise the shared U-label column
+      // ends up out of sync with the other bays.
+      store.undo();
+      for (const r of store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      )) {
+        expect(r.desc_units).toBe(initialDesc.get(r.id));
+      }
+
+      store.redo();
+      for (const r of store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      )) {
+        expect(r.desc_units).toBe(true);
+      }
+    });
+
+    it("undoes bayed starting_unit propagation atomically (#1520)", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Bayed", 2, 12);
+      expect(result).not.toBeNull();
+      const groupRackIds = result!.racks.map((r) => r.id);
+      // Capture initial values rather than assuming defaults — keeps the
+      // test honest if createDefaultRack's defaults change.
+      const initialStarting = new Map(
+        result!.racks.map((r) => [r.id, r.starting_unit ?? 1]),
+      );
+
+      store.updateRack(result!.racks[0].id, { starting_unit: 10 });
+      for (const r of store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      )) {
+        expect(r.starting_unit).toBe(10);
+      }
+
+      store.undo();
+      for (const r of store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      )) {
+        expect(r.starting_unit).toBe(initialStarting.get(r.id));
+      }
+
+      store.redo();
+      for (const r of store.layout.racks.filter((r) =>
+        groupRackIds.includes(r.id),
+      )) {
+        expect(r.starting_unit).toBe(10);
+      }
     });
   });
 
@@ -2134,7 +2308,11 @@ describe("Layout Store", () => {
       const typeCountBefore = store.device_types.length;
 
       // Place a different brand device at the same position (collision)
-      const result = store.placeDevice(rack!.id, "ubiquiti-unifi-dream-machine-pro", 5);
+      const result = store.placeDevice(
+        rack!.id,
+        "ubiquiti-unifi-dream-machine-pro",
+        5,
+      );
 
       // Placement failed — nothing should have been imported or dirtied
       expect(result).toBe(false);
@@ -2405,5 +2583,85 @@ describe("Layout Store", () => {
       const ids = new Set(devices.map((d) => d.id));
       expect(ids.size).toBe(3);
     });
+  });
+});
+
+describe("Layout name sync on first rack creation (#1482)", () => {
+  it("syncs layout.name and metadata.name to the first rack's name", () => {
+    const store = createTestLayoutStore({ layoutName: "My Layout" });
+    expect(store.layout.name).toBe("My Layout");
+    expect(store.layout.metadata?.name).toBe("My Layout");
+
+    store.addRack("Server Rack A", 42);
+
+    expect(store.layout.name).toBe("Server Rack A");
+    expect(store.layout.metadata?.name).toBe("Server Rack A");
+  });
+
+  it("does NOT change layout.name when adding subsequent racks", () => {
+    const store = createTestLayoutStore({ layoutName: "My Layout" });
+    store.addRack("Server Rack A", 42);
+
+    store.addRack("Server Rack B", 24);
+
+    expect(store.layout.name).toBe("Server Rack A");
+    expect(store.layout.metadata?.name).toBe("Server Rack A");
+  });
+
+  it("restores the original layout name when undoing the first rack creation", () => {
+    const store = createTestLayoutStore({ layoutName: "Original Layout" });
+    expect(store.layout.name).toBe("Original Layout");
+
+    store.addRack("First Rack", 42);
+    expect(store.layout.name).toBe("First Rack");
+
+    store.undo();
+
+    expect(store.layout.name).toBe("Original Layout");
+    expect(store.layout.metadata?.name).toBe("Original Layout");
+    expect(store.layout.racks.length).toBe(0);
+  });
+
+  it("does not touch layout.name when undoing a subsequent rack creation", () => {
+    const store = createTestLayoutStore({ layoutName: "Original Layout" });
+    store.addRack("First Rack", 42);
+    const layoutNameAfterFirstRack = store.layout.name;
+    expect(layoutNameAfterFirstRack).toBe("First Rack");
+
+    store.addRack("Second Rack", 24);
+    store.undo();
+
+    // Undoing the second rack should leave layout.name as "First Rack",
+    // not revert further back to "Original Layout"
+    expect(store.layout.name).toBe(layoutNameAfterFirstRack);
+    expect(store.layout.metadata?.name).toBe(layoutNameAfterFirstRack);
+  });
+});
+
+describe("Raw mutators do not have layout-name side effects (#1481)", () => {
+  it("updateRackRaw does not change layout.name", () => {
+    const store = createTestLayoutStore({ layoutName: "Original Layout" });
+    store.addRack("First Rack", 42);
+    const beforeName = store.layout.name;
+
+    // Call updateRackRaw directly (bypass recorded path)
+    store.updateRackRaw({ name: "Renamed Rack" });
+
+    expect(store.layout.name).toBe(beforeName);
+    expect(store.layout.metadata?.name).toBe(beforeName);
+  });
+
+  it("undo of a rack settings change does not change layout.name", () => {
+    const store = createTestLayoutStore({ layoutName: "My Layout" });
+    store.addRack("First Rack", 42);
+    const layoutNameBeforeUndo = store.layout.name;
+    const activeRackId = store.activeRackId;
+    expect(activeRackId).not.toBeNull();
+
+    store.updateRack(activeRackId!, { height: 24 });
+    store.undo();
+
+    expect(store.layout.name).toBe(layoutNameBeforeUndo);
+    expect(store.layout.metadata?.name).toBe(layoutNameBeforeUndo);
   });
 });

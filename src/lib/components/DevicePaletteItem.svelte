@@ -23,6 +23,8 @@
     hideDragTooltip,
   } from "$lib/stores/dragTooltip.svelte";
   import { highlightMatch } from "$lib/utils/searchHighlight";
+  import PaletteDeviceContextMenu from "./PaletteDeviceContextMenu.svelte";
+  import ConfirmDialog from "./ConfirmDialog.svelte";
 
   interface Props {
     device: DeviceType;
@@ -71,6 +73,12 @@
   // Track dragging state for visual feedback
   let isDragging = $state(false);
 
+  // Context menu state (right-click for custom devices)
+  let contextMenuOpen = $state(false);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
+  let showConfirmDelete = $state(false);
+
   function handleClick() {
     onselect?.(new CustomEvent("select", { detail: { device } }));
   }
@@ -94,6 +102,25 @@
       event.stopPropagation();
       ondelete?.(new CustomEvent("delete", { detail: { device } }));
     }
+  }
+
+  function handleContextMenu(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!canDelete) return;
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+    contextMenuOpen = true;
+  }
+
+  function handleContextMenuDelete() {
+    contextMenuOpen = false;
+    showConfirmDelete = true;
+  }
+
+  function handleConfirmDelete() {
+    showConfirmDelete = false;
+    ondelete?.(new CustomEvent("delete", { detail: { device } }));
   }
 
   // Tracks whether this instance owns the current drag session.
@@ -186,6 +213,7 @@
   title={!isCompatible ? (incompatibilityReason ?? undefined) : undefined}
   onclick={handleClick}
   onkeydown={handleKeyDown}
+  oncontextmenu={handleContextMenu}
   ondragstart={handleDragStart}
   ondragend={handleDragEnd}
   aria-label={ariaDescription}
@@ -242,6 +270,24 @@
     </Tooltip>
   {/if}
 </div>
+
+{#if canDelete}
+  <PaletteDeviceContextMenu
+    bind:open={contextMenuOpen}
+    x={contextMenuX}
+    y={contextMenuY}
+    ondelete={handleContextMenuDelete}
+  />
+
+  <ConfirmDialog
+    open={showConfirmDelete}
+    title="Delete Device Type"
+    message={`Delete "${deviceName}"? This will remove the device from your library.`}
+    confirmLabel="Delete"
+    onconfirm={handleConfirmDelete}
+    oncancel={() => (showConfirmDelete = false)}
+  />
+{/if}
 
 <style>
   .device-palette-item {

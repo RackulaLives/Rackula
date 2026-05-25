@@ -21,11 +21,18 @@ import {
   DUAL_VIEW_EXTRA_HEIGHT,
 } from "$lib/constants/layout";
 import { toHumanUnits } from "$lib/utils/position";
+import {
+  safeGetItem,
+  safeSetItem,
+  safeRemoveItem,
+} from "$lib/utils/safe-storage";
 
 // Panzoom constants
 export const ZOOM_MIN = 0.25; // 25% - allows fitting 6+ large racks
 export const ZOOM_MAX = 2; // 200%
 export const ZOOM_STEP = 0.25; // 25%
+
+const VIEWPORT_KEY = "Rackula:viewport";
 
 type PanzoomInstance = ReturnType<typeof panzoom>;
 
@@ -34,6 +41,8 @@ let panzoomInstance = $state<PanzoomInstance | null>(null);
 let currentZoom = $state(1); // 1 = 100%
 let canvasElement = $state<HTMLElement | null>(null);
 let isPanning = $state(false);
+let viewportSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let suppressViewportSave = false;
 
 // Derived values
 const canZoomIn = $derived(currentZoom < ZOOM_MAX);
@@ -51,6 +60,8 @@ export function resetCanvasStore(): void {
   currentZoom = 1;
   canvasElement = null;
   isPanning = false;
+  cancelViewportSave();
+  suppressViewportSave = false;
 }
 
 /**
@@ -93,7 +104,78 @@ export function getCanvasStore() {
     fitAll,
     focusRack,
     zoomToDevice,
+    restoreViewport,
+    clearSavedViewport,
   };
+}
+
+function scheduleViewportSave(): void {
+  if (suppressViewportSave || !panzoomInstance) return;
+  if (viewportSaveTimer) clearTimeout(viewportSaveTimer);
+  viewportSaveTimer = setTimeout(() => {
+    if (panzoomInstance) {
+      const t = panzoomInstance.getTransform();
+      canvasDebug.transform("viewport save: %o", {
+        x: t.x,
+        y: t.y,
+        scale: t.scale,
+      });
+      safeSetItem(
+        VIEWPORT_KEY,
+        JSON.stringify({ x: t.x, y: t.y, scale: t.scale }),
+      );
+    }
+    viewportSaveTimer = null;
+  }, 500);
+}
+
+function cancelViewportSave(): void {
+  if (viewportSaveTimer) {
+    clearTimeout(viewportSaveTimer);
+    viewportSaveTimer = null;
+  }
+}
+
+function clearSavedViewport(): void {
+  cancelViewportSave();
+  safeRemoveItem(VIEWPORT_KEY);
+}
+
+/**
+ * Restore the saved viewport transform from localStorage.
+ * Returns true if a saved viewport was found and applied.
+ * Used on page load to resume where the user left off.
+ */
+function restoreViewport(): boolean {
+  if (!panzoomInstance) return false;
+  const raw = safeGetItem(VIEWPORT_KEY);
+  if (!raw) return false;
+  try {
+    const saved = JSON.parse(raw) as { x: number; y: number; scale: number };
+    if (
+      !Number.isFinite(saved.x) ||
+      !Number.isFinite(saved.y) ||
+      !Number.isFinite(saved.scale)
+    ) {
+      // Remove corrupted entry so future saves can work correctly
+      safeRemoveItem(VIEWPORT_KEY);
+      return false;
+    }
+    const scale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, saved.scale));
+    canvasDebug.transform("viewport restore: %o", {
+      x: saved.x,
+      y: saved.y,
+      scale,
+    });
+    panzoomInstance.zoomAbs(0, 0, scale);
+    panzoomInstance.moveTo(saved.x, saved.y);
+    currentZoom = scale;
+    return true;
+  } catch {
+    // Remove unparseable entry so it doesn't block future restores
+    safeRemoveItem(VIEWPORT_KEY);
+    return false;
+  }
 }
 
 /**
@@ -102,10 +184,11 @@ export function getCanvasStore() {
 function setPanzoomInstance(instance: PanzoomInstance): void {
   panzoomInstance = instance;
 
-  // Listen for zoom changes to keep state in sync
+  // Listen for zoom changes to keep state in sync, and debounce-save viewport
   instance.on("zoom", () => {
     const transform = instance.getTransform();
     currentZoom = transform.scale;
+    scheduleViewportSave();
   });
 
   // Track panning state to prevent accidental selection after pan
@@ -117,6 +200,7 @@ function setPanzoomInstance(instance: PanzoomInstance): void {
     setTimeout(() => {
       isPanning = false;
     }, 50);
+    scheduleViewportSave();
   });
 
   // Initialize currentZoom from panzoom
@@ -128,6 +212,7 @@ function setPanzoomInstance(instance: PanzoomInstance): void {
  * Dispose panzoom instance (called from Canvas component on unmount)
  */
 function disposePanzoom(): void {
+  cancelViewportSave();
   if (panzoomInstance) {
     panzoomInstance.dispose();
     panzoomInstance = null;
@@ -178,8 +263,11 @@ function setZoom(scale: number): void {
 function resetZoom(): void {
   if (!panzoomInstance) return;
 
+  suppressViewportSave = true;
+  clearSavedViewport();
   panzoomInstance.zoomAbs(0, 0, 1);
   panzoomInstance.moveTo(0, 0);
+  suppressViewportSave = false;
 }
 
 /**
@@ -250,6 +338,9 @@ function fitAll(
 ): void {
   if (!panzoomInstance || !canvasElement || racks.length === 0) return;
 
+  suppressViewportSave = true;
+  cancelViewportSave();
+
   // Get viewport dimensions, accounting for any right-side overlay
   const viewportWidth = canvasElement.clientWidth - rightOffset;
   const viewportHeight = canvasElement.clientHeight;
@@ -275,6 +366,8 @@ function fitAll(
   panzoomInstance.moveTo(panX, panY);
 
   canvasDebug.transform("fitAll applied: %o", panzoomInstance.getTransform());
+
+  suppressViewportSave = false;
 }
 
 /**

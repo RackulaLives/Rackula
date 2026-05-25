@@ -22,6 +22,7 @@ import {
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
 import { getRackGroupCommandAdapter } from "./rack-groups";
+import { setLayoutNamesRaw } from "./mutators";
 
 // =============================================================================
 // Raw Mutators (for undo/redo system — bypass history)
@@ -104,7 +105,11 @@ export function restoreRackRaw(
 
   // Insert the rack at its original position (or append if no index given)
   const racks = [...layout.racks];
-  if (originalIndex !== undefined && originalIndex >= 0 && originalIndex <= racks.length) {
+  if (
+    originalIndex !== undefined &&
+    originalIndex >= 0 &&
+    originalIndex <= racks.length
+  ) {
     racks.splice(originalIndex, 0, rack);
   } else {
     racks.push(rack);
@@ -154,6 +159,8 @@ export function getRackLifecycleCommandAdapter(
     restoreRackRaw: (rack: Rack, groups: RackGroup[], originalIndex?: number) =>
       restoreRackRaw(ctx, rack, groups, originalIndex),
     setActiveRackId: (id: string | null) => ctx.setActiveRackId(id),
+    setLayoutNamesRaw: (name: string, metadataName: string | undefined) =>
+      setLayoutNamesRaw(ctx, name, metadataName),
   };
 }
 
@@ -179,10 +186,7 @@ export function getRackById(
  * @param ctx - Layout state access
  * @param id - Rack ID to make active (null to clear)
  */
-export function setActiveRack(
-  ctx: LayoutStateAccess,
-  id: string | null,
-): void {
+export function setActiveRack(ctx: LayoutStateAccess, id: string | null): void {
   if (id === null) {
     ctx.setActiveRackId(null);
     return;
@@ -201,10 +205,7 @@ export function setActiveRack(
  * @param rackId - Rack ID to find
  * @returns Index in layout.racks or -1 if not found
  */
-export function getRackIndex(
-  ctx: LayoutStateAccess,
-  rackId: string,
-): number {
+export function getRackIndex(ctx: LayoutStateAccess, rackId: string): number {
   return ctx.findRackIndex(rackId);
 }
 
@@ -251,8 +252,15 @@ export function getTargetRack(
 
 /**
  * Add a new rack to the layout
- * Layout name is managed independently via setLayoutName
- * Uses undo/redo support via command pattern
+ *
+ * When this is the **first** rack added to the layout, both `layout.name`
+ * and `layout.metadata.name` are synced to the new rack's name (#1482).
+ * The sync is captured inside the command so undo restores the previous
+ * layout-level names exactly. Subsequent racks do not touch the layout
+ * name; it can still be changed via `setLayoutName` independently.
+ *
+ * Uses undo/redo support via command pattern.
+ *
  * @param ctx - Layout state access
  * @param name - Rack name
  * @param height - Rack height in U
@@ -278,6 +286,19 @@ export function addRack(
     return null;
   }
 
+  // Snapshot layout-level names before creating the first rack so that
+  // undo can restore them exactly (#1482).
+  const wasFirstRack = layout.racks.length === 0;
+  const layoutNameSync = wasFirstRack
+    ? {
+        hasMetadata: layout.metadata !== undefined,
+        snapshot: {
+          previousLayoutName: layout.name,
+          previousMetadataName: layout.metadata?.name,
+        },
+      }
+    : undefined;
+
   const newRack = createDefaultRack(
     name,
     height,
@@ -293,7 +314,7 @@ export function addRack(
   // setActive: true ensures redo also restores the active rack selection
   const history = getHistoryStore();
   const adapter = getRackLifecycleCommandAdapter(ctx);
-  const command = createAddRackCommand(newRack, adapter, true);
+  const command = createAddRackCommand(newRack, adapter, true, layoutNameSync);
   history.execute(command);
   ctx.markDirty();
 
@@ -375,10 +396,15 @@ export function addBayedRackGroup(
   const groupAdapter = getRackGroupCommandAdapter(ctx);
 
   const commands: Command[] = [
-    ...newRacks.map((rack, i) => createAddRackCommand(rack, rackAdapter, i === 0)),
+    ...newRacks.map((rack, i) =>
+      createAddRackCommand(rack, rackAdapter, i === 0),
+    ),
     createCreateRackGroupCommand(group, groupAdapter),
   ];
-  const batch = createBatchCommand(`Create bayed group "${groupName}"`, commands);
+  const batch = createBatchCommand(
+    `Create bayed group "${groupName}"`,
+    commands,
+  );
   history.execute(batch);
   ctx.markDirty();
 

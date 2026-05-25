@@ -22,23 +22,67 @@ export interface RackCommandStore {
 }
 
 /**
+ * Snapshot of the previous layout-level names captured before a first-rack
+ * sync, used to restore them on undo.
+ */
+export interface LayoutNameSnapshot {
+  /** Previous value of `layout.name`. */
+  previousLayoutName: string;
+  /** Previous value of `layout.metadata.name`, if metadata exists. */
+  previousMetadataName?: string;
+}
+
+/**
+ * Optional layout-name sync directive for createAddRackCommand. When provided,
+ * the command will update `layout.name` and `layout.metadata.name` to the new
+ * rack's name on execute(), and restore the previous values on undo().
+ */
+export interface AddRackLayoutNameSync {
+  /** Whether the previous layout had a metadata block at the time of capture. */
+  hasMetadata: boolean;
+  /** Snapshot of names to restore on undo. */
+  snapshot: LayoutNameSnapshot;
+}
+
+/**
  * Interface for layout store operations needed by rack add/delete commands
  */
 export interface RackLifecycleCommandStore {
   addRackRaw(rack: Rack): void;
-  deleteRackRaw(id: string): { rack: Rack; index: number; groups: RackGroup[] } | undefined;
+  deleteRackRaw(
+    id: string,
+  ): { rack: Rack; index: number; groups: RackGroup[] } | undefined;
   restoreRackRaw(rack: Rack, groups: RackGroup[], originalIndex?: number): void;
   setActiveRackId(id: string | null): void;
+  /**
+   * Write both `layout.name` and `layout.metadata.name` directly (bypasses
+   * history and dirty tracking). Used by createAddRackCommand to sync the
+   * layout name when the first rack is added, and to restore it on undo.
+   *
+   * - `name` is written verbatim (no trimming, no empty-skip guard) so undo
+   *   can restore arbitrary previous values exactly.
+   * - When `metadataName` is `undefined`, `layout.metadata.name` is left
+   *   untouched (e.g., layouts without metadata).
+   */
+  setLayoutNamesRaw(name: string, metadataName: string | undefined): void;
 }
 
 /**
  * Create a command to add a rack
+ *
+ * When `layoutNameSync` is provided, this command also syncs
+ * `layout.name` and `layout.metadata.name` to the new rack's name on
+ * `execute()` and restores the previous values on `undo()`. This is used
+ * to keep the layout's display name in sync with the first rack a user
+ * creates (#1482), while preserving full undo correctness.
  */
 export function createAddRackCommand(
   rack: Rack,
   store: RackLifecycleCommandStore,
   /** When true, execute() will also set this rack as active (for redo) */
   setActive = false,
+  /** Optional sync of layout-level names (#1482). */
+  layoutNameSync?: AddRackLayoutNameSync,
 ): Command {
   // Deep copy to avoid mutation issues
   const rackCopy = JSON.parse(JSON.stringify(rack)) as Rack;
@@ -52,9 +96,19 @@ export function createAddRackCommand(
       if (setActive) {
         store.setActiveRackId(rackCopy.id);
       }
+      if (layoutNameSync) {
+        const newName = rackCopy.name;
+        const metadataName = layoutNameSync.hasMetadata ? newName : undefined;
+        store.setLayoutNamesRaw(newName, metadataName);
+      }
     },
     undo() {
       store.deleteRackRaw(rackCopy.id);
+      if (layoutNameSync) {
+        const { previousLayoutName, previousMetadataName } =
+          layoutNameSync.snapshot;
+        store.setLayoutNamesRaw(previousLayoutName, previousMetadataName);
+      }
     },
   };
 }

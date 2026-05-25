@@ -476,6 +476,99 @@ describe("DeviceTypeSchema", () => {
 });
 
 // ============================================================================
+// DeviceTypeSchema interface position validation
+// ============================================================================
+
+describe("DeviceTypeSchema half-depth interface position validation", () => {
+  const validBase = createTestDeviceType({ slug: "test-device" });
+
+  it("accepts half-depth device with all-front interfaces", () => {
+    const device = {
+      ...validBase,
+      is_full_depth: false,
+      interfaces: [
+        { name: "eth0", type: "1000base-t", position: "front" },
+        { name: "eth1", type: "1000base-t", position: "front" },
+      ],
+    };
+    expect(DeviceTypeSchema.safeParse(device).success).toBe(true);
+  });
+
+  it("accepts half-depth device with all-rear interfaces", () => {
+    const device = {
+      ...validBase,
+      is_full_depth: false,
+      interfaces: [
+        { name: "eth0", type: "1000base-t", position: "rear" },
+        { name: "eth1", type: "1000base-t", position: "rear" },
+      ],
+    };
+    expect(DeviceTypeSchema.safeParse(device).success).toBe(true);
+  });
+
+  it("accepts half-depth device with unpositioned interfaces", () => {
+    const device = {
+      ...validBase,
+      is_full_depth: false,
+      interfaces: [
+        { name: "eth0", type: "1000base-t" },
+        { name: "eth1", type: "1000base-t" },
+      ],
+    };
+    expect(DeviceTypeSchema.safeParse(device).success).toBe(true);
+  });
+
+  it("accepts half-depth device with no interfaces", () => {
+    const device = { ...validBase, is_full_depth: false };
+    expect(DeviceTypeSchema.safeParse(device).success).toBe(true);
+  });
+
+  it("accepts full-depth device with mixed front and rear interfaces", () => {
+    const device = {
+      ...validBase,
+      is_full_depth: true,
+      interfaces: [
+        { name: "eth0", type: "1000base-t", position: "front" },
+        { name: "mgmt", type: "console", position: "rear" },
+      ],
+    };
+    expect(DeviceTypeSchema.safeParse(device).success).toBe(true);
+  });
+
+  it("rejects half-depth device with mixed front and rear interfaces", () => {
+    const device = {
+      ...validBase,
+      is_full_depth: false,
+      interfaces: [
+        { name: "eth0", type: "1000base-t", position: "front" },
+        { name: "mgmt", type: "console", position: "rear" },
+      ],
+    };
+    const result = DeviceTypeSchema.safeParse(device);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toContain("interfaces");
+    }
+  });
+
+  it("rejects half-depth device with implicit-front and explicit-rear interfaces", () => {
+    const device = {
+      ...validBase,
+      is_full_depth: false,
+      interfaces: [
+        { name: "eth0", type: "1000base-t", position: "rear" },
+        { name: "eth1", type: "1000base-t" }, // no position = implicit front
+      ],
+    };
+    const result = DeviceTypeSchema.safeParse(device);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toContain("interfaces");
+    }
+  });
+});
+
+// ============================================================================
 // PlacedDeviceSchema Tests
 // ============================================================================
 
@@ -1599,16 +1692,46 @@ describe("LayoutSchema device ID deduplication (#1363)", () => {
           starting_unit: 1,
           position: 0,
           devices: [
-            { id: "dupe-id", device_type: "server-a", position: 100, face: "front" as const },
-            { id: "dupe-id", device_type: "server-b", position: 200, face: "front" as const },
-            { id: "unique-id", device_type: "server-c", position: 300, face: "front" as const },
+            {
+              id: "dupe-id",
+              device_type: "server-a",
+              position: 100,
+              face: "front" as const,
+            },
+            {
+              id: "dupe-id",
+              device_type: "server-b",
+              position: 200,
+              face: "front" as const,
+            },
+            {
+              id: "unique-id",
+              device_type: "server-c",
+              position: 300,
+              face: "front" as const,
+            },
           ],
         },
       ],
       device_types: [
-        { slug: "server-a", u_height: 1, colour: "#4A90A4", category: "server" as const },
-        { slug: "server-b", u_height: 1, colour: "#4A90A4", category: "server" as const },
-        { slug: "server-c", u_height: 1, colour: "#4A90A4", category: "server" as const },
+        {
+          slug: "server-a",
+          u_height: 1,
+          colour: "#4A90A4",
+          category: "server" as const,
+        },
+        {
+          slug: "server-b",
+          u_height: 1,
+          colour: "#4A90A4",
+          category: "server" as const,
+        },
+        {
+          slug: "server-c",
+          u_height: 1,
+          colour: "#4A90A4",
+          category: "server" as const,
+        },
       ],
       settings: baseSettings,
     };
@@ -1644,8 +1767,18 @@ describe("LayoutSchema device ID deduplication (#1363)", () => {
           starting_unit: 1,
           position: 0,
           devices: [
-            { id: "dupe-id", device_type: "server-a", position: 100, face: "front" as const },
-            { id: "dupe-id", device_type: "server-b", position: 200, face: "front" as const },
+            {
+              id: "dupe-id",
+              device_type: "server-a",
+              position: 100,
+              face: "front" as const,
+            },
+            {
+              id: "dupe-id",
+              device_type: "server-b",
+              position: 200,
+              face: "front" as const,
+            },
           ],
         },
         {
@@ -1659,15 +1792,40 @@ describe("LayoutSchema device ID deduplication (#1363)", () => {
           starting_unit: 1,
           position: 1,
           devices: [
-            { id: "dupe-id-2", device_type: "server-a", position: 100, face: "front" as const },
-            { id: "dupe-id-2", device_type: "server-c", position: 200, face: "front" as const },
+            {
+              id: "dupe-id-2",
+              device_type: "server-a",
+              position: 100,
+              face: "front" as const,
+            },
+            {
+              id: "dupe-id-2",
+              device_type: "server-c",
+              position: 200,
+              face: "front" as const,
+            },
           ],
         },
       ],
       device_types: [
-        { slug: "server-a", u_height: 1, colour: "#4A90A4", category: "server" as const },
-        { slug: "server-b", u_height: 1, colour: "#4A90A4", category: "server" as const },
-        { slug: "server-c", u_height: 1, colour: "#4A90A4", category: "server" as const },
+        {
+          slug: "server-a",
+          u_height: 1,
+          colour: "#4A90A4",
+          category: "server" as const,
+        },
+        {
+          slug: "server-b",
+          u_height: 1,
+          colour: "#4A90A4",
+          category: "server" as const,
+        },
+        {
+          slug: "server-c",
+          u_height: 1,
+          colour: "#4A90A4",
+          category: "server" as const,
+        },
       ],
       settings: baseSettings,
     };
