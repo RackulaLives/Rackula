@@ -933,8 +933,15 @@ function moveDevice(
   deviceIndex: number,
   newPosition: number,
   slotPosition?: SlotPosition,
+  face?: DeviceFace,
 ): boolean {
-  return moveDeviceRecorded(rackId, deviceIndex, newPosition, slotPosition);
+  return moveDeviceRecorded(
+    rackId,
+    deviceIndex,
+    newPosition,
+    slotPosition,
+    face,
+  );
 }
 
 /**
@@ -949,18 +956,9 @@ function moveDeviceToRack(
   face?: DeviceFace,
   slotPosition?: SlotPosition,
 ): boolean {
-  // Same-rack move — delegate to existing function, apply face change if provided
+  // Same-rack move — delegate to existing function (face bundled into single undo entry)
   if (fromRackId === toRackId) {
-    const moved = moveDevice(
-      fromRackId,
-      deviceIndex,
-      newPosition,
-      slotPosition,
-    );
-    if (moved && face !== undefined) {
-      updateDeviceFace(fromRackId, deviceIndex, face);
-    }
-    return moved;
+    return moveDevice(fromRackId, deviceIndex, newPosition, slotPosition, face);
   }
 
   // Cross-rack move
@@ -1408,6 +1406,7 @@ function moveDeviceRecorded(
   deviceIndex: number,
   newPositionU: number,
   newSlotPosition?: SlotPosition,
+  newFace?: DeviceFace,
 ): boolean {
   return moveDeviceRecordedImpl(
     stateAccess,
@@ -1415,6 +1414,7 @@ function moveDeviceRecorded(
     deviceIndex,
     newPositionU,
     newSlotPosition,
+    newFace,
   );
 }
 

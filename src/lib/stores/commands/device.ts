@@ -346,13 +346,15 @@ export function createCrossRackMoveCommand(
   function resolveIndicesDescending(ids: string[]): number[] {
     const indices: number[] = [];
     for (const id of ids) {
-      for (let i = 0; i < 100; i++) {
+      let i = 0;
+      while (true) {
         const d = store.getDeviceAtIndex(i);
         if (!d) break;
         if (d.id === id) {
           indices.push(i);
           break;
         }
+        i++;
       }
     }
     return indices.sort((a, b) => b - a);

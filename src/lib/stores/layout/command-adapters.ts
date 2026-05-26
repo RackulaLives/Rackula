@@ -50,6 +50,7 @@ import {
   createUpdateRackCommand,
   createClearRackCommand,
   createBatchCommand,
+  type Command,
   type DeviceTypeCommandStore,
   type DeviceCommandStore,
   type RackCommandStore,
@@ -556,6 +557,7 @@ export function moveDeviceRecorded(
   deviceIndex: number,
   newPositionU: number,
   newSlotPosition?: SlotPosition,
+  newFace?: DeviceFace,
 ): boolean {
   // Convert to internal units
   const newPositionInternal = toInternalUnits(newPositionU);
@@ -613,6 +615,7 @@ export function moveDeviceRecorded(
   // Use canPlaceDevice for bounds and collision checking (face and depth aware)
   // Use new slot_position if provided (e.g., from D&D target), otherwise keep existing
   const effectiveSlot = newSlotPosition ?? device.slot_position ?? "full";
+  const effectiveFace = newFace ?? device.face;
   if (
     !canPlaceDevice(
       targetRack,
@@ -620,7 +623,7 @@ export function moveDeviceRecorded(
       deviceType.u_height,
       newPositionInternal,
       deviceIndex,
-      device.face,
+      effectiveFace,
       effectiveSlot,
     )
   ) {
@@ -651,18 +654,36 @@ export function moveDeviceRecorded(
     deviceName,
   );
 
-  if (newSlotPosition && newSlotPosition !== (device.slot_position ?? "full")) {
-    const slotCommand = createUpdateDeviceSlotPositionCommand(
-      deviceIndex,
-      device.slot_position ?? "full",
-      newSlotPosition,
-      adapter,
-      deviceName,
-    );
-    const batchCommand = createBatchCommand(`Move ${deviceName}`, [
-      moveCommand,
-      slotCommand,
-    ]);
+  const hasSlotChange =
+    newSlotPosition && newSlotPosition !== (device.slot_position ?? "full");
+  const hasFaceChange =
+    newFace !== undefined && newFace !== (device.face ?? "front");
+
+  if (hasSlotChange || hasFaceChange) {
+    const commands: Command[] = [moveCommand];
+    if (hasSlotChange) {
+      commands.push(
+        createUpdateDeviceSlotPositionCommand(
+          deviceIndex,
+          device.slot_position ?? "full",
+          newSlotPosition!,
+          adapter,
+          deviceName,
+        ),
+      );
+    }
+    if (hasFaceChange) {
+      commands.push(
+        createUpdateDeviceFaceCommand(
+          deviceIndex,
+          device.face ?? "front",
+          newFace!,
+          adapter,
+          deviceName,
+        ),
+      );
+    }
+    const batchCommand = createBatchCommand(`Move ${deviceName}`, commands);
     history.execute(batchCommand);
   } else {
     history.execute(moveCommand);
