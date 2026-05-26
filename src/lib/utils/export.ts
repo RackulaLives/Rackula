@@ -571,6 +571,7 @@ export function generateExportSVG(
     yOffset: number,
     faceFilter: "front" | "rear" | undefined,
     viewLabel?: string,
+    suppressName = false,
   ): SVGGElement {
     const rackGroup = document.createElementNS(
       "http://www.w3.org/2000/svg",
@@ -981,8 +982,10 @@ export function generateExportSVG(
     }
 
     // Rack name (positioned above rack) - only for non-dual-view
-    // In dual-view, the name is rendered separately above both front/rear views
-    if (includeNames && !viewLabel) {
+    // In dual-view, the name is rendered separately above both front/rear views.
+    // In bayed groups, the bay label already identifies each bay, so suppress the
+    // rack's own name to avoid drawing it on top of the bay label (#1740).
+    if (includeNames && !viewLabel && !suppressName) {
       const nameText = document.createElementNS(
         "http://www.w3.org/2000/svg",
         "text",
@@ -1091,7 +1094,14 @@ export function generateExportSVG(
     groupRacks.forEach((rack, bayIndex) => {
       const bayX = bayIndex * RACK_WIDTH;
       const bayY = currentY + (groupMaxHeight - rack.height) * U_HEIGHT;
-      const frontView = renderRackView(rack, bayX, bayY, "front");
+      const frontView = renderRackView(
+        rack,
+        bayX,
+        bayY,
+        "front",
+        undefined,
+        true,
+      );
       bayedGroup.appendChild(frontView);
     });
     currentY += singleRowHeight + BAYED_ROW_GAP;
@@ -1142,7 +1152,14 @@ export function generateExportSVG(
     reversedRacks.forEach((rack, reversedIndex) => {
       const bayX = reversedIndex * RACK_WIDTH;
       const bayY = currentY + (groupMaxHeight - rack.height) * U_HEIGHT;
-      const rearView = renderRackView(rack, bayX, bayY, "rear");
+      const rearView = renderRackView(
+        rack,
+        bayX,
+        bayY,
+        "rear",
+        undefined,
+        true,
+      );
       bayedGroup.appendChild(rearView);
     });
 
@@ -1455,6 +1472,43 @@ export async function exportAsJPEG(
 }
 
 /**
+ * Normalise an export SVG so svg2pdf.js renders it faithfully.
+ *
+ * svg2pdf does not implement every SVG/CSS feature the browser does, so the
+ * shared export SVG needs two adjustments before vector PDF conversion (these
+ * are applied to the re-parsed copy only — the PNG path keeps the original):
+ *
+ *  - `dominant-baseline` is ignored by svg2pdf; it reads `alignment-baseline`
+ *    instead. Mirror the value across so vertically-centred text (device names,
+ *    U numbers) stays centred rather than shifting up to the baseline (#1738).
+ *  - Numeric `font-weight` values other than 400/700 yield an invalid jsPDF
+ *    style (e.g. "normal600") and fall back to the serif font (times). Collapse
+ *    weights to the supported 400/700, treating >= 500 as bold (#1739).
+ */
+export function prepareSvgForPdf(svgElement: Element): void {
+  const textLike = [
+    ...Array.from(svgElement.getElementsByTagName("text")),
+    ...Array.from(svgElement.getElementsByTagName("tspan")),
+  ];
+
+  for (const el of textLike) {
+    const dominantBaseline = el.getAttribute("dominant-baseline");
+    if (dominantBaseline && !el.getAttribute("alignment-baseline")) {
+      el.setAttribute("alignment-baseline", dominantBaseline);
+    }
+
+    const fontWeight = el.getAttribute("font-weight");
+    if (fontWeight) {
+      const isBold =
+        fontWeight === "bold" ||
+        fontWeight === "bolder" ||
+        Number(fontWeight) >= 500;
+      el.setAttribute("font-weight", isBold ? "700" : "400");
+    }
+  }
+}
+
+/**
  * Export SVG string as PDF blob (US Letter size, centered)
  */
 export async function exportAsPDF(
@@ -1468,6 +1522,10 @@ export async function exportAsPDF(
   const parser = new DOMParser();
   const svgDoc = parser.parseFromString(svgString, "image/svg+xml");
   const svgElement = svgDoc.documentElement;
+
+  // svg2pdf lacks support for some SVG features the browser renders; normalise
+  // this re-parsed copy so the vector PDF matches the on-screen/PNG output.
+  prepareSvgForPdf(svgElement);
 
   const imgWidth = parseInt(svgElement.getAttribute("width") || "0", 10);
   const imgHeight = parseInt(svgElement.getAttribute("height") || "0", 10);
