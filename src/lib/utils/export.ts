@@ -29,8 +29,8 @@ import {
 } from "$lib/constants/layout";
 import { toHumanUnits, formatPosition } from "$lib/utils/position";
 
-// Note: jsPDF is imported dynamically in exportAsPDF() to avoid loading
-// the large jsPDF + html2canvas bundle (~200KB) on app startup.
+// Note: jsPDF and svg2pdf.js are imported dynamically in PDF export functions
+// to avoid loading the large jsPDF bundle (~200KB) on app startup.
 // See issue #68 for details.
 
 // Aliases for export context (export uses hidden padding since view labels show rack name)
@@ -954,11 +954,11 @@ export function generateExportSVG(
       deviceNameEl.setAttribute("dominant-baseline", "middle");
       deviceNameEl.setAttribute("font-family", "system-ui, sans-serif");
       if (showImage) {
-        // Add text shadow for visibility over images
-        deviceNameEl.setAttribute(
-          "style",
-          "text-shadow: 0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.5);",
-        );
+        // Text halo for visibility over images (stroke works in svg2pdf.js)
+        deviceNameEl.setAttribute("stroke", "rgba(0,0,0,0.7)");
+        deviceNameEl.setAttribute("stroke-width", "3");
+        deviceNameEl.setAttribute("stroke-linejoin", "round");
+        deviceNameEl.setAttribute("paint-order", "stroke");
       }
       deviceNameEl.textContent = fittedLabel.text;
       rackGroup.appendChild(deviceNameEl);
@@ -1460,12 +1460,12 @@ export async function exportAsJPEG(
  */
 export async function exportAsPDF(
   svgString: string,
-  background: ExportBackground,
+  // Background is embedded in the SVG element; vector PDF conversion preserves it directly
+  _background: ExportBackground,
 ): Promise<Blob> {
-  // Dynamically import jsPDF to avoid loading it (and html2canvas) on app startup
   const { jsPDF } = await import("jspdf");
+  await import("svg2pdf.js");
 
-  // Parse SVG to get dimensions
   const parser = new DOMParser();
   const svgDoc = parser.parseFromString(svgString, "image/svg+xml");
   const svgElement = svgDoc.documentElement;
@@ -1476,9 +1476,6 @@ export async function exportAsPDF(
   if (imgWidth === 0 || imgHeight === 0) {
     throw new Error("Invalid SVG dimensions");
   }
-
-  // Convert SVG to canvas first
-  const canvas = await svgToCanvas(svgString, imgWidth, imgHeight, background);
 
   // US Letter dimensions in points (72 dpi)
   const letterWidth = 612; // 8.5 inches
@@ -1512,54 +1509,10 @@ export async function exportAsPDF(
   const x = (pageWidth - scaledWidth) / 2;
   const y = (pageHeight - scaledHeight) / 2;
 
-  // Add image to PDF
-  const imgData = canvas.toDataURL("image/png");
-  pdf.addImage(imgData, "PNG", x, y, scaledWidth, scaledHeight);
+  // Convert SVG to vector PDF commands
+  await pdf.svg(svgElement, { x, y, width: scaledWidth, height: scaledHeight });
 
-  // Return as blob
   return pdf.output("blob");
-}
-
-/**
- * Convert SVG string to canvas
- */
-async function svgToCanvas(
-  svgString: string,
-  width: number,
-  height: number,
-  background: ExportBackground,
-): Promise<HTMLCanvasElement> {
-  const canvas = document.createElement("canvas");
-  const scale = 2; // Higher resolution for PDF
-  canvas.width = width * scale;
-  canvas.height = height * scale;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Failed to get canvas context");
-  }
-
-  ctx.scale(scale, scale);
-
-  // Fill background if not transparent
-  if (background !== "transparent") {
-    ctx.fillStyle = background === "dark" ? DARK_BG : LIGHT_BG;
-    ctx.fillRect(0, 0, width, height);
-  }
-
-  // Convert SVG to data URL and load as image
-  const svgBlob = new Blob([svgString], {
-    type: "image/svg+xml;charset=utf-8",
-  });
-  const url = URL.createObjectURL(svgBlob);
-
-  try {
-    const img = await loadImage(url);
-    ctx.drawImage(img, 0, 0, width, height);
-    return canvas;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
 }
 
 /**
@@ -1762,6 +1715,7 @@ export async function exportAsMultiPagePDF(
 ): Promise<Blob> {
   // Dynamically import jsPDF to avoid loading it on app startup
   const { jsPDF } = await import("jspdf");
+  await import("svg2pdf.js");
 
   // US Letter dimensions in points (72 dpi)
   const letterWidth = 612; // 8.5 inches
@@ -1777,7 +1731,6 @@ export async function exportAsMultiPagePDF(
 
     // Generate SVG for this rack
     const svg = generateSingleRackSVG(rack, deviceLibrary, options, images);
-    const svgString = new XMLSerializer().serializeToString(svg);
 
     // Parse SVG to get dimensions
     const imgWidth = parseInt(svg.getAttribute("width") || "0", 10);
@@ -1825,15 +1778,8 @@ export async function exportAsMultiPagePDF(
     pdf.setFont("helvetica", "bold");
     pdf.text(rack.name, pageWidth / 2, margin + 20, { align: "center" });
 
-    // Convert SVG to canvas and add to PDF
-    const canvas = await svgToCanvas(
-      svgString,
-      imgWidth,
-      imgHeight,
-      options.background,
-    );
-    const imgData = canvas.toDataURL("image/png");
-    pdf.addImage(imgData, "PNG", x, y, scaledWidth, scaledHeight);
+    // Convert SVG to vector PDF
+    await pdf.svg(svg, { x, y, width: scaledWidth, height: scaledHeight });
   }
 
   if (!pdf) {
