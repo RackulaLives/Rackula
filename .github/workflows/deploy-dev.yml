@@ -108,6 +108,17 @@ jobs:
           ALLOW_INSECURE_CORS=false
           EOF
 
+      - name: Verify data dir is writable by API container (uid 1001)
+        run: |
+          DATA_DIR=/opt/rackula/rackula-dev/data
+          mkdir -p "$DATA_DIR"
+          if ! docker run --rm -u 1001:1001 -v "$DATA_DIR":/data busybox \
+              sh -c 'touch /data/.write-test && rm -f /data/.write-test'; then
+            echo "::error::$DATA_DIR is not writable by uid 1001 (rackula-api container user)."
+            echo "::error::Fix once on the host: sudo chown -R 1001:1001 $DATA_DIR"
+            exit 1
+          fi
+
       - name: Deploy to dev
         run: |
           cd /opt/rackula/rackula-dev
