@@ -954,11 +954,10 @@ export function generateExportSVG(
       deviceNameEl.setAttribute("dominant-baseline", "middle");
       deviceNameEl.setAttribute("font-family", "system-ui, sans-serif");
       if (showImage) {
-        // Text halo for visibility over images (stroke works in svg2pdf.js)
+        // Thin stroke outline for text visibility over images
         deviceNameEl.setAttribute("stroke", "rgba(0,0,0,0.7)");
-        deviceNameEl.setAttribute("stroke-width", "3");
+        deviceNameEl.setAttribute("stroke-width", "1.5");
         deviceNameEl.setAttribute("stroke-linejoin", "round");
-        deviceNameEl.setAttribute("paint-order", "stroke");
       }
       deviceNameEl.textContent = fittedLabel.text;
       rackGroup.appendChild(deviceNameEl);
