@@ -214,7 +214,8 @@ jobs:
         # which on workflow_dispatch points at the dispatch ref rather than the tag.
         run: |
           echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
-          echo "BUILD_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          # Short hash to match the frontend's commit format (rev-parse --short).
+          echo "BUILD_COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
