@@ -26,6 +26,7 @@
   } from "$lib/utils/gestures";
   import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
   import { hapticSuccess, hapticTap } from "$lib/utils/haptics";
+  import { debounce } from "$lib/utils/debounce";
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
   import WelcomeScreen from "./WelcomeScreen.svelte";
@@ -345,7 +346,7 @@
           const isDraggableElement =
             (target as HTMLElement).draggable === true ||
             target.getAttribute?.("draggable") === "true" ||
-            target.closest?.('[draggable="true"]') !== null;
+            target.closest?.("[draggable=\"true\"]") !== null;
 
           if (isDraggableElement) {
             debug.log("beforeMouseDown: blocking pan for draggable element");
@@ -383,6 +384,26 @@
         canvasStore.disposePanzoom();
       };
     }
+  });
+
+  // Refit canvas on orientation change (portrait ↔ landscape) — mobile/tablet only.
+  // Debounced 300ms to let the rotation animation complete before recalculating.
+  // Uses screen.orientation when available; falls back to window resize event.
+  $effect(() => {
+    if (!viewportStore.isMobile) return;
+
+    const debouncedFitAll = debounce(() => {
+      canvasStore.fitAll(racks, rackGroups);
+    }, 300);
+
+    if (typeof screen !== "undefined" && screen.orientation) {
+      screen.orientation.addEventListener("change", debouncedFitAll);
+      return () =>
+        screen.orientation.removeEventListener("change", debouncedFitAll);
+    }
+
+    window.addEventListener("resize", debouncedFitAll, { passive: true });
+    return () => window.removeEventListener("resize", debouncedFitAll);
   });
 
   function handleCanvasClick(event: MouseEvent) {
