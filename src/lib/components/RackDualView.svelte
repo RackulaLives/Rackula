@@ -7,6 +7,7 @@
   import type {
     Rack as RackType,
     DeviceType,
+    DeviceFace,
     DisplayMode,
     AnnotationField,
     SlotPosition,
@@ -66,6 +67,8 @@
         sourceIndex: number;
         targetRackId: string;
         targetPosition: number;
+        face: DeviceFace;
+        slot_position?: SlotPosition;
       }>,
     ) => void;
     /** Mobile tap-to-place event */
@@ -175,11 +178,7 @@
           point,
           Boolean(target),
         );
-        dispatchContextMenuAtPoint(
-          point.x,
-          point.y,
-          fallbackTarget,
-        );
+        dispatchContextMenuAtPoint(point.x, point.y, fallbackTarget);
       },
       {
         onProgress: (progress) => {

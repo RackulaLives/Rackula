@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import type { DeviceType, Rack, PlacedDevice } from "$lib/types";
 import {
   createRackDeviceDragData,
@@ -7,6 +7,8 @@ import {
   getDropFeedback,
 } from "$lib/utils/dragdrop";
 import { toInternalUnits } from "$lib/utils/position";
+import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
+import { resetHistoryStore } from "$lib/stores/history.svelte";
 
 // Helper to create a placed device with internal unit position
 function pd(
@@ -323,6 +325,178 @@ describe("DnD Between Racks", () => {
         3,
       );
       expect(feedback).toBe("valid");
+    });
+  });
+
+  describe("Cross-rack move execution", () => {
+    let store: ReturnType<typeof getLayoutStore>;
+    let rackA: Rack & { id: string };
+    let rackB: Rack & { id: string };
+    let serverType: DeviceType;
+    let switchType: DeviceType;
+
+    beforeEach(() => {
+      resetLayoutStore();
+      resetHistoryStore();
+      store = getLayoutStore();
+
+      rackA = store.addRack("Rack A", 42)!;
+      rackB = store.addRack("Rack B", 42)!;
+
+      serverType = {
+        slug: "test-server",
+        model: "Test Server",
+        u_height: 2,
+        colour: "#4A90D9",
+        category: "server",
+      };
+      switchType = {
+        slug: "test-switch",
+        model: "Test Switch",
+        u_height: 1,
+        colour: "#7B68EE",
+        category: "network",
+      };
+      store.addDeviceTypeRaw(serverType);
+      store.addDeviceTypeRaw(switchType);
+    });
+
+    it("moves device from rack A to rack B", () => {
+      store.placeDevice(rackA.id, serverType.slug, 5);
+
+      const result = store.moveDeviceToRack(rackA.id, 0, rackB.id, 10, "front");
+
+      expect(result).toBe(true);
+      expect(store.getRackById(rackA.id)!.devices.length).toBe(0);
+      expect(store.getRackById(rackB.id)!.devices.length).toBe(1);
+      expect(store.getRackById(rackB.id)!.devices[0]!.device_type).toBe(
+        serverType.slug,
+      );
+      expect(store.getRackById(rackB.id)!.devices[0]!.position).toBe(
+        toInternalUnits(10),
+      );
+      expect(store.getRackById(rackB.id)!.devices[0]!.face).toBe("front");
+    });
+
+    it("undoes cross-rack move back to source rack", () => {
+      store.placeDevice(rackA.id, serverType.slug, 5);
+
+      store.moveDeviceToRack(rackA.id, 0, rackB.id, 10, "front");
+      store.undo();
+
+      expect(store.getRackById(rackA.id)!.devices.length).toBe(1);
+      expect(store.getRackById(rackB.id)!.devices.length).toBe(0);
+      expect(store.getRackById(rackA.id)!.devices[0]!.device_type).toBe(
+        serverType.slug,
+      );
+      expect(store.getRackById(rackA.id)!.devices[0]!.position).toBe(
+        toInternalUnits(5),
+      );
+    });
+
+    it("redoes cross-rack move after undo", () => {
+      store.placeDevice(rackA.id, serverType.slug, 5);
+
+      store.moveDeviceToRack(rackA.id, 0, rackB.id, 10, "front");
+      store.undo();
+      store.redo();
+
+      expect(store.getRackById(rackA.id)!.devices.length).toBe(0);
+      expect(store.getRackById(rackB.id)!.devices.length).toBe(1);
+      expect(store.getRackById(rackB.id)!.devices[0]!.device_type).toBe(
+        serverType.slug,
+      );
+    });
+
+    it("assigns face from drop target", () => {
+      store.placeDevice(rackA.id, serverType.slug, 5);
+
+      store.moveDeviceToRack(rackA.id, 0, rackB.id, 10, "rear");
+
+      expect(store.getRackById(rackB.id)!.devices[0]!.face).toBe("rear");
+    });
+
+    it("rejects move when target position is occupied", () => {
+      store.placeDevice(rackA.id, serverType.slug, 5);
+      store.placeDevice(rackB.id, serverType.slug, 10);
+
+      const result = store.moveDeviceToRack(rackA.id, 0, rackB.id, 10, "front");
+
+      expect(result).toBe(false);
+      expect(store.getRackById(rackA.id)!.devices.length).toBe(1);
+      expect(store.getRackById(rackB.id)!.devices.length).toBe(1);
+    });
+
+    it("delegates to moveDevice for same-rack moves", () => {
+      store.placeDevice(rackA.id, serverType.slug, 5);
+
+      const result = store.moveDeviceToRack(rackA.id, 0, rackA.id, 10);
+
+      expect(result).toBe(true);
+      expect(store.getRackById(rackA.id)!.devices.length).toBe(1);
+      expect(store.getRackById(rackA.id)!.devices[0]!.position).toBe(
+        toInternalUnits(10),
+      );
+    });
+
+    it("returns false for invalid device index", () => {
+      const result = store.moveDeviceToRack(
+        rackA.id,
+        99,
+        rackB.id,
+        10,
+        "front",
+      );
+      expect(result).toBe(false);
+    });
+
+    it("returns false for nonexistent rack", () => {
+      store.placeDevice(rackA.id, serverType.slug, 5);
+      const result = store.moveDeviceToRack(
+        rackA.id,
+        0,
+        "nonexistent",
+        10,
+        "front",
+      );
+      expect(result).toBe(false);
+    });
+
+    it("moves container children with parent device", () => {
+      // Place a parent device at U5 in rack A
+      store.placeDevice(rackA.id, serverType.slug, 5);
+      const parent = store.getRackById(rackA.id)!.devices[0]!;
+
+      // Manually place a child device referencing the parent as its container
+      store.addDeviceTypeRaw({
+        slug: "test-child",
+        model: "Test Child",
+        u_height: 1,
+        colour: "#FF0000",
+        category: "server",
+      });
+      store.placeDevice(rackA.id, "test-child", 10);
+      const child = store.getRackById(rackA.id)!.devices[1]!;
+      // Set container_id on the child to link it to the parent
+      child.container_id = parent.id;
+
+      // Move parent to rack B — child should follow
+      const result = store.moveDeviceToRack(rackA.id, 0, rackB.id, 15, "front");
+
+      expect(result).toBe(true);
+      expect(store.getRackById(rackA.id)!.devices.length).toBe(0);
+      expect(store.getRackById(rackB.id)!.devices.length).toBe(2);
+      // Parent should be in rack B
+      const movedParent = store
+        .getRackById(rackB.id)!
+        .devices.find((d) => d.device_type === serverType.slug);
+      expect(movedParent).toBeDefined();
+      // Child should also be in rack B and still reference the parent
+      const movedChild = store
+        .getRackById(rackB.id)!
+        .devices.find((d) => d.device_type === "test-child");
+      expect(movedChild).toBeDefined();
+      expect(movedChild!.container_id).toBe(parent.id);
     });
   });
 });

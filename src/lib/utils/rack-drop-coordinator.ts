@@ -85,6 +85,7 @@ export type DropAction =
       sourceIndex: number;
       targetRackId: string;
       targetU: number;
+      face: DeviceFace;
       slotPosition: SlotPosition;
     }
   | {
@@ -116,7 +117,11 @@ export type DropAction =
 function resolveCoordinates(
   coords: DropCoordinateInput,
   dims: RackDimensions,
-): { mouseY: number; xOffsetInRack: number; svgCoords: { x: number; y: number } } {
+): {
+  mouseY: number;
+  xOffsetInRack: number;
+  svgCoords: { x: number; y: number };
+} {
   const svgCoords = screenToSVG(
     coords.svgElement,
     coords.clientX,
@@ -172,7 +177,11 @@ export function resolveDropTarget(
   const deviceSlotWidth = device.slot_width ?? 2;
   const slotPosition =
     slotPositionOverride ??
-    calculateDropSlotPosition(xOffsetInRack, dims.interiorWidth, deviceSlotWidth);
+    calculateDropSlotPosition(
+      xOffsetInRack,
+      dims.interiorWidth,
+      deviceSlotWidth,
+    );
   const isHalfWidth = deviceSlotWidth === 1;
 
   const containerHover = detectContainerHover(
@@ -238,7 +247,11 @@ export function resolveDropAction(
   const deviceSlotWidth = dragData.device.slot_width ?? 2;
   const slotPosition =
     slotPositionOverride ??
-    calculateDropSlotPosition(xOffsetInRack, dims.interiorWidth, deviceSlotWidth);
+    calculateDropSlotPosition(
+      xOffsetInRack,
+      dims.interiorWidth,
+      deviceSlotWidth,
+    );
 
   // Check for container slot drop (requires container to be selected)
   const containerTarget = detectContainerDropTarget(
@@ -302,13 +315,18 @@ export function resolveDropAction(
     };
   }
 
-  if (isCrossRackMove && dragData.sourceIndex !== undefined && dragData.sourceRackId) {
+  if (
+    isCrossRackMove &&
+    dragData.sourceIndex !== undefined &&
+    dragData.sourceRackId
+  ) {
     return {
       kind: "cross-rack-move",
       sourceRackId: dragData.sourceRackId,
       sourceIndex: dragData.sourceIndex,
       targetRackId: rack.id,
       targetU,
+      face: faceFilter ?? "front",
       slotPosition,
     };
   }

@@ -28,6 +28,15 @@ export interface DeviceCommandStore {
 }
 
 /**
+ * Extended store interface for cross-rack move commands.
+ * Adds active rack switching needed for multi-rack operations.
+ */
+export interface CrossRackMoveStore extends DeviceCommandStore {
+  setActiveRackId(id: string | null): void;
+  getActiveRackId(): string | null;
+}
+
+/**
  * Create a command to place a device
  */
 export function createPlaceDeviceCommand(
@@ -92,7 +101,9 @@ export function createRemoveDeviceCommand(
   const imageStore = getImageStore();
   const imageKey = `placement-${device.id}`;
   const imageSnapshot = imageStore.getAllImages().get(imageKey);
-  const snapshotCopy = imageSnapshot ? structuredClone(imageSnapshot) : undefined;
+  const snapshotCopy = imageSnapshot
+    ? structuredClone(imageSnapshot)
+    : undefined;
 
   return {
     type: "REMOVE_DEVICE",
@@ -112,8 +123,10 @@ export function createRemoveDeviceCommand(
       if (snapshotCopy) {
         const imgStore = getImageStore();
         const actualKey = `placement-${actualId}`;
-        if (snapshotCopy.front) imgStore.setDeviceImage(actualKey, 'front', snapshotCopy.front);
-        if (snapshotCopy.rear) imgStore.setDeviceImage(actualKey, 'rear', snapshotCopy.rear);
+        if (snapshotCopy.front)
+          imgStore.setDeviceImage(actualKey, "front", snapshotCopy.front);
+        if (snapshotCopy.rear)
+          imgStore.setDeviceImage(actualKey, "rear", snapshotCopy.rear);
       }
     },
   };
@@ -278,6 +291,104 @@ export function createUpdateDeviceIpCommand(
     },
     undo() {
       store.updateDeviceIpRaw(index, oldIp);
+    },
+  };
+}
+
+/**
+ * Create a command to move a device (and its container children) from one rack to another.
+ * Atomic undo/redo — one Ctrl+Z restores the device to its original rack.
+ *
+ * Removal indices must be sorted descending so that removing from highest index
+ * first prevents index shifting.
+ */
+export function createCrossRackMoveCommand(
+  sourceRackId: string,
+  sortedRemovalIndices: number[],
+  targetRackId: string,
+  targetPosition: number,
+  face: DeviceFace,
+  slotPosition: SlotPosition | undefined,
+  parentDevice: PlacedDevice,
+  children: PlacedDevice[],
+  store: CrossRackMoveStore,
+  deviceName: string = "device",
+): Command {
+  // Deep-copy all devices at command creation time to isolate from reactive state
+  const parentCopy = structuredClone(parentDevice);
+  const childrenCopies = children.map((c) => structuredClone(c));
+
+  // Build the placed device for the target rack (updated position/face/slot)
+  const placedParent: PlacedDevice = {
+    ...parentCopy,
+    position: targetPosition,
+    face,
+    slot_position: slotPosition ?? parentCopy.slot_position ?? "full",
+  };
+
+  // Children inherit the parent's new face and keep their relative positions
+  const placedChildren: PlacedDevice[] = childrenCopies.map((child) => ({
+    ...child,
+    face,
+  }));
+
+  // Captured during execute() for undo — target-rack indices of placed devices
+  let parentPlacedIndex = -1;
+  const childPlacedIndices: number[] = [];
+
+  // Defensive: ensure indices are sorted descending for safe removal
+  const descendingIndices = [...sortedRemovalIndices].sort((a, b) => b - a);
+
+  return {
+    type: "CROSS_RACK_MOVE",
+    description: `Move ${deviceName} to another rack`,
+    timestamp: Date.now(),
+    execute() {
+      const savedActiveRack = store.getActiveRackId();
+
+      // 1. Remove all devices from source rack (descending index order)
+      store.setActiveRackId(sourceRackId);
+      for (const idx of descendingIndices) {
+        store.removeDeviceAtIndexRaw(idx);
+      }
+
+      // 2. Place parent in target rack
+      store.setActiveRackId(targetRackId);
+      parentPlacedIndex = store.placeDeviceRaw(placedParent);
+
+      // 3. Place children in target rack
+      childPlacedIndices.length = 0;
+      for (const child of placedChildren) {
+        const idx = store.placeDeviceRaw(child);
+        childPlacedIndices.push(idx);
+      }
+
+      // 4. Restore active rack
+      store.setActiveRackId(savedActiveRack);
+    },
+    undo() {
+      const savedActiveRack = store.getActiveRackId();
+
+      // 1. Remove devices from target rack (descending index order)
+      store.setActiveRackId(targetRackId);
+      const allTargetIndices = [parentPlacedIndex, ...childPlacedIndices].sort(
+        (a, b) => b - a,
+      );
+      for (const idx of allTargetIndices) {
+        store.removeDeviceAtIndexRaw(idx);
+      }
+
+      // 2. Place parent back in source rack (original position/face)
+      store.setActiveRackId(sourceRackId);
+      store.placeDeviceRaw(parentCopy);
+
+      // 3. Place children back in source rack (original positions)
+      for (const child of childrenCopies) {
+        store.placeDeviceRaw(child);
+      }
+
+      // 4. Restore active rack
+      store.setActiveRackId(savedActiveRack);
     },
   };
 }

@@ -32,6 +32,7 @@ export interface RackEventCallbacks {
       sourceIndex: number;
       targetRackId: string;
       targetPosition: number;
+      face: DeviceFace;
       slot_position?: SlotPosition;
     }>,
   ) => void;
@@ -92,6 +93,7 @@ export function dispatchDropAction(
             sourceIndex: action.sourceIndex,
             targetRackId: action.targetRackId,
             targetPosition: action.targetU,
+            face: action.face,
             slot_position: action.slotPosition,
           },
         }),

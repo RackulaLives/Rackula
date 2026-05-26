@@ -11,6 +11,7 @@
     Rack as RackType,
     RackGroup,
     DeviceType,
+    DeviceFace,
     DisplayMode,
     AnnotationField,
     SlotPosition,
@@ -78,6 +79,8 @@
         sourceIndex: number;
         targetRackId: string;
         targetPosition: number;
+        face: DeviceFace;
+        slot_position?: SlotPosition;
       }>,
     ) => void;
     /** Mobile tap-to-place event */

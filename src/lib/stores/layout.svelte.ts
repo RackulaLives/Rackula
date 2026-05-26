@@ -23,6 +23,7 @@ import type {
 } from "$lib/types";
 import { MAX_RACKS } from "$lib/types/constants";
 import {
+  canPlaceDevice,
   canPlaceInContainer,
   findValidDropPositions,
 } from "$lib/utils/collision";
@@ -50,6 +51,7 @@ import {
   createPlaceDeviceCommand,
   createAddDeviceTypeCommand,
   createBatchCommand,
+  createCrossRackMoveCommand,
 } from "./commands";
 import type { LayoutStateAccess } from "./layout/types";
 import {
@@ -937,21 +939,96 @@ function moveDevice(
 
 /**
  * Move a device from one rack to another
- * Currently only supports within-rack moves (cross-rack is blocked)
+ * Supports both within-rack moves (delegates to moveDevice) and cross-rack moves.
  */
 function moveDeviceToRack(
   fromRackId: string,
   deviceIndex: number,
   toRackId: string,
   newPosition: number,
+  face?: DeviceFace,
   slotPosition?: SlotPosition,
 ): boolean {
-  // Cross-rack moves not yet implemented
-  if (fromRackId !== toRackId) {
-    debug.log("Cross-rack move not yet implemented");
+  // Same-rack move — delegate to existing function
+  if (fromRackId === toRackId) {
+    return moveDevice(fromRackId, deviceIndex, newPosition, slotPosition);
+  }
+
+  // Cross-rack move
+  const sourceRack = getRackById(fromRackId);
+  const targetRack = getRackById(toRackId);
+  if (!sourceRack || !targetRack) return false;
+  if (deviceIndex < 0 || deviceIndex >= sourceRack.devices.length) return false;
+
+  const device = sourceRack.devices[deviceIndex]!;
+  const deviceType = findDeviceTypeInArray(
+    layout.device_types,
+    device.device_type,
+  );
+  if (!deviceType) return false;
+
+  // Resolve face: use provided face, or infer from device type
+  const effectiveFace: DeviceFace =
+    face ??
+    (deviceType.is_full_depth !== false ? "both" : (device.face ?? "front"));
+  const positionInternal = toInternalUnits(newPosition);
+  const effectiveSlot = slotPosition ?? device.slot_position ?? "full";
+
+  // Validate placement in target rack (no excludeIndex — device isn't in target rack yet)
+  if (
+    !canPlaceDevice(
+      targetRack,
+      layout.device_types,
+      deviceType.u_height,
+      positionInternal,
+      undefined,
+      effectiveFace,
+      effectiveSlot,
+    )
+  ) {
     return false;
   }
-  return moveDevice(fromRackId, deviceIndex, newPosition, slotPosition);
+
+  // Collect container children
+  const children = sourceRack.devices.filter(
+    (d) => d.container_id === device.id,
+  );
+  const parentSnapshot = $state.snapshot(device);
+  const childrenSnapshots = children.map((child) => $state.snapshot(child));
+
+  // Compute removal indices sorted descending for safe removal
+  const allRemovals = [
+    { index: deviceIndex },
+    ...children.map((child) => ({
+      index: sourceRack.devices.indexOf(child),
+    })),
+  ].sort((a, b) => b.index - a.index);
+  const sortedRemovalIndices = allRemovals.map((r) => r.index);
+
+  const deviceName = deviceType.model ?? deviceType.slug;
+
+  // Set active rack for command creation
+  activeRackId = fromRackId;
+
+  const history = getHistoryStore();
+  const adapter = getCommandStoreAdapterImpl(stateAccess);
+
+  const command = createCrossRackMoveCommand(
+    fromRackId,
+    sortedRemovalIndices,
+    toRackId,
+    positionInternal,
+    effectiveFace,
+    effectiveSlot,
+    parentSnapshot,
+    childrenSnapshots,
+    adapter,
+    deviceName,
+  );
+
+  history.execute(command);
+  isDirty = true;
+  return true;
 }
 
 /**

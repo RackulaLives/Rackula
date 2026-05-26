@@ -21,6 +21,7 @@
   import type {
     Rack as RackType,
     DeviceType,
+    DeviceFace,
     DisplayMode,
     PlacedDevice,
     SlotPosition,
@@ -117,6 +118,7 @@
         sourceIndex: number;
         targetRackId: string;
         targetPosition: number;
+        face: DeviceFace;
         slot_position?: SlotPosition;
       }>,
     ) => void;

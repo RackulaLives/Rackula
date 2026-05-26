@@ -30,7 +30,7 @@
   import BayedRackView from "./BayedRackView.svelte";
   import WelcomeScreen from "./WelcomeScreen.svelte";
   import CanvasContextMenu from "./CanvasContextMenu.svelte";
-  import type { SlotPosition } from "$lib/types";
+  import type { DeviceFace, SlotPosition } from "$lib/types";
   // Note: PlacementIndicator removed - placement UI now integrated into Rack.svelte
 
   // Multi-rack mode: use active rack ID from store
@@ -71,6 +71,7 @@
         sourceIndex: number;
         targetRackId: string;
         targetPosition: number;
+        face: DeviceFace;
         slot_position?: SlotPosition;
       }>,
     ) => void;
@@ -468,6 +469,7 @@
       sourceIndex: number;
       targetRackId: string;
       targetPosition: number;
+      face: DeviceFace;
       slot_position?: SlotPosition;
     }>,
   ) {
@@ -476,6 +478,7 @@
       sourceIndex,
       targetRackId,
       targetPosition,
+      face,
       slot_position,
     } = event.detail;
     layoutStore.moveDeviceToRack(
@@ -483,6 +486,7 @@
       sourceIndex,
       targetRackId,
       targetPosition,
+      face,
       slot_position,
     );
     ondevicemoverack?.(event);
