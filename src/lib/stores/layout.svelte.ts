@@ -949,9 +949,18 @@ function moveDeviceToRack(
   face?: DeviceFace,
   slotPosition?: SlotPosition,
 ): boolean {
-  // Same-rack move — delegate to existing function
+  // Same-rack move — delegate to existing function, apply face change if provided
   if (fromRackId === toRackId) {
-    return moveDevice(fromRackId, deviceIndex, newPosition, slotPosition);
+    const moved = moveDevice(
+      fromRackId,
+      deviceIndex,
+      newPosition,
+      slotPosition,
+    );
+    if (moved && face !== undefined) {
+      updateDeviceFace(fromRackId, deviceIndex, face);
+    }
+    return moved;
   }
 
   // Cross-rack move

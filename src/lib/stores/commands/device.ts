@@ -299,12 +299,12 @@ export function createUpdateDeviceIpCommand(
  * Create a command to move a device (and its container children) from one rack to another.
  * Atomic undo/redo — one Ctrl+Z restores the device to its original rack.
  *
- * Removal indices must be sorted descending so that removing from highest index
- * first prevents index shifting.
+ * Removal uses device IDs to resolve indices at runtime, avoiding stale indices
+ * after undo re-inserts devices at different positions.
  */
 export function createCrossRackMoveCommand(
   sourceRackId: string,
-  sortedRemovalIndices: number[],
+  _sortedRemovalIndices: number[],
   targetRackId: string,
   targetPosition: number,
   face: DeviceFace,
@@ -332,12 +332,31 @@ export function createCrossRackMoveCommand(
     face,
   }));
 
+  // All device IDs to remove from source rack (resolved by ID at runtime)
+  const sourceDeviceIds = [parentCopy.id, ...childrenCopies.map((c) => c.id)];
+
   // Captured during execute() for undo — target-rack indices of placed devices
   let parentPlacedIndex = -1;
   const childPlacedIndices: number[] = [];
 
-  // Defensive: ensure indices are sorted descending for safe removal
-  const descendingIndices = [...sortedRemovalIndices].sort((a, b) => b - a);
+  /**
+   * Resolve current indices for device IDs in the active rack.
+   * Returns indices sorted descending for safe removal.
+   */
+  function resolveIndicesDescending(ids: string[]): number[] {
+    const indices: number[] = [];
+    for (const id of ids) {
+      for (let i = 0; i < 100; i++) {
+        const d = store.getDeviceAtIndex(i);
+        if (!d) break;
+        if (d.id === id) {
+          indices.push(i);
+          break;
+        }
+      }
+    }
+    return indices.sort((a, b) => b - a);
+  }
 
   return {
     type: "CROSS_RACK_MOVE",
@@ -346,9 +365,10 @@ export function createCrossRackMoveCommand(
     execute() {
       const savedActiveRack = store.getActiveRackId();
 
-      // 1. Remove all devices from source rack (descending index order)
+      // 1. Resolve current indices in source rack and remove (descending order)
       store.setActiveRackId(sourceRackId);
-      for (const idx of descendingIndices) {
+      const indices = resolveIndicesDescending(sourceDeviceIds);
+      for (const idx of indices) {
         store.removeDeviceAtIndexRaw(idx);
       }
 
@@ -356,10 +376,18 @@ export function createCrossRackMoveCommand(
       store.setActiveRackId(targetRackId);
       parentPlacedIndex = store.placeDeviceRaw(placedParent);
 
-      // 3. Place children in target rack
+      // Read back actual parent — placeDeviceRaw may remap the ID (#1363 dedup guard)
+      const actualParent = store.getDeviceAtIndex(parentPlacedIndex);
+      const actualParentId = actualParent?.id ?? placedParent.id;
+
+      // 3. Place children in target rack with remapped container_id
       childPlacedIndices.length = 0;
       for (const child of placedChildren) {
-        const idx = store.placeDeviceRaw(child);
+        const childToPlace: PlacedDevice =
+          child.container_id && child.container_id !== actualParentId
+            ? { ...child, container_id: actualParentId }
+            : child;
+        const idx = store.placeDeviceRaw(childToPlace);
         childPlacedIndices.push(idx);
       }
 
@@ -380,11 +408,19 @@ export function createCrossRackMoveCommand(
 
       // 2. Place parent back in source rack (original position/face)
       store.setActiveRackId(sourceRackId);
-      store.placeDeviceRaw(parentCopy);
+      const undoParentIdx = store.placeDeviceRaw(parentCopy);
 
-      // 3. Place children back in source rack (original positions)
+      // Read back actual parent — placeDeviceRaw may remap the ID (#1363 dedup guard)
+      const undoActualParent = store.getDeviceAtIndex(undoParentIdx);
+      const undoActualParentId = undoActualParent?.id ?? parentCopy.id;
+
+      // 3. Place children back in source rack with remapped container_id
       for (const child of childrenCopies) {
-        store.placeDeviceRaw(child);
+        const childToPlace: PlacedDevice =
+          child.container_id && child.container_id !== undoActualParentId
+            ? { ...child, container_id: undoActualParentId }
+            : child;
+        store.placeDeviceRaw(childToPlace);
       }
 
       // 4. Restore active rack
