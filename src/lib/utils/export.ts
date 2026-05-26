@@ -1835,6 +1835,10 @@ export async function exportAsMultiPagePDF(
     pdf.setFont("helvetica", "bold");
     pdf.text(rack.name, pageWidth / 2, margin + 20, { align: "center" });
 
+    // Normalise SVG for svg2pdf before conversion (baseline + font-weight).
+    // This SVG is generated per page and not shared with the PNG path.
+    prepareSvgForPdf(svg);
+
     // Convert SVG to vector PDF
     await pdf.svg(svg, { x, y, width: scaledWidth, height: scaledHeight });
   }
