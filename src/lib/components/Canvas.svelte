@@ -346,7 +346,7 @@
           const isDraggableElement =
             (target as HTMLElement).draggable === true ||
             target.getAttribute?.("draggable") === "true" ||
-            target.closest?.("[draggable=\"true\"]") !== null;
+            target.closest?.(('[draggable="true"]') !== null;
 
           if (isDraggableElement) {
             debug.log("beforeMouseDown: blocking pan for draggable element");
@@ -396,10 +396,15 @@
       canvasStore.fitAll(racks, rackGroups);
     }, 300);
 
-    if (typeof screen !== "undefined" && screen.orientation) {
-      screen.orientation.addEventListener("change", debouncedFitAll);
-      return () =>
-        screen.orientation.removeEventListener("change", debouncedFitAll);
+    const orientation =
+      typeof screen !== "undefined" ? screen.orientation : undefined;
+    if (
+      orientation &&
+      typeof orientation.addEventListener === "function" &&
+      typeof orientation.removeEventListener === "function"
+    ) {
+      orientation.addEventListener("change", debouncedFitAll);
+      return () => orientation.removeEventListener("change", debouncedFitAll);
     }
 
     window.addEventListener("resize", debouncedFitAll, { passive: true });
