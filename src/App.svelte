@@ -68,6 +68,7 @@
     handleShare,
     handleFitAll,
   } from "$lib/utils/persistence-manager.svelte";
+  import { debounce } from "$lib/utils/debounce";
 
   // Sidebar size configuration (in pixels)
   interface Props {
@@ -313,6 +314,33 @@
       });
       return;
     }
+  });
+
+  // Refit canvas on orientation change (mobile/tablet only).
+  // Debounced 300ms to let the rotation animation complete before measuring the new viewport.
+  onMount(() => {
+    const onOrientationChange = debounce(() => {
+      if (!viewportStore.isMobile) return;
+      canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+    }, 300);
+
+    if (typeof screen?.orientation?.addEventListener === "function") {
+      screen.orientation.addEventListener("change", onOrientationChange);
+      return () =>
+        screen.orientation.removeEventListener("change", onOrientationChange);
+    }
+
+    // Fallback: detect orientation flip via resize event
+    let lastIsLandscape = window.innerWidth > window.innerHeight;
+    const onResize = () => {
+      const isLandscape = window.innerWidth > window.innerHeight;
+      if (isLandscape !== lastIsLandscape) {
+        lastIsLandscape = isLandscape;
+        onOrientationChange();
+      }
+    };
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
   });
 
   function handleShowLayouts() {
