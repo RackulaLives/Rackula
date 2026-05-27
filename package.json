@@ -53,7 +53,7 @@
     "@vitest/eslint-plugin": "^1.6.17",
     "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-svelte": "^3.17.1",
+    "eslint-plugin-svelte": "^3.18.0",
     "eslint-plugin-testing-library": "^7.16.2",
     "globals": "^17.6.0",
     "happy-dom": "^20.9.0",
