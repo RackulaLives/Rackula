@@ -5,7 +5,7 @@
 /**
  * Open a file picker dialog and return the selected file
  * Returns null if the user cancels or no file is selected
- * Only accepts archive (.Rackula.zip) format
+ * Accepts .rackula.yaml / .yaml files and .Rackula.zip archives
  */
 export function openFilePicker(): Promise<File | null> {
   return new Promise((resolve) => {
@@ -14,9 +14,9 @@ export function openFilePicker(): Promise<File | null> {
     const input = document.createElement("input");
     input.type = "file";
     input.setAttribute("data-testid", "file-input-load");
-    // Accept ZIP files (including .Rackula.zip which is a zip file)
-    // Using application/zip MIME type is more reliable across browsers
-    input.accept = ".zip,application/zip,application/x-zip-compressed";
+    // Accept YAML layout files and legacy ZIP archives
+    input.accept =
+      ".yaml,.zip,application/zip,application/x-zip-compressed,text/yaml";
     // Hide visually but keep in DOM for Playwright access
     input.style.position = "absolute";
     input.style.opacity = "0";

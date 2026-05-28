@@ -19,7 +19,7 @@ import { getToastStore } from "$lib/stores/toast.svelte";
 import { getImageStore } from "$lib/stores/images.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { DRAWER_WIDTH } from "$lib/constants/layout";
-import { downloadArchive, generateArchiveFilename } from "$lib/utils/archive";
+import { downloadYamlFile } from "$lib/utils/archive";
 import { analytics } from "$lib/utils/analytics";
 import { persistenceDebug } from "$lib/utils/debug";
 import { generateShareUrl } from "$lib/utils/share";
@@ -173,12 +173,9 @@ export async function handleSaveToServer(): Promise<void> {
 
 export async function handleSaveAsArchive(): Promise<void> {
   const layoutStore = getLayoutStore();
-  const imageStore = getImageStore();
   const toastStore = getToastStore();
   try {
-    const images = imageStore.getUserImages();
-    const filename = generateArchiveFilename(layoutStore.layout);
-    await downloadArchive(layoutStore.layout, images);
+    const filename = await downloadYamlFile(layoutStore.layout);
     layoutStore.markClean();
     clearSession();
     toastStore.showToast(`Saved ${filename}`, "success", 3000);

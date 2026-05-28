@@ -58,8 +58,7 @@ const sessionStorageMocks = vi.hoisted(() => ({
 }));
 
 const archiveMocks = vi.hoisted(() => ({
-  downloadArchive: vi.fn(async () => undefined),
-  generateArchiveFilename: vi.fn(() => "cleanup-test.Rackula.zip"),
+  downloadYamlFile: vi.fn(async () => "cleanup-test.rackula.yaml"),
   extractFolderArchive: vi.fn(),
 }));
 
@@ -108,8 +107,7 @@ vi.mock("$lib/utils/archive", async () => {
     );
   return {
     ...actual,
-    downloadArchive: archiveMocks.downloadArchive,
-    generateArchiveFilename: archiveMocks.generateArchiveFilename,
+    downloadYamlFile: archiveMocks.downloadYamlFile,
     extractFolderArchive: archiveMocks.extractFolderArchive,
   };
 });
@@ -155,12 +153,8 @@ function resetHoistedMocks(): void {
   sessionStorageMocks.isServerNewer.mockReset();
   sessionStorageMocks.isServerNewer.mockReturnValue(false);
 
-  archiveMocks.downloadArchive.mockReset();
-  archiveMocks.downloadArchive.mockResolvedValue(undefined);
-  archiveMocks.generateArchiveFilename.mockReset();
-  archiveMocks.generateArchiveFilename.mockReturnValue(
-    "cleanup-test.Rackula.zip",
-  );
+  archiveMocks.downloadYamlFile.mockReset();
+  archiveMocks.downloadYamlFile.mockResolvedValue("cleanup-test.rackula.yaml");
   archiveMocks.extractFolderArchive.mockReset();
 }
 
@@ -211,14 +205,14 @@ describe("App cleanup prompt flow", () => {
     expect(
       await screen.findByRole("dialog", { name: "Clean Up Device Library" }),
     ).toBeInTheDocument();
-    expect(archiveMocks.downloadArchive).not.toHaveBeenCalled();
+    expect(archiveMocks.downloadYamlFile).not.toHaveBeenCalled();
 
     await fireEvent.click(
       screen.getByRole("button", { name: /Delete Selected/ }),
     );
 
     await waitFor(() => {
-      expect(archiveMocks.downloadArchive).toHaveBeenCalledTimes(1);
+      expect(archiveMocks.downloadYamlFile).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -231,7 +225,7 @@ describe("App cleanup prompt flow", () => {
     );
 
     await waitFor(() => {
-      expect(archiveMocks.downloadArchive).toHaveBeenCalledTimes(1);
+      expect(archiveMocks.downloadYamlFile).toHaveBeenCalledTimes(1);
     });
     expect(
       screen.queryByRole("dialog", { name: "Clean Up Device Library" }),
@@ -249,7 +243,7 @@ describe("App cleanup prompt flow", () => {
     expect(
       await screen.findByRole("dialog", { name: "Export" }),
     ).toBeInTheDocument();
-    expect(archiveMocks.downloadArchive).not.toHaveBeenCalled();
+    expect(archiveMocks.downloadYamlFile).not.toHaveBeenCalled();
   });
 
   it("persists Don't ask again when checked before continuing", async () => {
@@ -260,7 +254,7 @@ describe("App cleanup prompt flow", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Keep All" }));
 
     await waitFor(() => {
-      expect(archiveMocks.downloadArchive).toHaveBeenCalledTimes(1);
+      expect(archiveMocks.downloadYamlFile).toHaveBeenCalledTimes(1);
     });
     expect(uiStore.promptCleanupOnSave).toBe(false);
   });

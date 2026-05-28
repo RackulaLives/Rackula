@@ -25,7 +25,11 @@
 import type { Layout, LayoutMetadata } from "$lib/types";
 import type { ImageData, ImageStoreMap } from "$lib/types/images";
 import { ARCHIVE_EXTENSION } from "$lib/types/constants";
-import { serializeLayoutToYamlWithMetadata, parseLayoutYaml } from "./yaml";
+import {
+  serializeLayoutToYamlWithMetadata,
+  serializeLayoutToYaml,
+  parseLayoutYaml,
+} from "./yaml";
 import { generateId } from "./device";
 import {
   buildFolderName,
@@ -175,8 +179,8 @@ async function detectZipFormat(zip: JSZipInstance): Promise<ZipFormat> {
   });
   if (folderYaml) {
     const folderName = folderYaml.split("/")[0]!;
-    const hasAssetsFolder = entries.some(
-      (e) => e.startsWith(`${folderName}/assets/`),
+    const hasAssetsFolder = entries.some((e) =>
+      e.startsWith(`${folderName}/assets/`),
     );
     return {
       type: "old-flat",
@@ -336,6 +340,23 @@ export async function extractFolderArchive(
   // Guardrail: Empty blob
   if (blob.size === 0) {
     throw new Error("Archive file is empty (0 bytes).");
+  }
+
+  // Detect plain YAML files by checking ZIP magic bytes (PK = 0x50 0x4B).
+  // YAML files don't start with these bytes, so we handle them directly.
+  const headerBuffer = await blob.slice(0, 2).arrayBuffer();
+  const header = new Uint8Array(headerBuffer);
+  const isZip = header[0] === 0x50 && header[1] === 0x4b;
+
+  if (!isZip) {
+    if (blob.size > LIMITS.MAX_YAML_BYTES) {
+      throw new Error(
+        `Layout file too large (${Math.round(blob.size / 1024 / 1024)}MB). Max size is ${Math.round(LIMITS.MAX_YAML_BYTES / 1024 / 1024)}MB.`,
+      );
+    }
+    const yamlText = await blob.text();
+    const layout = await parseLayoutYaml(yamlText);
+    return { layout, images: new Map(), failedImages: [] };
   }
 
   // Guardrail: Max ZIP size
@@ -720,6 +741,23 @@ export async function downloadArchive(
     extensions: [ARCHIVE_EXTENSION, ".zip"],
     description: "Rackula Layout Archive",
   });
+}
+
+/**
+ * Save a layout as a standalone YAML file.
+ * Returns the filename used.
+ */
+export async function downloadYamlFile(layout: Layout): Promise<string> {
+  const { fileSave } = await import("browser-fs-access");
+  const yamlContent = await serializeLayoutToYaml(layout);
+  const blob = new Blob([yamlContent], { type: "text/yaml;charset=utf-8" });
+  const filename = buildYamlFilename(layout.name);
+  await fileSave(blob, {
+    fileName: filename,
+    extensions: [".yaml"],
+    description: "Rackula Layout",
+  });
+  return filename;
 }
 
 // Re-export folder structure utilities for convenience
