@@ -42,16 +42,16 @@ test.describe("Persistence", () => {
     const download = await downloadPromise;
     const savePath = await download.path();
 
-    if (savePath) {
-      const fs = await import("fs/promises");
+    expect(savePath).toBeTruthy();
 
-      // Default save is a standalone YAML file (#1754), not a ZIP archive
-      const yamlContent = await fs.readFile(savePath, "utf-8");
+    const fs = await import("fs/promises");
 
-      // YAML should contain the rack name
-      expect(yamlContent).toContain("name:");
-      expect(yamlContent).toContain("Standard Rack");
-    }
+    // Default save is a standalone YAML file (#1754), not a ZIP archive
+    const yamlContent = await fs.readFile(savePath!, "utf-8");
+
+    // YAML should contain the rack name
+    expect(yamlContent).toContain("name:");
+    expect(yamlContent).toContain("Standard Rack");
   });
 
   test("load layout from file restores rack", async ({ page }) => {
