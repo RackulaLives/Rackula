@@ -43,7 +43,7 @@
     enableLongPress?: boolean;
     onselect?: (event: CustomEvent<{ rackId: string }>) => void;
     ondeviceselect?: (
-      event: CustomEvent<{ slug: string; position: number }>,
+      event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
     ) => void;
     ondevicedrop?: (
       event: CustomEvent<{

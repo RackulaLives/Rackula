@@ -56,7 +56,12 @@
     /** Callback when the entire group is selected (bayed racks select as a unit) */
     ongroupselect?: (event: CustomEvent<{ groupId: string }>) => void;
     ondeviceselect?: (
-      event: CustomEvent<{ rackId: string; slug: string; position: number }>,
+      event: CustomEvent<{
+        rackId: string;
+        deviceId?: string;
+        slug: string;
+        position: number;
+      }>,
     ) => void;
     ondevicedrop?: (
       event: CustomEvent<{
@@ -325,12 +330,13 @@
   // Handle device select - inject the correct rackId into the event
   function handleDeviceSelect(
     rackId: string,
-    event: CustomEvent<{ slug: string; position: number }>,
+    event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
   ) {
     ondeviceselect?.(
       new CustomEvent("deviceselect", {
         detail: {
           rackId,
+          deviceId: event.detail.deviceId,
           slug: event.detail.slug,
           position: event.detail.position,
         },

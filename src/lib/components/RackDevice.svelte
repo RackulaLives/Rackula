@@ -81,7 +81,9 @@
     dragTargetSlotId?: string | null;
     /** Whether the current drag target slot is valid for the dragged device */
     isDragTargetValid?: boolean;
-    onselect?: (event: CustomEvent<{ slug: string; position: number }>) => void;
+    onselect?: (
+      event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
+    ) => void;
     ondragstart?: (
       event: CustomEvent<{ rackId: string; deviceIndex: number }>,
     ) => void;
@@ -318,7 +320,9 @@
       event.preventDefault();
       event.stopPropagation();
       onselect?.(
-        new CustomEvent("select", { detail: { slug: device.slug, position } }),
+        new CustomEvent("select", {
+          detail: { deviceId: placedDeviceId, slug: device.slug, position },
+        }),
       );
     }
 
@@ -429,7 +433,9 @@
       // No significant movement - this is a click
       event.stopPropagation();
       onselect?.(
-        new CustomEvent("select", { detail: { slug: device.slug, position } }),
+        new CustomEvent("select", {
+          detail: { deviceId: placedDeviceId, slug: device.slug, position },
+        }),
       );
     } else if (pointerState === "dragging") {
       // Complete the drag operation
