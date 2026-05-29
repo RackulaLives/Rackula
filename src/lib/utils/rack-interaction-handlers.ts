@@ -197,24 +197,22 @@ export function handleDrop(event: DragEvent, ctx: RackHandlerContext): void {
 }
 
 /**
- * Handle touch end events for mobile tap-to-place workflow.
+ * Resolve the drop target under the given client coordinates and, when valid,
+ * dispatch a `placementtap`. Shared by the touch (handleTouchEnd) and
+ * mouse/pointer (handlePlacementClick) tap-to-place paths.
  */
-export function handleTouchEnd(
-  event: TouchEvent,
+function dispatchPlacementAt(
+  svg: SVGSVGElement,
+  clientX: number,
+  clientY: number,
   ctx: RackHandlerContext,
   device: DeviceType,
   onplacementtap?: (
     event: CustomEvent<{ position: number; face: "front" | "rear" }>,
   ) => void,
 ): void {
-  event.preventDefault();
-
-  const touch = event.changedTouches[0];
-  if (!touch) return;
-
-  const svg = event.currentTarget as SVGSVGElement;
   const result = resolveDropTarget(
-    { svgElement: svg, clientX: touch.clientX, clientY: touch.clientY },
+    { svgElement: svg, clientX, clientY },
     ctx.getRackDims(),
     ctx.getRack(),
     ctx.getDeviceLibrary(),
@@ -234,4 +232,65 @@ export function handleTouchEnd(
   } else {
     hapticError();
   }
+}
+
+/**
+ * Handle touch end events for mobile tap-to-place workflow (touchscreen input).
+ */
+export function handleTouchEnd(
+  event: TouchEvent,
+  ctx: RackHandlerContext,
+  device: DeviceType,
+  onplacementtap?: (
+    event: CustomEvent<{ position: number; face: "front" | "rear" }>,
+  ) => void,
+): void {
+  event.preventDefault();
+
+  const touch = event.changedTouches[0];
+  if (!touch) return;
+
+  dispatchPlacementAt(
+    event.currentTarget as SVGSVGElement,
+    touch.clientX,
+    touch.clientY,
+    ctx,
+    device,
+    onplacementtap,
+  );
+}
+
+/**
+ * Handle mouse/pointer tap-to-place onto the rack.
+ *
+ * The touch flow (handleTouchEnd) only fires for real TouchEvents, which
+ * desktop browsers do NOT synthesise for mouse/trackpad input. In mobile mode
+ * (viewport <= 1024px) a mouse user could pick a device from the palette but
+ * never complete the placement tap (#1757). This mirrors the touch flow for
+ * click input so placement works for any pointing device, in any browser.
+ *
+ * Touch input keeps using handleTouchEnd (whose preventDefault() suppresses the
+ * synthesised click), so this does not double-fire on touchscreens.
+ *
+ * The rack `<svg>` is passed explicitly because this is invoked from the
+ * accessible rack-container click handler, whose `currentTarget` is the
+ * wrapping element rather than the SVG used for coordinate resolution.
+ */
+export function handlePlacementClick(
+  event: MouseEvent,
+  svg: SVGSVGElement,
+  ctx: RackHandlerContext,
+  device: DeviceType,
+  onplacementtap?: (
+    event: CustomEvent<{ position: number; face: "front" | "rear" }>,
+  ) => void,
+): void {
+  dispatchPlacementAt(
+    svg,
+    event.clientX,
+    event.clientY,
+    ctx,
+    device,
+    onplacementtap,
+  );
 }

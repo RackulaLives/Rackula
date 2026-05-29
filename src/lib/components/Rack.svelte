@@ -64,6 +64,7 @@
     handleDragLeave as onDragLeave,
     handleDrop as onDrop,
     handleTouchEnd as onTouchEnd,
+    handlePlacementClick as onPlacementClick,
     type RackHandlerContext,
     type DropPreviewState,
   } from "$lib/utils/rack-interaction-handlers";
@@ -370,7 +371,18 @@
     canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
   }
 
-  function handleClick() {
+  function handleClick(event: MouseEvent) {
+    // Mobile tap-to-place via mouse/pointer. Touch input is handled by the
+    // SVG's ontouchend; desktop browsers do NOT synthesise TouchEvents for a
+    // mouse, so without this a mouse user in mobile mode (#1757) could pick a
+    // device from the palette but never complete the placement.
+    if (viewportStore.isMobile && placementStore.isPlacing) {
+      const device = placementStore.pendingDevice;
+      if (device && svgElement) {
+        onPlacementClick(event, svgElement, handlerCtx, device, onplacementtap);
+      }
+      return;
+    }
     if (canvasStore.isPanning) return;
     if (justFinishedDrag) {
       justFinishedDrag = false;
