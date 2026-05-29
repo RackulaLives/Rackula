@@ -374,24 +374,26 @@
   /**
    * Handle a click on the rack container.
    *
-   * In mobile mode (viewport <= 1024px) a click while placing completes
-   * mouse/pointer tap-to-place (#1757); touch input is handled separately by
-   * the SVG's `ontouchend`, and desktop browsers do not synthesise TouchEvents
-   * for a mouse, so without this a mouse user could pick a device from the
-   * palette but never place it. Otherwise the click selects the rack (unless a
-   * pan or drag just finished).
+   * Clicks synthesised at the end of a pan/drag gesture are ignored first
+   * (`isPanning` stays true for ~50ms after `panend`), so neither placement nor
+   * selection fires unintentionally after a pan. Then, in mobile mode (viewport
+   * <= 1024px) a click while placing completes mouse/pointer tap-to-place
+   * (#1757) — desktop browsers do not synthesise TouchEvents for a mouse, so
+   * without this a mouse user could pick a device but never place it; touch
+   * input is handled separately by the SVG's `ontouchend`. Otherwise the click
+   * selects the rack.
    */
   function handleClick(event: MouseEvent) {
+    if (canvasStore.isPanning) return;
+    if (justFinishedDrag) {
+      justFinishedDrag = false;
+      return;
+    }
     if (viewportStore.isMobile && placementStore.isPlacing) {
       const device = placementStore.pendingDevice;
       if (device && svgElement) {
         onPlacementClick(event, svgElement, handlerCtx, device, onplacementtap);
       }
-      return;
-    }
-    if (canvasStore.isPanning) return;
-    if (justFinishedDrag) {
-      justFinishedDrag = false;
       return;
     }
     onselect?.(new CustomEvent("select", { detail: { rackId: rack.id } }));
@@ -442,6 +444,8 @@
     }}
     ontouchend={(e) => {
       if (!viewportStore.isMobile || !placementStore.isPlacing) return;
+      // Don't place when a pan gesture just ended over the rack.
+      if (canvasStore.isPanning) return;
       const device = placementStore.pendingDevice;
       if (!device) return;
       onTouchEnd(e, handlerCtx, device, onplacementtap);
