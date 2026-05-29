@@ -52,3 +52,6 @@ docs/planning/
 
 # Claude Superpowers
 .superpowers/
+
+# Auto-generated tooling config
+.gh-dash.yml

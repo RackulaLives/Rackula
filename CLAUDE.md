@@ -91,11 +91,11 @@ docs/
 
 Project overrides for Superpowers v5 document locations:
 
-| Document Type          | Location                  | Naming Convention                  |
-| ---------------------- | ------------------------- | ---------------------------------- |
-| Specs (brainstorming)  | `docs/superpowers/specs/` | `YYYY-MM-DD-<topic>-design.md`     |
-| Plans (execution)      | `docs/plans/`             | `YYYY-MM-DD-<feature-name>.md`     |
-| Research spikes        | `docs/research/`          | `{ISSUE}-{type}.md`                |
+| Document Type         | Location                  | Naming Convention              |
+| --------------------- | ------------------------- | ------------------------------ |
+| Specs (brainstorming) | `docs/superpowers/specs/` | `YYYY-MM-DD-<topic>-design.md` |
+| Plans (execution)     | `docs/plans/`             | `YYYY-MM-DD-<feature-name>.md` |
+| Research spikes       | `docs/research/`          | `{ISSUE}-{type}.md`            |
 
 Plans use `docs/plans/` (project override — v5 defaults to `docs/superpowers/plans/`).
 
@@ -171,6 +171,32 @@ gh pr view <number> --comments
 
 **Greenfield approach:** Do not use migration or legacy support concepts in this project.
 Implement features as if they are the first and only implementation.
+
+**Simplicity first:**
+
+- Avoid over-engineering; only implement what's asked
+- Simple solutions over abstractions; three similar lines > premature abstraction
+- Delete unused code completely (no `_unused` vars)
+
+**No backwards compatibility hacks:**
+
+- No renaming to `_unusedVar`
+- No re-exporting removed types
+- No `// removed` comments
+- If unused, delete it
+
+**File operations:**
+
+- ALWAYS prefer editing existing files over creating new ones
+- NEVER create documentation files unless explicitly requested
+- NEVER add comments to code you didn't change
+
+## Git Conventions
+
+- Commit message format: `type: description`
+- Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
+- Branch naming: `fix/<issue>-desc`, `feat/<issue>-desc`
+- Always include `Co-Authored-By` for AI assistance
 
 ---
 
@@ -476,17 +502,17 @@ layoutDebug.device("placed device %s at U%d", slug, position);
 
 **Before starting any task, check if a skill applies:**
 
-| Task Type                 | Skill                                          | Why                                     |
-| ------------------------- | ---------------------------------------------- | --------------------------------------- |
-| Bug/issue investigation   | `/superpowers:systematic-debugging`            | Prevents guessing, forces evidence      |
-| New feature or component  | `/superpowers:brainstorming`                   | Explores requirements before code       |
-| Multi-step implementation | `/superpowers:writing-plans`                   | Plans auto-route to subagent execution  |
-| Working on GitHub issue   | `/dev-issue <number>`                          | Full workflow with worktree isolation   |
-| Research question         | `/research-spike <number>`                     | Structured investigation                |
-| Finishing a branch        | `/superpowers:finishing-a-development-branch`  | Merge/PR decision flow                  |
-| Worktree cleanup needed   | `/worktree-cleanup`                            | List and remove stale worktrees         |
-| Debugging with context    | `/debug-with-memory`                           | Memory-assisted systematic debugging    |
-| User-facing documentation | `/technical-writing`                           | Enforces verification, style, structure |
+| Task Type                 | Skill                                         | Why                                     |
+| ------------------------- | --------------------------------------------- | --------------------------------------- |
+| Bug/issue investigation   | `/superpowers:systematic-debugging`           | Prevents guessing, forces evidence      |
+| New feature or component  | `/superpowers:brainstorming`                  | Explores requirements before code       |
+| Multi-step implementation | `/superpowers:writing-plans`                  | Plans auto-route to subagent execution  |
+| Working on GitHub issue   | `/dev-issue <number>`                         | Full workflow with worktree isolation   |
+| Research question         | `/research-spike <number>`                    | Structured investigation                |
+| Finishing a branch        | `/superpowers:finishing-a-development-branch` | Merge/PR decision flow                  |
+| Worktree cleanup needed   | `/worktree-cleanup`                           | List and remove stale worktrees         |
+| Debugging with context    | `/debug-with-memory`                          | Memory-assisted systematic debugging    |
+| User-facing documentation | `/technical-writing`                          | Enforces verification, style, structure |
 
 **Default rule:** If uncertain, invoke `/superpowers:brainstorming` first.
 
