@@ -74,6 +74,10 @@ test.describe("Mobile tap-to-place with a mouse (#1757)", () => {
       expect(devicesAfter).toBeGreaterThan(devicesBefore);
     }).toPass({ timeout: 5000 });
 
-    await expect(placementHeader).not.toBeVisible();
+    // (`.not.toBeVisible()` already auto-retries; wrapped in toPass per review
+    // #1763 to make the post-placement settle explicit.)
+    await expect(async () => {
+      await expect(placementHeader).not.toBeVisible();
+    }).toPass({ timeout: 5000 });
   });
 });
