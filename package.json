@@ -38,8 +38,6 @@
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.60.0",
-    "@stryker-mutator/core": "^9.6.1",
-    "@stryker-mutator/vitest-runner": "^9.6.1",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/svelte": "^5.2.6",

@@ -83,10 +83,6 @@
 - fuse.js 7.1.0 - Fuzzy search for device library
 - sharp 0.34.5 - Image processing (bundled image generation script only)
 
-**Mutation Testing:**
-
-- @stryker-mutator/core 9.5.1 - Mutation testing framework
-- @stryker-mutator/vitest-runner 9.5.1 - Vitest integration for mutation tests
 
 ## Configuration
 

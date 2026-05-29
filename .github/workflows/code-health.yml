@@ -1,6 +1,6 @@
 name: "The Count's Weekly Census"
-# Rolling code health report: runs weekly deep analysis (mutation testing,
-# flaky test detection, complexity analysis) and maintains a single rolling
+# Rolling code health report: runs weekly deep analysis (flaky test
+# detection, complexity analysis) and maintains a single rolling
 # GitHub issue instead of creating new issues each week.
 # Weekly delta is preserved as issue comments for trend tracking.
 # Raw metrics are uploaded as artifacts (90-day retention) for historical reference.
@@ -10,12 +10,6 @@ on:
     # Run weekly on Sunday at 2am UTC
     - cron: "0 2 * * 0"
   workflow_dispatch:
-    inputs:
-      skip_mutations:
-        description: "Skip mutation testing (faster)"
-        required: false
-        default: "false"
-        type: boolean
 
 permissions:
   contents: read
@@ -38,29 +32,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      # ============================================
-      # MUTATION TESTING (Stryker)
-      # ============================================
-      - name: Run Mutation Testing
-        id: mutations
-        if: ${{ github.event.inputs.skip_mutations != 'true' }}
-        continue-on-error: true
-        run: |
-          # Run Stryker on utils directory (limited scope for speed)
-          npx stryker run --reporters json,clear-text || true
-
-          # Parse mutation score
-          if [ -f "reports/mutation/mutation.json" ]; then
-            MUTATION_SCORE=$(jq -r '.schemaVersion // empty' reports/mutation/mutation.json >/dev/null && \
-              jq -r '[.files[].mutants[] | select(.status == "Killed")] | length as $killed |
-                     [.files[].mutants[]] | length as $total |
-                     if $total > 0 then ($killed / $total * 100 | floor) else 0 end' reports/mutation/mutation.json 2>/dev/null || echo "0")
-          else
-            MUTATION_SCORE="N/A"
-          fi
-
-          echo "mutation_score=$MUTATION_SCORE" >> $GITHUB_OUTPUT
 
       # ============================================
       # FLAKY TEST DETECTION
@@ -166,7 +137,6 @@ jobs:
       - name: The Count's Rolling Report
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          MUTATION_SCORE: ${{ steps.mutations.outputs.mutation_score }}
           FLAKY_COUNT: ${{ steps.flaky.outputs.flaky_count }}
           COMPLEX_COUNT: ${{ steps.complexity.outputs.complex_count }}
           CODE_LINES: ${{ steps.metrics.outputs.code_lines }}
@@ -180,7 +150,6 @@ jobs:
             const { owner, repo } = context.repo;
             const now = new Date().toISOString().split('T')[0];
 
-            const mutationScore = process.env.MUTATION_SCORE || 'N/A';
             const flakyCount = parseInt(process.env.FLAKY_COUNT || '0', 10);
             const complexCount = parseInt(process.env.COMPLEX_COUNT || '0', 10);
             const codeLines = process.env.CODE_LINES || '0';
@@ -190,8 +159,6 @@ jobs:
             const flakyTests = process.env.FLAKY_TESTS || '';
             const complexFunctions = process.env.COMPLEX_FUNCTIONS || '';
 
-            const mutationScoreDisplay = mutationScore === 'N/A' ? 'N/A' : `${mutationScore}%`;
-            const mutationScoreValue = mutationScore === 'N/A' ? Number.NaN : Number(mutationScore);
             const codeLinesValue = parseInt(codeLines, 10);
             const testLinesValue = parseInt(testLines, 10);
 
@@ -243,7 +210,6 @@ jobs:
 
             | Metric | Value | Status |
             |--------|-------|--------|
-            | Mutation Score | ${mutationScoreDisplay} | ${mutationScore === 'N/A' ? '⏭️ Skipped' : (parseInt(mutationScore) >= 70 ? '✅' : '⚠️')} |
             | Flaky Tests | ${flakyCount} | ${flakyCount === 0 ? '✅' : '⚠️'} |
             | High Complexity | ${complexCount} | ${complexCount <= 5 ? '✅' : '⚠️'} |
             ${flakySec}${complexSec}
@@ -297,7 +263,6 @@ jobs:
                   return Number.isFinite(value) ? value : null;
                 };
                 prevMetrics = {
-                  mutationScore: parseVal('Mutation Score'),
                   flakyCount: parseVal('Flaky Tests'),
                   complexCount: parseVal('High Complexity'),
                   codeLines: parseVal('Source LOC'),
@@ -320,7 +285,6 @@ jobs:
 
             | Metric | Current | Δ vs last |
             |--------|---------|-----------|
-            | Mutation Score | ${mutationScoreDisplay} | ${formatDelta(mutationScoreValue, prevMetrics?.mutationScore, '%')} |
             | Flaky Tests | ${flakyCount} | ${formatDelta(flakyCount, prevMetrics?.flakyCount)} |
             | High Complexity | ${complexCount} | ${formatDelta(complexCount, prevMetrics?.complexCount)} |
             | Source LOC | ${codeLinesValue} | ${formatDelta(codeLinesValue, prevMetrics?.codeLines)} |
@@ -373,7 +337,6 @@ jobs:
 
           | Metric | Value |
           |--------|-------|
-          | Mutation Score | ${{ (steps.mutations.outputs.mutation_score == 'N/A' || steps.mutations.outputs.mutation_score == '') && 'N/A' || format('{0}%', steps.mutations.outputs.mutation_score) }} |
           | Flaky Tests | ${{ steps.flaky.outputs.flaky_count }} |
           | High Complexity Functions | ${{ steps.complexity.outputs.complex_count }} |
           | Source LOC | ${{ steps.metrics.outputs.code_lines }} |

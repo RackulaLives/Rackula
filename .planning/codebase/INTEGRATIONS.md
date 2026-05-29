@@ -104,7 +104,6 @@
 - GitHub Actions (via `.github/workflows/`)
 - Stages: Lint → Unit tests → E2E tests → Build → Deploy
 - Code review: CodeRabbit AI review integration on PRs (waits for approval before merge)
-- Mutation testing: Stryker mutator runner (optional)
 
 **Build Artifacts:**
 

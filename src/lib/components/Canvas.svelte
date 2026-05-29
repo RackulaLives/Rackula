@@ -31,6 +31,7 @@
   import WelcomeScreen from "./WelcomeScreen.svelte";
   import CanvasContextMenu from "./CanvasContextMenu.svelte";
   import type { DeviceFace, SlotPosition } from "$lib/types";
+  import { resolveSelectedDevice } from "$lib/utils/device-selection";
   // Note: PlacementIndicator removed - placement UI now integrated into Rack.svelte
 
   // Multi-rack mode: use active rack ID from store
@@ -46,7 +47,7 @@
     ontoggletheme?: () => void;
     onrackselect?: (event: CustomEvent<{ rackId: string }>) => void;
     ondeviceselect?: (
-      event: CustomEvent<{ slug: string; position: number }>,
+      event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
     ) => void;
     ondevicedrop?: (
       event: CustomEvent<{
@@ -414,16 +415,15 @@
 
   function handleDeviceSelect(
     rackId: string,
-    event: CustomEvent<{ slug: string; position: number }>,
+    event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
   ) {
-    // Find the device by slug and position, then select by ID (UUID-based tracking)
+    // Resolve the placed device by its UUID when available. The legacy
+    // (slug, position) fallback is ambiguous for two half-width devices sharing
+    // the same U (#1680), where it always resolved to the left device and left
+    // the right one unselectable.
     const targetRack = layoutStore.getRackById(rackId);
     if (targetRack) {
-      const device = targetRack.devices.find(
-        (d) =>
-          d.device_type === event.detail.slug &&
-          d.position === event.detail.position,
-      );
+      const device = resolveSelectedDevice(targetRack, event.detail);
       if (device) {
         layoutStore.setActiveRack(rackId);
         selectionStore.selectDevice(rackId, device.id);
