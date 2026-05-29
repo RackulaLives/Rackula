@@ -369,19 +369,10 @@ test.describe("Device Metadata Persistence", () => {
       const downloadPath = await download.path();
       expect(downloadPath).toBeTruthy();
 
-      // Read and parse the ZIP file
+      // Default save is a standalone YAML file (#1754), not a ZIP archive
       const fs = await import("fs/promises");
-      const JSZip = (await import("jszip")).default;
 
-      const zipData = await fs.readFile(downloadPath!);
-      const zip = await JSZip.loadAsync(zipData);
-
-      // Find the YAML file
-      const files = Object.keys(zip.files);
-      const yamlFile = files.find((f) => f.endsWith(".yaml"));
-      expect(yamlFile).toBeDefined();
-
-      const yamlContent = await zip.file(yamlFile!)?.async("string");
+      const yamlContent = await fs.readFile(downloadPath!, "utf-8");
       expect(yamlContent).toBeDefined();
 
       // Verify metadata fields are in the YAML

@@ -1,7 +1,6 @@
 import { test, expect } from "./helpers/base-test";
 
 import fs from "fs";
-import JSZip from "jszip";
 import {
   gotoWithRack,
   STANDARD_RACK_SHARE,
@@ -54,7 +53,7 @@ test.describe("Archive Format", () => {
     await gotoWithRack(page, STANDARD_RACK_SHARE);
   });
 
-  test("save creates ZIP file", async ({ page }) => {
+  test("save creates YAML file", async ({ page }) => {
     await dragDeviceToRack(page);
     await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 5000,
@@ -69,22 +68,19 @@ test.describe("Archive Format", () => {
     // Wait for download
     const download = await downloadPromise;
 
-    // Check filename has .zip extension
-    expect(download.suggestedFilename()).toMatch(/\.zip$/);
+    // Default save format is now a standalone YAML file (#1754)
+    expect(download.suggestedFilename()).toMatch(/\.rackula\.yaml$/);
 
     // Save and verify contents
     const downloadPath = test.info().outputPath(download.suggestedFilename());
     await download.saveAs(downloadPath);
 
-    const zipBuffer = fs.readFileSync(downloadPath);
-    const zip = await JSZip.loadAsync(zipBuffer);
-
-    // Should contain a YAML file in a folder structure
-    const files = Object.keys(zip.files);
-    expect(files.some((f) => f.endsWith(".yaml"))).toBe(true);
+    // The downloaded file is plain YAML (not a ZIP archive)
+    const yamlContent = fs.readFileSync(downloadPath, "utf-8");
+    expect(yamlContent).toContain("name:");
   });
 
-  test("load saved ZIP restores layout", async ({ page }) => {
+  test("load saved YAML restores layout", async ({ page }) => {
     await dragDeviceToRack(page);
     await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 5000,
@@ -95,7 +91,7 @@ test.describe("Archive Format", () => {
     await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
     const download = await downloadPromise;
 
-    const savedPath = test.info().outputPath("saved-layout.Rackula.zip");
+    const savedPath = test.info().outputPath("saved-layout.rackula.yaml");
     await download.saveAs(savedPath);
 
     // Reload with a fresh rack

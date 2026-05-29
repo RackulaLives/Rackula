@@ -109,12 +109,12 @@ test.describe("Carlton Migration (#879)", () => {
     await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
     const download = await downloadPromise;
 
-    // Verify filename has correct extension
+    // Verify filename has correct extension (default save is YAML, #1754)
     expect(download.suggestedFilename()).toContain("5123home");
-    expect(download.suggestedFilename()).toMatch(/\.zip$/);
+    expect(download.suggestedFilename()).toMatch(/\.rackula\.yaml$/);
 
     // Save to stable test output location
-    const savedPath = test.info().outputPath("carlton-resaved.Rackula.zip");
+    const savedPath = test.info().outputPath("carlton-resaved.rackula.yaml");
     await download.saveAs(savedPath);
 
     // Reload with a fresh rack state

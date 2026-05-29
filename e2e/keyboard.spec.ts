@@ -83,9 +83,9 @@ test.describe("Keyboard Shortcuts", () => {
     // Press Ctrl+S
     await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
 
-    // Should trigger download
+    // Should trigger download (default save format is YAML, #1754)
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/\.zip$/);
+    expect(download.suggestedFilename()).toMatch(/\.rackula\.yaml$/);
   });
 
   test("Escape closes dialogs", async ({ page }) => {

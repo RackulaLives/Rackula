@@ -63,8 +63,11 @@ test.describe("Position Migration", () => {
     await page.keyboard.press(`${PLATFORM_MODIFIER}+s`);
     const download = await downloadPromise;
 
-    // Verify file was downloaded with correct name
-    expect(download.suggestedFilename()).toMatch(/Legacy Test Layout/);
+    // Verify file was downloaded with correct name (default save is YAML,
+    // #1754 — the layout name "Legacy Test Layout" is slugified for the filename)
+    expect(download.suggestedFilename()).toMatch(
+      /legacy-test-layout\.rackula\.yaml$/,
+    );
 
     // The saved file should have version 0.7.0 and migrated positions
     // This is verified by the unit tests; E2E confirms the workflow works end-to-end
@@ -88,7 +91,7 @@ test.describe("Position Migration", () => {
     const download = await downloadPromise;
 
     // Save the downloaded file to a stable test output location
-    const savedPath = test.info().outputPath("migrated-layout.Rackula.zip");
+    const savedPath = test.info().outputPath("migrated-layout.rackula.yaml");
     await download.saveAs(savedPath);
 
     // Reload with a fresh rack state
