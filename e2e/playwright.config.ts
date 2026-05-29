@@ -8,7 +8,7 @@ export default defineConfig({
   },
   testDir: ".",
   fullyParallel: true,
-  forbidOnly: process.env.CI === "true" || process.env.CI === "1",
+  forbidOnly: !!process.env.CI,
   retries: 2,
   reporter: [["html", { open: "never" }]],
   use: {

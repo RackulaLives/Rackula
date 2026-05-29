@@ -20,6 +20,7 @@ export default defineConfig({
   testDir: ".",
   testMatch: ["smoke.spec.ts", "basic-workflow.spec.ts"],
   fullyParallel: true,
+  forbidOnly: !!process.env.CI,
   retries: 2,
   timeout: 60000,
   expect: {
