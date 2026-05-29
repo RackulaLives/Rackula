@@ -371,11 +371,17 @@
     canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
   }
 
+  /**
+   * Handle a click on the rack container.
+   *
+   * In mobile mode (viewport <= 1024px) a click while placing completes
+   * mouse/pointer tap-to-place (#1757); touch input is handled separately by
+   * the SVG's `ontouchend`, and desktop browsers do not synthesise TouchEvents
+   * for a mouse, so without this a mouse user could pick a device from the
+   * palette but never place it. Otherwise the click selects the rack (unless a
+   * pan or drag just finished).
+   */
   function handleClick(event: MouseEvent) {
-    // Mobile tap-to-place via mouse/pointer. Touch input is handled by the
-    // SVG's ontouchend; desktop browsers do NOT synthesise TouchEvents for a
-    // mouse, so without this a mouse user in mobile mode (#1757) could pick a
-    // device from the palette but never complete the placement.
     if (viewportStore.isMobile && placementStore.isPlacing) {
       const device = placementStore.pendingDevice;
       if (device && svgElement) {

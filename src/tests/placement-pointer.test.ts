@@ -11,6 +11,7 @@ import { handlePlacementClick } from "$lib/utils/rack-interaction-handlers";
 import { resolveDropTarget } from "$lib/utils/rack-drop-coordinator";
 import { hapticError } from "$lib/utils/haptics";
 
+/** Build a minimal RackHandlerContext; only the getters used by placement matter. */
 function makeCtx() {
   return {
     getRack: () => ({}),
@@ -26,6 +27,7 @@ function makeCtx() {
   } as unknown as Parameters<typeof handlePlacementClick>[2];
 }
 
+/** Minimal MouseEvent stand-in carrying just the client coordinates. */
 function makeMouseEvent(clientX: number, clientY: number): MouseEvent {
   return { clientX, clientY } as unknown as MouseEvent;
 }
