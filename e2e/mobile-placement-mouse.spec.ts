@@ -54,8 +54,9 @@ test.describe("Mobile tap-to-place with a mouse (#1757)", () => {
     await firstDevice.click();
 
     // Placement mode is active: the "Tap to place" header appears and the
-    // bottom sheet has closed.
-    const placementHeader = page.locator(".placement-header");
+    // bottom sheet has closed. Dual-view renders the header in both the front
+    // and rear SVGs, so scope to the first to avoid a strict-mode violation.
+    const placementHeader = page.locator(".placement-header").first();
     await expect(placementHeader).toBeVisible();
     await expect(placementHeader).toContainText("Tap to place");
     await expect(page.locator(locators.mobile.bottomSheet)).not.toBeVisible();
