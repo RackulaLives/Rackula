@@ -43,6 +43,10 @@ function update_script() {
     if [[ -d /opt/rackula-backup ]] && [[ $UPDATE_SUCCESS -eq 0 ]]; then
       rm -rf /opt/rackula
       mv /opt/rackula-backup /opt/rackula
+      # Restart services with the restored installation
+      systemctl daemon-reload
+      systemctl start rackula-api
+      systemctl start nginx
       msg_error "Update failed — restored from backup"
     fi
     rm -rf /tmp/rackula-update.lock
@@ -88,7 +92,8 @@ function update_script() {
 
     # Set ownership
     chown -R root:root /opt/rackula/frontend
-    chmod -R 755 /opt/rackula/frontend
+    find /opt/rackula/frontend -type d -exec chmod 755 {} \;
+    find /opt/rackula/frontend -type f -exec chmod 644 {} \;
     chown -R rackula:rackula /opt/rackula/api
     chown -R rackula:rackula /opt/rackula/data
     chmod 750 /opt/rackula/data
@@ -103,7 +108,7 @@ function update_script() {
 
     msg_info "Verifying Services"
     for i in $(seq 1 10); do
-      if curl -sf http://127.0.0.1:3001/health >/dev/null 2>&1; then
+      if curl -sf --connect-timeout 2 --max-time 5 http://127.0.0.1:3001/health >/dev/null 2>&1; then
         msg_ok "Service running successfully"
         break
       fi
