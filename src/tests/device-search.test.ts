@@ -26,8 +26,10 @@ const library: DeviceType[] = [
   ...getBrandPacks().flatMap((pack) => pack.devices),
 ];
 
-const isServer = (device: DeviceType): boolean =>
-  /\bserver\b/i.test(device.model) || device.category === "server";
+// Server detection uses the canonical category field only. Matching on the
+// model string would misclassify non-server devices whose names contain
+// "Server" (e.g. the network device "UniFi Application Server").
+const isServer = (device: DeviceType): boolean => device.category === "server";
 
 describe("searchDevices typo tolerance", () => {
   it("matches a switch despite a missing letter (Swith -> Switch)", () => {
