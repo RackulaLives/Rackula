@@ -21,8 +21,9 @@ $STD apt install -y \
 msg_ok "Installed Dependencies"
 
 msg_info "Installing Bun"
-$STD curl -fsSL https://bun.sh/install | bash
-ln -sf /root/.bun/bin/bun /usr/local/bin/bun
+BUN_INSTALL=/opt/bun $STD curl -fsSL https://bun.sh/install | bash
+ln -sf /opt/bun/bin/bun /usr/local/bin/bun
+ln -sf /opt/bun/bin/bunx /usr/local/bin/bunx
 msg_ok "Installed Bun"
 
 msg_info "Creating rackula user"
@@ -216,7 +217,6 @@ PrivateTmp=true
 WantedBy=multi-user.target
 EOF
 
-systemctl daemon-reload
 systemctl enable -q --now rackula-api
 systemctl enable -q --now nginx
 msg_ok "Created Services"
