@@ -8,8 +8,8 @@ source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxV
 APP="Rackula"
 var_tags="${var_tags:-homelab}"
 var_cpu="${var_cpu:-1}"
-var_ram="${var_ram:-256}"
-var_disk="${var_disk:-4}"
+var_ram="${var_ram:-512}"
+var_disk="${var_disk:-8}"
 var_os="${var_os:-debian}"
 var_version="${var_version:-13}"
 var_unprivileged="${var_unprivileged:-1}"
@@ -29,7 +29,25 @@ function update_script() {
     exit
   fi
 
-  RELEASE=$(get_latest_github_release "RackulaLives/Rackula")
+  # Prevent concurrent updates (mkdir is atomic, touch is not)
+  if ! mkdir /tmp/rackula-update.lock 2>/dev/null; then
+    msg_error "Update already in progress"
+    exit 1
+  fi
+
+  # Rollback on failure — restore full installation if update broke things
+  cleanup() {
+    if [[ -d /opt/rackula-backup ]]; then
+      if [[ ! -d /opt/rackula ]] || [[ ! -d /opt/rackula/data ]]; then
+        rm -rf /opt/rackula
+        mv /opt/rackula-backup /opt/rackula
+        msg_error "Update failed — restored from backup"
+      fi
+    fi
+    rm -rf /tmp/rackula-update.lock
+  }
+  trap cleanup EXIT
+
   if check_for_gh_release "rackula" "RackulaLives/Rackula"; then
     msg_info "Stopping Services"
     systemctl stop rackula-api
@@ -37,43 +55,54 @@ function update_script() {
     msg_ok "Stopped Services"
 
     msg_info "Backing up data"
-    cp -a /opt/rackula/data /opt/rackula/data.bak
+    rm -rf /opt/rackula-backup
+    mv /opt/rackula /opt/rackula-backup
     msg_ok "Backed up data"
 
-    msg_info "Updating ${APP} to ${RELEASE}"
-    TARBALL_URL="https://github.com/RackulaLives/Rackula/releases/download/${RELEASE}/rackula-lxc-${RELEASE}.tar.gz"
-    $STD curl -fsSL "$TARBALL_URL" -o /tmp/rackula-lxc.tar.gz
-    tar xzf /tmp/rackula-lxc.tar.gz -C /tmp
-    TARBALL_DIR="/tmp/rackula-lxc-${RELEASE}"
+    msg_info "Updating ${APP} to ${CHECK_UPDATE_RELEASE}"
+    fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"
 
-    # Update frontend
-    rm -rf /opt/rackula/frontend/*
-    cp -r "${TARBALL_DIR}/frontend/"* /opt/rackula/frontend/
+    # Restore persistent data from backup
+    mv /opt/rackula-backup/data /opt/rackula/data
 
-    # Update API
-    rm -rf /opt/rackula/api/src /opt/rackula/api/node_modules /opt/rackula/api/package.json /opt/rackula/api/tsconfig.json
-    cp -r "${TARBALL_DIR}/api/src" /opt/rackula/api/
-    cp -r "${TARBALL_DIR}/api/node_modules" /opt/rackula/api/
-    cp "${TARBALL_DIR}/api/package.json" /opt/rackula/api/
-    cp "${TARBALL_DIR}/api/tsconfig.json" /opt/rackula/api/
+    # Update config files from the new release
+    cp /opt/rackula/config/security-headers.conf /etc/nginx/snippets/security-headers.conf
+    cp /opt/rackula/config/rackula-api.service /etc/systemd/system/rackula-api.service
+    if [[ -f /opt/rackula/config/nginx.service.d-override.conf ]]; then
+      mkdir -p /etc/systemd/system/nginx.service.d
+      cp /opt/rackula/config/nginx.service.d-override.conf /etc/systemd/system/nginx.service.d/override.conf
+    fi
 
-    # Update security headers only (preserve user's nginx config)
-    cp "${TARBALL_DIR}/config/security-headers.conf" /etc/nginx/snippets/security-headers.conf
-
+    # Set ownership
+    chown -R root:root /opt/rackula/frontend
+    chmod -R 755 /opt/rackula/frontend
     chown -R rackula:rackula /opt/rackula/api
-    echo "${RELEASE}" >~/.rackula
+    chown -R rackula:rackula /opt/rackula/data
+    chmod 750 /opt/rackula/data
 
-    # Cleanup
-    rm -rf /tmp/rackula-lxc.tar.gz "${TARBALL_DIR}"
-    msg_ok "Updated ${APP} to ${RELEASE}"
+    msg_ok "Updated ${APP} to ${CHECK_UPDATE_RELEASE}"
 
     msg_info "Starting Services"
+    systemctl daemon-reload
     systemctl start rackula-api
     systemctl start nginx
     msg_ok "Started Services"
 
-    # Remove backup on success
-    rm -rf /opt/rackula/data.bak
+    msg_info "Verifying Services"
+    for i in $(seq 1 10); do
+      if curl -sf http://127.0.0.1:3001/health >/dev/null 2>&1; then
+        msg_ok "Service running successfully"
+        break
+      fi
+      if [ "$i" -eq 10 ]; then
+        msg_error "API failed to start within 10 seconds"
+        exit 1
+      fi
+      sleep 1
+    done
+
+    # Remove backup only after services verified
+    rm -rf /opt/rackula-backup
     msg_ok "Updated successfully!"
   fi
   exit

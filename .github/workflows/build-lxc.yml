@@ -77,6 +77,7 @@ jobs:
           cp deploy/lxc/nginx.conf "${TARBALL_DIR}/config/"
           cp deploy/lxc/rackula-api.service "${TARBALL_DIR}/config/"
           cp deploy/lxc/security-headers.conf "${TARBALL_DIR}/config/"
+          cp deploy/lxc/nginx.service.d-override.conf "${TARBALL_DIR}/config/"
 
           tar czf "rackula-lxc-${VERSION}.tar.gz" "${TARBALL_DIR}"
           echo "TARBALL=rackula-lxc-${VERSION}.tar.gz" >> "$GITHUB_ENV"

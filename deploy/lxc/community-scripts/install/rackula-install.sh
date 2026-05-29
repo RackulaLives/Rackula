@@ -23,6 +23,10 @@ msg_ok "Installed Dependencies"
 msg_info "Installing Bun"
 export BUN_INSTALL=/opt/bun
 curl -fsSL https://bun.sh/install | $STD bash
+if [ ! -f /opt/bun/bin/bun ]; then
+  msg_error "Bun installation failed — binary not found at /opt/bun/bin/bun"
+  exit 1
+fi
 ln -sf /opt/bun/bin/bun /usr/local/bin/bun
 ln -sf /opt/bun/bin/bunx /usr/local/bin/bunx
 msg_ok "Installed Bun"
@@ -32,39 +36,21 @@ useradd --system --user-group --home-dir /opt/rackula --shell /usr/sbin/nologin 
 msg_ok "Created rackula user"
 
 msg_info "Installing Rackula"
-RELEASE=$(get_latest_github_release "RackulaLives/Rackula")
-TARBALL_URL="https://github.com/RackulaLives/Rackula/releases/download/${RELEASE}/rackula-lxc-${RELEASE}.tar.gz"
-$STD curl -fsSL "$TARBALL_URL" -o /tmp/rackula-lxc.tar.gz
-tar xzf /tmp/rackula-lxc.tar.gz -C /tmp
-TARBALL_DIR="/tmp/rackula-lxc-${RELEASE}"
+fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"
 
-# Create directory structure
-mkdir -p /opt/rackula/{frontend,api,data}
+# Create persistent data directory (not in tarball)
+mkdir -p /opt/rackula/data
 mkdir -p /etc/nginx/snippets
 
-# Deploy frontend (root-owned, served by nginx)
-cp -r "${TARBALL_DIR}/frontend/"* /opt/rackula/frontend/
+# Deploy config files from the release
+cp /opt/rackula/config/security-headers.conf /etc/nginx/snippets/security-headers.conf
+
+# Set ownership: frontend root-owned (served by nginx), API rackula-owned
 chown -R root:root /opt/rackula/frontend
 chmod -R 755 /opt/rackula/frontend
-
-# Deploy API (rackula-owned, run by systemd)
-cp -r "${TARBALL_DIR}/api/src" /opt/rackula/api/
-cp -r "${TARBALL_DIR}/api/node_modules" /opt/rackula/api/
-cp "${TARBALL_DIR}/api/package.json" /opt/rackula/api/
-cp "${TARBALL_DIR}/api/tsconfig.json" /opt/rackula/api/
 chown -R rackula:rackula /opt/rackula/api
-
-# Deploy config files from tarball (before cleanup)
-cp "${TARBALL_DIR}/config/security-headers.conf" /etc/nginx/snippets/security-headers.conf
-
-# Data directory (rackula-owned, persists across updates)
 chown -R rackula:rackula /opt/rackula/data
 chmod 750 /opt/rackula/data
-
-echo "${RELEASE}" >~/.rackula
-
-# Cleanup tarball
-rm -rf /tmp/rackula-lxc.tar.gz "${TARBALL_DIR}"
 msg_ok "Installed Rackula"
 
 msg_info "Generating API write token"
@@ -190,7 +176,7 @@ ln -sf /etc/nginx/sites-available/rackula /etc/nginx/sites-enabled/rackula
 msg_ok "Configured nginx"
 
 msg_info "Creating Services"
-# Deploy systemd unit for API
+# Deploy hardened systemd unit for API
 cat <<'EOF' >/etc/systemd/system/rackula-api.service
 [Unit]
 Description=Rackula Persistence API
@@ -208,19 +194,119 @@ RestartSec=5
 Environment=NODE_ENV=production
 Environment=DATA_DIR=/opt/rackula/data
 Environment=RACKULA_API_PORT=3001
+
+# Resource limits
+MemoryMax=384M
+MemoryHigh=320M
+TasksMax=32
+LimitNOFILE=1024
+
+# OOM handling
+OOMPolicy=stop
+OOMScoreAdjust=-100
+
+# Filesystem protection
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/opt/rackula/data
 PrivateTmp=true
+UMask=0077
+
+# Kernel protection
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+
+# Process restrictions
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+PrivateDevices=true
+RemoveIPC=true
+
+# Capability dropping
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Syscall filtering
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+# Network egress control
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=127.0.0.0/8
+
+# Logging
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
+# Harden nginx service via drop-in override
+mkdir -p /etc/systemd/system/nginx.service.d
+cat <<'EOF' >/etc/systemd/system/nginx.service.d/override.conf
+[Service]
+# Filesystem protection
+ProtectSystem=strict
+ReadWritePaths=/var/log/nginx /var/lib/nginx /var/cache/nginx /run
+ProtectHome=true
+PrivateTmp=true
+
+# Kernel protection
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+
+# Process restrictions
+NoNewPrivileges=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+PrivateDevices=true
+RemoveIPC=true
+
+# Capability dropping — nginx on port 80 needs NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_CHOWN CAP_DAC_OVERRIDE CAP_SETGID CAP_SETUID
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+# Syscall filtering
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+EOF
+
+systemctl daemon-reload
 systemctl enable -q --now rackula-api
 systemctl enable -q --now nginx
 msg_ok "Created Services"
+
+msg_info "Verifying Services"
+for i in $(seq 1 10); do
+  if curl -sf http://127.0.0.1:3001/health >/dev/null 2>&1; then
+    msg_ok "Service running successfully"
+    break
+  fi
+  if [ "$i" -eq 10 ]; then
+    msg_error "API failed to start within 10 seconds"
+    exit 1
+  fi
+  sleep 1
+done
 
 motd_ssh
 customize
