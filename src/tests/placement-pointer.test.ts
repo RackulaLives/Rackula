@@ -54,7 +54,7 @@ describe("handlePlacementClick — mouse/pointer tap-to-place (#1757)", () => {
       onplacementtap,
     );
 
-    // eslint-disable-next-line no-restricted-syntax -- a single click must place exactly once
+    // a single click must place exactly once
     expect(onplacementtap).toHaveBeenCalledTimes(1);
     expect(onplacementtap.mock.calls[0][0].detail).toEqual({
       position: 7,

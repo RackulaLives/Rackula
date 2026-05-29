@@ -218,30 +218,56 @@ test.describe("Starter Library", () => {
     const searchInput = page.locator('[data-testid="search-devices"]');
     await expect(searchInput).toBeVisible();
 
+    const results = page.locator(locators.device.paletteItem);
+    const unfilteredCount = await results.count();
+
     // Search for "Switch"
     await searchInput.fill("Switch");
 
-    // Should show switch items (KVM Switch, 24-Port Switch, 48-Port Switch)
-    const results = page.locator(locators.device.paletteItem);
-    const names = (await results.allTextContents()).map((n) => n.trim());
-    const matchingNames = names.filter((n) => /switch/i.test(n));
-    expect(matchingNames.some((n) => /KVM Switch/i.test(n))).toBe(true);
-    expect(matchingNames.some((n) => /24-Port/i.test(n))).toBe(true);
-    expect(matchingNames.some((n) => /48-Port/i.test(n))).toBe(true);
-    // Unrelated items should be filtered out by the search
-    expect(names.some((n) => /\bServer\b/i.test(n))).toBe(false);
+    // Wait for the reactive filter to settle: the list shrinks below the
+    // full unfiltered library before we assert on its contents.
+    await expect.poll(() => results.count()).toBeLessThan(unfilteredCount);
+
+    // Positive: relevant switch items are present.
+    const total = await results.count();
+    expect(total).toBeGreaterThan(0);
+
+    // Relevance: every result relates to the query. Palette item accessible
+    // names follow "${model}, ${u_height}U, ${category}", so a result is
+    // relevant if its name mentions "switch" or it is in the network category.
+    // Asserting "relevant count == total count" catches a relevance regression
+    // (e.g. a Server leaking in) without naming any specific device, so adding
+    // or renaming a device does not break this test.
+    const relevant = page.getByRole("listitem", {
+      name: /(switch|,\s*network\b)/i,
+    });
+    expect(await relevant.count()).toBe(total);
   });
 
   test("can search for cable management devices", async ({ page }) => {
     const searchInput = page.locator('[data-testid="search-devices"]');
+
+    const results = page.locator(locators.device.paletteItem);
+    const unfilteredCount = await results.count();
+
     await searchInput.fill("Cable Manager");
 
-    // Should show cable management items (Cable Manager 1U/2U)
-    const results = page.locator(locators.device.paletteItem);
-    const names = (await results.allTextContents()).map((n) => n.trim());
-    expect(names.some((n) => /Cable Manager/i.test(n))).toBe(true);
-    // Unrelated items should be filtered out by the search
-    expect(names.some((n) => /\bServer\b/i.test(n))).toBe(false);
+    // Wait for the reactive filter to settle before asserting on the list.
+    await expect.poll(() => results.count()).toBeLessThan(unfilteredCount);
+
+    // Positive: relevant cable-management items are present.
+    const total = await results.count();
+    expect(total).toBeGreaterThan(0);
+
+    // Relevance: every result belongs to the cable-management category. This
+    // fails if an unrelated device (e.g. a Server) leaks into the results, but
+    // does not break when devices are added or renamed. The accessible name
+    // includes the device category ("${model}, ${u_height}U, ${category}",
+    // optionally followed by ", half-width").
+    const relevant = page.getByRole("listitem", {
+      name: /,\s*cable-management\b/i,
+    });
+    expect(await relevant.count()).toBe(total);
   });
 
   test("can search for brush panel", async ({ page }) => {

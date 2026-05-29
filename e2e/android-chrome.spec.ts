@@ -360,7 +360,7 @@ test.describe("Long-Press Gesture", () => {
     await setupMobileViewport(page, device);
   });
 
-  test("long-press does not trigger Android context menu", async ({ page }) => {
+  test("long-press opens the device context menu", async ({ page }) => {
     // Open bottom sheet to expose palette items on mobile
     await mobileDragDeviceToRack(page);
 
@@ -375,7 +375,8 @@ test.describe("Long-Press Gesture", () => {
 
     const box = await rackDevice.boundingBox();
     if (box) {
-      // Simulate long-press via mouse events (touchscreen.tap requires hasTouch)
+      // Simulate long-press via mouse events (touchscreen.tap requires hasTouch).
+      // useLongPress fires after 500ms; 600ms gives headroom for timing variance.
       const startPos = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
       await page.mouse.move(startPos.x, startPos.y);
       await page.mouse.down();
@@ -384,8 +385,11 @@ test.describe("Long-Press Gesture", () => {
       await page.mouse.up();
     }
 
+    // Feature #1086: long-press on a placed device opens the app's device context menu.
+    // This confirms the gesture fires and the native browser context menu is suppressed
+    // in favour of the app's own menu (see RackDevice.svelte handleLongPress / useLongPress).
     const contextMenu = page.locator('[role="menu"]');
-    await expect(contextMenu).not.toBeVisible();
+    await expect(contextMenu).toBeVisible({ timeout: 3000 });
   });
 });
 
