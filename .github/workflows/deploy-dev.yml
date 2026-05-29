@@ -3,6 +3,11 @@ name: Deploy Dev
 on:
   push:
     branches: [main]
+    paths:
+      - api/
+      - src/
+      - deploy/
+      - assets/
   workflow_dispatch:
 
 env:
