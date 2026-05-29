@@ -99,9 +99,17 @@
 <style>
   /*
    * bits-ui ContextMenu.Trigger creates a wrapper div that must fill its parent.
-   * Target by DOM position: any div between .main-pane and .canvas
+   * Target by DOM position: the trigger div directly wrapping .canvas.
+   *
+   * Desktop: .main-pane > div > .canvas
+   * Mobile:  .app-main > div > .canvas (Canvas is a direct child of <main>)
+   *
+   * Without this, the wrapper collapses to its content's intrinsic size and
+   * .canvas { flex: 1 } resolves against the small wrapper instead of the
+   * full parent, so the canvas does not fill the window.
    */
-  :global(.main-pane > div:has(> .canvas)) {
+  :global(.main-pane > div:has(> .canvas)),
+  :global(.app-main > div:has(> .canvas)) {
     display: flex;
     flex: 1 1 0;
     min-height: 0;
