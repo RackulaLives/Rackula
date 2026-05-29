@@ -17,7 +17,7 @@ const smokeTestUrl = process.env.SMOKE_TEST_URL;
  * SMOKE_TEST_URL=https://count.racku.la npm run test:e2e:smoke
  */
 export default defineConfig({
-  testDir: "e2e",
+  testDir: ".",
   testMatch: ["smoke.spec.ts", "basic-workflow.spec.ts"],
   fullyParallel: true,
   retries: 2,
@@ -45,6 +45,7 @@ export default defineConfig({
           port: 4173,
           timeout: 120_000,
           reuseExistingServer: !process.env.CI,
+          cwd: "..",
         },
       }),
 });
