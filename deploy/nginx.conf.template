@@ -1,3 +1,10 @@
+# Rackula nginx configuration — Docker template (envsubst processed)
+# CROSS-REF: deploy/lxc/nginx.conf is the LXC variant (static, no envsubst).
+# Key differences: Docker uses envsubst variables (${API_HOST}, ${API_PORT}, etc.)
+# and auth_request for local/OIDC auth; LXC uses a static snippet for token
+# injection and has no auth_request support. When updating routing or proxy
+# logic in one, check if the other needs the same change.
+
 # Authorization header handling for API proxying.
 # - If API_WRITE_TOKEN is configured and request method is PUT/DELETE,
 #   inject "Bearer <token>" for upstream write-route auth.
