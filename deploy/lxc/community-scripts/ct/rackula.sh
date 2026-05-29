@@ -35,14 +35,15 @@ function update_script() {
     exit 1
   fi
 
-  # Rollback on failure — restore full installation if update broke things
+  # Track update success for rollback decisions
+  UPDATE_SUCCESS=0
+
+  # Rollback on failure — restore from backup unless update succeeded
   cleanup() {
-    if [[ -d /opt/rackula-backup ]]; then
-      if [[ ! -d /opt/rackula ]] || [[ ! -d /opt/rackula/data ]]; then
-        rm -rf /opt/rackula
-        mv /opt/rackula-backup /opt/rackula
-        msg_error "Update failed — restored from backup"
-      fi
+    if [[ -d /opt/rackula-backup ]] && [[ $UPDATE_SUCCESS -eq 0 ]]; then
+      rm -rf /opt/rackula
+      mv /opt/rackula-backup /opt/rackula
+      msg_error "Update failed — restored from backup"
     fi
     rm -rf /tmp/rackula-update.lock
   }
@@ -63,14 +64,26 @@ function update_script() {
     fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"
 
     # Restore persistent data from backup
-    mv /opt/rackula-backup/data /opt/rackula/data
+    if ! mv /opt/rackula-backup/data /opt/rackula/data; then
+      msg_error "Failed to restore data directory"
+      exit 1
+    fi
 
     # Update config files from the new release
-    cp /opt/rackula/config/security-headers.conf /etc/nginx/snippets/security-headers.conf
-    cp /opt/rackula/config/rackula-api.service /etc/systemd/system/rackula-api.service
+    if ! cp /opt/rackula/config/security-headers.conf /etc/nginx/snippets/security-headers.conf; then
+      msg_error "Failed to update nginx security headers"
+      exit 1
+    fi
+    if ! cp /opt/rackula/config/rackula-api.service /etc/systemd/system/rackula-api.service; then
+      msg_error "Failed to update rackula-api service"
+      exit 1
+    fi
     if [[ -f /opt/rackula/config/nginx.service.d-override.conf ]]; then
       mkdir -p /etc/systemd/system/nginx.service.d
-      cp /opt/rackula/config/nginx.service.d-override.conf /etc/systemd/system/nginx.service.d/override.conf
+      if ! cp /opt/rackula/config/nginx.service.d-override.conf /etc/systemd/system/nginx.service.d/override.conf; then
+        msg_error "Failed to update nginx service override"
+        exit 1
+      fi
     fi
 
     # Set ownership
@@ -100,6 +113,9 @@ function update_script() {
       fi
       sleep 1
     done
+
+    # Mark update as successful so cleanup doesn't roll back
+    UPDATE_SUCCESS=1
 
     # Remove backup only after services verified
     rm -rf /opt/rackula-backup

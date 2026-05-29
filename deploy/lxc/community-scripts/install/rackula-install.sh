@@ -28,7 +28,12 @@ if [ ! -f /opt/bun/bin/bun ]; then
   exit 1
 fi
 ln -sf /opt/bun/bin/bun /usr/local/bin/bun
-ln -sf /opt/bun/bin/bunx /usr/local/bin/bunx
+if [ -f /opt/bun/bin/bunx ]; then
+  ln -sf /opt/bun/bin/bunx /usr/local/bin/bunx
+else
+  # bunx is typically bun with different argv[0]; fall back to symlink via bun
+  ln -sf /usr/local/bin/bun /usr/local/bin/bunx
+fi
 msg_ok "Installed Bun"
 
 msg_info "Creating rackula user"
@@ -243,7 +248,7 @@ SystemCallFilter=~@privileged @resources
 # Network egress control
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 IPAddressDeny=any
-IPAddressAllow=127.0.0.0/8
+IPAddressAllow=127.0.0.0/8 ::1/128
 
 # Logging
 StandardOutput=journal
@@ -253,42 +258,9 @@ StandardError=journal
 WantedBy=multi-user.target
 EOF
 
-# Harden nginx service via drop-in override
+# Harden nginx service via drop-in override (copy from packaged config)
 mkdir -p /etc/systemd/system/nginx.service.d
-cat <<'EOF' >/etc/systemd/system/nginx.service.d/override.conf
-[Service]
-# Filesystem protection
-ProtectSystem=strict
-ReadWritePaths=/var/log/nginx /var/lib/nginx /var/cache/nginx /run
-ProtectHome=true
-PrivateTmp=true
-
-# Kernel protection
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectKernelLogs=true
-ProtectControlGroups=true
-ProtectClock=true
-ProtectHostname=true
-
-# Process restrictions
-NoNewPrivileges=true
-RestrictSUIDSGID=true
-RestrictRealtime=true
-LockPersonality=true
-MemoryDenyWriteExecute=true
-PrivateDevices=true
-RemoveIPC=true
-
-# Capability dropping — nginx on port 80 needs NET_BIND_SERVICE
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_CHOWN CAP_DAC_OVERRIDE CAP_SETGID CAP_SETUID
-AmbientCapabilities=CAP_NET_BIND_SERVICE
-
-# Syscall filtering
-SystemCallArchitectures=native
-SystemCallFilter=@system-service
-SystemCallFilter=~@privileged @resources
-EOF
+cp /opt/rackula/config/nginx.service.d-override.conf /etc/systemd/system/nginx.service.d/override.conf
 
 systemctl daemon-reload
 systemctl enable -q --now rackula-api

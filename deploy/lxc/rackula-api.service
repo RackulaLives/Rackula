@@ -63,7 +63,7 @@ SystemCallFilter=~@privileged @resources
 # Network egress control — API only needs localhost (nginx proxies to it)
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 IPAddressDeny=any
-IPAddressAllow=127.0.0.0/8
+IPAddressAllow=127.0.0.0/8 ::1/128
 
 # Logging
 StandardOutput=journal
