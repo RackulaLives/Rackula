@@ -1,12 +1,13 @@
 ---
 created: 2025-11-27
-updated: 2026-01-23
+updated: 2026-05-29
 status: active
 ---
 
 # Rackula — Product Roadmap
 
-Strategic vision and version philosophy. For active work items, see [GitHub Issues](https://github.com/RackulaLives/Rackula/issues).
+Strategic vision and the current sprint plan. For live work items, see
+[GitHub Milestones](https://github.com/RackulaLives/Rackula/milestones).
 
 ---
 
@@ -23,81 +24,72 @@ Rackula is a lightweight, FOSS, web-based rack layout designer for homelabbers. 
 
 ## Version Philosophy
 
-- **Incremental releases** — Each version is usable and complete
-- **Scope discipline** — Features stay in their designated version
-- **Spec-driven** — No implementation without specification
-- **User value** — Each release solves real problems
+**The app uses CalVer; published packages use SemVer** — versioned independently because
+they address different audiences. See the decision record:
+[`docs/superpowers/specs/2026-05-29-versioning-policy-calver-design.md`](../superpowers/specs/2026-05-29-versioning-policy-calver-design.md)
+(resolves [#1315](https://github.com/RackulaLives/Rackula/issues/1315)).
+
+| Artifact | Audience | Scheme | Example |
+| --- | --- | --- | --- |
+| **Rackula app** (web / Docker / LXC) | end users → recency | **CalVer `YY.M.MICRO`** | `v26.6.0` |
+| **`@rackula/core`** (if/when published) | developers → compatibility | **SemVer** | `core/v0.4.0` |
+
+- **MICRO** is a mechanical per-month counter (same month → `MICRO++`; new month → `0`),
+  so there is no minor-vs-patch decision per release.
+- **Month is unpadded** (`26.6.0`, not `26.06.0`) to stay valid-semver-shaped.
+- Milestones are **theme-led with a target month**, not semver-named. The CalVer migration
+  lands at the **LXC release** boundary (the first CalVer release).
 
 ---
 
-## Current Focus
+## Current Plan — Next 3 Sprints
 
-**v0.6.x** — Stability, polish, and public launch preparation (multi-rack support complete)
+Consistent, small (~10–15 issue) sprints. Each maps to a GitHub milestone.
 
-**v0.7.0** — [Theme TBD based on community feedback]
+### 🟢 M1 — LXC Build & Hardening · ~June (`v26.6.x`)
 
-See [GitHub Milestones](https://github.com/RackulaLives/Rackula/milestones) for version-specific work items.
+Build the Proxmox LXC distribution **and** the self-host API hardening, so the eventual
+public release ships secure. **No public submission in this sprint** — we build and harden
+first, submit in M2.
 
----
+- **LXC packaging:** #1211 (epic), #1212 (tarball pipeline), #1213 (install files),
+  plus install-pipeline polish #1233, #1234, #1238, #1239, #1240
+- **Self-host hardening (bundled):** #1235 (systemd), #1237 (CORS HTTPS), #1269 (session
+  invalidation), #1778 (write-route rate limiting), #1779 (mutating-origin policy)
 
-## Future Priorities
+### 🟡 M2 — LXC Release & Stability · ~July (`v26.7.x`)
 
-Rough priority order for future development. Subject to change based on community feedback.
+Ship LXC publicly, finish in-flight work, and close remaining hardening.
 
-### 1. Mobile & PWA
+- **Public release:** #1214 (test on Proxmox), #1215 (submit to community-scripts),
+  #1216 (icon)
+- **Hardening tail:** #1274 (epic), #1780 (storage guardrails)
+- **In-flight + stability:** #1390 (persistence-error UX), #1387 (error-handling epic),
+  #910 (layout-store split), #756 (height slider), #571 (JSON Schema)
 
-- Full mobile phone support (create/edit layouts)
-- Touch-friendly interactions
-- Progressive Web App (installable, offline)
-- Primary targets: iPhone SE, iPhone 14, Pixel 7
+### 🔵 M3 — Data Format & Interop · ~Aug (`v26.8.x`)
 
-### 2. Airflow Visualisation
+Highest-priority strategic work; also the groundwork that feeds the (still-exploratory)
+`@rackula/core` library direction ([#1758](https://github.com/RackulaLives/Rackula/issues/1758)).
 
-- Visual indicators for device airflow direction
-- Hot/cold aisle awareness
-- Conflict detection (opposing airflow)
-
-### 3. Cable Routing
-
-- Visual cable path representation
-- Port/connection definitions on devices
-- Cable type metadata
-
-### 4. Weight/Load Calculations
-
-- Device weight metadata
-- Per-U load calculations
-- Rack weight capacity warnings
-
-### 5. Power Tracking
-
-- Device power requirements
-- Total rack power calculation
-- PDU capacity planning
-
-### 6. Network Connectivity
-
-- Port count requirements
-- Patch panel tracking
-- Basic connectivity metadata
+- **Epics/initiative:** #1208 (Ecosystem Interop), #1209 (Format Adapters), #570 (Dev-friendly Data Format)
+- **Format/interop work:** #617, #618 (YAML save/load), #620 (JSZip), #627/#628/#629 (git sync),
+  #746, #1113 (schema-versioning spike), #1114 (regression coverage)
 
 ---
 
 ## Backlog
 
-Unscheduled ideas. May or may not be implemented.
+Everything not in the next 3 sprints lives in the **Backlog** milestone (replaces the
+retired semver milestone buckets). Notable clusters parked there:
 
-| Feature                   | Notes                                   |
-| ------------------------- | --------------------------------------- |
-| Custom device categories  | User-defined categories beyond defaults |
-| 3D visualisation          | Three.js rack view                      |
-| Cloud sync / accounts     | User accounts, cloud storage            |
-| Collaborative editing     | Real-time multi-user                    |
-| Tablet-optimised layout   | Enhanced tablet experience              |
-| Import from CSV           | Bulk device import                      |
-| NetBox device type import | Import from community library           |
-| Export both rack views    | Front + rear in single export           |
-| 0U vertical PDU support   | Rail-mounted PDUs                       |
+- **Connection / cabling** — epics #71 and #362 and their children. ⚠️ These two epics
+  overlap and spawned near-duplicate issues; **reconcile them before scheduling** a sprint.
+- **In-app YAML editor** — epic #1174 (#1175/#1176/#1178) + #1119 (ZIP de-emphasis).
+- **Embeddable / GIS** — epic #1210.
+- **Internationalisation** — epic #181.
+- **Taxonomy debt** — ~16 issues carry the legacy `enhancement` label without `feature`;
+  worth a one-time reconciliation.
 
 ---
 
@@ -105,8 +97,8 @@ Unscheduled ideas. May or may not be implemented.
 
 Features that will **not** be implemented:
 
-- Backend/database requirements
-- User accounts (without cloud sync feature)
+- Backend/database requirements (beyond the optional self-host persistence API)
+- User accounts (without a dedicated cloud-sync feature)
 - Internet Explorer support
 - Native mobile apps
 
@@ -118,8 +110,9 @@ See [GitHub Issues](https://github.com/RackulaLives/Rackula/issues) for ways to 
 
 - Issues labelled `ready` are available for implementation
 - Issues labelled `triage` need maintainer review first
-- Feature requests welcome via issue template
+- Feature requests welcome via the issue template
 
 ---
 
-_This document defines product vision. For active work items, see [GitHub Issues](https://github.com/RackulaLives/Rackula/issues)._
+_This document defines product vision and the active sprint plan. For live work items, see
+[GitHub Milestones](https://github.com/RackulaLives/Rackula/milestones)._
