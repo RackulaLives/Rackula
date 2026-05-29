@@ -3,9 +3,17 @@
 **Issue:** [#1758](https://github.com/RackulaLives/Rackula/issues/1758) ·
 **Origin:** [Discussion #1606](https://github.com/RackulaLives/Rackula/discussions/1606) (silicoflare, Apr 2026)
 **Type:** Research spike — feasibility & level-of-effort. No production code.
-**Date:** 2026-05-28 · **Status:** Complete
+**Date:** 2026-05-28 · **Status:** Complete · **Superseded direction:** see callout below
 
 ---
+
+> **Update (2026-05-28) — web-components pivot.** After this feasibility pass, the requirement was
+> narrowed to **integration via the ArcGIS Maps SDK for JavaScript web-components pattern**. Follow-up
+> research (see below) shows web-components-first integration is genuinely viable — which *reverses* the
+> "web components are an optional secondary target" caution in §4.1. The detailed, approved design lives
+> in [`docs/superpowers/specs/2026-05-28-rackula-web-components-design.md`](../superpowers/specs/2026-05-28-rackula-web-components-design.md).
+> The tiered analysis below still holds (and `@rackula/core` remains foundational); read §9 of this doc
+> for the ArcGIS-specific findings that drove the pivot.
 
 ## TL;DR
 
@@ -172,6 +180,11 @@ are just the incremental cost of supporting an extra channel.
 
 ## 4. Open decisions — analysis & recommendations
 
+> **Revised by the web-components pivot (see §9):** for the ArcGIS use case the recommendation below is
+> superseded — **web components become the primary UI distribution**, not an optional secondary target.
+> The reasoning in this subsection still explains *why custom elements are hard in the general case*; §9
+> explains why those objections don't bite for the coarse-grained ArcGIS integration.
+
 ### 4.1 Consumer frameworks — **recommend: Svelte-5-native first; custom elements as optional later target**
 
 | Option | DX | Effort | Verdict |
@@ -326,6 +339,44 @@ at a fraction of the full cost.
 | Maintenance cost of 2+ published packages | Medium | Changesets automation; start with core only |
 
 ---
+
+## 9. ArcGIS web-components integration (the pivot)
+
+Follow-up research narrowed the target to the **ArcGIS Maps SDK for JavaScript web-components pattern**.
+Key findings:
+
+- **It's all standards-based custom elements.** ArcGIS map components (built on Lit/"Lumina") and Calcite
+  Components (built on Stencil) are both autonomous custom elements using Shadow DOM, slots, attributes/
+  properties, and `CustomEvent`s. Esri already mixes two compilers on one page — a Svelte-compiled element
+  is a third producing the same primitives. **Platform-compatible by default.**
+- **Integration is coarse-grained.** Third-party elements are slotted into Calcite shells, map slots, or
+  popups, and communicate via **properties-in / `CustomEvent`s-out**; the host app orchestrates. There is
+  no global event bus, and components are not expected to share context across boundaries.
+- **Coarse-grained sidesteps the Svelte 5 CE limits.** Shipping Rackula as *one* element per surface keeps
+  context/slots/reactivity inside a normal Svelte tree; only the outer shell is a custom element. Shadow-DOM
+  isolation becomes a feature. The §4.1 objections only apply to a *family* of fine-grained elements, which
+  the design avoids.
+- **"Feels native" is convention-matching:** namespaced+guarded tag, `arcgis`/`calcite`-style event names
+  with `detail`, a `componentOnReady()` promise, and theming via `var(--calcite-*)` tokens + the
+  `.calcite-mode-dark` ancestor class. All opt-in.
+- **External constraint:** React 18 consumers have custom-element friction (the reason Calcite shipped a
+  now-deprecated React wrapper); React 19+/Vue/Angular/vanilla consume directly.
+
+**Resulting direction:** a `@rackula/wc` package (`<rackula-viewer>` first, `<rackula-designer>` later) on
+top of `@rackula/core`, viewer-first, web-component as the UI distribution. Full design and phased LOE in
+[`docs/superpowers/specs/2026-05-28-rackula-web-components-design.md`](../superpowers/specs/2026-05-28-rackula-web-components-design.md).
+
+### ArcGIS sources
+
+[ArcGIS components overview](https://developers.arcgis.com/javascript/latest/components/) ·
+[Map components reference](https://developers.arcgis.com/javascript/latest/references/map-components/) ·
+[Migrating to components (widgets deprecated 5.0)](https://developers.arcgis.com/javascript/latest/migrating-to-components/) ·
+[Programming patterns (attrs/props/events/lifecycle/slots)](https://developers.arcgis.com/javascript/latest/programming-patterns/) ·
+[Building your UI (Calcite + map composition, shared CSS vars)](https://developers.arcgis.com/javascript/latest/building-your-ui/) ·
+[Calcite core concepts](https://developers.arcgis.com/calcite-design-system/core-concepts/) ·
+[@arcgis/lumina (Lit-based)](https://www.npmjs.com/package/@arcgis/lumina) ·
+[Calcite design system repo (Stencil)](https://github.com/Esri/calcite-design-system) ·
+[Calcite React wrapper (deprecated in 5.0)](https://github.com/Esri/calcite-design-system/blob/dev/packages/calcite-components-react/README.md)
 
 ## Appendix — Sources
 
