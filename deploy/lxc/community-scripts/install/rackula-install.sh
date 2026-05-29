@@ -21,8 +21,18 @@ $STD apt-get install -y \
 msg_ok "Installed Dependencies"
 
 msg_info "Installing Bun"
-$STD curl -fsSL https://bun.sh/install | bash
+curl -fsSL https://bun.sh/install | bash
+# Verify Bun binaries exist before creating symlinks
+if [ ! -x /root/.bun/bin/bun ]; then
+	msg_error "Bun installer did not produce expected binary at /root/.bun/bin/bun"
+	exit 1
+fi
+if [ ! -x /root/.bun/bin/bunx ]; then
+	msg_error "Bun installer did not produce expected binary at /root/.bun/bin/bunx"
+	exit 1
+fi
 ln -sf /root/.bun/bin/bun /usr/local/bin/bun
+ln -sf /root/.bun/bin/bunx /usr/local/bin/bunx
 msg_ok "Installed Bun"
 
 msg_info "Creating rackula user"
