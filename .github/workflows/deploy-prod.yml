@@ -413,10 +413,17 @@ jobs:
           sleep 5
           curl -sf --retry 5 --retry-delay 3 https://count.racku.la
 
-      - name: Verify live version alignment
+      - name: Verify live frontend version
         env:
           VERSION: ${{ needs.validate.outputs.version }}
         run: |
+          # Public prod (count.racku.la) serves the static frontend only — it has
+          # no API/persistence backend by design (no user-data storage), so
+          # /api/version intentionally returns 503 "Persistence API unavailable".
+          # We therefore verify the live FRONTEND version here. The published API
+          # image version is validated separately by the verify-version-alignment
+          # job, which runs the image in an ephemeral container.
+          #
           # Extract .version from JSON without depending on jq being installed
           # on the self-hosted runner.
           extract_version() {
@@ -425,11 +432,9 @@ jobs:
               | sed 's/.*:[[:space:]]*"\([^"]*\)".*/\1/'
           }
           fe="$(curl -sf --retry 5 --retry-delay 3 https://count.racku.la/version.json | extract_version)"
-          api="$(curl -sf --retry 5 --retry-delay 3 https://count.racku.la/api/version | extract_version)"
-          echo "frontend=${fe} api=${api} expected=${VERSION}"
+          echo "frontend=${fe} expected=${VERSION}"
           [ "$fe" = "$VERSION" ] || { echo "::error::Live frontend version '${fe}' != '${VERSION}'"; exit 1; }
-          [ "$api" = "$VERSION" ] || { echo "::error::Live API version '${api}' != '${VERSION}'"; exit 1; }
-          echo "✓ Live stack reports ${VERSION}"
+          echo "✓ Live frontend reports ${VERSION}"
 
   notify-failure:
     if: ${{ always() && (failure() || cancelled()) }}
