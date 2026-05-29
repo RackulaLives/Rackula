@@ -10,10 +10,10 @@
 > **Update (2026-05-28) — web-components pivot.** After this feasibility pass, the requirement was
 > narrowed to **integration via the ArcGIS Maps SDK for JavaScript web-components pattern**. Follow-up
 > research (see below) shows web-components-first integration is genuinely viable — which *reverses* the
-> "web components are an optional secondary target" caution in §4.1. The detailed, approved design lives
-> in [`docs/superpowers/specs/2026-05-28-rackula-web-components-design.md`](../superpowers/specs/2026-05-28-rackula-web-components-design.md).
-> The tiered analysis below still holds (and `@rackula/core` remains foundational); read §9 of this doc
-> for the ArcGIS-specific findings that drove the pivot.
+> "web components are an optional secondary target" caution in §4.1. The detailed design recommendation
+> is **§10 of this document**. The tiered analysis below still holds (and `@rackula/core` remains
+> foundational); read §9 for the ArcGIS-specific findings that drove the pivot and §10 for the proposed
+> web-components design.
 
 ## TL;DR
 
@@ -363,8 +363,8 @@ Key findings:
   now-deprecated React wrapper); React 19+/Vue/Angular/vanilla consume directly.
 
 **Resulting direction:** a `@rackula/wc` package (`<rackula-viewer>` first, `<rackula-designer>` later) on
-top of `@rackula/core`, viewer-first, web-component as the UI distribution. Full design and phased LOE in
-[`docs/superpowers/specs/2026-05-28-rackula-web-components-design.md`](../superpowers/specs/2026-05-28-rackula-web-components-design.md).
+top of `@rackula/core`, viewer-first, web-component as the UI distribution. Full proposed design and
+phased LOE in **§10 below**.
 
 ### ArcGIS sources
 
@@ -377,6 +377,166 @@ top of `@rackula/core`, viewer-first, web-component as the UI distribution. Full
 [@arcgis/lumina (Lit-based)](https://www.npmjs.com/package/@arcgis/lumina) ·
 [Calcite design system repo (Stencil)](https://github.com/Esri/calcite-design-system) ·
 [Calcite React wrapper (deprecated in 5.0)](https://github.com/Esri/calcite-design-system/blob/dev/packages/calcite-components-react/README.md)
+
+## 10. Proposed web-components design (ArcGIS-compatible)
+
+> This section is a **design recommendation produced during the spike**, not a build commitment. It
+> records the approved shape so a future implementation decision has a concrete reference. The phased
+> LOE is an estimate for that future decision.
+
+### 10.1 Scope of this design
+
+**In scope:** a headless `@rackula/core` (§3–§5 above) as the foundation; a web-component package
+`@rackula/wc` exposing `<rackula-viewer>` then `<rackula-designer>`; a bridge API (properties/events/
+methods) supporting progressive map coupling; ArcGIS/Calcite "feels native" conventions and a worked
+integration example; the secure-coding posture from §6.
+
+**Out of scope (for now):** a separate Svelte-native `@rackula/ui` package (deferred unless Svelte
+consumers ask); fine-grained per-feature custom elements (rejected — §10.3); React 18 wrappers (optional,
+later); server-side rendering of the element (custom elements are not SSR-friendly).
+
+**Decisions resolved:** exposed surface — read-only **viewer first**, full **designer** later;
+distribution end-state — the **web component is the UI** (no separate Svelte-native package now); map
+coupling — element stays **map-agnostic**, API supports co-located / map→Rackula / two-way with the host
+app orchestrating.
+
+### 10.2 Packages & build
+
+| Package | Role | Registry | Notes |
+| --- | --- | --- | --- |
+| `@rackula/core` | Headless TS: types, Zod schemas, collision/position math, serialization, NetBox import, device/brand data | npm + JSR | Foundational; rendered by the WC and exchanged over the bridge |
+| `@rackula/wc` | Svelte components compiled to custom elements (`<rackula-viewer>`, `<rackula-designer>`) | npm + CDN (jsDelivr/esm.sh) | ESM; `import` or `<script type="module">` usage |
+
+Build: compile with Svelte `compilerOptions.customElement` via **Vite library mode** (`build.lib`),
+emitting an ESM bundle that self-registers the elements on import. Distribute on **npm** (primary) and let
+**jsDelivr/esm.sh** mirror it for `<script>`-tag usage, matching ArcGIS's CDN ergonomics. **Do not bundle**
+`@esri/calcite-components`, `lit`, or `@arcgis/core` — they belong to the host; consume Calcite *tokens*
+via CSS only. `@rackula/wc` depends on `@rackula/core` (`workspace:*`); the main Rackula app keeps
+consuming both locally, unchanged.
+
+### 10.3 Internal structure (coarse-grained — one element, not many)
+
+**Decision: coarse-grained.** Rackula ships as a single element per surface (`<rackula-viewer>`,
+`<rackula-designer>`), never as a family of fine-grained elements. Fine-grained CEs would hit the Svelte 5
+limits head-on (`setContext`/`getContext` can't cross custom-element boundaries; slotted content renders
+eagerly). A coarse element keeps all of that *internal* to a normal Svelte tree where it works, matches how
+ArcGIS expects third-party elements to participate, and keeps the public API small.
+
+```
+<rackula-viewer>            ← custom element shell (Shadow DOM)
+  └─ <RackulaViewerRoot>    ← ordinary Svelte component
+       ├─ context: createStores({ scope })   ← instance-scoped, NOT module-global
+       └─ Canvas / Rack / device rendering (existing components, store-decoupled as needed)
+```
+
+- **Stores become instance-scoped.** Today's stores are module-global singletons (factory functions
+  closing over module `$state`). Introduce `createStores(config)` returning a fresh store set + a Svelte
+  **context provider** so descendant components read their instance's stores via `getContext()` instead of
+  importing a module singleton. For the **viewer**, scope only the render/canvas subset; the full set is
+  scoped when the **designer** lands (Phase 2).
+- **Shadow DOM on.** Styles are encapsulated; Rackula CSS can't leak into the GIS app or vice-versa.
+
+### 10.4 The element contract (bridge API)
+
+Conventions mirror ArcGIS: attributes for primitives, JS properties for complex objects, `CustomEvent`s
+with `detail` payloads, and a `componentOnReady()` promise.
+
+**Properties / attributes (inbound):**
+
+| Name | Kind | Type | Applies to | Notes |
+| --- | --- | --- | --- | --- |
+| `layout` | JS property only | `Layout` (`@rackula/core`) | both | Complex object; never an attribute. Validated with Zod on set. |
+| `mode` / `theme` | attribute | `"light" \| "dark" \| "auto"` | both | Defaults to honoring `.calcite-mode-*` ancestor. |
+| `selected-device-id` | attribute | string | both | Reflects/controls current selection. |
+| `readonly` | attribute (boolean) | presence | designer | Forces designer into view-only behavior. |
+
+**Events (outbound):**
+
+| Event | `detail` | Applies to | Purpose |
+| --- | --- | --- | --- |
+| `rackula-ready` | `{}` | both | First render complete (pairs with `componentOnReady()`). |
+| `rackula-selection-change` | `{ rackId, deviceId }` | both | User selected a rack/device. |
+| `rackula-layout-change` | `{ layout }` | designer | Layout edited; host can persist. |
+
+All events are `rackula-`prefixed `CustomEvent`s with the payload in `event.detail`.
+
+**Methods / lifecycle:** `componentOnReady(): Promise<void>` (resolves after first render — ArcGIS
+handshake convention); `getLayout(): Layout`; `fitView(): void`.
+
+**Registration:** namespaced tags `rackula-viewer` / `rackula-designer` (never reuse `arcgis-*` /
+`calcite-*`); **guarded define** (`if (!customElements.get('rackula-viewer')) …`) to survive double-loading.
+
+### 10.5 Data flow & map coupling
+
+The element is **map-agnostic**; the host app orchestrates (matching Esri's "components talk to the map
+API, the app mediates"). All three coupling levels use the same API:
+
+- **Co-located (no data link):** place `<rackula-viewer>` in a `<calcite-shell-panel>` or map slot. No wiring.
+- **Map → Rackula:** host listens `arcgisViewClick` / `arcgisViewChange`, then sets `el.layout` and/or
+  `el.selectedDeviceId` from the picked feature.
+- **Two-way:** host additionally listens `rackula-selection-change` and calls `view.goTo(...)` / highlights
+  the corresponding map feature.
+
+No global event bus; coordination is the host's job by design.
+
+### 10.6 Theming ("feels native")
+
+Shadow styles built on `var(--calcite-*)` design tokens with Rackula fallbacks, so the element adopts the
+host's Calcite theme automatically. Honor the `.calcite-mode-dark` / `.calcite-mode-light` ancestor class
+(inherited CSS custom properties cross the shadow boundary, so token-based colors react to host mode
+switches). Ship Rackula's own tokens as the fallback layer so the element looks correct outside a Calcite
+app too.
+
+### 10.7 Security (carried from §6, tightened for embedding)
+
+- **`@rackula/core`** treats all input as untrusted: validate `layout` with Zod on every set; never
+  `eval`/execute embedded content.
+- **`@rackula/wc`** is **safe-by-default**: sanitize rendered SVG/markdown with **DOMPurify** before DOM
+  insertion; prefer `<img>` for untrusted raster; enable Trusted Types where supported. Document the
+  guarantee; expose a hook to tighten, default closed.
+- **Containment:** Shadow DOM limits style/DOM bleed in both directions.
+- **Supply chain:** OIDC trusted publishing + automatic provenance (SLSA L2), FIDO 2FA, minimal deps,
+  `ignore-scripts`, committed lockfiles + `npm ci`. Do not re-bundle Calcite/Lit/`@arcgis/core`.
+
+### 10.8 Phasing & level of effort (Claude-assisted estimate)
+
+| Phase | Deliverable | LOE | Risk |
+| --- | --- | --- | --- |
+| **0** | `@rackula/core` extraction (monorepo, npm + JSR, provenance) | ~1.5–3 wk | Low |
+| **1** | `<rackula-viewer>` CE: scoped render/canvas stores, bridge API, theming, npm+CDN publish, **ArcGIS example app** (Calcite shell panel + map popup) | ~2–4 wk | Medium |
+| **2** | Full store DI refactor (internal, landed in app first) → `<rackula-designer>` CE | ~5–9 wk | Medium–High |
+| **3** | *Optional:* React 18 wrappers; Svelte-native `@rackula/ui` if demanded | as needed | Low–Med |
+
+The viewer (Phase 1) is multi-instance-safe and covers the common "show this site's rack" GIS use case. The
+designer's single-instance-per-page limitation is **temporary**, removed by the Phase 2 refactor.
+
+### 10.9 Testing strategy
+
+Per repo policy, test behavior not structure: **viewer render correctness** (given a `layout`, expected
+racks/devices render); **multi-instance isolation** (two viewers → independent pan/zoom and selection —
+guards the module-singleton regression); **bridge contract** (`rackula-selection-change` /
+`rackula-layout-change` fire with correct `detail`; setting `layout` updates render; `componentOnReady()`
+resolves after first render); **theming** (colors react to `.calcite-mode-dark` ancestor); **security** (a
+malicious `layout` — SVG `onload`, `javascript:` URLs, raw HTML in notes — is sanitized and does not
+execute); **E2E** (example app embedding the element in a mock ArcGIS/Calcite shell, Playwright).
+
+### 10.10 Risks & constraints accepted
+
+| Risk / constraint | Disposition |
+| --- | --- |
+| Designer single-instance-per-page until Phase 2 | Accepted; documented; removed by full store refactor |
+| React 18 custom-element friction | Accepted; optional wrappers in Phase 3; React 19+/Vue/Angular/vanilla direct |
+| Each element bundles its own Svelte runtime | Accepted (small); don't bundle Calcite/Lit/core |
+| Store DI refactor touches ~27 components | Land in main app first, behind tests, before the designer CE |
+| Custom elements not SSR-friendly | Out of scope; document client-only |
+| Slotted-content eager rendering / no cross-boundary context | Avoided by coarse-grained design (internal Svelte tree) |
+
+### 10.11 Open questions (for a future implementation decision)
+
+- Exact subset of stores the **viewer** needs scoped vs. can ignore (render/canvas vs. editing/persistence).
+- Whether `<rackula-designer>` is a separate tag or `<rackula-viewer readonly>` toggled — leaning separate
+  tags for a clearer API surface.
+- Minimum `layout` schema version the bridge accepts and how version skew is surfaced to the host.
 
 ## Appendix — Sources
 
