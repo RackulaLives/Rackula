@@ -67,9 +67,11 @@ START
 
 ```bash
 LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+HAS_LAST_TAG=true
 if [ -z "$LAST_TAG" ]; then
+  HAS_LAST_TAG=false
   echo "No previous tags found. This will be the first release."
-  LAST_TAG="HEAD~100"  # Fall back to recent history
+  LAST_TAG="HEAD~100"  # Fall back to recent history for range-based queries
 fi
 echo "Last release: $LAST_TAG"
 ```
@@ -83,8 +85,12 @@ git log "$LAST_TAG"..HEAD --oneline --no-merges
 ### 1c. Get Merged PRs Since Last Release
 
 ```bash
-# Get the date of the last tag
-LAST_DATE=$(git log -1 --format=%aI $LAST_TAG 2>/dev/null || echo "2025-01-01")
+# Get the date of the last real tag (or use fixed fallback for first release)
+if [ "$HAS_LAST_TAG" = true ]; then
+  LAST_DATE=$(git log -1 --format=%aI "$LAST_TAG" 2>/dev/null || echo "2025-01-01")
+else
+  LAST_DATE="2025-01-01"
+fi
 
 gh pr list --state merged --search "merged:>$LAST_DATE" \
   --json number,title,labels \
