@@ -3,7 +3,14 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Calendar Versioning](https://calver.org/).
+
+## [26.5.0] - 2026-05-30
+
+### Changed
+
+- Migrated from SemVer (`0.MINOR.PATCH`) to CalVer (`YY.M.MICRO`) versioning
+- Version format is now `YY.M.MICRO` where `YY` = 2-digit year, `M` = unpadded month, `MICRO` = release counter
 
 ## [0.10.1] - 2026-05-29
 

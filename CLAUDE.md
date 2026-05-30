@@ -1,7 +1,7 @@
 # CLAUDE.md — Rackula
 
 **Project:** Rackula — Rack Layout Designer for Homelabbers
-**Version:** 0.10.1
+**Version:** 26.5.0
 
 ---
 
