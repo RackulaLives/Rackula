@@ -261,7 +261,8 @@ themselves are stable, but the *boundary* design is where surprises live.
 
 - **Adopt npm Trusted Publishing (OIDC) — GA since 2025-07-31.** Publish from GitHub Actions with no
   long-lived token; npm exchanges a short-lived workflow-scoped token and **generates provenance
-  automatically** (no `--provenance` flag). Requires npm CLI ≥ 11.5.1, Node ≥ 22.14.0. This maps to
+  automatically** (no `--provenance` flag). Requires npm CLI ≥ 11.5.1, Node ≥ 22.14.0 *(per npm’s
+  Trusted Publishing GA/changelog documentation; verify current minimums before release)*. This maps to
   **SLSA Build Level 2** out of the box; `slsa-github-generator` can reach L3+.
 - **JSR** gives automatic, zero-config provenance via OIDC from GitHub Actions for `@rackula/core`.
 - **Classic npm tokens are deprecated (since 2025-12-09)** — use OIDC or 7-day-max granular tokens.
