@@ -1,3 +1,5 @@
+# Creates a GitHub Release when a version tag (CalVer vYY.M.MICRO or legacy SemVer)
+# is pushed, or when manually triggered via workflow_dispatch.
 name: Create Release
 
 on:
@@ -40,7 +42,7 @@ jobs:
         id: version
         run: |
           VERSION="${{ github.ref_name }}"
-          VERSION_NUM="${VERSION#v}"  # Remove 'v' prefix
+          VERSION_NUM="${VERSION#v}"  # Remove 'v' prefix (e.g., v26.6.0 → 26.6.0)
           echo "version=$VERSION_NUM" >> $GITHUB_OUTPUT
 
       - name: Validate changelog entry exists
@@ -62,7 +64,7 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
 
           # Extract the section between this version header and the next version header
-          # Uses awk to capture everything between ## [X.Y.Z] and the next ## [
+          # Uses awk to capture everything between ## [VERSION] and the next ## [
           NOTES=$(awk "/^## \[$VERSION\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md)
 
           # Remove leading/trailing whitespace
