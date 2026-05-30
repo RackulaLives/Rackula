@@ -77,7 +77,7 @@ echo "Last release: $LAST_TAG"
 ### 1b. Get Commits Since Last Release
 
 ```bash
-git log $LAST_TAG..HEAD --oneline --no-merges
+git log "$LAST_TAG"..HEAD --oneline --no-merges
 ```
 
 ### 1c. Get Merged PRs Since Last Release
