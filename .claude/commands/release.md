@@ -263,7 +263,16 @@ git add package.json package-lock.json
 git commit --amend -m "v$NEW_VERSION"
 ```
 
-### 4f. Create Tag and Push
+### 4f. Verify Remote Tag Does Not Already Exist
+
+```bash
+if git ls-remote --tags origin "refs/tags/v$NEW_VERSION" | grep -q .; then
+  echo "Error: Tag v$NEW_VERSION already exists on origin."
+  exit 1
+fi
+```
+
+### 4g. Create Tag and Push
 
 ```bash
 git tag "v$NEW_VERSION"
@@ -305,7 +314,7 @@ gh run watch
 | No changes since last release | "No changes found. Nothing to release."                                              |
 | Uncommitted changes           | "Error: Working directory not clean. Commit or stash changes first."                 |
 | Not on main branch            | "Error: Must be on main branch to release."                                          |
-| Tag already exists            | "Error: Tag vX.Y.Z already exists."                                                  |
+| Tag already exists            | "Error: Tag vX.Y.Z already exists (locally or on origin)."                           |
 | next-version.sh fails         | "Error: Failed to compute next version. Check scripts/next-version.sh output."       |
 | Invalid explicit version      | "Error: Version 'X' is not valid CalVer format (expected YY.M.MICRO, e.g., 26.6.0)." |
 | Zero-padded month             | "Error: Month must be unpadded (e.g., 26.6.0 not 26.06.0)."                          |
