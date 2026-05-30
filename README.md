@@ -25,11 +25,9 @@
   <img src="assets/Rackula-hero-drac.gif" alt="Rackula demo" width="500">
 </p>
 
-<!-- TODO: Add static screenshot for accessibility and slow connections
 <p align="center">
-  <img src="assets/Rackula-screenshot.png" alt="Rackula showing a 42U rack with server and network devices" width="500">
+  <img src="assets/screenshot-dracs-rack.png" alt="Rackula showing a rack with server and network devices" width="500">
 </p>
--->
 
 ---
 
