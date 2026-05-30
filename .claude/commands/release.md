@@ -257,7 +257,7 @@ git commit -m "docs: update changelog and security policy for v$NEW_VERSION"
 ### 4e. Bump Version
 
 ```bash
-npm version $NEW_VERSION --no-git-tag-version
+npm version "$NEW_VERSION" --no-git-tag-version
 git add package.json package-lock.json
 git commit -m "chore(release): bump version to v$NEW_VERSION"
 ```
