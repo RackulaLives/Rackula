@@ -1,21 +1,24 @@
-# Release Workflow v1
+# Release Workflow v2 (CalVer)
 
 Create a new release with changelog entry, version bump, and tag push.
-CHANGELOG.md is the single source of truth - GitHub releases derive from it.
+CHANGELOG.md is the single source of truth — GitHub releases derive from it.
 
-**Arguments:** `$ARGUMENTS` (required: `patch`, `minor`, `major`, or explicit version like `0.7.0`)
+**Arguments:** `$ARGUMENTS` (optional)
+
+- No argument → auto-compute next CalVer version via `scripts/next-version.sh --dry-run`
+- Explicit version → use the given version string (e.g., `26.7.0`)
 
 ---
 
 ## Permissions
 
-| Action | Scope |
-|--------|-------|
-| Git | add, commit, tag, push (to main) |
-| npm | version (no-git-tag-version) |
+| Action | Scope                                         |
+| ------ | --------------------------------------------- |
+| Git    | add, commit, tag, push (to main)              |
+| npm    | version (no-git-tag-version)                  |
 | GitHub | None (GitHub Action handles release creation) |
 
-**Commands allowed:** `git log`, `git tag`, `gh pr list`, `gh issue list`, `npm version`
+**Commands allowed:** `git log`, `git tag`, `gh pr list`, `gh issue list`, `npm version`, `scripts/next-version.sh`
 
 ---
 
@@ -24,7 +27,9 @@ CHANGELOG.md is the single source of truth - GitHub releases derive from it.
 ```text
 START
   │
-  ├─ Parse $ARGUMENTS → determine version type
+  ├─ Parse $ARGUMENTS → determine version source
+  │   (empty: auto-compute via next-version.sh)
+  │   (explicit: use given version string)
   │
   ├─ PHASE 1: Gather Changes
   │   - git log since last tag
@@ -43,9 +48,10 @@ START
   ├─ PHASE 4: Execute Release
   │   - Update CHANGELOG.md
   │   - Update SECURITY.md (supported version)
-  │   - npm version [type] --no-git-tag-version
+  │   - Compute or validate version
+  │   - npm version $NEW_VERSION --no-git-tag-version
   │   - git add && git commit
-  │   - git tag vX.Y.Z
+  │   - git tag v$NEW_VERSION
   │   - git push && git push --tags
   │
   └─ PHASE 5: Monitor
@@ -99,15 +105,15 @@ gh issue list --state closed --search "closed:>$LAST_DATE" \
 
 ### Categories (Keep a Changelog)
 
-| Category | Use For |
-|----------|---------|
-| **Added** | New features |
-| **Changed** | Changes to existing functionality |
-| **Deprecated** | Soon-to-be removed features |
-| **Removed** | Removed features |
-| **Fixed** | Bug fixes |
-| **Security** | Vulnerability fixes |
-| **Technical** | Internal changes (CI, tests, refactoring) |
+| Category       | Use For                                   |
+| -------------- | ----------------------------------------- |
+| **Added**      | New features                              |
+| **Changed**    | Changes to existing functionality         |
+| **Deprecated** | Soon-to-be removed features               |
+| **Removed**    | Removed features                          |
+| **Fixed**      | Bug fixes                                 |
+| **Security**   | Vulnerability fixes                       |
+| **Technical**  | Internal changes (CI, tests, refactoring) |
 
 ### Formatting Rules
 
@@ -120,7 +126,7 @@ gh issue list --state closed --search "closed:>$LAST_DATE" \
 ### Entry Template
 
 ```markdown
-## [X.Y.Z] - YYYY-MM-DD
+## [YY.M.MICRO] - YYYY-MM-DD
 
 ### Added
 
@@ -142,6 +148,7 @@ gh issue list --state closed --search "closed:>$LAST_DATE" \
 ### Present Draft to User
 
 Show the draft entry and ask:
+
 ```
 === CHANGELOG DRAFT ===
 
@@ -167,7 +174,7 @@ Changes:
 - Update CHANGELOG.md with new entry
 - Update SECURITY.md supported version
 - Bump version in package.json
-- Create git tag vX.Y.Z
+- Create git tag v$NEW_VERSION
 - Push to origin (triggers GitHub Action)
 
 Proceed? [y/n]:
@@ -179,17 +186,45 @@ Proceed? [y/n]:
 
 ## Phase 4: Execute Release
 
-### 4a. Calculate New Version
+### 4a. Compute New Version
+
+**No argument (auto-compute):**
+
+```bash
+NEW_VERSION=$(scripts/next-version.sh --dry-run)
+if [ $? -ne 0 ]; then
+  echo "ERROR: Failed to compute next version. Check scripts/next-version.sh output."
+  exit 1
+fi
+```
+
+**Explicit version:**
+
+```bash
+NEW_VERSION="$ARGUMENTS"
+# Validate format: YY.M.MICRO (three numeric segments, unpadded month)
+if ! echo "$NEW_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo "ERROR: Version '$NEW_VERSION' is not valid CalVer format (expected YY.M.MICRO, e.g., 26.6.0)"
+  exit 1
+fi
+# Reject zero-padded month (e.g., 26.06.0 is invalid; 26.6.0 is valid)
+MONTH_PART=$(echo "$NEW_VERSION" | cut -d. -f2)
+if [ "$MONTH_PART" != "$(echo "$MONTH_PART" | sed 's/^0//')" ]; then
+  echo "ERROR: Month component must be unpadded (got $MONTH_PART, expected $(echo "$MONTH_PART" | sed 's/^0//'))"
+  exit 1
+fi
+# Check for duplicate tag
+if git tag -l "v$NEW_VERSION" | grep -q .; then
+  echo "ERROR: Tag v$NEW_VERSION already exists."
+  exit 1
+fi
+```
+
+Show version transition:
 
 ```bash
 CURRENT=$(node -p "require('./package.json').version")
-
-case "$ARGUMENTS" in
-  patch) NEW_VERSION=$(echo $CURRENT | awk -F. '{print $1"."$2"."$3+1}') ;;
-  minor) NEW_VERSION=$(echo $CURRENT | awk -F. '{print $1"."$2+1".0"}') ;;
-  major) NEW_VERSION=$(echo $CURRENT | awk -F. '{print $1+1".0.0"}') ;;
-  *) NEW_VERSION="$ARGUMENTS" ;;  # Explicit version
-esac
+echo "Version: $CURRENT → $NEW_VERSION"
 ```
 
 ### 4b. Update CHANGELOG.md
@@ -205,8 +240,8 @@ Update the supported versions table in SECURITY.md to reflect the new release ve
 Use the Edit tool to replace the version table:
 
 ```markdown
-| Version | Supported          |
-| ------- | ------------------ |
+| Version        | Supported          |
+| -------------- | ------------------ |
 | $NEW_VERSION   | :white_check_mark: |
 | < $NEW_VERSION | :x:                |
 ```
@@ -265,13 +300,16 @@ gh run watch
 
 ## Error Handling
 
-| Scenario | Response |
-|----------|----------|
-| No changes since last release | "No changes found. Nothing to release." |
-| Uncommitted changes | "Error: Working directory not clean. Commit or stash changes first." |
-| Not on main branch | "Error: Must be on main branch to release." |
-| Tag already exists | "Error: Tag vX.Y.Z already exists." |
-| Push fails | "Error: Push failed. Check permissions and try again." |
+| Scenario                      | Response                                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------------ |
+| No changes since last release | "No changes found. Nothing to release."                                              |
+| Uncommitted changes           | "Error: Working directory not clean. Commit or stash changes first."                 |
+| Not on main branch            | "Error: Must be on main branch to release."                                          |
+| Tag already exists            | "Error: Tag vX.Y.Z already exists."                                                  |
+| next-version.sh fails         | "Error: Failed to compute next version. Check scripts/next-version.sh output."       |
+| Invalid explicit version      | "Error: Version 'X' is not valid CalVer format (expected YY.M.MICRO, e.g., 26.6.0)." |
+| Zero-padded month             | "Error: Month must be unpadded (e.g., 26.6.0 not 26.06.0)."                          |
+| Push fails                    | "Error: Push failed. Check permissions and try again."                               |
 
 ---
 
@@ -280,11 +318,11 @@ gh run watch
 ### Success
 
 ```
-=== Release v0.6.11 Complete ===
+=== Release v26.6.0 Complete ===
 
 Changelog: Updated with 3 entries
-Version: 0.6.10 → 0.6.11
-Tag: v0.6.11
+Version: 0.10.1 → 26.6.0
+Tag: v26.6.0
 
 GitHub Actions triggered:
 - Release workflow: Creating GitHub release from CHANGELOG.md
@@ -305,15 +343,9 @@ No changes were made.
 ## Quick Reference
 
 ```bash
-# Patch release (bug fixes)
-/release patch
+# Auto-compute next CalVer version (most common)
+/release
 
-# Minor release (new features)
-/release minor
-
-# Major release (breaking changes)
-/release major
-
-# Explicit version
-/release 1.0.0
+# Explicit version (override computed version)
+/release 26.7.0
 ```
