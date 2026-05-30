@@ -1028,8 +1028,8 @@
     border-radius: var(--radius-md, 6px);
     color: var(--colour-text-muted);
     font-size: var(--font-size-sm);
-    white-space: nowrap;
-    pointer-events: auto;
+    max-width: min(90%, 480px);
+    pointer-events: none;
     z-index: 10;
   }
 
@@ -1042,6 +1042,7 @@
     font-size: var(--font-size-base);
     line-height: 1;
     flex-shrink: 0;
+    pointer-events: auto;
   }
 
   .hint-dismiss:hover {
