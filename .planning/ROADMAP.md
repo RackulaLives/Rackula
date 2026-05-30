@@ -1,4 +1,4 @@
-# Roadmap: Rackula v0.9.0
+# Roadmap: Rackula CalVer
 
 ## Overview
 
@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: CI/CD Hardening** - Secure PR validation and deployment workflows
 - [ ] **Phase 4: E2E Test Stability** - Fix selector rot and eliminate test fragility
 - [ ] **Phase 5: Bug Fixes** - Resolve bayed rack sharing, offline persistence, and test issues
-- [ ] **Phase 6: Milestone Cleanup** - Complete v0.8.x hygiene and prepare v0.9.0 release
+- [ ] **Phase 6: Milestone Cleanup** - Complete milestone hygiene and prepare release
 
 ## Phase Details
 
@@ -121,9 +121,9 @@ Plans:
 **Requirements**: HK-01
 **Success Criteria** (what must be TRUE):
 
-1. All v0.8.x issues are closed, deferred, or migrated to v0.9.0
-2. v0.9.0 milestone has accurate issue tracking and labels
-3. CHANGELOG.md has complete v0.9.0 entry with all features, fixes, and breaking changes
+1. All legacy milestone issues are closed, deferred, or migrated to CalVer milestones
+2. Milestone has accurate issue tracking and labels
+3. CHANGELOG.md has complete release entry with all features, fixes, and breaking changes
 4. Release notes are drafted and reviewed
    **Plans**: TBD
 
