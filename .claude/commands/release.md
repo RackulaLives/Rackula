@@ -260,7 +260,7 @@ git commit -m "docs: update changelog and security policy for v$NEW_VERSION"
 ```bash
 npm version $NEW_VERSION --no-git-tag-version
 git add package.json package-lock.json
-git commit --amend -m "v$NEW_VERSION"
+git commit -m "chore(release): bump version to v$NEW_VERSION"
 ```
 
 ### 4f. Verify Remote Tag Does Not Already Exist
