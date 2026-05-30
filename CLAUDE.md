@@ -187,6 +187,13 @@ Implement features as if they are the first and only implementation.
 - NEVER create documentation files unless explicitly requested
 - NEVER add comments to code you didn't change
 
+**Writing style (all user-facing text):**
+
+- No em dashes (`—`), en dashes (`–`), or smart quotes. Use plain colons, commas, periods, and hyphens.
+- No emoji in feature lists, headings, or documentation.
+- No bold emphasis in list items. Bold is for column headers and UI labels only.
+- Be succinct. Say what the thing does, not how amazing it is.
+
 ## Git Conventions
 
 - Commit message format: `type: description`

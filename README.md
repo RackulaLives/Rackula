@@ -33,22 +33,22 @@
 
 ## Features
 
-- **Drag-and-drop devices** into your rack so you can frown at them
-- **Real device images** — it actually looks like your gear, not sad grey boxes
-- **Export to PNG, PDF, SVG** for your documentation or for printing and staring at
-- **QR code sharing** — your layout lives in a URL, scan it and it just shows up
-- **Mobile-friendly** — design on your phone if that's where the inspiration hits
-- **Self-hostable** — Docker, LXC, or bare metal, your rack, your rules
-- **Optional auth** — local accounts or OIDC for shared deployments
-- **Persistent layouts** — optional API-backed storage so your work survives a tab close
-- **Bayed racks** — group adjacent racks for AV installs and large cabinet deployments
+- Drag and drop devices into your rack from a real hardware library
+- Real device images from the NetBox devicetype-library, not grey boxes
+- Export layouts to PNG, PDF, or SVG for documentation and change requests
+- Share layouts via URL or QR code, no file attachments needed
+- Mobile-friendly interface for field use
+- Bayed rack grouping for AV installs and multi-cabinet deployments
+- Optional persistent storage with API-backed layout sync
+- Self-hostable via Docker, Proxmox LXC, or bare metal
+- Optional auth with local accounts or OIDC for shared deployments
 
 ## Who It's For
 
 | Audience                 | Use Case                                                                                                    |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | **Homelabbers**          | Plan your server rack before you rack it. Move pixels, not 4U servers.                                      |
-| **AV Technicians**       | Bayed rack support for audio installs — map out amp racks, patch bays, and processor chains.                |
+| **AV Technicians**       | Bayed rack support for audio installs, map out amp racks, patch bays, and processor chains.                 |
 | **Network Engineers**    | Document and plan switch/router topologies. Export for runbooks and change requests.                        |
 | **Data Centre Teams**    | Layout planning for colo cages and enterprise cabinets. Share via URL with your team.                       |
 | **Educators & Students** | Teach networking and infrastructure concepts with a visual, hands-on tool. No licence keys, no gatekeeping. |
@@ -65,7 +65,7 @@ You might ask, why should I make an imaginary rack like some sort of IT cosplay?
 
 ### Use it right now
 
-**[count.racku.la](https://count.racku.la)** — no account, no install, just racks.
+**[count.racku.la](https://count.racku.la)** no account, no install, just racks.
 
 ### Self-host with Docker
 
@@ -156,4 +156,4 @@ Built for the [r/homelab](https://reddit.com/r/homelab) and [r/selfhosted](https
 
 ## Licence
 
-[MIT](LICENSE) — Copyright &copy; 2025–2026 Gareth Evans
+[MIT](LICENSE) Copyright &copy; 2025-2026 Gareth Evans

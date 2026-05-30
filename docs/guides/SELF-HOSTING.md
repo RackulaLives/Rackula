@@ -86,9 +86,9 @@ services:
 Rackula's nginx config defers DNS resolution to request time using nginx's `resolver`
 directive. Two settings need adjustment for Kubernetes:
 
-1. **`NGINX_RESOLVER`** — Set to your cluster DNS IP (check with
+1. **`NGINX_RESOLVER`**: Set to your cluster DNS IP (check with
    `kubectl get svc -n kube-system kube-dns -o jsonpath='{.spec.clusterIP}'`)
-2. **`API_HOST`** — Must be a FQDN because nginx's resolver doesn't use search domains
+2. **`API_HOST`**: Must be a FQDN because nginx's resolver doesn't use search domains
    (e.g., `rackula-api.default.svc.cluster.local`)
 
 Example pod environment:
@@ -111,9 +111,9 @@ startup line showing the configured resolver.
 
 Rackula supports three auth modes:
 
-- **`none`** (default) — no auth gate, best for local/trusted networks only
-- **`local`** — built-in username/password auth with Argon2id hashing (no external provider needed)
-- **`oidc`** — delegate authentication to an OpenID Connect provider (Authelia, Authentik, Keycloak, etc.)
+- **`none`** (default): no auth gate, best for local/trusted networks only
+- **`local`**: built-in username/password auth with Argon2id hashing (no external provider needed)
+- **`oidc`**: delegate authentication to an OpenID Connect provider (Authelia, Authentik, Keycloak, etc.)
 
 Set `RACKULA_AUTH_MODE` and `RACKULA_AUTH_SESSION_SECRET` in your `.env` file. See the [Authentication Guide](../deployment/AUTHENTICATION.md) for full configuration.
 
