@@ -32,7 +32,10 @@
   import CanvasContextMenu from "./CanvasContextMenu.svelte";
   import type { DeviceFace, SlotPosition } from "$lib/types";
   import { resolveSelectedDevice } from "$lib/utils/device-selection";
+  import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
   // Note: PlacementIndicator removed - placement UI now integrated into Rack.svelte
+
+  const ONBOARDING_HINT_KEY = "Rackula_onboarding_hint_dismissed";
 
   // Multi-rack mode: use active rack ID from store
 
@@ -172,6 +175,13 @@
   const activeRackId = $derived(layoutStore.activeRackId);
   const hasRacks = $derived(layoutStore.rackCount > 0);
   const rackGroups = $derived(layoutStore.rack_groups);
+  const allRacksEmpty = $derived(racks.every((r) => r.devices.length === 0));
+  let hintDismissed = $state(safeGetItem(ONBOARDING_HINT_KEY) === "1");
+
+  function dismissOnboardingHint() {
+    safeSetItem(ONBOARDING_HINT_KEY, "1");
+    hintDismissed = true;
+  }
 
   // Organize racks: grouped racks in their groups, then ungrouped racks
   const organizedRacks = $derived.by(() => {
@@ -717,6 +727,20 @@
     {#if deviceListDescription}
       <p id="canvas-device-list" class="sr-only">{deviceListDescription}</p>
     {/if}
+
+    {#if hasRacks && allRacksEmpty && !hintDismissed}
+      <div class="onboarding-hint" role="status" aria-live="polite">
+        <span
+          >Open the Devices tab on the left and drag items into your rack.</span
+        >
+        <button
+          class="hint-dismiss"
+          onclick={dismissOnboardingHint}
+          aria-label="Dismiss hint">x</button
+        >
+      </div>
+    {/if}
+
     {#if hasRacks}
       <div class="panzoom-container" bind:this={panzoomContainer}>
         <!-- Multi-rack mode: render racks with visual grouping -->
@@ -988,5 +1012,39 @@
     .racks-wrapper.swipe-previous {
       animation: none;
     }
+  }
+
+  .onboarding-hint {
+    position: absolute;
+    bottom: var(--space-6, 24px);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+    background: var(--colour-surface, rgba(40, 42, 54, 0.92));
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md, 6px);
+    color: var(--colour-text-muted);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    pointer-events: auto;
+    z-index: 10;
+  }
+
+  .hint-dismiss {
+    background: none;
+    border: none;
+    color: var(--colour-text-muted);
+    cursor: pointer;
+    padding: 0 var(--space-1, 4px);
+    font-size: var(--font-size-base);
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .hint-dismiss:hover {
+    color: var(--colour-text);
   }
 </style>
