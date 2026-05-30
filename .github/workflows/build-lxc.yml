@@ -39,7 +39,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: latest
+          bun-version: "1"
 
       - name: Build frontend
         env:
@@ -77,8 +77,10 @@ jobs:
           cp deploy/lxc/nginx.conf "${TARBALL_DIR}/config/"
           cp deploy/lxc/rackula-api.service "${TARBALL_DIR}/config/"
           cp deploy/lxc/security-headers.conf "${TARBALL_DIR}/config/"
+          cp deploy/lxc/nginx.service.d-override.conf "${TARBALL_DIR}/config/"
 
           tar czf "rackula-lxc-${VERSION}.tar.gz" "${TARBALL_DIR}"
+          rm -rf "${TARBALL_DIR}"
           echo "TARBALL=rackula-lxc-${VERSION}.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload tarball to release

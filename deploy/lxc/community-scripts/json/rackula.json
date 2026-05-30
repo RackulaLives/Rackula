@@ -18,8 +18,8 @@
       "script": "ct/rackula.sh",
       "resources": {
         "cpu": 1,
-        "ram": 256,
-        "hdd": 4,
+        "ram": 512,
+        "hdd": 8,
         "os": "debian",
         "version": "13"
       }

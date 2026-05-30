@@ -14,11 +14,60 @@ RestartSec=5
 Environment=NODE_ENV=production
 Environment=DATA_DIR=/opt/rackula/data
 Environment=RACKULA_API_PORT=3001
+
+# Resource limits
+MemoryMax=384M
+MemoryHigh=320M
+TasksMax=32
+LimitNOFILE=1024
+
+# OOM handling — cleanly stop and let Restart=always bring it back
+OOMPolicy=stop
+OOMScoreAdjust=-100
+
+# Filesystem protection
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/opt/rackula/data
 PrivateTmp=true
+UMask=0077
+
+# Kernel protection
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+
+# Process restrictions
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+PrivateDevices=true
+RemoveIPC=true
+
+# Capability dropping — API on high port, no caps needed
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Syscall filtering
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+# Network egress control — API only needs localhost (nginx proxies to it)
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=127.0.0.0/8 ::1/128
+
+# Logging
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
