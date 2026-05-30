@@ -1038,11 +1038,15 @@
     border: none;
     color: var(--colour-text-muted);
     cursor: pointer;
-    padding: 0 var(--space-1, 4px);
     font-size: var(--font-size-base);
     line-height: 1;
     flex-shrink: 0;
     pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 24px;
   }
 
   .hint-dismiss:hover {
