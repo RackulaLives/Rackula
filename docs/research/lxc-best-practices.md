@@ -496,7 +496,7 @@ OOMScoreAdjust=-100
 ```
 
 - `OOMPolicy=stop` -- systemd cleanly stops the unit when OOM killer hits it, then Restart=always brings it back
-- `OOMScoreAdjust=-100` -- makes the process less likely to be OOM-killed (but still possible under extreme pressure)
+- `OOMScoreAdjust=-100` -- only a modest protection bias. Scale is `-1000` (strongest protection) to `1000` (most killable), with `0` as default. Use around `-500` or lower if you need significantly stronger protection; OOM kill is still possible under severe pressure.
 
 **Resource limits:**
 
