@@ -78,7 +78,7 @@ docker run -d -p 8080:8080 ghcr.io/rackulalives/rackula:latest
 Or with Docker Compose:
 
 ```bash
-curl -O https://raw.githubusercontent.com/rackulalives/rackula/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/RackulaLives/Rackula/main/docker-compose.yml
 docker compose up -d
 ```
 
@@ -101,7 +101,7 @@ The API write token is auto-generated during install. Find it at `/opt/rackula/d
 For layouts that persist across browser sessions:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rackulalives/rackula/main/deploy/docker-compose.persist.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/RackulaLives/Rackula/main/deploy/docker-compose.persist.yml -o docker-compose.yml
 mkdir -p data && sudo chown 1001:1001 data
 docker compose up -d
 ```
