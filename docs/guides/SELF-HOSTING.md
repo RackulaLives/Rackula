@@ -109,14 +109,22 @@ startup line showing the configured resolver.
 
 ### Add Authentication
 
-Rackula has no built-in auth. Use your reverse proxy:
+Rackula supports three auth modes:
+
+- **`none`** (default) — no auth gate, best for local/trusted networks only
+- **`local`** — built-in username/password auth with Argon2id hashing (no external provider needed)
+- **`oidc`** — delegate authentication to an OpenID Connect provider (Authelia, Authentik, Keycloak, etc.)
+
+Set `RACKULA_AUTH_MODE` and `RACKULA_AUTH_SESSION_SECRET` in your `.env` file. See the [Authentication Guide](../deployment/AUTHENTICATION.md) for full configuration.
+
+For reverse-proxy-based auth (outside the built-in modes):
 
 - **Basic auth** via Traefik/Caddy/nginx
 - **OAuth/OIDC** with Authelia or Authentik
 - **VPN** with Tailscale or WireGuard
 - **Write-route token auth** with `RACKULA_API_WRITE_TOKEN` for API `PUT`/`DELETE`
 
-For a copy-pastable interim hardening path with Docker + NGINX (UI and API protection, deny-by-default route allowlist, Docker secrets, and API rate limits), use the stop-gap section below.
+For a copy-pastable hardening path with Docker + NGINX (UI and API protection, deny-by-default route allowlist, Docker secrets, and API rate limits), use the stop-gap section below.
 
 ---
 
@@ -589,18 +597,26 @@ All variables have sensible defaults. Only configure if you need to change somet
 
 ### Runtime Variables
 
-| Variable                  | Default                 | Description                                                          |
-| ------------------------- | ----------------------- | -------------------------------------------------------------------- |
-| `RACKULA_PORT`            | `8080`                  | Host port for the web UI                                             |
-| `RACKULA_LISTEN_PORT`     | `8080`                  | Port nginx listens on inside the container                           |
-| `RACKULA_API_PORT`        | `3001`                  | Port the API listens on                                              |
-| `API_HOST`                | `rackula-api`           | Hostname of API container (for nginx proxy)                          |
-| `API_PORT`                | `3001`                  | Port of API container (for nginx proxy)                              |
-| `CORS_ORIGIN`             | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default)   |
-| `RACKULA_API_WRITE_TOKEN` | _unset_                 | Optional bearer token required for API `PUT`/`DELETE`                |
-| `ALLOW_INSECURE_CORS`     | `false`                 | Explicitly allow wildcard CORS in production (not recommended)       |
-| `NGINX_RESOLVER`          | `127.0.0.11`            | DNS resolver for nginx upstream resolution (override for Kubernetes) |
-| `DATA_DIR`                | `/data`                 | Path to data directory inside API container                          |
+| Variable                             | Default                 | Description                                                                   |
+| ------------------------------------ | ----------------------- | ----------------------------------------------------------------------------- |
+| `RACKULA_PORT`                       | `8080`                  | Host port for the web UI                                                      |
+| `RACKULA_LISTEN_PORT`                | `8080`                  | Port nginx listens on inside the container                                    |
+| `RACKULA_API_PORT`                   | `3001`                  | Port the API listens on                                                       |
+| `API_HOST`                           | `rackula-api`           | Hostname of API container (for nginx proxy)                                   |
+| `API_PORT`                           | `3001`                  | Port of API container (for nginx proxy)                                       |
+| `CORS_ORIGIN`                        | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default)            |
+| `RACKULA_API_WRITE_TOKEN`            | _unset_                 | Optional bearer token required for API `PUT`/`DELETE`                         |
+| `ALLOW_INSECURE_CORS`                | `false`                 | Explicitly allow wildcard CORS in production (not recommended)                |
+| `NGINX_RESOLVER`                     | `127.0.0.11`            | DNS resolver for nginx upstream resolution (override for Kubernetes)          |
+| `DATA_DIR`                           | `/data`                 | Path to data directory inside API container                                   |
+| `RACKULA_AUTH_MODE`                  | `none`                  | Auth gate mode: `none`, `local`, or `oidc`                                    |
+| `RACKULA_AUTH_SESSION_SECRET`        | _unset_                 | Required when auth mode is enabled (min 32 chars, use `openssl rand -hex 32`) |
+| `RACKULA_AUTH_SESSION_COOKIE_SECURE` | `true`                  | Set `false` for local HTTP testing only                                       |
+| `RACKULA_LOCAL_USERNAME`             | _unset_                 | Username for local auth mode (min 3 chars)                                    |
+| `RACKULA_LOCAL_PASSWORD`             | _unset_                 | Password for local auth mode (min 12 chars)                                   |
+| `RACKULA_OIDC_ISSUER`                | _unset_                 | OIDC issuer URL (required for `oidc` mode)                                    |
+| `RACKULA_OIDC_CLIENT_ID`             | _unset_                 | OIDC client ID (required for `oidc` mode)                                     |
+| `RACKULA_OIDC_CLIENT_SECRET`         | _unset_                 | OIDC client secret (required for `oidc` mode)                                 |
 
 **Port mapping explained:**
 
