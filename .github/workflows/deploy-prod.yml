@@ -1,7 +1,7 @@
 name: Deploy Prod
 
 # Release flow:
-# 1. Normal: push a semver tag (v*) → triggers automatically
+# 1. Normal: push a version tag (CalVer or SemVer) (v*) → triggers automatically
 # 2. Manual: workflow_dispatch with explicit tag → validates tag exists and format
 # Both paths run through validate → build → scan → deploy → smoke-test
 
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to deploy (e.g. v0.7.6). Required for manual dispatch.'
+        description: 'Release tag to deploy (e.g. v26.6.0). Required for manual dispatch.'
         required: true
         type: string
 
@@ -33,7 +33,7 @@ jobs:
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
       version: ${{ steps.tag.outputs.version }}
-      major_minor: ${{ steps.tag.outputs.major_minor }}
+      year_month: ${{ steps.tag.outputs.year_month }}
     steps:
       - name: Determine tag
         id: tag
@@ -52,16 +52,16 @@ jobs:
           fi
 
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Invalid tag format '$TAG'. Expected semver like v1.2.3"
+            echo "::error::Invalid tag format '$TAG'. Expected version like v26.6.0 or v0.10.1"
             exit 1
           fi
 
           VERSION="${TAG#v}"
-          MAJOR_MINOR="${VERSION%.*}"
+          YEAR_MONTH=$(echo "$VERSION" | cut -d. -f1,2)
           {
             printf 'tag=%s\n' "$TAG"
             printf 'version=%s\n' "$VERSION"
-            printf 'major_minor=%s\n' "$MAJOR_MINOR"
+            printf 'year_month=%s\n' "$YEAR_MONTH"
           } >> "$GITHUB_OUTPUT"
           echo "✅ Tag format valid: $TAG"
 
@@ -114,11 +114,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ needs.validate.outputs.version }}
+            type=raw,value=${{ needs.validate.outputs.year_month }}
             type=raw,value=latest
             type=raw,value=${{ needs.validate.outputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
-            type=raw,value=${{ needs.validate.outputs.major_minor }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=raw,value=${{ needs.validate.outputs.year_month }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
@@ -174,7 +174,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern=v{{version}}-persist
+            type=raw,value=v${{ needs.validate.outputs.version }}-persist
             type=raw,value=persist
             type=raw,value=v${{ needs.validate.outputs.version }}-persist,enable=${{ github.event_name == 'workflow_dispatch' }}
 
@@ -238,11 +238,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ needs.validate.outputs.version }}
+            type=raw,value=${{ needs.validate.outputs.year_month }}
             type=raw,value=latest
             type=raw,value=${{ needs.validate.outputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
-            type=raw,value=${{ needs.validate.outputs.major_minor }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=raw,value=${{ needs.validate.outputs.year_month }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push API image
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
