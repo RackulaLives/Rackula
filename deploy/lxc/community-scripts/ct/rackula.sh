@@ -26,7 +26,7 @@ function update_script() {
 
   if [[ ! -f ~/.rackula ]]; then
     msg_error "No ${APP} Installation Found!"
-    exit
+    exit 1
   fi
 
   # Prevent concurrent updates (mkdir is atomic, touch is not)
@@ -41,6 +41,12 @@ function update_script() {
   # Rollback on failure — restore from backup unless update succeeded
   cleanup() {
     if [[ -d /opt/rackula-backup ]] && [[ $UPDATE_SUCCESS -eq 0 ]]; then
+      # Persistent data may already have been moved into the new install
+      # (see data-restore step below). Move it back so it is not destroyed
+      # by the rm -rf, then restore the backup wholesale.
+      if [[ -d /opt/rackula/data ]] && [[ ! -d /opt/rackula-backup/data ]]; then
+        mv /opt/rackula/data /opt/rackula-backup/data
+      fi
       rm -rf /opt/rackula
       mv /opt/rackula-backup /opt/rackula
       # Restart services with the restored installation
@@ -74,6 +80,10 @@ function update_script() {
     fi
 
     # Update config files from the new release
+    if ! cp /opt/rackula/config/nginx.conf /etc/nginx/sites-available/rackula; then
+      msg_error "Failed to update nginx site config"
+      exit 1
+    fi
     if ! cp /opt/rackula/config/security-headers.conf /etc/nginx/snippets/security-headers.conf; then
       msg_error "Failed to update nginx security headers"
       exit 1
@@ -126,7 +136,7 @@ function update_script() {
     rm -rf /opt/rackula-backup
     msg_ok "Updated successfully!"
   fi
-  exit
+  exit 0
 }
 
 start

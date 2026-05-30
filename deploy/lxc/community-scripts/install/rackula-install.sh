@@ -62,10 +62,23 @@ msg_ok "Installed Rackula"
 msg_info "Generating API write token"
 API_WRITE_TOKEN=$(openssl rand -hex 32)
 
+# CORS origin scheme — defaults to http. Behind an HTTPS reverse proxy, export
+# CORS_SCHEME=https before running the installer, or edit CORS_ORIGIN in
+# /opt/rackula/data/.env afterwards and restart rackula-api. Only http/https
+# are accepted; anything else is rejected to avoid writing a malformed origin.
+CORS_SCHEME="${CORS_SCHEME:-http}"
+case "$CORS_SCHEME" in
+  http | https) ;;
+  *)
+    msg_error "Invalid CORS_SCHEME '${CORS_SCHEME}' (expected 'http' or 'https')"
+    exit 1
+    ;;
+esac
+
 # Write API environment file
 cat <<EOF >/opt/rackula/data/.env
 RACKULA_API_WRITE_TOKEN=${API_WRITE_TOKEN}
-CORS_ORIGIN=http://localhost
+CORS_ORIGIN=${CORS_SCHEME}://localhost
 ALLOW_INSECURE_CORS=true
 EOF
 chown rackula:rackula /opt/rackula/data/.env
@@ -82,99 +95,8 @@ msg_ok "Generated API write token"
 
 msg_info "Configuring nginx"
 
-# Deploy rackula nginx site config
-cat <<'NGINX' >/etc/nginx/sites-available/rackula
-# Rackula nginx configuration — managed by community-scripts installer
-# Token snippet and security headers are included from /etc/nginx/snippets/
-
-include /etc/nginx/snippets/rackula-api-token.conf;
-
-map $request_method $rackula_is_write_method {
-    default 0;
-    PUT 1;
-    DELETE 1;
-}
-
-map "$rackula_has_api_write_token" $rackula_token_check {
-    default 0;
-    1 1;
-}
-
-map "$rackula_is_write_method:$rackula_token_check" $rackula_api_authorization {
-    default $http_authorization;
-    "1:1" "Bearer $rackula_api_write_token";
-}
-
-server {
-    listen 80;
-    listen [::]:80;
-    server_name _;
-    root /opt/rackula/frontend;
-    index index.html;
-
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 1024;
-    gzip_proxied expired no-cache no-store private auth;
-    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml application/javascript application/json image/svg+xml;
-
-    location /assets/ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-        include /etc/nginx/snippets/security-headers.conf;
-    }
-
-    location = /api/health {
-        proxy_pass http://127.0.0.1:3001/health;
-        proxy_http_version 1.1;
-        proxy_connect_timeout 3s;
-        proxy_read_timeout 3s;
-    }
-
-    location = /api {
-        default_type application/json;
-        return 400 '{"error": "Invalid API path", "hint": "Use /api/layouts, /api/assets, or /api/health"}';
-    }
-
-    location = /api/ {
-        default_type application/json;
-        return 400 '{"error": "Invalid API path", "hint": "Use /api/layouts, /api/assets, or /api/health"}';
-    }
-
-    location /api/ {
-        rewrite ^/api(/.*)$ $1 break;
-        proxy_pass http://127.0.0.1:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Authorization $rackula_api_authorization;
-        proxy_connect_timeout 5s;
-        proxy_send_timeout 30s;
-        proxy_read_timeout 30s;
-        proxy_intercept_errors on;
-        error_page 502 503 504 = @api_unavailable;
-    }
-
-    location @api_unavailable {
-        default_type application/json;
-        return 503 '{"error": "Persistence API unavailable"}';
-    }
-
-    location = /health {
-        access_log off;
-        default_type text/plain;
-        return 200 "OK";
-    }
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    include /etc/nginx/snippets/security-headers.conf;
-}
-NGINX
+# Deploy rackula nginx site config from the packaged tarball (single source of truth)
+cp /opt/rackula/config/nginx.conf /etc/nginx/sites-available/rackula
 
 # Remove default site, enable rackula
 rm -f /etc/nginx/sites-enabled/default
@@ -182,82 +104,8 @@ ln -sf /etc/nginx/sites-available/rackula /etc/nginx/sites-enabled/rackula
 msg_ok "Configured nginx"
 
 msg_info "Creating Services"
-# Deploy hardened systemd unit for API
-cat <<'EOF' >/etc/systemd/system/rackula-api.service
-[Unit]
-Description=Rackula Persistence API
-After=network.target
-
-[Service]
-Type=simple
-User=rackula
-Group=rackula
-WorkingDirectory=/opt/rackula/api
-EnvironmentFile=/opt/rackula/data/.env
-ExecStart=/usr/local/bin/bun src/index.ts
-Restart=always
-RestartSec=5
-Environment=NODE_ENV=production
-Environment=DATA_DIR=/opt/rackula/data
-Environment=RACKULA_API_PORT=3001
-
-# Resource limits
-MemoryMax=384M
-MemoryHigh=320M
-TasksMax=32
-LimitNOFILE=1024
-
-# OOM handling
-OOMPolicy=stop
-OOMScoreAdjust=-100
-
-# Filesystem protection
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/opt/rackula/data
-PrivateTmp=true
-UMask=0077
-
-# Kernel protection
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectKernelLogs=true
-ProtectControlGroups=true
-ProtectClock=true
-ProtectHostname=true
-ProtectProc=invisible
-ProcSubset=pid
-
-# Process restrictions
-RestrictSUIDSGID=true
-RestrictRealtime=true
-RestrictNamespaces=true
-LockPersonality=true
-PrivateDevices=true
-RemoveIPC=true
-
-# Capability dropping
-CapabilityBoundingSet=
-AmbientCapabilities=
-
-# Syscall filtering
-SystemCallArchitectures=native
-SystemCallFilter=@system-service
-SystemCallFilter=~@privileged @resources
-
-# Network egress control
-RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-IPAddressDeny=any
-IPAddressAllow=127.0.0.0/8 ::1/128
-
-# Logging
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
+# Deploy the hardened API unit from the packaged tarball (single source of truth)
+cp /opt/rackula/config/rackula-api.service /etc/systemd/system/rackula-api.service
 
 # Harden nginx service via drop-in override (copy from packaged config)
 mkdir -p /etc/systemd/system/nginx.service.d
