@@ -212,9 +212,14 @@ if [ "$MONTH_PART" != "$(echo "$MONTH_PART" | sed 's/^0//')" ]; then
   echo "ERROR: Month component must be unpadded (got $MONTH_PART, expected $(echo "$MONTH_PART" | sed 's/^0//'))"
   exit 1
 fi
-# Check for duplicate tag
+# Check for duplicate local tag
 if git tag -l "v$NEW_VERSION" | grep -q .; then
-  echo "ERROR: Tag v$NEW_VERSION already exists."
+  echo "ERROR: Local tag v$NEW_VERSION already exists."
+  exit 1
+fi
+# Check for duplicate remote tag (fail early before making any changes)
+if git ls-remote --tags origin "refs/tags/v$NEW_VERSION" | grep -q .; then
+  echo "ERROR: Remote tag v$NEW_VERSION already exists on origin."
   exit 1
 fi
 ```
