@@ -458,7 +458,7 @@ with `detail` payloads, and a `componentOnReady()` promise.
 | `rackula-selection-change` | `{ rackId, deviceId }` | both | User selected a rack/device. |
 | `rackula-layout-change` | `{ layout }` | designer | Layout edited; host can persist. |
 
-All events are `rackula-`prefixed `CustomEvent`s with the payload in `event.detail`.
+All events are `CustomEvent`s prefixed with `rackula-`, with the payload in `event.detail`.
 
 **Methods / lifecycle:** `componentOnReady(): Promise<void>` (resolves after first render — ArcGIS
 handshake convention); `getLayout(): Layout`; `fitView(): void`.
