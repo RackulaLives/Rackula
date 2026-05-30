@@ -161,8 +161,8 @@ This section's defaults:
 
 ### Required Warnings and Caveats
 
-- Rackula currently has no built-in auth controls. Proxy auth is defense-in-depth only.
-- If you protect `/` but leave API routes or API ports exposed, anonymous clients can still read or mutate data.
+- Rackula has built-in auth modes (`none`, `local`, `oidc`) configured at runtime. This stop-gap section is for deployments not using those modes or needing additional defense-in-depth.
+- If you protect `/` but leave API routes or API ports exposed, anonymous clients can still read or mutate data (unless a built-in auth mode is enabled).
 - HTTP Basic credentials are reused on requests and can be recovered if traffic is intercepted. Use TLS unless strictly LAN-only and trusted.
 - Shared credentials are operationally risky. Rotate them often and immediately on staff/team changes.
 
