@@ -465,7 +465,7 @@ pct create <CTID> local:vztmpl/debian-13-standard_13.0-1_amd64.tar.zst \
 
 The `rackula-api.service` uses:
 
-- `Type=simple` -- systemd considers the service started immediately after launching `ExecStart` (no readiness signaling)
+- `Type=simple` -- systemd considers the unit started immediately after the service manager forks off the main service process and does not wait for the service binary to finish launching or for any readiness signaling before continuing
 - `Restart=always` -- restarts on any exit (crash, signal, timeout)
 - `RestartSec=5` -- 5-second delay between restarts
 
