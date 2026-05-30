@@ -609,7 +609,7 @@ Also added a little widget for displaying app build info for development purpose
 ### Fixed
 
 #415: Docker container never marked as healthy - thanks to @HellsCrimson for reporting!
-#411: Safari 18.x: Device positioning broken - grab handles stacked at top of rack - thanks to @@brandonb927 for reporting
+#411: Safari 18.x: Device positioning broken - grab handles stacked at top of rack - thanks to @brandonb927 for reporting
 #393: drag and dropping not working on Safari/Mac
 
 ### Technical
