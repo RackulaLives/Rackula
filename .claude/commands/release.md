@@ -191,8 +191,7 @@ Proceed? [y/n]:
 **No argument (auto-compute):**
 
 ```bash
-NEW_VERSION=$(scripts/next-version.sh --dry-run)
-if [ $? -ne 0 ]; then
+if ! NEW_VERSION=$(scripts/next-version.sh --dry-run); then
   echo "ERROR: Failed to compute next version. Check scripts/next-version.sh output."
   exit 1
 fi
