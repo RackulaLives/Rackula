@@ -30,6 +30,9 @@
     "password": null
   },
   "notes": [
-    "API write token is auto-generated during install. Find it in /opt/rackula/data/.env"
+    {
+      "text": "API write token is auto-generated during install. Find it in /opt/rackula/data/.env",
+      "type": "info"
+    }
   ]
 }
