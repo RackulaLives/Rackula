@@ -66,21 +66,10 @@
     fs: { path: fsPath, hex: "E31837" },
   };
 
-  // Raster brand logos served from static/. Used when no SVG icon exists
-  // (e.g. brands with multi-color, photographic, or hand-drawn logos).
-  const imageMap: Record<string, string> = {
-    kws: "/brand-icons/kws.png",
-  };
-
   const icon = $derived(slug ? iconMap[slug] : undefined);
-  const image = $derived(slug ? imageMap[slug] : undefined);
 </script>
 
-{#if image}
-  <span class="brand-icon" style="--icon-size: {size}px">
-    <img src={image} width={size} height={size} alt="" aria-hidden="true" />
-  </span>
-{:else if icon}
+{#if icon}
   <span class="brand-icon" style="--icon-size: {size}px">
     <svg
       width={size}
@@ -111,11 +100,6 @@
 
   .brand-icon :global(svg) {
     display: block;
-  }
-
-  .brand-icon img {
-    display: block;
-    object-fit: contain;
   }
 
   .brand-icon-fallback {
