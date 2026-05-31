@@ -37,11 +37,12 @@ export interface RateLimitMiddlewareConfig {
  *
  * Prefers X-Real-IP (set by nginx to $remote_addr, not client-spoofable).
  * Falls back to the last entry in X-Forwarded-For (closest proxy, harder to spoof).
- * Returns "unknown" if neither header is present.
+ * Returns null if neither header is present, in which case rate limiting is skipped
+ * to avoid collapsing all unidentifiable clients into a single shared bucket.
  */
 function resolveClientIp(c: {
   req: { header: (name: string) => string | undefined };
-}): string {
+}): string | null {
   const realIp = c.req.header("x-real-ip")?.trim();
   if (realIp) {
     return realIp.slice(0, 64);
@@ -55,7 +56,7 @@ function resolveClientIp(c: {
     }
   }
 
-  return "unknown";
+  return null;
 }
 
 /**
@@ -116,6 +117,15 @@ export function createRateLimitMiddleware(
       }
 
       const ip = resolveClientIp(c);
+
+      // Skip rate limiting when client IP cannot be determined.
+      // Using a shared "unknown" bucket would let one noisy client throttle
+      // all other unidentifiable clients.
+      if (!ip) {
+        await next();
+        return;
+      }
+
       const limiter = WRITE_METHODS.has(method) ? writeLimiter : readLimiter;
       const result = limiter.check(ip);
 

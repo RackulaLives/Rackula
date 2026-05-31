@@ -309,4 +309,17 @@ describe("createRateLimitMiddleware", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("X-RateLimit-Remaining")).toBe("4");
   });
+
+  it("skips rate limiting when client IP is not available", async () => {
+    const { app, stopCleanup } = createTestApp({
+      writeMaxRequests: 1,
+      readMaxRequests: 1,
+    });
+    cleanups.push(stopCleanup);
+
+    // No IP headers at all: request should pass through without rate limiting.
+    // This avoids collapsing all headerless clients into one shared bucket.
+    const res = await app.request("/layouts");
+    expect(res.status).toBe(200);
+  });
 });

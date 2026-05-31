@@ -325,16 +325,18 @@ export async function createApp(
   // Rate limiting — after CORS (so preflight is handled), before auth gate
   // (so abusive requests are rejected before expensive auth checks).
   if (securityConfig.rateLimitEnabled) {
+    const maxWindowMs = Math.max(
+      securityConfig.rateLimitWriteWindowMs,
+      securityConfig.rateLimitReadWindowMs,
+    );
     const rateLimitMiddleware = createRateLimitMiddleware({
       writeMaxRequests: securityConfig.rateLimitWriteMaxRequests,
       writeWindowMs: securityConfig.rateLimitWriteWindowMs,
       readMaxRequests: securityConfig.rateLimitReadMaxRequests,
       readWindowMs: securityConfig.rateLimitReadWindowMs,
-      cleanupIntervalMs: 5 * 60_000,
-      entryTtlMs: Math.max(
-        securityConfig.rateLimitWriteWindowMs,
-        securityConfig.rateLimitReadWindowMs,
-      ),
+      // Cleanup at least every window to bound stale entry retention.
+      cleanupIntervalMs: maxWindowMs,
+      entryTtlMs: maxWindowMs,
     });
     app.use("*", rateLimitMiddleware);
   }
@@ -705,7 +707,19 @@ export async function createApp(
         const realIp = c.req.header("x-real-ip")?.trim();
         const forwardedFor = c.req.header("x-forwarded-for");
         const lastProxy = forwardedFor?.split(",").pop()?.trim();
-        const ip = (realIp || lastProxy || "unknown").slice(0, 64);
+        const ip = (realIp || lastProxy)?.slice(0, 64);
+        if (!ip) {
+          // Skip rate limiting when client IP cannot be determined.
+          // Using a shared bucket would let one noisy client throttle all
+          // other unidentifiable clients.
+          return c.json(
+            {
+              error: "Bad Request",
+              message: "Unable to determine client identity for rate limiting.",
+            },
+            400,
+          );
+        }
         const rateCheck = rateLimiter.check(ip);
         if (!rateCheck.allowed) {
           const retryAfterSeconds = Math.ceil(
