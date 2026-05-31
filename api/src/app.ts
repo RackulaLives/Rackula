@@ -398,12 +398,13 @@ export async function createApp(
 
   // Origin policy: enforce trusted origins on mutating requests (POST, PUT, PATCH, DELETE).
   // Fills the gap between CSRF (session-auth only) and write-token auth (no origin check).
-  // Non-browser clients with Bearer auth bypass origin checks.
+  // Non-browser clients with valid write auth tokens bypass origin checks.
   app.use(
     "*",
     createOriginPolicyMiddleware({
       originPolicyEnabled: securityConfig.originPolicyEnabled,
       csrfTrustedOrigins: securityConfig.csrfTrustedOrigins,
+      writeAuthToken: securityConfig.writeAuthToken,
     }),
   );
 

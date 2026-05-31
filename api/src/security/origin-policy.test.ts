@@ -3,12 +3,15 @@ import { Hono } from "hono";
 import { createOriginPolicyMiddleware } from "./origin-policy";
 import type { ApiSecurityConfig } from "./types";
 
+const TEST_WRITE_TOKEN = "test-secret-token-32chars-long!!";
+
 function makeConfig(
-  overrides: Partial<Pick<ApiSecurityConfig, "originPolicyEnabled" | "csrfTrustedOrigins">> = {},
-): Pick<ApiSecurityConfig, "originPolicyEnabled" | "csrfTrustedOrigins"> {
+  overrides: Partial<Pick<ApiSecurityConfig, "originPolicyEnabled" | "csrfTrustedOrigins" | "writeAuthToken">> = {},
+): Pick<ApiSecurityConfig, "originPolicyEnabled" | "csrfTrustedOrigins" | "writeAuthToken"> {
   return {
     originPolicyEnabled: true,
     csrfTrustedOrigins: ["https://racku.la", "https://count.racku.la"],
+    writeAuthToken: TEST_WRITE_TOKEN,
     ...overrides,
   };
 }
@@ -43,23 +46,42 @@ describe("createOriginPolicyMiddleware", () => {
     expect(getRes.status).toBe(200);
   });
 
-  it("allows PUT/DELETE with no Origin when Bearer token is present", async () => {
+  it("allows PUT/DELETE with no Origin when valid Bearer token is present", async () => {
     const app = createTestApp(makeConfig());
     const res = await app.request("/layouts/1", {
       method: "PUT",
-      headers: { Authorization: "Bearer test-token" },
+      headers: { Authorization: `Bearer ${TEST_WRITE_TOKEN}` },
     });
     // No Origin header but valid auth -> allowed
     expect(res.status).toBe(200);
   });
 
-  it("allows POST with no Origin when Bearer token is present", async () => {
+  it("allows POST with no Origin when valid Bearer token is present", async () => {
     const app = createTestApp(makeConfig());
     const res = await app.request("/layouts", {
       method: "POST",
-      headers: { Authorization: "Bearer test-token" },
+      headers: { Authorization: `Bearer ${TEST_WRITE_TOKEN}` },
     });
     expect(res.status).toBe(200);
+  });
+
+  it("blocks PUT with invalid Bearer token", async () => {
+    const app = createTestApp(makeConfig());
+    const res = await app.request("/layouts/1", {
+      method: "PUT",
+      headers: { Authorization: "Bearer wrong-token" },
+    });
+    // Invalid token does not bypass origin check
+    expect(res.status).toBe(403);
+  });
+
+  it("blocks PUT with no write auth token configured and no Origin", async () => {
+    const app = createTestApp(makeConfig({ writeAuthToken: undefined }));
+    const res = await app.request("/layouts/1", {
+      method: "PUT",
+    });
+    // No writeAuthToken -> no Bearer bypass -> no Origin -> block
+    expect(res.status).toBe(403);
   });
 
   // --- Origin validation on mutating routes ---
@@ -142,18 +164,31 @@ describe("createOriginPolicyMiddleware", () => {
 
   // --- Edge cases ---
 
-  it("treats literal 'null' Origin header as absent", async () => {
+  it("treats literal 'null' Origin header as absent, falls through to Referer", async () => {
     const app = createTestApp(makeConfig());
-    // "null" Origin is a known attack vector — should fall through to Referer or reject
+    // "null" Origin is a known attack vector — should fall through to Referer
+    const res = await app.request("/layouts/1", {
+      method: "PUT",
+      headers: {
+        Origin: "null",
+        Referer: "https://racku.la/layouts",
+      },
+    });
+    // Falls through to Referer, which is trusted -> allowed
+    expect(res.status).toBe(200);
+  });
+
+  it("blocks when 'null' Origin and no Referer", async () => {
+    const app = createTestApp(makeConfig());
     const res = await app.request("/layouts/1", {
       method: "PUT",
       headers: { Origin: "null" },
     });
-    // No Referer either, no Bearer token -> block
+    // No Referer either, no valid Bearer token -> block
     expect(res.status).toBe(403);
   });
 
-  it("blocks mutating request with no Origin, no Referer, and no Bearer token", async () => {
+  it("blocks mutating request with no Origin, no Referer, and no valid Bearer token", async () => {
     const app = createTestApp(makeConfig());
     const res = await app.request("/layouts/1", {
       method: "PUT",
@@ -167,11 +202,24 @@ describe("createOriginPolicyMiddleware", () => {
       method: "PUT",
       headers: {
         Origin: "https://evil.example.com",
-        Authorization: "Bearer test-token",
+        Authorization: `Bearer ${TEST_WRITE_TOKEN}`,
       },
     });
-    // Bearer token overrides origin check — non-browser clients may not send Origin
+    // Valid Bearer token overrides origin check
     expect(res.status).toBe(200);
+  });
+
+  it("blocks mutating request with untrusted Origin and invalid Bearer token", async () => {
+    const app = createTestApp(makeConfig());
+    const res = await app.request("/layouts/1", {
+      method: "PUT",
+      headers: {
+        Origin: "https://evil.example.com",
+        Authorization: "Bearer wrong-token",
+      },
+    });
+    // Invalid Bearer token does not override origin check
+    expect(res.status).toBe(403);
   });
 
   it("blocks PATCH requests with untrusted origin (PATCH is a state-changing method)", async () => {
@@ -180,7 +228,6 @@ describe("createOriginPolicyMiddleware", () => {
       method: "PATCH",
       headers: { Origin: "https://evil.example.com" },
     });
-    // PATCH is in STATE_CHANGING_METHODS, so origin policy applies
     expect(res.status).toBe(403);
   });
 
@@ -191,5 +238,15 @@ describe("createOriginPolicyMiddleware", () => {
       headers: { Origin: "https://racku.la" },
     });
     expect(res.status).toBe(200);
+  });
+
+  it("blocks mutating request with malformed Origin header", async () => {
+    const app = createTestApp(makeConfig());
+    const res = await app.request("/layouts/1", {
+      method: "PUT",
+      headers: { Origin: "not a url" },
+    });
+    // Malformed Origin fails parsing, falls through to Referer (absent) -> block
+    expect(res.status).toBe(403);
   });
 });

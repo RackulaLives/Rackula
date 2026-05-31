@@ -557,7 +557,7 @@ Rackula includes structured authentication event logging via `auth-logger.ts`:
 
 ## Origin Policy for Mutating Requests
 
-When authentication and CSRF protection are both enabled, Rackula enforces an origin policy on state-changing requests (POST, PUT, PATCH, DELETE). This ensures that even if a session cookie is not present (e.g., API-only access), mutating requests must originate from a trusted domain.
+When authentication and CSRF protection are both enabled, Rackula enforces an origin policy on state-changing requests (POST, PUT, PATCH, DELETE). This ensures that even if a session cookie is not present (e.g., API-only access), mutating requests must originate from a trusted domain unless they carry a valid write auth bearer token.
 
 ### How It Works
 

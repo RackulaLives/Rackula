@@ -6,32 +6,45 @@
  * only covers session-authenticated requests) and write-token auth (which
  * only validates bearer tokens without checking origin).
  *
- * Non-browser clients (curl, API tools) that send a valid `Authorization`
- * header bypass origin checks, since they may not include an `Origin` header.
+ * Non-browser clients (curl, API tools) that present a valid write auth
+ * bearer token bypass origin checks, since they may not include an Origin
+ * header. The token is validated via timing-safe comparison against the
+ * configured write auth token.
  *
  * @module origin-policy
  */
 
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { MiddlewareHandler } from "hono";
 import { resolveRequestOrigin, isTrustedOrigin } from "./request-utils";
 import { STATE_CHANGING_METHODS, type ApiSecurityConfig } from "./types";
 
 /**
+ * Timing-safe comparison of two strings using SHA-256 hashing.
+ * Returns true if the strings are equal.
+ */
+function timingSafeStringEqual(a: string, b: string): boolean {
+  const aHash = createHash("sha256").update(a).digest();
+  const bHash = createHash("sha256").update(b).digest();
+  return timingSafeEqual(aHash, bHash);
+}
+
+/**
  * Creates middleware that enforces an origin policy on mutating requests.
  *
- * @param securityConfig - Origin policy enablement and trusted origins.
+ * @param securityConfig - Origin policy enablement, trusted origins, and write auth token.
  * @returns Hono middleware that returns `403` JSON for origin policy violations.
  * @remarks
  * - Skips entirely when `originPolicyEnabled` is false.
  * - Skips non-mutating methods (GET, HEAD, OPTIONS).
- * - Allows requests with a valid `Authorization: Bearer` header regardless of origin.
+ * - Allows requests with a valid write auth bearer token regardless of origin.
  * - Falls back from `Origin` to `Referer` header for origin resolution.
- * - Blocks mutating requests with no origin and no auth token.
+ * - Blocks mutating requests with no origin and no valid auth token.
  */
 export function createOriginPolicyMiddleware(
   securityConfig: Pick<
     ApiSecurityConfig,
-    "originPolicyEnabled" | "csrfTrustedOrigins"
+    "originPolicyEnabled" | "csrfTrustedOrigins" | "writeAuthToken"
   >,
 ): MiddlewareHandler {
   return async (c, next): Promise<void | Response> => {
@@ -45,22 +58,25 @@ export function createOriginPolicyMiddleware(
       return;
     }
 
-    // Non-browser clients with bearer auth bypass origin checks.
-    const authorization = c.req.header("Authorization");
-    if (authorization?.match(/^Bearer\s+\S+$/i)) {
-      await next();
-      return;
+    // Non-browser clients with a valid write auth bearer token bypass origin checks.
+    if (securityConfig.writeAuthToken) {
+      const authorization = c.req.header("Authorization");
+      const match = authorization?.match(/^Bearer\s+(.+)$/i);
+      if (match?.[1] && timingSafeStringEqual(match[1].trim(), securityConfig.writeAuthToken)) {
+        await next();
+        return;
+      }
     }
 
     const requestOrigin = resolveRequestOrigin(c.req.raw);
 
-    // No origin and no auth token: block the request.
+    // No origin and no valid auth token: block the request.
     if (!requestOrigin) {
       return c.json(
         {
           error: "Forbidden",
           message:
-            "Origin policy: mutating requests require an Origin or Referer header, or a Bearer authorization token.",
+            "Origin policy: mutating requests require an Origin or Referer header, or a valid Bearer authorization token.",
         },
         403,
       );
