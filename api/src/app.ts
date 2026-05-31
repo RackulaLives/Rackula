@@ -13,6 +13,7 @@ import {
   createOriginPolicyMiddleware,
   createRefreshedAuthSessionCookieHeader,
   createWriteAuthMiddleware,
+  createRateLimitMiddleware,
   invalidateAuthSession,
   resolveAuthenticatedSessionClaims,
   resolveApiSecurityConfig,
@@ -320,6 +321,23 @@ export async function createApp(
       allowHeaders: ["Content-Type", "Authorization"],
     }),
   );
+
+  // Rate limiting — after CORS (so preflight is handled), before auth gate
+  // (so abusive requests are rejected before expensive auth checks).
+  if (securityConfig.rateLimitEnabled) {
+    const rateLimitMiddleware = createRateLimitMiddleware({
+      writeMaxRequests: securityConfig.rateLimitWriteMaxRequests,
+      writeWindowMs: securityConfig.rateLimitWriteWindowMs,
+      readMaxRequests: securityConfig.rateLimitReadMaxRequests,
+      readWindowMs: securityConfig.rateLimitReadWindowMs,
+      cleanupIntervalMs: 5 * 60_000,
+      entryTtlMs: Math.max(
+        securityConfig.rateLimitWriteWindowMs,
+        securityConfig.rateLimitReadWindowMs,
+      ),
+    });
+    app.use("*", rateLimitMiddleware);
+  }
 
   // Better Auth instance — created with validated session secret
   const auth = securityConfig.authSessionSecret

@@ -36,6 +36,17 @@ export {
   createWriteAuthMiddleware,
   AUTH_PUBLIC_PATHS,
 } from "./middleware";
+export { AUTH_PUBLIC_PATHS } from "./middleware";
+
+export { createRateLimiter } from "./rate-limit";
+export type {
+  RateLimitConfig,
+  RateLimitResult,
+  RateLimiter,
+} from "./rate-limit";
+
+export { createRateLimitMiddleware } from "./rate-limit-middleware";
+export type { RateLimitMiddlewareConfig } from "./rate-limit-middleware";
 
 export { createOriginPolicyMiddleware } from "./origin-policy";
 

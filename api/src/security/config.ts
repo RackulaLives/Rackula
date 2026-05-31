@@ -370,6 +370,50 @@ export function resolveApiSecurityConfig(
   // CORS), origin checks are redundant — write-token auth alone protects write routes.
   const originPolicyEnabled = authEnabled && csrfProtectionEnabled;
 
+  // Rate limiting configuration
+  const DEFAULT_RATE_LIMIT_WRITE_MAX = 30;
+  const DEFAULT_RATE_LIMIT_WRITE_WINDOW_MS = 60_000;
+  const DEFAULT_RATE_LIMIT_READ_MAX = 120;
+  const DEFAULT_RATE_LIMIT_READ_WINDOW_MS = 60_000;
+
+  const rateLimitEnabled = parseOptionalBoolean(
+    "RACKULA_RATE_LIMIT_ENABLED",
+    env.RACKULA_RATE_LIMIT_ENABLED,
+    true,
+  );
+
+  const rateLimitWriteMaxRequests = parseBoundedPositiveInteger(
+    "RACKULA_RATE_LIMIT_WRITE_MAX",
+    env.RACKULA_RATE_LIMIT_WRITE_MAX,
+    DEFAULT_RATE_LIMIT_WRITE_MAX,
+    1,
+    10_000,
+  );
+
+  const rateLimitWriteWindowMs = parseBoundedPositiveInteger(
+    "RACKULA_RATE_LIMIT_WRITE_WINDOW_MS",
+    env.RACKULA_RATE_LIMIT_WRITE_WINDOW_MS,
+    DEFAULT_RATE_LIMIT_WRITE_WINDOW_MS,
+    1000,
+    3_600_000,
+  );
+
+  const rateLimitReadMaxRequests = parseBoundedPositiveInteger(
+    "RACKULA_RATE_LIMIT_READ_MAX",
+    env.RACKULA_RATE_LIMIT_READ_MAX,
+    DEFAULT_RATE_LIMIT_READ_MAX,
+    1,
+    100_000,
+  );
+
+  const rateLimitReadWindowMs = parseBoundedPositiveInteger(
+    "RACKULA_RATE_LIMIT_READ_WINDOW_MS",
+    env.RACKULA_RATE_LIMIT_READ_WINDOW_MS,
+    DEFAULT_RATE_LIMIT_READ_WINDOW_MS,
+    1000,
+    3_600_000,
+  );
+
   return {
     corsOrigin,
     allowInsecureCors,
@@ -389,5 +433,10 @@ export function resolveApiSecurityConfig(
     csrfProtectionEnabled,
     csrfTrustedOrigins,
     originPolicyEnabled,
+    rateLimitEnabled,
+    rateLimitWriteMaxRequests,
+    rateLimitWriteWindowMs,
+    rateLimitReadMaxRequests,
+    rateLimitReadWindowMs,
   };
 }

@@ -1055,3 +1055,66 @@ describe("authorization", () => {
     });
   });
 });
+
+describe("resolveApiSecurityConfig rate limiting", () => {
+  it("includes rate limit config with defaults when no env vars set", () => {
+    const config = resolveApiSecurityConfig(buildEnv());
+    expect(config.rateLimitEnabled).toBe(true);
+    expect(config.rateLimitWriteMaxRequests).toBe(30);
+    expect(config.rateLimitWriteWindowMs).toBe(60_000);
+    expect(config.rateLimitReadMaxRequests).toBe(120);
+    expect(config.rateLimitReadWindowMs).toBe(60_000);
+  });
+
+  it("disables rate limiting when RACKULA_RATE_LIMIT_ENABLED is false", () => {
+    const config = resolveApiSecurityConfig(
+      buildEnv({ RACKULA_RATE_LIMIT_ENABLED: "false" }),
+    );
+    expect(config.rateLimitEnabled).toBe(false);
+  });
+
+  it("parses custom rate limit values from env", () => {
+    const config = resolveApiSecurityConfig(
+      buildEnv({
+        RACKULA_RATE_LIMIT_WRITE_MAX: "100",
+        RACKULA_RATE_LIMIT_WRITE_WINDOW_MS: "120000",
+        RACKULA_RATE_LIMIT_READ_MAX: "500",
+        RACKULA_RATE_LIMIT_READ_WINDOW_MS: "300000",
+      }),
+    );
+    expect(config.rateLimitWriteMaxRequests).toBe(100);
+    expect(config.rateLimitWriteWindowMs).toBe(120_000);
+    expect(config.rateLimitReadMaxRequests).toBe(500);
+    expect(config.rateLimitReadWindowMs).toBe(300_000);
+  });
+
+  it("rejects rate limit write max below minimum", () => {
+    expect(() =>
+      resolveApiSecurityConfig(buildEnv({ RACKULA_RATE_LIMIT_WRITE_MAX: "0" })),
+    ).toThrow();
+  });
+
+  it("rejects rate limit write max above maximum", () => {
+    expect(() =>
+      resolveApiSecurityConfig(
+        buildEnv({ RACKULA_RATE_LIMIT_WRITE_MAX: "10001" }),
+      ),
+    ).toThrow();
+  });
+
+  it("rejects rate limit window below minimum", () => {
+    expect(() =>
+      resolveApiSecurityConfig(
+        buildEnv({ RACKULA_RATE_LIMIT_WRITE_WINDOW_MS: "999" }),
+      ),
+    ).toThrow();
+  });
+
+  it("rejects rate limit window above maximum", () => {
+    expect(() =>
+      resolveApiSecurityConfig(
+        buildEnv({ RACKULA_RATE_LIMIT_READ_WINDOW_MS: "3600001" }),
+      ),
+    ).toThrow();
+  });
+});
