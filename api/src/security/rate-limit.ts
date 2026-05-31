@@ -66,10 +66,13 @@ export function createRateLimiter(config: RateLimitConfig): RateLimiter {
   const { maxRequests, windowMs, cleanupIntervalMs, entryTtlMs } = config;
   const entries = new Map<string, RateLimitEntry>();
 
+  // TTL must be at least as long as the window to avoid evicting active entries.
+  const effectiveTtlMs = Math.max(entryTtlMs, windowMs);
+
   const cleanup = setInterval(() => {
     const now = Date.now();
     for (const [ip, entry] of entries) {
-      if (now - entry.windowStart > entryTtlMs) {
+      if (now - entry.windowStart > effectiveTtlMs) {
         entries.delete(ip);
       }
     }

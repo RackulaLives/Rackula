@@ -589,21 +589,21 @@ Origin policy is active when both `RACKULA_AUTH_MODE` is not `none` and `RACKULA
 
 ### API Rate Limiting
 
-Rackula includes IP-based rate limiting on API routes, with separate limits for read and write operations. Rate limiting is enabled by default and configurable via environment variables.
+Rackula includes IP-based rate-limiting on API routes, with separate limits for read and write operations. Rate limiting is enabled by default and configurable via environment variables.
 
 **How it works:**
 
 - Each IP address gets a fixed-window counter for read requests (GET, HEAD) and write requests (PUT, DELETE)
 - When a limit is exceeded, the API returns `429 Too Many Requests` with a `Retry-After` header (integer seconds) and JSON body: `{"error": "Too Many Requests", "message": "Rate limit exceeded. Try again later."}`
 - Successful requests include an `X-RateLimit-Remaining` header showing remaining requests in the current window
-- Health, version, and auth endpoints are exempt from rate limiting
+- Health, version, and auth endpoints are exempt from rate-limiting
 - CORS preflight (OPTIONS) requests are exempt
 
 **Environment variables:**
 
 | Variable                             | Default | Min  | Max     | Description                               |
 | ------------------------------------ | ------- | ---- | ------- | ----------------------------------------- |
-| `RACKULA_RATE_LIMIT_ENABLED`         | `true`  | -    | -       | Enable or disable rate limiting           |
+| `RACKULA_RATE_LIMIT_ENABLED`         | `true`  | -    | -       | Enable or disable rate-limiting           |
 | `RACKULA_RATE_LIMIT_WRITE_MAX`       | `30`    | 1    | 10000   | Max PUT/DELETE requests per IP per window |
 | `RACKULA_RATE_LIMIT_WRITE_WINDOW_MS` | `60000` | 1000 | 3600000 | Write rate limit window (ms)              |
 | `RACKULA_RATE_LIMIT_READ_MAX`        | `120`   | 1    | 100000  | Max GET/HEAD requests per IP per window   |
@@ -669,7 +669,7 @@ Different deployment contexts call for different auth configurations. Use this t
 | Scenario                 | Recommended Mode                  | Notes                                                     |
 | ------------------------ | --------------------------------- | --------------------------------------------------------- |
 | Solo homelab             | `local` or `none`                 | Simplest setup; `none` if behind VPN/firewall already     |
-| Homelab team (2–5 users) | `oidc` with Authentik or Authelia | Individual accounts, shared access, audit trail           |
+| Homelab team (2-5 users) | `oidc` with Authentik or Authelia | Individual accounts, shared access, audit trail           |
 | School lab / classroom   | `oidc` with school IdP            | AD/LDAP-backed OIDC for per-student access                |
 | Enterprise / multi-team  | `oidc` with organisation IdP      | Enforce MFA via IdP policies, centralised user management |
 
