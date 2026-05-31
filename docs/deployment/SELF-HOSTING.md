@@ -115,7 +115,7 @@ Rackula supports three auth modes:
 - **`local`**: built-in username/password auth with Argon2id hashing (no external provider needed)
 - **`oidc`**: delegate authentication to an OpenID Connect provider (Authelia, Authentik, Keycloak, etc.)
 
-Set `RACKULA_AUTH_MODE` and `RACKULA_AUTH_SESSION_SECRET` in your `.env` file. See the [Authentication Guide](../deployment/AUTHENTICATION.md) for full configuration.
+Set `RACKULA_AUTH_MODE` and `RACKULA_AUTH_SESSION_SECRET` in your `.env` file. See the [Authentication Guide](AUTHENTICATION.md) for full configuration.
 
 For reverse-proxy-based auth (outside the built-in modes):
 

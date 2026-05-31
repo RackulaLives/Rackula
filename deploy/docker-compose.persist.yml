@@ -5,7 +5,7 @@
 #   docker compose up -d
 #   Open http://localhost:8080
 #
-# Documentation: https://github.com/RackulaLives/Rackula/blob/main/docs/guides/SELF-HOSTING.md
+# Documentation: https://github.com/RackulaLives/Rackula/blob/main/docs/deployment/SELF-HOSTING.md
 
 services:
   rackula:

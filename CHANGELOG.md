@@ -466,7 +466,7 @@ First CalVer release. Rackula has moved from SemVer (0.MINOR.PATCH) to Calendar 
 
 ## [0.7.4] - 2026-01-30
 
-This release introduces the `:persist` image tag, enabling persistence for self-hosted installs via the rackula-api server-side container. See the [Self-Hosting Guide](docs/guides/SELF-HOSTING.md) for details.
+This release introduces the `:persist` image tag, enabling persistence for self-hosted installs via the rackula-api server-side container. See the [Self-Hosting Guide](docs/deployment/SELF-HOSTING.md) for details.
 
 ### Added
 

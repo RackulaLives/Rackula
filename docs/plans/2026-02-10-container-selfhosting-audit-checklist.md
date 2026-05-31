@@ -17,7 +17,7 @@ Keep runtime behavior, deployment workflow settings, and self-hosting docs align
 - Dev deploy workflow behavior in `.github/workflows/deploy-dev.yml`
 - Operator-facing docs and examples:
   - `README.md`
-  - `docs/guides/SELF-HOSTING.md`
+  - `docs/deployment/SELF-HOSTING.md`
   - `.env.example`
 - Data directory ownership/permission requirements (UID 1001) documented consistently in operator docs and examples.
 
@@ -27,7 +27,7 @@ Keep runtime behavior, deployment workflow settings, and self-hosting docs align
 - [ ] `.github/workflows/deploy-dev.yml` persists required runtime env on host (`/opt/rackula/rackula-dev/.env`) before deploy.
 - [ ] `deploy-dev.yml` uses permissions compatible with checkout (`contents: read`).
 - [ ] `README.md` persistence setup instructions match current compose layout.
-- [ ] `docs/guides/SELF-HOSTING.md` storage path examples match current folder-per-layout runtime format.
+- [ ] `docs/deployment/SELF-HOSTING.md` storage path examples match current folder-per-layout runtime format.
 - [ ] `.env.example` includes the current runtime persistence/security variables with safe defaults and comments.
 - [ ] Container resource limits (CPU/memory) remain intentional and consistent across deployment compose files.
 - [ ] Base container image choices are documented in release/deploy docs (frontend nginx image and API Bun image).

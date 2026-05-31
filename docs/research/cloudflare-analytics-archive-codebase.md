@@ -9,7 +9,7 @@
 
 - `src/lib/utils/analytics.ts`
 - `src/tests/analytics.test.ts`
-- `docs/guides/SELF-HOSTING.md`
+- `docs/deployment/SELF-HOSTING.md`
 - `deploy/security-headers.conf`
 - `deploy/lxc/security-headers.conf`
 - `docs/reference/SPEC.md` (analytics/deployment sections)
@@ -34,7 +34,7 @@ Implication:
 
 ### 2. Self-hosting is container-first and already homelab-oriented
 
-`docs/guides/SELF-HOSTING.md` provides Docker and LXC-oriented operational guidance with persistence and hardening.
+`docs/deployment/SELF-HOSTING.md` provides Docker and LXC-oriented operational guidance with persistence and hardening.
 
 Implication:
 

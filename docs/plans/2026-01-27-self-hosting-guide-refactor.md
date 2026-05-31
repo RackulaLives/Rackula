@@ -12,7 +12,7 @@
 
 ## Problem Statement
 
-The current self-hosting guide (docs/guides/SELF-HOSTING.md) has several issues:
+The current self-hosting guide (docs/deployment/SELF-HOSTING.md) has several issues:
 
 1. **References non-existent image tag** - Mentions `:persist` tag that doesn't exist
 2. **Outdated environment variables** - Uses `PORT` instead of `RACKULA_API_PORT`
@@ -91,7 +91,7 @@ The current self-hosting guide (docs/guides/SELF-HOSTING.md) has several issues:
 #   docker compose up -d
 #   Open http://localhost:8080
 #
-# Documentation: https://github.com/RackulaLives/Rackula/blob/main/docs/guides/SELF-HOSTING.md
+# Documentation: https://github.com/RackulaLives/Rackula/blob/main/docs/deployment/SELF-HOSTING.md
 
 services:
   rackula:
@@ -166,7 +166,7 @@ services:
 
 **Files:**
 
-- Rewrite: `docs/guides/SELF-HOSTING.md`
+- Rewrite: `docs/deployment/SELF-HOSTING.md`
 
 **New content structure:**
 
@@ -393,7 +393,7 @@ For authentication, use your reverse proxy (Traefik, Caddy, nginx) with:
 # Rackula Development Docker Compose
 #
 # For self-hosting, use: deploy/docker-compose.persist.yml
-# Documentation: docs/guides/SELF-HOSTING.md
+# Documentation: docs/deployment/SELF-HOSTING.md
 #
 # Development usage:
 #   docker compose up -d                    # Frontend only (no persistence)
