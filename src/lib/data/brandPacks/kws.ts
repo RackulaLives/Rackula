@@ -14,32 +14,6 @@ import { CATEGORY_COLOURS } from "$lib/types/constants";
 
 export const kwsDevices: DeviceType[] = [
   // ============================================
-  // Patch Panels
-  // ============================================
-  {
-    slug: "kws-patch-keystones-panel-2u",
-    u_height: 2,
-    manufacturer: "KWS",
-    model: "Patch Keystones Panel 2U",
-    is_full_depth: false,
-    slot_width: 1,
-    rack_widths: [10],
-    colour: CATEGORY_COLOURS["patch-panel"],
-    category: "patch-panel",
-  },
-  {
-    slug: "kws-patch-keystones-panel-3u",
-    u_height: 3,
-    manufacturer: "KWS",
-    model: "Patch Keystones Panel 3U",
-    is_full_depth: false,
-    slot_width: 1,
-    rack_widths: [10],
-    colour: CATEGORY_COLOURS["patch-panel"],
-    category: "patch-panel",
-  },
-
-  // ============================================
   // Raspberry Pi Mounts
   // ============================================
   {
