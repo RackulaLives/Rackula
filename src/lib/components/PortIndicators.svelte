@@ -17,6 +17,7 @@
     showPortTooltip,
     hidePortTooltip,
   } from "$lib/stores/portTooltip.svelte";
+  import { getPortCategory } from "$lib/utils/port-utils";
 
   interface Props {
     interfaces: InterfaceTemplate[];
@@ -61,8 +62,11 @@
     "100gbase-x-qsfp28": "var(--colour-port-qsfp28)", // Pink - QSFP28
   };
 
-  // Default color for unknown types
-  const DEFAULT_COLOR = "var(--colour-port-default)";
+  const CATEGORY_COLORS = {
+    network: "var(--colour-port-default)",
+    console: "var(--colour-port-console)",
+    power: "var(--colour-port-power)",
+  };
 
   // Constants for port rendering
   const PORT_RADIUS = 3;
@@ -77,9 +81,8 @@
   const BADGE_HEIGHT = 8;
   const BADGE_SPACING = 4;
 
-  // Get color for interface type
   function getInterfaceColor(type: InterfaceType): string {
-    return INTERFACE_COLORS[type] ?? DEFAULT_COLOR;
+    return INTERFACE_COLORS[type] ?? CATEGORY_COLORS[getPortCategory(type)];
   }
 
   // Filter interfaces for current view
