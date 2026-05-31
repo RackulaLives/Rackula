@@ -17,10 +17,10 @@ export const kwsDevices: DeviceType[] = [
   // Raspberry Pi Mounts
   // ============================================
   {
-    slug: "kws-snapin-8bay-pi-cluster-2u",
+    slug: "kws-snap-in-system-2u",
     u_height: 2,
     manufacturer: "KWS",
-    model: "SnapIn 8-Bay Raspberry Pi Cluster 2U",
+    model: "KWS Snap-in System",
     is_full_depth: false,
     airflow: "passive",
     slot_width: 1,
@@ -39,6 +39,22 @@ export const kwsDevices: DeviceType[] = [
     rack_widths: [10],
     colour: CATEGORY_COLOURS.kvm,
     category: "kvm",
+  },
+
+  // ============================================
+  // Storage
+  // ============================================
+  {
+    slug: "kws-synology-4bay-nas-module-4u",
+    u_height: 4,
+    manufacturer: "KWS",
+    model: "Synology 4-Bay NAS Module",
+    is_full_depth: false,
+    airflow: "front-to-rear",
+    slot_width: 1,
+    rack_widths: [10],
+    colour: CATEGORY_COLOURS.storage,
+    category: "storage",
   },
 
   // ============================================
