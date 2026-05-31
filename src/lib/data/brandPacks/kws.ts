@@ -71,19 +71,4 @@ export const kwsDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.shelf,
     category: "shelf",
   },
-
-  // ============================================
-  // Cable Management
-  // ============================================
-  {
-    slug: "kws-cable-management-mount-1u",
-    u_height: 1,
-    manufacturer: "KWS",
-    model: "Cable Management Mount 1U",
-    is_full_depth: false,
-    slot_width: 1,
-    rack_widths: [10],
-    colour: CATEGORY_COLOURS["cable-management"],
-    category: "cable-management",
-  },
 ];
