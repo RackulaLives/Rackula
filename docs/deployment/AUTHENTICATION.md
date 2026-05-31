@@ -555,6 +555,38 @@ Rackula includes structured authentication event logging via `auth-logger.ts`:
 - **Privacy:** User identifiers are pseudonymized via HMAC (configurable with `RACKULA_AUTH_LOG_HASH_KEY`)
 - **Security:** Sensitive headers (e.g., `Authorization`, `Cookie`) are automatically redacted
 
+## Origin Policy for Mutating Requests
+
+When authentication and CSRF protection are both enabled, Rackula enforces an origin policy on state-changing requests (POST, PUT, PATCH, DELETE). This ensures that even if a session cookie is not present (e.g., API-only access), mutating requests must originate from a trusted domain.
+
+### How It Works
+
+1. For every state-changing request, the middleware checks the `Origin` header (or falls back to the `Referer` header's origin)
+2. If the origin is not in the trusted origins list (derived from `CORS_ORIGIN`), the request is rejected with `403 Forbidden`
+3. If neither `Origin` nor `Referer` is present and the request has no `Authorization: Bearer` header, it is rejected with `403 Forbidden`
+
+### Non-Browser Client Access
+
+API clients (curl, scripting tools, monitoring systems) that send a valid `Authorization: Bearer` header bypass origin checks entirely. This allows automated tools to make mutating requests without needing to set an `Origin` header:
+
+```bash
+# Allowed: Bearer token bypasses origin check
+curl -X PUT https://racku.la/api/layouts/my-layout \
+  -H "Authorization: Bearer $RACKULA_API_WRITE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my layout"}'
+
+# Blocked: no origin and no auth token
+curl -X PUT https://racku.la/api/layouts/my-layout \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my layout"}'
+# Returns 403: Origin policy: mutating requests require an Origin or Referer header, or a Bearer authorization token.
+```
+
+### When Origin Policy Is Active
+
+Origin policy is active when both `RACKULA_AUTH_MODE` is not `none` and `RACKULA_AUTH_CSRF_PROTECTION` is true (the default when auth is enabled). When auth is disabled (`RACKULA_AUTH_MODE=none`), origin policy is also disabled since there are no trusted origins to validate against.
+
 ## Reverse Proxy Defense-in-Depth
 
 Rackula's production deployment uses nginx as a reverse proxy with `auth_request` to enforce authentication at the edge — before requests reach the API. This section documents the architecture for operators who need to understand or customise the proxy layer.
