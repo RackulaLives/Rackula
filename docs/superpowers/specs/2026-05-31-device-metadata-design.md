@@ -110,10 +110,10 @@ read the instance value first and fall back to the template value:
 - `serial`: `placedDevice.serial_number ?? deviceType.serial_number`
 - `asset_tag`: `placedDevice.asset_tag ?? deviceType.asset_tag`
 
-Add `"mac_address"` to `AnnotationField`, resolving from the device's ports (first port with
-a MAC, or a documented selection rule). Typed custom-field defs become selectable annotation
-fields, keyed by def `name`. The annotation column already drives SVG display and exports, so
-no separate export wiring is required.
+Add `"mac_address"` to `AnnotationField`, resolving to the MAC of the device's first port
+(lowest port index) that has a `mac_address` set, or blank if none. Typed custom-field defs
+become selectable annotation fields, keyed by def `name`. The annotation column already drives
+SVG display and exports, so no separate export wiring is required.
 
 ## Store actions - `stores/layout.svelte.ts`
 
