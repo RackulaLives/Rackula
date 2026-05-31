@@ -33,11 +33,12 @@ export interface LayoutMetadata {
 export type DeviceFace = "front" | "rear" | "both";
 
 /**
- * Device category types - 13 predefined categories
+ * Device category types - 14 predefined categories
  */
 export type DeviceCategory =
   | "server"
   | "network"
+  | "firewall"
   | "patch-panel"
   | "power"
   | "storage"

@@ -262,8 +262,8 @@ export const ciscoDevices: DeviceType[] = [
     manufacturer: "Cisco",
     model: "ASA5516-X",
     is_full_depth: false,
-    colour: CATEGORY_COLOURS.network,
-    category: "network",
+    colour: CATEGORY_COLOURS.firewall,
+    category: "firewall",
   },
   {
     slug: "cisco-asa5525-x",
@@ -271,8 +271,8 @@ export const ciscoDevices: DeviceType[] = [
     manufacturer: "Cisco",
     model: "ASA5525-X",
     is_full_depth: false,
-    colour: CATEGORY_COLOURS.network,
-    category: "network",
+    colour: CATEGORY_COLOURS.firewall,
+    category: "firewall",
   },
   {
     slug: "cisco-asa5545-x",
@@ -280,8 +280,8 @@ export const ciscoDevices: DeviceType[] = [
     manufacturer: "Cisco",
     model: "ASA5545-X",
     is_full_depth: true,
-    colour: CATEGORY_COLOURS.network,
-    category: "network",
+    colour: CATEGORY_COLOURS.firewall,
+    category: "firewall",
   },
   {
     slug: "cisco-asa5555-x",
@@ -289,8 +289,8 @@ export const ciscoDevices: DeviceType[] = [
     manufacturer: "Cisco",
     model: "ASA5555-X",
     is_full_depth: true,
-    colour: CATEGORY_COLOURS.network,
-    category: "network",
+    colour: CATEGORY_COLOURS.firewall,
+    category: "firewall",
   },
 
   // ============================================
@@ -302,8 +302,8 @@ export const ciscoDevices: DeviceType[] = [
     manufacturer: "Cisco",
     model: "Firepower 1010",
     is_full_depth: false,
-    colour: CATEGORY_COLOURS.network,
-    category: "network",
+    colour: CATEGORY_COLOURS.firewall,
+    category: "firewall",
   },
   {
     slug: "cisco-firepower-2110",
@@ -311,8 +311,8 @@ export const ciscoDevices: DeviceType[] = [
     manufacturer: "Cisco",
     model: "Firepower 2110",
     is_full_depth: false,
-    colour: CATEGORY_COLOURS.network,
-    category: "network",
+    colour: CATEGORY_COLOURS.firewall,
+    category: "firewall",
   },
 
   // ============================================

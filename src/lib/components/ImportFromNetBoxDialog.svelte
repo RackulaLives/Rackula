@@ -87,6 +87,7 @@
     const labels: Record<DeviceCategory, string> = {
       server: "Server",
       network: "Network",
+      firewall: "Firewall",
       "patch-panel": "Patch Panel",
       power: "Power",
       storage: "Storage",

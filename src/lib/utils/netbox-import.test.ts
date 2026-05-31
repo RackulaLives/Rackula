@@ -159,13 +159,24 @@ model: Some Device
       expect(inferCategory(device)).toBe("network");
     });
 
-    it("infers network category for firewalls", () => {
+    it("infers firewall category for firewalls", () => {
       const device: NetBoxDeviceType = {
         manufacturer: "Fortinet",
         model: "FortiGate 60F",
         slug: "fortinet-fortigate-60f",
       };
-      expect(inferCategory(device)).toBe("network");
+      expect(inferCategory(device)).toBe("firewall");
+    });
+
+    it("prefers firewall over network for Netgate security gateways", () => {
+      // "Security Gateway" also contains the network hint "gateway";
+      // the firewall branch must run first so it resolves to firewall.
+      const device: NetBoxDeviceType = {
+        manufacturer: "Netgate",
+        model: "6100 Security Gateway",
+        slug: "netgate-6100",
+      };
+      expect(inferCategory(device)).toBe("firewall");
     });
 
     it("infers network category for devices with interfaces", () => {

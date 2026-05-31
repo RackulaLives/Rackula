@@ -16,6 +16,7 @@ export const CATEGORY_COLOURS: Record<DeviceCategory, string> = {
   // Active categories - Muted Dracula (WCAG AA compliant)
   server: "#4A7A8A", // muted cyan (4.8:1)
   network: "#7B6BA8", // muted purple (4.6:1)
+  firewall: "#C0392B", // alert red (5.4:1) - distinct from muted power red
   storage: "#3D7A4A", // muted green (5.2:1)
   power: "#A84A4A", // muted red (5.1:1)
   kvm: "#A87A4A", // muted orange (4.5:1)
@@ -37,6 +38,7 @@ export const CATEGORY_COLOURS: Record<DeviceCategory, string> = {
 export const ALL_CATEGORIES: readonly DeviceCategory[] = [
   "server",
   "network",
+  "firewall",
   "patch-panel",
   "power",
   "storage",

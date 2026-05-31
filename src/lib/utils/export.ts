@@ -149,6 +149,40 @@ function createCategoryIconElements(
       }
       break;
     }
+    case "firewall": {
+      // Firewall: Brick wall (running bond)
+      const wall = document.createElementNS(ns, "rect");
+      wall.setAttribute("x", "2");
+      wall.setAttribute("y", "4");
+      wall.setAttribute("width", "12");
+      wall.setAttribute("height", "9");
+      wall.setAttribute("rx", "0.5");
+      wall.setAttribute("fill", "none");
+      wall.setAttribute("stroke", color);
+      wall.setAttribute("stroke-width", "1.5");
+      elements.push(wall);
+
+      for (const [x1, y1, x2, y2] of [
+        // Mortar courses
+        [2, 7, 14, 7],
+        [2, 10, 14, 10],
+        // Offset head joints per course
+        [8, 4, 8, 7],
+        [5, 7, 5, 10],
+        [11, 7, 11, 10],
+        [8, 10, 8, 13],
+      ] as const) {
+        const line = document.createElementNS(ns, "line");
+        line.setAttribute("x1", String(x1));
+        line.setAttribute("y1", String(y1));
+        line.setAttribute("x2", String(x2));
+        line.setAttribute("y2", String(y2));
+        line.setAttribute("stroke", color);
+        line.setAttribute("stroke-width", "1.5");
+        elements.push(line);
+      }
+      break;
+    }
     case "patch-panel": {
       // Patch Panel: Grid of dots
       for (const [cx, cy] of [

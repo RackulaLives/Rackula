@@ -39,19 +39,21 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
   { slug: "3u-server", model: "Server", u_height: 3, category: "server" },
   { slug: "4u-server", model: "Server", u_height: 4, category: "server" },
 
-  // Network (4)
+  // Firewall (2)
   {
     slug: "1u-router-firewall",
     model: "Router/Firewall",
     u_height: 1,
-    category: "network",
+    category: "firewall",
   },
   {
     slug: "2u-router-firewall",
     model: "Router/Firewall",
     u_height: 2,
-    category: "network",
+    category: "firewall",
   },
+
+  // Network (2)
   {
     slug: "24-port-switch",
     model: "Switch (24-Port)",

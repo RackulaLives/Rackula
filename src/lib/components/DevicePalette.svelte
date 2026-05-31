@@ -316,6 +316,7 @@
   const categoryOrder: import("$lib/types").DeviceCategory[] = [
     "server",
     "network",
+    "firewall",
     "patch-panel",
     "power",
     "storage",

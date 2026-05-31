@@ -155,12 +155,26 @@ export function inferCategory(netbox: NetBoxDeviceType): DeviceCategory {
   const slug = netbox.slug.toLowerCase();
   const combined = `${manufacturer} ${model} ${slug}`;
 
+  // Firewalls (check before network: firewalls also match network hints
+  // like "gateway", and should resolve to the more specific category)
+  if (
+    combined.includes("firewall") ||
+    combined.includes("fortigate") ||
+    combined.includes("pfsense") ||
+    combined.includes("opnsense") ||
+    combined.includes("palo alto") ||
+    combined.includes("firepower") ||
+    combined.includes("netgate") ||
+    /\basa\d/.test(combined)
+  ) {
+    return "firewall";
+  }
+
   // Network devices
   if (
     combined.includes("switch") ||
     combined.includes("router") ||
     combined.includes("gateway") ||
-    combined.includes("firewall") ||
     combined.includes("access point") ||
     combined.includes("wap") ||
     // Access point patterns - use word boundaries to avoid matching qnap, snap, etc.
@@ -169,12 +183,9 @@ export function inferCategory(netbox: NetBoxDeviceType): DeviceCategory {
     combined.includes("usw") ||
     combined.includes("usg") ||
     combined.includes("udm") ||
-    combined.includes("fortigate") ||
     combined.includes("catalyst") ||
     combined.includes("nexus") ||
     combined.includes("aruba") ||
-    combined.includes("pfsense") ||
-    combined.includes("opnsense") ||
     netbox.interfaces?.some((i) => i.type.includes("base"))
   ) {
     return "network";

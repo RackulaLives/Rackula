@@ -41,6 +41,7 @@ export const SlugSchema = z
 export const DeviceCategorySchema = z.enum([
   "server",
   "network",
+  "firewall",
   "patch-panel",
   "power",
   "storage",

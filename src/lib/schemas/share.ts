@@ -35,6 +35,7 @@ import type { DeviceCategory } from "$lib/types";
 export const CATEGORY_TO_ABBREV: Record<DeviceCategory, string> = {
   server: "s",
   network: "n",
+  firewall: "r",
   "patch-panel": "p",
   power: "w",
   storage: "t",

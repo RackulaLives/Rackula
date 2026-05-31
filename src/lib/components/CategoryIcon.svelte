@@ -7,6 +7,7 @@
 	import {
 		Server,
 		Network,
+		BrickWallFire,
 		EthernetPort,
 		Zap,
 		HardDrive,
@@ -32,6 +33,7 @@
 	const iconMap: Record<DeviceCategory, Component<IconProps>> = {
 		server: Server,
 		network: Network,
+		firewall: BrickWallFire,
 		'patch-panel': EthernetPort,
 		power: Zap,
 		storage: HardDrive,

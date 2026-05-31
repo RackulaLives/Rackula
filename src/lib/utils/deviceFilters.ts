@@ -140,6 +140,7 @@ export function getCategoryDisplayName(category: DeviceCategory): string {
   const names: Record<DeviceCategory, string> = {
     server: "Servers",
     network: "Network",
+    firewall: "Firewalls",
     "patch-panel": "Patch Panels",
     power: "Power",
     storage: "Storage",
