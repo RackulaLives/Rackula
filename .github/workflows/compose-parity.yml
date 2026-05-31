@@ -11,7 +11,7 @@ on:
       - ".github/workflows/test.yml"
       - "README.md"
       - ".env.example"
-      - "docs/guides/SELF-HOSTING.md"
+      - "docs/deployment/SELF-HOSTING.md"
       - "docs/plans/*.md"
   workflow_dispatch:
 
