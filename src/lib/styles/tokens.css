@@ -573,6 +573,9 @@
   --colour-dnd-invalid-bg: rgba(203, 58, 42, 0.1);
   --colour-dnd-dragging: var(--alucard-cyan);
 
+  /* Port/Interface Indicators - light theme overrides */
+  --colour-port-power: var(--alucard-orange);
+
   /* Airflow Visualization */
   --colour-airflow-intake: var(--alucard-cyan);
   --colour-airflow-exhaust: var(--alucard-red);
