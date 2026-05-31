@@ -10,6 +10,7 @@ import {
   createAuthGateMiddleware,
   createCsrfProtectionMiddleware,
   createExpiredAuthSessionCookieHeader,
+  createOriginPolicyMiddleware,
   createRefreshedAuthSessionCookieHeader,
   createWriteAuthMiddleware,
   invalidateAuthSession,
@@ -392,6 +393,17 @@ export async function createApp(
       csrfProtectionEnabled: securityConfig.csrfProtectionEnabled,
       csrfTrustedOrigins: securityConfig.csrfTrustedOrigins,
       authSessionCookieName: securityConfig.authSessionCookieName,
+    }),
+  );
+
+  // Origin policy: enforce trusted origins on mutating requests (POST, PUT, PATCH, DELETE).
+  // Fills the gap between CSRF (session-auth only) and write-token auth (no origin check).
+  // Non-browser clients with Bearer auth bypass origin checks.
+  app.use(
+    "*",
+    createOriginPolicyMiddleware({
+      originPolicyEnabled: securityConfig.originPolicyEnabled,
+      csrfTrustedOrigins: securityConfig.csrfTrustedOrigins,
     }),
   );
 

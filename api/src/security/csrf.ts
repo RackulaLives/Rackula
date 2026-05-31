@@ -1,5 +1,9 @@
 import type { MiddlewareHandler } from "hono";
 import { extractCookieValue } from "./cookies";
+import {
+  resolveRequestOrigin,
+  isTrustedOrigin,
+} from "./request-utils";
 import { STATE_CHANGING_METHODS, type ApiSecurityConfig } from "./types";
 
 // Paths that bypass CSRF validation — only safe GET-like auth bootstrap endpoints.
@@ -15,54 +19,8 @@ const CSRF_EXEMPT_AUTH_PATHS = new Set([
   "/api/auth/check",
 ]);
 
-/**
- * Normalizes a URL string to its `origin` form (`scheme://host[:port]`).
- *
- * @throws Error when the input is not a parseable URL.
- */
-export function normalizeOrigin(input: string): string {
-  try {
-    const url = new URL(input);
-    return url.origin;
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(`Invalid CORS origin "${input}": ${reason}`, {
-      cause: error,
-    });
-  }
-}
-
 function isStateChangingMethod(method: string): boolean {
   return STATE_CHANGING_METHODS.has(method.toUpperCase());
-}
-
-function resolveRequestOrigin(request: Request): string | null {
-  const originHeader = request.headers.get("origin");
-  if (originHeader && originHeader !== "null") {
-    try {
-      return normalizeOrigin(originHeader);
-    } catch {
-      return null;
-    }
-  }
-
-  const refererHeader = request.headers.get("referer");
-  if (!refererHeader) {
-    return null;
-  }
-
-  try {
-    return new URL(refererHeader).origin;
-  } catch {
-    return null;
-  }
-}
-
-function isTrustedOrigin(
-  requestOrigin: string,
-  trustedOrigins: string[],
-): boolean {
-  return trustedOrigins.includes(requestOrigin);
 }
 
 /**

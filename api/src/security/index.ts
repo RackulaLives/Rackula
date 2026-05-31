@@ -29,9 +29,13 @@ export {
 
 export { createCsrfProtectionMiddleware } from "./csrf";
 
+export { normalizeOrigin } from "./request-utils";
+
 export {
   createAuthGateMiddleware,
   createWriteAuthMiddleware,
 } from "./middleware";
+
+export { createOriginPolicyMiddleware } from "./origin-policy";
 
 export { resolveApiSecurityConfig } from "./config";

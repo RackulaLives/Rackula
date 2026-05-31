@@ -1,6 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { MIN_AUTH_LOG_HASH_KEY_LENGTH } from "../auth-logger";
-import { normalizeOrigin } from "./csrf";
+import { normalizeOrigin } from "./request-utils";
 import type {
   ApiSecurityConfig,
   AuthMode,
@@ -365,6 +365,11 @@ export function resolveApiSecurityConfig(
     );
   }
 
+  // Origin policy is enabled when auth is enabled and CSRF protection is active
+  // (both require explicit trusted origins). When disabled (no auth or wildcard
+  // CORS), origin checks are redundant — write-token auth alone protects write routes.
+  const originPolicyEnabled = authEnabled && csrfProtectionEnabled;
+
   return {
     corsOrigin,
     allowInsecureCors,
@@ -383,5 +388,6 @@ export function resolveApiSecurityConfig(
     authLoginPath,
     csrfProtectionEnabled,
     csrfTrustedOrigins,
+    originPolicyEnabled,
   };
 }

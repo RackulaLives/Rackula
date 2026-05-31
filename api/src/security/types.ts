@@ -54,6 +54,7 @@ export interface ApiSecurityConfig {
   authLoginPath: string;
   csrfProtectionEnabled: boolean;
   csrfTrustedOrigins: string[];
+  originPolicyEnabled: boolean;
   localCredentials?: LocalCredentials;
 }
 
