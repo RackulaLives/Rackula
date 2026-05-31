@@ -48,7 +48,7 @@ export const kwsDevices: DeviceType[] = [
     slug: "kws-synology-4bay-nas-module-4u",
     u_height: 4,
     manufacturer: "KWS",
-    model: "Synology 4-Bay NAS Module",
+    model: "4-Bay NAS Module (Synology)",
     is_full_depth: false,
     airflow: "front-to-rear",
     slot_width: 1,
