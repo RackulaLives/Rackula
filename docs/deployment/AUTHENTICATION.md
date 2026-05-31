@@ -619,7 +619,7 @@ Rackula includes IP-based rate-limiting on API routes, with separate limits for 
 
 The defaults (30 writes/min, 120 reads/min) are appropriate for self-hosted single-user homelab deployments. For deployments exposed to the internet, consider reducing the limits. For bulk operations (e.g., scripted layout updates), temporarily increase `RACKULA_RATE_LIMIT_WRITE_MAX`.
 
-Single-process note: Rate limit state is stored in memory. If you run multiple API replicas behind a load balancer, each replica tracks its own limits independently. For multi-replica deployments, consider an external rate limiting solution at the reverse proxy layer.
+Single-process note: Rate limit state is stored in memory. If you run multiple API replicas behind a load balancer, each replica tracks its own limits independently. For multi-replica deployments, consider an external rate-limiting solution at the reverse proxy layer.
 
 ## Reverse Proxy Defense-in-Depth
 
