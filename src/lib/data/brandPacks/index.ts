@@ -24,6 +24,7 @@ import { cyberpowerDevices } from "./cyberpower";
 import { netgateDevices } from "./netgate";
 import { blackmagicdesignDevices } from "./blackmagicdesign";
 import { deskpiDevices } from "./deskpi";
+import { kwsDevices } from "./kws";
 import { acInfinityDevices } from "./ac-infinity";
 import { appleDevices } from "./apple";
 import { ciscoDevices } from "./cisco";
@@ -52,6 +53,7 @@ export {
   netgateDevices,
   blackmagicdesignDevices,
   deskpiDevices,
+  kwsDevices,
   acInfinityDevices,
   appleDevices,
   ciscoDevices,
@@ -246,6 +248,13 @@ export function getBrandPacks(): BrandSection[] {
       defaultExpanded: false,
       icon: "deskpi",
     },
+    {
+      id: "kws",
+      title: "KWS",
+      devices: kwsDevices,
+      defaultExpanded: false,
+      icon: "kws",
+    },
     // Cooling
     {
       id: "ac-infinity",
@@ -306,6 +315,8 @@ export function getBrandDevices(brandId: string): DeviceType[] {
       return blackmagicdesignDevices;
     case "deskpi":
       return deskpiDevices;
+    case "kws":
+      return kwsDevices;
     case "ac-infinity":
       return acInfinityDevices;
     case "apple":
@@ -349,6 +360,7 @@ export function getAllBrandDevices(): DeviceType[] {
     ...netgateDevices,
     ...blackmagicdesignDevices,
     ...deskpiDevices,
+    ...kwsDevices,
     ...acInfinityDevices,
     ...appleDevices,
     ...ciscoDevices,
