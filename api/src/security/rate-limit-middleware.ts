@@ -33,22 +33,25 @@ export interface RateLimitMiddlewareConfig {
 }
 
 /**
- * Resolve the client IP from request headers.
+ * Resolve the client IP from a request's headers.
  *
  * Prefers X-Real-IP (set by nginx to $remote_addr, not client-spoofable).
  * Falls back to the last entry in X-Forwarded-For (closest proxy, harder to spoof).
- * Returns null if neither header is present, in which case rate limiting is skipped
- * to avoid collapsing all unidentifiable clients into a single shared bucket.
+ * Trims values and truncates to 64 chars. Returns null when neither header
+ * yields a usable value.
+ *
+ * Shared by the API rate limiter and the local-login rate limiter so both
+ * derive the client identity identically.
  */
-function resolveClientIp(c: {
-  req: { header: (name: string) => string | undefined };
+export function resolveClientIpFromHeaders(req: {
+  header: (name: string) => string | undefined;
 }): string | null {
-  const realIp = c.req.header("x-real-ip")?.trim();
+  const realIp = req.header("x-real-ip")?.trim();
   if (realIp) {
     return realIp.slice(0, 64);
   }
 
-  const forwardedFor = c.req.header("x-forwarded-for");
+  const forwardedFor = req.header("x-forwarded-for");
   if (forwardedFor) {
     const lastProxy = forwardedFor.split(",").pop()?.trim();
     if (lastProxy) {
@@ -57,6 +60,19 @@ function resolveClientIp(c: {
   }
 
   return null;
+}
+
+/**
+ * Resolve the client IP from a Hono context.
+ *
+ * Thin wrapper over {@link resolveClientIpFromHeaders}. Returns null when the
+ * IP cannot be determined, in which case rate limiting is skipped to avoid
+ * collapsing all unidentifiable clients into a single shared bucket.
+ */
+function resolveClientIp(c: {
+  req: { header: (name: string) => string | undefined };
+}): string | null {
+  return resolveClientIpFromHeaders(c.req);
 }
 
 /**

@@ -14,6 +14,7 @@ import {
   createRefreshedAuthSessionCookieHeader,
   createWriteAuthMiddleware,
   createRateLimitMiddleware,
+  resolveClientIpFromHeaders,
   invalidateAuthSession,
   resolveAuthenticatedSessionClaims,
   resolveApiSecurityConfig,
@@ -702,12 +703,7 @@ export async function createApp(
           );
         }
 
-        // Prefer X-Real-IP (set by nginx to $remote_addr, not client-spoofable).
-        // Fall back to the LAST X-Forwarded-For entry (closest proxy, harder to spoof).
-        const realIp = c.req.header("x-real-ip")?.trim();
-        const forwardedFor = c.req.header("x-forwarded-for");
-        const lastProxy = forwardedFor?.split(",").pop()?.trim();
-        const ip = (realIp || lastProxy)?.slice(0, 64);
+        const ip = resolveClientIpFromHeaders(c.req);
         if (!ip) {
           // Skip rate limiting when client IP cannot be determined.
           // Using a shared bucket would let one noisy client throttle all

@@ -44,7 +44,10 @@ export type {
   RateLimiter,
 } from "./rate-limit";
 
-export { createRateLimitMiddleware } from "./rate-limit-middleware";
+export {
+  createRateLimitMiddleware,
+  resolveClientIpFromHeaders,
+} from "./rate-limit-middleware";
 export type { RateLimitMiddlewareConfig } from "./rate-limit-middleware";
 
 export { createOriginPolicyMiddleware } from "./origin-policy";

@@ -317,9 +317,13 @@ describe("createRateLimitMiddleware", () => {
     });
     cleanups.push(stopCleanup);
 
-    // No IP headers at all: request should pass through without rate limiting.
-    // This avoids collapsing all headerless clients into one shared bucket.
+    // No IP headers at all: requests should pass through without rate limiting.
+    // A second headerless request must also pass: if headerless clients were
+    // collapsed into one shared "unknown" bucket, this would 429 (readMax = 1).
     const res = await app.request("/layouts");
     expect(res.status).toBe(200);
+
+    const res2 = await app.request("/layouts");
+    expect(res2.status).toBe(200);
   });
 });
