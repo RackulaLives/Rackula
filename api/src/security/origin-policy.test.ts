@@ -249,4 +249,17 @@ describe("createOriginPolicyMiddleware", () => {
     // Malformed Origin fails parsing, falls through to Referer (absent) -> block
     expect(res.status).toBe(403);
   });
+
+  it("falls through to Referer when Origin is malformed", async () => {
+    const app = createTestApp(makeConfig());
+    const res = await app.request("/layouts/1", {
+      method: "PUT",
+      headers: {
+        Origin: "not a url",
+        Referer: "https://racku.la/layouts",
+      },
+    });
+    // Malformed Origin is ignored, Referer origin is trusted -> allowed
+    expect(res.status).toBe(200);
+  });
 });

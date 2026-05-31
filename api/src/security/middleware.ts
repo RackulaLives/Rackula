@@ -8,7 +8,7 @@ import {
 import type { ApiSecurityConfig, AuthSessionClaims } from "./types";
 
 const WRITE_METHODS = new Set(["PUT", "DELETE"]);
-const AUTH_PUBLIC_PATHS = new Set([
+const _AUTH_PUBLIC_PATHS = new Set([
   "/health",
   "/api/health",
   "/version",
@@ -22,6 +22,8 @@ const AUTH_PUBLIC_PATHS = new Set([
   "/api/auth/check",
   "/api/auth/logout",
 ]);
+/** Immutable set of paths exempt from auth and rate limiting. */
+export const AUTH_PUBLIC_PATHS: ReadonlySet<string> = _AUTH_PUBLIC_PATHS;
 const API_ROUTE_PREFIXES = ["/api", "/layouts", "/assets"];
 
 function timingSafeTokenCompare(
@@ -40,7 +42,7 @@ function isApiRequestPath(pathname: string): boolean {
 }
 
 function isAuthPublicPath(pathname: string): boolean {
-  return AUTH_PUBLIC_PATHS.has(pathname);
+  return _AUTH_PUBLIC_PATHS.has(pathname);
 }
 
 function buildLoginRedirectUrl(requestUrl: string, loginPath: string): string {

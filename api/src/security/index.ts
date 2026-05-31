@@ -34,6 +34,7 @@ export { normalizeOrigin } from "./request-utils";
 export {
   createAuthGateMiddleware,
   createWriteAuthMiddleware,
+  AUTH_PUBLIC_PATHS,
 } from "./middleware";
 
 export { createOriginPolicyMiddleware } from "./origin-policy";

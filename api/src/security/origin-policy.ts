@@ -17,6 +17,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { MiddlewareHandler } from "hono";
 import { resolveRequestOrigin, isTrustedOrigin } from "./request-utils";
+import { AUTH_PUBLIC_PATHS } from "./middleware";
 import { STATE_CHANGING_METHODS, type ApiSecurityConfig } from "./types";
 
 /**
@@ -54,6 +55,14 @@ export function createOriginPolicyMiddleware(
     }
 
     if (!STATE_CHANGING_METHODS.has(c.req.method.toUpperCase())) {
+      await next();
+      return;
+    }
+
+    // Auth and health endpoints are exempt from origin checks.
+    // Login forms must be accessible without an Origin header.
+    const { pathname } = new URL(c.req.url);
+    if (AUTH_PUBLIC_PATHS.has(pathname)) {
       await next();
       return;
     }

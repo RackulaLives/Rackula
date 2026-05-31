@@ -28,6 +28,11 @@ export function normalizeOrigin(input: string): string {
  * to the `Referer` header's origin. Returns `null` when neither header is
  * present or parseable. Treats the literal string `"null"` as absent
  * (a known CSRF attack vector).
+ *
+ * When `Origin` is present but malformed, falls through to `Referer` rather
+ * than rejecting immediately. This avoids false 403s for requests that
+ * include a valid Referer but a garbled Origin (e.g., from misconfigured
+ * proxies).
  */
 export function resolveRequestOrigin(request: Request): string | null {
   const originHeader = request.headers.get("origin");
@@ -35,7 +40,7 @@ export function resolveRequestOrigin(request: Request): string | null {
     try {
       return normalizeOrigin(originHeader);
     } catch {
-      return null;
+      // Malformed Origin: fall through to Referer rather than rejecting.
     }
   }
 
