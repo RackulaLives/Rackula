@@ -77,11 +77,22 @@ case "$CORS_SCHEME" in
     ;;
 esac
 
+# Insecure CORS is disabled by default. Set ALLOW_INSECURE_CORS=true explicitly
+# before running installer only when required by your deployment.
+ALLOW_INSECURE_CORS="${ALLOW_INSECURE_CORS:-false}"
+case "$ALLOW_INSECURE_CORS" in
+  true | false) ;;
+  *)
+    msg_error "Invalid ALLOW_INSECURE_CORS '${ALLOW_INSECURE_CORS}' (expected 'true' or 'false')"
+    exit 1
+    ;;
+esac
+
 # Write API environment file
 cat <<EOF >/opt/rackula/data/.env
 RACKULA_API_WRITE_TOKEN=${API_WRITE_TOKEN}
 CORS_ORIGIN=${CORS_SCHEME}://localhost
-ALLOW_INSECURE_CORS=true
+ALLOW_INSECURE_CORS=${ALLOW_INSECURE_CORS}
 EOF
 chown rackula:rackula /opt/rackula/data/.env
 chmod 600 /opt/rackula/data/.env
