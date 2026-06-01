@@ -201,6 +201,16 @@ if ! NEW_VERSION=$(scripts/next-version.sh --dry-run); then
   echo "ERROR: Failed to compute next version. Check scripts/next-version.sh output."
   exit 1
 fi
+# Check for duplicate local tag
+if git tag -l "v$NEW_VERSION" | grep -q .; then
+  echo "ERROR: Local tag v$NEW_VERSION already exists."
+  exit 1
+fi
+# Check for duplicate remote tag (fail early before making any changes)
+if git ls-remote --tags origin "refs/tags/v$NEW_VERSION" | grep -q .; then
+  echo "ERROR: Remote tag v$NEW_VERSION already exists on origin."
+  exit 1
+fi
 ```
 
 **Explicit version:**
