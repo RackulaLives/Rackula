@@ -54,6 +54,15 @@ if (import.meta.env.DEV) {
         "Remove them from categoryOrder in deviceFilters.ts.",
     );
   }
+  const unique = new Set(categoryOrder);
+  if (unique.size !== categoryOrder.length) {
+    const duplicates = categoryOrder.filter(
+      (cat, i) => categoryOrder.indexOf(cat) !== i,
+    );
+    throw new Error(
+      `categoryOrder has duplicate entries: ${duplicates.join(", ")}.`,
+    );
+  }
 }
 
 /**

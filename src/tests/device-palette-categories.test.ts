@@ -10,5 +10,6 @@ describe("DevicePalette category grouping", () => {
     for (const cat of categoryOrder) {
       expect(DeviceCategorySchema.options).toContain(cat);
     }
+    expect(categoryOrder.length).toBe(new Set(categoryOrder).size);
   });
 });
