@@ -662,6 +662,158 @@ All responses include security headers from a single shared configuration (`depl
 
 These headers are included at the server level and re-included in any location block that defines its own `add_header` (nginx drops inherited headers in that case).
 
+## Reverse Proxy Configuration (Caddy / Traefik)
+
+When Rackula runs behind a TLS-terminating reverse proxy (Caddy, Traefik, cloud load balancer), the internal nginx container sees plain HTTP traffic. Without additional configuration, auth redirects will use `http://` instead of `https://`, causing cookie failures (Secure flag) and broken OIDC callback URLs.
+
+This section covers deploying Rackula with OIDC authentication behind a front proxy. For the internal nginx auth architecture, see [Reverse Proxy Defense-in-Depth](#reverse-proxy-defense-in-depth) above.
+
+### Two Independent Scheme Mechanisms
+
+Rackula uses two separate mechanisms for constructing correct URLs behind a proxy:
+
+1. **Nginx auth redirects** (unauthenticated browser -> login page): Controlled by `RACKULA_TRUST_PROXY=1` and `X-Forwarded-Proto`. When enabled, nginx reads the front proxy's `X-Forwarded-Proto` header to construct `https://` redirect URLs.
+
+2. **API OIDC URLs** (IdP authorization and callback): Controlled by `RACKULA_BASE_URL` and optionally `RACKULA_OIDC_REDIRECT_URI`. These are explicit configuration values, not derived from headers.
+
+Both must be configured correctly for OIDC to work behind a reverse proxy.
+
+### Required: RACKULA_TRUST_PROXY=1
+
+When a TLS-terminating proxy sits in front of Rackula, set:
+
+```yaml
+RACKULA_TRUST_PROXY=1
+```
+
+This enables nginx to honour the `X-Forwarded-Proto` header. Without it, nginx's `$real_scheme` variable always resolves to `http` (the internal scheme), and auth redirects will use `http://` URLs.
+
+**Security warning:** Only enable `RACKULA_TRUST_PROXY` when Rackula is behind a trusted proxy. If Rackula is directly accessible from untrusted clients, any client can set `X-Forwarded-Proto: https` to bypass scheme enforcement.
+
+### Required: Headers Your Proxy Must Forward
+
+Your front proxy must forward these headers to the Rackula container:
+
+| Header              | Purpose                                          |
+| ------------------- | ------------------------------------------------ |
+| `Host`              | Original hostname (used in redirect URLs)        |
+| `X-Forwarded-Proto` | Original protocol (`https` or `http`)            |
+| `X-Forwarded-For`   | Original client IP (for logging and rate limits) |
+| `X-Real-IP`         | Client IP (alternative to X-Forwarded-For)       |
+| `Cookie`            | Session cookies for auth checks                  |
+
+**Host header is critical:** Rackula's auth redirects use the `Host` header to construct the redirect URL (e.g., `https://rack.example.com/auth/login`). If your proxy rewrites `Host`, the redirect will use the wrong hostname.
+
+### Required: RACKULA_BASE_URL
+
+Set `RACKULA_BASE_URL` to the external URL that browsers use to reach Rackula. The OIDC library uses this to construct callback URLs:
+
+```yaml
+RACKULA_BASE_URL=https://rack.example.com
+```
+
+If you need the OIDC callback URL to differ from `RACKULA_BASE_URL + /auth/callback`, set `RACKULA_OIDC_REDIRECT_URI` explicitly:
+
+```yaml
+RACKULA_OIDC_REDIRECT_URI=https://rack.example.com/auth/callback
+```
+
+The redirect URI must exactly match the URI registered in your IdP (no trailing slash, same protocol, same host).
+
+### Caddy Configuration
+
+```Caddyfile
+rack.example.com {
+    reverse_proxy rackula:8080 {
+        header_up Host {host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Real-IP {remote_host}
+    }
+}
+```
+
+Notes:
+
+- Caddy automatically manages TLS certificates via Let's Encrypt or ZeroSSL
+- Caddy automatically sets `X-Forwarded-Proto` to `https` when TLS is active
+- Replace `rackula` with your container service name if different
+- `X-Real-IP` and `X-Forwarded-For` use `{remote_host}` which resolves to the connecting client IP
+
+### Traefik Configuration
+
+**Docker Compose labels:**
+
+```yaml
+services:
+  rackula:
+    image: ghcr.io/rackulalives/rackula:persist
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rackula.rule=Host(`rack.example.com`)"
+      - "traefik.http.routers.rackula.entrypoints=websecure"
+      - "traefik.http.routers.rackula.tls=true"
+      - "traefik.http.routers.rackula.tls.certresolver=letsencrypt"
+      - "traefik.http.services.rackula.loadbalancer.server.port=8080"
+    environment:
+      - RACKULA_TRUST_PROXY=1
+      - RACKULA_BASE_URL=https://rack.example.com
+      - RACKULA_AUTH_MODE=oidc
+      - RACKULA_AUTH_SESSION_SECRET=<your-secret>
+      - RACKULA_OIDC_ISSUER=https://auth.example.com/application/o/rackula/
+      - RACKULA_OIDC_CLIENT_ID=<your-client-id>
+      - RACKULA_OIDC_CLIENT_SECRET=<your-client-secret>
+    expose:
+      - "8080"
+```
+
+Notes:
+
+- Traefik automatically sets `X-Forwarded-Proto` when TLS is active
+- `X-Forwarded-For` and `Host` are forwarded automatically by Traefik's reverse proxy
+- `X-Real-IP` is not set by Traefik by default; Rackula falls back to `X-Forwarded-For` for IP-based rate limiting
+- Replace `rack.example.com` with your domain and `letsencrypt` with your certificate resolver name
+
+### Verification Checklist
+
+After configuring your reverse proxy, verify the OIDC redirect flow:
+
+1. **Auth redirect uses HTTPS:** Visit a protected route (e.g., `https://rack.example.com/dashboard`). You should be redirected to `https://rack.example.com/auth/login?next=...` (note the `https://` scheme in the browser address bar).
+
+2. **OIDC callback URL is correct:** After IdP login, the browser should be redirected back to `https://rack.example.com/auth/callback` (not `http://`).
+
+3. **Session cookie has Secure flag:** In browser DevTools (Application > Cookies), verify the `rackula_auth_session` cookie has the `Secure` flag set.
+
+4. **Common failure: redirects use `http://`:** Check that:
+   - `RACKULA_TRUST_PROXY=1` is set in the Rackula container environment
+   - Your front proxy sends `X-Forwarded-Proto: https`
+   - `RACKULA_BASE_URL` starts with `https://`
+   - The `NGINX_ENVSUBST_FILTER` includes `RACKULA_TRUST_PROXY` (check with `docker exec rackula env | grep TRUST_PROXY`)
+
+### Troubleshooting
+
+**Auth redirects use `http://` instead of `https://`:**
+
+- Confirm `RACKULA_TRUST_PROXY=1` is set (default is `0`)
+- Check your proxy sends `X-Forwarded-Proto: https`
+- Verify the envsubst filter includes `RACKULA_TRUST_PROXY` (check container config: `docker exec rackula env | grep TRUST_PROXY`)
+- Ensure `RACKULA_BASE_URL` starts with `https://`
+
+**OIDC callback URL mismatch:**
+
+- Ensure `RACKULA_OIDC_REDIRECT_URI` exactly matches the IdP's registered redirect URI (protocol, host, path, no trailing slash)
+- Check `RACKULA_BASE_URL` includes the correct protocol (`https://`)
+
+**Cookie not set after OIDC login:**
+
+- Verify `RACKULA_AUTH_SESSION_COOKIE_SECURE=true` (default) when using HTTPS
+- If accessing over HTTP, set `RACKULA_AUTH_SESSION_COOKIE_SECURE=false`
+
+**"Unauthorized" with no login redirect behind a proxy:**
+
+- Check that your front proxy forwards the `Cookie` header to the Rackula container
+- Verify the proxy does not strip or rewrite `Set-Cookie` headers in responses
+
 ## Deployment Scenarios
 
 Different deployment contexts call for different auth configurations. Use this table to choose the right mode:

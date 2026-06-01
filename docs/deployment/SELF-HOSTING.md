@@ -70,6 +70,8 @@ Ensure the directory is owned by UID 1001: `sudo chown 1001:1001 /path/to/your/d
 
 ### Reverse Proxy (Traefik)
 
+For OIDC authentication behind Traefik, you must also set `RACKULA_TRUST_PROXY=1` and `RACKULA_BASE_URL`. See the [Reverse Proxy Configuration](AUTHENTICATION.md#reverse-proxy-configuration-caddy--traefik) section in the Authentication Guide for complete Caddy and Traefik examples with header forwarding.
+
 ```yaml
 services:
   rackula:
@@ -77,6 +79,9 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.rackula.rule=Host(`rack.example.com`)"
       - "traefik.http.services.rackula.loadbalancer.server.port=8080"
+    environment:
+      - RACKULA_TRUST_PROXY=1
+      - RACKULA_BASE_URL=https://rack.example.com
     expose:
       - "8080" # Don't bind to host port
 ```
@@ -597,26 +602,29 @@ All variables have sensible defaults. Only configure if you need to change somet
 
 ### Runtime Variables
 
-| Variable                             | Default                 | Description                                                                   |
-| ------------------------------------ | ----------------------- | ----------------------------------------------------------------------------- |
-| `RACKULA_PORT`                       | `8080`                  | Host port for the web UI                                                      |
-| `RACKULA_LISTEN_PORT`                | `8080`                  | Port nginx listens on inside the container                                    |
-| `RACKULA_API_PORT`                   | `3001`                  | Port the API listens on                                                       |
-| `API_HOST`                           | `rackula-api`           | Hostname of API container (for nginx proxy)                                   |
-| `API_PORT`                           | `3001`                  | Port of API container (for nginx proxy)                                       |
-| `CORS_ORIGIN`                        | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default)            |
-| `RACKULA_API_WRITE_TOKEN`            | _unset_                 | Optional bearer token required for API `PUT`/`DELETE`                         |
-| `ALLOW_INSECURE_CORS`                | `false`                 | Explicitly allow wildcard CORS in production (not recommended)                |
-| `NGINX_RESOLVER`                     | `127.0.0.11`            | DNS resolver for nginx upstream resolution (override for Kubernetes)          |
-| `DATA_DIR`                           | `/data`                 | Path to data directory inside API container                                   |
-| `RACKULA_AUTH_MODE`                  | `none`                  | Auth gate mode: `none`, `local`, or `oidc`                                    |
-| `RACKULA_AUTH_SESSION_SECRET`        | _unset_                 | Required when auth mode is enabled (min 32 chars, use `openssl rand -hex 32`) |
-| `RACKULA_AUTH_SESSION_COOKIE_SECURE` | `true`                  | Set `false` for local HTTP testing only                                       |
-| `RACKULA_LOCAL_USERNAME`             | _unset_                 | Username for local auth mode (min 3 chars)                                    |
-| `RACKULA_LOCAL_PASSWORD`             | _unset_                 | Password for local auth mode (min 12 chars)                                   |
-| `RACKULA_OIDC_ISSUER`                | _unset_                 | OIDC issuer URL (required for `oidc` mode)                                    |
-| `RACKULA_OIDC_CLIENT_ID`             | _unset_                 | OIDC client ID (required for `oidc` mode)                                     |
-| `RACKULA_OIDC_CLIENT_SECRET`         | _unset_                 | OIDC client secret (required for `oidc` mode)                                 |
+| Variable                             | Default                 | Description                                                                                        |
+| ------------------------------------ | ----------------------- | -------------------------------------------------------------------------------------------------- |
+| `RACKULA_PORT`                       | `8080`                  | Host port for the web UI                                                                           |
+| `RACKULA_LISTEN_PORT`                | `8080`                  | Port nginx listens on inside the container                                                         |
+| `RACKULA_API_PORT`                   | `3001`                  | Port the API listens on                                                                            |
+| `API_HOST`                           | `rackula-api`           | Hostname of API container (for nginx proxy)                                                        |
+| `API_PORT`                           | `3001`                  | Port of API container (for nginx proxy)                                                            |
+| `CORS_ORIGIN`                        | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default)                                 |
+| `RACKULA_API_WRITE_TOKEN`            | _unset_                 | Optional bearer token required for API `PUT`/`DELETE`                                              |
+| `ALLOW_INSECURE_CORS`                | `false`                 | Explicitly allow wildcard CORS in production (not recommended)                                     |
+| `NGINX_RESOLVER`                     | `127.0.0.11`            | DNS resolver for nginx upstream resolution (override for Kubernetes)                               |
+| `DATA_DIR`                           | `/data`                 | Path to data directory inside API container                                                        |
+| `RACKULA_AUTH_MODE`                  | `none`                  | Auth gate mode: `none`, `local`, or `oidc`                                                         |
+| `RACKULA_AUTH_SESSION_SECRET`        | _unset_                 | Required when auth mode is enabled (min 32 chars, use `openssl rand -hex 32`)                      |
+| `RACKULA_AUTH_SESSION_COOKIE_SECURE` | `true`                  | Set `false` for local HTTP testing only                                                            |
+| `RACKULA_LOCAL_USERNAME`             | _unset_                 | Username for local auth mode (min 3 chars)                                                         |
+| `RACKULA_LOCAL_PASSWORD`             | _unset_                 | Password for local auth mode (min 12 chars)                                                        |
+| `RACKULA_OIDC_ISSUER`                | _unset_                 | OIDC issuer URL (required for `oidc` mode)                                                         |
+| `RACKULA_OIDC_CLIENT_ID`             | _unset_                 | OIDC client ID (required for `oidc` mode)                                                          |
+| `RACKULA_OIDC_CLIENT_SECRET`         | _unset_                 | OIDC client secret (required for `oidc` mode)                                                      |
+| `RACKULA_TRUST_PROXY`                | `0`                     | Set to `1` behind a TLS-terminating reverse proxy; enables HTTPS redirects via `X-Forwarded-Proto` |
+| `RACKULA_BASE_URL`                   | `http://localhost:3000` | External URL for OIDC callback construction; set to your HTTPS URL behind a proxy                  |
+| `RACKULA_OIDC_REDIRECT_URI`          | _derived from BASE_URL_ | Explicit OIDC callback URL; must match the IdP's registered redirect URI exactly                   |
 
 **Port mapping explained:**
 

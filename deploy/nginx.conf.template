@@ -188,7 +188,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $real_scheme;
         # Authorization resolved by map directives at config scope above.
         proxy_set_header Authorization $rackula_api_authorization;
 
@@ -225,7 +225,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Original-URI $request_uri;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $real_scheme;
         proxy_intercept_errors on;
         error_page 502 503 504 = @auth_check_upstream_error;
     }

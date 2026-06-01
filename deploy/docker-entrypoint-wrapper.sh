@@ -27,6 +27,23 @@ esac
 
 export RACKULA_AUTH_MODE
 
+# Trust proxy -- normalize RACKULA_TRUST_PROXY for nginx template rendering.
+# Accepts 1/true/yes (case-insensitive) to enable, anything else is 0 (disabled).
+# Required when Rackula is behind a TLS-terminating reverse proxy so auth
+# redirects use the correct external scheme (https) via X-Forwarded-Proto.
+raw_trust_proxy="${RACKULA_TRUST_PROXY:-0}"
+raw_trust_proxy_lower="$(printf '%s' "$raw_trust_proxy" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+
+case "$raw_trust_proxy_lower" in
+  1|true|yes)
+    RACKULA_TRUST_PROXY="1"
+    ;;
+  *)
+    RACKULA_TRUST_PROXY="0"
+    ;;
+esac
+export RACKULA_TRUST_PROXY
+
 # IPv6 listener -- auto-detect unless explicitly overridden.
 # RACKULA_ENABLE_IPV6: "auto" (default) | "true" | "false"
 # Detection uses /proc/net/if_inet6 (same method as official nginx Docker image).
@@ -65,7 +82,7 @@ export RACKULA_IPV6_LISTEN
 export NGINX_RESOLVER
 
 # Log configuration for debugging connectivity issues.
-echo "Rackula: DNS resolver=${NGINX_RESOLVER} API upstream=${API_HOST}:${API_PORT}" >&2
+echo "Rackula: DNS resolver=${NGINX_RESOLVER} API upstream=${API_HOST}:${API_PORT} trust_proxy=${RACKULA_TRUST_PROXY}" >&2
 
 # Warn Kubernetes users if API_HOST is a bare hostname (no dots).
 # nginx resolver doesn't apply search domains, so bare names won't resolve
