@@ -11,6 +11,7 @@
     Step 2: Dimensions - Bay count and height (width auto-set to 19")
 -->
 <script lang="ts">
+  import { untrack } from "svelte";
   import Dialog from "$lib/components/Dialog.svelte";
   import LayoutTypeCard from "./LayoutTypeCard.svelte";
   import { shouldIgnoreKeyboard } from "$lib/utils/keyboard";
@@ -67,8 +68,6 @@
     layoutType: LayoutType;
     height: number;
     bayCount: BayCount;
-    isCustomHeight: boolean;
-    customHeight: number;
   }
 
   interface Props {
@@ -106,8 +105,6 @@
     layoutType: "column",
     height: 42,
     bayCount: 2,
-    isCustomHeight: false,
-    customHeight: 42,
   });
 
   // Validation errors
@@ -155,13 +152,15 @@
         return config.name.trim().length > 0 && config.layoutType !== undefined;
       case 2: {
         // Step 2: Validate height (both column and bayed)
-        const height = config.isCustomHeight
-          ? config.customHeight
-          : config.height;
         if (config.layoutType === "bayed") {
-          return height >= BAYED_MIN_HEIGHT && height <= BAYED_MAX_HEIGHT;
+          return (
+            config.height >= BAYED_MIN_HEIGHT &&
+            config.height <= BAYED_MAX_HEIGHT
+          );
         }
-        return height >= MIN_RACK_HEIGHT && height <= MAX_RACK_HEIGHT;
+        return (
+          config.height >= MIN_RACK_HEIGHT && config.height <= MAX_RACK_HEIGHT
+        );
       }
       default:
         return false;
@@ -178,8 +177,6 @@
         layoutType: "column",
         height: 42,
         bayCount: 2,
-        isCustomHeight: false,
-        customHeight: 42,
       };
       nameError = "";
       heightError = "";
@@ -190,7 +187,6 @@
   $effect(() => {
     if (config.layoutType === "bayed") {
       config.height = BAYED_DEFAULT_HEIGHT;
-      config.isCustomHeight = false;
       // Bayed racks are always 19" standard width
       config.width = 19;
       // Use fun default name for bayed racks
@@ -202,20 +198,17 @@
     }
   });
 
-  // Reset height when width changes (for column only)
+  // Clamp height to the small form factor when switching to a 10" rack.
+  // Reacts to width changes only (height reads are untracked) so the slider
+  // can move freely on standard widths without snapping back.
   $effect(() => {
-    if (config.layoutType === "column") {
-      const heights =
-        config.width === 10 ? SMALL_RACK_HEIGHTS : COMMON_RACK_HEIGHTS;
-      if (!config.isCustomHeight && !heights.includes(config.height)) {
-        config.height = heights[heights.length - 1]!;
-      }
-    }
+    const width = config.width;
+    if (config.layoutType !== "column" || width !== 10) return;
+    const maxSmall = SMALL_RACK_HEIGHTS[SMALL_RACK_HEIGHTS.length - 1]!;
+    untrack(() => {
+      if (config.height > maxSmall) config.height = maxSmall;
+    });
   });
-
-  function getCurrentHeight(): number {
-    return config.isCustomHeight ? config.customHeight : config.height;
-  }
 
   function validateStep(): boolean {
     nameError = "";
@@ -231,14 +224,19 @@
 
       case 2: {
         // Both column and bayed: Step 2 validates height
-        const height = getCurrentHeight();
         if (config.layoutType === "bayed") {
-          if (height < BAYED_MIN_HEIGHT || height > BAYED_MAX_HEIGHT) {
+          if (
+            config.height < BAYED_MIN_HEIGHT ||
+            config.height > BAYED_MAX_HEIGHT
+          ) {
             heightError = `Bayed rack height must be between ${BAYED_MIN_HEIGHT} and ${BAYED_MAX_HEIGHT}U`;
             return false;
           }
         } else {
-          if (height < MIN_RACK_HEIGHT || height > MAX_RACK_HEIGHT) {
+          if (
+            config.height < MIN_RACK_HEIGHT ||
+            config.height > MAX_RACK_HEIGHT
+          ) {
             heightError = `Height must be between ${MIN_RACK_HEIGHT} and ${MAX_RACK_HEIGHT}U`;
             return false;
           }
@@ -273,14 +271,7 @@
   }
 
   function selectPresetHeight(height: number) {
-    config.isCustomHeight = false;
     config.height = height;
-    heightError = "";
-  }
-
-  function selectCustomHeight() {
-    config.isCustomHeight = true;
-    config.customHeight = config.height;
     heightError = "";
   }
 
@@ -289,7 +280,7 @@
 
     oncreate?.({
       name: config.name.trim(),
-      height: getCurrentHeight(),
+      height: config.height,
       width: config.width,
       layoutType: config.layoutType,
       bayCount: config.layoutType === "bayed" ? config.bayCount : undefined,
@@ -337,7 +328,8 @@
 
     // Step 2: Height presets with number keys
     if (currentStep === 2) {
-      // Digits must reach the custom-height input when it has focus.
+      // Let the height slider (and any focused control) handle its own keys
+      // (arrows, digits) instead of triggering preset/bay-count shortcuts.
       if (shouldIgnoreKeyboard(event)) return;
 
       const presetMap: Record<string, number> = {
@@ -465,20 +457,34 @@
           </div>
 
           <div class="form-group">
-            <span class="form-label">Height (per bay)</span>
-            <div class="height-buttons" role="group" aria-label="Rack height">
-              {#each availableHeights as height (height)}
-                <button
-                  type="button"
-                  class="height-btn"
-                  data-testid="btn-height-{height}"
-                  class:selected={!config.isCustomHeight &&
-                    config.height === height}
-                  onclick={() => selectPresetHeight(height)}
-                >
-                  {height}U
-                </button>
-              {/each}
+            <span class="form-label">
+              Height (per bay)
+              <span class="height-value" data-testid="height-value"
+                >{config.height}U</span
+              >
+            </span>
+            <div class="height-slider">
+              <input
+                type="range"
+                class="slider"
+                data-testid="slider-height"
+                min={BAYED_MIN_HEIGHT}
+                max={BAYED_MAX_HEIGHT}
+                step="2"
+                bind:value={config.height}
+                list="bayed-height-ticks"
+                aria-label="Rack height per bay in U"
+                aria-valuetext="{config.height}U"
+              />
+              <datalist id="bayed-height-ticks">
+                {#each availableHeights as height (height)}
+                  <option value={height}></option>
+                {/each}
+              </datalist>
+              <div class="slider-scale" aria-hidden="true">
+                <span>{BAYED_MIN_HEIGHT}U</span>
+                <span>{BAYED_MAX_HEIGHT}U</span>
+              </div>
             </div>
 
             {#if heightError}
@@ -523,46 +529,53 @@
 
           <!-- Height section with fade+slide animation -->
           <div class="form-group height-section">
-            <span class="form-label">Height</span>
-            <div class="height-buttons" role="group" aria-label="Rack height">
+            <span class="form-label">
+              Height
+              <span class="height-value" data-testid="height-value"
+                >{config.height}U</span
+              >
+            </span>
+            <div
+              class="height-buttons"
+              role="group"
+              aria-label="Common rack heights"
+            >
               {#each availableHeights as height (height)}
                 <button
                   type="button"
                   class="height-btn"
                   data-testid="btn-height-{height}"
-                  class:selected={!config.isCustomHeight &&
-                    config.height === height}
+                  class:selected={config.height === height}
                   onclick={() => selectPresetHeight(height)}
                 >
                   {height}U
                 </button>
               {/each}
-              <button
-                type="button"
-                class="height-btn"
-                data-testid="btn-height-custom"
-                class:selected={config.isCustomHeight}
-                onclick={selectCustomHeight}
-              >
-                Custom
-              </button>
             </div>
 
-            {#if config.isCustomHeight}
-              <div class="custom-height-input">
-                <label for="custom-height" class="sr-only">Custom Height</label>
-                <input
-                  type="number"
-                  id="custom-height"
-                  class="input-field"
-                  bind:value={config.customHeight}
-                  min={MIN_RACK_HEIGHT}
-                  max={MAX_RACK_HEIGHT}
-                  class:error={heightError}
-                />
-                <span class="unit">U</span>
+            <div class="height-slider">
+              <input
+                type="range"
+                class="slider"
+                data-testid="slider-height"
+                min={MIN_RACK_HEIGHT}
+                max={MAX_RACK_HEIGHT}
+                step="1"
+                bind:value={config.height}
+                list="column-height-ticks"
+                aria-label="Rack height in U"
+                aria-valuetext="{config.height}U"
+              />
+              <datalist id="column-height-ticks">
+                {#each availableHeights as height (height)}
+                  <option value={height}></option>
+                {/each}
+              </datalist>
+              <div class="slider-scale" aria-hidden="true">
+                <span>{MIN_RACK_HEIGHT}U</span>
+                <span>{MAX_RACK_HEIGHT}U</span>
               </div>
-            {/if}
+            </div>
 
             {#if heightError}
               <span class="error-message">{heightError}</span>
@@ -634,8 +647,7 @@
     color: var(--colour-text);
   }
 
-  .form-group input[type="text"],
-  .form-group input[type="number"] {
+  .form-group input[type="text"] {
     padding: var(--space-2) var(--space-3);
     background: var(--colour-input-bg, var(--colour-bg));
     border: 1px solid var(--colour-border);
@@ -644,7 +656,7 @@
     font-size: var(--font-size-base);
   }
 
-  .form-group input:focus {
+  .form-group input:not(.slider):focus {
     outline: none;
     border-color: var(--colour-selection);
     box-shadow: var(--glow-pink-sm);
@@ -802,39 +814,37 @@
     color: var(--colour-text-on-primary);
   }
 
-  /* Custom height input */
-  .custom-height-input {
+  /* Current height value beside the label */
+  .height-value {
+    margin-left: var(--space-2);
+    color: var(--colour-selection);
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* Height slider */
+  .height-slider {
     display: flex;
-    align-items: center;
-    gap: var(--space-2);
+    flex-direction: column;
+    gap: var(--space-1);
     margin-top: var(--space-2);
   }
 
-  .custom-height-input input {
-    width: var(--input-width-custom, 100px);
-    padding: var(--space-2) var(--space-3);
-    background: var(--colour-input-bg, var(--colour-bg));
-    border: 1px solid var(--colour-border);
-    border-radius: var(--radius-md);
-    color: var(--colour-text);
-    font-size: var(--font-size-base);
+  .slider {
+    width: 100%;
+    accent-color: var(--colour-selection);
+    cursor: pointer;
   }
 
-  .custom-height-input .unit {
+  .slider:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 4px;
+  }
+
+  .slider-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
-    font-size: var(--font-size-base);
-  }
-
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
   }
 
   /* Form actions */

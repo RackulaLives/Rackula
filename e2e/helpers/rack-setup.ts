@@ -33,15 +33,19 @@ function resolveHeight(options?: WizardOptions): number {
   return 42;
 }
 
-async function selectHeight(page: Page, height: number): Promise<void> {
+async function selectHeight(
+  page: Page,
+  height: number,
+  layout: "column" | "bayed" = "column",
+): Promise<void> {
   const presetHeights = [12, 18, 24, 42];
-  if (presetHeights.includes(height)) {
+  // Only column racks expose preset buttons; bayed racks use the slider only.
+  if (layout === "column" && presetHeights.includes(height)) {
     await page.click(`[data-testid="btn-height-${height}"]`);
     return;
   }
 
-  await page.click('[data-testid="btn-height-custom"]');
-  await page.fill("#custom-height", String(height));
+  await page.locator('[data-testid="slider-height"]').fill(String(height));
 }
 
 /**
@@ -95,7 +99,10 @@ export async function completeWizardWithKeyboard(
   await page.keyboard.press("Enter");
 
   // Wait for rack to appear
-  await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
+  await page
+    .locator(locators.rack.container)
+    .first()
+    .waitFor({ state: "visible" });
 }
 
 /**
@@ -128,14 +135,17 @@ export async function completeWizardWithClicks(
     await page.click('[data-testid="btn-bay-3"]');
   }
 
-  // Select height (preset or custom)
-  await selectHeight(page, resolveHeight(options));
+  // Select height (preset button for column, slider otherwise)
+  await selectHeight(page, resolveHeight(options), options?.layout ?? "column");
 
   // Click Create
   await page.click('[data-testid="btn-wizard-next"]');
 
   // Wait for rack
-  await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
+  await page
+    .locator(locators.rack.container)
+    .first()
+    .waitFor({ state: "visible" });
 }
 
 /**

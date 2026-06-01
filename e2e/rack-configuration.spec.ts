@@ -32,7 +32,9 @@ test.describe("Rack Configuration", () => {
     await page.click('[data-testid="btn-wizard-next"]');
 
     // New rack should be visible — scope to it by name
-    const narrowRack = page.locator(locators.rackView.dualView).filter({ hasText: "Narrow Rack" });
+    const narrowRack = page
+      .locator(locators.rackView.dualView)
+      .filter({ hasText: "Narrow Rack" });
     await expect(narrowRack).toBeVisible();
 
     // The rack SVG should have a narrower viewBox for 10" rack
@@ -58,7 +60,9 @@ test.describe("Rack Configuration", () => {
     await page.click('[data-testid="btn-wizard-next"]');
 
     // New rack should be visible — scope to it by name
-    const stdRack = page.locator(locators.rackView.dualView).filter({ hasText: "Standard Rack" });
+    const stdRack = page
+      .locator(locators.rackView.dualView)
+      .filter({ hasText: "Standard Rack" });
     await expect(stdRack).toBeVisible();
 
     const rackSvg = stdRack.locator(locators.rackView.frontSvg);
@@ -81,15 +85,16 @@ test.describe("Rack Configuration", () => {
   }) => {
     await openWizardStep2(page, "Ascending Rack");
 
-    // Step 2: Use custom height of 10U
-    await page.click('[data-testid="btn-height-custom"]');
-    await page.fill("#custom-height", "10");
+    // Step 2: Set a non-preset height of 10U via the slider
+    await page.locator('[data-testid="slider-height"]').fill("10");
 
     // Create rack
     await page.click('[data-testid="btn-wizard-next"]');
 
     // New rack should be visible — scope to it by name
-    const ascRack = page.locator(locators.rackView.dualView).filter({ hasText: "Ascending Rack" });
+    const ascRack = page
+      .locator(locators.rackView.dualView)
+      .filter({ hasText: "Ascending Rack" });
     await expect(ascRack).toBeVisible();
 
     // Scope U labels to the front view of the new rack
@@ -105,21 +110,15 @@ test.describe("Rack Configuration", () => {
     await expect(lastLabel).toHaveText("1");
   });
 
-  test("custom height accepts digits that collide with preset shortcuts", async ({ page }) => {
-    await openWizardStep2(page, "Custom 32 Rack");
+  test("height slider sets a non-preset height", async ({ page }) => {
+    await openWizardStep2(page, "Slider 32 Rack");
 
-    await page.click('[data-testid="btn-height-custom"]');
+    const slider = page.locator('[data-testid="slider-height"]');
+    await slider.fill("32");
 
-    const customInput = page.locator("#custom-height");
-    await expect(customInput).toBeVisible();
-
-    // pressSequentially fires real keydown events; fill() would bypass the
-    // form's keyboard handler and miss the preset-shortcut collision.
-    await customInput.fill("");
-    await customInput.pressSequentially("32");
-
-    await expect(customInput).toBeVisible();
-    await expect(customInput).toHaveValue("32");
+    await expect(slider).toHaveValue("32");
+    await expect(page.locator('[data-testid="height-value"]')).toHaveText(
+      "32U",
+    );
   });
-
 });
