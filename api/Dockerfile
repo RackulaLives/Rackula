@@ -12,8 +12,9 @@ RUN bun install --frozen-lockfile --production
 FROM base AS runner
 WORKDIR /app
 
-# Patch system packages to resolve known CVEs (libssl3/libcrypto3 CVE-2026-31789,
-# libxml2 CVE-2026-6732 et al.). Mirrors the pattern in deploy/Dockerfile.
+# Patch system packages to resolve known CVEs (e.g. libssl3/libcrypto3
+# CVE-2026-31789). The oven/bun:1.3.10-alpine base does not ship libxml2, so
+# CVE-2026-6732 does not apply here; this mirrors deploy/Dockerfile's pattern.
 # APK_CACHEBUST is fed a per-build value so the buildcache for this layer is
 # invalidated each build and apk upgrade re-fetches current Alpine secfixes.
 ARG APK_CACHEBUST=0
