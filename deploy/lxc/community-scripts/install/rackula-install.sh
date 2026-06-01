@@ -103,7 +103,8 @@ cat <<EOF >/etc/nginx/snippets/rackula-api-token.conf
 set \$rackula_api_write_token "${API_WRITE_TOKEN}";
 set \$rackula_has_api_write_token 1;
 EOF
-chmod 600 /etc/nginx/snippets/rackula-api-token.conf
+chown root:www-data /etc/nginx/snippets/rackula-api-token.conf
+chmod 640 /etc/nginx/snippets/rackula-api-token.conf
 msg_ok "Generated API write token"
 
 msg_info "Configuring nginx"
