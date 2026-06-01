@@ -39,7 +39,8 @@ jobs:
             --id "$ITEM_ID" \
             --project-id "$PROJECT_ID" \
             --field-id "$STATUS_FIELD_ID" \
-            --single-select-option-id "$IN_PROGRESS_OPTION_ID"
+            --single-select-option-id "$IN_PROGRESS_OPTION_ID" \
+          || echo "Warning: Could not update issue (may already be in target status)"
 
   set-in-review:
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false }}
