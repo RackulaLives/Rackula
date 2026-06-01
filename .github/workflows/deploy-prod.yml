@@ -136,6 +136,7 @@ jobs:
             VITE_UMAMI_ENABLED=true
             VITE_UMAMI_SCRIPT_URL=${{ vars.UMAMI_SCRIPT_URL }}
             VITE_UMAMI_WEBSITE_ID=${{ vars.UMAMI_PROD_WEBSITE_ID }}
+            APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
 
   build-persist:
     needs: [validate]
@@ -192,6 +193,7 @@ jobs:
           build-args: |
             VITE_ENV=production
             VITE_PERSIST_ENABLED=true
+            APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
 
   build-api:
     needs: [validate]
@@ -262,6 +264,7 @@ jobs:
             APP_VERSION=${{ needs.validate.outputs.version }}
             APP_COMMIT=${{ env.BUILD_COMMIT }}
             APP_BUILD_TIME=${{ env.BUILD_TIME }}
+            APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
 
   verify-version-alignment:
     name: "Verify Version Alignment"

@@ -12,9 +12,12 @@ RUN bun install --frozen-lockfile --production
 FROM base AS runner
 WORKDIR /app
 
-# Patch system packages to resolve known CVEs (libssl3/libcrypto3
-# CVE-2026-31789 et al.). Mirrors the pattern in deploy/Dockerfile.
-RUN apk upgrade --no-cache
+# Patch system packages to resolve known CVEs (libssl3/libcrypto3 CVE-2026-31789,
+# libxml2 CVE-2026-6732 et al.). Mirrors the pattern in deploy/Dockerfile.
+# APK_CACHEBUST is fed a per-build value so the buildcache for this layer is
+# invalidated each build and apk upgrade re-fetches current Alpine secfixes.
+ARG APK_CACHEBUST=0
+RUN echo "apk-cachebust=${APK_CACHEBUST}" && apk upgrade --no-cache
 
 # Create non-root user with matching group
 RUN addgroup --system --gid 1001 rackula && \

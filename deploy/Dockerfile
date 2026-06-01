@@ -28,9 +28,13 @@ RUN npm run build
 
 # Production stage - non-root nginx
 FROM nginxinc/nginx-unprivileged:alpine
-# Patch system packages to resolve known CVEs (e.g. libpng)
+# Patch system packages to resolve known CVEs (e.g. libpng, libxml2 CVE-2026-6732).
+# APK_CACHEBUST is fed a per-build value (release version / date) so this layer's
+# buildcache is invalidated each build and apk upgrade re-fetches current Alpine
+# secfixes instead of reusing a stale cached layer.
+ARG APK_CACHEBUST=0
 USER root
-RUN apk upgrade --no-cache
+RUN echo "apk-cachebust=${APK_CACHEBUST}" && apk upgrade --no-cache
 USER nginx
 
 # OCI labels
