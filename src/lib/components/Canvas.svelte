@@ -1029,7 +1029,7 @@
     color: var(--colour-text-muted);
     font-size: var(--font-size-sm);
     max-width: min(90%, 480px);
-    pointer-events: none;
+    pointer-events: auto;
     z-index: 10;
   }
 
