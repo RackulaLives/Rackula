@@ -30,7 +30,9 @@ function resolveHeight(options?: WizardOptions): number {
   if (options?.heightPreset) {
     return HEIGHT_BY_PRESET[options.heightPreset];
   }
-  return 42;
+  // Bayed racks only allow 10-24U; the column default (42) would be clamped by
+  // the bayed slider, so fall back to a bayed-safe default instead.
+  return options?.layout === "bayed" ? 12 : 42;
 }
 
 async function selectHeight(
