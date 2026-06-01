@@ -330,6 +330,17 @@ gh run watch
 | Zero-padded month             | "Error: Month must be unpadded (e.g., 26.6.0 not 26.06.0)."                          |
 | Push fails                    | "Error: Push failed. Check permissions and try again."                               |
 
+### Required Guard Implementation (Phase 4)
+
+```bash
+# Abort release if there are no releasable changes since last release.
+# CHANGE_LINES should be the collected commit/PR lines prepared in earlier phases.
+if [ -z "${CHANGE_LINES:-}" ]; then
+  echo "No changes found. Nothing to release."
+  exit 0
+fi
+```
+
 ---
 
 ## Output Format
