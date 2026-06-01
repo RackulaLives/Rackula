@@ -1031,7 +1031,7 @@
     color: var(--colour-text-muted);
     font-size: var(--font-size-sm);
     max-width: min(90%, 480px);
-    pointer-events: auto;
+    pointer-events: none;
     z-index: 10;
   }
 
