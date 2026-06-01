@@ -13,6 +13,8 @@ const DEFAULT_RACK_WIDTHS = [19];
 
 /**
  * Display order for device categories in the palette.
+ * Ordered by typical usage frequency: common equipment first (servers, network),
+ * utility/structural items last (blanks, cable management, other).
  * Every DeviceCategory value MUST appear here; a dev-only assertion
  * enforces this so new categories cannot be silently dropped.
  */
