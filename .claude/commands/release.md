@@ -273,16 +273,7 @@ git add package.json package-lock.json
 git commit -m "chore(release): bump version to v$NEW_VERSION"
 ```
 
-### 4f. Verify Remote Tag Does Not Already Exist
-
-```bash
-if git ls-remote --tags origin "refs/tags/v$NEW_VERSION" | grep -q .; then
-  echo "Error: Tag v$NEW_VERSION already exists on origin."
-  exit 1
-fi
-```
-
-### 4g. Create Tag and Push
+### 4f. Create Tag and Push
 
 ```bash
 git tag "v$NEW_VERSION"
