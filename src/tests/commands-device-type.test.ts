@@ -119,6 +119,21 @@ describe("Device Type Commands", () => {
 
       expect(store.addDeviceTypeRaw).not.toHaveBeenCalled();
     });
+
+    it("redo re-adds type when undo removed it", () => {
+      const store = createMockStore();
+      const deviceType = createTestDeviceType({ slug: "server-1" });
+
+      const command = createAddDeviceTypeCommand(deviceType, store);
+      command.execute();
+      command.undo(); // no references (default mock []), type is removed
+      store.addDeviceTypeRaw.mockClear();
+
+      command.execute(); // redo — type was removed, must re-add
+
+      expect(store.addDeviceTypeRaw).toHaveBeenCalledTimes(1);
+      expect(store.addDeviceTypeRaw).toHaveBeenCalledWith(deviceType);
+    });
   });
 
   describe("createUpdateDeviceTypeCommand", () => {
