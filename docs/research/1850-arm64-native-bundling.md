@@ -22,20 +22,15 @@ fields** (those gate only the installer). So if the arm64-gnu package files are 
 `node_modules`, they load fine on a Debian 13 arm64 host even though the tarball was
 assembled on x86. Injection is safe.
 
-## Decision: Pattern A - Bun two-pass injection, single universal tarball
+## Decision: single production install targeting all linux CPUs
 
-In `build-lxc.yml`, after the normal production install, add the arm64-gnu package using
-Bun's native cross-platform flags (added in Bun 1.2.23, present in the workflow's Bun 1.x):
+In `build-lxc.yml`, change the one install command to materialise every linux variant of
+the optional native deps in a single production install, using Bun's cross-platform flags
+(added in Bun 1.2.23, present in the workflow's Bun 1.x):
 
 ```bash
-# Pass 1 (existing): host-arch production deps
 cd api
-bun install --frozen-lockfile --production
-
-# Pass 2 (new): inject the arm64 glibc binary alongside x64, pinned to the exact
-# version resolved for the host (x64) package so it cannot drift.
-ARGON2_VER=$(node -p "require('./node_modules/@node-rs/argon2-linux-x64-gnu/package.json').version")
-bun add --no-save "@node-rs/argon2-linux-arm64-gnu@${ARGON2_VER}" --cpu=arm64 --os=linux
+bun install --frozen-lockfile --production --cpu='*' --os=linux
 # Fail the build if either native binary is missing
 test -f node_modules/@node-rs/argon2-linux-x64-gnu/argon2.linux-x64-gnu.node
 test -f node_modules/@node-rs/argon2-linux-arm64-gnu/argon2.linux-arm64-gnu.node
@@ -43,12 +38,21 @@ test -f node_modules/@node-rs/argon2-linux-arm64-gnu/argon2.linux-arm64-gnu.node
 
 Notes:
 
-- `--no-save` keeps `package.json`/lockfile untouched; `--cpu/--os` avoid the npm
-  `EBADPLATFORM` error (no `--force` needed).
-- Pin the injected version to the resolved `@node-rs/argon2` version so it never drifts.
-  Portable fallback if `bun pm ls` parsing is brittle: download the `.tgz` from the npm
-  registry and extract into `node_modules/@node-rs/argon2-linux-arm64-gnu/`.
-- Debian 13 is glibc, so `-linux-arm64-gnu` is the correct variant (not `-musl`).
+- `--cpu='*' --os=linux` installs all linux platform binaries (x64 + arm64, gnu and musl)
+  for every optional dep, scoped to linux only (no darwin/win32). For argon2 that is the
+  only native dep, so the extra files are a couple of small `.node` binaries.
+- `--production` keeps devDependencies out of the bundled `node_modules`.
+- No version-pinning logic needed: the lockfile already pins `@node-rs/argon2` and its
+  platform sub-packages, so frozen-install resolves the matching versions for every arch.
+- Debian 13 is glibc, so `-linux-arm64-gnu` is the variant that loads on the target;
+  the musl variant ships too but is unused there (and covers Alpine-based hosts for free).
+
+### Why this over the earlier two-pass `bun add` idea
+
+A second `bun add --no-save --cpu=arm64` after a `--production` install re-reconciles the
+tree: without `--production` it leaks devDependencies into the tarball, and with
+`--production` it prunes the host's x64 binary (reconciles to the command's arm64 target).
+The single `--cpu='*'` install sidesteps both failure modes - verified empirically.
 
 ### Why not the alternatives
 
@@ -60,21 +64,19 @@ Notes:
 
 ## Scope of the implementation (#1850)
 
-1. `build-lxc.yml`: add the pass-2 injection + presence assertions (above).
+1. `build-lxc.yml`: change the install to `--cpu='*' --os=linux` + presence assertions.
 2. `ct/rackula.sh`: `var_arm64="${var_arm64:-no}"` -> `yes`.
 3. `json/rackula.json`: `"has_arm": false` -> `true`.
 4. ProxmoxVED #1883 + held PR: flip arm64 back to supported.
-5. Guard: assert the injected version matches the resolved argon2 version (drift-proofing).
 
 ## Verification
 
 - **Done (emulation, 2026-06-01):** built the bundle on `docker --platform linux/amd64`
-  (host install pulls x64; `bun add --no-save ...-linux-arm64-gnu --cpu=arm64 --os=linux`
-  injects arm64), tarred `node_modules`, then extracted and ran it under
-  `docker --platform linux/arm64`. `require('@node-rs/argon2')` loaded and
-  `hashSync`/`verifySync` executed: `LOADED_ON_ARM64 true $argon2id$v=1`. The inject also
-  pulls the arm64-musl variant, so both glibc and musl arm64 are covered. Injection
-  commands and the asserted `.node` paths were verified against `@node-rs/argon2@2.0.2`,
+  with `bun install --frozen-lockfile --production --cpu='*' --os=linux`, tarred
+  `node_modules`, then extracted and ran it under `docker --platform linux/arm64`.
+  `require('@node-rs/argon2')` loaded and `hashSync`/`verifySync` executed:
+  `ARM64_RUN true`. Confirmed no devDependencies leaked into the bundle, and both x64-gnu
+  and arm64-gnu `.node` binaries are present. Verified against `@node-rs/argon2@2.0.2`,
   Bun 1.3.10. Audit confirms argon2 is the _only_ native dep (better-auth/hono/js-yaml/zod
   are pure JS).
 - **Final sign-off (hardware-gated):** real `curl|bash` install on an arm64 Proxmox/LXC

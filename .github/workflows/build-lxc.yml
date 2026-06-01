@@ -53,16 +53,14 @@ jobs:
       - name: Install API production dependencies
         run: |
           cd api
-          bun install --frozen-lockfile --production
-
-          # The tarball is built on x86 but runs on any arch (LXC supports arm64).
+          # The tarball is built on x86 but installs on any LXC arch (incl. arm64).
           # @node-rs/argon2 (the only native dep) ships per-platform binaries as
-          # os/cpu-gated optional deps, so the host install pulls x64 only. Inject the
-          # arm64 glibc binary alongside it, pinned to the exact resolved version so it
-          # cannot drift. The runtime loader picks the binary by file presence, not by
-          # the os/cpu manifest fields, so this loads correctly on arm64.
-          ARGON2_VER=$(node -p "require('./node_modules/@node-rs/argon2-linux-x64-gnu/package.json').version")
-          bun add --no-save "@node-rs/argon2-linux-arm64-gnu@${ARGON2_VER}" --cpu=arm64 --os=linux
+          # os/cpu-gated optional deps, so a normal host install pulls x64 only.
+          # --cpu='*' --os=linux materialises every linux variant (x64 + arm64, gnu and
+          # musl) in one production install, so the bundled node_modules runs on both
+          # architectures. --production keeps devDependencies out of the tarball. The
+          # runtime loader selects the binary by file presence, not the os/cpu manifest.
+          bun install --frozen-lockfile --production --cpu='*' --os=linux
 
           # Fail the build if either native binary is missing.
           test -f node_modules/@node-rs/argon2-linux-x64-gnu/argon2.linux-x64-gnu.node
