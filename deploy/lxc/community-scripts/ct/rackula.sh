@@ -31,8 +31,11 @@ function update_script() {
 
   # Prevent concurrent updates with an fd-based advisory lock. flock releases the
   # lock automatically when the process exits (including a crash or host reboot),
-  # so a stale lock can never permanently block future updates.
-  exec 9>/tmp/rackula-update.lock || {
+  # so a stale lock can never permanently block future updates. The lock lives
+  # under root-owned /run (not world-writable like /tmp) so a local user cannot
+  # pre-plant a symlink there and have this root process truncate its target.
+  mkdir -p /run/rackula
+  exec 9>/run/rackula/update.lock || {
     msg_error "Cannot open update lock file"
     exit 1
   }
