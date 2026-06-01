@@ -130,16 +130,16 @@ systemctl enable -q --now nginx
 msg_ok "Created Services"
 
 msg_info "Verifying Services"
-for i in $(seq 1 10); do
+for i in $(seq 0 9); do
   if curl -sf --connect-timeout 2 --max-time 5 http://127.0.0.1:3001/health >/dev/null 2>&1; then
     msg_ok "Service running successfully"
     break
   fi
-  if [ "$i" -eq 10 ]; then
+  sleep 1
+  if [ "$i" -eq 9 ]; then
     msg_error "API failed to start within 10 seconds"
     exit 1
   fi
-  sleep 1
 done
 
 motd_ssh
