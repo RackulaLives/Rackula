@@ -778,13 +778,13 @@ Notes:
 
 After configuring your reverse proxy, verify the OIDC redirect flow:
 
-1. **Auth redirect uses HTTPS:** Visit a protected route (e.g., `https://rack.example.com/dashboard`). You should be redirected to `https://rack.example.com/auth/login?next=...` (note the `https://` scheme in the browser address bar).
+1. Auth redirect uses HTTPS: Visit a protected route (e.g., `https://rack.example.com/dashboard`). You should be redirected to `https://rack.example.com/auth/login?next=...` (note the `https://` scheme in the browser address bar).
 
-2. **OIDC callback URL is correct:** After IdP login, the browser should be redirected back to `https://rack.example.com/auth/callback` (not `http://`).
+2. OIDC callback URL is correct: After IdP login, the browser should be redirected back to `https://rack.example.com/auth/callback` (not `http://`).
 
-3. **Session cookie has Secure flag:** In browser DevTools (Application > Cookies), verify the `rackula_auth_session` cookie has the `Secure` flag set.
+3. Session cookie has Secure flag: In browser DevTools (Application > Cookies), verify the `rackula_auth_session` cookie has the `Secure` flag set.
 
-4. **Common failure: redirects use `http://`:** Check that:
+4. Common failure: redirects use `http://` instead of `https://`. Check that:
    - `RACKULA_TRUST_PROXY=1` is set in the Rackula container environment
    - Your front proxy sends `X-Forwarded-Proto: https`
    - `RACKULA_BASE_URL` starts with `https://`
@@ -792,24 +792,24 @@ After configuring your reverse proxy, verify the OIDC redirect flow:
 
 ### Troubleshooting
 
-**Auth redirects use `http://` instead of `https://`:**
+Auth redirects use `http://` instead of `https://`:
 
 - Confirm `RACKULA_TRUST_PROXY=1` is set (default is `0`)
 - Check your proxy sends `X-Forwarded-Proto: https`
 - Verify the envsubst filter includes `RACKULA_TRUST_PROXY` (check container config: `docker exec rackula env | grep TRUST_PROXY`)
 - Ensure `RACKULA_BASE_URL` starts with `https://`
 
-**OIDC callback URL mismatch:**
+OIDC callback URL mismatch:
 
 - Ensure `RACKULA_OIDC_REDIRECT_URI` exactly matches the IdP's registered redirect URI (protocol, host, path, no trailing slash)
 - Check `RACKULA_BASE_URL` includes the correct protocol (`https://`)
 
-**Cookie not set after OIDC login:**
+Cookie not set after OIDC login:
 
 - Verify `RACKULA_AUTH_SESSION_COOKIE_SECURE=true` (default) when using HTTPS
 - If accessing over HTTP, set `RACKULA_AUTH_SESSION_COOKIE_SECURE=false`
 
-**"Unauthorized" with no login redirect behind a proxy:**
+"Unauthorized" with no login redirect behind a proxy:
 
 - Check that your front proxy forwards the `Cookie` header to the Rackula container
 - Verify the proxy does not strip or rewrite `Set-Cookie` headers in responses
