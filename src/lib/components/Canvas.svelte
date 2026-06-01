@@ -736,7 +736,7 @@
         <button
           class="hint-dismiss"
           onclick={dismissOnboardingHint}
-          aria-label="Dismiss hint">x</button
+          aria-label="Dismiss hint">&times;</button
         >
       </div>
     {/if}
