@@ -103,6 +103,22 @@ describe("Device Type Commands", () => {
 
       expect(store.removeDeviceTypeRaw).not.toHaveBeenCalled();
     });
+
+    it("redo does not re-add type when undo skipped removal", () => {
+      const store = createMockStore();
+      const deviceType = createTestDeviceType({ slug: "server-1" });
+      const existingDevice = createTestDevice({ device_type: "server-1" });
+
+      const command = createAddDeviceTypeCommand(deviceType, store);
+      command.execute();
+      store.addDeviceTypeRaw.mockClear();
+
+      store.getPlacedDevicesForType.mockReturnValue([existingDevice]);
+      command.undo();
+      command.execute(); // redo — type was not removed, must not add duplicate
+
+      expect(store.addDeviceTypeRaw).not.toHaveBeenCalled();
+    });
   });
 
   describe("createUpdateDeviceTypeCommand", () => {

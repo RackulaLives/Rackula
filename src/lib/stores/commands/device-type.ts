@@ -41,19 +41,28 @@ export function createAddDeviceTypeCommand(
   deviceType: DeviceType,
   store: DeviceTypeCommandStore,
 ): Command {
+  // Tracks whether the most recent undo actually removed the type.
+  // Starts true so the first execute() always adds. Redo mirrors undo: if undo
+  // skipped removal (another device still referenced the type), redo also skips
+  // the re-add to avoid creating a duplicate entry.
+  let undoRemovedType = true;
   return {
     type: "ADD_DEVICE_TYPE",
     description: `Add ${deviceType.model ?? deviceType.slug}`,
     timestamp: Date.now(),
     execute() {
-      store.addDeviceTypeRaw(deviceType);
+      if (undoRemovedType) {
+        store.addDeviceTypeRaw(deviceType);
+      }
     },
     undo() {
-      // Skip removal if a later placement of the same type still references it.
       // Batch undo removes the placed device first, then calls this, so the
-      // original device is already gone by the time we check.
+      // original device is already gone by the time we check references.
       if (store.getPlacedDevicesForType(deviceType.slug).length === 0) {
         store.removeDeviceTypeRaw(deviceType.slug);
+        undoRemovedType = true;
+      } else {
+        undoRemovedType = false;
       }
     },
   };
