@@ -50,7 +50,9 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          ISSUES=$(echo "$PR_BODY" | grep -oE '(Closes|Fixes|Resolves) #[0-9]+' | grep -oE '[0-9]+' | sort -u || echo "")
+          ISSUES=$(echo "$PR_BODY" \
+            | grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?) #[0-9]+' \
+            | grep -oE '[0-9]+' | sort -u | tr '\n' ' ')
           echo "issue_numbers=$ISSUES" >> "$GITHUB_OUTPUT"
 
       - name: Move linked issues to In Review
