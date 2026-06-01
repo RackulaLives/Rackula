@@ -168,6 +168,19 @@ model: Some Device
       expect(inferCategory(device)).toBe("firewall");
     });
 
+    it("infers firewall for Cisco ASA models with separators", () => {
+      // ASA model strings appear with and without separators
+      // (e.g. "ASA5506-X", "ASA 5506-X", "asa-5506-x").
+      for (const model of ["ASA5506-X", "ASA 5506-X", "ASA-5506-X"]) {
+        const device: NetBoxDeviceType = {
+          manufacturer: "Cisco",
+          model,
+          slug: `cisco-${model.toLowerCase().replace(/\s/g, "-")}`,
+        };
+        expect(inferCategory(device)).toBe("firewall");
+      }
+    });
+
     it("prefers firewall over network for Netgate security gateways", () => {
       // "Security Gateway" also contains the network hint "gateway";
       // the firewall branch must run first so it resolves to firewall.

@@ -165,7 +165,9 @@ export function inferCategory(netbox: NetBoxDeviceType): DeviceCategory {
     combined.includes("palo alto") ||
     combined.includes("firepower") ||
     combined.includes("netgate") ||
-    /\basa\d/.test(combined)
+    // Cisco ASA, with or without separators (combined is already lowercased):
+    // "asa5506", "asa 5506", "asa-5506".
+    /\basa[\s-]*\d/.test(combined)
   ) {
     return "firewall";
   }
