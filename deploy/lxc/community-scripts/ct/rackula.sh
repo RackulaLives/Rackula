@@ -67,40 +67,39 @@ function update_script() {
       fi
 
       # Only undo on-disk changes when THIS run started the swap. A stale
-      # /opt/rackula-backup or -etc-backup left by a previously killed run must
-      # never be restored over a good install.
-      if [[ $SWAP_STARTED -eq 1 ]]; then
-        # Restore the /etc unit + nginx files that were overwritten this run,
-        # before the backup tree is moved back into place.
-        if [[ -d /opt/rackula-etc-backup ]]; then
-          cp -a /opt/rackula-etc-backup/rackula /etc/nginx/sites-available/rackula 2>/dev/null || true
-          cp -a /opt/rackula-etc-backup/security-headers.conf /etc/nginx/snippets/security-headers.conf 2>/dev/null || true
-          cp -a /opt/rackula-etc-backup/rackula-api.service /etc/systemd/system/rackula-api.service 2>/dev/null || true
-          if [[ -f /opt/rackula-etc-backup/nginx-override.conf ]]; then
-            mkdir -p /etc/systemd/system/nginx.service.d
-            cp -a /opt/rackula-etc-backup/nginx-override.conf /etc/systemd/system/nginx.service.d/override.conf 2>/dev/null || true
+      # /opt/rackula-backup left by a previously killed run must never be
+      # restored over a good install.
+      if [[ $SWAP_STARTED -eq 1 ]] && [[ -d /opt/rackula-backup ]]; then
+        # Persistent data may already have been moved into the new install. Move
+        # it back before restoring the backup, but only destroy the live tree once
+        # the data move has succeeded, so user data is never lost.
+        local data_safe=1
+        if [[ -d /opt/rackula/data ]] && [[ ! -d /opt/rackula-backup/data ]]; then
+          if ! mv /opt/rackula/data /opt/rackula-backup/data; then
+            data_safe=0
+            msg_error "Rollback: could not preserve data; leaving /opt/rackula intact to avoid data loss"
           fi
         fi
-
-        if [[ -d /opt/rackula-backup ]]; then
-          # Persistent data may already have been moved into the new install. Move
-          # it back before restoring the backup, but only destroy the live tree once
-          # the data move has succeeded, so user data is never lost.
-          local data_safe=1
-          if [[ -d /opt/rackula/data ]] && [[ ! -d /opt/rackula-backup/data ]]; then
-            if ! mv /opt/rackula/data /opt/rackula-backup/data; then
-              data_safe=0
-              msg_error "Rollback: could not preserve data; leaving /opt/rackula intact to avoid data loss"
+        if [[ $data_safe -eq 1 ]]; then
+          rm -rf /opt/rackula
+          mv /opt/rackula-backup /opt/rackula
+          # Restore the /etc unit + nginx files overwritten this run together with
+          # the old code, so config and code stay matched, before reloading and
+          # starting services. (If data could not be preserved above we keep the
+          # new install in place, so the new /etc is left to match it.)
+          if [[ -d /opt/rackula-etc-backup ]]; then
+            cp -a /opt/rackula-etc-backup/rackula /etc/nginx/sites-available/rackula 2>/dev/null || true
+            cp -a /opt/rackula-etc-backup/security-headers.conf /etc/nginx/snippets/security-headers.conf 2>/dev/null || true
+            cp -a /opt/rackula-etc-backup/rackula-api.service /etc/systemd/system/rackula-api.service 2>/dev/null || true
+            if [[ -f /opt/rackula-etc-backup/nginx-override.conf ]]; then
+              mkdir -p /etc/systemd/system/nginx.service.d
+              cp -a /opt/rackula-etc-backup/nginx-override.conf /etc/systemd/system/nginx.service.d/override.conf 2>/dev/null || true
             fi
           fi
-          if [[ $data_safe -eq 1 ]]; then
-            rm -rf /opt/rackula
-            mv /opt/rackula-backup /opt/rackula
-            systemctl daemon-reload
-            systemctl start rackula-api || true
-            systemctl start nginx || true
-            msg_error "Update failed, restored from backup"
-          fi
+          systemctl daemon-reload
+          systemctl start rackula-api || true
+          systemctl start nginx || true
+          msg_error "Update failed, restored from backup"
         fi
       fi
     fi
@@ -130,12 +129,13 @@ function update_script() {
     systemctl stop nginx
     msg_ok "Stopped Services"
 
-    # Swap the staged release into place. Mark that this run owns the backup so
-    # the EXIT trap will only roll back a backup we created; from here it can.
+    # Swap the staged release into place.
     msg_info "Installing ${APP} ${CHECK_UPDATE_RELEASE}"
-    SWAP_STARTED=1
     rm -rf /opt/rackula-backup
     mv /opt/rackula /opt/rackula-backup
+    # The live tree is now the backup, so arm rollback: only from here can the
+    # EXIT trap restore /opt/rackula-backup, and only this run could have created it.
+    SWAP_STARTED=1
     mv /opt/rackula.new /opt/rackula
 
     # Restore persistent data from backup
