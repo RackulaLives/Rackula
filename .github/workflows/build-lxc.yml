@@ -55,6 +55,19 @@ jobs:
           cd api
           bun install --frozen-lockfile --production
 
+          # The tarball is built on x86 but runs on any arch (LXC supports arm64).
+          # @node-rs/argon2 (the only native dep) ships per-platform binaries as
+          # os/cpu-gated optional deps, so the host install pulls x64 only. Inject the
+          # arm64 glibc binary alongside it, pinned to the exact resolved version so it
+          # cannot drift. The runtime loader picks the binary by file presence, not by
+          # the os/cpu manifest fields, so this loads correctly on arm64.
+          ARGON2_VER=$(node -p "require('./node_modules/@node-rs/argon2-linux-x64-gnu/package.json').version")
+          bun add --no-save "@node-rs/argon2-linux-arm64-gnu@${ARGON2_VER}" --cpu=arm64 --os=linux
+
+          # Fail the build if either native binary is missing.
+          test -f node_modules/@node-rs/argon2-linux-x64-gnu/argon2.linux-x64-gnu.node
+          test -f node_modules/@node-rs/argon2-linux-arm64-gnu/argon2.linux-arm64-gnu.node
+
       - name: Assemble tarball
         run: |
           VERSION="${{ steps.version.outputs.version }}"
