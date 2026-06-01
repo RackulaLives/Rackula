@@ -17,6 +17,7 @@
     filterPaletteDevicesByRackWidth,
     isDeviceCompatibleWithRackWidth,
     getRackWidthIncompatibilityReason,
+    categoryOrder,
   } from "$lib/utils/deviceFilters";
   import {
     loadGroupingModeFromStorage,
@@ -311,23 +312,6 @@
   const filteredAllDevices = $derived(
     searchDevices(allDevicesCombined, searchQuery),
   );
-
-  // Category order for consistent display
-  const categoryOrder: import("$lib/types").DeviceCategory[] = [
-    "server",
-    "network",
-    "firewall",
-    "patch-panel",
-    "power",
-    "storage",
-    "kvm",
-    "av-media",
-    "cooling",
-    "shelf",
-    "blank",
-    "cable-management",
-    "other",
-  ];
 
   // Sections for brand mode - filter out empty sections (no compatible devices)
   const brandModeSections = $derived<DeviceSection[]>(
