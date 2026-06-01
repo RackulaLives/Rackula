@@ -24,6 +24,13 @@ describe("Dockerfile envsubst filter", () => {
     .split("\n")
     .find((line) => line.startsWith("ENV NGINX_ENVSUBST_FILTER="));
 
+  it("has NGINX_ENVSUBST_FILTER in Dockerfile", () => {
+    expect(
+      filterLine,
+      "missing ENV NGINX_ENVSUBST_FILTER in Dockerfile",
+    ).toBeDefined();
+  });
+
   const requiredVars = [
     "API_HOST",
     "API_PORT",

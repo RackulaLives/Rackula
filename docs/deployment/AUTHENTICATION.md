@@ -672,9 +672,9 @@ This section covers deploying Rackula with OIDC authentication behind a front pr
 
 Rackula uses two separate mechanisms for constructing correct URLs behind a proxy:
 
-1. **Nginx auth redirects** (unauthenticated browser -> login page): Controlled by `RACKULA_TRUST_PROXY=1` and `X-Forwarded-Proto`. When enabled, nginx reads the front proxy's `X-Forwarded-Proto` header to construct `https://` redirect URLs.
+1. Nginx auth redirects (unauthenticated browser -> login page): Controlled by `RACKULA_TRUST_PROXY=1` and `X-Forwarded-Proto`. When enabled, nginx reads the front proxy's `X-Forwarded-Proto` header to construct `https://` redirect URLs.
 
-2. **API OIDC URLs** (IdP authorization and callback): Controlled by `RACKULA_BASE_URL` and optionally `RACKULA_OIDC_REDIRECT_URI`. These are explicit configuration values, not derived from headers.
+2. API OIDC URLs (IdP authorization and callback): Controlled by `RACKULA_BASE_URL` and optionally `RACKULA_OIDC_REDIRECT_URI`. These are explicit configuration values, not derived from headers.
 
 Both must be configured correctly for OIDC to work behind a reverse proxy.
 
