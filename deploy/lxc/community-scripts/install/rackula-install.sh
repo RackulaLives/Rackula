@@ -50,7 +50,12 @@ mkdir -p /opt/rackula/data
 mkdir -p /etc/nginx/snippets
 
 # Deploy config files from the release
-cp /opt/rackula/config/security-headers.conf /etc/nginx/snippets/security-headers.conf
+SECURITY_HEADERS_SRC="/opt/rackula/config/security-headers.conf"
+if [ ! -f "$SECURITY_HEADERS_SRC" ]; then
+  msg_error "Required config file missing: $SECURITY_HEADERS_SRC (release may be incomplete)"
+  exit 1
+fi
+cp "$SECURITY_HEADERS_SRC" /etc/nginx/snippets/security-headers.conf
 
 # Set ownership: frontend root-owned (served by nginx), API rackula-owned
 chown -R root:root /opt/rackula/frontend
