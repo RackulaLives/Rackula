@@ -20,6 +20,8 @@
     siLenovo,
     siBlackmagicdesign,
     siApple,
+    siIntel,
+    siRaspberrypi,
   } from "simple-icons";
   import { Zap } from "@lucide/svelte";
   import {
@@ -29,6 +31,8 @@
     deskPiPath,
     netgatePath,
     fsPath,
+    beelinkPath,
+    zimaPath,
   } from "./customBrandIcons";
 
   interface Props {
@@ -57,6 +61,8 @@
     lenovo: siLenovo,
     blackmagicdesign: siBlackmagicdesign,
     apple: siApple,
+    intel: siIntel,
+    raspberrypi: siRaspberrypi,
     // Custom brand icons (not in simple-icons)
     arista: { path: aristaPath, hex: "FFFFFF" },
     acinfinity: { path: acInfinityPath, hex: "FFFFFF" },
@@ -64,6 +70,8 @@
     deskpi: { path: deskPiPath, hex: "FFFFFF" },
     netgate: { path: netgatePath, hex: "FFFFFF" },
     fs: { path: fsPath, hex: "E31837" },
+    beelink: { path: beelinkPath, hex: "FFFFFF" },
+    zima: { path: zimaPath, hex: "FFFFFF" },
   };
 
   const icon = $derived(slug ? iconMap[slug] : undefined);

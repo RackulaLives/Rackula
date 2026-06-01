@@ -26,3 +26,10 @@ export const aristaPath =
 // FS.COM - circular emblem with three horizontal bars (traced from brand logo)
 export const fsPath =
   "M12 2A10 10 0 0 1 22 12A10 10 0 0 1 12 22A10 10 0 0 1 2 12A10 10 0 0 1 12 2Z M4 7.5L4 9L19 9L19 7.5Z M4 11L4 12.5L16 12.5L16 11Z M4 14.5L4 16L14 16L14 14.5Z";
+
+// Beelink - simplified "B" monogram for brand section icon
+export const beelinkPath =
+  "M6 3 H13.5 C17 3 17 11 13.5 11 C17.5 11 17.5 21 13 21 H6 Z M9 5.8 V9.4 H13 C14.9 9.4 14.9 5.8 13 5.8 Z M9 12.6 V18.2 H13 C15.4 18.2 15.4 12.6 13 12.6 Z";
+
+// Zima - simplified "Z" monogram for brand section icon
+export const zimaPath = "M5 3 H19 V7 L11 17 H19 V21 H5 V17 L13 7 H5 Z";

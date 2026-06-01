@@ -5,16 +5,18 @@
  *
  * The Xserve was Apple's rack-mounted server line manufactured 2002-2011.
  * The Xserve RAID was Apple's enterprise storage solution.
+ * The Mac Mini is a compact mini-PC for shelf placement.
  */
 
 import type { DeviceType } from "$lib/types";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 
 /**
- * Apple device definitions (2 rack-mount devices)
+ * Apple device definitions
  *
  * Xserve: 1U rack-mounted server (PowerPC G4/G5 2002-2006, Intel Xeon 2006-2011)
  * Xserve RAID: 3U rack-mounted storage (14 hot-swappable drives, up to 10.5TB)
+ * Mac Mini: Compact mini-PC for shelf placement
  */
 export const appleDevices: DeviceType[] = [
   {
@@ -38,5 +40,15 @@ export const appleDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.storage,
     category: "storage",
     front_image: true,
+  },
+  {
+    slug: "apple-mac-mini",
+    u_height: 1,
+    manufacturer: "Apple",
+    model: "Mac Mini",
+    slot_width: 1,
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
   },
 ];

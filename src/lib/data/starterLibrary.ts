@@ -308,59 +308,11 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     ],
   },
 
-  // Mini Devices - for placement on shelf slots (7)
+  // Mini Devices - for placement on shelf slots (1)
   // Note: Brand names in model field, no manufacturer (keeps starter library generic)
   {
     slug: "generic-mini-pc",
     model: "Mini PC",
-    u_height: 1,
-    category: "server",
-    slot_width: 1,
-    is_full_depth: false,
-  },
-  {
-    slug: "intel-nuc",
-    model: "Intel NUC",
-    u_height: 1,
-    category: "server",
-    slot_width: 1,
-    is_full_depth: false,
-  },
-  {
-    slug: "beelink-mini-s12-pro",
-    model: "Beelink Mini S12 Pro",
-    u_height: 1,
-    category: "server",
-    slot_width: 1,
-    is_full_depth: false,
-  },
-  {
-    slug: "raspberry-pi-5",
-    model: "Raspberry Pi 5",
-    u_height: 0.5,
-    category: "server",
-    slot_width: 1,
-    is_full_depth: false,
-  },
-  {
-    slug: "raspberry-pi-4",
-    model: "Raspberry Pi 4",
-    u_height: 0.5,
-    category: "server",
-    slot_width: 1,
-    is_full_depth: false,
-  },
-  {
-    slug: "zimaboard",
-    model: "Zimaboard",
-    u_height: 0.5,
-    category: "server",
-    slot_width: 1,
-    is_full_depth: false,
-  },
-  {
-    slug: "apple-mac-mini",
-    model: "Mac Mini",
     u_height: 1,
     category: "server",
     slot_width: 1,
