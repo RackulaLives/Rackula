@@ -32,13 +32,13 @@ Bun's native cross-platform flags (added in Bun 1.2.23, present in the workflow'
 cd api
 bun install --frozen-lockfile --production
 
-# Pass 2 (new): inject the arm64 glibc binary alongside x64, pinned to the resolved version
-ARGON2_VER=$(bun pm ls 2>/dev/null | grep -oE '@node-rs/argon2@[0-9.]+' | head -1 | cut -d@ -f3)
-ARGON2_VER="${ARGON2_VER:-2.0.2}"
+# Pass 2 (new): inject the arm64 glibc binary alongside x64, pinned to the exact
+# version resolved for the host (x64) package so it cannot drift.
+ARGON2_VER=$(node -p "require('./node_modules/@node-rs/argon2-linux-x64-gnu/package.json').version")
 bun add --no-save "@node-rs/argon2-linux-arm64-gnu@${ARGON2_VER}" --cpu=arm64 --os=linux
-# Verify both binaries are present before tarring
-test -d node_modules/@node-rs/argon2-linux-x64-gnu
-test -d node_modules/@node-rs/argon2-linux-arm64-gnu
+# Fail the build if either native binary is missing
+test -f node_modules/@node-rs/argon2-linux-x64-gnu/argon2.linux-x64-gnu.node
+test -f node_modules/@node-rs/argon2-linux-arm64-gnu/argon2.linux-arm64-gnu.node
 ```
 
 Notes:
