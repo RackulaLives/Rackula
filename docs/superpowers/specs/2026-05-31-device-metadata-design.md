@@ -51,7 +51,7 @@ field from NetBox imports"). We follow the NetBox object model rather than inven
 | DeviceType (template) | (NetBox has no serial/asset_tag here)       | existing template defaults |
 
 Naming decision: NetBox's instance field is `serial`, but Rackula's existing DeviceType key
-is `serial_number` and `AnnotationField` already uses `"serial"`. We use **`serial_number`**
+is `serial_number` and `AnnotationField` already uses `"serial"`. We use `serial_number`
 on `PlacedDevice` so instance and template share one key for annotation fallback. A future
 NetBox adapter maps `serial` <-> `serial_number`, consistent with the other name mappings it
 already performs.

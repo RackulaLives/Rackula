@@ -308,8 +308,9 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     ],
   },
 
-  // Mini Devices - for placement on shelf slots (1)
-  // Note: Brand names in model field, no manufacturer (keeps starter library generic)
+  // Mini Devices - for placement on shelf slots
+  // A single generic entry (generic-mini-pc) with a generic model value.
+  // Branded mini PCs and SBCs live in their own brand packs.
   {
     slug: "generic-mini-pc",
     model: "Mini PC",
