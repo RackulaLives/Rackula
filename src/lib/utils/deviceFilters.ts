@@ -43,6 +43,15 @@ if (import.meta.env.DEV) {
         "Add them to categoryOrder in deviceFilters.ts.",
     );
   }
+  const extra = categoryOrder.filter(
+    (cat) => !DeviceCategorySchema.options.includes(cat),
+  );
+  if (extra.length > 0) {
+    throw new Error(
+      `categoryOrder has unknown categories: ${extra.join(", ")}. ` +
+        "Remove them from categoryOrder in deviceFilters.ts.",
+    );
+  }
 }
 
 /**

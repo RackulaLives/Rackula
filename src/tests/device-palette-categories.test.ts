@@ -8,8 +8,4 @@ describe("DevicePalette category grouping", () => {
       expect(categoryOrder).toContain(cat);
     }
   });
-
-  it("includes chassis devices in category-grouped sections", () => {
-    expect(categoryOrder).toContain("chassis");
-  });
 });
