@@ -235,34 +235,47 @@ host during LXC/app install.
 
 ---
 
-## Recommended pattern
+## Recommended pattern (implemented)
 
-**Pattern A, Bun two-pass injection (A.0), producing one universal `node_modules` tarball.**
-
-Rationale:
-
-1. The project already uses Bun in `/api` and Bun has first-class `--cpu/--os` support for
-   exactly this scenario — no `--force`, no manual registry juggling.
-2. One artifact, one CI job. No matrix, no QEMU, no arm64 runner, no install-time network
-   dependency. Fits the "build on x86, ship a tarball, untar on Debian arm64" model already in
-   place.
-3. Frozen-lockfile and version pinning are preserved: pass 1 is the normal frozen production
-   install; pass 2 derives the version from the lockfile and adds only the arm64-gnu binary via
-   `--no-save`, so the two arches can never drift and the lockfile contract is intact.
-4. Minimal tarball bloat: targeted single extra `.node` (~0.5 MB) vs `--cpu='*' --os='*'` which
-   drags in musl/windows/android binaries.
-
-Concrete CI step:
+**Single-pass production install scoped to all linux CPUs**, producing one universal
+`node_modules` tarball:
 
 ```bash
-bun install --frozen-lockfile --production
-ARGON2_VER=$(grep -oE '@node-rs/argon2@[0-9]+\.[0-9]+\.[0-9]+' bun.lock | head -1 | cut -d@ -f3)
-bun add --no-save "@node-rs/argon2-linux-arm64-gnu@${ARGON2_VER}" --cpu=arm64 --os=linux
+bun install --frozen-lockfile --production --cpu='*' --os=linux
 tar czf app.tar.gz node_modules <app files>
 ```
 
-**Fallback if you ever drop Bun from the artifact step:** use A.2 (`npm pack` + `tar
---strip-components=1`), which has zero platform-validation surface and works from any host.
+Rationale:
+
+1. The project already uses Bun in `/api`, which has first-class `--cpu/--os` support for
+   exactly this scenario - no `--force`, no manual registry juggling.
+2. One artifact, one CI job. No matrix, no QEMU, no arm64 runner, no install-time network
+   dependency. Fits the "build on x86, ship a tarball, untar on Debian arm64" model already in
+   place.
+3. Frozen-lockfile and pinning are preserved: a single frozen production install resolves the
+   matching versions for every linux platform binary, so the arches cannot drift.
+4. `--os=linux` scopes the extra binaries to linux only (x64 + arm64, gnu + musl) - no
+   darwin/windows/android. For this project that is a couple of small `@node-rs/argon2` `.node`
+   files; the bloat is negligible.
+
+### Considered and rejected: two-pass `bun add` injection
+
+The original idea was to inject only the arm64-gnu binary after the production install:
+
+```bash
+bun install --frozen-lockfile --production
+bun add --no-save "@node-rs/argon2-linux-arm64-gnu@<ver>" --cpu=arm64 --os=linux
+```
+
+This breaks in practice: the second `bun add` re-reconciles `node_modules` to the install
+command's view. Without `--production` it pulls devDependencies back into the tarball; with
+`--production` it reconciles to the `--cpu=arm64` target and prunes the host x64 binary. The
+single-pass `--cpu='*'` install sidesteps both failure modes (verified empirically), at the
+cost of a couple of extra small linux binaries (musl, arm) instead of one.
+
+**Fallback if you ever drop Bun from the artifact step:** `npm pack` + `tar
+--strip-components=1` to extract the platform package into `node_modules`, which has zero
+platform-validation surface and works from any host.
 
 **Escalate to Pattern B** only if the app later gains additional native deps or needs musl +
 glibc across multiple arches, where per-arch native builds become cleaner than injecting N
