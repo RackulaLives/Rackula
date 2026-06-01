@@ -37,7 +37,9 @@ fi
 msg_ok "Installed Bun"
 
 msg_info "Creating rackula user"
-useradd --system --user-group --home-dir /opt/rackula --shell /usr/sbin/nologin rackula
+if ! id -u rackula >/dev/null 2>&1; then
+  useradd --system --user-group --home-dir /opt/rackula --shell /usr/sbin/nologin rackula
+fi
 msg_ok "Created rackula user"
 
 msg_info "Installing Rackula"
