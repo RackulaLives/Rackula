@@ -49,7 +49,12 @@ export function createAddDeviceTypeCommand(
       store.addDeviceTypeRaw(deviceType);
     },
     undo() {
-      store.removeDeviceTypeRaw(deviceType.slug);
+      // Skip removal if a later placement of the same type still references it.
+      // Batch undo removes the placed device first, then calls this, so the
+      // original device is already gone by the time we check.
+      if (store.getPlacedDevicesForType(deviceType.slug).length === 0) {
+        store.removeDeviceTypeRaw(deviceType.slug);
+      }
     },
   };
 }

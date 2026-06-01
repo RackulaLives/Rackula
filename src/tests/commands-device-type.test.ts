@@ -90,6 +90,19 @@ describe("Device Type Commands", () => {
       expect(store.removeDeviceTypeRaw).toHaveBeenCalledTimes(1);
       expect(store.removeDeviceTypeRaw).toHaveBeenCalledWith("server-1");
     });
+
+    it("undo skips removal when another device still references the type", () => {
+      const store = createMockStore();
+      const deviceType = createTestDeviceType({ slug: "server-1" });
+      const existingDevice = createTestDevice({ device_type: "server-1" });
+      store.getPlacedDevicesForType.mockReturnValue([existingDevice]);
+
+      const command = createAddDeviceTypeCommand(deviceType, store);
+      command.execute();
+      command.undo();
+
+      expect(store.removeDeviceTypeRaw).not.toHaveBeenCalled();
+    });
   });
 
   describe("createUpdateDeviceTypeCommand", () => {
