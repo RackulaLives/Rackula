@@ -49,6 +49,9 @@ function update_script() {
 
   # Track update success for rollback decisions
   UPDATE_SUCCESS=0
+  # Set once this run owns the backup/swap, so rollback never acts on a stale
+  # /opt/rackula-backup left behind by a previously killed run.
+  SWAP_STARTED=0
 
   # Rollback on failure. Runs as the EXIT trap under errexit, so every step is
   # guarded: a failure here must not abort the trap before recovery completes.
@@ -63,36 +66,41 @@ function update_script() {
         echo "$OLD_VERSION" >~/.rackula
       fi
 
-      # Restore the /etc unit + nginx files that were overwritten this run, before
-      # the backup tree is moved back into place.
-      if [[ -d /opt/rackula-etc-backup ]]; then
-        cp -a /opt/rackula-etc-backup/rackula /etc/nginx/sites-available/rackula 2>/dev/null || true
-        cp -a /opt/rackula-etc-backup/security-headers.conf /etc/nginx/snippets/security-headers.conf 2>/dev/null || true
-        cp -a /opt/rackula-etc-backup/rackula-api.service /etc/systemd/system/rackula-api.service 2>/dev/null || true
-        if [[ -f /opt/rackula-etc-backup/nginx-override.conf ]]; then
-          mkdir -p /etc/systemd/system/nginx.service.d
-          cp -a /opt/rackula-etc-backup/nginx-override.conf /etc/systemd/system/nginx.service.d/override.conf 2>/dev/null || true
-        fi
-      fi
-
-      if [[ -d /opt/rackula-backup ]]; then
-        # Persistent data may already have been moved into the new install. Move
-        # it back before restoring the backup, but only destroy the live tree once
-        # the data move has succeeded, so user data is never lost.
-        local data_safe=1
-        if [[ -d /opt/rackula/data ]] && [[ ! -d /opt/rackula-backup/data ]]; then
-          if ! mv /opt/rackula/data /opt/rackula-backup/data; then
-            data_safe=0
-            msg_error "Rollback: could not preserve data; leaving /opt/rackula intact to avoid data loss"
+      # Only undo on-disk changes when THIS run started the swap. A stale
+      # /opt/rackula-backup or -etc-backup left by a previously killed run must
+      # never be restored over a good install.
+      if [[ $SWAP_STARTED -eq 1 ]]; then
+        # Restore the /etc unit + nginx files that were overwritten this run,
+        # before the backup tree is moved back into place.
+        if [[ -d /opt/rackula-etc-backup ]]; then
+          cp -a /opt/rackula-etc-backup/rackula /etc/nginx/sites-available/rackula 2>/dev/null || true
+          cp -a /opt/rackula-etc-backup/security-headers.conf /etc/nginx/snippets/security-headers.conf 2>/dev/null || true
+          cp -a /opt/rackula-etc-backup/rackula-api.service /etc/systemd/system/rackula-api.service 2>/dev/null || true
+          if [[ -f /opt/rackula-etc-backup/nginx-override.conf ]]; then
+            mkdir -p /etc/systemd/system/nginx.service.d
+            cp -a /opt/rackula-etc-backup/nginx-override.conf /etc/systemd/system/nginx.service.d/override.conf 2>/dev/null || true
           fi
         fi
-        if [[ $data_safe -eq 1 ]]; then
-          rm -rf /opt/rackula
-          mv /opt/rackula-backup /opt/rackula
-          systemctl daemon-reload
-          systemctl start rackula-api || true
-          systemctl start nginx || true
-          msg_error "Update failed, restored from backup"
+
+        if [[ -d /opt/rackula-backup ]]; then
+          # Persistent data may already have been moved into the new install. Move
+          # it back before restoring the backup, but only destroy the live tree once
+          # the data move has succeeded, so user data is never lost.
+          local data_safe=1
+          if [[ -d /opt/rackula/data ]] && [[ ! -d /opt/rackula-backup/data ]]; then
+            if ! mv /opt/rackula/data /opt/rackula-backup/data; then
+              data_safe=0
+              msg_error "Rollback: could not preserve data; leaving /opt/rackula intact to avoid data loss"
+            fi
+          fi
+          if [[ $data_safe -eq 1 ]]; then
+            rm -rf /opt/rackula
+            mv /opt/rackula-backup /opt/rackula
+            systemctl daemon-reload
+            systemctl start rackula-api || true
+            systemctl start nginx || true
+            msg_error "Update failed, restored from backup"
+          fi
         fi
       fi
     fi
@@ -122,8 +130,10 @@ function update_script() {
     systemctl stop nginx
     msg_ok "Stopped Services"
 
-    # Swap the staged release into place. From here the EXIT trap can roll back.
+    # Swap the staged release into place. Mark that this run owns the backup so
+    # the EXIT trap will only roll back a backup we created; from here it can.
     msg_info "Installing ${APP} ${CHECK_UPDATE_RELEASE}"
+    SWAP_STARTED=1
     rm -rf /opt/rackula-backup
     mv /opt/rackula /opt/rackula-backup
     mv /opt/rackula.new /opt/rackula
@@ -135,13 +145,23 @@ function update_script() {
     fi
 
     # Back up the current /etc unit + nginx files before overwriting them, so the
-    # rollback can restore a fully working previous install.
+    # rollback can restore a fully working previous install. A missing source is
+    # fine (skip it), but a real copy failure must abort so we never overwrite
+    # /etc without a usable backup.
     rm -rf /opt/rackula-etc-backup
     mkdir -p /opt/rackula-etc-backup
-    cp -a /etc/nginx/sites-available/rackula /opt/rackula-etc-backup/rackula 2>/dev/null || true
-    cp -a /etc/nginx/snippets/security-headers.conf /opt/rackula-etc-backup/security-headers.conf 2>/dev/null || true
-    cp -a /etc/systemd/system/rackula-api.service /opt/rackula-etc-backup/rackula-api.service 2>/dev/null || true
-    cp -a /etc/systemd/system/nginx.service.d/override.conf /opt/rackula-etc-backup/nginx-override.conf 2>/dev/null || true
+    while IFS='|' read -r etc_src etc_dest; do
+      [[ -e "$etc_src" ]] || continue
+      if ! cp -a "$etc_src" "/opt/rackula-etc-backup/${etc_dest}"; then
+        msg_error "Failed to back up ${etc_src} before update"
+        exit 1
+      fi
+    done <<'ETC_FILES'
+/etc/nginx/sites-available/rackula|rackula
+/etc/nginx/snippets/security-headers.conf|security-headers.conf
+/etc/systemd/system/rackula-api.service|rackula-api.service
+/etc/systemd/system/nginx.service.d/override.conf|nginx-override.conf
+ETC_FILES
 
     # Update config files from the new release
     if ! cp /opt/rackula/config/nginx.conf /etc/nginx/sites-available/rackula; then
