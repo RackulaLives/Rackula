@@ -143,13 +143,13 @@ Run local review before pushing to catch issues early:
 
 ```bash
 # Review uncommitted changes (token-efficient output for AI)
-coderabbit --prompt-only --type uncommitted
+coderabbit --agent --type uncommitted
 
 # Review committed changes on current branch
-coderabbit --prompt-only --type committed
+coderabbit --agent --type committed
 ```
 
-Always use `--prompt-only` — provides concise, token-efficient output optimized for Claude Code.
+Always use `--agent` — provides concise, token-efficient output optimized for Claude Code.
 
 ### PR Monitoring
 

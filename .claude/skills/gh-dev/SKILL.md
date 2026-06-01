@@ -263,7 +263,7 @@ If not configured, skip or ask user.
 **Step 1: Run CodeRabbit**
 
 ```bash
-(cd "$WORKTREE_DIR" && coderabbit --prompt-only --type uncommitted 2>&1)
+(cd "$WORKTREE_DIR" && coderabbit --agent --type uncommitted 2>&1)
 ```
 
 **Step 2: Parse Output**

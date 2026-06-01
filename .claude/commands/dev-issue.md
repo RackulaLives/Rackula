@@ -390,12 +390,12 @@ If failures: see Error Recovery section.
 **ALWAYS run CodeRabbit CLI before pushing any PR.** This catches issues early and improves PR success rate.
 
 ```bash
-(cd "$WORKTREE_DIR" && coderabbit --prompt-only --type committed)
+(cd "$WORKTREE_DIR" && coderabbit --agent --type committed)
 ```
 
 **Flags:**
 
-- `--prompt-only` — Token-efficient output optimized for Claude Code
+- `--agent` — Token-efficient output optimized for Claude Code
 - `--type committed` — Reviews committed changes on current branch
 
 **If CodeRabbit suggests changes:**

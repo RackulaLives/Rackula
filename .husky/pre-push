@@ -1,10 +1,10 @@
 # Run CodeRabbit review before pushing
-# Uses --prompt-only for token-efficient output (optimized for AI review)
+# Uses --agent for token-efficient output (optimized for AI review)
 # Compares against origin/main to review commits being pushed
 # Blocks push if CodeRabbit finds issues
 
 echo "Running CodeRabbit review on committed changes..."
-if ! coderabbit review --prompt-only --type committed --base origin/main; then
+if ! coderabbit review --agent --type committed --base origin/main; then
   echo ""
   echo "CodeRabbit found issues. Push blocked."
   echo "Fix the issues above or use 'git push --no-verify' to skip."
