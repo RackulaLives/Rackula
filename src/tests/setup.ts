@@ -1,4 +1,3 @@
-// @ts-nocheck
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/svelte";
 import { afterEach, beforeEach, vi } from "vitest";
@@ -92,8 +91,8 @@ if (typeof process !== "undefined" && process.stderr) {
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
   process.stderr.write = ((
     chunk: Uint8Array | string,
-    encodingOrCallback?: BufferEncoding | ((err?: Error) => void),
-    callback?: (err?: Error) => void,
+    encodingOrCallback?: BufferEncoding | ((err?: Error | null) => void),
+    callback?: (err?: Error | null) => void,
   ): boolean => {
     const message = typeof chunk === "string" ? chunk : chunk.toString();
     if (isHappyDomAbortMessage(message)) {
