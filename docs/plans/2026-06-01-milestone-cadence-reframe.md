@@ -73,14 +73,14 @@ Replace the bullet point about milestones with the decoupled version:
 
 Old (line 40-41):
 
-```
+```text
 - Milestones are **theme-led with a target month**, not semver-named. The CalVer migration
   lands at the **LXC release** boundary (the first CalVer release).
 ```
 
 New:
 
-```
+```text
 - Milestones are **theme-led and sequentially ordered**, not time-boxed. CalVer reflects
   the ship date, not the plan date. Multiple milestones may ship in one month.
 ```
@@ -89,7 +89,7 @@ New:
 
 Old (lines 45-48):
 
-```
+```text
 ## Current Plan -- Next 4 Sprints
 
 Consistent, small (~10–15 issue) sprints. Each maps to a GitHub milestone.
@@ -97,7 +97,7 @@ Consistent, small (~10–15 issue) sprints. Each maps to a GitHub milestone.
 
 New:
 
-```
+```text
 ## Active Plan
 
 Milestones are thematic groups with sequential ordering. Each maps to a GitHub milestone.
@@ -108,13 +108,13 @@ Status markers show current state: complete, in progress, next, planned.
 
 Old (line 49):
 
-```
+```text
 ### M1 -- LXC Build & Hardening · ~June (`v26.6.x`)
 ```
 
 New:
 
-```
+```text
 ### M1 -- LXC Build & Hardening (complete)
 ```
 
@@ -122,13 +122,13 @@ New:
 
 Old (line 60):
 
-```
+```text
 ### M2 -- LXC Release & Stability · ~July (`v26.7.x`)
 ```
 
 New:
 
-```
+```text
 ### M2 -- LXC Release & Stability (in progress)
 ```
 
@@ -136,13 +136,13 @@ New:
 
 Old (line 70):
 
-```
+```text
 ### M3 -- Data Format & Interop · ~Aug (`v26.8.x`)
 ```
 
 New:
 
-```
+```text
 ### M3 -- Data Format & Interop (next)
 ```
 
@@ -150,13 +150,13 @@ New:
 
 Old (line 79):
 
-```
+```text
 ### M4 -- Type Safety, Decomposition & Stability · ~September (`v26.9.x`)
 ```
 
 New:
 
-```
+```text
 ### M4 -- Type Safety, Decomposition & Stability (planned)
 ```
 
@@ -164,14 +164,14 @@ New:
 
 Old (line 98):
 
-```
+```text
 Everything not in the next 3 sprints lives in the **Backlog** milestone (replaces the
 retired semver milestone buckets). Notable clusters parked there:
 ```
 
 New:
 
-```
+```text
 Everything not in the active plan lives in the **Backlog** milestone. Notable clusters:
 ```
 
@@ -179,14 +179,14 @@ Everything not in the active plan lives in the **Backlog** milestone. Notable cl
 
 Old (lines 132-133):
 
-```
+```text
 _This document defines product vision and the active sprint plan. For live work items, see
 [GitHub Milestones](https://github.com/RackulaLives/Rackula/milestones)._
 ```
 
 New:
 
-```
+```text
 _This document defines product vision and the active plan. For live work items, see
 [GitHub Milestones](https://github.com/RackulaLives/Rackula/milestones)._
 ```
@@ -209,7 +209,7 @@ Expected: No calendar months, no version ranges in milestone headings. Status ma
 
 Old (lines 51-55):
 
-```
+```text
 **Current milestones:**
 
 - `M1 -- LXC Build & Hardening` -- Sprint 1 (~June 2026, v26.6.x)
@@ -219,7 +219,7 @@ Old (lines 51-55):
 
 New:
 
-```
+```text
 **Current milestones:**
 
 - `M1 -- LXC Build & Hardening` -- complete
@@ -232,7 +232,7 @@ New:
 
 After the MICRO rule block (line 23), add:
 
-```
+```text
 **CalVer and milestones are decoupled:** the version reflects the ship date, not the plan
 date. Multiple milestones may ship in the same month. See the milestone cadence design:
 [`docs/superpowers/specs/2026-06-01-milestone-cadence-reframe-design.md`](docs/superpowers/specs/2026-06-01-milestone-cadence-reframe-design.md).
