@@ -14,6 +14,7 @@ import {
   createRefreshedAuthSessionCookieHeader,
   createWriteAuthMiddleware,
   createRateLimitMiddleware,
+  createStorageQuotaMiddleware,
   resolveClientIpFromHeaders,
   invalidateAuthSession,
   resolveAuthenticatedSessionClaims,
@@ -855,6 +856,21 @@ export async function createApp(
 
   app.use("/layouts/*", layoutBodyLimit);
   app.use("/api/layouts/*", layoutBodyLimit);
+
+  // Storage quota — enforce layout and asset count limits on write operations.
+  // Applied after body limits (so request body is already validated) and before
+  // route handlers. Skips check when both quotas are unlimited (max=0).
+  const dataDir = env.DATA_DIR ?? "./data";
+  const storageQuotaMiddleware = createStorageQuotaMiddleware({
+    dataDir,
+    maxLayouts: securityConfig.maxLayouts,
+    maxAssetsPerLayout: securityConfig.maxAssetsPerLayout,
+  });
+
+  app.use("/layouts/*", storageQuotaMiddleware);
+  app.use("/assets/*", storageQuotaMiddleware);
+  app.use("/api/layouts/*", storageQuotaMiddleware);
+  app.use("/api/assets/*", storageQuotaMiddleware);
 
   // Mount each router at the root path (nginx strips /api when proxying) and
   // at the /api/* alias for direct access. Using a helper keeps the two
