@@ -47,7 +47,31 @@ async function selectHeight(
     return;
   }
 
-  await page.locator('[data-testid="slider-height"]').fill(String(height));
+  // Slider fallback: a range input silently clamps out-of-range values, which
+  // would let a test pass with the wrong height. Validate against the slider's
+  // own min/max so the test fails fast instead.
+  const slider = page.locator('[data-testid="slider-height"]');
+  const minAttr = await slider.getAttribute("min");
+  const maxAttr = await slider.getAttribute("max");
+  const min = Number(minAttr);
+  const max = Number(maxAttr);
+  if (
+    minAttr === null ||
+    maxAttr === null ||
+    Number.isNaN(min) ||
+    Number.isNaN(max)
+  ) {
+    throw new Error(
+      `selectHeight: could not read slider range (min=${minAttr}, max=${maxAttr})`,
+    );
+  }
+  if (height < min || height > max) {
+    throw new Error(
+      `selectHeight: height ${height}U is outside the slider range [${min}, ${max}]`,
+    );
+  }
+
+  await slider.fill(String(height));
 }
 
 /**
@@ -148,16 +172,4 @@ export async function completeWizardWithClicks(
     .locator(locators.rack.container)
     .first()
     .waitFor({ state: "visible" });
-}
-
-/**
- * Fill rack form fields (legacy helper for tests that open wizard themselves)
- */
-export async function fillRackForm(
-  page: Page,
-  name: string,
-  height: number,
-): Promise<void> {
-  await page.fill("#rack-name", name);
-  await selectHeight(page, height);
 }
