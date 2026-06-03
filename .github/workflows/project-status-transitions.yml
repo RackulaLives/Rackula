@@ -1,0 +1,84 @@
+name: Project Status Transitions
+
+on:
+  issues:
+    types: [assigned]
+  pull_request:
+    types: [opened]
+
+permissions: {} # Uses PAT for project access, not GITHUB_TOKEN
+
+jobs:
+  set-in-progress:
+    if: ${{ github.event_name == 'issues' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find project item for issue
+        id: find-item
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PROJECT_ID: ${{ vars.PROJECT_ID || 'PVT_kwDODv3FSs4BLc_R' }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          ITEM_ID=$(gh project item-list "$PROJECT_ID" \
+            --format json \
+            --jq ".[] | select(.content.number == $ISSUE_NUMBER) | .id" \
+            2>/dev/null | head -1 || echo "")
+          echo "item_id=$ITEM_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Set status to In Progress
+        if: ${{ steps.find-item.outputs.item_id != '' }}
+        env:
+          PROJECT_ID: ${{ vars.PROJECT_ID || 'PVT_kwDODv3FSs4BLc_R' }}
+          STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID || 'PVTSSF_lADODv3FSs4BLc_Rzg7BbqY' }}
+          IN_PROGRESS_OPTION_ID: ${{ vars.IN_PROGRESS_OPTION_ID || '47fc9ee4' }}
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ITEM_ID: ${{ steps.find-item.outputs.item_id }}
+        run: |
+          gh project item-edit \
+            --id "$ITEM_ID" \
+            --project-id "$PROJECT_ID" \
+            --field-id "$STATUS_FIELD_ID" \
+            --single-select-option-id "$IN_PROGRESS_OPTION_ID" \
+          || echo "Warning: Could not update issue (may already be in target status)"
+
+  set-in-review:
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract linked issue numbers from PR body
+        id: extract-issues
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          ISSUES=$(echo "$PR_BODY" \
+            | grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?) #[0-9]+' \
+            | grep -oE '[0-9]+' | sort -u | tr '\n' ' ')
+          echo "issue_numbers=$ISSUES" >> "$GITHUB_OUTPUT"
+
+      - name: Move linked issues to In Review
+        if: ${{ steps.extract-issues.outputs.issue_numbers != '' }}
+        env:
+          PROJECT_ID: ${{ vars.PROJECT_ID || 'PVT_kwDODv3FSs4BLc_R' }}
+          STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID || 'PVTSSF_lADODv3FSs4BLc_Rzg7BbqY' }}
+          IN_REVIEW_OPTION_ID: ${{ vars.IN_REVIEW_OPTION_ID || 'fe785116' }}
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ISSUE_NUMBERS: ${{ steps.extract-issues.outputs.issue_numbers }}
+        run: |
+          for ISSUE_NUM in $ISSUE_NUMBERS; do
+            ITEM_ID=$(gh project item-list "$PROJECT_ID" \
+              --format json \
+              --jq ".[] | select(.content.number == $ISSUE_NUM) | .id" \
+              2>/dev/null | head -1 || echo "")
+
+            if [ -n "$ITEM_ID" ]; then
+              gh project item-edit \
+                --id "$ITEM_ID" \
+                --project-id "$PROJECT_ID" \
+                --field-id "$STATUS_FIELD_ID" \
+                --single-select-option-id "$IN_REVIEW_OPTION_ID" \
+              || echo "Warning: Could not update issue #$ISSUE_NUM (may already be in target status)"
+            else
+              echo "Info: Issue #$ISSUE_NUM not found in project, skipping"
+            fi
+          done
