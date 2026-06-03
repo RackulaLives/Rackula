@@ -52,7 +52,7 @@ Status labels show current state: complete, in progress, next, planned.
 ### M1 -- LXC Build & Hardening (complete)
 
 Build the Proxmox LXC distribution **and** the self-host API hardening, so the eventual
-public release ships secure. **No public submission in this sprint** -- we build and harden
+public release ships secure. **No public submission in this milestone** -- we build and harden
 first, submit in M2.
 
 - LXC packaging: #1211 (epic), #1212 (tarball pipeline), #1213 (install files),
