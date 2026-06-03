@@ -101,7 +101,7 @@ safety, maintainability, or reliability.
 Everything not in the active plan lives in the **Backlog** milestone. Notable clusters:
 
 - Connection / cabling -- epics #71 and #362 and their children. Note: these two epics
-  overlap and spawned near-duplicate issues; reconcile them before scheduling a sprint.
+  overlap and spawned near-duplicate issues; reconcile them before scheduling a milestone.
 - In-app YAML editor -- epic #1174 (#1175/#1176/#1178) + #1119 (ZIP de-emphasis).
 - Embeddable / GIS -- epic #1210.
 - Internationalisation -- epic #181.
