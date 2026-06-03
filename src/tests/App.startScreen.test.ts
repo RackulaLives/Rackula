@@ -96,7 +96,12 @@ vi.mock("$lib/utils/session-storage", () => ({
   isServerNewer: sessionStorageMocks.isServerNewer,
 }));
 
-describe("App Start Screen integration", () => {
+// Full-App renders flake under full-suite memory pressure: the worker GC-thrashes
+// and a render + waitFor can exceed the default 10s ("Test timed out"). A generous
+// per-suite timeout absorbs the slow renders, and retry covers residual transient
+// failures. The tests pass in isolation. See issue #1846 (and the matching note in
+// App.cleanupPrompt.test.ts).
+describe("App Start Screen integration", { retry: 2, timeout: 30000 }, () => {
   beforeEach(() => {
     resetLayoutStore();
     resetSelectionStore();
