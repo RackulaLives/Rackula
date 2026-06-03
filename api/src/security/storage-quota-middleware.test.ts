@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createStorageQuotaMiddleware } from "./storage-quota-middleware";
 
+const originalDataDir = process.env.DATA_DIR;
+
 let testDir: string;
 let layoutDir: string;
 
@@ -22,6 +24,13 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
+  // Restore original DATA_DIR to prevent env leak
+  if (originalDataDir === undefined) {
+    delete process.env.DATA_DIR;
+  } else {
+    process.env.DATA_DIR = originalDataDir;
+  }
+
   try {
     await rm(testDir, { recursive: true, force: true });
   } catch {
@@ -124,12 +133,13 @@ describe("createStorageQuotaMiddleware", () => {
       expect(res.status).toBe(200);
     });
 
-    it("includes Retry-After header in quota exceeded response", async () => {
+    it("does not include Retry-After header for hard quota errors", async () => {
       const app = createTestApp({ maxLayouts: 1, maxAssetsPerLayout: 50 });
       const res = await app.request("/layouts/new-uuid-here", {
         method: "PUT",
       });
-      expect(res.headers.get("Retry-After")).toBe("0");
+      // Retry-After is for rate limits, not hard storage quotas
+      expect(res.headers.get("Retry-After")).toBeNull();
     });
   });
 

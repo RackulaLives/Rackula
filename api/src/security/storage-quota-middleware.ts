@@ -90,7 +90,6 @@ export function createStorageQuotaMiddleware(
         console.warn(
           `quota: layout quota exceeded ${quota.current}/${quota.max}`,
         );
-        c.header("Retry-After", "0");
         return c.json(
           {
             error: "Storage quota exceeded",
@@ -119,7 +118,6 @@ export function createStorageQuotaMiddleware(
             console.warn(
               `quota: asset quota exceeded for layout ${layoutId}: ${quota.current}/${quota.max}`,
             );
-            c.header("Retry-After", "0");
             return c.json(
               {
                 error: "Storage quota exceeded",

@@ -104,8 +104,9 @@ export async function checkAssetQuota(
 
   const assetsDir = join(layoutDir, "assets");
 
+  let deviceDirs;
   try {
-    await readdir(assetsDir);
+    deviceDirs = await readdir(assetsDir, { withFileTypes: true });
   } catch (err) {
     // Only allow writes if the directory genuinely doesn't exist yet.
     // Permission errors, I/O failures, etc. must not silently disable quotas.
@@ -120,7 +121,6 @@ export async function checkAssetQuota(
   }
 
   let assetCount = 0;
-  const deviceDirs = await readdir(assetsDir, { withFileTypes: true });
   for (const deviceDir of deviceDirs) {
     if (deviceDir.isDirectory()) {
       try {
