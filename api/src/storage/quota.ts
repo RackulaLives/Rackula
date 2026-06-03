@@ -43,7 +43,13 @@ export async function checkLayoutQuota(
     return { allowed: true, current: 0, max: 0 };
   }
 
-  const entries = await readdir(dataDir, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await readdir(dataDir, { withFileTypes: true });
+  } catch {
+    // Data directory doesn't exist yet — no layouts stored
+    return { allowed: true, current: 0, max: maxLayouts };
+  }
 
   let layoutCount = 0;
   for (const entry of entries) {
