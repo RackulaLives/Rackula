@@ -25,9 +25,9 @@
 
 **Files:**
 
-- Modify: GitHub milestone M1 (current: "M1 — LXC Build & Hardening, v26.5.x")
-- Modify: GitHub milestone M2 (current: "M2 — LXC Release & Stability, v26.6.x")
-- Modify: GitHub milestone M3 (current: "M3 — Data Format & Interop, v26.7.x")
+- Modify: GitHub milestone M1 (current: "M1 -- LXC Build & Hardening, v26.5.x")
+- Modify: GitHub milestone M2 (current: "M2 -- LXC Release & Stability, v26.6.x")
+- Modify: GitHub milestone M3 (current: "M3 -- Data Format & Interop, v26.7.x")
 
 - [ ] **Step 1: Get milestone numbers**
 
@@ -37,21 +37,21 @@ Expected: Three lines with milestone numbers and current titles
 
 - [ ] **Step 2: Rename M1**
 
-Run: `gh api repos/RackulaLives/Rackula/milestones/{M1_NUMBER} -X PATCH -f title="M1 — LXC Build & Hardening" --jq '.title'`
+Run: `gh api repos/RackulaLives/Rackula/milestones/{M1_NUMBER} -X PATCH -f title="M1 -- LXC Build & Hardening" --jq '.title'`
 
-Expected: `M1 — LXC Build & Hardening`
+Expected: `M1 -- LXC Build & Hardening`
 
 - [ ] **Step 3: Rename M2**
 
-Run: `gh api repos/RackulaLives/Rackula/milestones/{M2_NUMBER} -X PATCH -f title="M2 — LXC Release & Stability" --jq '.title'`
+Run: `gh api repos/RackulaLives/Rackula/milestones/{M2_NUMBER} -X PATCH -f title="M2 -- LXC Release & Stability" --jq '.title'`
 
-Expected: `M2 — LXC Release & Stability`
+Expected: `M2 -- LXC Release & Stability`
 
 - [ ] **Step 4: Rename M3**
 
-Run: `gh api repos/RackulaLives/Rackula/milestones/{M3_NUMBER} -X PATCH -f title="M3 — Data Format & Interop" --jq '.title'`
+Run: `gh api repos/RackulaLives/Rackula/milestones/{M3_NUMBER} -X PATCH -f title="M3 -- Data Format & Interop" --jq '.title'`
 
-Expected: `M3 — Data Format & Interop`
+Expected: `M3 -- Data Format & Interop`
 
 - [ ] **Step 5: Verify all milestone titles**
 
@@ -90,7 +90,7 @@ New:
 Old (lines 45-48):
 
 ```
-## Current Plan — Next 4 Sprints
+## Current Plan -- Next 4 Sprints
 
 Consistent, small (~10–15 issue) sprints. Each maps to a GitHub milestone.
 ```
@@ -101,7 +101,7 @@ New:
 ## Active Plan
 
 Milestones are thematic groups with sequential ordering. Each maps to a GitHub milestone.
-Status markers show current state: ✅ complete, 🟡 in progress, 🔵 next, 🔴 planned.
+Status markers show current state: complete, in progress, next, planned.
 ```
 
 - [ ] **Step 3: Replace M1 heading and content**
@@ -109,13 +109,13 @@ Status markers show current state: ✅ complete, 🟡 in progress, 🔵 next, �
 Old (line 49):
 
 ```
-### 🟢 M1 — LXC Build & Hardening · ~June (`v26.6.x`)
+### M1 -- LXC Build & Hardening · ~June (`v26.6.x`)
 ```
 
 New:
 
 ```
-### ✅ M1 — LXC Build & Hardening (complete)
+### M1 -- LXC Build & Hardening (complete)
 ```
 
 - [ ] **Step 4: Replace M2 heading**
@@ -123,13 +123,13 @@ New:
 Old (line 60):
 
 ```
-### 🟡 M2 — LXC Release & Stability · ~July (`v26.7.x`)
+### M2 -- LXC Release & Stability · ~July (`v26.7.x`)
 ```
 
 New:
 
 ```
-### 🟡 M2 — LXC Release & Stability (in progress)
+### M2 -- LXC Release & Stability (in progress)
 ```
 
 - [ ] **Step 5: Replace M3 heading**
@@ -137,13 +137,13 @@ New:
 Old (line 70):
 
 ```
-### 🔵 M3 — Data Format & Interop · ~Aug (`v26.8.x`)
+### M3 -- Data Format & Interop · ~Aug (`v26.8.x`)
 ```
 
 New:
 
 ```
-### 🔵 M3 — Data Format & Interop (next)
+### M3 -- Data Format & Interop (next)
 ```
 
 - [ ] **Step 6: Replace M4 heading**
@@ -151,13 +151,13 @@ New:
 Old (line 79):
 
 ```
-### 🔴 M4 — Type Safety, Decomposition & Stability · ~September (`v26.9.x`)
+### M4 -- Type Safety, Decomposition & Stability · ~September (`v26.9.x`)
 ```
 
 New:
 
 ```
-### 🔴 M4 — Type Safety, Decomposition & Stability (planned)
+### M4 -- Type Safety, Decomposition & Stability (planned)
 ```
 
 - [ ] **Step 7: Update Backlog intro**
@@ -212,9 +212,9 @@ Old (lines 51-55):
 ```
 **Current milestones:**
 
-- `M1 — LXC Build & Hardening` — Sprint 1 (~June 2026, v26.6.x)
-- `M2 — LXC Release & Stability` — Sprint 2 (~July 2026, v26.7.x)
-- `M3 — Data Format & Interop` — Sprint 3 (~Aug 2026, v26.8.x)
+- `M1 -- LXC Build & Hardening` -- Sprint 1 (~June 2026, v26.6.x)
+- `M2 -- LXC Release & Stability` -- Sprint 2 (~July 2026, v26.7.x)
+- `M3 -- Data Format & Interop` -- Sprint 3 (~Aug 2026, v26.8.x)
 ```
 
 New:
@@ -222,10 +222,10 @@ New:
 ```
 **Current milestones:**
 
-- `M1 — LXC Build & Hardening` — complete
-- `M2 — LXC Release & Stability` — in progress
-- `M3 — Data Format & Interop` — next
-- `M4 — Type Safety, Decomposition & Stability` — planned
+- `M1 -- LXC Build & Hardening` -- complete
+- `M2 -- LXC Release & Stability` -- in progress
+- `M3 -- Data Format & Interop` -- next
+- `M4 -- Type Safety, Decomposition & Stability` -- planned
 ```
 
 - [ ] **Step 2: Add CalVer decoupling note after MICRO rule**
@@ -281,11 +281,11 @@ Expected: clean working tree
 
 **Spec coverage:**
 
-- Strip calendar months → Task 2 (ROADMAP.md) and Task 3 (CLAUDE.md) ✅
-- Decouple CalVer from milestones → Task 2 (Version Philosophy bullet) and Task 3 (CalVer note) ✅
-- Remove version suffixes from milestone titles → Task 1 (GitHub API renames) ✅
-- Status markers → Task 2 (ROADMAP.md headings) and Task 3 (CLAUDE.md list) ✅
-- Reframe section title → Task 2 ("Active Plan" replaces "Next 4 Sprints") ✅
+- Strip calendar months -> Task 2 (ROADMAP.md) and Task 3 (CLAUDE.md)
+- Decouple CalVer from milestones -> Task 2 (Version Philosophy bullet) and Task 3 (CalVer note)
+- Remove version suffixes from milestone titles -> Task 1 (GitHub API renames)
+- Status markers -> Task 2 (ROADMAP.md headings) and Task 3 (CLAUDE.md list)
+- Reframe section title -> Task 2 ("Active Plan" replaces "Next 4 Sprints")
 
 **Placeholder scan:** No TBDs, TODOs, or placeholders. All steps contain exact content.
 
