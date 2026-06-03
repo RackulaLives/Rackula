@@ -61,6 +61,8 @@ export interface ApiSecurityConfig {
   rateLimitWriteWindowMs: number;
   rateLimitReadMaxRequests: number;
   rateLimitReadWindowMs: number;
+  maxLayouts: number;
+  maxAssetsPerLayout: number;
 }
 
 export type EnvMap = Record<string, string | undefined>;
