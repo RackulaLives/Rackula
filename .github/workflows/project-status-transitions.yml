@@ -8,8 +8,13 @@ on:
 
 permissions: {} # Uses PAT for project access, not GITHUB_TOKEN
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   set-in-progress:
+    name: Set Issue to In Progress
     if: ${{ github.event_name == 'issues' }}
     runs-on: ubuntu-latest
     steps:
@@ -43,6 +48,7 @@ jobs:
           || echo "Warning: Could not update issue (may already be in target status)"
 
   set-in-review:
+    name: Set Linked Issues to In Review
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false }}
     runs-on: ubuntu-latest
     steps:
