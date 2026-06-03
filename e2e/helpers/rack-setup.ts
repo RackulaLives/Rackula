@@ -49,12 +49,14 @@ async function selectHeight(
 
   // Slider fallback: a range input silently clamps out-of-range values, which
   // would let a test pass with the wrong height. Validate against the slider's
-  // own min/max so the test fails fast instead.
+  // own min/max/step so the test fails fast instead.
   const slider = page.locator('[data-testid="slider-height"]');
   const minAttr = await slider.getAttribute("min");
   const maxAttr = await slider.getAttribute("max");
+  const stepAttr = await slider.getAttribute("step");
   const min = Number(minAttr);
   const max = Number(maxAttr);
+  const step = stepAttr === null ? NaN : Number(stepAttr);
   if (
     minAttr === null ||
     maxAttr === null ||
@@ -65,9 +67,21 @@ async function selectHeight(
       `selectHeight: could not read slider range (min=${minAttr}, max=${maxAttr})`,
     );
   }
+  if (stepAttr !== "any" && (Number.isNaN(step) || step <= 0)) {
+    throw new Error(
+      `selectHeight: could not read slider step (step=${stepAttr})`,
+    );
+  }
   if (height < min || height > max) {
     throw new Error(
       `selectHeight: height ${height}U is outside the slider range [${min}, ${max}]`,
+    );
+  }
+  // A range input also snaps in-range values to the nearest step (the bayed
+  // slider uses step=2), which would silently coerce e.g. 13U to 12U.
+  if (stepAttr !== "any" && (height - min) % step !== 0) {
+    throw new Error(
+      `selectHeight: height ${height}U does not align to slider step ${step}U from min ${min}U`,
     );
   }
 
