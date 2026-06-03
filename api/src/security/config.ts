@@ -258,7 +258,7 @@ function parseQuotaValue(
     throw new Error(`${name} must be 0 (unlimited) or a positive integer.`);
   }
 
-  // 0 means unlimited — no upper bound check needed
+  // 0 means unlimited, no upper bound check needed
   if (parsed === 0) {
     return 0;
   }

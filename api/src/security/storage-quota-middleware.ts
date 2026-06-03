@@ -9,7 +9,7 @@
  * - 429 (Too Many Requests) for layout count quota
  * - 507 (Insufficient Storage) for per-layout asset count quota
  *
- * Both responses include a JSON body with error details and a Retry-After: 0 header.
+ * Both responses include a JSON body with error details.
  *
  * @module storage-quota-middleware
  */

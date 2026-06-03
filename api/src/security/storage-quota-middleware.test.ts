@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { Hono } from "hono";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -23,7 +23,7 @@ beforeEach(async () => {
   );
 });
 
-afterAll(async () => {
+afterEach(async () => {
   // Restore original DATA_DIR to prevent env leak
   if (originalDataDir === undefined) {
     delete process.env.DATA_DIR;

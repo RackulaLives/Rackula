@@ -85,7 +85,8 @@ export async function checkLayoutQuota(
 /**
  * Check whether adding an asset to a layout would exceed the per-layout asset quota.
  *
- * Counts image files (png, jpg, webp) recursively in the layout's assets directory.
+ * Counts image files (png, jpg, webp) located directly within each device
+ * subdirectory of the layout's assets directory (one level deep).
  * If the assets directory does not exist, current count is 0. If `maxAssetsPerLayout`
  * is 0, returns immediately with `allowed: true` (unlimited mode).
  *

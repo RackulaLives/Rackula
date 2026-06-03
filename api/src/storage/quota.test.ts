@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,7 +10,7 @@ beforeEach(async () => {
   testDir = await mkdtemp(join(tmpdir(), "rackula-quota-test-"));
 });
 
-afterAll(async () => {
+afterEach(async () => {
   try {
     await rm(testDir, { recursive: true, force: true });
   } catch {
@@ -91,17 +91,10 @@ describe("checkLayoutQuota", () => {
     expect(result.max).toBe(3);
   });
 
-  it("throws on permission errors (does not fail open)", async () => {
-    // Pass a path that exists but is unreadable to simulate EACCES.
-    // On macOS/Linux, /root is typically unreadable by non-root users.
-    // If running as root, this test would pass through, so we use a
-    // more reliable approach: mock the error by using a non-existent
-    // deeply nested path that triggers a different error than ENOENT.
-    // Instead, we verify the contract by checking that only ENOENT
-    // is caught — non-ENOENT errors propagate.
-    //
-    // We test this indirectly: a path like "/dev/null/subdir" will
-    // throw ENOTDIR (not ENOENT), which should propagate.
+  it("propagates non-ENOENT errors (does not fail open)", async () => {
+    // Only ENOENT (directory not found) should allow writes.
+    // All other errors (permission, I/O, etc.) must propagate.
+    // /dev/null/subdir throws ENOTDIR, not ENOENT, so it should propagate.
     await expect(checkLayoutQuota("/dev/null/subdir", 5)).rejects.toThrow();
   });
 });
@@ -173,10 +166,9 @@ describe("checkAssetQuota", () => {
     expect(result.current).toBe(2);
   });
 
-  it("throws on permission errors (does not fail open)", async () => {
+  it("propagates non-ENOENT errors (does not fail open)", async () => {
     // Same principle as checkLayoutQuota: non-ENOENT errors must propagate.
-    // /dev/null is not a directory, so reading its (non-existent) assets subdir
-    // throws ENOTDIR, not ENOENT.
+    // /dev/null throws ENOTDIR, not ENOENT.
     await expect(checkAssetQuota("/dev/null", 5)).rejects.toThrow();
   });
 });
