@@ -71,7 +71,7 @@ export async function findFolderByUuid(
   }
 
   const dataDir = customDataDir ?? getDataDir();
-  await ensureDataDir();
+  await mkdir(dataDir, { recursive: true });
   const entries = await readdir(dataDir, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.isDirectory()) {
