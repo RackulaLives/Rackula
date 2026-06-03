@@ -46,9 +46,17 @@ export async function checkLayoutQuota(
   let entries;
   try {
     entries = await readdir(dataDir, { withFileTypes: true });
-  } catch {
-    // Data directory doesn't exist yet — no layouts stored
-    return { allowed: true, current: 0, max: maxLayouts };
+  } catch (err) {
+    // Only allow writes if the directory genuinely doesn't exist yet.
+    // Permission errors, I/O failures, or corruption must not silently
+    // disable quota enforcement.
+    if (
+      err instanceof Error &&
+      (err as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
+      return { allowed: true, current: 0, max: maxLayouts };
+    }
+    throw err;
   }
 
   let layoutCount = 0;
@@ -98,9 +106,17 @@ export async function checkAssetQuota(
 
   try {
     await readdir(assetsDir);
-  } catch {
-    console.debug(`quota: no assets directory, 0/${maxAssetsPerLayout}`);
-    return { allowed: true, current: 0, max: maxAssetsPerLayout };
+  } catch (err) {
+    // Only allow writes if the directory genuinely doesn't exist yet.
+    // Permission errors, I/O failures, etc. must not silently disable quotas.
+    if (
+      err instanceof Error &&
+      (err as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
+      console.debug(`quota: no assets directory, 0/${maxAssetsPerLayout}`);
+      return { allowed: true, current: 0, max: maxAssetsPerLayout };
+    }
+    throw err;
   }
 
   let assetCount = 0;

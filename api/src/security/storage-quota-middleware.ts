@@ -72,7 +72,7 @@ export function createStorageQuotaMiddleware(
 
       // Only enforce quota on create, not update
       if (isUuid(uuid)) {
-        const existingFolder = await findFolderByUuid(uuid);
+        const existingFolder = await findFolderByUuid(uuid, dataDir);
         if (existingFolder) {
           console.debug(`quota: layout update for ${uuid}, skipping check`);
           await next();
@@ -81,6 +81,10 @@ export function createStorageQuotaMiddleware(
       }
 
       // Create — enforce layout quota
+      // NOTE: Quota check and write are not atomic. Concurrent PUT requests can
+      // both pass the check before either writes, temporarily exceeding the limit.
+      // This is an accepted trade-off for self-hosted homelab use (low concurrency).
+      // Adding file locks would introduce complexity not justified by the threat model.
       const quota = await checkLayoutQuota(dataDir, maxLayouts);
       if (!quota.allowed) {
         console.warn(
@@ -108,7 +112,7 @@ export function createStorageQuotaMiddleware(
 
       // Find the layout folder to count its assets
       if (isUuid(layoutId)) {
-        const layoutFolder = await findFolderByUuid(layoutId);
+        const layoutFolder = await findFolderByUuid(layoutId, dataDir);
         if (layoutFolder) {
           const quota = await checkAssetQuota(layoutFolder, maxAssetsPerLayout);
           if (!quota.allowed) {

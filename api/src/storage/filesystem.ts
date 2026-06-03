@@ -61,15 +61,17 @@ function countDevices(racks: Array<{ devices?: unknown[] }>): number {
  * Scans DATA_DIR for folders ending with the given UUID
  * Returns the full folder path or null if not found
  */
-export async function findFolderByUuid(uuid: string): Promise<string | null> {
+export async function findFolderByUuid(
+  uuid: string,
+  customDataDir?: string,
+): Promise<string | null> {
   // Validate UUID format to prevent path traversal
   if (!isUuid(uuid)) {
     return null;
   }
 
+  const dataDir = customDataDir ?? getDataDir();
   await ensureDataDir();
-
-  const dataDir = getDataDir();
   const entries = await readdir(dataDir, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.isDirectory()) {
@@ -335,7 +337,9 @@ async function migrateLegacyLayout(
   try {
     parsed = yaml.load(yamlContent, { schema: yaml.JSON_SCHEMA });
   } catch (e) {
-    throw new Error(`Invalid YAML: ${e instanceof Error ? e.message : e}`, { cause: e });
+    throw new Error(`Invalid YAML: ${e instanceof Error ? e.message : e}`, {
+      cause: e,
+    });
   }
 
   const layout = LayoutFileSchema.safeParse(parsed);
