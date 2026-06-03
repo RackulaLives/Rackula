@@ -625,6 +625,8 @@ All variables have sensible defaults. Only configure if you need to change somet
 | `RACKULA_TRUST_PROXY`                | `0`                     | Set to `1` behind a TLS-terminating reverse proxy; enables HTTPS redirects via `X-Forwarded-Proto` |
 | `RACKULA_BASE_URL`                   | `http://localhost:3000` | External URL for OIDC callback construction; set to your HTTPS URL behind a proxy                  |
 | `RACKULA_OIDC_REDIRECT_URI`          | _derived from BASE_URL_ | Explicit OIDC callback URL; must match the IdP's registered redirect URI exactly                   |
+| `RACKULA_MAX_LAYOUTS`               | `100`                   | Maximum number of stored layouts. Set to `0` for unlimited                                         |
+| `RACKULA_MAX_ASSETS_PER_LAYOUT`     | `50`                    | Maximum number of assets per layout. Set to `0` for unlimited                                       |
 
 **Port mapping explained:**
 
@@ -822,6 +824,28 @@ The provided docker-compose.persist.yml includes:
 - tmpfs mounts for writable directories
 - production-safe CORS defaults (`CORS_ORIGIN`, `ALLOW_INSECURE_CORS=false`)
 - optional write-route bearer auth (`RACKULA_API_WRITE_TOKEN`)
+
+### Storage Quotas
+
+Rackula enforces storage quotas to prevent unauthenticated or misconfigured clients from filling the disk with unlimited layout creates or asset uploads.
+
+**Default limits:**
+
+| Quota                           | Default | Env Variable                            |
+| ------------------------------- | ------- | --------------------------------------- |
+| Maximum layouts                 | 100     | `RACKULA_MAX_LAYOUTS`                   |
+| Maximum assets per layout       | 50      | `RACKULA_MAX_ASSETS_PER_LAYOUT`         |
+
+Set either to `0` to disable the limit (unlimited).
+
+When a quota is exceeded:
+
+- **Layout limit reached** returns HTTP 429 with a message to delete existing layouts
+- **Asset limit reached** returns HTTP 507 with a message to remove existing assets
+
+Both responses include a `Retry-After: 0` header (retry is possible after cleanup, not time-based).
+
+Layout quota only applies to **new** layouts. Updating an existing layout always succeeds.
 
 ### Single-User Design
 
