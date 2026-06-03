@@ -26,7 +26,7 @@ Rackula is a lightweight, FOSS, web-based rack layout designer for homelabbers. 
 
 ## Version Philosophy
 
-**The app uses CalVer; published packages use SemVer** -- versioned independently because
+The app uses CalVer; published packages use SemVer -- versioned independently because
 they address different audiences. See the decision record:
 [`docs/superpowers/specs/2026-05-29-versioning-policy-calver-design.md`](../superpowers/specs/2026-05-29-versioning-policy-calver-design.md)
 (resolves [#1315](https://github.com/RackulaLives/Rackula/issues/1315)).
@@ -51,8 +51,8 @@ Status labels show current state: complete, in progress, next, planned.
 
 ### M1 -- LXC Build & Hardening (complete)
 
-Build the Proxmox LXC distribution **and** the self-host API hardening, so the eventual
-public release ships secure. **No public submission in this milestone** -- we build and harden
+Build the Proxmox LXC distribution and the self-host API hardening, so the eventual
+public release ships secure. No public submission in this milestone -- we build and harden
 first, submit in M2.
 
 - LXC packaging: #1211 (epic), #1212 (tarball pipeline), #1213 (install files),
@@ -98,7 +98,7 @@ safety, maintainability, or reliability.
 
 ## Backlog
 
-Everything not in the active plan lives in the **Backlog** milestone. Notable clusters:
+Everything not in the active plan lives in the Backlog milestone. Notable clusters:
 
 - Connection / cabling -- epics #71 and #362 and their children. Note: these two epics
   overlap and spawned near-duplicate issues; reconcile them before scheduling a milestone.
@@ -112,7 +112,7 @@ Everything not in the active plan lives in the **Backlog** milestone. Notable cl
 
 ## Out of Scope
 
-Features that will **not** be implemented:
+Features that will not be implemented:
 
 - Backend/database requirements (beyond the optional self-host persistence API)
 - User accounts (without a dedicated cloud-sync feature)
