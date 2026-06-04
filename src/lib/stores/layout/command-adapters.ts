@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Command Adapters for Layout Store
  *
@@ -215,7 +214,7 @@ export function getCommandStoreAdapter(
       if (!target && layout.racks.length === 0) {
         throw new Error("No rack available in RackCommandStore");
       }
-      return target?.rack ?? layout.racks[0];
+      return target?.rack ?? layout.racks[0]!;
     },
   };
 }

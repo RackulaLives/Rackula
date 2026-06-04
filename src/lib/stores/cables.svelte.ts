@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Cable Store
  * CRUD operations for cable connections between device interfaces
@@ -57,6 +56,10 @@ export function validateCable(
   const layoutStore = getLayoutStore();
   const rack = layoutStore.rack;
   const device_types = layoutStore.device_types;
+
+  if (!rack) {
+    return { valid: false, errors: ["No active rack"] };
+  }
 
   // Check A-side device exists
   const aDevice = rack.devices.find((d) => d.id === cable.a_device_id);
