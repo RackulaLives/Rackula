@@ -3,6 +3,22 @@
 # Compares against origin/main to review commits being pushed
 # Blocks push if CodeRabbit finds issues
 
+# Match the repository's object format (sha1, sha256, ...)
+zero=$(git hash-object --stdin </dev/null | tr '[:xdigit:]' '0')
+
+# Skip review for tag-only or deletion pushes (no file diff to review)
+has_branch=0
+while IFS=' ' read -r local_ref local_sha remote_ref _rest; do
+  if [ "$local_ref" = "(delete)" ] || [ "$local_sha" = "$zero" ]; then
+    continue
+  fi
+  case "$local_ref$remote_ref" in
+    *refs/tags/*) ;;
+    *) has_branch=1 ;;
+  esac
+done
+[ "$has_branch" -eq 0 ] && exit 0
+
 echo "Running CodeRabbit review on committed changes..."
 if ! coderabbit review --agent --type committed --base origin/main; then
   echo ""

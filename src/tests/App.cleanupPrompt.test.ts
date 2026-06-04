@@ -158,7 +158,12 @@ function resetHoistedMocks(): void {
   archiveMocks.extractFolderArchive.mockReset();
 }
 
-describe("App cleanup prompt flow", () => {
+// These suites render the full App component. Under full-suite memory pressure
+// the worker GC-thrashes, so a render + waitFor can exceed the default 10s and
+// the test fails with "Test timed out". A generous per-suite timeout absorbs the
+// slow renders, and retry covers any residual transient failures. The tests pass
+// in isolation; the failing test varies run to run. See issue #1846.
+describe("App cleanup prompt flow", { retry: 2, timeout: 30000 }, () => {
   const layoutStore = getLayoutStore();
   const uiStore = getUIStore();
 

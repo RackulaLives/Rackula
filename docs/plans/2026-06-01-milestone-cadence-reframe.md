@@ -25,9 +25,9 @@
 
 **Files:**
 
-- Modify: GitHub milestone M1 (current: "M1 — LXC Build & Hardening, v26.5.x")
-- Modify: GitHub milestone M2 (current: "M2 — LXC Release & Stability, v26.6.x")
-- Modify: GitHub milestone M3 (current: "M3 — Data Format & Interop, v26.7.x")
+- Modify: GitHub milestone M1 (current: "M1 -- LXC Build & Hardening, v26.5.x")
+- Modify: GitHub milestone M2 (current: "M2 -- LXC Release & Stability, v26.6.x")
+- Modify: GitHub milestone M3 (current: "M3 -- Data Format & Interop, v26.7.x")
 
 - [ ] **Step 1: Get milestone numbers**
 
@@ -37,21 +37,21 @@ Expected: Three lines with milestone numbers and current titles
 
 - [ ] **Step 2: Rename M1**
 
-Run: `gh api repos/RackulaLives/Rackula/milestones/{M1_NUMBER} -X PATCH -f title="M1 — LXC Build & Hardening" --jq '.title'`
+Run: `gh api repos/RackulaLives/Rackula/milestones/{M1_NUMBER} -X PATCH -f title="M1 -- LXC Build & Hardening" --jq '.title'`
 
-Expected: `M1 — LXC Build & Hardening`
+Expected: `M1 -- LXC Build & Hardening`
 
 - [ ] **Step 3: Rename M2**
 
-Run: `gh api repos/RackulaLives/Rackula/milestones/{M2_NUMBER} -X PATCH -f title="M2 — LXC Release & Stability" --jq '.title'`
+Run: `gh api repos/RackulaLives/Rackula/milestones/{M2_NUMBER} -X PATCH -f title="M2 -- LXC Release & Stability" --jq '.title'`
 
-Expected: `M2 — LXC Release & Stability`
+Expected: `M2 -- LXC Release & Stability`
 
 - [ ] **Step 4: Rename M3**
 
-Run: `gh api repos/RackulaLives/Rackula/milestones/{M3_NUMBER} -X PATCH -f title="M3 — Data Format & Interop" --jq '.title'`
+Run: `gh api repos/RackulaLives/Rackula/milestones/{M3_NUMBER} -X PATCH -f title="M3 -- Data Format & Interop" --jq '.title'`
 
-Expected: `M3 — Data Format & Interop`
+Expected: `M3 -- Data Format & Interop`
 
 - [ ] **Step 5: Verify all milestone titles**
 
@@ -73,14 +73,14 @@ Replace the bullet point about milestones with the decoupled version:
 
 Old (line 40-41):
 
-```
+```text
 - Milestones are **theme-led with a target month**, not semver-named. The CalVer migration
   lands at the **LXC release** boundary (the first CalVer release).
 ```
 
 New:
 
-```
+```text
 - Milestones are **theme-led and sequentially ordered**, not time-boxed. CalVer reflects
   the ship date, not the plan date. Multiple milestones may ship in one month.
 ```
@@ -89,89 +89,89 @@ New:
 
 Old (lines 45-48):
 
-```
-## Current Plan — Next 4 Sprints
+```text
+## Current Plan -- Next 4 Sprints
 
 Consistent, small (~10–15 issue) sprints. Each maps to a GitHub milestone.
 ```
 
 New:
 
-```
+```text
 ## Active Plan
 
 Milestones are thematic groups with sequential ordering. Each maps to a GitHub milestone.
-Status markers show current state: ✅ complete, 🟡 in progress, 🔵 next, 🔴 planned.
+Status markers show current state: complete, in progress, next, planned.
 ```
 
 - [ ] **Step 3: Replace M1 heading and content**
 
 Old (line 49):
 
-```
-### 🟢 M1 — LXC Build & Hardening · ~June (`v26.6.x`)
+```text
+### M1 -- LXC Build & Hardening · ~June (`v26.6.x`)
 ```
 
 New:
 
-```
-### ✅ M1 — LXC Build & Hardening (complete)
+```text
+### M1 -- LXC Build & Hardening (complete)
 ```
 
 - [ ] **Step 4: Replace M2 heading**
 
 Old (line 60):
 
-```
-### 🟡 M2 — LXC Release & Stability · ~July (`v26.7.x`)
+```text
+### M2 -- LXC Release & Stability · ~July (`v26.7.x`)
 ```
 
 New:
 
-```
-### 🟡 M2 — LXC Release & Stability (in progress)
+```text
+### M2 -- LXC Release & Stability (in progress)
 ```
 
 - [ ] **Step 5: Replace M3 heading**
 
 Old (line 70):
 
-```
-### 🔵 M3 — Data Format & Interop · ~Aug (`v26.8.x`)
+```text
+### M3 -- Data Format & Interop · ~Aug (`v26.8.x`)
 ```
 
 New:
 
-```
-### 🔵 M3 — Data Format & Interop (next)
+```text
+### M3 -- Data Format & Interop (next)
 ```
 
 - [ ] **Step 6: Replace M4 heading**
 
 Old (line 79):
 
-```
-### 🔴 M4 — Type Safety, Decomposition & Stability · ~September (`v26.9.x`)
+```text
+### M4 -- Type Safety, Decomposition & Stability · ~September (`v26.9.x`)
 ```
 
 New:
 
-```
-### 🔴 M4 — Type Safety, Decomposition & Stability (planned)
+```text
+### M4 -- Type Safety, Decomposition & Stability (planned)
 ```
 
 - [ ] **Step 7: Update Backlog intro**
 
 Old (line 98):
 
-```
+```text
 Everything not in the next 3 sprints lives in the **Backlog** milestone (replaces the
 retired semver milestone buckets). Notable clusters parked there:
 ```
 
 New:
 
-```
+```text
 Everything not in the active plan lives in the **Backlog** milestone. Notable clusters:
 ```
 
@@ -179,14 +179,14 @@ Everything not in the active plan lives in the **Backlog** milestone. Notable cl
 
 Old (lines 132-133):
 
-```
+```text
 _This document defines product vision and the active sprint plan. For live work items, see
 [GitHub Milestones](https://github.com/RackulaLives/Rackula/milestones)._
 ```
 
 New:
 
-```
+```text
 _This document defines product vision and the active plan. For live work items, see
 [GitHub Milestones](https://github.com/RackulaLives/Rackula/milestones)._
 ```
@@ -209,30 +209,30 @@ Expected: No calendar months, no version ranges in milestone headings. Status ma
 
 Old (lines 51-55):
 
-```
+```text
 **Current milestones:**
 
-- `M1 — LXC Build & Hardening` — Sprint 1 (~June 2026, v26.6.x)
-- `M2 — LXC Release & Stability` — Sprint 2 (~July 2026, v26.7.x)
-- `M3 — Data Format & Interop` — Sprint 3 (~Aug 2026, v26.8.x)
+- `M1 -- LXC Build & Hardening` -- Sprint 1 (~June 2026, v26.6.x)
+- `M2 -- LXC Release & Stability` -- Sprint 2 (~July 2026, v26.7.x)
+- `M3 -- Data Format & Interop` -- Sprint 3 (~Aug 2026, v26.8.x)
 ```
 
 New:
 
-```
+```text
 **Current milestones:**
 
-- `M1 — LXC Build & Hardening` — complete
-- `M2 — LXC Release & Stability` — in progress
-- `M3 — Data Format & Interop` — next
-- `M4 — Type Safety, Decomposition & Stability` — planned
+- `M1 -- LXC Build & Hardening` -- complete
+- `M2 -- LXC Release & Stability` -- in progress
+- `M3 -- Data Format & Interop` -- next
+- `M4 -- Type Safety, Decomposition & Stability` -- planned
 ```
 
 - [ ] **Step 2: Add CalVer decoupling note after MICRO rule**
 
 After the MICRO rule block (line 23), add:
 
-```
+```text
 **CalVer and milestones are decoupled:** the version reflects the ship date, not the plan
 date. Multiple milestones may ship in the same month. See the milestone cadence design:
 [`docs/superpowers/specs/2026-06-01-milestone-cadence-reframe-design.md`](docs/superpowers/specs/2026-06-01-milestone-cadence-reframe-design.md).
@@ -281,11 +281,11 @@ Expected: clean working tree
 
 **Spec coverage:**
 
-- Strip calendar months → Task 2 (ROADMAP.md) and Task 3 (CLAUDE.md) ✅
-- Decouple CalVer from milestones → Task 2 (Version Philosophy bullet) and Task 3 (CalVer note) ✅
-- Remove version suffixes from milestone titles → Task 1 (GitHub API renames) ✅
-- Status markers → Task 2 (ROADMAP.md headings) and Task 3 (CLAUDE.md list) ✅
-- Reframe section title → Task 2 ("Active Plan" replaces "Next 4 Sprints") ✅
+- Strip calendar months -> Task 2 (ROADMAP.md) and Task 3 (CLAUDE.md)
+- Decouple CalVer from milestones -> Task 2 (Version Philosophy bullet) and Task 3 (CalVer note)
+- Remove version suffixes from milestone titles -> Task 1 (GitHub API renames)
+- Status markers -> Task 2 (ROADMAP.md headings) and Task 3 (CLAUDE.md list)
+- Reframe section title -> Task 2 ("Active Plan" replaces "Next 4 Sprints")
 
 **Placeholder scan:** No TBDs, TODOs, or placeholders. All steps contain exact content.
 

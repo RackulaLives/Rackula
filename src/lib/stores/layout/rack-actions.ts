@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Rack Actions Domain Module
  *
@@ -56,7 +55,7 @@ export function deleteRackRaw(
   const layout = ctx.getLayout();
   const rackIndex = layout.racks.findIndex((r) => r.id === id);
   if (rackIndex === -1) return undefined;
-  const rack = layout.racks[rackIndex];
+  const rack = layout.racks[rackIndex]!;
 
   // Find groups that contain this rack (capture their state before modification)
   const affectedGroups = (layout.rack_groups ?? [])
@@ -225,7 +224,7 @@ export function getTargetRack(
   if (rackId) {
     const index = ctx.findRackIndex(rackId);
     if (index !== -1) {
-      return { rack: layout.racks[index], index };
+      return { rack: layout.racks[index]!, index };
     }
     return undefined;
   }
@@ -235,13 +234,13 @@ export function getTargetRack(
   if (activeId) {
     const index = ctx.findRackIndex(activeId);
     if (index !== -1) {
-      return { rack: layout.racks[index], index };
+      return { rack: layout.racks[index]!, index };
     }
   }
 
   // Fall back to first rack
   if (layout.racks.length > 0) {
-    return { rack: layout.racks[0], index: 0 };
+    return { rack: layout.racks[0]!, index: 0 };
   }
 
   return undefined;
@@ -470,7 +469,7 @@ export function reorderRacks(
   }
 
   const newRacks = [...layout.racks];
-  const [removed] = newRacks.splice(fromIndex, 1);
+  const removed = newRacks.splice(fromIndex, 1)[0]!;
   newRacks.splice(toIndex, 0, removed);
 
   // Update position field to match new array indices

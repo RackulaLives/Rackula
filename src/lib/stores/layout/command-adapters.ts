@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Command Adapters for Layout Store
  *
@@ -211,11 +210,10 @@ export function getCommandStoreAdapter(
     restoreRackDevicesRaw: (devices) => restoreRackDevicesRaw(ctx, devices),
     getRack: () => {
       const target = getTargetRack(ctx);
-      const layout = ctx.getLayout();
-      if (!target && layout.racks.length === 0) {
-        throw new Error("No rack available in RackCommandStore");
-      }
-      return target?.rack ?? layout.racks[0];
+      if (target) return target.rack;
+      const firstRack = ctx.getLayout().racks[0];
+      if (!firstRack) throw new Error("No rack available in RackCommandStore");
+      return firstRack;
     },
   };
 }

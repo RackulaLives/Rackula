@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Markdown Utilities Tests
  * Tests for markdown parsing and XSS sanitization.

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Test Factories
  *
@@ -322,8 +321,6 @@ export function createTestContainerChild(
     device_type: overrides.device_type ?? "test-device",
     position: overrides.position ?? 0, // 0-indexed relative position in container
     face: overrides.face ?? "front",
-    container_id: overrides.container_id,
-    slot_id: overrides.slot_id,
     ports: overrides.ports ?? [],
     ...overrides,
   };

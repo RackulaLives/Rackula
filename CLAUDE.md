@@ -54,10 +54,10 @@ from changelog entries. The release workflow will fail if no changelog entry exi
 
 **Current milestones:**
 
-- `M1 — LXC Build & Hardening` — complete
-- `M2 — LXC Release & Stability` — in progress
-- `M3 — Data Format & Interop` — next
-- `M4 — Type Safety, Decomposition & Stability` — planned
+- `M1 -- LXC Build & Hardening` (complete)
+- `M2 -- LXC Release & Stability` (in progress)
+- `M3 -- Data Format & Interop` (next)
+- `M4 -- Type Safety, Decomposition & Stability` (planned)
 
 ---
 

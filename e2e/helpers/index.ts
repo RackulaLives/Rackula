@@ -26,7 +26,6 @@ export {
 export {
   completeWizardWithKeyboard,
   completeWizardWithClicks,
-  fillRackForm,
 } from "./rack-setup";
 
 // Toolbar actions
