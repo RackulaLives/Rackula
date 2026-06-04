@@ -148,11 +148,12 @@ describe("checkAssetQuota", () => {
     const assetsDir = join(testDir, "assets", "dell-r640");
     await mkdir(assetsDir, { recursive: true });
     await writeFile(join(assetsDir, "front.png"), "fake");
+    await writeFile(join(assetsDir, "side.jpeg"), "fake");
     await writeFile(join(assetsDir, "notes.txt"), "not an image");
     await writeFile(join(assetsDir, ".DS_Store"), "macOS junk");
 
     const result = await checkAssetQuota(testDir, 10);
-    expect(result.current).toBe(1);
+    expect(result.current).toBe(2);
   });
 
   it("returns allowed when one below limit", async () => {

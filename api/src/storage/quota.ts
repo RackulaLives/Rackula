@@ -9,7 +9,10 @@
 
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
+import Debug from "debug";
 import { extractUuidFromFolderName } from "../schemas/layout";
+
+const debug = Debug("rackula:storage:quota");
 
 /**
  * Result of a storage quota check.
@@ -39,7 +42,7 @@ export async function checkLayoutQuota(
   maxLayouts: number,
 ): Promise<QuotaCheckResult> {
   if (maxLayouts === 0) {
-    console.debug("quota: layout quota unlimited, skipping check");
+    debug("quota: layout quota unlimited, skipping check");
     return { allowed: true, current: 0, max: 0 };
   }
 
@@ -75,7 +78,7 @@ export async function checkLayoutQuota(
   }
 
   const allowed = layoutCount < maxLayouts;
-  console.debug(
+  debug(
     `quota: layout check ${layoutCount}/${maxLayouts} ${allowed ? "allowed" : "exceeded"}`,
   );
 
@@ -85,7 +88,7 @@ export async function checkLayoutQuota(
 /**
  * Check whether adding an asset to a layout would exceed the per-layout asset quota.
  *
- * Counts image files (png, jpg, webp) located directly within each device
+ * Counts image files (png, jpg, jpeg, webp) located directly within each device
  * subdirectory of the layout's assets directory (one level deep).
  * If the assets directory does not exist, current count is 0. If `maxAssetsPerLayout`
  * is 0, returns immediately with `allowed: true` (unlimited mode).
@@ -99,7 +102,7 @@ export async function checkAssetQuota(
   maxAssetsPerLayout: number,
 ): Promise<QuotaCheckResult> {
   if (maxAssetsPerLayout === 0) {
-    console.debug("quota: asset quota unlimited, skipping check");
+    debug("quota: asset quota unlimited, skipping check");
     return { allowed: true, current: 0, max: 0 };
   }
 
@@ -115,7 +118,7 @@ export async function checkAssetQuota(
       err instanceof Error &&
       (err as NodeJS.ErrnoException).code === "ENOENT"
     ) {
-      console.debug(`quota: no assets directory, 0/${maxAssetsPerLayout}`);
+      debug(`quota: no assets directory, 0/${maxAssetsPerLayout}`);
       return { allowed: true, current: 0, max: maxAssetsPerLayout };
     }
     throw err;
@@ -128,7 +131,12 @@ export async function checkAssetQuota(
         const files = await readdir(join(assetsDir, deviceDir.name));
         for (const file of files) {
           const ext = file.split(".").pop()?.toLowerCase() ?? "";
-          if (ext === "png" || ext === "jpg" || ext === "webp") {
+          if (
+            ext === "png" ||
+            ext === "jpg" ||
+            ext === "jpeg" ||
+            ext === "webp"
+          ) {
             assetCount += 1;
           }
         }
@@ -139,7 +147,7 @@ export async function checkAssetQuota(
   }
 
   const allowed = assetCount < maxAssetsPerLayout;
-  console.debug(
+  debug(
     `quota: asset check for ${layoutDir} ${assetCount}/${maxAssetsPerLayout} ${allowed ? "allowed" : "exceeded"}`,
   );
 
