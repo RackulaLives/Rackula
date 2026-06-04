@@ -432,6 +432,9 @@
     if (pointerState === "pressing") {
       // No significant movement - this is a click
       event.stopPropagation();
+      if (event.pointerType === "touch") {
+        hapticTap();
+      }
       onselect?.(
         new CustomEvent("select", {
           detail: { deviceId: placedDeviceId, slug: device.slug, position },
@@ -819,6 +822,12 @@
     stroke: var(--colour-selection);
     stroke-width: 2;
     pointer-events: none;
+  }
+
+  @media (max-width: 430px) {
+    .device-selection {
+      stroke-width: 3;
+    }
   }
 
   .device-name {
