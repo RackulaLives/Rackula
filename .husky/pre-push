@@ -3,28 +3,15 @@
 # Compares against origin/main to review commits being pushed
 # Blocks push if CodeRabbit finds issues
 
-# Skip the review when there is nothing to review against origin/main: tag pushes
-# and ref deletions. A tag ref has no branch diff, so CodeRabbit exits with "No
-# files found for review" and the push is wrongly blocked (e.g. `git push origin
-# v26.6.0` during a release). A deletion removes a ref rather than adding commits;
-# git signals it with an all-zero local object id (see .git/hooks/pre-push.sample).
-# Git feeds ref updates on stdin as "<local ref> <local sha> <remote ref> <remote sha>".
-zero=$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')
-has_branch_ref=0
-while read -r local_ref local_sha remote_ref remote_sha; do
-  case "$remote_ref" in
-    refs/tags/*) continue ;; # tag push: nothing to review
+# Skip review for tag-only pushes (tags have no file diff to review)
+has_branch=0
+while IFS=' ' read -r local_ref _rest; do
+  case "$local_ref" in
+    refs/tags/*) ;;
+    *) has_branch=1 ;;
   esac
-  if [ "$local_sha" = "$zero" ]; then
-    continue # ref deletion: nothing to review
-  fi
-  has_branch_ref=1
 done
-
-if [ "$has_branch_ref" -eq 0 ]; then
-  echo "Tag-only or deletion push detected; skipping CodeRabbit review."
-  exit 0
-fi
+[ "$has_branch" -eq 0 ] && exit 0
 
 echo "Running CodeRabbit review on committed changes..."
 if ! coderabbit review --agent --type committed --base origin/main; then
