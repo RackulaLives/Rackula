@@ -15,12 +15,9 @@
  */
 
 import type { MiddlewareHandler } from "hono";
-import Debug from "debug";
 import { checkLayoutQuota, checkAssetQuota } from "../storage/quota";
 import { findFolderByUuid } from "../storage/filesystem";
 import { isUuid } from "../schemas/layout";
-
-const debug = Debug("rackula:security:quota");
 
 /**
  * Configuration for the storage quota middleware.
@@ -77,7 +74,7 @@ export function createStorageQuotaMiddleware(
       if (isUuid(uuid)) {
         const existingFolder = await findFolderByUuid(uuid, dataDir);
         if (existingFolder) {
-          debug(`quota: layout update for ${uuid}, skipping check`);
+          console.debug(`quota: layout update for ${uuid}, skipping check`);
           await next();
           return;
         }
@@ -133,7 +130,9 @@ export function createStorageQuotaMiddleware(
           }
         } else {
           // Layout doesn't exist — the route handler will return 404
-          debug(`quota: layout ${layoutId} not found, skipping asset check`);
+          console.debug(
+            `quota: layout ${layoutId} not found, skipping asset check`,
+          );
         }
       }
     }
