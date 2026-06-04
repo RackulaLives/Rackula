@@ -94,6 +94,12 @@ To add yourself to this list, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
+## Contributions by Release
+
+Contributors who made merged pull requests in each release. For the full contributors table, see above.
+
+---
+
 ## AI Development
 
 Rackula was built with AI-assisted development using [Claude](https://claude.ai/) by Anthropic. Commits with substantial AI contributions are marked with `Co-authored-by` tags.
