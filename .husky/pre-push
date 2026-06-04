@@ -3,11 +3,14 @@
 # Compares against origin/main to review commits being pushed
 # Blocks push if CodeRabbit finds issues
 
-# Skip review for tag-only pushes (tags have no file diff to review)
+# Skip review for tag-only or deletion pushes (no file diff to review)
 has_branch=0
-while IFS=' ' read -r local_ref _rest; do
-  case "$local_ref" in
-    refs/tags/*) ;;
+while IFS=' ' read -r local_ref local_sha remote_ref _rest; do
+  if [ "$local_ref" = "(delete)" ] || [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+    continue
+  fi
+  case "$local_ref$remote_ref" in
+    *refs/tags/*) ;;
     *) has_branch=1 ;;
   esac
 done
