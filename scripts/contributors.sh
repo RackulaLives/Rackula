@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# contributors.sh — Extract contributors from merged PRs and update ACKNOWLEDGEMENTS.md.
+# contributors.sh - Extract contributors from merged PRs and update ACKNOWLEDGEMENTS.md.
 #
 # Usage:
 #   scripts/contributors.sh <prev_tag> <new_version>           # Insert contributor block
 #   scripts/contributors.sh <prev_tag> <new_version> --dry-run  # Print block to stdout only
 #
 # Arguments:
-#   prev_tag     — Previous release tag (e.g., v26.5.0)
-#   new_version  — New release version without 'v' prefix (e.g., 26.6.0)
+#   prev_tag      Previous release tag (e.g., v26.5.0)
+#   new_version   New release version without 'v' prefix (e.g., 26.6.0)
 #
 # Options:
-#   --dry-run    — Print the contributor block to stdout without modifying ACKNOWLEDGEMENTS.md
+#   --dry-run      Print the contributor block to stdout without modifying ACKNOWLEDGEMENTS.md
 #
 # Idempotent: If the version heading already exists in ACKNOWLEDGEMENTS.md, prints a
 # message and exits 0 without making changes.
@@ -156,7 +156,7 @@ FILTERED=$(echo "$PR_DATA" | grep -Ev "	(${EXCLUDE_PATTERN})$" || true)
 
 if [[ -z "$FILTERED" ]]; then
   echo "No external contributors found for this release." >&2
-  # Still produce a valid block with no entries — useful for idempotency
+  # Still produce a valid block with no entries, useful for idempotency
   BLOCK="${VERSION_HEADING}"
   BLOCK="${BLOCK}
 "
@@ -233,7 +233,7 @@ else
   # Find the line with "To add yourself" after the end marker (it's the line after the table)
   ADD_YOURSELF_LINE=$(awk -v start="$END_LINE" 'NR > start && /To add yourself/ {print NR; exit}' "$ACKNOWLEDGEMENTS_FILE")
 
-  # Find the "## AI Development" heading — we insert before it
+  # Find the "## AI Development" heading, we insert before it
   AI_LINE=$(grep -n "^## AI Development" "$ACKNOWLEDGEMENTS_FILE" | head -1 | cut -d: -f1)
 
   if [[ -z "$AI_LINE" ]]; then

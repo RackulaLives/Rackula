@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-contributors.sh — Validate contributors.sh behaviour.
+# test-contributors.sh - Validate contributors.sh behaviour.
 #
 # Tests:
 #   1. Dry-run outputs a valid markdown block for a known tag range
