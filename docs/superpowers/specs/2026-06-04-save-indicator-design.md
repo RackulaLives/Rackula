@@ -19,7 +19,7 @@ Remove the `SaveStatus` component and move all save feedback to the existing toa
 | Manual save succeeds | Success: "Layout saved" | 3000ms | status | None |
 | Auto-save succeeds | None (silent) | - | - | - |
 | Save fails (server error) | Error: "Save failed: {message}" | 0 (persistent) | alert | Retry |
-| Save fails (offline) | Warning: "Server unavailable - working offline" | 0 (persistent) | alert | Retry |
+| Save fails (offline) | Warning: "Server save unavailable, working offline. Use Ctrl+S to retry." (persistence-manager); App init uses shorter "Server unavailable, working offline" | 0 (persistent) | alert | Retry |
 | Save in progress | None | - | - | - |
 | API disabled (local-auth) | None | - | - | - |
 

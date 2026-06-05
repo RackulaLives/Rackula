@@ -478,6 +478,10 @@ export function initPersistenceEffects(): void {
         _currentLayoutId = newId;
         _consecutiveSaveFailures = 0;
         _saveStatus = "saved";
+        if (_errorToastId) {
+          getToastStore().dismissToast(_errorToastId);
+          _errorToastId = undefined;
+        }
         clearSession();
       } catch (e) {
         persistenceDebug.api("Auto-save failed: %O", e);
