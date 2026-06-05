@@ -29,19 +29,24 @@ jobs:
 
       - name: Extract version
         id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_VERSION: ${{ inputs.version }}
+          WORKFLOW_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
-            # Derive version from the triggering workflow's ref (tag name)
-            echo "version=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "version=$DISPATCH_VERSION" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = "workflow_run" ]; then
+            echo "version=$WORKFLOW_BRANCH" >> "$GITHUB_OUTPUT"
           else
-            echo "version=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            echo "version=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Validate version format
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           if ! echo "$VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "ERROR: Version '$VERSION' does not match expected format vYY.M.MICRO (e.g. v26.6.0)"
             exit 1
@@ -85,8 +90,9 @@ jobs:
           test -f node_modules/@node-rs/argon2-linux-arm64-gnu/argon2.linux-arm64-gnu.node
 
       - name: Assemble tarball
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           TARBALL_DIR="rackula-lxc-${VERSION}"
 
           mkdir -p "${TARBALL_DIR}/frontend"
@@ -127,8 +133,8 @@ jobs:
       - name: Upload tarball to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
 
           # Verify the release exists and is published (not a draft)
           IS_DRAFT=$(gh release view "$VERSION" --json isDraft --jq '.isDraft' 2>/dev/null || echo "missing")
