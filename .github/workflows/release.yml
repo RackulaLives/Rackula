@@ -91,6 +91,8 @@ jobs:
   # untrusted-checkout exposure.
   build-lxc:
     needs: [create-release]
+    # contents: write is required so the called workflow's publish job can
+    # upload the tarball and checksum as assets on the release.
     permissions:
       contents: write
     uses: ./.github/workflows/build-lxc.yml

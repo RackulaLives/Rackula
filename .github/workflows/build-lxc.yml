@@ -8,6 +8,12 @@ name: Build LXC Tarball
 # an existing release (workflow_dispatch). Both triggers are write-access-gated,
 # so checking out the requested tag is a trusted operation: there is no
 # privileged untrusted checkout, unlike the previous workflow_run design.
+#
+# Split into two jobs by privilege:
+#   build   - contents: read. Checks out the tag and runs dependency code
+#             (npm ci, bun install) with no write-capable token.
+#   publish - contents: write. Downloads the build artifact and uploads it to
+#             the release. Runs no repo/dependency code.
 on:
   workflow_call:
     inputs:
@@ -22,13 +28,17 @@ on:
         required: true
         type: string
 
-# contents: write is required to upload the tarball and its checksum as assets
-# on the published GitHub Release (gh release upload).
 permissions:
-  contents: write
+  contents: read
+
+# Serialise per version so a manual dispatch and the release-triggered call
+# cannot race on the same release asset (gh release upload --clobber).
+concurrency:
+  group: build-lxc-${{ inputs.version }}
+  cancel-in-progress: false
 
 jobs:
-  build-and-upload:
+  build:
     runs-on: ubuntu-latest
     steps:
       # Validate before checkout so only a strict version tag can be the ref.
@@ -122,13 +132,48 @@ jobs:
           sha256sum "rackula-lxc-${VERSION}.tar.gz" > "rackula-lxc-${VERSION}.tar.gz.sha256"
 
           rm -rf "${TARBALL_DIR}"
-          echo "TARBALL=rackula-lxc-${VERSION}.tar.gz" >> "$GITHUB_ENV"
 
-      - name: Upload tarball to release
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lxc-tarball
+          path: |
+            rackula-lxc-${{ inputs.version }}.tar.gz
+            rackula-lxc-${{ inputs.version }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # contents: write is required only to upload the tarball and its checksum as
+    # assets on the published release (gh release upload).
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download tarball artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: lxc-tarball
+
+      - name: Publish tarball to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           VERSION: ${{ inputs.version }}
         run: |
+          TARBALL="rackula-lxc-${VERSION}.tar.gz"
+
+          # Guard against accidental corruption of the artifact in transit
+          # between jobs. This is not tamper-proofing: the checksum travels in
+          # the same artifact as the tarball, so it only catches truncation or
+          # bit-rot, not a malicious swap.
+          if ! sha256sum -c "${TARBALL}.sha256"; then
+            echo "ERROR: SHA256 verification failed for ${TARBALL}"
+            exit 1
+          fi
+
           # Verify the release exists and is published (not a draft)
           IS_DRAFT=$(gh release view "$VERSION" --json isDraft --jq '.isDraft' 2>/dev/null || echo "missing")
           if [ "$IS_DRAFT" = "missing" ]; then
