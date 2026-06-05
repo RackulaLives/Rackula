@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import { logger as honoLogger } from "hono/logger";
 import { bodyLimit } from "hono/body-limit";
 import layouts from "./routes/layouts";
 import assets from "./routes/assets";
@@ -34,6 +34,7 @@ import {
   verifyCredentials,
 } from "./local-auth";
 import pkg from "../package.json";
+import { logger } from "./logger";
 
 const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
 const DEFAULT_MAX_LAYOUT_SIZE = 1 * 1024 * 1024; // 1MB
@@ -208,7 +209,7 @@ function mapFallbackSessionClaims(
   const fallbackSubject =
     session.user.email?.trim() || session.user.id?.trim() || "oidc-user";
   if (fallbackSubject === "oidc-user") {
-    console.warn(
+    logger.warn(
       "auth: OIDC session missing user identity (email and id), using generic subject",
     );
   }
@@ -290,31 +291,31 @@ export async function createApp(
       securityConfig.isProduction &&
       !securityConfig.authSessionCookieSecure
     ) {
-      console.warn(
+      logger.warn(
         "⚠ Local auth mode in production without Secure cookies. Set RACKULA_AUTH_SESSION_COOKIE_SECURE=true.",
       );
     }
   }
 
   if (securityConfig.isProduction && securityConfig.allowInsecureCors) {
-    console.warn(
+    logger.warn(
       "⚠ Running with wildcard CORS in production because ALLOW_INSECURE_CORS=true.",
     );
   }
 
   if (securityConfig.isProduction && !securityConfig.writeAuthToken) {
-    console.warn(
+    logger.warn(
       "⚠ Write-route auth token is not configured. Set RACKULA_API_WRITE_TOKEN to protect PUT/DELETE routes.",
     );
   }
 
   if (securityConfig.authEnabled) {
-    console.warn(
+    logger.warn(
       `🔒 Authentication gate enabled (mode=${securityConfig.authMode}). Anonymous access is blocked by default.`,
     );
   }
 
-  app.use("*", logger());
+  app.use("*", honoLogger());
   app.use(
     "*",
     cors({
@@ -390,7 +391,7 @@ export async function createApp(
         ? validateFallbackSessionClaims(mappedFallbackClaims, authSessionConfig)
         : null;
     } catch (error) {
-      console.debug("auth: fallback session check failed", error);
+      logger.debug({ err: error }, "auth: fallback session check failed");
       return null;
     }
   };
@@ -499,7 +500,7 @@ export async function createApp(
 
         return c.redirect(redirectUrl, 302);
       } catch (error) {
-        console.error("OIDC login initiation failed:", error);
+        logger.error({ err: error }, "OIDC login initiation failed");
         return c.json(
           {
             error: "Authentication failed",
@@ -603,7 +604,7 @@ export async function createApp(
           });
           appendSetCookieHeaders(c, signOutResult.headers);
         } catch (error) {
-          console.debug("auth: provider sign-out failed", error);
+          logger.debug({ err: error }, "auth: provider sign-out failed");
         }
       }
 
@@ -889,7 +890,7 @@ export async function createApp(
 
   // Error handler
   app.onError((err, c) => {
-    console.error("Unhandled error:", err);
+    logger.error({ err }, "Unhandled error");
     return c.json({ error: "Internal server error" }, 500);
   });
 

@@ -627,6 +627,7 @@ All variables have sensible defaults. Only configure if you need to change somet
 | `RACKULA_OIDC_REDIRECT_URI`          | _derived from BASE_URL_ | Explicit OIDC callback URL; must match the IdP's registered redirect URI exactly                   |
 | `RACKULA_MAX_LAYOUTS`                | `100`                   | Maximum number of stored layouts. Set to `0` for unlimited                                         |
 | `RACKULA_MAX_ASSETS_PER_LAYOUT`      | `50`                    | Maximum number of assets per layout. Set to `0` for unlimited                                      |
+| `LOG_LEVEL`                          | `info`                  | API log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, or `silent`                 |
 
 **Port mapping explained:**
 
@@ -844,6 +845,23 @@ When a quota is exceeded:
 - Asset limit reached returns HTTP 507 with a message to remove existing assets
 
 Layout quota only applies to new layouts. Updating an existing layout always succeeds.
+
+### Logging
+
+The API logs through a single pino logger. Verbosity is controlled by the `LOG_LEVEL`
+environment variable (default `info`), so debug tracing is off by default in production.
+
+| `LOG_LEVEL`        | Output                                                |
+| ------------------ | ----------------------------------------------------- |
+| `debug` or `trace` | Verbose tracing plus all info, warnings, and errors   |
+| `info` (default)   | Startup and operational info, warnings, and errors    |
+| `warn`             | Warnings and errors only                              |
+| `error` or `fatal` | Errors only                                           |
+| `silent`           | No output                                             |
+
+In production (`NODE_ENV=production`) logs are emitted as structured JSON, one object per
+line, suitable for log shippers. In other environments they are pretty-printed for
+readability.
 
 ### Single-User Design
 

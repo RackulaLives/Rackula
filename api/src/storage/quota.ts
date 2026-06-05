@@ -10,6 +10,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { extractUuidFromFolderName } from "../schemas/layout";
+import { logger } from "../logger";
 
 /**
  * Result of a storage quota check.
@@ -39,7 +40,7 @@ export async function checkLayoutQuota(
   maxLayouts: number,
 ): Promise<QuotaCheckResult> {
   if (maxLayouts === 0) {
-    console.debug("quota: layout quota unlimited, skipping check");
+    logger.debug("quota: layout quota unlimited, skipping check");
     return { allowed: true, current: 0, max: 0 };
   }
 
@@ -75,7 +76,7 @@ export async function checkLayoutQuota(
   }
 
   const allowed = layoutCount < maxLayouts;
-  console.debug(
+  logger.debug(
     `quota: layout check ${layoutCount}/${maxLayouts} ${allowed ? "allowed" : "exceeded"}`,
   );
 
@@ -99,7 +100,7 @@ export async function checkAssetQuota(
   maxAssetsPerLayout: number,
 ): Promise<QuotaCheckResult> {
   if (maxAssetsPerLayout === 0) {
-    console.debug("quota: asset quota unlimited, skipping check");
+    logger.debug("quota: asset quota unlimited, skipping check");
     return { allowed: true, current: 0, max: 0 };
   }
 
@@ -115,7 +116,7 @@ export async function checkAssetQuota(
       err instanceof Error &&
       (err as NodeJS.ErrnoException).code === "ENOENT"
     ) {
-      console.debug(`quota: no assets directory, 0/${maxAssetsPerLayout}`);
+      logger.debug(`quota: no assets directory, 0/${maxAssetsPerLayout}`);
       return { allowed: true, current: 0, max: maxAssetsPerLayout };
     }
     throw err;
@@ -144,7 +145,7 @@ export async function checkAssetQuota(
   }
 
   const allowed = assetCount < maxAssetsPerLayout;
-  console.debug(
+  logger.debug(
     `quota: asset check for ${layoutDir} ${assetCount}/${maxAssetsPerLayout} ${allowed ? "allowed" : "exceeded"}`,
   );
 

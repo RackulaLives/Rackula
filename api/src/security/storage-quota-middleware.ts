@@ -18,6 +18,7 @@ import type { MiddlewareHandler } from "hono";
 import { checkLayoutQuota, checkAssetQuota } from "../storage/quota";
 import { findFolderByUuid } from "../storage/filesystem";
 import { isUuid } from "../schemas/layout";
+import { logger } from "../logger";
 
 /**
  * Configuration for the storage quota middleware.
@@ -74,7 +75,7 @@ export function createStorageQuotaMiddleware(
       if (uuid && isUuid(uuid)) {
         const existingFolder = await findFolderByUuid(uuid, dataDir);
         if (existingFolder) {
-          console.debug(`quota: layout update for ${uuid}, skipping check`);
+          logger.debug(`quota: layout update for ${uuid}, skipping check`);
           await next();
           return;
         }
@@ -87,7 +88,7 @@ export function createStorageQuotaMiddleware(
       // Adding file locks would introduce complexity not justified by the threat model.
       const quota = await checkLayoutQuota(dataDir, maxLayouts);
       if (!quota.allowed) {
-        console.warn(
+        logger.warn(
           `quota: layout quota exceeded ${quota.current}/${quota.max}`,
         );
         return c.json(
@@ -115,7 +116,7 @@ export function createStorageQuotaMiddleware(
         if (layoutFolder) {
           const quota = await checkAssetQuota(layoutFolder, maxAssetsPerLayout);
           if (!quota.allowed) {
-            console.warn(
+            logger.warn(
               `quota: asset quota exceeded for layout ${layoutId}: ${quota.current}/${quota.max}`,
             );
             return c.json(
@@ -130,7 +131,7 @@ export function createStorageQuotaMiddleware(
           }
         } else {
           // Layout doesn't exist — the route handler will return 404
-          console.debug(
+          logger.debug(
             `quota: layout ${layoutId} not found, skipping asset check`,
           );
         }

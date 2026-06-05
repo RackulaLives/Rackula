@@ -18,6 +18,7 @@ import { join, dirname } from "node:path";
 import { z } from "zod";
 import { getLayoutAssetsDir } from "./filesystem";
 import { isUuid } from "../schemas/layout";
+import { logger } from "../logger";
 
 // Allowed image types
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -82,7 +83,7 @@ export function getContentTypeFromExt(ext: string): string {
     case "webp":
       return "image/webp";
     default:
-      console.warn(`Unknown extension for content type lookup: ${ext}`);
+      logger.warn(`Unknown extension for content type lookup: ${ext}`);
       return "application/octet-stream";
   }
 }

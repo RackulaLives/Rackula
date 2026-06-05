@@ -1,5 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { MIN_AUTH_LOG_HASH_KEY_LENGTH } from "../auth-logger";
+import { logger } from "../logger";
 import { normalizeOrigin } from "./request-utils";
 import type {
   ApiSecurityConfig,
@@ -53,7 +54,7 @@ function resolveAuthLogHashKey(options: {
   }
 
   if (options.isProduction) {
-    console.warn(
+    logger.warn(
       "⚠ Auth log hash key is not configured and no auth session secret is available. Generating an ephemeral per-process key. Set RACKULA_AUTH_LOG_HASH_KEY in production for stable pseudonymization.",
     );
   }

@@ -22,6 +22,7 @@ import {
   slugify,
   type LayoutListItem,
 } from "../schemas/layout";
+import { logger } from "../logger";
 
 function getDataDir(): string {
   return process.env.DATA_DIR ?? "./data";
@@ -136,7 +137,7 @@ async function readLegacyLayout(
   } catch (e) {
     const slug = filename.replace(/\.ya?ml$/i, "");
     const stats = await stat(filepath).catch(() => ({ mtime: new Date() }));
-    console.warn(`Failed to read legacy layout: ${filename}`, e);
+    logger.warn({ err: e }, `Failed to read legacy layout: ${filename}`);
     return {
       id: slug,
       name: slug,
@@ -199,7 +200,7 @@ async function readLayoutFromFolder(
   } catch (e) {
     // File read/parse error - include with error flag
     const stats = await stat(folderPath).catch(() => ({ mtime: new Date() }));
-    console.warn(`Failed to read layout from folder: ${folderName}`, e);
+    logger.warn({ err: e }, `Failed to read layout from folder: ${folderName}`);
     return {
       id: uuid,
       name: folderName.replace(`-${uuid}`, ""),
@@ -401,9 +402,9 @@ async function migrateLegacyLayout(
         await mkdir(join(dataDir, "assets"), { recursive: true });
         await rename(newAssetsDir, oldAssetsDir);
       } catch (restoreError) {
-        console.warn(
+        logger.warn(
+          { err: restoreError },
           `Failed to restore legacy assets for ${oldSlug}`,
-          restoreError,
         );
       }
     }
@@ -519,9 +520,9 @@ export async function saveLayout(
         await rm(join(folderPath, oldYamlFilename));
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-          console.warn(
+          logger.warn(
+            { err: error },
             `Failed to delete stale YAML file "${oldYamlFilename}" in "${folderPath}"`,
-            error,
           );
         }
       }
