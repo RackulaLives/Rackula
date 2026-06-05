@@ -128,29 +128,42 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Test 4: Idempotency detection
+# Test 4: Idempotency (uses ACKNOWLEDGEMENTS_FILE env var override)
 # ---------------------------------------------------------------------------
 
 echo ""
 echo "=== Test 4: Idempotency ==="
 
-# Create a temp file to test idempotency logic
+# Create a temp copy of ACKNOWLEDGEMENTS.md with a fake version heading,
+# then run the actual script against it. The script should detect the
+# existing heading and skip without duplicating it.
 TEMP_DIR=$(mktemp -d)
 cp "$REPO_ROOT/ACKNOWLEDGEMENTS.md" "$TEMP_DIR/ACKNOWLEDGEMENTS.md"
 
-# Insert a fake v99.99.99 entry to test idempotency detection
-sed -i "" '/^## AI Development/i\
-### v99.99.99\
-\
-- @testuser: test contribution (#99999)\
-' "$TEMP_DIR/ACKNOWLEDGEMENTS.md"
+# Insert a fake v99.99.99 entry to trigger idempotency detection
+# Use awk for reliable cross-platform insertion before the AI Development heading
+awk '/^## AI Development/ { print "### v99.99.99"; print ""; print "- @testuser: test contribution (#99999)"; print "" } { print }' \
+  "$REPO_ROOT/ACKNOWLEDGEMENTS.md" > "$TEMP_DIR/ACKNOWLEDGEMENTS.md"
 
-# The script's idempotency check uses grep -qF on the version heading
-# Test this directly
-if grep -qF "### v99.99.99" "$TEMP_DIR/ACKNOWLEDGEMENTS.md"; then
-  pass "Idempotency check detects existing version heading"
+# Run the script against the temp file (ACKNOWLEDGEMENTS_FILE override)
+IDEMPOTENCY_OUTPUT=$(ACKNOWLEDGEMENTS_FILE="$TEMP_DIR/ACKNOWLEDGEMENTS.md" "$CONTRIBUTORS_SCRIPT" v26.5.0 99.99.99 2>&1) || {
+  # Script exiting non-zero is a failure
+  fail "contributors.sh exited with error during idempotency test"
+  IDEMPOTENCY_OUTPUT=""
+}
+
+if echo "$IDEMPOTENCY_OUTPUT" | grep -q "already exists.*Skipping"; then
+  pass "Script skips when version heading already exists"
 else
-  fail "Idempotency check did not detect existing version heading"
+  fail "Script did not skip when version heading already exists (got: $IDEMPOTENCY_OUTPUT)"
+fi
+
+# Verify the temp file was NOT modified (no duplicate heading)
+EXISTING_COUNT=$(grep -c "^### v99.99.99" "$TEMP_DIR/ACKNOWLEDGEMENTS.md" || true)
+if [[ "$EXISTING_COUNT" -eq 1 ]]; then
+  pass "No duplicate heading added (idempotent)"
+else
+  fail "Duplicate heading found (expected 1, got $EXISTING_COUNT)"
 fi
 
 # Clean up

@@ -26,7 +26,7 @@ set -euo pipefail
 # credited in the all-contributors table.
 EXCLUDED_AUTHORS="dependabot[bot] app/dependabot coderabbitai[bot] ggfevans"
 
-ACKNOWLEDGEMENTS_FILE="ACKNOWLEDGEMENTS.md"
+ACKNOWLEDGEMENTS_FILE="${ACKNOWLEDGEMENTS_FILE:-ACKNOWLEDGEMENTS.md}"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -140,19 +140,13 @@ PR_DATA=$(gh pr list --state merged --search "merged:>=${PREV_DATE}" \
 # Filter, deduplicate, and format contributors
 # ---------------------------------------------------------------------------
 
-# Build the exclusion filter as an associative pattern for grep
-EXCLUDE_PATTERN=""
-for author in $EXCLUDED_AUTHORS; do
-  if [[ -n "$EXCLUDE_PATTERN" ]]; then
-    EXCLUDE_PATTERN="${EXCLUDE_PATTERN}|${author}"
-  else
-    EXCLUDE_PATTERN="${author}"
-  fi
-done
-
-# Filter out excluded authors, then deduplicate by author (keep first occurrence)
+# Filter out excluded authors using exact field matching (avoids regex metacharacter
+# issues with names like "dependabot[bot]" where [ ] are ERE metacharacters).
 # PR_DATA format: number<tab>title<tab>author
-FILTERED=$(echo "$PR_DATA" | grep -Ev "	(${EXCLUDE_PATTERN})$" || true)
+FILTERED=$(echo "$PR_DATA" | awk -F'\t' -v excl="$EXCLUDED_AUTHORS" '
+  BEGIN { n = split(excl, a, / /) }
+  { for (i = 1; i <= n; i++) if ($3 == a[i]) next; print }
+')
 
 if [[ -z "$FILTERED" ]]; then
   echo "No external contributors found for this release." >&2
@@ -185,7 +179,7 @@ ${entry}"
   BLOCK="${BLOCK}
 "
 
-  for author in "${!AUTHOR_ORDER[@]}"; do
+  for author in $(printf '%s\n' "${!AUTHOR_ORDER[@]}" | sort); do
     entries="${AUTHOR_PRS[$author]}"
     # Count entries for this author
     entry_count=$(echo "$entries" | wc -l | tr -d ' ')

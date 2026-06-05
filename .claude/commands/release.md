@@ -108,7 +108,12 @@ gh issue list --state closed --search "closed:>$LAST_DATE" \
 ### 1e. Get Contributors Since Last Release
 
 ```bash
-scripts/contributors.sh "$LAST_TAG" "$NEW_VERSION" --dry-run
+# Compute a preview version for contributor extraction (NEW_VERSION is set in Phase 4)
+PREVIEW_VERSION="$ARGUMENTS"
+if [ -z "$PREVIEW_VERSION" ]; then
+  PREVIEW_VERSION=$(scripts/next-version.sh --dry-run)
+fi
+scripts/contributors.sh "$LAST_TAG" "$PREVIEW_VERSION" --dry-run
 ```
 
 This outputs a markdown block listing external contributors (excluding bots and the maintainer) with their merged PRs. Review this alongside the changelog draft.

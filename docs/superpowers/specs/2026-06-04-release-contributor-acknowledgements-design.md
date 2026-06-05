@@ -38,7 +38,7 @@ scripts/contributors.sh <prev_tag> <new_version> [--dry-run]
 
 **Exclusion list** (variable at top of script for easy editing):
 
-```
+```bash
 EXCLUDED_AUTHORS="dependabot[bot] app/dependabot coderabbitai[bot] ggfevans"
 ```
 
