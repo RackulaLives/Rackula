@@ -6,7 +6,7 @@
   "type": "ct",
   "updateable": true,
   "privileged": false,
-  "has_arm": false,
+  "has_arm": true,
   "interface_port": 80,
   "documentation": "https://github.com/RackulaLives/Rackula",
   "website": "https://count.racku.la",
