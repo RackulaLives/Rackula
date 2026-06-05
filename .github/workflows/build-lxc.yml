@@ -27,8 +27,9 @@ jobs:
     if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v')) }}
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-
+      # Extract version before checkout so we can checkout the correct ref.
+      # For workflow_run/workflow_dispatch events, actions/checkout defaults to the
+      # default branch rather than the tag, so we must explicitly specify the ref.
       - name: Extract version
         id: version
         env:
@@ -44,6 +45,10 @@ jobs:
           else
             echo "version=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           fi
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ steps.version.outputs.version }}
 
       - name: Validate version format
         env:

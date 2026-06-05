@@ -53,7 +53,7 @@ if [[ -n "$_INSTALLED_VER" ]]; then
       msg_ok "SHA256 checksum verified"
     else
       msg_error "Failed to re-download tarball for SHA256 verification"
-      rm -rf "$_VDIR"
+      rm -rf /opt/rackula "$_VDIR"
       exit 1
     fi
   else

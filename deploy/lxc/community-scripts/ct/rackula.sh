@@ -114,6 +114,11 @@ function update_script() {
     # its SHA256 checksum, verify integrity, then extract. Services stay up and
     # the live install is untouched, so any failure here leaves the running
     # install fully intact.
+    #
+    # NOTE: This deliberately replaces fetch_and_deploy_gh_release (see
+    # docs/research/lxc-best-practices.md) so the SHA256 checksum is verified
+    # BEFORE any live files are touched. The standard helper extracts before we
+    # could verify, which defeats the integrity guarantee.
     msg_info "Fetching ${APP} ${CHECK_UPDATE_RELEASE}"
     rm -rf /opt/rackula.new
 
@@ -165,12 +170,14 @@ function update_script() {
     fi
     rm -rf "$_DL_TMPDIR"
 
-    # Verify structure before touching the live install
-    if [[ ! -d /opt/rackula.new/config ]] || [[ ! -d /opt/rackula.new/api ]]; then
-      msg_error "Release did not populate config/ and api/, aborting before touching live install"
-      rm -rf /opt/rackula.new
-      exit 1
-    fi
+    # Verify structure before touching the live install (matches build-lxc.yml).
+    for _d in config api frontend; do
+      if [[ ! -d "/opt/rackula.new/${_d}" ]] || [[ -z "$(ls -A "/opt/rackula.new/${_d}" 2>/dev/null)" ]]; then
+        msg_error "Release did not populate ${_d}/, aborting before touching live install"
+        rm -rf /opt/rackula.new
+        exit 1
+      fi
+    done
 
     # Write version marker (strip leading 'v' for consistency with check_for_gh_release)
     echo "${CHECK_UPDATE_RELEASE#v}" > ~/.rackula
