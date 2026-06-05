@@ -860,8 +860,9 @@ environment variable (default `info`), so debug tracing is off by default in pro
 | `silent`           | No output                                             |
 
 In production (`NODE_ENV=production`) logs are emitted as structured JSON, one object per
-line, suitable for log shippers. In other environments they are pretty-printed for
-readability.
+line, suitable for log shippers. In non-production interactive terminals (TTY) logs are
+pretty-printed for readability; non-interactive runs (CI, systemd, Docker) still emit
+structured JSON.
 
 ### Single-User Design
 

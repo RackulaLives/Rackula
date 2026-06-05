@@ -6,13 +6,14 @@
  * environment via the LOG_LEVEL environment variable.
  *
  * - level: LOG_LEVEL (default "info") so debug tracing is opt-in
- * - interactive terminal (TTY): pino-pretty transport for readable output
+ * - non-production interactive terminal (TTY): pino-pretty transport for readable output
  * - everywhere else (production, CI, systemd, Docker): structured JSON to stdout
  *
- * Pretty output is gated on stdout being a TTY rather than on NODE_ENV, so CI,
- * test runs, and non-interactive production launches never spawn the pino-pretty
- * worker thread or require pino-pretty (a devDependency absent from production
- * installs).
+ * Pretty output requires both a non-production environment and an interactive
+ * TTY. The TTY check keeps CI, test runs, and non-interactive launches on JSON
+ * (no pino-pretty worker thread), while the NODE_ENV check ensures production
+ * never attempts pino-pretty (a devDependency absent from production installs)
+ * even when attached to a terminal, e.g. `docker run -it`.
  *
  * Usage:
  *   import { logger } from "./logger";
