@@ -74,5 +74,7 @@ describe("handlePersistenceError quota rejections", () => {
     const latest = getToastStore().toasts.at(-1);
     expect(latest?.type).toBe("error");
     expect(latest?.duration).toBe(0);
+    // Distinguishes the offline branch from the generic "Save failed" else-branch.
+    expect(latest?.message).toContain("backend unavailable");
   });
 });
