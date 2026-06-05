@@ -190,6 +190,10 @@
   const DRAG_THRESHOLD = 3; // pixels - movement beyond this initiates drag
   type PointerState = "idle" | "pressing" | "dragging";
   let pointerState: PointerState = $state("idle");
+  // Tracks whether the long-press gesture fired for the current pointer
+  // interaction, so pointerup does not emit a second tap haptic on top of the
+  // long-press haptic.
+  let longPressFired = false;
   let pointerStartPos: { x: number; y: number } | null = $state(null);
   let activePointerId: number | null = $state(null);
 
@@ -354,6 +358,7 @@
     pointerStartPos = { x: event.clientX, y: event.clientY };
     pointerState = "pressing";
     activePointerId = event.pointerId;
+    longPressFired = false;
 
     // Capture pointer to receive events even if cursor leaves element
     // Note: setPointerCapture may not exist in test environments (happy-dom)
@@ -432,7 +437,9 @@
     if (pointerState === "pressing") {
       // No significant movement - this is a click
       event.stopPropagation();
-      if (event.pointerType === "touch") {
+      // Long-press already fired its own haptic, so skip the tap haptic to
+      // avoid a double vibration when the press completes as a long-press.
+      if (event.pointerType === "touch" && !longPressFired) {
         hapticTap();
       }
       onselect?.(
@@ -509,6 +516,7 @@
   function handleLongPress() {
     if (!longPressPoint) return;
 
+    longPressFired = true;
     hapticTap();
     openDeviceContextMenu(longPressPoint.x, longPressPoint.y);
     longPressPoint = null;
