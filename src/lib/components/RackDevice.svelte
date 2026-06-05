@@ -193,7 +193,7 @@
   // Tracks whether the long-press gesture fired for the current pointer
   // interaction, so pointerup does not emit a second tap haptic on top of the
   // long-press haptic.
-  let longPressFired = false;
+  let longPressFired = $state(false);
   let pointerStartPos: { x: number; y: number } | null = $state(null);
   let activePointerId: number | null = $state(null);
 
