@@ -1,0 +1,48 @@
+name: arm64 LXC verify
+
+# Proves the LXC release tarball's native deps load on arm64. The tarball bundles
+# @node-rs/argon2 binaries for every linux CPU (build-lxc.yml installs with
+# --cpu='*' --os=linux); this job rebuilds that production node_modules and loads
+# argon2 on a native arm64 runner, so an arm64-incompatible change fails CI here
+# instead of the community-scripts install on a real arm64 host.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "api/**"
+      - ".github/workflows/build-lxc.yml"
+      - ".github/workflows/arm64-lxc-verify.yml"
+      - "deploy/lxc/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  arm64-argon2:
+    name: arm64 native deps load
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1"
+
+      - name: Install API production deps (build-lxc parity)
+        working-directory: api
+        run: bun install --frozen-lockfile --production --cpu='*' --os=linux
+
+      - name: Assert both argon2 binaries are bundled
+        working-directory: api
+        run: |
+          test -f node_modules/@node-rs/argon2-linux-x64-gnu/argon2.linux-x64-gnu.node
+          test -f node_modules/@node-rs/argon2-linux-arm64-gnu/argon2.linux-arm64-gnu.node
+
+      - name: Load argon2 on arm64 and verify a hash round-trip
+        working-directory: api
+        run: |
+          bun -e "const { hash, verify, Algorithm } = await import('@node-rs/argon2'); const h = await hash('arm64 ci check', { algorithm: Algorithm.Argon2id }); if (!(await verify(h, 'arm64 ci check')) || (await verify(h, 'wrong'))) { throw new Error('argon2 verify failed on arm64'); } console.log('argon2 OK on', process.arch, process.platform);"
