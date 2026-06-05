@@ -40,14 +40,16 @@ jobs:
 
       - name: Extract version number
         id: version
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          VERSION="${{ github.ref_name }}"
-          VERSION_NUM="${VERSION#v}"  # Remove 'v' prefix (e.g., v26.6.0 → 26.6.0)
-          echo "version=$VERSION_NUM" >> $GITHUB_OUTPUT
+          VERSION_NUM="${REF_NAME#v}"  # Remove 'v' prefix (e.g., v26.6.0 -> 26.6.0)
+          echo "version=$VERSION_NUM" >> "$GITHUB_OUTPUT"
 
       - name: Validate changelog entry exists
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
             echo "ERROR: No changelog entry found for version $VERSION"
             echo "Please update CHANGELOG.md before releasing."
@@ -60,9 +62,9 @@ jobs:
 
       - name: Extract changelog entry
         id: changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-
           # Extract the section between this version header and the next version header
           # Uses awk to capture everything between ## [VERSION] and the next ## [
           NOTES=$(awk "/^## \[$VERSION\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md)
@@ -75,15 +77,17 @@ jobs:
             echo "notes<<EOF"
             echo "$NOTES"
             echo "EOF"
-          } >> $GITHUB_OUTPUT
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          NOTES: ${{ steps.changelog.outputs.notes }}
         run: |
-          gh release create ${{ github.ref_name }} \
-            --title "${{ github.ref_name }}" \
-            --notes "${{ steps.changelog.outputs.notes }}"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "$NOTES"
 
   # Build the LXC tarball from the released tag and attach it to the release.
   # This runs in the trusted push/dispatch context of this workflow (not via a
