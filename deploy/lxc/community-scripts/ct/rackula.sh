@@ -27,7 +27,7 @@ function update_script() {
 
   if [[ ! -d /opt/rackula ]]; then
     msg_error "No ${APP} Installation Found!"
-    exit
+    exit 1
   fi
 
   if check_for_gh_release "rackula" "RackulaLives/Rackula"; then
@@ -76,7 +76,7 @@ function update_script() {
       fi
       if [ "$i" -eq 10 ]; then
         msg_error "API failed to start within 10 seconds"
-        exit
+        exit 1
       fi
       sleep 1
     done
