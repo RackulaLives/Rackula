@@ -885,8 +885,12 @@ export function generateExportSVG(
 
       // Check if we should show an image
       const face = faceFilter === "rear" ? "rear" : "front";
-      const deviceImages = images?.get(device.slug);
-      const deviceImage = deviceImages?.[face];
+      // Placement image wins per face, else fall back to the device-type image
+      // (mirrors RackDevice.svelte). Per-face so a front-only placement still
+      // inherits the device-type rear image.
+      const placementImages = images?.get(`placement-${placedDevice.id}`);
+      const slugImages = images?.get(device.slug);
+      const deviceImage = placementImages?.[face] ?? slugImages?.[face];
       // Support both URL-based (bundled) and dataUrl-based (user upload) images
       const imageUrl = deviceImage?.url ?? deviceImage?.dataUrl;
       const isImageMode =
