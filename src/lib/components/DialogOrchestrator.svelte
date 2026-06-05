@@ -139,7 +139,7 @@
     dialogStore.close();
     dialogStore.pendingSaveFirst = true;
     if (shouldSaveToServer()) {
-      await handleSaveToServer();
+      await handleSaveToServer(true);
     } else {
       await handleSaveAsArchive();
     }
@@ -174,7 +174,7 @@
     dialogStore.close();
     if (pendingOp === "save") {
       if (shouldSaveToServer()) {
-        handleSaveToServer();
+        handleSaveToServer(true);
       } else {
         handleSaveAsArchive();
       }
@@ -214,7 +214,7 @@
 
     if (pendingOp === "save") {
       if (shouldSaveToServer()) {
-        handleSaveToServer();
+        handleSaveToServer(true);
       } else {
         handleSaveAsArchive();
       }

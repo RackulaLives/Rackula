@@ -17,11 +17,11 @@ Remove the `SaveStatus` component and move all save feedback to the existing toa
 | Event | Toast | Duration | ARIA role | Action |
 |-------|-------|----------|-----------|--------|
 | Manual save succeeds | Success: "Layout saved" | 3000ms | status | None |
-| Auto-save succeeds | None (silent) | — | — | — |
+| Auto-save succeeds | None (silent) | - | - | - |
 | Save fails (server error) | Error: "Save failed: {message}" | 0 (persistent) | alert | Retry |
-| Save fails (offline) | Warning: "Offline — changes saved locally" | 0 (persistent) | alert | Retry |
-| Save in progress | None | — | — | — |
-| API disabled (local-auth) | None | — | — | — |
+| Save fails (offline) | Warning: "Server unavailable - working offline" | 0 (persistent) | alert | Retry |
+| Save in progress | None | - | - | - |
+| API disabled (local-auth) | None | - | - | - |
 
 ## Key Design Decisions
 
@@ -36,13 +36,15 @@ Remove the `SaveStatus` component and move all save feedback to the existing toa
 ## Files Changed
 
 ### Delete
+
 - `src/lib/components/SaveStatus.svelte`
 - Any SaveStatus test file
 
 ### Modify
-- `src/lib/components/Toast.svelte` — conditional ARIA role
-- `src/lib/utils/persistence-manager.svelte.ts` — toast calls, remove exports, keep internal state
-- `src/lib/components/App.svelte` — remove saveStatus prop chain, replace setSaveStatus calls
-- `src/lib/components/Toolbar.svelte` — remove SaveStatus import/prop/render
-- `src/lib/utils/persistence-api.ts` — remove SaveStatus type export
-- `src/tests/persistence-manager-quota.test.ts` — update assertions
+
+- `src/lib/components/Toast.svelte` - conditional ARIA role
+- `src/lib/utils/persistence-manager.svelte.ts` - toast calls, remove exports, keep internal state
+- `src/lib/components/App.svelte` - remove saveStatus prop chain, replace setSaveStatus calls
+- `src/lib/components/Toolbar.svelte` - remove SaveStatus import/prop/render
+- `src/lib/utils/persistence-api.ts` - remove SaveStatus type export
+- `src/tests/persistence-manager-quota.test.ts` - update assertions

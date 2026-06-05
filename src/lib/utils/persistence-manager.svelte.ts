@@ -187,7 +187,10 @@ export async function handleSaveToServer(isManual = false): Promise<void> {
     _consecutiveSaveFailures = 0;
     setApiAvailable(true);
     _saveStatus = "saved";
-    _errorToastId = undefined;
+    if (_errorToastId) {
+      toastStore.dismissToast(_errorToastId);
+      _errorToastId = undefined;
+    }
     layoutStore.markClean();
     clearSession();
     analytics.trackSave(layoutStore.totalDeviceCount);
@@ -518,6 +521,9 @@ export function resetPersistenceManager(): void {
   _currentLayoutId = undefined;
   _saveStatus = "idle";
   _consecutiveSaveFailures = 0;
+  if (_errorToastId) {
+    getToastStore().dismissToast(_errorToastId);
+  }
   _errorToastId = undefined;
   if (serverSaveTimer) {
     clearTimeout(serverSaveTimer);
