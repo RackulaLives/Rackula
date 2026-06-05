@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   handlePersistenceError,
   getSaveStatus,
-  setSaveStatus,
   getConsecutiveSaveFailures,
+  resetPersistenceManager,
 } from "$lib/utils/persistence-manager.svelte";
 import { PersistenceError } from "$lib/utils/persistence-api";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
@@ -18,7 +18,7 @@ import { setApiAvailable } from "$lib/stores/persistence.svelte";
 describe("handlePersistenceError quota rejections", () => {
   beforeEach(() => {
     resetToastStore();
-    setSaveStatus("idle");
+    resetPersistenceManager();
     setApiAvailable(true);
   });
 
