@@ -627,6 +627,11 @@ All variables have sensible defaults. Only configure if you need to change somet
 | `RACKULA_OIDC_REDIRECT_URI`          | _derived from BASE_URL_ | Explicit OIDC callback URL; must match the IdP's registered redirect URI exactly                   |
 | `RACKULA_MAX_LAYOUTS`                | `100`                   | Maximum number of stored layouts. Set to `0` for unlimited                                         |
 | `RACKULA_MAX_ASSETS_PER_LAYOUT`      | `50`                    | Maximum number of assets per layout. Set to `0` for unlimited                                      |
+| `RACKULA_RATE_LIMIT_ENABLED`         | `true`                  | Set to `false` to disable the in-app IP rate limiter                                               |
+| `RACKULA_RATE_LIMIT_WRITE_MAX`       | `30`                    | Max write requests (PUT, DELETE) per IP per window                                                 |
+| `RACKULA_RATE_LIMIT_WRITE_WINDOW_MS` | `60000`                 | Write rate-limit window in milliseconds                                                            |
+| `RACKULA_RATE_LIMIT_READ_MAX`        | `120`                   | Max read requests (GET, HEAD) per IP per window                                                    |
+| `RACKULA_RATE_LIMIT_READ_WINDOW_MS`  | `60000`                 | Read rate-limit window in milliseconds                                                             |
 | `LOG_LEVEL`                          | `info`                  | API log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, or `silent`                 |
 
 **Port mapping explained:**
@@ -826,6 +831,51 @@ The provided docker-compose.persist.yml includes:
 - production-safe CORS defaults (`CORS_ORIGIN`, `ALLOW_INSECURE_CORS=false`)
 - optional write-route bearer auth (`RACKULA_API_WRITE_TOKEN`)
 
+The API ships a hardening baseline for self-hosted deployments built from three
+abuse-resistance controls: write-route rate limiting, a mutating-request origin policy,
+and storage quotas. Each has safe defaults and operator overrides, described below.
+
+### Rate Limiting
+
+The API applies an in-process, per-IP rate limit to absorb bursts and abuse, independent
+of any reverse-proxy limit. Write requests (PUT, DELETE) and read requests (GET, HEAD)
+have separate budgets. It is enabled by default.
+
+| Setting                              | Default | Description                                  |
+| ------------------------------------ | ------- | -------------------------------------------- |
+| `RACKULA_RATE_LIMIT_ENABLED`         | `true`  | Set to `false` to disable in-app rate limits |
+| `RACKULA_RATE_LIMIT_WRITE_MAX`       | `30`    | Max write requests per IP per window         |
+| `RACKULA_RATE_LIMIT_WRITE_WINDOW_MS` | `60000` | Write window length in milliseconds          |
+| `RACKULA_RATE_LIMIT_READ_MAX`        | `120`   | Max read requests per IP per window          |
+| `RACKULA_RATE_LIMIT_READ_WINDOW_MS`  | `60000` | Read window length in milliseconds           |
+
+When a limit is exceeded the API returns HTTP 429 with a `Retry-After` header and a JSON
+body `{ "error": "Too Many Requests" }`. Rate limiting is skipped when the client IP
+cannot be determined. This is separate from, and complementary to, any NGINX `limit_req`
+applied at the proxy.
+
+### Mutating-Request Origin Policy
+
+For state-changing requests (POST, PUT, PATCH, DELETE), the API requires a trusted
+`Origin` (or `Referer`) header. This closes the cross-origin write gap that bearer-token
+checks alone do not cover, for example a malicious page in a victim's browser issuing
+writes to a reachable API.
+
+The origin policy is enforced automatically when authentication is enabled and CSRF
+protection is active. Both require an explicit `CORS_ORIGIN` (wildcard origins are
+rejected in this mode), and the trusted origins are taken from `CORS_ORIGIN`. There is no
+separate toggle.
+
+When enforced:
+
+- Requests from a trusted origin pass.
+- A valid write bearer token (`RACKULA_API_WRITE_TOKEN`) bypasses the origin check, for
+  non-browser clients that cannot send an `Origin`.
+- Mutating requests with no `Origin` or `Referer` and no valid token are rejected with
+  HTTP 403.
+- When auth is disabled or `CORS_ORIGIN` is a wildcard, the policy is skipped, because
+  write-token auth alone protects write routes.
+
 ### Storage Quotas
 
 Rackula enforces storage quotas to prevent unauthenticated or misconfigured clients from filling the disk with unlimited layout creates or asset uploads.
@@ -851,13 +901,13 @@ Layout quota only applies to new layouts. Updating an existing layout always suc
 The API logs through a single pino logger. Verbosity is controlled by the `LOG_LEVEL`
 environment variable (default `info`), so debug tracing is off by default in production.
 
-| `LOG_LEVEL`        | Output                                                |
-| ------------------ | ----------------------------------------------------- |
-| `debug` or `trace` | Verbose tracing plus all info, warnings, and errors   |
-| `info` (default)   | Startup and operational info, warnings, and errors    |
-| `warn`             | Warnings and errors only                              |
-| `error` or `fatal` | Errors only                                           |
-| `silent`           | No output                                             |
+| `LOG_LEVEL`        | Output                                              |
+| ------------------ | --------------------------------------------------- |
+| `debug` or `trace` | Verbose tracing plus all info, warnings, and errors |
+| `info` (default)   | Startup and operational info, warnings, and errors  |
+| `warn`             | Warnings and errors only                            |
+| `error` or `fatal` | Errors only                                         |
+| `silent`           | No output                                           |
 
 In production (`NODE_ENV=production`) logs are emitted as structured JSON, one object per
 line, suitable for log shippers. In non-production interactive terminals (TTY) logs are
