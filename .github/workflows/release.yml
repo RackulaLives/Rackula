@@ -85,4 +85,18 @@ jobs:
             --title "${{ github.ref_name }}" \
             --notes "${{ steps.changelog.outputs.notes }}"
 
+  # Build the LXC tarball from the released tag and attach it to the release.
+  # This runs in the trusted push/dispatch context of this workflow (not via a
+  # privileged workflow_run trigger), so it builds from the exact tag with no
+  # untrusted-checkout exposure.
+  build-lxc:
+    needs: [create-release]
+    # contents: write is required so the called workflow's publish job can
+    # upload the tarball and checksum as assets on the release.
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-lxc.yml
+    with:
+      version: ${{ github.ref_name }}
+
 #

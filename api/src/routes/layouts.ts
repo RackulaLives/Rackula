@@ -23,6 +23,7 @@ import {
   deleteLayout,
 } from "../storage/filesystem";
 import { deleteLayoutAssets } from "../storage/assets";
+import { logger } from "../logger";
 
 const layouts = new Hono();
 
@@ -32,7 +33,7 @@ layouts.get("/", async (c) => {
     const items = await listLayouts();
     return c.json({ layouts: items });
   } catch (error) {
-    console.error("Failed to list layouts:", error);
+    logger.error({ err: error }, "Failed to list layouts");
     return c.json({ error: "Failed to list layouts" }, 500);
   }
 });
@@ -54,7 +55,7 @@ layouts.get("/:uuid", async (c) => {
 
     return c.text(content, 200, { "Content-Type": "text/yaml" });
   } catch (error) {
-    console.error(`Failed to get layout ${uuidResult.data}:`, error);
+    logger.error({ err: error }, `Failed to get layout ${uuidResult.data}`);
     return c.json({ error: "Failed to get layout" }, 500);
   }
 });
@@ -113,7 +114,7 @@ layouts.put("/:uuid", async (c) => {
       result.isNew ? 201 : 200,
     );
   } catch (error) {
-    console.error(`Failed to save layout ${uuidResult.data}:`, error);
+    logger.error({ err: error }, `Failed to save layout ${uuidResult.data}`);
 
     // saveLayout throws Error with message prefixes for validation failures
     if (error instanceof Error) {
@@ -150,15 +151,15 @@ layouts.delete("/:uuid", async (c) => {
     try {
       await deleteLayoutAssets(uuidResult.data);
     } catch (assetError) {
-      console.warn(
-        `Failed to delete assets for layout ${uuidResult.data}:`,
-        assetError,
+      logger.warn(
+        { err: assetError },
+        `Failed to delete assets for layout ${uuidResult.data}`,
       );
     }
 
     return c.json({ message: "Layout deleted" }, 200);
   } catch (error) {
-    console.error(`Failed to delete layout ${uuidResult.data}:`, error);
+    logger.error({ err: error }, `Failed to delete layout ${uuidResult.data}`);
     return c.json({ error: "Failed to delete layout" }, 500);
   }
 });

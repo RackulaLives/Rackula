@@ -6,21 +6,22 @@
   "type": "ct",
   "updateable": true,
   "privileged": false,
+  "has_arm": false,
   "interface_port": 80,
   "documentation": "https://github.com/RackulaLives/Rackula",
   "website": "https://count.racku.la",
-  "config_path": "/opt/rackula/data/.env",
   "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/rackula.webp",
   "description": "Rackula is a drag-and-drop rack layout designer for homelabbers. Visualize your server rack with an offline-ready, mobile-friendly interface. Includes persistence API for cross-browser syncing.",
   "install_methods": [
     {
       "type": "default",
       "script": "ct/rackula.sh",
+      "config_path": "/opt/rackula/data/.env",
       "resources": {
         "cpu": 1,
         "ram": 512,
         "hdd": 8,
-        "os": "debian",
+        "os": "Debian",
         "version": "13"
       }
     }

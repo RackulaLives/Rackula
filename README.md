@@ -84,14 +84,6 @@ Open `http://localhost:8080` and get after it.
 
 ### Deploy on Proxmox (LXC)
 
-Rackula is available as a Proxmox VE community-scripts LXC container:
-
-1. In the Proxmox web UI, go to your node → **CT Templates**
-2. Select the **Rackula** script from the community-scripts catalog
-3. Deploy with defaults (1 CPU, 512 MB RAM, 8 GB disk)
-
-The API write token (for persistent storage) is auto-generated during install. Find it at `/opt/rackula/data/.env`. You only need it if you're using the persistence API.
-
 > **Note:** LXC is currently in pre-release. See the [Self-Hosting Guide](docs/deployment/SELF-HOSTING.md) for details and manual install instructions.
 
 ### Persistent Storage

@@ -12,6 +12,7 @@ var_ram="${var_ram:-512}"
 var_disk="${var_disk:-8}"
 var_os="${var_os:-debian}"
 var_version="${var_version:-13}"
+var_arm64="${var_arm64:-no}"
 var_unprivileged="${var_unprivileged:-1}"
 
 header_info "$APP"
@@ -103,25 +104,84 @@ function update_script() {
         fi
       fi
     fi
-    # Drop transient staging/backup dirs (no-ops if absent or already consumed).
-    rm -rf /opt/rackula.new /opt/rackula-etc-backup 2>/dev/null || true
+    # Drop transient staging/backup/download dirs (no-ops if absent or already consumed).
+    rm -rf /opt/rackula.new /opt/rackula-etc-backup "${_DL_TMPDIR:-}" 2>/dev/null || true
   }
   trap cleanup EXIT
 
   if check_for_gh_release "rackula" "RackulaLives/Rackula"; then
-    # Stage the new release into a scratch dir first. Services stay up and the
-    # live install is untouched, so a missing asset or no-op deploy fails here
-    # with the running install fully intact.
+    # Stage the new release into a scratch dir first. Download the tarball and
+    # its SHA256 checksum, verify integrity, then extract. Services stay up and
+    # the live install is untouched, so any failure here leaves the running
+    # install fully intact.
+    #
+    # NOTE: This deliberately replaces fetch_and_deploy_gh_release (see
+    # docs/research/lxc-best-practices.md) so the SHA256 checksum is verified
+    # BEFORE any live files are touched. The standard helper extracts before we
+    # could verify, which defeats the integrity guarantee.
     msg_info "Fetching ${APP} ${CHECK_UPDATE_RELEASE}"
     rm -rf /opt/rackula.new
-    if ! fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula.new" "rackula-lxc-*.tar.gz"; then
-      msg_error "Failed to fetch release ${CHECK_UPDATE_RELEASE}"
+
+    _DL_TMPDIR=$(mktemp -d) || { msg_error "Cannot create temp dir for download"; exit 1; }
+    _TARBALL_NAME="rackula-lxc-${CHECK_UPDATE_RELEASE}.tar.gz"
+    _TARBALL_URL="https://github.com/RackulaLives/Rackula/releases/download/${CHECK_UPDATE_RELEASE}/${_TARBALL_NAME}"
+    _CHECKSUM_URL="${_TARBALL_URL}.sha256"
+
+    # Download tarball and SHA256 checksum
+    if ! curl_download "$_DL_TMPDIR/$_TARBALL_NAME" "$_TARBALL_URL"; then
+      msg_error "Failed to download tarball from ${_TARBALL_URL}"
+      rm -rf "$_DL_TMPDIR" /opt/rackula.new
       exit 1
     fi
-    if [[ ! -d /opt/rackula.new/config ]] || [[ ! -d /opt/rackula.new/api ]]; then
-      msg_error "Release did not populate config/ and api/, aborting before touching live install"
+    if ! curl_download "$_DL_TMPDIR/${_TARBALL_NAME}.sha256" "$_CHECKSUM_URL"; then
+      msg_error "Failed to download SHA256 checksum"
+      rm -rf "$_DL_TMPDIR" /opt/rackula.new
       exit 1
     fi
+
+    # Verify SHA256 integrity before extraction
+    _EXPECTED_HASH=$(awk '{print $1}' "$_DL_TMPDIR/${_TARBALL_NAME}.sha256")
+    _ACTUAL_HASH=$(sha256sum "$_DL_TMPDIR/$_TARBALL_NAME" | awk '{print $1}')
+    if [[ "$_EXPECTED_HASH" != "$_ACTUAL_HASH" ]]; then
+      msg_error "SHA256 verification failed for ${_TARBALL_NAME}"
+      msg_error "Expected: ${_EXPECTED_HASH}"
+      msg_error "Actual:   ${_ACTUAL_HASH}"
+      rm -rf "$_DL_TMPDIR" /opt/rackula.new
+      exit 1
+    fi
+    msg_ok "SHA256 checksum verified"
+
+    # Extract verified tarball to staging directory
+    mkdir -p /opt/rackula.new
+    tar --no-same-owner -xzf "$_DL_TMPDIR/$_TARBALL_NAME" -C "$_DL_TMPDIR" || {
+      msg_error "Failed to extract tarball"
+      rm -rf "$_DL_TMPDIR" /opt/rackula.new
+      exit 1
+    }
+    # The tarball contains a top-level rackula-lxc-vX.Y.Z/ wrapper directory.
+    # Find and copy its contents into the staging directory, including dotfiles.
+    _UNPACK_DIR=$(find "$_DL_TMPDIR" -mindepth 1 -maxdepth 1 -type d | head -n1)
+    if [[ -n "$_UNPACK_DIR" ]]; then
+      cp -a "$_UNPACK_DIR"/. /opt/rackula.new/ || {
+        msg_error "Failed to copy release files to /opt/rackula.new"
+        rm -rf "$_DL_TMPDIR" /opt/rackula.new
+        exit 1
+      }
+    fi
+    rm -rf "$_DL_TMPDIR"
+
+    # Verify structure before touching the live install (matches build-lxc.yml).
+    for _d in config api frontend; do
+      if [[ ! -d "/opt/rackula.new/${_d}" ]] || [[ -z "$(ls -A "/opt/rackula.new/${_d}" 2>/dev/null)" ]]; then
+        msg_error "Release did not populate ${_d}/, aborting before touching live install"
+        rm -rf /opt/rackula.new
+        exit 1
+      fi
+    done
+
+    # Write version marker (strip leading 'v' for consistency with check_for_gh_release)
+    echo "${CHECK_UPDATE_RELEASE#v}" > ~/.rackula
+
     msg_ok "Fetched ${APP} ${CHECK_UPDATE_RELEASE}"
 
     msg_info "Stopping Services"

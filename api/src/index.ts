@@ -4,6 +4,7 @@
  */
 import { createApp } from "./app";
 import { ensureDataDir } from "./storage/filesystem";
+import { logger } from "./logger";
 
 const app = await createApp();
 
@@ -15,8 +16,8 @@ const port = Number.isNaN(parsedPort) ? 3001 : parsedPort;
 
 await ensureDataDir();
 
-console.log(`Rackula API listening on port ${port}`);
-console.log(`Data directory: ${process.env.DATA_DIR ?? "./data"}`);
+logger.info(`Rackula API listening on port ${port}`);
+logger.info(`Data directory: ${process.env.DATA_DIR ?? "./data"}`);
 
 export default {
   port,

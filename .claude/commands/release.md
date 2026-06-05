@@ -18,7 +18,7 @@ CHANGELOG.md is the single source of truth — GitHub releases derive from it.
 | npm    | version (no-git-tag-version)                  |
 | GitHub | None (GitHub Action handles release creation) |
 
-**Commands allowed:** `git log`, `git tag`, `gh pr list`, `gh issue list`, `npm version`, `scripts/next-version.sh`
+**Commands allowed:** `git log`, `git tag`, `gh pr list`, `gh issue list`, `npm version`, `scripts/next-version.sh`, `scripts/contributors.sh`
 
 ---
 
@@ -105,6 +105,19 @@ gh issue list --state closed --search "closed:>$LAST_DATE" \
   --jq '.[] | select(.labels | map(.name) | any(test("bug|feature|chore"))) | "#\(.number): \(.title)"'
 ```
 
+### 1e. Get Contributors Since Last Release
+
+```bash
+# Compute a preview version for contributor extraction (NEW_VERSION is set in Phase 4)
+PREVIEW_VERSION="$ARGUMENTS"
+if [ -z "$PREVIEW_VERSION" ]; then
+  PREVIEW_VERSION=$(scripts/next-version.sh --dry-run)
+fi
+scripts/contributors.sh "$LAST_TAG" "$PREVIEW_VERSION" --dry-run
+```
+
+This outputs a markdown block listing external contributors (excluding bots and the maintainer) with their merged PRs. Review this alongside the changelog draft.
+
 ---
 
 ## Phase 2: Draft Changelog Entry
@@ -160,6 +173,10 @@ Show the draft entry and ask:
 
 [Draft content here]
 
+=== CONTRIBUTOR ACKNOWLEDGEMENTS ===
+
+[Contributor block from step 1e]
+
 === END DRAFT ===
 
 Does this look correct? [y/n/edit]:
@@ -178,6 +195,7 @@ Ready to release v$NEW_VERSION
 
 Changes:
 - Update CHANGELOG.md with new entry
+- Update ACKNOWLEDGEMENTS.md with contributor acknowledgements
 - Update SECURITY.md supported version
 - Bump version in package.json
 - Create git tag v$NEW_VERSION
@@ -268,14 +286,24 @@ Use the Edit tool to replace the version table:
 
 This ensures SECURITY.md always shows the current release as the only supported version.
 
-### 4d. Commit Release Files
+### 4d. Update ACKNOWLEDGEMENTS.md
+
+Run the contributors script to insert the per-release contributor block:
 
 ```bash
-git add CHANGELOG.md SECURITY.md
-git commit -m "docs: update changelog and security policy for v$NEW_VERSION"
+scripts/contributors.sh "$LAST_TAG" "$NEW_VERSION"
 ```
 
-### 4e. Bump Version
+If the script reports that the version heading already exists (idempotent), it will skip without error. If `gh` is not authenticated, the script will warn and continue without blocking the release.
+
+### 4e. Commit Release Files
+
+```bash
+git add CHANGELOG.md SECURITY.md ACKNOWLEDGEMENTS.md
+git commit -m "docs: update changelog, acknowledgements, and security policy for v$NEW_VERSION"
+```
+
+### 4f. Bump Version
 
 ```bash
 npm version "$NEW_VERSION" --no-git-tag-version
@@ -283,7 +311,7 @@ git add package.json package-lock.json
 git commit -m "chore(release): bump version to v$NEW_VERSION"
 ```
 
-### 4f. Create Tag and Push
+### 4g. Create Tag and Push
 
 ```bash
 git tag "v$NEW_VERSION"
@@ -330,6 +358,7 @@ gh run watch
 | Invalid explicit version      | "Error: Version 'X' is not valid CalVer format (expected YY.M.MICRO, e.g., 26.6.0)." |
 | Zero-padded month             | "Error: Month must be unpadded (e.g., 26.6.0 not 26.06.0)."                          |
 | Push fails                    | "Error: Push failed. Check permissions and try again."                               |
+| contributors.sh fails   | Warn and continue. Contributor block is optional and can be added manually later. |
 
 ### Required Guard Implementation (Phase 4)
 

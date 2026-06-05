@@ -1,5 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { MIN_AUTH_LOG_HASH_KEY_LENGTH } from "../auth-logger";
+import { logger } from "../logger";
 import { normalizeOrigin } from "./request-utils";
 import type {
   ApiSecurityConfig,
@@ -53,7 +54,7 @@ function resolveAuthLogHashKey(options: {
   }
 
   if (options.isProduction) {
-    console.warn(
+    logger.warn(
       "⚠ Auth log hash key is not configured and no auth session secret is available. Generating an ephemeral per-process key. Set RACKULA_AUTH_LOG_HASH_KEY in production for stable pseudonymization.",
     );
   }
@@ -224,6 +225,47 @@ function parseNonNegativeInteger(
   const parsed = Number.parseInt(trimmedValue, 10);
   if (!Number.isFinite(parsed) || parsed < 0) {
     throw new Error(`${name} must be an integer >= 0.`);
+  }
+
+  return parsed;
+}
+
+/**
+ * Parse a quota value from environment variables.
+ * Accepts 0 (unlimited) or positive integers up to `max`.
+ * Falls back to `fallback` when unset or empty.
+ */
+function parseQuotaValue(
+  name: string,
+  value: string | undefined,
+  fallback: number,
+  max: number,
+): number {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const trimmedValue = value.trim();
+  if (trimmedValue.length === 0) {
+    return fallback;
+  }
+
+  if (!/^\d+$/.test(trimmedValue)) {
+    throw new Error(`${name} must be 0 (unlimited) or a positive integer.`);
+  }
+
+  const parsed = Number.parseInt(trimmedValue, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${name} must be 0 (unlimited) or a positive integer.`);
+  }
+
+  // 0 means unlimited, no upper bound check needed
+  if (parsed === 0) {
+    return 0;
+  }
+
+  if (parsed > max) {
+    throw new Error(`${name} must be <= ${max} or 0 for unlimited.`);
   }
 
   return parsed;
@@ -414,6 +456,24 @@ export function resolveApiSecurityConfig(
     3_600_000,
   );
 
+  // Storage quota configuration
+  const DEFAULT_MAX_LAYOUTS = 100;
+  const DEFAULT_MAX_ASSETS_PER_LAYOUT = 50;
+
+  const maxLayouts = parseQuotaValue(
+    "RACKULA_MAX_LAYOUTS",
+    env.RACKULA_MAX_LAYOUTS,
+    DEFAULT_MAX_LAYOUTS,
+    10_000,
+  );
+
+  const maxAssetsPerLayout = parseQuotaValue(
+    "RACKULA_MAX_ASSETS_PER_LAYOUT",
+    env.RACKULA_MAX_ASSETS_PER_LAYOUT,
+    DEFAULT_MAX_ASSETS_PER_LAYOUT,
+    1_000,
+  );
+
   return {
     corsOrigin,
     allowInsecureCors,
@@ -438,5 +498,7 @@ export function resolveApiSecurityConfig(
     rateLimitWriteWindowMs,
     rateLimitReadMaxRequests,
     rateLimitReadWindowMs,
+    maxLayouts,
+    maxAssetsPerLayout,
   };
 }

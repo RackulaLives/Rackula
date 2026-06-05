@@ -3,6 +3,7 @@ import { genericOAuth } from "better-auth/plugins";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 
 import type { EnvMap } from "../security";
+import { logger } from "../logger";
 
 const DEFAULT_BASE_URL = "http://localhost:3000";
 const DEFAULT_AUTH_SESSION_COOKIE_NAME = "rackula_auth_session";
@@ -288,7 +289,7 @@ function createOidcUserInfoResolver(options: {
 
       return mapVerifiedOidcPayload(payload);
     } catch (error) {
-      console.warn("OIDC ID token validation failed:", error);
+      logger.warn({ err: error }, "OIDC ID token validation failed");
       return null;
     }
   };

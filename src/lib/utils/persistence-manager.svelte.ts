@@ -127,7 +127,25 @@ export function handlePersistenceError(
   const toastStore = getToastStore();
   const action = onRetry ? { label: "Retry", onClick: onRetry } : undefined;
   if (e instanceof PersistenceError) {
-    if (
+    // Storage quota rejections (507 asset limit, 429 layout limit). The server is
+    // reachable and the data is intact, so this is a recoverable error state, not
+    // offline: do not flip to offline or trip the circuit breaker, and 507 must
+    // not fall through to the >= 500 branch. 429 is also used by the API rate
+    // limiter ("Too Many Requests"), so the layout-quota case is distinguished by
+    // the server error text; 507 is only ever the asset quota.
+    const isStorageQuota =
+      e.statusCode === 507 ||
+      (e.statusCode === 429 && /quota/i.test(e.message));
+    if (isStorageQuota) {
+      _saveStatus = "error";
+      if (notify) {
+        const message =
+          e.statusCode === 507
+            ? "Storage full: asset limit reached for this layout. Remove existing assets to add new ones."
+            : "Storage full: layout limit reached. Delete existing layouts to save new ones.";
+        toastStore.showToast(message, "error", undefined, action);
+      }
+    } else if (
       e.statusCode === undefined ||
       e.statusCode === 404 ||
       (typeof e.statusCode === "number" && e.statusCode >= 500)

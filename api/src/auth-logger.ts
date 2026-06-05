@@ -5,6 +5,7 @@
  * All sensitive fields (tokens, passwords, session IDs) are redacted.
  */
 import { createHmac } from "node:crypto";
+import { logger } from "./logger";
 
 export type AuthEventType =
   | "auth.login.success"
@@ -58,14 +59,14 @@ export function configureAuthLogHashKey(hashKey: string | undefined): void {
   ) {
     // Primary validation lives in resolveApiSecurityConfig(security.ts); this is a
     // defensive fallback for direct caller usage that bypasses config resolution.
-    console.warn(
+    logger.warn(
       `[auth-logger] Ignoring auth log hash key shorter than ${MIN_AUTH_LOG_HASH_KEY_LENGTH} characters. This fallback applies only when resolveApiSecurityConfig is not used.`,
     );
     authLogHashKey = undefined;
   } else {
     authLogHashKey = normalizedLength > 0 ? normalized : undefined;
     if (authLogHashKey) {
-      console.debug(
+      logger.debug(
         `[auth-logger] Auth log hash key configured (>=${MIN_AUTH_LOG_HASH_KEY_LENGTH} chars).`,
       );
     }
@@ -79,7 +80,7 @@ function getAuthLogHashKey(): string {
   }
 
   if (!hasWarnedDefaultHashKey) {
-    console.warn(
+    logger.warn(
       "[auth-logger] No auth log hash key configured. Falling back to default auth log hash key; configure RACKULA_AUTH_LOG_HASH_KEY to avoid predictable cross-instance pseudonyms.",
     );
     hasWarnedDefaultHashKey = true;
@@ -211,6 +212,6 @@ export function safeLogAuthEvent(
   try {
     logAuthEvent(eventType, request, extra);
   } catch (err) {
-    console.error("[auth-logger] Failed to log auth event:", err);
+    logger.error({ err }, "[auth-logger] Failed to log auth event");
   }
 }

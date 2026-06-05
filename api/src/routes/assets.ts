@@ -22,6 +22,7 @@ import {
   isValidDeviceSlug,
   MAX_SIZE,
 } from "../storage/assets";
+import { logger } from "../logger";
 
 const assets = new Hono();
 
@@ -58,7 +59,7 @@ assets.get("/:layoutId/:deviceSlug/:face", async (c) => {
       "Cache-Control": "public, max-age=3600, must-revalidate",
     });
   } catch (error) {
-    console.error(`Failed to get asset:`, error);
+    logger.error({ err: error }, `Failed to get asset`);
     return c.json({ error: "Failed to get asset" }, 500);
   }
 });
@@ -112,7 +113,7 @@ assets.put("/:layoutId/:deviceSlug/:face", async (c) => {
 
     return c.json({ message: "Asset uploaded" }, 200);
   } catch (error) {
-    console.error(`Failed to save asset:`, error);
+    logger.error({ err: error }, `Failed to save asset`);
 
     if (error instanceof Error && error.message.includes("too large")) {
       return c.json({ error: error.message }, 413);
@@ -147,7 +148,7 @@ assets.delete("/:layoutId/:deviceSlug/:face", async (c) => {
 
     return c.json({ message: "Asset deleted" }, 200);
   } catch (error) {
-    console.error(`Failed to delete asset:`, error);
+    logger.error({ err: error }, `Failed to delete asset`);
     return c.json({ error: "Failed to delete asset" }, 500);
   }
 });
