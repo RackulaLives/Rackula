@@ -71,7 +71,7 @@ export function createStorageQuotaMiddleware(
       const uuid = layoutMatch[1];
 
       // Only enforce quota on create, not update
-      if (isUuid(uuid)) {
+      if (uuid && isUuid(uuid)) {
         const existingFolder = await findFolderByUuid(uuid, dataDir);
         if (existingFolder) {
           console.debug(`quota: layout update for ${uuid}, skipping check`);
@@ -110,7 +110,7 @@ export function createStorageQuotaMiddleware(
       const layoutId = assetMatch[1];
 
       // Find the layout folder to count its assets
-      if (isUuid(layoutId)) {
+      if (layoutId && isUuid(layoutId)) {
         const layoutFolder = await findFolderByUuid(layoutId, dataDir);
         if (layoutFolder) {
           const quota = await checkAssetQuota(layoutFolder, maxAssetsPerLayout);
@@ -138,5 +138,6 @@ export function createStorageQuotaMiddleware(
     }
 
     await next();
+    return;
   };
 }
