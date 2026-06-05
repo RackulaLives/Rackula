@@ -154,10 +154,10 @@ function update_script() {
       exit 1
     }
     # The tarball contains a top-level rackula-lxc-vX.Y.Z/ wrapper directory.
-    # Find and copy its contents into the staging directory.
+    # Find and copy its contents into the staging directory, including dotfiles.
     _UNPACK_DIR=$(find "$_DL_TMPDIR" -mindepth 1 -maxdepth 1 -type d | head -n1)
     if [[ -n "$_UNPACK_DIR" ]]; then
-      cp -r "$_UNPACK_DIR"/* /opt/rackula.new/ || {
+      cp -a "$_UNPACK_DIR"/. /opt/rackula.new/ || {
         msg_error "Failed to copy release files to /opt/rackula.new"
         rm -rf "$_DL_TMPDIR" /opt/rackula.new
         exit 1
