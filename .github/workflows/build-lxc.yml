@@ -2,6 +2,15 @@ name: Build LXC Tarball
 
 # Fires after release.yml creates the GitHub Release from a v* tag push.
 # Builds a self-contained tarball (frontend + API + config) for LXC install scripts.
+#
+# Split into two jobs by privilege:
+#   build   - contents: read. Checks out the released tag and runs the build
+#             (untrusted-by-CodeQL code execution) with no write token.
+#   publish - contents: write. Downloads the build artifact and uploads it to
+#             the release. Performs no checkout and runs no repo code.
+# This keeps the privileged step free of source checkout/execution, which is the
+# recommended pattern for workflows reachable via the privileged workflow_run
+# trigger.
 on:
   release:
     types: [published]
@@ -15,20 +24,27 @@ on:
         required: true
 
 permissions:
-  contents: write
+  contents: read
+
+# Both the workflow_run and release:published triggers can fire for the same
+# tag. Serialise per version so the two runs never race on the same release
+# asset (gh release upload --clobber).
+concurrency:
+  group: build-lxc-${{ github.event.workflow_run.head_branch || github.event.release.tag_name || inputs.version }}
+  cancel-in-progress: false
 
 jobs:
-  build-lxc-tarball:
+  build:
     runs-on: ubuntu-latest
     # Only run if the triggering workflow succeeded and, for workflow_run events,
     # the head_branch starts with 'v' (tag-triggered releases only). The branches
     # filter on workflow_run is unreliable for tag-triggered upstream runs, so we
     # validate the branch/tag prefix here instead.
     if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v')) }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-
       - name: Extract version
         id: version
         env:
@@ -45,6 +61,8 @@ jobs:
             echo "version=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           fi
 
+      # Validate BEFORE checkout so only a strict version tag can ever be the
+      # checkout ref (no arbitrary refs reach the checkout step).
       - name: Validate version format
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -54,6 +72,14 @@ jobs:
             exit 1
           fi
           echo "Version: $VERSION"
+
+      # Check out the exact released tag so the tarball is built from the
+      # released commit, not the default branch. persist-credentials: false
+      # keeps the git token out of the checkout (this job never re-pushes).
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ steps.version.outputs.version }}
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
@@ -130,13 +156,45 @@ jobs:
           sha256sum "rackula-lxc-${VERSION}.tar.gz" > "rackula-lxc-${VERSION}.tar.gz.sha256"
 
           rm -rf "${TARBALL_DIR}"
-          echo "TARBALL=rackula-lxc-${VERSION}.tar.gz" >> "$GITHUB_ENV"
 
-      - name: Upload tarball to release
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lxc-tarball
+          path: |
+            rackula-lxc-${{ steps.version.outputs.version }}.tar.gz
+            rackula-lxc-${{ steps.version.outputs.version }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download tarball artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: lxc-tarball
+
+      - name: Publish tarball to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
+          TARBALL="rackula-lxc-${VERSION}.tar.gz"
+
+          # Guard against accidental corruption of the artifact in transit
+          # between jobs. This is not tamper-proofing: the checksum travels in
+          # the same artifact as the tarball, so it only catches truncation or
+          # bit-rot, not a malicious swap.
+          if ! sha256sum -c "${TARBALL}.sha256"; then
+            echo "ERROR: SHA256 verification failed for ${TARBALL}"
+            exit 1
+          fi
 
           # Verify the release exists and is published (not a draft)
           IS_DRAFT=$(gh release view "$VERSION" --json isDraft --jq '.isDraft' 2>/dev/null || echo "missing")
