@@ -54,7 +54,7 @@
   class="toast toast--{toast.type}"
   class:toast--exiting={isExiting}
   class:toast--success-glow={toast.type === "success" && !isExiting}
-  role="alert"
+  role={toast.type === "success" || toast.type === "info" ? "status" : "alert"}
 >
   <span class="toast__icon" aria-hidden="true">
     {getIcon(toast.type)}

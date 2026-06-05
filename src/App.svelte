@@ -59,8 +59,6 @@
     loadSavedLayout,
   } from "$lib/utils/persistence-api";
   import {
-    getSaveStatus,
-    setSaveStatus,
     maybeSave,
     maybeSaveAs,
     maybeExport,
@@ -92,7 +90,6 @@
   const placementStore = getPlacementStore();
 
   // Persistence state — delegated to persistence-manager module
-  let saveStatus = $derived(getSaveStatus());
 
   // Sidebar width: read once from the UI store.
   // This is intentionally NOT reactive because changes to sidebarWidth are driven
@@ -186,9 +183,11 @@
       );
       setApiAvailable(false);
       if (hasEverConnectedToApi()) {
-        setSaveStatus("offline");
-      } else {
-        setSaveStatus("disabled");
+        toastStore.showToast(
+          "Server unavailable — working offline",
+          "warning",
+          0,
+        );
       }
       return false;
     });
@@ -228,9 +227,7 @@
     }
 
     const apiAvailable = await persistenceInitPromise;
-    if (!apiAvailable) {
-      setSaveStatus(hasEverConnectedToApi() ? "offline" : "disabled");
-    }
+    // Offline toast is already shown by the persistence init error handler above
 
     // Priority 3: When API and local session are both available,
     // compare server and local timestamps to avoid stale overwrite (#1012).
@@ -293,9 +290,11 @@
         // Treat server data failures as offline and fall back gracefully.
         setApiAvailable(false);
         if (hasEverConnectedToApi()) {
-          setSaveStatus("offline");
-        } else {
-          setSaveStatus("disabled");
+          toastStore.showToast(
+            "Server unavailable — working offline",
+            "warning",
+            0,
+          );
         }
       }
     }
@@ -564,7 +563,6 @@
       warnOnUnsavedChanges={uiStore.warnOnUnsavedChanges}
       promptCleanupOnSave={uiStore.promptCleanupOnSave}
       {partyMode}
-      {saveStatus}
       onsave={maybeSave}
       onsaveas={maybeSaveAs}
       onload={handleLoad}

@@ -11,8 +11,6 @@
   import FileMenu from "./FileMenu.svelte";
   import SettingsMenu from "./SettingsMenu.svelte";
   import LogoLockup from "./LogoLockup.svelte";
-  import SaveStatus from "./SaveStatus.svelte";
-  import type { SaveStatus as SaveStatusType } from "$lib/utils/persistence-api";
   import {
     IconUndoBold,
     IconRedoBold,
@@ -40,7 +38,6 @@
     warnOnUnsavedChanges?: boolean;
     promptCleanupOnSave?: boolean;
     partyMode?: boolean;
-    saveStatus?: SaveStatusType;
     onsave?: () => void;
     onsaveas?: () => void;
     onload?: () => void;
@@ -73,7 +70,6 @@
     warnOnUnsavedChanges = true,
     promptCleanupOnSave = true,
     partyMode = false,
-    saveStatus,
     onsave,
     onsaveas,
     onload,
@@ -404,10 +400,6 @@
   <!-- Right: Dropdown menus (desktop) / quick file actions (mobile) -->
   {#if !viewportStore.isMobile}
     <div class="toolbar-section toolbar-right">
-      {#if saveStatus}
-        <SaveStatus status={saveStatus} />
-      {/if}
-
       <FileMenu
         onsave={handleSave}
         onsaveas={handleSaveAs}

@@ -8,7 +8,6 @@ import {
 import {
   saveLayoutToServer,
   checkApiHealth,
-  type SaveStatus as SaveStatusType,
   PersistenceError,
 } from "$lib/utils/persistence-api";
 import { saveSession, clearSession } from "$lib/utils/session-storage";
@@ -37,25 +36,23 @@ import {
 import { loadFromFile } from "$lib/utils/load-pipeline";
 import type { ExportOptions } from "$lib/types";
 
+// Internal save status (kept for circuit breaker / health check logic, not exported)
+type SaveStatusInternal = "idle" | "saving" | "saved" | "error" | "offline" | "disabled";
+let _saveStatus = $state<SaveStatusInternal>("idle");
+
 // Diagnostic: tracks current layout UUID
 let _currentLayoutId = $state<string | undefined>(undefined);
-let _saveStatus = $state<SaveStatusType>("idle");
 
 // Circuit breaker
 const MAX_SAVE_FAILURES = 3;
 let _consecutiveSaveFailures = $state(0);
 
+// Active error toast ID for dedup (dismiss before showing new one)
+let _errorToastId: string | undefined = undefined;
+
 // Timer variables (plain let, not $state — not reactive)
 let serverSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-export function getSaveStatus(): SaveStatusType {
-  return _saveStatus;
-}
-
-export function setSaveStatus(status: SaveStatusType): void {
-  _saveStatus = status;
-}
 
 export function getConsecutiveSaveFailures(): number {
   return _consecutiveSaveFailures;
@@ -105,15 +102,22 @@ export function handleSaveFailure(
       "circuit breaker open after %d consecutive failures — auto-save paused",
       _consecutiveSaveFailures,
     );
-    toastStore.showToast(
+    if (_errorToastId) {
+      toastStore.dismissToast(_errorToastId);
+    }
+    _errorToastId = toastStore.showToast(
       "Server save unavailable — working offline. Use Ctrl+S to retry.",
       "warning",
+      0,
     );
   } else if (notify) {
-    toastStore.showToast(
+    if (_errorToastId) {
+      toastStore.dismissToast(_errorToastId);
+    }
+    _errorToastId = toastStore.showToast(
       "Save failed — backend unavailable",
       "error",
-      undefined,
+      0,
       action,
     );
   }
@@ -143,7 +147,10 @@ export function handlePersistenceError(
           e.statusCode === 507
             ? "Storage full: asset limit reached for this layout. Remove existing assets to add new ones."
             : "Storage full: layout limit reached. Delete existing layouts to save new ones.";
-        toastStore.showToast(message, "error", undefined, action);
+        if (_errorToastId) {
+          toastStore.dismissToast(_errorToastId);
+        }
+        _errorToastId = toastStore.showToast(message, "error", 0, action);
       }
     } else if (
       e.statusCode === undefined ||
@@ -153,16 +160,21 @@ export function handlePersistenceError(
       handleSaveFailure(notify, action);
     } else {
       _saveStatus = "error";
-      if (notify)
-        toastStore.showToast("Save failed", "error", undefined, action);
+      if (notify) {
+        if (_errorToastId) {
+          toastStore.dismissToast(_errorToastId);
+        }
+        _errorToastId = toastStore.showToast("Save failed", "error", 0, action);
+      }
     }
   } else {
     handleSaveFailure(notify, action);
   }
 }
 
-export async function handleSaveToServer(): Promise<void> {
+export async function handleSaveToServer(isManual = false): Promise<void> {
   const layoutStore = getLayoutStore();
+  const toastStore = getToastStore();
   try {
     _saveStatus = "saving";
     if (serverSaveTimer) {
@@ -175,9 +187,13 @@ export async function handleSaveToServer(): Promise<void> {
     _consecutiveSaveFailures = 0;
     setApiAvailable(true);
     _saveStatus = "saved";
+    _errorToastId = undefined;
     layoutStore.markClean();
     clearSession();
     analytics.trackSave(layoutStore.totalDeviceCount);
+    if (isManual) {
+      toastStore.showToast("Layout saved", "success", 3000);
+    }
     if (dialogStore.pendingSaveFirst) {
       dialogStore.pendingSaveFirst = false;
       resetAndOpenNewRack();
@@ -185,7 +201,7 @@ export async function handleSaveToServer(): Promise<void> {
   } catch (e) {
     dialogStore.pendingSaveFirst = false;
     persistenceDebug.api("Manual save failed: %O", e);
-    handlePersistenceError(e, true, () => handleSaveToServer());
+    handlePersistenceError(e, true, () => handleSaveToServer(isManual));
   }
 }
 
@@ -223,7 +239,7 @@ export function shouldSaveToServer(): boolean {
 export function maybeSave(): void {
   if (shouldShowCleanupPrompt("save")) return;
   if (shouldSaveToServer()) {
-    handleSaveToServer();
+    handleSaveToServer(true);
   } else {
     handleSaveAsArchive();
   }
@@ -502,6 +518,7 @@ export function resetPersistenceManager(): void {
   _currentLayoutId = undefined;
   _saveStatus = "idle";
   _consecutiveSaveFailures = 0;
+  _errorToastId = undefined;
   if (serverSaveTimer) {
     clearTimeout(serverSaveTimer);
     serverSaveTimer = null;

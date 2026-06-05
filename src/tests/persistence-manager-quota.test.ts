@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   handlePersistenceError,
-  getSaveStatus,
   getConsecutiveSaveFailures,
   resetPersistenceManager,
 } from "$lib/utils/persistence-manager.svelte";
@@ -12,7 +11,7 @@ import { setApiAvailable } from "$lib/stores/persistence.svelte";
 /**
  * Storage quota rejections (429 layout limit, 507 asset limit) come from a
  * reachable server with intact data, so they must surface as a recoverable
- * "error" state with quota-specific messaging, not as "offline". 507 in
+ * error with quota-specific messaging, not as offline. 507 in
  * particular must not fall through to the >= 500 offline branch.
  */
 describe("handlePersistenceError quota rejections", () => {
@@ -27,7 +26,6 @@ describe("handlePersistenceError quota rejections", () => {
       new PersistenceError("Storage quota exceeded", 429),
       true,
     );
-    expect(getSaveStatus()).toBe("error");
     const latest = getToastStore().toasts.at(-1);
     expect(latest?.type).toBe("error");
     expect(latest?.message).toContain("layout limit");
@@ -39,7 +37,6 @@ describe("handlePersistenceError quota rejections", () => {
       new PersistenceError("Storage quota exceeded", 507),
       true,
     );
-    expect(getSaveStatus()).toBe("error");
     const latest = getToastStore().toasts.at(-1);
     expect(latest?.type).toBe("error");
     expect(latest?.message).toContain("asset limit");
@@ -68,13 +65,14 @@ describe("handlePersistenceError quota rejections", () => {
       new PersistenceError("Too Many Requests", 429),
       true,
     );
-    expect(getSaveStatus()).toBe("error");
     const message = getToastStore().toasts.at(-1)?.message ?? "";
     expect(message).not.toContain("Storage full");
   });
 
-  it("still routes genuine 5xx server errors to offline", () => {
+  it("still routes genuine 5xx server errors to offline with persistent toast", () => {
     handlePersistenceError(new PersistenceError("boom", 503), true);
-    expect(getSaveStatus()).toBe("offline");
+    const latest = getToastStore().toasts.at(-1);
+    expect(latest?.type).toBe("error");
+    expect(latest?.duration).toBe(0);
   });
 });
