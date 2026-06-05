@@ -28,6 +28,34 @@ msg_ok "Created rackula user"
 msg_info "Installing Rackula"
 fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"
 
+# Integrity verification: re-download the tarball and verify its SHA256 against
+# the published checksum. fetch_and_deploy_gh_release extracted and removed the
+# tarball, so we download it again solely for verification. The tarball is small
+# (a few MB), acceptable for a one-time install.
+_INSTALLED_TAG="v$(cat ~/.rackula 2>/dev/null)"
+if [[ -n "$_INSTALLED_TAG" ]]; then
+  _VDIR=$(mktemp -d) || { msg_error "Cannot create temp dir for verification"; exit 1; }
+  _TARBALL="rackula-lxc-${_INSTALLED_TAG}.tar.gz"
+  _TARBALL_URL="https://github.com/RackulaLives/Rackula/releases/download/${_INSTALLED_TAG}/${_TARBALL}"
+  _CHECKSUM_URL="${_TARBALL_URL}.sha256"
+  if curl_download "$_VDIR/${_TARBALL}.sha256" "$_CHECKSUM_URL" 2>/dev/null && \
+     curl_download "$_VDIR/$_TARBALL" "$_TARBALL_URL" 2>/dev/null; then
+    _EXPECTED=$(awk '{print $1}' "$_VDIR/${_TARBALL}.sha256")
+    _ACTUAL=$(sha256sum "$_VDIR/$_TARBALL" | awk '{print $1}')
+    if [[ "$_EXPECTED" != "$_ACTUAL" ]]; then
+      msg_error "SHA256 verification failed for $_TARBALL"
+      msg_error "Expected: ${_EXPECTED}"
+      msg_error "Actual:   ${_ACTUAL}"
+      rm -rf /opt/rackula "$_VDIR"
+      exit 1
+    fi
+    msg_ok "SHA256 checksum verified"
+  else
+    msg_warn "Could not download checksum for verification (release may predate checksums)"
+  fi
+  rm -rf "$_VDIR"
+fi
+
 # Create persistent data directory (not in tarball)
 mkdir -p /opt/rackula/data
 mkdir -p /etc/nginx/snippets
