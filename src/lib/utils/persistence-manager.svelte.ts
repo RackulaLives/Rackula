@@ -109,6 +109,7 @@ export function handleSaveFailure(
       "Server save unavailable — working offline. Use Ctrl+S to retry.",
       "warning",
       0,
+      action,
     );
   } else if (notify) {
     if (_errorToastId) {

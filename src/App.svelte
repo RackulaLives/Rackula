@@ -182,13 +182,6 @@
         error,
       );
       setApiAvailable(false);
-      if (hasEverConnectedToApi()) {
-        toastStore.showToast(
-          "Server unavailable — working offline",
-          "warning",
-          0,
-        );
-      }
       return false;
     });
 
@@ -227,7 +220,16 @@
     }
 
     const apiAvailable = await persistenceInitPromise;
-    // Offline toast is already shown by the persistence init error handler above
+    // initializePersistence() resolves to false for the common API-unavailable
+    // case (checkApiHealth returns false rather than rejecting), so the offline
+    // toast is shown here rather than only in the catch handler above.
+    if (!apiAvailable && hasEverConnectedToApi()) {
+      toastStore.showToast(
+        "Server unavailable — working offline",
+        "warning",
+        0,
+      );
+    }
 
     // Priority 3: When API and local session are both available,
     // compare server and local timestamps to avoid stale overwrite (#1012).

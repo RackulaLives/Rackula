@@ -44,7 +44,7 @@ Remove the `SaveStatus` component and move all save feedback to the existing toa
 
 - `src/lib/components/Toast.svelte` - conditional ARIA role
 - `src/lib/utils/persistence-manager.svelte.ts` - toast calls, remove exports, keep internal state
-- `src/lib/components/App.svelte` - remove saveStatus prop chain, replace setSaveStatus calls
+- `src/App.svelte` - remove saveStatus prop chain, replace setSaveStatus calls
 - `src/lib/components/Toolbar.svelte` - remove SaveStatus import/prop/render
 - `src/lib/utils/persistence-api.ts` - remove SaveStatus type export
 - `src/tests/persistence-manager-quota.test.ts` - update assertions
