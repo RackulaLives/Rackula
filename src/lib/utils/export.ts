@@ -912,7 +912,7 @@ export function generateExportSVG(
         rackGroup.appendChild(imageEl);
 
         // Clip the image to rounded corners
-        const clipId = `clip-${device.slug}-${placedDevice.position}`;
+        const clipId = `clip-${rack.id}-${placedDevice.id}-${face}`;
         const clipPath = document.createElementNS(
           "http://www.w3.org/2000/svg",
           "clipPath",
