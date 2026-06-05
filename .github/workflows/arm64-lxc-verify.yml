@@ -15,6 +15,10 @@ on:
       - "deploy/lxc/**"
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -45,4 +49,14 @@ jobs:
       - name: Load argon2 on arm64 and verify a hash round-trip
         working-directory: api
         run: |
-          bun -e "const { hash, verify, Algorithm } = await import('@node-rs/argon2'); const h = await hash('arm64 ci check', { algorithm: Algorithm.Argon2id }); if (!(await verify(h, 'arm64 ci check')) || (await verify(h, 'wrong'))) { throw new Error('argon2 verify failed on arm64'); } console.log('argon2 OK on', process.arch, process.platform);"
+          cat > argon2-check.mjs <<'EOF'
+          import { hash, verify, Algorithm } from "@node-rs/argon2";
+
+          const h = await hash("arm64 ci check", { algorithm: Algorithm.Argon2id });
+          if (!(await verify(h, "arm64 ci check")) || (await verify(h, "wrong"))) {
+            throw new Error("argon2 verify failed on arm64");
+          }
+          console.log("argon2 OK on", process.arch, process.platform);
+          EOF
+          bun argon2-check.mjs
+          rm -f argon2-check.mjs
