@@ -8,7 +8,6 @@ on:
   workflow_run:
     workflows: ["Create Release"]
     types: [completed]
-    branches: ["v*"]
   workflow_dispatch:
     inputs:
       version:
@@ -21,8 +20,11 @@ permissions:
 jobs:
   build-lxc-tarball:
     runs-on: ubuntu-latest
-    # Only run if the triggering workflow succeeded (skip if release.yml was skipped/failed)
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    # Only run if the triggering workflow succeeded and, for workflow_run events,
+    # the head_branch starts with 'v' (tag-triggered releases only). The branches
+    # filter on workflow_run is unreliable for tag-triggered upstream runs, so we
+    # validate the branch/tag prefix here instead.
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v')) }}
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
