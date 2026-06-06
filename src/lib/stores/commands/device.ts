@@ -296,6 +296,21 @@ export function createUpdateDeviceIpCommand(
 }
 
 /**
+ * Move placement image from one device ID key to another when placeDeviceRaw remaps the ID.
+ * No-op if no image exists under the old key.
+ */
+function rekeyPlacementImage(oldId: string, newId: string): void {
+  const imgStore = getImageStore();
+  const data = imgStore.getAllImages().get(`placement-${oldId}`);
+  if (!data) return;
+  if (data.front)
+    imgStore.setDeviceImage(`placement-${newId}`, "front", data.front);
+  if (data.rear)
+    imgStore.setDeviceImage(`placement-${newId}`, "rear", data.rear);
+  imgStore.removeAllDeviceImages(`placement-${oldId}`);
+}
+
+/**
  * Create a command to move a device (and its container children) from one rack to another.
  * Atomic undo/redo — one Ctrl+Z restores the device to its original rack.
  *
@@ -388,25 +403,7 @@ export function createCrossRackMoveCommand(
 
       // Re-key placement image if parent ID was remapped (#1478)
       if (actualParentId !== currentParentImageId) {
-        const imgStore = getImageStore();
-        const data = imgStore
-          .getAllImages()
-          .get(`placement-${currentParentImageId}`);
-        if (data) {
-          if (data.front)
-            imgStore.setDeviceImage(
-              `placement-${actualParentId}`,
-              "front",
-              data.front,
-            );
-          if (data.rear)
-            imgStore.setDeviceImage(
-              `placement-${actualParentId}`,
-              "rear",
-              data.rear,
-            );
-          imgStore.removeAllDeviceImages(`placement-${currentParentImageId}`);
-        }
+        rekeyPlacementImage(currentParentImageId, actualParentId);
         currentParentImageId = actualParentId;
       }
 
@@ -425,27 +422,7 @@ export function createCrossRackMoveCommand(
         const actualChild = store.getDeviceAtIndex(idx);
         const actualChildId = actualChild?.id ?? childToPlace.id;
         if (actualChildId !== currentChildImageIds[i]) {
-          const imgStore = getImageStore();
-          const data = imgStore
-            .getAllImages()
-            .get(`placement-${currentChildImageIds[i]}`);
-          if (data) {
-            if (data.front)
-              imgStore.setDeviceImage(
-                `placement-${actualChildId}`,
-                "front",
-                data.front,
-              );
-            if (data.rear)
-              imgStore.setDeviceImage(
-                `placement-${actualChildId}`,
-                "rear",
-                data.rear,
-              );
-            imgStore.removeAllDeviceImages(
-              `placement-${currentChildImageIds[i]}`,
-            );
-          }
+          rekeyPlacementImage(currentChildImageIds[i], actualChildId);
           currentChildImageIds[i] = actualChildId;
         }
       }
@@ -475,25 +452,7 @@ export function createCrossRackMoveCommand(
 
       // Re-key placement image if parent ID was remapped (#1478)
       if (undoActualParentId !== currentParentImageId) {
-        const imgStore = getImageStore();
-        const data = imgStore
-          .getAllImages()
-          .get(`placement-${currentParentImageId}`);
-        if (data) {
-          if (data.front)
-            imgStore.setDeviceImage(
-              `placement-${undoActualParentId}`,
-              "front",
-              data.front,
-            );
-          if (data.rear)
-            imgStore.setDeviceImage(
-              `placement-${undoActualParentId}`,
-              "rear",
-              data.rear,
-            );
-          imgStore.removeAllDeviceImages(`placement-${currentParentImageId}`);
-        }
+        rekeyPlacementImage(currentParentImageId, undoActualParentId);
         currentParentImageId = undoActualParentId;
       }
 
@@ -510,27 +469,7 @@ export function createCrossRackMoveCommand(
         const actualChild = store.getDeviceAtIndex(undoChildIdx);
         const actualChildId = actualChild?.id ?? childToPlace.id;
         if (actualChildId !== currentChildImageIds[i]) {
-          const imgStore = getImageStore();
-          const data = imgStore
-            .getAllImages()
-            .get(`placement-${currentChildImageIds[i]}`);
-          if (data) {
-            if (data.front)
-              imgStore.setDeviceImage(
-                `placement-${actualChildId}`,
-                "front",
-                data.front,
-              );
-            if (data.rear)
-              imgStore.setDeviceImage(
-                `placement-${actualChildId}`,
-                "rear",
-                data.rear,
-              );
-            imgStore.removeAllDeviceImages(
-              `placement-${currentChildImageIds[i]}`,
-            );
-          }
+          rekeyPlacementImage(currentChildImageIds[i], actualChildId);
           currentChildImageIds[i] = actualChildId;
         }
       }
