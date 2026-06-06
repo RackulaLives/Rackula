@@ -27,7 +27,11 @@ fi
 msg_ok "Created rackula user"
 
 msg_info "Installing Bun"
-export BUN_INSTALL="/root/.bun"
+# Install under /opt (not /root): the rackula-api service runs as user rackula
+# with ProtectHome=true, which makes /root invisible, so a binary under
+# /root/.bun is unreachable (systemd 203/EXEC). /opt is accessible to the
+# service and readable under ProtectSystem=strict.
+export BUN_INSTALL="/opt/bun"
 # Fetch via curl_with_retry (bounded timeout, retries, DNS pre-check) so a slow
 # CDN or broken IPv6 fails fast instead of hanging. bun.sh/install needs unzip
 # (installed above) and auto-detects the CPU baseline variant. mktemp gives a
@@ -37,8 +41,8 @@ BUN_INSTALLER=$(mktemp)
 curl_with_retry "https://bun.sh/install" "$BUN_INSTALLER"
 $STD bash "$BUN_INSTALLER"
 rm -f "$BUN_INSTALLER"
-ln -sf /root/.bun/bin/bun /usr/local/bin/bun
-ln -sf /root/.bun/bin/bunx /usr/local/bin/bunx
+ln -sf /opt/bun/bin/bun /usr/local/bin/bun
+ln -sf /opt/bun/bin/bunx /usr/local/bin/bunx
 msg_ok "Installed Bun"
 
 fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"
