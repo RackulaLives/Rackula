@@ -42,6 +42,10 @@ BUN_INSTALLER=$(mktemp)
 curl_with_retry "https://bun.sh/install" "$BUN_INSTALLER"
 $STD bash "$BUN_INSTALLER"
 rm -f "$BUN_INSTALLER"
+if [ ! -x /usr/local/bun/bin/bun ]; then
+  msg_error "Bun installation failed: /usr/local/bun/bin/bun not found or not executable"
+  exit 1
+fi
 ln -sf /usr/local/bun/bin/bun /usr/local/bin/bun
 ln -sf /usr/local/bun/bin/bunx /usr/local/bin/bunx
 msg_ok "Installed Bun"
