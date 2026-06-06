@@ -15,10 +15,10 @@ CHANGELOG.md is the single source of truth — GitHub releases derive from it.
 | Action | Scope                                         |
 | ------ | --------------------------------------------- |
 | Git    | add, commit, tag, push (to main)              |
-| npm    | version (no-git-tag-version)                  |
+| npm    | version (no-git-tag-version), pkg set         |
 | GitHub | None (GitHub Action handles release creation) |
 
-**Commands allowed:** `git log`, `git tag`, `gh pr list`, `gh issue list`, `npm version`, `scripts/next-version.sh`, `scripts/contributors.sh`
+**Commands allowed:** `git log`, `git tag`, `gh pr list`, `gh issue list`, `npm version`, `npm pkg set`, `scripts/next-version.sh`, `scripts/contributors.sh`
 
 ---
 
