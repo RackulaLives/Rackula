@@ -27,11 +27,12 @@ fi
 msg_ok "Created rackula user"
 
 msg_info "Installing Bun"
-# Install under /opt (not /root): the rackula-api service runs as user rackula
-# with ProtectHome=true, which makes /root invisible, so a binary under
-# /root/.bun is unreachable (systemd 203/EXEC). /opt is accessible to the
-# service and readable under ProtectSystem=strict.
-export BUN_INSTALL="/opt/bun"
+# Install under /usr/local (not /root): the rackula-api service runs as user
+# rackula with ProtectHome=true, which makes /root invisible, so a binary under
+# /root/.bun is unreachable (systemd 203/EXEC). /usr/local/<runtime> + a symlink
+# into /usr/local/bin mirrors the framework's setup_go convention and is
+# readable by the sandboxed service under ProtectSystem=strict.
+export BUN_INSTALL="/usr/local/bun"
 # Fetch via curl_with_retry (bounded timeout, retries, DNS pre-check) so a slow
 # CDN or broken IPv6 fails fast instead of hanging. bun.sh/install needs unzip
 # (installed above) and auto-detects the CPU baseline variant. mktemp gives a
@@ -41,8 +42,8 @@ BUN_INSTALLER=$(mktemp)
 curl_with_retry "https://bun.sh/install" "$BUN_INSTALLER"
 $STD bash "$BUN_INSTALLER"
 rm -f "$BUN_INSTALLER"
-ln -sf /opt/bun/bin/bun /usr/local/bin/bun
-ln -sf /opt/bun/bin/bunx /usr/local/bin/bunx
+ln -sf /usr/local/bun/bin/bun /usr/local/bin/bun
+ln -sf /usr/local/bun/bin/bunx /usr/local/bin/bunx
 msg_ok "Installed Bun"
 
 fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"
