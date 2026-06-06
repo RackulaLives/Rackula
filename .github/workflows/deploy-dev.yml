@@ -3,11 +3,21 @@ name: Deploy Dev
 on:
   push:
     branches: [main]
+    # Globs must be `dir/**` to match files inside a directory; a bare `dir/`
+    # matches nothing, which silently disabled push deploys (#1924). Cover every
+    # input that affects the built images and the deploy step.
     paths:
-      - api/
-      - src/
-      - deploy/
-      - assets/
+      - api/**
+      - src/**
+      - deploy/**
+      - assets/**
+      - package.json
+      - package-lock.json
+      - docker-compose.yml
+      - vite.config.*
+      - svelte.config.*
+      - tsconfig*.json
+      - index.html
   workflow_dispatch:
 
 env:
