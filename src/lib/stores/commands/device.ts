@@ -354,7 +354,9 @@ export function createCrossRackMoveCommand(
   let parentPlacedIndex = -1;
   const childPlacedIndices: number[] = [];
 
-  // Track current image keys — updated across execute/undo when placeDeviceRaw remaps an ID (#1478)
+  // Track current source IDs and image keys — updated across execute/undo when
+  // placeDeviceRaw remaps an ID (#1478). Mutable so redo (execute) finds remapped devices.
+  const currentSourceDeviceIds = [...sourceDeviceIds];
   let currentParentImageId = parentCopy.id;
   const currentChildImageIds: string[] = childrenCopies.map((c) => c.id);
 
@@ -388,7 +390,7 @@ export function createCrossRackMoveCommand(
 
       // 1. Resolve current indices in source rack and remove (descending order)
       store.setActiveRackId(sourceRackId);
-      const indices = resolveIndicesDescending(sourceDeviceIds);
+      const indices = resolveIndicesDescending(currentSourceDeviceIds);
       for (const idx of indices) {
         store.removeDeviceAtIndexRaw(idx);
       }
@@ -450,11 +452,12 @@ export function createCrossRackMoveCommand(
       const undoActualParent = store.getDeviceAtIndex(undoParentIdx);
       const undoActualParentId = undoActualParent?.id ?? parentCopy.id;
 
-      // Re-key placement image if parent ID was remapped (#1478)
+      // Re-key placement image and update source ID tracking if remapped (#1478)
       if (undoActualParentId !== currentParentImageId) {
         rekeyPlacementImage(currentParentImageId, undoActualParentId);
         currentParentImageId = undoActualParentId;
       }
+      currentSourceDeviceIds[0] = undoActualParentId;
 
       // 3. Place children back in source rack with remapped container_id
       for (let i = 0; i < childrenCopies.length; i++) {
@@ -465,13 +468,14 @@ export function createCrossRackMoveCommand(
             : child;
         const undoChildIdx = store.placeDeviceRaw(childToPlace);
 
-        // Re-key child placement image if child ID was remapped (#1478)
+        // Re-key child placement image and update source ID tracking if remapped (#1478)
         const actualChild = store.getDeviceAtIndex(undoChildIdx);
         const actualChildId = actualChild?.id ?? childToPlace.id;
         if (actualChildId !== currentChildImageIds[i]) {
           rekeyPlacementImage(currentChildImageIds[i], actualChildId);
           currentChildImageIds[i] = actualChildId;
         }
+        currentSourceDeviceIds[i + 1] = actualChildId;
       }
 
       // 4. Restore active rack
