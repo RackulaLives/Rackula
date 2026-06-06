@@ -30,10 +30,13 @@ msg_info "Installing Bun"
 export BUN_INSTALL="/root/.bun"
 # Fetch via curl_with_retry (bounded timeout, retries, DNS pre-check) so a slow
 # CDN or broken IPv6 fails fast instead of hanging. bun.sh/install needs unzip
-# (installed above) and auto-detects the CPU baseline variant.
-curl_with_retry "https://bun.sh/install" "/tmp/bun-install.sh"
-$STD bash /tmp/bun-install.sh
-rm -f /tmp/bun-install.sh
+# (installed above) and auto-detects the CPU baseline variant. mktemp gives a
+# 0600 unguessable path so a local user cannot pre-create a symlink for this
+# root process to follow.
+BUN_INSTALLER=$(mktemp)
+curl_with_retry "https://bun.sh/install" "$BUN_INSTALLER"
+$STD bash "$BUN_INSTALLER"
+rm -f "$BUN_INSTALLER"
 ln -sf /root/.bun/bin/bun /usr/local/bin/bun
 ln -sf /root/.bun/bin/bunx /usr/local/bin/bunx
 msg_ok "Installed Bun"
