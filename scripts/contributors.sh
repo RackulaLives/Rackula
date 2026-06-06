@@ -60,6 +60,32 @@ die() {
   exit 1
 }
 
+# Insert text at a 1-based line position in a file, in place. Portable
+# replacement for `sed -i` insert/append: BSD and GNU sed differ on both the
+# -i flag and the multi-line i\/a\ form. Text is passed via the environment
+# (not -v) so awk does not interpret backslash escapes in it.
+#   insert_at_line <file> <line> before|after <text>
+insert_at_line() {
+  local file="$1" line="$2" pos="$3" text="$4"
+  local tmp rc
+  tmp=$(mktemp)
+  if TEXT="$text" awk -v line="$line" -v pos="$pos" '
+    NR == line && pos == "before" { print ENVIRON["TEXT"] }
+    { print }
+    NR == line && pos == "after" { print ENVIRON["TEXT"] }
+  ' "$file" > "$tmp"; then
+    # Overwrite in place rather than `mv`: mktemp creates the temp at mode 0600,
+    # and mv would replace the inode and clobber the tracked file's permissions.
+    cat "$tmp" > "$file"
+    rc=$?
+    rm -f "$tmp"
+    return "$rc"
+  else
+    rm -f "$tmp"
+    return 1
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Parse arguments
 # ---------------------------------------------------------------------------
@@ -156,51 +182,30 @@ if [[ -z "$FILTERED" ]]; then
 "
   BLOCK="${BLOCK}- No external contributors in this release"
 else
-  # Deduplicate by author: keep all PRs per author, group them
-  # First, collect all PRs per author
-  declare -A AUTHOR_PRS  # author -> "title (#num)" entries (newline-separated)
-  declare -A AUTHOR_ORDER  # track insertion order
+  # Group PRs by author and format. Sort rows by author (stable, so PR order
+  # within an author is preserved), then collapse each author group in a single
+  # awk pass. Portable: no bash 4 associative arrays, no GNU sed.
+  #   - single PR  -> "- @author: <title, first letter lowercased> (#num)"
+  #   - multiple   -> "- @author: #num1 #num2 ..."
+  CONTRIB_LINES=$(printf '%s\n' "$FILTERED" | sort -t"$(printf '\t')" -k3,3 -s | awk -F'\t' '
+    function flush(   ltitle) {
+      if (cur == "") return
+      if (cnt == 1) {
+        ltitle = tolower(substr(ftitle, 1, 1)) substr(ftitle, 2)
+        print "- @" cur ": " ltitle " (#" fnum ")"
+      } else {
+        print "- @" cur ": " refs
+      }
+    }
+    $3 != cur { flush(); cur = $3; cnt = 0; refs = ""; fnum = $1; ftitle = $2 }
+    { cnt++; refs = (refs == "" ? "#" $1 : refs " #" $1) }
+    END { flush() }
+  ')
 
-  while IFS=$'\t' read -r number title author; do
-    [[ -z "$number" ]] && continue
-    # Lowercase first letter of title for consistency
-    entry="$(echo "$title" | sed 's/^./\L&/') (#${number})"
-    if [[ -n "${AUTHOR_PRS[$author]:-}" ]]; then
-      AUTHOR_PRS[$author]="${AUTHOR_PRS[$author]}
-${entry}"
-    else
-      AUTHOR_PRS[$author]="$entry"
-      AUTHOR_ORDER[$author]=1
-    fi
-  done <<< "$FILTERED"
-
-  # Format output lines
   BLOCK="${VERSION_HEADING}"
   BLOCK="${BLOCK}
 "
-
-  for author in $(printf '%s\n' "${!AUTHOR_ORDER[@]}" | sort); do
-    entries="${AUTHOR_PRS[$author]}"
-    # Count entries for this author
-    entry_count=$(echo "$entries" | wc -l | tr -d ' ')
-
-    if [[ "$entry_count" -eq 1 ]]; then
-      # Single PR: use the PR title as description
-      desc=$(echo "$entries" | head -1)
-      # Extract just the title part (before the PR reference)
-      title_only=$(echo "$desc" | sed 's/ (#[0-9]*)$//')
-      pr_ref=$(echo "$desc" | grep -oE '\(#[0-9]+\)')
-      # Lowercase first letter of title
-      title_only=$(echo "$title_only" | sed 's/^./\L&/')
-      BLOCK="${BLOCK}- @${author}: ${title_only} ${pr_ref}
-"
-    else
-      # Multiple PRs: list all PR references
-      pr_refs=$(echo "$entries" | grep -oE '#[0-9]+' | tr '\n' ' ' | sed 's/ $//')
-      BLOCK="${BLOCK}- @${author}: ${pr_refs}
-"
-    fi
-  done
+  BLOCK="${BLOCK}${CONTRIB_LINES}"
 fi
 
 # ---------------------------------------------------------------------------
@@ -215,41 +220,33 @@ else
     exit 0
   fi
 
-  # Find the insertion point: after the ALL-CONTRIBUTORS-LIST:END marker
-  # and the "To add yourself" line that follows it
-  END_MARKER="<!-- ALL-CONTRIBUTORS-LIST:END -->"
-  END_LINE=$(grep -n "$END_MARKER" "$ACKNOWLEDGEMENTS_FILE" | head -1 | cut -d: -f1)
-
-  if [[ -z "$END_LINE" ]]; then
-    die "Could not find ${END_MARKER} in ${ACKNOWLEDGEMENTS_FILE}"
-  fi
-
-  # Find the line with "To add yourself" after the end marker (it's the line after the table)
-  ADD_YOURSELF_LINE=$(awk -v start="$END_LINE" 'NR > start && /To add yourself/ {print NR; exit}' "$ACKNOWLEDGEMENTS_FILE")
-
-  # Find the "## AI Development" heading, we insert before it
-  AI_LINE=$(grep -n "^## AI Development" "$ACKNOWLEDGEMENTS_FILE" | head -1 | cut -d: -f1)
+  # Anchor insertion on the "## AI Development" heading and the optional
+  # "## Contributions by Release" section. `|| true` keeps set -e/pipefail from
+  # aborting when grep finds no match (or on a grep SIGPIPE from `head` closing
+  # the pipe early); empty results are handled by the explicit checks below.
+  AI_LINE=$(grep -n "^## AI Development" "$ACKNOWLEDGEMENTS_FILE" | head -1 | cut -d: -f1 || true)
 
   if [[ -z "$AI_LINE" ]]; then
     die "Could not find '## AI Development' section in ${ACKNOWLEDGEMENTS_FILE}"
   fi
 
   # Check if "## Contributions by Release" section already exists
-  RELEASE_SECTION=$(grep -n "^## Contributions by Release" "$ACKNOWLEDGEMENTS_FILE" | head -1 | cut -d: -f1)
+  RELEASE_SECTION=$(grep -n "^## Contributions by Release" "$ACKNOWLEDGEMENTS_FILE" | head -1 | cut -d: -f1 || true)
 
   # Build the section intro if it doesn't exist yet
   if [[ -z "$RELEASE_SECTION" ]]; then
     # First time: add the section header and intro, then the block
+    # Trailing newline keeps a blank line between the block and the following
+    # ## AI Development heading.
     SECTION_BLOCK="
 ## Contributions by Release
 
 Contributors who made merged pull requests in each release. For the full contributors table, see above.
 
-${BLOCK}"
+${BLOCK}
+"
     # Insert before ## AI Development
-    sed -i "" "${AI_LINE}i\\
-${SECTION_BLOCK}
-" "$ACKNOWLEDGEMENTS_FILE"
+    insert_at_line "$ACKNOWLEDGEMENTS_FILE" "$AI_LINE" before "$SECTION_BLOCK"
   else
     # Section exists: insert the block after the section intro
     # Find the first ### heading in the section (or end of section)
@@ -258,8 +255,10 @@ ${SECTION_BLOCK}
 
     # Find the line after the intro to insert before the first ### heading
     # We insert AFTER the intro and BEFORE any existing ### entries
-    sed -i "" "$((INTRO_END))a\\
-${BLOCK}" "$ACKNOWLEDGEMENTS_FILE"
+    # Leading blank line separates this block from the intro and from any
+    # previously inserted release block stacked above it.
+    insert_at_line "$ACKNOWLEDGEMENTS_FILE" "$INTRO_END" after "
+${BLOCK}"
   fi
 
   echo "Updated ${ACKNOWLEDGEMENTS_FILE} with contributor block for v${NEW_VERSION}"
