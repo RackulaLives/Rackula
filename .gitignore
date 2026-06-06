@@ -4,23 +4,54 @@ node_modules/
 # Build output
 dist/
 
-# IDE
+# Vite cache
+.vite/
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE / Editors
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# OS
+# macOS
 .DS_Store
+**/.DS_Store
+.AppleDouble
+.AppleDB
+.AppleDesktop
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.apdisk
+
+# Windows
 Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 
 # Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm/
 
 # Environment
 .env
-.env.local
+.env.*
+!.env.example
+!.env.template
 
 # Test output
 coverage/
@@ -46,7 +77,7 @@ docs/planning/
 .worktrees/
 .claude/worktrees/
 
-# Claude Memory — auto-generated context files (preserve root /CLAUDE.md)
+# Claude Memory - auto-generated context files (preserve root /CLAUDE.md)
 **/CLAUDE.md
 !/CLAUDE.md
 
@@ -55,3 +86,4 @@ docs/planning/
 
 # Auto-generated tooling config
 .gh-dash.yml
+.claude/scheduled_tasks.lock
