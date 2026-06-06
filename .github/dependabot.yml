@@ -51,6 +51,17 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
+  # api workspace runs on Bun (api/bun.lock is the source of truth).
+  # Dependabot supports bun for version updates (not security updates);
+  # CVE detection is covered by Trivy image scans + dependency-graph alerts.
+  - package-ecosystem: "bun"
+    directory: "/api"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
   # GitHub Actions - group all together
   - package-ecosystem: "github-actions"
     directory: "/"
