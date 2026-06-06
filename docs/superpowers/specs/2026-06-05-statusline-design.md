@@ -20,9 +20,8 @@ The existing statusline (`~/.claude/statusline-command.sh`) is a 440-line monoli
 ~/.claude/statusline/
 ├── statusline.sh          # Entry point: reads stdin, pre-processes, calls segments, assembles output
 ├── segments/              # One function per segment
-│   ├── directory.sh
-│   ├── branch.sh
-│   ├── worktree.sh        # Worktree name, original branch (merged into directory+branch display)
+│   ├── directory.sh       # Also handles worktree name display when active
+│   ├── branch.sh          # Also handles worktree original-branch suffix when active
 │   ├── model.sh
 │   ├── context.sh
 │   ├── usage.sh
