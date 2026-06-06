@@ -11,6 +11,8 @@ on:
       - src/**
       - deploy/**
       - assets/**
+      - static/**
+      - login.html
       - package.json
       - package-lock.json
       - docker-compose.yml
