@@ -256,61 +256,112 @@ This is not the full `InfrastructureNode` from #362 - it's just a connection end
 
 ---
 
-## Revised Phase Structure (Post Devil's Advocate)
+## Devil's Advocate Review Decisions
 
-### Phase 0: Data Model + Visible Output (pair each change with UI)
+A second-pass review from senior AV engineer and security-conscious Svelte 5 architect perspectives, with decisions recorded.
 
-| Change | Visible Counterpart |
-|--------|-------------------|
-| AV InterfaceType values (20) | AV port colours in PortIndicators |
-| `PortDirection` field | Direction indicators on port circles |
-| `signal_type` field (optional, inferred) | Signal type in PortTooltip |
-| `PortCategory` "av" | AV category colour in rack |
-| Remove deprecated Cable model | Clean up Cable store references |
-| Ship #250 (PortIndicators integration) | Ports visible on devices |
+### Decisions
 
-### Phase 1: Connection Rendering MVP (the live audio tech can draw cables)
+| # | Recommendation | Decision | Rationale |
+|---|---------------|----------|-----------|
+| 1 | Drop `gender` from data model | **Compute only** | Auto-derived from connector type + direction (AES14: XLR male = output). Zero storage, zero migration, zero drift. Override only for ambiguous connectors via `deriveGender()` utility function. |
+| 2 | Defer `cable_type` on Connection | **P2** | Connections don't exist yet (#369, #1931). Cable type is inferable from ports. Only store when users need overrides (e.g., "50ft active optical HDMI"). |
+| 3 | Downgrade 20 AV InterfaceType values from P0 | **Split P0** | True P0 = PortDirection + SignalType enums + inference utilities (changes rendering). InterfaceType additions = P1 (device library data entry, not schema work). |
+| 4 | Remove signal compatibility matrix from all phases | **Removed** | Connection validation cannot exist until connection *creation* exists (#1932 hasn't landed). Designing validation before the canvas can draw cables is premature. Add back when connections are renderable. |
+| 5 | Make inference utilities P0 deliverables | **P0** | `inferDirection(type, mgmtOnly)` and `inferSignalType(type, direction)` ARE the product. Without them, every port needs 2-3 manual taxonomy decisions. Ship with enum additions. |
+| 6 | Block ExternalEndpoint on rendering spec | **Blocked** | Current canvas has no concept of off-rack elements. Must decide UI placement (sidebar panel, floating canvas nodes, or connection endpoint labels) before adding to schema. |
+| 7 | Direction arrow rendering spec | **Spec defined** | SVG path markers on connection lines. Output→input arrow direction. Bidirectional = no arrow (plain line). Mixed (one port has direction, other is bidirectional) = single arrow from output side. Use existing connection colours from tokens.css. |
+| 8 | SignalType size for Phase 1 | **10 values** | ethernet, power-ac, analog-audio-mic, analog-audio-line, analog-audio-speaker, digital-audio-aes3, digital-video-hdmi, digital-video-sdi, control-midi, data-usb. Everything else is data-ethernet or waits for demand. |
+| 9 | PatchBayNormal data shape | **Port-pair array** | Array of `{ top_port_id, bottom_port_id, mode }` on PlacedDevice. A 48-channel patch bay can have channels 1-24 half-normalled and 25-48 non-normalled. Normalling lives between port pairs, not on the device. |
+| 10 | RoutingConfig simplicity | **Simple map only** | `{ deviceId, routes: Map<outputPortId, inputPortId \| null> }` for P2. No breakaway, no salvos, no multiview. Those are P3+. |
+| 11 | Zod max-length + UUID keys | **Yes** | All new user-provided string fields get `z.string().max(256)`. RoutingConfig route keys are UUIDs (not port names) to prevent prototype pollution. |
+| 12 | NetBox sync security note | **Skip** | Too early to spec auth for a feature that doesn't exist yet. Current API auth (issue #1117) covers the pattern. |
 
-| Change | Visible Counterpart |
-|--------|-------------------|
-| Connection store with validation | Create/delete connections |
-| ConnectionLayer + ConnectionPath | Lines between devices |
-| Direction arrows on connections | Signal flow visible |
-| `ExternalEndpoint` for non-rack gear | Wall plates, stage boxes on canvas |
-| Connection creation (desktop) | Click port A → click port B |
+---
 
-### Phase 2: AV & Pro Audio Specifics
+## Revised Phase Structure (Post Review)
 
-| Change | Visible Counterpart |
-|--------|-------------------|
-| `PatchBayNormal` with instance override | Default paths on patch bays |
-| Signal type compatibility warnings | Red highlight on incompatible connections |
-| Gender auto-derivation | Male/female indicators on ports |
-| Patch list export (CSV) | Printable patch list for load-in |
-| AV device types with interfaces | AV devices show ports in library |
+### Phase 0: Enums + Inference + Visible Output
 
-### Phase 3: Advanced Connectivity
+Schema changes that change how ports render. Each change paired with visible UI output.
 
-| Change | Visible Counterpart |
-|--------|-------------------|
-| `RoutingConfig` for matrix switchers | Matrix routing table UI |
-| `InfrastructureNode` (full) | Non-rack infrastructure on canvas |
-| `InternalConnection` | Front-to-rear tracing |
-| Signal flow diagram view | Left-to-right signal flow |
-| NetBox sync for AV | Import AV device types from NetBox |
+| Change | Visible Counterpart | Issue |
+|--------|-------------------|-------|
+| `PortDirection` enum (input/output/bidirectional) | Direction indicators on port circles | #1930 |
+| `direction` field on InterfaceTemplate + PlacedPort | Direction indicators on port circles | #1930 |
+| `inferDirection(type, mgmtOnly)` utility | Smart defaults in device editor | #1930 |
+| `SignalType` enum (10 values) | Signal type in PortTooltip | #1929 |
+| `signal_type` optional field on InterfaceTemplate + PlacedPort | Signal type in PortTooltip | #1929 |
+| `inferSignalType(type, direction)` utility | Smart defaults in device editor | #1929 |
+| "av" `PortCategory` | AV category colour in rack | #1929 |
+| Remove deprecated Cable model | Clean up Cable store references | #369 |
+| Ship #250 (PortIndicators integration) | Ports visible on devices | #250 |
+
+### Phase 1: AV Types + Connection Rendering
+
+Device library work and connection creation. Depends on P0 enums landing first.
+
+| Change | Visible Counterpart | Issue |
+|--------|-------------------|-------|
+| 20 AV InterfaceType values | AV port colours in PortIndicators | #1929 |
+| AV device types with interfaces | AV devices show ports in library | #1929 |
+| Connection store with validation | Create/delete connections | #369 |
+| ConnectionLayer + ConnectionPath | Lines between devices | #1931 |
+| Direction arrows on connections (SVG path markers, output→input, bidirectional = no arrow) | Signal flow visible | #1931 |
+| Connection creation (desktop) | Click port A → click port B | #1932 |
+| Cascade delete connections on device removal | Clean deletion UX | #639 |
+
+### Phase 2: Patch Bays + Cable Types
+
+AV-specific features that need working connections first.
+
+| Change | Visible Counterpart | Issue |
+|--------|-------------------|-------|
+| `PatchBayNormal` (port-pair array on PlacedDevice) | Default paths on patch bays | TBD |
+| `cable_type` on Connection (optional, inferable) | Cable type label on connections | TBD |
+| `RoutingConfig` (simple map: deviceId + routes) | Matrix routing table UI | TBD |
+| `ExternalEndpoint` (after rendering spec) | Off-rack endpoints in UI | TBD |
+| Patch list export (CSV) | Printable patch list for load-in | TBD |
+
+### Phase 3: Validation + Advanced Connectivity
+
+Signal compatibility, breakaway routing, full infrastructure nodes.
+
+| Change | Visible Counterpart | Issue |
+|--------|-------------------|-------|
+| Signal type compatibility warnings | Red highlight on incompatible connections | TBD |
+| `gender` (computed via `deriveGender()`, not stored) | Male/female indicators on ports | TBD |
+| Breakaway routing, salvos, multiview | Advanced matrix routing UI | TBD |
+| `InfrastructureNode` (full) | Non-rack infrastructure on canvas | TBD |
+| `InternalConnection` (front-to-rear) | Front-to-rear tracing | TBD |
+| Signal flow diagram view | Left-to-right signal flow | TBD |
 
 ---
 
 ## Resolved Open Questions
 
-1. **Should `signal_type` be required or optional?** **Resolved: Optional with smart defaults.** Add `inferSignalType(type, direction)` utility. Only require manual entry for ambiguous cases (XLR, BNC, RJ45).
+1. **Should `signal_type` be required or optional?** **Resolved: Optional with smart defaults.** Add `inferSignalType(type, direction)` utility as P0 code deliverable. Only require manual entry for ambiguous cases (XLR, BNC, RJ45).
 
-2. **Should `direction` default to `bidirectional`?** **Resolved: Smart defaults via `inferDirection(type, mgmtOnly)`.** Management ports → input, console → input, AV types → require explicit, everything else → bidirectional.
+2. **Should `direction` default to `bidirectional`?** **Resolved: Smart defaults via `inferDirection(type, mgmtOnly)` as P0 code deliverable.** Management ports → input, console → input, AV types → require explicit, everything else → bidirectional.
 
-3. **Should `PatchBayNormal` be on DeviceType or PlacedDevice?** **Resolved: DeviceType with per-instance override on PlacedDevice.** Same pattern as `direction` on PlacedPort overriding InterfaceTemplate.
+3. **Should `PatchBayNormal` be on DeviceType or PlacedDevice?** **Resolved: Port-pair array on PlacedDevice.** Array of `{ top_port_id, bottom_port_id, mode }` per channel pair. Allows per-channel normalling (channels 1-24 half-normalled, 25-48 non-normalled). DeviceType defines which port pairs exist; PlacedDevice defines how they're normalled.
 
-4. **How many signal types for Phase 1?** **Resolved: Start with 8-10 most common.** The taxonomy can grow. Phase 1 needs: analog-audio-mic, analog-audio-line, analog-audio-speaker, digital-audio-aes3, digital-audio-dante, digital-video-hdmi, digital-video-sdi, clock-word, control-midi, data-ethernet.
+4. **How many signal types for Phase 1?** **Resolved: 10 values.** ethernet, power-ac, analog-audio-mic, analog-audio-line, analog-audio-speaker, digital-audio-aes3, digital-video-hdmi, digital-video-sdi, control-midi, data-usb. Taxonomy grows on demand.
 
-5. **InterfaceType vs SignalType separation?** **Resolved: Defer.** Extend InterfaceType with AV connectors, add signal_type as a peer field. ConnectorType + SignalType separation is a Phase 2+ consideration.
+5. **InterfaceType vs SignalType separation?** **Resolved: Defer.** Extend InterfaceType with AV connectors (P1), add signal_type as a peer field (P0). ConnectorType + SignalType separation is a Phase 2+ consideration.
 
-6. **ExternalEndpoint vs InfrastructureNode?** **Resolved: Minimal ExternalEndpoint in Phase 1.** Full InfrastructureNode deferred to Phase 3. ExternalEndpoint is just a connection endpoint outside the rack - no U height, no rack position, just ports.
+6. **ExternalEndpoint vs InfrastructureNode?** **Resolved: Blocked on rendering spec.** Must decide how off-rack endpoints appear in the UI (sidebar panel, floating canvas nodes, or connection endpoint labels) before adding to schema. Full InfrastructureNode deferred to Phase 3.
+
+7. **Should `gender` be stored or computed?** **Resolved: Computed only.** `deriveGender(connectorType, direction)` utility function. No storage, no migration, no drift. Override only for ambiguous connectors (TRS, RCA).
+
+8. **When should `cable_type` be added?** **Resolved: P2.** Defer until connections exist (#369, #1931). Cable type is inferable from ports. Only store when users need overrides.
+
+9. **Should signal compatibility matrix be in Phase 3?** **Resolved: Removed from all phases.** Add back when connection creation (#1932) and rendering (#1931) land. Validation without a canvas is academic.
+
+10. **RoutingConfig complexity?** **Resolved: Simple map only for P2.** `{ deviceId, routes: Map<outputPortId, inputPortId | null> }`. Breakaway routing, salvos, and multiview are P3+.
+
+11. **Security constraints on new schemas?** **Resolved: Zod max-length + UUID keys.** All user-provided string fields get `z.string().max(256)`. RoutingConfig route keys are UUIDs only (not port names) to prevent prototype pollution.
+
+12. **NetBox sync security?** **Resolved: Too early to spec.** Current API auth (issue #1117) covers the pattern. Add specific notes when NetBox sync scope is defined.
+
+13. **Direction arrow rendering?** **Resolved: SVG path markers on connection lines.** Output→input flow. Bidirectional = plain line (no arrow). Mixed direction (one port directional, other bidirectional) = single arrow from output side. Use existing connection colours from tokens.css.
