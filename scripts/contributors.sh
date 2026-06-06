@@ -185,20 +185,18 @@ else
   # Group PRs by author and format. Sort rows by author (stable, so PR order
   # within an author is preserved), then collapse each author group in a single
   # awk pass. Portable: no bash 4 associative arrays, no GNU sed.
-  #   - single PR  -> "- @author: <title, first letter lowercased> (#num)"
-  #   - multiple   -> "- @author: #num1 #num2 ..."
+  # Output (per the contributor acknowledgements design spec):
+  #   "- @author: <first PR title, first letter lowercased> (#num1, #num2, ...)"
+  # The /release skill presents the draft for review, so a maintainer can refine
+  # the multi-PR summary by hand.
   CONTRIB_LINES=$(printf '%s\n' "$FILTERED" | sort -t"$(printf '\t')" -k3,3 -s | awk -F'\t' '
     function flush(   ltitle) {
       if (cur == "") return
-      if (cnt == 1) {
-        ltitle = tolower(substr(ftitle, 1, 1)) substr(ftitle, 2)
-        print "- @" cur ": " ltitle " (#" fnum ")"
-      } else {
-        print "- @" cur ": " refs
-      }
+      ltitle = tolower(substr(ftitle, 1, 1)) substr(ftitle, 2)
+      print "- @" cur ": " ltitle " (" refs ")"
     }
-    $3 != cur { flush(); cur = $3; cnt = 0; refs = ""; fnum = $1; ftitle = $2 }
-    { cnt++; refs = (refs == "" ? "#" $1 : refs " #" $1) }
+    $3 != cur { flush(); cur = $3; refs = ""; ftitle = $2 }
+    { refs = (refs == "" ? "#" $1 : refs ", #" $1) }
     END { flush() }
   ')
 
