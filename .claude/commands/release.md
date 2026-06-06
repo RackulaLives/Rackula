@@ -307,7 +307,11 @@ git commit -m "docs: update changelog, acknowledgements, and security policy for
 
 ```bash
 npm version "$NEW_VERSION" --no-git-tag-version
-git add package.json package-lock.json
+# api/ runs on Bun; use `npm pkg set` (not `npm version`) so no npm
+# lockfile is created. api/package.json's version is the local-dev
+# fallback for the /version endpoint; prod uses the APP_VERSION build arg.
+(cd api && npm pkg set version="$NEW_VERSION")
+git add package.json package-lock.json api/package.json
 git commit -m "chore(release): bump version to v$NEW_VERSION"
 ```
 
