@@ -66,6 +66,15 @@ jobs:
           INPUT_REF: ${{ inputs.ref }}
           PUBLISH: ${{ inputs.publish }}
         run: |
+          # Guard against newline/CR injection via user-controlled inputs into $GITHUB_OUTPUT.
+          # Valid git refs and CalVer strings never contain these characters.
+          case "${INPUT_VERSION}${INPUT_REF}" in
+            *$'\n'*|*$'\r'*)
+              echo "ERROR: ref/version inputs must not contain newline or CR characters"
+              exit 1
+              ;;
+          esac
+
           if [ "$WF_EVENT" = "workflow_call" ] || [ "$PUBLISH" = "true" ]; then
             if [ -z "$INPUT_VERSION" ]; then
               echo "ERROR: version input is required when publish=true or for workflow_call"
