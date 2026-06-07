@@ -108,7 +108,7 @@ Both services should be active, and `/health` should return 200.
 The CI build always asserts both Linux binaries are present before assembling
 the tarball:
 
-```
+```bash
 test -f node_modules/@node-rs/argon2-linux-x64-gnu/argon2.linux-x64-gnu.node
 test -f node_modules/@node-rs/argon2-linux-arm64-gnu/argon2.linux-arm64-gnu.node
 ```

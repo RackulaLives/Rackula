@@ -83,6 +83,11 @@ jobs:
           else
             SHORT_SHA="${SHA:0:7}"
             VERSION="${INPUT_VERSION:-vDEV-${SHORT_SHA}}"
+            if ! echo "$VERSION" | grep -qE '^[A-Za-z0-9._-]+$'; then
+              echo "ERROR: Branch-build version label '$VERSION' contains invalid characters."
+              echo "Use only letters, numbers, dot, underscore, or hyphen."
+              exit 1
+            fi
             CHECKOUT_REF="${INPUT_REF:-${GITHUB_REF_NAME}}"
             echo "checkout_ref=$CHECKOUT_REF" >> "$GITHUB_OUTPUT"
             echo "retention=7" >> "$GITHUB_OUTPUT"
