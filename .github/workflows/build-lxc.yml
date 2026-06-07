@@ -63,12 +63,14 @@ jobs:
           WF_EVENT: ${{ github.event_name }}
           INPUT_VERSION: ${{ inputs.version }}
           INPUT_REF: ${{ inputs.ref }}
+          PUBLISH: ${{ inputs.publish }}
         run: |
-          if [ "$WF_EVENT" = "workflow_call" ]; then
-            # workflow_call always checks out the version tag
+          if [ "$WF_EVENT" = "workflow_call" ] || [ "$PUBLISH" = "true" ]; then
+            # Release builds (workflow_call or publish=true) must checkout the exact
+            # version tag so release artifact provenance matches the tagged commit.
             echo "checkout_ref=${INPUT_VERSION}" >> "$GITHUB_OUTPUT"
           else
-            # workflow_dispatch checks out the provided ref (default: main)
+            # Dev builds (publish=false) checkout the provided ref (default: main).
             echo "checkout_ref=${INPUT_REF:-main}" >> "$GITHUB_OUTPUT"
           fi
 
