@@ -53,6 +53,7 @@ concurrency:
 
 jobs:
   build:
+    name: Build LXC tarball
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.compute-version.outputs.version }}
@@ -192,6 +193,7 @@ jobs:
           retention-days: 7
 
   publish:
+    name: Publish to release
     needs: build
     # Run for workflow_call (release pipeline) or when explicitly requested via dispatch.
     # Skipped for dev builds (publish=false) so no release is touched.
