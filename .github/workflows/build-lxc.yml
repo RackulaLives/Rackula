@@ -67,6 +67,10 @@ jobs:
           PUBLISH: ${{ inputs.publish }}
         run: |
           if [ "$WF_EVENT" = "workflow_call" ] || [ "$PUBLISH" = "true" ]; then
+            if [ -z "$INPUT_VERSION" ]; then
+              echo "ERROR: version input is required when publish=true or for workflow_call"
+              exit 1
+            fi
             # Release builds (workflow_call or publish=true) must checkout the exact
             # version tag so release artifact provenance matches the tagged commit.
             echo "checkout_ref=${INPUT_VERSION}" >> "$GITHUB_OUTPUT"
