@@ -125,7 +125,9 @@ msg_info "Creating Services"
 cp /opt/rackula/config/rackula-api.service /etc/systemd/system/rackula-api.service
 mkdir -p /etc/systemd/system/nginx.service.d
 cp /opt/rackula/config/nginx.service.d-override.conf /etc/systemd/system/nginx.service.d/override.conf
-systemctl enable -q --now nginx rackula-api
+systemctl daemon-reload
+systemctl enable -q nginx rackula-api
+systemctl restart nginx rackula-api
 msg_ok "Created Services"
 
 msg_info "Verifying Services"
