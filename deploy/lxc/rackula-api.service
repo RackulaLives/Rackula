@@ -58,7 +58,7 @@ AmbientCapabilities=
 # Syscall filtering
 SystemCallArchitectures=native
 SystemCallFilter=@system-service
-SystemCallFilter=~@privileged @resources
+SystemCallFilter=~@privileged
 
 # Network egress control — API only needs localhost (nginx proxies to it)
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
