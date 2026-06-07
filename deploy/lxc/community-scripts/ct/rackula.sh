@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/build.func)
 # Copyright (c) 2021-2026 community-scripts ORG
-# Author: gVNS
+# Author: gVNS (ggfevans)
 # License: MIT | https://github.com/community-scripts/ProxmoxVE/raw/main/LICENSE
 # Source: https://github.com/RackulaLives/Rackula
 
@@ -32,8 +32,7 @@ function update_script() {
 
   if check_for_gh_release "rackula" "RackulaLives/Rackula"; then
     msg_info "Stopping Services"
-    systemctl stop rackula-api
-    systemctl stop nginx
+    systemctl stop rackula-api nginx
     msg_ok "Stopped Services"
 
     msg_info "Backing up Data"
@@ -57,15 +56,13 @@ function update_script() {
     chown -R root:root /opt/rackula/frontend
     find /opt/rackula/frontend -type d -exec chmod 755 {} \;
     find /opt/rackula/frontend -type f -exec chmod 644 {} \;
-    chown -R rackula:rackula /opt/rackula/api
-    chown -R rackula:rackula /opt/rackula/data
+    chown -R rackula:rackula /opt/rackula/{api,data}
     chmod 750 /opt/rackula/data
     systemctl daemon-reload
     msg_ok "Updated Configuration"
 
     msg_info "Starting Services"
-    systemctl start rackula-api
-    systemctl start nginx
+    systemctl start nginx rackula-api
     msg_ok "Started Services"
 
     msg_info "Verifying Services"
