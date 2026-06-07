@@ -1,19 +1,23 @@
 name: Build LXC Tarball
 
-# Builds the self-contained LXC tarball (frontend + API + config) for a given
-# release tag and uploads it, with a SHA256 checksum, to the published release.
+# Builds the self-contained LXC tarball (frontend + API + config).
 #
-# Called automatically by release.yml after the release is created
-# (workflow_call), and runnable manually to backfill or re-upload a tarball for
-# an existing release (workflow_dispatch). Both triggers are write-access-gated,
-# so checking out the requested tag is a trusted operation: there is no
-# privileged untrusted checkout, unlike the previous workflow_run design.
+# workflow_call: Called by release.yml after publishing a release. version is required and
+#   must match CalVer. Always uploads the tarball to the release.
+#
+# workflow_dispatch (publish=true, default): Manually re-upload a tarball for an existing
+#   release. version must match CalVer.
+#
+# workflow_dispatch (publish=false): Build a test artifact from any branch, tag, or SHA
+#   without creating or touching a release. version is optional; if omitted, a synthetic
+#   vDEV-<sha> label is used. The artifact stays as a downloadable run artifact only.
+#   Use this path for LXC payload testing during development (see docs/deployment/LXC-TESTING.md).
 #
 # Split into two jobs by privilege:
-#   build   - contents: read. Checks out the tag and runs dependency code
+#   build   - contents: read. Checks out the requested ref and runs dependency code
 #             (npm ci, bun install) with no write-capable token.
 #   publish - contents: write. Downloads the build artifact and uploads it to
-#             the release. Runs no repo/dependency code.
+#             the release. Skipped when publish=false.
 on:
   workflow_call:
     inputs:
@@ -23,39 +27,81 @@ on:
         type: string
   workflow_dispatch:
     inputs:
-      version:
-        description: "Version tag (e.g. v26.6.0)"
-        required: true
+      ref:
+        description: "Branch, tag, or SHA to build from (default: main)"
+        required: false
+        default: "main"
         type: string
+      version:
+        description: "Version label (e.g. v26.6.0). Leave empty for a dev build (uses vDEV-<sha>)."
+        required: false
+        type: string
+      publish:
+        description: "Upload tarball to the GitHub Release (requires a valid CalVer tag and an existing published release)"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
 
-# Serialise per version so a manual dispatch and the release-triggered call
-# cannot race on the same release asset (gh release upload --clobber).
+# Serialise per ref so concurrent dispatches on the same branch or version cannot
+# race on the same release asset (gh release upload --clobber).
 concurrency:
-  group: build-lxc-${{ inputs.version }}
+  group: build-lxc-${{ inputs.version || inputs.ref || 'main' }}
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute-version.outputs.version }}
     steps:
-      # Validate before checkout so only a strict version tag can be the ref.
-      - name: Validate version format
+      - name: Resolve checkout ref
+        id: resolve-ref
         env:
-          VERSION: ${{ inputs.version }}
+          WF_EVENT: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_REF: ${{ inputs.ref }}
         run: |
-          if ! echo "$VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "ERROR: Version '$VERSION' does not match expected format vYY.M.MICRO (e.g. v26.6.0)"
-            exit 1
+          if [ "$WF_EVENT" = "workflow_call" ]; then
+            # workflow_call always checks out the version tag
+            echo "checkout_ref=${INPUT_VERSION}" >> "$GITHUB_OUTPUT"
+          else
+            # workflow_dispatch checks out the provided ref (default: main)
+            echo "checkout_ref=${INPUT_REF:-main}" >> "$GITHUB_OUTPUT"
           fi
-          echo "Version: $VERSION"
 
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          ref: ${{ inputs.version }}
+          ref: ${{ steps.resolve-ref.outputs.checkout_ref }}
           persist-credentials: false
+
+      - name: Compute version
+        id: compute-version
+        env:
+          WF_EVENT: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
+          else
+            SHA=$(git rev-parse --short HEAD)
+            VERSION="vDEV-${SHA}"
+          fi
+
+          # Enforce strict CalVer for release uploads and workflow_call (release pipeline).
+          # Dev builds (publish=false) accept any label, including the synthetic vDEV-<sha>.
+          if [ "$WF_EVENT" = "workflow_call" ] || [ "$PUBLISH" = "true" ]; then
+            if ! echo "$VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "ERROR: Version '$VERSION' does not match expected format vYY.M.MICRO (e.g. v26.6.0)"
+              exit 1
+            fi
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Version: ${VERSION}"
 
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
@@ -95,7 +141,7 @@ jobs:
 
       - name: Assemble tarball
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.compute-version.outputs.version }}
         run: |
           TARBALL_DIR="rackula-lxc-${VERSION}"
 
@@ -138,13 +184,16 @@ jobs:
         with:
           name: lxc-tarball
           path: |
-            rackula-lxc-${{ inputs.version }}.tar.gz
-            rackula-lxc-${{ inputs.version }}.tar.gz.sha256
+            rackula-lxc-${{ steps.compute-version.outputs.version }}.tar.gz
+            rackula-lxc-${{ steps.compute-version.outputs.version }}.tar.gz.sha256
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
   publish:
     needs: build
+    # Run for workflow_call (release pipeline) or when explicitly requested via dispatch.
+    # Skipped for dev builds (publish=false) so no release is touched.
+    if: github.event_name == 'workflow_call' || inputs.publish == true
     runs-on: ubuntu-latest
     # contents: write is required only to upload the tarball and its checksum as
     # assets on the published release (gh release upload).
@@ -161,7 +210,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
           TARBALL="rackula-lxc-${VERSION}.tar.gz"
 
