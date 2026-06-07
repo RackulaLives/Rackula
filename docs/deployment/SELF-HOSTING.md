@@ -670,6 +670,22 @@ docker compose up -d
 
 `RACKULA_API_WRITE_TOKEN` is injected by nginx to API requests and enforced on mutating API routes.
 
+### Proxmox LXC Installer Variables
+
+The Proxmox community-scripts installer generates the API config itself, so a few
+settings are passed as environment variables when running the installer rather
+than in a compose file. Export them before the install command.
+
+| Variable              | Default  | Description                                              |
+| --------------------- | -------- | ------------------------------------------------------- |
+| `BUN_VERSION`         | `1.3.14` | Bun runtime version installed to `/usr/local/bun`       |
+| `CORS_SCHEME`         | `http`   | Scheme for the generated `CORS_ORIGIN` (`http`/`https`) |
+| `ALLOW_INSECURE_CORS` | `false`  | Allow wildcard CORS (`true`/`false`)                    |
+
+Behind an HTTPS reverse proxy, set `CORS_SCHEME=https` so the generated
+`CORS_ORIGIN` matches the browser origin. To change CORS after install, edit
+`CORS_ORIGIN` in `/opt/rackula/data/.env` and run `systemctl restart rackula-api`.
+
 ### Build-Time Variables
 
 These require rebuilding the image - see [Building from Source](#building-from-source).

@@ -24,12 +24,8 @@ fi
 msg_ok "Created rackula user"
 
 msg_info "Installing Bun"
-ensure_dependencies unzip
-BUN_TAG=$(get_latest_github_release "oven-sh/bun")
-[ -n "$BUN_TAG" ] || {
-  msg_error "Could not resolve latest Bun release"
-  exit 1
-}
+ensure_dependencies unzip ca-certificates
+BUN_VERSION="${BUN_VERSION:-1.3.14}"
 case "$(uname -m)" in
   x86_64) grep -q avx2 /proc/cpuinfo && BUN_VARIANT="x64" || BUN_VARIANT="x64-baseline" ;;
   aarch64) BUN_VARIANT="aarch64" ;;
@@ -39,10 +35,10 @@ case "$(uname -m)" in
     ;;
 esac
 BUN_TMP=$(mktemp -d)
-curl_with_retry "https://github.com/oven-sh/bun/releases/download/${BUN_TAG}/bun-linux-${BUN_VARIANT}.zip" "$BUN_TMP/bun.zip"
+curl_with_retry "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-${BUN_VARIANT}.zip" "$BUN_TMP/bun.zip"
 $STD unzip -o "$BUN_TMP/bun.zip" -d "$BUN_TMP"
 mkdir -p /usr/local/bun/bin
-install -m 755 "$(find "$BUN_TMP" -name bun -type f -executable | head -n1)" /usr/local/bun/bin/bun
+install -m 755 "$BUN_TMP/bun-linux-${BUN_VARIANT}/bun" /usr/local/bun/bin/bun
 rm -rf "$BUN_TMP"
 ln -sf /usr/local/bun/bin/bun /usr/local/bin/bun
 ln -sf /usr/local/bun/bin/bun /usr/local/bin/bunx
@@ -119,6 +115,10 @@ msg_info "Configuring nginx"
 cp /opt/rackula/config/nginx.conf /etc/nginx/sites-available/rackula
 rm -f /etc/nginx/sites-enabled/default
 ln -sf /etc/nginx/sites-available/rackula /etc/nginx/sites-enabled/rackula
+if ! $STD nginx -t; then
+  msg_error "nginx configuration test failed (run 'nginx -t' for details)"
+  exit 1
+fi
 msg_ok "Configured nginx"
 
 msg_info "Creating Services"
@@ -130,13 +130,13 @@ msg_ok "Created Services"
 
 msg_info "Verifying Services"
 for i in $(seq 0 9); do
-  if curl -sf --connect-timeout 2 --max-time 5 http://127.0.0.1:3001/health >/dev/null 2>&1; then
+  if curl -sf --connect-timeout 2 --max-time 5 http://127.0.0.1/api/health >/dev/null 2>&1; then
     msg_ok "Service running successfully"
     break
   fi
   sleep 1
   if [ "$i" -eq 9 ]; then
-    msg_error "API failed to start within 10 seconds"
+    msg_error "Service failed to respond on http://127.0.0.1/api/health within 10 seconds"
     exit 1
   fi
 done
