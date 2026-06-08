@@ -32,6 +32,12 @@ function update_script() {
 
   # RACKULA_PREBUILD_TARBALL (dev/test only): when set to a local tarball, force the update
   # body to run and deploy that payload instead of a published release. Inert when unset.
+  # Fail before stopping services if it is set but missing (a typo must not trigger an update).
+  if [[ -n "${RACKULA_PREBUILD_TARBALL:-}" && ! -f "${RACKULA_PREBUILD_TARBALL}" ]]; then
+    msg_error "RACKULA_PREBUILD_TARBALL set but file not found: ${RACKULA_PREBUILD_TARBALL}"
+    exit 1
+  fi
+
   if [[ -n "${RACKULA_PREBUILD_TARBALL:-}" ]] || check_for_gh_release "rackula" "RackulaLives/Rackula"; then
     msg_info "Stopping Services"
     systemctl stop rackula-api nginx

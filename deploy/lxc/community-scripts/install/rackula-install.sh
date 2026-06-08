@@ -50,7 +50,11 @@ msg_ok "Installed Bun"
 
 # RACKULA_PREBUILD_TARBALL (dev/test only): when set to a local tarball, deploy that payload
 # instead of fetching a published release. Inert when unset. See docs/deployment/LXC-TESTING.md.
-if [[ -n "${RACKULA_PREBUILD_TARBALL:-}" && -f "${RACKULA_PREBUILD_TARBALL}" ]]; then
+if [[ -n "${RACKULA_PREBUILD_TARBALL:-}" ]]; then
+  [[ -f "${RACKULA_PREBUILD_TARBALL}" ]] || {
+    msg_error "RACKULA_PREBUILD_TARBALL set but file not found: ${RACKULA_PREBUILD_TARBALL}"
+    exit 1
+  }
   msg_info "Deploying dev prebuild (RACKULA_PREBUILD_TARBALL)"
   mkdir -p /opt/rackula
   tar --no-same-owner -xzf "$RACKULA_PREBUILD_TARBALL" -C /opt/rackula --strip-components=1

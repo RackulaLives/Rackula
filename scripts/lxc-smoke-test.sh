@@ -77,6 +77,11 @@ TARBALL="$(cd "$(dirname "$TARBALL")" && pwd)/$(basename "$TARBALL")"
 # --- preflight --------------------------------------------------------------
 [[ "$(id -u)" -eq 0 ]] || die "must run as root on a Proxmox host"
 for c in pct pvesh curl tar; do command -v "$c" >/dev/null || die "missing required command: $c"; done
+# The script runs the canonical install/update scripts, so it needs the full repo layout
+# (deploy/lxc/community-scripts/), not just lxc-smoke-test.sh on its own.
+for f in "$CANON/install/rackula-install.sh" "$CANON/ct/rackula.sh"; do
+  [[ -f "$f" ]] || die "missing $f - run from a Rackula checkout (ship deploy/lxc/community-scripts/ alongside this script)"
+done
 
 if [[ -z "$STORAGE" ]]; then
   # first ACTIVE storage that can hold a container rootfs (Status column == active)
@@ -229,7 +234,8 @@ _check() {
   fi
 }
 
-ct_ip() { pct exec "$1" -- bash -c "hostname -I 2>/dev/null | awk '{print \$1; exit}'" 2>/dev/null; }
+# First IPv4 of the CT (hostname -I can list IPv6/link-local first; a bare IPv6 in http:// is invalid).
+ct_ip() { pct exec "$1" -- bash -c "hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+(\.[0-9]+){3}\$' | head -1" 2>/dev/null; }
 
 smoke_checks() {
   local id="$1"

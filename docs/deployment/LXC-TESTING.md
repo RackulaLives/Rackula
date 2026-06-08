@@ -65,19 +65,27 @@ ls /tmp/rackula-lxc-test/
 
 ### Smoke test on a Proxmox host
 
-Copy the tarball to your Proxmox host and run `scripts/lxc-smoke-test.sh`. It auto-allocates a
-throwaway CT (hostname `rackula-smoke-*`), runs the real `rackula-install.sh` against the
-payload, exercises the upgrade path, runs health/frontend/service checks, and tears the CT down
-(unless `--keep`). It refuses to touch any CT whose hostname lacks the `rackula-smoke-` prefix,
-so a real container is never at risk.
+Run `scripts/lxc-smoke-test.sh` on your Proxmox host. It auto-allocates a throwaway CT
+(hostname `rackula-smoke-*`), runs the real `rackula-install.sh` against the payload, exercises
+the upgrade path, runs health/frontend/service checks, and tears the CT down (unless `--keep`).
+It refuses to touch any CT whose hostname lacks the `rackula-smoke-` prefix, so a real container
+is never at risk.
+
+The script runs the canonical install/update scripts, so it needs the repo layout
+(`deploy/lxc/community-scripts/`), not just `lxc-smoke-test.sh` on its own. Clone the repo on
+the host, or `rsync` the repo (or at least `scripts/` + `deploy/lxc/community-scripts/`) across:
 
 ```bash
-scp /tmp/rackula-lxc-test/rackula-lxc-*.tar.gz root@<pve-host>:/tmp/
-scp scripts/lxc-smoke-test.sh root@<pve-host>:/tmp/        # or clone the repo on the host
+# Option A: clone on the host
+git clone https://github.com/RackulaLives/Rackula && cd Rackula
 
-# On the Proxmox host (root):
-./lxc-smoke-test.sh --tarball /tmp/rackula-lxc-vDEV-*.tar.gz          # deploy + upgrade (default)
-./lxc-smoke-test.sh --tarball /tmp/rackula-lxc-vDEV-*.tar.gz --mode deploy --keep
+# Option B: rsync from your workstation (preserves the layout the script expects)
+rsync -a --relative scripts/lxc-smoke-test.sh deploy/lxc/community-scripts root@<pve-host>:rackula/
+scp /tmp/rackula-lxc-test/rackula-lxc-*.tar.gz root@<pve-host>:/tmp/
+
+# On the Proxmox host (root), from the repo root:
+./scripts/lxc-smoke-test.sh --tarball /tmp/rackula-lxc-vDEV-*.tar.gz             # deploy + upgrade (default)
+./scripts/lxc-smoke-test.sh --tarball /tmp/rackula-lxc-vDEV-*.tar.gz --mode deploy --keep
 ```
 
 Flags: `--mode deploy|upgrade|both`, `--baseline release|<tarball>` (upgrade-from payload,
