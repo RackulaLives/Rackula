@@ -1,0 +1,312 @@
+name: Build Images
+
+# Reusable workflow: build and push ONLY immutable Docker tags (:vX.Y.Z).
+# No :latest and no :year_month tags are pushed here. Those are applied later
+# by the promote stage, by digest. Mirrors the build/scan jobs from
+# deploy-prod.yml, changed only for the immutable-tag policy plus digest outputs.
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to build (e.g. v26.6.0)."
+        required: true
+        type: string
+      version:
+        description: "Version without v prefix (e.g. 26.6.0)."
+        required: true
+        type: string
+      year_month:
+        description: "Year.month component (e.g. 26.6)."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Set lowercase image name
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
+        with:
+          # Disable binfmt image caching to avoid post-job cache-save collisions
+          # across parallel build-* jobs that share the same cache key.
+          cache-image: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ inputs.version }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache,mode=max
+          build-args: |
+            VITE_ENV=production
+            VITE_UMAMI_ENABLED=true
+            VITE_UMAMI_SCRIPT_URL=${{ vars.UMAMI_SCRIPT_URL }}
+            VITE_UMAMI_WEBSITE_ID=${{ vars.UMAMI_PROD_WEBSITE_ID }}
+            APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
+
+  build-persist:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Set lowercase image name
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
+        with:
+          cache-image: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=v${{ inputs.version }}-persist
+
+      - name: Build and push persist image
+        id: build
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache-persist
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache-persist,mode=max
+          build-args: |
+            VITE_ENV=production
+            VITE_PERSIST_ENABLED=true
+            APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
+
+  build-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Set lowercase image name
+        run: echo "API_IMAGE_NAME=${GITHUB_REPOSITORY,,}-api" >> $GITHUB_ENV
+
+      - name: Set build metadata
+        # Derive the commit from the checked-out tag (ref above), not github.sha,
+        # which on workflow_dispatch points at the dispatch ref rather than the tag.
+        run: |
+          echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          # Short hash to match the frontend's commit format (rev-parse --short).
+          echo "BUILD_COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
+        with:
+          cache-image: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ inputs.version }}
+
+      - name: Build and push API image
+        id: build
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:buildcache,mode=max
+          # Inject the release version so the API reports it at GET /version.
+          # The git tag is the single source of truth; api/package.json is only a
+          # local-dev fallback.
+          build-args: |
+            APP_VERSION=${{ inputs.version }}
+            APP_COMMIT=${{ env.BUILD_COMMIT }}
+            APP_BUILD_TIME=${{ env.BUILD_TIME }}
+            APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
+
+  verify-version-alignment:
+    name: "Verify Version Alignment"
+    needs: [build-frontend, build-persist, build-api]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/verify-version-alignment.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Set lowercase image name
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify all published images report the release version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          chmod +x scripts/verify-version-alignment.sh
+          FRONTEND_IMAGE="${REGISTRY}/${IMAGE_NAME_LC}:${VERSION}" \
+          PERSIST_IMAGE="${REGISTRY}/${IMAGE_NAME_LC}:v${VERSION}-persist" \
+          API_IMAGE="${REGISTRY}/${IMAGE_NAME_LC}-api:${VERSION}" \
+          API_RUN_ENV="-e ALLOW_INSECURE_CORS=true" \
+            scripts/verify-version-alignment.sh "$VERSION"
+
+  scan-images:
+    needs: [build-frontend, build-persist, build-api]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - repo_suffix: ""
+            tag: ${{ inputs.version }}
+          - repo_suffix: ""
+            tag: v${{ inputs.version }}-persist
+          - repo_suffix: "-api"
+            tag: ${{ inputs.version }}
+
+    steps:
+      - name: Log in to Container Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image ref
+        run: |
+          IMAGE_NAME_LC=$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_REF="${REGISTRY}/${IMAGE_NAME_LC}${{ matrix.image.repo_suffix }}:${{ matrix.image.tag }}"
+          IMAGE_CATEGORY=$(echo "${IMAGE_REF}" | tr '/:' '--' | tr -cd '[:alnum:]._-')
+          echo "IMAGE_REF=${IMAGE_REF}" >> $GITHUB_ENV
+          echo "IMAGE_CATEGORY=${IMAGE_CATEGORY}" >> $GITHUB_ENV
+
+      - name: Scan image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_REF }}
+          format: sarif
+          output: trivy-results.sarif
+          # Keep the release gate aligned with configured severity thresholds.
+          # Without this, SARIF mode can include lower severities and trip exit-code.
+          limit-severities-for-sarif: true
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 0
+          version: "v0.70.0"
+
+      - name: Upload scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-${{ env.IMAGE_CATEGORY }}
