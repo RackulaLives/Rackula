@@ -42,6 +42,7 @@ function update_script() {
     rm -rf /opt/rackula_data_backup
     cp -r /opt/rackula/data /opt/rackula_data_backup || {
       msg_error "Data backup failed; aborting before any changes"
+      systemctl start nginx rackula-api || true
       exit 1
     }
     msg_ok "Backed up Data"
@@ -70,6 +71,7 @@ function update_script() {
     msg_info "Starting Services"
     if ! nginx -t >/dev/null 2>&1; then
       msg_error "nginx configuration test failed (run 'nginx -t' for details)"
+      systemctl start nginx rackula-api || true
       exit 1
     fi
     systemctl start nginx rackula-api
