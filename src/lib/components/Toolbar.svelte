@@ -581,6 +581,10 @@
     gap: var(--space-2);
   }
 
+  .toolbar-right:not(.toolbar-right-mobile) {
+    margin-left: var(--space-2);
+  }
+
   .toolbar-right-mobile {
     gap: var(--space-1);
   }
