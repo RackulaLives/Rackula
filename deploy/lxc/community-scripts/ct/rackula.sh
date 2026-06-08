@@ -36,8 +36,14 @@ function update_script() {
     msg_ok "Stopped Services"
 
     msg_info "Backing up Data"
+    if [[ -d /opt/rackula_data_backup && ! -d /opt/rackula/data ]]; then
+      mv /opt/rackula_data_backup /opt/rackula/data
+    fi
     rm -rf /opt/rackula_data_backup
-    cp -r /opt/rackula/data /opt/rackula_data_backup
+    cp -r /opt/rackula/data /opt/rackula_data_backup || {
+      msg_error "Data backup failed; aborting before any changes"
+      exit 1
+    }
     msg_ok "Backed up Data"
 
     CLEAN_INSTALL=1 fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"
