@@ -30,7 +30,9 @@ function update_script() {
     exit 1
   fi
 
-  if check_for_gh_release "rackula" "RackulaLives/Rackula"; then
+  # RACKULA_PREBUILD_TARBALL (dev/test only): when set to a local tarball, force the update
+  # body to run and deploy that payload instead of a published release. Inert when unset.
+  if [[ -n "${RACKULA_PREBUILD_TARBALL:-}" ]] || check_for_gh_release "rackula" "RackulaLives/Rackula"; then
     msg_info "Stopping Services"
     systemctl stop rackula-api nginx
     msg_ok "Stopped Services"
@@ -47,7 +49,15 @@ function update_script() {
     }
     msg_ok "Backed up Data"
 
-    CLEAN_INSTALL=1 fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"
+    if [[ -n "${RACKULA_PREBUILD_TARBALL:-}" && -f "${RACKULA_PREBUILD_TARBALL}" ]]; then
+      msg_info "Deploying dev prebuild (RACKULA_PREBUILD_TARBALL)"
+      rm -rf /opt/rackula/*
+      mkdir -p /opt/rackula
+      tar --no-same-owner -xzf "$RACKULA_PREBUILD_TARBALL" -C /opt/rackula --strip-components=1
+      msg_ok "Deployed dev prebuild"
+    else
+      CLEAN_INSTALL=1 fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"
+    fi
 
     msg_info "Restoring Data"
     rm -rf /opt/rackula/data

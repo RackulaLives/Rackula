@@ -48,7 +48,16 @@ ln -sf /usr/local/bun/bin/bun /usr/local/bin/bunx
 }
 msg_ok "Installed Bun"
 
-fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"
+# RACKULA_PREBUILD_TARBALL (dev/test only): when set to a local tarball, deploy that payload
+# instead of fetching a published release. Inert when unset. See docs/deployment/LXC-TESTING.md.
+if [[ -n "${RACKULA_PREBUILD_TARBALL:-}" && -f "${RACKULA_PREBUILD_TARBALL}" ]]; then
+  msg_info "Deploying dev prebuild (RACKULA_PREBUILD_TARBALL)"
+  mkdir -p /opt/rackula
+  tar --no-same-owner -xzf "$RACKULA_PREBUILD_TARBALL" -C /opt/rackula --strip-components=1
+  msg_ok "Deployed dev prebuild"
+else
+  fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"
+fi
 
 msg_info "Installing Rackula"
 mkdir -p /opt/rackula/data

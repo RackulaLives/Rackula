@@ -63,38 +63,38 @@ ls /tmp/rackula-lxc-test/
 # rackula-lxc-vDEV-abc1234.tar.gz.sha256
 ```
 
-### Deploy to a throwaway CT
+### Smoke test on a Proxmox host
 
-Copy the tarball to your Proxmox host and extract it manually:
-
-```bash
-# On Proxmox host: create a throwaway CT (Debian 13, unprivileged, 512MB RAM)
-# Then copy and extract the tarball:
-scp /tmp/rackula-lxc-test/rackula-lxc-vDEV-*.tar.gz root@<pve-host>:/tmp/
-
-# Inside the CT:
-mkdir -p /opt/rackula
-tar xzf /tmp/rackula-lxc-vDEV-*.tar.gz -C /opt/rackula --strip-components=1
-
-# Then run the install steps manually (or run rackula-install.sh with a patched
-# fetch step that points at /opt/rackula instead of fetching from GitHub).
-```
-
-### Verify the payload
-
-After deploying:
+Copy the tarball to your Proxmox host and run `scripts/lxc-smoke-test.sh`. It auto-allocates a
+throwaway CT (hostname `rackula-smoke-*`), runs the real `rackula-install.sh` against the
+payload, exercises the upgrade path, runs health/frontend/service checks, and tears the CT down
+(unless `--keep`). It refuses to touch any CT whose hostname lacks the `rackula-smoke-` prefix,
+so a real container is never at risk.
 
 ```bash
-# API responds
-curl -sf http://127.0.0.1:3001/health
+scp /tmp/rackula-lxc-test/rackula-lxc-*.tar.gz root@<pve-host>:/tmp/
+scp scripts/lxc-smoke-test.sh root@<pve-host>:/tmp/        # or clone the repo on the host
 
-# Frontend serves
-curl -sf http://127.0.0.1/
-
-# argon2 native module loads (Bun starts without crashing)
-bun /opt/rackula/api/src/index.ts &
-curl -sf http://127.0.0.1:3001/health
+# On the Proxmox host (root):
+./lxc-smoke-test.sh --tarball /tmp/rackula-lxc-vDEV-*.tar.gz          # deploy + upgrade (default)
+./lxc-smoke-test.sh --tarball /tmp/rackula-lxc-vDEV-*.tar.gz --mode deploy --keep
 ```
+
+Flags: `--mode deploy|upgrade|both`, `--baseline release|<tarball>` (upgrade-from payload,
+default the real latest release), `--storage`/`--bridge`/`--template` (auto-detected),
+`--keep` (skip teardown). Exit code is non-zero if any check fails.
+
+The upgrade test installs the baseline, seeds a marker in `/opt/rackula/data`, runs the real
+`update_script`, and verifies the marker survived.
+
+### How the override works
+
+`scripts/lxc-smoke-test.sh` deploys a local tarball by setting `RACKULA_PREBUILD_TARBALL` for
+the real install and update scripts. Both `install/rackula-install.sh` and the ct
+`update_script` honor it: when set to an existing tarball they extract that payload instead of
+calling `fetch_and_deploy_gh_release ... latest`, and `update_script` skips its
+`check_for_gh_release` version gate so the upgrade body runs. The override is inert when the
+variable is unset, so a normal release install is unaffected.
 
 ---
 
