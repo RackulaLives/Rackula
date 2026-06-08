@@ -133,9 +133,6 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache,mode=max
           build-args: |
             VITE_ENV=production
-            VITE_UMAMI_ENABLED=true
-            VITE_UMAMI_SCRIPT_URL=${{ vars.UMAMI_SCRIPT_URL }}
-            VITE_UMAMI_WEBSITE_ID=${{ vars.UMAMI_PROD_WEBSITE_ID }}
             APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
 
   build-persist:

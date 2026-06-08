@@ -110,9 +110,6 @@ jobs:
           no-cache: true
           build-args: |
             VITE_ENV=production
-            VITE_UMAMI_ENABLED=true
-            VITE_UMAMI_SCRIPT_URL=${{ vars.UMAMI_SCRIPT_URL }}
-            VITE_UMAMI_WEBSITE_ID=${{ vars.UMAMI_PROD_WEBSITE_ID }}
 
   build-persist:
     needs: [resolve]

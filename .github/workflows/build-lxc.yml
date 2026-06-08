@@ -85,7 +85,6 @@ jobs:
         env:
           VITE_ENV: production
           VITE_PERSIST_ENABLED: "true"
-          VITE_UMAMI_ENABLED: "false"
         run: |
           npm ci
           npm run build
