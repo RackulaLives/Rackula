@@ -8,7 +8,6 @@ import { getToastStore } from "$lib/stores/toast.svelte";
 import { getSelectionStore } from "$lib/stores/selection.svelte";
 import { getCanvasStore } from "$lib/stores/canvas.svelte";
 import { clearSession } from "$lib/utils/session-storage";
-import { analytics } from "$lib/utils/analytics";
 import type { Layout } from "$lib/types";
 import type { ImageStoreMap } from "$lib/types/images";
 import { loadSavedLayout, PersistenceError } from "./persistence-api";
@@ -69,8 +68,6 @@ export function finalizeLayoutLoad(
     toastStore.showToast("Layout loaded successfully", "success");
   }
 
-  // Track analytics
-  analytics.trackLoad(layoutStore.totalDeviceCount);
 }
 
 /**

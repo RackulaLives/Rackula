@@ -42,7 +42,6 @@
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { createKonamiDetector } from "$lib/utils/konami";
-  import { analytics } from "$lib/utils/analytics";
   import { persistenceDebug } from "$lib/utils/debug";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { generateShareUrl } from "$lib/utils/share";
@@ -423,7 +422,6 @@
     uiStore.toggleDisplayMode();
     layoutStore.updateDisplayMode(uiStore.displayMode);
     layoutStore.updateShowLabelsOnImages(uiStore.showLabelsOnImages);
-    analytics.trackDisplayModeToggle(uiStore.displayMode);
   }
 
   function handleToggleAnnotations() {

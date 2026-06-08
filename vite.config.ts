@@ -165,16 +165,6 @@ export default defineConfig(() => ({
     __GIT_DIRTY__: JSON.stringify(gitInfo.isDirty),
     // Environment indicator (development, production, or empty for local detection)
     __BUILD_ENV__: JSON.stringify(process.env.VITE_ENV || ""),
-    // Umami analytics configuration
-    __UMAMI_ENABLED__: JSON.stringify(
-      process.env.VITE_UMAMI_ENABLED === "true",
-    ),
-    __UMAMI_SCRIPT_URL__: JSON.stringify(
-      process.env.VITE_UMAMI_SCRIPT_URL || "",
-    ),
-    __UMAMI_WEBSITE_ID__: JSON.stringify(
-      process.env.VITE_UMAMI_WEBSITE_ID || "",
-    ),
     // Note: __PERSIST_ENABLED__ removed - API availability is now detected at runtime
     // See src/lib/stores/persistence.svelte.ts
   },

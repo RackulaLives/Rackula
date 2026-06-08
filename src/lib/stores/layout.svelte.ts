@@ -197,7 +197,7 @@ const hasRack = $derived(
 // rackCount returns actual count when user has started
 const rackCount = $derived(hasStarted ? layout.racks.length : 0);
 const canAddRack = $derived(layout.racks.length < MAX_RACKS);
-// Total devices across all racks (for analytics)
+// Total devices across all racks
 const totalDeviceCount = $derived(
   layout.racks.reduce((sum, r) => sum + r.devices.length, 0),
 );

@@ -19,7 +19,6 @@ import { getImageStore } from "$lib/stores/images.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { DRAWER_WIDTH } from "$lib/constants/layout";
 import { downloadYamlFile } from "$lib/utils/archive";
-import { analytics } from "$lib/utils/analytics";
 import { persistenceDebug } from "$lib/utils/debug";
 import { generateShareUrl } from "$lib/utils/share";
 import { generateQRCode, canFitInQR } from "$lib/utils/qrcode";
@@ -39,9 +38,6 @@ import type { ExportOptions } from "$lib/types";
 // Internal save status (kept for circuit breaker / health check logic, not exported)
 type SaveStatusInternal = "idle" | "saving" | "saved" | "error" | "offline" | "disabled";
 let _saveStatus = $state<SaveStatusInternal>("idle");
-
-// Diagnostic: tracks current layout UUID
-let _currentLayoutId = $state<string | undefined>(undefined);
 
 // Circuit breaker
 const MAX_SAVE_FAILURES = 3;
@@ -183,8 +179,7 @@ export async function handleSaveToServer(isManual = false): Promise<void> {
       serverSaveTimer = null;
     }
     const snapshot = structuredClone($state.snapshot(layoutStore.layout));
-    const newId = await saveLayoutToServer(snapshot);
-    _currentLayoutId = newId;
+    await saveLayoutToServer(snapshot);
     _consecutiveSaveFailures = 0;
     setApiAvailable(true);
     _saveStatus = "saved";
@@ -194,7 +189,6 @@ export async function handleSaveToServer(isManual = false): Promise<void> {
     }
     layoutStore.markClean();
     clearSession();
-    analytics.trackSave(layoutStore.totalDeviceCount);
     if (isManual) {
       toastStore.showToast("Layout saved", "success", 3000);
     }
@@ -217,7 +211,6 @@ export async function handleSaveAsArchive(): Promise<void> {
     layoutStore.markClean();
     clearSession();
     toastStore.showToast(`Saved ${filename}`, "success", 3000);
-    analytics.trackSave(layoutStore.totalDeviceCount);
     if (dialogStore.pendingSaveFirst) {
       dialogStore.pendingSaveFirst = false;
       resetAndOpenNewRack();
@@ -297,7 +290,6 @@ export function handleShare(): void {
     return;
   }
   dialogStore.open("share");
-  analytics.trackShare(layoutStore.totalDeviceCount);
 }
 
 export async function handleExportSubmit(
@@ -351,7 +343,6 @@ export async function handleExportSubmit(
           generateExportFilename(layoutName, exportView, "svg"),
         );
         toastStore.showToast("SVG exported successfully", "success");
-        analytics.trackExportImage("svg", exportView);
       },
       png: async (svgEl, layoutName, exportView) => {
         const blob = await exportAsPNG(svgEl);
@@ -360,7 +351,6 @@ export async function handleExportSubmit(
           generateExportFilename(layoutName, exportView, "png"),
         );
         toastStore.showToast("PNG exported successfully", "success");
-        analytics.trackExportImage("png", exportView);
       },
       jpeg: async (svgEl, layoutName, exportView) => {
         const blob = await exportAsJPEG(svgEl);
@@ -369,7 +359,6 @@ export async function handleExportSubmit(
           generateExportFilename(layoutName, exportView, "jpeg"),
         );
         toastStore.showToast("JPEG exported successfully", "success");
-        analytics.trackExportImage("jpeg", exportView);
       },
       pdf: async (svgEl, layoutName, exportView) => {
         const svgString = exportAsSVG(svgEl);
@@ -379,7 +368,6 @@ export async function handleExportSubmit(
           generateExportFilename(layoutName, exportView, "pdf"),
         );
         toastStore.showToast("PDF exported successfully", "success");
-        analytics.trackExportPDF(exportView);
       },
     };
 
@@ -402,7 +390,6 @@ export async function handleExportSubmit(
           ? `CSV exported (first rack only - "${firstRack.name}")`
           : "CSV exported successfully";
       toastStore.showToast(successMsg, "success");
-      analytics.trackExportCSV();
     }
   } catch (error) {
     persistenceDebug.api("Export failed: %O", error);
@@ -474,8 +461,7 @@ export function initPersistenceEffects(): void {
     serverSaveTimer = setTimeout(async () => {
       _saveStatus = "saving";
       try {
-        const newId = await saveLayoutToServer(snapshot);
-        _currentLayoutId = newId;
+        await saveLayoutToServer(snapshot);
         _consecutiveSaveFailures = 0;
         _saveStatus = "saved";
         if (_errorToastId) {
@@ -523,7 +509,6 @@ export function initPersistenceEffects(): void {
 }
 
 export function resetPersistenceManager(): void {
-  _currentLayoutId = undefined;
   _saveStatus = "idle";
   _consecutiveSaveFailures = 0;
   if (_errorToastId) {

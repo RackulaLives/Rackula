@@ -11,7 +11,6 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { formatShortcut } from "$lib/utils/platform";
-  import { analytics } from "$lib/utils/analytics";
   import {
     formatRelativeTime,
     formatFullTimestamp,
@@ -29,16 +28,12 @@
 
   /**
    * Handle dialog open state changes.
-   * Tracks analytics and calls onclose callback when dialog closes.
    * Important: Set open state FIRST to ensure bits-ui state stays in sync
    * before triggering parent callbacks that may cause re-renders.
    */
   function handleOpenChange(newOpen: boolean) {
     open = newOpen;
-    if (newOpen) {
-      analytics.trackPanelOpen("help");
-    } else {
-      analytics.trackPanelClose("help");
+    if (!newOpen) {
       onclose?.();
     }
   }

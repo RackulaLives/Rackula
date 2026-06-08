@@ -16,7 +16,6 @@
   import { downloadBlob } from "$lib/utils/export";
   import { buildYamlFilename } from "$lib/utils/folder-structure";
   import { getToastStore } from "$lib/stores/toast.svelte";
-  import { analytics } from "$lib/utils/analytics";
   import type { Layout } from "$lib/types";
 
   // Threshold is checked against the full URL (encoded payload + ~30-char static prefix),
@@ -32,7 +31,6 @@
   let { open, layout, onclose }: Props = $props();
 
   function handleClose() {
-    analytics.trackPanelClose("share");
     onclose?.();
   }
 
@@ -49,10 +47,9 @@
   let qrError = $state<string | null>(null);
   let isGeneratingQR = $state(false);
 
-  // Generate QR code when dialog opens and track panel open
+  // Generate QR code when dialog opens
   $effect(() => {
     if (open) {
-      analytics.trackPanelOpen("share");
       if (fitsInQR) {
         generateQR();
       }

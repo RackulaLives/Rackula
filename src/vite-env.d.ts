@@ -6,7 +6,4 @@ declare const __COMMIT_HASH__: string;
 declare const __BRANCH_NAME__: string;
 declare const __GIT_DIRTY__: boolean;
 declare const __BUILD_ENV__: string;
-declare const __UMAMI_ENABLED__: boolean;
-declare const __UMAMI_SCRIPT_URL__: string;
-declare const __UMAMI_WEBSITE_ID__: string;
 // Note: __PERSIST_ENABLED__ removed - API availability is now detected at runtime

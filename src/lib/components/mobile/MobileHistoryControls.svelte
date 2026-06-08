@@ -5,7 +5,6 @@
 <script lang="ts">
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
-  import { analytics } from "$lib/utils/analytics";
   import { appDebug } from "$lib/utils/debug";
   import { hapticTap } from "$lib/utils/haptics";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
@@ -34,7 +33,6 @@
     appDebug.mobile("mobile undo applied");
 
     hapticTap();
-    analytics.trackToolbarClick("undo");
   }
 
   function handleRedo() {
@@ -53,7 +51,6 @@
     appDebug.mobile("mobile redo applied");
 
     hapticTap();
-    analytics.trackToolbarClick("redo");
   }
 </script>
 

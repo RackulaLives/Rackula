@@ -26,7 +26,6 @@
   import type { DisplayMode } from "$lib/types";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
-  import { analytics } from "$lib/utils/analytics";
 
   interface Props {
     hasRacks?: boolean;
@@ -123,7 +122,6 @@
     const desc = layoutStore.undoDescription?.replace("Undo: ", "") ?? "action";
     layoutStore.undo();
     toastStore.showToast(`Undid: ${desc}`, "info");
-    analytics.trackToolbarClick("undo");
   }
 
   function handleRedo() {
@@ -131,106 +129,85 @@
     const desc = layoutStore.redoDescription?.replace("Redo: ", "") ?? "action";
     layoutStore.redo();
     toastStore.showToast(`Redid: ${desc}`, "info");
-    analytics.trackToolbarClick("redo");
   }
 
   function handleSave() {
-    analytics.trackToolbarClick("save");
     onsave?.();
   }
 
   function handleSaveAs() {
-    analytics.trackToolbarClick("save-as");
     onsaveas?.();
   }
 
   function handleLoad() {
-    analytics.trackToolbarClick("load");
     onload?.();
   }
 
   function handleExport() {
-    analytics.trackToolbarClick("export");
     onexport?.();
   }
 
   function handleShare() {
-    analytics.trackToolbarClick("share");
     onshare?.();
   }
 
   function handleViewYaml() {
-    analytics.trackToolbarClick("view-yaml");
     onviewyaml?.();
   }
 
   function handleImportDevices() {
-    analytics.trackToolbarClick("import-devices");
     onimportdevices?.();
   }
 
   function handleImportNetBox() {
-    analytics.trackToolbarClick("import-netbox");
     onimportnetbox?.();
   }
 
   function handleNewCustomDevice() {
-    analytics.trackToolbarClick("new-custom-device");
     onnewcustomdevice?.();
   }
 
   function handleLayouts() {
-    analytics.trackToolbarClick("layouts");
     onlayouts?.();
   }
 
   function handleFitAll() {
-    analytics.trackToolbarClick("fit-all");
     onfitall?.();
   }
 
   function handleToggleTheme() {
-    analytics.trackToolbarClick("theme");
     ontoggletheme?.();
   }
 
   function handleToggleDisplayMode() {
-    analytics.trackToolbarClick("display-mode");
     ontoggledisplaymode?.();
   }
 
   function handleToggleAnnotations() {
-    analytics.trackToolbarClick("annotations");
     ontoggleannotations?.();
   }
 
   function handleToggleBanana() {
-    analytics.trackToolbarClick("banana");
     ontogglebanana?.();
   }
 
   function handleToggleCompatibleOnly() {
-    analytics.trackToolbarClick("compatible-only");
     ontogglecompatibleonly?.();
   }
 
   function handleToggleWarnUnsaved() {
-    analytics.trackToolbarClick("warn-unsaved");
     ontogglewarnunsaved?.();
   }
 
   function handleTogglePromptCleanup() {
-    analytics.trackToolbarClick("prompt-cleanup");
     ontogglepromptcleanup?.();
   }
 
   function handleOpenCleanup() {
-    analytics.trackToolbarClick("open-cleanup");
     onopencleanup?.();
   }
 
   function handleHelp() {
-    analytics.trackToolbarClick("help");
     onhelp?.();
   }
 

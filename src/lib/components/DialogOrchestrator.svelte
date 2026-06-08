@@ -54,7 +54,6 @@
 
   import { clearSession } from "$lib/utils/session-storage";
   import { parseDeviceLibraryImport } from "$lib/utils/import";
-  import { analytics } from "$lib/utils/analytics";
   import { hapticTap } from "$lib/utils/haptics";
   import { appDebug, dialogDebug } from "$lib/utils/debug";
   import type { ImageData } from "$lib/types/images";
@@ -343,7 +342,6 @@
       imageStore.setDeviceImage(device.slug, "rear", data.rearImage);
     }
 
-    analytics.trackCustomDeviceCreate(data.category);
     toastStore.showToast(`"${data.name}" added to device library`, "success");
     dialogStore.close();
   }
@@ -357,7 +355,6 @@
   function handleNetBoxImport(result: ImportResult) {
     layoutStore.addDeviceTypeRaw(result.deviceType);
     layoutStore.markDirty();
-    analytics.trackCustomDeviceCreate(result.deviceType.category);
     toastStore.showToast(
       `Imported "${result.deviceType.model}" to device library`,
       "success",
@@ -395,8 +392,6 @@
         layoutStore.addDeviceTypeRaw(deviceType);
       }
       layoutStore.markDirty();
-
-      analytics.trackPaletteImport();
 
       const message =
         result.skipped > 0
@@ -544,7 +539,6 @@
     uiStore.setDisplayMode(mode);
     layoutStore.updateDisplayMode(uiStore.displayMode);
     layoutStore.updateShowLabelsOnImages(uiStore.showLabelsOnImages);
-    analytics.trackDisplayModeToggle(uiStore.displayMode);
   }
 
   function handleSetAnnotations(enabled: boolean) {

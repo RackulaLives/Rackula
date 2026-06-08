@@ -21,7 +21,6 @@
   import Shimmer from "./Shimmer.svelte";
   import Checkbox from "./Checkbox.svelte";
   import { generateExportSVG, generateExportFilename } from "$lib/utils/export";
-  import { analytics } from "$lib/utils/analytics";
   import { SvelteSet } from "svelte/reactivity";
 
   /**
@@ -329,7 +328,6 @@
   }
 
   function handleCancel() {
-    analytics.trackPanelClose("export");
     oncancel?.();
   }
 
@@ -374,10 +372,9 @@
     previewIndex = Math.min(selectedRacksArray.length - 1, previewIndex + 1);
   }
 
-  // Add/remove event listener based on open state and track panel open
+  // Add/remove event listener based on open state
   $effect(() => {
     if (open) {
-      analytics.trackPanelOpen("export");
       window.addEventListener("keydown", handleKeyDown);
       return () => {
         window.removeEventListener("keydown", handleKeyDown);

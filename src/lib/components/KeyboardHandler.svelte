@@ -15,7 +15,6 @@
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { findNextValidPosition } from "$lib/utils/device-movement";
   import { toHumanUnits } from "$lib/utils/position";
-  import { analytics } from "$lib/utils/analytics";
   import type { SlotPosition } from "$lib/types";
   import { findDeviceType } from "$lib/utils/device-lookup";
 
@@ -492,17 +491,6 @@
     }
   }
 
-  /**
-   * Format a shortcut for analytics tracking
-   */
-  function formatShortcutName(shortcut: ShortcutHandler): string {
-    const parts: string[] = [];
-    if (shortcut.ctrl || shortcut.meta) parts.push("Ctrl");
-    if (shortcut.shift) parts.push("Shift");
-    parts.push(shortcut.key.toUpperCase());
-    return parts.join("+");
-  }
-
   function handleKeyDown(event: KeyboardEvent) {
     // Ignore if in input field
     if (shouldIgnoreKeyboard(event)) return;
@@ -513,10 +501,6 @@
       if (matchesShortcut(event, shortcut)) {
         event.preventDefault();
         shortcut.action();
-
-        // Track shortcut usage (only for meaningful actions)
-        const shortcutName = formatShortcutName(shortcut);
-        analytics.trackKeyboardShortcut(shortcutName);
 
         return;
       }
