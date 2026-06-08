@@ -50,6 +50,15 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
+          # Reject newline/CR first: grep matches line-by-line, so a multiline value
+          # whose first line is valid CalVer would otherwise pass and then flow into the
+          # checkout ref, tarball filenames, and gh release calls.
+          case "$VERSION" in
+            *$'\n'*|*$'\r'*)
+              echo "ERROR: Version must not contain newline or CR characters"
+              exit 1
+              ;;
+          esac
           if ! echo "$VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "ERROR: Version '$VERSION' does not match expected format vYY.M.MICRO (e.g. v26.6.0)"
             exit 1
