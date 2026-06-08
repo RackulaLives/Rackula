@@ -216,24 +216,44 @@ jobs:
           echo "Frontend health gate passed"
           docker compose -f docker-compose.yml down
 
-      - name: Persist image round-trip (/api/health)
+      - name: Persist profile round-trip (/api/health via proxy)
         env:
-          PERSIST_IMAGE: ghcr.io/${{ env.IMAGE_NAME_LC }}:v${{ needs.validate.outputs.version }}-persist
+          # The persist FRONTEND image (nginx proxies /api/ to the api sidecar).
+          RACKULA_IMAGE: ghcr.io/${{ env.IMAGE_NAME_LC }}:v${{ needs.validate.outputs.version }}-persist
+          # The api sidecar image that actually serves /api/health.
+          RACKULA_API_IMAGE: ghcr.io/${{ env.IMAGE_NAME_LC }}-api:${{ needs.validate.outputs.version }}
+          RACKULA_PORT: 127.0.0.1:8080
         run: |
-          docker pull "$PERSIST_IMAGE"
-          docker run -d --name rackula-persist-gate -p 127.0.0.1:8090:8080 \
-            -e ALLOW_INSECURE_CORS=true "$PERSIST_IMAGE"
+          # /api/health is served by the rackula-api sidecar and reverse-proxied by
+          # nginx in the persist frontend container, so a single container cannot
+          # answer it. Bring up the compose persist profile with BOTH staged images.
+          # Pull explicitly first so a missing staged image fails the gate loudly.
+          docker compose --profile persist pull
+          docker compose --profile persist up -d
           ok=""
           attempt=0
           while [ "$attempt" -lt 30 ]; do
-            if curl -sf http://localhost:8090/api/health >/dev/null; then ok=1; break; fi
+            if curl -sf http://localhost:8080/api/health >/dev/null; then ok=1; break; fi
             attempt=$((attempt + 1))
             sleep 3
           done
-          docker logs rackula-persist-gate || true
-          docker rm -f rackula-persist-gate >/dev/null 2>&1 || true
-          [ -n "$ok" ] || { echo "::error::Persist image /api/health did not return 200"; exit 1; }
+          if [ -z "$ok" ]; then
+            echo "::error::Persist profile /api/health did not return 200 through the proxy"
+            docker compose --profile persist logs
+            docker compose --profile persist down -v
+            exit 1
+          fi
+          # Round-trip through the proxy: API reachable via /api/health AND the
+          # persist frontend served on /.
+          curl -sf http://localhost:8080/api/health >/dev/null
+          curl -sf http://localhost:8080/ >/dev/null || {
+            echo "::error::Persist frontend did not serve / on :8080"
+            docker compose --profile persist logs
+            docker compose --profile persist down -v
+            exit 1
+          }
           echo "Persist round-trip gate passed"
+          docker compose --profile persist down -v
 
   # GATE: deploy the staged LXC tarball onto a throwaway unprivileged CT on the
   # non-prod Proxmox (pve-rusty self-hosted runner) and smoke-test it. No creds.
