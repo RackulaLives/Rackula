@@ -40,16 +40,14 @@ Use the `build-lxc-dev.yml` workflow to build a tarball from any branch or SHA a
 
 ### Trigger a dev build
 
-In the GitHub Actions UI, run "Build LXC Tarball (dev)" (`build-lxc-dev.yml`) with:
+In the GitHub Actions UI, open "Build LXC Tarball (dev)" (`build-lxc-dev.yml`), pick the
+branch or tag to build from the "Use workflow from" dropdown, and optionally set a custom
+**version** label (defaults to `vDEV-<sha>`).
 
-- **ref**: the branch or SHA to build (e.g. `main` or a feature branch)
-- **version**: leave empty (auto-computes `vDEV-<sha>`), or set a custom label
-
-Or with the `gh` CLI:
+Or with the `gh` CLI (`--ref` selects the branch or tag to build from):
 
 ```bash
-gh workflow run build-lxc-dev.yml \
-  --field ref=main
+gh workflow run build-lxc-dev.yml --ref my-feature-branch
 ```
 
 ### Download the artifact

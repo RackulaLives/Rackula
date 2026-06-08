@@ -1,24 +1,19 @@
 name: Build LXC Tarball (dev)
 
-# Builds a self-contained LXC tarball (frontend + API + config) from any branch, tag,
-# or SHA for development payload testing, WITHOUT touching a release.
+# Builds a self-contained LXC tarball (frontend + API + config) from the branch or tag the
+# run is dispatched on, for development payload testing, WITHOUT touching a release.
 #
 # This is the dev counterpart to build-lxc.yml. It is intentionally separate and
-# unprivileged: the whole workflow is contents: read with no publish job, so checking
-# out an arbitrary requested ref and running its dependency code (npm ci, bun install)
-# never happens in a context that can write to the repo or reach release secrets.
-# workflow_dispatch also requires write access to trigger.
+# unprivileged: the whole workflow is contents: read with no publish job. It checks out the
+# dispatched ref (github.ref) rather than a ref passed as an input, so there is no
+# untrusted-checkout surface. Pick the branch/tag in the Actions "Run workflow" dropdown, or
+# with the gh CLI:  gh workflow run build-lxc-dev.yml --ref <branch-or-tag>
 #
-# The tarball is uploaded as a downloadable run artifact only, labelled vDEV-<sha> when
-# no explicit label is given. See docs/deployment/LXC-TESTING.md.
+# The tarball is uploaded as a downloadable run artifact only, labelled vDEV-<sha> when no
+# explicit label is given. See docs/deployment/LXC-TESTING.md.
 on:
   workflow_dispatch:
     inputs:
-      ref:
-        description: "Branch, tag, or SHA to build from (default: main)"
-        required: false
-        default: "main"
-        type: string
       version:
         description: "Artifact label (default: vDEV-<sha>). Allowed chars: A-Z a-z 0-9 . _ -"
         required: false
@@ -27,9 +22,9 @@ on:
 permissions:
   contents: read
 
-# Serialise per ref so concurrent dispatches on the same branch do not clobber each other.
+# Serialise per dispatched ref so concurrent dispatches on the same branch do not clobber.
 concurrency:
-  group: build-lxc-dev-${{ inputs.ref || 'main' }}
+  group: build-lxc-dev-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -37,27 +32,26 @@ jobs:
     name: Build LXC tarball (dev)
     runs-on: ubuntu-latest
     steps:
-      - name: Validate inputs
+      - name: Validate label
         env:
           INPUT_VERSION: ${{ inputs.version }}
-          INPUT_REF: ${{ inputs.ref }}
         run: |
-          # Reject newline/CR so user input cannot inject extra lines into $GITHUB_OUTPUT.
-          case "${INPUT_VERSION}${INPUT_REF}" in
+          # Reject newline/CR so the label cannot inject extra lines into $GITHUB_OUTPUT,
+          # and keep it filename-safe (it becomes part of the tarball name).
+          case "$INPUT_VERSION" in
             *$'\n'*|*$'\r'*)
-              echo "ERROR: ref/version inputs must not contain newline or CR characters"
+              echo "ERROR: version label must not contain newline or CR characters"
               exit 1
               ;;
           esac
-          # Keep the label filename-safe (it becomes part of the tarball name).
           if [ -n "$INPUT_VERSION" ] && ! echo "$INPUT_VERSION" | grep -qE '^[A-Za-z0-9._-]+$'; then
             echo "ERROR: version label may only contain A-Z a-z 0-9 . _ -"
             exit 1
           fi
 
+      # No ref input: checks out the ref the run was dispatched on (github.ref).
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          ref: ${{ inputs.ref }}
           persist-credentials: false
 
       - name: Compute version
