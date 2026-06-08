@@ -159,27 +159,29 @@ The approval gate means you review the PR diff before code executes on your home
 
 ### Current Runner Allocation
 
-| Runner | Host | Labels | Trust | Jobs |
-|--------|------|--------|-------|------|
-| `ubuntu-latest` | GitHub | `ubuntu-latest` | Ephemeral/untrusted | test, build, scan, lint |
-| `vps-rackula` | Vultr VPS | `[self-hosted, vps-rackula]` | Semi-trusted | deploy-dev smoke, deploy-prod smoke |
-| `ci-runner` | pve-rusty VM | `[self-hosted, Linux, X64, pve-rusty, ci-runner]` | Trusted (maintainer) | LXC gate (planned) |
+| Runner | Host | OS | Labels | Trust | Jobs |
+|--------|------|----|--------|-------|------|
+| `ubuntu-latest` | GitHub | Ubuntu (ephemeral) | `ubuntu-latest` | Ephemeral/untrusted | test, build, scan, lint |
+| `vps-rackula` | Vultr VPS | Debian 12 | `[self-hosted, vps-rackula]` | Semi-trusted | deploy-dev smoke, deploy-prod smoke |
+| `ci-runner` | pve-rusty VM | **Debian 13** (trixie) | `[self-hosted, Linux, X64, pve-rusty, ci-runner]` | Trusted (maintainer) | LXC gate, E2E (approval-gated) |
+
+**Note on OS choice:** The ci-runner runs Debian 13 (trixie), which is lighter than Ubuntu for a CI runner role (no snap, no cloud-init bloat, minimal install). The GH-hosted `ubuntu-latest` runner stays as-is -- it's ephemeral, has excellent Playwright dependency support, and there's no security concern since it's destroyed after each job. The self-hosted runner deliberately avoids Ubuntu to reduce attack surface and disk usage.
 
 ### Recommended Runner Allocation
 
-| Job | Runner | Environment | Trust Level |
-|-----|--------|-------------|-------------|
-| PR validate (lint + unit + smoke) | `ubuntu-latest` | none | Untrusted (all PRs) |
-| PR full E2E (ggfevans/org) | `[self-hosted, ci-runner]` | `e2e-trusted` | Trusted (auto-run) |
-| PR full E2E (external) | `[self-hosted, ci-runner]` | `e2e-approval` | Approved (manual gate) |
-| Full E2E (weekly, tag push) | `ubuntu-latest` | none | Trusted (workflow_call from release) |
-| CodeQL + Trivy | `ubuntu-latest` | none | Untrusted (PR-triggered) |
-| Docker build (multi-arch) | `ubuntu-latest` | none | Needs QEMU |
-| LXC tarball build | `ubuntu-latest` | none | Standard build |
-| LXC smoke-test gate | `[self-hosted, ci-runner]` | none | Trusted (tag push only) |
-| Deploy dev | `[self-hosted, vps-rackula]` | none | Trusted (main push) |
-| Deploy prod | `[self-hosted, vps-rackula]` | `prod` | Trusted (tag push + reviewer) |
-| Post-deploy smoke | `[self-hosted, vps-rackula]` | none | Trusted (after deploy) |
+| Job | Runner | OS | Environment | Trust Level |
+|-----|--------|----|-------------|-------------|
+| PR validate (lint + unit + smoke) | `ubuntu-latest` | Ubuntu (ephemeral) | none | Untrusted (all PRs) |
+| PR full E2E (ggfevans/org) | `[self-hosted, ci-runner]` | Debian 13 | `e2e-trusted` | Trusted (auto-run) |
+| PR full E2E (external) | `[self-hosted, ci-runner]` | Debian 13 | `e2e-approval` | Approved (manual gate) |
+| Full E2E (weekly, tag push) | `ubuntu-latest` | Ubuntu (ephemeral) | none | Trusted (workflow_call from release) |
+| CodeQL + Trivy | `ubuntu-latest` | Ubuntu (ephemeral) | none | Untrusted (PR-triggered) |
+| Docker build (multi-arch) | `ubuntu-latest` | Ubuntu (ephemeral) | none | Needs QEMU |
+| LXC tarball build | `ubuntu-latest` | Ubuntu (ephemeral) | none | Standard build |
+| LXC smoke-test gate | `[self-hosted, ci-runner]` | Debian 13 | none | Trusted (tag push only) |
+| Deploy dev | `[self-hosted, vps-rackula]` | Debian 12 | none | Trusted (main push) |
+| Deploy prod | `[self-hosted, vps-rackula]` | Debian 12 | `prod` | Trusted (tag push + reviewer) |
+| Post-deploy smoke | `[self-hosted, vps-rackula]` | Debian 12 | none | Trusted (after deploy) |
 
 ### VPS Elimination (#1983) Impact
 
