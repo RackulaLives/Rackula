@@ -39,6 +39,13 @@ jobs:
       - name: Run unit tests
         run: npm run test:run
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@5a3ec84eff668545956fd18022116c7e1101b2f2 # v4.2.2
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-webkit-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-chromium-webkit-
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium webkit
 
