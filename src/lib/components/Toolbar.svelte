@@ -99,6 +99,17 @@
   // Inline layout name editing state
   let isEditingName = $state(false);
   let editNameValue = $state("");
+  let nameInputElement = $state<HTMLInputElement | null>(null);
+
+  // Focus the rename input when it appears (replaces autofocus attribute)
+  $effect(() => {
+    if (!isEditingName) return;
+    const frame = requestAnimationFrame(() => {
+      nameInputElement?.focus();
+      nameInputElement?.select();
+    });
+    return () => cancelAnimationFrame(frame);
+  });
 
   // View mode labels for tooltip
   const displayModeLabels: Record<DisplayMode, string> = {
@@ -269,6 +280,7 @@
     <div class="toolbar-section toolbar-name" data-testid="layout-name">
       {#if isEditingName}
         <input
+          bind:this={nameInputElement}
           class="toolbar-name-input"
           type="text"
           bind:value={editNameValue}
@@ -276,7 +288,6 @@
           onblur={() => isEditingName && commitName()}
           aria-label="Layout name"
           data-testid="layout-name-input"
-          autofocus
         />
       {:else}
         <button
