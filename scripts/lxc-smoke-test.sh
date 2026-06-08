@@ -181,10 +181,13 @@ run_install() {
   else
     info "installing baseline (real latest-release fetch) via rackula-install.sh"
   fi
+  # No errexit/nounset: the framework runs install.sh without them and install.sh
+  # self-manages via catch_errors. app/APPLICATION are framework vars its motd/cleanup
+  # tail references; provide them so the tail does not trip on an unset value.
   pct exec "$id" -- bash -c "
-    set -euo pipefail
+    set -o pipefail
     export FUNCTIONS_FILE_PATH=\"\$(cat /root/install.func)\"
-    export tz=\"\${tz:-Etc/UTC}\"
+    export app=rackula APPLICATION=Rackula tz=\"\${tz:-Etc/UTC}\"
     $pre
     bash /root/rackula-install.sh
   "
