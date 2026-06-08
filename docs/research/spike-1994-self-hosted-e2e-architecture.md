@@ -8,81 +8,110 @@
 
 ## Executive Summary
 
-**Decision: PR-triggered E2E tests stay on GitHub-hosted runners. The ci-runner is reserved for trusted-actor jobs only.**
+**Decision: E2E tests run on the ci-runner with a two-tier trust model. Your PRs auto-run; external PRs require your approval.**
 
-The spike's original question -- "How should Rackula migrate E2E testing from GitHub-hosted to self-hosted?" -- has a clear answer: **don't**. Public repositories get unlimited GitHub Actions minutes at zero cost. Moving PR-triggered E2E to a self-hosted runner would introduce an unacceptable attack surface for zero dollar savings.
+The spike's original question -- "How should Rackula migrate E2E testing from GitHub-hosted to self-hosted?" -- is answered with a **two-tier model** using GitHub Environments:
 
-Instead, the real optimizations are **Playwright browser caching** (done, saves ~55s per PR run) and **CI pipeline tuning** (sharding, retry reduction, parallel jobs), which together can cut PR gate time by ~40% and weekly full-suite time by ~60%. See the [CI Performance Analysis](#ci-performance-analysis) section for details.
+1. **Trusted tier (auto-run):** PRs from `ggfevans` and RackulaLives org members use the `e2e-trusted` environment, which has no required reviewers. The full E2E suite (chromium + webkit + mobile) runs on `ci-runner` automatically.
 
-The ci-runner (VMID 300, pve-rusty) should remain exclusively for trusted-actor jobs: the LXC smoke-test gate (#1977) and potentially enriched post-deploy smoke tests (#567).
+2. **Approval tier (manual gate):** PRs from external contributors use the `e2e-approval` environment, which requires `ggfevans` as a required reviewer. The job pauses until you review the PR diff and click approve. This prevents untrusted code from executing on the homelab VM without your explicit consent.
+
+3. **Fallback (always):** All PRs also run the chromium smoke test on `ubuntu-latest` as a baseline. The self-hosted job is additive -- it provides broader browser coverage on top of the GH-hosted smoke.
+
+Implementation uses GitHub's built-in Environment protection rules -- no custom code, full audit trail. The workflow selects the environment dynamically based on the PR source:
+
+```yaml
+e2e-self-hosted:
+  runs-on: [self-hosted, ci-runner]
+  environment: ${{ github.event.pull_request.head.repo.full_name == 'RackulaLives/Rackula' && 'e2e-trusted' || 'e2e-approval' }}
+```
+
+This means the ci-runner is only used for PRs you've implicitly trusted (your own) or explicitly approved. No unattended self-hosted CI for untrusted code.
+
+The real performance optimizations are **Playwright browser caching** (done, saves ~55s per PR run) and **CI pipeline tuning** (sharding, retry reduction, parallel jobs), which together can cut PR gate time by ~40% and weekly full-suite time by ~60%. See the [CI Performance Analysis](#ci-performance-analysis) section for details.
 
 ---
 
 ## Security Analysis
 
-### Why Self-Hosted Runners on Public Repos Are Dangerous
+### Self-Hosted Runners on Public Repos: Risks and Mitigations
 
 GitHub's own documentation warns: **"We recommend that you do not use self-hosted runners for public repositories."** The attack model is straightforward:
 
-| Vector | Description | Severity |
-|--------|-------------|----------|
-| Arbitrary code execution | `npm ci` + `npx playwright install` runs any postinstall script from any dependency | Critical |
-| PR author trust | Direct repo collaborators bypass fork-PR approval entirely | High |
-| Lateral movement | ci-runner is on pve-rusty, same host as production workloads | High |
-| Secret exfiltration | Environment variables, runner tokens accessible to `ci` user | High |
-| Supply chain | Compromised npm package executes in runner context | Medium |
+| Vector | Description | Severity | Mitigated By |
+|--------|-------------|----------|-------------|
+| Arbitrary code execution | `npm ci` + `npx playwright install` runs any postinstall script | Critical | Environment approval gate |
+| PR author trust | Direct repo collaborators bypass fork-PR approval | High | Trusted-actor bypass only for ggfevans |
+| Lateral movement | ci-runner on pve-rusty, same host as production | High | Approval gate limits exposure window |
+| Secret exfiltration | Environment variables, runner tokens accessible | High | Approval gate + ephemeral runner pattern |
+| Supply chain | Compromised npm package executes in runner context | Medium | Approval gate + dependency review before approving |
 
-### Why #1977 Mitigations Don't Apply Here
+**The two-tier model addresses these risks:**
 
-The gated release pipeline (#1977) has specific mitigations designed for **trusted-actor** jobs:
+| Risk Tier | Environment | Who Can Trigger | Approval Required | Runner |
+|-----------|-------------|-----------------|-------------------|--------|
+| Trusted | `e2e-trusted` | ggfevans, org members | No (auto-runs) | ci-runner |
+| Approval | `e2e-approval` | Any external contributor | Yes (ggfevans reviews) | ci-runner |
+| Baseline | none | Everyone | No | ubuntu-latest (ephemeral) |
 
-| Mitigation | LXC Gate (tag push) | PR E2E (any PR) |
-|------------|---------------------|------------------|
-| Fork-PR approval policy | Protects against unknown actors | Irrelevant for direct collaborators |
-| Orchestrator-only triggers | Yes, tag push only | No, triggered by any PR |
-| Label confinement (`pve-rusty`) | Single gate job | Any `runs-on: [self-hosted]` job matches |
-| Non-root `ci` user | Reduces privilege escalation | Doesn't prevent data exfiltration |
-| Disposable VM | VM can be recreated after compromise | Not disposable between PRs (state persists) |
+**Key property:** No code runs on ci-runner without either (a) coming from a trusted author, or (b) being explicitly reviewed and approved by a trusted author. This is the same trust model as clicking "Merge" on a PR.
 
-The fundamental difference: the LXC gate runs only when a maintainer pushes a tag (trusted event). PR E2E runs for **every pull request** (untrusted event).
+### Why the Two-Tier Model Works
+
+The original #1977 mitigations were designed for **trusted-actor** jobs (tag push by maintainer). The two-tier E2E model extends this:
+
+| Mitigation | LXC Gate (tag push) | Trusted E2E (ggfevans PR) | Approval E2E (external PR) |
+|------------|---------------------|---------------------------|----------------------------|
+| Trigger | Tag push only | PR from org member | PR from external contributor |
+| Approval | N/A (trusted actor) | N/A (trusted actor) | ggfevans must review and approve |
+| Label confinement | `pve-rusty` on gate job only | `ci-runner` on E2E job only | `ci-runner` on E2E job only |
+| Non-root `ci` user | Yes | Yes | Yes |
+| Audit trail | GitHub Actions log | GitHub Actions log | GitHub Actions log + approval record |
+
+The approval gate means you review the PR diff before code executes on your homelab VM. This is equivalent to code review before merge -- you wouldn't merge untrusted code without reviewing it either.
 
 ### Trust Boundary Model
 
 ```
-                        TRUST BOUNDARY
-                        ═══════════════
-                              
-  UNTRUSTED CODE                    TRUSTED ACTORS
-  ─────────────                    ───────────────
-  Any PR author                    Maintainer tag push
-  Any fork PR                      Deploy pipeline
-  Any npm dependency               LXC smoke test
-                              
-  ┌─────────────────┐              ┌─────────────────┐
-  │  ubuntu-latest   │              │   ci-runner      │
-  │  (ephemeral)     │              │   (pve-rusty)    │
-  │                  │              │                  │
-  │  test.yml        │              │  release.yml     │
-  │  test-full.yml   │              │  (LXC gate)      │
-  │  codeql.yml      │              │                  │
-  │  trivy.yml       │              │  deploy-prod.yml │
-  │  build-lxc.yml   │              │  (future: rich   │
-  │  octocov.yml     │              │   smoke test)    │
-  │  ...             │              │                  │
-  └─────────────────┘              └─────────────────┘
-                                         ▲
-                                         │
-  ┌─────────────────┐                    │ (VPS runner,
-  │  vps-rackula     │────────────────────┘  to be eliminated
-  │  (Vultr VPS)     │                       per #1983)
-  │                  │
-  │  deploy-dev.yml  │
-  │  deploy-prod.yml │
-  │  (smoke tests)   │
+              APPROVAL GATE
+              ══════════════
+     External PRs require ggfevans approval
+     before any code runs on ci-runner
+
+  ┌──────────────────────────────────────────────────────┐
+  │                  ALL PRs (baseline)                   │
+  │                                                      │
+  │  ┌─────────────────┐                                 │
+  │  │  ubuntu-latest   │  Chromium smoke test            │
+  │  │  (ephemeral)     │  (always runs, no approval)    │
+  │  └─────────────────┘                                 │
+  │                                                      │
+  │  ┌─────────────────────────────────────────────┐     │
+  │  │  ci-runner (pve-rusty)                      │     │
+  │  │                                              │     │
+  │  │  ┌──────────────────┐  ┌──────────────────┐  │     │
+  │  │  │  e2e-trusted     │  │  e2e-approval     │  │     │
+  │  │  │  (ggfevans PRs) │  │  (external PRs)  │  │     │
+  │  │  │  AUTO-RUNS      │  │  REQUIRES APPROVAL│  │     │
+  │  │  │                  │  │                   │  │     │
+  │  │  │  Full E2E:       │  │  Full E2E:        │  │     │
+  │  │  │  chromium+webkit │  │  chromium+webkit   │  │     │
+  │  │  │  + mobile        │  │  + mobile          │  │     │
+  │  └──────────────────┘  └──────────────────┘  │     │
+  │  └─────────────────────────────────────────────┘     │
+  │                                                      │
+  │  ┌─────────────────┐                                 │
+  │  │  release.yml     │  LXC gate (tag push only)      │
+  │  │  (ci-runner)     │  trusted-actor, no approval    │
+  │  └─────────────────┘                                 │
+  └──────────────────────────────────────────────────────┘
+
+  ┌─────────────────┐
+  │  vps-rackula     │  Deploy + smoke (to be eliminated per #1983)
   └─────────────────┘
 ```
 
-**Rule: Untrusted code never reaches self-hosted runners.**
+**Rule: Self-hosted runners are only used for (a) trusted-actor jobs or (b) jobs with explicit human approval.**
 
 ---
 
@@ -99,16 +128,18 @@ The fundamental difference: the LXC gate runs only when a maintainer pushes a ta
 | Unit test time | ~1m42s per PR (8GB heap) |
 | Total CI time per week | ~20 min (5 PRs + 1 weekly) |
 
-### Self-Hosted Migration
+### Self-Hosted E2E with Approval Gate
 
 | Factor | Value |
 |--------|-------|
 | Hardware cost | $0 (ci-runner already provisioned) |
-| Maintenance burden | OS patches, Playwright updates, disk cleanup, monitoring |
-| Security risk | Critical (untrusted code execution on homelab VM) |
-| Reliability | Single point of failure (1 runner, 1 host) |
-| Scalability | 1 job at a time (queues behind other jobs) |
-| Dollar savings | $0 (public repos are free) |
+| Maintenance burden | OS patches, Playwright updates, disk cleanup (moderate, infrequent) |
+| Security risk | **Low** (approval gate + trusted-actor bypass; no untrusted code without review) |
+| Reliability | Single point of failure (1 runner, 1 host) -- mitigated by fallback to GH-hosted baseline |
+| Scalability | 1 job at a time (queues, but self-hosted E2E is additive to GH-hosted baseline) |
+| E2E coverage gain | +4 browser projects (webkit, ios-safari, ipad, android) vs chromium-only baseline |
+| Dollar cost | $0 (public repos are free; self-hosted adds no GH Actions minutes) |
+| Approval friction | ~2 min delay for external PRs; zero delay for ggfevans/org PRs |
 
 ### Playwright Caching (Recommended)
 
@@ -136,17 +167,19 @@ The fundamental difference: the LXC gate runs only when a maintainer pushes a ta
 
 ### Recommended Runner Allocation
 
-| Job | Runner | Rationale |
-|-----|--------|-----------|
-| PR test (api + validate) | `ubuntu-latest` | Untrusted code, must be ephemeral |
-| Full E2E (weekly) | `ubuntu-latest` | Untrusted code (workflow_call from release) |
-| CodeQL + Trivy | `ubuntu-latest` | Untrusted code (PR-triggered) |
-| Docker build (multi-arch) | `ubuntu-latest` | Needs QEMU, not available on ARM-less self-hosted |
-| LXC tarball build | `ubuntu-latest` | Standard build, no special hardware |
-| LXC smoke-test gate | `ci-runner` | Trusted-actor (tag push only), needs Proxmox API |
-| Deploy dev | `vps-rackula` (until #1983) | Trusted-actor (main push by maintainer) |
-| Deploy prod | `vps-rackula` (until #1983) | Trusted-actor (tag push by maintainer) |
-| Post-deploy smoke | `vps-rackula` or `ci-runner` | Trusted-actor, runs after deploy |
+| Job | Runner | Environment | Trust Level |
+|-----|--------|-------------|-------------|
+| PR validate (lint + unit + smoke) | `ubuntu-latest` | none | Untrusted (all PRs) |
+| PR full E2E (ggfevans/org) | `[self-hosted, ci-runner]` | `e2e-trusted` | Trusted (auto-run) |
+| PR full E2E (external) | `[self-hosted, ci-runner]` | `e2e-approval` | Approved (manual gate) |
+| Full E2E (weekly, tag push) | `ubuntu-latest` | none | Trusted (workflow_call from release) |
+| CodeQL + Trivy | `ubuntu-latest` | none | Untrusted (PR-triggered) |
+| Docker build (multi-arch) | `ubuntu-latest` | none | Needs QEMU |
+| LXC tarball build | `ubuntu-latest` | none | Standard build |
+| LXC smoke-test gate | `[self-hosted, ci-runner]` | none | Trusted (tag push only) |
+| Deploy dev | `[self-hosted, vps-rackula]` | none | Trusted (main push) |
+| Deploy prod | `[self-hosted, vps-rackula]` | `prod` | Trusted (tag push + reviewer) |
+| Post-deploy smoke | `[self-hosted, vps-rackula]` | none | Trusted (after deploy) |
 
 ### VPS Elimination (#1983) Impact
 
@@ -160,20 +193,57 @@ When the VPS is decommissioned (#1985, #1986):
 
 ## Recommendations
 
-### 1. Do Not Migrate E2E to Self-Hosted
+### 1. Two-Tier E2E Model with Environment Approval Gate
 
-PR-triggered E2E tests must stay on `ubuntu-latest`. The security model is clear: untrusted code runs on ephemeral GitHub-hosted runners, trusted-actor jobs run on self-hosted runners with appropriate access.
+Create two GitHub Environments in the RackulaLives org:
 
-### 2. Add Playwright Browser Caching (Immediate)
+| Environment | Required Reviewers | Deployment Branch Policy | Purpose |
+|-------------|-------------------|--------------------------|---------|
+| `e2e-trusted` | None | `main` only | Auto-runs for ggfevans/org PRs |
+| `e2e-approval` | `ggfevans` | Any branch | Pauses for approval on external PRs |
 
-Add `actions/cache` to `test.yml` and `test-full.yml` to cache Playwright browser binaries. This reduces the ~60s install overhead to ~5s on cache hits, addressing the only performance concern without security trade-offs.
+The `test.yml` workflow gains a second E2E job:
 
-### 3. Reserve ci-runner for Trusted-Actor Jobs
+```yaml
+jobs:
+  validate:           # Existing: lint + unit + chromium smoke on ubuntu-latest
+    runs-on: ubuntu-latest
+    ...
 
-The `ci-runner` on pve-rusty should only run jobs triggered by maintainers:
-- LXC smoke-test gate (#1977, tag push)
+  e2e-self-hosted:    # New: full E2E on ci-runner with approval gate
+    runs-on: [self-hosted, ci-runner]
+    environment: ${{ github.event.pull_request.head.repo.full_name == 'RackulaLives/Rackula' && 'e2e-trusted' || 'e2e-approval' }}
+    needs: validate   # Only runs after baseline smoke passes
+    steps:
+      - uses: actions/checkout@...
+      - name: Install dependencies
+        run: npm ci
+      - name: Cache Playwright browsers
+        uses: actions/cache@...
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      - name: Run full E2E tests
+        run: npm run test:e2e
+```
+
+**Properties:**
+- Your PRs auto-run the full E2E suite on ci-runner (trusted, no approval delay)
+- External PRs pause until you review and approve (approval gate)
+- All PRs always get the baseline chromium smoke on `ubuntu-latest` (untrusted, no approval)
+- The `needs: validate` ensures self-hosted E2E only runs after baseline passes
+- Full audit trail in GitHub Actions logs and Environment approval history
+
+### 2. Add Playwright Browser Caching (Done)
+
+Already implemented in this PR for `test.yml` and `test-full.yml`. Reduces browser install from ~60s to ~5s on cache hits.
+
+### 3. Reserve ci-runner for Approval-Gated Jobs
+
+The `ci-runner` should only run jobs with explicit trust guarantees:
+- `e2e-trusted` environment (ggfevans/org PRs, auto-approved)
+- `e2e-approval` environment (external PRs, manually approved)
+- LXC smoke-test gate (#1977, tag push by maintainer)
 - Post-deploy smoke tests (#567, after deploy completes)
-- Any future jobs that need Proxmox API or homelab access
 
 ### 4. Scope Post-Deploy Smoke Enrichment (#567)
 
@@ -183,9 +253,13 @@ The current deploy smoke test is a thin curl health check. Enriching it with Pla
 - Environment: VPS (current) or ci-runner (after VPS elimination)
 - Separate from PR E2E: this tests deployment, not code changes
 
-### 5. Document the Trust Boundary
+### 5. CI Performance Tuning (Separate Issues)
 
-Add the runner isolation model to deployment documentation so future CI changes respect the security boundary. Any job that runs untrusted code (PR-triggered, workflow_call from test.yml) must use `ubuntu-latest`.
+See the [CI Performance Analysis](#ci-performance-analysis) section. Key issues:
+- #1999: Shard full E2E suite across parallel runners
+- #2000: Reduce Playwright retries from 2 to 1/0
+- #2001: Add github/list reporters for CI visibility
+- #2002: Replace waitForTimeout with assertion-based waits
 
 ---
 
@@ -309,4 +383,5 @@ This eliminates fixed delays and makes tests more reliable. Affected files: `e2e
 - VPS elimination (#1983, #1985, #1986) - separate epic
 - Gated release pipeline implementation (#1977) - already in progress
 - E2E selector migration (spike #1393) - separate concern
-- Moving any PR-triggered job to self-hosted runners - explicitly rejected
+- Moving any PR-triggered job to self-hosted runners without an approval gate - explicitly rejected
+- The `e2e-approval` environment must require `ggfevans` as a reviewer; no bypassing this for external PRs
