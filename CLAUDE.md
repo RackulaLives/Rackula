@@ -568,7 +568,3 @@ Deploys when a version tag is pushed:
 2. Push to `main` → auto-deploys to d.racku.la
 3. Test on dev environment
 4. Tag release → auto-deploys to count.racku.la
-
-**Analytics:** Umami (self-hosted at `t.racku.la`) - privacy-focused, no cookies.
-Separate website IDs for dev and prod environments. Configure via `VITE_UMAMI_*` env vars.
-Analytics utility at `src/lib/utils/analytics.ts`.

@@ -126,7 +126,7 @@ If you need to assemble the tarball locally (e.g. for offline CT testing):
 # Prerequisites: Node 22, Bun 1.x
 
 # 1. Build the frontend
-VITE_ENV=production VITE_PERSIST_ENABLED=true VITE_UMAMI_ENABLED=false npm ci && npm run build
+VITE_ENV=production VITE_PERSIST_ENABLED=true npm ci && npm run build
 
 # 2. Install API production dependencies with cross-platform native binaries
 cd api

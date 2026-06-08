@@ -67,7 +67,6 @@ See `CLAUDE.md` for deployment environments and CI/CD details.
 | Data Format | YAML (js-yaml)                                    |
 | Validation  | Zod                                               |
 | Styling     | CSS custom properties (design tokens)             |
-| Analytics   | Umami (self-hosted, privacy-focused)              |
 | Testing     | Vitest + @testing-library/svelte + Playwright     |
 | Build       | Vite                                              |
 

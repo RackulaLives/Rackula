@@ -266,52 +266,6 @@ When launching publicly, emphasise:
 
 ---
 
-## Infrastructure Considerations
-
-### Analytics Setup
-
-**Requirement**: Privacy-respecting analytics for usage insights
-
-**Recommended**: Umami
-
-- Self-hosted, open source
-- GDPR compliant, no cookies
-- Lightweight (~2KB script)
-
-**Hosting options**:
-
-A. **Cloudflare + Linode VPS**
-
-- Linode VPS runs Umami + potentially other services
-- Cloudflare proxy for DDoS protection, caching, SSL
-- Estimated cost: ~$5-10/mo Linode Nanode/Shared
-- Benefit: Full control, can add other services later
-
-B. **Umami Cloud**
-
-- Managed hosting from Umami team
-- Free tier: 10K events/month
-- Less infrastructure to manage
-- Trade-off: dependency on third party
-
-C. **Railway/Fly.io**
-
-- Container hosting with free tiers
-- Simpler than managing a VPS
-- May have cold start issues on free tier
-
-**Recommendation**: Option A (Cloudflare + Linode) for long-term flexibility
-
-**Infrastructure TODO** **[R-14]**:
-
-- [ ] Provision Linode VPS (Nanode or Shared 1GB)
-- [ ] Set up Cloudflare proxy for VPS
-- [ ] Deploy Umami via Docker
-- [ ] Configure Umami for Rackula domain
-- [ ] Add tracking script to app (respect DNT header)
-
----
-
 #### Phase 3: Placement Image Overrides (Planned) **[R-15]**
 
 Per-placement image overrides with stable IDs:

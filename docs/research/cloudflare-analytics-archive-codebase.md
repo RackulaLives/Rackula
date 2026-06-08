@@ -7,30 +7,23 @@
 
 ## Files Examined
 
-- `src/lib/utils/analytics.ts`
-- `src/tests/analytics.test.ts`
 - `docs/deployment/SELF-HOSTING.md`
 - `deploy/security-headers.conf`
 - `deploy/lxc/security-headers.conf`
-- `docs/reference/SPEC.md` (analytics/deployment sections)
+- `docs/reference/SPEC.md` (deployment sections)
 - `deploy/docker-compose.persist.yml`
 
 ---
 
 ## Current State in Rackula
 
-### 1. App analytics today = Umami event tracking
+### 1. No existing analytics data pipeline
 
-Rackula currently tracks product usage events via Umami (browser-side script injection), not Cloudflare zone analytics ingestion.
-
-- `src/lib/utils/analytics.ts` defines typed event names and a thin safety wrapper.
-- Analytics are optional and controlled by build-time flags.
-- Development hosts (`localhost`, `127.0.0.1`) are explicitly skipped.
+Rackula has no existing data pipeline in-repo for pulling analytics from third-party APIs.
 
 Implication:
 
-- There is no existing data pipeline in-repo for pulling analytics from third-party APIs.
-- Cloudflare analytics archival should be treated as adjacent infrastructure, not as a feature extension of current Umami tracking.
+- Cloudflare analytics archival should be treated as adjacent infrastructure, not as a feature extension of current app functionality.
 
 ### 2. Self-hosting is container-first and already homelab-oriented
 
@@ -43,8 +36,8 @@ Implication:
 
 ### 3. Security posture already distinguishes hosted vs LXC variants
 
-- `deploy/security-headers.conf` allows hosted Umami domain in CSP (`https://t.racku.la`).
-- `deploy/lxc/security-headers.conf` removes hosted Umami allowances for self-hosted installs.
+- `deploy/security-headers.conf` defines CSP headers for the hosted deployment.
+- `deploy/lxc/security-headers.conf` adjusts headers for self-hosted installs.
 
 Implication:
 
@@ -67,7 +60,6 @@ Implication:
 ### What not to couple into Rackula app runtime
 
 - Do not inject Cloudflare API calls directly into the browser app.
-- Do not merge collector concerns into `src/lib/utils/analytics.ts` (different problem domain).
 - Do not make app startup depend on archival pipeline availability.
 
 ---
@@ -86,7 +78,7 @@ Implication:
 1. Maintain Rackula's lightweight/static app architecture.
 2. Keep self-hosting defaults simple; archival stack should be optional.
 3. Preserve strict separation:
-   - Product telemetry (Umami events) vs
+   - App functionality vs
    - CDN/edge analytics archival (Cloudflare GraphQL extracts).
 4. Favor infrastructure composition over app-level complexity.
 

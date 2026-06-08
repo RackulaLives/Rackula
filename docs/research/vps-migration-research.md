@@ -12,7 +12,6 @@
 - **Tier:** smallest available — 1 vCPU / 2 GB RAM / 25 GB disk
 - **Cost:** ~$12 USD/mo ≈ **~$17 CAD/mo** (incl. ~2.5% FX fee on most CDN cards)
 - **Hosts:** `count.racku.la` (prod), `d.racku.la` (dev), GitHub Actions self-hosted runner
-- **Umami analytics:** not currently deployed (was on prior VPS, not re-set up after rebuild)
 - **Recent issues:**
   - Disk hit 100% — root cause was 109 Docker images consuming 11 GB (15% reclaimable). 5 active containers actually need only ~1.6 GB.
   - GitHub Actions runner got stuck in "session already exists" loop after the disk filled, blocking deploys.
@@ -69,7 +68,6 @@ Tabled this session — disk pressure is mitigated by the prune timer, runner is
 - OVH Canada VPS stock returns and migration appetite is high
 - Disk pressure recurs despite the prune timer (would suggest baseline footprint has grown, not just image churn)
 - A no-FX-fee card is acquired (improves Hetzner economics meaningfully)
-- Decision to host umami again (would push toward more disk/RAM, making OVH VPS-1's headroom more attractive)
 
 ---
 

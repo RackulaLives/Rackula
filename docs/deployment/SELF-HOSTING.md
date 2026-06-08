@@ -693,7 +693,6 @@ These require rebuilding the image - see [Building from Source](#building-from-s
 | Variable               | Default | Description                                         |
 | ---------------------- | ------- | --------------------------------------------------- |
 | `VITE_PERSIST_ENABLED` | `false` | Enable persistence UI (`:persist` tag has this set) |
-| `VITE_UMAMI_ENABLED`   | `false` | Enable Umami analytics                              |
 
 ---
 
@@ -791,7 +790,7 @@ diverge, so a mismatch locally means stale tags rather than a bad release.
 
 ### Building from Source
 
-If you need persistence + custom analytics:
+If you need persistence or other build-time customizations:
 
 ```bash
 git clone https://github.com/RackulaLives/Rackula.git
@@ -799,9 +798,6 @@ cd Rackula
 
 docker build \
   --build-arg VITE_PERSIST_ENABLED=true \
-  --build-arg VITE_UMAMI_ENABLED=true \
-  --build-arg VITE_UMAMI_SCRIPT_URL=https://your-umami.com/script.js \
-  --build-arg VITE_UMAMI_WEBSITE_ID=your-site-id \
   -t rackula:custom \
   -f deploy/Dockerfile .
 ```
