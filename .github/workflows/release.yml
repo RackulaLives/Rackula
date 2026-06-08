@@ -182,7 +182,6 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             docker-compose.yml
-            deploy/docker-compose.persist.yml
           sparse-checkout-cone-mode: false
 
       - name: Set lowercase image base
@@ -318,6 +317,9 @@ jobs:
   # digest.
   promote-docker:
     name: "Promote docker (retag by digest)"
+    # Load-bearing: no `if: always()` here. These promote jobs rely on default
+    # success() gating through promote-gate so a failed or skipped gate skips the
+    # whole promote chain (fail closed). Do not add `if: always()`.
     needs: [validate, promote-gate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
