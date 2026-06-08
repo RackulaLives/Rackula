@@ -226,6 +226,8 @@ _check() {
   fi
 }
 
+ct_ip() { pct exec "$1" -- bash -c "hostname -I 2>/dev/null | awk '{print \$1; exit}'" 2>/dev/null; }
+
 smoke_checks() {
   local id="$1"
   info "smoke checks on CT $id"
@@ -273,6 +275,11 @@ case "$MODE" in
 esac
 
 echo
+IP="$(ct_ip "$CTID")"
+if [[ -n "$IP" ]]; then
+  info "web UI: http://${IP}/   (CT $CTID, ${SENTINEL_PREFIX}*)"
+  [[ $KEEP -eq 1 ]] && info "CT kept (--keep): browse http://${IP}/ or 'pct enter $CTID'; remove with 'pct stop $CTID && pct destroy $CTID'"
+fi
 if [[ "$CHECK_FAILS" -eq 0 ]]; then
   ok "SMOKE TEST PASSED (mode: $MODE)"
   exit 0
