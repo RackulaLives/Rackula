@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [26.6.3] - 2026-06-08
+
+Patch release shipping the unprivileged-LXC fix. v26.6.2 predated #1961 so a fresh install
+on an unprivileged container (the default in community-scripts) would fail at service start.
+This release also removes Umami analytics and fixes several smaller UI and LXC issues.
+
+### Fixed
+
+- LXC deploy: unprivileged containers now work correctly; Bun runtime, nginx, systemd hardening, and data-safe update paths are all compatible with unprivileged CTs (#1961, closes #1969)
+- LXC community-scripts: aligned with ProxmoxVED conventions and hardened build-lxc checkout (#1953, PR #1966)
+- LXC install: unzip is now installed before use and the Bun installer fetch is more resilient (#1933, PR #1934)
+- Accessibility: autofocus warning on layout name input resolved (#1896, PR #1963)
+- Even spacing between toolbar button clusters (#1962)
+- Cross-rack device moves now re-key placement images correctly so images are not lost after a move (#1478)
+- CI: deploy-dev path filter repaired so pushes to main trigger the dev deployment again (#1924, PR #1925)
+
+### Removed
+
+- Umami analytics removed from source code, deployment config, and documentation (#1972, #1973, #1975; PRs #1978, #1979, #1981)
+
 ## [26.6.2] - 2026-06-05
 
 Maintenance release: release tooling and API dependency hygiene, plus an export fix and KWS device-library corrections.
