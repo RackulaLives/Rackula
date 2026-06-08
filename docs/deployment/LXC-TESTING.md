@@ -36,32 +36,30 @@ This is sufficient for changes to script structure, dependency installs, and ngi
 
 ## Layer 2: Testing the payload (release-free)
 
-Use the `build-lxc.yml` workflow in artifact-only mode to build a tarball from any branch or SHA without publishing a release.
+Use the `build-lxc-dev.yml` workflow to build a tarball from any branch or SHA as a downloadable run artifact, without creating or touching a release. It is a separate, read-only workflow (no release-write permissions), unlike the release `build-lxc.yml`.
 
 ### Trigger a dev build
 
-In the GitHub Actions UI, run "Build LXC Tarball" (`build-lxc.yml`) with:
+In the GitHub Actions UI, run "Build LXC Tarball (dev)" (`build-lxc-dev.yml`) with:
 
 - **ref**: the branch or SHA to build (e.g. `main` or a feature branch)
-- **version**: leave empty (auto-computes `vDEV-<sha>`)
-- **publish**: unchecked (false)
+- **version**: leave empty (auto-computes `vDEV-<sha>`), or set a custom label
 
 Or with the `gh` CLI:
 
 ```bash
-gh workflow run build-lxc.yml \
-  --field ref=main \
-  --field publish=false
+gh workflow run build-lxc-dev.yml \
+  --field ref=main
 ```
 
 ### Download the artifact
 
 ```bash
 # Find the run ID
-gh run list --workflow=build-lxc.yml --limit=5
+gh run list --workflow=build-lxc-dev.yml --limit=5
 
-# Download the artifact from that run
-gh run download <run-id> --name lxc-tarball --dir /tmp/rackula-lxc-test
+# Download the artifact from that run (named lxc-tarball-<version>)
+gh run download <run-id> --dir /tmp/rackula-lxc-test
 ls /tmp/rackula-lxc-test/
 # rackula-lxc-vDEV-abc1234.tar.gz
 # rackula-lxc-vDEV-abc1234.tar.gz.sha256

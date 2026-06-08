@@ -1,0 +1,160 @@
+name: Build LXC Tarball (dev)
+
+# Builds a self-contained LXC tarball (frontend + API + config) from any branch, tag,
+# or SHA for development payload testing, WITHOUT touching a release.
+#
+# This is the dev counterpart to build-lxc.yml. It is intentionally separate and
+# unprivileged: the whole workflow is contents: read with no publish job, so checking
+# out an arbitrary requested ref and running its dependency code (npm ci, bun install)
+# never happens in a context that can write to the repo or reach release secrets.
+# workflow_dispatch also requires write access to trigger.
+#
+# The tarball is uploaded as a downloadable run artifact only, labelled vDEV-<sha> when
+# no explicit label is given. See docs/deployment/LXC-TESTING.md.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag, or SHA to build from (default: main)"
+        required: false
+        default: "main"
+        type: string
+      version:
+        description: "Artifact label (default: vDEV-<sha>). Allowed chars: A-Z a-z 0-9 . _ -"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+# Serialise per ref so concurrent dispatches on the same branch do not clobber each other.
+concurrency:
+  group: build-lxc-dev-${{ inputs.ref || 'main' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build LXC tarball (dev)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate inputs
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_REF: ${{ inputs.ref }}
+        run: |
+          # Reject newline/CR so user input cannot inject extra lines into $GITHUB_OUTPUT.
+          case "${INPUT_VERSION}${INPUT_REF}" in
+            *$'\n'*|*$'\r'*)
+              echo "ERROR: ref/version inputs must not contain newline or CR characters"
+              exit 1
+              ;;
+          esac
+          # Keep the label filename-safe (it becomes part of the tarball name).
+          if [ -n "$INPUT_VERSION" ] && ! echo "$INPUT_VERSION" | grep -qE '^[A-Za-z0-9._-]+$'; then
+            echo "ERROR: version label may only contain A-Z a-z 0-9 . _ -"
+            exit 1
+          fi
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Compute version
+        id: compute-version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
+          else
+            VERSION="vDEV-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Version: ${VERSION}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1"
+
+      - name: Build frontend
+        env:
+          VITE_ENV: production
+          VITE_PERSIST_ENABLED: "true"
+          VITE_UMAMI_ENABLED: "false"
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install API production dependencies
+        run: |
+          cd api
+          # The tarball is built on x86 but installs on any LXC arch (incl. arm64).
+          # @node-rs/argon2 (the only native dep) ships per-platform binaries as
+          # os/cpu-gated optional deps, so a normal host install pulls x64 only.
+          # --cpu='*' --os=linux materialises every linux variant (x64 + arm64, gnu and
+          # musl) in one production install, so the bundled node_modules runs on both
+          # architectures. --production keeps devDependencies out of the tarball. The
+          # runtime loader selects the binary by file presence, not the os/cpu manifest.
+          bun install --frozen-lockfile --production --cpu='*' --os=linux
+
+          # Fail the build if either native binary is missing.
+          test -f node_modules/@node-rs/argon2-linux-x64-gnu/argon2.linux-x64-gnu.node
+          test -f node_modules/@node-rs/argon2-linux-arm64-gnu/argon2.linux-arm64-gnu.node
+
+      - name: Assemble tarball
+        env:
+          VERSION: ${{ steps.compute-version.outputs.version }}
+        run: |
+          TARBALL_DIR="rackula-lxc-${VERSION}"
+
+          mkdir -p "${TARBALL_DIR}/frontend"
+          mkdir -p "${TARBALL_DIR}/api"
+          mkdir -p "${TARBALL_DIR}/config"
+
+          # Frontend build output
+          cp -r dist/* "${TARBALL_DIR}/frontend/"
+
+          # API source + production deps (Bun runs TS natively)
+          cp -r api/src "${TARBALL_DIR}/api/src"
+          cp -r api/node_modules "${TARBALL_DIR}/api/node_modules"
+          cp api/package.json "${TARBALL_DIR}/api/package.json"
+          cp api/tsconfig.json "${TARBALL_DIR}/api/tsconfig.json"
+
+          # LXC-specific config files
+          cp deploy/lxc/nginx.conf "${TARBALL_DIR}/config/"
+          cp deploy/lxc/rackula-api.service "${TARBALL_DIR}/config/"
+          cp deploy/lxc/security-headers.conf "${TARBALL_DIR}/config/"
+          cp deploy/lxc/nginx.service.d-override.conf "${TARBALL_DIR}/config/"
+
+          # Verify expected directories exist in the tarball
+          for dir in frontend api config; do
+            if [ ! -d "${TARBALL_DIR}/${dir}" ] || [ -z "$(ls -A "${TARBALL_DIR}/${dir}")" ]; then
+              echo "ERROR: Tarball directory '${dir}' is missing or empty"
+              exit 1
+            fi
+          done
+
+          tar czf "rackula-lxc-${VERSION}.tar.gz" "${TARBALL_DIR}"
+
+          # Generate SHA256 checksum for integrity verification
+          sha256sum "rackula-lxc-${VERSION}.tar.gz" > "rackula-lxc-${VERSION}.tar.gz.sha256"
+
+          rm -rf "${TARBALL_DIR}"
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lxc-tarball-${{ steps.compute-version.outputs.version }}
+          path: |
+            rackula-lxc-${{ steps.compute-version.outputs.version }}.tar.gz
+            rackula-lxc-${{ steps.compute-version.outputs.version }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 7
