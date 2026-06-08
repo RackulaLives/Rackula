@@ -27,8 +27,8 @@ before anyone noticed. The gated pipeline validates the actual artifacts before 
      tarball and run `scripts/lxc-smoke-test.sh` on a throwaway unprivileged CT.
    - Any gate failure stops the run. Nothing is promoted. Downstream `latest` consumers keep the
      prior good version (automatic rollback, because `latest` is never overwritten until promote).
-3. Promote (only if all gates pass, behind the `production` Environment)
-   - A maintainer approves the `production` Environment (single approval choke point).
+3. Promote (only if all gates pass, behind the `prod` Environment)
+   - A maintainer approves the `prod` Environment (single approval choke point).
    - Docker: retag the gated digest to `:latest` and `:YY.M` (by digest, never a rebuild).
    - GitHub: `gh release edit <tag> --prerelease=false --latest=true`.
    - Prod: deploy the VPS and run the post-deploy smoke test.
@@ -39,7 +39,7 @@ Cutting a release (use the `/release` skill, which computes the CalVer version, 
 CHANGELOG.md, tags, and pushes). After the tag is pushed:
 
 1. Watch the run: `gh run watch` or the Actions tab. Stage and gate run automatically.
-2. When gates pass, the `production` Environment requests approval. Review the gate results, then
+2. When gates pass, the `prod` Environment requests approval. Review the gate results, then
    approve to promote. Until you approve, the release stays a prerelease and nothing is live on
    `latest`.
 3. If a gate fails, the release stays a prerelease. Fix forward (new tag) or investigate. The prior
@@ -75,7 +75,7 @@ previous good release tarball as the baseline.
 
 ## Dependencies
 
-- The `production` GitHub Environment with a required reviewer (repo settings).
+- The `prod` GitHub Environment with a required reviewer (repo settings).
 - The self-hosted `ci-runner` (homelab-infra) online, advertising label `pve-rusty`, with
   `proxmox-smoke.env` and the CT SSH key installed.
 - The LXC gate's live run depends on the `lxc-smoke-test.sh` api-driver (#1982).

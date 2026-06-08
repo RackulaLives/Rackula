@@ -304,7 +304,9 @@ jobs:
     name: "Promote gate (approval)"
     needs: [validate, gate-docker, gate-lxc]
     if: ${{ always() && needs.gate-docker.result == 'success' && needs.gate-lxc.result == 'success' && !inputs.gate_override }}
-    environment: production
+    environment:
+      name: prod
+      url: https://count.racku.la
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}

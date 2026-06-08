@@ -105,6 +105,9 @@ jobs:
   deploy:
     needs: [build-frontend, build-api]
     runs-on: [self-hosted, vps-rackula]
+    environment:
+      name: dev
+      url: https://d.racku.la
     permissions:
       contents: read
 
