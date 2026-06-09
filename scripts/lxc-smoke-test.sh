@@ -12,8 +12,8 @@
 #   api           - run from anywhere (e.g. a CI runner VM with no pct); drives CT
 #                   lifecycle via the Proxmox REST API and runs commands by SSH into
 #                   the CT. Reads its config from env (source proxmox-smoke.env first):
-#                   PROXMOX_VE_ENDPOINT/NODE/TOKEN_ID/TOKEN_SECRET/INSECURE,
-#                   RACKULA_CI_POOL/CT_STORAGE/CT_SSH_KEY/CT_SSH_PUBKEY. The debian-13
+#                   PROXMOX_VE_{ENDPOINT,NODE,TOKEN_ID,TOKEN_SECRET,INSECURE} and
+#                   RACKULA_{CI_POOL,CT_STORAGE,CT_SSH_KEY,CT_SSH_PUBKEY}. The debian-13
 #                   template is auto-detected via the API (override with --template).
 #
 # Safety: the CT gets a sentinel hostname (rackula-smoke-*). Every destructive op
@@ -465,6 +465,12 @@ run_update() {
 # --- smoke checks -----------------------------------------------------------
 _check() {
   local id="$1" name="$2" cmd="$3"
+  if [[ $DRY_RUN -eq 1 ]]; then
+    # In dry-run the remote command is not executed, so a pass/fail verdict would
+    # be meaningless. Report it as skipped rather than printing a misleading "ok".
+    info "  check (dry-run, not evaluated): $name"
+    return 0
+  fi
   if ct_exec "$id" "$cmd" >/dev/null 2>&1; then
     ok "  check: $name"
   else
