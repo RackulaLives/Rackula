@@ -13,7 +13,8 @@
 #                   lifecycle via the Proxmox REST API and runs commands by SSH into
 #                   the CT. Reads its config from env (source proxmox-smoke.env first):
 #                   PROXMOX_VE_ENDPOINT/NODE/TOKEN_ID/TOKEN_SECRET/INSECURE,
-#                   RACKULA_CI_POOL/CT_STORAGE/CT_TEMPLATE/CT_ID_BASE/CT_SSH_KEY/CT_SSH_PUBKEY.
+#                   RACKULA_CI_POOL/CT_STORAGE/CT_SSH_KEY/CT_SSH_PUBKEY. The debian-13
+#                   template is auto-detected via the API (override with --template).
 #
 # Safety: the CT gets a sentinel hostname (rackula-smoke-*). Every destructive op
 # refuses any CT whose hostname lacks that prefix, so a real container is never touched.
@@ -120,13 +121,14 @@ else
   for c in curl jq ssh scp tar; do command -v "$c" >/dev/null || die "missing required command: $c (api driver)"; done
   _miss=()
   for v in PROXMOX_VE_ENDPOINT PROXMOX_VE_NODE PROXMOX_VE_TOKEN_ID PROXMOX_VE_TOKEN_SECRET \
-    RACKULA_CI_POOL RACKULA_CT_STORAGE RACKULA_CT_TEMPLATE RACKULA_CT_ID_BASE \
+    RACKULA_CI_POOL RACKULA_CT_STORAGE \
     RACKULA_CT_SSH_KEY RACKULA_CT_SSH_PUBKEY; do
     [[ -n "${!v:-}" ]] || _miss+=("$v")
   done
   [[ ${#_miss[@]} -eq 0 ]] || die "api driver missing env (source proxmox-smoke.env): ${_miss[*]}"
   STORAGE="${STORAGE:-$RACKULA_CT_STORAGE}"
-  TEMPLATE="${TEMPLATE:-$RACKULA_CT_TEMPLATE}"
+  # TEMPLATE: if not passed via --template, api_create auto-detects the newest debian-13
+  # vztmpl via the storage content API, so the gate is not tied to a pinned template version.
   if [[ $DRY_RUN -eq 0 ]]; then
     [[ -f "$RACKULA_CT_SSH_KEY" ]] || die "RACKULA_CT_SSH_KEY not found: $RACKULA_CT_SSH_KEY"
     [[ -f "$RACKULA_CT_SSH_PUBKEY" ]] || die "RACKULA_CT_SSH_PUBKEY not found: $RACKULA_CT_SSH_PUBKEY"
@@ -144,12 +146,15 @@ _urlenc() { jq -rn --arg s "$1" '$s|@uri'; }
 
 # _dry_stub METHOD PATH -> canned JSON so downstream jq parsing succeeds offline.
 _dry_stub() {
-  local path="$2"
+  local method="$1" path="$2"
   case "$path" in
-    /pools/*) echo '{"data":{"members":[]}}' ;;
+    /cluster/nextid) echo '{"data":"100"}' ;;
+    */content*) echo '{"data":[{"volid":"local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst"}]}' ;;
     */tasks/*/status) echo '{"data":{"status":"stopped","exitstatus":"OK"}}' ;;
     */interfaces) echo '{"data":[{"name":"eth0","inet":"10.0.0.123/24"}]}' ;;
     */config) echo "{\"data\":{\"hostname\":\"${SENTINEL_PREFIX}dry\"}}" ;;
+    */lxc) # GET = node CT list (empty), POST = create (returns a UPID)
+      if [[ "$method" == "GET" ]]; then echo '{"data":[]}'; else echo '{"data":"UPID:dry:0:0:0:dry::root@pam:"}'; fi ;;
     *) echo '{"data":"UPID:dry:00000000:00000000:00000000:dry::root@pam:"}' ;;
   esac
 }
@@ -272,19 +277,27 @@ api_ip() {
   printf '%s' "$ip"
 }
 
+# Newest debian-13 vztmpl on the `local` storage, via the content API (no host CLI).
+api_detect_template() {
+  _pve GET "/nodes/${PROXMOX_VE_NODE}/storage/local/content?content=vztmpl" 2>/dev/null |
+    jq -r '.data[]?.volid // empty' 2>/dev/null | grep 'debian-13' | sort -V | tail -1
+}
+
 api_create() {
-  local host used newid pubkey upid
+  local host newid pubkey upid template
   host="$(_sentinel_host)"
-  # No /cluster/nextid (token has no rights on /): pick a free id >= base from the pool.
-  used="$(_pve GET "/pools/${RACKULA_CI_POOL}" | jq -r '.data.members[]?.vmid // empty')"
-  newid="$RACKULA_CT_ID_BASE"
-  while printf '%s\n' "$used" | grep -qx "$newid"; do newid=$((newid + 1)); done
+  # Cluster-global next free id. Accounts for BOTH VMs and CTs (the node CT list alone
+  # misses VMs, e.g. the debian-13-cloud template at 9000). The CT is kept safe by its
+  # sentinel hostname + ci-smoke pool membership + ephemeral teardown, not by its id range.
+  newid="$(_pve GET /cluster/nextid | jq -r '.data')"
+  template="${TEMPLATE:-$(api_detect_template)}"
+  [[ -n "$template" ]] || die "no debian-13 vztmpl found via API on storage 'local'; pass --template"
   pubkey="$(cat "$RACKULA_CT_SSH_PUBKEY" 2>/dev/null || true)"
-  info "creating CT $newid ($host) via API on $PROXMOX_VE_NODE (pool $RACKULA_CI_POOL)"
+  info "creating CT $newid ($host) via API on $PROXMOX_VE_NODE (pool $RACKULA_CI_POOL, template $template)"
   upid="$(_pve POST "/nodes/${PROXMOX_VE_NODE}/lxc" \
     --data-urlencode "vmid=${newid}" \
     --data-urlencode "hostname=${host}" \
-    --data-urlencode "ostemplate=${TEMPLATE}" \
+    --data-urlencode "ostemplate=${template}" \
     --data-urlencode "storage=${STORAGE}" \
     --data-urlencode "rootfs=${STORAGE}:8" \
     --data-urlencode "unprivileged=1" \
