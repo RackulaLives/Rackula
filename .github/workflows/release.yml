@@ -258,9 +258,8 @@ jobs:
   # non-prod Proxmox (pve-rusty self-hosted runner) and smoke-test it. No creds.
   # Skipped only under the emergency override.
   #
-  # NOTE: scripts/lxc-smoke-test.sh gains its API driver (ssh-into-CT lifecycle)
-  # under issue #1982, which must land before this gate can run live. The workflow
-  # code merges first; the gate calls the script by name.
+  # The self-hosted ci-runner (label pve-rusty) runs scripts/lxc-smoke-test.sh in its
+  # api driver (#1982): CT lifecycle via the Proxmox API + ssh-into-CT, no pct on the runner.
   gate-lxc:
     name: "Gate: LXC smoke test"
     needs: [validate, stage-lxc]
@@ -274,8 +273,11 @@ jobs:
         with:
           ref: ${{ needs.validate.outputs.tag }}
           persist-credentials: false
+          # The script runs the canonical install/update scripts, so the checkout must
+          # include deploy/lxc/community-scripts/ alongside the script itself.
           sparse-checkout: |
             scripts/lxc-smoke-test.sh
+            deploy/lxc/community-scripts
           sparse-checkout-cone-mode: false
 
       - name: Download staged tarball
@@ -290,10 +292,10 @@ jobs:
         run: |
           # Load the scoped Proxmox token + CT settings from the runner-local env.
           set -a; . /opt/github-runner/proxmox-smoke.env; set +a
-          bash scripts/lxc-smoke-test.sh --tarball rackula-lxc-*.tar.gz --mode deploy
+          bash scripts/lxc-smoke-test.sh --driver api --tarball rackula-lxc-*.tar.gz --mode deploy
           # From the next release onward, switch to upgrade-gating against the last
           # known-good tarball:
-          #   bash scripts/lxc-smoke-test.sh --tarball rackula-lxc-*.tar.gz \
+          #   bash scripts/lxc-smoke-test.sh --driver api --tarball rackula-lxc-*.tar.gz \
           #     --mode both --baseline <last-good tarball>
 
   # PROMOTE CHOKE POINT: the single human-approval gate. Targets the `production`
