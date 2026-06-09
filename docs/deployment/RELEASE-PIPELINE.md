@@ -18,10 +18,10 @@ before anyone noticed. The gated pipeline validates the actual artifacts before 
    - `gh release create <tag> --prerelease`. Prereleases are excluded from `/releases/latest`, so
      LXC `fetch_and_deploy latest` does not pick them up yet.
    - Build the LXC tarball and attach it to the prerelease.
-   - Build and push Docker images with immutable tags only: `:vX.Y.Z`, `:vX.Y.Z-persist`, and api
-     `:vX.Y.Z`. No `:latest`. No prod deploy.
+   - Build and push Docker images with immutable tags only: `:X.Y.Z`, `:vX.Y.Z-persist`, and api
+     `:X.Y.Z`. No `:latest`. No prod deploy.
 2. Gate (automatic, fail closed)
-   - Docker gate (GitHub-hosted): `docker compose up` the `:vX.Y.Z` image, check `/` 200, then the
+   - Docker gate (GitHub-hosted): `docker compose up` the `:X.Y.Z` image, check `/` 200, then the
      persist profile (persist frontend + api sidecar) and check `/api/health` 200.
    - LXC gate (self-hosted `ci-runner` on the non-prod Proxmox host pve-rusty): download the staged
      tarball and run `scripts/lxc-smoke-test.sh` on a throwaway unprivileged CT.
@@ -58,10 +58,10 @@ auto-promote: the release stays a prerelease and the skip is logged. To ship an 
 must still promote it manually after your own verification:
 
 ```bash
-# after manual verification of the staged :vX.Y.Z artifacts.
+# after manual verification of the staged :X.Y.Z artifacts.
 # Retag by digest (same as the automated promote-docker) so :latest points at the
-# exact image you verified, not whatever :vX.Y.Z resolves to later.
-digest="$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ghcr.io/rackulalives/rackula:vX.Y.Z)"
+# exact image you verified, not whatever :X.Y.Z resolves to later.
+digest="$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ghcr.io/rackulalives/rackula:X.Y.Z)"
 docker buildx imagetools create --tag ghcr.io/rackulalives/rackula:latest \
   "ghcr.io/rackulalives/rackula@${digest}"   # repeat for -api and persist
 gh release edit vX.Y.Z --prerelease=false --latest=true

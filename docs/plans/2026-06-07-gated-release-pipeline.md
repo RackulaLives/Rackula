@@ -28,10 +28,10 @@ land and the runner be online before the LXC gate can run.**
 
 ## Out-of-band prerequisites (human, before promote can run)
 
-1. **GitHub `production` Environment** with a **required reviewer** (you). Create at
+1. **GitHub `prod` Environment** with a **required reviewer** (you). Create at
    <https://github.com/RackulaLives/Rackula/settings/environments>. The promote-gate job targets
    it; gates run automatically, the prod flip waits for approval. (Can be created via API:
-   `gh api -X PUT repos/RackulaLives/Rackula/environments/production` then add a reviewer —
+   `gh api -X PUT repos/RackulaLives/Rackula/environments/prod` then add a reviewer —
    reviewer add is easiest in the UI.)
 2. **`ci-runner` online** (companion plan) advertising label `pve-rusty`, with `proxmox-smoke.env`
    + CT SSH key installed.
@@ -42,7 +42,7 @@ land and the runner be online before the LXC gate can run.**
 
 - **Least privilege per job.** Stage jobs: only asset-upload / packages:write for immutable tags.
   Gate jobs: **no publish creds** (packages: read, contents: read). Promote jobs: the only ones
-  with packages:write + contents:write + prod access, isolated behind the `production` Environment.
+  with packages:write + contents:write + prod access, isolated behind the `prod` Environment.
 - **Test exactly what ships.** Promote retags the **gated digest** (`buildx imagetools create`),
   never rebuilds between gate and promote.
 - **Untrusted-checkout.** Orchestrator triggers only on maintainer **tag push** / `workflow_dispatch`,
@@ -164,7 +164,7 @@ validate
  └─ stage-lxc       (needs stage-release; uses build-lxc.yml -> attaches tarball to prerelease)
 gate-docker  (needs stage-docker)   compose health, packages:read
 gate-lxc     (needs stage-lxc)      runs-on [self-hosted, pve-rusty], smoke test, no creds
-promote-gate (needs [gate-docker, gate-lxc]) environment: production  ← single approval choke
+promote-gate (needs [gate-docker, gate-lxc]) environment: prod  ← single approval choke
 promote-docker (needs promote-gate) retag digests -> :latest + :year_month (packages:write)
 promote-github (needs [promote-gate, promote-docker]) gh release edit --prerelease=false --latest=true
 promote-prod   (needs [promote-gate, promote-docker]) uses deploy-prod.yml (vps deploy + smoke)
@@ -250,12 +250,12 @@ concurrency:
 ```
 
 - [ ] **Step 8: `promote-gate` job** (`needs: [gate-docker, gate-lxc]`,
-  `environment: production`). The single approval choke point. Asserts gates passed (or, if
+  `environment: prod`). The single approval choke point. Asserts gates passed (or, if
   `gate_override`, FAILS so promotion cannot proceed — override leaves the prerelease as-is).
 
 ```yaml
     if: ${{ always() && needs.gate-docker.result == 'success' && needs.gate-lxc.result == 'success' && !inputs.gate_override }}
-    environment: production
+    environment: prod
     runs-on: ubuntu-latest
     steps:
       - run: echo "Gates green; awaiting maintainer approval to promote ${{ needs.validate.outputs.tag }}."
@@ -295,7 +295,7 @@ concurrency:
 
 ```bash
 python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml')); print('ok')"
-grep -c 'environment: production' .github/workflows/release.yml   # exactly the promote choke
+grep -c 'name: prod' .github/workflows/release.yml   # exactly the promote choke
 ```
 
 - [ ] **Step 14: Commit**
@@ -376,7 +376,7 @@ git commit -m "feat(lxc): api-driver smoke test (ssh-into-CT) for the release ga
 note the prerelease->promote window and the approval step. Update the `release` skill's notes if
 it asserts "tag push = live" anywhere.
 
-- [ ] **Step 1:** Document: tag push -> prerelease + gates -> approve `production` -> promote.
+- [ ] **Step 1:** Document: tag push -> prerelease + gates -> approve `prod` -> promote.
   Document the emergency `gate_override` (stays prerelease) and how to manually promote a release
   that was overridden after a manual check.
 - [ ] **Step 2: Commit.**
@@ -403,7 +403,7 @@ it isn't done before the pipeline exists.
 - [ ] Tag push -> pipeline stages prerelease + runs gates. LXC gate is **deploy-only**
   (baseline v26.6.2 is broken). Confirm gate-lxc would have caught #1969 (it deploys on an
   unprivileged CT).
-- [ ] Approve the `production` Environment -> promote. Verify `:latest`, GH latest, prod all on
+- [ ] Approve the `prod` Environment -> promote. Verify `:latest`, GH latest, prod all on
   v26.6.3; LXC `fetch_and_deploy latest` now serves v26.6.3.
 - [ ] Close #1969 with the promoted release; from v26.6.4 onward switch gate-lxc to
   `--mode both --baseline <v26.6.3 tarball>`.
