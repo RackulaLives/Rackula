@@ -12,11 +12,11 @@
 
 The spike's original question -- "How should Rackula migrate E2E testing from GitHub-hosted to self-hosted?" -- is answered with a **two-tier model** using GitHub Environments:
 
-1. **Trusted tier (auto-run):** PRs from `ggfevans` and RackulaLives org members use the `e2e-trusted` environment, which has no required reviewers. The full E2E suite (chromium + webkit + mobile) runs on `ci-runner` automatically.
+1. Trusted tier (auto-run): PRs from `ggfevans` and RackulaLives org members use the `e2e-trusted` environment, which has no required reviewers. The full E2E suite (chromium + webkit + mobile) runs on `ci-runner` automatically.
 
-2. **Approval tier (manual gate):** PRs from external contributors use the `e2e-approval` environment, which requires `ggfevans` as a required reviewer. The job pauses until you review the PR diff and click approve. This prevents untrusted code from executing on the homelab VM without your explicit consent.
+2. Approval tier (manual gate): PRs from external contributors use the `e2e-approval` environment, which requires `ggfevans` as a required reviewer. The job pauses until you review the PR diff and click approve. This prevents untrusted code from executing on the homelab VM without your explicit consent.
 
-3. **Fallback (always):** All PRs also run the chromium smoke test on `ubuntu-latest` as a baseline. The self-hosted job is additive -- it provides broader browser coverage on top of the GH-hosted smoke.
+3. Fallback (always): All PRs also run the chromium smoke test on `ubuntu-latest` as a baseline. The self-hosted job is additive -- it provides broader browser coverage on top of the GH-hosted smoke.
 
 Implementation uses GitHub's built-in Environment protection rules -- no custom code, full audit trail. The workflow selects the environment dynamically based on the PR source:
 
