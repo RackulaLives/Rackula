@@ -347,8 +347,10 @@ api_destroy() {
   local id="$1" upid
   upid="$(_pve POST "/nodes/${PROXMOX_VE_NODE}/lxc/${id}/status/stop" 2>/dev/null | jq -r '.data // empty' 2>/dev/null || true)"
   [[ -n "$upid" ]] && _api_wait_task "$upid" >/dev/null 2>&1 || true
-  upid="$(_pve DELETE "/nodes/${PROXMOX_VE_NODE}/lxc/${id}?force=1&purge=1" | jq -r '.data')"
-  _api_wait_task "$upid" || true
+  # No bare assignment here: under set -e+pipefail a failed DELETE (e.g. transient API
+  # outage during teardown) would otherwise abort the cleanup trap before TMPD is removed.
+  upid="$(_pve DELETE "/nodes/${PROXMOX_VE_NODE}/lxc/${id}?force=1&purge=1" 2>/dev/null | jq -r '.data // empty' 2>/dev/null || true)"
+  [[ -n "$upid" ]] && _api_wait_task "$upid" >/dev/null 2>&1 || true
 }
 
 # --- driver dispatch --------------------------------------------------------
@@ -364,13 +366,23 @@ ct_ip() { case "$DRIVER" in pct) pct_ip "$1" ;; api) api_ip "$1" ;; esac; }
 # --- teardown ---------------------------------------------------------------
 # shellcheck disable=SC2329  # invoked via trap
 cleanup() {
-  local rc=$?
+  local rc=$? host
   if [[ -n "$CREATED_CTID" ]]; then
+    host="$(ct_hostname "$CREATED_CTID")"
     if [[ $KEEP -eq 1 ]]; then
-      warn "--keep set: leaving CT $CREATED_CTID ($(ct_hostname "$CREATED_CTID")) running"
-    elif [[ "$(ct_hostname "$CREATED_CTID")" == "${SENTINEL_PREFIX}"* ]]; then
+      warn "--keep set: leaving CT $CREATED_CTID ($host) running"
+    elif [[ "$host" == "${SENTINEL_PREFIX}"* ]]; then
       info "tearing down CT $CREATED_CTID"
       ct_destroy "$CREATED_CTID"
+    elif [[ -z "$host" ]]; then
+      # Hostname unreadable (e.g. transient API outage). CREATED_CTID was validated as a
+      # sentinel CT at create time, so it is ours to remove; tear down but warn loudly so a
+      # genuine leak is visible rather than silently skipped. ct_destroy is a safe no-op if
+      # the CT is already gone.
+      warn "could not read hostname for CT $CREATED_CTID (API unreachable?); tearing down the CT we created"
+      ct_destroy "$CREATED_CTID"
+    else
+      warn "refusing to tear down CT $CREATED_CTID: hostname '$host' lacks '${SENTINEL_PREFIX}' prefix; remove it manually if it is ours"
     fi
   fi
   [[ -n "$TMPD" ]] && rm -rf "$TMPD"
