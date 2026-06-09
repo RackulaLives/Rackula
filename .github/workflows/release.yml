@@ -152,6 +152,10 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # build-images.yml's scan-images job uploads Trivy SARIF; a reusable
+      # workflow's nested jobs cannot exceed the caller's grant, so the caller
+      # must grant security-events: write (else the run is a startup_failure).
+      security-events: write
     uses: ./.github/workflows/build-images.yml
     with:
       tag: ${{ needs.validate.outputs.tag }}
