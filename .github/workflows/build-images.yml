@@ -45,7 +45,7 @@ jobs:
           ref: ${{ inputs.tag }}
 
       - name: Set lowercase image name
-        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
@@ -106,7 +106,7 @@ jobs:
           ref: ${{ inputs.tag }}
 
       - name: Set lowercase image name
-        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
@@ -163,7 +163,7 @@ jobs:
           ref: ${{ inputs.tag }}
 
       - name: Set lowercase image name
-        run: echo "API_IMAGE_NAME=${GITHUB_REPOSITORY,,}-api" >> $GITHUB_ENV
+        run: echo "API_IMAGE_NAME=${GITHUB_REPOSITORY,,}-api" >> "$GITHUB_ENV"
 
       - name: Set build metadata
         # Derive the commit from the checked-out tag (ref above), not github.sha,
@@ -235,7 +235,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Set lowercase image name
-        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Log in to Container Registry
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
@@ -287,8 +287,8 @@ jobs:
           IMAGE_NAME_LC=$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
           IMAGE_REF="${REGISTRY}/${IMAGE_NAME_LC}${{ matrix.image.repo_suffix }}:${{ matrix.image.tag }}"
           IMAGE_CATEGORY=$(echo "${IMAGE_REF}" | tr '/:' '--' | tr -cd '[:alnum:]._-')
-          echo "IMAGE_REF=${IMAGE_REF}" >> $GITHUB_ENV
-          echo "IMAGE_CATEGORY=${IMAGE_CATEGORY}" >> $GITHUB_ENV
+          echo "IMAGE_REF=${IMAGE_REF}" >> "$GITHUB_ENV"
+          echo "IMAGE_CATEGORY=${IMAGE_CATEGORY}" >> "$GITHUB_ENV"
 
       - name: Scan image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0

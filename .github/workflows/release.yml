@@ -122,10 +122,13 @@ jobs:
           # Capture everything between this version header and the next ## [ header.
           NOTES=$(awk "/^## \[$VERSION\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md)
           NOTES=$(echo "$NOTES" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+          # Randomised heredoc delimiter: a bare "EOF" line in the changelog body
+          # would otherwise terminate the block early and corrupt the output.
+          DELIM="NOTES_EOF_${RANDOM}${RANDOM}"
           {
-            echo "notes<<EOF"
+            echo "notes<<${DELIM}"
             echo "$NOTES"
-            echo "EOF"
+            echo "${DELIM}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Create prerelease (staging; excluded from /releases/latest)
@@ -368,9 +371,12 @@ jobs:
             "ghcr.io/${REPO_LC}@${digest}"
 
   # PROMOTE: mark the GitHub release as latest (no longer a prerelease).
+  # Needs promote-docker so the release is only advertised as latest once its
+  # docker images are promoted; a failed promote-docker leaves the release a
+  # prerelease (fail closed) rather than a half-promoted split-brain state.
   promote-github:
     name: "Promote GitHub release"
-    needs: [validate, promote-gate]
+    needs: [validate, promote-gate, promote-docker]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
