@@ -10,11 +10,11 @@
 **File:** `/Users/gvns/code/projects/Rackula/Rackula/deploy/Dockerfile`
 
 ### Image Details
-- **Base image (production):** `nginxinc/nginx-unprivileged:alpine` (line 22)
-- **Build image:** `node:22-alpine` (line 2)
-- **User:** `nginx` user (unprivileged, UID 101; see line 30)
-- **Port:** `8080` (line 50, line 70 EXPOSE; listen port is configurable via `RACKULA_LISTEN_PORT`)
-- **Healthcheck:** Lines 67-68
+- Base image (production): `nginxinc/nginx-unprivileged:alpine` (line 22)
+- Build image: `node:22-alpine` (line 2)
+- User: `nginx` user (unprivileged, UID 101; see line 30)
+- Port: `8080` (line 50, line 70 EXPOSE; listen port is configurable via `RACKULA_LISTEN_PORT`)
+- Healthcheck: Lines 67-68
   - Endpoint: `GET http://127.0.0.1:${RACKULA_LISTEN_PORT:-8080}/health`
   - Interval: 30s, timeout: 3s, start-period: 5s, retries: 3
   - Returns: Plain text "OK" (from nginx location block, not from app)
@@ -61,9 +61,9 @@ Wraps the official nginx entrypoint to:
 5. Log configuration details to stderr
 
 ### Security Posture
-- **Read-only root filesystem:** No (can write to `/var/cache/nginx`, `/var/run`, `/tmp`, `/etc/nginx/conf.d` via tmpfs)
-- **Capabilities:** Not dropped in Dockerfile (depends on docker compose security settings)
-- **Security headers:** Sourced from `/etc/nginx/snippets/security-headers.conf` (copied line 59)
+- Read-only root filesystem: No (can write to `/var/cache/nginx`, `/var/run`, `/tmp`, `/etc/nginx/conf.d` via tmpfs)
+- Capabilities: Not dropped in Dockerfile (depends on docker compose security settings)
+- Security headers: Sourced from `/etc/nginx/snippets/security-headers.conf` (copied line 59)
 
 ---
 
@@ -72,10 +72,10 @@ Wraps the official nginx entrypoint to:
 **File:** `/Users/gvns/code/projects/Rackula/Rackula/api/Dockerfile`
 
 ### Image Details
-- **Base image:** `oven/bun:1.3.10-alpine` (line 3)
-- **User:** `rackula` (non-root, UID 1001; created line 24-25)
-- **Port:** `3001` (line 55 EXPOSE)
-- **Healthcheck:** Lines 57-58
+- Base image: `oven/bun:1.3.10-alpine` (line 3)
+- User: `rackula` (non-root, UID 1001; created line 24-25)
+- Port: `3001` (line 55 EXPOSE)
+- Healthcheck: Lines 57-58
   - Endpoint: `GET http://127.0.0.1:3001/health`
   - Interval: 30s, timeout: 10s, start-period: 5s, retries: 3
   - Returns: JSON `{ ok: true, status: "ok", service: "rackula-persistence-api", version: 1 }`
@@ -197,22 +197,22 @@ When set, nginx injects `Authorization: Bearer <token>` header on PUT/DELETE req
 **File:** `/Users/gvns/code/projects/Rackula/Rackula/docker-compose.yml`
 
 Services:
-- **`rackula` (frontend):**
+- `rackula` (frontend):
   - Image: `ghcr.io/rackulalives/rackula:latest` (overridable via `RACKULA_IMAGE`)
   - Ports: `${RACKULA_PORT:-8080}:${RACKULA_LISTEN_PORT:-8080}` (host:container)
   - Container name: `${RACKULA_CONTAINER_NAME:-rackula}`
-  - **Always runs** (no profile)
+  - Always runs (no profile)
   - No volumes
   - Requires: None
   - Resources: 0.5 CPU / 128 MB limit, 0.1 CPU / 16 MB reserved
   - Security: `no-new-privileges`, all caps dropped, read-only root FS, tmpfs for nginx cache/run/tmp
   - Restart: `unless-stopped` with 10s grace period
 
-- **`rackula-api` (API sidecar, optional):**
+- `rackula-api` (API sidecar, optional):
   - Image: `ghcr.io/rackulalives/rackula-api:latest` (overridable via `RACKULA_API_IMAGE`)
   - Ports: Not exposed (internal only)
   - Container name: `${RACKULA_API_CONTAINER_NAME:-rackula-api}`
-  - **Profile: `persist`** - only runs with `docker compose --profile persist up`
+  - Profile: `persist` - only runs with `docker compose --profile persist up`
   - Volumes: `./data:/data` (note: host dir must be writable by UID 1001)
   - Resources: 0.25 CPU / 64 MB limit, 0.05 CPU / 16 MB reserved
   - Security: Same hardening as frontend
@@ -222,13 +222,13 @@ Services:
 **File:** `/Users/gvns/code/projects/Rackula/Rackula/deploy/docker-compose.persist.yml`
 
 Services:
-- **`rackula` (frontend):**
-  - Same as above, **but**:
+- `rackula` (frontend):
+  - Same as above, but:
   - Image: `ghcr.io/rackulalives/rackula:persist` (pre-configured for API)
   - Depends on: `rackula-api` (service_healthy condition, line 38-39)
   - Adds `RACKULA_TRUST_PROXY=${RACKULA_TRUST_PROXY:-0}` for reverse-proxy support
 
-- **`rackula-api` (API, always runs):**
+- `rackula-api` (API, always runs):
   - Volumes: `./data:/data`
   - Healthcheck: `wget -qO- http://127.0.0.1:3001/health` (line 124)
   - Same env vars as standard compose (see Environment Variables section below)
@@ -306,11 +306,11 @@ Services:
 **Primary config file:** `/Users/gvns/code/projects/Rackula/Rackula/api/src/security/config.ts` (lines 296-504)
 
 ### Mode: `none` (Default, No Authentication)
-- **Behavior:** All requests granted access immediately
-- **Session requirement:** None
-- **Routes:** Auth routes (`/auth/login`, `/auth/check`, `/auth/logout`) respond but grant 204/no-op
-- **nginx behavior (nginx.conf.template line 213-214):** Auth check returns 204 immediately, bypassing upstream call
-- **Use case:** Single-user homelab, isolated network, development
+- Behavior: All requests granted access immediately
+- Session requirement: None
+- Routes: Auth routes (`/auth/login`, `/auth/check`, `/auth/logout`) respond but grant 204/no-op
+- nginx behavior (nginx.conf.template line 213-214): Auth check returns 204 immediately, bypassing upstream call
+- Use case: Single-user homelab, isolated network, development
 
 ### Mode: `local` (Username/Password)
 **Files:**
@@ -324,7 +324,7 @@ Services:
    - Time cost: 3
    - Parallelism: 4
 3. Hash stored in-memory; plaintext password scrubbed from env (app.ts line 289)
-4. **No persistent user database** - credentials are ephemeral (hashed only during container lifetime)
+4. No persistent user database - credentials are ephemeral (hashed only during container lifetime)
 
 **Login flow:**
 1. User POST `/auth/login` with `{ username, password }`
@@ -332,8 +332,8 @@ Services:
 3. Timing-safe credential verification (lines 174-199)
 4. On success: Session token signed with `RACKULA_AUTH_SESSION_SECRET` and sent as httpOnly cookie
 5. On failure: Log event, return 401
-6. **nginx:** POST /auth/login passes through to API for validation (nginx.conf.template lines 118-120)
-7. **nginx:** GET /auth/login serves static `/login.html` for GET requests (line 119)
+6. nginx: POST /auth/login passes through to API for validation (nginx.conf.template lines 118-120)
+7. nginx: GET /auth/login serves static `/login.html` for GET requests (line 119)
 
 **Session token:**
 - Signed with HS256 (HMAC-SHA256) using `RACKULA_AUTH_SESSION_SECRET`
@@ -398,15 +398,15 @@ Services:
 ## Persistence / Volumes
 
 ### Frontend
-- **Volumes:** None (stateless; assets and config baked into image)
-- **Transient:** `/var/cache/nginx` (10 MB tmpfs, line 73 in docker-compose.yml)
-- **Session state:** Stored in session cookie (httpOnly, Secure, SameSite=Lax/Strict)
+- Volumes: None (stateless; assets and config baked into image)
+- Transient: `/var/cache/nginx` (10 MB tmpfs, line 73 in docker-compose.yml)
+- Session state: Stored in session cookie (httpOnly, Secure, SameSite=Lax/Strict)
 
 ### API
-- **Persistent volume:** `${DATA_DIR:-/data}` (mounted at `/data` inside container)
-- **Host mapping (docker-compose.persist.yml line 74):** `./data:/data`
-- **Ownership:** UID 1001:1001 (rackula:rackula)
-- **Permissions:** `750` (directory, line 83 in lxc/community-scripts/ct/rackula.sh)
+- Persistent volume: `${DATA_DIR:-/data}` (mounted at `/data` inside container)
+- Host mapping (docker-compose.persist.yml line 74): `./data:/data`
+- Ownership: UID 1001:1001 (rackula:rackula)
+- Permissions: `750` (directory, line 83 in lxc/community-scripts/ct/rackula.sh)
 
 **Storage structure (api/src/storage/filesystem.ts):**
 ```
@@ -428,12 +428,12 @@ Services:
 - Backup recommended before updates (see lxc/community-scripts/ct/rackula.sh lines 46-56)
 
 ### Session State (if auth enabled)
-- **Mechanism:** httpOnly cookie + server-side signature verification
-- **Persistence:** Signed JWT token; validation requires `RACKULA_AUTH_SESSION_SECRET`
-- **Local auth:** No user database; credentials ephemeral (hashed at startup only)
-- **OIDC:** Better Auth library handles provider session management (depends on configuration)
-- **TTL:** Max 12h absolute, 30m idle (configurable)
-- **Storage:** None (stateless; token is the source of truth)
+- Mechanism: httpOnly cookie + server-side signature verification
+- Persistence: Signed JWT token; validation requires `RACKULA_AUTH_SESSION_SECRET`
+- Local auth: No user database; credentials ephemeral (hashed at startup only)
+- OIDC: Better Auth library handles provider session management (depends on configuration)
+- TTL: Max 12h absolute, 30m idle (configurable)
+- Storage: None (stateless; token is the source of truth)
 
 **Invalidation (app.ts line 582, 587):**
 - Function `invalidateAuthSession(sessionId, expiration)` registered but implementation details not clear from snippet
@@ -493,16 +493,16 @@ Frontend calls `/api/layouts` → nginx forwards `http://rackula-api:3001/layout
 ### Static Asset Serving
 
 **Path:** `/assets/`
-- **Source:** Vite-built fingerprinted assets in `/usr/share/nginx/html/assets/`
-- **Cache:** 1 year (`Cache-Control: public, immutable`)
-- **Gzip:** Enabled (min 1KB, see lines 77-82)
+- Source: Vite-built fingerprinted assets in `/usr/share/nginx/html/assets/`
+- Cache: 1 year (`Cache-Control: public, immutable`)
+- Gzip: Enabled (min 1KB, see lines 77-82)
 
 ### SPA Fallback with Auth
 
 **Path:** `/` (line 274)
-- **Behavior:** All requests route to `index.html` (SPA)
-- **Auth gate:** `auth_request /_rackula_auth_check` (line 275)
-- **On 401:** Redirects to `/auth/login?next=<original-path>` (line 276)
+- Behavior: All requests route to `index.html` (SPA)
+- Auth gate: `auth_request /_rackula_auth_check` (line 275)
+- On 401: Redirects to `/auth/login?next=<original-path>` (line 276)
 
 ### Trust Proxy (Reverse Proxy Support)
 
@@ -592,49 +592,49 @@ Headers (typical web hardening):
 
 ## Open Questions / Gaps for Unraid Templating
 
-1. **Single-container vs. two-container deployment:**
+1. Single-container vs. two-container deployment:
    - Can Unraid template deploy frontend only (auth=none, no persistence)?
    - Or is API sidecar mandatory?
-   - **Answer from investigation:** Frontend is fully functional without API; auth mode defaults to `none`, persistence is optional. Single-container (frontend only) is viable, but persistence requires second container or volume mount.
+   - Answer from investigation: Frontend is fully functional without API; auth mode defaults to `none`, persistence is optional. Single-container (frontend only) is viable, but persistence requires second container or volume mount.
 
-2. **Volume mounting for persistence:**
+2. Volume mounting for persistence:
    - Unraid Docker template API: does it support volume bind mounts like docker-compose?
    - Community App or custom plugin required?
-   - **Answer:** Both Unraid Community Applications and Plugins support volumes. Template must declare `/data` as writable mount.
+   - Answer: Both Unraid Community Applications and Plugins support volumes. Template must declare `/data` as writable mount.
 
-3. **Environment variable UI in Unraid template:**
+3. Environment variable UI in Unraid template:
    - Which env vars should be exposed in the template UI vs. hardcoded?
    - Priority: `RACKULA_LISTEN_PORT`, `API_HOST`, `API_PORT`, `RACKULA_AUTH_MODE`, `RACKULA_API_WRITE_TOKEN`
    - Secondary (if auth enabled): `RACKULA_LOCAL_USERNAME`, `RACKULA_LOCAL_PASSWORD`, `RACKULA_AUTH_SESSION_SECRET`
 
-4. **Reverse proxy / SSL termination:**
+4. Reverse proxy / SSL termination:
    - Does Unraid have a built-in reverse proxy (similar to `docker-entrypoint-wrapper.sh` `RACKULA_TRUST_PROXY` support)?
    - Template must document how to enable `RACKULA_TRUST_PROXY=1` when Unraid reverse proxy is in use.
 
-5. **Auth mode selection in UI:**
+5. Auth mode selection in UI:
    - Should template offer radio buttons: "None (Anonymous)" | "Local (Username/Password)" | "OIDC (External IdP)"?
    - If local: expose `RACKULA_LOCAL_USERNAME`, `RACKULA_LOCAL_PASSWORD` fields
-   - If OIDC: needs additional OIDC provider configuration (provider ID, client ID, secret, discovery URL) - **not yet documented**
+   - If OIDC: needs additional OIDC provider configuration (provider ID, client ID, secret, discovery URL) - not yet documented
 
-6. **Data persistence strategy:**
+6. Data persistence strategy:
    - Should template suggest daily backups of `/data`?
    - LXC script already includes backup/restore logic (see rackula.sh); Docker template should mirror this.
 
-7. **Health check:**
+7. Health check:
    - Unraid template should define:
      - Port: 8080 (or `RACKULA_LISTEN_PORT` if configurable)
      - Endpoint: `GET /health`
      - Interval: 30s, timeout: 3s (from Dockerfile healthcheck)
 
-8. **Startup order (if two-container):**
+8. Startup order (if two-container):
    - Frontend should wait for API to be healthy (like docker-compose.persist.yml depends_on, line 37-39)
    - Or declare API as required dependency?
 
-9. **API write token generation:**
+9. API write token generation:
    - Should template auto-generate a strong write token?
    - LXC script notes it's auto-generated; template should mirror this (e.g., 32-byte random string in base64).
 
-10. **Container restart policy:**
+10. Container restart policy:
     - docker-compose uses `restart: unless-stopped` with 10s grace period
     - Unraid template should specify equivalent (always restart unless manually stopped)
 

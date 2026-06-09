@@ -146,15 +146,15 @@ Every port, volume, and environment variable is one `<Config>` entry. General sh
 
 Type-specific meaning (src 7):
 
-- **`Type="Port"`** - `Target` is the *container* port (e.g. `8080`), `Mode` is the
+- `Type="Port"` - `Target` is the *container* port (e.g. `8080`), `Mode` is the
   protocol (`tcp`/`udp`), `Default` is the suggested *host* port. Pairs with `<WebUI>`.
-- **`Type="Path"`** - `Target` is the *container* mount path (e.g. `/data`), `Default` is
+- `Type="Path"` - `Target` is the *container* mount path (e.g. `/data`), `Default` is
   the suggested host path (e.g. `/mnt/user/appdata/rackula`), `Mode` is `rw`/`ro`. Guidance:
   "If it's a proper appdata location, set required to yes" (src 7).
-- **`Type="Variable"`** - `Target` is the *env var name* (e.g. `RACKULA_AUTH_MODE`); no
+- `Type="Variable"` - `Target` is the *env var name* (e.g. `RACKULA_AUTH_MODE`); no
   `Mode`; `Mask="true"` hides the value behind asterisks (use for secrets/session keys).
-- **`Type="Label"`** - display-only text, no user input.
-- **`Type="Device"`** - maps a host device into the container.
+- `Type="Label"` - display-only text, no user input.
+- `Type="Device"` - maps a host device into the container.
 
 Shared attributes (src 7): `Display` controls visibility tier - `always` (basic, editable),
 `always-hide` (basic, locked), `advanced` (advanced view, editable), `advanced-hide`. A
@@ -213,31 +213,31 @@ needs N containers is expressed as N independent templates the user installs in 
 
 ### How real multi-part apps handle it (prevailing patterns)
 
-- **Uptime Kuma** - genuinely single-container. One image, one template, a `/app/data`
+- Uptime Kuma - genuinely single-container. One image, one template, a `/app/data`
   volume; no second service needed (src 6). This is the easy baseline.
-- **Homepage (gethomepage)** - also single-container; one image plus a config volume (src 5).
-- **KitchenOwl (frontend + backend)** - the most instructive concrete example for Rackula.
+- Homepage (gethomepage) - also single-container; one image plus a config volume (src 5).
+- KitchenOwl (frontend + backend) - the most instructive concrete example for Rackula.
   Its evolution is documented: "The setup changed so that the frontend is now required... it's
   recommended to host the frontend too, with traffic routed through there to the backend"
   (src "KitchenOwl" search). Two distribution shapes coexist in CA:
-  1. **One combined template/image** - "there's a template that includes both front and
+  1. One combined template/image - "there's a template that includes both front and
      backend in one template that you can install from Community Applications" (src KitchenOwl).
-  2. **Two separate containers** - if run apart, the user installs both and wires them with
+  2. Two separate containers - if run apart, the user installs both and wires them with
      env vars: "FRONT_URL should point to the local IP & Port of the WebUI container, and
      BACK_URL should point to the Backend Container's IP & Port" (src KitchenOwl).
-- **Homelabarr** - ships a **backend template and a frontend template** explicitly "designed
+- Homelabarr - ships a backend template and a frontend template explicitly "designed
   to be used in conjunction with" each other (src "multi-container" search) - the pure
   two-template model.
 
 So across the ecosystem there are three idiomatic answers, in rough order of user-friendliness:
 
-1. **One combined image** (a single container running both processes, e.g. via s6/supervisor
+1. One combined image (a single container running both processes, e.g. via s6/supervisor
    or an nginx that also proxies an internal API). User installs one template - simplest UX,
    most maintenance burden on the maintainer's image.
-2. **Two templates, user adds the second** - the Homelabarr / KitchenOwl-split model. Each
+2. Two templates, user adds the second - the Homelabarr / KitchenOwl-split model. Each
    template is independent; the optional one is genuinely optional. The `<Requires>` element
    and the `<Overview>` text are used to tell the user "this needs the other container."
-3. **Frontend-only template + docs** - ship just the always-needed container and document the
+3. Frontend-only template + docs - ship just the always-needed container and document the
    optional second container for advanced users.
 
 ### Idiomatic answer for Rackula's *optional* API
@@ -317,25 +317,25 @@ Rackula meets none of those criteria - it is a web app that already ships as a c
 
 ### Concrete reasons Rackula should NOT ship as a plugin
 
-1. **No isolation / larger attack surface.** Containers "run safely in isolated
+1. No isolation / larger attack surface. Containers "run safely in isolated
    environments, while plugins have direct OS access"; plugins' "full filesystem access
    increases security risks" (src 13). Shipping a web app as a plugin would hand a web-facing
    app root-level host access for zero benefit, whereas the container model sandboxes it.
 
-2. **Higher moderation/trust bar, less benefit.** The official advice is "only install
+2. Higher moderation/trust bar, less benefit. The official advice is "only install
    plugins from trusted sources or well-known developers" (src 13) - i.e. plugins carry a
    heavier trust expectation than a routine CA Docker template, which only needs the
    moderation team's "basic vetting" (src 1). A new app clears the Docker-template bar far
    more easily.
 
-3. **Must survive every Unraid OS upgrade.** Plugins "can cause system instability,
+3. Must survive every Unraid OS upgrade. Plugins "can cause system instability,
    especially after OS updates," and when Unraid upgrades it "won't automatically remove
    incompatible plugins already installed" - users must manually check release notes for
    plugin breakage (src 13). A plugin is thus an open-ended maintenance commitment tied to
    the host OS lifecycle. A container is decoupled: image pinning and the normal Apps-tab
    update flow keep working across OS upgrades (src "plugin vs docker" search).
 
-4. **Wrong tool for the job / no packaging win.** Rackula is portable across any Docker host
+4. Wrong tool for the job / no packaging win. Rackula is portable across any Docker host
    (it already runs on the homelab, VPS, etc.). A `.plg` would re-implement install/upgrade
    logic that the container runtime + CA already provide for free, and would only run on
    Unraid - strictly more code to maintain for a strictly smaller audience.

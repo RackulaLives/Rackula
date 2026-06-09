@@ -12,27 +12,27 @@ native Plugin (.plg) rejected.
 
 Distilled from the two research files, the facts that actually drive the #1317 design:
 
-1. **CA installs exactly one container per template.** There is no Compose/stack primitive
+1. CA installs exactly one container per template. There is no Compose/stack primitive
    in stock CA: an app needing N containers is N independent templates installed in sequence
    (`1995-external.md` section 1, section 3). This single-container-per-template rule is the
    pivot the whole distribution model turns on.
 
-2. **The API is genuinely optional.** The frontend nginx image (`nginxinc/nginx-unprivileged`,
+2. The API is genuinely optional. The frontend nginx image (`nginxinc/nginx-unprivileged`,
    port 8080, UID 101) is fully functional standalone with `RACKULA_AUTH_MODE=none` and no
    volume. Persistence and auth require the Bun API sidecar (port 3001, UID 1001, `/data`
    volume) (`1995-codebase.md` frontend/API sections, Open Question #1). This maps cleanly to
    the ecosystem's two-template "optional second container" pattern (Homelabarr/KitchenOwl-split,
    `1995-external.md` section 3).
 
-3. **Frontend-only with no volume is silently ephemeral, but for a different reason than
-   most apps.** Rackula's primary persistence is actually the browser (the SPA works without
+3. Frontend-only with no volume is silently ephemeral, but for a different reason than
+   most apps. Rackula's primary persistence is actually the browser (the SPA works without
    any backend). The API adds *server-side* shared persistence. So "frontend only" is not
    "data lost on restart" for the casual single-browser user; it is "no server-side storage,
    no cross-device sync, no auth." This nuance matters for the devil's-advocate section: the
    "my layouts don't save" failure mode is real but narrower than the codebase doc's blunt
    "all data lost on restart" framing implies.
 
-4. **Auth is opt-in and fails closed when misconfigured.** Default is `none` (anonymous
+4. Auth is opt-in and fails closed when misconfigured. Default is `none` (anonymous
    read/write). When `RACKULA_AUTH_MODE != none`, the API *refuses to start* without
    `RACKULA_AUTH_SESSION_SECRET` (32+ chars); `local` additionally requires username and a
    12+ char password (Argon2id, OWASP params, plaintext scrubbed from env after bootstrap,
@@ -41,18 +41,18 @@ Distilled from the two research files, the facts that actually drive the #1317 d
    already solid; the Unraid risk is almost entirely in *how the template surfaces these knobs*,
    not in the app code.
 
-5. **The reverse-proxy story is a documentation problem, not a code problem.**
+5. The reverse-proxy story is a documentation problem, not a code problem.
    `RACKULA_TRUST_PROXY` already exists to honour `X-Forwarded-Proto` behind SWAG/NPM (the two
    dominant Unraid proxies, both nginx-based). No Unraid-specific code change is needed; the
    template just needs to expose the flag as an advanced variable and the support thread must
    explain when to flip it (`1995-external.md` section 4).
 
-6. **Plugin path is definitively wrong and the research closes it.** A `.plg` gets full host
+6. Plugin path is definitively wrong and the research closes it. A `.plg` gets full host
    filesystem access, must survive every Unraid OS upgrade, and carries a higher trust bar for
    zero packaging benefit on an app that already ships as a container (`1995-external.md`
    section 5). Not reopened here.
 
-7. **The real friction is human, not technical.** CA submission requires a self-hosted template
+7. The real friction is human, not technical. CA submission requires a self-hosted template
    repo (`Owner/unraid-templates`), an Unraid *forum support thread*, and passes through a
    volunteer moderation review (days to weeks) with an explicit account-quality screen:
    "made by a user with previous activity on GitHub... attributed to a GitHub account with an
@@ -68,22 +68,22 @@ self-hosted template repo, an icon, and a forum support thread.
 
 ### Template 1: `rackula` (frontend, always installed)
 
-- **Image:** `ghcr.io/rackulalives/rackula` (pin a tag, see secure-coding lens)
-- **Exposes:**
+- Image: `ghcr.io/rackulalives/rackula` (pin a tag, see secure-coding lens)
+- Exposes:
   - Port `8080/tcp` (container) -> suggested host `8080`, drives the WebUI button
   - `RACKULA_AUTH_MODE` dropdown (`none|local|oidc`), default `none`, basic visibility
   - `API_HOST` / `API_PORT` (advanced) so a persistence user can point the frontend at the
     API container by name/IP
   - `RACKULA_TRUST_PROXY` (advanced, default `false`) for SWAG/NPM users
   - `API_WRITE_TOKEN` (advanced, `Mask="true"`) when wiring writes to the API (the frontend's env var is `API_WRITE_TOKEN`; it must match `RACKULA_API_WRITE_TOKEN` on the API container)
-- **No volume.** Frontend is stateless.
-- **Overview text must state:** persistence/auth need the separate `rackula-api` container;
+- No volume. Frontend is stateless.
+- Overview text must state: persistence/auth need the separate `rackula-api` container;
   without it, layouts live only in the browser.
 
 ### Template 2: `rackula-api` (optional, for persistence/auth/OIDC)
 
-- **Image:** `ghcr.io/rackulalives/rackula-api` (pinned tag)
-- **Exposes:**
+- Image: `ghcr.io/rackulalives/rackula-api` (pinned tag)
+- Exposes:
   - Port `3001/tcp` (advanced; only needed if frontend reaches it across networks; normally the
     two share a Docker network and talk by container name)
   - Path `/data` -> default host `/mnt/user/appdata/rackula`, `Mode="rw"`, `Required="true"`
@@ -93,7 +93,7 @@ self-hosted template repo, an icon, and a forum support thread.
     mode=local)
   - `RACKULA_API_WRITE_TOKEN` (`Mask="true"`, advanced)
   - OIDC provider settings (advanced; flagged as under-documented, see open questions)
-- **`<Requires>`** text: "Pair with the Rackula frontend container."
+- `<Requires>` text: "Pair with the Rackula frontend container."
 
 ### Self-hosted template repo
 
@@ -296,7 +296,7 @@ the flash drive.
 - `RACKULA_LOCAL_PASSWORD` -> `Mask="true"`.
 - `RACKULA_API_WRITE_TOKEN` (both containers) -> `Mask="true"`.
 - `RACKULA_LOCAL_USERNAME` is not a secret -> leave unmasked.
-- **No baked default for the session secret, the password, or the write token.** A shipped default
+- No baked default for the session secret, the password, or the write token. A shipped default
   secret would let anyone forge a valid HS256 session cookie against every default install on
   earth. The app already requires the operator to supply it (the API refuses to start with auth
   enabled and no secret), so the template must NOT paper over that with a `Default=`. Leave
@@ -328,10 +328,10 @@ default.
 The proxy terminates TLS and talks HTTP to the container; the app reads `X-Forwarded-Proto` only
 when `RACKULA_TRUST_PROXY=1` (`1995-external.md` section 4). Cookie `Secure` is forced on in prod
 and whenever `SameSite=None`. The breakage modes:
-- **Auth enabled + plain HTTP + `TRUST_PROXY=0`:** Secure cookies are set, browser refuses to send
+- Auth enabled + plain HTTP + `TRUST_PROXY=0`: Secure cookies are set, browser refuses to send
   them back over HTTP, login appears to "not work" (infinite redirect to login). This is a support
   magnet.
-- **`TRUST_PROXY=1` set when NOT behind a trusted proxy:** the app would trust a client-spoofable
+- `TRUST_PROXY=1` set when NOT behind a trusted proxy: the app would trust a client-spoofable
   `X-Forwarded-Proto`, a (minor) downgrade/redirect risk.
 
 **Template/AC must enforce:**
@@ -356,8 +356,8 @@ this is purely an API-container issue.
 - Document the UID explicitly in the API template Description and support thread: "the API writes as
   UID 1001."
 - Recommend one of: (a) `chown -R 1001:1001 /mnt/user/appdata/rackula` once at setup, or (b) if the
-  image/entrypoint supports `PUID`/`PGID`-style remapping, expose those - **but the codebase shows
-  no PUID/PGID handling**, so (a) is the realistic instruction unless #1317 adds PUID support.
+  image/entrypoint supports `PUID`/`PGID`-style remapping, expose those - but the codebase shows
+  no PUID/PGID handling, so (a) is the realistic instruction unless #1317 adds PUID support.
 - Flag as an open implementation question for #1317: do we add LinuxServer-style PUID/PGID to the
   API image (Unraid users expect it), or document the one-time chown? The chown is zero-code and
   ships now; PUID support is a nicer UX but is new code.
@@ -394,11 +394,11 @@ save." Here is the saving grace the codebase gives us, and it must be used: **th
 not dead.** Layouts persist in the browser. So the bug report is really "no cross-device / no
 server storage," not "total data loss." Prevent the confusion with three cheap moves:
 
-1. **Naming makes dependency obvious:** `rackula` and `rackula-api`. A user seeing `rackula-api` in
+1. Naming makes dependency obvious: `rackula` and `rackula-api`. A user seeing `rackula-api` in
    the Apps tab infers it is the backend half.
-2. **Frontend Overview states the boundary in plain words:** "works on its own for a single
+2. Frontend Overview states the boundary in plain words: "works on its own for a single
    browser; install rackula-api for server-side persistence / login." (Drafted above.)
-3. **API `<Requires>` text** tells API installers they need the frontend too.
+3. API `<Requires>` text tells API installers they need the frontend too.
 
 But be honest in #1317: this WILL generate some support traffic no matter what. The mitigation is
 documentation discipline, not a technical guarantee.
@@ -436,12 +436,12 @@ not assume.**
 ### "CA review / account-history prerequisite: can RackulaLives clear vetting?"
 
 Partly known, partly not.
-- **GitHub history: likely fine.** RackulaLives is a real org with an active repo and real release
+- GitHub history: likely fine. RackulaLives is a real org with an active repo and real release
   history; the "previous activity on GitHub / not fully AI written" screen is plausibly met
   (`1995-external.md` section 1).
-- **Unraid FORUM account: UNKNOWN and a hard prerequisite.** CA requires a support *forum thread*,
+- Unraid FORUM account: UNKNOWN and a hard prerequisite. CA requires a support *forum thread*,
   which means an Unraid forum account in good standing. The research does not establish that
-  RackulaLives/the maintainer has one. **Flag as a prerequisite/blocker for #1317:** if there is no
+  RackulaLives/the maintainer has one. Flag as a prerequisite/blocker for #1317: if there is no
   established Unraid forum presence, that account (and the thread) must be created before submission,
   and a brand-new forum account with no history may itself draw moderation scrutiny. Do not assume
   this is free.
@@ -455,20 +455,20 @@ enumerated, and OIDC setup is "MVP"). Recommendation for #1317:
 - Keep the dropdown `none|local|oidc` (matches the app), but in the Description steer plainly:
   "Most homelab users want none or local. oidc requires an external identity provider and extra
   configuration."
-- Treat OIDC-on-Unraid as **explicitly out of scope for the first listing's documentation** until
+- Treat OIDC-on-Unraid as explicitly out of scope for the first listing's documentation until
   the OIDC env surface is documented. Shipping a dropdown option the docs cannot fully support is a
   support-debt generator.
 
 ### "Anything that makes me say 'this is more work than #1317 assumes'?"
 
 Yes, three things:
-1. **The UID 1001 vs 99:100 permission mismatch** (secure-coding item 5) is the kind of detail that
+1. The UID 1001 vs 99:100 permission mismatch (secure-coding item 5) is the kind of detail that
    turns "install and go" into a forum thread full of "permission denied" reports. Either add PUID
    support (new code) or document the chown loudly. Not free.
-2. **Container-name networking on stock bridge** (above) may force a "create a user-defined Docker
+2. Container-name networking on stock bridge (above) may force a "create a user-defined Docker
    network" instruction, which is an extra manual step most one-click apps do not need. Must be
    verified on real Unraid.
-3. **The forum thread + ongoing support obligation** is a standing human cost, not a one-time
+3. The forum thread + ongoing support obligation is a standing human cost, not a one-time
    implementation task. CA can *delist* unmaintained apps. #1317 should not pretend the work ends at
    "XML merged."
 
@@ -496,31 +496,31 @@ commitments that are easy to under-scope. Do NOT combine into a fat image, do NO
    without auth; behind a proxy set Trust Proxy true; API writes as UID 1001).
 7. Decide and implement the `/data` permissions story: document the one-time chown (zero-code, ships
    now) OR add PUID/PGID support to the API image (new code, nicer UX) - pick one in #1317.
-8. **Verify on real Unraid:** container-name resolution between `rackula` and `rackula-api` on the
+8. Verify on real Unraid: container-name resolution between `rackula` and `rackula-api` on the
    default bridge; if it fails, add a "create a user-defined network" step to the docs.
 9. Confirm a square HTTPS PNG icon exists at a stable raw-GitHub path; add one if not.
 
 ### PREREQUISITE / RESEARCH-RESOLVED
 
-- Distribution model decision (CA, two templates, no plugin): **resolved** by this spike.
+- Distribution model decision (CA, two templates, no plugin): resolved by this spike.
 - CA workflow (self-host repo + forum thread + submission form, one-container-per-template rule,
-  masked-variable mechanics, icon/proxy/cookie behaviour): **resolved**.
-- GitHub account-quality screen: **likely met** (real org, real history) - confirm, don't assume.
-- **Unraid forum account in good standing + a support thread: UNRESOLVED prerequisite.** Must exist
+  masked-variable mechanics, icon/proxy/cookie behaviour): resolved.
+- GitHub account-quality screen: likely met (real org, real history) - confirm, don't assume.
+- Unraid forum account in good standing + a support thread: UNRESOLVED prerequisite. Must exist
   before CA submission. Open question: who owns it.
-- **OIDC-on-Unraid documentation: out of scope** for the first listing until the OIDC env surface is
+- OIDC-on-Unraid documentation: out of scope for the first listing until the OIDC env surface is
   documented elsewhere; the dropdown keeps the option but docs steer to none/local.
 
 ### NEW / SEPARATE WORKSTREAM (not #1317 implementation)
 
-- **Create and maintain `RackulaLives/unraid-templates`** repo (hosting + `<TemplateURL>` self-
+- Create and maintain `RackulaLives/unraid-templates` repo (hosting + `<TemplateURL>` self-
   reference + release-time tag sync). Small but ongoing.
-- **Create the Unraid forum support thread and assign an owner** to answer it. This is a standing
+- Create the Unraid forum support thread and assign an owner to answer it. This is a standing
   human commitment CA can enforce via delisting; it is not a code task and should be tracked
   separately from #1317.
-- **CA submission + moderation cycle** (days to weeks, human-gated): track as its own task gated on
+- CA submission + moderation cycle (days to weeks, human-gated): track as its own task gated on
   the repo, thread, and icon being ready.
-- **(Optional, demand-driven) hybrid fallback:** if no one can own the forum thread, scope down to
+- (Optional, demand-driven) hybrid fallback: if no one can own the forum thread, scope down to
   "list the frontend template in CA, document `docker-compose.persist.yml` for persistence" instead
   of the second template. Worth holding as the escape hatch if the human-maintenance cost cannot be
   met.
