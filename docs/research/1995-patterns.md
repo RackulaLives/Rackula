@@ -75,7 +75,7 @@ self-hosted template repo, an icon, and a forum support thread.
   - `API_HOST` / `API_PORT` (advanced) so a persistence user can point the frontend at the
     API container by name/IP
   - `RACKULA_TRUST_PROXY` (advanced, default `false`) for SWAG/NPM users
-  - `RACKULA_API_WRITE_TOKEN` (advanced, `Mask="true"`) when wiring writes to the API
+  - `API_WRITE_TOKEN` (advanced, `Mask="true"`) when wiring writes to the API (the frontend's env var is `API_WRITE_TOKEN`; it must match `RACKULA_API_WRITE_TOKEN` on the API container)
 - **No volume.** Frontend is stateless.
 - **Overview text must state:** persistence/auth need the separate `rackula-api` container;
   without it, layouts live only in the browser.

@@ -27,8 +27,8 @@
 
 ### Build Args (lines 6-11)
 - `VITE_ENV=production` (default; line 7)
-- `VITE_PERSIST_ENABLED=false` (default; line 11) — feature flag for server-side persistence
-- `APK_CACHEBUST=0` (default; line 27) — invalidated per-build for security patching
+- `VITE_PERSIST_ENABLED=false` (default; line 11) - feature flag for server-side persistence
+- `APK_CACHEBUST=0` (default; line 27) - invalidated per-build for security patching
 
 ### Runtime Environment Variables (lines 39-54)
 All env vars set inside the image as defaults; can be overridden at container run time.
@@ -109,7 +109,7 @@ When auth is enabled, the API **fails to start** if these are missing:
 | Variable | Purpose | Min Length | Default |
 |----------|---------|-----------|---------|
 | `RACKULA_AUTH_SESSION_SECRET` | Session token signing key | 32 chars | (required) |
-| `RACKULA_AUTH_MODE` | Mode: `none`, `oidc`, `local` | — | `none` (optional) |
+| `RACKULA_AUTH_MODE` | Mode: `none`, `oidc`, `local` | - | `none` (optional) |
 
 ### Auth Mode Specifics
 
@@ -145,10 +145,10 @@ Additional required env vars:
 | `RACKULA_AUTH_SESSION_MAX_AGE_SECONDS` | `43200` (12h) | `60` | `604800` (7 days) | Absolute session lifetime |
 | `RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS` | `1800` (30m) | `60` | `authSessionMaxAgeSeconds` | Inactivity timeout |
 | `RACKULA_AUTH_SESSION_GENERATION` | `0` | 0 | (no max) | Increment to invalidate all active sessions globally |
-| `RACKULA_AUTH_SESSION_COOKIE_SAMESITE` | `Lax` | — | — | Cookie policy: `Lax`, `Strict`, `None` |
-| `RACKULA_AUTH_SESSION_COOKIE_SECURE` | `true` if prod, `false` if dev | — | — | HTTPS-only flag (forced `true` if SameSite=None) |
-| `RACKULA_AUTH_SESSION_COOKIE_NAME` | `rackula_auth_session` | — | — | Session cookie name (alphanumeric, `-`, `_` only) |
-| `RACKULA_AUTH_CSRF_PROTECTION` | `true` if auth enabled, `false` otherwise | — | — | CSRF token validation for authenticated writes |
+| `RACKULA_AUTH_SESSION_COOKIE_SAMESITE` | `Lax` | - | - | Cookie policy: `Lax`, `Strict`, `None` |
+| `RACKULA_AUTH_SESSION_COOKIE_SECURE` | `true` if prod, `false` if dev | - | - | HTTPS-only flag (forced `true` if SameSite=None) |
+| `RACKULA_AUTH_SESSION_COOKIE_NAME` | `rackula_auth_session` | - | - | Session cookie name (alphanumeric, `-`, `_` only) |
+| `RACKULA_AUTH_CSRF_PROTECTION` | `true` if auth enabled, `false` otherwise | - | - | CSRF token validation for authenticated writes |
 
 ### Write Route Authorization
 
@@ -212,7 +212,7 @@ Services:
   - Image: `ghcr.io/rackulalives/rackula-api:latest` (overridable via `RACKULA_API_IMAGE`)
   - Ports: Not exposed (internal only)
   - Container name: `${RACKULA_API_CONTAINER_NAME:-rackula-api}`
-  - **Profile: `persist`** — only runs with `docker compose --profile persist up`
+  - **Profile: `persist`** - only runs with `docker compose --profile persist up`
   - Volumes: `./data:/data` (note: host dir must be writable by UID 1001)
   - Resources: 0.25 CPU / 64 MB limit, 0.05 CPU / 16 MB reserved
   - Security: Same hardening as frontend
@@ -274,7 +274,7 @@ Services:
 | `NODE_ENV` | `production` | Node environment | api/Dockerfile:53 | string | No |
 | `PORT` | `3001` | Fallback listen port | api/Dockerfile:53 | integer | No |
 | `RACKULA_API_PORT` | `3001` | API listen port (preferred) | api/index.ts:13 | integer | No |
-| `DATA_DIR` | `./data` | Persistent data directory | api/Dockerfile:53, filesystem.ts:28 | path | No |
+| `DATA_DIR` | `/data` | Persistent data directory (container default from api/Dockerfile:53; code fallback `./data` when unset, filesystem.ts:28) | api/Dockerfile:53, filesystem.ts:28 | path | No |
 | `RACKULA_AUTH_MODE` | `none` | Auth mode | api/src/security/config.ts:302 | enum(none/oidc/local) | No |
 | `RACKULA_AUTH_SESSION_SECRET` | (unset) | Session token signing key | api/src/security/config.ts:332 | string (32+ chars) | **Yes if auth enabled** |
 | `RACKULA_LOCAL_USERNAME` | (unset) | Local auth username | api/src/local-auth.ts:71 | string (1-255 chars) | **Yes if mode=local** |
@@ -324,7 +324,7 @@ Services:
    - Time cost: 3
    - Parallelism: 4
 3. Hash stored in-memory; plaintext password scrubbed from env (app.ts line 289)
-4. **No persistent user database** — credentials are ephemeral (hashed only during container lifetime)
+4. **No persistent user database** - credentials are ephemeral (hashed only during container lifetime)
 
 **Login flow:**
 1. User POST `/auth/login` with `{ username, password }`
@@ -614,7 +614,7 @@ Headers (typical web hardening):
 5. **Auth mode selection in UI:**
    - Should template offer radio buttons: "None (Anonymous)" | "Local (Username/Password)" | "OIDC (External IdP)"?
    - If local: expose `RACKULA_LOCAL_USERNAME`, `RACKULA_LOCAL_PASSWORD` fields
-   - If OIDC: needs additional OIDC provider configuration (provider ID, client ID, secret, discovery URL) — **not yet documented**
+   - If OIDC: needs additional OIDC provider configuration (provider ID, client ID, secret, discovery URL) - **not yet documented**
 
 6. **Data persistence strategy:**
    - Should template suggest daily backups of `/data`?
