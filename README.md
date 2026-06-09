@@ -69,6 +69,8 @@ You might ask, why should I make an imaginary rack like some sort of IT cosplay?
 
 ### Self-host with Docker
 
+This is a quick run of the client-side only frontend (no persistence across browser sessions):
+
 ```bash
 docker run -d -p 8080:8080 ghcr.io/rackulalives/rackula:latest
 ```
@@ -76,25 +78,12 @@ docker run -d -p 8080:8080 ghcr.io/rackulalives/rackula:latest
 Or with Docker Compose:
 
 ```bash
-curl -O https://raw.githubusercontent.com/RackulaLives/Rackula/main/docker-compose.yml
-docker compose up -d
-```
-
-Open `http://localhost:8080` and get after it.
-
-### Deploy on Proxmox (LXC)
-
-> **Note:** LXC is currently in pre-release. See the [Self-Hosting Guide](docs/deployment/SELF-HOSTING.md) for details and manual install instructions.
-
-### Persistent Storage
-
-For layouts that persist across browser sessions:
-
-```bash
 curl -fsSL https://raw.githubusercontent.com/RackulaLives/Rackula/main/deploy/docker-compose.persist.yml -o docker-compose.yml
 mkdir -p data && sudo chown 1001:1001 data
 docker compose up -d
 ```
+
+Open `http://localhost:8080` and get after it.
 
 ### Build from Source
 
@@ -104,6 +93,10 @@ cd Rackula && npm install && npm run build
 ```
 
 Serve the `dist/` folder however you like. It's just files.
+
+### Deploy on Proxmox (LXC)
+
+> **Note:** LXC is currently in pre-release. See the [Self-Hosting Guide](docs/deployment/SELF-HOSTING.md) for details and manual install instructions.
 
 ### Security & Auth
 
