@@ -291,7 +291,20 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.validate.outputs.tag }}
         run: |
-          gh release download "$TAG" --pattern 'rackula-lxc-*.tar.gz' --dir .
+          # Resolve the rackula-lxc tarball asset on the (pre)release for $TAG, then
+          # download it by asset API URL. Uses curl + jq only: the self-hosted runner
+          # has no gh CLI (and does not need one).
+          asset_url="$(curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GH_REPO}/releases/tags/${TAG}" \
+            | jq -r 'first(.assets[] | select(.name | test("^rackula-lxc-.*\\.tar\\.gz$")) | .url) // empty')"
+          [ -n "$asset_url" ] || { echo "::error::no rackula-lxc-*.tar.gz asset on release ${TAG}"; exit 1; }
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/octet-stream" \
+            -o "rackula-lxc-${TAG}.tar.gz" "$asset_url"
+          [ -s "rackula-lxc-${TAG}.tar.gz" ] || { echo "::error::downloaded tarball is empty"; exit 1; }
 
       - name: LXC smoke gate (deploy-only bootstrap for v26.6.3)
         run: |
