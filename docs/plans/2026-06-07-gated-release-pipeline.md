@@ -166,7 +166,7 @@ gate-docker  (needs stage-docker)   compose health, packages:read
 gate-lxc     (needs stage-lxc)      runs-on [self-hosted, pve-rusty], smoke test, no creds
 promote-gate (needs [gate-docker, gate-lxc]) environment: production  ← single approval choke
 promote-docker (needs promote-gate) retag digests -> :latest + :year_month (packages:write)
-promote-github (needs promote-gate) gh release edit --prerelease=false --latest=true
+promote-github (needs [promote-gate, promote-docker]) gh release edit --prerelease=false --latest=true
 promote-prod   (needs [promote-gate, promote-docker]) uses deploy-prod.yml (vps deploy + smoke)
 notify-failure (always, on failure/cancel)
 ```
@@ -278,7 +278,7 @@ concurrency:
           # persist image -> :persist similarly
 ```
 
-- [ ] **Step 10: `promote-github`** (`needs: [validate, promote-gate]`, contents: write):
+- [ ] **Step 10: `promote-github`** (`needs: [validate, promote-gate, promote-docker]`, contents: write):
 
 ```yaml
       - run: gh release edit "${{ needs.validate.outputs.tag }}" --prerelease=false --latest=true

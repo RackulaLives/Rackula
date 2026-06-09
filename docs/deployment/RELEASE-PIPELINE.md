@@ -58,9 +58,12 @@ auto-promote: the release stays a prerelease and the skip is logged. To ship an 
 must still promote it manually after your own verification:
 
 ```bash
-# after manual verification of the staged :vX.Y.Z artifacts
+# after manual verification of the staged :vX.Y.Z artifacts.
+# Retag by digest (same as the automated promote-docker) so :latest points at the
+# exact image you verified, not whatever :vX.Y.Z resolves to later.
+digest="$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ghcr.io/rackulalives/rackula:vX.Y.Z)"
 docker buildx imagetools create --tag ghcr.io/rackulalives/rackula:latest \
-  ghcr.io/rackulalives/rackula:vX.Y.Z   # repeat for -api and persist
+  "ghcr.io/rackulalives/rackula@${digest}"   # repeat for -api and persist
 gh release edit vX.Y.Z --prerelease=false --latest=true
 ```
 
