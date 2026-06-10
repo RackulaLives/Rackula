@@ -11,7 +11,8 @@ custom-domain attach mechanics, preview-URL smoke before promote, C1 split into 
 build-env parity, HSTS scoping, transitive promote-DAG coupling.
 
 Promotes issue #1984 into this epic. Sibling of epic #1983 (eliminate the VPS). Milestone:
-new `M00 -- VPS Retirement & Cloudflare Hosting`.
+`M02 -- LXC Release & Stability` (execution-time decision; the designed `M00` was dropped, see
+the Section 2 execution note).
 
 ---
 
@@ -56,6 +57,12 @@ Re-prioritization decision: VPS retirement outranks the in-progress LXC release 
 #1983, #1984, #1985, #1986 all move into `M00`. The M02/M03 burndown dip from moving
 in-progress #1985 is accepted and deliberate.
 
+Execution note (2026-06-10): the M00 decision was REVERSED at execution time by the maintainer.
+The whole arc rides the active `M02 -- LXC Release & Stability` milestone instead; M00 was
+created and then deleted. The title-sort mechanism above remains valid for any future
+top-priority milestone; nothing currently uses it. The two paragraphs above are retained as the
+design-time record.
+
 Prod artifact decision: the wrangler job runs its own `npm ci && npm run build` (a separate
 build from the gated Docker image). To compensate for losing the "promote exactly what was
 gated" invariant, the post-deploy assertion verifies `count.racku.la/version.json` matches the
@@ -78,18 +85,18 @@ promoting the gated Docker image's `dist/` (docker create + cp) becomes possible
 ## 3. Epic structure
 
 ```
-M00 -- VPS Retirement & Cloudflare Hosting (milestone)  [sorts first by title]
+M02 -- LXC Release & Stability (milestone)  [execution-time decision; M00 dropped]
 |
 +- #1984  EPIC: Cloudflare frontend hosting (prod -> Workers Static Assets)   [promoted in place]
-|    +- C1a Shared-source cleanup: CSP, shim, APP_COMMIT             (Small-Medium)
-|    +- C1b Prod cutover to Workers Static Assets                    (Medium-Large)
-|    +- C2  Cloudflare Web Analytics                                (Trivial-Small)
-|    +- C3  Cloudflare dev/preview frontend environment            (Small)
-|    +- C4  Self-host header/parity guard                          (Small)
+|    +- #2028  C1a Shared-source cleanup: CSP, shim, APP_COMMIT      (Small-Medium)
+|    +- #2029  C1b Prod cutover to Workers Static Assets             (Medium-Large)
+|    +- #2030  C2  Cloudflare Web Analytics                         (Trivial-Small)
+|    +- #2031  C3  Cloudflare dev/preview frontend environment     (Small)
+|    +- #2032  C4  Self-host header/parity guard                   (Small)
 |
 +- #1983  EPIC: Eliminate the production VPS   [keeps the decommission arc]
      +- #1985  dev rackula-api -> homelab
-     +- #1986  decommission the (Linode) VPS + vps-rackula runner   [blocked by #1984 + #1985]
+     +- #1986  decommission the Linode VPS + vps-rackula runner   [blocked by #1984 + #1985]
 ```
 
 #1984 is promoted in place (retitle + rewrite body as an epic) so its number, links, and
@@ -418,6 +425,12 @@ Acceptance criteria:
 
 ## 10. Epic-restructure checklist (mechanics)
 
+EXECUTED 2026-06-10 via docs/plans/2026-06-10-cf-hosting-epic-restructure.md. Deviation: the
+milestone target changed from a new M00 to the existing M02 at execution time (maintainer
+decision mid-run); M00 was created, emptied, and deleted. Children: C1a=#2028, C1b=#2029,
+C2=#2030, C3=#2031, C4=#2032, all native sub-issues of #1984. The checklist below is the
+design-time record.
+
 Execute in this order so no artifact dangles:
 
 1. Post the spike conclusion as a comment on #1025; close #1025 as superseded (point to the
@@ -474,9 +487,8 @@ VPS decommission (#1986).
   `'self'` (a build-emitted inline script remains); the plan must handle either outcome.
 - HSTS `includeSubDomains`/preload has cross-subdomain blast radius on `racku.la`; defer preload
   and coordinate with C3.
-- M00 top placement relies on milestone title-sort; the project's current "Roadmap" view is a
-  Status-grouped board, so confirm the surface where you want the arc shown at top renders as
-  expected.
+- (Resolved 2026-06-10: moot. The M00 milestone was dropped at execution time; the arc rides
+  M02. Title-sort remains available for future top-priority milestones.)
 - Preview URLs are `workers.dev`-subdomain only in beta; dev review UX cannot yet be on a
   `racku.la` subdomain.
 - `version.json.commit` short-hash format must match between the CF build and the `APP_COMMIT`

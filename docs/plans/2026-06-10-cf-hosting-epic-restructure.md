@@ -514,6 +514,20 @@ Run: `rm -f /tmp/cf-epic-children.env`
 
 ---
 
+## Execution record (2026-06-10)
+
+Executed via subagent-driven development, all batches spec-reviewed against live GitHub state.
+Outcome differs from the plan in one respect: mid-execution (after Batch C) the maintainer
+decided to keep the arc in `M02 -- LXC Release & Stability` instead of the new M00. Tasks 9-10
+were replaced by a revised batch: #1984 and the five children moved to M02, #1986 fixed with
+M02, and milestone M00 (number 37) deleted after being emptied. Final sweep: PASS on all eight
+end-state checks.
+
+Created issues: C1a=#2028, C1b=#2029, C2=#2030, C3=#2031, C4=#2032 (all native sub-issues of
+#1984). #1025 closed (completed) with the conclusion comment; #1984 promoted in place; #1983
+rewritten; #1986 retitled to Linode with both gate conditions. The pre-restructure burndown
+snapshot and a post-execution correction comment are on #1983.
+
 ## Not in this plan (deliberate)
 
 - C1a implementation: next plan, after this restructure lands.
