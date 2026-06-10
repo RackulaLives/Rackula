@@ -283,7 +283,14 @@
   }
 
   function handleYamlApply(nextLayout: Layout) {
+    // Applying YAML edits the working copy; preserve export tracking
+    // across loadLayout's reset so the chip state survives the apply.
+    const backupState = {
+      changesSinceExport: layoutStore.changesSinceExport,
+      hasEverExported: layoutStore.hasEverExported,
+    };
     layoutStore.loadLayout(nextLayout);
+    layoutStore.restoreBackupState(backupState);
     layoutStore.markDirty();
     selectionStore.clearSelection();
     toastStore.showToast("YAML applied", "success");
