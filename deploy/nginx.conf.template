@@ -92,9 +92,17 @@ server {
     }
 
     # Runtime storage mode config, written to tmpfs by the entrypoint wrapper
-    # (the html root is read-only). no-cache: a stale mode after a redeploy or
-    # env change would silently flip storage behavior.
+    # (the html root is read-only; this exact-match alias overrides the
+    # browser-mode default the build ships at /usr/share/nginx/html/config.js).
+    # no-cache: a stale mode after a redeploy or env change would silently
+    # flip storage behavior.
+    # Auth-gated like the SPA shell (location /): only index.html loads this
+    # file post-auth; the pre-auth login page (login.html) does not load it,
+    # so gating cannot break the login flow. The internal probe returns 204
+    # when auth mode is none.
     location = /config.js {
+        auth_request /_rackula_auth_check;
+        error_page 401 = @auth_login_redirect;
         alias /tmp/rackula-config/config.js;
         add_header Cache-Control "no-cache" always;
 
