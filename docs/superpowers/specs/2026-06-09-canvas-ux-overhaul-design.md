@@ -1,0 +1,282 @@
+# Canvas UX Overhaul (Design Spec)
+
+Status: Draft
+Epic: UX Overhaul
+Date: 2026-06-09
+
+## Summary
+
+The canvas chrome grew by accretion and now reads as a junk drawer: controls of
+different scope (global, view, object) sit at the same altitude in one top-right
+cluster, the splash screen gates entry, there is no recognisable file menu, and
+there is no way to preview or hold open more than one layout. This spec redefines
+the canvas shell around a single principle: place each control where its scope
+lives. Global frame in the top bar, view and history on the canvas, object actions
+on the object, properties in a side panel. It also replaces the runtime "is the
+server up" guesswork with an explicit storage mode and an honest storage indicator.
+
+This is a design spec, not an implementation plan. Two areas remain open and are
+tracked as design spikes (see Open Questions); a third spike, the command palette,
+is decided build-later and does not block the shell.
+
+## Goals
+
+Make the shell legible by scope. The top bar should answer "who am I, what is open,
+where is it stored" and nothing else. Make the app open straight to work with no
+gate. Give layouts a previewable, multi-open home. Make creation and placement feel
+direct rather than dialog-driven. Present local-only storage as an honest, durable
+arrangement rather than a failure state.
+
+## Non-goals
+
+Network connectivity between layouts is out of scope here and belongs to its own
+future epic. Mobile adaptation of the new shell is out of scope for this spec. The
+command palette is decided build-later; the shell only structures its actions as a
+command registry so the palette can layer on. None of these are foreclosed: the
+shell leaves room for a project or site container above the layout, which is where
+connectivity would later attach.
+
+## Audience
+
+Rackula serves a diverse audience whose mental models differ: AV users who bay
+open-frame racks into rows, IT and server users who think in standalone enclosed
+racks, and homelabbers with small mixed setups. Concepts are not universal. The
+shared-majority workflow, standalone racks and placing devices, is the default and
+must be frictionless. Domain-specific features such as baying are explicit opt-ins
+that never trigger by accident and do not clutter the canvas for users who do not
+use them.
+
+## The shell
+
+### Workspace and tabs
+
+Rackula becomes a multi-layout workspace on the familiar editor and browser model.
+Layouts open as tabs across the top of the canvas. The sidebar Layouts list is the
+durable library of everything that exists; tabs are the working set for the current
+session. On launch the app opens straight to the canvas and restores the full set
+of tabs that were open, lazily: only the active layout's content loads, the rest
+load when focused. The old StartScreen is demoted. A true first launch with no layouts shows the existing
+WelcomeScreen empty state.
+
+Tabs use a real tab shape, support drag to reorder, and reveal a close affordance on
+hover. Closing a tab never deletes the layout; the layout persists in storage and in
+the sidebar. Opening a layout from the sidebar focuses its tab if already open,
+otherwise opens a new one. A tab carries a small unbacked-changes dot only when it
+is inactive: the active tab needs no dot because the user is looking at that work,
+and the inactive dots identify which background layout the storage chip's amber
+state refers to. Tab keyboarding avoids browser-reserved combinations (no Ctrl+W,
+Ctrl+T, Ctrl+Tab) and uses Alt+1 through 9 to jump between tabs. Ctrl+1 through 9
+is also browser-reserved (it switches browser tabs in Chrome and cannot be
+intercepted); Alt+1 through 9 is interceptable in all major browsers and matches
+the Slack-in-browser convention.
+
+The undo stack is per layout. Closing a tab discards that layout's undo history;
+the layout itself persists in storage and in the sidebar.
+
+Overflow behaviour and the precise close-versus-delete affordance are open (see
+Open Questions: tabs).
+
+### Top bar and app menu
+
+The top bar carries only the workspace frame: the logo (which is also the app menu),
+the tab strip, the storage chip, and the Settings gear. Everything else has moved to
+a more appropriate home.
+
+The app menu is lean. It contains only commands that have no other home: new and open
+layout, import devices, import from NetBox, new custom device, export image, export
+backup, share link, view YAML, keyboard shortcuts, and about. Edit and View are not
+mirrored here because they live on the canvas and in the panel. The menu is storage
+mode aware: the server build adds Save and Save As for the server library, while the
+browser build leads with Export backup. App preferences stay behind the Settings gear,
+not in the app menu.
+
+### Canvas controls
+
+View and history controls live on the canvas, bottom-left, as two visually separated
+groups. The history group is undo and redo. The view group is zoom out, zoom readout,
+zoom in, fit, and the display-mode lens. They read as two distinct groups, not one
+pile.
+
+### Object interaction model
+
+Selecting any object floats its verbs just above it with a small margin. The pattern
+is identical at both scales:
+
+A selected device shows its verbs floating above the device row: move up, move down,
+flip face, duplicate, delete, plus a slot control that appears only when the device
+is half-width. The bar floats above the row with a small margin and flips below when
+the row is near the rack name, so it never lands on the name.
+
+A selected rack shows its verbs floating above the rack name: duplicate, focus,
+export, delete. The name stays in place and is itself part of the rack's click
+target. Selecting a rack includes its name, so nothing reflows.
+
+Right-click mirrors the floating verbs for both. Properties for both dock in the side
+panel. Verbs float, properties dock. Multi-select surfaces group actions, including
+Bay together (see Creation).
+
+Verb-bar behaviour at low zoom is unresolved: the bar renders at constant
+screen-space size, so below some zoom level it is larger than the object it points
+to and ambiguous about its target. A zoom threshold rule must be defined during
+implementation breakdown.
+
+### The side panel
+
+The right panel is persistent and tabbed: Edit and View. The Edit tab is contextual
+and shows properties for the current selection, or an empty-state prompt when nothing
+is selected. The View tab is always reachable and holds the layout-scoped view toggles
+(display mode, annotations, rear view). Theme is an app preference and lives behind
+the Settings gear, not in the View tab. This replaces an earlier mode-swap
+design in which selecting an object hid the View controls. The panel is collapsible to
+a slim rail to give the canvas its width back, and it remembers whether it was left
+collapsed. Multi-select and empty states are first-class.
+
+## Storage
+
+### Explicit storage mode
+
+Storage mode is declared by configuration, not inferred at runtime. The setting is
+storage: browser or storage: server. This replaces the previous approach of always
+probing /api and guessing intent from connection history, which made a deliberately
+backendless build indistinguishable from a server that was simply down.
+
+The model has three tiers: a file on disk (portable, always available via export and
+import), the browser (the live working copy, autosaved), and the server (a durable
+library that survives the browser being cleared, present only in the server build).
+In the browser build the durable home is the file; the browser holds the working copy.
+In the server build the durable home is the server; the browser holds the working copy
+and the file is a portable copy.
+
+The design target for concurrency is one user on multiple devices, not multi-user
+editing. When the working copy and the server copy diverge (a reconnect after working
+offline, or another device wrote in between), the resolution is last-write-wins with
+an automatic pre-overwrite snapshot of the losing copy; there is no merge or prompt
+UX. The snapshot mechanics are designed in the storage spike.
+
+### The storage chip
+
+A single compact chip lives at the top-right. Its dot answers one question regardless
+of build: is my work in its durable home. The chip is workspace-wide: it aggregates
+across all open layouts and shows green only when every open layout is in its durable
+home. It never shows green while any open tab holds unbacked work; the inactive-tab
+dots identify which layout the amber state refers to. The chip's states:
+
+Browser build: green "In your browser" when a recent file backup exists, amber
+"In your browser" when only a working copy exists. The app can only know that an
+export event happened, not that the file still exists on disk, so "recent" needs a
+definition (change-based versus time-based); that definition is delegated to the
+storage spike.
+
+Server build: green "Saved to <instance>" when synced, neutral "Saving" while writing,
+red "<instance> unreachable" when disconnected and working from the browser.
+
+Clicking the chip opens a self-contained popover with the facts (where stored, last
+backup or sync) and the actions (export all, import, and in the browser build restore
+from file).
+
+### Messaging
+
+The browser build shows a one-time, first-run notice framed honestly: Rackula runs
+entirely in your browser, nothing is uploaded, clearing browser data erases layouts,
+so export a file to keep a copy. It never shows the old "server unavailable" toast,
+because there is no server to be unavailable. The server build keeps a single,
+instance-named, reassuring toast when the backend genuinely drops ("Lost connection to
+<instance>, working from your browser, changes will sync when it reconnects"), fired
+once, with a quiet recovery toast on resync. The generic "Server unavailable, working
+offline" toast is removed.
+
+Open data-safety and race-condition questions are tracked as a design spike (see Open
+Questions: storage).
+
+## Creation and placement
+
+Creation is by placing, not by filling in a dialog. The one exception is defining a
+custom device type, which is data entry and stays a form launched from the palette.
+
+A new rack is born from a single affordance revealed on hover, arrives at the
+last-used size (a sticky default, not a fixed 42U), is selected on creation, and is
+tuned in the panel. There is no upfront modal. On an empty canvas the empty state is
+itself the call to action to add a rack, and dragging a device onto an empty canvas
+creates a rack to hold it.
+
+Baying is explicit and opt-in, never emergent from proximity. Dragging racks near each
+other does not bay them. A bay is formed by selecting two racks and choosing Bay
+together, or by setting Bay with on a rack in the panel, which is also where the
+relationship is undone. Standalone is the default and nothing auto-snaps.
+
+Device placement is drag-first with a live preview. The preview must show the unhappy
+path, not just the happy one: a valid drop highlights the target slots, an invalid
+drop (overlap, no room, wrong face) shows a red preview and snaps to the nearest legal
+slot. A non-modal double-click on a palette item places it in the selected rack's next
+free slot. A keyboard path exists so placement is not mouse-only. All creation and
+placement is undoable.
+
+## Sidebar Layouts tab
+
+The sidebar gains a third tab beside Devices and Racks: Layouts. It is a compact list
+of rows, each with a small cached mini-render of the layout, the name, and meta. Open
+layouts carry a green dot, the active one is highlighted, and the list stays in sync
+with the tabs. A New layout action sits at the top. Per-row actions (rename, duplicate,
+export, delete) appear on hover and on right-click. The thumbnail is a real cached
+render regenerated on save, not a placeholder, so it functions as a preview.
+
+## Accessibility
+
+The new shell changes keyboard navigation extensively, so accessibility is part of
+the design, not a retrofit. Floating verb bars are reachable by keyboard, not only
+by pointer. Storage chip state changes are announced to assistive technology.
+Collapsing and expanding the side panel manages focus rather than dropping it. See
+`docs/guides/ACCESSIBILITY.md` for the project checklist.
+
+## Open questions (design spikes)
+
+Two areas are deliberately left open and tracked as design spikes under the UX
+Overhaul epic, with the storage spike running first because tabs depend on its
+semantics; a third spike, the command palette, is decided and non-blocking:
+
+Tabs interaction model: overflow strategy, the precise close-versus-delete affordance,
+the fate of browser-mode working copies of closed tabs, and the
+browser-reserved-shortcut workarounds. Also: deleting a
+layout while its tab is open (from the sidebar, or server-side by another client),
+renaming a layout open in a tab, duplicate layout names across tabs, and a keyboard
+map that reconciles the existing app shortcuts (Ctrl+S, Ctrl+O, Ctrl+E, Ctrl+H,
+Ctrl+D, I, F, Delete, arrows).
+
+Storage model and data safety: the browser-mode data-loss recovery experience (manual
+export plus nudges; the nudge cadence, restore flow, and recent-backup definition are
+the open parts), the pre-overwrite snapshot mechanics behind last-write-wins, the
+twin-tab case, and the mechanics of the explicit storage mode.
+
+Command palette: deferred. The build-later call is made; the shell implementation
+structures menu and verb actions as a command registry so a Ctrl+K palette can layer
+on later as thin UI. The spike, when picked up, designs the palette itself.
+
+## Out of scope
+
+Connectivity between layouts is a separate future epic; this shell leaves a
+project-or-site-container-shaped hole above the layout for it. Mobile adaptation of the
+new shell is not covered here. The command palette is build-later, not part of this
+shell work beyond the command registry.
+
+## Decision log
+
+The top bar is the workspace frame only; other controls moved by scope. App opens
+straight to the canvas. App menu is lean and storage-mode
+aware. Storage mode is explicit (browser or server) over a three-tier file, browser,
+server model, surfaced by one honest chip. Object verbs float above the object (device
+above the row, rack above the name), properties dock in the panel. The panel is tabbed
+Edit and View, collapsible, with multi-select and empty states. Creation is by placing
+with a sticky default size; baying is explicit opt-in; placement preview shows valid
+and invalid drops. Sidebar Layouts tab is compact rows with cached previews. Tab
+switching is Alt+1 through 9 (Ctrl+1 through 9 is browser-reserved and
+non-interceptable in Chrome). The storage chip is workspace-wide: green only when
+every open layout is in its durable home. The undo stack is per layout and is
+discarded when its tab closes. Launch restores the full open tab set lazily (only the
+active layout's content loads). The design target for concurrency is one user on
+multiple devices: server-mode conflicts resolve last-write-wins with an automatic
+pre-overwrite snapshot, no merge or prompt UX. Browser-mode backup is manual export
+plus nudges; no persistent-file-handle mechanism for now. The command palette is
+build-later; shell actions are structured as a command registry so it can layer on.
+Theme lives behind the Settings gear as an app preference; the View tab holds
+layout-scoped toggles only. Delivery is incremental in coherent slices on main, no
+long-lived branch; the storage spike runs before the tabs spike.
