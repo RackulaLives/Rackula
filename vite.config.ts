@@ -166,7 +166,7 @@ export default defineConfig(() => ({
     // Environment indicator (development, production, or empty for local detection)
     __BUILD_ENV__: JSON.stringify(process.env.VITE_ENV || ""),
     // Note: __PERSIST_ENABLED__ removed - API availability is now detected at runtime
-    // See src/lib/stores/persistence.svelte.ts
+    // See src/lib/storage/availability.svelte.ts
   },
   resolve: {
     alias: {
