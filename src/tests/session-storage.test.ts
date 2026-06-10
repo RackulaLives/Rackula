@@ -34,6 +34,7 @@ Object.defineProperty(globalThis, "localStorage", {
 
 describe("Session Storage", () => {
   const STORAGE_KEY = "Rackula:autosave";
+  const noBackup = { changesSinceExport: 0, hasEverExported: false };
 
   // Mock layout for testing
   const mockLayout: Layout = {
@@ -59,7 +60,7 @@ describe("Session Storage", () => {
 
   describe("saveSession", () => {
     it("saves layout to localStorage with timestamp wrapper", () => {
-      const result = saveSession(mockLayout);
+      const result = saveSession(mockLayout, noBackup);
 
       expect(result).toBe(true);
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -74,7 +75,7 @@ describe("Session Storage", () => {
     });
 
     it("returns true on successful save", () => {
-      const result = saveSession(mockLayout);
+      const result = saveSession(mockLayout, noBackup);
       expect(result).toBe(true);
     });
 
@@ -87,7 +88,7 @@ describe("Session Storage", () => {
         throw error;
       });
 
-      const result = saveSession(mockLayout);
+      const result = saveSession(mockLayout, noBackup);
 
       // Should return false on error (logs via debug logger, not console.warn)
       expect(result).toBe(false);
@@ -102,7 +103,7 @@ describe("Session Storage", () => {
       try {
         vi.setSystemTime(new Date("2026-02-01T12:00:00.000Z"));
 
-        saveSession(mockLayout);
+        saveSession(mockLayout, noBackup);
         const firstStored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
         expect(firstStored.savedAt).toBe("2026-02-01T12:00:00.000Z");
 
@@ -117,8 +118,9 @@ describe("Session Storage", () => {
               devices: [],
             }),
           ],
+<<<<<<< HEAD
         });
-        saveSession(updatedLayout);
+        saveSession(updatedLayout, noBackup);
 
         const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
         expect(parsed.layout).toEqual(updatedLayout);
@@ -271,13 +273,13 @@ describe("Session Storage", () => {
 
   describe("Integration", () => {
     it("round-trips save and load", () => {
-      saveSession(mockLayout);
+      saveSession(mockLayout, noBackup);
       const loaded = loadSession();
       expect(loaded).toEqual(mockLayout);
     });
 
     it("round-trips save and loadWithTimestamp", () => {
-      saveSession(mockLayout);
+      saveSession(mockLayout, noBackup);
       const result = loadSessionWithTimestamp();
       expect(result).not.toBeNull();
       expect(result!.layout).toEqual(mockLayout);
@@ -285,7 +287,7 @@ describe("Session Storage", () => {
     });
 
     it("clear removes saved session", () => {
-      saveSession(mockLayout);
+      saveSession(mockLayout, noBackup);
       expect(loadSession()).toEqual(mockLayout);
 
       clearSession();

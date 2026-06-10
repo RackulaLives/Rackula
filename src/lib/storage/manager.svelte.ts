@@ -14,15 +14,14 @@ import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { downloadYamlFile } from "$lib/utils/archive";
 import { persistenceDebug } from "$lib/utils/debug";
 
-// Internal save status (kept for circuit breaker / health check logic, not exported)
-type SaveStatusInternal =
+export type SaveStatus =
   | "idle"
   | "saving"
   | "saved"
   | "error"
   | "offline"
   | "disabled";
-let _saveStatus = $state<SaveStatusInternal>("idle");
+let _saveStatus = $state<SaveStatus>("idle");
 
 // Circuit breaker
 const MAX_SAVE_FAILURES = 3;
@@ -37,6 +36,28 @@ let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function getConsecutiveSaveFailures(): number {
   return _consecutiveSaveFailures;
+}
+
+/**
+ * Chip data source: save state plus backup state behind one read surface.
+ * Property reads are reactive; call inside a reactive context to track them.
+ */
+export function getStorageChipState() {
+  const layoutStore = getLayoutStore();
+  return {
+    get saveStatus(): SaveStatus {
+      return _saveStatus;
+    },
+    get consecutiveSaveFailures(): number {
+      return _consecutiveSaveFailures;
+    },
+    get changesSinceExport(): number {
+      return layoutStore.changesSinceExport;
+    },
+    get hasEverExported(): boolean {
+      return layoutStore.hasEverExported;
+    },
+  };
 }
 
 function handleSaveFailure(
@@ -162,6 +183,7 @@ export async function handleSaveAsArchive(): Promise<boolean> {
   try {
     const filename = await downloadYamlFile(layoutStore.layout);
     layoutStore.markClean();
+    layoutStore.markExported();
     clearSession();
     toastStore.showToast(`Saved ${filename}`, "success", 3000);
     return true;
@@ -195,7 +217,10 @@ export function flushSessionSave(): void {
   if (saveDebounceTimer && layoutStore.hasRack) {
     clearTimeout(saveDebounceTimer);
     saveDebounceTimer = null;
-    saveSession(layoutStore.layout);
+    saveSession(layoutStore.layout, {
+      changesSinceExport: layoutStore.changesSinceExport,
+      hasEverExported: layoutStore.hasEverExported,
+    });
   }
 }
 
@@ -214,7 +239,10 @@ export function initPersistenceEffects(): void {
         clearTimeout(saveDebounceTimer);
       }
       saveDebounceTimer = setTimeout(() => {
-        saveSession(currentLayout);
+        saveSession(currentLayout, {
+          changesSinceExport: layoutStore.changesSinceExport,
+          hasEverExported: layoutStore.hasEverExported,
+        });
         saveDebounceTimer = null;
       }, 1000);
     } else {

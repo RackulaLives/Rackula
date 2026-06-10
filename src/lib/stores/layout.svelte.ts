@@ -124,6 +124,12 @@ import {
   clearRackRecorded as clearRackRecordedImpl,
 } from "./layout/command-adapters";
 
+/** Backup state tracked alongside the layout for the storage chip. */
+export interface BackupState {
+  changesSinceExport: number;
+  hasEverExported: boolean;
+}
+
 // localStorage key for tracking if user has started (created/loaded a rack)
 export const HAS_STARTED_KEY = "Rackula_has_started";
 
@@ -144,6 +150,8 @@ function saveHasStarted(value: boolean): void {
 // Module-level state (using $state rune)
 let layout = $state<Layout>(createLayout());
 let isDirty = $state(false);
+let changesSinceExport = $state(0);
+let hasEverExported = $state(false);
 let hasStarted = $state(loadHasStarted());
 let activeRackId = $state<string | null>(null);
 
@@ -166,9 +174,7 @@ const stateAccess: LayoutStateAccess = {
   setActiveRackId: (id: string | null) => {
     activeRackId = id;
   },
-  markDirty: () => {
-    isDirty = true;
-  },
+  markDirty,
   markStarted: () => {
     hasStarted = true;
     saveHasStarted(true);
@@ -209,6 +215,8 @@ const totalDeviceCount = $derived(
 export function resetLayoutStore(clearStarted: boolean = true): void {
   layout = createLayout();
   isDirty = false;
+  changesSinceExport = 0;
+  hasEverExported = false;
   activeRackId = null;
   if (clearStarted) {
     hasStarted = false;
@@ -228,6 +236,12 @@ export function getLayoutStore() {
     },
     get isDirty() {
       return isDirty;
+    },
+    get changesSinceExport() {
+      return changesSinceExport;
+    },
+    get hasEverExported() {
+      return hasEverExported;
     },
     get rack() {
       return rack;
@@ -327,6 +341,8 @@ export function getLayoutStore() {
     // Dirty tracking
     markDirty,
     markClean,
+    markExported,
+    restoreBackupState,
 
     // Start tracking (for WelcomeScreen flow)
     markStarted,
@@ -406,6 +422,8 @@ export function getLayoutStore() {
 function createNewLayout(name: string): void {
   layout = createLayout(name);
   isDirty = false;
+  changesSinceExport = 0;
+  hasEverExported = false;
 }
 
 /**
@@ -474,6 +492,8 @@ function loadLayout(layoutData: Layout): void {
     }),
   };
   isDirty = false;
+  changesSinceExport = 0;
+  hasEverExported = false;
 
   // Set active rack to first rack
   activeRackId = layout.racks[0]?.id ?? null;
@@ -546,7 +566,7 @@ function updateRack(id: string, updates: Partial<Rack>): void {
         i === rackIndex ? { ...r, view: updates.view } : r,
       ),
     };
-    isDirty = true;
+    markDirty();
   }
 
   // For other properties, use recorded version for undo/redo support
@@ -772,7 +792,7 @@ function duplicateDevice(
     `${deviceName} (Copy)`,
   );
   history.execute(command);
-  isDirty = true;
+  markDirty();
 
   return { device: duplicatedDevice };
 }
@@ -919,7 +939,7 @@ function placeInContainer(
   } else {
     history.execute(placeCommand);
   }
-  isDirty = true;
+  markDirty();
 
   return true;
 }
@@ -1034,7 +1054,7 @@ function moveDeviceToRack(
   );
 
   history.execute(command);
-  isDirty = true;
+  markDirty();
   return true;
 }
 
@@ -1148,10 +1168,29 @@ function setLayoutName(name: string): void {
 
 function markDirty(): void {
   isDirty = true;
+  changesSinceExport += 1;
 }
 
 function markClean(): void {
   isDirty = false;
+}
+
+/**
+ * Record a successful file export: the working copy now matches a file
+ * backup, so the changes-since-export counter resets.
+ */
+function markExported(): void {
+  changesSinceExport = 0;
+  hasEverExported = true;
+}
+
+/**
+ * Restore backup state persisted in the session blob (used when a
+ * localStorage session is restored on startup).
+ */
+function restoreBackupState(state: BackupState): void {
+  changesSinceExport = state.changesSinceExport;
+  hasEverExported = state.hasEverExported;
 }
 
 function markStarted(): void {
@@ -1167,7 +1206,7 @@ function updateDisplayMode(mode: DisplayMode): void {
     ...layout,
     settings: { ...layout.settings, display_mode: mode },
   };
-  isDirty = true;
+  markDirty();
 }
 
 /**
@@ -1178,7 +1217,7 @@ function updateShowLabelsOnImages(value: boolean): void {
     ...layout,
     settings: { ...layout.settings, show_labels_on_images: value },
   };
-  isDirty = true;
+  markDirty();
 }
 
 // =============================================================================
@@ -1526,7 +1565,7 @@ function undo(): boolean {
   const history = getHistoryStore();
   const result = history.undo();
   if (result) {
-    isDirty = true;
+    markDirty();
   }
   return result;
 }
@@ -1539,7 +1578,7 @@ function redo(): boolean {
   const history = getHistoryStore();
   const result = history.redo();
   if (result) {
-    isDirty = true;
+    markDirty();
   }
   return result;
 }

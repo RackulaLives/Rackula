@@ -1,4 +1,5 @@
 import type { Layout } from "$lib/types";
+import type { BackupState } from "$lib/stores/layout.svelte";
 import { UNITS_PER_U } from "$lib/types/constants";
 import {
   safeGetItem,
@@ -17,6 +18,8 @@ const STORAGE_KEY = "Rackula:autosave";
 interface SessionData {
   layout: Layout;
   savedAt: string; // ISO 8601 timestamp
+  changesSinceExport: number;
+  hasEverExported: boolean;
 }
 
 /**
@@ -25,6 +28,8 @@ interface SessionData {
 export interface SessionLoadResult {
   layout: Layout;
   savedAt: string | null; // null for legacy data without timestamp
+  changesSinceExport: number;
+  hasEverExported: boolean;
 }
 
 /**
@@ -104,13 +109,16 @@ function migrateLayout(raw: Record<string, unknown>): Layout | null {
 /**
  * Save the current layout to localStorage with timestamp.
  * @param layout - The layout to save
+ * @param backup - Backup state persisted alongside the layout
  * @returns true if successful, false if failed (e.g., quota exceeded)
  */
-export function saveSession(layout: Layout): boolean {
+export function saveSession(layout: Layout, backup: BackupState): boolean {
   try {
     const sessionData: SessionData = {
       layout,
       savedAt: new Date().toISOString(),
+      changesSinceExport: backup.changesSinceExport,
+      hasEverExported: backup.hasEverExported,
     };
     const serialized = JSON.stringify(sessionData);
     if (!safeSetItem(STORAGE_KEY, serialized)) {
@@ -183,6 +191,12 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
       return {
         layout,
         savedAt: obj.savedAt as string,
+        changesSinceExport:
+          typeof obj.changesSinceExport === "number" &&
+          obj.changesSinceExport >= 0
+            ? obj.changesSinceExport
+            : 0,
+        hasEverExported: obj.hasEverExported === true,
       };
     }
 
@@ -192,6 +206,8 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
     return {
       layout,
       savedAt: null, // No timestamp for legacy data
+      changesSinceExport: 0,
+      hasEverExported: false,
     };
   } catch (error) {
     log("failed to load session: %O", error);

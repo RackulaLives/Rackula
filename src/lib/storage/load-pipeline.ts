@@ -110,6 +110,8 @@ export async function loadFromFile(file?: File) {
     const { layout, images, failedImages } =
       await extractFolderArchive(selectedFile);
     finalizeLayoutLoad(layout, images, failedImages.length);
+    // The loaded file is itself a backup: nothing has changed since export
+    getLayoutStore().markExported();
     return true;
   } catch (error) {
     layoutDebug.state("loadFromFile: failed %O", error);

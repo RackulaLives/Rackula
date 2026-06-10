@@ -266,6 +266,10 @@
           // Their local changes will auto-save to server on next edit
           layoutStore.loadLayout(localSession.layout);
           layoutStore.markDirty();
+          layoutStore.restoreBackupState({
+            changesSinceExport: localSession.changesSinceExport,
+            hasEverExported: localSession.hasEverExported,
+          });
           toastStore.showToast(
             "Loaded unsaved local changes (newer than server)",
             "info",
@@ -301,6 +305,10 @@
       layoutStore.loadLayout(localSession.layout);
       // Mark as dirty since this is an autosaved session (not explicitly saved)
       layoutStore.markDirty();
+      layoutStore.restoreBackupState({
+        changesSinceExport: localSession.changesSinceExport,
+        hasEverExported: localSession.hasEverExported,
+      });
       // Don't show new rack dialog - user has work in progress
       // Restore saved viewport if available, otherwise fit all racks
       requestAnimationFrame(() => {
