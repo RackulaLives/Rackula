@@ -75,6 +75,30 @@ else
 fi
 export RACKULA_IPV6_LISTEN
 
+# Storage mode -- generate runtime config.js consumed by index.html.
+# Validated against an allowlist before being written into JavaScript; the
+# printf below only ever receives the literal strings "browser" or "server".
+# Written to tmpfs (not the read-only html root) and served via an exact
+# nginx location alias.
+raw_storage_mode="${RACKULA_STORAGE_MODE:-browser}"
+storage_mode="$(printf '%s' "$raw_storage_mode" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+
+case "$storage_mode" in
+  "" | "browser")
+    storage_mode="browser"
+    ;;
+  "server")
+    storage_mode="server"
+    ;;
+  *)
+    echo "WARN: Invalid RACKULA_STORAGE_MODE '$raw_storage_mode'; defaulting to browser" >&2
+    storage_mode="browser"
+    ;;
+esac
+
+mkdir -p /tmp/rackula-config
+printf 'window.__RACKULA_CONFIG__ = { storage: "%s" };\n' "$storage_mode" >/tmp/rackula-config/config.js
+
 # Default resolver for nginx upstream DNS resolution.
 # Docker uses 127.0.0.11 (embedded DNS). Override via NGINX_RESOLVER for other
 # environments (e.g., Kubernetes cluster DNS IP).
@@ -82,7 +106,7 @@ export RACKULA_IPV6_LISTEN
 export NGINX_RESOLVER
 
 # Log configuration for debugging connectivity issues.
-echo "Rackula: DNS resolver=${NGINX_RESOLVER} API upstream=${API_HOST}:${API_PORT} trust_proxy=${RACKULA_TRUST_PROXY}" >&2
+echo "Rackula: DNS resolver=${NGINX_RESOLVER} API upstream=${API_HOST}:${API_PORT} trust_proxy=${RACKULA_TRUST_PROXY} storage_mode=${storage_mode}" >&2
 
 # Warn Kubernetes users if API_HOST is a bare hostname (no dots).
 # nginx resolver doesn't apply search domains, so bare names won't resolve

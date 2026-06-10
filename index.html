@@ -33,6 +33,10 @@
   </head>
   <body>
     <div id="app"></div>
+    <!-- Runtime deployment config (window.__RACKULA_CONFIG__). Written by the
+         container entrypoint; static hosts serve no config.js and the 404 is
+         harmless: the app defaults to browser mode. -->
+    <script src="/config.js" vite-ignore></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

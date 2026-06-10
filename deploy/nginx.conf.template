@@ -91,6 +91,18 @@ server {
         include /etc/nginx/snippets/security-headers.conf;
     }
 
+    # Runtime storage mode config, written to tmpfs by the entrypoint wrapper
+    # (the html root is read-only). no-cache: a stale mode after a redeploy or
+    # env change would silently flip storage behavior.
+    location = /config.js {
+        alias /tmp/rackula-config/config.js;
+        add_header Cache-Control "no-cache" always;
+
+        # nginx drops ALL server-level add_header directives when a location block
+        # defines its own; include shared security headers to avoid drift.
+        include /etc/nginx/snippets/security-headers.conf;
+    }
+
     # API proxy (when sidecar is running)
     # Use variable to defer DNS resolution to request time (allows nginx to start without API)
     # Using $uri$is_args$args for normalized path+query (safer than $request_uri)
