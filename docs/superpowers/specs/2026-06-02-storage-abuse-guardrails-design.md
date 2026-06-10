@@ -15,6 +15,15 @@ Rate limiting (30 writes/min/IP) prevents request flooding but does not constrai
 
 Add storage quota enforcement with safe defaults and operator controls. No automatic cleanup or retention policy — the quota cap IS the guardrail.
 
+## Amendment: Pre-Overwrite Snapshots (2026-06-10, spike #2019)
+
+The no-retention stance above is scoped to user layouts: the API never deletes or expires layouts a user created. Spike #2019 (epic #2017) adds one deliberate exception: automatic pre-overwrite snapshots.
+
+- Before a conflicting PUT overwrites a layout, the API copies the existing YAML to `{layout-folder}/snapshots/`, keeping at most 5 snapshots per layout and pruning the oldest. Snapshots are system artifacts (YAML only, fixed bound), so the prune preserves the spirit of this spec: a hard cap, not a background cleanup job over user data.
+- `{layout-folder}/snapshots/` is outside the `RACKULA_MAX_LAYOUTS` quota scan by construction: `checkLayoutQuota()` counts DATA_DIR root entries only, and snapshots live inside a layout folder. The directory is also excluded from `findYamlInFolder()`. A future quota refactor must not start counting snapshot files.
+- The new `POST /layouts/:uuid/snapshots` endpoint sits behind the same writeAuth and body-limit middleware as `PUT /layouts/:uuid` and counts against the per-layout bound of 5.
+- The create-versus-update quota skip is unaffected.
+
 ## Threat Model
 
 **Primary threat:** Unauthenticated flood — an attacker or misconfigured client spamming layout creates/uploads to fill the disk, especially when `RACKULA_AUTH_MODE=none`.
