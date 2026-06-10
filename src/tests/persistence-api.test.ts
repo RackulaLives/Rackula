@@ -3,7 +3,6 @@ import { checkApiHealth } from "$lib/storage/api";
 
 describe("checkApiHealth", () => {
   function stubBrowserGlobals(): void {
-    vi.stubGlobal("window", { location: { origin: "https://example.com" } });
     vi.stubGlobal("AbortSignal", {
       timeout: () => new AbortController().signal,
     });
