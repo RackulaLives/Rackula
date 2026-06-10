@@ -30,16 +30,6 @@
       media="(prefers-color-scheme: light)"
     />
     <title>Rackula - Rack Layout Designer</title>
-    <!-- SPA redirect handler for GitHub Pages -->
-    <script>
-      (function () {
-        var redirect = sessionStorage.redirect;
-        delete sessionStorage.redirect;
-        if (redirect && redirect !== location.href) {
-          history.replaceState(null, null, redirect);
-        }
-      })();
-    </script>
   </head>
   <body>
     <div id="app"></div>

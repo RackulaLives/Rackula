@@ -64,10 +64,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             VITE_ENV=development
-            VITE_PERSIST_ENABLED=true
-            VITE_UMAMI_ENABLED=true
-            VITE_UMAMI_SCRIPT_URL=${{ vars.UMAMI_SCRIPT_URL }}
-            VITE_UMAMI_WEBSITE_ID=${{ vars.UMAMI_DEV_WEBSITE_ID }}
 
   build-api:
     runs-on: ubuntu-latest

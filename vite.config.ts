@@ -80,7 +80,13 @@ function tryRunGit(args: string[]): string | null {
 
 function getGitInfo(): GitInfo {
   if (!existsSync(".git")) {
-    return { commitHash: "", branchName: "", isDirty: false };
+    // Docker builds strip .git (.dockerignore); the APP_COMMIT build-arg
+    // carries the short hash instead (matching git rev-parse --short HEAD).
+    return {
+      commitHash: process.env.APP_COMMIT?.trim() ?? "",
+      branchName: "",
+      isDirty: false,
+    };
   }
 
   const commitHash = tryRunGit(["rev-parse", "--short", "HEAD"]) ?? "";

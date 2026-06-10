@@ -6,9 +6,10 @@ WORKDIR /app
 ARG VITE_ENV=production
 ENV VITE_ENV=${VITE_ENV}
 
-# Persistence feature flag (server-side storage)
-ARG VITE_PERSIST_ENABLED=false
-ENV VITE_PERSIST_ENABLED=${VITE_PERSIST_ENABLED}
+# Short commit hash for version.json (.dockerignore strips .git, so the
+# build cannot derive it from the repo; CI passes git rev-parse --short HEAD)
+ARG APP_COMMIT=""
+ENV APP_COMMIT=${APP_COMMIT}
 
 # Copy package files and install dependencies
 COPY package*.json ./

@@ -47,6 +47,11 @@ jobs:
       - name: Set lowercase image name
         run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
+      - name: Set build commit
+        # Derive the commit from the checked-out tag (ref above), not github.sha.
+        # Short hash to match the frontend's commit format (rev-parse --short).
+        run: echo "BUILD_COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
         with:
@@ -86,9 +91,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache,mode=max
           build-args: |
             VITE_ENV=production
-            VITE_UMAMI_ENABLED=true
-            VITE_UMAMI_SCRIPT_URL=${{ vars.UMAMI_SCRIPT_URL }}
-            VITE_UMAMI_WEBSITE_ID=${{ vars.UMAMI_PROD_WEBSITE_ID }}
+            APP_COMMIT=${{ env.BUILD_COMMIT }}
             APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
 
   build-persist:
@@ -108,6 +111,11 @@ jobs:
 
       - name: Set lowercase image name
         run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Set build commit
+        # Derive the commit from the checked-out tag (ref above), not github.sha.
+        # Short hash to match the frontend's commit format (rev-parse --short).
+        run: echo "BUILD_COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
@@ -146,7 +154,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache-persist,mode=max
           build-args: |
             VITE_ENV=production
-            VITE_PERSIST_ENABLED=true
+            APP_COMMIT=${{ env.BUILD_COMMIT }}
             APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
 
   build-api:
