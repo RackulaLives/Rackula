@@ -153,7 +153,13 @@ The design target for concurrency is one user on multiple devices, not multi-use
 editing. When the working copy and the server copy diverge (a reconnect after working
 offline, or another device wrote in between), the resolution is last-write-wins with
 an automatic pre-overwrite snapshot of the losing copy; there is no merge or prompt
-UX. The snapshot mechanics are designed in the storage spike.
+UX. Snapshot mechanics are resolved by spike #2019: snapshots live server-side in a
+snapshots subdirectory of the layout folder, written only when a save's echoed
+updatedAt mismatches the stored copy (a genuine divergence), keeping the five most
+recent, restorable from the load dialog as a new write rather than an in-place
+revert. The startup timestamp comparison moves to the same server-echo semantics,
+and the browser working copy is kept after server saves rather than cleared. See
+docs/research/spike-2019-storage-model-data-safety.md.
 
 ### The storage chip
 
@@ -167,9 +173,11 @@ Browser build: green "In your browser, backed up" when a recent file backup exis
 amber "In your browser, backup needed" when only a working copy exists. The labels
 differ as well as the colours, so colour is never the sole indicator of state. The
 app can only know that an
-export event happened, not that the file still exists on disk, so "recent" needs a
-definition (change-based versus time-based); that definition is delegated to the
-storage spike.
+export event happened, not that the file still exists on disk. "Recent" is defined
+change-based (spike #2019): green means zero changes since the last successful
+export, tracked by a changesSinceExport counter; any unexported change flips the
+chip amber. A non-modal nudge fires at 30-change multiples so the strict chip does
+not have to carry the reminder load alone.
 
 Server build: green "Saved to <instance>" when synced, neutral "Saving" while writing,
 red "<instance> unreachable" when disconnected and working from the browser.
@@ -189,8 +197,8 @@ instance-named, reassuring toast when the backend genuinely drops ("Lost connect
 once, with a quiet recovery toast on resync. The generic "Server unavailable, working
 offline" toast is removed.
 
-Open data-safety and race-condition questions are tracked as a design spike (see Open
-Questions: storage).
+The data-safety and race-condition questions are resolved by spike #2019 (see Open
+questions: storage).
 
 ## Creation and placement
 
@@ -234,9 +242,10 @@ Collapsing and expanding the side panel manages focus rather than dropping it. S
 
 ## Open questions (design spikes)
 
-Two areas are deliberately left open and tracked as design spikes under the UX
-Overhaul epic, with the storage spike running first because tabs depend on its
-semantics; a third spike, the command palette, is decided and non-blocking:
+Two areas were tracked as design spikes under the UX Overhaul epic, with the storage
+spike running first because tabs depend on its semantics. The storage spike (#2019)
+is now resolved; the tabs spike remains open. A third spike, the command palette, is
+decided and non-blocking:
 
 Tabs interaction model: overflow strategy, the precise close-versus-delete affordance,
 the fate of browser-mode working copies of closed tabs, and the
@@ -246,10 +255,19 @@ renaming a layout open in a tab, duplicate layout names across tabs, and a keybo
 map that reconciles the existing app shortcuts (Ctrl+S, Ctrl+O, Ctrl+E, Ctrl+H,
 Ctrl+D, I, F, Delete, arrows).
 
-Storage model and data safety: the browser-mode data-loss recovery experience (manual
-export plus nudges; the nudge cadence, restore flow, and recent-backup definition are
-the open parts), the pre-overwrite snapshot mechanics behind last-write-wins, the
-twin-tab case, and the mechanics of the explicit storage mode.
+Storage model and data safety: resolved by spike #2019, full findings in
+docs/research/spike-2019-storage-model-data-safety.md. The decisions: the chip is
+green only at zero changes since the last successful export (a changesSinceExport
+counter), with a non-modal nudge at 30-change multiples and a persisted snooze;
+restore-from-file reuses the existing load pipeline behind a confirm when unbacked
+changes would be replaced; beforeunload warns only on genuine in-flight loss risk.
+Pre-overwrite snapshots are server-side, written only on a mismatched server-echoed
+updatedAt, keep five per layout, and restore as a new write. Twin tabs are
+detect-and-pause via the storage event with a per-tab id, Web Locks serialising
+writes where available. Storage mode is set by RACKULA_STORAGE_MODE, injected by the
+container entrypoint as window.**RACKULA_CONFIG**, defaulting to browser when no
+config is present; explicit config always wins and the connection-history probe is
+deleted.
 
 Command palette: deferred. The build-later call is made; the shell implementation
 structures menu and verb actions as a command registry so a Ctrl+K palette can layer
@@ -283,4 +301,10 @@ plus nudges; no persistent-file-handle mechanism for now. The command palette is
 build-later; shell actions are structured as a command registry so it can layer on.
 Theme lives behind the Settings gear as an app preference; the View tab holds
 layout-scoped toggles only. Delivery is incremental in coherent slices on main, no
-long-lived branch; the storage spike runs before the tabs spike.
+long-lived branch; the storage spike runs before the tabs spike. Spike #2019
+resolved the storage questions: chip green is strict zero-changes-since-export with
+a 30-change nudge cadence; snapshots are server-side and mismatch-only via a
+server-echoed updatedAt, keep five, restore as a new write; the browser working copy
+is kept after server saves; twin tabs detect-and-pause; storage mode comes from
+RACKULA_STORAGE_MODE via an entrypoint-injected window.**RACKULA_CONFIG**,
+defaulting to browser (see docs/research/spike-2019-storage-model-data-safety.md).
