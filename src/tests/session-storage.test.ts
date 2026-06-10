@@ -8,6 +8,7 @@ import {
 } from "$lib/storage/working-copy";
 import type { Layout } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
+import { createTestLayout, createTestRack } from "./factories";
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -107,11 +108,16 @@ describe("Session Storage", () => {
 
         vi.advanceTimersByTime(1000);
 
-        const updatedLayout: Layout = {
+        const updatedLayout = createTestLayout({
           racks: [
-            { id: "rack-1", name: "Updated Rack", height: 24, devices: [] },
+            createTestRack({
+              id: "rack-1",
+              name: "Updated Rack",
+              height: 24,
+              devices: [],
+            }),
           ],
-        } as Layout;
+        });
         saveSession(updatedLayout);
 
         const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
