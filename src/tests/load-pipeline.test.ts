@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { finalizeLayoutLoad, loadFromApi, loadFromFile } from "$lib/utils/load-pipeline";
+import {
+  finalizeLayoutLoad,
+  loadFromApi,
+  loadFromFile,
+} from "$lib/storage/load-pipeline";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
-import * as persistenceApi from "$lib/utils/persistence-api";
+import * as persistenceApi from "$lib/storage/api";
 import * as archive from "$lib/utils/archive";
 import * as fileUtils from "$lib/utils/file";
 import { createTestLayout } from "./factories";
@@ -20,7 +24,7 @@ vi.mock("$lib/stores/images.svelte", () => ({
   resetImageStore: vi.fn(),
 }));
 
-vi.mock("$lib/utils/persistence-api", () => ({
+vi.mock("$lib/storage/api", () => ({
   loadSavedLayout: vi.fn(),
   PersistenceError: class PersistenceError extends Error {
     statusCode?: number;
@@ -65,7 +69,10 @@ describe("load-pipeline", () => {
 
       expect(layoutStore.layout.name).toBe("Pipeline Test");
       expect(toastStore.toasts).toContainEqual(
-        expect.objectContaining({ message: "Layout loaded successfully", type: "success" }),
+        expect.objectContaining({
+          message: "Layout loaded successfully",
+          type: "success",
+        }),
       );
     });
 
@@ -73,7 +80,11 @@ describe("load-pipeline", () => {
       const layout = createTestLayout({ name: "Image Test" });
       const mockBlob = new Blob(["test"], { type: "image/png" });
       const images = new Map();
-      const imageData = { blob: mockBlob, dataUrl: "data:test", filename: "front.png" };
+      const imageData = {
+        blob: mockBlob,
+        dataUrl: "data:test",
+        filename: "front.png",
+      };
       images.set("test-slug", {
         front: imageData,
       });
@@ -81,7 +92,11 @@ describe("load-pipeline", () => {
       finalizeLayoutLoad(layout, images);
 
       expect(mockImageStore.clearAllImages).toHaveBeenCalled();
-      expect(mockImageStore.setDeviceImage).toHaveBeenCalledWith("test-slug", "front", imageData);
+      expect(mockImageStore.setDeviceImage).toHaveBeenCalledWith(
+        "test-slug",
+        "front",
+        imageData,
+      );
       expect(mockImageStore.loadBundledImages).toHaveBeenCalled();
     });
   });
@@ -115,8 +130,10 @@ describe("load-pipeline", () => {
   describe("loadFromFile", () => {
     it("opens file picker, extracts archive and finalizes load", async () => {
       const layout = createTestLayout({ name: "File Load" });
-      const mockFile = new File(["test"], "test.zip", { type: "application/zip" });
-      
+      const mockFile = new File(["test"], "test.zip", {
+        type: "application/zip",
+      });
+
       vi.mocked(fileUtils.openFilePicker).mockResolvedValue(mockFile);
       vi.mocked(archive.extractFolderArchive).mockResolvedValue({
         layout,
@@ -133,7 +150,9 @@ describe("load-pipeline", () => {
     });
 
     it("shows error toast when extraction fails", async () => {
-      const mockFile = new File(["bad"], "bad.zip", { type: "application/zip" });
+      const mockFile = new File(["bad"], "bad.zip", {
+        type: "application/zip",
+      });
       vi.mocked(fileUtils.openFilePicker).mockResolvedValue(mockFile);
       vi.mocked(archive.extractFolderArchive).mockRejectedValue(
         new Error("Invalid archive format"),
@@ -143,7 +162,10 @@ describe("load-pipeline", () => {
 
       expect(result).toBe(false);
       expect(toastStore.toasts).toContainEqual(
-        expect.objectContaining({ message: "Invalid archive format", type: "error" }),
+        expect.objectContaining({
+          message: "Invalid archive format",
+          type: "error",
+        }),
       );
     });
 

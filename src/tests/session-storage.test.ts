@@ -5,7 +5,7 @@ import {
   loadSessionWithTimestamp,
   clearSession,
   isServerNewer,
-} from "$lib/utils/session-storage";
+} from "$lib/storage/working-copy";
 import type { Layout } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 
@@ -108,7 +108,9 @@ describe("Session Storage", () => {
         vi.advanceTimersByTime(1000);
 
         const updatedLayout: Layout = {
-          racks: [{ id: "rack-1", name: "Updated Rack", height: 24, devices: [] }],
+          racks: [
+            { id: "rack-1", name: "Updated Rack", height: 24, devices: [] },
+          ],
         } as Layout;
         saveSession(updatedLayout);
 

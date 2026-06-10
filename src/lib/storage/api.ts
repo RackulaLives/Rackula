@@ -3,14 +3,19 @@
  * Communicates with the API sidecar for layout CRUD
  * Uses UUID-based routing for stable URLs across renames
  */
-import { API_BASE_URL } from "./persistence-config";
-import { isApiAvailable } from "$lib/stores/persistence.svelte";
+import { isApiAvailable } from "./availability.svelte";
 import type { Layout } from "$lib/types";
-import { serializeLayoutToYaml, parseLayoutYaml } from "./yaml";
-import { persistenceDebug } from "./debug";
+import { serializeLayoutToYaml, parseLayoutYaml } from "$lib/utils/yaml";
+import { persistenceDebug } from "$lib/utils/debug";
 import { z } from "zod";
 
 const log = persistenceDebug.api;
+
+/**
+ * API base URL for persistence endpoints
+ * Defaults to /api (proxied by nginx in Docker)
+ */
+const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? "/api";
 
 /** Default timeout for API requests (10 seconds) */
 const API_TIMEOUT_MS = 10_000;
@@ -364,71 +369,4 @@ export async function deleteSavedLayout(uuid: string): Promise<void> {
   }
 
   log("deleteSavedLayout: deleted uuid=%s", uuid);
-}
-
-/**
- * Upload an asset image
- * @param layoutUuid - The layout's UUID
- */
-export async function uploadAsset(
-  layoutUuid: string,
-  deviceSlug: string,
-  face: "front" | "rear",
-  blob: Blob,
-): Promise<void> {
-  log(
-    "uploadAsset: layoutUuid=%s deviceSlug=%s face=%s size=%d type=%s",
-    layoutUuid,
-    deviceSlug,
-    face,
-    blob.size,
-    blob.type,
-  );
-
-  if (!isApiAvailable()) {
-    log("uploadAsset: API not available");
-    throw new PersistenceError("API not available");
-  }
-
-  const url = `${API_BASE_URL}/assets/${encodeURIComponent(layoutUuid)}/${encodeURIComponent(deviceSlug)}/${face}`;
-  log("uploadAsset: PUT %s", url);
-
-  const response = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": blob.type },
-    body: blob,
-    signal: AbortSignal.timeout(API_TIMEOUT_MS),
-  });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    log(
-      "uploadAsset: error status=%d message=%s",
-      response.status,
-      error.error,
-    );
-    throw new PersistenceError(
-      error.error ?? "Failed to upload asset",
-      response.status,
-    );
-  }
-
-  log(
-    "uploadAsset: uploaded layoutUuid=%s deviceSlug=%s face=%s",
-    layoutUuid,
-    deviceSlug,
-    face,
-  );
-}
-
-/**
- * Get asset URL for display
- * @param layoutUuid - The layout's UUID
- */
-export function getAssetUrl(
-  layoutUuid: string,
-  deviceSlug: string,
-  face: "front" | "rear",
-): string {
-  return `${API_BASE_URL}/assets/${encodeURIComponent(layoutUuid)}/${encodeURIComponent(deviceSlug)}/${face}`;
 }

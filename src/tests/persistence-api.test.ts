@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { checkApiHealth } from "$lib/utils/persistence-api";
+import { checkApiHealth } from "$lib/storage/api";
 
 describe("checkApiHealth", () => {
   function stubBrowserGlobals(): void {

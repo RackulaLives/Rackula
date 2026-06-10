@@ -4,12 +4,12 @@ import { tick } from "svelte";
 import LoadDialog from "../lib/components/LoadDialog.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { resetToastStore } from "$lib/stores/toast.svelte";
-import * as persistenceApi from "$lib/utils/persistence-api";
-import * as loadPipeline from "$lib/utils/load-pipeline";
-import * as persistenceStore from "$lib/stores/persistence.svelte";
+import * as persistenceApi from "$lib/storage/api";
+import * as loadPipeline from "$lib/storage/load-pipeline";
+import * as persistenceStore from "$lib/storage/availability.svelte";
 
 // Mock the dependencies
-vi.mock("$lib/utils/persistence-api", () => ({
+vi.mock("$lib/storage/api", () => ({
   listSavedLayouts: vi.fn(),
   deleteSavedLayout: vi.fn(),
   loadSavedLayout: vi.fn(),
@@ -23,12 +23,12 @@ vi.mock("$lib/utils/persistence-api", () => ({
   },
 }));
 
-vi.mock("$lib/utils/load-pipeline", () => ({
+vi.mock("$lib/storage/load-pipeline", () => ({
   loadFromApi: vi.fn(),
   loadFromFile: vi.fn(),
 }));
 
-vi.mock("$lib/stores/persistence.svelte", () => ({
+vi.mock("$lib/storage/availability.svelte", () => ({
   isApiAvailable: vi.fn(() => true),
 }));
 
@@ -49,7 +49,9 @@ describe("LoadDialog", () => {
     const pendingPromise = new Promise((resolve) => {
       resolveLayouts = resolve;
     });
-    vi.mocked(persistenceApi.listSavedLayouts).mockReturnValue(pendingPromise as never);
+    vi.mocked(persistenceApi.listSavedLayouts).mockReturnValue(
+      pendingPromise as never,
+    );
 
     dialogStore.open("load");
     render(LoadDialog);
@@ -62,7 +64,9 @@ describe("LoadDialog", () => {
     // Resolve promise and loading should disappear
     resolveLayouts!([]);
     await waitFor(() => {
-      expect(screen.queryByText(/Loading saved layouts/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Loading saved layouts/i),
+      ).not.toBeInTheDocument();
     });
   });
 

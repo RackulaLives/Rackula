@@ -5,7 +5,7 @@ import {
   safeSetItem,
   safeRemoveItem,
 } from "$lib/utils/safe-storage";
-import { sessionDebug } from "./debug";
+import { sessionDebug } from "$lib/utils/debug";
 
 const log = sessionDebug.storage;
 const STORAGE_KEY = "Rackula:autosave";

@@ -33,7 +33,20 @@
     loadSessionWithTimestamp,
     clearSession,
     isServerNewer,
-  } from "$lib/utils/session-storage";
+    setApiAvailable,
+    initializePersistence,
+    hasEverConnectedToApi,
+    listSavedLayouts,
+    loadSavedLayout,
+    maybeSave,
+    maybeSaveAs,
+    handleLoad,
+  } from "$lib/storage";
+  import {
+    maybeExport,
+    handleShare,
+    handleFitAll,
+  } from "$lib/utils/app-actions";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -48,23 +61,6 @@
   import { generateQRCode, canFitInQR } from "$lib/utils/qrcode";
   import { DRAWER_WIDTH } from "$lib/constants/layout";
   import { Tooltip } from "bits-ui";
-  import {
-    setApiAvailable,
-    initializePersistence,
-    hasEverConnectedToApi,
-  } from "$lib/stores/persistence.svelte";
-  import {
-    listSavedLayouts,
-    loadSavedLayout,
-  } from "$lib/utils/persistence-api";
-  import {
-    maybeSave,
-    maybeSaveAs,
-    maybeExport,
-    handleLoad,
-    handleShare,
-    handleFitAll,
-  } from "$lib/utils/persistence-manager.svelte";
   import { debounce } from "$lib/utils/debounce";
 
   // Sidebar size configuration (in pixels)

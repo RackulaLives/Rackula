@@ -5,10 +5,7 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import {
-    initPersistenceEffects,
-    flushSessionSave,
-  } from "$lib/utils/persistence-manager.svelte";
+  import { initPersistenceEffects, flushSessionSave } from "$lib/storage";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";

@@ -8,17 +8,14 @@
     deleteSavedLayout,
     type SavedLayoutItem,
     PersistenceError,
-  } from "$lib/utils/persistence-api";
-  import { isApiAvailable } from "$lib/stores/persistence.svelte";
+    isApiAvailable,
+    loadFromApi,
+    loadFromFile,
+  } from "$lib/storage";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
-  import { loadFromApi, loadFromFile } from "$lib/utils/load-pipeline";
   import { persistenceDebug } from "$lib/utils/debug";
-  import {
-    IconTrash,
-    IconFolderBold,
-    IconUpload,
-  } from "$lib/components/icons";
+  import { IconTrash, IconFolderBold, IconUpload } from "$lib/components/icons";
   import Dialog from "./Dialog.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
 
@@ -187,7 +184,8 @@
                     <span class="layout-name">
                       {item.name}
                       {#if !item.valid}
-                        <span class="error-badge" title="Corrupted file">!</span>
+                        <span class="error-badge" title="Corrupted file">!</span
+                        >
                       {/if}
                     </span>
                     <span class="layout-meta">

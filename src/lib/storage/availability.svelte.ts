@@ -7,7 +7,7 @@
  * checking /health at startup.
  */
 
-import { checkApiHealth } from "$lib/utils/persistence-api";
+import { checkApiHealth } from "./api";
 import { persistenceDebug } from "$lib/utils/debug";
 import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 
@@ -32,7 +32,6 @@ function markApiConnected(): void {
 
 // Reactive state for API availability
 let apiAvailable = $state<boolean | null>(null); // null = not checked yet
-let checking = $state(false);
 
 // Pending promise to prevent race conditions during initialization
 let pendingCheck: Promise<boolean> | null = null;
@@ -42,13 +41,6 @@ let pendingCheck: Promise<boolean> | null = null;
  */
 export function isApiAvailable(): boolean {
   return apiAvailable === true;
-}
-
-/**
- * Check if we're still determining API availability
- */
-export function isCheckingApi(): boolean {
-  return checking || apiAvailable === null;
 }
 
 /**
@@ -78,7 +70,6 @@ export async function initializePersistence(): Promise<boolean> {
   }
 
   log("initializePersistence: starting API health check");
-  checking = true;
 
   // Create and store the pending promise
   pendingCheck = checkApiHealth()
@@ -91,29 +82,10 @@ export async function initializePersistence(): Promise<boolean> {
       return result;
     })
     .finally(() => {
-      checking = false;
       pendingCheck = null;
     });
 
   return pendingCheck;
-}
-
-/**
- * Force re-check API availability
- */
-export async function recheckApiAvailability(): Promise<boolean> {
-  log("recheckApiAvailability: starting recheck");
-  checking = true;
-  try {
-    apiAvailable = await checkApiHealth();
-    if (apiAvailable) {
-      markApiConnected();
-    }
-    log("recheckApiAvailability: recheck result: %s", apiAvailable);
-    return apiAvailable;
-  } finally {
-    checking = false;
-  }
 }
 
 /**
@@ -126,20 +98,3 @@ export function setApiAvailable(available: boolean): void {
   log("setApiAvailable: setting to %s", available);
   apiAvailable = available;
 }
-
-// Export reactive getters
-export const persistenceStore = {
-  get apiAvailable() {
-    return apiAvailable;
-  },
-  get checking() {
-    return checking;
-  },
-  isApiAvailable,
-  isCheckingApi,
-  getApiAvailableState,
-  hasEverConnectedToApi,
-  initializePersistence,
-  recheckApiAvailability,
-  setApiAvailable,
-};

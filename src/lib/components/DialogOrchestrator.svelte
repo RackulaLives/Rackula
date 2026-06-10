@@ -40,19 +40,20 @@
   import {
     maybeSave,
     maybeSaveAs,
-    maybeExport,
     handleLoad,
+    handleSaveToServer,
+    handleSaveAsArchive,
+    shouldSaveToServer,
+    clearSession,
+  } from "$lib/storage";
+  import {
+    maybeExport,
     handleExport,
     handleExportSubmit,
     handleShare,
-    handleSaveToServer,
-    handleSaveAsArchive,
     handleFitAll,
     resetAndOpenNewRack,
-    shouldSaveToServer,
-  } from "$lib/utils/persistence-manager.svelte";
-
-  import { clearSession } from "$lib/utils/session-storage";
+  } from "$lib/utils/app-actions";
   import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { hapticTap } from "$lib/utils/haptics";
   import { appDebug, dialogDebug } from "$lib/utils/debug";

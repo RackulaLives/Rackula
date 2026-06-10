@@ -11,15 +11,14 @@
     deleteSavedLayout,
     type SavedLayoutItem,
     PersistenceError,
-  } from "$lib/utils/persistence-api";
-  import {
     initializePersistence,
     hasEverConnectedToApi,
-  } from "$lib/stores/persistence.svelte";
+    loadFromApi,
+    loadFromFile,
+  } from "$lib/storage";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
-  import { loadFromApi, loadFromFile } from "$lib/utils/load-pipeline";
   import {
     IconPlus,
     IconTrash,

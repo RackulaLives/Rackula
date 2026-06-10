@@ -3,10 +3,10 @@ import {
   handlePersistenceError,
   getConsecutiveSaveFailures,
   resetPersistenceManager,
-} from "$lib/utils/persistence-manager.svelte";
-import { PersistenceError } from "$lib/utils/persistence-api";
+} from "$lib/storage/manager.svelte";
+import { PersistenceError } from "$lib/storage/api";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
-import { setApiAvailable } from "$lib/stores/persistence.svelte";
+import { setApiAvailable } from "$lib/storage/availability.svelte";
 
 /**
  * Storage quota rejections (429 layout limit, 507 asset limit) come from a

@@ -7,13 +7,13 @@ import { getImageStore } from "$lib/stores/images.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
 import { getSelectionStore } from "$lib/stores/selection.svelte";
 import { getCanvasStore } from "$lib/stores/canvas.svelte";
-import { clearSession } from "$lib/utils/session-storage";
+import { clearSession } from "./working-copy";
 import type { Layout } from "$lib/types";
 import type { ImageStoreMap } from "$lib/types/images";
-import { loadSavedLayout, PersistenceError } from "./persistence-api";
-import { extractFolderArchive } from "./archive";
-import { openFilePicker } from "./file";
-import { layoutDebug } from "./debug";
+import { loadSavedLayout, PersistenceError } from "./api";
+import { extractFolderArchive } from "$lib/utils/archive";
+import { openFilePicker } from "$lib/utils/file";
+import { layoutDebug } from "$lib/utils/debug";
 
 /**
  * Common layout loading process
@@ -67,7 +67,6 @@ export function finalizeLayoutLoad(
   } else {
     toastStore.showToast("Layout loaded successfully", "success");
   }
-
 }
 
 /**

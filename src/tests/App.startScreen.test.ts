@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/svelte";
 import App from "../App.svelte";
 
-vi.mock("$lib/utils/load-pipeline", () => ({
+vi.mock("$lib/storage/load-pipeline", () => ({
   loadFromApi: vi.fn(async () => true),
   loadFromFile: vi.fn(async () => true),
   finalizeLayoutLoad: vi.fn(),
@@ -72,7 +72,7 @@ vi.mock("$lib/utils/share", async () => {
   };
 });
 
-vi.mock("$lib/stores/persistence.svelte", () => ({
+vi.mock("$lib/storage/availability.svelte", () => ({
   initializePersistence: persistenceStoreMocks.initializePersistence,
   isApiAvailable: persistenceStoreMocks.isApiAvailable,
   setApiAvailable: persistenceStoreMocks.setApiAvailable,
@@ -80,7 +80,7 @@ vi.mock("$lib/stores/persistence.svelte", () => ({
   hasEverConnectedToApi: persistenceStoreMocks.hasEverConnectedToApi,
 }));
 
-vi.mock("$lib/utils/persistence-api", () => ({
+vi.mock("$lib/storage/api", () => ({
   saveLayoutToServer: persistenceApiMocks.saveLayoutToServer,
   checkApiHealth: persistenceApiMocks.checkApiHealth,
   listSavedLayouts: persistenceApiMocks.listSavedLayouts,
@@ -89,7 +89,7 @@ vi.mock("$lib/utils/persistence-api", () => ({
   PersistenceError: persistenceApiMocks.PersistenceError,
 }));
 
-vi.mock("$lib/utils/session-storage", () => ({
+vi.mock("$lib/storage/working-copy", () => ({
   saveSession: sessionStorageMocks.saveSession,
   loadSessionWithTimestamp: sessionStorageMocks.loadSessionWithTimestamp,
   clearSession: sessionStorageMocks.clearSession,
