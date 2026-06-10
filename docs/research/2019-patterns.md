@@ -374,17 +374,17 @@ behavioural change to `persistence-manager.svelte.ts`.
 
 ## Trade-offs Summary
 
-| Decision           | Chosen                                                         | Accepted cost                                                                               |
-| ------------------ | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Nudge              | Chip-first, toast at 30-change multiples                       | Users who ignore both can still lose data; no nudge can stop a cache clear                  |
-| Chip green         | Strict zero changes since export                               | Chip is amber during normal editing; honesty over comfort                                   |
-| Backup state       | Single counter in `markDirty()`                                | Counts changes, not magnitude; an undo back to exported state still shows amber             |
-| beforeunload       | Only on in-flight loss risk                                    | No prompt for unbacked-but-persisted changes; nudges carry that load                        |
-| Snapshots          | Server-side, mismatch-only, keep 5, YAML only                  | No asset snapshots; offline-only browser mode gets no snapshot tier at all                  |
-| Conflict detection | Server-echo updatedAt header                                   | Adds one header and one comparison to PUT; no full ETag machinery                           |
-| Twin tabs          | Detect-and-pause via storage event plus Web Locks              | Stale tab goes passive until reload; no live cross-tab sync                                 |
-| Mode config        | RACKULA_STORAGE_MODE env to injected window.**RACKULA_CONFIG** | Mode is fixed at container start; changing it needs a restart (acceptable for self-hosting) |
-| Export-all         | One ZIP artifact, mode-specific framing                        | Server-mode export-all does N+1 API requests; fine at 100-layout cap                        |
+| Decision           | Chosen                                                             | Accepted cost                                                                               |
+| ------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Nudge              | Chip-first, toast at 30-change multiples                           | Users who ignore both can still lose data; no nudge can stop a cache clear                  |
+| Chip green         | Strict zero changes since export                                   | Chip is amber during normal editing; honesty over comfort                                   |
+| Backup state       | Single counter in `markDirty()`                                    | Counts changes, not magnitude; an undo back to exported state still shows amber             |
+| beforeunload       | Only on in-flight loss risk                                        | No prompt for unbacked-but-persisted changes; nudges carry that load                        |
+| Snapshots          | Server-side, mismatch-only, keep 5, YAML only                      | No asset snapshots; offline-only browser mode gets no snapshot tier at all                  |
+| Conflict detection | Server-echo updatedAt header                                       | Adds one header and one comparison to PUT; no full ETag machinery                           |
+| Twin tabs          | Detect-and-pause via storage event plus Web Locks                  | Stale tab goes passive until reload; no live cross-tab sync                                 |
+| Mode config        | `RACKULA_STORAGE_MODE` env to injected `window.__RACKULA_CONFIG__` | Mode is fixed at container start; changing it needs a restart (acceptable for self-hosting) |
+| Export-all         | One ZIP artifact, mode-specific framing                            | Server-mode export-all does N+1 API requests; fine at 100-layout cap                        |
 
 Every recommendation builds on an existing mechanism (markDirty, fileSave AbortError,
 load-pipeline, LoadDialog, toast store, entrypoint wrapper, layout folders) rather than

@@ -265,7 +265,7 @@ Pre-overwrite snapshots are server-side, written only on a mismatched server-ech
 updatedAt, keep five per layout, and restore as a new write. Twin tabs are
 detect-and-pause via the storage event with a per-tab id, Web Locks serialising
 writes where available. Storage mode is set by RACKULA_STORAGE_MODE, injected by the
-container entrypoint as window.**RACKULA_CONFIG**, defaulting to browser when no
+container entrypoint as `window.__RACKULA_CONFIG__`, defaulting to browser when no
 config is present; explicit config always wins and the connection-history probe is
 deleted.
 
@@ -306,5 +306,5 @@ resolved the storage questions: chip green is strict zero-changes-since-export w
 a 30-change nudge cadence; snapshots are server-side and mismatch-only via a
 server-echoed updatedAt, keep five, restore as a new write; the browser working copy
 is kept after server saves; twin tabs detect-and-pause; storage mode comes from
-RACKULA_STORAGE_MODE via an entrypoint-injected window.**RACKULA_CONFIG**,
+RACKULA_STORAGE_MODE via an entrypoint-injected `window.__RACKULA_CONFIG__`,
 defaulting to browser (see docs/research/spike-2019-storage-model-data-safety.md).
