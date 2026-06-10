@@ -10,7 +10,7 @@
     flushSessionSave,
     isSessionSavePending,
     isServerSavePending,
-    isApiAvailable,
+    getApiAvailableState,
     hasEverConnectedToApi,
     shouldWarnBeforeUnload,
   } from "$lib/storage";
@@ -85,7 +85,7 @@
       sessionSavePending: isSessionSavePending(),
       serverSavePending: isServerSavePending(),
       serverMode: hasEverConnectedToApi(),
-      serverReachable: isApiAvailable(),
+      serverReachable: getApiAvailableState(),
       isDirty: layoutStore.isDirty,
     }),
   );

@@ -18,8 +18,8 @@ export interface UnloadRiskState {
   serverSavePending: boolean;
   /** This install persists to the API (approximated by ever having connected) */
   serverMode: boolean;
-  /** The API is currently reachable */
-  serverReachable: boolean;
+  /** The API is currently reachable (null = not checked yet, treated as reachable) */
+  serverReachable: boolean | null;
   /** The layout has changes not yet saved to its durable home */
   isDirty: boolean;
 }
@@ -27,9 +27,9 @@ export interface UnloadRiskState {
 export function shouldWarnBeforeUnload(state: UnloadRiskState): boolean {
   if (!state.warnOnUnsavedChanges) return false;
   if (state.sessionSavePending) return true;
+  // null = health check pending, not confirmed unreachable — treat as reachable
+  const serverDown = state.serverReachable === false;
   return (
-    state.serverMode &&
-    state.isDirty &&
-    (!state.serverReachable || state.serverSavePending)
+    state.serverMode && state.isDirty && (serverDown || state.serverSavePending)
   );
 }

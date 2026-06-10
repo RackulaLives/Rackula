@@ -10,7 +10,7 @@ function riskState(overrides: Partial<UnloadRiskState> = {}): UnloadRiskState {
     sessionSavePending: false,
     serverSavePending: false,
     serverMode: false,
-    serverReachable: false,
+    serverReachable: null,
     isDirty: false,
     ...overrides,
   };
@@ -91,6 +91,19 @@ describe("shouldWarnBeforeUnload", () => {
           isDirty: false,
           serverReachable: true,
           serverSavePending: true,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not warn when API availability is unknown (null) and dirty in server mode", () => {
+    // null = health check pending, not confirmed unreachable
+    expect(
+      shouldWarnBeforeUnload(
+        riskState({
+          serverMode: true,
+          isDirty: true,
+          serverReachable: null,
         }),
       ),
     ).toBe(false);

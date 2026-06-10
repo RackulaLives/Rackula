@@ -8,6 +8,7 @@
 export {
   initializePersistence,
   isApiAvailable,
+  getApiAvailableState,
   setApiAvailable,
   hasEverConnectedToApi,
 } from "./availability.svelte";
