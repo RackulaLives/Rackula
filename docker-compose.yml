@@ -49,8 +49,8 @@ services:
       - API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN:-}
       # Auth mode for nginx routing behavior
       - RACKULA_AUTH_MODE=${RACKULA_AUTH_MODE:-none}
-      # Storage mode for the frontend (browser|server). Default browser since
-      # the API only runs with --profile persist; set server when using it.
+      # Storage mode for the frontend (browser|server). Defaults to browser;
+      # set RACKULA_STORAGE_MODE=server when running with --profile persist.
       - RACKULA_STORAGE_MODE=${RACKULA_STORAGE_MODE:-browser}
       # IPv6 listen: auto-detect (default), force on, or force off
       - RACKULA_ENABLE_IPV6=${RACKULA_ENABLE_IPV6:-auto}
