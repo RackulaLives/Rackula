@@ -33,6 +33,12 @@
   </head>
   <body>
     <div id="app"></div>
+    <!-- Runtime deployment config (window.__RACKULA_CONFIG__). static/config.js
+         ships a browser-mode default in every build; container deployments
+         (Docker entrypoint, LXC install/update scripts) overwrite it at runtime.
+         CROSS-REF: static/config.js, deploy/docker-entrypoint-wrapper.sh,
+         deploy/lxc/community-scripts/{install/rackula-install.sh,ct/rackula.sh} -->
+    <script src="/config.js" vite-ignore></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

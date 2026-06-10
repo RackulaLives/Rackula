@@ -602,37 +602,38 @@ All variables have sensible defaults. Only configure if you need to change somet
 
 ### Runtime Variables
 
-| Variable                             | Default                 | Description                                                                                        |
-| ------------------------------------ | ----------------------- | -------------------------------------------------------------------------------------------------- |
-| `RACKULA_PORT`                       | `8080`                  | Host port for the web UI                                                                           |
-| `RACKULA_LISTEN_PORT`                | `8080`                  | Port nginx listens on inside the container                                                         |
-| `RACKULA_API_PORT`                   | `3001`                  | Port the API listens on                                                                            |
-| `API_HOST`                           | `rackula-api`           | Hostname of API container (for nginx proxy)                                                        |
-| `API_PORT`                           | `3001`                  | Port of API container (for nginx proxy)                                                            |
-| `CORS_ORIGIN`                        | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default)                                 |
-| `RACKULA_API_WRITE_TOKEN`            | _unset_                 | Optional bearer token required for API `PUT`/`DELETE`                                              |
-| `ALLOW_INSECURE_CORS`                | `false`                 | Explicitly allow wildcard CORS in production (not recommended)                                     |
-| `NGINX_RESOLVER`                     | `127.0.0.11`            | DNS resolver for nginx upstream resolution (override for Kubernetes)                               |
-| `DATA_DIR`                           | `/data`                 | Path to data directory inside API container                                                        |
-| `RACKULA_AUTH_MODE`                  | `none`                  | Auth gate mode: `none`, `local`, or `oidc`                                                         |
-| `RACKULA_AUTH_SESSION_SECRET`        | _unset_                 | Required when auth mode is enabled (min 32 chars, use `openssl rand -hex 32`)                      |
-| `RACKULA_AUTH_SESSION_COOKIE_SECURE` | `true`                  | Set `false` for local HTTP testing only                                                            |
-| `RACKULA_LOCAL_USERNAME`             | _unset_                 | Username for local auth mode (min 3 chars)                                                         |
-| `RACKULA_LOCAL_PASSWORD`             | _unset_                 | Password for local auth mode (min 12 chars)                                                        |
-| `RACKULA_OIDC_ISSUER`                | _unset_                 | OIDC issuer URL (required for `oidc` mode)                                                         |
-| `RACKULA_OIDC_CLIENT_ID`             | _unset_                 | OIDC client ID (required for `oidc` mode)                                                          |
-| `RACKULA_OIDC_CLIENT_SECRET`         | _unset_                 | OIDC client secret (required for `oidc` mode)                                                      |
-| `RACKULA_TRUST_PROXY`                | `0`                     | Set to `1` behind a TLS-terminating reverse proxy; enables HTTPS redirects via `X-Forwarded-Proto` |
-| `RACKULA_BASE_URL`                   | `http://localhost:3000` | External URL for OIDC callback construction; set to your HTTPS URL behind a proxy                  |
-| `RACKULA_OIDC_REDIRECT_URI`          | _derived from BASE_URL_ | Explicit OIDC callback URL; must match the IdP's registered redirect URI exactly                   |
-| `RACKULA_MAX_LAYOUTS`                | `100`                   | Maximum number of stored layouts. Set to `0` for unlimited                                         |
-| `RACKULA_MAX_ASSETS_PER_LAYOUT`      | `50`                    | Maximum number of assets per layout. Set to `0` for unlimited                                      |
-| `RACKULA_RATE_LIMIT_ENABLED`         | `true`                  | Set to `false` to disable the in-app IP rate limiter                                               |
-| `RACKULA_RATE_LIMIT_WRITE_MAX`       | `30`                    | Max write requests (PUT, DELETE) per IP per window                                                 |
-| `RACKULA_RATE_LIMIT_WRITE_WINDOW_MS` | `60000`                 | Write rate-limit window in milliseconds                                                            |
-| `RACKULA_RATE_LIMIT_READ_MAX`        | `120`                   | Max read requests (GET, HEAD) per IP per window                                                    |
-| `RACKULA_RATE_LIMIT_READ_WINDOW_MS`  | `60000`                 | Read rate-limit window in milliseconds                                                             |
-| `LOG_LEVEL`                          | `info`                  | API log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, or `silent`                 |
+| Variable                             | Default                 | Description                                                                                         |
+| ------------------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------- |
+| `RACKULA_PORT`                       | `8080`                  | Host port for the web UI                                                                            |
+| `RACKULA_LISTEN_PORT`                | `8080`                  | Port nginx listens on inside the container                                                          |
+| `RACKULA_API_PORT`                   | `3001`                  | Port the API listens on                                                                             |
+| `API_HOST`                           | `rackula-api`           | Hostname of API container (for nginx proxy)                                                         |
+| `API_PORT`                           | `3001`                  | Port of API container (for nginx proxy)                                                             |
+| `RACKULA_STORAGE_MODE`               | `browser`               | Frontend storage mode: `browser` or `server` (`docker-compose.persist.yml` defaults it to `server`) |
+| `CORS_ORIGIN`                        | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default)                                  |
+| `RACKULA_API_WRITE_TOKEN`            | _unset_                 | Optional bearer token required for API `PUT`/`DELETE`                                               |
+| `ALLOW_INSECURE_CORS`                | `false`                 | Explicitly allow wildcard CORS in production (not recommended)                                      |
+| `NGINX_RESOLVER`                     | `127.0.0.11`            | DNS resolver for nginx upstream resolution (override for Kubernetes)                                |
+| `DATA_DIR`                           | `/data`                 | Path to data directory inside API container                                                         |
+| `RACKULA_AUTH_MODE`                  | `none`                  | Auth gate mode: `none`, `local`, or `oidc`                                                          |
+| `RACKULA_AUTH_SESSION_SECRET`        | _unset_                 | Required when auth mode is enabled (min 32 chars, use `openssl rand -hex 32`)                       |
+| `RACKULA_AUTH_SESSION_COOKIE_SECURE` | `true`                  | Set `false` for local HTTP testing only                                                             |
+| `RACKULA_LOCAL_USERNAME`             | _unset_                 | Username for local auth mode (min 3 chars)                                                          |
+| `RACKULA_LOCAL_PASSWORD`             | _unset_                 | Password for local auth mode (min 12 chars)                                                         |
+| `RACKULA_OIDC_ISSUER`                | _unset_                 | OIDC issuer URL (required for `oidc` mode)                                                          |
+| `RACKULA_OIDC_CLIENT_ID`             | _unset_                 | OIDC client ID (required for `oidc` mode)                                                           |
+| `RACKULA_OIDC_CLIENT_SECRET`         | _unset_                 | OIDC client secret (required for `oidc` mode)                                                       |
+| `RACKULA_TRUST_PROXY`                | `0`                     | Set to `1` behind a TLS-terminating reverse proxy; enables HTTPS redirects via `X-Forwarded-Proto`  |
+| `RACKULA_BASE_URL`                   | `http://localhost:3000` | External URL for OIDC callback construction; set to your HTTPS URL behind a proxy                   |
+| `RACKULA_OIDC_REDIRECT_URI`          | _derived from BASE_URL_ | Explicit OIDC callback URL; must match the IdP's registered redirect URI exactly                    |
+| `RACKULA_MAX_LAYOUTS`                | `100`                   | Maximum number of stored layouts. Set to `0` for unlimited                                          |
+| `RACKULA_MAX_ASSETS_PER_LAYOUT`      | `50`                    | Maximum number of assets per layout. Set to `0` for unlimited                                       |
+| `RACKULA_RATE_LIMIT_ENABLED`         | `true`                  | Set to `false` to disable the in-app IP rate limiter                                                |
+| `RACKULA_RATE_LIMIT_WRITE_MAX`       | `30`                    | Max write requests (PUT, DELETE) per IP per window                                                  |
+| `RACKULA_RATE_LIMIT_WRITE_WINDOW_MS` | `60000`                 | Write rate-limit window in milliseconds                                                             |
+| `RACKULA_RATE_LIMIT_READ_MAX`        | `120`                   | Max read requests (GET, HEAD) per IP per window                                                     |
+| `RACKULA_RATE_LIMIT_READ_WINDOW_MS`  | `60000`                 | Read rate-limit window in milliseconds                                                              |
+| `LOG_LEVEL`                          | `info`                  | API log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, or `silent`                  |
 
 **Port mapping explained:**
 

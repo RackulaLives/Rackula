@@ -91,6 +91,26 @@ server {
         include /etc/nginx/snippets/security-headers.conf;
     }
 
+    # Runtime storage mode config, written to tmpfs by the entrypoint wrapper
+    # (the html root is read-only; this exact-match alias overrides the
+    # browser-mode default the build ships at /usr/share/nginx/html/config.js).
+    # no-cache: a stale mode after a redeploy or env change would silently
+    # flip storage behavior.
+    # Auth-gated like the SPA shell (location /): only index.html loads this
+    # file post-auth; the pre-auth login page (login.html) does not load it,
+    # so gating cannot break the login flow. The internal probe returns 204
+    # when auth mode is none.
+    location = /config.js {
+        auth_request /_rackula_auth_check;
+        error_page 401 = @auth_login_redirect;
+        alias /tmp/rackula-config/config.js;
+        add_header Cache-Control "no-cache" always;
+
+        # nginx drops ALL server-level add_header directives when a location block
+        # defines its own; include shared security headers to avoid drift.
+        include /etc/nginx/snippets/security-headers.conf;
+    }
+
     # API proxy (when sidecar is running)
     # Use variable to defer DNS resolution to request time (allows nginx to start without API)
     # Using $uri$is_args$args for normalized path+query (safer than $request_uri)

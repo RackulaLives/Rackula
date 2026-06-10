@@ -21,6 +21,7 @@
 #   CORS_ORIGIN: Allowed browser origin(s) for API CORS (default: http://localhost:8080)
 #   RACKULA_API_WRITE_TOKEN: Optional token protecting API PUT/DELETE routes
 #   RACKULA_AUTH_MODE: Auth mode toggle (none|oidc|local, default: none)
+#   RACKULA_STORAGE_MODE: Frontend storage mode (browser|server, default: browser)
 #   RACKULA_AUTH_SESSION_SECRET: Required when auth mode != none (min 32 chars)
 #   RACKULA_AUTH_SESSION_MAX_AGE_SECONDS: Absolute auth session lifetime (default: 43200)
 #   RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS: Idle session timeout (default: 1800)
@@ -48,6 +49,9 @@ services:
       - API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN:-}
       # Auth mode for nginx routing behavior
       - RACKULA_AUTH_MODE=${RACKULA_AUTH_MODE:-none}
+      # Storage mode for the frontend (browser|server). Defaults to browser;
+      # set RACKULA_STORAGE_MODE=server when running with --profile persist.
+      - RACKULA_STORAGE_MODE=${RACKULA_STORAGE_MODE:-browser}
       # IPv6 listen: auto-detect (default), force on, or force off
       - RACKULA_ENABLE_IPV6=${RACKULA_ENABLE_IPV6:-auto}
       # DNS resolver for nginx upstream resolution (override for Kubernetes)

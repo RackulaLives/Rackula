@@ -26,19 +26,19 @@ Distilled from the two research files, the facts that actually drive the #1317 d
 
 3. Frontend-only with no volume is silently ephemeral, but for a different reason than
    most apps. Rackula's primary persistence is actually the browser (the SPA works without
-   any backend). The API adds *server-side* shared persistence. So "frontend only" is not
+   any backend). The API adds _server-side_ shared persistence. So "frontend only" is not
    "data lost on restart" for the casual single-browser user; it is "no server-side storage,
    no cross-device sync, no auth." This nuance matters for the devil's-advocate section: the
    "my layouts don't save" failure mode is real but narrower than the codebase doc's blunt
    "all data lost on restart" framing implies.
 
 4. Auth is opt-in and fails closed when misconfigured. Default is `none` (anonymous
-   read/write). When `RACKULA_AUTH_MODE != none`, the API *refuses to start* without
+   read/write). When `RACKULA_AUTH_MODE != none`, the API _refuses to start_ without
    `RACKULA_AUTH_SESSION_SECRET` (32+ chars); `local` additionally requires username and a
    12+ char password (Argon2id, OWASP params, plaintext scrubbed from env after bootstrap,
    login rate-limited 5/60s, timing-safe compare). CSRF protection and Secure cookies turn on
    automatically when auth is enabled (`1995-codebase.md` auth sections). The security model is
-   already solid; the Unraid risk is almost entirely in *how the template surfaces these knobs*,
+   already solid; the Unraid risk is almost entirely in _how the template surfaces these knobs_,
    not in the app code.
 
 5. The reverse-proxy story is a documentation problem, not a code problem.
@@ -53,11 +53,11 @@ Distilled from the two research files, the facts that actually drive the #1317 d
    section 5). Not reopened here.
 
 7. The real friction is human, not technical. CA submission requires a self-hosted template
-   repo (`Owner/unraid-templates`), an Unraid *forum support thread*, and passes through a
+   repo (`Owner/unraid-templates`), an Unraid _forum support thread_, and passes through a
    volunteer moderation review (days to weeks) with an explicit account-quality screen:
    "made by a user with previous activity on GitHub... attributed to a GitHub account with an
    active history... not fully AI written" (`1995-external.md` section 1). Whether RackulaLives
-   has a usable Unraid *forum* account is an open prerequisite (see Recommendation summary).
+   has a usable Unraid _forum_ account is an open prerequisite (see Recommendation summary).
 
 ---
 
@@ -72,6 +72,8 @@ self-hosted template repo, an icon, and a forum support thread.
 - Exposes:
   - Port `8080/tcp` (container) -> suggested host `8080`, drives the WebUI button
   - `RACKULA_AUTH_MODE` dropdown (`none|local|oidc`), default `none`, basic visibility
+  - `RACKULA_STORAGE_MODE` dropdown (`browser|server`), default `browser`; set `server`
+    when the `rackula-api` container is installed (#2036)
   - `API_HOST` / `API_PORT` (advanced) so a persistence user can point the frontend at the
     API container by name/IP
   - `RACKULA_TRUST_PROXY` (advanced, default `false`) for SWAG/NPM users
@@ -153,6 +155,12 @@ deliberately want server-side persistence or auth.
             oidc = external identity provider. Auth is enforced by the rackula-api
             container; this setting must match it."/>
 
+  <Config Name="Storage Mode" Target="RACKULA_STORAGE_MODE" Default="browser|server"
+          Type="Variable" Display="always" Required="false" Mask="false"
+          Description="browser = layouts stay in this browser only. server = layouts are
+            saved by the rackula-api container. Set to server when you install
+            rackula-api, and point API Host at it."/>
+
   <Config Name="API Host" Target="API_HOST" Default="rackula-api"
           Type="Variable" Display="advanced" Required="false" Mask="false"
           Description="Container name or IP of the rackula-api container. Only needed if
@@ -189,8 +197,8 @@ deliberately want server-side persistence or auth.
   <Overview>Optional persistence and auth backend for Rackula. Stores layouts and assets in
     /data and provides local/OIDC login. Install this alongside the "rackula" frontend and
     point the frontend's API Host at this container. Not needed for single-browser use.</Overview>
-  <Requires>Install the "rackula" frontend container too and set its API Host to this
-    container's name.</Requires>
+  <Requires>Install the "rackula" frontend container too, set its API Host to this
+    container's name, and set its Storage Mode to server.</Requires>
   <Category>Productivity: Tools:Utilities:</Category>
   <Icon>https://raw.githubusercontent.com/RackulaLives/Rackula/main/static/icon.png</Icon>
   <TemplateURL>https://raw.githubusercontent.com/RackulaLives/unraid-templates/main/rackula-api.xml</TemplateURL>
@@ -241,12 +249,12 @@ and credential fields only become load-bearing when the user chooses `local`/`oi
 
 ## Approaches considered & trade-offs
 
-| Approach | Pros | Cons | When it'd be right |
-|---|---|---|---|
-| **(A) Frontend-only single template + docs** | Simplest possible CA listing; one template to maintain; one-click; zero secrets in the common path | Persistence/auth is "go read a compose file" - hostile to point-and-click Unraid users; no in-CA way to add the API | If the API were experimental/rare, or if browser-only storage were the only intended model |
-| **(B) Two templates [RECOMMENDED]** | Matches CA's one-container rule and the proven Homelabarr/KitchenOwl-split pattern; common case stays one-click; persistence is still installable from the Apps tab; reuses existing images unchanged | Two listings to maintain; risk of "installed frontend, no persistence" confusion (addressed in devil's-advocate); user must wire `API_HOST` | The actual Rackula shape: an always-needed frontend + a genuinely optional backend |
-| **(C) One combined fat image** | True one-click persistence with zero wiring; single template | Requires building/shipping a NEW image (s6/supervisor running nginx + Bun together) that does not exist today; doubles the build/security/patch surface; bakes the API in even for users who do not want it; contradicts the project's "simplicity first / only build what's asked" philosophy | Only if zero-config persistence were the default desired experience. It is not - the API is explicitly optional, so C is solving a problem we do not have |
-| **(D) Plugin (.plg)** | Deep OS integration; could auto-manage everything | Full host filesystem access for a web app (huge attack surface); must survive every Unraid OS upgrade; higher trust/moderation bar; Unraid-only; re-implements install/upgrade the container runtime already gives us | Never, for this app. Reserved for hardware/driver/OS-level features Rackula does not have |
+| Approach                                     | Pros                                                                                                                                                                                                  | Cons                                                                                                                                                                                                                                                                                           | When it'd be right                                                                                                                                        |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **(A) Frontend-only single template + docs** | Simplest possible CA listing; one template to maintain; one-click; zero secrets in the common path                                                                                                    | Persistence/auth is "go read a compose file" - hostile to point-and-click Unraid users; no in-CA way to add the API                                                                                                                                                                            | If the API were experimental/rare, or if browser-only storage were the only intended model                                                                |
+| **(B) Two templates [RECOMMENDED]**          | Matches CA's one-container rule and the proven Homelabarr/KitchenOwl-split pattern; common case stays one-click; persistence is still installable from the Apps tab; reuses existing images unchanged | Two listings to maintain; risk of "installed frontend, no persistence" confusion (addressed in devil's-advocate); user must wire `API_HOST`                                                                                                                                                    | The actual Rackula shape: an always-needed frontend + a genuinely optional backend                                                                        |
+| **(C) One combined fat image**               | True one-click persistence with zero wiring; single template                                                                                                                                          | Requires building/shipping a NEW image (s6/supervisor running nginx + Bun together) that does not exist today; doubles the build/security/patch surface; bakes the API in even for users who do not want it; contradicts the project's "simplicity first / only build what's asked" philosophy | Only if zero-config persistence were the default desired experience. It is not - the API is explicitly optional, so C is solving a problem we do not have |
+| **(D) Plugin (.plg)**                        | Deep OS integration; could auto-manage everything                                                                                                                                                     | Full host filesystem access for a web app (huge attack surface); must survive every Unraid OS upgrade; higher trust/moderation bar; Unraid-only; re-implements install/upgrade the container runtime already gives us                                                                          | Never, for this app. Reserved for hardware/driver/OS-level features Rackula does not have                                                                 |
 
 **Concrete rejection of (C):** there is no combined image in the repo. Choosing C means a net-new
 Dockerfile running two runtimes under a process supervisor, a third image to publish on every
@@ -273,9 +281,10 @@ is a trusted LAN where the user opts into exposure. Rackula's `none` mode = anon
 write to the API. On an isolated LAN with no port-forward, that matches the homelab norm (the LXC
 distribution already ships `none` by default, `1995-codebase.md`). The danger is the user who
 later port-forwards 8080 or puts it on a public reverse proxy without flipping auth on. That turns
-an unauthenticated *write* API (create/delete layouts, upload assets) onto the internet.
+an unauthenticated _write_ API (create/delete layouts, upload assets) onto the internet.
 
 **Template/AC must enforce:**
+
 - Frontend `<Overview>` and the support thread state plainly: "Default auth is none. Safe on a
   trusted LAN. Do NOT expose Rackula to the internet without setting Auth Mode to local or oidc."
 - The `RACKULA_AUTH_MODE` Description repeats the "trusted LAN only" caveat (already in the
@@ -290,6 +299,7 @@ values in the Edit Container UI. A secret typed into a normal Variable is visibl
 the flash drive.
 
 **Template/AC must enforce:**
+
 - `RACKULA_AUTH_SESSION_SECRET` -> `Mask="true"` (hides it behind asterisks in the UI). This does
   not encrypt the on-disk XML, but it prevents shoulder-surf/screenshot leakage, which is the
   realistic Unraid exposure.
@@ -314,6 +324,7 @@ wants reads-anonymous-but-writes-protected and does not realise neither protecti
 default.
 
 **Template/AC must enforce:**
+
 - Expose `RACKULA_API_WRITE_TOKEN` (api) and `API_WRITE_TOKEN` (frontend) as advanced, masked,
   with Description: "set the SAME value on both containers to require a token for create/delete."
 - Make explicit in docs: `auth=none` + no write token = fully open read/write. That is fine for a
@@ -321,13 +332,14 @@ default.
   never be internet-exposed.
 - Do NOT auto-bake a write token default in the template (same reasoning as the secret: a shared
   default token is no protection). If auto-generation is wanted, it belongs in install tooling that
-  produces a *unique random* value, not a static template `Default=`.
+  produces a _unique random_ value, not a static template `Default=`.
 
 ### 4. Reverse proxy / cookies: Secure-cookie + `RACKULA_TRUST_PROXY`
 
 The proxy terminates TLS and talks HTTP to the container; the app reads `X-Forwarded-Proto` only
 when `RACKULA_TRUST_PROXY=1` (`1995-external.md` section 4). Cookie `Secure` is forced on in prod
 and whenever `SameSite=None`. The breakage modes:
+
 - Auth enabled + plain HTTP + `TRUST_PROXY=0`: Secure cookies are set, browser refuses to send
   them back over HTTP, login appears to "not work" (infinite redirect to login). This is a support
   magnet.
@@ -335,6 +347,7 @@ and whenever `SameSite=None`. The breakage modes:
   `X-Forwarded-Proto`, a (minor) downgrade/redirect risk.
 
 **Template/AC must enforce:**
+
 - Default `RACKULA_TRUST_PROXY=false` (correct for LAN-direct). Keep it advanced so casual users
   never touch it.
 - Support thread documents the two-line rule: "Behind SWAG/NPM/Traefik with HTTPS -> set Trust
@@ -353,6 +366,7 @@ cannot manage from the file browser. The frontend (nginx UID 101) is stateless s
 this is purely an API-container issue.
 
 **Template/AC must enforce:**
+
 - Document the UID explicitly in the API template Description and support thread: "the API writes as
   UID 1001."
 - Recommend one of: (a) `chown -R 1001:1001 /mnt/user/appdata/rackula` once at setup, or (b) if the
@@ -369,6 +383,7 @@ means an unattended "force update" can pull a different image than was reviewed,
 behaviour or pulling a regression.
 
 **Template/AC must enforce:**
+
 - Templates pin a concrete version tag (`ghcr.io/rackulalives/rackula:26.6.0`) rather than
   `:latest`, and the release process bumps the template tag in `RackulaLives/unraid-templates` per
   release. This makes the Apps-tab "update available" prompt meaningful and reviewable.
@@ -409,6 +424,7 @@ This is the sharpest challenge. Rackula ALREADY ships `docker-compose.persist.ym
 slice of Unraid users run `docker compose` via the Compose Manager plugin and would be perfectly
 served by "here's our compose file." The CA route buys you **discoverability in the Apps tab** and
 the one-click frontend, which is real value for the non-compose crowd, but it costs:
+
 - a new repo to keep in sync with every image tag bump,
 - a forum thread someone must actually watch and answer,
 - the ongoing "respond to support requests / keep compatible with new Unraid releases / notify if
@@ -423,12 +439,12 @@ compose file, skip the second template until demand proves out).
 ### "Does the optional-API split map to how Unraid users actually think?"
 
 Mostly yes. Unraid users add containers one at a time from the Apps tab; a primary + optional
-companion is a familiar shape (plenty of *arr-adjacent stacks work this way). The friction is not
+companion is a familiar shape (plenty of \*arr-adjacent stacks work this way). The friction is not
 the two-step install, it is the **wiring** (`API_HOST` must match the API container's name, both
 must be on a reachable network, auth mode must match on both). That is more fiddly than the typical
 self-contained Unraid app and is exactly where users get stuck. If #1317 keeps the API container's
 default name `rackula-api` and the frontend's `API_HOST` default `rackula-api`, the happy path works
-with zero edits *provided both land on the same bridge network* - verify that assumption holds on
+with zero edits _provided both land on the same bridge network_ - verify that assumption holds on
 Unraid's default bridge, because container-name DNS resolution is not guaranteed on the stock
 `bridge` network (it works on user-defined networks). **This is a concrete thing #1317 must test,
 not assume.**
@@ -436,10 +452,11 @@ not assume.**
 ### "CA review / account-history prerequisite: can RackulaLives clear vetting?"
 
 Partly known, partly not.
+
 - GitHub history: likely fine. RackulaLives is a real org with an active repo and real release
   history; the "previous activity on GitHub / not fully AI written" screen is plausibly met
   (`1995-external.md` section 1).
-- Unraid FORUM account: UNKNOWN and a hard prerequisite. CA requires a support *forum thread*,
+- Unraid FORUM account: UNKNOWN and a hard prerequisite. CA requires a support _forum thread_,
   which means an Unraid forum account in good standing. The research does not establish that
   RackulaLives/the maintainer has one. Flag as a prerequisite/blocker for #1317: if there is no
   established Unraid forum presence, that account (and the thread) must be created before submission,
@@ -452,6 +469,7 @@ Yes, `oidc` is a foot-gun on the dropdown for a LAN appliance. Most Unraid users
 most, `local`. Exposing `oidc` as a peer option invites someone to pick it and then hit the
 under-documented OIDC provider config (`1995-codebase.md` notes OIDC env vars are not fully
 enumerated, and OIDC setup is "MVP"). Recommendation for #1317:
+
 - Keep the dropdown `none|local|oidc` (matches the app), but in the Description steer plainly:
   "Most homelab users want none or local. oidc requires an external identity provider and extra
   configuration."
@@ -462,6 +480,7 @@ enumerated, and OIDC setup is "MVP"). Recommendation for #1317:
 ### "Anything that makes me say 'this is more work than #1317 assumes'?"
 
 Yes, three things:
+
 1. The UID 1001 vs 99:100 permission mismatch (secure-coding item 5) is the kind of detail that
    turns "install and go" into a forum thread full of "permission denied" reports. Either add PUID
    support (new code) or document the chown loudly. Not free.
@@ -469,7 +488,7 @@ Yes, three things:
    network" instruction, which is an extra manual step most one-click apps do not need. Must be
    verified on real Unraid.
 3. The forum thread + ongoing support obligation is a standing human cost, not a one-time
-   implementation task. CA can *delist* unmaintained apps. #1317 should not pretend the work ends at
+   implementation task. CA can _delist_ unmaintained apps. #1317 should not pretend the work ends at
    "XML merged."
 
 ---

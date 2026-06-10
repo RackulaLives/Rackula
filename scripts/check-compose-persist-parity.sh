@@ -25,4 +25,20 @@ for compose_file in "$ROOT_COMPOSE" "$DEPLOY_COMPOSE"; do
   done
 done
 
+# RACKULA_STORAGE_MODE wiring must exist in both files, with per-stack
+# defaults: root compose defaults to browser (API only runs with
+# --profile persist), the persist stack defaults to server.
+root_storage_line="RACKULA_STORAGE_MODE=\${RACKULA_STORAGE_MODE:-browser}"
+deploy_storage_line="RACKULA_STORAGE_MODE=\${RACKULA_STORAGE_MODE:-server}"
+
+if ! grep -F --quiet "$root_storage_line" "$ROOT_COMPOSE"; then
+  echo "Missing '$root_storage_line' in $ROOT_COMPOSE"
+  exit 1
+fi
+
+if ! grep -F --quiet "$deploy_storage_line" "$DEPLOY_COMPOSE"; then
+  echo "Missing '$deploy_storage_line' in $DEPLOY_COMPOSE"
+  exit 1
+fi
+
 echo "Compose persistence env parity check passed."

@@ -21,6 +21,9 @@ services:
       - API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN:-}
       # Auth mode for nginx routing behavior
       - RACKULA_AUTH_MODE=${RACKULA_AUTH_MODE:-none}
+      # Storage mode for the frontend (browser|server). This stack provisions
+      # the API, so layouts save server-side by default.
+      - RACKULA_STORAGE_MODE=${RACKULA_STORAGE_MODE:-server}
       # IPv6 listen: auto-detect (default), force on, or force off
       - RACKULA_ENABLE_IPV6=${RACKULA_ENABLE_IPV6:-auto}
       # DNS resolver for nginx upstream resolution (override for Kubernetes)
