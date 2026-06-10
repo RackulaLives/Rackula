@@ -137,10 +137,11 @@ change is proven on live nginx (Docker) and the LXC gate before the cutover depe
   drop a hash whose script you cannot prove is gone.
 - Add the `APP_COMMIT` build-arg to `deploy/Dockerfile` (mirroring `api/Dockerfile`) wired
   through `build-images.yml` and `build-lxc.yml`, per the prod-artifact decision in Section 2.
-- Remove the dead `VITE_PERSIST_ENABLED` build arg from `deploy/Dockerfile` and its dead
-  assignments in `build-images.yml`, `rebuild-images.yml`, `build-lxc.yml`, `build-lxc-dev.yml`,
-  and `deploy-dev.yml` (the app uses runtime detection; see
-  `src/lib/stores/persistence.svelte.ts`).
+- Remove the dead `VITE_PERSIST_ENABLED` build arg from `deploy/Dockerfile`, and the dead
+  `VITE_PERSIST_ENABLED` and `VITE_UMAMI_*` assignments from `build-images.yml`,
+  `rebuild-images.yml`, `build-lxc.yml`, `build-lxc-dev.yml`, and `deploy-dev.yml` (the app uses
+  runtime persistence detection, `src/lib/stores/persistence.svelte.ts`; Umami was removed in
+  #1970 but its build-args linger in all five workflows).
 
 ### C1b: Prod cutover to Workers Static Assets (Medium-Large)
 
@@ -323,7 +324,9 @@ Acceptance criteria:
   of the self-host CSP files (enforced by C4's CI grep). Add a real-page-load check (not just a
   header-value assert) that the beacon fetch is not CSP-blocked; the existing Playwright smoke
   harness (`e2e/playwright.smoke.config.ts` with `SMOKE_TEST_URL`) is the vehicle.
-- Delete the dead `VITE_UMAMI_*` build-args still present in `deploy-dev.yml`.
+- Verify no `VITE_UMAMI_*` references remain in `.github/workflows/` (the dead assignments exist
+  in all five build workflows, not just `deploy-dev.yml`; removal rides C1a's dead-build-arg
+  cleanup, which edits the same files. This AC is the backstop check).
 - Privacy: cookieless, no persistent identifier. State "consult counsel on consent" rather than
   asserting "no banner required" as settled.
 
