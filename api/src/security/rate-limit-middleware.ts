@@ -1,7 +1,7 @@
 /**
  * Hono middleware for IP-based rate limiting on API routes.
  *
- * Applies separate limits for read (GET, HEAD) and write (PUT, DELETE) requests.
+ * Applies separate limits for read (GET, HEAD) and write (POST, PUT, DELETE) requests.
  * Health, version, and auth endpoints are exempt. OPTIONS (CORS preflight) requests
  * are also exempt to avoid blocking browser cross-origin checks.
  *
@@ -12,13 +12,13 @@ import type { MiddlewareHandler } from "hono";
 import { AUTH_PUBLIC_PATHS } from "./middleware";
 import { createRateLimiter } from "./rate-limit";
 
-const WRITE_METHODS = new Set(["PUT", "DELETE"]);
+const WRITE_METHODS = new Set(["POST", "PUT", "DELETE"]);
 
 /**
  * Configuration for the rate limit middleware.
  */
 export interface RateLimitMiddlewareConfig {
-  /** Max write (PUT/DELETE) requests per IP per window. */
+  /** Max write (POST/PUT/DELETE) requests per IP per window. */
   writeMaxRequests: number;
   /** Write rate limit window in milliseconds. */
   writeWindowMs: number;
@@ -86,7 +86,7 @@ export interface RateLimitMiddleware extends MiddlewareHandler {
 /**
  * Create a rate limiting middleware for Hono.
  *
- * Creates two independent rate limiters: one for write operations (PUT, DELETE)
+ * Creates two independent rate limiters: one for write operations (POST, PUT, DELETE)
  * and one for read operations (GET, HEAD). OPTIONS requests and public paths
  * (health, version, auth) are exempt.
  *
