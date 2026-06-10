@@ -48,6 +48,8 @@ they address different audiences. See the decision record:
 
 Milestones are thematic groups with sequential ordering. Each maps to a GitHub milestone.
 Execution order: **M02 -> M04 -> M03 -> M07 -> M05 -> M06 -> M08 -> M09 -> M10 -> M11 -> M12 -> M13**.
+M15 (Storage Model & Data Safety) is in progress now, in parallel with M02/M04. M14
+(Canvas UX Overhaul) slots after M04; the milestone numbers are IDs, not strict order.
 
 M4 precedes M3 because type-safety cleanup must happen before data format changes.
 Changing data formats with `@ts-nocheck` on 20 files and 84 suppressed errors risks
@@ -202,9 +204,29 @@ Low-priority polish, accessibility, and content items.
 - UX: #117 (help tooltips), #951 (Open from Server), #946 (splash screen)
 - Content: #115 (layout templates), #114 (library virtualisation), #728 (hero video)
 
+### M14 -- Canvas UX Overhaul (planned)
+
+Reframes the canvas shell around "place each control where its scope lives": workspace
+frame top bar, app menu, tabs over a Layouts sidebar, side panel, canvas controls,
+floating object verbs, opening straight to canvas. Epic #2017. Slots after M04 so the
+overhaul builds on the decomposed codebase. Storage was split out to M15.
+
+### M15 -- Storage Model & Data Safety (in progress)
+
+Explicit storage mode (browser/server), one honest storage chip, pre-overwrite snapshots
+with echo-based conflict handling, change-based backup nudges, twin-tab safety. Epic
+#2071, spike #2019. Split out of the UX overhaul; built now, in parallel with M02/M04.
+
 ---
 
 ## Triage History
+
+### June 2026 (storage split)
+
+Split storage out of the canvas UX overhaul: created M15 (epic #2071) and moved the
+spike #2019 outputs plus 19 implementation/follow-up issues (#2034-#2045, #2057-#2064)
+from M14. Filed the 12 UX shell implementation issues (#2072-#2083) into M14.
+
 
 ### June 2026 Triage
 
