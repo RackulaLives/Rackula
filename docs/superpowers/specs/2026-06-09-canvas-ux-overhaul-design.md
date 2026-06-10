@@ -55,8 +55,10 @@ Layouts open as tabs across the top of the canvas. The sidebar Layouts list is t
 durable library of everything that exists; tabs are the working set for the current
 session. On launch the app opens straight to the canvas and restores the full set
 of tabs that were open, lazily: only the active layout's content loads, the rest
-load when focused. The old StartScreen is demoted. A true first launch with no layouts shows the existing
-WelcomeScreen empty state.
+load when focused. The old StartScreen is removed entirely: its functions (new
+layout, import, the saved layouts list) move to the sidebar Layouts tab and the
+app menu. A true first launch with no layouts shows the existing WelcomeScreen
+empty state.
 
 Tabs use a real tab shape, support drag to reorder, and reveal a close affordance on
 hover. Closing a tab never deletes the layout; the layout persists in storage and in
