@@ -676,7 +676,7 @@ The Proxmox community-scripts installer generates the API config itself, so a fe
 settings are passed as environment variables when running the installer rather
 than in a compose file. Export them before the install command.
 
-| Variable              | Default  | Description                                              |
+| Variable              | Default  | Description                                             |
 | --------------------- | -------- | ------------------------------------------------------- |
 | `BUN_VERSION`         | `1.3.14` | Bun runtime version installed to `/usr/local/bun`       |
 | `CORS_SCHEME`         | `http`   | Scheme for the generated `CORS_ORIGIN` (`http`/`https`) |
@@ -690,9 +690,13 @@ Behind an HTTPS reverse proxy, set `CORS_SCHEME=https` so the generated
 
 These require rebuilding the image - see [Building from Source](#building-from-source).
 
-| Variable               | Default | Description                                         |
-| ---------------------- | ------- | --------------------------------------------------- |
-| `VITE_PERSIST_ENABLED` | `false` | Enable persistence UI (`:persist` tag has this set) |
+| Variable     | Default | Description                                              |
+| ------------ | ------- | -------------------------------------------------------- |
+| `APP_COMMIT` | `""`    | Short commit hash reported in `version.json` (set by CI) |
+
+Persistence is detected at runtime (the app probes the API on load), so there is
+no build-time persistence flag. The `:persist` tag signals the API-backed compose
+profile; the frontend image contents are the same.
 
 ---
 
@@ -790,17 +794,18 @@ diverge, so a mismatch locally means stale tags rather than a bad release.
 
 ### Building from Source
 
-If you need persistence or other build-time customizations:
+If you need build-time customizations:
 
 ```bash
 git clone https://github.com/RackulaLives/Rackula.git
 cd Rackula
 
 docker build \
-  --build-arg VITE_PERSIST_ENABLED=true \
   -t rackula:custom \
   -f deploy/Dockerfile .
 ```
+
+Persistence needs no build flag: the app detects the API at runtime.
 
 Then update your docker-compose.yml to use `image: rackula:custom`.
 

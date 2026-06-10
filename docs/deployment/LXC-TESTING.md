@@ -8,11 +8,11 @@ Testing the Proxmox LXC install without cutting a release.
 
 There are three distinct concerns in the LXC install pipeline. Each has a different testing strategy:
 
-| Layer | What it covers | Needs a release? |
-|---|---|---|
-| Install script logic | Dependencies, Bun install, nginx/systemd wiring in `rackula-install.sh` | No |
-| Payload | Frontend build, API source, native deps, config files in the tarball | No |
-| Fetch/verify/update machinery | `fetch_and_deploy_gh_release`, update flow | Yes |
+| Layer                         | What it covers                                                          | Needs a release? |
+| ----------------------------- | ----------------------------------------------------------------------- | ---------------- |
+| Install script logic          | Dependencies, Bun install, nginx/systemd wiring in `rackula-install.sh` | No               |
+| Payload                       | Frontend build, API source, native deps, config files in the tarball    | No               |
+| Fetch/verify/update machinery | `fetch_and_deploy_gh_release`, update flow                              | Yes              |
 
 The fetch/verify/update machinery is stable framework code proven by the initial release and rarely changed. The install script and payload change frequently during active development. Test those without releasing.
 
@@ -125,8 +125,8 @@ If you need to assemble the tarball locally (e.g. for offline CT testing):
 ```bash
 # Prerequisites: Node 22, Bun 1.x
 
-# 1. Build the frontend
-VITE_ENV=production VITE_PERSIST_ENABLED=true npm ci && npm run build
+# 1. Build the frontend (persistence is runtime-detected, no build flag needed)
+VITE_ENV=production npm ci && npm run build
 
 # 2. Install API production dependencies with cross-platform native binaries
 cd api
