@@ -3,7 +3,8 @@
  *
  * Provides a single source of truth for all dialog/sheet open states.
  * Handlers live in DialogOrchestrator.svelte (dialog/sheet UI) and App.svelte (triggers).
- * persistence-manager.svelte.ts also opens cleanupPrompt, load, export, and share dialogs.
+ * The $lib/storage manager also opens the load dialog, and $lib/utils/app-actions
+ * opens the cleanupPrompt, newRack, export, and share dialogs.
  *
  * Only one dialog can be open at a time (enforced by using single openDialog state).
  * Sheets (mobile bottom sheets) use a separate state since they coexist with dialogs.
@@ -39,7 +40,6 @@ export interface DeleteTarget {
 // Dialog state
 let openDialog = $state<DialogId | null>(null);
 let deleteTarget = $state<DeleteTarget | null>(null);
-let pendingSaveFirst = $state(false);
 let exportQrCodeDataUrl = $state<string | undefined>(undefined);
 /** Pre-selected rack IDs for export dialog (from context menu) */
 let exportSelectedRackIds = $state<string[] | undefined>(undefined);
@@ -63,7 +63,6 @@ function open(id: DialogId) {
 function close() {
   openDialog = null;
   deleteTarget = null;
-  pendingSaveFirst = false;
   exportQrCodeDataUrl = undefined;
   exportSelectedRackIds = undefined;
   pendingCleanupOperation = null;
@@ -112,12 +111,6 @@ export const dialogStore = {
   },
   set deleteTarget(value: DeleteTarget | null) {
     deleteTarget = value;
-  },
-  get pendingSaveFirst() {
-    return pendingSaveFirst;
-  },
-  set pendingSaveFirst(value: boolean) {
-    pendingSaveFirst = value;
   },
   get exportQrCodeDataUrl() {
     return exportQrCodeDataUrl;

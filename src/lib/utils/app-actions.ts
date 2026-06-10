@@ -10,6 +10,11 @@ import { getToastStore } from "$lib/stores/toast.svelte";
 import { getImageStore } from "$lib/stores/images.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { DRAWER_WIDTH } from "$lib/constants/layout";
+import {
+  handleSaveToServer,
+  handleSaveAsArchive,
+  shouldSaveToServer,
+} from "$lib/storage";
 import { persistenceDebug } from "$lib/utils/debug";
 import { generateShareUrl } from "$lib/utils/share";
 import { generateQRCode, canFitInQR } from "$lib/utils/qrcode";
@@ -56,18 +61,31 @@ export function resetAndOpenNewRack(): void {
   dialogStore.open("newRack");
 }
 
+export function maybeSave(): void {
+  if (shouldShowCleanupPrompt("save")) return;
+  if (shouldSaveToServer()) {
+    handleSaveToServer(true);
+  } else {
+    handleSaveAsArchive();
+  }
+}
+
+export function maybeSaveAs(): void {
+  if (shouldShowCleanupPrompt("saveAs")) return;
+  handleSaveAsArchive();
+}
+
 export function maybeExport(): void {
   if (shouldShowCleanupPrompt("export")) return;
   handleExport();
 }
 
-export async function handleExport(): Promise<void> {
+/**
+ * Generate the QR code shown in the export dialog, storing the data URL on
+ * the dialog store (undefined when the layout cannot fit in a QR code).
+ */
+export async function prepareExportQrCode(): Promise<void> {
   const layoutStore = getLayoutStore();
-  const toastStore = getToastStore();
-  if (!layoutStore.hasRack) {
-    toastStore.showToast("No racks to export", "warning");
-    return;
-  }
   try {
     const shareUrl = generateShareUrl(layoutStore.layout);
     if (shareUrl !== null && canFitInQR(shareUrl)) {
@@ -80,6 +98,16 @@ export async function handleExport(): Promise<void> {
   } catch {
     dialogStore.exportQrCodeDataUrl = undefined;
   }
+}
+
+export async function handleExport(): Promise<void> {
+  const layoutStore = getLayoutStore();
+  const toastStore = getToastStore();
+  if (!layoutStore.hasRack) {
+    toastStore.showToast("No racks to export", "warning");
+    return;
+  }
+  await prepareExportQrCode();
   dialogStore.open("export");
 }
 

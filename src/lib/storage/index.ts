@@ -22,12 +22,9 @@ export {
   loadSessionWithTimestamp,
   clearSession,
   isServerNewer,
-  type SessionLoadResult,
 } from "./working-copy";
 export { loadFromApi, loadFromFile } from "./load-pipeline";
 export {
-  maybeSave,
-  maybeSaveAs,
   handleLoad,
   handleSaveToServer,
   handleSaveAsArchive,

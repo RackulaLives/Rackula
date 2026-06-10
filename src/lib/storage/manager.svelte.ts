@@ -13,10 +13,6 @@ import { getToastStore } from "$lib/stores/toast.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { downloadYamlFile } from "$lib/utils/archive";
 import { persistenceDebug } from "$lib/utils/debug";
-import {
-  shouldShowCleanupPrompt,
-  resetAndOpenNewRack,
-} from "$lib/utils/app-actions";
 
 // Internal save status (kept for circuit breaker / health check logic, not exported)
 type SaveStatusInternal =
@@ -43,7 +39,7 @@ export function getConsecutiveSaveFailures(): number {
   return _consecutiveSaveFailures;
 }
 
-export function handleSaveFailure(
+function handleSaveFailure(
   notify: boolean,
   action?: { label: string; onClick: () => void },
 ): void {
@@ -127,7 +123,8 @@ export function handlePersistenceError(
   }
 }
 
-export async function handleSaveToServer(isManual = false): Promise<void> {
+/** Returns true when the save succeeded, false when it failed. */
+export async function handleSaveToServer(isManual = false): Promise<boolean> {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
   try {
@@ -150,18 +147,16 @@ export async function handleSaveToServer(isManual = false): Promise<void> {
     if (isManual) {
       toastStore.showToast("Layout saved", "success", 3000);
     }
-    if (dialogStore.pendingSaveFirst) {
-      dialogStore.pendingSaveFirst = false;
-      resetAndOpenNewRack();
-    }
+    return true;
   } catch (e) {
-    dialogStore.pendingSaveFirst = false;
     persistenceDebug.api("Manual save failed: %O", e);
     handlePersistenceError(e, true, () => handleSaveToServer(isManual));
+    return false;
   }
 }
 
-export async function handleSaveAsArchive(): Promise<void> {
+/** Returns true when the save succeeded, false when cancelled or failed. */
+export async function handleSaveAsArchive(): Promise<boolean> {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
   try {
@@ -169,40 +164,22 @@ export async function handleSaveAsArchive(): Promise<void> {
     layoutStore.markClean();
     clearSession();
     toastStore.showToast(`Saved ${filename}`, "success", 3000);
-    if (dialogStore.pendingSaveFirst) {
-      dialogStore.pendingSaveFirst = false;
-      resetAndOpenNewRack();
-    }
+    return true;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      dialogStore.pendingSaveFirst = false;
-      return;
+      return false;
     }
-    dialogStore.pendingSaveFirst = false;
     persistenceDebug.api("Failed to save layout: %O", error);
     toastStore.showToast(
       error instanceof Error ? error.message : "Failed to save layout",
       "error",
     );
+    return false;
   }
 }
 
 export function shouldSaveToServer(): boolean {
   return isApiAvailable();
-}
-
-export function maybeSave(): void {
-  if (shouldShowCleanupPrompt("save")) return;
-  if (shouldSaveToServer()) {
-    handleSaveToServer(true);
-  } else {
-    handleSaveAsArchive();
-  }
-}
-
-export function maybeSaveAs(): void {
-  if (shouldShowCleanupPrompt("saveAs")) return;
-  handleSaveAsArchive();
 }
 
 export async function handleLoad(): Promise<void> {

@@ -38,8 +38,6 @@
   import { dialogStore } from "$lib/stores/dialogs.svelte";
 
   import {
-    maybeSave,
-    maybeSaveAs,
     handleLoad,
     handleSaveToServer,
     handleSaveAsArchive,
@@ -47,6 +45,8 @@
     clearSession,
   } from "$lib/storage";
   import {
+    maybeSave,
+    maybeSaveAs,
     maybeExport,
     handleExport,
     handleExportSubmit,
@@ -137,11 +137,11 @@
 
   async function handleSaveFirst() {
     dialogStore.close();
-    dialogStore.pendingSaveFirst = true;
-    if (shouldSaveToServer()) {
-      await handleSaveToServer(true);
-    } else {
-      await handleSaveAsArchive();
+    const saved = shouldSaveToServer()
+      ? await handleSaveToServer(true)
+      : await handleSaveAsArchive();
+    if (saved) {
+      resetAndOpenNewRack();
     }
   }
 

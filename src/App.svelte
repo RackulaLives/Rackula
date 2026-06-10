@@ -38,12 +38,13 @@
     hasEverConnectedToApi,
     listSavedLayouts,
     loadSavedLayout,
-    maybeSave,
-    maybeSaveAs,
     handleLoad,
   } from "$lib/storage";
   import {
+    maybeSave,
+    maybeSaveAs,
     maybeExport,
+    prepareExportQrCode,
     handleShare,
     handleFitAll,
   } from "$lib/utils/app-actions";
@@ -57,8 +58,6 @@
   import { createKonamiDetector } from "$lib/utils/konami";
   import { persistenceDebug } from "$lib/utils/debug";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
-  import { generateShareUrl } from "$lib/utils/share";
-  import { generateQRCode, canFitInQR } from "$lib/utils/qrcode";
   import { DRAWER_WIDTH } from "$lib/constants/layout";
   import { Tooltip } from "bits-ui";
   import { debounce } from "$lib/utils/debounce";
@@ -84,7 +83,8 @@
   const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
 
-  // Persistence state — delegated to persistence-manager module
+  // Persistence state lives in $lib/storage (manager.svelte.ts); app-level
+  // actions (save/export/share orchestration) live in $lib/utils/app-actions.
 
   // Sidebar width: read once from the UI store.
   // This is intentionally NOT reactive because changes to sidebarWidth are driven
@@ -504,18 +504,7 @@
       return;
     }
 
-    try {
-      const shareUrl = generateShareUrl(layoutStore.layout);
-      if (canFitInQR(shareUrl)) {
-        dialogStore.exportQrCodeDataUrl = await generateQRCode(shareUrl, {
-          width: 444,
-        });
-      } else {
-        dialogStore.exportQrCodeDataUrl = undefined;
-      }
-    } catch {
-      dialogStore.exportQrCodeDataUrl = undefined;
-    }
+    await prepareExportQrCode();
 
     dialogStore.exportSelectedRackIds = rackIds;
     dialogStore.open("export");
