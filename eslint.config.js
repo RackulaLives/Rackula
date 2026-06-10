@@ -115,6 +115,26 @@ export default defineConfig(
     },
   },
   {
+    // Storage seam: everything outside src/lib/storage imports the barrel,
+    // never deep paths (tests may reach into internals).
+    files: ["src/**/*.ts", "src/**/*.svelte"],
+    ignores: ["src/lib/storage/**", "src/tests/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["$lib/storage/*"],
+              message:
+                "Import from the $lib/storage barrel instead of deep paths.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     ignores: [
       "build/",
       ".svelte-kit/",
