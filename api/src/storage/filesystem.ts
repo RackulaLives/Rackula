@@ -28,6 +28,16 @@ function getDataDir(): string {
   return process.env.DATA_DIR ?? "./data";
 }
 
+const SNAPSHOTS_DIR = "snapshots";
+const MAX_SNAPSHOTS_PER_LAYOUT = 5;
+
+/** Snapshot entry returned by {@link listSnapshots}. */
+export interface SnapshotListItem {
+  filename: string;
+  timestamp: string;
+  size: number;
+}
+
 function isSafeLegacySlug(id: string): boolean {
   if (!id || id.includes("/") || id.includes("\\") || id.includes(".")) {
     return false;
@@ -93,6 +103,133 @@ async function findYamlInFolder(folderPath: string): Promise<string | null> {
   const files = await readdir(folderPath);
   const yamlFile = files.find((f) => f.endsWith(".rackula.yaml"));
   return yamlFile ?? null;
+}
+
+/**
+ * Format a snapshot timestamp as YYYYMMDD-HHMMSS (UTC, Syncthing naming)
+ */
+function formatSnapshotTimestamp(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}` +
+    `-${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}`
+  );
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Delete oldest snapshots so at most MAX_SNAPSHOTS_PER_LAYOUT remain
+ */
+async function pruneSnapshots(snapshotsDir: string): Promise<void> {
+  const entries = await readdir(snapshotsDir, { withFileTypes: true });
+  const files: Array<{ name: string; mtimeMs: number }> = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const stats = await stat(join(snapshotsDir, entry.name));
+    files.push({ name: entry.name, mtimeMs: stats.mtimeMs });
+  }
+
+  files.sort((a, b) => b.mtimeMs - a.mtimeMs || b.name.localeCompare(a.name));
+  for (const file of files.slice(MAX_SNAPSHOTS_PER_LAYOUT)) {
+    await rm(join(snapshotsDir, file.name), { force: true });
+  }
+}
+
+/**
+ * Write a snapshot into {folderPath}/snapshots/{name}~YYYYMMDD-HHMMSS.yaml
+ * The base name derives from the stored layout's YAML filename (already
+ * sanitized by buildYamlFilename when it was written). Prunes to the
+ * MAX_SNAPSHOTS_PER_LAYOUT most recent. Returns the snapshot filename.
+ */
+async function writeSnapshot(
+  folderPath: string,
+  yamlContent: string,
+): Promise<string> {
+  const yamlFilename = await findYamlInFolder(folderPath);
+  const baseName = yamlFilename
+    ? yamlFilename.replace(/\.rackula\.yaml$/i, "")
+    : "untitled";
+
+  const snapshotsDir = join(folderPath, SNAPSHOTS_DIR);
+  await mkdir(snapshotsDir, { recursive: true });
+
+  const timestamp = formatSnapshotTimestamp(new Date());
+  let filename = `${baseName}~${timestamp}.yaml`;
+  let suffix = 1;
+  while (await fileExists(join(snapshotsDir, filename))) {
+    filename = `${baseName}~${timestamp}-${suffix}.yaml`;
+    suffix += 1;
+  }
+
+  await writeFile(join(snapshotsDir, filename), yamlContent, "utf-8");
+  await pruneSnapshots(snapshotsDir);
+  return filename;
+}
+
+/**
+ * List snapshots for a layout, newest first
+ * Returns null when the layout does not exist
+ */
+export async function listSnapshots(
+  uuid: string,
+): Promise<SnapshotListItem[] | null> {
+  const folder = await findFolderByUuid(uuid);
+  if (!folder) {
+    return null;
+  }
+
+  const snapshotsDir = join(folder, SNAPSHOTS_DIR);
+  let entries;
+  try {
+    entries = await readdir(snapshotsDir, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+
+  const snapshots: SnapshotListItem[] = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const stats = await stat(join(snapshotsDir, entry.name));
+    snapshots.push({
+      filename: entry.name,
+      timestamp: stats.mtime.toISOString(),
+      size: stats.size,
+    });
+  }
+
+  return snapshots.sort(
+    (a, b) =>
+      b.timestamp.localeCompare(a.timestamp) ||
+      b.filename.localeCompare(a.filename),
+  );
+}
+
+/**
+ * Store an uploaded losing copy as a snapshot for a layout
+ * Returns null when the layout does not exist
+ */
+export async function saveSnapshot(
+  uuid: string,
+  yamlContent: string,
+): Promise<{ filename: string } | null> {
+  const folder = await findFolderByUuid(uuid);
+  if (!folder) {
+    return null;
+  }
+
+  const filename = await writeSnapshot(folder, yamlContent);
+  return { filename };
 }
 
 /**
@@ -282,9 +419,12 @@ export async function layoutExists(uuid: string): Promise<boolean> {
 
 /**
  * Get a single layout by UUID or legacy slug
- * Returns the YAML content or null if not found
+ * Returns the YAML content and its updatedAt (file mtime, ISO 8601),
+ * or null if not found
  */
-export async function getLayout(id: string): Promise<string | null> {
+export async function getLayout(
+  id: string,
+): Promise<{ content: string; updatedAt: string } | null> {
   // First try UUID lookup (new format)
   if (isUuid(id)) {
     const folder = await findFolderByUuid(id);
@@ -292,7 +432,10 @@ export async function getLayout(id: string): Promise<string | null> {
       const yamlFilename = await findYamlInFolder(folder);
       if (yamlFilename) {
         try {
-          return await readFile(join(folder, yamlFilename), "utf-8");
+          const yamlPath = join(folder, yamlFilename);
+          const content = await readFile(yamlPath, "utf-8");
+          const stats = await stat(yamlPath);
+          return { content, updatedAt: stats.mtime.toISOString() };
         } catch {
           return null;
         }
@@ -311,7 +454,9 @@ export async function getLayout(id: string): Promise<string | null> {
 
   for (const path of legacyPaths) {
     try {
-      return await readFile(path, "utf-8");
+      const content = await readFile(path, "utf-8");
+      const stats = await stat(path);
+      return { content, updatedAt: stats.mtime.toISOString() };
     } catch {
       // Continue to next
     }
@@ -327,7 +472,7 @@ export async function getLayout(id: string): Promise<string | null> {
 async function migrateLegacyLayout(
   oldSlug: string,
   yamlContent: string,
-): Promise<{ id: string; isNew: boolean }> {
+): Promise<{ id: string; isNew: boolean; updatedAt: string }> {
   if (!isSafeLegacySlug(oldSlug)) {
     throw new Error("Invalid legacy layout id");
   }
@@ -369,7 +514,9 @@ async function migrateLegacyLayout(
     await mkdir(folderPath, { recursive: true });
 
     // Write YAML to new location
-    await writeFile(join(folderPath, yamlFilename), yamlContent, "utf-8");
+    const yamlPath = join(folderPath, yamlFilename);
+    await writeFile(yamlPath, yamlContent, "utf-8");
+    const stats = await stat(yamlPath);
 
     // Move assets if they exist in old location
     try {
@@ -395,7 +542,7 @@ async function migrateLegacyLayout(
       }
     }
 
-    return { id: uuid, isNew: false };
+    return { id: uuid, isNew: false, updatedAt: stats.mtime.toISOString() };
   } catch (error) {
     if (assetsMoved) {
       try {
@@ -443,12 +590,20 @@ async function legacyLayoutExists(slug: string): Promise<boolean> {
  * Save a layout (create or update)
  * Creates folder structure: /data/{Name}-{UUID}/{name}.rackula.yaml
  * Also handles migration from legacy flat YAML format
- * Returns the layout UUID and whether it was a new layout
+ *
+ * When `echoedUpdatedAt` (the updatedAt the client last received from the
+ * server) differs from the stored copy's current updatedAt, the existing
+ * YAML is copied into the layout's snapshots folder before the write.
+ * Last write wins; the save is never rejected.
+ *
+ * Returns the layout UUID, whether it was a new layout, and the stored
+ * file's updatedAt (mtime, ISO 8601) for clients to echo on the next save
  */
 export async function saveLayout(
   yamlContent: string,
   existingId?: string,
-): Promise<{ id: string; isNew: boolean }> {
+  echoedUpdatedAt?: string,
+): Promise<{ id: string; isNew: boolean; updatedAt: string }> {
   await ensureDataDir();
 
   const existingUuid =
@@ -499,6 +654,21 @@ export async function saveLayout(
   const existingFolder = await findFolderByUuid(uuid);
   let isNew = existingFolder === null;
 
+  // Pre-overwrite snapshot: when the client's echoed updatedAt does not
+  // match the stored copy, the copies diverged. Capture the stored YAML
+  // before overwriting it.
+  if (echoedUpdatedAt && existingFolder) {
+    const existingYamlFilename = await findYamlInFolder(existingFolder);
+    if (existingYamlFilename) {
+      const existingYamlPath = join(existingFolder, existingYamlFilename);
+      const existingStats = await stat(existingYamlPath);
+      if (existingStats.mtime.toISOString() !== echoedUpdatedAt) {
+        const existingContent = await readFile(existingYamlPath, "utf-8");
+        await writeSnapshot(existingFolder, existingContent);
+      }
+    }
+  }
+
   // Handle rename: if the folder name changed (name change), rename the folder
   if (existingFolder && existingFolder !== folderPath) {
     // Handle concurrent folder changes gracefully.
@@ -533,9 +703,11 @@ export async function saveLayout(
   await mkdir(folderPath, { recursive: true });
 
   // Write the YAML file
-  await writeFile(join(folderPath, yamlFilename), yamlContent, "utf-8");
+  const yamlPath = join(folderPath, yamlFilename);
+  await writeFile(yamlPath, yamlContent, "utf-8");
+  const stats = await stat(yamlPath);
 
-  return { id: uuid, isNew };
+  return { id: uuid, isNew, updatedAt: stats.mtime.toISOString() };
 }
 
 /**

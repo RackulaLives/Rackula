@@ -177,7 +177,8 @@ describe("saveLayout and getLayout", () => {
     expect(result.isNew).toBe(true);
 
     const retrieved = await getLayout(result.id);
-    expect(retrieved).toBe(yamlContent);
+    expect(retrieved?.content).toBe(yamlContent);
+    expect(retrieved?.updatedAt).toBe(result.updatedAt);
   });
 
   it("detects existing layout as not new", async () => {
@@ -209,7 +210,7 @@ describe("saveLayout and getLayout", () => {
     // UUID remains stable and content is updated
     expect(renamed.id).toBe(created.id);
     const current = await getLayout(created.id);
-    expect(current).toContain("Renamed");
+    expect(current?.content).toContain("Renamed");
   });
 
   it("returns null for non-existent layout", async () => {

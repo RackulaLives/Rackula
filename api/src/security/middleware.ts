@@ -7,7 +7,7 @@ import {
 } from "./tokens";
 import type { ApiSecurityConfig, AuthSessionClaims } from "./types";
 
-const WRITE_METHODS = new Set(["PUT", "DELETE"]);
+const WRITE_METHODS = new Set(["POST", "PUT", "DELETE"]);
 const _AUTH_PUBLIC_PATHS = new Set([
   "/health",
   "/api/health",
