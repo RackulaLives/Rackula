@@ -79,7 +79,10 @@ export RACKULA_IPV6_LISTEN
 # Validated against an allowlist before being written into JavaScript; the
 # printf below only ever receives the literal strings "browser" or "server".
 # Written to tmpfs (not the read-only html root) and served via an exact
-# nginx location alias.
+# nginx location alias, which overrides the browser-mode default the build
+# ships in the html root.
+# CROSS-REF: keep in sync with static/config.js and the LXC writers in
+# deploy/lxc/community-scripts/{install/rackula-install.sh,ct/rackula.sh}.
 raw_storage_mode="${RACKULA_STORAGE_MODE:-browser}"
 storage_mode="$(printf '%s' "$raw_storage_mode" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
 
