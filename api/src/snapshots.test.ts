@@ -6,7 +6,15 @@
  * folder to quota counting and layout discovery.
  */
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp } from "./app";
@@ -250,6 +258,51 @@ describe("snapshot pruning", () => {
     expect(markers).toEqual(["v3", "v4", "v5", "v6", "v7"]);
   });
 
+  it("prunes the base snapshot before its suffixed siblings when mtimes tie", async () => {
+    const app = await createApp(buildEnv());
+    await putLayout(app, TEST_UUID, createLayoutYaml("My Layout", "v1"));
+
+    const entries = await readdir(testDir, { withFileTypes: true });
+    const folder = entries.find(
+      (entry) =>
+        entry.isDirectory() && entry.name.toLowerCase().endsWith(TEST_UUID),
+    );
+    if (!folder) {
+      throw new Error("layout folder not found");
+    }
+
+    // Forge a same-second collision set with identical mtimes: the base
+    // file is the oldest write, suffixes 1-5 are progressively newer.
+    const snapshotsDir = join(testDir, folder.name, "snapshots");
+    await mkdir(snapshotsDir, { recursive: true });
+    const names = [
+      "my-layout~20260101-000000.yaml",
+      ...[1, 2, 3, 4, 5].map((n) => `my-layout~20260101-000000-${n}.yaml`),
+    ];
+    for (const name of names) {
+      await writeFile(join(snapshotsDir, name), `marker: ${name}`, "utf-8");
+    }
+    const sharedMtime = new Date("2026-01-01T00:00:00Z");
+    for (const name of names) {
+      await utimes(join(snapshotsDir, name), sharedMtime, sharedMtime);
+    }
+
+    // A new upload prunes 7 files down to 5: the two oldest of the tied
+    // set (base, then -1) must go.
+    const response = await postSnapshot(
+      app,
+      TEST_UUID,
+      createLayoutYaml("My Layout", "new"),
+    );
+    expect(response.status).toBe(201);
+
+    const remaining = await snapshotFilesOnDisk(TEST_UUID);
+    expect(remaining).not.toContain("my-layout~20260101-000000.yaml");
+    expect(remaining).not.toContain("my-layout~20260101-000000-1.yaml");
+    expect(remaining).toContain("my-layout~20260101-000000-2.yaml");
+    expect(remaining).toContain("my-layout~20260101-000000-5.yaml");
+  });
+
   it("manual uploads count toward the prune bound", async () => {
     const app = await createApp(buildEnv());
     await putLayout(app, TEST_UUID, createLayoutYaml("My Layout", "v1"));
@@ -372,6 +425,17 @@ describe("POST /layouts/:uuid/snapshots", () => {
     const response = await postSnapshot(app, "not-a-uuid", "version: 1");
     expect(response.status).toBe(400);
   });
+
+  it("returns 413 for a body over the layout size limit", async () => {
+    const app = await createApp(buildEnv());
+    await putLayout(app, TEST_UUID, createLayoutYaml("My Layout", "v1"));
+
+    const oversized = createLayoutYaml("My Layout", "x".repeat(1024 * 1024));
+    const response = await postSnapshot(app, TEST_UUID, oversized);
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: "Layout data too large" });
+  });
 });
 
 describe("snapshot route auth gating", () => {
@@ -421,6 +485,19 @@ describe("snapshot route auth gating", () => {
       authHeader,
     );
     expect(response.status).toBe(201);
+  });
+
+  it("serves snapshot listings without a token in write-token mode", async () => {
+    const app = await createApp(
+      buildEnv({ RACKULA_API_WRITE_TOKEN: TEST_TOKEN }),
+    );
+    await putLayout(app, TEST_UUID, createLayoutYaml("My Layout", "v1"), {
+      Authorization: `Bearer ${TEST_TOKEN}`,
+    });
+
+    const response = await app.request(`/layouts/${TEST_UUID}/snapshots`);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ snapshots: [] });
   });
 
   it("does not serve snapshot listings without a session when auth is enabled", async () => {

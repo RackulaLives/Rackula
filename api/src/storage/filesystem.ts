@@ -8,6 +8,7 @@ import {
   writeFile,
   stat,
   mkdir,
+  open,
   rm,
   rename,
 } from "node:fs/promises";
@@ -116,13 +117,26 @@ function formatSnapshotTimestamp(date: Date): string {
   );
 }
 
-async function fileExists(path: string): Promise<boolean> {
-  try {
-    await stat(path);
-    return true;
-  } catch {
-    return false;
+const SNAPSHOT_NAME_PATTERN = /~(\d{8}-\d{6})(?:-(\d+))?\.yaml$/;
+
+/**
+ * Compare snapshot filenames newest-first using the embedded timestamp and
+ * numeric collision suffix (no suffix sorts oldest within a timestamp).
+ * Plain localeCompare would rank the suffix-less base file above its
+ * suffixed siblings, inverting the order for same-timestamp snapshots.
+ */
+function compareSnapshotNamesDesc(a: string, b: string): number {
+  const matchA = SNAPSHOT_NAME_PATTERN.exec(a);
+  const matchB = SNAPSHOT_NAME_PATTERN.exec(b);
+  if (!matchA || !matchB) {
+    return b.localeCompare(a);
   }
+  const [, timestampA = "", suffixA] = matchA;
+  const [, timestampB = "", suffixB] = matchB;
+  return (
+    timestampB.localeCompare(timestampA) ||
+    Number(suffixB ?? 0) - Number(suffixA ?? 0)
+  );
 }
 
 /**
@@ -137,7 +151,9 @@ async function pruneSnapshots(snapshotsDir: string): Promise<void> {
     files.push({ name: entry.name, mtimeMs: stats.mtimeMs });
   }
 
-  files.sort((a, b) => b.mtimeMs - a.mtimeMs || b.name.localeCompare(a.name));
+  files.sort(
+    (a, b) => b.mtimeMs - a.mtimeMs || compareSnapshotNamesDesc(a.name, b.name),
+  );
   for (const file of files.slice(MAX_SNAPSHOTS_PER_LAYOUT)) {
     await rm(join(snapshotsDir, file.name), { force: true });
   }
@@ -164,12 +180,24 @@ async function writeSnapshot(
   const timestamp = formatSnapshotTimestamp(new Date());
   let filename = `${baseName}~${timestamp}.yaml`;
   let suffix = 1;
-  while (await fileExists(join(snapshotsDir, filename))) {
-    filename = `${baseName}~${timestamp}-${suffix}.yaml`;
-    suffix += 1;
+  // Exclusive create (wx) makes the existence check and the write one
+  // atomic step so concurrent snapshot writes cannot overwrite each other.
+  for (;;) {
+    try {
+      await writeFile(join(snapshotsDir, filename), yamlContent, {
+        encoding: "utf-8",
+        flag: "wx",
+      });
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+        throw error;
+      }
+      filename = `${baseName}~${timestamp}-${suffix}.yaml`;
+      suffix += 1;
+    }
   }
 
-  await writeFile(join(snapshotsDir, filename), yamlContent, "utf-8");
   await pruneSnapshots(snapshotsDir);
   return filename;
 }
@@ -211,7 +239,7 @@ export async function listSnapshots(
   return snapshots.sort(
     (a, b) =>
       b.timestamp.localeCompare(a.timestamp) ||
-      b.filename.localeCompare(a.filename),
+      compareSnapshotNamesDesc(a.filename, b.filename),
   );
 }
 
@@ -433,9 +461,18 @@ export async function getLayout(
       if (yamlFilename) {
         try {
           const yamlPath = join(folder, yamlFilename);
-          const content = await readFile(yamlPath, "utf-8");
-          const stats = await stat(yamlPath);
-          return { content, updatedAt: stats.mtime.toISOString() };
+          const handle = await open(yamlPath, "r");
+          try {
+            // Stat before read on the same descriptor: a write landing
+            // between the two leaves the content newer than the reported
+            // updatedAt, so the next echoed PUT mismatches and snapshots
+            // instead of silently masking the concurrent write.
+            const stats = await handle.stat();
+            const content = await handle.readFile("utf-8");
+            return { content, updatedAt: stats.mtime.toISOString() };
+          } finally {
+            await handle.close();
+          }
         } catch {
           return null;
         }
@@ -702,12 +739,17 @@ export async function saveLayout(
   // Create folder if it doesn't exist
   await mkdir(folderPath, { recursive: true });
 
-  // Write the YAML file
+  // Write the YAML file. Stat the same descriptor so the returned
+  // updatedAt belongs to this write, not to a concurrent writer's file.
   const yamlPath = join(folderPath, yamlFilename);
-  await writeFile(yamlPath, yamlContent, "utf-8");
-  const stats = await stat(yamlPath);
-
-  return { id: uuid, isNew, updatedAt: stats.mtime.toISOString() };
+  const handle = await open(yamlPath, "w");
+  try {
+    await handle.writeFile(yamlContent, "utf-8");
+    const stats = await handle.stat();
+    return { id: uuid, isNew, updatedAt: stats.mtime.toISOString() };
+  } finally {
+    await handle.close();
+  }
 }
 
 /**
