@@ -1,8 +1,15 @@
 <!--
-  Rackula logo icon - widow's peak variant
+  Rackula logo icon - coffin-tapered mark
   Uses design tokens for theming
 -->
 <script lang="ts">
+  import {
+    LOGO_VIEWBOX,
+    LOGO_OUTLINE,
+    LOGO_SLOTS,
+    LOGO_SLOT_RADIUS,
+  } from "$lib/components/logo-geometry";
+
   interface Props {
     size?: number;
   }
@@ -14,26 +21,28 @@
   class="logo-icon"
   width={size}
   height={size}
-  viewBox="0 0 36 54"
+  viewBox={LOGO_VIEWBOX}
   fill="none"
   aria-hidden="true"
 >
-  <!-- Rack frame with widow's peak -->
-  <path 
-    d="M0 0 L14 0 L18 6 L22 0 L36 0 L36 54 L0 54 Z" 
-    class="logo-frame" 
-  />
-  <!-- Device slots -->
-  <rect x="5" y="10" width="26" height="10" class="logo-slot" />
-  <rect x="5" y="22" width="26" height="10" class="logo-slot" />
-  <rect x="5" y="34" width="26" height="10" class="logo-slot" />
+  <path d={LOGO_OUTLINE} class="logo-frame" />
+  {#each LOGO_SLOTS as slot (slot.y)}
+    <rect
+      x={slot.x}
+      y={slot.y}
+      width={slot.width}
+      height={slot.height}
+      rx={LOGO_SLOT_RADIUS}
+      class="logo-slot"
+    />
+  {/each}
 </svg>
 
 <style>
   .logo-frame {
-    fill: var(--logo-frame, var(--dracula-purple, #BD93F9));
+    fill: var(--logo-frame, var(--dracula-purple, #bd93f9));
   }
   .logo-slot {
-    fill: var(--logo-interior, var(--colour-bg-primary, #282A36));
+    fill: var(--logo-interior, var(--colour-bg-primary, #282a36));
   }
 </style>

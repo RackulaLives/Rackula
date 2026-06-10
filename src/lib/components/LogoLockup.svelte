@@ -11,6 +11,7 @@
 <script lang="ts">
   import SantaHat from "./SantaHat.svelte";
   import { isChristmas } from "$lib/utils/christmas";
+  import { LOGO_PATH, LOGO_SQUARE_VIEWBOX } from "$lib/components/logo-geometry";
 
   interface Props {
     size?: number;
@@ -193,7 +194,7 @@
   onmouseleave={() => (hovering = false)}
   role="presentation"
 >
-  <!-- Logo mark with widow's peak + optional Christmas hat -->
+  <!-- Coffin-tapered logo mark + optional Christmas hat -->
   <div class="logo-mark-container">
     <svg
       class="logo-mark"
@@ -202,7 +203,7 @@
       class:logo-mark--showcase={showcase}
       class:logo-mark--hover={hovering && !partyMode && !celebrate && !showcase}
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 32 32"
+      viewBox={LOGO_SQUARE_VIEWBOX}
       width={size}
       height={size}
       aria-hidden="true"
@@ -214,11 +215,8 @@
           markGradientIds[activeGradient],
         )}
       {/if}
-      <!-- Widow's peak frame with device slots as negative space -->
-      <path
-        d="M6 4 L13 4 L16 7 L19 4 L26 4 L26 28 L6 28 Z M10 9 h12 v4 h-12 z M10 15 h12 v4 h-12 z M10 21 h12 v4 h-12 z"
-        fill={markGradientUrl}
-      />
+      <!-- Coffin-tapered frame with device slots as negative space -->
+      <path d={LOGO_PATH} fill={markGradientUrl} />
     </svg>
     {#if showChristmasHat}
       <div class="logo-hat">
@@ -271,7 +269,7 @@
 
   .logo-hat {
     position: absolute;
-    top: -9px;
+    top: -13px;
     right: 0px;
     z-index: 1;
   }

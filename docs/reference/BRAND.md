@@ -466,31 +466,28 @@ The rainbow wave uses all Dracula accent colours in a cycling gradient:
 
 ## Logo Mark
 
-The Rackula logo mark is a **rack frame with vampire fangs** — two triangular points extending downward from the top edge, with three horizontal device slots inside.
+The Rackula logo mark is a **coffin-tapered rack frame with a fang notch**: curved shoulders, sides that narrow toward the base, and three device slots that shrink with the taper in forced perspective.
 
 ### Design
 
-```svg
-<!-- Canonical 32x32 logo mark -->
-<path d="M5 0L12 0L16 6L20 0L27 0L27 32L5 32Z"/>  <!-- Frame with fangs -->
-<rect x="8" y="7" width="16" height="5"/>          <!-- Slot 1 -->
-<rect x="8" y="15" width="16" height="5"/>         <!-- Slot 2 -->
-<rect x="8" y="23" width="16" height="5"/>         <!-- Slot 3 -->
-```
+The canonical geometry lives in `src/lib/components/logo-geometry.ts`. Components render from its constants and `npm run generate-brand-assets` writes every static SVG and raster from the same source. Never hand-edit the geometry in an asset or component.
+
+Two intentional quirks, do not "correct" them:
+
+- The slot taper (3.6 units per slot) is about 2.4x the body taper. Exaggerated perspective, like looking down into the coffin.
+- Corner radii are graduated (top 1.5, slots 2, bottom 2.5): nearer edges are rounder.
 
 ### Specifications
 
 | Property        | Value                      |
 | --------------- | -------------------------- |
-| ViewBox         | `0 0 32 32`                |
-| Content bounds  | x: 5-27, y: 0-32 (22×32)   |
-| Frame           | Sharp corners (radius: 0)  |
-| Fang depth      | 6 units (tip at y=6)       |
-| Fang span       | 8 units total (shoulders at x=12,20, center at x=16) |
-| Slot height     | 5 units                    |
-| Slot gaps       | 3 units between slots      |
-| Top margin      | 1 unit (fang to slot)      |
-| Bottom margin   | 4 units (slot to frame)    |
+| ViewBox (tight) | `0 0 56 80`                |
+| ViewBox (square)| `-12 0 80 80` (full-bleed vertical, 12-unit side margins) |
+| Body taper      | 2.6 units per side, top width 56 to base width 50.8 |
+| Corner radii    | Graduated: top 1.5, slots 2, bottom 2.5 |
+| Fang notch      | Shoulders at x=16.5 and 39.5, tip at (28, 17.8) |
+| Slots           | 13 units tall, widths 44.8 / 41.2 / 37.6, 6-unit gaps |
+| Slot rendering  | Punched out as holes (`fill-rule="evenodd"`), background shows through |
 | Colour (dark)   | `#BD93F9` (Dracula purple) |
 | Colour (light)  | `#644AC9` (Alucard purple) |
 | Minimum size    | 16x16px                    |
@@ -504,6 +501,7 @@ The Rackula logo mark is a **rack frame with vampire fangs** — two triangular 
 | `static/brand/logo-mark-alucard.svg` | Alucard Purple | `#644AC9` | Light theme          |
 | `static/brand/logo-mark-mono-black.svg` | Black     | `#000000` | Light backgrounds    |
 | `static/brand/logo-mark-mono-white.svg` | White     | `#FFFFFF` | Dark backgrounds     |
+| `static/brand/logo-mark-square.svg`  | Dracula Purple | `#BD93F9` | Square canvas (favicons, icon rasters) |
 
 ### Raster Assets
 
@@ -517,7 +515,7 @@ The Rackula logo mark is a **rack frame with vampire fangs** — two triangular 
 | `static/brand/logo-mark-192.png` | 192×192 | Android home screen   |
 | `static/brand/logo-mark-256.png` | 256×256 | High-res icons        |
 | `static/brand/logo-mark-512.png` | 512×512 | App store / marketing |
-| `static/brand/favicon.ico`       | Multi   | 16-256px ICO bundle   |
+| `static/brand/favicon.ico`       | Multi   | 16/32/48px ICO bundle (legacy fallback) |
 | `static/brand/apple-touch-icon.png` | 180×180 | iOS home screen    |
 
 ### Files (Root)

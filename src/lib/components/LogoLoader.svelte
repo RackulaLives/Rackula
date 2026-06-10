@@ -4,6 +4,13 @@
   Used during async operations like export generation
 -->
 <script lang="ts">
+	import {
+		LOGO_OUTLINE,
+		LOGO_SLOTS,
+		LOGO_SLOT_RADIUS,
+		LOGO_SQUARE_VIEWBOX
+	} from '$lib/components/logo-geometry';
+
 	interface Props {
 		size?: number;
 		message?: string;
@@ -16,7 +23,7 @@
 	<!-- Logo mark with animated slots -->
 	<svg
 		class="logo-mark"
-		viewBox="0 0 32 32"
+		viewBox={LOGO_SQUARE_VIEWBOX}
 		width={size}
 		height={size}
 		aria-hidden="true"
@@ -25,16 +32,23 @@
 		<!-- Outer frame (static) -->
 		<path
 			class="frame"
-			d="M6 4 h20 v24 h-20 z"
+			d={LOGO_OUTLINE}
 			fill="none"
 			stroke="currentColor"
-			stroke-width="2"
+			stroke-width="3"
 		/>
 
 		<!-- Animated slots with staggered fill -->
-		<rect class="slot slot-1" x="10" y="8" width="12" height="4" />
-		<rect class="slot slot-2" x="10" y="14" width="12" height="4" />
-		<rect class="slot slot-3" x="10" y="20" width="12" height="4" />
+		{#each LOGO_SLOTS as slot, i (slot.y)}
+			<rect
+				class="slot slot-{i + 1}"
+				x={slot.x}
+				y={slot.y}
+				width={slot.width}
+				height={slot.height}
+				rx={LOGO_SLOT_RADIUS}
+			/>
+		{/each}
 	</svg>
 
 	{#if message}
