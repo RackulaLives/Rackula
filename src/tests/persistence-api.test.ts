@@ -36,7 +36,7 @@ describe("checkApiHealth", () => {
     const healthy = await checkApiHealth();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://example.com/api/health");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/health");
     expect(healthy).toBe(true);
   });
 

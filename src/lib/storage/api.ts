@@ -14,10 +14,17 @@ const log = persistenceDebug.api;
 /**
  * API base URL for persistence endpoints
  * Defaults to /api (proxied by nginx in Docker)
- * Normalized: empty or unset falls back to /api, trailing slashes stripped
+ * Normalized: empty or unset falls back to /api, trailing slashes stripped,
+ * relative values get a leading slash so health and CRUD resolve identically
  */
-const API_BASE_URL: string =
-  (import.meta.env.VITE_API_URL ?? "").trim().replace(/\/+$/, "") || "/api";
+function normalizeApiBaseUrl(raw: string | undefined): string {
+  const trimmed = (raw ?? "").trim().replace(/\/+$/, "");
+  if (trimmed === "") return "/api";
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("/")) return trimmed;
+  return `/${trimmed}`;
+}
+
+const API_BASE_URL: string = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
 
 /** Default timeout for API requests (10 seconds) */
 const API_TIMEOUT_MS = 10_000;
@@ -125,12 +132,9 @@ export class PersistenceError extends Error {
  * so it does not check isApiAvailable() first.
  */
 export async function checkApiHealth(): Promise<boolean> {
-  // API_BASE_URL is already normalized (no trailing slash), so health and
-  // CRUD endpoints share identical path rules
-  const healthUrl = new URL(
-    `${API_BASE_URL}/health`,
-    window.location.origin,
-  ).toString();
+  // API_BASE_URL is normalized (leading slash or absolute, no trailing
+  // slash), so health and CRUD endpoints share identical path rules
+  const healthUrl = `${API_BASE_URL}/health`;
   log("checkApiHealth: checking %s", healthUrl);
 
   try {
@@ -265,7 +269,7 @@ export async function loadSavedLayout(uuid: string): Promise<Layout> {
     return parseLayoutYaml(yamlContent);
   } catch (error) {
     log("loadSavedLayout: failed to parse uuid=%s %O", uuid, error);
-    throw new PersistenceError("Layout data is corrupted — could not parse");
+    throw new PersistenceError("Layout data is corrupted - could not parse");
   }
 }
 
