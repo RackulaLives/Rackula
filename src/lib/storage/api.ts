@@ -83,18 +83,18 @@ async function safeParseErrorJson(
   response: Response,
 ): Promise<{ error: string }> {
   try {
-    const data = await response.json();
-    if (data && typeof data === "object" && "error" in data) {
-      return data as { error: string };
-    }
-    return { error: response.statusText || "Unknown error" };
-  } catch {
+    const text = await response.text();
     try {
-      const text = await response.text();
-      return { error: text || response.statusText || "Unknown error" };
+      const data: unknown = JSON.parse(text);
+      if (data && typeof data === "object" && "error" in data) {
+        return data as { error: string };
+      }
     } catch {
-      return { error: response.statusText || "Unknown error" };
+      // fall through to raw text
     }
+    return { error: text || response.statusText || "Unknown error" };
+  } catch {
+    return { error: response.statusText || "Unknown error" };
   }
 }
 
