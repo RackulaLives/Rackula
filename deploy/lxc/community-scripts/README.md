@@ -40,8 +40,9 @@ fork branch.
 
 In short: canonical = upstream + dev override. When syncing, carry every other
 change over verbatim, then re-remove the override on the fork side. It lives in
-three places: the fail-loud guard and the deploy branch in `ct/rackula.sh`
-`update_script()`, and the deploy branch in `install/rackula-install.sh`.
+three places: the fail-loud guard in `update_script()` in `ct/rackula.sh`, the
+deploy branch in the same function, and the deploy branch in
+`install/rackula-install.sh`.
 
 ## URL note: ProxmoxVE vs ProxmoxVED
 
