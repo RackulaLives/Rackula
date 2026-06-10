@@ -31,4 +31,7 @@ export {
   shouldSaveToServer,
   initPersistenceEffects,
   flushSessionSave,
+  isSessionSavePending,
+  isServerSavePending,
 } from "./manager.svelte";
+export { shouldWarnBeforeUnload, type UnloadRiskState } from "./unload-risk";

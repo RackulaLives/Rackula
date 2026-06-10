@@ -35,6 +35,18 @@ let _errorToastId: string | undefined = undefined;
 let serverSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+// Reactive mirrors of the timers, for the beforeunload risk condition
+let _sessionSavePending = $state(false);
+let _serverSavePending = $state(false);
+
+export function isSessionSavePending(): boolean {
+  return _sessionSavePending;
+}
+
+export function isServerSavePending(): boolean {
+  return _serverSavePending || _saveStatus === "saving";
+}
+
 export function getConsecutiveSaveFailures(): number {
   return _consecutiveSaveFailures;
 }
@@ -132,6 +144,7 @@ export async function handleSaveToServer(isManual = false): Promise<boolean> {
     if (serverSaveTimer) {
       clearTimeout(serverSaveTimer);
       serverSaveTimer = null;
+      _serverSavePending = false;
     }
     const snapshot = structuredClone($state.snapshot(layoutStore.layout));
     await saveLayoutToServer(snapshot);
@@ -195,6 +208,7 @@ export function flushSessionSave(): void {
   if (saveDebounceTimer && layoutStore.hasRack) {
     clearTimeout(saveDebounceTimer);
     saveDebounceTimer = null;
+    _sessionSavePending = false;
     saveSession(layoutStore.layout);
   }
 }
@@ -213,14 +227,17 @@ export function initPersistenceEffects(): void {
       if (saveDebounceTimer) {
         clearTimeout(saveDebounceTimer);
       }
+      _sessionSavePending = true;
       saveDebounceTimer = setTimeout(() => {
         saveSession(currentLayout);
         saveDebounceTimer = null;
+        _sessionSavePending = false;
       }, 1000);
     } else {
       if (saveDebounceTimer) {
         clearTimeout(saveDebounceTimer);
         saveDebounceTimer = null;
+        _sessionSavePending = false;
       }
       // Only clear session if we previously had a rack — prevents wiping
       // localStorage before App.onMount restores the session on page load
@@ -232,6 +249,7 @@ export function initPersistenceEffects(): void {
       if (saveDebounceTimer) {
         clearTimeout(saveDebounceTimer);
         saveDebounceTimer = null;
+        _sessionSavePending = false;
       }
     };
   });
@@ -248,6 +266,7 @@ export function initPersistenceEffects(): void {
       clearTimeout(serverSaveTimer);
     }
     const snapshot = structuredClone($state.snapshot(layout));
+    _serverSavePending = true;
     serverSaveTimer = setTimeout(async () => {
       _saveStatus = "saving";
       try {
@@ -264,11 +283,13 @@ export function initPersistenceEffects(): void {
         handlePersistenceError(e);
       }
       serverSaveTimer = null;
+      _serverSavePending = false;
     }, 2000);
     return () => {
       if (serverSaveTimer) {
         clearTimeout(serverSaveTimer);
         serverSaveTimer = null;
+        _serverSavePending = false;
       }
     };
   });
@@ -313,4 +334,6 @@ export function resetPersistenceManager(): void {
     clearTimeout(saveDebounceTimer);
     saveDebounceTimer = null;
   }
+  _serverSavePending = false;
+  _sessionSavePending = false;
 }
