@@ -1171,6 +1171,16 @@ function markDirty(): void {
   changesSinceExport += 1;
 }
 
+/**
+ * Mark the layout as having unsaved changes without incrementing the
+ * changes-since-export counter. Used by undo/redo which revert or
+ * re-apply edits — the count tracks net changes from the last export,
+ * and undo moves toward that baseline, not away from it.
+ */
+function markDirtyWithoutCounting(): void {
+  isDirty = true;
+}
+
 function markClean(): void {
   isDirty = false;
 }
@@ -1213,6 +1223,7 @@ function updateDisplayMode(mode: DisplayMode): void {
  * Update the showLabelsOnImages setting
  */
 function updateShowLabelsOnImages(value: boolean): void {
+  if (layout.settings.show_labels_on_images === value) return;
   layout = {
     ...layout,
     settings: { ...layout.settings, show_labels_on_images: value },
@@ -1565,7 +1576,7 @@ function undo(): boolean {
   const history = getHistoryStore();
   const result = history.undo();
   if (result) {
-    markDirty();
+    markDirtyWithoutCounting();
   }
   return result;
 }
@@ -1578,7 +1589,7 @@ function redo(): boolean {
   const history = getHistoryStore();
   const result = history.redo();
   if (result) {
-    markDirty();
+    markDirtyWithoutCounting();
   }
   return result;
 }
