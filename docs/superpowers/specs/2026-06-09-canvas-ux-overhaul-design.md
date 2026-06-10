@@ -163,8 +163,10 @@ across all open layouts and shows green only when every open layout is in its du
 home. It never shows green while any open tab holds unbacked work; the inactive-tab
 dots identify which layout the amber state refers to. The chip's states:
 
-Browser build: green "In your browser" when a recent file backup exists, amber
-"In your browser" when only a working copy exists. The app can only know that an
+Browser build: green "In your browser, backed up" when a recent file backup exists,
+amber "In your browser, backup needed" when only a working copy exists. The labels
+differ as well as the colours, so colour is never the sole indicator of state. The
+app can only know that an
 export event happened, not that the file still exists on disk, so "recent" needs a
 definition (change-based versus time-based); that definition is delegated to the
 storage spike.
