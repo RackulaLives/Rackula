@@ -15,7 +15,7 @@ import {
   handleSaveAsArchive,
   shouldSaveToServer,
 } from "$lib/storage";
-import { persistenceDebug } from "$lib/utils/debug";
+import { appDebug } from "$lib/utils/debug";
 import { generateShareUrl } from "$lib/utils/share";
 import { generateQRCode, canFitInQR } from "$lib/utils/qrcode";
 import {
@@ -223,7 +223,7 @@ export async function handleExportSubmit(
       toastStore.showToast(successMsg, "success");
     }
   } catch (error) {
-    persistenceDebug.api("Export failed: %O", error);
+    appDebug.export("Export failed: %O", error);
     toastStore.showToast(
       error instanceof Error ? error.message : "Export failed",
       "error",

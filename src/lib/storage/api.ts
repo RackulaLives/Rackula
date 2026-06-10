@@ -20,6 +20,9 @@ const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? "/api";
 /** Default timeout for API requests (10 seconds) */
 const API_TIMEOUT_MS = 10_000;
 
+/** Health check timeout, shorter so availability probes fail fast (3 seconds) */
+const HEALTH_CHECK_TIMEOUT_MS = 3_000;
+
 /**
  * Zod schema for SavedLayoutItem
  */
@@ -130,7 +133,7 @@ export async function checkApiHealth(): Promise<boolean> {
   try {
     const response = await fetch(healthUrl, {
       method: "GET",
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(HEALTH_CHECK_TIMEOUT_MS),
     });
     if (!response.ok) {
       log(
