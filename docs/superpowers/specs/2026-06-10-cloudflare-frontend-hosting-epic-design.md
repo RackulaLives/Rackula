@@ -1,11 +1,14 @@
 # Design: Cloudflare Frontend Hosting (VPS Retirement)
 
 Date: 2026-06-10
-Status: Approved design, pending final spec review then implementation planning
+Status: Approved design, three adversarial passes folded, pending implementation planning
 Origin: Spike #1025 (see `docs/research/spike-1025-cf-frontend-hosting.md` and the
-`docs/research/1025-*.md` files: codebase, external, patterns, and devil's-advocate). Two
-adversarial passes are folded into this spec (cutover/rollback, shared CSP, hollow smoke test,
-milestone ordering, Cloudflare account/DNS reality, CI/git-context coupling).
+`docs/research/1025-*.md` files: codebase, external, patterns, and devil's-advocate). Three
+adversarial passes are folded into this spec. Passes 1-2: cutover/rollback, shared CSP, hollow
+smoke test, milestone ordering, Cloudflare account/DNS reality, CI/git-context coupling. Pass 3
+(2026-06-10, grounded against the repo and Cloudflare docs): account-wide token scope,
+custom-domain attach mechanics, preview-URL smoke before promote, C1 split into C1a/C1b,
+build-env parity, HSTS scoping, transitive promote-DAG coupling.
 
 Promotes issue #1984 into this epic. Sibling of epic #1983 (eliminate the VPS). Milestone:
 new `M00 -- VPS Retirement & Cloudflare Hosting`.
@@ -63,13 +66,23 @@ because `.dockerignore` strips `.git`). For self-host parity, add an `APP_COMMIT
 `build-lxc.yml`, so self-host `version.json.commit` is populated in the same short-hash format
 rather than left blank.
 
+The version+commit assertion does not detect build-env drift: version.json encodes
+version/commit/time, not VITE_* flags. The wrangler job must pin the same env as the gated
+Docker build explicitly (`VITE_ENV=production`; the C2 analytics token is the only deliberate
+delta), and C4 adds an env-parity check between `deploy/Dockerfile` build-args and the wrangler
+job. Design interaction, recorded consciously: C2's build-time beacon token is what forces the
+separate build. If C2 ever moves to deploy-time beacon injection (same pattern as `_headers`),
+promoting the gated Docker image's `dist/` (docker create + cp) becomes possible and restores
+"promote exactly what was gated" wholesale.
+
 ## 3. Epic structure
 
 ```
 M00 -- VPS Retirement & Cloudflare Hosting (milestone)  [sorts first by title]
 |
 +- #1984  EPIC: Cloudflare frontend hosting (prod -> Workers Static Assets)   [promoted in place]
-|    +- C1  Atomic prod cutover to Workers Static Assets            (Large)
+|    +- C1a Shared-source cleanup: CSP, shim, APP_COMMIT             (Small-Medium)
+|    +- C1b Prod cutover to Workers Static Assets                    (Medium-Large)
 |    +- C2  Cloudflare Web Analytics                                (Trivial-Small)
 |    +- C3  Cloudflare dev/preview frontend environment            (Small)
 |    +- C4  Self-host header/parity guard                          (Small)
@@ -94,31 +107,67 @@ Epic #1984 done-when (self-contained, does NOT include VPS power-off):
 
 VPS power-off remains #1983/#1986's done-when.
 
-## 4. Child C1: Atomic prod cutover to Workers Static Assets (Large)
+## 4. Children C1a and C1b: prod cutover, split
 
-C1 and the originally-separate "security headers" issue are merged: a public prod origin
-cannot exist for even one response without its headers, and deleting the GitHub-Pages shim is
-the same edit as re-deriving the CSP hash. This is one atomic cutover PR. It is Large, not
-Medium: it spans hosting config, the security-header re-home, a full CI rewrite, a blocking CSP
-investigation, the irreversible custom-domain attach, and the rollback runbook. The
-custom-domain attach is the FINAL, smallest, irreversible step, gated on the workers.dev
-validation passing.
+The cutover was one atomic Large child until DA pass 3. The "no headerless prod window"
+argument binds the headers to the cutover step, not every repo edit to one PR, so the
+shared-source edits split out cleanly: they ship and are verified live on the existing
+VPS/nginx path before any Cloudflare work, and the blocking CSP investigation moves out of the
+cutover PR. Headers live in nginx until cutover; the CF `_headers` exists from the first Worker
+deploy. No headerless window exists in either child. C1a strictly before C1b.
+
+### C1a: Shared-source cleanup: CSP, shim, APP_COMMIT (Small-Medium)
+
+Ships through the normal release pipeline to the VPS like any release, so every shared-source
+change is proven on live nginx (Docker) and the LXC gate before the cutover depends on it.
+
+- Delete the `index.html` GitHub-Pages `sessionStorage` redirect shim and `static/404.html`.
+  Safe for self-host: both nginx configs serve SPA deep links via
+  `try_files $uri $uri/ /index.html` (`deploy/nginx.conf.template` and `deploy/lxc/nginx.conf`),
+  not via the GH-Pages 404 shim. Shared-source cleanup, not prod-only.
+- Re-derive the remaining inline-script hashes and mirror the change into
+  `deploy/security-headers.conf` (Docker) and `deploy/lxc/security-headers.conf` (LXC), which
+  both pin the same shim hash. Reconcile the pre-existing `form-action` drift (Docker is missing
+  it).
+- Unknown-hash investigation (blocking, inside C1a): the second pinned hash
+  `sha256-yei5Fza...` is annotated "Dynamic inline script in bundled JS (exact origin unknown)".
+  Build `dist/`, grep the output HTML for inline `<script>` with no `src`, and identify the
+  source. Only tighten `script-src` toward `'self'` once no build-emitted inline script remains,
+  or pin an auto-derived hash (computed from `dist/` at build time, not hand-maintained). Do not
+  drop a hash whose script you cannot prove is gone.
+- Add the `APP_COMMIT` build-arg to `deploy/Dockerfile` (mirroring `api/Dockerfile`) wired
+  through `build-images.yml` and `build-lxc.yml`, per the prod-artifact decision in Section 2.
+- Remove the dead `VITE_PERSIST_ENABLED` build arg from `deploy/Dockerfile` and its dead
+  assignments in `build-images.yml`, `rebuild-images.yml`, `build-lxc.yml`, `build-lxc-dev.yml`,
+  and `deploy-dev.yml` (the app uses runtime detection; see
+  `src/lib/stores/persistence.svelte.ts`).
+
+### C1b: Prod cutover to Workers Static Assets (Medium-Large)
+
+Depends on C1a being released. Spans hosting config, the security-header re-home, the
+`deploy-prod.yml` rewrite, the custom-domain attach, and the rollback runbook. The
+custom-domain attach is the final, most disruptive step, gated on the workers.dev validation
+passing.
 
 Out-of-band prerequisites (one-time account actions, name them before starting):
 
 - Register the account `*.workers.dev` subdomain (one-time, permanent, dashboard). The rollback
-  runbook (`wrangler versions`) and the workers.dev validation step both depend on it.
+  runbook (`wrangler versions`), the per-release preview-URL smoke, and the workers.dev
+  validation step all depend on it.
 - Confirmed (2026-06-10): the `racku.la` zone and the `rackula-prod` Worker will live in the
   SAME Cloudflare account, so the custom-domain attach is account-valid. Still create the Worker
   and the CI `CLOUDFLARE_ACCOUNT_ID`/token under that same account.
-- Provision least-privilege CI tokens (see "CI and pipeline" below).
+- Provision CI tokens (see "CI and pipeline" below for what token scoping can and cannot do).
 
 Hosting config:
 
 - `wrangler.jsonc` at repo root (deploy-target config, not imported by the app, ignored by
-  nginx): assets directory `./dist/`, `not_found_handling: "single-page-application"`,
-  `routes: [{ pattern: "count.racku.la", custom_domain: true }]`, pinned `compatibility_date`
-  (bump deliberately).
+  nginx): assets directory `./dist/`, `not_found_handling: "single-page-application"`, pinned
+  `compatibility_date` (bump deliberately). Do NOT include `routes` at bootstrap: a committed
+  `routes: [{ pattern: "count.racku.la", custom_domain: true }]` would attempt the domain
+  attach on the FIRST deploy, before the workers.dev validation. Add the route entry only at
+  the attach step, and from then on manage the domain in config only (mixed dashboard/config
+  management of routes is a footgun).
 - `_headers` source: do NOT commit it to `static/` (publicDir copies `static/` verbatim into
   every `dist/`, which would leak `_headers` into the self-host nginx build). Instead generate
   or copy `_headers` into `dist/` inside the wrangler deploy step, parallel to the
@@ -132,31 +181,16 @@ Security headers (in the CF `_headers`):
 - CSP, HSTS, X-Frame-Options, X-Content-Type-Options nosniff, Referrer-Policy,
   Permissions-Policy. Use a `/*` rule (one policy for all paths) to match nginx's `always`
   coverage. Verify on `/`, a real hashed asset under `/assets/`, and a known-absent path.
-- HSTS: prefer the Cloudflare zone-level HSTS setting over emitting `Strict-Transport-Security`
-  from `_headers` (avoid a duplicate header). Do NOT enable preload yet. Decide
-  `includeSubDomains` carefully: `racku.la` siblings (`d.racku.la`, any future homelab host)
-  share the apex, so an over-broad HSTS has cross-subdomain blast radius. Coordinate with C3.
+- HSTS: emit `Strict-Transport-Security` from `_headers`, scoped to this Worker only. Do NOT
+  use the Cloudflare zone-level HSTS setting: it applies to every proxied hostname in the zone
+  (apex, `d.racku.la`, future hosts), which is exactly the cross-subdomain blast radius to
+  avoid. `_headers` HSTS replicates today's nginx scope (`deploy/security-headers.conf` already
+  sends `max-age=31536000; includeSubDomains`; harmless, `count.racku.la` has no subdomains).
+  The duplicate-header concern only arises if both mechanisms are enabled; use one. Do NOT
+  enable preload yet. Coordinate with C3 on any future `d.racku.la` exposure.
 - Cache-Control: `/assets/*` immutable (`max-age=31536000, immutable`); `index.html` and
   `version.json` set to `no-cache`/`no-store` so a stale shell never points at deleted hashed
   assets and the smoke test reads origin-fresh.
-
-CSP change-set (the three CSPs are one change-set):
-
-- Delete the `index.html` GitHub-Pages `sessionStorage` redirect shim and `static/404.html`.
-  Deleting `static/404.html` is safe for self-host because nginx serves SPA deep links via
-  `try_files $uri $uri/ /index.html` (`deploy/nginx.conf.template`), not via the GH-Pages 404
-  shim; CF uses `not_found_handling: single-page-application`. It is a shared-source cleanup,
-  not prod-only.
-- Re-derive the remaining inline-script hashes and mirror the change into
-  `deploy/security-headers.conf` (Docker) and `deploy/lxc/security-headers.conf` (LXC), which
-  both pin the same shim hash. Reconcile the pre-existing `form-action` drift (Docker is missing
-  it).
-- Unknown-hash investigation (blocking, before tightening `script-src`): the second pinned hash
-  `sha256-yei5Fza...` is annotated "Dynamic inline script in bundled JS (exact origin unknown)".
-  Build `dist/`, grep the output HTML for inline `<script>` with no `src`, and identify the
-  source. Only tighten `script-src` toward `'self'` once no build-emitted inline script remains,
-  or pin an auto-derived hash (computed from `dist/` at build time, not hand-maintained). Do not
-  drop a hash whose script you cannot prove is gone.
 - robots: add `Disallow: /login` (and any other SPA-fallback route you do not want indexed) to
   the prod robots policy. `robots.txt` is a publicDir-shared file, so a prod-only `Disallow`
   uses the same deploy-step injection as `_headers`, or keep the shared `robots.txt` allow-all
@@ -170,26 +204,39 @@ login.html and the prod artifact:
   (Docker/LXC) `dist` still contains `login.html`. Document that `/login` on prod resolves to
   the SPA shell.
 - Prod artifact: the wrangler job runs `npm ci && npm run build` after checking out the released
-  tag with `.git` present, so `version.json.commit` is populated. Derive the expected commit
-  with `git rev-parse --short HEAD` (matching vite's short format) and assert
-  `count.racku.la/version.json` reports the released version AND that commit.
+  tag with `.git` present, so `version.json.commit` is populated. Pin the build env explicitly
+  to match the gated Docker build (`VITE_ENV=production`; the C2 analytics token is the only
+  deliberate delta); C4 guards this with an env-parity check. Derive the expected commit with
+  `git rev-parse --short HEAD` (matching vite's short format) and assert the deployed
+  `version.json` reports the released version AND that commit.
 
 CI and pipeline:
 
 - Rewrite the entire reusable `deploy-prod.yml` (deploy AND smoke jobs) onto `ubuntu-latest`;
   remove the `[self-hosted, vps-rackula]` label from it (the live smoke job currently runs on
-  that runner). Use `wrangler versions upload` + `wrangler versions deploy` (not bare
-  `wrangler deploy`) so CF-native instant rollback exists.
-- Tokens: split into a prod token (least-privilege to the `rackula-prod` Worker + the zone) and
-  a separate dev/preview token scoped to the `rackula-dev` Worker only (C3). The prod token sits
-  behind the existing prod approval gate; the dev/preview token is never exposed to untrusted
-  fork PRs. Add `CLOUDFLARE_ACCOUNT_ID`.
+  that runner).
+- Deploy order, every steady-state release: `wrangler versions upload` first, run the FULL
+  fail-closed smoke against that version's preview URL (workers.dev), and only on a green smoke
+  run `wrangler versions deploy` to 100%, then a light re-check of `count.racku.la` (version
+  and one header value). A bad build never takes traffic, and every release gets the same
+  pre-promotion validation the bootstrap got. Do NOT use percentage-based gradual rollouts for
+  this SPA: Cloudflare documents the mixed-version hazard (HTML from one version referencing
+  hashed assets only present in another, yielding 404s), and version affinity requires a
+  request header browsers do not send.
+- Tokens: Cloudflare API tokens cannot be scoped to a single Worker; the Workers Scripts edit
+  permission is account-wide. Split prod and dev/preview tokens anyway (separate secrets,
+  separate rotation, zone permissions only on the prod token), but treat BOTH as prod-grade:
+  either token can overwrite any Worker in the account, including `rackula-prod`. The prod
+  token sits behind the existing prod approval gate; the dev/preview token is never exposed to
+  fork PRs and only ever runs in privileged jobs that execute no PR-authored code (see C3). Add
+  `CLOUDFLARE_ACCOUNT_ID`.
 - Promote DAG: change `promote-prod` `needs` to `[validate, promote-gate, promote-github]`
-  (drop `promote-docker`; keep `promote-github` so prod only goes live AFTER the GitHub release
-  is marked latest, avoiding a prod-live-but-release-prerelease split-brain). Keep
-  `promote-docker` for the self-host `:latest` retag. Decide consciously whether a failed
-  `gate-lxc` should block the public frontend deploy (it does via `promote-gate`; make it a
-  choice, not an inherited accident).
+  (keep `promote-github` so prod only goes live AFTER the GitHub release is marked latest,
+  avoiding a prod-live-but-release-prerelease split-brain). Note the transitive coupling this
+  keeps: `promote-github` itself needs `promote-docker` (release.yml), so prod still waits on
+  the Docker `:latest` retag and, via `promote-gate`, on `gate-lxc`. Accepted consciously: the
+  retag is fast, and a release whose images failed to promote should not be marked latest or
+  go live. Keep `promote-docker` for the self-host `:latest` retag.
 - Approval: keep the single prod approval on `promote-gate` (which already binds the `prod`
   GitHub Environment). Do NOT add `environment: prod` to the wrangler deploy job: it would
   re-prompt the same protected environment a second time in the same run (double-approval
@@ -201,7 +248,8 @@ CI and pipeline:
   cutover needs a normal CHANGELOG entry and version bump like any release (the deploy rides the
   tag through the changelog-gated pipeline); the bootstrap itself does not.
 
-Real smoke test (fail-closed), run on the workers.dev URL FIRST and again post-attach:
+Real smoke test (fail-closed), run against the version preview URL before every promote and
+against `count.racku.la` after:
 
 - Extract the hashed entry-point script URL from the deployed `index.html` and assert it returns
   200 with `Content-Type: application/javascript` (reject a `text/html` SPA-fallback body).
@@ -211,22 +259,33 @@ Real smoke test (fail-closed), run on the workers.dev URL FIRST and again post-a
 - `curl -I` and assert the CSP contains `script-src 'self'` and NOT `unsafe-inline` in
   `script-src`, `X-Frame-Options` is SAMEORIGIN/DENY, and `nosniff` is present (assert VALUES,
   not mere presence).
+- The repo already has a URL-targetable Playwright smoke harness
+  (`e2e/playwright.smoke.config.ts`, `SMOKE_TEST_URL`, `npm run test:e2e:smoke`); use it where
+  a real page load beats curl (it is also the vehicle for C2's beacon-not-CSP-blocked check).
 
-Custom-domain cutover ordering (the single irreversible step):
+Custom-domain cutover ordering (the single most disruptive step):
 
+- Reality check (Cloudflare docs): a Custom Domain CANNOT be created over an existing DNS
+  record, and the API has no override parameter. The attach is delete-record-then-attach, which
+  opens a short window where `count.racku.la` has no record; DNS negative caching can stretch
+  that window up to the `racku.la` SOA minimum TTL. Check that SOA value first, script the
+  delete and attach back-to-back via API (and verify whether the dashboard flow offers an
+  atomic replace), and run the cutover in a quiet window.
+- Disruptive, not irreversible: rollback is detach the custom domain and recreate the saved DNS
+  record. The same negative-caching window applies in reverse.
 - Snapshot the full `racku.la` zone (export all records) before touching anything. The cutover
   alters ONLY the `count.racku.la` record; do not change apex `racku.la` A/AAAA, MX, or
-  SPF/DKIM/DMARC TXT records. `d.racku.la` is owned by C3/#1985, not C1.
+  SPF/DKIM/DMARC TXT records. `d.racku.la` is owned by C3/#1985, not C1b.
 - (1) Deploy the Worker with real assets to the `workers.dev` URL and run the full fail-closed
-  smoke against it. (2) Only then attach the `count.racku.la` custom domain, accepting it
-  overrides the existing proxied VPS DNS record. (3) Save the prior VPS DNS record so it can be
-  re-pointed for rollback. Optionally dry-run on a temp hostname (`cf.racku.la`) first.
+  smoke against it. (2) Only then delete the existing `count.racku.la` record and attach the
+  custom domain, back-to-back. (3) Keep the saved record content for rollback. Optionally
+  dry-run the attach mechanics on a temp hostname (`cf.racku.la`) first.
 
 Cleanup:
 
-- Remove the dead `VITE_PERSIST_ENABLED` build arg from `deploy/Dockerfile`.
 - Fix the stale "dev = GitHub Pages" claims in `CLAUDE.md`, `docs/ARCHITECTURE.md`, and the
-  `VITE_BASE_PATH` comment in `vite.config.ts`.
+  `VITE_BASE_PATH` comment in `vite.config.ts`. Update the CLAUDE.md Deployment table's prod
+  row (VPS/Docker becomes Workers Static Assets) and add `M00` to its current-milestones list.
 - Remove `.github/workflows/deploy-prod.yml` from `compose-parity.yml`'s `paths` filter (prod no
   longer pulls compose), and update any stale comments anchored to `deploy-prod` in
   `trivy.yml`, `build-images.yml`, `rebuild-images.yml` that go stale when prod leaves the VPS.
@@ -235,12 +294,15 @@ Rollback:
 
 - CF-native: `wrangler versions deploy <last-good-id>` from a maintainer machine or a tiny
   separate dispatch workflow with its own concurrency group (does NOT traverse `release.yml` and
-  its indefinite approval gate).
-- VPS fallback: re-point the saved `count.racku.la` DNS record to the VPS origin. This only works
-  while the VPS prod container is still running its last-good build, so: leave the VPS prod
-  container RUNNING and untouched (do not `docker compose down`, do not power off, do not let
-  #1986 proceed) until at least ONE successful CF release has shipped. After the first green CF
-  release, the fallback may be retired and #1986 unblocked (per the minimal-window decision).
+  its indefinite approval gate). Cloudflare retains the last 100 versions.
+- VPS fallback: detach the custom domain and re-create the saved `count.racku.la` DNS record
+  pointing at the VPS origin. This only works while the VPS prod container is still running its
+  last-good build, so: leave the VPS prod container RUNNING and untouched (do not
+  `docker compose down`, do not power off, do not let #1986 proceed) until BOTH hold: at least
+  ONE successful steady-state CF release has shipped through the rewritten pipeline, AND 7 days
+  have passed since cutover with no user-visible regression. "Green" means the preview smoke
+  and post-promote checks passed and nothing regressed during the soak. Then the fallback may
+  be retired and #1986 unblocked.
 - Do NOT decommission the VPS or remove the `vps-rackula` runner here: `deploy-dev.yml` still
   uses it until #1985.
 
@@ -259,7 +321,8 @@ Acceptance criteria:
   `script-src https://static.cloudflareinsights.com` / `connect-src https://cloudflareinsights.com`
   to the CF `_headers` CSP if the beacon truly loads/posts cross-origin. Keep these origins out
   of the self-host CSP files (enforced by C4's CI grep). Add a real-page-load check (not just a
-  header-value assert) that the beacon fetch is not CSP-blocked.
+  header-value assert) that the beacon fetch is not CSP-blocked; the existing Playwright smoke
+  harness (`e2e/playwright.smoke.config.ts` with `SMOKE_TEST_URL`) is the vehicle.
 - Delete the dead `VITE_UMAMI_*` build-args still present in `deploy-dev.yml`.
 - Privacy: cookieless, no persistent identifier. State "consult counsel on consent" rather than
   asserting "no banner required" as settled.
@@ -269,14 +332,18 @@ Acceptance criteria:
 Acceptance criteria:
 
 - A `rackula-dev` Worker (its own wrangler env/config) hosts the dev FRONTEND, replacing the
-  VPS-hosted dev frontend. Per-PR preview URLs via branch aliases (note: preview URLs are
-  `workers.dev`-subdomain only in beta, not custom-domain).
+  VPS-hosted dev frontend. Per-PR preview URLs via `wrangler versions upload` (version preview
+  URLs; `--preview-alias` on newer wrangler for stable per-branch URLs). Managed "branch
+  aliases" are a Workers Builds feature, not available from GitHub Actions. Preview URLs are
+  `workers.dev`-subdomain only, not custom-domain.
 - Preview workflow security: specify the trigger and token model. Prefer `pull_request` from
   same-repo branches only (skip forks), or run the deploy in a privileged `workflow_run` job that
-  never exposes the token to PR code. Scope the dev/preview `CLOUDFLARE_API_TOKEN` to the
-  `rackula-dev` Worker only. Do NOT use `pull_request_target` with the CF token in scope.
-  Acknowledge that minting public `workers.dev` preview URLs publishes pre-merge, unreviewed
-  builds.
+  never exposes the token to PR code. Do NOT use `pull_request_target` with the CF token in
+  scope. Token reality (DA pass 3): Cloudflare tokens cannot be scoped to a single Worker (the
+  Workers Scripts permission is account-wide), so the dev/preview token can also write
+  `rackula-prod`; treat it as a prod-grade secret. The workflow trigger model above is the real
+  security boundary, not token scope. Acknowledge that minting public `workers.dev` preview
+  URLs publishes pre-merge, unreviewed builds.
 - Dev indicator: the DRackula dev cue is currently driven by a hostname allowlist
   (`LogoLockup.svelte`: `hostname === 'd.racku.la'`), which fails on `*.workers.dev` and on the
   future homelab host, silently dropping the dev/prod visual distinction. Switch it to the
@@ -286,7 +353,7 @@ Acceptance criteria:
   homelab in #1985): either (a) a `workers.dev` dev frontend plus a CORS-opened homelab API, or
   (b) a Cloudflare Worker reverse-proxying `/api` to the homelab. Acknowledge the new
   cross-origin / tunnel surface; this is not "just a separate Worker."
-- Coordinate HSTS `includeSubDomains` (C1) with whatever `d.racku.la` exposure this chooses.
+- Coordinate HSTS `includeSubDomains` (C1b) with whatever `d.racku.la` exposure this chooses.
 
 ## 7. Child C4: Self-host header/parity guard (Small)
 
@@ -301,9 +368,12 @@ Acceptance criteria:
   single generator that emits all three is acceptable in lieu of a checker. Grep the exact source
   paths.
 - CI grep: the self-host header files must NOT contain analytics origins (`cloudflareinsights`).
+- CI check that the VITE_* build-args declared in `deploy/Dockerfile` and the env pinned in the
+  wrangler deploy job agree (the version+commit assertion cannot detect build-env drift; see
+  Section 2).
 - Extend `scripts/lxc-smoke-test.sh` to `curl -I` and assert `Content-Security-Policy` and
   `X-Frame-Options` are present on the LXC frontend, and to `curl /version.json` and assert the
-  version (reusing C1's assertion) so SPA-fallback masking is closed on the self-host gate too.
+  version (reusing C1b's assertion) so SPA-fallback masking is closed on the self-host gate too.
   With the `APP_COMMIT` parity from Section 2, also assert `version.json.commit` is non-empty on
   self-host.
 - Reconcile and lock the Docker/LXC `form-action` drift.
@@ -320,23 +390,28 @@ Acceptance criteria:
 - Cost: $0 on the Free plan for static serving; assets-only baseline (no Worker on the prod hot
   path). The `workers.dev` subdomain registration and per-PR preview Workers stay within Free
   limits (verify).
-- Release integrity: post-deploy version+commit assertion; real asset-resolution smoke; CF
-  rollback via `wrangler versions` plus a one-green-release VPS DNS fallback.
+- Release integrity: full fail-closed smoke on the version preview URL BEFORE traffic shifts,
+  post-promote version+commit re-check; real asset-resolution smoke; CF rollback via
+  `wrangler versions` plus the VPS DNS fallback held until one green steady-state release AND a
+  7-day no-regression soak.
 
 ## 9. Sequencing and dependencies
 
-1. C1 first: it is the spine and retires the prod VPS tenant. C1 internally orders the
-   workers.dev validation before the irreversible custom-domain attach.
-2. C2 (analytics) and C4 (parity guard) can follow C1 independently. C4 should land close to C1
-   since C1 introduces the third CSP it guards.
-3. C3 (dev/preview) is independent of C1 but coordinates HSTS scope; it interlocks with #1985
+1. C1a first: shared-source cleanup ships through the existing VPS pipeline and is verified
+   live on nginx before anything depends on it.
+2. C1b second: the cutover spine that retires the prod VPS tenant. C1b internally orders the
+   workers.dev validation before the custom-domain attach.
+3. C2 (analytics) and C4 (parity guard) can follow C1b independently. C4 should land close to
+   C1b since C1b introduces the third CSP it guards.
+4. C3 (dev/preview) is independent of C1b but coordinates HSTS scope; it interlocks with #1985
    (dev API to homelab).
-4. #1986 (decommission) is blocked by #1984 (epic) AND #1985, and specifically by the condition
+5. #1986 (decommission) is blocked by #1984 (epic) AND #1985, and specifically by the condition
    "no workflow references the `vps-rackula` runner label" (`deploy-dev.yml` uses it until #1985
-   provisions a replacement dev runner/path). Sequence: prod to CF (C1) and dev to homelab incl.
+   provisions a replacement dev runner/path). Sequence: prod to CF (C1b) and dev to homelab incl.
    a new dev runner (#1985), THEN decommission (#1986). Never the reverse.
-5. Keep the VPS prod container running and DNS-switchable as the real rollback until the first
-   green CF release ships; then #1986 is unblocked.
+6. Keep the VPS prod container running and DNS-switchable as the real rollback until one green
+   steady-state CF release has shipped AND 7 days have passed since cutover with no regression;
+   then #1986 is unblocked.
 
 ## 10. Epic-restructure checklist (mechanics)
 
@@ -351,11 +426,11 @@ Execute in this order so no artifact dangles:
    rewrite its body as an epic with the C1-C4 task-list and the self-contained done-when from
    Section 3.
 4. Rewrite #1983's body: remove "Workstream 1: migrate prod" from its task-list (now owned by
-   #1984), delegate the prod outcome to #1984, and reconcile the runner-teardown split (C1 swaps
-   prod off `vps-rackula`; `deploy-dev.yml` still uses it until #1985; #1986 removes it).
+   #1984), delegate the prod outcome to #1984, and reconcile the runner-teardown split (C1b
+   swaps prod off `vps-rackula`; `deploy-dev.yml` still uses it until #1985; #1986 removes it).
 5. Create milestone `M00 -- VPS Retirement & Cloudflare Hosting`. It sorts first by title; no
    Priority field or board configuration is required (per the 06-08 milestone-sort-order spec).
-6. Create child issues C1-C4 under #1984, in `M00`.
+6. Create child issues C1a, C1b, C2, C3, C4 under #1984, in `M00`.
 7. Move #1983, #1984, #1985, #1986 into `M00` (per the re-prioritization decision). Optionally
    snapshot M02/M03 burndown first so the dip is explainable.
 8. Fix #1986: change the title from "Vultr VPS" to "Linode VPS" (every other artifact says
@@ -384,10 +459,14 @@ VPS decommission (#1986).
 - Cloudflare account/zone co-ownership: confirmed same account (2026-06-10), so the
   custom-domain attach is account-valid. Ensure the Worker and CI token are created under that
   account.
-- `*.workers.dev` subdomain must be registered (one-time) before the rollback runbook and the
-  workers.dev validation step work.
-- Cloudflare API token provisioning with least privilege (split prod vs dev/preview, fork-PR
-  safety) is the most likely deploy snag.
+- `*.workers.dev` subdomain must be registered (one-time) before the rollback runbook, the
+  per-release preview-URL smoke, and the workers.dev validation step work.
+- Cloudflare API tokens cannot be scoped per-Worker (the Workers Scripts permission is
+  account-wide), so both tokens are prod-grade and the workflow trigger model is the real
+  security boundary. Token provisioning and rotation discipline is the most likely deploy snag.
+- The custom-domain attach is delete-record-then-attach (no API override exists), opening a
+  short no-record window stretched by DNS negative caching up to the SOA minimum TTL; script
+  the two calls back-to-back and run in a quiet window.
 - The unknown-CSP-hash investigation may reveal that `script-src` cannot be fully tightened to
   `'self'` (a build-emitted inline script remains); the plan must handle either outcome.
 - HSTS `includeSubDomains`/preload has cross-subdomain blast radius on `racku.la`; defer preload
