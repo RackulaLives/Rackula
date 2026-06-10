@@ -38,6 +38,13 @@
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // Last-chance flush on unload paths where visibilitychange may not fire
+    // (pagehide is bfcache-safe to keep attached, unlike beforeunload)
+    function handlePageHide() {
+      flushSessionSave();
+    }
+    window.addEventListener("pagehide", handlePageHide);
+
     // Load bundled images for starter library devices
     imageStore.loadBundledImages();
 
@@ -60,6 +67,7 @@
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
     };
   });
 
@@ -82,9 +90,9 @@
     }),
   );
 
+  // Only shows the leave warning; flushing is handled by the always-attached
+  // visibilitychange and pagehide listeners above
   function handleBeforeUnload(event: BeforeUnloadEvent) {
-    // Last-chance flush of the pending session save before the page unloads
-    flushSessionSave();
     event.preventDefault();
     event.returnValue = "";
   }
