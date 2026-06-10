@@ -27,7 +27,21 @@ cp "$SRC/install/rackula-install.sh" "$DST/install/rackula-install.sh"
 cp "$SRC/json/rackula.json"         "$DST/json/rackula.json"
 ```
 
-After syncing, the fork trio must be byte-identical to these files.
+After syncing, the fork trio must be byte-identical to these files, with one
+intentional exception described below.
+
+## Intentional divergence: no dev override upstream
+
+The canonical copies include the env-gated `RACKULA_PREBUILD_TARBALL` dev override
+(deploys a local tarball for smoke testing, used by the gated release pipeline).
+The upstream submission does not: community-scripts wants lean scripts with no
+dev-only paths, so the override blocks and their comments are stripped from the
+fork branch.
+
+In short: canonical = upstream + dev override. When syncing, carry every other
+change over verbatim, then re-remove the override on the fork side. It lives in
+three places: the fail-loud guard and the deploy branch in `ct/rackula.sh`
+`update_script()`, and the deploy branch in `install/rackula-install.sh`.
 
 ## URL note: ProxmoxVE vs ProxmoxVED
 
