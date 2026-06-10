@@ -609,6 +609,7 @@ All variables have sensible defaults. Only configure if you need to change somet
 | `RACKULA_API_PORT`                   | `3001`                  | Port the API listens on                                                                            |
 | `API_HOST`                           | `rackula-api`           | Hostname of API container (for nginx proxy)                                                        |
 | `API_PORT`                           | `3001`                  | Port of API container (for nginx proxy)                                                            |
+| `RACKULA_STORAGE_MODE`               | `server`                | Frontend storage mode: `browser` or `server` (image default is `browser`)                          |
 | `CORS_ORIGIN`                        | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default)                                 |
 | `RACKULA_API_WRITE_TOKEN`            | _unset_                 | Optional bearer token required for API `PUT`/`DELETE`                                              |
 | `ALLOW_INSECURE_CORS`                | `false`                 | Explicitly allow wildcard CORS in production (not recommended)                                     |
