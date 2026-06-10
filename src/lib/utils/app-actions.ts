@@ -30,6 +30,7 @@ import {
 } from "$lib/utils/export";
 import type { ExportFormat, ExportOptions, ExportView } from "$lib/types";
 
+/** Fit all racks into the visible canvas, clearing any saved viewport. */
 export function handleFitAll(): void {
   const layoutStore = getLayoutStore();
   const uiStore = getUIStore();
@@ -39,6 +40,10 @@ export function handleFitAll(): void {
   canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups, rightOffset);
 }
 
+/**
+ * Open the cleanup prompt when unused custom device types exist; returns
+ * true if the prompt was shown (the caller should defer its operation).
+ */
 export function shouldShowCleanupPrompt(
   operation: "save" | "saveAs" | "export",
 ): boolean {
@@ -52,6 +57,7 @@ export function shouldShowCleanupPrompt(
   return true;
 }
 
+/** Reset the layout, drop orphaned images, and open the New Rack dialog. */
 export function resetAndOpenNewRack(): void {
   const layoutStore = getLayoutStore();
   const imageStore = getImageStore();
@@ -61,6 +67,7 @@ export function resetAndOpenNewRack(): void {
   dialogStore.open("newRack");
 }
 
+/** Save to server or download an archive, after the cleanup prompt check. */
 export function maybeSave(): void {
   if (shouldShowCleanupPrompt("save")) return;
   if (shouldSaveToServer()) {
@@ -70,11 +77,13 @@ export function maybeSave(): void {
   }
 }
 
+/** Download the layout as a YAML archive, after the cleanup prompt check. */
 export function maybeSaveAs(): void {
   if (shouldShowCleanupPrompt("saveAs")) return;
   handleSaveAsArchive();
 }
 
+/** Open the export dialog, after the cleanup prompt check. */
 export function maybeExport(): void {
   if (shouldShowCleanupPrompt("export")) return;
   handleExport();
@@ -100,6 +109,7 @@ export async function prepareExportQrCode(): Promise<void> {
   }
 }
 
+/** Open the export dialog with a prepared QR code; warns if no racks exist. */
 export async function handleExport(): Promise<void> {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
@@ -111,6 +121,7 @@ export async function handleExport(): Promise<void> {
   dialogStore.open("export");
 }
 
+/** Open the share dialog; warns if no racks exist. */
 export function handleShare(): void {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
@@ -121,6 +132,7 @@ export function handleShare(): void {
   dialogStore.open("share");
 }
 
+/** Run the chosen export (SVG, PNG, JPEG, PDF, or CSV) and download it. */
 export async function handleExportSubmit(
   options: ExportOptions,
 ): Promise<void> {

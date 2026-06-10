@@ -14,8 +14,10 @@ const log = persistenceDebug.api;
 /**
  * API base URL for persistence endpoints
  * Defaults to /api (proxied by nginx in Docker)
+ * Normalized: empty or unset falls back to /api, trailing slashes stripped
  */
-const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? "/api";
+const API_BASE_URL: string =
+  (import.meta.env.VITE_API_URL ?? "").trim().replace(/\/+$/, "") || "/api";
 
 /** Default timeout for API requests (10 seconds) */
 const API_TIMEOUT_MS = 10_000;
@@ -123,11 +125,12 @@ export class PersistenceError extends Error {
  * so it does not check isApiAvailable() first.
  */
 export async function checkApiHealth(): Promise<boolean> {
-  // Build health URL from API_BASE_URL
-  // Handle both relative (/api) and absolute URLs
-  const baseUrl = new URL(API_BASE_URL, window.location.origin);
-  const basePath = baseUrl.pathname.replace(/\/$/, "");
-  const healthUrl = new URL(`${basePath}/health`, baseUrl.origin).toString();
+  // API_BASE_URL is already normalized (no trailing slash), so health and
+  // CRUD endpoints share identical path rules
+  const healthUrl = new URL(
+    `${API_BASE_URL}/health`,
+    window.location.origin,
+  ).toString();
   log("checkApiHealth: checking %s", healthUrl);
 
   try {
