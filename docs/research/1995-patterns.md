@@ -439,12 +439,12 @@ compose file, skip the second template until demand proves out).
 ### "Does the optional-API split map to how Unraid users actually think?"
 
 Mostly yes. Unraid users add containers one at a time from the Apps tab; a primary + optional
-companion is a familiar shape (plenty of *arr-adjacent stacks work this way). The friction is not
+companion is a familiar shape (plenty of \*arr-adjacent stacks work this way). The friction is not
 the two-step install, it is the **wiring** (`API_HOST` must match the API container's name, both
 must be on a reachable network, auth mode must match on both). That is more fiddly than the typical
 self-contained Unraid app and is exactly where users get stuck. If #1317 keeps the API container's
 default name `rackula-api` and the frontend's `API_HOST` default `rackula-api`, the happy path works
-with zero edits *provided both land on the same bridge network\* - verify that assumption holds on
+with zero edits _provided both land on the same bridge network_ - verify that assumption holds on
 Unraid's default bridge, because container-name DNS resolution is not guaranteed on the stock
 `bridge` network (it works on user-defined networks). **This is a concrete thing #1317 must test,
 not assume.**
