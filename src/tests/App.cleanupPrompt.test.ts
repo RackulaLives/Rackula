@@ -196,6 +196,8 @@ describe("App cleanup prompt flow", { retry: 2, timeout: 30000 }, () => {
     sessionStorageMocks.loadSessionWithTimestamp.mockReturnValue({
       layout: layoutWithUnusedType,
       savedAt: new Date("2026-02-09T00:00:00.000Z").toISOString(),
+      changesSinceExport: 0,
+      hasEverExported: false,
     });
   });
 

@@ -163,6 +163,8 @@ describe("App Start Screen integration", { retry: 2, timeout: 30000 }, () => {
         racks: [createTestRack({ id: "rack-offline", name: "Rack Offline" })],
       }),
       savedAt: new Date("2026-02-11T00:00:00.000Z").toISOString(),
+      changesSinceExport: 0,
+      hasEverExported: false,
     });
 
     render(App);
