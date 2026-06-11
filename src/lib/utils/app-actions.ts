@@ -104,7 +104,8 @@ export async function prepareExportQrCode(): Promise<void> {
     } else {
       dialogStore.exportQrCodeDataUrl = undefined;
     }
-  } catch {
+  } catch (error) {
+    appDebug.export("QR code preparation failed: %O", error);
     dialogStore.exportQrCodeDataUrl = undefined;
   }
 }
