@@ -56,6 +56,12 @@
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { createKonamiDetector } from "$lib/utils/konami";
+  import {
+    formatDevBuildMessage,
+    getRuntimeEnv,
+    shouldShowDevBuildToast,
+  } from "$lib/utils/dev-build-toast";
+  import { VERSION } from "$lib/version";
   import { persistenceDebug } from "$lib/utils/debug";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { DRAWER_WIDTH } from "$lib/constants/layout";
@@ -169,6 +175,19 @@
   // Also handles loading shared layouts from URL params
   // Uses onMount to run once on initial load, not reactively
   onMount(async () => {
+    // Dev environments only: show build info toast on load (#2106)
+    if (shouldShowDevBuildToast(getRuntimeEnv(), import.meta.env.DEV)) {
+      const commitHash =
+        typeof __COMMIT_HASH__ !== "undefined" ? __COMMIT_HASH__ : "";
+      const buildTime =
+        typeof __BUILD_TIME__ !== "undefined" ? __BUILD_TIME__ : "";
+      toastStore.showToast(
+        formatDevBuildMessage(VERSION, commitHash, buildTime),
+        "info",
+        8000,
+      );
+    }
+
     // Start API health check immediately so all startup paths (including share links)
     // initialize persistence and can enable server autosave when available.
     const persistenceInitPromise = initializePersistence().catch((error) => {
