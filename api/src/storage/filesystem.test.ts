@@ -2,7 +2,14 @@
  * Filesystem storage tests
  */
 import { describe, it, expect, beforeEach, afterAll } from "bun:test";
-import { mkdtemp, mkdir, readFile, rm, writeFile, readdir } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+  readdir,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isUuid } from "../schemas/layout";
@@ -145,7 +152,9 @@ describe("listLayouts", () => {
 
     const layouts = await listLayouts();
     const folderLayout = layouts.find((layout) => layout.id === created.id);
-    const legacyLayout = layouts.find((layout) => layout.id === "duplicate-layout");
+    const legacyLayout = layouts.find(
+      (layout) => layout.id === "duplicate-layout",
+    );
 
     expect(folderLayout).toBeDefined();
     expect(legacyLayout).toBeUndefined();
@@ -177,7 +186,8 @@ describe("saveLayout and getLayout", () => {
     expect(result.isNew).toBe(true);
 
     const retrieved = await getLayout(result.id);
-    expect(retrieved).toBe(yamlContent);
+    expect(retrieved?.content).toBe(yamlContent);
+    expect(retrieved?.updatedAt).toBe(result.updatedAt);
   });
 
   it("detects existing layout as not new", async () => {
@@ -209,7 +219,7 @@ describe("saveLayout and getLayout", () => {
     // UUID remains stable and content is updated
     expect(renamed.id).toBe(created.id);
     const current = await getLayout(created.id);
-    expect(current).toContain("Renamed");
+    expect(current?.content).toContain("Renamed");
   });
 
   it("returns null for non-existent layout", async () => {
@@ -252,7 +262,10 @@ describe("saveLayout and getLayout", () => {
 
     await expect(saveLayout(yamlContent, slug)).rejects.toThrow();
 
-    const restoredAsset = await readFile(join(legacyAssetsDir, "front.png"), "utf-8");
+    const restoredAsset = await readFile(
+      join(legacyAssetsDir, "front.png"),
+      "utf-8",
+    );
     expect(restoredAsset).toBe("asset-data");
   });
 });

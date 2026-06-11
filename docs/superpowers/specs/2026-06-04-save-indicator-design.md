@@ -2,7 +2,7 @@
 
 **Issue:** #1901
 **Date:** 2026-06-04
-**Status:** Approved
+**Status:** Approved, amended 2026-06-10 (see Amendment below)
 
 ## Problem
 
@@ -14,14 +14,14 @@ Remove the `SaveStatus` component and move all save feedback to the existing toa
 
 ## Toast Flow
 
-| Event | Toast | Duration | ARIA role | Action |
-|-------|-------|----------|-----------|--------|
-| Manual save succeeds | Success: "Layout saved" | 3000ms | status | None |
-| Auto-save succeeds | None (silent) | - | - | - |
-| Save fails (server error) | Error: "Save failed: {message}" | 0 (persistent) | alert | Retry |
-| Save fails (offline) | Warning: "Server save unavailable, working offline. Use Ctrl+S to retry." (persistence-manager); App init uses shorter "Server unavailable, working offline" | 0 (persistent) | alert | Retry |
-| Save in progress | None | - | - | - |
-| API disabled (local-auth) | None | - | - | - |
+| Event                     | Toast                                                                                                                                                        | Duration       | ARIA role | Action |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- | --------- | ------ |
+| Manual save succeeds      | Success: "Layout saved"                                                                                                                                      | 3000ms         | status    | None   |
+| Auto-save succeeds        | None (silent)                                                                                                                                                | -              | -         | -      |
+| Save fails (server error) | Error: "Save failed: {message}"                                                                                                                              | 0 (persistent) | alert     | Retry  |
+| Save fails (offline)      | Warning: "Server save unavailable, working offline. Use Ctrl+S to retry." (persistence-manager); App init uses shorter "Server unavailable, working offline" | 0 (persistent) | alert     | Retry  |
+| Save in progress          | None                                                                                                                                                         | -              | -         | -      |
+| API disabled (local-auth) | None                                                                                                                                                         | -              | -         | -      |
 
 ## Key Design Decisions
 
@@ -48,3 +48,17 @@ Remove the `SaveStatus` component and move all save feedback to the existing toa
 - `src/lib/components/Toolbar.svelte` - remove SaveStatus import/prop/render
 - `src/lib/utils/persistence-api.ts` - remove SaveStatus type export
 - `src/tests/persistence-manager-quota.test.ts` - update assertions
+
+## Amendment (2026-06-10, spike #2019)
+
+The storage chip from spike #2019 (epic #2017) reintroduces a persistent save-state surface in the toolbar, superseding the visual half of this record: the "toasts only, no persistent indicator" decision no longer holds. The chip also reverses decision 4: the persistence manager's save state is exported again as the chip's data source.
+
+Standing unchanged:
+
+- Auto-save stays silent (decision 1). The chip changes state; it does not toast.
+- Manual save (Ctrl+S) success toast.
+- Persistent error toasts with Retry and dedup (decisions 2 and 3).
+- ARIA role split (decision 7).
+- The reflow lesson from the Problem section: the chip occupies reserved fixed toolbar space rather than inserting and removing itself from the DOM.
+
+The two persistent "working offline" toasts (decision 6) are deleted; the chip's state covers that case.

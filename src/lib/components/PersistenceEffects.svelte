@@ -5,7 +5,15 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import { initPersistenceEffects, flushSessionSave } from "$lib/storage";
+  import {
+    initPersistenceEffects,
+    flushSessionSave,
+    isSessionSavePending,
+    isServerSavePending,
+    getApiAvailableState,
+    hasEverConnectedToApi,
+    shouldWarnBeforeUnload,
+  } from "$lib/storage";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -30,6 +38,13 @@
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // Last-chance flush on unload paths where visibilitychange may not fire
+    // (pagehide is bfcache-safe to keep attached, unlike beforeunload)
+    function handlePageHide() {
+      flushSessionSave();
+    }
+    window.addEventListener("pagehide", handlePageHide);
+
     // Load bundled images for starter library devices
     imageStore.loadBundledImages();
 
@@ -52,6 +67,7 @@
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
     };
   });
 
@@ -62,16 +78,30 @@
     }),
   );
 
+  // Warn only on genuine in-flight loss risk (see $lib/storage/unload-risk)
+  const warnBeforeUnload = $derived(
+    shouldWarnBeforeUnload({
+      warnOnUnsavedChanges: uiStore.warnOnUnsavedChanges,
+      sessionSavePending: isSessionSavePending(),
+      serverSavePending: isServerSavePending(),
+      serverMode: hasEverConnectedToApi(),
+      serverReachable: getApiAvailableState(),
+      isDirty: layoutStore.isDirty,
+    }),
+  );
+
+  // Only shows the leave warning; flushing is handled by the always-attached
+  // visibilitychange and pagehide listeners above
   function handleBeforeUnload(event: BeforeUnloadEvent) {
-    // Flush pending session save before the page unloads
-    flushSessionSave();
-
-    if (uiStore.warnOnUnsavedChanges && layoutStore.isDirty) {
-      event.preventDefault();
-      event.returnValue = "You have unsaved changes. Leave anyway?";
-      return event.returnValue;
-    }
+    event.preventDefault();
+    event.returnValue = "";
   }
-</script>
 
-<svelte:window onbeforeunload={handleBeforeUnload} />
+  // Attach the handler only while the risk condition holds and remove it as
+  // soon as the flush or save completes (Chrome guidance: never permanently)
+  $effect(() => {
+    if (!warnBeforeUnload) return;
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  });
+</script>

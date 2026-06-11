@@ -15,6 +15,23 @@ Rate limiting (30 writes/min/IP) prevents request flooding but does not constrai
 
 Add storage quota enforcement with safe defaults and operator controls. No automatic cleanup or retention policy — the quota cap IS the guardrail.
 
+## Amendment: Pre-Overwrite Snapshots (2026-06-10, spike #2019)
+
+The no-retention stance above is scoped to user layouts: the API never deletes or expires layouts a user created. Spike #2019 (epic #2017) adds one deliberate exception: automatic pre-overwrite snapshots.
+
+Status: planned behavior, not yet live. Tracked in issue #2040; implementation in PR #2066.
+
+- Before a PUT overwrites an existing layout's YAML content, the API compares the request's echoed `X-Rackula-Updated-At` header against the stored copy's `updatedAt`. On mismatch (a concurrent-modification conflict, not every PUT) the existing YAML is copied to `{layout-folder}/snapshots/` before the overwrite; the write itself always proceeds (last-write-wins, never rejected). An absent header means a plain overwrite with no snapshot. At most 5 snapshots are kept per layout, pruning the oldest. Snapshots are system artifacts (YAML only, fixed bound), so the prune preserves the spirit of this spec: a hard cap, not a background cleanup job over user data.
+- `{layout-folder}/snapshots/` is outside the `RACKULA_MAX_LAYOUTS` quota scan by construction: `checkLayoutQuota()` counts DATA_DIR root entries only, and snapshots live inside a layout folder. The directory is also excluded from `findYamlInFolder()`. A future quota refactor must not start counting snapshot files.
+- The new `POST /layouts/:uuid/snapshots` endpoint lets the client upload a losing local working copy as a snapshot before discarding it (the client-side half of last-write-wins conflict handling). The client sends the layout YAML in the request body; the server checks it parses as YAML and writes it to the snapshots folder, rotating out the oldest if the per-layout bound of 5 is reached. It sits behind the same writeAuth, body-limit, and write-tier rate-limit middleware as `PUT /layouts/:uuid`. Responses: 201 with the snapshot filename, 400 for an invalid UUID, empty body, or unparseable YAML, 404 if the layout does not exist, 413 if the body limit is exceeded. A companion `GET /layouts/:uuid/snapshots` lists a layout's snapshots.
+
+  ```text
+  POST /layouts/3f2a.../snapshots   (body: layout YAML)
+  201 { "filename": "my-rack~20260610-142233.yaml", "message": "Snapshot saved" }
+  ```
+
+- The create-versus-update quota skip is unaffected.
+
 ## Threat Model
 
 **Primary threat:** Unauthenticated flood — an attacker or misconfigured client spamming layout creates/uploads to fill the disk, especially when `RACKULA_AUTH_MODE=none`.

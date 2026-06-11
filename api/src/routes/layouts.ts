@@ -2,28 +2,36 @@
  * Layout API routes (UUID-based)
  *
  * When accessed directly (e.g., docker run -p 3001:3001 rackula-api):
- * GET    /layouts       - List all layouts
- * GET    /layouts/:uuid - Get layout by UUID
- * PUT    /layouts/:uuid - Create or update layout
- * DELETE /layouts/:uuid - Delete layout
+ * GET    /layouts                 - List all layouts
+ * GET    /layouts/:uuid           - Get layout by UUID
+ * PUT    /layouts/:uuid           - Create or update layout
+ * DELETE /layouts/:uuid           - Delete layout
+ * GET    /layouts/:uuid/snapshots - List pre-overwrite snapshots
+ * POST   /layouts/:uuid/snapshots - Upload a losing local copy as a snapshot
  *
- * When accessed through nginx proxy (recommended):
- * GET    /api/layouts       - List all layouts
- * GET    /api/layouts/:uuid - Get layout by UUID
- * PUT    /api/layouts/:uuid - Create or update layout
- * DELETE /api/layouts/:uuid - Delete layout
- * (nginx strips /api prefix before forwarding to API)
+ * When accessed through nginx proxy (recommended), the same routes are
+ * available under /api/layouts (nginx strips /api before forwarding).
+ *
+ * GET and PUT layout responses carry the stored copy's updatedAt in the
+ * X-Rackula-Updated-At header. Clients echo it on PUT; a mismatch with the
+ * stored copy snapshots the existing YAML before the overwrite.
  */
 import { Hono } from "hono";
+import * as yaml from "js-yaml";
 import { UuidSchema, LayoutFileSchema } from "../schemas/layout";
 import {
   listLayouts,
   getLayout,
   saveLayout,
   deleteLayout,
+  listSnapshots,
+  saveSnapshot,
 } from "../storage/filesystem";
 import { deleteLayoutAssets } from "../storage/assets";
 import { logger } from "../logger";
+
+/** Header carrying the layout's updatedAt for echo-based conflict detection. */
+export const UPDATED_AT_HEADER = "X-Rackula-Updated-At";
 
 const layouts = new Hono();
 
@@ -48,12 +56,15 @@ layouts.get("/:uuid", async (c) => {
   }
 
   try {
-    const content = await getLayout(uuidResult.data);
-    if (!content) {
+    const layout = await getLayout(uuidResult.data);
+    if (!layout) {
       return c.json({ error: "Layout not found" }, 404);
     }
 
-    return c.text(content, 200, { "Content-Type": "text/yaml" });
+    return c.text(layout.content, 200, {
+      "Content-Type": "text/yaml",
+      [UPDATED_AT_HEADER]: layout.updatedAt,
+    });
   } catch (error) {
     logger.error({ err: error }, `Failed to get layout ${uuidResult.data}`);
     return c.json({ error: "Failed to get layout" }, 500);
@@ -104,11 +115,17 @@ layouts.put("/:uuid", async (c) => {
       // If we can't parse, let saveLayout handle the error
     }
 
-    const result = await saveLayout(yamlContent, uuidResult.data);
+    const result = await saveLayout(
+      yamlContent,
+      uuidResult.data,
+      c.req.header(UPDATED_AT_HEADER),
+    );
 
+    c.header(UPDATED_AT_HEADER, result.updatedAt);
     return c.json(
       {
         id: result.id,
+        updatedAt: result.updatedAt,
         message: result.isNew ? "Layout created" : "Layout updated",
       },
       result.isNew ? 201 : 200,
@@ -161,6 +178,72 @@ layouts.delete("/:uuid", async (c) => {
   } catch (error) {
     logger.error({ err: error }, `Failed to delete layout ${uuidResult.data}`);
     return c.json({ error: "Failed to delete layout" }, 500);
+  }
+});
+
+// List pre-overwrite snapshots for a layout
+layouts.get("/:uuid/snapshots", async (c) => {
+  const uuid = c.req.param("uuid");
+
+  const uuidResult = UuidSchema.safeParse(uuid);
+  if (!uuidResult.success) {
+    return c.json({ error: "Invalid layout UUID format" }, 400);
+  }
+
+  try {
+    const snapshots = await listSnapshots(uuidResult.data);
+    if (snapshots === null) {
+      return c.json({ error: "Layout not found" }, 404);
+    }
+
+    return c.json({ snapshots });
+  } catch (error) {
+    logger.error(
+      { err: error },
+      `Failed to list snapshots for layout ${uuidResult.data}`,
+    );
+    return c.json({ error: "Failed to list snapshots" }, 500);
+  }
+});
+
+// Upload a losing local copy as a snapshot
+layouts.post("/:uuid/snapshots", async (c) => {
+  const uuid = c.req.param("uuid");
+
+  const uuidResult = UuidSchema.safeParse(uuid);
+  if (!uuidResult.success) {
+    return c.json({ error: "Invalid layout UUID format" }, 400);
+  }
+
+  try {
+    const yamlContent = await c.req.text();
+
+    if (!yamlContent.trim()) {
+      return c.json({ error: "Request body is empty" }, 400);
+    }
+
+    try {
+      yaml.load(yamlContent, { schema: yaml.JSON_SCHEMA });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return c.json({ error: `Invalid YAML: ${message}` }, 400);
+    }
+
+    const result = await saveSnapshot(uuidResult.data, yamlContent);
+    if (!result) {
+      return c.json({ error: "Layout not found" }, 404);
+    }
+
+    return c.json(
+      { filename: result.filename, message: "Snapshot saved" },
+      201,
+    );
+  } catch (error) {
+    logger.error(
+      { err: error },
+      `Failed to save snapshot for layout ${uuidResult.data}`,
+    );
+    return c.json({ error: "Failed to save snapshot" }, 500);
   }
 });
 

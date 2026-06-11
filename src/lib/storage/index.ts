@@ -8,6 +8,7 @@
 export {
   initializePersistence,
   isApiAvailable,
+  getApiAvailableState,
   setApiAvailable,
   hasEverConnectedToApi,
 } from "./availability.svelte";
@@ -33,4 +34,7 @@ export {
   flushSessionSave,
   getStorageChipState,
   type SaveStatus,
+  isSessionSavePending,
+  isServerSavePending,
 } from "./manager.svelte";
+export { shouldWarnBeforeUnload, type UnloadRiskState } from "./unload-risk";
