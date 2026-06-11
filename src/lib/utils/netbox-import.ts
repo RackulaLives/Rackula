@@ -12,6 +12,11 @@ import type {
   InterfaceTemplate,
 } from "$lib/types";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
+import {
+  InterfaceTypeSchema,
+  PoEModeSchema,
+  PoETypeSchema,
+} from "$lib/schemas";
 import { parseYaml } from "./yaml";
 
 /**
@@ -337,15 +342,41 @@ function mapAirflow(netboxAirflow?: string): Airflow | undefined {
 /**
  * Map NetBox interface to Rackula InterfaceTemplate
  */
-function mapInterface(netbox: NetBoxInterface): InterfaceTemplate {
-  return {
+function mapInterface(
+  netbox: NetBoxInterface,
+  warnings: string[],
+): InterfaceTemplate {
+  const typeResult = InterfaceTypeSchema.safeParse(netbox.type);
+  if (!typeResult.success) {
+    warnings.push(`Unknown interface type: ${netbox.type}, using "other"`);
+  }
+
+  const template: InterfaceTemplate = {
     name: netbox.name,
-    type: netbox.type as InterfaceTemplate["type"],
+    type: typeResult.success ? typeResult.data : "other",
     label: netbox.label,
     mgmt_only: netbox.mgmt_only,
-    poe_mode: netbox.poe_mode as InterfaceTemplate["poe_mode"],
-    poe_type: netbox.poe_type as InterfaceTemplate["poe_type"],
   };
+
+  if (netbox.poe_mode) {
+    const poeModeResult = PoEModeSchema.safeParse(netbox.poe_mode);
+    if (poeModeResult.success) {
+      template.poe_mode = poeModeResult.data;
+    } else {
+      warnings.push(`Unknown poe_mode value: ${netbox.poe_mode}`);
+    }
+  }
+
+  if (netbox.poe_type) {
+    const poeTypeResult = PoETypeSchema.safeParse(netbox.poe_type);
+    if (poeTypeResult.success) {
+      template.poe_type = poeTypeResult.data;
+    } else {
+      warnings.push(`Unknown poe_type value: ${netbox.poe_type}`);
+    }
+  }
+
+  return template;
 }
 
 /**
@@ -423,7 +454,9 @@ export function convertToDeviceType(
 
   // Map interfaces
   if (netbox.interfaces && netbox.interfaces.length > 0) {
-    deviceType.interfaces = netbox.interfaces.map(mapInterface);
+    deviceType.interfaces = netbox.interfaces.map((i) =>
+      mapInterface(i, warnings),
+    );
   }
 
   // Map power ports

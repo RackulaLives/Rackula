@@ -11,6 +11,7 @@ import {
   type NetBoxDeviceType,
 } from "./netbox-import";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
+import { DeviceTypeSchema } from "$lib/schemas";
 
 describe("netbox-import", () => {
   describe("parseNetBoxYaml", () => {
@@ -396,6 +397,106 @@ model: Some Device
       expect(result.deviceType.interfaces).toHaveLength(2);
       expect(result.deviceType.interfaces![0].name).toBe("Gi1/0/1");
       expect(result.deviceType.interfaces![1].mgmt_only).toBe(true);
+    });
+
+    it("maps unknown interface type to other with a warning", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Cisco",
+        model: "Catalyst 9300",
+        slug: "cisco-catalyst-9300",
+        interfaces: [{ name: "Gi1/0/1", type: "1000base-lx" }],
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(result.deviceType.interfaces![0].type).toBe("other");
+      expect(result.warnings).toContain(
+        'Unknown interface type: 1000base-lx, using "other"',
+      );
+    });
+
+    it("preserves valid interface type exactly", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Cisco",
+        model: "Catalyst 9300",
+        slug: "cisco-catalyst-9300",
+        interfaces: [{ name: "Te1/0/1", type: "10gbase-t" }],
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(result.deviceType.interfaces![0].type).toBe("10gbase-t");
+      expect(result.warnings).toEqual([]);
+    });
+
+    it("drops invalid poe_mode and poe_type with warnings", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Cisco",
+        model: "Catalyst 9300",
+        slug: "cisco-catalyst-9300",
+        interfaces: [
+          {
+            name: "Gi1/0/1",
+            type: "1000base-t",
+            poe_mode: "both",
+            poe_type: "passive-12v",
+          },
+        ],
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(result.deviceType.interfaces![0].poe_mode).toBeUndefined();
+      expect(result.deviceType.interfaces![0].poe_type).toBeUndefined();
+      expect(result.warnings).toContain("Unknown poe_mode value: both");
+      expect(result.warnings).toContain("Unknown poe_type value: passive-12v");
+    });
+
+    it("preserves valid poe values and omits absent ones without warnings", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Cisco",
+        model: "Catalyst 9300",
+        slug: "cisco-catalyst-9300",
+        interfaces: [
+          {
+            name: "Gi1/0/1",
+            type: "1000base-t",
+            poe_mode: "pse",
+            poe_type: "type2-ieee802.3at",
+          },
+          { name: "Gi1/0/2", type: "1000base-t" },
+        ],
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(result.deviceType.interfaces![0].poe_mode).toBe("pse");
+      expect(result.deviceType.interfaces![0].poe_type).toBe(
+        "type2-ieee802.3at",
+      );
+      expect(result.deviceType.interfaces![1].poe_mode).toBeUndefined();
+      expect(result.deviceType.interfaces![1].poe_type).toBeUndefined();
+      expect(result.warnings).toEqual([]);
+    });
+
+    it("produces a valid DeviceType when all interface enums are invalid", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Generic",
+        model: "Mystery Switch",
+        slug: "generic-mystery-switch",
+        interfaces: [
+          {
+            name: "eth0",
+            type: "bogus-type",
+            poe_mode: "bogus-mode",
+            poe_type: "bogus-poe",
+          },
+        ],
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(() => DeviceTypeSchema.parse(result.deviceType)).not.toThrow();
     });
 
     it("converts power ports and outlets", () => {
