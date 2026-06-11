@@ -441,9 +441,10 @@ export function convertToDeviceType(
       name: o.name,
       type: o.type,
       power_port: o.power_port,
-      feed_leg: o.feed_leg as NonNullable<
-        DeviceType["power_outlets"]
-      >[number]["feed_leg"],
+      feed_leg:
+        o.feed_leg === "A" || o.feed_leg === "B" || o.feed_leg === "C"
+          ? o.feed_leg
+          : undefined,
     }));
   }
 
