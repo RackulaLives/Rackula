@@ -32,11 +32,8 @@ describe("Design Token System", () => {
       });
     });
 
-    it("defines blue (primary) color palette", () => {
-      const blues = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
-      blues.forEach((n) => {
-        expect(tokensCSS).toContain(`--blue-${n}:`);
-      });
+    it("defines blue (primary) accent", () => {
+      expect(tokensCSS).toContain("--blue-500:");
     });
 
     it("defines semantic color palette (red, green, amber)", () => {

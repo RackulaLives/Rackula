@@ -308,3 +308,24 @@ server-echoed updatedAt, keep five, restore as a new write; the browser working 
 is kept after server saves; twin tabs detect-and-pause; storage mode comes from
 RACKULA_STORAGE_MODE via an entrypoint-injected `window.__RACKULA_CONFIG__`,
 defaulting to browser (see docs/research/spike-2019-storage-model-data-safety.md).
+
+A 2026-06-10 scope review of surfaces left untouched by the shell list added six items
+and three guard rails. Dialogs unify on one primitive with three sizes (S 420, M 560,
+L 720) that renders as a bottom sheet on mobile, replacing nine ad hoc dialog widths
+and the dialog-versus-sheet split (#2092); it sequences before the side panel and
+settings. Settings consolidate into a sectioned dialog (Appearance, Behaviour, Data)
+behind the gear, and the theme toggles in the canvas context menu and HelpPanel are
+removed so the gear is the single home (#2093). The command registry decided for the
+palette becomes a now-not-later foundation: a typed registry (id, label, shortcut,
+scope, enabled-when) feeds the app menu, verb bars, keyboard handler, and a generated
+HelpPanel shortcut list, eliminating hand-maintained shortcut docs (#2096). The
+Devices palette gains a pinned favourites section, virtualized rendering, and a
+visible display-mode toggle in one pass (#2094). The empty-canvas state becomes a
+template chooser (plain layout zips in static/templates, previews via the cached
+render pipeline) landing together with StartScreen removal (#2095). Mobile adaptation
+stays out of scope for the shell but gets a non-blocking design spike so the new
+panel and dialog primitives are not rebuilt bespoke for touch (#2097). Three guard
+rails land before shell slices and stay outside the milestone: visual regression
+snapshots (#2098), axe-core accessibility CI (#2099), and UX standards (WCAG 2.2 AA,
+44px touch targets, reduced motion, visible focus, managed focus) documented as PR
+gates (#2100).

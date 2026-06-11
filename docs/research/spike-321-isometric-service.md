@@ -36,7 +36,7 @@ This spike investigated the feasibility of providing a backend service that gene
 
 ### Isometric Renderer Status
 
-From spike #300, we have a working POC (`scripts/isometric-poc.ts`):
+From spike #300, we had a working POC (`scripts/isometric-poc.ts`, since removed):
 
 | Component | Status | Notes |
 |-----------|--------|-------|

@@ -30,10 +30,10 @@ Code generated with AI assistance undergoes the same security review process as 
 
 ### Security Considerations
 
-- **Client-Side Only**: Rackula runs entirely in the browser with no backend server, reducing attack surface
-- **No External Data**: No user data is transmitted to external servers
-- **Local Storage**: Session data is stored in browser localStorage (user-controlled)
-- **No Authentication**: No user accounts or authentication system to compromise
+- **Client-Side App**: Rackula runs in the browser, communicating with an optional API backend
+- **Authentication Modes**: The API supports `none` (open access), `local` (username/password with bcrypt), and `oidc` (OAuth2/OIDC via environment-configured provider). Mode is set via `RACKULA_AUTH_MODE`.
+- **Session Tokens**: Authenticated sessions use HMAC-signed cookies; tokens are not stored in localStorage
+- **Local Storage**: Layout data is stored in browser localStorage (user-controlled)
 
 ## Best Practices for Users
 

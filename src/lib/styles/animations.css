@@ -8,9 +8,6 @@
    ========================================================================== */
 
 :root {
-	/* Rest state animations */
-	--anim-breathe: 4s;
-
 	/* Celebration animations */
 	--anim-rainbow: 6s;
 	--anim-party: 0.5s;
@@ -51,16 +48,6 @@
 	}
 	50% {
 		opacity: 0.6;
-	}
-}
-
-@keyframes breathe-glow {
-	0%,
-	100% {
-		filter: drop-shadow(0 0 8px rgba(189, 147, 249, 0.2));
-	}
-	50% {
-		filter: drop-shadow(0 0 16px rgba(189, 147, 249, 0.4));
 	}
 }
 

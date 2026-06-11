@@ -1,7 +1,7 @@
 # Rackula Technical Overview
 
-**Version:** 0.9.0
-**Updated:** 2026-03-10
+**Version:** 26.5.0
+**Updated:** 2026-06-11
 **Status:** Active
 
 ---

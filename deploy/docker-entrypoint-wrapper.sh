@@ -99,8 +99,26 @@ case "$storage_mode" in
     ;;
 esac
 
+# Deployment environment -- only "dev" is recognized; it enables the dev
+# build toast in the frontend. Absent or empty means production (no env key
+# emitted), so prod deployments need no configuration.
+raw_env="${RACKULA_ENV:-}"
+rackula_env="$(printf '%s' "$raw_env" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+
+case "$rackula_env" in
+  "" | "dev") ;;
+  *)
+    echo "WARN: Invalid RACKULA_ENV '$raw_env'; ignoring (treated as production)" >&2
+    rackula_env=""
+    ;;
+esac
+
 mkdir -p /tmp/rackula-config
-printf 'window.__RACKULA_CONFIG__ = { storage: "%s" };\n' "$storage_mode" >/tmp/rackula-config/config.js
+if [ "$rackula_env" = "dev" ]; then
+  printf 'window.__RACKULA_CONFIG__ = { storage: "%s", env: "dev" };\n' "$storage_mode" >/tmp/rackula-config/config.js
+else
+  printf 'window.__RACKULA_CONFIG__ = { storage: "%s" };\n' "$storage_mode" >/tmp/rackula-config/config.js
+fi
 
 # Default resolver for nginx upstream DNS resolution.
 # Docker uses 127.0.0.11 (embedded DNS). Override via NGINX_RESOLVER for other

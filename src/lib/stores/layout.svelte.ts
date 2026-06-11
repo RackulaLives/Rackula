@@ -35,7 +35,7 @@ import {
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { getStarterSlugs } from "$lib/data/starterLibrary";
 import { getBrandSlugs } from "$lib/data/brandPacks";
-import { debug, layoutDebug } from "$lib/utils/debug";
+import { debug } from "$lib/utils/debug";
 import {
   safeGetItem,
   safeSetItem,
@@ -57,6 +57,7 @@ import type { LayoutStateAccess } from "./layout/types";
 import {
   addRack as addRackImpl,
   addBayedRackGroup as addBayedRackGroupImpl,
+  updateRack as updateRackImpl,
   deleteRack as deleteRackImpl,
   reorderRacks as reorderRacksImpl,
   duplicateRack as duplicateRackImpl,
@@ -535,77 +536,14 @@ function addBayedRackGroup(
   return addBayedRackGroupImpl(stateAccess, groupName, bayCount, height, width);
 }
 
-/**
- * Update a rack's properties
- * Uses undo/redo support via updateRackRecorded (except for view changes)
- * @param id - Rack ID to update
- * @param updates - Properties to update
- */
 function updateRack(id: string, updates: Partial<Rack>): void {
-  const rackIndex = layout.racks.findIndex((r) => r.id === id);
-  if (rackIndex === -1) return;
-
-  // Check if height change on bayed rack
-  if (updates.height !== undefined) {
-    const group = getRackGroupForRack(id);
-    if (group?.layout_preset === "bayed") {
-      layoutDebug.state(
-        "updateRack: rejected height change for bayed rack %s",
-        id,
-      );
-      // Silently reject - UI should show toast
-      return;
-    }
-  }
-
-  // Handle view separately (doesn't need undo/redo)
-  if (updates.view !== undefined) {
-    layout = {
-      ...layout,
-      racks: layout.racks.map((r, i) =>
-        i === rackIndex ? { ...r, view: updates.view } : r,
-      ),
-    };
-    markDirty();
-  }
-
-  // For other properties, use recorded version for undo/redo support
-  const { view: _view, devices: _devices, ...recordableUpdates } = updates;
-  if (Object.keys(recordableUpdates).length === 0) return;
-
-  // BayedRackView renders one shared U-label column read from racks[0], so
-  // all bays must agree on desc_units / starting_unit. When the change
-  // touches those keys on a member of a bayed group, fold the origin and
-  // every diverging peer into a single batch — one undo reverts the whole
-  // group together (#1520).
-  const numberingKeys = ["desc_units", "starting_unit"] as const;
-  const numberingUpdates: Partial<Omit<Rack, "devices" | "view">> = {};
-  for (const key of numberingKeys) {
-    if (key in recordableUpdates) {
-      numberingUpdates[key] = recordableUpdates[key] as never;
-    }
-  }
-
-  const group =
-    Object.keys(numberingUpdates).length > 0
-      ? getRackGroupForRack(id)
-      : undefined;
-
-  if (group?.layout_preset === "bayed" && group.rack_ids.length > 1) {
-    // Origin gets the full update; peers only get the numbering keys.
-    const targets: {
-      rackId: string;
-      updates: Partial<Omit<Rack, "devices" | "view">>;
-    }[] = [{ rackId: id, updates: recordableUpdates }];
-    for (const peerId of group.rack_ids) {
-      if (peerId === id) continue;
-      targets.push({ rackId: peerId, updates: numberingUpdates });
-    }
-    updateRacksBatchRecorded(targets, "Update bayed rack");
-    return;
-  }
-
-  updateRackRecorded(id, recordableUpdates);
+  updateRackImpl(
+    stateAccess,
+    id,
+    updates,
+    updateRackRecorded,
+    updateRacksBatchRecorded,
+  );
 }
 
 /**

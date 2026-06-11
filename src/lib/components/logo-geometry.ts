@@ -23,9 +23,7 @@ export const LOGO_VIEWBOX = '0 0 56 80';
 export const LOGO_SQUARE_VIEWBOX = '-12 0 80 80';
 
 /** Coffin outline with fang notch, drawn clockwise from the top-left corner. */
-export const LOGO_OUTLINE =
-	'M1.5 0Q0 0 0 1.5L0 16.5L2.6 77.5Q2.6 80 5.1 80L50.9 80Q53.4 80 53.4 77.5' +
-	'L56 16.5L56 1.5Q56 0 54.5 0L39.5 0Q38.2 0 37 2.6L28 17.8L19 2.6Q17.8 0 16.5 0Z';
+export const LOGO_OUTLINE = `M1.5 0Q0 0 0 1.5L0 16.5L2.6 77.5Q2.6 80 5.1 80L50.9 80Q53.4 80 53.4 77.5L56 16.5L56 1.5Q56 0 54.5 0L39.5 0Q38.2 0 37 2.6L28 17.8L19 2.6Q17.8 0 16.5 0Z`;
 
 interface LogoSlot {
 	x: number;
@@ -43,6 +41,13 @@ export const LOGO_SLOTS: readonly LogoSlot[] = [
 
 export const LOGO_SLOT_RADIUS = 2;
 
+/**
+ * Builds a rounded-rectangle SVG subpath for a single device slot.
+ *
+ * The generated path uses `M`/`h`/`q`/`v` commands and closes with `Z`.
+ * These slot subpaths are appended to `LOGO_OUTLINE` in `LOGO_PATH` and
+ * rendered with `fill-rule="evenodd"` so the slots appear as punched-out holes.
+ */
 function slotSubpath({ x, y, width, height }: LogoSlot): string {
 	const r = LOGO_SLOT_RADIUS;
 	const w = width - 2 * r;

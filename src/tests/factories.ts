@@ -211,37 +211,6 @@ export function createTestLayout(overrides: Partial<Layout> = {}): Layout {
   };
 }
 
-// =============================================================================
-// Device Library Factory
-// =============================================================================
-
-/**
- * Creates a minimal device library for testing.
- * Useful when you need multiple device types.
- */
-export function createTestDeviceLibrary(): DeviceType[] {
-  return [
-    createTestDeviceType({ slug: "server-1", u_height: 2, category: "server" }),
-    createTestDeviceType({
-      slug: "switch-1",
-      u_height: 1,
-      category: "network",
-      colour: "#50FA7B",
-    }),
-    createTestDeviceType({
-      slug: "pdu-1",
-      u_height: 1,
-      category: "power",
-      colour: "#FFB86C",
-    }),
-    createTestDeviceType({
-      slug: "half-depth-device",
-      u_height: 1,
-      is_full_depth: false,
-      category: "network",
-    }),
-  ];
-}
 
 // =============================================================================
 // Container/Slot Factories (v0.6.0)
