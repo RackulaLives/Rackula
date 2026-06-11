@@ -86,3 +86,6 @@ docs/planning/
 # Auto-generated tooling config
 .gh-dash.yml
 .claude/scheduled_tasks.lock
+
+# Claude spike checkpoints (session artifacts, not source)
+.claude/spike-*-checkpoint.yaml

@@ -66,33 +66,16 @@
   --dracula-yellow: #f1fa8c;
 
   /* Color Palette - Blue (Primary) */
-  --blue-50: #eff6ff;
-  --blue-100: #dbeafe;
-  --blue-200: #bfdbfe;
-  --blue-300: #93c5fd;
-  --blue-400: #60a5fa;
   --blue-500: #3b82f6;
-  --blue-600: #2563eb;
-  --blue-700: #1d4ed8;
-  --blue-800: #1e40af;
-  --blue-900: #1e3a8a;
 
   /* Color Palette - Red (Error) */
-  --red-50: #fef2f2;
-  --red-400: #f87171;
   --red-500: #ef4444;
-  --red-600: #dc2626;
-  --red-700: #b91c1c;
 
   /* Color Palette - Green (Success) */
-  --green-50: #f0fdf4;
   --green-500: #22c55e;
-  --green-600: #16a34a;
 
   /* Color Palette - Amber (Warning) */
-  --amber-50: #fffbeb;
   --amber-500: #f59e0b;
-  --amber-600: #d97706;
 
   /* Color Palette - Emerald (Network interfaces) */
   --emerald-500: #10b981;
@@ -426,9 +409,6 @@
   /* Logo - Brand colours */
   --logo-frame: var(--dracula-selection);
   --logo-interior: var(--dracula-bg-light);
-  --logo-device-1: var(--dracula-cyan);
-  --logo-device-2: var(--dracula-green);
-  --logo-device-3: var(--dracula-purple);
 
   /* Danger button hover state */
   --colour-error-hover: #cc4444;
