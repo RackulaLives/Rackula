@@ -256,17 +256,13 @@ describe("Session Storage", () => {
     });
 
     it("returns true for invalid local timestamp", () => {
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       const serverTime = "2026-02-01T12:00:00.000Z";
       expect(isServerNewer("invalid-date", serverTime)).toBe(true);
-      consoleSpy.mockRestore();
     });
 
     it("returns true for invalid server timestamp", () => {
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       const localTime = "2026-02-01T12:00:00.000Z";
       expect(isServerNewer(localTime, "invalid-date")).toBe(true);
-      consoleSpy.mockRestore();
     });
   });
 
