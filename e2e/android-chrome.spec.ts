@@ -43,7 +43,10 @@ async function setupMobileViewport(
     sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
   });
   await page.goto(`/?l=${EMPTY_RACK_SHARE}`);
-  await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
+  await page
+    .locator(locators.rack.container)
+    .first()
+    .waitFor({ state: "visible" });
 }
 
 /**
@@ -322,7 +325,9 @@ test.describe("Touch Interactions", () => {
     // Open bottom sheet to expose palette items on mobile, then close it
     await mobileDragDeviceToRack(page);
     await page.keyboard.press("Escape");
-    await expect(page.locator(locators.mobile.bottomSheet)).not.toBeVisible({ timeout: 2000 });
+    await expect(page.locator(locators.mobile.bottomSheet)).not.toBeVisible({
+      timeout: 2000,
+    });
 
     const rackDevice = page.locator(locators.rack.device).first();
     await expect(rackDevice).toBeVisible({ timeout: 5000 });
@@ -373,23 +378,25 @@ test.describe("Long-Press Gesture", () => {
     const rackDevice = page.locator(locators.rack.device).first();
     await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
-    const box = await rackDevice.boundingBox();
-    if (box) {
-      // Simulate long-press via mouse events (touchscreen.tap requires hasTouch).
-      // useLongPress fires after 500ms; 600ms gives headroom for timing variance.
-      const startPos = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-      await page.mouse.move(startPos.x, startPos.y);
-      await page.mouse.down();
-      // 600ms simulates Android long-press threshold — timing is the behaviour under test
-      await page.waitForTimeout(600);
-      await page.mouse.up();
-    }
-
     // Feature #1086: long-press on a placed device opens the app's device context menu.
     // This confirms the gesture fires and the native browser context menu is suppressed
     // in favour of the app's own menu (see RackDevice.svelte handleLongPress / useLongPress).
     const contextMenu = page.locator('[role="menu"]');
-    await expect(contextMenu).toBeVisible({ timeout: 3000 });
+
+    const box = await rackDevice.boundingBox();
+    if (box) {
+      // Simulate long-press via mouse events (touchscreen.tap requires hasTouch).
+      // useLongPress fires its callback after 500ms while the pointer is still
+      // held, so wait for the menu to appear instead of sleeping a fixed 600ms.
+      const startPos = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+      await page.mouse.move(startPos.x, startPos.y);
+      await page.mouse.down();
+      await expect(contextMenu).toBeVisible({ timeout: 3000 });
+      await page.mouse.up();
+    }
+
+    // Menu stays open after pointer release
+    await expect(contextMenu).toBeVisible();
   });
 });
 
@@ -417,7 +424,9 @@ test.describe("Foldable Devices", () => {
         } else {
           await expect(devicesTab).toHaveCount(0);
         }
-        await expect(page.locator(locators.mobile.deviceLibraryFab)).toHaveCount(0);
+        await expect(
+          page.locator(locators.mobile.deviceLibraryFab),
+        ).toHaveCount(0);
       },
     );
   }
@@ -442,7 +451,10 @@ test.describe("WebView Compatibility", () => {
     // Reload and verify no critical errors
     await page.reload();
     await page.waitForLoadState("networkidle");
-    await page.locator(locators.rack.container).first().waitFor({ state: "visible", timeout: 5000 });
+    await page
+      .locator(locators.rack.container)
+      .first()
+      .waitFor({ state: "visible", timeout: 5000 });
 
     const criticalErrors = errors.filter(
       (e) => !e.includes("warning") && !e.includes("deprecated"),

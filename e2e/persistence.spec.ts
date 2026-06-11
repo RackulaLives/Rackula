@@ -97,8 +97,28 @@ test.describe("Persistence", () => {
       timeout: 5000,
     });
 
-    // Small delay to let the session storage debounce flush
-    await page.waitForTimeout(1500);
+    // Wait for the debounced session save (1s) to flush the placed device
+    // to localStorage, instead of sleeping for a fixed duration
+    await page.waitForFunction(
+      () => {
+        const raw = localStorage.getItem("Rackula:autosave");
+        if (!raw) return false;
+        try {
+          const session = JSON.parse(raw) as {
+            layout?: { racks?: { devices?: unknown[] }[] };
+          };
+          return (
+            session.layout?.racks?.some(
+              (rack) => (rack.devices?.length ?? 0) > 0,
+            ) ?? false
+          );
+        } catch {
+          return false;
+        }
+      },
+      undefined,
+      { timeout: 10000 },
+    );
 
     // Reload
     await page.reload();
