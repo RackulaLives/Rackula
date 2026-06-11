@@ -149,10 +149,26 @@ describe("panBlockReason", () => {
     expect(
       panBlockReason(
         stubTarget({
-          closest: (selector) => (selector === ".rack-dual-view" ? {} : null),
+          closest: (selector) =>
+            selector.includes(".rack-dual-view") ? {} : null,
         }),
       ),
     ).toBe("rack-area");
+  });
+
+  it("blocks pan inside a bayed rack area", () => {
+    expect(
+      panBlockReason(
+        stubTarget({
+          closest: (selector) =>
+            selector.includes(".bayed-rack-view") ? {} : null,
+        }),
+      ),
+    ).toBe("rack-area");
+  });
+
+  it("allows pan when the target does not support closest", () => {
+    expect(panBlockReason(stubTarget({ closest: undefined }))).toBeNull();
   });
 
   it("prioritises draggable over rack area", () => {

@@ -100,11 +100,12 @@ export function panBlockReason(
   const isDraggableElement =
     target.draggable === true ||
     target.getAttribute?.("draggable") === "true" ||
-    target.closest?.('[draggable="true"]') !== null;
+    (target.closest?.('[draggable="true"]') ?? null) !== null;
 
   if (isDraggableElement) return "draggable";
 
-  const isWithinRack = target.closest?.(".rack-dual-view") !== null;
+  const isWithinRack =
+    (target.closest?.(".rack-dual-view, .bayed-rack-view") ?? null) !== null;
   if (isWithinRack) return "rack-area";
 
   return null;
