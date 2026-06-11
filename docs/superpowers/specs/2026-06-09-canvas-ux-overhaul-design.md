@@ -309,7 +309,7 @@ is kept after server saves; twin tabs detect-and-pause; storage mode comes from
 RACKULA_STORAGE_MODE via an entrypoint-injected `window.__RACKULA_CONFIG__`,
 defaulting to browser (see docs/research/spike-2019-storage-model-data-safety.md).
 
-A 2026-06-10 scope review of surfaces the shell list left untouched added six items
+A 2026-06-10 scope review of surfaces left untouched by the shell list added six items
 and three guard rails. Dialogs unify on one primitive with three sizes (S 420, M 560,
 L 720) that renders as a bottom sheet on mobile, replacing nine ad hoc dialog widths
 and the dialog-versus-sheet split (#2092); it sequences before the side panel and
