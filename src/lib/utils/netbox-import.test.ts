@@ -11,6 +11,7 @@ import {
   type NetBoxDeviceType,
 } from "./netbox-import";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
+import { DeviceTypeSchema } from "$lib/schemas";
 
 describe("netbox-import", () => {
   describe("parseNetBoxYaml", () => {
@@ -438,6 +439,144 @@ model: Some Device
       const result = convertToDeviceType(netbox);
 
       expect(result.deviceType.is_full_depth).toBe(true);
+    });
+
+    it("preserves valid feed_leg on power outlets", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "APC",
+        model: "AP7901",
+        slug: "apc-ap7901",
+        power_outlets: [{ name: "Outlet 1", feed_leg: "A" }],
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(result.deviceType.power_outlets![0].feed_leg).toBe("A");
+      expect(result.warnings).toEqual([]);
+    });
+
+    it("drops invalid feed_leg with a warning", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "APC",
+        model: "AP7901",
+        slug: "apc-ap7901",
+        power_outlets: [{ name: "Outlet 1", feed_leg: "N" }],
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(result.deviceType.power_outlets![0].feed_leg).toBeUndefined();
+      expect(result.warnings).toContain("Unknown feed_leg value: N");
+    });
+
+    it("preserves valid weight_unit", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Dell",
+        model: "PowerEdge R640",
+        slug: "dell-poweredge-r640",
+        weight: 21.9,
+        weight_unit: "lb",
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(result.deviceType.weight).toBe(21.9);
+      expect(result.deviceType.weight_unit).toBe("lb");
+      expect(result.warnings).toEqual([]);
+    });
+
+    it("defaults weight_unit to kg when absent", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Dell",
+        model: "PowerEdge R640",
+        slug: "dell-poweredge-r640",
+        weight: 21.9,
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(result.deviceType.weight).toBe(21.9);
+      expect(result.deviceType.weight_unit).toBe("kg");
+      expect(result.warnings).toEqual([]);
+    });
+
+    it("drops weight and invalid weight_unit with a warning", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Dell",
+        model: "PowerEdge R640",
+        slug: "dell-poweredge-r640",
+        weight: 500,
+        weight_unit: "g",
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(result.deviceType.weight).toBeUndefined();
+      expect(result.deviceType.weight_unit).toBeUndefined();
+      expect(result.warnings).toContain("Unknown weight_unit value: g");
+    });
+
+    it("preserves valid subdevice_role", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Dell",
+        model: "PowerEdge FX2",
+        slug: "dell-poweredge-fx2",
+        subdevice_role: "parent",
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(result.deviceType.subdevice_role).toBe("parent");
+      expect(result.warnings).toEqual([]);
+    });
+
+    it("drops invalid subdevice_role with a warning", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Dell",
+        model: "PowerEdge FX2",
+        slug: "dell-poweredge-fx2",
+        subdevice_role: "standalone",
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(result.deviceType.subdevice_role).toBeUndefined();
+      expect(result.warnings).toContain(
+        "Unknown subdevice_role value: standalone",
+      );
+    });
+
+    it("omits absent optional enum fields without warnings", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Generic",
+        model: "Device",
+        slug: "generic-device",
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(result.deviceType.weight).toBeUndefined();
+      expect(result.deviceType.weight_unit).toBeUndefined();
+      expect(result.deviceType.subdevice_role).toBeUndefined();
+      expect(result.warnings).toEqual([]);
+    });
+
+    it("produces a schema-valid DeviceType when all enum values are invalid", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Generic",
+        model: "Device",
+        slug: "generic-device",
+        airflow: "sideways",
+        weight: 500,
+        weight_unit: "g",
+        subdevice_role: "standalone",
+        power_outlets: [{ name: "Outlet 1", feed_leg: "N" }],
+      };
+
+      const result = convertToDeviceType(netbox);
+
+      expect(() => DeviceTypeSchema.parse(result.deviceType)).not.toThrow();
+      expect(result.warnings.length).toBeGreaterThan(0);
     });
 
     it("includes comments as notes", () => {
