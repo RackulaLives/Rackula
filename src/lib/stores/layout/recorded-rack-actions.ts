@@ -12,10 +12,47 @@ import {
   createUpdateRackCommand,
   createClearRackCommand,
   createBatchCommand,
+  type Command,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
 import { getCommandStoreAdapter } from "./command-adapters";
 import { getTargetRack, getRackById } from "./rack-actions";
+
+/**
+ * Bind a command to a specific rack. The raw mutators behind rack commands
+ * operate on whichever rack is active, so execute/undo must activate the
+ * target rack first and restore the previously active rack afterwards.
+ * Mirrors what createCrossRackMoveCommand does with getActiveRackId() so
+ * undo/redo targets the intended rack regardless of which rack is active
+ * at undo time (#2126).
+ */
+function bindCommandToRack(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  inner: Command,
+): Command {
+  return {
+    ...inner,
+    execute() {
+      const previousActiveId = ctx.getActiveRackId();
+      ctx.setActiveRackId(rackId);
+      try {
+        inner.execute();
+      } finally {
+        ctx.setActiveRackId(previousActiveId);
+      }
+    },
+    undo() {
+      const previousActiveId = ctx.getActiveRackId();
+      ctx.setActiveRackId(rackId);
+      try {
+        inner.undo();
+      } finally {
+        ctx.setActiveRackId(previousActiveId);
+      }
+    },
+  };
+}
 
 /**
  * Update rack settings with undo/redo support
@@ -31,9 +68,6 @@ export function updateRackRecorded(
   const targetRack = getRackById(ctx, rackId);
   if (!targetRack) return;
 
-  // Set active rack so Raw functions target the correct rack
-  ctx.setActiveRackId(rackId);
-
   // Capture before state
   const before: Partial<Omit<Rack, "devices" | "view">> = {};
   for (const key of Object.keys(updates) as (keyof Omit<
@@ -46,7 +80,11 @@ export function updateRackRecorded(
   const history = getHistoryStore();
   const adapter = getCommandStoreAdapter(ctx);
 
-  const command = createUpdateRackCommand(before, updates, adapter);
+  const command = bindCommandToRack(
+    ctx,
+    rackId,
+    createUpdateRackCommand(before, updates, adapter),
+  );
   history.execute(command);
   ctx.markDirty();
 }
@@ -90,21 +128,15 @@ export function updateRacksBatchRecorded(
     }
     if (!differs) continue;
 
-    // Each sub-command sets the active rack first because updateRackRaw
-    // targets whichever rack is active.
-    const inner = createUpdateRackCommand(before, updates, adapter);
+    // Each sub-command activates its target rack because updateRackRaw
+    // targets whichever rack is active, then restores the previous one.
     commands.push({
-      type: "UPDATE_RACK" as const,
+      ...bindCommandToRack(
+        ctx,
+        rackId,
+        createUpdateRackCommand(before, updates, adapter),
+      ),
       description,
-      timestamp: Date.now(),
-      execute() {
-        ctx.setActiveRackId(rackId);
-        inner.execute();
-      },
-      undo() {
-        ctx.setActiveRackId(rackId);
-        inner.undo();
-      },
     });
   }
 
@@ -125,17 +157,18 @@ export function clearRackRecorded(
   ctx: LayoutStateAccess,
   rackId?: string,
 ): void {
-  if (rackId) {
-    ctx.setActiveRackId(rackId);
-  }
-  const target = getTargetRack(ctx);
-  if (!target || target.rack.devices.length === 0) return;
+  const targetRack = getTargetRack(ctx, rackId)?.rack;
+  if (!targetRack || targetRack.devices.length === 0) return;
 
-  const devices = [...target.rack.devices];
+  const devices = [...targetRack.devices];
   const history = getHistoryStore();
   const adapter = getCommandStoreAdapter(ctx);
 
-  const command = createClearRackCommand(devices, adapter);
+  const command = bindCommandToRack(
+    ctx,
+    targetRack.id,
+    createClearRackCommand(devices, adapter),
+  );
   history.execute(command);
   ctx.markDirty();
 }

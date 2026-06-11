@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
+import { createTestDeviceType } from "./factories";
 
 describe("Rack Add/Delete Undo/Redo", () => {
   beforeEach(() => {
@@ -231,6 +232,85 @@ describe("Rack Add/Delete Undo/Redo", () => {
       expect(afterUndo!.rack_ids).toContain(rack1!.id);
       expect(afterUndo!.rack_ids).toContain(rack2!.id);
       expect(afterUndo!.rack_ids).toContain(rack3!.id);
+    });
+  });
+
+  describe("rack-targeted undo binding (#2126)", () => {
+    it("undoes a rack update on the original rack after switching active rack", () => {
+      const store = getLayoutStore();
+      const rackA = store.addRack("Rack A", 42)!;
+      const rackB = store.addRack("Rack B", 42)!;
+      store.setActiveRack(rackA.id);
+      store.clearHistory();
+
+      store.updateRackRecorded(rackA.id, { name: "Rack A Renamed" });
+      expect(store.getRackById(rackA.id)!.name).toBe("Rack A Renamed");
+
+      // Switch to another rack, then undo
+      store.setActiveRack(rackB.id);
+      store.undo();
+
+      // The original rack reverts; the other rack is untouched
+      expect(store.getRackById(rackA.id)!.name).toBe("Rack A");
+      expect(store.getRackById(rackB.id)!.name).toBe("Rack B");
+
+      // Redo also targets the original rack regardless of active rack
+      store.redo();
+      expect(store.getRackById(rackA.id)!.name).toBe("Rack A Renamed");
+      expect(store.getRackById(rackB.id)!.name).toBe("Rack B");
+    });
+
+    it("undoes a rack clear into the original rack after switching active rack", () => {
+      const store = getLayoutStore();
+      const rackA = store.addRack("Rack A", 42)!;
+      const rackB = store.addRack("Rack B", 42)!;
+      store.addDeviceTypeRaw(
+        createTestDeviceType({ slug: "test-server", u_height: 1 }),
+      );
+      expect(store.placeDevice(rackA.id, "test-server", 5)).toBe(true);
+      expect(
+        store
+          .getRackById(rackA.id)!
+          .devices.some((d) => d.device_type === "test-server"),
+      ).toBe(true);
+      store.clearHistory();
+
+      store.clearRackRecorded(rackA.id);
+      expect(
+        store
+          .getRackById(rackA.id)!
+          .devices.some((d) => d.device_type === "test-server"),
+      ).toBe(false);
+
+      // Switch to another rack, then undo
+      store.setActiveRack(rackB.id);
+      store.undo();
+
+      // Devices restore into the original rack, not the active one
+      expect(
+        store
+          .getRackById(rackA.id)!
+          .devices.some((d) => d.device_type === "test-server"),
+      ).toBe(true);
+      expect(store.getRackById(rackB.id)!.devices.length).toBe(0);
+    });
+
+    it("keeps the active rack unchanged across batch update execute and undo", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Bay Group", 2, 42)!;
+      const [bay1] = result.racks;
+      store.setActiveRack(bay1.id);
+      store.clearHistory();
+
+      // desc_units on a bayed group member fans out to a batch update
+      store.updateRack(bay1.id, { desc_units: true });
+      expect(store.activeRackId).toBe(bay1.id);
+
+      store.undo();
+      expect(store.activeRackId).toBe(bay1.id);
+
+      store.redo();
+      expect(store.activeRackId).toBe(bay1.id);
     });
   });
 
