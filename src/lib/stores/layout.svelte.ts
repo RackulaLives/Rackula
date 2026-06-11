@@ -1173,9 +1173,9 @@ function markDirty(): void {
 
 /**
  * Mark the layout as having unsaved changes without incrementing the
- * changes-since-export counter. Used by undo/redo which revert or
- * re-apply edits — the count tracks net changes from the last export,
- * and undo moves toward that baseline, not away from it.
+ * changes-since-export counter. The counter tracks edit operations made
+ * since the last export; undo/redo revert or re-apply edits that were
+ * already counted, so they do not add to it.
  */
 function markDirtyWithoutCounting(): void {
   isDirty = true;
