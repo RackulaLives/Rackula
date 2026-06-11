@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Bundled Images Generator
  *
@@ -40,6 +39,12 @@ export function parseImagePath(relativePath: string): ParsedImage | null {
   if (!match) return null;
 
   const [, vendor, slug, face] = match;
+  // All three groups are non-optional in the regex, so they are always
+  // captured when the match succeeds; this guard only narrows the types.
+  if (vendor === undefined || slug === undefined || face === undefined) {
+    return null;
+  }
+
   return {
     vendor,
     slug,
@@ -120,10 +125,8 @@ export function groupImagesBySlug(images: ParsedImage[]): GroupedImages {
   const grouped: GroupedImages = {};
 
   for (const image of images) {
-    if (!grouped[image.slug]) {
-      grouped[image.slug] = { vendor: image.vendor };
-    }
-    grouped[image.slug][image.face] = image.filename;
+    const entry = (grouped[image.slug] ??= { vendor: image.vendor });
+    entry[image.face] = image.filename;
   }
 
   return grouped;

@@ -10,7 +10,11 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 2,
-  reporter: [["html", { open: "never" }]],
+  // CI uses the blob reporter so sharded runs (test-full.yml) can be merged
+  // into a single HTML report with `npx playwright merge-reports`.
+  reporter: process.env.CI
+    ? [["github"], ["blob"]]
+    : [["html", { open: "never" }]],
   use: {
     baseURL: "http://localhost:4173",
     trace: "on-first-retry",

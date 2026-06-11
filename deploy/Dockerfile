@@ -42,6 +42,7 @@ LABEL org.opencontainers.image.title="Rackula"
 # API_WRITE_TOKEN: Optional bearer token injected for PUT/DELETE API requests (runtime env)
 # RACKULA_AUTH_MODE: Auth mode toggle for app/API anonymous access gate (none|oidc|local)
 # RACKULA_STORAGE_MODE: Frontend storage mode written to config.js at startup (browser|server; default: browser)
+# RACKULA_ENV: Deployment environment written to config.js at startup (dev shows the dev build toast; unset means production, so no default)
 # RACKULA_LISTEN_PORT: Port nginx listens on inside the container (default: 8080)
 # RACKULA_ENABLE_IPV6: IPv6 listen auto-detection (auto|true|false; default: auto)
 # NGINX_RESOLVER: DNS resolver for nginx upstream resolution (default: 127.0.0.11 for Docker; override for Kubernetes)

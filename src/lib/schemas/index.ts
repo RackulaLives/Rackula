@@ -1034,7 +1034,7 @@ const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
       ? data.device_types
       : data.device_types.map((dt) =>
           allRecoveredSlugs.has(dt.slug) && dt.slot_width === undefined
-            ? { ...dt, slot_width: 1 }
+            ? { ...dt, slot_width: 1 as const }
             : dt,
         );
 

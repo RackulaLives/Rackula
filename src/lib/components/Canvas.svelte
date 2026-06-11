@@ -6,7 +6,6 @@
 -->
 <script lang="ts">
   import { onDestroy } from "svelte";
-  import panzoom from "panzoom";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import {
@@ -20,10 +19,15 @@
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import {
     classifyRackSwipeGesture,
-    RACK_SWIPE_PAN_THRESHOLD,
     useLongPress,
     type RackSwipeDirection,
   } from "$lib/utils/gestures";
+  import {
+    resolveSwipeTargetRackId,
+    exceedsHorizontalPanLock,
+    isRackInteractionTarget,
+  } from "$lib/utils/canvas-coordinates";
+  import { createCanvasPanzoom } from "$lib/utils/panzoom-lifecycle";
   import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
   import { hapticSuccess, hapticTap } from "$lib/utils/haptics";
   import RackDualView from "./RackDualView.svelte";
@@ -212,15 +216,6 @@
   let canvasLongPressPoint = $state<{ x: number; y: number } | null>(null);
   let canvasLongPressTarget = $state<Element | null>(null);
 
-  function isCanvasRackTarget(target: Element | null): boolean {
-    if (!target) return false;
-    return Boolean(
-      target.closest(
-        ".rack-device, .rack-container, .rack-wrapper, .rack-dual-view, .bayed-rack-view",
-      ),
-    );
-  }
-
   // Keep touch listener lifecycle synced to the current bound canvas element.
   // We intentionally use passive listeners and never call preventDefault here so
   // panzoom retains control for pan/pinch behavior.
@@ -295,7 +290,7 @@
         canvasLongPressPoint = null;
         canvasLongPressTarget = null;
 
-        if (!point || isCanvasRackTarget(target)) return;
+        if (!point || isRackInteractionTarget(target)) return;
 
         hapticTap();
         dispatchContextMenuAtPoint(point.x, point.y, canvasContainer);
@@ -325,66 +320,11 @@
   // Initialize panzoom reactively when container becomes available
   $effect(() => {
     if (panzoomContainer) {
-      const instance = panzoom(panzoomContainer, {
+      const instance = createCanvasPanzoom(panzoomContainer, {
         minZoom: ZOOM_MIN,
         maxZoom: ZOOM_MAX,
-        smoothScroll: false,
-        // Disable default zoom on double-click (we handle zoom via toolbar)
-        zoomDoubleClickSpeed: 1,
-        // Handle wheel events for zoom and Shift+scroll for horizontal pan
-        beforeWheel: (e: WheelEvent) => {
-          // Shift+scroll = horizontal pan instead of zoom
-          if (e.shiftKey) {
-            debug.log("beforeWheel: Shift+scroll, performing horizontal pan");
-            // Panzoom will handle this as pan when we return true (ignore zoom)
-            // We need to manually pan since panzoom doesn't do Shift+scroll pan
-            const panAmount = e.deltaY; // Use deltaY (vertical scroll) as horizontal pan
-            const transform = instance.getTransform();
-            instance.moveTo(transform.x - panAmount, transform.y);
-            if (e.cancelable) {
-              e.preventDefault();
-            }
-            return true; // Tell panzoom to ignore this wheel event (we handled it)
-          }
-          // Normal scroll = zoom centered on cursor (panzoom default behavior)
-          debug.log("beforeWheel: zoom at cursor position");
-          return false; // Let panzoom handle zoom
-        },
-        // Allow panning only when not interacting with drag targets
-        beforeMouseDown: (e: MouseEvent) => {
-          const target = e.target as HTMLElement;
-
-          // Priority 1: Check if target or any parent is draggable (device drag-drop)
-          // For SVGElements, we need to check the draggable attribute differently
-          const isDraggableElement =
-            (target as HTMLElement).draggable === true ||
-            target.getAttribute?.("draggable") === "true" ||
-            target.closest?.('[draggable="true"]') !== null;
-
-          if (isDraggableElement) {
-            debug.log("beforeMouseDown: blocking pan for draggable element");
-            return true; // Block panning, let drag-drop work
-          }
-
-          // Priority 2: Check if target is within a rack area
-          // This includes: rack-dual-view, rack-container, rack-svg, and all children
-          // Clicking anywhere in rack should select it, not pan
-          const isWithinRack = target.closest?.(".rack-dual-view") !== null;
-
-          if (isWithinRack) {
-            debug.log("beforeMouseDown: blocking pan for rack area element");
-            return true; // Block panning, let rack selection work
-          }
-
-          // Priority 3: Allow panning only on canvas background outside racks
-          debug.log("beforeMouseDown: allowing pan on canvas background");
-          return false;
-        },
-        // Filter out drag events from panzoom handling
-        filterKey: () => true,
       });
 
-      debug.log("Panzoom initialized on container:", panzoomContainer);
       canvasStore.setPanzoomInstance(instance);
 
       // Center content on initial load
@@ -563,28 +503,19 @@
       return;
     }
 
-    const currentId = layoutStore.activeRackId;
-    const currentIndex = currentId
-      ? racks.findIndex((rack) => rack.id === currentId)
-      : -1;
-
-    let nextIndex: number;
-    if (currentIndex === -1) {
-      nextIndex = direction === "next" ? 0 : racks.length - 1;
-    } else {
-      const delta = direction === "next" ? 1 : -1;
-      nextIndex = (currentIndex + delta + racks.length) % racks.length;
-    }
-
-    const nextRack = racks[nextIndex];
-    if (!nextRack || nextRack.id === currentId) {
+    const targetRackId = resolveSwipeTargetRackId(
+      racks.map((rack) => rack.id),
+      layoutStore.activeRackId,
+      direction,
+    );
+    if (!targetRackId) {
       return;
     }
 
     triggerSwipeAnimation(direction);
-    layoutStore.setActiveRack(nextRack.id);
-    selectionStore.selectRack(nextRack.id);
-    canvasStore.focusRack([nextRack.id], racks, rackGroups, 0);
+    layoutStore.setActiveRack(targetRackId);
+    selectionStore.selectRack(targetRackId);
+    canvasStore.focusRack([targetRackId], racks, rackGroups, 0);
   }
 
   function handleCanvasTouchStart(event: TouchEvent) {
@@ -658,8 +589,7 @@
     const endX = changedTouch?.clientX ?? swipeGesture.currentX;
     const endY = changedTouch?.clientY ?? swipeGesture.currentY;
     const durationMs = performance.now() - swipeGesture.startTime;
-    const horizontalLock =
-      Math.abs(endX - swipeGesture.startX) > RACK_SWIPE_PAN_THRESHOLD;
+    const horizontalLock = exceedsHorizontalPanLock(swipeGesture.startX, endX);
 
     if (!horizontalLock) {
       if (mobileDebug.enabled) {

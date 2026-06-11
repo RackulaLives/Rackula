@@ -22,20 +22,11 @@ import type {
   SlotPosition,
 } from "$lib/types";
 import { MAX_RACKS } from "$lib/types/constants";
-import {
-  canPlaceDevice,
-  canPlaceInContainer,
-  findValidDropPositions,
-} from "$lib/utils/collision";
 import { createLayout } from "$lib/utils/serialization";
-import {
-  findDeviceType as findDeviceTypeInArray,
-  type CreateDeviceTypeInput,
-} from "$lib/stores/layout-helpers";
-import { findDeviceType } from "$lib/utils/device-lookup";
+import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
 import { getStarterSlugs } from "$lib/data/starterLibrary";
 import { getBrandSlugs } from "$lib/data/brandPacks";
-import { debug, layoutDebug } from "$lib/utils/debug";
+import { debug } from "$lib/utils/debug";
 import {
   safeGetItem,
   safeSetItem,
@@ -43,20 +34,12 @@ import {
 } from "$lib/utils/safe-storage";
 import { generateId } from "$lib/utils/device";
 import { generateRackId } from "$lib/utils/rack";
-import { toInternalUnits } from "$lib/utils/position";
-import { instantiatePorts } from "$lib/utils/port-utils";
-import { UNITS_PER_U } from "$lib/types/constants";
 import { getHistoryStore } from "./history.svelte";
-import {
-  createPlaceDeviceCommand,
-  createAddDeviceTypeCommand,
-  createBatchCommand,
-  createCrossRackMoveCommand,
-} from "./commands";
 import type { LayoutStateAccess } from "./layout/types";
 import {
   addRack as addRackImpl,
   addBayedRackGroup as addBayedRackGroupImpl,
+  updateRack as updateRackImpl,
   deleteRack as deleteRackImpl,
   reorderRacks as reorderRacksImpl,
   duplicateRack as duplicateRackImpl,
@@ -104,11 +87,12 @@ import {
   generateUniqueDeviceId,
 } from "./layout/mutators";
 import {
-  getCommandStoreAdapter as getCommandStoreAdapterImpl,
   addDeviceTypeRecorded as addDeviceTypeRecordedImpl,
   updateDeviceTypeRecorded as updateDeviceTypeRecordedImpl,
   deleteDeviceTypeRecorded as deleteDeviceTypeRecordedImpl,
   deleteMultipleDeviceTypesRecorded as deleteMultipleDeviceTypesRecordedImpl,
+} from "./layout/recorded-device-type-actions";
+import {
   placeDeviceRecorded as placeDeviceRecordedImpl,
   moveDeviceRecorded as moveDeviceRecordedImpl,
   removeDeviceRecorded as removeDeviceRecordedImpl,
@@ -119,10 +103,17 @@ import {
   updateDeviceSlotPositionRecorded as updateDeviceSlotPositionRecordedImpl,
   updateDeviceNotesRecorded as updateDeviceNotesRecordedImpl,
   updateDeviceIpRecorded as updateDeviceIpRecordedImpl,
+} from "./layout/recorded-device-actions";
+import {
   updateRackRecorded as updateRackRecordedImpl,
   updateRacksBatchRecorded as updateRacksBatchRecordedImpl,
   clearRackRecorded as clearRackRecordedImpl,
-} from "./layout/command-adapters";
+} from "./layout/recorded-rack-actions";
+import {
+  duplicateDevice as duplicateDeviceImpl,
+  placeInContainer as placeInContainerImpl,
+  moveDeviceToRack as moveDeviceToRackImpl,
+} from "./layout/device-actions";
 
 /** Backup state tracked alongside the layout for the storage chip. */
 export interface BackupState {
@@ -535,77 +526,14 @@ function addBayedRackGroup(
   return addBayedRackGroupImpl(stateAccess, groupName, bayCount, height, width);
 }
 
-/**
- * Update a rack's properties
- * Uses undo/redo support via updateRackRecorded (except for view changes)
- * @param id - Rack ID to update
- * @param updates - Properties to update
- */
 function updateRack(id: string, updates: Partial<Rack>): void {
-  const rackIndex = layout.racks.findIndex((r) => r.id === id);
-  if (rackIndex === -1) return;
-
-  // Check if height change on bayed rack
-  if (updates.height !== undefined) {
-    const group = getRackGroupForRack(id);
-    if (group?.layout_preset === "bayed") {
-      layoutDebug.state(
-        "updateRack: rejected height change for bayed rack %s",
-        id,
-      );
-      // Silently reject - UI should show toast
-      return;
-    }
-  }
-
-  // Handle view separately (doesn't need undo/redo)
-  if (updates.view !== undefined) {
-    layout = {
-      ...layout,
-      racks: layout.racks.map((r, i) =>
-        i === rackIndex ? { ...r, view: updates.view } : r,
-      ),
-    };
-    markDirty();
-  }
-
-  // For other properties, use recorded version for undo/redo support
-  const { view: _view, devices: _devices, ...recordableUpdates } = updates;
-  if (Object.keys(recordableUpdates).length === 0) return;
-
-  // BayedRackView renders one shared U-label column read from racks[0], so
-  // all bays must agree on desc_units / starting_unit. When the change
-  // touches those keys on a member of a bayed group, fold the origin and
-  // every diverging peer into a single batch — one undo reverts the whole
-  // group together (#1520).
-  const numberingKeys = ["desc_units", "starting_unit"] as const;
-  const numberingUpdates: Partial<Omit<Rack, "devices" | "view">> = {};
-  for (const key of numberingKeys) {
-    if (key in recordableUpdates) {
-      numberingUpdates[key] = recordableUpdates[key] as never;
-    }
-  }
-
-  const group =
-    Object.keys(numberingUpdates).length > 0
-      ? getRackGroupForRack(id)
-      : undefined;
-
-  if (group?.layout_preset === "bayed" && group.rack_ids.length > 1) {
-    // Origin gets the full update; peers only get the numbering keys.
-    const targets: {
-      rackId: string;
-      updates: Partial<Omit<Rack, "devices" | "view">>;
-    }[] = [{ rackId: id, updates: recordableUpdates }];
-    for (const peerId of group.rack_ids) {
-      if (peerId === id) continue;
-      targets.push({ rackId: peerId, updates: numberingUpdates });
-    }
-    updateRacksBatchRecorded(targets, "Update bayed rack");
-    return;
-  }
-
-  updateRackRecorded(id, recordableUpdates);
+  updateRackImpl(
+    stateAccess,
+    id,
+    updates,
+    updateRackRecorded,
+    updateRacksBatchRecorded,
+  );
 }
 
 /**
@@ -696,14 +624,11 @@ function deleteRackGroupRaw(id: string): RackGroup | undefined {
 }
 
 // =============================================================================
-// Device Actions
+// Device Actions — delegated to layout/device-actions.ts
 // =============================================================================
 
 /**
  * Duplicate a placed device within a rack
- * Places the duplicate in the next available slot on the same face
- * Inherits all properties (custom label, image overrides, colour)
- * Uses undo/redo system for reverting the operation
  * @param rackId - Rack ID containing the device
  * @param deviceIndex - Index of the device in rack's devices array
  * @returns The duplicated device or error message
@@ -712,89 +637,10 @@ function duplicateDevice(
   rackId: string,
   deviceIndex: number,
 ): { error?: string; device?: PlacedDevice } {
-  const sourceRack = layout.racks.find((r) => r.id === rackId);
-  if (!sourceRack) {
-    return { error: "Rack not found" };
-  }
-
-  if (deviceIndex < 0 || deviceIndex >= sourceRack.devices.length) {
-    return { error: "Device not found" };
-  }
-
-  const sourceDevice = sourceRack.devices[deviceIndex]!;
-  const deviceType = findDeviceTypeInArray(
-    layout.device_types,
-    sourceDevice.device_type,
+  // $state.snapshot() is a Svelte rune — must be called from this .svelte.ts file
+  return duplicateDeviceImpl(stateAccess, rackId, deviceIndex, (device) =>
+    $state.snapshot(device),
   );
-  if (!deviceType) {
-    return { error: "Device type not found" };
-  }
-
-  // Find valid positions on the same face
-  const validPositions = findValidDropPositions(
-    sourceRack,
-    layout.device_types,
-    deviceType.u_height,
-    sourceDevice.face,
-    sourceDevice.slot_position,
-  );
-
-  if (validPositions.length === 0) {
-    return { error: "Cannot duplicate: no available space in rack" };
-  }
-
-  // Prefer adjacent slot (above or below the source device)
-  // Device positions and heights are in internal units
-  const heightInternal = toInternalUnits(deviceType.u_height);
-  const adjacentAbove = sourceDevice.position + heightInternal;
-  const adjacentBelow = sourceDevice.position - heightInternal;
-
-  let targetPosition: number;
-
-  // Check if adjacent above is valid
-  if (validPositions.includes(adjacentAbove)) {
-    targetPosition = adjacentAbove;
-  } else if (
-    adjacentBelow >= UNITS_PER_U &&
-    validPositions.includes(adjacentBelow)
-  ) {
-    // Check if adjacent below is valid (and within rack bounds - U1 = UNITS_PER_U)
-    targetPosition = adjacentBelow;
-  } else {
-    // Fall back to first available position
-    targetPosition = validPositions[0]!;
-  }
-
-  // Create the duplicate device with new ID but inherited properties
-  // Use $state.snapshot() to deep-clone the reactive proxy and avoid linked state
-  const duplicatedDevice: PlacedDevice = {
-    ...$state.snapshot(sourceDevice),
-    id: generateId(),
-    position: targetPosition,
-    // Regenerate ports with new IDs
-    ports: instantiatePorts(deviceType),
-    // Don't copy container_id - duplicates are independent rack-level devices
-    container_id: undefined,
-    slot_id: undefined,
-  };
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  // Use the undo/redo system via placeDeviceRaw and history
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapterImpl(stateAccess);
-  const deviceName = deviceType.model ?? deviceType.slug;
-
-  const command = createPlaceDeviceCommand(
-    duplicatedDevice,
-    adapter,
-    `${deviceName} (Copy)`,
-  );
-  history.execute(command);
-  markDirty();
-
-  return { device: duplicatedDevice };
 }
 
 function getRackById(id: string): Rack | undefined {
@@ -869,79 +715,14 @@ function placeInContainer(
   slotId: string,
   position: number,
 ): boolean {
-  // Validate rack exists
-  const targetRack = getRackById(rackId);
-  if (!targetRack) return false;
-
-  // Set active rack so Raw functions target the correct rack
-  activeRackId = rackId;
-
-  // Find container device
-  const container = targetRack.devices.find((d) => d.id === containerId);
-  if (!container) return false;
-
-  // Find device types
-  const containerType = layout.device_types.find(
-    (d) => d.slug === container.device_type,
+  return placeInContainerImpl(
+    stateAccess,
+    rackId,
+    deviceTypeSlug,
+    containerId,
+    slotId,
+    position,
   );
-  const childType = findDeviceType(deviceTypeSlug, layout.device_types);
-
-  if (!containerType || !childType) return false;
-
-  // Check collision within container
-  if (
-    !canPlaceInContainer(
-      targetRack,
-      layout.device_types,
-      container,
-      containerType,
-      childType,
-      slotId,
-      position,
-    )
-  ) {
-    return false;
-  }
-
-  // Create placed device with container reference
-  const placedDevice: PlacedDevice = {
-    id: generateId(),
-    device_type: deviceTypeSlug,
-    position, // 0-indexed within container
-    face: container.face, // Inherit parent face
-    container_id: containerId,
-    slot_id: slotId,
-    ports: instantiatePorts(childType),
-  };
-
-  // Use command for undo/redo
-  const deviceName = childType.model ?? childType.slug;
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapterImpl(stateAccess);
-
-  const autoImport =
-    childType && !layout.device_types.find((dt) => dt.slug === deviceTypeSlug)
-      ? childType
-      : undefined;
-  const placeCommand = createPlaceDeviceCommand(
-    placedDevice,
-    adapter,
-    deviceName,
-  );
-
-  if (autoImport) {
-    const importCommand = createAddDeviceTypeCommand(autoImport, adapter);
-    const batch = createBatchCommand(`Place ${deviceName}`, [
-      importCommand,
-      placeCommand,
-    ]);
-    history.execute(batch);
-  } else {
-    history.execute(placeCommand);
-  }
-  markDirty();
-
-  return true;
 }
 
 /**
@@ -976,86 +757,17 @@ function moveDeviceToRack(
   face?: DeviceFace,
   slotPosition?: SlotPosition,
 ): boolean {
-  // Same-rack move — delegate to existing function (face bundled into single undo entry)
-  if (fromRackId === toRackId) {
-    return moveDevice(fromRackId, deviceIndex, newPosition, slotPosition, face);
-  }
-
-  // Cross-rack move
-  const sourceRack = getRackById(fromRackId);
-  const targetRack = getRackById(toRackId);
-  if (!sourceRack || !targetRack) return false;
-  if (deviceIndex < 0 || deviceIndex >= sourceRack.devices.length) return false;
-
-  const device = sourceRack.devices[deviceIndex]!;
-  const deviceType = findDeviceTypeInArray(
-    layout.device_types,
-    device.device_type,
-  );
-  if (!deviceType) return false;
-
-  // Resolve face: use provided face, or infer from device type
-  const effectiveFace: DeviceFace =
-    face ??
-    (deviceType.is_full_depth !== false ? "both" : (device.face ?? "front"));
-  const positionInternal = toInternalUnits(newPosition);
-  const effectiveSlot = slotPosition ?? device.slot_position ?? "full";
-
-  // Validate placement in target rack (no excludeIndex — device isn't in target rack yet)
-  if (
-    !canPlaceDevice(
-      targetRack,
-      layout.device_types,
-      deviceType.u_height,
-      positionInternal,
-      undefined,
-      effectiveFace,
-      effectiveSlot,
-    )
-  ) {
-    return false;
-  }
-
-  // Collect container children
-  const children = sourceRack.devices.filter(
-    (d) => d.container_id === device.id,
-  );
-  const parentSnapshot = $state.snapshot(device);
-  const childrenSnapshots = children.map((child) => $state.snapshot(child));
-
-  // Compute removal indices sorted descending for safe removal
-  const allRemovals = [
-    { index: deviceIndex },
-    ...children.map((child) => ({
-      index: sourceRack.devices.indexOf(child),
-    })),
-  ].sort((a, b) => b.index - a.index);
-  const sortedRemovalIndices = allRemovals.map((r) => r.index);
-
-  const deviceName = deviceType.model ?? deviceType.slug;
-
-  // Set active rack for command creation
-  activeRackId = fromRackId;
-
-  const history = getHistoryStore();
-  const adapter = getCommandStoreAdapterImpl(stateAccess);
-
-  const command = createCrossRackMoveCommand(
+  // $state.snapshot() is a Svelte rune — must be called from this .svelte.ts file
+  return moveDeviceToRackImpl(
+    stateAccess,
     fromRackId,
-    sortedRemovalIndices,
+    deviceIndex,
     toRackId,
-    positionInternal,
-    effectiveFace,
-    effectiveSlot,
-    parentSnapshot,
-    childrenSnapshots,
-    adapter,
-    deviceName,
+    newPosition,
+    face,
+    slotPosition,
+    (device) => $state.snapshot(device),
   );
-
-  history.execute(command);
-  markDirty();
-  return true;
 }
 
 /**
@@ -1413,7 +1125,8 @@ function hasDeviceTypePlacements(slug: string): boolean {
 }
 
 // =============================================================================
-// Recorded Actions — delegated to layout/command-adapters.ts
+// Recorded Actions — delegated to layout/recorded-device-type-actions.ts,
+// layout/recorded-device-actions.ts, and layout/recorded-rack-actions.ts
 // =============================================================================
 
 function addDeviceTypeRecorded(data: CreateDeviceTypeInput): DeviceType {

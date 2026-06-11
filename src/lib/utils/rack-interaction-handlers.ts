@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Rack Interaction Handlers
  * Factory for drag-and-drop, touch, and keyboard event handlers.
@@ -221,11 +220,15 @@ function dispatchPlacementAt(
   );
 
   if (result.feedback === "valid") {
+    // Placement faces are "front" | "rear". getFaceFilter() is typed DeviceFace
+    // but callers only ever supply "front" or "rear" (Rack.svelte derives it
+    // from faceFilter ?? rack.view); collapse anything else to "front".
+    const faceFilter = ctx.getFaceFilter();
     onplacementtap?.(
       new CustomEvent("placementtap", {
         detail: {
           position: result.targetU,
-          face: ctx.getFaceFilter() ?? "front",
+          face: faceFilter === "rear" ? ("rear" as const) : ("front" as const),
         },
       }),
     );

@@ -34,4 +34,15 @@ declare const __COMMIT_HASH__: string;
 declare const __BRANCH_NAME__: string;
 declare const __GIT_DIRTY__: boolean;
 
+// Runtime deployment config injected via /config.js
+// CROSS-REF: static/config.js, deploy/docker-entrypoint-wrapper.sh
+declare global {
+  interface Window {
+    __RACKULA_CONFIG__?: {
+      storage?: string;
+      env?: string;
+    };
+  }
+}
+
 export {};

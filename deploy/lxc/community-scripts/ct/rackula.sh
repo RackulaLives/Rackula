@@ -78,6 +78,7 @@ function update_script() {
     cp /opt/rackula/config/nginx.service.d-override.conf /etc/systemd/system/nginx.service.d/override.conf
     # Rewrite runtime storage mode config: the tarball ships a browser-mode default.
     # CROSS-REF: keep in sync with install/rackula-install.sh and static/config.js.
+    # env key omitted intentionally: absent RACKULA_ENV means production (no dev build toast)
     printf 'window.__RACKULA_CONFIG__ = { storage: "server" };\n' >/opt/rackula/frontend/config.js
     chown -R root:root /opt/rackula/frontend
     find /opt/rackula/frontend -type d -exec chmod 755 {} \;
