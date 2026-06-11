@@ -118,7 +118,6 @@ describe("Session Storage", () => {
               devices: [],
             }),
           ],
-<<<<<<< HEAD
         });
         saveSession(updatedLayout, noBackup);
 

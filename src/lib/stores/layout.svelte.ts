@@ -1212,6 +1212,7 @@ function markStarted(): void {
  * Update the display mode in layout settings
  */
 function updateDisplayMode(mode: DisplayMode): void {
+  if (layout.settings.display_mode === mode) return;
   layout = {
     ...layout,
     settings: { ...layout.settings, display_mode: mode },
