@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Export utilities for generating images from rack layouts
  */
@@ -461,8 +460,7 @@ export function generateExportSVG(
   let totalRackWidth = 0;
   let maxRackAreaHeight = 0;
 
-  for (let i = 0; i < renderItems.length; i++) {
-    const item = renderItems[i];
+  for (const [i, item] of renderItems.entries()) {
     if (i > 0) totalRackWidth += RACK_GAP;
 
     if (item.type === "bayed") {
@@ -1750,8 +1748,7 @@ export async function exportAsZip(
   const format = options.format === "jpeg" ? "jpg" : options.format;
   const files: { name: string; blob: Blob }[] = [];
 
-  for (let i = 0; i < racks.length; i++) {
-    const rack = racks[i];
+  for (const [i, rack] of racks.entries()) {
     onProgress?.({ current: i + 1, total: racks.length, rackName: rack.name });
 
     // Generate SVG for this rack
@@ -1820,8 +1817,7 @@ export async function exportAsMultiPagePDF(
 
   let pdf: InstanceType<typeof jsPDF> | null = null;
 
-  for (let i = 0; i < racks.length; i++) {
-    const rack = racks[i];
+  for (const [i, rack] of racks.entries()) {
     onProgress?.({ current: i + 1, total: racks.length, rackName: rack.name });
 
     // Generate SVG for this rack

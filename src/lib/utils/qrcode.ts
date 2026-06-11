@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * QR Code Generation Utilities
  * Fixed spec per Issue #88: Version 24, Error Correction L
