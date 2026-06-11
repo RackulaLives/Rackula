@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Canvas Utility Functions
  * Calculations for fit-all zoom and rack positioning
@@ -225,11 +224,12 @@ function getBayedGroupDimensions(
   group: RackGroup,
   racks: Rack[],
 ): { width: number; height: number } {
-  if (racks.length === 0) return { width: 0, height: 0 };
+  const firstRack = racks[0];
+  if (!firstRack) return { width: 0, height: 0 };
 
   const maxHeight = Math.max(...racks.map((r) => r.height));
   // All racks in a bayed group have the same width
-  const rackWidthInches = racks[0].width;
+  const rackWidthInches = firstRack.width;
   const bayWidthPx = Math.round((BASE_RACK_WIDTH * rackWidthInches) / 19);
 
   // Width: U-labels + all bays (bays touch with no gap)
@@ -297,7 +297,8 @@ export function racksToPositionsWithIds(
     // Use minimum position of any rack in group for sorting
     const sortPosition = Math.min(...groupRacks.map((r) => r.position));
     // Use smallest rack ID as tie-breaker for deterministic ordering
-    const tieBreaker = [...group.rack_ids].sort()[0];
+    // (rack_ids is non-empty: groupRacks above is derived from it and was length-checked)
+    const tieBreaker = [...group.rack_ids].sort()[0]!;
 
     elements.push({
       rackIds: group.rack_ids,

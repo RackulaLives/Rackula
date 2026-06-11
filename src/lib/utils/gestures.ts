@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Touch Gesture Utilities
  * Composable gesture detection for touch interactions
@@ -234,18 +233,23 @@ export function useLongPress(
     }
   };
 
+  // Widen to GlobalEventHandlers: the HTMLElement | SVGElement union collapses
+  // addEventListener overloads to the untyped EventListener signature, while
+  // GlobalEventHandlers keeps the typed PointerEvent overloads both share.
+  const target: GlobalEventHandlers = element;
+
   // Attach event listeners
-  element.addEventListener("pointerdown", handlePointerDown);
-  element.addEventListener("pointerup", handlePointerUp);
-  element.addEventListener("pointercancel", handlePointerCancel);
-  element.addEventListener("pointermove", handlePointerMove);
+  target.addEventListener("pointerdown", handlePointerDown);
+  target.addEventListener("pointerup", handlePointerUp);
+  target.addEventListener("pointercancel", handlePointerCancel);
+  target.addEventListener("pointermove", handlePointerMove);
 
   // Return cleanup function
   return () => {
     cancelLongPress();
-    element.removeEventListener("pointerdown", handlePointerDown);
-    element.removeEventListener("pointerup", handlePointerUp);
-    element.removeEventListener("pointercancel", handlePointerCancel);
-    element.removeEventListener("pointermove", handlePointerMove);
+    target.removeEventListener("pointerdown", handlePointerDown);
+    target.removeEventListener("pointerup", handlePointerUp);
+    target.removeEventListener("pointercancel", handlePointerCancel);
+    target.removeEventListener("pointermove", handlePointerMove);
   };
 }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Device Filters
  * Utility functions for searching and grouping devices
@@ -124,9 +123,10 @@ export function searchDevices(
   const tokens = trimmedQuery.split(/\s+/).filter((t) => t.length > 0);
 
   // Single token: use standard Fuse.js search
-  if (tokens.length === 1) {
+  const [firstToken] = tokens;
+  if (tokens.length === 1 && firstToken !== undefined) {
     const fuse = new Fuse(devices, fuseOptions);
-    const results = fuse.search(tokens[0]);
+    const results = fuse.search(firstToken);
     return results.map((r) => r.item);
   }
 
@@ -183,7 +183,7 @@ export function getFirstMatch(
   query: string,
 ): DeviceType | null {
   const matches = searchDevices(devices, query);
-  return matches.length > 0 ? matches[0] : null;
+  return matches[0] ?? null;
 }
 
 /**

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * NetBox Device Import Utilities
  * Parses NetBox devicetype-library YAML format and converts to Rackula DeviceType
@@ -16,8 +15,13 @@ import {
   InterfaceTypeSchema,
   PoEModeSchema,
   PoETypeSchema,
+  PowerOutletSchema,
+  SubdeviceRoleSchema,
+  WeightUnitSchema,
 } from "$lib/schemas";
 import { parseYaml } from "./yaml";
+
+const FeedLegSchema = PowerOutletSchema.shape.feed_leg;
 
 /**
  * NetBox device type YAML structure
@@ -438,14 +442,27 @@ export function convertToDeviceType(
   }
 
   if (netbox.weight !== undefined) {
-    deviceType.weight = netbox.weight;
-    deviceType.weight_unit =
-      (netbox.weight_unit as DeviceType["weight_unit"]) ?? "kg";
+    if (!netbox.weight_unit) {
+      deviceType.weight = netbox.weight;
+      deviceType.weight_unit = "kg";
+    } else {
+      const parsedUnit = WeightUnitSchema.safeParse(netbox.weight_unit);
+      if (parsedUnit.success) {
+        deviceType.weight = netbox.weight;
+        deviceType.weight_unit = parsedUnit.data;
+      } else {
+        warnings.push(`Unknown weight_unit value: ${netbox.weight_unit}`);
+      }
+    }
   }
 
   if (netbox.subdevice_role) {
-    deviceType.subdevice_role =
-      netbox.subdevice_role as DeviceType["subdevice_role"];
+    const parsedRole = SubdeviceRoleSchema.safeParse(netbox.subdevice_role);
+    if (parsedRole.success) {
+      deviceType.subdevice_role = parsedRole.data;
+    } else {
+      warnings.push(`Unknown subdevice_role value: ${netbox.subdevice_role}`);
+    }
   }
 
   if (netbox.comments) {
@@ -471,12 +488,22 @@ export function convertToDeviceType(
 
   // Map power outlets
   if (netbox.power_outlets && netbox.power_outlets.length > 0) {
-    deviceType.power_outlets = netbox.power_outlets.map((o) => ({
-      name: o.name,
-      type: o.type,
-      power_port: o.power_port,
-      feed_leg: o.feed_leg as DeviceType["power_outlets"][0]["feed_leg"],
-    }));
+    deviceType.power_outlets = netbox.power_outlets.map((o) => {
+      const outlet: NonNullable<DeviceType["power_outlets"]>[number] = {
+        name: o.name,
+        type: o.type,
+        power_port: o.power_port,
+      };
+      if (o.feed_leg) {
+        const parsedFeedLeg = FeedLegSchema.safeParse(o.feed_leg);
+        if (parsedFeedLeg.success) {
+          outlet.feed_leg = parsedFeedLeg.data;
+        } else {
+          warnings.push(`Unknown feed_leg value: ${o.feed_leg}`);
+        }
+      }
+      return outlet;
+    });
   }
 
   // Map device bays

@@ -9,7 +9,7 @@ import {
 import { toInternalUnits } from "$lib/utils/position";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
-import { createTestDeviceType } from "./factories";
+import { createTestContainerType, createTestDeviceType } from "./factories";
 
 // Helper to create a placed device with internal unit position
 function pd(
@@ -504,6 +504,69 @@ describe("DnD Between Racks", () => {
         .getRackById(rackB.id)!
         .devices.find((d) => d.container_id === movedParent!.id);
       expect(movedChild).toBeDefined();
+    });
+
+    /** Place a container in rack A with a child device inside its slot */
+    function placeContainedChild() {
+      const containerType = createTestContainerType({ slug: "test-shelf" });
+      const childType = createTestDeviceType({
+        slug: "test-mini-pc",
+        u_height: 1,
+        slot_width: 1,
+        is_full_depth: false,
+      });
+      store.addDeviceTypeRaw(containerType);
+      store.addDeviceTypeRaw(childType);
+
+      store.placeDevice(rackA.id, containerType.slug, 5);
+      const container = store.getRackById(rackA.id)!.devices[0]!;
+      const placed = store.placeInContainer(
+        rackA.id,
+        childType.slug,
+        container.id,
+        "slot-left",
+        0,
+      );
+      expect(placed).toBe(true);
+      const childIndex = store
+        .getRackById(rackA.id)!
+        .devices.findIndex((d) => d.container_id === container.id);
+      return { container, childType, childIndex };
+    }
+
+    it("clears container linkage when moving a contained device to another rack", () => {
+      const { childType, childIndex } = placeContainedChild();
+
+      const result = store.moveDeviceToRack(
+        rackA.id,
+        childIndex,
+        rackB.id,
+        10,
+        "front",
+      );
+
+      expect(result).toBe(true);
+      const moved = findDevice(store.getRackById(rackB.id)!, childType.slug);
+      expect(moved).toBeDefined();
+      expect(moved!.container_id).toBeUndefined();
+      expect(moved!.slot_id).toBeUndefined();
+      expect(moved!.position).toBe(toInternalUnits(10));
+    });
+
+    it("undo restores a moved contained device into its original container", () => {
+      const { container, childType, childIndex } = placeContainedChild();
+
+      store.moveDeviceToRack(rackA.id, childIndex, rackB.id, 10, "front");
+      store.undo();
+
+      expect(
+        findDevice(store.getRackById(rackB.id)!, childType.slug),
+      ).toBeUndefined();
+      const restored = findDevice(store.getRackById(rackA.id)!, childType.slug);
+      expect(restored).toBeDefined();
+      expect(restored!.container_id).toBe(container.id);
+      expect(restored!.slot_id).toBe("slot-left");
+      expect(restored!.position).toBe(0);
     });
   });
 });

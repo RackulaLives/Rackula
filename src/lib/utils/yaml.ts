@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * YAML Serialization Utilities
  * For folder-based project format
@@ -342,6 +341,9 @@ export async function serializeLayoutToYamlWithMetadata(
 function toRuntimeLayout(parsed: LayoutZod): Layout {
   return {
     ...parsed,
+    // Very old layouts may omit version; treat them as pre-0.7.0
+    // (matches needsPositionMigration, which treats missing version as legacy)
+    version: parsed.version ?? "0.0.0",
     racks: parsed.racks.map((rack) => ({
       ...rack,
       // Older/legacy inputs can omit width in transformed type inference.

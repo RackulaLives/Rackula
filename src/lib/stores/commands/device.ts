@@ -333,12 +333,18 @@ export function createCrossRackMoveCommand(
   const parentCopy = structuredClone(parentDevice);
   const childrenCopies = children.map((c) => structuredClone(c));
 
-  // Build the placed device for the target rack (updated position/face/slot)
+  // Build the placed device for the target rack (updated position/face/slot).
+  // Clear container linkage: the moved device's own container never moves with
+  // it (the move set is the device plus its children), so container_id/slot_id
+  // would point at a container that only exists in the source rack. parentCopy
+  // keeps the original linkage so undo restores the device into its container.
   const placedParent: PlacedDevice = {
     ...parentCopy,
     position: targetPosition,
     face,
     slot_position: slotPosition ?? parentCopy.slot_position ?? "full",
+    container_id: undefined,
+    slot_id: undefined,
   };
 
   // Children inherit the parent's new face and keep their relative positions

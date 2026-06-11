@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Rack Context Menu Actions
  * Factory for context menu handlers, extracted from Rack.svelte.
@@ -67,7 +66,7 @@ export function createContextMenuActions(
     }
   }
 
-  function handleDuplicate(rack: RackType, target: ContextMenuTarget): void {
+  function handleDuplicate(_rack: RackType, target: ContextMenuTarget): void {
     const { rackId, deviceIndex } = target;
     const result = layoutStore.duplicateDevice(rackId, deviceIndex);
     if (result.error) {
