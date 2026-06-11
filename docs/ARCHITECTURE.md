@@ -196,15 +196,6 @@ mismatched releases (e.g. a stale `:persist` image, as in discussion #1563).
 | `docs/guides/ACCESSIBILITY.md`      | A11y compliance checklist                |
 | `docs/planning/ROADMAP.md`          | Version planning and vision              |
 
-### Design Plans
-
-Active design documents for features in development:
-
-| Document                                                      | Purpose                                    |
-| ------------------------------------------------------------- | ------------------------------------------ |
-| `docs/plans/2026-01-20-device-metadata-persistence-design.md` | Device IP/notes persistence fix (#859)     |
-| `docs/plans/2026-01-20-persistent-storage-design.md`          | Self-hosted persistence API implementation |
-
 ## See Also
 
 - `CLAUDE.md` - Claude Code development instructions
