@@ -2151,6 +2151,57 @@ describe("Layout Store", () => {
 
       expect(success).toBe(false);
     });
+
+    it("places child when container type is missing from layout but resolvable globally (#2127)", () => {
+      const store = getLayoutStore();
+
+      // Load a layout where the container device references a starter
+      // library type that is NOT embedded in layout.device_types
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Container Lookup Test",
+        racks: [
+          {
+            id: "rack-1",
+            name: "Test Rack",
+            height: 42,
+            width: 19,
+            desc_units: false,
+            form_factor: "4-post-cabinet",
+            starting_unit: 1,
+            position: 0,
+            devices: [
+              {
+                id: "container-1",
+                device_type: "shelf-1u-2slot", // starter library container
+                position: 60,
+                face: "front" as const,
+              },
+            ],
+          },
+        ],
+        device_types: [],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      const success = store.placeInContainer(
+        "rack-1",
+        "generic-mini-pc", // starter library mini device
+        "container-1",
+        "left",
+        0,
+      );
+
+      expect(success).toBe(true);
+      const child = store.layout.racks[0]!.devices.find(
+        (d) => d.container_id === "container-1",
+      );
+      expect(child).toBeDefined();
+      expect(child!.slot_id).toBe("left");
+    });
   });
 
   describe("placeDevice with brand pack devices", () => {

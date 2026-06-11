@@ -172,8 +172,9 @@ export function placeInContainer(
   const layout = ctx.getLayout();
 
   // Find device types
-  const containerType = layout.device_types.find(
-    (d) => d.slug === container.device_type,
+  const containerType = findDeviceType(
+    container.device_type,
+    layout.device_types,
   );
   const childType = findDeviceType(deviceTypeSlug, layout.device_types);
 
