@@ -43,6 +43,13 @@ export const LOGO_SLOTS: readonly LogoSlot[] = [
 
 export const LOGO_SLOT_RADIUS = 2;
 
+/**
+ * Builds a rounded-rectangle SVG subpath for a single device slot.
+ *
+ * The generated path uses `M`/`h`/`q`/`v` commands and closes with `Z`.
+ * These slot subpaths are appended to `LOGO_OUTLINE` in `LOGO_PATH` and
+ * rendered with `fill-rule="evenodd"` so the slots appear as punched-out holes.
+ */
 function slotSubpath({ x, y, width, height }: LogoSlot): string {
 	const r = LOGO_SLOT_RADIUS;
 	const w = width - 2 * r;
