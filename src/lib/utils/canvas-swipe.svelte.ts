@@ -240,6 +240,10 @@ export function createRackSwipeController(
     handleTouchEnd,
     handleTouchCancel,
     dispose() {
+      // Invalidate any microtask still queued by triggerSwipeAnimation so it
+      // no-ops on its epoch guard instead of writing state or scheduling a new
+      // timer after teardown.
+      animationEpoch++;
       if (animationTimeout) {
         clearTimeout(animationTimeout);
         animationTimeout = null;
