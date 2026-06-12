@@ -65,4 +65,17 @@ describe("successful save epilogue", () => {
 
     expect(layoutStore.isDirty).toBe(true);
   });
+
+  it("records server health but preserves dirty state on a stale save", () => {
+    const layoutStore = getLayoutStore();
+    // A prior failure leaves a counter and error toast behind.
+    handlePersistenceError(new PersistenceError("boom", 503), true);
+    layoutStore.markDirty();
+
+    // Stale completion: the save succeeded, but newer edits arrived in flight.
+    finalizeSuccessfulSave(false);
+
+    expect(getConsecutiveSaveFailures()).toBe(0); // server health recorded
+    expect(layoutStore.isDirty).toBe(true); // newer unsaved edits preserved
+  });
 });

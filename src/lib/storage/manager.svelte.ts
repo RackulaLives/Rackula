@@ -34,6 +34,12 @@ let _errorToastId: string | undefined = undefined;
 let serverSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+// Bumped on every auto-save effect run. A debounced save captures the id at
+// schedule time; if a newer run bumps it while the save is in flight, the live
+// layout has edits this save did not persist, so its success must not clear the
+// dirty/session state for those newer edits.
+let _serverSaveScheduleId = 0;
+
 // After a durable save the pending session debounce must be cancelled, or it
 // resurrects the cleared session copy and triggers a false unload warning
 function cancelSessionSave(): void {
@@ -86,19 +92,26 @@ export function getStorageChipState() {
 // auto-save paths must leave the layout in the same state after a durable
 // server save - clean, failure counter reset, API marked available, session
 // cleared, and any lingering error toast dismissed.
-export function finalizeSuccessfulSave(): void {
+//
+// clearDirtyState is false for a stale debounced save: the save succeeded (so
+// the server is healthy and the failure counter/error toast clear), but newer
+// unsaved edits exist, so dirty and session state must be preserved for the
+// follow-up save.
+export function finalizeSuccessfulSave(clearDirtyState = true): void {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
   _consecutiveSaveFailures = 0;
   setApiAvailable(true);
-  _saveStatus = "saved";
   if (_errorToastId) {
     toastStore.dismissToast(_errorToastId);
     _errorToastId = undefined;
   }
-  layoutStore.markClean();
-  cancelSessionSave();
-  clearSession();
+  if (clearDirtyState) {
+    _saveStatus = "saved";
+    layoutStore.markClean();
+    cancelSessionSave();
+    clearSession();
+  }
 }
 
 function handleSaveFailure(
@@ -294,6 +307,9 @@ export function initPersistenceEffects(): void {
 
   // Effect 2: Auto-save to server when API is available
   $effect(() => {
+    // Capture this run's schedule id; a later run (e.g. an edit during the
+    // in-flight save) bumps it and marks an earlier save's success stale.
+    const scheduleId = ++_serverSaveScheduleId;
     if (!isApiAvailable()) return;
     if (_consecutiveSaveFailures >= MAX_SAVE_FAILURES) return;
     const layout = layoutStore.layout;
@@ -314,7 +330,9 @@ export function initPersistenceEffects(): void {
       _saveStatus = "saving";
       try {
         await saveLayoutToServer(snapshot);
-        finalizeSuccessfulSave();
+        // Only clear dirty/session state if no newer save was scheduled while
+        // this one was in flight; otherwise newer unsaved edits exist.
+        finalizeSuccessfulSave(scheduleId === _serverSaveScheduleId);
       } catch (e) {
         persistenceDebug.api("Auto-save failed: %O", e);
         handlePersistenceError(e);
