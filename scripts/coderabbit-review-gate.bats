@@ -31,9 +31,9 @@ make_stub() {
   chmod +x "$STUB"
 }
 
-@test "clean review (empty findings) allows the push" {
+@test "clean review (zero findings) allows the push" {
   make_stub '{"type":"heartbeat","status":"reviewing"}
-{"type":"complete","status":"review_completed","findings":[]}' 0
+{"type":"complete","status":"review_completed","findings":0}' 0
   run env CODERABBIT_BIN="$STUB" "$GATE"
   [ "$status" -eq 0 ]
   [[ "$output" == *"No findings"* ]]
@@ -55,7 +55,9 @@ make_stub() {
 }
 
 @test "real findings block the push and surface each finding" {
-  make_stub '{"type":"complete","status":"review_completed","findings":[{"file":"src/foo.ts","line":42,"title":"possible null deref"},{"path":"src/bar.ts","message":"unused import"}]}' 0
+  make_stub '{"type":"finding","severity":"major","fileName":"src/foo.ts","line":42,"codegenInstructions":"possible null deref"}
+{"type":"finding","severity":"minor","fileName":"src/bar.ts","codegenInstructions":"unused import"}
+{"type":"complete","status":"review_completed","findings":2}' 0
   run env CODERABBIT_BIN="$STUB" "$GATE"
   [ "$status" -eq 1 ]
   [[ "$output" == *"2 issue"* ]]
@@ -66,12 +68,41 @@ make_stub() {
   [[ "$output" == *"unused import"* ]]
 }
 
-@test "findings with an unfamiliar shape still surface as raw JSON" {
-  make_stub '{"type":"complete","status":"review_completed","findings":[{"weird":"x","nested":{"y":1}}]}' 0
+@test "finding count is derived from events even if complete count disagrees" {
+  make_stub '{"type":"finding","severity":"major","fileName":"src/foo.ts","line":1,"codegenInstructions":"bug one"}
+{"type":"finding","severity":"major","fileName":"src/bar.ts","line":2,"codegenInstructions":"bug two"}
+{"type":"finding","severity":"major","fileName":"src/baz.ts","line":3,"codegenInstructions":"bug three"}
+{"type":"complete","status":"review_completed","findings":3}' 0
+  run env CODERABBIT_BIN="$STUB" "$GATE"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"3 issue"* ]]
+  [[ "$output" == *"bug one"* ]]
+  [[ "$output" == *"bug two"* ]]
+  [[ "$output" == *"bug three"* ]]
+}
+
+@test "findings with an unfamiliar shape still surface" {
+  make_stub '{"type":"finding","weird":"x","nested":{"y":1}}
+{"type":"complete","status":"review_completed","findings":1}' 0
   run env CODERABBIT_BIN="$STUB" "$GATE"
   [ "$status" -eq 1 ]
   [[ "$output" == *"1 issue"* ]]
   [[ "$output" == *"weird"* ]]
+}
+
+@test "positive complete count with no finding events blocks without faking detail" {
+  make_stub '{"type":"complete","status":"review_completed","findings":4}' 0
+  run env CODERABBIT_BIN="$STUB" "$GATE"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"4 issue"* ]]
+  [[ "$output" == *"emitted no detail"* ]]
+}
+
+@test "string-typed complete count still blocks the push" {
+  make_stub '{"type":"complete","status":"review_completed","findings":"4"}' 0
+  run env CODERABBIT_BIN="$STUB" "$GATE"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"4 issue"* ]]
 }
 
 @test "non-recoverable error blocks the push (fail-safe)" {

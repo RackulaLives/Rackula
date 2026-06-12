@@ -3,11 +3,13 @@
 # errors apart from real review findings.
 #
 # Runs `coderabbit review --agent` (NDJSON output) and decides whether to block
-# the push by inspecting the emitted events:
+# the push by inspecting the emitted events. The CLI emits one event per finding
+# and a terminal "complete" event whose `findings` field is the COUNT:
 #
-#   {"type":"complete","status":"review_completed","findings":[...]}
-#       findings == []  -> clean pass        (exit 0)
-#       findings != []  -> real findings     (exit 1, BLOCK)
+#   {"type":"finding","severity":"major","fileName":"...","codegenInstructions":"..."}
+#   {"type":"complete","status":"review_completed","findings":<count>}
+#       count == 0  -> clean pass            (exit 0)
+#       count  > 0  -> real findings         (exit 1, BLOCK)
 #
 #   {"type":"error","errorType":"rate_limit","recoverable":true,...}
 #   {"type":"error","recoverable":true,...}        (any recoverable error)
@@ -63,19 +65,39 @@ fi
 decision=""
 note=""
 
-# Pull the terminal complete event, if any (last one wins). Keep the whole event
-# object so its findings can be surfaced verbatim when the push is blocked.
+# Pull the terminal complete event, if any (last one wins). Its presence is what
+# distinguishes a finished review from an interrupted/transient one.
 complete_event="$(printf '%s\n' "$output" \
   | jq -rc 'select(type=="object" and .type=="complete" and .status=="review_completed")' 2>/dev/null \
   | tail -n1)"
-complete_findings="$(printf '%s\n' "$complete_event" | jq -r '.findings | length' 2>/dev/null)"
 
-if [ -n "$complete_findings" ]; then
-  if [ "$complete_findings" -eq 0 ] 2>/dev/null; then
-    decision="pass"
-  else
+# Collect the per-finding events. The CLI emits each finding as its own event;
+# the complete event only carries a count. Count and render from these.
+finding_events="$(printf '%s\n' "$output" \
+  | jq -rc 'select(type=="object" and .type=="finding")' 2>/dev/null)"
+finding_count="$(printf '%s\n' "$finding_events" | grep -c '[^[:space:]]')"
+
+# Read the complete event's count (normally the integer 8, but tolerate a numeric
+# string too). This is a safety net so we never pass when the terminal event
+# reports findings but the individual finding events were missed: blocking on a
+# bad parse is safer than allowing a push past real findings.
+complete_count="$(printf '%s\n' "$complete_event" \
+  | jq -r '
+      .findings as $f
+      | if ($f | type) == "number" then $f
+        elif ($f | type) == "string" and ($f | test("^[0-9]+$")) then ($f | tonumber)
+        else 0 end' 2>/dev/null)"
+# Guarantee a clean integer so the arithmetic tests below cannot error.
+case "$complete_count" in
+  '' | *[!0-9]*) complete_count=0 ;;
+esac
+
+if [ -n "$complete_event" ]; then
+  if [ "$finding_count" -gt 0 ] || [ "$complete_count" -gt 0 ]; then
     decision="findings"
-    note="$complete_findings"
+    if [ "$finding_count" -gt 0 ]; then note="$finding_count"; else note="$complete_count"; fi
+  else
+    decision="pass"
   fi
 fi
 
@@ -115,21 +137,28 @@ case "$decision" in
     echo "CodeRabbit found ${note} issue(s). Push blocked." >&2
     echo "" >&2
     # Surface the actual findings, not just the count, so the developer can act
-    # on them without re-running the review (restores the pre-extraction hook
-    # behaviour). Best-effort render of common fields; fall back to the raw
-    # finding JSON when the shape is unfamiliar.
-    rendered="$(printf '%s\n' "$complete_event" | jq -r '
-        .findings[]
-        | "  - "
-          + (((.file // .path // .location.path) // "?") | tostring)
-          + (((.line // .location.line)) as $l | if $l != null then ":" + ($l | tostring) else "" end)
-          + "  "
-          + (((.title // .message // .description // .body) // (. | tojson)) | tostring)
+    # on them without re-running the review. Render each finding event as
+    # "severity file:line  summary". codegenInstructions can be long/multi-line,
+    # so collapse whitespace and trim. Fall back to raw JSON for unfamiliar shapes.
+    rendered="$(printf '%s\n' "$finding_events" | jq -r '
+        "  - "
+        + (if .severity then "[" + (.severity | tostring) + "] " else "" end)
+        + (((.fileName // .file // .path // .location.path) // "?") | tostring)
+        + (((.line // .location.line)) as $l | if $l != null then ":" + ($l | tostring) else "" end)
+        + "  "
+        + (((.codegenInstructions // .title // .message // .description // .body) // (. | tojson))
+            | tostring | gsub("\\s+"; " ") | .[0:200])
       ' 2>/dev/null)"
     if [ -n "$rendered" ]; then
       printf '%s\n' "$rendered" >&2
+    elif [ -n "${finding_events//[$'\t\r\n ']/}" ]; then
+      # Render failed but we have the raw events; dump them verbatim.
+      printf '%s\n' "$finding_events" >&2
     else
-      printf '%s\n' "$complete_event" | jq -rc '.findings[]' 2>/dev/null >&2
+      # The terminal count reported findings but no per-finding events were
+      # captured. Don't pretend to list them; point at the re-run instead.
+      echo "  (the review reported findings but emitted no detail to display;" >&2
+      echo "   re-run 'coderabbit review --agent --type committed --base ${base}' to see them)" >&2
     fi
     echo "" >&2
     echo "Fix the issues above or use 'git push --no-verify' to skip." >&2
