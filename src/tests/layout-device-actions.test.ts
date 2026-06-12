@@ -5,6 +5,7 @@ import {
   setupStoreWithDevice,
   createTestDevice,
   createTestDeviceType,
+  createTestDeviceTypeInput,
 } from "./factories";
 
 describe("Layout Store", () => {
@@ -17,12 +18,14 @@ describe("Layout Store", () => {
     it("adds device to rack at position", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Test Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Server",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.markClean();
 
       const result = store.placeDevice(rack!.id, deviceType.slug, 5);
@@ -38,12 +41,14 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
       // Device without is_full_depth specified defaults to full-depth
-      const deviceType = store.addDeviceType({
-        name: "Test",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
       // Full-depth devices default to 'both' face (visible front and rear)
       expect(store.rack.devices[0]!.face).toBe("both");
@@ -53,13 +58,15 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
       // Half-depth device can be explicitly placed on rear
-      const deviceType = store.addDeviceType({
-        name: "Rear Panel",
-        u_height: 1,
-        category: "patch-panel",
-        colour: "#4A90D9",
-        is_full_depth: false,
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Rear Panel",
+          u_height: 1,
+          category: "patch-panel",
+          colour: "#4A90D9",
+          is_full_depth: false,
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5, "rear");
       expect(store.rack.devices[0]!.face).toBe("rear");
     });
@@ -67,12 +74,14 @@ describe("Layout Store", () => {
     it("places device with specified both face", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Test",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5, "both");
       expect(store.rack.devices[0]!.face).toBe("both");
     });
@@ -80,20 +89,24 @@ describe("Layout Store", () => {
     it("returns false for invalid position (collision)", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Test",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
 
-      const deviceType2 = store.addDeviceType({
-        name: "Another",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType2 = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Another",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
 
       // device at 5 occupies 5,6. Position 6 would collide.
       const result = store.placeDevice(rack!.id, deviceType2.slug, 6);
@@ -105,12 +118,14 @@ describe("Layout Store", () => {
     it("returns false for invalid position (exceeds rack)", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Test",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       // 2U device at position 42 would occupy 42,43 but rack only has 42
       const result = store.placeDevice(rack!.id, deviceType.slug, 42);
       expect(result).toBe(false);
@@ -119,12 +134,14 @@ describe("Layout Store", () => {
     it("returns false for position less than 1", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Test",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       const result = store.placeDevice(rack!.id, deviceType.slug, 0);
       expect(result).toBe(false);
     });
@@ -132,12 +149,14 @@ describe("Layout Store", () => {
     it("sets isDirty to true on success", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Test",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.markClean();
       expect(store.isDirty).toBe(false);
       store.placeDevice(rack!.id, deviceType.slug, 5);
@@ -149,12 +168,14 @@ describe("Layout Store", () => {
     it("updates device position within rack", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Test",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
       store.markClean();
 
@@ -166,20 +187,24 @@ describe("Layout Store", () => {
     it("returns false for collision", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Test",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
 
-      const deviceType2 = store.addDeviceType({
-        name: "Another",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType2 = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Another",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType2.slug, 10);
 
       // Try to move first device to 10 (would collide with second device)
@@ -191,12 +216,14 @@ describe("Layout Store", () => {
     it("sets isDirty to true on success", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Test",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
       store.markClean();
       expect(store.isDirty).toBe(false);
@@ -209,12 +236,14 @@ describe("Layout Store", () => {
     it("delegates to moveDevice for same-rack moves", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Only Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Test",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
       store.markClean();
 
@@ -229,12 +258,14 @@ describe("Layout Store", () => {
     it("removes device from rack", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Test",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
 
       expect(
@@ -247,12 +278,14 @@ describe("Layout Store", () => {
     it("sets isDirty to true", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Test",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
       store.markClean();
 
@@ -265,12 +298,14 @@ describe("Layout Store", () => {
     it("updates placed device name", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Generic Server",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
 
       // Device should not have a custom name initially
@@ -284,12 +319,14 @@ describe("Layout Store", () => {
     it("clears custom name when set to undefined", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Generic Server",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
 
       // Set a custom name first
@@ -304,12 +341,14 @@ describe("Layout Store", () => {
     it("clears custom name when set to empty string", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Generic Server",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
 
       store.updateDeviceName(rack!.id, 0, "Primary DB Server");
@@ -320,12 +359,14 @@ describe("Layout Store", () => {
     it("sets isDirty to true", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Generic Server",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
       store.markClean();
 
@@ -336,12 +377,14 @@ describe("Layout Store", () => {
     it("supports undo/redo for name changes", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Generic Server",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
 
       // Set a custom name
@@ -360,12 +403,14 @@ describe("Layout Store", () => {
     it("preserves name through multiple updates with undo", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const deviceType = store.addDeviceType({
-        name: "Generic Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Generic Server",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 5);
 
       store.updateDeviceName(rack!.id, 0, "First Name");
@@ -550,13 +595,15 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Add half-depth device type
-      const halfDepthType = store.addDeviceType({
-        name: "Half-Depth Device",
-        u_height: 1,
-        category: "blank",
-        colour: "#2F4F4F",
-        is_full_depth: false,
-      });
+      const halfDepthType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Half-Depth Device",
+          u_height: 1,
+          category: "blank",
+          colour: "#2F4F4F",
+          is_full_depth: false,
+        }),
+      );
 
       // Place on front at U5
       const result1 = store.placeDevice(
@@ -589,22 +636,26 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Add full-depth device type (default)
-      const fullDepthType = store.addDeviceType({
-        name: "Full-Depth Server",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-        // is_full_depth defaults to true
-      });
+      const fullDepthType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Full-Depth Server",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+          // is_full_depth defaults to true
+        }),
+      );
 
       // Add half-depth device type
-      const halfDepthType = store.addDeviceType({
-        name: "Half-Depth Blank",
-        u_height: 1,
-        category: "blank",
-        colour: "#2F4F4F",
-        is_full_depth: false,
-      });
+      const halfDepthType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Half-Depth Blank",
+          u_height: 1,
+          category: "blank",
+          colour: "#2F4F4F",
+          is_full_depth: false,
+        }),
+      );
 
       // Place full-depth on front at U5
       const result1 = store.placeDevice(
@@ -634,21 +685,25 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Add half-depth device type
-      const halfDepthType = store.addDeviceType({
-        name: "Half-Depth Blank",
-        u_height: 1,
-        category: "blank",
-        colour: "#2F4F4F",
-        is_full_depth: false,
-      });
+      const halfDepthType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Half-Depth Blank",
+          u_height: 1,
+          category: "blank",
+          colour: "#2F4F4F",
+          is_full_depth: false,
+        }),
+      );
 
       // Add full-depth device type
-      const fullDepthType = store.addDeviceType({
-        name: "Full-Depth Server",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const fullDepthType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Full-Depth Server",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
 
       // Place half-depth on front at U5
       const result1 = store.placeDevice(
@@ -680,13 +735,15 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Add half-depth device type
-      const halfDepthType = store.addDeviceType({
-        name: "Half-Depth Device",
-        u_height: 1,
-        category: "blank",
-        colour: "#2F4F4F",
-        is_full_depth: false,
-      });
+      const halfDepthType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Half-Depth Device",
+          u_height: 1,
+          category: "blank",
+          colour: "#2F4F4F",
+          is_full_depth: false,
+        }),
+      );
 
       // Place on front at U5
       store.placeDevice(rack!.id, halfDepthType.slug, 5, "front");
@@ -711,21 +768,25 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Add full-depth device type
-      const fullDepthType = store.addDeviceType({
-        name: "Full-Depth Server",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const fullDepthType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Full-Depth Server",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
 
       // Add half-depth device type
-      const halfDepthType = store.addDeviceType({
-        name: "Half-Depth Blank",
-        u_height: 1,
-        category: "blank",
-        colour: "#2F4F4F",
-        is_full_depth: false,
-      });
+      const halfDepthType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Half-Depth Blank",
+          u_height: 1,
+          category: "blank",
+          colour: "#2F4F4F",
+          is_full_depth: false,
+        }),
+      );
 
       // Place full-depth on front at U5
       store.placeDevice(rack!.id, fullDepthType.slug, 5, "front");
@@ -748,12 +809,14 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Add 0.5U device type
-      const halfUType = store.addDeviceType({
-        name: "0.5U Device",
-        u_height: 0.5,
-        category: "blank",
-        colour: "#2F4F4F",
-      });
+      const halfUType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "0.5U Device",
+          u_height: 0.5,
+          category: "blank",
+          colour: "#2F4F4F",
+        }),
+      );
 
       // Place at position 1
       const placed = store.placeDevice(rack!.id, halfUType.slug, 1, "front");
@@ -771,12 +834,14 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Add 0.5U device type
-      const halfUType = store.addDeviceType({
-        name: "0.5U Device",
-        u_height: 0.5,
-        category: "blank",
-        colour: "#2F4F4F",
-      });
+      const halfUType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "0.5U Device",
+          u_height: 0.5,
+          category: "blank",
+          colour: "#2F4F4F",
+        }),
+      );
 
       // Place at position 1.5
       const placed = store.placeDevice(rack!.id, halfUType.slug, 1.5, "front");
@@ -793,12 +858,14 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Add 0.5U device type
-      const halfUType = store.addDeviceType({
-        name: "0.5U Device",
-        u_height: 0.5,
-        category: "blank",
-        colour: "#2F4F4F",
-      });
+      const halfUType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "0.5U Device",
+          u_height: 0.5,
+          category: "blank",
+          colour: "#2F4F4F",
+        }),
+      );
 
       // Place at position 42
       store.placeDevice(rack!.id, halfUType.slug, 42, "front");
@@ -813,12 +880,14 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Add 1U device type (collision detection works correctly for 1U)
-      const oneUType = store.addDeviceType({
-        name: "1U Device",
-        u_height: 1,
-        category: "blank",
-        colour: "#2F4F4F",
-      });
+      const oneUType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "1U Device",
+          u_height: 1,
+          category: "blank",
+          colour: "#2F4F4F",
+        }),
+      );
 
       // Place first device at U5
       store.placeDevice(rack!.id, oneUType.slug, 5, "front");
@@ -836,12 +905,14 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Add 0.5U device type
-      const halfUType = store.addDeviceType({
-        name: "0.5U Device",
-        u_height: 0.5,
-        category: "blank",
-        colour: "#2F4F4F",
-      });
+      const halfUType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "0.5U Device",
+          u_height: 0.5,
+          category: "blank",
+          colour: "#2F4F4F",
+        }),
+      );
 
       // Place first device at U5
       store.placeDevice(rack!.id, halfUType.slug, 5, "front");
@@ -862,12 +933,14 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Add a device type and place it
-      const deviceType = store.addDeviceType({
-        name: "Test Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Server",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 10, "front");
 
       // Set a custom name on the device
@@ -888,13 +961,15 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Create a half-depth device (is_full_depth: false) to test face inheritance
-      const deviceType = store.addDeviceType({
-        name: "Test Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-        is_full_depth: false, // Half-depth allows explicit face
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Server",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+          is_full_depth: false, // Half-depth allows explicit face
+        }),
+      );
       // Place at U10 (occupies U10-U11) on front face
       store.placeDevice(rack!.id, deviceType.slug, 10, "front");
 
@@ -912,12 +987,14 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
 
-      const deviceType = store.addDeviceType({
-        name: "Small Server",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Small Server",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       // Place at U10
       store.placeDevice(rack!.id, deviceType.slug, 10, "front");
 
@@ -934,12 +1011,14 @@ describe("Layout Store", () => {
       // Create a tiny 2U rack
       const rack = store.addRack("Tiny Rack", 2);
 
-      const deviceType = store.addDeviceType({
-        name: "2U Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "2U Server",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       // Fill the rack completely
       store.placeDevice(rack!.id, deviceType.slug, 1, "front");
 
@@ -975,12 +1054,14 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
 
-      const deviceType = store.addDeviceType({
-        name: "Test Server",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Server",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 10, "front");
 
       // Set a colour override and capture it for comparison
@@ -1001,12 +1082,14 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
 
-      const deviceType = store.addDeviceType({
-        name: "Test Server",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Server",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.placeDevice(rack!.id, deviceType.slug, 10, "front");
 
       // Clear history for clean test
@@ -1033,32 +1116,36 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Create container type with slots
-      const containerType = store.addDeviceType({
-        name: "Test Shelf",
-        u_height: 2,
-        category: "server",
-        colour: "#8B4513",
-        slots: [
-          {
-            id: "slot-left",
-            position: { row: 0, col: 0 },
-            width_fraction: 0.5,
-          },
-          {
-            id: "slot-right",
-            position: { row: 0, col: 1 },
-            width_fraction: 0.5,
-          },
-        ],
-      });
-      const childType = store.addDeviceType({
-        name: "Mini PC",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-        slot_width: 1, // Half-width device fits in 0.5 fraction slot
-        is_full_depth: false, // Half-width devices must be half-depth
-      });
+      const containerType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Shelf",
+          u_height: 2,
+          category: "server",
+          colour: "#8B4513",
+          slots: [
+            {
+              id: "slot-left",
+              position: { row: 0, col: 0 },
+              width_fraction: 0.5,
+            },
+            {
+              id: "slot-right",
+              position: { row: 0, col: 1 },
+              width_fraction: 0.5,
+            },
+          ],
+        }),
+      );
+      const childType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Mini PC",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+          slot_width: 1, // Half-width device fits in 0.5 fraction slot
+          is_full_depth: false, // Half-width devices must be half-depth
+        }),
+      );
 
       // Place container at rack level
       store.placeDevice(rack!.id, containerType.slug, 10);
@@ -1083,12 +1170,14 @@ describe("Layout Store", () => {
     it("returns false when container not found", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
-      const childType = store.addDeviceType({
-        name: "Mini PC",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const childType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Mini PC",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
 
       const success = store.placeInContainer(
         rack!.id,
@@ -1106,28 +1195,32 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Create half-depth container so we can set explicit face
-      const containerType = store.addDeviceType({
-        name: "Test Shelf",
-        u_height: 2,
-        category: "server",
-        colour: "#8B4513",
-        is_full_depth: false,
-        slots: [
-          {
-            id: "slot-left",
-            position: { row: 0, col: 0 },
-            width_fraction: 0.5,
-          },
-        ],
-      });
-      const childType = store.addDeviceType({
-        name: "Mini PC",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-        slot_width: 1, // Half-width device fits in 0.5 fraction slot
-        is_full_depth: false, // Half-width devices must be half-depth
-      });
+      const containerType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Shelf",
+          u_height: 2,
+          category: "server",
+          colour: "#8B4513",
+          is_full_depth: false,
+          slots: [
+            {
+              id: "slot-left",
+              position: { row: 0, col: 0 },
+              width_fraction: 0.5,
+            },
+          ],
+        }),
+      );
+      const childType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Mini PC",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+          slot_width: 1, // Half-width device fits in 0.5 fraction slot
+          is_full_depth: false, // Half-width devices must be half-depth
+        }),
+      );
 
       // Place container on rear face
       store.placeDevice(rack!.id, containerType.slug, 10, "rear");
@@ -1151,27 +1244,31 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
 
-      const containerType = store.addDeviceType({
-        name: "Test Shelf",
-        u_height: 2,
-        category: "server",
-        colour: "#8B4513",
-        slots: [
-          {
-            id: "slot-left",
-            position: { row: 0, col: 0 },
-            width_fraction: 0.5,
-          },
-        ],
-      });
-      const childType = store.addDeviceType({
-        name: "Mini PC",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-        slot_width: 1, // Half-width device fits in 0.5 fraction slot
-        is_full_depth: false, // Half-width devices must be half-depth
-      });
+      const containerType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Shelf",
+          u_height: 2,
+          category: "server",
+          colour: "#8B4513",
+          slots: [
+            {
+              id: "slot-left",
+              position: { row: 0, col: 0 },
+              width_fraction: 0.5,
+            },
+          ],
+        }),
+      );
+      const childType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Mini PC",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+          slot_width: 1, // Half-width device fits in 0.5 fraction slot
+          is_full_depth: false, // Half-width devices must be half-depth
+        }),
+      );
 
       store.placeDevice(rack!.id, containerType.slug, 10);
       const container = store.activeRack!.devices[0]!;
@@ -1202,12 +1299,14 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       store.addRack("Test Rack", 42);
 
-      const childType = store.addDeviceType({
-        name: "Mini PC",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      const childType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Mini PC",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
 
       const success = store.placeInContainer(
         "nonexistent-rack",
@@ -1224,19 +1323,21 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
 
-      const containerType = store.addDeviceType({
-        name: "Test Shelf",
-        u_height: 2,
-        category: "server",
-        colour: "#8B4513",
-        slots: [
-          {
-            id: "slot-left",
-            position: { row: 0, col: 0 },
-            width_fraction: 0.5,
-          },
-        ],
-      });
+      const containerType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Shelf",
+          u_height: 2,
+          category: "server",
+          colour: "#8B4513",
+          slots: [
+            {
+              id: "slot-left",
+              position: { row: 0, col: 0 },
+              width_fraction: 0.5,
+            },
+          ],
+        }),
+      );
 
       store.placeDevice(rack!.id, containerType.slug, 10);
       const container = store.activeRack!.devices[0]!;
@@ -1474,13 +1575,15 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Create a full-depth device type
-      const deviceType = store.addDeviceType({
-        name: "Full Depth Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-        is_full_depth: true,
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Full Depth Server",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+          is_full_depth: true,
+        }),
+      );
 
       store.placeDevice(rack!.id, deviceType.slug, 5);
       expect(store.rack.devices[0]!.face).toBe("both");
@@ -1491,13 +1594,15 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Create a half-depth device type
-      const deviceType = store.addDeviceType({
-        name: "Half Depth Switch",
-        u_height: 1,
-        category: "network",
-        colour: "#7B68EE",
-        is_full_depth: false,
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Half Depth Switch",
+          u_height: 1,
+          category: "network",
+          colour: "#7B68EE",
+          is_full_depth: false,
+        }),
+      );
 
       store.placeDevice(rack!.id, deviceType.slug, 5);
       expect(store.rack.devices[0]!.face).toBe("front");
@@ -1508,13 +1613,15 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Create device without is_full_depth specified (defaults to full depth)
-      const deviceType = store.addDeviceType({
-        name: "Default Depth Device",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-        // is_full_depth not specified
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Default Depth Device",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+          // is_full_depth not specified
+        }),
+      );
 
       store.placeDevice(rack!.id, deviceType.slug, 5);
       expect(store.rack.devices[0]!.face).toBe("both");
@@ -1526,13 +1633,15 @@ describe("Layout Store", () => {
 
       // Full-depth devices physically occupy both front and rear
       // Even if 'front' is passed (e.g., from RackDualView drop), it should be 'both'
-      const deviceType = store.addDeviceType({
-        name: "Full Depth Server",
-        u_height: 2,
-        category: "server",
-        colour: "#4A90D9",
-        is_full_depth: true,
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Full Depth Server",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+          is_full_depth: true,
+        }),
+      );
 
       store.placeDevice(rack!.id, deviceType.slug, 5, "front");
       // Full-depth devices ALWAYS use 'both' regardless of passed face
@@ -1544,13 +1653,15 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Half-depth devices can be front-mounted or rear-mounted
-      const deviceType = store.addDeviceType({
-        name: "Patch Panel",
-        u_height: 1,
-        category: "patch-panel",
-        colour: "#7B68EE",
-        is_full_depth: false,
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Patch Panel",
+          u_height: 1,
+          category: "patch-panel",
+          colour: "#7B68EE",
+          is_full_depth: false,
+        }),
+      );
 
       // Explicitly place on rear
       store.placeDevice(rack!.id, deviceType.slug, 5, "rear");
@@ -1564,12 +1675,14 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Create a custom 4U device
-      const deviceType = store.addDeviceType({
-        name: "RACKOWL 4U Server",
-        u_height: 4,
-        category: "server",
-        colour: "#3b82f6",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "RACKOWL 4U Server",
+          u_height: 4,
+          category: "server",
+          colour: "#3b82f6",
+        }),
+      );
 
       // Verify the device type was created with correct u_height
       expect(deviceType.u_height).toBe(4);
@@ -1593,23 +1706,27 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Create a custom 2U device
-      const deviceType = store.addDeviceType({
-        name: "Custom 2U Server",
-        u_height: 2,
-        category: "server",
-        colour: "#ef4444",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Custom 2U Server",
+          u_height: 2,
+          category: "server",
+          colour: "#ef4444",
+        }),
+      );
 
       // Place at position 10 (should occupy 10-11)
       store.placeDevice(rack!.id, deviceType.slug, 10);
 
       // Create another 1U device
-      const otherDevice = store.addDeviceType({
-        name: "Other Device",
-        u_height: 1,
-        category: "server",
-        colour: "#22c55e",
-      });
+      const otherDevice = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Other Device",
+          u_height: 1,
+          category: "server",
+          colour: "#22c55e",
+        }),
+      );
 
       // Try to place at position 11 - should fail because 2U device at 10 occupies 10-11
       const result = store.placeDevice(rack!.id, otherDevice.slug, 11);
@@ -1625,24 +1742,28 @@ describe("Layout Store", () => {
       const rack = store.addRack("Test Rack", 42);
 
       // Create a custom 4U device
-      const deviceType = store.addDeviceType({
-        name: "Big 4U Server",
-        u_height: 4,
-        category: "server",
-        colour: "#8b5cf6",
-      });
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Big 4U Server",
+          u_height: 4,
+          category: "server",
+          colour: "#8b5cf6",
+        }),
+      );
 
       // Place at position 20 (should occupy U20-23)
       const result1 = store.placeDevice(rack!.id, deviceType.slug, 20);
       expect(result1).toBe(true);
 
       // Create a 1U device
-      const smallDevice = store.addDeviceType({
-        name: "Small Device",
-        u_height: 1,
-        category: "server",
-        colour: "#f59e0b",
-      });
+      const smallDevice = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Small Device",
+          u_height: 1,
+          category: "server",
+          colour: "#f59e0b",
+        }),
+      );
 
       // All positions 20-23 should be blocked
       expect(store.placeDevice(rack!.id, smallDevice.slug, 20)).toBe(false);

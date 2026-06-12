@@ -26,6 +26,7 @@ import type {
   RackWidth,
   SlotWidth,
 } from "$lib/types";
+import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
 import type { Command, CommandType } from "$lib/stores/commands/types";
 import { toInternalUnits } from "$lib/utils/position";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
@@ -126,6 +127,26 @@ export function createTestDeviceType(
   return result;
 }
 
+/**
+ * Creates a CreateDeviceTypeInput with sensible defaults.
+ * Use this for store.addDeviceType(), which derives the slug from `name`
+ * and records the action for undo/dirty tracking.
+ *
+ * @example
+ * store.addDeviceType(createTestDeviceTypeInput({ name: "Test Server", u_height: 2 }));
+ */
+export function createTestDeviceTypeInput(
+  overrides: Partial<CreateDeviceTypeInput> = {},
+): CreateDeviceTypeInput {
+  return {
+    name: "Test Device",
+    u_height: 1,
+    category: "server",
+    colour: "#4A90D9",
+    ...overrides,
+  };
+}
+
 // =============================================================================
 // PlacedDevice Factory
 // =============================================================================
@@ -210,7 +231,6 @@ export function createTestLayout(overrides: Partial<Layout> = {}): Layout {
     ...overrides,
   };
 }
-
 
 // =============================================================================
 // Container/Slot Factories (v0.6.0)

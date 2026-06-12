@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import type { Layout } from "$lib/types";
 import { VERSION } from "$lib/version";
+import { createTestDeviceTypeInput } from "./factories";
 
 describe("Layout Store", () => {
   beforeEach(() => {
@@ -70,12 +71,14 @@ describe("Layout Store", () => {
 
     it("resets device_types to empty array", () => {
       const store = getLayoutStore();
-      store.addDeviceType({
-        name: "Test",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
       store.createNewLayout("New Layout");
       // device_types starts empty (starter library is a runtime constant, not stored)
       expect(store.device_types.length).toBe(0);
@@ -302,12 +305,14 @@ describe("Layout Store", () => {
     it("resets to initial state", () => {
       const store = getLayoutStore();
       store.addRack("Test", 42);
-      store.addDeviceType({
-        name: "Test",
-        u_height: 1,
-        category: "server",
-        colour: "#4A90D9",
-      });
+      store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
 
       resetLayoutStore();
       const freshStore = getLayoutStore();
