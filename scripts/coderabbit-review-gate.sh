@@ -63,10 +63,12 @@ fi
 decision=""
 note=""
 
-# Pull the terminal complete event, if any (last one wins).
-complete_findings="$(printf '%s\n' "$output" \
-  | jq -rc 'select(type=="object" and .type=="complete" and .status=="review_completed") | .findings | length' 2>/dev/null \
+# Pull the terminal complete event, if any (last one wins). Keep the whole event
+# object so its findings can be surfaced verbatim when the push is blocked.
+complete_event="$(printf '%s\n' "$output" \
+  | jq -rc 'select(type=="object" and .type=="complete" and .status=="review_completed")' 2>/dev/null \
   | tail -n1)"
+complete_findings="$(printf '%s\n' "$complete_event" | jq -r '.findings | length' 2>/dev/null)"
 
 if [ -n "$complete_findings" ]; then
   if [ "$complete_findings" -eq 0 ] 2>/dev/null; then
@@ -111,6 +113,25 @@ case "$decision" in
   findings)
     echo "" >&2
     echo "CodeRabbit found ${note} issue(s). Push blocked." >&2
+    echo "" >&2
+    # Surface the actual findings, not just the count, so the developer can act
+    # on them without re-running the review (restores the pre-extraction hook
+    # behaviour). Best-effort render of common fields; fall back to the raw
+    # finding JSON when the shape is unfamiliar.
+    rendered="$(printf '%s\n' "$complete_event" | jq -r '
+        .findings[]
+        | "  - "
+          + (((.file // .path // .location.path) // "?") | tostring)
+          + (((.line // .location.line)) as $l | if $l != null then ":" + ($l | tostring) else "" end)
+          + "  "
+          + (((.title // .message // .description // .body) // (. | tojson)) | tostring)
+      ' 2>/dev/null)"
+    if [ -n "$rendered" ]; then
+      printf '%s\n' "$rendered" >&2
+    else
+      printf '%s\n' "$complete_event" | jq -rc '.findings[]' 2>/dev/null >&2
+    fi
+    echo "" >&2
     echo "Fix the issues above or use 'git push --no-verify' to skip." >&2
     exit 1
     ;;

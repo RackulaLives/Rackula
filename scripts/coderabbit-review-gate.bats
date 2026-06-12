@@ -7,12 +7,14 @@
 # CODERABBIT_BIN env var. Each stub emits a fixed NDJSON stream so the parsing
 # and allow/block decision can be verified without touching the network.
 
+# Resolve the gate under test and create a scratch dir for the per-test stub.
 setup() {
   GATE="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)/coderabbit-review-gate.sh"
   STUB_DIR="$(mktemp -d)"
   STUB="$STUB_DIR/coderabbit"
 }
 
+# Remove the scratch dir created in setup.
 teardown() {
   rm -rf "$STUB_DIR"
 }
@@ -52,12 +54,24 @@ make_stub() {
   [[ "$output" == *"WARNING"* ]]
 }
 
-@test "real findings block the push" {
-  make_stub '{"type":"complete","status":"review_completed","findings":[{"title":"bug"},{"title":"smell"}]}' 0
+@test "real findings block the push and surface each finding" {
+  make_stub '{"type":"complete","status":"review_completed","findings":[{"file":"src/foo.ts","line":42,"title":"possible null deref"},{"path":"src/bar.ts","message":"unused import"}]}' 0
   run env CODERABBIT_BIN="$STUB" "$GATE"
   [ "$status" -eq 1 ]
   [[ "$output" == *"2 issue"* ]]
   [[ "$output" == *"Push blocked"* ]]
+  [[ "$output" == *"src/foo.ts:42"* ]]
+  [[ "$output" == *"possible null deref"* ]]
+  [[ "$output" == *"src/bar.ts"* ]]
+  [[ "$output" == *"unused import"* ]]
+}
+
+@test "findings with an unfamiliar shape still surface as raw JSON" {
+  make_stub '{"type":"complete","status":"review_completed","findings":[{"weird":"x","nested":{"y":1}}]}' 0
+  run env CODERABBIT_BIN="$STUB" "$GATE"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"1 issue"* ]]
+  [[ "$output" == *"weird"* ]]
 }
 
 @test "non-recoverable error blocks the push (fail-safe)" {
