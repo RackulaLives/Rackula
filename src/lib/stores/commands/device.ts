@@ -22,6 +22,11 @@ export interface DeviceCommandStore {
   ): void;
   updateDeviceColourRaw(index: number, colour: string | undefined): void;
   updateDeviceSlotPositionRaw(index: number, slotPosition: SlotPosition): void;
+  updateDeviceContainerLinkageRaw(
+    index: number,
+    containerId: string | undefined,
+    slotId: string | undefined,
+  ): void;
   updateDeviceNotesRaw(index: number, notes: string | undefined): void;
   updateDeviceIpRaw(index: number, ip: string | undefined): void;
   getDeviceAtIndex(index: number): PlacedDevice | undefined;
@@ -245,6 +250,30 @@ export function createUpdateDeviceSlotPositionCommand(
     },
     undo() {
       store.updateDeviceSlotPositionRaw(index, oldSlotPosition);
+    },
+  };
+}
+
+/**
+ * Create a command to detach a device from its container.
+ * Clears container_id/slot_id on execute; restores them on undo.
+ */
+export function createDetachContainerCommand(
+  index: number,
+  oldContainerId: string | undefined,
+  oldSlotId: string | undefined,
+  store: DeviceCommandStore,
+  deviceName: string = "device",
+): Command {
+  return {
+    type: "DETACH_CONTAINER",
+    description: `Detach ${deviceName} from container`,
+    timestamp: Date.now(),
+    execute() {
+      store.updateDeviceContainerLinkageRaw(index, undefined, undefined);
+    },
+    undo() {
+      store.updateDeviceContainerLinkageRaw(index, oldContainerId, oldSlotId);
     },
   };
 }

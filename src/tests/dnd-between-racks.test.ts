@@ -568,5 +568,52 @@ describe("DnD Between Racks", () => {
       expect(restored!.slot_id).toBe("slot-left");
       expect(restored!.position).toBe(0);
     });
+
+    it("clears container linkage when moving a contained device to a rack position in the same rack", () => {
+      const { childType, childIndex } = placeContainedChild();
+
+      // Same-rack move out of the container to a rack-level U position
+      const result = store.moveDeviceToRack(
+        rackA.id,
+        childIndex,
+        rackA.id,
+        10,
+        "front",
+      );
+
+      expect(result).toBe(true);
+      const moved = findDevice(store.getRackById(rackA.id)!, childType.slug);
+      expect(moved).toBeDefined();
+      expect(moved!.container_id).toBeUndefined();
+      expect(moved!.slot_id).toBeUndefined();
+      expect(moved!.position).toBe(toInternalUnits(10));
+    });
+
+    it("undo restores a contained device after a same-rack move out of its container", () => {
+      const { container, childType, childIndex } = placeContainedChild();
+
+      store.moveDeviceToRack(rackA.id, childIndex, rackA.id, 10, "front");
+      store.undo();
+
+      const restored = findDevice(store.getRackById(rackA.id)!, childType.slug);
+      expect(restored).toBeDefined();
+      expect(restored!.container_id).toBe(container.id);
+      expect(restored!.slot_id).toBe("slot-left");
+      expect(restored!.position).toBe(0);
+    });
+
+    it("detaches a contained device moved via the direct moveDevice path", () => {
+      const { childType, childIndex } = placeContainedChild();
+
+      // moveDevice is the entry point used by the keyboard nudge path; any
+      // rack-level move of a contained device must shed its container linkage.
+      const result = store.moveDevice(rackA.id, childIndex, 10);
+
+      expect(result).toBe(true);
+      const moved = findDevice(store.getRackById(rackA.id)!, childType.slug);
+      expect(moved).toBeDefined();
+      expect(moved!.container_id).toBeUndefined();
+      expect(moved!.slot_id).toBeUndefined();
+    });
   });
 });

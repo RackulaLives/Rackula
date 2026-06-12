@@ -31,6 +31,7 @@ import {
   updateDevicePlacementImageRaw,
   updateDeviceColourRaw,
   updateDeviceSlotPositionRaw,
+  updateDeviceContainerLinkageRaw,
   updateDeviceNotesRaw,
   updateDeviceIpRaw,
   getDeviceAtIndex,
@@ -129,6 +130,8 @@ export function getCommandStoreAdapter(
       }
       updateDeviceSlotPositionRaw(ctx, rackId, index, slotPosition);
     },
+    updateDeviceContainerLinkageRaw: (index, containerId, slotId) =>
+      updateDeviceContainerLinkageRaw(ctx, index, containerId, slotId),
     updateDeviceNotesRaw: (index, notes) => {
       const rackId = resolveAdapterRackId(ctx, "updateDeviceNotesRaw");
       if (!rackId) {

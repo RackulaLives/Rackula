@@ -352,6 +352,34 @@ export function updateDeviceSlotPositionRaw(
 }
 
 /**
+ * Set or clear a device's container linkage directly (raw)
+ * Uses active rack
+ * @param ctx - Layout state access
+ * @param index - Device index
+ * @param containerId - Parent container UUID (undefined to detach)
+ * @param slotId - Slot id within the container (undefined to detach)
+ */
+export function updateDeviceContainerLinkageRaw(
+  ctx: LayoutStateAccess,
+  index: number,
+  containerId: string | undefined,
+  slotId: string | undefined,
+): void {
+  const target = getTargetRack(ctx);
+  if (!target) return;
+  if (index < 0 || index >= target.rack.devices.length) return;
+
+  updateRackAtIndex(ctx, target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.map((d, i) =>
+      i === index
+        ? { ...d, container_id: containerId, slot_id: slotId }
+        : d,
+    ),
+  }));
+}
+
+/**
  * Update a device's notes directly (raw)
  * @param ctx - Layout state access
  * @param rackId - Rack ID (for multi-rack support)

@@ -33,6 +33,7 @@ import {
   createUpdateDevicePlacementImageCommand,
   createUpdateDeviceColourCommand,
   createUpdateDeviceSlotPositionCommand,
+  createDetachContainerCommand,
   createUpdateDeviceNotesCommand,
   createUpdateDeviceIpCommand,
   createBatchCommand,
@@ -314,8 +315,13 @@ export function moveDeviceRecorded(
     newSlotPosition && newSlotPosition !== (device.slot_position ?? "full");
   const hasFaceChange =
     newFace !== undefined && newFace !== (device.face ?? "front");
+  // A move always targets a rack-level position, so a contained device dragged
+  // out of its container must shed its container linkage (otherwise it stays
+  // excluded from rack-level collision while claiming membership in a container
+  // it no longer sits in). Undo restores the linkage.
+  const hasContainerLinkage = device.container_id !== undefined;
 
-  if (hasSlotChange || hasFaceChange) {
+  if (hasSlotChange || hasFaceChange || hasContainerLinkage) {
     const commands: Command[] = [moveCommand];
     if (hasSlotChange) {
       commands.push(
@@ -334,6 +340,17 @@ export function moveDeviceRecorded(
           deviceIndex,
           device.face ?? "front",
           newFace!,
+          adapter,
+          deviceName,
+        ),
+      );
+    }
+    if (hasContainerLinkage) {
+      commands.push(
+        createDetachContainerCommand(
+          deviceIndex,
+          device.container_id,
+          device.slot_id,
           adapter,
           deviceName,
         ),
