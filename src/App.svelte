@@ -527,7 +527,7 @@
 
   async function handleRackContextExport(rackIds: string[]) {
     if (rackIds.length === 0) {
-      toastStore.showToast("No racks to export", "warning");
+      toastStore.showToast("No rack to export", "warning");
       return;
     }
 

@@ -115,7 +115,7 @@ export async function handleExport(): Promise<void> {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
   if (!layoutStore.hasRack) {
-    toastStore.showToast("No racks to export", "warning");
+    toastStore.showToast("No rack to export", "warning");
     return;
   }
   await prepareExportQrCode();
