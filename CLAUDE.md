@@ -510,6 +510,18 @@ layoutDebug.device("placed device %s at U%d", slug, position);
 
 ## Skill Routing
 
+This section is the cloud-safe restatement of the superpowers bootstrap. In local sessions
+a SessionStart hook injects the using-superpowers skill automatically. In claude.ai/code
+cloud sessions that hook may not fire, because cloud does not auto-install plugins from
+committed settings (a known open issue, anthropics/claude-code#63028). To install the
+plugins in cloud, paste `.claude/cloud-setup.sh` into the environment Setup script field.
+The core rule is restated here, where it is always read.
+
+Core rule: if there is even a small chance a skill applies, invoke it via the Skill tool
+before responding, including before asking clarifying questions. Process skills such as
+`/superpowers:brainstorming` and `/superpowers:systematic-debugging` come before
+implementation skills.
+
 **Before starting any task, check if a skill applies:**
 
 | Task Type                 | Skill                                         | Why                                     |
