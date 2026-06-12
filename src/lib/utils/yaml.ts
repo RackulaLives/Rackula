@@ -75,7 +75,7 @@ export async function parseYaml<T = unknown>(yamlString: string): Promise<T> {
  * Field order: slug, manufacturer, model, part_number, u_height, slot_width, is_full_depth, is_powered,
  *              weight, weight_unit, airflow, front_image, rear_image, colour, category, tags,
  *              notes, serial_number, asset_tag, links, custom_fields, interfaces, power_ports,
- *              power_outlets, device_bays, inventory_items, subdevice_role, va_rating
+ *              power_outlets, device_bays, inventory_items, subdevice_role, slots, va_rating
  */
 function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
   const ordered: Record<string, unknown> = {};
@@ -127,6 +127,9 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
   if (dt.subdevice_role !== undefined)
     ordered.subdevice_role = dt.subdevice_role;
 
+  // --- Container Support ---
+  if (dt.slots !== undefined && dt.slots.length > 0) ordered.slots = dt.slots;
+
   // --- Power Device Properties ---
   if (dt.va_rating !== undefined) ordered.va_rating = dt.va_rating;
 
@@ -136,7 +139,7 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
 /**
  * Order PlacedDevice fields according to schema v1.0.0
  * Field order: id, device_type, name, position, face, slot_position, front_image, rear_image,
- *              parent_device, device_bay, notes, custom_fields
+ *              parent_device, device_bay, container_id, slot_id, notes, custom_fields
  */
 function orderPlacedDeviceFields(
   device: PlacedDevice,
@@ -161,6 +164,11 @@ function orderPlacedDeviceFields(
   if (device.parent_device !== undefined)
     ordered.parent_device = device.parent_device;
   if (device.device_bay !== undefined) ordered.device_bay = device.device_bay;
+
+  // --- Container Child Placement ---
+  if (device.container_id !== undefined)
+    ordered.container_id = device.container_id;
+  if (device.slot_id !== undefined) ordered.slot_id = device.slot_id;
 
   // --- Extension Fields ---
   if (device.notes !== undefined) ordered.notes = device.notes;
