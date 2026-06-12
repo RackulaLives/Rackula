@@ -16,17 +16,20 @@
 #
 # Assumes `claude` is on PATH and authenticated in the environment.
 
-set -u
+set -euo pipefail
 
-# Add a marketplace only if not already known.
+# Add a marketplace only if its exact name is not already configured. Match the
+# quoted name in --json output so a substring (such as a source URL) cannot
+# falsely satisfy the check and skip the add.
 add_marketplace() {
-  claude plugin marketplace list 2>/dev/null | grep -qF "$1" ||
+  claude plugin marketplace list --json 2>/dev/null | grep -qF "\"$1\"" ||
     claude plugin marketplace add "$2"
 }
 
-# Install a plugin only if it is not already installed.
+# Install a plugin only if its exact id (plugin@marketplace) is not installed.
+# Match the quoted id in --json output, not a name prefix.
 install_plugin() {
-  claude plugin list --installed 2>/dev/null | grep -qF "${1%@*}" ||
+  claude plugin list --json 2>/dev/null | grep -qF "\"$1\"" ||
     claude plugin install "$1"
 }
 

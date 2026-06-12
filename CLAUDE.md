@@ -514,7 +514,8 @@ This section is the cloud-safe restatement of the superpowers bootstrap. In loca
 a SessionStart hook injects the using-superpowers skill automatically. In claude.ai/code
 cloud sessions that hook may not fire, because cloud does not auto-install plugins from
 committed settings (a known open issue, anthropics/claude-code#63028). To install the
-plugins in cloud, paste `.claude/cloud-setup.sh` into the environment Setup script field.
+plugins in cloud, paste the contents of `.claude/cloud-setup.sh` into the environment Setup
+script field.
 The core rule is restated here, where it is always read.
 
 Core rule: if there is even a small chance a skill applies, invoke it via the Skill tool
