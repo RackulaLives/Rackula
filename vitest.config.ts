@@ -44,7 +44,7 @@ function getMaxWorkers(): number {
 const maxWorkers = getMaxWorkers();
 
 export default defineConfig({
-  plugins: [svelte({ hot: !process.env.VITEST })],
+  plugins: [svelte()],
   define: {
     // Inject version at build time (same as vite.config.ts)
     __APP_VERSION__: JSON.stringify(pkg.version),

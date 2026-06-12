@@ -929,12 +929,15 @@ function recoverSlotPositions<
   const recovery = new Map<string, "left" | "right">();
   const recoveredSlugs = new Set<string>();
   for (const group of groups.values()) {
+    const [d0, d1] = group;
     if (
       group.length === 2 &&
+      d0 &&
+      d1 &&
       group.every((d) => d.slot_position === undefined)
     ) {
-      recovery.set(group[0].id, "left");
-      recovery.set(group[1].id, "right");
+      recovery.set(d0.id, "left");
+      recovery.set(d1.id, "right");
       for (const d of group) recoveredSlugs.add(d.device_type);
     }
   }
