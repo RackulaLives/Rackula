@@ -93,6 +93,26 @@ describe("Drag and Drop Utilities", () => {
     });
   });
 
+  describe("calculateDropPosition half-U snapping (#2152)", () => {
+    // 12U rack, U_HEIGHT=22, totalHeight=264. y=0 is U12 (top), y=264 is U1.
+    // The U5 band spans y in [154, 176): upper half [154, 165), lower half [165, 176).
+
+    it("snaps a 0.5U device to the upper half when the cursor is in the upper part of a U", () => {
+      const position = calculateDropPosition(160, 12, U_HEIGHT, RACK_PADDING, true);
+      expect(position).toBe(5.5);
+    });
+
+    it("snaps a 0.5U device to the lower half when the cursor is in the lower part of a U", () => {
+      const position = calculateDropPosition(170, 12, U_HEIGHT, RACK_PADDING, true);
+      expect(position).toBe(5);
+    });
+
+    it("leaves whole-U devices on whole-U boundaries when snapHalfU is false", () => {
+      const position = calculateDropPosition(160, 12, U_HEIGHT, RACK_PADDING, false);
+      expect(position).toBe(5);
+    });
+  });
+
   describe("getDropFeedback", () => {
     const mockDevice: DeviceType = {
       slug: "device-1",

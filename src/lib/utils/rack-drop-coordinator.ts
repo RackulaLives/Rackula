@@ -172,6 +172,7 @@ export function resolveDropTarget(
     dims.rackHeight,
     dims.uHeight,
     dims.rackPadding,
+    !Number.isInteger(device.u_height),
   );
 
   const deviceSlotWidth = device.slot_width ?? 2;
@@ -242,6 +243,7 @@ export function resolveDropAction(
     dims.rackHeight,
     dims.uHeight,
     dims.rackPadding,
+    !Number.isInteger(dragData.device.u_height),
   );
 
   const deviceSlotWidth = dragData.device.slot_width ?? 2;

@@ -54,25 +54,36 @@ export type DropFeedback = "valid" | "invalid" | "blocked";
  * @param rackHeight - Rack height in U
  * @param uHeight - Height of one U in pixels
  * @param rackPadding - Top padding of rack SVG
- * @returns Target U position (1-indexed, 1 is at bottom)
+ * @param snapHalfU - Snap to half-U slots (for 0.5U devices) instead of whole-U
+ * @returns Target U position (1-indexed, 1 is at bottom; X.5 when half-U snapping)
  */
 export function calculateDropPosition(
   mouseY: number,
   rackHeight: number,
   uHeight: number,
   _rackPadding: number,
+  snapHalfU: boolean = false,
 ): number {
   // SVG coordinate system: y=0 at top
   // U1 is at bottom, U{rackHeight} is at top
   // Total rack height in pixels = rackHeight * uHeight
   const totalHeight = rackHeight * uHeight;
 
-  // Calculate which U the mouse is over
-  // mouseY=0 -> top -> U{rackHeight}
-  // mouseY=totalHeight -> bottom -> U1
-
   // First, clamp mouseY to valid range
   const clampedY = Math.max(0, Math.min(mouseY, totalHeight));
+
+  if (snapHalfU) {
+    // Sub-U devices (0.5U) snap to half-U slots: each U splits into a lower
+    // and an upper half. Half-slots are indexed from the top of the rack;
+    // an even slot is the upper half of its U, an odd slot the lower half.
+    const halfSlot = Math.min(
+      Math.floor(clampedY / (uHeight / 2)),
+      rackHeight * 2 - 1,
+    );
+    const uNum = rackHeight - Math.floor(halfSlot / 2);
+    const bottom = halfSlot % 2 === 0 ? uNum + 0.5 : uNum;
+    return Math.max(1, Math.min(bottom, rackHeight + 0.5));
+  }
 
   // Calculate U from bottom (U1 = bottom)
   // At y=totalHeight, U=1. At y=0, U=rackHeight

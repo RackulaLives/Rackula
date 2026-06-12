@@ -11,7 +11,7 @@ import {
   getDeviceWithType,
 } from "$lib/utils/device-movement";
 import type { Rack, DeviceType, PlacedDevice } from "$lib/types";
-import { toInternalUnits } from "$lib/utils/position";
+import { toInternalUnits, UNITS_PER_U } from "$lib/utils/position";
 
 // Helper to create a placed device with internal unit position
 function pd(
@@ -324,38 +324,39 @@ describe("Device Movement Utility", () => {
       });
     });
 
-    describe("0.5U Device Support", () => {
-      it("moves 0.5U device up by 1U (consistent step size)", () => {
+    describe("0.5U Device Support (#2152: snaps to half-U, not 1/3U)", () => {
+      it("moves a 0.5U device up by half a U onto a half-U boundary", () => {
         const rack = createTestRack(42, [pd("half-u-patch", 10, "front")]);
         const deviceTypes = createDeviceTypes();
 
         const result = findNextValidPosition(rack, deviceTypes, 0, 1);
 
         expect(result.success).toBe(true);
-        expect(result.newPosition).toBe(toInternalUnits(11));
-        expect(result.reason).toBe("moved");
+        expect(result.newPosition).toBe(toInternalUnits(10.5));
+        // half-U boundaries are multiples of 3 internal units
+        expect(result.newPosition! % (UNITS_PER_U / 2)).toBe(0);
       });
 
-      it("moves 0.5U device down by 1U (consistent step size)", () => {
+      it("moves a 0.5U device down by half a U", () => {
         const rack = createTestRack(42, [pd("half-u-patch", 10.5, "front")]);
         const deviceTypes = createDeviceTypes();
 
         const result = findNextValidPosition(rack, deviceTypes, 0, -1);
 
         expect(result.success).toBe(true);
-        expect(result.newPosition).toBe(toInternalUnits(9.5));
-        expect(result.reason).toBe("moved");
+        expect(result.newPosition).toBe(toInternalUnits(10));
       });
 
-      it("uses stepOverride for sub-U movement (0.5U)", () => {
-        const rack = createTestRack(42, [pd("half-u-patch", 10, "front")]);
+      it("never lands a 0.5U device on a 1/3U offset, even with a 1/3U fine step", () => {
+        const rack = createTestRack(42, [pd("half-u-patch", 5, "front")]);
         const deviceTypes = createDeviceTypes();
 
-        const result = findNextValidPosition(rack, deviceTypes, 0, 1, 0.5);
+        // A 1/3U step would land at internal 32 (U5 1/3); half-U snapping forces 33 (U5 1/2)
+        const result = findNextValidPosition(rack, deviceTypes, 0, 1, 1 / 3);
 
         expect(result.success).toBe(true);
-        expect(result.newPosition).toBe(toInternalUnits(10.5));
-        expect(result.reason).toBe("moved");
+        expect(result.newPosition).toBe(toInternalUnits(5.5));
+        expect(result.newPosition! % (UNITS_PER_U / 2)).toBe(0);
       });
     });
 

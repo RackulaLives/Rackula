@@ -61,17 +61,26 @@ export function findNextValidPosition(
     return { success: false, newPosition: null, reason: "no_valid_position" };
   }
 
-  // Movement increment in internal units:
-  // If stepOverride is provided (in human U), convert it; otherwise use 1U
-  const moveIncrementInternal = stepOverride
-    ? toInternalUnits(stepOverride)
-    : UNITS_PER_U;
+  // Device height in internal units (used for boundary checks and to detect
+  // 0.5U-class devices).
+  const deviceHeightInternal = heightToInternalUnits(deviceType.u_height);
+
+  // Movement increment in internal units.
+  // 0.5U-class devices (height an odd multiple of 1/2U) step by half a U so
+  // they snap to half-U boundaries (multiples of 3) and stack cleanly, never
+  // to 1/3U hole offsets. Whole-U devices keep the 1U default and respect the
+  // fine stepOverride (e.g. 1/3U via Shift+Arrow).
+  const isHalfU = deviceHeightInternal % UNITS_PER_U === UNITS_PER_U / 2;
+  const moveIncrementInternal = isHalfU
+    ? UNITS_PER_U / 2
+    : stepOverride
+      ? toInternalUnits(stepOverride)
+      : UNITS_PER_U;
 
   // Calculate initial target position (all positions are in internal units)
   let newPosition = placedDevice.position + direction * moveIncrementInternal;
 
   // Boundary values in internal units
-  const deviceHeightInternal = heightToInternalUnits(deviceType.u_height);
   const maxValidTop = rack.height * UNITS_PER_U + (UNITS_PER_U - 1);
 
   // Check if we're already at the boundary before any movement
