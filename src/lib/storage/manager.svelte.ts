@@ -99,7 +99,7 @@ function handleSaveFailure(
       toastStore.dismissToast(_errorToastId);
     }
     _errorToastId = toastStore.showToast(
-      "Server save unavailable — working offline. Use Ctrl+S to retry.",
+      "Server unavailable. Working offline; changes saved locally. Reload to retry.",
       "warning",
       0,
       action,
