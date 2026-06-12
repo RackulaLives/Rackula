@@ -26,6 +26,12 @@ export interface LayoutStateAccess {
   markDirty(): void;
   /** Mark the layout as started (user has created/loaded a rack) */
   markStarted(): void;
+  /**
+   * Reset export/backup tracking: clears the dirty flag, the
+   * changes-since-export counter, and the hasEverExported flag.
+   * Used when a fresh layout is created or loaded.
+   */
+  resetBackupTracking(): void;
   /** Get rack groups (convenience, reads from layout.rack_groups) */
   getRackGroups(): RackGroup[];
   /** Find a rack by ID in the current layout */

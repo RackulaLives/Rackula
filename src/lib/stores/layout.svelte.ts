@@ -6,7 +6,6 @@
  * extracted domain modules via the LayoutStateAccess bridge pattern.
  */
 
-import { SvelteSet } from "svelte/reactivity";
 import type {
   FormFactor,
   Layout,
@@ -24,18 +23,25 @@ import type {
 import { MAX_RACKS } from "$lib/types/constants";
 import { createLayout } from "$lib/utils/serialization";
 import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
-import { getStarterSlugs } from "$lib/data/starterLibrary";
-import { getBrandSlugs } from "$lib/data/brandPacks";
 import { debug } from "$lib/utils/debug";
-import {
-  safeGetItem,
-  safeSetItem,
-  safeRemoveItem,
-} from "$lib/utils/safe-storage";
-import { generateId } from "$lib/utils/device";
-import { generateRackId } from "$lib/utils/rack";
 import { getHistoryStore } from "./history.svelte";
 import type { LayoutStateAccess } from "./layout/types";
+import {
+  type BackupState,
+  HAS_STARTED_KEY,
+  loadHasStarted,
+  saveHasStarted,
+} from "./layout/persistence";
+import {
+  createNewLayout as createNewLayoutImpl,
+  loadLayout as loadLayoutImpl,
+} from "./layout/layout-lifecycle";
+import {
+  getUsedDeviceTypeSlugs as getUsedDeviceTypeSlugsImpl,
+  getUnusedCustomDeviceTypes as getUnusedCustomDeviceTypesImpl,
+  isCustomDeviceType as isCustomDeviceTypeImpl,
+  hasDeviceTypePlacements as hasDeviceTypePlacementsImpl,
+} from "./layout/queries";
 import {
   addRack as addRackImpl,
   addBayedRackGroup as addBayedRackGroupImpl,
@@ -84,7 +90,6 @@ import {
   updateCableRaw as updateCableRawImpl,
   removeCableRaw as removeCableRawImpl,
   removeCablesRaw as removeCablesRawImpl,
-  generateUniqueDeviceId,
 } from "./layout/mutators";
 import {
   addDeviceTypeRecorded as addDeviceTypeRecordedImpl,
@@ -115,28 +120,7 @@ import {
   moveDeviceToRack as moveDeviceToRackImpl,
 } from "./layout/device-actions";
 
-/** Backup state tracked alongside the layout for the storage chip. */
-export interface BackupState {
-  changesSinceExport: number;
-  hasEverExported: boolean;
-}
-
-// localStorage key for tracking if user has started (created/loaded a rack)
-export const HAS_STARTED_KEY = "Rackula_has_started";
-
-// Check if user has previously started (created or loaded a rack)
-function loadHasStarted(): boolean {
-  return safeGetItem(HAS_STARTED_KEY) === "true";
-}
-
-// Persist the hasStarted flag to localStorage
-function saveHasStarted(value: boolean): void {
-  if (value) {
-    safeSetItem(HAS_STARTED_KEY, "true");
-  } else {
-    safeRemoveItem(HAS_STARTED_KEY);
-  }
-}
+export { type BackupState, HAS_STARTED_KEY };
 
 // Module-level state (using $state rune)
 let layout = $state<Layout>(createLayout());
@@ -169,6 +153,11 @@ const stateAccess: LayoutStateAccess = {
   markStarted: () => {
     hasStarted = true;
     saveHasStarted(true);
+  },
+  resetBackupTracking: () => {
+    isDirty = false;
+    changesSinceExport = 0;
+    hasEverExported = false;
   },
   getRackGroups: () => rack_groups,
   findRack: (id: string) => layout.racks.find((r) => r.id === id),
@@ -403,95 +392,15 @@ export function getLayoutStore() {
 }
 
 // =============================================================================
-// Layout Actions
+// Layout Actions — delegated to layout/layout-lifecycle.ts
 // =============================================================================
 
-/**
- * Create a new layout with the given name
- * @param name - Layout name
- */
 function createNewLayout(name: string): void {
-  layout = createLayout(name);
-  isDirty = false;
-  changesSinceExport = 0;
-  hasEverExported = false;
+  createNewLayoutImpl(stateAccess, name);
 }
 
-/**
- * Load a layout directly
- * Preserves all racks in the layout (multi-rack support)
- * Defensively assigns IDs and positions to support older layouts
- * @param layoutData - Layout to load
- */
 function loadLayout(layoutData: Layout): void {
-  // Ensures metadata with UUID exists for persistence
-  const metadata = layoutData.metadata
-    ? { ...layoutData.metadata }
-    : { id: generateId() };
-  if (!metadata.id) {
-    metadata.id = generateId();
-  }
-
-  // Track seen IDs to detect duplicates
-  const seenIds = new SvelteSet<string>();
-
-  // Ensure runtime view is set, show_rear defaults, and all racks have valid IDs
-  layout = {
-    ...layoutData,
-    metadata,
-    racks: layoutData.racks.map((r, index) => {
-      // Generate ID if missing or duplicate
-      let rackId = r.id && r.id.trim().length > 0 ? r.id : generateRackId();
-      if (seenIds.has(rackId)) {
-        rackId = generateRackId();
-      }
-      seenIds.add(rackId);
-
-      // Deduplicate device IDs and remap container_id references — defence-in-depth (#1363)
-      /* eslint-disable svelte/prefer-svelte-reactivity -- ephemeral validation collections, not reactive state */
-      const seenDeviceIds = new Set<string>();
-      const idRemap = new Map<string, string>();
-      /* eslint-enable svelte/prefer-svelte-reactivity */
-      const devices = r.devices.map((d) => {
-        const originalId = d.id;
-        let nextId = originalId;
-        if (!nextId || seenDeviceIds.has(nextId)) {
-          nextId = generateUniqueDeviceId(seenDeviceIds);
-          if (originalId) {
-            idRemap.set(originalId, nextId);
-          }
-        } else {
-          seenDeviceIds.add(nextId);
-        }
-        const nextContainerId =
-          d.container_id && idRemap.has(d.container_id)
-            ? idRemap.get(d.container_id)!
-            : d.container_id;
-        return nextId === originalId && nextContainerId === d.container_id
-          ? d
-          : { ...d, id: nextId, container_id: nextContainerId };
-      });
-
-      return {
-        ...r,
-        id: rackId,
-        devices,
-        position: Number.isFinite(r.position) ? r.position : index,
-        view: r.view ?? "front",
-        show_rear: r.show_rear ?? true,
-      };
-    }),
-  };
-  isDirty = false;
-  changesSinceExport = 0;
-  hasEverExported = false;
-
-  // Set active rack to first rack
-  activeRackId = layout.racks[0]?.id ?? null;
-
-  // Mark as started (user has loaded a layout)
-  hasStarted = true;
-  saveHasStarted(true);
+  loadLayoutImpl(stateAccess, layoutData);
 }
 
 // =============================================================================
@@ -1051,77 +960,23 @@ function removeCablesRaw(ids: Set<string>): void {
 }
 
 // =============================================================================
-// Utility Functions
+// Utility Functions — delegated to layout/queries.ts
 // =============================================================================
 
-/**
- * Get all device type slugs currently in use
- */
 function getUsedDeviceTypeSlugs(): Set<string> {
-  // Plain Set is intentional - this is a utility function, not reactive state
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity
-  const slugs = new Set<string>();
-
-  for (const dt of layout.device_types) {
-    slugs.add(dt.slug);
-  }
-
-  for (const r of layout.racks) {
-    for (const device of r.devices) {
-      slugs.add(device.device_type);
-    }
-  }
-
-  return slugs;
+  return getUsedDeviceTypeSlugsImpl(stateAccess);
 }
 
-/**
- * Get device type slugs that are currently placed in any rack
- */
-function getPlacedDeviceTypeSlugs(): Set<string> {
-  // Plain Set is intentional - this is a utility function, not reactive state
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity
-  const slugs = new Set<string>();
-
-  for (const r of layout.racks) {
-    for (const device of r.devices) {
-      slugs.add(device.device_type);
-    }
-  }
-
-  return slugs;
-}
-
-/**
- * Get unused custom device types
- */
 function getUnusedCustomDeviceTypes(): DeviceType[] {
-  const starterSlugs = getStarterSlugs();
-  const brandSlugs = getBrandSlugs();
-  const placedSlugs = getPlacedDeviceTypeSlugs();
-
-  return layout.device_types.filter((dt) => {
-    if (starterSlugs.has(dt.slug)) return false;
-    if (brandSlugs.has(dt.slug)) return false;
-    if (placedSlugs.has(dt.slug)) return false;
-    return true;
-  });
+  return getUnusedCustomDeviceTypesImpl(stateAccess);
 }
 
-/**
- * Check if a device type slug is a custom type (not starter or brand)
- */
 function isCustomDeviceType(slug: string): boolean {
-  const starterSlugs = getStarterSlugs();
-  const brandSlugs = getBrandSlugs();
-  return !starterSlugs.has(slug) && !brandSlugs.has(slug);
+  return isCustomDeviceTypeImpl(slug);
 }
 
-/**
- * Check if a device type has any placements in any rack
- */
 function hasDeviceTypePlacements(slug: string): boolean {
-  return getPlacedDeviceTypeSlugs().has(slug);
+  return hasDeviceTypePlacementsImpl(stateAccess, slug);
 }
 
 // =============================================================================
