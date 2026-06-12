@@ -304,14 +304,22 @@ Fixes #<N>")
 (cd "$WORKTREE_DIR" && git push -u origin <branch>)
 ```
 
-Many repos run a **pre-push hook** that gates the push on an AI review. Detect one:
+Some repos run a **pre-push hook** that gates the push on a CodeRabbit review.
+Detect a *CodeRabbit* gate specifically (not just any pre-push hook):
 
 ```bash
-{ [ -f .husky/pre-push ] || [ -f .git/hooks/pre-push ]; } && echo "pre-push gate present"
+HOOK_FILE=""
+[ -f .husky/pre-push ] && HOOK_FILE=".husky/pre-push"
+[ -f .git/hooks/pre-push ] && HOOK_FILE=".git/hooks/pre-push"
+if [ -n "$HOOK_FILE" ] && grep -qi "coderabbit" "$HOOK_FILE"; then
+  echo "CodeRabbit pre-push gate detected"
+fi
 ```
 
-When present, the hook typically runs **CodeRabbit in agent mode**
+When present, the hook runs **CodeRabbit in agent mode**
 (`coderabbit review --agent`, default-deny) and blocks the push on real findings.
+The `--no-verify` fallback below applies **only to a CodeRabbit gate**. If a hook
+runs other checks (tests, lint), do not bypass them blindly.
 
 **If the push is blocked, classify the cause:**
 
@@ -386,14 +394,14 @@ If project has `## GitHub Workflow` section, read for:
 
 ### Verification Commands
 
-```markdown
+````markdown
 ### Verification Commands
 ```bash
 npm run lint
 npm run test:run
 npm run build
 ```
-```
+````
 
 ### Branch Prefixes
 
@@ -415,12 +423,12 @@ npm run build
 
 Used by step 3d when `/code-review` is unavailable in the environment.
 
-```markdown
+````markdown
 ### Review Command
 ```bash
 <repo-specific local review command>
 ```
-```
+````
 
 ---
 
