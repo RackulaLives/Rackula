@@ -29,6 +29,7 @@ import type {
 import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
 import type { Command, CommandType } from "$lib/stores/commands/types";
 import { toInternalUnits } from "$lib/utils/position";
+import { CATEGORY_COLOURS } from "$lib/types/constants";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
 import { generateId } from "$lib/utils/device";
@@ -412,6 +413,73 @@ export function createTestLayoutStore(
     store.setLayoutName(options.layoutName);
   }
   return store;
+}
+
+/**
+ * Seed the layout store with a 4U blade chassis (two half-width slots) holding
+ * one child device in the left slot, placed at U5 in a fresh rack. Mirrors the
+ * repeated contained-device setup in keyboard.test.ts so guard tests only
+ * declare the selection, key press, and assertions.
+ *
+ * @returns the rack id, container and child device ids, and the child's
+ *   container-relative position captured at setup (for no-op assertions).
+ */
+export function createBladeContainerWithChild(): {
+  rackId: string;
+  containerId: string;
+  childId: string;
+  childPosition: number;
+} {
+  const store = getLayoutStore();
+  if (!store) {
+    throw new Error(
+      "createBladeContainerWithChild: getLayoutStore() returned null",
+    );
+  }
+
+  const containerType = store.addDeviceType({
+    name: "Blade Chassis",
+    u_height: 4,
+    category: "server",
+    colour: CATEGORY_COLOURS.server,
+    slots: [
+      { id: "slot-left", name: "Left", position: { row: 0, col: 0 } },
+      { id: "slot-right", name: "Right", position: { row: 0, col: 1 } },
+    ],
+  });
+  const childType = store.addDeviceType({
+    name: "Blade Server",
+    u_height: 1,
+    category: "server",
+    colour: CATEGORY_COLOURS.server,
+  });
+
+  const rack = store.addRack("Test Rack", 42);
+  const rackId = rack!.id;
+
+  store.placeDevice(rackId, containerType.slug, 5);
+  const containerDevice = store.rack!.devices.find(
+    (d) => d.device_type === containerType.slug,
+  )!;
+
+  store.placeInContainer(
+    rackId,
+    childType.slug,
+    containerDevice.id,
+    "slot-left",
+    0,
+  );
+
+  const childDevice = store.rack!.devices.find(
+    (d) => d.container_id === containerDevice.id,
+  )!;
+
+  return {
+    rackId,
+    containerId: containerDevice.id,
+    childId: childDevice.id,
+    childPosition: childDevice.position,
+  };
 }
 
 // =============================================================================

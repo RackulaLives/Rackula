@@ -14,7 +14,10 @@ import {
 import { getUIStore, resetUIStore } from "$lib/stores/ui.svelte";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import { UNITS_PER_U, toInternalUnits } from "$lib/utils/position";
-import { setupStoreWithRack } from "./factories";
+import {
+  setupStoreWithRack,
+  createBladeContainerWithChild,
+} from "./factories";
 
 describe("Keyboard Utilities", () => {
   describe("shouldIgnoreKeyboard", () => {
@@ -786,51 +789,11 @@ describe("KeyboardHandler Component", () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
 
-      // Create a container device type (4U with 2 slots)
-      const containerType = layoutStore.addDeviceType({
-        name: "Blade Chassis",
-        u_height: 4,
-        category: "server",
-        colour: CATEGORY_COLOURS.server,
-        slots: [
-          { id: "slot-left", label: "Left", width: 0.5, u_height: 2 },
-          { id: "slot-right", label: "Right", width: 0.5, u_height: 2 },
-        ],
-      });
-
-      // Create a child device type
-      const childType = layoutStore.addDeviceType({
-        name: "Blade Server",
-        u_height: 1,
-        category: "server",
-        colour: CATEGORY_COLOURS.server,
-      });
-
-      const rack = layoutStore.addRack("Test Rack", 42);
-      const rackId = rack!.id;
-
-      // Place the container at U5
-      layoutStore.placeDevice(rackId, containerType.slug, 5);
-      const containerDevice = layoutStore.rack!.devices.find(
-        (d) => d.device_type === containerType.slug,
-      )!;
-
-      // Place a child inside the container
-      layoutStore.placeInContainer(
-        rackId,
-        childType.slug,
-        containerDevice.id,
-        "slot-left",
-        0,
-      );
-
-      const childDevice = layoutStore.rack!.devices.find(
-        (d) => d.container_id === containerDevice.id,
-      )!;
-      const childPosition = childDevice.position;
+      const { rackId, containerId, childId, childPosition } =
+        createBladeContainerWithChild();
 
       // Select the contained child
-      selectionStore.selectDevice(rackId, childDevice.id);
+      selectionStore.selectDevice(rackId, childId);
 
       render(KeyboardHandler);
 
@@ -838,229 +801,93 @@ describe("KeyboardHandler Component", () => {
 
       // Child should NOT have moved (container-relative position unchanged)
       const childAfter = layoutStore.rack!.devices.find(
-        (d) => d.id === childDevice.id,
+        (d) => d.id === childId,
       )!;
       expect(childAfter.position).toBe(childPosition);
       // Child should still be contained (not ejected)
-      expect(childAfter.container_id).toBe(containerDevice.id);
+      expect(childAfter.container_id).toBe(containerId);
     });
 
     it("ArrowDown does not move a contained child device", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
 
-      const containerType = layoutStore.addDeviceType({
-        name: "Blade Chassis",
-        u_height: 4,
-        category: "server",
-        colour: CATEGORY_COLOURS.server,
-        slots: [
-          { id: "slot-left", label: "Left", width: 0.5, u_height: 2 },
-          { id: "slot-right", label: "Right", width: 0.5, u_height: 2 },
-        ],
-      });
-      const childType = layoutStore.addDeviceType({
-        name: "Blade Server",
-        u_height: 1,
-        category: "server",
-        colour: CATEGORY_COLOURS.server,
-      });
+      const { rackId, containerId, childId, childPosition } =
+        createBladeContainerWithChild();
 
-      const rack = layoutStore.addRack("Test Rack", 42);
-      const rackId = rack!.id;
-
-      layoutStore.placeDevice(rackId, containerType.slug, 5);
-      const containerDevice = layoutStore.rack!.devices.find(
-        (d) => d.device_type === containerType.slug,
-      )!;
-
-      layoutStore.placeInContainer(
-        rackId,
-        childType.slug,
-        containerDevice.id,
-        "slot-left",
-        0,
-      );
-
-      const childDevice = layoutStore.rack!.devices.find(
-        (d) => d.container_id === containerDevice.id,
-      )!;
-      const childPosition = childDevice.position;
-
-      selectionStore.selectDevice(rackId, childDevice.id);
+      selectionStore.selectDevice(rackId, childId);
 
       render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "ArrowDown" });
 
       const childAfter = layoutStore.rack!.devices.find(
-        (d) => d.id === childDevice.id,
+        (d) => d.id === childId,
       )!;
       expect(childAfter.position).toBe(childPosition);
-      expect(childAfter.container_id).toBe(containerDevice.id);
+      expect(childAfter.container_id).toBe(containerId);
     });
 
     it("Shift+ArrowUp does not move a contained child device", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
 
-      const containerType = layoutStore.addDeviceType({
-        name: "Blade Chassis",
-        u_height: 4,
-        category: "server",
-        colour: CATEGORY_COLOURS.server,
-        slots: [
-          { id: "slot-left", label: "Left", width: 0.5, u_height: 2 },
-          { id: "slot-right", label: "Right", width: 0.5, u_height: 2 },
-        ],
-      });
-      const childType = layoutStore.addDeviceType({
-        name: "Blade Server",
-        u_height: 1,
-        category: "server",
-        colour: CATEGORY_COLOURS.server,
-      });
+      const { rackId, containerId, childId, childPosition } =
+        createBladeContainerWithChild();
 
-      const rack = layoutStore.addRack("Test Rack", 42);
-      const rackId = rack!.id;
-
-      layoutStore.placeDevice(rackId, containerType.slug, 5);
-      const containerDevice = layoutStore.rack!.devices.find(
-        (d) => d.device_type === containerType.slug,
-      )!;
-
-      layoutStore.placeInContainer(
-        rackId,
-        childType.slug,
-        containerDevice.id,
-        "slot-left",
-        0,
-      );
-
-      const childDevice = layoutStore.rack!.devices.find(
-        (d) => d.container_id === containerDevice.id,
-      )!;
-      const childPosition = childDevice.position;
-
-      selectionStore.selectDevice(rackId, childDevice.id);
+      selectionStore.selectDevice(rackId, childId);
 
       render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "ArrowUp", shiftKey: true });
 
       const childAfter = layoutStore.rack!.devices.find(
-        (d) => d.id === childDevice.id,
+        (d) => d.id === childId,
       )!;
       expect(childAfter.position).toBe(childPosition);
-      expect(childAfter.container_id).toBe(containerDevice.id);
+      expect(childAfter.container_id).toBe(containerId);
     });
 
     it("ArrowRight does not move a contained child device between slots", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
 
-      const containerType = layoutStore.addDeviceType({
-        name: "Blade Chassis",
-        u_height: 4,
-        category: "server",
-        colour: CATEGORY_COLOURS.server,
-        slots: [
-          { id: "slot-left", label: "Left", width: 0.5, u_height: 2 },
-          { id: "slot-right", label: "Right", width: 0.5, u_height: 2 },
-        ],
-      });
-      const childType = layoutStore.addDeviceType({
-        name: "Blade Server",
-        u_height: 1,
-        category: "server",
-        colour: CATEGORY_COLOURS.server,
-      });
+      const { rackId, containerId, childId, childPosition } =
+        createBladeContainerWithChild();
 
-      const rack = layoutStore.addRack("Test Rack", 42);
-      const rackId = rack!.id;
-
-      layoutStore.placeDevice(rackId, containerType.slug, 5);
-      const containerDevice = layoutStore.rack!.devices.find(
-        (d) => d.device_type === containerType.slug,
-      )!;
-
-      layoutStore.placeInContainer(
-        rackId,
-        childType.slug,
-        containerDevice.id,
-        "slot-left",
-        0,
-      );
-
-      const childDevice = layoutStore.rack!.devices.find(
-        (d) => d.container_id === containerDevice.id,
-      )!;
-
-      selectionStore.selectDevice(rackId, childDevice.id);
+      selectionStore.selectDevice(rackId, childId);
 
       render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "ArrowRight" });
 
       const childAfter = layoutStore.rack!.devices.find(
-        (d) => d.id === childDevice.id,
+        (d) => d.id === childId,
       )!;
       expect(childAfter.slot_id).toBe("slot-left");
-      expect(childAfter.container_id).toBe(containerDevice.id);
+      expect(childAfter.position).toBe(childPosition);
+      expect(childAfter.container_id).toBe(containerId);
     });
 
     it("ArrowLeft does not move a contained child device between slots", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
 
-      const containerType = layoutStore.addDeviceType({
-        name: "Blade Chassis",
-        u_height: 4,
-        category: "server",
-        colour: CATEGORY_COLOURS.server,
-        slots: [
-          { id: "slot-left", label: "Left", width: 0.5, u_height: 2 },
-          { id: "slot-right", label: "Right", width: 0.5, u_height: 2 },
-        ],
-      });
-      const childType = layoutStore.addDeviceType({
-        name: "Blade Server",
-        u_height: 1,
-        category: "server",
-        colour: CATEGORY_COLOURS.server,
-      });
+      const { rackId, containerId, childId, childPosition } =
+        createBladeContainerWithChild();
 
-      const rack = layoutStore.addRack("Test Rack", 42);
-      const rackId = rack!.id;
-
-      layoutStore.placeDevice(rackId, containerType.slug, 5);
-      const containerDevice = layoutStore.rack!.devices.find(
-        (d) => d.device_type === containerType.slug,
-      )!;
-
-      layoutStore.placeInContainer(
-        rackId,
-        childType.slug,
-        containerDevice.id,
-        "slot-left",
-        0,
-      );
-
-      const childDevice = layoutStore.rack!.devices.find(
-        (d) => d.container_id === containerDevice.id,
-      )!;
-
-      selectionStore.selectDevice(rackId, childDevice.id);
+      selectionStore.selectDevice(rackId, childId);
 
       render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "ArrowLeft" });
 
       const childAfter = layoutStore.rack!.devices.find(
-        (d) => d.id === childDevice.id,
+        (d) => d.id === childId,
       )!;
       expect(childAfter.slot_id).toBe("slot-left");
-      expect(childAfter.container_id).toBe(containerDevice.id);
+      expect(childAfter.position).toBe(childPosition);
+      expect(childAfter.container_id).toBe(containerId);
     });
   });
 
