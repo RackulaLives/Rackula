@@ -80,25 +80,31 @@ finding_count="$(printf '%s\n' "$finding_events" | grep -c '[^[:space:]]')"
 # Read the complete event's count (normally the integer 8, but tolerate a numeric
 # string too). This is a safety net so we never pass when the terminal event
 # reports findings but the individual finding events were missed: blocking on a
-# bad parse is safer than allowing a push past real findings.
+# bad parse is safer than allowing a push past real findings. An unreadable count
+# yields the sentinel -1, which is treated as ambiguous (block), never as zero.
 complete_count="$(printf '%s\n' "$complete_event" \
   | jq -r '
       .findings as $f
       | if ($f | type) == "number" then $f
         elif ($f | type) == "string" and ($f | test("^[0-9]+$")) then ($f | tonumber)
-        else 0 end' 2>/dev/null)"
-# Guarantee a clean integer so the arithmetic tests below cannot error.
+        else -1 end' 2>/dev/null)"
+# Guarantee a clean integer so the arithmetic tests below cannot error. Anything
+# that is not the -1 sentinel or a run of digits collapses to the -1 sentinel.
 case "$complete_count" in
-  '' | *[!0-9]*) complete_count=0 ;;
+  -1) ;;
+  '' | *[!0-9]*) complete_count=-1 ;;
 esac
 
 if [ -n "$complete_event" ]; then
   if [ "$finding_count" -gt 0 ] || [ "$complete_count" -gt 0 ]; then
     decision="findings"
     if [ "$finding_count" -gt 0 ]; then note="$finding_count"; else note="$complete_count"; fi
-  else
+  elif [ "$complete_count" -eq 0 ]; then
     decision="pass"
   fi
+  # else: a finished review whose count we could not read (-1 sentinel). Leave
+  # decision unset so the fail-safe block below blocks the push; an unreadable
+  # count is ambiguous, not a clean pass.
 fi
 
 # If there was no clean/findings verdict, look for a transient error event.

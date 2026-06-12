@@ -69,13 +69,17 @@ make_stub() {
 }
 
 @test "finding count is derived from events even if complete count disagrees" {
+  # Three finding events but the complete event claims 99: the reported count must
+  # come from the events (3), proving finding_count takes precedence over the
+  # complete event's number.
   make_stub '{"type":"finding","severity":"major","fileName":"src/foo.ts","line":1,"codegenInstructions":"bug one"}
 {"type":"finding","severity":"major","fileName":"src/bar.ts","line":2,"codegenInstructions":"bug two"}
 {"type":"finding","severity":"major","fileName":"src/baz.ts","line":3,"codegenInstructions":"bug three"}
-{"type":"complete","status":"review_completed","findings":3}' 0
+{"type":"complete","status":"review_completed","findings":99}' 0
   run env CODERABBIT_BIN="$STUB" "$GATE"
   [ "$status" -eq 1 ]
   [[ "$output" == *"3 issue"* ]]
+  [[ "$output" != *"99 issue"* ]]
   [[ "$output" == *"bug one"* ]]
   [[ "$output" == *"bug two"* ]]
   [[ "$output" == *"bug three"* ]]
@@ -103,6 +107,14 @@ make_stub() {
   run env CODERABBIT_BIN="$STUB" "$GATE"
   [ "$status" -eq 1 ]
   [[ "$output" == *"4 issue"* ]]
+}
+
+@test "unparseable complete count blocks the push (fail-safe), never passes" {
+  make_stub '{"type":"complete","status":"review_completed","findings":null}' 0
+  run env CODERABBIT_BIN="$STUB" "$GATE"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"fail-safe"* ]]
+  [[ "$output" != *"No findings"* ]]
 }
 
 @test "non-recoverable error blocks the push (fail-safe)" {
