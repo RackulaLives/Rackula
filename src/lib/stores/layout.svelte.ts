@@ -1206,6 +1206,11 @@ export function createLayoutStore(
   // Close createLayoutStore.
 }
 
+/**
+ * Type alias for the layout store instance returned by createLayoutStore.
+ */
+export type LayoutStore = ReturnType<typeof createLayoutStore>;
+
 // Active instance for the app session (one layout open at a time).
 const activeInstance = createLayoutStore(getHistoryStore());
 
@@ -1213,7 +1218,7 @@ const activeInstance = createLayoutStore(getHistoryStore());
  * Get access to the active layout store.
  * @returns Store object with state and actions
  */
-export function getLayoutStore() {
+export function getLayoutStore(): LayoutStore {
   return activeInstance;
 }
 
