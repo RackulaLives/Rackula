@@ -94,6 +94,29 @@ jobs:
           tags: |
             type=ref,event=branch
 
+      # Pull the base image up front with bounded retry. The build-push-action
+      # below uses the default docker driver (no setup-buildx-action), which
+      # shares the host image store, so with pull: false (the default) the build
+      # reuses this locally-present image and skips the Docker Hub manifest HEAD
+      # that times out under transient registry flakes (#2175).
+      - name: Pre-pull base image
+        working-directory: ./api
+        run: |
+          image="$(awk '/^FROM/ { print $2; exit }' Dockerfile)"
+          echo "Base image: $image"
+          for attempt in 1 2 3 4 5; do
+            if docker pull "$image"; then
+              echo "Pulled $image on attempt $attempt"
+              exit 0
+            fi
+            if [ "$attempt" -lt 5 ]; then
+              echo "::warning::Pull attempt $attempt for $image failed; retrying in $((attempt * 10))s"
+              sleep $((attempt * 10))
+            fi
+          done
+          echo "::error::Failed to pull $image after 5 attempts"
+          exit 1
+
       - name: Build and push API
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
