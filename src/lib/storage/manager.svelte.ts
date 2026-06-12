@@ -88,15 +88,23 @@ export function getStorageChipState() {
   };
 }
 
-// Shared success epilogue: the manual (handleSaveToServer) and debounced
-// auto-save paths must leave the layout in the same state after a durable
-// server save - clean, failure counter reset, API marked available, session
-// cleared, and any lingering error toast dismissed.
-//
-// clearDirtyState is false for a stale debounced save: the save succeeded (so
-// the server is healthy and the failure counter/error toast clear), but newer
-// unsaved edits exist, so dirty and session state must be preserved for the
-// follow-up save.
+/**
+ * Shared success epilogue for a durable server save, called by both the manual
+ * (handleSaveToServer) and debounced auto-save paths so a successful auto-save
+ * leaves the layout in the same state as a manual one.
+ *
+ * Always (server is healthy): resets the consecutive-failure counter, marks the
+ * API available, and dismisses any lingering error toast.
+ *
+ * When clearDirtyState is true (the default): also sets status to "saved", marks
+ * the layout clean, cancels the pending session debounce, and clears the session
+ * copy.
+ *
+ * @param clearDirtyState Pass false for a stale debounced save whose captured
+ *   snapshot is older than the live layout (newer unsaved edits arrived while the
+ *   save was in flight). The dirty flag and session state are then preserved for
+ *   the follow-up save so unload warnings and recovery data survive.
+ */
 export function finalizeSuccessfulSave(clearDirtyState = true): void {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
