@@ -34,12 +34,13 @@ install_plugin() {
 add_marketplace "superpowers-marketplace" "obra/superpowers-marketplace"
 install_plugin "superpowers@superpowers-marketplace"
 
-# code-review: Anthropic's official plugin marketplace.
+# code-review: Anthropic's official plugin marketplace. Stateless, useful in cloud.
 add_marketplace "claude-code-plugins" "https://github.com/anthropics/claude-code.git"
 install_plugin "code-review@claude-code-plugins"
 
-# claude-mem: best-effort. Verify the marketplace name resolves in cloud.
-add_marketplace "thedotmack" "thedotmack/claude-mem"
-install_plugin "claude-mem@thedotmack"
+# Note: claude-mem is deliberately NOT installed here. Its memory store is local
+# (~/.claude-mem, a localhost worker + SQLite/vector DB) with no sync, so a cloud
+# session would start with an empty database and any new observations would be
+# lost when the ephemeral container is torn down. Run it locally only.
 
 echo "Rackula cloud plugins ready."
