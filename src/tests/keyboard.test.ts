@@ -955,7 +955,7 @@ describe("KeyboardHandler Component", () => {
       expect(childAfter.container_id).toBe(containerDevice.id);
     });
 
-    it("ArrowLeft/Right does not move a contained child device between slots", async () => {
+    it("ArrowRight does not move a contained child device between slots", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
 
@@ -1005,7 +1005,60 @@ describe("KeyboardHandler Component", () => {
       const childAfter = layoutStore.rack!.devices.find(
         (d) => d.id === childDevice.id,
       )!;
-      // Child should still be in the same slot, not moved
+      expect(childAfter.slot_id).toBe("slot-left");
+      expect(childAfter.container_id).toBe(containerDevice.id);
+    });
+
+    it("ArrowLeft does not move a contained child device between slots", async () => {
+      const layoutStore = getLayoutStore();
+      const selectionStore = getSelectionStore();
+
+      const containerType = layoutStore.addDeviceType({
+        name: "Blade Chassis",
+        u_height: 4,
+        category: "server",
+        colour: CATEGORY_COLOURS.server,
+        slots: [
+          { id: "slot-left", label: "Left", width: 0.5, u_height: 2 },
+          { id: "slot-right", label: "Right", width: 0.5, u_height: 2 },
+        ],
+      });
+      const childType = layoutStore.addDeviceType({
+        name: "Blade Server",
+        u_height: 1,
+        category: "server",
+        colour: CATEGORY_COLOURS.server,
+      });
+
+      const rack = layoutStore.addRack("Test Rack", 42);
+      const rackId = rack!.id;
+
+      layoutStore.placeDevice(rackId, containerType.slug, 5);
+      const containerDevice = layoutStore.rack!.devices.find(
+        (d) => d.device_type === containerType.slug,
+      )!;
+
+      layoutStore.placeInContainer(
+        rackId,
+        childType.slug,
+        containerDevice.id,
+        "slot-left",
+        0,
+      );
+
+      const childDevice = layoutStore.rack!.devices.find(
+        (d) => d.container_id === containerDevice.id,
+      )!;
+
+      selectionStore.selectDevice(rackId, childDevice.id);
+
+      render(KeyboardHandler);
+
+      await fireEvent.keyDown(window, { key: "ArrowLeft" });
+
+      const childAfter = layoutStore.rack!.devices.find(
+        (d) => d.id === childDevice.id,
+      )!;
       expect(childAfter.slot_id).toBe("slot-left");
       expect(childAfter.container_id).toBe(containerDevice.id);
     });
