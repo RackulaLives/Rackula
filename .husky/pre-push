@@ -1,7 +1,8 @@
 # Run CodeRabbit review before pushing
 # Uses --agent for token-efficient output (optimized for AI review)
 # Compares against origin/main to review commits being pushed
-# Blocks push if CodeRabbit finds issues
+# Blocks push on real findings; allows it on transient/recoverable errors
+# (e.g. rate limits). See scripts/coderabbit-review-gate.sh for the decision logic.
 
 # Match the repository's object format (sha1, sha256, ...)
 zero=$(git hash-object --stdin </dev/null | tr '[:xdigit:]' '0')
@@ -19,10 +20,4 @@ while IFS=' ' read -r local_ref local_sha remote_ref _rest; do
 done
 [ "$has_branch" -eq 0 ] && exit 0
 
-echo "Running CodeRabbit review on committed changes..."
-if ! coderabbit review --agent --type committed --base origin/main; then
-  echo ""
-  echo "CodeRabbit found issues. Push blocked."
-  echo "Fix the issues above or use 'git push --no-verify' to skip."
-  exit 1
-fi
+exec "$(git rev-parse --show-toplevel)/scripts/coderabbit-review-gate.sh"
