@@ -82,6 +82,25 @@ export function getStorageChipState() {
   };
 }
 
+// Shared success epilogue: the manual (handleSaveToServer) and debounced
+// auto-save paths must leave the layout in the same state after a durable
+// server save - clean, failure counter reset, API marked available, session
+// cleared, and any lingering error toast dismissed.
+export function finalizeSuccessfulSave(): void {
+  const layoutStore = getLayoutStore();
+  const toastStore = getToastStore();
+  _consecutiveSaveFailures = 0;
+  setApiAvailable(true);
+  _saveStatus = "saved";
+  if (_errorToastId) {
+    toastStore.dismissToast(_errorToastId);
+    _errorToastId = undefined;
+  }
+  layoutStore.markClean();
+  cancelSessionSave();
+  clearSession();
+}
+
 function handleSaveFailure(
   notify: boolean,
   action?: { label: string; onClick: () => void },
@@ -179,16 +198,7 @@ export async function handleSaveToServer(isManual = false): Promise<boolean> {
     }
     const snapshot = structuredClone($state.snapshot(layoutStore.layout));
     await saveLayoutToServer(snapshot);
-    _consecutiveSaveFailures = 0;
-    setApiAvailable(true);
-    _saveStatus = "saved";
-    if (_errorToastId) {
-      toastStore.dismissToast(_errorToastId);
-      _errorToastId = undefined;
-    }
-    layoutStore.markClean();
-    cancelSessionSave();
-    clearSession();
+    finalizeSuccessfulSave();
     if (isManual) {
       toastStore.showToast("Layout saved", "success", 3000);
     }
@@ -304,13 +314,7 @@ export function initPersistenceEffects(): void {
       _saveStatus = "saving";
       try {
         await saveLayoutToServer(snapshot);
-        _consecutiveSaveFailures = 0;
-        _saveStatus = "saved";
-        if (_errorToastId) {
-          getToastStore().dismissToast(_errorToastId);
-          _errorToastId = undefined;
-        }
-        clearSession();
+        finalizeSuccessfulSave();
       } catch (e) {
         persistenceDebug.api("Auto-save failed: %O", e);
         handlePersistenceError(e);
