@@ -61,6 +61,12 @@ You might ask, why should I make an imaginary rack like some sort of IT cosplay?
 - **Document existing layouts** so you know what is where.
 - **Because you can**
 
+## How Racks Work
+
+Racks are measured in rack units, written U. One U is 1.75 inches of vertical space, and a common full-height rack is 42U. Rackula models racks in whole U: a device occupies a whole number of units and mounts at a whole-U boundary, the same way real rails register equipment under the EIA-310 standard. If something sits at U5, it is really at U5, not floating part of a unit above it.
+
+Gear smaller than 1U, like half-height brackets or side-by-side half-width pairs, does not bolt to the rails on its own. It rides inside a 1U carrier (a bracket, tray, or shelf) that takes up one whole U and holds the smaller devices. The carrier registers to the rails, and the small devices register to the carrier.
+
 ## Get Started
 
 ### Use it right now
