@@ -36,53 +36,89 @@ export function loadLayout(ctx: LayoutStateAccess, layoutData: Layout): void {
     metadata.id = generateId();
   }
 
-  // Track seen IDs to detect duplicates
-  const seenIds = new Set<string>();
+  // First pass: regenerate missing/duplicate rack and device IDs, recording the
+  // old -> new id mappings. References are NOT rewritten yet (#2155). Rack ids
+  // are deduplicated across the whole layout; device ids are deduplicated
+  // per-rack, matching the existing behaviour (#1363).
+  const seenRackIds = new Set<string>();
+  const rackIdRemap = new Map<string, string>();
+
+  const racksFirstPass = layoutData.racks.map((r, index) => {
+    const originalRackId = r.id;
+    let rackId =
+      originalRackId && originalRackId.trim().length > 0
+        ? originalRackId
+        : generateRackId();
+    if (seenRackIds.has(rackId)) {
+      rackId = generateRackId();
+    }
+    seenRackIds.add(rackId);
+    // Record the remap even for empty/whitespace originals so a group entry
+    // referencing that exact (now-renamed) value can follow it (#2155). When an
+    // id collides more than once, the first regenerated mapping wins; later
+    // collisions of the same value resolve to a surviving rack anyway.
+    if (rackId !== originalRackId && !rackIdRemap.has(originalRackId)) {
+      rackIdRemap.set(originalRackId, rackId);
+    }
+
+    const seenDeviceIds = new Set<string>();
+    const deviceIdRemap = new Map<string, string>();
+    const devices = r.devices.map((d) => {
+      const originalId = d.id;
+      let nextId = originalId;
+      if (!nextId || seenDeviceIds.has(nextId)) {
+        nextId = generateUniqueDeviceId(seenDeviceIds);
+        if (originalId) {
+          deviceIdRemap.set(originalId, nextId);
+        }
+      } else {
+        seenDeviceIds.add(nextId);
+      }
+      return nextId === originalId ? d : { ...d, id: nextId };
+    });
+
+    const finalDeviceIds = new Set(devices.map((d) => d.id));
+
+    // Second pass (per-rack): rewrite container_id only when the originally
+    // referenced id was renamed away (no longer present); a reference to a
+    // surviving original id is preserved (#2155).
+    const remappedDevices = devices.map((d) => {
+      const originalContainerId = d.container_id;
+      if (!originalContainerId) return d;
+      if (finalDeviceIds.has(originalContainerId)) return d;
+      const nextContainerId = deviceIdRemap.get(originalContainerId);
+      if (!nextContainerId || nextContainerId === originalContainerId) return d;
+      return { ...d, container_id: nextContainerId };
+    });
+
+    return {
+      ...r,
+      id: rackId,
+      devices: remappedDevices,
+      position: Number.isFinite(r.position) ? r.position : index,
+      view: r.view ?? "front",
+      show_rear: r.show_rear ?? true,
+    };
+  });
+
+  // Second pass (layout-level): rewrite rack_groups[].rack_ids through the
+  // rack-id map so regenerated racks stay attached to their groups. Only remap
+  // when the referenced id was renamed away (no surviving rack still holds it);
+  // a reference to a surviving original id is preserved (#2155).
+  const finalRackIds = new Set(racksFirstPass.map((r) => r.id));
+  const rackGroups = layoutData.rack_groups?.map((group) => ({
+    ...group,
+    rack_ids: group.rack_ids.map((id) =>
+      finalRackIds.has(id) ? id : (rackIdRemap.get(id) ?? id),
+    ),
+  }));
 
   // Ensure runtime view is set, show_rear defaults, and all racks have valid IDs
   ctx.setLayout({
     ...layoutData,
     metadata,
-    racks: layoutData.racks.map((r, index) => {
-      // Generate ID if missing or duplicate
-      let rackId = r.id && r.id.trim().length > 0 ? r.id : generateRackId();
-      if (seenIds.has(rackId)) {
-        rackId = generateRackId();
-      }
-      seenIds.add(rackId);
-
-      // Deduplicate device IDs and remap container_id references — defence-in-depth (#1363)
-      const seenDeviceIds = new Set<string>();
-      const idRemap = new Map<string, string>();
-      const devices = r.devices.map((d) => {
-        const originalId = d.id;
-        let nextId = originalId;
-        if (!nextId || seenDeviceIds.has(nextId)) {
-          nextId = generateUniqueDeviceId(seenDeviceIds);
-          if (originalId) {
-            idRemap.set(originalId, nextId);
-          }
-        } else {
-          seenDeviceIds.add(nextId);
-        }
-        const nextContainerId =
-          d.container_id && idRemap.has(d.container_id)
-            ? idRemap.get(d.container_id)!
-            : d.container_id;
-        return nextId === originalId && nextContainerId === d.container_id
-          ? d
-          : { ...d, id: nextId, container_id: nextContainerId };
-      });
-
-      return {
-        ...r,
-        id: rackId,
-        devices,
-        position: Number.isFinite(r.position) ? r.position : index,
-        view: r.view ?? "front",
-        show_rear: r.show_rear ?? true,
-      };
-    }),
+    racks: racksFirstPass,
+    ...(rackGroups !== undefined ? { rack_groups: rackGroups } : {}),
   });
   ctx.resetBackupTracking();
 

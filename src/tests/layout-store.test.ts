@@ -284,6 +284,216 @@ describe("Layout Store", () => {
     });
   });
 
+  describe("loadLayout reference remapping (#2155)", () => {
+    it("remaps rack_groups.rack_ids when a member rack id is regenerated", () => {
+      const store = getLayoutStore();
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Missing Rack Id Test",
+        racks: [
+          {
+            id: "rack-keep",
+            name: "Rack A",
+            height: 42,
+            width: 19,
+            desc_units: false,
+            form_factor: "4-post-cabinet",
+            starting_unit: 1,
+            position: 0,
+            devices: [],
+          },
+          {
+            // Missing rack id: this one's id will be regenerated.
+            id: "",
+            name: "Rack B",
+            height: 42,
+            width: 19,
+            desc_units: false,
+            form_factor: "4-post-cabinet",
+            starting_unit: 1,
+            position: 1,
+            devices: [],
+          },
+        ],
+        rack_groups: [
+          {
+            id: "group-1",
+            name: "Group 1",
+            // Group references the surviving rack and a placeholder that no
+            // longer exists (the empty-id rack got a fresh id).
+            rack_ids: ["rack-keep", ""],
+          },
+        ],
+        device_types: [],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      const racks = store.layout.racks;
+      const group = store.layout.rack_groups?.[0];
+      expect(group).toBeDefined();
+      const rackIds = new Set(racks.map((r) => r.id));
+      // No orphans: every referenced id resolves to a real rack.
+      for (const refId of group!.rack_ids) {
+        expect(rackIds.has(refId)).toBe(true);
+      }
+      // Surviving reference preserved.
+      expect(group!.rack_ids).toContain("rack-keep");
+      // The regenerated rack's new id is now in the group (was orphaned before).
+      expect(group!.rack_ids).toContain(racks[1].id);
+      expect(racks[1].id.length).toBeGreaterThan(0);
+    });
+
+    it("resolves a child's container_id when the child appears before its parent", () => {
+      const store = getLayoutStore();
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Child Before Parent",
+        racks: [
+          {
+            id: "rack-1",
+            name: "Test Rack",
+            height: 42,
+            width: 19,
+            desc_units: false,
+            form_factor: "4-post-cabinet",
+            starting_unit: 1,
+            position: 0,
+            devices: [
+              {
+                // Child appears BEFORE its parent in the array.
+                id: "child-1",
+                device_type: "server-c",
+                position: 100,
+                face: "front" as const,
+                container_id: "parent-1",
+              },
+              {
+                id: "parent-1",
+                device_type: "container-a",
+                position: 200,
+                face: "front" as const,
+              },
+            ],
+          },
+        ],
+        device_types: [
+          {
+            slug: "server-c",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+          {
+            slug: "container-a",
+            u_height: 2,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+        ],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      const devices = store.layout.racks[0].devices;
+      const child = devices.find((d) => d.device_type === "server-c")!;
+      const parent = devices.find((d) => d.device_type === "container-a")!;
+      // The parent id is unchanged (unique), so the child must still point at it.
+      expect(parent.id).toBe("parent-1");
+      expect(child.container_id).toBe(parent.id);
+    });
+
+    it("keeps container_id on the surviving original and remaps only removed references", () => {
+      const store = getLayoutStore();
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Dup Device Container Test",
+        racks: [
+          {
+            id: "rack-1",
+            name: "Test Rack",
+            height: 42,
+            width: 19,
+            desc_units: false,
+            form_factor: "4-post-cabinet",
+            starting_unit: 1,
+            position: 0,
+            devices: [
+              // A keeps "X" (surviving original)
+              {
+                id: "X",
+                device_type: "container-a",
+                position: 100,
+                face: "front" as const,
+              },
+              // B duplicates "X" -> regenerated to a new id
+              {
+                id: "X",
+                device_type: "container-a",
+                position: 200,
+                face: "front" as const,
+              },
+              // C references "X": should keep pointing at the surviving A.
+              {
+                id: "C-surviving",
+                device_type: "server-c",
+                position: 300,
+                face: "front" as const,
+                container_id: "X",
+              },
+              // D references "gone": that id was renamed away (Y was a dup of Z).
+              {
+                id: "Z",
+                device_type: "container-a",
+                position: 400,
+                face: "front" as const,
+              },
+              {
+                // duplicate of Z -> regenerated; original "Z" survives on the line above
+                id: "Z",
+                device_type: "container-a",
+                position: 500,
+                face: "front" as const,
+              },
+            ],
+          },
+        ],
+        device_types: [
+          {
+            slug: "server-c",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+          {
+            slug: "container-a",
+            u_height: 2,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+        ],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      const devices = store.layout.racks[0].devices;
+      const finalIds = new Set(devices.map((d) => d.id));
+      const child = devices.find((d) => d.id === "C-surviving")!;
+      // The surviving original "X" still exists, so C must still point at it,
+      // not at the renamed duplicate.
+      expect(finalIds.has("X")).toBe(true);
+      expect(child.container_id).toBe("X");
+      // All devices have unique ids after dedup.
+      expect(finalIds.size).toBe(devices.length);
+    });
+  });
+
   describe("dirty tracking", () => {
     it("markDirty sets isDirty to true", () => {
       const store = getLayoutStore();
