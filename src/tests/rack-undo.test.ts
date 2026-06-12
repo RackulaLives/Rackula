@@ -9,8 +9,14 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
-import { resetHistoryStore } from "$lib/stores/history.svelte";
-import { createTestDeviceType } from "./factories";
+import { getHistoryStore, resetHistoryStore } from "$lib/stores/history.svelte";
+import { updateRackRecorded } from "$lib/stores/layout/recorded-rack-actions";
+import type { LayoutStateAccess } from "$lib/stores/layout/types";
+import {
+  createTestDeviceType,
+  createTestLayout,
+  createTestRack,
+} from "./factories";
 
 describe("Rack Add/Delete Undo/Redo", () => {
   beforeEach(() => {
@@ -293,6 +299,42 @@ describe("Rack Add/Delete Undo/Redo", () => {
           .devices.some((d) => d.device_type === "test-server"),
       ).toBe(true);
       expect(store.getRackById(rackB.id)!.devices.length).toBe(0);
+    });
+
+    it("no-ops undo when the bound rack no longer exists", () => {
+      const rackA = createTestRack({ id: "rack-a", name: "Rack A" });
+      const rackB = createTestRack({ id: "rack-b", name: "Rack B" });
+      let layout = createTestLayout({ racks: [rackA, rackB] });
+      let activeRackId: string | null = "rack-b";
+      const ctx: LayoutStateAccess = {
+        getLayout: () => layout,
+        setLayout: (l) => {
+          layout = l;
+        },
+        getActiveRackId: () => activeRackId,
+        setActiveRackId: (id) => {
+          activeRackId = id;
+        },
+        markDirty: () => {},
+        markStarted: () => {},
+        getRackGroups: () => layout.rack_groups ?? [],
+        findRack: (id) => layout.racks.find((r) => r.id === id),
+        findRackIndex: (id) => layout.racks.findIndex((r) => r.id === id),
+      };
+
+      updateRackRecorded(ctx, "rack-a", { name: "Rack A Renamed" });
+      expect(layout.racks.find((r) => r.id === "rack-a")!.name).toBe(
+        "Rack A Renamed",
+      );
+
+      // Remove the bound rack outside the history system, then undo.
+      // Without an existence guard the raw mutators fall back to the
+      // first rack and would rename rack B to "Rack A".
+      layout = { ...layout, racks: layout.racks.filter((r) => r.id !== "rack-a") };
+      getHistoryStore().undo();
+
+      expect(layout.racks.find((r) => r.id === "rack-b")!.name).toBe("Rack B");
+      expect(activeRackId).toBe("rack-b");
     });
 
     it("keeps the active rack unchanged across batch update execute and undo", () => {

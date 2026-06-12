@@ -31,25 +31,26 @@ function bindCommandToRack(
   rackId: string,
   inner: Command,
 ): Command {
+  const runOnRack = (action: () => void) => {
+    // If the bound rack is gone, the raw mutators would fall back to the
+    // first rack and mutate the wrong one — no-op instead.
+    if (!ctx.findRack(rackId)) return;
+    const previousActiveId = ctx.getActiveRackId();
+    ctx.setActiveRackId(rackId);
+    try {
+      action();
+    } finally {
+      ctx.setActiveRackId(previousActiveId);
+    }
+  };
+
   return {
     ...inner,
     execute() {
-      const previousActiveId = ctx.getActiveRackId();
-      ctx.setActiveRackId(rackId);
-      try {
-        inner.execute();
-      } finally {
-        ctx.setActiveRackId(previousActiveId);
-      }
+      runOnRack(() => inner.execute());
     },
     undo() {
-      const previousActiveId = ctx.getActiveRackId();
-      ctx.setActiveRackId(rackId);
-      try {
-        inner.undo();
-      } finally {
-        ctx.setActiveRackId(previousActiveId);
-      }
+      runOnRack(() => inner.undo());
     },
   };
 }
