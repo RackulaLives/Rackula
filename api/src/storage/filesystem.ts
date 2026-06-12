@@ -676,11 +676,12 @@ export async function saveLayout(
     throw new Error(`Invalid layout metadata: ${issues}`);
   }
 
-  // Determine UUID: use validated metadata.id > existingId > generate new
-  // Validate metadata.id before using it to prevent malformed UUIDs
+  // Determine UUID: prefer existingId (from URL) > validated metadata.id > generate new.
+  // The URL uuid is authoritative; metadata.id is used only for new layouts
+  // where no URL uuid is available yet.
   const metadataId = layout.data.metadata?.id;
   const validMetadataId = metadataId && isUuid(metadataId) ? metadataId : null;
-  const uuid = validMetadataId ?? existingUuid ?? crypto.randomUUID();
+  const uuid = existingUuid ?? validMetadataId ?? crypto.randomUUID();
   const layoutName = layout.data.metadata?.name ?? layout.data.name;
 
   const folderName = buildFolderName(layoutName, uuid);

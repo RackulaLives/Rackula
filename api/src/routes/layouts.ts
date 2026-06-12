@@ -88,31 +88,43 @@ layouts.put("/:uuid", async (c) => {
     }
 
     // Validate that metadata.id matches the URL uuid (if metadata exists)
-    // This prevents accidentally overwriting a different layout
+    // This prevents accidentally overwriting a different layout.
+    // Parse once, read metadata.id directly — no JSON.stringify round-trip,
+    // which would throw on cyclic objects from YAML anchors and silently
+    // bypass this guard (see #2067).
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(
-        JSON.stringify(
-          await import("js-yaml").then((y) =>
-            y.load(yamlContent, { schema: y.JSON_SCHEMA }),
-          ),
-        ),
-      );
-      const layout = LayoutFileSchema.safeParse(parsed);
-      if (layout.success && layout.data.metadata?.id) {
-        if (
-          layout.data.metadata.id.toLowerCase() !==
-          uuidResult.data.toLowerCase()
-        ) {
-          return c.json(
-            {
-              error: `UUID mismatch: URL has ${uuidResult.data} but metadata.id has ${layout.data.metadata.id}`,
-            },
-            400,
-          );
-        }
-      }
+      parsed = yaml.load(yamlContent, { schema: yaml.JSON_SCHEMA });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return c.json({ error: `Invalid YAML: ${message}` }, 400);
+    }
+
+    // Reject non-serializable bodies (circular references from anchors)
+    try {
+      JSON.stringify(parsed);
     } catch {
-      // If we can't parse, let saveLayout handle the error
+      return c.json(
+        {
+          error:
+            "YAML body contains circular references and cannot be processed",
+        },
+        400,
+      );
+    }
+
+    const layout = LayoutFileSchema.safeParse(parsed);
+    if (layout.success && layout.data.metadata?.id) {
+      if (
+        layout.data.metadata.id.toLowerCase() !== uuidResult.data.toLowerCase()
+      ) {
+        return c.json(
+          {
+            error: `UUID mismatch: URL has ${uuidResult.data} but metadata.id has ${layout.data.metadata.id}`,
+          },
+          400,
+        );
+      }
     }
 
     const result = await saveLayout(
