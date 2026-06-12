@@ -1,11 +1,10 @@
 <!--
   Canvas Component
-  Main content area displaying racks
-  Multi-rack mode: displays all racks with active selection indicator
-  Uses panzoom for zoom and pan functionality
+  Viewport shell for the rack designer: owns the panzoom container, swipe and
+  long-press gesture wiring, and the onboarding hint. Rack rendering lives in
+  RackCanvasView; gesture math lives in the canvas-* utils (#1610).
 -->
 <script lang="ts">
-  import { onDestroy } from "svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import {
@@ -14,34 +13,22 @@
     ZOOM_MAX,
   } from "$lib/stores/canvas.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
-  import { debug, appDebug } from "$lib/utils/debug";
-  import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
-  import {
-    classifyRackSwipeGesture,
-    useLongPress,
-    type RackSwipeDirection,
-  } from "$lib/utils/gestures";
-  import {
-    resolveSwipeTargetRackId,
-    exceedsHorizontalPanLock,
-    isRackInteractionTarget,
-  } from "$lib/utils/canvas-coordinates";
+  import { getPlacementStore } from "$lib/stores/placement.svelte";
+  import { debug } from "$lib/utils/debug";
+  import { useLongPress } from "$lib/utils/gestures";
+  import { isRackInteractionTarget } from "$lib/utils/canvas-coordinates";
   import { createCanvasPanzoom } from "$lib/utils/panzoom-lifecycle";
+  import { createRackSwipeController } from "$lib/utils/canvas-swipe.svelte";
   import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
-  import { hapticSuccess, hapticTap } from "$lib/utils/haptics";
-  import RackDualView from "./RackDualView.svelte";
-  import BayedRackView from "./BayedRackView.svelte";
+  import { hapticTap } from "$lib/utils/haptics";
+  import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
+  import type { DeviceFace, SlotPosition } from "$lib/types";
+  import RackCanvasView from "./RackCanvasView.svelte";
   import WelcomeScreen from "./WelcomeScreen.svelte";
   import CanvasContextMenu from "./CanvasContextMenu.svelte";
-  import type { DeviceFace, SlotPosition } from "$lib/types";
-  import { resolveSelectedDevice } from "$lib/utils/device-selection";
-  import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
-  // Note: PlacementIndicator removed - placement UI now integrated into Rack.svelte
 
   const ONBOARDING_HINT_KEY = "Rackula_onboarding_hint_dismissed";
-
-  // Multi-rack mode: use active rack ID from store
 
   interface Props {
     partyMode?: boolean;
@@ -127,58 +114,10 @@
   const uiStore = getUIStore();
   const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
-  const mobileDebug = appDebug.mobile;
-
-  const SWIPE_SWITCH_ANIMATION_MS = 200;
-  const TOUCH_MOVE_LOG_INTERVAL_MS = 120;
-  const TOUCH_LISTENER_OPTIONS: AddEventListenerOptions = {
-    // Capture keeps swipe tracking robust even if child components stop bubbling.
-    // Because listeners are passive and never call stopPropagation/preventDefault,
-    // child touch handlers still run and panzoom keeps gesture ownership.
-    capture: true,
-    passive: true,
-  };
-
-  interface SwipeGestureState {
-    startX: number;
-    startY: number;
-    currentX: number;
-    currentY: number;
-    startTime: number;
-    isMultiTouch: boolean;
-  }
-
-  // Note: handlePlacementCancel removed - now handled in Rack.svelte
-
-  // Handle mobile tap-to-place (uses active rack)
-  function handlePlacementTap(
-    rackId: string,
-    event: CustomEvent<{ position: number; face: "front" | "rear" }>,
-  ) {
-    const device = placementStore.pendingDevice;
-    if (!device) return;
-
-    const { position, face } = event.detail;
-    const success = layoutStore.placeDevice(
-      rackId,
-      device.slug,
-      position,
-      face,
-    );
-
-    if (success) {
-      hapticSuccess();
-      placementStore.completePlacement();
-      // Reset view to show full rack after placement completes
-      canvasStore.fitAll(layoutStore.racks);
-    }
-  }
 
   // Multi-rack mode: access all racks
   const racks = $derived(layoutStore.racks);
-  const activeRackId = $derived(layoutStore.activeRackId);
   const hasRacks = $derived(layoutStore.rackCount > 0);
-  const rackGroups = $derived(layoutStore.rack_groups);
   const allRacksEmpty = $derived(racks.every((r) => r.devices.length === 0));
   let hintDismissed = $state(safeGetItem(ONBOARDING_HINT_KEY) === "1");
 
@@ -187,34 +126,33 @@
     hintDismissed = true;
   }
 
-  // Organize racks: grouped racks in their groups, then ungrouped racks
-  const organizedRacks = $derived.by(() => {
-    const groupedRackIds = new Set(rackGroups.flatMap((g) => g.rack_ids));
-    const ungroupedRacks = racks.filter((r) => !groupedRackIds.has(r.id));
-
-    // Build group entries with their racks
-    const groupEntries = rackGroups
-      .map((group) => ({
-        group,
-        racks: group.rack_ids
-          .map((id) => racks.find((r) => r.id === id))
-          .filter((r): r is (typeof racks)[0] => r !== undefined),
-      }))
-      .filter((entry) => entry.racks.length > 0);
-
-    return { groupEntries, ungroupedRacks };
-  });
-
   // Panzoom container reference
   let panzoomContainer: HTMLDivElement | null = $state(null);
   let canvasContainer: HTMLDivElement | null = $state(null);
-  let swipeGesture: SwipeGestureState | null = null;
-  let swipeAnimationDirection: RackSwipeDirection | null = $state(null);
-  let swipeAnimationTimeout: ReturnType<typeof setTimeout> | null = null;
-  let swipeAnimationEpoch = 0;
-  let lastTouchMoveLogAt = 0;
   let canvasLongPressPoint = $state<{ x: number; y: number } | null>(null);
   let canvasLongPressTarget = $state<Element | null>(null);
+
+  // Swipe-to-switch-rack gesture state machine. Reads live store values via
+  // getters so the same controller instance stays correct as racks change.
+  const swipeController = createRackSwipeController({
+    isMobile: () => viewportStore.isMobile,
+    getRacks: () => layoutStore.racks,
+    getRackGroups: () => layoutStore.rack_groups,
+    isPlacing: () => placementStore.isPlacing,
+    getActiveRackId: () => layoutStore.activeRackId,
+    setActiveRack: (id) => layoutStore.setActiveRack(id),
+    selectRack: (id) => selectionStore.selectRack(id),
+    focusRack: (rackIds, allRacks, groups, rightOffset) =>
+      canvasStore.focusRack(rackIds, allRacks, groups, rightOffset),
+  });
+
+  const TOUCH_LISTENER_OPTIONS: AddEventListenerOptions = {
+    // Capture keeps swipe tracking robust even if child components stop bubbling.
+    // Because listeners are passive and never call stopPropagation/preventDefault,
+    // child touch handlers still run and panzoom keeps gesture ownership.
+    capture: true,
+    passive: true,
+  };
 
   // Keep touch listener lifecycle synced to the current bound canvas element.
   // We intentionally use passive listeners and never call preventDefault here so
@@ -230,44 +168,44 @@
 
     element.addEventListener(
       "touchstart",
-      handleCanvasTouchStart,
+      swipeController.handleTouchStart,
       TOUCH_LISTENER_OPTIONS,
     );
     element.addEventListener(
       "touchmove",
-      handleCanvasTouchMove,
+      swipeController.handleTouchMove,
       TOUCH_LISTENER_OPTIONS,
     );
     element.addEventListener(
       "touchend",
-      handleCanvasTouchEnd,
+      swipeController.handleTouchEnd,
       TOUCH_LISTENER_OPTIONS,
     );
     element.addEventListener(
       "touchcancel",
-      handleCanvasTouchCancel,
+      swipeController.handleTouchCancel,
       TOUCH_LISTENER_OPTIONS,
     );
 
     return () => {
       element.removeEventListener(
         "touchstart",
-        handleCanvasTouchStart,
+        swipeController.handleTouchStart,
         TOUCH_LISTENER_OPTIONS,
       );
       element.removeEventListener(
         "touchmove",
-        handleCanvasTouchMove,
+        swipeController.handleTouchMove,
         TOUCH_LISTENER_OPTIONS,
       );
       element.removeEventListener(
         "touchend",
-        handleCanvasTouchEnd,
+        swipeController.handleTouchEnd,
         TOUCH_LISTENER_OPTIONS,
       );
       element.removeEventListener(
         "touchcancel",
-        handleCanvasTouchCancel,
+        swipeController.handleTouchCancel,
         TOUCH_LISTENER_OPTIONS,
       );
       canvasStore.setCanvasElement(null);
@@ -310,13 +248,6 @@
     return cleanup;
   });
 
-  onDestroy(() => {
-    if (swipeAnimationTimeout) {
-      clearTimeout(swipeAnimationTimeout);
-      swipeAnimationTimeout = null;
-    }
-  });
-
   // Initialize panzoom reactively when container becomes available
   $effect(() => {
     if (panzoomContainer) {
@@ -339,6 +270,9 @@
     }
   });
 
+  // Clear the swipe animation timer when the canvas unmounts.
+  $effect(() => () => swipeController.dispose());
+
   function handleCanvasClick(event: MouseEvent) {
     // Only clear selection if clicking directly on the canvas (not on a rack)
     if (event.target === event.currentTarget) {
@@ -346,105 +280,9 @@
     }
   }
 
-  function handleRackSelect(event: CustomEvent<{ rackId: string }>) {
-    const { rackId } = event.detail;
-    layoutStore.setActiveRack(rackId);
-    selectionStore.selectRack(rackId);
-    onrackselect?.(event);
-  }
-
-  function handleGroupSelect(event: CustomEvent<{ groupId: string }>) {
-    const { groupId } = event.detail;
-    const group = layoutStore.getRackGroupById(groupId);
-    if (!group || group.rack_ids.length === 0) return;
-    const activeRackInGroup =
-      activeRackId && group.rack_ids.includes(activeRackId)
-        ? activeRackId
-        : group.rack_ids[0];
-    layoutStore.setActiveRack(activeRackInGroup ?? null);
-    selectionStore.selectGroup(groupId, activeRackInGroup);
-  }
-
-  function handleDeviceSelect(
-    rackId: string,
-    event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
-  ) {
-    // Resolve the placed device by its UUID when available. The legacy
-    // (slug, position) fallback is ambiguous for two half-width devices sharing
-    // the same U (#1680), where it always resolved to the left device and left
-    // the right one unselectable.
-    const targetRack = layoutStore.getRackById(rackId);
-    if (targetRack) {
-      const device = resolveSelectedDevice(targetRack, event.detail);
-      if (device) {
-        layoutStore.setActiveRack(rackId);
-        selectionStore.selectDevice(rackId, device.id);
-      }
-    }
-    ondeviceselect?.(event);
-  }
-
   function handleNewRack() {
     onnewrack?.();
   }
-
-  function handleDeviceDrop(
-    event: CustomEvent<{
-      rackId: string;
-      slug: string;
-      position: number;
-      face: "front" | "rear";
-      slot_position?: SlotPosition;
-    }>,
-  ) {
-    const { rackId, slug, position, face, slot_position } = event.detail;
-    layoutStore.placeDevice(rackId, slug, position, face, slot_position);
-    ondevicedrop?.(event);
-  }
-
-  function handleDeviceMove(
-    event: CustomEvent<{
-      rackId: string;
-      deviceIndex: number;
-      newPosition: number;
-      slot_position?: SlotPosition;
-    }>,
-  ) {
-    const { rackId, deviceIndex, newPosition, slot_position } = event.detail;
-    layoutStore.moveDevice(rackId, deviceIndex, newPosition, slot_position);
-    ondevicemove?.(event);
-  }
-
-  function handleDeviceMoveRack(
-    event: CustomEvent<{
-      sourceRackId: string;
-      sourceIndex: number;
-      targetRackId: string;
-      targetPosition: number;
-      face: DeviceFace;
-      slot_position?: SlotPosition;
-    }>,
-  ) {
-    const {
-      sourceRackId,
-      sourceIndex,
-      targetRackId,
-      targetPosition,
-      face,
-      slot_position,
-    } = event.detail;
-    layoutStore.moveDeviceToRack(
-      sourceRackId,
-      sourceIndex,
-      targetRackId,
-      targetPosition,
-      face,
-      slot_position,
-    );
-    ondevicemoverack?.(event);
-  }
-
-  // NOTE: handleRackViewChange removed in v0.4 (dual-view mode - always show both)
 
   // Screen reader accessible description of rack contents
   const rackDescription = $derived.by(() => {
@@ -476,161 +314,6 @@
       selectionStore.clearSelection();
     }
   }
-
-  function triggerSwipeAnimation(direction: RackSwipeDirection) {
-    if (swipeAnimationTimeout) {
-      clearTimeout(swipeAnimationTimeout);
-      swipeAnimationTimeout = null;
-    }
-
-    const epoch = ++swipeAnimationEpoch;
-    swipeAnimationDirection = null;
-
-    Promise.resolve().then(() => {
-      if (epoch !== swipeAnimationEpoch) return;
-
-      swipeAnimationDirection = direction;
-      swipeAnimationTimeout = setTimeout(() => {
-        if (epoch !== swipeAnimationEpoch) return;
-        swipeAnimationDirection = null;
-        swipeAnimationTimeout = null;
-      }, SWIPE_SWITCH_ANIMATION_MS);
-    });
-  }
-
-  function switchRackFromSwipe(direction: RackSwipeDirection) {
-    if (!viewportStore.isMobile || racks.length < 2) {
-      return;
-    }
-
-    const targetRackId = resolveSwipeTargetRackId(
-      racks.map((rack) => rack.id),
-      layoutStore.activeRackId,
-      direction,
-    );
-    if (!targetRackId) {
-      return;
-    }
-
-    triggerSwipeAnimation(direction);
-    layoutStore.setActiveRack(targetRackId);
-    selectionStore.selectRack(targetRackId);
-    canvasStore.focusRack([targetRackId], racks, rackGroups, 0);
-  }
-
-  function handleCanvasTouchStart(event: TouchEvent) {
-    if (
-      !viewportStore.isMobile ||
-      racks.length < 2 ||
-      placementStore.isPlacing ||
-      event.touches.length !== 1
-    ) {
-      swipeGesture = null;
-      return;
-    }
-
-    const touch = event.touches[0];
-    if (!touch) {
-      swipeGesture = null;
-      return;
-    }
-
-    swipeGesture = {
-      startX: touch.clientX,
-      startY: touch.clientY,
-      currentX: touch.clientX,
-      currentY: touch.clientY,
-      startTime: performance.now(),
-      isMultiTouch: false,
-    };
-    lastTouchMoveLogAt = 0;
-    if (mobileDebug.enabled) {
-      mobileDebug(
-        "canvas touchstart: x=%d y=%d",
-        swipeGesture.startX,
-        swipeGesture.startY,
-      );
-    }
-  }
-
-  function handleCanvasTouchMove(event: TouchEvent) {
-    if (!swipeGesture) return;
-
-    if (event.touches.length !== 1) {
-      swipeGesture.isMultiTouch = true;
-      if (mobileDebug.enabled) {
-        mobileDebug("canvas touchmove: multitouch detected");
-      }
-      return;
-    }
-
-    const touch = event.touches[0];
-    if (!touch) return;
-
-    swipeGesture.currentX = touch.clientX;
-    swipeGesture.currentY = touch.clientY;
-    if (mobileDebug.enabled) {
-      const now = performance.now();
-      if (now - lastTouchMoveLogAt >= TOUCH_MOVE_LOG_INTERVAL_MS) {
-        mobileDebug(
-          "canvas touchmove: x=%d y=%d",
-          swipeGesture.currentX,
-          swipeGesture.currentY,
-        );
-        lastTouchMoveLogAt = now;
-      }
-    }
-  }
-
-  function handleCanvasTouchEnd(event: TouchEvent) {
-    if (!swipeGesture) return;
-
-    const changedTouch = event.changedTouches[0];
-    const endX = changedTouch?.clientX ?? swipeGesture.currentX;
-    const endY = changedTouch?.clientY ?? swipeGesture.currentY;
-    const durationMs = performance.now() - swipeGesture.startTime;
-    const horizontalLock = exceedsHorizontalPanLock(swipeGesture.startX, endX);
-
-    if (!horizontalLock) {
-      if (mobileDebug.enabled) {
-        mobileDebug("canvas touchend: below horizontal lock threshold");
-      }
-      swipeGesture = null;
-      return;
-    }
-
-    const direction = classifyRackSwipeGesture({
-      startX: swipeGesture.startX,
-      startY: swipeGesture.startY,
-      endX,
-      endY,
-      durationMs,
-      isMultiTouch: swipeGesture.isMultiTouch,
-    });
-
-    if (mobileDebug.enabled) {
-      mobileDebug(
-        "canvas touchend: direction=%s duration=%dms",
-        direction ?? "none",
-        Math.round(durationMs),
-      );
-    }
-
-    swipeGesture = null;
-
-    if (!direction) return;
-    if (mobileDebug.enabled) {
-      mobileDebug("Swipe detected: %s, switching rack", direction);
-    }
-    switchRackFromSwipe(direction);
-  }
-
-  function handleCanvasTouchCancel() {
-    if (mobileDebug.enabled) {
-      mobileDebug("canvas touchcancel: gesture reset");
-    }
-    swipeGesture = null;
-  }
 </script>
 
 <!-- eslint-disable-next-line svelte/no-unused-svelte-ignore -- these warnings appear in Vite build but not ESLint -->
@@ -653,8 +336,6 @@
     onclick={handleCanvasClick}
     onkeydown={handleCanvasKeydown}
   >
-    <!-- Note: Mobile placement indicator now integrated into Rack.svelte -->
-
     <!-- Hidden description for screen readers -->
     {#if deviceListDescription}
       <p id="canvas-device-list" class="sr-only">{deviceListDescription}</p>
@@ -675,135 +356,23 @@
 
     {#if hasRacks}
       <div class="panzoom-container" bind:this={panzoomContainer}>
-        <!-- Multi-rack mode: render racks with visual grouping -->
-        <div
-          class="racks-wrapper"
-          class:swipe-next={swipeAnimationDirection === "next"}
-          class:swipe-previous={swipeAnimationDirection === "previous"}
-        >
-          <!-- Render grouped racks with group labels -->
-          {#each organizedRacks.groupEntries as { group, racks: groupRacks } (group.id)}
-            {#if group.layout_preset === "bayed"}
-              <!-- Bayed/touring racks use special stacked view -->
-              <BayedRackView
-                {group}
-                racks={groupRacks}
-                deviceLibrary={layoutStore.device_types}
-                {activeRackId}
-                selectedDeviceId={selectionStore.selectedType === "device"
-                  ? selectionStore.selectedDeviceId
-                  : null}
-                selectedRackId={selectionStore.selectedType === "rack"
-                  ? selectionStore.selectedRackId
-                  : null}
-                displayMode={uiStore.displayMode}
-                showLabelsOnImages={uiStore.showLabelsOnImages}
-                showAnnotations={uiStore.showAnnotations}
-                annotationField={uiStore.annotationField}
-                {partyMode}
-                {enableLongPress}
-                ongroupselect={(e) => handleGroupSelect(e)}
-                ondeviceselect={(e) => handleDeviceSelect(e.detail.rackId, e)}
-                ondevicedrop={(e) => handleDeviceDrop(e)}
-                ondevicemove={(e) => handleDeviceMove(e)}
-                ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-                onplacementtap={(e) => handlePlacementTap(e.detail.rackId, e)}
-                onlongpress={(e) => onracklongpress?.(e)}
-                onfocus={(rackIds) => onrackfocus?.(rackIds)}
-                onexport={(rackIds) => onrackexport?.(rackIds)}
-                onedit={(rackId) => onrackedit?.(rackId)}
-                onrename={(rackId) => onrackrename?.(rackId)}
-                onduplicate={(rackId) => onrackduplicate?.(rackId)}
-                ondelete={(rackId) => onrackdelete?.(rackId)}
-              />
-            {:else}
-              <!-- Standard row layout for non-bayed groups -->
-              <div class="rack-group">
-                <div class="group-label">{group.name ?? "Group"}</div>
-                <div class="group-racks">
-                  {#each groupRacks as rack (rack.id)}
-                    {@const isActive = rack.id === activeRackId}
-                    {@const isSelected =
-                      selectionStore.selectedType === "rack" &&
-                      selectionStore.selectedRackId === rack.id}
-                    <div class="rack-wrapper" class:active={isActive}>
-                      <RackDualView
-                        {rack}
-                        deviceLibrary={layoutStore.device_types}
-                        selected={isSelected}
-                        {isActive}
-                        selectedDeviceId={selectionStore.selectedType ===
-                          "device" && selectionStore.selectedRackId === rack.id
-                          ? selectionStore.selectedDeviceId
-                          : null}
-                        displayMode={uiStore.displayMode}
-                        showLabelsOnImages={uiStore.showLabelsOnImages}
-                        showAnnotations={uiStore.showAnnotations}
-                        annotationField={uiStore.annotationField}
-                        showBanana={uiStore.showBanana}
-                        {partyMode}
-                        {enableLongPress}
-                        onselect={(e) => handleRackSelect(e)}
-                        ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
-                        ondevicedrop={(e) => handleDeviceDrop(e)}
-                        ondevicemove={(e) => handleDeviceMove(e)}
-                        ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-                        onplacementtap={(e) => handlePlacementTap(rack.id, e)}
-                        onlongpress={(e) => onracklongpress?.(e)}
-                        onfocus={() => onrackfocus?.([rack.id])}
-                        onexport={() => onrackexport?.([rack.id])}
-                        onedit={() => onrackedit?.(rack.id)}
-                        onrename={() => onrackrename?.(rack.id)}
-                        onduplicate={() => onrackduplicate?.(rack.id)}
-                        ondelete={() => onrackdelete?.(rack.id)}
-                      />
-                    </div>
-                  {/each}
-                </div>
-              </div>
-            {/if}
-          {/each}
-
-          <!-- Render ungrouped racks -->
-          {#each organizedRacks.ungroupedRacks as rack (rack.id)}
-            {@const isActive = rack.id === activeRackId}
-            {@const isSelected =
-              selectionStore.selectedType === "rack" &&
-              selectionStore.selectedRackId === rack.id}
-            <div class="rack-wrapper" class:active={isActive}>
-              <RackDualView
-                {rack}
-                deviceLibrary={layoutStore.device_types}
-                selected={isSelected}
-                {isActive}
-                selectedDeviceId={selectionStore.selectedType === "device" &&
-                selectionStore.selectedRackId === rack.id
-                  ? selectionStore.selectedDeviceId
-                  : null}
-                displayMode={uiStore.displayMode}
-                showLabelsOnImages={uiStore.showLabelsOnImages}
-                showAnnotations={uiStore.showAnnotations}
-                annotationField={uiStore.annotationField}
-                showBanana={uiStore.showBanana}
-                {partyMode}
-                {enableLongPress}
-                onselect={(e) => handleRackSelect(e)}
-                ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
-                ondevicedrop={(e) => handleDeviceDrop(e)}
-                ondevicemove={(e) => handleDeviceMove(e)}
-                ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-                onplacementtap={(e) => handlePlacementTap(rack.id, e)}
-                onlongpress={(e) => onracklongpress?.(e)}
-                onfocus={() => onrackfocus?.([rack.id])}
-                onexport={() => onrackexport?.([rack.id])}
-                onedit={() => onrackedit?.(rack.id)}
-                onrename={() => onrackrename?.(rack.id)}
-                onduplicate={() => onrackduplicate?.(rack.id)}
-                ondelete={() => onrackdelete?.(rack.id)}
-              />
-            </div>
-          {/each}
-        </div>
+        <RackCanvasView
+          {partyMode}
+          {enableLongPress}
+          swipeAnimationDirection={swipeController.animationDirection}
+          {onrackselect}
+          {ondeviceselect}
+          {ondevicedrop}
+          {ondevicemove}
+          {ondevicemoverack}
+          {onracklongpress}
+          {onrackfocus}
+          {onrackexport}
+          {onrackedit}
+          {onrackrename}
+          {onrackduplicate}
+          {onrackdelete}
+        />
       </div>
     {:else}
       <WelcomeScreen onclick={handleNewRack} />
@@ -834,86 +403,6 @@
     cursor: grabbing;
   }
 
-  .racks-wrapper {
-    /* Multi-rack mode: horizontal layout of all racks */
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start; /* Prevent shorter racks from stretching to match tallest */
-    gap: var(--space-6);
-    padding: var(--space-4);
-  }
-
-  .racks-wrapper.swipe-next {
-    animation: rack-swipe-next 200ms var(--ease-out, ease-out);
-  }
-
-  .racks-wrapper.swipe-previous {
-    animation: rack-swipe-previous 200ms var(--ease-out, ease-out);
-  }
-
-  @keyframes rack-swipe-next {
-    0% {
-      opacity: 1;
-      transform: translateX(0);
-    }
-    50% {
-      opacity: 0.9;
-      transform: translateX(-18px);
-    }
-    100% {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes rack-swipe-previous {
-    0% {
-      opacity: 1;
-      transform: translateX(0);
-    }
-    50% {
-      opacity: 0.9;
-      transform: translateX(18px);
-    }
-    100% {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  .rack-wrapper {
-    /* Individual rack container - selection styling handled by RackDualView */
-    display: inline-block;
-    border-radius: var(--radius-lg);
-  }
-
-  /* Rack group visual container (for non-bayed groups; bayed uses BayedRackView) */
-  .rack-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    padding: var(--space-3);
-    border: 2px dashed var(--colour-border);
-    border-radius: var(--radius-lg);
-    background: var(--colour-surface-overlay, rgba(40, 42, 54, 0.3));
-  }
-
-  .group-label {
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold, 600);
-    color: var(--colour-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 0 var(--space-1);
-  }
-
-  .group-racks {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start; /* Prevent shorter racks from stretching */
-    gap: var(--space-4);
-  }
-
   /* Party mode: animated gradient background */
   @keyframes party-bg {
     0% {
@@ -937,11 +426,6 @@
   /* Respect reduced motion preference */
   @media (prefers-reduced-motion: reduce) {
     .canvas.party-mode {
-      animation: none;
-    }
-
-    .racks-wrapper.swipe-next,
-    .racks-wrapper.swipe-previous {
       animation: none;
     }
   }
