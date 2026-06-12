@@ -13,7 +13,6 @@ import {
   type CreateDeviceTypeInput,
 } from "$lib/stores/layout-helpers";
 import { layoutDebug } from "$lib/utils/debug";
-import { getHistoryStore } from "../history.svelte";
 import {
   createAddDeviceTypeCommand,
   createUpdateDeviceTypeCommand,
@@ -35,7 +34,7 @@ export function addDeviceTypeRecorded(
   data: CreateDeviceTypeInput,
 ): DeviceType {
   const deviceType = createDeviceTypeHelper(data);
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createAddDeviceTypeCommand(deviceType, adapter);
@@ -66,7 +65,7 @@ export function updateDeviceTypeRecorded(
     before[key] = existing[key] as never;
   }
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createUpdateDeviceTypeCommand(slug, before, updates, adapter);
@@ -107,7 +106,7 @@ export function deleteDeviceTypeRecorded(
 
   const placedDevices = getPlacedDevicesWithRackForType(ctx, slug);
   const connectedCables = findCablesForDevices(ctx, placedDevices);
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createDeleteDeviceTypeCommand(
@@ -144,7 +143,7 @@ export function deleteMultipleDeviceTypesRecorded(
   }
 
   const layout = ctx.getLayout();
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
   const commands: ReturnType<typeof createDeleteDeviceTypeCommand>[] = [];
   // A cable connecting devices of two different types would otherwise be

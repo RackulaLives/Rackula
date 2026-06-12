@@ -21,7 +21,6 @@ import { findDeviceType } from "$lib/utils/device-lookup";
 import { generateId } from "$lib/utils/device";
 import { toInternalUnits } from "$lib/utils/position";
 import { instantiatePorts } from "$lib/utils/port-utils";
-import { getHistoryStore } from "../history.svelte";
 import {
   createPlaceDeviceCommand,
   createAddDeviceTypeCommand,
@@ -124,7 +123,7 @@ export function duplicateDevice(
   ctx.setActiveRackId(rackId);
 
   // Use the undo/redo system via placeDeviceRaw and history
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
   const deviceName = deviceType.model ?? deviceType.slug;
 
@@ -208,7 +207,7 @@ export function placeInContainer(
 
   // Use command for undo/redo
   const deviceName = childType.model ?? childType.slug;
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const autoImport =
@@ -328,7 +327,7 @@ export function moveDeviceToRack(
   // Set active rack for command creation
   ctx.setActiveRackId(fromRackId);
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createCrossRackMoveCommand(

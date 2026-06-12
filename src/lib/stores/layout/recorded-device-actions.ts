@@ -22,7 +22,6 @@ import { findDeviceType } from "$lib/utils/device-lookup";
 import { debug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { instantiatePorts } from "$lib/utils/port-utils";
-import { getHistoryStore } from "../history.svelte";
 import {
   createAddDeviceTypeCommand,
   createPlaceDeviceCommand,
@@ -168,7 +167,7 @@ export function placeDeviceRecorded(
     ports: instantiatePorts(deviceType),
   };
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const autoImport = getAutoImportDeviceType(ctx, deviceTypeSlug, deviceType);
@@ -300,7 +299,7 @@ export function moveDeviceRecorded(
     return false;
   }
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const moveCommand = createMoveDeviceCommand(
@@ -405,7 +404,7 @@ export function removeDeviceRecorded(
   );
   const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createRemoveDeviceCommand(
@@ -447,7 +446,7 @@ export function updateDeviceFaceRecorded(
   );
   const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createUpdateDeviceFaceCommand(
@@ -493,7 +492,7 @@ export function updateDeviceNameRecorded(
   // Normalize empty string to undefined
   const normalizedName = name?.trim() || undefined;
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createUpdateDeviceNameCommand(
@@ -538,7 +537,7 @@ export function updateDevicePlacementImageRecorded(
   );
   const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createUpdateDevicePlacementImageCommand(
@@ -582,7 +581,7 @@ export function updateDeviceColourRecorded(
   );
   const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createUpdateDeviceColourCommand(
@@ -641,7 +640,7 @@ export function updateDeviceSlotPositionRecorded(
     return false;
   }
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createUpdateDeviceSlotPositionCommand(
@@ -688,7 +687,7 @@ export function updateDeviceNotesRecorded(
   // Normalize empty string to undefined
   const normalizedNotes = notes?.trim() || undefined;
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createUpdateDeviceNotesCommand(
@@ -737,7 +736,7 @@ export function updateDeviceIpRecorded(
   // Normalize empty string to undefined
   const normalizedIp = ip?.trim() || undefined;
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createUpdateDeviceIpCommand(

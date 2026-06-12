@@ -10,7 +10,6 @@ import { MAX_RACKS } from "$lib/types/constants";
 import { createDefaultRack } from "$lib/utils/serialization";
 import { layoutDebug } from "$lib/utils/debug";
 import { generateRackId, generateGroupId } from "$lib/utils/rack";
-import { getHistoryStore } from "../history.svelte";
 import {
   createCreateRackGroupCommand,
   createUpdateRackGroupCommand,
@@ -235,7 +234,7 @@ export function createRackGroup(
   };
 
   // Use recorded action for undo/redo support
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getRackGroupCommandAdapter(ctx);
   const command = createCreateRackGroupCommand(group, adapter);
   history.execute(command);
@@ -305,7 +304,7 @@ export function updateRackGroup(
   }
 
   // Use recorded action for undo/redo support
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getRackGroupCommandAdapter(ctx);
   const command = createUpdateRackGroupCommand(id, before, updates, adapter);
   history.execute(command);
@@ -326,7 +325,7 @@ export function deleteRackGroup(ctx: LayoutStateAccess, id: string): void {
   if (!group) return;
 
   // Use recorded action for undo/redo support
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getRackGroupCommandAdapter(ctx);
   const command = createDeleteRackGroupCommand(group, adapter);
   history.execute(command);
@@ -465,7 +464,7 @@ export function addBayToGroup(
   );
 
   // Use BatchCommand for atomic undo/redo
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const rackAdapter = getRackLifecycleCommandAdapter(ctx);
   const groupAdapter = getRackGroupCommandAdapter(ctx);
 
@@ -474,9 +473,17 @@ export function addBayToGroup(
 
   const commands: Command[] = [
     createAddRackCommand(newRack, rackAdapter),
-    createUpdateRackGroupCommand(groupId, { rack_ids: oldRackIds }, { rack_ids: newRackIds }, groupAdapter),
+    createUpdateRackGroupCommand(
+      groupId,
+      { rack_ids: oldRackIds },
+      { rack_ids: newRackIds },
+      groupAdapter,
+    ),
   ];
-  const batch = createBatchCommand(`Add bay ${bayNumber} to "${group.name}"`, commands);
+  const batch = createBatchCommand(
+    `Add bay ${bayNumber} to "${group.name}"`,
+    commands,
+  );
   history.execute(batch);
   ctx.markDirty();
 
@@ -615,7 +622,7 @@ export function setBayCount(
   }
 
   // Build all mutations as a single BatchCommand
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const rackAdapter = getRackLifecycleCommandAdapter(ctx);
   const groupAdapter = getRackGroupCommandAdapter(ctx);
   const oldRackIds = [...group.rack_ids];

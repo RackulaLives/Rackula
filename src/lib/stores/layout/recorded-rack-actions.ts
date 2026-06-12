@@ -7,7 +7,6 @@
  */
 
 import type { Rack } from "$lib/types";
-import { getHistoryStore } from "../history.svelte";
 import {
   createUpdateRackCommand,
   createClearRackCommand,
@@ -78,7 +77,7 @@ export function updateRackRecorded(
     before[key] = targetRack[key] as never;
   }
 
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = bindCommandToRack(
@@ -107,7 +106,7 @@ export function updateRacksBatchRecorded(
   description: string,
 ): void {
   const adapter = getCommandStoreAdapter(ctx);
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const commands = [];
 
   for (const { rackId, updates } of targets) {
@@ -162,7 +161,7 @@ export function clearRackRecorded(
   if (!targetRack || targetRack.devices.length === 0) return;
 
   const devices = [...targetRack.devices];
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = bindCommandToRack(

@@ -320,6 +320,7 @@ describe("Rack Add/Delete Undo/Redo", () => {
         getRackGroups: () => layout.rack_groups ?? [],
         findRack: (id) => layout.racks.find((r) => r.id === id),
         findRackIndex: (id) => layout.racks.findIndex((r) => r.id === id),
+        getHistory: () => getHistoryStore(),
       };
 
       updateRackRecorded(ctx, "rack-a", { name: "Rack A Renamed" });
@@ -330,7 +331,10 @@ describe("Rack Add/Delete Undo/Redo", () => {
       // Remove the bound rack outside the history system, then undo.
       // Without an existence guard the raw mutators fall back to the
       // first rack and would rename rack B to "Rack A".
-      layout = { ...layout, racks: layout.racks.filter((r) => r.id !== "rack-a") };
+      layout = {
+        ...layout,
+        racks: layout.racks.filter((r) => r.id !== "rack-a"),
+      };
       getHistoryStore().undo();
 
       expect(layout.racks.find((r) => r.id === "rack-b")!.name).toBe("Rack B");

@@ -11,7 +11,6 @@ import { createDefaultRack } from "$lib/utils/serialization";
 import { layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { generateRackId } from "$lib/utils/rack";
-import { getHistoryStore } from "../history.svelte";
 import {
   createAddRackCommand,
   createDeleteRackCommand,
@@ -327,7 +326,7 @@ export function addRack(
 
   // Use recorded action for undo/redo support
   // setActive: true ensures redo also restores the active rack selection
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getRackLifecycleCommandAdapter(ctx);
   const command = createAddRackCommand(newRack, adapter, true, layoutNameSync);
   history.execute(command);
@@ -406,7 +405,7 @@ export function addBayedRackGroup(
 
   // Use command pattern for undo/redo support
   // First rack gets setActive: true so redo also restores active rack selection
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const rackAdapter = getRackLifecycleCommandAdapter(ctx);
   const groupAdapter = getRackGroupCommandAdapter(ctx);
 
@@ -453,7 +452,7 @@ export function deleteRack(ctx: LayoutStateAccess, id: string): void {
     .map((g) => JSON.parse(JSON.stringify(g)) as RackGroup);
 
   // Use recorded action for undo/redo support
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getRackLifecycleCommandAdapter(ctx);
   const command = createDeleteRackCommand(rack, affectedGroups, adapter);
   history.execute(command);
@@ -544,7 +543,7 @@ export function duplicateRack(
   const duplicatedRack = cloned;
 
   // setActive: true ensures redo also restores the active rack selection
-  const history = getHistoryStore();
+  const history = ctx.getHistory();
   const adapter = getRackLifecycleCommandAdapter(ctx);
   const command = createAddRackCommand(duplicatedRack, adapter, true);
   history.execute(command);

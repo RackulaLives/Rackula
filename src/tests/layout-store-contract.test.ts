@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
+  createLayoutStore,
   getLayoutStore,
   HAS_STARTED_KEY,
   resetLayoutStore,
@@ -120,13 +121,16 @@ const _EXPECTED_LAYOUT_STORE_KEYS = [
   "updateShowLabelsOnImages",
 ] as const;
 
-type LayoutStoreContract = ReturnType<typeof getLayoutStore>;
+type LayoutStoreContract = ReturnType<typeof createLayoutStore>;
 type ExpectedLayoutStoreKey = (typeof _EXPECTED_LAYOUT_STORE_KEYS)[number];
 type MissingFromExpected = Exclude<
   keyof LayoutStoreContract,
   ExpectedLayoutStoreKey
 >;
-type ExtraInExpected = Exclude<ExpectedLayoutStoreKey, keyof LayoutStoreContract>;
+type ExtraInExpected = Exclude<
+  ExpectedLayoutStoreKey,
+  keyof LayoutStoreContract
+>;
 
 describe("Layout Store Contract", () => {
   beforeEach(() => {
@@ -138,6 +142,43 @@ describe("Layout Store Contract", () => {
   it("matches the documented public API key contract at type level", () => {
     expectTypeOf<MissingFromExpected>().toEqualTypeOf<never>();
     expectTypeOf<ExtraInExpected>().toEqualTypeOf<never>();
+  });
+
+  it("createLayoutStore() returns a fresh instance distinct from the active one", () => {
+    const instance = createLayoutStore();
+    expect(instance).not.toBe(getLayoutStore());
+    expect(instance.racks).toEqual([]);
+  });
+
+  it("isolates layout state between independent instances", () => {
+    const storeA = createLayoutStore();
+    const storeB = createLayoutStore();
+
+    const rack = storeA.addRack("Instance A Rack", 42);
+    expect(rack).not.toBeNull();
+    expect(storeA.racks.some((r) => r.id === rack!.id)).toBe(true);
+    // The other instance's working copy is untouched.
+    expect(storeB.racks.some((r) => r.id === rack!.id)).toBe(false);
+
+    storeA.updateDisplayMode("image");
+    expect(storeB.layout.settings.display_mode).not.toBe("image");
+  });
+
+  it("gives each instance its own undo/redo stack", () => {
+    const storeA = createLayoutStore();
+    const storeB = createLayoutStore();
+
+    expect(storeA.canUndo).toBe(false);
+    expect(storeB.canUndo).toBe(false);
+
+    storeA.addRack("Instance A Rack", 42);
+    // Only the instance that performed the action can undo it.
+    expect(storeA.canUndo).toBe(true);
+    expect(storeB.canUndo).toBe(false);
+
+    storeA.undo();
+    expect(storeA.canRedo).toBe(true);
+    expect(storeB.canRedo).toBe(false);
   });
 
   it("shares state across getLayoutStore() calls", () => {
@@ -182,9 +223,9 @@ describe("Layout Store Contract", () => {
 
     const rack = store.addRack(rackName, 42);
     expect(rack).not.toBeNull();
-    expect(store.racks.some((r) => r.id === rack!.id && r.name === rackName)).toBe(
-      true,
-    );
+    expect(
+      store.racks.some((r) => r.id === rack!.id && r.name === rackName),
+    ).toBe(true);
     expect(store.canUndo).toBe(true);
     expect(history.canUndo).toBe(true);
 
@@ -194,8 +235,8 @@ describe("Layout Store Contract", () => {
     expect(history.canRedo).toBe(true);
 
     store.redo();
-    expect(store.racks.some((r) => r.id === rack!.id && r.name === rackName)).toBe(
-      true,
-    );
+    expect(
+      store.racks.some((r) => r.id === rack!.id && r.name === rackName),
+    ).toBe(true);
   });
 });

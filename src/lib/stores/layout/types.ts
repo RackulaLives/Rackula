@@ -7,6 +7,7 @@
  */
 
 import type { Layout, Rack, RackGroup } from "$lib/types";
+import type { HistoryStore } from "../history.svelte";
 
 /**
  * Interface for accessing layout store state from extracted modules.
@@ -38,4 +39,6 @@ export interface LayoutStateAccess {
   findRack(id: string): Rack | undefined;
   /** Find the index of a rack by ID */
   findRackIndex(id: string): number;
+  /** Get this layout instance's undo/redo history store */
+  getHistory(): HistoryStore;
 }
