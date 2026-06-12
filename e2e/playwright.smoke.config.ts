@@ -21,12 +21,16 @@ export default defineConfig({
   testMatch: ["smoke.spec.ts", "basic-workflow.spec.ts"],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: 2,
+  retries: 1,
   timeout: 60000,
   expect: {
     timeout: 15000,
   },
-  reporter: [["html", { open: "never" }]],
+  // Smoke is single-shard, so no blob reporter. The github reporter annotates
+  // PRs with failure locations in CI; list shows live progress locally.
+  reporter: process.env.CI
+    ? [["github"], ["html", { open: "never" }]]
+    : [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: smokeTestUrl || "http://localhost:4173",
     trace: "on-first-retry",
