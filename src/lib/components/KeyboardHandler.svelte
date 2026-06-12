@@ -14,6 +14,7 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { findNextValidPosition } from "$lib/utils/device-movement";
+  import { isContainerChild } from "$lib/utils/collision";
   import { toHumanUnits } from "$lib/utils/position";
   import type { SlotPosition } from "$lib/types";
   import { findDeviceType } from "$lib/utils/device-lookup";
@@ -320,6 +321,13 @@
     const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
     if (deviceIndex === null) return;
 
+    // Contained children use container-relative positions; nudging them with
+    // arrow keys would compute a rack-level U and eject them from the
+    // container. Block this at the keyboard entry point only — the store-level
+    // moveDevice path (used by drag-out) intentionally detaches.
+    const placedDevice = rack.devices[deviceIndex];
+    if (placedDevice && isContainerChild(placedDevice)) return;
+
     // Use shared utility to find next valid position
     const result = findNextValidPosition(
       rack,
@@ -363,6 +371,9 @@
 
     const placedDevice = rack.devices[deviceIndex];
     if (!placedDevice) return;
+
+    // Contained children should not be slot-nudged at rack level
+    if (isContainerChild(placedDevice)) return;
 
     // Get device type to check if half-width
     const deviceType = findDeviceType(
