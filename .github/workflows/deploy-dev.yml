@@ -102,7 +102,7 @@ jobs:
       - name: Pre-pull base image
         working-directory: ./api
         run: |
-          image="$(awk '/^FROM/ { print $2; exit }' Dockerfile)"
+          image="$(awk '/^[[:space:]]*FROM[[:space:]]/ { print $2; exit }' Dockerfile)"
           echo "Base image: $image"
           for attempt in 1 2 3 4 5; do
             if docker pull "$image"; then
@@ -110,8 +110,9 @@ jobs:
               exit 0
             fi
             if [ "$attempt" -lt 5 ]; then
-              echo "::warning::Pull attempt $attempt for $image failed; retrying in $((attempt * 10))s"
-              sleep $((attempt * 10))
+              delay=$((2 ** (attempt - 1)))
+              echo "::warning::Pull attempt $attempt for $image failed; retrying in ${delay}s"
+              sleep "$delay"
             fi
           done
           echo "::error::Failed to pull $image after 5 attempts"
