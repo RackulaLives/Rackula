@@ -66,7 +66,8 @@ gh issue edit <N> --remove-label "in-progress"
 **MANDATORY:** Always create a worktree for issue work. Never work directly on main.
 
 ```bash
-git worktree add .worktree/${REPO_NAME}-issue-<N> -b <type>/<N>-<desc> origin/main
+BASE_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
+git worktree add .worktree/${REPO_NAME}-issue-<N> -b <type>/<N>-<desc> origin/${BASE_BRANCH}
 WORKTREE_DIR="$(pwd)/.worktree/${REPO_NAME}-issue-<N>"
 ```
 
@@ -164,8 +165,10 @@ START
 ```bash
 CURRENT=$(git branch --show-current)
 if [ "$CURRENT" != "main" ] && [ "$CURRENT" != "master" ]; then
-  echo "WARNING: Main directory on branch: $CURRENT"
-  git checkout main || git checkout master
+  echo "ABORT: Shared checkout is on '$CURRENT', not main/master."
+  echo "Do NOT switch branches here; other worktrees/agents may depend on it."
+  echo "Restore it manually, then re-run."
+  exit 1
 fi
 ```
 
@@ -347,8 +350,7 @@ gh pr merge <PR> --squash --delete-branch --auto
 # Release lock if label exists
 gh issue edit <N> --remove-label "in-progress" 2>/dev/null || true
 
-# Return to main, clean worktree
-git checkout main || git checkout master
+# Refresh main (shared checkout is already on main) and clean worktree
 git pull
 git worktree remove .worktree/${REPO_NAME}-issue-<N>
 git worktree prune
