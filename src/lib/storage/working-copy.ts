@@ -7,6 +7,7 @@ import {
   safeRemoveItem,
 } from "$lib/utils/safe-storage";
 import { sessionDebug } from "$lib/utils/debug";
+import { getStorageMode, type StorageMode } from "./availability.svelte";
 
 const log = sessionDebug.storage;
 const STORAGE_KEY = "Rackula:autosave";
@@ -20,6 +21,7 @@ interface SessionData {
   savedAt: string; // ISO 8601 timestamp
   changesSinceExport: number;
   hasEverExported: boolean;
+  storageMode: StorageMode; // mode this copy was saved under
 }
 
 /**
@@ -30,6 +32,8 @@ export interface SessionLoadResult {
   savedAt: string | null; // null for legacy data without timestamp
   changesSinceExport: number;
   hasEverExported: boolean;
+  /** Storage mode the copy was saved under (defaults to "browser" if missing) */
+  storageMode: StorageMode;
 }
 
 /**
@@ -107,6 +111,15 @@ function migrateLayout(raw: Record<string, unknown>): Layout | null {
 }
 
 /**
+ * Coerce a stored storageMode value to a valid StorageMode.
+ * Missing or unknown values default to "browser" (legacy sessions predate the
+ * field and were always browser-stored).
+ */
+function parseStorageMode(value: unknown): StorageMode {
+  return value === "server" ? "server" : "browser";
+}
+
+/**
  * Save the current layout to localStorage with timestamp.
  * @param layout - The layout to save
  * @param backup - Backup state persisted alongside the layout
@@ -119,6 +132,7 @@ export function saveSession(layout: Layout, backup: BackupState): boolean {
       savedAt: new Date().toISOString(),
       changesSinceExport: backup.changesSinceExport,
       hasEverExported: backup.hasEverExported,
+      storageMode: getStorageMode(),
     };
     const serialized = JSON.stringify(sessionData);
     if (!safeSetItem(STORAGE_KEY, serialized)) {
@@ -186,6 +200,7 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
             ? obj.changesSinceExport
             : 0,
         hasEverExported: obj.hasEverExported === true,
+        storageMode: parseStorageMode(obj.storageMode),
       };
     }
 
@@ -197,6 +212,7 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
       savedAt: null, // No timestamp for legacy data
       changesSinceExport: 0,
       hasEverExported: false,
+      storageMode: "browser",
     };
   } catch (error) {
     log("failed to load session: %O", error);
@@ -209,6 +225,22 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
  */
 export function clearSession(): void {
   safeRemoveItem(STORAGE_KEY);
+}
+
+/** Result of comparing the session's saved mode to the configured mode. */
+export type ModeFlip = "none" | "server-to-browser" | "browser-to-server";
+
+/**
+ * Compare the mode a session was saved under to the currently configured mode.
+ * A flip means the deployment changed storage backend between visits, which must
+ * be surfaced rather than silently degrading data.
+ * @param sessionMode - The mode the loaded session was saved under
+ * @returns "server-to-browser", "browser-to-server", or "none"
+ */
+export function detectModeFlip(sessionMode: StorageMode): ModeFlip {
+  const current = getStorageMode();
+  if (sessionMode === current) return "none";
+  return sessionMode === "server" ? "server-to-browser" : "browser-to-server";
 }
 
 /**

@@ -26,6 +26,25 @@ function normalizeApiBaseUrl(raw: string | undefined): string {
 
 const API_BASE_URL: string = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
 
+/**
+ * Human-readable label for the server instance, used in offline/recovery toasts.
+ * Prefers the API host when the base URL is absolute, falls back to the page
+ * host, then to a generic phrase when neither is available.
+ */
+export function getServerInstanceLabel(): string {
+  try {
+    if (/^https?:\/\//i.test(API_BASE_URL)) {
+      return new URL(API_BASE_URL).host;
+    }
+  } catch {
+    // fall through to page host
+  }
+  if (typeof window !== "undefined" && window.location?.host) {
+    return window.location.host;
+  }
+  return "the server";
+}
+
 /** Default timeout for API requests (10 seconds) */
 const API_TIMEOUT_MS = 10_000;
 

@@ -31,7 +31,7 @@ const persistenceStoreMocks = vi.hoisted(() => ({
   isApiAvailable: vi.fn(() => true),
   setApiAvailable: vi.fn(),
   getApiAvailableState: vi.fn(() => true),
-  hasEverConnectedToApi: vi.fn(() => true),
+  getStorageMode: vi.fn(() => "server" as "browser" | "server"),
 }));
 
 const persistenceApiMocks = vi.hoisted(() => ({
@@ -40,6 +40,7 @@ const persistenceApiMocks = vi.hoisted(() => ({
   listSavedLayouts: vi.fn(async () => []),
   loadSavedLayout: vi.fn(),
   deleteSavedLayout: vi.fn(async () => undefined),
+  getServerInstanceLabel: vi.fn(() => "test-host"),
   PersistenceError: class PersistenceError extends Error {
     statusCode?: number;
     constructor(message: string, statusCode?: number) {
@@ -55,6 +56,7 @@ const sessionStorageMocks = vi.hoisted(() => ({
   loadSessionWithTimestamp: vi.fn(() => null),
   clearSession: vi.fn(),
   isServerNewer: vi.fn(() => false),
+  detectModeFlip: vi.fn(() => "none" as "none" | "server-to-browser" | "browser-to-server"),
 }));
 
 vi.mock("$lib/utils/share", async () => {
@@ -77,7 +79,7 @@ vi.mock("$lib/storage/availability.svelte", () => ({
   isApiAvailable: persistenceStoreMocks.isApiAvailable,
   setApiAvailable: persistenceStoreMocks.setApiAvailable,
   getApiAvailableState: persistenceStoreMocks.getApiAvailableState,
-  hasEverConnectedToApi: persistenceStoreMocks.hasEverConnectedToApi,
+  getStorageMode: persistenceStoreMocks.getStorageMode,
 }));
 
 vi.mock("$lib/storage/api", () => ({
@@ -86,6 +88,7 @@ vi.mock("$lib/storage/api", () => ({
   listSavedLayouts: persistenceApiMocks.listSavedLayouts,
   loadSavedLayout: persistenceApiMocks.loadSavedLayout,
   deleteSavedLayout: persistenceApiMocks.deleteSavedLayout,
+  getServerInstanceLabel: persistenceApiMocks.getServerInstanceLabel,
   PersistenceError: persistenceApiMocks.PersistenceError,
 }));
 
@@ -94,6 +97,7 @@ vi.mock("$lib/storage/working-copy", () => ({
   loadSessionWithTimestamp: sessionStorageMocks.loadSessionWithTimestamp,
   clearSession: sessionStorageMocks.clearSession,
   isServerNewer: sessionStorageMocks.isServerNewer,
+  detectModeFlip: sessionStorageMocks.detectModeFlip,
 }));
 
 // Full-App renders flake under full-suite memory pressure: the worker GC-thrashes
@@ -125,6 +129,8 @@ describe("App Start Screen integration", { retry: 2, timeout: 30000 }, () => {
     persistenceStoreMocks.initializePersistence.mockResolvedValue(true);
     persistenceStoreMocks.isApiAvailable.mockReset();
     persistenceStoreMocks.isApiAvailable.mockReturnValue(true);
+    persistenceStoreMocks.getStorageMode.mockReset();
+    persistenceStoreMocks.getStorageMode.mockReturnValue("server");
 
     persistenceApiMocks.listSavedLayouts.mockReset();
     persistenceApiMocks.listSavedLayouts.mockResolvedValue([]);
@@ -133,6 +139,8 @@ describe("App Start Screen integration", { retry: 2, timeout: 30000 }, () => {
     sessionStorageMocks.loadSessionWithTimestamp.mockReset();
     sessionStorageMocks.loadSessionWithTimestamp.mockReturnValue(null);
     sessionStorageMocks.clearSession.mockReset();
+    sessionStorageMocks.detectModeFlip.mockReset();
+    sessionStorageMocks.detectModeFlip.mockReturnValue("none");
   });
 
   it("shows Start Screen on load when API is available and no share link", async () => {
@@ -165,6 +173,7 @@ describe("App Start Screen integration", { retry: 2, timeout: 30000 }, () => {
       savedAt: new Date("2026-02-11T00:00:00.000Z").toISOString(),
       changesSinceExport: 0,
       hasEverExported: false,
+      storageMode: "server",
     });
 
     render(App);

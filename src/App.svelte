@@ -34,10 +34,13 @@
     isServerNewer,
     setApiAvailable,
     initializePersistence,
-    hasEverConnectedToApi,
+    getStorageMode,
+    getServerInstanceLabel,
+    detectModeFlip,
     listSavedLayouts,
     loadSavedLayout,
     handleLoad,
+    handleSaveToServer,
   } from "$lib/storage";
   import {
     maybeSave,
@@ -66,6 +69,7 @@
   import { DRAWER_WIDTH } from "$lib/constants/layout";
   import { Tooltip } from "bits-ui";
   import { debounce } from "$lib/utils/debounce";
+  import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 
   // Sidebar size configuration (in pixels)
   interface Props {
@@ -170,6 +174,54 @@
     }, 10_000);
   }
 
+  // localStorage flag: the browser-mode first-run notice is shown once per device.
+  const FIRST_RUN_NOTICE_KEY = "rackula.browserMode.firstRunSeen";
+
+  // Startup must emit at most one storage toast (epic #2071 signal coherence).
+  // First-run notice, mode-flip notice, and server-drop toast are mutually
+  // exclusive; this guard dedups them.
+  let storageToastShown = false;
+
+  function showStorageToast(
+    message: string,
+    type: "info" | "warning",
+    duration: number,
+    action?: { label: string; onClick: () => void },
+  ): void {
+    if (storageToastShown) return;
+    storageToastShown = true;
+    toastStore.showToast(message, type, duration, action);
+  }
+
+  // Browser mode only: a one-time notice explaining where layouts live.
+  function maybeShowFirstRunNotice(): void {
+    if (safeGetItem(FIRST_RUN_NOTICE_KEY) === "true") return;
+    safeSetItem(FIRST_RUN_NOTICE_KEY, "true");
+    showStorageToast(
+      "Layouts are saved in this browser. Export to a file to keep a copy.",
+      "info",
+      8000,
+    );
+  }
+
+  // Restore an autosaved working copy into the store and recenter the view.
+  function restoreLocalSession(
+    session: NonNullable<ReturnType<typeof loadSessionWithTimestamp>>,
+  ): void {
+    layoutStore.loadLayout(session.layout);
+    // Autosaved sessions are not explicitly saved, so they start dirty.
+    layoutStore.markDirty();
+    layoutStore.restoreBackupState({
+      changesSinceExport: session.changesSinceExport,
+      hasEverExported: session.hasEverExported,
+    });
+    requestAnimationFrame(() => {
+      if (!canvasStore.restoreViewport()) {
+        canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+      }
+    });
+  }
+
   // Auto-open new rack dialog when no racks exist (first-load experience)
   // Also handles loading shared layouts from URL params
   // Uses onMount to run once on initial load, not reactively
@@ -187,16 +239,20 @@
       );
     }
 
-    // Start API health check immediately so all startup paths (including share links)
-    // initialize persistence and can enable server autosave when available.
-    const persistenceInitPromise = initializePersistence().catch((error) => {
-      console.error(
-        "Persistence initialization failed; continuing without server persistence:",
-        error,
-      );
-      setApiAvailable(false);
-      return false;
-    });
+    const serverMode = getStorageMode() === "server";
+
+    // Server mode only: probe the API so server autosave/load can enable when
+    // reachable. Browser mode skips the probe entirely (no server to reach).
+    const persistenceInitPromise = serverMode
+      ? initializePersistence().catch((error) => {
+          console.error(
+            "Persistence initialization failed; continuing without server persistence:",
+            error,
+          );
+          setApiAvailable(false);
+          return false;
+        })
+      : Promise.resolve(false);
 
     // Priority 1: Check for shared layout in URL (highest priority)
     const shareParam = getShareParam();
@@ -220,11 +276,37 @@
       }
     }
 
-    // Get localStorage session data (with timestamp if available)
+    // Get localStorage session data (with timestamp and stored mode if available)
     const localSession = loadSessionWithTimestamp();
 
-    // Priority 2: With no local session, show Start Screen immediately.
-    // It handles loading/offline state while API health check resolves.
+    // Browser mode: no server compare. Restore the working copy if present,
+    // otherwise show the Start Screen. Surface a server->browser flip notice when
+    // the saved copy came from a server deployment (never silently degrade), else
+    // a one-time first-run notice. No offline toasts ever in browser mode.
+    if (!serverMode) {
+      if (!localSession) {
+        layoutStore.resetLayout();
+        maybeShowFirstRunNotice();
+        showStartScreen = true;
+        return;
+      }
+      if (detectModeFlip(localSession.storageMode) === "server-to-browser") {
+        showStorageToast(
+          "This deployment now stores layouts in your browser; your previous server library is not loaded here.",
+          "warning",
+          0,
+        );
+      } else {
+        maybeShowFirstRunNotice();
+      }
+      restoreLocalSession(localSession);
+      return;
+    }
+
+    // Server mode below.
+
+    // No local session: show the Start Screen immediately. It handles the
+    // loading/offline state while the health check resolves.
     // Reset layout to clear any stale hasStarted flag from a previous session (#1326)
     if (!localSession) {
       layoutStore.resetLayout();
@@ -232,16 +314,38 @@
       return;
     }
 
+    const instanceLabel = getServerInstanceLabel();
     const apiAvailable = await persistenceInitPromise;
     // initializePersistence() resolves to false for the common API-unavailable
-    // case (checkApiHealth returns false rather than rejecting), so the offline
-    // toast is shown here rather than only in the catch handler above.
-    if (!apiAvailable && hasEverConnectedToApi()) {
-      toastStore.showToast(
-        "Server unavailable — working offline",
+    // case (checkApiHealth returns false rather than rejecting). In server mode
+    // a down server is surfaced with an instance-named drop toast, and the
+    // working copy keeps continuity.
+    if (!apiAvailable) {
+      showStorageToast(
+        `Cannot reach ${instanceLabel}. Working from your local copy; reload to retry.`,
         "warning",
         0,
       );
+    }
+
+    // browser->server flip: the working copy's UUID is unknown to the server, so
+    // offer to upload it as a new server layout rather than shadowing it with the
+    // server list. Only meaningful while the server is reachable.
+    const flip = detectModeFlip(localSession.storageMode);
+    if (apiAvailable && flip === "browser-to-server") {
+      restoreLocalSession(localSession);
+      showStorageToast(
+        "This deployment now stores layouts on the server. Upload your local copy to keep it here.",
+        "info",
+        0,
+        {
+          label: "Upload",
+          onClick: () => {
+            void handleSaveToServer(true);
+          },
+        },
+      );
+      return;
     }
 
     // Priority 3: When API and local session are both available,
@@ -264,9 +368,7 @@
             layoutStore.markClean();
 
             // Clear stale localStorage to prevent future conflicts
-            if (localSession) {
-              clearSession();
-            }
+            clearSession();
 
             toastStore.showToast(
               `Loaded "${mostRecent.name}" from server`,
@@ -301,41 +403,25 @@
           return;
         }
       } catch (error) {
-        // If server check fails, fall through to localStorage
+        // If server check fails, fall through to the local working copy.
         persistenceDebug.api(
           "failed to load saved layouts from server: %O",
           error,
         );
         // Treat server data failures as offline and fall back gracefully.
         setApiAvailable(false);
-        if (hasEverConnectedToApi()) {
-          toastStore.showToast(
-            "Server unavailable — working offline",
-            "warning",
-            0,
-          );
-        }
+        showStorageToast(
+          `Cannot reach ${instanceLabel}. Working from your local copy; reload to retry.`,
+          "warning",
+          0,
+        );
       }
     }
 
-    // Priority 4: No API or no server layouts - check localStorage autosave
-    if (localSession) {
-      layoutStore.loadLayout(localSession.layout);
-      // Mark as dirty since this is an autosaved session (not explicitly saved)
-      layoutStore.markDirty();
-      layoutStore.restoreBackupState({
-        changesSinceExport: localSession.changesSinceExport,
-        hasEverExported: localSession.hasEverExported,
-      });
-      // Don't show new rack dialog - user has work in progress
-      // Restore saved viewport if available, otherwise fit all racks
-      requestAnimationFrame(() => {
-        if (!canvasStore.restoreViewport()) {
-          canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-        }
-      });
-      return;
-    }
+    // Priority 4: No reachable server or no server layouts - restore the
+    // localStorage working copy for continuity.
+    restoreLocalSession(localSession);
+    return;
   });
 
   // Refit canvas on orientation change (mobile/tablet only).

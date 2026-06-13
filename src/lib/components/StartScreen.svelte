@@ -12,7 +12,7 @@
     type SavedLayoutItem,
     PersistenceError,
     initializePersistence,
-    hasEverConnectedToApi,
+    getStorageMode,
     loadFromApi,
     loadFromFile,
   } from "$lib/storage";
@@ -46,18 +46,26 @@
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
 
+  const serverMode = getStorageMode() === "server";
+
   let layouts = $state<SavedLayoutItem[]>([]);
-  let loading = $state(true);
+  let loading = $state(serverMode);
   let error = $state<string | null>(null);
   let apiAvailable = $state(true);
   let deletingId = $state<string | null>(null);
 
-  /** Only show offline warning if user previously had API working */
-  let showOfflineWarning = $derived(!apiAvailable && hasEverConnectedToApi());
+  /** Only show offline warning in server mode when the server is unreachable */
+  let showOfflineWarning = $derived(serverMode && !apiAvailable);
 
   onMount(async () => {
-    // Initialize persistence and check API health
-    // This updates the global persistence store state
+    // Browser mode never has a server library: skip the health check entirely.
+    if (!serverMode) {
+      loading = false;
+      return;
+    }
+
+    // Server mode: check API health (updates the global persistence store) and
+    // load the saved-layout list when reachable.
     apiAvailable = await initializePersistence();
 
     if (apiAvailable) {
@@ -186,7 +194,7 @@
           Continue
         </button>
       </div>
-    {:else}
+    {:else if serverMode}
       <section class="saved-layouts">
         <h2>
           <IconFolderBold size={18} />

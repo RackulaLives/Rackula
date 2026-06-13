@@ -4,6 +4,7 @@ import {
   loadSessionWithTimestamp,
   clearSession,
   isServerNewer,
+  detectModeFlip,
 } from "$lib/storage/working-copy";
 import type { Layout } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
@@ -505,6 +506,66 @@ describe("Session Storage", () => {
 
       // Should return null for non-object data (logs via debug logger)
       expect(loadSessionWithTimestamp()).toBeNull();
+    });
+  });
+
+  /**
+   * The session records the storage mode it was saved under so startup can
+   * detect a deployment mode flip and never silently degrade. Locks #2037 AC (c).
+   */
+  describe("storage mode persistence and flip detection", () => {
+    const originalConfig = window.__RACKULA_CONFIG__;
+
+    afterEach(() => {
+      window.__RACKULA_CONFIG__ = originalConfig;
+    });
+
+    it("persists the current storage mode and round-trips it", () => {
+      window.__RACKULA_CONFIG__ = { storage: "server" };
+      saveSession(mockLayout, noBackup);
+
+      const loaded = loadSessionWithTimestamp();
+      expect(loaded).not.toBeNull();
+      expect(loaded!.storageMode).toBe("server");
+    });
+
+    it("saves browser as the mode under browser config", () => {
+      window.__RACKULA_CONFIG__ = { storage: "browser" };
+      saveSession(mockLayout, noBackup);
+
+      const loaded = loadSessionWithTimestamp();
+      expect(loaded!.storageMode).toBe("browser");
+    });
+
+    it("defaults a legacy session without a stored mode to browser", () => {
+      // Pre-2037 sessions have no storageMode field.
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          layout: mockLayout,
+          savedAt: "2026-02-01T12:00:00.000Z",
+        }),
+      );
+
+      const loaded = loadSessionWithTimestamp();
+      expect(loaded!.storageMode).toBe("browser");
+    });
+
+    it("detects a server-to-browser flip", () => {
+      window.__RACKULA_CONFIG__ = { storage: "browser" };
+      expect(detectModeFlip("server")).toBe("server-to-browser");
+    });
+
+    it("detects a browser-to-server flip", () => {
+      window.__RACKULA_CONFIG__ = { storage: "server" };
+      expect(detectModeFlip("browser")).toBe("browser-to-server");
+    });
+
+    it("reports no flip when the modes match", () => {
+      window.__RACKULA_CONFIG__ = { storage: "browser" };
+      expect(detectModeFlip("browser")).toBe("none");
+      window.__RACKULA_CONFIG__ = { storage: "server" };
+      expect(detectModeFlip("server")).toBe("none");
     });
   });
 });

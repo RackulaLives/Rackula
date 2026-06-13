@@ -11,7 +11,7 @@
     isSessionSavePending,
     isServerSavePending,
     getApiAvailableState,
-    hasEverConnectedToApi,
+    getStorageMode,
     shouldWarnBeforeUnload,
   } from "$lib/storage";
   import { getImageStore } from "$lib/stores/images.svelte";
@@ -84,7 +84,7 @@
       warnOnUnsavedChanges: uiStore.warnOnUnsavedChanges,
       sessionSavePending: isSessionSavePending(),
       serverSavePending: isServerSavePending(),
-      serverMode: hasEverConnectedToApi(),
+      serverMode: getStorageMode() === "server",
       serverReachable: getApiAvailableState(),
       isDirty: layoutStore.isDirty,
     }),

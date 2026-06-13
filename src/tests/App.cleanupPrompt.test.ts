@@ -31,7 +31,7 @@ const persistenceStoreMocks = vi.hoisted(() => ({
   isApiAvailable: vi.fn(() => false),
   setApiAvailable: vi.fn(),
   getApiAvailableState: vi.fn(() => false),
-  hasEverConnectedToApi: vi.fn(() => false),
+  getStorageMode: vi.fn(() => "server" as "browser" | "server"),
 }));
 
 const persistenceApiMocks = vi.hoisted(() => ({
@@ -40,6 +40,7 @@ const persistenceApiMocks = vi.hoisted(() => ({
   listSavedLayouts: vi.fn(async () => []),
   loadSavedLayout: vi.fn(),
   deleteSavedLayout: vi.fn(async () => undefined),
+  getServerInstanceLabel: vi.fn(() => "test-host"),
   PersistenceError: class PersistenceError extends Error {
     statusCode?: number;
     constructor(message: string, statusCode?: number) {
@@ -55,6 +56,7 @@ const sessionStorageMocks = vi.hoisted(() => ({
   loadSessionWithTimestamp: vi.fn(() => null),
   clearSession: vi.fn(),
   isServerNewer: vi.fn(() => false),
+  detectModeFlip: vi.fn(() => "none" as "none" | "server-to-browser" | "browser-to-server"),
 }));
 
 const archiveMocks = vi.hoisted(() => ({
@@ -81,7 +83,7 @@ vi.mock("$lib/storage/availability.svelte", () => ({
   isApiAvailable: persistenceStoreMocks.isApiAvailable,
   setApiAvailable: persistenceStoreMocks.setApiAvailable,
   getApiAvailableState: persistenceStoreMocks.getApiAvailableState,
-  hasEverConnectedToApi: persistenceStoreMocks.hasEverConnectedToApi,
+  getStorageMode: persistenceStoreMocks.getStorageMode,
 }));
 
 vi.mock("$lib/storage/api", () => ({
@@ -90,6 +92,7 @@ vi.mock("$lib/storage/api", () => ({
   listSavedLayouts: persistenceApiMocks.listSavedLayouts,
   loadSavedLayout: persistenceApiMocks.loadSavedLayout,
   deleteSavedLayout: persistenceApiMocks.deleteSavedLayout,
+  getServerInstanceLabel: persistenceApiMocks.getServerInstanceLabel,
   PersistenceError: persistenceApiMocks.PersistenceError,
 }));
 
@@ -98,6 +101,7 @@ vi.mock("$lib/storage/working-copy", () => ({
   loadSessionWithTimestamp: sessionStorageMocks.loadSessionWithTimestamp,
   clearSession: sessionStorageMocks.clearSession,
   isServerNewer: sessionStorageMocks.isServerNewer,
+  detectModeFlip: sessionStorageMocks.detectModeFlip,
 }));
 
 vi.mock("$lib/utils/archive", async () => {
@@ -133,8 +137,8 @@ function resetHoistedMocks(): void {
   persistenceStoreMocks.setApiAvailable.mockReset();
   persistenceStoreMocks.getApiAvailableState.mockReset();
   persistenceStoreMocks.getApiAvailableState.mockReturnValue(false);
-  persistenceStoreMocks.hasEverConnectedToApi.mockReset();
-  persistenceStoreMocks.hasEverConnectedToApi.mockReturnValue(false);
+  persistenceStoreMocks.getStorageMode.mockReset();
+  persistenceStoreMocks.getStorageMode.mockReturnValue("server");
 
   persistenceApiMocks.saveLayoutToServer.mockReset();
   persistenceApiMocks.saveLayoutToServer.mockResolvedValue("layout-1");
@@ -152,6 +156,8 @@ function resetHoistedMocks(): void {
   sessionStorageMocks.clearSession.mockReset();
   sessionStorageMocks.isServerNewer.mockReset();
   sessionStorageMocks.isServerNewer.mockReturnValue(false);
+  sessionStorageMocks.detectModeFlip.mockReset();
+  sessionStorageMocks.detectModeFlip.mockReturnValue("none");
 
   archiveMocks.downloadYamlFile.mockReset();
   archiveMocks.downloadYamlFile.mockResolvedValue("cleanup-test.rackula.yaml");
@@ -198,6 +204,7 @@ describe("App cleanup prompt flow", { retry: 2, timeout: 30000 }, () => {
       savedAt: new Date("2026-02-09T00:00:00.000Z").toISOString(),
       changesSinceExport: 0,
       hasEverExported: false,
+      storageMode: "server",
     });
   });
 

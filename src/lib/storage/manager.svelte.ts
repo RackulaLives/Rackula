@@ -2,9 +2,14 @@ import {
   isApiAvailable,
   setApiAvailable,
   getApiAvailableState,
-  hasEverConnectedToApi,
+  getStorageMode,
 } from "./availability.svelte";
-import { saveLayoutToServer, checkApiHealth, PersistenceError } from "./api";
+import {
+  saveLayoutToServer,
+  checkApiHealth,
+  PersistenceError,
+  getServerInstanceLabel,
+} from "./api";
 import { saveSession, clearSession } from "./working-copy";
 import { loadFromFile } from "./load-pipeline";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
@@ -164,6 +169,28 @@ export function handlePersistenceError(
   const toastStore = getToastStore();
   const action = onRetry ? { label: "Retry", onClick: onRetry } : undefined;
   if (e instanceof PersistenceError) {
+    // Auth expiry (401): the server is reachable but the Access session lapsed.
+    // This is distinct from server-down: do not trip the offline circuit breaker
+    // and do not flip to offline. Surface a re-authenticate affordance instead of
+    // the retry/backup "working offline" treatment.
+    if (e.statusCode === 401) {
+      _saveStatus = "error";
+      if (_errorToastId) {
+        toastStore.dismissToast(_errorToastId);
+      }
+      _errorToastId = toastStore.showToast(
+        "Your session expired. Reload to re-authenticate; your changes are saved locally.",
+        "warning",
+        0,
+        {
+          label: "Reload",
+          onClick: () => {
+            if (typeof window !== "undefined") window.location.reload();
+          },
+        },
+      );
+      return;
+    }
     // Storage quota rejections (507 asset limit, 429 layout limit). The server is
     // reachable and the data is intact, so this is a recoverable error state, not
     // offline: do not flip to offline or trip the circuit breaker, and 507 must
@@ -256,11 +283,11 @@ export async function handleSaveAsArchive(): Promise<boolean> {
 }
 
 export function shouldSaveToServer(): boolean {
-  return isApiAvailable();
+  return getStorageMode() === "server" && isApiAvailable();
 }
 
 export async function handleLoad(): Promise<void> {
-  if (isApiAvailable()) {
+  if (getStorageMode() === "server") {
     dialogStore.open("load");
   } else {
     await loadFromFile();
@@ -359,7 +386,7 @@ export function initPersistenceEffects(): void {
     const apiState = getApiAvailableState();
     if (apiState === null) return;
     if (apiState === true) return;
-    if (!hasEverConnectedToApi()) return;
+    if (getStorageMode() !== "server") return;
     if (_saveStatus === "disabled") return;
     if (_consecutiveSaveFailures >= MAX_SAVE_FAILURES) return;
 
@@ -370,6 +397,17 @@ export function initPersistenceEffects(): void {
         persistenceDebug.health("API health check passed, marking available");
         setApiAvailable(true);
         _saveStatus = "idle";
+        const toastStore = getToastStore();
+        if (_errorToastId) {
+          toastStore.dismissToast(_errorToastId);
+          _errorToastId = undefined;
+        }
+        // Quiet recovery notice on resync (auto-dismisses).
+        toastStore.showToast(
+          `Reconnected to ${getServerInstanceLabel()}.`,
+          "success",
+          3000,
+        );
       } else {
         persistenceDebug.health("API health check failed, still offline");
       }

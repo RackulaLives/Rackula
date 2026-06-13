@@ -1,33 +1,29 @@
 /**
  * Persistence Store
- * Manages runtime API availability detection
+ * Manages the explicit storage mode and runtime API availability.
  *
- * This replaces the build-time VITE_PERSIST_ENABLED flag with runtime detection.
- * The same Docker image can now work with or without the API sidecar by
- * checking /health at startup.
+ * The storage mode is read from runtime config (window.__RACKULA_CONFIG__),
+ * not probed. The app runs in exactly one mode: "browser" (default) or
+ * "server". Availability (apiAvailable) only tracks whether the server is
+ * currently reachable while in server mode.
  */
 
 import { checkApiHealth } from "./api";
 import { persistenceDebug } from "$lib/utils/debug";
-import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 
 const log = persistenceDebug.health;
 
-/** localStorage key for tracking if API was ever successfully connected */
-const API_CONNECTED_KEY = "rackula.persistence.apiConnected";
+export type StorageMode = "browser" | "server";
 
 /**
- * Check if user has ever successfully connected to persistence API
+ * The single source of truth for the storage mode. Reads
+ * window.__RACKULA_CONFIG__.storage; returns "server" only when the value is
+ * exactly "server", otherwise "browser" (including missing or unknown values).
+ * No other module re-derives the mode: everything reads this accessor.
  */
-export function hasEverConnectedToApi(): boolean {
-  return safeGetItem(API_CONNECTED_KEY) === "true";
-}
-
-/**
- * Mark that user has successfully connected to persistence API
- */
-function markApiConnected(): void {
-  safeSetItem(API_CONNECTED_KEY, "true");
+export function getStorageMode(): StorageMode {
+  if (typeof window === "undefined") return "browser";
+  return window.__RACKULA_CONFIG__?.storage === "server" ? "server" : "browser";
 }
 
 // Reactive state for API availability
@@ -52,7 +48,7 @@ export function getApiAvailableState(): boolean | null {
 
 /**
  * Perform initial API health check
- * Call this once on app startup
+ * Call this once on app startup (server mode only)
  *
  * Thread-safe: multiple concurrent calls will share the same pending check
  */
@@ -75,9 +71,6 @@ export async function initializePersistence(): Promise<boolean> {
   pendingCheck = checkApiHealth()
     .then((result) => {
       apiAvailable = result;
-      if (result) {
-        markApiConnected();
-      }
       log("initializePersistence: API availability determined: %s", result);
       return result;
     })
@@ -89,10 +82,7 @@ export async function initializePersistence(): Promise<boolean> {
 }
 
 /**
- * Set API availability state directly (for error recovery)
- * Note: Does NOT call markApiConnected() because this is for temporary
- * overrides, not confirmed API connectivity. Only health checks should
- * mark the API as "ever connected".
+ * Set API availability state directly (for error recovery).
  */
 export function setApiAvailable(available: boolean): void {
   log("setApiAvailable: setting to %s", available);

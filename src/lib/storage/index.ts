@@ -10,19 +10,23 @@ export {
   isApiAvailable,
   getApiAvailableState,
   setApiAvailable,
-  hasEverConnectedToApi,
+  getStorageMode,
+  type StorageMode,
 } from "./availability.svelte";
 export {
   listSavedLayouts,
   loadSavedLayout,
   deleteSavedLayout,
   PersistenceError,
+  getServerInstanceLabel,
   type SavedLayoutItem,
 } from "./api";
 export {
   loadSessionWithTimestamp,
   clearSession,
   isServerNewer,
+  detectModeFlip,
+  type ModeFlip,
 } from "./working-copy";
 export { loadFromApi, loadFromFile } from "./load-pipeline";
 export {
