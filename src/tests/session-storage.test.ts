@@ -129,7 +129,7 @@ describe("Session Storage", () => {
     });
   });
 
-  describe("loadSession", () => {
+  describe("loadSessionWithTimestamp - error handling", () => {
     it("returns null when no session exists", () => {
       expect(loadSessionWithTimestamp()).toBeNull();
     });
@@ -138,7 +138,9 @@ describe("Session Storage", () => {
       // Save a session first
       localStorage.setItem(STORAGE_KEY, JSON.stringify(mockLayout));
 
-      expect(loadSessionWithTimestamp()?.layout).toEqual(mockLayout);
+      const loaded = loadSessionWithTimestamp();
+      expect(loaded).not.toBeNull();
+      expect(loaded!.layout).toEqual(mockLayout);
     });
 
     it("returns null on invalid JSON", () => {
@@ -260,23 +262,19 @@ describe("Session Storage", () => {
   });
 
   describe("Integration", () => {
-    it("round-trips save and load", () => {
+    it("round-trips save and load with timestamp metadata", () => {
       saveSession(mockLayout, noBackup);
       const loaded = loadSessionWithTimestamp();
-      expect(loaded?.layout).toEqual(mockLayout);
-    });
-
-    it("round-trips save and loadWithTimestamp", () => {
-      saveSession(mockLayout, noBackup);
-      const result = loadSessionWithTimestamp();
-      expect(result).not.toBeNull();
-      expect(result!.layout).toEqual(mockLayout);
-      expect(result!.savedAt).toBeDefined();
+      expect(loaded).not.toBeNull();
+      expect(loaded!.layout).toEqual(mockLayout);
+      expect(loaded!.savedAt).toBeDefined();
     });
 
     it("clear removes saved session", () => {
       saveSession(mockLayout, noBackup);
-      expect(loadSessionWithTimestamp()?.layout).toEqual(mockLayout);
+      const loaded = loadSessionWithTimestamp();
+      expect(loaded).not.toBeNull();
+      expect(loaded!.layout).toEqual(mockLayout);
 
       clearSession();
       expect(loadSessionWithTimestamp()).toBeNull();
