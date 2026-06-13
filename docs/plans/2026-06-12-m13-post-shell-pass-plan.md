@@ -1,6 +1,6 @@
 # M13 -- Post-Shell Keyboard, Help & Content Pass Execution Plan
 
-Note: the GitHub milestone is still titled "M13 -- UX Polish & Accessibility"; the recharter lives in its description. gh commands use the GitHub title.
+Note: GitHub milestone 35 was retitled "M13 -- Post-Shell Keyboard, Help & Content Pass" on 2026-06-13 to match this recharter.
 
 > For agentic workers: execute one task per session via /dev-issue <number>. The GitHub issue body is the source of truth (each carries an Alignment audit 2026-06-12 section with binding ACs). Do not start a task whose listed blockers are open. Follow repo TDD policy (CLAUDE.md): tests only where behaviour warrants them.
 
@@ -105,7 +105,7 @@ Verify:
 
 Milestone close-out checklist:
 
-- [ ] #106, #117, #728 all closed (gh issue list -R RackulaLives/Rackula --milestone "M13 -- UX Polish & Accessibility" --state open returns nothing)
+- [ ] #106, #117, #728 all closed (gh issue list -R RackulaLives/Rackula --milestone "M13 -- Post-Shell Keyboard, Help & Content Pass" --state open returns nothing)
 - [ ] Former M13 contents confirmed superseded, no orphans: #114 -> #2094, #115 -> #2095, #951 -> #2082/#2073, #767 -> #2158, #946 closed stale (all five verified closed as of 2026-06-12)
 - [ ] Smoke: keyboard-only placement flow works on a production build (npm run build, then preview)
 - [ ] Smoke: tooltips and HelpPanel show identical shortcuts for the same commands (single registry source)

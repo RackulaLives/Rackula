@@ -62,8 +62,9 @@ on the new shell. M14 precedes M07/M06 because #765/#1948/#1939 design against t
 
 M4 precedes M3 because type-safety cleanup must happen before data format changes.
 Changing data formats with `@ts-nocheck` on 20 files and 84 suppressed errors risks
-silent type mismatches in the data layer. M09-M13 follow M06 because they extend
-connectivity and depend on enriched device models and stable data formats.
+silent type mismatches in the data layer. M09-M12 follow M06 because they extend
+connectivity and depend on enriched device models and stable data formats. M13 is
+the post-shell pass and follows M14 instead.
 
 ### M01 -- LXC Build & Hardening (complete)
 

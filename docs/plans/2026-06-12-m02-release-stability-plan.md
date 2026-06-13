@@ -38,7 +38,8 @@ Key files: api/src/storage/filesystem.ts, api/src/storage/quota.ts, api/src/stor
 
 Verify: cd api && bun test; cd api && bun run typecheck; npm run lint; Workers entry build emits no argon2 in the bundle (assert with a grep on the build output); CI green on the PR.
 
-- [ ] Done when: Workers entry builds without argon2 in the bundle; storage-driver interface extracted; CF driver and filesystem driver both pass the shared contract tests; CI green.
+- [ ] Done when: Workers entry builds without argon2 in the bundle; storage-driver interface extracted; filesystem behaviour unchanged; CI green.
+- [ ] After M15 #2091 lands: CF driver and filesystem driver both pass the shared contract suite (runStorageContract), including atomic snapshot-on-mismatch.
 
 ### Task: #2159 fix: audit MikroTik brand pack widths and set slot_width on half-width models
 
@@ -62,7 +63,7 @@ Why this position: the in-repo change (PR #2051) already shipped; the upstream c
 
 Scope: mirror the server-mode config.js writing in deploy/lxc/community-scripts/install/rackula-install.sh and the rewrite step in deploy/lxc/community-scripts/ct/rackula.sh to the fork ggfevans/ProxmoxVED, then open or update one upstream follow-up PR batched with #2065's install-script change.
 
-Key files: deploy/lxc/community-scripts/install/rackula-install.sh, deploy/lxc/community-scripts/ct/rackula.sh, mirrored copies in /Users/gvns/code/3rd-party/ProxmoxVED
+Key files: deploy/lxc/community-scripts/install/rackula-install.sh, deploy/lxc/community-scripts/ct/rackula.sh, mirrored copies in a local checkout of the ProxmoxVED fork (ggfevans/ProxmoxVED; clone path is workstation-specific)
 
 Verify: diff the in-repo and fork copies byte for byte; gh pr view the upstream follow-up PR to confirm both files are included.
 
@@ -308,7 +309,7 @@ Verify: SVGs render correctly at 512x512 in light and dark contexts; upstream PR
 
 Milestone close-out checklist:
 
-- [ ] All non-waiting-external M02 issues closed: #2133, #2159, #2060, #2065, #2032, #2030, #1011, #2134, #2031, #2029, #1986, #2009, #2010, #2011, #1317, #2012 (check: gh issue list --milestone "M02 -- LXC Release & Stability" --state open shows only waiting-external items #2142, #2053, #2013 and their epic tails #2008, #2054)
+- [ ] All M02 issues closed except the waiting-external items (#2142, #2053, #2013) and their parent epics (#2008, #2054), which close when their externals land (check: gh issue list --milestone "M02 -- LXC Release & Stability" --state open returns only those five)
 - [ ] Epic #1984 closed: count.racku.la on Workers Static Assets, headers verified by value, self-host builds unchanged (login.html present, beacon-free, three CSPs CI-guarded), analytics live, previews exist
 - [ ] Epic #1985 closed: d.racku.la full stack on Workers, Access verified, smoke green via service token
 - [ ] Epic #1983 closed: VPS destroyed, billing cancelled, no workflow or DNS reference remains
