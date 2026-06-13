@@ -977,8 +977,10 @@ describe("Layout Store", () => {
       const result = store.duplicateDevice(rack!.id, 0);
 
       expect(result.device).toBeDefined();
-      // Duplicate should be placed in a valid position (not colliding with original)
-      expect(result.device!.position).not.toBe(10);
+      // Original 2U device occupies U10-U11, so the next slot above (U12) is the
+      // first valid, preferred position. Compare in internal units so a same-slot
+      // (U10) placement would fail this assertion.
+      expect(result.device!.position).toBe(toInternalUnits(12));
       // Should be on same face as original
       expect(result.device!.face).toBe("front");
     });
