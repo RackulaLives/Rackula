@@ -8,7 +8,7 @@ if git diff --cached --name-only | grep -q 'package.json'; then
   }
 fi
 
-STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|ts|svelte|json|md|css|html)$')
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|ts|svelte|json|md|css|html)$' || true)
 if [ -n "$STAGED" ]; then
   echo "$STAGED" | tr '\n' '\0' | xargs -0 node node_modules/prettier/bin/prettier.cjs --write --ignore-unknown 2>/dev/null
   echo "$STAGED" | tr '\n' '\0' | xargs -0 git add 2>/dev/null
@@ -17,7 +17,7 @@ fi
 # Run tests only for files related to staged changes
 # Skip on Windows UNC paths (\\server\share) — vite cannot resolve plugins from file://server/...
 REPO_PATH="$(pwd)"
-CHANGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|svelte)$' | tr '\n' ' ')
+CHANGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|svelte)$' | tr '\n' ' ' || true)
 if [ -n "$CHANGED" ] && [[ "$REPO_PATH" != //* ]]; then
   NODE_OPTIONS=--max-old-space-size=8192 vitest related $CHANGED --run --passWithNoTests --reporter=dot
 fi
