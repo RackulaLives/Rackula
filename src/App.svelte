@@ -245,8 +245,8 @@
     // reachable. Browser mode skips the probe entirely (no server to reach).
     const persistenceInitPromise = serverMode
       ? initializePersistence().catch((error) => {
-          console.error(
-            "Persistence initialization failed; continuing without server persistence:",
+          persistenceDebug.api(
+            "persistence initialization failed; continuing without server persistence: %O",
             error,
           );
           setApiAvailable(false);
