@@ -6,7 +6,7 @@
   import Dialog from "./Dialog.svelte";
   import ImageUpload from "./ImageUpload.svelte";
   import Switch from "./Switch.svelte";
-  import type { DeviceCategory } from "$lib/types";
+  import type { DeviceCategory, RackWidth } from "$lib/types";
   import type { ImageData } from "$lib/types/images";
   import {
     ALL_CATEGORIES,
@@ -28,7 +28,7 @@
       notes: string;
       isFullDepth: boolean;
       isHalfWidth: boolean;
-      rackWidths: number[];
+      rackWidths: RackWidth[];
       frontImage?: ImageData;
       rearImage?: ImageData;
     }) => void;
@@ -52,7 +52,7 @@
   }
 
   // Convert option to rack_widths array
-  function optionToRackWidths(option: RackWidthOption): number[] {
+  function optionToRackWidths(option: RackWidthOption): RackWidth[] {
     switch (option) {
       case "10":
         return [10];
@@ -351,7 +351,12 @@
       <button type="button" class="btn btn-secondary" onclick={handleCancel}>
         Cancel
       </button>
-      <button type="submit" class="btn btn-primary" data-testid="btn-add-device" onclick={handleSubmit}>
+      <button
+        type="submit"
+        class="btn btn-primary"
+        data-testid="btn-add-device"
+        onclick={handleSubmit}
+      >
         Add
       </button>
     </div>

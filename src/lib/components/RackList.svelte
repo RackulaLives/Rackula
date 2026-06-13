@@ -3,7 +3,6 @@
   Displays list of all racks with selection, delete, and context menu actions
 -->
 <script lang="ts">
-  // @ts-nocheck
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
@@ -66,8 +65,9 @@
 
   // Get the first rack in a group (for height info)
   function getGroupFirstRack(group: { rack_ids: string[] }) {
-    if (!group.rack_ids || group.rack_ids.length === 0) return undefined;
-    return layoutStore.getRackById(group.rack_ids[0]);
+    const firstRackId = group.rack_ids?.[0];
+    if (!firstRackId) return undefined;
+    return layoutStore.getRackById(firstRackId);
   }
 
   function handleRackClick(rackId: string) {
@@ -77,10 +77,11 @@
 
   function handleGroupClick(groupId: string) {
     const group = rackGroups.find((g) => g.id === groupId);
-    if (group && group.rack_ids.length > 0) {
+    const firstRackId = group?.rack_ids[0];
+    if (firstRackId) {
       // Select the first rack in the group to make the whole group active
-      layoutStore.setActiveRack(group.rack_ids[0]);
-      selectionStore.selectRack(group.rack_ids[0]);
+      layoutStore.setActiveRack(firstRackId);
+      selectionStore.selectRack(firstRackId);
     }
   }
 
@@ -127,10 +128,11 @@
   }
 
   function confirmDelete() {
-    if (rackToDelete) {
-      if (rackToDelete.isGroup) {
+    const target = rackToDelete;
+    if (target) {
+      if (target.isGroup) {
         // Delete all racks in the group, then the group
-        const group = rackGroups.find((g) => g.id === rackToDelete.id);
+        const group = rackGroups.find((g) => g.id === target.id);
         if (group) {
           // Delete racks first
           for (const rackId of group.rack_ids) {
@@ -139,15 +141,15 @@
           // Group auto-deletes when last rack removed
         }
         toastStore.showToast(
-          `Deleted "${rackToDelete.name}"${rackToDelete.deviceCount ? ` (${rackToDelete.deviceCount} devices removed)` : ""}`,
+          `Deleted "${target.name}"${target.deviceCount ? ` (${target.deviceCount} devices removed)` : ""}`,
           "info",
         );
       } else {
         const deviceCount =
-          layoutStore.getRackById(rackToDelete.id)?.devices.length ?? 0;
-        layoutStore.deleteRack(rackToDelete.id);
+          layoutStore.getRackById(target.id)?.devices.length ?? 0;
+        layoutStore.deleteRack(target.id);
         toastStore.showToast(
-          `Deleted "${rackToDelete.name}"${deviceCount > 0 ? ` (${deviceCount} devices removed)` : ""}`,
+          `Deleted "${target.name}"${deviceCount > 0 ? ` (${deviceCount} devices removed)` : ""}`,
           "info",
         );
       }
