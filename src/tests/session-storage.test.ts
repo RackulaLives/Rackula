@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   saveSession,
-  loadSession,
   loadSessionWithTimestamp,
   clearSession,
   isServerNewer,
@@ -132,26 +131,22 @@ describe("Session Storage", () => {
 
   describe("loadSession", () => {
     it("returns null when no session exists", () => {
-      const result = loadSession();
-      expect(result).toBeNull();
+      expect(loadSessionWithTimestamp()).toBeNull();
     });
 
     it("loads saved layout from localStorage", () => {
       // Save a session first
       localStorage.setItem(STORAGE_KEY, JSON.stringify(mockLayout));
 
-      const result = loadSession();
-      expect(result).toEqual(mockLayout);
+      expect(loadSessionWithTimestamp()?.layout).toEqual(mockLayout);
     });
 
     it("returns null on invalid JSON", () => {
       // Store invalid JSON
       localStorage.setItem(STORAGE_KEY, "invalid-json");
 
-      const result = loadSession();
-
       // Should return null on parse error (logs via debug logger)
-      expect(result).toBeNull();
+      expect(loadSessionWithTimestamp()).toBeNull();
     });
 
     it("handles localStorage errors gracefully", () => {
@@ -161,10 +156,8 @@ describe("Session Storage", () => {
         throw new Error("Storage error");
       });
 
-      const result = loadSession();
-
       // Should return null on error (logs via debug logger)
-      expect(result).toBeNull();
+      expect(loadSessionWithTimestamp()).toBeNull();
 
       // Restore original implementation
       localStorage.getItem = originalGetItem;
@@ -269,8 +262,8 @@ describe("Session Storage", () => {
   describe("Integration", () => {
     it("round-trips save and load", () => {
       saveSession(mockLayout, noBackup);
-      const loaded = loadSession();
-      expect(loaded).toEqual(mockLayout);
+      const loaded = loadSessionWithTimestamp();
+      expect(loaded?.layout).toEqual(mockLayout);
     });
 
     it("round-trips save and loadWithTimestamp", () => {
@@ -283,10 +276,10 @@ describe("Session Storage", () => {
 
     it("clear removes saved session", () => {
       saveSession(mockLayout, noBackup);
-      expect(loadSession()).toEqual(mockLayout);
+      expect(loadSessionWithTimestamp()?.layout).toEqual(mockLayout);
 
       clearSession();
-      expect(loadSession()).toBeNull();
+      expect(loadSessionWithTimestamp()).toBeNull();
     });
   });
 
@@ -317,15 +310,15 @@ describe("Session Storage", () => {
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(legacyData));
 
-      const result = loadSession();
+      const loaded = loadSessionWithTimestamp();
 
-      expect(result).not.toBeNull();
-      expect(result!.racks).toBeDefined();
+      expect(loaded).not.toBeNull();
+      expect(loaded!.layout.racks).toBeDefined();
       // eslint-disable-next-line no-restricted-syntax -- migration should produce exactly 1 rack
-      expect(result!.racks).toHaveLength(1);
-      expect(result!.racks[0].name).toBe("Main Rack");
+      expect(loaded!.layout.racks).toHaveLength(1);
+      expect(loaded!.layout.racks[0].name).toBe("Main Rack");
       // Legacy 'rack' property should not exist on migrated layout
-      expect((result as Record<string, unknown>).rack).toBeUndefined();
+      expect((loaded!.layout as Record<string, unknown>).rack).toBeUndefined();
     });
 
     it("handles modern racks array format unchanged", () => {
@@ -355,11 +348,11 @@ describe("Session Storage", () => {
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(modernData));
 
-      const result = loadSession();
+      const loaded = loadSessionWithTimestamp();
 
-      expect(result).not.toBeNull();
+      expect(loaded).not.toBeNull();
       // eslint-disable-next-line no-restricted-syntax -- verifying migration preserves exact count
-      expect(result!.racks).toHaveLength(1);
+      expect(loaded!.layout.racks).toHaveLength(1);
     });
 
     it("migrates position values for pre-0.7.0 layouts", () => {
@@ -404,12 +397,12 @@ describe("Session Storage", () => {
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(legacyData));
 
-      const result = loadSession();
+      const loaded = loadSessionWithTimestamp();
 
-      expect(result).not.toBeNull();
+      expect(loaded).not.toBeNull();
       // Position values should be multiplied by UNITS_PER_U
-      expect(result!.racks[0].devices[0].position).toBe(1 * UNITS_PER_U);
-      expect(result!.racks[0].devices[1].position).toBe(10 * UNITS_PER_U);
+      expect(loaded!.layout.racks[0].devices[0].position).toBe(1 * UNITS_PER_U);
+      expect(loaded!.layout.racks[0].devices[1].position).toBe(10 * UNITS_PER_U);
     });
 
     it("does not migrate container child positions", () => {
@@ -456,13 +449,13 @@ describe("Session Storage", () => {
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(legacyData));
 
-      const result = loadSession();
+      const loaded = loadSessionWithTimestamp();
 
-      expect(result).not.toBeNull();
+      expect(loaded).not.toBeNull();
       // Container position should be migrated
-      expect(result!.racks[0].devices[0].position).toBe(5 * UNITS_PER_U);
+      expect(loaded!.layout.racks[0].devices[0].position).toBe(5 * UNITS_PER_U);
       // Child position should NOT be migrated (remains 2)
-      expect(result!.racks[0].devices[1].position).toBe(2);
+      expect(loaded!.layout.racks[0].devices[1].position).toBe(2);
     });
 
     it("does not migrate positions for v0.7.0+ layouts", () => {
@@ -501,21 +494,19 @@ describe("Session Storage", () => {
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(modernData));
 
-      const result = loadSession();
+      const loaded = loadSessionWithTimestamp();
 
-      expect(result).not.toBeNull();
+      expect(loaded).not.toBeNull();
       // Position should remain unchanged
-      expect(result!.racks[0].devices[0].position).toBe(6);
+      expect(loaded!.layout.racks[0].devices[0].position).toBe(6);
     });
 
     it("returns null for non-object parsed data", () => {
       // Store valid JSON but not an object (array case)
       localStorage.setItem(STORAGE_KEY, JSON.stringify([1, 2, 3]));
 
-      const result = loadSession();
-
       // Should return null for non-object data (logs via debug logger)
-      expect(result).toBeNull();
+      expect(loadSessionWithTimestamp()).toBeNull();
     });
   });
 });

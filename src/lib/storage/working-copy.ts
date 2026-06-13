@@ -134,17 +134,6 @@ export function saveSession(layout: Layout, backup: BackupState): boolean {
 }
 
 /**
- * Load the autosaved layout from localStorage.
- * Handles migration from legacy formats (v0.6.x → v0.7.0+).
- * @returns The saved layout, or null if none exists or parsing failed
- * @deprecated Use loadSessionWithTimestamp() for new code that needs conflict resolution
- */
-export function loadSession(): Layout | null {
-  const result = loadSessionWithTimestamp();
-  return result?.layout ?? null;
-}
-
-/**
  * Load the autosaved layout from localStorage with timestamp information.
  * Handles migration from:
  * - Legacy formats (v0.6.x → v0.7.0+)
