@@ -1,5 +1,7 @@
 # M13 -- Post-Shell Keyboard, Help & Content Pass Execution Plan
 
+Note: the GitHub milestone is still titled "M13 -- UX Polish & Accessibility"; the recharter lives in its description. gh commands use the GitHub title.
+
 > For agentic workers: execute one task per session via /dev-issue <number>. The GitHub issue body is the source of truth (each carries an Alignment audit 2026-06-12 section with binding ACs). Do not start a task whose listed blockers are open. Follow repo TDD policy (CLAUDE.md): tests only where behaviour warrants them.
 
 **Goal**

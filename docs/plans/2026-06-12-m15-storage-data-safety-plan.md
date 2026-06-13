@@ -17,7 +17,7 @@ The milestone sequence is M02 -> M04 -> M03 -> M14 -> M13. M15 runs now, in para
 
 **Cross-milestone gates out**
 
-- #2037 gates M14's entry chain (#2073 -> #2081 -> #2080/#2095, recorded on epic #2017) and produces the mode mechanics the M02 dev cutover (#2134) deploys config for; land #2037 first or #2134 carries a forward-compat note.
+- #2037 gates M14's #2187 (mode-aware menu items, split from #2073); the rest of the entry chain (#2073 shell -> #2081 -> #2080/#2095) depends only on the #2073 shell slice (recorded on epic #2017) and produces the mode mechanics the M02 dev cutover (#2134) deploys config for; land #2037 first or #2134 carries a forward-compat note.
 - #2091's cross-driver storage-contract test is the spec the R2 driver (#2133, M02) must pass.
 - #2035's derived-over-collection durability API is the single source M14 tab dots (#2079) and sidebar dots (#2082) read.
 - #617 must land before #2035/#2038 reach users in a tagged release, so the chip and nudge never certify an image-dropping export as safe.
