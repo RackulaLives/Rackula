@@ -739,10 +739,15 @@ export async function saveLayout(
       const existingYamlFilename = await findYamlInFolder(existingFolder);
       if (existingYamlFilename) {
         const existingYamlPath = join(existingFolder, existingYamlFilename);
-        const existingStats = await stat(existingYamlPath);
-        if (existingStats.mtime.toISOString() !== echoedUpdatedAt) {
-          const existingContent = await readFile(existingYamlPath, "utf-8");
-          await writeSnapshot(existingFolder, existingContent);
+        const handle = await open(existingYamlPath, "r");
+        try {
+          const existingStats = await handle.stat();
+          if (existingStats.mtime.toISOString() !== echoedUpdatedAt) {
+            const existingContent = await handle.readFile("utf-8");
+            await writeSnapshot(existingFolder, existingContent);
+          }
+        } finally {
+          await handle.close();
         }
       }
     }
