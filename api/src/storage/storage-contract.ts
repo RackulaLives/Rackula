@@ -123,5 +123,38 @@ export function runStorageContract(makeDriver: MakeDriver): void {
         await cleanup();
       }
     });
+
+    it("serializes concurrent saves to the same id across UUID casing", async () => {
+      const { driver, cleanup } = await makeDriver();
+      try {
+        const v1 = layoutYaml("v1");
+        const v2 = layoutYaml("v2");
+        const v3 = layoutYaml("v3");
+        const upperId = TEST_ID.toUpperCase();
+        const seeded = await driver.saveLayout(TEST_ID, v1);
+
+        // Same logical layout, different UUID casing. UUIDs are matched
+        // case-insensitively, so both saves must serialize on one lock.
+        // If they did not, the diverged copy could be overwritten without a
+        // snapshot, reopening the TOCTOU this contract guards.
+        await Promise.all([
+          driver.saveLayout(TEST_ID, v2, seeded.updatedAt),
+          driver.saveLayout(upperId, v3, STALE_UPDATED_AT),
+        ]);
+
+        const stored = await driver.getLayout(TEST_ID);
+        const finalContent = stored?.content ?? "";
+        const snapshots = await driver.getSnapshotContents(TEST_ID);
+
+        expect(snapshots.length).toBeGreaterThan(0);
+
+        const overwritten = [v2, v3].filter((c) => c !== finalContent);
+        for (const lost of overwritten) {
+          expect(snapshots).toContain(lost);
+        }
+      } finally {
+        await cleanup();
+      }
+    });
   });
 }

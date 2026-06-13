@@ -27,7 +27,8 @@ async function makeFilesystemDriver(): Promise<{
     const entries = await readdir(dataDir, { withFileTypes: true });
     const folder = entries.find(
       (entry) =>
-        entry.isDirectory() && entry.name.toLowerCase().endsWith(id),
+        entry.isDirectory() &&
+        entry.name.toLowerCase().endsWith(id.toLowerCase()),
     );
     if (!folder) {
       return [];

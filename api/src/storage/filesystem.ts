@@ -727,7 +727,13 @@ export async function saveLayout(
   // The existing-folder lookup, snapshot decision, optional rename, and the
   // overwrite all run under one lock so a concurrent write to the same layout
   // cannot land between the snapshot stat and the overwrite (TOCTOU).
-  return await withLayoutLock(uuid, async () => {
+  //
+  // UUIDs are matched case-insensitively (isUuid and findFolderByUuid both
+  // accept any casing), so the lock key is lowercased. Without this, two
+  // concurrent PUTs for the same logical layout but different UUID casing
+  // (e.g. "550E8400-..." vs "550e8400-...") would acquire distinct mutex
+  // entries and run concurrently, reopening the snapshot TOCTOU.
+  return await withLayoutLock(uuid.toLowerCase(), async () => {
     // Check if this is a new layout
     const existingFolder = await findFolderByUuid(uuid);
     let isNew = existingFolder === null;
