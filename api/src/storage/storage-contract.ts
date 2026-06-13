@@ -106,6 +106,15 @@ export function runStorageContract(makeDriver: MakeDriver): void {
         const finalContent = stored?.content ?? "";
         const snapshots = await driver.getSnapshotContents(TEST_ID);
 
+        // A diverged copy was actually snapshotted. Without this guard the
+        // case is vacuous: when no snapshot is produced (the bug) the loop
+        // below has nothing to assert and passes silently.
+        expect(snapshots.length).toBeGreaterThan(0);
+
+        // Whichever of v2/v3 lost the race and was overwritten must survive
+        // in the snapshot set, and it must differ from the final stored copy
+        // (no silent data loss). At least one diverged copy is guaranteed by
+        // the guard above, so the loop has real work to do.
         const overwritten = [v2, v3].filter((c) => c !== finalContent);
         for (const lost of overwritten) {
           expect(snapshots).toContain(lost);
