@@ -32,7 +32,6 @@ export interface PointerDragContext {
   getEventCallbacks: () => RackEventCallbacks;
   setDropPreview: (preview: DropPreviewState | null) => void;
   setContainerHoverInfo: (info: ContainerHoverInfo | null) => void;
-  clearDraggingIndex: () => void;
   onDragFinished: () => void;
   layoutStore: ReturnType<typeof getLayoutStore>;
   toastStore: ReturnType<typeof getToastStore>;
@@ -104,10 +103,9 @@ export function attachPointerDragListeners(
     } = event.detail;
 
     // Always clear this rack's local drag state, even if the drop landed
-    // elsewhere — the source rack still needs its dragging-index cleared.
+    // elsewhere — the source rack still needs its preview/hover cleared.
     ctx.setDropPreview(null);
     ctx.setContainerHoverInfo(null);
-    ctx.clearDraggingIndex();
 
     // Only the rack containing the pointer at drop time should dispatch the
     // drop action. Other racks must skip dispatch to avoid duplicate/incorrect

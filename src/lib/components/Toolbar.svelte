@@ -6,7 +6,6 @@
   - Right: Dropdown menus (desktop) / quick file actions (mobile)
 -->
 <script lang="ts">
-  // @ts-nocheck
   import Tooltip from "./Tooltip.svelte";
   import FileMenu from "./FileMenu.svelte";
   import SettingsMenu from "./SettingsMenu.svelte";

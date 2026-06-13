@@ -165,7 +165,7 @@
       pendingToastId = null;
     }
 
-    const firstDeleted = deletedTypes[0];
+    const [firstDeleted] = deletedTypes;
     const message =
       deletedTypes.length === 1 && firstDeleted
         ? `Deleted "${firstDeleted.model ?? firstDeleted.slug}"`

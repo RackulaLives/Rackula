@@ -65,7 +65,7 @@
 
   // Get the first rack in a group (for height info)
   function getGroupFirstRack(group: { rack_ids: string[] }) {
-    const firstRackId = group.rack_ids?.[0];
+    const [firstRackId] = group.rack_ids;
     if (!firstRackId) return undefined;
     return layoutStore.getRackById(firstRackId);
   }

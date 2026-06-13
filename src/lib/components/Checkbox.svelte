@@ -16,6 +16,8 @@
     id?: string;
     /** Label text to display next to checkbox */
     label?: string;
+    /** Test ID for end-to-end test selectors */
+    "data-testid"?: string;
     /** Callback when checked state changes */
     onchange?: (checked: boolean | "indeterminate") => void;
   }
@@ -25,6 +27,7 @@
     disabled = false,
     id: providedId,
     label,
+    "data-testid": dataTestid,
     onchange,
   }: Props = $props();
 
@@ -52,6 +55,7 @@
   <Checkbox.Root
     {id}
     {disabled}
+    data-testid={dataTestid}
     checked={checkedValue}
     indeterminate={indeterminateValue}
     onCheckedChange={handleCheckedChange}

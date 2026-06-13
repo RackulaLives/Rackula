@@ -4,7 +4,6 @@
   Features LogoLoader during export, shimmer preview, rack selection for multi-rack exports
 -->
 <script lang="ts">
-  // @ts-nocheck
   import type {
     Rack,
     RackGroup,
@@ -275,7 +274,7 @@
       // For multi-file export (4+ racks), show paginated single-rack preview
       // For composite export (1-3 racks), show all selected racks together
       const racksToPreview = isMultiFileExport
-        ? [selectedRacksArray[previewIndex]].filter(Boolean)
+        ? selectedRacksArray.slice(previewIndex, previewIndex + 1)
         : selectedRacksArray;
 
       if (racksToPreview.length === 0) {
