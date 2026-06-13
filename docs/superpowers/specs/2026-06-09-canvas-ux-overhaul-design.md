@@ -321,11 +321,43 @@ scope, enabled-when) feeds the app menu, verb bars, keyboard handler, and a gene
 HelpPanel shortcut list, eliminating hand-maintained shortcut docs (#2096). The
 Devices palette gains a pinned favourites section, virtualized rendering, and a
 visible display-mode toggle in one pass (#2094). The empty-canvas state becomes a
-template chooser (plain layout zips in static/templates, previews via the cached
-render pipeline) landing together with StartScreen removal (#2095). Mobile adaptation
-stays out of scope for the shell but gets a non-blocking design spike so the new
-panel and dialog primitives are not rebuilt bespoke for touch (#2097). Three guard
-rails land before shell slices and stay outside the milestone: visual regression
-snapshots (#2098), axe-core accessibility CI (#2099), and UX standards (WCAG 2.2 AA,
-44px touch targets, reduced motion, visible focus, managed focus) documented as PR
-gates (#2100).
+template chooser (.rackula.yaml templates in static/templates, validated in CI
+against the published schema #571, previews via the cached render pipeline; a v1
+chooser may land earlier on the existing WelcomeScreen with static preview images,
+with only the entry-point routing) landing together with StartScreen removal (#2095). Mobile implementation
+is deferred to M12, but the design spike (#2097) runs at milestone start, before
+#2075/#2076 implementation, so the new panel and dialog primitives are not rebuilt
+bespoke for touch. Three guard
+rails land before shell slices and are milestoned in M14 as wave 0 (no shell slice
+merges until they are green): visual regression snapshots (#2098), axe-core
+accessibility CI (#2099), and UX standards (WCAG 2.2 AA, 44px touch targets, reduced
+motion, visible focus, managed focus) documented as PR gates (#2100).
+
+## Alignment audit amendments (2026-06-12)
+
+A cross-milestone audit (M02/M03/M04/M13/M14/M15) amended this spec. Full report:
+the align-roadmap session plan file; per-issue details live on the issues.
+
+### Canonical homes
+
+| State | Canonical control | Mirrors | Scope |
+| --- | --- | --- | --- |
+| Display mode | Bottom-left lens (#2074) | View tab (#2078), palette toggle (#2094) | Layout |
+| Annotations | View tab (#2078) | none (removed from #2093 Appearance) | Layout |
+| Theme | Settings dialog (#2093) | none | App preference |
+| Per-layout durability | Chip derived API (#2035) | Tab dots (#2079), sidebar dots (#2082) | Workspace rollup |
+
+### Sequencing amendments
+
+- M03's carrier-first epic (#2158) lands before M14 placement/drag/verb-bar work:
+  the verb bar's slot control (#2075) is designed against the carrier model, not the
+  slot_position pathway #2158 deletes.
+- Wave 0 additions alongside the guard rails: browser-mode multi-layout storage
+  schema design (#2179), undo/redo semantics across restore and tab switch (#2182),
+  E2E shell strategy (#2183), i18n decision (#2184), performance budget (#2185).
+- #2073 split: menu shell (#2073, mode-agnostic, after #2096) and mode-aware items
+  (#2187, needs #2037). #2081 depends only on the shell slice.
+- #2045 (export-all) moved into M14 to ride tabs; in server mode it flushes pending
+  debounced saves before building the archive.
+- The interim top bar (#2072) ships with an empty flex slot; the full
+  logo/menu/tabs/chip/settings layout is the end state, not the slice's exit criteria.

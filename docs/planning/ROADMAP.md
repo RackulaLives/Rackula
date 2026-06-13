@@ -1,6 +1,6 @@
 ---
 created: 2025-11-27
-updated: 2026-06-09
+updated: 2026-06-12
 status: active
 ---
 
@@ -47,9 +47,18 @@ they address different audiences. See the decision record:
 ## Active Plan
 
 Milestones are thematic groups with sequential ordering. Each maps to a GitHub milestone.
-Execution order: **M02 -> M04 -> M03 -> M07 -> M05 -> M06 -> M08 -> M09 -> M10 -> M11 -> M12 -> M13**.
-M15 (Storage Model & Data Safety) is in progress now, in parallel with M02/M04. M14
-(Canvas UX Overhaul) slots after M04; the milestone numbers are IDs, not strict order.
+Execution order: **M02 -> M04 -> M03 -> M14 -> M13 -> M07 -> M05 -> M06 -> M08 -> M09 -> M10 -> M11 -> M12**.
+M15 (Storage Model & Data Safety) is in progress now, in parallel with M02/M04; its
+internal order is #2091 -> #2059 -> #2037 -> #2035 -> #2041 -> #2042 -> #2038 -> #2044 -> #2063,
+with #617 (images in YAML) landing before the chip/nudge reach users. The milestone
+numbers are IDs, not strict order.
+
+M03 precedes M14 because the carrier-first epic (#2158) rewrites the slot/containment
+model that M14's verb bars and placement work build on; sequencing them apart reworks
+the canvas twice. M14 precedes M13 because the rechartered M13 is a keyboard/help pass
+on the new shell. M14 precedes M07/M06 because #765/#1948/#1939 design against the
+#2076 side-panel contract. Per-milestone staged execution plans live in docs/plans/
+(2026-06-12-*-plan.md).
 
 M4 precedes M3 because type-safety cleanup must happen before data format changes.
 Changing data formats with `@ts-nocheck` on 20 files and 84 suppressed errors risks
@@ -67,15 +76,18 @@ first, submit in M2.
 - Self-host hardening (bundled): #1235 (systemd), #1237 (CORS HTTPS), #1269 (session
   invalidation), #1778 (write-route rate limiting), #1779 (mutating-origin policy)
 
-### M02 -- LXC Release & Stability (in progress, 11 issues)
+### M02 -- LXC Release & Stability (in progress)
 
-Ship LXC publicly and stabilise the release pipeline.
+Ship LXC publicly, stabilise the release pipeline, eliminate the VPS, distribute.
 
-- Public release: #1211 (epic), #1214 (test on Proxmox), #1215 (submit to
-  community-scripts), #1317 (submit as Unraid Community App)
-- Release pipeline: #1977 (gated release pipeline), #1969 (v26.6.2 install bug)
-- CI/infra: #1394 (CI/Build reliability), #567 (Playwright on self-hosted runner)
-- Cleanup: #1970 (remove Umami analytics), #1011 (nginx proxy query string)
+- Cloudflare cutover: #1983/#1984 (epics), #2133 (Workers storage driver),
+  #2134 (dev cutover; after #2037), #2029 (prod cutover, static-only),
+  #2031 (per-PR previews), #2030/#2032, #1986 (VPS decommission gate)
+- Distribution: #2008 (Unraid epic) -> #1317/#2009-#2013; LXC follow-ups #2060/#2065
+  (batched upstream push), #2159 (MikroTik widths)
+- Brand: #2054 (epic), #2053
+- Closure = in-repo deliverables + #1986. Externally gated issues (#2142, #2053,
+  #2013) carry the `waiting-external` label and do not gate closure.
 
 ### M04 -- Type Safety, Decomposition & Stability (next, 22 issues)
 
@@ -83,30 +95,31 @@ Technical debt paydown that must complete before data format changes (M03) or ne
 features (M07, M05) can land safely. Every issue measurably improves type safety,
 maintainability, or reliability.
 
-- TypeScript strict burndown: #1705 (utils, 49 errors), #1707 (components, 23 errors)
-  -- eliminates suppressed `@ts-nocheck` errors
-- Component decomposition: #1388 (epic), #910 (layout.svelte.ts), #1396 (export.ts),
-  #1398 (EditPanel.svelte), #1610 (Canvas.svelte), #1397 (Rack.svelte)
-- Layout store decomposition: #1077 (phase 2), #1079 (phase 4), #1080 (phase 5)
-- Architecture: #746 (svstate patterns spike), #1387 (error handling audit)
-- Bugs: #1581 (import missing devices)
-- E2E quality: #1423 (ESLint CSS rule), #1419 (data-testid), #1264 (stale selectors),
-  #1420 (getByRole migration), #1227 (undo/redo E2E), #1231 (a11y E2E),
-  #1222 (E2E testing epic)
+- TypeScript strict burndown: #1707 (components, reclaimed; Toolbar descoped),
+  #2180 (manager.svelte.ts suppression, lands before #2037)
+- Component decomposition: #1388 (epic, counts refreshed), #1396 (export.ts),
+  #1398 (EditPanel composable sections; last pre-M14 slice). #910/#1397/#1610 shipped.
+- Residual: #2025 (App.svelte dialog wrappers; persistence half deferred to #2037)
+- Bugs/fixes: #2146 (contained-device nudge, Option A interim), #2156, #2103
+- E2E quality: #1419 (data-testid; gate open), #1420, #1423, #1264, #1227, #1231
+- Moved out: #1581 -> M07, #1222 -> Backlog (cross-milestone tracker)
 
-### M03 -- Data Format & Interop (planned, 18 issues)
+### M03 -- Data Format & Interop (planned)
 
-Data format foundation and interoperability. Enables later milestones (M07 device
-enrichment, M08 share URLs). Must follow M04 for type safety.
+Data format foundation and interoperability. Must follow M04 for type safety and
+precede M14 (carrier-first rewrites the slot model M14 builds on).
 
-- Epics/initiative: #1208 (Ecosystem Interop), #1209 (Format Adapters),
-  #570 (Dev-friendly Data Format)
-- Format work: #617, #618 (YAML save/load), #620 (JSZip), #627/#628/#629 (git sync),
-  #1113 (schema versioning spike), #1114 (regression coverage)
-- Schema: #571 (JSON Schema)
-- In-app YAML editor: #1174 (epic), #1175 (viewer), #1176 (edit/apply flow),
-  #1177 (lazy-load guardrails), #1178 (inline diagnostics)
-- Deferred: #1119 (ZIP de-emphasis after YAML default, blocked on YAML stabilising)
+Keystone order: #1113 (versioning policy, includes all read surfaces) -> #2158
+(carrier-first sub-U epic, schema bump + share-link revision; spec PR first) ->
+#571 (publish JSON Schema) -> #1209 (format adapters, trimmed to NetBox).
+
+- Epics: #570 (Dev-friendly Data Format, git-sync MVP descoped), #2158 (+#2165 docs,
+  #2131 containment collision)
+- Format work: #620 (single-layout ZIP save removal only; absorbed #1119),
+  #1114 (YAML/legacy-ZIP regression half; git-sync half -> #2181 in M08)
+- Spikes: #2186 (share-link versioning)
+- Moved out: #617 -> M15 (images-in-YAML is a data-safety fix), #618 closed into it,
+  #1208 -> Backlog (standing initiative)
 
 ### M07 -- Device Library & Image System (planned, 17 issues)
 
@@ -121,7 +134,7 @@ connectivity (ports need the enriched device model).
   #1189 (manifest integrity checks)
 - Import: #1283 (harden NetBox import), #1108 (Phase 3 NetBox devices),
   #1190 (vendor asset directory spike)
-- UX: #788 (Edit Device Panel design audit)
+- Bugs: #1581 (import missing devices, from M04). #788 closed into the M14 side-panel design; #765/#1402 design against the #2076 panel contract.
 
 ### M05 -- Connectivity Core (planned, 13 issues)
 
@@ -193,23 +206,32 @@ i18n support. Low priority until non-English users request it.
 
 Mobile and touch-specific interactions.
 
-- #1091 (touch listener hardening), #1052 (device library touch), #190 (long-press zoom),
-  #359 (touch-accessible port overlays)
+- #1091 (touch listener hardening), #190 (long-press zoom),
+  #359 (touch-accessible port overlays). #1052 closed as input to #2094.
+  Mobile design decisions for the shell arrive earlier via #2097 (M14 wave 0).
 
-### M13 -- UX Polish & Accessibility (planned, 8 issues)
+### M13 -- Post-Shell Keyboard, Help & Content Pass (rechartered 2026-06-12)
 
-Low-priority polish, accessibility, and content items.
+Runs after M14, against the new shell.
 
-- a11y: #767 (keyboard slot navigation), #106 (keyboard device placement)
-- UX: #117 (help tooltips), #951 (Open from Server), #946 (splash screen)
-- Content: #115 (layout templates), #114 (library virtualisation), #728 (hero video)
+- a11y: #106 (keyboard device placement, rewritten against the new palette)
+- Help: #117 (registry-driven tooltips, after #2096)
+- Content: #728 (hero video; recorded on the new shell)
+- Former contents superseded: #114 -> #2094, #115 -> #2095, #951 -> #2082/#2073,
+  #767 -> #2158, #946 closed stale.
 
 ### M14 -- Canvas UX Overhaul (planned)
 
 Reframes the canvas shell around "place each control where its scope lives": workspace
 frame top bar, app menu, tabs over a Layouts sidebar, side panel, canvas controls,
-floating object verbs, opening straight to canvas. Epic #2017. Slots after M04 so the
-overhaul builds on the decomposed codebase. Storage was split out to M15.
+floating object verbs, opening straight to canvas. Epic #2017. Runs after M03
+(carrier-first #2158 lands first). Storage was split out to M15.
+
+- Wave 0 (before any shell slice): guard rails #2098/#2099/#2100, spikes #2018/#2097,
+  registry #2096, designs #2179 (browser multi-layout storage), #2182 (undo/redo),
+  #2183 (E2E strategy), #2184 (i18n decision), #2185 (perf budget)
+- Entry chain gates on M15 #2037 via #2187 (mode-aware menu items, split from #2073)
+- Gained #2045 (export-all rides tabs)
 
 ### M15 -- Storage Model & Data Safety (in progress)
 
@@ -217,9 +239,25 @@ Explicit storage mode (browser/server), one honest storage chip, pre-overwrite s
 with echo-based conflict handling, change-based backup nudges, twin-tab safety. Epic
 #2071, spike #2019. Split out of the UX overhaul; built now, in parallel with M02/M04.
 
+Order: #2091 (TOCTOU fix, blocks snapshot trust) -> #2059 -> #2037 (explicit mode;
+gates M14 entry chain and M02 #2134) -> #2035 (chip, absorbed #2064) -> #2041
+(conflict flow, absorbed #2062) -> #2042 -> #2038 -> #2044 -> #2063. Gained #617
+(images in YAML: browser-mode custom images currently have no durable save path, and
+the chip must not certify image-dropping exports). #2045 moved to M14.
+
 ---
 
 ## Triage History
+
+### June 2026 (alignment audit)
+
+Cross-milestone audit of M02/M03/M04/M13/M14/M15: 29 verified findings. Closed 16
+issues (shipped, superseded, or folded); moved #1581/#1222/#1208/#2045/#617/#728 and
+the guard rails #2098-#2100 (into M14); rechartered M13 as the post-shell pass; pinned
+the order M03 -> M14 -> M13; defined M02 closure (waiting-external label for upstream
+gates); filed #2179-#2187 (storage schema design, manager.svelte.ts types, git-sync
+coverage split, undo/redo semantics, E2E shell strategy, i18n decision, perf budget,
+share-link versioning, mode-aware menu items).
 
 ### June 2026 (storage split)
 
