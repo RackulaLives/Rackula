@@ -19,5 +19,5 @@ fi
 REPO_PATH="$(pwd)"
 CHANGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|svelte)$' | tr '\n' ' ' || true)
 if [ -n "$CHANGED" ] && [[ "$REPO_PATH" != //* ]]; then
-  NODE_OPTIONS=--max-old-space-size=8192 vitest related $CHANGED --run --passWithNoTests --reporter=dot
+  NODE_OPTIONS=--max-old-space-size=8192 npx --no-install vitest related $CHANGED --run --passWithNoTests --reporter=dot
 fi
