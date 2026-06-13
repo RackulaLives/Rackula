@@ -32,6 +32,41 @@ function getDataDir(): string {
 const SNAPSHOTS_DIR = "snapshots";
 const MAX_SNAPSHOTS_PER_LAYOUT = 5;
 
+/**
+ * Per-layout in-process write locks, keyed by layout uuid.
+ *
+ * The API is a single-process Bun container, so a chained promise per uuid
+ * fully serializes the snapshot-check-through-write critical section for the
+ * same layout while leaving different layouts concurrent. This closes the
+ * TOCTOU window where a concurrent write landing between the snapshot stat
+ * and the overwrite would be lost without being snapshotted.
+ */
+const layoutWriteLocks = new Map<string, Promise<void>>();
+
+async function withLayoutLock<T>(
+  key: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const prev = layoutWriteLocks.get(key) ?? Promise.resolve();
+  let release!: () => void;
+  const next = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const chained = prev.then(() => next);
+  layoutWriteLocks.set(key, chained);
+  await prev;
+  try {
+    return await fn();
+  } finally {
+    release();
+    // Drop the entry once this link is the tail of the chain, so the map
+    // does not grow unbounded across distinct layouts over the process life.
+    if (layoutWriteLocks.get(key) === chained) {
+      layoutWriteLocks.delete(key);
+    }
+  }
+}
+
 /** Snapshot entry returned by {@link listSnapshots}. */
 export interface SnapshotListItem {
   filename: string;
@@ -688,69 +723,75 @@ export async function saveLayout(
   const yamlFilename = buildYamlFilename(layoutName);
   const folderPath = join(getDataDir(), folderName);
 
-  // Check if this is a new layout
-  const existingFolder = await findFolderByUuid(uuid);
-  let isNew = existingFolder === null;
+  // Serialize the snapshot-check-through-write critical section per layout.
+  // The existing-folder lookup, snapshot decision, optional rename, and the
+  // overwrite all run under one lock so a concurrent write to the same layout
+  // cannot land between the snapshot stat and the overwrite (TOCTOU).
+  return await withLayoutLock(uuid, async () => {
+    // Check if this is a new layout
+    const existingFolder = await findFolderByUuid(uuid);
+    let isNew = existingFolder === null;
 
-  // Pre-overwrite snapshot: when the client's echoed updatedAt does not
-  // match the stored copy, the copies diverged. Capture the stored YAML
-  // before overwriting it.
-  if (echoedUpdatedAt && existingFolder) {
-    const existingYamlFilename = await findYamlInFolder(existingFolder);
-    if (existingYamlFilename) {
-      const existingYamlPath = join(existingFolder, existingYamlFilename);
-      const existingStats = await stat(existingYamlPath);
-      if (existingStats.mtime.toISOString() !== echoedUpdatedAt) {
-        const existingContent = await readFile(existingYamlPath, "utf-8");
-        await writeSnapshot(existingFolder, existingContent);
-      }
-    }
-  }
-
-  // Handle rename: if the folder name changed (name change), rename the folder
-  if (existingFolder && existingFolder !== folderPath) {
-    // Handle concurrent folder changes gracefully.
-    try {
-      await rename(existingFolder, folderPath);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-        throw error;
-      }
-      isNew = true;
-    }
-
-    // Delete old yaml file if it has a different name
-    const oldYamlFilename = await findYamlInFolder(folderPath).catch(
-      () => null,
-    );
-    if (oldYamlFilename && oldYamlFilename !== yamlFilename) {
-      try {
-        await rm(join(folderPath, oldYamlFilename));
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-          logger.warn(
-            { err: error },
-            `Failed to delete stale YAML file "${oldYamlFilename}" in "${folderPath}"`,
-          );
+    // Pre-overwrite snapshot: when the client's echoed updatedAt does not
+    // match the stored copy, the copies diverged. Capture the stored YAML
+    // before overwriting it.
+    if (echoedUpdatedAt && existingFolder) {
+      const existingYamlFilename = await findYamlInFolder(existingFolder);
+      if (existingYamlFilename) {
+        const existingYamlPath = join(existingFolder, existingYamlFilename);
+        const existingStats = await stat(existingYamlPath);
+        if (existingStats.mtime.toISOString() !== echoedUpdatedAt) {
+          const existingContent = await readFile(existingYamlPath, "utf-8");
+          await writeSnapshot(existingFolder, existingContent);
         }
       }
     }
-  }
 
-  // Create folder if it doesn't exist
-  await mkdir(folderPath, { recursive: true });
+    // Handle rename: if the folder name changed (name change), rename the folder
+    if (existingFolder && existingFolder !== folderPath) {
+      // Handle concurrent folder changes gracefully.
+      try {
+        await rename(existingFolder, folderPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          throw error;
+        }
+        isNew = true;
+      }
 
-  // Write the YAML file. Stat the same descriptor so the returned
-  // updatedAt belongs to this write, not to a concurrent writer's file.
-  const yamlPath = join(folderPath, yamlFilename);
-  const handle = await open(yamlPath, "w");
-  try {
-    await handle.writeFile(yamlContent, "utf-8");
-    const stats = await handle.stat();
-    return { id: uuid, isNew, updatedAt: stats.mtime.toISOString() };
-  } finally {
-    await handle.close();
-  }
+      // Delete old yaml file if it has a different name
+      const oldYamlFilename = await findYamlInFolder(folderPath).catch(
+        () => null,
+      );
+      if (oldYamlFilename && oldYamlFilename !== yamlFilename) {
+        try {
+          await rm(join(folderPath, oldYamlFilename));
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+            logger.warn(
+              { err: error },
+              `Failed to delete stale YAML file "${oldYamlFilename}" in "${folderPath}"`,
+            );
+          }
+        }
+      }
+    }
+
+    // Create folder if it doesn't exist
+    await mkdir(folderPath, { recursive: true });
+
+    // Write the YAML file. Stat the same descriptor so the returned
+    // updatedAt belongs to this write, not to a concurrent writer's file.
+    const yamlPath = join(folderPath, yamlFilename);
+    const handle = await open(yamlPath, "w");
+    try {
+      await handle.writeFile(yamlContent, "utf-8");
+      const stats = await handle.stat();
+      return { id: uuid, isNew, updatedAt: stats.mtime.toISOString() };
+    } finally {
+      await handle.close();
+    }
+  });
 }
 
 /**
