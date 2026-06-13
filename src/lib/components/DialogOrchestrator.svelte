@@ -5,7 +5,6 @@
   All dependencies are accessed via module imports and singleton stores (zero props).
 -->
 <script lang="ts">
-  // @ts-nocheck
   import { NewRackWizard, type CreateRackData } from "$lib/components/wizard";
   import AddDeviceForm from "$lib/components/AddDeviceForm.svelte";
   import ImportFromNetBoxDialog from "$lib/components/ImportFromNetBoxDialog.svelte";

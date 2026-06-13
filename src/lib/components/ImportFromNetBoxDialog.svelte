@@ -4,7 +4,6 @@
   Uses bits-ui Tabs for accessible input mode selection
 -->
 <script lang="ts">
-  // @ts-nocheck
   import Dialog from "./Dialog.svelte";
   import { Tabs } from "$lib/components/ui/Tabs";
   import { IconUpload } from "./icons";
@@ -41,7 +40,6 @@
 
   // YAML input state
   let yamlInput = $state("");
-  let fileInputEl: HTMLInputElement | null = $state(null);
 
   // Parsing state
   let isParsing = $state(false);
@@ -242,7 +240,6 @@ is_full_depth: false"
           <input
             type="file"
             accept=".yaml,.yml"
-            bind:this={fileInputEl}
             onchange={handleFileUpload}
             class="file-input"
             id="yaml-file"

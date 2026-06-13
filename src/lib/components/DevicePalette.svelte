@@ -4,7 +4,6 @@
   Uses exclusive accordion (only one section open at a time)
 -->
 <script lang="ts">
-  // @ts-nocheck
   import { Accordion } from "bits-ui";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
@@ -166,9 +165,10 @@
       pendingToastId = null;
     }
 
+    const firstDeleted = deletedTypes[0];
     const message =
-      deletedTypes.length === 1
-        ? `Deleted "${deletedTypes[0].model ?? deletedTypes[0].slug}"`
+      deletedTypes.length === 1 && firstDeleted
+        ? `Deleted "${firstDeleted.model ?? firstDeleted.slug}"`
         : `Deleted ${deletedTypes.length} device types`;
 
     const actionLabel = deletedTypes.length === 1 ? "Undo" : "Undo All";
@@ -332,7 +332,7 @@
 
         // During search, compute match info
         const matchCount = section.devices.length;
-        const firstMatch = section.devices[0] ?? null;
+        const firstMatch = section.devices[0];
         const isEmpty = matchCount === 0;
 
         return {
@@ -353,7 +353,7 @@
       .map((cat) => {
         const devices = sortDevicesByBrandThenModel(grouped.get(cat) ?? []);
         const matchCount = devices.length;
-        const firstMatch = devices[0] ?? null;
+        const firstMatch = devices[0];
         const isEmpty = matchCount === 0;
 
         return {

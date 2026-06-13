@@ -3,7 +3,6 @@
   Main application component
 -->
 <script lang="ts">
-  // @ts-nocheck
   import { onMount, untrack } from "svelte";
   import AnimationDefs from "$lib/components/AnimationDefs.svelte";
   import Toolbar from "$lib/components/Toolbar.svelte";

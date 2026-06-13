@@ -7,7 +7,7 @@
 
   interface Props {
     open: boolean;
-    operation?: "save" | "export" | null;
+    operation?: "save" | "saveAs" | "export" | null;
     unusedCount: number;
     onreview?: () => void;
     onkeepall?: () => void;
@@ -68,7 +68,7 @@
   const operationAction = $derived(
     operation === "export"
       ? "exporting"
-      : operation === "save"
+      : operation === "save" || operation === "saveAs"
         ? "saving"
         : "continuing",
   );
@@ -89,8 +89,8 @@
     </p>
 
     <p class="message hint">
-      Review & Clean Up opens a checklist where you can choose which unused types
-      to delete first.
+      Review & Clean Up opens a checklist where you can choose which unused
+      types to delete first.
     </p>
 
     <div class="dont-ask-again">

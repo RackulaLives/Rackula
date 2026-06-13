@@ -17,7 +17,6 @@
   - rack-context-menu-handlers: context menu UI delegation
 -->
 <script lang="ts">
-  // @ts-nocheck
   import type {
     Rack as RackType,
     DeviceType,
@@ -149,7 +148,6 @@
   }: Props = $props();
 
   // --- Drag state ---
-  let _draggingDeviceIndex = $state<number | null>(null);
   let justFinishedDrag = $state(false);
   let dragDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
   let shiftKeyHeld = $state(false);
@@ -355,9 +353,7 @@
       setContainerHoverInfo: (i) => {
         containerHoverInfo = i;
       },
-      clearDraggingIndex: () => {
-        _draggingDeviceIndex = null;
-      },
+      clearDraggingIndex: () => {},
       onDragFinished: setDragFinished,
       layoutStore,
       toastStore,
@@ -440,7 +436,6 @@
     ondragleave={(e) => onDragLeave(e, handlerCtx)}
     ondrop={(e) => {
       onDrop(e, handlerCtx);
-      _draggingDeviceIndex = null;
     }}
     ontouchend={(e) => {
       if (!viewportStore.isMobile || !placementStore.isPlacing) return;
@@ -509,16 +504,12 @@
             selectedChildId={selectedDeviceId}
             isDragOverContainer={isHoveredContainer}
             dragTargetSlotId={isHoveredContainer
-              ? containerHoverInfo.targetSlotId
+              ? (containerHoverInfo?.targetSlotId ?? null)
               : null}
             isDragTargetValid={isHoveredContainer &&
-              containerHoverInfo.isValidTarget}
+              containerHoverInfo?.isValidTarget === true}
             onselect={ondeviceselect}
-            ondragstart={() => {
-              _draggingDeviceIndex = originalIndex;
-            }}
             ondragend={() => {
-              _draggingDeviceIndex = null;
               setDragFinished();
             }}
             onduplicate={(e) =>
@@ -547,10 +538,11 @@
 
     <!-- Layer 4: Placement header (mobile) -->
     {#if isPlacementMode && placementStore.pendingDevice}
+      {@const pendingDevice = placementStore.pendingDevice}
       <RackPlacementHeader
         rackWidth={RACK_WIDTH}
         rackPadding={RACK_PADDING}
-        deviceModel={placementStore.pendingDevice.model}
+        deviceModel={pendingDevice.model ?? pendingDevice.slug}
         oncancel={handleCancelPlacement}
       />
     {/if}
