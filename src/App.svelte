@@ -46,7 +46,6 @@
     maybeSave,
     maybeSaveAs,
     maybeExport,
-    prepareExportQrCode,
     handleShare,
     handleFitAll,
   } from "$lib/utils/app-actions";
@@ -58,6 +57,12 @@
     handleImportFromNetBox,
     handleOpenYamlEditor,
   } from "$lib/utils/dialog-actions";
+  import {
+    handleRackContextDuplicate,
+    handleRackContextDelete,
+    handleRackContextExport,
+    handleRackContextFocus,
+  } from "$lib/utils/rack-actions";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
@@ -75,7 +80,6 @@
   import { VERSION } from "$lib/version";
   import { persistenceDebug } from "$lib/utils/debug";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
-  import { DRAWER_WIDTH } from "$lib/constants/layout";
   import { Tooltip } from "bits-ui";
   import { debounce } from "$lib/utils/debounce";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
@@ -563,49 +567,6 @@
 
   function handleRackContextRename(rackId: string) {
     handleRackContextEdit(rackId);
-  }
-
-  function handleRackContextDuplicate(rackId: string) {
-    const result = layoutStore.duplicateRack(rackId);
-    if (result.error) {
-      toastStore.showToast(result.error, "error");
-    } else {
-      toastStore.showToast("Rack duplicated", "success");
-      handleFitAll();
-    }
-  }
-
-  function handleRackContextDelete(rackId: string) {
-    const rack = layoutStore.getRackById(rackId);
-    if (rack) {
-      layoutStore.setActiveRack(rackId);
-      selectionStore.selectRack(rackId);
-      dialogStore.deleteTarget = { type: "rack", name: rack.name };
-      dialogStore.open("confirmDelete");
-    }
-  }
-
-  async function handleRackContextExport(rackIds: string[]) {
-    if (rackIds.length === 0) {
-      toastStore.showToast("No rack to export", "warning");
-      return;
-    }
-
-    await prepareExportQrCode();
-
-    dialogStore.exportSelectedRackIds = rackIds;
-    dialogStore.open("export");
-  }
-
-  function handleRackContextFocus(rackIds: string[]) {
-    if (rackIds.length === 0) return;
-    const rightOffset = uiStore.rightDrawerOpen ? DRAWER_WIDTH : 0;
-    canvasStore.focusRack(
-      rackIds,
-      layoutStore.racks,
-      layoutStore.rack_groups,
-      rightOffset,
-    );
   }
 
   // DialogOrchestrator component reference for delegating calls
