@@ -50,6 +50,14 @@
     handleShare,
     handleFitAll,
   } from "$lib/utils/app-actions";
+  import {
+    handleNewRack,
+    handleDelete,
+    handleHelp,
+    handleAddDevice,
+    handleImportFromNetBox,
+    handleOpenYamlEditor,
+  } from "$lib/utils/dialog-actions";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
@@ -510,45 +518,6 @@
   // --- Thin wrappers for Toolbar/Canvas/KeyboardHandler callbacks ---
   // These delegate to dialogStore; the actual dialog logic lives in DialogOrchestrator.
 
-  function handleNewRack() {
-    if (!layoutStore.canAddRack) {
-      toastStore.showToast("Maximum number of racks reached", "warning");
-      return;
-    }
-    dialogStore.open("newRack");
-  }
-
-  function handleDelete() {
-    if (selectionStore.isRackSelected && selectionStore.selectedRackId) {
-      const rack = layoutStore.getRackById(selectionStore.selectedRackId);
-      if (rack) {
-        dialogStore.deleteTarget = { type: "rack", name: rack.name };
-        dialogStore.open("confirmDelete");
-      }
-    } else if (selectionStore.isDeviceSelected) {
-      if (
-        selectionStore.selectedRackId !== null &&
-        selectionStore.selectedDeviceId !== null
-      ) {
-        const rack = layoutStore.getRackById(selectionStore.selectedRackId);
-        const deviceIndex = selectionStore.getSelectedDeviceIndex(
-          rack?.devices ?? [],
-        );
-        if (rack && deviceIndex !== null && rack.devices[deviceIndex]) {
-          const device = rack.devices[deviceIndex];
-          const deviceDef = layoutStore.device_types.find(
-            (d) => d.slug === device?.device_type,
-          );
-          dialogStore.deleteTarget = {
-            type: "device",
-            name: deviceDef?.model ?? deviceDef?.slug ?? "Device",
-          };
-          dialogStore.open("confirmDelete");
-        }
-      }
-    }
-  }
-
   function handleToggleTheme() {
     uiStore.toggleTheme();
   }
@@ -563,31 +532,10 @@
     uiStore.toggleAnnotations();
   }
 
-  function handleHelp() {
-    dialogStore.open("help");
-  }
-
-  function handleAddDevice() {
-    dialogStore.closeSheet();
-    dialogStore.open("addDevice");
-  }
-
-  function handleImportFromNetBox() {
-    dialogStore.open("importNetBox");
-  }
-
   function handleImportDevices() {
     // Delegates to DialogOrchestrator's hidden file input via dialogStore
     // The DialogOrchestrator handles the actual file input click
     dialogOrchestrator.handleImportDevices();
-  }
-
-  function handleOpenYamlEditor() {
-    if (viewportStore.isMobile) {
-      dialogStore.openSheet("yamlEditor");
-      return;
-    }
-    dialogStore.open("yamlEditor");
   }
 
   function handleOpenCleanupDialog() {
