@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
-import EditPanel from "$lib/components/EditPanel.svelte";
+import SidePanelContent from "$lib/components/SidePanelContent.svelte";
 import { resetLayoutStore, getLayoutStore } from "$lib/stores/layout.svelte";
 import {
   resetSelectionStore,
@@ -16,6 +16,12 @@ import {
 } from "$lib/stores/selection.svelte";
 import { resetUIStore } from "$lib/stores/ui.svelte";
 import { resetToastStore } from "$lib/stores/toast.svelte";
+
+function renderEditTab() {
+  return render(SidePanelContent, {
+    props: { activeTab: "edit", onTabChange: () => {} },
+  });
+}
 
 describe("EditPanel name edit + selection switch (#2223)", () => {
   beforeEach(() => {
@@ -48,7 +54,7 @@ describe("EditPanel name edit + selection switch (#2223)", () => {
 
     // Select device A and render the panel.
     selectionStore.selectDevice(rackId, deviceA.id);
-    render(EditPanel);
+    renderEditTab();
 
     // Enter edit mode for device A's name.
     const editButton = screen.getByRole("button", {
@@ -94,7 +100,7 @@ describe("EditPanel name edit + selection switch (#2223)", () => {
     const deviceA = layoutStore.rack!.devices[0]!;
 
     selectionStore.selectDevice(rackId, deviceA.id);
-    render(EditPanel);
+    renderEditTab();
 
     const editButton = screen.getByRole("button", {
       name: /edit display name/i,

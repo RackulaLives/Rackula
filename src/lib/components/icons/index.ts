@@ -40,6 +40,8 @@ export { default as IconClose } from "./IconClose.svelte";
 // Navigation icons
 export { default as IconChevronUp } from "./IconChevronUp.svelte";
 export { default as IconChevronDown } from "./IconChevronDown.svelte";
+export { default as IconChevronLeft } from "./IconChevronLeft.svelte";
+export { default as IconChevronRight } from "./IconChevronRight.svelte";
 
 // Undo/Redo icons
 export { default as IconUndo } from "./IconUndo.svelte";

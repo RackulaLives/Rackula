@@ -55,7 +55,7 @@ async function waitForSaved(page: Page, fieldType: "ip" | "notes") {
  */
 async function setDeviceIp(page: Page, ip: string, waitForSave = true) {
   const ipInput = page
-    .getByTestId("drawer-device-edit")
+    .getByTestId("side-panel-panel-edit")
     .getByLabel("IP Address/Hostname");
   await ipInput.fill(ip);
   await ipInput.blur();
@@ -71,7 +71,9 @@ async function setDeviceIp(page: Page, ip: string, waitForSave = true) {
  * Helper to set device notes
  */
 async function setDeviceNotes(page: Page, notes: string, waitForSave = true) {
-  const notesInput = page.getByTestId("drawer-device-edit").getByLabel("Notes");
+  const notesInput = page
+    .getByTestId("side-panel-panel-edit")
+    .getByLabel("Notes");
   await notesInput.fill(notes);
   await notesInput.blur();
   if (waitForSave && notes.trim()) {
@@ -119,11 +121,11 @@ async function setDeviceColour(page: Page, colour: string) {
  */
 async function getDeviceMetadata(page: Page) {
   const ip = await page
-    .getByTestId("drawer-device-edit")
+    .getByTestId("side-panel-panel-edit")
     .getByLabel("IP Address/Hostname")
     .inputValue();
   const notes = await page
-    .getByTestId("drawer-device-edit")
+    .getByTestId("side-panel-panel-edit")
     .getByLabel("Notes")
     .inputValue();
 
@@ -183,7 +185,9 @@ test.describe("Device Metadata Persistence", () => {
       let secondDeviceIndex = -1;
       for (let i = 0; i < count; i++) {
         await allDevices.nth(i).click();
-        await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+        await expect(
+          page.locator(locators.sidePanel.editEmpty),
+        ).not.toBeVisible();
         const meta = await getDeviceMetadata(page);
         if (meta.name !== TEST_METADATA.name) {
           // This is the new device (doesn't have our custom name)
@@ -206,7 +210,9 @@ test.describe("Device Metadata Persistence", () => {
 
       for (let i = 0; i < count; i++) {
         await allDevices.nth(i).click();
-        await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+        await expect(
+          page.locator(locators.sidePanel.editEmpty),
+        ).not.toBeVisible();
         const meta = await getDeviceMetadata(page);
 
         if (meta.name === TEST_METADATA.name) {
@@ -267,7 +273,7 @@ test.describe("Device Metadata Persistence", () => {
 
       // Verify IP is set
       let ip = await page
-        .getByTestId("drawer-device-edit")
+        .getByTestId("side-panel-panel-edit")
         .getByLabel("IP Address/Hostname")
         .inputValue();
       expect(ip).toBe(TEST_METADATA.ip);
@@ -277,7 +283,7 @@ test.describe("Device Metadata Persistence", () => {
 
       // Verify IP is cleared
       ip = await page
-        .getByTestId("drawer-device-edit")
+        .getByTestId("side-panel-panel-edit")
         .getByLabel("IP Address/Hostname")
         .inputValue();
       expect(ip).toBe("");
@@ -287,7 +293,7 @@ test.describe("Device Metadata Persistence", () => {
       await selectDevice(page, 0);
 
       ip = await page
-        .getByTestId("drawer-device-edit")
+        .getByTestId("side-panel-panel-edit")
         .getByLabel("IP Address/Hostname")
         .inputValue();
       expect(ip).toBe("");
@@ -307,7 +313,7 @@ test.describe("Device Metadata Persistence", () => {
 
       // Verify IP is cleared (whitespace trimmed to empty)
       const ip = await page
-        .getByTestId("drawer-device-edit")
+        .getByTestId("side-panel-panel-edit")
         .getByLabel("IP Address/Hostname")
         .inputValue();
       expect(ip).toBe("");
@@ -346,7 +352,9 @@ test.describe("Device Metadata Persistence", () => {
 
       // Click the device in the second rack specifically
       await secondRack.locator(locators.rack.device).first().click();
-      await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+      await expect(
+        page.locator(locators.sidePanel.editEmpty),
+      ).not.toBeVisible();
 
       await setDeviceIp(page, TEST_METADATA_2.ip);
       await setDeviceName(page, TEST_METADATA_2.name);
@@ -354,7 +362,9 @@ test.describe("Device Metadata Persistence", () => {
 
       // Verify second rack's device has its own metadata
       await secondRack.locator(locators.rack.device).first().click();
-      await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+      await expect(
+        page.locator(locators.sidePanel.editEmpty),
+      ).not.toBeVisible();
       const rack2Meta = await getDeviceMetadata(page);
       expect(rack2Meta.ip).toBe(TEST_METADATA_2.ip);
       expect(rack2Meta.name).toBe(TEST_METADATA_2.name);
@@ -363,7 +373,9 @@ test.describe("Device Metadata Persistence", () => {
       // Switch back to first rack and verify original metadata is intact
       const firstRack = rackFronts.nth(0);
       await firstRack.locator(locators.rack.device).first().click();
-      await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+      await expect(
+        page.locator(locators.sidePanel.editEmpty),
+      ).not.toBeVisible();
       const rack1Meta = await getDeviceMetadata(page);
       expect(rack1Meta.ip).toBe(TEST_METADATA.ip);
       expect(rack1Meta.name).toBe(TEST_METADATA.name);

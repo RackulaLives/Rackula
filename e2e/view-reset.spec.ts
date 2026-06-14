@@ -68,7 +68,7 @@ test.describe("View Reset on Rack Changes", () => {
   }) => {
     // Select the rack to open EditPanel BEFORE panning away
     await page.locator(locators.rack.svg).first().click();
-    await expect(page.locator(locators.drawer.rightOpenBare)).toBeVisible();
+    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
 
     // Pan the view to an offset position
     await page.evaluate(() => {
@@ -86,7 +86,7 @@ test.describe("View Reset on Rack Changes", () => {
     // Click on a different height preset (e.g., 42U). Scope to the right edit
     // drawer so the desktop preset wins over the mobile RackEditSheet variant.
     await page
-      .getByTestId("drawer-device-edit")
+      .getByTestId("side-panel-panel-edit")
       .getByTestId("btn-preset-height-42")
       .click();
 
@@ -107,7 +107,7 @@ test.describe("View Reset on Rack Changes", () => {
   }) => {
     // Select the rack BEFORE panning away
     await page.locator(locators.rack.svg).first().click();
-    await expect(page.locator(locators.drawer.rightOpenBare)).toBeVisible();
+    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
 
     // Pan away after selection
     await page.evaluate(() => {
@@ -124,7 +124,7 @@ test.describe("View Reset on Rack Changes", () => {
 
     // Use the numeric height input field to change height
     const rackHeightInput = page
-      .getByTestId("drawer-device-edit")
+      .getByTestId("side-panel-panel-edit")
       .getByLabel("Height", { exact: true });
     await rackHeightInput.fill("36");
     await rackHeightInput.blur();

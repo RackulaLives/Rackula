@@ -55,14 +55,14 @@ test.describe("Keyboard Shortcuts", () => {
     // Select the rack (click on first rack-svg in dual-view)
     await page.locator(locators.rack.svg).first().click();
 
-    // Edit panel should open
-    await expect(page.locator(locators.drawer.rightOpenBare)).toBeVisible();
+    // Selecting the rack surfaces its Edit-tab properties (empty state gone)
+    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
 
     // Press Escape
     await page.keyboard.press("Escape");
 
-    // Edit panel should close
-    await expect(page.locator(locators.drawer.rightOpenBare)).not.toBeVisible();
+    // Clearing the selection returns the Edit tab to its empty state
+    await expect(page.locator(locators.sidePanel.editEmpty)).toBeVisible();
   });
 
   test("? key opens help dialog", async ({ page }) => {

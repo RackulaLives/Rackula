@@ -63,10 +63,16 @@ export const locators = {
     pane: '[data-testid="drawer-left"]',
   },
 
-  drawer: {
-    rightOpen: 'aside[data-testid="drawer-device-edit"].open',
-    /** Variant without the `aside` element prefix (used in some specs) */
-    rightOpenBare: '[data-testid="drawer-device-edit"].open',
+  sidePanel: {
+    root: '[data-testid="side-panel"]',
+    /** Edit tabpanel (hosts the contextual properties for the selection). */
+    editPanel: '[data-testid="side-panel-panel-edit"]',
+    /** Empty-state prompt shown in the Edit tab when nothing is selected. */
+    editEmpty: '[data-testid="side-panel-edit-empty"]',
+    tabEdit: '[data-testid="side-panel-tab-edit"]',
+    tabView: '[data-testid="side-panel-tab-view"]',
+    collapse: '[data-testid="side-panel-collapse"]',
+    expand: '[data-testid="side-panel-expand"]',
   },
 
   canvas: {

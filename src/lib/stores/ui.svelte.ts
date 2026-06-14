@@ -19,8 +19,13 @@ import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 // Sidebar tab type (hide removed - collapse is now gesture-based)
 export type SidebarTab = "devices" | "racks" | "layouts";
 
+// Right side panel tab type: Edit (contextual properties) and View (layout view toggles)
+export type SidePanelTab = "edit" | "view";
+
 // localStorage keys
 const SIDEBAR_TAB_KEY = "Rackula_sidebar_tab";
+const SIDE_PANEL_TAB_KEY = "Rackula_side_panel_tab";
+const SIDE_PANEL_COLLAPSED_KEY = "Rackula_side_panel_collapsed";
 const WARN_UNSAVED_KEY = "Rackula_warn_unsaved";
 const PROMPT_CLEANUP_KEY = "Rackula_prompt_cleanup";
 const COMPATIBLE_ONLY_KEY = "Rackula-device-compatible-only";
@@ -63,6 +68,53 @@ function loadSidebarTabFromStorage(): SidebarTab {
  */
 function saveSidebarTabToStorage(tab: SidebarTab): void {
   safeSetItem(SIDEBAR_TAB_KEY, tab);
+}
+
+/**
+ * Valid side panel tab values for runtime validation
+ */
+const VALID_SIDE_PANEL_TABS: readonly SidePanelTab[] = [
+  "edit",
+  "view",
+] as const;
+
+/**
+ * Check if a value is a valid SidePanelTab
+ */
+function isValidSidePanelTab(tab: string): tab is SidePanelTab {
+  return VALID_SIDE_PANEL_TABS.includes(tab as SidePanelTab);
+}
+
+/**
+ * Load side panel tab from localStorage
+ */
+function loadSidePanelTabFromStorage(): SidePanelTab {
+  const stored = safeGetItem(SIDE_PANEL_TAB_KEY);
+  if (stored && isValidSidePanelTab(stored)) {
+    return stored;
+  }
+  return "edit"; // default
+}
+
+/**
+ * Save side panel tab to localStorage
+ */
+function saveSidePanelTabToStorage(tab: SidePanelTab): void {
+  safeSetItem(SIDE_PANEL_TAB_KEY, tab);
+}
+
+/**
+ * Load side panel collapse state from localStorage
+ */
+function loadSidePanelCollapsedFromStorage(): boolean {
+  return safeGetItem(SIDE_PANEL_COLLAPSED_KEY) === "true";
+}
+
+/**
+ * Save side panel collapse state to localStorage
+ */
+function saveSidePanelCollapsedToStorage(collapsed: boolean): void {
+  safeSetItem(SIDE_PANEL_COLLAPSED_KEY, String(collapsed));
 }
 
 /**
@@ -127,6 +179,8 @@ export const ZOOM_STEP = 25;
 const initialTheme = loadThemeFromStorage();
 const initialSidebarWidth = loadSidebarWidthFromStorage();
 const initialSidebarTab = loadSidebarTabFromStorage();
+const initialSidePanelTab = loadSidePanelTabFromStorage();
+const initialSidePanelCollapsed = loadSidePanelCollapsedFromStorage();
 const initialWarnUnsaved = loadWarnUnsavedFromStorage();
 const initialPromptCleanup = loadPromptCleanupFromStorage();
 const initialCompatibleOnly = loadCompatibleOnlyFromStorage();
@@ -142,6 +196,8 @@ let annotationField = $state<AnnotationField>("name");
 let showBanana = $state(false);
 let sidebarWidth = $state<number | null>(initialSidebarWidth);
 let sidebarTab = $state<SidebarTab>(initialSidebarTab);
+let sidePanelTab = $state<SidePanelTab>(initialSidePanelTab);
+let sidePanelCollapsed = $state(initialSidePanelCollapsed);
 let warnOnUnsavedChanges = $state(initialWarnUnsaved);
 let promptCleanupOnSave = $state(initialPromptCleanup);
 let compatibleOnly = $state(initialCompatibleOnly);
@@ -170,6 +226,8 @@ export function resetUIStore(): void {
   showBanana = false;
   sidebarWidth = loadSidebarWidthFromStorage();
   sidebarTab = loadSidebarTabFromStorage();
+  sidePanelTab = loadSidePanelTabFromStorage();
+  sidePanelCollapsed = loadSidePanelCollapsedFromStorage();
   warnOnUnsavedChanges = loadWarnUnsavedFromStorage();
   promptCleanupOnSave = loadPromptCleanupFromStorage();
   compatibleOnly = loadCompatibleOnlyFromStorage();
@@ -237,6 +295,12 @@ export function getUIStore() {
     get sidebarTab() {
       return sidebarTab;
     },
+    get sidePanelTab() {
+      return sidePanelTab;
+    },
+    get sidePanelCollapsed() {
+      return sidePanelCollapsed;
+    },
     get warnOnUnsavedChanges() {
       return warnOnUnsavedChanges;
     },
@@ -280,6 +344,11 @@ export function getUIStore() {
     // Sidebar actions
     setSidebarWidth: setSidebarWidthAction,
     setSidebarTab,
+
+    // Side panel actions
+    setSidePanelTab,
+    toggleSidePanelCollapsed,
+    setSidePanelCollapsed,
 
     // Unsaved changes warning action
     toggleWarnOnUnsavedChanges,
@@ -482,6 +551,32 @@ function setSidebarTab(tab: SidebarTab): void {
   if (!isValidSidebarTab(tab)) return;
   sidebarTab = tab;
   saveSidebarTabToStorage(tab);
+}
+
+/**
+ * Set the active right side panel tab
+ * @param tab - Tab to set ('edit' or 'view')
+ */
+function setSidePanelTab(tab: SidePanelTab): void {
+  if (!isValidSidePanelTab(tab)) return;
+  sidePanelTab = tab;
+  saveSidePanelTabToStorage(tab);
+}
+
+/**
+ * Toggle the right side panel between expanded and collapsed-to-rail
+ */
+function toggleSidePanelCollapsed(): void {
+  setSidePanelCollapsed(!sidePanelCollapsed);
+}
+
+/**
+ * Set the right side panel collapse state explicitly
+ * @param collapsed - Whether the panel is collapsed to its rail
+ */
+function setSidePanelCollapsed(collapsed: boolean): void {
+  sidePanelCollapsed = collapsed;
+  saveSidePanelCollapsedToStorage(collapsed);
 }
 
 /**

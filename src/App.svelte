@@ -9,7 +9,7 @@
   import Canvas from "$lib/components/Canvas.svelte";
   import { PaneGroup, Pane, PaneResizer } from "paneforge";
   import DevicePalette from "$lib/components/DevicePalette.svelte";
-  import EditPanel from "$lib/components/EditPanel.svelte";
+  import SidePanel from "$lib/components/SidePanel.svelte";
   import ToastContainer from "$lib/components/ToastContainer.svelte";
   import PortTooltip from "$lib/components/PortTooltip.svelte";
   import DragTooltip from "$lib/components/DragTooltip.svelte";
@@ -638,23 +638,25 @@
           <PaneResizer class="resize-handle" />
 
           <Pane class="main-pane">
-            <Canvas
-              onnewrack={handleNewRack}
-              onload={handleLoad}
-              onfitall={handleFitAll}
-              onresetzoom={() => canvasStore.resetZoom()}
-              {partyMode}
-              enableLongPress={false}
-              onracklongpress={handleRackLongPress}
-              onrackfocus={handleRackContextFocus}
-              onrackexport={handleRackContextExport}
-              onrackedit={handleRackContextEdit}
-              onrackrename={handleRackContextRename}
-              onrackduplicate={handleRackContextDuplicate}
-              onrackdelete={handleRackContextDelete}
-            />
+            <div class="canvas-region">
+              <Canvas
+                onnewrack={handleNewRack}
+                onload={handleLoad}
+                onfitall={handleFitAll}
+                onresetzoom={() => canvasStore.resetZoom()}
+                {partyMode}
+                enableLongPress={false}
+                onracklongpress={handleRackLongPress}
+                onrackfocus={handleRackContextFocus}
+                onrackexport={handleRackContextExport}
+                onrackedit={handleRackContextEdit}
+                onrackrename={handleRackContextRename}
+                onrackduplicate={handleRackContextDuplicate}
+                onrackdelete={handleRackContextDelete}
+              />
+            </div>
 
-            <EditPanel />
+            <SidePanel />
           </Pane>
         </PaneGroup>
       {:else}
@@ -765,11 +767,25 @@
   :global(.main-pane) {
     /* Note: paneforge applies inline flex: X 1 0px - don't override with flex: 1 */
     display: flex;
-    flex-direction: column;
+    /* Canvas and the persistent side panel sit side by side. */
+    flex-direction: row;
     overflow: hidden;
     min-height: 0;
     height: 100%; /* Required for percentage-based children to fill space */
     background-color: var(--canvas-bg);
+  }
+
+  .canvas-region {
+    flex: 1;
+    min-width: 0;
+    /* Keep the canvas clamped to the row's height; a flex item defaults to
+       min-height: auto, which would let the tall rack content stretch the
+       region past the viewport and skew the fit-to-view zoom. */
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   /* Note: Mobile overscroll prevention should be in global styles (index.html or app.css) */

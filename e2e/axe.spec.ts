@@ -58,14 +58,37 @@ test.describe("axe accessibility scans", () => {
   test("canvas with a selected device has no WCAG 2.2 AA violations", async ({
     page,
   }) => {
-    // Selecting a device opens the edit drawer and applies the selected state,
-    // so the scan covers the canvas, the device chrome, and the edit panel at
-    // once: the states a user is most often in.
+    // Selecting a device surfaces its properties in the side panel's Edit tab
+    // and applies the selected state, so the scan covers the canvas, the device
+    // chrome, and the panel at once: the states a user is most often in.
     await selectDevice(page, 0);
     await expectNoA11yViolations(page);
   });
 
-  test("sidebar Devices tab has no WCAG 2.2 AA violations", async ({ page }) => {
+  test("side panel View tab has no WCAG 2.2 AA violations", async ({
+    page,
+  }) => {
+    // With nothing selected the Edit tab shows its empty state; switching to
+    // View exercises the tablist roles, the active tabpanel, and the panel's
+    // landmark labelling.
+    await page.getByTestId("side-panel-tab-view").click();
+    await expect(page.getByTestId("side-panel-panel-view")).toBeVisible();
+    await expectNoA11yViolations(page, locators.sidePanel.root);
+  });
+
+  test("collapsed side panel rail has no WCAG 2.2 AA violations", async ({
+    page,
+  }) => {
+    // The slim rail is the collapsed state; its only control is the expand
+    // toggle, which must remain a labelled, reachable button.
+    await page.getByTestId("side-panel-collapse").click();
+    await expect(page.getByTestId("side-panel-expand")).toBeVisible();
+    await expectNoA11yViolations(page, locators.sidePanel.root);
+  });
+
+  test("sidebar Devices tab has no WCAG 2.2 AA violations", async ({
+    page,
+  }) => {
     await page.getByTestId("sidebar-tab-devices").click();
     await expect(page.getByTestId("drawer-left")).toBeVisible();
     await expectNoA11yViolations(page, locators.sidebar.pane);

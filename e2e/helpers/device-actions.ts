@@ -165,7 +165,11 @@ export async function selectDevice(
       : page.locator(locators.rack.device).nth(index);
 
   await device.click();
-  await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+  // Selecting a device surfaces its properties in the side panel's Edit tab.
+  // Assert the Edit tab is the active one and its empty-state prompt is gone,
+  // so this does not pass merely because the View tab is hiding the Edit panel.
+  await expect(page.locator(locators.sidePanel.editPanel)).toBeVisible();
+  await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
 }
 
 /**
@@ -173,7 +177,8 @@ export async function selectDevice(
  */
 export async function deselectDevice(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
-  await expect(page.locator(locators.drawer.rightOpen)).not.toBeVisible();
+  // With nothing selected the Edit tab falls back to its empty-state prompt.
+  await expect(page.locator(locators.sidePanel.editEmpty)).toBeVisible();
 }
 
 /**
@@ -191,7 +196,8 @@ export async function deleteSelectedDevice(page: Page): Promise<void> {
     expect(countAfterDelete).toBeLessThan(countBeforeDelete);
   }).toPass({ timeout: 5000 });
 
-  await expect(page.locator(locators.drawer.rightOpen)).not.toBeVisible();
+  // Removing the device clears the selection; the Edit tab returns to empty.
+  await expect(page.locator(locators.sidePanel.editEmpty)).toBeVisible();
 }
 
 /**
@@ -207,10 +213,10 @@ export async function startEditingDisplayName(page: Page): Promise<void> {
 /**
  * Locator for the device display-name input shown while editing.
  *
- * Scoped to the device-edit drawer so the "Name" label is unambiguous.
+ * Scoped to the side panel's Edit tabpanel so the "Name" label is unambiguous.
  */
 export function displayNameInput(page: Page): Locator {
   return page
-    .getByTestId("drawer-device-edit")
+    .getByTestId("side-panel-panel-edit")
     .getByLabel("Name", { exact: true });
 }
