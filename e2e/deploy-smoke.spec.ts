@@ -44,17 +44,18 @@ test.describe("Post-deploy smoke", () => {
     await page.goto("/");
 
     // The toolbar and canvas shell render unconditionally once Svelte mounts,
-    // regardless of whether the start screen or a restored layout is shown. Their
+    // regardless of whether the empty state or a restored layout is shown. Their
     // presence proves the JS bundle loaded and the app initialised.
     await expect(page.locator(locators.toolbar.root)).toBeVisible();
     await expect(page.locator(locators.canvas.root)).toBeVisible();
 
-    // First-time visitors land on the start screen; returning visitors restore a
-    // saved layout (canvas shows a rack). Accept either to stay deployment-state
-    // agnostic - both prove the app booted past the shell.
+    // First-time visitors land on the canvas empty state (WelcomeScreen);
+    // returning visitors restore a saved layout (canvas shows a rack). Accept
+    // either to stay deployment-state agnostic - both prove the app booted past
+    // the shell.
     await expect(
       page
-        .locator(locators.startScreen.root)
+        .locator(locators.welcomeScreen.root)
         .or(page.locator(locators.rack.container).first()),
     ).toBeVisible();
 

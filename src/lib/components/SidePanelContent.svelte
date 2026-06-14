@@ -7,8 +7,8 @@
   empty-state orchestration and selection resolution; it does not know about the
   collapse-to-rail chrome.
 
-  The Edit tab hosts the decomposed EditPanel sections (#1398). The View tab is a
-  placeholder filled by #2078 with the layout-scoped view toggles.
+  The Edit tab hosts the decomposed EditPanel sections (#1398). The View tab hosts
+  the layout-scoped view toggles (ViewControls, #2078).
 -->
 <script lang="ts">
   import { Tabs } from "$lib/components/ui/Tabs";
@@ -17,6 +17,7 @@
   import EditPanelPosition from "./EditPanelPosition.svelte";
   import EditPanelImage from "./EditPanelImage.svelte";
   import EditPanelActions from "./EditPanelActions.svelte";
+  import ViewControls from "./ViewControls.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
@@ -209,9 +210,7 @@
     data-testid="side-panel-panel-view"
   >
     <h2 id={viewHeadingId} class="side-panel-heading" tabindex="-1">View</h2>
-    <p class="side-panel-empty" data-testid="side-panel-view-placeholder">
-      Layout view controls live here. Filled in by issue #2078.
-    </p>
+    <ViewControls />
   </Tabs.Content>
 </Tabs.Root>
 

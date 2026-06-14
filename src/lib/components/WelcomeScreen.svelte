@@ -52,7 +52,7 @@
   }));
 </script>
 
-<div class="welcome-screen">
+<div class="welcome-screen" data-testid="welcome-screen">
   <!-- Ghostly 42U rack background (matching Rack.svelte dimensions) -->
   <svg
     class="ghost-rack"

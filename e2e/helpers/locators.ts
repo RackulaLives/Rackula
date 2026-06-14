@@ -80,8 +80,8 @@ export const locators = {
     panzoomContainer: ".panzoom-container",
   },
 
-  startScreen: {
-    root: '[data-testid="start-screen"]',
+  welcomeScreen: {
+    root: '[data-testid="welcome-screen"]',
   },
 
   dialog: {

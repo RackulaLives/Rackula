@@ -2,9 +2,9 @@
  * Helpers for the visual-regression suite (visual-regression.spec.ts).
  *
  * The goal is a deterministic screenshot every run: pin the theme via
- * localStorage before the app boots, clear any persisted layouts so the start
- * screen and load lists render empty, wait for the self-hosted fonts to finish
- * loading, and let the network settle before the shot.
+ * localStorage before the app boots, clear any persisted layouts so the canvas
+ * empty state renders, wait for the self-hosted fonts to finish loading, and let
+ * the network settle before the shot.
  */
 import type { Locator, Page } from "@playwright/test";
 import { locators } from "./locators";
@@ -22,7 +22,7 @@ export const VISUAL_VIEWPORT = { width: 1280, height: 720 } as const;
  */
 export function dynamicMasks(page: Page): Locator[] {
   return [
-    page.locator(locators.dynamic.version), // app version, e.g. start-screen footer
+    page.locator(locators.dynamic.version), // app version string in the app menu
     page.locator(locators.dynamic.layoutMeta), // "last saved" timestamps in layout lists
   ];
 }
@@ -31,7 +31,7 @@ export function dynamicMasks(page: Page): Locator[] {
  * Navigate to the app with a pinned theme and a clean storage slate, then wait
  * until it is visually settled (shell rendered, fonts loaded, network idle).
  *
- * @param path Relative URL. "/" for the start screen, "/?l=<share>" for a rack.
+ * @param path Relative URL. "/" for the empty-state canvas, "/?l=<share>" for a rack.
  */
 export async function gotoVisual(
   page: Page,
@@ -52,10 +52,10 @@ export async function gotoVisual(
   await page.setViewportSize(VISUAL_VIEWPORT);
   await page.goto(path);
 
-  // Shell rendered: either the start screen or a loaded rack.
+  // Shell rendered: either the canvas empty state or a loaded rack.
   const ready = path.includes("?l=")
     ? page.locator(locators.rack.container).first()
-    : page.locator(locators.startScreen.root);
+    : page.locator(locators.welcomeScreen.root);
   await ready.waitFor({ state: "visible" });
 
   await settle(page);
