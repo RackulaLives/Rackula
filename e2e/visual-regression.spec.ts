@@ -148,7 +148,9 @@ test.describe("visual regression", () => {
 
   test("dialog - settings", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL, { theme: "light" });
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    // The gear button is wrapped by a tooltip trigger that also exposes the
+    // "Settings" accessible name, so target the action button by its testid.
+    await page.getByTestId("btn-settings").click();
     const dialog = page.getByRole("dialog", { name: "Settings" });
     await expect(dialog).toBeVisible();
     await settle(page);
