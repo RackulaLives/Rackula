@@ -121,6 +121,7 @@
   {open}
   title="New Rack"
   width="var(--dialog-width-md)"
+  testid="dialog-new-rack"
   showClose={false}
   onclose={oncancel}
 >

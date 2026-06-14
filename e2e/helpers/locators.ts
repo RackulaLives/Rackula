@@ -1,8 +1,11 @@
 /**
- * Centralised CSS selector strings for E2E tests.
+ * Centralised selector strings for E2E tests.
  *
- * Every raw `.class-name` selector used in helpers and spec files should live
- * here so that a CSS class rename only requires a single-file change.
+ * Structural elements (canvas, racks, devices, drawers, dialogs, context menus,
+ * toasts, mobile nav) are addressed by `data-testid` so a CSS class rename only
+ * affects styling, not tests. Leaf elements, state modifiers (`.selected`,
+ * `.open`), and variant classes (`.toast--success`) stay as class selectors
+ * because they are not the structural anchors covered by testids.
  *
  * NOTE: `page.evaluate()` callbacks that use `document.querySelector` are
  * intentionally excluded — those run in the browser context and cannot
@@ -12,12 +15,13 @@ export const locators = {
   rack: {
     container: ".rack-container",
     svg: ".rack-svg",
-    device: ".rack-device",
-    deviceRect: ".rack-device .device-rect",
-    deviceName: ".rack-device .device-name",
-    deviceForeignObject: ".rack-device foreignObject",
-    deviceText: ".rack-device text",
-    deviceSelected: ".rack-device.selected",
+    device: '[data-testid="rack-device"]',
+    deviceRect: '[data-testid="rack-device"] .device-rect',
+    deviceName: '[data-testid="rack-device"] .device-name',
+    deviceForeignObject: '[data-testid="rack-device"] foreignObject',
+    deviceText: '[data-testid="rack-device"] text',
+    deviceSelected: '[data-testid="rack-device"].selected',
+    dropZone: '[data-testid="rack-drop-zone"]',
     uLabel: ".u-label",
     item: ".rack-item",
   },
@@ -25,18 +29,19 @@ export const locators = {
   rackView: {
     dualView: ".rack-dual-view",
     dualViewName: ".rack-dual-view-name",
-    front: ".rack-front",
-    rear: ".rack-rear",
-    frontDevice: ".rack-front .rack-device",
-    rearDevice: ".rack-rear .rack-device",
-    frontDeviceSelected: ".rack-front .rack-device.selected",
-    frontSvg: ".rack-front .rack-svg",
-    rearSvg: ".rack-rear .rack-svg",
-    rearBlockedSlot: ".rack-rear .blocked-slot",
+    front: '[data-testid="rack-front"]',
+    rear: '[data-testid="rack-rear"]',
+    frontDevice: '[data-testid="rack-front"] [data-testid="rack-device"]',
+    rearDevice: '[data-testid="rack-rear"] [data-testid="rack-device"]',
+    frontDeviceSelected:
+      '[data-testid="rack-front"] [data-testid="rack-device"].selected',
+    frontSvg: '[data-testid="rack-front"] .rack-svg',
+    rearSvg: '[data-testid="rack-rear"] .rack-svg',
+    rearBlockedSlot: '[data-testid="rack-rear"] .blocked-slot',
   },
 
   device: {
-    paletteItem: ".device-palette-item",
+    paletteItem: '[data-testid="device-palette-item"]',
     palette: ".device-palette",
   },
 
@@ -48,34 +53,36 @@ export const locators = {
   },
 
   sidebar: {
-    pane: ".sidebar-pane",
+    pane: '[data-testid="drawer-left"]',
   },
 
   drawer: {
-    rightOpen: "aside.drawer-right.open",
+    rightOpen: 'aside[data-testid="drawer-device-edit"].open',
     /** Variant without the `aside` element prefix (used in some specs) */
-    rightOpenBare: ".drawer-right.open",
-    rightRackHeight: ".drawer-right #rack-height",
+    rightOpenBare: '[data-testid="drawer-device-edit"].open',
+    rightRackHeight: '[data-testid="drawer-device-edit"] #rack-height',
   },
 
   canvas: {
-    root: ".canvas",
+    root: '[data-testid="rack-canvas"]',
     panzoomContainer: ".panzoom-container",
   },
 
   dialog: {
     root: ".dialog",
     title: ".dialog-title",
+    newRack: '[data-testid="dialog-new-rack"]',
   },
 
   toast: {
-    root: ".toast",
+    root: '[data-testid="toast-message"]',
     success: ".toast--success",
     warning: ".toast--warning",
   },
 
   mobile: {
-    bottomSheet: ".bottom-sheet",
+    bottomNav: '[data-testid="mobile-bottom-nav"]',
+    bottomSheet: '[data-testid="mobile-bottom-sheet"]',
     dragHandleBar: ".drag-handle-bar",
     backdrop: ".backdrop",
     deviceLibraryFab: ".device-library-fab",
@@ -97,6 +104,7 @@ export const locators = {
   },
 
   contextMenu: {
-    content: ".context-menu-content",
+    content: '[data-testid="ctx-menu"]',
+    item: '[data-testid="ctx-menu-item"]',
   },
 } as const;

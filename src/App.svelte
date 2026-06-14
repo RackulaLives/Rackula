@@ -727,6 +727,7 @@
             onResize={handleSidebarResize}
             id="sidebar-pane"
             class="sidebar-pane"
+            data-testid="drawer-left"
           >
             <SidebarTabs
               activeTab={uiStore.sidebarTab}

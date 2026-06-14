@@ -69,10 +69,15 @@
   </ContextMenu.Trigger>
 
   <ContextMenu.Portal>
-    <ContextMenu.Content class="context-menu-content" sideOffset={5}>
+    <ContextMenu.Content
+      class="context-menu-content"
+      data-testid="ctx-menu"
+      sideOffset={5}
+    >
       {#if onexport}
         <ContextMenu.Item
           class="context-menu-item"
+          data-testid="ctx-menu-item"
           onSelect={handleSelect(onexport)}
         >
           <span class="context-menu-label">Export...</span>
@@ -92,6 +97,7 @@
       {#if onedit}
         <ContextMenu.Item
           class="context-menu-item"
+          data-testid="ctx-menu-item"
           onSelect={handleSelect(onedit)}
         >
           <span class="context-menu-label">Edit Rack</span>
@@ -101,6 +107,7 @@
       {#if onrename}
         <ContextMenu.Item
           class="context-menu-item"
+          data-testid="ctx-menu-item"
           onSelect={handleSelect(onrename)}
         >
           <span class="context-menu-label">Rename</span>
@@ -110,6 +117,7 @@
       {#if onduplicate}
         <ContextMenu.Item
           class="context-menu-item"
+          data-testid="ctx-menu-item"
           onSelect={handleSelect(onduplicate)}
         >
           <span class="context-menu-label">Duplicate Rack</span>
@@ -123,6 +131,7 @@
       {#if ondelete}
         <ContextMenu.Item
           class="context-menu-item context-menu-item--destructive"
+          data-testid="ctx-menu-item"
           onSelect={handleSelect(ondelete)}
         >
           <span class="context-menu-label">Delete Rack</span>

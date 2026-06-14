@@ -128,6 +128,7 @@
   side="right"
   open={uiStore.rightDrawerOpen}
   title="Edit"
+  testid="drawer-device-edit"
   showClose={false}
   onclose={handleClose}
 >

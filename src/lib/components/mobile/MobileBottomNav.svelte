@@ -31,7 +31,12 @@
 </script>
 
 {#if viewportStore.isMobile}
-  <nav class="bottom-nav" class:hidden aria-label="Mobile navigation">
+  <nav
+    class="bottom-nav"
+    class:hidden
+    data-testid="mobile-bottom-nav"
+    aria-label="Mobile navigation"
+  >
     <button
       class="nav-tab"
       class:active={activeTab === "file"}

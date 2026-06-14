@@ -328,6 +328,7 @@
   <div
     class="canvas"
     class:party-mode={partyMode}
+    data-testid="rack-canvas"
     role="application"
     aria-label={rackDescription}
     aria-describedby={deviceListDescription ? "canvas-device-list" : undefined}

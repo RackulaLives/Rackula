@@ -140,6 +140,7 @@
       class="bottom-sheet"
       class:open
       class:dragging={isDragging}
+      data-testid="mobile-bottom-sheet"
       style:transform={isDragging ? `translateY(${translateY}px)` : ""}
       role="dialog"
       tabindex="-1"

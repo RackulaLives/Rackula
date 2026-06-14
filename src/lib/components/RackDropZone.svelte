@@ -74,6 +74,7 @@
   width={isHalfWidth ? interiorWidth / 2 - 4 : interiorWidth - 4}
   height={height * uHeight - 2}
   class="drop-preview"
+  data-testid="rack-drop-zone"
   class:drop-valid={feedback === "valid"}
   class:drop-invalid={feedback === "invalid"}
   class:drop-blocked={feedback === "blocked"}
