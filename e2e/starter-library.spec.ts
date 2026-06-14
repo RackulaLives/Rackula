@@ -197,12 +197,16 @@ test.describe("Starter Library", () => {
     await expect(paletteItem("1U Patch Panel")).not.toBeVisible();
     await expect(paletteItem("2U Patch Panel")).not.toBeVisible();
 
-    // Router and Firewall merged into Router/Firewall
-    // Note: "1U Router" must match exactly so it does not catch "1U Router/Firewall".
+    // Router and Firewall merged into a single "Router/Firewall" device.
+    // Both branches use exact text matching so neither catches the merged item.
     const routerOnlyItems = page
       .getByTestId("device-palette-item")
       .filter({ has: page.getByText("1U Router", { exact: true }) })
-      .or(paletteItem("1U Firewall"));
+      .or(
+        page
+          .getByTestId("device-palette-item")
+          .filter({ has: page.getByText("1U Firewall", { exact: true }) }),
+      );
     await expect(routerOnlyItems).toHaveCount(0);
   });
 

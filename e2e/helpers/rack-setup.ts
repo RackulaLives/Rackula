@@ -159,7 +159,7 @@ export async function completeWizardWithClicks(
 
   // Fill name if provided
   if (options?.name) {
-    await page.getByLabel("Rack Name").fill(options.name);
+    await page.getByLabel("Rack Name", { exact: true }).fill(options.name);
   }
 
   // Select layout type

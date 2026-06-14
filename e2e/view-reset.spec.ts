@@ -45,7 +45,7 @@ test.describe("View Reset on Rack Changes", () => {
 
     // Create a new rack via wizard (multi-rack mode — no replace dialog)
     await clickNewRack(page);
-    await page.getByLabel("Rack Name").fill("Test Rack");
+    await page.getByLabel("Rack Name", { exact: true }).fill("Test Rack");
     await page.click('[data-testid="btn-wizard-next"]');
     await page.click('[data-testid="btn-height-24"]');
     await page.click('[data-testid="btn-wizard-next"]');
@@ -123,7 +123,7 @@ test.describe("View Reset on Rack Changes", () => {
     // Use the numeric height input field to change height
     const rackHeightInput = page
       .getByTestId("drawer-device-edit")
-      .getByLabel("Height");
+      .getByLabel("Height", { exact: true });
     await rackHeightInput.fill("36");
     await rackHeightInput.blur();
 

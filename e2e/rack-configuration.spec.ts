@@ -10,7 +10,7 @@ import { gotoWithRack, clickNewRack, locators } from "./helpers";
 async function openWizardStep2(page: Page, name: string) {
   await clickNewRack(page);
   await expect(page.getByRole("dialog", { name: "New Rack" })).toBeVisible();
-  await page.getByLabel("Rack Name").fill(name);
+  await page.getByLabel("Rack Name", { exact: true }).fill(name);
   // Advance from step 1 (Name/Type) to step 2 (Width/Height)
   await page.click('[data-testid="btn-wizard-next"]');
 }
