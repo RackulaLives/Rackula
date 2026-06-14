@@ -5,6 +5,7 @@ import {
 } from "$lib/stores/workspace.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
 import { createLayout } from "$lib/utils/serialization";
+import { createTestDeviceTypeInput } from "./factories";
 
 describe("Workspace Store", () => {
   beforeEach(() => {
@@ -38,12 +39,9 @@ describe("Workspace Store", () => {
       const firstId = ws.activeId;
 
       // Edit the first tab so it has undo history.
-      ws.activeStore.addDeviceTypeRecorded({
-        name: "Server A",
-        u_height: 1,
-        category: "server",
-        colour: "#336699",
-      });
+      ws.activeStore.addDeviceTypeRecorded(
+        createTestDeviceTypeInput({ name: "Server A" }),
+      );
       expect(ws.activeStore.canUndo).toBe(true);
 
       // Open a second tab. Its history is empty and independent.
@@ -62,12 +60,9 @@ describe("Workspace Store", () => {
       const firstId = ws.activeId;
 
       // First tab: one edit, then undo, leaving a populated redo stack.
-      ws.activeStore.addDeviceTypeRecorded({
-        name: "Server A",
-        u_height: 1,
-        category: "server",
-        colour: "#336699",
-      });
+      ws.activeStore.addDeviceTypeRecorded(
+        createTestDeviceTypeInput({ name: "Server A" }),
+      );
       ws.activeStore.undo();
       expect(ws.activeStore.canRedo).toBe(true);
       expect(ws.activeStore.canUndo).toBe(false);
@@ -132,12 +127,9 @@ describe("Workspace Store", () => {
       const onlyId = ws.activeId;
 
       // Build history on the only tab.
-      ws.activeStore.addDeviceTypeRecorded({
-        name: "Server A",
-        u_height: 1,
-        category: "server",
-        colour: "#336699",
-      });
+      ws.activeStore.addDeviceTypeRecorded(
+        createTestDeviceTypeInput({ name: "Server A" }),
+      );
       expect(ws.activeStore.canUndo).toBe(true);
 
       // Closing the last tab replaces it with a fresh blank tab. The fresh tab
@@ -181,12 +173,9 @@ describe("Workspace Store", () => {
       const firstId = ws.activeId;
 
       // Build history on the first tab.
-      ws.activeStore.addDeviceTypeRecorded({
-        name: "Server A",
-        u_height: 1,
-        category: "server",
-        colour: "#336699",
-      });
+      ws.activeStore.addDeviceTypeRecorded(
+        createTestDeviceTypeInput({ name: "Server A" }),
+      );
       expect(ws.activeStore.canUndo).toBe(true);
 
       // Swap new content into the same tab via the shared primitive.
