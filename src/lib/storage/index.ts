@@ -50,3 +50,10 @@ export {
   getServerBaseUpdatedAt,
   setServerBaseUpdatedAt,
 } from "./server-base";
+export { uploadSnapshot } from "./api";
+export {
+  reconcileSession,
+  applyReconcile,
+  type ReconcileAction,
+  type ReconcileDeps,
+} from "./reconcile";

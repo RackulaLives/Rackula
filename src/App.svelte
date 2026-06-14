@@ -30,7 +30,6 @@
   } from "$lib/utils/share";
   import {
     loadSessionWithTimestamp,
-    isServerNewer,
     setApiAvailable,
     initializePersistence,
     getStorageMode,
@@ -41,7 +40,12 @@
     finalizeLayoutLoad,
     handleLoad,
     handleSaveToServer,
+    reconcileSession,
+    applyReconcile,
+    uploadSnapshot,
+    setServerBaseUpdatedAt,
   } from "$lib/storage";
+  import { serializeLayoutToYaml } from "$lib/utils/yaml";
   import {
     maybeSave,
     maybeSaveAs,
@@ -360,28 +364,27 @@
       return;
     }
 
-    // Priority 3: When API and local session are both available,
-    // compare server and local timestamps to avoid stale overwrite (#1012).
+    // Priority 3: When API and local session are both available, reconcile the
+    // local working copy against the server's layout list by the echo model
+    // (UUID match + updatedAt recency), snapshotting any losing local copy
+    // before it is discarded (#2041).
     if (apiAvailable) {
       try {
         const savedLayouts = await listSavedLayouts();
-        if (savedLayouts.length > 0) {
-          // Sort by updatedAt descending and get the most recent
-          const mostRecent = savedLayouts.toSorted(
-            (a, b) =>
-              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-          )[0]!;
-
-          // Compare timestamps: load server data if it's newer than localStorage
-          // or if localStorage has no timestamp (legacy data)
-          if (isServerNewer(localSession.savedAt, mostRecent.updatedAt)) {
-            const {
-              layout: serverLayout,
-              images: serverImages,
-              failedImagesCount,
-              failedKeys,
-            } = await loadSavedLayout(mostRecent.id);
-
+        const localUuid = localSession.layout.metadata?.id ?? null;
+        const action = reconcileSession({
+          localUuid,
+          localSavedAt: localSession.savedAt,
+          localServerUpdatedAt: localSession.serverUpdatedAt,
+          serverLayouts: savedLayouts,
+        });
+        await applyReconcile(action, {
+          serializeLosingCopy: () =>
+            serializeLayoutToYaml(localSession.layout, {}),
+          uploadSnapshot,
+          loadServer: async (item) => {
+            const { layout, images, failedImagesCount, failedKeys, updatedAt } =
+              await loadSavedLayout(item.id);
             if (failedKeys.length > 0) {
               persistenceDebug.api(
                 "reconciliation: %d image(s) failed to read: %o",
@@ -389,50 +392,23 @@
                 failedKeys,
               );
             }
-
-            // Share the image-reset / bundled-reload / custom-overlay / load /
-            // clear-session / fit-all sequence with the file and API load paths.
-            // Suppress the generic success toast: this path shows its own
-            // "Loaded ... from server" toast below. The partial-image warning
-            // (when failedImagesCount > 0) still fires.
-            finalizeLayoutLoad(serverLayout, serverImages, failedImagesCount, {
+            setServerBaseUpdatedAt(updatedAt ?? null);
+            finalizeLayoutLoad(layout, images, failedImagesCount, {
               successMessage: null,
             });
-
-            toastStore.showToast(
-              `Loaded "${mostRecent.name}" from server`,
-              "success",
-            );
-            return;
-          }
-
-          // LocalStorage is newer than server - load it and warn user
-          // Their local changes will auto-save to server on next edit
-          layoutStore.loadLayout(localSession.layout);
-          layoutStore.markDirty();
-          layoutStore.restoreBackupState({
-            changesSinceExport: localSession.changesSinceExport,
-            hasEverExported: localSession.hasEverExported,
-          });
-          toastStore.showToast(
-            "Loaded unsaved local changes (newer than server)",
-            "info",
-          );
-
-          requestAnimationFrame(() => {
-            if (!canvasStore.restoreViewport()) {
-              canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-            }
-          });
-          return;
-        }
+          },
+          restoreLocal: () => {
+            setServerBaseUpdatedAt(localSession.serverUpdatedAt);
+            restoreLocalSession(localSession);
+          },
+          toast: (m, t) => toastStore.showToast(m, t),
+        });
+        return;
       } catch (error) {
-        // If server check fails, fall through to the local working copy.
         persistenceDebug.api(
-          "failed to load saved layouts from server: %O",
+          "failed to reconcile saved layouts from server: %O",
           error,
         );
-        // Treat server data failures as offline and fall back gracefully.
         setApiAvailable(false);
         showStorageToast(
           `Cannot reach ${instanceLabel}. Working from your local copy; reload to retry.`,

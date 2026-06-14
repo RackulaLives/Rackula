@@ -1,5 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { reconcileSession } from "$lib/storage/reconcile";
+import { describe, it, expect, vi } from "vitest";
+import {
+  reconcileSession,
+  applyReconcile,
+  type ReconcileAction,
+  type ReconcileDeps,
+} from "$lib/storage/reconcile";
 import type { SavedLayoutItem } from "$lib/storage/api";
 
 function server(overrides: Partial<SavedLayoutItem> = {}): SavedLayoutItem {
@@ -73,5 +78,63 @@ describe("reconcileSession", () => {
       ],
     });
     expect(action).toEqual({ kind: "restore-local", reason: "local-newer" });
+  });
+});
+
+describe("applyReconcile", () => {
+  function deps(overrides: Partial<ReconcileDeps> = {}): ReconcileDeps {
+    return {
+      serializeLosingCopy: vi.fn().mockResolvedValue("losing: yaml"),
+      uploadSnapshot: vi.fn().mockResolvedValue(true),
+      loadServer: vi.fn().mockResolvedValue(undefined),
+      restoreLocal: vi.fn(),
+      toast: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  it("snapshots the loser then loads the server when the upload succeeds", async () => {
+    const uuid = "66666666-6666-4666-8666-666666666666";
+    const item = server({ id: uuid });
+    const action: ReconcileAction = {
+      kind: "load-server",
+      server: item,
+      snapshotLocalUuid: uuid,
+    };
+    const d = deps();
+    await applyReconcile(action, d);
+
+    expect(d.serializeLosingCopy).toHaveBeenCalledOnce();
+    expect(d.uploadSnapshot).toHaveBeenCalledWith(uuid, "losing: yaml");
+    expect(d.loadServer).toHaveBeenCalledWith(item);
+    expect(d.restoreLocal).not.toHaveBeenCalled();
+  });
+
+  it("keeps the local copy and never loads the server when the snapshot upload fails", async () => {
+    const uuid = "77777777-7777-4777-8777-777777777777";
+    const action: ReconcileAction = {
+      kind: "load-server",
+      server: server({ id: uuid }),
+      snapshotLocalUuid: uuid,
+    };
+    const d = deps({ uploadSnapshot: vi.fn().mockResolvedValue(false) });
+    await applyReconcile(action, d);
+
+    expect(d.restoreLocal).toHaveBeenCalledWith("local-newer");
+    expect(d.loadServer).not.toHaveBeenCalled();
+    expect(d.toast).toHaveBeenCalledWith(expect.any(String), "warning");
+  });
+
+  it("restores local without touching the server for a restore-local action", async () => {
+    const action: ReconcileAction = {
+      kind: "restore-local",
+      reason: "unknown-to-server",
+    };
+    const d = deps();
+    await applyReconcile(action, d);
+
+    expect(d.restoreLocal).toHaveBeenCalledWith("unknown-to-server");
+    expect(d.loadServer).not.toHaveBeenCalled();
+    expect(d.uploadSnapshot).not.toHaveBeenCalled();
   });
 });
