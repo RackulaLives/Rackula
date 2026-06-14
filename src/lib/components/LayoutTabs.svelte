@@ -52,7 +52,11 @@
     el?.focus();
   }
 
-  function handleTabKeydown(event: KeyboardEvent, index: number): void {
+  function handleTabKeydown(
+    event: KeyboardEvent,
+    index: number,
+    id: string,
+  ): void {
     const count = workspace.tabs.length;
     if (count === 0) return;
 
@@ -75,6 +79,13 @@
       case "End": {
         event.preventDefault();
         focusTabAt(count - 1);
+        break;
+      }
+      case "Enter":
+      case " ": {
+        // A div with role="tab" does not activate on Enter/Space natively.
+        event.preventDefault();
+        workspace.switchTo(id);
         break;
       }
     }
@@ -121,34 +132,33 @@
   <div class="layout-tabs" role="tablist" aria-label="Open layouts">
     {#each tabViews as view, index (view.id)}
       {@const selected = view.id === workspace.activeId}
+      <!--
+        The tab is a div with role="tab" (a direct child of the tablist) so the
+        close affordance can be a real nested button without a button-in-button.
+        The div carries roving tabindex, aria-selected, click and key activation.
+      -->
       <div
+        id="layout-tab-{view.id}"
         class="layout-tab"
         class:active={selected}
         class:drag-over={dragOverIndex === index && dragIndex !== index}
+        role="tab"
+        aria-selected={selected}
+        tabindex={selected ? 0 : -1}
+        data-testid="layout-tab-{view.id}"
         draggable="true"
+        onclick={() => workspace.switchTo(view.id)}
+        onkeydown={(e) => handleTabKeydown(e, index, view.id)}
         ondragstart={(e) => handleDragStart(e, index)}
         ondragover={(e) => handleDragOver(e, index)}
         ondrop={(e) => handleDrop(e, index)}
         ondragend={handleDragEnd}
-        role="presentation"
       >
-        <button
-          type="button"
-          id="layout-tab-{view.id}"
-          class="layout-tab-button"
-          role="tab"
-          aria-selected={selected}
-          tabindex={selected ? 0 : -1}
-          data-testid="layout-tab-{view.id}"
-          onclick={() => workspace.switchTo(view.id)}
-          onkeydown={(e) => handleTabKeydown(e, index)}
-        >
-          {#if view.unbacked}
-            <span class="layout-tab-dot" aria-hidden="true"></span>
-            <span class="sr-only">{view.statusLabel}.</span>
-          {/if}
-          <span class="layout-tab-label">{view.name}</span>
-        </button>
+        {#if view.unbacked}
+          <span class="layout-tab-dot" aria-hidden="true"></span>
+          <span class="sr-only">{view.statusLabel}.</span>
+        {/if}
+        <span class="layout-tab-label">{view.name}</span>
         <button
           type="button"
           class="layout-tab-close"
@@ -177,15 +187,20 @@
   .layout-tab {
     display: flex;
     align-items: center;
+    gap: var(--space-1);
     /* Comfortable minimum near 120px; the active tab keeps room for its label
        and close button. The hard floor / chevron overflow is a follow-up. */
     min-width: 120px;
     max-width: 220px;
     min-height: 44px;
+    padding: 0 var(--space-1) 0 var(--space-2);
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     background: transparent;
     color: var(--colour-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
     transition:
       background var(--duration-fast) var(--ease-out),
       border-color var(--duration-fast) var(--ease-out);
@@ -206,31 +221,14 @@
     border-color: var(--colour-selection);
   }
 
-  .layout-tab-button {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    min-width: 0;
-    /* 44px row height comes from the parent; pad horizontally. */
-    padding: 0 var(--space-2);
-    height: 100%;
-    background: transparent;
-    border: none;
-    color: inherit;
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .layout-tab-button:focus-visible {
+  .layout-tab:focus-visible {
     outline: 2px solid var(--colour-selection);
     outline-offset: -2px;
-    border-radius: var(--radius-sm);
   }
 
   .layout-tab-label {
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

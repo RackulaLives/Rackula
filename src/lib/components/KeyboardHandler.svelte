@@ -333,7 +333,9 @@
    * event was a tab-jump so the caller can stop processing.
    */
   function handleTabJump(event: KeyboardEvent): boolean {
-    if (!event.altKey || event.ctrlKey || event.metaKey) return false;
+    if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return false;
+    }
     const match = /^Digit([1-9])$/.exec(event.code);
     if (!match) return false;
 
