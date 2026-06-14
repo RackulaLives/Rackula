@@ -38,6 +38,18 @@ describe("exportToCSV formula injection", () => {
     expect(dataCell(exportToCSV(rack, [deviceType]), 1)).toBe(`"'\rROW"`);
   });
 
+  it("neutralizes and quotes a leading line feed in the device name", () => {
+    const deviceType = createTestDeviceType({ slug: "srv", model: "Model" });
+    const rack = createTestRack({
+      devices: [createTestDevice({ device_type: "srv", name: "\n=2+2" })],
+    });
+
+    // A leading line feed is ignorable whitespace in spreadsheets, so the
+    // following formula must still be neutralized and the field quoted. The
+    // embedded newline rules out the dataCell line-split helper here.
+    expect(exportToCSV(rack, [deviceType])).toContain(`"'\n=2+2"`);
+  });
+
   it("neutralizes a leading formula trigger in the device-type manufacturer", () => {
     const deviceType = createTestDeviceType({
       slug: "srv",
