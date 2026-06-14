@@ -12,11 +12,8 @@
   import { IconCheck, IconClock, IconWarningTriangle } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
-  import {
-    getLayoutDurability,
-    handleSaveAsArchive,
-    loadFromFile,
-  } from "$lib/storage";
+  import { getLayoutDurability, loadFromFile } from "$lib/storage";
+  import { maybeSaveAs } from "$lib/utils/app-actions";
   import "$lib/styles/menu.css";
 
   const durability = getLayoutDurability(getLayoutStore());
@@ -36,11 +33,13 @@
     return () => clearTimeout(timer);
   });
 
-  async function handleExportNow() {
-    // Export embeds images (#617) and round-trips unknown sections (#2208), so
-    // resetting changesSinceExport on export is honest: nothing is silently
-    // dropped. The chip therefore needs no separate image-dropping warning state.
-    await handleSaveAsArchive();
+  function handleExportNow() {
+    // Routes through maybeSaveAs so the cleanup prompt and promptCleanupOnSave
+    // preference apply consistently with the other save paths. Export embeds
+    // images (#617) and round-trips unknown sections (#2208), so resetting
+    // changesSinceExport on export is honest and the chip needs no separate
+    // image-dropping warning state.
+    maybeSaveAs();
     open = false;
   }
 
