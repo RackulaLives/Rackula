@@ -122,6 +122,12 @@ export function loadLayout(ctx: LayoutStateAccess, layoutData: Layout): void {
   });
   ctx.resetBackupTracking();
 
+  // Clear undo/redo history: the commands on the stack reference the layout
+  // being replaced. Without this, Ctrl+Z would replay them against the freshly
+  // loaded layout, mutating the wrong document. Each layout owns its own
+  // history, so swapping content into this instance must reset its stacks.
+  ctx.getHistory().clear();
+
   // Set active rack to first rack
   ctx.setActiveRackId(ctx.getLayout().racks[0]?.id ?? null);
 

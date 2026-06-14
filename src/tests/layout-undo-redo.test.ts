@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
 import { toInternalUnits } from "$lib/utils/position";
+import { createLayout } from "$lib/utils/serialization";
 import { setupStoreWithRack } from "./factories";
 
 describe("Layout Store - Undo/Redo Integration", () => {
@@ -430,6 +431,45 @@ describe("Layout Store - Undo/Redo Integration", () => {
 
       store.redo(); // Redo move
       expect(store.rack.devices[0]?.position).toBe(toInternalUnits(15));
+    });
+  });
+
+  describe("loadLayout clears history", () => {
+    it("clears the undo stack so Ctrl+Z cannot replay commands against the new layout", () => {
+      const store = getLayoutStore();
+
+      // Build up history against the current layout.
+      store.addDeviceTypeRecorded({
+        name: "Test Server",
+        u_height: 2,
+        category: "server",
+        colour: "#336699",
+      });
+      expect(store.canUndo).toBe(true);
+
+      // Load a different layout. History from the previous layout must not
+      // survive: undoing would otherwise mutate the wrong layout.
+      store.loadLayout(createLayout("Freshly Loaded"));
+
+      expect(store.canUndo).toBe(false);
+      expect(store.canRedo).toBe(false);
+    });
+
+    it("clears the redo stack on load", () => {
+      const store = getLayoutStore();
+
+      store.addDeviceTypeRecorded({
+        name: "Test Server",
+        u_height: 2,
+        category: "server",
+        colour: "#336699",
+      });
+      store.undo();
+      expect(store.canRedo).toBe(true);
+
+      store.loadLayout(createLayout("Freshly Loaded"));
+
+      expect(store.canRedo).toBe(false);
     });
   });
 });
