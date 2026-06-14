@@ -3,11 +3,8 @@
   Handles global keyboard shortcuts for the application
 -->
 <script lang="ts">
-  import {
-    shouldIgnoreKeyboard,
-    matchesShortcut,
-    type ShortcutHandler,
-  } from "$lib/utils/keyboard";
+  import { shouldIgnoreKeyboard } from "$lib/utils/keyboard";
+  import { findActionForEvent, type ActionId } from "$lib/actions/registry";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -75,229 +72,54 @@
     toastStore.showToast(`Redid: ${desc}`, "info");
   }
 
-  // Define all shortcuts
-  function getShortcuts(): ShortcutHandler[] {
-    return [
-      // Escape - cancel placement mode, or clear selection and close drawers
-      {
-        key: "Escape",
-        action: () => {
-          // Priority: cancel placement mode first
-          if (placementStore.isPlacing) {
-            placementStore.cancelPlacement();
-            // Reset view to show full rack after placement is cancelled
-            onfitall?.();
-            return;
-          }
-          // Otherwise clear selection, active rack, and close drawers
-          selectionStore.clearSelection();
-          layoutStore.setActiveRack(null);
-          uiStore.closeLeftDrawer();
-          uiStore.closeRightDrawer();
-        },
-      },
-
-      // Arrow keys - move selected device (without modifiers)
-      {
-        key: "ArrowUp",
-        action: () => moveSelectedDevice(1),
-      },
-      {
-        key: "ArrowDown",
-        action: () => moveSelectedDevice(-1),
-      },
-      // Shift+Arrow keys - move by 1/3U (fine movement to align with rack holes)
-      {
-        key: "ArrowUp",
-        shift: true,
-        action: () => moveSelectedDevice(1, 1 / 3),
-      },
-      {
-        key: "ArrowDown",
-        shift: true,
-        action: () => moveSelectedDevice(-1, 1 / 3),
-      },
-      // Left/Right arrows - move half-width device between slots
-      {
-        key: "ArrowLeft",
-        action: () => moveDeviceSlot("left"),
-      },
-      {
-        key: "ArrowRight",
-        action: () => moveDeviceSlot("right"),
-      },
-
-      // Delete/Backspace - delete selection
-      {
-        key: "Delete",
-        action: () => ondelete?.(),
-      },
-      {
-        key: "Backspace",
-        action: () => ondelete?.(),
-      },
-
-      // F - fit all
-      {
-        key: "f",
-        action: () => onfitall?.(),
-      },
-
-      // D - toggle sidebar (device palette)
-      {
-        key: "d",
-        action: () => uiStore.toggleLeftDrawer(),
-      },
-
-      // A - toggle annotations
-      {
-        key: "a",
-        action: () => ontoggleannotations?.(),
-      },
-
-      // [ - cycle to previous rack
-      {
-        key: "[",
-        action: () => cycleActiveRack(-1),
-      },
-
-      // Ctrl/Cmd+Z - undo
-      {
-        key: "z",
-        ctrl: true,
-        action: performUndo,
-      },
-      {
-        key: "z",
-        meta: true,
-        action: performUndo,
-      },
-
-      // Ctrl/Cmd+Shift+Z - redo
-      {
-        key: "z",
-        ctrl: true,
-        shift: true,
-        action: performRedo,
-      },
-      {
-        key: "z",
-        meta: true,
-        shift: true,
-        action: performRedo,
-      },
-
-      // Ctrl/Cmd+Y - redo (alternative)
-      {
-        key: "y",
-        ctrl: true,
-        action: performRedo,
-      },
-      {
-        key: "y",
-        meta: true,
-        action: performRedo,
-      },
-
-      // Ctrl/Cmd+S - save
-      {
-        key: "s",
-        ctrl: true,
-        action: () => onsave?.(),
-      },
-      {
-        key: "s",
-        meta: true,
-        action: () => onsave?.(),
-      },
-
-      // Ctrl/Cmd+Shift+S - save as (download ZIP)
-      {
-        key: "s",
-        ctrl: true,
-        shift: true,
-        action: () => onsaveas?.(),
-      },
-      {
-        key: "s",
-        meta: true,
-        shift: true,
-        action: () => onsaveas?.(),
-      },
-
-      // Ctrl/Cmd+O - load
-      {
-        key: "o",
-        ctrl: true,
-        action: () => onload?.(),
-      },
-      {
-        key: "o",
-        meta: true,
-        action: () => onload?.(),
-      },
-
-      // Ctrl/Cmd+E - export
-      {
-        key: "e",
-        ctrl: true,
-        action: () => onexport?.(),
-      },
-      {
-        key: "e",
-        meta: true,
-        action: () => onexport?.(),
-      },
-
-      // Ctrl/Cmd+H - share
-      {
-        key: "h",
-        ctrl: true,
-        action: () => onshare?.(),
-      },
-      {
-        key: "h",
-        meta: true,
-        action: () => onshare?.(),
-      },
-
-      // Ctrl/Cmd+D - duplicate selected (device or rack)
-      {
-        key: "d",
-        ctrl: true,
-        action: () => duplicateSelected(),
-      },
-      {
-        key: "d",
-        meta: true,
-        action: () => duplicateSelected(),
-      },
-
-      // ? - show help
-      {
-        key: "?",
-        action: () => onhelp?.(),
-      },
-
-      // I - toggle display mode (label/image)
-      {
-        key: "i",
-        action: () => ontoggledisplaymode?.(),
-      },
-
-      // N - toggle annotation column
-      {
-        key: "n",
-        action: () => ontoggleannotations?.(),
-      },
-
-      // ] - cycle to next rack
-      {
-        key: "]",
-        action: () => cycleActiveRack(1),
-      },
-    ];
+  /**
+   * Escape - cancel placement mode, or clear selection and close drawers.
+   */
+  function handleEscape() {
+    // Priority: cancel placement mode first
+    if (placementStore.isPlacing) {
+      placementStore.cancelPlacement();
+      // Reset view to show full rack after placement is cancelled
+      onfitall?.();
+      return;
+    }
+    // Otherwise clear selection, active rack, and close drawers
+    selectionStore.clearSelection();
+    layoutStore.setActiveRack(null);
+    uiStore.closeLeftDrawer();
+    uiStore.closeRightDrawer();
   }
+
+  /**
+   * Dispatch map from registry action id to its runtime handler. The actions
+   * registry owns command metadata and keybindings; this map binds each
+   * command id to the closure that runs it in this app context.
+   */
+  const dispatch: Record<ActionId, () => void> = {
+    escape: handleEscape,
+    "move-device-up": () => moveSelectedDevice(1),
+    "move-device-down": () => moveSelectedDevice(-1),
+    "move-device-up-fine": () => moveSelectedDevice(1, 1 / 3),
+    "move-device-down-fine": () => moveSelectedDevice(-1, 1 / 3),
+    "move-device-left": () => moveDeviceSlot("left"),
+    "move-device-right": () => moveDeviceSlot("right"),
+    "delete-selection": () => ondelete?.(),
+    "fit-all": () => onfitall?.(),
+    "toggle-sidebar": () => uiStore.toggleLeftDrawer(),
+    "toggle-annotations": () => ontoggleannotations?.(),
+    "cycle-rack-prev": () => cycleActiveRack(-1),
+    "cycle-rack-next": () => cycleActiveRack(1),
+    undo: performUndo,
+    redo: performRedo,
+    save: () => onsave?.(),
+    "save-as": () => onsaveas?.(),
+    load: () => onload?.(),
+    export: () => onexport?.(),
+    share: () => onshare?.(),
+    "duplicate-selection": () => duplicateSelected(),
+    "show-help": () => onhelp?.(),
+    "toggle-display-mode": () => ontoggledisplaymode?.(),
+  };
 
   /**
    * Move the selected device up or down, using shared movement utility.
@@ -506,16 +328,11 @@
     // Ignore if in input field
     if (shouldIgnoreKeyboard(event)) return;
 
-    const shortcuts = getShortcuts();
+    const action = findActionForEvent(event);
+    if (!action) return;
 
-    for (const shortcut of shortcuts) {
-      if (matchesShortcut(event, shortcut)) {
-        event.preventDefault();
-        shortcut.action();
-
-        return;
-      }
-    }
+    event.preventDefault();
+    dispatch[action.id]();
   }
 </script>
 

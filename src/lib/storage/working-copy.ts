@@ -19,6 +19,7 @@ const STORAGE_KEY = "Rackula:autosave";
 interface SessionData {
   layout: Layout;
   savedAt: string; // ISO 8601 timestamp
+  serverUpdatedAt: string | null; // server updatedAt this copy was reconciled against
   changesSinceExport: number;
   hasEverExported: boolean;
   storageMode: StorageMode; // mode this copy was saved under
@@ -30,6 +31,7 @@ interface SessionData {
 export interface SessionLoadResult {
   layout: Layout;
   savedAt: string | null; // null for legacy data without timestamp
+  serverUpdatedAt: string | null; // server updatedAt this copy was reconciled against
   changesSinceExport: number;
   hasEverExported: boolean;
   /** Storage mode the copy was saved under (defaults to "browser" if missing) */
@@ -125,11 +127,16 @@ function parseStorageMode(value: unknown): StorageMode {
  * @param backup - Backup state persisted alongside the layout
  * @returns true if successful, false if failed (e.g., quota exceeded)
  */
-export function saveSession(layout: Layout, backup: BackupState): boolean {
+export function saveSession(
+  layout: Layout,
+  backup: BackupState,
+  serverUpdatedAt: string | null = null,
+): boolean {
   try {
     const sessionData: SessionData = {
       layout,
       savedAt: new Date().toISOString(),
+      serverUpdatedAt,
       changesSinceExport: backup.changesSinceExport,
       hasEverExported: backup.hasEverExported,
       storageMode: getStorageMode(),
@@ -194,6 +201,8 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
       return {
         layout,
         savedAt: obj.savedAt as string,
+        serverUpdatedAt:
+          typeof obj.serverUpdatedAt === "string" ? obj.serverUpdatedAt : null,
         changesSinceExport:
           typeof obj.changesSinceExport === "number" &&
           obj.changesSinceExport >= 0
@@ -210,6 +219,7 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
     return {
       layout,
       savedAt: null, // No timestamp for legacy data
+      serverUpdatedAt: null,
       changesSinceExport: 0,
       hasEverExported: false,
       storageMode: "browser",

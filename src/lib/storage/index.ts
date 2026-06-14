@@ -47,6 +47,17 @@ export {
 } from "./manager.svelte";
 export { shouldWarnBeforeUnload, type UnloadRiskState } from "./unload-risk";
 export {
+  getServerBaseUpdatedAt,
+  setServerBaseUpdatedAt,
+} from "./server-base";
+export { uploadSnapshot } from "./api";
+export {
+  reconcileSession,
+  applyReconcile,
+  type ReconcileAction,
+  type ReconcileDeps,
+} from "./reconcile";
+export {
   computeLayoutStatus,
   getLayoutDurability,
   rollupDurabilities,

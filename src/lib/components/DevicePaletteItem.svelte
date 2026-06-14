@@ -7,6 +7,7 @@
   import type { DeviceType } from "$lib/types";
   import IconGrip from "./icons/IconGrip.svelte";
   import IconTrash from "./icons/IconTrash.svelte";
+  import IconPin from "./icons/IconPin.svelte";
   import CategoryIcon from "./CategoryIcon.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import ImageIndicator from "./ImageIndicator.svelte";
@@ -36,9 +37,13 @@
     incompatibilityReason?: string | null;
     /** Whether this device type can be deleted (unused custom type) */
     canDelete?: boolean;
+    /** Whether this device is pinned (favourited) to the top of the palette */
+    isFavourite?: boolean;
     onselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
     /** Called when user clicks delete button for unused custom device */
     ondelete?: (event: CustomEvent<{ device: DeviceType }>) => void;
+    /** Called when user pins or unpins the device */
+    ontogglefavourite?: (event: CustomEvent<{ device: DeviceType }>) => void;
   }
 
   let {
@@ -48,8 +53,10 @@
     isCompatible = true,
     incompatibilityReason = null,
     canDelete = false,
+    isFavourite = false,
     onselect,
     ondelete,
+    ontogglefavourite,
   }: Props = $props();
 
   // Device display name: model or slug
@@ -62,10 +69,15 @@
   const ariaDescription = $derived.by(() => {
     const parts = [deviceName, `${device.u_height}U`, device.category];
     if (isHalfWidth) parts.push("half-width");
+    if (isFavourite) parts.push("pinned");
     if (!isCompatible && incompatibilityReason)
       parts.push(`(${incompatibilityReason})`);
     return parts.join(", ");
   });
+
+  const favouriteLabel = $derived(
+    isFavourite ? `Unpin ${deviceName}` : `Pin ${deviceName}`,
+  );
 
   // Highlighted text segments for search matching
   const highlightedSegments = $derived(highlightMatch(deviceName, searchQuery));
@@ -104,10 +116,28 @@
     }
   }
 
+  function emitToggleFavourite() {
+    ontogglefavourite?.(
+      new CustomEvent("togglefavourite", { detail: { device } }),
+    );
+  }
+
+  function handleFavouriteClick(event: MouseEvent) {
+    event.stopPropagation();
+    emitToggleFavourite();
+  }
+
+  function handleFavouriteKeyDown(event: KeyboardEvent) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      event.stopPropagation();
+      emitToggleFavourite();
+    }
+  }
+
   function handleContextMenu(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
-    if (!canDelete) return;
     contextMenuX = event.clientX;
     contextMenuY = event.clientY;
     contextMenuOpen = true;
@@ -116,6 +146,11 @@
   function handleContextMenuDelete() {
     contextMenuOpen = false;
     showConfirmDelete = true;
+  }
+
+  function handleContextMenuFavourite() {
+    contextMenuOpen = false;
+    emitToggleFavourite();
   }
 
   function handleConfirmDelete() {
@@ -255,6 +290,20 @@
       aria-label="Half-depth device">½D</span
     >
   {/if}
+  <Tooltip text={isFavourite ? "Unpin device" : "Pin device"} position="left">
+    <button
+      type="button"
+      class="favourite-btn"
+      class:active={isFavourite}
+      onclick={handleFavouriteClick}
+      onkeydown={handleFavouriteKeyDown}
+      aria-label={favouriteLabel}
+      aria-pressed={isFavourite}
+      data-testid="favourite-device-btn"
+    >
+      <IconPin size={ICON_SIZE.sm} filled={isFavourite} />
+    </button>
+  </Tooltip>
   {#if canDelete}
     <Tooltip text="Delete unused device type" position="left">
       <button
@@ -271,14 +320,21 @@
   {/if}
 </div>
 
-{#if canDelete}
+<!-- Mounted only once a right-click opens it, so the common case (hundreds of
+     palette rows) does not each carry an idle ContextMenu.Root + Portal. -->
+{#if contextMenuOpen}
   <PaletteDeviceContextMenu
     bind:open={contextMenuOpen}
     x={contextMenuX}
     y={contextMenuY}
+    {isFavourite}
+    {canDelete}
+    ontogglefavourite={handleContextMenuFavourite}
     ondelete={handleContextMenuDelete}
   />
+{/if}
 
+{#if canDelete}
   <ConfirmDialog
     open={showConfirmDelete}
     title="Delete Device Type"
@@ -451,6 +507,48 @@
   }
 
   .delete-btn:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--colour-focus-ring);
+    outline-offset: 1px;
+  }
+
+  .favourite-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-6);
+    height: var(--space-6);
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--colour-text-muted);
+    opacity: 0;
+    transition:
+      opacity var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+    flex-shrink: 0;
+  }
+
+  /* Pinned devices keep the pin visible at rest so the state reads at a glance. */
+  .favourite-btn.active {
+    opacity: 1;
+    color: var(--colour-selection);
+  }
+
+  .device-palette-item:hover .favourite-btn,
+  .device-palette-item:focus-within .favourite-btn {
+    opacity: 1;
+  }
+
+  .favourite-btn:hover {
+    color: var(--colour-selection);
+    background-color: var(--colour-surface-active);
+  }
+
+  .favourite-btn:focus-visible {
     opacity: 1;
     outline: 2px solid var(--colour-focus-ring);
     outline-offset: 1px;
