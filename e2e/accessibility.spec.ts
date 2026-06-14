@@ -112,7 +112,7 @@ test.describe("Accessibility", () => {
         // Focus must always land on something focusable, never <body>.
         expect(info.tag).not.toBe("body");
 
-        if (info.name === "Settings menu") reachedSettingsButton = true;
+        if (info.testid === "btn-settings") reachedSettingsButton = true;
 
         // Native controls and ARIA widgets are the keyboard-operable surface.
         const interactiveTags = ["button", "input", "a", "select", "textarea"];
