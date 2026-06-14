@@ -50,8 +50,8 @@ const MIME_TO_EXT: Record<string, string> = {
 /**
  * Detect an image MIME type purely from leading magic bytes.
  *
- * Recognises PNG, JPEG, WebP, and GIF. Returns null for anything unrecognised,
- * including SVG/text (which start with "<"), so callers can reject untrusted or
+ * Recognises PNG, JPEG, and WebP. Returns null for anything unrecognised
+ * (including GIF, SVG, and text starting with "<"), so callers can reject untrusted or
  * disallowed content without trusting any declared prefix.
  */
 export function detectImageMime(bytes: Uint8Array): string | null {
@@ -89,17 +89,6 @@ export function detectImageMime(bytes: Uint8Array): string | null {
     bytes[11] === 0x50
   ) {
     return "image/webp";
-  }
-
-  // GIF: 47 49 46 38 ("GIF8")
-  if (
-    bytes.length >= 4 &&
-    bytes[0] === 0x47 &&
-    bytes[1] === 0x49 &&
-    bytes[2] === 0x46 &&
-    bytes[3] === 0x38
-  ) {
-    return "image/gif";
   }
 
   return null;
@@ -251,6 +240,9 @@ export function decodeYamlImages(raw: unknown): {
         continue;
       }
 
+      const declaredMimeMatch = /^data:([^;,]+)[^,]*;base64,/i.exec(faceValue);
+      const declaredMime = declaredMimeMatch?.[1]?.toLowerCase();
+
       const bytes = decodeDataUrl(faceValue);
       if (!bytes) {
         failedImagesCount++;
@@ -266,7 +258,11 @@ export function decodeYamlImages(raw: unknown): {
       }
 
       const detected = detectImageMime(bytes);
-      if (!detected || !SUPPORTED_IMAGE_FORMATS.includes(detected)) {
+      if (
+        !detected ||
+        !SUPPORTED_IMAGE_FORMATS.includes(detected) ||
+        declaredMime !== detected
+      ) {
         failedImagesCount++;
         failedKeys.push(key);
         continue;

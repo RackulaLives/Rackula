@@ -398,4 +398,17 @@ describe("image-encoding security hardening (#2221)", () => {
     expect(images.size).toBe(0);
     expect(failedImagesCount).toBe(0);
   });
+
+  it("rejects a data URL whose declared MIME lies about the sniffed bytes", () => {
+    // Declared image/png, but the bytes are JPEG (FF D8 FF).
+    const jpegBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 1, 2, 3]);
+    const lyingDataUrl = `data:image/png;base64,${bytesToBase64(jpegBytes)}`;
+
+    const { images, failedImagesCount } = decodeYamlImages({
+      dev: { front: lyingDataUrl },
+    });
+
+    expect(images.size).toBe(0);
+    expect(failedImagesCount).toBe(1);
+  });
 });

@@ -238,6 +238,7 @@ export async function handleSaveToServer(isManual = false): Promise<boolean> {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
   try {
+    const scheduleId = ++_serverSaveScheduleId;
     _saveStatus = "saving";
     if (serverSaveTimer) {
       clearTimeout(serverSaveTimer);
@@ -247,7 +248,7 @@ export async function handleSaveToServer(isManual = false): Promise<boolean> {
     const snapshot = structuredClone($state.snapshot(layoutStore.layout));
     const imagesSnapshot = getImageStore().getUserImages();
     await saveLayoutToServer(snapshot, imagesSnapshot);
-    finalizeSuccessfulSave();
+    finalizeSuccessfulSave(scheduleId === _serverSaveScheduleId);
     if (isManual) {
       toastStore.showToast("Layout saved", "success", 3000);
     }

@@ -450,7 +450,7 @@ function validateParsedLayout(parsed: unknown): {
 
   if (parsed !== null && typeof parsed === "object") {
     const obj = parsed as Record<string, unknown>;
-    if ("images" in obj) {
+    if (Object.hasOwn(obj, "images")) {
       rawImages = obj.images;
       delete obj.images;
     }
