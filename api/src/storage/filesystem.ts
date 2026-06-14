@@ -738,22 +738,48 @@ export async function saveLayout(
     const existingFolder = await findFolderByUuid(uuid);
     let isNew = existingFolder === null;
 
+    // mtime of the copy this save overwrites. updatedAt is derived from the
+    // file mtime, but mtime resolution is coarse (often 1ms), so two writes
+    // can land on the same tick. The new write must report an mtime strictly
+    // greater than the copy it replaces; otherwise the next echoed updatedAt
+    // (the overwritten copy's mtime) could equal the now-stored copy's mtime,
+    // making the divergence check below read the two copies as identical and
+    // overwrite a diverged copy without snapshotting it.
+    let overwrittenMtimeMs: number | undefined;
+
     // Pre-overwrite snapshot: when the client's echoed updatedAt does not
     // match the stored copy, the copies diverged. Capture the stored YAML
     // before overwriting it.
-    if (echoedUpdatedAt && existingFolder) {
+    if (existingFolder) {
       const existingYamlFilename = await findYamlInFolder(existingFolder);
       if (existingYamlFilename) {
         const existingYamlPath = join(existingFolder, existingYamlFilename);
-        const handle = await open(existingYamlPath, "r");
+        // A concurrent delete between the listing and this open leaves no copy
+        // to snapshot or to outrank, so a missing file degrades to "no prior
+        // copy" rather than failing the save.
+        let handle;
         try {
-          const existingStats = await handle.stat();
-          if (existingStats.mtime.toISOString() !== echoedUpdatedAt) {
-            const existingContent = await handle.readFile("utf-8");
-            await writeSnapshot(existingFolder, existingContent);
+          handle = await open(existingYamlPath, "r");
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+            throw error;
           }
-        } finally {
-          await handle.close();
+          handle = undefined;
+        }
+        if (handle) {
+          try {
+            const existingStats = await handle.stat();
+            overwrittenMtimeMs = existingStats.mtime.getTime();
+            if (
+              echoedUpdatedAt &&
+              existingStats.mtime.toISOString() !== echoedUpdatedAt
+            ) {
+              const existingContent = await handle.readFile("utf-8");
+              await writeSnapshot(existingFolder, existingContent);
+            }
+          } finally {
+            await handle.close();
+          }
         }
       }
     }
@@ -797,8 +823,23 @@ export async function saveLayout(
     const handle = await open(yamlPath, "w");
     try {
       await handle.writeFile(yamlContent, "utf-8");
-      const stats = await handle.stat();
-      return { id: uuid, isNew, updatedAt: stats.mtime.toISOString() };
+      let stats = await handle.stat();
+      let mtime = stats.mtime;
+      // Guarantee a strictly newer mtime than the copy this write replaced, so
+      // updatedAt is monotonic per layout even when the filesystem clock has
+      // not advanced since the previous write. This keeps the echoed-updatedAt
+      // divergence check honest under coarse mtime resolution. Only mtime is
+      // bumped; atime is preserved since storage never reads it.
+      if (
+        overwrittenMtimeMs !== undefined &&
+        mtime.getTime() <= overwrittenMtimeMs
+      ) {
+        const bumped = new Date(overwrittenMtimeMs + 1);
+        await handle.utimes(stats.atime, bumped);
+        stats = await handle.stat();
+        mtime = stats.mtime;
+      }
+      return { id: uuid, isNew, updatedAt: mtime.toISOString() };
     } finally {
       await handle.close();
     }

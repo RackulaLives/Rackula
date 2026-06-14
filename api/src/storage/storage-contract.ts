@@ -124,6 +124,35 @@ export function runStorageContract(makeDriver: MakeDriver): void {
       }
     });
 
+    it("issues a strictly newer updatedAt on every overwrite", async () => {
+      const { driver, cleanup } = await makeDriver();
+      try {
+        // updatedAt is the token clients echo to detect divergence. mtime
+        // resolution is coarse, so back-to-back writes can land on the same
+        // tick; if two stored copies share a token the echoed-updatedAt check
+        // reads them as identical and a diverged copy is overwritten without a
+        // snapshot. Each overwrite must therefore report a strictly newer
+        // token than the copy it replaced, even with no real-time gap between
+        // saves.
+        let echoed: string | undefined;
+        let previous: string | undefined;
+        for (let i = 0; i < 12; i += 1) {
+          const { updatedAt } = await driver.saveLayout(
+            TEST_ID,
+            layoutYaml(`v${i}`),
+            echoed,
+          );
+          if (previous !== undefined) {
+            expect(updatedAt > previous).toBe(true);
+          }
+          previous = updatedAt;
+          echoed = updatedAt;
+        }
+      } finally {
+        await cleanup();
+      }
+    });
+
     it("serializes concurrent saves to the same id across UUID casing", async () => {
       const { driver, cleanup } = await makeDriver();
       try {
