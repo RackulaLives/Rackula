@@ -397,8 +397,15 @@
               successMessage: null,
             });
           },
-          restoreLocal: () => {
-            setServerBaseUpdatedAt(localSession.serverUpdatedAt);
+          restoreLocal: (reason) => {
+            // A copy the server has never seen has no valid base: clear it so
+            // the re-establishing PUT creates fresh instead of echoing a stale
+            // updatedAt. Diverged/ahead copies keep their base.
+            setServerBaseUpdatedAt(
+              reason === "unknown-to-server"
+                ? null
+                : localSession.serverUpdatedAt,
+            );
             restoreLocalSession(localSession);
           },
           toast: (m, t) => toastStore.showToast(m, t),
