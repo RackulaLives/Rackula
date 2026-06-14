@@ -9,6 +9,8 @@ import {
   completeWizardWithClicks,
   PLATFORM_MODIFIER,
   locators,
+  startEditingDisplayName,
+  displayNameInput,
 } from "./helpers";
 
 /**
@@ -37,7 +39,6 @@ const TEST_METADATA_2 = {
   colour: "#6BCB77",
 };
 
-
 /**
  * Helper to wait for the saved indicator after a blur
  */
@@ -57,7 +58,9 @@ async function waitForSaved(page: Page, fieldType: "ip" | "notes") {
  * Helper to set device IP address
  */
 async function setDeviceIp(page: Page, ip: string, waitForSave = true) {
-  const ipInput = page.locator("#device-ip");
+  const ipInput = page
+    .getByTestId("drawer-device-edit")
+    .getByLabel("IP Address/Hostname");
   await ipInput.fill(ip);
   await ipInput.blur();
   if (waitForSave && ip.trim()) {
@@ -72,7 +75,7 @@ async function setDeviceIp(page: Page, ip: string, waitForSave = true) {
  * Helper to set device notes
  */
 async function setDeviceNotes(page: Page, notes: string, waitForSave = true) {
-  const notesInput = page.locator("#device-notes");
+  const notesInput = page.getByTestId("drawer-device-edit").getByLabel("Notes");
   await notesInput.fill(notes);
   await notesInput.blur();
   if (waitForSave && notes.trim()) {
@@ -88,8 +91,8 @@ async function setDeviceNotes(page: Page, notes: string, waitForSave = true) {
  */
 async function setDeviceName(page: Page, name: string) {
   // Click the display name button to start editing
-  await page.locator(locators.editPanel.displayNameButton).click();
-  const nameInput = page.locator(locators.editPanel.displayNameInput);
+  await startEditingDisplayName(page);
+  const nameInput = displayNameInput(page);
   await expect(nameInput).toBeVisible();
   await nameInput.fill(name);
   await nameInput.press("Enter");
@@ -103,7 +106,9 @@ async function setDeviceName(page: Page, name: string) {
 async function setDeviceColour(page: Page, colour: string) {
   // Click the colour row to open picker
   await page.locator(locators.deviceDetail.colourRowButton).click();
-  await expect(page.locator(locators.deviceDetail.colourPickerContainer)).toBeVisible();
+  await expect(
+    page.locator(locators.deviceDetail.colourPickerContainer),
+  ).toBeVisible();
 
   // Find the hex input and set the colour
   const hexInput = page.locator(locators.deviceDetail.colourPickerInput);
@@ -117,14 +122,24 @@ async function setDeviceColour(page: Page, colour: string) {
  * Helper to get current metadata values from the edit panel
  */
 async function getDeviceMetadata(page: Page) {
-  const ip = await page.locator("#device-ip").inputValue();
-  const notes = await page.locator("#device-notes").inputValue();
+  const ip = await page
+    .getByTestId("drawer-device-edit")
+    .getByLabel("IP Address/Hostname")
+    .inputValue();
+  const notes = await page
+    .getByTestId("drawer-device-edit")
+    .getByLabel("Notes")
+    .inputValue();
 
   // Get name from the display text (not the input which only shows when editing)
-  const name = (await page.locator(locators.deviceDetail.displayNameText).textContent()) ?? "";
+  const name =
+    (await page.locator(locators.deviceDetail.displayNameText).textContent()) ??
+    "";
 
   // Get colour from the colour info display
-  const colourText = await page.locator(locators.deviceDetail.colourInfo).textContent();
+  const colourText = await page
+    .locator(locators.deviceDetail.colourInfo)
+    .textContent();
   // Extract hex colour from text (e.g., "#FF6B6B custom")
   const colourMatch = colourText?.match(/#[A-Fa-f0-9]{6}/);
   const colour = colourMatch ? colourMatch[0] : "";
@@ -255,21 +270,30 @@ test.describe("Device Metadata Persistence", () => {
       await setDeviceIp(page, TEST_METADATA.ip);
 
       // Verify IP is set
-      let ip = await page.locator("#device-ip").inputValue();
+      let ip = await page
+        .getByTestId("drawer-device-edit")
+        .getByLabel("IP Address/Hostname")
+        .inputValue();
       expect(ip).toBe(TEST_METADATA.ip);
 
       // Clear the IP field
       await setDeviceIp(page, "", false);
 
       // Verify IP is cleared
-      ip = await page.locator("#device-ip").inputValue();
+      ip = await page
+        .getByTestId("drawer-device-edit")
+        .getByLabel("IP Address/Hostname")
+        .inputValue();
       expect(ip).toBe("");
 
       // Deselect and reselect to verify clear persisted
       await deselectDevice(page);
       await selectDevice(page, 0);
 
-      ip = await page.locator("#device-ip").inputValue();
+      ip = await page
+        .getByTestId("drawer-device-edit")
+        .getByLabel("IP Address/Hostname")
+        .inputValue();
       expect(ip).toBe("");
     });
 
@@ -286,7 +310,10 @@ test.describe("Device Metadata Persistence", () => {
       await setDeviceIp(page, "   ", false);
 
       // Verify IP is cleared (whitespace trimmed to empty)
-      const ip = await page.locator("#device-ip").inputValue();
+      const ip = await page
+        .getByTestId("drawer-device-edit")
+        .getByLabel("IP Address/Hostname")
+        .inputValue();
       expect(ip).toBe("");
     });
 
@@ -317,7 +344,9 @@ test.describe("Device Metadata Persistence", () => {
 
       // Scope assertions to the second rack container
       const secondRack = rackFronts.nth(1);
-      await expect(secondRack.locator(locators.rack.device).first()).toBeVisible();
+      await expect(
+        secondRack.locator(locators.rack.device).first(),
+      ).toBeVisible();
 
       // Click the device in the second rack specifically
       await secondRack.locator(locators.rack.device).first().click();

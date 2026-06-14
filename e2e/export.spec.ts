@@ -35,7 +35,9 @@ test.describe("Export Functionality", () => {
     await clickExport(page);
 
     // Should have format select dropdown with options
-    const formatSelect = page.locator("#export-format");
+    const formatSelect = page
+      .getByRole("dialog", { name: "Export" })
+      .getByLabel("Format");
     await expect(formatSelect).toBeVisible();
 
     // Verify options exist
@@ -48,7 +50,10 @@ test.describe("Export Functionality", () => {
     await clickExport(page);
 
     // Select PNG format (default, but be explicit)
-    await page.selectOption("#export-format", "png");
+    await page
+      .getByRole("dialog", { name: "Export" })
+      .getByLabel("Format")
+      .selectOption("png");
 
     // Set up download listener
     const downloadPromise = page.waitForEvent("download");
@@ -65,7 +70,10 @@ test.describe("Export Functionality", () => {
     await clickExport(page);
 
     // Select SVG format
-    await page.selectOption("#export-format", "svg");
+    await page
+      .getByRole("dialog", { name: "Export" })
+      .getByLabel("Format")
+      .selectOption("svg");
 
     // Set up download listener
     const downloadPromise = page.waitForEvent("download");
@@ -82,7 +90,10 @@ test.describe("Export Functionality", () => {
     await clickExport(page);
 
     // Select JPEG format
-    await page.selectOption("#export-format", "jpeg");
+    await page
+      .getByRole("dialog", { name: "Export" })
+      .getByLabel("Format")
+      .selectOption("jpeg");
 
     // Set up download listener
     const downloadPromise = page.waitForEvent("download");

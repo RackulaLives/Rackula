@@ -20,6 +20,8 @@ export {
   selectDevice,
   deselectDevice,
   deleteSelectedDevice,
+  startEditingDisplayName,
+  displayNameInput,
 } from "./device-actions";
 
 // Rack wizard setup

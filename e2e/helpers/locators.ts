@@ -7,8 +7,14 @@
  * `.open`), and variant classes (`.toast--success`) stay as class selectors
  * because they are not the structural anchors covered by testids.
  *
+ * Interactive, user-facing controls (buttons, inputs, dialogs) are NOT listed
+ * here. They are reached with role/label locators (`getByRole`, `getByLabel`)
+ * at the call site, which doubles as an accessibility check and survives DOM
+ * restructuring. This registry holds only string selectors passed to
+ * `page.locator()`.
+ *
  * NOTE: `page.evaluate()` callbacks that use `document.querySelector` are
- * intentionally excluded — those run in the browser context and cannot
+ * intentionally excluded - those run in the browser context and cannot
  * reference this module.
  */
 export const locators = {
@@ -60,7 +66,6 @@ export const locators = {
     rightOpen: 'aside[data-testid="drawer-device-edit"].open',
     /** Variant without the `aside` element prefix (used in some specs) */
     rightOpenBare: '[data-testid="drawer-device-edit"].open',
-    rightRackHeight: '[data-testid="drawer-device-edit"] #rack-height',
   },
 
   canvas: {
@@ -86,11 +91,6 @@ export const locators = {
     dragHandleBar: ".drag-handle-bar",
     backdrop: ".backdrop",
     deviceLibraryFab: ".device-library-fab",
-  },
-
-  editPanel: {
-    displayNameButton: "button.display-name-display",
-    displayNameInput: "input#device-display-name",
   },
 
   deviceDetail: {

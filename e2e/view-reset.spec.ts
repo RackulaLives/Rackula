@@ -45,7 +45,7 @@ test.describe("View Reset on Rack Changes", () => {
 
     // Create a new rack via wizard (multi-rack mode — no replace dialog)
     await clickNewRack(page);
-    await page.fill("#rack-name", "Test Rack");
+    await page.getByLabel("Rack Name").fill("Test Rack");
     await page.click('[data-testid="btn-wizard-next"]');
     await page.click('[data-testid="btn-height-24"]');
     await page.click('[data-testid="btn-wizard-next"]');
@@ -84,7 +84,9 @@ test.describe("View Reset on Rack Changes", () => {
     expect(transformBefore?.x).toBe(-300);
 
     // Click on a different height preset (e.g., 42U)
-    await page.locator('.drawer-right [data-testid="btn-preset-height-42"]').click();
+    await page
+      .locator('.drawer-right [data-testid="btn-preset-height-42"]')
+      .click();
 
     // Wait for the view to reset (transform should change from panned position)
     await expect
@@ -119,8 +121,11 @@ test.describe("View Reset on Rack Changes", () => {
     expect(transformBefore?.x).toBe(-200);
 
     // Use the numeric height input field to change height
-    await page.locator(locators.drawer.rightRackHeight).fill("36");
-    await page.locator(locators.drawer.rightRackHeight).blur();
+    const rackHeightInput = page
+      .getByTestId("drawer-device-edit")
+      .getByLabel("Height");
+    await rackHeightInput.fill("36");
+    await rackHeightInput.blur();
 
     // Wait for the view to reset (transform should change from panned position)
     await expect

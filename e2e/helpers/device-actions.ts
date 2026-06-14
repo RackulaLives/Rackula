@@ -2,7 +2,7 @@
  * Shared device action helpers for E2E tests
  * Consolidates duplicated drag-drop and selection code
  */
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { locators } from "./locators";
 
@@ -16,7 +16,11 @@ import { locators } from "./locators";
  */
 export async function dragDeviceToRack(
   page: Page,
-  options?: { yOffsetPercent?: number; deviceIndex?: number; rackIndex?: number },
+  options?: {
+    yOffsetPercent?: number;
+    deviceIndex?: number;
+    rackIndex?: number;
+  },
 ): Promise<number> {
   const yPercent = options?.yOffsetPercent ?? 10;
   const deviceIndex = options?.deviceIndex ?? 0;
@@ -137,7 +141,7 @@ export async function deleteSelectedDevice(page: Page): Promise<void> {
   const devices = page.locator(locators.rack.device);
   const countBeforeDelete = await devices.count();
 
-  await page.click('button[aria-label="Remove from rack"]');
+  await page.getByRole("button", { name: "Remove from rack" }).click();
 
   await expect(async () => {
     const countAfterDelete = await devices.count();
@@ -145,4 +149,25 @@ export async function deleteSelectedDevice(page: Page): Promise<void> {
   }).toPass({ timeout: 5000 });
 
   await expect(page.locator(locators.drawer.rightOpen)).not.toBeVisible();
+}
+
+/**
+ * Click the device display-name field to enter edit mode.
+ *
+ * In view mode the field is a button (aria-label "Edit display name"); clicking
+ * it swaps in the editable text input.
+ */
+export async function startEditingDisplayName(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Edit display name" }).click();
+}
+
+/**
+ * Locator for the device display-name input shown while editing.
+ *
+ * Scoped to the device-edit drawer so the "Name" label is unambiguous.
+ */
+export function displayNameInput(page: Page): Locator {
+  return page
+    .getByTestId("drawer-device-edit")
+    .getByLabel("Name", { exact: true });
 }

@@ -100,7 +100,7 @@ export async function completeWizardWithKeyboard(
   options?: WizardOptions,
 ): Promise<void> {
   // Wait for wizard to be visible
-  await expect(page.locator('[role="dialog"]')).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "New Rack" })).toBeVisible();
 
   // Step 1: Name field is auto-focused with default text selected
   if (options?.name) {
@@ -155,11 +155,11 @@ export async function completeWizardWithClicks(
   options?: WizardOptions,
 ): Promise<void> {
   // Wait for wizard
-  await expect(page.locator('[role="dialog"]')).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "New Rack" })).toBeVisible();
 
   // Fill name if provided
   if (options?.name) {
-    await page.fill("#rack-name", options.name);
+    await page.getByLabel("Rack Name").fill(options.name);
   }
 
   // Select layout type

@@ -183,36 +183,26 @@ test.describe("Starter Library", () => {
   });
 
   test("removed items are NOT present", async ({ page }) => {
+    const paletteItem = (name: string) =>
+      page.getByTestId("device-palette-item").filter({ hasText: name });
+
     // These items were removed from the library
-    await expect(
-      page.locator('.device-palette-item:has-text("1U Generic")'),
-    ).not.toBeVisible();
-    await expect(
-      page.locator('.device-palette-item:has-text("2U Generic")'),
-    ).not.toBeVisible();
-    await expect(
-      page.locator('.device-palette-item:has-text("4U Shelf")'),
-    ).not.toBeVisible();
-    await expect(
-      page.locator('.device-palette-item:has-text("0.5U Blanking Fan")'),
-    ).not.toBeVisible();
+    await expect(paletteItem("1U Generic")).not.toBeVisible();
+    await expect(paletteItem("2U Generic")).not.toBeVisible();
+    await expect(paletteItem("4U Shelf")).not.toBeVisible();
+    await expect(paletteItem("0.5U Blanking Fan")).not.toBeVisible();
 
     // Old names that were renamed
-    await expect(
-      page.locator('.device-palette-item:has-text("1U Switch")'),
-    ).not.toBeVisible();
-    await expect(
-      page.locator('.device-palette-item:has-text("1U Patch Panel")'),
-    ).not.toBeVisible();
-    await expect(
-      page.locator('.device-palette-item:has-text("2U Patch Panel")'),
-    ).not.toBeVisible();
+    await expect(paletteItem("1U Switch")).not.toBeVisible();
+    await expect(paletteItem("1U Patch Panel")).not.toBeVisible();
+    await expect(paletteItem("2U Patch Panel")).not.toBeVisible();
 
     // Router and Firewall merged into Router/Firewall
-    // Note: "1U Router" might partially match "1U Router/Firewall", so use exact
-    const routerOnlyItems = page.locator(
-      '.device-palette-item:text-is("1U Router"), .device-palette-item:has-text("1U Firewall")',
-    );
+    // Note: "1U Router" must match exactly so it does not catch "1U Router/Firewall".
+    const routerOnlyItems = page
+      .getByTestId("device-palette-item")
+      .filter({ has: page.getByText("1U Router", { exact: true }) })
+      .or(paletteItem("1U Firewall"));
     await expect(routerOnlyItems).toHaveCount(0);
   });
 

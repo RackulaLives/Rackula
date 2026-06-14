@@ -24,8 +24,8 @@ test.describe("Multi-Rack Mode", () => {
     await clickNewRack(page);
 
     // Wizard should open directly — no ConfirmReplaceDialog
-    await expect(page.locator(locators.dialog.root)).toBeVisible();
-    await expect(page.locator("#rack-name")).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "New Rack" })).toBeVisible();
+    await expect(page.getByLabel("Rack Name")).toBeVisible();
   });
 
   test("can create a second rack", async ({ page }) => {
@@ -70,7 +70,7 @@ test.describe("Multi-Rack Mode", () => {
 
     // Wizard should NOT open — wait for hidden to ensure the warning path was taken
     // rather than racing against wizard mount
-    await expect(page.locator("#rack-name")).toBeHidden();
+    await expect(page.getByLabel("Rack Name")).toBeHidden();
 
     // Toast warning should appear
     await expect(page.locator(locators.toast.warning)).toBeVisible();

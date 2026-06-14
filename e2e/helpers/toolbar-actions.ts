@@ -23,7 +23,7 @@ export async function clickNewRack(page: Page): Promise<void> {
  * Click Save via the File menu dropdown.
  */
 export async function clickSave(page: Page): Promise<void> {
-  await page.click('button[aria-label="File menu"]');
+  await page.getByRole("button", { name: "File menu" }).click();
   const saveItem = page.locator('[data-testid="menu-save"]');
   await saveItem.waitFor({ state: "visible" });
   await saveItem.click();
@@ -33,7 +33,7 @@ export async function clickSave(page: Page): Promise<void> {
  * Click Load via the File menu dropdown.
  */
 export async function clickLoad(page: Page): Promise<void> {
-  await page.click('button[aria-label="File menu"]');
+  await page.getByRole("button", { name: "File menu" }).click();
   const loadItem = page.locator('[data-testid="menu-load"]');
   await loadItem.waitFor({ state: "visible" });
   await loadItem.click();

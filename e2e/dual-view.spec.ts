@@ -82,11 +82,9 @@ test.describe("Dual-View Rack Display", () => {
     await expect(page.locator(locators.rackView.rear)).toBeVisible();
 
     await expect(
-      page.locator('.rack-view-label:has-text("FRONT")'),
+      page.getByTestId("rack-front").getByText("FRONT"),
     ).toBeVisible();
-    await expect(
-      page.locator('.rack-view-label:has-text("REAR")'),
-    ).toBeVisible();
+    await expect(page.getByTestId("rack-rear").getByText("REAR")).toBeVisible();
 
     await expect(page.locator(locators.rackView.frontSvg)).toBeVisible();
     await expect(page.locator(locators.rackView.rearSvg)).toBeVisible();
@@ -108,7 +106,9 @@ test.describe("Dual-View Rack Display", () => {
       timeout: 5000,
     });
 
-    const frontDevices = await page.locator(locators.rackView.frontDevice).count();
+    const frontDevices = await page
+      .locator(locators.rackView.frontDevice)
+      .count();
     expect(frontDevices).toBeGreaterThan(0);
   });
 
@@ -121,7 +121,9 @@ test.describe("Dual-View Rack Display", () => {
       timeout: 5000,
     });
 
-    const rearDevices = await page.locator(locators.rackView.rearDevice).count();
+    const rearDevices = await page
+      .locator(locators.rackView.rearDevice)
+      .count();
     expect(rearDevices).toBeGreaterThan(0);
   });
 
@@ -176,8 +178,12 @@ test.describe("Dual-View Rack Display", () => {
 
     await dragDeviceToRackView(page, "front");
 
-    const frontDevices = await page.locator(locators.rackView.frontDevice).count();
-    const rearDevices = await page.locator(locators.rackView.rearDevice).count();
+    const frontDevices = await page
+      .locator(locators.rackView.frontDevice)
+      .count();
+    const rearDevices = await page
+      .locator(locators.rackView.rearDevice)
+      .count();
 
     expect(frontDevices).toBeGreaterThan(0);
 
@@ -202,7 +208,9 @@ test.describe("Dual-View Export", () => {
     await clickExport(page);
     await expect(page.locator(locators.dialog.root)).toBeVisible();
 
-    const viewSelect = page.locator("#export-view");
+    const viewSelect = page
+      .getByRole("dialog", { name: "Export" })
+      .getByLabel("View");
     await expect(viewSelect).toBeVisible();
 
     await expect(viewSelect.locator('option[value="both"]')).toBeAttached();
@@ -213,7 +221,10 @@ test.describe("Dual-View Export", () => {
   test("export with both views downloads file", async ({ page }) => {
     await clickExport(page);
 
-    await page.selectOption("#export-view", "both");
+    await page
+      .getByRole("dialog", { name: "Export" })
+      .getByLabel("View")
+      .selectOption("both");
 
     const downloadPromise = page.waitForEvent("download");
     await page.click('[data-testid="btn-export-confirm"]');
@@ -225,7 +236,10 @@ test.describe("Dual-View Export", () => {
   test("export with front view only downloads file", async ({ page }) => {
     await clickExport(page);
 
-    await page.selectOption("#export-view", "front");
+    await page
+      .getByRole("dialog", { name: "Export" })
+      .getByLabel("View")
+      .selectOption("front");
 
     const downloadPromise = page.waitForEvent("download");
     await page.click('[data-testid="btn-export-confirm"]');
@@ -237,7 +251,10 @@ test.describe("Dual-View Export", () => {
   test("export with rear view only downloads file", async ({ page }) => {
     await clickExport(page);
 
-    await page.selectOption("#export-view", "rear");
+    await page
+      .getByRole("dialog", { name: "Export" })
+      .getByLabel("View")
+      .selectOption("rear");
 
     const downloadPromise = page.waitForEvent("download");
     await page.click('[data-testid="btn-export-confirm"]');
@@ -251,8 +268,9 @@ test.describe("Dual-View Export", () => {
   }) => {
     await clickExport(page);
 
-    await page.selectOption("#export-format", "svg");
-    await page.selectOption("#export-view", "both");
+    const exportDialog = page.getByRole("dialog", { name: "Export" });
+    await exportDialog.getByLabel("Format").selectOption("svg");
+    await exportDialog.getByLabel("View").selectOption("both");
 
     const downloadPromise = page.waitForEvent("download");
     await page.click('[data-testid="btn-export-confirm"]');

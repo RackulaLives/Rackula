@@ -70,7 +70,9 @@ test.describe("Device Images", () => {
 
     // Device should be added to library
     await expect(
-      page.locator('.device-palette-item:has-text("Server with Image")'),
+      page
+        .getByTestId("device-palette-item")
+        .filter({ hasText: "Server with Image" }),
     ).toBeVisible();
   });
 

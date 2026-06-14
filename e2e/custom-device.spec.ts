@@ -20,20 +20,23 @@ test.describe("Custom Device Height (Issue #166)", () => {
   test.skip("custom 4U device renders with correct height after placement", async ({
     page,
   }) => {
-    const addDeviceButton = page.locator('[data-testid="btn-create-custom-device"]');
+    const addDeviceButton = page.getByTestId("btn-create-custom-device");
     await addDeviceButton.click();
 
-    await page.fill("#device-name", "RACKOWL 4U Server");
-    const heightInput = page.locator("#device-height");
+    const addDeviceDialog = page.getByRole("dialog", { name: "Add Device" });
+    await addDeviceDialog
+      .getByLabel("Name", { exact: true })
+      .fill("RACKOWL 4U Server");
+    const heightInput = addDeviceDialog.getByLabel("Height (U)");
     await heightInput.click();
     await heightInput.fill("4");
-    await page.selectOption("#device-category", "server");
+    await addDeviceDialog.getByLabel("Category").selectOption("server");
 
-    await page.click('[data-testid="btn-add-device"]');
+    await page.getByTestId("btn-add-device").click();
 
-    const customDevice = page.locator(
-      '.device-palette-item:has-text("RACKOWL 4U Server")',
-    );
+    const customDevice = page
+      .getByTestId("device-palette-item")
+      .filter({ hasText: "RACKOWL 4U Server" });
     await expect(customDevice).toBeVisible();
 
     const deviceCount = await page.locator(locators.device.paletteItem).count();
@@ -45,16 +48,19 @@ test.describe("Custom Device Height (Issue #166)", () => {
   test.skip("custom 2U device blocks correct number of rack positions", async ({
     page,
   }) => {
-    const addDeviceButton = page.locator('[data-testid="btn-create-custom-device"]');
+    const addDeviceButton = page.getByTestId("btn-create-custom-device");
     await addDeviceButton.click();
 
-    await page.fill("#device-name", "Test 2U Storage");
-    const heightInput = page.locator("#device-height");
+    const addDeviceDialog = page.getByRole("dialog", { name: "Add Device" });
+    await addDeviceDialog
+      .getByLabel("Name", { exact: true })
+      .fill("Test 2U Storage");
+    const heightInput = addDeviceDialog.getByLabel("Height (U)");
     await heightInput.click();
     await heightInput.fill("2");
-    await page.selectOption("#device-category", "storage");
+    await addDeviceDialog.getByLabel("Category").selectOption("storage");
 
-    await page.click('[data-testid="btn-add-device"]');
+    await page.getByTestId("btn-add-device").click();
 
     // TODO: drag custom device by name, verify 2U height (>30px)
   });

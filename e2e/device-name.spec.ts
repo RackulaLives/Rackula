@@ -5,6 +5,8 @@ import {
   PLATFORM_MODIFIER,
   loadFileFromDisk,
   locators,
+  startEditingDisplayName,
+  displayNameInput,
 } from "./helpers";
 
 test.describe("Device Custom Names", () => {
@@ -24,10 +26,10 @@ test.describe("Device Custom Names", () => {
     await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
 
     // Click the display name button to start editing
-    await page.locator(locators.editPanel.displayNameButton).click();
+    await startEditingDisplayName(page);
 
     // Input field should appear
-    const nameInput = page.locator(locators.editPanel.displayNameInput);
+    const nameInput = displayNameInput(page);
     await expect(nameInput).toBeVisible();
 
     // Clear and type new name
@@ -52,8 +54,8 @@ test.describe("Device Custom Names", () => {
     await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
 
     // Edit the name
-    await page.locator(locators.editPanel.displayNameButton).click();
-    const nameInput = page.locator(locators.editPanel.displayNameInput);
+    await startEditingDisplayName(page);
+    const nameInput = displayNameInput(page);
     await expect(nameInput).toBeVisible();
     await nameInput.fill("Storage Server");
     await nameInput.press("Enter");
@@ -111,8 +113,8 @@ test.describe("Device Custom Names", () => {
       .textContent();
 
     // Edit the name
-    await page.locator(locators.editPanel.displayNameButton).click();
-    const nameInput = page.locator(locators.editPanel.displayNameInput);
+    await startEditingDisplayName(page);
+    const nameInput = displayNameInput(page);
     await expect(nameInput).toBeVisible();
     await nameInput.fill("Custom Name");
     await nameInput.press("Enter");
@@ -161,8 +163,8 @@ test.describe("Device Custom Names", () => {
       .textContent();
 
     // Edit the name to something custom
-    await page.locator(locators.editPanel.displayNameButton).click();
-    let nameInput = page.locator(locators.editPanel.displayNameInput);
+    await startEditingDisplayName(page);
+    let nameInput = displayNameInput(page);
     await expect(nameInput).toBeVisible();
     await nameInput.fill("Custom Name");
     await nameInput.press("Enter");
@@ -173,8 +175,8 @@ test.describe("Device Custom Names", () => {
     );
 
     // Click again and clear the name
-    await page.locator(locators.editPanel.displayNameButton).click();
-    nameInput = page.locator(locators.editPanel.displayNameInput);
+    await startEditingDisplayName(page);
+    nameInput = displayNameInput(page);
     await expect(nameInput).toBeVisible();
     await nameInput.fill("");
     await nameInput.press("Enter");
