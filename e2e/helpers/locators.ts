@@ -48,6 +48,7 @@ export const locators = {
 
   device: {
     paletteItem: '[data-testid="device-palette-item"]',
+    paletteItemName: '[data-testid="device-palette-item"] .device-name',
     palette: ".device-palette",
   },
 

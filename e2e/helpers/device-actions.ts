@@ -143,9 +143,17 @@ export async function dragDeviceToRack(
  * `page.getByTestId("device-palette-favourites")`, then call `.first()`.
  */
 export function paletteItemByName(page: Page, deviceName: string): Locator {
-  return page
-    .getByTestId("device-palette-item")
-    .filter({ hasText: deviceName });
+  // Exact match on the .device-name span, matching dragDeviceToRack's
+  // comparison. Substring matching would let "Server" match "Server 2U".
+  return page.getByTestId("device-palette-item").filter({
+    has: page.locator(locators.device.paletteItemName, {
+      hasText: new RegExp(`^${escapeRegExp(deviceName)}$`),
+    }),
+  });
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
