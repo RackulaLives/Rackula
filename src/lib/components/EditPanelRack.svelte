@@ -86,6 +86,14 @@
 
   // Validate and apply height change
   function attemptHeightChange(newHeight: number): boolean {
+    // Re-submitting the current height (re-entering the value, clicking the
+    // already-active preset) is a no-op, not a resize attempt, so it must not
+    // surface a rejection error (#2222).
+    if (newHeight === selectedRack.height) {
+      resizeError = null;
+      return true;
+    }
+
     // Bayed racks must all share a height, so the store rejects per-rack
     // height changes. Detect that here and revert the optimistic value,
     // otherwise the input keeps showing a height the rack never adopted
