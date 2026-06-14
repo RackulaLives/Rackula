@@ -100,6 +100,16 @@ jobs:
     permissions:
       contents: read
     steps:
+      # The ci-runner is not ephemeral: it reuses _work across jobs, and a prior
+      # sparse checkout (e.g. the LXC gate) leaves an index that makes
+      # actions/checkout's clean fail with "not uptodate; will not remove".
+      # Wipe the workspace first so the checkout below starts from a clean slate.
+      - name: Clean self-hosted workspace
+        run: |
+          if [ -n "$GITHUB_WORKSPACE" ] && [ -d "$GITHUB_WORKSPACE" ]; then
+            find "$GITHUB_WORKSPACE" -mindepth 1 -delete
+          fi
+
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
