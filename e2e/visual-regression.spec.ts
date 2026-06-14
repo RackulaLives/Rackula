@@ -97,6 +97,16 @@ test.describe("visual regression", () => {
     );
   });
 
+  test("sidebar - layouts tab", async ({ page }) => {
+    await gotoVisual(page, POPULATED_URL, { theme: "light" });
+    await page.getByTestId("sidebar-tab-layouts").click();
+    await settle(page);
+    await expect(page.getByTestId("drawer-left")).toHaveScreenshot(
+      "sidebar-layouts.png",
+      { mask: dynamicMasks(page) },
+    );
+  });
+
   test("dialog - export", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL, { theme: "light" });
     await page.getByTestId("btn-export").click();
