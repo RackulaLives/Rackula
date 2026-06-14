@@ -146,7 +146,7 @@ always closes, focus returns to the trigger). Announce open/close to assistive t
 ## Recommendation summary
 
 Command-first palette built by composing bits-ui Command in a bits-ui Dialog over the
-#2096 registry. Ctrl/Cmd+K primary with a visible header pill as the required secondary
+registry (#2096). Ctrl/Cmd+K primary with a visible header pill as the required secondary
 path; never the sole route to any command. Built-in fuzzy scoring + keyword aliases; MRU
 recents and selection-aware contextual commands as follow-on slices; rich empty state;
 device search deferred to an optional sub-mode. Sequenced after #2096 (registry), #2073

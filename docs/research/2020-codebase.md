@@ -40,8 +40,8 @@ thin UI over the planned command registry (#2096). Read-only investigation.
   Editing, File), formatted via `formatShortcut()` for platform (Ctrl vs Cmd).
 - Drift problem: shortcuts are declared in `KeyboardHandler` but listed again in
   `HelpPanel`. Adding one means editing two files. The palette would be a third place.
-  This is exactly what the command registry (#2096) removes - the palette must consume
-  the registry, never hold its own command table.
+  This is what the command registry (#2096) removes - the palette must consume the
+  registry, never hold its own command table.
 
 ## App Menu / Toolbar (current, pre-#2072/#2073/#2074)
 
@@ -127,7 +127,7 @@ The registry (#2096) is a separate, new "actions registry" concept.
 
 1. Register `Ctrl+K` (and `Cmd+K`) as a global command that opens the palette.
 2. Read command set, labels, shortcuts, scope, and enabled-when from the registry (#2096).
-3. Reuse Fuse.js for command ranking; optionally a second index for devices.
+3. Command-mode ranking comes from bits-ui Command's built-in scorer; Fuse.js is reused only for the optional device sub-mode.
 4. Render inside a bits-ui Dialog (focus trap, Esc, portal); mobile -> bottom sheet.
 5. Selection-scoped commands gate on `selectionStore`.
 6. Optional recents via the `ui.svelte.ts` localStorage pattern.
