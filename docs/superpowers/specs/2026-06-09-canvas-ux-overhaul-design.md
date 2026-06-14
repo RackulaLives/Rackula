@@ -508,3 +508,43 @@ sub-mode is an optional later follow-on. Decomposed into #2212 (shell), #2213 (r
 contextual), and #2214 (optional device sub-mode), sequenced after #2096, #2073, #2075.
 Full findings: docs/research/spike-2020-command-palette.md; mock:
 docs/research/spike-2020-palette-mock.svg.
+
+## Mobile adaptation spike amendment (2026-06-14)
+
+Spike #2097 resolved how the new shell adapts to phone and tablet (implementation deferred
+to M12; the design call runs now so #2076/#2075 are not rebuilt bespoke for touch). The
+governing principle is the shell's own dual: desktop says verbs float and properties dock,
+and phone keeps the same sentence with one substitution, properties dock into a bottom sheet
+instead of a side rail and the verbs dock with them rather than floating.
+
+The decisions:
+
+- Phone reuses the side panel content, not a parallel build. The Edit tab composes the #1398
+  sections (EditPanelRack/Metadata/Position/Image/Actions); on phone the same sections render
+  inside the #2092 unified-dialog bottom sheet. RackEditSheet and DeviceDetails are retired.
+  Reuse is one content source, not a field dump: a section may responsively defer a field on a
+  phone, settled per section in M12, but there is no second component.
+- MobileBottomNav is replaced by a slim canvas-edge action bar, redistributed by scope: File
+  moves to the app menu (opened as a sheet from the logo), View moves to the View tab (a sheet
+  on phone), Devices stays a sheet. The bottom-left canvas controls and undo/redo stay on all
+  viewports; MobileHistoryControls folds into them.
+- Layout tabs do not appear on phone. The tab strip is a desktop multi-open affordance; phone
+  shows the active layout name in the top bar and switches via an app-menu list over the open
+  set and library. Tablet keeps the full strip.
+- Verb bars do not float on phone. Selection opens the bottom sheet and the verbs are
+  full-width touch rows at the top of it, projected from the same #2096 registry the desktop
+  bar uses. Long-press is the phone mirror of right-click. This is the existing
+  tap-opens-a-sheet contract carried forward and avoids the unresolved low-zoom floating-bar
+  problem on touch.
+- The shell needs a real tablet tier. Today's single 1024px `isMobile` breakpoint is split
+  into phone and tablet tiers; tablet gets the desktop shell (side rail, tab strip, floating
+  bars), phone is the only tier that swaps to sheets. The exact phone/tablet boundary and the
+  width-versus-coarse-pointer choice are an M12 implementation detail. This breakpoint split
+  is the only net-new plumbing the mobile work needs; everything else reuses the #1398
+  sections, the #2092 unified dialog, the #2096 registry, and the existing BottomSheet.
+
+Constrains #2076 (build the panel so its Edit/View content is extractable from the
+persistent-rail chrome, so a phone sheet host can compose it) and #2075 (record floating as
+desktop-only; the phone affordance is sheet verb rows over the same registry command set, no
+second action list). Full findings: docs/research/2097-spike.md and
+docs/research/2097-codebase.md.
