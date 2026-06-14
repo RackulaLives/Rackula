@@ -23,6 +23,10 @@
   import { hapticTap } from "$lib/utils/haptics";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
   import type { DeviceFace, SlotPosition } from "$lib/types";
+  import {
+    loadStarterTemplates,
+    type StarterTemplate,
+  } from "$lib/templates/starter-templates";
   import RackCanvasView from "./RackCanvasView.svelte";
   import WelcomeScreen from "./WelcomeScreen.svelte";
   import CanvasContextMenu from "./CanvasContextMenu.svelte";
@@ -35,6 +39,10 @@
     enableLongPress?: boolean;
     onnewrack?: () => void;
     onload?: () => void;
+    /** Load a starter template as a new layout (empty-state picker). */
+    onchoosetemplate?: (template: StarterTemplate) => void;
+    /** Open the share flow from the empty-state picker. */
+    onshare?: () => void;
     onfitall?: () => void;
     onresetzoom?: () => void;
     onrackselect?: (event: CustomEvent<{ rackId: string }>) => void;
@@ -88,7 +96,9 @@
     partyMode = false,
     enableLongPress = false,
     onnewrack,
-    onload: _onload,
+    onload,
+    onchoosetemplate,
+    onshare,
     onfitall,
     onresetzoom,
     onrackselect,
@@ -116,6 +126,21 @@
   const hasRacks = $derived(layoutStore.rackCount > 0);
   const allRacksEmpty = $derived(racks.every((r) => r.devices.length === 0));
   let hintDismissed = $state(safeGetItem(ONBOARDING_HINT_KEY) === "1");
+
+  // Starter templates for the empty-state picker. Loaded lazily the first time
+  // the canvas has no racks, so the fetch never runs for users who arrive with a
+  // restored layout. A load failure leaves the list empty, and the picker falls
+  // back to its blank-layout affordance (#2095).
+  let starterTemplates = $state<StarterTemplate[]>([]);
+  let templatesRequested = false;
+
+  $effect(() => {
+    if (hasRacks || templatesRequested) return;
+    templatesRequested = true;
+    loadStarterTemplates().then((loaded) => {
+      starterTemplates = loaded;
+    });
+  });
 
   function dismissOnboardingHint() {
     safeSetItem(ONBOARDING_HINT_KEY, "1");
@@ -370,7 +395,13 @@
         />
       </div>
     {:else}
-      <WelcomeScreen onclick={handleNewRack} />
+      <WelcomeScreen
+        templates={starterTemplates}
+        onchoosetemplate={(template) => onchoosetemplate?.(template)}
+        onblank={handleNewRack}
+        onimport={() => onload?.()}
+        onshare={() => onshare?.()}
+      />
     {/if}
   </div>
 </CanvasContextMenu>

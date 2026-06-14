@@ -1,0 +1,77 @@
+metadata:
+  id: "a1b2c3d4-0003-4003-8003-000000000003"
+  name: "Media Server"
+  schema_version: "1.0"
+  description: "A media and storage stack: switch, media servers, bulk storage arrays, and a UPS."
+version: "1.0.0"
+name: "Media Server"
+racks:
+  - id: "rack-1"
+    name: "Media Server"
+    height: 18
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: "4-post-cabinet"
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: "dev-switch"
+        device_type: "24-port-switch"
+        name: "Switch"
+        position: 18
+        face: "front"
+      - id: "dev-media-1"
+        device_type: "2u-server"
+        name: "Media Server"
+        position: 16
+        face: "front"
+      - id: "dev-media-2"
+        device_type: "1u-server"
+        name: "Transcode Node"
+        position: 15
+        face: "front"
+      - id: "dev-storage-1"
+        device_type: "4u-storage"
+        name: "Storage Array A"
+        position: 11
+        face: "front"
+      - id: "dev-storage-2"
+        device_type: "4u-storage"
+        name: "Storage Array B"
+        position: 7
+        face: "front"
+      - id: "dev-ups"
+        device_type: "4u-ups"
+        name: "UPS"
+        position: 3
+        face: "front"
+device_types:
+  - slug: "24-port-switch"
+    model: "Switch (24-Port)"
+    u_height: 1
+    colour: "#7B6BA8"
+    category: "network"
+  - slug: "2u-server"
+    model: "Server"
+    u_height: 2
+    colour: "#4A7A8A"
+    category: "server"
+  - slug: "1u-server"
+    model: "Server"
+    u_height: 1
+    colour: "#4A7A8A"
+    category: "server"
+  - slug: "4u-storage"
+    model: "Storage"
+    u_height: 4
+    colour: "#3D7A4A"
+    category: "storage"
+  - slug: "4u-ups"
+    model: "UPS"
+    u_height: 4
+    colour: "#A84A4A"
+    category: "power"
+settings:
+  display_mode: "label"
+  show_labels_on_images: false
