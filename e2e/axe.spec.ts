@@ -94,4 +94,13 @@ test.describe("axe accessibility scans", () => {
     ).toBeVisible();
     await expectNoA11yViolations(page, locators.dialog.root);
   });
+
+  test("Settings dialog has no WCAG 2.2 AA violations", async ({ page }) => {
+    // The gear button opens the consolidated settings surface (Appearance,
+    // Behaviour, Data). Target it by testid so the scan covers the dialog's
+    // toggles and action buttons.
+    await page.getByTestId("btn-settings").click();
+    await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+    await expectNoA11yViolations(page, locators.dialog.root);
+  });
 });

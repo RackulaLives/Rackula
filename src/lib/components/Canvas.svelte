@@ -12,7 +12,6 @@
     ZOOM_MIN,
     ZOOM_MAX,
   } from "$lib/stores/canvas.svelte";
-  import { getUIStore } from "$lib/stores/ui.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { debug } from "$lib/utils/debug";
@@ -38,7 +37,6 @@
     onload?: () => void;
     onfitall?: () => void;
     onresetzoom?: () => void;
-    ontoggletheme?: () => void;
     onrackselect?: (event: CustomEvent<{ rackId: string }>) => void;
     ondeviceselect?: (
       event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
@@ -93,7 +91,6 @@
     onload: _onload,
     onfitall,
     onresetzoom,
-    ontoggletheme,
     onrackselect,
     ondeviceselect,
     ondevicedrop,
@@ -111,7 +108,6 @@
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
   const canvasStore = getCanvasStore();
-  const uiStore = getUIStore();
   const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
 
@@ -322,8 +318,6 @@
   onnewrack={handleNewRack}
   onfitall={() => onfitall?.() ?? canvasStore.fitAll(racks)}
   onresetzoom={() => onresetzoom?.() ?? canvasStore.resetZoom()}
-  {ontoggletheme}
-  theme={uiStore.theme}
 >
   <div
     class="canvas"

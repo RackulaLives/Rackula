@@ -146,12 +146,12 @@ test.describe("visual regression", () => {
     await expect(menu).toHaveScreenshot("menu-file.png");
   });
 
-  test("menu - settings", async ({ page }) => {
+  test("dialog - settings", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL, { theme: "light" });
-    await page.getByRole("button", { name: "Settings menu" }).click();
-    const menu = page.getByRole("menu");
-    await expect(menu).toBeVisible();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Settings" });
+    await expect(dialog).toBeVisible();
     await settle(page);
-    await expect(menu).toHaveScreenshot("menu-settings.png");
+    await expect(dialog).toHaveScreenshot("dialog-settings.png");
   });
 });

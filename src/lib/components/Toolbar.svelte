@@ -8,7 +8,6 @@
 <script lang="ts">
   import Tooltip from "./Tooltip.svelte";
   import FileMenu from "./FileMenu.svelte";
-  import SettingsMenu from "./SettingsMenu.svelte";
   import StorageStatusChip from "./StorageStatusChip.svelte";
   import LogoLockup from "./LogoLockup.svelte";
   import {
@@ -20,6 +19,7 @@
     IconImageLabel,
     IconDownloadBold,
     IconShareBold,
+    IconGearBold,
   } from "./icons";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
@@ -29,13 +29,7 @@
 
   interface Props {
     hasRacks?: boolean;
-    theme?: "dark" | "light";
     displayMode?: DisplayMode;
-    showAnnotations?: boolean;
-    showBanana?: boolean;
-    compatibleOnly?: boolean;
-    warnOnUnsavedChanges?: boolean;
-    promptCleanupOnSave?: boolean;
     partyMode?: boolean;
     onsave?: () => void;
     onsaveas?: () => void;
@@ -47,27 +41,15 @@
     onimportnetbox?: () => void;
     onnewcustomdevice?: () => void;
     onfitall?: () => void;
-    ontoggletheme?: () => void;
     ontoggledisplaymode?: () => void;
-    ontoggleannotations?: () => void;
-    ontogglebanana?: () => void;
-    ontogglecompatibleonly?: () => void;
-    ontogglewarnunsaved?: () => void;
-    ontogglepromptcleanup?: () => void;
-    onopencleanup?: () => void;
+    onsettings?: () => void;
     onhelp?: () => void;
     onlayouts?: () => void;
   }
 
   let {
     hasRacks = false,
-    theme = "dark",
     displayMode = "label",
-    showAnnotations = false,
-    showBanana = false,
-    compatibleOnly = true,
-    warnOnUnsavedChanges = true,
-    promptCleanupOnSave = true,
     partyMode = false,
     onsave,
     onsaveas,
@@ -79,14 +61,8 @@
     onimportnetbox,
     onnewcustomdevice,
     onfitall,
-    ontoggletheme,
     ontoggledisplaymode,
-    ontoggleannotations,
-    ontogglebanana,
-    ontogglecompatibleonly,
-    ontogglewarnunsaved,
-    ontogglepromptcleanup,
-    onopencleanup,
+    onsettings,
     onhelp,
     onlayouts,
   }: Props = $props();
@@ -175,36 +151,12 @@
     onfitall?.();
   }
 
-  function handleToggleTheme() {
-    ontoggletheme?.();
-  }
-
   function handleToggleDisplayMode() {
     ontoggledisplaymode?.();
   }
 
-  function handleToggleAnnotations() {
-    ontoggleannotations?.();
-  }
-
-  function handleToggleBanana() {
-    ontogglebanana?.();
-  }
-
-  function handleToggleCompatibleOnly() {
-    ontogglecompatibleonly?.();
-  }
-
-  function handleToggleWarnUnsaved() {
-    ontogglewarnunsaved?.();
-  }
-
-  function handleTogglePromptCleanup() {
-    ontogglepromptcleanup?.();
-  }
-
-  function handleOpenCleanup() {
-    onopencleanup?.();
+  function handleSettings() {
+    onsettings?.();
   }
 
   function handleHelp() {
@@ -404,21 +356,17 @@
         {hasRacks}
       />
 
-      <SettingsMenu
-        {theme}
-        {showAnnotations}
-        {showBanana}
-        {compatibleOnly}
-        {warnOnUnsavedChanges}
-        {promptCleanupOnSave}
-        ontoggletheme={handleToggleTheme}
-        ontoggleannotations={handleToggleAnnotations}
-        ontogglebanana={handleToggleBanana}
-        ontogglecompatibleonly={handleToggleCompatibleOnly}
-        ontogglewarnunsaved={handleToggleWarnUnsaved}
-        ontogglepromptcleanup={handleTogglePromptCleanup}
-        onopencleanup={handleOpenCleanup}
-      />
+      <Tooltip text="Settings" position="bottom">
+        <button
+          class="toolbar-icon-btn"
+          type="button"
+          aria-label="Settings"
+          onclick={handleSettings}
+          data-testid="btn-settings"
+        >
+          <IconGearBold size={ICON_SIZE.md} />
+        </button>
+      </Tooltip>
     </div>
   {:else}
     <div
