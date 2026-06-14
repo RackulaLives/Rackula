@@ -25,6 +25,9 @@ import { gotoWithRack, locators, RACK_WITH_DEVICE_SHARE } from "./helpers";
  * Collects unhandled page errors during a test. Production bundles can fail in
  * ways dev/unit runs never see (ESM chunk init order, minification), so a clean
  * boot is the core post-deploy signal.
+ *
+ * @param page - The Playwright page to monitor.
+ * @returns An array that accumulates error messages as they occur.
  */
 function collectPageErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -92,12 +95,15 @@ test.describe("Post-deploy smoke", () => {
       buildTime?: unknown;
     };
 
+    // version comes from package.json and is always present and non-empty.
     expect(typeof body.version).toBe("string");
     expect(body.version).not.toBe("");
+    // commit may legitimately be an empty string in Docker builds (no .git), so
+    // we assert only its type, not non-emptiness.
     expect(typeof body.commit).toBe("string");
     expect(typeof body.buildTime).toBe("string");
     // buildTime is an ISO timestamp; a valid parse guards against truncated or
     // placeholder values slipping through.
-    expect(Number.isNaN(Date.parse(body.buildTime as string))).toBe(false);
+    expect(Date.parse(body.buildTime as string)).not.toBeNaN();
   });
 });
