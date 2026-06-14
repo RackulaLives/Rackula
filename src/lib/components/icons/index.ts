@@ -76,6 +76,7 @@ export { default as IconWarningTriangle } from "./IconWarningTriangle.svelte";
 // =============================================================================
 
 export { default as IconPlusBold } from "./IconPlusBold.svelte";
+export { default as IconMinusBold } from "./IconMinusBold.svelte";
 export { default as IconUndoBold } from "./IconUndoBold.svelte";
 export { default as IconRedoBold } from "./IconRedoBold.svelte";
 export { default as IconTextBold } from "./IconTextBold.svelte";

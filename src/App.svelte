@@ -7,6 +7,7 @@
   import AnimationDefs from "$lib/components/AnimationDefs.svelte";
   import Toolbar from "$lib/components/Toolbar.svelte";
   import Canvas from "$lib/components/Canvas.svelte";
+  import CanvasViewControls from "$lib/components/canvas/CanvasViewControls.svelte";
   import { PaneGroup, Pane, PaneResizer } from "paneforge";
   import DevicePalette from "$lib/components/DevicePalette.svelte";
   import SidePanel from "$lib/components/SidePanel.svelte";
@@ -651,6 +652,12 @@
                 onrackduplicate={handleRackContextDuplicate}
                 onrackdelete={handleRackContextDelete}
               />
+
+              <CanvasViewControls
+                displayMode={uiStore.displayMode}
+                onfitall={handleFitAll}
+                ontoggledisplaymode={handleToggleDisplayMode}
+              />
             </div>
 
             <SidePanel />
@@ -783,6 +790,8 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    /* Anchor the bottom-left CanvasViewControls to the canvas region. */
+    position: relative;
   }
 
   /* Note: Mobile overscroll prevention should be in global styles (index.html or app.css) */
