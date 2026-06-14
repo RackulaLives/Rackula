@@ -19,6 +19,7 @@
   import SidebarTabs from "$lib/components/SidebarTabs.svelte";
   import LayoutTabs from "$lib/components/LayoutTabs.svelte";
   import RackList from "$lib/components/RackList.svelte";
+  import LayoutsLibrary from "$lib/components/LayoutsLibrary.svelte";
   import PersistenceEffects from "$lib/components/PersistenceEffects.svelte";
   import DialogOrchestrator from "$lib/components/DialogOrchestrator.svelte";
   import StartScreen, {
@@ -69,6 +70,8 @@
     handleRackContextFocus,
   } from "$lib/utils/rack-actions";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getWorkspaceStore } from "$lib/stores/workspace.svelte";
+  import { createLayout } from "$lib/utils/serialization";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
@@ -102,6 +105,7 @@
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
+  const workspaceStore = getWorkspaceStore();
   const selectionStore = getSelectionStore();
   const uiStore = getUIStore();
   const canvasStore = getCanvasStore();
@@ -459,6 +463,16 @@
     return () => window.removeEventListener("resize", onResize);
   });
 
+  function handleNewLayout() {
+    workspaceStore.openTab(createLayout());
+    dialogStore.open("newRack");
+  }
+
+  function handleLayoutExport(tabId: string) {
+    workspaceStore.switchTo(tabId);
+    maybeExport();
+  }
+
   function handleShowLayouts() {
     if (uiStore.warnOnUnsavedChanges && layoutStore.isDirty) {
       if (!window.confirm("You have unsaved changes. Leave anyway?")) {
@@ -626,6 +640,11 @@
                 onedit={handleRackContextEdit}
                 onrename={handleRackContextRename}
                 onduplicate={handleRackContextDuplicate}
+              />
+            {:else if uiStore.sidebarTab === "layouts"}
+              <LayoutsLibrary
+                onnewlayout={handleNewLayout}
+                onexport={handleLayoutExport}
               />
             {/if}
           </Pane>
