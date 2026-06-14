@@ -36,6 +36,19 @@ describe("reconcileSession", () => {
     });
   });
 
+  it("keeps local when the server list is empty", () => {
+    const action = reconcileSession({
+      localUuid: "22222222-2222-4222-8222-222222222222",
+      localSavedAt: "2026-06-14T11:00:00.000Z",
+      localServerUpdatedAt: null,
+      serverLayouts: [],
+    });
+    expect(action).toEqual({
+      kind: "restore-local",
+      reason: "unknown-to-server",
+    });
+  });
+
   it("keeps local when it is ahead of an unchanged server base", () => {
     const uuid = "33333333-3333-4333-8333-333333333333";
     const base = "2026-06-14T12:00:00.000Z";

@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   finalizeSuccessfulSave,
   handlePersistenceError,
+  handleSaveToServer,
   getConsecutiveSaveFailures,
   resetPersistenceManager,
 } from "$lib/storage/manager.svelte";
@@ -98,5 +99,67 @@ describe("successful save epilogue", () => {
     const session = loadSessionWithTimestamp();
     expect(session).not.toBeNull();
     expect(session?.serverUpdatedAt).toBe("2026-06-14T10:00:00.000Z");
+  });
+});
+
+/**
+ * End-to-end echo threading: a durable save records the server's updatedAt echo
+ * (finalizeSuccessfulSave -> setServerBaseUpdatedAt), and the next save threads
+ * that echo back as the X-Rackula-Updated-At PUT header so the server can detect
+ * divergence. This closes the gap between the unit tests for finalize (records
+ * the echo) and saveLayoutToServer (forwards the header) by proving the stored
+ * base actually reaches a subsequent request. Coverage for #2041.
+ */
+describe("echo threads into the next PUT header", () => {
+  const UUID = "11111111-1111-4111-8111-111111111111";
+
+  beforeEach(() => {
+    resetLayoutStore();
+    resetToastStore();
+    resetPersistenceManager();
+    setServerBaseUpdatedAt(null);
+    setApiAvailable(true);
+    vi.stubGlobal("AbortSignal", {
+      timeout: () => new AbortController().signal,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    setServerBaseUpdatedAt(null);
+    setApiAvailable(false);
+  });
+
+  function putResponse(updatedAt: string): Response {
+    return new Response(JSON.stringify({ id: UUID, updatedAt }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  it("threads the first save's echo into the second save's X-Rackula-Updated-At", async () => {
+    const layoutStore = getLayoutStore();
+    layoutStore.loadLayout(createTestLayout({ metadata: { id: UUID } }));
+    layoutStore.markStarted();
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(putResponse("2026-06-14T10:00:00.000Z"))
+      .mockResolvedValueOnce(putResponse("2026-06-14T11:00:00.000Z"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await handleSaveToServer(false)).toBe(true);
+    // The first save's echo becomes the base for the next PUT.
+    layoutStore.markDirty();
+    expect(await handleSaveToServer(false)).toBe(true);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstHeaders = new Headers(fetchMock.mock.calls[0][1].headers);
+    expect(firstHeaders.has("X-Rackula-Updated-At")).toBe(false);
+    const secondHeaders = new Headers(fetchMock.mock.calls[1][1].headers);
+    expect(secondHeaders.get("X-Rackula-Updated-At")).toBe(
+      "2026-06-14T10:00:00.000Z",
+    );
   });
 });
