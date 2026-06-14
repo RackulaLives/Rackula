@@ -431,6 +431,38 @@ changes. Interactive controls are not listed there: reach them with
 `label:has-text("...")` is a Playwright text-engine locator, not a CSS class
 selector, and is fine to use.
 
+#### Selecting palette devices by name
+
+The Devices palette is virtualized (#2094): lists over 30 rows window their
+content, so off-screen rows unmount, and a pinned device renders twice (once in
+the favourites section, once in its category). Positional indexing
+(`.nth(index)`) is therefore unreliable. Select a palette device by its visible
+name instead:
+
+```typescript
+import { dragDeviceToRack, paletteItemByName } from "./helpers";
+
+// Drag a specific device by name (preferred over deviceIndex)
+await dragDeviceToRack(page, { deviceName: "Test Server" });
+
+// Locate a palette item by name (scope to favourites first if pinned)
+await expect(paletteItemByName(page, "Test Server")).toBeVisible();
+```
+
+#### Multi-context tests (twin-tab, restore)
+
+The M14 shell adds layout tabs (#2079), so some flows need more than one page on
+the same origin: the twin-tab guard (#2044) and lazy tab restore (#2080). The
+`e2e/helpers/multi-context.ts` helpers wrap that: `openSecondTab` opens a second
+page in the same browser context (shared localStorage and `storage` events),
+`collectStorageEvents` records the cross-tab events the guard reacts to, and
+`snapshotStorage` captures `storageState` so a relaunch can be modelled with a
+fresh context. See `e2e/multi-context.spec.ts` for worked examples.
+
+The full carry-over audit, naming convention for new testids, the multi-context
+harness design, and the per-slice rewrite-or-delete decisions live in
+[`docs/research/spike-2183-e2e-shell-strategy.md`](../research/spike-2183-e2e-shell-strategy.md).
+
 #### Lint enforcement
 
 ESLint blocks new CSS class selectors in `e2e/**/*.ts`. A string literal passed

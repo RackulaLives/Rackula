@@ -17,6 +17,7 @@ export {
 // Device actions
 export {
   dragDeviceToRack,
+  paletteItemByName,
   selectDevice,
   deselectDevice,
   deleteSelectedDevice,
@@ -42,6 +43,14 @@ export {
 
 // Mobile navigation
 export { openDeviceLibraryFromBottomNav } from "./mobile-navigation";
+
+// Multi-context (twin-tab #2044, lazy tab restore #2080)
+export {
+  openSecondTab,
+  readStorageJson,
+  collectStorageEvents,
+  snapshotStorage,
+} from "./multi-context";
 
 // Centralised CSS selectors
 export { locators } from "./locators";
