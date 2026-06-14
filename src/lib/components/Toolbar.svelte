@@ -9,6 +9,7 @@
   import Tooltip from "./Tooltip.svelte";
   import FileMenu from "./FileMenu.svelte";
   import SettingsMenu from "./SettingsMenu.svelte";
+  import StorageStatusChip from "./StorageStatusChip.svelte";
   import LogoLockup from "./LogoLockup.svelte";
   import {
     IconUndoBold,
@@ -387,6 +388,8 @@
   <!-- Right: Dropdown menus (desktop) / quick file actions (mobile) -->
   {#if !viewportStore.isMobile}
     <div class="toolbar-section toolbar-right">
+      <StorageStatusChip />
+
       <FileMenu
         onsave={handleSave}
         onsaveas={handleSaveAs}

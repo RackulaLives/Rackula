@@ -46,3 +46,10 @@ export {
   isServerSavePending,
 } from "./manager.svelte";
 export { shouldWarnBeforeUnload, type UnloadRiskState } from "./unload-risk";
+export {
+  computeLayoutStatus,
+  getLayoutDurability,
+  rollupDurabilities,
+  type DurabilityStatus,
+  type LayoutDurability,
+} from "./durability.svelte";

@@ -66,6 +66,8 @@ export { default as IconCheck } from "./IconCheck.svelte";
 
 // Status icons
 export { default as IconCloudOff } from "./IconCloudOff.svelte";
+export { default as IconClock } from "./IconClock.svelte";
+export { default as IconWarningTriangle } from "./IconWarningTriangle.svelte";
 
 // =============================================================================
 // Phosphor Bold Icons (for toolbar - higher visual weight)
