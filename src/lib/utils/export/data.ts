@@ -14,7 +14,7 @@ const FORMULA_TRIGGERS = new Set(["=", "+", "-", "@", "\t", "\r"]);
  * Escape a CSV field value
  * - Prefixes a leading formula trigger (=, +, -, @, tab, carriage return) with
  *   a single quote so the cell is treated as text, not a formula
- * - Wraps in quotes if contains comma, quote, or newline
+ * - Wraps in quotes if contains comma, quote, newline, or carriage return
  * - Doubles any existing quotes
  */
 function escapeCSVField(value: string): string {
@@ -22,7 +22,8 @@ function escapeCSVField(value: string): string {
   if (
     sanitized.includes(",") ||
     sanitized.includes('"') ||
-    sanitized.includes("\n")
+    sanitized.includes("\n") ||
+    sanitized.includes("\r")
   ) {
     return `"${sanitized.replace(/"/g, '""')}"`;
   }

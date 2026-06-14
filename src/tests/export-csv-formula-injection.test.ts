@@ -13,8 +13,10 @@ function dataCell(csv: string, column: number): string {
 }
 
 describe("exportToCSV formula injection", () => {
-  it.each(["=2+2", "+CMD|'/C calc'!A0", "-5+5", "@SUM(A1)"])(
-    "neutralizes a leading formula trigger in the device name: %s",
+  // Triggers that are neutralized but do not also require CSV quoting (a tab is
+  // not a delimiter per RFC 4180, so the field is left unquoted).
+  it.each(["=2+2", "+CMD|'/C calc'!A0", "-5+5", "@SUM(A1)", "\tTAB"])(
+    "neutralizes a leading formula trigger in the device name: %j",
     (payload) => {
       const deviceType = createTestDeviceType({ slug: "srv", model: "Model" });
       const rack = createTestRack({
@@ -24,6 +26,17 @@ describe("exportToCSV formula injection", () => {
       expect(dataCell(exportToCSV(rack, [deviceType]), 1)).toBe(`'${payload}`);
     },
   );
+
+  it("neutralizes and quotes a leading carriage return in the device name", () => {
+    const deviceType = createTestDeviceType({ slug: "srv", model: "Model" });
+    const rack = createTestRack({
+      devices: [createTestDevice({ device_type: "srv", name: "\rROW" })],
+    });
+
+    // A carriage return must be quote-wrapped so a spreadsheet reader cannot
+    // treat it as a CSV row break.
+    expect(dataCell(exportToCSV(rack, [deviceType]), 1)).toBe(`"'\rROW"`);
+  });
 
   it("neutralizes a leading formula trigger in the device-type manufacturer", () => {
     const deviceType = createTestDeviceType({
