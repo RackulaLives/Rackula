@@ -11,13 +11,19 @@ export type ReconcileAction =
  *
  * - No UUID match: the server has never seen this copy ("unknown-to-server"),
  *   so keep the local copy.
+ * - No recorded base (a legacy session from before the echo model): the
+ *   relationship to the server cannot be proven, so the local copy must not
+ *   silently overwrite the server's. Load the server copy and snapshot the
+ *   local one. Without a base the next PUT would omit the echo header and the
+ *   server would overwrite without snapshotting, losing a diverged server copy.
  * - The server's updatedAt still equals the base this copy was reconciled
  *   against: the local copy is simply ahead of an unchanged server ("ahead"),
  *   so keep it.
  * - Otherwise the two have diverged: resolve last-write-wins by recency. When
  *   the server is newer, load the server copy and snapshot the losing local
  *   copy (snapshotLocalUuid) so it is not lost; when local is newer, keep it
- *   ("local-newer").
+ *   ("local-newer") - the next PUT echoes the stale base, so the server
+ *   snapshots its losing copy on the mismatch.
  */
 export function reconcileSession(args: {
   localUuid: string | null;
@@ -28,7 +34,10 @@ export function reconcileSession(args: {
   const { localUuid, localSavedAt, localServerUpdatedAt, serverLayouts } = args;
   const match = localUuid ? serverLayouts.find((l) => l.id === localUuid) : undefined;
   if (!match) return { kind: "restore-local", reason: "unknown-to-server" };
-  if (localServerUpdatedAt !== null && localServerUpdatedAt === match.updatedAt) {
+  if (localServerUpdatedAt === null) {
+    return { kind: "load-server", server: match, snapshotLocalUuid: localUuid };
+  }
+  if (localServerUpdatedAt === match.updatedAt) {
     return { kind: "restore-local", reason: "ahead" };
   }
   if (isServerNewer(localSavedAt, match.updatedAt)) {

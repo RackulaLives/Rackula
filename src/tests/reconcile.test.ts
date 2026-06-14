@@ -92,6 +92,24 @@ describe("reconcileSession", () => {
     });
     expect(action).toEqual({ kind: "restore-local", reason: "local-newer" });
   });
+
+  it("loads the server copy and snapshots local when the base is unknown", () => {
+    const uuid = "66666666-6666-4666-8666-666666666666";
+    // A legacy session with a UUID match but no recorded base must not silently
+    // overwrite the server: load the server copy, snapshot the local one.
+    const match = server({ id: uuid, updatedAt: "2026-06-14T12:00:00.000Z" });
+    const action = reconcileSession({
+      localUuid: uuid,
+      localSavedAt: "2026-06-14T16:00:00.000Z",
+      localServerUpdatedAt: null,
+      serverLayouts: [match],
+    });
+    expect(action).toEqual({
+      kind: "load-server",
+      server: match,
+      snapshotLocalUuid: uuid,
+    });
+  });
 });
 
 describe("applyReconcile", () => {
