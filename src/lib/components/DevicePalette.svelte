@@ -23,24 +23,49 @@
     saveGroupingModeToStorage,
     type DeviceGroupingMode,
   } from "$lib/utils/deviceGrouping";
+  import {
+    loadFavouritesFromStorage,
+    saveFavouritesToStorage,
+    toggleFavourite,
+  } from "$lib/utils/deviceFavourites";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { debounce } from "$lib/utils/debounce";
   import { truncateWithEllipsis } from "$lib/utils/searchHighlight";
   import { getBrandPacks, getBrandSlugs } from "$lib/data/brandPacks";
   import { getStarterLibrary, getStarterSlugs } from "$lib/data/starterLibrary";
   import DevicePaletteItem from "./DevicePaletteItem.svelte";
+  import VirtualList from "./VirtualList.svelte";
   import BrandIcon from "./BrandIcon.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
   import Tooltip from "./Tooltip.svelte";
+  import IconTextBold from "./icons/IconTextBold.svelte";
+  import IconImageBold from "./icons/IconImageBold.svelte";
+  import IconImageLabel from "./icons/IconImageLabel.svelte";
+  import IconPin from "./icons/IconPin.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
-  import type { DeviceType } from "$lib/types";
+  import type { DeviceType, DisplayMode } from "$lib/types";
 
   interface Props {
     ondeviceselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
     oncreatedevice?: () => void;
+    /** Cycle the canvas display mode (label -> image -> image-label). The
+     *  palette toggle mirrors the canonical lens; it does not own the state. */
+    ontoggledisplaymode?: () => void;
   }
 
-  let { ondeviceselect, oncreatedevice }: Props = $props();
+  let { ondeviceselect, oncreatedevice, ontoggledisplaymode }: Props = $props();
+
+  // Estimated palette row height in pixels, used by the virtualized lists.
+  // Rows are a flex line with var(--touch-target-min) min-height (48px) plus
+  // vertical padding; 48 keeps the windowing math close enough for overscan.
+  const ROW_HEIGHT = 48;
+  // Below this row count a section renders as plain DOM so the accordion's
+  // height animation and the generic section's category sub-grouping stay
+  // intact. Long lists (big brand packs, A-Z mode) switch to windowing.
+  const VIRTUALIZE_THRESHOLD = 30;
+  // Cap the windowed viewport so a long section scrolls within itself rather
+  // than stretching the whole palette to thousands of pixels.
+  const VIRTUAL_VIEWPORT_MAX = 480;
 
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
@@ -65,6 +90,27 @@
     groupingMode = newMode;
     saveGroupingModeToStorage(newMode);
   }
+
+  // Favourites (pinned device slugs) with localStorage persistence.
+  // Insertion order drives the pinned section order.
+  let favouriteSlugs = $state<Set<string>>(loadFavouritesFromStorage());
+
+  function isFavourite(slug: string): boolean {
+    return favouriteSlugs.has(slug);
+  }
+
+  function handleToggleFavourite(event: CustomEvent<{ device: DeviceType }>) {
+    favouriteSlugs = toggleFavourite(favouriteSlugs, event.detail.device.slug);
+    saveFavouritesToStorage(favouriteSlugs);
+  }
+
+  // Display mode mirrors the canonical canvas lens (uiStore.displayMode); the
+  // palette only reflects and forwards toggle requests, it never owns the state.
+  const displayModeLabels: Record<DisplayMode, string> = {
+    label: "Labels",
+    image: "Images",
+    "image-label": "Both",
+  };
 
   // Accordion mode and state tracking
   let accordionMode = $state<"single" | "multiple">("single");
@@ -313,6 +359,24 @@
     searchDevices(allDevicesCombined, searchQuery),
   );
 
+  // Pinned devices: resolve favourite slugs against the same width/compat/search
+  // filtered pool the rest of the palette uses, preserving favourite order.
+  // Collect only the matching devices (favourites are few) rather than indexing
+  // the whole pool, so the search hot path stays cheap.
+  const pinnedDevices = $derived.by<DeviceType[]>(() => {
+    if (favouriteSlugs.size === 0) return [];
+    const matches: Record<string, DeviceType> = {};
+    for (const device of filteredAllDevices) {
+      if (favouriteSlugs.has(device.slug)) matches[device.slug] = device;
+    }
+    const result: DeviceType[] = [];
+    for (const slug of favouriteSlugs) {
+      const device = matches[slug];
+      if (device) result.push(device);
+    }
+    return result;
+  });
+
   // Sections for brand mode - filter out empty sections (no compatible devices)
   const brandModeSections = $derived<DeviceSection[]>(
     [
@@ -474,6 +538,29 @@
         aria-label="Search devices"
         data-testid="search-devices"
       />
+      {#if ontoggledisplaymode}
+        <Tooltip
+          text={`Display: ${displayModeLabels[uiStore.displayMode]}`}
+          shortcut="I"
+          position="bottom"
+        >
+          <button
+            type="button"
+            class="palette-header-btn"
+            onclick={ontoggledisplaymode}
+            aria-label="Toggle device display mode"
+            data-testid="btn-palette-display-mode"
+          >
+            {#if uiStore.displayMode === "label"}
+              <IconTextBold size={ICON_SIZE.sm} />
+            {:else if uiStore.displayMode === "image"}
+              <IconImageBold size={ICON_SIZE.sm} />
+            {:else}
+              <IconImageLabel size={ICON_SIZE.md} />
+            {/if}
+          </button>
+        </Tooltip>
+      {/if}
       {#if oncreatedevice}
         <Tooltip text="Create custom device" position="bottom">
           <button
@@ -492,6 +579,51 @@
 
   <!-- Device List -->
   <div class="device-list">
+    {#snippet deviceRow(device: DeviceType)}
+      <DevicePaletteItem
+        {device}
+        searchQuery={isSearchActive ? searchQuery : ""}
+        isCompatible={isCompatible(device)}
+        incompatibilityReason={incompatibilityReason(device)}
+        canDelete={canDeleteDevice(device)}
+        isFavourite={isFavourite(device.slug)}
+        onselect={handleDeviceSelect}
+        ondelete={handleDeviceDelete}
+        ontogglefavourite={handleToggleFavourite}
+      />
+    {/snippet}
+
+    <!-- Flat device list: windowed when long, plain DOM when short, so the
+         accordion height animation survives for small sections. -->
+    {#snippet deviceList(devices: DeviceType[], label: string)}
+      {#if devices.length > VIRTUALIZE_THRESHOLD}
+        <div
+          class="virtual-section"
+          style:height="{Math.min(
+            devices.length * ROW_HEIGHT,
+            VIRTUAL_VIEWPORT_MAX,
+          )}px"
+        >
+          <VirtualList
+            items={devices}
+            itemHeight={ROW_HEIGHT}
+            key={(device) => device.slug}
+            ariaLabel={label}
+          >
+            {#snippet row(device)}
+              {@render deviceRow(device)}
+            {/snippet}
+          </VirtualList>
+        </div>
+      {:else}
+        <div class="section-devices" role="list" aria-label={label}>
+          {#each devices as device (device.slug)}
+            {@render deviceRow(device)}
+          {/each}
+        </div>
+      {/if}
+    {/snippet}
+
     {#if !hasDevices}
       <div class="empty-state">
         <p class="empty-message">No devices in library</p>
@@ -502,6 +634,17 @@
         <p class="empty-message">No devices match your search</p>
       </div>
     {:else}
+      {#if pinnedDevices.length > 0}
+        <section class="pinned-section" aria-label="Pinned devices">
+          <h3 class="pinned-header">
+            <IconPin size={ICON_SIZE.sm} filled />
+            <span>Pinned</span>
+            <span class="section-count">({pinnedDevices.length})</span>
+          </h3>
+          {@render deviceList(pinnedDevices, "Pinned devices")}
+        </section>
+      {/if}
+
       {#snippet accordionSections()}
         {#each sections as section (section.id)}
           <Accordion.Item value={section.id} class="accordion-item">
@@ -547,39 +690,13 @@
                         <h3 class="category-header">
                           {getCategoryDisplayName(category)}
                         </h3>
-                        <div class="category-devices">
-                          {#each devices as device (device.slug)}
-                            <DevicePaletteItem
-                              {device}
-                              searchQuery={isSearchActive ? searchQuery : ""}
-                              isCompatible={isCompatible(device)}
-                              incompatibilityReason={incompatibilityReason(
-                                device,
-                              )}
-                              canDelete={canDeleteDevice(device)}
-                              onselect={handleDeviceSelect}
-                              ondelete={handleDeviceDelete}
-                            />
-                          {/each}
-                        </div>
+                        {@render deviceList(devices, getCategoryDisplayName(category))}
                       </div>
                     {/if}
                   {/each}
                 {:else}
                   <!-- All other sections show devices in a flat list -->
-                  <div class="section-devices">
-                    {#each section.devices as device (device.slug)}
-                      <DevicePaletteItem
-                        {device}
-                        searchQuery={isSearchActive ? searchQuery : ""}
-                        isCompatible={isCompatible(device)}
-                        incompatibilityReason={incompatibilityReason(device)}
-                        canDelete={canDeleteDevice(device)}
-                        onselect={handleDeviceSelect}
-                        ondelete={handleDeviceDelete}
-                      />
-                    {/each}
-                  </div>
+                  {@render deviceList(section.devices, section.title)}
                 {/if}
               </div>
             </Accordion.Content>
@@ -635,7 +752,8 @@
       box-shadow var(--duration-fast) ease;
   }
 
-  .create-device-btn {
+  .create-device-btn,
+  .palette-header-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -650,24 +768,28 @@
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-sm);
     cursor: pointer;
+    flex-shrink: 0;
     transition:
       background-color var(--duration-fast) ease,
       color var(--duration-fast) ease,
       border-color var(--duration-fast) ease;
   }
 
-  .create-device-btn:hover {
+  .create-device-btn:hover,
+  .palette-header-btn:hover {
     color: var(--colour-text);
     background: var(--colour-surface-hover);
     border-color: var(--colour-border-hover);
   }
 
-  .create-device-btn:focus-visible {
+  .create-device-btn:focus-visible,
+  .palette-header-btn:focus-visible {
     outline: 2px solid var(--colour-selection);
     outline-offset: 2px;
   }
 
-  .create-device-btn:active {
+  .create-device-btn:active,
+  .palette-header-btn:active {
     background: var(--colour-surface-active);
   }
 
@@ -806,14 +928,33 @@
     color: var(--colour-text-muted);
   }
 
-  .category-devices {
+  .section-devices {
     display: flex;
     flex-direction: column;
   }
 
-  .section-devices {
+  /* Windowed section: fixed height so VirtualList can scroll within it. */
+  .virtual-section {
+    overflow: hidden;
+  }
+
+  .pinned-section {
+    margin: var(--space-1) var(--space-2) var(--space-3);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--colour-border);
+  }
+
+  .pinned-header {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-2) var(--space-3) var(--space-1);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--colour-text-muted);
   }
 
   .empty-state {

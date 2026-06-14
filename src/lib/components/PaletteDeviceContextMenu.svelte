@@ -1,8 +1,8 @@
 <!--
   PaletteDeviceContextMenu Component
-  Right-click context menu for custom device types in the device palette.
-  Shows a "Delete from Library" action for custom (user-defined) devices.
-  Uses bits-ui ContextMenu in virtual trigger mode.
+  Right-click context menu for device types in the device palette.
+  Always offers a pin/unpin action; custom (user-defined) devices also get a
+  "Delete from Library" action. Uses bits-ui ContextMenu in virtual trigger mode.
 -->
 <script lang="ts">
   import { ContextMenu } from "bits-ui";
@@ -13,6 +13,12 @@
     open?: boolean;
     /** Callback when open state changes */
     onOpenChange?: (open: boolean) => void;
+    /** Whether the device is currently pinned (favourited) */
+    isFavourite?: boolean;
+    /** Whether the delete action should be offered (unused custom devices only) */
+    canDelete?: boolean;
+    /** Pin/unpin device callback */
+    ontogglefavourite?: () => void;
     /** Delete device callback */
     ondelete?: () => void;
     /** X coordinate for the menu anchor (cursor screen position). Required: a
@@ -26,6 +32,9 @@
   let {
     open = $bindable(false),
     onOpenChange,
+    isFavourite = false,
+    canDelete = false,
+    ontogglefavourite,
     ondelete,
     x,
     y,
@@ -57,15 +66,31 @@
       customAnchor={virtualAnchor}
     >
       <ContextMenu.Item
-        class="context-menu-item context-menu-item--destructive"
-        data-testid="ctx-menu-item"
+        class="context-menu-item"
+        data-testid="ctx-menu-favourite"
         onSelect={() => {
-          ondelete?.();
+          ontogglefavourite?.();
           open = false;
         }}
       >
-        <span class="context-menu-label">Delete from Library</span>
+        <span class="context-menu-label"
+          >{isFavourite ? "Unpin from top" : "Pin to top"}</span
+        >
       </ContextMenu.Item>
+
+      {#if canDelete}
+        <ContextMenu.Separator class="context-menu-separator" />
+        <ContextMenu.Item
+          class="context-menu-item context-menu-item--destructive"
+          data-testid="ctx-menu-item"
+          onSelect={() => {
+            ondelete?.();
+            open = false;
+          }}
+        >
+          <span class="context-menu-label">Delete from Library</span>
+        </ContextMenu.Item>
+      {/if}
     </ContextMenu.Content>
   </ContextMenu.Portal>
 </ContextMenu.Root>
