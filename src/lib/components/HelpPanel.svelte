@@ -10,7 +10,7 @@
   import { IconGitHub, IconBug, IconChat, IconCheck, IconCopy } from "./icons";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
-  import { formatShortcut } from "$lib/utils/platform";
+  import { getHelpGroups } from "$lib/actions/registry";
   import {
     formatRelativeTime,
     formatFullTimestamp,
@@ -141,47 +141,9 @@
     }
   }
 
-  // Keyboard shortcuts grouped by category
-  const shortcutGroups = [
-    {
-      name: "Navigation",
-      shortcuts: [
-        { key: "Scroll Wheel", action: "Zoom in/out (at cursor)" },
-        { key: "Shift + Scroll", action: "Pan horizontally" },
-        { key: "Click + Drag", action: "Pan canvas" },
-        { key: "F", action: "Fit all (zoom to fit)" },
-      ],
-    },
-    {
-      name: "General",
-      shortcuts: [
-        { key: "Escape", action: "Clear selection / Close dialog" },
-        { key: "I", action: "Toggle display mode" },
-        { key: "[", action: "Shrink sidebar" },
-        { key: "]", action: "Widen sidebar" },
-      ],
-    },
-    {
-      name: "Editing",
-      shortcuts: [
-        { key: "Delete", action: "Delete selected" },
-        { key: "↑ / ↓", action: "Move device up/down" },
-        { key: "Shift + ↑ / ↓", action: "Move device ⅓U (fine)" },
-      ],
-    },
-    {
-      name: "File",
-      shortcuts: [
-        { key: formatShortcut("mod", "S"), action: "Save layout" },
-        { key: formatShortcut("mod", "shift", "S"), action: "Save As (ZIP)" },
-        { key: formatShortcut("mod", "O"), action: "Load layout" },
-        { key: formatShortcut("mod", "E"), action: "Export image" },
-        { key: formatShortcut("mod", "H"), action: "Share" },
-        { key: formatShortcut("mod", "Z"), action: "Undo" },
-        { key: formatShortcut("mod", "shift", "Z"), action: "Redo" },
-      ],
-    },
-  ];
+  // Keyboard shortcuts, generated from the actions registry so this overlay and
+  // the keyboard handler can never drift apart.
+  const shortcutGroups = getHelpGroups();
 
   const GITHUB_URL = "https://github.com/RackulaLives/Rackula";
 
@@ -220,7 +182,7 @@
             <section class="shortcut-group">
               <h4>{group.name}</h4>
               <div class="shortcuts-list">
-                {#each group.shortcuts as { key, action } (key)}
+                {#each group.rows as { key, action } (key)}
                   <div class="shortcut-row">
                     <kbd class="key-cell">{key}</kbd>
                     <span class="action">{action}</span>

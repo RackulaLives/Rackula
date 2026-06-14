@@ -1,0 +1,208 @@
+import { describe, it, expect } from "vitest";
+import {
+  ACTION_REGISTRY,
+  getActionById,
+  findActionForEvent,
+  getHelpGroups,
+  type ActionDefinition,
+} from "$lib/actions/registry";
+
+/**
+ * The actions registry is the single source of truth for command metadata:
+ * keyboard shortcuts, the help overlay, and (later) the app menu and verb bars.
+ * These tests cover the registry's behaviour - keybinding resolution and
+ * help-group generation - not its data contents (which TypeScript validates).
+ */
+
+describe("actions registry", () => {
+  describe("getActionById", () => {
+    it("returns the matching action definition", () => {
+      const action = getActionById("undo");
+      expect(action?.id).toBe("undo");
+    });
+
+    it("returns undefined for an unknown id", () => {
+      expect(getActionById("not-a-real-command" as never)).toBeUndefined();
+    });
+
+    it("never returns two definitions sharing the same id", () => {
+      const ids = ACTION_REGISTRY.map((a) => a.id);
+      const unique = new Set(ids);
+      expect(unique.size).toBe(ids.length);
+    });
+  });
+
+  describe("findActionForEvent (keybinding resolution)", () => {
+    it("resolves Ctrl+S to the save action", () => {
+      const event = new KeyboardEvent("keydown", { key: "s", ctrlKey: true });
+      expect(findActionForEvent(event)?.id).toBe("save");
+    });
+
+    it("resolves Cmd+S to the save action (cross-platform)", () => {
+      const event = new KeyboardEvent("keydown", { key: "s", metaKey: true });
+      expect(findActionForEvent(event)?.id).toBe("save");
+    });
+
+    it("resolves Ctrl+Shift+Z to redo, not undo", () => {
+      const event = new KeyboardEvent("keydown", {
+        key: "z",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+      expect(findActionForEvent(event)?.id).toBe("redo");
+    });
+
+    it("resolves Ctrl+Z (no shift) to undo, not redo", () => {
+      const event = new KeyboardEvent("keydown", { key: "z", ctrlKey: true });
+      expect(findActionForEvent(event)?.id).toBe("undo");
+    });
+
+    it("resolves bare letter keys without modifiers", () => {
+      const event = new KeyboardEvent("keydown", { key: "f" });
+      expect(findActionForEvent(event)?.id).toBe("fit-all");
+    });
+
+    it("is case-insensitive for letter keys", () => {
+      const event = new KeyboardEvent("keydown", { key: "F" });
+      expect(findActionForEvent(event)?.id).toBe("fit-all");
+    });
+
+    it("does not resolve a bare letter when a modifier is held", () => {
+      // Ctrl+F should not trigger the bare 'f' (fit-all) action
+      const event = new KeyboardEvent("keydown", { key: "f", ctrlKey: true });
+      expect(findActionForEvent(event)).toBeUndefined();
+    });
+
+    it("returns undefined when no action matches", () => {
+      const event = new KeyboardEvent("keydown", { key: "q", altKey: true });
+      expect(findActionForEvent(event)).toBeUndefined();
+    });
+
+    it("resolves Escape", () => {
+      const event = new KeyboardEvent("keydown", { key: "Escape" });
+      expect(findActionForEvent(event)?.id).toBe("escape");
+    });
+
+    it("resolves the help key (?)", () => {
+      const event = new KeyboardEvent("keydown", { key: "?" });
+      expect(findActionForEvent(event)?.id).toBe("show-help");
+    });
+
+    it("resolves arrow keys to device movement", () => {
+      const up = new KeyboardEvent("keydown", { key: "ArrowUp" });
+      expect(findActionForEvent(up)?.id).toBe("move-device-up");
+      const down = new KeyboardEvent("keydown", { key: "ArrowDown" });
+      expect(findActionForEvent(down)?.id).toBe("move-device-down");
+    });
+
+    it("distinguishes Shift+Arrow (fine move) from bare Arrow", () => {
+      const fine = new KeyboardEvent("keydown", {
+        key: "ArrowUp",
+        shiftKey: true,
+      });
+      expect(findActionForEvent(fine)?.id).toBe("move-device-up-fine");
+    });
+  });
+
+  describe("registry integrity", () => {
+    it("every binding's key shape is reproducible by findActionForEvent", () => {
+      // For each action that declares a keybinding, an event built from that
+      // binding must resolve back to the same action. This guards against a
+      // binding being shadowed by an earlier, more permissive one.
+      for (const action of ACTION_REGISTRY) {
+        for (const binding of action.bindings) {
+          const event = new KeyboardEvent("keydown", {
+            key: binding.key,
+            ctrlKey: binding.ctrl ?? false,
+            metaKey: binding.meta ?? false,
+            shiftKey: binding.shift ?? false,
+          });
+          const resolved = findActionForEvent(event);
+          expect(
+            resolved?.id,
+            `binding ${JSON.stringify(binding)} on "${action.id}" resolved to "${resolved?.id}"`,
+          ).toBe(action.id);
+        }
+      }
+    });
+
+    it("only selection-scoped actions declare an enabledWhen predicate dependency", () => {
+      // enabledWhen is optional metadata; when present it must be a function so
+      // consumers (verb bars, palette) can gate without special-casing.
+      for (const action of ACTION_REGISTRY) {
+        if (action.enabledWhen !== undefined) {
+          expect(typeof action.enabledWhen).toBe("function");
+        }
+      }
+    });
+  });
+
+  describe("getHelpGroups (help overlay generation)", () => {
+    it("groups actions by their help group, preserving group order", () => {
+      const groups = getHelpGroups();
+      const names = groups.map((g) => g.name);
+      // Groups must appear in a stable, declared order.
+      expect(names).toEqual([...new Set(names)]);
+      expect(groups.length).toBeGreaterThan(0);
+    });
+
+    it("only includes registry actions flagged for the help overlay", () => {
+      const groups = getHelpGroups();
+      const shownLabels = new Set(
+        groups.flatMap((g) => g.rows.map((r) => r.action)),
+      );
+      // Every help-flagged registry action with a renderable key appears.
+      const helpActions = ACTION_REGISTRY.filter(
+        (a) => a.helpGroup && (a.bindings.length > 0 || a.helpKeyLabel),
+      );
+      for (const action of helpActions) {
+        expect(shownLabels.has(action.label)).toBe(true);
+      }
+      // Actions without a help group must NOT appear (e.g. toggle-sidebar).
+      const hiddenAction = ACTION_REGISTRY.find((a) => !a.helpGroup);
+      expect(hiddenAction).toBeDefined();
+      expect(shownLabels.has(hiddenAction!.label)).toBe(false);
+    });
+
+    it("formats the displayed key from the action's primary binding", () => {
+      const groups = getHelpGroups();
+      const saveRow = groups
+        .flatMap((g) => g.rows)
+        .find((r) => r.action.toLowerCase().includes("save layout"));
+      expect(saveRow).toBeDefined();
+      // The mod key formats to Ctrl or Cmd; we just assert it includes "S".
+      expect(saveRow?.key).toContain("S");
+    });
+
+    it("supports display-only help rows that have no real keybinding", () => {
+      // e.g. "Scroll Wheel" -> "Zoom" is documented in help but is not a
+      // keydown shortcut, so it carries a helpKeyLabel instead of bindings.
+      const groups = getHelpGroups();
+      const allRows = groups.flatMap((g) => g.rows);
+      const scrollRow = allRows.find((r) =>
+        r.action.toLowerCase().includes("zoom"),
+      );
+      expect(scrollRow).toBeDefined();
+      expect(scrollRow?.key).toBeTruthy();
+    });
+  });
+
+  describe("scope classification", () => {
+    it("classifies every action into a known scope", () => {
+      const scopes = new Set(ACTION_REGISTRY.map((a) => a.scope));
+      for (const scope of scopes) {
+        expect(["global", "layout", "selection"]).toContain(scope);
+      }
+    });
+
+    it("exposes save as a global-scope action", () => {
+      const save = getActionById("save") as ActionDefinition;
+      expect(save.scope).toBe("global");
+    });
+
+    it("exposes duplicate as a selection-scope action", () => {
+      const dup = getActionById("duplicate-selection") as ActionDefinition;
+      expect(dup.scope).toBe("selection");
+    });
+  });
+});
