@@ -83,9 +83,11 @@ test.describe("View Reset on Rack Changes", () => {
     expect(transformBefore).toBeTruthy();
     expect(transformBefore?.x).toBe(-300);
 
-    // Click on a different height preset (e.g., 42U)
+    // Click on a different height preset (e.g., 42U). Scope to the right edit
+    // drawer so the desktop preset wins over the mobile RackEditSheet variant.
     await page
-      .locator('.drawer-right [data-testid="btn-preset-height-42"]')
+      .getByTestId("drawer-device-edit")
+      .getByTestId("btn-preset-height-42")
       .click();
 
     // Wait for the view to reset (transform should change from panned position)

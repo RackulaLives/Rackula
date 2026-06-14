@@ -369,7 +369,7 @@
     IP Address/Hostname
     {#if ipSaved}
       <Tooltip text="Saved">
-        <span class="saved-indicator">✓</span>
+        <span class="saved-indicator" data-testid="saved-indicator-ip">✓</span>
       </Tooltip>
     {/if}
   </label>
@@ -389,7 +389,9 @@
     Notes
     {#if notesSaved}
       <Tooltip text="Saved">
-        <span class="saved-indicator">✓</span>
+        <span class="saved-indicator" data-testid="saved-indicator-notes"
+          >✓</span
+        >
       </Tooltip>
     {/if}
   </label>

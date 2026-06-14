@@ -43,13 +43,9 @@ const TEST_METADATA_2 = {
  * Helper to wait for the saved indicator after a blur
  */
 async function waitForSaved(page: Page, fieldType: "ip" | "notes") {
-  // The saved indicator appears as a checkmark next to the label
-  const labelSelector =
-    fieldType === "ip"
-      ? 'label:has-text("IP Address")'
-      : 'label:has-text("Notes")';
-  // Wait for the saved indicator to appear (confirms save completed)
-  await expect(page.locator(`${labelSelector} .saved-indicator`)).toBeVisible({
+  // The saved indicator appears as a checkmark next to the field's label.
+  // Wait for it to appear (confirms the save completed).
+  await expect(page.getByTestId(`saved-indicator-${fieldType}`)).toBeVisible({
     timeout: 3000,
   });
 }

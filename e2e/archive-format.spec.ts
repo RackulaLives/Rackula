@@ -117,7 +117,7 @@ test.describe("Archive Format", () => {
     await loadFileFromDiskViaMenu(page, legacyJsonPath);
 
     // Should show error toast - legacy format no longer supported
-    const toast = page.locator('.toast-error, .toast.error, [role="alert"]');
+    const toast = page.getByRole("alert");
     await expect(toast.first()).toBeVisible({ timeout: 5000 });
   });
 
@@ -129,7 +129,7 @@ test.describe("Archive Format", () => {
     await loadFileFromDiskViaMenu(page, corruptedPath);
 
     // Should show error toast
-    const toast = page.locator('.toast-error, .toast.error, [role="alert"]');
+    const toast = page.getByRole("alert");
     await expect(toast.first()).toBeVisible({ timeout: 5000 });
   });
 });

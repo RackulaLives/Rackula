@@ -102,9 +102,7 @@ test.describe("Undo/Redo", () => {
     const ipInput = page.locator("#device-ip");
     await ipInput.fill("192.168.1.50");
     await ipInput.blur();
-    await expect(
-      page.locator('label:has-text("IP Address") .saved-indicator'),
-    ).toBeVisible();
+    await expect(page.getByTestId("saved-indicator-ip")).toBeVisible();
     await expect(ipInput).toHaveValue("192.168.1.50");
 
     // Deselect so Ctrl+Z is not swallowed by the focused input.
