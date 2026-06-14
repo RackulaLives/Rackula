@@ -39,9 +39,16 @@
     findDeviceType(selectedDeviceInfo.device.slug) ?? selectedDeviceInfo.device,
   );
 
-  // State for device name editing
-  let editingDeviceName = $state(false);
+  // State for device name editing. editingDeviceId pins the edit to the device
+  // it started on; the editor is only open while the current selection still
+  // matches it, so a pending edit never lands on a different placement when the
+  // selection changes mid-edit (#2223).
+  let editingDeviceId = $state<string | null>(null);
   let deviceNameInput = $state("");
+  const editingDeviceName = $derived(
+    editingDeviceId !== null &&
+      selectedDeviceInfo.placedDevice.id === editingDeviceId,
+  );
 
   // Notes and IP mirror the placement and are edited via bind:value.
   // Writable derived: resets to the placement value when the selection changes.
@@ -83,11 +90,18 @@
     const deviceName =
       selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug;
     deviceNameInput = selectedDeviceInfo.placedDevice.name ?? deviceName;
-    editingDeviceName = true;
+    editingDeviceId = selectedDeviceInfo.placedDevice.id;
   }
 
   // Save device name
   function saveDeviceName() {
+    // Guard against a selection switch landing the edit on the wrong device.
+    // A blur can fire after the selection (and thus selectedDeviceInfo) has
+    // already advanced to another placement (#2223).
+    if (selectedDeviceInfo.placedDevice.id !== editingDeviceId) {
+      editingDeviceId = null;
+      return;
+    }
     const newName = deviceNameInput.trim();
     const deviceName =
       selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug;
@@ -99,7 +113,7 @@
       selectedDeviceInfo.deviceIndex,
       nameToSave,
     );
-    editingDeviceName = false;
+    editingDeviceId = null;
   }
 
   // Handle device name input keydown
@@ -107,7 +121,7 @@
     if (event.key === "Enter") {
       saveDeviceName();
     } else if (event.key === "Escape") {
-      editingDeviceName = false;
+      editingDeviceId = null;
     }
   }
 
