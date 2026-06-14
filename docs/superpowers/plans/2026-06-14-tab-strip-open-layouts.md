@@ -24,7 +24,19 @@ design-only; it is NOT in the codebase. This slice keeps tabs as in-memory sessi
 state and does NOT build that persistence layer. It establishes the workspace-store seam
 and tab UI so #2080 (lazy restore) and #2082 (sidebar) can layer persistence on top.
 Deferred and flagged: persisted open-set, the #2018 overflow/chevron/orphan/rename
-interaction model, and full cross-tab device-id/image-key namespacing (C6).
+interaction model, and cross-tab device-id/image-key namespacing (C6).
+
+**C6 deferral (device-id uniqueness across tabs):** Placement images live in the global
+singleton image store keyed `placement-<placedDeviceId>` (see
+`src/lib/stores/commands/device.ts`, `EditPanelImage.svelte`, export/archive paths). Two
+open tabs whose layouts contain a placed device with the same UUID (for example, the same
+file opened in two tabs) collide on that key, so a placement photo set in one tab can
+surface in the other. Full enforcement means namespacing every `placement-<id>` key by
+layout id across ~15 call sites (editor, export, archive, undo commands) and is entangled
+with the #2179 persistence schema and #2080 lazy restore. Regenerating ids on open is not
+a safe minimum here: it would break the undo image-remap commands and the round-trip
+identity #2080 relies on. So C6 is deferred to the persistence slice where image keying is
+reworked; it does not affect the common one-file-per-tab case.
 
 ---
 
