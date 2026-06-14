@@ -54,11 +54,14 @@ jobs:
   smoke-test:
     needs: [deploy]
     runs-on: [self-hosted, vps-rackula]
-    timeout-minutes: 5
-    permissions: {}
+    timeout-minutes: 10
+    permissions:
+      contents: read
 
     steps:
-      - name: Verify deployment
+      # Fast curl gate: fails immediately if the server is unreachable, before we
+      # spend time spinning up a browser.
+      - name: Verify deployment responds
         run: |
           sleep 5
           curl -sf --retry 5 --retry-delay 3 https://count.racku.la
@@ -74,6 +77,9 @@ jobs:
           # image version is validated separately by the verify-version-alignment
           # job, which runs the image in an ephemeral container.
           #
+          # The browser smoke test below checks version.json is well-formed; this
+          # step additionally asserts it matches the released tag.
+          #
           # Extract .version from JSON without depending on jq being installed
           # on the self-hosted runner.
           extract_version() {
@@ -85,3 +91,42 @@ jobs:
           echo "frontend=${fe} expected=${VERSION}"
           [ "$fe" = "$VERSION" ] || { echo "::error::Live frontend version '${fe}' != '${VERSION}'"; exit 1; }
           echo "✓ Live frontend reports ${VERSION}"
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-chromium-
+
+      - name: Install Playwright chromium
+        # --with-deps installs OS libraries via apt and needs root; fall back to a
+        # plain browser install when the self-hosted runner already has them.
+        run: npx playwright install --with-deps chromium || npx playwright install chromium
+
+      - name: Browser smoke test against deployed app
+        env:
+          SMOKE_TEST_URL: https://count.racku.la
+        run: npm run test:e2e:smoke
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: deploy-prod-smoke-report
+          path: playwright-report/
+          retention-days: 7

@@ -173,11 +173,53 @@ jobs:
   smoke-test:
     needs: deploy
     runs-on: [self-hosted, vps-rackula]
-    permissions: {}
+    timeout-minutes: 10
+    permissions:
+      contents: read
 
     steps:
-      - name: Verify deployment
+      # Fast curl gate: fails immediately if the server or API is unreachable,
+      # before we spend time spinning up a browser.
+      - name: Verify deployment responds
         run: |
           sleep 5
           curl -sf --retry 5 --retry-delay 3 https://d.racku.la
           curl -sf --retry 5 --retry-delay 3 https://d.racku.la/api/layouts
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-chromium-
+
+      - name: Install Playwright chromium
+        # --with-deps installs OS libraries via apt and needs root; fall back to a
+        # plain browser install when the self-hosted runner already has them.
+        run: npx playwright install --with-deps chromium || npx playwright install chromium
+
+      - name: Browser smoke test against deployed app
+        env:
+          SMOKE_TEST_URL: https://d.racku.la
+        run: npm run test:e2e:smoke
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: deploy-dev-smoke-report
+          path: playwright-report/
+          retention-days: 7
