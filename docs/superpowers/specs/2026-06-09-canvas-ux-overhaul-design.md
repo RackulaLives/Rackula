@@ -426,6 +426,18 @@ per layout via a layout-id Web Lock with an at-most-one-editable-tab-per-layout 
 404 on a deleted server layout falls through to Save as new (#2041). Undo across switch and
 restore (#2182) and the browser per-layout storage schema (#2179) are designed separately.
 
+Spike #2179 resolved the browser-mode multi-layout storage schema (see
+docs/research/spike-2179-browser-multilayout-storage-schema.md). localStorage only for now
+(IndexedDB tabled as a quota-triggered follow-up, since browser mode may be retired with the
+Cloudflare Workers migration): one workspace index key (`Rackula:workspace`: schemaVersion,
+activeId, ordered openTabs, and a library map carrying per-layout name, updatedAt, and the
+durability counters) read synchronously at launch to paint tab shells, plus one body key per
+layout (`Rackula:layout:<id>`) loaded lazily on focus. The old single `Rackula:autosave` slot is
+adopted once into the first layout then deleted. Closing a tab drops it from openTabs only; the
+body and library entry persist. Quota failures never auto-evict; they surface through the chip.
+The twin-tab Web Lock and storage events re-key per layout id, and the index is the single
+durability source for the chip rollup (#2035), tab dots (#2079), and sidebar dots (#2082).
+
 A 2026-06-10 scope review of surfaces left untouched by the shell list added six items
 and three guard rails. Dialogs unify on one primitive with three sizes (S 420, M 560,
 L 720) that renders as a bottom sheet on mobile, replacing nine ad hoc dialog widths
