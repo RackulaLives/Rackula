@@ -538,8 +538,7 @@
       <RackPlacementHeader
         rackWidth={RACK_WIDTH}
         rackPadding={RACK_PADDING}
-        deviceModel={placementStore.pendingDevice.model ??
-          placementStore.pendingDevice.slug}
+        deviceModel={pendingDevice.model ?? pendingDevice.slug}
         oncancel={handleCancelPlacement}
       />
     {/if}
