@@ -89,13 +89,12 @@ test.describe("Accessibility", () => {
         "WebKit skips buttons in Tab order by default (macOS keyboard setting)",
       );
 
-      // Start from a known anchor: the brand/about button leads the toolbar.
-      // It carries a Tooltip wrapper that duplicates the accessible name, so
-      // anchor on the button itself by testid.
-      const about = page.getByTestId("btn-logo-about");
-      await expect(about).toHaveAttribute("aria-label", "About & Shortcuts");
-      await about.focus();
-      await expect(about).toBeFocused();
+      // Start from a known anchor: the logo, which is also the app-menu
+      // trigger, leads the toolbar. Anchor on the button itself by testid.
+      const appMenu = page.getByTestId("btn-app-menu");
+      await expect(appMenu).toHaveAttribute("aria-label", "App menu");
+      await appMenu.focus();
+      await expect(appMenu).toBeFocused();
 
       // Walk forward with Tab and record what each stop is. A keyboard user
       // must be able to reach controls without the focus ring vanishing into a

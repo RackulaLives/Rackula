@@ -7,10 +7,11 @@
 -->
 <script lang="ts">
   import Tooltip from "./Tooltip.svelte";
+  import AppMenu from "./AppMenu.svelte";
   import FileMenu from "./FileMenu.svelte";
   import SettingsMenu from "./SettingsMenu.svelte";
   import StorageStatusChip from "./StorageStatusChip.svelte";
-  import LogoLockup from "./LogoLockup.svelte";
+  import type { ActionId } from "$lib/actions/registry";
   import {
     IconUndoBold,
     IconRedoBold,
@@ -56,6 +57,7 @@
     ontogglepromptcleanup?: () => void;
     onopencleanup?: () => void;
     onhelp?: () => void;
+    onnewlayout?: () => void;
     onlayouts?: () => void;
   }
 
@@ -88,6 +90,7 @@
     ontogglepromptcleanup,
     onopencleanup,
     onhelp,
+    onnewlayout,
     onlayouts,
   }: Props = $props();
 
@@ -207,8 +210,27 @@
     onopencleanup?.();
   }
 
-  function handleHelp() {
-    onhelp?.();
+  // Dispatch map from app-menu action id to its handler. The menu items
+  // themselves come from the registry (AppMenu projects getAppMenuSections);
+  // this binds each id to the closure that runs it, mirroring how
+  // KeyboardHandler binds the same ids to keyboard shortcuts.
+  const appMenuDispatch: Partial<Record<ActionId, () => void>> = {
+    "new-layout": () => onnewlayout?.(),
+    load: () => onload?.(),
+    save: () => onsave?.(),
+    "save-as": () => onsaveas?.(),
+    "export-backup": () => onsaveas?.(),
+    export: () => onexport?.(),
+    share: () => onshare?.(),
+    "view-yaml": () => onviewyaml?.(),
+    "import-devices": () => onimportdevices?.(),
+    "import-netbox": () => onimportnetbox?.(),
+    "new-custom-device": () => onnewcustomdevice?.(),
+    "show-help": () => onhelp?.(),
+  };
+
+  function handleAppMenuAction(id: ActionId) {
+    appMenuDispatch[id]?.();
   }
 
   function startEditingName() {
@@ -237,19 +259,9 @@
 </script>
 
 <header class="toolbar">
-  <!-- Left: Logo -->
+  <!-- Left: Logo (also the app menu) -->
   <div class="toolbar-section toolbar-left">
-    <Tooltip text="About & Shortcuts" shortcut="?" position="bottom">
-      <button
-        class="toolbar-brand"
-        type="button"
-        aria-label="About & Shortcuts"
-        onclick={handleHelp}
-        data-testid="btn-logo-about"
-      >
-        <LogoLockup size={32} {partyMode} />
-      </button>
-    </Tooltip>
+    <AppMenu onaction={handleAppMenuAction} {hasRacks} {partyMode} />
   </div>
 
   <!-- Layout name (desktop only) -->
@@ -577,35 +589,6 @@
 
   .toolbar-right-mobile {
     gap: var(--space-1);
-  }
-
-  /* Logo button */
-  .toolbar-brand {
-    display: flex;
-    align-items: center;
-    padding: var(--space-1);
-    border: none;
-    border-radius: var(--radius-md);
-    background: transparent;
-    cursor: pointer;
-    transition:
-      background-color var(--duration-fast) var(--ease-out),
-      transform var(--duration-fast) var(--ease-out);
-  }
-
-  .toolbar-brand:hover {
-    background: var(--colour-surface-hover);
-  }
-
-  .toolbar-brand:active {
-    transform: scale(0.98);
-  }
-
-  .toolbar-brand:focus-visible {
-    outline: none;
-    box-shadow:
-      0 0 0 2px var(--colour-bg),
-      0 0 0 4px var(--colour-focus-ring);
   }
 
   /* Icon buttons - shared by toolbar and dropdown triggers */

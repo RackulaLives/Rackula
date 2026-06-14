@@ -15,6 +15,7 @@
 
 import { matchesShortcut, type ShortcutHandler } from "$lib/utils/keyboard";
 import { formatShortcut } from "$lib/utils/platform";
+import type { StorageMode } from "$lib/storage";
 
 /**
  * Where a command applies. Consumers use this to place a command on the right
@@ -27,7 +28,13 @@ export type ActionScope = "global" | "layout" | "selection";
 export type ActionId =
   | "save"
   | "save-as"
+  | "export-backup"
+  | "new-layout"
   | "load"
+  | "import-devices"
+  | "import-netbox"
+  | "new-custom-device"
+  | "view-yaml"
   | "export"
   | "share"
   | "undo"
@@ -63,6 +70,14 @@ export interface KeyBinding {
 /** Named groups for the help overlay, rendered in this declared order. */
 export type HelpGroup = "Navigation" | "General" | "Editing" | "File";
 
+/**
+ * Sections of the app menu (the menu behind the logo), rendered in this
+ * declared order with separators between them. Actions opt into the menu by
+ * declaring an appMenuGroup; the menu is projected from the registry so it
+ * cannot drift from the keyboard handler or help overlay (#2073).
+ */
+export type AppMenuGroup = "file" | "layout" | "devices" | "help";
+
 export interface ActionDefinition {
   /** Stable identifier; the dispatch map and consumers key off this. */
   id: ActionId;
@@ -84,6 +99,18 @@ export interface ActionDefinition {
   enabledWhen?: (ctx: ActionEnabledContext) => boolean;
   /** The help overlay group this command appears under, if any. */
   helpGroup?: HelpGroup;
+  /**
+   * The app-menu section this command appears under, if any. Actions without
+   * an appMenuGroup are not shown in the menu behind the logo.
+   */
+  appMenuGroup?: AppMenuGroup;
+  /**
+   * Restricts an app-menu action to a single storage mode. "server" shows only
+   * in the server build, "browser" only in the browser build. Mode-agnostic
+   * items (the default) show in both. Full mode-aware enable/disable is #2187;
+   * this field only handles the static server-vs-browser item split (#2073).
+   */
+  storageMode?: StorageMode;
   /**
    * Display label for the help overlay key cell, used only when the command has
    * no keyboard binding (e.g. mouse gestures documented in help). When omitted,
@@ -168,13 +195,14 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
   },
   {
     id: "show-help",
-    label: "Show help",
+    label: "About and shortcuts",
     scope: "global",
     // Producing "?" requires Shift on most layouts, so the real keydown event
     // carries shiftKey=true. Bind both states so the shortcut fires whether or
     // not Shift is reported.
     bindings: [{ key: "?" }, { key: "?", shift: true }],
-    keywords: ["shortcuts", "about", "keyboard"],
+    appMenuGroup: "help",
+    keywords: ["shortcuts", "about", "keyboard", "version"],
   },
 
   // --- Editing --------------------------------------------------------------
@@ -253,6 +281,15 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
 
   // --- File -----------------------------------------------------------------
   {
+    id: "export-backup",
+    label: "Export backup",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "file",
+    storageMode: "browser",
+    keywords: ["download", "backup", "zip", "save"],
+  },
+  {
     id: "save",
     label: "Save layout",
     scope: "global",
@@ -261,6 +298,8 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
       { key: "s", meta: true },
     ],
     helpGroup: "File",
+    appMenuGroup: "file",
+    storageMode: "server",
     keywords: ["store", "persist"],
   },
   {
@@ -272,18 +311,9 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
       { key: "s", meta: true, shift: true },
     ],
     helpGroup: "File",
+    appMenuGroup: "file",
+    storageMode: "server",
     keywords: ["download", "backup", "zip"],
-  },
-  {
-    id: "load",
-    label: "Load layout",
-    scope: "global",
-    bindings: [
-      { key: "o", ctrl: true },
-      { key: "o", meta: true },
-    ],
-    helpGroup: "File",
-    keywords: ["open", "import"],
   },
   {
     id: "export",
@@ -294,6 +324,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
       { key: "e", meta: true },
     ],
     helpGroup: "File",
+    appMenuGroup: "file",
     keywords: ["png", "svg", "pdf", "image"],
   },
   {
@@ -305,8 +336,71 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
       { key: "h", meta: true },
     ],
     helpGroup: "File",
+    appMenuGroup: "file",
     keywords: ["link", "url", "qr"],
   },
+  {
+    id: "view-yaml",
+    label: "View YAML",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "file",
+    keywords: ["yaml", "source", "raw", "edit"],
+  },
+
+  // --- Layout (app menu) ----------------------------------------------------
+  {
+    id: "new-layout",
+    label: "New layout",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "layout",
+    keywords: ["new", "rack", "create", "blank"],
+  },
+  {
+    id: "load",
+    label: "Open layout",
+    scope: "global",
+    bindings: [
+      { key: "o", ctrl: true },
+      { key: "o", meta: true },
+    ],
+    helpGroup: "File",
+    appMenuGroup: "layout",
+    keywords: ["open", "load", "import"],
+  },
+
+  // --- Devices (app menu) ---------------------------------------------------
+  {
+    id: "import-devices",
+    label: "Import devices",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "devices",
+    keywords: ["import", "devices", "library"],
+  },
+  {
+    id: "import-netbox",
+    label: "Import from NetBox",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "devices",
+    keywords: ["netbox", "import", "dcim"],
+  },
+  {
+    id: "new-custom-device",
+    label: "New custom device",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "devices",
+    keywords: ["custom", "device", "create"],
+  },
+
+  // --- Help (app menu) ------------------------------------------------------
+  // show-help ("About and shortcuts") is defined in the General group above
+  // with appMenuGroup: "help"; the menu projection places it in this section.
+  // Its dialog (HelpPanel) is the About panel and includes the shortcut list,
+  // so one entry covers both about and shortcuts.
   {
     id: "undo",
     label: "Undo",
@@ -349,7 +443,11 @@ const HELP_GROUP_ORDER: HelpGroup[] = [
  * so they are not registry actions.
  */
 const HELP_GESTURE_ROWS: { group: HelpGroup; key: string; action: string }[] = [
-  { group: "Navigation", key: "Scroll Wheel", action: "Zoom in/out (at cursor)" },
+  {
+    group: "Navigation",
+    key: "Scroll Wheel",
+    action: "Zoom in/out (at cursor)",
+  },
   { group: "Navigation", key: "Shift + Scroll", action: "Pan horizontally" },
   { group: "Navigation", key: "Click + Drag", action: "Pan canvas" },
 ];
@@ -398,6 +496,19 @@ export interface HelpGroupSection {
 }
 
 /**
+ * Render a single binding with platform-correct modifier labels (e.g. "Ctrl+S"
+ * or "Cmd+S"). Shared by the help overlay and the app menu so both surfaces
+ * format keys identically.
+ */
+function formatBinding(binding: KeyBinding): string {
+  const parts: string[] = [];
+  if (binding.ctrl || binding.meta) parts.push("mod");
+  if (binding.shift) parts.push("shift");
+  parts.push(formatBindingKey(binding.key));
+  return formatShortcut(...parts);
+}
+
+/**
  * Format the help-overlay key cell for an action. Prefers an explicit
  * helpKeyLabel; otherwise renders the primary (first) binding with
  * platform-correct modifier labels.
@@ -406,11 +517,7 @@ function formatHelpKey(action: ActionDefinition): string {
   if (action.helpKeyLabel) return action.helpKeyLabel;
   const binding = action.bindings[0];
   if (!binding) return "";
-  const parts: string[] = [];
-  if (binding.ctrl || binding.meta) parts.push("mod");
-  if (binding.shift) parts.push("shift");
-  parts.push(formatBindingKey(binding.key));
-  return formatShortcut(...parts);
+  return formatBinding(binding);
 }
 
 /** Render a raw binding key into a display glyph. */
@@ -447,6 +554,75 @@ export function getHelpGroups(): HelpGroupSection[] {
 
     if (rows.length > 0) {
       sections.push({ name: groupName, rows });
+    }
+  }
+
+  return sections;
+}
+
+/** The order app-menu sections appear in, with separators between them. */
+const APP_MENU_GROUP_ORDER: AppMenuGroup[] = [
+  "layout",
+  "file",
+  "devices",
+  "help",
+];
+
+/** A single projected app-menu item. */
+export interface AppMenuItem {
+  /** The registry action id this item dispatches. */
+  id: ActionId;
+  /** The display label, taken from the registry. */
+  label: string;
+  /** The platform-formatted keyboard shortcut, if the action has one. */
+  shortcut?: string;
+}
+
+/** A named section of the app menu. */
+export interface AppMenuSection {
+  group: AppMenuGroup;
+  items: AppMenuItem[];
+}
+
+/**
+ * Format an action's primary keybinding as a menu shortcut (e.g. "Ctrl+S" or
+ * "Cmd+S"). Returns undefined when the action has no keybinding, so the menu
+ * omits the shortcut chip rather than rendering an empty one.
+ */
+function formatMenuShortcut(action: ActionDefinition): string | undefined {
+  const binding = action.bindings[0];
+  if (!binding) return undefined;
+  return formatBinding(binding);
+}
+
+/**
+ * Project the app menu (the menu behind the logo) from the registry. Items are
+ * every action that declares an appMenuGroup, grouped into sections in
+ * APP_MENU_GROUP_ORDER and following registry order within each section.
+ *
+ * The menu is storage-mode aware in the narrow, static sense this slice owns:
+ * a server-only action (Save, Save As) is dropped in browser mode, and a
+ * browser-only action (Export backup) is dropped in server mode. Full
+ * mode-aware enable/disable logic is #2187; this is only the item-set split.
+ */
+export function getAppMenuSections(mode: StorageMode): AppMenuSection[] {
+  const sections: AppMenuSection[] = [];
+
+  for (const group of APP_MENU_GROUP_ORDER) {
+    const items: AppMenuItem[] = [];
+
+    for (const action of ACTION_REGISTRY) {
+      if (action.appMenuGroup !== group) continue;
+      if (action.storageMode && action.storageMode !== mode) continue;
+      items.push({
+        id: action.id,
+        label: action.label,
+        shortcut: formatMenuShortcut(action),
+      });
+    }
+
+    if (items.length > 0) {
+      sections.push({ group, items });
     }
   }
 

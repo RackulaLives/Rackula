@@ -11,7 +11,10 @@
 <script lang="ts">
   import SantaHat from "./SantaHat.svelte";
   import { isChristmas } from "$lib/utils/christmas";
-  import { LOGO_PATH, LOGO_SQUARE_VIEWBOX } from "$lib/components/logo-geometry";
+  import {
+    LOGO_PATH,
+    LOGO_SQUARE_VIEWBOX,
+  } from "$lib/components/logo-geometry";
 
   interface Props {
     size?: number;
@@ -401,9 +404,8 @@
     }
   }
 
-  /* Always show Rackula text in toolbar hamburger button (mobile) */
-  :global(.toolbar-brand) .logo-title,
-  :global(.toolbar-brand.hamburger-mode) .logo-title {
+  /* Always show Rackula text when the logo is the toolbar app-menu trigger */
+  :global(.app-menu-trigger) .logo-title {
     display: block !important;
   }
 

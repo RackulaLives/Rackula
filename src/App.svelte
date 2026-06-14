@@ -53,6 +53,7 @@
     maybeExport,
     handleShare,
     handleFitAll,
+    resetAndOpenNewRack,
   } from "$lib/utils/app-actions";
   import {
     handleNewRack,
@@ -585,6 +586,7 @@
       ontogglepromptcleanup={() => uiStore.togglePromptCleanupOnSave()}
       onopencleanup={handleOpenCleanupDialog}
       onhelp={handleHelp}
+      onnewlayout={resetAndOpenNewRack}
     />
 
     <RackIndicator />

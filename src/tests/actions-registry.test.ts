@@ -4,6 +4,7 @@ import {
   getActionById,
   findActionForEvent,
   getHelpGroups,
+  getAppMenuSections,
 } from "$lib/actions/registry";
 
 /**
@@ -213,6 +214,101 @@ describe("actions registry", () => {
       );
       expect(scrollRow).toBeDefined();
       expect(scrollRow?.key).toBeTruthy();
+    });
+  });
+
+  describe("getAppMenuSections (app menu projection)", () => {
+    it("projects only registry actions flagged for the app menu", () => {
+      // Every item the menu shows must trace back to a registered action, so
+      // the menu and the keyboard handler cannot drift apart.
+      const sections = getAppMenuSections("browser");
+      const ids = sections.flatMap((s) => s.items.map((i) => i.id));
+      for (const id of ids) {
+        const action = getActionById(id);
+        expect(
+          action,
+          `menu item "${id}" has no registry action`,
+        ).toBeDefined();
+        expect(action?.appMenuGroup).toBeDefined();
+      }
+    });
+
+    it("shows each app-menu action exactly once within a mode", () => {
+      for (const mode of ["browser", "server"] as const) {
+        const ids = getAppMenuSections(mode).flatMap((s) =>
+          s.items.map((i) => i.id),
+        );
+        // No action appears twice in a given mode's menu.
+        expect(ids.length).toBe(new Set(ids).size);
+      }
+    });
+
+    it("covers every app-menu action across the two storage modes", () => {
+      // Mode-exclusive items (browser-only export, server-only save) mean no
+      // single mode is the full superset, but their union must be.
+      const browserIds = getAppMenuSections("browser").flatMap((s) =>
+        s.items.map((i) => i.id),
+      );
+      const serverIds = getAppMenuSections("server").flatMap((s) =>
+        s.items.map((i) => i.id),
+      );
+      const union = new Set([...browserIds, ...serverIds]);
+      const appMenuActionIds = ACTION_REGISTRY.filter(
+        (a) => a.appMenuGroup,
+      ).map((a) => a.id);
+      expect(union).toEqual(new Set(appMenuActionIds));
+    });
+
+    it("omits server-only Save and Save As in browser mode", () => {
+      const ids = getAppMenuSections("browser").flatMap((s) =>
+        s.items.map((i) => i.id),
+      );
+      expect(ids).not.toContain("save");
+      expect(ids).not.toContain("save-as");
+    });
+
+    it("adds Save and Save As in server mode", () => {
+      const ids = getAppMenuSections("server").flatMap((s) =>
+        s.items.map((i) => i.id),
+      );
+      expect(ids).toContain("save");
+      expect(ids).toContain("save-as");
+    });
+
+    it("leads the browser file section with Export backup, not Save", () => {
+      // Spec: the browser build leads with Export backup.
+      const fileSection = getAppMenuSections("browser").find(
+        (s) => s.group === "file",
+      );
+      expect(fileSection).toBeDefined();
+      expect(fileSection?.items[0]?.id).toBe("export-backup");
+    });
+
+    it("carries the registry label and platform shortcut for each item", () => {
+      const sections = getAppMenuSections("server");
+      const save = sections
+        .flatMap((s) => s.items)
+        .find((i) => i.id === "save");
+      expect(save?.label).toBe(getActionById("save")?.label);
+      // mod+S formats to Ctrl+S or Cmd+S; we just assert the key letter shows.
+      expect(save?.shortcut).toContain("S");
+    });
+
+    it("leaves shortcut undefined for actions with no keybinding", () => {
+      const sections = getAppMenuSections("browser");
+      const viewYaml = sections
+        .flatMap((s) => s.items)
+        .find((i) => i.id === "view-yaml");
+      expect(viewYaml).toBeDefined();
+      expect(viewYaml?.shortcut).toBeUndefined();
+    });
+
+    it("groups items into named sections in a stable order", () => {
+      const sections = getAppMenuSections("browser");
+      const groups = sections.map((s) => s.group);
+      // Sections appear once each, in declared order.
+      expect(groups).toEqual([...new Set(groups)]);
+      expect(sections.length).toBeGreaterThan(0);
     });
   });
 
