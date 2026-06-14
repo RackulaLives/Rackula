@@ -244,7 +244,64 @@ export async function createFolderArchive(
 ): Promise<Blob> {
   const JSZip = await getJSZip();
   const zip = new JSZip();
+  await addLayoutFolderToZip(zip, layout, images, metadata);
+  return zip.generateAsync({ type: "blob", mimeType: "application/zip" });
+}
 
+/**
+ * A single layout plus its images and optional metadata, the unit the
+ * multi-layout export-all archive (#2045) bundles one folder per entry.
+ */
+export interface LayoutArchiveEntry {
+  layout: Layout;
+  images: ImageStoreMap;
+  metadata?: LayoutMetadata;
+}
+
+/**
+ * Create one ZIP holding every layout's folder-archive form (#2045).
+ *
+ * Reuses the same per-layout folder writer as the single-layout archive, so
+ * each layout lands as "{Layout Name}-{UUID}/" with its YAML and optional
+ * assets/. A single entry yields a ZIP byte-identical to createFolderArchive,
+ * which is why the export-all degraded form (one open layout) reuses this path.
+ *
+ * @param entries - One entry per layout to include
+ * @throws {Error} if entries is empty
+ */
+export async function createMultiLayoutArchive(
+  entries: LayoutArchiveEntry[],
+): Promise<Blob> {
+  if (entries.length === 0) {
+    throw new Error("Cannot create an archive with no layouts");
+  }
+  const JSZip = await getJSZip();
+  const zip = new JSZip();
+  for (const entry of entries) {
+    await addLayoutFolderToZip(zip, entry.layout, entry.images, entry.metadata);
+  }
+  return zip.generateAsync({ type: "blob", mimeType: "application/zip" });
+}
+
+/**
+ * Write a single layout's folder-archive form into a shared JSZip instance.
+ *
+ * Each layout becomes a "{Layout Name}-{UUID}/" folder containing its YAML and
+ * an optional assets/ tree. Extracted from createFolderArchive so the
+ * single-layout archive and the multi-layout export-all (#2045) share one
+ * folder writer.
+ *
+ * @param zip - The JSZip instance to write the folder into
+ * @param layout - The layout to archive
+ * @param images - Map of device images (only user uploads with blobs are included)
+ * @param metadata - Optional metadata (will be generated if not provided)
+ */
+async function addLayoutFolderToZip(
+  zip: JSZipInstance,
+  layout: Layout,
+  images: ImageStoreMap,
+  metadata?: LayoutMetadata,
+): Promise<void> {
   // Generate or use provided metadata
   const layoutMetadata: LayoutMetadata = metadata ?? {
     id: generateId(),
@@ -326,9 +383,6 @@ export async function createFolderArchive(
       }
     }
   }
-
-  // Generate ZIP blob
-  return zip.generateAsync({ type: "blob", mimeType: "application/zip" });
 }
 
 /**
@@ -702,6 +756,23 @@ function blobToDataUrl(blob: Blob): Promise<string | null> {
  * @param metadata - Optional metadata with UUID (will be generated if not provided)
  * @returns Filename with .Rackula.zip extension
  */
+/**
+ * Generate the timestamped filename for a multi-layout export-all archive (#2045).
+ *
+ * Format: rackula-export-YYYYMMDD-HHMMSS.zip (local time). Plain .zip, not the
+ * single-layout .Rackula.zip, because the artifact bundles many layout folders
+ * rather than being one layout's archive.
+ *
+ * @param now - Clock to read; defaults to the current time. Injectable for tests.
+ */
+export function generateExportAllFilename(now: Date = new Date()): string {
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  const stamp =
+    `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
+    `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  return `rackula-export-${stamp}.zip`;
+}
+
 export function generateArchiveFilename(
   layout: Layout,
   metadata?: LayoutMetadata,
