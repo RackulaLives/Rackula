@@ -29,7 +29,9 @@ import {
   serializeLayoutToYamlWithMetadata,
   serializeLayoutToYaml,
   parseLayoutYaml,
+  parseLayoutYamlWithImages,
 } from "./yaml";
+import { encodeUserImagesToYaml } from "./image-encoding";
 import { generateId } from "./device";
 import {
   buildFolderName,
@@ -349,14 +351,25 @@ export async function extractFolderArchive(
   const isZip = header[0] === 0x50 && header[1] === 0x4b;
 
   if (!isZip) {
+    // Whole-file cap before parse. Local YAML load allows up to 5MB
+    // (MAX_YAML_BYTES) while the server PUT caps a layout at 1MB, so
+    // image-heavy YAML that loads locally fails server save loudly. That
+    // mismatch is intentional until storage quotas exist (#617).
     if (blob.size > LIMITS.MAX_YAML_BYTES) {
       throw new Error(
         `Layout file too large (${Math.round(blob.size / 1024 / 1024)}MB). Max size is ${Math.round(LIMITS.MAX_YAML_BYTES / 1024 / 1024)}MB.`,
       );
     }
     const yamlText = await blob.text();
-    const layout = await parseLayoutYaml(yamlText);
-    return { layout, images: new Map(), failedImages: [] };
+    const { layout, images, failedImagesCount } =
+      await parseLayoutYamlWithImages(yamlText);
+    // finalizeLayoutLoad uses failedImages.length, so surface the count as that
+    // many entries; the placeholder strings are never read individually.
+    const failedImages = Array.from(
+      { length: failedImagesCount },
+      (_, i) => `embedded-image-${i}`,
+    );
+    return { layout, images, failedImages };
   }
 
   // Guardrail: Max ZIP size
@@ -744,12 +757,22 @@ export async function downloadArchive(
 }
 
 /**
- * Save a layout as a standalone YAML file.
- * Returns the filename used.
+ * Save a layout as a standalone YAML file, embedding user-uploaded device
+ * images as base64 data URLs (#617) so the plain-YAML save no longer drops them.
+ *
+ * Returns the filename used and the count of images that exceeded the save
+ * warning threshold (~100KB), so the caller can surface a single non-blocking
+ * "consider optimising" toast.
  */
-export async function downloadYamlFile(layout: Layout): Promise<string> {
+export async function downloadYamlFile(
+  layout: Layout,
+  userImages?: ImageStoreMap,
+): Promise<{ filename: string; oversized: number }> {
   const { fileSave } = await import("browser-fs-access");
-  const yamlContent = await serializeLayoutToYaml(layout);
+  const { serialized, oversized } = userImages
+    ? encodeUserImagesToYaml(userImages)
+    : { serialized: undefined, oversized: 0 };
+  const yamlContent = await serializeLayoutToYaml(layout, serialized);
   const blob = new Blob([yamlContent], { type: "text/yaml;charset=utf-8" });
   const filename = buildYamlFilename(layout.name);
   await fileSave(blob, {
@@ -757,7 +780,7 @@ export async function downloadYamlFile(layout: Layout): Promise<string> {
     extensions: [".yaml"],
     description: "Rackula Layout",
   });
-  return filename;
+  return { filename, oversized };
 }
 
 // Re-export folder structure utilities for convenience

@@ -51,6 +51,7 @@
     handleFitAll,
   } from "$lib/utils/app-actions";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getImageStore } from "$lib/stores/images.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
@@ -363,9 +364,35 @@
           // Compare timestamps: load server data if it's newer than localStorage
           // or if localStorage has no timestamp (legacy data)
           if (isServerNewer(localSession.savedAt, mostRecent.updatedAt)) {
-            const serverLayout = await loadSavedLayout(mostRecent.id);
+            const {
+              layout: serverLayout,
+              images: serverImages,
+              failedImagesCount,
+            } = await loadSavedLayout(mostRecent.id);
+            // Reset images: clear, reload bundled base, overlay decoded uploads.
+            const imageStore = getImageStore();
+            imageStore.clearAllImages();
+            imageStore.loadBundledImages();
+            for (const [deviceSlug, deviceImages] of serverImages) {
+              if (deviceImages.front) {
+                imageStore.setDeviceImage(
+                  deviceSlug,
+                  "front",
+                  deviceImages.front,
+                );
+              }
+              if (deviceImages.rear) {
+                imageStore.setDeviceImage(deviceSlug, "rear", deviceImages.rear);
+              }
+            }
             layoutStore.loadLayout(serverLayout);
             layoutStore.markClean();
+            if (failedImagesCount > 0) {
+              toastStore.showToast(
+                `Layout loaded with ${failedImagesCount} image${failedImagesCount > 1 ? "s" : ""} that couldn't be read`,
+                "warning",
+              );
+            }
 
             // Clear stale localStorage to prevent future conflicts
             clearSession();

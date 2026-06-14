@@ -76,8 +76,8 @@ export async function loadFromApi(uuid: string) {
   const toastStore = getToastStore();
 
   try {
-    const layout = await loadSavedLayout(uuid);
-    finalizeLayoutLoad(layout);
+    const { layout, images, failedImagesCount } = await loadSavedLayout(uuid);
+    finalizeLayoutLoad(layout, images, failedImagesCount);
     return true;
   } catch (e) {
     let message: string;

@@ -13,6 +13,7 @@ import {
 import { saveSession, clearSession } from "./working-copy";
 import { loadFromFile } from "./load-pipeline";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
+import { getImageStore } from "$lib/stores/images.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { downloadYamlFile } from "$lib/utils/archive";
@@ -262,12 +263,22 @@ export async function handleSaveAsArchive(): Promise<boolean> {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
   try {
-    const filename = await downloadYamlFile(layoutStore.layout);
+    const { filename, oversized } = await downloadYamlFile(
+      layoutStore.layout,
+      getImageStore().getUserImages(),
+    );
     layoutStore.markClean();
     layoutStore.markExported();
     cancelSessionSave();
     clearSession();
     toastStore.showToast(`Saved ${filename}`, "success", 3000);
+    if (oversized > 0) {
+      toastStore.showToast(
+        `${oversized} image${oversized > 1 ? "s" : ""} exceed 100KB; consider optimising them to keep files small.`,
+        "warning",
+        6000,
+      );
+    }
     return true;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
