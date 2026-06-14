@@ -46,3 +46,7 @@ export {
   isServerSavePending,
 } from "./manager.svelte";
 export { shouldWarnBeforeUnload, type UnloadRiskState } from "./unload-risk";
+export {
+  getServerBaseUpdatedAt,
+  setServerBaseUpdatedAt,
+} from "./server-base";

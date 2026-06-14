@@ -11,6 +11,10 @@ import {
   getServerInstanceLabel,
 } from "./api";
 import { saveSession, clearSession } from "./working-copy";
+import {
+  getServerBaseUpdatedAt,
+  setServerBaseUpdatedAt,
+} from "./server-base";
 import { loadFromFile } from "./load-pipeline";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
 import { getImageStore } from "$lib/stores/images.svelte";
@@ -102,15 +106,21 @@ export function getStorageChipState() {
  * API available, and dismisses any lingering error toast.
  *
  * When clearDirtyState is true (the default): also sets status to "saved", marks
- * the layout clean, cancels the pending session debounce, and clears the session
- * copy.
+ * the layout clean, cancels the pending session debounce, records the server
+ * echo as the new base, and re-stamps the working copy with it. The copy is kept
+ * (not cleared) so a reload can detect divergence against the echoed updatedAt.
  *
  * @param clearDirtyState Pass false for a stale debounced save whose captured
  *   snapshot is older than the live layout (newer unsaved edits arrived while the
  *   save was in flight). The dirty flag and session state are then preserved for
  *   the follow-up save so unload warnings and recovery data survive.
+ * @param newUpdatedAt The server-echoed updatedAt from this save's PUT response.
+ *   Becomes the base threaded into subsequent PUTs and stamped onto the copy.
  */
-export function finalizeSuccessfulSave(clearDirtyState = true): void {
+export function finalizeSuccessfulSave(
+  clearDirtyState = true,
+  newUpdatedAt: string | null = null,
+): void {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
   _consecutiveSaveFailures = 0;
@@ -123,7 +133,15 @@ export function finalizeSuccessfulSave(clearDirtyState = true): void {
     _saveStatus = "saved";
     layoutStore.markClean();
     cancelSessionSave();
-    clearSession();
+    if (newUpdatedAt) setServerBaseUpdatedAt(newUpdatedAt);
+    saveSession(
+      layoutStore.layout,
+      {
+        changesSinceExport: layoutStore.changesSinceExport,
+        hasEverExported: layoutStore.hasEverExported,
+      },
+      getServerBaseUpdatedAt(),
+    );
   }
 }
 
@@ -247,8 +265,15 @@ export async function handleSaveToServer(isManual = false): Promise<boolean> {
     }
     const snapshot = structuredClone($state.snapshot(layoutStore.layout));
     const imagesSnapshot = getImageStore().getUserImages();
-    await saveLayoutToServer(snapshot, imagesSnapshot);
-    finalizeSuccessfulSave(scheduleId === _serverSaveScheduleId);
+    const result = await saveLayoutToServer(
+      snapshot,
+      imagesSnapshot,
+      getServerBaseUpdatedAt(),
+    );
+    finalizeSuccessfulSave(
+      scheduleId === _serverSaveScheduleId,
+      result.updatedAt,
+    );
     if (isManual) {
       toastStore.showToast("Layout saved", "success", 3000);
     }
@@ -311,10 +336,14 @@ export function flushSessionSave(): void {
   const layoutStore = getLayoutStore();
   if (saveDebounceTimer && layoutStore.hasRack) {
     cancelSessionSave();
-    saveSession(layoutStore.layout, {
-      changesSinceExport: layoutStore.changesSinceExport,
-      hasEverExported: layoutStore.hasEverExported,
-    });
+    saveSession(
+      layoutStore.layout,
+      {
+        changesSinceExport: layoutStore.changesSinceExport,
+        hasEverExported: layoutStore.hasEverExported,
+      },
+      getServerBaseUpdatedAt(),
+    );
   }
 }
 
@@ -334,10 +363,14 @@ export function initPersistenceEffects(): void {
       }
       _sessionSavePending = true;
       saveDebounceTimer = setTimeout(() => {
-        saveSession(currentLayout, {
-          changesSinceExport: layoutStore.changesSinceExport,
-          hasEverExported: layoutStore.hasEverExported,
-        });
+        saveSession(
+          currentLayout,
+          {
+            changesSinceExport: layoutStore.changesSinceExport,
+            hasEverExported: layoutStore.hasEverExported,
+          },
+          getServerBaseUpdatedAt(),
+        );
         saveDebounceTimer = null;
         _sessionSavePending = false;
       }, 1000);
@@ -377,10 +410,17 @@ export function initPersistenceEffects(): void {
       _serverSavePending = false;
       _saveStatus = "saving";
       try {
-        await saveLayoutToServer(snapshot, imagesSnapshot);
+        const result = await saveLayoutToServer(
+          snapshot,
+          imagesSnapshot,
+          getServerBaseUpdatedAt(),
+        );
         // Only clear dirty/session state if no newer save was scheduled while
         // this one was in flight; otherwise newer unsaved edits exist.
-        finalizeSuccessfulSave(scheduleId === _serverSaveScheduleId);
+        finalizeSuccessfulSave(
+          scheduleId === _serverSaveScheduleId,
+          result.updatedAt,
+        );
       } catch (e) {
         persistenceDebug.api("Auto-save failed: %O", e);
         handlePersistenceError(e);

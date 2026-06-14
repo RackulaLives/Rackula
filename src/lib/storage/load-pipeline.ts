@@ -8,6 +8,7 @@ import { getToastStore } from "$lib/stores/toast.svelte";
 import { getSelectionStore } from "$lib/stores/selection.svelte";
 import { getCanvasStore } from "$lib/stores/canvas.svelte";
 import { clearSession } from "./working-copy";
+import { setServerBaseUpdatedAt } from "./server-base";
 import type { Layout } from "$lib/types";
 import type { ImageStoreMap } from "$lib/types/images";
 import { loadSavedLayout, PersistenceError } from "./api";
@@ -91,7 +92,11 @@ export async function loadFromApi(uuid: string) {
   const toastStore = getToastStore();
 
   try {
-    const { layout, images, failedImagesCount } = await loadSavedLayout(uuid);
+    const { layout, images, failedImagesCount, updatedAt } =
+      await loadSavedLayout(uuid);
+    // Record the server's updatedAt as the base for this copy before finalizing,
+    // so the first autosave PUT carries the correct last-known timestamp.
+    setServerBaseUpdatedAt(updatedAt ?? null);
     finalizeLayoutLoad(layout, images, failedImagesCount);
     return true;
   } catch (e) {
@@ -124,6 +129,9 @@ export async function loadFromFile(file?: File) {
 
     const { layout, images, failedImages } =
       await extractFolderArchive(selectedFile);
+    // A file copy has no server base; autosave will create/re-establish one via
+    // its first PUT (the server treats a null last-known updatedAt as a create).
+    setServerBaseUpdatedAt(null);
     finalizeLayoutLoad(layout, images, failedImages.length);
     // The loaded file is itself a backup: nothing has changed since export
     getLayoutStore().markExported();

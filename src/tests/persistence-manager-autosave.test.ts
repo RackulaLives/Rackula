@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   finalizeSuccessfulSave,
   handlePersistenceError,
@@ -6,15 +6,15 @@ import {
   resetPersistenceManager,
 } from "$lib/storage/manager.svelte";
 import { PersistenceError } from "$lib/storage/api";
+import {
+  getServerBaseUpdatedAt,
+  setServerBaseUpdatedAt,
+} from "$lib/storage/server-base";
+import { loadSessionWithTimestamp } from "$lib/storage/working-copy";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
 import { setApiAvailable } from "$lib/storage/availability.svelte";
-
-// Avoid touching localStorage; finalizeSuccessfulSave clears the working copy.
-vi.mock("$lib/storage/working-copy", () => ({
-  saveSession: vi.fn(),
-  clearSession: vi.fn(),
-}));
+import { createTestLayout } from "./factories";
 
 /**
  * A successful server save must leave the layout clean regardless of which
@@ -28,6 +28,7 @@ describe("successful save epilogue", () => {
     resetLayoutStore();
     resetToastStore();
     resetPersistenceManager();
+    setServerBaseUpdatedAt(null);
     setApiAvailable(true);
   });
 
@@ -77,5 +78,25 @@ describe("successful save epilogue", () => {
 
     expect(getConsecutiveSaveFailures()).toBe(0); // server health recorded
     expect(layoutStore.isDirty).toBe(true); // newer unsaved edits preserved
+  });
+
+  it("keeps the working copy and records the server echo on a durable save", () => {
+    const layoutStore = getLayoutStore();
+    // A started layout with a rack: the conditions under which the working copy
+    // is autosaved and a server PUT is echoed back.
+    layoutStore.loadLayout(createTestLayout());
+    layoutStore.markStarted();
+    layoutStore.markDirty();
+    expect(layoutStore.hasRack).toBe(true);
+
+    finalizeSuccessfulSave(true, "2026-06-14T10:00:00.000Z");
+
+    // The echo becomes the new base for subsequent PUTs.
+    expect(getServerBaseUpdatedAt()).toBe("2026-06-14T10:00:00.000Z");
+    // The working copy is re-stamped, not removed: it survives a reload and
+    // carries the echo so divergence can be detected next session.
+    const session = loadSessionWithTimestamp();
+    expect(session).not.toBeNull();
+    expect(session?.serverUpdatedAt).toBe("2026-06-14T10:00:00.000Z");
   });
 });
