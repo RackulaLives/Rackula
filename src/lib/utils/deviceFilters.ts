@@ -193,17 +193,17 @@ export function getFirstMatch(
  */
 export function getCategoryDisplayName(category: DeviceCategory): string {
   const names: Record<DeviceCategory, string> = {
-    server: "Servers",
+    server: "Server",
     network: "Network",
-    firewall: "Firewalls",
-    "patch-panel": "Patch Panels",
+    firewall: "Firewall",
+    "patch-panel": "Patch Panel",
     power: "Power",
     storage: "Storage",
     kvm: "KVM",
     "av-media": "AV/Media",
     cooling: "Cooling",
-    shelf: "Shelves",
-    blank: "Blanks",
+    shelf: "Shelf",
+    blank: "Blank",
     "cable-management": "Cable Management",
     chassis: "Chassis",
     other: "Other",
