@@ -405,6 +405,35 @@ export async function saveLayoutToServer(
 }
 
 /**
+ * Upload a losing local copy to the server snapshot store before discarding it.
+ * Returns true only when the snapshot was stored. Any failure (404 unknown
+ * layout, network error, non-2xx) returns false so the caller keeps the copy.
+ */
+export async function uploadSnapshot(
+  uuid: string,
+  yamlContent: string,
+): Promise<boolean> {
+  if (!isApiAvailable()) return false;
+  const url = `${API_BASE_URL}/layouts/${encodeURIComponent(uuid)}/snapshots`;
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/yaml" },
+      body: yamlContent,
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      log("uploadSnapshot: failed uuid=%s status=%d", uuid, response.status);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    log("uploadSnapshot: error uuid=%s %O", uuid, error);
+    return false;
+  }
+}
+
+/**
  * Delete a saved layout by UUID
  * @param uuid - The layout's UUID (stable identity)
  */

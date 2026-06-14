@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { checkApiHealth, saveLayoutToServer } from "$lib/storage/api";
+import {
+  checkApiHealth,
+  saveLayoutToServer,
+  uploadSnapshot,
+} from "$lib/storage/api";
 import { setApiAvailable } from "$lib/storage/availability.svelte";
 
 describe("checkApiHealth", () => {
@@ -189,5 +193,77 @@ describe("saveLayoutToServer", () => {
     await expect(
       saveLayoutToServer(layout as never, new Map(), null),
     ).rejects.toThrow();
+  });
+});
+
+describe("uploadSnapshot", () => {
+  function stubBrowserGlobals(): void {
+    vi.stubGlobal("AbortSignal", {
+      timeout: () => new AbortController().signal,
+    });
+  }
+
+  beforeEach(() => {
+    setApiAvailable(true);
+    stubBrowserGlobals();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    setApiAvailable(false);
+  });
+
+  it("returns true on 201", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            filename: "l~20260614-100000.yaml",
+            message: "Snapshot saved",
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+    expect(
+      await uploadSnapshot(
+        "11111111-1111-4111-8111-111111111111",
+        "name: L\n",
+      ),
+    ).toBe(true);
+  });
+
+  it("returns false on 404 (layout unknown)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ error: "Layout not found" }), {
+            status: 404,
+          }),
+        ),
+    );
+    expect(
+      await uploadSnapshot(
+        "11111111-1111-4111-8111-111111111111",
+        "name: L\n",
+      ),
+    ).toBe(false);
+  });
+
+  it("returns false when fetch rejects", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("network")),
+    );
+    expect(
+      await uploadSnapshot(
+        "11111111-1111-4111-8111-111111111111",
+        "name: L\n",
+      ),
+    ).toBe(false);
   });
 });
