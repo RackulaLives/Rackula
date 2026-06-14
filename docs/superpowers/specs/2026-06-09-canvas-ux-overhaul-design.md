@@ -133,6 +133,36 @@ design in which selecting an object hid the View controls. The panel is collapsi
 a slim rail to give the canvas its width back, and it remembers whether it was left
 collapsed. Multi-select and empty states are first-class.
 
+### Edit panel section components (#1398)
+
+The legacy EditPanel was decomposed into composable section components ahead of this
+overhaul (#1398). These are the sections the Edit tab (#2077) composes, and they define
+the contract that tab builds against:
+
+- `EditPanelRack`: rack or group properties (name, height, U numbering, rear-view
+  toggle, notes, annotation field, delete). Props: `selectedRack`, `selectedGroup`.
+- `EditPanelMetadata`: device descriptive fields (name, type/brand, height, category,
+  colour, mounted face, power ratings, type notes, IP, placement notes). Props:
+  `selectedDeviceInfo`.
+- `EditPanelPosition`: vertical position, half-width slot, container context. Props:
+  `selectedDeviceInfo`.
+- `EditPanelImage`: front/rear placement image overrides. Props: `selectedDeviceInfo`.
+- `EditPanelActions`: remove from rack, delete custom type. Props: `selectedDeviceInfo`,
+  and an `ondeletetype` callback (the host owns the confirm dialog).
+
+Contract notes for the Edit tab:
+
+- Sections are single-entity: each renders properties for one selected rack or device.
+  The host (today `EditPanel`, later the Edit tab) owns empty-state and multi-select
+  orchestration; sections never branch on nothing-selected.
+- Sections access stores via the singleton getters directly. Only the resolved selection
+  (`SelectedDeviceInfo`, `selectedRack`, `selectedGroup`) is passed as props; each section
+  sources the rack id from the selection it receives (`selectedRack.id` /
+  `selectedDeviceInfo.rack.id`). `SelectedDeviceInfo` is exported from `src/lib/types`.
+- Transitional: `EditPanelRack` still hosts the rear-view and annotation toggles. These
+  are layout-scoped view state that the View tab (#2078) absorbs; lift them out of
+  `EditPanelRack` when #2078 lands.
+
 ## Storage
 
 ### Explicit storage mode
@@ -340,12 +370,12 @@ the align-roadmap session plan file; per-issue details live on the issues.
 
 ### Canonical homes
 
-| State | Canonical control | Mirrors | Scope |
-| --- | --- | --- | --- |
-| Display mode | Bottom-left lens (#2074) | View tab (#2078), palette toggle (#2094) | Layout |
-| Annotations | View tab (#2078) | none (removed from #2093 Appearance) | Layout |
-| Theme | Settings dialog (#2093) | none | App preference |
-| Per-layout durability | Chip derived API (#2035) | Tab dots (#2079), sidebar dots (#2082) | Workspace rollup |
+| State                 | Canonical control        | Mirrors                                  | Scope            |
+| --------------------- | ------------------------ | ---------------------------------------- | ---------------- |
+| Display mode          | Bottom-left lens (#2074) | View tab (#2078), palette toggle (#2094) | Layout           |
+| Annotations           | View tab (#2078)         | none (removed from #2093 Appearance)     | Layout           |
+| Theme                 | Settings dialog (#2093)  | none                                     | App preference   |
+| Per-layout durability | Chip derived API (#2035) | Tab dots (#2079), sidebar dots (#2082)   | Workspace rollup |
 
 ### Sequencing amendments
 
