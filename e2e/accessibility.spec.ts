@@ -1,0 +1,282 @@
+/**
+ * Accessibility E2E coverage.
+ *
+ * These tests exercise real assistive-technology behaviour rather than DOM
+ * structure: focusable controls are reached by role/name, focus trapping and
+ * restoration are verified through the active element, and live regions are
+ * found by their ARIA role. Touch-target sizing is measured against the WCAG
+ * 2.5.5 minimum on a mobile viewport.
+ *
+ * @see docs/guides/ACCESSIBILITY.md
+ * @see https://github.com/RackulaLives/Rackula/issues/1231
+ */
+import { test, expect } from "./helpers/base-test";
+import type { Page } from "@playwright/test";
+import {
+  gotoWithRack,
+  EMPTY_RACK_SHARE,
+  clickNewRack,
+  locators,
+} from "./helpers";
+
+/** WCAG 2.5.5 Target Size (Level AAA) / 2.5.8 (Level AA) minimum. */
+const MIN_TOUCH_TARGET_PX = 44;
+
+/** A representative phone viewport for mobile-only accessibility checks. */
+const MOBILE_VIEWPORT = { width: 412, height: 915 };
+
+/**
+ * Load the app at a phone viewport with a rack preloaded, dismissing the
+ * mobile warning before navigation so it never intercepts interactions.
+ */
+async function gotoMobileWithRack(page: Page): Promise<void> {
+  await page.setViewportSize(MOBILE_VIEWPORT);
+  await page.addInitScript(() => {
+    sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
+  });
+  await page.goto(`/?l=${EMPTY_RACK_SHARE}`);
+  await page
+    .locator(locators.rack.container)
+    .first()
+    .waitFor({ state: "visible" });
+}
+
+/**
+ * Resolve the accessible role and name of the currently focused element.
+ * Runs in the browser so it reflects what an assistive technology would expose.
+ */
+async function activeElementInfo(page: Page): Promise<{
+  role: string | null;
+  name: string | null;
+  tag: string;
+  testid: string | null;
+}> {
+  return page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el) return { role: null, name: null, tag: "", testid: null };
+    // Prefer the explicit accessible name. Fall back to own text only for leaf
+    // elements so a focused container does not report its whole subtree's text.
+    const ownText = el.children.length === 0 ? el.textContent?.trim() : "";
+    const name =
+      el.getAttribute("aria-label") ||
+      (ownText && ownText.length > 0 ? ownText : null) ||
+      el.getAttribute("title") ||
+      null;
+    return {
+      role: el.getAttribute("role"),
+      name,
+      tag: el.tagName.toLowerCase(),
+      testid: el.getAttribute("data-testid"),
+    };
+  });
+}
+
+test.describe("Accessibility", () => {
+  test.describe("Keyboard navigation", () => {
+    test.beforeEach(async ({ page }) => {
+      await gotoWithRack(page);
+    });
+
+    test("Tab reaches the major interactive regions by role and name", async ({
+      page,
+      browserName,
+    }) => {
+      // WebKit does not move keyboard focus through buttons via Tab by default
+      // (macOS "Full Keyboard Access" is off), so a Tab sweep over button
+      // controls is not meaningful there. Chromium exercises the full path.
+      test.skip(
+        browserName === "webkit",
+        "WebKit skips buttons in Tab order by default (macOS keyboard setting)",
+      );
+
+      // Start from a known anchor: the brand/about button leads the toolbar.
+      // It carries a Tooltip wrapper that duplicates the accessible name, so
+      // anchor on the button itself by testid.
+      const about = page.getByTestId("btn-logo-about");
+      await expect(about).toHaveAttribute("aria-label", "About & Shortcuts");
+      await about.focus();
+      await expect(about).toBeFocused();
+
+      // Walk forward with Tab and record what each stop is. A keyboard user
+      // must be able to reach controls without the focus ring vanishing into a
+      // non-interactive void, and the toolbar's Export action must be on the
+      // path. We track the Export button by its testid so an unrelated element
+      // whose name merely contains "export" cannot satisfy the check.
+      let sawInteractiveControl = false;
+      let reachedExportButton = false;
+
+      for (let i = 0; i < 25; i++) {
+        await page.keyboard.press("Tab");
+        const info = await activeElementInfo(page);
+
+        // Focus must always land on something focusable, never <body>.
+        expect(info.tag).not.toBe("body");
+
+        if (info.testid === "btn-export") reachedExportButton = true;
+
+        // Native controls and ARIA widgets are the keyboard-operable surface.
+        const interactiveTags = ["button", "input", "a", "select", "textarea"];
+        if (
+          interactiveTags.includes(info.tag) ||
+          info.role === "button" ||
+          info.role === "tab" ||
+          info.role === "option"
+        ) {
+          sawInteractiveControl = true;
+        }
+
+        if (reachedExportButton) break;
+      }
+
+      expect(sawInteractiveControl).toBe(true);
+      // The Export toolbar action must be reachable in a single forward sweep.
+      expect(reachedExportButton).toBe(true);
+    });
+
+    test("canvas exposes an application region with a descriptive name", async ({
+      page,
+    }) => {
+      // The canvas advertises role="application" so screen-reader users know it
+      // is an interactive drawing surface, and carries a non-empty accessible
+      // name describing the rack contents. We assert the role and a meaningful
+      // name rather than exact text, since the description is content-derived.
+      const canvas = page.getByRole("application");
+      await expect(canvas).toBeVisible();
+
+      const name = await canvas.getAttribute("aria-label");
+      expect(name?.trim()).toBeTruthy();
+    });
+  });
+
+  test.describe("Dialog focus management", () => {
+    test.beforeEach(async ({ page }) => {
+      await gotoWithRack(page);
+    });
+
+    test("dialog traps Tab focus within its content", async ({
+      page,
+      browserName,
+    }) => {
+      // Tab-based focus traversal relies on the browser visiting buttons in Tab
+      // order, which WebKit disables by default. The trap itself is enforced by
+      // bits-ui in JS; Chromium verifies it cycles correctly.
+      test.skip(
+        browserName === "webkit",
+        "WebKit skips buttons in Tab order by default (macOS keyboard setting)",
+      );
+
+      await clickNewRack(page);
+
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+
+      // Tab repeatedly; focus must stay inside the dialog on every stop.
+      // A trapped dialog cycles through its own controls and never lets focus
+      // escape to the page behind the modal.
+      for (let i = 0; i < 20; i++) {
+        await page.keyboard.press("Tab");
+        const focusInDialog = await dialog.evaluate((node) =>
+          node.contains(document.activeElement),
+        );
+        expect(focusInDialog).toBe(true);
+      }
+
+      // Shift+Tab (reverse cycle) must also stay trapped.
+      for (let i = 0; i < 20; i++) {
+        await page.keyboard.press("Shift+Tab");
+        const focusInDialog = await dialog.evaluate((node) =>
+          node.contains(document.activeElement),
+        );
+        expect(focusInDialog).toBe(true);
+      }
+    });
+
+    test("closing a dialog restores focus to its trigger", async ({
+      page,
+      browserName,
+    }) => {
+      // WebKit does not give buttons DOM focus on activation by default, so
+      // there is no trigger focus to restore. The restoration itself is bits-ui
+      // behaviour; Chromium verifies it end to end for a keyboard user.
+      test.skip(
+        browserName === "webkit",
+        "WebKit does not focus buttons on activation by default (macOS keyboard setting)",
+      );
+
+      // Switch to the Racks tab and open the wizard from the New Rack button
+      // via keyboard, so the trigger genuinely holds focus before the dialog
+      // opens, the way a keyboard user would experience it.
+      await page.getByTestId("sidebar-tab-racks").click();
+      const trigger = page.getByTestId("btn-new-rack");
+      await trigger.focus();
+      await expect(trigger).toBeFocused();
+      await page.keyboard.press("Enter");
+
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+
+      await page.keyboard.press("Escape");
+      await expect(dialog).not.toBeVisible();
+
+      // Focus must return to the control that opened the dialog so keyboard
+      // users are not dumped back at the top of the document.
+      await expect(trigger).toBeFocused();
+    });
+  });
+
+  test.describe("Live regions", () => {
+    test("a status live region announces tap-to-place on mobile", async ({
+      page,
+    }) => {
+      // Mobile uses tap-to-place: selecting a palette device arms placement and
+      // surfaces a role="status" / aria-live header so the pending device is
+      // announced. Desktop has no equivalent flow, so this is mobile-scoped.
+      await gotoMobileWithRack(page);
+
+      // Open the device library and arm a device for placement.
+      await page.getByRole("button", { name: "Devices" }).click();
+      await expect(
+        page.locator(locators.device.paletteItem).first(),
+      ).toBeVisible();
+      await page.locator(locators.device.paletteItem).first().click();
+
+      // The placement header is a polite status region naming the pending
+      // device. The dual-view renders front and rear copies, so scope to the
+      // first match. getByRole finds the live region regardless of markup.
+      const status = page
+        .getByRole("status")
+        .filter({ hasText: /tap to place/i })
+        .first();
+      await expect(status).toBeVisible();
+    });
+  });
+
+  test.describe("Touch targets", () => {
+    test("mobile bottom navigation meets the minimum touch-target size", async ({
+      page,
+    }) => {
+      await gotoMobileWithRack(page);
+
+      const nav = page.getByRole("navigation", { name: /mobile navigation/i });
+      await expect(nav).toBeVisible();
+
+      // Every actionable button in the bottom nav must be large enough to tap
+      // reliably, per WCAG 2.5.5. Measuring each one catches a single
+      // undersized control rather than an aggregate average.
+      const buttons = nav.getByRole("button");
+      const count = await buttons.count();
+      expect(count).toBeGreaterThan(0);
+
+      for (let i = 0; i < count; i++) {
+        const button = buttons.nth(i);
+        await expect(button).toBeVisible();
+        const box = await button.boundingBox();
+        expect(box).not.toBeNull();
+        if (box) {
+          expect(box.width).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_PX);
+          expect(box.height).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_PX);
+        }
+      }
+    });
+  });
+});
