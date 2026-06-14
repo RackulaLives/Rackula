@@ -7,9 +7,9 @@
  *
  * Two pure pieces:
  *  - `layoutPreviewKey` derives a stable cache key from the fields that affect
- *    the render (racks, device types, groups, display mode). Anything else,
- *    including the layout name, is excluded so a rename never invalidates the
- *    thumbnail.
+ *    the render (racks, device types, groups). Anything else, including the
+ *    layout name and display mode (previews always render in label mode), is
+ *    excluded so a rename never invalidates the thumbnail.
  *  - `createLayoutPreviewCache` is a bounded, in-memory LRU keyed by tab id. It
  *    is session-only: durable persistence of previews belongs to the
  *    browser-mode storage schema slice (#2080) and is intentionally not built
@@ -24,7 +24,7 @@ import type { Layout, Rack, DeviceType, RackGroup } from "$lib/types";
  * The key is a deterministic serialization of only the render-affecting
  * fields. Two layouts that render identically share a key; any edit that would
  * change the rendered image (placing or moving a device, resizing a rack,
- * recolouring a device type, switching display mode) changes it. The layout
+ * recolouring a device type) changes it. The layout
  * name is deliberately excluded: it is shown as the row's text label, not in
  * the render, so renaming must not throw the cached thumbnail away.
  */
@@ -32,9 +32,8 @@ export function layoutPreviewKey(layout: Layout): string {
   const racks = (layout.racks ?? []).map(rackKeyParts);
   const deviceTypes = (layout.device_types ?? []).map(deviceTypeKeyParts);
   const groups = (layout.rack_groups ?? []).map(groupKeyParts);
-  const displayMode = layout.settings?.display_mode ?? "label";
 
-  return JSON.stringify({ racks, deviceTypes, groups, displayMode });
+  return JSON.stringify({ racks, deviceTypes, groups });
 }
 
 function rackKeyParts(rack: Rack) {

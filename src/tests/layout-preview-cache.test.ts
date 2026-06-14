@@ -66,12 +66,12 @@ describe("layoutPreviewKey", () => {
     expect(layoutPreviewKey(before)).not.toBe(layoutPreviewKey(after));
   });
 
-  it("changes when the display mode changes", () => {
+  it("ignores the display mode (previews always render in label mode)", () => {
     const before = createTestLayout();
     const after = createTestLayout();
     after.settings = { ...after.settings, display_mode: "image" };
 
-    expect(layoutPreviewKey(before)).not.toBe(layoutPreviewKey(after));
+    expect(layoutPreviewKey(before)).toBe(layoutPreviewKey(after));
   });
 
   it("ignores the layout name (name is shown as row text, not in the render)", () => {
