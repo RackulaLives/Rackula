@@ -43,7 +43,7 @@ missing from unavailable), `safeSetItem` (false on quota/unavailable), `safeRemo
 
 ## Schema
 
-Three key families under the existing `Rackula:` namespace.
+Four key families under the existing `Rackula:` namespace.
 
 ### 1. Workspace index, one key: `Rackula:workspace`
 
@@ -58,6 +58,7 @@ Three key families under the existing `Rackula:` namespace.
       "updatedAt": "2026-06-14T09:00:00.000Z",
       "changesSinceExport": 0,
       "hasEverExported": true,
+      "writeFailed": false,
       "storageMode": "browser"
     }
   }
@@ -66,9 +67,9 @@ Three key families under the existing `Rackula:` namespace.
 
 - Small (no layout bodies), so it is read synchronously at launch to paint tab shells (#2080)
   and the sidebar list (#2082) before any body is parsed.
-- Per-layout durability (`changesSinceExport`, `hasEverExported`) lives here so the chip
-  rollup (#2035), tab dots (#2079), and sidebar dots (#2082) all read one source without
-  loading bodies. No second bookkeeping.
+- Per-layout durability (`changesSinceExport`, `hasEverExported`, `writeFailed`) lives here so
+  the chip rollup (#2035), tab dots (#2079), and sidebar dots (#2082) all read one source without
+  loading bodies. No second bookkeeping. (`writeFailed` semantics: see Durability rollup.)
 - `openTabs` is the session working set and is a subset of `library`. Closing a tab removes an
   id from `openTabs` only; the `library` entry and the body persist (this is #2079's
   "closing keeps the layout").
@@ -86,7 +87,15 @@ Three key families under the existing `Rackula:` namespace.
 - Loaded lazily on tab focus. Holds the full layout, the large part (base64 device images,
   #617).
 
-### 3. Legacy single slot: `Rackula:autosave`
+### 3. First-layout marker, one key: `Rackula:everHadLayouts`
+
+A standalone flag, value `"1"`, set the first time any layout is created or adopted and never
+cleared. It is a separate key on purpose: it must survive a wipe of `Rackula:workspace` so the
+app can tell a returning user whose data was lost (flag present, workspace empty or missing) from
+a genuine fresh install (flag absent). The launch flow reads it to route the empty state (lost-
+data recovery vs WelcomeScreen, feeding #2018 and #2081).
+
+### 4. Legacy single slot: `Rackula:autosave`
 
 Removed after one-time adoption (below). Not read again afterwards.
 
@@ -102,8 +111,11 @@ Index-only operations (cheap, no body read/write):
 - `updateDurability(id, { changesSinceExport, hasEverExported })`: e.g. `markExported` per
   layout (#2045) without rewriting the body.
 - `renameLayout(id, name)`: index-only, live-syncs the tab title (#2018).
-- `deleteLayout(id)`: removes the body key, the library entry, and drops the id from
-  `openTabs`. This is the sidebar Delete, distinct from tab close.
+- `deleteLayout(id)`: removes the body key and the library entry. It does not drop the id from
+  `openTabs`: per #2018, deleting a layout that is currently open leaves the tab in place as a
+  recoverable orphan (offering Save as new), so whether the tab closes is the interaction
+  layer's call, not a side effect of the storage delete. This is the sidebar Delete, distinct
+  from tab close.
 
 Body operations:
 - `loadLayoutBody(id)`: reads `Rackula:layout:<id>`, runs the existing `migrateLayout`, returns
@@ -117,11 +129,17 @@ Body operations:
 On launch in browser mode, if `Rackula:workspace` is absent:
 - If `Rackula:autosave` is present: `loadSessionWithTimestamp()`, create a library entry under
   the layout's id, write its body, set `openTabs = [id]` and `activeId = id`, carry over
-  `changesSinceExport` and `hasEverExported`, then `safeRemoveItem("Rackula:autosave")`.
+  `changesSinceExport` and `hasEverExported`. Only after both the body write and the index write
+  succeed (`safeSetItem` returned true for each), `safeRemoveItem("Rackula:autosave")`. If either
+  write fails (quota or storage unavailable), keep the legacy slot intact as the durable fallback
+  and surface the failure per the quota strategy; never delete the only copy on a failed
+  migration.
 - Else: empty workspace (`activeId = null`, `openTabs = []`, `library = {}`).
 
-Adoption runs once. Afterwards `Rackula:workspace` exists and the old key is gone, so no legacy
-code path lingers.
+Adoption runs once and is idempotent: it only proceeds when `Rackula:workspace` is absent, and it
+deletes the legacy slot only after the new writes have landed, so a failed or interrupted run
+retries cleanly on the next launch. After a successful run `Rackula:workspace` exists and the old
+key is gone, so no legacy code path lingers.
 
 Returning-user vs fresh-install (feeds #2018 and #2081): set a persisted
 `Rackula:everHadLayouts` flag the first time a layout is created or adopted. An empty workspace
@@ -135,9 +153,10 @@ with the flag set is lost-data-empty (recovery state); without it, fresh-install
 - Detection: `safeSetItem` already returns false on `QuotaExceededError`; `saveLayoutBody`
   surfaces that boolean.
 - Posture (trust the model): on a failed write, do not auto-evict any layout. Keep the
-  in-memory copy, mark that layout not-durable, and surface it through:
-  - the chip (#2035), which is amber/error because not every open layout is in its durable
-    home;
+  in-memory copy, set the layout's `writeFailed` flag in the index (see Durability rollup), and
+  surface it through:
+  - the chip (#2035), which goes to an error state because that layout's working copy cannot be
+    persisted;
   - a user-facing prompt to Export or remove layouts to free space.
 - No silent data loss: a body that failed to write stays in memory and remains exportable.
 - Escape valve and follow-up trigger: when quota failures show up in real use, lift the tabled
@@ -159,11 +178,18 @@ with the flag set is lost-data-empty (recovery state); without it, fresh-install
 
 ## Durability rollup (one source for #2035, #2079, #2082)
 
-- `getDurability(id) -> { changesSinceExport, hasEverExported, backed }` reads the index;
-  `backed` is `changesSinceExport === 0` (the #2019 chip rule: green only at zero changes since
-  export).
-- Chip (#2035) is green only when every id in `openTabs` is `backed`. Tab dots (#2079) and
-  sidebar dots (#2082) read the same per-id value.
+- `getDurability(id) -> { changesSinceExport, hasEverExported, backed, writeFailed }` reads the
+  index. `backed` is the export-durability signal: `changesSinceExport === 0` (the #2019 chip
+  rule, green only at zero changes since export). `writeFailed` records whether the last attempt
+  to persist this layout's body to localStorage failed (quota or unavailable); `saveLayoutBody`
+  sets it on failure and clears it on the next successful write, and it is persisted in the index
+  entry so it survives reload. The two signals are distinct: `changesSinceExport` tracks edits
+  not yet exported to a file; `writeFailed` tracks whether the browser working copy could be
+  saved at all.
+- Chip (#2035): error when any open layout has `writeFailed` (its working copy cannot be saved
+  locally); otherwise green only when every id in `openTabs` is `backed`; otherwise amber. Tab
+  dots (#2079) and sidebar dots (#2082) read the same per-id values, so the error, amber, and
+  green states come from one source, not three.
 
 ## Schema versioning
 
