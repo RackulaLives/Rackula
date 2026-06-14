@@ -6,7 +6,11 @@
 <script lang="ts">
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
-  import { canPlaceDevice, isSlotOccupied } from "$lib/utils/collision";
+  import {
+    canPlaceDevice,
+    isContainerChild,
+    isSlotOccupied,
+  } from "$lib/utils/collision";
   import {
     toHumanUnits,
     toInternalUnits,
@@ -22,6 +26,14 @@
 
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
+
+  // Container children use container-relative positions; a rack-level move
+  // (what layoutStore.moveDevice does) would detach them from their container.
+  // The vertical Position controls are inert for children, matching the
+  // keyboard nudge path. Deliberate detachment happens via drag-out.
+  const isChildDevice = $derived(
+    isContainerChild(selectedDeviceInfo.placedDevice),
+  );
 
   // Format an internal-unit position for display, honouring the rack's U
   // numbering direction (desc_units flips the whole-U part, keeps the fraction).
@@ -40,6 +52,9 @@
    * @param step - Step size in U (default 1, use 0.5 for fine movement)
    */
   function moveDevice(direction: number, step: number = 1) {
+    // A rack-level move would eject a container child from its container.
+    if (isChildDevice) return;
+
     const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
 
     // Convert internal units to human U for calculations
@@ -77,6 +92,7 @@
 
   // Check if device can move up
   const canMoveUp = $derived.by(() => {
+    if (isChildDevice) return false;
     const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
     // Convert to human U and add 1
     const newPositionU = toHumanUnits(placedDevice.position) + 1;
@@ -94,6 +110,7 @@
 
   // Check if device can move down
   const canMoveDown = $derived.by(() => {
+    if (isChildDevice) return false;
     const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
     // Convert to human U and subtract 1
     const newPositionU = toHumanUnits(placedDevice.position) - 1;
@@ -301,6 +318,7 @@
           type="button"
           class="position-btn position-btn-fine"
           onclick={() => moveDevice(-1, 1 / 3)}
+          disabled={isChildDevice}
           aria-label="Move device down by one-third rack unit"
           title="Move down ⅓U (fine)"
         >
@@ -310,6 +328,7 @@
           type="button"
           class="position-btn position-btn-fine"
           onclick={() => moveDevice(1, 1 / 3)}
+          disabled={isChildDevice}
           aria-label="Move device up by one-third rack unit"
           title="Move up ⅓U (fine)"
         >
