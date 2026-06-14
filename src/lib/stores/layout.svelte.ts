@@ -24,11 +24,8 @@ import { MAX_RACKS } from "$lib/types/constants";
 import { createLayout } from "$lib/utils/serialization";
 import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
 import { debug } from "$lib/utils/debug";
-import {
-  createHistoryStore,
-  getHistoryStore,
-  type HistoryStore,
-} from "./history.svelte";
+import { createHistoryStore, type HistoryStore } from "./history.svelte";
+import { getWorkspaceStore } from "./workspace.svelte";
 import type { LayoutStateAccess } from "./layout/types";
 import {
   type BackupState,
@@ -1211,15 +1208,37 @@ export function createLayoutStore(
  */
 export type LayoutStore = ReturnType<typeof createLayoutStore>;
 
-// Active instance for the app session (one layout open at a time).
-const activeInstance = createLayoutStore(getHistoryStore());
+/**
+ * Stable facade over the active tab's layout store.
+ *
+ * Every consumer reads `getLayoutStore()` once and then accesses reactive
+ * getters/methods off it. The multi-layout workspace swaps which underlying
+ * store is active when the user switches tabs, so this returns a Proxy that
+ * forwards every access to the workspace's current active store. Reading a
+ * reactive getter through the Proxy inside a reactive context tracks both the
+ * active-tab change and the underlying property, so the whole app follows the
+ * active tab without any call-site changes.
+ *
+ * The workspace owns the first tab and binds it to the app-session history
+ * singleton (getHistoryStore()), so getLayoutStore() and getHistoryStore()
+ * stay consistent with one layout open.
+ */
+const layoutStoreFacade = new Proxy({} as LayoutStore, {
+  get(_target, prop) {
+    // Read each property off the live active store. Getters resolve against it
+    // (so reactive getters track correctly); methods are closures that already
+    // bind their own instance, so forwarding the reference is enough.
+    const active = getWorkspaceStore().activeStore;
+    return Reflect.get(active, prop, active);
+  },
+});
 
 /**
  * Get access to the active layout store.
- * @returns Store object with state and actions
+ * @returns Store facade forwarding to the active tab's state and actions
  */
 export function getLayoutStore(): LayoutStore {
-  return activeInstance;
+  return layoutStoreFacade;
 }
 
 /**
@@ -1227,5 +1246,5 @@ export function getLayoutStore(): LayoutStore {
  * @param clearStarted - If true, also clears the hasStarted flag (default: true)
  */
 export function resetLayoutStore(clearStarted: boolean = true): void {
-  activeInstance.resetLayout(clearStarted);
+  getWorkspaceStore().activeStore.resetLayout(clearStarted);
 }

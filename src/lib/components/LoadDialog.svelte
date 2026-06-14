@@ -127,7 +127,7 @@
 <Dialog
   open={dialogStore.isOpen("load")}
   title="Load Layout"
-  width="min(520px, 95vw)"
+  size="M"
   onclose={() => dialogStore.close()}
 >
   <div class="load-dialog-content">

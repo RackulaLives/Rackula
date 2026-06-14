@@ -37,6 +37,7 @@ export {
   handleLoad,
   handleSaveToServer,
   handleSaveAsArchive,
+  handleExportAll,
   shouldSaveToServer,
   initPersistenceEffects,
   flushSessionSave,

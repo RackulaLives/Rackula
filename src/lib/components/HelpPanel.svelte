@@ -1,10 +1,10 @@
 <!--
   About Panel Component
-  Shows app information, keyboard shortcuts, and links
-  Uses bits-ui Dialog primitives for accessibility and focus management
+  Shows app information, keyboard shortcuts, and links.
+  Built on the unified Dialog primitive (#2092).
 -->
 <script lang="ts">
-  import { Dialog } from "bits-ui";
+  import Dialog from "./Dialog.svelte";
   import { VERSION } from "$lib/version";
   import LogoLockup from "./LogoLockup.svelte";
   import { IconGitHub, IconBug, IconChat, IconCheck, IconCopy } from "./icons";
@@ -21,22 +21,10 @@
     onclose?: () => void;
   }
 
-  let { open = $bindable(), onclose }: Props = $props();
+  let { open, onclose }: Props = $props();
 
   const toastStore = getToastStore();
   const layoutStore = getLayoutStore();
-
-  /**
-   * Handle dialog open state changes.
-   * Important: Set open state FIRST to ensure bits-ui state stays in sync
-   * before triggering parent callbacks that may cause re-renders.
-   */
-  function handleOpenChange(newOpen: boolean) {
-    open = newOpen;
-    if (!newOpen) {
-      onclose?.();
-    }
-  }
 
   // Get browser user agent for troubleshooting
   const userAgent =
@@ -159,165 +147,128 @@
   const discussionsUrl = `${GITHUB_URL}/discussions`;
 </script>
 
-<Dialog.Root {open} onOpenChange={handleOpenChange}>
-  <Dialog.Portal>
-    <Dialog.Overlay class="dialog-backdrop" />
-    <Dialog.Content class="dialog help-dialog" style="--dialog-width: 600px;">
-      <!-- Visually hidden title for accessibility -->
-      <Dialog.Title class="sr-only">About Rackula</Dialog.Title>
-      <Dialog.Description class="help-dialog-description">
-        Application help, keyboard shortcuts, and build information
-      </Dialog.Description>
-      <div class="dialog-content">
-        <div class="about-content">
-          <!-- Header: Logo -->
-          <header class="about-header">
-            <div class="brand-row">
-              <LogoLockup size={48} showcase />
-            </div>
-          </header>
+<Dialog {open} title="About Rackula" size="L" {onclose}>
+  <div class="about-content">
+    <!-- Header: Logo -->
+    <header class="about-header">
+      <div class="brand-row">
+        <LogoLockup size={48} showcase />
+      </div>
+    </header>
 
-          <!-- Keyboard Shortcuts (grouped) -->
-          {#each shortcutGroups as group (group.name)}
-            <section class="shortcut-group">
-              <h4>{group.name}</h4>
-              <div class="shortcuts-list">
-                {#each group.rows as { key, action } (key)}
-                  <div class="shortcut-row">
-                    <kbd class="key-cell">{key}</kbd>
-                    <span class="action">{action}</span>
-                  </div>
-                {/each}
-              </div>
-            </section>
+    <!-- Keyboard Shortcuts (grouped), generated from the actions registry -->
+    {#each shortcutGroups as group (group.name)}
+      <section class="shortcut-group">
+        <h4>{group.name}</h4>
+        <div class="shortcuts-list">
+          {#each group.rows as { key, action } (key)}
+            <div class="shortcut-row">
+              <kbd class="key-cell">{key}</kbd>
+              <span class="action">{action}</span>
+            </div>
           {/each}
+        </div>
+      </section>
+    {/each}
 
-          <!-- Quick links -->
-          <div class="quick-links">
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="quick-link"
-            >
-              <IconGitHub />
-              Project
-            </a>
-            <a
-              href={bugReportUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="quick-link"
-            >
-              <IconBug />
-              Report Bug
-            </a>
-            <a
-              href={discussionsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="quick-link"
-            >
-              <IconChat />
-              Share Ideas
-            </a>
+    <!-- Quick links -->
+    <div class="quick-links">
+      <a
+        href={GITHUB_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="quick-link"
+      >
+        <IconGitHub />
+        Project
+      </a>
+      <a
+        href={bugReportUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="quick-link"
+      >
+        <IconBug />
+        Report Bug
+      </a>
+      <a
+        href={discussionsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="quick-link"
+      >
+        <IconChat />
+        Share Ideas
+      </a>
+    </div>
+
+    <!-- Build Info Section -->
+    <section class="build-info-section">
+      <div class="build-info-grid">
+        <div class="info-row">
+          <span class="info-label">Version</span>
+          <span class="info-value">v{VERSION}</span>
+        </div>
+
+        {#if commitHash}
+          <div class="info-row">
+            <span class="info-label">Commit</span>
+            <span class="info-value">
+              <a
+                href={commitUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="commit-link"
+              >
+                {commitHash}{#if isDirty}<span class="dirty-badge">*</span>{/if}
+              </a>
+            </span>
           </div>
+        {/if}
 
-          <!-- Build Info Section -->
-          <section class="build-info-section">
-            <div class="build-info-grid">
-              <div class="info-row">
-                <span class="info-label">Version</span>
-                <span class="info-value">v{VERSION}</span>
-              </div>
+        {#if branchName}
+          <div class="info-row">
+            <span class="info-label">Branch</span>
+            <span class="info-value">{branchName}</span>
+          </div>
+        {/if}
 
-              {#if commitHash}
-                <div class="info-row">
-                  <span class="info-label">Commit</span>
-                  <span class="info-value">
-                    <a
-                      href={commitUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="commit-link"
-                    >
-                      {commitHash}{#if isDirty}<span class="dirty-badge">*</span
-                        >{/if}
-                    </a>
-                  </span>
-                </div>
-              {/if}
+        {#if relativeTime}
+          <div class="info-row">
+            <span class="info-label">Built</span>
+            <span class="info-value" title={fullTimestamp}>
+              {relativeTime} ago
+            </span>
+          </div>
+        {/if}
 
-              {#if branchName}
-                <div class="info-row">
-                  <span class="info-label">Branch</span>
-                  <span class="info-value">{branchName}</span>
-                </div>
-              {/if}
-
-              {#if relativeTime}
-                <div class="info-row">
-                  <span class="info-label">Built</span>
-                  <span class="info-value" title={fullTimestamp}>
-                    {relativeTime} ago
-                  </span>
-                </div>
-              {/if}
-
-              <div class="info-row">
-                <span class="info-label">Browser</span>
-                <span class="info-value user-agent">{userAgent}</span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              class="copy-info-btn"
-              class:copied
-              onclick={copyBuildInfo}
-            >
-              {#if copied}
-                <IconCheck />
-                Copied!
-              {:else}
-                <IconCopy />
-                Copy for bug report
-              {/if}
-            </button>
-          </section>
-
-          <p class="made-in">Made in Canada 🇨🇦 with ❤️</p>
+        <div class="info-row">
+          <span class="info-label">Browser</span>
+          <span class="info-value user-agent">{userAgent}</span>
         </div>
       </div>
-    </Dialog.Content>
-  </Dialog.Portal>
-</Dialog.Root>
+
+      <button
+        type="button"
+        class="copy-info-btn"
+        class:copied
+        onclick={copyBuildInfo}
+      >
+        {#if copied}
+          <IconCheck />
+          Copied!
+        {:else}
+          <IconCopy />
+          Copy for bug report
+        {/if}
+      </button>
+    </section>
+
+    <p class="made-in">Made in Canada 🇨🇦 with ❤️</p>
+  </div>
+</Dialog>
 
 <style>
-  /* Base dialog styles (.dialog-backdrop, .dialog-title, .dialog-close)
-     are defined in src/lib/styles/dialogs.css and imported globally */
-
-  /* Keep HelpPanel denser than default dialog spacing, especially on mobile. */
-  .dialog-content {
-    --dialog-content-padding: var(--space-4);
-    --dialog-content-mobile-padding: var(--space-4);
-    --dialog-content-mobile-padding-bottom-min: var(--space-4);
-    --dialog-content-mobile-safe-area-offset: var(--space-2);
-  }
-
-  /* Screen reader only - visually hidden but accessible */
-  :global(.help-dialog .sr-only),
-  :global(.help-dialog-description) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
   .about-content {
     display: flex;
     flex-direction: column;

@@ -1,7 +1,11 @@
 /**
  * Shared Dialog Styles
- * Base styles for bits-ui Dialog components used throughout the app.
- * These styles are applied globally via class names on Dialog primitives.
+ * Base styles for the unified Dialog primitive (#2092), built on bits-ui Dialog.
+ * Applied globally via class names on the Dialog primitives.
+ *
+ * Two presentations share one structure: a centred dialog on desktop and a
+ * bottom sheet below the mobile breakpoint. Both trap focus and close on Escape
+ * via bits-ui. Enter and exit transitions respect prefers-reduced-motion.
  */
 
 /* Dialog backdrop overlay */
@@ -12,13 +16,18 @@
   z-index: var(--z-modal, 200);
 }
 
-/* Dialog container */
+.dialog-backdrop[data-state="open"] {
+  animation: dialog-backdrop-in var(--duration-fast, 150ms) ease forwards;
+}
+
+.dialog-backdrop[data-state="closed"] {
+  animation: dialog-backdrop-out var(--duration-fast, 150ms) ease forwards;
+}
+
+/* Dialog container (shared) */
 .dialog {
   position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: var(--dialog-width, 400px);
+  width: var(--dialog-width, 560px);
   max-width: 90vw;
   max-height: min(90vh, 90dvh);
   background: var(--colour-dialog-bg, var(--colour-bg));
@@ -30,6 +39,60 @@
   flex-direction: column;
   overflow-x: hidden;
   overflow-y: hidden;
+}
+
+/* Centred (desktop) presentation */
+.dialog--centred {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.dialog--centred[data-state="open"] {
+  animation: dialog-centred-in var(--duration-fast, 150ms) ease forwards;
+}
+
+.dialog--centred[data-state="closed"] {
+  animation: dialog-centred-out var(--duration-fast, 150ms) ease forwards;
+}
+
+/* Bottom-sheet (mobile) presentation.
+   The sheet slides via a transform transition rather than a keyframe so that the
+   inline transform written during a swipe (an author style) wins over the
+   resting rule. A finished keyframe with fill-mode forwards would instead keep
+   overriding the inline style and freeze the drag. */
+.dialog--sheet {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  width: 100vw;
+  max-width: 100vw;
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  /* Closed resting position: just below the viewport. */
+  transform: translateY(100%);
+  transition: transform var(--duration-base, 300ms) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Open resting position. bits-ui unmounts the content on close, so only the
+   open state needs an explicit transform; the enter transition runs as the
+   element mounts and data-state flips to open. */
+.dialog--sheet[data-state="open"] {
+  transform: translateY(0);
+}
+
+/* While the user is dragging the sheet, the inline transform drives position;
+   suppress the transition so it tracks the finger. */
+.dialog--sheet[data-dragging="true"] {
+  transition: none;
+}
+
+/* The sheet header is the swipe-to-dismiss grab area. */
+.dialog--sheet .dialog-header {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
 
 /* Dialog title */
@@ -74,57 +137,102 @@
   outline-offset: 2px;
 }
 
-@media (max-width: 430px) {
-  .dialog {
-    left: 0;
-    right: 0;
-    top: auto;
-    bottom: 0;
-    transform: none;
-    width: 100vw !important;
-    max-width: 100vw !important;
-    max-height: calc(100dvh - env(safe-area-inset-top, 0px));
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  }
+/* The sheet presentation gives the close button a 44px touch target. */
+.dialog--sheet .dialog-close {
+  width: var(--touch-target-min, 44px);
+  height: var(--touch-target-min, 44px);
+}
 
-  .dialog-close {
-    width: 44px;
-    height: 44px;
-  }
-
-  .dialog .dialog-content {
-    padding: var(--dialog-content-mobile-padding, var(--space-4));
-    padding-bottom: max(
-      var(--dialog-content-mobile-padding-bottom-min, var(--space-5)),
-      calc(
-        env(safe-area-inset-bottom, 0px) +
-          var(--dialog-content-mobile-safe-area-offset, var(--space-3))
-      )
-    );
-  }
-
-  .dialog
-    :is(
-      .actions,
-      .form-actions,
-      .dialog-actions,
-      .file-sheet-actions,
-      .rack-selection-actions
-    ) {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .dialog
-    :is(
-      .actions,
-      .form-actions,
-      .dialog-actions,
-      .file-sheet-actions,
-      .rack-selection-actions
+.dialog--sheet .dialog-content {
+  padding: var(--dialog-content-mobile-padding, var(--space-4));
+  padding-bottom: max(
+    var(--dialog-content-mobile-padding-bottom-min, var(--space-5)),
+    calc(
+      env(safe-area-inset-bottom, 0px) +
+        var(--dialog-content-mobile-safe-area-offset, var(--space-3))
     )
-    > button {
-    width: 100%;
-    min-height: 44px;
+  );
+}
+
+/* Stack action rows and stretch their buttons to full-width touch targets in
+   the sheet presentation. */
+.dialog--sheet
+  :is(
+    .actions,
+    .form-actions,
+    .dialog-actions,
+    .file-sheet-actions,
+    .rack-selection-actions
+  ) {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.dialog--sheet
+  :is(
+    .actions,
+    .form-actions,
+    .dialog-actions,
+    .file-sheet-actions,
+    .rack-selection-actions
+  )
+  > button {
+  width: 100%;
+  min-height: var(--touch-target-min, 44px);
+}
+
+@keyframes dialog-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-centred-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes dialog-centred-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.97);
+  }
+}
+
+/* Honour reduced-motion: no slide, scale, or fade movement, just an instant
+   show/hide. The backdrop and centred dialog fade/scale via keyframes; the sheet
+   slides via a transform transition. Disable all three. */
+@media (prefers-reduced-motion: reduce) {
+  .dialog-backdrop[data-state="open"],
+  .dialog-backdrop[data-state="closed"],
+  .dialog--centred[data-state="open"],
+  .dialog--centred[data-state="closed"] {
+    animation: none;
+  }
+
+  .dialog--sheet {
+    transition: none;
   }
 }

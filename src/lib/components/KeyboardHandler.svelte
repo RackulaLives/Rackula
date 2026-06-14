@@ -6,6 +6,7 @@
   import { shouldIgnoreKeyboard } from "$lib/utils/keyboard";
   import { findActionForEvent, type ActionId } from "$lib/actions/registry";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getWorkspaceStore } from "$lib/stores/workspace.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
@@ -43,6 +44,7 @@
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
+  const workspace = getWorkspaceStore();
   const selectionStore = getSelectionStore();
   const uiStore = getUIStore();
   const toastStore = getToastStore();
@@ -324,9 +326,35 @@
     }
   }
 
+  /**
+   * Alt+1-9 jumps to the Nth open layout tab. Keyed off event.code (Digit1..9)
+   * rather than event.key because macOS remaps Alt+digit to a symbol (Alt+1
+   * yields the character produced by that key, not "1"). Returns true when the
+   * event was a tab-jump so the caller can stop processing.
+   */
+  function handleTabJump(event: KeyboardEvent): boolean {
+    if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return false;
+    }
+    const match = /^Digit([1-9])$/.exec(event.code);
+    if (!match) return false;
+
+    event.preventDefault();
+    const index = Number(match[1]) - 1;
+    const tab = workspace.tabs[index];
+    if (tab) {
+      workspace.switchTo(tab.id);
+    }
+    return true;
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     // Ignore if in input field
     if (shouldIgnoreKeyboard(event)) return;
+
+    // Workspace tab jumps (Alt+1-9) are dynamic, not fixed registry actions, so
+    // they take precedence over the action registry.
+    if (handleTabJump(event)) return;
 
     const action = findActionForEvent(event);
     if (!action) return;

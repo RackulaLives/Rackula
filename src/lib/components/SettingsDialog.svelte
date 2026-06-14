@@ -42,7 +42,7 @@
   }
 </script>
 
-<Dialog {open} title="Settings" width="420px" testid="settings-dialog" {onclose}>
+<Dialog {open} title="Settings" size="S" testid="settings-dialog" {onclose}>
   <div class="settings-dialog">
     <section class="settings-section" aria-labelledby="settings-appearance">
       <h3 class="settings-section-title" id="settings-appearance">Appearance</h3>

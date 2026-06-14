@@ -91,9 +91,11 @@ export const locators = {
 
   mobile: {
     bottomNav: '[data-testid="mobile-bottom-nav"]',
-    bottomSheet: '[data-testid="mobile-bottom-sheet"]',
-    dragHandleBar: ".drag-handle-bar",
-    backdrop: ".backdrop",
+    // The unified Dialog primitive (#2092) renders as a bottom sheet below the
+    // mobile breakpoint: a .dialog--sheet element over the shared .dialog-backdrop.
+    bottomSheet: ".dialog--sheet",
+    dragHandleBar: ".dialog-drag-handle",
+    backdrop: ".dialog-backdrop",
     deviceLibraryFab: ".device-library-fab",
   },
 

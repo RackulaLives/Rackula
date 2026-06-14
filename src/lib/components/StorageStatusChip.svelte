@@ -12,13 +12,30 @@
   import { IconCheck, IconClock, IconWarningTriangle } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
-  import { getLayoutDurability, loadFromFile } from "$lib/storage";
+  import {
+    getLayoutDurability,
+    loadFromFile,
+    getStorageMode,
+    getServerInstanceLabel,
+    handleExportAll,
+  } from "$lib/storage";
   import { maybeSaveAs } from "$lib/utils/app-actions";
   import "$lib/styles/menu.css";
 
   const durability = getLayoutDurability(getLayoutStore());
 
+  // Storage mode is fixed for the session (read once from runtime config), so
+  // the export-all framing is computed up front rather than tracked reactively.
+  const isServerMode = getStorageMode() === "server";
+  const exportAllLabel = isServerMode
+    ? "Export a copy"
+    : "Back up all layouts";
+  const exportAllSubtext = isServerMode
+    ? `Your layouts are stored on ${getServerInstanceLabel()}; this makes a portable copy.`
+    : null;
+
   let open = $state(false);
+  let exportingAll = $state(false);
 
   // Announced only after the status settles. The save->saved debounce cascade
   // produces several intermediate statuses in quick succession; announcing every
@@ -41,6 +58,17 @@
     // image-dropping warning state.
     maybeSaveAs();
     open = false;
+  }
+
+  async function handleExportAllClick() {
+    if (exportingAll) return;
+    exportingAll = true;
+    try {
+      await handleExportAll();
+    } finally {
+      exportingAll = false;
+      open = false;
+    }
   }
 
   async function handleRestore() {
@@ -83,6 +111,19 @@
           data-testid="storage-chip-export"
         >
           Export now
+        </button>
+        <button
+          type="button"
+          class="storage-chip-action storage-chip-action-stacked"
+          onclick={handleExportAllClick}
+          disabled={exportingAll}
+          aria-busy={exportingAll}
+          data-testid="storage-chip-export-all"
+        >
+          <span class="storage-chip-action-label">{exportAllLabel}</span>
+          {#if exportAllSubtext}
+            <span class="storage-chip-action-subtext">{exportAllSubtext}</span>
+          {/if}
         </button>
         <button
           type="button"
@@ -177,6 +218,7 @@
   .storage-chip-action {
     display: flex;
     align-items: center;
+    min-height: 44px;
     padding: var(--space-2);
     border: none;
     border-radius: var(--radius-sm);
@@ -188,6 +230,22 @@
     transition: background-color var(--duration-fast) var(--ease-out);
   }
 
+  .storage-chip-action-stacked {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+  }
+
+  .storage-chip-action-label {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .storage-chip-action-subtext {
+    font-size: var(--font-size-xs);
+    color: var(--colour-text-muted-inverse);
+    white-space: normal;
+  }
+
   .storage-chip-action:hover {
     background-color: var(--colour-overlay-hover);
   }
@@ -195,5 +253,16 @@
   .storage-chip-action:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px var(--colour-focus-ring);
+  }
+
+  .storage-chip-action:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .storage-chip-action {
+      transition: none;
+    }
   }
 </style>

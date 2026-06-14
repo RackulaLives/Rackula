@@ -8,6 +8,11 @@ import {
 import KeyboardHandler from "$lib/components/KeyboardHandler.svelte";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import {
+  getWorkspaceStore,
+  resetWorkspaceStore,
+} from "$lib/stores/workspace.svelte";
+import { createLayout } from "$lib/utils/serialization";
+import {
   getSelectionStore,
   resetSelectionStore,
 } from "$lib/stores/selection.svelte";
@@ -947,6 +952,47 @@ describe("KeyboardHandler Component", () => {
 
       // Should leapfrog over the blocking device at 6, land at U7 (internal units = 42)
       expect(layoutStore.rack!.devices[0]!.position).toBe(toInternalUnits(7));
+    });
+  });
+
+  describe("Tab Navigation Shortcuts", () => {
+    beforeEach(() => {
+      resetWorkspaceStore();
+    });
+
+    it("Alt+1 jumps to the first open tab", async () => {
+      const workspace = getWorkspaceStore();
+      const firstId = workspace.activeId;
+      const secondId = workspace.openTab(createLayout("Second"));
+      // Focus is on the second tab after opening it.
+      expect(workspace.activeId).toBe(secondId);
+
+      render(KeyboardHandler);
+
+      // Alt+1 jumps to the first tab. macOS remaps Alt+digit to a symbol, so the
+      // handler keys off event.code (Digit1), not event.key.
+      await fireEvent.keyDown(window, {
+        key: "1",
+        code: "Digit1",
+        altKey: true,
+      });
+
+      expect(workspace.activeId).toBe(firstId);
+    });
+
+    it("Alt+N is a no-op when fewer than N tabs are open", async () => {
+      const workspace = getWorkspaceStore();
+      const onlyId = workspace.activeId;
+
+      render(KeyboardHandler);
+
+      await fireEvent.keyDown(window, {
+        key: "5",
+        code: "Digit5",
+        altKey: true,
+      });
+
+      expect(workspace.activeId).toBe(onlyId);
     });
   });
 });
