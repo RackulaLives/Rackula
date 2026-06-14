@@ -76,6 +76,19 @@ const LayoutListResponseSchema = z.object({
   layouts: z.array(SavedLayoutItemSchema),
 });
 
+/**
+ * Save (PUT) response schema. The server echoes the stored updatedAt.
+ */
+const SaveLayoutResponseSchema = z.object({
+  id: z.string().uuid(),
+  updatedAt: z.string().datetime(),
+});
+
+export interface SaveLayoutResult {
+  id: string;
+  updatedAt: string;
+}
+
 interface PersistenceHealthPayload {
   ok: true;
   status: "ok";
@@ -313,7 +326,8 @@ export async function loadSavedLayout(uuid: string): Promise<{
 export async function saveLayoutToServer(
   layout: Layout,
   userImages: ImageStoreMap,
-): Promise<string> {
+  lastKnownUpdatedAt: string | null = null,
+): Promise<SaveLayoutResult> {
   log("saveLayoutToServer: name=%s", layout.name);
 
   if (!isApiAvailable()) {
@@ -354,9 +368,14 @@ export async function saveLayoutToServer(
   const url = `${API_BASE_URL}/layouts/${encodeURIComponent(uuid)}`;
   log("saveLayoutToServer: PUT %s", url);
 
+  const headers: Record<string, string> = { "Content-Type": "text/yaml" };
+  if (lastKnownUpdatedAt) {
+    headers["X-Rackula-Updated-At"] = lastKnownUpdatedAt;
+  }
+
   const response = await fetch(url, {
     method: "PUT",
-    headers: { "Content-Type": "text/yaml" },
+    headers,
     body: yamlContent,
     signal: AbortSignal.timeout(API_TIMEOUT_MS),
   });
@@ -374,9 +393,15 @@ export async function saveLayoutToServer(
     );
   }
 
-  const { id } = (await response.json()) as { id: string };
-  log("saveLayoutToServer: saved uuid=%s", id);
-  return id;
+  try {
+    const raw: unknown = await response.json();
+    const { id, updatedAt } = SaveLayoutResponseSchema.parse(raw);
+    log("saveLayoutToServer: saved uuid=%s updatedAt=%s", id, updatedAt);
+    return { id, updatedAt };
+  } catch (error) {
+    log("saveLayoutToServer: invalid save response %O", error);
+    throw new PersistenceError("Invalid response from API server");
+  }
 }
 
 /**
