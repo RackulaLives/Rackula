@@ -221,6 +221,9 @@ export function createWorkspaceStore() {
     if (wasActive) {
       // Prefer the tab that took the closed tab's slot; otherwise the new last.
       const fallback = remaining[index] ?? remaining[remaining.length - 1]!;
+      // The new active tab may be an unhydrated restore shell; load its body
+      // now so closing onto it shows the real layout, not the placeholder.
+      if (!fallback.hydrated) hydrateTab(fallback);
       activeId = fallback.id;
     }
   }

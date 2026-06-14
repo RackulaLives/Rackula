@@ -324,6 +324,26 @@ describe("Workspace Store", () => {
       expect(ws.activeId).toBe(betaTabId);
       expect(ws.tabs[1]!.unreadable).toBe(true);
     });
+
+    it("hydrates the fallback tab when closing the active tab onto a shell", () => {
+      const ws = getWorkspaceStore();
+      const loaded: string[] = [];
+      ws.restoreWorkspace({
+        index: makeIndex(),
+        loadBody: (id) => {
+          loaded.push(id);
+          return { ok: true, layout: bodyFor(id, "Body-" + id) };
+        },
+      });
+      // Active tab (id-a) is hydrated; id-b is still an unhydrated shell.
+      expect(loaded).toEqual(["id-a"]);
+
+      // Close the active tab: focus falls back to the id-b shell, which must be
+      // hydrated so the canvas shows the real layout, not the placeholder.
+      ws.closeTab(ws.tabs[0]!.id);
+      expect(loaded).toEqual(["id-a", "id-b"]);
+      expect(ws.activeStore.layout.name).toBe("Body-id-b");
+    });
   });
 
   describe("clearThenLoad", () => {
