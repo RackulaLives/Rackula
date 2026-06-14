@@ -4,7 +4,6 @@ import {
   getActionById,
   findActionForEvent,
   getHelpGroups,
-  type ActionDefinition,
 } from "$lib/actions/registry";
 
 /**
@@ -133,14 +132,37 @@ describe("actions registry", () => {
       }
     });
 
-    it("only selection-scoped actions declare an enabledWhen predicate dependency", () => {
-      // enabledWhen is optional metadata; when present it must be a function so
-      // consumers (verb bars, palette) can gate without special-casing.
-      for (const action of ACTION_REGISTRY) {
-        if (action.enabledWhen !== undefined) {
-          expect(typeof action.enabledWhen).toBe("function");
-        }
-      }
+    it("gates an enabled-when action by the live selection/history context", () => {
+      // The predicate is what consumers (verb bars, palette) call to enable or
+      // hide a command. Test the gating behaviour, not the field's presence.
+      const dup = getActionById("duplicate-selection");
+      expect(dup?.enabledWhen).toBeDefined();
+      const enabledCtx = {
+        hasSelection: true,
+        isDeviceSelected: true,
+        isRackSelected: false,
+        canUndo: false,
+        canRedo: false,
+      };
+      const disabledCtx = { ...enabledCtx, isDeviceSelected: false };
+      expect(dup?.enabledWhen?.(enabledCtx)).toBe(true);
+      expect(dup?.enabledWhen?.(disabledCtx)).toBe(false);
+    });
+
+    it("gates undo/redo by history availability", () => {
+      const undo = getActionById("undo");
+      const redo = getActionById("redo");
+      const base = {
+        hasSelection: false,
+        isDeviceSelected: false,
+        isRackSelected: false,
+        canUndo: false,
+        canRedo: false,
+      };
+      expect(undo?.enabledWhen?.({ ...base, canUndo: true })).toBe(true);
+      expect(undo?.enabledWhen?.(base)).toBe(false);
+      expect(redo?.enabledWhen?.({ ...base, canRedo: true })).toBe(true);
+      expect(redo?.enabledWhen?.(base)).toBe(false);
     });
   });
 
@@ -203,13 +225,15 @@ describe("actions registry", () => {
     });
 
     it("exposes save as a global-scope action", () => {
-      const save = getActionById("save") as ActionDefinition;
-      expect(save.scope).toBe("global");
+      const save = getActionById("save");
+      expect(save).toBeDefined();
+      expect(save?.scope).toBe("global");
     });
 
     it("exposes duplicate as a selection-scope action", () => {
-      const dup = getActionById("duplicate-selection") as ActionDefinition;
-      expect(dup.scope).toBe("selection");
+      const dup = getActionById("duplicate-selection");
+      expect(dup).toBeDefined();
+      expect(dup?.scope).toBe("selection");
     });
   });
 });
