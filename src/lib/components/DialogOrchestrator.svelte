@@ -32,6 +32,7 @@
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
+  import type { ImageStoreMap } from "$lib/types/images";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
@@ -281,7 +282,11 @@
     handleFitAll();
   }
 
-  function handleYamlApply(nextLayout: Layout) {
+  function handleYamlApply(
+    nextLayout: Layout,
+    images?: ImageStoreMap,
+    failedImagesCount = 0,
+  ) {
     // Applying YAML edits the working copy; preserve export tracking
     // across loadLayout's reset so the chip state survives the apply.
     const backupState = {
@@ -291,8 +296,28 @@
     layoutStore.loadLayout(nextLayout);
     layoutStore.restoreBackupState(backupState);
     layoutStore.markDirty();
+    // Overlay any images decoded from the applied YAML (e.g. a pasted full
+    // layout that carries an embedded images section). The panel shows
+    // image-free YAML, so a structural edit carries no images and the existing
+    // image store is preserved untouched.
+    if (images && images.size > 0) {
+      for (const [key, deviceImages] of images) {
+        if (deviceImages.front) {
+          imageStore.setDeviceImage(key, "front", deviceImages.front);
+        }
+        if (deviceImages.rear) {
+          imageStore.setDeviceImage(key, "rear", deviceImages.rear);
+        }
+      }
+    }
     selectionStore.clearSelection();
     toastStore.showToast("YAML applied", "success");
+    if (failedImagesCount > 0) {
+      toastStore.showToast(
+        `Applied with ${failedImagesCount} image${failedImagesCount > 1 ? "s" : ""} that couldn't be read`,
+        "warning",
+      );
+    }
 
     if (viewportStore.isMobile) {
       dialogStore.closeSheet();
