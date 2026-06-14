@@ -302,6 +302,9 @@
     // image store is preserved untouched.
     if (images && images.size > 0) {
       for (const [key, deviceImages] of images) {
+        // Replace the whole key, not per-side: a paste that omits one side must
+        // not leave the previously stored opposite-side image behind.
+        imageStore.removeAllDeviceImages(key);
         if (deviceImages.front) {
           imageStore.setDeviceImage(key, "front", deviceImages.front);
         }
