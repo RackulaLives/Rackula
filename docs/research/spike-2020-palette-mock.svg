@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="620" viewBox="0 0 980 620" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <title>Spike #2020 - Command palette mock</title>
+  <desc>Two states of the Rackula command palette: discoverable header pill, and the open palette overlay with recents, selection-aware contextual commands, grouped command list, shortcut badges, and a keyboard hint footer.</desc>
+
+  <!-- palette tokens -->
+  <defs>
+    <style>
+      .bg      { fill: #1b1f24; }
+      .panel   { fill: #23282f; }
+      .row     { fill: #23282f; }
+      .rowsel  { fill: #2f6f7e; }
+      .hair    { stroke: #353b43; stroke-width: 1; }
+      .label   { fill: #e6e9ed; font-size: 14px; }
+      .labelsel{ fill: #ffffff; font-size: 14px; }
+      .muted   { fill: #8b939d; font-size: 12px; }
+      .head    { fill: #6f7882; font-size: 11px; letter-spacing: 1px; }
+      .ph      { fill: #6f7882; font-size: 15px; }
+      .typed   { fill: #e6e9ed; font-size: 15px; }
+      .kbd     { fill: #2b313a; stroke: #3a414b; stroke-width: 1; }
+      .kbdsel  { fill: #235965; stroke: #3a7d8c; stroke-width: 1; }
+      .kbdtxt  { fill: #b9c1cb; font-size: 11px; }
+      .kbdtxts { fill: #dff1f4; font-size: 11px; }
+      .pill    { fill: #23282f; stroke: #3a414b; stroke-width: 1; }
+      .pilltxt { fill: #8b939d; font-size: 13px; }
+      .caption { fill: #5b636d; font-size: 12px; }
+      .title   { fill: #c7ccd3; font-size: 13px; font-weight: 600; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="980" height="620" fill="#11141a"/>
+
+  <!-- ============ LEFT: discoverable header affordance ============ -->
+  <text x="40" y="40" class="title">1. Discoverable trigger (top bar slot #2072)</text>
+
+  <!-- faux top bar -->
+  <rect x="40" y="58" width="360" height="44" rx="8" class="panel"/>
+  <circle cx="66" cy="80" r="9" fill="#3a7d8c"/>
+  <text x="84" y="85" class="muted">Rackula</text>
+  <!-- the pill -->
+  <rect x="150" y="68" width="180" height="24" rx="12" class="pill"/>
+  <text x="166" y="84" class="pilltxt">Search or jump to...</text>
+  <rect x="292" y="72" width="30" height="16" rx="4" class="kbd"/>
+  <text x="298" y="84" class="kbdtxt">&#8984;K</text>
+
+  <text x="40" y="128" class="caption">Clickable, screen-reader reachable, prints the</text>
+  <text x="40" y="146" class="caption">shortcut. Never the sole path to any command.</text>
+
+  <!-- empty-state note -->
+  <text x="40" y="196" class="title">Empty state (before typing)</text>
+  <text x="40" y="220" class="caption">Recents, then commands for the current</text>
+  <text x="40" y="238" class="caption">selection, then a short grouped list.</text>
+  <text x="40" y="256" class="caption">Never a blank box.</text>
+
+  <text x="40" y="306" class="title">Behaviour</text>
+  <text x="40" y="330" class="caption">Fuzzy: bits-ui Command (cmdk scorer)</text>
+  <text x="40" y="348" class="caption">Recents: MRU x5 in localStorage</text>
+  <text x="40" y="366" class="caption">Contextual: selection-scoped verbs</text>
+  <text x="40" y="384" class="caption">Footer: key hints; rows show shortcut</text>
+
+  <text x="40" y="434" class="title">Accessibility</text>
+  <text x="40" y="458" class="caption">combobox + listbox, focus stays on input,</text>
+  <text x="40" y="476" class="caption">arrows move aria-activedescendant, in a</text>
+  <text x="40" y="494" class="caption">focus-managed Dialog (Esc closes).</text>
+
+  <!-- ============ RIGHT: open palette overlay ============ -->
+  <text x="470" y="40" class="title">2. Open palette (Ctrl/&#8984;K)</text>
+
+  <!-- overlay backdrop -->
+  <rect x="470" y="54" width="470" height="520" rx="10" fill="#0c0e12" opacity="0.6"/>
+
+  <!-- palette card -->
+  <rect x="494" y="74" width="422" height="476" rx="12" class="panel" stroke="#3a414b" stroke-width="1"/>
+
+  <!-- input row -->
+  <rect x="494" y="74" width="422" height="50" rx="12" class="panel"/>
+  <circle cx="520" cy="99" r="7" fill="none" stroke="#6f7882" stroke-width="2"/>
+  <line x1="525" y1="104" x2="531" y2="110" stroke="#6f7882" stroke-width="2"/>
+  <text x="542" y="104" class="typed">add</text>
+  <rect x="572" y="92" width="1.5" height="16" fill="#3a7d8c"/>
+  <line x1="494" y1="124" x2="916" y2="124" class="hair"/>
+
+  <!-- RECENT group -->
+  <text x="512" y="146" class="head">RECENT</text>
+  <!-- row: Add rack (selected/highlighted) -->
+  <rect x="502" y="154" width="406" height="34" rx="7" class="rowsel"/>
+  <text x="518" y="176" class="labelsel">Add rack</text>
+  <rect x="846" y="161" width="56" height="20" rx="4" class="kbdsel"/>
+  <text x="858" y="175" class="kbdtxts">new</text>
+
+  <!-- row: Export image -->
+  <rect x="502" y="192" width="406" height="34" rx="7" class="row"/>
+  <text x="518" y="214" class="label">Export image</text>
+  <rect x="860" y="199" width="42" height="20" rx="4" class="kbd"/>
+  <text x="872" y="213" class="kbdtxt">&#8984;E</text>
+
+  <line x1="510" y1="236" x2="900" y2="236" class="hair"/>
+
+  <!-- SELECTION group (contextual) -->
+  <text x="512" y="258" class="head">SELECTION  -  SERVER A (DEVICE)</text>
+  <rect x="502" y="266" width="406" height="34" rx="7" class="row"/>
+  <text x="518" y="288" class="label">Add note to device</text>
+  <rect x="502" y="304" width="406" height="34" rx="7" class="row"/>
+  <text x="518" y="326" class="label">Duplicate selected device</text>
+  <rect x="844" y="311" width="58" height="20" rx="4" class="kbd"/>
+  <text x="856" y="325" class="kbdtxt">&#8984;D</text>
+
+  <line x1="510" y1="348" x2="900" y2="348" class="hair"/>
+
+  <!-- COMMANDS group -->
+  <text x="512" y="370" class="head">COMMANDS</text>
+  <rect x="502" y="378" width="406" height="34" rx="7" class="row"/>
+  <text x="518" y="400" class="label">Add device...</text>
+  <text x="846" y="400" class="muted">sub-mode</text>
+  <rect x="502" y="416" width="406" height="34" rx="7" class="row"/>
+  <text x="518" y="438" class="label">Add custom device type...</text>
+  <rect x="502" y="454" width="406" height="34" rx="7" class="row"/>
+  <text x="518" y="476" class="label">Import devices from NetBox</text>
+
+  <!-- footer key hints -->
+  <line x1="494" y1="510" x2="916" y2="510" class="hair"/>
+  <rect x="494" y="510" width="422" height="40" rx="0" fill="#1f242b"/>
+  <rect x="512" y="522" width="22" height="18" rx="4" class="kbd"/>
+  <text x="518" y="535" class="kbdtxt">&#8593;</text>
+  <rect x="538" y="522" width="22" height="18" rx="4" class="kbd"/>
+  <text x="544" y="535" class="kbdtxt">&#8595;</text>
+  <text x="568" y="535" class="muted">navigate</text>
+  <rect x="650" y="522" width="22" height="18" rx="4" class="kbd"/>
+  <text x="656" y="535" class="kbdtxt">&#8629;</text>
+  <text x="680" y="535" class="muted">run</text>
+  <rect x="740" y="522" width="34" height="18" rx="4" class="kbd"/>
+  <text x="748" y="535" class="kbdtxt">esc</text>
+  <text x="782" y="535" class="muted">close</text>
+
+  <!-- caption under overlay -->
+  <text x="470" y="592" class="caption">Command-first. Device search is an opt-in "Add device..." sub-mode, not the top-level list.</text>
+  <text x="470" y="610" class="caption">All rows are projections of the #2096 registry; the palette adds reach, not commands.</text>
+</svg>

@@ -269,9 +269,24 @@ container entrypoint as `window.__RACKULA_CONFIG__`, defaulting to browser when 
 config is present; explicit config always wins and the connection-history probe is
 deleted.
 
-Command palette: deferred. The build-later call is made; the shell implementation
-structures menu and verb actions as a command registry so a Ctrl+K palette can layer
-on later as thin UI. The spike, when picked up, designs the palette itself.
+Command palette: resolved by spike #2020 (full findings in
+docs/research/spike-2020-command-palette.md, mock in
+docs/research/spike-2020-palette-mock.svg). Still build-later and non-blocking. The
+decisions: it is a command-first palette, thin UI projected from the command registry
+(#2096), built by composing the bits-ui v2.18.1 `Command` component (a Svelte port of
+cmdk, with the ARIA combobox/listbox model and a fuzzy scorer built in) inside the
+existing bits-ui `Dialog` - no new dependency and no custom accessibility code.
+Invocation is Ctrl+K (Cmd+K on macOS) bound on keydown capture with preventDefault, plus
+a required visible "Search or jump to..." pill in the top bar's reserved slot (#2072),
+because Ctrl+K interception is reliable but not universal (Chrome/Edge on Windows can
+steal it) and the palette must never be the sole path to a command. Behaviour: built-in
+fuzzy ranking plus registry keyword aliases, a small MRU recents list in localStorage,
+and selection-aware contextual commands, over an empty state that is never blank
+(recents, then the current selection's verbs, then a short grouped command list). Device
+search and placement stay in the Devices sidebar; a palette "Add device..." sub-mode is
+an optional later follow-on, not v1. Implementation is decomposed into #2212 (shell),
+#2213 (recents and contextual commands), and #2214 (optional device sub-mode), all
+sequenced after #2096, #2073, and #2075.
 
 ## Out of scope
 
@@ -361,3 +376,21 @@ the align-roadmap session plan file; per-issue details live on the issues.
   debounced saves before building the archive.
 - The interim top bar (#2072) ships with an empty flex slot; the full
   logo/menu/tabs/chip/settings layout is the end state, not the slice's exit criteria.
+
+## Command palette spike amendment (2026-06-13)
+
+Spike #2020 resolved the command palette (still build-later, non-blocking). It is a
+command-first palette, thin UI projected from the registry (#2096), built by composing
+bits-ui v2.18.1's `Command` component (Svelte cmdk: ARIA combobox/listbox + fuzzy scorer
+built in) inside the existing bits-ui `Dialog` - no new dependency. Ctrl+K (Cmd+K on
+macOS) is the primary invocation, paired with a required visible "Search or jump to..."
+pill in the #2072 top-bar slot, because Ctrl+K interception is reliable but not universal
+(Chrome/Edge on Windows can steal it) and the palette is never the sole path to a command
+(guaranteed by the registry being the single source for menu, verb bars, keyboard, help,
+and palette). Behaviour: built-in fuzzy ranking plus keyword aliases, an MRU recents list
+in localStorage, selection-aware contextual commands, and an empty state that is never
+blank. Device search and placement stay in the Devices sidebar; a palette "Add device..."
+sub-mode is an optional later follow-on. Decomposed into #2212 (shell), #2213 (recents and
+contextual), and #2214 (optional device sub-mode), sequenced after #2096, #2073, #2075.
+Full findings: docs/research/spike-2020-command-palette.md; mock:
+docs/research/spike-2020-palette-mock.svg.
