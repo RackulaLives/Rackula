@@ -138,10 +138,13 @@ jobs:
       - name: Run full E2E tests
         run: npm run test:e2e
 
-      - name: Upload Playwright report
+      # The full config (e2e/playwright.config.ts) uses the blob reporter in CI,
+      # which writes to blob-report/. View it with `npx playwright merge-reports
+      # --reporter html ./blob-report`, the same as the sharded test-full.yml.
+      - name: Upload blob report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: playwright-report-self-hosted
-          path: playwright-report/
+          name: blob-report-self-hosted
+          path: blob-report/
           retention-days: 7
