@@ -320,6 +320,51 @@ The `e2e/android-chrome.spec.ts` tests Android Chrome functionality:
 
 **Note:** Playwright Chromium is a desktop build. For real Android device testing, use BrowserStack.
 
+### Accessibility Scans (axe-core)
+
+`e2e/axe.spec.ts` runs axe-core (via `@axe-core/playwright`) against the key
+surfaces and fails CI on any WCAG 2.2 AA violation. It is a guard rail for the UX
+overhaul (epic #2017): the shell rework touches keyboard navigation extensively,
+and these scans catch static, machine-detectable regressions (contrast, names,
+roles, attributes) that manual review would miss.
+
+This is the automated-scan layer. Behavioural a11y (keyboard paths, focus
+trapping, landmark naming) lives in `e2e/accessibility.spec.ts`; axe cannot
+observe those, so the two suites are complementary.
+
+The scans run on their own config (`e2e/playwright.a11y.config.ts`, Chromium
+only, no retries) and their own CI job (`a11y (axe-core)` in `test.yml`):
+
+```bash
+npm run test:e2e:a11y
+```
+
+Current scans: populated canvas with a selected device, the sidebar's Devices
+and Racks tabs, and the Export and Share dialogs.
+
+Adding a scan when a new surface lands:
+
+1. Open the surface in a test (reuse the shared `e2e/helpers`), then scope a scan
+   to it:
+
+   ```typescript
+   import { expectNoA11yViolations } from "./helpers/a11y";
+
+   test("side panel has no WCAG 2.2 AA violations", async ({ page }) => {
+     await gotoWithRack(page);
+     const panel = page.getByTestId("side-panel");
+     await expect(panel).toBeVisible();
+     await expectNoA11yViolations(page, panel); // omit the locator to scan the whole page
+   });
+   ```
+
+2. Run `npm run test:e2e:a11y` and fix any violation it reports.
+3. If a violation genuinely cannot be fixed in the same slice, baseline the rule
+   in `e2e/helpers/a11y.ts` (`BASELINED_RULES`) with a tracking issue link, and
+   open that issue. A baseline disables that rule for every scan, so a fresh
+   violation of a baselined rule will not be caught until the rule is re-enabled:
+   keep the list short and remove each entry as soon as its issue closes.
+
 ### Real Device Testing (BrowserStack)
 
 For comprehensive mobile testing on real iOS and Android devices, use BrowserStack integration.
