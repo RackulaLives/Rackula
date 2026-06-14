@@ -17,7 +17,7 @@
   import LayoutYamlPanel from "$lib/components/LayoutYamlPanel.svelte";
   import Dialog from "$lib/components/Dialog.svelte";
   import HelpPanel from "$lib/components/HelpPanel.svelte";
-  import BottomSheet from "$lib/components/BottomSheet.svelte";
+  import SettingsDialog from "$lib/components/SettingsDialog.svelte";
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
   import MobileFileSheet from "$lib/components/MobileFileSheet.svelte";
   import MobileBottomNav from "$lib/components/mobile/MobileBottomNav.svelte";
@@ -32,6 +32,7 @@
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
+  import type { ImageStoreMap } from "$lib/types/images";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
@@ -77,6 +78,7 @@
   let shareDialogOpen = $derived(dialogStore.isOpen("share"));
   let yamlEditorDialogOpen = $derived(dialogStore.isOpen("yamlEditor"));
   let helpPanelOpen = $derived(dialogStore.isOpen("help"));
+  let settingsDialogOpen = $derived(dialogStore.isOpen("settings"));
   let importFromNetBoxOpen = $derived(dialogStore.isOpen("importNetBox"));
   let showReplaceDialog = $derived(dialogStore.isOpen("confirmReplace"));
   let cleanupDialogOpen = $derived(dialogStore.isOpen("cleanupDialog"));
@@ -193,7 +195,7 @@
     uiStore.setPromptCleanupOnSave(false);
   }
 
-  export function handleOpenCleanupDialog() {
+  function handleOpenCleanupDialog() {
     cleanupReviewPendingOperation = null;
     dialogStore.open("cleanupDialog");
   }
@@ -281,7 +283,11 @@
     handleFitAll();
   }
 
-  function handleYamlApply(nextLayout: Layout) {
+  function handleYamlApply(
+    nextLayout: Layout,
+    images?: ImageStoreMap,
+    failedImagesCount = 0,
+  ) {
     // Applying YAML edits the working copy; preserve export tracking
     // across loadLayout's reset so the chip state survives the apply.
     const backupState = {
@@ -291,8 +297,44 @@
     layoutStore.loadLayout(nextLayout);
     layoutStore.restoreBackupState(backupState);
     layoutStore.markDirty();
+    // Overlay any images decoded from the applied YAML (e.g. a pasted full
+    // layout that carries an embedded images section). The panel shows
+    // image-free YAML, so a structural edit carries no images and the existing
+    // image store is preserved untouched.
+    if (images && images.size > 0) {
+      for (const [key, deviceImages] of images) {
+        // Replace the whole key, not per-side: a paste that omits one side must
+        // not leave the previously stored opposite-side image behind.
+        imageStore.removeAllDeviceImages(key);
+        if (deviceImages.front) {
+          imageStore.setDeviceImage(key, "front", deviceImages.front);
+        }
+        if (deviceImages.rear) {
+          imageStore.setDeviceImage(key, "rear", deviceImages.rear);
+        }
+      }
+      // A pasted layout brings its own complete image set, so drop user images
+      // orphaned by it (keys the applied layout no longer uses). Valid keys are
+      // the layout's device-type slugs plus per-placement keys; image-free edits
+      // skip this block and leave the store untouched.
+      // getUsedDeviceTypeSlugs returns a fresh set we own, so we extend it in
+      // place with per-placement keys rather than allocating another set.
+      const usedImageKeys = layoutStore.getUsedDeviceTypeSlugs();
+      for (const rack of nextLayout.racks) {
+        for (const device of rack.devices) {
+          usedImageKeys.add(`placement-${device.id}`);
+        }
+      }
+      imageStore.cleanupOrphanedImages(usedImageKeys);
+    }
     selectionStore.clearSelection();
     toastStore.showToast("YAML applied", "success");
+    if (failedImagesCount > 0) {
+      toastStore.showToast(
+        `Applied with ${failedImagesCount} image${failedImagesCount > 1 ? "s" : ""} that couldn't be read`,
+        "warning",
+      );
+    }
 
     if (viewportStore.isMobile) {
       dialogStore.closeSheet();
@@ -310,6 +352,17 @@
   function handleHelpClose() {
     dialogStore.close();
     handleFitAll();
+  }
+
+  // --- Settings handlers ---
+
+  function handleSettingsClose() {
+    // Only close if settings is still the open dialog. The Review action hands
+    // off to the cleanup dialog by switching openDialog directly; guarding here
+    // keeps a stray close from clobbering the dialog that just opened.
+    if (dialogStore.isOpen("settings")) {
+      dialogStore.close();
+    }
   }
 
   // --- Add device handlers ---
@@ -570,9 +623,10 @@
     {@const maxPosition = rackHeight - deviceType.u_height + 1}
     {@const canMoveUp = device.position < maxPosition}
     {@const canMoveDown = device.position > 1}
-    <BottomSheet
+    <Dialog
       open={bottomSheetOpen}
-      title={deviceType.model}
+      title={deviceType.model ?? "Device"}
+      size="M"
       onclose={handleBottomSheetClose}
     >
       <DeviceDetails
@@ -587,7 +641,7 @@
         {canMoveUp}
         {canMoveDown}
       />
-    </BottomSheet>
+    </Dialog>
   {/if}
 {/if}
 
@@ -665,7 +719,7 @@
 <Dialog
   open={yamlEditorDialogOpen}
   title="Layout YAML"
-  width="min(980px, 95vw)"
+  size="L"
   onclose={handleYamlEditorClose}
 >
   <LayoutYamlPanel
@@ -676,6 +730,12 @@
 </Dialog>
 
 <HelpPanel open={helpPanelOpen} onclose={handleHelpClose} />
+
+<SettingsDialog
+  open={settingsDialogOpen}
+  onclose={handleSettingsClose}
+  onopencleanup={handleOpenCleanupDialog}
+/>
 
 <CleanupDialog open={cleanupDialogOpen} onclose={handleCleanupDialogClose} />
 
@@ -697,7 +757,12 @@
 />
 
 {#if viewportStore.isMobile && fileSheetOpen}
-  <BottomSheet open={fileSheetOpen} title="File" onclose={handleFileSheetClose}>
+  <Dialog
+    open={fileSheetOpen}
+    title="File"
+    size="M"
+    onclose={handleFileSheetClose}
+  >
     <MobileFileSheet
       onload={handleLoad}
       onsave={maybeSave}
@@ -708,13 +773,14 @@
       onclose={handleFileSheetClose}
       hasRacks={layoutStore.hasRack}
     />
-  </BottomSheet>
+  </Dialog>
 {/if}
 
 {#if viewportStore.isMobile && yamlEditorSheetOpen}
-  <BottomSheet
+  <Dialog
     open={yamlEditorSheetOpen}
     title="Layout YAML"
+    size="L"
     onclose={handleYamlEditorSheetClose}
   >
     <LayoutYamlPanel
@@ -722,11 +788,16 @@
       layout={layoutStore.layout}
       onapply={handleYamlApply}
     />
-  </BottomSheet>
+  </Dialog>
 {/if}
 
 {#if viewportStore.isMobile && viewSheetOpen}
-  <BottomSheet open={viewSheetOpen} title="View" onclose={handleViewSheetClose}>
+  <Dialog
+    open={viewSheetOpen}
+    title="View"
+    size="M"
+    onclose={handleViewSheetClose}
+  >
     <MobileViewSheet
       displayMode={uiStore.displayMode}
       showAnnotations={uiStore.showAnnotations}
@@ -738,34 +809,36 @@
       onresetzoom={() => canvasStore.resetZoom()}
       onclose={handleViewSheetActionClose}
     />
-  </BottomSheet>
+  </Dialog>
 {/if}
 
 {#if viewportStore.isMobile && deviceLibrarySheetOpen}
-  <BottomSheet
+  <Dialog
     open={deviceLibrarySheetOpen}
     title="Device Library"
+    size="M"
     onclose={handleDeviceLibrarySheetClose}
   >
     <DevicePalette
       ondeviceselect={handleMobileDeviceSelect}
       oncreatedevice={handleAddDevice}
     />
-  </BottomSheet>
+  </Dialog>
 {/if}
 
 <!-- Mobile rack edit sheet (opened via long press on rack) -->
 {#if viewportStore.isMobile && rackEditSheetOpen && layoutStore.activeRack}
-  <BottomSheet
+  <Dialog
     open={rackEditSheetOpen}
     title="Edit Rack"
+    size="M"
     onclose={handleRackEditSheetClose}
   >
     <RackEditSheet
       rack={layoutStore.activeRack}
       onclose={handleRackEditSheetClose}
     />
-  </BottomSheet>
+  </Dialog>
 {/if}
 
 <!-- Hidden file input for device library JSON import -->

@@ -20,8 +20,12 @@
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "test:e2e:dev": "playwright test --config e2e/playwright.dev.config.ts",
     "test:e2e:smoke": "playwright test --config e2e/playwright.smoke.config.ts",
+    "test:e2e:visual": "playwright test --config e2e/playwright.visual.config.ts",
+    "test:e2e:visual:update": "playwright test --config e2e/playwright.visual.config.ts --update-snapshots",
+    "test:e2e:a11y": "playwright test --config e2e/playwright.a11y.config.ts",
     "test:coverage": "NODE_OPTIONS=--max-old-space-size=8192 vitest run --coverage",
     "check:compose-parity": "bash scripts/check-compose-persist-parity.sh",
+    "check:bundle-budget": "npx tsx scripts/check-bundle-budget.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -36,6 +40,7 @@
     "deps:status": "npm outdated || true"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.60.0",

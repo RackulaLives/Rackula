@@ -1,40 +1,27 @@
 <!--
   Toolbar Component
-  Geismar-minimal three-zone layout:
-  - Left: Logo lockup (clickable for help)
-  - Center: Action cluster (Undo, Redo, View, Fit, Export, Share)
-  - Right: Dropdown menus (desktop) / quick file actions (mobile)
+  Workspace frame only (issue #2072): the top bar carries app/workspace chrome,
+  not view, history, or object controls.
+  - Left: Logo lockup (the app menu)
+  - Centre: Layout name (workspace identity, desktop)
+  - Right: Storage chip + Settings gear (desktop) / quick file actions (mobile)
+  View and history controls (zoom, fit, display mode, undo, redo) relocate to the
+  canvas bottom-left in #2074; they stay reachable today via the keyboard and the
+  Devices sidebar. File commands (save, load, export, share, import) live in the
+  app menu behind the logo.
 -->
 <script lang="ts">
   import Tooltip from "./Tooltip.svelte";
-  import FileMenu from "./FileMenu.svelte";
-  import SettingsMenu from "./SettingsMenu.svelte";
-  import LogoLockup from "./LogoLockup.svelte";
-  import {
-    IconUndoBold,
-    IconRedoBold,
-    IconTextBold,
-    IconImageBold,
-    IconFitAllBold,
-    IconImageLabel,
-    IconDownloadBold,
-    IconShareBold,
-  } from "./icons";
+  import AppMenu from "./AppMenu.svelte";
+  import StorageStatusChip from "./StorageStatusChip.svelte";
+  import type { ActionId } from "$lib/actions/registry";
+  import { IconGearBold } from "./icons";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
-  import type { DisplayMode } from "$lib/types";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
-  import { getToastStore } from "$lib/stores/toast.svelte";
 
   interface Props {
     hasRacks?: boolean;
-    theme?: "dark" | "light";
-    displayMode?: DisplayMode;
-    showAnnotations?: boolean;
-    showBanana?: boolean;
-    compatibleOnly?: boolean;
-    warnOnUnsavedChanges?: boolean;
-    promptCleanupOnSave?: boolean;
     partyMode?: boolean;
     onsave?: () => void;
     onsaveas?: () => void;
@@ -45,28 +32,13 @@
     onimportdevices?: () => void;
     onimportnetbox?: () => void;
     onnewcustomdevice?: () => void;
-    onfitall?: () => void;
-    ontoggletheme?: () => void;
-    ontoggledisplaymode?: () => void;
-    ontoggleannotations?: () => void;
-    ontogglebanana?: () => void;
-    ontogglecompatibleonly?: () => void;
-    ontogglewarnunsaved?: () => void;
-    ontogglepromptcleanup?: () => void;
-    onopencleanup?: () => void;
+    onsettings?: () => void;
     onhelp?: () => void;
-    onlayouts?: () => void;
+    onnewlayout?: () => void;
   }
 
   let {
     hasRacks = false,
-    theme = "dark",
-    displayMode = "label",
-    showAnnotations = false,
-    showBanana = false,
-    compatibleOnly = true,
-    warnOnUnsavedChanges = true,
-    promptCleanupOnSave = true,
     partyMode = false,
     onsave,
     onsaveas,
@@ -77,21 +49,12 @@
     onimportdevices,
     onimportnetbox,
     onnewcustomdevice,
-    onfitall,
-    ontoggletheme,
-    ontoggledisplaymode,
-    ontoggleannotations,
-    ontogglebanana,
-    ontogglecompatibleonly,
-    ontogglewarnunsaved,
-    ontogglepromptcleanup,
-    onopencleanup,
+    onsettings,
     onhelp,
-    onlayouts,
+    onnewlayout,
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
-  const toastStore = getToastStore();
   const viewportStore = getViewportStore();
 
   // Inline layout name editing state
@@ -109,33 +72,8 @@
     return () => cancelAnimationFrame(frame);
   });
 
-  // View mode labels for tooltip
-  const displayModeLabels: Record<DisplayMode, string> = {
-    label: "Labels",
-    image: "Images",
-    "image-label": "Both",
-  };
-
-  function handleUndo() {
-    if (!layoutStore.canUndo) return;
-    const desc = layoutStore.undoDescription?.replace("Undo: ", "") ?? "action";
-    layoutStore.undo();
-    toastStore.showToast(`Undid: ${desc}`, "info");
-  }
-
-  function handleRedo() {
-    if (!layoutStore.canRedo) return;
-    const desc = layoutStore.redoDescription?.replace("Redo: ", "") ?? "action";
-    layoutStore.redo();
-    toastStore.showToast(`Redid: ${desc}`, "info");
-  }
-
   function handleSave() {
     onsave?.();
-  }
-
-  function handleSaveAs() {
-    onsaveas?.();
   }
 
   function handleLoad() {
@@ -146,68 +84,31 @@
     onexport?.();
   }
 
-  function handleShare() {
-    onshare?.();
+  function handleSettings() {
+    onsettings?.();
   }
 
-  function handleViewYaml() {
-    onviewyaml?.();
-  }
+  // Dispatch map from app-menu action id to its handler. The menu items
+  // themselves come from the registry (AppMenu projects getAppMenuSections);
+  // this binds each id to the closure that runs it, mirroring how
+  // KeyboardHandler binds the same ids to keyboard shortcuts.
+  const appMenuDispatch: Partial<Record<ActionId, () => void>> = {
+    "new-layout": () => onnewlayout?.(),
+    load: () => onload?.(),
+    save: () => onsave?.(),
+    "save-as": () => onsaveas?.(),
+    "export-backup": () => onsaveas?.(),
+    export: () => onexport?.(),
+    share: () => onshare?.(),
+    "view-yaml": () => onviewyaml?.(),
+    "import-devices": () => onimportdevices?.(),
+    "import-netbox": () => onimportnetbox?.(),
+    "new-custom-device": () => onnewcustomdevice?.(),
+    "show-help": () => onhelp?.(),
+  };
 
-  function handleImportDevices() {
-    onimportdevices?.();
-  }
-
-  function handleImportNetBox() {
-    onimportnetbox?.();
-  }
-
-  function handleNewCustomDevice() {
-    onnewcustomdevice?.();
-  }
-
-  function handleLayouts() {
-    onlayouts?.();
-  }
-
-  function handleFitAll() {
-    onfitall?.();
-  }
-
-  function handleToggleTheme() {
-    ontoggletheme?.();
-  }
-
-  function handleToggleDisplayMode() {
-    ontoggledisplaymode?.();
-  }
-
-  function handleToggleAnnotations() {
-    ontoggleannotations?.();
-  }
-
-  function handleToggleBanana() {
-    ontogglebanana?.();
-  }
-
-  function handleToggleCompatibleOnly() {
-    ontogglecompatibleonly?.();
-  }
-
-  function handleToggleWarnUnsaved() {
-    ontogglewarnunsaved?.();
-  }
-
-  function handleTogglePromptCleanup() {
-    ontogglepromptcleanup?.();
-  }
-
-  function handleOpenCleanup() {
-    onopencleanup?.();
-  }
-
-  function handleHelp() {
-    onhelp?.();
+  function handleAppMenuAction(id: ActionId) {
+    appMenuDispatch[id]?.();
   }
 
   function startEditingName() {
@@ -236,19 +137,9 @@
 </script>
 
 <header class="toolbar">
-  <!-- Left: Logo -->
+  <!-- Left: Logo (also the app menu) -->
   <div class="toolbar-section toolbar-left">
-    <Tooltip text="About & Shortcuts" shortcut="?" position="bottom">
-      <button
-        class="toolbar-brand"
-        type="button"
-        aria-label="About & Shortcuts"
-        onclick={handleHelp}
-        data-testid="btn-logo-about"
-      >
-        <LogoLockup size={32} {partyMode} />
-      </button>
-    </Tooltip>
+    <AppMenu onaction={handleAppMenuAction} {hasRacks} {partyMode} />
   </div>
 
   <!-- Layout name (desktop only) -->
@@ -291,131 +182,22 @@
     </div>
   {/if}
 
-  <!-- Center: Action cluster (desktop only) -->
-  {#if !viewportStore.isMobile}
-    <div class="toolbar-section toolbar-center">
-      <Tooltip
-        text={layoutStore.undoDescription ?? "Undo"}
-        shortcut="Ctrl+Z"
-        position="bottom"
-      >
-        <button
-          class="toolbar-icon-btn"
-          aria-label={layoutStore.undoDescription ?? "Undo"}
-          disabled={!layoutStore.canUndo}
-          onclick={handleUndo}
-          data-testid="btn-undo"
-        >
-          <IconUndoBold size={ICON_SIZE.md} />
-        </button>
-      </Tooltip>
-
-      <Tooltip
-        text={layoutStore.redoDescription ?? "Redo"}
-        shortcut="Ctrl+Shift+Z"
-        position="bottom"
-      >
-        <button
-          class="toolbar-icon-btn"
-          aria-label={layoutStore.redoDescription ?? "Redo"}
-          disabled={!layoutStore.canRedo}
-          onclick={handleRedo}
-          data-testid="btn-redo"
-        >
-          <IconRedoBold size={ICON_SIZE.md} />
-        </button>
-      </Tooltip>
-
-      <Tooltip
-        text={`Display: ${displayModeLabels[displayMode]}`}
-        shortcut="I"
-        position="bottom"
-      >
-        <button
-          class="toolbar-icon-btn"
-          aria-label="Toggle display mode"
-          onclick={handleToggleDisplayMode}
-          data-testid="btn-display-mode"
-        >
-          {#if displayMode === "label"}
-            <IconTextBold size={ICON_SIZE.md} />
-          {:else if displayMode === "image"}
-            <IconImageBold size={ICON_SIZE.md} />
-          {:else}
-            <IconImageLabel size={ICON_SIZE.lg} />
-          {/if}
-        </button>
-      </Tooltip>
-
-      <Tooltip text="Reset View" shortcut="F" position="bottom">
-        <button
-          class="toolbar-icon-btn"
-          aria-label="Reset View"
-          onclick={handleFitAll}
-          data-testid="btn-fit-all"
-        >
-          <IconFitAllBold size={ICON_SIZE.md} />
-        </button>
-      </Tooltip>
-
-      <Tooltip text="Export" shortcut="Ctrl+E" position="bottom">
-        <button
-          class="toolbar-icon-btn"
-          aria-label="Export"
-          disabled={!hasRacks}
-          onclick={handleExport}
-          data-testid="btn-export"
-        >
-          <IconDownloadBold size={ICON_SIZE.md} />
-        </button>
-      </Tooltip>
-
-      <Tooltip text="Share" shortcut="Ctrl+H" position="bottom">
-        <button
-          class="toolbar-icon-btn"
-          aria-label="Share"
-          disabled={!hasRacks}
-          onclick={handleShare}
-          data-testid="btn-share"
-        >
-          <IconShareBold size={ICON_SIZE.md} />
-        </button>
-      </Tooltip>
-    </div>
-  {/if}
-
-  <!-- Right: Dropdown menus (desktop) / quick file actions (mobile) -->
+  <!-- Right: Workspace chrome (desktop) / quick file actions (mobile) -->
   {#if !viewportStore.isMobile}
     <div class="toolbar-section toolbar-right">
-      <FileMenu
-        onsave={handleSave}
-        onsaveas={handleSaveAs}
-        onload={handleLoad}
-        onexport={handleExport}
-        onshare={handleShare}
-        onviewyaml={handleViewYaml}
-        onimportdevices={handleImportDevices}
-        onimportnetbox={handleImportNetBox}
-        onnewcustomdevice={handleNewCustomDevice}
-        onlayouts={onlayouts ? handleLayouts : undefined}
-        {hasRacks}
-      />
+      <StorageStatusChip />
 
-      <SettingsMenu
-        {theme}
-        {showAnnotations}
-        {showBanana}
-        {compatibleOnly}
-        {warnOnUnsavedChanges}
-        {promptCleanupOnSave}
-        ontoggletheme={handleToggleTheme}
-        ontoggleannotations={handleToggleAnnotations}
-        ontogglebanana={handleToggleBanana}
-        ontogglecompatibleonly={handleToggleCompatibleOnly}
-        ontogglewarnunsaved={handleToggleWarnUnsaved}
-        ontogglepromptcleanup={handleTogglePromptCleanup}
-        onopencleanup={handleOpenCleanup}
-      />
+      <Tooltip text="Settings" position="bottom">
+        <button
+          class="toolbar-icon-btn"
+          type="button"
+          aria-label="Settings"
+          onclick={handleSettings}
+          data-testid="btn-settings"
+        >
+          <IconGearBold size={ICON_SIZE.md} />
+        </button>
+      </Tooltip>
     </div>
   {:else}
     <div
@@ -451,17 +233,6 @@
       >
         Export
       </button>
-      {#if onlayouts}
-        <button
-          class="toolbar-mobile-action-btn"
-          type="button"
-          aria-label="Go to Layouts"
-          onclick={handleLayouts}
-          data-testid="btn-mobile-layouts"
-        >
-          Layouts
-        </button>
-      {/if}
     </div>
   {/if}
 </header>
@@ -558,11 +329,6 @@
     outline: none;
   }
 
-  .toolbar-center {
-    flex: 0 0 auto;
-    gap: var(--space-2);
-  }
-
   .toolbar-right {
     flex: 0 0 auto;
     gap: var(--space-2);
@@ -576,37 +342,7 @@
     gap: var(--space-1);
   }
 
-  /* Logo button */
-  .toolbar-brand {
-    display: flex;
-    align-items: center;
-    padding: var(--space-1);
-    border: none;
-    border-radius: var(--radius-md);
-    background: transparent;
-    cursor: pointer;
-    transition:
-      background-color var(--duration-fast) var(--ease-out),
-      transform var(--duration-fast) var(--ease-out);
-  }
-
-  .toolbar-brand:hover {
-    background: var(--colour-surface-hover);
-  }
-
-  .toolbar-brand:active {
-    transform: scale(0.98);
-  }
-
-  .toolbar-brand:focus-visible {
-    outline: none;
-    box-shadow:
-      0 0 0 2px var(--colour-bg),
-      0 0 0 4px var(--colour-focus-ring);
-  }
-
-  /* Icon buttons - shared by toolbar and dropdown triggers */
-  .toolbar-icon-btn,
+  /* Icon buttons - the dropdown-menu triggers (Settings gear) use this class. */
   :global(.toolbar-icon-btn) {
     display: inline-flex;
     align-items: center;
@@ -625,20 +361,17 @@
   }
 
   /* Icon sizing via CSS tokens */
-  .toolbar-icon-btn :global(svg),
   :global(.toolbar-icon-btn svg) {
     width: var(--icon-size-lg);
     height: var(--icon-size-lg);
   }
 
-  .toolbar-icon-btn:hover:not(:disabled),
   :global(.toolbar-icon-btn:hover:not(:disabled)) {
     color: var(--dracula-cyan);
     filter: brightness(1.1);
     box-shadow: inset 0 -2px 0 currentColor;
   }
 
-  .toolbar-icon-btn:focus-visible,
   :global(.toolbar-icon-btn:focus-visible) {
     outline: none;
     color: var(--dracula-cyan);
@@ -647,7 +380,6 @@
       0 0 0 2px var(--colour-focus-ring);
   }
 
-  .toolbar-icon-btn:disabled,
   :global(.toolbar-icon-btn:disabled) {
     opacity: 0.4;
     cursor: not-allowed;
@@ -690,12 +422,5 @@
   .toolbar-mobile-action-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
-  }
-
-  /* Responsive: tighter gaps on narrow screens */
-  @media (max-width: 600px) {
-    .toolbar-center {
-      gap: 0;
-    }
   }
 </style>

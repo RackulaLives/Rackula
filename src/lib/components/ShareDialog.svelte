@@ -122,7 +122,7 @@
 <Dialog
   {open}
   title="Share Layout"
-  width="min(420px, 90vw)"
+  size="S"
   showClose={false}
   onclose={handleClose}
 >

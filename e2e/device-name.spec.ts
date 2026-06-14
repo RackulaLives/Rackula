@@ -22,8 +22,8 @@ test.describe("Device Custom Names", () => {
     // Click on the device to select it
     await page.locator(locators.rack.device).first().click();
 
-    // Wait for edit panel drawer to open
-    await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+    // Selecting the device surfaces its Edit-tab properties (empty state gone)
+    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
 
     // Click the display name button to start editing
     await startEditingDisplayName(page);
@@ -51,7 +51,7 @@ test.describe("Device Custom Names", () => {
     await page.locator(locators.rack.device).first().click();
 
     // Wait for edit panel to open
-    await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
 
     // Edit the name
     await startEditingDisplayName(page);
@@ -104,7 +104,7 @@ test.describe("Device Custom Names", () => {
     await page.locator(locators.rack.device).first().click();
 
     // Wait for edit panel to open
-    await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
 
     // Get the original device type name
     const originalName = await page
@@ -126,7 +126,7 @@ test.describe("Device Custom Names", () => {
 
     // Deselect device to ensure keyboard shortcuts target the app, not the edit panel
     await page.keyboard.press("Escape");
-    await expect(page.locator(locators.drawer.rightOpen)).not.toBeVisible();
+    await expect(page.locator(locators.sidePanel.editEmpty)).toBeVisible();
 
     // Undo (Ctrl+Z)
     await page.keyboard.press(`${PLATFORM_MODIFIER}+z`);
@@ -154,7 +154,7 @@ test.describe("Device Custom Names", () => {
     await page.locator(locators.rack.device).first().click();
 
     // Wait for edit panel to open
-    await expect(page.locator(locators.drawer.rightOpen)).toBeVisible();
+    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
 
     // Get the original device type name
     const originalName = await page

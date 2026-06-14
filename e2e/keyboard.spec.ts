@@ -55,25 +55,28 @@ test.describe("Keyboard Shortcuts", () => {
     // Select the rack (click on first rack-svg in dual-view)
     await page.locator(locators.rack.svg).first().click();
 
-    // Edit panel should open
-    await expect(page.locator(locators.drawer.rightOpenBare)).toBeVisible();
+    // Selecting the rack surfaces its Edit-tab properties (empty state gone)
+    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
 
     // Press Escape
     await page.keyboard.press("Escape");
 
-    // Edit panel should close
-    await expect(page.locator(locators.drawer.rightOpenBare)).not.toBeVisible();
+    // Clearing the selection returns the Edit tab to its empty state
+    await expect(page.locator(locators.sidePanel.editEmpty)).toBeVisible();
   });
 
   test("? key opens help dialog", async ({ page }) => {
-    // Press ? using keyboard.type which handles shift automatically
-    await page.keyboard.type("?");
+    // Press the physical "?" combo (Shift + /). This dispatches a keydown with
+    // key "?" AND shiftKey=true, matching a real keyboard - keyboard.type("?")
+    // would synthesise a shift-less event and mask shift-handling regressions.
+    await page.keyboard.press("Shift+Slash");
 
-    // Help dialog should open (HelpPanel uses Dialog component)
-    // The Dialog.Title is sr-only with text "About Rackula" — check dialog is visible
-    await expect(page.locator(locators.dialog.root)).toBeVisible({ timeout: 2000 });
-    // Verify it's the help dialog by checking for the logo or keyboard shortcuts content
-    await expect(page.locator(".help-dialog")).toBeVisible();
+    // Help dialog should open (HelpPanel uses Dialog component). Its sr-only
+    // Dialog.Title "About Rackula" provides the accessible name, so the
+    // role/name locator both finds the dialog and confirms it is the help one.
+    await expect(
+      page.getByRole("dialog", { name: "About Rackula" }),
+    ).toBeVisible({ timeout: 2000 });
   });
 
   test("Ctrl+S triggers save", async ({ page }) => {

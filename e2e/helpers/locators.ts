@@ -48,24 +48,31 @@ export const locators = {
 
   device: {
     paletteItem: '[data-testid="device-palette-item"]',
+    paletteItemName: '[data-testid="device-palette-item"] .device-name',
     palette: ".device-palette",
   },
 
   toolbar: {
     root: ".toolbar",
-    center: ".toolbar-center",
-    brand: ".toolbar-brand",
-    brandLogoMark: ".toolbar-brand .logo-mark",
+    // The logo is also the app-menu trigger.
+    brand: '[data-testid="btn-app-menu"]',
+    brandLogoMark: '[data-testid="btn-app-menu"] .logo-mark',
   },
 
   sidebar: {
     pane: '[data-testid="drawer-left"]',
   },
 
-  drawer: {
-    rightOpen: 'aside[data-testid="drawer-device-edit"].open',
-    /** Variant without the `aside` element prefix (used in some specs) */
-    rightOpenBare: '[data-testid="drawer-device-edit"].open',
+  sidePanel: {
+    root: '[data-testid="side-panel"]',
+    /** Edit tabpanel (hosts the contextual properties for the selection). */
+    editPanel: '[data-testid="side-panel-panel-edit"]',
+    /** Empty-state prompt shown in the Edit tab when nothing is selected. */
+    editEmpty: '[data-testid="side-panel-edit-empty"]',
+    tabEdit: '[data-testid="side-panel-tab-edit"]',
+    tabView: '[data-testid="side-panel-tab-view"]',
+    collapse: '[data-testid="side-panel-collapse"]',
+    expand: '[data-testid="side-panel-expand"]',
   },
 
   canvas: {
@@ -73,8 +80,8 @@ export const locators = {
     panzoomContainer: ".panzoom-container",
   },
 
-  startScreen: {
-    root: '[data-testid="start-screen"]',
+  welcomeScreen: {
+    root: '[data-testid="welcome-screen"]',
   },
 
   dialog: {
@@ -91,9 +98,11 @@ export const locators = {
 
   mobile: {
     bottomNav: '[data-testid="mobile-bottom-nav"]',
-    bottomSheet: '[data-testid="mobile-bottom-sheet"]',
-    dragHandleBar: ".drag-handle-bar",
-    backdrop: ".backdrop",
+    // The unified Dialog primitive (#2092) renders as a bottom sheet below the
+    // mobile breakpoint: a .dialog--sheet element over the shared .dialog-backdrop.
+    bottomSheet: ".dialog--sheet",
+    dragHandleBar: ".dialog-drag-handle",
+    backdrop: ".dialog-backdrop",
     deviceLibraryFab: ".device-library-fab",
   },
 
@@ -110,5 +119,15 @@ export const locators = {
   contextMenu: {
     content: '[data-testid="ctx-menu"]',
     item: '[data-testid="ctx-menu-item"]',
+  },
+
+  /**
+   * Regions whose text changes between builds or over time. Used as
+   * toHaveScreenshot() masks in the visual-regression suite. These are leaf
+   * spans with no role of their own, so they stay as class selectors here.
+   */
+  dynamic: {
+    version: ".version",
+    layoutMeta: ".layout-meta",
   },
 } as const;

@@ -413,6 +413,16 @@ describe("Device Movement Utility", () => {
 
       expect(canMoveUp(rack, deviceTypes, 0)).toBe(false);
     });
+
+    it("returns false for a container child (rack-level move would detach it)", () => {
+      const child = pd("1u-server", 10, "front");
+      child.container_id = "container-1";
+      child.slot_id = "slot-left";
+      const rack = createTestRack(42, [child]);
+      const deviceTypes = createDeviceTypes();
+
+      expect(canMoveUp(rack, deviceTypes, 0)).toBe(false);
+    });
   });
 
   describe("canMoveDown", () => {
@@ -438,6 +448,16 @@ describe("Device Movement Utility", () => {
         pd("1u-server", 2, "front"),
         pd("1u-server", 1, "front"),
       ]);
+      const deviceTypes = createDeviceTypes();
+
+      expect(canMoveDown(rack, deviceTypes, 0)).toBe(false);
+    });
+
+    it("returns false for a container child (rack-level move would detach it)", () => {
+      const child = pd("1u-server", 10, "front");
+      child.container_id = "container-1";
+      child.slot_id = "slot-left";
+      const rack = createTestRack(42, [child]);
       const deviceTypes = createDeviceTypes();
 
       expect(canMoveDown(rack, deviceTypes, 0)).toBe(false);

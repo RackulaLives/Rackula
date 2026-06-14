@@ -188,4 +188,46 @@ describe("LayoutYamlPanel", () => {
       );
     });
   });
+
+  it("passes images decoded from a pasted YAML to onapply", async () => {
+    const onApply = vi.fn();
+    render(LayoutYamlPanel, {
+      props: { open: true, layout: baseLayout, onapply: onApply },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("yaml-textarea")).toHaveDisplayValue(
+        /name: Baseline Layout/,
+      );
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "Edit YAML" }));
+    const textarea = screen.getByTestId("yaml-textarea");
+
+    // A valid layout plus an embedded images section (real PNG magic bytes).
+    const pngBytes = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 1, 2, 3,
+    ]);
+    let binary = "";
+    for (const b of pngBytes) binary += String.fromCharCode(b);
+    const pngDataUrl = `data:image/png;base64,${btoa(binary)}`;
+    const baseYaml = await yamlUtils.serializeLayoutToYaml(
+      createTestLayout({ name: "Pasted Layout" }),
+    );
+    const yamlWithImages = `${baseYaml}\nimages:\n  my-device:\n    front: "${pngDataUrl}"\n`;
+
+    await fireEvent.input(textarea, { target: { value: yamlWithImages } });
+    await waitForValidation(/YAML is valid/i);
+
+    await fireEvent.click(screen.getByRole("button", { name: "Apply YAML" }));
+    await waitFor(() => {
+      expect(onApply).toHaveBeenCalledTimes(1);
+    });
+    const images = onApply.mock.calls[0]?.[1] as
+      | Map<string, unknown>
+      | undefined;
+    expect(images?.has("my-device")).toBe(true);
+    // The widened callback contract also carries the failed-image count.
+    expect(onApply.mock.calls[0]?.[2]).toBe(0);
+  });
 });

@@ -11,14 +11,16 @@
 <script lang="ts">
   import SantaHat from "./SantaHat.svelte";
   import { isChristmas } from "$lib/utils/christmas";
-  import { LOGO_PATH, LOGO_SQUARE_VIEWBOX } from "$lib/components/logo-geometry";
+  import {
+    LOGO_PATH,
+    LOGO_SQUARE_VIEWBOX,
+  } from "$lib/components/logo-geometry";
 
   interface Props {
     size?: number;
     celebrate?: boolean;
     partyMode?: boolean;
     showcase?: boolean;
-    alwaysShowTitle?: boolean;
   }
 
   let {
@@ -26,7 +28,6 @@
     celebrate = false,
     partyMode = false,
     showcase = false,
-    alwaysShowTitle = false,
   }: Props = $props();
 
   // Christmas easter egg - only show on December 25
@@ -60,7 +61,7 @@
     };
   }
 
-  // Unique IDs per LogoLockup instance avoid collisions across Toolbar/StartScreen/Help.
+  // Unique IDs per LogoLockup instance avoid collisions across Toolbar/Help.
   const gradientIdSuffix = Math.random().toString(36).slice(2, 9);
   const markGradientIds = createGradientIds(`lockup-mark-${gradientIdSuffix}`);
   const titleGradientIds = createGradientIds(
@@ -233,7 +234,6 @@
     class:logo-title--party={partyMode}
     class:logo-title--showcase={showcase}
     class:logo-title--hover={hovering && !partyMode && !celebrate && !showcase}
-    class:logo-title--always-visible={alwaysShowTitle}
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 {showEnvPrefix ? 180 : 160} 50"
     height={titleHeight}
@@ -394,16 +394,10 @@
     .logo-title {
       display: none;
     }
-
-    /* alwaysShowTitle prop overrides responsive hide */
-    .logo-title--always-visible {
-      display: block !important;
-    }
   }
 
-  /* Always show Rackula text in toolbar hamburger button (mobile) */
-  :global(.toolbar-brand) .logo-title,
-  :global(.toolbar-brand.hamburger-mode) .logo-title {
+  /* Always show Rackula text when the logo is the toolbar app-menu trigger */
+  :global(.app-menu-trigger) .logo-title {
     display: block !important;
   }
 

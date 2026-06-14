@@ -56,7 +56,9 @@ const sessionStorageMocks = vi.hoisted(() => ({
   loadSessionWithTimestamp: vi.fn(() => null),
   clearSession: vi.fn(),
   isServerNewer: vi.fn(() => false),
-  detectModeFlip: vi.fn(() => "none" as "none" | "server-to-browser" | "browser-to-server"),
+  detectModeFlip: vi.fn(
+    () => "none" as "none" | "server-to-browser" | "browser-to-server",
+  ),
 }));
 
 const archiveMocks = vi.hoisted(() => ({
@@ -271,5 +273,25 @@ describe("App cleanup prompt flow", { retry: 2, timeout: 30000 }, () => {
       expect(archiveMocks.downloadYamlFile).toHaveBeenCalledTimes(1);
     });
     expect(uiStore.promptCleanupOnSave).toBe(false);
+  });
+
+  it("opens the cleanup dialog from the Settings dialog Review action", async () => {
+    // The Settings dialog and the cleanup dialog share the single openDialog
+    // slot. Handing off must leave the cleanup dialog open: a naive
+    // open("cleanupDialog") trips the Settings dialog's onclose, which would
+    // close the dialog that was just opened.
+    dialogStore.open("settings");
+    render(App);
+
+    await fireEvent.click(
+      await screen.findByRole("button", { name: "Review" }),
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: "Clean Up Device Library" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Settings" }),
+    ).not.toBeInTheDocument();
   });
 });

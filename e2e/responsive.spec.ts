@@ -8,9 +8,15 @@ test.describe("Responsive Layout", () => {
       await gotoWithRack(page);
     });
 
-    test("toolbar action cluster is visible", async ({ page }) => {
-      const toolbarCenter = page.locator(locators.toolbar.center);
-      await expect(toolbarCenter).toBeVisible();
+    test("workspace-frame controls are visible", async ({ page }) => {
+      // The top bar is the workspace frame only (#2072): the app menu (logo)
+      // and the Settings gear are the desktop chrome. The gear is wrapped by a
+      // tooltip trigger that also exposes the "Settings" accessible name, so
+      // target the action button by its testid.
+      await expect(
+        page.getByRole("button", { name: "App menu" }),
+      ).toBeVisible();
+      await expect(page.getByTestId("btn-settings")).toBeVisible();
     });
 
     test("brand name visible", async ({ page }) => {
@@ -35,9 +41,10 @@ test.describe("Responsive Layout", () => {
       expect(hasHorizontalScroll).toBe(false);
     });
 
-    test("file menu is accessible", async ({ page }) => {
-      const fileMenu = page.getByRole("button", { name: /file menu/i });
-      await expect(fileMenu).toBeVisible();
+    test("app menu is accessible", async ({ page }) => {
+      // File commands live in the app menu behind the logo (#2072).
+      const appMenu = page.getByRole("button", { name: "App menu" });
+      await expect(appMenu).toBeVisible();
     });
   });
 
@@ -47,9 +54,10 @@ test.describe("Responsive Layout", () => {
       await gotoWithRack(page);
     });
 
-    test("mobile mode is active — action cluster hidden", async ({ page }) => {
-      const toolbarCenter = page.locator(locators.toolbar.center);
-      await expect(toolbarCenter).not.toBeVisible();
+    test("mobile mode is active — desktop chrome hidden", async ({ page }) => {
+      // In mobile mode the desktop-only Settings gear gives way to the mobile
+      // quick file actions (asserted in the next test).
+      await expect(page.getByTestId("btn-settings")).not.toBeVisible();
     });
 
     test("brand name is still visible", async ({ page }) => {

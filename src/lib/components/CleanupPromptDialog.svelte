@@ -74,12 +74,7 @@
   );
 </script>
 
-<Dialog
-  {open}
-  title="Clean Up Device Library?"
-  onclose={handleCancel}
-  width="420px"
->
+<Dialog {open} title="Clean Up Device Library?" onclose={handleCancel} size="S">
   <div class="cleanup-prompt-dialog">
     <p class="message">
       You have {unusedCount} unused custom device {unusedCount === 1

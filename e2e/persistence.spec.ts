@@ -97,18 +97,26 @@ test.describe("Persistence", () => {
       timeout: 5000,
     });
 
-    // Wait for the debounced session save (1s) to flush the placed device
-    // to localStorage, instead of sleeping for a fixed duration
+    // Wait for the debounced workspace save (1s) to flush the placed device to
+    // the browser multi-layout schema (#2080): the active layout body lives at
+    // Rackula:layout:<id>, the open set at Rackula:workspace. Poll for a body
+    // that has the placed device, instead of sleeping for a fixed duration.
     await page.waitForFunction(
       () => {
-        const raw = localStorage.getItem("Rackula:autosave");
-        if (!raw) return false;
+        const indexRaw = localStorage.getItem("Rackula:workspace");
+        if (!indexRaw) return false;
         try {
-          const session = JSON.parse(raw) as {
+          const index = JSON.parse(indexRaw) as { activeId?: string | null };
+          if (!index.activeId) return false;
+          const bodyRaw = localStorage.getItem(
+            `Rackula:layout:${index.activeId}`,
+          );
+          if (!bodyRaw) return false;
+          const body = JSON.parse(bodyRaw) as {
             layout?: { racks?: { devices?: unknown[] }[] };
           };
           return (
-            session.layout?.racks?.some(
+            body.layout?.racks?.some(
               (rack) => (rack.devices?.length ?? 0) > 0,
             ) ?? false
           );

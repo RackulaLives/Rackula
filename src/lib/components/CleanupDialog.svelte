@@ -90,7 +90,7 @@
   {open}
   title="Clean Up Device Library"
   onclose={() => handleClose("cancel")}
-  width="480px"
+  size="M"
 >
   <div class="cleanup-dialog">
     {#if hasUnused}

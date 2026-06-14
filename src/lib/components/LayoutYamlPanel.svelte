@@ -4,10 +4,11 @@
   import { LayoutSchema } from "$lib/schemas";
   import { buildYamlFilename } from "$lib/utils/folder-structure";
   import {
-    parseLayoutYaml,
+    parseLayoutYamlWithImages,
     parseYaml,
     serializeLayoutToYaml,
   } from "$lib/utils/yaml";
+  import type { ImageStoreMap } from "$lib/types/images";
   import { layoutDebug } from "$lib/utils/debug";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { IconCopy, IconDownload } from "./icons";
@@ -16,7 +17,11 @@
   interface Props {
     open: boolean;
     layout: Layout;
-    onapply?: (layout: Layout) => void | Promise<void>;
+    onapply?: (
+      layout: Layout,
+      images?: ImageStoreMap,
+      failedImagesCount?: number,
+    ) => void | Promise<void>;
   }
 
   let { open, layout, onapply }: Props = $props();
@@ -33,7 +38,8 @@
   let schemaError = $state<string | null>(null);
   let showConflictPrompt = $state(false);
   let latestYamlAtConflict = $state<string | null>(null);
-  let pendingLayout = $state<Layout | null>(null);
+  type ParsedYaml = Awaited<ReturnType<typeof parseLayoutYamlWithImages>>;
+  let pendingLayout = $state<ParsedYaml | null>(null);
 
   let validationTimer: ReturnType<typeof setTimeout> | null = null;
   let validationRun = 0;
@@ -219,11 +225,11 @@
     URL.revokeObjectURL(url);
   }
 
-  async function commitParsedLayout(nextLayout: Layout): Promise<void> {
+  async function commitParsedLayout(parsed: ParsedYaml): Promise<void> {
     isApplying = true;
     try {
-      await onapply?.(nextLayout);
-      await syncFromLayout(nextLayout);
+      await onapply?.(parsed.layout, parsed.images, parsed.failedImagesCount);
+      await syncFromLayout(parsed.layout);
       isEditing = false;
       showConflictPrompt = false;
       latestYamlAtConflict = null;
@@ -240,9 +246,9 @@
     const intent = ++applyIntentId;
     debug("apply started, intent=%d", intent);
 
-    let parsedLayout: Layout;
+    let parsed: ParsedYaml;
     try {
-      parsedLayout = await parseLayoutYaml(yamlText);
+      parsed = await parseLayoutYamlWithImages(yamlText);
     } catch (error) {
       schemaError = toErrorMessage(error);
       return;
@@ -254,13 +260,13 @@
 
     if (latestYaml !== baselineYaml) {
       debug("conflict detected, baselineYaml differs from latestYaml");
-      pendingLayout = parsedLayout;
+      pendingLayout = parsed;
       latestYamlAtConflict = latestYaml;
       showConflictPrompt = true;
       return;
     }
 
-    await commitParsedLayout(parsedLayout);
+    await commitParsedLayout(parsed);
   }
 
   async function handleApplyAnyway(): Promise<void> {

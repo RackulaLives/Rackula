@@ -510,6 +510,29 @@ describe("Session Storage", () => {
   });
 
   /**
+   * The session records the server updatedAt it was last reconciled against so
+   * startup can tell whether a local copy is merely ahead of an unchanged server
+   * base or has genuinely diverged. Supports the echo reconciliation in #2041.
+   */
+  describe("serverUpdatedAt persistence", () => {
+    it("round-trips the server updatedAt base", () => {
+      const serverUpdatedAt = "2026-06-14T10:00:00.000Z";
+      saveSession(mockLayout, noBackup, serverUpdatedAt);
+
+      const loaded = loadSessionWithTimestamp();
+      expect(loaded).not.toBeNull();
+      expect(loaded!.serverUpdatedAt).toBe(serverUpdatedAt);
+    });
+
+    it("defaults serverUpdatedAt to null when not passed", () => {
+      saveSession(mockLayout, noBackup);
+
+      const loaded = loadSessionWithTimestamp();
+      expect(loaded!.serverUpdatedAt).toBeNull();
+    });
+  });
+
+  /**
    * The session records the storage mode it was saved under so startup can
    * detect a deployment mode flip and never silently degrade. Locks #2037 AC (c).
    */

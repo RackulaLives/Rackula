@@ -1,0 +1,87 @@
+metadata:
+  id: "a1b2c3d4-0001-4001-8001-000000000001"
+  name: "Home Lab"
+  schema_version: "1.0"
+  description: "A compact 12U home lab: firewall, switch, a couple of servers, NAS, and a UPS."
+version: "1.0.0"
+name: "Home Lab"
+racks:
+  - id: "rack-1"
+    name: "Home Lab"
+    height: 12
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: "4-post-cabinet"
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: "dev-firewall"
+        device_type: "1u-router-firewall"
+        name: "Firewall"
+        position: 12
+        face: "front"
+      - id: "dev-switch"
+        device_type: "24-port-switch"
+        name: "Core Switch"
+        position: 11
+        face: "front"
+      - id: "dev-patch"
+        device_type: "24-port-patch-panel"
+        name: "Patch Panel"
+        position: 10
+        face: "front"
+      - id: "dev-server-1"
+        device_type: "1u-server"
+        name: "App Server"
+        position: 9
+        face: "front"
+      - id: "dev-server-2"
+        device_type: "1u-server"
+        name: "Backup Server"
+        position: 8
+        face: "front"
+      - id: "dev-nas"
+        device_type: "4u-storage"
+        name: "NAS"
+        position: 4
+        face: "front"
+      - id: "dev-ups"
+        device_type: "2u-ups"
+        name: "UPS"
+        position: 2
+        face: "front"
+device_types:
+  - slug: "1u-router-firewall"
+    model: "Router/Firewall"
+    u_height: 1
+    colour: "#C0392B"
+    category: "firewall"
+  - slug: "24-port-switch"
+    model: "Switch (24-Port)"
+    u_height: 1
+    colour: "#7B6BA8"
+    category: "network"
+  - slug: "24-port-patch-panel"
+    model: "Patch Panel (24-Port)"
+    u_height: 1
+    colour: "#6272A4"
+    category: "patch-panel"
+  - slug: "1u-server"
+    model: "Server"
+    u_height: 1
+    colour: "#4A7A8A"
+    category: "server"
+  - slug: "4u-storage"
+    model: "Storage"
+    u_height: 4
+    colour: "#3D7A4A"
+    category: "storage"
+  - slug: "2u-ups"
+    model: "UPS"
+    u_height: 2
+    colour: "#A84A4A"
+    category: "power"
+settings:
+  display_mode: "label"
+  show_labels_on_images: false

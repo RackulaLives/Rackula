@@ -7,9 +7,10 @@
   import AnimationDefs from "$lib/components/AnimationDefs.svelte";
   import Toolbar from "$lib/components/Toolbar.svelte";
   import Canvas from "$lib/components/Canvas.svelte";
+  import CanvasViewControls from "$lib/components/canvas/CanvasViewControls.svelte";
   import { PaneGroup, Pane, PaneResizer } from "paneforge";
   import DevicePalette from "$lib/components/DevicePalette.svelte";
-  import EditPanel from "$lib/components/EditPanel.svelte";
+  import SidePanel from "$lib/components/SidePanel.svelte";
   import ToastContainer from "$lib/components/ToastContainer.svelte";
   import PortTooltip from "$lib/components/PortTooltip.svelte";
   import DragTooltip from "$lib/components/DragTooltip.svelte";
@@ -17,12 +18,11 @@
   import MobileHistoryControls from "$lib/components/mobile/MobileHistoryControls.svelte";
   import RackIndicator from "$lib/components/mobile/RackIndicator.svelte";
   import SidebarTabs from "$lib/components/SidebarTabs.svelte";
+  import LayoutTabs from "$lib/components/LayoutTabs.svelte";
   import RackList from "$lib/components/RackList.svelte";
+  import LayoutsLibrary from "$lib/components/LayoutsLibrary.svelte";
   import PersistenceEffects from "$lib/components/PersistenceEffects.svelte";
   import DialogOrchestrator from "$lib/components/DialogOrchestrator.svelte";
-  import StartScreen, {
-    type StartScreenCloseOptions,
-  } from "$lib/components/StartScreen.svelte";
   import {
     getShareParam,
     clearShareParam,
@@ -30,7 +30,6 @@
   } from "$lib/utils/share";
   import {
     loadSessionWithTimestamp,
-    isServerNewer,
     setApiAvailable,
     initializePersistence,
     getStorageMode,
@@ -41,16 +40,39 @@
     finalizeLayoutLoad,
     handleLoad,
     handleSaveToServer,
+    reconcileSession,
+    applyReconcile,
+    uploadSnapshot,
+    setServerBaseUpdatedAt,
+    resolveBrowserLaunch,
   } from "$lib/storage";
+  import { serializeLayoutToYaml } from "$lib/utils/yaml";
   import {
     maybeSave,
     maybeSaveAs,
     maybeExport,
-    prepareExportQrCode,
     handleShare,
     handleFitAll,
+    resetAndOpenNewRack,
   } from "$lib/utils/app-actions";
+  import {
+    handleNewRack,
+    handleDelete,
+    handleHelp,
+    handleAddDevice,
+    handleImportFromNetBox,
+    handleOpenYamlEditor,
+  } from "$lib/utils/dialog-actions";
+  import {
+    handleRackContextDuplicate,
+    handleRackContextDelete,
+    handleRackContextExport,
+    handleRackContextFocus,
+  } from "$lib/utils/rack-actions";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getWorkspaceStore } from "$lib/stores/workspace.svelte";
+  import { createLayout } from "$lib/utils/serialization";
+  import type { StarterTemplate } from "$lib/templates/starter-templates";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
@@ -66,7 +88,6 @@
   import { VERSION } from "$lib/version";
   import { persistenceDebug } from "$lib/utils/debug";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
-  import { DRAWER_WIDTH } from "$lib/constants/layout";
   import { Tooltip } from "bits-ui";
   import { debounce } from "$lib/utils/debounce";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
@@ -85,6 +106,7 @@
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
+  const workspaceStore = getWorkspaceStore();
   const selectionStore = getSelectionStore();
   const uiStore = getUIStore();
   const canvasStore = getCanvasStore();
@@ -142,7 +164,6 @@
   // Party Mode easter egg (triggered by Konami code)
   let partyMode = $state(false);
   let partyModeTimeout: ReturnType<typeof setTimeout> | null = null;
-  let showStartScreen = $state(false);
 
   // Konami detector for party mode
   const konamiDetector = createKonamiDetector(() => {
@@ -276,21 +297,33 @@
       }
     }
 
-    // Get localStorage session data (with timestamp and stored mode if available)
-    const localSession = loadSessionWithTimestamp();
-
-    // Browser mode: no server compare. Restore the working copy if present,
-    // otherwise show the Start Screen. Surface a server->browser flip notice when
-    // the saved copy came from a server deployment (never silently degrade), else
-    // a one-time first-run notice. No offline toasts ever in browser mode.
+    // Browser mode: no server compare. Lazily restore the previously open tab
+    // set from the multi-layout workspace (#2080), hydrating the active tab now
+    // and the rest on first focus. With no persisted workspace, open straight to
+    // the canvas empty state. Surface a server->browser flip notice when the
+    // restored copy came from a server deployment (never silently degrade), else
+    // a one-time first-run notice. No offline toasts ever in browser mode. Entry
+    // actions (new/open/import) live in the sidebar and app menu.
     if (!serverMode) {
-      if (!localSession) {
+      const launch = resolveBrowserLaunch();
+      if (launch.action === "empty") {
         layoutStore.resetLayout();
-        maybeShowFirstRunNotice();
-        showStartScreen = true;
+        // First-run notice is for genuine fresh installs. A returning user whose
+        // workspace is empty (data lost or wiped) must not be told this is their
+        // first time here. #2095/#2018 own the lost-data recovery state.
+        if (!launch.everHadLayouts) {
+          maybeShowFirstRunNotice();
+        }
         return;
       }
-      if (detectModeFlip(localSession.storageMode) === "server-to-browser") {
+
+      const activeEntry = launch.index.activeId
+        ? launch.index.library[launch.index.activeId]
+        : undefined;
+      if (
+        activeEntry &&
+        detectModeFlip(activeEntry.storageMode) === "server-to-browser"
+      ) {
         showStorageToast(
           "This deployment now stores layouts in your browser; your previous server library is not loaded here.",
           "warning",
@@ -299,18 +332,32 @@
       } else {
         maybeShowFirstRunNotice();
       }
-      restoreLocalSession(localSession);
+
+      // restoreWorkspace hydrates the active tab and restores its durability
+      // (dirty by autosave convention, not explicitly saved).
+      workspaceStore.restoreWorkspace({
+        index: launch.index,
+        loadBody: launch.loadBody,
+      });
+      requestAnimationFrame(() => {
+        if (!canvasStore.restoreViewport()) {
+          canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+        }
+      });
       return;
     }
 
     // Server mode below.
 
-    // No local session: show the Start Screen immediately. It handles the
-    // loading/offline state while the health check resolves.
+    // Get localStorage session data (with timestamp and stored mode if available)
+    const localSession = loadSessionWithTimestamp();
+
+    // No local session: open straight to the canvas empty state. The server
+    // library is reachable through the sidebar Layouts tab and the app menu;
+    // there is no blocking modal while the health check resolves.
     // Reset layout to clear any stale hasStarted flag from a previous session (#1326)
     if (!localSession) {
       layoutStore.resetLayout();
-      showStartScreen = true;
       return;
     }
 
@@ -348,28 +395,27 @@
       return;
     }
 
-    // Priority 3: When API and local session are both available,
-    // compare server and local timestamps to avoid stale overwrite (#1012).
+    // Priority 3: When API and local session are both available, reconcile the
+    // local working copy against the server's layout list by the echo model
+    // (UUID match + updatedAt recency), snapshotting any losing local copy
+    // before it is discarded (#2041).
     if (apiAvailable) {
       try {
         const savedLayouts = await listSavedLayouts();
-        if (savedLayouts.length > 0) {
-          // Sort by updatedAt descending and get the most recent
-          const mostRecent = savedLayouts.toSorted(
-            (a, b) =>
-              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-          )[0]!;
-
-          // Compare timestamps: load server data if it's newer than localStorage
-          // or if localStorage has no timestamp (legacy data)
-          if (isServerNewer(localSession.savedAt, mostRecent.updatedAt)) {
-            const {
-              layout: serverLayout,
-              images: serverImages,
-              failedImagesCount,
-              failedKeys,
-            } = await loadSavedLayout(mostRecent.id);
-
+        const localUuid = localSession.layout.metadata?.id ?? null;
+        const action = reconcileSession({
+          localUuid,
+          localSavedAt: localSession.savedAt,
+          localServerUpdatedAt: localSession.serverUpdatedAt,
+          serverLayouts: savedLayouts,
+        });
+        await applyReconcile(action, {
+          serializeLosingCopy: () =>
+            serializeLayoutToYaml(localSession.layout, {}),
+          uploadSnapshot,
+          loadServer: async (item) => {
+            const { layout, images, failedImagesCount, failedKeys, updatedAt } =
+              await loadSavedLayout(item.id);
             if (failedKeys.length > 0) {
               persistenceDebug.api(
                 "reconciliation: %d image(s) failed to read: %o",
@@ -377,50 +423,30 @@
                 failedKeys,
               );
             }
-
-            // Share the image-reset / bundled-reload / custom-overlay / load /
-            // clear-session / fit-all sequence with the file and API load paths.
-            // Suppress the generic success toast: this path shows its own
-            // "Loaded ... from server" toast below. The partial-image warning
-            // (when failedImagesCount > 0) still fires.
-            finalizeLayoutLoad(serverLayout, serverImages, failedImagesCount, {
+            setServerBaseUpdatedAt(updatedAt ?? null);
+            finalizeLayoutLoad(layout, images, failedImagesCount, {
               successMessage: null,
             });
-
-            toastStore.showToast(
-              `Loaded "${mostRecent.name}" from server`,
-              "success",
+          },
+          restoreLocal: (reason) => {
+            // A copy the server has never seen has no valid base: clear it so
+            // the re-establishing PUT creates fresh instead of echoing a stale
+            // updatedAt. Diverged/ahead copies keep their base.
+            setServerBaseUpdatedAt(
+              reason === "unknown-to-server"
+                ? null
+                : localSession.serverUpdatedAt,
             );
-            return;
-          }
-
-          // LocalStorage is newer than server - load it and warn user
-          // Their local changes will auto-save to server on next edit
-          layoutStore.loadLayout(localSession.layout);
-          layoutStore.markDirty();
-          layoutStore.restoreBackupState({
-            changesSinceExport: localSession.changesSinceExport,
-            hasEverExported: localSession.hasEverExported,
-          });
-          toastStore.showToast(
-            "Loaded unsaved local changes (newer than server)",
-            "info",
-          );
-
-          requestAnimationFrame(() => {
-            if (!canvasStore.restoreViewport()) {
-              canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-            }
-          });
-          return;
-        }
+            restoreLocalSession(localSession);
+          },
+          toast: (m, t) => toastStore.showToast(m, t),
+        });
+        return;
       } catch (error) {
-        // If server check fails, fall through to the local working copy.
         persistenceDebug.api(
-          "failed to load saved layouts from server: %O",
+          "failed to reconcile saved layouts from server: %O",
           error,
         );
-        // Treat server data failures as offline and fall back gracefully.
         setApiAvailable(false);
         showStorageToast(
           `Cannot reach ${instanceLabel}. Working from your local copy; reload to retry.`,
@@ -463,80 +489,31 @@
     return () => window.removeEventListener("resize", onResize);
   });
 
-  function handleShowLayouts() {
-    if (uiStore.warnOnUnsavedChanges && layoutStore.isDirty) {
-      if (!window.confirm("You have unsaved changes. Leave anyway?")) {
-        return;
-      }
-    }
-    showStartScreen = true;
+  function handleNewLayout() {
+    workspaceStore.openTab(createLayout());
+    dialogStore.open("newRack");
   }
 
-  function handleStartScreenClose(options?: StartScreenCloseOptions) {
-    showStartScreen = false;
-
-    // User explicitly requested a fresh layout; StartScreen already opened NewRack.
-    if (options?.skipAutosave) {
-      return;
-    }
-
-    // Continue flow fallback: no loaded/imported layout, open wizard.
-    if (layoutStore.rackCount === 0) {
-      dialogStore.open("newRack");
-      return;
-    }
-
-    // Layout was loaded/imported; center it after Start Screen closes.
+  // Load a starter template chosen from the empty-state picker (#2095) into the
+  // current layout. loadLayout gives it normal undo and storage semantics;
+  // markClean marks the fresh template as an unmodified starting point, matching
+  // the shared-layout load path. fitAll then centres it so the user sees the
+  // whole rack immediately.
+  function handleChooseTemplate(template: StarterTemplate) {
+    layoutStore.loadLayout(template.layout);
+    layoutStore.markClean();
     requestAnimationFrame(() => {
       canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
     });
   }
 
+  function handleLayoutExport(tabId: string) {
+    workspaceStore.switchTo(tabId);
+    maybeExport();
+  }
+
   // --- Thin wrappers for Toolbar/Canvas/KeyboardHandler callbacks ---
   // These delegate to dialogStore; the actual dialog logic lives in DialogOrchestrator.
-
-  function handleNewRack() {
-    if (!layoutStore.canAddRack) {
-      toastStore.showToast("Maximum number of racks reached", "warning");
-      return;
-    }
-    dialogStore.open("newRack");
-  }
-
-  function handleDelete() {
-    if (selectionStore.isRackSelected && selectionStore.selectedRackId) {
-      const rack = layoutStore.getRackById(selectionStore.selectedRackId);
-      if (rack) {
-        dialogStore.deleteTarget = { type: "rack", name: rack.name };
-        dialogStore.open("confirmDelete");
-      }
-    } else if (selectionStore.isDeviceSelected) {
-      if (
-        selectionStore.selectedRackId !== null &&
-        selectionStore.selectedDeviceId !== null
-      ) {
-        const rack = layoutStore.getRackById(selectionStore.selectedRackId);
-        const deviceIndex = selectionStore.getSelectedDeviceIndex(
-          rack?.devices ?? [],
-        );
-        if (rack && deviceIndex !== null && rack.devices[deviceIndex]) {
-          const device = rack.devices[deviceIndex];
-          const deviceDef = layoutStore.device_types.find(
-            (d) => d.slug === device?.device_type,
-          );
-          dialogStore.deleteTarget = {
-            type: "device",
-            name: deviceDef?.model ?? deviceDef?.slug ?? "Device",
-          };
-          dialogStore.open("confirmDelete");
-        }
-      }
-    }
-  }
-
-  function handleToggleTheme() {
-    uiStore.toggleTheme();
-  }
 
   function handleToggleDisplayMode() {
     uiStore.toggleDisplayMode();
@@ -548,35 +525,14 @@
     uiStore.toggleAnnotations();
   }
 
-  function handleHelp() {
-    dialogStore.open("help");
-  }
-
-  function handleAddDevice() {
-    dialogStore.closeSheet();
-    dialogStore.open("addDevice");
-  }
-
-  function handleImportFromNetBox() {
-    dialogStore.open("importNetBox");
-  }
-
   function handleImportDevices() {
     // Delegates to DialogOrchestrator's hidden file input via dialogStore
     // The DialogOrchestrator handles the actual file input click
     dialogOrchestrator.handleImportDevices();
   }
 
-  function handleOpenYamlEditor() {
-    if (viewportStore.isMobile) {
-      dialogStore.openSheet("yamlEditor");
-      return;
-    }
-    dialogStore.open("yamlEditor");
-  }
-
-  function handleOpenCleanupDialog() {
-    dialogOrchestrator.handleOpenCleanupDialog();
+  function handleOpenSettings() {
+    dialogStore.open("settings");
   }
 
   // Rack interaction handlers (used by Canvas and RackList)
@@ -602,49 +558,6 @@
     handleRackContextEdit(rackId);
   }
 
-  function handleRackContextDuplicate(rackId: string) {
-    const result = layoutStore.duplicateRack(rackId);
-    if (result.error) {
-      toastStore.showToast(result.error, "error");
-    } else {
-      toastStore.showToast("Rack duplicated", "success");
-      handleFitAll();
-    }
-  }
-
-  function handleRackContextDelete(rackId: string) {
-    const rack = layoutStore.getRackById(rackId);
-    if (rack) {
-      layoutStore.setActiveRack(rackId);
-      selectionStore.selectRack(rackId);
-      dialogStore.deleteTarget = { type: "rack", name: rack.name };
-      dialogStore.open("confirmDelete");
-    }
-  }
-
-  async function handleRackContextExport(rackIds: string[]) {
-    if (rackIds.length === 0) {
-      toastStore.showToast("No rack to export", "warning");
-      return;
-    }
-
-    await prepareExportQrCode();
-
-    dialogStore.exportSelectedRackIds = rackIds;
-    dialogStore.open("export");
-  }
-
-  function handleRackContextFocus(rackIds: string[]) {
-    if (rackIds.length === 0) return;
-    const rightOffset = uiStore.rightDrawerOpen ? DRAWER_WIDTH : 0;
-    canvasStore.focusRack(
-      rackIds,
-      layoutStore.racks,
-      layoutStore.rack_groups,
-      rightOffset,
-    );
-  }
-
   // DialogOrchestrator component reference for delegating calls
   let dialogOrchestrator: DialogOrchestrator;
 </script>
@@ -653,10 +566,6 @@
 
 <!-- Tooltip.Provider enables shared tooltip state - only one tooltip shows at a time -->
 <Tooltip.Provider delayDuration={500}>
-  {#if showStartScreen}
-    <StartScreen onClose={handleStartScreenClose} />
-  {/if}
-
   <div
     class="app-layout"
     style="--sidebar-width: min({uiStore.sidebarWidth ??
@@ -664,13 +573,6 @@
   >
     <Toolbar
       hasRacks={layoutStore.hasRack}
-      theme={uiStore.theme}
-      displayMode={uiStore.displayMode}
-      showAnnotations={uiStore.showAnnotations}
-      showBanana={uiStore.showBanana}
-      compatibleOnly={uiStore.compatibleOnly}
-      warnOnUnsavedChanges={uiStore.warnOnUnsavedChanges}
-      promptCleanupOnSave={uiStore.promptCleanupOnSave}
       {partyMode}
       onsave={maybeSave}
       onsaveas={maybeSaveAs}
@@ -681,20 +583,14 @@
       onimportdevices={handleImportDevices}
       onimportnetbox={handleImportFromNetBox}
       onnewcustomdevice={handleAddDevice}
-      onlayouts={handleShowLayouts}
-      onfitall={handleFitAll}
-      ontoggletheme={handleToggleTheme}
-      ontoggledisplaymode={handleToggleDisplayMode}
-      ontoggleannotations={handleToggleAnnotations}
-      ontogglebanana={() => uiStore.toggleBanana()}
-      ontogglecompatibleonly={() => uiStore.toggleCompatibleOnly()}
-      ontogglewarnunsaved={() => uiStore.toggleWarnOnUnsavedChanges()}
-      ontogglepromptcleanup={() => uiStore.togglePromptCleanupOnSave()}
-      onopencleanup={handleOpenCleanupDialog}
+      onsettings={handleOpenSettings}
       onhelp={handleHelp}
+      onnewlayout={resetAndOpenNewRack}
     />
 
     <RackIndicator />
+
+    <LayoutTabs />
 
     <main class="app-main" class:mobile={viewportStore.isMobile}>
       <MobileHistoryControls />
@@ -719,7 +615,10 @@
               onchange={(tab) => uiStore.setSidebarTab(tab)}
             />
             {#if uiStore.sidebarTab === "devices"}
-              <DevicePalette oncreatedevice={handleAddDevice} />
+              <DevicePalette
+                oncreatedevice={handleAddDevice}
+                ontoggledisplaymode={handleToggleDisplayMode}
+              />
             {:else if uiStore.sidebarTab === "racks"}
               <RackList
                 onnewrack={handleNewRack}
@@ -729,39 +628,54 @@
                 onrename={handleRackContextRename}
                 onduplicate={handleRackContextDuplicate}
               />
+            {:else if uiStore.sidebarTab === "layouts"}
+              <LayoutsLibrary
+                onnewlayout={handleNewLayout}
+                onexport={handleLayoutExport}
+              />
             {/if}
           </Pane>
 
           <PaneResizer class="resize-handle" />
 
           <Pane class="main-pane">
-            <Canvas
-              onnewrack={handleNewRack}
-              onload={handleLoad}
-              onfitall={handleFitAll}
-              onresetzoom={() => canvasStore.resetZoom()}
-              ontoggletheme={handleToggleTheme}
-              {partyMode}
-              enableLongPress={false}
-              onracklongpress={handleRackLongPress}
-              onrackfocus={handleRackContextFocus}
-              onrackexport={handleRackContextExport}
-              onrackedit={handleRackContextEdit}
-              onrackrename={handleRackContextRename}
-              onrackduplicate={handleRackContextDuplicate}
-              onrackdelete={handleRackContextDelete}
-            />
+            <div class="canvas-region">
+              <Canvas
+                onnewrack={handleNewRack}
+                onload={handleLoad}
+                onchoosetemplate={handleChooseTemplate}
+                onshare={handleShare}
+                onfitall={handleFitAll}
+                onresetzoom={() => canvasStore.resetZoom()}
+                {partyMode}
+                enableLongPress={false}
+                onracklongpress={handleRackLongPress}
+                onrackfocus={handleRackContextFocus}
+                onrackexport={handleRackContextExport}
+                onrackedit={handleRackContextEdit}
+                onrackrename={handleRackContextRename}
+                onrackduplicate={handleRackContextDuplicate}
+                onrackdelete={handleRackContextDelete}
+              />
 
-            <EditPanel />
+              <CanvasViewControls
+                displayMode={uiStore.displayMode}
+                onfitall={handleFitAll}
+                ontoggledisplaymode={handleToggleDisplayMode}
+              />
+            </div>
+
+            <SidePanel />
           </Pane>
         </PaneGroup>
       {:else}
         <Canvas
           onnewrack={handleNewRack}
           onload={handleLoad}
+          onchoosetemplate={handleChooseTemplate}
+          onshare={handleShare}
           onfitall={handleFitAll}
           onresetzoom={() => canvasStore.resetZoom()}
-          ontoggletheme={handleToggleTheme}
           {partyMode}
           enableLongPress={viewportStore.isMobile && !placementStore.isPlacing}
           onracklongpress={handleRackLongPress}
@@ -864,11 +778,27 @@
   :global(.main-pane) {
     /* Note: paneforge applies inline flex: X 1 0px - don't override with flex: 1 */
     display: flex;
-    flex-direction: column;
+    /* Canvas and the persistent side panel sit side by side. */
+    flex-direction: row;
     overflow: hidden;
     min-height: 0;
     height: 100%; /* Required for percentage-based children to fill space */
     background-color: var(--canvas-bg);
+  }
+
+  .canvas-region {
+    flex: 1;
+    min-width: 0;
+    /* Keep the canvas clamped to the row's height; a flex item defaults to
+       min-height: auto, which would let the tall rack content stretch the
+       region past the viewport and skew the fit-to-view zoom. */
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* Anchor the bottom-left CanvasViewControls to the canvas region. */
+    position: relative;
   }
 
   /* Note: Mobile overscroll prevention should be in global styles (index.html or app.css) */

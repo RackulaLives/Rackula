@@ -1,0 +1,87 @@
+metadata:
+  id: "a1b2c3d4-0002-4002-8002-000000000002"
+  name: "Network Closet"
+  schema_version: "1.0"
+  description: "A wall-mount network closet: firewall, switches, patch panels, and cable management."
+version: "1.0.0"
+name: "Network Closet"
+racks:
+  - id: "rack-1"
+    name: "Network Closet"
+    height: 9
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: "wall-mount"
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: "dev-firewall"
+        device_type: "1u-router-firewall"
+        name: "Edge Firewall"
+        position: 9
+        face: "front"
+      - id: "dev-switch-1"
+        device_type: "48-port-switch"
+        name: "Access Switch A"
+        position: 8
+        face: "front"
+      - id: "dev-cable-1"
+        device_type: "1u-cable-manager"
+        name: "Cable Manager"
+        position: 7
+        face: "front"
+      - id: "dev-switch-2"
+        device_type: "48-port-switch"
+        name: "Access Switch B"
+        position: 6
+        face: "front"
+      - id: "dev-cable-2"
+        device_type: "1u-cable-manager"
+        name: "Cable Manager"
+        position: 5
+        face: "front"
+      - id: "dev-patch-1"
+        device_type: "48-port-patch-panel"
+        name: "Patch Panel"
+        position: 4
+        face: "front"
+      - id: "dev-patch-2"
+        device_type: "48-port-patch-panel"
+        name: "Patch Panel"
+        position: 3
+        face: "front"
+      - id: "dev-pdu"
+        device_type: "1u-pdu"
+        name: "PDU"
+        position: 1
+        face: "front"
+device_types:
+  - slug: "1u-router-firewall"
+    model: "Router/Firewall"
+    u_height: 1
+    colour: "#C0392B"
+    category: "firewall"
+  - slug: "48-port-switch"
+    model: "Switch (48-Port)"
+    u_height: 1
+    colour: "#7B6BA8"
+    category: "network"
+  - slug: "48-port-patch-panel"
+    model: "Patch Panel (48-Port)"
+    u_height: 1
+    colour: "#6272A4"
+    category: "patch-panel"
+  - slug: "1u-cable-manager"
+    model: "Cable Manager"
+    u_height: 1
+    colour: "#6272A4"
+    category: "cable-management"
+  - slug: "1u-pdu"
+    model: "PDU"
+    u_height: 1
+    colour: "#A84A4A"
+    category: "power"
+settings:
+  display_mode: "label"
+  show_labels_on_images: false

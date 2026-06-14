@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
-import EditPanel from "$lib/components/EditPanel.svelte";
+import SidePanelContent from "$lib/components/SidePanelContent.svelte";
 import { resetLayoutStore, getLayoutStore } from "$lib/stores/layout.svelte";
 import {
   resetSelectionStore,
@@ -535,6 +535,12 @@ describe("Face Change Collision Detection (#450)", () => {
   });
 
   describe("Integration Tests: EditPanel Face Change with Toast", () => {
+    function renderEditTab() {
+      return render(SidePanelContent, {
+        props: { activeTab: "edit", onTabChange: () => {} },
+      });
+    }
+
     it("should show error toast when face change to 'both' is blocked by collision", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
@@ -568,7 +574,7 @@ describe("Face Change Collision Detection (#450)", () => {
       const deviceId = layoutStore.rack!.devices[0]!.id;
       selectionStore.selectDevice(rackId, deviceId);
 
-      render(EditPanel);
+      renderEditTab();
 
       // Change face to 'both'
       const faceSelect = screen.getByLabelText(
@@ -609,7 +615,7 @@ describe("Face Change Collision Detection (#450)", () => {
       const deviceId = layoutStore.rack!.devices[0]!.id;
       selectionStore.selectDevice(rackId, deviceId);
 
-      render(EditPanel);
+      renderEditTab();
 
       const faceSelect = screen.getByLabelText(
         /mounted face/i,
@@ -657,7 +663,7 @@ describe("Face Change Collision Detection (#450)", () => {
       const deviceId = layoutStore.rack!.devices[0]!.id;
       selectionStore.selectDevice(rackId, deviceId);
 
-      render(EditPanel);
+      renderEditTab();
 
       const faceSelect = screen.getByLabelText(
         /mounted face/i,
@@ -703,7 +709,7 @@ describe("Face Change Collision Detection (#450)", () => {
       const deviceId = layoutStore.rack!.devices[0]!.id;
       selectionStore.selectDevice(rackId, deviceId);
 
-      render(EditPanel);
+      renderEditTab();
 
       const faceSelect = screen.getByLabelText(
         /mounted face/i,
@@ -747,7 +753,7 @@ describe("Face Change Collision Detection (#450)", () => {
       const deviceId = layoutStore.rack!.devices[0]!.id;
       selectionStore.selectDevice(rackId, deviceId);
 
-      render(EditPanel);
+      renderEditTab();
 
       const faceSelect = screen.getByLabelText(
         /mounted face/i,
@@ -796,7 +802,7 @@ describe("Face Change Collision Detection (#450)", () => {
       const deviceId = layoutStore.rack!.devices[1]!.id;
       selectionStore.selectDevice(rackId, deviceId);
 
-      render(EditPanel);
+      renderEditTab();
 
       const faceSelect = screen.getByLabelText(
         /mounted face/i,
@@ -836,7 +842,7 @@ describe("Face Change Collision Detection (#450)", () => {
       const deviceId = layoutStore.rack!.devices[0]!.id;
       selectionStore.selectDevice(rackId, deviceId);
 
-      render(EditPanel);
+      renderEditTab();
 
       const faceSelect = screen.getByLabelText(
         /mounted face/i,

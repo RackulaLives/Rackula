@@ -21,6 +21,8 @@
     ariaLabel?: string;
     /** Size variant */
     size?: ControlSize;
+    /** Whether the whole control is disabled */
+    disabled?: boolean;
   }
 
   let {
@@ -29,9 +31,11 @@
     onchange,
     ariaLabel,
     size = "default",
+    disabled = false,
   }: Props = $props();
 
   function handleClick(optionValue: T) {
+    if (disabled) return;
     onchange?.(optionValue);
   }
 </script>
@@ -50,6 +54,7 @@
       class:first={i === 0}
       class:last={i === options.length - 1}
       aria-pressed={option.value === value}
+      {disabled}
       onclick={() => handleClick(option.value)}
     >
       {option.label}
@@ -122,5 +127,15 @@
     outline: 2px solid var(--colour-selection);
     outline-offset: 2px;
     z-index: 2;
+  }
+
+  .segment:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .segment:disabled:hover {
+    background: transparent;
+    color: var(--colour-text-muted);
   }
 </style>

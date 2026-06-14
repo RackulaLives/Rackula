@@ -5,7 +5,7 @@
  */
 
 import type { Rack, DeviceType, PlacedDevice } from "$lib/types";
-import { canPlaceDevice } from "./collision";
+import { canPlaceDevice, isContainerChild } from "./collision";
 import {
   UNITS_PER_U,
   toInternalUnits,
@@ -51,6 +51,15 @@ export function findNextValidPosition(
 ): MoveResult {
   const placedDevice = rack.devices[deviceIndex];
   if (!placedDevice) {
+    return { success: false, newPosition: null, reason: "no_valid_position" };
+  }
+
+  // Container children use container-relative positions and are excluded from
+  // rack-level collision. A rack-level move would compute a rack U and shed the
+  // container linkage (see moveDeviceRecorded), ejecting the child from its
+  // container. Vertical position nudging must not do that, so report no valid
+  // position. Deliberate detachment happens via drag-out, not nudge controls.
+  if (isContainerChild(placedDevice)) {
     return { success: false, newPosition: null, reason: "no_valid_position" };
   }
 

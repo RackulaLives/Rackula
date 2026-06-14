@@ -22,6 +22,9 @@ export default defineConfig({
     cwd: "..",
   },
   testDir: ".",
+  // visual-regression.spec.ts and axe.spec.ts have their own configs
+  // (playwright.visual.config.ts, playwright.a11y.config.ts).
+  testIgnore: ["**/visual-regression.spec.ts", "**/axe.spec.ts"],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,

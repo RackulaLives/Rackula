@@ -414,4 +414,88 @@ describe("UI Store", () => {
       expect(store.sidebarTab).toBe("racks");
     });
   });
+
+  describe("Side Panel", () => {
+    it("initial sidePanelTab is edit", () => {
+      const store = getUIStore();
+      expect(store.sidePanelTab).toBe("edit");
+    });
+
+    it("setSidePanelTab switches between edit and view", () => {
+      const store = getUIStore();
+
+      store.setSidePanelTab("view");
+      expect(store.sidePanelTab).toBe("view");
+
+      store.setSidePanelTab("edit");
+      expect(store.sidePanelTab).toBe("edit");
+    });
+
+    it("setSidePanelTab ignores invalid values", () => {
+      const store = getUIStore();
+      store.setSidePanelTab("view");
+      // @ts-expect-error -- guarding runtime input that bypasses the type
+      store.setSidePanelTab("bogus");
+      expect(store.sidePanelTab).toBe("view");
+    });
+
+    it("side panel tab persists to localStorage", () => {
+      const store = getUIStore();
+      store.setSidePanelTab("view");
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        "Rackula_side_panel_tab",
+        "view",
+      );
+    });
+
+    it("side panel tab loads from localStorage", () => {
+      localStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === "Rackula_side_panel_tab") return "view";
+        return null;
+      });
+      resetUIStore();
+      const store = getUIStore();
+      expect(store.sidePanelTab).toBe("view");
+    });
+
+    it("initial sidePanelCollapsed is false", () => {
+      const store = getUIStore();
+      expect(store.sidePanelCollapsed).toBe(false);
+    });
+
+    it("toggleSidePanelCollapsed flips collapse state", () => {
+      const store = getUIStore();
+
+      store.toggleSidePanelCollapsed();
+      expect(store.sidePanelCollapsed).toBe(true);
+
+      store.toggleSidePanelCollapsed();
+      expect(store.sidePanelCollapsed).toBe(false);
+    });
+
+    it("setSidePanelCollapsed sets collapse state explicitly", () => {
+      const store = getUIStore();
+      store.setSidePanelCollapsed(true);
+      expect(store.sidePanelCollapsed).toBe(true);
+    });
+
+    it("collapse state persists to localStorage", () => {
+      const store = getUIStore();
+      store.setSidePanelCollapsed(true);
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        "Rackula_side_panel_collapsed",
+        "true",
+      );
+    });
+
+    it("collapse state loads from localStorage", () => {
+      localStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === "Rackula_side_panel_collapsed") return "true";
+        return null;
+      });
+      resetUIStore();
+      const store = getUIStore();
+      expect(store.sidePanelCollapsed).toBe(true);
+    });
+  });
 });

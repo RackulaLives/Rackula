@@ -120,7 +120,7 @@
 <Dialog
   {open}
   title="New Rack"
-  width="var(--dialog-width-md)"
+  size="M"
   testid="dialog-new-rack"
   showClose={false}
   onclose={oncancel}
@@ -213,10 +213,20 @@
     </div>
 
     <div class="form-actions">
-      <button type="button" class="btn btn-secondary" data-testid="btn-cancel-rack" onclick={handleCancel}>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        data-testid="btn-cancel-rack"
+        onclick={handleCancel}
+      >
         Cancel
       </button>
-      <button type="submit" class="btn btn-primary" data-testid="btn-create-rack" onclick={handleSubmit}>
+      <button
+        type="submit"
+        class="btn btn-primary"
+        data-testid="btn-create-rack"
+        onclick={handleSubmit}
+      >
         Create
       </button>
     </div>

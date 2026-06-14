@@ -72,7 +72,7 @@ export async function serializeToYaml(data: unknown): Promise<string> {
  */
 export async function parseYaml<T = unknown>(yamlString: string): Promise<T> {
   const yaml = await getYaml();
-  return yaml.load(yamlString) as T;
+  return yaml.load(yamlString, { schema: yaml.JSON_SCHEMA }) as T;
 }
 
 /**

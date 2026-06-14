@@ -52,7 +52,7 @@
       </AlertDialog.Description>
 
       <p class="modal-note">
-        Load a layout from the File menu or scan a Share QR code.
+        Load a layout with the Load button or scan a Share QR code.
       </p>
 
       <AlertDialog.Cancel class="continue-button">Got it</AlertDialog.Cancel>

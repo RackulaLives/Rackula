@@ -187,7 +187,7 @@
   }
 </script>
 
-<Dialog {open} title="Add Device" width="480px" onclose={handleCancel}>
+<Dialog {open} title="Add Device" size="M" onclose={handleCancel}>
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <form
     class="add-device-form"

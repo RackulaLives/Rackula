@@ -40,6 +40,8 @@ export { default as IconClose } from "./IconClose.svelte";
 // Navigation icons
 export { default as IconChevronUp } from "./IconChevronUp.svelte";
 export { default as IconChevronDown } from "./IconChevronDown.svelte";
+export { default as IconChevronLeft } from "./IconChevronLeft.svelte";
+export { default as IconChevronRight } from "./IconChevronRight.svelte";
 
 // Undo/Redo icons
 export { default as IconUndo } from "./IconUndo.svelte";
@@ -66,12 +68,15 @@ export { default as IconCheck } from "./IconCheck.svelte";
 
 // Status icons
 export { default as IconCloudOff } from "./IconCloudOff.svelte";
+export { default as IconClock } from "./IconClock.svelte";
+export { default as IconWarningTriangle } from "./IconWarningTriangle.svelte";
 
 // =============================================================================
 // Phosphor Bold Icons (for toolbar - higher visual weight)
 // =============================================================================
 
 export { default as IconPlusBold } from "./IconPlusBold.svelte";
+export { default as IconMinusBold } from "./IconMinusBold.svelte";
 export { default as IconUndoBold } from "./IconUndoBold.svelte";
 export { default as IconRedoBold } from "./IconRedoBold.svelte";
 export { default as IconTextBold } from "./IconTextBold.svelte";

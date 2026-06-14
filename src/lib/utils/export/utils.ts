@@ -11,7 +11,10 @@ export function downloadBlob(blob: Blob, filename: string): void {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  // Defer revocation so the URL stays valid while the browser starts the
+  // download. Revoking synchronously can race the download start and produce
+  // intermittent failed or empty downloads.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 /**

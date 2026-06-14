@@ -53,6 +53,9 @@ export function getServerInstanceLabel(): string {
 /** Default timeout for API requests (10 seconds) */
 const API_TIMEOUT_MS = 10_000;
 
+/** Max bytes accepted for a layout GET, matching the server's 1MB PUT cap. */
+const MAX_LAYOUT_RESPONSE_BYTES = 1024 * 1024;
+
 /** Health check timeout, shorter so availability probes fail fast (3 seconds) */
 const HEALTH_CHECK_TIMEOUT_MS = 3_000;
 
@@ -75,6 +78,19 @@ const SavedLayoutItemSchema = z.object({
 const LayoutListResponseSchema = z.object({
   layouts: z.array(SavedLayoutItemSchema),
 });
+
+/**
+ * Save (PUT) response schema. The server echoes the stored updatedAt.
+ */
+const SaveLayoutResponseSchema = z.object({
+  id: z.string().uuid(),
+  updatedAt: z.string().datetime(),
+});
+
+export interface SaveLayoutResult {
+  id: string;
+  updatedAt: string;
+}
 
 interface PersistenceHealthPayload {
   ok: true;
@@ -256,6 +272,7 @@ export async function loadSavedLayout(uuid: string): Promise<{
   images: ImageStoreMap;
   failedImagesCount: number;
   failedKeys: string[];
+  updatedAt: string | null;
 }> {
   log("loadSavedLayout: uuid=%s", uuid);
 
@@ -288,7 +305,17 @@ export async function loadSavedLayout(uuid: string): Promise<{
     );
   }
 
+  const declared = Number(response.headers.get("Content-Length"));
+  if (Number.isFinite(declared) && declared > MAX_LAYOUT_RESPONSE_BYTES) {
+    throw new PersistenceError("Layout data too large");
+  }
+
   const yamlContent = await response.text();
+  if (new TextEncoder().encode(yamlContent).length > MAX_LAYOUT_RESPONSE_BYTES) {
+    throw new PersistenceError("Layout data too large");
+  }
+
+  const updatedAt = response.headers.get("X-Rackula-Updated-At");
   log(
     "loadSavedLayout: loaded uuid=%s size=%d bytes",
     uuid,
@@ -297,7 +324,7 @@ export async function loadSavedLayout(uuid: string): Promise<{
   try {
     const { layout, images, failedImagesCount, failedKeys } =
       await parseLayoutYamlWithImages(yamlContent);
-    return { layout, images, failedImagesCount, failedKeys };
+    return { layout, images, failedImagesCount, failedKeys, updatedAt };
   } catch (error) {
     log("loadSavedLayout: failed to parse uuid=%s %O", uuid, error);
     throw new PersistenceError("Layout data is corrupted - could not parse");
@@ -313,7 +340,8 @@ export async function loadSavedLayout(uuid: string): Promise<{
 export async function saveLayoutToServer(
   layout: Layout,
   userImages: ImageStoreMap,
-): Promise<string> {
+  lastKnownUpdatedAt: string | null = null,
+): Promise<SaveLayoutResult> {
   log("saveLayoutToServer: name=%s", layout.name);
 
   if (!isApiAvailable()) {
@@ -354,9 +382,14 @@ export async function saveLayoutToServer(
   const url = `${API_BASE_URL}/layouts/${encodeURIComponent(uuid)}`;
   log("saveLayoutToServer: PUT %s", url);
 
+  const headers: Record<string, string> = { "Content-Type": "text/yaml" };
+  if (lastKnownUpdatedAt) {
+    headers["X-Rackula-Updated-At"] = lastKnownUpdatedAt;
+  }
+
   const response = await fetch(url, {
     method: "PUT",
-    headers: { "Content-Type": "text/yaml" },
+    headers,
     body: yamlContent,
     signal: AbortSignal.timeout(API_TIMEOUT_MS),
   });
@@ -374,9 +407,44 @@ export async function saveLayoutToServer(
     );
   }
 
-  const { id } = (await response.json()) as { id: string };
-  log("saveLayoutToServer: saved uuid=%s", id);
-  return id;
+  try {
+    const raw: unknown = await response.json();
+    const { id, updatedAt } = SaveLayoutResponseSchema.parse(raw);
+    log("saveLayoutToServer: saved uuid=%s updatedAt=%s", id, updatedAt);
+    return { id, updatedAt };
+  } catch (error) {
+    log("saveLayoutToServer: invalid save response %O", error);
+    throw new PersistenceError("Invalid response from API server");
+  }
+}
+
+/**
+ * Upload a losing local copy to the server snapshot store before discarding it.
+ * Returns true only when the snapshot was stored. Any failure (404 unknown
+ * layout, network error, non-2xx) returns false so the caller keeps the copy.
+ */
+export async function uploadSnapshot(
+  uuid: string,
+  yamlContent: string,
+): Promise<boolean> {
+  if (!isApiAvailable()) return false;
+  const url = `${API_BASE_URL}/layouts/${encodeURIComponent(uuid)}/snapshots`;
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/yaml" },
+      body: yamlContent,
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      log("uploadSnapshot: failed uuid=%s status=%d", uuid, response.status);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    log("uploadSnapshot: error uuid=%s %O", uuid, error);
+    return false;
+  }
 }
 
 /**
