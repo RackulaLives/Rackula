@@ -66,11 +66,11 @@ export interface BudgetResult {
   breaches: BudgetBreach[];
 }
 
-export const ENTRIES: BudgetEntry[] = [
+export const ENTRIES = [
   "initialJs",
   "initialCss",
   "initialTotal",
-];
+] as const satisfies readonly BudgetEntry[];
 
 // Compile-time guard: a new field on Measurements forces a matching key here,
 // so a budgeted dimension can never be silently dropped from evaluation.
