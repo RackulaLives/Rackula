@@ -59,13 +59,20 @@ export function computeVisibleWindow({
   }
 
   const totalHeight = itemCount * itemHeight;
-  const safeScrollTop = Math.max(0, scrollTop);
 
-  const firstVisible = Math.floor(safeScrollTop / itemHeight);
   // +1 covers the row straddled by the viewport's bottom edge when scrollTop
   // is not an exact multiple of itemHeight, so the last visible row is never
   // left unrendered.
   const visibleCount = Math.ceil(viewportHeight / itemHeight) + 1;
+
+  // Clamp the scroll offset to the current content's max scroll. When a long
+  // list shrinks (e.g. search filtering) the scroll container can still report
+  // a stale, oversized scrollTop; without this clamp firstVisible would exceed
+  // itemCount and produce startIndex > endIndex, rendering a blank list.
+  const maxScrollTop = Math.max(0, totalHeight - viewportHeight);
+  const safeScrollTop = Math.min(Math.max(0, scrollTop), maxScrollTop);
+
+  const firstVisible = Math.floor(safeScrollTop / itemHeight);
 
   const startIndex = Math.max(0, firstVisible - overscan);
   const endIndex = Math.min(itemCount, firstVisible + visibleCount + overscan);

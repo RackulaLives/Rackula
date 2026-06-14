@@ -116,6 +116,24 @@ describe("computeVisibleWindow", () => {
     expect(w.offsetY).toBe(0);
   });
 
+  it("renders a valid bottom slice when scrollTop is stale after the list shrinks", () => {
+    // A long list was scrolled near the bottom (scrollTop for ~1000 rows),
+    // then a filter shrank it to 10 rows without a new scroll event firing.
+    const w = computeVisibleWindow({
+      scrollTop: 39600,
+      viewportHeight: 200,
+      itemHeight,
+      itemCount: 10,
+      overscan: 4,
+    });
+    // The window must stay within bounds and render the items that exist,
+    // not collapse to an empty slice translated past the content.
+    expect(w.startIndex).toBeLessThanOrEqual(w.endIndex);
+    expect(w.endIndex).toBe(10);
+    expect(w.endIndex - w.startIndex).toBeGreaterThan(0);
+    expect(w.offsetY).toBeLessThanOrEqual(w.totalHeight);
+  });
+
   it("treats a non-positive itemHeight as a single rendered batch", () => {
     const w = computeVisibleWindow({
       scrollTop: 0,
