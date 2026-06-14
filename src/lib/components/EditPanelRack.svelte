@@ -86,6 +86,18 @@
 
   // Validate and apply height change
   function attemptHeightChange(newHeight: number): boolean {
+    // Bayed racks must all share a height, so the store rejects per-rack
+    // height changes. Detect that here and revert the optimistic value,
+    // otherwise the input keeps showing a height the rack never adopted
+    // (#2222). getRackGroupForRack is authoritative regardless of whether
+    // the group or an individual bay was selected.
+    const group = layoutStore.getRackGroupForRack(selectedRack.id);
+    if (group?.layout_preset === "bayed") {
+      resizeError = "Bayed racks must share the same height.";
+      rackHeight = selectedRack.height;
+      return false;
+    }
+
     const result = canResizeRackTo(
       selectedRack,
       newHeight,
