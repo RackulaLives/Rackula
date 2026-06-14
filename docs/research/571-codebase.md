@@ -68,7 +68,7 @@ Per `docs/reference/SCHEMA.md` (lines 47–56) and `docs/research/spike-1113-sch
 - Reject if `doc.major > app.major` (non-destructively)
 - Load any `doc.major == app.major`
 
-However, **issue #2205** (tracked open in spike-1113 section 10) is the issue to implement this gate. It is not yet built. The current code path does NO version checking and accepts any `schema_version` value.
+However, **issue #2205** (tracked open in spike-1113 section 10) is the issue to implement this gate. It is not yet built. The schema does validate that `schema_version` is a non-empty string (`index.ts:753`); the missing piece is specifically the newer-MAJOR rejection gate (`doc.major > app.major`), not field-level validation.
 
 ### Discriminated Unions and Recursive Schemas
 
@@ -143,7 +143,7 @@ From the spec (sections "Data model" and "Changes"):
 - `PlacedDeviceSchema.position` validation changes: currently accepts any number >= 0.5; will enforce integer-only for rack-level devices
 - `DeviceTypeSchema` constraint added: if `u_height < 1` or non-integer, device is rejected if not a container (currently no such validation)
 
-**Timeline:** Specs approved 2026-06-12; implementation in M03 (Data Format & Interop). Current milestone is M02 (LXC Release & Stability).
+**Timeline:** Specs approved 2026-06-12. Both #2158 and this issue (#571) sit in M03 (Data Format & Interop), so the schema reshape and the schema publish land in the same milestone. That is exactly why #571 is gated on #2158.
 
 **Conclusion:** Publishing a schema now for v1.0 captures the current state. M03's schema will either be v1.1 (additive) or v2.0 (breaking). If breaking, the v1.0 schema becomes legacy. If additive (the design adds new fields but preserves existing ones), it stays v1.1 and old editors continue working on v1.0 files.
 
