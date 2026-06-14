@@ -104,6 +104,17 @@
     selectedRack !== null || selectedDeviceInfo !== null,
   );
 
+  // Contextual heading naming the current selection kind. The branches mirror the
+  // tabpanel's render order (rack/group first, then device) so the heading never
+  // diverges from the body. A bayed rack group is the multi-rack selection the
+  // model supports; it reads as "Bayed Rack". With nothing selected the heading
+  // stays the neutral tab name and the empty state shows.
+  const editHeadingLabel = $derived.by(() => {
+    if (selectedRack) return selectedGroup ? "Bayed Rack" : "Rack";
+    if (selectedDeviceInfo) return "Device";
+    return "Edit";
+  });
+
   // Delete-device-type confirmation lives at the host level (per #1398 contract).
   let showDeleteConfirm = $state(false);
 
@@ -169,7 +180,9 @@
     class="side-panel-tabpanel"
     data-testid="side-panel-panel-edit"
   >
-    <h2 id={editHeadingId} class="side-panel-heading" tabindex="-1">Edit</h2>
+    <h2 id={editHeadingId} class="side-panel-heading" tabindex="-1">
+      {editHeadingLabel}
+    </h2>
     {#if selectedRack}
       <EditPanelRack {selectedRack} {selectedGroup} />
     {:else if selectedDeviceInfo}
