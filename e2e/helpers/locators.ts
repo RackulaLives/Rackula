@@ -111,4 +111,14 @@ export const locators = {
     content: '[data-testid="ctx-menu"]',
     item: '[data-testid="ctx-menu-item"]',
   },
+
+  /**
+   * Regions whose text changes between builds or over time. Used as
+   * toHaveScreenshot() masks in the visual-regression suite. These are leaf
+   * spans with no role of their own, so they stay as class selectors here.
+   */
+  dynamic: {
+    version: ".version",
+    layoutMeta: ".layout-meta",
+  },
 } as const;

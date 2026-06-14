@@ -22,8 +22,8 @@ export const VISUAL_VIEWPORT = { width: 1280, height: 720 } as const;
  */
 export function dynamicMasks(page: Page): Locator[] {
   return [
-    page.locator(".version"), // app version, e.g. start-screen footer
-    page.locator(".layout-meta"), // "last saved" timestamps in layout lists
+    page.locator(locators.dynamic.version), // app version, e.g. start-screen footer
+    page.locator(locators.dynamic.layoutMeta), // "last saved" timestamps in layout lists
   ];
 }
 

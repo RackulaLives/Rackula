@@ -140,7 +140,7 @@ test.describe("visual regression", () => {
   test("menu - file", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL, { theme: "light" });
     await page.getByRole("button", { name: "File menu" }).click();
-    const menu = page.locator(".menu-content");
+    const menu = page.getByRole("menu");
     await expect(menu).toBeVisible();
     await settle(page);
     await expect(menu).toHaveScreenshot("menu-file.png");
@@ -149,7 +149,7 @@ test.describe("visual regression", () => {
   test("menu - settings", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL, { theme: "light" });
     await page.getByRole("button", { name: "Settings menu" }).click();
-    const menu = page.locator(".menu-content");
+    const menu = page.getByRole("menu");
     await expect(menu).toBeVisible();
     await settle(page);
     await expect(menu).toHaveScreenshot("menu-settings.png");
