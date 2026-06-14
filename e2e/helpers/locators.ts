@@ -53,7 +53,6 @@ export const locators = {
 
   toolbar: {
     root: ".toolbar",
-    center: ".toolbar-center",
     // The logo is also the app-menu trigger.
     brand: '[data-testid="btn-app-menu"]',
     brandLogoMark: '[data-testid="btn-app-menu"] .logo-mark',
