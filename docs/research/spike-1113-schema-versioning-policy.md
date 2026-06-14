@@ -2,10 +2,11 @@
 
 **Date:** 2026-06-13
 **Parent epic:** #570 (Developer-Friendly Data Format)
-**Status:** HARDENED v2 (post devils-advocate; pending user sign-off)
-**Research inputs:** [1113-codebase.md](./1113-codebase.md), [1113-external.md](./1113-external.md)
+**Status:** Signed off 2026-06-13 (post devils-advocate)
+**Canonical policy:** [docs/reference/SCHEMA.md](../reference/SCHEMA.md) (this doc is the spike record)
 **Adversarial review:** applied (serializer-allowlist drop mechanism, non-destructive reject,
 always-emit version, pin-gate-to-major, round-trip elevated). See "Changes from v1" at the end.
+Research basis (codebase + external precedent) is summarised in the appendix below.
 
 ---
 
@@ -37,15 +38,16 @@ so this spike stays a policy deliverable.
 - **Every writer MUST emit `schema_version`** (it already defaults to `"1.0"` at
   `yaml.ts:265`). A CI/test assertion confirms serialized output always contains it, so a
   future writer cannot silently omit it and let a newer-format file masquerade as 1.0.
-- **Absent `schema_version` on read => treated as `1.0`** (every file predating versioning is
-  1.0 by construction). Absence is a read-side backward-compat allowance only; it is never
-  produced on write.
+- **Absent `schema_version` on read => treated as `1.0` for YAML layout files only** (every
+  YAML file predating versioning is 1.0 by construction). This defaulting is scoped to the
+  YAML parser; it is a read-side allowance only and is never produced on write. Other payloads
+  without a version marker (share-links) are NOT covered by this default; see section 6.
 
 ## 2. Reader rule (compatibility matrix)
 
 `app.major` = highest format the running app understands; `doc.*` = the document's `schema_version`.
 **Gate strictly on `schema_version.major`. Never gate on `Layout.version` / app version** (that
-bumps every release and would over-reject: the draw.io mistake, see 1113-external.md). A test
+bumps every release and would over-reject: the draw.io mistake, see the appendix). A test
 asserts an app-version bump alone never rejects.
 
 | Document vs app | Behaviour |
@@ -115,8 +117,9 @@ NOT gated today and are tracked open, not silently assumed closed:
 - **localStorage working copy** is unvalidated (bypasses the gate). Real debt, but NOT a #617
   blocker: it is same-build session state, so it cannot present a newer-MAJOR document than the
   build reading it.
-- **Share-links** carry no version marker; forward-compat there needs an explicit payload
-  version (coordinate with M08 #820).
+- **Share-links** carry no version marker; do NOT apply the absent-version => 1.0 default to
+  them (that would over-accept versionless payloads). Define old-URL behaviour after a future
+  schema bump (reject, read-only, or migrate) and coordinate with M08 #820.
 
 ## 7. Publishing (relationship to #571)
 
@@ -175,3 +178,39 @@ route through schema (follow-up B). (Single source for this table; sections 6/8 
 - Made the single-ingress claim **honest** (primary ingress gated; two doors tracked open).
 - Cut overkill: JSON Schema `$id` design -> one line (#571); 2.0 migration-folding end-state ->
   one line; removed duplicate read-surface tables; removed the mid-sentence v1 artifact in s4.
+
+---
+
+## Appendix: research basis
+
+### Codebase (as of main `008a7934`)
+
+- Two version fields: `Layout.version` (app provenance, injected from `package.json`) and
+  `metadata.schema_version` (`"1.0"`, written at `src/lib/utils/yaml.ts` ~265 but never read for
+  any decision). De-facto migrations key off `Layout.version` vs `0.7.0`, not `schema_version`.
+- Read surfaces: file load (`src/lib/utils/archive.ts` -> `parseLayoutYaml`), server GET
+  (`src/lib/storage/api.ts`), share-link (`src/lib/utils/share.ts`, v1/v2 by field presence,
+  no version marker) all validate via `LayoutSchema`; the localStorage working copy
+  (`src/lib/storage/working-copy.ts`) is unvalidated. Snapshot restore (#2042) is future.
+- `LayoutSchemaInput` is `.passthrough()` and the transform spreads `...rest`, so unknown
+  top-level keys survive onto the runtime layout on read. The drop point is the serializer:
+  `serializeLayoutToYaml` and the per-object ordering helpers re-emit a fixed field list, so
+  unknown sections are discarded on save (fixed by #2208).
+- Existing de-facto migrations: pre-0.7.0 position units (`needsPositionMigration`,
+  `migrateDevicePositions`), legacy `rack` -> `racks`, slot-position recovery (#1248/#1602),
+  device-id dedup (#1363). `compareVersions` exists in `src/lib/schemas/index.ts`.
+
+### External precedent
+
+- Semver applied to data formats: additive optional field/section = MINOR; remove/retype/
+  require/restructure = MAJOR (semver.org; OpenAPI; Kubernetes `apiVersion`).
+- Reject-newer-major for editable/stateful documents is mainstream: Terraform state ("created
+  by a newer version; upgrade to open"), Kubernetes (declines unrecognised `apiVersion`).
+  draw.io's best-effort/no-gate render path is the counter-example (it does not re-save edits).
+- Tolerant reader / Postel's law makes additive MINOR safe, but an unaware reader that drops
+  unknown sections destroys them on resave; reject-newer-major does not prevent that. The fix
+  is round-tripping unknown sections (Kubernetes `x-kubernetes-preserve-unknown-fields`
+  semantics), which is #2208.
+- Publishing (#571): one JSON Schema per MAJOR at an owned versioned `$id`
+  (e.g. `schemas.racku.la/layout/v1.json`); `$schema` declares the dialect; the reader never
+  fetches a URL to decide loadability.
