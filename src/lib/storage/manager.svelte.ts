@@ -13,6 +13,7 @@ import {
 import { saveSession, clearSession } from "./working-copy";
 import { loadFromFile } from "./load-pipeline";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
+import { getImageStore } from "$lib/stores/images.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { downloadYamlFile } from "$lib/utils/archive";
@@ -237,6 +238,7 @@ export async function handleSaveToServer(isManual = false): Promise<boolean> {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
   try {
+    const scheduleId = ++_serverSaveScheduleId;
     _saveStatus = "saving";
     if (serverSaveTimer) {
       clearTimeout(serverSaveTimer);
@@ -244,8 +246,9 @@ export async function handleSaveToServer(isManual = false): Promise<boolean> {
       _serverSavePending = false;
     }
     const snapshot = structuredClone($state.snapshot(layoutStore.layout));
-    await saveLayoutToServer(snapshot);
-    finalizeSuccessfulSave();
+    const imagesSnapshot = getImageStore().getUserImages();
+    await saveLayoutToServer(snapshot, imagesSnapshot);
+    finalizeSuccessfulSave(scheduleId === _serverSaveScheduleId);
     if (isManual) {
       toastStore.showToast("Layout saved", "success", 3000);
     }
@@ -262,12 +265,22 @@ export async function handleSaveAsArchive(): Promise<boolean> {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
   try {
-    const filename = await downloadYamlFile(layoutStore.layout);
+    const { filename, oversized } = await downloadYamlFile(
+      layoutStore.layout,
+      getImageStore().getUserImages(),
+    );
     layoutStore.markClean();
     layoutStore.markExported();
     cancelSessionSave();
     clearSession();
     toastStore.showToast(`Saved ${filename}`, "success", 3000);
+    if (oversized > 0) {
+      toastStore.showToast(
+        `${oversized} image${oversized > 1 ? "s" : ""} exceed 100KB; consider optimising them to keep files small.`,
+        "warning",
+        6000,
+      );
+    }
     return true;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
@@ -354,6 +367,7 @@ export function initPersistenceEffects(): void {
       clearTimeout(serverSaveTimer);
     }
     const snapshot = structuredClone($state.snapshot(layout));
+    const imagesSnapshot = getImageStore().getUserImages();
     _serverSavePending = true;
     serverSaveTimer = setTimeout(async () => {
       // Clear pending state before the await: a stale continuation must not
@@ -363,7 +377,7 @@ export function initPersistenceEffects(): void {
       _serverSavePending = false;
       _saveStatus = "saving";
       try {
-        await saveLayoutToServer(snapshot);
+        await saveLayoutToServer(snapshot, imagesSnapshot);
         // Only clear dirty/session state if no newer save was scheduled while
         // this one was in flight; otherwise newer unsaved edits exist.
         finalizeSuccessfulSave(scheduleId === _serverSaveScheduleId);

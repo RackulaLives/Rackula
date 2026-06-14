@@ -17,6 +17,11 @@ import type {
 } from "$lib/types";
 import { LayoutSchema, type LayoutZod } from "$lib/schemas";
 import { layoutDebug } from "$lib/utils/debug";
+import {
+  decodeYamlImages,
+  type SerializedImages,
+} from "$lib/utils/image-encoding";
+import type { ImageStoreMap } from "$lib/types/images";
 
 /**
  * Warn if any rack contains duplicate device IDs before serialization (#1363)
@@ -248,11 +253,64 @@ function orderMetadataFields(
 }
 
 /**
+ * Top-level keys the serializer writes explicitly above. Any other top-level key
+ * (an unknown additive section from a newer schema, or a recognised-but-not-yet-
+ * serialised field such as `connections`) is round-tripped by appendUnknownSections
+ * so it is never silently dropped on save (#2208). `connections` is deliberately
+ * NOT listed: neither serializer writes it yet, so excluding it lets the fallback
+ * preserve it until explicit serialization exists.
+ */
+const KNOWN_TOP_LEVEL_KEYS = new Set<string>([
+  "metadata",
+  "version",
+  "name",
+  "racks",
+  "rack",
+  "rack_groups",
+  "device_types",
+  "settings",
+  "cables",
+]);
+
+/**
+ * Reserved keys that must never be copied from untrusted parsed YAML onto a plain
+ * object: assigning them would mutate the prototype (prototype-pollution vector).
+ */
+const UNSAFE_KEYS = new Set<string>(["__proto__", "constructor", "prototype"]);
+
+/**
+ * Copy any unrecognised top-level keys from the layout onto the serialized object,
+ * after the known fields, so additive sections survive a load and resave.
+ */
+function appendUnknownSections(
+  target: Record<string, unknown>,
+  layout: Layout,
+): void {
+  for (const [key, value] of Object.entries(
+    layout as unknown as Record<string, unknown>,
+  )) {
+    if (value === undefined) continue;
+    if (UNSAFE_KEYS.has(key)) continue;
+    if (KNOWN_TOP_LEVEL_KEYS.has(key)) continue;
+    if (key in target) continue;
+    target[key] = value;
+  }
+}
+
+/**
  * Serialize a layout to YAML string
  * Excludes runtime-only fields (view) and orders fields according to schema v1.0.0
- * Includes metadata if present
+ * Includes metadata if present.
+ *
+ * When `encodedImages` is provided and non-empty, embeds user-uploaded device
+ * images as base64 data URLs in a trailing `images:` section (#617). Setting
+ * `images` explicitly here means appendUnknownSections sees `key in target` and
+ * does not double-emit it (#2208 interaction).
  */
-export async function serializeLayoutToYaml(layout: Layout): Promise<string> {
+export async function serializeLayoutToYaml(
+  layout: Layout,
+  encodedImages?: SerializedImages,
+): Promise<string> {
   warnDuplicateDeviceIds(layout);
 
   const layoutForSerialization: Record<string, unknown> = {};
@@ -289,11 +347,21 @@ export async function serializeLayoutToYaml(layout: Layout): Promise<string> {
     layoutForSerialization.cables = layout.cables.map(orderCableFields);
   }
 
+  // Embed user images explicitly so appendUnknownSections skips the `images`
+  // key (key in target) instead of double-emitting it (#617 / #2208). Set last
+  // so the base64 section trails the structural layout in the file.
+  if (encodedImages && Object.keys(encodedImages).length > 0) {
+    layoutForSerialization.images = encodedImages;
+  }
+
+  appendUnknownSections(layoutForSerialization, layout);
+
   return serializeToYaml(layoutForSerialization);
 }
 
 /**
  * Serialize a layout to YAML string with metadata section (#919)
+ * Stays base64-free: the ZIP path carries images as asset files, never inline.
  * Used for folder-based ZIP exports with UUID-based naming.
  *
  * Output format:
@@ -339,6 +407,8 @@ export async function serializeLayoutToYamlWithMetadata(
     layoutForSerialization.cables = layout.cables.map(orderCableFields);
   }
 
+  appendUnknownSections(layoutForSerialization, layout);
+
   return serializeToYaml(layoutForSerialization);
 }
 
@@ -364,18 +434,31 @@ function toRuntimeLayout(parsed: LayoutZod): Layout {
 }
 
 /**
- * Parse YAML string to layout
- * Validates against schema and adds runtime defaults
+ * Validate a parsed YAML object against the layout schema and convert it to a
+ * runtime Layout.
+ *
+ * The top-level `images` key (base64 user images, #617) is deleted from the
+ * parsed object BEFORE schema validation so the base64 never rides onto the
+ * runtime Layout and appendUnknownSections never re-emits it on resave. The
+ * stripped value is returned to the caller so it can be decoded separately.
  */
-export async function parseLayoutYaml(yamlString: string): Promise<Layout> {
-  // Parse YAML (may throw on invalid syntax)
-  const parsed = await parseYaml(yamlString);
+function validateParsedLayout(parsed: unknown): {
+  layout: Layout;
+  rawImages: unknown;
+} {
+  let rawImages: unknown;
 
-  // Validate against schema - result.data is typed as LayoutZod
+  if (parsed !== null && typeof parsed === "object") {
+    const obj = parsed as Record<string, unknown>;
+    if (Object.hasOwn(obj, "images")) {
+      rawImages = obj.images;
+      delete obj.images;
+    }
+  }
+
   const result = LayoutSchema.safeParse(parsed);
 
   if (!result.success) {
-    // Format error message with details
     const errors = result.error.issues
       .map((issue) => {
         const path = issue.path.join(".");
@@ -386,6 +469,45 @@ export async function parseLayoutYaml(yamlString: string): Promise<Layout> {
     throw new Error(`Invalid layout: ${errors}`);
   }
 
-  // Convert to runtime Layout type with defaults
-  return toRuntimeLayout(result.data);
+  return { layout: toRuntimeLayout(result.data), rawImages };
+}
+
+/**
+ * Parse YAML string to layout
+ * Validates against schema and adds runtime defaults.
+ * Strips and discards any embedded `images` section (use
+ * parseLayoutYamlWithImages to recover them).
+ */
+export async function parseLayoutYaml(yamlString: string): Promise<Layout> {
+  const parsed = await parseYaml(yamlString);
+  return validateParsedLayout(parsed).layout;
+}
+
+/**
+ * Parse YAML string to layout AND decode any embedded user images (#617).
+ *
+ * The `images` section is stripped before schema validation, then decoded and
+ * validated (magic-byte sniff, size cap) by decodeYamlImages. A bad image is
+ * counted in `failedImagesCount` (for the load toast) and never rejects the
+ * layout. `failedKeys` lists which store keys failed, logged for support.
+ */
+export async function parseLayoutYamlWithImages(yamlString: string): Promise<{
+  layout: Layout;
+  images: ImageStoreMap;
+  failedImagesCount: number;
+  failedKeys: string[];
+}> {
+  const parsed = await parseYaml(yamlString);
+  const { layout, rawImages } = validateParsedLayout(parsed);
+  const { images, failedImagesCount, failedKeys } = decodeYamlImages(rawImages);
+
+  if (failedKeys.length > 0) {
+    layoutDebug.state(
+      "parseLayoutYamlWithImages: %d image(s) rejected for keys %o",
+      failedImagesCount,
+      failedKeys,
+    );
+  }
+
+  return { layout, images, failedImagesCount, failedKeys };
 }

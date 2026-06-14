@@ -104,7 +104,11 @@ describe("load-pipeline", () => {
   describe("loadFromApi", () => {
     it("fetches from API and finalizes load on success", async () => {
       const layout = createTestLayout({ name: "API Load" });
-      vi.mocked(persistenceApi.loadSavedLayout).mockResolvedValue(layout);
+      vi.mocked(persistenceApi.loadSavedLayout).mockResolvedValue({
+        layout,
+        images: new Map(),
+        failedImagesCount: 0,
+      });
 
       const result = await loadFromApi("uuid-1");
 

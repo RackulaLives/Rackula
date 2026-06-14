@@ -57,9 +57,14 @@
   </ContextMenu.Trigger>
 
   <ContextMenu.Portal>
-    <ContextMenu.Content class="context-menu-content" sideOffset={5}>
+    <ContextMenu.Content
+      class="context-menu-content"
+      data-testid="ctx-menu"
+      sideOffset={5}
+    >
       <ContextMenu.Item
         class="context-menu-item"
+        data-testid="ctx-menu-item"
         onSelect={handleSelect(onnewrack)}
       >
         <span class="context-menu-label">New Rack</span>
@@ -69,6 +74,7 @@
 
       <ContextMenu.Item
         class="context-menu-item"
+        data-testid="ctx-menu-item"
         onSelect={handleSelect(onfitall)}
       >
         <span class="context-menu-label">Fit All</span>
@@ -77,6 +83,7 @@
 
       <ContextMenu.Item
         class="context-menu-item"
+        data-testid="ctx-menu-item"
         onSelect={handleSelect(onresetzoom)}
       >
         <span class="context-menu-label">Reset Zoom</span>
@@ -86,6 +93,7 @@
 
       <ContextMenu.Item
         class="context-menu-item"
+        data-testid="ctx-menu-item"
         onSelect={handleSelect(ontoggletheme)}
       >
         <span class="context-menu-label"

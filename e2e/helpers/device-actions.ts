@@ -28,10 +28,14 @@ export async function dragDeviceToRack(
 
   await page.evaluate(
     ({ yPercent, deviceIndex, rackIndex }) => {
-      const deviceItems = document.querySelectorAll(".device-palette-item");
+      const deviceItems = document.querySelectorAll(
+        '[data-testid="device-palette-item"]',
+      );
       const deviceItem = deviceItems[deviceIndex];
       // Use front-view SVGs so rackIndex maps directly to rack number
-      const rackSvgs = document.querySelectorAll(".rack-front .rack-svg");
+      const rackSvgs = document.querySelectorAll(
+        '[data-testid="rack-front"] .rack-svg',
+      );
       const rack = rackSvgs[rackIndex];
       if (!rack) {
         throw new Error(

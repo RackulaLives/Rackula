@@ -292,7 +292,7 @@
       {/if}
 
       <!-- Front view -->
-      <div class="rack-front" role="presentation">
+      <div class="rack-front" data-testid="rack-front" role="presentation">
         <Rack
           {rack}
           {deviceLibrary}
@@ -321,7 +321,7 @@
 
       <!-- Rear view (conditionally shown based on rack.show_rear) -->
       {#if rack.show_rear}
-        <div class="rack-rear" role="presentation">
+        <div class="rack-rear" data-testid="rack-rear" role="presentation">
           <Rack
             {rack}
             {deviceLibrary}

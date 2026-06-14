@@ -104,3 +104,93 @@ describe("YAML layout round-trip", () => {
     expect(child?.slot_id).toBe("slot-left");
   });
 });
+
+describe("YAML unknown top-level section round-trip (#2208)", () => {
+  it("preserves an unknown top-level section through a load and resave", async () => {
+    // Simulate a file written by a newer build that carries an additive section
+    // this build does not recognise.
+    const baseYaml = await serializeLayoutToYaml(createTestLayout());
+    const yamlWithUnknown = `${baseYaml}\nfuture_section:\n  hello: world\n  count: 3\n`;
+
+    // On load the unknown section rides onto the runtime layout (Zod passthrough).
+    const loaded = await parseLayoutYaml(yamlWithUnknown);
+
+    // On resave it must not be silently dropped by the serializer allowlist.
+    const resaved = await serializeLayoutToYaml(loaded);
+    expect(resaved).toContain("future_section");
+
+    const reloaded = (await parseLayoutYaml(resaved)) as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(reloaded.future_section).toEqual({ hello: "world", count: 3 });
+  });
+
+  it("re-emits unrecognised top-level keys present on a layout object", async () => {
+    const layout = {
+      ...createTestLayout(),
+      experimental_flag: 42,
+      annotations: [{ id: "a1", text: "note" }],
+    } as unknown as Parameters<typeof serializeLayoutToYaml>[0];
+
+    const yaml = await serializeLayoutToYaml(layout);
+    expect(yaml).toContain("experimental_flag");
+    expect(yaml).toContain("annotations");
+
+    const restored = (await parseLayoutYaml(yaml)) as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(restored.experimental_flag).toBe(42);
+    expect(restored.annotations).toEqual([{ id: "a1", text: "note" }]);
+  });
+
+  it("does not invent keys for a layout with no unknown sections", async () => {
+    const layout = createTestLayout();
+    const yaml = await serializeLayoutToYaml(layout);
+    const restored = await parseLayoutYaml(yaml);
+    expect(restored.name).toBe(layout.name);
+    // A clean layout has no stray top-level "future"/"unknown" markers.
+    expect(yaml).not.toContain("undefined");
+  });
+
+  it("preserves connections, which the serializer does not write explicitly", async () => {
+    const layout = {
+      ...createTestLayout(),
+      connections: [
+        {
+          id: "c1",
+          a_device_id: "d1",
+          a_interface: "eth0",
+          b_device_id: "d2",
+          b_interface: "eth0",
+        },
+      ],
+    } as unknown as Parameters<typeof serializeLayoutToYaml>[0];
+
+    const yaml = await serializeLayoutToYaml(layout);
+    expect(yaml).toContain("connections");
+    expect(yaml).toContain("c1");
+  });
+
+  it("does not copy prototype-polluting keys from a crafted layout", async () => {
+    const layout = createTestLayout() as unknown as Record<string, unknown>;
+    // Hostile own enumerable keys a crafted YAML file could carry.
+    Object.defineProperty(layout, "__proto__", {
+      value: { hacked: true },
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+    layout.constructor = { hacked: true };
+    layout.prototype = { hacked: true };
+
+    const yaml = await serializeLayoutToYaml(
+      layout as unknown as Parameters<typeof serializeLayoutToYaml>[0],
+    );
+
+    // None of the reserved keys are emitted, and the global prototype is intact.
+    expect(yaml).not.toContain("hacked");
+    expect((({}) as Record<string, unknown>).hacked).toBeUndefined();
+  });
+});

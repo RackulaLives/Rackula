@@ -75,8 +75,62 @@ the Slack-in-browser convention.
 The undo stack is per layout. Closing a tab discards that layout's undo history;
 the layout itself persists in storage and in the sidebar.
 
-Overflow behaviour and the precise close-versus-delete affordance are open (see
-Open Questions: tabs).
+Overflow shrinks tabs to a comfortable minimum near 120px, then a hard floor near 72px, then
+collapses the remaining tabs into a right-aligned chevron menu that lists the open set only
+(not the full library). Drag-reorder operates on the visible strip; picking a tab from the
+chevron brings it back onto the strip. There is no horizontal scroll and no multi-row wrap.
+
+Closing is non-destructive and needs no confirmation: the close affordance is a hover-revealed
+x (always shown on the active and keyboard-focused tab), and the inactive dot yields to the x in
+the same slot so the tab width does not jump. The word Close is used for tabs everywhere; Delete
+is reserved for removing a layout from the sidebar library. A one-time first-run hint explains
+that closing keeps the layout in the Layouts list. The only confirmation is closing an unsaved
+new layout that was never added to the library.
+
+Deleting or renaming a layout while a tab is open never closes the tab. A rename live-syncs to
+the tab title. A delete (from the sidebar or server-side) flips the tab to a recoverable orphan
+that offers Save as new, for both the active and inactive tab. Duplicate names across open tabs
+gain a muted qualifier (relative update time, or a short id fragment) only when they collide; the
+tooltip always carries the unambiguous name and id.
+
+The full tab keyboard map: Alt+1 through 9 jump to a tab, Alt+W closes the current tab, and Alt+[
+and Alt+] cycle to the previous and next tab (parallel to bare [ and ] for racks). The reserved
+combinations Ctrl+W, Ctrl+T, Ctrl+Tab, and Ctrl+1 through 9 are avoided because the browser never
+delivers them to the page. All existing app shortcuts survive unchanged; the map is authored as
+command-registry entries so the HelpPanel list is generated (#2096).
+
+Twin tabs pause per layout, not per workspace: a Web Lock keyed by layout id elects one editor
+per layout, so editing one layout never pauses another open elsewhere. Opening a layout that is
+already a tab focuses that tab, so there is at most one editable in-app tab per layout; the Reload
+action reloads that one layout's working copy.
+
+Full interaction detail, with the alternatives that were considered, is recorded in
+docs/research/spike-2018-tabs-interaction-model.md.
+
+### Session restore mechanics
+
+Launch restores the full open tab set lazily (settled): only the active layout's content loads,
+the rest load when focused. A restored-but-unloaded tab shows its name from the persisted open-set
+metadata plus a quiet skeleton until focused. The persisted open-set carries enough per-tab
+metadata (layout id, name, order, active flag) to render tab shells before any layout content is
+read.
+
+Focusing an unloaded tab hydrates it. If that layout is gone or unreadable, the tab resolves on
+focus to an inline error with Retry and Remove tab; it never silently vanishes and never reads as
+deleted when the cause is a transient failure. In server mode, an unreachable server at launch
+renders the tab shells in an unreachable-and-retrying state under one workspace-level banner,
+distinct from deleted, and hydrates when the connection returns.
+
+Closing a tab removes it from the open set and discards that layout's undo history only; the
+durable copy survives in storage and in the sidebar. A returning user with no restorable layouts
+is told apart from a fresh install by a persisted has-ever-had-layouts signal: a fresh install
+shows the WelcomeScreen, while lost data shows a distinct recovery state offering Retry, Import a
+file, and Start fresh. When a save or snapshot POST returns 404 because the layout was deleted
+server-side, the failed write becomes a Save as new offer so the open copy lands in the library
+rather than being lost.
+
+The per-layout browser storage schema (#2179) and undo/redo semantics across switch and restore
+(#2182) are designed separately; this section states the interaction contract they satisfy.
 
 ### Top bar and app menu
 
@@ -132,6 +186,36 @@ the Settings gear, not in the View tab. This replaces an earlier mode-swap
 design in which selecting an object hid the View controls. The panel is collapsible to
 a slim rail to give the canvas its width back, and it remembers whether it was left
 collapsed. Multi-select and empty states are first-class.
+
+### Edit panel section components (#1398)
+
+The legacy EditPanel was decomposed into composable section components ahead of this
+overhaul (#1398). These are the sections the Edit tab (#2077) composes, and they define
+the contract that tab builds against:
+
+- `EditPanelRack`: rack or group properties (name, height, U numbering, rear-view
+  toggle, notes, annotation field, delete). Props: `selectedRack`, `selectedGroup`.
+- `EditPanelMetadata`: device descriptive fields (name, type/brand, height, category,
+  colour, mounted face, power ratings, type notes, IP, placement notes). Props:
+  `selectedDeviceInfo`.
+- `EditPanelPosition`: vertical position, half-width slot, container context. Props:
+  `selectedDeviceInfo`.
+- `EditPanelImage`: front/rear placement image overrides. Props: `selectedDeviceInfo`.
+- `EditPanelActions`: remove from rack, delete custom type. Props: `selectedDeviceInfo`,
+  and an `ondeletetype` callback (the host owns the confirm dialog).
+
+Contract notes for the Edit tab:
+
+- Sections are single-entity: each renders properties for one selected rack or device.
+  The host (today `EditPanel`, later the Edit tab) owns empty-state and multi-select
+  orchestration; sections never branch on nothing-selected.
+- Sections access stores via the singleton getters directly. Only the resolved selection
+  (`SelectedDeviceInfo`, `selectedRack`, `selectedGroup`) is passed as props; each section
+  sources the rack id from the selection it receives (`selectedRack.id` /
+  `selectedDeviceInfo.rack.id`). `SelectedDeviceInfo` is exported from `src/lib/types`.
+- Transitional: `EditPanelRack` still hosts the rear-view and annotation toggles. These
+  are layout-scoped view state that the View tab (#2078) absorbs; lift them out of
+  `EditPanelRack` when #2078 lands.
 
 ## Storage
 
@@ -243,17 +327,19 @@ Collapsing and expanding the side panel manages focus rather than dropping it. S
 ## Open questions (design spikes)
 
 Two areas were tracked as design spikes under the UX Overhaul epic, with the storage
-spike running first because tabs depend on its semantics. The storage spike (#2019)
-is now resolved; the tabs spike remains open. A third spike, the command palette, is
-decided and non-blocking:
+spike running first because tabs depend on its semantics. Both are now resolved. A
+third spike, the command palette, is decided and non-blocking:
 
-Tabs interaction model: overflow strategy, the precise close-versus-delete affordance,
-the fate of browser-mode working copies of closed tabs, and the
-browser-reserved-shortcut workarounds. Also: deleting a
-layout while its tab is open (from the sidebar, or server-side by another client),
-renaming a layout open in a tab, duplicate layout names across tabs, and a keyboard
-map that reconciles the existing app shortcuts (Ctrl+S, Ctrl+O, Ctrl+E, Ctrl+H,
-Ctrl+D, I, F, Delete, arrows).
+Tabs interaction model: resolved by spike #2018, full findings in
+docs/research/spike-2018-tabs-interaction-model.md. The decisions are folded into
+Workspace and tabs and Session restore mechanics above: shrink-then-chevron overflow over
+the open set; non-destructive Close with a single new-layout confirm; orphan-on-delete with
+Save as new; live rename to title with collision-only disambiguation; lazy restore with
+title-plus-skeleton shells and an orphan/error fallback; the Alt+1-9 / Alt+W / Alt+[ Alt+]
+keyboard map authored for the #2096 command registry; per-layout twin-tab pause via a
+layout-id Web Lock with an at-most-one-editable-tab invariant; server-unreachable restore
+shown as retrying not deleted; lost-data versus fresh-install empty states; and a 404 on a
+deleted layout falling through to Save as new (#2041).
 
 Storage model and data safety: resolved by spike #2019, full findings in
 docs/research/spike-2019-storage-model-data-safety.md. The decisions: the chip is
@@ -269,9 +355,24 @@ container entrypoint as `window.__RACKULA_CONFIG__`, defaulting to browser when 
 config is present; explicit config always wins and the connection-history probe is
 deleted.
 
-Command palette: deferred. The build-later call is made; the shell implementation
-structures menu and verb actions as a command registry so a Ctrl+K palette can layer
-on later as thin UI. The spike, when picked up, designs the palette itself.
+Command palette: resolved by spike #2020 (full findings in
+docs/research/spike-2020-command-palette.md, mock in
+docs/research/spike-2020-palette-mock.svg). Still build-later and non-blocking. The
+decisions: it is a command-first palette, thin UI projected from the command registry
+(#2096), built by composing the bits-ui v2.18.1 `Command` component (a Svelte port of
+cmdk, with the ARIA combobox/listbox model and a fuzzy scorer built in) inside the
+existing bits-ui `Dialog` - no new dependency and no custom accessibility code.
+Invocation is Ctrl+K (Cmd+K on macOS) bound on keydown capture with preventDefault, plus
+a required visible "Search or jump to..." pill in the top bar's reserved slot (#2072),
+because Ctrl+K interception is reliable but not universal (Chrome/Edge on Windows can
+steal it) and the palette must never be the sole path to a command. Behaviour: built-in
+fuzzy ranking plus registry keyword aliases, a small MRU recents list in localStorage,
+and selection-aware contextual commands, over an empty state that is never blank
+(recents, then the current selection's verbs, then a short grouped command list). Device
+search and placement stay in the Devices sidebar; a palette "Add device..." sub-mode is
+an optional later follow-on, not v1. Implementation is decomposed into #2212 (shell),
+#2213 (recents and contextual commands), and #2214 (optional device sub-mode), all
+sequenced after #2096, #2073, and #2075.
 
 ## Out of scope
 
@@ -309,6 +410,22 @@ is kept after server saves; twin tabs detect-and-pause; storage mode comes from
 RACKULA_STORAGE_MODE via an entrypoint-injected `window.__RACKULA_CONFIG__`,
 defaulting to browser (see docs/research/spike-2019-storage-model-data-safety.md).
 
+Spike #2018 resolved the tabs interaction model (see
+docs/research/spike-2018-tabs-interaction-model.md). The governing principle is trust the
+model: closing is always non-destructive because the layout persists in the library. Overflow
+shrinks tabs to a comfortable minimum then collapses the tail into a chevron menu over the open
+set, no scroll or multi-row. Close uses a hover x with no confirm except for an unsaved new
+layout not yet in the library; Delete is sidebar-only wording. Delete-while-open orphans the tab
+with a Save as new offer rather than closing it; rename live-syncs to the title; duplicate names
+disambiguate only on collision. Restore is lazy with title-plus-skeleton shells, an
+orphan-or-error fallback on focus, and a retrying (not deleted) state when the server is
+unreachable; lost-data and fresh-install empties are distinguished by a persisted
+has-ever-had-layouts signal. The tab keyboard map is Alt+1-9 jump, Alt+W close, Alt+[ and Alt+]
+cycle, authored as command-registry entries for the generated HelpPanel (#2096). Twin tabs pause
+per layout via a layout-id Web Lock with an at-most-one-editable-tab-per-layout invariant, and a
+404 on a deleted server layout falls through to Save as new (#2041). Undo across switch and
+restore (#2182) and the browser per-layout storage schema (#2179) are designed separately.
+
 A 2026-06-10 scope review of surfaces left untouched by the shell list added six items
 and three guard rails. Dialogs unify on one primitive with three sizes (S 420, M 560,
 L 720) that renders as a bottom sheet on mobile, replacing nine ad hoc dialog widths
@@ -340,12 +457,12 @@ the align-roadmap session plan file; per-issue details live on the issues.
 
 ### Canonical homes
 
-| State | Canonical control | Mirrors | Scope |
-| --- | --- | --- | --- |
-| Display mode | Bottom-left lens (#2074) | View tab (#2078), palette toggle (#2094) | Layout |
-| Annotations | View tab (#2078) | none (removed from #2093 Appearance) | Layout |
-| Theme | Settings dialog (#2093) | none | App preference |
-| Per-layout durability | Chip derived API (#2035) | Tab dots (#2079), sidebar dots (#2082) | Workspace rollup |
+| State                 | Canonical control        | Mirrors                                  | Scope            |
+| --------------------- | ------------------------ | ---------------------------------------- | ---------------- |
+| Display mode          | Bottom-left lens (#2074) | View tab (#2078), palette toggle (#2094) | Layout           |
+| Annotations           | View tab (#2078)         | none (removed from #2093 Appearance)     | Layout           |
+| Theme                 | Settings dialog (#2093)  | none                                     | App preference   |
+| Per-layout durability | Chip derived API (#2035) | Tab dots (#2079), sidebar dots (#2082)   | Workspace rollup |
 
 ### Sequencing amendments
 
@@ -361,3 +478,21 @@ the align-roadmap session plan file; per-issue details live on the issues.
   debounced saves before building the archive.
 - The interim top bar (#2072) ships with an empty flex slot; the full
   logo/menu/tabs/chip/settings layout is the end state, not the slice's exit criteria.
+
+## Command palette spike amendment (2026-06-13)
+
+Spike #2020 resolved the command palette (still build-later, non-blocking). It is a
+command-first palette, thin UI projected from the registry (#2096), built by composing
+bits-ui v2.18.1's `Command` component (Svelte cmdk: ARIA combobox/listbox + fuzzy scorer
+built in) inside the existing bits-ui `Dialog` - no new dependency. Ctrl+K (Cmd+K on
+macOS) is the primary invocation, paired with a required visible "Search or jump to..."
+pill in the #2072 top-bar slot, because Ctrl+K interception is reliable but not universal
+(Chrome/Edge on Windows can steal it) and the palette is never the sole path to a command
+(guaranteed by the registry being the single source for menu, verb bars, keyboard, help,
+and palette). Behaviour: built-in fuzzy ranking plus keyword aliases, an MRU recents list
+in localStorage, selection-aware contextual commands, and an empty state that is never
+blank. Device search and placement stay in the Devices sidebar; a palette "Add device..."
+sub-mode is an optional later follow-on. Decomposed into #2212 (shell), #2213 (recents and
+contextual), and #2214 (optional device sub-mode), sequenced after #2096, #2073, #2075.
+Full findings: docs/research/spike-2020-command-palette.md; mock:
+docs/research/spike-2020-palette-mock.svg.

@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <title>Spike #2020 - Command palette mock</title>
+  <desc>Three views of the Rackula command palette: the discoverable top-bar trigger; the open palette empty state (recents, selection-aware contextual commands, grouped command list); and the search state where typing "add" filters to only matching rows and ranks them, with matched text highlighted.</desc>
+
+  <defs>
+    <style>
+      .panel   { fill: #23282f; }
+      .row     { fill: #23282f; }
+      .rowsel  { fill: #2f6f7e; }
+      .hair    { stroke: #353b43; stroke-width: 1; }
+      .label   { fill: #e6e9ed; font-size: 14px; }
+      .labelsel{ fill: #ffffff; font-size: 14px; }
+      .match   { fill: #8fd6e6; font-size: 14px; font-weight: 600; }
+      .matchsel{ fill: #d8f4fa; font-size: 14px; font-weight: 600; }
+      .muted   { fill: #8b939d; font-size: 12px; }
+      .head    { fill: #6f7882; font-size: 11px; letter-spacing: 1px; }
+      .ph      { fill: #6f7882; font-size: 15px; }
+      .typed   { fill: #e6e9ed; font-size: 15px; }
+      .kbd     { fill: #2b313a; stroke: #3a414b; stroke-width: 1; }
+      .kbdsel  { fill: #235965; stroke: #3a7d8c; stroke-width: 1; }
+      .kbdtxt  { fill: #b9c1cb; font-size: 11px; }
+      .kbdtxts { fill: #dff1f4; font-size: 11px; }
+      .pill    { fill: #23282f; stroke: #3a414b; stroke-width: 1; }
+      .pilltxt { fill: #8b939d; font-size: 13px; }
+      .caption { fill: #5b636d; font-size: 12px; }
+      .title   { fill: #c7ccd3; font-size: 13px; font-weight: 600; }
+      .note    { fill: #7e8893; font-size: 12px; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="560" fill="#11141a"/>
+
+  <!-- ============ COLUMN 1: discoverable trigger + notes ============ -->
+  <text x="30" y="34" class="title">1. Discoverable trigger (top bar #2072)</text>
+
+  <rect x="30" y="50" width="350" height="44" rx="8" class="panel"/>
+  <circle cx="56" cy="72" r="9" fill="#3a7d8c"/>
+  <text x="74" y="77" class="muted">Rackula</text>
+  <rect x="138" y="60" width="184" height="24" rx="12" class="pill"/>
+  <text x="154" y="76" class="pilltxt">Search or jump to...</text>
+  <rect x="284" y="64" width="30" height="16" rx="4" class="kbd"/>
+  <text x="290" y="76" class="kbdtxt">&#8984;K</text>
+
+  <text x="30" y="124" class="note">Clickable, screen-reader reachable, prints</text>
+  <text x="30" y="142" class="note">the shortcut. Never the sole path.</text>
+
+  <text x="30" y="182" class="title">Empty state (before typing)</text>
+  <text x="30" y="204" class="note">Recents, then the current selection's</text>
+  <text x="30" y="222" class="note">verbs, then a short grouped list.</text>
+  <text x="30" y="240" class="note">Never a blank box.</text>
+
+  <text x="30" y="280" class="title">Search state (panel 3)</text>
+  <text x="30" y="302" class="note">Typing filters to matching rows only</text>
+  <text x="30" y="320" class="note">and ranks them; non-matches drop out.</text>
+  <text x="30" y="338" class="note">Group headings stay for groups that</text>
+  <text x="30" y="356" class="note">still have a match.</text>
+
+  <text x="30" y="396" class="title">Behaviour</text>
+  <text x="30" y="418" class="note">Fuzzy: bits-ui Command (cmdk scorer)</text>
+  <text x="30" y="436" class="note">Recents: MRU x5 in localStorage</text>
+  <text x="30" y="454" class="note">Contextual: selection-scoped verbs</text>
+
+  <text x="30" y="494" class="title">Accessibility</text>
+  <text x="30" y="516" class="note">combobox + listbox, focus on input,</text>
+  <text x="30" y="534" class="note">in a focus-managed Dialog (Esc closes).</text>
+
+  <!-- ============ COLUMN 2: empty state ============ -->
+  <text x="420" y="72" class="title">2. Open palette, empty state</text>
+  <rect x="420" y="86" width="350" height="430" rx="12" class="panel" stroke="#3a414b" stroke-width="1"/>
+
+  <!-- input -->
+  <circle cx="444" cy="109" r="7" fill="none" stroke="#6f7882" stroke-width="2"/>
+  <line x1="449" y1="114" x2="455" y2="120" stroke="#6f7882" stroke-width="2"/>
+  <rect x="466" y="102" width="1.5" height="16" fill="#3a7d8c"/>
+  <text x="476" y="114" class="ph">Search or jump to...</text>
+  <line x1="420" y1="132" x2="770" y2="132" class="hair"/>
+
+  <text x="436" y="154" class="head">RECENT</text>
+  <rect x="428" y="162" width="334" height="32" rx="7" class="rowsel"/>
+  <text x="444" y="183" class="labelsel">Add rack</text>
+  <rect x="700" y="168" width="50" height="20" rx="4" class="kbdsel"/>
+  <text x="712" y="182" class="kbdtxts">new</text>
+  <rect x="428" y="198" width="334" height="32" rx="7" class="row"/>
+  <text x="444" y="219" class="label">Export image</text>
+  <rect x="714" y="204" width="36" height="20" rx="4" class="kbd"/>
+  <text x="722" y="218" class="kbdtxt">&#8984;E</text>
+
+  <line x1="436" y1="238" x2="754" y2="238" class="hair"/>
+  <text x="436" y="258" class="head">SELECTION  -  SERVER A (DEVICE)</text>
+  <rect x="428" y="266" width="334" height="32" rx="7" class="row"/>
+  <text x="444" y="287" class="label">Add note to device</text>
+  <rect x="428" y="302" width="334" height="32" rx="7" class="row"/>
+  <text x="444" y="323" class="label">Duplicate selected device</text>
+  <rect x="706" y="308" width="44" height="20" rx="4" class="kbd"/>
+  <text x="714" y="322" class="kbdtxt">&#8984;D</text>
+
+  <line x1="436" y1="342" x2="754" y2="342" class="hair"/>
+  <text x="436" y="362" class="head">COMMANDS</text>
+  <rect x="428" y="370" width="334" height="32" rx="7" class="row"/>
+  <text x="444" y="391" class="label">Add device...</text>
+  <text x="690" y="391" class="muted">sub-mode</text>
+  <rect x="428" y="406" width="334" height="32" rx="7" class="row"/>
+  <text x="444" y="427" class="label">Add custom device type...</text>
+  <rect x="428" y="442" width="334" height="32" rx="7" class="row"/>
+  <text x="444" y="463" class="label">Import devices from NetBox</text>
+
+  <line x1="420" y1="478" x2="770" y2="478" class="hair"/>
+  <rect x="420" y="478" width="350" height="38" rx="0" fill="#1f242b"/>
+  <rect x="436" y="488" width="20" height="17" rx="4" class="kbd"/>
+  <text x="441" y="500" class="kbdtxt">&#8593;</text>
+  <rect x="459" y="488" width="20" height="17" rx="4" class="kbd"/>
+  <text x="464" y="500" class="kbdtxt">&#8595;</text>
+  <text x="486" y="500" class="muted">navigate</text>
+  <rect x="556" y="488" width="20" height="17" rx="4" class="kbd"/>
+  <text x="561" y="500" class="kbdtxt">&#8629;</text>
+  <text x="583" y="500" class="muted">run</text>
+  <rect x="636" y="488" width="30" height="17" rx="4" class="kbd"/>
+  <text x="643" y="500" class="kbdtxt">esc</text>
+  <text x="672" y="500" class="muted">close</text>
+
+  <!-- ============ COLUMN 3: search state ============ -->
+  <text x="810" y="72" class="title">3. Search state, query: add</text>
+  <rect x="810" y="86" width="350" height="430" rx="12" class="panel" stroke="#3a414b" stroke-width="1"/>
+
+  <!-- input with typed query -->
+  <circle cx="834" cy="109" r="7" fill="none" stroke="#6f7882" stroke-width="2"/>
+  <line x1="839" y1="114" x2="845" y2="120" stroke="#6f7882" stroke-width="2"/>
+  <text x="856" y="114" class="typed">add</text>
+  <rect x="886" y="102" width="1.5" height="16" fill="#3a7d8c"/>
+  <line x1="810" y1="132" x2="1160" y2="132" class="hair"/>
+
+  <!-- only matching rows, grouped, ranked; matched text highlighted -->
+  <text x="826" y="154" class="head">RECENT</text>
+  <rect x="818" y="162" width="334" height="32" rx="7" class="rowsel"/>
+  <text x="834" y="183"><tspan class="matchsel">Add</tspan><tspan class="labelsel" dx="5">rack</tspan></text>
+  <rect x="1090" y="168" width="50" height="20" rx="4" class="kbdsel"/>
+  <text x="1102" y="182" class="kbdtxts">new</text>
+
+  <line x1="826" y1="206" x2="1144" y2="206" class="hair"/>
+  <text x="826" y="226" class="head">SELECTION  -  SERVER A (DEVICE)</text>
+  <rect x="818" y="234" width="334" height="32" rx="7" class="row"/>
+  <text x="834" y="255"><tspan class="match">Add</tspan><tspan class="label" dx="5">note to device</tspan></text>
+
+  <line x1="826" y1="278" x2="1144" y2="278" class="hair"/>
+  <text x="826" y="298" class="head">COMMANDS</text>
+  <rect x="818" y="306" width="334" height="32" rx="7" class="row"/>
+  <text x="834" y="327"><tspan class="match">Add</tspan><tspan class="label" dx="5">device...</tspan></text>
+  <text x="1080" y="327" class="muted">sub-mode</text>
+  <rect x="818" y="342" width="334" height="32" rx="7" class="row"/>
+  <text x="834" y="363"><tspan class="match">Add</tspan><tspan class="label" dx="5">custom device type...</tspan></text>
+
+  <!-- filtered-out note -->
+  <text x="826" y="408" class="note">Export image, Duplicate selected device,</text>
+  <text x="826" y="426" class="note">Import devices from NetBox: hidden (no</text>
+  <text x="826" y="444" class="note">match for "add").</text>
+
+  <line x1="810" y1="478" x2="1160" y2="478" class="hair"/>
+  <rect x="810" y="478" width="350" height="38" rx="0" fill="#1f242b"/>
+  <rect x="826" y="488" width="20" height="17" rx="4" class="kbd"/>
+  <text x="831" y="500" class="kbdtxt">&#8593;</text>
+  <rect x="849" y="488" width="20" height="17" rx="4" class="kbd"/>
+  <text x="854" y="500" class="kbdtxt">&#8595;</text>
+  <text x="876" y="500" class="muted">navigate</text>
+  <rect x="946" y="488" width="20" height="17" rx="4" class="kbd"/>
+  <text x="951" y="500" class="kbdtxt">&#8629;</text>
+  <text x="973" y="500" class="muted">run</text>
+  <rect x="1026" y="488" width="30" height="17" rx="4" class="kbd"/>
+  <text x="1033" y="500" class="kbdtxt">esc</text>
+  <text x="1062" y="500" class="muted">close</text>
+</svg>

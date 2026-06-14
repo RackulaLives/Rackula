@@ -1,7 +1,7 @@
 # Rackula Data Schema Reference
 
 **Schema Version:** 1.0.0
-**Updated:** 2025-12-18
+**Updated:** 2026-06-13
 **Status:** Active
 
 ---
@@ -18,6 +18,77 @@ This document is the authoritative reference for the Rackula v1.0.0 data schema.
 - **Component arrays** - Support for interfaces, power ports, device bays, etc.
 
 **File Format:** YAML inside `.Rackula.zip` archives. See [SPEC.md](./SPEC.md) for archive structure.
+
+---
+
+## Schema Versioning and Compatibility Policy
+
+This is the contract for how the layout format evolves and how readers behave across
+versions. Policy origin and full analysis: [spike #1113](../research/spike-1113-schema-versioning-policy.md).
+
+### Version fields
+
+| Field | Meaning | Authoritative for |
+| --- | --- | --- |
+| `metadata.schema_version` | Data-format version, `MAJOR.MINOR` (current `1.0`) | Load / reject decisions. This is the only field a reader consults to decide loadability. |
+| `version` (top-level) | App version that wrote or last-migrated the file (provenance) | The existing pre-0.7.0 position migration only. Nothing new keys off it. It is not renamed. |
+
+Rules:
+
+- Every writer must emit `schema_version` (it defaults to `"1.0"` on save). A serializer test
+  must assert that saved output always contains it, so a future writer cannot omit it and let a
+  newer file masquerade as 1.0. This assertion is not yet in the suite; it is tracked with the
+  reject-newer-major gate (#2205).
+- On read, an absent `schema_version` in a YAML layout file is treated as `1.0` (every YAML
+  file predating versioning is 1.0 by construction). This defaulting is scoped to the YAML
+  parser, is a read-side allowance only, and is never produced on write. Payloads that carry no
+  version marker by design (share-links) are not covered by this default.
+
+### Reader rule (compatibility)
+
+Gate strictly on `schema_version` MAJOR. Never gate on the app `version` (it bumps every
+release and would over-reject).
+
+| Document vs app | Behaviour |
+| --- | --- |
+| Newer MAJOR | Reject, non-destructively. Never write the file. Tell the user the layout was made by a newer Rackula and to update; keep the original file untouched and offer to view the raw YAML. |
+| Same MAJOR (any MINOR) | Load. Unknown additive fields are ignored by validation (tolerant reader). |
+| Older MAJOR | Load and migrate (a MAJOR bump ships a migration from the previous MAJOR, with prior-version fixtures). |
+
+Reject is the preferred failure over silently misreading data: it is loud, non-destructive,
+and recoverable.
+
+### Additive vs breaking (run this at every release)
+
+Five-point check. Any of remove / rename / retype / require / redefine on an existing field
+is MAJOR. Otherwise it is additive and MINOR.
+
+| Change | Classification |
+| --- | --- |
+| New optional field, new optional top-level section, enum widening | MINOR (additive) |
+| Remove or rename a field; change its type, units, or semantics; make an optional field required; restructure existing data | MAJOR (breaking) |
+
+`cables` was additive (MINOR). The pre-0.7.0 position-units change would have been MAJOR.
+The `images` section (issue #617) is additive (MINOR): `schema_version` stays `1.0`.
+
+### Preserving additive data on save
+
+Additive MINOR changes are only safe across builds if writers preserve sections they do not
+recognize. The serializer (`serializeLayoutToYaml`) emits a fixed set of top-level keys, so
+the format requires unknown top-level sections to be round-tripped: captured on read and
+re-emitted on save, so an older build cannot silently drop a newer build's additive section on
+resave. A section whose loss would be unacceptable and that cannot be round-tripped is a signal
+to make the change MAJOR instead.
+
+### Enforcement surfaces
+
+The reject-newer-MAJOR check lives at the shared validation ingress (`parseLayoutYaml` /
+`LayoutSchema`), covering file load and server GET. Two read paths are tracked as open work:
+the localStorage working copy is currently unvalidated, and share-link payloads carry no
+version marker. Both are follow-ups; until they get validation or a version marker, treat their
+inputs as unversioned rather than assuming they are safe. In normal use neither is a common
+cross-version vector (localStorage is same-build session state; share-links are regenerated on
+encode), but that does not substitute for the gate.
 
 ---
 
@@ -523,13 +594,15 @@ Slugs must be lowercase alphanumeric with hyphens:
 
 ### Unknown Fields
 
-The schema uses lenient parsing (`.passthrough()` in Zod). Unknown fields are:
+The schema uses lenient parsing (`.passthrough()` in Zod), so unknown fields survive
+validation into memory on read and are not validated (any value accepted).
 
-- **Preserved** during parsing
-- **Retained** when saving
-- **Not validated** (any value accepted)
-
-This allows forward compatibility with future schema extensions.
+On save, the serializer re-emits fields through explicit ordering functions
+(`serializeLayoutToYaml`, `orderDeviceTypeFields`, and similar), which list known fields only.
+A genuinely unknown field is therefore not automatically written back. For forward
+compatibility the format requires unknown top-level sections to be round-tripped (see the
+Schema Versioning and Compatibility Policy above); for user-defined data on a device, use the
+dedicated `custom_fields` map, which is a known field and is preserved.
 
 ### Slug Uniqueness
 

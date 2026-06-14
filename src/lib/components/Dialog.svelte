@@ -11,6 +11,7 @@
     open: boolean;
     title: string;
     width?: string;
+    testid?: string;
     showClose?: boolean;
     onclose?: () => void;
     children?: Snippet;
@@ -21,6 +22,7 @@
     open = $bindable(),
     title,
     width = "400px",
+    testid,
     showClose = true,
     onclose,
     children,
@@ -44,7 +46,11 @@
 <Dialog.Root {open} onOpenChange={handleOpenChange}>
   <Dialog.Portal>
     <Dialog.Overlay class="dialog-backdrop" data-testid="dialog-backdrop" />
-    <Dialog.Content class="dialog" style="--dialog-width: {normalizedWidth};">
+    <Dialog.Content
+      class="dialog"
+      data-testid={testid}
+      style="--dialog-width: {normalizedWidth};"
+    >
       <div class="dialog-header">
         <Dialog.Title class="dialog-title">{title}</Dialog.Title>
         <div class="dialog-header-actions">

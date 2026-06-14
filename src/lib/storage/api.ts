@@ -5,7 +5,12 @@
  */
 import { isApiAvailable } from "./availability.svelte";
 import type { Layout } from "$lib/types";
-import { serializeLayoutToYaml, parseLayoutYaml } from "$lib/utils/yaml";
+import type { ImageStoreMap } from "$lib/types/images";
+import {
+  serializeLayoutToYaml,
+  parseLayoutYamlWithImages,
+} from "$lib/utils/yaml";
+import { encodeUserImagesToYaml } from "$lib/utils/image-encoding";
 import { persistenceDebug } from "$lib/utils/debug";
 import { z } from "zod";
 
@@ -243,10 +248,15 @@ export async function listSavedLayouts(): Promise<SavedLayoutItem[]> {
 }
 
 /**
- * Load a layout by UUID
+ * Load a layout by UUID, decoding any embedded user images (#617).
  * @param uuid - The layout's UUID (stable identity)
  */
-export async function loadSavedLayout(uuid: string): Promise<Layout> {
+export async function loadSavedLayout(uuid: string): Promise<{
+  layout: Layout;
+  images: ImageStoreMap;
+  failedImagesCount: number;
+  failedKeys: string[];
+}> {
   log("loadSavedLayout: uuid=%s", uuid);
 
   if (!isApiAvailable()) {
@@ -285,7 +295,9 @@ export async function loadSavedLayout(uuid: string): Promise<Layout> {
     yamlContent.length,
   );
   try {
-    return parseLayoutYaml(yamlContent);
+    const { layout, images, failedImagesCount, failedKeys } =
+      await parseLayoutYamlWithImages(yamlContent);
+    return { layout, images, failedImagesCount, failedKeys };
   } catch (error) {
     log("loadSavedLayout: failed to parse uuid=%s %O", uuid, error);
     throw new PersistenceError("Layout data is corrupted - could not parse");
@@ -298,7 +310,10 @@ export async function loadSavedLayout(uuid: string): Promise<Layout> {
  * @param layout - The layout to save (must have metadata.id for existing layouts)
  * @returns The saved layout UUID
  */
-export async function saveLayoutToServer(layout: Layout): Promise<string> {
+export async function saveLayoutToServer(
+  layout: Layout,
+  userImages: ImageStoreMap,
+): Promise<string> {
   log("saveLayoutToServer: name=%s", layout.name);
 
   if (!isApiAvailable()) {
@@ -325,7 +340,11 @@ export async function saveLayoutToServer(layout: Layout): Promise<string> {
     );
   }
 
-  const yamlContent = await serializeLayoutToYaml(layout);
+  // Embed user images so server-mode saves do not silently drop them (#617).
+  // The 1MB server PUT cap then trips loudly for image-heavy layouts; that is
+  // intentional until storage quotas exist (see image-encoding.ts SIZE DIVERGENCE).
+  const { serialized } = encodeUserImagesToYaml(userImages);
+  const yamlContent = await serializeLayoutToYaml(layout, serialized);
   log(
     "saveLayoutToServer: uuid=%s yamlSize=%d bytes",
     uuid,

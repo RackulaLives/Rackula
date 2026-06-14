@@ -52,11 +52,13 @@
   <ContextMenu.Portal>
     <ContextMenu.Content
       class="context-menu-content"
+      data-testid="ctx-menu"
       sideOffset={5}
       customAnchor={virtualAnchor}
     >
       <ContextMenu.Item
         class="context-menu-item context-menu-item--destructive"
+        data-testid="ctx-menu-item"
         onSelect={() => {
           ondelete?.();
           open = false;

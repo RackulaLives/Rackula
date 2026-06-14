@@ -11,6 +11,7 @@
     open: boolean;
     title: string;
     id?: string;
+    testid?: string;
     showClose?: boolean;
     showHeader?: boolean;
     onclose?: () => void;
@@ -22,6 +23,7 @@
     open,
     title,
     id,
+    testid,
     showClose = true,
     showHeader = true,
     onclose,
@@ -31,6 +33,7 @@
 
 <aside
   {id}
+  data-testid={testid}
   class="drawer drawer-{side}"
   class:open
   aria-label={title}

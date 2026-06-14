@@ -655,6 +655,20 @@ export interface Rack {
 }
 
 /**
+ * Resolved selection view-model for the edit panel sections.
+ * The panel host derives this once from the selection stores and passes it
+ * down to each section component (EditPanelMetadata, EditPanelPosition,
+ * EditPanelImage, EditPanelActions), which render properties for this single
+ * device. The host owns empty-state and multi-select orchestration.
+ */
+export interface SelectedDeviceInfo {
+  device: DeviceType;
+  placedDevice: PlacedDevice;
+  rack: Rack;
+  deviceIndex: number;
+}
+
+/**
  * Layout preset for rack groups
  * - 'bayed': Stacked front/rear view for touring racks
  * - 'row': Side-by-side layout (default)

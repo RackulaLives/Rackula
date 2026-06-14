@@ -52,6 +52,7 @@
 
 <div
   class="toast toast--{toast.type}"
+  data-testid="toast-message"
   class:toast--exiting={isExiting}
   class:toast--success-glow={toast.type === "success" && !isExiting}
   role={toast.type === "success" || toast.type === "info" ? "status" : "alert"}

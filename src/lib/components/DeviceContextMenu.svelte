@@ -104,11 +104,13 @@
   <ContextMenu.Portal>
     <ContextMenu.Content
       class="context-menu-content"
+      data-testid="ctx-menu"
       sideOffset={5}
       customAnchor={virtualAnchor}
     >
       <ContextMenu.Item
         class="context-menu-item"
+        data-testid="ctx-menu-item"
         onSelect={handleSelect(onedit)}
       >
         <span class="context-menu-label">Edit</span>
@@ -116,6 +118,7 @@
 
       <ContextMenu.Item
         class="context-menu-item"
+        data-testid="ctx-menu-item"
         onSelect={handleSelect(onduplicate)}
       >
         <span class="context-menu-label">Duplicate</span>
@@ -126,6 +129,7 @@
 
       <ContextMenu.Item
         class="context-menu-item"
+        data-testid="ctx-menu-item"
         disabled={!canMoveUp}
         onSelect={handleSelect(onmoveup)}
       >
@@ -135,6 +139,7 @@
 
       <ContextMenu.Item
         class="context-menu-item"
+        data-testid="ctx-menu-item"
         disabled={!canMoveDown}
         onSelect={handleSelect(onmovedown)}
       >
@@ -146,6 +151,7 @@
 
       <ContextMenu.Item
         class="context-menu-item context-menu-item--destructive"
+        data-testid="ctx-menu-item"
         onSelect={handleSelect(ondelete)}
       >
         <span class="context-menu-label">Delete</span>
