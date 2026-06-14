@@ -231,6 +231,21 @@ describe("Layout Store", () => {
       }
     });
 
+    it("rejects a height change for a bayed-group member (#2222)", () => {
+      const store = getLayoutStore();
+      const result = store.addBayedRackGroup("Bayed", 2, 12);
+      expect(result).not.toBeNull();
+      const bay = result!.racks[0];
+      expect(bay.height).toBe(12);
+
+      // Bayed racks must stay the same height. The store silently rejects the
+      // resize so the edit panel can revert its optimistic value (#2222).
+      store.updateRack(bay.id, { height: 24 });
+
+      const after = store.layout.racks.find((r) => r.id === bay.id)!;
+      expect(after.height).toBe(12);
+    });
+
     it("does not propagate non-numbering settings across a bayed group", () => {
       const store = getLayoutStore();
       const result = store.addBayedRackGroup("Bayed", 2, 12);

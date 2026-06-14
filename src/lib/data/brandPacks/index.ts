@@ -396,43 +396,50 @@ export function getBrandDevices(brandId: string): DeviceType[] {
   }
 }
 
+// Cached merged array of all brand devices (built once on first access)
+let cachedBrandDevices: DeviceType[] | null = null;
+
 /**
  * Get all devices from all brand packs as a single array
- * Used by findBrandDevice and getBrandSlugs to avoid duplication
+ * Used by findBrandDevice and getBrandSlugs to avoid duplication.
+ * Brand packs are static data, so the merged array is built once and cached.
  */
 export function getAllBrandDevices(): DeviceType[] {
-  return [
-    ...ubiquitiDevices,
-    ...mikrotikDevices,
-    ...tplinkDevices,
-    ...synologyDevices,
-    ...apcDevices,
-    ...dellDevices,
-    ...supermicroDevices,
-    ...hpeDevices,
-    ...fortinetDevices,
-    ...eatonDevices,
-    ...netgearDevices,
-    ...paloaltoDevices,
-    ...qnapDevices,
-    ...lenovoDevices,
-    ...cyberpowerDevices,
-    ...netgateDevices,
-    ...blackmagicdesignDevices,
-    ...deskpiDevices,
-    ...kwsDevices,
-    ...acInfinityDevices,
-    ...appleDevices,
-    ...ciscoDevices,
-    ...aristaDevices,
-    ...juniperDevices,
-    ...vertivDevices,
-    ...fsDevices,
-    ...intelDevices,
-    ...beelinkDevices,
-    ...raspberryPiDevices,
-    ...zimaDevices,
-  ];
+  if (!cachedBrandDevices) {
+    cachedBrandDevices = [
+      ...ubiquitiDevices,
+      ...mikrotikDevices,
+      ...tplinkDevices,
+      ...synologyDevices,
+      ...apcDevices,
+      ...dellDevices,
+      ...supermicroDevices,
+      ...hpeDevices,
+      ...fortinetDevices,
+      ...eatonDevices,
+      ...netgearDevices,
+      ...paloaltoDevices,
+      ...qnapDevices,
+      ...lenovoDevices,
+      ...cyberpowerDevices,
+      ...netgateDevices,
+      ...blackmagicdesignDevices,
+      ...deskpiDevices,
+      ...kwsDevices,
+      ...acInfinityDevices,
+      ...appleDevices,
+      ...ciscoDevices,
+      ...aristaDevices,
+      ...juniperDevices,
+      ...vertivDevices,
+      ...fsDevices,
+      ...intelDevices,
+      ...beelinkDevices,
+      ...raspberryPiDevices,
+      ...zimaDevices,
+    ];
+  }
+  return cachedBrandDevices;
 }
 
 /**

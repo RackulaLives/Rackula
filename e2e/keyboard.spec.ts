@@ -69,11 +69,12 @@ test.describe("Keyboard Shortcuts", () => {
     // Press ? using keyboard.type which handles shift automatically
     await page.keyboard.type("?");
 
-    // Help dialog should open (HelpPanel uses Dialog component)
-    // The Dialog.Title is sr-only with text "About Rackula" — check dialog is visible
-    await expect(page.locator(locators.dialog.root)).toBeVisible({ timeout: 2000 });
-    // Verify it's the help dialog by checking for the logo or keyboard shortcuts content
-    await expect(page.locator(".help-dialog")).toBeVisible();
+    // Help dialog should open (HelpPanel uses Dialog component). Its sr-only
+    // Dialog.Title "About Rackula" provides the accessible name, so the
+    // role/name locator both finds the dialog and confirms it is the help one.
+    await expect(
+      page.getByRole("dialog", { name: "About Rackula" }),
+    ).toBeVisible({ timeout: 2000 });
   });
 
   test("Ctrl+S triggers save", async ({ page }) => {

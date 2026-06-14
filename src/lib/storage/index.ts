@@ -57,3 +57,10 @@ export {
   type ReconcileAction,
   type ReconcileDeps,
 } from "./reconcile";
+export {
+  computeLayoutStatus,
+  getLayoutDurability,
+  rollupDurabilities,
+  type DurabilityStatus,
+  type LayoutDurability,
+} from "./durability.svelte";

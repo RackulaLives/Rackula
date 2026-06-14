@@ -12,6 +12,36 @@ import svelteConfig from "./svelte.config.js";
 
 const gitignorePath = fileURLToPath(new URL("./.gitignore", import.meta.url));
 
+// Shared no-restricted-syntax entries for all test files (unit + E2E).
+// Defined once so the E2E block can extend rather than replace them: in flat
+// config a later block that re-declares a rule overrides the earlier value
+// entirely, so the E2E block must re-list these to keep them in force.
+const testRestrictedSyntax = [
+  {
+    selector:
+      'CallExpression[callee.property.name="toHaveLength"][arguments.0.type="Literal"]',
+    message:
+      "Avoid exact length assertions on data arrays (breaks on additions). Use .length > 0 for existence checks. For behavioral invariants (deduplication, pagination), use eslint-disable-next-line with justification.",
+  },
+  {
+    selector:
+      'CallExpression[callee.property.name="toBe"][arguments.0.value=/^#/]',
+    message:
+      "Avoid hardcoded color assertions - breaks on design token changes. Test user-visible behavior instead.",
+  },
+  {
+    selector: 'CallExpression[callee.property.name="toHaveClass"]',
+    message:
+      "Avoid CSS class assertions - tests implementation details. Use testing-library queries instead.",
+  },
+  {
+    selector:
+      'BinaryExpression[operator="==="][left.operator="typeof"][right.value="function"]',
+    message:
+      "Avoid function existence checks - TypeScript already validates this. Test behavior instead.",
+  },
+];
+
 export default defineConfig(
   includeIgnoreFile(gitignorePath),
   js.configs.recommended,
@@ -86,30 +116,28 @@ export default defineConfig(
       "testing-library/no-node-access": "error",
 
       // Block patterns via no-restricted-syntax
+      "no-restricted-syntax": ["error", ...testRestrictedSyntax],
+    },
+  },
+  {
+    // E2E (Playwright) selector convention: prefer role/testid/label locators
+    // over brittle CSS class selectors. Flags inline string literals passed to
+    // .locator() that start with a class (`.`), e.g. page.locator(".rack-header").
+    // It does NOT flag the centralised `locators` registry (member expressions),
+    // getByRole/getByTestId/getByLabel/getByText, attribute/id/tag selectors, or
+    // Playwright text-engine locators such as `label:has-text("...")`.
+    // Re-lists the shared test restrictions because a re-declared rule in a later
+    // flat-config block replaces, rather than merges with, the earlier value.
+    files: ["e2e/**/*.ts"],
+    rules: {
       "no-restricted-syntax": [
         "error",
+        ...testRestrictedSyntax,
         {
           selector:
-            'CallExpression[callee.property.name="toHaveLength"][arguments.0.type="Literal"]',
+            'CallExpression[callee.property.name="locator"][arguments.0.type="Literal"][arguments.0.value=/^\\s*\\./]',
           message:
-            "Avoid exact length assertions on data arrays (breaks on additions). Use .length > 0 for existence checks. For behavioral invariants (deduplication, pagination), use eslint-disable-next-line with justification.",
-        },
-        {
-          selector:
-            'CallExpression[callee.property.name="toBe"][arguments.0.value=/^#/]',
-          message:
-            "Avoid hardcoded color assertions - breaks on design token changes. Test user-visible behavior instead.",
-        },
-        {
-          selector: 'CallExpression[callee.property.name="toHaveClass"]',
-          message:
-            "Avoid CSS class assertions - tests implementation details. Use testing-library queries instead.",
-        },
-        {
-          selector:
-            'BinaryExpression[operator="==="][left.operator="typeof"][right.value="function"]',
-          message:
-            "Avoid function existence checks - TypeScript already validates this. Test behavior instead.",
+            "Avoid CSS class selectors in E2E locators - they break on styling changes. Prefer getByRole()/getByTestId()/getByLabel(), or add the selector to e2e/helpers/locators.ts. See docs/guides/TESTING.md.",
         },
       ],
     },

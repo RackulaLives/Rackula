@@ -320,6 +320,53 @@ The `e2e/android-chrome.spec.ts` tests Android Chrome functionality:
 
 **Note:** Playwright Chromium is a desktop build. For real Android device testing, use BrowserStack.
 
+### Accessibility Scans (axe-core)
+
+`e2e/axe.spec.ts` runs axe-core (via `@axe-core/playwright`) against the key
+surfaces and fails CI on any WCAG 2.2 AA violation. It is a guard rail for the UX
+overhaul (epic #2017): the shell rework touches keyboard navigation extensively,
+and these scans catch static, machine-detectable regressions (contrast, names,
+roles, attributes) that manual review would miss.
+
+This is the automated-scan layer. Behavioural a11y (keyboard paths, focus
+trapping, landmark naming) lives in `e2e/accessibility.spec.ts`; axe cannot
+observe those, so the two suites are complementary.
+
+The scans run on their own config (`e2e/playwright.a11y.config.ts`, Chromium
+only, no retries) and their own CI job (`a11y (axe-core)` in `test.yml`):
+
+```bash
+npm run test:e2e:a11y
+```
+
+Current scans: populated canvas with a selected device, the sidebar's Devices
+and Racks tabs, and the Export and Share dialogs.
+
+Adding a scan when a new surface lands:
+
+1. Open the surface in a test (reuse the shared `e2e/helpers`), then scope a scan
+   to it:
+
+   ```typescript
+   import { expectNoA11yViolations } from "./helpers/a11y";
+
+   test("side panel has no WCAG 2.2 AA violations", async ({ page }) => {
+     await gotoWithRack(page);
+     const selector = '[data-testid="side-panel"]';
+     await expect(page.locator(selector)).toBeVisible();
+     // expectNoA11yViolations takes a CSS selector string, not a Locator;
+     // omit the second argument to scan the whole page.
+     await expectNoA11yViolations(page, selector);
+   });
+   ```
+
+2. Run `npm run test:e2e:a11y` and fix any violation it reports.
+3. If a violation genuinely cannot be fixed in the same slice, baseline the rule
+   in `e2e/helpers/a11y.ts` (`BASELINED_RULES`) with a tracking issue link, and
+   open that issue. A baseline disables that rule for every scan, so a fresh
+   violation of a baselined rule will not be caught until the rule is re-enabled:
+   keep the list short and remove each entry as soon as its issue closes.
+
 ### Real Device Testing (BrowserStack)
 
 For comprehensive mobile testing on real iOS and Android devices, use BrowserStack integration.
@@ -354,20 +401,44 @@ npx browserstack-node-sdk playwright test
 
 ### Selector Strategy
 
-Use `data-testid` attributes for reliable element selection:
+Locate elements by what the user perceives (role, label, text), not by how they
+are styled. CSS class selectors are brittle: a styling rename silently breaks the
+test. Prefer, in this order:
+
+1. `getByRole()` with an accessible name, e.g.
+   `page.getByRole("dialog", { name: "About Rackula" })`. This doubles as an
+   accessibility check.
+2. `getByLabel()` / `getByText()` for form fields and visible copy.
+3. `getByTestId()` (`data-testid`) for structural anchors that have no natural
+   role or label, e.g. the rack canvas or a toast container.
 
 ```typescript
-// Good - stable selector
-await page.click('[data-testid="btn-new-rack"]');
+// Good - role/label/testid
+await page.getByRole("button", { name: "New Rack" }).click();
+await page.getByLabel("IP Address/Hostname").fill("192.168.1.1");
+await page.getByTestId("btn-new-rack").click();
 
-// Avoid - fragile selectors
-await page.click('.toolbar-action-btn[aria-label="New Rack"]');
+// Avoid - CSS class selector (breaks on styling changes)
+await page.locator(".toolbar-action-btn").click();
 ```
 
-Available data-testid attributes:
+Reusable selector strings (structural anchors and the few intentional class
+selectors that have no role) live in `e2e/helpers/locators.ts`. Reference that
+registry rather than hard-coding `data-testid` lists here, which drift as the UI
+changes. Interactive controls are not listed there: reach them with
+`getByRole`/`getByLabel` at the call site.
 
-- Toolbar: `btn-new-rack`, `btn-save`, `btn-load-layout`, `btn-export`, `btn-undo`, `btn-redo`, `btn-delete`, `btn-reset-view`, `btn-help`, `btn-toggle-theme`, `btn-toggle-display-mode`, `btn-toggle-airflow`, `btn-hamburger-menu`
-- DevicePalette: `search-devices`, `btn-import-devices`, `btn-add-device`
+`label:has-text("...")` is a Playwright text-engine locator, not a CSS class
+selector, and is fine to use.
+
+#### Lint enforcement
+
+ESLint blocks new CSS class selectors in `e2e/**/*.ts`. A string literal passed
+to `.locator()` that starts with `.` (e.g. `page.locator(".rack-header")`) fails
+lint. The rule does not flag the `locators` registry, `getByRole`/`getByTestId`/
+`getByLabel`/`getByText`, attribute/id/tag selectors, or `:has-text()`. To fix a
+violation, switch to a role/label/testid locator, or add the selector to
+`e2e/helpers/locators.ts` if it is a genuine structural anchor.
 
 ### E2E Test Structure
 
@@ -382,14 +453,14 @@ test.describe("Feature", () => {
 
   test("user can complete workflow", async ({ page }) => {
     // Arrange
-    await page.click('[data-testid="btn-new-rack"]');
+    await page.getByTestId("btn-new-rack").click();
 
     // Act
-    await page.fill('[data-testid="input-rack-name"]', "Test Rack");
-    await page.click('[data-testid="btn-create-rack"]');
+    await page.getByLabel("Rack Name", { exact: true }).fill("Test Rack");
+    await page.getByTestId("btn-create-rack").click();
 
     // Assert
-    await expect(page.locator(".rack-name")).toHaveText("Test Rack");
+    await expect(page.getByText("Test Rack")).toBeVisible();
   });
 });
 ```
@@ -617,7 +688,7 @@ describe.each(ALL_BRAND_PACKS)("$name brand pack", ({ devices }) => {
 - Follow AAA pattern (Arrange-Act-Assert)
 - Test edge cases and error states
 - Keep tests focused and independent
-- Use `data-testid` for E2E selectors
+- Prefer role/label/text locators for E2E, with `data-testid` for structural anchors
 - Trust schema validation for data correctness
 - Use parameterized tests for similar cases
 

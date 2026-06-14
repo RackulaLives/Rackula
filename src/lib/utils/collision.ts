@@ -18,6 +18,7 @@ import type {
   Slot,
 } from "$lib/types";
 import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
+import { findDeviceType } from "$lib/utils/device-lookup";
 
 // Re-export SlotPosition for test imports
 export type { SlotPosition } from "$lib/types";
@@ -462,7 +463,8 @@ export function canPlaceInSlot(childType: DeviceType, slot: Slot): boolean {
  * - Inherit face from parent container
  *
  * @param rack - The rack containing the container
- * @param deviceLibrary - The device library
+ * @param deviceLibrary - The layout's device types; sibling types are resolved
+ *   through the global lookup path (layout, starter pack, brand packs)
  * @param container - The parent container PlacedDevice
  * @param containerType - The DeviceType of the container
  * @param childType - The DeviceType of the child device to place
@@ -523,12 +525,13 @@ export function canPlaceInContainer(
       continue;
     }
 
-    // Get the sibling's device type for height
-    const siblingType = deviceLibrary.find(
-      (dt) => dt.slug === device.device_type,
-    );
+    // Get the sibling's device type for height. Resolve through the global
+    // lookup path so siblings whose types live only in the starter pack or
+    // brand packs (for example a loaded layout without embedded types) are
+    // still checked. Fail closed if the type cannot be resolved at all.
+    const siblingType = findDeviceType(device.device_type, deviceLibrary);
     if (!siblingType) {
-      continue;
+      return false;
     }
 
     // Container children use 0-indexed positions, not internal units
