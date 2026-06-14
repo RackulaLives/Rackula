@@ -66,8 +66,10 @@ test.describe("Keyboard Shortcuts", () => {
   });
 
   test("? key opens help dialog", async ({ page }) => {
-    // Press ? using keyboard.type which handles shift automatically
-    await page.keyboard.type("?");
+    // Press the physical "?" combo (Shift + /). This dispatches a keydown with
+    // key "?" AND shiftKey=true, matching a real keyboard - keyboard.type("?")
+    // would synthesise a shift-less event and mask shift-handling regressions.
+    await page.keyboard.press("Shift+Slash");
 
     // Help dialog should open (HelpPanel uses Dialog component). Its sr-only
     // Dialog.Title "About Rackula" provides the accessible name, so the

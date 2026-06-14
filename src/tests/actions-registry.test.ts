@@ -83,7 +83,14 @@ describe("actions registry", () => {
       expect(findActionForEvent(event)?.id).toBe("escape");
     });
 
-    it("resolves the help key (?)", () => {
+    it("resolves the help key (?) when Shift is held (real keyboard)", () => {
+      // On most layouts "?" is Shift+/, so the real keydown reports
+      // shiftKey=true. The shortcut must still fire.
+      const event = new KeyboardEvent("keydown", { key: "?", shiftKey: true });
+      expect(findActionForEvent(event)?.id).toBe("show-help");
+    });
+
+    it("resolves the help key (?) without a reported Shift modifier", () => {
       const event = new KeyboardEvent("keydown", { key: "?" });
       expect(findActionForEvent(event)?.id).toBe("show-help");
     });

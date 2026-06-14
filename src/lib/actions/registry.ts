@@ -170,7 +170,10 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     id: "show-help",
     label: "Show help",
     scope: "global",
-    bindings: [{ key: "?" }],
+    // Producing "?" requires Shift on most layouts, so the real keydown event
+    // carries shiftKey=true. Bind both states so the shortcut fires whether or
+    // not Shift is reported.
+    bindings: [{ key: "?" }, { key: "?", shift: true }],
     keywords: ["shortcuts", "about", "keyboard"],
   },
 
