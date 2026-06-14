@@ -7,10 +7,14 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
-import { handleExportAll } from "$lib/storage/manager.svelte";
+import {
+  handleExportAll,
+  resetPersistenceManager,
+} from "$lib/storage/manager.svelte";
 import { setApiAvailable } from "$lib/storage/availability.svelte";
 import { listSavedLayouts, loadSavedLayout } from "$lib/storage/api";
 import { resetToastStore } from "$lib/stores/toast.svelte";
+import { resetImageStore } from "$lib/stores/images.svelte";
 import { createMultiLayoutArchive } from "$lib/utils/archive";
 import { createTestLayout, createTestRack } from "./factories";
 import type { ImageStoreMap } from "$lib/types/images";
@@ -52,10 +56,14 @@ describe("handleExportAll", () => {
   beforeEach(() => {
     resetLayoutStore();
     resetToastStore();
+    resetImageStore();
+    resetPersistenceManager();
     vi.clearAllMocks();
   });
 
   afterEach(() => {
+    // Leave no ambient mode or availability state for the next file/test.
+    setApiAvailable(false);
     delete (window as unknown as { __RACKULA_CONFIG__?: unknown })
       .__RACKULA_CONFIG__;
   });
@@ -97,7 +105,11 @@ describe("handleExportAll", () => {
     it("pulls authoritative YAML for every valid layout and leaves the chip alone", async () => {
       const store = getLayoutStore();
       store.addRack("Rack", 42);
-      store.markDirty();
+      // Mark clean so the pre-list flush is skipped: this test asserts the
+      // authoritative pull and chip-untouched behaviour. The flush routes
+      // through real manager internals (handleSaveToServer + image store), so
+      // it is exercised end-to-end rather than unit-pinned here.
+      store.markClean();
       const before = store.changesSinceExport;
 
       mockedList.mockResolvedValue([
