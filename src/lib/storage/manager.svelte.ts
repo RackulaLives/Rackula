@@ -387,24 +387,38 @@ async function exportAllServer(): Promise<boolean> {
         6000,
       );
     }
+    // listSavedLayouts() returns [] both when the server is unreachable and
+    // when the library is genuinely empty, so guard availability first to keep
+    // an outage from masquerading as an empty library.
+    if (!isApiAvailable()) {
+      toastStore.showToast(
+        `Can't reach ${getServerInstanceLabel()} to export. Reload to retry.`,
+        "warning",
+        6000,
+      );
+      return false;
+    }
     const items = await listSavedLayouts();
     const valid = items.filter((item) => item.valid);
     if (valid.length === 0) {
       toastStore.showToast("No layouts to export", "warning", 4000);
       return false;
     }
-    const entries: LayoutArchiveEntry[] = [];
-    for (const item of valid) {
-      const { layout, images } = await loadSavedLayout(item.id);
-      entries.push({
-        layout,
-        images,
-        metadata: resolveLayoutMetadata({
-          ...layout,
-          metadata: { ...layout.metadata, id: item.id, name: item.name },
-        }),
-      });
-    }
+    // Load layouts concurrently: each is an independent GET, so serializing
+    // them makes export time grow linearly with the library size.
+    const entries: LayoutArchiveEntry[] = await Promise.all(
+      valid.map(async (item) => {
+        const { layout, images } = await loadSavedLayout(item.id);
+        return {
+          layout,
+          images,
+          metadata: resolveLayoutMetadata({
+            ...layout,
+            metadata: { ...layout.metadata, id: item.id, name: item.name },
+          }),
+        } satisfies LayoutArchiveEntry;
+      }),
+    );
     const blob = await createMultiLayoutArchive(entries);
     const saved = await saveArchiveBlob(blob);
     if (!saved) return false;

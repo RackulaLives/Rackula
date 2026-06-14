@@ -128,6 +128,19 @@ describe("handleExportAll", () => {
       expect(ok).toBe(false);
       expect(mockedBuild).not.toHaveBeenCalled();
     });
+
+    it("does not treat an unreachable server as an empty library", async () => {
+      getLayoutStore().addRack("Rack", 42);
+      setApiAvailable(false);
+
+      const ok = await handleExportAll();
+
+      expect(ok).toBe(false);
+      // Offline must short-circuit before the list call, not fall through to
+      // the "no layouts" empty-library message.
+      expect(mockedList).not.toHaveBeenCalled();
+      expect(mockedBuild).not.toHaveBeenCalled();
+    });
   });
 });
 
