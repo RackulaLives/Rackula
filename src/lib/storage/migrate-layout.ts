@@ -1,5 +1,6 @@
 import type { Layout } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
+import { VERSION } from "$lib/version";
 import { sessionDebug } from "$lib/utils/debug";
 
 const log = sessionDebug.storage;
@@ -57,6 +58,7 @@ export function migrateLayout(raw: Record<string, unknown>): Layout | null {
     const version = (raw.version as string) || "0.0.0";
     const needsPositionMigration = compareVersions(version, "0.7.0") < 0;
 
+    let migratedAnyPosition = false;
     if (needsPositionMigration && Array.isArray(raw.racks)) {
       for (const rack of raw.racks as Record<string, unknown>[]) {
         if (Array.isArray(rack.devices)) {
@@ -68,10 +70,20 @@ export function migrateLayout(raw: Record<string, unknown>): Layout | null {
               typeof device.position === "number"
             ) {
               device.position = Math.round(device.position * UNITS_PER_U);
+              migratedAnyPosition = true;
             }
           }
         }
       }
+    }
+
+    // Stamp the current version once a position migration actually rescaled a
+    // device, so re-running migrateLayout is idempotent. The multi-layout store
+    // re-reads and re-migrates a body on every lazy load, so without this a
+    // pre-0.7.0 position migration would re-apply each time and inflate
+    // positions repeatedly. Layouts with nothing to rescale are left untouched.
+    if (migratedAnyPosition) {
+      raw.version = VERSION;
     }
 
     return raw as unknown as Layout;

@@ -306,7 +306,12 @@
       const launch = resolveBrowserLaunch();
       if (launch.action === "empty") {
         layoutStore.resetLayout();
-        maybeShowFirstRunNotice();
+        // First-run notice is for genuine fresh installs. A returning user whose
+        // workspace is empty (data lost or wiped) must not be told this is their
+        // first time here. #2095/#2018 own the lost-data recovery state.
+        if (!launch.everHadLayouts) {
+          maybeShowFirstRunNotice();
+        }
         return;
       }
 

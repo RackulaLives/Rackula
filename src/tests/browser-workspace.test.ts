@@ -119,6 +119,27 @@ describe("browser-workspace storage", () => {
       expect(index!.activeId).toBe("a");
     });
 
+    it("ignores a prototype-polluting library key without corrupting Object.prototype", () => {
+      localStorage.setItem(
+        WORKSPACE_KEY,
+        JSON.stringify({
+          schemaVersion: 2,
+          activeId: "a",
+          openTabs: ["a", "__proto__"],
+          library: {
+            a: { name: "Safe", changesSinceExport: 0, storageMode: "browser" },
+            __proto__: { name: "evil", polluted: true },
+          },
+        }),
+      );
+      const index = loadWorkspaceIndex();
+      expect(index).not.toBeNull();
+      // The hostile key is dropped from both library and openTabs.
+      expect(index!.openTabs).toEqual(["a"]);
+      // Object.prototype is untouched.
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    });
+
     it("coerces a malformed library entry into safe defaults", () => {
       localStorage.setItem(
         WORKSPACE_KEY,
@@ -185,6 +206,48 @@ describe("browser-workspace storage", () => {
           (result.layout as Record<string, unknown>).rack,
         ).toBeUndefined();
       }
+    });
+
+    it("does not re-migrate positions when a legacy body is loaded twice", () => {
+      // A pre-0.7.0 body: positions are U-values (1, 10) that migrate to
+      // internal units (x6). Loading the body twice must not multiply twice;
+      // migrateLayout stamps the current version so it is idempotent.
+      localStorage.setItem(
+        bodyKey("a"),
+        JSON.stringify({
+          schemaVersion: 2,
+          layout: {
+            version: "0.6.16",
+            name: "Legacy",
+            racks: [
+              {
+                id: "rack-1",
+                name: "Main",
+                height: 42,
+                devices: [
+                  { id: "d1", device_type: "server", position: 1, face: "front" },
+                ],
+              },
+            ],
+            device_types: [],
+            settings: { display_mode: "label", show_labels_on_images: false },
+          },
+          savedAt: "2026-06-14T09:00:00.000Z",
+        }),
+      );
+
+      const first = loadLayoutBody("a");
+      expect(first.ok).toBe(true);
+      if (!first.ok) return;
+      const firstPos = first.layout.racks[0]!.devices[0]!.position;
+
+      // Persist the (now migrated) body back, then load it again. The second
+      // load must yield the same position, not a doubly-migrated one.
+      saveLayoutBody("a", first.layout, { changesSinceExport: 0 });
+      const second = loadLayoutBody("a");
+      expect(second.ok).toBe(true);
+      if (!second.ok) return;
+      expect(second.layout.racks[0]!.devices[0]!.position).toBe(firstPos);
     });
 
     it("propagates a quota failure from saveLayoutBody", () => {
@@ -311,11 +374,11 @@ describe("browser-workspace storage", () => {
       );
       const index = adoptLegacyAutosave();
       expect(index).not.toBeNull();
-      // eslint-disable-next-line no-restricted-syntax -- adoption of a single autosave produces exactly one open tab
-      expect(index!.openTabs).toHaveLength(1);
-      const id = index!.openTabs[0]!;
-      expect(id.length).toBeGreaterThan(0);
-      expect(loadLayoutBody(id).ok).toBe(true);
+      const id = index!.activeId;
+      expect(id).toBeTruthy();
+      expect(id!.length).toBeGreaterThan(0);
+      expect(index!.openTabs).toEqual([id]);
+      expect(loadLayoutBody(id!).ok).toBe(true);
     });
   });
 });

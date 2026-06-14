@@ -77,6 +77,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+/**
+ * Reject prototype-polluting layout ids. Stored ids are untrusted; using
+ * `__proto__`/`constructor`/`prototype` as an object key would corrupt
+ * Object.prototype, so they are never accepted as a layout id.
+ */
+function isSafeLayoutId(id: string): boolean {
+  return (
+    id !== "__proto__" && id !== "constructor" && id !== "prototype"
+  );
+}
+
 function coerceStorageMode(value: unknown): StorageMode {
   return value === "server" ? "server" : "browser";
 }
@@ -125,15 +136,20 @@ export function loadWorkspaceIndex(): WorkspaceIndex | null {
     return null;
   }
 
+  // Null-prototype map so a hostile stored key cannot reach Object.prototype.
   const rawLibrary = isRecord(parsed.library) ? parsed.library : {};
-  const library: Record<string, LibraryEntry> = {};
+  const library: Record<string, LibraryEntry> = Object.create(null);
   for (const [id, entry] of Object.entries(rawLibrary)) {
+    if (!isSafeLayoutId(id)) continue;
     library[id] = coerceLibraryEntry(entry, id);
   }
 
-  // Only open ids that resolve to a library entry; drop dangling references.
+  // Only open ids that resolve to a library entry; drop dangling/unsafe refs.
   const openTabs = parsed.openTabs.filter(
-    (id): id is string => typeof id === "string" && id in library,
+    (id): id is string =>
+      typeof id === "string" &&
+      isSafeLayoutId(id) &&
+      Object.prototype.hasOwnProperty.call(library, id),
   );
 
   let activeId =
@@ -200,6 +216,11 @@ export function saveLayoutBody(
   layout: Layout,
   durability: DurabilityInput,
 ): boolean {
+  // Reject a prototype-polluting id before it is used as an index key.
+  if (!isSafeLayoutId(id)) {
+    log("refusing to save layout body for unsafe id %s", id);
+    return false;
+  }
   const savedAt = new Date().toISOString();
   let serialized: string;
   try {
@@ -218,7 +239,7 @@ export function saveLayoutBody(
     schemaVersion: SCHEMA_VERSION,
     activeId: id,
     openTabs: [id],
-    library: {},
+    library: Object.create(null) as Record<string, LibraryEntry>,
   };
   const previous = index.library[id];
   index.library[id] = {
@@ -271,7 +292,9 @@ export function adoptLegacyAutosave(): WorkspaceIndex | null {
   const session = loadSessionWithTimestamp();
   if (!session) return null;
 
-  const id = session.layout.metadata?.id?.trim() || generateId();
+  const candidateId = session.layout.metadata?.id?.trim();
+  const id =
+    candidateId && isSafeLayoutId(candidateId) ? candidateId : generateId();
   const layout: Layout = {
     ...session.layout,
     metadata: { ...session.layout.metadata, id, name: session.layout.name },

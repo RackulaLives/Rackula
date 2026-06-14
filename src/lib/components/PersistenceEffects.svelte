@@ -66,13 +66,23 @@
     return { tabs, activeLayoutId };
   }
 
+  // Whether any open tab holds real content worth persisting. A pristine
+  // cold-start blank tab (no rack, never started) is skipped so a fresh install
+  // that never created anything does not leave a phantom workspace + a
+  // returning-user marker behind. A restored or edited layout has started.
+  function hasPersistableContent(): boolean {
+    return workspaceStore.tabs.some(
+      (tab) => !tab.hydrated || tab.store.hasStarted,
+    );
+  }
+
   $effect(() => {
     if (getStorageMode() === "server") return;
     // Track the reactive surface: tab set, active id, and the active tab's
     // layout (so edits to the focused layout trigger a save). Only the active
     // tab is hydrated-and-editable; inactive bodies do not change in place.
     const snapshot = snapshotWorkspaceTabs();
-    if (snapshot.tabs.length === 0) return;
+    if (snapshot.tabs.length === 0 || !hasPersistableContent()) return;
 
     if (workspaceSaveTimer) clearTimeout(workspaceSaveTimer);
     workspaceSaveTimer = setTimeout(() => {
@@ -98,7 +108,9 @@
       workspaceSaveTimer = null;
     }
     const snapshot = snapshotWorkspaceTabs();
-    if (snapshot.tabs.length > 0) persistBrowserWorkspace(snapshot);
+    if (snapshot.tabs.length > 0 && hasPersistableContent()) {
+      persistBrowserWorkspace(snapshot);
+    }
   }
 
   onMount(() => {
