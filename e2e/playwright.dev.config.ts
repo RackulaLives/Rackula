@@ -22,6 +22,8 @@ export default defineConfig({
     cwd: "..",
   },
   testDir: ".",
+  // visual-regression.spec.ts has its own config (playwright.visual.config.ts).
+  testIgnore: ["**/visual-regression.spec.ts"],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,

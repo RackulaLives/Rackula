@@ -460,6 +460,50 @@ await completeWizardWithKeyboard(page, { name: "My Rack", heightPreset: 4 });
 await completeWizardWithClicks(page, { name: "My Rack", height: 42 });
 ```
 
+### Visual Regression Tests
+
+`e2e/visual-regression.spec.ts` is a tripwire suite: a small, stable set of
+screenshot snapshots of key UI states (welcome canvas, populated rack in light
+and dark themes, display modes, sidebar tabs, and the export, share, import,
+file, and settings surfaces). It catches unintended visual drift while the shell
+is rebuilt in slices (epic #2017). It is not pixel-perfect coverage; keep the
+set small.
+
+The suite has its own config, `e2e/playwright.visual.config.ts`, with a fixed
+1280x720 viewport, reduced motion, frozen animations, and pinned theme. It runs
+chromium-only as the `visual` job in `.github/workflows/test.yml` on every pull
+request.
+
+Run it locally:
+
+```bash
+npm run test:e2e:visual          # compare against committed baselines
+npm run test:e2e:visual:update   # regenerate baselines
+```
+
+Baselines are OS-specific: font hinting and anti-aliasing differ between Linux,
+macOS, and Windows, so a macOS baseline will never match the Linux CI runner.
+The committed baselines are therefore Linux-only, generated in CI. Snapshot
+filenames are suffixed with the platform, and `.gitignore` excludes the
+`-darwin` and `-win32` copies a local run produces, so running
+`test:e2e:visual:update` on your machine is safe: it cannot clobber the
+committed Linux set.
+
+Update flow for an intentional visual change:
+
+1. Push your change. The `visual` CI job fails and uploads the diff images
+   (`-actual`, `-expected`, `-diff`) as the `visual-regression-diff` artifact.
+2. Review the diff to confirm the change is intended.
+3. Run the "Update Visual Snapshots" workflow (Actions tab, "Run workflow", pick
+   your branch). It regenerates the Linux baselines and uploads them as the
+   `visual-baselines` artifact.
+4. Download `visual-baselines`, replace `e2e/__screenshots__` in your branch
+   with its contents, then commit and push. Committing yourself (rather than a
+   bot push) keeps the workflow read-only and retriggers the `visual` check.
+
+Dynamic regions (the app version string and "last saved" timestamps) are masked
+so they never trip the diff.
+
 ## Coverage
 
 Coverage thresholds are configured in `vitest.config.ts`:

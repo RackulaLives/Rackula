@@ -20,6 +20,8 @@
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "test:e2e:dev": "playwright test --config e2e/playwright.dev.config.ts",
     "test:e2e:smoke": "playwright test --config e2e/playwright.smoke.config.ts",
+    "test:e2e:visual": "playwright test --config e2e/playwright.visual.config.ts",
+    "test:e2e:visual:update": "playwright test --config e2e/playwright.visual.config.ts --update-snapshots",
     "test:coverage": "NODE_OPTIONS=--max-old-space-size=8192 vitest run --coverage",
     "check:compose-parity": "bash scripts/check-compose-persist-parity.sh",
     "lint": "eslint .",

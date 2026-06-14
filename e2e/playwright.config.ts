@@ -28,12 +28,21 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: ["**/ios-safari.spec.ts", "**/android-chrome.spec.ts"],
+      // visual-regression.spec.ts has its own config (playwright.visual.config.ts).
+      testIgnore: [
+        "**/ios-safari.spec.ts",
+        "**/android-chrome.spec.ts",
+        "**/visual-regression.spec.ts",
+      ],
     },
     {
       name: "webkit",
       use: { ...devices["Desktop Safari"] },
-      testIgnore: ["**/ios-safari.spec.ts", "**/android-chrome.spec.ts"],
+      testIgnore: [
+        "**/ios-safari.spec.ts",
+        "**/android-chrome.spec.ts",
+        "**/visual-regression.spec.ts",
+      ],
     },
     // iOS Safari tests
     {

@@ -58,6 +58,11 @@ playwright-report/
 test-results/
 reports/
 
+# Visual regression baselines are committed for Linux (the CI runner) only.
+# Local runs on macOS/Windows write platform-suffixed copies we never commit.
+e2e/**/__screenshots__/**/*-darwin.png
+e2e/**/__screenshots__/**/*-win32.png
+
 # BrowserStack
 log/
 local.log
