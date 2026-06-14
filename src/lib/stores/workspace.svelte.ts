@@ -57,8 +57,9 @@ export function createWorkspaceStore() {
     return { id: nextTabId(), store: createLayoutStore(getHistoryStore()) };
   }
 
-  let tabs = $state<WorkspaceTab[]>([createInitialTab()]);
-  let activeId = $state<string>(tabs[0]!.id);
+  const firstTab = createInitialTab();
+  let tabs = $state<WorkspaceTab[]>([firstTab]);
+  let activeId = $state<string>(firstTab.id);
 
   const activeTab = $derived(
     tabs.find((t) => t.id === activeId) ?? tabs[0]!,
