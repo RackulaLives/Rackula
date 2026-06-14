@@ -81,6 +81,15 @@
     // Touch and pen only: a mouse drag on the header should not start a swipe,
     // so desktop and trackpad pointers fall through to normal click behaviour.
     if (!isSheet || event.pointerType === "mouse") return;
+    // Ignore presses that land on a control in the header (close button, header
+    // actions): capturing the pointer there would swallow the tap. Only the bare
+    // header background starts a swipe.
+    if (
+      event.target instanceof Element &&
+      event.target.closest("button, a, [role='button'], input, select, textarea")
+    ) {
+      return;
+    }
     dragStartY = event.clientY;
     dragOffset = 0;
     isDragging = true;

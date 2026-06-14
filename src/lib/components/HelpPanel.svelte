@@ -1,7 +1,7 @@
 <!--
   About Panel Component
-  Shows app information, keyboard shortcuts, and links
-  Uses bits-ui Dialog primitives for accessibility and focus management
+  Shows app information, keyboard shortcuts, and links.
+  Built on the unified Dialog primitive (#2092).
 -->
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
