@@ -245,7 +245,8 @@ export async function handleSaveToServer(isManual = false): Promise<boolean> {
       _serverSavePending = false;
     }
     const snapshot = structuredClone($state.snapshot(layoutStore.layout));
-    await saveLayoutToServer(snapshot);
+    const imagesSnapshot = getImageStore().getUserImages();
+    await saveLayoutToServer(snapshot, imagesSnapshot);
     finalizeSuccessfulSave();
     if (isManual) {
       toastStore.showToast("Layout saved", "success", 3000);
@@ -365,6 +366,7 @@ export function initPersistenceEffects(): void {
       clearTimeout(serverSaveTimer);
     }
     const snapshot = structuredClone($state.snapshot(layout));
+    const imagesSnapshot = getImageStore().getUserImages();
     _serverSavePending = true;
     serverSaveTimer = setTimeout(async () => {
       // Clear pending state before the await: a stale continuation must not
@@ -374,7 +376,7 @@ export function initPersistenceEffects(): void {
       _serverSavePending = false;
       _saveStatus = "saving";
       try {
-        await saveLayoutToServer(snapshot);
+        await saveLayoutToServer(snapshot, imagesSnapshot);
         // Only clear dirty/session state if no newer save was scheduled while
         // this one was in flight; otherwise newer unsaved edits exist.
         finalizeSuccessfulSave(scheduleId === _serverSaveScheduleId);

@@ -164,6 +164,9 @@ export function encodeUserImagesToYaml(images: ImageStoreMap): {
   let oversized = 0;
 
   for (const [key, deviceImages] of images) {
+    // Never write reserved/prototype keys into the plain serialized object: a
+    // device id of "__proto__" would otherwise mutate the prototype on assignment.
+    if (UNSAFE_KEYS.has(key)) continue;
     const faces: SerializedFaces = {};
 
     for (const face of FACES) {
@@ -227,7 +230,9 @@ export function decodeYamlImages(raw: unknown): {
     const faceRecord = value as Record<string, unknown>;
 
     for (const face of FACES) {
-      if (!(face in faceRecord)) continue;
+      // Own properties only: `in` would read a face injected via the prototype
+      // chain (e.g. a crafted YAML `__proto__: { front: ... }`).
+      if (!Object.hasOwn(faceRecord, face)) continue;
       const faceValue = faceRecord[face];
 
       // Malformed shape (missing/non-string) counts as a failed image.

@@ -11,7 +11,6 @@ import {
   parseLayoutYamlWithImages,
 } from "$lib/utils/yaml";
 import { encodeUserImagesToYaml } from "$lib/utils/image-encoding";
-import { getImageStore } from "$lib/stores/images.svelte";
 import { persistenceDebug } from "$lib/utils/debug";
 import { z } from "zod";
 
@@ -256,6 +255,7 @@ export async function loadSavedLayout(uuid: string): Promise<{
   layout: Layout;
   images: ImageStoreMap;
   failedImagesCount: number;
+  failedKeys: string[];
 }> {
   log("loadSavedLayout: uuid=%s", uuid);
 
@@ -295,9 +295,9 @@ export async function loadSavedLayout(uuid: string): Promise<{
     yamlContent.length,
   );
   try {
-    const { layout, images, failedImagesCount } =
+    const { layout, images, failedImagesCount, failedKeys } =
       await parseLayoutYamlWithImages(yamlContent);
-    return { layout, images, failedImagesCount };
+    return { layout, images, failedImagesCount, failedKeys };
   } catch (error) {
     log("loadSavedLayout: failed to parse uuid=%s %O", uuid, error);
     throw new PersistenceError("Layout data is corrupted - could not parse");
@@ -310,7 +310,10 @@ export async function loadSavedLayout(uuid: string): Promise<{
  * @param layout - The layout to save (must have metadata.id for existing layouts)
  * @returns The saved layout UUID
  */
-export async function saveLayoutToServer(layout: Layout): Promise<string> {
+export async function saveLayoutToServer(
+  layout: Layout,
+  userImages: ImageStoreMap,
+): Promise<string> {
   log("saveLayoutToServer: name=%s", layout.name);
 
   if (!isApiAvailable()) {
@@ -340,7 +343,7 @@ export async function saveLayoutToServer(layout: Layout): Promise<string> {
   // Embed user images so server-mode saves do not silently drop them (#617).
   // The 1MB server PUT cap then trips loudly for image-heavy layouts; that is
   // intentional until storage quotas exist (see image-encoding.ts SIZE DIVERGENCE).
-  const { serialized } = encodeUserImagesToYaml(getImageStore().getUserImages());
+  const { serialized } = encodeUserImagesToYaml(userImages);
   const yamlContent = await serializeLayoutToYaml(layout, serialized);
   log(
     "saveLayoutToServer: uuid=%s yamlSize=%d bytes",

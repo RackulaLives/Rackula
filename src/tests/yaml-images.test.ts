@@ -373,3 +373,29 @@ describe("#2208 interaction: images stays off the runtime layout", () => {
     expect((reloaded.layout as Record<string, unknown>).images).toBeUndefined();
   });
 });
+
+describe("image-encoding security hardening (#2221)", () => {
+  it("encode skips a reserved __proto__ image key without polluting the prototype", () => {
+    const map: ImageStoreMap = new Map();
+    map.set("__proto__", { front: makeUserImage() });
+    map.set("real-device", { front: makeUserImage() });
+
+    const { serialized } = encodeUserImagesToYaml(map);
+
+    // The reserved key never lands as an entry, and the prototype is intact.
+    expect(Object.hasOwn(serialized, "__proto__")).toBe(false);
+    expect((({}) as Record<string, unknown>).front).toBeUndefined();
+    // A normal device is still serialized.
+    expect(Object.hasOwn(serialized, "real-device")).toBe(true);
+  });
+
+  it("decode ignores a face injected via the prototype chain", () => {
+    // A per-device value whose `front` lives on the prototype, not as an own
+    // property, as a crafted YAML `__proto__: { front: ... }` would produce.
+    const faceRecord = Object.create({ front: makePngDataUrl() });
+    const { images, failedImagesCount } = decodeYamlImages({ dev: faceRecord });
+
+    expect(images.size).toBe(0);
+    expect(failedImagesCount).toBe(0);
+  });
+});
