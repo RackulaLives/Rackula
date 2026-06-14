@@ -21,6 +21,11 @@
   import { generateId } from "$lib/utils/device";
   import type { Layout } from "$lib/types";
   import { buildLayoutRows, nextDuplicateName } from "./layouts-library";
+  import {
+    layoutPreviewKey,
+    createLayoutPreviewCache,
+  } from "./layout-preview-cache";
+  import { renderLayoutPreviewSvg } from "./layout-preview-render";
   import LayoutContextMenu from "./LayoutContextMenu.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import Dialog from "./Dialog.svelte";
@@ -41,6 +46,43 @@
   const rows = $derived(
     buildLayoutRows(workspaceStore.tabs, workspaceStore.activeId),
   );
+
+  // Cached mini-render previews (#2083). The cache is bounded and session-only:
+  // durable persistence of previews belongs to the storage slice (#2080). Keyed
+  // by tab id and invalidated by a content hash, so a preview is re-rendered
+  // only when the layout's rendered image would actually change (placing or
+  // moving a device, resizing a rack, recolouring a device type), and a rename
+  // never throws the thumbnail away.
+  const previewCache = createLayoutPreviewCache();
+
+  /**
+   * Resolve the preview SVG for a tab, rendering and caching it on a miss.
+   * Returns null when there is nothing to draw (no racks), so the row shows a
+   * placeholder instead of an empty frame.
+   */
+  function previewFor(tabId: string): string | null {
+    const tab = workspaceStore.tabs.find((t) => t.id === tabId);
+    if (!tab) return null;
+
+    const layout = tab.store.layout;
+    const key = layoutPreviewKey(layout);
+    const cached = previewCache.get(tabId, key);
+    if (cached !== undefined) return cached;
+
+    const svg = renderLayoutPreviewSvg(layout);
+    if (svg === null) return null;
+    previewCache.set(tabId, key, svg);
+    return svg;
+  }
+
+  // Drop cache entries for tabs that have closed so the cache tracks the open
+  // set and does not grow unbounded across a long session.
+  $effect(() => {
+    const openIds = new Set(workspaceStore.tabs.map((t) => t.id));
+    for (const id of previewCache.keys()) {
+      if (!openIds.has(id)) previewCache.delete(id);
+    }
+  });
 
   // Delete confirmation state.
   let deleteConfirmOpen = $state(false);
@@ -200,6 +242,7 @@
     aria-label="Layout library"
   >
     {#each rows as row (row.tabId)}
+      {@const previewSvg = previewFor(row.tabId)}
       <LayoutContextMenu
         onopen={() => openLayout(row.tabId)}
         onrename={() => openRename(row.tabId)}
@@ -222,6 +265,14 @@
             class:is-active={row.isActive}
             aria-hidden="true"
           ></span>
+          <span class="layout-preview" aria-hidden="true">
+            {#if previewSvg}
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -- Safe: SVG built by generateExportSVG via the DOM API; all user text is set with textContent and escaped by XMLSerializer, never raw-HTML injected. -->
+              {@html previewSvg}
+            {:else}
+              <span class="layout-preview-empty"></span>
+            {/if}
+          </span>
           <span class="layout-info">
             <span class="layout-name">{row.name}</span>
             <span class="layout-meta">
@@ -399,6 +450,45 @@
   .layout-indicator.is-active {
     background: var(--colour-success, #2e7d32);
     border-color: var(--colour-success, #2e7d32);
+  }
+
+  /* Cached mini-render of the layout (#2083). Decorative (aria-hidden): the row
+     name and meta carry the accessible label, so the thumbnail is never the only
+     affordance. A fixed box keeps row height stable while the inner SVG scales to
+     fit without distortion. */
+  .layout-preview {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: var(--space-1, 4px);
+    overflow: hidden;
+    background: var(--colour-surface-secondary);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+  }
+
+  .layout-preview :global(svg) {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+  }
+
+  .layout-preview-empty {
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      var(--colour-border) 4px,
+      var(--colour-border) 5px
+    );
+    opacity: 0.4;
   }
 
   .layout-info {
