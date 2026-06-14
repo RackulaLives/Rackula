@@ -135,7 +135,7 @@ export default defineConfig(
         ...testRestrictedSyntax,
         {
           selector:
-            'CallExpression[callee.property.name="locator"] > Literal:first-child[value=/^\\s*\\./]',
+            'CallExpression[callee.property.name="locator"][arguments.0.type="Literal"][arguments.0.value=/^\\s*\\./]',
           message:
             "Avoid CSS class selectors in E2E locators - they break on styling changes. Prefer getByRole()/getByTestId()/getByLabel(), or add the selector to e2e/helpers/locators.ts. See docs/guides/TESTING.md.",
         },
