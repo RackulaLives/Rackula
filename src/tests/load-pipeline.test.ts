@@ -99,6 +99,30 @@ describe("load-pipeline", () => {
       );
       expect(mockImageStore.loadBundledImages).toHaveBeenCalled();
     });
+
+    it("suppresses the success toast when successMessage is null", () => {
+      const layout = createTestLayout({ name: "Server Reconcile" });
+      finalizeLayoutLoad(layout, undefined, 0, { successMessage: null });
+
+      // Layout still loads, but the generic success toast is withheld so the
+      // server-reconciliation path can show its own "Loaded ... from server".
+      expect(layoutStore.layout.name).toBe("Server Reconcile");
+      expect(toastStore.toasts.some((t) => t.type === "success")).toBe(false);
+    });
+
+    it("still warns about failed images when successMessage is null", () => {
+      const layout = createTestLayout({ name: "Server Partial" });
+      finalizeLayoutLoad(layout, undefined, 2, { successMessage: null });
+
+      expect(toastStore.toasts).toContainEqual(
+        expect.objectContaining({
+          message: "Layout loaded with 2 images that couldn't be read",
+          type: "warning",
+        }),
+      );
+      // The warning fires but the generic success toast stays suppressed.
+      expect(toastStore.toasts.some((t) => t.type === "success")).toBe(false);
+    });
   });
 
   describe("loadFromApi", () => {

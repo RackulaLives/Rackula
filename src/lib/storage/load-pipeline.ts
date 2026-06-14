@@ -16,6 +16,19 @@ import { openFilePicker } from "$lib/utils/file";
 import { layoutDebug } from "$lib/utils/debug";
 
 /**
+ * Options for {@link finalizeLayoutLoad}.
+ */
+export interface FinalizeLayoutLoadOptions {
+  /**
+   * Success toast message. Pass `null` to suppress the success toast entirely
+   * (used by the server-reconciliation path, which shows its own
+   * "Loaded ... from server" toast). The partial-image warning toast still
+   * shows when images failed to read, regardless of this option.
+   */
+  successMessage?: string | null;
+}
+
+/**
  * Common layout loading process
  * Updates stores, clears session, and fits view
  */
@@ -23,7 +36,9 @@ export function finalizeLayoutLoad(
   layout: Layout,
   images?: ImageStoreMap,
   failedImagesCount: number = 0,
+  options: FinalizeLayoutLoadOptions = {},
 ) {
+  const { successMessage = "Layout loaded successfully" } = options;
   const layoutStore = getLayoutStore();
   const imageStore = getImageStore();
   const toastStore = getToastStore();
@@ -64,8 +79,8 @@ export function finalizeLayoutLoad(
       `Layout loaded with ${failedImagesCount} image${failedImagesCount > 1 ? "s" : ""} that couldn't be read`,
       "warning",
     );
-  } else {
-    toastStore.showToast("Layout loaded successfully", "success");
+  } else if (successMessage !== null) {
+    toastStore.showToast(successMessage, "success");
   }
 }
 

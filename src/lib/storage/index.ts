@@ -28,7 +28,11 @@ export {
   detectModeFlip,
   type ModeFlip,
 } from "./working-copy";
-export { loadFromApi, loadFromFile } from "./load-pipeline";
+export {
+  finalizeLayoutLoad,
+  loadFromApi,
+  loadFromFile,
+} from "./load-pipeline";
 export {
   handleLoad,
   handleSaveToServer,
