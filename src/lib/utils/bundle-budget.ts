@@ -66,7 +66,57 @@ export interface BudgetResult {
   breaches: BudgetBreach[];
 }
 
-const ENTRIES: BudgetEntry[] = ["initialJs", "initialCss", "initialTotal"];
+export const ENTRIES: BudgetEntry[] = [
+  "initialJs",
+  "initialCss",
+  "initialTotal",
+];
+
+// Compile-time guard: a new field on Measurements forces a matching key here,
+// so a budgeted dimension can never be silently dropped from evaluation.
+const _entriesExhaustive: Record<BudgetEntry, true> = {
+  initialJs: true,
+  initialCss: true,
+  initialTotal: true,
+} satisfies Record<keyof Measurements, true>;
+void _entriesExhaustive;
+
+function assertFinite(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`Budget field "${label}" must be a finite number`);
+  }
+  return value;
+}
+
+/**
+ * Validate a raw, JSON-parsed budget into a BudgetConfig. The budget backs a
+ * safety gate, so a typo in performance-budget.json (a non-numeric tolerance, a
+ * missing headroom) must fail loudly rather than silently disable breach
+ * detection via NaN or string concatenation.
+ */
+export function parseBudgetConfig(raw: unknown): BudgetConfig {
+  if (typeof raw !== "object" || raw === null) {
+    throw new Error("Budget must be a JSON object");
+  }
+  const obj = raw as Record<string, unknown>;
+
+  const toleranceBytes = assertFinite(obj.toleranceBytes, "toleranceBytes");
+  if (toleranceBytes < 0) {
+    throw new Error('Budget field "toleranceBytes" must not be negative');
+  }
+
+  const baselineRaw = (obj.baseline ?? {}) as Record<string, unknown>;
+  const headroomRaw = (obj.headroom ?? {}) as Record<string, unknown>;
+
+  const baseline = {} as Record<BudgetEntry, number>;
+  const headroom = {} as Record<BudgetEntry, number>;
+  for (const entry of ENTRIES) {
+    baseline[entry] = assertFinite(baselineRaw[entry], `baseline.${entry}`);
+    headroom[entry] = assertFinite(headroomRaw[entry], `headroom.${entry}`);
+  }
+
+  return { toleranceBytes, baseline, headroom };
+}
 
 /** The enforced threshold for an entry: its baseline plus its headroom. */
 export function thresholdFor(budget: BudgetConfig, entry: BudgetEntry): number {

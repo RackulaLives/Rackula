@@ -20,14 +20,15 @@
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { gzipSync } from "node:zlib";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  ENTRIES,
   evaluateBudget,
+  parseBudgetConfig,
   thresholdFor,
   type BudgetConfig,
-  type BudgetEntry,
   type Measurements,
 } from "../src/lib/utils/bundle-budget";
 
@@ -95,7 +96,13 @@ function collectInitialAssets(html: string): { js: string[]; css: string[] } {
 /** Map an index.html asset href (e.g. "/assets/main-abc.js") to a dist path. */
 function assetPath(href: string): string {
   const cleaned = href.replace(/^\//, "").split("?")[0];
-  return join(DIST_DIR, cleaned);
+  const resolved = resolve(DIST_DIR, cleaned);
+  // index.html is project-built and trusted, but resolve any traversal defensively
+  // so a stray "../" can never make the gate read or measure a file outside dist/.
+  if (resolved !== DIST_DIR && !resolved.startsWith(DIST_DIR + sep)) {
+    throw new Error(`Asset path escapes dist/: ${href}`);
+  }
+  return resolved;
 }
 
 function sumGzip(hrefs: string[]): number {
@@ -140,14 +147,12 @@ function loadBudget(): BudgetConfig {
   if (!existsSync(BUDGET_FILE)) {
     throw new Error(`Budget file not found: ${BUDGET_FILE}`);
   }
-  return JSON.parse(readFileSync(BUDGET_FILE, "utf-8")) as BudgetConfig;
+  return parseBudgetConfig(JSON.parse(readFileSync(BUDGET_FILE, "utf-8")));
 }
 
 function kib(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KiB`;
 }
-
-const ENTRIES: BudgetEntry[] = ["initialJs", "initialCss", "initialTotal"];
 
 /** Rewrite only the baseline from the current build; keep headroom and tolerance. */
 function updateBaseline(measured: Measurements, current: BudgetConfig): void {

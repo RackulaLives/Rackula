@@ -11,7 +11,11 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { evaluateBudget, thresholdFor } from "$lib/utils/bundle-budget";
+import {
+  evaluateBudget,
+  parseBudgetConfig,
+  thresholdFor,
+} from "$lib/utils/bundle-budget";
 import type { BudgetConfig, Measurements } from "$lib/utils/bundle-budget";
 
 // initialJs threshold = 190_000 + 10_000 = 200_000
@@ -121,5 +125,51 @@ describe("evaluateBudget", () => {
     } as Measurements;
 
     expect(() => evaluateBudget(incomplete, budget)).toThrow(/initialTotal/);
+  });
+});
+
+describe("parseBudgetConfig", () => {
+  const valid = {
+    toleranceBytes: 5120,
+    baseline: { initialJs: 329099, initialCss: 23868, initialTotal: 352967 },
+    headroom: { initialJs: 30000, initialCss: 8000, initialTotal: 38000 },
+  };
+
+  it("returns a typed config when every field is a finite number", () => {
+    const config = parseBudgetConfig(valid);
+    expect(config.toleranceBytes).toBe(5120);
+    expect(thresholdFor(config, "initialJs")).toBe(329099 + 30000);
+  });
+
+  it("rejects a non-numeric tolerance so a typo cannot disable breach detection", () => {
+    const bad = { ...valid, toleranceBytes: "5120" };
+    expect(() => parseBudgetConfig(bad)).toThrow(/toleranceBytes/);
+  });
+
+  it("rejects a negative tolerance", () => {
+    const bad = { ...valid, toleranceBytes: -1 };
+    expect(() => parseBudgetConfig(bad)).toThrow(/toleranceBytes/);
+  });
+
+  it("rejects a non-numeric baseline value", () => {
+    const bad = {
+      ...valid,
+      baseline: { ...valid.baseline, initialJs: "329099" },
+    };
+    expect(() => parseBudgetConfig(bad)).toThrow(/baseline\.initialJs/);
+  });
+
+  it("rejects a missing headroom entry", () => {
+    const bad = {
+      toleranceBytes: 5120,
+      baseline: valid.baseline,
+      headroom: { initialJs: 30000, initialCss: 8000 }, // initialTotal missing
+    };
+    expect(() => parseBudgetConfig(bad)).toThrow(/headroom\.initialTotal/);
+  });
+
+  it("rejects a non-object budget", () => {
+    expect(() => parseBudgetConfig(null)).toThrow();
+    expect(() => parseBudgetConfig("nope")).toThrow();
   });
 });
