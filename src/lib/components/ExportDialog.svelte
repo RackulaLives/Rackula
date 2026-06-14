@@ -382,7 +382,7 @@
   });
 </script>
 
-<Dialog {open} title="Export" width="min(480px, 90vw)" onclose={handleCancel}>
+<Dialog {open} title="Export" size="M" onclose={handleCancel}>
   <div class="export-form">
     <div class="form-group">
       <label for="export-format">Format</label>

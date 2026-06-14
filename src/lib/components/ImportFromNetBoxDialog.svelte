@@ -202,7 +202,7 @@
   }
 </script>
 
-<Dialog {open} title="Import from NetBox" width="560px" onclose={handleCancel}>
+<Dialog {open} title="Import from NetBox" size="M" onclose={handleCancel}>
   <div class="import-dialog">
     <!-- Input Mode Tabs -->
     <Tabs.Root

@@ -1,10 +1,10 @@
 <!--
   ConfirmReplaceDialog Component
-  Confirmation dialog for replacing unsaved rack data
-  Uses bits-ui Dialog primitives for accessibility and focus management
+  Confirmation dialog for replacing unsaved rack data.
+  Built on the unified Dialog primitive (#2092).
 -->
 <script lang="ts">
-  import { Dialog } from "bits-ui";
+  import Dialog from "./Dialog.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
 
   interface Props {
@@ -14,12 +14,7 @@
     onCancel: () => void;
   }
 
-  let {
-    open = $bindable(),
-    onSaveFirst,
-    onReplace,
-    onCancel,
-  }: Props = $props();
+  let { open, onSaveFirst, onReplace, onCancel }: Props = $props();
 
   const layoutStore = getLayoutStore();
 
@@ -29,52 +24,56 @@
   const message = $derived(
     `"${rackName}" has ${deviceCount} ${deviceWord} placed. Save your layout first?`,
   );
-
-  function handleOpenChange(newOpen: boolean) {
-    open = newOpen;
-    if (!newOpen) {
-      onCancel();
-    }
-  }
 </script>
 
-<Dialog.Root {open} onOpenChange={handleOpenChange}>
-  <Dialog.Portal>
-    <Dialog.Overlay class="dialog-backdrop" />
-    <Dialog.Content class="dialog" style="width: 420px; max-width: 90vw;">
-      <Dialog.Title class="dialog-title">Replace Current Rack?</Dialog.Title>
-      <Dialog.Description class="message">{message}</Dialog.Description>
+<Dialog
+  {open}
+  title="Replace Current Rack?"
+  size="S"
+  showClose={false}
+  onclose={onCancel}
+>
+  <div class="confirm-replace-dialog">
+    <p class="message">{message}</p>
 
-      <div class="actions">
-        <button type="button" class="btn btn-secondary" data-testid="btn-cancel-replace" onclick={onCancel}>
-          Cancel
-        </button>
-        <button type="button" class="btn btn-primary" data-testid="btn-save-first" onclick={onSaveFirst}>
-          Save First
-        </button>
-        <button type="button" class="btn btn-destructive" data-testid="btn-replace-rack" onclick={onReplace}>
-          Replace
-        </button>
-      </div>
-    </Dialog.Content>
-  </Dialog.Portal>
-</Dialog.Root>
+    <div class="actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        data-testid="btn-cancel-replace"
+        onclick={onCancel}
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        class="btn btn-primary"
+        data-testid="btn-save-first"
+        onclick={onSaveFirst}
+      >
+        Save First
+      </button>
+      <button
+        type="button"
+        class="btn btn-destructive"
+        data-testid="btn-replace-rack"
+        onclick={onReplace}
+      >
+        Replace
+      </button>
+    </div>
+  </div>
+</Dialog>
 
 <style>
-  /* Base dialog styles (.dialog-backdrop, .dialog, .dialog-title, .dialog-close)
-     are defined in src/lib/styles/dialogs.css and imported globally */
-
-  /* Component-specific overrides */
-  :global(.dialog) {
-    padding: var(--space-5);
+  .confirm-replace-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
   }
 
-  :global(.dialog-title) {
-    margin-bottom: var(--space-3);
-  }
-
-  :global(.message) {
-    margin: 0 0 var(--space-5) 0;
+  .message {
+    margin: 0;
     color: var(--colour-text-muted);
     line-height: 1.5;
   }

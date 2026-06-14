@@ -362,13 +362,7 @@
   }
 </script>
 
-<Dialog
-  {open}
-  title="New Rack"
-  width="var(--dialog-width-lg, 520px)"
-  showClose={false}
-  onclose={oncancel}
->
+<Dialog {open} title="New Rack" size="M" showClose={false} onclose={oncancel}>
   {#snippet headerActions()}
     <div
       class="step-indicator"

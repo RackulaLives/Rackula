@@ -122,8 +122,8 @@ test.describe("Bottom Sheet", () => {
 
     const bottomSheet = page.locator(locators.mobile.bottomSheet);
     await expect(bottomSheet).toBeVisible();
-    // eslint-disable-next-line no-restricted-syntax -- E2E test verifying bottom sheet opens (user-visible state)
-    await expect(bottomSheet).toHaveClass(/open/);
+    // The unified Dialog primitive marks the open state with data-state="open".
+    await expect(bottomSheet).toHaveAttribute("data-state", "open");
   });
 
   test("bottom sheet has drag handle visible", async ({ page }) => {
