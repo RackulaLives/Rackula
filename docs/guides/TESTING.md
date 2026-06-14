@@ -286,6 +286,38 @@ npx playwright test ios-safari.spec.ts        # Run specific test file
 npx playwright test android-chrome.spec.ts    # Run Android test file
 ```
 
+### CI tiers (two-tier E2E model)
+
+E2E coverage in CI has three layers (spike #1994):
+
+| Tier     | Runner          | Browsers       | When                      | Approval        |
+| -------- | --------------- | -------------- | ------------------------- | --------------- |
+| Baseline | `ubuntu-latest` | chromium smoke | Every PR (`validate` job) | None            |
+| Trusted  | `ci-runner`     | full suite     | Main-repo PRs (auto)      | None            |
+| Approval | `ci-runner`     | full suite     | Fork PRs                  | `ggfevans` gate |
+
+The baseline chromium smoke runs on GitHub-hosted runners for all PRs. The
+`e2e-self-hosted` job runs the full browser suite on the self-hosted `ci-runner`
+only after the baseline passes (`needs: validate`). The job selects its
+environment from the PR source:
+
+```yaml
+environment: ${{ github.event.pull_request.head.repo.full_name == 'RackulaLives/Rackula' && 'e2e-trusted' || 'e2e-approval' }}
+```
+
+PRs from a branch in `RackulaLives/Rackula` resolve to `e2e-trusted` and run
+without delay. Fork PRs (including forks owned by org members) resolve to
+`e2e-approval`, which pauses until `ggfevans` reviews the diff and approves.
+This keeps untrusted code off the homelab runner without an explicit human OK.
+
+Maintainer prerequisites (one-time, in repo settings):
+
+- GitHub Environment `e2e-trusted`: no required reviewers, deployment branch
+  policy restricted to `main`.
+- GitHub Environment `e2e-approval`: `ggfevans` as the required reviewer, no
+  branch restriction (fork PRs run from arbitrary branches).
+- Self-hosted runner online advertising the `ci-runner` label.
+
 ### iOS Safari Testing
 
 The `e2e/ios-safari.spec.ts` tests mobile Safari functionality:
