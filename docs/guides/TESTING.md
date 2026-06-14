@@ -352,9 +352,11 @@ Adding a scan when a new surface lands:
 
    test("side panel has no WCAG 2.2 AA violations", async ({ page }) => {
      await gotoWithRack(page);
-     const panel = page.getByTestId("side-panel");
-     await expect(panel).toBeVisible();
-     await expectNoA11yViolations(page, panel); // omit the locator to scan the whole page
+     const selector = '[data-testid="side-panel"]';
+     await expect(page.locator(selector)).toBeVisible();
+     // expectNoA11yViolations takes a CSS selector string, not a Locator;
+     // omit the second argument to scan the whole page.
+     await expectNoA11yViolations(page, selector);
    });
    ```
 
