@@ -2,14 +2,20 @@
   AppMenu Component
   The menu behind the logo. The logo lockup is the menu trigger; the items are
   projected from the actions registry (getAppMenuSections), so the menu cannot
-  drift from the keyboard handler or help overlay. Storage-mode aware in the
-  static sense: the item set differs between the browser and server builds.
-  Full mode-aware enable/disable logic is #2187.
+  drift from the keyboard handler or help overlay. Storage-mode aware on two
+  levels: the item set differs between the browser and server builds, and each
+  item's enabled state is derived from its registry enabledWhen predicate
+  against a live context (rack presence, storage mode). Disabled items stay in
+  the menu, rendered aria-disabled by bits-ui, rather than being hidden.
 -->
 <script lang="ts">
   import { DropdownMenu } from "bits-ui";
   import LogoLockup from "./LogoLockup.svelte";
-  import { getAppMenuSections, type ActionId } from "$lib/actions/registry";
+  import {
+    getAppMenuSections,
+    type ActionEnabledContext,
+    type ActionId,
+  } from "$lib/actions/registry";
   import { getStorageMode, type StorageMode } from "$lib/storage";
   import "$lib/styles/menu.css";
 
@@ -27,19 +33,22 @@
   let open = $state(false);
 
   const mode: StorageMode = getStorageMode();
-  const sections = getAppMenuSections(mode);
 
-  // Actions that need a rack to act on. Only share and view-yaml are gated,
-  // matching the existing FileMenu: save, load, and the exports stay available
-  // for an empty-but-named layout. Full mode-aware enable/disable is #2187.
-  const RACK_DEPENDENT: ReadonlySet<ActionId> = new Set<ActionId>([
-    "share",
-    "view-yaml",
-  ]);
+  // Live context for the registry's enabledWhen predicates. Only the app menu's
+  // global-scope items are projected, and the gated ones (share, view-yaml)
+  // read hasRacks; the selection and history fields are not consulted by any
+  // menu item, so they are reported as the neutral, no-target state.
+  const enableContext: ActionEnabledContext = $derived({
+    hasSelection: false,
+    isDeviceSelected: false,
+    isRackSelected: false,
+    canUndo: false,
+    canRedo: false,
+    hasRacks,
+    mode,
+  });
 
-  function isDisabled(id: ActionId): boolean {
-    return RACK_DEPENDENT.has(id) && !hasRacks;
-  }
+  const sections = $derived(getAppMenuSections(mode, enableContext));
 
   function handleSelect(id: ActionId) {
     return () => {
@@ -78,7 +87,7 @@
           {#each section.items as item (item.id)}
             <DropdownMenu.Item
               class="menu-item"
-              disabled={isDisabled(item.id)}
+              disabled={item.disabled ?? false}
               data-testid={`app-menu-${item.id}`}
               onSelect={handleSelect(item.id)}
             >

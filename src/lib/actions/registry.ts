@@ -128,6 +128,10 @@ export interface ActionEnabledContext {
   isRackSelected: boolean;
   canUndo: boolean;
   canRedo: boolean;
+  /** Whether the active layout has at least one rack to act on. */
+  hasRacks: boolean;
+  /** The active storage mode, for mode-aware app-menu items. */
+  mode: StorageMode;
 }
 
 /**
@@ -335,6 +339,8 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
       { key: "h", ctrl: true },
       { key: "h", meta: true },
     ],
+    // Sharing needs a rack to encode in the link; disabled on an empty layout.
+    enabledWhen: (ctx) => ctx.hasRacks,
     helpGroup: "File",
     appMenuGroup: "file",
     keywords: ["link", "url", "qr"],
@@ -344,6 +350,8 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "View YAML",
     scope: "global",
     bindings: [],
+    // The YAML view has nothing to show until a rack exists.
+    enabledWhen: (ctx) => ctx.hasRacks,
     appMenuGroup: "file",
     keywords: ["yaml", "source", "raw", "edit"],
   },
@@ -576,6 +584,13 @@ export interface AppMenuItem {
   label: string;
   /** The platform-formatted keyboard shortcut, if the action has one. */
   shortcut?: string;
+  /**
+   * Whether the item is currently disabled. Computed from the action's
+   * enabledWhen predicate against the supplied context; false when no context
+   * is given or the action declares no predicate. Disabled items stay in the
+   * menu (rendered aria-disabled) rather than being hidden.
+   */
+  disabled?: boolean;
 }
 
 /** A named section of the app menu. */
@@ -600,12 +615,19 @@ function formatMenuShortcut(action: ActionDefinition): string | undefined {
  * every action that declares an appMenuGroup, grouped into sections in
  * APP_MENU_GROUP_ORDER and following registry order within each section.
  *
- * The menu is storage-mode aware in the narrow, static sense this slice owns:
- * a server-only action (Save, Save As) is dropped in browser mode, and a
- * browser-only action (Export backup) is dropped in server mode. Full
- * mode-aware enable/disable logic is #2187; this is only the item-set split.
+ * The menu is storage-mode aware in two layers. The item set splits by mode: a
+ * server-only action (Save, Save As) is dropped in browser mode and a
+ * browser-only action (Export backup) is dropped in server mode. When a live
+ * context is supplied, each item's `disabled` is also derived from its action's
+ * enabledWhen predicate (e.g. share and view-yaml need a rack), so the menu is
+ * the registry's first runtime consumer of enabledWhen. Disabled items stay in
+ * the menu (rendered aria-disabled) rather than being hidden. Called with the
+ * mode alone, every item is enabled.
  */
-export function getAppMenuSections(mode: StorageMode): AppMenuSection[] {
+export function getAppMenuSections(
+  mode: StorageMode,
+  context?: ActionEnabledContext,
+): AppMenuSection[] {
   const sections: AppMenuSection[] = [];
 
   for (const group of APP_MENU_GROUP_ORDER) {
@@ -618,6 +640,10 @@ export function getAppMenuSections(mode: StorageMode): AppMenuSection[] {
         id: action.id,
         label: action.label,
         shortcut: formatMenuShortcut(action),
+        disabled:
+          context && action.enabledWhen
+            ? !action.enabledWhen(context)
+            : false,
       });
     }
 
