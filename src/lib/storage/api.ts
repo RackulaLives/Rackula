@@ -53,6 +53,9 @@ export function getServerInstanceLabel(): string {
 /** Default timeout for API requests (10 seconds) */
 const API_TIMEOUT_MS = 10_000;
 
+/** Max bytes accepted for a layout GET, matching the server's 1MB PUT cap. */
+const MAX_LAYOUT_RESPONSE_BYTES = 1024 * 1024;
+
 /** Health check timeout, shorter so availability probes fail fast (3 seconds) */
 const HEALTH_CHECK_TIMEOUT_MS = 3_000;
 
@@ -269,6 +272,7 @@ export async function loadSavedLayout(uuid: string): Promise<{
   images: ImageStoreMap;
   failedImagesCount: number;
   failedKeys: string[];
+  updatedAt: string | null;
 }> {
   log("loadSavedLayout: uuid=%s", uuid);
 
@@ -301,7 +305,17 @@ export async function loadSavedLayout(uuid: string): Promise<{
     );
   }
 
+  const declared = Number(response.headers.get("Content-Length"));
+  if (Number.isFinite(declared) && declared > MAX_LAYOUT_RESPONSE_BYTES) {
+    throw new PersistenceError("Layout data too large");
+  }
+
   const yamlContent = await response.text();
+  if (new TextEncoder().encode(yamlContent).length > MAX_LAYOUT_RESPONSE_BYTES) {
+    throw new PersistenceError("Layout data too large");
+  }
+
+  const updatedAt = response.headers.get("X-Rackula-Updated-At");
   log(
     "loadSavedLayout: loaded uuid=%s size=%d bytes",
     uuid,
@@ -310,7 +324,7 @@ export async function loadSavedLayout(uuid: string): Promise<{
   try {
     const { layout, images, failedImagesCount, failedKeys } =
       await parseLayoutYamlWithImages(yamlContent);
-    return { layout, images, failedImagesCount, failedKeys };
+    return { layout, images, failedImagesCount, failedKeys, updatedAt };
   } catch (error) {
     log("loadSavedLayout: failed to parse uuid=%s %O", uuid, error);
     throw new PersistenceError("Layout data is corrupted - could not parse");

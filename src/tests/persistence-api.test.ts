@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   checkApiHealth,
+  loadSavedLayout,
   saveLayoutToServer,
   uploadSnapshot,
 } from "$lib/storage/api";
 import { setApiAvailable } from "$lib/storage/availability.svelte";
+import { serializeLayoutToYaml } from "$lib/utils/yaml";
+import { createTestLayout } from "./factories";
 
 describe("checkApiHealth", () => {
   function stubBrowserGlobals(): void {
@@ -265,5 +268,60 @@ describe("uploadSnapshot", () => {
         "name: L\n",
       ),
     ).toBe(false);
+  });
+});
+
+describe("loadSavedLayout", () => {
+  function stubBrowserGlobals(): void {
+    vi.stubGlobal("AbortSignal", {
+      timeout: () => new AbortController().signal,
+    });
+  }
+
+  beforeEach(() => {
+    setApiAvailable(true);
+    stubBrowserGlobals();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    setApiAvailable(false);
+  });
+
+  it("rejects an oversized response", async () => {
+    const huge = "a".repeat(1024 * 1024 + 1);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(huge, {
+          status: 200,
+          headers: { "Content-Type": "text/yaml" },
+        }),
+      ),
+    );
+    await expect(
+      loadSavedLayout("11111111-1111-4111-8111-111111111111"),
+    ).rejects.toThrow(/too large/i);
+  });
+
+  it("returns the X-Rackula-Updated-At echo", async () => {
+    const yaml = await serializeLayoutToYaml(createTestLayout(), "");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(yaml, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/yaml",
+            "X-Rackula-Updated-At": "2026-06-14T10:00:00.000Z",
+          },
+        }),
+      ),
+    );
+    const result = await loadSavedLayout(
+      "11111111-1111-4111-8111-111111111111",
+    );
+    expect(result.updatedAt).toBe("2026-06-14T10:00:00.000Z");
   });
 });
