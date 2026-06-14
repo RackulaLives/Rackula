@@ -607,6 +607,70 @@ Update flow for an intentional visual change:
 Dynamic regions (the app version string and "last saved" timestamps) are masked
 so they never trip the diff.
 
+### Performance Budget
+
+`scripts/check-bundle-budget.ts` is a guard rail for the UX overhaul (epic #2017,
+issue #2185): the shell rework adds UI surface (side panel, tab strip, the
+dialog system, command and app menus), and this gate keeps the initial-load
+bundle from regressing as those slices land. It is the performance counterpart
+to the visual-regression and axe-core guard rails.
+
+It measures the gzipped size of the initial-load graph, the entry script plus
+every modulepreloaded chunk plus the linked stylesheet, read straight from the
+built `dist/index.html` so it stays correct as content hashes and chunk
+boundaries change. Gzip is used because production is served compressed, so
+transfer size is what blocks first paint.
+
+It runs chromium-free as the `bundle budget` job in
+`.github/workflows/performance-budget.yml` on every pull request. Run it locally:
+
+```bash
+npm run build && npm run check:bundle-budget
+```
+
+The budget lives in `performance-budget.json`:
+
+| Field            | Meaning                                                   |
+| ---------------- | --------------------------------------------------------- |
+| `baseline`       | Raw gzipped size of the recorded build, per entry         |
+| `headroom`       | Room each entry may grow over its baseline before failing |
+| `toleranceBytes` | Extra slack absorbing minifier and dependency noise       |
+
+The enforced threshold for an entry is `baseline + headroom`; a build fails only
+when a measurement exceeds that threshold by more than `toleranceBytes`. The
+recorded baseline is the initial-load graph measured before the M14 shell work
+(`initialJs` ~321 KiB, `initialCss` ~23 KiB, `initialTotal` ~345 KiB gzipped).
+Headroom (`initialJs` ~30 KiB, `initialCss` ~8 KiB) is deliberate: it lets the
+shell grow within a known envelope while still catching a runaway regression.
+The decision logic lives in `src/lib/utils/bundle-budget.ts` and is unit tested
+in `src/tests/bundle-budget.test.ts`.
+
+When a shell slice legitimately grows the bundle past budget, justify the growth
+in the PR and rebaseline:
+
+```bash
+npm run build && npm run check:bundle-budget -- --update
+```
+
+`--update` rewrites only `baseline` from the current build; it keeps `headroom`
+and `toleranceBytes`, so an intentional increase is recorded explicitly in the
+diff rather than slipping in silently.
+
+#### Runtime Performance Baseline
+
+The bundle budget is the automated, deterministic gate. Runtime timings (initial
+render, palette scroll with a large library, tab switch, dialog open) are
+recorded as a manual baseline rather than enforced in CI, because frame timings
+on shared CI runners are too noisy to gate on without false failures.
+
+Capture them locally against a production build using the test-data generators
+in `scripts/performance-benchmark.ts` and the Chrome DevTools Performance panel
+(method and current numbers: `docs/research/performance-baseline.md`). Targets:
+initial render under 16 ms (60 fps), pan and zoom under 16 ms per frame, and
+under 50 MB heap for a full rack with ports. Re-measure when a shell slice
+changes rendering or interaction, and update the baseline doc if the envelope
+shifts intentionally.
+
 ## Coverage
 
 Coverage thresholds are configured in `vitest.config.ts`:

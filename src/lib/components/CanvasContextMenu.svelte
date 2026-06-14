@@ -19,10 +19,6 @@
     onfitall?: () => void;
     /** Reset zoom to 100% callback */
     onresetzoom?: () => void;
-    /** Toggle theme callback */
-    ontoggletheme?: () => void;
-    /** Current theme (for label) */
-    theme?: "dark" | "light";
     /** Trigger element (the canvas) */
     children: Snippet;
   }
@@ -33,8 +29,6 @@
     onnewrack,
     onfitall,
     onresetzoom,
-    ontoggletheme,
-    theme = "dark",
     children,
   }: Props = $props();
 
@@ -87,18 +81,6 @@
         onSelect={handleSelect(onresetzoom)}
       >
         <span class="context-menu-label">Reset Zoom</span>
-      </ContextMenu.Item>
-
-      <ContextMenu.Separator class="context-menu-separator" />
-
-      <ContextMenu.Item
-        class="context-menu-item"
-        data-testid="ctx-menu-item"
-        onSelect={handleSelect(ontoggletheme)}
-      >
-        <span class="context-menu-label"
-          >{theme === "dark" ? "Light" : "Dark"} Theme</span
-        >
       </ContextMenu.Item>
     </ContextMenu.Content>
   </ContextMenu.Portal>

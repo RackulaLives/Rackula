@@ -144,6 +144,8 @@ describe("actions registry", () => {
         isRackSelected: false,
         canUndo: false,
         canRedo: false,
+        hasRacks: true,
+        mode: "browser" as const,
       };
       const disabledCtx = { ...enabledCtx, isDeviceSelected: false };
       expect(dup?.enabledWhen?.(enabledCtx)).toBe(true);
@@ -159,6 +161,8 @@ describe("actions registry", () => {
         isRackSelected: false,
         canUndo: false,
         canRedo: false,
+        hasRacks: false,
+        mode: "browser" as const,
       };
       expect(undo?.enabledWhen?.({ ...base, canUndo: true })).toBe(true);
       expect(undo?.enabledWhen?.(base)).toBe(false);
@@ -309,6 +313,107 @@ describe("actions registry", () => {
       // Sections appear once each, in declared order.
       expect(groups).toEqual([...new Set(groups)]);
       expect(sections.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("getAppMenuSections (mode-aware item enable/disable)", () => {
+    // The app menu is the first runtime consumer of enabledWhen. It passes a
+    // live context (rack presence, storage mode, selection/history) and the
+    // registry decides which items are runnable. Disabled items stay in the
+    // menu (accessible, greyed) rather than disappearing.
+    const fullContext = {
+      hasSelection: false,
+      isDeviceSelected: false,
+      isRackSelected: false,
+      canUndo: false,
+      canRedo: false,
+      hasRacks: true,
+      mode: "browser" as const,
+    };
+
+    it("leaves items enabled when no enable context is supplied", () => {
+      // The signature stays backwards compatible: called with a mode alone,
+      // every projected item is enabled (no disabled flag set true).
+      const sections = getAppMenuSections("browser");
+      const disabled = sections
+        .flatMap((s) => s.items)
+        .filter((i) => i.disabled);
+      expect(disabled.length).toBe(0);
+    });
+
+    it("disables rack-dependent items when no racks exist", () => {
+      // share and view-yaml need a rack to act on; with no racks they are
+      // present but disabled, matching the prior FileMenu/AppMenu behaviour.
+      const sections = getAppMenuSections("browser", {
+        ...fullContext,
+        hasRacks: false,
+      });
+      const items = sections.flatMap((s) => s.items);
+      const share = items.find((i) => i.id === "share");
+      const viewYaml = items.find((i) => i.id === "view-yaml");
+      expect(share?.disabled).toBe(true);
+      expect(viewYaml?.disabled).toBe(true);
+    });
+
+    it("enables rack-dependent items when at least one rack exists", () => {
+      const sections = getAppMenuSections("browser", {
+        ...fullContext,
+        hasRacks: true,
+      });
+      const items = sections.flatMap((s) => s.items);
+      expect(items.find((i) => i.id === "share")?.disabled).toBe(false);
+      expect(items.find((i) => i.id === "view-yaml")?.disabled).toBe(false);
+    });
+
+    it("never disables items that declare no enable predicate", () => {
+      // new-layout, import-devices, etc. have no enabledWhen, so they stay
+      // enabled regardless of rack presence.
+      const sections = getAppMenuSections("browser", {
+        ...fullContext,
+        hasRacks: false,
+      });
+      const items = sections.flatMap((s) => s.items);
+      const newLayout = items.find((i) => i.id === "new-layout");
+      const importDevices = items.find((i) => i.id === "import-devices");
+      expect(newLayout?.disabled).toBe(false);
+      expect(importDevices?.disabled).toBe(false);
+    });
+
+    it("disables but does not hide rack-dependent items", () => {
+      // Disabled items remain in the projection so the menu stays accessible
+      // (bits-ui renders them aria-disabled), rather than vanishing.
+      const ids = getAppMenuSections("browser", {
+        ...fullContext,
+        hasRacks: false,
+      }).flatMap((s) => s.items.map((i) => i.id));
+      expect(ids).toContain("share");
+      expect(ids).toContain("view-yaml");
+    });
+  });
+
+  describe("rack-dependent enable predicates", () => {
+    const base = {
+      hasSelection: false,
+      isDeviceSelected: false,
+      isRackSelected: false,
+      canUndo: false,
+      canRedo: false,
+      hasRacks: false,
+      mode: "browser" as const,
+    };
+
+    it("gates share on rack presence", () => {
+      const share = getActionById("share");
+      expect(share?.enabledWhen).toBeDefined();
+      expect(share?.enabledWhen?.({ ...base, hasRacks: true })).toBe(true);
+      expect(share?.enabledWhen?.({ ...base, hasRacks: false })).toBe(false);
+    });
+
+    it("gates view-yaml on rack presence", () => {
+      const viewYaml = getActionById("view-yaml");
+      expect(viewYaml?.enabledWhen).toBeDefined();
+      expect(viewYaml?.enabledWhen?.({ ...base, hasRacks: true })).toBe(true);
+      expect(viewYaml?.enabledWhen?.({ ...base, hasRacks: false })).toBe(false);
     });
   });
 

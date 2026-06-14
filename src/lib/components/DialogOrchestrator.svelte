@@ -17,6 +17,7 @@
   import LayoutYamlPanel from "$lib/components/LayoutYamlPanel.svelte";
   import Dialog from "$lib/components/Dialog.svelte";
   import HelpPanel from "$lib/components/HelpPanel.svelte";
+  import SettingsDialog from "$lib/components/SettingsDialog.svelte";
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
   import MobileFileSheet from "$lib/components/MobileFileSheet.svelte";
   import MobileBottomNav from "$lib/components/mobile/MobileBottomNav.svelte";
@@ -77,6 +78,7 @@
   let shareDialogOpen = $derived(dialogStore.isOpen("share"));
   let yamlEditorDialogOpen = $derived(dialogStore.isOpen("yamlEditor"));
   let helpPanelOpen = $derived(dialogStore.isOpen("help"));
+  let settingsDialogOpen = $derived(dialogStore.isOpen("settings"));
   let importFromNetBoxOpen = $derived(dialogStore.isOpen("importNetBox"));
   let showReplaceDialog = $derived(dialogStore.isOpen("confirmReplace"));
   let cleanupDialogOpen = $derived(dialogStore.isOpen("cleanupDialog"));
@@ -193,7 +195,7 @@
     uiStore.setPromptCleanupOnSave(false);
   }
 
-  export function handleOpenCleanupDialog() {
+  function handleOpenCleanupDialog() {
     cleanupReviewPendingOperation = null;
     dialogStore.open("cleanupDialog");
   }
@@ -350,6 +352,17 @@
   function handleHelpClose() {
     dialogStore.close();
     handleFitAll();
+  }
+
+  // --- Settings handlers ---
+
+  function handleSettingsClose() {
+    // Only close if settings is still the open dialog. The Review action hands
+    // off to the cleanup dialog by switching openDialog directly; guarding here
+    // keeps a stray close from clobbering the dialog that just opened.
+    if (dialogStore.isOpen("settings")) {
+      dialogStore.close();
+    }
   }
 
   // --- Add device handlers ---
@@ -717,6 +730,12 @@
 </Dialog>
 
 <HelpPanel open={helpPanelOpen} onclose={handleHelpClose} />
+
+<SettingsDialog
+  open={settingsDialogOpen}
+  onclose={handleSettingsClose}
+  onopencleanup={handleOpenCleanupDialog}
+/>
 
 <CleanupDialog open={cleanupDialogOpen} onclose={handleCleanupDialogClose} />
 

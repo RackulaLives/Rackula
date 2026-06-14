@@ -79,6 +79,14 @@ test.describe("axe accessibility scans", () => {
     await expectNoA11yViolations(page, locators.sidebar.pane);
   });
 
+  test("sidebar Layouts tab has no WCAG 2.2 AA violations", async ({
+    page,
+  }) => {
+    await page.getByTestId("sidebar-tab-layouts").click();
+    await expect(page.getByTestId("drawer-left")).toBeVisible();
+    await expectNoA11yViolations(page, locators.sidebar.pane);
+  });
+
   test("Export dialog has no WCAG 2.2 AA violations", async ({ page }) => {
     await clickExport(page);
     await expect(page.getByRole("dialog", { name: "Export" })).toBeVisible();
@@ -94,6 +102,15 @@ test.describe("axe accessibility scans", () => {
     await expect(
       page.getByRole("dialog", { name: "Share Layout" }),
     ).toBeVisible();
+    await expectNoA11yViolations(page, locators.dialog.root);
+  });
+
+  test("Settings dialog has no WCAG 2.2 AA violations", async ({ page }) => {
+    // The gear button opens the consolidated settings surface (Appearance,
+    // Behaviour, Data). Target it by testid so the scan covers the dialog's
+    // toggles and action buttons.
+    await page.getByTestId("btn-settings").click();
+    await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
     await expectNoA11yViolations(page, locators.dialog.root);
   });
 });

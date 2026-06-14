@@ -11,21 +11,17 @@
   app menu behind the logo.
 -->
 <script lang="ts">
+  import Tooltip from "./Tooltip.svelte";
   import AppMenu from "./AppMenu.svelte";
-  import SettingsMenu from "./SettingsMenu.svelte";
   import StorageStatusChip from "./StorageStatusChip.svelte";
   import type { ActionId } from "$lib/actions/registry";
+  import { IconGearBold } from "./icons";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
+  import { ICON_SIZE } from "$lib/constants/sizing";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
 
   interface Props {
     hasRacks?: boolean;
-    theme?: "dark" | "light";
-    showAnnotations?: boolean;
-    showBanana?: boolean;
-    compatibleOnly?: boolean;
-    warnOnUnsavedChanges?: boolean;
-    promptCleanupOnSave?: boolean;
     partyMode?: boolean;
     onsave?: () => void;
     onsaveas?: () => void;
@@ -36,13 +32,7 @@
     onimportdevices?: () => void;
     onimportnetbox?: () => void;
     onnewcustomdevice?: () => void;
-    ontoggletheme?: () => void;
-    ontoggleannotations?: () => void;
-    ontogglebanana?: () => void;
-    ontogglecompatibleonly?: () => void;
-    ontogglewarnunsaved?: () => void;
-    ontogglepromptcleanup?: () => void;
-    onopencleanup?: () => void;
+    onsettings?: () => void;
     onhelp?: () => void;
     onnewlayout?: () => void;
     onlayouts?: () => void;
@@ -50,12 +40,6 @@
 
   let {
     hasRacks = false,
-    theme = "dark",
-    showAnnotations = false,
-    showBanana = false,
-    compatibleOnly = true,
-    warnOnUnsavedChanges = true,
-    promptCleanupOnSave = true,
     partyMode = false,
     onsave,
     onsaveas,
@@ -66,13 +50,7 @@
     onimportdevices,
     onimportnetbox,
     onnewcustomdevice,
-    ontoggletheme,
-    ontoggleannotations,
-    ontogglebanana,
-    ontogglecompatibleonly,
-    ontogglewarnunsaved,
-    ontogglepromptcleanup,
-    onopencleanup,
+    onsettings,
     onhelp,
     onnewlayout,
     onlayouts,
@@ -112,32 +90,8 @@
     onlayouts?.();
   }
 
-  function handleToggleTheme() {
-    ontoggletheme?.();
-  }
-
-  function handleToggleAnnotations() {
-    ontoggleannotations?.();
-  }
-
-  function handleToggleBanana() {
-    ontogglebanana?.();
-  }
-
-  function handleToggleCompatibleOnly() {
-    ontogglecompatibleonly?.();
-  }
-
-  function handleToggleWarnUnsaved() {
-    ontogglewarnunsaved?.();
-  }
-
-  function handleTogglePromptCleanup() {
-    ontogglepromptcleanup?.();
-  }
-
-  function handleOpenCleanup() {
-    onopencleanup?.();
+  function handleSettings() {
+    onsettings?.();
   }
 
   // Dispatch map from app-menu action id to its handler. The menu items
@@ -239,21 +193,17 @@
     <div class="toolbar-section toolbar-right">
       <StorageStatusChip />
 
-      <SettingsMenu
-        {theme}
-        {showAnnotations}
-        {showBanana}
-        {compatibleOnly}
-        {warnOnUnsavedChanges}
-        {promptCleanupOnSave}
-        ontoggletheme={handleToggleTheme}
-        ontoggleannotations={handleToggleAnnotations}
-        ontogglebanana={handleToggleBanana}
-        ontogglecompatibleonly={handleToggleCompatibleOnly}
-        ontogglewarnunsaved={handleToggleWarnUnsaved}
-        ontogglepromptcleanup={handleTogglePromptCleanup}
-        onopencleanup={handleOpenCleanup}
-      />
+      <Tooltip text="Settings" position="bottom">
+        <button
+          class="toolbar-icon-btn"
+          type="button"
+          aria-label="Settings"
+          onclick={handleSettings}
+          data-testid="btn-settings"
+        >
+          <IconGearBold size={ICON_SIZE.md} />
+        </button>
+      </Tooltip>
     </div>
   {:else}
     <div

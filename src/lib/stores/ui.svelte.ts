@@ -17,7 +17,7 @@ import type { DisplayMode, AnnotationField } from "$lib/types";
 import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 
 // Sidebar tab type (hide removed - collapse is now gesture-based)
-export type SidebarTab = "devices" | "racks";
+export type SidebarTab = "devices" | "racks" | "layouts";
 
 // localStorage keys
 const SIDEBAR_TAB_KEY = "Rackula_sidebar_tab";
@@ -28,7 +28,11 @@ const COMPATIBLE_ONLY_KEY = "Rackula-device-compatible-only";
 /**
  * Valid sidebar tab values for runtime validation
  */
-const VALID_SIDEBAR_TABS: readonly SidebarTab[] = ["devices", "racks"] as const;
+const VALID_SIDEBAR_TABS: readonly SidebarTab[] = [
+  "devices",
+  "racks",
+  "layouts",
+] as const;
 
 /**
  * Check if a value is a valid SidebarTab

@@ -17,6 +17,7 @@ export type DialogId =
   | "export"
   | "share"
   | "help"
+  | "settings"
   | "importNetBox"
   | "confirmReplace"
   | "cleanupDialog"

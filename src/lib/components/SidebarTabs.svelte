@@ -17,6 +17,7 @@
   const tabs: { id: SidebarTab; label: string; icon: string }[] = [
     { id: "devices", label: "Devices", icon: "⬡" },
     { id: "racks", label: "Racks", icon: "▤" },
+    { id: "layouts", label: "Layouts", icon: "▦" },
   ];
 
   function handleValueChange(value: string | undefined) {

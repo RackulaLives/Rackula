@@ -1,0 +1,13 @@
+{
+  "toleranceBytes": 5120,
+  "baseline": {
+    "initialJs": 329099,
+    "initialCss": 23868,
+    "initialTotal": 352967
+  },
+  "headroom": {
+    "initialJs": 30000,
+    "initialCss": 8000,
+    "initialTotal": 38000
+  }
+}
