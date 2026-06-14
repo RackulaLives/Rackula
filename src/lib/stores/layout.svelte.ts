@@ -411,8 +411,11 @@ export function createLayoutStore(
     createNewLayoutImpl(stateAccess, name);
   }
 
-  function loadLayout(layoutData: Layout): void {
-    loadLayoutImpl(stateAccess, layoutData);
+  function loadLayout(
+    layoutData: Layout,
+    reservedDeviceIds?: ReadonlySet<string>,
+  ): void {
+    loadLayoutImpl(stateAccess, layoutData, reservedDeviceIds);
   }
 
   // =============================================================================

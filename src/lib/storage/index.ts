@@ -65,3 +65,24 @@ export {
   type DurabilityStatus,
   type LayoutDurability,
 } from "./durability.svelte";
+export {
+  loadWorkspaceIndex,
+  saveWorkspaceIndex,
+  loadLayoutBody,
+  saveLayoutBody,
+  deleteLayoutBody,
+  hasEverHadLayouts,
+  markEverHadLayouts,
+  adoptLegacyAutosave,
+  type WorkspaceIndex,
+  type LibraryEntry,
+  type LayoutBodyResult,
+} from "./browser-workspace";
+export {
+  resolveBrowserLaunch,
+  type BrowserLaunch,
+} from "./browser-launch";
+export {
+  persistBrowserWorkspace,
+  type PersistTab,
+} from "./browser-workspace-persist";

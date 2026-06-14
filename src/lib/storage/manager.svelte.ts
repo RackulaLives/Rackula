@@ -521,11 +521,16 @@ export function flushSessionSave(): void {
 export function initPersistenceEffects(): void {
   const layoutStore = getLayoutStore();
 
-  // Effect 1: Auto-save layout to localStorage with debouncing
+  // Effect 1: Auto-save layout to the legacy single-slot working copy
+  // (Rackula:autosave) with debouncing. This is the server-mode offline
+  // continuity copy. In browser mode the multi-layout workspace schema (#2179,
+  // wired in PersistenceEffects) owns persistence, and the legacy slot is
+  // consumed once by adoption (#2080), so this effect is server-mode only.
   // Guard: skip clearing on initial run to avoid wiping saved session
   // before App.onMount can restore it (race condition fix)
   let hasEverHadRack = false;
   $effect(() => {
+    if (getStorageMode() === "browser") return;
     const currentLayout = layoutStore.layout;
     if (layoutStore.hasRack) {
       hasEverHadRack = true;

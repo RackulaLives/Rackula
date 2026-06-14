@@ -29,11 +29,16 @@ import { getTargetRack } from "./rack-actions";
 // =============================================================================
 
 /**
- * Generate a unique device ID that doesn't collide with the given set (#1363)
+ * Generate a unique device ID that collides with neither the given set (#1363)
+ * nor an optional reserved set (ids live in other open tabs, #2182). The new id
+ * is added to `seen`; the caller owns adding it to `reserved` if needed.
  */
-export function generateUniqueDeviceId(seen: Set<string>): string {
+export function generateUniqueDeviceId(
+  seen: Set<string>,
+  reserved?: ReadonlySet<string>,
+): string {
   let id = generateId();
-  while (seen.has(id)) id = generateId();
+  while (seen.has(id) || reserved?.has(id)) id = generateId();
   seen.add(id);
   return id;
 }

@@ -26,8 +26,16 @@ export function createNewLayout(ctx: LayoutStateAccess, name: string): void {
  * Preserves all racks in the layout (multi-rack support)
  * Defensively assigns IDs and positions to support older layouts
  * @param layoutData - Layout to load
+ * @param reservedDeviceIds - Device ids already live in other open tabs. The
+ *   per-rack dedup is seeded with these so a restored layout reusing an id live
+ *   elsewhere is regenerated, never aliasing the global image store's
+ *   placement-<deviceId> keys across tabs (spike #2182).
  */
-export function loadLayout(ctx: LayoutStateAccess, layoutData: Layout): void {
+export function loadLayout(
+  ctx: LayoutStateAccess,
+  layoutData: Layout,
+  reservedDeviceIds?: ReadonlySet<string>,
+): void {
   // Ensures metadata with UUID exists for persistence
   const metadata = layoutData.metadata
     ? { ...layoutData.metadata }
@@ -42,6 +50,11 @@ export function loadLayout(ctx: LayoutStateAccess, layoutData: Layout): void {
   // per-rack, matching the existing behaviour (#1363).
   const seenRackIds = new Set<string>();
   const rackIdRemap = new Map<string, string>();
+
+  // Cross-tab reservation: ids live in other open tabs. Minted ids are added
+  // here so a multi-rack restore stays unique against both the rest of the
+  // layout and every other open tab (#2182).
+  const reserved = new Set<string>(reservedDeviceIds ?? []);
 
   const racksFirstPass = layoutData.racks.map((r, index) => {
     const originalRackId = r.id;
@@ -66,14 +79,17 @@ export function loadLayout(ctx: LayoutStateAccess, layoutData: Layout): void {
     const devices = r.devices.map((d) => {
       const originalId = d.id;
       let nextId = originalId;
-      if (!nextId || seenDeviceIds.has(nextId)) {
-        nextId = generateUniqueDeviceId(seenDeviceIds);
+      // A collision is a duplicate within this rack OR an id reserved by another
+      // open tab. Regenerate against both sets so the new id is globally unique.
+      if (!nextId || seenDeviceIds.has(nextId) || reserved.has(nextId)) {
+        nextId = generateUniqueDeviceId(seenDeviceIds, reserved);
         if (originalId) {
           deviceIdRemap.set(originalId, nextId);
         }
       } else {
         seenDeviceIds.add(nextId);
       }
+      reserved.add(nextId);
       return nextId === originalId ? d : { ...d, id: nextId };
     });
 

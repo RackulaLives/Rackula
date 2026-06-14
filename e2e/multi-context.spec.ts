@@ -18,23 +18,28 @@ import {
   readStorageJson,
   collectStorageEvents,
   snapshotStorage,
+  locators,
 } from "./helpers";
 
-const AUTOSAVE_KEY = "Rackula:autosave";
+// The browser multi-layout workspace index (#2080/#2179). The open-set lives
+// here; layout bodies live under Rackula:layout:<id>.
+const WORKSPACE_KEY = "Rackula:workspace";
 
 test.describe("multi-context harness", () => {
-  test("two tabs in one context share the autosave slot", async ({ page }) => {
-    // Tab A loads a rack; the app autosaves it to localStorage.
+  test("two tabs in one context share the workspace index", async ({
+    page,
+  }) => {
+    // Tab A loads a rack; the app autosaves the workspace to localStorage.
     await gotoWithRack(page);
     await expect
-      .poll(() => readStorageJson(page, AUTOSAVE_KEY))
+      .poll(() => readStorageJson(page, WORKSPACE_KEY))
       .not.toBeNull();
 
-    // Tab B opens in the same context and reads the same slot without loading
+    // Tab B opens in the same context and reads the same index without loading
     // a layout of its own, the shared-origin fact #2044's editor election needs.
     const tabB = await openSecondTab(page);
     await tabB.goto("/");
-    const sharedFromB = await readStorageJson(tabB, AUTOSAVE_KEY);
+    const sharedFromB = await readStorageJson(tabB, WORKSPACE_KEY);
     expect(sharedFromB).not.toBeNull();
   });
 
@@ -64,7 +69,7 @@ test.describe("multi-context harness", () => {
     // shape lazy restore (#2080) reads its open-tab set from at startup.
     await gotoWithRack(page);
     await expect
-      .poll(() => readStorageJson(page, AUTOSAVE_KEY))
+      .poll(() => readStorageJson(page, WORKSPACE_KEY))
       .not.toBeNull();
 
     const state = await snapshotStorage(page.context());
@@ -72,8 +77,35 @@ test.describe("multi-context harness", () => {
     try {
       const relaunched = await restoredContext.newPage();
       await relaunched.goto("/");
-      const restored = await readStorageJson(relaunched, AUTOSAVE_KEY);
+      const restored = await readStorageJson(relaunched, WORKSPACE_KEY);
       expect(restored).not.toBeNull();
+    } finally {
+      await restoredContext.close();
+    }
+  });
+
+  test("a cold relaunch restores the open layout to the canvas (#2080)", async ({
+    page,
+    browser,
+  }) => {
+    // Seed a workspace with an open rack, wait for the debounced workspace save
+    // to land its body, then snapshot.
+    await gotoWithRack(page);
+    await expect
+      .poll(() => readStorageJson(page, WORKSPACE_KEY))
+      .not.toBeNull();
+
+    const state = await snapshotStorage(page.context());
+    const restoredContext = await browser.newContext({ storageState: state });
+    try {
+      // A cold relaunch (new context, no live in-memory workspace) must restore
+      // the open tab from the index and hydrate it onto the canvas, not show the
+      // empty state.
+      const relaunched = await restoredContext.newPage();
+      await relaunched.goto("/");
+      await expect(
+        relaunched.locator(locators.rack.container).first(),
+      ).toBeVisible({ timeout: 15000 });
     } finally {
       await restoredContext.close();
     }
