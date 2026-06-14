@@ -61,11 +61,18 @@ export type RestoreBodyResult =
   | { ok: true; layout: Layout }
   | { ok: false };
 
+/** Per-layout fields lazy restore reads from the index library. */
+export interface RestoreLibraryEntry {
+  name: string;
+  changesSinceExport: number;
+  hasEverExported: boolean;
+}
+
 /** The minimal index shape lazy restore needs (from spike #2179). */
 export interface RestoreIndex {
   activeId: string | null;
   openTabs: string[];
-  library: Record<string, { name: string }>;
+  library: Record<string, RestoreLibraryEntry>;
 }
 
 /** Inputs for restoring a workspace from the persisted browser index. */
@@ -126,6 +133,10 @@ export function createWorkspaceStore() {
   // The body loader injected by restoreWorkspace, used for lazy hydration on
   // first focus of a restored shell tab. Null until a restore has run.
   let loadBodyFn: ((id: string) => RestoreBodyResult) | null = null;
+  // Per-layout durability from the restored index, applied on hydration so the
+  // chip and tab dots reflect true backup state (not reset to zero by the body
+  // load). Keyed by persisted layout id.
+  let restoreLibrary: Record<string, RestoreLibraryEntry> = {};
 
   const activeTab = $derived(
     tabs.find((t) => t.id === activeId) ?? tabs[0]!,
@@ -176,6 +187,19 @@ export function createWorkspaceStore() {
       return;
     }
     tab.store.loadLayout(result.layout, deviceIdsInOtherTabs(tab.id));
+    // loadLayout resets backup tracking. An autosaved restore is not explicitly
+    // saved, so it is dirty; restore the persisted durability so the chip and tab
+    // dot reflect true backup state. markDirty first (sets isDirty and bumps the
+    // counter), then restoreBackupState overwrites the counter with the persisted
+    // value, matching the single-session restore path.
+    const entry = tab.layoutId ? restoreLibrary[tab.layoutId] : undefined;
+    if (entry) {
+      tab.store.markDirty();
+      tab.store.restoreBackupState({
+        changesSinceExport: entry.changesSinceExport,
+        hasEverExported: entry.hasEverExported,
+      });
+    }
     tab.hydrated = true;
     tab.unreadable = false;
   }
@@ -273,6 +297,7 @@ export function createWorkspaceStore() {
     if (openIds.length === 0) return;
 
     loadBodyFn = loadBody;
+    restoreLibrary = index.library;
 
     // A placeholder layout carries the persisted name so the tab shell renders
     // before its body is read. metadata.id holds the persisted id so a later

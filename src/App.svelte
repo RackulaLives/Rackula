@@ -326,12 +326,12 @@
         maybeShowFirstRunNotice();
       }
 
+      // restoreWorkspace hydrates the active tab and restores its durability
+      // (dirty by autosave convention, not explicitly saved).
       workspaceStore.restoreWorkspace({
         index: launch.index,
         loadBody: launch.loadBody,
       });
-      // The active tab is dirty by autosave convention (not explicitly saved).
-      layoutStore.markDirty();
       requestAnimationFrame(() => {
         if (!canvasStore.restoreViewport()) {
           canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);

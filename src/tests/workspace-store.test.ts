@@ -217,6 +217,21 @@ describe("Workspace Store", () => {
       expect(loaded).toEqual(["id-a"]);
     });
 
+    it("restores the active tab's durability from its library entry", () => {
+      const ws = getWorkspaceStore();
+      const index = makeIndex();
+      index.library["id-a"].changesSinceExport = 5;
+      index.library["id-a"].hasEverExported = true;
+      ws.restoreWorkspace({
+        index,
+        loadBody: (id) => ({ ok: true, layout: bodyFor(id, "Body") }),
+      });
+      // The active tab's durability comes from the persisted library entry, not
+      // reset to zero by the body load, so the chip/tab dot reflect true state.
+      expect(ws.activeStore.changesSinceExport).toBe(5);
+      expect(ws.activeStore.hasEverExported).toBe(true);
+    });
+
     it("shows the persisted name on an unhydrated tab before its body loads", () => {
       const ws = getWorkspaceStore();
       ws.restoreWorkspace({
