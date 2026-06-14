@@ -73,11 +73,11 @@ describe("MobileWarningModal", () => {
       ).toBeInTheDocument();
     });
 
-    it("shows file menu tip", () => {
+    it("shows the load tip", () => {
       render(MobileWarningModal);
 
       expect(
-        screen.getByText(/load a layout from the file menu/i),
+        screen.getByText(/load a layout with the load button/i),
       ).toBeInTheDocument();
     });
 

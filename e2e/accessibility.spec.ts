@@ -98,11 +98,12 @@ test.describe("Accessibility", () => {
 
       // Walk forward with Tab and record what each stop is. A keyboard user
       // must be able to reach controls without the focus ring vanishing into a
-      // non-interactive void, and the toolbar's Export action must be on the
-      // path. We track the Export button by its testid so an unrelated element
-      // whose name merely contains "export" cannot satisfy the check.
+      // non-interactive void, and the top bar's Settings control must be on the
+      // path. The top bar is the workspace frame only (#2072): file commands
+      // moved into the app menu and the view/history controls relocate to the
+      // canvas (#2074), so the Settings gear is the workspace-chrome anchor.
       let sawInteractiveControl = false;
-      let reachedExportButton = false;
+      let reachedSettingsButton = false;
 
       for (let i = 0; i < 25; i++) {
         await page.keyboard.press("Tab");
@@ -111,7 +112,7 @@ test.describe("Accessibility", () => {
         // Focus must always land on something focusable, never <body>.
         expect(info.tag).not.toBe("body");
 
-        if (info.testid === "btn-export") reachedExportButton = true;
+        if (info.testid === "btn-settings") reachedSettingsButton = true;
 
         // Native controls and ARIA widgets are the keyboard-operable surface.
         const interactiveTags = ["button", "input", "a", "select", "textarea"];
@@ -124,12 +125,12 @@ test.describe("Accessibility", () => {
           sawInteractiveControl = true;
         }
 
-        if (reachedExportButton) break;
+        if (reachedSettingsButton) break;
       }
 
       expect(sawInteractiveControl).toBe(true);
-      // The Export toolbar action must be reachable in a single forward sweep.
-      expect(reachedExportButton).toBe(true);
+      // The Settings control must be reachable in a single forward sweep.
+      expect(reachedSettingsButton).toBe(true);
     });
 
     test("canvas exposes an application region with a descriptive name", async ({

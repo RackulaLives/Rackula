@@ -45,7 +45,9 @@
 <Dialog {open} title="Settings" size="S" testid="settings-dialog" {onclose}>
   <div class="settings-dialog">
     <section class="settings-section" aria-labelledby="settings-appearance">
-      <h3 class="settings-section-title" id="settings-appearance">Appearance</h3>
+      <h3 class="settings-section-title" id="settings-appearance">
+        Appearance
+      </h3>
       <div class="settings-row">
         <Switch
           checked={uiStore.theme === "dark"}
@@ -96,7 +98,8 @@
       <h3 class="settings-section-title" id="settings-data">Data</h3>
       <div class="settings-action-row">
         <div class="settings-action-text">
-          <span class="settings-action-label">Clean up unused device types</span>
+          <span class="settings-action-label">Clean up unused device types</span
+          >
           <span class="settings-action-help">
             {unusedCount === 0
               ? "No unused custom device types right now."

@@ -568,7 +568,6 @@
   >
     <Toolbar
       hasRacks={layoutStore.hasRack}
-      displayMode={uiStore.displayMode}
       {partyMode}
       onsave={maybeSave}
       onsaveas={maybeSaveAs}
@@ -580,8 +579,6 @@
       onimportnetbox={handleImportFromNetBox}
       onnewcustomdevice={handleAddDevice}
       onlayouts={handleShowLayouts}
-      onfitall={handleFitAll}
-      ontoggledisplaymode={handleToggleDisplayMode}
       onsettings={handleOpenSettings}
       onhelp={handleHelp}
       onnewlayout={resetAndOpenNewRack}

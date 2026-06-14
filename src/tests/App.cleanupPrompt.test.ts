@@ -56,7 +56,9 @@ const sessionStorageMocks = vi.hoisted(() => ({
   loadSessionWithTimestamp: vi.fn(() => null),
   clearSession: vi.fn(),
   isServerNewer: vi.fn(() => false),
-  detectModeFlip: vi.fn(() => "none" as "none" | "server-to-browser" | "browser-to-server"),
+  detectModeFlip: vi.fn(
+    () => "none" as "none" | "server-to-browser" | "browser-to-server",
+  ),
 }));
 
 const archiveMocks = vi.hoisted(() => ({

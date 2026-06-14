@@ -641,9 +641,7 @@ export function getAppMenuSections(
         label: action.label,
         shortcut: formatMenuShortcut(action),
         disabled:
-          context && action.enabledWhen
-            ? !action.enabledWhen(context)
-            : false,
+          context && action.enabledWhen ? !action.enabledWhen(context) : false,
       });
     }
 

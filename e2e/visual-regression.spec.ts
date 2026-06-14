@@ -15,7 +15,7 @@ import { dynamicMasks, gotoVisual, settle } from "./helpers/visual";
  *
  * Deliberately out of scope (would couple the tripwire to features still in
  * flux): the standalone Load and Layouts dialogs (their triggers depend on the
- * storage-mode work in M14/M15). The File menu snapshot covers the Load and
+ * storage-mode work in M14/M15). The app menu snapshot covers the Open and
  * Import entry-point chrome in the meantime.
  */
 
@@ -66,11 +66,12 @@ test.describe("visual regression", () => {
     page,
   }) => {
     await gotoVisual(page, POPULATED_URL, { theme: "light" });
-    // Display mode cycles label -> image -> image-label; two clicks lands on
-    // image-label. It does not persist, so it must be toggled via the toolbar.
-    const displayBtn = page.getByTestId("btn-display-mode");
-    await displayBtn.click();
-    await displayBtn.click();
+    // Display mode cycles label -> image -> image-label; two presses land on
+    // image-label. It does not persist, so it must be toggled each run. The top
+    // bar no longer carries the display-mode lens (#2072); the canonical toggle
+    // is the "I" shortcut (it also lives in the Devices sidebar).
+    await page.keyboard.press("i");
+    await page.keyboard.press("i");
     await settle(page);
     await expect(page).toHaveScreenshot("canvas-image-label-mode.png", {
       mask: dynamicMasks(page),
@@ -109,7 +110,8 @@ test.describe("visual regression", () => {
 
   test("dialog - export", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL, { theme: "light" });
-    await page.getByTestId("btn-export").click();
+    await page.getByRole("button", { name: "App menu" }).click();
+    await page.getByTestId("app-menu-export").click();
     const dialog = page.locator(locators.dialog.root);
     await expect(dialog).toBeVisible();
     await settle(page);
@@ -120,7 +122,8 @@ test.describe("visual regression", () => {
 
   test("dialog - share", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL, { theme: "light" });
-    await page.getByTestId("btn-share").click();
+    await page.getByRole("button", { name: "App menu" }).click();
+    await page.getByTestId("app-menu-share").click();
     const dialog = page.locator(locators.dialog.root);
     await expect(dialog).toBeVisible();
     await settle(page);
@@ -137,8 +140,8 @@ test.describe("visual regression", () => {
 
   test("dialog - import from NetBox", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL, { theme: "light" });
-    await page.getByRole("button", { name: "File menu" }).click();
-    await page.getByRole("menuitem", { name: "Import from NetBox" }).click();
+    await page.getByRole("button", { name: "App menu" }).click();
+    await page.getByTestId("app-menu-import-netbox").click();
     const dialog = page.locator(locators.dialog.root);
     await expect(dialog).toBeVisible();
     await settle(page);
@@ -147,13 +150,13 @@ test.describe("visual regression", () => {
     });
   });
 
-  test("menu - file", async ({ page }) => {
+  test("menu - app", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL, { theme: "light" });
-    await page.getByRole("button", { name: "File menu" }).click();
+    await page.getByRole("button", { name: "App menu" }).click();
     const menu = page.getByRole("menu");
     await expect(menu).toBeVisible();
     await settle(page);
-    await expect(menu).toHaveScreenshot("menu-file.png");
+    await expect(menu).toHaveScreenshot("menu-app.png");
   });
 
   test("dialog - settings", async ({ page }) => {
