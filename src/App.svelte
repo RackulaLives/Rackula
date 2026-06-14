@@ -495,10 +495,13 @@
   }
 
   // Load a starter template chosen from the empty-state picker (#2095) into the
-  // current layout. loadLayout gives it normal undo and storage semantics, then
-  // fitAll centres it so the user sees the whole rack immediately.
+  // current layout. loadLayout gives it normal undo and storage semantics;
+  // markClean marks the fresh template as an unmodified starting point, matching
+  // the shared-layout load path. fitAll then centres it so the user sees the
+  // whole rack immediately.
   function handleChooseTemplate(template: StarterTemplate) {
     layoutStore.loadLayout(template.layout);
+    layoutStore.markClean();
     requestAnimationFrame(() => {
       canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
     });

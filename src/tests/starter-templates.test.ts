@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect, vi } from "vitest";
-import { loadStarterTemplates } from "$lib/templates/starter-templates";
+import {
+  loadStarterTemplates,
+  TEMPLATE_FILES,
+} from "$lib/templates/starter-templates";
 import { parseLayoutYaml } from "$lib/utils/yaml";
 
 /**
@@ -110,9 +113,8 @@ describe("shipped template files", () => {
   // The chooser only loads templates that pass schema validation, so a malformed
   // shipped file would silently vanish from the empty state. This parses each
   // real file through the runtime layout schema to catch that at build time.
-  const TEMPLATE_IDS = ["home-lab", "network-closet", "media-server"] as const;
-
-  it.each(TEMPLATE_IDS)("%s parses as a valid layout", async (id) => {
+  // Reuses the source-of-truth manifest so adding a template needs no test edit.
+  it.each(TEMPLATE_FILES)("%s parses as a valid layout", async (id) => {
     const path = join(
       process.cwd(),
       "static",

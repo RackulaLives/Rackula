@@ -30,7 +30,7 @@ export interface StarterTemplate {
  * `.rackula.yaml`) is the template id. Listed explicitly rather than globbed so
  * the order is intentional and the manifest reads as documentation.
  */
-const TEMPLATE_FILES = [
+export const TEMPLATE_FILES = [
   "home-lab",
   "network-closet",
   "media-server",
