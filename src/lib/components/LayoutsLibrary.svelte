@@ -61,6 +61,12 @@
   }
 
   function handleRowKeydown(event: KeyboardEvent, tabId: string) {
+    // Only act on keys aimed at the row itself. The row contains a focusable
+    // close button; without this guard, Enter/Space on that button would bubble
+    // here, fire openLayout, and preventDefault would swallow the button's own
+    // activation.
+    if (event.target !== event.currentTarget) return;
+
     const items = listEl
       ? Array.from(listEl.querySelectorAll<HTMLElement>("[role='option']"))
       : [];

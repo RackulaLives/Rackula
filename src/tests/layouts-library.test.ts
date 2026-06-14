@@ -13,6 +13,7 @@ import {
 import {
   buildLayoutRows,
   nextDuplicateName,
+  UNTITLED_LAYOUT_NAME,
 } from "$lib/components/layouts-library";
 
 describe("buildLayoutRows", () => {
@@ -101,5 +102,19 @@ describe("nextDuplicateName", () => {
     expect(nextDuplicateName(["homelab copy"], "Homelab")).toBe(
       "Homelab Copy 2",
     );
+  });
+
+  it("trims a whitespace-padded base name before appending Copy", () => {
+    expect(nextDuplicateName(["Homelab"], "  Homelab  ")).toBe("Homelab Copy");
+  });
+
+  it("detects a collision against the trimmed base name", () => {
+    expect(nextDuplicateName(["Homelab Copy"], " Homelab ")).toBe(
+      "Homelab Copy 2",
+    );
+  });
+
+  it("falls back to the untitled placeholder for a blank base name", () => {
+    expect(nextDuplicateName([], "   ")).toBe(`${UNTITLED_LAYOUT_NAME} Copy`);
   });
 });

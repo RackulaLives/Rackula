@@ -70,8 +70,9 @@ export function nextDuplicateName(
   existingNames: readonly string[],
   baseName: string,
 ): string {
+  const base = baseName.trim() || UNTITLED_LAYOUT_NAME;
   const taken = new Set(existingNames.map((n) => n.trim().toLowerCase()));
-  const first = `${baseName} Copy`;
+  const first = `${base} Copy`;
   if (!taken.has(first.toLowerCase())) {
     return first;
   }
