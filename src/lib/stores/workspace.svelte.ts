@@ -54,6 +54,12 @@ function nextTabId(): string {
  */
 export function createWorkspaceStore() {
   function createInitialTab(): WorkspaceTab {
+    // The first/fresh tab binds to the app-session history singleton. We do NOT
+    // clear here: lazy construction of the workspace can be triggered from
+    // inside a reactive read (a $derived), and clearing $state there throws
+    // state_unsafe_mutation. Cold start has empty history anyway. The paths that
+    // REPLACE an existing tab with a fresh one (closeLastTab, reset) clear the
+    // singleton explicitly, outside any reactive context.
     return { id: nextTabId(), store: createLayoutStore(getHistoryStore()) };
   }
 
@@ -110,6 +116,11 @@ export function createWorkspaceStore() {
     if (index === -1) return;
 
     if (tabs.length === 1) {
+      // Replacing the only tab with a fresh blank one: clear the singleton
+      // history the fresh tab binds to, so it does not inherit the closed
+      // tab's undo/redo stack. Safe to mutate state here (event-handler path,
+      // not a reactive read).
+      getHistoryStore().clear();
       const fresh = createInitialTab();
       tabs = [fresh];
       activeId = fresh.id;
@@ -192,8 +203,10 @@ export function getWorkspaceStore(): WorkspaceStore {
 
 /**
  * Reset the workspace to a single fresh tab (primarily for testing). Recreates
- * the instance so a new session starts clean.
+ * the instance and clears the app-session history singleton the first tab binds
+ * to, so the new session starts with empty undo/redo.
  */
 export function resetWorkspaceStore(): void {
+  getHistoryStore().clear();
   workspaceInstance = createWorkspaceStore();
 }

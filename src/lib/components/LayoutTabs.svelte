@@ -57,6 +57,11 @@
     index: number,
     id: string,
   ): void {
+    // Only handle keys aimed at the tab itself. When focus is on the nested
+    // close button, let Enter/Space reach it so keyboard close still works
+    // instead of being swallowed as tab activation.
+    if (event.target !== event.currentTarget) return;
+
     const count = workspace.tabs.length;
     if (count === 0) return;
 

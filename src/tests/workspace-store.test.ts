@@ -126,6 +126,28 @@ describe("Workspace Store", () => {
       expect(ws.tabs.length).toBe(1);
       expect(ws.activeId).toBe(ws.tabs[0]!.id);
     });
+
+    it("starts the replacement tab with a clean history when closing the last tab", () => {
+      const ws = getWorkspaceStore();
+      const onlyId = ws.activeId;
+
+      // Build history on the only tab.
+      ws.activeStore.addDeviceTypeRecorded({
+        name: "Server A",
+        u_height: 1,
+        category: "server",
+        colour: "#336699",
+      });
+      expect(ws.activeStore.canUndo).toBe(true);
+
+      // Closing the last tab replaces it with a fresh blank tab. The fresh tab
+      // must not inherit the closed tab's undo/redo stack (it shares the
+      // app-session history singleton).
+      ws.closeTab(onlyId);
+
+      expect(ws.activeStore.canUndo).toBe(false);
+      expect(ws.activeStore.canRedo).toBe(false);
+    });
   });
 
   describe("reorderTabs", () => {

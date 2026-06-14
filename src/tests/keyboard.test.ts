@@ -960,7 +960,7 @@ describe("KeyboardHandler Component", () => {
       resetWorkspaceStore();
     });
 
-    it("Alt+2 switches to the second open tab", async () => {
+    it("Alt+1 jumps to the first open tab", async () => {
       const workspace = getWorkspaceStore();
       const firstId = workspace.activeId;
       const secondId = workspace.openTab(createLayout("Second"));
@@ -969,7 +969,7 @@ describe("KeyboardHandler Component", () => {
 
       render(KeyboardHandler);
 
-      // Switch back to the first tab. macOS remaps Alt+digit to a symbol, so the
+      // Alt+1 jumps to the first tab. macOS remaps Alt+digit to a symbol, so the
       // handler keys off event.code (Digit1), not event.key.
       await fireEvent.keyDown(window, {
         key: "1",
