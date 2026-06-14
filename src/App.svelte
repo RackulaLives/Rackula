@@ -22,9 +22,6 @@
   import LayoutsLibrary from "$lib/components/LayoutsLibrary.svelte";
   import PersistenceEffects from "$lib/components/PersistenceEffects.svelte";
   import DialogOrchestrator from "$lib/components/DialogOrchestrator.svelte";
-  import StartScreen, {
-    type StartScreenCloseOptions,
-  } from "$lib/components/StartScreen.svelte";
   import {
     getShareParam,
     clearShareParam,
@@ -164,7 +161,6 @@
   // Party Mode easter egg (triggered by Konami code)
   let partyMode = $state(false);
   let partyModeTimeout: ReturnType<typeof setTimeout> | null = null;
-  let showStartScreen = $state(false);
 
   // Konami detector for party mode
   const konamiDetector = createKonamiDetector(() => {
@@ -302,14 +298,14 @@
     const localSession = loadSessionWithTimestamp();
 
     // Browser mode: no server compare. Restore the working copy if present,
-    // otherwise show the Start Screen. Surface a server->browser flip notice when
-    // the saved copy came from a server deployment (never silently degrade), else
-    // a one-time first-run notice. No offline toasts ever in browser mode.
+    // otherwise open straight to the canvas empty state. Surface a server->browser
+    // flip notice when the saved copy came from a server deployment (never silently
+    // degrade), else a one-time first-run notice. No offline toasts ever in browser
+    // mode. Entry actions (new/open/import) live in the sidebar and app menu.
     if (!serverMode) {
       if (!localSession) {
         layoutStore.resetLayout();
         maybeShowFirstRunNotice();
-        showStartScreen = true;
         return;
       }
       if (detectModeFlip(localSession.storageMode) === "server-to-browser") {
@@ -327,12 +323,12 @@
 
     // Server mode below.
 
-    // No local session: show the Start Screen immediately. It handles the
-    // loading/offline state while the health check resolves.
+    // No local session: open straight to the canvas empty state. The server
+    // library is reachable through the sidebar Layouts tab and the app menu;
+    // there is no blocking modal while the health check resolves.
     // Reset layout to clear any stale hasStarted flag from a previous session (#1326)
     if (!localSession) {
       layoutStore.resetLayout();
-      showStartScreen = true;
       return;
     }
 
@@ -474,35 +470,6 @@
     maybeExport();
   }
 
-  function handleShowLayouts() {
-    if (uiStore.warnOnUnsavedChanges && layoutStore.isDirty) {
-      if (!window.confirm("You have unsaved changes. Leave anyway?")) {
-        return;
-      }
-    }
-    showStartScreen = true;
-  }
-
-  function handleStartScreenClose(options?: StartScreenCloseOptions) {
-    showStartScreen = false;
-
-    // User explicitly requested a fresh layout; StartScreen already opened NewRack.
-    if (options?.skipAutosave) {
-      return;
-    }
-
-    // Continue flow fallback: no loaded/imported layout, open wizard.
-    if (layoutStore.rackCount === 0) {
-      dialogStore.open("newRack");
-      return;
-    }
-
-    // Layout was loaded/imported; center it after Start Screen closes.
-    requestAnimationFrame(() => {
-      canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-    });
-  }
-
   // --- Thin wrappers for Toolbar/Canvas/KeyboardHandler callbacks ---
   // These delegate to dialogStore; the actual dialog logic lives in DialogOrchestrator.
 
@@ -557,10 +524,6 @@
 
 <!-- Tooltip.Provider enables shared tooltip state - only one tooltip shows at a time -->
 <Tooltip.Provider delayDuration={500}>
-  {#if showStartScreen}
-    <StartScreen onClose={handleStartScreenClose} />
-  {/if}
-
   <div
     class="app-layout"
     style="--sidebar-width: min({uiStore.sidebarWidth ??
@@ -578,7 +541,6 @@
       onimportdevices={handleImportDevices}
       onimportnetbox={handleImportFromNetBox}
       onnewcustomdevice={handleAddDevice}
-      onlayouts={handleShowLayouts}
       onsettings={handleOpenSettings}
       onhelp={handleHelp}
       onnewlayout={resetAndOpenNewRack}

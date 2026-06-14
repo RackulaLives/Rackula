@@ -42,6 +42,7 @@
 
 <div
 	class="welcome-screen"
+	data-testid="welcome-screen"
 	onclick={handleClick}
 	onkeydown={handleKeyDown}
 	role="button"

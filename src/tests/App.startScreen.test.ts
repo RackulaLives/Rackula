@@ -8,7 +8,7 @@ vi.mock("$lib/storage/load-pipeline", () => ({
   finalizeLayoutLoad: vi.fn(),
 }));
 import { dialogStore } from "$lib/stores/dialogs.svelte";
-import { resetLayoutStore } from "$lib/stores/layout.svelte";
+import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetSelectionStore } from "$lib/stores/selection.svelte";
 import { resetUIStore } from "$lib/stores/ui.svelte";
 import { resetCanvasStore } from "$lib/stores/canvas.svelte";
@@ -105,7 +105,7 @@ vi.mock("$lib/storage/working-copy", () => ({
 // per-suite timeout absorbs the slow renders, and retry covers residual transient
 // failures. The tests pass in isolation. See issue #1846 (and the matching note in
 // App.cleanupPrompt.test.ts).
-describe("App Start Screen integration", { retry: 2, timeout: 30000 }, () => {
+describe("App entry (StartScreen removed, #2081)", { retry: 2, timeout: 30000 }, () => {
   beforeEach(() => {
     resetLayoutStore();
     resetSelectionStore();
@@ -143,19 +143,38 @@ describe("App Start Screen integration", { retry: 2, timeout: 30000 }, () => {
     sessionStorageMocks.detectModeFlip.mockReturnValue("none");
   });
 
-  it("shows Start Screen on load when API is available and no share link", async () => {
+  it("opens straight to the canvas with no StartScreen on a fresh launch", async () => {
+    render(App);
+
+    // The app boots past initialization without rendering any StartScreen modal.
+    await waitFor(() => {
+      expect(persistenceStoreMocks.initializePersistence).toHaveBeenCalled();
+    });
+
+    expect(screen.queryByTestId("start-screen")).not.toBeInTheDocument();
+    // A fresh launch has no layout, so the canvas shows its empty state and the
+    // user reaches new/open/import through the sidebar and app menu.
+    expect(getLayoutStore().rackCount).toBe(0);
+  });
+
+  it("skips initialization-driven entry when loading a share link", async () => {
+    const sharedLayout = createTestLayout({
+      name: "Shared Test",
+      racks: [createTestRack({ id: "rack-1", name: "Rack 1" })],
+    });
+
+    shareMocks.getShareParam.mockReturnValue("encoded");
+    shareMocks.decodeLayout.mockReturnValue({ layout: sharedLayout });
+
     render(App);
 
     await waitFor(() => {
-      expect(screen.getByTestId("start-screen")).toBeVisible();
+      expect(shareMocks.decodeLayout).toHaveBeenCalledWith("encoded");
     });
 
-    expect(shareMocks.getShareParam).toHaveBeenCalledTimes(1);
-    expect(shareMocks.decodeLayout).not.toHaveBeenCalled();
-    expect(sessionStorageMocks.loadSessionWithTimestamp).toHaveBeenCalledTimes(
-      1,
-    );
-    expect(persistenceStoreMocks.initializePersistence).toHaveBeenCalled();
+    expect(screen.queryByTestId("start-screen")).not.toBeInTheDocument();
+    expect(shareMocks.clearShareParam).toHaveBeenCalledTimes(1);
+    expect(sessionStorageMocks.loadSessionWithTimestamp).not.toHaveBeenCalled();
   });
 
   it("skips server persistence calls when startup health check resolves unavailable", async () => {
@@ -186,25 +205,5 @@ describe("App Start Screen integration", { retry: 2, timeout: 30000 }, () => {
 
     expect(persistenceApiMocks.listSavedLayouts).not.toHaveBeenCalled();
     expect(persistenceApiMocks.saveLayoutToServer).not.toHaveBeenCalled();
-  });
-
-  it("skips Start Screen when loading a share link", async () => {
-    const sharedLayout = createTestLayout({
-      name: "Shared Test",
-      racks: [createTestRack({ id: "rack-1", name: "Rack 1" })],
-    });
-
-    shareMocks.getShareParam.mockReturnValue("encoded");
-    shareMocks.decodeLayout.mockReturnValue({ layout: sharedLayout });
-
-    render(App);
-
-    await waitFor(() => {
-      expect(shareMocks.decodeLayout).toHaveBeenCalledWith("encoded");
-    });
-
-    expect(screen.queryByTestId("start-screen")).not.toBeInTheDocument();
-    expect(shareMocks.clearShareParam).toHaveBeenCalledTimes(1);
-    expect(sessionStorageMocks.loadSessionWithTimestamp).not.toHaveBeenCalled();
   });
 });

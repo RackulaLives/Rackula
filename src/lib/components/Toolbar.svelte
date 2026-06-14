@@ -35,7 +35,6 @@
     onsettings?: () => void;
     onhelp?: () => void;
     onnewlayout?: () => void;
-    onlayouts?: () => void;
   }
 
   let {
@@ -53,7 +52,6 @@
     onsettings,
     onhelp,
     onnewlayout,
-    onlayouts,
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
@@ -84,10 +82,6 @@
 
   function handleExport() {
     onexport?.();
-  }
-
-  function handleLayouts() {
-    onlayouts?.();
   }
 
   function handleSettings() {
@@ -239,17 +233,6 @@
       >
         Export
       </button>
-      {#if onlayouts}
-        <button
-          class="toolbar-mobile-action-btn"
-          type="button"
-          aria-label="Go to Layouts"
-          onclick={handleLayouts}
-          data-testid="btn-mobile-layouts"
-        >
-          Layouts
-        </button>
-      {/if}
     </div>
   {/if}
 </header>
