@@ -17,6 +17,7 @@
   import MobileHistoryControls from "$lib/components/mobile/MobileHistoryControls.svelte";
   import RackIndicator from "$lib/components/mobile/RackIndicator.svelte";
   import SidebarTabs from "$lib/components/SidebarTabs.svelte";
+  import LayoutTabs from "$lib/components/LayoutTabs.svelte";
   import RackList from "$lib/components/RackList.svelte";
   import PersistenceEffects from "$lib/components/PersistenceEffects.svelte";
   import DialogOrchestrator from "$lib/components/DialogOrchestrator.svelte";
@@ -587,6 +588,8 @@
     />
 
     <RackIndicator />
+
+    <LayoutTabs />
 
     <main class="app-main" class:mobile={viewportStore.isMobile}>
       <MobileHistoryControls />
