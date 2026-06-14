@@ -357,7 +357,12 @@
   // --- Settings handlers ---
 
   function handleSettingsClose() {
-    dialogStore.close();
+    // Only close if settings is still the open dialog. The Review action hands
+    // off to the cleanup dialog by switching openDialog directly; guarding here
+    // keeps a stray close from clobbering the dialog that just opened.
+    if (dialogStore.isOpen("settings")) {
+      dialogStore.close();
+    }
   }
 
   // --- Add device handlers ---

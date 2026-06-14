@@ -272,4 +272,24 @@ describe("App cleanup prompt flow", { retry: 2, timeout: 30000 }, () => {
     });
     expect(uiStore.promptCleanupOnSave).toBe(false);
   });
+
+  it("opens the cleanup dialog from the Settings dialog Review action", async () => {
+    // The Settings dialog and the cleanup dialog share the single openDialog
+    // slot. Handing off must leave the cleanup dialog open: a naive
+    // open("cleanupDialog") trips the Settings dialog's onclose, which would
+    // close the dialog that was just opened.
+    dialogStore.open("settings");
+    render(App);
+
+    await fireEvent.click(
+      await screen.findByRole("button", { name: "Review" }),
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: "Clean Up Device Library" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Settings" }),
+    ).not.toBeInTheDocument();
+  });
 });
