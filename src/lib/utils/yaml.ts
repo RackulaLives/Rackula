@@ -248,10 +248,12 @@ function orderMetadataFields(
 }
 
 /**
- * Top-level layout keys the serializer recognises. Any other top-level key on a
- * loaded layout is an unknown additive section (for example from a newer schema
- * version) and is round-tripped verbatim so an older build never silently drops it
- * on save (#2208).
+ * Top-level keys the serializer writes explicitly above. Any other top-level key
+ * (an unknown additive section from a newer schema, or a recognised-but-not-yet-
+ * serialised field such as `connections`) is round-tripped by appendUnknownSections
+ * so it is never silently dropped on save (#2208). `connections` is deliberately
+ * NOT listed: neither serializer writes it yet, so excluding it lets the fallback
+ * preserve it until explicit serialization exists.
  */
 const KNOWN_TOP_LEVEL_KEYS = new Set<string>([
   "metadata",
@@ -262,9 +264,14 @@ const KNOWN_TOP_LEVEL_KEYS = new Set<string>([
   "rack_groups",
   "device_types",
   "settings",
-  "connections",
   "cables",
 ]);
+
+/**
+ * Reserved keys that must never be copied from untrusted parsed YAML onto a plain
+ * object: assigning them would mutate the prototype (prototype-pollution vector).
+ */
+const UNSAFE_KEYS = new Set<string>(["__proto__", "constructor", "prototype"]);
 
 /**
  * Copy any unrecognised top-level keys from the layout onto the serialized object,
@@ -278,6 +285,7 @@ function appendUnknownSections(
     layout as unknown as Record<string, unknown>,
   )) {
     if (value === undefined) continue;
+    if (UNSAFE_KEYS.has(key)) continue;
     if (KNOWN_TOP_LEVEL_KEYS.has(key)) continue;
     if (key in target) continue;
     target[key] = value;
