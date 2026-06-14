@@ -16,6 +16,7 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getCategoryDisplayName } from "$lib/utils/deviceFilters";
   import { findDeviceType } from "$lib/utils/device-lookup";
+  import { getBrandIconSlug } from "$lib/data/brandPacks";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { canPlaceDevice, findCollisions } from "$lib/utils/collision";
   import { getDeviceDisplayName } from "$lib/utils/device";
@@ -30,22 +31,13 @@
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
 
-  // Map manufacturer names to simple-icons slugs
-  const manufacturerIconMap: Record<string, string> = {
-    Ubiquiti: "ubiquiti",
-    MikroTik: "mikrotik",
-    "TP-Link": "tplink",
-    Synology: "synology",
-    APC: "schneiderelectric",
-    Dell: "dell",
-    Supermicro: "supermicro",
-    HPE: "hp",
-  };
-
-  function getManufacturerIconSlug(manufacturer?: string): string | undefined {
-    if (!manufacturer) return undefined;
-    return manufacturerIconMap[manufacturer];
-  }
+  // Authoritative device definition from the starter/brand library, falling back
+  // to the layout copy. The layout copy can be stale (e.g. a device placed before
+  // its library definition gained a manufacturer), so brand and full-depth display
+  // resolve against the current library value.
+  const authoritativeDevice = $derived(
+    findDeviceType(selectedDeviceInfo.device.slug) ?? selectedDeviceInfo.device,
+  );
 
   // State for device name editing
   let editingDeviceName = $state(false);
@@ -80,16 +72,11 @@
     }
   });
 
-  // Check if selected device is full-depth (determines if face can be changed)
-  // Uses authoritative source (starter/brand library) to get current is_full_depth value
-  const isFullDepthDevice = $derived.by(() => {
-    // Look up the authoritative device type definition (checks starter/brand packs)
-    // This ensures we use the current library value, not a stale layout copy
-    const authoritativeDevice = findDeviceType(selectedDeviceInfo.device.slug);
-    const device = authoritativeDevice ?? selectedDeviceInfo.device;
-    // is_full_depth undefined or true means full-depth
-    return device.is_full_depth !== false;
-  });
+  // Check if selected device is full-depth (determines if face can be changed).
+  // is_full_depth undefined or true means full-depth.
+  const isFullDepthDevice = $derived(
+    authoritativeDevice.is_full_depth !== false,
+  );
 
   // Start editing device name
   function startEditingDeviceName() {
@@ -264,10 +251,12 @@
     <span class="info-label">Brand</span>
     <span class="info-value brand-info">
       <BrandIcon
-        slug={getManufacturerIconSlug(selectedDeviceInfo.device.manufacturer)}
+        slug={getBrandIconSlug(authoritativeDevice.slug)}
         size={ICON_SIZE.sm}
       />
-      {selectedDeviceInfo.device.manufacturer ?? "Generic"}
+      {authoritativeDevice.manufacturer ??
+        selectedDeviceInfo.device.manufacturer ??
+        "Generic"}
     </span>
   </div>
 </div>

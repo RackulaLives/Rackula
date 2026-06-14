@@ -312,6 +312,21 @@ export function getBrandPacks(): BrandSection[] {
 }
 
 /**
+ * Resolve the brand icon slug for a device by its slug, via the brand pack that
+ * defines it. This matches the palette, which renders each pack's own icon, and
+ * avoids brittle manufacturer-name matching (device `manufacturer` strings do
+ * not always equal a pack `title`, e.g. "Blackmagicdesign" vs "Blackmagic
+ * Design"). Returns undefined for devices not in any brand pack (generic or
+ * custom), so BrandIcon falls back to its generic icon.
+ */
+export function getBrandIconSlug(deviceSlug?: string): string | undefined {
+  if (!deviceSlug) return undefined;
+  return getBrandPacks().find((p) =>
+    p.devices.some((d) => d.slug === deviceSlug),
+  )?.icon;
+}
+
+/**
  * Get devices for a specific brand
  */
 export function getBrandDevices(brandId: string): DeviceType[] {
