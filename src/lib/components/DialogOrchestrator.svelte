@@ -309,6 +309,19 @@
           imageStore.setDeviceImage(key, "rear", deviceImages.rear);
         }
       }
+      // A pasted layout brings its own complete image set, so drop user images
+      // orphaned by it (keys the applied layout no longer uses). Valid keys are
+      // the layout's device-type slugs plus per-placement keys; image-free edits
+      // skip this block and leave the store untouched.
+      // getUsedDeviceTypeSlugs returns a fresh set we own, so we extend it in
+      // place with per-placement keys rather than allocating another set.
+      const usedImageKeys = layoutStore.getUsedDeviceTypeSlugs();
+      for (const rack of nextLayout.racks) {
+        for (const device of rack.devices) {
+          usedImageKeys.add(`placement-${device.id}`);
+        }
+      }
+      imageStore.cleanupOrphanedImages(usedImageKeys);
     }
     selectionStore.clearSelection();
     toastStore.showToast("YAML applied", "success");
