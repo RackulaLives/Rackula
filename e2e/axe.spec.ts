@@ -65,7 +65,9 @@ test.describe("axe accessibility scans", () => {
     await expectNoA11yViolations(page);
   });
 
-  test("sidebar Devices tab has no WCAG 2.2 AA violations", async ({ page }) => {
+  test("sidebar Devices tab has no WCAG 2.2 AA violations", async ({
+    page,
+  }) => {
     await page.getByTestId("sidebar-tab-devices").click();
     await expect(page.getByTestId("drawer-left")).toBeVisible();
     await expectNoA11yViolations(page, locators.sidebar.pane);
@@ -84,9 +86,9 @@ test.describe("axe accessibility scans", () => {
   });
 
   test("Share dialog has no WCAG 2.2 AA violations", async ({ page }) => {
-    // The toolbar has a tooltip-trigger button and the action button both named
-    // "Share", so target the action button by its testid.
-    await page.getByTestId("btn-share").click();
+    // Share lives in the app menu behind the logo (#2072).
+    await page.getByRole("button", { name: "App menu" }).click();
+    await page.getByTestId("app-menu-share").click();
     // Assert by accessible name so the scan runs against the Share dialog, not
     // whatever dialog happens to match the generic selector.
     await expect(

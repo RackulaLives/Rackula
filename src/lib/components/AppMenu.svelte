@@ -29,9 +29,9 @@
   const mode: StorageMode = getStorageMode();
   const sections = getAppMenuSections(mode);
 
-  // Actions that need a rack to act on. Only share and view-yaml are gated,
-  // matching the existing FileMenu: save, load, and the exports stay available
-  // for an empty-but-named layout. Full mode-aware enable/disable is #2187.
+  // Actions that need a rack to act on. Only share and view-yaml are gated:
+  // save, load, and the exports stay available for an empty-but-named layout.
+  // Full mode-aware enable/disable is #2187.
   const RACK_DEPENDENT: ReadonlySet<ActionId> = new Set<ActionId>([
     "share",
     "view-yaml",

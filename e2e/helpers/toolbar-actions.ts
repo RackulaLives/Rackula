@@ -1,11 +1,25 @@
 /**
  * Toolbar action helpers for E2E tests
  *
- * The toolbar was reorganized: Save/Load are now in a "File menu" dropdown,
- * Export/Share are direct toolbar buttons, and "New Rack" is in the sidebar Racks tab.
+ * The top bar is the workspace frame only (#2072): file commands (save/export
+ * backup, open, export image, share, import) live in the app menu behind the
+ * logo, and "New Rack" is in the sidebar Racks tab. These helpers open the app
+ * menu and select the matching item. The build under test is browser mode, so
+ * "save" is the browser build's "Export backup" (a YAML download).
  */
 import type { Page } from "@playwright/test";
 import { PLATFORM_MODIFIER } from "./index";
+
+/**
+ * Open the app menu (the logo, top-left) and click the item with the given
+ * registry action id. The item's testid is `app-menu-<id>`.
+ */
+async function selectAppMenuItem(page: Page, actionId: string): Promise<void> {
+  await page.getByRole("button", { name: "App menu" }).click();
+  const item = page.getByTestId(`app-menu-${actionId}`);
+  await item.waitFor({ state: "visible" });
+  await item.click();
+}
 
 /**
  * Click the "New Rack" button in the sidebar Racks tab.
@@ -20,30 +34,25 @@ export async function clickNewRack(page: Page): Promise<void> {
 }
 
 /**
- * Click Save via the File menu dropdown.
+ * Save via the app menu. In browser mode this is "Export backup", which
+ * downloads the layout as a YAML archive.
  */
 export async function clickSave(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "File menu" }).click();
-  const saveItem = page.locator('[data-testid="menu-save"]');
-  await saveItem.waitFor({ state: "visible" });
-  await saveItem.click();
+  await selectAppMenuItem(page, "export-backup");
 }
 
 /**
- * Click Load via the File menu dropdown.
+ * Open a layout via the app menu.
  */
 export async function clickLoad(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "File menu" }).click();
-  const loadItem = page.locator('[data-testid="menu-load"]');
-  await loadItem.waitFor({ state: "visible" });
-  await loadItem.click();
+  await selectAppMenuItem(page, "load");
 }
 
 /**
- * Click the Export button in the toolbar.
+ * Open the image export dialog via the app menu.
  */
 export async function clickExport(page: Page): Promise<void> {
-  await page.getByTestId("btn-export").click();
+  await selectAppMenuItem(page, "export");
 }
 
 /**
@@ -72,10 +81,10 @@ export async function loadFileFromDisk(
 }
 
 /**
- * Load a layout file via the File menu dropdown + page.setInputFiles().
+ * Load a layout file via the app menu (Open) + page.setInputFiles().
  *
- * Same as loadFileFromDisk but triggers load via the menu instead of
- * keyboard shortcut — useful when the test needs to exercise the menu path.
+ * Same as loadFileFromDisk but triggers load via the menu instead of the
+ * keyboard shortcut, useful when the test needs to exercise the menu path.
  */
 export async function loadFileFromDiskViaMenu(
   page: Page,

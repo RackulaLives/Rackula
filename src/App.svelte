@@ -559,7 +559,6 @@
     <Toolbar
       hasRacks={layoutStore.hasRack}
       theme={uiStore.theme}
-      displayMode={uiStore.displayMode}
       showAnnotations={uiStore.showAnnotations}
       showBanana={uiStore.showBanana}
       compatibleOnly={uiStore.compatibleOnly}
@@ -576,9 +575,7 @@
       onimportnetbox={handleImportFromNetBox}
       onnewcustomdevice={handleAddDevice}
       onlayouts={handleShowLayouts}
-      onfitall={handleFitAll}
       ontoggletheme={handleToggleTheme}
-      ontoggledisplaymode={handleToggleDisplayMode}
       ontoggleannotations={handleToggleAnnotations}
       ontogglebanana={() => uiStore.toggleBanana()}
       ontogglecompatibleonly={() => uiStore.toggleCompatibleOnly()}
