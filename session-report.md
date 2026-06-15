@@ -84,6 +84,19 @@ Note: CodeRabbit ASSERTIVE + the org-credit/rate-limit outage made each PR take 
 fix+re-review cycles. CodeAnt is the responsive reviewer; CodeAnt threads do not
 auto-resolve (verify fix in code, then merge - they linger as stale-but-fixed).
 
+## Update ~05:26 UTC
+Merged this session (6): #2065, #1011, #2038, #2042, #2206, #2044 (PR #2312).
+Carrier chain fully on main (maintainer-merged in parallel): C1 #2289, C2 #2290 (#2304),
+C3 #2291 (#2303), C4 #2292 (#2308). C5 #2294 dispatched (final slice; deletes
+slot_position - MAJOR schema bump per #1113; agent instructed to record it).
+- C4 #2292 retry was a no-op: already merged via #2308 before my stalled agent ran.
+  GAP flagged: #2308 may not have recorded the schema_version classification on #2158;
+  C5 should record it, else follow-up on epic #2158/#2205.
+- A C4 subagent stalled ~2h (no notification, worktree frozen); discarded its worktree.
+- When C5 lands: epic #2158 closes -> reopens M03 #571 schema publish chain and M14 tail
+  (#2075 -> #2212/#2213/#2214). Re-sync stale epic checklists (#2158, #2017, #2071) before
+  closing.
+
 ## Issue status table
 | Issue | Track | State | PR | CI | CodeRabbit | Merged |
 | --- | --- | --- | --- | --- | --- | --- |
