@@ -1,16 +1,16 @@
-# M13 -- Post-Shell Keyboard, Help & Content Pass Execution Plan
+# M16 -- Post-Shell Keyboard, Help & Content Pass Execution Plan
 
-Note: GitHub milestone 35 was retitled "M13 -- Post-Shell Keyboard, Help & Content Pass" on 2026-06-13 to match this recharter.
+Note: this plan covers GitHub milestone 35, titled "M16 -- Post-Shell Keyboard, Help & Content Pass" as of 2026-06-14. The milestone was rechartered 2026-06-12, first labelled M13, briefly retitled M13 on GitHub on 2026-06-13, then renamed to M16; the M13 label is retired and not reused.
 
 > For agentic workers: execute one task per session via /dev-issue <number>. The GitHub issue body is the source of truth (each carries an Alignment audit 2026-06-12 section with binding ACs). Do not start a task whose listed blockers are open. Follow repo TDD policy (CLAUDE.md): tests only where behaviour warrants them.
 
 **Goal**
 
-Land the three issues of the rechartered M13 (milestone 35) against the new M14 shell: a keyboard-only device placement flow on the virtualized palette (#106), contextual tooltips rendered from the command registry (#117), and a hero recording of the finished shell (#728). M13 was rechartered 2026-06-12; its former contents were superseded by M14 or closed stale (see Verification).
+Land the three issues of the rechartered M16 (milestone 35) against the new M14 shell: a keyboard-only device placement flow on the virtualized palette (#106), contextual tooltips rendered from the command registry (#117), and a hero recording of the finished shell (#728). M16 was rechartered 2026-06-12; its former contents were superseded by M14 or closed stale (see Verification).
 
 **Position in sequence**
 
-Working order is M02 -> M04 -> M03 -> M14 -> M13, with M15 (storage) running in parallel now. M13 is the last milestone in the chain. It deliberately runs after the M14 Canvas UX Overhaul so every task here targets the new shell, not surfaces M14 deletes.
+Working order is M02 -> M04 -> M03 -> M14 -> M16, with M15 (storage) running in parallel now. M16 is the last milestone in the chain. It deliberately runs after the M14 Canvas UX Overhaul so every task here targets the new shell, not surfaces M14 deletes.
 
 **Cross-milestone gates in**
 
@@ -20,7 +20,7 @@ Working order is M02 -> M04 -> M03 -> M14 -> M13, with M15 (storage) running in 
 
 **Cross-milestone gates out**
 
-None. Nothing downstream waits on M13; it closes the post-shell polish chain. The in-app coffin-mark rebrand (#2048) is already closed and does not block #728.
+None. Nothing downstream waits on M16; it closes the post-shell polish chain. The in-app coffin-mark rebrand (#2048) is already closed and does not block #728.
 
 ## Stage 1: Keyboard placement on the new palette
 
@@ -105,10 +105,10 @@ Verify:
 
 Milestone close-out checklist:
 
-- [ ] #106, #117, #728 all closed (gh issue list -R RackulaLives/Rackula --milestone "M13 -- Post-Shell Keyboard, Help & Content Pass" --state open returns nothing)
-- [ ] Former M13 contents confirmed superseded, no orphans: #114 -> #2094, #115 -> #2095, #951 -> #2082/#2073, #767 -> #2158, #946 closed stale (all five verified closed as of 2026-06-12)
+- [ ] #106, #117, #728 all closed (gh issue list -R RackulaLives/Rackula --milestone "M16 -- Post-Shell Keyboard, Help & Content Pass" --state open returns nothing)
+- [ ] Former M16 contents confirmed superseded, no orphans: #114 -> #2094, #115 -> #2095, #951 -> #2082/#2073, #767 -> #2158, #946 closed stale (all five verified closed as of 2026-06-12)
 - [ ] Smoke: keyboard-only placement flow works on a production build (npm run build, then preview)
 - [ ] Smoke: tooltips and HelpPanel show identical shortcuts for the same commands (single registry source)
 - [ ] Smoke: README hero renders the new shell recording
 - [ ] npm run test:run, npm run lint, and npm run build green on main after the final merge
-- [ ] Close milestone M13 on GitHub
+- [ ] Close milestone M16 on GitHub

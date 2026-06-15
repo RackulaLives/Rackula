@@ -8,7 +8,7 @@ Ship the schema versioning and compatibility policy, replace fractional rail pos
 
 **Position in sequence**
 
-M03 runs after M02 (LXC Release & Stability) and M04 (Type Safety, Decomposition & Stability), and before M14 (UX shell) and M13 (keyboard pass). M15 (storage) runs in parallel and does not gate M03. The working sequence is M02 -> M04 -> M03 -> M14 -> M13.
+M03 runs after M02 (LXC Release & Stability) and M04 (Type Safety, Decomposition & Stability), and before M14 (UX shell) and M16 (keyboard pass). M15 (storage) runs in parallel and does not gate M03. The working sequence is M02 -> M04 -> M03 -> M14 -> M16.
 
 **Cross-milestone gates in**
 

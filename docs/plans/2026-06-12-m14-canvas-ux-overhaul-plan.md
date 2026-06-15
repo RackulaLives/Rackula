@@ -8,7 +8,7 @@ Reframe the canvas shell around one principle: place each control where its scop
 
 ## Position in sequence
 
-M14 runs after M03 in the working sequence M02 -> M04 -> M03 -> M14 -> M13, with M15 (Storage Model & Data Safety) running in parallel now. M04's decomposition and M03's carrier-first data model (#2158) are the floor this milestone builds on. M13 follows M14; #2094 absorbed M13's virtualization tracker (#114).
+M14 runs after M03 in the working sequence M02 -> M04 -> M03 -> M14 -> M16, with M15 (Storage Model & Data Safety) running in parallel now. M04's decomposition and M03's carrier-first data model (#2158) are the floor this milestone builds on. M16 follows M14; #2094 absorbed M16's virtualization tracker (#114).
 
 ## Cross-milestone gates in
 

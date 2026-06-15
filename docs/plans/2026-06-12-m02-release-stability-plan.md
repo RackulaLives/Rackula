@@ -8,7 +8,7 @@ Ship Rackula's distribution channels (Unraid CA, ProxmoxVE community-scripts fol
 
 ## Position in sequence
 
-M02 is the active milestone and runs first in the sequence M02 -> M04 -> M03 -> M14 -> M13. M15 (Storage Model & Data Safety) runs in parallel with M02 right now; its issues gate parts of Stage 2 and the contract-test work in Stage 1. Note: #728 (hero video) has moved out of M02 to M13.
+M02 is the active milestone and runs first in the sequence M02 -> M04 -> M03 -> M14 -> M16. M15 (Storage Model & Data Safety) runs in parallel with M02 right now; its issues gate parts of Stage 2 and the contract-test work in Stage 1. Note: #728 (hero video) has moved out of M02 to M16.
 
 ## Cross-milestone gates in
 

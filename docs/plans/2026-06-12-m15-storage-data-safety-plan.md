@@ -8,7 +8,7 @@ Make storage explicit and data loss hard. The app runs in one of two explicit mo
 
 **Position in sequence**
 
-The milestone sequence is M02 -> M04 -> M03 -> M14 -> M13. M15 runs now, in parallel with M02 and M04 (the milestone number is an ID, not an order). M15's #2037 is on the critical path for both M14 (entry chain) and the M02 dev cutover (#2134), so Stage 2 should not lag.
+The milestone sequence is M02 -> M04 -> M03 -> M14 -> M16. M15 runs now, in parallel with M02 and M04 (the milestone number is an ID, not an order). M15's #2037 is on the critical path for both M14 (entry chain) and the M02 dev cutover (#2134), so Stage 2 should not lag.
 
 **Cross-milestone gates in**
 

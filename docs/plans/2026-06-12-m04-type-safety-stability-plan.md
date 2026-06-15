@@ -8,7 +8,7 @@ Finish the TypeScript suppression burndown, the remaining large-file decompositi
 
 **Position in sequence**
 
-M04 runs now, in parallel with M02 and M15, within the M02 -> M04 -> M03 -> M14 -> M13 sequence. M04 must finish before M03 (Data Format & Interop) and M14 (Canvas UX Overhaul) start building on the decomposed, type-checked code.
+M04 runs now, in parallel with M02 and M15, within the M02 -> M04 -> M03 -> M14 -> M16 sequence. M04 must finish before M03 (Data Format & Interop) and M14 (Canvas UX Overhaul) start building on the decomposed, type-checked code.
 
 **Cross-milestone gates in**
 
