@@ -94,6 +94,13 @@ jobs:
     name: e2e (self-hosted full suite)
     needs: validate
     if: github.event_name == 'pull_request'
+    # Advisory, not merge-blocking. Per spike #1994 the self-hosted tier is
+    # *additive* to the GH-hosted chromium smoke (the validate job), which stays
+    # the hard gate. This job runs on a single homelab VM (one runner, one host)
+    # — a SPOF — so a failure here (runner down, unprovisioned, flake) must not
+    # block PRs. continue-on-error keeps the full-suite result visible as signal
+    # while letting the overall Test run conclude green.
+    continue-on-error: true
     runs-on: [self-hosted, ci-runner]
     timeout-minutes: 30
     environment: ${{ github.event.pull_request.head.repo.full_name == 'RackulaLives/Rackula' && 'e2e-trusted' || 'e2e-approval' }}
