@@ -10,7 +10,7 @@ import { getLayoutStore } from "$lib/stores/layout.svelte";
 import { getSelectionStore } from "$lib/stores/selection.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
 import { findNextValidPosition } from "$lib/utils/device-movement";
-import { isContainerChild } from "$lib/utils/collision";
+import { canPlaceDevice, isContainerChild } from "$lib/utils/collision";
 import { toHumanUnits } from "$lib/utils/position";
 import type { DeviceFace } from "$lib/types";
 
@@ -114,14 +114,63 @@ export function duplicateSelection(): void {
 }
 
 /**
- * Toggle the selected device's mounting face between "front" and "rear".
- * Only "rear" flips to "front"; every other value (a missing face, "front",
- * or "both") flips to "rear". No-op if no device is selected.
+ * Toggle a placed device's mounting face between "front" and "rear". Only
+ * "rear" flips to "front"; every other value (a missing face, "front", or
+ * "both") flips to "rear".
+ *
+ * Validates the target face is clear (matching the edit panel's face change)
+ * and leaves container children untouched, since their face is inherited from
+ * the parent container. Shared by the verb bar (selection) and the device
+ * context menu (right-clicked target), so all flip surfaces behave the same.
+ */
+export function flipDeviceFaceAt(
+  layoutStore: ReturnType<typeof getLayoutStore>,
+  toastStore: ReturnType<typeof getToastStore>,
+  rackId: string,
+  deviceIndex: number,
+): void {
+  const rack = layoutStore.getRackById(rackId);
+  if (!rack) return;
+
+  const placedDevice = rack.devices[deviceIndex];
+  if (!placedDevice) return;
+  if (isContainerChild(placedDevice)) return;
+
+  const deviceType = layoutStore.device_types.find(
+    (d) => d.slug === placedDevice.device_type,
+  );
+  if (!deviceType) return;
+
+  const currentFace = placedDevice.face ?? "front";
+  const newFace: DeviceFace = currentFace === "rear" ? "front" : "rear";
+
+  if (
+    !canPlaceDevice(
+      rack,
+      layoutStore.device_types,
+      deviceType.u_height,
+      placedDevice.position,
+      deviceIndex,
+      newFace,
+    )
+  ) {
+    toastStore.showToast(
+      `Cannot flip to ${newFace}: the face is blocked`,
+      "error",
+    );
+    return;
+  }
+
+  layoutStore.updateDeviceFace(rackId, deviceIndex, newFace);
+  toastStore.showToast(`Flipped to ${newFace}`, "success");
+}
+
+/**
+ * Flip the currently selected device's face. No-op if no device is selected.
  */
 export function flipSelectedDeviceFace(): void {
   const selectionStore = getSelectionStore();
   const layoutStore = getLayoutStore();
-  const toastStore = getToastStore();
 
   if (!selectionStore.isDeviceSelected) return;
   if (
@@ -136,17 +185,10 @@ export function flipSelectedDeviceFace(): void {
   const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
   if (deviceIndex === null) return;
 
-  const placedDevice = rack.devices[deviceIndex];
-  if (!placedDevice) return;
-
-  const currentFace = placedDevice.face ?? "front";
-  const newFace: DeviceFace = currentFace === "rear" ? "front" : "rear";
-
-  layoutStore.updateDeviceFace(
-    selectionStore.selectedRackId!,
+  flipDeviceFaceAt(
+    layoutStore,
+    getToastStore(),
+    selectionStore.selectedRackId,
     deviceIndex,
-    newFace,
   );
-
-  toastStore.showToast(`Flipped to ${newFace}`, "success");
 }

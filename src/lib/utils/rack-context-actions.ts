@@ -3,12 +3,13 @@
  * Factory for context menu handlers, extracted from Rack.svelte.
  */
 
-import type { Rack as RackType, DeviceType, DeviceFace } from "$lib/types";
+import type { Rack as RackType, DeviceType } from "$lib/types";
 import type { getLayoutStore } from "$lib/stores/layout.svelte";
 import type { getSelectionStore } from "$lib/stores/selection.svelte";
 import type { getToastStore } from "$lib/stores/toast.svelte";
 import { toHumanUnits, toInternalUnits } from "$lib/utils/position";
 import { canPlaceDevice } from "$lib/utils/collision";
+import { flipDeviceFaceAt } from "$lib/actions/selection-actions";
 
 /** Identifies a right-clicked device and the screen position for the context menu. */
 export interface ContextMenuTarget {
@@ -107,12 +108,7 @@ export function createContextMenuActions(
   }
 
   function handleFlip(rack: RackType, target: ContextMenuTarget): void {
-    const device = rack.devices[target.deviceIndex];
-    if (!device) return;
-    const currentFace = device.face ?? "front";
-    const newFace: DeviceFace = currentFace === "rear" ? "front" : "rear";
-    layoutStore.updateDeviceFace(rack.id, target.deviceIndex, newFace);
-    toastStore.showToast(`Flipped to ${newFace}`, "success");
+    flipDeviceFaceAt(layoutStore, toastStore, rack.id, target.deviceIndex);
   }
 
   function handleDelete(target: ContextMenuTarget): void {

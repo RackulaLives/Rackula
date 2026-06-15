@@ -15,6 +15,7 @@
   import { getVerbsForSelection } from "$lib/actions/verb-bars";
   import {
     computeVerbBarPosition,
+    VERB_BAR_LOW_ZOOM_THRESHOLD,
     type VerbBarPosition,
   } from "$lib/utils/verb-bar-position";
   import type { ActionEnabledContext, ActionId } from "$lib/actions/registry";
@@ -135,6 +136,9 @@
 
   function measure(): void {
     if (!barEl || verbs.length === 0) return hide();
+    // The bar is hidden below this zoom anyway; skip the selector and layout
+    // reads while zoomed out (the rAF loop calls this every frame).
+    if (canvas.zoom < VERB_BAR_LOW_ZOOM_THRESHOLD) return hide();
 
     const { target, rackName } = findTarget();
     if (!target) return hide();

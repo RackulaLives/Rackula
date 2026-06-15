@@ -414,6 +414,7 @@
       >
         <div
           class="bay-container"
+          data-rack-id={rack.id}
           class:active={isActive}
           class:selected={isSelected}
           role="presentation"
@@ -491,6 +492,7 @@
         >
           <div
             class="bay-container"
+            data-rack-id={rack.id}
             class:active={isActive}
             class:selected={isSelected}
             role="presentation"
