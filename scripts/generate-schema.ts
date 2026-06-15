@@ -24,14 +24,22 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { z as Zod } from "$lib/zod.ts";
+import type { LayoutSchema as LayoutSchemaType } from "$lib/schemas/index.ts";
+
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(SCRIPT_DIR, "..");
 const OUTPUT_FILE = join(ROOT, "static", "schemas", "layout-v1.json");
 
-/** Canonical published location of this schema (static/ serves at site root). */
-const SCHEMA_ID = "https://count.racku.la/schemas/layout-v1.json";
+/** JSON Schema dialect this artifact targets; pinned so the published contract
+ * does not silently follow Zod's default. */
+export const JSON_SCHEMA_DIALECT =
+  "https://json-schema.org/draft/2020-12/schema";
 
-const SCHEMA_DESCRIPTION =
+/** Canonical published location of this schema (static/ serves at site root). */
+export const SCHEMA_ID = "https://count.racku.la/schemas/layout-v1.json";
+
+export const SCHEMA_DESCRIPTION =
   "Beta. Generated from the Rackula Zod layout schema. Covers the structural " +
   "shape of a saved layout but not cross-field rules expressed in Zod " +
   "(.refine/.superRefine: referential integrity, carrier-first rail placement, " +
@@ -58,6 +66,35 @@ function sortKeys(value: unknown): unknown {
   return value;
 }
 
+/**
+ * Project the Zod layout schema to the full, sorted, published JSON Schema
+ * object. Takes the Zod namespace and LayoutSchema as parameters so the script
+ * and its drift-guard test produce byte-identical output from one code path.
+ */
+export function assembleSchema(
+  z: typeof Zod,
+  layoutSchema: typeof LayoutSchemaType,
+): Record<string, unknown> {
+  const generated = z.toJSONSchema(layoutSchema, {
+    io: "input",
+    unrepresentable: "any",
+  }) as Record<string, unknown>;
+
+  // Discard Zod's emitted dialect and pin our own below, so the published
+  // contract does not couple to Zod's default.
+  const { $schema: _generatedDialect, ...rest } = generated;
+  void _generatedDialect;
+
+  return sortKeys({
+    $schema: JSON_SCHEMA_DIALECT,
+    $id: SCHEMA_ID,
+    $description: SCHEMA_DESCRIPTION,
+    title: "Rackula Layout",
+    ...rest,
+  }) as Record<string, unknown>;
+}
+
+/** Generate the artifact from the live Zod schema and write it to disk. */
 async function main(): Promise<void> {
   // version.ts reads the Vite-injected __APP_VERSION__ global, which only exists
   // in a build. Provide it from package.json before importing the schema graph.
@@ -69,28 +106,22 @@ async function main(): Promise<void> {
   const { z } = await import("$lib/zod.ts");
   const { LayoutSchema } = await import("$lib/schemas/index.ts");
 
-  const generated = z.toJSONSchema(LayoutSchema, {
-    io: "input",
-    unrepresentable: "any",
-  }) as Record<string, unknown>;
-
-  const { $schema, ...rest } = generated;
-
-  const schema = {
-    $schema,
-    $id: SCHEMA_ID,
-    $description: SCHEMA_DESCRIPTION,
-    title: "Rackula Layout",
-    ...rest,
-  };
+  const schema = assembleSchema(z, LayoutSchema);
 
   mkdirSync(dirname(OUTPUT_FILE), { recursive: true });
-  writeFileSync(OUTPUT_FILE, JSON.stringify(sortKeys(schema), null, 2) + "\n");
+  writeFileSync(OUTPUT_FILE, JSON.stringify(schema, null, 2) + "\n");
 
   console.log(`Wrote ${OUTPUT_FILE}`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+// Run only when executed directly, not when imported (e.g. by the drift test),
+// so importing this module never triggers the file write.
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1])
+) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

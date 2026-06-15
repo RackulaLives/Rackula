@@ -3,15 +3,21 @@ import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import { z } from "$lib/zod";
 import { LayoutSchema } from "$lib/schemas";
+import {
+  assembleSchema,
+  SCHEMA_ID,
+  SCHEMA_DESCRIPTION,
+  JSON_SCHEMA_DIALECT,
+} from "../../scripts/generate-schema";
 
 /**
  * Guards the generated JSON Schema artifact (issue #2226).
  *
  * The real failure mode is a stale artifact: someone changes the Zod schema in
  * src/lib/schemas and forgets to re-run `npm run generate-schema`, so the
- * published contract drifts from the source of truth. These tests fail when that
- * happens. They mirror the generator's options exactly; if the generator changes
- * its options, update both.
+ * published contract drifts from the source of truth. These tests reuse the
+ * generator's own assembleSchema(), so the comparison covers the full schema
+ * including the envelope, with no duplicated projection to drift out of sync.
  */
 const ARTIFACT_PATH = join(
   process.cwd(),
@@ -20,20 +26,6 @@ const ARTIFACT_PATH = join(
   "layout-v1.json",
 );
 
-function generate(): Record<string, unknown> {
-  const generated = z.toJSONSchema(LayoutSchema, {
-    io: "input",
-    unrepresentable: "any",
-  }) as Record<string, unknown>;
-  const { $schema, ...rest } = generated;
-  return {
-    $schema,
-    $id: "https://count.racku.la/schemas/layout-v1.json",
-    title: "Rackula Layout",
-    ...rest,
-  };
-}
-
 describe("layout JSON Schema artifact", () => {
   const artifact = JSON.parse(readFileSync(ARTIFACT_PATH, "utf8")) as Record<
     string,
@@ -41,26 +33,12 @@ describe("layout JSON Schema artifact", () => {
   >;
 
   it("is in sync with the Zod source schema", () => {
-    const fresh = generate();
-    // Compare structural content (drop the envelope fields the generator adds
-    // around the Zod output) so this asserts the generated body, not the prose.
-    const strip = (s: Record<string, unknown>) => {
-      const { $id, $description, title, $schema, ...body } = s;
-      void $id;
-      void $description;
-      void title;
-      void $schema;
-      return body;
-    };
-    expect(strip(artifact)).toEqual(strip(fresh));
+    expect(artifact).toEqual(assembleSchema(z, LayoutSchema));
   });
 
   it("carries the published schema envelope", () => {
-    expect(artifact.$schema).toBe(
-      "https://json-schema.org/draft/2020-12/schema",
-    );
-    expect(artifact.$id).toBe("https://count.racku.la/schemas/layout-v1.json");
-    expect(typeof artifact.$description).toBe("string");
-    expect(artifact.$description as string).toMatch(/beta/i);
+    expect(artifact.$schema).toBe(JSON_SCHEMA_DIALECT);
+    expect(artifact.$id).toBe(SCHEMA_ID);
+    expect(artifact.$description).toBe(SCHEMA_DESCRIPTION);
   });
 });
