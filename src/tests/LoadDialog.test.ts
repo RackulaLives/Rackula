@@ -7,6 +7,7 @@ import { resetToastStore } from "$lib/stores/toast.svelte";
 import * as persistenceApi from "$lib/storage/api";
 import * as loadPipeline from "$lib/storage/load-pipeline";
 import * as persistenceStore from "$lib/storage/availability.svelte";
+import { formatSnapshotTimestamp } from "$lib/utils/snapshot-timestamp";
 
 // Mock the dependencies
 vi.mock("$lib/storage/api", () => ({
@@ -212,8 +213,12 @@ describe("LoadDialog", () => {
 
     expect(persistenceApi.listSnapshots).toHaveBeenCalledWith("uuid-1");
     // The raw UTC filename suffix must not surface; a localized time does.
-    const restoreButton = await screen.findByText(/Restore/i);
-    expect(restoreButton).toBeInTheDocument();
+    const expectedLabel = formatSnapshotTimestamp(
+      "test-layout-1~20260615-143005.yaml",
+    );
+    expect(
+      await screen.findByText(expectedLabel),
+    ).toBeInTheDocument();
     expect(
       screen.queryByText(/20260615-143005/),
     ).not.toBeInTheDocument();

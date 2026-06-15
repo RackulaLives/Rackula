@@ -21,18 +21,23 @@ describe("parseSnapshotTimestamp", () => {
 });
 
 describe("formatSnapshotTimestamp", () => {
-  it("renders the UTC suffix in a non-UTC locale using local time", () => {
-    // 14:30 UTC is 10:30 in America/New_York (EDT, UTC-4 on this date).
-    const formatted = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/New_York",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(parseSnapshotTimestamp("my-layout~20260615-143005.yaml")!);
-    expect(formatted).toContain("10:30");
-    expect(formatted).not.toContain("14:30");
+  it("renders the parsed UTC instant as a localized timestamp", () => {
+    const filename = "my-layout~20260615-143005.yaml";
+    // The real function must render the same localized string the runtime
+    // would produce for the parsed UTC instant, not the raw filename suffix.
+    const expected = parseSnapshotTimestamp(filename)!.toLocaleString(
+      undefined,
+      {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      },
+    );
+    const formatted = formatSnapshotTimestamp(filename);
+    expect(formatted).toBe(expected);
+    expect(formatted).not.toContain("20260615-143005");
   });
 
   it("falls back to the raw filename when the suffix is unparseable", () => {

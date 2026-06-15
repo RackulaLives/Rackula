@@ -8,7 +8,10 @@ import {
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
 import * as persistenceApi from "$lib/storage/api";
-import { getServerBaseUpdatedAt } from "$lib/storage/server-base";
+import {
+  getServerBaseUpdatedAt,
+  setServerBaseUpdatedAt,
+} from "$lib/storage/server-base";
 import * as archive from "$lib/utils/archive";
 import * as fileUtils from "$lib/utils/file";
 import { createTestLayout } from "./factories";
@@ -184,6 +187,11 @@ describe("load-pipeline", () => {
     });
 
     it("clears the server base so the next save is a fresh write, not an in-place revert", async () => {
+      // Seed a non-null base so the assertion cannot pass vacuously: the test
+      // must observe restoreFromSnapshot actively clearing it.
+      setServerBaseUpdatedAt("2026-06-15T12:00:00.000Z");
+      expect(getServerBaseUpdatedAt()).not.toBeNull();
+
       const layout = createTestLayout({ name: "Restore As New Write" });
       vi.mocked(persistenceApi.loadSnapshot).mockResolvedValue({
         layout,

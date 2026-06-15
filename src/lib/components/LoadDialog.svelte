@@ -136,19 +136,27 @@
       return;
     }
 
-    expandedId = item.id;
+    const requestedId = item.id;
+    expandedId = requestedId;
     snapshots = [];
     snapshotsError = null;
     snapshotsLoading = true;
 
     try {
-      snapshots = await listSnapshots(item.id);
+      const result = await listSnapshots(requestedId);
+      // Ignore a stale response if the user expanded a different layout while
+      // this request was in flight.
+      if (expandedId !== requestedId) return;
+      snapshots = result;
     } catch (e) {
+      if (expandedId !== requestedId) return;
       snapshotsError =
         e instanceof PersistenceError ? e.message : "Failed to load snapshots";
       persistenceDebug.api("toggleSnapshots: failed %O", e);
     } finally {
-      snapshotsLoading = false;
+      if (expandedId === requestedId) {
+        snapshotsLoading = false;
+      }
     }
   }
 

@@ -6,8 +6,13 @@
  * timezone so users in non-UTC zones do not misread restore points by hours.
  */
 
-/** Captures the UTC YYYYMMDD-HHMMSS suffix from a snapshot filename. */
-const SNAPSHOT_TIMESTAMP_PATTERN = /~(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/;
+/**
+ * Captures the UTC YYYYMMDD-HHMMSS suffix from a snapshot filename, anchored to
+ * the backend snapshot shape `...~YYYYMMDD-HHMMSS[-N].yaml`. Anchoring to the
+ * filename tail keeps arbitrary embedded fragments from parsing as valid times.
+ */
+const SNAPSHOT_TIMESTAMP_PATTERN =
+  /~(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})(?:-\d+)?\.yaml$/;
 
 /**
  * Parse the UTC timestamp suffix from a snapshot filename into a Date.

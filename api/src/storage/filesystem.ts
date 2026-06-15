@@ -154,6 +154,11 @@ function formatSnapshotTimestamp(date: Date): string {
 
 export const SNAPSHOT_NAME_PATTERN = /~(\d{8}-\d{6})(?:-(\d+))?\.yaml$/;
 
+// Control characters (ASCII 0x00-0x1F and 0x7F) are never valid in a snapshot
+// filename and must be rejected before any filesystem access.
+// eslint-disable-next-line no-control-regex -- intentionally matching control chars
+const CONTROL_CHAR_PATTERN = /[\x00-\x1f\x7f]/;
+
 /**
  * Compare snapshot filenames newest-first using the embedded timestamp and
  * numeric collision suffix (no suffix sorts oldest within a timestamp).
@@ -281,6 +286,11 @@ export async function listSnapshots(
 /** A snapshot filename is a bare {base}~YYYYMMDD-HHMMSS[-N].yaml with no path. */
 function isSafeSnapshotFilename(filename: string): boolean {
   if (filename.includes("/") || filename.includes("\\")) {
+    return false;
+  }
+  // Reject control characters (ASCII 0x00-0x1F and 0x7F) so a malformed name
+  // returns null rather than surfacing a thrown readFile error.
+  if (CONTROL_CHAR_PATTERN.test(filename)) {
     return false;
   }
   return SNAPSHOT_NAME_PATTERN.test(filename);

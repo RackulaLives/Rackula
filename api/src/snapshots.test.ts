@@ -595,6 +595,45 @@ describe("snapshot route auth gating", () => {
     const response = await app.request(`/layouts/${TEST_UUID}/snapshots`);
     expect(response.status).toBe(401);
   });
+
+  it("serves a single snapshot without a token in write-token mode", async () => {
+    const app = await createApp(
+      buildEnv({ RACKULA_API_WRITE_TOKEN: TEST_TOKEN }),
+    );
+    const authHeader = { Authorization: `Bearer ${TEST_TOKEN}` };
+    const v1 = createLayoutYaml("My Layout", "v1");
+    await putLayout(app, TEST_UUID, v1, authHeader);
+    await putLayout(app, TEST_UUID, createLayoutYaml("My Layout", "v2"), {
+      ...authHeader,
+      [UPDATED_AT_HEADER]: STALE_UPDATED_AT,
+    });
+
+    const list = await app.request(`/layouts/${TEST_UUID}/snapshots`);
+    const { snapshots } = await list.json();
+    const filename = snapshots[0].filename;
+
+    const response = await app.request(
+      `/layouts/${TEST_UUID}/snapshots/${filename}`,
+    );
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe(v1);
+  });
+
+  it("does not serve a single snapshot without a session when auth is enabled", async () => {
+    const app = await createApp(
+      buildEnv({
+        RACKULA_AUTH_MODE: "oidc",
+        RACKULA_AUTH_SESSION_SECRET:
+          "rackula-auth-session-secret-for-tests-0123456789",
+        CORS_ORIGIN: "https://rack.example.com",
+      }),
+    );
+
+    const response = await app.request(
+      `/layouts/${TEST_UUID}/snapshots/my-layout~20200101-000000.yaml`,
+    );
+    expect(response.status).toBe(401);
+  });
 });
 
 describe("snapshot folder invisibility", () => {
