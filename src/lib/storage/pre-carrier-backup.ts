@@ -144,12 +144,19 @@ export function restorePreCarrierBackup(): boolean {
     safeRemoveItem(key);
   }
 
+  // Track write failures so the caller never reports a successful restore when
+  // storage (quota/unavailable) silently dropped every entry.
+  let attempted = 0;
+  let failed = 0;
   for (const [key, value] of Object.entries(parsed.entries)) {
     if (typeof value !== "string") continue;
     if (key.startsWith(LAYOUT_BODY_PREFIX) && !isSafeBackupKey(key)) continue;
-    safeSetItem(key, value);
+    attempted++;
+    if (!safeSetItem(key, value)) failed++;
   }
-  return true;
+  // Success means at least one entry was written and none failed; an empty
+  // snapshot (nothing to restore) is treated as a no-op success.
+  return attempted === 0 || failed === 0;
 }
 
 /** Discard the pre-carrier snapshot (after the user accepts the migration). */

@@ -122,18 +122,16 @@ function convertMinimalDevices(devices: MinimalDevice[]): PlacedDevice[] {
     if (d.n) base.name = d.n;
     if (d.a) base.auto_created = true;
 
-    // Trust a parent reference only when it points at a real, in-range carrier
-    // (auto-created, and not itself a child). Untrusted share input cannot
-    // smuggle a child attached to a rack-level device or to another child.
+    // Trust a parent reference only when it points at a real, in-range
+    // container device that is not itself a child. This preserves any container
+    // (user-placed shelf/chassis as well as synthesized carriers) while
+    // rejecting untrusted input that attaches a child to another child.
     const parent =
       d.ci !== undefined && d.ci >= 0 && d.ci < devices.length && d.ci !== index
         ? devices[d.ci]
         : undefined;
     const hasValidParent =
-      parent !== undefined &&
-      d.si !== undefined &&
-      parent.a === 1 &&
-      parent.ci === undefined;
+      parent !== undefined && d.si !== undefined && parent.ci === undefined;
 
     if (hasValidParent) {
       // Child: raw 0-indexed slot position, container/slot references.

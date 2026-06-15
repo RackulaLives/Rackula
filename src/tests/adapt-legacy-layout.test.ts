@@ -355,11 +355,116 @@ describe("adaptLegacyLayout", () => {
     });
   });
 
+  describe("idempotency", () => {
+    it("does not re-wrap overflow carriers on a second run", () => {
+      // Three co-located half-width devices spill into two carriers. Those two
+      // carriers share a (position, face); a second adapter run must not treat
+      // them as a bare co-located pair and wrap them again.
+      const half = createTestDeviceType({
+        slug: "half-width",
+        u_height: 1,
+        slot_width: 1,
+      });
+      const layout = createTestLayout({
+        device_types: [half],
+        racks: [
+          createTestRack({
+            devices: [
+              createTestDevice({
+                id: "h1",
+                device_type: "half-width",
+                position: 10,
+                slot_position: "left",
+              }),
+              createTestDevice({
+                id: "h2",
+                device_type: "half-width",
+                position: 10,
+                slot_position: "right",
+              }),
+              createTestDevice({
+                id: "h3",
+                device_type: "half-width",
+                position: 10,
+                slot_position: "left",
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const once = adaptLegacyLayout(layout);
+      const twice = adaptLegacyLayout(once);
+      // Carrier and child counts are stable; no nesting introduced.
+      expect(rackLevel(twice).filter((d) => d.auto_created).length).toBe(
+        rackLevel(once).filter((d) => d.auto_created).length,
+      );
+      expect(children(twice).length).toBe(children(once).length);
+    });
+  });
+
+  describe("left/right ordering", () => {
+    it("places an explicit left device in col-1 and right in col-2 regardless of input order", () => {
+      const half = createTestDeviceType({
+        slug: "half-width",
+        u_height: 1,
+        slot_width: 1,
+      });
+      const layout = createTestLayout({
+        device_types: [half],
+        racks: [
+          createTestRack({
+            devices: [
+              // Right listed first to prove ordering is by slot_position, not index.
+              createTestDevice({
+                id: "right-dev",
+                device_type: "half-width",
+                position: 10,
+                slot_position: "right",
+              }),
+              createTestDevice({
+                id: "left-dev",
+                device_type: "half-width",
+                position: 10,
+                slot_position: "left",
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const adapted = adaptLegacyLayout(layout);
+      const kids = children(adapted);
+      const leftKid = kids.find((k) => k.id === "left-dev");
+      const rightKid = kids.find((k) => k.id === "right-dev");
+      expect(leftKid?.slot_id).toBe("col-1");
+      expect(rightKid?.slot_id).toBe("col-2");
+    });
+  });
+
   describe("defensive handling", () => {
-    it("returns the layout unchanged when racks is missing or malformed", () => {
+    it("returns a safe empty-rack layout when racks is missing or malformed", () => {
       // Untrusted decode/restore paths can hand a structurally-odd object.
+      // loadLayout maps over racks immediately, so racks must always be an array.
       const bogus = { name: "x", device_types: [] } as unknown as Layout;
-      expect(() => adaptLegacyLayout(bogus)).not.toThrow();
+      const adapted = adaptLegacyLayout(bogus);
+      expect(Array.isArray(adapted.racks)).toBe(true);
+    });
+
+    it("does not throw on a null device entry in a rack", () => {
+      const dt = createTestDeviceType({ slug: "srv", u_height: 1 });
+      const layout = createTestLayout({
+        device_types: [dt],
+        racks: [
+          createTestRack({
+            devices: [
+              null as unknown as PlacedDevice,
+              createTestDevice({ id: "ok", device_type: "srv", position: 5 }),
+            ],
+          }),
+        ],
+      });
+      expect(() => adaptLegacyLayout(layout)).not.toThrow();
     });
   });
 
@@ -485,6 +590,57 @@ describe("adaptLegacyLayout", () => {
         (t) => t.slug === CARRIER_2COL_SLUG,
       );
       expect(carrierType?.slots?.length ?? 0).toBeGreaterThan(0);
+    });
+
+    it("round-trips a user-placed (non-auto-created) container's children through share", () => {
+      // A user-placed shelf is a container whose children are NOT auto_created.
+      // Share decode must still restore the parent linkage (not gate on the
+      // auto_created flag), or the children collapse to rack-level placements.
+      const shelf = createTestDeviceType({
+        slug: "shelf-2bay",
+        u_height: 1,
+        slots: [
+          { id: "bay-1", position: { row: 0, col: 0 }, width_fraction: 0.5 },
+          { id: "bay-2", position: { row: 0, col: 1 }, width_fraction: 0.5 },
+        ],
+      });
+      const gear = createTestDeviceType({ slug: "gear", u_height: 1 });
+      const layout = createTestLayout({
+        device_types: [shelf, gear],
+        racks: [
+          createTestRack({
+            id: "rack-0",
+            devices: [
+              createTestDevice({
+                id: "shelf-1",
+                device_type: "shelf-2bay",
+                position: 5,
+              }),
+              {
+                id: "child-1",
+                device_type: "gear",
+                position: 0,
+                face: "front",
+                container_id: "shelf-1",
+                slot_id: "bay-1",
+              },
+            ],
+          }),
+        ],
+      });
+
+      const encoded = encodeLayout(layout);
+      expect(encoded).not.toBeNull();
+      const decoded = decodeLayout(encoded!).layout;
+      expect(decoded).not.toBeNull();
+
+      const decodedChild = decoded!.racks[0]?.devices.find(
+        (d) => d.device_type === "gear",
+      );
+      // The child stays a child (container linkage preserved), not a rack-level
+      // device whose raw 0-index position got reinterpreted as a rail U.
+      expect(decodedChild?.container_id).toBeDefined();
+      expect(decodedChild?.slot_id).toBe("bay-1");
     });
   });
 });

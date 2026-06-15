@@ -35,6 +35,12 @@ const COL_SLOTS = ["col-1", "col-2"] as const;
 /** Slot ids on carrier-1u-2x2 (half-width half-height cells, bottom row first). */
 const GRID_SLOTS = ["r0-c0", "r0-c1", "r1-c0", "r1-c1"] as const;
 
+/** The carrier slugs this adapter knows how to hydrate from the starter library. */
+const KNOWN_CARRIER_SLUGS = new Set<string>([
+  CARRIER_2COL_SLUG,
+  CARRIER_2X2_SLUG,
+]);
+
 /** A rack-level device has none of the child-placement markers set. */
 function isRackLevel(d: PlacedDevice): boolean {
   return (
@@ -98,7 +104,13 @@ function buildCarrier(
     face,
     auto_created: true,
   };
-  const children = wrapped.slice(0, slotIds.length).map((d, index) => {
+  // Preserve legacy left/right intent: a device explicitly marked "left" takes
+  // the first column, "right" the second. Devices without slot_position keep
+  // their input order. A stable sort keeps unrelated ordering intact.
+  const slotRank = (d: PlacedDevice): number =>
+    d.slot_position === "left" ? 0 : d.slot_position === "right" ? 2 : 1;
+  const ordered = [...wrapped].sort((a, b) => slotRank(a) - slotRank(b));
+  const children = ordered.slice(0, slotIds.length).map((d, index) => {
     // Children are located by slot alone: clear rail/legacy placement fields
     // and attach to the carrier with an explicit slot (a data transform, not
     // an interactive drop, so the slot is assigned deterministically).
@@ -151,9 +163,15 @@ function adaptRackDevices(
   let changed = false;
 
   // Children pass through untouched; only rack-level devices are normalized.
+  // A malformed (non-object) entry from untrusted data is passed through as-is
+  // rather than dereferenced, so a bad device can never crash the adaptation.
   const passthrough: PlacedDevice[] = [];
   const rackDevices: PlacedDevice[] = [];
   for (const d of devices) {
+    if (d === null || typeof d !== "object") {
+      passthrough.push(d);
+      continue;
+    }
     if (isRackLevel(d)) rackDevices.push(d);
     else passthrough.push(d);
   }
@@ -172,9 +190,16 @@ function adaptRackDevices(
   // marks a half-width pair whose slot_position (and slot_width) was stripped
   // by the dd25f4c serializer (#1248, #1602). They become a 2-column carrier,
   // the same recovery the deleted recoverSlotPositions performed.
+  //
+  // Already-synthesized carriers are excluded: overflow chunking can put two
+  // auto-created carriers at the same (position, face), and they must never be
+  // re-wrapped, or a second adapter run would nest carriers (idempotency).
+  const isExistingCarrier = (d: PlacedDevice): boolean =>
+    d.auto_created === true || KNOWN_CARRIER_SLUGS.has(d.device_type);
   const coLocated = new Map<string, PlacedDevice[]>();
   for (const d of snapped) {
     if (d.slot_position === "left" || d.slot_position === "right") continue;
+    if (isExistingCarrier(d)) continue;
     const key = `${d.position}|${d.face}`;
     const group = coLocated.get(key);
     if (group) group.push(d);
@@ -182,7 +207,10 @@ function adaptRackDevices(
   }
   const forcedPairIds = new Set<string>();
   for (const group of coLocated.values()) {
-    if (group.length === 2 && group.every((d) => d.slot_position === undefined)) {
+    if (
+      group.length === 2 &&
+      group.every((d) => d.slot_position === undefined)
+    ) {
       for (const d of group) forcedPairIds.add(d.id);
     }
   }
@@ -242,12 +270,6 @@ function adaptRackDevices(
   };
 }
 
-/** The carrier slugs this adapter knows how to hydrate from the starter library. */
-const KNOWN_CARRIER_SLUGS = new Set<string>([
-  CARRIER_2COL_SLUG,
-  CARRIER_2X2_SLUG,
-]);
-
 /**
  * Ensure every carrier device type referenced in the layout carries its
  * canonical slot definition. A carrier type can arrive without slots (a share
@@ -289,7 +311,13 @@ function hydrateCarrierTypes(
  * irreversible first carrier-first autosave can be undone.
  */
 export function adaptLegacyLayout(layout: Layout): Layout {
-  if (!layout || !Array.isArray(layout.racks)) return layout;
+  if (!layout) return layout;
+  // loadLayout immediately maps over layoutData.racks, so a malformed layout
+  // with no racks array must be normalized to an empty rack list here rather
+  // than forwarded; the ingress degrades to an empty load instead of crashing.
+  if (!Array.isArray(layout.racks)) {
+    return { ...layout, racks: [] };
+  }
 
   const deviceTypeBySlug = new Map<string, DeviceType>();
   for (const dt of layout.device_types ?? []) {
