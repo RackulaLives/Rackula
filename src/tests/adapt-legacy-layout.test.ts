@@ -8,6 +8,7 @@ import { toInternalUnits } from "$lib/utils/position";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { encodeLayout, decodeLayout } from "$lib/utils/share";
 import {
+  createTestContainerType,
   createTestDevice,
   createTestDeviceType,
   createTestLayout,
@@ -596,7 +597,7 @@ describe("adaptLegacyLayout", () => {
       // A user-placed shelf is a container whose children are NOT auto_created.
       // Share decode must still restore the parent linkage (not gate on the
       // auto_created flag), or the children collapse to rack-level placements.
-      const shelf = createTestDeviceType({
+      const shelf = createTestContainerType({
         slug: "shelf-2bay",
         u_height: 1,
         slots: [
@@ -641,6 +642,15 @@ describe("adaptLegacyLayout", () => {
       // device whose raw 0-index position got reinterpreted as a rail U.
       expect(decodedChild?.container_id).toBeDefined();
       expect(decodedChild?.slot_id).toBe("bay-1");
+
+      // The decoded parent type must still expose the referenced slot, or the
+      // child has nowhere to render. Container slot grids round-trip in share.
+      const decodedShelfType = decoded!.device_types.find(
+        (t) => t.slug === "shelf-2bay",
+      );
+      expect(
+        decodedShelfType?.slots?.some((s) => s.id === "bay-1"),
+      ).toBe(true);
     });
   });
 });

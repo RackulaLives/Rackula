@@ -86,7 +86,9 @@ function convertDevices(devices: PlacedDevice[]): MinimalDevice[] {
 }
 
 /**
- * Convert minimal device types back to full DeviceType[]
+ * Convert minimal device types back to full DeviceType[]. Container types carry
+ * their slot grid / slot_width / subdevice_role so their children resolve to
+ * real slots after a round trip.
  */
 function convertDeviceTypes(dt: MinimalDeviceType[]): DeviceType[] {
   return dt.map((item) => ({
@@ -96,6 +98,18 @@ function convertDeviceTypes(dt: MinimalDeviceType[]): DeviceType[] {
     ...(item.m ? { model: item.m } : {}),
     colour: item.c,
     category: ABBREV_TO_CATEGORY[item.x] ?? "other",
+    ...(item.sl
+      ? {
+          slots: item.sl.map((s) => ({
+            id: s.id,
+            position: { row: s.r, col: s.cl },
+            ...(s.wf !== undefined ? { width_fraction: s.wf } : {}),
+            ...(s.hu !== undefined ? { height_units: s.hu } : {}),
+          })),
+        }
+      : {}),
+    ...(item.sw !== undefined ? { slot_width: item.sw } : {}),
+    ...(item.sr ? { subdevice_role: item.sr } : {}),
   }));
 }
 
@@ -193,6 +207,27 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
       ...(deviceType.model ? { m: deviceType.model } : {}),
       c: deviceType.colour,
       x: CATEGORY_TO_ABBREV[deviceType.category] ?? "o",
+      // Container types carry their slot grid so children round-trip to real
+      // slots (a child references slot_id, which must exist on the parent type).
+      ...(deviceType.slots && deviceType.slots.length > 0
+        ? {
+            sl: deviceType.slots.map((s) => ({
+              id: s.id,
+              r: s.position.row,
+              cl: s.position.col,
+              ...(s.width_fraction !== undefined
+                ? { wf: s.width_fraction }
+                : {}),
+              ...(s.height_units !== undefined ? { hu: s.height_units } : {}),
+            })),
+          }
+        : {}),
+      ...(deviceType.slot_width !== undefined
+        ? { sw: deviceType.slot_width }
+        : {}),
+      ...(deviceType.subdevice_role
+        ? { sr: deviceType.subdevice_role }
+        : {}),
     }));
 
   // Convert all racks to MinimalRackV2

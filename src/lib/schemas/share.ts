@@ -101,13 +101,35 @@ export const MinimalDeviceSchema = z.object({
 });
 
 /**
- * Minimal device type schema
+ * Minimal slot schema (container device types). Carries the slot grid so a
+ * container's children resolve to real slots after a share round-trip.
+ */
+export const MinimalSlotSchema = z.object({
+  /** slot id */
+  id: z.string(),
+  /** row index */
+  r: z.number().int().min(0),
+  /** column index */
+  cl: z.number().int().min(0),
+  /** width fraction (optional) */
+  wf: z.number().optional(),
+  /** height units (optional) */
+  hu: z.number().optional(),
+});
+
+/**
+ * Minimal device type schema.
+ *
+ * Container device types (carriers, shelves, chassis) carry their slot grid
+ * (`sl`), slot width (`sw`), and subdevice role (`sr`) so a shared layout's
+ * container children round-trip to real slots. `h` allows sub-U heights (>= 0)
+ * because the carrier-first model wraps gear under 0.5U.
  */
 export const MinimalDeviceTypeSchema = z.object({
   /** slug */
   s: z.string(),
   /** u_height */
-  h: z.number().min(0.5),
+  h: z.number().min(0),
   /** manufacturer (optional) */
   mf: z.string().optional(),
   /** model (optional) */
@@ -116,6 +138,12 @@ export const MinimalDeviceTypeSchema = z.object({
   c: z.string(),
   /** category abbreviation */
   x: z.string().length(1),
+  /** slots (container device types) */
+  sl: z.array(MinimalSlotSchema).optional(),
+  /** slot_width (1 = half-width, 2 = full-width) */
+  sw: z.union([z.literal(1), z.literal(2)]).optional(),
+  /** subdevice_role */
+  sr: z.enum(["parent", "child"]).optional(),
 });
 
 /**
