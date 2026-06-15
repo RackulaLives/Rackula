@@ -1,165 +1,90 @@
-/**
- * One-time pre-carrier-first migration backup (#2290, decision D3).
- *
- * The carrier-first read-path adapter (adapt-legacy-layout.ts) rewrites legacy
- * placements on load, and the next autosave overwrites the original body. That
- * is irreversible, so before the FIRST carrier-first adaptation actually
- * changes a layout we snapshot the entire browser-mode persistence state to a
- * dedicated key. A restore affordance writes the snapshot back.
- *
- * The snapshot is taken exactly once (guarded by the snapshot key's presence)
- * and covers the multi-layout workspace index, every layout body, and the
- * legacy single-slot autosave. Everything goes through quota-safe storage
- * helpers that never throw; a failed snapshot leaves the original data intact.
- */
-
-import {
-  safeGetItem,
-  safeSetItem,
-  safeRemoveItem,
-} from "$lib/utils/safe-storage";
+import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 import { sessionDebug } from "$lib/utils/debug";
 
 const log = sessionDebug.storage;
 
-const BACKUP_KEY = "Rackula:pre-carrier-backup";
-const WORKSPACE_KEY = "Rackula:workspace";
-const EVER_KEY = "Rackula:everHadLayouts";
-const AUTOSAVE_KEY = "Rackula:autosave";
-const LAYOUT_BODY_PREFIX = "Rackula:layout:";
+/** Dedicated key holding the one-time snapshot taken before carrier-first writes. */
+export const PRE_CARRIER_BACKUP_KEY = "Rackula:pre-carrier-backup";
 
-interface PreCarrierBackup {
-  version: 1;
+/** Prefixes of the layout/workspace keys captured in the backup. */
+const BACKED_UP_PREFIXES = ["Rackula:layout:", "Rackula:workspace"] as const;
+
+interface BackupPayload {
   createdAt: string;
-  /** Raw serialized values keyed by their original localStorage key. */
   entries: Record<string, string>;
 }
 
-/**
- * Reject prototype-polluting keys before using one as an object property, so a
- * hostile stored layout id cannot reach Object.prototype during snapshot.
- */
-function isSafeBackupKey(key: string): boolean {
-  const suffix = key.slice(LAYOUT_BODY_PREFIX.length);
-  return (
-    suffix !== "__proto__" &&
-    suffix !== "constructor" &&
-    suffix !== "prototype"
-  );
-}
-
-/** Whether the one-time pre-carrier snapshot has already been written. */
-export function hasPreCarrierBackup(): boolean {
-  return safeGetItem(BACKUP_KEY) !== null;
-}
-
-/**
- * Collect every browser-mode persistence key. localStorage is enumerated so
- * per-layout body keys (Rackula:layout:<id>) are captured without needing the
- * workspace index, which may itself be unreadable.
- */
-function collectKeys(): string[] {
-  const keys = new Set<string>([WORKSPACE_KEY, EVER_KEY, AUTOSAVE_KEY]);
+function enumerateKeys(): string[] {
   try {
+    const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith(LAYOUT_BODY_PREFIX) && isSafeBackupKey(key)) {
-        keys.add(key);
-      }
+      if (key !== null) keys.push(key);
     }
+    return keys;
   } catch {
-    // localStorage unavailable; fall back to the fixed keys only.
+    return [];
   }
-  return [...keys];
+}
+
+function isBackedUpKey(key: string): boolean {
+  return BACKED_UP_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
+
+/** Whether the one-time pre-carrier backup has already been written. */
+export function hasPreCarrierBackup(): boolean {
+  return safeGetItem(PRE_CARRIER_BACKUP_KEY) !== null;
 }
 
 /**
- * Take the one-time backup if it has not been taken yet. No-op when a backup
- * already exists or there is nothing to back up. Call this just before the
- * first carrier-first adaptation is committed.
+ * Snapshot the current layout bodies and workspace index into the dedicated
+ * backup key, exactly once. Call this immediately before the first carrier-first
+ * write so the original pre-migration data is recoverable. Returns true when a
+ * backup was written, false when one already exists or there is nothing to save.
  */
-export function ensurePreCarrierBackup(): void {
-  if (hasPreCarrierBackup()) return;
+export function writePreCarrierBackupOnce(): boolean {
+  if (hasPreCarrierBackup()) return false;
 
-  const entries: Record<string, string> = Object.create(null);
-  let captured = 0;
-  for (const key of collectKeys()) {
+  const entries: Record<string, string> = {};
+  for (const key of enumerateKeys()) {
+    if (!isBackedUpKey(key)) continue;
     const value = safeGetItem(key);
-    if (value !== null) {
-      entries[key] = value;
-      captured++;
-    }
+    if (value !== null) entries[key] = value;
   }
 
-  // Nothing persisted yet (fresh install): no legacy data can be lost, so skip
-  // the backup. The next launch with real data will take it.
-  if (captured === 0) return;
+  if (Object.keys(entries).length === 0) return false;
 
-  const backup: PreCarrierBackup = {
-    version: 1,
+  const payload: BackupPayload = {
     createdAt: new Date().toISOString(),
     entries,
   };
-
-  let serialized: string;
-  try {
-    serialized = JSON.stringify(backup);
-  } catch (error) {
-    log("pre-carrier backup serialize failed: %O", error);
-    return;
-  }
-
-  if (!safeSetItem(BACKUP_KEY, serialized)) {
-    log("pre-carrier backup write failed (quota or storage unavailable)");
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+  const wrote = safeSetItem(PRE_CARRIER_BACKUP_KEY, JSON.stringify(payload));
+  if (wrote) log("wrote pre-carrier backup (%d keys)", Object.keys(entries).length);
+  return wrote;
 }
 
 /**
- * Restore the pre-carrier snapshot, overwriting current browser-mode state with
- * the captured legacy values. Returns false when no backup exists or the
- * snapshot is unreadable. The backup key is left in place so a restore can be
- * repeated; the caller decides when to discard it.
+ * Restore the layout bodies and workspace index captured in the backup,
+ * overwriting the current carrier-first data. The restore affordance for users
+ * who want their pre-migration layouts back. Returns true when a backup was
+ * found and applied.
  */
 export function restorePreCarrierBackup(): boolean {
-  const serialized = safeGetItem(BACKUP_KEY);
+  const serialized = safeGetItem(PRE_CARRIER_BACKUP_KEY);
   if (serialized === null) return false;
 
-  let parsed: unknown;
+  let payload: BackupPayload;
   try {
-    parsed = JSON.parse(serialized);
+    payload = JSON.parse(serialized) as BackupPayload;
   } catch (error) {
-    log("pre-carrier backup parse failed: %O", error);
+    log("pre-carrier backup is unreadable: %O", error);
     return false;
   }
+  if (!payload || typeof payload.entries !== "object") return false;
 
-  if (!isRecord(parsed) || !isRecord(parsed.entries)) return false;
-
-  // Clear current layout bodies and index so the restore is not a merge: a
-  // body present now but absent in the snapshot would otherwise survive.
-  for (const key of collectKeys()) {
-    safeRemoveItem(key);
+  for (const [key, value] of Object.entries(payload.entries)) {
+    safeSetItem(key, value);
   }
-
-  // Track write failures so the caller never reports a successful restore when
-  // storage (quota/unavailable) silently dropped every entry.
-  let attempted = 0;
-  let failed = 0;
-  for (const [key, value] of Object.entries(parsed.entries)) {
-    if (typeof value !== "string") continue;
-    if (key.startsWith(LAYOUT_BODY_PREFIX) && !isSafeBackupKey(key)) continue;
-    attempted++;
-    if (!safeSetItem(key, value)) failed++;
-  }
-  // Success means at least one entry was written and none failed; an empty
-  // snapshot (nothing to restore) is treated as a no-op success.
-  return attempted === 0 || failed === 0;
-}
-
-/** Discard the pre-carrier snapshot (after the user accepts the migration). */
-export function discardPreCarrierBackup(): void {
-  safeRemoveItem(BACKUP_KEY);
+  log("restored pre-carrier backup (%d keys)", Object.keys(payload.entries).length);
+  return true;
 }

@@ -86,14 +86,10 @@ export {
   persistBrowserWorkspace,
   type PersistTab,
 } from "./browser-workspace-persist";
+export { adaptLegacyLayout } from "./adapt-legacy-layout";
 export {
-  adaptLegacyLayout,
-  CARRIER_2COL_SLUG,
-  CARRIER_2X2_SLUG,
-} from "./adapt-legacy-layout";
-export {
-  ensurePreCarrierBackup,
+  PRE_CARRIER_BACKUP_KEY,
+  writePreCarrierBackupOnce,
   hasPreCarrierBackup,
   restorePreCarrierBackup,
-  discardPreCarrierBackup,
 } from "./pre-carrier-backup";
