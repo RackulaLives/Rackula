@@ -16,9 +16,10 @@ same instant as a "we couldn't start this review" comment - this is NOT a real r
 and `@coderabbitai review` is a no-op on a commit it already marked reviewed (only a new
 commit forces a fresh pass). Asked maintainer how to gate; question did not render, they
 said continue. Adopted pragmatic gate during the outage:
-  MERGE on green CI (hard-gate `validate` + GH-hosted) + clean CodeAnt + CodeRabbit
-  showing completed with ZERO open findings. Still address any real CodeRabbit/CodeAnt
-  finding before merge (e.g. #2306 checksum fix, #2309 CodeAnt fixes).
+  MERGE on green CI (hard-gate `validate` + GH-hosted) + clean CodeRabbit showing
+  completed with ZERO open findings; CodeAnt is advisory only, not a blocking gate.
+  Still address any real CodeRabbit/CodeAnt finding before merge (e.g. #2306 checksum
+  fix, #2309 CodeAnt fixes).
 Self-hosted e2e stays advisory (spike #1994 / PR #2298), never a merge gate.
 MAINTAINER ACTION suggested: enable CodeRabbit review add-on to restore full reviews.
 
@@ -85,6 +86,7 @@ fix+re-review cycles. CodeAnt is the responsive reviewer; CodeAnt threads do not
 auto-resolve (verify fix in code, then merge - they linger as stale-but-fixed).
 
 ## Update ~05:40 UTC - carrier chain COMPLETE
+
 C5 #2294 merged (PR #2313, squash b633947, authored in parallel by ggfevans).
 CodeRabbit gave a REAL APPROVED review; all GH-hosted CI green (validate hard-gate
 included); self-hosted e2e advisory/queued. CodeAnt left one Major finding on
@@ -103,7 +105,22 @@ z.string()). Recorded the MAJOR classification + "2.0" target on #2158
 gate #2205 (no reader gates on schema_version yet), coordinated with the #571 publish
 chain. Do NOT ad-hoc bump main. Tracked as the schema_version action item under #2205.
 
+### Next-wave dispatch + environment correction (~05:47 UTC)
+Attempted to dispatch #2226 (JSON Schema from Zod 4) and #620 (lazy-load JSZip) as two
+concurrent background dev agents. Both stalled immediately and collided: the container is
+freshly reclaimed (no node_modules; npm install needed) and the agents ran `git checkout -b`
+in the SHARED working dir instead of isolated worktrees, so they raced and switched the
+orchestrator cwd onto a feature branch. Stopped both, restored the orchestrator branch,
+deleted the stray branches, and removed the stale C5 worktree. Going forward: dispatch dev
+agents one at a time and/or with `git worktree add` isolation, and have each run npm install
+first (see blockers.md environment constraints).
+
+HELD: #2205 (reject-newer-major gate) pending maintainer ratification of the schema_version
+1.0 -> 2.0 bump (genuine ambiguity, logged in blockers.md). #2226 and #620 remain ready to
+dispatch under isolation.
+
 ## Update ~05:26 UTC
+
 Merged this session (6): #2065, #1011, #2038, #2042, #2206, #2044 (PR #2312).
 Carrier chain fully on main (maintainer-merged in parallel): C1 #2289, C2 #2290 (#2304),
 C3 #2291 (#2303), C4 #2292 (#2308). C5 #2294 dispatched (final slice; deletes
