@@ -506,13 +506,30 @@ describe("DnD Between Racks", () => {
       expect(movedChild).toBeDefined();
     });
 
-    /** Place a container in rack A with a child device inside its slot */
+    /**
+     * Place a container in rack A with a child device inside its slot.
+     *
+     * Carrier-first (#2158): a detached child lands on a bare rail, so the child
+     * must be rail-mountable (full-width, whole-U). The container uses a single
+     * full-width slot so the full-width child fits, and detaching it to the rail
+     * is a valid placement the move path must support.
+     */
     function placeContainedChild() {
-      const containerType = createTestContainerType({ slug: "test-shelf" });
+      const containerType = createTestContainerType({
+        slug: "test-shelf",
+        slots: [
+          {
+            id: "slot-1",
+            position: { row: 0, col: 0 },
+            width_fraction: 1,
+            height_units: 1,
+          },
+        ],
+      });
       const childType = createTestDeviceType({
         slug: "test-mini-pc",
         u_height: 1,
-        slot_width: 1,
+        slot_width: 2,
         is_full_depth: false,
       });
       store.addDeviceTypeRaw(containerType);
@@ -524,7 +541,7 @@ describe("DnD Between Racks", () => {
         rackA.id,
         childType.slug,
         container.id,
-        "slot-left",
+        "slot-1",
         0,
       );
       expect(placed).toBe(true);
@@ -565,7 +582,7 @@ describe("DnD Between Racks", () => {
       const restored = findDevice(store.getRackById(rackA.id)!, childType.slug);
       expect(restored).toBeDefined();
       expect(restored!.container_id).toBe(container.id);
-      expect(restored!.slot_id).toBe("slot-left");
+      expect(restored!.slot_id).toBe("slot-1");
       expect(restored!.position).toBe(0);
     });
 
@@ -598,7 +615,7 @@ describe("DnD Between Racks", () => {
       const restored = findDevice(store.getRackById(rackA.id)!, childType.slug);
       expect(restored).toBeDefined();
       expect(restored!.container_id).toBe(container.id);
-      expect(restored!.slot_id).toBe("slot-left");
+      expect(restored!.slot_id).toBe("slot-1");
       expect(restored!.position).toBe(0);
     });
 

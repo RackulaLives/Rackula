@@ -16,7 +16,11 @@ import type {
 } from "$lib/types";
 import { UNITS_PER_U, DEFAULT_DEVICE_FACE } from "$lib/types/constants";
 import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
-import { canPlaceDevice, isSlotOccupied } from "$lib/utils/collision";
+import {
+  canPlaceDevice,
+  isSlotOccupied,
+  requiresCarrier,
+} from "$lib/utils/collision";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { debug } from "$lib/utils/debug";
@@ -122,25 +126,20 @@ export function placeDeviceRecorded(
 
   // Carrier-first rule (#2158/C4): sub-U, non-integer-height, or half-width gear
   // cannot register directly to the rails - it must mount inside a carrier
-  // (route via placeDeviceSmart). Blank filler panels are exempt and may
-  // rail-mount at any height. Reject the invalid rail placement here so the
-  // block-live UX (D5) refuses it the moment it is attempted.
-  if (deviceType.category !== "blank") {
-    const isHalfWidth = (deviceType.slot_width ?? 2) === 1;
-    const isSubU = deviceType.u_height < 1;
-    const isNonIntegerHeight = !Number.isInteger(deviceType.u_height);
-    if (isHalfWidth || isSubU || isNonIntegerHeight) {
-      debug.devicePlace({
-        slug: deviceTypeSlug,
-        position: positionU,
-        passedFace: face,
-        effectiveFace: "N/A",
-        deviceName: deviceType.model ?? deviceType.slug,
-        isFullDepth: deviceType.is_full_depth !== false,
-        result: "collision",
-      });
-      return false;
-    }
+  // (route via placeDeviceSmart). Blank filler panels are exempt. Reject the
+  // invalid rail placement here so the block-live UX (D5) refuses it the moment
+  // it is attempted.
+  if (requiresCarrier(deviceType)) {
+    debug.devicePlace({
+      slug: deviceTypeSlug,
+      position: positionU,
+      passedFace: face,
+      effectiveFace: "N/A",
+      deviceName: deviceType.model ?? deviceType.slug,
+      isFullDepth: deviceType.is_full_depth !== false,
+      result: "collision",
+    });
+    return false;
   }
 
   // Determine face based on device depth
@@ -290,6 +289,23 @@ export function moveDeviceRecorded(
   const deviceName = deviceType.model ?? deviceType.slug;
   const oldPositionInternal = device.position;
   const oldPositionU = toHumanUnits(oldPositionInternal);
+
+  // Carrier-first rule (#2158/C4): a move always lands on a rack-level rail
+  // position and detaches any container linkage. A carrier-requiring device
+  // (sub-U / non-integer-height / half-width, non-blank) therefore cannot be
+  // moved onto bare rails - that would create an invalid rail mount and leave
+  // the layout unsaveable. Reject so schema and store stay in parity.
+  if (requiresCarrier(deviceType)) {
+    debug.deviceMove({
+      index: deviceIndex,
+      deviceName,
+      face: device.face ?? "front",
+      fromPosition: oldPositionU,
+      toPosition: newPositionU,
+      result: "collision",
+    });
+    return false;
+  }
 
   // Use canPlaceDevice for bounds and collision checking (face and depth aware)
   // Use new slot_position if provided (e.g., from D&D target), otherwise keep existing

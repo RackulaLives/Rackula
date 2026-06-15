@@ -461,6 +461,25 @@ export const CARRIER_2COL_SLUG = "carrier-1u-2col";
 export const CARRIER_2X2_SLUG = "carrier-1u-2x2";
 
 /**
+ * Whether a device must mount inside a carrier rather than directly on the
+ * rails (carrier-first rule, #2158). Sub-U, non-integer-height, or half-width
+ * gear cannot register to whole-U rails. Blank filler panels are exempt: a
+ * blank may rail-mount at any height. This is the single predicate the schema
+ * (LayoutSchema.superRefine) and the store (placeDevice / moveDevice) share so
+ * the two layers enforce identical rules.
+ *
+ * @param deviceType - The device being placed
+ * @returns true when a rail placement is forbidden and a carrier is required
+ */
+export function requiresCarrier(deviceType: DeviceType): boolean {
+  if (deviceType.category === "blank") return false;
+  const isHalfWidth = (deviceType.slot_width ?? 2) === 1;
+  const isSubU = deviceType.u_height < 1;
+  const isNonIntegerHeight = !Number.isInteger(deviceType.u_height);
+  return isHalfWidth || isSubU || isNonIntegerHeight;
+}
+
+/**
  * Pick the carrier slug that a half-width device must mount inside, based on
  * its height. Both synthesised carriers have half-width cells, so only
  * half-width gear can be carrier-mounted: a half-height device needs the 2x2

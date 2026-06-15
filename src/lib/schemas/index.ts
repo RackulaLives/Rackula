@@ -894,7 +894,7 @@ function migrateDevicePositions<
  * - Position migration from U values to internal units (v0.7.0)
  * - slot_position recovery for half-width device pairs missing the field (#1248, #1602)
  */
-const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
+export const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
   // Determine the racks array
   let racks: z.infer<typeof RackSchemaInput>[];
 
@@ -1149,6 +1149,21 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
         const slot = slotById.get(device.slot_id)!;
         const childForFit = deviceTypeBySlug.get(device.device_type);
         if (childForFit) {
+          // Category fit: when a slot restricts accepted categories, the child's
+          // category must be allowed. Mirrors canPlaceInSlot so schema and store
+          // enforce identical slot rules (an empty/absent accepts allows all).
+          if (
+            slot.accepts &&
+            slot.accepts.length > 0 &&
+            !slot.accepts.includes(childForFit.category)
+          ) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Device "${device.name ?? device.id}" (category "${childForFit.category}") is not accepted by slot "${device.slot_id}". Accepts: ${slot.accepts.join(", ")}.`,
+              path: ["racks", rackIndex, "devices", deviceIndex, "slot_id"],
+            });
+          }
+
           const slotHeight = slot.height_units ?? 1;
           if (childForFit.u_height > slotHeight) {
             ctx.addIssue({
@@ -1157,6 +1172,11 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
               path: ["racks", rackIndex, "devices", deviceIndex, "slot_id"],
             });
           }
+
+          // Width fit mirrors canPlaceInSlot exactly, including its 0.01 float
+          // tolerance, so the schema and the store agree on third-width slots
+          // (0.33 / 0.34). Tightening the tolerance here would diverge from the
+          // store's fit check.
           const requiredFraction = (childForFit.slot_width ?? 2) === 1 ? 0.5 : 1.0;
           const availableFraction = slot.width_fraction ?? 1.0;
           if (requiredFraction > availableFraction + 0.01) {

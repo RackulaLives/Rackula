@@ -15,7 +15,8 @@ import type {
   Cable,
   LayoutMetadata,
 } from "$lib/types";
-import { LayoutSchema, type LayoutZod } from "$lib/schemas";
+import { LayoutSchema, LayoutSchemaBase, type LayoutZod } from "$lib/schemas";
+import { adaptLegacyLayout } from "$lib/storage";
 import { layoutDebug } from "$lib/utils/debug";
 import {
   decodeYamlImages,
@@ -460,7 +461,24 @@ function validateParsedLayout(parsed: unknown): {
     }
   }
 
-  const result = LayoutSchema.safeParse(parsed);
+  // Carrier-first (#2158): legacy files may carry rack-level sub-U / half-width
+  // placements that the carrier-first enforcement in LayoutSchema rejects. The
+  // store-ingress adapter (adaptLegacyLayout) normalizes those into carriers,
+  // but it runs in loadLayout - after this parse. So migrate first (structural
+  // parse + position snap, no carrier-first enforcement), adapt the migrated
+  // layout, then run the full schema (with enforcement) over the adapted
+  // result. The adapter is idempotent, so loadLayout re-running it is a no-op.
+  const baseResult = LayoutSchemaBase.safeParse(parsed);
+  if (!baseResult.success) {
+    const errors = baseResult.error.issues
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+      .join(", ");
+    throw new Error(`Invalid layout: ${errors}`);
+  }
+
+  const adapted = adaptLegacyLayout(baseResult.data as unknown as Layout);
+
+  const result = LayoutSchema.safeParse(adapted);
 
   if (!result.success) {
     const errors = result.error.issues

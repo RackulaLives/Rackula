@@ -17,6 +17,7 @@ import {
   canPlaceInSlot,
   findValidDropPositions,
   findNextFreeChildPosition,
+  requiresCarrier,
   synthesizeCarrierForDevice,
 } from "$lib/utils/collision";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
@@ -443,6 +444,11 @@ export function moveDeviceToRack(
     device.device_type,
   );
   if (!deviceType) return false;
+
+  // Carrier-first rule (#2158/C4): a cross-rack move lands on a rail position in
+  // the target rack. A carrier-requiring device cannot rail-mount, so refuse
+  // rather than create an invalid placement in the destination rack.
+  if (requiresCarrier(deviceType)) return false;
 
   // Resolve face: use provided face, or infer from device type
   const effectiveFace: DeviceFace =

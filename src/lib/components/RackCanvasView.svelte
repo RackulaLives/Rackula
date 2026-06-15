@@ -135,14 +135,10 @@
       // Reset view to show full rack after placement completes
       canvasStore.fitAll(layoutStore.racks);
     } else {
-      // Block-live UX (D5): a carrier-requiring device with no applicable
-      // carrier is refused; tell the user rather than fail silently.
+      // Block-live UX (D5): the placement was refused (carrier-required,
+      // collision, or out of bounds); tell the user rather than fail silently.
       hapticError();
-      toastStore.showToast(
-        "This device needs a carrier to mount here",
-        "warning",
-        3000,
-      );
+      toastStore.showToast("Can't place device here", "warning", 3000);
     }
   }
 
@@ -201,16 +197,13 @@
       face,
       slot_position,
     );
-    // Carrier-first (#2158): a sub-U / non-integer-height device with no
-    // applicable carrier (e.g. a full-width sub-U panel) cannot rail-mount and
-    // is refused. Block-live UX (D5): tell the user rather than fail silently.
+    // Block-live UX (D5): the store refuses an invalid rail placement (a
+    // carrier-requiring device, a collision, or out of bounds). Tell the user
+    // rather than fail silently, and do not signal a drop that did not happen.
     if (!placed) {
       hapticError();
-      toastStore.showToast(
-        "This device needs a carrier to mount here",
-        "warning",
-        3000,
-      );
+      toastStore.showToast("Can't place device here", "warning", 3000);
+      return;
     }
     ondevicedrop?.(event);
   }
