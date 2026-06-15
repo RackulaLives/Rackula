@@ -143,7 +143,7 @@ export function handleDrop(event: DragEvent, ctx: RackHandlerContext): void {
     deviceLibrary,
     dragData,
     faceFilter,
-    ctx.getSelectedDeviceId(),
+    false,
   );
 
   // Container drops need special handling for source removal and fallback
@@ -176,7 +176,7 @@ export function handleDrop(event: DragEvent, ctx: RackHandlerContext): void {
       deviceLibrary,
       dragData,
       faceFilter,
-      null, // skip container detection
+      true, // skip container detection
     );
     dispatchDropAction(fallbackAction, ctx.getEventCallbacks(), {
       rack,

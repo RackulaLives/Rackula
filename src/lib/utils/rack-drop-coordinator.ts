@@ -207,11 +207,24 @@ export function resolveDropTarget(
   );
 
   // Carrier-first: a sub-U / half-width device never lands on a bare rail. Its
-  // preview reflects either a free cell under the cursor (hover) or whether a
-  // synthesised 1U carrier would fit at this U.
+  // preview is valid when an existing carrier under the cursor has a free,
+  // fitting cell (resolvable drop target, not mere compatibility), or else when
+  // a synthesised 1U carrier would fit at this U.
   const needsCarrier = synthesizeCarrierForDevice(device) !== null;
+  const resolvableContainerTarget = needsCarrier
+    ? detectContainerDropTarget(
+        rack,
+        deviceLibrary,
+        device,
+        mouseY,
+        xOffsetInRack,
+        dims.rackWidth,
+        dims.rackHeight,
+        dims.uHeight,
+      )
+    : null;
   const feedback = needsCarrier
-    ? containerHover?.isValidTarget
+    ? resolvableContainerTarget
       ? "valid"
       : getDropFeedback(rack, deviceLibrary, 1, targetU, excludeIndex, "both")
     : getDropFeedback(
@@ -252,8 +265,8 @@ export function resolveDropAction(
   deviceLibrary: DeviceType[],
   dragData: DragData,
   faceFilter: DeviceFace | undefined,
-  /** Pass null to skip container detection (used for fallthrough after a failed container placement). */
-  skipContainer?: string | null,
+  /** Set true to skip container detection (the fallthrough re-resolution after a failed container placement). */
+  skipContainer: boolean = false,
   slotPositionOverride?: SlotPosition,
 ): DropAction {
   const { mouseY, xOffsetInRack } = resolveCoordinates(coords, dims);
@@ -279,8 +292,8 @@ export function resolveDropAction(
 
   // Drop into the cell under the cursor when hovering a container with a free,
   // fitting cell (y-aware: both column and row). Skipped on the failed-container
-  // fallback re-resolution (skipContainer === null).
-  if (skipContainer !== null) {
+  // fallback re-resolution.
+  if (!skipContainer) {
     const containerTarget = detectContainerDropTarget(
       rack,
       deviceLibrary,

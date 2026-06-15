@@ -14,6 +14,7 @@ import { UNITS_PER_U } from "$lib/types/constants";
 import {
   canPlaceDevice,
   canPlaceInContainer,
+  canPlaceInSlot,
   findValidDropPositions,
   findNextFreeChildPosition,
   synthesizeCarrierForDevice,
@@ -243,8 +244,9 @@ export function placeInContainer(
 /**
  * Place a device carrier-first.
  *
- * Sub-U / half-width gear cannot register to the rails directly. This flow:
- * 1. Whole-U full-width devices fall through to a normal rail placement.
+ * Half-width gear cannot register to the rails directly. This flow:
+ * 1. Devices with no applicable carrier (full-width) fall through to a normal
+ *    rail placement.
  * 2. Otherwise it prefers an existing carrier of the right kind at the target U
  *    that has a free cell, and fills that cell.
  * 3. Failing that, it synthesises a carrier (marked auto_created) at the target
@@ -328,6 +330,14 @@ export function placeDeviceSmart(
 
   const free = findNextFreeChildPosition(carrierType, []);
   if (!free) return false;
+
+  // Defence in depth: the child must actually fit the chosen cell. The carrier
+  // mapping guarantees this for the standard sizes, but reject rather than
+  // commit an invalid placement for any odd dimensions.
+  const targetSlot = carrierType.slots?.find((s) => s.id === free.slotId);
+  if (!targetSlot || !canPlaceInSlot(deviceType, targetSlot)) {
+    return false;
+  }
 
   const carrierDevice: PlacedDevice = {
     id: generateId(),

@@ -461,29 +461,30 @@ export const CARRIER_2COL_SLUG = "carrier-1u-2col";
 export const CARRIER_2X2_SLUG = "carrier-1u-2x2";
 
 /**
- * Pick the carrier slug that a device must mount inside, based on its
- * dimensions. Sub-U or half-width gear cannot register to the rails directly
- * (carrier-first rule): a half-height + half-width device needs the 2x2 grid;
- * a full-height half-width device needs the 1-row 2-column carrier.
+ * Pick the carrier slug that a half-width device must mount inside, based on
+ * its height. Both synthesised carriers have half-width cells, so only
+ * half-width gear can be carrier-mounted: a half-height device needs the 2x2
+ * grid; a full-height device needs the 1-row 2-column carrier.
+ *
+ * Full-width devices (sub-U or whole-U) return null: there is no full-width
+ * carrier to synthesise, so they are not routed through the carrier path.
  *
  * @param deviceType - The device being placed
- * @returns The carrier slug to synthesise, or null when the device mounts
- *   directly to the rails (whole-U, full-width)
+ * @returns The carrier slug to synthesise, or null when no carrier applies
  */
 export function synthesizeCarrierForDevice(
   deviceType: DeviceType,
 ): string | null {
-  const isHalfWidth = (deviceType.slot_width ?? 2) === 1;
-  const isWholeU = Number.isInteger(deviceType.u_height);
-
-  // Full-width whole-U devices mount directly to the rails.
-  if (!isHalfWidth && isWholeU) {
+  // Only half-width gear fits the half-width carrier cells.
+  if ((deviceType.slot_width ?? 2) !== 1) {
     return null;
   }
 
-  // Sub-U (half-height) devices need the 2x2 grid; a half-width full-height
+  // Sub-U (half-height) devices need the 2x2 grid; a full-height half-width
   // device uses the 2-column carrier.
-  return isWholeU ? CARRIER_2COL_SLUG : CARRIER_2X2_SLUG;
+  return Number.isInteger(deviceType.u_height)
+    ? CARRIER_2COL_SLUG
+    : CARRIER_2X2_SLUG;
 }
 
 /**

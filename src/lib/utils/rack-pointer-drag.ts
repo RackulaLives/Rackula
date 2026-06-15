@@ -133,7 +133,7 @@ export function attachPointerDragListeners(
       deviceLibrary,
       { type: "rack-device", device, sourceRackId, sourceIndex: deviceIndex },
       faceFilter,
-      ctx.getSelectedDeviceId(),
+      false,
       existingSlot,
     );
 

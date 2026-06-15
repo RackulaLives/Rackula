@@ -19,6 +19,7 @@ import {
   synthesizeCarrierForDevice,
 } from "$lib/utils/collision";
 import { createTestDeviceType } from "./factories";
+import { CATEGORY_COLOURS } from "$lib/types/constants";
 import type { PlacedDevice } from "$lib/types";
 
 beforeEach(() => {
@@ -47,6 +48,13 @@ const fullWidthDevice = createTestDeviceType({
   slot_width: 2,
 });
 
+/** A 0.5U full-width device: no half-width carrier can hold it. */
+const fullWidthSubU = createTestDeviceType({
+  slug: "blank-0-5u",
+  u_height: 0.5,
+  slot_width: 2,
+});
+
 describe("synthesizeCarrierForDevice", () => {
   it("returns the 2x2 carrier slug for a half-width half-height device", () => {
     expect(synthesizeCarrierForDevice(halfWidthHalfHeight)).toBe(
@@ -62,6 +70,10 @@ describe("synthesizeCarrierForDevice", () => {
 
   it("returns null for a full-width whole-U device (no carrier needed)", () => {
     expect(synthesizeCarrierForDevice(fullWidthDevice)).toBeNull();
+  });
+
+  it("returns null for a full-width sub-U device (no half-width carrier fits)", () => {
+    expect(synthesizeCarrierForDevice(fullWidthSubU)).toBeNull();
   });
 });
 
@@ -109,133 +121,131 @@ describe("findNextFreeChildPosition", () => {
 });
 
 describe("placeDeviceSmart (store carrier-first flow)", () => {
-  function setupRack(height = 12) {
+  type Store = NonNullable<ReturnType<typeof getLayoutStore>>;
+
+  function setupRack(height = 12): { store: Store; rackId: string } {
     const store = getLayoutStore()!;
     const rack = store.addRack("Test Rack", height);
     return { store, rackId: rack!.id };
   }
 
-  function carrierIn(store: ReturnType<typeof getLayoutStore>) {
-    return store!.rack!.devices.find((d) => d.device_type.startsWith("carrier"));
+  /** Register a 0.5U half-width device (needs a 2x2 carrier). */
+  function addRb5009(store: Store) {
+    return store.addDeviceType({
+      name: "RB5009",
+      u_height: 0.5,
+      category: "network",
+      colour: CATEGORY_COLOURS.network,
+      slot_width: 1,
+    });
+  }
+
+  function carrierIn(store: Store) {
+    return store.rack!.devices.find((d) => d.device_type.startsWith("carrier"));
+  }
+
+  function childrenOf(store: Store, carrierId: string) {
+    return store.rack!.devices.filter((d) => d.container_id === carrierId);
   }
 
   it("synthesises a carrier and places a sub-U device on a bare rack", () => {
     const { store, rackId } = setupRack();
-    store.addDeviceType({
-      name: "RB5009",
-      u_height: 0.5,
-      category: "network",
-      colour: "#4A90D9",
-      slot_width: 1,
-    });
+    const dt = addRb5009(store);
 
-    const ok = store.placeDeviceSmart(rackId, "rb5009", 5);
-    expect(ok).toBe(true);
+    expect(store.placeDeviceSmart(rackId, dt.slug, 5)).toBe(true);
 
     const carrier = carrierIn(store)!;
     expect(carrier.device_type).toBe("carrier-1u-2x2");
     expect(carrier.auto_created).toBe(true);
 
-    const child = store.rack!.devices.find(
-      (d) => d.container_id === carrier.id,
-    );
-    expect(child).toBeDefined();
-    expect(child!.device_type).toBe("rb5009");
+    const child = childrenOf(store, carrier.id)[0];
+    expect(child?.device_type).toBe(dt.slug);
   });
 
   it("places a full-width device directly on the rail without a carrier", () => {
     const { store, rackId } = setupRack();
-    store.addDeviceType({
+    const dt = store.addDeviceType({
       name: "Server 1U",
       u_height: 1,
       category: "server",
-      colour: "#4A90D9",
+      colour: CATEGORY_COLOURS.server,
       slot_width: 2,
     });
 
-    const ok = store.placeDeviceSmart(rackId, "server-1u", 5);
-    expect(ok).toBe(true);
+    expect(store.placeDeviceSmart(rackId, dt.slug, 5)).toBe(true);
 
     expect(carrierIn(store)).toBeUndefined();
-    const placed = store.rack!.devices.find((d) => d.device_type === "server-1u");
-    expect(placed).toBeDefined();
-    expect(placed!.container_id).toBeUndefined();
+    const placed = store.rack!.devices.find((d) => d.device_type === dt.slug);
+    expect(placed?.container_id).toBeUndefined();
   });
 
   it("fills a free cell of an existing carrier at the target U", () => {
     const { store, rackId } = setupRack();
-    store.addDeviceType({
-      name: "RB5009",
-      u_height: 0.5,
-      category: "network",
-      colour: "#4A90D9",
-      slot_width: 1,
-    });
+    const dt = addRb5009(store);
 
     // First drop synthesises the carrier at U5.
-    store.placeDeviceSmart(rackId, "rb5009", 5);
+    store.placeDeviceSmart(rackId, dt.slug, 5);
     const carrier = carrierIn(store)!;
     const carrierU = carrier.position;
 
-    // Second drop at the same U should fill the next free cell, not make a new carrier.
-    store.placeDeviceSmart(rackId, "rb5009", 5);
+    // Second drop at the same U fills the next free cell, not a new carrier.
+    store.placeDeviceSmart(rackId, dt.slug, 5);
 
     const carriers = store.rack!.devices.filter((d) =>
       d.device_type.startsWith("carrier"),
     );
-    expect(carriers).toHaveLength(1); // eslint-disable-line no-restricted-syntax -- one carrier should be reused, not duplicated
-    const children = store.rack!.devices.filter(
-      (d) => d.container_id === carrier.id,
-    );
-    expect(children).toHaveLength(2); // eslint-disable-line no-restricted-syntax -- two distinct cells filled
-    const slotIds = children.map((c) => c.slot_id);
-    expect(new Set(slotIds).size).toBe(2);
+    // eslint-disable-next-line no-restricted-syntax -- invariant: the carrier is reused, never duplicated
+    expect(carriers).toHaveLength(1);
+    const children = childrenOf(store, carrier.id);
+    // eslint-disable-next-line no-restricted-syntax -- invariant: two distinct cells filled
+    expect(children).toHaveLength(2);
+    expect(new Set(children.map((c) => c.slot_id)).size).toBe(2);
     expect(carrier.position).toBe(carrierU);
   });
 
   it("fills all four cells of a 2x2 carrier across repeated drops", () => {
     const { store, rackId } = setupRack();
-    store.addDeviceType({
-      name: "RB5009",
-      u_height: 0.5,
-      category: "network",
-      colour: "#4A90D9",
-      slot_width: 1,
-    });
+    const dt = addRb5009(store);
 
     for (let i = 0; i < 4; i++) {
-      expect(store.placeDeviceSmart(rackId, "rb5009", 5)).toBe(true);
+      expect(store.placeDeviceSmart(rackId, dt.slug, 5)).toBe(true);
     }
 
     const carrier = carrierIn(store)!;
-    const children = store.rack!.devices.filter(
-      (d) => d.container_id === carrier.id,
-    );
-    expect(children).toHaveLength(4); // eslint-disable-line no-restricted-syntax -- 2x2 carrier has exactly four cells
+    const children = childrenOf(store, carrier.id);
+    // eslint-disable-next-line no-restricted-syntax -- invariant: a 2x2 carrier has exactly four cells
+    expect(children).toHaveLength(4);
     expect(new Set(children.map((c) => c.slot_id)).size).toBe(4);
   });
 
   it("rejects a fifth child once the 2x2 carrier is full", () => {
     const { store, rackId } = setupRack();
-    store.addDeviceType({
-      name: "RB5009",
-      u_height: 0.5,
+    const dt = addRb5009(store);
+
+    for (let i = 0; i < 4; i++) {
+      store.placeDeviceSmart(rackId, dt.slug, 5);
+    }
+
+    expect(store.placeDeviceSmart(rackId, dt.slug, 5)).toBe(false);
+
+    const carrier = carrierIn(store)!;
+    // eslint-disable-next-line no-restricted-syntax -- invariant: a full carrier gains no fifth child
+    expect(childrenOf(store, carrier.id)).toHaveLength(4);
+  });
+
+  it("rejects a child too tall to fit any carrier cell", () => {
+    const { store, rackId } = setupRack();
+    // A 0.75U half-width device routes to the 2x2 carrier (0.5U cells) but does
+    // not fit; placement is rejected rather than committed.
+    const dt = store.addDeviceType({
+      name: "Tall Half",
+      u_height: 0.75,
       category: "network",
-      colour: "#4A90D9",
+      colour: CATEGORY_COLOURS.network,
       slot_width: 1,
     });
 
-    for (let i = 0; i < 4; i++) {
-      store.placeDeviceSmart(rackId, "rb5009", 5);
-    }
-
-    const ok = store.placeDeviceSmart(rackId, "rb5009", 5);
-    expect(ok).toBe(false);
-
-    const carrier = carrierIn(store)!;
-    const children = store.rack!.devices.filter(
-      (d) => d.container_id === carrier.id,
-    );
-    expect(children).toHaveLength(4); // eslint-disable-line no-restricted-syntax -- full carrier should not gain a fifth child
+    expect(store.placeDeviceSmart(rackId, dt.slug, 5)).toBe(false);
+    expect(carrierIn(store)).toBeUndefined();
   });
 });

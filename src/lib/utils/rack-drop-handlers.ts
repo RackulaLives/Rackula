@@ -143,7 +143,7 @@ export function dispatchDropAction(
           collisionContext.deviceLibrary,
           action.dragData,
           collisionContext.faceFilter,
-          null, // skip container detection
+          true, // skip container detection
         );
         dispatchDropAction(fallbackAction, callbacks, collisionContext);
       }
@@ -158,8 +158,16 @@ export function dispatchDropAction(
         action.targetU,
         action.face,
       );
+      if (!success) {
+        hapticError();
+        collisionContext.toastStore.showToast(
+          "No room for this device here",
+          "warning",
+          3000,
+        );
+        break;
+      }
       if (
-        success &&
         action.dragData.type === "rack-device" &&
         action.dragData.sourceRackId &&
         action.dragData.sourceIndex !== undefined
