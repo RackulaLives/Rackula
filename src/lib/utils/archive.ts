@@ -275,9 +275,10 @@ async function addLayoutFolderToZip(
 ): Promise<void> {
   // Generate or use provided metadata
   const layoutMetadata: LayoutMetadata = metadata ?? {
-    id: generateId(),
-    name: layout.name,
-    schema_version: "1.0",
+    id: layout.metadata?.id ?? generateId(),
+    name: layout.metadata?.name ?? layout.name,
+    schema_version: layout.metadata?.schema_version ?? "1.0",
+    description: layout.metadata?.description,
   };
 
   // Build folder name: "{Layout Name}-{UUID}"
