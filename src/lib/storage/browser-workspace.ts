@@ -30,7 +30,7 @@ import { sessionDebug } from "$lib/utils/debug";
 import { migrateLayout } from "./migrate-layout";
 import { loadSessionWithTimestamp } from "./working-copy";
 import { type StorageMode } from "./availability.svelte";
-import { getTabId, stampBodyWrite } from "./twin-tab-guard";
+import { getTabId, WRITER_TAB_ID_FIELD } from "./twin-tab-guard";
 
 const log = sessionDebug.storage;
 
@@ -225,20 +225,21 @@ export function saveLayoutBody(
   const savedAt = new Date().toISOString();
   let serialized: string;
   try {
+    // Serialize the body once, stamping the writing tab's id inline so a peer
+    // tab can tell this write apart from its own and pause its autosave on a
+    // foreign write (twin-tab guard #2044). The field name is single-sourced via
+    // WRITER_TAB_ID_FIELD so the write side cannot drift from the read side
+    // (readWriterTabId), and a large body is not re-serialized to add the stamp.
     serialized = JSON.stringify({
       schemaVersion: SCHEMA_VERSION,
       layout,
       savedAt,
+      [WRITER_TAB_ID_FIELD]: getTabId(),
     });
   } catch (error) {
     log("failed to serialize layout body for %s: %O", id, error);
     return false;
   }
-  // Stamp the writing tab's id so a peer tab can tell this write apart from its
-  // own and pause its autosave on a foreign write (twin-tab guard #2044). The
-  // stamp shape lives in one place (stampBodyWrite) so it cannot drift from the
-  // read side (readWriterTabId).
-  serialized = stampBodyWrite(serialized, getTabId());
 
   const wrote = safeSetItem(layoutBodyKey(id), serialized);
   const index = loadWorkspaceIndex() ?? {

@@ -1,12 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   getTabId,
-  stampBodyWrite,
   readWriterTabId,
   detectForeignLayoutWrite,
   createTwinTabGuard,
   layoutBodyStorageKey,
+  WRITER_TAB_ID_FIELD,
 } from "$lib/storage/twin-tab-guard";
+
+// Build a foreign-write body the way saveLayoutBody does: the writer tab id is a
+// sibling of the layout payload, keyed by the single-sourced field name.
+function stampBodyWrite(serialized: string, writerTabId: string): string {
+  const parsed = JSON.parse(serialized) as Record<string, unknown>;
+  return JSON.stringify({ ...parsed, [WRITER_TAB_ID_FIELD]: writerTabId });
+}
 
 describe("getTabId", () => {
   it("returns a stable non-empty id for the lifetime of the tab", () => {

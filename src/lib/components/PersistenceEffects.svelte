@@ -41,7 +41,15 @@
   setForeignWriteNotifier(() => {
     // One toast for the page: any paused layout is recovered by the same Reload.
     // A spurious signal leaves the tab paused until that manual Reload by design.
-    if (foreignWriteToastId) return;
+    // Suppress only while the previous toast is still on screen; once the user
+    // dismisses it without reloading, a later foreign write must re-raise it
+    // (the tab stays paused, so the Reload prompt has to come back).
+    if (
+      foreignWriteToastId &&
+      toastStore.toasts.some((toast) => toast.id === foreignWriteToastId)
+    ) {
+      return;
+    }
     foreignWriteToastId = toastStore.showToast(
       "This layout is open in another tab. Edits here are paused to avoid overwriting it. Reload to continue editing.",
       "warning",
@@ -103,20 +111,22 @@
   }
 
   // Persist the workspace, honouring the twin-tab guard: paused layouts are
-  // skipped, and the active layout's body write runs through its per-layout Web
-  // Lock where available (the tab-id stamp is the real ping-pong guard; the lock
-  // only serialises concurrent writers when it can be taken).
+  // skipped, and every hydrated body write (not just the active layout's) runs
+  // through its own per-layout Web Lock where available, so a non-active layout
+  // body is still serialised against a peer tab editing that same layout. Each
+  // lock is keyed per layout id, so writing many bodies never nests one lock.
+  // The tab-id stamp remains the real ping-pong guard; the lock only serialises
+  // concurrent writers when it can be taken.
   function persistWorkspaceGuarded(snapshot: {
     tabs: PersistTab[];
     activeLayoutId: string | null;
   }): Promise<void> {
-    const isPaused = (layoutId: string) => twinTabGuard.isPaused(layoutId);
-    const run = () => persistBrowserWorkspace({ ...snapshot, isPaused });
-    if (snapshot.activeLayoutId && !isPaused(snapshot.activeLayoutId)) {
-      return twinTabGuard.withLayoutLock(snapshot.activeLayoutId, run);
-    }
-    run();
-    return Promise.resolve();
+    return persistBrowserWorkspace({
+      ...snapshot,
+      isPaused: (layoutId) => twinTabGuard.isPaused(layoutId),
+      withLayoutLock: (layoutId, write) =>
+        twinTabGuard.withLayoutLock(layoutId, write),
+    });
   }
 
   $effect(() => {

@@ -47,25 +47,47 @@ export interface PersistWorkspaceArgs {
    * still written so the open set and shell names stay current.
    */
   isPaused?: (layoutId: string) => boolean;
+  /**
+   * Twin-tab guard lock wrapper (#2044): runs a single layout-body write under
+   * that layout's per-layout Web Lock where available. Every hydrated body write
+   * (not just the active one) goes through it, so a non-active layout body is
+   * still serialised against a peer tab editing that same layout. Omitted on the
+   * synchronous pagehide path, where async work cannot be awaited.
+   */
+  withLayoutLock?: <T>(layoutId: string, write: () => T) => Promise<T>;
 }
 
 /**
  * Persist the current workspace. Idempotent: safe to call on every change.
+ *
+ * Returns a promise that resolves once every body write has run. When
+ * `withLayoutLock` is supplied, each hydrated body write is taken under its own
+ * per-layout lock; the index write that follows reflects the completed bodies.
  */
-export function persistBrowserWorkspace(args: PersistWorkspaceArgs): void {
-  const { tabs, activeLayoutId, isPaused } = args;
+export async function persistBrowserWorkspace(
+  args: PersistWorkspaceArgs,
+): Promise<void> {
+  const { tabs, activeLayoutId, isPaused, withLayoutLock } = args;
 
   // Write each hydrated body first. saveLayoutBody also refreshes that layout's
   // library entry in the index (updatedAt, durability); it returns false on
   // quota, leaving the in-memory copy intact and surfacing the flag via the
   // index. Shells have no body to write. A paused layout (twin-tab guard) is
-  // skipped so a foreign peer's copy is never clobbered.
+  // skipped so a foreign peer's copy is never clobbered. Each write runs under
+  // its own per-layout lock when one is supplied; the locks are distinct per
+  // layout id so writing many bodies in this loop cannot nest the same lock.
   for (const tab of tabs) {
     if (tab.hydrated && !isPaused?.(tab.layoutId)) {
-      saveLayoutBody(tab.layoutId, tab.layout, {
-        changesSinceExport: tab.changesSinceExport,
-        hasEverExported: tab.hasEverExported,
-      });
+      const write = () =>
+        saveLayoutBody(tab.layoutId, tab.layout, {
+          changesSinceExport: tab.changesSinceExport,
+          hasEverExported: tab.hasEverExported,
+        });
+      if (withLayoutLock) {
+        await withLayoutLock(tab.layoutId, write);
+      } else {
+        write();
+      }
     }
   }
 

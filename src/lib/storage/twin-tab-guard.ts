@@ -30,6 +30,13 @@ const log = sessionDebug.storage;
 const LAYOUT_KEY_PREFIX = "Rackula:layout:";
 const LOCK_PREFIX = "rackula:layout:";
 
+/**
+ * The single source of truth for the writer-tab-id field name in a serialized
+ * body. The write side (saveLayoutBody) and the read side (readWriterTabId) both
+ * key off this constant so the stamp shape can never drift between them.
+ */
+export const WRITER_TAB_ID_FIELD = "writerTabId";
+
 /** The localStorage key holding a layout body. */
 export function layoutBodyStorageKey(layoutId: string): string {
   return `${LAYOUT_KEY_PREFIX}${layoutId}`;
@@ -53,27 +60,10 @@ function layoutIdFromKey(key: string | null): string | null {
  * echoed `storage` event.
  */
 let tabId: string | null = null;
+/** Return this tab's stable id, minting it on first use. */
 export function getTabId(): string {
   if (tabId === null) tabId = generateId();
   return tabId;
-}
-
-/**
- * Stamp a serialized body with the writer's tab id. The serialized JSON is an
- * object (the body wrapper); the stamp is merged in so the read path can read it
- * back without changing the layout payload.
- */
-export function stampBodyWrite(serialized: string, writerTabId: string): string {
-  try {
-    const parsed = JSON.parse(serialized) as unknown;
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return serialized;
-    }
-    return JSON.stringify({ ...(parsed as object), writerTabId });
-  } catch {
-    // A non-object body cannot carry a stamp; leave it untouched.
-    return serialized;
-  }
 }
 
 /** Read the writer tab id stamped into a serialized body, or null. */
@@ -84,7 +74,7 @@ export function readWriterTabId(serialized: string | null): string | null {
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
       return null;
     }
-    const writer = (parsed as Record<string, unknown>).writerTabId;
+    const writer = (parsed as Record<string, unknown>)[WRITER_TAB_ID_FIELD];
     return typeof writer === "string" ? writer : null;
   } catch {
     return null;
@@ -121,6 +111,7 @@ export function detectForeignLayoutWrite(
   return { foreign: true, layoutId };
 }
 
+/** Construction options for {@link createTwinTabGuard}. */
 export interface TwinTabGuardOptions {
   /** This tab's id. Defaults to the module-stable `getTabId()`. */
   tabId?: string;
@@ -155,6 +146,7 @@ function resolveLocks(explicit: LockManager | undefined): LockManager | undefine
   return undefined;
 }
 
+/** Create a twin-tab guard: per-layout pause tracking plus the Web-Lock wrapper. */
 export function createTwinTabGuard(
   options: TwinTabGuardOptions = {},
 ): TwinTabGuard {
@@ -202,6 +194,7 @@ export function createTwinTabGuard(
 let singleton: TwinTabGuard | null = null;
 let foreignWriteNotifier: ((layoutId: string) => void) | null = null;
 
+/** Return the process-wide twin-tab guard, creating it on first use. */
 export function getTwinTabGuard(): TwinTabGuard {
   if (singleton === null) {
     singleton = createTwinTabGuard({
