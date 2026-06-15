@@ -30,6 +30,7 @@
   import RackCanvasView from "./RackCanvasView.svelte";
   import WelcomeScreen from "./WelcomeScreen.svelte";
   import CanvasContextMenu from "./CanvasContextMenu.svelte";
+  import VerbBarOverlay from "./VerbBarOverlay.svelte";
 
   const ONBOARDING_HINT_KEY = "Rackula_onboarding_hint_dismissed";
 
@@ -87,6 +88,8 @@
     onrackduplicate?: (rackId: string) => void;
     /** Rack context menu: delete rack callback */
     onrackdelete?: (rackId: string) => void;
+    /** Delete the current selection (device or rack), for the floating verb bar. */
+    ondelete?: () => void;
   }
 
   let {
@@ -110,6 +113,7 @@
     onrackrename,
     onrackduplicate,
     onrackdelete,
+    ondelete,
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
@@ -391,6 +395,12 @@
           {onrackdelete}
         />
       </div>
+      <VerbBarOverlay
+        canvasEl={canvasContainer}
+        {ondelete}
+        {onrackfocus}
+        {onrackexport}
+      />
     {:else}
       <WelcomeScreen
         templates={starterTemplates}

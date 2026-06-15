@@ -534,6 +534,7 @@
 <g
   bind:this={groupElement}
   data-device-id={device.slug}
+  data-device-uuid={placedDeviceId}
   data-device-position={position}
   data-testid="rack-device"
   transform="translate({RAIL_WIDTH + slotXOffset}, {yPosition})"

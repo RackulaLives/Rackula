@@ -5,7 +5,10 @@
  */
 
 import type { Rack, DeviceType } from "$lib/types";
-import type { RackContextActions, ContextMenuTarget } from "$lib/utils/rack-context-actions";
+import type {
+  RackContextActions,
+  ContextMenuTarget,
+} from "$lib/utils/rack-context-actions";
 
 export interface ContextMenuState {
   open: boolean;
@@ -13,12 +16,20 @@ export interface ContextMenuState {
 }
 
 export interface ContextMenuHandlers {
-  handleOpen(event: CustomEvent<{ rackId: string; deviceIndex: number; x: number; y: number }>): void;
+  handleOpen(
+    event: CustomEvent<{
+      rackId: string;
+      deviceIndex: number;
+      x: number;
+      y: number;
+    }>,
+  ): void;
   close(): void;
   handleEdit(rack: Rack): void;
   handleDuplicate(rack: Rack): void;
   handleMoveUp(rack: Rack, deviceLibrary: DeviceType[]): void;
   handleMoveDown(rack: Rack): void;
+  handleFlip(rack: Rack): void;
   handleDelete(): void;
 }
 
@@ -61,6 +72,12 @@ export function createContextMenuHandlers(
       const { target } = getState();
       if (!target) return;
       actions.handleMoveDown(rack, target);
+      close();
+    },
+    handleFlip(rack) {
+      const { target } = getState();
+      if (!target) return;
+      actions.handleFlip(rack, target);
       close();
     },
     handleDelete() {

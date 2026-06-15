@@ -262,6 +262,7 @@
   <div
     bind:this={containerElement}
     class="rack-dual-view"
+    data-rack-id={rack.id}
     class:selected
     class:active={isActive}
     class:long-press-active={longPressActive}

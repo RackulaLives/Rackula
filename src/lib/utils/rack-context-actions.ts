@@ -3,7 +3,7 @@
  * Factory for context menu handlers, extracted from Rack.svelte.
  */
 
-import type { Rack as RackType, DeviceType } from "$lib/types";
+import type { Rack as RackType, DeviceType, DeviceFace } from "$lib/types";
 import type { getLayoutStore } from "$lib/stores/layout.svelte";
 import type { getSelectionStore } from "$lib/stores/selection.svelte";
 import type { getToastStore } from "$lib/stores/toast.svelte";
@@ -34,6 +34,8 @@ export interface RackContextActions {
   ): void;
   /** Move the device one U-position downward. */
   handleMoveDown(rack: RackType, target: ContextMenuTarget): void;
+  /** Toggle the device's mounting face between front and rear. */
+  handleFlip(rack: RackType, target: ContextMenuTarget): void;
   /** Remove the device from the rack. */
   handleDelete(target: ContextMenuTarget): void;
   /** Whether the device can move up (checks bounds and collisions). */
@@ -104,6 +106,15 @@ export function createContextMenuActions(
     }
   }
 
+  function handleFlip(rack: RackType, target: ContextMenuTarget): void {
+    const device = rack.devices[target.deviceIndex];
+    if (!device) return;
+    const currentFace = device.face ?? "front";
+    const newFace: DeviceFace = currentFace === "rear" ? "front" : "rear";
+    layoutStore.updateDeviceFace(rack.id, target.deviceIndex, newFace);
+    toastStore.showToast(`Flipped to ${newFace}`, "success");
+  }
+
   function handleDelete(target: ContextMenuTarget): void {
     layoutStore.removeDeviceFromRack(target.rackId, target.deviceIndex);
     selectionStore.clearSelection();
@@ -156,6 +167,7 @@ export function createContextMenuActions(
     handleDuplicate,
     handleMoveUp,
     handleMoveDown,
+    handleFlip,
     handleDelete,
     getCanMoveUp,
     getCanMoveDown,

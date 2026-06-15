@@ -656,6 +656,7 @@
                 onrackrename={handleRackContextRename}
                 onrackduplicate={handleRackContextDuplicate}
                 onrackdelete={handleRackContextDelete}
+                ondelete={handleDelete}
               />
 
               <CanvasViewControls
@@ -685,6 +686,7 @@
           onrackrename={handleRackContextRename}
           onrackduplicate={handleRackContextDuplicate}
           onrackdelete={handleRackContextDelete}
+          ondelete={handleDelete}
         />
       {/if}
     </main>

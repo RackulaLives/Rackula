@@ -25,6 +25,8 @@
     onmoveup?: () => void;
     /** Move device down callback */
     onmovedown?: () => void;
+    /** Flip device face callback */
+    onflip?: () => void;
     /** Delete device callback */
     ondelete?: () => void;
     /** Whether move up is available */
@@ -55,6 +57,7 @@
     onduplicate,
     onmoveup,
     onmovedown,
+    onflip,
     ondelete,
     canMoveUp = true,
     canMoveDown = true,
@@ -145,6 +148,14 @@
       >
         <span class="context-menu-label">Move Down</span>
         <span class="context-menu-shortcut">&darr;</span>
+      </ContextMenu.Item>
+
+      <ContextMenu.Item
+        class="context-menu-item"
+        data-testid="ctx-menu-item"
+        onSelect={handleSelect(onflip)}
+      >
+        <span class="context-menu-label">Flip face</span>
       </ContextMenu.Item>
 
       <ContextMenu.Separator class="context-menu-separator" />

@@ -552,6 +552,7 @@
     onduplicate={() => ctxMenu.handleDuplicate(rack)}
     onmoveup={() => ctxMenu.handleMoveUp(rack, deviceLibrary)}
     onmovedown={() => ctxMenu.handleMoveDown(rack)}
+    onflip={() => ctxMenu.handleFlip(rack)}
     ondelete={() => ctxMenu.handleDelete()}
     canMoveUp={contextActions.getCanMoveUp(
       rack,
