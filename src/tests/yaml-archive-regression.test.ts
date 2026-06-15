@@ -232,23 +232,32 @@ describe("legacy ZIP load compatibility (#1114)", () => {
       ],
     });
     // Serialize through the plain-YAML path; slot_position rides as an unknown
-    // field, mirroring what a legacy file on disk actually contains.
+    // field, mirroring what a legacy file on disk actually contains. Wrap the
+    // YAML in a folder ZIP so the load exercises the ZIP detection/extraction
+    // path, the same shape an older build wrote to disk.
     const yaml = await serializeLayoutToYaml(legacy as unknown as Layout);
-    const blob = new Blob([yaml], { type: "text/yaml" });
+    const zip = new JSZip();
+    zip.folder("legacy-pair")?.file("legacy-pair.yaml", yaml);
+    const blob = await zip.generateAsync({ type: "blob" });
 
     const { layout } = await extractFolderArchive(blob);
 
     const rack = layout.racks[0];
-    const carriers = rack?.devices.filter((d) => d.auto_created) ?? [];
-    // eslint-disable-next-line no-restricted-syntax -- the pair must collapse to exactly one carrier
-    expect(carriers).toHaveLength(1);
-    const children = rack?.devices.filter((d) => d.container_id !== undefined) ?? [];
-    // eslint-disable-next-line no-restricted-syntax -- both legacy devices survive as the carrier's two children
-    expect(children).toHaveLength(2);
-    for (const child of children) {
-      expect(child.container_id).toBe(carriers[0]?.id);
-      expect("slot_position" in child).toBe(false);
-    }
+    // The pair collapses into one synthesized carrier whose two children are
+    // the original left/right devices, mapped deterministically onto the
+    // 2-column carrier slots (left -> col-1, right -> col-2).
+    const carrier = rack?.devices.find((d) => d.auto_created);
+    expect(carrier).toBeDefined();
+
+    const leftChild = rack?.devices.find((d) => d.id === "left");
+    expect(leftChild?.container_id).toBe(carrier?.id);
+    expect(leftChild?.slot_id).toBe("col-1");
+    expect("slot_position" in (leftChild ?? {})).toBe(false);
+
+    const rightChild = rack?.devices.find((d) => d.id === "right");
+    expect(rightChild?.container_id).toBe(carrier?.id);
+    expect(rightChild?.slot_id).toBe("col-2");
+    expect("slot_position" in (rightChild ?? {})).toBe(false);
   });
 });
 
