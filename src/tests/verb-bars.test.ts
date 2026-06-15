@@ -107,6 +107,18 @@ describe("verb-bars projection", () => {
     });
   });
 
+  describe("getVerbsForSelection - device takes precedence", () => {
+    it("returns device verbs when both device and rack are flagged selected", () => {
+      const bothCtx: ActionEnabledContext = {
+        ...deviceCtx,
+        isRackSelected: true,
+      };
+      expect(getVerbsForSelection(bothCtx).map((a) => a.id)).toEqual(
+        DEVICE_VERB_IDS,
+      );
+    });
+  });
+
   describe("getVerbsForSelection - no selection", () => {
     it("returns an empty array when nothing is selected", () => {
       expect(getVerbsForSelection(emptyCtx)).toEqual([]);
