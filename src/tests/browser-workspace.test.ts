@@ -11,6 +11,7 @@ import {
   adoptLegacyAutosave,
   type WorkspaceIndex,
 } from "$lib/storage/browser-workspace";
+import { detectForeignLayoutWrite } from "$lib/storage/twin-tab-guard";
 import { createTestRack } from "./factories";
 
 const WORKSPACE_KEY = "Rackula:workspace";
@@ -173,6 +174,26 @@ describe("browser-workspace storage", () => {
 
       const index = loadWorkspaceIndex();
       expect(index!.library.a.changesSinceExport).toBe(3);
+    });
+
+    it("stamps the writer tab id so a peer detects the write as foreign without corrupting the body (#2044)", () => {
+      saveLayoutBody("a", makeLayout("a", "Homelab"), { changesSinceExport: 0 });
+
+      // The peer reads the raw body off localStorage and runs the guard's
+      // detection against a different tab id: this real write must register as a
+      // foreign write for layout "a".
+      const newValue = localStorage.getItem(bodyKey("a"));
+      const result = detectForeignLayoutWrite(
+        { key: bodyKey("a"), newValue },
+        "a-different-tab",
+      );
+      expect(result).toEqual({ foreign: true, layoutId: "a" });
+
+      // The stamp is a sibling of the layout, so loadLayoutBody still returns a
+      // clean layout (the writerTabId never reaches the schema/body).
+      const loaded = loadLayoutBody("a");
+      expect(loaded.ok).toBe(true);
+      if (loaded.ok) expect(loaded.layout.name).toBe("Homelab");
     });
 
     it("returns unreadable for a missing body", () => {
