@@ -118,7 +118,14 @@
     if (!device) return;
 
     const { position, face } = event.detail;
-    const success = layoutStore.placeDevice(rackId, device.slug, position, face);
+    // Carrier-first: a sub-U / half-width device synthesises (or fills) a
+    // carrier; whole-U full-width gear mounts directly to the rails.
+    const success = layoutStore.placeDeviceSmart(
+      rackId,
+      device.slug,
+      position,
+      face,
+    );
 
     if (success) {
       hapticSuccess();

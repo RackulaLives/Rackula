@@ -15,6 +15,8 @@ import {
   canPlaceDevice,
   canPlaceInContainer,
   findValidDropPositions,
+  findNextFreeChildPosition,
+  synthesizeCarrierForDevice,
 } from "$lib/utils/collision";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
@@ -30,7 +32,10 @@ import {
 import type { LayoutStateAccess } from "./types";
 import { getCommandStoreAdapter } from "./command-adapters";
 import { getRackById } from "./rack-actions";
-import { moveDeviceRecorded } from "./recorded-device-actions";
+import {
+  moveDeviceRecorded,
+  placeDeviceRecorded,
+} from "./recorded-device-actions";
 
 /** Snapshot function injected by the facade ($state.snapshot is a rune). */
 export type SnapshotDeviceFn = (device: PlacedDevice) => PlacedDevice;
@@ -230,6 +235,142 @@ export function placeInContainer(
   } else {
     history.execute(placeCommand);
   }
+  ctx.markDirty();
+
+  return true;
+}
+
+/**
+ * Place a device carrier-first.
+ *
+ * Sub-U / half-width gear cannot register to the rails directly. This flow:
+ * 1. Whole-U full-width devices fall through to a normal rail placement.
+ * 2. Otherwise it prefers an existing carrier of the right kind at the target U
+ *    that has a free cell, and fills that cell.
+ * 3. Failing that, it synthesises a carrier (marked auto_created) at the target
+ *    U and places the device in its first cell, as a single undo entry.
+ *
+ * @param ctx - Layout state access
+ * @param rackId - Target rack ID
+ * @param deviceTypeSlug - Device type slug being placed
+ * @param positionU - U position (human-readable)
+ * @param face - Optional face assignment for the rail-placement fall-through
+ * @returns true if placed successfully
+ */
+export function placeDeviceSmart(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  deviceTypeSlug: string,
+  positionU: number,
+  face?: DeviceFace,
+): boolean {
+  const targetRack = getRackById(ctx, rackId);
+  if (!targetRack) return false;
+
+  const layout = ctx.getLayout();
+  const deviceType = findDeviceType(deviceTypeSlug, layout.device_types);
+  if (!deviceType) return false;
+
+  const carrierSlug = synthesizeCarrierForDevice(deviceType);
+
+  // Whole-U full-width devices mount directly to the rails.
+  if (!carrierSlug) {
+    return placeDeviceRecorded(ctx, rackId, deviceTypeSlug, positionU, face);
+  }
+
+  ctx.setActiveRackId(rackId);
+
+  // Prefer an existing carrier of the right kind at this U with a free cell.
+  const positionInternal = toInternalUnits(positionU);
+  const existingCarrier = targetRack.devices.find(
+    (d) =>
+      !d.container_id &&
+      d.device_type === carrierSlug &&
+      d.position === positionInternal,
+  );
+
+  if (existingCarrier) {
+    const carrierType = findDeviceType(carrierSlug, layout.device_types);
+    if (!carrierType) return false;
+    const children = targetRack.devices.filter(
+      (d) => d.container_id === existingCarrier.id,
+    );
+    const free = findNextFreeChildPosition(carrierType, children);
+    if (!free) return false;
+    return placeInContainer(
+      ctx,
+      rackId,
+      deviceTypeSlug,
+      existingCarrier.id,
+      free.slotId,
+      free.position,
+    );
+  }
+
+  // Synthesise a new carrier and place the child inside it.
+  const carrierType = findDeviceType(carrierSlug, layout.device_types);
+  if (!carrierType) return false;
+
+  // Carriers are whole-U full-width: validate the rail slot is free.
+  if (
+    !canPlaceDevice(
+      targetRack,
+      layout.device_types,
+      carrierType.u_height,
+      positionInternal,
+      undefined,
+      "both",
+      "full",
+    )
+  ) {
+    return false;
+  }
+
+  const free = findNextFreeChildPosition(carrierType, []);
+  if (!free) return false;
+
+  const carrierDevice: PlacedDevice = {
+    id: generateId(),
+    device_type: carrierSlug,
+    position: positionInternal,
+    face: "both",
+    auto_created: true,
+    ports: instantiatePorts(carrierType),
+  };
+
+  const childDevice: PlacedDevice = {
+    id: generateId(),
+    device_type: deviceTypeSlug,
+    position: free.position,
+    face: carrierDevice.face,
+    container_id: carrierDevice.id,
+    slot_id: free.slotId,
+    ports: instantiatePorts(deviceType),
+  };
+
+  const history = ctx.getHistory();
+  const adapter = getCommandStoreAdapter(ctx);
+  const childName = deviceType.model ?? deviceType.slug;
+
+  const commands = [];
+
+  // Auto-import the carrier and child types if not already in the layout.
+  const carrierImport = !layout.device_types.find((dt) => dt.slug === carrierSlug)
+    ? createAddDeviceTypeCommand(carrierType, adapter)
+    : undefined;
+  if (carrierImport) commands.push(carrierImport);
+
+  const childImport = !layout.device_types.find(
+    (dt) => dt.slug === deviceTypeSlug,
+  )
+    ? createAddDeviceTypeCommand(deviceType, adapter)
+    : undefined;
+  if (childImport) commands.push(childImport);
+
+  commands.push(createPlaceDeviceCommand(carrierDevice, adapter, "Carrier"));
+  commands.push(createPlaceDeviceCommand(childDevice, adapter, childName));
+
+  history.execute(createBatchCommand(`Place ${childName}`, commands));
   ctx.markDirty();
 
   return true;

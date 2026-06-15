@@ -1,22 +1,17 @@
 <!--
   EditPanelPosition Component
-  Edit panel section: vertical position and half-width slot controls for the
-  selected device, plus container context when the device is a child in a slot.
+  Edit panel section: whole-U vertical position controls for the selected
+  device, plus container context when the device is a child in a slot.
 -->
 <script lang="ts">
   import { getLayoutStore } from "$lib/stores/layout.svelte";
-  import { getToastStore } from "$lib/stores/toast.svelte";
-  import {
-    canPlaceDevice,
-    isContainerChild,
-    isSlotOccupied,
-  } from "$lib/utils/collision";
+  import { canPlaceDevice, isContainerChild } from "$lib/utils/collision";
   import {
     toHumanUnits,
     toInternalUnits,
     formatPosition,
   } from "$lib/utils/position";
-  import type { Rack, SelectedDeviceInfo, SlotPosition } from "$lib/types";
+  import type { Rack, SelectedDeviceInfo } from "$lib/types";
 
   interface Props {
     selectedDeviceInfo: SelectedDeviceInfo;
@@ -25,7 +20,6 @@
   let { selectedDeviceInfo }: Props = $props();
 
   const layoutStore = getLayoutStore();
-  const toastStore = getToastStore();
 
   // Container children use container-relative positions; a rack-level move
   // (what layoutStore.moveDevice does) would detach them from their container.
@@ -47,11 +41,11 @@
   }
 
   /**
-   * Move device up or down by specified step size
+   * Move device up or down by one whole rack unit. Rails register equipment at
+   * whole-U boundaries only (carrier-first model).
    * @param direction - 1 for up (higher U), -1 for down (lower U)
-   * @param step - Step size in U (default 1, use 0.5 for fine movement)
    */
-  function moveDevice(direction: number, step: number = 1) {
+  function moveDevice(direction: number) {
     // A rack-level move would eject a container child from its container.
     if (isChildDevice) return;
 
@@ -61,7 +55,7 @@
     const currentPositionU = toHumanUnits(placedDevice.position);
 
     // Calculate new position in human U
-    let newPositionU = currentPositionU + direction * step;
+    let newPositionU = currentPositionU + direction;
 
     // Clamp to valid range (human U: 1 to rack.height)
     if (newPositionU < 1) newPositionU = 1;
@@ -125,54 +119,6 @@
       placedDevice.face,
     );
   });
-
-  // Check if selected device is half-width
-  const isHalfWidth = $derived.by(
-    () => selectedDeviceInfo.device.slot_width === 1,
-  );
-
-  // Get current slot position
-  const currentSlot = $derived.by(
-    () =>
-      (selectedDeviceInfo.placedDevice.slot_position ?? "full") as SlotPosition,
-  );
-
-  // Check if device can move to left slot
-  const canMoveLeft = $derived.by(() => {
-    if (!isHalfWidth) return false;
-    if (currentSlot === "left") return false;
-
-    const { placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-    return !isSlotOccupied(rack, placedDevice.position, "left", deviceIndex);
-  });
-
-  // Check if device can move to right slot
-  const canMoveRight = $derived.by(() => {
-    if (!isHalfWidth) return false;
-    if (currentSlot === "right") return false;
-
-    const { placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-    return !isSlotOccupied(rack, placedDevice.position, "right", deviceIndex);
-  });
-
-  /**
-   * Move device to specified slot position
-   * @param targetSlot - 'left' or 'right'
-   */
-  function moveSlot(targetSlot: SlotPosition) {
-    const { deviceIndex } = selectedDeviceInfo;
-
-    const success = layoutStore.updateDeviceSlotPosition(
-      selectedDeviceInfo.rack.id,
-      deviceIndex,
-      targetSlot,
-    );
-
-    if (!success) {
-      const slotName = targetSlot.charAt(0).toUpperCase() + targetSlot.slice(1);
-      toastStore.showToast(`${slotName} slot is occupied`, "error");
-    }
-  }
 
   // Transform internal position to display position with fraction glyphs
   // PlacedDevice.position is in internal units (1/6U)
@@ -255,39 +201,6 @@
 {/if}
 
 <div class="info-section">
-  {#if isHalfWidth}
-    <div class="info-row position-row">
-      <span class="info-label">Slot</span>
-      <div class="position-controls">
-        <span class="info-value position-value"
-          >{currentSlot === "left" ? "Left" : "Right"}</span
-        >
-        <div class="position-buttons">
-          <button
-            type="button"
-            class="position-btn"
-            onclick={() => moveSlot("left")}
-            disabled={!canMoveLeft}
-            aria-label="Move device to left slot"
-            title="Move to left slot"
-          >
-            <span class="arrow-label">←</span>
-          </button>
-          <button
-            type="button"
-            class="position-btn"
-            onclick={() => moveSlot("right")}
-            disabled={!canMoveRight}
-            aria-label="Move device to right slot"
-            title="Move to right slot"
-          >
-            <span class="arrow-label">→</span>
-          </button>
-        </div>
-      </div>
-    </div>
-    <p class="helper-text position-hint">Use ←→ keys to move slot</p>
-  {/if}
   <div class="info-row position-row">
     <span class="info-label">Position</span>
     <div class="position-controls">
@@ -313,31 +226,10 @@
         >
           <span class="arrow-label">↑</span>
         </button>
-        <span class="position-divider"></span>
-        <button
-          type="button"
-          class="position-btn position-btn-fine"
-          onclick={() => moveDevice(-1, 1 / 3)}
-          disabled={isChildDevice}
-          aria-label="Move device down by one-third rack unit"
-          title="Move down ⅓U (fine)"
-        >
-          <span class="fine-label">-⅓</span>
-        </button>
-        <button
-          type="button"
-          class="position-btn position-btn-fine"
-          onclick={() => moveDevice(1, 1 / 3)}
-          disabled={isChildDevice}
-          aria-label="Move device up by one-third rack unit"
-          title="Move up ⅓U (fine)"
-        >
-          <span class="fine-label">+⅓</span>
-        </button>
       </div>
     </div>
   </div>
-  <p class="helper-text position-hint">Use ↑↓ keys (Shift for ⅓U)</p>
+  <p class="helper-text position-hint">Use ↑↓ keys to move device</p>
 </div>
 
 <style>
@@ -428,32 +320,10 @@
     outline-offset: 1px;
   }
 
-  .position-btn-fine {
-    background: var(--colour-surface);
-  }
-
-  .position-btn-fine:hover:not(:disabled) {
-    background: var(--colour-selection);
-    color: var(--colour-text-inverse);
-    border-color: var(--colour-selection);
-  }
-
-  .fine-label {
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-medium);
-  }
-
   .arrow-label {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     line-height: 1;
-  }
-
-  .position-divider {
-    width: 1px;
-    height: 16px;
-    background: var(--colour-border);
-    margin: 0 var(--space-1);
   }
 
   .position-hint {

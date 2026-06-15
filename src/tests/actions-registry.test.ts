@@ -101,14 +101,6 @@ describe("actions registry", () => {
       const down = new KeyboardEvent("keydown", { key: "ArrowDown" });
       expect(findActionForEvent(down)?.id).toBe("move-device-down");
     });
-
-    it("distinguishes Shift+Arrow (fine move) from bare Arrow", () => {
-      const fine = new KeyboardEvent("keydown", {
-        key: "ArrowUp",
-        shiftKey: true,
-      });
-      expect(findActionForEvent(fine)?.id).toBe("move-device-up-fine");
-    });
   });
 
   describe("registry integrity", () => {

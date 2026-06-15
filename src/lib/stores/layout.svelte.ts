@@ -118,6 +118,7 @@ import {
 import {
   duplicateDevice as duplicateDeviceImpl,
   placeInContainer as placeInContainerImpl,
+  placeDeviceSmart as placeDeviceSmartImpl,
   moveDeviceToRack as moveDeviceToRackImpl,
 } from "./layout/device-actions";
 
@@ -316,6 +317,7 @@ export function createLayoutStore(
     // Placement actions
     placeDevice,
     placeInContainer,
+    placeDeviceSmart,
     moveDevice,
     moveDeviceToRack,
     removeDeviceFromRack,
@@ -652,6 +654,26 @@ export function createLayoutStore(
       containerId,
       slotId,
       position,
+    );
+  }
+
+  /**
+   * Place a device carrier-first. Sub-U / half-width gear is wrapped in a
+   * synthesised carrier (or fills an existing one); whole-U full-width gear
+   * mounts directly to the rails.
+   */
+  function placeDeviceSmart(
+    rackId: string,
+    deviceTypeSlug: string,
+    position: number,
+    face?: DeviceFace,
+  ): boolean {
+    return placeDeviceSmartImpl(
+      stateAccess,
+      rackId,
+      deviceTypeSlug,
+      position,
+      face,
     );
   }
 

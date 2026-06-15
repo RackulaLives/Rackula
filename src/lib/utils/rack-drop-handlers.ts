@@ -149,6 +149,28 @@ export function dispatchDropAction(
       }
       break;
     }
+    case "carrier-drop": {
+      if (!collisionContext?.layoutStore) break;
+      const { layoutStore } = collisionContext;
+      const success = layoutStore.placeDeviceSmart(
+        action.rackId,
+        action.slug,
+        action.targetU,
+        action.face,
+      );
+      if (
+        success &&
+        action.dragData.type === "rack-device" &&
+        action.dragData.sourceRackId &&
+        action.dragData.sourceIndex !== undefined
+      ) {
+        layoutStore.removeDeviceFromRack(
+          action.dragData.sourceRackId,
+          action.dragData.sourceIndex,
+        );
+      }
+      break;
+    }
     case "invalid": {
       hapticError();
       if (collisionContext) {

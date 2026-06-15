@@ -10,9 +10,9 @@ import type {
   Slot,
   SlotPosition,
 } from "$lib/types";
-import { canPlaceDevice } from "./collision";
+import { canPlaceDevice, findNextFreeChildPosition } from "./collision";
 import { RAIL_WIDTH } from "$lib/constants/layout";
-import { toInternalUnits } from "./position";
+import { toInternalUnits, toHumanUnits } from "./position";
 
 /**
  * Shared drag state - workaround for browser security restriction
@@ -49,20 +49,20 @@ export interface DragData {
 export type DropFeedback = "valid" | "invalid" | "blocked";
 
 /**
- * Calculate the target U position from mouse Y coordinate
+ * Calculate the target U position from mouse Y coordinate.
+ * Rails register equipment at whole-U boundaries only (carrier-first model);
+ * sub-U gear mounts inside a carrier, not at a fractional rail offset.
  * @param mouseY - Mouse Y position relative to rack SVG
  * @param rackHeight - Rack height in U
  * @param uHeight - Height of one U in pixels
- * @param rackPadding - Top padding of rack SVG
- * @param snapHalfU - Snap to half-U slots (for 0.5U devices) instead of whole-U
- * @returns Target U position (1-indexed, 1 is at bottom; X.5 when half-U snapping)
+ * @param _rackPadding - Top padding of rack SVG (kept for call-site symmetry)
+ * @returns Target U position (1-indexed, 1 is at bottom)
  */
 export function calculateDropPosition(
   mouseY: number,
   rackHeight: number,
   uHeight: number,
   _rackPadding: number,
-  snapHalfU: boolean = false,
 ): number {
   // SVG coordinate system: y=0 at top
   // U1 is at bottom, U{rackHeight} is at top
@@ -71,19 +71,6 @@ export function calculateDropPosition(
 
   // First, clamp mouseY to valid range
   const clampedY = Math.max(0, Math.min(mouseY, totalHeight));
-
-  if (snapHalfU) {
-    // Sub-U devices (0.5U) snap to half-U slots: each U splits into a lower
-    // and an upper half. Half-slots are indexed from the top of the rack;
-    // an even slot is the upper half of its U, an odd slot the lower half.
-    const halfSlot = Math.min(
-      Math.floor(clampedY / (uHeight / 2)),
-      rackHeight * 2 - 1,
-    );
-    const uNum = rackHeight - Math.floor(halfSlot / 2);
-    const bottom = halfSlot % 2 === 0 ? uNum + 0.5 : uNum;
-    return Math.max(1, Math.min(bottom, rackHeight + 0.5));
-  }
 
   // Calculate U from bottom (U1 = bottom)
   // At y=totalHeight, U=1. At y=0, U=rackHeight
@@ -261,29 +248,70 @@ export function hideNativeDragGhost(dataTransfer: DataTransfer): void {
 }
 
 /**
- * Find the slot at a given X position within a container's slots
- * @param slots - Array of slots to search
+ * Find the column index at a given X position within a container's slots.
+ * Columns are derived from the distinct col values in the slot grid.
+ * @param slots - Array of slots in the container
  * @param xOffsetInRack - X position relative to rack interior (0 = left edge)
  * @param interiorWidth - Width of rack interior in pixels
- * @returns The matched slot or null if not found
+ * @returns The matched column index, or null if outside the grid
  */
-function findSlotAtPosition(
+function colAtX(
   slots: Slot[],
   xOffsetInRack: number,
   interiorWidth: number,
-): Slot | null {
-  let accumulatedWidth = 0;
-  for (const slot of slots) {
-    const slotWidth = interiorWidth * (slot.width_fraction ?? 1.0);
-    if (
-      xOffsetInRack >= accumulatedWidth &&
-      xOffsetInRack < accumulatedWidth + slotWidth
-    ) {
-      return slot;
+): number | null {
+  // Columns share their width_fraction within a row; use the bottom row (the
+  // first occurrence of each col) to walk the column boundaries left to right.
+  const cols = [...new Set(slots.map((s) => s.position.col))].sort(
+    (a, b) => a - b,
+  );
+  let accumulated = 0;
+  for (const col of cols) {
+    const colSlot = slots.find((s) => s.position.col === col)!;
+    const width = interiorWidth * (colSlot.width_fraction ?? 1.0);
+    if (xOffsetInRack >= accumulated && xOffsetInRack < accumulated + width) {
+      return col;
     }
-    accumulatedWidth += slotWidth;
+    accumulated += width;
   }
   return null;
+}
+
+/**
+ * Find the row index at a given Y position within a container's U band.
+ * Rows are 0-indexed from the bottom of the container. A 2-row carrier splits
+ * its single U into a lower half (row 0) and an upper half (row 1).
+ * @param slots - Array of slots in the container
+ * @param mouseY - Mouse Y relative to rack SVG (0 = top)
+ * @param rackHeight - Rack height in U
+ * @param uHeight - Height of one U in pixels
+ * @param containerBottomU - Container's bottom U position (human U)
+ * @param containerHeightU - Container height in U
+ * @returns The matched row index (clamped to the grid)
+ */
+function rowAtY(
+  slots: Slot[],
+  mouseY: number,
+  rackHeight: number,
+  uHeight: number,
+  containerBottomU: number,
+  containerHeightU: number,
+): number {
+  const rowCount = new Set(slots.map((s) => s.position.row)).size;
+  if (rowCount <= 1) return 0;
+
+  // SVG y grows downward; U1 is at the bottom. A device whose bottom is at U n
+  // occupies y in [(rackHeight - n) * uHeight, ...). The container's visual top
+  // edge is the top of its highest U (containerBottomU + containerHeightU - 1).
+  const containerTopY =
+    (rackHeight - (containerBottomU + containerHeightU - 1)) * uHeight;
+  const containerPxHeight = containerHeightU * uHeight;
+  // Fraction from the top of the container (0 = top, 1 = bottom).
+  const fromTop = (mouseY - containerTopY) / containerPxHeight;
+  const clamped = Math.max(0, Math.min(fromTop, 0.999));
+  // Row 0 is the bottom; invert so the bottom slice maps to row 0.
+  const rowFromTop = Math.floor(clamped * rowCount);
+  return rowCount - 1 - rowFromTop;
 }
 
 /**
@@ -300,56 +328,110 @@ export interface ContainerDropTarget {
 }
 
 /**
- * Detect if a drop position is within a container slot
- * Used during drag-drop to determine if device should be placed in container vs rack
+ * Detect if a drop lands within a container, picking the cell by BOTH column
+ * (x) and row (y) so every cell of a 2x2 / half-height carrier is reachable.
+ * No pre-selection is required: any container at the target U is considered.
+ * If the targeted cell is occupied or unfit, the first free fitting cell is
+ * used so a drop always lands somewhere fillable.
  *
  * @param rack - Target rack containing the container
  * @param deviceLibrary - Device library for type lookup
- * @param targetU - Target U position being dropped on
+ * @param draggedDevice - The device being dropped (for cell-fit checks)
+ * @param mouseY - Mouse Y relative to rack SVG (0 = top), for row targeting
  * @param xOffsetInRack - X offset within rack interior (pixels from left rail)
  * @param rackWidth - Total rack width in pixels
- * @param selectedContainerId - ID of currently selected container (UX: must select container first)
- * @returns ContainerDropTarget if drop is on a slot, null otherwise
+ * @param rackHeight - Rack height in U
+ * @param uHeight - Height of one U in pixels
+ * @returns ContainerDropTarget if drop is on a fillable cell, null otherwise
  */
 export function detectContainerDropTarget(
   rack: Rack,
   deviceLibrary: DeviceType[],
-  targetU: number,
+  draggedDevice: DeviceType,
+  mouseY: number,
   xOffsetInRack: number,
   rackWidth: number,
-  selectedContainerId?: string | null,
+  rackHeight: number,
+  uHeight: number,
 ): ContainerDropTarget | null {
-  // Only check selected container (UX: must select container first)
-  if (!selectedContainerId) return null;
+  const targetU = calculateDropPosition(mouseY, rackHeight, uHeight, 0);
 
-  // Find the selected container device
-  const container = rack.devices.find((d) => d.id === selectedContainerId);
-  if (!container) return null;
+  for (const container of rack.devices) {
+    // Skip container children: they live inside a parent, not at the rail.
+    if (container.container_id) continue;
 
-  const containerType = deviceLibrary.find(
-    (d) => d.slug === container.device_type,
-  );
-  if (!containerType?.slots || containerType.slots.length === 0) return null;
+    const containerType = deviceLibrary.find(
+      (d) => d.slug === container.device_type,
+    );
+    const slots = containerType?.slots;
+    if (!slots || slots.length === 0) continue;
 
-  // Check if targetU is within container bounds
-  const containerTop = container.position + containerType.u_height - 1;
-  const containerBottom = container.position;
-  if (targetU < containerBottom || targetU > containerTop) return null;
+    // Rail positions are whole-U; convert the container bottom to human U.
+    const containerBottomU = toHumanUnits(container.position);
+    const containerTopU = containerBottomU + containerType.u_height - 1;
+    if (targetU < containerBottomU || targetU > containerTopU) continue;
 
-  // Find which slot based on x position
-  const interiorWidth = rackWidth - RAIL_WIDTH * 2;
-  const slot = findSlotAtPosition(
-    containerType.slots,
-    xOffsetInRack,
-    interiorWidth,
-  );
-  if (!slot) return null;
+    const interiorWidth = rackWidth - RAIL_WIDTH * 2;
+    const col = colAtX(slots, xOffsetInRack, interiorWidth);
+    const row = rowAtY(
+      slots,
+      mouseY,
+      rackHeight,
+      uHeight,
+      containerBottomU,
+      containerType.u_height,
+    );
 
-  return {
-    containerId: container.id,
-    slotId: slot.id,
-    position: 0, // Place at bottom of slot
-  };
+    const children = rack.devices.filter(
+      (d) => d.container_id === container.id,
+    );
+    const occupied = new Set(
+      children.map((c) => c.slot_id).filter((id): id is string => !!id),
+    );
+
+    // Prefer the cell directly under the cursor when it is free and fits.
+    const aimed =
+      col !== null
+        ? slots.find((s) => s.position.col === col && s.position.row === row)
+        : undefined;
+    if (
+      aimed &&
+      !occupied.has(aimed.id) &&
+      slotFits(aimed, draggedDevice)
+    ) {
+      return { containerId: container.id, slotId: aimed.id, position: 0 };
+    }
+
+    // Otherwise fall back to the first free cell (also covers an occupied aim).
+    const fittingSlots = slots.filter((s) => slotFits(s, draggedDevice));
+    const free = findNextFreeChildPosition(
+      { ...containerType, slots: fittingSlots },
+      children,
+    );
+    if (free) {
+      return {
+        containerId: container.id,
+        slotId: free.slotId,
+        position: free.position,
+      };
+    }
+
+    // Container is under the cursor but full: do not fall through to the rail.
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Whether a device fits a slot's width and height envelope (category accepts
+ * are checked separately by isSlotCompatible).
+ */
+function slotFits(slot: Slot, device: DeviceType): boolean {
+  const requiredFraction = (device.slot_width ?? 2) === 1 ? 0.5 : 1.0;
+  if (requiredFraction > (slot.width_fraction ?? 1.0) + 0.01) return false;
+  if (device.u_height > (slot.height_units ?? 1)) return false;
+  return true;
 }
 
 /**
@@ -366,27 +448,32 @@ export interface ContainerHoverInfo {
 }
 
 /**
- * Detect if cursor is hovering over any container during drag
- * Unlike detectContainerDropTarget, this doesn't require pre-selection
- * and returns info for showing the slot overlay.
+ * Detect if cursor is hovering over any container during drag, for the slot
+ * overlay. Uses the same column (x) and row (y) targeting as the actual drop,
+ * so the highlighted cell matches where the device would land.
  *
  * @param rack - The rack to search
  * @param deviceLibrary - Device library for looking up device types
  * @param draggedDevice - The device being dragged (for compatibility check)
- * @param targetU - The U position under cursor
+ * @param mouseY - Mouse Y relative to rack SVG (0 = top), for row targeting
  * @param xOffsetInRack - X position relative to rack interior (0 = left rail)
  * @param rackWidth - Total rack width in pixels
+ * @param rackHeight - Rack height in U
+ * @param uHeight - Height of one U in pixels
  * @returns ContainerHoverInfo if hovering over a container, null otherwise
  */
 export function detectContainerHover(
   rack: Rack,
   deviceLibrary: DeviceType[],
   draggedDevice: DeviceType,
-  targetU: number,
+  mouseY: number,
   xOffsetInRack: number,
   rackWidth: number,
+  rackHeight: number,
+  uHeight: number,
 ): ContainerHoverInfo | null {
-  // Find any container at this U position
+  const targetU = calculateDropPosition(mouseY, rackHeight, uHeight, 0);
+
   for (const placedDevice of rack.devices) {
     // Skip container children
     if (placedDevice.container_id) continue;
@@ -394,20 +481,29 @@ export function detectContainerHover(
     const deviceType = deviceLibrary.find(
       (d) => d.slug === placedDevice.device_type,
     );
-    if (!deviceType?.slots || deviceType.slots.length === 0) continue;
+    const slots = deviceType?.slots;
+    if (!slots || slots.length === 0) continue;
 
-    // Check if targetU is within container bounds
-    const containerTop = placedDevice.position + deviceType.u_height - 1;
-    const containerBottom = placedDevice.position;
-    if (targetU < containerBottom || targetU > containerTop) continue;
+    // Rail positions are whole-U; convert the container bottom to human U.
+    const containerBottomU = toHumanUnits(placedDevice.position);
+    const containerTopU = containerBottomU + deviceType.u_height - 1;
+    if (targetU < containerBottomU || targetU > containerTopU) continue;
 
-    // Found a container at this position - determine which slot
+    // Found a container at this position - resolve the cell under the cursor.
     const interiorWidth = rackWidth - RAIL_WIDTH * 2;
-    const slot = findSlotAtPosition(
-      deviceType.slots,
-      xOffsetInRack,
-      interiorWidth,
+    const col = colAtX(slots, xOffsetInRack, interiorWidth);
+    const row = rowAtY(
+      slots,
+      mouseY,
+      rackHeight,
+      uHeight,
+      containerBottomU,
+      deviceType.u_height,
     );
+    const slot =
+      col !== null
+        ? slots.find((s) => s.position.col === col && s.position.row === row)
+        : undefined;
 
     return {
       containerId: placedDevice.id,

@@ -47,10 +47,6 @@ export type ActionId =
   | "toggle-sidebar"
   | "move-device-up"
   | "move-device-down"
-  | "move-device-up-fine"
-  | "move-device-down-fine"
-  | "move-device-left"
-  | "move-device-right"
   | "cycle-rack-prev"
   | "cycle-rack-next"
   | "escape"
@@ -236,40 +232,6 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [{ key: "ArrowDown" }],
     enabledWhen: (ctx) => ctx.isDeviceSelected,
     keywords: ["nudge", "down"],
-  },
-  {
-    id: "move-device-up-fine",
-    label: "Move device ⅓U (fine)",
-    scope: "selection",
-    bindings: [{ key: "ArrowUp", shift: true }],
-    enabledWhen: (ctx) => ctx.isDeviceSelected,
-    helpGroup: "Editing",
-    helpKeyLabel: "Shift + ↑ / ↓",
-    keywords: ["nudge", "fine", "align"],
-  },
-  {
-    id: "move-device-down-fine",
-    label: "Move device ⅓U down (fine)",
-    scope: "selection",
-    bindings: [{ key: "ArrowDown", shift: true }],
-    enabledWhen: (ctx) => ctx.isDeviceSelected,
-    keywords: ["nudge", "fine", "align"],
-  },
-  {
-    id: "move-device-left",
-    label: "Move device to left slot",
-    scope: "selection",
-    bindings: [{ key: "ArrowLeft" }],
-    enabledWhen: (ctx) => ctx.isDeviceSelected,
-    keywords: ["slot", "half-width"],
-  },
-  {
-    id: "move-device-right",
-    label: "Move device to right slot",
-    scope: "selection",
-    bindings: [{ key: "ArrowRight" }],
-    enabledWhen: (ctx) => ctx.isDeviceSelected,
-    keywords: ["slot", "half-width"],
   },
   {
     id: "duplicate-selection",

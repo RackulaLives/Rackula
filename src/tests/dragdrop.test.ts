@@ -4,9 +4,12 @@ import {
   calculateDropSlotPosition,
   getDropFeedback,
   hideNativeDragGhost,
+  detectContainerDropTarget,
   type DragData,
 } from "$lib/utils/dragdrop";
 import type { Rack, DeviceType, PlacedDevice } from "$lib/types";
+import { findStarterDevice } from "$lib/data/starterLibrary";
+import { createTestDeviceType } from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
 
 // Helper to create a placed device with internal unit position
@@ -90,26 +93,6 @@ describe("Drag and Drop Utilities", () => {
 
       expect(bottomPosition).toBe(1);
       expect(topPosition).toBe(42);
-    });
-  });
-
-  describe("calculateDropPosition half-U snapping (#2152)", () => {
-    // 12U rack, U_HEIGHT=22, totalHeight=264. y=0 is U12 (top), y=264 is U1.
-    // The U5 band spans y in [154, 176): upper half [154, 165), lower half [165, 176).
-
-    it("snaps a 0.5U device to the upper half when the cursor is in the upper part of a U", () => {
-      const position = calculateDropPosition(160, 12, U_HEIGHT, RACK_PADDING, true);
-      expect(position).toBe(5.5);
-    });
-
-    it("snaps a 0.5U device to the lower half when the cursor is in the lower part of a U", () => {
-      const position = calculateDropPosition(170, 12, U_HEIGHT, RACK_PADDING, true);
-      expect(position).toBe(5);
-    });
-
-    it("leaves whole-U devices on whole-U boundaries when snapHalfU is false", () => {
-      const position = calculateDropPosition(160, 12, U_HEIGHT, RACK_PADDING, false);
-      expect(position).toBe(5);
     });
   });
 
@@ -567,6 +550,153 @@ describe("Drag and Drop Utilities", () => {
       expect(element).toBeInstanceOf(HTMLCanvasElement);
       expect(x).toBe(0);
       expect(y).toBe(0);
+    });
+  });
+
+  describe("detectContainerDropTarget y-aware targeting (C3, #2291)", () => {
+    // 12U rack, U_HEIGHT=22. y=0 is U12 (top), y=264 is U1.
+    // The U5 band spans y in [154, 176): upper half (row 1) [154, 165),
+    // lower half (row 0) [165, 176). A 2x2 carrier sits at U5.
+    const RACK_WIDTH = 220;
+
+    const carrier2x2 = findStarterDevice("carrier-1u-2x2")!;
+    const child = createTestDeviceType({
+      slug: "rb5009",
+      u_height: 0.5,
+      slot_width: 1,
+    });
+    const deviceLibrary: DeviceType[] = [carrier2x2, child];
+
+    function rackWithCarrier(children: PlacedDevice[] = []): Rack {
+      const carrier: PlacedDevice = {
+        id: "carrier-1",
+        device_type: "carrier-1u-2x2",
+        position: toInternalUnits(5),
+        face: "both",
+      };
+      return {
+        name: "Test Rack",
+        height: 12,
+        width: 19,
+        position: 0,
+        desc_units: false,
+        form_factor: "4-post",
+        starting_unit: 1,
+        devices: [carrier, ...children],
+      };
+    }
+
+    it("targets a bottom-row slot when the cursor is in the lower half of the carrier", () => {
+      const target = detectContainerDropTarget(
+        rackWithCarrier(),
+        deviceLibrary,
+        child,
+        170, // lower half of U5
+        40, // left column
+        RACK_WIDTH,
+        12,
+        U_HEIGHT,
+      );
+      expect(target?.slotId).toBe("r0-c0");
+    });
+
+    it("targets an upper-row slot when the cursor is in the upper half of the carrier", () => {
+      const target = detectContainerDropTarget(
+        rackWithCarrier(),
+        deviceLibrary,
+        child,
+        158, // upper half of U5
+        40, // left column
+        RACK_WIDTH,
+        12,
+        U_HEIGHT,
+      );
+      expect(target?.slotId).toBe("r1-c0");
+    });
+
+    it("targets a right column slot when the cursor is on the right", () => {
+      const target = detectContainerDropTarget(
+        rackWithCarrier(),
+        deviceLibrary,
+        child,
+        170, // lower half
+        180, // right column
+        RACK_WIDTH,
+        12,
+        U_HEIGHT,
+      );
+      expect(target?.slotId).toBe("r0-c1");
+    });
+
+    it("falls back to the next free cell when the targeted cell is occupied", () => {
+      const occupied: PlacedDevice = {
+        id: "child-1",
+        device_type: "rb5009",
+        position: 0,
+        face: "both",
+        container_id: "carrier-1",
+        slot_id: "r0-c0",
+      };
+      const target = detectContainerDropTarget(
+        rackWithCarrier([occupied]),
+        deviceLibrary,
+        child,
+        170, // lower-left, but r0-c0 is taken
+        40,
+        RACK_WIDTH,
+        12,
+        U_HEIGHT,
+      );
+      expect(target?.slotId).toBeDefined();
+      expect(target?.slotId).not.toBe("r0-c0");
+    });
+
+    it("returns null when every cell is occupied", () => {
+      const fill = ["r0-c0", "r0-c1", "r1-c0", "r1-c1"].map(
+        (slotId, i): PlacedDevice => ({
+          id: `child-${i}`,
+          device_type: "rb5009",
+          position: 0,
+          face: "both",
+          container_id: "carrier-1",
+          slot_id: slotId,
+        }),
+      );
+      const target = detectContainerDropTarget(
+        rackWithCarrier(fill),
+        deviceLibrary,
+        child,
+        170,
+        40,
+        RACK_WIDTH,
+        12,
+        U_HEIGHT,
+      );
+      expect(target).toBeNull();
+    });
+
+    it("returns null when no container sits at the target U", () => {
+      const emptyRack: Rack = {
+        name: "Test Rack",
+        height: 12,
+        width: 19,
+        position: 0,
+        desc_units: false,
+        form_factor: "4-post",
+        starting_unit: 1,
+        devices: [],
+      };
+      const target = detectContainerDropTarget(
+        emptyRack,
+        deviceLibrary,
+        child,
+        170,
+        40,
+        RACK_WIDTH,
+        12,
+        U_HEIGHT,
+      );
+      expect(target).toBeNull();
     });
   });
 

@@ -14,8 +14,6 @@
   import { findNextValidPosition } from "$lib/utils/device-movement";
   import { isContainerChild } from "$lib/utils/collision";
   import { toHumanUnits } from "$lib/utils/position";
-  import type { SlotPosition } from "$lib/types";
-  import { findDeviceType } from "$lib/utils/device-lookup";
 
   interface Props {
     onsave?: () => void;
@@ -101,10 +99,6 @@
     escape: handleEscape,
     "move-device-up": () => moveSelectedDevice(1),
     "move-device-down": () => moveSelectedDevice(-1),
-    "move-device-up-fine": () => moveSelectedDevice(1, 1 / 3),
-    "move-device-down-fine": () => moveSelectedDevice(-1, 1 / 3),
-    "move-device-left": () => moveDeviceSlot("left"),
-    "move-device-right": () => moveDeviceSlot("right"),
     "delete-selection": () => ondelete?.(),
     "fit-all": () => onfitall?.(),
     "toggle-sidebar": () => uiStore.toggleLeftDrawer(),
@@ -127,9 +121,8 @@
    * Move the selected device up or down, using shared movement utility.
    * Leapfrogs over blocking devices to find valid positions.
    * @param direction - 1 for up (higher U), -1 for down (lower U)
-   * @param stepOverride - Optional step size (default: device height). Use 1/3 for fine movement.
    */
-  function moveSelectedDevice(direction: 1 | -1, stepOverride?: number) {
+  function moveSelectedDevice(direction: 1 | -1) {
     if (!selectionStore.isDeviceSelected) return;
     if (
       selectionStore.selectedRackId === null ||
@@ -158,7 +151,6 @@
       layoutStore.device_types,
       deviceIndex,
       direction,
-      stepOverride,
     );
 
     if (result.success && result.newPosition !== null) {
@@ -169,59 +161,6 @@
         deviceIndex,
         humanPosition,
       );
-    }
-  }
-
-  /**
-   * Move a half-width device to the specified slot position.
-   * If the device is not half-width, this is a no-op.
-   * @param targetSlot - 'left' or 'right'
-   */
-  function moveDeviceSlot(targetSlot: SlotPosition) {
-    if (!selectionStore.isDeviceSelected) return;
-    if (
-      selectionStore.selectedRackId === null ||
-      selectionStore.selectedDeviceId === null
-    )
-      return;
-
-    // Get the rack containing the selected device
-    const rack = layoutStore.getRackById(selectionStore.selectedRackId);
-    if (!rack) return;
-
-    // Get device index from ID (UUID-based tracking)
-    const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
-    if (deviceIndex === null) return;
-
-    const placedDevice = rack.devices[deviceIndex];
-    if (!placedDevice) return;
-
-    // Contained children should not be slot-nudged at rack level
-    if (isContainerChild(placedDevice)) return;
-
-    // Get device type to check if half-width
-    const deviceType = findDeviceType(
-      placedDevice.device_type,
-      layoutStore.device_types,
-    );
-    if (!deviceType || deviceType.slot_width !== 1) {
-      // Not a half-width device, ignore
-      return;
-    }
-
-    // Check if already in target slot
-    const currentSlot = placedDevice.slot_position ?? "full";
-    if (currentSlot === targetSlot) return;
-
-    // Attempt to move to target slot (collision check is done in store)
-    const success = layoutStore.updateDeviceSlotPosition(
-      selectionStore.selectedRackId,
-      deviceIndex,
-      targetSlot,
-    );
-
-    if (!success) {
-      toastStore.showToast(`${targetSlot} slot is occupied`, "error");
     }
   }
 
