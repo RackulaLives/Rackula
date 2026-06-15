@@ -342,6 +342,7 @@ export interface ContainerDropTarget {
  * @param rackWidth - Total rack width in pixels
  * @param rackHeight - Rack height in U
  * @param uHeight - Height of one U in pixels
+ * @param faceFilter - Active face; containers on the opposite face are ignored
  * @returns ContainerDropTarget if drop is on a fillable cell, null otherwise
  */
 export function detectContainerDropTarget(
@@ -353,12 +354,15 @@ export function detectContainerDropTarget(
   rackWidth: number,
   rackHeight: number,
   uHeight: number,
+  faceFilter?: DeviceFace,
 ): ContainerDropTarget | null {
   const targetU = calculateDropPosition(mouseY, rackHeight, uHeight, 0);
 
   for (const container of rack.devices) {
     // Skip container children: they live inside a parent, not at the rail.
     if (container.container_id) continue;
+    // Skip containers on the opposite face ('both' always matches).
+    if (!faceMatches(container.face, faceFilter)) continue;
 
     const containerType = deviceLibrary.find(
       (d) => d.slug === container.device_type,
@@ -397,13 +401,15 @@ export function detectContainerDropTarget(
     if (
       aimed &&
       !occupied.has(aimed.id) &&
-      slotFits(aimed, draggedDevice)
+      isSlotCompatible(aimed, draggedDevice)
     ) {
       return { containerId: container.id, slotId: aimed.id, position: 0 };
     }
 
     // Otherwise fall back to the first free cell (also covers an occupied aim).
-    const fittingSlots = slots.filter((s) => slotFits(s, draggedDevice));
+    const fittingSlots = slots.filter((s) =>
+      isSlotCompatible(s, draggedDevice),
+    );
     const free = findNextFreeChildPosition(
       { ...containerType, slots: fittingSlots },
       children,
@@ -424,14 +430,17 @@ export function detectContainerDropTarget(
 }
 
 /**
- * Whether a device fits a slot's width and height envelope (category accepts
- * are checked separately by isSlotCompatible).
+ * Whether a container's face is reachable from the active face filter. A 'both'
+ * face (and an undefined filter) always matches; otherwise the faces must be
+ * equal. Opposite explicit faces (front vs rear) do not match.
  */
-function slotFits(slot: Slot, device: DeviceType): boolean {
-  const requiredFraction = (device.slot_width ?? 2) === 1 ? 0.5 : 1.0;
-  if (requiredFraction > (slot.width_fraction ?? 1.0) + 0.01) return false;
-  if (device.u_height > (slot.height_units ?? 1)) return false;
-  return true;
+function faceMatches(
+  containerFace: DeviceFace,
+  faceFilter: DeviceFace | undefined,
+): boolean {
+  if (!faceFilter || faceFilter === "both") return true;
+  if (containerFace === "both") return true;
+  return containerFace === faceFilter;
 }
 
 /**
@@ -460,6 +469,7 @@ export interface ContainerHoverInfo {
  * @param rackWidth - Total rack width in pixels
  * @param rackHeight - Rack height in U
  * @param uHeight - Height of one U in pixels
+ * @param faceFilter - Active face; containers on the opposite face are ignored
  * @returns ContainerHoverInfo if hovering over a container, null otherwise
  */
 export function detectContainerHover(
@@ -471,12 +481,15 @@ export function detectContainerHover(
   rackWidth: number,
   rackHeight: number,
   uHeight: number,
+  faceFilter?: DeviceFace,
 ): ContainerHoverInfo | null {
   const targetU = calculateDropPosition(mouseY, rackHeight, uHeight, 0);
 
   for (const placedDevice of rack.devices) {
     // Skip container children
     if (placedDevice.container_id) continue;
+    // Skip containers on the opposite face ('both' always matches).
+    if (!faceMatches(placedDevice.face, faceFilter)) continue;
 
     const deviceType = deviceLibrary.find(
       (d) => d.slug === placedDevice.device_type,

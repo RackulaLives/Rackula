@@ -698,6 +698,38 @@ describe("Drag and Drop Utilities", () => {
       );
       expect(target).toBeNull();
     });
+
+    it("ignores a front-only container when dropping on the rear face", () => {
+      const frontRack: Rack = {
+        name: "Test Rack",
+        height: 12,
+        width: 19,
+        position: 0,
+        desc_units: false,
+        form_factor: "4-post",
+        starting_unit: 1,
+        devices: [
+          {
+            id: "carrier-front",
+            device_type: "carrier-1u-2x2",
+            position: toInternalUnits(5),
+            face: "front",
+          },
+        ],
+      };
+      const target = detectContainerDropTarget(
+        frontRack,
+        deviceLibrary,
+        child,
+        170,
+        40,
+        RACK_WIDTH,
+        12,
+        U_HEIGHT,
+        "rear",
+      );
+      expect(target).toBeNull();
+    });
   });
 
   describe("DragData interface", () => {

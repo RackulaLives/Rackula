@@ -294,10 +294,18 @@ export function placeDeviceSmart(
   if (existingCarrier) {
     const carrierType = findDeviceType(carrierSlug, layout.device_types);
     if (!carrierType) return false;
+    // Only consider cells the child actually fits (width/height/category).
+    const fittingSlots = (carrierType.slots ?? []).filter((slot) =>
+      canPlaceInSlot(deviceType, slot),
+    );
+    if (fittingSlots.length === 0) return false;
     const children = targetRack.devices.filter(
       (d) => d.container_id === existingCarrier.id,
     );
-    const free = findNextFreeChildPosition(carrierType, children);
+    const free = findNextFreeChildPosition(
+      { ...carrierType, slots: fittingSlots },
+      children,
+    );
     if (!free) return false;
     return placeInContainer(
       ctx,
@@ -328,16 +336,17 @@ export function placeDeviceSmart(
     return false;
   }
 
-  const free = findNextFreeChildPosition(carrierType, []);
+  // Only place into a cell the child actually fits. The carrier mapping
+  // guarantees a fit for the standard sizes; reject odd dimensions rather than
+  // commit an invalid placement.
+  const fittingSlots = (carrierType.slots ?? []).filter((slot) =>
+    canPlaceInSlot(deviceType, slot),
+  );
+  const free = findNextFreeChildPosition(
+    { ...carrierType, slots: fittingSlots },
+    [],
+  );
   if (!free) return false;
-
-  // Defence in depth: the child must actually fit the chosen cell. The carrier
-  // mapping guarantees this for the standard sizes, but reject rather than
-  // commit an invalid placement for any odd dimensions.
-  const targetSlot = carrierType.slots?.find((s) => s.id === free.slotId);
-  if (!targetSlot || !canPlaceInSlot(deviceType, targetSlot)) {
-    return false;
-  }
 
   const carrierDevice: PlacedDevice = {
     id: generateId(),

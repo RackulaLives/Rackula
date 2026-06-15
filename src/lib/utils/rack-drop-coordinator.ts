@@ -204,6 +204,7 @@ export function resolveDropTarget(
     dims.rackWidth,
     dims.rackHeight,
     dims.uHeight,
+    faceFilter,
   );
 
   // Carrier-first: a sub-U / half-width device never lands on a bare rail. Its
@@ -221,6 +222,7 @@ export function resolveDropTarget(
         dims.rackWidth,
         dims.rackHeight,
         dims.uHeight,
+        faceFilter,
       )
     : null;
   const feedback = needsCarrier
@@ -303,6 +305,7 @@ export function resolveDropAction(
       dims.rackWidth,
       dims.rackHeight,
       dims.uHeight,
+      faceFilter,
     );
 
     if (containerTarget) {
