@@ -84,6 +84,25 @@ Note: CodeRabbit ASSERTIVE + the org-credit/rate-limit outage made each PR take 
 fix+re-review cycles. CodeAnt is the responsive reviewer; CodeAnt threads do not
 auto-resolve (verify fix in code, then merge - they linger as stale-but-fixed).
 
+## Update ~05:40 UTC - carrier chain COMPLETE
+C5 #2294 merged (PR #2313, squash b633947, authored in parallel by ggfevans).
+CodeRabbit gave a REAL APPROVED review; all GH-hosted CI green (validate hard-gate
+included); self-hosted e2e advisory/queued. CodeAnt left one Major finding on
+adapt-legacy-layout slot ranking - validated as a non-blocking edge case (only triggers
+on >2 half-width devices co-located at one U+face, impossible in the legacy 2-slot rail
+model; no data loss on overflow). Replied + resolved the thread, then merged.
+
+Carrier-first critical path C1-C5 is now fully on main. Epic #2158 stays OPEN: open
+children #2295 (C6 lifecycle, deferred), #2296 (C8 NetBox, deferred), #2165 (docs).
+
+SCHEMA-VERSION GAP RESOLVED (recording, not code): the chain removed slot_position (a
+field removal = MAJOR per #1113) but schema_version is still literal "1.0" everywhere
+(yaml.ts/serialization.ts/archive.ts/manager.svelte.ts; schemas/index.ts:757 flat
+z.string()). Recorded the MAJOR classification + "2.0" target on #2158
+(comment 4704905413). The actual "1.0"->"2.0" bump should land WITH the reject-newer-major
+gate #2205 (no reader gates on schema_version yet), coordinated with the #571 publish
+chain. Do NOT ad-hoc bump main. Tracked as the schema_version action item under #2205.
+
 ## Update ~05:26 UTC
 Merged this session (6): #2065, #1011, #2038, #2042, #2206, #2044 (PR #2312).
 Carrier chain fully on main (maintainer-merged in parallel): C1 #2289, C2 #2290 (#2304),
