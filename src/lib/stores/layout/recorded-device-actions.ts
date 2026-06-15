@@ -120,6 +120,29 @@ export function placeDeviceRecorded(
     return false;
   }
 
+  // Carrier-first rule (#2158/C4): sub-U, non-integer-height, or half-width gear
+  // cannot register directly to the rails - it must mount inside a carrier
+  // (route via placeDeviceSmart). Blank filler panels are exempt and may
+  // rail-mount at any height. Reject the invalid rail placement here so the
+  // block-live UX (D5) refuses it the moment it is attempted.
+  if (deviceType.category !== "blank") {
+    const isHalfWidth = (deviceType.slot_width ?? 2) === 1;
+    const isSubU = deviceType.u_height < 1;
+    const isNonIntegerHeight = !Number.isInteger(deviceType.u_height);
+    if (isHalfWidth || isSubU || isNonIntegerHeight) {
+      debug.devicePlace({
+        slug: deviceTypeSlug,
+        position: positionU,
+        passedFace: face,
+        effectiveFace: "N/A",
+        deviceName: deviceType.model ?? deviceType.slug,
+        isFullDepth: deviceType.is_full_depth !== false,
+        result: "collision",
+      });
+      return false;
+    }
+  }
+
   // Determine face based on device depth
   // Full-depth devices ALWAYS use 'both' (they physically occupy front and rear)
   // Half-depth devices use the specified face, or default to 'front'

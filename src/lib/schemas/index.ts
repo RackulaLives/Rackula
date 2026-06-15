@@ -857,7 +857,13 @@ function needsPositionMigration(
 /**
  * Migrate device positions from old format to internal units
  * Old: position = U number (1, 2, 1.5)
- * New: position = internal units (6, 12, 9)
+ * New: position = internal units (6, 12)
+ *
+ * Carrier-first (#2158): rails register equipment at whole-U boundaries only,
+ * so a legacy fractional U position (e.g. 1.5) snaps to the nearest whole U
+ * during migration. This keeps every legacy load path (file, YAML, share)
+ * valid against the whole-U schema enforcement; the store-ingress adapter then
+ * wraps any sub-U / half-width gear in a carrier.
  *
  * Container children (with container_id) are NOT migrated since they use
  * 0-indexed positions relative to the container.
@@ -870,10 +876,11 @@ function migrateDevicePositions<
     if (device.container_id !== undefined) {
       return device;
     }
-    // Rack-level devices: multiply position by UNITS_PER_U
+    // Rack-level devices: snap to the nearest whole U (min U1), in internal units.
+    const wholeU = Math.max(1, Math.round(device.position));
     return {
       ...device,
-      position: Math.round(device.position * UNITS_PER_U),
+      position: wholeU * UNITS_PER_U,
     } as T;
   });
 }
@@ -1048,6 +1055,10 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
     const rack = data.racks[rackIndex]!;
     const deviceById = new Map(rack.devices.map((d) => [d.id, d]));
 
+    // Track which (container_id, slot_id) cells are already claimed so two
+    // children cannot share one cell.
+    const claimedCells = new Set<string>();
+
     for (
       let deviceIndex = 0;
       deviceIndex < rack.devices.length;
@@ -1055,8 +1066,36 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
     ) {
       const device = rack.devices[deviceIndex]!;
 
-      // Skip devices without container_id (rack-level devices)
-      if (!device.container_id) continue;
+      // === Carrier-first rail enforcement (rack-level devices, #2158/C4) ===
+      // A device that registers directly to the rails must mount at a whole-U
+      // boundary, and only full-width whole-U gear may do so. Sub-U,
+      // non-integer-height, or half-width gear must sit inside a carrier. Blank
+      // filler panels are exempt: a blank may rail-mount at any height.
+      if (!device.container_id) {
+        // Rail positions are stored in internal units (U * UNITS_PER_U).
+        if (device.position % UNITS_PER_U !== 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Device "${device.name ?? device.id}" is at a fractional rail position. Rail-mounted devices must sit at a whole-U boundary.`,
+            path: ["racks", rackIndex, "devices", deviceIndex, "position"],
+          });
+        }
+
+        const railType = deviceTypeBySlug.get(device.device_type);
+        if (railType && railType.category !== "blank") {
+          const isHalfWidth = (railType.slot_width ?? 2) === 1;
+          const isSubU = railType.u_height < 1;
+          const isNonIntegerHeight = !Number.isInteger(railType.u_height);
+          if (isHalfWidth || isSubU || isNonIntegerHeight) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Device "${device.name ?? device.id}" is sub-U or half-width and cannot mount directly to the rails. It must be a child of a carrier (set container_id and slot_id).`,
+              path: ["racks", rackIndex, "devices", deviceIndex, "container_id"],
+            });
+          }
+        }
+        continue;
+      }
 
       // 1. Validate container_id references an existing device in this rack
       const container = deviceById.get(device.container_id);
@@ -1086,13 +1125,48 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
       }
 
       // 3. Validate slot_id exists in the container's DeviceType.slots
-      const validSlotIds = new Set(containerType.slots.map((s) => s.id));
-      if (!device.slot_id || !validSlotIds.has(device.slot_id)) {
+      const slotById = new Map(containerType.slots.map((s) => [s.id, s]));
+      if (!device.slot_id || !slotById.has(device.slot_id)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Device "${device.name ?? device.id}" references invalid slot "${device.slot_id}" in container "${container.name ?? container.id}". Valid slots: ${[...validSlotIds].join(", ")}`,
+          message: `Device "${device.name ?? device.id}" references invalid slot "${device.slot_id}" in container "${container.name ?? container.id}". Valid slots: ${[...slotById.keys()].join(", ")}`,
           path: ["racks", rackIndex, "devices", deviceIndex, "slot_id"],
         });
+      } else {
+        // 3a. One child per cell: a (container, slot) pair holds at most one child.
+        const cellKey = `${device.container_id}::${device.slot_id}`;
+        if (claimedCells.has(cellKey)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Slot "${device.slot_id}" in container "${container.name ?? container.id}" is already occupied. Each cell holds one child.`,
+            path: ["racks", rackIndex, "devices", deviceIndex, "slot_id"],
+          });
+        } else {
+          claimedCells.add(cellKey);
+        }
+
+        // 3b. Child must fit its cell (height_units / width_fraction).
+        const slot = slotById.get(device.slot_id)!;
+        const childForFit = deviceTypeBySlug.get(device.device_type);
+        if (childForFit) {
+          const slotHeight = slot.height_units ?? 1;
+          if (childForFit.u_height > slotHeight) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Device "${device.name ?? device.id}" is too tall to fit slot "${device.slot_id}" (${childForFit.u_height}U > ${slotHeight}U cell).`,
+              path: ["racks", rackIndex, "devices", deviceIndex, "slot_id"],
+            });
+          }
+          const requiredFraction = (childForFit.slot_width ?? 2) === 1 ? 0.5 : 1.0;
+          const availableFraction = slot.width_fraction ?? 1.0;
+          if (requiredFraction > availableFraction + 0.01) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Device "${device.name ?? device.id}" is too wide to fit slot "${device.slot_id}".`,
+              path: ["racks", rackIndex, "devices", deviceIndex, "slot_id"],
+            });
+          }
+        }
       }
 
       // 4. Validate no nested containers (single-level nesting only)

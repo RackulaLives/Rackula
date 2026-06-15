@@ -1695,19 +1695,19 @@ describe("LayoutSchema device ID deduplication (#1363)", () => {
             {
               id: "dupe-id",
               device_type: "server-a",
-              position: 100,
+              position: 6,
               face: "front" as const,
             },
             {
               id: "dupe-id",
               device_type: "server-b",
-              position: 200,
+              position: 12,
               face: "front" as const,
             },
             {
               id: "unique-id",
               device_type: "server-c",
-              position: 300,
+              position: 18,
               face: "front" as const,
             },
           ],
@@ -1770,13 +1770,13 @@ describe("LayoutSchema device ID deduplication (#1363)", () => {
             {
               id: "dupe-id",
               device_type: "server-a",
-              position: 100,
+              position: 6,
               face: "front" as const,
             },
             {
               id: "dupe-id",
               device_type: "server-b",
-              position: 200,
+              position: 12,
               face: "front" as const,
             },
           ],
@@ -1795,13 +1795,13 @@ describe("LayoutSchema device ID deduplication (#1363)", () => {
             {
               id: "dupe-id-2",
               device_type: "server-a",
-              position: 100,
+              position: 6,
               face: "front" as const,
             },
             {
               id: "dupe-id-2",
               device_type: "server-c",
-              position: 200,
+              position: 12,
               face: "front" as const,
             },
           ],
@@ -1981,7 +1981,11 @@ describe("LayoutSchema container validation", () => {
   describe("container_id references", () => {
     it("accepts valid container child relationship", () => {
       const containerType = createTestContainerType({ slug: "blade-chassis" });
-      const childType = createTestDeviceType({ slug: "blade-server" });
+      // The chassis has half-width slots, so a child must be half-width to fit.
+      const childType = createTestDeviceType({
+        slug: "blade-server",
+        slot_width: 1,
+      });
 
       const layout = {
         ...createValidLayout(),
@@ -2160,9 +2164,11 @@ describe("LayoutSchema container validation", () => {
       const result = LayoutSchema.safeParse(layout);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0]?.message).toContain(
-          "Single-level nesting only",
-        );
+        expect(
+          result.error.issues.some((i) =>
+            i.message.includes("Single-level nesting only"),
+          ),
+        ).toBe(true);
       }
     });
   });
@@ -2316,9 +2322,10 @@ describe("LayoutSchema position migration", () => {
   });
 
   describe("decimal position migration (#879 - Carlton test)", () => {
-    it("migrates decimal U position 1.5 to internal units 9", () => {
-      // This is the exact scenario from issue #879
-      // User had position: 1.5 which was rejected before migration could run
+    it("snaps a legacy decimal U position 1.5 up to whole U2 (internal 12)", () => {
+      // Issue #879: a legacy file with a fractional U position must still load.
+      // Carrier-first (#2158) snaps fractional rail positions to the nearest
+      // whole U during migration: 1.5 -> U2 -> 12 internal units.
       const layout = createMigrationTestLayout("0.6.16", [
         {
           id: "device-1",
@@ -2331,13 +2338,13 @@ describe("LayoutSchema position migration", () => {
       const result = LayoutSchema.safeParse(layout);
       expect(result.success).toBe(true);
       if (result.success) {
-        // 1.5 U * 6 units/U = 9 internal units
-        expect(result.data.racks[0]!.devices[0]!.position).toBe(9);
+        // 1.5 snaps to U2 -> 2 * 6 = 12 internal units
+        expect(result.data.racks[0]!.devices[0]!.position).toBe(12);
       }
     });
 
-    it("migrates decimal U position 0.5 (half-U at bottom) to internal units 3", () => {
-      // Edge case: device at half-U position at the very bottom
+    it("snaps a legacy decimal U position 0.5 up to whole U1 (internal 6)", () => {
+      // Edge case: device at half-U position at the very bottom snaps to U1.
       const layout = createMigrationTestLayout("0.6.16", [
         {
           id: "device-1",
@@ -2350,12 +2357,12 @@ describe("LayoutSchema position migration", () => {
       const result = LayoutSchema.safeParse(layout);
       expect(result.success).toBe(true);
       if (result.success) {
-        // 0.5 U * 6 units/U = 3 internal units
-        expect(result.data.racks[0]!.devices[0]!.position).toBe(3);
+        // 0.5 snaps to U1 (min) -> 1 * 6 = 6 internal units
+        expect(result.data.racks[0]!.devices[0]!.position).toBe(6);
       }
     });
 
-    it("migrates multiple devices including decimals", () => {
+    it("migrates whole-U positions and snaps decimals in a mixed file", () => {
       // Mix of integer and decimal positions (like Carlton's file)
       const layout = createMigrationTestLayout("0.6.16", [
         { id: "d1", device_type: "server", position: 30, face: "front" },
@@ -2366,9 +2373,9 @@ describe("LayoutSchema position migration", () => {
       const result = LayoutSchema.safeParse(layout);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.racks[0]!.devices[0]!.position).toBe(180); // 30 * 6
-        expect(result.data.racks[0]!.devices[1]!.position).toBe(9); // 1.5 * 6
-        expect(result.data.racks[0]!.devices[2]!.position).toBe(90); // 15 * 6
+        expect(result.data.racks[0]!.devices[0]!.position).toBe(180); // U30 * 6
+        expect(result.data.racks[0]!.devices[1]!.position).toBe(12); // 1.5 -> U2 * 6
+        expect(result.data.racks[0]!.devices[2]!.position).toBe(90); // U15 * 6
       }
     });
   });

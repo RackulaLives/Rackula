@@ -11,7 +11,8 @@
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
-  import { hapticSuccess } from "$lib/utils/haptics";
+  import { getToastStore } from "$lib/stores/toast.svelte";
+  import { hapticSuccess, hapticError } from "$lib/utils/haptics";
   import { resolveSelectedDevice } from "$lib/utils/device-selection";
   import type { RackSwipeDirection } from "$lib/utils/gestures";
   import type { DeviceFace, SlotPosition } from "$lib/types";
@@ -86,6 +87,7 @@
   const canvasStore = getCanvasStore();
   const uiStore = getUIStore();
   const placementStore = getPlacementStore();
+  const toastStore = getToastStore();
 
   const racks = $derived(layoutStore.racks);
   const activeRackId = $derived(layoutStore.activeRackId);
@@ -132,6 +134,15 @@
       placementStore.completePlacement();
       // Reset view to show full rack after placement completes
       canvasStore.fitAll(layoutStore.racks);
+    } else {
+      // Block-live UX (D5): a carrier-requiring device with no applicable
+      // carrier is refused; tell the user rather than fail silently.
+      hapticError();
+      toastStore.showToast(
+        "This device needs a carrier to mount here",
+        "warning",
+        3000,
+      );
     }
   }
 
@@ -183,7 +194,24 @@
     }>,
   ) {
     const { rackId, slug, position, face, slot_position } = event.detail;
-    layoutStore.placeDevice(rackId, slug, position, face, slot_position);
+    const placed = layoutStore.placeDevice(
+      rackId,
+      slug,
+      position,
+      face,
+      slot_position,
+    );
+    // Carrier-first (#2158): a sub-U / non-integer-height device with no
+    // applicable carrier (e.g. a full-width sub-U panel) cannot rail-mount and
+    // is refused. Block-live UX (D5): tell the user rather than fail silently.
+    if (!placed) {
+      hapticError();
+      toastStore.showToast(
+        "This device needs a carrier to mount here",
+        "warning",
+        3000,
+      );
+    }
     ondevicedrop?.(event);
   }
 
