@@ -10,7 +10,6 @@
     DeviceFace,
     DisplayMode,
     AnnotationField,
-    SlotPosition,
   } from "$lib/types";
   import Rack from "./Rack.svelte";
   import AnnotationColumn from "./AnnotationColumn.svelte";
@@ -51,7 +50,6 @@
         slug: string;
         position: number;
         face: "front" | "rear";
-        slot_position?: SlotPosition;
       }>,
     ) => void;
     ondevicemove?: (
@@ -68,7 +66,6 @@
         targetRackId: string;
         targetPosition: number;
         face: DeviceFace;
-        slot_position?: SlotPosition;
       }>,
     ) => void;
     /** Mobile tap-to-place event */
@@ -223,7 +220,6 @@
       rackId: string;
       slug: string;
       position: number;
-      slot_position?: SlotPosition;
     }>,
   ) {
     ondevicedrop?.(
@@ -242,7 +238,6 @@
       rackId: string;
       slug: string;
       position: number;
-      slot_position?: SlotPosition;
     }>,
   ) {
     ondevicedrop?.(

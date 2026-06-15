@@ -124,10 +124,12 @@ describe("adaptLegacyLayout", () => {
       // eslint-disable-next-line no-restricted-syntax -- the pair becomes exactly two children
       expect(kids).toHaveLength(2);
       // Both children belong to the carrier and reference distinct slots.
+      // The legacy slot_position marker is dropped: children are located by
+      // slot_id alone in the carrier-first model.
       for (const kid of kids) {
         expect(kid.container_id).toBe(carrier.id);
         expect(kid.device_type).toBe("half-width");
-        expect(kid.slot_position).toBeUndefined();
+        expect("slot_position" in kid).toBe(false);
       }
       const slotIds = kids.map((k) => k.slot_id);
       expect(slotIds).toContain("col-1");

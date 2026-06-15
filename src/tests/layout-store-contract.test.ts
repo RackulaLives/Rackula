@@ -107,7 +107,6 @@ const _EXPECTED_LAYOUT_STORE_KEYS = [
   "updateDevicePlacementImage",
   "updateDevicePlacementImageRaw",
   "updateDevicePlacementImageRecorded",
-  "updateDeviceSlotPosition",
   "updateDeviceType",
   "updateDeviceTypeRaw",
   "updateDeviceTypeRecorded",

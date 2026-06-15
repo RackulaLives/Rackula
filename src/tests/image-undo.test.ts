@@ -51,7 +51,6 @@ function createMockDeviceStore(devices: PlacedDevice[]): DeviceCommandStore {
     updateDeviceNameRaw() {},
     updateDevicePlacementImageRaw() {},
     updateDeviceColourRaw() {},
-    updateDeviceSlotPositionRaw() {},
     updateDeviceNotesRaw() {},
     updateDeviceIpRaw() {},
     getDeviceAtIndex(index: number) {
@@ -335,7 +334,6 @@ describe("Image Undo — Cross-Rack Move (#1478)", () => {
       updateDeviceNameRaw() {},
       updateDevicePlacementImageRaw() {},
       updateDeviceColourRaw() {},
-      updateDeviceSlotPositionRaw() {},
       updateDeviceNotesRaw() {},
       updateDeviceIpRaw() {},
     };
@@ -352,7 +350,6 @@ describe("Image Undo — Cross-Rack Move (#1478)", () => {
       "target",
       1,
       "front",
-      undefined,
       device,
       [],
       store,
@@ -436,7 +433,6 @@ describe("Image Undo — Cross-Rack Move (#1478)", () => {
       updateDeviceNameRaw() {},
       updateDevicePlacementImageRaw() {},
       updateDeviceColourRaw() {},
-      updateDeviceSlotPositionRaw() {},
       updateDeviceNotesRaw() {},
       updateDeviceIpRaw() {},
     };
@@ -458,7 +454,6 @@ describe("Image Undo — Cross-Rack Move (#1478)", () => {
       "target",
       1,
       "front",
-      undefined,
       parent,
       [child1, child2],
       store,

@@ -836,27 +836,12 @@ export function generateExportSVG(
         RAIL_WIDTH;
       const deviceHeight = device.u_height * U_HEIGHT - 2;
 
-      // Half-width slot geometry (mirrors RackDevice.svelte:218-233).
-      // Only two-slot racks (>10") split into left/right; everything else is full-width.
-      // Outer-rail edges keep the export's 2px padding; the inner midline edges meet
-      // so two half-width devices touch like in the live preview.
+      // Carrier-first: rail-mounted devices are whole-U full-width. Sub-U /
+      // half-width gear mounts inside a carrier rather than splitting a rail
+      // slot, so a rack-level device always spans the full interior width.
       const fullInteriorWidth = RACK_WIDTH - RAIL_WIDTH * 2;
-      const isHalfWidth = device.slot_width === 1 && rack.width > 10;
-      const effectiveSlotPosition = isHalfWidth
-        ? (placedDevice.slot_position ?? "full")
-        : "full";
-      let deviceX: number;
-      let deviceWidth: number;
-      if (effectiveSlotPosition === "right") {
-        deviceX = RAIL_WIDTH + fullInteriorWidth / 2;
-        deviceWidth = fullInteriorWidth / 2 - 2;
-      } else if (effectiveSlotPosition === "left") {
-        deviceX = RAIL_WIDTH + 2;
-        deviceWidth = fullInteriorWidth / 2 - 2;
-      } else {
-        deviceX = RAIL_WIDTH + 2;
-        deviceWidth = fullInteriorWidth - 4;
-      }
+      const deviceX = RAIL_WIDTH + 2;
+      const deviceWidth = fullInteriorWidth - 4;
 
       // Always render device rect as background
       const deviceRect = document.createElementNS(

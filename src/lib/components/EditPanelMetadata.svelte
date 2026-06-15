@@ -185,7 +185,6 @@
       placedDevice.position,
       deviceIndex, // exclude self from collision check
       face,
-      placedDevice.slot_position ?? "full",
     );
 
     if (!canPlace) {
@@ -197,7 +196,6 @@
         placedDevice.position,
         deviceIndex,
         face,
-        placedDevice.slot_position ?? "full",
       );
 
       if (collisions.length > 0) {

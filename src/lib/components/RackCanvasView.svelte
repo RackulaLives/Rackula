@@ -15,7 +15,7 @@
   import { hapticSuccess, hapticError } from "$lib/utils/haptics";
   import { resolveSelectedDevice } from "$lib/utils/device-selection";
   import type { RackSwipeDirection } from "$lib/utils/gestures";
-  import type { DeviceFace, SlotPosition } from "$lib/types";
+  import type { DeviceFace } from "$lib/types";
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
 
@@ -34,7 +34,6 @@
         slug: string;
         position: number;
         face: "front" | "rear";
-        slot_position?: SlotPosition;
       }>,
     ) => void;
     ondevicemove?: (
@@ -42,7 +41,6 @@
         rackId: string;
         deviceIndex: number;
         newPosition: number;
-        slot_position?: SlotPosition;
       }>,
     ) => void;
     ondevicemoverack?: (
@@ -52,7 +50,6 @@
         targetRackId: string;
         targetPosition: number;
         face: DeviceFace;
-        slot_position?: SlotPosition;
       }>,
     ) => void;
     onracklongpress?: (event: CustomEvent<{ rackId: string }>) => void;
@@ -186,17 +183,10 @@
       slug: string;
       position: number;
       face: "front" | "rear";
-      slot_position?: SlotPosition;
     }>,
   ) {
-    const { rackId, slug, position, face, slot_position } = event.detail;
-    const placed = layoutStore.placeDevice(
-      rackId,
-      slug,
-      position,
-      face,
-      slot_position,
-    );
+    const { rackId, slug, position, face } = event.detail;
+    const placed = layoutStore.placeDevice(rackId, slug, position, face);
     // Block-live UX (D5): the store refuses an invalid rail placement (a
     // carrier-requiring device, a collision, or out of bounds). Tell the user
     // rather than fail silently, and do not signal a drop that did not happen.
@@ -213,11 +203,10 @@
       rackId: string;
       deviceIndex: number;
       newPosition: number;
-      slot_position?: SlotPosition;
     }>,
   ) {
-    const { rackId, deviceIndex, newPosition, slot_position } = event.detail;
-    layoutStore.moveDevice(rackId, deviceIndex, newPosition, slot_position);
+    const { rackId, deviceIndex, newPosition } = event.detail;
+    layoutStore.moveDevice(rackId, deviceIndex, newPosition);
     ondevicemove?.(event);
   }
 
@@ -228,24 +217,16 @@
       targetRackId: string;
       targetPosition: number;
       face: DeviceFace;
-      slot_position?: SlotPosition;
     }>,
   ) {
-    const {
-      sourceRackId,
-      sourceIndex,
-      targetRackId,
-      targetPosition,
-      face,
-      slot_position,
-    } = event.detail;
+    const { sourceRackId, sourceIndex, targetRackId, targetPosition, face } =
+      event.detail;
     layoutStore.moveDeviceToRack(
       sourceRackId,
       sourceIndex,
       targetRackId,
       targetPosition,
       face,
-      slot_position,
     );
     ondevicemoverack?.(event);
   }

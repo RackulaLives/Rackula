@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   calculateDropPosition,
-  calculateDropSlotPosition,
   getDropFeedback,
   hideNativeDragGhost,
   detectContainerDropTarget,
@@ -18,18 +17,13 @@ function pd(
   device_type: string,
   positionU: number,
   face: "front" | "rear" | "both",
-  slot_position?: "left" | "right" | "full",
 ): PlacedDevice {
-  const device: PlacedDevice = {
+  return {
     id,
     device_type,
     position: toInternalUnits(positionU),
     face,
   };
-  if (slot_position) {
-    device.slot_position = slot_position;
-  }
-  return device;
 }
 
 describe("Drag and Drop Utilities", () => {
@@ -339,198 +333,6 @@ describe("Drag and Drop Utilities", () => {
 
       // Without face param, defaults to 'front' - opposite faces don't collide
       const feedback = getDropFeedback(rackWithRearDevice, deviceLibrary, 1, 5);
-      expect(feedback).toBe("valid");
-    });
-  });
-
-  describe("calculateDropSlotPosition (#146)", () => {
-    const RACK_WIDTH = 200; // Example rack interior width
-
-    it('returns "full" for full-width devices (slotWidth=2)', () => {
-      const position = calculateDropSlotPosition(50, RACK_WIDTH, 2);
-      expect(position).toBe("full");
-    });
-
-    it('returns "full" for full-width devices regardless of mouse position', () => {
-      expect(calculateDropSlotPosition(10, RACK_WIDTH, 2)).toBe("full");
-      expect(calculateDropSlotPosition(150, RACK_WIDTH, 2)).toBe("full");
-      expect(calculateDropSlotPosition(0, RACK_WIDTH, 2)).toBe("full");
-      expect(calculateDropSlotPosition(RACK_WIDTH, RACK_WIDTH, 2)).toBe("full");
-    });
-
-    it('returns "left" for half-width device when mouse is in left half', () => {
-      const position = calculateDropSlotPosition(50, RACK_WIDTH, 1);
-      expect(position).toBe("left");
-    });
-
-    it('returns "right" for half-width device when mouse is in right half', () => {
-      const position = calculateDropSlotPosition(150, RACK_WIDTH, 1);
-      expect(position).toBe("right");
-    });
-
-    it('returns "right" when mouse is exactly at midpoint', () => {
-      // At midpoint (100), mouseX < midpoint is false, so returns 'right'
-      const position = calculateDropSlotPosition(100, RACK_WIDTH, 1);
-      expect(position).toBe("right");
-    });
-
-    it('returns "left" when mouse is at x=0', () => {
-      const position = calculateDropSlotPosition(0, RACK_WIDTH, 1);
-      expect(position).toBe("left");
-    });
-
-    it('returns "right" when mouse is at x=rackWidth', () => {
-      const position = calculateDropSlotPosition(RACK_WIDTH, RACK_WIDTH, 1);
-      expect(position).toBe("right");
-    });
-
-    it("defaults to full-width when slotWidth is not provided", () => {
-      const position = calculateDropSlotPosition(50, RACK_WIDTH);
-      expect(position).toBe("full");
-    });
-  });
-
-  describe("getDropFeedback with slot position (#146)", () => {
-    // Half-width device for testing
-    const halfWidthDevice: DeviceType = {
-      slug: "half-width-switch",
-      model: "Half-Width Switch",
-      u_height: 1,
-      colour: "#4A90D9",
-      category: "switch",
-      slot_width: 1,
-    };
-
-    // Full-width device for testing
-    const fullWidthDevice: DeviceType = {
-      slug: "full-width-server",
-      model: "Full Width Server",
-      u_height: 2,
-      colour: "#888888",
-      category: "server",
-      slot_width: 2,
-    };
-
-    const deviceLibrary: DeviceType[] = [halfWidthDevice, fullWidthDevice];
-
-    const emptyRack: Rack = {
-      name: "Test Rack",
-      height: 12,
-      width: 19,
-      position: 0,
-      desc_units: false,
-      form_factor: "4-post",
-      starting_unit: 1,
-      devices: [],
-    };
-
-    it("allows two half-width devices in different slots at same U", () => {
-      const rackWithLeftDevice: Rack = {
-        ...emptyRack,
-        devices: [pd("left-1", "half-width-switch", 5, "front", "left")],
-      };
-
-      // Dropping half-width device in right slot at U5 should be valid
-      const feedback = getDropFeedback(
-        rackWithLeftDevice,
-        deviceLibrary,
-        1, // device height
-        5, // target U
-        undefined, // excludeIndex
-        "front", // target face
-        "right", // target slot
-      );
-      expect(feedback).toBe("valid");
-    });
-
-    it("blocks half-width device in same slot at same U", () => {
-      const rackWithLeftDevice: Rack = {
-        ...emptyRack,
-        devices: [pd("left-1", "half-width-switch", 5, "front", "left")],
-      };
-
-      // Dropping half-width device in left slot at U5 should be blocked
-      const feedback = getDropFeedback(
-        rackWithLeftDevice,
-        deviceLibrary,
-        1,
-        5,
-        undefined,
-        "front",
-        "left",
-      );
-      expect(feedback).toBe("blocked");
-    });
-
-    it("blocks full-width device when half-width device exists in same U", () => {
-      const rackWithHalfWidthDevice: Rack = {
-        ...emptyRack,
-        devices: [pd("half-1", "half-width-switch", 5, "front", "left")],
-      };
-
-      // Dropping full-width device at U5 should be blocked
-      const feedback = getDropFeedback(
-        rackWithHalfWidthDevice,
-        deviceLibrary,
-        1,
-        5,
-        undefined,
-        "front",
-        "full",
-      );
-      expect(feedback).toBe("blocked");
-    });
-
-    it("blocks half-width device when full-width device exists in same U", () => {
-      const rackWithFullWidthDevice: Rack = {
-        ...emptyRack,
-        devices: [pd("full-1", "full-width-server", 5, "front", "full")],
-      };
-
-      // Dropping half-width device at U5 should be blocked (full occupies both slots)
-      const feedback = getDropFeedback(
-        rackWithFullWidthDevice,
-        deviceLibrary,
-        1,
-        5,
-        undefined,
-        "front",
-        "left",
-      );
-      expect(feedback).toBe("blocked");
-    });
-
-    it("allows half-width device in empty U (no slot_position defaults to full)", () => {
-      // Empty rack - should allow any placement
-      const feedback = getDropFeedback(
-        emptyRack,
-        deviceLibrary,
-        1,
-        5,
-        undefined,
-        "front",
-        "left",
-      );
-      expect(feedback).toBe("valid");
-    });
-
-    it("allows devices on opposite faces at same U and slot", () => {
-      const rackWithFrontDevice: Rack = {
-        ...emptyRack,
-        devices: [pd("front-left", "half-width-switch", 5, "front", "left")],
-      };
-
-      // Dropping on rear at same U and slot should be valid
-      // (opposite faces don't collide with face-authoritative model)
-      const feedback = getDropFeedback(
-        rackWithFrontDevice,
-        deviceLibrary,
-        1,
-        5,
-        undefined,
-        "rear",
-        "left",
-      );
       expect(feedback).toBe("valid");
     });
   });

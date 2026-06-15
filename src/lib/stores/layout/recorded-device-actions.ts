@@ -8,19 +8,10 @@
  * correct rack.
  */
 
-import type {
-  DeviceFace,
-  DeviceType,
-  PlacedDevice,
-  SlotPosition,
-} from "$lib/types";
+import type { DeviceFace, DeviceType, PlacedDevice } from "$lib/types";
 import { UNITS_PER_U, DEFAULT_DEVICE_FACE } from "$lib/types/constants";
 import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
-import {
-  canPlaceDevice,
-  isSlotOccupied,
-  requiresCarrier,
-} from "$lib/utils/collision";
+import { canPlaceDevice, requiresCarrier } from "$lib/utils/collision";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { debug } from "$lib/utils/debug";
@@ -35,7 +26,6 @@ import {
   createUpdateDeviceNameCommand,
   createUpdateDevicePlacementImageCommand,
   createUpdateDeviceColourCommand,
-  createUpdateDeviceSlotPositionCommand,
   createDetachContainerCommand,
   createUpdateDeviceNotesCommand,
   createUpdateDeviceIpCommand,
@@ -73,7 +63,6 @@ function getAutoImportDeviceType(
  * @param deviceTypeSlug - Device type slug
  * @param positionU - U position (human-readable, e.g., 1, 5, 10)
  * @param face - Optional face assignment
- * @param slotPosition - Optional slot position for half-width devices
  * @returns true if placed successfully
  */
 export function placeDeviceRecorded(
@@ -82,7 +71,6 @@ export function placeDeviceRecorded(
   deviceTypeSlug: string,
   positionU: number,
   face?: DeviceFace,
-  slotPosition?: SlotPosition,
 ): boolean {
   // Convert human U position to internal units
   const positionInternal = toInternalUnits(positionU);
@@ -151,12 +139,6 @@ export function placeDeviceRecorded(
     : (face ?? DEFAULT_DEVICE_FACE);
   const deviceName = deviceType.model ?? deviceType.slug;
 
-  // Determine effective slot position
-  // Full-width devices (slot_width !== 1) always use 'full'
-  const deviceSlotWidth = deviceType.slot_width ?? 2;
-  const effectiveSlotPosition: SlotPosition =
-    deviceSlotWidth === 1 ? (slotPosition ?? "full") : "full";
-
   if (
     !canPlaceDevice(
       targetRack,
@@ -165,7 +147,6 @@ export function placeDeviceRecorded(
       positionInternal,
       undefined,
       effectiveFace,
-      effectiveSlotPosition,
     )
   ) {
     debug.devicePlace({
@@ -185,7 +166,6 @@ export function placeDeviceRecorded(
     device_type: deviceTypeSlug,
     position: positionInternal,
     face: effectiveFace,
-    slot_position: effectiveSlotPosition,
     ports: instantiatePorts(deviceType),
   };
 
@@ -226,7 +206,6 @@ export function placeDeviceRecorded(
  * @param rackId - Rack ID
  * @param deviceIndex - Device index
  * @param newPositionU - New position in U (human-readable)
- * @param newSlotPosition - Optional new slot position
  * @returns true if moved successfully
  */
 export function moveDeviceRecorded(
@@ -234,7 +213,6 @@ export function moveDeviceRecorded(
   rackId: string,
   deviceIndex: number,
   newPositionU: number,
-  newSlotPosition?: SlotPosition,
   newFace?: DeviceFace,
 ): boolean {
   // Convert to internal units
@@ -308,8 +286,6 @@ export function moveDeviceRecorded(
   }
 
   // Use canPlaceDevice for bounds and collision checking (face and depth aware)
-  // Use new slot_position if provided (e.g., from D&D target), otherwise keep existing
-  const effectiveSlot = newSlotPosition ?? device.slot_position ?? "full";
   const effectiveFace = newFace ?? device.face;
   if (
     !canPlaceDevice(
@@ -319,7 +295,6 @@ export function moveDeviceRecorded(
       newPositionInternal,
       deviceIndex,
       effectiveFace,
-      effectiveSlot,
     )
   ) {
     // Determine if it's out of bounds or collision
@@ -349,8 +324,6 @@ export function moveDeviceRecorded(
     deviceName,
   );
 
-  const hasSlotChange =
-    newSlotPosition && newSlotPosition !== (device.slot_position ?? "full");
   const hasFaceChange =
     newFace !== undefined && newFace !== (device.face ?? "front");
   // A move always targets a rack-level position, so a contained device dragged
@@ -359,19 +332,8 @@ export function moveDeviceRecorded(
   // it no longer sits in). Undo restores the linkage.
   const hasContainerLinkage = device.container_id !== undefined;
 
-  if (hasSlotChange || hasFaceChange || hasContainerLinkage) {
+  if (hasFaceChange || hasContainerLinkage) {
     const commands: Command[] = [moveCommand];
-    if (hasSlotChange) {
-      commands.push(
-        createUpdateDeviceSlotPositionCommand(
-          deviceIndex,
-          device.slot_position ?? "full",
-          newSlotPosition!,
-          adapter,
-          deviceName,
-        ),
-      );
-    }
     if (hasFaceChange) {
       commands.push(
         createUpdateDeviceFaceCommand(
@@ -632,66 +594,6 @@ export function updateDeviceColourRecorded(
   );
   history.execute(command);
   ctx.markDirty();
-}
-
-/**
- * Update device slot position with undo/redo support (for half-width devices)
- * @param ctx - Layout state access
- * @param rackId - Rack ID
- * @param deviceIndex - Device index
- * @param slotPosition - New slot position ('left', 'right', or 'full')
- * @returns true if successful, false if blocked
- */
-export function updateDeviceSlotPositionRecorded(
-  ctx: LayoutStateAccess,
-  rackId: string,
-  deviceIndex: number,
-  slotPosition: SlotPosition,
-): boolean {
-  const targetRack = getRackById(ctx, rackId);
-  if (!targetRack) return false;
-  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return false;
-
-  // Set active rack so Raw functions target the correct rack
-  ctx.setActiveRackId(rackId);
-
-  const device = targetRack.devices[deviceIndex]!;
-  const layout = ctx.getLayout();
-
-  const deviceType = findDeviceTypeInArray(
-    layout.device_types,
-    device.device_type,
-  );
-
-  // Only half-width devices can have their slot position changed
-  if (!deviceType || deviceType.slot_width !== 1) {
-    return false;
-  }
-
-  const oldSlotPosition = device.slot_position ?? "full";
-  const deviceName = deviceType.model ?? deviceType.slug ?? "device";
-
-  // No change needed
-  if (oldSlotPosition === slotPosition) return true;
-
-  // Check if target slot is occupied using shared collision utility
-  if (isSlotOccupied(targetRack, device.position, slotPosition, deviceIndex)) {
-    return false;
-  }
-
-  const history = ctx.getHistory();
-  const adapter = getCommandStoreAdapter(ctx);
-
-  const command = createUpdateDeviceSlotPositionCommand(
-    deviceIndex,
-    oldSlotPosition,
-    slotPosition,
-    adapter,
-    deviceName,
-  );
-  history.execute(command);
-  ctx.markDirty();
-  return true;
 }
 
 /**

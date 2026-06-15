@@ -30,14 +30,13 @@
   );
 
   // Format an internal-unit position for display, honouring the rack's U
-  // numbering direction (desc_units flips the whole-U part, keeps the fraction).
+  // numbering direction. Carrier-first rail positions are whole-U, so the
+  // desc_units flip just mirrors the whole-U value.
   function formatDisplayPosition(position: number, rack: Rack): string {
     if (!rack.desc_units) return formatPosition(position);
-    const positionU = toHumanUnits(position);
-    const wholeU = Math.floor(positionU);
-    const fraction = positionU - wholeU;
-    const displayWholeU = rack.height - wholeU + 1 - (fraction > 0 ? 1 : 0);
-    return formatPosition(toInternalUnits(displayWholeU + fraction));
+    const wholeU = Math.round(toHumanUnits(position));
+    const displayWholeU = rack.height - wholeU + 1;
+    return formatPosition(toInternalUnits(displayWholeU));
   }
 
   /**
@@ -120,8 +119,8 @@
     );
   });
 
-  // Transform internal position to display position with fraction glyphs
-  // PlacedDevice.position is in internal units (1/6U)
+  // Transform internal position to a whole-U display label.
+  // PlacedDevice.position is in internal units (multiples of UNITS_PER_U for rails).
   // Display with desc_units=false: U1 at bottom (ascending)
   // Display with desc_units=true: U1 at top (descending)
   const displayPosition = $derived.by(() =>

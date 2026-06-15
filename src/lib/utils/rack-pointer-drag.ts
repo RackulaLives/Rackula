@@ -115,10 +115,6 @@ export function attachPointerDragListeners(
       return;
     }
 
-    // Preserve existing slot_position for pointer-based moves
-    const sourceRack = ctx.layoutStore.getRackById(sourceRackId);
-    const existingSlot = sourceRack?.devices[deviceIndex]?.slot_position;
-
     const rack = ctx.getRack();
     const deviceLibrary = ctx.getDeviceLibrary();
     const faceFilter = ctx.getFaceFilter();
@@ -134,7 +130,6 @@ export function attachPointerDragListeners(
       { type: "rack-device", device, sourceRackId, sourceIndex: deviceIndex },
       faceFilter,
       false,
-      existingSlot,
     );
 
     dispatchDropAction(action, ctx.getEventCallbacks(), {

@@ -298,29 +298,21 @@
     class="blocked-slots-layer"
     transform="translate(0, {rackPadding + railWidth})"
   >
-    {#each blockedSlots as slot (slot.bottom + "-" + slot.top + "-" + (slot.slotPosition ?? "full"))}
-      {@const slotX =
-        slot.slotPosition === "right"
-          ? railWidth + slotWidth / 2
-          : railWidth}
-      {@const slotW =
-        slot.slotPosition === "left" || slot.slotPosition === "right"
-          ? slotWidth / 2
-          : slotWidth}
+    {#each blockedSlots as slot (slot.bottom + "-" + slot.top)}
       <!-- Background wash with improved opacity -->
       <rect
         class="blocked-slot blocked-slot-bg"
-        x={slotX}
+        x={railWidth}
         y={slotY(slot)}
-        width={slotW}
+        width={slotWidth}
         height={slotHeight(slot)}
       />
       <!-- Crosshatch pattern for accessibility (visual texture, not just color) -->
       <rect
         class="blocked-slot blocked-slot-pattern"
-        x={slotX}
+        x={railWidth}
         y={slotY(slot)}
-        width={slotW}
+        width={slotWidth}
         height={slotHeight(slot)}
         fill="url(#{patternId})"
       />

@@ -153,14 +153,24 @@ export function createTestDeviceTypeInput(
 // =============================================================================
 
 /**
+ * A PlacedDevice plus the pre-carrier legacy `slot_position` marker. The
+ * carrier-first model dropped `slot_position` from PlacedDevice (#2294), but
+ * the load-path adapter still reads it off raw legacy input to wrap half-width
+ * pairs into carriers. Legacy fixtures use this shape to exercise that read.
+ */
+export type LegacyPlacedDevice = PlacedDevice & {
+  slot_position?: "left" | "right" | "full";
+};
+
+/**
  * Creates a test PlacedDevice with sensible defaults.
  * Schema v1.0.0: PlacedDevice now requires a UUID id field
  *
  * @param overrides.position - Human units (e.g., U10). Converted to internal units.
  */
 export function createTestDevice(
-  overrides: Partial<PlacedDevice> = {},
-): PlacedDevice {
+  overrides: Partial<LegacyPlacedDevice> = {},
+): LegacyPlacedDevice {
   // Convert position from human units to internal units
   const positionInHumanUnits = overrides.position ?? 10;
   return {

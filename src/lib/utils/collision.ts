@@ -14,14 +14,10 @@ import type {
   DeviceFace,
   PlacedDevice,
   Rack,
-  SlotPosition,
   Slot,
 } from "$lib/types";
 import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 import { findDeviceType } from "$lib/utils/device-lookup";
-
-// Re-export SlotPosition for test imports
-export type { SlotPosition } from "$lib/types";
 
 /**
  * Check if a placed device is a container child
@@ -110,58 +106,6 @@ export function doFacesCollide(faceA: DeviceFace, faceB: DeviceFace): boolean {
 }
 
 /**
- * Check if two slot positions overlap
- * @param slotA - First slot position ('left', 'right', or 'full')
- * @param slotB - Second slot position ('left', 'right', or 'full')
- * @returns true if the slots overlap
- */
-export function doSlotsOverlap(
-  slotA: SlotPosition,
-  slotB: SlotPosition,
-): boolean {
-  // 'full' overlaps with everything
-  if (slotA === "full" || slotB === "full") {
-    return true;
-  }
-  // Same slot position overlaps
-  if (slotA === slotB) {
-    return true;
-  }
-  // 'left' and 'right' don't overlap
-  return false;
-}
-
-/**
- * Check if a slot position is occupied at a given position in the rack.
- * Used to validate half-width device slot movement.
- *
- * @param rack - The rack to check
- * @param position - The position (in internal units) to check
- * @param targetSlot - The slot position to check ('left', 'right', or 'full')
- * @param excludeIndex - Optional device index to exclude (for current device)
- * @returns true if the target slot is occupied by another device
- */
-export function isSlotOccupied(
-  rack: Rack,
-  position: number,
-  targetSlot: SlotPosition,
-  excludeIndex?: number,
-): boolean {
-  return rack.devices.some((device, i) => {
-    // Skip the device being moved
-    if (excludeIndex !== undefined && i === excludeIndex) return false;
-    // Only check devices at the same position
-    if (device.position !== position) return false;
-    // Skip container children - they're in a different collision space
-    if (isContainerChild(device)) return false;
-
-    const existingSlot = device.slot_position ?? "full";
-    // Check if the slots would overlap
-    return doSlotsOverlap(existingSlot, targetSlot);
-  });
-}
-
-/**
  * Check if a device can be placed at a given position (rack-level placement)
  *
  * Container children (devices with container_id set) are excluded from rack-level
@@ -173,7 +117,6 @@ export function isSlotOccupied(
  * @param targetPosition - Target bottom position in internal units (e.g., 6 for U1)
  * @param excludeIndex - Optional index in rack.devices to exclude (for move operations)
  * @param targetFace - Optional face to place device on (default: 'front')
- * @param targetSlot - Optional slot position (default: 'full')
  * @returns true if placement is valid
  */
 export function canPlaceDevice(
@@ -183,7 +126,6 @@ export function canPlaceDevice(
   targetPosition: number,
   excludeIndex?: number,
   targetFace: DeviceFace = "front",
-  targetSlot: SlotPosition = "full",
 ): boolean {
   // Position must be >= UNITS_PER_U (U1 in internal units)
   if (targetPosition < UNITS_PER_U) {
@@ -223,14 +165,11 @@ export function canPlaceDevice(
         placedDevice.position,
         device.u_height,
       );
-      // Get existing device's slot position (default to 'full')
-      const existingSlot: SlotPosition = placedDevice.slot_position ?? "full";
-      // Check U range overlap AND face collision AND slot overlap
+      // Check U range overlap AND face collision.
       // Face is authoritative: only the explicit face value matters for collision
       if (
         doRangesOverlap(newRange, existingRange) &&
-        doFacesCollide(targetFace, placedDevice.face) &&
-        doSlotsOverlap(targetSlot, existingSlot)
+        doFacesCollide(targetFace, placedDevice.face)
       ) {
         return false;
       }
@@ -251,7 +190,6 @@ export function canPlaceDevice(
  * @param newPosition - Target position
  * @param excludeIndex - Optional index in rack.devices to exclude (for move operations)
  * @param targetFace - Optional face to place device on (default: 'front')
- * @param targetSlot - Optional slot position (default: 'full')
  * @returns Array of colliding PlacedDevices (only rack-level devices, not container children)
  */
 export function findCollisions(
@@ -261,7 +199,6 @@ export function findCollisions(
   newPosition: number,
   excludeIndex?: number,
   targetFace: DeviceFace = "front",
-  targetSlot: SlotPosition = "full",
 ): PlacedDevice[] {
   const collisions: PlacedDevice[] = [];
   const newRange = getDeviceURange(newPosition, newDeviceHeight);
@@ -285,14 +222,11 @@ export function findCollisions(
         placedDevice.position,
         device.u_height,
       );
-      // Get existing device's slot position (default to 'full')
-      const existingSlot: SlotPosition = placedDevice.slot_position ?? "full";
-      // Check U range overlap AND face collision AND slot overlap
+      // Check U range overlap AND face collision.
       // Face is authoritative: only the explicit face value matters for collision
       if (
         doRangesOverlap(newRange, existingRange) &&
-        doFacesCollide(targetFace, placedDevice.face) &&
-        doSlotsOverlap(targetSlot, existingSlot)
+        doFacesCollide(targetFace, placedDevice.face)
       ) {
         collisions.push(placedDevice);
       }
@@ -308,7 +242,6 @@ export function findCollisions(
  * @param deviceLibrary - The device library
  * @param deviceHeight - Height of device to place (in U)
  * @param targetFace - Optional face to place device on (default: 'front')
- * @param targetSlot - Optional slot position (default: 'full')
  * @returns Array of valid bottom positions in internal units, sorted ascending
  */
 export function findValidDropPositions(
@@ -316,7 +249,6 @@ export function findValidDropPositions(
   deviceLibrary: DeviceType[],
   deviceHeight: number,
   targetFace: DeviceFace = "front",
-  targetSlot: SlotPosition = "full",
 ): number[] {
   const validPositions: number[] = [];
 
@@ -330,15 +262,7 @@ export function findValidDropPositions(
 
   for (let position = UNITS_PER_U; position <= maxPosition; position++) {
     if (
-      canPlaceDevice(
-        rack,
-        deviceLibrary,
-        deviceHeight,
-        position,
-        undefined,
-        targetFace,
-        targetSlot,
-      )
+      canPlaceDevice(rack, deviceLibrary, deviceHeight, position, undefined, targetFace)
     ) {
       validPositions.push(position);
     }

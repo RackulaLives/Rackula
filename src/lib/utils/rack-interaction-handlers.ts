@@ -7,7 +7,7 @@
  * reactive getters for the values they need from the component.
  */
 
-import type { Rack, DeviceType, DeviceFace, SlotPosition } from "$lib/types";
+import type { Rack, DeviceType, DeviceFace } from "$lib/types";
 import {
   parseDragData,
   getCurrentDragData,
@@ -31,8 +31,6 @@ export interface DropPreviewState {
   position: number;
   height: number;
   feedback: DropFeedback;
-  slotPosition?: SlotPosition;
-  isHalfWidth?: boolean;
 }
 
 /** Reactive getters that the handlers read from the component. */

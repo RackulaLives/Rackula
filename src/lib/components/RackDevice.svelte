@@ -9,7 +9,6 @@
     InterfaceTemplate,
     PlacedDevice,
     RackView,
-    SlotPosition,
   } from "$lib/types";
   import { SvelteMap } from "svelte/reactivity";
   import PortIndicators from "./PortIndicators.svelte";
@@ -49,8 +48,6 @@
     selected: boolean;
     uHeight: number;
     rackWidth: number;
-    /** Physical rack width in inches (10, 19, 23). Used for slot calculation. */
-    rackPhysicalWidth?: number;
     displayMode?: DisplayMode;
     rackView?: RackView;
     showLabelsOnImages?: boolean;
@@ -58,8 +55,6 @@
     placedDeviceId?: string;
     /** Custom colour override for this placement (overrides device type colour) */
     colourOverride?: string;
-    /** Slot position for half-width devices */
-    slotPosition?: SlotPosition;
     /** Container context for child devices (for accessibility announcements) */
     containerContext?: {
       containerName: string;
@@ -112,14 +107,12 @@
     selected,
     uHeight,
     rackWidth,
-    rackPhysicalWidth = 19,
     displayMode = "label",
     rackView = "front",
     showLabelsOnImages = false,
     placedDeviceName,
     placedDeviceId,
     colourOverride,
-    slotPosition = "full",
     containerContext,
     deviceLibrary = [],
     containerChildDevices = [],
@@ -214,29 +207,11 @@
   // Full interior width (between rails)
   const fullWidth = $derived(rackWidth - RAIL_WIDTH * 2);
 
-  // Defensive rendering: device type's slot_width is the source of truth
-  // A full-width device (slot_width: 2 or undefined) always renders full-width,
-  // even if placement data has incorrect slot_position
-  //
-  // 10-inch racks have only 1 slot - all devices render full-width regardless
-  // of their slot_width. This allows 10" devices to work correctly in both
-  // 10" racks (full-width) and 19" racks (half-width).
-  const rackHasTwoSlots = $derived(rackPhysicalWidth > 10);
-  const isDeviceTypeHalfWidth = $derived(
-    device.slot_width === 1 && rackHasTwoSlots,
-  );
-  const effectiveSlotPosition = $derived(
-    isDeviceTypeHalfWidth ? slotPosition : "full",
-  );
-
-  // Device width depends on effective slot position: half-width for left/right, full for full
-  const deviceWidth = $derived(
-    effectiveSlotPosition === "full" ? fullWidth : fullWidth / 2,
-  );
-  // X offset within the interior: 0 for left/full, half for right
-  const slotXOffset = $derived(
-    effectiveSlotPosition === "right" ? fullWidth / 2 : 0,
-  );
+  // Carrier-first: a rail-mounted device always spans the full interior width.
+  // Sub-U / half-width gear mounts inside a carrier (a full-width container);
+  // its children are sized by slotGeometry relative to this full width.
+  const deviceWidth = $derived(fullWidth);
+  const slotXOffset = 0;
 
   // Container helper: compute slot x offsets and widths for child positioning
   const slotGeometry = $derived.by(() => {

@@ -49,7 +49,6 @@ function rackKeyParts(rack: Rack) {
       device_type: d.device_type,
       position: d.position,
       face: d.face,
-      slot_position: d.slot_position,
       name: d.name,
       colour_override: d.colour_override,
     })),

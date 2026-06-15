@@ -23,7 +23,6 @@
     DeviceFace,
     DisplayMode,
     PlacedDevice,
-    SlotPosition,
   } from "$lib/types";
   import RackDevice from "./RackDevice.svelte";
   import RackFrame from "./RackFrame.svelte";
@@ -101,7 +100,6 @@
         rackId: string;
         slug: string;
         position: number;
-        slot_position?: SlotPosition;
       }>,
     ) => void;
     ondevicemove?: (
@@ -109,7 +107,6 @@
         rackId: string;
         deviceIndex: number;
         newPosition: number;
-        slot_position?: SlotPosition;
       }>,
     ) => void;
     ondevicemoverack?: (
@@ -119,7 +116,6 @@
         targetRackId: string;
         targetPosition: number;
         face: DeviceFace;
-        slot_position?: SlotPosition;
       }>,
     ) => void;
     onplacementtap?: (
@@ -488,14 +484,12 @@
             selected={selectedDeviceId === placedDevice.id}
             uHeight={U_HEIGHT}
             rackWidth={RACK_WIDTH}
-            rackPhysicalWidth={rack.width}
             {displayMode}
             rackView={effectiveFaceFilter}
             {showLabelsOnImages}
             placedDeviceName={placedDevice.name}
             placedDeviceId={placedDevice.id}
             colourOverride={placedDevice.colour_override}
-            slotPosition={placedDevice.slot_position}
             containerContext={containerCtx}
             {deviceLibrary}
             containerChildDevices={children}
@@ -522,8 +516,6 @@
         position={dropPreview.position}
         height={dropPreview.height}
         feedback={dropPreview.feedback}
-        slotPosition={dropPreview.slotPosition}
-        isHalfWidth={dropPreview.isHalfWidth}
         railWidth={RAIL_WIDTH}
         {interiorWidth}
         uHeight={U_HEIGHT}

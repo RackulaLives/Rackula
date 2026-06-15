@@ -99,11 +99,6 @@ export const AirflowSchema = z.enum([
 export const SubdeviceRoleSchema = z.enum(["parent", "child"]);
 
 /**
- * Slot position enum for horizontal device placement
- */
-export const SlotPositionSchema = z.enum(["left", "right", "full"]);
-
-/**
  * Slot width enum for device width in slots
  */
 export const SlotWidthSchema = z.union([z.literal(1), z.literal(2)]);
@@ -578,7 +573,6 @@ export const PlacedDeviceSchema = z
     // Container children use 0-indexed positions, rack-level must be >= 0.5 (validated by refine)
     position: z.number().min(0, "Position must be non-negative"),
     face: DeviceFaceSchema,
-    slot_position: SlotPositionSchema.optional(),
 
     // --- Port Instances ---
     ports: z.array(PlacedPortSchema).default([]),
@@ -892,7 +886,6 @@ function migrateDevicePositions<
  * - Legacy rack → racks[0] migration
  * - Generating nanoid for racks missing id field
  * - Position migration from U values to internal units (v0.7.0)
- * - slot_position recovery for half-width device pairs missing the field (#1248, #1602)
  */
 export const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
   // Determine the racks array
@@ -1214,7 +1207,6 @@ export type WeightUnit = z.infer<typeof WeightUnitSchema>;
 export type DisplayMode = z.infer<typeof DisplayModeSchema>;
 export type Airflow = z.infer<typeof AirflowSchema>;
 export type SubdeviceRole = z.infer<typeof SubdeviceRoleSchema>;
-export type SlotPosition = z.infer<typeof SlotPositionSchema>;
 export type SlotWidth = z.infer<typeof SlotWidthSchema>;
 export type RackWidth = z.infer<typeof RackWidthSchema>;
 export type InterfaceType = z.infer<typeof InterfaceTypeSchema>;

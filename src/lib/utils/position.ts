@@ -1,19 +1,19 @@
 /**
  * Position Conversion Utilities
  *
- * Internal units use UNITS_PER_U = 6 (LCM of 2 and 3) for integer math:
- * - Hole positions: 1/3U = 2 internal units (racks have 3 holes per U)
- * - Device heights: 1/2U = 3 internal units (smallest device is 0.5U)
+ * Internal units use UNITS_PER_U = 6 for integer math: device heights step in
+ * 1/2U (= 3 internal units, the smallest device is 0.5U). Rails register
+ * equipment at whole-U boundaries only (carrier-first, #2158); sub-U gear
+ * mounts inside a carrier, so rail positions land on multiples of UNITS_PER_U.
  *
- * This avoids floating-point precision issues in collision detection.
+ * This keeps height math integer and avoids floating-point precision issues in
+ * collision detection.
  *
  * Position mapping:
- * | Human | Internal | Notes                    |
- * |-------|----------|--------------------------|
- * | U1    | 6        | Standard position        |
- * | U1⅓   | 8        | Offset by one hole       |
- * | U1½   | 9        | Half-U device boundary   |
- * | U2    | 12       | Standard position        |
+ * | Human | Internal | Notes             |
+ * |-------|----------|-------------------|
+ * | U1    | 6        | Standard position |
+ * | U2    | 12       | Standard position |
  */
 
 import { UNITS_PER_U } from "$lib/types/constants";
@@ -49,35 +49,21 @@ export function heightToInternalUnits(heightU: number): number {
 }
 
 /**
- * Format an internal position as a human-readable string with Unicode fraction glyphs.
+ * Format an internal rail position as a whole-U label.
  *
- * Device positions only occur at hole boundaries (multiples of 2 internal units).
- * The odd internal values (1, 3, 5) are used for device HEIGHT calculations (1/2U = 3 units),
- * not positions, so they shouldn't appear in practice but are handled for completeness.
+ * Carrier-first (#2158): rails register equipment at whole-U boundaries only,
+ * so a rail position is a whole number of U. Any internal value is rounded to
+ * the nearest whole U for display; sub-U gear is labelled by its carrier slot
+ * reference (see DeviceDetails / EditPanelPosition), not a fractional U.
  *
- * @param internal - Internal position (e.g., 6 = U1, 8 = U1⅓, 12 = U2)
- * @returns Formatted position string (e.g., "U1", "U1⅓", "U2")
+ * @param internal - Internal position (e.g., 6 = U1, 12 = U2)
+ * @returns Formatted position string (e.g., "U1", "U2")
  *
  * @example
  * formatPosition(6)  // "U1"
- * formatPosition(8)  // "U1⅓"
- * formatPosition(10) // "U1⅔"
  * formatPosition(12) // "U2"
  */
 export function formatPosition(internal: number): string {
-  const wholeU = Math.floor(internal / UNITS_PER_U);
-  const remainder = internal % UNITS_PER_U;
-
-  // Map remainder to Unicode fraction glyphs
-  // Positions only occur at hole boundaries (multiples of 2)
-  const fractionMap: Record<number, string> = {
-    0: "", // whole U
-    1: "⅙", // 1/6 U (rare, for nerd mode)
-    2: "⅓", // 1/3 U (one hole up)
-    3: "½", // 1/2 U (half-U device boundary)
-    4: "⅔", // 2/3 U (two holes up)
-    5: "⅚", // 5/6 U (rare, for nerd mode)
-  };
-
-  return `U${wholeU}${fractionMap[remainder] ?? ""}`;
+  const wholeU = Math.round(internal / UNITS_PER_U);
+  return `U${wholeU}`;
 }

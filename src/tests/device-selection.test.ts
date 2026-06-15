@@ -18,13 +18,11 @@ describe("resolveSelectedDevice (#1680)", () => {
       id: "uuid-left",
       device_type: "rackmate-2u",
       position: 54,
-      slot_position: "left",
     });
     const right = createTestDevice({
       id: "uuid-right",
       device_type: "rackmate-2u",
       position: 54,
-      slot_position: "right",
     });
     const rack = createTestRack({ devices: [left, right] });
 

@@ -4,7 +4,7 @@
  * Extracted from Rack.svelte to reduce component size.
  */
 
-import type { DeviceFace, SlotPosition } from "$lib/types";
+import type { DeviceFace } from "$lib/types";
 import type { DropAction } from "$lib/utils/rack-drop-coordinator";
 import {
   buildCollisionMessage,
@@ -23,7 +23,6 @@ export interface RackEventCallbacks {
       rackId: string;
       deviceIndex: number;
       newPosition: number;
-      slot_position?: SlotPosition;
     }>,
   ) => void;
   ondevicemoverack?: (
@@ -33,7 +32,6 @@ export interface RackEventCallbacks {
       targetRackId: string;
       targetPosition: number;
       face: DeviceFace;
-      slot_position?: SlotPosition;
     }>,
   ) => void;
   ondevicedrop?: (
@@ -41,7 +39,6 @@ export interface RackEventCallbacks {
       rackId: string;
       slug: string;
       position: number;
-      slot_position?: SlotPosition;
     }>,
   ) => void;
 }
@@ -80,7 +77,6 @@ export function dispatchDropAction(
             rackId: action.rackId,
             deviceIndex: action.deviceIndex,
             newPosition: action.targetU,
-            slot_position: action.slotPosition,
           },
         }),
       );
@@ -94,7 +90,6 @@ export function dispatchDropAction(
             targetRackId: action.targetRackId,
             targetPosition: action.targetU,
             face: action.face,
-            slot_position: action.slotPosition,
           },
         }),
       );
@@ -106,7 +101,6 @@ export function dispatchDropAction(
             rackId: action.rackId,
             slug: action.slug,
             position: action.targetU,
-            slot_position: action.slotPosition,
           },
         }),
       );
@@ -190,7 +184,6 @@ export function dispatchDropAction(
           action.targetU,
           action.excludeIndex,
           collisionContext.faceFilter,
-          action.slotPosition,
         );
         if (message) {
           collisionContext.toastStore.showToast(message, "warning", 3000);

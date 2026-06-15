@@ -127,7 +127,6 @@ export function createContextMenuActions(
       targetPositionInternal,
       deviceIndex,
       device.face,
-      device.slot_position ?? "full",
     );
   }
 
@@ -149,7 +148,6 @@ export function createContextMenuActions(
       targetPositionInternal,
       deviceIndex,
       device.face,
-      device.slot_position ?? "full",
     );
   }
 

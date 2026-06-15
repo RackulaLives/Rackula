@@ -4,16 +4,9 @@
  * custom pointer events (Safari workaround), and mobile touch-to-place.
  */
 
-import type {
-  Rack,
-  DeviceType,
-  DeviceFace,
-  PlacedDevice,
-  SlotPosition,
-} from "$lib/types";
+import type { Rack, DeviceType, DeviceFace, PlacedDevice } from "$lib/types";
 import {
   calculateDropPosition,
-  calculateDropSlotPosition,
   getDropFeedback,
   detectContainerDropTarget,
   detectContainerHover,
@@ -51,16 +44,12 @@ export interface DropPreview {
   position: number;
   height: number;
   feedback: DropFeedback;
-  slotPosition: SlotPosition;
-  isHalfWidth: boolean;
 }
 
 /** Full result from drop target resolution, including preview and container hover state. */
 export interface DropTargetResult {
   targetU: number;
   xOffsetInRack: number;
-  slotPosition: SlotPosition;
-  isHalfWidth: boolean;
   feedback: DropFeedback;
   containerHoverInfo: ContainerHoverInfo | null;
   dropPreview: DropPreview;
@@ -80,7 +69,6 @@ export type DropAction =
       rackId: string;
       deviceIndex: number;
       targetU: number;
-      slotPosition: SlotPosition;
     }
   | {
       kind: "cross-rack-move";
@@ -89,14 +77,12 @@ export type DropAction =
       targetRackId: string;
       targetU: number;
       face: DeviceFace;
-      slotPosition: SlotPosition;
     }
   | {
       kind: "palette-drop";
       rackId: string;
       slug: string;
       targetU: number;
-      slotPosition: SlotPosition;
     }
   | {
       kind: "container-drop";
@@ -118,7 +104,6 @@ export type DropAction =
       feedback: DropFeedback;
       targetU: number;
       deviceHeight: number;
-      slotPosition: SlotPosition;
       excludeIndex?: number;
     };
 
@@ -174,7 +159,6 @@ export function resolveDropTarget(
   device: DeviceType,
   faceFilter: DeviceFace | undefined,
   excludeIndex?: number,
-  slotPositionOverride?: SlotPosition,
 ): DropTargetResult {
   const { mouseY, xOffsetInRack } = resolveCoordinates(coords, dims);
 
@@ -184,16 +168,6 @@ export function resolveDropTarget(
     dims.uHeight,
     dims.rackPadding,
   );
-
-  const deviceSlotWidth = device.slot_width ?? 2;
-  const slotPosition =
-    slotPositionOverride ??
-    calculateDropSlotPosition(
-      xOffsetInRack,
-      dims.interiorWidth,
-      deviceSlotWidth,
-    );
-  const isHalfWidth = deviceSlotWidth === 1;
 
   const containerHover = detectContainerHover(
     rack,
@@ -236,22 +210,17 @@ export function resolveDropTarget(
         targetU,
         excludeIndex,
         faceFilter,
-        slotPosition,
       );
 
   return {
     targetU,
     xOffsetInRack,
-    slotPosition,
-    isHalfWidth,
     feedback,
     containerHoverInfo: containerHover,
     dropPreview: {
       position: targetU,
       height: device.u_height,
       feedback,
-      slotPosition,
-      isHalfWidth,
     },
   };
 }
@@ -269,7 +238,6 @@ export function resolveDropAction(
   faceFilter: DeviceFace | undefined,
   /** Set true to skip container detection (the fallthrough re-resolution after a failed container placement). */
   skipContainer: boolean = false,
-  slotPositionOverride?: SlotPosition,
 ): DropAction {
   const { mouseY, xOffsetInRack } = resolveCoordinates(coords, dims);
 
@@ -279,15 +247,6 @@ export function resolveDropAction(
     dims.uHeight,
     dims.rackPadding,
   );
-
-  const deviceSlotWidth = dragData.device.slot_width ?? 2;
-  const slotPosition =
-    slotPositionOverride ??
-    calculateDropSlotPosition(
-      xOffsetInRack,
-      dims.interiorWidth,
-      deviceSlotWidth,
-    );
 
   // Carrier-first: a sub-U / half-width device must land inside a carrier.
   const carrierSlug = synthesizeCarrierForDevice(dragData.device);
@@ -338,7 +297,6 @@ export function resolveDropAction(
         feedback: carrierFeedback,
         targetU,
         deviceHeight: 1,
-        slotPosition: "full",
         excludeIndex,
       };
     }
@@ -359,7 +317,6 @@ export function resolveDropAction(
     targetU,
     excludeIndex,
     faceFilter,
-    slotPosition,
   );
 
   if (feedback !== "valid") {
@@ -368,7 +325,6 @@ export function resolveDropAction(
       feedback,
       targetU,
       deviceHeight: dragData.device.u_height,
-      slotPosition,
       excludeIndex,
     };
   }
@@ -389,7 +345,6 @@ export function resolveDropAction(
       rackId: rack.id,
       deviceIndex: dragData.sourceIndex,
       targetU,
-      slotPosition,
     };
   }
 
@@ -405,7 +360,6 @@ export function resolveDropAction(
       targetRackId: rack.id,
       targetU,
       face: faceFilter ?? "front",
-      slotPosition,
     };
   }
 
@@ -414,7 +368,6 @@ export function resolveDropAction(
     rackId: rack.id,
     slug: dragData.device.slug,
     targetU,
-    slotPosition,
   };
 }
 
@@ -429,7 +382,6 @@ export function buildCollisionMessage(
   targetU: number,
   excludeIndex?: number,
   faceFilter?: DeviceFace,
-  slotPosition?: SlotPosition,
 ): string | null {
   if (feedback === "blocked") {
     const collisions: PlacedDevice[] = findCollisions(
@@ -439,7 +391,6 @@ export function buildCollisionMessage(
       targetU,
       excludeIndex,
       faceFilter,
-      slotPosition,
     );
 
     if (collisions.length > 0) {

@@ -3,13 +3,7 @@
  * Handles drag data, position calculation, and drop validation
  */
 
-import type {
-  DeviceType,
-  DeviceFace,
-  Rack,
-  Slot,
-  SlotPosition,
-} from "$lib/types";
+import type { DeviceType, DeviceFace, Rack, Slot } from "$lib/types";
 import { canPlaceDevice, findNextFreeChildPosition } from "./collision";
 import { RAIL_WIDTH } from "$lib/constants/layout";
 import { toInternalUnits, toHumanUnits } from "./position";
@@ -82,28 +76,6 @@ export function calculateDropPosition(
 }
 
 /**
- * Calculate the target slot position from mouse X coordinate
- * @param mouseX - Mouse X position relative to rack interior
- * @param rackWidth - Rack interior width in pixels
- * @param slotWidth - Device slot width (1 = half, 2 = full)
- * @returns Target slot position ('left', 'right', or 'full')
- */
-export function calculateDropSlotPosition(
-  mouseX: number,
-  rackWidth: number,
-  slotWidth: number = 2,
-): SlotPosition {
-  // Full-width devices always use 'full' position
-  if (slotWidth === 2) {
-    return "full";
-  }
-
-  // Half-width devices: determine left or right based on X position
-  const midpoint = rackWidth / 2;
-  return mouseX < midpoint ? "left" : "right";
-}
-
-/**
  * Get drop feedback for a potential placement
  * @param rack - Target rack
  * @param deviceLibrary - Device library for height lookup
@@ -111,7 +83,6 @@ export function calculateDropSlotPosition(
  * @param targetU - Target U position
  * @param excludeIndex - Optional device index to exclude from collision check (for moves within same rack)
  * @param targetFace - Target face for placement (defaults to 'front')
- * @param targetSlot - Target slot position (defaults to 'full')
  * @returns Feedback: 'valid', 'invalid', or 'blocked'
  */
 export function getDropFeedback(
@@ -121,7 +92,6 @@ export function getDropFeedback(
   targetU: number,
   excludeIndex?: number,
   targetFace: DeviceFace = "front",
-  targetSlot: SlotPosition = "full",
 ): DropFeedback {
   // Check bounds first (in human U units)
   if (targetU < 1) {
@@ -135,7 +105,7 @@ export function getDropFeedback(
   // Convert to internal units for collision check
   const targetPositionInternal = toInternalUnits(targetU);
 
-  // Check for collisions with face-aware and slot-aware validation
+  // Check for collisions with face-aware validation.
   // Face is authoritative: only the explicit face value matters for collision
   const canPlace = canPlaceDevice(
     rack,
@@ -144,7 +114,6 @@ export function getDropFeedback(
     targetPositionInternal,
     excludeIndex,
     targetFace,
-    targetSlot,
   );
 
   if (!canPlace) {

@@ -9,7 +9,7 @@
  * rune that must be called from a .svelte.ts file (the facade).
  */
 
-import type { DeviceFace, PlacedDevice, SlotPosition } from "$lib/types";
+import type { DeviceFace, PlacedDevice } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import {
   canPlaceDevice,
@@ -84,7 +84,6 @@ export function duplicateDevice(
     layout.device_types,
     deviceType.u_height,
     sourceDevice.face,
-    sourceDevice.slot_position,
   );
 
   if (validPositions.length === 0) {
@@ -331,7 +330,6 @@ export function placeDeviceSmart(
       positionInternal,
       undefined,
       "both",
-      "full",
     )
   ) {
     return false;
@@ -405,7 +403,6 @@ export function placeDeviceSmart(
  * @param toRackId - Target rack ID
  * @param newPosition - New position in U (human-readable)
  * @param face - Optional face assignment
- * @param slotPosition - Optional slot position
  * @param snapshotDevice - Snapshot function (deep-clones the reactive proxy)
  * @returns true if moved successfully
  */
@@ -416,19 +413,11 @@ export function moveDeviceToRack(
   toRackId: string,
   newPosition: number,
   face: DeviceFace | undefined,
-  slotPosition: SlotPosition | undefined,
   snapshotDevice: SnapshotDeviceFn,
 ): boolean {
   // Same-rack move — delegate to existing function (face bundled into single undo entry)
   if (fromRackId === toRackId) {
-    return moveDeviceRecorded(
-      ctx,
-      fromRackId,
-      deviceIndex,
-      newPosition,
-      slotPosition,
-      face,
-    );
+    return moveDeviceRecorded(ctx, fromRackId, deviceIndex, newPosition, face);
   }
 
   // Cross-rack move
@@ -455,7 +444,6 @@ export function moveDeviceToRack(
     face ??
     (deviceType.is_full_depth !== false ? "both" : (device.face ?? "front"));
   const positionInternal = toInternalUnits(newPosition);
-  const effectiveSlot = slotPosition ?? device.slot_position ?? "full";
 
   // Validate placement in target rack (no excludeIndex — device isn't in target rack yet)
   if (
@@ -466,7 +454,6 @@ export function moveDeviceToRack(
       positionInternal,
       undefined,
       effectiveFace,
-      effectiveSlot,
     )
   ) {
     return false;
@@ -502,7 +489,6 @@ export function moveDeviceToRack(
     toRackId,
     positionInternal,
     effectiveFace,
-    effectiveSlot,
     parentSnapshot,
     childrenSnapshots,
     adapter,

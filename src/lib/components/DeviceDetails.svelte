@@ -47,9 +47,9 @@
     device.name ?? deviceType.model ?? deviceType.slug,
   );
 
-  // Format position display with fraction glyphs (e.g., "U12-U13, Front" or "U1⅓, Front")
+  // Format position display as whole-U (e.g., "U12-U13, Front" or "U1, Front")
   const positionDisplay = $derived.by(() => {
-    // Format bottom position with fraction glyphs
+    // Format bottom position
     const bottomPosition = formatPosition(device.position);
 
     // Calculate top position in internal units and format

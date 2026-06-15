@@ -144,7 +144,7 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
 
 /**
  * Order PlacedDevice fields according to schema v1.0.0
- * Field order: id, device_type, name, position, face, slot_position, front_image, rear_image,
+ * Field order: id, device_type, name, position, face, front_image, rear_image,
  *              parent_device, device_bay, container_id, slot_id, auto_created, notes, custom_fields
  */
 function orderPlacedDeviceFields(
@@ -158,8 +158,6 @@ function orderPlacedDeviceFields(
   if (device.name !== undefined) ordered.name = device.name;
   ordered.position = device.position;
   ordered.face = device.face;
-  if (device.slot_position !== undefined)
-    ordered.slot_position = device.slot_position;
 
   // --- Placement Image Override ---
   if (device.front_image !== undefined)

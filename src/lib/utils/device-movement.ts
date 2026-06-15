@@ -6,11 +6,7 @@
 
 import type { Rack, DeviceType, PlacedDevice } from "$lib/types";
 import { canPlaceDevice, isContainerChild } from "./collision";
-import {
-  UNITS_PER_U,
-  toInternalUnits,
-  heightToInternalUnits,
-} from "./position";
+import { UNITS_PER_U, heightToInternalUnits } from "./position";
 
 /**
  * Result of attempting to find a valid position for device movement
@@ -39,7 +35,6 @@ export type MoveDirection = 1 | -1;
  * @param deviceTypes - Device type definitions for collision checking
  * @param deviceIndex - Index of the device in rack.devices array
  * @param direction - 1 for up (higher U), -1 for down (lower U)
- * @param stepOverride - Optional step size in U (default: device height). Use 1/3 for fine movement.
  * @returns MoveResult indicating success/failure and new position
  */
 export function findNextValidPosition(
@@ -47,7 +42,6 @@ export function findNextValidPosition(
   deviceTypes: DeviceType[],
   deviceIndex: number,
   direction: MoveDirection,
-  stepOverride?: number,
 ): MoveResult {
   const placedDevice = rack.devices[deviceIndex];
   if (!placedDevice) {
@@ -70,21 +64,13 @@ export function findNextValidPosition(
     return { success: false, newPosition: null, reason: "no_valid_position" };
   }
 
-  // Device height in internal units (used for boundary checks and to detect
-  // 0.5U-class devices).
+  // Device height in internal units (used for boundary checks).
   const deviceHeightInternal = heightToInternalUnits(deviceType.u_height);
 
-  // Movement increment in internal units.
-  // 0.5U-class devices (height an odd multiple of 1/2U) step by half a U so
-  // they snap to half-U boundaries (multiples of 3) and stack cleanly, never
-  // to 1/3U hole offsets. Whole-U devices keep the 1U default and respect the
-  // fine stepOverride (e.g. 1/3U via Shift+Arrow).
-  const isHalfU = deviceHeightInternal % UNITS_PER_U === UNITS_PER_U / 2;
-  const moveIncrementInternal = isHalfU
-    ? UNITS_PER_U / 2
-    : stepOverride
-      ? toInternalUnits(stepOverride)
-      : UNITS_PER_U;
+  // Carrier-first: rail-mounted gear sits at whole-U boundaries only, so nudge
+  // moves one full U at a time. Sub-U / half-width gear lives inside a carrier
+  // (a container child), which is rejected above before reaching this point.
+  const moveIncrementInternal = UNITS_PER_U;
 
   // Calculate initial target position (all positions are in internal units)
   let newPosition = placedDevice.position + direction * moveIncrementInternal;

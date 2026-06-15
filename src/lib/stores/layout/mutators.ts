@@ -16,7 +16,6 @@ import type {
   DeviceType,
   PlacedDevice,
   Rack,
-  SlotPosition,
 } from "$lib/types";
 import { layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
@@ -327,31 +326,6 @@ export function updateDeviceColourRaw(
     ...rack,
     devices: rack.devices.map((d, i) =>
       i === index ? { ...d, colour_override: colour } : d,
-    ),
-  }));
-}
-
-/**
- * Update a device's slot position directly (raw)
- * @param ctx - Layout state access
- * @param rackId - Rack ID (for multi-rack support)
- * @param index - Device index
- * @param slotPosition - New slot position ('left', 'right', or 'full')
- */
-export function updateDeviceSlotPositionRaw(
-  ctx: LayoutStateAccess,
-  rackId: string,
-  index: number,
-  slotPosition: SlotPosition,
-): void {
-  const target = getTargetRack(ctx, rackId);
-  if (!target) return;
-  if (index < 0 || index >= target.rack.devices.length) return;
-
-  updateRackAtIndex(ctx, target.index, (rack) => ({
-    ...rack,
-    devices: rack.devices.map((d, i) =>
-      i === index ? { ...d, slot_position: slotPosition } : d,
     ),
   }));
 }

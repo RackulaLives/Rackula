@@ -13,11 +13,12 @@ import { gotoWithRack, PLATFORM_MODIFIER, loadFileFromDisk, locators } from "./h
  * 1. The file loads successfully
  * 2. All 9 devices are present (renders as 11 elements in dual-view mode:
  *    6 front-only + 1 rear-only + 2 both-face devices × 2 views = 11 total)
- * 3. The position 1.5 is correctly migrated to internal unit 9 (1.5 * 6)
+ * 3. The carrier-first load path snaps the legacy 1.5U rail position up to the
+ *    nearest whole U (U2, internal unit 12)
  * 4. Save/reload cycle works
  *
- * Note: The actual position migration (1.5 → 9 internal units) is verified by
- * unit tests in src/tests/schemas.test.ts. E2E tests verify the user-visible
+ * Note: The position snapping (1.5U → U2 / internal 12) is verified by unit
+ * tests in src/tests/schemas.test.ts. E2E tests verify the user-visible
  * behavior (file loads, devices render, layout persists).
  */
 test.describe("Carlton Migration (#879)", () => {
@@ -75,8 +76,8 @@ test.describe("Carlton Migration (#879)", () => {
       timeout: 5000,
     });
 
-    // Verify the position migration worked correctly (1.5 → 9 internal units)
-    // The device should have data-device-position="9" (1.5 * 6 = 9)
+    // Carrier-first (#2158): a legacy fractional rail position snaps to the
+    // nearest whole U on load. 1.5U (internal 9) snaps up to U2 (internal 12).
     // Note: getByText returns the <text> element; the attribute is on the parent .rack-device
     const unraidDeviceContainer = page
       .locator(locators.rack.device)
@@ -84,7 +85,7 @@ test.describe("Carlton Migration (#879)", () => {
       .first();
     await expect(unraidDeviceContainer).toHaveAttribute(
       "data-device-position",
-      "9",
+      "12",
       { timeout: 5000 },
     );
   });

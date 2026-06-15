@@ -279,7 +279,7 @@
   {#if isHalfWidth}
     <span
       class="width-indicator"
-      title="Half-width: Occupies left or right half of rack"
+      title="Half-width: Mounts inside a carrier, not directly on the rails"
       aria-label="Half-width device">½W</span
     >
   {/if}

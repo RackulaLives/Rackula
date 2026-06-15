@@ -74,12 +74,12 @@ export const MAX_DEVICE_HEIGHT = 42;
 /**
  * Number of internal units per rack unit (1U).
  *
- * Why 6? It's the LCM of 2 and 3, enabling integer math for:
- * - Hole positions (1/3U = 2 internal units) — racks have 3 holes per U
- * - Device heights (1/2U = 3 internal units) — smallest device is 0.5U
+ * Kept at 6 so device heights stay integer: the smallest device is 0.5U, which
+ * is 3 internal units. Carrier-first (#2158) puts rails on whole-U boundaries
+ * only, so rail positions are multiples of 6; sub-U gear mounts inside a
+ * carrier rather than at a fractional rail offset.
  *
  * This avoids floating-point precision issues in collision detection.
- * The "1/6U" granularity is an implementation detail, not a user-facing concept.
  */
 export const UNITS_PER_U = 6;
 

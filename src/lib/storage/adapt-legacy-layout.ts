@@ -26,6 +26,23 @@ import { generateId } from "$lib/utils/device";
 import { findStarterDevice } from "$lib/data/starterLibrary";
 import { ensurePreCarrierBackup } from "./pre-carrier-backup";
 
+/**
+ * A placed device as it may appear in raw legacy input. The carrier-first model
+ * dropped `slot_position` from the live PlacedDevice type (#2294), but a
+ * pre-carrier file still carries a left/right slot marker. The adapter runs
+ * before Zod, on untrusted raw input, so it reads the legacy field through this
+ * permissive shape rather than the enforced runtime type. Output is always a
+ * clean carrier-first PlacedDevice.
+ */
+type LegacyPlacedDevice = PlacedDevice & {
+  slot_position?: "left" | "right" | "full";
+};
+
+/** Read the legacy left/right slot marker off a raw device, if present. */
+function legacySlot(d: PlacedDevice): "left" | "right" | "full" | undefined {
+  return (d as LegacyPlacedDevice).slot_position;
+}
+
 /** Stable synthesized-carrier slugs (defined in C1's starter library). */
 export const CARRIER_2COL_SLUG = "carrier-1u-2col";
 export const CARRIER_2X2_SLUG = "carrier-1u-2x2";
@@ -77,7 +94,8 @@ function needsCarrier(
   device: PlacedDevice,
   deviceType: DeviceType | undefined,
 ): boolean {
-  if (device.slot_position === "left" || device.slot_position === "right") {
+  const slot = legacySlot(device);
+  if (slot === "left" || slot === "right") {
     return true;
   }
   return isHalfWidth(deviceType) || isSubUHeight(deviceType);
@@ -107,8 +125,10 @@ function buildCarrier(
   // Preserve legacy left/right intent: a device explicitly marked "left" takes
   // the first column, "right" the second. Devices without slot_position keep
   // their input order. A stable sort keeps unrelated ordering intact.
-  const slotRank = (d: PlacedDevice): number =>
-    d.slot_position === "left" ? 0 : d.slot_position === "right" ? 2 : 1;
+  const slotRank = (d: PlacedDevice): number => {
+    const slot = legacySlot(d);
+    return slot === "left" ? 0 : slot === "right" ? 2 : 1;
+  };
   const ordered = [...wrapped].sort((a, b) => slotRank(a) - slotRank(b));
   const children = ordered.slice(0, slotIds.length).map((d, index) => {
     // Children are located by slot alone: clear rail/legacy placement fields
@@ -119,7 +139,7 @@ function buildCarrier(
       container_id: _legacyContainer,
       slot_id: _legacySlotId,
       ...rest
-    } = d;
+    } = d as LegacyPlacedDevice;
     void _legacySlot;
     void _legacyContainer;
     void _legacySlotId;
@@ -198,7 +218,8 @@ function adaptRackDevices(
     d.auto_created === true || KNOWN_CARRIER_SLUGS.has(d.device_type);
   const coLocated = new Map<string, PlacedDevice[]>();
   for (const d of snapped) {
-    if (d.slot_position === "left" || d.slot_position === "right") continue;
+    const slot = legacySlot(d);
+    if (slot === "left" || slot === "right") continue;
     if (isExistingCarrier(d)) continue;
     const key = `${d.position}|${d.face}`;
     const group = coLocated.get(key);
@@ -209,7 +230,7 @@ function adaptRackDevices(
   for (const group of coLocated.values()) {
     if (
       group.length === 2 &&
-      group.every((d) => d.slot_position === undefined)
+      group.every((d) => legacySlot(d) === undefined)
     ) {
       for (const d of group) forcedPairIds.add(d.id);
     }

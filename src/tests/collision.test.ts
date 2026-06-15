@@ -3,20 +3,13 @@ import {
   getDeviceURange,
   doRangesOverlap,
   doFacesCollide,
-  doSlotsOverlap,
   canPlaceDevice,
   findCollisions,
   findValidDropPositions,
   snapToNearestValidPosition,
 } from "$lib/utils/collision";
 import { UNITS_PER_U } from "$lib/utils/position";
-import type {
-  DeviceType,
-  Rack,
-  DeviceFace,
-  SlotPosition,
-  SlotWidth,
-} from "$lib/types";
+import type { DeviceType, Rack, DeviceFace, SlotWidth } from "$lib/types";
 
 // Helper to create test devices
 function createTestDevice(
@@ -50,7 +43,6 @@ function createTestRack(
     device_type: string;
     position: number; // Internal units (6 = U1)
     face?: DeviceFace;
-    slot_position?: SlotPosition;
   }[] = [],
 ): Rack {
   return {
@@ -64,7 +56,6 @@ function createTestRack(
     devices: devices.map((d) => ({
       ...d,
       face: d.face ?? ("front" as const),
-      ...(d.slot_position && { slot_position: d.slot_position }),
     })),
   };
 }
@@ -630,178 +621,6 @@ describe("Face-Authoritative Collision Detection", () => {
       expect(canPlaceDevice(rack, [device], 2, 30, undefined, "front")).toBe(
         false,
       );
-    });
-  });
-});
-
-describe("Slot Position Collision (Half-Width Devices)", () => {
-  describe("doSlotsOverlap", () => {
-    it('"full" overlaps with "full"', () => {
-      expect(doSlotsOverlap("full", "full")).toBe(true);
-    });
-
-    it('"full" overlaps with "left"', () => {
-      expect(doSlotsOverlap("full", "left")).toBe(true);
-    });
-
-    it('"full" overlaps with "right"', () => {
-      expect(doSlotsOverlap("full", "right")).toBe(true);
-    });
-
-    it('"left" overlaps with "full"', () => {
-      expect(doSlotsOverlap("left", "full")).toBe(true);
-    });
-
-    it('"right" overlaps with "full"', () => {
-      expect(doSlotsOverlap("right", "full")).toBe(true);
-    });
-
-    it('"left" overlaps with "left"', () => {
-      expect(doSlotsOverlap("left", "left")).toBe(true);
-    });
-
-    it('"right" overlaps with "right"', () => {
-      expect(doSlotsOverlap("right", "right")).toBe(true);
-    });
-
-    it('"left" does NOT overlap with "right"', () => {
-      expect(doSlotsOverlap("left", "right")).toBe(false);
-    });
-
-    it('"right" does NOT overlap with "left"', () => {
-      expect(doSlotsOverlap("right", "left")).toBe(false);
-    });
-  });
-
-  describe("canPlaceDevice with slot positions", () => {
-    const halfWidthDevice = createTestDevice("half-width", 1, {
-      slot_width: 1,
-      is_full_depth: false,
-    });
-    const fullWidthDevice = createTestDevice("full-width", 1, {
-      slot_width: 2,
-    });
-
-    it("allows two half-width devices in different slots at same U", () => {
-      // Device at U5 (position 30)
-      const rack = createTestRack(42, [
-        {
-          device_type: "half-width",
-          position: 30,
-          face: "front",
-          slot_position: "left",
-        },
-      ]);
-
-      // Placing in right slot at same position should succeed
-      expect(
-        canPlaceDevice(
-          rack,
-          [halfWidthDevice],
-          1,
-          30,
-          undefined,
-          "front",
-          "right",
-        ),
-      ).toBe(true);
-    });
-
-    it("blocks half-width device in same slot at same U", () => {
-      const rack = createTestRack(42, [
-        {
-          device_type: "half-width",
-          position: 30,
-          face: "front",
-          slot_position: "left",
-        },
-      ]);
-
-      // Placing in same (left) slot at same U should fail
-      expect(
-        canPlaceDevice(
-          rack,
-          [halfWidthDevice],
-          1,
-          30,
-          undefined,
-          "front",
-          "left",
-        ),
-      ).toBe(false);
-    });
-
-    it("blocks full-width device when half-width exists at same U", () => {
-      const rack = createTestRack(42, [
-        {
-          device_type: "half-width",
-          position: 30,
-          face: "front",
-          slot_position: "left",
-        },
-      ]);
-
-      // Full-width device needs both slots, should fail
-      expect(
-        canPlaceDevice(
-          rack,
-          [halfWidthDevice, fullWidthDevice],
-          1,
-          30,
-          undefined,
-          "front",
-          "full",
-        ),
-      ).toBe(false);
-    });
-
-    it("blocks half-width device when full-width exists at same U", () => {
-      const rack = createTestRack(42, [
-        {
-          device_type: "full-width",
-          position: 30,
-          face: "front",
-          slot_position: "full",
-        },
-      ]);
-
-      // Half-width device should be blocked by full-width
-      expect(
-        canPlaceDevice(
-          rack,
-          [halfWidthDevice, fullWidthDevice],
-          1,
-          30,
-          undefined,
-          "front",
-          "left",
-        ),
-      ).toBe(false);
-    });
-
-    it("allows adjacent U positions regardless of slot", () => {
-      // Device at U5 (position 30), 1U occupies 30-35
-      const rack = createTestRack(42, [
-        {
-          device_type: "half-width",
-          position: 30,
-          face: "front",
-          slot_position: "left",
-        },
-      ]);
-
-      // Device at U6 (position 36) should succeed even in left slot
-      expect(
-        canPlaceDevice(
-          rack,
-          [halfWidthDevice],
-          1,
-          36,
-          undefined,
-          "front",
-          "left",
-        ),
-      ).toBe(true);
     });
   });
 });

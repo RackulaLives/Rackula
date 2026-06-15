@@ -14,7 +14,6 @@
     DeviceFace,
     DisplayMode,
     AnnotationField,
-    SlotPosition,
   } from "$lib/types";
   import Rack from "./Rack.svelte";
   import RackContextMenu from "./RackContextMenu.svelte";
@@ -85,7 +84,6 @@
         targetRackId: string;
         targetPosition: number;
         face: DeviceFace;
-        slot_position?: SlotPosition;
       }>,
     ) => void;
     /** Mobile tap-to-place event */
@@ -288,7 +286,6 @@
       rackId: string;
       slug: string;
       position: number;
-      slot_position?: SlotPosition;
     }>,
   ) {
     ondevicedrop?.(
@@ -298,7 +295,6 @@
           slug: event.detail.slug,
           position: event.detail.position,
           face: "front" as const,
-          slot_position: event.detail.slot_position,
         },
       }),
     );
@@ -311,7 +307,6 @@
       rackId: string;
       slug: string;
       position: number;
-      slot_position?: SlotPosition;
     }>,
   ) {
     ondevicedrop?.(
@@ -321,7 +316,6 @@
           slug: event.detail.slug,
           position: event.detail.position,
           face: "rear" as const,
-          slot_position: event.detail.slot_position,
         },
       }),
     );

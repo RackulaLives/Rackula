@@ -22,7 +22,7 @@
   import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
   import { hapticTap } from "$lib/utils/haptics";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
-  import type { DeviceFace, SlotPosition } from "$lib/types";
+  import type { DeviceFace } from "$lib/types";
   import {
     loadStarterTemplates,
     type StarterTemplate,
@@ -55,7 +55,6 @@
         slug: string;
         position: number;
         face: "front" | "rear";
-        slot_position?: SlotPosition;
       }>,
     ) => void;
     ondevicemove?: (
@@ -63,7 +62,6 @@
         rackId: string;
         deviceIndex: number;
         newPosition: number;
-        slot_position?: SlotPosition;
       }>,
     ) => void;
     ondevicemoverack?: (
@@ -73,7 +71,6 @@
         targetRackId: string;
         targetPosition: number;
         face: DeviceFace;
-        slot_position?: SlotPosition;
       }>,
     ) => void;
     /** Mobile long press for rack editing */

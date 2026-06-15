@@ -18,7 +18,6 @@ import type {
   RackView,
   DisplayMode,
   Cable,
-  SlotPosition,
 } from "$lib/types";
 import { MAX_RACKS } from "$lib/types/constants";
 import { createLayout } from "$lib/utils/serialization";
@@ -106,7 +105,6 @@ import {
   updateDeviceNameRecorded as updateDeviceNameRecordedImpl,
   updateDevicePlacementImageRecorded as updateDevicePlacementImageRecordedImpl,
   updateDeviceColourRecorded as updateDeviceColourRecordedImpl,
-  updateDeviceSlotPositionRecorded as updateDeviceSlotPositionRecordedImpl,
   updateDeviceNotesRecorded as updateDeviceNotesRecordedImpl,
   updateDeviceIpRecorded as updateDeviceIpRecordedImpl,
 } from "./layout/recorded-device-actions";
@@ -325,7 +323,6 @@ export function createLayoutStore(
     updateDeviceName,
     updateDevicePlacementImage,
     updateDeviceColour,
-    updateDeviceSlotPosition,
     updateDeviceNotes,
     updateDeviceIp,
 
@@ -625,15 +622,8 @@ export function createLayoutStore(
     deviceTypeSlug: string,
     position: number,
     face?: DeviceFace,
-    slotPosition?: SlotPosition,
   ): boolean {
-    return placeDeviceRecorded(
-      rackId,
-      deviceTypeSlug,
-      position,
-      face,
-      slotPosition,
-    );
+    return placeDeviceRecorded(rackId, deviceTypeSlug, position, face);
   }
 
   /**
@@ -685,16 +675,9 @@ export function createLayoutStore(
     rackId: string,
     deviceIndex: number,
     newPosition: number,
-    slotPosition?: SlotPosition,
     face?: DeviceFace,
   ): boolean {
-    return moveDeviceRecorded(
-      rackId,
-      deviceIndex,
-      newPosition,
-      slotPosition,
-      face,
-    );
+    return moveDeviceRecorded(rackId, deviceIndex, newPosition, face);
   }
 
   /**
@@ -707,7 +690,6 @@ export function createLayoutStore(
     toRackId: string,
     newPosition: number,
     face?: DeviceFace,
-    slotPosition?: SlotPosition,
   ): boolean {
     // $state.snapshot() is a Svelte rune — must be called from this .svelte.ts file
     return moveDeviceToRackImpl(
@@ -717,7 +699,6 @@ export function createLayoutStore(
       toRackId,
       newPosition,
       face,
-      slotPosition,
       (device) => $state.snapshot(device),
     );
   }
@@ -773,17 +754,6 @@ export function createLayoutStore(
     colour: string | undefined,
   ): void {
     updateDeviceColourRecorded(rackId, deviceIndex, colour);
-  }
-
-  /**
-   * Update a device's slot position (for half-width devices)
-   */
-  function updateDeviceSlotPosition(
-    rackId: string,
-    deviceIndex: number,
-    slotPosition: SlotPosition,
-  ): boolean {
-    return updateDeviceSlotPositionRecorded(rackId, deviceIndex, slotPosition);
   }
 
   /**
@@ -1065,7 +1035,6 @@ export function createLayoutStore(
     deviceTypeSlug: string,
     positionU: number,
     face?: DeviceFace,
-    slotPosition?: SlotPosition,
   ): boolean {
     return placeDeviceRecordedImpl(
       stateAccess,
@@ -1073,7 +1042,6 @@ export function createLayoutStore(
       deviceTypeSlug,
       positionU,
       face,
-      slotPosition,
     );
   }
 
@@ -1081,7 +1049,6 @@ export function createLayoutStore(
     rackId: string,
     deviceIndex: number,
     newPositionU: number,
-    newSlotPosition?: SlotPosition,
     newFace?: DeviceFace,
   ): boolean {
     return moveDeviceRecordedImpl(
@@ -1089,7 +1056,6 @@ export function createLayoutStore(
       rackId,
       deviceIndex,
       newPositionU,
-      newSlotPosition,
       newFace,
     );
   }
@@ -1138,19 +1104,6 @@ export function createLayoutStore(
     colour: string | undefined,
   ): void {
     updateDeviceColourRecordedImpl(stateAccess, rackId, deviceIndex, colour);
-  }
-
-  function updateDeviceSlotPositionRecorded(
-    rackId: string,
-    deviceIndex: number,
-    slotPosition: SlotPosition,
-  ): boolean {
-    return updateDeviceSlotPositionRecordedImpl(
-      stateAccess,
-      rackId,
-      deviceIndex,
-      slotPosition,
-    );
   }
 
   function updateDeviceNotesRecorded(

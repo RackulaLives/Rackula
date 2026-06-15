@@ -3,7 +3,7 @@
  */
 
 import type { Command } from "./types";
-import type { PlacedDevice, DeviceFace, SlotPosition } from "$lib/types";
+import type { PlacedDevice, DeviceFace } from "$lib/types";
 import { getImageStore } from "../images.svelte";
 
 /**
@@ -21,7 +21,6 @@ export interface DeviceCommandStore {
     filename: string | undefined,
   ): void;
   updateDeviceColourRaw(index: number, colour: string | undefined): void;
-  updateDeviceSlotPositionRaw(index: number, slotPosition: SlotPosition): void;
   updateDeviceContainerLinkageRaw(
     index: number,
     containerId: string | undefined,
@@ -232,29 +231,6 @@ export function createUpdateDeviceColourCommand(
 }
 
 /**
- * Create a command to update a device's slot position (for half-width devices)
- */
-export function createUpdateDeviceSlotPositionCommand(
-  index: number,
-  oldSlotPosition: SlotPosition,
-  newSlotPosition: SlotPosition,
-  store: DeviceCommandStore,
-  deviceName: string = "device",
-): Command {
-  return {
-    type: "UPDATE_DEVICE_SLOT_POSITION",
-    description: `Move ${deviceName} to ${newSlotPosition} slot`,
-    timestamp: Date.now(),
-    execute() {
-      store.updateDeviceSlotPositionRaw(index, newSlotPosition);
-    },
-    undo() {
-      store.updateDeviceSlotPositionRaw(index, oldSlotPosition);
-    },
-  };
-}
-
-/**
  * Create a command to detach a device from its container.
  * Clears container_id/slot_id on execute; restores them on undo.
  */
@@ -352,7 +328,6 @@ export function createCrossRackMoveCommand(
   targetRackId: string,
   targetPosition: number,
   face: DeviceFace,
-  slotPosition: SlotPosition | undefined,
   parentDevice: PlacedDevice,
   children: PlacedDevice[],
   store: CrossRackMoveStore,
@@ -362,7 +337,7 @@ export function createCrossRackMoveCommand(
   const parentCopy = structuredClone(parentDevice);
   const childrenCopies = children.map((c) => structuredClone(c));
 
-  // Build the placed device for the target rack (updated position/face/slot).
+  // Build the placed device for the target rack (updated position/face).
   // Clear container linkage: the moved device's own container never moves with
   // it (the move set is the device plus its children), so container_id/slot_id
   // would point at a container that only exists in the source rack. parentCopy
@@ -371,7 +346,6 @@ export function createCrossRackMoveCommand(
     ...parentCopy,
     position: targetPosition,
     face,
-    slot_position: slotPosition ?? parentCopy.slot_position ?? "full",
     container_id: undefined,
     slot_id: undefined,
   };
