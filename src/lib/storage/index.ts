@@ -90,6 +90,11 @@ export {
   type PersistTab,
 } from "./browser-workspace-persist";
 export {
+  getTwinTabGuard,
+  setForeignWriteNotifier,
+  type TwinTabGuard,
+} from "./twin-tab-guard";
+export {
   adaptLegacyLayout,
   CARRIER_2COL_SLUG,
   CARRIER_2X2_SLUG,

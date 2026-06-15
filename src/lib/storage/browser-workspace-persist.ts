@@ -40,20 +40,28 @@ export type PersistTab =
 export interface PersistWorkspaceArgs {
   tabs: PersistTab[];
   activeLayoutId: string | null;
+  /**
+   * Twin-tab guard predicate (#2044): returns true when a layout's autosave is
+   * paused because a foreign tab wrote its body. A paused layout's body is left
+   * untouched so this tab cannot clobber the peer's copy; its index entry is
+   * still written so the open set and shell names stay current.
+   */
+  isPaused?: (layoutId: string) => boolean;
 }
 
 /**
  * Persist the current workspace. Idempotent: safe to call on every change.
  */
 export function persistBrowserWorkspace(args: PersistWorkspaceArgs): void {
-  const { tabs, activeLayoutId } = args;
+  const { tabs, activeLayoutId, isPaused } = args;
 
   // Write each hydrated body first. saveLayoutBody also refreshes that layout's
   // library entry in the index (updatedAt, durability); it returns false on
   // quota, leaving the in-memory copy intact and surfacing the flag via the
-  // index. Shells have no body to write.
+  // index. Shells have no body to write. A paused layout (twin-tab guard) is
+  // skipped so a foreign peer's copy is never clobbered.
   for (const tab of tabs) {
-    if (tab.hydrated) {
+    if (tab.hydrated && !isPaused?.(tab.layoutId)) {
       saveLayoutBody(tab.layoutId, tab.layout, {
         changesSinceExport: tab.changesSinceExport,
         hasEverExported: tab.hasEverExported,
