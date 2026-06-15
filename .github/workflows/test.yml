@@ -3,6 +3,17 @@ name: Test
 on:
   pull_request:
     branches: [main]
+    # Skip the suite for non-code-only PRs. A PR runs CI unless ALL its changed
+    # files match here, so mixed docs+code PRs still run. workflow_dispatch and
+    # workflow_call ignore path filters, so manual/reusable runs are unaffected.
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".editorconfig"
+      - ".gitattributes"
+      - ".vscode/**"
+      - ".github/ISSUE_TEMPLATE/**"
   workflow_dispatch:
   workflow_call:
 

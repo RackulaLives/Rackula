@@ -312,8 +312,10 @@ This keeps untrusted code off the homelab runner without an explicit human OK.
 
 Maintainer prerequisites (one-time, in repo settings):
 
-- GitHub Environment `e2e-trusted`: no required reviewers, deployment branch
-  policy restricted to `main`.
+- GitHub Environment `e2e-trusted`: no required reviewers and no deployment
+  branch policy. Org PRs run from feature branches (and `pull_request` refs are
+  not branch names), so restricting this environment to `main` would block the
+  trusted tier for every PR.
 - GitHub Environment `e2e-approval`: `ggfevans` as the required reviewer, no
   branch restriction (fork PRs run from arbitrary branches).
 - Self-hosted runner online advertising the `ci-runner` label.
