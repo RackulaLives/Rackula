@@ -135,6 +135,22 @@ Note on #571 chain: #2226's vitest drift-guard runs in CI (test:run), so it part
 overlaps #2227 (CI check that published schema stays in sync). Verify #2227's exact scope
 before dispatching it; it may be reduced to a dedicated workflow step or already satisfied.
 
+### #620 MERGED (PR #2315, squash 74cb715) ~06:30 UTC
+Lazy-load JSZip / dead-code removal. JSZip was already lazy via getJSZip() dynamic import;
+the agent removed the dead single-layout ZIP save path (downloadArchive, createFolderArchive,
+generateArchiveFilename, ARCHIVE_EXTENSION) with call-site evidence (only the dead
+downloadArchive used them; live save is downloadYamlFile; live multi-file path
+createMultiLayoutArchive retained). +4/-103. Scope note: AC named createFolderArchive for
+retention but it was dead and byte-equivalent to a single-entry createMultiLayoutArchive;
+removed per greenfield policy, documented in PR body. Verified lint/2495 tests/build/bundle
+budget green. CodeAnt finished clean (zero findings). CodeRabbit could NOT review (starved/
+rate-limited, never posted). Merged under the documented OUTAGE GATE: green CI (validate
+hard-gate) + clean CodeAnt + zero open findings, justified by the trivial dead-code nature.
+
+CodeRabbit starvation is now actively impeding the gate (it failed to review #2315 at all).
+Substantive remaining work (the #571 schema chain, M14 placement) would benefit from real
+review; maintainer enabling the CodeRabbit review add-on would restore the full gate.
+
 ## Update ~05:26 UTC
 
 Merged this session (6): #2065, #1011, #2038, #2042, #2206, #2044 (PR #2312).
