@@ -312,10 +312,13 @@ jobs:
             | jq -r 'first(.assets[] | select(.name | test("^rackula-lxc-.*\\.tar\\.gz$")) | .name) // empty')"
           tarball_url="$(echo "$release_json" \
             | jq -r 'first(.assets[] | select(.name | test("^rackula-lxc-.*\\.tar\\.gz$")) | .url) // empty')"
-          checksum_url="$(echo "$release_json" \
-            | jq -r 'first(.assets[] | select(.name | test("^rackula-lxc-.*\\.tar\\.gz\\.sha256$")) | .url) // empty')"
           [ -n "$tarball_name" ] && [ -n "$tarball_url" ] || { echo "::error::no rackula-lxc-*.tar.gz asset on release ${TAG}"; exit 1; }
-          [ -n "$checksum_url" ] || { echo "::error::no rackula-lxc-*.tar.gz.sha256 asset on release ${TAG}"; exit 1; }
+          # Select the .sha256 that matches the chosen tarball by exact name, so the
+          # checksum always belongs to the tarball we downloaded.
+          checksum_name="${tarball_name}.sha256"
+          checksum_url="$(echo "$release_json" \
+            | jq -r --arg checksum_name "$checksum_name" 'first(.assets[] | select(.name == $checksum_name) | .url) // empty')"
+          [ -n "$checksum_url" ] || { echo "::error::no ${checksum_name} asset on release ${TAG}"; exit 1; }
 
           curl -fsSL \
             -H "Authorization: Bearer ${GH_TOKEN}" \
