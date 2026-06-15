@@ -11,9 +11,11 @@
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
-  import { findNextValidPosition } from "$lib/utils/device-movement";
-  import { isContainerChild } from "$lib/utils/collision";
-  import { toHumanUnits } from "$lib/utils/position";
+  import {
+    moveSelectedDeviceUp,
+    moveSelectedDeviceDown,
+    duplicateSelection,
+  } from "$lib/actions/selection-actions";
 
   interface Props {
     onsave?: () => void;
@@ -94,11 +96,14 @@
    * Dispatch map from registry action id to its runtime handler. The actions
    * registry owns command metadata and keybindings; this map binds each
    * command id to the closure that runs it in this app context.
+   *
+   * Typed as Partial so that action ids added to the registry without a
+   * keyboard binding (e.g. verb-bar-only commands) don't require an entry here.
    */
-  const dispatch: Record<ActionId, () => void> = {
+  const dispatch: Partial<Record<ActionId, () => void>> = {
     escape: handleEscape,
-    "move-device-up": () => moveSelectedDevice(1),
-    "move-device-down": () => moveSelectedDevice(-1),
+    "move-device-up": moveSelectedDeviceUp,
+    "move-device-down": moveSelectedDeviceDown,
     "delete-selection": () => ondelete?.(),
     "fit-all": () => onfitall?.(),
     "toggle-sidebar": () => uiStore.toggleLeftDrawer(),
@@ -112,57 +117,10 @@
     load: () => onload?.(),
     export: () => onexport?.(),
     share: () => onshare?.(),
-    "duplicate-selection": () => duplicateSelected(),
+    "duplicate-selection": duplicateSelection,
     "show-help": () => onhelp?.(),
     "toggle-display-mode": () => ontoggledisplaymode?.(),
   };
-
-  /**
-   * Move the selected device up or down, using shared movement utility.
-   * Leapfrogs over blocking devices to find valid positions.
-   * @param direction - 1 for up (higher U), -1 for down (lower U)
-   */
-  function moveSelectedDevice(direction: 1 | -1) {
-    if (!selectionStore.isDeviceSelected) return;
-    if (
-      selectionStore.selectedRackId === null ||
-      selectionStore.selectedDeviceId === null
-    )
-      return;
-
-    // Get the rack containing the selected device
-    const rack = layoutStore.getRackById(selectionStore.selectedRackId);
-    if (!rack) return;
-
-    // Get device index from ID (UUID-based tracking)
-    const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
-    if (deviceIndex === null) return;
-
-    // Contained children use container-relative positions; nudging them with
-    // arrow keys would compute a rack-level U and eject them from the
-    // container. Block this at the keyboard entry point only — the store-level
-    // moveDevice path (used by drag-out) intentionally detaches.
-    const placedDevice = rack.devices[deviceIndex];
-    if (placedDevice && isContainerChild(placedDevice)) return;
-
-    // Use shared utility to find next valid position
-    const result = findNextValidPosition(
-      rack,
-      layoutStore.device_types,
-      deviceIndex,
-      direction,
-    );
-
-    if (result.success && result.newPosition !== null) {
-      // Convert internal units back to human units for the store API
-      const humanPosition = toHumanUnits(result.newPosition);
-      layoutStore.moveDevice(
-        selectionStore.selectedRackId!,
-        deviceIndex,
-        humanPosition,
-      );
-    }
-  }
 
   /**
    * Cycle to the next or previous rack
@@ -195,74 +153,6 @@
     layoutStore.setActiveRack(newRack.id);
     selectionStore.selectRack(newRack.id);
     toastStore.showToast(`Active: ${newRack.name}`, "info");
-  }
-
-  /**
-   * Duplicate the currently selected item (device or rack)
-   * If a device is selected, duplicates the device
-   * If only a rack is selected, duplicates the rack
-   */
-  function duplicateSelected() {
-    // Priority 1: Duplicate selected device
-    if (
-      selectionStore.isDeviceSelected &&
-      selectionStore.selectedRackId &&
-      selectionStore.selectedDeviceId
-    ) {
-      duplicateSelectedDevice();
-      return;
-    }
-
-    // Priority 2: Duplicate selected rack
-    if (selectionStore.isRackSelected && selectionStore.selectedRackId) {
-      duplicateSelectedRack();
-      return;
-    }
-  }
-
-  /**
-   * Duplicate the selected device
-   */
-  function duplicateSelectedDevice() {
-    if (!selectionStore.selectedRackId || !selectionStore.selectedDeviceId)
-      return;
-
-    // Get the rack containing the selected device
-    const rack = layoutStore.getRackById(selectionStore.selectedRackId);
-    if (!rack) return;
-
-    // Get device index from ID (UUID-based tracking)
-    const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
-    if (deviceIndex === null) return;
-
-    const result = layoutStore.duplicateDevice(
-      selectionStore.selectedRackId,
-      deviceIndex,
-    );
-    if (result.error) {
-      toastStore.showToast(result.error, "error");
-    } else if (result.device) {
-      // Select the newly duplicated device
-      selectionStore.selectDevice(
-        selectionStore.selectedRackId,
-        result.device.id,
-      );
-      toastStore.showToast("Device duplicated", "success");
-    }
-  }
-
-  /**
-   * Duplicate the selected rack
-   */
-  function duplicateSelectedRack() {
-    if (!selectionStore.selectedRackId) return;
-
-    const result = layoutStore.duplicateRack(selectionStore.selectedRackId);
-    if (result.error) {
-      toastStore.showToast(result.error, "error");
-    } else if (result.rack) {
-      toastStore.showToast("Rack duplicated", "success");
-    }
   }
 
   /**
@@ -299,7 +189,7 @@
     if (!action) return;
 
     event.preventDefault();
-    dispatch[action.id]();
+    dispatch[action.id]?.();
   }
 </script>
 
