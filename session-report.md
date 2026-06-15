@@ -66,7 +66,15 @@ Carrier chain advanced in parallel during this session (merged by maintainer):
 | 2291 (C3) | C | closed | 2303 | - | - | yes |
 | 2065 | B | closed | 2306 | green | clean | yes |
 | 2292 (C4) | C | running | - | - | - | - |
-| 2038 | A | running | - | - | - | - |
-| 1011 | B | running | - | - | - | - |
+| 2038 | A | PR open | 2309 | pending | pending | no |
+| 1011 | B | PR open | 2307 | pending | pending | no |
 | 2294 (C5) | C | blocked by C4 | - | - | - | - |
 | 2060 | B | skipped (out of scope) | - | - | - | - |
+
+### Salvage notes
+- #2038 (PR #2309): agent finished work but ended without committing the final
+  refactor (RestoreConfirmDialog -> ConfirmReplaceDialog) and never pushed/opened a
+  PR. Orchestrator verified worktree: lint clean, backup-nudge tests 20/20, build
+  green; then amended the unpushed commit, pushed, and opened PR #2309.
+- #1011 (PR #2307): clean agent run; found+fixed a real LXC /api/health query-string
+  drop divergence; added config-guard regression tests.
