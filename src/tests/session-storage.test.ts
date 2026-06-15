@@ -32,21 +32,30 @@ Object.defineProperty(globalThis, "localStorage", {
   writable: true,
 });
 
+/**
+ * Assert a loaded layout preserves the saved layout's identity. The read path
+ * runs the body through LayoutSchema, which adds runtime defaults (e.g.
+ * rack.view), so exact deep equality with the saved input does not hold. Compare
+ * the schema-stable fields the round-trip must preserve instead.
+ */
+function expectSameLayoutIdentity(loaded: Layout, saved: Layout): void {
+  expect(loaded.name).toBe(saved.name);
+  expect(loaded.racks.map((r) => r.id)).toEqual(saved.racks.map((r) => r.id));
+  expect(loaded.racks.map((r) => r.name)).toEqual(
+    saved.racks.map((r) => r.name),
+  );
+}
+
 describe("Session Storage", () => {
   const STORAGE_KEY = "Rackula:autosave";
   const noBackup = { changesSinceExport: 0, hasEverExported: false };
 
-  // Mock layout for testing
-  const mockLayout: Layout = {
-    racks: [
-      {
-        id: "rack-0",
-        name: "Test Rack",
-        height: 42,
-        devices: [],
-      },
-    ],
-  } as Layout;
+  // Schema-valid layout for testing. The working-copy read path validates
+  // through LayoutSchema, so fixtures must be valid layouts (same ingress as
+  // file/server load).
+  const mockLayout = createTestLayout({
+    racks: [createTestRack({ id: "rack-0", name: "Test Rack" })],
+  });
 
   beforeEach(() => {
     // Clear localStorage before each test
@@ -141,7 +150,7 @@ describe("Session Storage", () => {
 
       const loaded = loadSessionWithTimestamp();
       expect(loaded).not.toBeNull();
-      expect(loaded!.layout).toEqual(mockLayout);
+      expectSameLayoutIdentity(loaded!.layout, mockLayout);
     });
 
     it("returns null on invalid JSON", () => {
@@ -213,7 +222,7 @@ describe("Session Storage", () => {
 
       const result = loadSessionWithTimestamp();
       expect(result).not.toBeNull();
-      expect(result!.layout).toEqual(mockLayout);
+      expectSameLayoutIdentity(result!.layout, mockLayout);
       expect(result!.savedAt).toBe(timestamp);
     });
 
@@ -223,7 +232,7 @@ describe("Session Storage", () => {
 
       const result = loadSessionWithTimestamp();
       expect(result).not.toBeNull();
-      expect(result!.layout).toEqual(mockLayout);
+      expectSameLayoutIdentity(result!.layout, mockLayout);
       expect(result!.savedAt).toBeNull(); // Legacy data has no timestamp
     });
   });
@@ -267,7 +276,7 @@ describe("Session Storage", () => {
       saveSession(mockLayout, noBackup);
       const loaded = loadSessionWithTimestamp();
       expect(loaded).not.toBeNull();
-      expect(loaded!.layout).toEqual(mockLayout);
+      expectSameLayoutIdentity(loaded!.layout, mockLayout);
       expect(loaded!.savedAt).toBeDefined();
     });
 
@@ -275,7 +284,7 @@ describe("Session Storage", () => {
       saveSession(mockLayout, noBackup);
       const loaded = loadSessionWithTimestamp();
       expect(loaded).not.toBeNull();
-      expect(loaded!.layout).toEqual(mockLayout);
+      expectSameLayoutIdentity(loaded!.layout, mockLayout);
 
       clearSession();
       expect(loadSessionWithTimestamp()).toBeNull();
@@ -294,7 +303,7 @@ describe("Session Storage", () => {
           height: 42,
           width: 19,
           devices: [],
-          form_factor: "two-post",
+          form_factor: "2-post",
           starting_unit: 1,
           position: 0,
           desc_units: false,
@@ -331,7 +340,7 @@ describe("Session Storage", () => {
             height: 42,
             width: 19,
             devices: [],
-            form_factor: "two-post",
+            form_factor: "2-post",
             starting_unit: 1,
             position: 0,
             desc_units: false,
@@ -381,7 +390,7 @@ describe("Session Storage", () => {
               ports: [],
             },
           ],
-          form_factor: "two-post",
+          form_factor: "2-post",
           starting_unit: 1,
           position: 0,
           desc_units: false,
@@ -433,7 +442,7 @@ describe("Session Storage", () => {
               ports: [],
             },
           ],
-          form_factor: "two-post",
+          form_factor: "2-post",
           starting_unit: 1,
           position: 0,
           desc_units: false,
@@ -477,7 +486,7 @@ describe("Session Storage", () => {
                 ports: [],
               },
             ],
-            form_factor: "two-post",
+            form_factor: "2-post",
             starting_unit: 1,
             position: 0,
             desc_units: false,
@@ -505,6 +514,42 @@ describe("Session Storage", () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify([1, 2, 3]));
 
       // Should return null for non-object data (logs via debug logger)
+      expect(loadSessionWithTimestamp()).toBeNull();
+    });
+  });
+
+  /**
+   * The working-copy read path runs the body through LayoutSchema, the same
+   * ingress as file/server load (#2206). A body that fails schema validation
+   * must be rejected (return null), never silently bypassed. This is the one
+   * read door the schema-versioning forward-compat gate previously did not
+   * cover (#1113).
+   */
+  describe("schema validation on read", () => {
+    it("rejects a session whose body fails schema validation", () => {
+      // Wrapper looks like a valid session, but the layout omits required
+      // fields (name, device_types, settings) and would have passed the old
+      // raw-parse path untouched.
+      const invalidBody = {
+        layout: { racks: [{ id: "rack-0", name: "Test Rack" }] },
+        savedAt: "2026-02-01T12:00:00.000Z",
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(invalidBody));
+
+      expect(loadSessionWithTimestamp()).toBeNull();
+    });
+
+    it("rejects a legacy (unwrapped) body that fails schema validation", () => {
+      // A direct layout object with an invalid enum value must not slip through.
+      const invalidLegacy = {
+        version: "0.7.0",
+        name: "Test Layout",
+        racks: [createTestRack({ form_factor: "blimp" as never })],
+        device_types: [],
+        settings: { display_mode: "label", show_labels_on_images: false },
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(invalidLegacy));
+
       expect(loadSessionWithTimestamp()).toBeNull();
     });
   });

@@ -11,6 +11,7 @@ import {
   adoptLegacyAutosave,
   type WorkspaceIndex,
 } from "$lib/storage/browser-workspace";
+import { createTestRack } from "./factories";
 
 const WORKSPACE_KEY = "Rackula:workspace";
 const AUTOSAVE_KEY = "Rackula:autosave";
@@ -42,7 +43,7 @@ function makeLayout(id: string, name: string): Layout {
   return {
     version: "1.0",
     name,
-    racks: [{ id: "rack-0", name: "R", height: 42, devices: [] }],
+    racks: [createTestRack({ id: "rack-0", name: "R" })],
     device_types: [],
     settings: { display_mode: "label", show_labels_on_images: false },
     metadata: { id, name, schema_version: "1.0" },

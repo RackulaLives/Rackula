@@ -7,7 +7,7 @@ import {
 } from "$lib/utils/safe-storage";
 import { sessionDebug } from "$lib/utils/debug";
 import { getStorageMode, type StorageMode } from "./availability.svelte";
-import { migrateLayout } from "./migrate-layout";
+import { parseLayoutObject } from "$lib/utils/yaml";
 
 const log = sessionDebug.storage;
 const STORAGE_KEY = "Rackula:autosave";
@@ -82,7 +82,9 @@ export function saveSession(
 
 /**
  * Load the autosaved layout from localStorage with timestamp information.
- * Handles migration from:
+ * The body is validated through `LayoutSchema` (the same ingress as file/server
+ * load) so the forward-compat gate and schema invariants apply uniformly and no
+ * read door bypasses the schema. Handles migration from:
  * - Legacy formats (v0.6.x → v0.7.0+)
  * - Old format without timestamp wrapper (pre-v0.7.8)
  * @returns SessionLoadResult with layout and savedAt, or null if none exists
@@ -112,18 +114,12 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
       "savedAt" in obj &&
       typeof obj.savedAt === "string"
     ) {
-      // New format with timestamp wrapper - validate layoutData before migration
-      const layoutData = obj.layout;
-      if (
-        layoutData === null ||
-        typeof layoutData !== "object" ||
-        Array.isArray(layoutData)
-      ) {
-        log("invalid layout data in session wrapper - expected object");
+      // New format with timestamp wrapper - validate the body through the schema
+      const layout = parseLayoutObject(obj.layout);
+      if (!layout) {
+        log("invalid layout data in session wrapper - schema validation failed");
         return null;
       }
-      const layout = migrateLayout(layoutData as Record<string, unknown>);
-      if (!layout) return null;
       return {
         layout,
         savedAt: obj.savedAt as string,
@@ -140,7 +136,7 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
     }
 
     // Legacy format: direct layout object without timestamp
-    const layout = migrateLayout(obj);
+    const layout = parseLayoutObject(obj);
     if (!layout) return null;
     return {
       layout,

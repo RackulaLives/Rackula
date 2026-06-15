@@ -438,6 +438,43 @@ function toRuntimeLayout(parsed: LayoutZod): Layout {
 }
 
 /**
+ * Validate an already-parsed runtime layout object against `LayoutSchema` and
+ * convert it to a runtime Layout, returning null instead of throwing on failure.
+ *
+ * This is the shared ingress chokepoint for read paths that hold a runtime
+ * layout object rather than a serialized YAML string (e.g. the localStorage
+ * working copy). It applies the same schema validation, migration, and
+ * forward-compat gate as the file/server load path, so no read door bypasses the
+ * schema.
+ *
+ * The runtime layout carries an id-only `metadata` ({ id }) for identity, which
+ * is intentionally looser than the strict YAML file-header `LayoutMetadataSchema`
+ * (id + name + schema_version). The id is preserved across validation and the
+ * metadata is not re-validated here: the schema-versioning gate keys off the
+ * top-level `version`, not the runtime metadata block.
+ */
+export function parseLayoutObject(parsed: unknown): Layout | null {
+  let metadata: Layout["metadata"];
+  let body = parsed;
+
+  if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const { metadata: rawMetadata, ...rest } = parsed as Record<string, unknown>;
+    if (rawMetadata !== undefined) {
+      metadata = rawMetadata as Layout["metadata"];
+      body = rest;
+    }
+  }
+
+  const result = LayoutSchema.safeParse(body);
+  if (!result.success) {
+    return null;
+  }
+
+  const layout = toRuntimeLayout(result.data);
+  return metadata ? { ...layout, metadata } : layout;
+}
+
+/**
  * Validate a parsed YAML object against the layout schema and convert it to a
  * runtime Layout.
  *
