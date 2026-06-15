@@ -53,6 +53,48 @@ describe("YAML layout round-trip", () => {
     expect(restored.racks[0]?.devices[1]?.slot_position).toBe("right");
   });
 
+  it("preserves auto_created for an auto-synthesized carrier placement", async () => {
+    const carrierType = createTestDeviceType({
+      slug: "carrier-device",
+      u_height: 1,
+    });
+
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({
+          id: "rack-1",
+          devices: [
+            createTestDevice({
+              id: "auto-carrier",
+              device_type: carrierType.slug,
+              position: 10,
+              auto_created: true,
+            }),
+            createTestDevice({
+              id: "user-carrier",
+              device_type: carrierType.slug,
+              position: 14,
+            }),
+          ],
+        }),
+      ],
+      device_types: [carrierType],
+    });
+
+    const yaml = await serializeLayoutToYaml(layout);
+
+    // auto_created must be serialised so a later slice can self-remove
+    // auto-synthesized carriers while user-placed carriers persist.
+    expect(yaml).toContain("auto_created");
+
+    const restored = await parseLayoutYaml(yaml);
+    const auto = restored.racks[0]?.devices.find((d) => d.id === "auto-carrier");
+    const user = restored.racks[0]?.devices.find((d) => d.id === "user-carrier");
+    expect(auto?.auto_created).toBe(true);
+    // A placement that never set the flag round-trips as the default (false).
+    expect(user?.auto_created).toBe(false);
+  });
+
   it("preserves container_id and slot_id for contained child devices", async () => {
     const containerType: DeviceType = {
       ...createTestDeviceType({

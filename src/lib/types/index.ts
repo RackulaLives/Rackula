@@ -613,6 +613,15 @@ export interface PlacedDevice {
    */
   slot_id?: string;
 
+  // --- Auto-Created Placement ---
+  /**
+   * True when this placement was synthesized automatically (e.g. a carrier
+   * created to hold a sub-U device) rather than placed by the user. Lets a
+   * later slice self-remove auto-synthesized carriers when their last child is
+   * removed, while user-placed carriers persist. Default: false.
+   */
+  auto_created?: boolean;
+
   // --- Extension Fields ---
   /** Notes for this placement */
   notes?: string;

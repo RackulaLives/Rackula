@@ -607,6 +607,10 @@ export const PlacedDeviceSchema = z
     /** Which slot in parent container (references Slot.id) */
     slot_id: z.string().optional(),
 
+    // --- Auto-Created Placement ---
+    /** True when synthesized automatically (e.g. a carrier for a sub-U device) */
+    auto_created: z.boolean().default(false),
+
     // --- Extension Fields ---
     notes: z.string().max(1000).optional(),
     custom_fields: z.record(z.string(), z.any()).optional(),

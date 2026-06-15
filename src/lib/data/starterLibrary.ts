@@ -2,11 +2,11 @@
  * Starter Device Type Library
  * Generic rack devices for quick prototyping and universal fallbacks
  *
- * Total devices: 62 generic devices
- * - 43 full-width devices
- * - 8 half-width devices (slot_width: 1)
- * - 4 shelf containers with slots
- * - 7 mini devices for shelf placement
+ * Includes:
+ * - Full-width and half-width (slot_width: 1) devices
+ * - Shelf containers with slots and mini devices for shelf placement
+ * - Carriers (carrier-1u-2col, carrier-1u-2x2, K-79, AV joining tray) that hold
+ *   sub-U / half-width gear; the two carrier-* slugs are stable synthesis targets
  * All branded devices have been moved to brandPacks/
  */
 
@@ -306,6 +306,131 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
         position: { row: 0, col: 2 },
         width_fraction: 0.33,
         height_units: 2,
+      },
+    ],
+  },
+
+  // Carriers - generic 1U mounts for sub-U / half-width gear.
+  // The two synthesized-carrier slugs below (carrier-1u-2col, carrier-1u-2x2)
+  // are STABLE: the import adapter and drag/drop synthesize these exact slugs.
+  // Slots omit `accepts` so fit is dimensional, not category-based.
+  {
+    slug: "carrier-1u-2col",
+    model: "Carrier (1U, 2 Column)",
+    u_height: 1,
+    category: "shelf",
+    subdevice_role: "parent",
+    slots: [
+      {
+        id: "col-1",
+        name: "Column 1",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.5,
+        height_units: 1,
+      },
+      {
+        id: "col-2",
+        name: "Column 2",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.5,
+        height_units: 1,
+      },
+    ],
+  },
+  {
+    slug: "carrier-1u-2x2",
+    model: "Carrier (1U, 2x2)",
+    u_height: 1,
+    category: "shelf",
+    subdevice_role: "parent",
+    slots: [
+      {
+        id: "r0-c0",
+        name: "Top Left",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.5,
+        height_units: 0.5,
+      },
+      {
+        id: "r0-c1",
+        name: "Top Right",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.5,
+        height_units: 0.5,
+      },
+      {
+        id: "r1-c0",
+        name: "Bottom Left",
+        position: { row: 1, col: 0 },
+        width_fraction: 0.5,
+        height_units: 0.5,
+      },
+      {
+        id: "r1-c1",
+        name: "Bottom Right",
+        position: { row: 1, col: 1 },
+        width_fraction: 0.5,
+        height_units: 0.5,
+      },
+    ],
+  },
+  {
+    slug: "carrier-k79-2x2",
+    model: "K-79 Mounting Kit",
+    u_height: 1,
+    category: "shelf",
+    subdevice_role: "parent",
+    slots: [
+      {
+        id: "r0-c0",
+        name: "Top Left",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.5,
+        height_units: 0.5,
+      },
+      {
+        id: "r0-c1",
+        name: "Top Right",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.5,
+        height_units: 0.5,
+      },
+      {
+        id: "r1-c0",
+        name: "Bottom Left",
+        position: { row: 1, col: 0 },
+        width_fraction: 0.5,
+        height_units: 0.5,
+      },
+      {
+        id: "r1-c1",
+        name: "Bottom Right",
+        position: { row: 1, col: 1 },
+        width_fraction: 0.5,
+        height_units: 0.5,
+      },
+    ],
+  },
+  {
+    slug: "carrier-av-tray-2col",
+    model: "AV Joining Tray (2 Column)",
+    u_height: 1,
+    category: "shelf",
+    subdevice_role: "parent",
+    slots: [
+      // Width-only: slots omit height_units so the tray never has a height
+      // grid (the MikroTik 2x2 grid is not assumed universal).
+      {
+        id: "col-1",
+        name: "Left",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.5,
+      },
+      {
+        id: "col-2",
+        name: "Right",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.5,
       },
     ],
   },

@@ -144,7 +144,7 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
 /**
  * Order PlacedDevice fields according to schema v1.0.0
  * Field order: id, device_type, name, position, face, slot_position, front_image, rear_image,
- *              parent_device, device_bay, container_id, slot_id, notes, custom_fields
+ *              parent_device, device_bay, container_id, slot_id, auto_created, notes, custom_fields
  */
 function orderPlacedDeviceFields(
   device: PlacedDevice,
@@ -174,6 +174,10 @@ function orderPlacedDeviceFields(
   if (device.container_id !== undefined)
     ordered.container_id = device.container_id;
   if (device.slot_id !== undefined) ordered.slot_id = device.slot_id;
+
+  // --- Auto-Created Placement ---
+  // Only written when true; the schema defaults it to false on load.
+  if (device.auto_created) ordered.auto_created = true;
 
   // --- Extension Fields ---
   if (device.notes !== undefined) ordered.notes = device.notes;
