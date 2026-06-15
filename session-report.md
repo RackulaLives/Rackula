@@ -79,10 +79,19 @@ Carrier chain advanced in parallel during this session (merged by maintainer):
 | 2291 (C3) | C | closed | 2303 | - | - | yes |
 | 2065 | B | closed | 2306 | green | clean | yes |
 | 2292 (C4) | C | running | - | - | - | - |
-| 1011 | B | closed | 2307 | green | clean(placeholder) | yes |
-| 2038 | A | PR fixing CodeAnt | 2309 | green | n/a | no |
+| 1011 | B | closed | 2307 | green | clean | yes |
+| 2038 | A | closed | 2309 | green | clean(real) | yes |
+| 2042 | A | running | - | - | - | - |
+| 2206 | A | running | - | - | - | - |
 | 2294 (C5) | C | blocked by C4 | - | - | - | - |
 | 2060 | B | skipped (out of scope) | - | - | - | - |
+
+### #2038 (PR #2309) merged
+CodeAnt found 2 valid Major issues (nudge keyed by tab id; export-first bypassed
+maybeSaveAs). Fix agent addressed both (key by layout.metadata.id; gate via
+shouldShowCleanupPrompt). CodeRabbit re-reviewed 323eaf2 with a REAL pass (no actionable
+comments, 5/5), CI green. Merged 071d858. Confirms CodeRabbit does real reviews when a
+slot frees - the rate-limit placeholders are the degraded path.
 
 ### Housekeeping pending (LAST WAVE preconditions now met)
 - PR #2301 merged (main 112cb7c) -> M04 last issue #2103 done. CLOSE milestone M04.
