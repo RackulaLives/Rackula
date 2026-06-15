@@ -50,7 +50,14 @@
   );
 
   $effect(() => {
-    if (!dialogStore.isOpen("load")) return;
+    if (!dialogStore.isOpen("load")) {
+      // Collapse any open snapshot panel so a reopen never shows a stale list.
+      // The component stays mounted, so this state would otherwise persist.
+      expandedId = null;
+      snapshots = [];
+      snapshotsError = null;
+      return;
+    }
     if (!apiActive) {
       loading = false;
       return;

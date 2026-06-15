@@ -432,6 +432,30 @@ describe("GET /layouts/:uuid/snapshots/:filename", () => {
     );
     expect(response.status).toBe(400);
   });
+
+  it("rejects a backslash-separated filename", async () => {
+    const app = await createApp(buildEnv());
+    await putLayout(app, TEST_UUID, createLayoutYaml("My Layout", "v1"));
+
+    const response = await app.request(
+      `/layouts/${TEST_UUID}/snapshots/${encodeURIComponent(
+        "..\\..\\secret.yaml",
+      )}`,
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects a filename with a trailing newline", async () => {
+    const app = await createApp(buildEnv());
+    await putLayout(app, TEST_UUID, createLayoutYaml("My Layout", "v1"));
+
+    const response = await app.request(
+      `/layouts/${TEST_UUID}/snapshots/${encodeURIComponent(
+        "my-layout~20200101-000000.yaml\n",
+      )}`,
+    );
+    expect(response.status).toBe(400);
+  });
 });
 
 describe("POST /layouts/:uuid/snapshots", () => {

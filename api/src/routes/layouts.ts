@@ -36,6 +36,27 @@ import { logger } from "../logger";
 /** Header carrying the layout's updatedAt for echo-based conflict detection. */
 export const UPDATED_AT_HEADER = "X-Rackula-Updated-At";
 
+/** Matches a control character (C0 range plus DEL) anywhere in a string. */
+// eslint-disable-next-line no-control-regex -- intentionally rejecting control chars in filenames
+const CONTROL_CHAR_PATTERN = /[\u0000-\u001f\u007f]/;
+
+/**
+ * A snapshot filename param must be a bare {base}~YYYYMMDD-HHMMSS[-N].yaml with
+ * no path separators or control characters. Rejecting control chars closes the
+ * trailing-newline edge that SNAPSHOT_NAME_PATTERN's unanchored end would
+ * otherwise tolerate.
+ */
+function isValidSnapshotFilenameParam(filename: string): boolean {
+  if (
+    filename.includes("/") ||
+    filename.includes("\\") ||
+    CONTROL_CHAR_PATTERN.test(filename)
+  ) {
+    return false;
+  }
+  return SNAPSHOT_NAME_PATTERN.test(filename);
+}
+
 const layouts = new Hono();
 
 // List all layouts
@@ -231,7 +252,7 @@ layouts.get("/:uuid/snapshots/:filename", async (c) => {
     return c.json({ error: "Invalid layout UUID format" }, 400);
   }
 
-  if (filename.includes("/") || !SNAPSHOT_NAME_PATTERN.test(filename)) {
+  if (!isValidSnapshotFilenameParam(filename)) {
     return c.json({ error: "Invalid snapshot filename" }, 400);
   }
 
