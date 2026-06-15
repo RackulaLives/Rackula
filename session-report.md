@@ -22,10 +22,25 @@ Never merge on green CI alone.
 - #2038 (Track A, backup nudge + restore-from-file): dispatched
 - #2065 (Track B, LXC tarball + SHA256 release assets): dispatched
 
+### Wave 1 outcomes (as of ~03:00 UTC)
+- #2065 (Track B): agent completed, PR #2306 open. CodeAnt clean; CodeRabbit reviewing.
+  Agent confirmed gh/SSH unavailable; pushed via GitHub MCP. (origin proxy push also works.)
+- #2038 (Track A): first agent died on a transient server-side API rate limit before
+  committing. Stale worktree removed. RE-DISPATCHED fresh ~03:00 UTC.
+- #2290 (C2): agent still running.
+
+### Notes / corrections to orchestration assumptions
+- Push: `gh` + SSH unavailable in this container; use `git push origin` (local proxy) or
+  GitHub MCP push. The prompt's gh-credential HTTPS form does not work here.
+- Husky POSIX fix is in-flight as pre-existing PR #2293 (not merged); keep using
+  `git commit --no-verify` for now.
+- Pre-existing open PRs not from this session: #2301 (closes M04 last issue #2103 ->
+  last-wave M04 closure), #2293 (husky fix), #2287, #2298, #2302 (roadmap reconcile docs).
+
 ## Issue status table
 | Issue | Track | State | PR | CI | CodeRabbit | Merged |
 | --- | --- | --- | --- | --- | --- | --- |
 | 2289 (C1) | C | closed | 2299 | green | clean | yes |
-| 2290 (C2) | C | dispatched | - | - | - | - |
-| 2038 | A | dispatched | - | - | - | - |
-| 2065 | B | dispatched | - | - | - | - |
+| 2290 (C2) | C | running | - | - | - | - |
+| 2038 | A | re-dispatched | - | - | - | - |
+| 2065 | B | PR open | 2306 | pending | reviewing | no |
