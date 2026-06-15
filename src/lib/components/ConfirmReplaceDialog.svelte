@@ -1,7 +1,11 @@
 <!--
   ConfirmReplaceDialog Component
-  Confirmation dialog for replacing unsaved rack data.
+  Confirmation dialog for replacing unsaved data: cancel / save-first / replace.
   Built on the unified Dialog primitive (#2092).
+
+  The default copy describes replacing the current rack on a new-rack action.
+  Callers that replace something else (e.g. restore-from-file) override title,
+  message, and the save-first label.
 -->
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
@@ -12,29 +16,35 @@
     onSaveFirst: () => void;
     onReplace: () => void;
     onCancel: () => void;
+    title?: string;
+    message?: string;
+    saveFirstLabel?: string;
   }
 
-  let { open, onSaveFirst, onReplace, onCancel }: Props = $props();
+  let {
+    open,
+    onSaveFirst,
+    onReplace,
+    onCancel,
+    title = "Replace Current Rack?",
+    message,
+    saveFirstLabel = "Save First",
+  }: Props = $props();
 
   const layoutStore = getLayoutStore();
 
   const rackName = $derived(layoutStore.rack?.name || "Untitled Rack");
   const deviceCount = $derived(layoutStore.rack?.devices.length ?? 0);
   const deviceWord = $derived(deviceCount === 1 ? "device" : "devices");
-  const message = $derived(
+  const defaultMessage = $derived(
     `"${rackName}" has ${deviceCount} ${deviceWord} placed. Save your layout first?`,
   );
+  const resolvedMessage = $derived(message ?? defaultMessage);
 </script>
 
-<Dialog
-  {open}
-  title="Replace Current Rack?"
-  size="S"
-  showClose={false}
-  onclose={onCancel}
->
+<Dialog {open} {title} size="S" showClose={false} onclose={onCancel}>
   <div class="confirm-replace-dialog">
-    <p class="message">{message}</p>
+    <p class="message">{resolvedMessage}</p>
 
     <div class="actions">
       <button
@@ -51,7 +61,7 @@
         data-testid="btn-save-first"
         onclick={onSaveFirst}
       >
-        Save First
+        {saveFirstLabel}
       </button>
       <button
         type="button"
