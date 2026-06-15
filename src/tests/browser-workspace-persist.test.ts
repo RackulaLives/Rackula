@@ -135,6 +135,26 @@ describe("persistBrowserWorkspace", () => {
     expect(loadLayoutBody("a").ok).toBe(true);
   });
 
+  it("keeps a paused tab in the library so it survives a persist+reload round-trip", async () => {
+    // A tab that is already paused on its first persist never reaches
+    // saveLayoutBody, which is the only path that writes its library entry. The
+    // index loop must still record it, otherwise its id lands in openTabs with
+    // no library entry and loadWorkspaceIndex drops it as dangling on reload,
+    // losing the tab even though the peer's body is intact in localStorage.
+    await persistBrowserWorkspace({
+      tabs: [tab({ layoutId: "a" }), tab({ layoutId: "paused" })],
+      activeLayoutId: "a",
+      isPaused: (layoutId) => layoutId === "paused",
+    });
+
+    // Reload the index the way the next launch would: openTabs is filtered to
+    // ids that have a library entry, so a surviving paused id proves the entry
+    // was written.
+    const index = loadWorkspaceIndex();
+    expect(index!.openTabs).toContain("paused");
+    expect(index!.library.paused).toBeDefined();
+  });
+
   it("takes the per-layout lock for every hydrated body, not just the active one", async () => {
     const locked: string[] = [];
     const withLayoutLock = async <T>(

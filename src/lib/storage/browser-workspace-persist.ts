@@ -100,8 +100,26 @@ export async function persistBrowserWorkspace(
     : {};
 
   for (const tab of tabs) {
-    if (tab.hydrated) continue;
     const previous = library[tab.layoutId];
+    if (tab.hydrated) {
+      // A non-paused hydrated tab already wrote its library entry via
+      // saveLayoutBody above, so it is current and left alone. A paused tab
+      // (twin-tab guard) skipped its body write, so it has no fresh entry. Its
+      // id is still in openTabs below; without a library entry loadWorkspaceIndex
+      // would filter it out as dangling and drop the layout even though its body
+      // survives. Carry forward the existing entry (or a default named from the
+      // in-memory layout) so the paused tab survives a persist+reload round-trip.
+      if (!isPaused?.(tab.layoutId) || previous) continue;
+      library[tab.layoutId] = {
+        name: tab.layout.name,
+        updatedAt: "",
+        changesSinceExport: tab.changesSinceExport,
+        hasEverExported: tab.hasEverExported,
+        writeFailed: false,
+        storageMode: "browser",
+      };
+      continue;
+    }
     library[tab.layoutId] = {
       name: tab.name,
       updatedAt: previous?.updatedAt ?? "",
