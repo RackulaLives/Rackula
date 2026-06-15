@@ -71,6 +71,19 @@ Carrier chain advanced in parallel during this session (merged by maintainer):
 - C4 #2292 now UNBLOCKED (C2+C3 on main) -> DISPATCHED ~03:14 UTC.
 - C5 #2294 still blocked by C4.
 
+## Merged this session (5)
+- #2065 (PR #2306) LXC checksum - Track B/M02
+- #1011 (PR #2307) nginx query-string - Track B/M02
+- #2038 (PR #2309) backup nudge + restore - Track A/M15
+- #2042 (PR #2310) snapshot list/restore - Track A/M15
+- #2206 (PR #2311) localStorage LayoutSchema validation - Track A/M15
+Plus carrier chain C1 #2289, C2 #2290, C3 #2291 merged in parallel (by maintainer),
+and #2301 (M04 #2103). main now at 321c6e7.
+
+Note: CodeRabbit ASSERTIVE + the org-credit/rate-limit outage made each PR take several
+fix+re-review cycles. CodeAnt is the responsive reviewer; CodeAnt threads do not
+auto-resolve (verify fix in code, then merge - they linger as stale-but-fixed).
+
 ## Issue status table
 | Issue | Track | State | PR | CI | CodeRabbit | Merged |
 | --- | --- | --- | --- | --- | --- | --- |
