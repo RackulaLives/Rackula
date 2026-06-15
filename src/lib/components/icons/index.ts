@@ -43,6 +43,9 @@ export { default as IconChevronDown } from "./IconChevronDown.svelte";
 export { default as IconChevronLeft } from "./IconChevronLeft.svelte";
 export { default as IconChevronRight } from "./IconChevronRight.svelte";
 
+// Transform icons
+export { default as IconFlip } from "./IconFlip.svelte";
+
 // Undo/Redo icons
 export { default as IconUndo } from "./IconUndo.svelte";
 export { default as IconRedo } from "./IconRedo.svelte";
