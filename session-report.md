@@ -151,6 +151,23 @@ CodeRabbit starvation is now actively impeding the gate (it failed to review #23
 Substantive remaining work (the #571 schema chain, M14 placement) would benefit from real
 review; maintainer enabling the CodeRabbit review add-on would restore the full gate.
 
+### #1114 MERGED (PR #2316, squash 2764196) ~06:58 UTC
+YAML save/reload + legacy ZIP load regression coverage (new src/tests/yaml-archive-regression
+.test.ts + TESTING.md note). Agent re-scoped per the issue's own 2026-06-12 audit: only the
+YAML/ZIP half is implementable now; the git-sync half is deferred (no sync code in M03,
+nothing to mock) toward M08/#627 - deferral documented in the PR body and TESTING.md so it is
+not lost. Review: CodeRabbit CHANGES_REQUESTED (2 Major) + CodeAnt (2 Major), all valid:
+(1) the legacy-pair test loaded a bare-YAML Blob despite its "from a ZIP" name; (2) weak
+toHaveLength assertions / missing left-right slot-mapping check. Fixed in one commit (0671913):
+wrap input in a folder ZIP; assert by device identity that left->col-1 and right->col-2 (verified
+against adapt-legacy-layout slotRank/COL_SLOTS), removing the eslint-disables. CodeRabbit
+auto-resolved its 2 threads; I resolved CodeAnt's 2. Green CI (validate) + all findings resolved
+-> merged. Net: 4 dispatched issues merged this session (#2226, #620, #1114) + carrier C5 #2294.
+
+Follow-up to track (not blocking): git-sync regression coverage deferred from #1114 belongs
+with the #627 git-sync work in M08; it surfaces naturally when sync is built. Maintainer may
+file/milestone if they want it tracked separately.
+
 ## Update ~05:26 UTC
 
 Merged this session (6): #2065, #1011, #2038, #2042, #2206, #2044 (PR #2312).
