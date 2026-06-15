@@ -55,8 +55,8 @@ Verified in code, not hypothetical:
 4. Deleting dead fractional code (C5) comes after C3 + C4.
 5. C5 and C6 BOTH edit `KeyboardHandler.svelte` -> serialize them (no parallel).
 
-**This run (critical path to unblock M14):** C1 -> {C2, C3} -> C4 -> C5.
-**Deferred to their own issues:** C6 (lifecycle), C8 (NetBox), C9 (docs #2165).
+**This run (critical path to unblock M14):** C1 (#2289) -> {C2 (#2290), C3 (#2291)} -> C4 (#2292) -> C5 (#2294).
+**Deferred to their own issues:** C6 (#2295, lifecycle), C8 (#2296, NetBox), C9 (#2165, docs).
 
 ---
 
