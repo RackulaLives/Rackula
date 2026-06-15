@@ -34,15 +34,16 @@ export function createNewLayout(ctx: LayoutStateAccess, name: string): void {
  */
 export function loadLayout(
   ctx: LayoutStateAccess,
-  rawLayout: Layout,
+  layoutData: Layout,
   reservedDeviceIds?: ReadonlySet<string>,
 ): void {
-  // Carrier-first read-path adapter (#2290): this is the single store ingress
-  // every load path funnels through (file/API/archive, share decode, browser
-  // restore, YAML editor). Normalize legacy data to carrier-first here, before
-  // any other processing, so no path can place unadapted data into the store.
-  // Idempotent: re-running on an already-adapted layout is a no-op.
-  const layoutData = adaptLegacyLayout(rawLayout);
+  // Single ingress chokepoint: normalise legacy placements to carrier-first
+  // (snap fractional rails, wrap half-width pairs in synthesized carriers)
+  // before any further processing. Every load path (file/api/archive, share
+  // decode, browser-restore) funnels through here, so nothing bypasses it.
+  layoutData = adaptLegacyLayout(
+    layoutData as unknown as Record<string, unknown>,
+  );
 
   // Ensures metadata with UUID exists for persistence
   const metadata = layoutData.metadata
