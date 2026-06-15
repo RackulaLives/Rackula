@@ -9,6 +9,7 @@ import type { Layout } from "$lib/types";
 import { createLayout } from "$lib/utils/serialization";
 import { generateId } from "$lib/utils/device";
 import { generateRackId } from "$lib/utils/rack";
+import { adaptLegacyLayout } from "$lib/storage";
 import type { LayoutStateAccess } from "./types";
 import { generateUniqueDeviceId } from "./mutators";
 
@@ -33,9 +34,16 @@ export function createNewLayout(ctx: LayoutStateAccess, name: string): void {
  */
 export function loadLayout(
   ctx: LayoutStateAccess,
-  layoutData: Layout,
+  rawLayout: Layout,
   reservedDeviceIds?: ReadonlySet<string>,
 ): void {
+  // Carrier-first read-path adapter (#2290): this is the single store ingress
+  // every load path funnels through (file/API/archive, share decode, browser
+  // restore, YAML editor). Normalize legacy data to carrier-first here, before
+  // any other processing, so no path can place unadapted data into the store.
+  // Idempotent: re-running on an already-adapted layout is a no-op.
+  const layoutData = adaptLegacyLayout(rawLayout);
+
   // Ensures metadata with UUID exists for persistence
   const metadata = layoutData.metadata
     ? { ...layoutData.metadata }

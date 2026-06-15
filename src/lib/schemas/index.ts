@@ -7,7 +7,6 @@ import { z } from "../zod";
 import { nanoid } from "nanoid";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { VERSION } from "$lib/version";
-import { layoutDebug } from "$lib/utils/debug";
 
 /**
  * Slug pattern: lowercase alphanumeric with hyphens, no leading/trailing/consecutive hyphens
@@ -880,91 +879,6 @@ function migrateDevicePositions<
 }
 
 /**
- * Recover slot_position for pairs of devices at the same position and face
- * that are both missing slot_position.
- *
- * Layouts saved by the broken serializer introduced in dd25f4c (PR #1324, YAML
- * editor panel) accidentally stripped both slot_position and slot_width from
- * the output. Without recovery the two devices are indistinguishable after load
- * and Svelte throws each_key_duplicate (#1248, #1602).
- *
- * A valid layout cannot have two full-width devices at the same position, so
- * exactly-2 co-located devices with no slot_position unambiguously indicates
- * a half-width pair that lost its placement data. slot_width is not required
- * on the device type because that field may also be missing from the same
- * broken save.
- *
- * Recovery is best-effort: the original left/right order is lost, so we
- * assign "left" to the first device in the array and "right" to the second.
- * Returns the recovered devices and the set of device_type slugs that were
- * recovered, so the caller can also restore slot_width on those device types.
- */
-function recoverSlotPositions<
-  T extends {
-    id: string;
-    device_type: string;
-    position: number;
-    face: string;
-    container_id?: string;
-    parent_device?: string;
-    device_bay?: string;
-    slot_position?: string;
-  },
->(devices: T[]): { devices: T[]; recoveredSlugs: Set<string> } {
-  // Group rack-level devices by position+face to find co-located pairs.
-  // Nested children are excluded — container children (container_id) and
-  // parent/bay children (parent_device, device_bay) all legitimately share
-  // their parent's position/face and are disambiguated by slot_id/bay, not
-  // slot_position, so they must never be treated as half-width rack pairs.
-  const groups = new Map<string, T[]>();
-  for (const d of devices) {
-    if (
-      d.container_id !== undefined ||
-      d.parent_device !== undefined ||
-      d.device_bay !== undefined
-    )
-      continue;
-    const key = `${d.position}:${d.face}`;
-    const group = groups.get(key) ?? [];
-    group.push(d);
-    groups.set(key, group);
-  }
-
-  const recovery = new Map<string, "left" | "right">();
-  const recoveredSlugs = new Set<string>();
-  for (const group of groups.values()) {
-    const [d0, d1] = group;
-    if (
-      group.length === 2 &&
-      d0 &&
-      d1 &&
-      group.every((d) => d.slot_position === undefined)
-    ) {
-      recovery.set(d0.id, "left");
-      recovery.set(d1.id, "right");
-      for (const d of group) recoveredSlugs.add(d.device_type);
-    }
-  }
-
-  if (recovery.size === 0) return { devices, recoveredSlugs };
-
-  const affectedGroups = recovery.size / 2;
-  layoutDebug.schema(
-    "Recovered slot_position for %d device(s) in %d half-width pair(s) — layout was saved without slot_position (dd25f4c regression)",
-    recovery.size,
-    affectedGroups,
-  );
-
-  return {
-    devices: devices.map((d) => {
-      const assigned = recovery.get(d.id);
-      return assigned ? { ...d, slot_position: assigned } : d;
-    }),
-    recoveredSlugs,
-  };
-}
-
-/**
  * Complete layout schema (base, with migration transform)
  * Uses racks array for multi-rack support
  * Transform handles:
@@ -995,8 +909,6 @@ const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
   const migratePositions = needsPositionMigration(data.version, allDevices);
 
   // Generate IDs for racks missing them, deduplicate device IDs, and migrate positions if needed.
-  // Also collect device type slugs that need slot_width recovery (#1248, #1602).
-  const allRecoveredSlugs = new Set<string>();
   const racksWithIds = racks.map((rack) => {
     // Deduplicate device IDs to prevent Svelte each_key_duplicate errors (#1363)
     const seenDeviceIds = new Set<string>();
@@ -1020,30 +932,14 @@ const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
         : { ...d, id: nextId, container_id: nextContainerId };
     });
 
-    // Recover slot_position for half-width device pairs missing it (#1248, #1602)
-    const { devices: recoveredDevices, recoveredSlugs } =
-      recoverSlotPositions(deduplicatedDevices);
-    for (const slug of recoveredSlugs) allRecoveredSlugs.add(slug);
-
     return {
       ...rack,
       id: rack.id ?? nanoid(),
       devices: migratePositions
-        ? migrateDevicePositions(recoveredDevices)
-        : recoveredDevices,
+        ? migrateDevicePositions(deduplicatedDevices)
+        : deduplicatedDevices,
     };
   });
-
-  // Recover slot_width: 1 on device types whose slot_width was also stripped
-  // by the same broken serializer (#1248, #1602)
-  const fixedDeviceTypes =
-    allRecoveredSlugs.size === 0
-      ? data.device_types
-      : data.device_types.map((dt) =>
-          allRecoveredSlugs.has(dt.slug) && dt.slot_width === undefined
-            ? { ...dt, slot_width: 1 as const }
-            : dt,
-        );
 
   // Build the output without the legacy 'rack' field
   const { rack: _legacyRack, racks: _inputRacks, ...rest } = data;
@@ -1055,7 +951,7 @@ const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
     // After migration, stamp with current app version
     version: migratePositions ? VERSION : data.version,
     racks: racksWithIds,
-    device_types: fixedDeviceTypes,
+    device_types: data.device_types,
   };
 });
 

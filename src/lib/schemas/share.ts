@@ -25,6 +25,15 @@
 import { z } from "../zod";
 import type { DeviceCategory } from "$lib/types";
 
+/**
+ * Share format version. Bumped to 2 when carrier-first container encoding was
+ * added (#2290): v2 share links may carry container children (`ci`/`si`) and
+ * auto-created carrier flags (`a`). Emitted as the optional `fv` field on v2
+ * payloads; absent (treated as 1) on pre-carrier links, which decode fine
+ * because the container fields are optional.
+ */
+export const SHARE_FORMAT_VERSION = 2;
+
 // =============================================================================
 // Category Abbreviation Maps
 // =============================================================================
@@ -67,17 +76,28 @@ export const ABBREV_TO_CATEGORY: Record<string, DeviceCategory> =
 /**
  * Minimal device placement schema
  * Position accepts decimals for legacy share links (pre-0.7.0 used U-values like 1.5)
- * Modern share links use U-values for human readability, converted on encode/decode
+ * Modern share links use U-values for human readability, converted on encode/decode.
+ *
+ * Container children (carrier-first model): a child carries `ci` (the index of
+ * its parent carrier within the same rack's device list) and `si` (the parent
+ * slot id), and its `p` is the raw 0-indexed slot position (>= 0), not a human-U
+ * rail value. Synthesized carriers carry `a` (auto_created).
  */
 export const MinimalDeviceSchema = z.object({
   /** device_type slug */
   t: z.string(),
-  /** position in U (accepts decimals for half-U positions like 1.5) */
-  p: z.number().min(0.5),
+  /** position: rack-level = U (>= 0.5); container child = raw slot index (>= 0) */
+  p: z.number().min(0),
   /** face */
   f: z.enum(["front", "rear", "both"]),
   /** custom name (optional) */
   n: z.string().optional(),
+  /** container parent index within this rack's device list (container child) */
+  ci: z.number().int().min(0).optional(),
+  /** parent slot id (container child) */
+  si: z.string().optional(),
+  /** auto_created flag (synthesized carrier) */
+  a: z.literal(1).optional(),
 });
 
 /**
@@ -157,6 +177,8 @@ export const MinimalRackGroupSchema = z.object({
 export const MinimalLayoutV2Schema = z.object({
   /** version */
   v: z.string(),
+  /** share format version (>= 2 = carrier-first container encoding); absent = 1 */
+  fv: z.number().int().min(1).optional(),
   /** name */
   n: z.string(),
   /** racks array (v2) */
