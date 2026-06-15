@@ -113,7 +113,10 @@ server {
 
     # API proxy (when sidecar is running)
     # Use variable to defer DNS resolution to request time (allows nginx to start without API)
-    # Using $uri$is_args$args for normalized path+query (safer than $request_uri)
+    # Exact-match endpoints below set an explicit upstream URI and use
+    # $is_args$args to carry the query string. The prefix /api/ location uses a
+    # URI-less proxy_pass instead, which forwards the rewritten path and query
+    # string automatically (see that block for details).
     # Configure via environment variables: API_HOST (default: rackula-api), API_PORT (default: 3001), API_WRITE_TOKEN (optional)
     # Note: NGINX_ENVSUBST_FILTER in Dockerfile restricts substitution to runtime variables only
     
@@ -203,6 +206,13 @@ server {
         # Using rewrite to capture path after /api and forward without prefix
         rewrite ^/api(/.*)$ $1 break;
 
+        # Query strings are preserved automatically. proxy_pass has no URI part
+        # (it ends at the port), so nginx forwards the request URI set by the
+        # rewrite above, which keeps the original query string. For example,
+        # GET /api/layouts?filter=foo forwards to /layouts?filter=foo.
+        # Do not append $uri$is_args$args here: mixing an explicit URI in
+        # proxy_pass with "rewrite ... break" double-applies the path and can
+        # drop or duplicate query parameters.
         proxy_pass http://$api_upstream:${API_PORT};
         proxy_http_version 1.1;
         proxy_set_header Host $host;
