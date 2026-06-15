@@ -37,7 +37,7 @@ import {
   buildYamlFilename,
   extractUuidFromFolderName,
 } from "./folder-structure";
-import { isPlacementKey, deviceIdFromPlacementKey, placementKey } from "./placement-key";
+import { isPlacementKey, deviceIdFromPlacementKey, layoutIdFromPlacementKey, placementKey } from "./placement-key";
 
 /**
  * Lazily load JSZip library
@@ -311,11 +311,8 @@ async function addLayoutFolderToZip(
       // Handle placement-specific images (key format: placement-{layoutId}:{deviceId})
       if (isPlacementKey(imageKey)) {
         // Skip images belonging to a different layout (multi-tab: same device UUID, different layout)
-        const colonIdx = imageKey.indexOf(":");
-        if (colonIdx !== -1) {
-          const keyLayoutId = imageKey.slice("placement-".length, colonIdx);
-          if (keyLayoutId !== layoutMetadata.id) continue;
-        }
+        const keyLayoutId = layoutIdFromPlacementKey(imageKey);
+        if (keyLayoutId !== undefined && keyLayoutId !== layoutMetadata.id) continue;
         const deviceId = deviceIdFromPlacementKey(imageKey);
         // Find the device across all racks to get its device_type slug for the folder path
         const placedDevice = layout.racks

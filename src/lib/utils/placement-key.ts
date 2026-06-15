@@ -28,3 +28,13 @@ export function deviceIdFromPlacementKey(key: string): string {
   }
   return key.slice("placement-".length);
 }
+
+/**
+ * Extract the layout id from a namespaced placement key.
+ * Returns undefined for legacy un-namespaced keys (`placement-{deviceId}`).
+ */
+export function layoutIdFromPlacementKey(key: string): string | undefined {
+  const colonIdx = key.indexOf(":");
+  if (colonIdx === -1) return undefined;
+  return key.slice("placement-".length, colonIdx);
+}
