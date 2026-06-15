@@ -343,31 +343,32 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     u_height: 1,
     category: "shelf",
     subdevice_role: "parent",
+    // Row 0 is the bottom row (SlotPosition2D: row is 0-indexed from bottom).
     slots: [
       {
         id: "r0-c0",
-        name: "Top Left",
+        name: "Bottom Left",
         position: { row: 0, col: 0 },
         width_fraction: 0.5,
         height_units: 0.5,
       },
       {
         id: "r0-c1",
-        name: "Top Right",
+        name: "Bottom Right",
         position: { row: 0, col: 1 },
         width_fraction: 0.5,
         height_units: 0.5,
       },
       {
         id: "r1-c0",
-        name: "Bottom Left",
+        name: "Top Left",
         position: { row: 1, col: 0 },
         width_fraction: 0.5,
         height_units: 0.5,
       },
       {
         id: "r1-c1",
-        name: "Bottom Right",
+        name: "Top Right",
         position: { row: 1, col: 1 },
         width_fraction: 0.5,
         height_units: 0.5,
@@ -380,31 +381,32 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     u_height: 1,
     category: "shelf",
     subdevice_role: "parent",
+    // Row 0 is the bottom row (SlotPosition2D: row is 0-indexed from bottom).
     slots: [
       {
         id: "r0-c0",
-        name: "Top Left",
+        name: "Bottom Left",
         position: { row: 0, col: 0 },
         width_fraction: 0.5,
         height_units: 0.5,
       },
       {
         id: "r0-c1",
-        name: "Top Right",
+        name: "Bottom Right",
         position: { row: 0, col: 1 },
         width_fraction: 0.5,
         height_units: 0.5,
       },
       {
         id: "r1-c0",
-        name: "Bottom Left",
+        name: "Top Left",
         position: { row: 1, col: 0 },
         width_fraction: 0.5,
         height_units: 0.5,
       },
       {
         id: "r1-c1",
-        name: "Bottom Right",
+        name: "Top Right",
         position: { row: 1, col: 1 },
         width_fraction: 0.5,
         height_units: 0.5,
