@@ -3,10 +3,12 @@ import {
   finalizeLayoutLoad,
   loadFromApi,
   loadFromFile,
+  restoreFromSnapshot,
 } from "$lib/storage/load-pipeline";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
 import * as persistenceApi from "$lib/storage/api";
+import { getServerBaseUpdatedAt } from "$lib/storage/server-base";
 import * as archive from "$lib/utils/archive";
 import * as fileUtils from "$lib/utils/file";
 import { createTestLayout } from "./factories";
@@ -26,6 +28,7 @@ vi.mock("$lib/stores/images.svelte", () => ({
 
 vi.mock("$lib/storage/api", () => ({
   loadSavedLayout: vi.fn(),
+  loadSnapshot: vi.fn(),
   PersistenceError: class PersistenceError extends Error {
     statusCode?: number;
     constructor(message: string, statusCode?: number) {
@@ -152,6 +155,60 @@ describe("load-pipeline", () => {
       expect(toastStore.toasts).toContainEqual(
         expect.objectContaining({ message: "Not found", type: "error" }),
       );
+    });
+  });
+
+  describe("restoreFromSnapshot", () => {
+    it("loads the snapshot through loadSnapshot and finalizes as the working copy", async () => {
+      const layout = createTestLayout({ name: "Restored Snapshot" });
+      vi.mocked(persistenceApi.loadSnapshot).mockResolvedValue({
+        layout,
+        images: new Map(),
+        failedImagesCount: 0,
+        failedKeys: [],
+      });
+
+      const result = await restoreFromSnapshot(
+        "uuid-1",
+        "restored~20260615-143005.yaml",
+      );
+
+      expect(result).toBe(true);
+      // Restore must go through the same loadSnapshot parse/validate/adapt path
+      // as a normal load, not a bespoke bypass.
+      expect(persistenceApi.loadSnapshot).toHaveBeenCalledWith(
+        "uuid-1",
+        "restored~20260615-143005.yaml",
+      );
+      expect(layoutStore.layout.name).toBe("Restored Snapshot");
+    });
+
+    it("clears the server base so the next save is a fresh write, not an in-place revert", async () => {
+      const layout = createTestLayout({ name: "Restore As New Write" });
+      vi.mocked(persistenceApi.loadSnapshot).mockResolvedValue({
+        layout,
+        images: new Map(),
+        failedImagesCount: 0,
+        failedKeys: [],
+      });
+
+      await restoreFromSnapshot("uuid-1", "x~20260615-143005.yaml");
+
+      expect(getServerBaseUpdatedAt()).toBeNull();
+    });
+
+    it("shows an error toast when the snapshot cannot be loaded", async () => {
+      vi.mocked(persistenceApi.loadSnapshot).mockRejectedValue(
+        new persistenceApi.PersistenceError("Snapshot not found", 404),
+      );
+
+      const result = await restoreFromSnapshot(
+        "uuid-1",
+        "missing~20260615-143005.yaml",
+      );
+
+      expect(result).toBe(false);
+      expect(toastStore.toasts.some((t) => t.type === "error")).toBe(true);
     });
   });
 

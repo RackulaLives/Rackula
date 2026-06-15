@@ -374,6 +374,66 @@ describe("GET /layouts/:uuid/snapshots", () => {
   });
 });
 
+describe("GET /layouts/:uuid/snapshots/:filename", () => {
+  it("returns the stored snapshot YAML for a listed filename", async () => {
+    const app = await createApp(buildEnv());
+    const v1 = createLayoutYaml("My Layout", "v1");
+    await putLayout(app, TEST_UUID, v1);
+    await putLayout(app, TEST_UUID, createLayoutYaml("My Layout", "v2"), {
+      [UPDATED_AT_HEADER]: STALE_UPDATED_AT,
+    });
+
+    const list = await app.request(`/layouts/${TEST_UUID}/snapshots`);
+    const { snapshots } = await list.json();
+    const filename = snapshots[0].filename;
+
+    const response = await app.request(
+      `/layouts/${TEST_UUID}/snapshots/${filename}`,
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toContain("text/yaml");
+    expect(await response.text()).toBe(v1);
+  });
+
+  it("returns 404 for an unknown snapshot filename", async () => {
+    const app = await createApp(buildEnv());
+    await putLayout(app, TEST_UUID, createLayoutYaml("My Layout", "v1"));
+
+    const response = await app.request(
+      `/layouts/${TEST_UUID}/snapshots/my-layout~20200101-000000.yaml`,
+    );
+    expect(response.status).toBe(404);
+  });
+
+  it("returns 404 for an unknown layout", async () => {
+    const app = await createApp(buildEnv());
+
+    const response = await app.request(
+      `/layouts/${UNKNOWN_UUID}/snapshots/my-layout~20200101-000000.yaml`,
+    );
+    expect(response.status).toBe(404);
+  });
+
+  it("returns 400 for an invalid uuid", async () => {
+    const app = await createApp(buildEnv());
+
+    const response = await app.request(
+      "/layouts/not-a-uuid/snapshots/my-layout~20200101-000000.yaml",
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects a path-traversal filename", async () => {
+    const app = await createApp(buildEnv());
+    await putLayout(app, TEST_UUID, createLayoutYaml("My Layout", "v1"));
+
+    const response = await app.request(
+      `/layouts/${TEST_UUID}/snapshots/${encodeURIComponent("../../secret.yaml")}`,
+    );
+    expect(response.status).toBe(400);
+  });
+});
+
 describe("POST /layouts/:uuid/snapshots", () => {
   it("stores an uploaded losing copy as a snapshot", async () => {
     const app = await createApp(buildEnv());

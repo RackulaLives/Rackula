@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   checkApiHealth,
   loadSavedLayout,
+  loadSnapshot,
   saveLayoutToServer,
   uploadSnapshot,
 } from "$lib/storage/api";
@@ -323,5 +324,60 @@ describe("loadSavedLayout", () => {
       "11111111-1111-4111-8111-111111111111",
     );
     expect(result.updatedAt).toBe("2026-06-14T10:00:00.000Z");
+  });
+});
+
+describe("loadSnapshot", () => {
+  const UUID = "11111111-1111-4111-8111-111111111111";
+  const FILENAME = "my-layout~20260615-143005.yaml";
+
+  beforeEach(() => {
+    setApiAvailable(true);
+    vi.stubGlobal("AbortSignal", {
+      timeout: () => new AbortController().signal,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    setApiAvailable(false);
+  });
+
+  it("parses snapshot YAML through the same validated pipeline as file load", async () => {
+    const yaml = await serializeLayoutToYaml(
+      createTestLayout({ name: "From Snapshot" }),
+      "",
+    );
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(yaml, {
+        status: 200,
+        headers: { "Content-Type": "text/yaml" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await loadSnapshot(UUID, FILENAME);
+
+    // A valid snapshot resolves to a parsed Layout: it went through
+    // parseLayoutYamlWithImages (LayoutSchema), not a raw passthrough.
+    expect(result.layout.name).toBe("From Snapshot");
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(
+      `/snapshots/${encodeURIComponent(FILENAME)}`,
+    );
+  });
+
+  it("rejects a snapshot whose YAML fails schema validation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("name: broken\nracks: not-a-list", {
+          status: 200,
+          headers: { "Content-Type": "text/yaml" },
+        }),
+      ),
+    );
+
+    await expect(loadSnapshot(UUID, FILENAME)).rejects.toThrow(/corrupted/i);
   });
 });

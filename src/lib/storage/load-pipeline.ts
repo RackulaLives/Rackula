@@ -11,7 +11,7 @@ import { clearSession } from "./working-copy";
 import { setServerBaseUpdatedAt } from "./server-base";
 import type { Layout } from "$lib/types";
 import type { ImageStoreMap } from "$lib/types/images";
-import { loadSavedLayout, PersistenceError } from "./api";
+import { loadSavedLayout, loadSnapshot, PersistenceError } from "./api";
 import { extractFolderArchive } from "$lib/utils/archive";
 import { openFilePicker } from "$lib/utils/file";
 import { layoutDebug } from "$lib/utils/debug";
@@ -111,6 +111,48 @@ export async function loadFromApi(uuid: string) {
       }
     } else {
       message = "Failed to open layout — check your connection";
+    }
+    toastStore.showToast(message, "error");
+    return false;
+  }
+}
+
+/**
+ * Restore a pre-overwrite snapshot as the working copy (#2042).
+ *
+ * Restore-as-new-write, not an in-place revert: the snapshot YAML is parsed,
+ * validated, and adapted through the same {@link loadSnapshot} +
+ * {@link finalizeLayoutLoad} pipeline as a normal load, then the server base
+ * updatedAt is cleared so the next save snapshots the diverged server copy
+ * before overwriting it rather than reverting the stored layout in place.
+ */
+export async function restoreFromSnapshot(uuid: string, filename: string) {
+  const toastStore = getToastStore();
+
+  try {
+    const { layout, images, failedImagesCount } = await loadSnapshot(
+      uuid,
+      filename,
+    );
+    // No server base: the next save PUT carries a null last-known timestamp,
+    // so the server snapshots its current copy before this restore overwrites it.
+    setServerBaseUpdatedAt(null);
+    finalizeLayoutLoad(layout, images, failedImagesCount, {
+      successMessage: "Snapshot restored",
+    });
+    return true;
+  } catch (e) {
+    let message: string;
+    if (e instanceof PersistenceError) {
+      if (e.statusCode !== undefined && e.statusCode >= 500) {
+        message = "Server error - please try again later";
+      } else if (e.statusCode === 404) {
+        message = "Snapshot not found - it may have been pruned";
+      } else {
+        message = e.message;
+      }
+    } else {
+      message = "Failed to restore snapshot - check your connection";
     }
     toastStore.showToast(message, "error");
     return false;

@@ -17,9 +17,11 @@ export {
   listSavedLayouts,
   loadSavedLayout,
   deleteSavedLayout,
+  listSnapshots,
   PersistenceError,
   getServerInstanceLabel,
   type SavedLayoutItem,
+  type SnapshotItem,
 } from "./api";
 export {
   loadSessionWithTimestamp,
@@ -32,6 +34,7 @@ export {
   finalizeLayoutLoad,
   loadFromApi,
   loadFromFile,
+  restoreFromSnapshot,
 } from "./load-pipeline";
 export {
   handleLoad,

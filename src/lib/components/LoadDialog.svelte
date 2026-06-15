@@ -6,7 +6,10 @@
   import {
     listSavedLayouts,
     deleteSavedLayout,
+    listSnapshots,
+    restoreFromSnapshot,
     type SavedLayoutItem,
+    type SnapshotItem,
     PersistenceError,
     isApiAvailable,
     loadFromApi,
@@ -15,7 +18,14 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { persistenceDebug } from "$lib/utils/debug";
-  import { IconTrash, IconFolderBold, IconUpload } from "$lib/components/icons";
+  import { formatSnapshotTimestamp } from "$lib/utils/snapshot-timestamp";
+  import {
+    IconTrash,
+    IconFolderBold,
+    IconUpload,
+    IconChevronRight,
+    IconChevronDown,
+  } from "$lib/components/icons";
   import Dialog from "./Dialog.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
 
@@ -27,6 +37,13 @@
   let deletingId = $state<string | null>(null);
   let confirmingDeleteId = $state<string | null>(null);
   let apiActive = $derived(isApiAvailable());
+
+  // Per-layout snapshot expansion state, keyed by layout id.
+  let expandedId = $state<string | null>(null);
+  let snapshots = $state<SnapshotItem[]>([]);
+  let snapshotsLoading = $state(false);
+  let snapshotsError = $state<string | null>(null);
+  let restoringFilename = $state<string | null>(null);
 
   const confirmingDeleteItem = $derived(
     layouts.find((l) => l.id === confirmingDeleteId),
@@ -86,6 +103,9 @@
     try {
       await deleteSavedLayout(item.id);
       layouts = layouts.filter((l) => l.id !== item.id);
+      if (expandedId === item.id) {
+        expandedId = null;
+      }
       toastStore.showToast(`Deleted "${item.name}"`, "info");
     } catch (e) {
       const message =
@@ -100,6 +120,41 @@
     const success = await loadFromFile();
     if (success) {
       dialogStore.close();
+    }
+  }
+
+  async function toggleSnapshots(item: SavedLayoutItem) {
+    if (expandedId === item.id) {
+      expandedId = null;
+      return;
+    }
+
+    expandedId = item.id;
+    snapshots = [];
+    snapshotsError = null;
+    snapshotsLoading = true;
+
+    try {
+      snapshots = await listSnapshots(item.id);
+    } catch (e) {
+      snapshotsError =
+        e instanceof PersistenceError ? e.message : "Failed to load snapshots";
+      persistenceDebug.api("toggleSnapshots: failed %O", e);
+    } finally {
+      snapshotsLoading = false;
+    }
+  }
+
+  async function handleRestoreSnapshot(uuid: string, filename: string) {
+    if (restoringFilename) return;
+    restoringFilename = filename;
+    try {
+      const success = await restoreFromSnapshot(uuid, filename);
+      if (success) {
+        dialogStore.close();
+      }
+    } finally {
+      restoringFilename = null;
     }
   }
 
@@ -167,46 +222,104 @@
                 class:invalid={!item.valid}
                 class:deleting={deletingId === item.id}
               >
-                <div
-                  class="layout-row"
-                  role="button"
-                  tabindex={item.valid ? 0 : -1}
-                  aria-disabled={!item.valid}
-                  onclick={() => handleOpenLayout(item)}
-                  onkeydown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      handleOpenLayout(item);
-                    }
-                  }}
-                >
-                  <div class="layout-info">
-                    <span class="layout-name">
-                      {item.name}
-                      {#if !item.valid}
-                        <span class="error-badge" title="Corrupted file">!</span
-                        >
-                      {/if}
-                    </span>
-                    <span class="layout-meta">
-                      {#if item.valid}
-                        {formatCounts(item)} - {formatDate(item.updatedAt)}
-                      {:else}
-                        <span class="error-text">File corrupted</span> -
-                        {formatDate(item.updatedAt)}
-                      {/if}
-                    </span>
+                <div class="layout-main">
+                  <button
+                    class="expand-btn"
+                    onclick={() => toggleSnapshots(item)}
+                    aria-expanded={expandedId === item.id}
+                    aria-label={`Show snapshots for ${item.name}`}
+                    title="Show snapshots"
+                  >
+                    {#if expandedId === item.id}
+                      <IconChevronDown size={16} />
+                    {:else}
+                      <IconChevronRight size={16} />
+                    {/if}
+                  </button>
+                  <div
+                    class="layout-row"
+                    role="button"
+                    tabindex={item.valid ? 0 : -1}
+                    aria-disabled={!item.valid}
+                    onclick={() => handleOpenLayout(item)}
+                    onkeydown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleOpenLayout(item);
+                      }
+                    }}
+                  >
+                    <div class="layout-info">
+                      <span class="layout-name">
+                        {item.name}
+                        {#if !item.valid}
+                          <span class="error-badge" title="Corrupted file"
+                            >!</span
+                          >
+                        {/if}
+                      </span>
+                      <span class="layout-meta">
+                        {#if item.valid}
+                          {formatCounts(item)} - {formatDate(item.updatedAt)}
+                        {:else}
+                          <span class="error-text">File corrupted</span> -
+                          {formatDate(item.updatedAt)}
+                        {/if}
+                      </span>
+                    </div>
                   </div>
+                  <button
+                    class="delete-btn"
+                    onclick={() => handleDeleteLayout(item)}
+                    disabled={deletingId === item.id}
+                    aria-label={`Delete layout ${item.name}`}
+                    title="Delete layout"
+                  >
+                    <IconTrash size={16} />
+                  </button>
                 </div>
-                <button
-                  class="delete-btn"
-                  onclick={() => handleDeleteLayout(item)}
-                  disabled={deletingId === item.id}
-                  aria-label={`Delete layout ${item.name}`}
-                  title="Delete layout"
-                >
-                  <IconTrash size={16} />
-                </button>
+
+                {#if expandedId === item.id}
+                  <div class="snapshots-panel">
+                    {#if snapshotsLoading}
+                      <div class="snapshots-status">
+                        <div
+                          class="spinner-loader"
+                          data-testid="snapshots-spinner"
+                        ></div>
+                        <span>Loading snapshots...</span>
+                      </div>
+                    {:else if snapshotsError}
+                      <div class="snapshots-status error">
+                        <span>{snapshotsError}</span>
+                      </div>
+                    {:else if snapshots.length === 0}
+                      <div class="snapshots-status empty">
+                        <span>No snapshots for this layout.</span>
+                      </div>
+                    {:else}
+                      <ul class="snapshot-list">
+                        {#each snapshots as snapshot (snapshot.filename)}
+                          <li class="snapshot-item">
+                            <span class="snapshot-time">
+                              {formatSnapshotTimestamp(snapshot.filename)}
+                            </span>
+                            <button
+                              class="restore-btn"
+                              onclick={() =>
+                                handleRestoreSnapshot(item.id, snapshot.filename)}
+                              disabled={restoringFilename !== null}
+                            >
+                              {restoringFilename === snapshot.filename
+                                ? "Restoring..."
+                                : "Restore"}
+                            </button>
+                          </li>
+                        {/each}
+                      </ul>
+                    {/if}
+                  </div>
+                {/if}
               </div>
             {/each}
           </div>
@@ -318,7 +431,7 @@
 
   .layout-item {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     background: var(--colour-surface);
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-md);
@@ -333,11 +446,98 @@
     background: var(--colour-surface-hover);
   }
 
+  .layout-main {
+    display: flex;
+    align-items: center;
+  }
+
+  .expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-2);
+    margin-left: var(--space-1);
+    border: none;
+    background: transparent;
+    color: var(--colour-text-muted);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition:
+      color 0.15s,
+      background-color 0.15s;
+  }
+
+  .expand-btn:hover {
+    color: var(--colour-primary);
+    background: var(--colour-surface-hover);
+  }
+
   .layout-row {
     flex: 1;
     min-width: 0;
     padding: var(--space-4);
     cursor: pointer;
+  }
+
+  .snapshots-panel {
+    border-top: 1px solid var(--colour-border);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .snapshots-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 0.75rem;
+    color: var(--colour-text-muted);
+  }
+
+  .snapshots-status.error {
+    color: var(--colour-error);
+  }
+
+  .snapshot-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .snapshot-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .snapshot-time {
+    font-size: 0.75rem;
+    color: var(--colour-text-muted);
+  }
+
+  .restore-btn {
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--colour-border);
+    background: var(--colour-surface);
+    color: var(--colour-text);
+    font-size: 0.75rem;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition:
+      border-color 0.15s,
+      background-color 0.15s;
+  }
+
+  .restore-btn:hover:not(:disabled) {
+    border-color: var(--colour-primary);
+    background: var(--colour-surface-hover);
+  }
+
+  .restore-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .layout-item.deleting {

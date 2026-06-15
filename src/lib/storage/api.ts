@@ -80,6 +80,26 @@ const LayoutListResponseSchema = z.object({
 });
 
 /**
+ * Snapshot list entry from the API. The filename carries a UTC
+ * YYYYMMDD-HHMMSS suffix; timestamp is the file mtime (ISO 8601).
+ */
+const SnapshotItemSchema = z.object({
+  filename: z.string().min(1),
+  timestamp: z.string().datetime(),
+  size: z.number().int().nonnegative(),
+});
+
+const SnapshotListResponseSchema = z.object({
+  snapshots: z.array(SnapshotItemSchema),
+});
+
+export interface SnapshotItem {
+  filename: string;
+  timestamp: string;
+  size: number;
+}
+
+/**
  * Save (PUT) response schema. The server echoes the stored updatedAt.
  */
 const SaveLayoutResponseSchema = z.object({
@@ -444,6 +464,106 @@ export async function uploadSnapshot(
   } catch (error) {
     log("uploadSnapshot: error uuid=%s %O", uuid, error);
     return false;
+  }
+}
+
+/**
+ * List pre-overwrite snapshots for a layout, newest first.
+ * @param uuid - The layout's UUID (stable identity)
+ */
+export async function listSnapshots(uuid: string): Promise<SnapshotItem[]> {
+  if (!isApiAvailable()) {
+    log("listSnapshots: API not available");
+    return [];
+  }
+
+  const url = `${API_BASE_URL}/layouts/${encodeURIComponent(uuid)}/snapshots`;
+  log("listSnapshots: fetching %s", url);
+
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new PersistenceError("Layout not found", 404);
+    }
+    const error = await safeParseErrorJson(response);
+    throw new PersistenceError(
+      error.error ?? "Failed to list snapshots",
+      response.status,
+    );
+  }
+
+  try {
+    const rawData: unknown = await response.json();
+    const data = SnapshotListResponseSchema.parse(rawData);
+    log("listSnapshots: found %d snapshots", data.snapshots.length);
+    return data.snapshots;
+  } catch (error) {
+    log("listSnapshots: validation failed %O", error);
+    throw new PersistenceError("Invalid response from API server");
+  }
+}
+
+/**
+ * Load a snapshot by layout UUID and filename, routing the YAML through the
+ * same parse/validate/adapt pipeline as a normal layout load (#2042). A
+ * pre-schema-bump snapshot therefore hits the migration or reject path rather
+ * than bypassing it.
+ * @param uuid - The layout's UUID (stable identity)
+ * @param filename - The snapshot filename from {@link listSnapshots}
+ */
+export async function loadSnapshot(
+  uuid: string,
+  filename: string,
+): Promise<{
+  layout: Layout;
+  images: ImageStoreMap;
+  failedImagesCount: number;
+  failedKeys: string[];
+}> {
+  log("loadSnapshot: uuid=%s filename=%s", uuid, filename);
+
+  if (!isApiAvailable()) {
+    throw new PersistenceError("API not available");
+  }
+
+  const url = `${API_BASE_URL}/layouts/${encodeURIComponent(
+    uuid,
+  )}/snapshots/${encodeURIComponent(filename)}`;
+  log("loadSnapshot: fetching %s", url);
+
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new PersistenceError("Snapshot not found", 404);
+    }
+    const error = await safeParseErrorJson(response);
+    throw new PersistenceError(
+      error.error ?? "Failed to load snapshot",
+      response.status,
+    );
+  }
+
+  const declared = Number(response.headers.get("Content-Length"));
+  if (Number.isFinite(declared) && declared > MAX_LAYOUT_RESPONSE_BYTES) {
+    throw new PersistenceError("Snapshot data too large");
+  }
+
+  const yamlContent = await response.text();
+  if (new TextEncoder().encode(yamlContent).length > MAX_LAYOUT_RESPONSE_BYTES) {
+    throw new PersistenceError("Snapshot data too large");
+  }
+
+  try {
+    return await parseLayoutYamlWithImages(yamlContent);
+  } catch (error) {
+    log("loadSnapshot: failed to parse uuid=%s %O", uuid, error);
+    throw new PersistenceError("Snapshot data is corrupted - could not parse");
   }
 }
 

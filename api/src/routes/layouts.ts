@@ -6,8 +6,9 @@
  * GET    /layouts/:uuid           - Get layout by UUID
  * PUT    /layouts/:uuid           - Create or update layout
  * DELETE /layouts/:uuid           - Delete layout
- * GET    /layouts/:uuid/snapshots - List pre-overwrite snapshots
- * POST   /layouts/:uuid/snapshots - Upload a losing local copy as a snapshot
+ * GET    /layouts/:uuid/snapshots           - List pre-overwrite snapshots
+ * GET    /layouts/:uuid/snapshots/:filename - Get a snapshot's YAML content
+ * POST   /layouts/:uuid/snapshots           - Upload a losing local copy as a snapshot
  *
  * When accessed through nginx proxy (recommended), the same routes are
  * available under /api/layouts (nginx strips /api before forwarding).
@@ -25,7 +26,9 @@ import {
   saveLayout,
   deleteLayout,
   listSnapshots,
+  getSnapshot,
   saveSnapshot,
+  SNAPSHOT_NAME_PATTERN,
 } from "../storage/filesystem";
 import { deleteLayoutAssets } from "../storage/assets";
 import { logger } from "../logger";
@@ -215,6 +218,36 @@ layouts.get("/:uuid/snapshots", async (c) => {
       `Failed to list snapshots for layout ${uuidResult.data}`,
     );
     return c.json({ error: "Failed to list snapshots" }, 500);
+  }
+});
+
+// Get a single snapshot's YAML content
+layouts.get("/:uuid/snapshots/:filename", async (c) => {
+  const uuid = c.req.param("uuid");
+  const filename = c.req.param("filename");
+
+  const uuidResult = UuidSchema.safeParse(uuid);
+  if (!uuidResult.success) {
+    return c.json({ error: "Invalid layout UUID format" }, 400);
+  }
+
+  if (filename.includes("/") || !SNAPSHOT_NAME_PATTERN.test(filename)) {
+    return c.json({ error: "Invalid snapshot filename" }, 400);
+  }
+
+  try {
+    const content = await getSnapshot(uuidResult.data, filename);
+    if (content === null) {
+      return c.json({ error: "Snapshot not found" }, 404);
+    }
+
+    return c.text(content, 200, { "Content-Type": "text/yaml" });
+  } catch (error) {
+    logger.error(
+      { err: error },
+      `Failed to get snapshot ${filename} for layout ${uuidResult.data}`,
+    );
+    return c.json({ error: "Failed to get snapshot" }, 500);
   }
 });
 
