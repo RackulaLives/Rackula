@@ -459,8 +459,28 @@ export function parseLayoutObject(parsed: unknown): Layout | null {
 
   if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
     const { metadata: rawMetadata, ...rest } = parsed as Record<string, unknown>;
-    if (rawMetadata !== undefined) {
-      metadata = rawMetadata as Layout["metadata"];
+    if (
+      rawMetadata !== null &&
+      typeof rawMetadata === "object" &&
+      !Array.isArray(rawMetadata)
+    ) {
+      // Untrusted localStorage data: keep only correctly-typed string fields so
+      // a non-string id cannot reach consumers that call metadata.id.trim().
+      // Format (e.g. UUID shape) is not enforced here; loadLayout re-mints an id
+      // when absent.
+      const candidate = rawMetadata as Record<string, unknown>;
+      const safeMeta: Partial<LayoutMetadata> = {};
+      if (typeof candidate.id === "string") safeMeta.id = candidate.id;
+      if (typeof candidate.name === "string") safeMeta.name = candidate.name;
+      if (typeof candidate.schema_version === "string") {
+        safeMeta.schema_version = candidate.schema_version;
+      }
+      if (typeof candidate.description === "string") {
+        safeMeta.description = candidate.description;
+      }
+      if (Object.keys(safeMeta).length > 0) {
+        metadata = safeMeta;
+      }
     }
     // Drop the top-level images section (base64 user images, #617) before
     // validation, same as validateParsedLayout, so base64 never rides onto the
