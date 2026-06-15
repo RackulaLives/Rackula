@@ -24,7 +24,6 @@
 
 import type { Layout, LayoutMetadata } from "$lib/types";
 import type { ImageData, ImageStoreMap } from "$lib/types/images";
-import { ARCHIVE_EXTENSION } from "$lib/types/constants";
 import {
   serializeLayoutToYamlWithMetadata,
   serializeLayoutToYaml,
@@ -223,32 +222,6 @@ function hasCustomImages(images: ImageStoreMap): boolean {
 }
 
 /**
- * Create a folder-based ZIP archive from layout and images
- *
- * New structure (#919):
- * {Layout Name}-{UUID}/
- * ├── {slugified-name}.rackula.yaml
- * └── assets/                              # only if custom images exist
- *     └── {deviceSlug}/
- *         ├── front.png
- *         └── rear.png
- *
- * @param layout - The layout to archive
- * @param images - Map of device images (only user uploads with blobs are included)
- * @param metadata - Optional metadata (will be generated if not provided)
- */
-export async function createFolderArchive(
-  layout: Layout,
-  images: ImageStoreMap,
-  metadata?: LayoutMetadata,
-): Promise<Blob> {
-  const JSZip = await getJSZip();
-  const zip = new JSZip();
-  await addLayoutFolderToZip(zip, layout, images, metadata);
-  return zip.generateAsync({ type: "blob", mimeType: "application/zip" });
-}
-
-/**
  * A single layout plus its images and optional metadata, the unit the
  * multi-layout export-all archive (#2045) bundles one folder per entry.
  */
@@ -261,10 +234,8 @@ export interface LayoutArchiveEntry {
 /**
  * Create one ZIP holding every layout's folder-archive form (#2045).
  *
- * Reuses the same per-layout folder writer as the single-layout archive, so
- * each layout lands as "{Layout Name}-{UUID}/" with its YAML and optional
- * assets/. A single entry yields a ZIP byte-identical to createFolderArchive,
- * which is why the export-all degraded form (one open layout) reuses this path.
+ * Each layout lands as "{Layout Name}-{UUID}/" with its YAML and optional
+ * assets/, so the export-all degraded form (one open layout) reuses this path.
  *
  * @param entries - One entry per layout to include
  * @throws {Error} if entries is empty
@@ -287,9 +258,8 @@ export async function createMultiLayoutArchive(
  * Write a single layout's folder-archive form into a shared JSZip instance.
  *
  * Each layout becomes a "{Layout Name}-{UUID}/" folder containing its YAML and
- * an optional assets/ tree. Extracted from createFolderArchive so the
- * single-layout archive and the multi-layout export-all (#2045) share one
- * folder writer.
+ * an optional assets/ tree. The multi-layout export-all (#2045) calls this once
+ * per layout to share one folder writer across every entry.
  *
  * @param zip - The JSZip instance to write the folder into
  * @param layout - The layout to archive
@@ -747,16 +717,6 @@ function blobToDataUrl(blob: Blob): Promise<string | null> {
 }
 
 /**
- * Generate a safe archive filename from layout with UUID
- *
- * Format: {Layout Name}-{UUID}.Rackula.zip
- * Example: "My Homelab-550e8400-e29b-41d4-a716-446655440000.Rackula.zip"
- *
- * @param layout - The layout to generate filename for
- * @param metadata - Optional metadata with UUID (will be generated if not provided)
- * @returns Filename with .Rackula.zip extension
- */
-/**
  * Generate the timestamped filename for a multi-layout export-all archive (#2045).
  *
  * Format: rackula-export-YYYYMMDD-HHMMSS.zip (local time). Plain .zip, not the
@@ -771,60 +731,6 @@ export function generateExportAllFilename(now: Date = new Date()): string {
     `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
     `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
   return `rackula-export-${stamp}.zip`;
-}
-
-export function generateArchiveFilename(
-  layout: Layout,
-  metadata?: LayoutMetadata,
-): string {
-  const layoutMetadata: LayoutMetadata = metadata ?? {
-    id: generateId(),
-    name: layout.name,
-    schema_version: "1.0",
-  };
-
-  return `${buildFolderName(layoutMetadata.name, layoutMetadata.id)}${ARCHIVE_EXTENSION}`;
-}
-
-/**
- * Save a layout as a folder-based ZIP archive.
- *
- * Uses browser-fs-access fileSave() which provides:
- * - Native "Save As" dialog on Chromium (File System Access API)
- * - Anchor download fallback on Firefox/Safari
- *
- * @param layout - The layout to save
- * @param images - Map of device images
- * @param metadata - Optional metadata (will be generated if not provided)
- * @param filename - Optional custom filename (overrides generated name)
- * @throws {DOMException} AbortError if user cancels native save dialog
- */
-export async function downloadArchive(
-  layout: Layout,
-  images: ImageStoreMap,
-  metadata?: LayoutMetadata,
-  filename?: string,
-): Promise<void> {
-  const { fileSave } = await import("browser-fs-access");
-
-  // Generate metadata if not provided (used for both archive and filename)
-  const layoutMetadata: LayoutMetadata = metadata ?? {
-    id: generateId(),
-    name: layout.name,
-    schema_version: "1.0",
-  };
-
-  // Create the folder archive with metadata
-  const blob = await createFolderArchive(layout, images, layoutMetadata);
-  const suggestedName =
-    filename ?? generateArchiveFilename(layout, layoutMetadata);
-
-  // fileSave: native save dialog on Chromium, anchor fallback on FF/Safari
-  await fileSave(blob, {
-    fileName: suggestedName,
-    extensions: [ARCHIVE_EXTENSION, ".zip"],
-    description: "Rackula Layout Archive",
-  });
 }
 
 /**

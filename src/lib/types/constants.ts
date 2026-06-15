@@ -157,11 +157,6 @@ export const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
  */
 
 /**
- * New archive file extension (.Rackula.zip)
- */
-export const ARCHIVE_EXTENSION = ".Rackula.zip";
-
-/**
  * Layout filename inside the archive
  */
 export const LAYOUT_FILENAME = "layout.json";
