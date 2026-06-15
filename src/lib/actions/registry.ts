@@ -47,6 +47,9 @@ export type ActionId =
   | "toggle-sidebar"
   | "move-device-up"
   | "move-device-down"
+  | "flip-device-face"
+  | "focus-rack"
+  | "export-rack"
   | "cycle-rack-prev"
   | "cycle-rack-next"
   | "escape"
@@ -243,6 +246,30 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     ],
     enabledWhen: (ctx) => ctx.isDeviceSelected || ctx.isRackSelected,
     keywords: ["copy", "clone"],
+  },
+  {
+    id: "flip-device-face",
+    label: "Flip face",
+    scope: "selection",
+    bindings: [],
+    enabledWhen: (ctx) => ctx.isDeviceSelected,
+    keywords: ["rotate", "front", "rear", "face"],
+  },
+  {
+    id: "focus-rack",
+    label: "Focus",
+    scope: "selection",
+    bindings: [],
+    enabledWhen: (ctx) => ctx.isRackSelected,
+    keywords: ["zoom", "centre", "center"],
+  },
+  {
+    id: "export-rack",
+    label: "Export",
+    scope: "selection",
+    bindings: [],
+    enabledWhen: (ctx) => ctx.isRackSelected,
+    keywords: ["download", "svg", "pdf", "png"],
   },
 
   // --- File -----------------------------------------------------------------
