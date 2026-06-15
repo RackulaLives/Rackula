@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Layout } from "$lib/types";
 import { resolveBrowserLaunch } from "$lib/storage/browser-launch";
+import { createTestLayout } from "./factories";
 
 const WORKSPACE_KEY = "Rackula:workspace";
 const EVER_KEY = "Rackula:everHadLayouts";
@@ -29,14 +30,10 @@ Object.defineProperty(globalThis, "localStorage", {
 });
 
 function makeLayout(id: string, name: string): Layout {
-  return {
-    version: "1.0",
+  return createTestLayout({
     name,
-    racks: [{ id: "rack-0", name: "R", height: 42, devices: [] }],
-    device_types: [],
-    settings: { display_mode: "label", show_labels_on_images: false },
     metadata: { id, name, schema_version: "1.0" },
-  } as Layout;
+  });
 }
 
 function seedAutosave(id: string, name: string): void {
