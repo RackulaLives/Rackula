@@ -37,10 +37,21 @@ Never merge on green CI alone.
 - Pre-existing open PRs not from this session: #2301 (closes M04 last issue #2103 ->
   last-wave M04 closure), #2293 (husky fix), #2287, #2298, #2302 (roadmap reconcile docs).
 
+### Wave 1 -> 2 (as of ~03:08 UTC)
+- #2065 (Track B): MERGED (PR #2306, squash 8b169bf). CodeRabbit flagged one Major
+  (nondeterministic checksum/tarball asset match); fixed by orchestrator in 427082b,
+  CodeRabbit marked resolved, hard-gate `validate` + all GH-hosted CI green. Issue closed.
+  Self-hosted e2e is advisory (spike #1994 / PR #2298), not a merge gate.
+- #1011 (Track B): dispatched ~03:08 (nginx query-string preservation test + docs).
+- #2060 (Track B): SKIPPED - ACs require pushing to external fork ggfevans/ProxmoxVED
+  and an upstream PR, outside this session's repo scope. Surface to maintainer.
+
 ## Issue status table
 | Issue | Track | State | PR | CI | CodeRabbit | Merged |
 | --- | --- | --- | --- | --- | --- | --- |
 | 2289 (C1) | C | closed | 2299 | green | clean | yes |
+| 2065 | B | closed | 2306 | green | clean | yes |
 | 2290 (C2) | C | running | - | - | - | - |
-| 2038 | A | re-dispatched | - | - | - | - |
-| 2065 | B | PR open | 2306 | pending | reviewing | no |
+| 2038 | A | running | - | - | - | - |
+| 1011 | B | running | - | - | - | - |
+| 2060 | B | skipped (out of scope) | - | - | - | - |
