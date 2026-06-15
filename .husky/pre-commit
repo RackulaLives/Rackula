@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 # Verify package-lock.json is in sync with package.json
 if git diff --cached --name-only | grep -q 'package.json'; then
   echo "Checking package-lock.json is in sync..."
@@ -21,12 +21,15 @@ if [ -n "$STAGED" ]; then
 fi
 
 # Run tests only for files related to staged changes
-# Skip on Windows UNC paths (\\server\share) — vite cannot resolve plugins from file://server/...
+# Skip on Windows UNC paths (\\server\share): vite cannot resolve plugins from file://server/...
 REPO_PATH="$(pwd)"
-mapfile -d '' CHANGED < <(git diff --cached --name-only --diff-filter=ACMR -z -- '*.ts' '*.svelte')
-if [ "${#CHANGED[@]}" -gt 0 ]; then
+CHANGED=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.svelte' || true)
+if [ -n "$CHANGED" ]; then
   case "$REPO_PATH" in
     //*) ;; # Skip on UNC paths
-    *) NODE_OPTIONS=--max-old-space-size=8192 npx --no-install vitest related "${CHANGED[@]}" --run --passWithNoTests --reporter=dot ;;
+    *)
+      echo "$CHANGED" | tr '\n' '\0' |
+        NODE_OPTIONS=--max-old-space-size=8192 xargs -0 npx --no-install vitest related --run --passWithNoTests --reporter=dot
+      ;;
   esac
 fi
