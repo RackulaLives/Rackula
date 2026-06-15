@@ -28,7 +28,9 @@ if [ -n "$CHANGED" ]; then
   case "$REPO_PATH" in
     //*) ;; # Skip on UNC paths
     *)
-      echo "$CHANGED" | tr '\n' '\0' |
+      # Prefix each path with ./ so a filename starting with '-' is read as a
+      # path, not a vitest CLI option (a '--' separator makes related find no tests).
+      echo "$CHANGED" | sed 's,^,./,' | tr '\n' '\0' |
         NODE_OPTIONS=--max-old-space-size=8192 xargs -0 npx --no-install vitest related --run --passWithNoTests --reporter=dot
       ;;
   esac
