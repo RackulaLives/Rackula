@@ -17,14 +17,18 @@ before anyone noticed. The gated pipeline validates the actual artifacts before 
 1. Stage (automatic on tag push `v*`)
    - `gh release create <tag> --prerelease`. Prereleases are excluded from `/releases/latest`, so
      LXC `fetch_and_deploy latest` does not pick them up yet.
-   - Build the LXC tarball and attach it to the prerelease.
+   - Build the LXC tarball plus a matching `rackula-lxc-<tag>.tar.gz.sha256` and attach both to the
+     prerelease. The `.sha256` file is `sha256sum -c` compatible (one line: hash, two spaces, bare
+     filename) and is generated from the exact uploaded tarball.
    - Build and push Docker images with immutable tags only: `:X.Y.Z`, `:vX.Y.Z-persist`, and api
      `:X.Y.Z`. No `:latest`. No prod deploy.
 2. Gate (automatic, fail closed)
    - Docker gate (GitHub-hosted): `docker compose up` the `:X.Y.Z` image, check `/` 200, then the
      persist profile (persist frontend + api sidecar) and check `/api/health` 200.
-   - LXC gate (self-hosted `ci-runner` on the non-prod Proxmox host pve-rusty): download the staged
-     tarball and run `scripts/lxc-smoke-test.sh` on a throwaway unprivileged CT.
+   - LXC gate (self-hosted `ci-runner` on the non-prod Proxmox host pve-rusty): download both the
+     staged tarball and its `.sha256` from the release, verify integrity with `sha256sum -c` (the
+     post-upload checksum check), then run `scripts/lxc-smoke-test.sh` on a throwaway unprivileged
+     CT. A checksum mismatch fails the gate.
    - Any gate failure stops the run. Nothing is promoted. Downstream `latest` consumers keep the
      prior good version (automatic rollback, because `latest` is never overwritten until promote).
 3. Promote (only if all gates pass, behind the `prod` Environment)
@@ -44,6 +48,15 @@ CHANGELOG.md, tags, and pushes). After the tag is pushed:
    `latest`.
 3. If a gate fails, the release stays a prerelease. Fix forward (new tag) or investigate. The prior
    `latest` is untouched.
+
+## Consumer fetch path
+
+LXC installs fetch the tarball from the release asset, not from a build artifact. Both
+`deploy/lxc/community-scripts/install/rackula-install.sh` and the `ct/rackula.sh` update flow call
+`fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula"
+"rackula-lxc-*.tar.gz"`, which resolves the matching asset on the latest (promoted) GitHub release.
+Because each release publishes `rackula-lxc-<tag>.tar.gz.sha256` alongside the tarball, the fetch
+helper can verify the download against the published checksum before deploying.
 
 ## The prerelease window
 

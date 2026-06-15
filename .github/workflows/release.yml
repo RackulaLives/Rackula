@@ -289,26 +289,52 @@ jobs:
             deploy/lxc/community-scripts
           sparse-checkout-cone-mode: false
 
-      - name: Download staged tarball
+      - name: Download staged tarball and verify checksum
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.validate.outputs.tag }}
         run: |
-          # Resolve the rackula-lxc tarball asset on the (pre)release for $TAG, then
-          # download it by asset API URL. Uses curl + jq only: the self-hosted runner
-          # has no gh CLI (and does not need one).
-          asset_url="$(curl -fsSL \
+          # Resolve and download the rackula-lxc tarball and its .sha256 from the
+          # (pre)release for $TAG by asset API URL, then verify integrity end to end:
+          # this is the post-upload checksum check (the asset is fetched from the
+          # release, not from the build artifact). Uses curl + jq only: the
+          # self-hosted runner has no gh CLI (and does not need one).
+          release_json="$(curl -fsSL \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${GH_REPO}/releases/tags/${TAG}" \
+            "https://api.github.com/repos/${GH_REPO}/releases/tags/${TAG}")"
+
+          # The tarball asset name (e.g. rackula-lxc-v26.6.3.tar.gz) is the bare
+          # filename recorded inside the .sha256 file, so download to that exact
+          # name to keep sha256sum -c satisfied.
+          tarball_name="$(echo "$release_json" \
+            | jq -r 'first(.assets[] | select(.name | test("^rackula-lxc-.*\\.tar\\.gz$")) | .name) // empty')"
+          tarball_url="$(echo "$release_json" \
             | jq -r 'first(.assets[] | select(.name | test("^rackula-lxc-.*\\.tar\\.gz$")) | .url) // empty')"
-          [ -n "$asset_url" ] || { echo "::error::no rackula-lxc-*.tar.gz asset on release ${TAG}"; exit 1; }
+          checksum_url="$(echo "$release_json" \
+            | jq -r 'first(.assets[] | select(.name | test("^rackula-lxc-.*\\.tar\\.gz\\.sha256$")) | .url) // empty')"
+          [ -n "$tarball_name" ] && [ -n "$tarball_url" ] || { echo "::error::no rackula-lxc-*.tar.gz asset on release ${TAG}"; exit 1; }
+          [ -n "$checksum_url" ] || { echo "::error::no rackula-lxc-*.tar.gz.sha256 asset on release ${TAG}"; exit 1; }
+
           curl -fsSL \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/octet-stream" \
-            -o "rackula-lxc-${TAG}.tar.gz" "$asset_url"
-          [ -s "rackula-lxc-${TAG}.tar.gz" ] || { echo "::error::downloaded tarball is empty"; exit 1; }
+            -o "$tarball_name" "$tarball_url"
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/octet-stream" \
+            -o "${tarball_name}.sha256" "$checksum_url"
+          [ -s "$tarball_name" ] || { echo "::error::downloaded tarball is empty"; exit 1; }
+
+          if ! sha256sum -c "${tarball_name}.sha256"; then
+            echo "::error::SHA256 verification failed for ${tarball_name} downloaded from release ${TAG}"
+            exit 1
+          fi
+          echo "Checksum verified for ${tarball_name} (downloaded from release ${TAG})"
+
+          # The smoke gate step globs rackula-lxc-*.tar.gz; the asset name already
+          # matches that glob, so no rename is needed.
 
       - name: LXC smoke gate (deploy-only bootstrap for v26.6.3)
         run: |
