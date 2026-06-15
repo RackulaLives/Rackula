@@ -47,12 +47,26 @@ Never merge on green CI alone.
 - #2060 (Track B): SKIPPED - ACs require pushing to external fork ggfevans/ProxmoxVED
   and an upstream PR, outside this session's repo scope. Surface to maintainer.
 
+### Track C reconciliation (~03:14 UTC)
+Carrier chain advanced in parallel during this session (merged by maintainer):
+- C2 #2290 merged via PR #2304 (commit 207c612). My re-dispatched agent found it
+  already merged, opened no PR, but left a stray remote branch
+  feat/2290-legacy-adapter-share-carrier (duplicate commits, NO open PR, main intact).
+  Branch deletion via the git proxy fails (push --delete unsupported). MAINTAINER
+  CLEANUP: delete that stray remote branch.
+- C3 #2291 merged via PR #2303 (commit bd39aba).
+- C4 #2292 now UNBLOCKED (C2+C3 on main) -> DISPATCHED ~03:14 UTC.
+- C5 #2294 still blocked by C4.
+
 ## Issue status table
 | Issue | Track | State | PR | CI | CodeRabbit | Merged |
 | --- | --- | --- | --- | --- | --- | --- |
 | 2289 (C1) | C | closed | 2299 | green | clean | yes |
+| 2290 (C2) | C | closed | 2304 | - | - | yes |
+| 2291 (C3) | C | closed | 2303 | - | - | yes |
 | 2065 | B | closed | 2306 | green | clean | yes |
-| 2290 (C2) | C | running | - | - | - | - |
+| 2292 (C4) | C | running | - | - | - | - |
 | 2038 | A | running | - | - | - | - |
 | 1011 | B | running | - | - | - | - |
+| 2294 (C5) | C | blocked by C4 | - | - | - | - |
 | 2060 | B | skipped (out of scope) | - | - | - | - |
