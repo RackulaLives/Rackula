@@ -5,7 +5,8 @@ Orchestrator branch: claude/rackula-roadmap-orchestration-wijjxj
 Entry plan: docs/plans/2026-06-12-roadmap-execution-master-plan.md
 
 ## Merge gate policy
-Green CI AND clean CodeRabbit pass required before merge. CodeAnt not active.
+Green CI AND clean CodeRabbit pass required before merge. CodeAnt is active and
+treated as an advisory reviewer (not a merge gate).
 Never merge on green CI alone.
 
 ## Live state at start (verified via gh)
