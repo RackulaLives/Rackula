@@ -1,0 +1,1110 @@
+{
+  "$description": "Beta. Generated from the Rackula Zod layout schema. Covers the structural shape of a saved layout but not cross-field rules expressed in Zod (.refine/.superRefine: referential integrity, carrier-first rail placement, slot fit) or the load-time .transform (legacy position migration, rack id generation, unknown-field preservation). Expect roughly 80 percent validation coverage; the Zod schema in src/lib/schemas/index.ts is authoritative.",
+  "$id": "https://count.racku.la/schemas/layout-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": {},
+  "properties": {
+    "cables": {
+      "items": {
+        "additionalProperties": {},
+        "properties": {
+          "a_device_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "a_interface": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "b_device_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "b_interface": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "color": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "length": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "length_unit": {
+            "enum": [
+              "m",
+              "cm",
+              "ft",
+              "in"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "connected",
+              "planned",
+              "decommissioning"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "cat5e",
+              "cat6",
+              "cat6a",
+              "cat7",
+              "cat8",
+              "dac-passive",
+              "dac-active",
+              "mmf-om3",
+              "mmf-om4",
+              "smf-os2",
+              "aoc",
+              "power",
+              "serial"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "a_device_id",
+          "a_interface",
+          "b_device_id",
+          "b_interface"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "connections": {
+      "items": {
+        "additionalProperties": {},
+        "properties": {
+          "a_port_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "b_port_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "color": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "a_port_id",
+          "b_port_id"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "device_types": {
+      "items": {
+        "additionalProperties": {},
+        "properties": {
+          "airflow": {
+            "enum": [
+              "passive",
+              "front-to-rear",
+              "rear-to-front",
+              "left-to-right",
+              "right-to-left",
+              "side-to-rear",
+              "mixed"
+            ],
+            "type": "string"
+          },
+          "asset_tag": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "category": {
+            "enum": [
+              "server",
+              "network",
+              "firewall",
+              "patch-panel",
+              "power",
+              "storage",
+              "kvm",
+              "av-media",
+              "cooling",
+              "shelf",
+              "blank",
+              "cable-management",
+              "chassis",
+              "other"
+            ],
+            "type": "string"
+          },
+          "colour": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "custom_fields": {
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "device_bays": {
+            "items": {
+              "additionalProperties": {},
+              "properties": {
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "position": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "front_image": {
+            "type": "boolean"
+          },
+          "interfaces": {
+            "items": {
+              "additionalProperties": {},
+              "properties": {
+                "label": {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "mgmt_only": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "poe_mode": {
+                  "enum": [
+                    "pd",
+                    "pse"
+                  ],
+                  "type": "string"
+                },
+                "poe_type": {
+                  "enum": [
+                    "type1-ieee802.3af",
+                    "type2-ieee802.3at",
+                    "type3-ieee802.3bt",
+                    "type4-ieee802.3bt",
+                    "passive-24v-1pair",
+                    "passive-24v-2pair",
+                    "passive-48v-1pair",
+                    "passive-48v-2pair",
+                    "passive-56v-4pair"
+                  ],
+                  "type": "string"
+                },
+                "position": {
+                  "enum": [
+                    "front",
+                    "rear"
+                  ],
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "100base-tx",
+                    "1000base-t",
+                    "2.5gbase-t",
+                    "5gbase-t",
+                    "10gbase-t",
+                    "1000base-x-sfp",
+                    "10gbase-x-sfpp",
+                    "25gbase-x-sfp28",
+                    "40gbase-x-qsfpp",
+                    "100gbase-x-qsfp28",
+                    "100gbase-x-qsfpdd",
+                    "200gbase-x-qsfp56",
+                    "200gbase-x-qsfpdd",
+                    "400gbase-x-qsfpdd",
+                    "console",
+                    "usb-a",
+                    "usb-b",
+                    "usb-c",
+                    "usb-mini-b",
+                    "usb-micro-b",
+                    "virtual",
+                    "lag",
+                    "other"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "type"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "inventory_items": {
+            "items": {
+              "additionalProperties": {},
+              "properties": {
+                "asset_tag": {
+                  "type": "string"
+                },
+                "manufacturer": {
+                  "type": "string"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "part_id": {
+                  "type": "string"
+                },
+                "serial": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "is_full_depth": {
+            "type": "boolean"
+          },
+          "is_powered": {
+            "type": "boolean"
+          },
+          "links": {
+            "items": {
+              "additionalProperties": {},
+              "properties": {
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "url": {
+                  "format": "uri",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label",
+                "url"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "manufacturer": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "part_number": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "power_outlets": {
+            "items": {
+              "additionalProperties": {},
+              "properties": {
+                "feed_leg": {
+                  "enum": [
+                    "A",
+                    "B",
+                    "C"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "power_port": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "power_ports": {
+            "items": {
+              "additionalProperties": {},
+              "properties": {
+                "allocated_draw": {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "maximum_draw": {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "rack_widths": {
+            "items": {
+              "anyOf": [
+                {
+                  "const": 10,
+                  "type": "number"
+                },
+                {
+                  "const": 19,
+                  "type": "number"
+                },
+                {
+                  "const": 23,
+                  "type": "number"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "rear_image": {
+            "type": "boolean"
+          },
+          "serial_number": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "slot_width": {
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "number"
+              },
+              {
+                "const": 2,
+                "type": "number"
+              }
+            ]
+          },
+          "slots": {
+            "items": {
+              "additionalProperties": {},
+              "properties": {
+                "accepts": {
+                  "items": {
+                    "enum": [
+                      "server",
+                      "network",
+                      "firewall",
+                      "patch-panel",
+                      "power",
+                      "storage",
+                      "kvm",
+                      "av-media",
+                      "cooling",
+                      "shelf",
+                      "blank",
+                      "cable-management",
+                      "chassis",
+                      "other"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "height_units": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 50,
+                  "type": "number"
+                },
+                "id": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "name": {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                "position": {
+                  "properties": {
+                    "col": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "row": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "row",
+                    "col"
+                  ],
+                  "type": "object"
+                },
+                "width_fraction": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "position"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "slug": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "subdevice_role": {
+            "enum": [
+              "parent",
+              "child"
+            ],
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "u_height": {
+            "maximum": 50,
+            "minimum": 0.5,
+            "type": "number"
+          },
+          "va_rating": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "weight": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "weight_unit": {
+            "enum": [
+              "kg",
+              "lb"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "u_height",
+          "colour",
+          "category"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "metadata": {
+      "additionalProperties": {},
+      "properties": {
+        "description": {
+          "maxLength": 1000,
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "schema_version": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "schema_version"
+      ],
+      "type": "object"
+    },
+    "name": {
+      "maxLength": 100,
+      "minLength": 1,
+      "type": "string"
+    },
+    "rack": {
+      "additionalProperties": {},
+      "properties": {
+        "desc_units": {
+          "type": "boolean"
+        },
+        "devices": {
+          "items": {
+            "additionalProperties": {},
+            "properties": {
+              "auto_created": {
+                "default": false,
+                "type": "boolean"
+              },
+              "colour_override": {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              "container_id": {
+                "type": "string"
+              },
+              "custom_fields": {
+                "additionalProperties": {},
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "device_bay": {
+                "type": "string"
+              },
+              "device_type": {
+                "maxLength": 100,
+                "minLength": 1,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                "type": "string"
+              },
+              "face": {
+                "enum": [
+                  "front",
+                  "rear",
+                  "both"
+                ],
+                "type": "string"
+              },
+              "front_image": {
+                "type": "string"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 100,
+                "type": "string"
+              },
+              "notes": {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              "parent_device": {
+                "type": "string"
+              },
+              "ports": {
+                "default": [],
+                "items": {
+                  "additionalProperties": {},
+                  "properties": {
+                    "id": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "label": {
+                      "maxLength": 64,
+                      "type": "string"
+                    },
+                    "template_index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "template_name": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": {
+                      "enum": [
+                        "100base-tx",
+                        "1000base-t",
+                        "2.5gbase-t",
+                        "5gbase-t",
+                        "10gbase-t",
+                        "1000base-x-sfp",
+                        "10gbase-x-sfpp",
+                        "25gbase-x-sfp28",
+                        "40gbase-x-qsfpp",
+                        "100gbase-x-qsfp28",
+                        "100gbase-x-qsfpdd",
+                        "200gbase-x-qsfp56",
+                        "200gbase-x-qsfpdd",
+                        "400gbase-x-qsfpdd",
+                        "console",
+                        "usb-a",
+                        "usb-b",
+                        "usb-c",
+                        "usb-mini-b",
+                        "usb-micro-b",
+                        "virtual",
+                        "lag",
+                        "other"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "template_name",
+                    "template_index",
+                    "type"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "position": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "rear_image": {
+                "type": "string"
+              },
+              "slot_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "device_type",
+              "position",
+              "face"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "form_factor": {
+          "enum": [
+            "2-post",
+            "4-post",
+            "4-post-cabinet",
+            "wall-mount",
+            "open-frame"
+          ],
+          "type": "string"
+        },
+        "height": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "notes": {
+          "maxLength": 1000,
+          "type": "string"
+        },
+        "position": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "show_rear": {
+          "default": true,
+          "type": "boolean"
+        },
+        "starting_unit": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "const": 10,
+              "type": "number"
+            },
+            {
+              "const": 19,
+              "type": "number"
+            },
+            {
+              "const": 21,
+              "type": "number"
+            },
+            {
+              "const": 23,
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "height",
+        "width",
+        "desc_units",
+        "form_factor",
+        "starting_unit",
+        "position",
+        "devices"
+      ],
+      "type": "object"
+    },
+    "rack_groups": {
+      "items": {
+        "additionalProperties": {},
+        "properties": {
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "layout_preset": {
+            "enum": [
+              "bayed",
+              "row"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "rack_ids": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "rack_ids"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "racks": {
+      "items": {
+        "additionalProperties": {},
+        "properties": {
+          "desc_units": {
+            "type": "boolean"
+          },
+          "devices": {
+            "items": {
+              "additionalProperties": {},
+              "properties": {
+                "auto_created": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "colour_override": {
+                  "pattern": "^#[0-9A-Fa-f]{6}$",
+                  "type": "string"
+                },
+                "container_id": {
+                  "type": "string"
+                },
+                "custom_fields": {
+                  "additionalProperties": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "device_bay": {
+                  "type": "string"
+                },
+                "device_type": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                  "type": "string"
+                },
+                "face": {
+                  "enum": [
+                    "front",
+                    "rear",
+                    "both"
+                  ],
+                  "type": "string"
+                },
+                "front_image": {
+                  "type": "string"
+                },
+                "id": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "name": {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                "notes": {
+                  "maxLength": 1000,
+                  "type": "string"
+                },
+                "parent_device": {
+                  "type": "string"
+                },
+                "ports": {
+                  "default": [],
+                  "items": {
+                    "additionalProperties": {},
+                    "properties": {
+                      "id": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "label": {
+                        "maxLength": 64,
+                        "type": "string"
+                      },
+                      "template_index": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "template_name": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "type": {
+                        "enum": [
+                          "100base-tx",
+                          "1000base-t",
+                          "2.5gbase-t",
+                          "5gbase-t",
+                          "10gbase-t",
+                          "1000base-x-sfp",
+                          "10gbase-x-sfpp",
+                          "25gbase-x-sfp28",
+                          "40gbase-x-qsfpp",
+                          "100gbase-x-qsfp28",
+                          "100gbase-x-qsfpdd",
+                          "200gbase-x-qsfp56",
+                          "200gbase-x-qsfpdd",
+                          "400gbase-x-qsfpdd",
+                          "console",
+                          "usb-a",
+                          "usb-b",
+                          "usb-c",
+                          "usb-mini-b",
+                          "usb-micro-b",
+                          "virtual",
+                          "lag",
+                          "other"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "template_name",
+                      "template_index",
+                      "type"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "position": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "rear_image": {
+                  "type": "string"
+                },
+                "slot_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "device_type",
+                "position",
+                "face"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "form_factor": {
+            "enum": [
+              "2-post",
+              "4-post",
+              "4-post-cabinet",
+              "wall-mount",
+              "open-frame"
+            ],
+            "type": "string"
+          },
+          "height": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "position": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "show_rear": {
+            "default": true,
+            "type": "boolean"
+          },
+          "starting_unit": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "const": 10,
+                "type": "number"
+              },
+              {
+                "const": 19,
+                "type": "number"
+              },
+              {
+                "const": 21,
+                "type": "number"
+              },
+              {
+                "const": 23,
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "height",
+          "width",
+          "desc_units",
+          "form_factor",
+          "starting_unit",
+          "position",
+          "devices"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "settings": {
+      "additionalProperties": {},
+      "properties": {
+        "display_mode": {
+          "enum": [
+            "label",
+            "image",
+            "image-label"
+          ],
+          "type": "string"
+        },
+        "show_labels_on_images": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "display_mode",
+        "show_labels_on_images"
+      ],
+      "type": "object"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "device_types",
+    "settings"
+  ],
+  "title": "Rackula Layout",
+  "type": "object"
+}

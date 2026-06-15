@@ -35,6 +35,7 @@
     "process-images": "npx tsx scripts/process-images.ts",
     "generate-bundled-images": "npx tsx scripts/generate-bundled-images.ts",
     "generate-brand-assets": "npx tsx scripts/generate-brand-assets.ts",
+    "generate-schema": "npx tsx scripts/generate-schema.ts",
     "update-contributors": "npx tsx scripts/update-contributors.ts",
     "refresh-lockfile": "rm -rf node_modules package-lock.json && npm install",
     "deps:status": "npm outdated || true"

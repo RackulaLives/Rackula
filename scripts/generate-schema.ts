@@ -1,0 +1,96 @@
+/**
+ * Generate the layout JSON Schema from the Zod source (issue #2226).
+ *
+ * Emits static/schemas/layout-v1.json from LayoutSchema using Zod 4's native
+ * z.toJSONSchema(). The JSON Schema is the published, language-agnostic contract
+ * for the saved-layout format; the Zod schema in src/lib/schemas/index.ts stays
+ * the single source of truth and this script is its deterministic projection.
+ *
+ * Why io: "input": validators run against the file as written to disk, which is
+ * the schema's input shape (before the migration transform that snaps legacy
+ * positions and fills rack IDs). The output shape only exists in memory after a
+ * successful parse.
+ *
+ * Why unrepresentable: "any": LayoutSchema carries .transform()/.superRefine()
+ * cross-field rules that JSON Schema cannot express. Those are emitted as
+ * permissive ("any") rather than throwing, so the artifact covers the structural
+ * ~80% of validation. The $description records this limitation.
+ *
+ * Usage:
+ *   npm run generate-schema
+ */
+
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(SCRIPT_DIR, "..");
+const OUTPUT_FILE = join(ROOT, "static", "schemas", "layout-v1.json");
+
+/** Canonical published location of this schema (static/ serves at site root). */
+const SCHEMA_ID = "https://count.racku.la/schemas/layout-v1.json";
+
+const SCHEMA_DESCRIPTION =
+  "Beta. Generated from the Rackula Zod layout schema. Covers the structural " +
+  "shape of a saved layout but not cross-field rules expressed in Zod " +
+  "(.refine/.superRefine: referential integrity, carrier-first rail placement, " +
+  "slot fit) or the load-time .transform (legacy position migration, rack id " +
+  "generation, unknown-field preservation). Expect roughly 80 percent " +
+  "validation coverage; the Zod schema in src/lib/schemas/index.ts is " +
+  "authoritative.";
+
+/**
+ * Recursively sort object keys so the output is byte-stable across runs.
+ * Arrays keep their order (it is semantic in JSON Schema, e.g. required lists).
+ */
+function sortKeys(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortKeys);
+  }
+  if (value && typeof value === "object") {
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+      sorted[key] = sortKeys((value as Record<string, unknown>)[key]);
+    }
+    return sorted;
+  }
+  return value;
+}
+
+async function main(): Promise<void> {
+  // version.ts reads the Vite-injected __APP_VERSION__ global, which only exists
+  // in a build. Provide it from package.json before importing the schema graph.
+  const pkg = JSON.parse(
+    readFileSync(join(ROOT, "package.json"), "utf8"),
+  ) as { version: string };
+  (globalThis as Record<string, unknown>).__APP_VERSION__ = pkg.version;
+
+  const { z } = await import("$lib/zod.ts");
+  const { LayoutSchema } = await import("$lib/schemas/index.ts");
+
+  const generated = z.toJSONSchema(LayoutSchema, {
+    io: "input",
+    unrepresentable: "any",
+  }) as Record<string, unknown>;
+
+  const { $schema, ...rest } = generated;
+
+  const schema = {
+    $schema,
+    $id: SCHEMA_ID,
+    $description: SCHEMA_DESCRIPTION,
+    title: "Rackula Layout",
+    ...rest,
+  };
+
+  mkdirSync(dirname(OUTPUT_FILE), { recursive: true });
+  writeFileSync(OUTPUT_FILE, JSON.stringify(sortKeys(schema), null, 2) + "\n");
+
+  console.log(`Wrote ${OUTPUT_FILE}`);
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
