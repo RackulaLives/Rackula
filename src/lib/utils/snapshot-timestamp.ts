@@ -25,16 +25,28 @@ export function parseSnapshotTimestamp(filename: string): Date | null {
   }
 
   const [, year, month, day, hour, minute, second] = match;
-  const ms = Date.UTC(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-    Number(second),
-  );
-  const date = new Date(ms);
-  return Number.isNaN(date.getTime()) ? null : date;
+  const y = Number(year);
+  const mo = Number(month);
+  const d = Number(day);
+  const h = Number(hour);
+  const mi = Number(minute);
+  const s = Number(second);
+
+  // Date.UTC silently normalizes out-of-range components (month 13, day 32, ...)
+  // into a different valid instant, so reject them explicitly rather than render
+  // a misleading restore time.
+  const date = new Date(Date.UTC(y, mo - 1, d, h, mi, s));
+  if (
+    date.getUTCFullYear() !== y ||
+    date.getUTCMonth() !== mo - 1 ||
+    date.getUTCDate() !== d ||
+    date.getUTCHours() !== h ||
+    date.getUTCMinutes() !== mi ||
+    date.getUTCSeconds() !== s
+  ) {
+    return null;
+  }
+  return date;
 }
 
 /**

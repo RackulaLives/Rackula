@@ -43,4 +43,9 @@ describe("formatSnapshotTimestamp", () => {
   it("falls back to the raw filename when the suffix is unparseable", () => {
     expect(formatSnapshotTimestamp("weird-name.yaml")).toBe("weird-name.yaml");
   });
+
+  it("falls back to the raw filename when components are out of range", () => {
+    const filename = "my-layout~20261340-996199.yaml";
+    expect(formatSnapshotTimestamp(filename)).toBe(filename);
+  });
 });
