@@ -116,8 +116,24 @@ agents one at a time and/or with `git worktree add` isolation, and have each run
 first (see blockers.md environment constraints).
 
 HELD: #2205 (reject-newer-major gate) pending maintainer ratification of the schema_version
-1.0 -> 2.0 bump (genuine ambiguity, logged in blockers.md). #2226 and #620 remain ready to
-dispatch under isolation.
+1.0 -> 2.0 bump (genuine ambiguity, logged in blockers.md).
+
+### #2226 MERGED (PR #2314, squash 835f4e3) ~06:12 UTC
+M03 #571 schema-publish chain, foundational slice. scripts/generate-schema.ts projects
+LayoutSchema to static/schemas/layout-v1.json via Zod 4 z.toJSONSchema (no new dep), plus a
+drift-guard test. Dispatched as an isolated-worktree agent (after the earlier shared-cwd
+collision was fixed). Review cycle: CodeRabbit (real review) flagged 1 Major (pin $schema
+dialect); CodeAnt flagged 2 Major (test stripped envelope fields; weak $description check).
+All 3 valid; fixed in one consolidated commit (071ff53) reusing the worktree: extracted an
+exported assembleSchema() single-source-of-truth, pinned the dialect, test now full
+deep-equality + exact $description. Verified artifact byte-identical, lint/2495 tests/build
+green. Merged on green CI (validate hard-gate) + CodeRabbit dialect resolved + CodeAnt
+threads resolved. Docstring-coverage soft warning treated as non-blocking (low value on a
+generator script per anti-over-engineering policy). #620 next under isolation.
+
+Note on #571 chain: #2226's vitest drift-guard runs in CI (test:run), so it partially
+overlaps #2227 (CI check that published schema stays in sync). Verify #2227's exact scope
+before dispatching it; it may be reduced to a dedicated workflow step or already satisfied.
 
 ## Update ~05:26 UTC
 
