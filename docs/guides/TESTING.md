@@ -734,6 +734,30 @@ Not all tests provide equal value. Focus testing effort where bugs are likely an
 | Error recovery     | Often untested       | Invalid file load, network failure         |
 | Integration points | Interface mismatches | Store ↔ component sync                     |
 
+### Data format and persistence regression coverage
+
+Save and load are user-facing workflows where a silent format change can lose
+data. The following suites guard the YAML save/reload and legacy ZIP load paths
+and run in CI with every test run:
+
+| File                                       | Covers                                                          |
+| ------------------------------------------ | -------------------------------------------------------------- |
+| `src/tests/yaml-roundtrip.test.ts`         | Field-level YAML round-trips (auto_created, container linkage) |
+| `src/tests/yaml-archive-regression.test.ts` | Representative-layout save/reload and legacy ZIP load (#1114)  |
+| `src/tests/archive-format.test.ts`         | ZIP format detection (new folder, old flat)                   |
+| `src/tests/archive-guardrails.test.ts`     | ZIP size, entry count, and compression-ratio limits           |
+| `src/tests/adapt-legacy-layout.test.ts`    | Carrier-first adaptation of legacy half-width placements      |
+
+When changing the serializer (`src/lib/utils/yaml.ts`), the archive reader
+(`src/lib/utils/archive.ts`), or the legacy adapter
+(`src/lib/storage/adapt-legacy-layout.ts`), run these first. They drive the
+public load entrypoint with the byte shapes the export path and older builds
+produce, so a dropped section fails loudly.
+
+The git-sync half of #1114 (happy path, auth/network/missing-file failures,
+baseline conflicts) is out of scope until sync code exists; it is tracked
+against #627 in M08.
+
 ### Low-Value Tests (Write Fewer or None)
 
 | Area                    | Why                 | Better Alternative      |
