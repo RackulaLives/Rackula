@@ -168,6 +168,44 @@ Follow-up to track (not blocking): git-sync regression coverage deferred from #1
 with the #627 git-sync work in M08; it surfaces naturally when sync is built. Maintainer may
 file/milestone if they want it tracked separately.
 
+### #2186 MERGED (PR #2317, squash e6636ea) ~07:07 UTC
+Research spike: share-link schema versioning + shortened-link compat. Docs-only
+(docs/research/2186-share-link-versioning.md). Green CI, CodeAnt clean, zero CodeRabbit
+findings. Recommendations: (1) pre-bump share links open via the existing carrier-first
+import adapter (transparent upgrade), not reject/expire; (2) add an optional `sv` marker to
+the share payload now (cheap, mirrors `fv`); (3) read-surface enumeration for #1113.
+Flagged MD-1..MD-3, all coupled to the held schema_version 1.0->2.0 bump.
+
+## SESSION CHECKPOINT ~07:08 UTC
+
+Merged this session (dispatched + carrier): carrier C5 #2294 (PR #2313, completing C1-C5),
+#2226 (#2314), #620 (#2315), #1114 (#2316), #2186 (#2317); plus the earlier wave #2065,
+#1011, #2038, #2042, #2206, #2044. Carrier-first critical path is fully on main.
+
+PAUSING active dispatch here. Rationale: the carrier critical path (the primary objective and
+only live cross-track gate) is complete, and every cleanly-dispatchable low-risk M03 issue is
+merged. The remaining high-value work is decision- or infra-gated, or large UI work better
+suited to a fresh session with a restored review gate:
+
+- HELD on maintainer decision (the #2186 spike now provides the analysis to act):
+  - schema_version 1.0 -> 2.0 ratification (MD-1). Ratifying unblocks, together:
+    #2205 (reject-newer-major load gate), the writer flip to emit "2.0", and the optional
+    share `sv` marker (MD-2). See #2186 (PR #2317) and the classification on epic #2158.
+  - #2228 (host versioned schema + canonical $id) needs a hosting decision; it gates the
+    #571 tail (#2229 docs guide, #2230 embed $schema comment). #2227 (CI sync check) largely
+    overlaps the drift-guard test already shipped in #2226 - verify scope before dispatching.
+- MAINTAINER-GATED production spine (surface-and-stop, never auto-run): #2029 (prod cutover),
+  #2134 (dev cutover), #1986 (VPS decommission). See blockers.md.
+- Larger / not-yet-started, not blocked but warrant care: M14 tail #2075 (verb bars, size:L,
+  design against the carrier model per the alignment audit) -> palette #2212/#2213/#2214,
+  and #2270; Track B M02 #2030/#2031/#2032, the Unraid cluster #1317/#2009/#2010/#2011/#2012,
+  #2133 (verify each for external-fork scope, cf. #2060 which was out of scope).
+
+Gate note: CodeRabbit prepaid credits exhausted; it spent the session rate-limited/paused and
+failed to review some PRs at all. Merges proceeded under the documented outage gate (green CI
++ clean CodeAnt + zero open findings, all real findings fixed). Restoring the CodeRabbit review
+add-on would return the full gate for the substantive remaining work.
+
 ## Update ~05:26 UTC
 
 Merged this session (6): #2065, #1011, #2038, #2042, #2206, #2044 (PR #2312).
