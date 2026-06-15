@@ -105,8 +105,8 @@ export function createRemoveDeviceCommand(
 
   // Snapshot placement images before removal for undo restoration
   const imageStore = getImageStore();
-  const imageKey = placementKey(layoutId, device.id);
-  const imageSnapshot = imageStore.getAllImages().get(imageKey);
+  let currentImageId = device.id;
+  const imageSnapshot = imageStore.getAllImages().get(placementKey(layoutId, currentImageId));
   const snapshotCopy = imageSnapshot
     ? structuredClone(imageSnapshot)
     : undefined;
@@ -116,8 +116,8 @@ export function createRemoveDeviceCommand(
     description: `Remove ${deviceName}`,
     timestamp: Date.now(),
     execute() {
-      // Clean up placement images (moved from raw mutator)
-      getImageStore().removeAllDeviceImages(imageKey);
+      // Clean up placement images using current ID (may differ from original after undo remap)
+      getImageStore().removeAllDeviceImages(placementKey(layoutId, currentImageId));
       store.removeDeviceAtIndexRaw(index);
     },
     undo() {
@@ -125,6 +125,7 @@ export function createRemoveDeviceCommand(
       // Read back actual device — placeDeviceRaw may remap the ID (#1363 dedup guard)
       const placed = store.getDeviceAtIndex(placedIdx);
       const actualId = placed?.id ?? deviceCopy.id;
+      currentImageId = actualId;
       // Restore placement images under the (possibly remapped) key
       if (snapshotCopy) {
         const imgStore = getImageStore();

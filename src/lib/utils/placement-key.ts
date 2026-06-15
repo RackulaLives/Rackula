@@ -6,9 +6,9 @@
  * (hex + hyphens only).
  */
 
-/** Build a namespaced placement image key. */
+/** Build a namespaced placement image key. Falls back to legacy format when layoutId is absent. */
 export function placementKey(layoutId: string, deviceId: string): string {
-  return `placement-${layoutId}:${deviceId}`;
+  return layoutId ? `placement-${layoutId}:${deviceId}` : `placement-${deviceId}`;
 }
 
 /** True for any key that starts with the placement prefix. */
