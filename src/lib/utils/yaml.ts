@@ -461,8 +461,14 @@ export function parseLayoutObject(parsed: unknown): Layout | null {
     const { metadata: rawMetadata, ...rest } = parsed as Record<string, unknown>;
     if (rawMetadata !== undefined) {
       metadata = rawMetadata as Layout["metadata"];
-      body = rest;
     }
+    // Drop the top-level images section (base64 user images, #617) before
+    // validation, same as validateParsedLayout, so base64 never rides onto the
+    // runtime Layout (passthrough) and gets re-emitted on later saves.
+    if (Object.hasOwn(rest, "images")) {
+      delete rest.images;
+    }
+    body = rest;
   }
 
   const result = LayoutSchema.safeParse(body);

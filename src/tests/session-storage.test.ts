@@ -226,6 +226,23 @@ describe("Session Storage", () => {
       expect(result!.savedAt).toBe(timestamp);
     });
 
+    it("drops a top-level images section so base64 never rides onto the runtime layout", () => {
+      const sessionData = {
+        layout: {
+          ...mockLayout,
+          images: { thumb: "data:image/png;base64,AAAA" },
+        },
+        savedAt: "2026-02-01T12:00:00.000Z",
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
+
+      const result = loadSessionWithTimestamp();
+      expect(result).not.toBeNull();
+      expect(
+        Object.hasOwn(result!.layout as Record<string, unknown>, "images"),
+      ).toBe(false);
+    });
+
     it("loads legacy format without timestamp", () => {
       // Legacy format: direct layout object without wrapper
       localStorage.setItem(STORAGE_KEY, JSON.stringify(mockLayout));
