@@ -11,10 +11,7 @@ import {
   duplicateSelection,
   flipSelectedDeviceFace,
 } from "$lib/actions/selection-actions";
-import {
-  createTestDeviceType,
-  createTestDeviceTypeInput,
-} from "./factories";
+import { createTestDeviceType, createTestDeviceTypeInput } from "./factories";
 import type { DeviceFace } from "$lib/types";
 
 function resetAll() {
@@ -208,7 +205,9 @@ describe("selection-actions", () => {
       duplicateSelection();
 
       expect(layout.racks.length).toBe(rackCountBefore);
-      expect(layout.getRackById(rackId)!.devices.length).toBe(deviceCountBefore);
+      expect(layout.getRackById(rackId)!.devices.length).toBe(
+        deviceCountBefore,
+      );
     });
   });
 
@@ -239,6 +238,18 @@ describe("selection-actions", () => {
         .getRackById(rackId)!
         .devices.find((d) => d.id === deviceId)!;
       expect(updated.face).toBe("front");
+    });
+
+    it("flips a both-face device to rear", () => {
+      const { layout, rackId, deviceId } = setupHalfDepthDevice("both");
+      getSelectionStore().selectDevice(rackId, deviceId);
+
+      flipSelectedDeviceFace();
+
+      const updated = layout
+        .getRackById(rackId)!
+        .devices.find((d) => d.id === deviceId)!;
+      expect(updated.face).toBe("rear");
     });
 
     it("is a no-op when no device is selected", () => {

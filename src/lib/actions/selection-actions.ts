@@ -115,8 +115,8 @@ export function duplicateSelection(): void {
 
 /**
  * Toggle the selected device's mounting face between "front" and "rear".
- * Treats a missing or "both" face as "front" and flips to "rear".
- * No-op if no device is selected.
+ * Only "rear" flips to "front"; every other value (a missing face, "front",
+ * or "both") flips to "rear". No-op if no device is selected.
  */
 export function flipSelectedDeviceFace(): void {
   const selectionStore = getSelectionStore();
