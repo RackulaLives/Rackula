@@ -46,6 +46,7 @@
     rackGroups?: RackGroup[];
     deviceTypes: DeviceType[];
     images?: ImageStoreMap;
+    layoutId?: string;
     displayMode?: DisplayMode;
     layoutName?: string;
     selectedRackId: string | null;
@@ -66,6 +67,7 @@
     rackGroups = [],
     deviceTypes,
     images,
+    layoutId,
     displayMode = "label",
     layoutName = "layout",
     selectedRackId: _selectedRackId,
@@ -289,6 +291,7 @@
         previewOptions,
         images,
         rackGroups,
+        layoutId,
       );
       const width = parseInt(svg.getAttribute("width") || "0", 10);
       const height = parseInt(svg.getAttribute("height") || "0", 10);

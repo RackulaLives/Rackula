@@ -493,6 +493,7 @@ export function moveDeviceToRack(
     childrenSnapshots,
     adapter,
     deviceName,
+    layout.metadata?.id ?? "",
   );
 
   history.execute(command);

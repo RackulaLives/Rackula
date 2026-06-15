@@ -165,6 +165,7 @@ export async function handleExportSubmit(
       exportOptions,
       images,
       layoutStore.rack_groups,
+      layoutStore.layout.metadata?.id,
     );
 
     const exportViewOrDefault = options.exportView ?? "both";

@@ -25,6 +25,8 @@
   import CategoryIconSVG from "./CategoryIconSVG.svelte";
   import LabelOverlaySVG from "./LabelOverlaySVG.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
+  import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { placementKey } from "$lib/utils/placement-key";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { useLongPress } from "$lib/utils/gestures";
   import { hapticTap } from "$lib/utils/haptics";
@@ -138,6 +140,7 @@
   const effectiveColour = $derived(colourOverride ?? device.colour);
 
   const imageStore = getImageStore();
+  const layoutStore = getLayoutStore();
 
   // Check if display mode shows images (either 'image' or 'image-label')
   const isImageMode = $derived(
@@ -152,10 +155,10 @@
 
     // Try placement-specific image first (if placedDeviceId is provided)
     if (placedDeviceId) {
-      const placementUrl = imageStore.getImageUrl(
-        `placement-${placedDeviceId}`,
-        face,
-      );
+      const layoutId = layoutStore.layout.metadata?.id;
+      const placementUrl = layoutId
+        ? imageStore.getImageUrl(placementKey(layoutId, placedDeviceId), face)
+        : undefined;
       if (placementUrl) return placementUrl;
     }
 

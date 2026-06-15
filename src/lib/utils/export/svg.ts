@@ -10,6 +10,7 @@ import type {
   DeviceCategory,
 } from "$lib/types";
 import type { ImageStoreMap } from "$lib/types/images";
+import { placementKey } from "$lib/utils/placement-key";
 import { getBlockedSlots } from "../blocked-slots";
 import {
   fitTextToWidth,
@@ -386,6 +387,7 @@ export function generateExportSVG(
   options: ExportOptions,
   images?: ImageStoreMap,
   rackGroups?: RackGroup[],
+  layoutId?: string,
 ): SVGElement {
   const {
     includeNames,
@@ -865,7 +867,9 @@ export function generateExportSVG(
       // Placement image wins per face, else fall back to the device-type image
       // (mirrors RackDevice.svelte). Per-face so a front-only placement still
       // inherits the device-type rear image.
-      const placementImages = images?.get(`placement-${placedDevice.id}`);
+      const placementImages = images?.get(
+        layoutId ? placementKey(layoutId, placedDevice.id) : `placement-${placedDevice.id}`,
+      );
       const slugImages = images?.get(device.slug);
       const deviceImage = placementImages?.[face] ?? slugImages?.[face];
       // Support both URL-based (bundled) and dataUrl-based (user upload) images
@@ -1470,6 +1474,7 @@ export function generateSingleRackSVG(
   deviceLibrary: DeviceType[],
   options: ExportOptions,
   images?: ImageStoreMap,
+  layoutId?: string,
 ): SVGElement {
-  return generateExportSVG([rack], deviceLibrary, options, images);
+  return generateExportSVG([rack], deviceLibrary, options, images, undefined, layoutId);
 }

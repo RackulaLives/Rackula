@@ -19,9 +19,12 @@ import type {
   CrossRackMoveStore,
 } from "$lib/stores/commands/device";
 import type { DeviceTypeCommandStore } from "$lib/stores/commands/device-type";
+import { placementKey } from "$lib/utils/placement-key";
 import { createTestDevice, createTestDeviceType } from "./factories";
 import type { PlacedDevice, DeviceType } from "$lib/types";
 import type { ImageData } from "$lib/types/images";
+
+const TEST_LAYOUT_ID = "test-layout-abc";
 
 // Helper to create mock ImageData (user upload)
 function createMockImageData(filename = "test-front.png"): ImageData {
@@ -115,7 +118,7 @@ describe("Image Undo — Device Removal", () => {
     const store = createMockDeviceStore(devices);
 
     // Set up a placement image for this device
-    const imageKey = `placement-${device.id}`;
+    const imageKey = placementKey(TEST_LAYOUT_ID, device.id);
     const frontImage = createMockImageData("dev-1-front.png");
     imageStore.setDeviceImage(imageKey, "front", frontImage);
 
@@ -123,7 +126,7 @@ describe("Image Undo — Device Removal", () => {
     expect(imageStore.hasImage(imageKey, "front")).toBe(true);
 
     // Create the remove command (should snapshot images)
-    const cmd = createRemoveDeviceCommand(0, device, store, "Test Device");
+    const cmd = createRemoveDeviceCommand(0, device, store, "Test Device", TEST_LAYOUT_ID);
 
     // Execute: removes device and cleans up images
     cmd.execute();
@@ -146,7 +149,7 @@ describe("Image Undo — Device Removal", () => {
     const devices = [device];
     const store = createMockDeviceStore(devices);
 
-    const imageKey = `placement-${device.id}`;
+    const imageKey = placementKey(TEST_LAYOUT_ID, device.id);
     imageStore.setDeviceImage(
       imageKey,
       "front",
@@ -158,7 +161,7 @@ describe("Image Undo — Device Removal", () => {
       createMockImageData("dev-2-rear.png"),
     );
 
-    const cmd = createRemoveDeviceCommand(0, device, store, "Test Device");
+    const cmd = createRemoveDeviceCommand(0, device, store, "Test Device", TEST_LAYOUT_ID);
 
     cmd.execute();
     expect(imageStore.hasImage(imageKey, "front")).toBe(false);
@@ -183,7 +186,7 @@ describe("Image Undo — Device Removal", () => {
     const devices = [device];
     const store = createMockDeviceStore(devices);
 
-    const cmd = createRemoveDeviceCommand(0, device, store, "Test Device");
+    const cmd = createRemoveDeviceCommand(0, device, store, "Test Device", TEST_LAYOUT_ID);
 
     cmd.execute();
     // Should not throw
@@ -212,6 +215,9 @@ describe("Image Undo — Device Type Deletion", () => {
     const devices = [device1, device2];
     const store = createMockDeviceTypeStore(deviceTypes, devices);
 
+    const pk1 = placementKey(TEST_LAYOUT_ID, device1.id);
+    const pk2 = placementKey(TEST_LAYOUT_ID, device2.id);
+
     // Set up type-level image
     imageStore.setDeviceImage(
       "my-server",
@@ -221,12 +227,12 @@ describe("Image Undo — Device Type Deletion", () => {
 
     // Set up placement-specific images
     imageStore.setDeviceImage(
-      "placement-placed-1",
+      pk1,
       "front",
       createMockImageData("placed-1-front.png"),
     );
     imageStore.setDeviceImage(
-      "placement-placed-2",
+      pk2,
       "rear",
       createMockImageData("placed-2-rear.png"),
     );
@@ -238,13 +244,15 @@ describe("Image Undo — Device Type Deletion", () => {
         { rackId: "rack-1", device: device2 },
       ],
       store,
+      [],
+      TEST_LAYOUT_ID,
     );
 
     // Execute: deletes type, devices, and images
     cmd.execute();
     expect(imageStore.hasImage("my-server", "front")).toBe(false);
-    expect(imageStore.hasImage("placement-placed-1", "front")).toBe(false);
-    expect(imageStore.hasImage("placement-placed-2", "rear")).toBe(false);
+    expect(imageStore.hasImage(pk1, "front")).toBe(false);
+    expect(imageStore.hasImage(pk2, "rear")).toBe(false);
 
     // Undo: should restore everything
     cmd.undo();
@@ -252,13 +260,13 @@ describe("Image Undo — Device Type Deletion", () => {
     expect(imageStore.getDeviceImage("my-server", "front")?.filename).toBe(
       "my-server-front.png",
     );
-    expect(imageStore.hasImage("placement-placed-1", "front")).toBe(true);
+    expect(imageStore.hasImage(pk1, "front")).toBe(true);
     expect(
-      imageStore.getDeviceImage("placement-placed-1", "front")?.filename,
+      imageStore.getDeviceImage(pk1, "front")?.filename,
     ).toBe("placed-1-front.png");
-    expect(imageStore.hasImage("placement-placed-2", "rear")).toBe(true);
+    expect(imageStore.hasImage(pk2, "rear")).toBe(true);
     expect(
-      imageStore.getDeviceImage("placement-placed-2", "rear")?.filename,
+      imageStore.getDeviceImage(pk2, "rear")?.filename,
     ).toBe("placed-2-rear.png");
   });
 
@@ -268,7 +276,7 @@ describe("Image Undo — Device Type Deletion", () => {
     const devices: PlacedDevice[] = [];
     const store = createMockDeviceTypeStore(deviceTypes, devices);
 
-    const cmd = createDeleteDeviceTypeCommand(deviceType, [], store);
+    const cmd = createDeleteDeviceTypeCommand(deviceType, [], store, [], TEST_LAYOUT_ID);
 
     cmd.execute();
     expect(() => cmd.undo()).not.toThrow();
@@ -338,8 +346,10 @@ describe("Image Undo — Cross-Rack Move (#1478)", () => {
       updateDeviceIpRaw() {},
     };
 
+    const parentKey = placementKey(TEST_LAYOUT_ID, device.id);
+    const remappedKey = placementKey(TEST_LAYOUT_ID, remappedId);
     imageStore.setDeviceImage(
-      "placement-parent-1",
+      parentKey,
       "front",
       createMockImageData("server-front.png"),
     );
@@ -353,19 +363,21 @@ describe("Image Undo — Cross-Rack Move (#1478)", () => {
       device,
       [],
       store,
+      "device",
+      TEST_LAYOUT_ID,
     );
 
     cmd.execute();
     // After execute: device is in target with remapped ID; image must follow
-    expect(imageStore.hasImage("placement-parent-1", "front")).toBe(false);
-    expect(imageStore.hasImage(`placement-${remappedId}`, "front")).toBe(true);
+    expect(imageStore.hasImage(parentKey, "front")).toBe(false);
+    expect(imageStore.hasImage(remappedKey, "front")).toBe(true);
 
     cmd.undo();
     // After undo: device is back in source with original ID; image must follow back
-    expect(imageStore.hasImage(`placement-${remappedId}`, "front")).toBe(false);
-    expect(imageStore.hasImage("placement-parent-1", "front")).toBe(true);
+    expect(imageStore.hasImage(remappedKey, "front")).toBe(false);
+    expect(imageStore.hasImage(parentKey, "front")).toBe(true);
     expect(
-      imageStore.getDeviceImage("placement-parent-1", "front")?.filename,
+      imageStore.getDeviceImage(parentKey, "front")?.filename,
     ).toBe("server-front.png");
   });
 
@@ -437,13 +449,17 @@ describe("Image Undo — Cross-Rack Move (#1478)", () => {
       updateDeviceIpRaw() {},
     };
 
+    const child1Key = placementKey(TEST_LAYOUT_ID, child1.id);
+    const child2Key = placementKey(TEST_LAYOUT_ID, child2.id);
+    const remappedChild1Key = placementKey(TEST_LAYOUT_ID, remappedChild1);
+    const remappedChild2Key = placementKey(TEST_LAYOUT_ID, remappedChild2);
     imageStore.setDeviceImage(
-      "placement-child-1",
+      child1Key,
       "front",
       createMockImageData("child-1-front.png"),
     );
     imageStore.setDeviceImage(
-      "placement-child-2",
+      child2Key,
       "rear",
       createMockImageData("child-2-rear.png"),
     );
@@ -457,28 +473,22 @@ describe("Image Undo — Cross-Rack Move (#1478)", () => {
       parent,
       [child1, child2],
       store,
+      "device",
+      TEST_LAYOUT_ID,
     );
 
     cmd.execute();
     // Child images must follow their remapped IDs
-    expect(imageStore.hasImage("placement-child-1", "front")).toBe(false);
-    expect(imageStore.hasImage(`placement-${remappedChild1}`, "front")).toBe(
-      true,
-    );
-    expect(imageStore.hasImage("placement-child-2", "rear")).toBe(false);
-    expect(imageStore.hasImage(`placement-${remappedChild2}`, "rear")).toBe(
-      true,
-    );
+    expect(imageStore.hasImage(child1Key, "front")).toBe(false);
+    expect(imageStore.hasImage(remappedChild1Key, "front")).toBe(true);
+    expect(imageStore.hasImage(child2Key, "rear")).toBe(false);
+    expect(imageStore.hasImage(remappedChild2Key, "rear")).toBe(true);
 
     cmd.undo();
     // After undo: child images return to original keys
-    expect(imageStore.hasImage(`placement-${remappedChild1}`, "front")).toBe(
-      false,
-    );
-    expect(imageStore.hasImage("placement-child-1", "front")).toBe(true);
-    expect(imageStore.hasImage(`placement-${remappedChild2}`, "rear")).toBe(
-      false,
-    );
-    expect(imageStore.hasImage("placement-child-2", "rear")).toBe(true);
+    expect(imageStore.hasImage(remappedChild1Key, "front")).toBe(false);
+    expect(imageStore.hasImage(child1Key, "front")).toBe(true);
+    expect(imageStore.hasImage(remappedChild2Key, "rear")).toBe(false);
+    expect(imageStore.hasImage(child2Key, "rear")).toBe(true);
   });
 });

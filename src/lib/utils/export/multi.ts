@@ -29,6 +29,7 @@ export async function exportAsZip(
   options: ExportOptions,
   images?: ImageStoreMap,
   onProgress?: ExportProgressCallback,
+  layoutId?: string,
 ): Promise<Blob> {
   // Dynamically import JSZip wrapper
   const { createZip, generateRackFilename } = await import("../zip");
@@ -40,7 +41,7 @@ export async function exportAsZip(
     onProgress?.({ current: i + 1, total: racks.length, rackName: rack.name });
 
     // Generate SVG for this rack
-    const svg = generateSingleRackSVG(rack, deviceLibrary, options, images);
+    const svg = generateSingleRackSVG(rack, deviceLibrary, options, images, layoutId);
 
     // Convert to the requested format
     let blob: Blob;
@@ -92,6 +93,7 @@ export async function exportAsMultiPagePDF(
   options: ExportOptions,
   images?: ImageStoreMap,
   onProgress?: ExportProgressCallback,
+  layoutId?: string,
 ): Promise<Blob> {
   // Dynamically import jsPDF to avoid loading it on app startup
   const { jsPDF } = await import("jspdf");
@@ -109,7 +111,7 @@ export async function exportAsMultiPagePDF(
     onProgress?.({ current: i + 1, total: racks.length, rackName: rack.name });
 
     // Generate SVG for this rack
-    const svg = generateSingleRackSVG(rack, deviceLibrary, options, images);
+    const svg = generateSingleRackSVG(rack, deviceLibrary, options, images, layoutId);
 
     // Parse SVG to get dimensions
     const imgWidth = parseInt(svg.getAttribute("width") || "0", 10);

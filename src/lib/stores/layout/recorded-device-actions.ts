@@ -413,6 +413,7 @@ export function removeDeviceRecorded(
     device,
     adapter,
     deviceName,
+    layout.metadata?.id ?? "",
   );
   history.execute(command);
   ctx.markDirty();

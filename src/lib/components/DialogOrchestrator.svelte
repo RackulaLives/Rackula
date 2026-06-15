@@ -699,6 +699,7 @@
   rackGroups={layoutStore.rack_groups}
   deviceTypes={layoutStore.device_types}
   images={imageStore.getAllImages()}
+  layoutId={layoutStore.layout.metadata?.id}
   displayMode={uiStore.displayMode}
   layoutName={layoutStore.layout.name}
   selectedRackId={selectionStore.isRackSelected

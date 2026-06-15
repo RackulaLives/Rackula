@@ -6,6 +6,7 @@ import type { Command } from "./types";
 import type { Cable, DeviceType, PlacedDevice } from "$lib/types";
 import { getImageStore } from "../images.svelte";
 import type { DeviceImageData } from "$lib/types/images";
+import { placementKey } from "$lib/utils/placement-key";
 
 /**
  * Interface for layout store operations needed by device type commands
@@ -100,6 +101,7 @@ export function createDeleteDeviceTypeCommand(
   placedDevices: { rackId: string; device: PlacedDevice }[],
   store: DeviceTypeCommandStore,
   connectedCables: Cable[] = [],
+  layoutId: string = "",
 ): Command {
   const deviceData = placedDevices.map((d) => ({
     rackId: d.rackId,
@@ -122,7 +124,7 @@ export function createDeleteDeviceTypeCommand(
   // Snapshot placement-specific images for each placed device
   const placementSnapshots = new Map<string, DeviceImageData>();
   for (const d of placedDevices) {
-    const key = `placement-${d.device.id}`;
+    const key = placementKey(layoutId, d.device.id);
     const snap = imageStore.getAllImages().get(key);
     if (snap) placementSnapshots.set(key, structuredClone(snap));
   }
@@ -143,10 +145,10 @@ export function createDeleteDeviceTypeCommand(
       // Remove placement images at both the snapshot id and any remapped id
       // left over from a prior undo (otherwise redo leaks an orphan key).
       for (const { device } of deviceData) {
-        imgStore.removeAllDeviceImages(`placement-${device.id}`);
+        imgStore.removeAllDeviceImages(placementKey(layoutId, device.id));
         const remapped = restoredDeviceIdMap.get(device.id);
         if (remapped && remapped !== device.id) {
-          imgStore.removeAllDeviceImages(`placement-${remapped}`);
+          imgStore.removeAllDeviceImages(placementKey(layoutId, remapped));
         }
       }
       store.removeDeviceTypeRaw(deviceTypeCopy.slug);
@@ -164,10 +166,10 @@ export function createDeleteDeviceTypeCommand(
         const actualId = placed?.id ?? device.id;
         restoredDeviceIdMap.set(device.id, actualId);
         // Restore placement images under the (possibly remapped) key
-        const originalKey = `placement-${device.id}`;
+        const originalKey = placementKey(layoutId, device.id);
         const snap = placementSnapshots.get(originalKey);
         if (snap) {
-          const actualKey = `placement-${actualId}`;
+          const actualKey = placementKey(layoutId, actualId);
           if (snap.front)
             imgStore.setDeviceImage(actualKey, "front", snap.front);
           if (snap.rear) imgStore.setDeviceImage(actualKey, "rear", snap.rear);

@@ -6,6 +6,7 @@
   import ImageUpload from "./ImageUpload.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
+  import { placementKey } from "$lib/utils/placement-key";
   import type { SelectedDeviceInfo } from "$lib/types";
   import type { ImageData } from "$lib/types/images";
 
@@ -18,17 +19,19 @@
   const layoutStore = getLayoutStore();
   const imageStore = getImageStore();
 
+  const layoutId = $derived(layoutStore.layout.metadata!.id);
+
   // Get the current placement images (if any)
   const placementFrontImage = $derived.by(() =>
     imageStore.getDeviceImage(
-      `placement-${selectedDeviceInfo.placedDevice.id}`,
+      placementKey(layoutId, selectedDeviceInfo.placedDevice.id),
       "front",
     ),
   );
 
   const placementRearImage = $derived.by(() =>
     imageStore.getDeviceImage(
-      `placement-${selectedDeviceInfo.placedDevice.id}`,
+      placementKey(layoutId, selectedDeviceInfo.placedDevice.id),
       "rear",
     ),
   );
@@ -36,7 +39,7 @@
   // Handle placement image upload
   function handlePlacementImageUpload(face: "front" | "rear", data: ImageData) {
     const deviceId = selectedDeviceInfo.placedDevice.id;
-    imageStore.setDeviceImage(`placement-${deviceId}`, face, data);
+    imageStore.setDeviceImage(placementKey(layoutId, deviceId), face, data);
     layoutStore.updateDevicePlacementImage(
       selectedDeviceInfo.rack.id,
       selectedDeviceInfo.deviceIndex,
@@ -48,7 +51,7 @@
   // Handle placement image removal
   function handlePlacementImageRemove(face: "front" | "rear") {
     const deviceId = selectedDeviceInfo.placedDevice.id;
-    imageStore.removeDeviceImage(`placement-${deviceId}`, face);
+    imageStore.removeDeviceImage(placementKey(layoutId, deviceId), face);
     layoutStore.updateDevicePlacementImage(
       selectedDeviceInfo.rack.id,
       selectedDeviceInfo.deviceIndex,

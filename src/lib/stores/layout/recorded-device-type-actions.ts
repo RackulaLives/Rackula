@@ -114,6 +114,7 @@ export function deleteDeviceTypeRecorded(
     placedDevices,
     adapter,
     connectedCables,
+    layout.metadata?.id ?? "",
   );
   history.execute(command);
   ctx.markDirty();
@@ -167,6 +168,7 @@ export function deleteMultipleDeviceTypesRecorded(
       placedDevices,
       adapter,
       connectedCables,
+      layout.metadata?.id ?? "",
     );
     commands.push(command);
   }
