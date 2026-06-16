@@ -75,6 +75,24 @@ test.describe("Command palette", () => {
     await expect(page.getByTestId("command-palette-input")).toHaveCount(0);
   });
 
+  test("running a command that opens a dialog keeps that dialog open", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    const input = page.getByTestId("command-palette-input");
+    await input.fill("about");
+    await expect(
+      page.getByTestId("command-palette-item-show-help"),
+    ).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "About Rackula" }),
+    ).toBeVisible();
+  });
+
   test("opening the palette closes the help dialog", async ({ page }) => {
     // Open the help dialog first using the ? shortcut.
     // Shift+Slash dispatches keydown key="?" shiftKey=true, matching a real keyboard.

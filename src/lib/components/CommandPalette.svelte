@@ -49,16 +49,20 @@
   const groups = $derived(getPaletteCommands(ctx));
 
   function handleOpenChange(next: boolean) {
-    if (!next) {
-      dialogStore.close();
-      search = "";
-    }
+    if (next) return;
+    // Only clear the store if the palette is still the current dialog; a command
+    // run from the palette may have already opened a different dialog.
+    if (dialogStore.isOpen("commandPalette")) dialogStore.close();
+    search = "";
   }
 
   function run(id: ActionId) {
-    dispatch[id]?.();
-    dialogStore.close();
+    // Close the palette BEFORE running the command. dialogStore is scalar (one
+    // dialog at a time): a command that opens its own dialog (share, view-yaml,
+    // new-layout, ...) would be clobbered if we closed AFTER dispatch.
     search = "";
+    dialogStore.close();
+    dispatch[id]?.();
   }
 </script>
 
