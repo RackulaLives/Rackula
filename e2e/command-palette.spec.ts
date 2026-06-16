@@ -1,12 +1,20 @@
 /**
- * E2E coverage for the command palette shell (#2212).
+ * E2E coverage for the command palette shell (#2212) and recents / selection-aware
+ * empty state (#2213).
  *
  * Covers: shortcut opens (input focused); pill click opens; typing filters;
  * Enter runs the highlighted command then closes; Esc closes; opening the
- * palette closes another open dialog.
+ * palette closes another open dialog; recents appear after running a command;
+ * selection block surfaces the selected device's verbs; palette is never blank.
  */
 import { test, expect } from "./helpers/base-test";
-import { gotoWithRack, SMALL_RACK_SHARE, PLATFORM_MODIFIER } from "./helpers";
+import {
+  gotoWithRack,
+  SMALL_RACK_SHARE,
+  RACK_WITH_DEVICE_SHARE,
+  PLATFORM_MODIFIER,
+  selectDevice,
+} from "./helpers";
 
 test.describe("Command palette", () => {
   test.beforeEach(async ({ page }) => {
@@ -132,5 +140,70 @@ test.describe("Command palette", () => {
     await expect(
       page.getByRole("dialog", { name: "About Rackula" }),
     ).not.toBeVisible();
+  });
+
+  // --- #2213: recents + selection-aware empty state ---
+
+  test("a command run from the palette appears under Recent on reopen", async ({
+    page,
+  }) => {
+    // Open palette, filter to fit-all, and run it with Enter.
+    // fit-all is a side-effect-clean navigation command (pans/zooms, opens no
+    // secondary dialog) so the only visible outcome is the palette closing.
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await page.getByTestId("command-palette-input").fill("fit all");
+    await expect(
+      page.getByTestId("command-palette-item-fit-all"),
+    ).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).not.toBeVisible();
+
+    // Reopen with no search text. The empty-state Recent section must appear
+    // and carry fit-all as the most recently executed palette command.
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await expect(page.getByTestId("command-palette-recent")).toBeVisible();
+    await expect(
+      page.getByTestId("command-palette-recent-item-fit-all"),
+    ).toBeVisible();
+  });
+
+  test("selecting a device surfaces its verbs in the Selection block", async ({
+    page,
+  }) => {
+    // RACK_WITH_DEVICE_SHARE carries a pre-placed 1U test-server device so no
+    // drag is needed. selectDevice clicks the first front-view device and waits
+    // for the Edit panel to confirm selection before returning.
+    await gotoWithRack(page, RACK_WITH_DEVICE_SHARE);
+    await selectDevice(page, 0);
+
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+
+    // The Selection block must be visible and carry verbs that apply to a
+    // selected device. duplicate-selection (isDeviceSelected||isRackSelected)
+    // and delete-selection (hasSelection) both pass for a device selection.
+    await expect(page.getByTestId("command-palette-selection")).toBeVisible();
+    await expect(
+      page.getByTestId("command-palette-selection-item-duplicate-selection"),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("command-palette-selection-item-delete-selection"),
+    ).toBeVisible();
+  });
+
+  test("the empty palette is never blank", async ({ page }) => {
+    // With no search text and no recents the empty-state Commands section must
+    // render. fit-all is a global layout command with no enabledWhen gate so it
+    // is always present when a rack exists (SMALL_RACK_SHARE satisfies hasRacks).
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("command-palette-item-fit-all"),
+    ).toBeVisible();
+    // Command.Empty ("No matching commands") must not be in the DOM when items exist.
+    await expect(page.getByText("No matching commands")).toHaveCount(0);
   });
 });
