@@ -12,17 +12,23 @@
 -->
 <script lang="ts">
   import { Dialog, Command } from "bits-ui";
-  import { IconSearch } from "./icons";
+  import { IconSearch, IconPlus, IconChevronLeft } from "./icons";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getUIStore } from "$lib/stores/ui.svelte";
+  import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { getStorageMode } from "$lib/storage";
   import { canMoveSelectedDeviceSlot } from "$lib/actions/selection-actions";
   import {
     getPaletteCommands,
     getPaletteEmptyState,
   } from "$lib/actions/palette-commands";
+  import {
+    searchPaletteDevices,
+    type PaletteDeviceSources,
+  } from "$lib/actions/palette-devices";
   import {
     recordCommand,
     getRecents,
@@ -31,17 +37,32 @@
     createActionDispatch,
     type ActionDispatch,
   } from "$lib/actions/dispatch";
+  import { getStarterLibrary, getStarterSlugs } from "$lib/data/starterLibrary";
+  import { getBrandPacks, getBrandSlugs } from "$lib/data/brandPacks";
   import type { ActionId, ActionEnabledContext } from "$lib/actions/registry";
+  import type { DeviceType } from "$lib/types";
 
   const viewportStore = getViewportStore();
   const selectionStore = getSelectionStore();
   const layoutStore = getLayoutStore();
+  const uiStore = getUIStore();
+  const placementStore = getPlacementStore();
   const isSheet = $derived(viewportStore.isMobile);
 
   const open = $derived(dialogStore.isOpen("commandPalette"));
   const dispatch: ActionDispatch = createActionDispatch();
 
+  // Sub-mode: "commands" is the top-level command list; "devices" is the pushed
+  // device-search sub-page (#2214). bits-ui Command has no native page stack, so
+  // the sub-page is local state that swaps the list content inside the same
+  // Command.Root. Device rows live only in "devices" and never enter the
+  // top-level command projection.
+  let mode = $state<"commands" | "devices">("commands");
   let search = $state("");
+  let deviceQuery = $state("");
+  // The single persistent input element, kept focused across mode switches so a
+  // mouse-driven push/pop still lands the caret in the search box.
+  let inputEl = $state<HTMLElement | null>(null);
 
   // Live enable context for gating selection (and rack-dependent) commands.
   const ctx = $derived<ActionEnabledContext>({
@@ -59,12 +80,86 @@
   const showEmptyState = $derived(search.trim() === "");
   const emptyState = $derived(getPaletteEmptyState(ctx, getRecents()));
 
+  // "Add device..." is an accelerator into placement, offered only when there is
+  // a rack to place into. It is a palette-internal mode switch, NOT a registry
+  // action, so it can never leak into the dispatch map, app menu, or help.
+  const canAddDevice = $derived(layoutStore.hasRack);
+
+  // Static library sources; brand packs are constant, starter/custom resolve per
+  // call so newly created custom types appear without reopening the palette.
+  const brandPacks = getBrandPacks();
+  const activeRackWidth = $derived(layoutStore.activeRack?.width ?? 19);
+  const deviceSources = $derived.by<PaletteDeviceSources>(() => {
+    const starterSlugs = getStarterSlugs();
+    const brandSlugs = getBrandSlugs();
+    const placed = layoutStore.device_types;
+    const placedSlugs = new Set(placed.map((d) => d.slug));
+    return {
+      starter: getStarterLibrary().filter((d) => !placedSlugs.has(d.slug)),
+      brandPackDevices: brandPacks.flatMap((pack) => pack.devices),
+      // Placed starter overrides and genuinely custom types; brand-pack placed
+      // copies are dropped so brand rows are not duplicated.
+      customDevices: placed.filter(
+        (d) => starterSlugs.has(d.slug) || !brandSlugs.has(d.slug),
+      ),
+    };
+  });
+  const deviceResults = $derived(
+    searchPaletteDevices(
+      deviceSources,
+      deviceQuery,
+      activeRackWidth,
+      uiStore.compatibleOnly,
+    ),
+  );
+
+  function deviceLabel(device: DeviceType): string {
+    const model = device.model ?? device.slug;
+    return device.manufacturer ? `${device.manufacturer} ${model}` : model;
+  }
+
+  function resetState() {
+    mode = "commands";
+    search = "";
+    deviceQuery = "";
+  }
+
   function handleOpenChange(next: boolean) {
     if (next) return;
     // Only clear the store if the palette is still the current dialog; a command
     // run from the palette may have already opened a different dialog.
     if (dialogStore.isOpen("commandPalette")) dialogStore.close();
-    search = "";
+    resetState();
+  }
+
+  function enterDeviceMode() {
+    deviceQuery = "";
+    mode = "devices";
+    inputEl?.focus();
+  }
+
+  function exitDeviceMode() {
+    deviceQuery = "";
+    mode = "commands";
+    inputEl?.focus();
+  }
+
+  // Backspace on an empty device query returns to the command list (mirrors the
+  // VS Code Quick Open back gesture). Guarded on empty so it never also deletes
+  // a character mid-query.
+  function handleDeviceInputKeydown(event: KeyboardEvent) {
+    if (event.key === "Backspace" && deviceQuery === "") {
+      event.preventDefault();
+      exitDeviceMode();
+    }
+  }
+
+  function placeDevice(device: DeviceType) {
+    // Mirror the mobile tap-to-place path: start placement, then close. The
+    // palette closing is the cue to position the device on the canvas.
+    placementStore.startPlacement(device);
+    dialogStore.close();
+    resetState();
   }
 
   function run(id: ActionId) {
@@ -74,8 +169,8 @@
     // Close the palette BEFORE running the command. dialogStore is scalar (one
     // dialog at a time): a command that opens its own dialog (share, view-yaml,
     // new-layout, ...) would be clobbered if we closed AFTER dispatch.
-    search = "";
     dialogStore.close();
+    resetState();
     dispatch[id]?.();
   }
 </script>
@@ -92,28 +187,123 @@
       <!-- Visually-hidden accessible name for the dialog. -->
       <Dialog.Title class="sr-only">Command palette</Dialog.Title>
 
-      <Command.Root label="Command palette" loop class="command-root">
+      <Command.Root
+        label="Command palette"
+        loop
+        shouldFilter={mode !== "devices"}
+        class="command-root"
+      >
         <div class="command-input-row">
-          <span class="command-input-icon" aria-hidden="true">
-            <IconSearch />
-          </span>
+          {#if mode === "devices"}
+            <button
+              type="button"
+              class="command-back"
+              onclick={exitDeviceMode}
+              aria-label="Back to commands"
+              data-testid="command-palette-device-back"
+            >
+              <IconChevronLeft />
+            </button>
+          {:else}
+            <span class="command-input-icon" aria-hidden="true">
+              <IconSearch />
+            </span>
+          {/if}
+          <!-- One persistent input across modes so focus survives the sub-page
+               push/pop. bind:value swaps between the command and device queries;
+               onkeydown handles Backspace-at-empty only while in device mode. -->
           <Command.Input
-            bind:value={search}
+            bind:ref={inputEl}
+            bind:value={
+              () => (mode === "devices" ? deviceQuery : search),
+              (v) => {
+                if (mode === "devices") deviceQuery = v;
+                else search = v;
+              }
+            }
+            onkeydown={mode === "devices"
+              ? handleDeviceInputKeydown
+              : undefined}
             class="command-input"
-            placeholder="Search or jump to..."
+            placeholder={mode === "devices"
+              ? "Add device..."
+              : "Search or jump to..."}
             data-testid="command-palette-input"
           />
         </div>
 
         <Command.List class="command-list" aria-label="Commands">
           <Command.Viewport class="command-viewport">
-            <Command.Empty class="command-empty">
-              No matching commands
-            </Command.Empty>
+            {#if mode !== "devices"}
+              <Command.Empty class="command-empty">
+                No matching commands
+              </Command.Empty>
+            {/if}
 
-            {#if showEmptyState}
+            {#if mode === "devices"}
+              {#if deviceResults.length === 0}
+                <p
+                  class="command-empty"
+                  data-testid="command-palette-device-empty"
+                >
+                  No matching devices
+                </p>
+              {:else}
+                <Command.Group
+                  class="command-group"
+                  data-testid="command-palette-device-results"
+                >
+                  <Command.GroupHeading class="command-group-heading">
+                    Add device
+                  </Command.GroupHeading>
+                  <Command.GroupItems>
+                    {#each deviceResults as device (device.slug)}
+                      <Command.Item
+                        value={device.slug}
+                        onSelect={() => placeDevice(device)}
+                        class="command-item"
+                        data-testid={`command-palette-device-item-${device.slug}`}
+                      >
+                        <span class="command-item-label"
+                          >{deviceLabel(device)}</span
+                        >
+                        <span class="command-item-shortcut"
+                          >{device.u_height}U</span
+                        >
+                      </Command.Item>
+                    {/each}
+                  </Command.GroupItems>
+                </Command.Group>
+              {/if}
+            {:else if showEmptyState}
               {@const hasRecent = emptyState.recent.length > 0}
               {@const hasSelection = emptyState.selection.length > 0}
+              {#if canAddDevice}
+                <Command.Group class="command-group">
+                  <Command.GroupItems>
+                    <Command.Item
+                      value="Add device..."
+                      keywords={[
+                        "add",
+                        "device",
+                        "place",
+                        "insert",
+                        "hardware",
+                      ]}
+                      onSelect={enterDeviceMode}
+                      class="command-item command-item--lead"
+                      data-testid="command-palette-add-device"
+                    >
+                      <span class="command-item-lead">
+                        <span class="command-item-icon" aria-hidden="true">
+                          <IconPlus />
+                        </span>
+                        <span class="command-item-label">Add device...</span>
+                      </span>
+                    </Command.Item>
+                  </Command.GroupItems>
+                </Command.Group>
+              {/if}
               {#if hasRecent}
                 <Command.Group
                   class="command-group"
@@ -176,7 +366,7 @@
               {/if}
 
               {#each emptyState.commands as group, groupIndex (group.heading)}
-                {#if hasRecent || hasSelection || groupIndex > 0}
+                {#if canAddDevice || hasRecent || hasSelection || groupIndex > 0}
                   <Command.Separator class="command-separator" />
                 {/if}
                 <Command.Group class="command-group">
@@ -204,8 +394,34 @@
                 </Command.Group>
               {/each}
             {:else}
+              {#if canAddDevice}
+                <Command.Group class="command-group">
+                  <Command.GroupItems>
+                    <Command.Item
+                      value="Add device..."
+                      keywords={[
+                        "add",
+                        "device",
+                        "place",
+                        "insert",
+                        "hardware",
+                      ]}
+                      onSelect={enterDeviceMode}
+                      class="command-item command-item--lead"
+                      data-testid="command-palette-add-device"
+                    >
+                      <span class="command-item-lead">
+                        <span class="command-item-icon" aria-hidden="true">
+                          <IconPlus />
+                        </span>
+                        <span class="command-item-label">Add device...</span>
+                      </span>
+                    </Command.Item>
+                  </Command.GroupItems>
+                </Command.Group>
+              {/if}
               {#each groups as group, groupIndex (group.heading)}
-                {#if groupIndex > 0}
+                {#if canAddDevice || groupIndex > 0}
                   <Command.Separator class="command-separator" />
                 {/if}
                 <Command.Group class="command-group">
@@ -322,6 +538,36 @@
     height: var(--icon-size-md);
   }
 
+  /* Back affordance in the device sub-page input row. */
+  .command-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    margin: calc(var(--space-2) * -1) 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--colour-text-muted);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+
+  .command-back:hover {
+    color: var(--colour-text);
+  }
+
+  .command-back:focus-visible {
+    outline: 2px solid var(--colour-focus-ring);
+    outline-offset: -2px;
+  }
+
+  .command-back :global(svg) {
+    width: var(--icon-size-md);
+    height: var(--icon-size-md);
+  }
+
   :global(.command-input) {
     flex: 1;
     min-height: var(--touch-target-min);
@@ -379,6 +625,27 @@
     font-family: var(--font-mono);
     font-size: var(--font-size-xs);
     color: var(--colour-text-muted);
+  }
+
+  /* "Add device..." lead row: icon plus label, reads as an entry point. */
+  .command-item-lead {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .command-item-icon {
+    display: inline-flex;
+    color: var(--colour-text-muted);
+  }
+
+  .command-item-icon :global(svg) {
+    width: var(--icon-size-md);
+    height: var(--icon-size-md);
+  }
+
+  :global(.command-item--lead[data-selected]) .command-item-icon {
+    color: var(--colour-text);
   }
 
   :global(.command-separator) {

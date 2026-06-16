@@ -206,4 +206,89 @@ test.describe("Command palette", () => {
     // Command.Empty ("No matching commands") must not be in the DOM when items exist.
     await expect(page.getByText("No matching commands")).toHaveCount(0);
   });
+
+  // --- #2214: device-search sub-mode ---
+
+  test("Add device pushes a device sub-page without closing the palette", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    const palette = page.getByRole("dialog", { name: "Command palette" });
+    await expect(palette).toBeVisible();
+
+    await page.getByTestId("command-palette-add-device").click();
+
+    // The palette stays open; the device sub-page swaps in (back affordance and
+    // a device result row appear). 1u-server is a stable starter slug.
+    await expect(palette).toBeVisible();
+    await expect(page.getByTestId("command-palette-device-back")).toBeVisible();
+    await expect(
+      page.getByTestId("command-palette-device-item-1u-server"),
+    ).toBeVisible();
+  });
+
+  test("device rows never appear in the top-level command list", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    // Type a query that matches a device model but no command. No device row may
+    // surface at the top level: device search lives only behind "Add device...".
+    await page.getByTestId("command-palette-input").fill("server");
+    await expect(
+      page.getByTestId("command-palette-device-item-1u-server"),
+    ).toHaveCount(0);
+  });
+
+  test("the back affordance returns to the command list", async ({ page }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await page.getByTestId("command-palette-add-device").click();
+    await expect(page.getByTestId("command-palette-device-back")).toBeVisible();
+
+    await page.getByTestId("command-palette-device-back").click();
+    // Back to commands: the command list returns and the device sub-page is gone.
+    await expect(
+      page.getByTestId("command-palette-item-fit-all"),
+    ).toBeVisible();
+    await expect(page.getByTestId("command-palette-device-back")).toHaveCount(
+      0,
+    );
+  });
+
+  test("Backspace on an empty device query returns to the command list", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await page.getByTestId("command-palette-add-device").click();
+    const input = page.getByTestId("command-palette-input");
+    await expect(input).toBeFocused();
+
+    // A typed query then Backspaces clears the text; a further Backspace on the
+    // now-empty query pops back to commands (it must not also delete a char).
+    await input.fill("srv");
+    await input.press("Backspace");
+    await input.press("Backspace");
+    await input.press("Backspace");
+    // Query is empty but still in device mode.
+    await expect(page.getByTestId("command-palette-device-back")).toBeVisible();
+    // One more Backspace on the empty query returns to commands.
+    await input.press("Backspace");
+    await expect(
+      page.getByTestId("command-palette-item-fit-all"),
+    ).toBeVisible();
+    await expect(page.getByTestId("command-palette-device-back")).toHaveCount(
+      0,
+    );
+  });
+
+  test("choosing a device closes the palette into placement", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await page.getByTestId("command-palette-add-device").click();
+    await page.getByTestId("command-palette-device-item-1u-server").click();
+    // Placement is entered and the palette closes; the placement cue is shown.
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).not.toBeVisible();
+  });
 });
