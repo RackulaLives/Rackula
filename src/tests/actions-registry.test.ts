@@ -101,6 +101,16 @@ describe("actions registry", () => {
       const down = new KeyboardEvent("keydown", { key: "ArrowDown" });
       expect(findActionForEvent(down)?.id).toBe("move-device-down");
     });
+
+    it("resolves Ctrl+K to the command palette", () => {
+      const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true });
+      expect(findActionForEvent(event)?.id).toBe("command-palette");
+    });
+
+    it("resolves Cmd+K to the command palette (cross-platform)", () => {
+      const event = new KeyboardEvent("keydown", { key: "k", metaKey: true });
+      expect(findActionForEvent(event)?.id).toBe("command-palette");
+    });
   });
 
   describe("registry integrity", () => {
@@ -210,6 +220,13 @@ describe("actions registry", () => {
       );
       expect(scrollRow).toBeDefined();
       expect(scrollRow?.key).toBeTruthy();
+    });
+
+    it("includes the command palette in the help overlay", () => {
+      const labels = new Set(
+        getHelpGroups().flatMap((g) => g.rows.map((r) => r.action)),
+      );
+      expect(labels.has("Command palette")).toBe(true);
     });
   });
 

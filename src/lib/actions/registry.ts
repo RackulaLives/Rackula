@@ -53,7 +53,8 @@ export type ActionId =
   | "cycle-rack-prev"
   | "cycle-rack-next"
   | "escape"
-  | "show-help";
+  | "show-help"
+  | "command-palette";
 
 /**
  * A single keyboard binding. Mirrors the modifier shape of ShortcutHandler so
@@ -206,6 +207,17 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [{ key: "?" }, { key: "?", shift: true }],
     appMenuGroup: "help",
     keywords: ["shortcuts", "about", "keyboard", "version"],
+  },
+  {
+    id: "command-palette",
+    label: "Command palette",
+    scope: "global",
+    bindings: [
+      { key: "k", ctrl: true },
+      { key: "k", meta: true },
+    ],
+    helpGroup: "General",
+    keywords: ["palette", "commands", "search", "jump to"],
   },
 
   // --- Editing --------------------------------------------------------------
