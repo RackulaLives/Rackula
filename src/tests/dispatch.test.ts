@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { ACTION_REGISTRY, type ActionId } from "$lib/actions/registry";
+import { ACTION_REGISTRY } from "$lib/actions/registry";
 import { createActionDispatch } from "$lib/actions/dispatch";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 
