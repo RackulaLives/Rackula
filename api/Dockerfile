@@ -13,12 +13,16 @@ FROM base AS runner
 WORKDIR /app
 
 # Patch system packages to resolve known CVEs (e.g. libssl3/libcrypto3
-# CVE-2026-31789). The oven/bun:1.3.10-alpine base does not ship libxml2, so
-# CVE-2026-6732 does not apply here; this mirrors deploy/Dockerfile's pattern.
-# APK_CACHEBUST is fed a per-build value so the buildcache for this layer is
-# invalidated each build and apk upgrade re-fetches current Alpine secfixes.
+# CVE-2026-31789 and CVE-2026-45447). The oven/bun:1.3.10-alpine base does not
+# ship libxml2, so CVE-2026-6732 does not apply here; this mirrors
+# deploy/Dockerfile's pattern. APK_CACHEBUST is fed a per-build value so the
+# buildcache for this layer is invalidated each build and apk upgrade re-fetches
+# current Alpine secfixes. The openssl libs are named explicitly so the fix for
+# the tracked CVE-2026-45447 alerts is force-applied.
 ARG APK_CACHEBUST=0
-RUN echo "apk-cachebust=${APK_CACHEBUST}" && apk upgrade --no-cache
+RUN echo "apk-cachebust=${APK_CACHEBUST}" && \
+    apk upgrade --no-cache && \
+    apk add --no-cache --upgrade libssl3 libcrypto3
 
 # Create non-root user with matching group
 RUN addgroup --system --gid 1001 rackula && \
