@@ -94,3 +94,4 @@ export { default as IconFileDownloadBold } from "./IconFileDownloadBold.svelte";
 export { default as IconShareBold } from "./IconShareBold.svelte";
 export { default as IconQuestionBold } from "./IconQuestionBold.svelte";
 export { default as IconServerBold } from "./IconServerBold.svelte";
+export { default as IconSearch } from "./IconSearch.svelte";
