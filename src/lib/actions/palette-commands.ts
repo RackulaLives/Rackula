@@ -9,6 +9,7 @@
  */
 import {
   ACTION_REGISTRY,
+  getActionById,
   type ActionDefinition,
   type ActionEnabledContext,
   type ActionId,
@@ -125,7 +126,7 @@ export function getPaletteEmptyState(
 ): PaletteEmptyState {
   const recent: PaletteCommand[] = [];
   for (const id of recentIds) {
-    const action = ACTION_REGISTRY.find((a) => a.id === id);
+    const action = getActionById(id);
     if (!action || !isIncluded(action, ctx)) continue;
     recent.push(toPaletteCommand(action));
   }

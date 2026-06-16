@@ -57,15 +57,6 @@ export function getRecents(): ActionId[] {
   return recents;
 }
 
-/** Reactive getter for components. */
-export function getPaletteRecents() {
-  return {
-    get recents() {
-      return recents;
-    },
-  };
-}
-
 /** Reset the store from storage (primarily for testing). */
 export function resetPaletteRecents(): void {
   recents = loadFromStorage();
