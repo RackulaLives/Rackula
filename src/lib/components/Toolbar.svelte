@@ -1,24 +1,25 @@
 <!--
   Toolbar Component
-  Workspace frame only (issue #2072): the top bar carries app/workspace chrome,
-  not view, history, or object controls.
-  - Left: Logo lockup (the app menu)
-  - Centre: Layout name (workspace identity, desktop)
-  - Right: Storage chip + Settings gear (desktop) / quick file actions (mobile)
+  Workspace frame, three lanes in one row (issues #2072, #2324):
+  - Left (fixed): logo lockup (the app menu) + the command-palette search pill.
+  - Centre (flex): the layout tab strip (LayoutTabs), desktop only.
+  - Right (fixed): storage chip + Settings gear (desktop) / quick file actions
+    (mobile).
   View and history controls (zoom, fit, display mode, undo, redo) relocate to the
   canvas bottom-left in #2074; they stay reachable today via the keyboard and the
   Devices sidebar. File commands (save, load, export, share, import) live in the
-  app menu behind the logo.
+  app menu behind the logo. The layout name is carried by the active tab; there
+  is no separate name field.
 -->
 <script lang="ts">
   import Tooltip from "./Tooltip.svelte";
   import AppMenu from "./AppMenu.svelte";
   import StorageStatusChip from "./StorageStatusChip.svelte";
+  import LayoutTabs from "./LayoutTabs.svelte";
   import type { ActionId } from "$lib/actions/registry";
   import { IconGearBold, IconSearch } from "./icons";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
-  import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { formatShortcut } from "$lib/utils/platform";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
 
@@ -37,6 +38,8 @@
     onsettings?: () => void;
     onhelp?: () => void;
     onnewlayout?: () => void;
+    /** Export the layout backing a given tab (tab context menu Export). */
+    onlayoutexport?: (tabId: string) => void;
   }
 
   let {
@@ -54,26 +57,11 @@
     onsettings,
     onhelp,
     onnewlayout,
+    onlayoutexport,
   }: Props = $props();
 
-  const layoutStore = getLayoutStore();
   const viewportStore = getViewportStore();
   const paletteShortcut = formatShortcut("mod", "K");
-
-  // Inline layout name editing state
-  let isEditingName = $state(false);
-  let editNameValue = $state("");
-  let nameInputElement = $state<HTMLInputElement | null>(null);
-
-  // Focus the rename input when it appears (replaces autofocus attribute)
-  $effect(() => {
-    if (!isEditingName) return;
-    const frame = requestAnimationFrame(() => {
-      nameInputElement?.focus();
-      nameInputElement?.select();
-    });
-    return () => cancelAnimationFrame(frame);
-  });
 
   function handleSave() {
     onsave?.();
@@ -113,30 +101,6 @@
   function handleAppMenuAction(id: ActionId) {
     appMenuDispatch[id]?.();
   }
-
-  function startEditingName() {
-    editNameValue = layoutStore.layout.name;
-    isEditingName = true;
-  }
-
-  function commitName() {
-    layoutStore.setLayoutName(editNameValue);
-    isEditingName = false;
-  }
-
-  function cancelEditingName() {
-    isEditingName = false;
-  }
-
-  function handleNameKeydown(e: KeyboardEvent) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      commitName();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      cancelEditingName();
-    }
-  }
 </script>
 
 <header class="toolbar">
@@ -161,43 +125,10 @@
     </button>
   </div>
 
-  <!-- Layout name (desktop only) -->
+  <!-- Centre: the layout tab strip (desktop only) -->
   {#if !viewportStore.isMobile}
-    <div class="toolbar-section toolbar-name" data-testid="layout-name">
-      {#if isEditingName}
-        <input
-          bind:this={nameInputElement}
-          class="toolbar-name-input"
-          type="text"
-          bind:value={editNameValue}
-          onkeydown={handleNameKeydown}
-          onblur={() => isEditingName && commitName()}
-          aria-label="Layout name"
-          data-testid="layout-name-input"
-        />
-      {:else}
-        <button
-          class="toolbar-name-display"
-          type="button"
-          onclick={startEditingName}
-          aria-label="Rename layout"
-          title="Click to rename"
-          data-testid="layout-name-display"
-        >
-          <span class="toolbar-name-text">{layoutStore.layout.name}</span>
-          <svg
-            class="toolbar-name-pencil"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-          </svg>
-        </button>
-      {/if}
+    <div class="toolbar-section toolbar-tabs">
+      <LayoutTabs onexport={onlayoutexport} />
     </div>
   {/if}
 
@@ -280,72 +211,12 @@
     flex: 0 0 auto;
   }
 
-  .toolbar-name {
+  .toolbar-tabs {
     flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     justify-content: flex-start;
     padding: 0 var(--space-3);
-  }
-
-  .toolbar-name-display {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    max-width: 100%;
-    padding: var(--space-1) var(--space-2);
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--colour-text);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    cursor: pointer;
-    transition:
-      border-color var(--duration-fast) var(--ease-out),
-      background-color var(--duration-fast) var(--ease-out);
-  }
-
-  .toolbar-name-display:hover {
-    border-color: var(--colour-border);
-    background: var(--colour-surface-hover);
-  }
-
-  .toolbar-name-display:focus-visible {
-    outline: none;
-    box-shadow:
-      0 0 0 2px var(--colour-bg),
-      0 0 0 4px var(--colour-focus-ring);
-  }
-
-  .toolbar-name-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .toolbar-name-pencil {
-    flex-shrink: 0;
-    opacity: 0;
-    transition: opacity var(--duration-fast) var(--ease-out);
-  }
-
-  .toolbar-name-display:hover .toolbar-name-pencil {
-    opacity: 0.6;
-  }
-
-  .toolbar-name-input {
-    width: 100%;
-    max-width: 300px;
-    padding: var(--space-1) var(--space-2);
-    border: 1px solid var(--dracula-cyan);
-    border-radius: var(--radius-md);
-    background: var(--colour-surface);
-    color: var(--colour-text);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    font-family: inherit;
-    outline: none;
   }
 
   .toolbar-right {

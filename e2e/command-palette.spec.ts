@@ -104,10 +104,15 @@ test.describe("Command palette", () => {
   test("Ctrl/Cmd+K opens the palette even when a text field is focused", async ({
     page,
   }) => {
-    // Click the layout name display button to enter rename mode.
-    // This reveals a text input (data-testid="layout-name-input") and focuses it,
-    // simulating a user with keyboard focus inside an editable field.
-    await page.getByTestId("layout-name-display").click();
+    // Double-click the active layout tab to enter inline rename mode. This
+    // reveals a text input (data-testid="layout-name-input") and focuses it,
+    // simulating a user with keyboard focus inside an editable field. Scope to
+    // the layout tablist so the selected tab is unambiguous (the sidebar also
+    // has tabs).
+    await page
+      .getByRole("tablist", { name: "Open layouts" })
+      .getByRole("tab", { selected: true })
+      .dblclick();
     const nameInput = page.getByTestId("layout-name-input");
     await expect(nameInput).toBeFocused();
 
