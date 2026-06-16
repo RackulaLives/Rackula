@@ -1,3 +1,10 @@
+# check=skip=SecretsUsedInArgOrEnv
+# RACKULA_AUTH_MODE (set via ENV below) is an auth-mode selector with values
+# none|oidc|local, not a secret. The real secret, API_WRITE_TOKEN, is injected at
+# runtime and never set via ENV, so the build check correctly does not flag it. This
+# skip silences the SecretsUsedInArgOrEnv name heuristic; do not extend it to cover a
+# genuinely sensitive ENV.
+
 # Build stage
 FROM node:22-alpine AS build
 WORKDIR /app
