@@ -512,17 +512,13 @@
     maybeExport();
   }
 
-  // --- Thin wrappers for Toolbar/Canvas/KeyboardHandler callbacks ---
+  // --- Thin wrappers for Toolbar/Canvas callbacks ---
   // These delegate to dialogStore; the actual dialog logic lives in DialogOrchestrator.
 
   function handleToggleDisplayMode() {
     uiStore.toggleDisplayMode();
     layoutStore.updateDisplayMode(uiStore.displayMode);
     layoutStore.updateShowLabelsOnImages(uiStore.showLabelsOnImages);
-  }
-
-  function handleToggleAnnotations() {
-    uiStore.toggleAnnotations();
   }
 
   function handleImportDevices() {
@@ -693,18 +689,7 @@
 
     <DialogOrchestrator bind:this={dialogOrchestrator} />
 
-    <KeyboardHandler
-      onsave={maybeSave}
-      onsaveas={maybeSaveAs}
-      onload={handleLoad}
-      onexport={maybeExport}
-      onshare={handleShare}
-      ondelete={handleDelete}
-      onfitall={handleFitAll}
-      onhelp={handleHelp}
-      ontoggledisplaymode={handleToggleDisplayMode}
-      ontoggleannotations={handleToggleAnnotations}
-    />
+    <KeyboardHandler />
 
     <PersistenceEffects />
 

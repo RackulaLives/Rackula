@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/svelte";
 import {
   shouldIgnoreKeyboard,
@@ -17,12 +17,13 @@ import {
   resetSelectionStore,
 } from "$lib/stores/selection.svelte";
 import { getUIStore, resetUIStore } from "$lib/stores/ui.svelte";
+import { dialogStore } from "$lib/stores/dialogs.svelte";
+import * as appActions from "$lib/utils/app-actions";
+import * as dialogActions from "$lib/utils/dialog-actions";
+import * as storage from "$lib/storage";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import { UNITS_PER_U, toInternalUnits } from "$lib/utils/position";
-import {
-  setupStoreWithRack,
-  createBladeContainerWithChild,
-} from "./factories";
+import { setupStoreWithRack, createBladeContainerWithChild } from "./factories";
 
 describe("Keyboard Utilities", () => {
   describe("shouldIgnoreKeyboard", () => {
@@ -147,6 +148,12 @@ describe("KeyboardHandler Component", () => {
     resetLayoutStore();
     resetSelectionStore();
     resetUIStore();
+    dialogStore.close();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    dialogStore.close();
   });
 
   describe("Selection Shortcuts", () => {
@@ -268,55 +275,59 @@ describe("KeyboardHandler Component", () => {
     });
 
     it("F key triggers fit all", async () => {
-      const onFitAll = vi.fn();
+      const spy = vi
+        .spyOn(appActions, "handleFitAll")
+        .mockReturnValue(undefined);
 
-      render(KeyboardHandler, { props: { onfitall: onFitAll } });
+      render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "f" });
 
-      expect(onFitAll).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("Modifier Key Shortcuts", () => {
     it("Ctrl+S triggers save", async () => {
-      const onSave = vi.fn();
+      const spy = vi.spyOn(appActions, "maybeSave").mockReturnValue(undefined);
 
-      render(KeyboardHandler, { props: { onsave: onSave } });
+      render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "s", ctrlKey: true });
 
-      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledTimes(1);
     });
 
     it("Cmd+S triggers save (Mac)", async () => {
-      const onSave = vi.fn();
+      const spy = vi.spyOn(appActions, "maybeSave").mockReturnValue(undefined);
 
-      render(KeyboardHandler, { props: { onsave: onSave } });
+      render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "s", metaKey: true });
 
-      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledTimes(1);
     });
 
     it("Ctrl+O triggers load", async () => {
-      const onLoad = vi.fn();
+      const spy = vi.spyOn(storage, "handleLoad").mockResolvedValue(undefined);
 
-      render(KeyboardHandler, { props: { onload: onLoad } });
+      render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "o", ctrlKey: true });
 
-      expect(onLoad).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledTimes(1);
     });
 
     it("Ctrl+E triggers export", async () => {
-      const onExport = vi.fn();
+      const spy = vi
+        .spyOn(appActions, "maybeExport")
+        .mockReturnValue(undefined);
 
-      render(KeyboardHandler, { props: { onexport: onExport } });
+      render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "e", ctrlKey: true });
 
-      expect(onExport).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledTimes(1);
     });
 
     // Ctrl/Cmd+D duplicates selected rack (multi-rack mode since v0.6.0)
@@ -380,25 +391,25 @@ describe("KeyboardHandler Component", () => {
 
   describe("Display Mode Toggle", () => {
     it("I key toggles display mode", async () => {
-      const onToggleDisplayMode = vi.fn();
-      render(KeyboardHandler, {
-        props: { ontoggledisplaymode: onToggleDisplayMode },
-      });
+      const uiStore = getUIStore();
+      const initialMode = uiStore.displayMode;
+
+      render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "i" });
 
-      expect(onToggleDisplayMode).toHaveBeenCalledTimes(1);
+      expect(uiStore.displayMode).not.toBe(initialMode);
     });
 
     it("I key is case insensitive", async () => {
-      const onToggleDisplayMode = vi.fn();
-      render(KeyboardHandler, {
-        props: { ontoggledisplaymode: onToggleDisplayMode },
-      });
+      const uiStore = getUIStore();
+      const initialMode = uiStore.displayMode;
+
+      render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "I" });
 
-      expect(onToggleDisplayMode).toHaveBeenCalledTimes(1);
+      expect(uiStore.displayMode).not.toBe(initialMode);
     });
   });
 
@@ -558,28 +569,32 @@ describe("KeyboardHandler Component", () => {
   });
 
   describe("Delete Shortcuts", () => {
-    it("Delete key triggers delete callback", async () => {
-      const onDelete = vi.fn();
+    it("Delete key triggers delete action", async () => {
+      const spy = vi
+        .spyOn(dialogActions, "handleDelete")
+        .mockReturnValue(undefined);
 
-      render(KeyboardHandler, { props: { ondelete: onDelete } });
+      render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "Delete" });
 
-      expect(onDelete).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledTimes(1);
     });
 
-    it("Backspace key triggers delete callback", async () => {
-      const onDelete = vi.fn();
+    it("Backspace key triggers delete action", async () => {
+      const spy = vi
+        .spyOn(dialogActions, "handleDelete")
+        .mockReturnValue(undefined);
 
-      render(KeyboardHandler, { props: { ondelete: onDelete } });
+      render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "Backspace" });
 
-      expect(onDelete).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledTimes(1);
     });
 
-    it("Delete does nothing without callback", async () => {
-      // Should not throw when no callback provided
+    it("Delete does not throw without selection", async () => {
+      // Should not throw when no selection exists
       render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "Delete" });
@@ -589,17 +604,15 @@ describe("KeyboardHandler Component", () => {
   });
 
   describe("Help Shortcut", () => {
-    it("? key triggers help callback", async () => {
-      const onHelp = vi.fn();
-
-      render(KeyboardHandler, { props: { onhelp: onHelp } });
+    it("? key opens the help dialog", async () => {
+      render(KeyboardHandler);
 
       await fireEvent.keyDown(window, { key: "?" });
 
-      expect(onHelp).toHaveBeenCalledTimes(1);
+      expect(dialogStore.isOpen("help")).toBe(true);
     });
 
-    it("? does nothing without callback", async () => {
+    it("? key does not throw", async () => {
       render(KeyboardHandler);
 
       // Should not throw
@@ -609,8 +622,8 @@ describe("KeyboardHandler Component", () => {
 
   describe("Event Prevention", () => {
     it("prevents default for handled shortcuts", async () => {
-      const onSave = vi.fn();
-      render(KeyboardHandler, { props: { onsave: onSave } });
+      vi.spyOn(appActions, "maybeSave").mockReturnValue(undefined);
+      render(KeyboardHandler);
 
       const event = new KeyboardEvent("keydown", {
         key: "s",
@@ -684,7 +697,6 @@ describe("KeyboardHandler Component", () => {
       expect(childAfter.position).toBe(childPosition);
       expect(childAfter.container_id).toBe(containerId);
     });
-
   });
 
   describe("Multi-U Device Movement", () => {

@@ -13,7 +13,8 @@
  * - handleLoad is imported from $lib/storage (re-exported from storage/index.ts).
  * - toggle-display-mode replicates App.handleToggleDisplayMode inline (no singleton).
  */
-import type { ActionId } from "$lib/actions/registry";
+import { getActionById, type ActionId } from "$lib/actions/registry";
+import { matchesShortcut } from "$lib/utils/keyboard";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
 import { getSelectionStore } from "$lib/stores/selection.svelte";
 import { getUIStore } from "$lib/stores/ui.svelte";
@@ -48,6 +49,21 @@ import {
 import { handleLoad } from "$lib/storage";
 
 export type ActionDispatch = Record<ActionId, () => void>;
+
+/** True when the event matches any command-palette binding (Ctrl/Cmd+K). */
+export function isCommandPaletteShortcut(event: KeyboardEvent): boolean {
+  const action = getActionById("command-palette");
+  if (!action) return false;
+  return action.bindings.some((b) =>
+    matchesShortcut(event, {
+      key: b.key,
+      ctrl: b.ctrl,
+      meta: b.meta,
+      shift: b.shift,
+      action: () => {},
+    }),
+  );
+}
 
 function performUndo(): void {
   const layoutStore = getLayoutStore();
