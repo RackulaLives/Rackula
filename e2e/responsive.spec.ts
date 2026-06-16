@@ -19,11 +19,9 @@ test.describe("Responsive Layout", () => {
       await expect(page.getByTestId("btn-settings")).toBeVisible();
     });
 
-    test("brand name visible", async ({ page }) => {
-      const brandTitle = page.locator(locators.toolbar.brand).getByRole("img", {
-        name: /Rackula/,
-      });
-      await expect(brandTitle).toBeVisible();
+    test("brand logo visible", async ({ page }) => {
+      const logoMark = page.locator(locators.toolbar.brandLogoMark);
+      await expect(logoMark).toBeVisible();
     });
 
     test("sidebar pane is visible", async ({ page }) => {
@@ -60,11 +58,9 @@ test.describe("Responsive Layout", () => {
       await expect(page.getByTestId("btn-settings")).not.toBeVisible();
     });
 
-    test("brand name is still visible", async ({ page }) => {
-      const brandTitle = page.locator(locators.toolbar.brand).getByRole("img", {
-        name: /Rackula/,
-      });
-      await expect(brandTitle).toBeVisible();
+    test("brand logo is still visible", async ({ page }) => {
+      const logoMark = page.locator(locators.toolbar.brandLogoMark);
+      await expect(logoMark).toBeVisible();
     });
 
     test("mobile action buttons are shown", async ({ page }) => {
@@ -101,11 +97,9 @@ test.describe("Responsive Layout", () => {
       await gotoWithRack(page);
     });
 
-    test("brand name remains visible in toolbar", async ({ page }) => {
-      const brandTitle = page.locator(locators.toolbar.brand).getByRole("img", {
-        name: /Rackula/,
-      });
-      await expect(brandTitle).toBeVisible();
+    test("brand logo remains visible in toolbar", async ({ page }) => {
+      const logoMark = page.locator(locators.toolbar.brandLogoMark);
+      await expect(logoMark).toBeVisible();
     });
 
     test("logo mark is visible", async ({ page }) => {
