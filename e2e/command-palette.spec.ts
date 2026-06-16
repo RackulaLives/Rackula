@@ -291,7 +291,10 @@ test.describe("Command palette", () => {
     await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
     await page.getByTestId("command-palette-add-device").click();
     await page.getByTestId("command-palette-device-item-1u-server").click();
-    // Placement is entered and the palette closes; the placement cue is shown.
+    // Choosing a device closes the palette and arms placement via the shared
+    // tap-to-place path. The "tap to place" status cue and tap-to-place
+    // completion are mobile-only (Rack.svelte gates them on viewportStore.isMobile),
+    // so on desktop the observable outcome is the palette closing.
     await expect(
       page.getByRole("dialog", { name: "Command palette" }),
     ).not.toBeVisible();
