@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
+import { setupStoreWithRack } from "./factories";
 
 beforeEach(() => {
   resetLayoutStore();
@@ -17,10 +18,10 @@ beforeEach(() => {
 
 type Store = NonNullable<ReturnType<typeof getLayoutStore>>;
 
-function setupRack(height = 12): { store: Store; rackId: string } {
-  const store = getLayoutStore()!;
-  const rack = store.addRack("Test Rack", height);
-  return { store, rackId: rack!.id };
+/** Reuses the shared rack factory, returning the non-null store these tests use. */
+function setupRack(): { store: Store; rackId: string } {
+  const { store, rack } = setupStoreWithRack();
+  return { store: store!, rackId: rack.id };
 }
 
 /** A 1U half-width device: synthesises a 2-column carrier. */
@@ -92,7 +93,8 @@ describe("moveDeviceToSlot (store)", () => {
     const children = store.rack!.devices.filter(
       (d) => d.container_id === carrier.id,
     );
-    expect(children.length).toBe(2);
+    // both half-width devices occupy distinct cells, filling the 2-column carrier
+    expect(new Set(children.map((c) => c.slot_id)).size).toBe(2);
 
     const firstChildIndex = store.rack!.devices.indexOf(children[0]!);
     expect(store.moveDeviceToSlot(rackId, firstChildIndex)).toBe(false);
