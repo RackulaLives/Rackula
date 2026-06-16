@@ -1521,8 +1521,8 @@ describe("Layout Store", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
 
-      // Ubiquiti PDU has is_full_depth: false
-      store.placeDevice(rack!.id, "ubiquiti-usp-pdu-pro", 5);
+      // UniFi Switch 24 Pro has is_full_depth: false
+      store.placeDevice(rack!.id, "ubiquiti-unifi-switch-24-pro", 5);
 
       // Half-depth devices should default to 'front' face
       expect(store.rack.devices[0]!.face).toBe("front");

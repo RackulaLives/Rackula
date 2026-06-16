@@ -578,7 +578,7 @@ export const ubiquitiDevices: DeviceType[] = [
     u_height: 2,
     manufacturer: "Ubiquiti",
     model: "USP-PDU-Pro",
-    is_full_depth: false,
+    is_full_depth: true,
     colour: CATEGORY_COLOURS.power,
     category: "power",
     front_image: true,

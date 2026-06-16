@@ -78,7 +78,7 @@ export const cyberpowerDevices: DeviceType[] = [
 		u_height: 1,
 		manufacturer: 'CyberPower',
 		model: 'PDU15M2F12R',
-		is_full_depth: false,
+		is_full_depth: true,
 		colour: CATEGORY_COLOURS.power,
 		category: 'power'
 	},
@@ -87,7 +87,7 @@ export const cyberpowerDevices: DeviceType[] = [
 		u_height: 1,
 		manufacturer: 'CyberPower',
 		model: 'PDU20BHVIEC12R',
-		is_full_depth: false,
+		is_full_depth: true,
 		airflow: 'passive',
 		colour: CATEGORY_COLOURS.power,
 		category: 'power'
@@ -97,7 +97,7 @@ export const cyberpowerDevices: DeviceType[] = [
 		u_height: 1,
 		manufacturer: 'CyberPower',
 		model: 'PDU81005',
-		is_full_depth: false,
+		is_full_depth: true,
 		airflow: 'passive',
 		colour: CATEGORY_COLOURS.power,
 		category: 'power'

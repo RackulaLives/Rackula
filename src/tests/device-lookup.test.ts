@@ -93,10 +93,10 @@ describe("Device Lookup Utility", () => {
       expect(result?.is_full_depth).toBe(false);
     });
 
-    it("PDUs have is_full_depth: false", () => {
+    it("PDUs have is_full_depth: true", () => {
       const result = findDeviceType("1u-pdu");
       expect(result).toBeDefined();
-      expect(result?.is_full_depth).toBe(false);
+      expect(result?.is_full_depth).toBe(true);
     });
 
     it("servers have is_full_depth undefined (defaults to full-depth)", () => {
