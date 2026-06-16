@@ -44,6 +44,7 @@
     uploadSnapshot,
     setServerBaseUpdatedAt,
     resolveBrowserLaunch,
+    deleteLayoutBody,
   } from "$lib/storage";
   import { serializeLayoutToYaml } from "$lib/utils/yaml";
   import {
@@ -333,10 +334,13 @@
       }
 
       // restoreWorkspace hydrates the active tab and restores its durability
-      // (dirty by autosave convention, not explicitly saved).
+      // (dirty by autosave convention, not explicitly saved). deleteBody wires
+      // true library deletion (#2325): removing a layout drops its persisted
+      // body and index entry, not just the open tab.
       workspaceStore.restoreWorkspace({
         index: launch.index,
         loadBody: launch.loadBody,
+        deleteBody: deleteLayoutBody,
       });
       requestAnimationFrame(() => {
         if (!canvasStore.restoreViewport()) {

@@ -81,7 +81,11 @@
       const layoutId = tab.layoutId ?? tab.store.layout.metadata?.id;
       if (!layoutId) continue;
       if (tab.id === workspaceStore.activeId) activeLayoutId = layoutId;
-      if (tab.hydrated) {
+      // An unreadable tab holds only a name placeholder, never the real body
+      // (#2018/#2325). Persist it as a shell so its index entry and name survive,
+      // but its placeholder is NEVER written over the original Rackula:layout:<id>
+      // body, which may be only transiently unreadable and must stay recoverable.
+      if (tab.hydrated && !tab.unreadable) {
         tabs.push({
           layoutId,
           hydrated: true,

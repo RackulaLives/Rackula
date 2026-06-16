@@ -1,26 +1,32 @@
 <!--
   LayoutsLibrary Component
 
-  Third sidebar tab (beside Devices and Racks). Lists the layouts the user is
-  working with as a compact row list and keeps it in sync with the open tabs.
+  Third sidebar tab (beside Devices and Racks). Lists the full library of saved
+  layouts (#2325): open layouts (one per workspace tab) and closed-but-saved
+  layouts (in the catalogue with no open tab). The toolbar tab strip (#2324)
+  holds the open working set; this panel is where the user browses, reopens, and
+  manages every layout.
 
-  Source of truth for this slice is the workspace store's OPEN set (#2079): one
-  row per open layout. The durable browser-mode library of every saved layout
-  depends on the multi-layout storage schema (#2179/#2080), which is a separate
-  slice; cached mini-render previews are #2083. Neither is built here, and the
-  row markup leaves room for a leading preview without restructuring.
+  Activating a row opens-or-switches: an open layout's tab is focused, a closed
+  layout's body is hydrated into a new tab. Closing a layout (the inline X on an
+  open row) keeps it in the library, recoverable. Deleting (context menu, with
+  confirmation) removes it from the library and closes its tab if open.
 
-  Indicators are never colour-only (WCAG 1.4.1): the active/open dot is paired
-  with a text label and an aria-selected state. The list is fully keyboard
-  navigable (Up/Down to move, Home/End to jump, Enter to open, Delete to remove
-  with confirmation).
+  Indicators are never colour-only (WCAG 1.4.1): each row pairs a state dot
+  (filled for open, outline for closed) with a text label (Active / Open /
+  Closed) and, for open rows, an aria-selected state. The list is keyboard
+  navigable (Up/Down to move, Home/End to jump, Enter to open).
 -->
 <script lang="ts">
   import { getWorkspaceStore } from "$lib/stores/workspace.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { generateId } from "$lib/utils/device";
   import type { Layout } from "$lib/types";
-  import { buildLayoutRows, nextDuplicateName } from "./layouts-library";
+  import {
+    buildLayoutRows,
+    nextDuplicateName,
+    type LayoutRow,
+  } from "./layouts-library";
   import {
     layoutPreviewKey,
     createLayoutPreviewCache,
@@ -44,53 +50,94 @@
   const toastStore = getToastStore();
 
   const rows = $derived(
-    buildLayoutRows(workspaceStore.tabs, workspaceStore.activeId),
+    buildLayoutRows(
+      workspaceStore.tabs,
+      workspaceStore.activeId,
+      workspaceStore.library,
+    ),
   );
 
-  // Cached mini-render previews (#2083). The cache is bounded and session-only:
-  // durable persistence of previews belongs to the storage slice (#2080). Keyed
-  // by tab id and invalidated by a content hash, so a preview is re-rendered
-  // only when the layout's rendered image would actually change (placing or
-  // moving a device, resizing a rack, recolouring a device type), and a rename
-  // never throws the thumbnail away.
+  /** Stable per-row key: the tab id for an open row, the layout id for a closed one. */
+  function rowKey(row: LayoutRow): string {
+    return row.tabId ?? row.layoutId ?? "";
+  }
+
+  /**
+   * Open or switch to the layout a row represents (#2325). An open row focuses
+   * its tab; a closed row hydrates its persisted body into a new tab and
+   * switches to it. Both route through the workspace store, which guarantees an
+   * already-open layout never gets a duplicate tab.
+   */
+  function activateRow(row: LayoutRow) {
+    if (row.layoutId) {
+      workspaceStore.openFromLibrary(row.layoutId);
+    } else if (row.tabId) {
+      workspaceStore.switchTo(row.tabId);
+    }
+  }
+
+  // Cached mini-render previews (#2083). The cache is bounded and session-only.
+  // Keyed by the row key (open tab id or closed layout id) and invalidated by a
+  // content hash, so a preview is re-rendered only when the layout's rendered
+  // image would actually change, and a rename never throws the thumbnail away.
+  // A closed layout's body is read once through the workspace store (no tab is
+  // opened) and cached, so reopening does not re-read it from storage.
   const previewCache = createLayoutPreviewCache();
 
   /**
-   * Resolve the preview SVG for a tab, rendering and caching it on a miss.
-   * Returns null when there is nothing to draw (no racks), so the row shows a
-   * placeholder instead of an empty frame.
+   * Resolve the preview SVG for a row, rendering and caching it on a miss.
+   * Open rows render their live tab layout; closed rows read the persisted body
+   * through the workspace store. Returns null when there is nothing to draw (no
+   * body or no racks), so the row shows a placeholder instead of an empty frame.
    */
-  function previewFor(tabId: string): string | null {
-    const tab = workspaceStore.tabs.find((t) => t.id === tabId);
-    if (!tab) return null;
+  function previewFor(row: LayoutRow): string | null {
+    const key = rowKey(row);
+    if (!key) return null;
 
-    const layout = tab.store.layout;
-    const key = layoutPreviewKey(layout);
-    const cached = previewCache.get(tabId, key);
+    if (row.isOpen && row.tabId) {
+      const layout = workspaceStore.tabs.find((t) => t.id === row.tabId)?.store
+        .layout;
+      if (!layout) return null;
+      const contentKey = layoutPreviewKey(layout);
+      const cached = previewCache.get(key, contentKey);
+      if (cached !== undefined) return cached;
+      const svg = renderLayoutPreviewSvg(layout);
+      if (svg === null) return null;
+      previewCache.set(key, contentKey, svg);
+      return svg;
+    }
+
+    if (!row.layoutId) return null;
+    // A closed layout's body is immutable while closed, so the layout id is a
+    // stable content key: a cache hit serves without re-reading the body from
+    // storage, and a miss reads it exactly once per session.
+    const contentKey = `closed:${row.layoutId}`;
+    const cached = previewCache.get(key, contentKey);
     if (cached !== undefined) return cached;
-
+    const layout = workspaceStore.peekLibraryBody(row.layoutId);
+    if (!layout) return null;
     const svg = renderLayoutPreviewSvg(layout);
     if (svg === null) return null;
-    previewCache.set(tabId, key, svg);
+    previewCache.set(key, contentKey, svg);
     return svg;
   }
 
-  // Drop cache entries for tabs that have closed so the cache tracks the open
-  // set and does not grow unbounded across a long session.
+  // Drop cache entries for rows that have left the list so the cache tracks the
+  // visible set and does not grow unbounded across a long session.
   $effect(() => {
-    const openIds = new Set(workspaceStore.tabs.map((t) => t.id));
+    const liveKeys = new Set(rows.map(rowKey));
     for (const id of previewCache.keys()) {
-      if (!openIds.has(id)) previewCache.delete(id);
+      if (!liveKeys.has(id)) previewCache.delete(id);
     }
   });
 
-  // Delete confirmation state.
+  // Confirmation state for deleting (removing from the library entirely).
   let deleteConfirmOpen = $state(false);
-  let layoutToDelete = $state<{ tabId: string; name: string } | null>(null);
+  let rowToDelete = $state<LayoutRow | null>(null);
 
-  // Rename dialog state.
+  // Rename dialog state. Keyed by the row's stable key.
   let renameOpen = $state(false);
-  let renameTabId = $state<string | null>(null);
+  let renameRowKey = $state<string | null>(null);
   let renameValue = $state("");
 
   // The listbox container. Each row is wrapped in a ContextMenu.Trigger, so a
@@ -98,14 +145,14 @@
   // rows off this bound element keeps arrow-key navigation working.
   let listEl = $state<HTMLElement | null>(null);
 
-  function openLayout(tabId: string) {
-    workspaceStore.switchTo(tabId);
+  function findRow(key: string): LayoutRow | undefined {
+    return rows.find((r) => rowKey(r) === key);
   }
 
-  function handleRowKeydown(event: KeyboardEvent, tabId: string) {
+  function handleRowKeydown(event: KeyboardEvent, row: LayoutRow) {
     // Only act on keys aimed at the row itself. The row contains a focusable
     // close button; without this guard, Enter/Space on that button would bubble
-    // here, fire openLayout, and preventDefault would swallow the button's own
+    // here, fire activateRow, and preventDefault would swallow the button's own
     // activation.
     if (event.target !== event.currentTarget) return;
 
@@ -118,7 +165,7 @@
       case "Enter":
       case " ":
         event.preventDefault();
-        openLayout(tabId);
+        activateRow(row);
         break;
       case "ArrowDown":
         event.preventDefault();
@@ -139,38 +186,73 @@
       case "Delete":
       case "Backspace":
         event.preventDefault();
-        initiateDelete(tabId);
+        initiateDelete(row);
         break;
     }
   }
 
-  function initiateDelete(tabId: string) {
-    const row = rows.find((r) => r.tabId === tabId);
-    if (!row) return;
-    layoutToDelete = { tabId, name: row.name };
+  // Close an open layout: it leaves the open set but stays in the library,
+  // recoverable. Distinct from delete, which removes it everywhere.
+  function closeLayout(row: LayoutRow) {
+    if (!row.tabId) return;
+    workspaceStore.closeTab(row.tabId);
+    toastStore.showToast(`Closed "${row.name}"`, "info");
+  }
+
+  function initiateDelete(row: LayoutRow) {
+    rowToDelete = row;
     deleteConfirmOpen = true;
   }
 
   function confirmDelete() {
-    if (layoutToDelete) {
-      workspaceStore.closeTab(layoutToDelete.tabId);
-      toastStore.showToast(`Closed "${layoutToDelete.name}"`, "info");
+    const row = rowToDelete;
+    if (row) {
+      // Delete removes the layout from the library and closes its tab if open.
+      // A closed row deletes by layout id; an open in-session row that never
+      // reached the persisted library (no layout id) just closes its tab.
+      if (row.layoutId) {
+        workspaceStore.deleteLayout(row.layoutId);
+      } else if (row.tabId) {
+        workspaceStore.closeTab(row.tabId);
+      }
+      toastStore.showToast(`Deleted "${row.name}"`, "info");
     }
     deleteConfirmOpen = false;
-    layoutToDelete = null;
+    rowToDelete = null;
   }
 
   function cancelDelete() {
     deleteConfirmOpen = false;
-    layoutToDelete = null;
+    rowToDelete = null;
   }
 
-  function duplicateLayout(tabId: string) {
-    const tab = workspaceStore.tabs.find((t) => t.id === tabId);
-    if (!tab) return;
-    const source = tab.store.layout;
-    const existingNames = workspaceStore.tabs.map((t) => t.store.layout.name);
-    const name = nextDuplicateName(existingNames, source.name);
+  // The source layout for an action that needs the full body: an open row reads
+  // its live tab; a closed row reads its persisted body through the store (no
+  // tab opened). Returns null when a closed body is unreadable.
+  function sourceLayoutFor(row: LayoutRow): Layout | null {
+    if (row.isOpen && row.tabId) {
+      return (
+        workspaceStore.tabs.find((t) => t.id === row.tabId)?.store.layout ??
+        null
+      );
+    }
+    if (row.layoutId) return workspaceStore.peekLibraryBody(row.layoutId);
+    return null;
+  }
+
+  // Names already taken across the whole library (open tabs and closed rows),
+  // so a duplicate of a closed layout still avoids colliding with a closed one.
+  function libraryNames(): string[] {
+    return rows.map((r) => r.name);
+  }
+
+  function duplicateLayout(row: LayoutRow) {
+    const source = sourceLayoutFor(row);
+    if (!source) {
+      toastStore.showToast(`Cannot duplicate "${row.name}"`, "error");
+      return;
+    }
+    const name = nextDuplicateName(libraryNames(), source.name);
     const clone: Layout = structuredClone($state.snapshot(source));
     clone.name = name;
     clone.metadata = { ...clone.metadata, id: generateId(), name };
@@ -178,27 +260,33 @@
     toastStore.showToast(`Duplicated as "${name}"`, "info");
   }
 
-  function openRename(tabId: string) {
-    const row = rows.find((r) => r.tabId === tabId);
-    if (!row) return;
-    renameTabId = tabId;
+  function openRename(row: LayoutRow) {
+    renameRowKey = rowKey(row);
     renameValue = row.name;
     renameOpen = true;
   }
 
   function confirmRename() {
-    const tabId = renameTabId;
+    const key = renameRowKey;
     const trimmed = renameValue.trim();
-    if (tabId && trimmed) {
-      const tab = workspaceStore.tabs.find((t) => t.id === tabId);
-      tab?.store.setLayoutName(trimmed);
+    if (key && trimmed) {
+      const row = findRow(key);
+      if (row) {
+        // Open the layout (focuses an open tab, or hydrates a closed one) so the
+        // rename runs against the live store and persists like any edit.
+        activateRow(row);
+        const active = workspaceStore.tabs.find(
+          (t) => t.id === workspaceStore.activeId,
+        );
+        active?.store.setLayoutName(trimmed);
+      }
     }
     closeRename();
   }
 
   function closeRename() {
     renameOpen = false;
-    renameTabId = null;
+    renameRowKey = null;
     renameValue = "";
   }
 
@@ -209,9 +297,18 @@
     }
   }
 
+  // Export a row's layout. Open rows export directly; a closed row is opened
+  // first so the existing tab-based export path has a live tab to work from.
+  function exportLayout(row: LayoutRow) {
+    if (!onexport) return;
+    activateRow(row);
+    const activeTabId = workspaceStore.activeId;
+    onexport(activeTabId);
+  }
+
   function getDeleteMessage(): string {
-    if (!layoutToDelete) return "";
-    return `Close "${layoutToDelete.name}"? It will be removed from the open layouts.`;
+    if (!rowToDelete) return "";
+    return `Delete "${rowToDelete.name}"? This removes it from your library and cannot be undone.`;
   }
 </script>
 
@@ -241,28 +338,30 @@
     role="listbox"
     aria-label="Layout library"
   >
-    {#each rows as row (row.tabId)}
-      {@const previewSvg = previewFor(row.tabId)}
+    {#each rows as row (rowKey(row))}
+      {@const previewSvg = previewFor(row)}
       <LayoutContextMenu
-        onopen={() => openLayout(row.tabId)}
-        onrename={() => openRename(row.tabId)}
-        onduplicate={() => duplicateLayout(row.tabId)}
-        onexport={onexport ? () => onexport(row.tabId) : undefined}
-        ondelete={() => initiateDelete(row.tabId)}
+        onopen={() => activateRow(row)}
+        onrename={() => openRename(row)}
+        onduplicate={() => duplicateLayout(row)}
+        onexport={onexport ? () => exportLayout(row) : undefined}
+        ondelete={() => initiateDelete(row)}
       >
         <div
           class="layout-item"
           class:active={row.isActive}
-          onclick={() => openLayout(row.tabId)}
-          onkeydown={(e) => handleRowKeydown(e, row.tabId)}
+          class:closed={!row.isOpen}
+          onclick={() => activateRow(row)}
+          onkeydown={(e) => handleRowKeydown(e, row)}
           role="option"
           aria-selected={row.isActive}
           tabindex={row.isActive ? 0 : -1}
-          data-testid="layout-item-{row.tabId}"
+          data-testid="layout-item-{rowKey(row)}"
         >
           <span
             class="layout-indicator"
             class:is-active={row.isActive}
+            class:is-open={row.isOpen}
             aria-hidden="true"
           ></span>
           <span class="layout-preview" aria-hidden="true">
@@ -276,33 +375,43 @@
           <span class="layout-info">
             <span class="layout-name">{row.name}</span>
             <span class="layout-meta">
-              <span class="layout-state"
-                >{row.isActive ? "Active" : "Open"}</span
-              >
-              <span aria-hidden="true">·</span>
-              {row.rackCount} rack{row.rackCount !== 1 ? "s" : ""} ·
-              {row.deviceCount} device{row.deviceCount !== 1 ? "s" : ""}
+              <span class="layout-state">
+                {#if row.isActive}
+                  Active
+                {:else if row.isOpen}
+                  Open
+                {:else}
+                  Closed
+                {/if}
+              </span>
+              {#if row.isOpen}
+                <span aria-hidden="true">·</span>
+                {row.rackCount} rack{row.rackCount !== 1 ? "s" : ""} ·
+                {row.deviceCount} device{row.deviceCount !== 1 ? "s" : ""}
+              {/if}
             </span>
           </span>
-          <button
-            type="button"
-            class="layout-delete"
-            onclick={(e) => {
-              e.stopPropagation();
-              initiateDelete(row.tabId);
-            }}
-            aria-label="Close {row.name}"
-            title="Close layout"
-          >
-            ✕
-          </button>
+          {#if row.isOpen}
+            <button
+              type="button"
+              class="layout-delete"
+              onclick={(e) => {
+                e.stopPropagation();
+                closeLayout(row);
+              }}
+              aria-label="Close {row.name}"
+              title="Close layout"
+            >
+              ✕
+            </button>
+          {/if}
         </div>
       </LayoutContextMenu>
     {/each}
 
     {#if rows.length === 0}
       <div class="empty-state">
-        <p class="empty-message">No layouts open</p>
+        <p class="empty-message">No saved layouts</p>
         <p class="empty-hint">Create a layout to get started</p>
       </div>
     {/if}
@@ -311,9 +420,9 @@
 
 <ConfirmDialog
   open={deleteConfirmOpen}
-  title="Close Layout"
+  title="Delete Layout"
   message={getDeleteMessage()}
-  confirmLabel="Close"
+  confirmLabel="Delete"
   onconfirm={confirmDelete}
   oncancel={cancelDelete}
 />
@@ -438,6 +547,11 @@
     outline-offset: -2px;
   }
 
+  /* State dot. Shape carries the open/closed distinction independent of colour
+     (WCAG 1.4.1): a closed layout is a hollow outline ring, an open one is a
+     filled dot, and the active one is filled in the success colour. The text
+     state label (Active / Open / Closed) is the primary, fully colour-free cue;
+     the dot reinforces it. */
   .layout-indicator {
     flex-shrink: 0;
     width: 8px;
@@ -447,9 +561,20 @@
     background: transparent;
   }
 
+  .layout-indicator.is-open {
+    background: var(--colour-text-muted);
+    border-color: var(--colour-text-muted);
+  }
+
   .layout-indicator.is-active {
-    background: var(--colour-success, #2e7d32);
-    border-color: var(--colour-success, #2e7d32);
+    background: var(--colour-success);
+    border-color: var(--colour-success);
+  }
+
+  /* A closed layout reads as available-but-inactive: the name stays legible, the
+     row is slightly recessed so the open working set stands out. */
+  .layout-item.closed .layout-name {
+    color: var(--colour-text-muted);
   }
 
   /* Cached mini-render of the layout (#2083). Decorative (aria-hidden): the row

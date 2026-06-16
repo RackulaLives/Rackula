@@ -27,7 +27,7 @@ describe("buildLayoutRows", () => {
     const firstId = ws.activeId;
     const secondId = ws.openTab(createLayout("Homelab"));
 
-    const rows = buildLayoutRows(ws.tabs, ws.activeId);
+    const rows = buildLayoutRows(ws.tabs, ws.activeId, ws.library);
 
     expect(rows.map((r) => r.tabId)).toEqual([firstId, secondId]);
     expect(rows.find((r) => r.tabId === secondId)?.isActive).toBe(true);
@@ -38,12 +38,12 @@ describe("buildLayoutRows", () => {
     const ws = getWorkspaceStore();
     ws.openTab(createLayout("Homelab"));
 
-    const rows = buildLayoutRows(ws.tabs, ws.activeId);
+    const rows = buildLayoutRows(ws.tabs, ws.activeId, ws.library);
 
     expect(rows.every((r) => r.isOpen)).toBe(true);
   });
 
-  it("reports the layout name and rack/device counts for each row", () => {
+  it("reports the layout name and rack/device counts for each open row", () => {
     const ws = getWorkspaceStore();
     const layout = createTestLayout({
       name: "Rack Room",
@@ -63,7 +63,7 @@ describe("buildLayoutRows", () => {
     });
     const tabId = ws.openTab(layout);
 
-    const rows = buildLayoutRows(ws.tabs, ws.activeId);
+    const rows = buildLayoutRows(ws.tabs, ws.activeId, ws.library);
     const row = rows.find((r) => r.tabId === tabId);
 
     expect(row?.name).toBe("Rack Room");
@@ -71,13 +71,76 @@ describe("buildLayoutRows", () => {
     expect(row?.deviceCount).toBe(3);
   });
 
-  it("falls back to a placeholder name for an unnamed layout", () => {
+  it("falls back to a placeholder name for an unnamed open layout", () => {
     const ws = getWorkspaceStore();
     const tabId = ws.openTab(createTestLayout({ name: "" }));
 
-    const rows = buildLayoutRows(ws.tabs, ws.activeId);
+    const rows = buildLayoutRows(ws.tabs, ws.activeId, ws.library);
 
     expect(rows.find((r) => r.tabId === tabId)?.name).toBe("Untitled layout");
+  });
+
+  it("lists a saved layout that has no open tab as a closed row", () => {
+    const ws = getWorkspaceStore();
+    ws.restoreWorkspace({
+      index: {
+        activeId: "open-id",
+        openTabs: ["open-id"],
+        library: {
+          "open-id": {
+            name: "Open One",
+            changesSinceExport: 0,
+            hasEverExported: false,
+          },
+          "closed-id": {
+            name: "Closed One",
+            changesSinceExport: 0,
+            hasEverExported: false,
+          },
+        },
+      },
+      loadBody: (id) => ({
+        ok: true,
+        layout: { ...createLayout(id), metadata: { id, name: id } },
+      }),
+    });
+
+    const rows = buildLayoutRows(ws.tabs, ws.activeId, ws.library);
+    const closed = rows.find((r) => r.layoutId === "closed-id");
+    const open = rows.find((r) => r.layoutId === "open-id");
+
+    expect(closed).toBeDefined();
+    expect(closed?.isOpen).toBe(false);
+    expect(closed?.name).toBe("Closed One");
+    expect(open?.isOpen).toBe(true);
+  });
+
+  it("does not duplicate a layout that is both in the library and open", () => {
+    const ws = getWorkspaceStore();
+    ws.restoreWorkspace({
+      index: {
+        activeId: "open-id",
+        openTabs: ["open-id"],
+        library: {
+          "open-id": {
+            name: "Open One",
+            changesSinceExport: 0,
+            hasEverExported: false,
+          },
+        },
+      },
+      loadBody: (id) => ({
+        ok: true,
+        layout: { ...createLayout(id), metadata: { id, name: id } },
+      }),
+    });
+
+    const rows = buildLayoutRows(ws.tabs, ws.activeId, ws.library);
+    const matching = rows.filter((r) => r.layoutId === "open-id");
+
+    // eslint-disable-next-line no-restricted-syntax -- one library layout that is open must yield exactly one row, never an open + closed pair
+    expect(matching).toHaveLength(1);
+    expect(matching[0]?.isOpen).toBe(true);
   });
 });
 

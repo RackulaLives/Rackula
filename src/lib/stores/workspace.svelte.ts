@@ -14,21 +14,22 @@
  * - Every content swap into a tab (open, restore) goes through one
  *   clear-then-load primitive that clears that tab's history first.
  *
+ * Library: the workspace also tracks the full set of saved layouts (#2325),
+ * not only the open tabs. The library is the durable catalogue of every layout
+ * the user has, open or closed; the open tabs are the working subset. The
+ * persistence layer seeds the library on restore and supplies the body reader
+ * and deleter (dependency-inverted, like loadBody); the store never imports
+ * storage directly.
+ *
  * Persistence: tabs are in-memory session state here. The browser-mode
  * multi-layout storage schema (spike #2179: `Rackula:workspace` index +
- * `Rackula:layout:<id>` bodies) is a separate slice (#2080) that layers onto
- * this store; it is intentionally not built here.
+ * `Rackula:layout:<id>` bodies) layers onto this store via restoreWorkspace
+ * (#2080): the index seeds the library and supplies the lazy body reader.
  */
 
 import type { Layout } from "$lib/types";
-import {
-  createLayoutStore,
-  type LayoutStore,
-} from "./layout.svelte";
-import {
-  createHistoryStore,
-  getHistoryStore,
-} from "./history.svelte";
+import { createLayoutStore, type LayoutStore } from "./layout.svelte";
+import { createHistoryStore, getHistoryStore } from "./history.svelte";
 import { createLayout } from "$lib/utils/serialization";
 
 /** A single open tab: a stable id plus the layout store backing it. */
@@ -57,9 +58,7 @@ export interface WorkspaceTab {
 }
 
 /** Result of reading a persisted layout body during lazy restore. */
-export type RestoreBodyResult =
-  | { ok: true; layout: Layout }
-  | { ok: false };
+export type RestoreBodyResult = { ok: true; layout: Layout } | { ok: false };
 
 /** Per-layout fields lazy restore reads from the index library. */
 export interface RestoreLibraryEntry {
@@ -75,11 +74,22 @@ export interface RestoreIndex {
   library: Record<string, RestoreLibraryEntry>;
 }
 
+/** A library row's display metadata, for a layout with no open tab (#2325). */
+export interface LibraryLayout {
+  name: string;
+}
+
 /** Inputs for restoring a workspace from the persisted browser index. */
 export interface RestoreWorkspaceArgs {
   index: RestoreIndex;
   /** Reads a persisted layout body by id (lazy, injected for testability). */
   loadBody: (id: string) => RestoreBodyResult;
+  /**
+   * Removes a layout's persisted body and library entry (#2325). Injected so
+   * the store stays storage-agnostic. Omitted in cold-start sessions that have
+   * no persistence wired; deleteLayout still drops the in-memory entry.
+   */
+  deleteBody?: (id: string) => void;
 }
 
 let tabIdCounter = 0;
@@ -133,14 +143,22 @@ export function createWorkspaceStore() {
   // The body loader injected by restoreWorkspace, used for lazy hydration on
   // first focus of a restored shell tab. Null until a restore has run.
   let loadBodyFn: ((id: string) => RestoreBodyResult) | null = null;
+  // The body deleter injected by restoreWorkspace, used by deleteLayout to drop
+  // a layout's persisted body and library entry. Null until a restore has run.
+  let deleteBodyFn: ((id: string) => void) | null = null;
   // Per-layout durability from the restored index, applied on hydration so the
   // chip and tab dots reflect true backup state (not reset to zero by the body
   // load). Keyed by persisted layout id.
   let restoreLibrary: Record<string, RestoreLibraryEntry> = {};
 
-  const activeTab = $derived(
-    tabs.find((t) => t.id === activeId) ?? tabs[0]!,
-  );
+  // The full library of saved layouts (open + closed), keyed by persisted
+  // layout id (#2325). Seeded on restore from the index, grown when a layout is
+  // opened or created in-session, and pruned on delete. Open layouts are also
+  // here; buildLayoutRows reconciles them against the open tabs so an open
+  // layout never renders twice.
+  let library = $state<Record<string, LibraryLayout>>({});
+
+  const activeTab = $derived(tabs.find((t) => t.id === activeId) ?? tabs[0]!);
   const activeStore = $derived(activeTab.store);
 
   function getTab(id: string): WorkspaceTab | undefined {
@@ -157,6 +175,9 @@ export function createWorkspaceStore() {
     const tab: WorkspaceTab = {
       id: nextTabId(),
       store: createLayoutStore(createHistoryStore()),
+      // Tag the tab with the layout's persistent id so the library can match it
+      // to its catalogue entry (open vs closed). Persistence reads the same id.
+      layoutId: layout?.metadata?.id,
       hydrated: true,
       unreadable: false,
     };
@@ -167,8 +188,83 @@ export function createWorkspaceStore() {
       // Reserve ids live in other open tabs so an opened copy never aliases the
       // global image store's placement-<deviceId> keys (#2182).
       tab.store.loadLayout(layout, deviceIdsInOtherTabs(tab.id));
+      // Record the opened layout in the library catalogue (#2325) so a new or
+      // duplicated layout appears in the Layouts panel and survives a close.
+      if (layout.metadata?.id) {
+        library = {
+          ...library,
+          [layout.metadata.id]: { name: layout.name },
+        };
+      }
     }
     return tab.id;
+  }
+
+  /**
+   * Open a layout from the library by its persisted id (#2325). If a tab already
+   * backs that layout, focus switches to it (no duplicate tab). Otherwise the
+   * body is read through the injected loader and opened into a new tab. An
+   * unreadable body still opens a tab, flagged unreadable for the #2018
+   * orphan/error state, and the library entry is kept so it stays recoverable.
+   */
+  function openFromLibrary(layoutId: string): void {
+    const existing = tabs.find((t) => t.layoutId === layoutId);
+    if (existing) {
+      switchTo(existing.id);
+      return;
+    }
+    const result = loadBodyFn?.(layoutId);
+    if (result?.ok) {
+      openTab(result.layout);
+      return;
+    }
+    // The body could not be read. Open a shell tab carrying the library name,
+    // flagged unreadable so the interaction layer offers Retry/Remove (#2018).
+    // The library entry is left intact: a bad body must never lose the catalogue
+    // record.
+    const name = library[layoutId]?.name ?? "";
+    const placeholder: Layout = {
+      ...createLayout(name),
+      metadata: { id: layoutId, name },
+    };
+    const tab: WorkspaceTab = {
+      id: nextTabId(),
+      store: createLayoutStore(createHistoryStore()),
+      layoutId,
+      hydrated: true,
+      unreadable: true,
+    };
+    tab.store.loadLayout(placeholder);
+    tabs = [...tabs, tab];
+    activeId = tab.id;
+  }
+
+  /**
+   * Read a library layout's persisted body without opening a tab (#2325).
+   * Used to render a preview thumbnail for a closed layout. Returns null when
+   * there is no body reader wired or the body is unreadable; the caller shows a
+   * placeholder rather than a broken frame.
+   */
+  function peekLibraryBody(layoutId: string): Layout | null {
+    const result = loadBodyFn?.(layoutId);
+    return result?.ok ? result.layout : null;
+  }
+
+  /**
+   * Delete a layout from the library by its persisted id (#2325). Drops the
+   * in-memory catalogue entry and the persisted body (via the injected deleter),
+   * and closes its tab if one is open. Deletion is the only destructive path:
+   * closing a tab keeps the layout, deleting removes it everywhere.
+   */
+  function deleteLayout(layoutId: string): void {
+    const open = tabs.find((t) => t.layoutId === layoutId);
+    if (open) closeTab(open.id);
+    if (layoutId in library) {
+      const next = { ...library };
+      delete next[layoutId];
+      library = next;
+    }
+    deleteBodyFn?.(layoutId);
   }
 
   /**
@@ -292,12 +388,24 @@ export function createWorkspaceStore() {
    * blank tab. No-op when there are no open tabs.
    */
   function restoreWorkspace(args: RestoreWorkspaceArgs): void {
-    const { index, loadBody } = args;
-    const openIds = index.openTabs.filter((id) => id in index.library);
-    if (openIds.length === 0) return;
+    const { index, loadBody, deleteBody } = args;
 
     loadBodyFn = loadBody;
+    deleteBodyFn = deleteBody ?? null;
     restoreLibrary = index.library;
+
+    // Seed the library catalogue from the index (#2325): every saved layout,
+    // open or closed, so the Layouts panel lists the full set. Done before the
+    // open-tabs guard so a workspace with saved-but-closed layouts and no open
+    // tab still populates the library.
+    const seeded: Record<string, LibraryLayout> = {};
+    for (const [id, entry] of Object.entries(index.library)) {
+      seeded[id] = { name: entry.name };
+    }
+    library = seeded;
+
+    const openIds = index.openTabs.filter((id) => id in index.library);
+    if (openIds.length === 0) return;
 
     // A placeholder layout carries the persisted name so the tab shell renders
     // before its body is read. metadata.id holds the persisted id so a later
@@ -310,7 +418,13 @@ export function createWorkspaceStore() {
       };
       const store = createLayoutStore(createHistoryStore());
       store.loadLayout(placeholder);
-      return { id: nextTabId(), store, layoutId, hydrated: false, unreadable: false };
+      return {
+        id: nextTabId(),
+        store,
+        layoutId,
+        hydrated: false,
+        unreadable: false,
+      };
     });
 
     tabs = restored;
@@ -337,7 +451,13 @@ export function createWorkspaceStore() {
     get activeStore() {
       return activeStore;
     },
+    get library() {
+      return library;
+    },
     openTab,
+    openFromLibrary,
+    peekLibraryBody,
+    deleteLayout,
     switchTo,
     closeTab,
     reorderTabs,

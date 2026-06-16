@@ -207,7 +207,10 @@ describe("Workspace Store", () => {
         index: makeIndex(),
         loadBody: (id) => {
           loaded.push(id);
-          return { ok: true, layout: bodyFor(id, id === "id-a" ? "Alpha" : "Beta") };
+          return {
+            ok: true,
+            layout: bodyFor(id, id === "id-a" ? "Alpha" : "Beta"),
+          };
         },
       });
 
@@ -309,8 +312,14 @@ describe("Workspace Store", () => {
         index: makeIndex(),
         loadBody: (id) =>
           id === "id-a"
-            ? { ok: true, layout: { ...bodyFor("id-a", "Alpha"), racks: [aRack] } }
-            : { ok: true, layout: { ...bodyFor("id-b", "Beta"), racks: [bRack] } },
+            ? {
+                ok: true,
+                layout: { ...bodyFor("id-a", "Alpha"), racks: [aRack] },
+              }
+            : {
+                ok: true,
+                layout: { ...bodyFor("id-b", "Beta"), racks: [bRack] },
+              },
       });
 
       // Tab A keeps the shared id.
@@ -358,6 +367,167 @@ describe("Workspace Store", () => {
       ws.closeTab(ws.tabs[0]!.id);
       expect(loaded).toEqual(["id-a", "id-b"]);
       expect(ws.activeStore.layout.name).toBe("Body-id-b");
+    });
+  });
+
+  describe("library set", () => {
+    function bodyFor(id: string, name: string): Layout {
+      return { ...createLayout(name), metadata: { id, name } };
+    }
+
+    function makeIndex(): WorkspaceIndex {
+      return {
+        schemaVersion: 2,
+        activeId: "id-a",
+        openTabs: ["id-a"],
+        library: {
+          "id-a": {
+            name: "Alpha",
+            updatedAt: "",
+            changesSinceExport: 0,
+            hasEverExported: false,
+            writeFailed: false,
+            storageMode: "browser",
+          },
+          "id-b": {
+            name: "Beta",
+            updatedAt: "",
+            changesSinceExport: 0,
+            hasEverExported: false,
+            writeFailed: false,
+            storageMode: "browser",
+          },
+        },
+      };
+    }
+
+    it("exposes every saved layout, including ones with no open tab", () => {
+      const ws = getWorkspaceStore();
+      ws.restoreWorkspace({
+        index: makeIndex(),
+        loadBody: (id) => ({ ok: true, layout: bodyFor(id, id) }),
+      });
+
+      // id-a is open; id-b is closed-but-saved. Both are in the library set.
+      expect(Object.keys(ws.library).sort()).toEqual(["id-a", "id-b"]);
+      expect(ws.library["id-b"]?.name).toBe("Beta");
+    });
+
+    it("adds a layout opened in-session to the library set", () => {
+      const ws = getWorkspaceStore();
+      const layout = bodyFor("fresh-id", "Fresh");
+      ws.openTab(layout);
+
+      expect(ws.library["fresh-id"]?.name).toBe("Fresh");
+    });
+
+    describe("openFromLibrary", () => {
+      it("opens a closed layout into exactly one new tab and makes it active", () => {
+        const ws = getWorkspaceStore();
+        ws.restoreWorkspace({
+          index: makeIndex(),
+          loadBody: (id) => ({ ok: true, layout: bodyFor(id, "Body-" + id) }),
+        });
+        const tabsBefore = ws.tabs.length;
+
+        ws.openFromLibrary("id-b");
+
+        // Opening a closed layout must add exactly one tab (no duplicates).
+        expect(ws.tabs.length).toBe(tabsBefore + 1);
+        const active = ws.tabs.find((t) => t.id === ws.activeId)!;
+        expect(active.layoutId).toBe("id-b");
+        expect(ws.activeStore.layout.name).toBe("Body-id-b");
+      });
+
+      it("switches to an already-open layout without adding a tab", () => {
+        const ws = getWorkspaceStore();
+        ws.restoreWorkspace({
+          index: makeIndex(),
+          loadBody: (id) => ({ ok: true, layout: bodyFor(id, "Body-" + id) }),
+        });
+        // Open id-b so it has a tab, then focus id-a.
+        ws.openFromLibrary("id-b");
+        ws.switchTo(ws.tabs[0]!.id);
+        const tabsBefore = ws.tabs.length;
+        const idbTab = ws.tabs.find((t) => t.layoutId === "id-b")!;
+
+        ws.openFromLibrary("id-b");
+
+        expect(ws.tabs.length).toBe(tabsBefore);
+        expect(ws.activeId).toBe(idbTab.id);
+      });
+
+      it("leaves an unreadable closed body recoverable in the library", () => {
+        const ws = getWorkspaceStore();
+        ws.restoreWorkspace({
+          index: makeIndex(),
+          loadBody: (id) =>
+            id === "id-a"
+              ? { ok: true, layout: bodyFor("id-a", "Alpha") }
+              : { ok: false },
+        });
+
+        ws.openFromLibrary("id-b");
+
+        // A bad body must not lose the library entry; the tab surfaces the
+        // orphan/error state (#2018) rather than vanishing.
+        expect(ws.library["id-b"]).toBeDefined();
+        const idbTab = ws.tabs.find((t) => t.layoutId === "id-b");
+        expect(idbTab?.unreadable).toBe(true);
+      });
+    });
+
+    describe("deleteLayout", () => {
+      it("removes a closed layout from the library set", () => {
+        const ws = getWorkspaceStore();
+        const deleted: string[] = [];
+        ws.restoreWorkspace({
+          index: makeIndex(),
+          loadBody: (id) => ({ ok: true, layout: bodyFor(id, id) }),
+          deleteBody: (id) => deleted.push(id),
+        });
+
+        ws.deleteLayout("id-b");
+
+        expect(ws.library["id-b"]).toBeUndefined();
+        expect(deleted).toContain("id-b");
+        // The closed layout never had a tab, so the open set is untouched.
+        expect(ws.tabs.every((t) => t.layoutId !== "id-b")).toBe(true);
+      });
+
+      it("removes an open layout from the library and closes its tab", () => {
+        const ws = getWorkspaceStore();
+        const deleted: string[] = [];
+        ws.restoreWorkspace({
+          index: makeIndex(),
+          loadBody: (id) => ({ ok: true, layout: bodyFor(id, id) }),
+          deleteBody: (id) => deleted.push(id),
+        });
+        ws.openFromLibrary("id-b");
+        expect(ws.tabs.some((t) => t.layoutId === "id-b")).toBe(true);
+
+        ws.deleteLayout("id-b");
+
+        expect(ws.library["id-b"]).toBeUndefined();
+        expect(deleted).toContain("id-b");
+        expect(ws.tabs.some((t) => t.layoutId === "id-b")).toBe(false);
+      });
+    });
+
+    it("keeps a closed layout retrievable from the library set", () => {
+      const ws = getWorkspaceStore();
+      ws.restoreWorkspace({
+        index: makeIndex(),
+        loadBody: (id) => ({ ok: true, layout: bodyFor(id, "Body-" + id) }),
+      });
+      // Open id-b, then close its tab. It must stay in the library (its name now
+      // reflects the loaded body, not the stale index entry).
+      ws.openFromLibrary("id-b");
+      const idbTab = ws.tabs.find((t) => t.layoutId === "id-b")!;
+      ws.closeTab(idbTab.id);
+
+      expect(ws.tabs.some((t) => t.layoutId === "id-b")).toBe(false);
+      expect(ws.library["id-b"]?.name).toBe("Body-id-b");
     });
   });
 
