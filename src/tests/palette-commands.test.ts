@@ -27,6 +27,10 @@ describe("getPaletteCommands", () => {
     expect(ids(baseCtx)).not.toContain("command-palette");
   });
 
+  it("excludes import-devices (component-owned trigger, not module-dispatchable)", () => {
+    expect(ids(baseCtx)).not.toContain("import-devices");
+  });
+
   it("hides selection commands when nothing is selected", () => {
     expect(ids(baseCtx)).not.toContain("duplicate-selection");
     expect(ids(baseCtx)).not.toContain("delete-selection");

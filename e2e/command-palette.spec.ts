@@ -93,6 +93,26 @@ test.describe("Command palette", () => {
     ).toBeVisible();
   });
 
+  test("Ctrl/Cmd+K opens the palette even when a text field is focused", async ({
+    page,
+  }) => {
+    // Click the layout name display button to enter rename mode.
+    // This reveals a text input (data-testid="layout-name-input") and focuses it,
+    // simulating a user with keyboard focus inside an editable field.
+    await page.getByTestId("layout-name-display").click();
+    const nameInput = page.getByTestId("layout-name-input");
+    await expect(nameInput).toBeFocused();
+
+    // Press the palette shortcut from within the focused text field.
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+
+    // The palette must open regardless of the focused field.
+    const palette = page.getByRole("dialog", { name: "Command palette" });
+    await expect(palette).toBeVisible({ timeout: 2000 });
+    // The palette input must steal focus from the rename field.
+    await expect(page.getByTestId("command-palette-input")).toBeFocused();
+  });
+
   test("opening the palette closes the help dialog", async ({ page }) => {
     // Open the help dialog first using the ? shortcut.
     // Shift+Slash dispatches keydown key="?" shiftKey=true, matching a real keyboard.
