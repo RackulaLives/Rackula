@@ -1,6 +1,6 @@
 <!--
   SidebarTabs Component
-  Tab bar for sidebar navigation: Hide | Devices | Racks
+  Tab bar for sidebar navigation: Layouts | Racks | Devices
   Uses bits-ui Tabs for accessibility and keyboard navigation
 -->
 <script lang="ts">
@@ -15,9 +15,9 @@
   let { activeTab, onchange }: Props = $props();
 
   const tabs: { id: SidebarTab; label: string; icon: string }[] = [
-    { id: "devices", label: "Devices", icon: "⬡" },
-    { id: "racks", label: "Racks", icon: "▤" },
     { id: "layouts", label: "Layouts", icon: "▦" },
+    { id: "racks", label: "Racks", icon: "▤" },
+    { id: "devices", label: "Devices", icon: "⬡" },
   ];
 
   function handleValueChange(value: string | undefined) {
