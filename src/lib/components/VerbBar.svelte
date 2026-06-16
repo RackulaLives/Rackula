@@ -110,7 +110,7 @@
     padding: var(--space-1);
     border-radius: var(--radius-full);
     border: 1px solid var(--bottom-nav-border);
-    background: var(--bottom-nav-bg);
+    background: var(--verb-bar-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     box-shadow: var(--shadow-lg);

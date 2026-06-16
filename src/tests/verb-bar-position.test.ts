@@ -1,9 +1,9 @@
 /**
  * Tests for the floating verb bar positioning math (#2075)
  *
- * Covers the pure computeVerbBarPosition function: above/below placement,
- * rack-name overlap flip, viewport-top flip, low-zoom hide, and horizontal
- * clamping. All inputs are plain numeric rects with no DOM dependency.
+ * Covers the pure computeVerbBarPosition function: always-above placement,
+ * low-zoom hide, and horizontal clamping. All inputs are plain numeric rects
+ * with no DOM dependency.
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -37,7 +37,6 @@ function input(overrides: Partial<VerbBarPositionInput>): VerbBarPositionInput {
     bar: { width: 180, height: 36 },
     viewport: { width: 1280, height: 800 },
     scale: 1,
-    rackName: null,
     ...overrides,
   };
 }
@@ -66,55 +65,23 @@ describe("computeVerbBarPosition - above placement", () => {
   });
 });
 
-describe("computeVerbBarPosition - flip below due to rack name overlap", () => {
-  it("flips below when rack name bottom is below the above placement top", () => {
-    // target at y=300; bar height=36; aboveTop = 300 - 8 - 36 = 256
-    // rackName bottom at 270: 256 < 270, so flip
-    const target = makeRect(300, 200, 120, 24);
-    const rackName = makeRect(240, 100, 200, 30); // bottom = 270
-    const bar: Size = { width: 180, height: 36 };
-    const result = computeVerbBarPosition(input({ target, rackName, bar }));
-    expect(result.placement).toBe("below");
-    expect(result.visible).toBe(true);
-  });
-
-  it("sets top to target.bottom + VERB_BAR_MARGIN when flipped below", () => {
-    const target = makeRect(300, 200, 120, 24);
-    const rackName = makeRect(240, 100, 200, 30); // bottom = 270
-    const bar: Size = { width: 180, height: 36 };
-    const result = computeVerbBarPosition(input({ target, rackName, bar }));
-    expect(result.top).toBe(target.bottom + VERB_BAR_MARGIN);
-  });
-
-  it("does not flip when rack name bottom is at or below the above placement top", () => {
-    // target at y=300; bar height=36; aboveTop = 256
-    // rackName bottom at 256: NOT less than 256, so no flip
-    const target = makeRect(300, 200, 120, 24);
-    const rackName = makeRect(226, 100, 200, 30); // bottom = 256
-    const bar: Size = { width: 180, height: 36 };
-    const result = computeVerbBarPosition(input({ target, rackName, bar }));
-    expect(result.placement).toBe("above");
-  });
-});
-
-describe("computeVerbBarPosition - flip below due to viewport top", () => {
-  it("flips below when target is near the top of the viewport", () => {
-    // target at y=20; bar height=36; aboveTop = 20 - 8 - 36 = -24 < 8 (MARGIN)
+describe("computeVerbBarPosition - always above near viewport top", () => {
+  it("stays above for the topmost target near the top of the viewport", () => {
+    // target at y=20; bar height=36; aboveTop = 20 - 8 - 36 = -24.
+    // The bar may sit partly off-screen or overlap the rack name label,
+    // but it never flips below the target.
     const target = makeRect(20, 200, 120, 24);
     const bar: Size = { width: 180, height: 36 };
     const result = computeVerbBarPosition(input({ target, bar }));
-    expect(result.placement).toBe("below");
+    expect(result.placement).toBe("above");
     expect(result.visible).toBe(true);
   });
 
-  it("does not flip when aboveTop exactly equals VERB_BAR_MARGIN", () => {
-    // aboveTop = target.top - 8 - 36 = target.top - 44
-    // aboveTop === 8 when target.top === 52
-    const target = makeRect(52, 200, 120, 24);
+  it("keeps top at aboveTop for the topmost target", () => {
+    const target = makeRect(20, 200, 120, 24);
     const bar: Size = { width: 180, height: 36 };
     const result = computeVerbBarPosition(input({ target, bar }));
-    // aboveTop === VERB_BAR_MARGIN (not less than), so stays above
-    expect(result.placement).toBe("above");
+    expect(result.top).toBe(target.top - VERB_BAR_MARGIN - bar.height);
   });
 });
 

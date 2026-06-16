@@ -365,6 +365,7 @@
   --bottom-nav-bg: rgba(33, 34, 44, 0.85);
   --bottom-nav-border: rgba(52, 55, 70, 0.6);
   --bottom-nav-blur: 20px;
+  --verb-bar-bg: rgba(33, 34, 44, 0.95);
   --bottom-nav-active-pill-bg: rgba(139, 233, 253, 0.12);
   --bottom-nav-active-colour: var(--colour-primary);
   --bottom-nav-inactive-colour: var(--colour-text-muted);
@@ -600,6 +601,7 @@
   --bottom-nav-bg: rgba(239, 237, 220, 0.85);
   --bottom-nav-border: rgba(222, 220, 207, 0.6);
   --bottom-nav-active-pill-bg: rgba(3, 106, 150, 0.1);
+  --verb-bar-bg: rgba(239, 237, 220, 0.95);
 
   --colour-error-hover: #b33030;
 

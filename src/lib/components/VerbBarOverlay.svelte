@@ -100,34 +100,23 @@
     }
   }
 
-  /** Resolve the DOM node to point at, plus the rack name to avoid (device bars). */
-  function findTarget(): { target: Element | null; rackName: Element | null } {
-    if (!canvasEl) return { target: null, rackName: null };
+  /** Resolve the DOM node the bar points at. */
+  function findTarget(): Element | null {
+    if (!canvasEl) return null;
 
     if (selection.isDeviceSelected && selection.selectedDeviceId) {
-      const target = canvasEl.querySelector(
+      return canvasEl.querySelector(
         `[data-device-uuid="${CSS.escape(selection.selectedDeviceId)}"]`,
       );
-      let rackName: Element | null = null;
-      if (selection.selectedRackId) {
-        const rackEl = canvasEl.querySelector(
-          `[data-rack-id="${CSS.escape(selection.selectedRackId)}"]`,
-        );
-        rackName = rackEl?.querySelector(".rack-dual-view-name") ?? null;
-      }
-      return { target, rackName };
     }
 
     if (selection.isRackSelected && selection.selectedRackId) {
-      return {
-        target: canvasEl.querySelector(
-          `[data-rack-id="${CSS.escape(selection.selectedRackId)}"]`,
-        ),
-        rackName: null,
-      };
+      return canvasEl.querySelector(
+        `[data-rack-id="${CSS.escape(selection.selectedRackId)}"]`,
+      );
     }
 
-    return { target: null, rackName: null };
+    return null;
   }
 
   function hide(): void {
@@ -140,13 +129,12 @@
     // reads while zoomed out (the rAF loop calls this every frame).
     if (canvas.zoom < VERB_BAR_LOW_ZOOM_THRESHOLD) return hide();
 
-    const { target, rackName } = findTarget();
+    const target = findTarget();
     if (!target) return hide();
 
     const barRect = barEl.getBoundingClientRect();
     const next = computeVerbBarPosition({
       target: target.getBoundingClientRect(),
-      rackName: rackName ? rackName.getBoundingClientRect() : null,
       bar: { width: barRect.width, height: barRect.height },
       viewport: { width: window.innerWidth, height: window.innerHeight },
       scale: canvas.zoom,
@@ -155,8 +143,7 @@
     if (
       next.visible !== pos.visible ||
       next.left !== pos.left ||
-      next.top !== pos.top ||
-      next.placement !== pos.placement
+      next.top !== pos.top
     ) {
       pos = next;
     }
