@@ -349,7 +349,6 @@
       setContainerHoverInfo: (i) => {
         containerHoverInfo = i;
       },
-      clearDraggingIndex: () => {},
       onDragFinished: setDragFinished,
       layoutStore,
       toastStore,
