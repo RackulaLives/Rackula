@@ -15,10 +15,12 @@
   import AppMenu from "./AppMenu.svelte";
   import StorageStatusChip from "./StorageStatusChip.svelte";
   import type { ActionId } from "$lib/actions/registry";
-  import { IconGearBold } from "./icons";
+  import { IconGearBold, IconSearch } from "./icons";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { formatShortcut } from "$lib/utils/platform";
+  import { dialogStore } from "$lib/stores/dialogs.svelte";
 
   interface Props {
     hasRacks?: boolean;
@@ -56,6 +58,7 @@
 
   const layoutStore = getLayoutStore();
   const viewportStore = getViewportStore();
+  const paletteShortcut = formatShortcut("mod", "K");
 
   // Inline layout name editing state
   let isEditingName = $state(false);
@@ -137,9 +140,25 @@
 </script>
 
 <header class="toolbar">
-  <!-- Left: Logo (also the app menu) -->
+  <!-- Left: Logo (also the app menu) + command palette pill -->
   <div class="toolbar-section toolbar-left">
     <AppMenu onaction={handleAppMenuAction} {hasRacks} {partyMode} />
+    <button
+      class="command-pill"
+      class:command-pill--icon={viewportStore.isMobile}
+      type="button"
+      aria-label="Search or jump to a command"
+      onclick={() => dialogStore.open("commandPalette")}
+      data-testid="btn-command-palette"
+    >
+      <span class="command-pill-icon" aria-hidden="true"
+        ><IconSearch size={ICON_SIZE.sm} /></span
+      >
+      {#if !viewportStore.isMobile}
+        <span class="command-pill-text">Search or jump to...</span>
+        <span class="command-pill-badge">{paletteShortcut}</span>
+      {/if}
+    </button>
   </div>
 
   <!-- Layout name (desktop only) -->
@@ -422,5 +441,61 @@
   .toolbar-mobile-action-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  .command-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 32px;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+    color: var(--colour-text-muted);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
+
+  .command-pill:hover {
+    border-color: var(--colour-selection);
+    color: var(--colour-text);
+  }
+
+  .command-pill:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--colour-bg),
+      0 0 0 4px var(--colour-focus-ring);
+  }
+
+  .command-pill--icon {
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+    min-width: var(--touch-target-min);
+    padding: 0;
+    justify-content: center;
+  }
+
+  .command-pill-badge {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-xs);
+    padding: 1px var(--space-1);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+  }
+
+  .command-pill-icon :global(svg) {
+    width: var(--icon-size-sm);
+    height: var(--icon-size-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .command-pill {
+      transition: none;
+    }
   }
 </style>

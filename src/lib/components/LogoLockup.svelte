@@ -21,6 +21,7 @@
     celebrate?: boolean;
     partyMode?: boolean;
     showcase?: boolean;
+    showText?: boolean;
   }
 
   let {
@@ -28,6 +29,7 @@
     celebrate = false,
     partyMode = false,
     showcase = false,
+    showText = true,
   }: Props = $props();
 
   // Christmas easter egg - only show on December 25
@@ -228,31 +230,36 @@
 
   <!-- Title (SVG text for gradient support) - Space Grotesk -->
   <!-- DRackula: adds red "D" prefix on dev/local environments -->
-  <svg
-    class="logo-title"
-    class:logo-title--celebrate={celebrate}
-    class:logo-title--party={partyMode}
-    class:logo-title--showcase={showcase}
-    class:logo-title--hover={hovering && !partyMode && !celebrate && !showcase}
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 {showEnvPrefix ? 180 : 160} 50"
-    height={titleHeight}
-    role="img"
-    aria-label={showEnvPrefix
-      ? "DRackula - development environment"
-      : "Rackula"}
-  >
-    {#if activeGradient}
-      {@render activeGradientDef(
-        activeGradient,
-        titleGradientIds[activeGradient],
-      )}
-    {/if}
-    <text x="0" y="38" fill={titleGradientUrl}
-      >{#if showEnvPrefix}<tspan class="env-prefix" font-size="44">D</tspan
-        >{/if}<tspan>Rackula</tspan></text
+  {#if showText}
+    <svg
+      class="logo-title"
+      class:logo-title--celebrate={celebrate}
+      class:logo-title--party={partyMode}
+      class:logo-title--showcase={showcase}
+      class:logo-title--hover={hovering &&
+        !partyMode &&
+        !celebrate &&
+        !showcase}
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 {showEnvPrefix ? 180 : 160} 50"
+      height={titleHeight}
+      role="img"
+      aria-label={showEnvPrefix
+        ? "DRackula - development environment"
+        : "Rackula"}
     >
-  </svg>
+      {#if activeGradient}
+        {@render activeGradientDef(
+          activeGradient,
+          titleGradientIds[activeGradient],
+        )}
+      {/if}
+      <text x="0" y="38" fill={titleGradientUrl}
+        >{#if showEnvPrefix}<tspan class="env-prefix" font-size="44">D</tspan
+          >{/if}<tspan>Rackula</tspan></text
+      >
+    </svg>
+  {/if}
 </div>
 
 <style>
@@ -394,11 +401,6 @@
     .logo-title {
       display: none;
     }
-  }
-
-  /* Always show Rackula text when the logo is the toolbar app-menu trigger */
-  :global(.app-menu-trigger) .logo-title {
-    display: block !important;
   }
 
   /* Wobble keyframe for party mode */

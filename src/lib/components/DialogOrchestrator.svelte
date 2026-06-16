@@ -25,6 +25,7 @@
   import MobileViewSheet from "$lib/components/mobile/MobileViewSheet.svelte";
   import DevicePalette from "$lib/components/DevicePalette.svelte";
   import LoadDialog from "$lib/components/LoadDialog.svelte";
+  import CommandPalette from "$lib/components/CommandPalette.svelte";
 
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
@@ -740,6 +741,8 @@
 <CleanupDialog open={cleanupDialogOpen} onclose={handleCleanupDialogClose} />
 
 <LoadDialog />
+
+<CommandPalette />
 
 <!-- Mobile bottom navigation bar -->
 <MobileBottomNav

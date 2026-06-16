@@ -14,7 +14,7 @@ describe("Setup", () => {
 
   it("can render Svelte component", async () => {
     render(App);
-    // 'Rackula' text appears in toolbar
-    expect(screen.getAllByText("Rackula").length).toBeGreaterThan(0);
+    // App menu button is always present in the toolbar
+    expect(screen.getByTestId("btn-app-menu")).toBeTruthy();
   }, 60000); // App component is slow to render due to complex component tree
 });

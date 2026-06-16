@@ -68,7 +68,7 @@
         aria-label="App menu"
         data-testid="btn-app-menu"
       >
-        <LogoLockup size={32} {partyMode} />
+        <LogoLockup size={32} {partyMode} showText={false} />
       </button>
     {/snippet}
   </DropdownMenu.Trigger>
