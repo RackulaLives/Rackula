@@ -77,6 +77,15 @@ function isIncluded(
   return true;
 }
 
+function toPaletteCommand(action: ActionDefinition): PaletteCommand {
+  return {
+    id: action.id,
+    label: action.label,
+    shortcut: shortcutOf(action),
+    keywords: action.keywords ?? [],
+  };
+}
+
 /** Build the grouped, context-gated palette command list. */
 export function getPaletteCommands(
   ctx: ActionEnabledContext,
@@ -85,12 +94,7 @@ export function getPaletteCommands(
   for (const action of ACTION_REGISTRY) {
     if (!isIncluded(action, ctx)) continue;
     const group = groupOf(action);
-    const command: PaletteCommand = {
-      id: action.id,
-      label: action.label,
-      shortcut: shortcutOf(action),
-      keywords: action.keywords ?? [],
-    };
+    const command = toPaletteCommand(action);
     const existing = buckets.get(group);
     if (existing) existing.push(command);
     else buckets.set(group, [command]);
@@ -101,4 +105,48 @@ export function getPaletteCommands(
     if (commands && commands.length > 0) groups.push({ heading, commands });
   }
   return groups;
+}
+
+export interface PaletteEmptyState {
+  recent: PaletteCommand[];
+  selection: PaletteCommand[];
+  commands: PaletteCommandGroup[];
+}
+
+/**
+ * Project the palette empty state (before typing): Recent, the current
+ * selection's verbs, then a short grouped command list. Never blank: the
+ * grouped list always carries the remaining included commands even when recent
+ * and selection are empty. Pure and unit-testable (#2214 extends this).
+ */
+export function getPaletteEmptyState(
+  ctx: ActionEnabledContext,
+  recentIds: ActionId[],
+): PaletteEmptyState {
+  const recent: PaletteCommand[] = [];
+  for (const id of recentIds) {
+    const action = ACTION_REGISTRY.find((a) => a.id === id);
+    if (!action || !isIncluded(action, ctx)) continue;
+    recent.push(toPaletteCommand(action));
+  }
+
+  const selection: PaletteCommand[] = [];
+  for (const action of ACTION_REGISTRY) {
+    if (action.scope !== "selection") continue;
+    if (!isIncluded(action, ctx)) continue;
+    selection.push(toPaletteCommand(action));
+  }
+
+  const shown = new Set<ActionId>([
+    ...recent.map((c) => c.id),
+    ...selection.map((c) => c.id),
+  ]);
+  const commands = getPaletteCommands(ctx)
+    .map((group) => ({
+      heading: group.heading,
+      commands: group.commands.filter((c) => !shown.has(c.id)),
+    }))
+    .filter((group) => group.commands.length > 0);
+
+  return { recent, selection, commands };
 }
