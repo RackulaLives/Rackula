@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
 	getCanvasStore,
 	resetCanvasStore,
+	snapZoom,
 	ZOOM_MIN,
-	ZOOM_MAX,
-	ZOOM_STEP
+	ZOOM_MAX
 } from '$lib/stores/canvas.svelte';
 import { createMockPanzoom } from './mocks/panzoom';
 
@@ -83,6 +83,48 @@ describe('Canvas Store', () => {
 		});
 	});
 
+	describe('snapZoom', () => {
+		it('snaps out from an off-ladder value to the rung below', () => {
+			expect(snapZoom(1.18, 'out')).toBe(1.0);
+		});
+
+		it('snaps in from an off-ladder value to the rung above', () => {
+			expect(snapZoom(1.18, 'in')).toBe(1.25);
+		});
+
+		it('advances one rung when out from a value on the ladder', () => {
+			expect(snapZoom(1.0, 'out')).toBe(0.75);
+		});
+
+		it('advances one rung when in from a value on the ladder', () => {
+			expect(snapZoom(1.0, 'in')).toBe(1.25);
+		});
+
+		it('stays at ZOOM_MIN when stepping out from the minimum', () => {
+			expect(snapZoom(ZOOM_MIN, 'out')).toBe(ZOOM_MIN);
+		});
+
+		it('stays at ZOOM_MAX when stepping in from the maximum', () => {
+			expect(snapZoom(ZOOM_MAX, 'in')).toBe(ZOOM_MAX);
+		});
+
+		it('clamps a below-minimum value to ZOOM_MIN when stepping out', () => {
+			expect(snapZoom(ZOOM_MIN - 0.1, 'out')).toBe(ZOOM_MIN);
+		});
+
+		it('clamps an above-maximum value to ZOOM_MAX when stepping in', () => {
+			expect(snapZoom(ZOOM_MAX + 0.1, 'in')).toBe(ZOOM_MAX);
+		});
+
+		it('steps in toward the maximum from just below it', () => {
+			expect(snapZoom(1.9, 'in')).toBe(ZOOM_MAX);
+		});
+
+		it('steps out toward the minimum from just above it', () => {
+			expect(snapZoom(0.3, 'out')).toBe(ZOOM_MIN);
+		});
+	});
+
 	describe('zoomIn', () => {
 		it('does nothing without panzoom instance', () => {
 			const store = getCanvasStore();
@@ -93,14 +135,24 @@ describe('Canvas Store', () => {
 			expect(store.zoom).toBe(initialZoom);
 		});
 
-		it('increases zoom by ZOOM_STEP', () => {
+		it('snaps up to the next ladder rung', () => {
 			const store = getCanvasStore();
 			const mockPanzoom = createMockPanzoom(1);
 
 			store.setPanzoomInstance(mockPanzoom as ReturnType<typeof import('panzoom').default>);
 			store.zoomIn();
 
-			expect(mockPanzoom.zoomAbs).toHaveBeenCalledWith(0, 0, 1 + ZOOM_STEP);
+			expect(mockPanzoom.zoomAbs).toHaveBeenCalledWith(0, 0, 1.25);
+		});
+
+		it('snaps up to the nearest ladder rung from an off-ladder value', () => {
+			const store = getCanvasStore();
+			const mockPanzoom = createMockPanzoom(1.18);
+
+			store.setPanzoomInstance(mockPanzoom as ReturnType<typeof import('panzoom').default>);
+			store.zoomIn();
+
+			expect(mockPanzoom.zoomAbs).toHaveBeenCalledWith(0, 0, 1.25);
 		});
 
 		it('does not exceed ZOOM_MAX', () => {
@@ -134,14 +186,24 @@ describe('Canvas Store', () => {
 			expect(store.zoom).toBe(initialZoom);
 		});
 
-		it('decreases zoom by ZOOM_STEP', () => {
+		it('snaps down to the next ladder rung', () => {
 			const store = getCanvasStore();
 			const mockPanzoom = createMockPanzoom(1);
 
 			store.setPanzoomInstance(mockPanzoom as ReturnType<typeof import('panzoom').default>);
 			store.zoomOut();
 
-			expect(mockPanzoom.zoomAbs).toHaveBeenCalledWith(0, 0, 1 - ZOOM_STEP);
+			expect(mockPanzoom.zoomAbs).toHaveBeenCalledWith(0, 0, 0.75);
+		});
+
+		it('snaps down to the nearest ladder rung from an off-ladder value', () => {
+			const store = getCanvasStore();
+			const mockPanzoom = createMockPanzoom(1.18);
+
+			store.setPanzoomInstance(mockPanzoom as ReturnType<typeof import('panzoom').default>);
+			store.zoomOut();
+
+			expect(mockPanzoom.zoomAbs).toHaveBeenCalledWith(0, 0, 1.0);
 		});
 
 		it('does not go below ZOOM_MIN', () => {

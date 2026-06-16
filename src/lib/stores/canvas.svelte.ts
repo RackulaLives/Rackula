@@ -30,7 +30,24 @@ import {
 // Panzoom constants
 export const ZOOM_MIN = 0.25; // 25% - allows fitting 6+ large racks
 export const ZOOM_MAX = 2; // 200%
-export const ZOOM_STEP = 0.25; // 25%
+
+// Round zoom levels the in/out buttons snap to, ascending from ZOOM_MIN to ZOOM_MAX
+const ZOOM_LADDER = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+
+/**
+ * Snap a zoom level to the next rung on the ladder in the given direction.
+ * Stepping "in" returns the smallest rung strictly greater than current;
+ * stepping "out" returns the largest rung strictly less than current.
+ * On-rung values advance one rung. The result is clamped to ZOOM_MIN/ZOOM_MAX.
+ */
+export function snapZoom(current: number, direction: "in" | "out"): number {
+  if (direction === "in") {
+    const next = ZOOM_LADDER.find((rung) => rung > current);
+    return next ?? ZOOM_MAX;
+  }
+  const prev = [...ZOOM_LADDER].reverse().find((rung) => rung < current);
+  return prev ?? ZOOM_MIN;
+}
 
 const VIEWPORT_KEY = "Rackula:viewport";
 
@@ -220,12 +237,12 @@ function disposePanzoom(): void {
 }
 
 /**
- * Zoom in by one step
+ * Zoom in to the next ladder rung
  */
 function zoomIn(): void {
   if (!panzoomInstance || currentZoom >= ZOOM_MAX) return;
 
-  const newZoom = Math.min(currentZoom + ZOOM_STEP, ZOOM_MAX);
+  const newZoom = snapZoom(currentZoom, "in");
   const transform = panzoomInstance.getTransform();
 
   // Zoom centered on current view
@@ -233,12 +250,12 @@ function zoomIn(): void {
 }
 
 /**
- * Zoom out by one step
+ * Zoom out to the next ladder rung
  */
 function zoomOut(): void {
   if (!panzoomInstance || currentZoom <= ZOOM_MIN) return;
 
-  const newZoom = Math.max(currentZoom - ZOOM_STEP, ZOOM_MIN);
+  const newZoom = snapZoom(currentZoom, "out");
   const transform = panzoomInstance.getTransform();
 
   panzoomInstance.zoomAbs(transform.x, transform.y, newZoom);
