@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
-    "better-auth": "^1.6.18",
+    "better-auth": "^1.6.19",
     "hono": "^4.12.25",
     "js-yaml": "^4.2.0",
     "pino": "^10.3.1",
