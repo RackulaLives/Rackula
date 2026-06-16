@@ -23,7 +23,8 @@ export type DialogId =
   | "cleanupDialog"
   | "cleanupPrompt"
   | "yamlEditor"
-  | "load";
+  | "load"
+  | "commandPalette";
 
 export type SheetId =
   | "deviceDetails"
