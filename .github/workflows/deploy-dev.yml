@@ -186,6 +186,18 @@ jobs:
           curl -sf --retry 5 --retry-delay 3 https://d.racku.la
           curl -sf --retry 5 --retry-delay 3 https://d.racku.la/api/layouts
 
+      # The vps-rackula runner is not ephemeral: it reuses _work across jobs, and
+      # a prior sparse checkout can leave an index that makes actions/checkout's
+      # clean skip restoring package-lock.json. setup-node with cache: "npm" then
+      # hard-errors ("Dependencies lock file is not found", #2327). Wipe the
+      # workspace first so the checkout below starts from a clean slate. Mirrors
+      # the e2e (self-hosted full suite) job in test.yml.
+      - name: Clean self-hosted workspace
+        run: |
+          if [ -n "$GITHUB_WORKSPACE" ] && [ -d "$GITHUB_WORKSPACE" ]; then
+            find "$GITHUB_WORKSPACE" -mindepth 1 -delete
+          fi
+
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
