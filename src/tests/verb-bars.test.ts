@@ -13,7 +13,7 @@ import type { ActionEnabledContext } from "$lib/actions/registry";
  * (which TypeScript validates).
  */
 
-/** A fully-capable context with device selected. */
+/** A fully-capable context with device selected (not a carrier child). */
 const deviceCtx: ActionEnabledContext = {
   hasSelection: true,
   isDeviceSelected: true,
@@ -22,6 +22,7 @@ const deviceCtx: ActionEnabledContext = {
   canRedo: false,
   hasRacks: true,
   mode: "browser",
+  canMoveDeviceSlot: false,
 };
 
 /** A fully-capable context with rack selected. */
@@ -33,6 +34,7 @@ const rackCtx: ActionEnabledContext = {
   canRedo: false,
   hasRacks: true,
   mode: "browser",
+  canMoveDeviceSlot: false,
 };
 
 /** No selection. */
@@ -44,6 +46,7 @@ const emptyCtx: ActionEnabledContext = {
   canRedo: false,
   hasRacks: true,
   mode: "browser",
+  canMoveDeviceSlot: false,
 };
 
 describe("verb-bars projection", () => {
@@ -52,6 +55,7 @@ describe("verb-bars projection", () => {
       expect(DEVICE_VERB_IDS).toEqual([
         "move-device-up",
         "move-device-down",
+        "move-device-slot",
         "flip-device-face",
         "duplicate-selection",
         "delete-selection",
@@ -71,9 +75,35 @@ describe("verb-bars projection", () => {
   });
 
   describe("getVerbsForSelection - device context", () => {
-    it("returns device verbs in order when a device is selected", () => {
+    it("returns device verbs in declared order, gating the slot verb out for a non-child device", () => {
+      // canMoveDeviceSlot is false for a normal device, so move-device-slot is
+      // filtered; the rest keep their declared order.
       const result = getVerbsForSelection(deviceCtx);
-      expect(result.map((a) => a.id)).toEqual(DEVICE_VERB_IDS);
+      expect(result.map((a) => a.id)).toEqual([
+        "move-device-up",
+        "move-device-down",
+        "flip-device-face",
+        "duplicate-selection",
+        "delete-selection",
+      ]);
+    });
+
+    it("includes the slot verb only when the selected device can change cells", () => {
+      const childCtx = { ...deviceCtx, canMoveDeviceSlot: true };
+      const ids = getVerbsForSelection(childCtx).map((a) => a.id);
+      expect(ids).toContain("move-device-slot");
+      // It sits between the up/down nudges and the face flip.
+      expect(ids.indexOf("move-device-slot")).toBeGreaterThan(
+        ids.indexOf("move-device-down"),
+      );
+      expect(ids.indexOf("move-device-slot")).toBeLessThan(
+        ids.indexOf("flip-device-face"),
+      );
+    });
+
+    it("hides the slot verb when the device cannot change cells", () => {
+      const ids = getVerbsForSelection(deviceCtx).map((a) => a.id);
+      expect(ids).not.toContain("move-device-slot");
     });
 
     it("excludes rack-only verbs (focus-rack, export-rack) from device results", () => {
@@ -108,14 +138,21 @@ describe("verb-bars projection", () => {
   });
 
   describe("getVerbsForSelection - device takes precedence", () => {
-    it("returns device verbs when both device and rack are flagged selected", () => {
+    it("returns the device list (not the rack list) when both are flagged selected", () => {
       const bothCtx: ActionEnabledContext = {
         ...deviceCtx,
         isRackSelected: true,
       };
-      expect(getVerbsForSelection(bothCtx).map((a) => a.id)).toEqual(
-        DEVICE_VERB_IDS,
-      );
+      const ids = getVerbsForSelection(bothCtx).map((a) => a.id);
+      // Device verbs win over rack verbs; the slot verb stays gated off here.
+      expect(ids).toEqual([
+        "move-device-up",
+        "move-device-down",
+        "flip-device-face",
+        "duplicate-selection",
+        "delete-selection",
+      ]);
+      expect(ids).not.toContain("focus-rack");
     });
   });
 

@@ -22,6 +22,8 @@
   import {
     moveSelectedDeviceUp,
     moveSelectedDeviceDown,
+    moveSelectedDeviceToSlot,
+    canMoveSelectedDeviceSlot,
     flipSelectedDeviceFace,
     duplicateSelection,
   } from "$lib/actions/selection-actions";
@@ -55,6 +57,7 @@
     canRedo: layout.canRedo,
     hasRacks: layout.rackCount > 0,
     mode: getStorageMode(),
+    canMoveDeviceSlot: canMoveSelectedDeviceSlot(),
   });
 
   const verbs = $derived(
@@ -80,6 +83,9 @@
         break;
       case "move-device-down":
         moveSelectedDeviceDown();
+        break;
+      case "move-device-slot":
+        moveSelectedDeviceToSlot();
         break;
       case "flip-device-face":
         flipSelectedDeviceFace();

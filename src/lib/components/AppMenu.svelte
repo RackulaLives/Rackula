@@ -46,6 +46,7 @@
     canRedo: false,
     hasRacks,
     mode,
+    canMoveDeviceSlot: false,
   });
 
   const sections = $derived(getAppMenuSections(mode, enableContext));

@@ -24,6 +24,7 @@ import { dialogStore } from "$lib/stores/dialogs.svelte";
 import {
   moveSelectedDeviceUp,
   moveSelectedDeviceDown,
+  moveSelectedDeviceToSlot,
   duplicateSelection,
   flipSelectedDeviceFace,
 } from "$lib/actions/selection-actions";
@@ -166,6 +167,7 @@ export function createActionDispatch(): ActionDispatch {
     "delete-selection": handleDelete,
     "move-device-up": moveSelectedDeviceUp,
     "move-device-down": moveSelectedDeviceDown,
+    "move-device-slot": moveSelectedDeviceToSlot,
     "duplicate-selection": duplicateSelection,
     "flip-device-face": flipSelectedDeviceFace,
     // rack-actions take string[] not string; wrap selectedRackId in array

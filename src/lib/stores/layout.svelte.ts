@@ -118,6 +118,7 @@ import {
   placeInContainer as placeInContainerImpl,
   placeDeviceSmart as placeDeviceSmartImpl,
   moveDeviceToRack as moveDeviceToRackImpl,
+  moveDeviceToSlot as moveDeviceToSlotImpl,
 } from "./layout/device-actions";
 
 export { type BackupState, HAS_STARTED_KEY };
@@ -318,6 +319,7 @@ export function createLayoutStore(
     placeDeviceSmart,
     moveDevice,
     moveDeviceToRack,
+    moveDeviceToSlot,
     removeDeviceFromRack,
     updateDeviceFace,
     updateDeviceName,
@@ -701,6 +703,14 @@ export function createLayoutStore(
       face,
       (device) => $state.snapshot(device),
     );
+  }
+
+  /**
+   * Move a contained child to the next free cell of its own carrier.
+   * Cycles through cells without ejecting the child (#2322).
+   */
+  function moveDeviceToSlot(rackId: string, deviceIndex: number): boolean {
+    return moveDeviceToSlotImpl(stateAccess, rackId, deviceIndex);
   }
 
   /**

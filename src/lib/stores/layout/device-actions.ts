@@ -17,6 +17,7 @@ import {
   canPlaceInSlot,
   findValidDropPositions,
   findNextFreeChildPosition,
+  findNextSlotForChild,
   requiresCarrier,
   synthesizeCarrierForDevice,
 } from "$lib/utils/collision";
@@ -30,6 +31,7 @@ import {
   createAddDeviceTypeCommand,
   createBatchCommand,
   createCrossRackMoveCommand,
+  createMoveToSlotCommand,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
 import { getCommandStoreAdapter } from "./command-adapters";
@@ -242,6 +244,75 @@ export function placeInContainer(
 }
 
 /**
+ * Move a contained child to the next free, fitting cell of its own carrier.
+ *
+ * Cycles the child through the carrier's cells (wrapping around) without ever
+ * detaching it: container_id is preserved and only slot_id changes, so the
+ * contained-device guard (#2146) holds by construction. No-op (returns false)
+ * when the device is not a carrier child or the carrier has no other reachable
+ * cell.
+ *
+ * @param ctx - Layout state access
+ * @param rackId - Rack containing the child and its carrier
+ * @param deviceIndex - Index of the child in the rack's devices array
+ * @returns true if the child moved to a new cell
+ */
+export function moveDeviceToSlot(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  deviceIndex: number,
+): boolean {
+  const targetRack = getRackById(ctx, rackId);
+  if (!targetRack) return false;
+  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return false;
+
+  const child = targetRack.devices[deviceIndex]!;
+  if (!child.container_id || !child.slot_id) return false;
+
+  const layout = ctx.getLayout();
+  const childType = findDeviceType(child.device_type, layout.device_types);
+  if (!childType) return false;
+
+  const container = targetRack.devices.find((d) => d.id === child.container_id);
+  if (!container) return false;
+  const containerType = findDeviceType(
+    container.device_type,
+    layout.device_types,
+  );
+  if (!containerType) return false;
+
+  const siblings = targetRack.devices.filter(
+    (d) => d.container_id === container.id && d.id !== child.id,
+  );
+
+  const next = findNextSlotForChild(
+    containerType,
+    childType,
+    child.slot_id,
+    siblings,
+  );
+  if (!next) return false;
+
+  ctx.setActiveRackId(rackId);
+  const history = ctx.getHistory();
+  const adapter = getCommandStoreAdapter(ctx);
+  const deviceName = childType.model ?? childType.slug;
+
+  history.execute(
+    createMoveToSlotCommand(
+      deviceIndex,
+      container.id,
+      child.slot_id,
+      next.slotId,
+      adapter,
+      deviceName,
+    ),
+  );
+  ctx.markDirty();
+  return true;
+}
+
+/**
  * Place a device carrier-first.
  *
  * Half-width gear cannot register to the rails directly. This flow:
@@ -373,7 +444,9 @@ export function placeDeviceSmart(
   const commands = [];
 
   // Auto-import the carrier and child types if not already in the layout.
-  const carrierImport = !layout.device_types.find((dt) => dt.slug === carrierSlug)
+  const carrierImport = !layout.device_types.find(
+    (dt) => dt.slug === carrierSlug,
+  )
     ? createAddDeviceTypeCommand(carrierType, adapter)
     : undefined;
   if (carrierImport) commands.push(carrierImport);

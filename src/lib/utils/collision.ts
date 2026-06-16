@@ -262,7 +262,14 @@ export function findValidDropPositions(
 
   for (let position = UNITS_PER_U; position <= maxPosition; position++) {
     if (
-      canPlaceDevice(rack, deviceLibrary, deviceHeight, position, undefined, targetFace)
+      canPlaceDevice(
+        rack,
+        deviceLibrary,
+        deviceHeight,
+        position,
+        undefined,
+        targetFace,
+      )
     ) {
       validPositions.push(position);
     }
@@ -453,6 +460,49 @@ export function findNextFreeChildPosition(
     if (!occupied.has(slot.id)) {
       return { slotId: slot.id, position: 0 };
     }
+  }
+
+  return null;
+}
+
+/**
+ * The next cell a contained child can move to within its own carrier, scanning
+ * forward from the child's current slot and wrapping around. Skips cells the
+ * child does not fit (width/height/category) and cells already taken by a
+ * sibling. Returns null when no other reachable cell exists, so the caller can
+ * hide the control rather than run a no-op.
+ *
+ * The child stays inside the same carrier (container_id is unchanged): this is
+ * a cell shuffle, never an eject, so the contained-device guard (#2146) is
+ * honoured by construction. Each cell holds one child, so position is always 0.
+ *
+ * @param containerType - The carrier DeviceType (with slots[])
+ * @param childType - The DeviceType of the contained child
+ * @param currentSlotId - The slot the child currently occupies
+ * @param siblings - Other children already in this carrier (excluding the child)
+ * @returns The next free, fitting { slotId } or null when none is reachable
+ */
+export function findNextSlotForChild(
+  containerType: DeviceType,
+  childType: DeviceType,
+  currentSlotId: string,
+  siblings: PlacedDevice[],
+): { slotId: string } | null {
+  const slots = containerType.slots ?? [];
+  const currentIndex = slots.findIndex((s) => s.id === currentSlotId);
+  if (currentIndex === -1) return null;
+
+  const occupied = new Set(
+    siblings.map((s) => s.slot_id).filter((id): id is string => !!id),
+  );
+
+  // Scan forward from the slot after the current one, wrapping around. The
+  // current slot is excluded (it is the cell the child already sits in).
+  for (let offset = 1; offset < slots.length; offset++) {
+    const slot = slots[(currentIndex + offset) % slots.length]!;
+    if (occupied.has(slot.id)) continue;
+    if (!canPlaceInSlot(childType, slot)) continue;
+    return { slotId: slot.id };
   }
 
   return null;

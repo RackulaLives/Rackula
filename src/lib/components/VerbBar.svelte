@@ -19,6 +19,7 @@
   import {
     IconChevronUp,
     IconChevronDown,
+    IconChevronRight,
     IconCopy,
     IconDownloadBold,
     IconFitAllBold,
@@ -42,6 +43,7 @@
   const iconForVerb: Partial<Record<ActionId, Component<{ size?: number }>>> = {
     "move-device-up": IconChevronUp,
     "move-device-down": IconChevronDown,
+    "move-device-slot": IconChevronRight,
     "flip-device-face": IconFlip,
     "duplicate-selection": IconCopy,
     "delete-selection": IconTrash,

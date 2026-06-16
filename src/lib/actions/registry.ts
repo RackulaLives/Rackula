@@ -47,6 +47,7 @@ export type ActionId =
   | "toggle-sidebar"
   | "move-device-up"
   | "move-device-down"
+  | "move-device-slot"
   | "flip-device-face"
   | "focus-rack"
   | "export-rack"
@@ -132,6 +133,12 @@ export interface ActionEnabledContext {
   hasRacks: boolean;
   /** The active storage mode, for mode-aware app-menu items. */
   mode: StorageMode;
+  /**
+   * Whether the selected device is a half-width child whose carrier has more
+   * than one cell it could occupy, so the slot control can shuffle it between
+   * cells. False for full-width devices and single-cell carriers (#2322).
+   */
+  canMoveDeviceSlot: boolean;
 }
 
 /**
@@ -247,6 +254,14 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [{ key: "ArrowDown" }],
     enabledWhen: (ctx) => ctx.isDeviceSelected,
     keywords: ["nudge", "down"],
+  },
+  {
+    id: "move-device-slot",
+    label: "Move to next cell",
+    scope: "selection",
+    bindings: [],
+    enabledWhen: (ctx) => ctx.canMoveDeviceSlot,
+    keywords: ["cell", "carrier", "slot", "shuffle"],
   },
   {
     id: "duplicate-selection",

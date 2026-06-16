@@ -106,7 +106,9 @@ export function createRemoveDeviceCommand(
   // Snapshot placement images before removal for undo restoration
   const imageStore = getImageStore();
   let currentImageId = device.id;
-  const imageSnapshot = imageStore.getAllImages().get(placementKey(layoutId, currentImageId));
+  const imageSnapshot = imageStore
+    .getAllImages()
+    .get(placementKey(layoutId, currentImageId));
   const snapshotCopy = imageSnapshot
     ? structuredClone(imageSnapshot)
     : undefined;
@@ -117,7 +119,9 @@ export function createRemoveDeviceCommand(
     timestamp: Date.now(),
     execute() {
       // Clean up placement images using current ID (may differ from original after undo remap)
-      getImageStore().removeAllDeviceImages(placementKey(layoutId, currentImageId));
+      getImageStore().removeAllDeviceImages(
+        placementKey(layoutId, currentImageId),
+      );
       store.removeDeviceAtIndexRaw(index);
     },
     undo() {
@@ -258,6 +262,32 @@ export function createDetachContainerCommand(
 }
 
 /**
+ * Create a command to move a contained child to a different cell of the same
+ * carrier. Only slot_id changes; container_id is preserved, so the child stays
+ * inside its carrier and is never ejected (contained-device guard, #2146).
+ */
+export function createMoveToSlotCommand(
+  index: number,
+  containerId: string,
+  oldSlotId: string | undefined,
+  newSlotId: string,
+  store: DeviceCommandStore,
+  deviceName: string = "device",
+): Command {
+  return {
+    type: "MOVE_TO_SLOT",
+    description: `Move ${deviceName} to another cell`,
+    timestamp: Date.now(),
+    execute() {
+      store.updateDeviceContainerLinkageRaw(index, containerId, newSlotId);
+    },
+    undo() {
+      store.updateDeviceContainerLinkageRaw(index, containerId, oldSlotId);
+    },
+  };
+}
+
+/**
  * Create a command to update a device's notes
  */
 export function createUpdateDeviceNotesCommand(
@@ -307,7 +337,11 @@ export function createUpdateDeviceIpCommand(
  * Move placement image from one device ID key to another when placeDeviceRaw remaps the ID.
  * No-op if no image exists under the old key.
  */
-function rekeyPlacementImage(oldId: string, newId: string, layoutId: string = ""): void {
+function rekeyPlacementImage(
+  oldId: string,
+  newId: string,
+  layoutId: string = "",
+): void {
   const imgStore = getImageStore();
   const data = imgStore.getAllImages().get(placementKey(layoutId, oldId));
   if (!data) return;

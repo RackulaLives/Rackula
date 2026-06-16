@@ -18,6 +18,7 @@ import {
 export const DEVICE_VERB_IDS: ActionId[] = [
   "move-device-up",
   "move-device-down",
+  "move-device-slot",
   "flip-device-face",
   "duplicate-selection",
   "delete-selection",

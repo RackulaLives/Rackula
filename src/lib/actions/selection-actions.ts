@@ -10,9 +10,14 @@ import { getLayoutStore } from "$lib/stores/layout.svelte";
 import { getSelectionStore } from "$lib/stores/selection.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
 import { findNextValidPosition } from "$lib/utils/device-movement";
-import { canPlaceDevice, isContainerChild } from "$lib/utils/collision";
+import {
+  canPlaceDevice,
+  findNextSlotForChild,
+  isContainerChild,
+} from "$lib/utils/collision";
+import { findDeviceType } from "$lib/utils/device-lookup";
 import { toHumanUnits } from "$lib/utils/position";
-import type { DeviceFace } from "$lib/types";
+import type { DeviceFace, DeviceType, Rack } from "$lib/types";
 
 /**
  * Move the selected device up one valid position in the rack.
@@ -65,6 +70,85 @@ function _moveSelectedDevice(direction: 1 | -1): void {
       humanPosition,
     );
   }
+}
+
+/**
+ * The reachable next cell for a contained child within its own carrier, or null
+ * when the device is not a carrier child or has nowhere else to go. Shared by
+ * the slot verb's run path and its enabled predicate so the control only shows
+ * when activating it would actually move the device.
+ */
+function nextSlotForSelectedDevice(
+  rack: Rack,
+  deviceTypes: DeviceType[],
+  deviceIndex: number,
+): { slotId: string } | null {
+  const child = rack.devices[deviceIndex];
+  if (!child || !child.container_id || !child.slot_id) return null;
+
+  const childType = findDeviceType(child.device_type, deviceTypes);
+  if (!childType) return null;
+
+  const container = rack.devices.find((d) => d.id === child.container_id);
+  if (!container) return null;
+  const containerType = findDeviceType(container.device_type, deviceTypes);
+  if (!containerType) return null;
+
+  const siblings = rack.devices.filter(
+    (d) => d.container_id === container.id && d.id !== child.id,
+  );
+
+  return findNextSlotForChild(
+    containerType,
+    childType,
+    child.slot_id,
+    siblings,
+  );
+}
+
+/**
+ * Whether the selected device is a contained child that can shuffle to another
+ * cell of its carrier. Drives the slot verb's enabledWhen so the control is
+ * hidden for full-width devices and single-cell carriers (#2322).
+ */
+export function canMoveSelectedDeviceSlot(): boolean {
+  const selectionStore = getSelectionStore();
+  const layoutStore = getLayoutStore();
+
+  if (!selectionStore.isDeviceSelected) return false;
+  if (selectionStore.selectedRackId === null) return false;
+
+  const rack = layoutStore.getRackById(selectionStore.selectedRackId);
+  if (!rack) return false;
+
+  const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
+  if (deviceIndex === null) return false;
+
+  return (
+    nextSlotForSelectedDevice(rack, layoutStore.device_types, deviceIndex) !==
+    null
+  );
+}
+
+/**
+ * Move the selected contained child to the next free cell of its carrier.
+ * No-op when no device is selected, the device is not a carrier child, or the
+ * carrier has no other reachable cell.
+ */
+export function moveSelectedDeviceToSlot(): void {
+  const selectionStore = getSelectionStore();
+  const layoutStore = getLayoutStore();
+
+  if (!selectionStore.isDeviceSelected) return;
+  if (selectionStore.selectedRackId === null) return;
+
+  const rack = layoutStore.getRackById(selectionStore.selectedRackId);
+  if (!rack) return;
+
+  const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
+  if (deviceIndex === null) return;
+
+  layoutStore.moveDeviceToSlot(selectionStore.selectedRackId, deviceIndex);
 }
 
 /**

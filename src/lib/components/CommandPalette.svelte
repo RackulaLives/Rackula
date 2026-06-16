@@ -18,6 +18,7 @@
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getStorageMode } from "$lib/storage";
+  import { canMoveSelectedDeviceSlot } from "$lib/actions/selection-actions";
   import { getPaletteCommands } from "$lib/actions/palette-commands";
   import {
     createActionDispatch,
@@ -44,6 +45,7 @@
     canRedo: layoutStore.canRedo,
     hasRacks: layoutStore.hasRack,
     mode: getStorageMode(),
+    canMoveDeviceSlot: canMoveSelectedDeviceSlot(),
   });
 
   const groups = $derived(getPaletteCommands(ctx));
