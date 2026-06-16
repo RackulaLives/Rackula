@@ -18,7 +18,14 @@
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getStorageMode } from "$lib/storage";
-  import { getPaletteCommands } from "$lib/actions/palette-commands";
+  import {
+    getPaletteCommands,
+    getPaletteEmptyState,
+  } from "$lib/actions/palette-commands";
+  import {
+    recordCommand,
+    getRecents,
+  } from "$lib/stores/palette-recents.svelte";
   import {
     createActionDispatch,
     type ActionDispatch,
@@ -47,6 +54,8 @@
   });
 
   const groups = $derived(getPaletteCommands(ctx));
+  const showEmptyState = $derived(search.trim() === "");
+  const emptyState = $derived(getPaletteEmptyState(ctx, getRecents()));
 
   function handleOpenChange(next: boolean) {
     if (next) return;
@@ -57,6 +66,9 @@
   }
 
   function run(id: ActionId) {
+    // Record the run as a recent BEFORE closing: only commands actually picked
+    // from the palette become recents (not keyboard-invoked actions).
+    recordCommand(id);
     // Close the palette BEFORE running the command. dialogStore is scalar (one
     // dialog at a time): a command that opens its own dialog (share, view-yaml,
     // new-layout, ...) would be clobbered if we closed AFTER dispatch.
@@ -97,34 +109,128 @@
               No matching commands
             </Command.Empty>
 
-            {#each groups as group, groupIndex (group.heading)}
-              {#if groupIndex > 0}
-                <Command.Separator class="command-separator" />
+            {#if showEmptyState}
+              {@const hasRecent = emptyState.recent.length > 0}
+              {@const hasSelection = emptyState.selection.length > 0}
+              {#if hasRecent}
+                <Command.Group
+                  class="command-group"
+                  data-testid="command-palette-recent"
+                >
+                  <Command.GroupHeading class="command-group-heading">
+                    Recent
+                  </Command.GroupHeading>
+                  <Command.GroupItems>
+                    {#each emptyState.recent as command (command.id)}
+                      <Command.Item
+                        value={command.label}
+                        keywords={command.keywords}
+                        onSelect={() => run(command.id)}
+                        class="command-item"
+                        data-testid={`command-palette-recent-item-${command.id}`}
+                      >
+                        <span class="command-item-label">{command.label}</span>
+                        {#if command.shortcut}
+                          <span class="command-item-shortcut"
+                            >{command.shortcut}</span
+                          >
+                        {/if}
+                      </Command.Item>
+                    {/each}
+                  </Command.GroupItems>
+                </Command.Group>
               {/if}
-              <Command.Group class="command-group">
-                <Command.GroupHeading class="command-group-heading">
-                  {group.heading}
-                </Command.GroupHeading>
-                <Command.GroupItems>
-                  {#each group.commands as command (command.id)}
-                    <Command.Item
-                      value={command.label}
-                      keywords={command.keywords}
-                      onSelect={() => run(command.id)}
-                      class="command-item"
-                      data-testid={`command-palette-item-${command.id}`}
-                    >
-                      <span class="command-item-label">{command.label}</span>
-                      {#if command.shortcut}
-                        <span class="command-item-shortcut"
-                          >{command.shortcut}</span
-                        >
-                      {/if}
-                    </Command.Item>
-                  {/each}
-                </Command.GroupItems>
-              </Command.Group>
-            {/each}
+
+              {#if hasSelection}
+                {#if hasRecent}
+                  <Command.Separator class="command-separator" />
+                {/if}
+                <Command.Group
+                  class="command-group"
+                  data-testid="command-palette-selection"
+                >
+                  <Command.GroupHeading class="command-group-heading">
+                    Selection
+                  </Command.GroupHeading>
+                  <Command.GroupItems>
+                    {#each emptyState.selection as command (command.id)}
+                      <Command.Item
+                        value={command.label}
+                        keywords={command.keywords}
+                        onSelect={() => run(command.id)}
+                        class="command-item"
+                        data-testid={`command-palette-selection-item-${command.id}`}
+                      >
+                        <span class="command-item-label">{command.label}</span>
+                        {#if command.shortcut}
+                          <span class="command-item-shortcut"
+                            >{command.shortcut}</span
+                          >
+                        {/if}
+                      </Command.Item>
+                    {/each}
+                  </Command.GroupItems>
+                </Command.Group>
+              {/if}
+
+              {#each emptyState.commands as group, groupIndex (group.heading)}
+                {#if hasRecent || hasSelection || groupIndex > 0}
+                  <Command.Separator class="command-separator" />
+                {/if}
+                <Command.Group class="command-group">
+                  <Command.GroupHeading class="command-group-heading">
+                    {group.heading}
+                  </Command.GroupHeading>
+                  <Command.GroupItems>
+                    {#each group.commands as command (command.id)}
+                      <Command.Item
+                        value={command.label}
+                        keywords={command.keywords}
+                        onSelect={() => run(command.id)}
+                        class="command-item"
+                        data-testid={`command-palette-item-${command.id}`}
+                      >
+                        <span class="command-item-label">{command.label}</span>
+                        {#if command.shortcut}
+                          <span class="command-item-shortcut"
+                            >{command.shortcut}</span
+                          >
+                        {/if}
+                      </Command.Item>
+                    {/each}
+                  </Command.GroupItems>
+                </Command.Group>
+              {/each}
+            {:else}
+              {#each groups as group, groupIndex (group.heading)}
+                {#if groupIndex > 0}
+                  <Command.Separator class="command-separator" />
+                {/if}
+                <Command.Group class="command-group">
+                  <Command.GroupHeading class="command-group-heading">
+                    {group.heading}
+                  </Command.GroupHeading>
+                  <Command.GroupItems>
+                    {#each group.commands as command (command.id)}
+                      <Command.Item
+                        value={command.label}
+                        keywords={command.keywords}
+                        onSelect={() => run(command.id)}
+                        class="command-item"
+                        data-testid={`command-palette-item-${command.id}`}
+                      >
+                        <span class="command-item-label">{command.label}</span>
+                        {#if command.shortcut}
+                          <span class="command-item-shortcut"
+                            >{command.shortcut}</span
+                          >
+                        {/if}
+                      </Command.Item>
+                    {/each}
+                  </Command.GroupItems>
+                </Command.Group>
+              {/each}
+            {/if}
           </Command.Viewport>
         </Command.List>
 
