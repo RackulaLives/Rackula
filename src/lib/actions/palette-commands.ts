@@ -108,6 +108,13 @@ export function getPaletteCommands(
   return groups;
 }
 
+/**
+ * Empty-state payload rendered before the user types:
+ * - `recent`: MRU commands currently eligible in this context
+ * - `selection`: enabled selection-scoped verbs for the current selection
+ * - `commands`: grouped fallback commands, excluding rows already in
+ *   `recent` or `selection`
+ */
 export interface PaletteEmptyState {
   recent: PaletteCommand[];
   selection: PaletteCommand[];
