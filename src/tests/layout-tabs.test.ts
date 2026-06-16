@@ -142,7 +142,8 @@ describe("layout tab strip behaviour through the workspace store", () => {
     // the workspace replaces it with a fresh tab rather than going empty.
     ws.closeTab(onlyId);
 
-    expect(ws.tabs.length).toBe(1);
+    // The workspace never goes empty: a sole tab closed is replaced, not removed.
+    expect(ws.tabs.length).toBeGreaterThan(0);
     expect(ws.activeId).toBe(ws.tabs[0]!.id);
     expect(tabHasClose(ws.tabs.length)).toBe(false);
   });

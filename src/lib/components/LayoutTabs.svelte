@@ -87,19 +87,28 @@
     return () => observer.disconnect();
   });
 
-  // Reserve room for the persistent "+" and, when anything overflows, the
-  // chevron, so the partition's width budget is the space left for tabs.
+  // Two-pass width budget: reserve room for the persistent "+" first; only
+  // reserve the overflow chevron's width as well once the first pass shows
+  // something actually overflows. This stops a tab being hidden behind a
+  // chevron when dropping the chevron would have let every tab fit.
   const CONTROL_WIDTH_PX = 44;
-  const partition = $derived(
-    partitionTabs(
+  const partition = $derived.by(() => {
+    const budget = (reserved: number) =>
+      Number.isFinite(laneWidth) ? Math.max(0, laneWidth - reserved) : laneWidth;
+    const firstPass = partitionTabs(
       tabViews,
       workspace.activeId,
-      Number.isFinite(laneWidth)
-        ? Math.max(0, laneWidth - CONTROL_WIDTH_PX * 2)
-        : laneWidth,
+      budget(CONTROL_WIDTH_PX),
       TAB_WIDTH_PX,
-    ),
-  );
+    );
+    if (firstPass.hidden.length === 0) return firstPass;
+    return partitionTabs(
+      tabViews,
+      workspace.activeId,
+      budget(CONTROL_WIDTH_PX * 2),
+      TAB_WIDTH_PX,
+    );
+  });
   const visibleTabs = $derived(partition.visible);
   const hiddenTabs = $derived(partition.hidden);
   const showClose = $derived(tabHasClose(tabViews.length));
