@@ -188,10 +188,9 @@ jobs:
 
       # The vps-rackula runner is not ephemeral: it reuses _work across jobs, and
       # a prior sparse checkout can leave an index that makes actions/checkout's
-      # clean skip restoring package-lock.json. setup-node with cache: "npm" then
-      # hard-errors ("Dependencies lock file is not found", #2327). Wipe the
-      # workspace first so the checkout below starts from a clean slate. Mirrors
-      # the e2e (self-hosted full suite) job in test.yml.
+      # clean skip restoring package-lock.json. Wipe the workspace first so the
+      # checkout below starts from a clean slate and npm ci finds the lockfile
+      # (#2327). Mirrors the e2e (self-hosted full suite) job in test.yml.
       - name: Clean self-hosted workspace
         run: |
           if [ -n "$GITHUB_WORKSPACE" ] && [ -d "$GITHUB_WORKSPACE" ]; then
@@ -202,11 +201,14 @@ jobs:
         with:
           persist-credentials: false
 
+      # No cache: "npm" here. The npm cache lookup runs before checkout settles
+      # and hard-errors ("Dependencies lock file is not found", #2327) if a stale
+      # workspace ever slips through. The clean-workspace step above is the root
+      # fix; dropping the cache removes the fragile lockfile-hash dependency.
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: "22"
-          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
