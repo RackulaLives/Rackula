@@ -2,29 +2,83 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Calendar Versioning](https://calver.org/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
+
+## [Unreleased]
+
+A large usability release. The workspace is rebuilt around the canvas, and the storage layer is rebuilt to stop silently losing work. The rest is targeted fixes and technical-debt paydown that make the app faster to work in and more reliable. You can trust it with your data now. Please. It would mean a lot.
+
+### Added
+
+- Command palette (Ctrl+K) runs any action or finds any device from one search box, with recents, a selection-aware empty state, device search, and click-to-place on desktop (#2212, #2213, #2214, #2341, #2352)
+- Tabbed side panel replaces the single edit panel: Layouts, Racks, and Devices tabs, contextual properties on the Edit tab, display toggles on the View tab, collapsible (#2076, #2077, #2078, #2082)
+- Floating verb bars put context actions next to the selected device or rack, including a slot control for half-width devices (#2075, #2322, #2334, #2344)
+- Layouts library lists every saved layout with cached previews, opened and managed from the sidebar (#2082, #2083, #2325)
+- Open layouts persist as toolbar tabs and restore lazily on launch (#2079, #2080, #2324)
+- Top bar reduced to workspace chrome (logo, app menu, layout name, storage status, settings); view and history controls relocated to a floating cluster at the canvas bottom-left, where the cursor already is (#2072, #2073, #2074, #2187)
+- Settings dialog consolidates Appearance, Behaviour, and Data options (#2093)
+- Device palette gains favourites, list virtualization for large libraries, and an image on/off toggle (#2094)
+- New layouts open to a template picker instead of a blank canvas; the standalone StartScreen is gone, with entry routed through the sidebar and app menu (#2081, #2095)
+- Export-all renders every layout with per-mode framing in one pass (#2045)
+- Carrier device types host half-width and sub-U gear directly, replacing the fractional-rail model so sub-U placement is predictable (#2158, #2289, #2291, #2159)
+- Storage status chip in the toolbar shows save state at a glance (#2035)
+- Pre-overwrite snapshots are taken server-side with conflict detection; the Load dialog lists and restores them (#2040, #2041, #2042)
+- Backup nudge tracks changes since the last export and warns before they are discarded, with a restore-from-file confirm step (#2034, #2038, #2039)
+- Custom device images embed as base64 in the YAML save, so one file round-trips with its images (#617)
+- Layout JSON Schema generated from the Zod schema for editor validation, under a documented versioning and compatibility policy (#1113, #2226)
+
+### Changed
+
+- Persistence runs through one storage interface with an explicit, injected mode, replacing runtime probe-and-guess (#2027, #2036, #2037)
+- A twin-tab guard stops two open tabs from overwriting the same working copy, with placement images namespaced per layout (#2044, #2270)
+- Unknown top-level sections in a layout file survive a save instead of being dropped (#2208)
+- Sidebar tabs ordered Layouts, Racks, Devices (#2326)
+- Zoom snaps to round ladder rungs (#2336)
+- Edit panel resolves device brand from the authoritative library; category names shown in singular (#2217, #2218, #2219)
+- Display-mode toggle icon redesigned for clarity (#2335)
+- Coffin-tapered mark adopted as the canonical logo (#2048)
+- Rack PDUs modelled as shallow power bars that render in rear view (#2337)
+
+### Fixed
+
+- Devices keep their container across same-rack and cross-rack moves, nudges, and YAML export; stale links are cleared on move (#2127, #2128, #2129, #2131, #2135, #2224)
+- Keyboard nudge no longer ejects a contained device from its container (#2146)
+- Undo and redo bind to the correct rack and no longer throw on deleted racks (#2126)
+- In-progress device name edits stay attached to their device (#2223)
+- Rack height input reverts when a bayed rack rejects the resize (#2222)
+- Half-U stacking works again for 0.5U devices (#2152)
+- NetBox import validates enum and interface fields instead of casting blindly (#2119, #2122)
+- Export download no longer races object-URL revocation (#2201)
+- Layout loads remap rack groups and container IDs in a two-pass load (#2155)
+- Placement images survive server reconciliation and YAML round-trips (#2220, #2225)
+- Layouts mark clean after a debounced auto-save, with corrected save-toast copy (#2057, #2058, #2061, #2084)
+- Snapshot data loss closed with strictly monotonic updatedAt and a per-layout write lock (#2067, #2233)
+
+### Security
+
+- CSV export escapes spreadsheet formula injection (#2200)
+- Patched libssl3 and libcrypto3 for CVE-2026-45447 (alerts #80-83)
+- Automated security-alert triage via Claude Code (#2357)
+
+### Technical
+
+- Type checking restored across the utils, storage, and component layers; the last @ts-nocheck surfaces are gone (#1705, #2104, #2105)
+- Layout store decomposed into per-layout instances behind a facade, with rack and device logic split into domain action modules; Canvas coordinate math and markup extracted; export.ts and EditPanel.svelte split into focused modules (#1077, #1080, #1396, #1398, #1610, #2024, #2025)
+- E2E suite reworked: two-tier model with an environment approval gate, 4-way sharding, assertion-based waits, and role/label selectors, plus new undo/redo and accessibility coverage (#1227, #1231, #1420, #2002, #2003)
+- Regression gates added: visual-diff tripwire, axe-core accessibility checks, a bundle-size budget, and a ban on CSS-class selectors in tests (#1423, #2098, #2099, #2185)
+- i18n deferred to M11; the orphaned Paraglide runtime removed (#2184)
+- Dev tooling hardened: cloud-safe superpowers bootstrap, worktree-aware main-edit guard, POSIX husky hooks, the /orchestrate-issues command, and pre-push gate fixes (#2102, #2288)
+- Dependency updates across the production, development, vitest, eslint, and api groups
 
 ## [26.6.3] - 2026-06-08
 
-For a while, the way Rackula got released was: someone pushed a tag and hoped. Nobody deployed
-the LXC install on an actual container first. They just believed in it. That is how v26.6.2
-shipped an install that could not start on an unprivileged container, which is the default. We
-found the guy who did that. It was me. @ggfevans.
+For a while, the way Rackula got released was: someone pushed a tag and hoped. Nobody deployed the LXC install on an actual container first. They just believed in it. That is how v26.6.2 shipped an install that could not start on an unprivileged container, which is the default. We found the guy who did that. It was me. @ggfevans.
 
-So now a release does not ship until it proves it works. Every release goes through a gate: it
-builds the images, brings them up under Docker and confirms they are healthy, then installs the
-real thing onto a throwaway Proxmox container and smoke-tests it. If any of that fails, nothing
-gets promoted and the last good release stays exactly where it is. Nobody pushes to prod and
-hopes anymore. Not even @ggfevans. Especially not @ggfevans.
+So now a release does not ship until it proves it works. Every release goes through a gate: it builds the images, brings them up under Docker and confirms they are healthy, then installs the real thing onto a throwaway Proxmox container and smoke-tests it. If any of that fails, nothing gets promoted and the last good release stays exactly where it is. Nobody pushes to prod and hopes anymore. Not even @ggfevans. Especially not @ggfevans.
 
-And it is only getting stricter. End-to-end browser testing is in the works, so before long a
-release will have to survive being clicked through by a robot before it is allowed out. The
-walls are closing in. On @ggfevans.
+And it is only getting stricter. End-to-end browser testing is in the works, so before long a release will have to survive being clicked through by a robot before it is allowed out. The walls are closing in. On @ggfevans.
 
-There was also a thing watching how you used the app. Umami. Counting things. It is gone now:
-out of the code, out of the deploy config, out of the docs. Nobody is keeping track of you in
-here. It is just you and the rack.
+There was also a thing watching how you used the app. Umami. Counting things. It is gone now: out of the code, out of the deploy config, out of the docs. Nobody is keeping track of you in here. It is just you and the rack.
 
 ### Changed
 
@@ -70,11 +124,7 @@ Maintenance release: release tooling and API dependency hygiene, plus an export 
 
 ## [26.6.1] - 2026-06-05
 
-The LXC release. For real this time. v26.6.0 proudly shipped a self-contained container
-and then forgot to install the runtime that actually runs the API, so the service never
-started. We shipped a box with no engine. Mortifying. This is the one that boots: the Bun
-runtime is installed, the API comes up, and /health answers. You wanted working LXC? You
-finally have working LXC.
+The LXC release. For real this time. v26.6.0 proudly shipped a self-contained container and then forgot to install the runtime that actually runs the API, so the service never started. We shipped a box with no engine. Mortifying. This is the one that boots: the Bun runtime is installed, the API comes up, and /health answers. You wanted working LXC? You finally have working LXC.
 
 ### Fixed
 
@@ -86,11 +136,7 @@ finally have working LXC.
 
 ## [26.6.0] - 2026-06-05
 
-You wanted LXC?! You GOT LXC. The Proxmox VE deployment is production-ready, baby:
-Rackula installs as one self-contained Debian 13 container, web frontend and persistence
-API riding together, now on arm64 AND x86-64, with a SHA256-verified tarball because we
-are not handing you an unverified tarball like some kind of clown. You asked for the
-container. We made the container. It's the LXC release.
+You wanted LXC?! You GOT LXC. The Proxmox VE deployment is production-ready, baby: Rackula installs as one self-contained Debian 13 container, web frontend and persistence API riding together, now on arm64 AND x86-64, with a SHA256-verified tarball because we are not handing you an unverified tarball like some kind of clown. You asked for the container. We made the container. It's the LXC release.
 
 ### LXC deployment
 
@@ -733,25 +779,15 @@ Also added a little widget for displaying app build info for development purpose
 
 ## Added
 
-#251: feat: port tooltips on hover
-#146: Support half-width devices in full width rack
-#403: feat: Add IP Address field to Device Edit Panel
+#251: feat: port tooltips on hover #146: Support half-width devices in full width rack #403: feat: Add IP Address field to Device Edit Panel
 
 ### Fixed
 
-#415: Docker container never marked as healthy - thanks to @HellsCrimson for reporting!
-#411: Safari 18.x: Device positioning broken - grab handles stacked at top of rack - thanks to @brandonb927 for reporting
-#393: drag and dropping not working on Safari/Mac
+#415: Docker container never marked as healthy - thanks to @HellsCrimson for reporting! #411: Safari 18.x: Device positioning broken - grab handles stacked at top of rack - thanks to @brandonb927 for reporting #393: drag and dropping not working on Safari/Mac
 
 ### Technical
 
-#399: chore: Address CodeRabbit feedback from #398 (Safari pointer events fix)
-#400: fix: Refactor PortIndicators to use SVG-native pointer events (Safari compatibility)
-#406: chore: consolidate brand pack tests into single parameterized file
-#407: chore: remove redundant schema validation tests
-#408: chore: audit and reduce high-volume test files
-#409: chore: add high-value tests for under-tested areas
-#418: chore: remove unused face option from createTestDevice helper in collision tests
+#399: chore: Address CodeRabbit feedback from #398 (Safari pointer events fix) #400: fix: Refactor PortIndicators to use SVG-native pointer events (Safari compatibility) #406: chore: consolidate brand pack tests into single parameterized file #407: chore: remove redundant schema validation tests #408: chore: audit and reduce high-volume test files #409: chore: add high-value tests for under-tested areas #418: chore: remove unused face option from createTestDevice helper in collision tests
 
 ## [0.6.13] - 2026-01-03
 
