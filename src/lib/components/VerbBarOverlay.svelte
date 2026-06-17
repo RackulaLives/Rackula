@@ -194,7 +194,12 @@
     style:left="{pos.left}px"
     style:top="{pos.top}px"
   >
-    <VerbBar {verbs} {ariaLabel} ondispatch={dispatch} />
+    <VerbBar
+      {verbs}
+      {ariaLabel}
+      ondispatch={dispatch}
+      interacting={canvas.isInteracting}
+    />
   </div>
 {/if}
 

@@ -58,6 +58,8 @@ let panzoomInstance = $state<PanzoomInstance | null>(null);
 let currentZoom = $state(1); // 1 = 100%
 let canvasElement = $state<HTMLElement | null>(null);
 let isPanning = $state(false);
+let isZooming = $state(false);
+let zoomEndTimer: ReturnType<typeof setTimeout> | null = null;
 let viewportSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let suppressViewportSave = false;
 
@@ -77,6 +79,8 @@ export function resetCanvasStore(): void {
   currentZoom = 1;
   canvasElement = null;
   isPanning = false;
+  isZooming = false;
+  cancelZoomEnd();
   cancelViewportSave();
   suppressViewportSave = false;
 }
@@ -105,6 +109,9 @@ export function getCanvasStore() {
     },
     get isPanning() {
       return isPanning;
+    },
+    get isInteracting() {
+      return isPanning || isZooming;
     },
 
     // Actions
@@ -150,6 +157,13 @@ function cancelViewportSave(): void {
   if (viewportSaveTimer) {
     clearTimeout(viewportSaveTimer);
     viewportSaveTimer = null;
+  }
+}
+
+function cancelZoomEnd(): void {
+  if (zoomEndTimer) {
+    clearTimeout(zoomEndTimer);
+    zoomEndTimer = null;
   }
 }
 
@@ -205,6 +219,16 @@ function setPanzoomInstance(instance: PanzoomInstance): void {
   instance.on("zoom", () => {
     const transform = instance.getTransform();
     currentZoom = transform.scale;
+    // panzoom has no zoomstart/zoomend, so treat a burst of zoom events as one
+    // gesture: flag it now and clear shortly after the last event. The verb bar
+    // drops its live backdrop-filter while this is set to avoid per-frame blur
+    // repaints.
+    isZooming = true;
+    if (zoomEndTimer) clearTimeout(zoomEndTimer);
+    zoomEndTimer = setTimeout(() => {
+      isZooming = false;
+      zoomEndTimer = null;
+    }, 140);
     scheduleViewportSave();
   });
 
@@ -230,6 +254,8 @@ function setPanzoomInstance(instance: PanzoomInstance): void {
  */
 function disposePanzoom(): void {
   cancelViewportSave();
+  cancelZoomEnd();
+  isZooming = false;
   if (panzoomInstance) {
     panzoomInstance.dispose();
     panzoomInstance = null;

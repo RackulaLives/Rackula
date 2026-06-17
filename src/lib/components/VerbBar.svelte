@@ -36,9 +36,12 @@
     verbs: VerbItem[];
     ariaLabel: string;
     ondispatch: (id: ActionId) => void;
+    /** True while the canvas is being panned or zoomed. Drops the live
+        backdrop-filter to the solid fallback to avoid per-frame blur repaints. */
+    interacting?: boolean;
   }
 
-  let { verbs, ariaLabel, ondispatch }: Props = $props();
+  let { verbs, ariaLabel, ondispatch, interacting = false }: Props = $props();
 
   const iconForVerb: Partial<Record<ActionId, Component<{ size?: number }>>> = {
     "move-device-up": IconChevronUp,
@@ -78,6 +81,7 @@
 {#if verbs.length > 0}
   <div
     class="verb-bar"
+    class:is-interacting={interacting}
     role="toolbar"
     aria-label={ariaLabel}
     aria-orientation="horizontal"
@@ -124,8 +128,9 @@
 
   /* Without backdrop-filter the translucent body has no blur to separate it
      from the canvas, so fall back to a near-solid background. */
-  @supports not ((backdrop-filter: blur(1px)) or
-    (-webkit-backdrop-filter: blur(1px))) {
+  @supports not (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
     .verb-bar {
       background: var(--verb-bar-bg-solid);
     }
@@ -139,6 +144,16 @@
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
+  }
+
+  /* While the canvas is being panned or zoomed, a live backdrop-filter repaints
+     every frame as content moves behind the bar. Drop to the same solid
+     fallback for the duration of the gesture; the static rim and border keep
+     the bar's shape, so only the expensive live blur is shed. */
+  .verb-bar.is-interacting {
+    background: var(--verb-bar-bg-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .verb-button {
