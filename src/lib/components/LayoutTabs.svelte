@@ -415,8 +415,9 @@
     gap: var(--space-1);
     min-width: 0;
     max-width: 220px;
-    min-height: var(--touch-target-min);
-    padding: 0 var(--space-1) 0 var(--space-2);
+    /* Hit area: fills the bar height (~44px). Visible pill is inset via padding. */
+    height: 44px;
+    padding: 6px var(--space-1) 6px var(--space-2);
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     background: transparent;
@@ -436,7 +437,8 @@
 
   .layout-tab.active {
     background: var(--colour-surface-active);
-    border-color: var(--colour-border);
+    /* Use border-hover (comment blue, #6272a4) so the border is visible against the fill (#44475a). */
+    border-color: var(--colour-border-hover);
     color: var(--colour-text);
   }
 
@@ -461,7 +463,7 @@
   .layout-tab-input {
     min-width: 120px;
     max-width: 220px;
-    min-height: var(--touch-target-min);
+    height: 44px;
     padding: 0 var(--space-2);
     border: 1px solid var(--dracula-cyan);
     border-radius: var(--radius-sm);
@@ -516,8 +518,9 @@
     align-items: center;
     justify-content: center;
     gap: var(--space-1);
-    min-width: var(--touch-target-min);
-    min-height: var(--touch-target-min);
+    /* Match tab hit area: 44px tall, at least 44px wide. */
+    width: 44px;
+    height: 44px;
     padding: 0 var(--space-1);
     background: transparent;
     border: 1px solid transparent;
