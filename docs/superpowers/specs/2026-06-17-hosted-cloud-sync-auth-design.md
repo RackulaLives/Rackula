@@ -122,11 +122,23 @@ Writes touch two systems with no cross-system transaction. Rule:
 - R2 is the source of truth for bytes. D1 is a derived index.
 - On save: write R2 first, then upsert D1. If D1 fails after R2 succeeds, the
   body is safe and the list view is stale until repaired.
-- Provide a repair path: a list/get can detect and reconcile a missing or stale
-  D1 row from R2 metadata. `byte_size` usage counters may drift and need
-  periodic truing-up.
-- On delete: delete D1 row first (hides it), then R2 (reclaims bytes). An
-  orphaned R2 object is a cost leak, not a correctness bug, and is swept later.
+- Concurrency: writes to a layout are serialized by the existing optimistic
+  concurrency contract. Every overwrite must carry a strictly newer `updated_at`
+  than the stored value, and a mismatch is rejected and snapshotted rather than
+  silently overwritten. This is the shared storage contract (#2091) already
+  proven against the filesystem driver; the Worker's R2 driver (#2133) must
+  uphold the same atomic snapshot-on-mismatch invariant. The serialization point
+  is a compare-and-set on `updated_at` in D1: a stale or equal token returns a
+  conflict, so no same-tick write races through, and layout ids are compared
+  case-insensitively to match the contract's UUID-casing rule.
+- Repair path: a list/get can reconcile a missing or stale D1 row from R2
+  metadata. `byte_size` usage counters may drift and need periodic truing-up.
+- On delete: write a tombstone (mark the D1 row deleted) first, then delete the
+  R2 object, then remove the D1 row. The tombstone is what stops the repair path
+  from resurrecting a layout the user deleted in the window between the two
+  deletes. An orphaned R2 object left by a failed delete is a cost leak, not a
+  correctness bug, and is swept by a later cleanup pass that skips tombstoned
+  ids.
 
 ### Images (decided, not deferred)
 
@@ -152,7 +164,12 @@ Maps to the current contract, now authenticated and user-scoped:
 - `DELETE /api/me` (account and all data deletion, invariant 3)
 - Phase 1b only: `GET /api/auth/*` (OAuth start/callback), `POST /api/auth/logout`
 
-Because the CRUD contract matches, the frontend `api.ts` changes are minimal.
+The CRUD route signatures are unchanged, so `api.ts` keeps its existing method
+shapes. That is not the same as minimal integration effort: the semantics shift
+from single-tenant (all layouts on the instance) to per-user scoped (only the
+authenticated user's layouts). That shift adds real frontend work, auth state
+management, credentials on every request, 401/403 handling, account UI, and
+auth-conditional layout visibility, detailed under Frontend changes below.
 
 ## Auth flows
 
@@ -194,10 +211,14 @@ a data controller. Minimum baseline, in scope for this work:
 - Documented data location and retention.
 - No third-party analytics on user content.
 
-## Frontend changes (intentionally minimal)
+## Frontend changes (additive, not trivial)
 
-- `api.ts`: send credentials/cookie, add `/api/me`, surface auth state. CRUD
-  signatures unchanged.
+The editor, canvas, and archive format do not change, but adding authenticated
+per-user sync is real work, not a one-line tweak:
+
+- `api.ts`: send credentials/cookie, add `/api/me`, surface auth state, handle
+  401/403. CRUD route signatures stay the same.
+- Auth state machine: signed-out vs signed-in, conditional layout visibility.
 - New thin UI: a sign-in entry point, an account/usage panel, a storage-usage
   indicator. Reuses existing storage-mode plumbing (`availability.svelte`,
   `manager.svelte`).
@@ -209,8 +230,20 @@ Per the project's "test behavior, not structure" rules:
 
 - Worker authz: no cross-user access (user A cannot read user B's UUID).
 - Quota enforcement: write rejected past caps.
-- Concurrency: stale `updated_at` yields a conflict, reconcile path works.
-- Consistency: R2-first ordering, repair path recovers a missing D1 row.
+- Concurrency: stale or equal `updated_at` yields a conflict, snapshot-on-
+  mismatch holds, and the R2 driver passes the shared storage contract (#2091).
+- Consistency: R2-first ordering, repair path recovers a missing D1 row, and a
+  tombstoned (deleted) layout is never resurrected by repair.
+
+Auth seams differ by phase and need explicit per-phase coverage so Phase 1b does
+not regress what Phase 1a established:
+
+- Phase 1a: a request with no valid `Cf-Access-Jwt-Assertion` is rejected; a
+  valid header maps to the right `user_id`; `/api/auth/*` routes do not exist.
+- Phase 1b: session cookie is validated; cookie carries httpOnly, Secure, and
+  the intended SameSite; OAuth redirect/callback URLs are honored; logout
+  invalidates the session server-side.
+- Both: cross-user isolation holds under whichever mechanism is active.
 - Reuse existing E2E persistence specs against the Worker contract.
 
 ## Deferred decisions (genuinely open)
