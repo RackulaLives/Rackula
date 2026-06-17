@@ -126,13 +126,15 @@
       onclick={() => dialogStore.open("commandPalette")}
       data-testid="btn-command-palette"
     >
-      <span class="command-pill-icon" aria-hidden="true"
-        ><IconSearch size={ICON_SIZE.sm} /></span
-      >
-      {#if !viewportStore.isMobile}
-        <span class="command-pill-text">Search or jump to...</span>
-        <span class="command-pill-badge">{paletteShortcut}</span>
-      {/if}
+      <span class="command-pill-visual">
+        <span class="command-pill-icon" aria-hidden="true"
+          ><IconSearch size={ICON_SIZE.sm} /></span
+        >
+        {#if !viewportStore.isMobile}
+          <span class="command-pill-text">Search or jump to...</span>
+          <span class="command-pill-badge">{paletteShortcut}</span>
+        {/if}
+      </span>
     </button>
   </div>
 
@@ -366,15 +368,25 @@
     cursor: not-allowed;
   }
 
-  /* Command pill: keeps a compact 32px visual height but extends its clickable
-     area to 44px (matching the gear and chevron) via a transparent ::before
-     overlay, so the hit target is comfortable without inflating the pill. */
+  /* Command pill: the button is the hit target, a true 44px-tall layout box
+     (matching the gear and chevron, WCAG 2.5.5). The compact 32px visual pill
+     lives on the inner .command-pill-visual span, so the clickable box is real,
+     not an overflowed pseudo-element, and it never overlaps adjacent controls. */
   .command-pill {
-    position: relative;
+    display: inline-flex;
+    align-items: center;
+    align-self: center;
+    height: 44px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .command-pill-visual {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    align-self: center;
     height: 32px;
     padding: 0 var(--space-3);
     border: 1px solid var(--colour-border);
@@ -382,31 +394,21 @@
     background: var(--colour-surface);
     color: var(--colour-text-muted);
     font-size: var(--font-size-sm);
-    cursor: pointer;
     transition:
       border-color var(--duration-fast) var(--ease-out),
       color var(--duration-fast) var(--ease-out);
   }
 
-  /* Transparent vertical hit-area extension to 44px (WCAG 2.5.5 target size),
-     matching the 44px icon buttons without inflating the visual pill. */
-  .command-pill::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    height: 44px;
-  }
-
-  .command-pill:hover {
+  .command-pill:hover .command-pill-visual {
     border-color: var(--colour-selection);
     color: var(--colour-text);
   }
 
   .command-pill:focus-visible {
     outline: none;
+  }
+
+  .command-pill:focus-visible .command-pill-visual {
     box-shadow:
       0 0 0 2px var(--colour-bg),
       0 0 0 4px var(--colour-focus-ring);
@@ -417,6 +419,15 @@
     height: var(--touch-target-min);
     min-width: var(--touch-target-min);
     padding: 0;
+    justify-content: center;
+  }
+
+  .command-pill--icon .command-pill-visual {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: none;
+    background: transparent;
     justify-content: center;
   }
 
@@ -434,7 +445,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .command-pill {
+    .command-pill-visual {
       transition: none;
     }
   }
