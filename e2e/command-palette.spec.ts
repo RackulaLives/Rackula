@@ -325,8 +325,8 @@ test.describe("Command palette", () => {
       const devicesAfter = await page.locator(locators.rack.device).count();
       expect(devicesAfter).toBeGreaterThan(devicesBefore);
     }).toPass({ timeout: 5000 });
-    await expect(async () => {
-      await expect(placementHeader).not.toBeVisible();
-    }).toPass({ timeout: 5000 });
+    // `not.toBeVisible()` already auto-retries, so a plain assertion with a
+    // timeout suffices for the post-placement settle.
+    await expect(placementHeader).not.toBeVisible({ timeout: 5000 });
   });
 });
