@@ -1,7 +1,7 @@
 /**
- * Tests for the floating verb bar positioning math (#2075)
+ * Tests for the floating verb bar positioning math (#2075, #2388)
  *
- * Covers the pure computeVerbBarPosition function: always-above placement,
+ * Covers the pure computeVerbBarPosition function: above/below placement flip,
  * low-zoom hide, and horizontal clamping. All inputs are plain numeric rects
  * with no DOM dependency.
  */
@@ -10,6 +10,7 @@ import {
   computeVerbBarPosition,
   VERB_BAR_LOW_ZOOM_THRESHOLD,
   VERB_BAR_MARGIN,
+  VERB_BAR_FLIP_THRESHOLD,
   type Rect,
   type Size,
   type VerbBarPositionInput,
@@ -65,23 +66,52 @@ describe("computeVerbBarPosition - above placement", () => {
   });
 });
 
-describe("computeVerbBarPosition - always above near viewport top", () => {
-  it("stays above for the topmost target near the top of the viewport", () => {
-    // target at y=20; bar height=36; aboveTop = 20 - 8 - 36 = -24.
-    // The bar may sit partly off-screen or overlap the rack name label,
-    // but it never flips below the target.
-    const target = makeRect(20, 200, 120, 24);
+describe("computeVerbBarPosition - placement flip", () => {
+  it("places above when there is ample room above the target", () => {
+    // target.top = 300, bar height = 36, margin = 8 -> need 44px above.
+    // aboveTop = 300 - 8 - 36 = 256, well above VERB_BAR_FLIP_THRESHOLD.
+    const target = makeRect(300, 200, 120, 24);
     const bar: Size = { width: 180, height: 36 };
     const result = computeVerbBarPosition(input({ target, bar }));
     expect(result.placement).toBe("above");
-    expect(result.visible).toBe(true);
   });
 
-  it("keeps top at aboveTop for the topmost target", () => {
+  it("flips below when target is near the top and there is insufficient room above", () => {
+    // Place the target so aboveTop would be < VERB_BAR_FLIP_THRESHOLD.
+    // If VERB_BAR_FLIP_THRESHOLD = 80, target.top must be < 80 + bar.height + margin.
+    // bar.height=36, margin=8 -> target.top < 124. Use target.top=20.
     const target = makeRect(20, 200, 120, 24);
     const bar: Size = { width: 180, height: 36 };
     const result = computeVerbBarPosition(input({ target, bar }));
-    expect(result.top).toBe(target.top - VERB_BAR_MARGIN - bar.height);
+    expect(result.placement).toBe("below");
+    expect(result.visible).toBe(true);
+  });
+
+  it("sets top to just below target bottom when flipping below", () => {
+    const target = makeRect(20, 200, 120, 24);
+    const bar: Size = { width: 180, height: 36 };
+    const result = computeVerbBarPosition(input({ target, bar }));
+    const expectedTop = target.bottom + VERB_BAR_MARGIN;
+    expect(result.top).toBe(expectedTop);
+  });
+
+  it("sets top to just above target top when placing above", () => {
+    const target = makeRect(300, 200, 120, 24);
+    const bar: Size = { width: 180, height: 36 };
+    const result = computeVerbBarPosition(input({ target, bar }));
+    const expectedTop = target.top - VERB_BAR_MARGIN - bar.height;
+    expect(result.top).toBe(expectedTop);
+  });
+
+  it("places above exactly at the flip threshold boundary", () => {
+    // target.top exactly at the minimum to remain above: flip when aboveTop < VERB_BAR_FLIP_THRESHOLD.
+    // aboveTop = target.top - margin - bar.height = target.top - 44.
+    // To be exactly at threshold: target.top - 44 = VERB_BAR_FLIP_THRESHOLD -> target.top = threshold + 44.
+    const bar: Size = { width: 180, height: 36 };
+    const targetTop = VERB_BAR_FLIP_THRESHOLD + VERB_BAR_MARGIN + bar.height;
+    const target = makeRect(targetTop, 200, 120, 24);
+    const result = computeVerbBarPosition(input({ target, bar }));
+    expect(result.placement).toBe("above");
   });
 });
 
