@@ -19,9 +19,15 @@ on:
   workflow_dispatch:
     inputs:
       triggering_workflow:
-        description: "Workflow name to simulate (CodeQL or Trivy Security Scan)"
+        description: "Workflow name to simulate"
+        # Constrained to the valid scanner names so a typo (e.g. trailing space
+        # or wrong case) can't bypass the per-scanner concurrency key below.
+        type: choice
         required: false
         default: "CodeQL"
+        options:
+          - CodeQL
+          - Trivy Security Scan
 
 permissions:
   contents: write

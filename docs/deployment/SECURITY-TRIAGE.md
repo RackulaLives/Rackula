@@ -11,7 +11,7 @@ It authenticates with a Claude subscription OAuth token, so it bills against a P
 3. Claude Code (run by `anthropics/claude-code-action`) reads `.github/prompts/security-triage.md` and follows it.
 4. It queries the GitHub Code Scanning API for net-new open alerts from that scan (up to 5 per run), reading the affected code for context.
 5. For false positives: it dismisses the alert via the Code Scanning API with an explanation.
-6. For real findings: it opens a draft PR on a branch `fix/security-<rule-id>-<short-sha>` with the triage reasoning and a suggested or implemented fix, labelled `security` and `automated`.
+6. For real findings: it opens a draft PR on a branch `fix/security-<alert-number>` with the triage reasoning and a suggested or implemented fix, labelled `security` and `automated`.
 
 ## Required Secret: CLAUDE_CODE_OAUTH_TOKEN
 

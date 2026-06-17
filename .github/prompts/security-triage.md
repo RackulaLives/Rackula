@@ -65,8 +65,9 @@ gh api --method PATCH "/repos/{owner}/{repo}/code-scanning/alerts/<NUMBER>" \
 
 If the finding is real:
 
-1. Create a branch `fix/security-<rule-id-slug>-<alert-number>` off `main`. The alert number
-   keeps the branch unique even when two findings share a rule id on the same commit.
+1. Create a branch `fix/security-<alert-number>` off `main`. The alert number is globally
+   unique, so this guarantees one branch per finding (no collisions when two findings share
+   a rule id on the same commit).
 2. If the fix is small and clear (a dependency bump, an input-validation guard, an encoding
    call), implement it directly with minimal, targeted edits. Do not refactor or touch
    unrelated code.
