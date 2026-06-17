@@ -14,6 +14,7 @@ import {
   RACK_WITH_DEVICE_SHARE,
   PLATFORM_MODIFIER,
   selectDevice,
+  locators,
 } from "./helpers";
 
 test.describe("Command palette", () => {
@@ -285,18 +286,47 @@ test.describe("Command palette", () => {
     );
   });
 
-  test("choosing a device closes the palette into placement", async ({
+  test("choosing a device arms desktop placement and click-to-place (#2352)", async ({
     page,
   }) => {
+    const devicesBefore = await page.locator(locators.rack.device).count();
+
     await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
     await page.getByTestId("command-palette-add-device").click();
     await page.getByTestId("command-palette-device-item-1u-server").click();
-    // Choosing a device closes the palette and arms placement via the shared
-    // tap-to-place path. The "tap to place" status cue and tap-to-place
-    // completion are mobile-only (Rack.svelte gates them on viewportStore.isMobile),
-    // so on desktop the observable outcome is the palette closing.
+
+    // Choosing a device closes the palette and arms placement (#2214/#2352).
     await expect(
       page.getByRole("dialog", { name: "Command palette" }),
     ).not.toBeVisible();
+
+    // On desktop the cue now surfaces: a "Click to place" status header. Scope
+    // by text since dual-view renders one in each face SVG.
+    const placementHeader = page
+      .getByRole("status")
+      .filter({ hasText: "Click to place" })
+      .first();
+    await expect(placementHeader).toBeVisible();
+
+    // Click a valid rack slot with the mouse to complete placement.
+    const rackSvg = page
+      .locator(`${locators.rackView.front} ${locators.rack.svg}`)
+      .first();
+    const box = await rackSvg.boundingBox();
+    if (!box) {
+      throw new Error(
+        "rackSvg boundingBox() returned null; cannot click placement target",
+      );
+    }
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.5);
+
+    // The device is placed and placement mode exits.
+    await expect(async () => {
+      const devicesAfter = await page.locator(locators.rack.device).count();
+      expect(devicesAfter).toBeGreaterThan(devicesBefore);
+    }).toPass({ timeout: 5000 });
+    await expect(async () => {
+      await expect(placementHeader).not.toBeVisible();
+    }).toPass({ timeout: 5000 });
   });
 });

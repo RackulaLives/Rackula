@@ -195,6 +195,11 @@
       toastStore.showToast("Can't place device here", "warning", 3000);
       return;
     }
+    // A completed drag-and-drop is an unambiguous choice of the DnD path, so
+    // abandon any placement armed via the command palette "Add device" flow
+    // (#2352). Without this the desktop click-to-place stays armed and the next
+    // rack click would silently place the still-pending device.
+    if (placementStore.isPlacing) placementStore.cancelPlacement();
     ondevicedrop?.(event);
   }
 

@@ -279,9 +279,13 @@
   const blockedSlots = $derived(
     faceFilter ? getBlockedSlots(rack, faceFilter, deviceLibrary) : [],
   );
-  const isPlacementMode = $derived(
-    viewportStore.isMobile && placementStore.isPlacing,
-  );
+  // Placement is armed by the mobile tap-to-place flow and the desktop command
+  // palette "Add device" path (#2214/#2352) alike, so the cue surfaces on every
+  // viewport. Touch placement is completed by `ontouchend`; pointer placement by
+  // `handleClick` -> handlePlacementClick, both reading the same store.
+  const isPlacementMode = $derived(placementStore.isPlacing);
+  // "Tap" on touch viewports, "Click" on desktop, for the placement header copy.
+  const placementVerb = $derived(viewportStore.isMobile ? "Tap" : "Click");
 
   const validPlacementSlots = $derived.by(() => {
     if (!isPlacementMode || !placementStore.pendingDevice)
@@ -367,12 +371,12 @@
    *
    * Clicks synthesised at the end of a pan/drag gesture are ignored first
    * (`isPanning` stays true for ~50ms after `panend`), so neither placement nor
-   * selection fires unintentionally after a pan. Then, in mobile mode (viewport
-   * <= 1024px) a click while placing completes mouse/pointer tap-to-place
-   * (#1757) — desktop browsers do not synthesise TouchEvents for a mouse, so
-   * without this a mouse user could pick a device but never place it; touch
-   * input is handled separately by the SVG's `ontouchend`. Otherwise the click
-   * selects the rack.
+   * selection fires unintentionally after a pan. Then a click while placing
+   * completes mouse/pointer click-to-place (#1757/#2352) on any viewport:
+   * desktop browsers do not synthesise TouchEvents for a mouse, so without this
+   * a pointer user (mobile tap-to-place or the desktop palette "Add device"
+   * path) could pick a device but never place it. Touch input is handled
+   * separately by the SVG's `ontouchend`. Otherwise the click selects the rack.
    */
   function handleClick(event: MouseEvent) {
     if (canvasStore.isPanning) return;
@@ -380,7 +384,7 @@
       justFinishedDrag = false;
       return;
     }
-    if (viewportStore.isMobile && placementStore.isPlacing) {
+    if (placementStore.isPlacing) {
       const device = placementStore.pendingDevice;
       if (device && svgElement) {
         onPlacementClick(event, svgElement, handlerCtx, device, onplacementtap);
@@ -523,13 +527,14 @@
       />
     {/if}
 
-    <!-- Layer 4: Placement header (mobile) -->
+    <!-- Layer 4: Placement header (tap/click-to-place) -->
     {#if isPlacementMode && placementStore.pendingDevice}
       {@const pendingDevice = placementStore.pendingDevice}
       <RackPlacementHeader
         rackWidth={RACK_WIDTH}
         rackPadding={RACK_PADDING}
         deviceModel={pendingDevice.model ?? pendingDevice.slug}
+        actionVerb={placementVerb}
         oncancel={handleCancelPlacement}
       />
     {/if}

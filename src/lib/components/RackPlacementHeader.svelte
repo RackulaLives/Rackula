@@ -1,6 +1,6 @@
 <!--
   RackPlacementHeader SVG Component
-  Renders the mobile tap-to-place header overlay inside the rack SVG.
+  Renders the tap/click-to-place header overlay inside the rack SVG.
   Shows the pending device name and a cancel button.
 
   This is a pure rendering component with a single cancel callback.
@@ -20,11 +20,19 @@
     rackPadding: number;
     /** Name of the device being placed */
     deviceModel: string;
+    /** Input verb for the prompt ("Tap" on touch, "Click" on desktop) */
+    actionVerb?: string;
     /** Callback when user cancels placement */
     oncancel?: () => void;
   }
 
-  let { rackWidth, rackPadding, deviceModel, oncancel }: Props = $props();
+  let {
+    rackWidth,
+    rackPadding,
+    deviceModel,
+    actionVerb = "Tap",
+    oncancel,
+  }: Props = $props();
 </script>
 
 <foreignObject
@@ -41,7 +49,7 @@
     xmlns="http://www.w3.org/1999/xhtml"
   >
     <span class="placement-text">
-      Tap to place: <strong>{deviceModel}</strong>
+      {actionVerb} to place: <strong>{deviceModel}</strong>
     </span>
     <button
       type="button"
