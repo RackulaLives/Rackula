@@ -122,6 +122,15 @@
     box-shadow: var(--verb-bar-rim), var(--shadow-lg);
   }
 
+  /* Without backdrop-filter the translucent body has no blur to separate it
+     from the canvas, so fall back to a near-solid background. */
+  @supports not ((backdrop-filter: blur(1px)) or
+    (-webkit-backdrop-filter: blur(1px))) {
+    .verb-bar {
+      background: var(--verb-bar-bg-solid);
+    }
+  }
+
   /* Fall back to a near-solid background when the user reduces transparency,
      so icon contrast stays legible without the backdrop blur. */
   @media (prefers-reduced-transparency: reduce) {
