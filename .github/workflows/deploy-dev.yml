@@ -20,6 +20,12 @@ on:
       - svelte.config.*
       - tsconfig*.json
       - index.html
+      # Skip docs-only deploys. The dir globs above match every file in a
+      # directory, so a README inside api/, deploy/, etc. would otherwise
+      # trigger a rebuild. This negation (evaluated after the positives) drops
+      # markdown anywhere from the trigger. Mixed code+markdown commits still
+      # match a positive path and deploy normally.
+      - "!**/*.md"
   workflow_dispatch:
 
 env:
