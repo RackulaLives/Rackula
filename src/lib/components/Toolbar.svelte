@@ -1,15 +1,15 @@
 <!--
   Toolbar Component
-  Workspace frame, three lanes in one row (issues #2072, #2324):
-  - Left (fixed): logo lockup (the app menu) + the command-palette search pill.
-  - Centre (flex): the layout tab strip (LayoutTabs), desktop only.
-  - Right (fixed): storage chip + Settings gear (desktop) / quick file actions
-    (mobile).
+  Workspace frame, three column-aligned regions (issues #2072, #2324, #2386):
+  - Left (fixed, = sidebar width): logo lockup (the app menu) + command-palette
+    search pill. Width tracks --sidebar-width so it aligns with the column below.
+  - Centre (flex): the layout tab strip (LayoutTabs), desktop only. Spans the
+    canvas gap between the sidebar and side panel.
+  - Right (fixed, = panel width): storage chip + Settings gear + side-panel
+    collapse/expand chevron (desktop); quick file actions (mobile). Width tracks
+    --side-panel-width when expanded, or shrinks to natural when collapsed.
   View and history controls (zoom, fit, display mode, undo, redo) relocate to the
-  canvas bottom-left in #2074; they stay reachable today via the keyboard and the
-  Devices sidebar. File commands (save, load, export, share, import) live in the
-  app menu behind the logo. The layout name is carried by the active tab; there
-  is no separate name field.
+  canvas bottom-left in #2074. File commands live in the app menu behind the logo.
 -->
 <script lang="ts">
   import Tooltip from "./Tooltip.svelte";
@@ -17,7 +17,7 @@
   import StorageStatusChip from "./StorageStatusChip.svelte";
   import LayoutTabs from "./LayoutTabs.svelte";
   import type { ActionId } from "$lib/actions/registry";
-  import { IconGearBold, IconSearch } from "./icons";
+  import { IconGearBold, IconSearch, IconChevronLeft, IconChevronRight } from "./icons";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { formatShortcut } from "$lib/utils/platform";
@@ -26,6 +26,10 @@
   interface Props {
     hasRacks?: boolean;
     partyMode?: boolean;
+    /** Whether the right side panel is collapsed (chevron direction + label). */
+    sidePanelCollapsed?: boolean;
+    /** Callback to toggle the right side panel open/closed. */
+    ontogglesidepanel?: () => void;
     onsave?: () => void;
     onsaveas?: () => void;
     onload?: () => void;
@@ -45,6 +49,8 @@
   let {
     hasRacks = false,
     partyMode = false,
+    sidePanelCollapsed = false,
+    ontogglesidepanel,
     onsave,
     onsaveas,
     onload,
@@ -79,6 +85,10 @@
     onsettings?.();
   }
 
+  function handleToggleSidePanel() {
+    ontogglesidepanel?.();
+  }
+
   // Dispatch map from app-menu action id to its handler. The menu items
   // themselves come from the registry (AppMenu projects getAppMenuSections);
   // this binds each id to the closure that runs it, mirroring how
@@ -104,7 +114,8 @@
 </script>
 
 <header class="toolbar">
-  <!-- Left: Logo (also the app menu) + command palette pill -->
+  <!-- Left: Logo (also the app menu) + command palette pill.
+       Width = --sidebar-width so it aligns with the column below. -->
   <div class="toolbar-section toolbar-left">
     <AppMenu onaction={handleAppMenuAction} {hasRacks} {partyMode} />
     <button
@@ -125,16 +136,21 @@
     </button>
   </div>
 
-  <!-- Centre: the layout tab strip (desktop only) -->
+  <!-- Centre: the layout tab strip (desktop only).
+       flex: 1 spans the canvas gap between the sidebar and side panel. -->
   {#if !viewportStore.isMobile}
     <div class="toolbar-section toolbar-tabs">
       <LayoutTabs onexport={onlayoutexport} />
     </div>
   {/if}
 
-  <!-- Right: Workspace chrome (desktop) / quick file actions (mobile) -->
+  <!-- Right: panel-width region (desktop) / quick file actions (mobile).
+       Holds storage chip + Settings gear + panel collapse/expand chevron. -->
   {#if !viewportStore.isMobile}
-    <div class="toolbar-section toolbar-right">
+    <div
+      class="toolbar-section toolbar-right"
+      class:toolbar-right--collapsed={sidePanelCollapsed}
+    >
       <StorageStatusChip />
 
       <Tooltip text="Settings" position="bottom">
@@ -146,6 +162,28 @@
           data-testid="btn-settings"
         >
           <IconGearBold size={ICON_SIZE.md} />
+        </button>
+      </Tooltip>
+
+      <Tooltip
+        text={sidePanelCollapsed ? "Expand panel" : "Collapse panel"}
+        position="bottom"
+      >
+        <button
+          class="toolbar-icon-btn"
+          type="button"
+          aria-label={sidePanelCollapsed ? "Expand panel" : "Collapse panel"}
+          aria-expanded={!sidePanelCollapsed}
+          onclick={handleToggleSidePanel}
+          data-testid={sidePanelCollapsed
+            ? "toolbar-side-panel-expand"
+            : "toolbar-side-panel-collapse"}
+        >
+          {#if sidePanelCollapsed}
+            <IconChevronLeft size={ICON_SIZE.md} />
+          {:else}
+            <IconChevronRight size={ICON_SIZE.md} />
+          {/if}
         </button>
       </Tooltip>
     </div>
@@ -193,7 +231,6 @@
     align-items: center;
     justify-content: space-between;
     height: var(--toolbar-height);
-    padding: 0 var(--space-4);
     background: var(--colour-toolbar-bg, var(--toolbar-bg));
     border-bottom: 1px solid var(--colour-toolbar-border, var(--toolbar-border));
     flex-shrink: 0;
@@ -205,31 +242,45 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    height: 100%;
   }
 
+  /* Left lane: fixed to sidebar column width.
+     The 4px offset accounts for the PaneResizer handle that sits between the
+     sidebar and canvas columns. Left padding gives the logo ~8px from the edge. */
   .toolbar-left {
-    flex: 0 0 auto;
+    flex: 0 0 calc(var(--sidebar-width, 280px) + 4px);
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+    min-width: 0;
   }
 
+  /* Centre lane: fills the canvas gap between left and right fixed lanes. */
   .toolbar-tabs {
     flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     justify-content: flex-start;
-    padding: 0 var(--space-3);
   }
 
+  /* Right lane: fixed to side-panel width when expanded; auto (natural width
+     pinned to the right edge) when collapsed so controls never clip. */
   .toolbar-right {
-    flex: 0 0 auto;
-    gap: var(--space-2);
+    flex: 0 0 var(--side-panel-width, 320px);
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+    justify-content: flex-end;
+    gap: var(--space-1);
   }
 
-  .toolbar-right:not(.toolbar-right-mobile) {
-    margin-left: var(--space-2);
+  .toolbar-right--collapsed {
+    flex: 0 0 auto;
   }
 
   .toolbar-right-mobile {
     gap: var(--space-1);
+    flex: 0 0 auto;
+    padding-right: var(--space-2);
   }
 
   /* Icon buttons - the dropdown-menu triggers (Settings gear) use this class. */
@@ -237,8 +288,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    /* 44px hit area; visual footprint is set by icon size */
+    width: 44px;
+    height: 44px;
     padding: 0;
     border: none;
     border-radius: var(--radius-md);
@@ -314,10 +366,13 @@
     cursor: not-allowed;
   }
 
+  /* Command pill: 44px hit area (by stretching to full toolbar height via
+     align-self: stretch) keeps it in line with the other controls. */
   .command-pill {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
+    align-self: center;
     height: 32px;
     padding: 0 var(--space-3);
     border: 1px solid var(--colour-border);

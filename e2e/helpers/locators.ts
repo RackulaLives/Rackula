@@ -71,8 +71,9 @@ export const locators = {
     editEmpty: '[data-testid="side-panel-edit-empty"]',
     tabEdit: '[data-testid="side-panel-tab-edit"]',
     tabView: '[data-testid="side-panel-tab-view"]',
-    collapse: '[data-testid="side-panel-collapse"]',
-    expand: '[data-testid="side-panel-expand"]',
+    /** Collapse and expand are now in the toolbar right region (#2386). */
+    collapse: '[data-testid="toolbar-side-panel-collapse"]',
+    expand: '[data-testid="toolbar-side-panel-expand"]',
   },
 
   canvas: {

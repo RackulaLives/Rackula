@@ -106,11 +106,12 @@
 
 <style>
   /* The logo doubles as the menu trigger. Keeps the visual treatment the logo
-     had as a plain toolbar button (transparent, subtle hover and focus ring). */
+     had as a plain toolbar button (transparent, subtle hover and focus ring).
+     padding: var(--space-2) gives ~8px clearance from the edges (#2386). */
   .app-menu-trigger {
     display: flex;
     align-items: center;
-    padding: var(--space-1);
+    padding: var(--space-2);
     border: none;
     border-radius: var(--radius-md);
     background: transparent;

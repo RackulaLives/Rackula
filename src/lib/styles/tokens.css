@@ -324,9 +324,12 @@
   --colour-blocked-icon: rgba(239, 68, 68, 0.7); /* Directional arrow icon */
 
   /* Toolbar */
-  --toolbar-height: 40px;
+  --toolbar-height: 48px;
   --toolbar-bg: var(--dracula-bg-darker);
   --toolbar-border: var(--dracula-bg-light);
+
+  /* Side Panel (right edit panel) */
+  --side-panel-width: 320px;
 
   /* Drawer */
   --drawer-width: 320px;

@@ -493,6 +493,10 @@
     return () => window.removeEventListener("resize", onResize);
   });
 
+  function handleToggleSidePanel() {
+    uiStore.setSidePanelCollapsed(!uiStore.sidePanelCollapsed);
+  }
+
   function handleNewLayout() {
     workspaceStore.openTab(createLayout());
     dialogStore.open("newRack");
@@ -571,6 +575,8 @@
     <Toolbar
       hasRacks={layoutStore.hasRack}
       {partyMode}
+      sidePanelCollapsed={uiStore.sidePanelCollapsed}
+      ontogglesidepanel={handleToggleSidePanel}
       onsave={maybeSave}
       onsaveas={maybeSaveAs}
       onload={handleLoad}
