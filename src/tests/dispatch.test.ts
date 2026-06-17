@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { createActionDispatch } from "$lib/actions/dispatch";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import * as appActions from "$lib/utils/app-actions";
+import { registerImportDevicesTrigger } from "$lib/actions/import-devices-trigger";
 
 describe("createActionDispatch", () => {
   afterEach(() => {
@@ -28,5 +29,17 @@ describe("createActionDispatch", () => {
     const dispatch = createActionDispatch();
     dispatch["fit-all"]();
     expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it("runs the registered trigger when import-devices runs", () => {
+    const trigger = vi.fn();
+    const unregister = registerImportDevicesTrigger(trigger);
+    try {
+      const dispatch = createActionDispatch();
+      dispatch["import-devices"]();
+      expect(trigger).toHaveBeenCalledOnce();
+    } finally {
+      unregister();
+    }
   });
 });

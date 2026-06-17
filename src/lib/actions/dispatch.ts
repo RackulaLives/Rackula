@@ -48,6 +48,7 @@ import {
   handleRackContextExport,
 } from "$lib/utils/rack-actions";
 import { handleLoad } from "$lib/storage";
+import { runImportDevices } from "$lib/actions/import-devices-trigger";
 
 export type ActionDispatch = Record<ActionId, () => void>;
 
@@ -133,11 +134,9 @@ function handleToggleDisplayMode(): void {
 }
 
 /**
- * Build the dispatch map. Every ActionId has an entry so the map is total;
- * selection verbs with no app behaviour fall back to a no-op.
+ * Build the dispatch map. Every ActionId has an entry so the map is total.
  */
 export function createActionDispatch(): ActionDispatch {
-  const noop = () => {};
   return {
     // global
     escape: handleEscape,
@@ -153,7 +152,7 @@ export function createActionDispatch(): ActionDispatch {
     load: handleLoad,
     "view-yaml": handleOpenYamlEditor,
     "new-layout": resetAndOpenNewRack,
-    "import-devices": noop, // device library import is a hidden file input owned by DialogOrchestrator
+    "import-devices": runImportDevices,
     "import-netbox": handleImportFromNetBox,
     "new-custom-device": handleAddDevice,
     "command-palette": () => dialogStore.open("commandPalette"),

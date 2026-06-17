@@ -57,6 +57,7 @@
     resetAndOpenNewRack,
   } from "$lib/utils/app-actions";
   import { parseDeviceLibraryImport } from "$lib/utils/import";
+  import { registerImportDevicesTrigger } from "$lib/actions/import-devices-trigger";
   import { hapticTap } from "$lib/utils/haptics";
   import { appDebug, dialogDebug } from "$lib/utils/debug";
   import type { ImageData } from "$lib/types/images";
@@ -435,7 +436,13 @@
 
   // --- Device library import handlers ---
 
-  export function handleImportDevices() {
+  // The file picker lives here (the hidden <input> below), but the command
+  // dispatch needs a module-level trigger. Register the picker opener on mount
+  // so the palette, app menu, and keyboard all run import-devices through the
+  // same seam (see $lib/actions/import-devices-trigger).
+  $effect(() => registerImportDevicesTrigger(openDeviceImportPicker));
+
+  function openDeviceImportPicker() {
     deviceImportInputRef?.click();
   }
 

@@ -69,6 +69,7 @@
     handleRackContextExport,
     handleRackContextFocus,
   } from "$lib/utils/rack-actions";
+  import { runImportDevices } from "$lib/actions/import-devices-trigger";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getWorkspaceStore } from "$lib/stores/workspace.svelte";
   import { createLayout } from "$lib/utils/serialization";
@@ -525,9 +526,9 @@
   }
 
   function handleImportDevices() {
-    // Delegates to DialogOrchestrator's hidden file input via dialogStore
-    // The DialogOrchestrator handles the actual file input click
-    dialogOrchestrator.handleImportDevices();
+    // Opens DialogOrchestrator's hidden file input via the module-level
+    // trigger the orchestrator registers on mount.
+    runImportDevices();
   }
 
   function handleOpenSettings() {
@@ -556,9 +557,6 @@
   function handleRackContextRename(rackId: string) {
     handleRackContextEdit(rackId);
   }
-
-  // DialogOrchestrator component reference for delegating calls
-  let dialogOrchestrator: DialogOrchestrator;
 </script>
 
 <svelte:window onkeydown={(e) => konamiDetector.handleKeyDown(e)} />
@@ -689,7 +687,7 @@
       {/if}
     </main>
 
-    <DialogOrchestrator bind:this={dialogOrchestrator} />
+    <DialogOrchestrator />
 
     <KeyboardHandler />
 

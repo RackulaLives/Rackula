@@ -35,10 +35,6 @@ export interface PaletteCommandGroup {
 const EXCLUDED: ReadonlySet<ActionId> = new Set<ActionId>([
   "command-palette",
   "escape",
-  // import-devices trigger is component-owned (DialogOrchestrator.handleImportDevices
-  // via bind:this ref in App.svelte) and not callable from the module dispatch.
-  // Excluded until that trigger is lifted to a module-level action.
-  "import-devices",
 ]);
 
 /** Group heading order in the palette. */

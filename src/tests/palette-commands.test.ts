@@ -31,8 +31,8 @@ describe("getPaletteCommands", () => {
     expect(ids(baseCtx)).not.toContain("command-palette");
   });
 
-  it("excludes import-devices (component-owned trigger, not module-dispatchable)", () => {
-    expect(ids(baseCtx)).not.toContain("import-devices");
+  it("lists import-devices now that its trigger is module-dispatchable", () => {
+    expect(ids(baseCtx)).toContain("import-devices");
   });
 
   it("hides selection commands when nothing is selected", () => {
