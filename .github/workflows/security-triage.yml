@@ -35,6 +35,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
+    # Serialize triage per scanner so two same-tool completions can't race on
+    # branch/PR creation for the same alerts. CodeQL and Trivy still run in
+    # parallel (distinct group keys). Do NOT cancel in-progress: this job opens
+    # PRs and dismisses alerts, so a cancelled run could orphan a pushed branch.
+    concurrency:
+      group: security-triage-${{ github.event.workflow_run.name || inputs.triggering_workflow }}
+      cancel-in-progress: false
+
     # Skip if the triggering scan failed before uploading SARIF, unless this is a
     # manual dispatch (which has no triggering workflow to inspect).
     if: >-
