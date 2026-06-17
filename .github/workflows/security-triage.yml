@@ -1,0 +1,96 @@
+name: Security Triage
+
+# Fires when CodeQL or Trivy completes on the default branch. Runs Claude Code
+# (authenticated via a Claude subscription OAuth token, NOT an API key) to triage
+# net-new Code Scanning alerts: dismiss false positives, open a draft PR with a
+# suggested fix for real findings.
+#
+# Auth: CLAUDE_CODE_OAUTH_TOKEN, generated locally by a Claude Pro/Max subscriber
+# with `claude setup-token` and stored as a repo secret. This bills against the
+# subscription, not API credits. IMPORTANT: this job must NOT expose
+# ANTHROPIC_API_KEY - if present it takes auth precedence and bills the API account.
+# See docs/deployment/SECURITY-TRIAGE.md.
+
+on:
+  workflow_run:
+    workflows: ["CodeQL", "Trivy Security Scan"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      triggering_workflow:
+        description: "Workflow name to simulate (CodeQL or Trivy Security Scan)"
+        required: false
+        default: "CodeQL"
+
+permissions:
+  contents: write
+  pull-requests: write
+  security-events: write
+  issues: write
+
+jobs:
+  triage:
+    name: Triage new findings
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    # Skip if the triggering scan failed before uploading SARIF, unless this is a
+    # manual dispatch (which has no triggering workflow to inspect).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success' ||
+      github.event.workflow_run.conclusion == 'failure'
+
+    env:
+      TRIGGERING_WORKFLOW: >-
+        ${{ github.event_name == 'workflow_dispatch'
+            && inputs.triggering_workflow
+            || github.event.workflow_run.name }}
+      # Empty on manual dispatch (no workflow_run in the payload): the playbook
+      # treats "no scan start time" as "triage all currently-open alerts" so a
+      # dry run actually sees something.
+      RUN_STARTED_AT: ${{ github.event.workflow_run.run_started_at }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: main
+          fetch-depth: 1
+
+      # Runners have no default git identity; Claude's git commit would abort
+      # without this. Use the github-actions[bot] identity for triage commits.
+      - name: Configure git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # GitHub processes uploaded SARIF into Code Scanning alerts asynchronously.
+      # Wait so the new alerts are queryable before Claude looks for them.
+      - name: Wait for Code Scanning API to process SARIF
+        if: github.event_name == 'workflow_run'
+        run: sleep 90
+
+      - name: Run security triage
+        uses: anthropics/claude-code-action@d5726de019ec4498aa667642bc3a80fca83aa102 # v1
+        # Pass the OAuth token both as the action input and as the env var the
+        # underlying Claude CLI reads, so auth binds regardless of whether this
+        # pinned action version exposes the claude_code_oauth_token input.
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        with:
+          # Subscription OAuth token (NOT anthropic_api_key) so usage bills against
+          # the Claude Pro/Max subscription rather than API credits.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Read .github/prompts/security-triage.md and follow it exactly.
+
+            Triage net-new open Code Scanning alerts from the "${{ env.TRIGGERING_WORKFLOW }}"
+            scan that started at ${{ env.RUN_STARTED_AT }}.
+
+            Repository: ${{ github.repository }}
+            Default branch: main
+            Current HEAD SHA: ${{ github.sha }}
+          claude_args: '--allowedTools "Bash,Read,Write,Edit,Glob,Grep"'
