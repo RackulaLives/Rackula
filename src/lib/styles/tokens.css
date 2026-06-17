@@ -365,7 +365,22 @@
   --bottom-nav-bg: rgba(33, 34, 44, 0.85);
   --bottom-nav-border: rgba(52, 55, 70, 0.6);
   --bottom-nav-blur: 20px;
-  --verb-bar-bg: rgba(33, 34, 44, 0.95);
+  --verb-bar-bg: rgba(33, 34, 44, 0.72);
+  /* Specular glass: translucent body lets devices show through; the rim and
+     sheen sell it as a lens. Dark theme uses a lighter top edge for the
+     highlight and a soft dark bottom for grounding. */
+  --verb-bar-bg-solid: rgba(33, 34, 44, 0.97);
+  --verb-bar-backdrop: blur(16px) saturate(1.6);
+  --verb-bar-border: rgba(248, 248, 242, 0.14);
+  --verb-bar-rim:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.28);
+  --verb-bar-sheen: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.02) 38%,
+    rgba(255, 255, 255, 0) 60%
+  );
   --bottom-nav-active-pill-bg: rgba(139, 233, 253, 0.12);
   --bottom-nav-active-colour: var(--colour-primary);
   --bottom-nav-inactive-colour: var(--colour-text-muted);
@@ -601,7 +616,20 @@
   --bottom-nav-bg: rgba(239, 237, 220, 0.85);
   --bottom-nav-border: rgba(222, 220, 207, 0.6);
   --bottom-nav-active-pill-bg: rgba(3, 106, 150, 0.1);
-  --verb-bar-bg: rgba(239, 237, 220, 0.95);
+  --verb-bar-bg: rgba(239, 237, 220, 0.62);
+  /* Light theme: the cream body needs a brighter top sheen and a softer,
+     warmer bottom edge so the rim reads on a pale background. */
+  --verb-bar-bg-solid: rgba(243, 241, 226, 0.97);
+  --verb-bar-border: rgba(95, 90, 70, 0.18);
+  --verb-bar-rim:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 0 rgba(95, 90, 70, 0.14);
+  --verb-bar-sheen: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.12) 38%,
+    rgba(255, 255, 255, 0) 60%
+  );
 
   --colour-error-hover: #b33030;
 

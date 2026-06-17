@@ -111,11 +111,25 @@
     gap: var(--space-1);
     padding: var(--space-1);
     border-radius: var(--radius-full);
-    border: 1px solid var(--bottom-nav-border);
-    background: var(--verb-bar-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--verb-bar-border);
+    /* Sheen gradient layered over the translucent body so the bar reads as a
+       lens catching light, not frosted plastic. */
+    background: var(--verb-bar-sheen), var(--verb-bar-bg);
+    backdrop-filter: var(--verb-bar-backdrop);
+    -webkit-backdrop-filter: var(--verb-bar-backdrop);
+    /* Specular rim (inset light top edge + dark bottom) plus the floating
+       drop shadow. */
+    box-shadow: var(--verb-bar-rim), var(--shadow-lg);
+  }
+
+  /* Fall back to a near-solid background when the user reduces transparency,
+     so icon contrast stays legible without the backdrop blur. */
+  @media (prefers-reduced-transparency: reduce) {
+    .verb-bar {
+      background: var(--verb-bar-bg-solid);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
   }
 
   .verb-button {
