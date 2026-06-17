@@ -366,9 +366,11 @@
     cursor: not-allowed;
   }
 
-  /* Command pill: 44px hit area (by stretching to full toolbar height via
-     align-self: stretch) keeps it in line with the other controls. */
+  /* Command pill: keeps a compact 32px visual height but extends its clickable
+     area to 44px (matching the gear and chevron) via a transparent ::before
+     overlay, so the hit target is comfortable without inflating the pill. */
   .command-pill {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
@@ -384,6 +386,18 @@
     transition:
       border-color var(--duration-fast) var(--ease-out),
       color var(--duration-fast) var(--ease-out);
+  }
+
+  /* Transparent vertical hit-area extension to 44px (WCAG 2.5.5 target size),
+     matching the 44px icon buttons without inflating the visual pill. */
+  .command-pill::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 44px;
   }
 
   .command-pill:hover {
