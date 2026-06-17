@@ -182,15 +182,32 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+    env:
+      # d.racku.la sits behind Cloudflare Access. Map the service-token secrets
+      # to env so the curl gate and the browser smoke can authenticate, and so
+      # the browser smoke can skip when they are absent (forks) instead of
+      # failing on the login wall (#2346).
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
 
     steps:
       # Fast curl gate: fails immediately if the server or API is unreachable,
       # before we spend time spinning up a browser.
       - name: Verify deployment responds
+        # Same fork guard as the browser smoke below: without the CF Access
+        # service token these requests only reach the login wall, so skip rather
+        # than report a misleading pass (#2346).
+        if: ${{ env.CF_ACCESS_CLIENT_ID != '' && env.CF_ACCESS_CLIENT_SECRET != '' }}
         run: |
           sleep 5
-          curl -sf --retry 5 --retry-delay 3 https://d.racku.la
-          curl -sf --retry 5 --retry-delay 3 https://d.racku.la/api/layouts
+          curl -sf --retry 5 --retry-delay 3 \
+            -H "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" \
+            -H "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}" \
+            https://d.racku.la
+          curl -sf --retry 5 --retry-delay 3 \
+            -H "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" \
+            -H "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}" \
+            https://d.racku.la/api/layouts
 
       # The vps-rackula runner is not ephemeral: it reuses _work across jobs, and
       # a prior sparse checkout can leave an index that makes actions/checkout's
@@ -232,6 +249,11 @@ jobs:
         run: npx playwright install --with-deps chromium || npx playwright install chromium
 
       - name: Browser smoke test against deployed app
+        # Skip rather than fail when the Cloudflare Access service token is not
+        # configured (e.g. forks): without it every request lands on the login
+        # wall, which no timeout bump can fix (#2346). The CF_ACCESS_* env vars
+        # are inherited by the smoke config (playwright.smoke.config.ts).
+        if: ${{ env.CF_ACCESS_CLIENT_ID != '' && env.CF_ACCESS_CLIENT_SECRET != '' }}
         env:
           SMOKE_TEST_URL: https://d.racku.la
         run: npm run test:e2e:smoke

@@ -2,6 +2,22 @@ import { defineConfig, devices } from "@playwright/test";
 
 const smokeTestUrl = process.env.SMOKE_TEST_URL;
 
+// Cloudflare Access service-token credentials. When the smoke runs against a
+// CF-Access-gated deploy (d.racku.la), these authenticate non-interactively.
+// Playwright applies extraHTTPHeaders to both page navigations and the request
+// fixture, so the headers cover the page loads and the /version.json request.
+// Absent locally and in forks, where the smoke runs against an ungated URL or is
+// skipped by the workflow rather than hitting the login wall.
+const cfAccessClientId = process.env.CF_ACCESS_CLIENT_ID;
+const cfAccessClientSecret = process.env.CF_ACCESS_CLIENT_SECRET;
+const cfAccessHeaders =
+  cfAccessClientId && cfAccessClientSecret
+    ? {
+        "CF-Access-Client-Id": cfAccessClientId,
+        "CF-Access-Client-Secret": cfAccessClientSecret,
+      }
+    : undefined;
+
 /**
  * Playwright configuration for smoke tests.
  *
@@ -43,6 +59,7 @@ export default defineConfig({
     baseURL: smokeTestUrl || "http://localhost:4173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    ...(cfAccessHeaders ? { extraHTTPHeaders: cfAccessHeaders } : {}),
   },
   projects: [
     {
