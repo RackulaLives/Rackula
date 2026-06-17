@@ -556,7 +556,7 @@
             {:else if uiStore.displayMode === "image"}
               <IconImageBold size={ICON_SIZE.sm} />
             {:else}
-              <IconImageLabel size={ICON_SIZE.md} />
+              <IconImageLabel size={ICON_SIZE.sm} />
             {/if}
           </button>
         </Tooltip>

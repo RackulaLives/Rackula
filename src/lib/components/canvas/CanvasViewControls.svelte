@@ -163,7 +163,7 @@
         {:else if displayMode === "image"}
           <IconImageBold size={ICON_SIZE.md} />
         {:else}
-          <IconImageLabel size={ICON_SIZE.lg} />
+          <IconImageLabel size={ICON_SIZE.md} />
         {/if}
       </button>
     </Tooltip>
