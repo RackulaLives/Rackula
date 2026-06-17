@@ -183,3 +183,30 @@ describe("computeVerbBarPosition - horizontal clamping", () => {
     expect(result.left).toBe(expectedLeft);
   });
 });
+
+describe("computeVerbBarPosition - flip-below viewport clamping", () => {
+  it("clamps the flipped position so a tall target keeps the bar on-screen", () => {
+    // A rack container is tall: its top is near the viewport top (forcing a
+    // flip below) but its bottom is far below the fold. Without clamping, the
+    // bar would render at target.bottom, off-screen and unreachable.
+    const bar: Size = { width: 180, height: 36 };
+    const viewport: Size = { width: 1280, height: 800 };
+    const target = makeRect(10, 200, 480, 2000); // bottom = 2010, below the fold
+    const result = computeVerbBarPosition(input({ target, bar, viewport }));
+    expect(result.placement).toBe("below");
+    expect(result.visible).toBe(true);
+    const maxTop = viewport.height - bar.height - VERB_BAR_MARGIN;
+    expect(result.top).toBeLessThanOrEqual(maxTop);
+    expect(result.top + bar.height).toBeLessThanOrEqual(viewport.height);
+  });
+
+  it("leaves a short target's flipped position unclamped", () => {
+    // A device row near the top flips below; its bottom is on-screen, so the
+    // position stays at target.bottom + margin, not pinned to the fold.
+    const bar: Size = { width: 180, height: 36 };
+    const viewport: Size = { width: 1280, height: 800 };
+    const target = makeRect(20, 200, 120, 24); // bottom = 44, on-screen
+    const result = computeVerbBarPosition(input({ target, bar, viewport }));
+    expect(result.top).toBe(target.bottom + VERB_BAR_MARGIN);
+  });
+});

@@ -11,7 +11,9 @@
  * 3. VERTICAL: placed above the target by default. Flips to below when the
  *    computed above-top would be less than VERB_BAR_FLIP_THRESHOLD pixels
  *    from the viewport top, so the bar does not occlude the device label
- *    or sit off-screen when the device is near the rack header.
+ *    or sit off-screen when the device is near the rack header. The flipped
+ *    position is clamped to the viewport so a tall target (e.g. a rack) cannot
+ *    push the bar off-screen.
  */
 
 /** Viewport-space bounding rectangle using plain numbers (no DOM dependency). */
@@ -88,7 +90,14 @@ export function computeVerbBarPosition(
   // Vertical: prefer above, but flip below when there is insufficient room.
   const aboveTop = target.top - VERB_BAR_MARGIN - bar.height;
   if (aboveTop < VERB_BAR_FLIP_THRESHOLD) {
-    const top = target.bottom + VERB_BAR_MARGIN;
+    // Clamp the flipped position to the viewport. A tall target (e.g. a rack
+    // container) can have its bottom far below the fold, which would otherwise
+    // push the bar off-screen and out of reach.
+    const maxTop = viewport.height - bar.height - VERB_BAR_MARGIN;
+    const top = Math.max(
+      VERB_BAR_MARGIN,
+      Math.min(target.bottom + VERB_BAR_MARGIN, maxTop),
+    );
     return { visible: true, left, top, placement: "below" };
   }
 
