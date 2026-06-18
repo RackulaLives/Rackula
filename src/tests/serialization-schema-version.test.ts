@@ -41,7 +41,9 @@ describe("schema_version in serialized output", () => {
 
     const yaml = await serializeLayoutToYaml(layout);
 
-    expect(yaml).toContain("schema_version");
+    // Assert the value, not just the key: a serializer emitting an empty or
+    // wrong value would still contain "schema_version" but defeat the guard.
+    expect(yaml).toMatch(/schema_version:\s*["']?1\.0["']?/);
   });
 
   it("appears in the YAML inside a generated archive", async () => {
@@ -62,7 +64,9 @@ describe("schema_version in serialized output", () => {
 
     const yaml = await readArchiveYaml(blob);
 
-    expect(yaml).toContain("schema_version");
+    // Assert the value, not just the key: a serializer emitting an empty or
+    // wrong value would still contain "schema_version" but defeat the guard.
+    expect(yaml).toMatch(/schema_version:\s*["']?1\.0["']?/);
   });
 
   it("falls back to a default when metadata omits schema_version", async () => {
@@ -80,6 +84,28 @@ describe("schema_version in serialized output", () => {
 
     // Assert the value, not just the key: an empty string would still contain
     // "schema_version" but defeats the fallback this test guards.
+    expect(yaml).toMatch(/schema_version:\s*["']?1\.0["']?/);
+  });
+
+  it("falls back to a default in the archive when schema_version is omitted", async () => {
+    // Omit the entry metadata and the layout's schema_version so the archive
+    // writer itself must supply the "1.0" default (addLayoutFolderToZip), the
+    // same guarantee the YAML serializer gives above for the archive path.
+    const blob = await createMultiLayoutArchive([
+      {
+        layout: createTestLayout({
+          racks: [createTestRack({ id: "rack-1" })],
+          metadata: {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Homelab",
+          } as LayoutMetadata,
+        }),
+        images: new Map() as ImageStoreMap,
+      },
+    ]);
+
+    const yaml = await readArchiveYaml(blob);
+
     expect(yaml).toMatch(/schema_version:\s*["']?1\.0["']?/);
   });
 });
