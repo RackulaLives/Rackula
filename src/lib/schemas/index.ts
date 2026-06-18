@@ -794,6 +794,51 @@ const LayoutSchemaInput = z
   .passthrough();
 
 /**
+ * Current data-format version the running app reads and writes (MAJOR.MINOR).
+ *
+ * This is the schema_version, distinct from the app `version` (provenance, bumps
+ * every release). A reader gates loadability strictly on the MAJOR component of a
+ * document's metadata.schema_version against this constant. See the versioning
+ * policy in docs/reference/SCHEMA.md (#1113).
+ */
+export const SCHEMA_VERSION = "1.0";
+
+/** MAJOR component of a MAJOR.MINOR version string (untrusted-input safe). */
+function majorOf(version: string): number {
+  const major = parseInt(version.trim().split(".")[0] ?? "", 10);
+  return Number.isFinite(major) ? major : 0;
+}
+
+/**
+ * Reject a layout whose data-format MAJOR is newer than the running app (#2205).
+ *
+ * Gates strictly on the MAJOR of metadata.schema_version, never the app `version`
+ * (which bumps every release and would over-reject). An absent schema_version is
+ * treated as the current format (MAJOR matches), so legacy files predating
+ * versioning load. Older MAJOR is not rejected here: it falls through to the
+ * migration path. The check is read-only and non-destructive: it throws before
+ * any parse or write so the original input is never modified.
+ *
+ * @param schemaVersion - The document's metadata.schema_version, if present.
+ * @throws Error when the document MAJOR is newer than the app understands.
+ */
+export function assertSchemaVersionSupported(
+  schemaVersion: string | undefined,
+): void {
+  // Absent schema_version reads as the current format (every file predating
+  // versioning is the current MAJOR by construction).
+  if (schemaVersion === undefined) {
+    return;
+  }
+  if (majorOf(schemaVersion) > majorOf(SCHEMA_VERSION)) {
+    throw new Error(
+      `This layout was created by a newer version of Rackula (format ${schemaVersion}). ` +
+        `Update Rackula to open it. Your file was not changed.`,
+    );
+  }
+}
+
+/**
  * Compare two semver version strings
  * Returns: -1 if a < b, 0 if a == b, 1 if a > b
  * Note: Pre-release suffixes (e.g., -dev, -alpha.1) and build metadata are stripped
