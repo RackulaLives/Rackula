@@ -92,6 +92,45 @@ encode), but that does not substitute for the gate.
 
 ---
 
+## Published Schema
+
+A language-agnostic JSON Schema is generated from the Zod source and committed at
+`static/schemas/layout-v1.json`. It is the structural contract for the saved-layout format.
+Run `npm run generate-schema` to regenerate it after changing the Zod schema; a CI drift check
+fails if the committed artifact and the generated output diverge.
+
+### Canonical `$id`
+
+The artifact carries the canonical identifier `https://schemas.racku.la/layout/v{MAJOR}.json`,
+which for the current MAJOR is:
+
+```text
+https://schemas.racku.la/layout/v1.json
+```
+
+The `$id` is an identifier, not a fetch target. Readers decide loadability offline from
+`metadata.schema_version` (see the reader rule above) and never resolve the `$id` over the
+network, so the canonical `$id` is wired before the `schemas.racku.la` domain exists.
+
+### Served location (interim fetch URL)
+
+`static/` is served at the deployment root, so the artifact is reachable today at:
+
+| Environment | URL                                            |
+| ----------- | ---------------------------------------------- |
+| Prod        | `https://count.racku.la/schemas/layout-v1.json` |
+| Dev         | `https://d.racku.la/schemas/layout-v1.json`     |
+
+Until the `schemas.racku.la` DNS is live, use the prod served URL above as the fetch URL for
+tooling that resolves a schema (for example a `# yaml-language-server: $schema=...` editor
+hint). The served path (`/schemas/layout-v1.json`) differs from the canonical `$id` path
+(`/layout/v1.json`) on purpose: the `$id` follows the long-term canonical shape while the
+served path matches the committed artifact's location. When `schemas.racku.la` is configured,
+it will serve the artifact at the canonical `$id` path and the fetch URL converges on the
+`$id`.
+
+---
+
 ## DeviceType
 
 Template definition for devices in the library. Referenced by `PlacedDevice.device_type`.

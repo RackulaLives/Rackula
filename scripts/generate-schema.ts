@@ -36,8 +36,15 @@ const OUTPUT_FILE = join(ROOT, "static", "schemas", "layout-v1.json");
 export const JSON_SCHEMA_DIALECT =
   "https://json-schema.org/draft/2020-12/schema";
 
-/** Canonical published location of this schema (static/ serves at site root). */
-export const SCHEMA_ID = "https://count.racku.la/schemas/layout-v1.json";
+/**
+ * Canonical schema identifier per docs/reference/SCHEMA.md
+ * (schemas.racku.la/layout/v{MAJOR}.json). This is an identifier, not a fetch
+ * target: readers gate loadability offline on metadata.schema_version, so the
+ * canonical $id is set before schemas.racku.la DNS exists. The artifact is
+ * served in the interim at the count.racku.la/d.racku.la /schemas/ path (see
+ * the Published Schema section of SCHEMA.md).
+ */
+export const SCHEMA_ID = "https://schemas.racku.la/layout/v1.json";
 
 export const SCHEMA_DESCRIPTION =
   "Beta. Generated from the Rackula Zod layout schema. Covers the structural " +

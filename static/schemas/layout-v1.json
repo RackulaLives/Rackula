@@ -1,6 +1,6 @@
 {
   "$description": "Beta. Generated from the Rackula Zod layout schema. Covers the structural shape of a saved layout but not cross-field rules expressed in Zod (.refine/.superRefine: referential integrity, carrier-first rail placement, slot fit) or the load-time .transform (legacy position migration, rack id generation, unknown-field preservation). Expect roughly 80 percent validation coverage; the Zod schema in src/lib/schemas/index.ts is authoritative.",
-  "$id": "https://count.racku.la/schemas/layout-v1.json",
+  "$id": "https://schemas.racku.la/layout/v1.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": {},
   "properties": {
