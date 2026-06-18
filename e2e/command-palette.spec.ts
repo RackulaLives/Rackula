@@ -329,4 +329,26 @@ test.describe("Command palette", () => {
     // timeout suffices for the post-placement settle.
     await expect(placementHeader).not.toBeVisible({ timeout: 5000 });
   });
+
+  // --- #2399: input-row settings gear ---
+
+  test("the settings gear opens the Settings dialog and closes the palette", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).toBeVisible();
+
+    await page.getByTestId("command-palette-settings").click();
+
+    // dialogStore is scalar: opening "settings" replaces the palette, so the
+    // palette closes and the Settings dialog takes its place.
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "Settings" }),
+    ).toBeVisible();
+  });
 });
