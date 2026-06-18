@@ -76,6 +76,27 @@ See `CLAUDE.md` for deployment environments and CI/CD details.
 
 > **Reference:** For complete schema documentation including all fields, validation rules, and YAML examples, see [SCHEMA.md](./SCHEMA.md).
 
+### Mounting Model
+
+Rackula models rack mounting carrier-first. This is a design principle: it decides where a device can sit and answers the recurring "why can't I place this at U5 1/3?" question with one authoritative rule.
+
+Rails register equipment at whole-U boundaries only, matching the EIA-310 standard. A U is defined by three mounting holes; those holes locate the boundary of a unit, they are not alternative mounting positions. There is no real 1/3U or 1/2U rail position on a physical rack, so Rackula does not offer one. Rail positions are whole-U integers.
+
+Devices smaller than a full U, or narrower than full width, do not bolt to the rails on their own. They mount inside a carrier: a bracket, tray, or shelf that occupies a whole U. The carrier registers to the rails at a whole-U boundary, and the small devices register to the carrier. A half-width pair, for example, is one carrier with two cells side by side. A MikroTik K-79 is a branded 2x2 carrier holding up to four small units in 1U.
+
+The mounting rule:
+
+| Device                                          | Mounts on  |
+| ----------------------------------------------- | ---------- |
+| Full-width, integer u_height                    | Rails      |
+| Sub-U height, non-integer height, or sub-width  | A carrier  |
+
+Carriers are ordinary devices with a face and a whole-U position. A device with `u_height` below 1, a non-integer `u_height`, or less than full width cannot be placed on the rails directly; it must be a child of a carrier. This rule is enforced in the schema, in store placement actions, and in drag-and-drop targeting, so a fractional rail position cannot be reintroduced from any path.
+
+Rationale: fractional rail offsets modelled a physical fiction and scattered paired half-width gear into impossible positions. Carrier-first keeps the data faithful to how equipment actually mounts, and gives sub-U devices a real parent rather than a floating coordinate.
+
+Legacy layouts and share links that used fractional rail positions are adapted on load: positions snap to the nearest whole U, and sub-U or paired half-width placements are wrapped in an automatically synthesized carrier. The adaptation runs once on the read path. Older files open with their gear intact, now mounted in carriers the user did not place by hand.
+
 ### Constraints
 
 | Constraint              | Value           |
@@ -92,11 +113,12 @@ See `CLAUDE.md` for deployment environments and CI/CD details.
 
 ### Collision Detection
 
-Two devices collide if **all** conditions are true:
+Two rail-level devices collide if **both** conditions are true:
 
 1. Their U ranges overlap (`position` to `position + u_height - 1`)
 2. Their faces collide (see rules below)
-3. Their slot positions overlap (left/right/full)
+
+Rail-level devices are all whole-U and full-width (see Mounting Model above), so there is no left/right slot dimension to compare at the rails. Sub-U gear lives inside carriers, where collision is checked per cell (see Container-Aware Collision below).
 
 **Face Collision Rules (Face-Authoritative Model):**
 

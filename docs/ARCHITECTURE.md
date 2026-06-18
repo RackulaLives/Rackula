@@ -115,6 +115,12 @@ All user actions that modify state go through the command pattern:
 - History stack in `src/lib/stores/history.svelte.ts`
 - Enables `Ctrl+Z` / `Ctrl+Shift+Z` undo/redo
 
+### Carrier-First Mounting
+
+Rail positions are whole-U integers. Internally, positions are stored in units of `UNITS_PER_U` (6 per U) so device heights can step in 0.5U, but a device registers to the rails only at a whole-U boundary. Devices smaller than a full U or narrower than full width mount inside a carrier (a bracket, tray, or shelf) that occupies a whole U; the carrier registers to the rails, and the small devices register to the carrier. Container children carry a `container_id` and `slot_id` and are positioned relative to their carrier, not the rails.
+
+See [SPEC.md, Mounting Model](reference/SPEC.md#mounting-model) for the authoritative rule, the EIA-310 rationale, and how legacy fractional positions are adapted on load.
+
 ### NetBox-Compatible Data Model
 
 Field names follow NetBox conventions (snake_case):

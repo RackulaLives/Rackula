@@ -235,6 +235,10 @@ If none of those conditions are met, proceed immediately to the next prompt.
 
 ## Quick Reference
 
+### Invariants
+
+- Rail positions are whole-U integers; sub-U devices mount in containers; never reintroduce fractional rail positions. See [SPEC.md, Mounting Model](docs/reference/SPEC.md#mounting-model).
+
 ### Tech Stack
 
 - Svelte 5 with runes (`$state`, `$derived`, `$effect`)
