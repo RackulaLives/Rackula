@@ -47,6 +47,12 @@ let serverReachableInBrowser = $state(false);
 // Pending promise to prevent race conditions during initialization
 let pendingCheck: Promise<boolean> | null = null;
 
+// Bumped by resetAvailabilityState so an in-flight health check started before a
+// reset cannot resolve later and repopulate the freshly-cleared state (test-only
+// concern; production never resets). The init promise captures the generation at
+// start and discards its result if the generation changed while it was in flight.
+let availabilityGeneration = 0;
+
 /**
  * Check if API is available (cached result)
  */
@@ -87,6 +93,10 @@ export function resetAvailabilityState(): void {
   apiAvailable = null;
   apiEverReached = false;
   serverReachableInBrowser = false;
+  // Invalidate any in-flight init check and drop the cached pending promise so a
+  // stale resolution cannot repopulate the state we just cleared.
+  availabilityGeneration++;
+  pendingCheck = null;
 }
 
 /**
@@ -110,16 +120,28 @@ export async function initializePersistence(): Promise<boolean> {
 
   log("initializePersistence: starting API health check");
 
+  // Capture the generation so a reset that fires while this check is in flight
+  // invalidates the result rather than letting it repopulate cleared state.
+  const generation = availabilityGeneration;
+
   // Create and store the pending promise
   pendingCheck = checkApiHealth()
     .then((result) => {
+      if (generation !== availabilityGeneration) {
+        log("initializePersistence: stale check ignored (state was reset)");
+        return result;
+      }
       apiAvailable = result;
       if (result) apiEverReached = true;
       log("initializePersistence: API availability determined: %s", result);
       return result;
     })
     .finally(() => {
-      pendingCheck = null;
+      // Only clear the cached promise if it is still ours; a reset may have
+      // already replaced it with null and a newer check.
+      if (generation === availabilityGeneration) {
+        pendingCheck = null;
+      }
     });
 
   return pendingCheck;

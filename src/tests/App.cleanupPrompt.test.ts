@@ -141,6 +141,8 @@ function resetHoistedMocks(): void {
   persistenceStoreMocks.setApiAvailable.mockReset();
   persistenceStoreMocks.getApiAvailableState.mockReset();
   persistenceStoreMocks.getApiAvailableState.mockReturnValue(false);
+  persistenceStoreMocks.getApiEverReached.mockReset();
+  persistenceStoreMocks.getApiEverReached.mockReturnValue(false);
   persistenceStoreMocks.getStorageMode.mockReset();
   persistenceStoreMocks.getStorageMode.mockReturnValue("server");
 
