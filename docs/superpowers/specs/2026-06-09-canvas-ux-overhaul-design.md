@@ -284,6 +284,40 @@ offline" toast is removed.
 The data-safety and race-condition questions are resolved by spike #2019 (see Open
 questions: storage).
 
+### Storage mode misconfiguration
+
+The explicit storage mode introduces a failure class the original chip never named:
+the configured mode contradicting the observable deployment. The chip is the honest
+surface for it, so it distinguishes configured intent from observed reality (#2063).
+Two cases, both surfaced in the popover only, with no new toasts and a factual tone.
+
+Browser mode while a server is reachable. A compose --profile persist install without
+RACKULA_STORAGE_MODE=server, or a partially wired install, runs in browser mode while
+/api/health answers. Layouts silently stay in the browser with a working server one
+header away. The chip adds a passive popover line ("A Rackula server is reachable but
+this instance stores layouts in the browser. Set RACKULA_STORAGE_MODE=server to use
+it.") and changes nothing else: the dot, label, and durability status stay exactly as
+the browser build defines them, because the file is still the durable home here. No
+toast, no nagging. To detect this without re-introducing the runtime guesswork the
+explicit mode replaced, browser mode runs the same hardened /api/health probe (the one
+that validates a structured JSON payload, not an SPA fallback) purely to feed this hint.
+
+Server mode where the server was never reached since load. A frontend-only install that
+declares server mode gets the same treatment as a transient outage forever: an amber
+chip and an instance-named drop toast, with no hint the deployment itself is broken. The
+chip now splits the two error classes by whether the API has answered at least once this
+session, tracked by a one-way ever-reached latch that never falls back on a later loss.
+Never reached is a distinct chip state ("Server not found", popover copy "Check that the
+API container is running and RACKULA_STORAGE_MODE matches the deployment.") and fires no
+drop toast, since nothing was lost. Reached then lost keeps the existing offline
+treatment, and the instance-named drop toast stays reserved for it. The circuit-breaker
+trip is always reached-then-lost, since the breaker only opens after save attempts, which
+require a reachable server.
+
+These decisions follow the spike's messaging posture: name the broken state honestly,
+fail toward the honest label rather than the reassuring one, and never add a toast where
+a passive popover line will do.
+
 ## Creation and placement
 
 Creation is by placing, not by filling in a dialog. The one exception is defining a

@@ -31,6 +31,7 @@
     loadSessionWithTimestamp,
     setApiAvailable,
     initializePersistence,
+    probeServerForBrowserHint,
     getStorageMode,
     getServerInstanceLabel,
     detectModeFlip,
@@ -215,7 +216,11 @@
     const serverMode = getStorageMode() === "server";
 
     // Server mode only: probe the API so server autosave/load can enable when
-    // reachable. Browser mode skips the probe entirely (no server to reach).
+    // reachable. Browser mode skips the persistence probe (no server to reach),
+    // but fires a one-shot, fire-and-forget health probe so the chip can surface
+    // a passive "a server is reachable" hint if the deployment is misconfigured
+    // (browser mode while /api/health answers, #2063). It shows no toast and is
+    // never awaited on the entry path.
     const persistenceInitPromise = serverMode
       ? initializePersistence().catch((error) => {
           persistenceDebug.api(
@@ -226,6 +231,9 @@
           return false;
         })
       : Promise.resolve(false);
+    if (!serverMode) {
+      void probeServerForBrowserHint();
+    }
 
     // Priority 1: Check for shared layout in URL (highest priority)
     const shareParam = getShareParam();

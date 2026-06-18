@@ -168,9 +168,13 @@
       align="end"
     >
       <p class="storage-chip-state">{durability.label}</p>
-      <p class="storage-chip-detail">
-        {durability.mode === "server" ? "Saved to server" : "Stored in this browser"}
-      </p>
+      <p class="storage-chip-detail">{durability.detail}</p>
+      {#if durability.serverHint}
+        <p class="storage-chip-hint" data-testid="storage-chip-server-hint">
+          A Rackula server is reachable but this instance stores layouts in the
+          browser. Set RACKULA_STORAGE_MODE=server to use it.
+        </p>
+      {/if}
       <div class="storage-chip-actions">
         <button
           type="button"
@@ -285,6 +289,20 @@
     padding: 0 var(--space-2) var(--space-2);
     font-size: var(--font-size-xs);
     color: var(--colour-text-muted-inverse);
+  }
+
+  /* Passive misconfiguration note: a server is reachable while this instance
+     stores layouts in the browser. Factual tone, popover only, no toast. The
+     left rule and inset set it apart from the state/detail lines without a new
+     colour or an alarm treatment. */
+  .storage-chip-hint {
+    margin: 0 var(--space-2) var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-left: 2px solid var(--colour-border);
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-snug, 1.4);
+    color: var(--colour-text-muted-inverse);
+    white-space: normal;
   }
 
   .storage-chip-actions {

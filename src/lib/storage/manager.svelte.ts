@@ -566,6 +566,11 @@ export function initPersistenceEffects(): void {
     // Capture this run's schedule id; a later run (e.g. an edit during the
     // in-flight save) bumps it and marks an earlier save's success stale.
     const scheduleId = ++_serverSaveScheduleId;
+    // Server mode only, matching Effects 1 and 3. isApiAvailable() is the
+    // server-mode reachability signal; this explicit mode guard keeps a future
+    // browser-mode caller that sets apiAvailable (e.g. a misconfiguration probe)
+    // from ever waking server autosave in browser mode (#2063).
+    if (getStorageMode() !== "server") return;
     if (!isApiAvailable()) return;
     if (_consecutiveSaveFailures >= MAX_SAVE_FAILURES) return;
     const layout = layoutStore.layout;

@@ -17,6 +17,8 @@ import {
 } from "./manager.svelte";
 import {
   getApiAvailableState,
+  getApiEverReached,
+  isServerReachableInBrowser,
   getStorageMode,
   type StorageMode,
 } from "./availability.svelte";
@@ -26,14 +28,36 @@ const MAX_SAVE_FAILURES = 3;
 
 export type DurabilityStatus = "saved" | "pending" | "error";
 
+/**
+ * A finer-grained discriminator than the three-value status (which only drives
+ * the icon and colour). The chip and popover read kind to pick copy, in
+ * particular to split the two server-mode error classes #2063 surfaces:
+ * "offline" (reached then lost, the transient-outage drop-toast case) from
+ * "server-not-found" (server mode but the API never answered, a broken
+ * deployment).
+ */
+export type DurabilityKind =
+  | "saved"
+  | "pending"
+  | "offline"
+  | "server-not-found";
+
 export interface LayoutDurability {
   status: DurabilityStatus;
+  kind: DurabilityKind;
   mode: StorageMode;
   changesSinceExport: number;
   hasEverExported: boolean;
   isHealthy: boolean;
   label: string;
+  detail: string;
   icon: DurabilityStatus;
+  /**
+   * Browser-mode misconfiguration signal: a server is reachable while this
+   * instance stores layouts in the browser. Surfaced as a passive popover line
+   * only, never a toast, and never changes the status/label/kind.
+   */
+  serverHint: boolean;
 }
 
 /**
@@ -53,37 +77,132 @@ export function computeLayoutStatus(
   apiAvailable: boolean | null,
   changesSinceExport: number,
   hasEverExported: boolean,
-): { status: DurabilityStatus; label: string; icon: DurabilityStatus } {
+  apiEverReached: boolean,
+): {
+  status: DurabilityStatus;
+  kind: DurabilityKind;
+  label: string;
+  detail: string;
+  icon: DurabilityStatus;
+} {
   if (storageMode === "browser") {
     // Durable iff exported AND no edits since. The hasEverExported guard is
     // critical: a never-exported cold start has changesSinceExport === 0 yet is
-    // not durable. Browser mode never reads saveStatus / apiAvailable.
+    // not durable. Browser mode never reads saveStatus / apiAvailable for the
+    // status: a reachable server is only a passive popover hint (computeServerHint).
     if (changesSinceExport === 0 && hasEverExported) {
-      return { status: "saved", label: "Saved", icon: "saved" };
+      return {
+        status: "saved",
+        kind: "saved",
+        label: "Saved",
+        detail: "Stored in this browser",
+        icon: "saved",
+      };
     }
-    return { status: "pending", label: "Unsaved changes", icon: "pending" };
+    return {
+      status: "pending",
+      kind: "pending",
+      label: "Unsaved changes",
+      detail: "Stored in this browser",
+      icon: "pending",
+    };
   }
 
   // Server mode, ordered most-severe first.
   if (consecutiveSaveFailures >= MAX_SAVE_FAILURES) {
-    return { status: "error", label: "Server unavailable", icon: "error" };
+    // The breaker only opens after save attempts, which require a reachable
+    // server, so this is always reached-then-lost: the transient-outage class,
+    // not a never-reached misconfiguration.
+    return {
+      status: "error",
+      kind: "offline",
+      label: "Server unavailable",
+      detail: "Working from your browser; reload to retry.",
+      icon: "error",
+    };
   }
   if (apiAvailable === null) {
-    return { status: "pending", label: "Checking connection", icon: "pending" };
+    return {
+      status: "pending",
+      kind: "pending",
+      label: "Checking connection",
+      detail: "Looking for the server.",
+      icon: "pending",
+    };
   }
   if (apiAvailable === false) {
-    return { status: "error", label: "Offline", icon: "error" };
+    // Split the two failure classes #2063 surfaces. Never reached since load is
+    // a broken deployment (frontend-only install declared server mode, or the
+    // API container is not running); reached then lost is a transient outage the
+    // drop toast already covers. Fail honest: only call it an outage once the
+    // server has genuinely answered.
+    if (apiEverReached) {
+      return {
+        status: "error",
+        kind: "offline",
+        label: "Offline",
+        detail: "Working from your browser; reload to retry.",
+        icon: "error",
+      };
+    }
+    return {
+      status: "error",
+      kind: "server-not-found",
+      label: "Server not found",
+      detail:
+        "Check that the API container is running and RACKULA_STORAGE_MODE matches the deployment.",
+      icon: "error",
+    };
   }
   if (saveStatus === "error") {
-    return { status: "error", label: "Save error", icon: "error" };
+    return {
+      status: "error",
+      kind: "offline",
+      label: "Save error",
+      detail: "The last save did not go through.",
+      icon: "error",
+    };
   }
   if (saveStatus === "saving") {
-    return { status: "pending", label: "Saving", icon: "pending" };
+    return {
+      status: "pending",
+      kind: "pending",
+      label: "Saving",
+      detail: "Saving to server.",
+      icon: "pending",
+    };
   }
   if (saveStatus === "saved") {
-    return { status: "saved", label: "Saved", icon: "saved" };
+    return {
+      status: "saved",
+      kind: "saved",
+      label: "Saved",
+      detail: "Saved to server",
+      icon: "saved",
+    };
   }
-  return { status: "pending", label: "Pending save", icon: "pending" };
+  return {
+    status: "pending",
+    kind: "pending",
+    label: "Pending save",
+    detail: "Saving to server.",
+    icon: "pending",
+  };
+}
+
+/**
+ * Browser-mode misconfiguration probe: true when storage is browser yet a server
+ * answered the dedicated browser-mode probe (serverReachableInBrowser). Pure so it
+ * unit-tests without DOM. The hint is passive (popover only, never a toast) and
+ * never feeds the durability status; it only tells the user a server is one header
+ * away. In server mode a reachable server is the expected state, so there is never
+ * a hint there.
+ */
+export function computeServerHint(
+  storageMode: StorageMode,
+  serverReachableInBrowser: boolean,
+): boolean {
+  return storageMode === "browser" && serverReachableInBrowser;
 }
 
 /**
@@ -107,6 +226,7 @@ export function getLayoutDurability(layoutStore: LayoutStore): LayoutDurability 
       getApiAvailableState(),
       layoutStore.changesSinceExport,
       layoutStore.hasEverExported,
+      getApiEverReached(),
     );
   return {
     get mode(): StorageMode {
@@ -121,14 +241,23 @@ export function getLayoutDurability(layoutStore: LayoutStore): LayoutDurability 
     get status(): DurabilityStatus {
       return compute().status;
     },
+    get kind(): DurabilityKind {
+      return compute().kind;
+    },
     get isHealthy(): boolean {
       return this.status !== "error";
     },
     get label(): string {
       return compute().label;
     },
+    get detail(): string {
+      return compute().detail;
+    },
     get icon(): DurabilityStatus {
       return compute().icon;
+    },
+    get serverHint(): boolean {
+      return computeServerHint(getStorageMode(), isServerReachableInBrowser());
     },
   };
 }
@@ -155,12 +284,15 @@ export function rollupDurabilities(
   if (!worst) {
     return {
       status: "saved",
+      kind: "saved",
       mode: getStorageMode(),
       changesSinceExport: 0,
       hasEverExported: false,
       isHealthy: true,
       label: "All saved",
+      detail: "",
       icon: "saved",
+      serverHint: false,
     };
   }
   return worst;

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   computeLayoutStatus,
+  computeServerHint,
   rollupDurabilities,
   type LayoutDurability,
 } from "$lib/storage/durability.svelte";
@@ -25,6 +26,7 @@ function status(
   apiAvailable: boolean | null,
   changesSinceExport: number,
   hasEverExported: boolean,
+  apiEverReached = false,
 ) {
   return computeLayoutStatus(
     saveStatus,
@@ -33,6 +35,7 @@ function status(
     apiAvailable,
     changesSinceExport,
     hasEverExported,
+    apiEverReached,
   );
 }
 
@@ -58,12 +61,43 @@ describe("computeLayoutStatus — browser mode", () => {
     expect(result.label).toBe("Unsaved changes");
   });
 
-  it("ignores saveStatus and apiAvailable in browser mode", () => {
-    // Even a server "error" / unreachable API is irrelevant in browser mode.
+  it("ignores saveStatus and apiAvailable for the status in browser mode", () => {
+    // Even a server "error" / reachable API is irrelevant to the durability
+    // status in browser mode: the file is the durable home.
     const exported = status("error", 5, BROWSER, false, 0, true);
     expect(exported.status).toBe("saved");
     const dirty = status("saved", 0, BROWSER, true, 1, true);
     expect(dirty.status).toBe("pending");
+  });
+
+  it("a reachable API in browser mode never changes the status or label", () => {
+    // The server-available hint is a passive popover line; it must not flip the
+    // chip's dot, label, or kind. A backed-up browser layout stays saved even
+    // when a server answers one header away.
+    const withServer = status("idle", 0, BROWSER, true, 0, true);
+    const withoutServer = status("idle", 0, BROWSER, false, 0, true);
+    expect(withServer.status).toBe(withoutServer.status);
+    expect(withServer.label).toBe(withoutServer.label);
+    expect(withServer.kind).toBe(withoutServer.kind);
+  });
+});
+
+describe("computeServerHint — browser mode misconfiguration", () => {
+  it("hints when browser mode runs while a server is reachable", () => {
+    // The misconfiguration: storage browser with a healthy API one header away.
+    // Surfaced as a passive popover line only, never a toast.
+    expect(computeServerHint(BROWSER, true)).toBe(true);
+  });
+
+  it("does not hint when no server answered the browser-mode probe", () => {
+    // false is also the pre-probe default, so this covers the "before the probe
+    // resolves" case too: no signal, no hint.
+    expect(computeServerHint(BROWSER, false)).toBe(false);
+  });
+
+  it("never hints in server mode (a reachable server is expected there)", () => {
+    expect(computeServerHint(SERVER, true)).toBe(false);
+    expect(computeServerHint(SERVER, false)).toBe(false);
   });
 });
 
@@ -80,10 +114,41 @@ describe("computeLayoutStatus — server mode", () => {
     expect(result.label).toBe("Checking connection");
   });
 
-  it("is error when the API is known unreachable", () => {
-    const result = status("idle", 0, SERVER, false, 0, false);
+  it("is the outage state when the API was reached then lost", () => {
+    // apiEverReached true: the server answered earlier this session, then went
+    // away. This is the transient-outage treatment the drop toast covers.
+    const result = status("idle", 0, SERVER, false, 0, false, true);
     expect(result.status).toBe("error");
     expect(result.label).toBe("Offline");
+    expect(result.kind).toBe("offline");
+  });
+
+  it("is the misconfiguration state when the API was never reached", () => {
+    // apiEverReached false: server mode was declared but the API has not
+    // answered once since load. That is a broken deployment, not a transient
+    // outage, so it gets a distinct state and copy, not the drop toast.
+    const result = status("idle", 0, SERVER, false, 0, false, false);
+    expect(result.status).toBe("error");
+    expect(result.label).toBe("Server not found");
+    expect(result.kind).toBe("server-not-found");
+    expect(result.detail).toMatch(/api container/i);
+  });
+
+  it("distinguishes never-reached from reached-then-lost by kind", () => {
+    const neverReached = status("idle", 0, SERVER, false, 0, false, false);
+    const reachedThenLost = status("idle", 0, SERVER, false, 0, false, true);
+    expect(neverReached.kind).not.toBe(reachedThenLost.kind);
+  });
+
+  it("circuit-breaker trip is always reached-then-lost, never misconfiguration", () => {
+    // The breaker only opens after save attempts, which require a reachable
+    // server, so a never-reached deployment can never reach this branch. Even
+    // with apiEverReached false it must read as the outage state, not
+    // server-not-found.
+    const result = status("saving", 3, SERVER, false, 0, false, false);
+    expect(result.status).toBe("error");
+    expect(result.label).toBe("Server unavailable");
+    expect(result.kind).toBe("offline");
   });
 
   it("is error when the last save failed but the server is reachable", () => {
@@ -123,12 +188,15 @@ describe("rollupDurabilities — worst-wins", () => {
   function durability(status: LayoutDurability["status"]): LayoutDurability {
     return {
       status,
+      kind: status === "error" ? "offline" : status,
       mode: BROWSER,
       changesSinceExport: 0,
       hasEverExported: true,
       isHealthy: status !== "error",
       label: status,
+      detail: "",
       icon: status,
+      serverHint: false,
     };
   }
 

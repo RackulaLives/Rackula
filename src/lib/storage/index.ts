@@ -9,7 +9,10 @@ export {
   initializePersistence,
   isApiAvailable,
   getApiAvailableState,
+  getApiEverReached,
+  resetAvailabilityState,
   setApiAvailable,
+  probeServerForBrowserHint,
   getStorageMode,
   type StorageMode,
 } from "./availability.svelte";
@@ -63,9 +66,11 @@ export {
 } from "./reconcile";
 export {
   computeLayoutStatus,
+  computeServerHint,
   getLayoutDurability,
   rollupDurabilities,
   type DurabilityStatus,
+  type DurabilityKind,
   type LayoutDurability,
 } from "./durability.svelte";
 export {
