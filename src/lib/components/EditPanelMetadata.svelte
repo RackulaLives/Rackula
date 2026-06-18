@@ -413,8 +413,7 @@
     bind:value={deviceNotes}
     onblur={handleDeviceNotesBlur}
     rows="4"
-    placeholder="Add notes about this device placement..."
-  ></textarea>
+    placeholder="Add notes about this device placement..."></textarea>
   {#if deviceNotes.trim()}
     <div class="notes-preview">
       <span class="preview-label">Preview</span>

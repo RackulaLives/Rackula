@@ -292,8 +292,7 @@
         class="input-field"
         bind:value={notes}
         placeholder="Additional notes about the device..."
-        rows="3"
-      ></textarea>
+        rows="3"></textarea>
     </div>
 
     <!-- Depth toggle (#241) -->

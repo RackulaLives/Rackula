@@ -285,8 +285,7 @@
         bind:value={rackNotes}
         onblur={handleNotesBlur}
         rows="3"
-        placeholder="Add notes about this rack..."
-      ></textarea>
+        placeholder="Add notes about this rack..."></textarea>
     </div>
 
     <!-- Clear Rack Action -->

@@ -364,8 +364,7 @@
     readonly={!isEditing}
     spellcheck="false"
     aria-label="Layout YAML editor"
-    data-testid="yaml-textarea"
-  ></textarea>
+    data-testid="yaml-textarea"></textarea>
 
   {#if isEditing}
     <div class="footer-actions">
