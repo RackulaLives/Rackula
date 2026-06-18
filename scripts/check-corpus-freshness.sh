@@ -19,11 +19,11 @@ SCHEMA_PATHS=(
 
 BASE="${1:-}"
 if [[ -z "$BASE" ]]; then
-  head_tag="$(git tag --points-at HEAD --list 'v*' | head -1 || true)"
+  head_tag="$(git tag --points-at HEAD --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
   while IFS= read -r t; do
     [[ -z "$t" ]] && continue
     if [[ "$t" != "$head_tag" ]]; then BASE="$t"; break; fi
-  done < <(git tag --list 'v*' --sort=-v:refname)
+  done < <(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')
 fi
 [[ -n "$BASE" ]] || die "could not resolve a previous release tag; pass one explicitly"
 

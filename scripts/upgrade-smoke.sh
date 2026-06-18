@@ -19,6 +19,7 @@ info() { echo ">> $*" >&2; }
 
 command -v docker >/dev/null || die "docker not found"
 command -v curl >/dev/null || die "curl not found"
+command -v git >/dev/null || die "git not found"
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
@@ -26,11 +27,11 @@ cd "$REPO_ROOT"
 # Resolve the previous released tag (newest v* tag not pointing at HEAD).
 OLD_TAG="${OLD_TAG:-}"
 if [[ -z "$OLD_TAG" ]]; then
-  head_tag="$(git tag --points-at HEAD --list 'v*' --sort=-v:refname | head -1 || true)"
+  head_tag="$(git tag --points-at HEAD --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
   while IFS= read -r t; do
     [[ -z "$t" ]] && continue
     if [[ "$t" != "$head_tag" ]]; then OLD_TAG="$t"; break; fi
-  done < <(git tag --list 'v*' --sort=-v:refname)
+  done < <(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')
 fi
 [[ -n "$OLD_TAG" ]] || die "could not resolve a previous release tag; set OLD_TAG=vX.Y.Z"
 OLD_VERSION="${OLD_TAG#v}"
