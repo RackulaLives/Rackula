@@ -12,7 +12,13 @@
 -->
 <script lang="ts">
   import { Dialog, Command } from "bits-ui";
-  import { IconSearch, IconPlus, IconChevronLeft } from "./icons";
+  import {
+    IconSearch,
+    IconPlus,
+    IconChevronLeft,
+    IconGearBold,
+  } from "./icons";
+  import { ICON_SIZE } from "$lib/constants/sizing";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
@@ -162,6 +168,14 @@
     resetState();
   }
 
+  // Settings gear in the input row. dialogStore is scalar (one dialog at a
+  // time), so closing the palette first would clobber the settings dialog;
+  // instead open settings directly, which replaces the palette in the store.
+  function openSettings() {
+    resetState();
+    dialogStore.open("settings");
+  }
+
   function run(id: ActionId) {
     // Record the run as a recent BEFORE closing: only commands actually picked
     // from the palette become recents (not keyboard-invoked actions).
@@ -230,6 +244,15 @@
               : "Search or jump to..."}
             data-testid="command-palette-input"
           />
+          <button
+            type="button"
+            class="command-settings"
+            onclick={openSettings}
+            aria-label="Settings"
+            data-testid="command-palette-settings"
+          >
+            <IconGearBold size={ICON_SIZE.md} />
+          </button>
         </div>
 
         <Command.List class="command-list" aria-label="Commands">
@@ -538,8 +561,13 @@
     height: var(--icon-size-md);
   }
 
-  /* Back affordance in the device sub-page input row. */
-  .command-back {
+  /* Icon buttons in the input row: the back affordance (device sub-page) and
+     the settings gear (trailing edge). Both get a 48px touch target, a
+     theme-aware muted colour, and a visible focus ring. The negative vertical
+     margin keeps the row height tied to the input, not the larger touch
+     target. */
+  .command-back,
+  .command-settings {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -554,11 +582,13 @@
     border-radius: var(--radius-sm);
   }
 
-  .command-back:hover {
+  .command-back:hover,
+  .command-settings:hover {
     color: var(--colour-text);
   }
 
-  .command-back:focus-visible {
+  .command-back:focus-visible,
+  .command-settings:focus-visible {
     outline: 2px solid var(--colour-focus-ring);
     outline-offset: -2px;
   }
@@ -570,7 +600,11 @@
 
   :global(.command-input) {
     flex: 1;
+    min-width: 0;
     min-height: var(--touch-target-min);
+    /* Breathing room so the placeholder and typed text do not sit flush against
+       the search icon and the row edge. */
+    padding-left: var(--space-2);
     border: none;
     background: transparent;
     color: var(--colour-text);
@@ -622,8 +656,13 @@
   }
 
   .command-item-shortcut {
+    /* Right-aligned hint column (Raycast/Linear scan pattern): margin-left:auto
+       pins it to the trailing edge so it stays scannable as the list grows. */
+    margin-left: auto;
+    flex-shrink: 0;
     font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
     color: var(--colour-text-muted);
   }
 
