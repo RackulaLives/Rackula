@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# add-corpus-fixture.sh — Add a current-format layout to the upgrade corpus.
+# add-corpus-fixture.sh - Add a current-format layout to the upgrade corpus.
 #
 # Usage: scripts/add-corpus-fixture.sh <path-to.rackula.yaml> <tag-slug>
 # Example: scripts/add-corpus-fixture.sh ~/Downloads/lab.rackula.yaml v26.6.0-lab
