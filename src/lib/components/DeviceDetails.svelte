@@ -1,12 +1,24 @@
 <!--
   DeviceDetails Component
-  Displays detailed information about a device
-  Used in bottom sheet (mobile) and potentially edit panel (desktop)
+  Displays detailed information about a device.
+  Used in bottom sheet (mobile) and potentially edit panel (desktop).
+  When verbs are supplied, the action buttons are projected from the shared
+  actions registry (metadata + enabledWhen) and dispatched by action id, so
+  mobile and desktop share one source of truth for command labels, availability,
+  and behaviour.
 -->
 <script lang="ts">
   import type { PlacedDevice, DeviceType, RackView } from "$lib/types";
+  import type { ActionId } from "$lib/actions/registry";
+  import type { SelectionVerbItem } from "$lib/actions/verb-bars";
   import CategoryIcon from "./CategoryIcon.svelte";
-  import { IconChevronUp, IconChevronDown, IconTrash } from "./icons";
+  import {
+    IconChevronUp,
+    IconChevronDown,
+    IconTrash,
+    IconFlip,
+    IconCopy,
+  } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { formatPosition, UNITS_PER_U } from "$lib/utils/position";
 
@@ -15,18 +27,16 @@
     deviceType: DeviceType;
     rackView?: RackView;
     rackHeight?: number;
-    /** Show action buttons (remove, move) - used on mobile */
+    /** Show action buttons - used on mobile */
     showActions?: boolean;
-    /** Callback when remove button is clicked */
-    onremove?: () => void;
-    /** Callback when move up button is clicked */
-    onmoveup?: () => void;
-    /** Callback when move down button is clicked */
-    onmovedown?: () => void;
-    /** Whether device can move up (not at top of rack) */
-    canMoveUp?: boolean;
-    /** Whether device can move down (not at bottom of rack) */
-    canMoveDown?: boolean;
+    /**
+     * Registry-projected selection verbs with disabled state. When supplied
+     * (with onaction), the action buttons render from the registry instead of
+     * the legacy bespoke callbacks.
+     */
+    verbs?: SelectionVerbItem[];
+    /** Dispatch a registry verb by action id. */
+    onaction?: (id: ActionId) => void;
   }
 
   let {
@@ -35,11 +45,8 @@
     rackView: _rackView = "front",
     rackHeight: _rackHeight,
     showActions = false,
-    onremove,
-    onmoveup,
-    onmovedown,
-    canMoveUp = true,
-    canMoveDown = true,
+    verbs = [],
+    onaction,
   }: Props = $props();
 
   // Display name: custom name if set, otherwise device type model/slug
@@ -74,6 +81,25 @@
 
   // Height display (e.g., "2U")
   const heightDisplay = $derived(`${deviceType.u_height}U`);
+
+  // Resolve individual verbs from the projected list. Each is undefined when
+  // the registry did not include it (e.g. move-device-slot is absent for
+  // full-width devices), so the template guards with {#if}.
+  const moveUpVerb = $derived(verbs.find((v) => v.id === "move-device-up"));
+  const moveDownVerb = $derived(
+    verbs.find((v) => v.id === "move-device-down"),
+  );
+  const flipVerb = $derived(verbs.find((v) => v.id === "flip-device-face"));
+  const duplicateVerb = $derived(
+    verbs.find((v) => v.id === "duplicate-selection"),
+  );
+  const deleteVerb = $derived(
+    verbs.find((v) => v.id === "delete-selection"),
+  );
+
+  function dispatch(id: ActionId) {
+    onaction?.(id);
+  }
 </script>
 
 <div class="device-details">
@@ -130,40 +156,73 @@
     </div>
   {/if}
 
-  <!-- Action buttons (mobile) -->
-  {#if showActions}
+  <!-- Action buttons (mobile), projected from the actions registry -->
+  {#if showActions && verbs.length > 0}
     <div class="detail-section actions-section">
-      <div class="move-buttons">
+      {#if moveUpVerb || moveDownVerb}
+        <div class="move-buttons">
+          {#if moveUpVerb}
+            <button
+              type="button"
+              class="btn btn-secondary"
+              onclick={() => dispatch(moveUpVerb.id)}
+              disabled={moveUpVerb.disabled}
+              aria-label={moveUpVerb.label}
+            >
+              <IconChevronUp />
+              {moveUpVerb.label}
+            </button>
+          {/if}
+          {#if moveDownVerb}
+            <button
+              type="button"
+              class="btn btn-secondary"
+              onclick={() => dispatch(moveDownVerb.id)}
+              disabled={moveDownVerb.disabled}
+              aria-label={moveDownVerb.label}
+            >
+              <IconChevronDown />
+              {moveDownVerb.label}
+            </button>
+          {/if}
+        </div>
+      {/if}
+      {#if flipVerb}
         <button
           type="button"
           class="btn btn-secondary"
-          onclick={onmoveup}
-          disabled={!canMoveUp}
-          aria-label="Move device up"
+          onclick={() => dispatch(flipVerb.id)}
+          disabled={flipVerb.disabled}
+          aria-label={flipVerb.label}
         >
-          <IconChevronUp />
-          Move Up
+          <IconFlip size={ICON_SIZE.sm} />
+          {flipVerb.label}
         </button>
+      {/if}
+      {#if duplicateVerb}
         <button
           type="button"
           class="btn btn-secondary"
-          onclick={onmovedown}
-          disabled={!canMoveDown}
-          aria-label="Move device down"
+          onclick={() => dispatch(duplicateVerb.id)}
+          disabled={duplicateVerb.disabled}
+          aria-label={duplicateVerb.label}
         >
-          <IconChevronDown />
-          Move Down
+          <IconCopy size={ICON_SIZE.sm} />
+          {duplicateVerb.label}
         </button>
-      </div>
-      <button
-        type="button"
-        class="btn btn-danger"
-        onclick={onremove}
-        aria-label="Remove device from rack"
-      >
-        <IconTrash size={ICON_SIZE.sm} />
-        Remove from Rack
-      </button>
+      {/if}
+      {#if deleteVerb}
+        <button
+          type="button"
+          class="btn btn-danger"
+          onclick={() => dispatch(deleteVerb.id)}
+          disabled={deleteVerb.disabled}
+          aria-label={deleteVerb.label}
+        >
+          <IconTrash size={ICON_SIZE.sm} />
+          {deleteVerb.label}
+        </button>
+      {/if}
     </div>
   {/if}
 </div>

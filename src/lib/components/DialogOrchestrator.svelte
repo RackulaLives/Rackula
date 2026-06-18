@@ -64,6 +64,18 @@
   import type { DisplayMode, Layout, RackWidth } from "$lib/types";
   import type { ImportResult } from "$lib/utils/netbox-import";
 
+  import { getSelectionVerbsWithState } from "$lib/actions/verb-bars";
+  import type { ActionEnabledContext, ActionId } from "$lib/actions/registry";
+  import {
+    moveSelectedDeviceUp,
+    moveSelectedDeviceDown,
+    flipSelectedDeviceFace,
+    duplicateSelection,
+    canMoveSelectedDeviceSlot,
+  } from "$lib/actions/selection-actions";
+  import { handleDelete } from "$lib/utils/dialog-actions";
+  import { getStorageMode } from "$lib/storage";
+
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
   const uiStore = getUIStore();
@@ -515,44 +527,44 @@
     handleFitAll();
   }
 
-  function handleMobileRemoveDevice() {
-    const activeRack = layoutStore.activeRack;
-    if (selectedDeviceForSheet !== null && activeRack) {
-      layoutStore.removeDeviceFromRack(activeRack.id, selectedDeviceForSheet);
-      handleBottomSheetClose();
-    }
-  }
+  // --- Mobile selection inspector: registry-driven verbs ---
 
-  function handleMobileMoveDeviceUp() {
-    const activeRack = layoutStore.activeRack;
-    if (selectedDeviceForSheet !== null && activeRack) {
-      const device = activeRack.devices[selectedDeviceForSheet];
-      const deviceType = layoutStore.device_types.find(
-        (dt) => dt.slug === device?.device_type,
-      );
-      if (device && deviceType) {
-        const newPosition = device.position + 1;
-        layoutStore.moveDevice(
-          activeRack.id,
-          selectedDeviceForSheet,
-          newPosition,
-        );
-      }
-    }
-  }
+  // Build the live enabledWhen context from the stores, mirroring
+  // VerbBarOverlay's desktop projection so mobile and desktop share one
+  // source of truth for verb availability.
+  const mobileActionCtx = $derived<ActionEnabledContext>({
+    hasSelection: selectionStore.hasSelection,
+    isDeviceSelected: selectionStore.isDeviceSelected,
+    isRackSelected: selectionStore.isRackSelected,
+    canUndo: layoutStore.canUndo,
+    canRedo: layoutStore.canRedo,
+    hasRacks: layoutStore.rackCount > 0,
+    mode: getStorageMode(),
+    canMoveDeviceSlot: canMoveSelectedDeviceSlot(),
+  });
 
-  function handleMobileMoveDeviceDown() {
-    const activeRack = layoutStore.activeRack;
-    if (selectedDeviceForSheet !== null && activeRack) {
-      const device = activeRack.devices[selectedDeviceForSheet];
-      if (device && device.position > 1) {
-        const newPosition = device.position - 1;
-        layoutStore.moveDevice(
-          activeRack.id,
-          selectedDeviceForSheet,
-          newPosition,
-        );
-      }
+  const mobileVerbs = $derived(getSelectionVerbsWithState(mobileActionCtx));
+
+  // Dispatch a registry verb by action id to the shared handler. The handlers
+  // read live selection state from the stores, so they act on the same device
+  // the mobile bottom sheet is showing.
+  function handleMobileVerb(id: ActionId): void {
+    switch (id) {
+      case "move-device-up":
+        moveSelectedDeviceUp();
+        break;
+      case "move-device-down":
+        moveSelectedDeviceDown();
+        break;
+      case "flip-device-face":
+        flipSelectedDeviceFace();
+        break;
+      case "duplicate-selection":
+        duplicateSelection();
+        break;
+      case "delete-selection":
+        handleDelete();
+        break;
     }
   }
 
@@ -634,9 +646,6 @@
     : null}
   {#if device && deviceType}
     {@const rackHeight = activeRack.height}
-    {@const maxPosition = rackHeight - deviceType.u_height + 1}
-    {@const canMoveUp = device.position < maxPosition}
-    {@const canMoveDown = device.position > 1}
     <Dialog
       open={bottomSheetOpen}
       title={deviceType.model ?? "Device"}
@@ -649,11 +658,8 @@
         rackView={activeRack.view}
         {rackHeight}
         showActions={true}
-        onremove={handleMobileRemoveDevice}
-        onmoveup={handleMobileMoveDeviceUp}
-        onmovedown={handleMobileMoveDeviceDown}
-        {canMoveUp}
-        {canMoveDown}
+        verbs={mobileVerbs}
+        onaction={handleMobileVerb}
       />
     </Dialog>
   {/if}

@@ -7,6 +7,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import DeviceDetails from "$lib/components/DeviceDetails.svelte";
 import type { DeviceType, PlacedDevice } from "$lib/types";
+import type { SelectionVerbItem } from "$lib/actions/verb-bars";
 import { toInternalUnits } from "$lib/utils/position";
 
 describe("DeviceDetails", () => {
@@ -115,6 +116,17 @@ describe("DeviceDetails", () => {
   });
 
   describe("Action Buttons", () => {
+    // Verb items as the registry projection would produce them for a
+    // selected device. Labels match the registry definitions.
+    const allVerbs: SelectionVerbItem[] = [
+      { id: "move-device-up", label: "Move device up", disabled: false },
+      { id: "move-device-down", label: "Move device down", disabled: false },
+      { id: "move-device-slot", label: "Move to next cell", disabled: true },
+      { id: "flip-device-face", label: "Flip face", disabled: false },
+      { id: "duplicate-selection", label: "Duplicate selection", disabled: false },
+      { id: "delete-selection", label: "Delete selected", disabled: false },
+    ];
+
     it("does not show action buttons by default", () => {
       render(DeviceDetails, {
         props: {
@@ -123,17 +135,14 @@ describe("DeviceDetails", () => {
         },
       });
       expect(
-        screen.queryByRole("button", { name: /remove/i }),
+        screen.queryByRole("button", { name: /delete selected/i }),
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole("button", { name: /move up/i }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: /move down/i }),
+        screen.queryByRole("button", { name: /move device up/i }),
       ).not.toBeInTheDocument();
     });
 
-    it("shows action buttons when showActions is true", () => {
+    it("does not show action buttons when showActions is true but no verbs are supplied", () => {
       render(DeviceDetails, {
         props: {
           device: createTestPlacedDevice(),
@@ -142,123 +151,106 @@ describe("DeviceDetails", () => {
         },
       });
       expect(
-        screen.getByRole("button", { name: /remove device from rack/i }),
-      ).toBeInTheDocument();
+        screen.queryByRole("button", { name: /delete selected/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows registry-projected action buttons when verbs are supplied", () => {
+      render(DeviceDetails, {
+        props: {
+          device: createTestPlacedDevice(),
+          deviceType: createTestDeviceType(),
+          showActions: true,
+          verbs: allVerbs,
+        },
+      });
       expect(
         screen.getByRole("button", { name: /move device up/i }),
       ).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: /move device down/i }),
       ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /flip face/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /duplicate selection/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /delete selected/i }),
+      ).toBeInTheDocument();
     });
 
-    it("calls onremove when Remove button is clicked", async () => {
-      const handleRemove = vi.fn();
+    it("dispatches move-device-up via onaction when Move Up is clicked", async () => {
+      const onaction = vi.fn();
       render(DeviceDetails, {
         props: {
           device: createTestPlacedDevice(),
           deviceType: createTestDeviceType(),
           showActions: true,
-          onremove: handleRemove,
+          verbs: allVerbs,
+          onaction,
         },
       });
 
-      const removeButton = screen.getByRole("button", {
-        name: /remove device from rack/i,
-      });
-      await fireEvent.click(removeButton);
-
-      expect(handleRemove).toHaveBeenCalledTimes(1);
+      await fireEvent.click(
+        screen.getByRole("button", { name: /move device up/i }),
+      );
+      expect(onaction).toHaveBeenCalledWith("move-device-up");
     });
 
-    it("calls onmoveup when Move Up button is clicked", async () => {
-      const handleMoveUp = vi.fn();
+    it("dispatches delete-selection via onaction when Delete is clicked", async () => {
+      const onaction = vi.fn();
       render(DeviceDetails, {
         props: {
           device: createTestPlacedDevice(),
           deviceType: createTestDeviceType(),
           showActions: true,
-          onmoveup: handleMoveUp,
+          verbs: allVerbs,
+          onaction,
         },
       });
 
-      const moveUpButton = screen.getByRole("button", {
-        name: /move device up/i,
-      });
-      await fireEvent.click(moveUpButton);
-
-      expect(handleMoveUp).toHaveBeenCalledTimes(1);
+      await fireEvent.click(
+        screen.getByRole("button", { name: /delete selected/i }),
+      );
+      expect(onaction).toHaveBeenCalledWith("delete-selection");
     });
 
-    it("calls onmovedown when Move Down button is clicked", async () => {
-      const handleMoveDown = vi.fn();
+    it("renders disabled state from the registry projection", () => {
+      const verbsWithDisabledUp: SelectionVerbItem[] = allVerbs.map((v) =>
+        v.id === "move-device-up" ? { ...v, disabled: true } : v,
+      );
       render(DeviceDetails, {
         props: {
           device: createTestPlacedDevice(),
           deviceType: createTestDeviceType(),
           showActions: true,
-          onmovedown: handleMoveDown,
+          verbs: verbsWithDisabledUp,
         },
       });
 
-      const moveDownButton = screen.getByRole("button", {
-        name: /move device down/i,
-      });
-      await fireEvent.click(moveDownButton);
-
-      expect(handleMoveDown).toHaveBeenCalledTimes(1);
+      expect(
+        screen.getByRole("button", { name: /move device up/i }),
+      ).toBeDisabled();
     });
 
-    it("disables Move Up button when canMoveUp is false", () => {
+    it("enables move buttons when the projection says they are enabled", () => {
       render(DeviceDetails, {
         props: {
           device: createTestPlacedDevice(),
           deviceType: createTestDeviceType(),
           showActions: true,
-          canMoveUp: false,
+          verbs: allVerbs,
         },
       });
 
-      const moveUpButton = screen.getByRole("button", {
-        name: /move device up/i,
-      });
-      expect(moveUpButton).toBeDisabled();
-    });
-
-    it("disables Move Down button when canMoveDown is false", () => {
-      render(DeviceDetails, {
-        props: {
-          device: createTestPlacedDevice(),
-          deviceType: createTestDeviceType(),
-          showActions: true,
-          canMoveDown: false,
-        },
-      });
-
-      const moveDownButton = screen.getByRole("button", {
-        name: /move device down/i,
-      });
-      expect(moveDownButton).toBeDisabled();
-    });
-
-    it("enables both move buttons by default when showActions is true", () => {
-      render(DeviceDetails, {
-        props: {
-          device: createTestPlacedDevice(),
-          deviceType: createTestDeviceType(),
-          showActions: true,
-        },
-      });
-
-      const moveUpButton = screen.getByRole("button", {
-        name: /move device up/i,
-      });
-      const moveDownButton = screen.getByRole("button", {
-        name: /move device down/i,
-      });
-
-      expect(moveUpButton).not.toBeDisabled();
-      expect(moveDownButton).not.toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: /move device up/i }),
+      ).not.toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: /move device down/i }),
+      ).not.toBeDisabled();
     });
   });
 
