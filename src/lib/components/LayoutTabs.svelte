@@ -36,6 +36,7 @@
   import { nextDuplicateName } from "./layouts-library";
   import LayoutContextMenu from "./LayoutContextMenu.svelte";
   import "$lib/styles/menu.css";
+  import "$lib/styles/tabs.css";
 
   interface Props {
     /** Export the layout backing the given tab (app-menu export path). */
@@ -409,6 +410,8 @@
     overflow: hidden;
   }
 
+  /* Layout-only rules. The raised "layered sheet" look (background, colour,
+     top accent, rounded top corners, active merge) is shared via tabs.css. */
   .layout-tab {
     display: flex;
     align-items: center;
@@ -419,27 +422,12 @@
     height: 44px;
     padding: 6px var(--space-1) 6px var(--space-2);
     border: 1px solid transparent;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--colour-text-muted);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     cursor: pointer;
     transition:
       background var(--duration-fast) var(--ease-out),
       border-color var(--duration-fast) var(--ease-out);
-  }
-
-  .layout-tab:hover {
-    background: var(--colour-surface-hover);
-    color: var(--colour-text);
-  }
-
-  .layout-tab.active {
-    background: var(--colour-surface-active);
-    /* Use border-hover (comment blue, #6272a4) so the border is visible against the fill (#44475a). */
-    border-color: var(--colour-border-hover);
-    color: var(--colour-text);
   }
 
   .layout-tab.drag-over {

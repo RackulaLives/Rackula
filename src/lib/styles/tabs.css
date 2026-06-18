@@ -1,0 +1,68 @@
+/**
+ * Shared "raised layered-sheet" tab treatment (issue #2396).
+ *
+ * One snippet drives all three tab rows so they stay in sync:
+ *   - LayoutTabs        .layout-tab            (open-layout strip, top bar)
+ *   - SidebarTabs        .tab-btn               (Layouts / Racks / Devices)
+ *   - SidePanelContent   .side-panel-tab        (Edit / View)
+ *
+ * The active tab reads as the top sheet in a stack of sheets: it lifts to the
+ * content surface below it (--colour-tab-active-bg), rounds its top corners,
+ * and carries a purple top accent with a soft downward shadow. The sidebar and
+ * side-panel rows also drop the active tab's bottom edge so it merges into the
+ * panel below; the layout strip floats in the top bar and keeps the lifted read
+ * from the accent and shadow alone. Inactive tabs sit recessed and muted.
+ *
+ * All three rows are imported as plain stylesheets, so these selectors are
+ * global; each component keeps only its own layout (flex sizing, row padding).
+ * Tokens only, theme-aware (see --colour-tab-* in tokens.css).
+ */
+
+/* Inactive (resting) state, shared by all three rows. The bits-ui rows expose
+   the active state via [data-state="active"]; the layout strip uses .active. */
+.layout-tab,
+.tab-btn,
+.side-panel-tab {
+  border-radius: var(--tab-radius) var(--tab-radius) 0 0;
+  background: var(--colour-tab-inactive-bg);
+  color: var(--colour-text-muted);
+  /* Two inset lines keep the inactive and active box-model identical (no shift
+     on activation): a transparent top accent slot, and a subtle bottom
+     separator so the recessed tabs stay legible where their fill matches the
+     row behind them. */
+  box-shadow:
+    inset 0 var(--tab-accent-height) 0 0 transparent,
+    inset 0 -1px 0 0 var(--colour-border);
+}
+
+.layout-tab:hover,
+.tab-btn:hover,
+.side-panel-tab:hover {
+  background: var(--colour-surface-hover);
+  color: var(--colour-text);
+}
+
+/* Active (raised sheet) state. */
+.layout-tab.active,
+.tab-btn[data-state="active"],
+.side-panel-tab[data-state="active"] {
+  /* Lift to the content surface below the row. */
+  background: var(--colour-tab-active-bg);
+  color: var(--colour-text);
+  font-weight: var(--font-weight-semibold);
+  /* Purple top accent + soft downward shadow so the sheet sits above the row. */
+  box-shadow:
+    inset 0 var(--tab-accent-height) 0 0 var(--colour-tab-accent),
+    var(--shadow-tab-active);
+}
+
+/* The sidebar and side-panel rows sit directly atop their content panel, so the
+   active tab drops its bottom edge: it overlaps the row's 1px bottom border and
+   merges into the panel it owns (no seam between tab and content). The layout
+   strip floats in the top bar with the canvas further below, so it keeps the
+   lifted-sheet read from the accent and shadow without a literal edge-merge. */
+.tab-btn[data-state="active"],
+.side-panel-tab[data-state="active"] {
+  margin-bottom: -1px;
+  padding-bottom: 1px;
+}

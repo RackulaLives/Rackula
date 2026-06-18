@@ -11,6 +11,7 @@
   import { IconChevronLeft } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import type { SidebarTab } from "$lib/stores/ui.svelte";
+  import "$lib/styles/tabs.css";
 
   interface Props {
     activeTab: SidebarTab;
@@ -119,6 +120,8 @@
     min-width: 0;
   }
 
+  /* Layout-only rules. The raised "layered sheet" look (background, colour, top
+     accent, rounded top corners, active merge) is shared via tabs.css. */
   :global(.tab-btn) {
     flex: 1;
     display: flex;
@@ -128,25 +131,10 @@
     /* 44px control height, matching the right panel and touch standard (#2397). */
     min-height: 44px;
     padding: var(--space-2) var(--space-3);
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm);
-    color: var(--colour-text-muted);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     cursor: pointer;
     transition: all var(--duration-fast) var(--ease-out);
-  }
-
-  :global(.tab-btn:hover) {
-    background: var(--colour-surface-hover);
-    color: var(--colour-text);
-  }
-
-  :global(.tab-btn[data-state="active"]) {
-    background: var(--colour-surface-active);
-    border-color: var(--colour-border);
-    color: var(--colour-text);
   }
 
   :global(.tab-btn:focus-visible) {

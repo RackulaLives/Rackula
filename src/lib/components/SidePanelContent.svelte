@@ -25,6 +25,7 @@
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import type { SidePanelTab } from "$lib/stores/ui.svelte";
   import type { SelectedDeviceInfo } from "$lib/types";
+  import "$lib/styles/tabs.css";
 
   interface Props {
     /** Active tab. Controlled by the host (rail or sheet). */
@@ -302,6 +303,8 @@
     outline-offset: -2px;
   }
 
+  /* Layout-only rules. The raised "layered sheet" look (background, colour, top
+     accent, rounded top corners, active merge) is shared via tabs.css. */
   :global(.side-panel-tab) {
     flex: 1;
     display: flex;
@@ -310,27 +313,12 @@
     /* 44px minimum touch target (mobile spike #2097 / a11y guard rail) */
     min-height: 44px;
     padding: var(--space-2) var(--space-3);
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm);
-    color: var(--colour-text-muted);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     cursor: pointer;
     transition:
       background var(--duration-fast) var(--ease-out),
       color var(--duration-fast) var(--ease-out);
-  }
-
-  :global(.side-panel-tab:hover) {
-    background: var(--colour-surface-hover);
-    color: var(--colour-text);
-  }
-
-  :global(.side-panel-tab[data-state="active"]) {
-    background: var(--colour-surface-active);
-    border-color: var(--colour-border);
-    color: var(--colour-text);
   }
 
   :global(.side-panel-tab:focus-visible) {

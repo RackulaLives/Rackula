@@ -342,6 +342,18 @@
   --colour-sidebar-bg: var(--dracula-bg-darker);
   --colour-surface-secondary: var(--dracula-bg-light);
 
+  /* Tabs (raised "layered sheet" treatment, issue #2396).
+     Shared across the layout, sidebar, and side-panel tab rows. The active tab
+     reads as the top sheet in a stack: it lifts to --colour-tab-active-bg (the
+     content surface below it), drops its bottom edge to merge into that surface,
+     and carries a purple top accent. Inactive tabs sit recessed and muted. */
+  --colour-tab-active-bg: var(--colour-surface);
+  --colour-tab-inactive-bg: var(--colour-bg-darker);
+  --colour-tab-accent: var(--dracula-purple);
+  --tab-radius: var(--radius-lg); /* 8px top corners */
+  --tab-accent-height: 2px;
+  --shadow-tab-active: 0 2px 6px rgba(0, 0, 0, 0.25);
+
   /* Z-Index Layers */
   --z-toolbar: 20;
   --z-sidebar: 10;
@@ -612,6 +624,11 @@
 
   --colour-sidebar-bg: var(--alucard-floating);
   --colour-surface-secondary: var(--alucard-bg-light);
+
+  /* Tabs (raised "layered sheet" treatment, issue #2396). The accent follows
+     the theme's purple and the active-tab shadow is softer for the pale body. */
+  --colour-tab-accent: var(--alucard-purple);
+  --shadow-tab-active: 0 2px 6px rgba(0, 0, 0, 0.12);
 
   --toast-bg: var(--alucard-floating);
   --toast-border: var(--alucard-bg-light);
