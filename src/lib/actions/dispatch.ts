@@ -141,6 +141,7 @@ export function createActionDispatch(): ActionDispatch {
     // global
     escape: handleEscape,
     "show-help": handleHelp,
+    settings: () => dialogStore.open("settings"),
     "toggle-sidebar": () => getUIStore().toggleLeftDrawer(),
     undo: performUndo,
     redo: performRedo,

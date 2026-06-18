@@ -10,13 +10,12 @@ test.describe("Responsive Layout", () => {
 
     test("workspace-frame controls are visible", async ({ page }) => {
       // The top bar is the workspace frame only (#2072): the app menu (logo)
-      // and the Settings gear are the desktop chrome. The gear is wrapped by a
-      // tooltip trigger that also exposes the "Settings" accessible name, so
-      // target the action button by its testid.
+      // on the left and the storage status chip in the right region are the
+      // desktop chrome. Settings moved into the app menu (#2398).
       await expect(
         page.getByRole("button", { name: "App menu" }),
       ).toBeVisible();
-      await expect(page.getByTestId("btn-settings")).toBeVisible();
+      await expect(page.getByTestId("storage-status-chip")).toBeVisible();
     });
 
     test("brand logo visible", async ({ page }) => {
@@ -53,9 +52,9 @@ test.describe("Responsive Layout", () => {
     });
 
     test("mobile mode is active — desktop chrome hidden", async ({ page }) => {
-      // In mobile mode the desktop-only Settings gear gives way to the mobile
+      // In mobile mode the desktop-only storage chip gives way to the mobile
       // quick file actions (asserted in the next test).
-      await expect(page.getByTestId("btn-settings")).not.toBeVisible();
+      await expect(page.getByTestId("storage-status-chip")).not.toBeVisible();
     });
 
     test("brand logo is still visible", async ({ page }) => {

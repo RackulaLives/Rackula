@@ -98,12 +98,13 @@ test.describe("Accessibility", () => {
 
       // Walk forward with Tab and record what each stop is. A keyboard user
       // must be able to reach controls without the focus ring vanishing into a
-      // non-interactive void, and the top bar's Settings control must be on the
-      // path. The top bar is the workspace frame only (#2072): file commands
-      // moved into the app menu and the view/history controls relocate to the
-      // canvas (#2074), so the Settings gear is the workspace-chrome anchor.
+      // non-interactive void, and the far end of the top-bar chrome must be on
+      // the path. The top bar is the workspace frame only (#2072): file commands
+      // and Settings live in the app menu (#2398, #2072) and the view/history
+      // controls relocate to the canvas (#2074), so the storage status chip in
+      // the right region is the workspace-chrome anchor at the end of the sweep.
       let sawInteractiveControl = false;
-      let reachedSettingsButton = false;
+      let reachedStorageChip = false;
 
       for (let i = 0; i < 25; i++) {
         await page.keyboard.press("Tab");
@@ -112,7 +113,7 @@ test.describe("Accessibility", () => {
         // Focus must always land on something focusable, never <body>.
         expect(info.tag).not.toBe("body");
 
-        if (info.testid === "btn-settings") reachedSettingsButton = true;
+        if (info.testid === "storage-status-chip") reachedStorageChip = true;
 
         // Native controls and ARIA widgets are the keyboard-operable surface.
         const interactiveTags = ["button", "input", "a", "select", "textarea"];
@@ -125,12 +126,12 @@ test.describe("Accessibility", () => {
           sawInteractiveControl = true;
         }
 
-        if (reachedSettingsButton) break;
+        if (reachedStorageChip) break;
       }
 
       expect(sawInteractiveControl).toBe(true);
-      // The Settings control must be reachable in a single forward sweep.
-      expect(reachedSettingsButton).toBe(true);
+      // The storage chip must be reachable in a single forward sweep.
+      expect(reachedStorageChip).toBe(true);
     });
 
     test("canvas exposes an application region with a descriptive name", async ({

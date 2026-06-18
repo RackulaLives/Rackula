@@ -70,6 +70,7 @@
         data-testid="btn-app-menu"
       >
         <LogoLockup size={32} {partyMode} showText={false} />
+        <span class="app-menu-caret" aria-hidden="true">▾</span>
       </button>
     {/snippet}
   </DropdownMenu.Trigger>
@@ -105,24 +106,49 @@
 </DropdownMenu.Root>
 
 <style>
-  /* The logo doubles as the menu trigger. Keeps the visual treatment the logo
-     had as a plain toolbar button (transparent, subtle hover and focus ring).
-     padding: var(--space-2) gives ~8px clearance from the edges (#2386). */
+  /* The logo doubles as the menu trigger. A 1px border + radius give it a
+     persistent button affordance so it reads as a menu, not a bare logo, while
+     the brand mark stays uncaged (transparent fill, no filled chip) (#2398). A
+     disclosure caret signals it opens a menu. padding gives ~8px clearance from
+     the edges (#2386). */
   .app-menu-trigger {
     display: flex;
     align-items: center;
-    padding: var(--space-2);
-    border: none;
+    /* >= 44px hit area (WCAG 2.5.5) inside the 48px bar; the border is included
+       (border-box) so the 32px mark + caret centre within it. */
+    min-height: 44px;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--colour-border);
     border-radius: var(--radius-md);
     background: transparent;
     cursor: pointer;
     transition:
       background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+
+  /* Disclosure caret: muted by default, brightens with the trigger on hover and
+     while the menu is open. */
+  .app-menu-caret {
+    display: inline-flex;
+    align-items: center;
+    font-size: var(--font-size-xs);
+    line-height: 1;
+    color: var(--colour-text-muted);
+    transition:
+      color var(--duration-fast) var(--ease-out),
       transform var(--duration-fast) var(--ease-out);
   }
 
   .app-menu-trigger:hover {
+    border-color: var(--colour-selection);
     background: var(--colour-surface-hover);
+  }
+
+  .app-menu-trigger:hover .app-menu-caret {
+    color: var(--colour-text);
   }
 
   .app-menu-trigger:active {
@@ -137,15 +163,27 @@
   }
 
   .app-menu-trigger[data-state="open"] {
+    border-color: var(--colour-selection);
     background: var(--colour-surface-hover);
   }
 
+  /* Flip the caret while the menu is open to reinforce the disclosure state. */
+  .app-menu-trigger[data-state="open"] .app-menu-caret {
+    color: var(--colour-text);
+    transform: rotate(180deg);
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .app-menu-trigger {
+    .app-menu-trigger,
+    .app-menu-caret {
       transition: none;
     }
 
     .app-menu-trigger:active {
+      transform: none;
+    }
+
+    .app-menu-trigger[data-state="open"] .app-menu-caret {
       transform: none;
     }
   }

@@ -55,6 +55,7 @@ export type ActionId =
   | "cycle-rack-next"
   | "escape"
   | "show-help"
+  | "settings"
   | "command-palette";
 
 /**
@@ -214,6 +215,14 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [{ key: "?" }, { key: "?", shift: true }],
     appMenuGroup: "help",
     keywords: ["shortcuts", "about", "keyboard", "version"],
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "help",
+    keywords: ["settings", "preferences", "options", "theme"],
   },
   {
     id: "command-palette",

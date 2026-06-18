@@ -27,6 +27,7 @@ import {
   gotoWithRack,
   selectDevice,
   clickExport,
+  clickSettings,
   locators,
 } from "./helpers";
 import { expectNoA11yViolations } from "./helpers/a11y";
@@ -128,10 +129,10 @@ test.describe("axe accessibility scans", () => {
   });
 
   test("Settings dialog has no WCAG 2.2 AA violations", async ({ page }) => {
-    // The gear button opens the consolidated settings surface (Appearance,
-    // Behaviour, Data). Target it by testid so the scan covers the dialog's
-    // toggles and action buttons.
-    await page.getByTestId("btn-settings").click();
+    // Settings is in the app menu behind the logo (#2398); it opens the
+    // consolidated settings surface (Appearance, Behaviour, Data). Open it via
+    // the menu so the scan covers the dialog's toggles and action buttons.
+    await clickSettings(page);
     await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
     await expectNoA11yViolations(page, locators.dialog.root);
   });

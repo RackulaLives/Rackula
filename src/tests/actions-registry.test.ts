@@ -325,6 +325,17 @@ describe("actions registry", () => {
       expect(groups).toEqual([...new Set(groups)]);
       expect(sections.length).toBeGreaterThan(0);
     });
+
+    it("offers Settings from the app menu in both storage modes", () => {
+      // Settings moved out of the top bar into the app menu (#2398). The menu
+      // is the only entry point now, so it must project in both builds.
+      for (const mode of ["browser", "server"] as const) {
+        const ids = getAppMenuSections(mode).flatMap((s) =>
+          s.items.map((i) => i.id),
+        );
+        expect(ids).toContain("settings");
+      }
+    });
   });
 
   describe("getAppMenuSections (mode-aware item enable/disable)", () => {

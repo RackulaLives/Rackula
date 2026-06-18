@@ -37,6 +37,7 @@ export {
   clickSave,
   clickLoad,
   clickExport,
+  clickSettings,
   loadFileFromDisk,
   loadFileFromDiskViaMenu,
 } from "./toolbar-actions";

@@ -2,22 +2,24 @@
   Toolbar Component
   Workspace frame, three column-aligned regions (issues #2072, #2324, #2386):
   - Left (fixed, = sidebar width): logo lockup (the app menu) + command-palette
-    search pill. Width tracks --sidebar-width so it aligns with the column below.
+    search field. The field fills the region after the logo, up to the tab strip
+    (#2398). Width tracks --sidebar-width so it aligns with the column below.
   - Centre (flex): the layout tab strip (LayoutTabs), desktop only. Spans the
     canvas gap between the sidebar and side panel.
-  - Right (fixed, = panel width): storage chip + Settings gear (desktop); quick
-    file actions (mobile). Width tracks --side-panel-width. The side-panel
-    collapse/expand chevron lives in the panel itself (#2397).
+  - Right (fixed, = panel width): storage chip filling the region (desktop);
+    quick file actions (mobile). Width tracks --side-panel-width. The Settings
+    gear moved into the app menu (#2398) and the side-panel collapse/expand
+    chevron lives in the panel itself (#2397).
   View and history controls (zoom, fit, display mode, undo, redo) relocate to the
-  canvas bottom-left in #2074. File commands live in the app menu behind the logo.
+  canvas bottom-left in #2074. File and settings commands live in the app menu
+  behind the logo.
 -->
 <script lang="ts">
-  import Tooltip from "./Tooltip.svelte";
   import AppMenu from "./AppMenu.svelte";
   import StorageStatusChip from "./StorageStatusChip.svelte";
   import LayoutTabs from "./LayoutTabs.svelte";
   import type { ActionId } from "$lib/actions/registry";
-  import { IconGearBold, IconSearch } from "./icons";
+  import { IconSearch } from "./icons";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { formatShortcut } from "$lib/utils/platform";
@@ -81,10 +83,6 @@
     onexport?.();
   }
 
-  function handleSettings() {
-    onsettings?.();
-  }
-
   // Dispatch map from app-menu action id to its handler. The menu items
   // themselves come from the registry (AppMenu projects getAppMenuSections);
   // this binds each id to the closure that runs it, mirroring how
@@ -102,6 +100,7 @@
     "import-netbox": () => onimportnetbox?.(),
     "new-custom-device": () => onnewcustomdevice?.(),
     "show-help": () => onhelp?.(),
+    settings: () => onsettings?.(),
   };
 
   function handleAppMenuAction(id: ActionId) {
@@ -147,26 +146,16 @@
   {/if}
 
   <!-- Right: panel-width region (desktop) / quick file actions (mobile).
-       Holds storage chip + Settings gear. The side-panel collapse/expand
-       chevron now lives in the panel itself (#2397). -->
+       Holds the storage chip, which fills the full region as the status zone
+       for the side panel beneath it. The Settings gear moved into the app menu
+       (#2398) and the side-panel collapse/expand chevron lives in the panel
+       itself (#2397). -->
   {#if !viewportStore.isMobile}
     <div
       class="toolbar-section toolbar-right"
       class:toolbar-right--collapsed={sidePanelCollapsed}
     >
       <StorageStatusChip />
-
-      <Tooltip text="Settings" position="bottom">
-        <button
-          class="toolbar-icon-btn"
-          type="button"
-          aria-label="Settings"
-          onclick={handleSettings}
-          data-testid="btn-settings"
-        >
-          <IconGearBold size={ICON_SIZE.md} />
-        </button>
-      </Tooltip>
     </div>
   {:else}
     <div
@@ -250,17 +239,33 @@
   }
 
   /* Right lane: fixed to side-panel width so it aligns with the panel column.
-     Shrinks to its natural width (pinned to the right edge) when the panel is
-     collapsed to its 44px strip, so controls never overhang it (#2397). */
+     The storage chip is now the sole occupant and fills the lane as the status
+     zone for the panel beneath it (#2398). Shrinks to its natural width (pinned
+     to the right edge) when the panel is collapsed to its 44px strip, so the
+     chip never overhangs it (#2397). */
   .toolbar-right {
     flex: 0 0 var(--side-panel-width, 320px);
     padding-left: var(--space-2);
     padding-right: var(--space-2);
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: var(--space-1);
   }
 
+  /* The chip stretches to fill the right region so it reads as the panel's
+     status zone rather than a small pill pinned to the edge. */
+  .toolbar-right :global(.storage-chip) {
+    flex: 1 1 auto;
+    justify-content: flex-start;
+  }
+
+  /* Collapsed: the lane shrinks to the chip's natural width and pins to the
+     right edge over the 44px strip, so it stays aligned and never overhangs. */
   .toolbar-right--collapsed {
+    flex: 0 0 auto;
+    justify-content: flex-end;
+  }
+
+  .toolbar-right--collapsed :global(.storage-chip) {
     flex: 0 0 auto;
   }
 
@@ -268,55 +273,6 @@
     gap: var(--space-1);
     flex: 0 0 auto;
     padding-right: var(--space-2);
-  }
-
-  /* Icon buttons - the dropdown-menu triggers (Settings gear) use this class. */
-  :global(.toolbar-icon-btn) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    /* 44px hit area; visual footprint is set by icon size */
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    border: none;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--colour-text);
-    cursor: pointer;
-    transition:
-      background-color var(--duration-fast) var(--ease-out),
-      color var(--duration-fast) var(--ease-out);
-  }
-
-  /* Icon sizing via CSS tokens */
-  :global(.toolbar-icon-btn svg) {
-    width: var(--icon-size-lg);
-    height: var(--icon-size-lg);
-  }
-
-  :global(.toolbar-icon-btn:hover:not(:disabled)) {
-    color: var(--dracula-cyan);
-    filter: brightness(1.1);
-    box-shadow: inset 0 -2px 0 currentColor;
-  }
-
-  :global(.toolbar-icon-btn:focus-visible) {
-    outline: none;
-    color: var(--dracula-cyan);
-    box-shadow:
-      inset 0 -2px 0 currentColor,
-      0 0 0 2px var(--colour-focus-ring);
-  }
-
-  :global(.toolbar-icon-btn:disabled) {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  :global(.toolbar-icon-btn[data-state="open"]) {
-    color: var(--dracula-cyan);
-    box-shadow: inset 0 -2px 0 currentColor;
   }
 
   .toolbar-mobile-action-btn {
@@ -356,12 +312,17 @@
   /* Command pill: the button is the hit target, a true 44px-tall layout box
      (matching the gear and chevron, WCAG 2.5.5). The compact 32px visual pill
      lives on the inner .command-pill-visual span, so the clickable box is real,
-     not an overflowed pseudo-element, and it never overlaps adjacent controls. */
+     not an overflowed pseudo-element, and it never overlaps adjacent controls.
+     The field fills the left region after the logo, with a margin before the
+     tab strip, instead of sitting at a fixed width (#2398). */
   .command-pill {
     display: inline-flex;
     align-items: center;
     align-self: center;
+    flex: 1 1 auto;
+    min-width: 0;
     height: 44px;
+    margin-right: var(--space-2);
     padding: 0;
     border: none;
     background: transparent;
@@ -372,6 +333,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
+    width: 100%;
     height: 32px;
     padding: 0 var(--space-3);
     border: 1px solid var(--colour-border);
@@ -382,6 +344,17 @@
     transition:
       border-color var(--duration-fast) var(--ease-out),
       color var(--duration-fast) var(--ease-out);
+  }
+
+  /* The hint label takes the slack so the shortcut badge stays pinned right and
+     the field reads as a full-width search affordance. Truncates rather than
+     wrapping if the region is narrow. */
+  .command-pill-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .command-pill:hover .command-pill-visual {
@@ -400,9 +373,11 @@
   }
 
   .command-pill--icon {
+    flex: 0 0 auto;
     width: var(--touch-target-min);
     height: var(--touch-target-min);
     min-width: var(--touch-target-min);
+    margin-right: 0;
     padding: 0;
     justify-content: center;
   }

@@ -56,6 +56,14 @@ export async function clickExport(page: Page): Promise<void> {
 }
 
 /**
+ * Open the Settings dialog via the app menu. Settings moved out of the top bar
+ * into the app menu behind the logo (#2398), so this is the only entry point.
+ */
+export async function clickSettings(page: Page): Promise<void> {
+  await selectAppMenuItem(page, "settings");
+}
+
+/**
  * Wait for the hidden file input to appear, then set the file directly.
  * Shared by loadFileFromDisk() and loadFileFromDiskViaMenu().
  */
