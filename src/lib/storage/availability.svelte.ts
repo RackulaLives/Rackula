@@ -171,8 +171,16 @@ export function setApiAvailable(available: boolean): void {
 export async function probeServerForBrowserHint(): Promise<void> {
   if (getStorageMode() !== "browser") return;
   if (serverReachableInBrowser) return;
+  // Same generation guard as initializePersistence: a reset that fires while this
+  // probe is in flight must invalidate its result so it cannot set the signal
+  // after the pre-check baseline was cleared.
+  const generation = availabilityGeneration;
   try {
     const healthy = await checkApiHealth();
+    if (generation !== availabilityGeneration) {
+      log("probeServerForBrowserHint: stale probe ignored (state was reset)");
+      return;
+    }
     if (healthy) {
       log("probeServerForBrowserHint: server reachable in browser mode");
       serverReachableInBrowser = true;
