@@ -496,6 +496,7 @@
     position: fixed;
     width: min(90vw, 640px);
     max-height: 70vh;
+    max-height: 70dvh;
     display: flex;
     flex-direction: column;
     background: var(--colour-surface);
@@ -510,6 +511,7 @@
   :global(.command-palette--centred) {
     left: 50%;
     top: 12vh;
+    top: 12dvh;
     transform: translateX(-50%);
   }
 
@@ -528,7 +530,7 @@
     bottom: 0;
     top: auto;
     width: 100%;
-    max-height: 85vh;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px));
     border-radius: var(--radius-md) var(--radius-md) 0 0;
     transform: translateY(100%);
     transition: transform var(--duration-slow) cubic-bezier(0.4, 0, 0.2, 1);
