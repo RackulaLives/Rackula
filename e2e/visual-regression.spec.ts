@@ -1,5 +1,5 @@
 import { test, expect } from "./helpers/base-test";
-import { createTestLayout, locators } from "./helpers";
+import { createTestLayout, locators, clickSettings } from "./helpers";
 import { dynamicMasks, gotoVisual, settle } from "./helpers/visual";
 
 /**
@@ -161,10 +161,9 @@ test.describe("visual regression", () => {
 
   test("dialog - settings", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL, { theme: "light" });
-    // Settings moved into the app menu behind the logo (#2398), so open the
-    // menu and pick the Settings item.
-    await page.getByRole("button", { name: "App menu" }).click();
-    await page.getByTestId("app-menu-settings").click();
+    // Settings moved into the app menu behind the logo (#2398); open it via the
+    // shared helper so the selector stays centralized.
+    await clickSettings(page);
     const dialog = page.getByRole("dialog", { name: "Settings" });
     await expect(dialog).toBeVisible();
     await settle(page);

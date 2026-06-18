@@ -183,8 +183,8 @@
       transform: none;
     }
 
-    .app-menu-trigger[data-state="open"] .app-menu-caret {
-      transform: none;
-    }
+    /* The open-state caret keeps its rotated orientation as a static
+       expanded/collapsed cue; only the transition timing above is removed, so
+       it flips instantly rather than animating. */
   }
 </style>
