@@ -128,6 +128,18 @@ For a copy-pastable hardening path with Docker + NGINX (UI and API protection, d
 
 ---
 
+## Upgrading an existing deployment
+
+Your layouts live in the `/data` volume and are not touched by pulling a new image.
+
+1. Back up the data directory first: `cp -a data data.bak` (or snapshot the volume).
+2. Pull the new images: `docker compose pull`.
+3. Recreate the containers: `docker compose up -d`.
+
+Layouts written by the previous release load as-is. If a release migrates the data format, the migration runs on load and the upgraded layout is written back on your next save. The server also keeps automatic snapshots per layout, so a bad write does not lose the prior copy. Keep the directory owned by uid 1001 (`sudo chown -R 1001:1001 data`).
+
+---
+
 ## Stop-Gap Authentication Hardening (Docker + NGINX)
 
 This section adds an interim authentication layer for self-hosted Rackula using Docker and NGINX. It is designed for internal deployments that need immediate protection while first-class app auth is in progress.
