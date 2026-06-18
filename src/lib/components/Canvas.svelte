@@ -395,12 +395,14 @@
           {onrackdelete}
         />
       </div>
-      <VerbBarOverlay
-        canvasEl={canvasContainer}
-        {ondelete}
-        {onrackfocus}
-        {onrackexport}
-      />
+      {#if !viewportStore.isMobile}
+        <VerbBarOverlay
+          canvasEl={canvasContainer}
+          {ondelete}
+          {onrackfocus}
+          {onrackexport}
+        />
+      {/if}
     {:else}
       <WelcomeScreen
         templates={starterTemplates}
