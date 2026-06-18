@@ -15,7 +15,12 @@ import type {
   Cable,
   LayoutMetadata,
 } from "$lib/types";
-import { LayoutSchema, LayoutSchemaBase, type LayoutZod } from "$lib/schemas";
+import {
+  LayoutSchema,
+  LayoutSchemaBase,
+  assertSchemaVersionSupported,
+  type LayoutZod,
+} from "$lib/schemas";
 import { adaptLegacyLayout } from "$lib/storage";
 import { layoutDebug } from "$lib/utils/debug";
 import {
@@ -508,10 +513,34 @@ export function parseLayoutObject(parsed: unknown): Layout | null {
  * runtime Layout and appendUnknownSections never re-emits it on resave. The
  * stripped value is returned to the caller so it can be decoded separately.
  */
+/**
+ * Read metadata.schema_version off an untrusted parsed object, if it is a string.
+ * Returns undefined when absent or malformed (the gate treats absent as current).
+ */
+function readSchemaVersion(parsed: unknown): string | undefined {
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return undefined;
+  }
+  const metadata = (parsed as Record<string, unknown>).metadata;
+  if (
+    metadata === null ||
+    typeof metadata !== "object" ||
+    Array.isArray(metadata)
+  ) {
+    return undefined;
+  }
+  const version = (metadata as Record<string, unknown>).schema_version;
+  return typeof version === "string" ? version : undefined;
+}
+
 function validateParsedLayout(parsed: unknown): {
   layout: Layout;
   rawImages: unknown;
 } {
+  // Forward-compat gate (#2205): reject a document whose data-format MAJOR is
+  // newer than this app before any parse or write. Read-only and non-destructive.
+  assertSchemaVersionSupported(readSchemaVersion(parsed));
+
   let rawImages: unknown;
 
   if (parsed !== null && typeof parsed === "object") {

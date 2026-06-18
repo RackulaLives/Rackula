@@ -58,10 +58,17 @@
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
 
-  // Dynamic active rack id from the store
-  const currentRackId = $derived(
-    layoutStore.activeRackId ?? layoutStore.racks[0]?.id ?? null,
-  );
+  // The rack the current selection refers to, resolved from the selection store
+  // rather than the active rack. Selecting a rack via any entry point (canvas
+  // click target, rack list, keyboard) is sufficient to populate the panel, even
+  // when a different rack is the active rack (#2407). For a device selection this
+  // is the rack that holds the device; for a rack/group selection it is the rack
+  // the selection names.
+  const selectedRackId = $derived(selectionStore.selectedRackId);
+  const selectionRack = $derived.by(() => {
+    if (!selectedRackId) return null;
+    return layoutStore.racks.find((r) => r.id === selectedRackId) ?? null;
+  });
 
   // The selected group if a bayed rack is selected
   const selectedGroup = $derived.by(() => {
@@ -74,14 +81,13 @@
     );
   });
 
-  // The selected rack (also resolves the active rack within a selected group)
+  // The selected rack (also resolves the active rack within a selected group).
+  // A group selection carries its active rack as selectedRackId, so both the
+  // single-rack and bayed-group cases resolve through selectionRack.
   const selectedRack = $derived.by(() => {
-    if (selectionStore.isGroupSelected && currentRackId) {
-      return layoutStore.activeRack;
-    }
-    if (!selectionStore.isRackSelected || !currentRackId) return null;
-    if (selectionStore.selectedRackId !== currentRackId) return null;
-    return layoutStore.activeRack;
+    if (selectionStore.isGroupSelected) return selectionRack;
+    if (!selectionStore.isRackSelected) return null;
+    return selectionRack;
   });
 
   // The selected device info, if a device is selected
@@ -93,7 +99,7 @@
     )
       return null;
 
-    const rack = layoutStore.activeRack;
+    const rack = selectionRack;
     if (!rack) return null;
 
     const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
@@ -129,13 +135,17 @@
   // Delete-device-type confirmation lives at the host level (per #1398 contract).
   let showDeleteConfirm = $state(false);
 
+  // Count placements across every rack, not just the selected one: deleting a
+  // device type removes all of its instances layout-wide, so the confirmation's
+  // "All instances will be removed" must report the whole-layout count.
   const deviceTypePlacementCount = $derived.by(() => {
     if (!selectedDeviceInfo) return 0;
     const slug = selectedDeviceInfo.device.slug;
-    const activeRack = layoutStore.activeRack;
-    return activeRack
-      ? activeRack.devices.filter((d) => d.device_type === slug).length
-      : 0;
+    return layoutStore.racks.reduce(
+      (count, rack) =>
+        count + rack.devices.filter((d) => d.device_type === slug).length,
+      0,
+    );
   });
 
   function handleDeleteDeviceType() {

@@ -129,6 +129,11 @@ served path matches the committed artifact's location. When `schemas.racku.la` i
 it will serve the artifact at the canonical `$id` path and the fetch URL converges on the
 `$id`.
 
+### Editor validation
+
+To validate hand-edited layout YAML in an editor (VS Code, Neovim, JetBrains) against this
+schema, see the [YAML Schema Validation Guide](../guides/yaml-schema-validation.md).
+
 ---
 
 ## DeviceType
