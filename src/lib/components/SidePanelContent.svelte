@@ -135,11 +135,17 @@
   // Delete-device-type confirmation lives at the host level (per #1398 contract).
   let showDeleteConfirm = $state(false);
 
+  // Count placements across every rack, not just the selected one: deleting a
+  // device type removes all of its instances layout-wide, so the confirmation's
+  // "All instances will be removed" must report the whole-layout count.
   const deviceTypePlacementCount = $derived.by(() => {
     if (!selectedDeviceInfo) return 0;
     const slug = selectedDeviceInfo.device.slug;
-    const rack = selectedDeviceInfo.rack;
-    return rack.devices.filter((d) => d.device_type === slug).length;
+    return layoutStore.racks.reduce(
+      (count, rack) =>
+        count + rack.devices.filter((d) => d.device_type === slug).length,
+      0,
+    );
   });
 
   function handleDeleteDeviceType() {

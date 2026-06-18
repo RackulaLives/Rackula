@@ -7,7 +7,7 @@
  * matching properties render; with no selection a clear empty state shows instead.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/svelte";
+import { render, screen, fireEvent } from "@testing-library/svelte";
 import SidePanelContent from "$lib/components/SidePanelContent.svelte";
 import { resetLayoutStore, getLayoutStore } from "$lib/stores/layout.svelte";
 import {
@@ -141,5 +141,40 @@ describe("Edit tab contextual properties (#2077)", () => {
     expect(
       screen.queryByTestId("side-panel-edit-empty"),
     ).not.toBeInTheDocument();
+  });
+
+  it("counts device-type placements across all racks in the delete confirmation", async () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+
+    // The same custom device type is placed in two different racks. Deleting the
+    // type removes every instance layout-wide, so the confirmation must report
+    // the whole-layout count, not just the selected rack's.
+    const rackA = layoutStore.addRack("Rack A", 42);
+    const rackB = layoutStore.addRack("Rack B", 42);
+    const deviceType = layoutStore.addDeviceType({
+      name: "Shared Server",
+      u_height: 1,
+      category: "server",
+      colour: "#4A90D9",
+    });
+    layoutStore.placeDevice(rackA!.id, deviceType.slug, 1, "front");
+    layoutStore.placeDevice(rackB!.id, deviceType.slug, 1, "front");
+
+    // Select the instance in rack A.
+    const deviceInA = layoutStore
+      .getRackById(rackA!.id)!
+      .devices.find((d) => d.device_type === deviceType.slug)!;
+    selectionStore.selectDevice(rackA!.id, deviceInA.id);
+
+    renderEditTab();
+
+    // Trigger the delete-device-type flow.
+    await fireEvent.click(
+      screen.getByRole("button", { name: /delete from library/i }),
+    );
+
+    // The confirmation reports both placements, not just the one in rack A.
+    expect(screen.getByText(/placed 2 times/i)).toBeInTheDocument();
   });
 });
