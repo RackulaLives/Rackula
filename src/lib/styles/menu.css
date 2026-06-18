@@ -27,8 +27,9 @@
 .menu-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
+  /* Icon, label, then shortcut. The label flexes to fill, so the shortcut
+     stays hard-right while the icon stays snug to the label (#2406). */
+  gap: var(--space-2);
   padding: var(--space-2);
   border-radius: var(--radius-sm);
   color: var(--colour-text-inverse);
