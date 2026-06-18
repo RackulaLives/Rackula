@@ -27,13 +27,19 @@ const ARTIFACT_PATH = join(
 );
 
 describe("layout JSON Schema artifact", () => {
-  const artifact = JSON.parse(readFileSync(ARTIFACT_PATH, "utf8")) as Record<
-    string,
-    unknown
-  >;
+  const raw = readFileSync(ARTIFACT_PATH, "utf8");
+  const artifact = JSON.parse(raw) as Record<string, unknown>;
 
   it("is in sync with the Zod source schema", () => {
     expect(artifact).toEqual(assembleSchema(z, LayoutSchema));
+  });
+
+  it("matches `npm run generate-schema` output byte for byte", () => {
+    // Structural equality above misses key-order and formatting drift; the
+    // published file is what ships, so compare its exact bytes against what the
+    // generator would write. If this fails, run `npm run generate-schema`.
+    const expected = JSON.stringify(assembleSchema(z, LayoutSchema), null, 2) + "\n";
+    expect(raw).toBe(expected);
   });
 
   it("carries the published schema envelope", () => {
