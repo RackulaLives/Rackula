@@ -86,16 +86,12 @@
   // the registry did not include it (e.g. move-device-slot is absent for
   // full-width devices), so the template guards with {#if}.
   const moveUpVerb = $derived(verbs.find((v) => v.id === "move-device-up"));
-  const moveDownVerb = $derived(
-    verbs.find((v) => v.id === "move-device-down"),
-  );
+  const moveDownVerb = $derived(verbs.find((v) => v.id === "move-device-down"));
   const flipVerb = $derived(verbs.find((v) => v.id === "flip-device-face"));
   const duplicateVerb = $derived(
     verbs.find((v) => v.id === "duplicate-selection"),
   );
-  const deleteVerb = $derived(
-    verbs.find((v) => v.id === "delete-selection"),
-  );
+  const deleteVerb = $derived(verbs.find((v) => v.id === "delete-selection"));
 
   function dispatch(id: ActionId) {
     onaction?.(id);

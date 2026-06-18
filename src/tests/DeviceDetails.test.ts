@@ -123,7 +123,11 @@ describe("DeviceDetails", () => {
       { id: "move-device-down", label: "Move device down", disabled: false },
       { id: "move-device-slot", label: "Move to next cell", disabled: true },
       { id: "flip-device-face", label: "Flip face", disabled: false },
-      { id: "duplicate-selection", label: "Duplicate selection", disabled: false },
+      {
+        id: "duplicate-selection",
+        label: "Duplicate selection",
+        disabled: false,
+      },
       { id: "delete-selection", label: "Delete selected", disabled: false },
     ];
 
