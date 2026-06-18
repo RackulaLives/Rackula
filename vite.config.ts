@@ -196,13 +196,9 @@ export default defineConfig(() => ({
             // Validation library
             if (id.includes("/zod/")) return "vendor-zod";
             // Svelte runtime + Svelte component libraries
-            // bits-ui/paneforge must be in same chunk as svelte for correct
-            // ESM initialization order
-            if (
-              id.includes("/svelte/") ||
-              id.includes("/bits-ui/") ||
-              id.includes("/paneforge/")
-            )
+            // bits-ui must be in the same chunk as svelte for correct ESM
+            // initialization order
+            if (id.includes("/svelte/") || id.includes("/bits-ui/"))
               return "vendor-svelte";
             // Markdown rendering and sanitization (notes preview)
             if (id.includes("/marked/") || id.includes("/dompurify/"))

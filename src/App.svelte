@@ -3,14 +3,14 @@
   Main application component
 -->
 <script lang="ts">
-  import { onMount, untrack } from "svelte";
+  import { onMount } from "svelte";
   import AnimationDefs from "$lib/components/AnimationDefs.svelte";
   import Toolbar from "$lib/components/Toolbar.svelte";
   import Canvas from "$lib/components/Canvas.svelte";
   import CanvasViewControls from "$lib/components/canvas/CanvasViewControls.svelte";
-  import { PaneGroup, Pane, PaneResizer } from "paneforge";
   import DevicePalette from "$lib/components/DevicePalette.svelte";
   import SidePanel from "$lib/components/SidePanel.svelte";
+  import CollapsedPanelStrip from "$lib/components/CollapsedPanelStrip.svelte";
   import ToastContainer from "$lib/components/ToastContainer.svelte";
   import PortTooltip from "$lib/components/PortTooltip.svelte";
   import DragTooltip from "$lib/components/DragTooltip.svelte";
@@ -93,19 +93,6 @@
   import { debounce } from "$lib/utils/debounce";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 
-  // Sidebar size configuration (in pixels)
-  interface Props {
-    sidePanelSizeMin?: number;
-    sidePanelSizeMax?: number;
-    sidePanelSizeDefault?: number;
-  }
-
-  let {
-    sidePanelSizeMin = 290,
-    sidePanelSizeMax = 420,
-    sidePanelSizeDefault = 320,
-  }: Props = $props();
-
   const layoutStore = getLayoutStore();
   const workspaceStore = getWorkspaceStore();
   const selectionStore = getSelectionStore();
@@ -118,49 +105,13 @@
   // Persistence state lives in $lib/storage (manager.svelte.ts); app-level
   // actions (save/export/share orchestration) live in $lib/utils/app-actions.
 
-  // Sidebar width: read once from the UI store.
-  // This is intentionally NOT reactive because changes to sidebarWidth are driven
-  // by layout / resize logic elsewhere that also writes back to uiStore. If this
-  // value were reactive, it could participate in a feedback loop (store → layout
-  // recompute → store) and cause jittery or repeated layout updates. We only need
-  // an initial width to seed the layout; subsequent updates use the store directly.
-  const initialSidebarWidthPx =
-    uiStore.sidebarWidth ?? untrack(() => sidePanelSizeDefault);
-
-  // Safe viewport width: use viewportStore if available, else fallback to reasonable default
-  // Guards against SSR/test environments where window may not exist
-  /**
-   * Returns a safe viewport width in pixels for layout calculations.
-   *
-   * Uses the current value from {@link viewportStore.width} when it is greater than 0.
-   * In SSR or test environments (or when the width is not yet initialized), it falls
-   * back to a sensible default of 1280px to keep percentage-based sizing stable.
-   *
-   * @returns A positive viewport width in pixels, defaulting to 1280 when unavailable.
-   */
-  function getSafeViewportWidth(): number {
-    const width = viewportStore.width;
-    // Fallback to 1280px (common desktop width) to ensure sensible percentage calculations
-    return width > 0 ? width : 1280;
-  }
-
-  // Convert pixel sizes to percentages based on viewport width
-  let sidebarMinPercent = $derived(
-    (sidePanelSizeMin / getSafeViewportWidth()) * 100,
-  );
-  let sidebarMaxPercent = $derived(
-    (sidePanelSizeMax / getSafeViewportWidth()) * 100,
-  );
-  // Initial default size - computed once, not reactive
-  const sidebarDefaultPercent =
-    (initialSidebarWidthPx / getSafeViewportWidth()) * 100;
-
-  // Handle resize - convert percentage back to pixels and persist
-  function handleSidebarResize(size: number) {
-    const viewportWidth = getSafeViewportWidth();
-    const widthPx = (size / 100) * viewportWidth;
-    uiStore.setSidebarWidth(widthPx);
-  }
+  // The active sidebar tab name, shown as the collapsed strip's rotated label.
+  const sidebarTabLabels: Record<typeof uiStore.sidebarTab, string> = {
+    layouts: "Layouts",
+    racks: "Racks",
+    devices: "Devices",
+  };
+  const sidebarTabLabel = $derived(sidebarTabLabels[uiStore.sidebarTab]);
 
   // Party Mode easter egg (triggered by Konami code)
   let partyMode = $state(false);
@@ -493,8 +444,12 @@
     return () => window.removeEventListener("resize", onResize);
   });
 
-  function handleToggleSidePanel() {
-    uiStore.setSidePanelCollapsed(!uiStore.sidePanelCollapsed);
+  function handleCollapseSidebar() {
+    uiStore.setSidebarCollapsed(true);
+  }
+
+  function handleExpandSidebar() {
+    uiStore.setSidebarCollapsed(false);
   }
 
   function handleNewLayout() {
@@ -567,16 +522,12 @@
 
 <!-- Tooltip.Provider enables shared tooltip state - only one tooltip shows at a time -->
 <Tooltip.Provider delayDuration={500}>
-  <div
-    class="app-layout"
-    style="--sidebar-width: min({uiStore.sidebarWidth ??
-      sidePanelSizeDefault}px, var(--sidebar-width-max))"
-  >
+  <div class="app-layout">
     <Toolbar
       hasRacks={layoutStore.hasRack}
       {partyMode}
+      sidebarCollapsed={uiStore.sidebarCollapsed}
       sidePanelCollapsed={uiStore.sidePanelCollapsed}
-      ontogglesidepanel={handleToggleSidePanel}
       onsave={maybeSave}
       onsaveas={maybeSaveAs}
       onload={handleLoad}
@@ -598,79 +549,81 @@
       <MobileHistoryControls />
 
       {#if !viewportStore.isMobile}
-        <PaneGroup
-          direction="horizontal"
-          keyboardResizeBy={10}
-          class="pane-group"
-        >
-          <Pane
-            defaultSize={sidebarDefaultPercent}
-            minSize={sidebarMinPercent}
-            maxSize={sidebarMaxPercent}
-            onResize={handleSidebarResize}
-            id="sidebar-pane"
-            class="sidebar-pane"
+        <div class="workspace">
+          <!-- The sidebar stays a labelled landmark in both states: expanded it
+               hosts the tabbed content, collapsed it is the 44px reopen strip
+               (#2397). Keeping the aside in both states mirrors the right panel
+               and preserves landmark navigation. -->
+          <aside
+            class="sidebar-panel"
+            class:sidebar-panel--collapsed={uiStore.sidebarCollapsed}
+            aria-label="Layouts, racks and devices panel"
             data-testid="drawer-left"
           >
-            <SidebarTabs
-              activeTab={uiStore.sidebarTab}
-              onchange={(tab) => uiStore.setSidebarTab(tab)}
-            />
-            {#if uiStore.sidebarTab === "devices"}
-              <DevicePalette
-                oncreatedevice={handleAddDevice}
-                ontoggledisplaymode={handleToggleDisplayMode}
+            {#if uiStore.sidebarCollapsed}
+              <CollapsedPanelStrip
+                side="left"
+                label={sidebarTabLabel}
+                onexpand={handleExpandSidebar}
               />
-            {:else if uiStore.sidebarTab === "racks"}
-              <RackList
-                onnewrack={handleNewRack}
-                onexport={handleRackContextExport}
-                onfocus={handleRackContextFocus}
-                onedit={handleRackContextEdit}
-                onrename={handleRackContextRename}
-                onduplicate={handleRackContextDuplicate}
+            {:else}
+              <SidebarTabs
+                activeTab={uiStore.sidebarTab}
+                onchange={(tab) => uiStore.setSidebarTab(tab)}
+                oncollapse={handleCollapseSidebar}
               />
-            {:else if uiStore.sidebarTab === "layouts"}
-              <LayoutsLibrary
-                onnewlayout={handleNewLayout}
-                onexport={handleLayoutExport}
-              />
+              {#if uiStore.sidebarTab === "devices"}
+                <DevicePalette
+                  oncreatedevice={handleAddDevice}
+                  ontoggledisplaymode={handleToggleDisplayMode}
+                />
+              {:else if uiStore.sidebarTab === "racks"}
+                <RackList
+                  onnewrack={handleNewRack}
+                  onexport={handleRackContextExport}
+                  onfocus={handleRackContextFocus}
+                  onedit={handleRackContextEdit}
+                  onrename={handleRackContextRename}
+                  onduplicate={handleRackContextDuplicate}
+                />
+              {:else if uiStore.sidebarTab === "layouts"}
+                <LayoutsLibrary
+                  onnewlayout={handleNewLayout}
+                  onexport={handleLayoutExport}
+                />
+              {/if}
             {/if}
-          </Pane>
+          </aside>
 
-          <PaneResizer class="resize-handle" />
+          <div class="canvas-region">
+            <Canvas
+              onnewrack={handleNewRack}
+              onload={handleLoad}
+              onchoosetemplate={handleChooseTemplate}
+              onshare={handleShare}
+              onfitall={handleFitAll}
+              onresetzoom={() => canvasStore.resetZoom()}
+              {partyMode}
+              enableLongPress={false}
+              onracklongpress={handleRackLongPress}
+              onrackfocus={handleRackContextFocus}
+              onrackexport={handleRackContextExport}
+              onrackedit={handleRackContextEdit}
+              onrackrename={handleRackContextRename}
+              onrackduplicate={handleRackContextDuplicate}
+              onrackdelete={handleRackContextDelete}
+              ondelete={handleDelete}
+            />
 
-          <Pane class="main-pane">
-            <div class="canvas-region">
-              <Canvas
-                onnewrack={handleNewRack}
-                onload={handleLoad}
-                onchoosetemplate={handleChooseTemplate}
-                onshare={handleShare}
-                onfitall={handleFitAll}
-                onresetzoom={() => canvasStore.resetZoom()}
-                {partyMode}
-                enableLongPress={false}
-                onracklongpress={handleRackLongPress}
-                onrackfocus={handleRackContextFocus}
-                onrackexport={handleRackContextExport}
-                onrackedit={handleRackContextEdit}
-                onrackrename={handleRackContextRename}
-                onrackduplicate={handleRackContextDuplicate}
-                onrackdelete={handleRackContextDelete}
-                ondelete={handleDelete}
-              />
+            <CanvasViewControls
+              displayMode={uiStore.displayMode}
+              onfitall={handleFitAll}
+              ontoggledisplaymode={handleToggleDisplayMode}
+            />
+          </div>
 
-              <CanvasViewControls
-                displayMode={uiStore.displayMode}
-                onfitall={handleFitAll}
-                ontoggledisplaymode={handleToggleDisplayMode}
-              />
-            </div>
-
-            <SidePanel />
-          </Pane>
-        </PaneGroup>
+          <SidePanel />
+        </div>
       {:else}
         <Canvas
           onnewrack={handleNewRack}
@@ -740,43 +693,39 @@
     );
   }
 
-  /* PaneForge styles */
-  :global(.pane-group) {
+  /* Desktop workspace: a fixed-width left panel (or its 44px collapsed strip),
+     the flexible canvas region, and the fixed-width side panel (#2397). Both
+     panels are fixed width with no drag-to-resize. */
+  .workspace {
+    display: flex;
+    flex-direction: row;
     flex: 1;
     overflow: hidden;
+    min-height: 0;
+    background-color: var(--canvas-bg);
   }
 
-  :global(.sidebar-pane) {
+  .sidebar-panel {
+    width: var(--sidebar-width, 320px);
+    flex-shrink: 0;
     background: var(--colour-sidebar-bg);
     border-right: 1px solid var(--colour-border);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    min-width: var(--sidebar-width-min);
+    transition: width var(--duration-normal) var(--ease-in-out);
   }
 
-  :global(.resize-handle) {
-    width: 4px;
-    background: var(--colour-border);
-    cursor: col-resize;
-    transition: background var(--duration-fast) var(--ease-out);
-    position: relative;
+  /* Collapsed: shrink to the 44px strip; the strip owns its own outer border. */
+  .sidebar-panel--collapsed {
+    width: var(--panel-collapsed-strip-width, 44px);
+    border-right: none;
   }
 
-  :global(.resize-handle:hover),
-  :global(.resize-handle[data-resize-handle-active]) {
-    background: var(--colour-selection);
-  }
-
-  :global(.main-pane) {
-    /* Note: paneforge applies inline flex: X 1 0px - don't override with flex: 1 */
-    display: flex;
-    /* Canvas and the persistent side panel sit side by side. */
-    flex-direction: row;
-    overflow: hidden;
-    min-height: 0;
-    height: 100%; /* Required for percentage-based children to fill space */
-    background-color: var(--canvas-bg);
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar-panel {
+      transition: none;
+    }
   }
 
   .canvas-region {

@@ -415,6 +415,48 @@ describe("UI Store", () => {
     });
   });
 
+  describe("Sidebar Collapse", () => {
+    it("initial sidebarCollapsed is false", () => {
+      const store = getUIStore();
+      expect(store.sidebarCollapsed).toBe(false);
+    });
+
+    it("toggleSidebarCollapsed flips collapse state", () => {
+      const store = getUIStore();
+
+      store.toggleSidebarCollapsed();
+      expect(store.sidebarCollapsed).toBe(true);
+
+      store.toggleSidebarCollapsed();
+      expect(store.sidebarCollapsed).toBe(false);
+    });
+
+    it("setSidebarCollapsed sets collapse state explicitly", () => {
+      const store = getUIStore();
+      store.setSidebarCollapsed(true);
+      expect(store.sidebarCollapsed).toBe(true);
+    });
+
+    it("collapse state persists to localStorage", () => {
+      const store = getUIStore();
+      store.setSidebarCollapsed(true);
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        "Rackula_sidebar_collapsed",
+        "true",
+      );
+    });
+
+    it("collapse state loads from localStorage", () => {
+      localStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === "Rackula_sidebar_collapsed") return "true";
+        return null;
+      });
+      resetUIStore();
+      const store = getUIStore();
+      expect(store.sidebarCollapsed).toBe(true);
+    });
+  });
+
   describe("Side Panel", () => {
     it("initial sidePanelTab is edit", () => {
       const store = getUIStore();

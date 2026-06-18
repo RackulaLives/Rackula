@@ -2,24 +2,26 @@
   SidePanel Component
 
   The persistent right-side panel chrome: a collapsible surface that hosts the
-  tabbed Edit/View content (SidePanelContent). Collapses to a slim rail.
-  Collapse state and the active tab are remembered across sessions via the UI store.
+  tabbed Edit/View content (SidePanelContent). Collapses rightward to a 44px
+  strip on its outer edge (issue #2397). Collapse state and the active tab are
+  remembered across sessions via the UI store.
 
-  The collapse/expand toggle has moved to the top-bar right region (#2386).
-  This chrome no longer renders a header row; the panel body fills the full height.
+  The collapse/expand chevron lives in the panel itself: `»` at the far-right of
+  the Edit/View tab row (expanded), and the collapsed strip is one big reopen
+  button. This mirrors the left panel (#2397).
 
   This chrome is desktop and tablet only. On phone the same SidePanelContent is
-  composed inside a bottom sheet instead (mobile spike #2097); the rail does not
-  appear there. Keep the collapse-to-rail behaviour here, not in SidePanelContent,
-  so the content stays extractable.
+  composed inside a bottom sheet instead (mobile spike #2097); neither the strip
+  nor the in-row chevron appears there. Keep the collapse-to-strip behaviour
+  here, not in SidePanelContent, so the content stays extractable.
 
-  Accessibility (issue #2076 ACs): the panel is a labelled landmark; collapse and
-  expand managed focus to the panel heading (expand) is now handled by the toolbar
-  chevron interaction. Collapsing still returns focus to the rail; expanding focus
-  moves into the panel.
+  Accessibility (issue #2076 ACs): the panel is a labelled landmark; expanding
+  moves focus to the active tab's heading. Collapsing returns focus to the strip
+  reopen button.
 -->
 <script lang="ts">
   import SidePanelContent from "./SidePanelContent.svelte";
+  import CollapsedPanelStrip from "./CollapsedPanelStrip.svelte";
   import { getUIStore, type SidePanelTab } from "$lib/stores/ui.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
 
@@ -28,6 +30,11 @@
 
   const EDIT_HEADING_ID = "side-panel-edit-heading";
   const VIEW_HEADING_ID = "side-panel-view-heading";
+
+  // The active tab name, shown as the collapsed strip's rotated label.
+  const activeTabLabel = $derived(
+    uiStore.sidePanelTab === "view" ? "View" : "Edit",
+  );
 
   let panelEl = $state<HTMLElement | null>(null);
 
@@ -62,8 +69,14 @@
           uiStore.sidePanelTab === "view" ? VIEW_HEADING_ID : EDIT_HEADING_ID;
         const heading = panelEl?.querySelector<HTMLElement>(`#${headingId}`);
         heading?.focus();
+      } else {
+        // Collapsed: move focus to the strip's reopen button so keyboard users
+        // are not stranded on the now-hidden in-panel chevron.
+        const reopen = panelEl?.querySelector<HTMLElement>(
+          '[data-testid="panel-collapsed-strip-right"]',
+        );
+        reopen?.focus();
       }
-      // Collapsed: the toolbar chevron retains focus (it's the button that was clicked).
     });
 
     return () => cancelAnimationFrame(frame);
@@ -72,27 +85,41 @@
   function handleTabChange(tab: SidePanelTab) {
     uiStore.setSidePanelTab(tab);
   }
+
+  function handleCollapse() {
+    uiStore.setSidePanelCollapsed(true);
+  }
+
+  function handleExpand() {
+    uiStore.setSidePanelCollapsed(false);
+  }
 </script>
 
-<!-- When collapsed the panel has no content and zero width; it drops its
-     landmark label and is hidden from assistive tech so it is not an empty,
-     navigable "Edit and view panel" region. The toolbar chevron (#2386) is the
-     expand control in that state. -->
+<!-- Collapsed, the panel is a 44px strip on its outer edge whose reopen button
+     is the expand control (#2397); expanded, it hosts the tabbed content with an
+     in-row collapse chevron. The region stays labelled in both states because
+     the strip is interactive, not empty chrome. -->
 <aside
   bind:this={panelEl}
   class="side-panel"
   class:collapsed={uiStore.sidePanelCollapsed}
-  aria-label={uiStore.sidePanelCollapsed ? undefined : "Edit and view panel"}
-  aria-hidden={uiStore.sidePanelCollapsed ? "true" : undefined}
+  aria-label="Edit and view panel"
   data-testid="side-panel"
 >
-  {#if !uiStore.sidePanelCollapsed}
+  {#if uiStore.sidePanelCollapsed}
+    <CollapsedPanelStrip
+      side="right"
+      label={activeTabLabel}
+      onexpand={handleExpand}
+    />
+  {:else}
     <div class="side-panel-body">
       <SidePanelContent
         activeTab={uiStore.sidePanelTab}
         onTabChange={handleTabChange}
         editHeadingId={EDIT_HEADING_ID}
         viewHeadingId={VIEW_HEADING_ID}
+        oncollapse={handleCollapse}
       />
     </div>
   {/if}
@@ -114,8 +141,9 @@
     transition: width var(--duration-normal) var(--ease-in-out);
   }
 
+  /* Collapsed: shrink to the 44px strip. The strip owns its own outer border. */
   .side-panel.collapsed {
-    width: 0;
+    width: var(--panel-collapsed-strip-width, 44px);
     border-left: none;
   }
 

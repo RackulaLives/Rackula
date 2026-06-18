@@ -9,10 +9,6 @@ import {
   applyThemeToDocument,
   type Theme,
 } from "$lib/utils/theme";
-import {
-  loadSidebarWidthFromStorage,
-  saveSidebarWidthToStorage,
-} from "$lib/utils/sidebarWidth";
 import type { DisplayMode, AnnotationField } from "$lib/types";
 import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 
@@ -24,6 +20,7 @@ export type SidePanelTab = "edit" | "view";
 
 // localStorage keys
 const SIDEBAR_TAB_KEY = "Rackula_sidebar_tab";
+const SIDEBAR_COLLAPSED_KEY = "Rackula_sidebar_collapsed";
 const SIDE_PANEL_TAB_KEY = "Rackula_side_panel_tab";
 const SIDE_PANEL_COLLAPSED_KEY = "Rackula_side_panel_collapsed";
 const WARN_UNSAVED_KEY = "Rackula_warn_unsaved";
@@ -68,6 +65,20 @@ function loadSidebarTabFromStorage(): SidebarTab {
  */
 function saveSidebarTabToStorage(tab: SidebarTab): void {
   safeSetItem(SIDEBAR_TAB_KEY, tab);
+}
+
+/**
+ * Load left sidebar collapse state from localStorage
+ */
+function loadSidebarCollapsedFromStorage(): boolean {
+  return safeGetItem(SIDEBAR_COLLAPSED_KEY) === "true";
+}
+
+/**
+ * Save left sidebar collapse state to localStorage
+ */
+function saveSidebarCollapsedToStorage(collapsed: boolean): void {
+  safeSetItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
 }
 
 /**
@@ -177,8 +188,8 @@ export const ZOOM_STEP = 25;
 
 // Load initial values from storage
 const initialTheme = loadThemeFromStorage();
-const initialSidebarWidth = loadSidebarWidthFromStorage();
 const initialSidebarTab = loadSidebarTabFromStorage();
+const initialSidebarCollapsed = loadSidebarCollapsedFromStorage();
 const initialSidePanelTab = loadSidePanelTabFromStorage();
 const initialSidePanelCollapsed = loadSidePanelCollapsedFromStorage();
 const initialWarnUnsaved = loadWarnUnsavedFromStorage();
@@ -194,8 +205,8 @@ let displayMode = $state<DisplayMode>("label");
 let showAnnotations = $state(false);
 let annotationField = $state<AnnotationField>("name");
 let showBanana = $state(false);
-let sidebarWidth = $state<number | null>(initialSidebarWidth);
 let sidebarTab = $state<SidebarTab>(initialSidebarTab);
+let sidebarCollapsed = $state(initialSidebarCollapsed);
 let sidePanelTab = $state<SidePanelTab>(initialSidePanelTab);
 let sidePanelCollapsed = $state(initialSidePanelCollapsed);
 let warnOnUnsavedChanges = $state(initialWarnUnsaved);
@@ -224,8 +235,8 @@ export function resetUIStore(): void {
   showAnnotations = false;
   annotationField = "name";
   showBanana = false;
-  sidebarWidth = loadSidebarWidthFromStorage();
   sidebarTab = loadSidebarTabFromStorage();
+  sidebarCollapsed = loadSidebarCollapsedFromStorage();
   sidePanelTab = loadSidePanelTabFromStorage();
   sidePanelCollapsed = loadSidePanelCollapsedFromStorage();
   warnOnUnsavedChanges = loadWarnUnsavedFromStorage();
@@ -289,11 +300,11 @@ export function getUIStore() {
     },
 
     // Sidebar state getters
-    get sidebarWidth() {
-      return sidebarWidth;
-    },
     get sidebarTab() {
       return sidebarTab;
+    },
+    get sidebarCollapsed() {
+      return sidebarCollapsed;
     },
     get sidePanelTab() {
       return sidePanelTab;
@@ -342,8 +353,9 @@ export function getUIStore() {
     toggleBanana,
 
     // Sidebar actions
-    setSidebarWidth: setSidebarWidthAction,
     setSidebarTab,
+    toggleSidebarCollapsed,
+    setSidebarCollapsed,
 
     // Side panel actions
     setSidePanelTab,
@@ -531,26 +543,29 @@ function toggleBanana(): void {
 }
 
 /**
- * Set the sidebar width
- * @param width - Width in pixels (must be finite and positive)
- */
-function setSidebarWidthAction(width: number): void {
-  // Validate input: must be a finite positive number
-  if (!Number.isFinite(width) || width <= 0) {
-    return;
-  }
-  sidebarWidth = width;
-  saveSidebarWidthToStorage(width);
-}
-
-/**
  * Set the sidebar tab
- * @param tab - Tab to set ('hide', 'devices', or 'racks')
+ * @param tab - Tab to set ('devices', 'racks', or 'layouts')
  */
 function setSidebarTab(tab: SidebarTab): void {
   if (!isValidSidebarTab(tab)) return;
   sidebarTab = tab;
   saveSidebarTabToStorage(tab);
+}
+
+/**
+ * Toggle the left sidebar between expanded and collapsed-to-strip
+ */
+function toggleSidebarCollapsed(): void {
+  setSidebarCollapsed(!sidebarCollapsed);
+}
+
+/**
+ * Set the left sidebar collapse state explicitly
+ * @param collapsed - Whether the sidebar is collapsed to its strip
+ */
+function setSidebarCollapsed(collapsed: boolean): void {
+  sidebarCollapsed = collapsed;
+  saveSidebarCollapsedToStorage(collapsed);
 }
 
 /**

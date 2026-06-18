@@ -522,12 +522,14 @@
 <div class="device-palette">
   <!-- Grouping Mode and Search -->
   <div class="search-container">
-    <SegmentedControl
-      options={groupingModeOptions}
-      value={groupingMode}
-      onchange={handleGroupingModeChange}
-      ariaLabel="Grouping mode"
-    />
+    <div class="grouping-toggle">
+      <SegmentedControl
+        options={groupingModeOptions}
+        value={groupingMode}
+        onchange={handleGroupingModeChange}
+        ariaLabel="Grouping mode"
+      />
+    </div>
     <div class="search-row">
       <input
         type="search"
@@ -690,7 +692,10 @@
                         <h3 class="category-header">
                           {getCategoryDisplayName(category)}
                         </h3>
-                        {@render deviceList(devices, getCategoryDisplayName(category))}
+                        {@render deviceList(
+                          devices,
+                          getCategoryDisplayName(category),
+                        )}
                       </div>
                     {/if}
                   {/each}
@@ -732,6 +737,13 @@
     padding: var(--space-2) var(--space-2) var(--space-3);
   }
 
+  /* The Brand/Category/A-Z grouping toggle is sized to 44px here (the device
+     palette's own touch-target standard, #2397), without changing the shared
+     SegmentedControl used elsewhere in the app. */
+  .grouping-toggle :global(.segment) {
+    min-height: 44px;
+  }
+
   .search-row {
     display: flex;
     gap: var(--space-2);
@@ -740,7 +752,9 @@
 
   .search-input {
     flex: 1;
-    padding: var(--space-2) var(--space-3);
+    /* 44px control height, matching the tab rows and the touch standard (#2397). */
+    height: 44px;
+    padding: 0 var(--space-3);
     font-size: var(--font-size-sm);
     color: var(--colour-text);
     background-color: var(--input-bg);
@@ -757,8 +771,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: var(--space-8);
-    height: var(--space-8);
+    /* 44px square controls, matching the search field and touch standard (#2397). */
+    width: 44px;
+    height: 44px;
     padding: 0;
     font-size: var(--font-size-lg);
     font-weight: 400;

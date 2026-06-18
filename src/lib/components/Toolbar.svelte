@@ -5,9 +5,9 @@
     search pill. Width tracks --sidebar-width so it aligns with the column below.
   - Centre (flex): the layout tab strip (LayoutTabs), desktop only. Spans the
     canvas gap between the sidebar and side panel.
-  - Right (fixed, = panel width): storage chip + Settings gear + side-panel
-    collapse/expand chevron (desktop); quick file actions (mobile). Width tracks
-    --side-panel-width when expanded, or shrinks to natural when collapsed.
+  - Right (fixed, = panel width): storage chip + Settings gear (desktop); quick
+    file actions (mobile). Width tracks --side-panel-width. The side-panel
+    collapse/expand chevron lives in the panel itself (#2397).
   View and history controls (zoom, fit, display mode, undo, redo) relocate to the
   canvas bottom-left in #2074. File commands live in the app menu behind the logo.
 -->
@@ -17,7 +17,7 @@
   import StorageStatusChip from "./StorageStatusChip.svelte";
   import LayoutTabs from "./LayoutTabs.svelte";
   import type { ActionId } from "$lib/actions/registry";
-  import { IconGearBold, IconSearch, IconChevronLeft, IconChevronRight } from "./icons";
+  import { IconGearBold, IconSearch } from "./icons";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { formatShortcut } from "$lib/utils/platform";
@@ -26,10 +26,10 @@
   interface Props {
     hasRacks?: boolean;
     partyMode?: boolean;
-    /** Whether the right side panel is collapsed (chevron direction + label). */
+    /** Left sidebar collapsed: shrink the left lane to align with the strip. */
+    sidebarCollapsed?: boolean;
+    /** Right panel collapsed: shrink the right lane to align with the strip. */
     sidePanelCollapsed?: boolean;
-    /** Callback to toggle the right side panel open/closed. */
-    ontogglesidepanel?: () => void;
     onsave?: () => void;
     onsaveas?: () => void;
     onload?: () => void;
@@ -49,8 +49,8 @@
   let {
     hasRacks = false,
     partyMode = false,
+    sidebarCollapsed = false,
     sidePanelCollapsed = false,
-    ontogglesidepanel,
     onsave,
     onsaveas,
     onload,
@@ -85,10 +85,6 @@
     onsettings?.();
   }
 
-  function handleToggleSidePanel() {
-    ontogglesidepanel?.();
-  }
-
   // Dispatch map from app-menu action id to its handler. The menu items
   // themselves come from the registry (AppMenu projects getAppMenuSections);
   // this binds each id to the closure that runs it, mirroring how
@@ -115,8 +111,12 @@
 
 <header class="toolbar">
   <!-- Left: Logo (also the app menu) + command palette pill.
-       Width = --sidebar-width so it aligns with the column below. -->
-  <div class="toolbar-section toolbar-left">
+       Width = --sidebar-width so it aligns with the column below; shrinks to
+       natural width when the sidebar is collapsed to its 44px strip (#2397). -->
+  <div
+    class="toolbar-section toolbar-left"
+    class:toolbar-left--collapsed={sidebarCollapsed}
+  >
     <AppMenu onaction={handleAppMenuAction} {hasRacks} {partyMode} />
     <button
       class="command-pill"
@@ -147,7 +147,8 @@
   {/if}
 
   <!-- Right: panel-width region (desktop) / quick file actions (mobile).
-       Holds storage chip + Settings gear + panel collapse/expand chevron. -->
+       Holds storage chip + Settings gear. The side-panel collapse/expand
+       chevron now lives in the panel itself (#2397). -->
   {#if !viewportStore.isMobile}
     <div
       class="toolbar-section toolbar-right"
@@ -164,28 +165,6 @@
           data-testid="btn-settings"
         >
           <IconGearBold size={ICON_SIZE.md} />
-        </button>
-      </Tooltip>
-
-      <Tooltip
-        text={sidePanelCollapsed ? "Expand panel" : "Collapse panel"}
-        position="bottom"
-      >
-        <button
-          class="toolbar-icon-btn"
-          type="button"
-          aria-label={sidePanelCollapsed ? "Expand panel" : "Collapse panel"}
-          aria-expanded={!sidePanelCollapsed}
-          onclick={handleToggleSidePanel}
-          data-testid={sidePanelCollapsed
-            ? "toolbar-side-panel-expand"
-            : "toolbar-side-panel-collapse"}
-        >
-          {#if sidePanelCollapsed}
-            <IconChevronLeft size={ICON_SIZE.md} />
-          {:else}
-            <IconChevronRight size={ICON_SIZE.md} />
-          {/if}
         </button>
       </Tooltip>
     </div>
@@ -247,14 +226,19 @@
     height: 100%;
   }
 
-  /* Left lane: fixed to sidebar column width.
-     The 4px offset accounts for the PaneResizer handle that sits between the
-     sidebar and canvas columns. Left padding gives the logo ~8px from the edge. */
+  /* Left lane: fixed to the sidebar column width so it aligns with the column
+     below. Left padding gives the logo ~8px from the edge. When the sidebar is
+     collapsed to its 44px strip, the lane shrinks to its natural width so it
+     does not overhang the strip (#2397). */
   .toolbar-left {
-    flex: 0 0 calc(var(--sidebar-width, 280px) + 4px);
+    flex: 0 0 var(--sidebar-width, 320px);
     padding-left: var(--space-2);
     padding-right: var(--space-2);
     min-width: 0;
+  }
+
+  .toolbar-left--collapsed {
+    flex: 0 0 auto;
   }
 
   /* Centre lane: fills the canvas gap between left and right fixed lanes. */
@@ -265,8 +249,9 @@
     justify-content: flex-start;
   }
 
-  /* Right lane: fixed to side-panel width when expanded; auto (natural width
-     pinned to the right edge) when collapsed so controls never clip. */
+  /* Right lane: fixed to side-panel width so it aligns with the panel column.
+     Shrinks to its natural width (pinned to the right edge) when the panel is
+     collapsed to its 44px strip, so controls never overhang it (#2397). */
   .toolbar-right {
     flex: 0 0 var(--side-panel-width, 320px);
     padding-left: var(--space-2);

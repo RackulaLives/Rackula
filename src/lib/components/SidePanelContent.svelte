@@ -12,6 +12,8 @@
 -->
 <script lang="ts">
   import { Tabs } from "$lib/components/ui/Tabs";
+  import { IconChevronRight } from "./icons";
+  import { ICON_SIZE } from "$lib/constants/sizing";
   import EditPanelRack from "./EditPanelRack.svelte";
   import EditPanelMetadata from "./EditPanelMetadata.svelte";
   import EditPanelPosition from "./EditPanelPosition.svelte";
@@ -36,6 +38,12 @@
     editHeadingId?: string;
     /** Optional id for the View tabpanel's heading. */
     viewHeadingId?: string;
+    /**
+     * Collapse the panel rightward to its strip. Provided by the desktop rail
+     * host (SidePanel); omitted by the phone bottom-sheet host, where the row
+     * has no collapse chevron (#2397).
+     */
+    oncollapse?: () => void;
   }
 
   let {
@@ -43,6 +51,7 @@
     onTabChange,
     editHeadingId = "side-panel-edit-heading",
     viewHeadingId = "side-panel-view-heading",
+    oncollapse,
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
@@ -159,22 +168,37 @@
   loop={true}
   class="side-panel-tabs"
 >
-  <Tabs.List class="side-panel-tablist" aria-label="Panel sections">
-    <Tabs.Trigger
-      value="edit"
-      class="side-panel-tab"
-      data-testid="side-panel-tab-edit"
-    >
-      Edit
-    </Tabs.Trigger>
-    <Tabs.Trigger
-      value="view"
-      class="side-panel-tab"
-      data-testid="side-panel-tab-view"
-    >
-      View
-    </Tabs.Trigger>
-  </Tabs.List>
+  <div class="side-panel-tablist-row">
+    <Tabs.List class="side-panel-tablist" aria-label="Panel sections">
+      <Tabs.Trigger
+        value="edit"
+        class="side-panel-tab"
+        data-testid="side-panel-tab-edit"
+      >
+        Edit
+      </Tabs.Trigger>
+      <Tabs.Trigger
+        value="view"
+        class="side-panel-tab"
+        data-testid="side-panel-tab-view"
+      >
+        View
+      </Tabs.Trigger>
+    </Tabs.List>
+
+    {#if oncollapse}
+      <button
+        type="button"
+        class="side-panel-collapse-btn"
+        aria-label="Collapse panel"
+        aria-expanded="true"
+        onclick={oncollapse}
+        data-testid="side-panel-collapse"
+      >
+        <IconChevronRight size={ICON_SIZE.md} />
+      </button>
+    {/if}
+  </div>
 
   <Tabs.Content
     value="edit"
@@ -231,13 +255,51 @@
     min-height: 0;
   }
 
-  :global(.side-panel-tablist) {
+  .side-panel-tablist-row {
     display: flex;
+    align-items: stretch;
     gap: var(--space-1);
     padding: var(--space-2);
     border-bottom: 1px solid var(--colour-border);
     background: var(--drawer-bg);
     flex-shrink: 0;
+  }
+
+  :global(.side-panel-tablist) {
+    display: flex;
+    flex: 1;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  /* 44px-square collapse control on the panel's outer edge (issue #2397),
+     matching the tab height and the left panel's collapse chevron. */
+  .side-panel-collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--panel-collapsed-strip-width, 44px);
+    height: var(--panel-collapsed-strip-width, 44px);
+    flex-shrink: 0;
+    padding: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--colour-text-muted);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
+
+  .side-panel-collapse-btn:hover {
+    background: var(--colour-surface-hover);
+    color: var(--colour-text);
+  }
+
+  .side-panel-collapse-btn:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: -2px;
   }
 
   :global(.side-panel-tab) {
@@ -320,7 +382,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    :global(.side-panel-tab) {
+    :global(.side-panel-tab),
+    .side-panel-collapse-btn {
       transition: none;
     }
   }

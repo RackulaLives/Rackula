@@ -79,12 +79,12 @@ test.describe("axe accessibility scans", () => {
   test("collapsed side panel expand control has no WCAG 2.2 AA violations", async ({
     page,
   }) => {
-    // Collapse/expand lives in the top-bar right region now (#2386); when the
-    // panel is collapsed the expand chevron must remain a labelled, reachable
-    // button. Scan the toolbar so the relocated control is actually covered.
-    await page.getByTestId("toolbar-side-panel-collapse").click();
-    await expect(page.getByTestId("toolbar-side-panel-expand")).toBeVisible();
-    await expectNoA11yViolations(page, locators.toolbar.root);
+    // Collapse/expand lives in the panel itself now (#2397): `»` in the Edit/View
+    // tab row collapses it, and the collapsed strip is one labelled reopen button.
+    // Scan the panel so both relocated controls are actually covered.
+    await page.locator(locators.sidePanel.collapse).click();
+    await expect(page.locator(locators.sidePanel.expand)).toBeVisible();
+    await expectNoA11yViolations(page, locators.sidePanel.root);
   });
 
   test("sidebar Devices tab has no WCAG 2.2 AA violations", async ({

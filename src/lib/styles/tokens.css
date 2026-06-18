@@ -335,10 +335,10 @@
   --drawer-width: 320px;
   --drawer-bg: var(--dracula-bg-darker);
 
-  /* Sidebar (fixed) */
-  --sidebar-width: 280px;
-  --sidebar-width-min: 200px;
-  --sidebar-collapsed-width: 120px;
+  /* Sidebar (fixed). Both side panels share the same fixed width and the same
+     44px collapsed strip on their outer edge (issue #2397). */
+  --sidebar-width: 320px;
+  --panel-collapsed-strip-width: 44px;
   --colour-sidebar-bg: var(--dracula-bg-darker);
   --colour-surface-secondary: var(--dracula-bg-light);
 
@@ -374,7 +374,7 @@
      highlight and a soft dark bottom for grounding. */
   --verb-bar-bg-solid: rgba(33, 34, 44, 0.97);
   --verb-bar-backdrop: blur(16px) saturate(1.6);
-  --verb-bar-border: rgba(248, 248, 242, 0.30);
+  --verb-bar-border: rgba(248, 248, 242, 0.3);
   --verb-bar-rim:
     inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
     inset 0 -1px 0 0 rgba(0, 0, 0, 0.28);
@@ -623,7 +623,7 @@
   /* Light theme: the cream body needs a brighter top sheen and a softer,
      warmer bottom edge so the rim reads on a pale background. */
   --verb-bar-bg-solid: rgba(243, 241, 226, 0.97);
-  --verb-bar-border: rgba(95, 90, 70, 0.30);
+  --verb-bar-border: rgba(95, 90, 70, 0.3);
   --verb-bar-rim:
     inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
     inset 0 -1px 0 0 rgba(95, 90, 70, 0.14);
@@ -660,21 +660,4 @@
   --env-badge-bg: rgba(203, 58, 42, 0.1);
   --env-badge-text: var(--alucard-red);
   --env-badge-gradient-highlight: var(--alucard-pink);
-}
-
-/* ============================================================
-   RESPONSIVE BREAKPOINTS
-   ============================================================ */
-
-/* Maximum sidebar width (used for responsive capping) */
-:root {
-  --sidebar-width-max: 400px;
-}
-
-/* Medium screens: cap sidebar at 200px */
-@media (max-width: 1000px) {
-  :root {
-    --sidebar-width: 200px;
-    --sidebar-width-max: 200px;
-  }
 }

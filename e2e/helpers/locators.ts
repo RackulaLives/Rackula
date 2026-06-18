@@ -61,6 +61,10 @@ export const locators = {
 
   sidebar: {
     pane: '[data-testid="drawer-left"]',
+    /** Collapse chevron in the Layouts/Racks/Devices tab row (#2397). */
+    collapse: '[data-testid="sidebar-collapse"]',
+    /** Reopen button on the collapsed left strip (#2397). */
+    expand: '[data-testid="panel-collapsed-strip-left"]',
   },
 
   sidePanel: {
@@ -71,9 +75,10 @@ export const locators = {
     editEmpty: '[data-testid="side-panel-edit-empty"]',
     tabEdit: '[data-testid="side-panel-tab-edit"]',
     tabView: '[data-testid="side-panel-tab-view"]',
-    /** Collapse and expand are now in the toolbar right region (#2386). */
-    collapse: '[data-testid="toolbar-side-panel-collapse"]',
-    expand: '[data-testid="toolbar-side-panel-expand"]',
+    /** Collapse chevron in the Edit/View tab row (#2397). */
+    collapse: '[data-testid="side-panel-collapse"]',
+    /** Reopen button on the collapsed right strip (#2397). */
+    expand: '[data-testid="panel-collapsed-strip-right"]',
   },
 
   canvas: {
