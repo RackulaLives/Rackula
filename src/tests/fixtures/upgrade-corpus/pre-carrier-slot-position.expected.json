@@ -1,0 +1,6 @@
+{
+  "allowList": [
+    { "pathPattern": "slot_position$", "reason": "consumed by carrier adapter into container placement" },
+    { "pathPattern": "\\.position$", "reason": "carrier adapter collapses N co-located device positions into one carrier position; children get position 0" }
+  ]
+}

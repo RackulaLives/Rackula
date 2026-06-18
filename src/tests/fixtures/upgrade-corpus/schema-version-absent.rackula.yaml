@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/layout-v1.json
+version: "1.0"
+name: No Schema Version Lab
+racks:
+  - id: "rack-a"
+    name: "Rack A"
+    height: 42
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: "4-post-cabinet"
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: "dev-switch"
+        device_type: "switch-1u"
+        position: 240
+        face: "front"
+      - id: "dev-server"
+        device_type: "server-2u"
+        position: 60
+        face: "front"
+device_types:
+  - slug: "switch-1u"
+    u_height: 1
+    manufacturer: "Acme"
+    colour: "#336699"
+    category: "network"
+  - slug: "server-2u"
+    u_height: 2
+    manufacturer: "Acme"
+    colour: "#336699"
+    category: "server"
+settings:
+  display_mode: "label"
+  show_labels_on_images: false
