@@ -114,12 +114,18 @@ network, so the canonical `$id` is wired before the `schemas.racku.la` domain ex
 
 ### Served location (interim fetch URL)
 
-`static/` is served at the deployment root, so the artifact is reachable today at:
+`static/` is served at the deployment root, so the artifact is published at these paths once
+a release deploys it:
 
 | Environment | URL                                            |
 | ----------- | ---------------------------------------------- |
 | Prod        | `https://count.racku.la/schemas/layout-v1.json` |
 | Dev         | `https://d.racku.la/schemas/layout-v1.json`     |
+
+Availability: production (`count.racku.la`) publishes the schema only on a tagged release, and
+the dev path is behind access control, so the artifact is not externally fetchable until the
+next release ships it. The committed file in `static/schemas/` is the source of truth, and the
+reader rule above works offline regardless of whether the schema is served.
 
 Until the `schemas.racku.la` DNS is live, use the prod served URL above as the fetch URL for
 tooling that resolves a schema (for example a `# yaml-language-server: $schema=...` editor

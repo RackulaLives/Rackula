@@ -38,8 +38,15 @@ Your editor is different: it must actually download the schema to validate again
 the interim served URL for any tooling that fetches a schema, including the
 `# yaml-language-server: $schema=...` hint below. When `schemas.racku.la` DNS is live it
 will serve the artifact at the canonical `$id` path and the fetch URL will converge on the
-`$id`. The dev environment serves the same artifact at
-`https://d.racku.la/schemas/layout-v1.json`.
+`$id`.
+
+Availability: the served URL goes live with the next Rackula release. Production
+(`count.racku.la`) publishes the schema only on a tagged release, and the dev environment
+(`https://d.racku.la/schemas/layout-v1.json`) is behind access control, so neither is
+fetchable by an external editor until then. Until the artifact is published, an editor cannot
+download the schema and the `# yaml-language-server` hint is simply ignored: this does not
+block editing, and Rackula still loads and validates the file itself offline from
+`metadata.schema_version`.
 
 For the full identifier-versus-fetch rationale, see the Published Schema section of
 [SCHEMA.md](../reference/SCHEMA.md#published-schema).
