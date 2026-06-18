@@ -16,6 +16,8 @@
     type ActionEnabledContext,
     type ActionId,
   } from "$lib/actions/registry";
+  import { iconForAction } from "./icons/action-icons";
+  import { ICON_SIZE } from "$lib/constants/sizing";
   import { getStorageMode, type StorageMode } from "$lib/storage";
   import "$lib/styles/menu.css";
 
@@ -87,12 +89,18 @@
         {/if}
         <DropdownMenu.Group>
           {#each section.items as item (item.id)}
+            {@const Icon = iconForAction[item.id]}
             <DropdownMenu.Item
               class="menu-item"
               disabled={item.disabled ?? false}
               data-testid={`app-menu-${item.id}`}
               onSelect={handleSelect(item.id)}
             >
+              <span class="menu-icon" aria-hidden="true">
+                {#if Icon}
+                  <Icon size={ICON_SIZE.sm} />
+                {/if}
+              </span>
               <span class="menu-label">{item.label}</span>
               {#if item.shortcut}
                 <span class="menu-shortcut">{item.shortcut}</span>

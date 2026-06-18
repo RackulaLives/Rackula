@@ -78,7 +78,7 @@ export type HelpGroup = "Navigation" | "General" | "Editing" | "File";
  * declaring an appMenuGroup; the menu is projected from the registry so it
  * cannot drift from the keyboard handler or help overlay (#2073).
  */
-export type AppMenuGroup = "file" | "layout" | "devices" | "help";
+export type AppMenuGroup = "file" | "layout" | "devices" | "help" | "settings";
 
 export interface ActionDefinition {
   /** Stable identifier; the dispatch map and consumers key off this. */
@@ -221,7 +221,10 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Settings",
     scope: "global",
     bindings: [],
-    appMenuGroup: "help",
+    // Settings is system configuration, not help, so it sits in its own
+    // trailing menu group (the conventional final slot for a gear) rather than
+    // alongside About and shortcuts (#2406).
+    appMenuGroup: "settings",
     keywords: ["settings", "preferences", "options", "theme"],
   },
   {
@@ -593,12 +596,18 @@ export function getHelpGroups(): HelpGroupSection[] {
   return sections;
 }
 
-/** The order app-menu sections appear in, with separators between them. */
+/**
+ * The order app-menu sections appear in, with separators between them. The
+ * cadence runs layout lifecycle (new, open), then file operations on the active
+ * layout, then the device library, then help/about, and finally settings as a
+ * standalone trailing group (#2406).
+ */
 const APP_MENU_GROUP_ORDER: AppMenuGroup[] = [
   "layout",
   "file",
   "devices",
   "help",
+  "settings",
 ];
 
 /** A single projected app-menu item. */
