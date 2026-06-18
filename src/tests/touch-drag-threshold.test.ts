@@ -60,10 +60,11 @@ describe("createTouchDragThreshold", () => {
   it("reset() clears the exceeded flag so shouldBlock re-evaluates from start", () => {
     const gate = createTouchDragThreshold();
     gate.onStart(0, 0);
+    // Exceed the threshold so hasExceeded is set.
     expect(gate.shouldBlock(10, 0)).toBe(false);
     gate.reset();
-    // After reset, the gate re-evaluates distance from the original start.
-    // 11px is still above threshold, so it stays unblocked.
-    expect(gate.shouldBlock(11, 0)).toBe(false);
+    // Without reset the flag would still be set and this would return false.
+    // 5px is below the 8px threshold, so a cleared flag means it blocks.
+    expect(gate.shouldBlock(5, 0)).toBe(true);
   });
 });
