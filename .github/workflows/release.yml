@@ -87,12 +87,30 @@ jobs:
           fi
           echo "Tag exists in remote: $TAG"
 
+  # Fail-closed guard: a release that changes the data schema must add a new
+  # upgrade-corpus fixture, so every future release is forced to load this
+  # release's format. See docs/superpowers/specs/2026-06-17-upgrade-safety-harness-design.md.
+  corpus-guard:
+    name: "Guard: upgrade corpus freshness"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout (full history + tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Check corpus freshness
+        run: scripts/check-corpus-freshness.sh
+
   # STAGE: create the GitHub release as a prerelease (excluded from /releases/latest)
   # using the CHANGELOG entry as the notes. The release must be a prerelease until
   # all gates pass and promote-github flips it to latest.
   stage-release:
     name: "Stage prerelease"
-    needs: [validate]
+    needs: [validate, corpus-guard]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
