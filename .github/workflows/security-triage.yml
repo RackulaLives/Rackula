@@ -61,13 +61,132 @@ jobs:
         ${{ github.event_name == 'workflow_dispatch'
             && inputs.triggering_workflow
             || github.event.workflow_run.name }}
-      # Empty on manual dispatch (no workflow_run in the payload): the playbook
-      # treats "no scan start time" as "triage all currently-open alerts" so a
-      # dry run actually sees something.
+      # Empty on manual dispatch (no workflow_run in the payload): the gate and
+      # the playbook treat "no scan start time" as "triage all currently-open
+      # alerts" so a dry run actually sees something.
       RUN_STARTED_AT: ${{ github.event.workflow_run.run_started_at }}
 
     steps:
+      # Gate the expensive Claude invocation on whether the triggering scan
+      # actually produced net-new open Code Scanning alerts. GitHub turns
+      # uploaded SARIF into alerts asynchronously, so we poll the Code Scanning
+      # API (folding in the old fixed 90s wait) and short-circuit as soon as a
+      # net-new alert appears. A zero-alert scan skips both the wait and the
+      # Claude step below - no action invocation, no subscription usage.
+      #
+      # Net-new mirrors the playbook's definition: an open alert for the
+      # triggering tool whose created_at is at or after (scan start - 30 min).
+      # On manual dispatch there is no scan start time, so any currently-open
+      # alert for the tool counts (matching the dry-run playbook behaviour).
+      - name: Check for net-new Code Scanning alerts
+        id: gate
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          TRIGGERING_WORKFLOW: ${{ env.TRIGGERING_WORKFLOW }}
+          RUN_STARTED_AT: ${{ env.RUN_STARTED_AT }}
+          # workflow_run completions need the SARIF-processing wait; a manual
+          # dispatch queries whatever alerts exist right now without waiting.
+          IS_SCAN_COMPLETION: ${{ github.event_name == 'workflow_run' }}
+        with:
+          script: |
+            const workflowName = (process.env.TRIGGERING_WORKFLOW || '').trim();
+            const runStartedAt = (process.env.RUN_STARTED_AT || '').trim();
+            const isScanCompletion = process.env.IS_SCAN_COMPLETION === 'true';
+
+            // Map the triggering workflow display name to the SARIF tool name
+            // the Code Scanning API indexes alerts under. Unknown names fall
+            // back to no tool filter so we never silently miss real findings.
+            const toolByWorkflow = {
+              'CodeQL': 'CodeQL',
+              'Trivy Security Scan': 'Trivy',
+            };
+            const toolName = toolByWorkflow[workflowName];
+            if (!toolName) {
+              core.warning(`Unknown triggering workflow "${workflowName}"; not filtering by tool.`);
+            }
+
+            // Net-new cutoff: scan start minus 30 minutes, matching the playbook
+            // (the margin absorbs scan plus SARIF-processing lag). With no scan
+            // start time (manual dispatch) there is no time filter.
+            let cutoffMs = null;
+            if (runStartedAt) {
+              const startedMs = Date.parse(runStartedAt);
+              if (Number.isNaN(startedMs)) {
+                core.warning(`Could not parse RUN_STARTED_AT "${runStartedAt}"; not time-filtering.`);
+              } else {
+                cutoffMs = startedMs - 30 * 60 * 1000;
+              }
+            }
+
+            async function countNetNewAlerts() {
+              const params = {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                ref: 'refs/heads/main',
+                sort: 'created',
+                direction: 'desc',
+                per_page: 100,
+              };
+              if (toolName) params.tool_name = toolName;
+
+              // Newest first: we can stop paging once alerts predate the cutoff.
+              let netNew = 0;
+              for await (const res of github.paginate.iterator(
+                github.rest.codeScanning.listAlertsForRepo,
+                params,
+              )) {
+                for (const alert of res.data) {
+                  if (cutoffMs === null) {
+                    netNew += 1;
+                    continue;
+                  }
+                  const createdMs = Date.parse(alert.created_at);
+                  if (Number.isNaN(createdMs)) continue;
+                  if (createdMs >= cutoffMs) {
+                    netNew += 1;
+                  } else {
+                    // Sorted desc by created: everything after this is older.
+                    return netNew;
+                  }
+                }
+              }
+              return netNew;
+            }
+
+            // Poll the full budget (~90s on a scan completion, the old fixed
+            // sleep) to absorb async SARIF processing before deciding. We do NOT
+            // exit on the first alert seen: GitHub processes a scan's alerts
+            // incrementally, so a too-early "yes" could run Claude while only
+            // some of the scan's alerts are queryable, and it would miss the
+            // rest. Letting the budget elapse gives SARIF time to fully land,
+            // matching the settling window the old fixed sleep provided. The
+            // zero-alert case (the one this gate exists to skip) already polls
+            // the whole budget either way, so this costs it nothing. A manual
+            // dispatch does not wait: it queries once.
+            const attempts = isScanCompletion ? [0, 30, 30, 30] : [0];
+            let count = 0;
+            for (let i = 0; i < attempts.length; i++) {
+              if (attempts[i] > 0) await new Promise((r) => setTimeout(r, attempts[i] * 1000));
+              try {
+                count = await countNetNewAlerts();
+              } catch (err) {
+                // Fail secure: on a persistent API error, do NOT silently skip
+                // triage of potentially real findings. Let Claude run.
+                if (i === attempts.length - 1) {
+                  core.warning(`Code Scanning API error after retries: ${err.message}. Proceeding to triage to avoid skipping real alerts.`);
+                  core.setOutput('has_alerts', 'true');
+                  return;
+                }
+                core.warning(`Code Scanning API error (attempt ${i + 1}): ${err.message}. Retrying.`);
+              }
+            }
+
+            core.info(`Net-new open ${toolName || 'all-tool'} alerts: ${count}`);
+            core.setOutput('has_alerts', count > 0 ? 'true' : 'false');
+
       - name: Checkout repository
+        if: steps.gate.outputs.has_alerts == 'true'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: main
@@ -76,17 +195,13 @@ jobs:
       # Runners have no default git identity; Claude's git commit would abort
       # without this. Use the github-actions[bot] identity for triage commits.
       - name: Configure git identity
+        if: steps.gate.outputs.has_alerts == 'true'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      # GitHub processes uploaded SARIF into Code Scanning alerts asynchronously.
-      # Wait so the new alerts are queryable before Claude looks for them.
-      - name: Wait for Code Scanning API to process SARIF
-        if: github.event_name == 'workflow_run'
-        run: sleep 90
-
       - name: Run security triage
+        if: steps.gate.outputs.has_alerts == 'true'
         uses: anthropics/claude-code-action@d5726de019ec4498aa667642bc3a80fca83aa102 # v1
         # Pass the OAuth token both as the action input and as the env var the
         # underlying Claude CLI reads, so auth binds regardless of whether this
@@ -99,7 +214,9 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
-            Read .github/prompts/security-triage.md and follow it exactly.
+            Invoke the /secure-coding:secure-coding skill first to ground your
+            analysis and any drafted fixes in secure-coding practice, then read
+            .github/prompts/security-triage.md and follow it exactly.
 
             Triage net-new open Code Scanning alerts from the "${{ env.TRIGGERING_WORKFLOW }}"
             scan that started at ${{ env.RUN_STARTED_AT }}.
@@ -107,4 +224,7 @@ jobs:
             Repository: ${{ github.repository }}
             Default branch: main
             Current HEAD SHA: ${{ github.sha }}
-          claude_args: '--allowedTools "Bash,Read,Write,Edit,Glob,Grep"'
+          # Load the vendored secure-coding skill from the repo: headless CI does
+          # not auto-install marketplace plugins (see docs/deployment/SECURITY-TRIAGE.md
+          # and .claude/cloud-setup.sh), so --plugin-dir loads it deterministically.
+          claude_args: '--plugin-dir .github/claude-plugins/secure-coding --allowedTools "Bash,Read,Write,Edit,Glob,Grep"'
