@@ -1,9 +1,6 @@
 # Mobile UX Design
 
-Status: Draft for review
-Date: 2026-06-18
-Milestone: M12 -- Mobile & Touch UX
-Supersedes: the prior `Epic: Mobile Phone Experience` (#1044, closed without a usable result)
+Status: Draft for review Date: 2026-06-18 Milestone: M12 -- Mobile & Touch UX Supersedes: the prior `Epic: Mobile Phone Experience` (#1044, closed without a usable result)
 
 ## Context
 
