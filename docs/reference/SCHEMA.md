@@ -84,12 +84,14 @@ The `$id` is an identifier, not a fetch target. Readers decide loadability offli
 
 ### Served location (interim fetch URL)
 
-`static/` is served at the deployment root, so the artifact is reachable today at:
+`static/` is served at the deployment root, so the artifact is published at these paths once a release deploys it:
 
 | Environment | URL                                             |
 | ----------- | ----------------------------------------------- |
 | Prod        | `https://count.racku.la/schemas/layout-v1.json` |
 | Dev         | `https://d.racku.la/schemas/layout-v1.json`     |
+
+Availability: production (`count.racku.la`) publishes the schema only on a tagged release, and the dev path is behind access control, so the artifact is not externally fetchable until the next release ships it. The committed file in `static/schemas/` is the source of truth, and the reader rule above works offline regardless of whether the schema is served.
 
 Until the `schemas.racku.la` DNS is live, use the prod served URL above as the fetch URL for tooling that resolves a schema (for example a `# yaml-language-server: $schema=...` editor hint). The served path (`/schemas/layout-v1.json`) differs from the canonical `$id` path (`/layout/v1.json`) on purpose: the `$id` follows the long-term canonical shape while the served path matches the committed artifact's location. When `schemas.racku.la` is configured, it will serve the artifact at the canonical `$id` path and the fetch URL converges on the `$id`.
 
