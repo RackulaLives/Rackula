@@ -922,17 +922,17 @@ Each entry is a pair: a `.rackula.yaml` layout exactly as some past version wrot
 
 The release pipeline blocks (see `scripts/check-corpus-freshness.sh`) if a schema-touching release adds no new fixture.
 
-````
+`````
 
 - [ ] **Step 4: Rewrite the greenfield policy in CLAUDE.md**
 
 In `CLAUDE.md`, under `## Development Philosophy`, replace the `**Greenfield approach:**` paragraph:
 
 Replace:
-```markdown
+````markdown
 **Greenfield approach:** Do not use migration or legacy support concepts in this project.
 Implement features as if they are the first and only implementation.
-````
+`````
 
 with:
 
