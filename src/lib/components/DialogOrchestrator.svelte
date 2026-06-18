@@ -69,6 +69,7 @@
   import {
     moveSelectedDeviceUp,
     moveSelectedDeviceDown,
+    moveSelectedDeviceToSlot,
     flipSelectedDeviceFace,
     duplicateSelection,
     canMoveSelectedDeviceSlot,
@@ -555,6 +556,9 @@
         break;
       case "move-device-down":
         moveSelectedDeviceDown();
+        break;
+      case "move-device-slot":
+        moveSelectedDeviceToSlot();
         break;
       case "flip-device-face":
         flipSelectedDeviceFace();
