@@ -5,6 +5,9 @@
 // survives is not a loss. A value that vanishes is a loss unless every place it
 // appeared in the raw input matches an allow-list pattern (a declared, intentional
 // transformation such as position scaling or `slot_position` consumption).
+// Null leaves are recorded as "null:null" and treated as droppable values just
+// like any other primitive; undefined is never recorded (it does not appear in
+// parsed YAML/JSON).
 // Limitation: value-presence can mask a real drop if the same primitive value
 // also appears elsewhere. Distinctive values (ids, names, labels, colours, notes)
 // are the silent-loss risk this targets, and those rarely collide.
@@ -26,8 +29,8 @@ export interface SilentLoss {
 
 export function collectLeaves(node: unknown, path = "$", acc?: LeafIndex): LeafIndex {
   const index: LeafIndex = acc ?? { values: new Map(), paths: new Map() };
-  if (node === null || node === undefined) return index;
-  if (typeof node === "object") {
+  if (node === undefined) return index; // undefined never appears in parsed YAML/JSON
+  if (node !== null && typeof node === "object") {
     if (Array.isArray(node)) {
       node.forEach((item, i) => collectLeaves(item, `${path}[${i}]`, index));
     } else {
@@ -37,7 +40,8 @@ export function collectLeaves(node: unknown, path = "$", acc?: LeafIndex): LeafI
     }
     return index;
   }
-  const value = `${typeof node}:${String(node)}`;
+  // primitive OR null is a leaf
+  const value = node === null ? "null:null" : `${typeof node}:${String(node)}`;
   index.values.set(value, (index.values.get(value) ?? 0) + 1);
   const list = index.paths.get(value) ?? [];
   list.push(path);

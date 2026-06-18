@@ -31,4 +31,18 @@ describe("findSilentLosses", () => {
       { value: "string:x", paths: ["$.a", "$.b"] },
     ]);
   });
+
+  it("reports a null leaf that is dropped", () => {
+    const raw = { a: 1, note: null };
+    const loaded = { a: 1 };
+    expect(findSilentLosses(raw, loaded, [])).toEqual([
+      { value: "null:null", paths: ["$.note"] },
+    ]);
+  });
+
+  it("treats a surviving null as preserved", () => {
+    const raw = { note: null };
+    const loaded = { note: null };
+    expect(findSilentLosses(raw, loaded, [])).toEqual([]);
+  });
 });
