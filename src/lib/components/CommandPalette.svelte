@@ -12,12 +12,7 @@
 -->
 <script lang="ts">
   import { Dialog, Command } from "bits-ui";
-  import {
-    IconSearch,
-    IconPlus,
-    IconChevronLeft,
-    IconGearBold,
-  } from "./icons";
+  import { IconSearch, IconPlus, IconChevronLeft, IconGearBold } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";

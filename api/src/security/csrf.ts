@@ -1,9 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { extractCookieValue } from "./cookies";
-import {
-  resolveRequestOrigin,
-  isTrustedOrigin,
-} from "./request-utils";
+import { resolveRequestOrigin, isTrustedOrigin } from "./request-utils";
 import { STATE_CHANGING_METHODS, type ApiSecurityConfig } from "./types";
 
 // Paths that bypass CSRF validation — only safe GET-like auth bootstrap endpoints.

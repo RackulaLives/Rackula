@@ -1,7 +1,6 @@
 # Issue Development Workflow v7
 
-Pick up the next ready issue, assess it, and either complete it or document blockers.
-Designed for autonomous operation with subagent delegation and memory-assisted context.
+Pick up the next ready issue, assess it, and either complete it or document blockers. Designed for autonomous operation with subagent delegation and memory-assisted context.
 
 **Key feature:** Automatically targets the next milestone (lowest semver with open issues).
 
@@ -187,18 +186,16 @@ git worktree remove ../Rackula-issue-<N>
 
 ### Memory Search (mem-search skill)
 
-| Purpose                 | Query                                                 |
-| ----------------------- | ----------------------------------------------------- |
-| Recent context          | `get_recent_context` with project="Rackula", limit=30 |
-| Past work on issue      | `search` with query="#<N> OR <keywords>"              |
-| Architectural decisions | `search` with type="decision", concepts="<area>"      |
-| Similar bugs            | `search` with type="bugfix", query="<error keywords>" |
+| Purpose | Query |
+| --- | --- |
+| Recent context | `get_recent_context` with project="Rackula", limit=30 |
+| Past work on issue | `search` with query="#<N> OR <keywords>" |
+| Architectural decisions | `search` with type="decision", concepts="<area>" |
+| Similar bugs | `search` with type="bugfix", query="<error keywords>" |
 
 ### Issue Type Checklists
 
-**bug:** Reproduce → failing test → fix → check similar patterns
-**feature:** Understand AC → plan if complex → TDD → update docs
-**area:ui:** Keyboard nav, theme support, design tokens (no hardcoded values)
+**bug:** Reproduce → failing test → fix → check similar patterns **feature:** Understand AC → plan if complex → TDD → update docs **area:ui:** Keyboard nav, theme support, design tokens (no hardcoded values)
 
 ---
 
@@ -327,8 +324,7 @@ This reveals prior attempts, design decisions, known patterns, and past blockers
 | Files affected      | ≤3                   | >3 or multiple subsystems |
 | Type                | Bug fix, small tweak | Feature, architectural    |
 
-**Simple:** Proceed directly to Phase 3.
-**Complex:** Launch Plan agent first with issue body, acceptance criteria, and any relevant memory context. Output numbered implementation plan.
+**Simple:** Proceed directly to Phase 3. **Complex:** Launch Plan agent first with issue body, acceptance criteria, and any relevant memory context. Output numbered implementation plan.
 
 ### 2d. Identify Affected Files
 
@@ -372,8 +368,7 @@ Add entry to `.claude/session-progress.md` with: issue number, title, start time
 
 **Use:** `superpowers:test-driven-development`
 
-Follow TDD skill exactly for each acceptance criterion.
-Mark complete in progress file after each passes.
+Follow TDD skill exactly for each acceptance criterion. Mark complete in progress file after each passes.
 
 ### 3d. Pre-Commit Verification
 
@@ -408,8 +403,7 @@ If failures: see Error Recovery section.
 
 ### 3f. Commit and Push
 
-Commit with conventional format: `<type>: <description>` with `Fixes #<number>` in body.
-Push to origin with `-u` flag.
+Commit with conventional format: `<type>: <description>` with `Fixes #<number>` in body. Push to origin with `-u` flag.
 
 ### 3g. Create PR
 
@@ -471,8 +465,7 @@ gh issue list -R RackulaLives/Rackula --state open --label ready \
   --jq '[.[] | select(.labels | map(.name) | any(. == "in-progress") | not)] | length'
 ```
 
-**Continue if:** More issues exist AND in autonomous mode → Return to Phase 1
-**Stop if:** No issues remain, blocker hit, or user interruption
+**Continue if:** More issues exist AND in autonomous mode → Return to Phase 1 **Stop if:** No issues remain, blocker hit, or user interruption
 
 Write session summary when stopping.
 
@@ -493,8 +486,7 @@ Write session summary when stopping.
 
 ### Lint/Build Failures
 
-Usually auto-fixable: `npm run lint -- --fix`
-If not, read error and fix manually.
+Usually auto-fixable: `npm run lint -- --fix` If not, read error and fix manually.
 
 ---
 
@@ -533,9 +525,7 @@ If working on a long session and context is filling up:
 ```markdown
 ## Issue #<number>: <title>
 
-**Status:** ✅ Completed | ❌ Blocked
-**Branch:** `<branch-name>`
-**PR:** <url>
+**Status:** ✅ Completed | ❌ Blocked **Branch:** `<branch-name>` **PR:** <url>
 
 **Summary:** <what was done>
 
@@ -554,8 +544,7 @@ If working on a long session and context is filling up:
 ```markdown
 ## Session Summary
 
-**Completed:** N issues
-**Blocked:** M issues
+**Completed:** N issues **Blocked:** M issues
 
 **Completed:**
 

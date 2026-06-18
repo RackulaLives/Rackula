@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render } from "@testing-library/svelte";
 import Canvas from "$lib/components/Canvas.svelte";
-import {
-  getCanvasStore,
-  resetCanvasStore,
-} from "$lib/stores/canvas.svelte";
+import { getCanvasStore, resetCanvasStore } from "$lib/stores/canvas.svelte";
 import { resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetSelectionStore } from "$lib/stores/selection.svelte";
 import { resetUIStore } from "$lib/stores/ui.svelte";
@@ -21,16 +18,19 @@ describe("Canvas touch listener lifecycle", () => {
     resetPlacementStore();
     resetViewportStore();
 
-    vi.stubGlobal("matchMedia", (query: string): MediaQueryList => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => true,
-    }));
+    vi.stubGlobal(
+      "matchMedia",
+      (query: string): MediaQueryList => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => true,
+      }),
+    );
   });
 
   afterEach(() => {
@@ -39,7 +39,12 @@ describe("Canvas touch listener lifecycle", () => {
   });
 
   it("attaches and detaches touch listeners across remount without duplicates", () => {
-    const touchEventTypes = ["touchcancel", "touchend", "touchmove", "touchstart"];
+    const touchEventTypes = [
+      "touchcancel",
+      "touchend",
+      "touchmove",
+      "touchstart",
+    ];
     const originalAdd = HTMLElement.prototype.addEventListener;
     const originalRemove = HTMLElement.prototype.removeEventListener;
     const touchAdds: Array<{ target: EventTarget; type: string }> = [];

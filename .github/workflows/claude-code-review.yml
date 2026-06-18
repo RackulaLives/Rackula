@@ -28,9 +28,9 @@ jobs:
 
     # Skip drafts, Dependabot PRs, and fork PRs (no access to secrets/OIDC).
     if: >-
-      github.event.pull_request.draft != true
-      && github.event.pull_request.user.login != 'dependabot[bot]'
-      && github.event.pull_request.head.repo.fork == false
+      github.event.pull_request.draft != true && github.event.pull_request.user.login != 'dependabot[bot]' && github.event.pull_request.head.repo.fork == false
+
+
     runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
@@ -55,7 +55,7 @@ jobs:
         uses: anthropics/claude-code-action@d5726de019ec4498aa667642bc3a80fca83aa102 # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: '/code-review'
+          prompt: "/code-review"
           claude_args: '--system-prompt "Review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}" --disallowedTools "Bash,Write,Edit,NotebookEdit"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options

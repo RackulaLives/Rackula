@@ -234,7 +234,11 @@ describe("Rack Group Store", () => {
       const store = getLayoutStore();
       const rack1 = store.addRack("Rack 1", 42);
       const rack2 = store.addRack("Rack 2", 42);
-      const { group } = store.createRackGroup("Test Group", [rack1!.id, rack2!.id], "row");
+      const { group } = store.createRackGroup(
+        "Test Group",
+        [rack1!.id, rack2!.id],
+        "row",
+      );
 
       store.updateRackGroup(group!.id, { layout_preset: "bayed" });
 

@@ -49,9 +49,7 @@ describe("Rack Actions Undo/Redo", () => {
       expect(result.error).toBeUndefined();
 
       // Get the duplicated rack's device
-      const dupRack = store.layout.racks.find(
-        (r) => r.id === result.rack!.id,
-      )!;
+      const dupRack = store.layout.racks.find((r) => r.id === result.rack!.id)!;
       const dupDevice = dupRack.devices[0];
       expect(dupDevice).toBeDefined();
       expect(dupDevice.ports).toBeDefined();
@@ -125,9 +123,7 @@ describe("Rack Actions Undo/Redo", () => {
       expect(undone).toBe(true);
       expect(store.layout.racks).toHaveLength(initialRackCount);
       for (const rackId of rackIds) {
-        expect(
-          store.layout.racks.find((r) => r.id === rackId),
-        ).toBeUndefined();
+        expect(store.layout.racks.find((r) => r.id === rackId)).toBeUndefined();
       }
       // Group should be gone
       const groups = store.layout.rack_groups ?? [];
@@ -138,9 +134,7 @@ describe("Rack Actions Undo/Redo", () => {
       expect(redone).toBe(true);
       expect(store.layout.racks).toHaveLength(initialRackCount + 2);
       for (const rackId of rackIds) {
-        expect(
-          store.layout.racks.find((r) => r.id === rackId),
-        ).toBeDefined();
+        expect(store.layout.racks.find((r) => r.id === rackId)).toBeDefined();
       }
       expect(
         store.layout.rack_groups!.find((g) => g.id === groupId),

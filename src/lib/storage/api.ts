@@ -331,7 +331,9 @@ export async function loadSavedLayout(uuid: string): Promise<{
   }
 
   const yamlContent = await response.text();
-  if (new TextEncoder().encode(yamlContent).length > MAX_LAYOUT_RESPONSE_BYTES) {
+  if (
+    new TextEncoder().encode(yamlContent).length > MAX_LAYOUT_RESPONSE_BYTES
+  ) {
     throw new PersistenceError("Layout data too large");
   }
 
@@ -555,7 +557,9 @@ export async function loadSnapshot(
   }
 
   const yamlContent = await response.text();
-  if (new TextEncoder().encode(yamlContent).length > MAX_LAYOUT_RESPONSE_BYTES) {
+  if (
+    new TextEncoder().encode(yamlContent).length > MAX_LAYOUT_RESPONSE_BYTES
+  ) {
     throw new PersistenceError("Snapshot data too large");
   }
 

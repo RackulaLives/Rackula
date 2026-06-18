@@ -225,9 +225,7 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
       ...(deviceType.slot_width !== undefined
         ? { sw: deviceType.slot_width }
         : {}),
-      ...(deviceType.subdevice_role
-        ? { sr: deviceType.subdevice_role }
-        : {}),
+      ...(deviceType.subdevice_role ? { sr: deviceType.subdevice_role } : {}),
     }));
 
   // Convert all racks to MinimalRackV2

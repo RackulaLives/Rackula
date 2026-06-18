@@ -15,7 +15,8 @@
 </script>
 
 <g
-  transform="translate({-24}, {rackPadding - 85}) rotate(-18, 45, 75) scale(1.35)"
+  transform="translate({-24}, {rackPadding -
+    85}) rotate(-18, 45, 75) scale(1.35)"
 >
   <!-- Shadow -->
   <ellipse cx="40" cy="68" rx="26" ry="5" fill="rgba(0,0,0,0.12)" />

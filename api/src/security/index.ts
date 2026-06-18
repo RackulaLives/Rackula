@@ -54,9 +54,5 @@ export { createOriginPolicyMiddleware } from "./origin-policy";
 
 export { resolveApiSecurityConfig } from "./config";
 
-export {
-  createStorageQuotaMiddleware,
-} from "./storage-quota-middleware";
-export type {
-  StorageQuotaMiddlewareConfig,
-} from "./storage-quota-middleware";
+export { createStorageQuotaMiddleware } from "./storage-quota-middleware";
+export type { StorageQuotaMiddlewareConfig } from "./storage-quota-middleware";

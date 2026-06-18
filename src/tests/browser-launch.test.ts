@@ -129,7 +129,11 @@ describe("resolveBrowserLaunch", () => {
         activeId: "a",
         openTabs: ["a"],
         library: {
-          a: { name: "Existing", changesSinceExport: 0, storageMode: "browser" },
+          a: {
+            name: "Existing",
+            changesSinceExport: 0,
+            storageMode: "browser",
+          },
         },
       }),
     );

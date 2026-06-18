@@ -88,9 +88,7 @@ Don't spend 30 minutes debugging something you solved last week.
 
 ## Integration
 
-**Orchestrates:** `superpowers:systematic-debugging`
-**Uses:** `episodic-memory:search-conversations` or `claude-mem:mem-search`
-**Called by:** Proactively when debugging triggers detected
+**Orchestrates:** `superpowers:systematic-debugging` **Uses:** `episodic-memory:search-conversations` or `claude-mem:mem-search` **Called by:** Proactively when debugging triggers detected
 
 ---
 

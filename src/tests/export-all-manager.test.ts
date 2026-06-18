@@ -48,8 +48,9 @@ const mockedList = vi.mocked(listSavedLayouts);
 const mockedLoad = vi.mocked(loadSavedLayout);
 
 function setMode(mode: "browser" | "server"): void {
-  (window as unknown as { __RACKULA_CONFIG__?: { storage: string } }).__RACKULA_CONFIG__ =
-    { storage: mode };
+  (
+    window as unknown as { __RACKULA_CONFIG__?: { storage: string } }
+  ).__RACKULA_CONFIG__ = { storage: mode };
 }
 
 describe("handleExportAll", () => {

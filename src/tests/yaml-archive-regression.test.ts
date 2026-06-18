@@ -154,8 +154,9 @@ describe("representative layout save/reload round-trip (#1114)", () => {
   it("survives a second save/reload cycle without losing or mutating sections", async () => {
     // A user who opens, saves, opens, saves again must not accumulate drift.
     const original = representativeLayout();
-    const firstReload = (await extractFolderArchive(await newFormatZipBlob(original)))
-      .layout;
+    const firstReload = (
+      await extractFolderArchive(await newFormatZipBlob(original))
+    ).layout;
     const secondReload = (
       await extractFolderArchive(await newFormatZipBlob(firstReload))
     ).layout;
@@ -225,8 +226,22 @@ describe("legacy ZIP load compatibility (#1114)", () => {
         createTestRack({
           id: "rack-1",
           devices: [
-            { ...createTestDevice({ id: "left", device_type: "half-width", position: 10 }), slot_position: "left" },
-            { ...createTestDevice({ id: "right", device_type: "half-width", position: 10 }), slot_position: "right" },
+            {
+              ...createTestDevice({
+                id: "left",
+                device_type: "half-width",
+                position: 10,
+              }),
+              slot_position: "left",
+            },
+            {
+              ...createTestDevice({
+                id: "right",
+                device_type: "half-width",
+                position: 10,
+              }),
+              slot_position: "right",
+            },
           ],
         }),
       ],

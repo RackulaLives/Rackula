@@ -1,0 +1,9 @@
+# Vendored upstream copy of the secure-coding skill (see #2425).
+# Keep byte-identical to upstream; do not reformat.
+.github/claude-plugins/
+
+# Generated JSON Schema artifact. Its formatting is owned by
+# `npm run generate-schema` (JSON.stringify(..., null, 2)) and verified
+# byte-for-byte by src/tests/layout-json-schema.test.ts. Prettier's array
+# collapsing would diverge from the generator and break that test.
+static/schemas/

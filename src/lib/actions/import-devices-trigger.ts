@@ -19,7 +19,9 @@ let trigger: ImportDevicesTrigger | null = null;
  * Register the file-picker trigger. DialogOrchestrator calls this on mount and
  * passes the cleanup it returns to its $effect teardown.
  */
-export function registerImportDevicesTrigger(fn: ImportDevicesTrigger): () => void {
+export function registerImportDevicesTrigger(
+  fn: ImportDevicesTrigger,
+): () => void {
   trigger = fn;
   return () => {
     if (trigger === fn) trigger = null;

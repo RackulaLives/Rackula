@@ -1,7 +1,6 @@
 # Release Workflow v2 (CalVer)
 
-Create a new release with changelog entry, version bump, and tag push.
-CHANGELOG.md is the single source of truth — GitHub releases derive from it.
+Create a new release with changelog entry, version bump, and tag push. CHANGELOG.md is the single source of truth — GitHub releases derive from it.
 
 **Arguments:** `$ARGUMENTS` (optional)
 
@@ -352,17 +351,17 @@ gh run watch
 
 ## Error Handling
 
-| Scenario                      | Response                                                                             |
-| ----------------------------- | ------------------------------------------------------------------------------------ |
-| No changes since last release | "No changes found. Nothing to release."                                              |
-| Uncommitted changes           | "Error: Working directory not clean. Commit or stash changes first."                 |
-| Not on main branch            | "Error: Must be on main branch to release."                                          |
-| Tag already exists            | "Error: Tag vX.Y.Z already exists (locally or on origin)."                           |
-| next-version.sh fails         | "Error: Failed to compute next version. Check scripts/next-version.sh output."       |
-| Invalid explicit version      | "Error: Version 'X' is not valid CalVer format (expected YY.M.MICRO, e.g., 26.6.0)." |
-| Zero-padded month             | "Error: Month must be unpadded (e.g., 26.6.0 not 26.06.0)."                          |
-| Push fails                    | "Error: Push failed. Check permissions and try again."                               |
-| contributors.sh fails   | Warn and continue. Contributor block is optional and can be added manually later. |
+| Scenario | Response |
+| --- | --- |
+| No changes since last release | "No changes found. Nothing to release." |
+| Uncommitted changes | "Error: Working directory not clean. Commit or stash changes first." |
+| Not on main branch | "Error: Must be on main branch to release." |
+| Tag already exists | "Error: Tag vX.Y.Z already exists (locally or on origin)." |
+| next-version.sh fails | "Error: Failed to compute next version. Check scripts/next-version.sh output." |
+| Invalid explicit version | "Error: Version 'X' is not valid CalVer format (expected YY.M.MICRO, e.g., 26.6.0)." |
+| Zero-padded month | "Error: Month must be unpadded (e.g., 26.6.0 not 26.06.0)." |
+| Push fails | "Error: Push failed. Check permissions and try again." |
+| contributors.sh fails | Warn and continue. Contributor block is optional and can be added manually later. |
 
 ### Required Guard Implementation (Phase 4)
 

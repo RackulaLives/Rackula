@@ -216,12 +216,8 @@ describe("LoadDialog", () => {
     const expectedLabel = formatSnapshotTimestamp(
       "test-layout-1~20260615-143005.yaml",
     );
-    expect(
-      await screen.findByText(expectedLabel),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(/20260615-143005/),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByText(expectedLabel)).toBeInTheDocument();
+    expect(screen.queryByText(/20260615-143005/)).not.toBeInTheDocument();
   });
 
   it("restores a snapshot through the load pipeline and closes the dialog", async () => {

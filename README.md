@@ -45,12 +45,12 @@
 
 ## Who It's For
 
-| Audience                 | Use Case                                                                                                    |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| **Homelabbers**          | Plan your server rack before you rack it. Move pixels, not 4U servers.                                      |
-| **AV Technicians**       | Bayed rack support for audio installs, map out amp racks, patch bays, and processor chains.                 |
-| **Network Engineers**    | Document and plan switch/router topologies. Export for runbooks and change requests.                        |
-| **Data Centre Teams**    | Layout planning for colo cages and enterprise cabinets. Share via URL with your team.                       |
+| Audience | Use Case |
+| --- | --- |
+| **Homelabbers** | Plan your server rack before you rack it. Move pixels, not 4U servers. |
+| **AV Technicians** | Bayed rack support for audio installs, map out amp racks, patch bays, and processor chains. |
+| **Network Engineers** | Document and plan switch/router topologies. Export for runbooks and change requests. |
+| **Data Centre Teams** | Layout planning for colo cages and enterprise cabinets. Share via URL with your team. |
 | **Educators & Students** | Teach networking and infrastructure concepts with a visual, hands-on tool. No licence keys, no gatekeeping. |
 
 ## Why Though?

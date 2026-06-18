@@ -3,17 +3,19 @@ import { fireEvent, render, screen } from "@testing-library/svelte";
 import MobileViewSheet from "$lib/components/mobile/MobileViewSheet.svelte";
 import type { DisplayMode } from "$lib/types";
 
-function renderSheet(overrides: Partial<{
-  displayMode: DisplayMode;
-  showAnnotations: boolean;
-  theme: "dark" | "light";
-  ondisplaymodechange: (mode: DisplayMode) => void;
-  onannotationschange: (enabled: boolean) => void;
-  onthemechange: (theme: "dark" | "light") => void;
-  onfitall: () => void;
-  onresetzoom: () => void;
-  onclose: () => void;
-}> = {}) {
+function renderSheet(
+  overrides: Partial<{
+    displayMode: DisplayMode;
+    showAnnotations: boolean;
+    theme: "dark" | "light";
+    ondisplaymodechange: (mode: DisplayMode) => void;
+    onannotationschange: (enabled: boolean) => void;
+    onthemechange: (theme: "dark" | "light") => void;
+    onfitall: () => void;
+    onresetzoom: () => void;
+    onclose: () => void;
+  }> = {},
+) {
   const props = {
     displayMode: "label" as DisplayMode,
     showAnnotations: false,

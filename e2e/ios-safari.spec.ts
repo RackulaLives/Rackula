@@ -35,7 +35,10 @@ async function setupMobileViewport(
     sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
   });
   await page.goto(`/?l=${EMPTY_RACK_SHARE}`);
-  await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
+  await page
+    .locator(locators.rack.container)
+    .first()
+    .waitFor({ state: "visible" });
 }
 
 /**
@@ -94,7 +97,10 @@ test.describe("Devices Tab (Device Library)", () => {
       sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
     });
     await page.goto(`/?l=${EMPTY_RACK_SHARE}`);
-    await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
+    await page
+      .locator(locators.rack.container)
+      .first()
+      .waitFor({ state: "visible" });
 
     await expect(page.locator(locators.mobile.deviceLibraryFab)).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Devices" })).toHaveCount(0);

@@ -67,6 +67,8 @@ describe("Toolbar mobile quick actions", () => {
   it("disables export when there are no racks", () => {
     render(ToolbarTestWrapper, { hasRacks: false });
 
-    expect(screen.getByRole("button", { name: /export layout/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /export layout/i }),
+    ).toBeDisabled();
   });
 });

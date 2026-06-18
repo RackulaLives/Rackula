@@ -9,7 +9,8 @@ import { getDefaultColour } from "./device";
 import { generateDeviceSlug } from "./slug";
 
 // Valid device categories for validation (single source of truth: the schema)
-const VALID_CATEGORIES: readonly DeviceCategory[] = DeviceCategorySchema.options;
+const VALID_CATEGORIES: readonly DeviceCategory[] =
+  DeviceCategorySchema.options;
 
 // Import validation allows broader height range than UI (0.5U-100U)
 const IMPORT_MIN_HEIGHT = 0.5;

@@ -66,10 +66,14 @@ test.describe("Mobile tap-to-place with a mouse (#1757)", () => {
 
     // Tap a rack slot with the MOUSE (the path #1757 fixed). Use the front-view
     // SVG and aim ~35% down to land in clear rack interior, below the header.
-    const rackSvg = page.locator(`${locators.rackView.front} ${locators.rack.svg}`).first();
+    const rackSvg = page
+      .locator(`${locators.rackView.front} ${locators.rack.svg}`)
+      .first();
     const box = await rackSvg.boundingBox();
     if (!box) {
-      throw new Error("rackSvg boundingBox() returned null; cannot click placement target");
+      throw new Error(
+        "rackSvg boundingBox() returned null; cannot click placement target",
+      );
     }
     await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.35);
 

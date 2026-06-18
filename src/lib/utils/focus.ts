@@ -8,7 +8,7 @@
  * Excludes elements with tabindex="-1" and disabled elements.
  */
 const FOCUSABLE_SELECTOR =
-	'button:not([disabled]):not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
+  'button:not([disabled]):not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * Svelte action to trap focus within an element.
@@ -21,41 +21,41 @@ const FOCUSABLE_SELECTOR =
  * </div>
  */
 export function trapFocus(node: HTMLElement) {
-	function getFocusableElements(): HTMLElement[] {
-		return Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-	}
+  function getFocusableElements(): HTMLElement[] {
+    return Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+  }
 
-	function handleKeyDown(event: KeyboardEvent) {
-		if (event.key !== 'Tab') return;
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key !== "Tab") return;
 
-		const focusableElements = getFocusableElements();
-		if (focusableElements.length === 0) return;
+    const focusableElements = getFocusableElements();
+    if (focusableElements.length === 0) return;
 
-		const firstFocusable = focusableElements[0];
-		const lastFocusable = focusableElements[focusableElements.length - 1];
+    const firstFocusable = focusableElements[0];
+    const lastFocusable = focusableElements[focusableElements.length - 1];
 
-		if (event.shiftKey) {
-			// Shift+Tab: if on first element, wrap to last
-			if (document.activeElement === firstFocusable) {
-				event.preventDefault();
-				lastFocusable?.focus();
-			}
-		} else {
-			// Tab: if on last element, wrap to first
-			if (document.activeElement === lastFocusable) {
-				event.preventDefault();
-				firstFocusable?.focus();
-			}
-		}
-	}
+    if (event.shiftKey) {
+      // Shift+Tab: if on first element, wrap to last
+      if (document.activeElement === firstFocusable) {
+        event.preventDefault();
+        lastFocusable?.focus();
+      }
+    } else {
+      // Tab: if on last element, wrap to first
+      if (document.activeElement === lastFocusable) {
+        event.preventDefault();
+        firstFocusable?.focus();
+      }
+    }
+  }
 
-	node.addEventListener('keydown', handleKeyDown);
+  node.addEventListener("keydown", handleKeyDown);
 
-	return {
-		destroy() {
-			node.removeEventListener('keydown', handleKeyDown);
-		}
-	};
+  return {
+    destroy() {
+      node.removeEventListener("keydown", handleKeyDown);
+    },
+  };
 }
 
 /**
@@ -66,8 +66,8 @@ export function trapFocus(node: HTMLElement) {
  * focusFirst(dialogElement); // Focuses first button/input in dialog
  */
 export function focusFirst(container: HTMLElement): void {
-	const focusable = container.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-	focusable?.focus();
+  const focusable = container.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+  focusable?.focus();
 }
 
 /**
@@ -84,23 +84,23 @@ export function focusFirst(container: HTMLElement): void {
  * focusManager.restore();
  */
 export function createFocusManager() {
-	let previousFocus: HTMLElement | null = null;
+  let previousFocus: HTMLElement | null = null;
 
-	return {
-		/**
-		 * Save the currently focused element.
-		 */
-		save() {
-			previousFocus = document.activeElement as HTMLElement;
-		},
+  return {
+    /**
+     * Save the currently focused element.
+     */
+    save() {
+      previousFocus = document.activeElement as HTMLElement;
+    },
 
-		/**
-		 * Restore focus to the previously saved element.
-		 * Clears the saved reference after restoring.
-		 */
-		restore() {
-			previousFocus?.focus();
-			previousFocus = null;
-		}
-	};
+    /**
+     * Restore focus to the previously saved element.
+     * Clears the saved reference after restoring.
+     */
+    restore() {
+      previousFocus?.focus();
+      previousFocus = null;
+    },
+  };
 }

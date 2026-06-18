@@ -100,8 +100,7 @@ One-sentence description.
 
 ## Architecture (if applicable)
 
-ASCII diagram of components/data flow.
-Table of components with purpose.
+ASCII diagram of components/data flow. Table of components with purpose.
 
 ---
 
@@ -120,10 +119,7 @@ Code example.
 
 ### [Symptom as heading]
 
-**Symptom:** What user sees.
-**Check:** Diagnostic command.
-**Common causes:** Numbered list.
-**Fix:** Solution with code.
+**Symptom:** What user sees. **Check:** Diagnostic command. **Common causes:** Numbered list. **Fix:** Solution with code.
 
 ---
 

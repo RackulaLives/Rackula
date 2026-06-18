@@ -13,10 +13,7 @@ import {
   loadSavedLayout,
 } from "./api";
 import { saveSession, clearSession } from "./working-copy";
-import {
-  getServerBaseUpdatedAt,
-  setServerBaseUpdatedAt,
-} from "./server-base";
+import { getServerBaseUpdatedAt, setServerBaseUpdatedAt } from "./server-base";
 import { loadFromFile } from "./load-pipeline";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
 import { getImageStore } from "$lib/stores/images.svelte";
@@ -361,9 +358,7 @@ function resolveLayoutMetadata(layout: {
  * @returns true when an archive was saved, false when cancelled or failed.
  */
 export async function handleExportAll(): Promise<boolean> {
-  return getStorageMode() === "server"
-    ? exportAllServer()
-    : exportAllBrowser();
+  return getStorageMode() === "server" ? exportAllServer() : exportAllBrowser();
 }
 
 /** Browser-mode export-all: back up the open layout and reset the chip. */

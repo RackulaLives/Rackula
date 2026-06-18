@@ -868,7 +868,9 @@ export function generateExportSVG(
       // (mirrors RackDevice.svelte). Per-face so a front-only placement still
       // inherits the device-type rear image.
       const placementImages = images?.get(
-        layoutId ? placementKey(layoutId, placedDevice.id) : `placement-${placedDevice.id}`,
+        layoutId
+          ? placementKey(layoutId, placedDevice.id)
+          : `placement-${placedDevice.id}`,
       );
       const slugImages = images?.get(device.slug);
       const deviceImage = placementImages?.[face] ?? slugImages?.[face];
@@ -1476,5 +1478,12 @@ export function generateSingleRackSVG(
   images?: ImageStoreMap,
   layoutId?: string,
 ): SVGElement {
-  return generateExportSVG([rack], deviceLibrary, options, images, undefined, layoutId);
+  return generateExportSVG(
+    [rack],
+    deviceLibrary,
+    options,
+    images,
+    undefined,
+    layoutId,
+  );
 }

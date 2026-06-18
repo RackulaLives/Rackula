@@ -26,9 +26,7 @@ describe("reconcileSession", () => {
       localUuid: "22222222-2222-4222-8222-222222222222",
       localSavedAt: "2026-06-14T11:00:00.000Z",
       localServerUpdatedAt: null,
-      serverLayouts: [
-        server({ id: "11111111-1111-4111-8111-111111111111" }),
-      ],
+      serverLayouts: [server({ id: "11111111-1111-4111-8111-111111111111" })],
     });
     expect(action).toEqual({
       kind: "restore-local",

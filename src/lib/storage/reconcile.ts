@@ -2,8 +2,15 @@ import type { SavedLayoutItem } from "./api";
 import { isServerNewer } from "./working-copy";
 
 export type ReconcileAction =
-  | { kind: "restore-local"; reason: "ahead" | "unknown-to-server" | "local-newer" }
-  | { kind: "load-server"; server: SavedLayoutItem; snapshotLocalUuid: string | null };
+  | {
+      kind: "restore-local";
+      reason: "ahead" | "unknown-to-server" | "local-newer";
+    }
+  | {
+      kind: "load-server";
+      server: SavedLayoutItem;
+      snapshotLocalUuid: string | null;
+    };
 
 /**
  * Decide what to do with a local working copy at startup against the server's
@@ -32,7 +39,9 @@ export function reconcileSession(args: {
   serverLayouts: SavedLayoutItem[];
 }): ReconcileAction {
   const { localUuid, localSavedAt, localServerUpdatedAt, serverLayouts } = args;
-  const match = localUuid ? serverLayouts.find((l) => l.id === localUuid) : undefined;
+  const match = localUuid
+    ? serverLayouts.find((l) => l.id === localUuid)
+    : undefined;
   if (!match) return { kind: "restore-local", reason: "unknown-to-server" };
   if (localServerUpdatedAt === null) {
     return { kind: "load-server", server: match, snapshotLocalUuid: localUuid };

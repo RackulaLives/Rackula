@@ -6,8 +6,16 @@ import type { ApiSecurityConfig } from "./types";
 const TEST_WRITE_TOKEN = "test-secret-token-32chars-long!!";
 
 function makeConfig(
-  overrides: Partial<Pick<ApiSecurityConfig, "originPolicyEnabled" | "csrfTrustedOrigins" | "writeAuthToken">> = {},
-): Pick<ApiSecurityConfig, "originPolicyEnabled" | "csrfTrustedOrigins" | "writeAuthToken"> {
+  overrides: Partial<
+    Pick<
+      ApiSecurityConfig,
+      "originPolicyEnabled" | "csrfTrustedOrigins" | "writeAuthToken"
+    >
+  > = {},
+): Pick<
+  ApiSecurityConfig,
+  "originPolicyEnabled" | "csrfTrustedOrigins" | "writeAuthToken"
+> {
   return {
     originPolicyEnabled: true,
     csrfTrustedOrigins: ["https://racku.la", "https://count.racku.la"],

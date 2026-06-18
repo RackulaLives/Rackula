@@ -28,8 +28,14 @@
     ariaLabel?: string;
   }
 
-  let { items, itemHeight, overscan = 4, row, key, ariaLabel }: Props =
-    $props();
+  let {
+    items,
+    itemHeight,
+    overscan = 4,
+    row,
+    key,
+    ariaLabel,
+  }: Props = $props();
 
   let scrollTop = $state(0);
   let viewportHeight = $state(0);
@@ -66,10 +72,7 @@
   onscroll={handleScroll}
   bind:clientHeight={viewportHeight}
 >
-  <div
-    class="virtual-list-spacer"
-    style:height="{visibleWindow.totalHeight}px"
-  >
+  <div class="virtual-list-spacer" style:height="{visibleWindow.totalHeight}px">
     <div
       class="virtual-list-window"
       style:transform="translateY({visibleWindow.offsetY}px)"

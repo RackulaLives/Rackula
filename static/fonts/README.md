@@ -10,8 +10,7 @@ Self-hosted fonts for the Dracula/Alucard design system.
 | --------------------------- | ------ | ------------- |
 | `SpaceGrotesk-Medium.woff2` | 500    | Logo wordmark |
 
-**Download Source:** https://github.com/floriankarsten/space-grotesk
-**License:** SIL Open Font License v1.1 (see `OFL-SpaceGrotesk.txt`)
+**Download Source:** https://github.com/floriankarsten/space-grotesk **License:** SIL Open Font License v1.1 (see `OFL-SpaceGrotesk.txt`)
 
 ### JetBrains Mono (Monospace - UI/Headings)
 

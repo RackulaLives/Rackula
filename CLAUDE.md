@@ -1,7 +1,6 @@
 # CLAUDE.md — Rackula
 
-**Project:** Rackula — Rack Layout Designer for Homelabbers
-**Version:** 26.5.0
+**Project:** Rackula — Rack Layout Designer for Homelabbers **Version:** 26.5.0
 
 ---
 
@@ -13,17 +12,14 @@ We use **Calendar Versioning (CalVer)** with the format `YY.M.MICRO`:
 - `M` = unpadded month (1–12, e.g., `6` for June, not `06`)
 - `MICRO` = release counter within the month, starting at 0
 
-**Examples:** `v26.6.0` (first release in June 2026), `v26.6.1` (second release that month),
-`v26.7.0` (first release in July 2026, month rollover resets MICRO to 0).
+**Examples:** `v26.6.0` (first release in June 2026), `v26.6.1` (second release that month), `v26.7.0` (first release in July 2026, month rollover resets MICRO to 0).
 
 **MICRO rule:**
 
 - Same month as the latest tag → MICRO increments (`v26.6.0` → `v26.6.1`)
 - Different month → MICRO resets to 0 (`v26.6.2` → `v26.7.0`)
 
-**CalVer and milestones are decoupled:** the version reflects the ship date, not the plan
-date. Multiple milestones may ship in the same month. See the milestone cadence design:
-[`docs/superpowers/specs/2026-06-01-milestone-cadence-reframe-design.md`](docs/superpowers/specs/2026-06-01-milestone-cadence-reframe-design.md).
+**CalVer and milestones are decoupled:** the version reflects the ship date, not the plan date. Multiple milestones may ship in the same month. See the milestone cadence design: [`docs/superpowers/specs/2026-06-01-milestone-cadence-reframe-design.md`](docs/superpowers/specs/2026-06-01-milestone-cadence-reframe-design.md).
 
 **Dual-artifact policy:**
 
@@ -47,8 +43,7 @@ The `/release` skill will:
 4. Preview and confirm with you
 5. Update CHANGELOG.md, bump version, tag, and push
 
-**Important:** CHANGELOG.md is the source of truth. GitHub releases are auto-generated
-from changelog entries. The release workflow will fail if no changelog entry exists.
+**Important:** CHANGELOG.md is the source of truth. GitHub releases are auto-generated from changelog entries. The release workflow will fail if no changelog entry exists.
 
 **Tag format:** Always use `v` prefix (e.g., `v26.6.0`, not `26.6.0`)
 
@@ -85,26 +80,23 @@ docs/
     └── specs/               → Brainstorming design specs (created on first use)
 ```
 
-**Start here:** `docs/ARCHITECTURE.md` for codebase overview.
-**Reference:** `docs/reference/SPEC.md` for technical overview and design principles.
+**Start here:** `docs/ARCHITECTURE.md` for codebase overview. **Reference:** `docs/reference/SPEC.md` for technical overview and design principles.
 
 ### Design Documents
 
 Project overrides for Superpowers v5 document locations:
 
-| Document Type         | Location                  | Naming Convention              |
-| --------------------- | ------------------------- | ------------------------------ |
+| Document Type | Location | Naming Convention |
+| --- | --- | --- |
 | Specs (brainstorming) | `docs/superpowers/specs/` | `YYYY-MM-DD-<topic>-design.md` |
-| Plans (execution)     | `docs/plans/`             | `YYYY-MM-DD-<feature-name>.md` |
-| Research spikes       | `docs/research/`          | `{ISSUE}-{type}.md`            |
+| Plans (execution) | `docs/plans/` | `YYYY-MM-DD-<feature-name>.md` |
+| Research spikes | `docs/research/` | `{ISSUE}-{type}.md` |
 
 Plans use `docs/plans/` (project override — v5 defaults to `docs/superpowers/plans/`).
 
 ## GitHub Issues Workflow
 
-GitHub Issues is the source of truth for task tracking. Issue flow is
-tracked via the [project board](https://github.com/orgs/RackulaLives/projects/2):
-Backlog, Next Up, In Progress, In Review, Done.
+GitHub Issues is the source of truth for task tracking. Issue flow is tracked via the [project board](https://github.com/orgs/RackulaLives/projects/2): Backlog, Next Up, In Progress, In Review, Done.
 
 **Querying work:**
 
@@ -172,8 +164,7 @@ gh pr view <number> --comments
 
 ## Development Philosophy
 
-**Greenfield approach:** Do not use migration or legacy support concepts in this project.
-Implement features as if they are the first and only implementation.
+**Greenfield approach:** Do not use migration or legacy support concepts in this project. Implement features as if they are the first and only implementation.
 
 **Simplicity first:**
 
@@ -214,8 +205,7 @@ Implement features as if they are the first and only implementation.
 
 When given an overnight execution prompt:
 
-**Execution model:** Plan execution uses subagent-driven development. Stopping conditions
-below apply to the orchestrating session, not individual subagent turns.
+**Execution model:** Plan execution uses subagent-driven development. Stopping conditions below apply to the orchestrating session, not individual subagent turns.
 
 - You have explicit permission to work without pausing between prompts
 - Do NOT ask for review or confirmation mid-session
@@ -281,8 +271,7 @@ Skip tests entirely for:
 - **Thin wrappers** with no logic of their own
 - **Components where the only possible test is "renders without throwing"**
 
-If an issue's Acceptance Criteria requests tests for something in this list, the testing
-policy overrides the AC. Don't write low-value tests just because an issue asked for them.
+If an issue's Acceptance Criteria requests tests for something in this list, the testing policy overrides the AC. Don't write low-value tests just because an issue asked for them.
 
 **If tests ARE needed**, follow TDD:
 
@@ -307,11 +296,9 @@ These are the ONLY categories worth testing. If your component doesn't fit one o
 - Properties already validated by Zod schemas
 - Simple getters, trivial functions, pass-through code
 
-**The Zero-Change Rule:** Adding a device to a brand pack should require ZERO test file
-changes. If tests break, they're testing data, not behavior.
+**The Zero-Change Rule:** Adding a device to a brand pack should require ZERO test file changes. If tests break, they're testing data, not behavior.
 
-**Trust the Schema:** If `DeviceTypeSchema.parse()` passes, don't re-test individual
-fields. One schema validation test covers all devices.
+**Trust the Schema:** If `DeviceTypeSchema.parse()` passes, don't re-test individual fields. One schema validation test covers all devices.
 
 See `docs/guides/TESTING.md` for comprehensive testing guidelines.
 
@@ -321,8 +308,7 @@ See `docs/guides/TESTING.md` for comprehensive testing guidelines.
 
 _These rules apply when you've decided tests ARE needed (see TDD Protocol above)._
 
-**BEFORE writing any test, ask:** "Would this test break if I made a legitimate code change?"
-If yes, **DON'T WRITE IT.**
+**BEFORE writing any test, ask:** "Would this test break if I made a legitimate code change?" If yes, **DON'T WRITE IT.**
 
 ### NEVER Write Tests That
 
@@ -336,8 +322,7 @@ expect(dellDevices).toHaveLength(68);
 expect(dellDevices.length).toBeGreaterThan(0);
 ```
 
-**Exception:** Behavioral invariants (deduplication, pagination) may use exact lengths
-with `eslint-disable-next-line` and justification:
+**Exception:** Behavioral invariants (deduplication, pagination) may use exact lengths with `eslint-disable-next-line` and justification:
 
 ```typescript
 // GOOD: Behavioral invariant with justification
@@ -439,10 +424,7 @@ const device = createTestDeviceType({ u_height: 2 });
 
 These rules are enforced by ESLint on every commit and will fail the build if violated.
 
-**Why these rules exist:** The project had 136 unit test files (46k LOC) causing OOM
-crashes and high token usage. We deleted 78 low-value files (57% reduction) to fix this.
-ESLint rules prevent re-accumulation by blocking the specific anti-patterns that caused
-bloat.
+**Why these rules exist:** The project had 136 unit test files (46k LOC) causing OOM crashes and high token usage. We deleted 78 low-value files (57% reduction) to fix this. ESLint rules prevent re-accumulation by blocking the specific anti-patterns that caused bloat.
 
 ---
 
@@ -458,8 +440,7 @@ npm run lint         # ESLint check
 npm run refresh-lockfile  # Regenerate package-lock.json from scratch
 ```
 
-**Lockfile issues:** If CI fails with "package.json and package-lock.json are out of
-sync", run `npm run refresh-lockfile` to regenerate the lockfile from a clean state.
+**Lockfile issues:** If CI fails with "package.json and package-lock.json are out of sync", run `npm run refresh-lockfile` to regenerate the lockfile from a clean state.
 
 ### Debug Logging
 
@@ -514,32 +495,23 @@ layoutDebug.device("placed device %s at U%d", slug, position);
 
 ## Skill Routing
 
-This section is the cloud-safe restatement of the superpowers bootstrap. In local sessions
-a SessionStart hook injects the using-superpowers skill automatically. In claude.ai/code
-cloud sessions that hook may not fire, because cloud does not auto-install plugins from
-committed settings (a known open issue, anthropics/claude-code#63028). To install the
-plugins in cloud, paste the contents of `.claude/cloud-setup.sh` into the environment Setup
-script field.
-The core rule is restated here, where it is always read.
+This section is the cloud-safe restatement of the superpowers bootstrap. In local sessions a SessionStart hook injects the using-superpowers skill automatically. In claude.ai/code cloud sessions that hook may not fire, because cloud does not auto-install plugins from committed settings (a known open issue, anthropics/claude-code#63028). To install the plugins in cloud, paste the contents of `.claude/cloud-setup.sh` into the environment Setup script field. The core rule is restated here, where it is always read.
 
-Core rule: if there is even a small chance a skill applies, invoke it via the Skill tool
-before responding, including before asking clarifying questions. Process skills such as
-`/superpowers:brainstorming` and `/superpowers:systematic-debugging` come before
-implementation skills.
+Core rule: if there is even a small chance a skill applies, invoke it via the Skill tool before responding, including before asking clarifying questions. Process skills such as `/superpowers:brainstorming` and `/superpowers:systematic-debugging` come before implementation skills.
 
 **Before starting any task, check if a skill applies:**
 
-| Task Type                 | Skill                                         | Why                                     |
-| ------------------------- | --------------------------------------------- | --------------------------------------- |
-| Bug/issue investigation   | `/superpowers:systematic-debugging`           | Prevents guessing, forces evidence      |
-| New feature or component  | `/superpowers:brainstorming`                  | Explores requirements before code       |
-| Multi-step implementation | `/superpowers:writing-plans`                  | Plans auto-route to subagent execution  |
-| Working on GitHub issue   | `/dev-issue <number>`                         | Full workflow with worktree isolation   |
-| Research question         | `/research-spike <number>`                    | Structured investigation                |
-| Finishing a branch        | `/superpowers:finishing-a-development-branch` | Merge/PR decision flow                  |
-| Worktree cleanup needed   | `/worktree-cleanup`                           | List and remove stale worktrees         |
-| Debugging with context    | `/debug-with-memory`                          | Memory-assisted systematic debugging    |
-| User-facing documentation | `/technical-writing`                          | Enforces verification, style, structure |
+| Task Type | Skill | Why |
+| --- | --- | --- |
+| Bug/issue investigation | `/superpowers:systematic-debugging` | Prevents guessing, forces evidence |
+| New feature or component | `/superpowers:brainstorming` | Explores requirements before code |
+| Multi-step implementation | `/superpowers:writing-plans` | Plans auto-route to subagent execution |
+| Working on GitHub issue | `/dev-issue <number>` | Full workflow with worktree isolation |
+| Research question | `/research-spike <number>` | Structured investigation |
+| Finishing a branch | `/superpowers:finishing-a-development-branch` | Merge/PR decision flow |
+| Worktree cleanup needed | `/worktree-cleanup` | List and remove stale worktrees |
+| Debugging with context | `/debug-with-memory` | Memory-assisted systematic debugging |
+| User-facing documentation | `/technical-writing` | Enforces verification, style, structure |
 
 **Default rule:** If uncertain, invoke `/superpowers:brainstorming` first.
 
@@ -571,16 +543,9 @@ Automatically deploys on code pushes to `main` (after lint/tests pass):
 git push origin main  # Triggers: lint → test → build → deploy to GitHub Pages
 ```
 
-The Deploy Dev workflow is path-filtered: it runs only when the push changes app
-inputs (`api/**`, `src/**`, `deploy/**`, `assets/**`, `static/**`, `login.html`,
-the lockfiles, build configs, `index.html`), and a trailing `!**/*.md` excludes
-markdown anywhere. Docs-only pushes (markdown-only, or paths outside that list
-such as `.claude/**`, `docs/**`, `.github/**`) do not trigger a deploy.
+The Deploy Dev workflow is path-filtered: it runs only when the push changes app inputs (`api/**`, `src/**`, `deploy/**`, `assets/**`, `static/**`, `login.html`, the lockfiles, build configs, `index.html`), and a trailing `!**/*.md` excludes markdown anywhere. Docs-only pushes (markdown-only, or paths outside that list such as `.claude/**`, `docs/**`, `.github/**`) do not trigger a deploy.
 
-Do not watch or wait for a dev deploy after a docs-only push: no Deploy Dev run
-is queued, so there is nothing to go green. To confirm it was skipped, check that
-the Deploy Dev run is absent for the commit:
-`gh api "repos/RackulaLives/Rackula/actions/runs?head_sha=$(git rev-parse HEAD)"`.
+Do not watch or wait for a dev deploy after a docs-only push: no Deploy Dev run is queued, so there is nothing to go green. To confirm it was skipped, check that the Deploy Dev run is absent for the commit: `gh api "repos/RackulaLives/Rackula/actions/runs?head_sha=$(git rev-parse HEAD)"`.
 
 ### Production Deployment
 

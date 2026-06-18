@@ -86,7 +86,9 @@
     // header background starts a swipe.
     if (
       event.target instanceof Element &&
-      event.target.closest("button, a, [role='button'], input, select, textarea")
+      event.target.closest(
+        "button, a, [role='button'], input, select, textarea",
+      )
     ) {
       return;
     }

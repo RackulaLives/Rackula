@@ -53,9 +53,7 @@ describe("createMultiLayoutArchive", () => {
     ]);
 
     const folders = await topLevelFolders(blob);
-    expect(folders).toContain(
-      "Homelab-11111111-1111-4111-8111-111111111111",
-    );
+    expect(folders).toContain("Homelab-11111111-1111-4111-8111-111111111111");
     expect(folders).toContain("Closet-22222222-2222-4222-8222-222222222222");
     // eslint-disable-next-line no-restricted-syntax -- two layouts in -> exactly two folders out
     expect(folders).toHaveLength(2);

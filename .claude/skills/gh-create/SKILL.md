@@ -5,8 +5,7 @@ description: Create GitHub issues or triage existing ones. Works with any repo -
 
 # GitHub Issue Creation
 
-Create well-formed GitHub Issues or triage existing ones for the ready queue.
-Works with any GitHub repository.
+Create well-formed GitHub Issues or triage existing ones for the ready queue. Works with any GitHub repository.
 
 **Arguments:** `$ARGUMENTS` (optional)
 
@@ -80,10 +79,7 @@ If matches, use AskUserQuestion with dynamic options from results + "None of the
 
 ### Step 4: Type-Specific Details
 
-**Bug:** Expected behavior, actual behavior, steps to reproduce (optional)
-**Feature:** Problem it solves, proposed solution (optional)
-**Chore:** What needs doing, why
-**Spike:** Research question, deliverables, time box
+**Bug:** Expected behavior, actual behavior, steps to reproduce (optional) **Feature:** Problem it solves, proposed solution (optional) **Chore:** What needs doing, why **Spike:** Research question, deliverables, time box
 
 ### Step 5: Acceptance Criteria
 
@@ -334,9 +330,9 @@ If the project has a `## GitHub Workflow` section in CLAUDE.md, read it for:
 
 ## Error Handling
 
-| Scenario               | Response                                             |
-| ---------------------- | ---------------------------------------------------- |
-| Not in git repo        | "Not in a GitHub repository."                        |
+| Scenario | Response |
+| --- | --- |
+| Not in git repo | "Not in a GitHub repository." |
 | `gh` not authenticated | "GitHub CLI not authenticated. Run `gh auth login`." |
-| Issue not found        | "Issue #N not found."                                |
-| User cancels           | "Issue creation cancelled."                          |
+| Issue not found | "Issue #N not found." |
+| User cancels | "Issue creation cancelled." |

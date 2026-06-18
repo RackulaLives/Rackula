@@ -177,7 +177,9 @@ describe("browser-workspace storage", () => {
     });
 
     it("stamps the writer tab id so a peer detects the write as foreign without corrupting the body (#2044)", () => {
-      saveLayoutBody("a", makeLayout("a", "Homelab"), { changesSinceExport: 0 });
+      saveLayoutBody("a", makeLayout("a", "Homelab"), {
+        changesSinceExport: 0,
+      });
 
       // The peer reads the raw body off localStorage and runs the guard's
       // detection against a different tab id: this real write must register as a
@@ -224,9 +226,7 @@ describe("browser-workspace storage", () => {
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.layout.racks).toBeDefined();
-        expect(
-          (result.layout as Record<string, unknown>).rack,
-        ).toBeUndefined();
+        expect((result.layout as Record<string, unknown>).rack).toBeUndefined();
       }
     });
 
@@ -247,7 +247,12 @@ describe("browser-workspace storage", () => {
                 name: "Main",
                 height: 42,
                 devices: [
-                  { id: "d1", device_type: "server", position: 1, face: "front" },
+                  {
+                    id: "d1",
+                    device_type: "server",
+                    position: 1,
+                    face: "front",
+                  },
                 ],
               },
             ],
@@ -294,7 +299,9 @@ describe("browser-workspace storage", () => {
 
     it("deletes a body key and its library entry", () => {
       saveWorkspaceIndex(makeIndex());
-      saveLayoutBody("a", makeLayout("a", "Homelab"), { changesSinceExport: 0 });
+      saveLayoutBody("a", makeLayout("a", "Homelab"), {
+        changesSinceExport: 0,
+      });
       deleteLayoutBody("a");
       expect(loadLayoutBody("a").ok).toBe(false);
       expect(loadWorkspaceIndex()!.library.a).toBeUndefined();

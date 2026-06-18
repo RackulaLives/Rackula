@@ -1,6 +1,11 @@
 import { test, expect } from "./helpers/base-test";
 import path from "path";
-import { gotoWithRack, PLATFORM_MODIFIER, loadFileFromDisk, locators } from "./helpers";
+import {
+  gotoWithRack,
+  PLATFORM_MODIFIER,
+  loadFileFromDisk,
+  locators,
+} from "./helpers";
 
 test.describe("Position Migration", () => {
   const fixturePath = path.join(
@@ -25,9 +30,9 @@ test.describe("Position Migration", () => {
     await loadFileFromDisk(page, fixturePath);
 
     // Wait for file load success toast (distinct from share link toast)
-    await expect(
-      page.getByText("Layout loaded successfully"),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Layout loaded successfully")).toBeVisible({
+      timeout: 10000,
+    });
 
     // Verify the rack name from the fixture is visible
     await expect(page.getByText("Test Rack")).toBeVisible({
@@ -54,9 +59,9 @@ test.describe("Position Migration", () => {
     await loadFileFromDisk(page, fixturePath);
 
     // Wait for file load success
-    await expect(
-      page.getByText("Layout loaded successfully"),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Layout loaded successfully")).toBeVisible({
+      timeout: 10000,
+    });
 
     // Save the layout
     const downloadPromise = page.waitForEvent("download");
@@ -81,9 +86,9 @@ test.describe("Position Migration", () => {
     await loadFileFromDisk(page, fixturePath);
 
     // Wait for file load success
-    await expect(
-      page.getByText("Layout loaded successfully"),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Layout loaded successfully")).toBeVisible({
+      timeout: 10000,
+    });
 
     // Save the layout
     const downloadPromise = page.waitForEvent("download");
@@ -102,9 +107,9 @@ test.describe("Position Migration", () => {
     await loadFileFromDisk(page, savedPath);
 
     // Wait for file load success
-    await expect(
-      page.getByText("Layout loaded successfully"),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Layout loaded successfully")).toBeVisible({
+      timeout: 10000,
+    });
 
     // Verify devices are still in correct positions (not double-migrated)
     const devices = await page.locator(locators.rack.device).count();

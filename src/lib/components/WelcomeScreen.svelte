@@ -48,7 +48,8 @@
   // Generate U labels (highest number at top, ascending from bottom)
   const uLabels = Array.from({ length: RACK_HEIGHT }, (_, i) => ({
     uNumber: RACK_HEIGHT - i,
-    yPosition: i * U_HEIGHT_PX + U_HEIGHT_PX / 2 + BASE_RACK_PADDING + RAIL_WIDTH,
+    yPosition:
+      i * U_HEIGHT_PX + U_HEIGHT_PX / 2 + BASE_RACK_PADDING + RAIL_WIDTH,
   }));
 </script>
 
@@ -71,7 +72,13 @@
     />
 
     <!-- Top bar (horizontal) -->
-    <rect x="0" y={BASE_RACK_PADDING} width={BASE_RACK_WIDTH} height={RAIL_WIDTH} class="rack-rail" />
+    <rect
+      x="0"
+      y={BASE_RACK_PADDING}
+      width={BASE_RACK_WIDTH}
+      height={RAIL_WIDTH}
+      class="rack-rail"
+    />
 
     <!-- Bottom bar (horizontal) -->
     <rect
@@ -113,7 +120,12 @@
 
     <!-- U labels on left rail -->
     {#each uLabels as { uNumber, yPosition } (uNumber)}
-      <text x={RAIL_WIDTH / 2} y={yPosition} class="rack-unit-num" dominant-baseline="middle">
+      <text
+        x={RAIL_WIDTH / 2}
+        y={yPosition}
+        class="rack-unit-num"
+        dominant-baseline="middle"
+      >
         {uNumber}
       </text>
     {/each}

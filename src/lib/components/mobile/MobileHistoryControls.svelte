@@ -55,7 +55,11 @@
 </script>
 
 {#if shouldShow}
-  <div class="mobile-history-controls" role="group" aria-label="History actions">
+  <div
+    class="mobile-history-controls"
+    role="group"
+    aria-label="History actions"
+  >
     <button
       class="history-button"
       type="button"

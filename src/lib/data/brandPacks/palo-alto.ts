@@ -189,7 +189,7 @@ export const paloaltoDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.firewall,
     category: "firewall",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -202,7 +202,7 @@ export const paloaltoDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.firewall,
     category: "firewall",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -214,7 +214,7 @@ export const paloaltoDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.firewall,
     category: "firewall",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -227,7 +227,7 @@ export const paloaltoDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.firewall,
     category: "firewall",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -239,7 +239,7 @@ export const paloaltoDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.firewall,
     category: "firewall",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -251,6 +251,6 @@ export const paloaltoDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.firewall,
     category: "firewall",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 ];

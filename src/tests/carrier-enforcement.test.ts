@@ -69,8 +69,18 @@ const carrier2col = {
   category: "shelf",
   colour: "#888888",
   slots: [
-    { id: "col-1", position: { row: 0, col: 0 }, width_fraction: 0.5, height_units: 1 },
-    { id: "col-2", position: { row: 0, col: 1 }, width_fraction: 0.5, height_units: 1 },
+    {
+      id: "col-1",
+      position: { row: 0, col: 0 },
+      width_fraction: 0.5,
+      height_units: 1,
+    },
+    {
+      id: "col-2",
+      position: { row: 0, col: 1 },
+      width_fraction: 0.5,
+      height_units: 1,
+    },
   ],
 };
 
@@ -82,10 +92,30 @@ const carrier2x2 = {
   category: "shelf",
   colour: "#888888",
   slots: [
-    { id: "r0-c0", position: { row: 0, col: 0 }, width_fraction: 0.5, height_units: 0.5 },
-    { id: "r0-c1", position: { row: 0, col: 1 }, width_fraction: 0.5, height_units: 0.5 },
-    { id: "r1-c0", position: { row: 1, col: 0 }, width_fraction: 0.5, height_units: 0.5 },
-    { id: "r1-c1", position: { row: 1, col: 1 }, width_fraction: 0.5, height_units: 0.5 },
+    {
+      id: "r0-c0",
+      position: { row: 0, col: 0 },
+      width_fraction: 0.5,
+      height_units: 0.5,
+    },
+    {
+      id: "r0-c1",
+      position: { row: 0, col: 1 },
+      width_fraction: 0.5,
+      height_units: 0.5,
+    },
+    {
+      id: "r1-c0",
+      position: { row: 1, col: 0 },
+      width_fraction: 0.5,
+      height_units: 0.5,
+    },
+    {
+      id: "r1-c1",
+      position: { row: 1, col: 1 },
+      width_fraction: 0.5,
+      height_units: 0.5,
+    },
   ],
 };
 
@@ -133,14 +163,18 @@ describe("LayoutSchema carrier-first enforcement", () => {
       const result = LayoutSchema.safeParse(layout);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues.some((i) => /carrier/i.test(i.message))).toBe(
-          true,
-        );
+        expect(
+          result.error.issues.some((i) => /carrier/i.test(i.message)),
+        ).toBe(true);
       }
     });
 
     it("rejects a half-width full-height device placed directly on the rail", () => {
-      const halfWidthFullHeight = { ...halfWidthDevice, slug: "mini-1u", u_height: 1 };
+      const halfWidthFullHeight = {
+        ...halfWidthDevice,
+        slug: "mini-1u",
+        u_height: 1,
+      };
       const layout = layoutWith(
         [halfWidthFullHeight],
         [
@@ -267,7 +301,9 @@ describe("LayoutSchema carrier-first enforcement", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(
-          result.error.issues.some((i) => /already occupied|one child/i.test(i.message)),
+          result.error.issues.some((i) =>
+            /already occupied|one child/i.test(i.message),
+          ),
         ).toBe(true);
       }
     });
@@ -304,9 +340,11 @@ describe("LayoutSchema carrier-first enforcement", () => {
       const result = LayoutSchema.safeParse(layout);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues.some((i) => /fit|too (tall|wide)/i.test(i.message))).toBe(
-          true,
-        );
+        expect(
+          result.error.issues.some((i) =>
+            /fit|too (tall|wide)/i.test(i.message),
+          ),
+        ).toBe(true);
       }
     });
 
@@ -395,7 +433,9 @@ describe("placeDevice store enforcement", () => {
     });
 
     expect(store.placeDevice(rackId, dt.slug, 5)).toBe(false);
-    expect(store.rack!.devices.some((d) => d.device_type === dt.slug)).toBe(false);
+    expect(store.rack!.devices.some((d) => d.device_type === dt.slug)).toBe(
+      false,
+    );
   });
 
   it("rejects a half-width full-height device placed directly via placeDevice", () => {
@@ -422,7 +462,9 @@ describe("placeDevice store enforcement", () => {
     });
 
     expect(store.placeDevice(rackId, dt.slug, 5)).toBe(true);
-    expect(store.rack!.devices.some((d) => d.device_type === dt.slug)).toBe(true);
+    expect(store.rack!.devices.some((d) => d.device_type === dt.slug)).toBe(
+      true,
+    );
   });
 
   it("places a sub-U blank panel directly via placeDevice (exemption)", () => {
@@ -435,7 +477,9 @@ describe("placeDevice store enforcement", () => {
     });
 
     expect(store.placeDevice(rackId, dt.slug, 5)).toBe(true);
-    expect(store.rack!.devices.some((d) => d.device_type === dt.slug)).toBe(true);
+    expect(store.rack!.devices.some((d) => d.device_type === dt.slug)).toBe(
+      true,
+    );
   });
 });
 
@@ -455,8 +499,18 @@ describe("moveDevice store enforcement (carrier-first parity)", () => {
       category: "shelf",
       colour: CATEGORY_COLOURS.shelf,
       slots: [
-        { id: "col-1", position: { row: 0, col: 0 }, width_fraction: 0.5, height_units: 1 },
-        { id: "col-2", position: { row: 0, col: 1 }, width_fraction: 0.5, height_units: 1 },
+        {
+          id: "col-1",
+          position: { row: 0, col: 0 },
+          width_fraction: 0.5,
+          height_units: 1,
+        },
+        {
+          id: "col-2",
+          position: { row: 0, col: 1 },
+          width_fraction: 0.5,
+          height_units: 1,
+        },
       ],
     });
     const childType = store.addDeviceType({
@@ -472,7 +526,9 @@ describe("moveDevice store enforcement (carrier-first parity)", () => {
       (d) => d.device_type === carrierType.slug,
     )!;
     store.placeInContainer(rack.id, childType.slug, carrier.id, "col-1", 0);
-    const child = store.rack!.devices.find((d) => d.container_id === carrier.id)!;
+    const child = store.rack!.devices.find(
+      (d) => d.container_id === carrier.id,
+    )!;
     return {
       store,
       rackId: rack.id,

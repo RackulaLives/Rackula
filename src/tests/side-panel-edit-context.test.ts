@@ -34,9 +34,7 @@ describe("Edit tab contextual properties (#2077)", () => {
   it("shows the empty state and an Edit heading when nothing is selected", () => {
     renderEditTab();
 
-    expect(
-      screen.getByTestId("side-panel-edit-empty"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("side-panel-edit-empty")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /^edit$/i }),
     ).toBeInTheDocument();

@@ -72,7 +72,10 @@ export function nudgeCheckpointToFire(
   hasEverExported: boolean,
   lastNudgedCheckpoint: number,
 ): number | null {
-  const checkpoint = currentNudgeCheckpoint(changesSinceExport, hasEverExported);
+  const checkpoint = currentNudgeCheckpoint(
+    changesSinceExport,
+    hasEverExported,
+  );
   if (checkpoint === 0) return null;
   if (checkpoint <= lastNudgedCheckpoint) return null;
   return checkpoint;

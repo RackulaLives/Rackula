@@ -260,12 +260,7 @@
 <defs>
   <!-- Crosshatch pattern for blocked slots - uses two overlapping diagonal line sets
        for better visibility and accessibility (not relying solely on color) -->
-  <pattern
-    id={patternId}
-    patternUnits="userSpaceOnUse"
-    width="8"
-    height="8"
-  >
+  <pattern id={patternId} patternUnits="userSpaceOnUse" width="8" height="8">
     <!-- First diagonal (top-left to bottom-right) -->
     <line
       x1="0"

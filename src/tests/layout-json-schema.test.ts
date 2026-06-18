@@ -38,7 +38,8 @@ describe("layout JSON Schema artifact", () => {
     // Structural equality above misses key-order and formatting drift; the
     // published file is what ships, so compare its exact bytes against what the
     // generator would write. If this fails, run `npm run generate-schema`.
-    const expected = JSON.stringify(assembleSchema(z, LayoutSchema), null, 2) + "\n";
+    const expected =
+      JSON.stringify(assembleSchema(z, LayoutSchema), null, 2) + "\n";
     expect(raw).toBe(expected);
   });
 

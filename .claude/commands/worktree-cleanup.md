@@ -36,12 +36,12 @@ Report current state before any changes.
 
 For each worktree (except main), determine status:
 
-| Status   | Criteria                                     | Action          |
-| -------- | -------------------------------------------- | --------------- |
-| Active   | Has uncommitted changes                      | Skip, warn user |
-| Merged   | Branch merged to main (check with `gh pr`)   | Safe to remove  |
-| Orphaned | Remote branch deleted (`gone]` in branch -vv)| Safe to remove  |
-| Stale    | No commits in 7+ days, no open PR            | Ask user        |
+| Status   | Criteria                                      | Action          |
+| -------- | --------------------------------------------- | --------------- |
+| Active   | Has uncommitted changes                       | Skip, warn user |
+| Merged   | Branch merged to main (check with `gh pr`)    | Safe to remove  |
+| Orphaned | Remote branch deleted (`gone]` in branch -vv) | Safe to remove  |
+| Stale    | No commits in 7+ days, no open PR             | Ask user        |
 
 **Check for open PRs:**
 
@@ -67,6 +67,7 @@ git worktree prune
 ### 4. Summary
 
 Report:
+
 - Removed: N worktrees
 - Kept: M worktrees (with reasons for each)
 - Remaining branches: list any orphaned local branches
@@ -75,8 +76,7 @@ Report:
 
 ## Integration
 
-**References:** `superpowers:using-git-worktrees` for creation patterns
-**Called by:** `/dev-issue` (at session end), manually when needed
+**References:** `superpowers:using-git-worktrees` for creation patterns **Called by:** `/dev-issue` (at session end), manually when needed
 
 ---
 

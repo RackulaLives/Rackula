@@ -123,7 +123,6 @@ describe("Device Movement Utility", () => {
         expect(result.newPosition).toBe(toInternalUnits(9));
         expect(result.reason).toBe("moved");
       });
-
     });
 
     describe("Boundary Conditions", () => {

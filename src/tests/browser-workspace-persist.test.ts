@@ -122,7 +122,10 @@ describe("persistBrowserWorkspace", () => {
     });
 
     await persistBrowserWorkspace({
-      tabs: [tab({ layoutId: "a" }), tab({ layoutId: "b", changesSinceExport: 1 })],
+      tabs: [
+        tab({ layoutId: "a" }),
+        tab({ layoutId: "b", changesSinceExport: 1 }),
+      ],
       activeLayoutId: "a",
       isPaused: (layoutId) => layoutId === "b",
     });

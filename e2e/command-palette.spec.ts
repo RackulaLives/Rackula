@@ -347,8 +347,6 @@ test.describe("Command palette", () => {
     await expect(
       page.getByRole("dialog", { name: "Command palette" }),
     ).not.toBeVisible();
-    await expect(
-      page.getByRole("dialog", { name: "Settings" }),
-    ).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
   });
 });

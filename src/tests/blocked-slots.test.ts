@@ -194,5 +194,4 @@ describe("getBlockedSlots", () => {
       expect(blockedSlots.length).toBe(0);
     });
   });
-
 });

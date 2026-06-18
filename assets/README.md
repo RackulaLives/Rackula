@@ -2,11 +2,11 @@
 
 This project uses three directories for different types of assets:
 
-| Directory        | Purpose                             | Examples                            |
-| ---------------- | ----------------------------------- | ----------------------------------- |
-| `assets/`        | Brand materials for docs/README     | Lockups, icons, hero GIF            |
-| `assets-source/` | Raw device images before processing | Unprocessed hardware photos         |
-| `static/`        | Web-served static files             | Favicons, fonts, badges, brand SVGs |
+| Directory | Purpose | Examples |
+| --- | --- | --- |
+| `assets/` | Brand materials for docs/README | Lockups, icons, hero GIF |
+| `assets-source/` | Raw device images before processing | Unprocessed hardware photos |
+| `static/` | Web-served static files | Favicons, fonts, badges, brand SVGs |
 
 ## Guidelines
 

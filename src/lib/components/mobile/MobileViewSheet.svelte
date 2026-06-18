@@ -36,9 +36,7 @@
     { value: "image", label: "Image" },
     { value: "image-label", label: "Image + Label" },
   ];
-  const themeLabel = $derived(
-    `Theme (${theme === "dark" ? "Dark" : "Light"})`,
-  );
+  const themeLabel = $derived(`Theme (${theme === "dark" ? "Dark" : "Light"})`);
 
   function handleDisplayModeChange(mode: DisplayMode) {
     ondisplaymodechange?.(mode);

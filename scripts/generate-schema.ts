@@ -105,9 +105,9 @@ export function assembleSchema(
 async function main(): Promise<void> {
   // version.ts reads the Vite-injected __APP_VERSION__ global, which only exists
   // in a build. Provide it from package.json before importing the schema graph.
-  const pkg = JSON.parse(
-    readFileSync(join(ROOT, "package.json"), "utf8"),
-  ) as { version: string };
+  const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
+    version: string;
+  };
   (globalThis as Record<string, unknown>).__APP_VERSION__ = pkg.version;
 
   const { z } = await import("$lib/zod.ts");

@@ -21,9 +21,7 @@ If applicable, add screenshots showing the changes.
 
 ## Accessibility
 
-For UI changes, confirm the gates in
-[ACCESSIBILITY.md](/docs/guides/ACCESSIBILITY.md#standards). Skip this section
-for non-UI PRs.
+For UI changes, confirm the gates in [ACCESSIBILITY.md](/docs/guides/ACCESSIBILITY.md#standards). Skip this section for non-UI PRs.
 
 - [ ] Meets WCAG 2.2 AA
 - [ ] Interactive controls on mobile surfaces are at least 44x44 CSS pixels

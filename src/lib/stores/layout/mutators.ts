@@ -351,9 +351,7 @@ export function updateDeviceContainerLinkageRaw(
   updateRackAtIndex(ctx, target.index, (rack) => ({
     ...rack,
     devices: rack.devices.map((d, i) =>
-      i === index
-        ? { ...d, container_id: containerId, slot_id: slotId }
-        : d,
+      i === index ? { ...d, container_id: containerId, slot_id: slotId } : d,
     ),
   }));
 }

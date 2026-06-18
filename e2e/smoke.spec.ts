@@ -112,7 +112,9 @@ test.describe("Smoke Tests - JavaScript Initialization", () => {
 
     // Verify critical components are present
     // Toolbar
-    await expect(page.locator(locators.toolbar.root)).toBeVisible({ timeout: 10000 });
+    await expect(page.locator(locators.toolbar.root)).toBeVisible({
+      timeout: 10000,
+    });
 
     // Rack view (dual-view has two containers)
     await expect(page.locator(locators.rack.container).first()).toBeVisible();

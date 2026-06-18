@@ -41,7 +41,13 @@ export async function exportAsZip(
     onProgress?.({ current: i + 1, total: racks.length, rackName: rack.name });
 
     // Generate SVG for this rack
-    const svg = generateSingleRackSVG(rack, deviceLibrary, options, images, layoutId);
+    const svg = generateSingleRackSVG(
+      rack,
+      deviceLibrary,
+      options,
+      images,
+      layoutId,
+    );
 
     // Convert to the requested format
     let blob: Blob;
@@ -111,7 +117,13 @@ export async function exportAsMultiPagePDF(
     onProgress?.({ current: i + 1, total: racks.length, rackName: rack.name });
 
     // Generate SVG for this rack
-    const svg = generateSingleRackSVG(rack, deviceLibrary, options, images, layoutId);
+    const svg = generateSingleRackSVG(
+      rack,
+      deviceLibrary,
+      options,
+      images,
+      layoutId,
+    );
 
     // Parse SVG to get dimensions
     const imgWidth = parseInt(svg.getAttribute("width") || "0", 10);

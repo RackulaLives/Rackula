@@ -22,4 +22,4 @@
  * </Accordion.Root>
  * ```
  */
-export { Accordion } from 'bits-ui';
+export { Accordion } from "bits-ui";

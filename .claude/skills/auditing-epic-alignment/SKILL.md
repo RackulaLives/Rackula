@@ -14,7 +14,7 @@ GitHub-specific (sub-issues API, milestones). For Jira/GitLab/Linear, adapt the 
 ## Drift Types
 
 | Drift | How to detect | Fix |
-|---|---|---|
+| --- | --- | --- |
 | Stale checkbox | child state != body checkbox | correct the body |
 | Misfiled issue | child milestone != epic's | relocate or re-note |
 | False blocker | claimed dep already met at the artifact level | remove the dep, document why |
@@ -28,7 +28,7 @@ GitHub-specific (sub-issues API, milestones). For Jira/GitLab/Linear, adapt the 
 Load the matching skill to judge whether the epic's acceptance criteria and non-goals are complete and current. You are auditing alignment, not writing the work.
 
 | Audited scope | Skill |
-|---|---|
+| --- | --- |
 | auth, tokens, data ingress, serialization | /secure-coding |
 | UI, components, accessibility | /frontend-design:frontend-design |
 | splitting or re-phasing scope | /superpowers:brainstorming |

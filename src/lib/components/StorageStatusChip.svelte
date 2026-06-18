@@ -22,10 +22,7 @@
     handleExportAll,
     handleSaveAsArchive,
   } from "$lib/storage";
-  import {
-    maybeSaveAs,
-    shouldShowCleanupPrompt,
-  } from "$lib/utils/app-actions";
+  import { maybeSaveAs, shouldShowCleanupPrompt } from "$lib/utils/app-actions";
   import { evaluateBackupNudge, NUDGE_MESSAGE } from "$lib/utils/backup-nudge";
   import "$lib/styles/menu.css";
 
@@ -36,9 +33,7 @@
   // Storage mode is fixed for the session (read once from runtime config), so
   // the export-all framing is computed up front rather than tracked reactively.
   const isServerMode = getStorageMode() === "server";
-  const exportAllLabel = isServerMode
-    ? "Export a copy"
-    : "Back up all layouts";
+  const exportAllLabel = isServerMode ? "Export a copy" : "Back up all layouts";
   const exportAllSubtext = isServerMode
     ? `Your layouts are stored on ${getServerInstanceLabel()}; this makes a portable copy.`
     : null;

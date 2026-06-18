@@ -1,6 +1,6 @@
 name: Research Spike
 description: Research or investigation task before implementation
-labels: ['triage']
+labels: ["triage"]
 type: Spike
 body:
   - type: markdown
@@ -47,6 +47,6 @@ body:
     attributes:
       label: Time Box
       description: How much time should be spent on this research?
-      placeholder: '2-4 hours'
+      placeholder: "2-4 hours"
     validations:
       required: false
