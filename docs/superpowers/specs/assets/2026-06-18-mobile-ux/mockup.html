@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rackula mobile mockup</title>
+<style>
+  :root {
+    --bg: #16161c;            /* near-black canvas */
+    --bg-darker: #21222c;
+    --surface: #282a36;
+    --surface-light: #343746;
+    --surface-lighter: #424450;
+    --selection: #44475a;
+    --pink: #ff79c6;
+    --pink-muted: #c45b9a;
+    --purple: #bd93f9;
+    --cyan: #8be9fd;
+    --green: #50fa7b;
+    --red: #ff5555;
+    --text: #f8f8f2;
+    --muted: #9a9a9a;
+    --comment: #6272a4;
+    --border: #343746;
+    --radius: 10px;
+    --radius-sm: 7px;
+    font-family: -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 834px; height: 1180px; }
+  body { background: var(--bg); color: var(--text); overflow: hidden; }
+  .app { display: flex; flex-direction: column; height: 1180px; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: relative;
+    height: 60px; flex: 0 0 60px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; background: var(--bg-darker);
+    border-bottom: 1px solid var(--border);
+  }
+  .tb-left { display: flex; align-items: center; gap: 18px; }
+  .tb-right { display: flex; align-items: center; }
+  .logo {
+    width: 46px; height: 46px; border-radius: 11px; background: var(--surface-light);
+    display: grid; place-items: center; color: var(--purple); font-size: 22px;
+    border: 1px solid var(--border);
+  }
+  .iconbtn { width: 46px; height: 46px; border-radius: 11px; display: grid; place-items: center;
+    color: var(--muted); font-size: 19px; }
+  .iconbtn.boxed { background: var(--surface-light); border: 1px solid var(--border); }
+  .layoutname { font-size: 19px; font-weight: 600; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%); white-space: nowrap; }
+  .layoutname .chev { color: var(--muted); font-size: 13px; }
+  .spacer { flex: 1; }
+  .undoredo { display: flex; gap: 4px; }
+  .undoredo .iconbtn { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; }
+  .chip { display: flex; align-items: center; gap: 8px; padding: 10px 15px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border); font-size: 14px; color: var(--text); }
+  .chip .dot { width: 9px; height: 9px; border-radius: 50%; background: #ffb86c; }
+  .chip-target { color: var(--muted); }
+  .canvas-history { position: absolute; left: 26px; bottom: 22px; display: flex; gap: 8px; }
+  .histbtn { width: 64px; height: 64px; border-radius: 12px; background: var(--bg-darker);
+    border: 1px solid var(--border); display: grid; place-items: center; font-size: 26px; color: var(--text);
+    box-shadow: 0 5px 16px rgba(0,0,0,0.45); }
+  body[data-mode="placement"] .canvas-history { display: none; }
+
+  /* placement banner replaces the top bar in placement mode */
+  .banner {
+    height: 60px; flex: 0 0 60px; display: none; align-items: center; gap: 12px;
+    padding: 0 20px; background: rgba(189,147,249,0.14);
+    border-bottom: 1px solid var(--purple); font-size: 18px; font-weight: 600;
+  }
+  .banner .dot { color: var(--purple); font-size: 22px; }
+  .banner .cancel { margin-left: auto; padding: 11px 18px; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px; }
+
+  /* ---------- canvas ---------- */
+  .canvas { flex: 1; position: relative; display: flex; flex-direction: column;
+    align-items: center; padding-top: 40px; }
+  .title { color: var(--pink); font-size: 32px; font-weight: 700; margin-bottom: 30px; letter-spacing: .3px; }
+  .racks { display: flex; gap: 46px; }
+  .rack { width: 300px; background: rgba(40,42,54,0.45); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 14px 18px; }
+  .rack h3 { text-align: center; color: var(--muted); font-size: 15px; letter-spacing: 3px;
+    font-weight: 600; margin-bottom: 12px; }
+  .slot { display: flex; align-items: center; gap: 10px; height: 38px; margin-bottom: 5px; }
+  .u { width: 16px; text-align: right; color: var(--comment); font-size: 13px; flex: 0 0 16px; }
+  .dev { flex: 1; height: 36px; border-radius: 7px; display: flex; align-items: center;
+    gap: 10px; padding: 0 12px; color: #fff; font-size: 16px; font-weight: 600;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+  .dev .ic { width: 20px; height: 20px; flex: 0 0 20px; opacity: .92; }
+  .dev.firewall { background: linear-gradient(180deg,#e0574f,#c93f37); }
+  .dev.switch { background: linear-gradient(180deg,#7468ad,#665aa3); }
+  .dev.cable { background: linear-gradient(180deg,#5566a6,#4a5b9c); }
+  .dev.pdu { background: linear-gradient(180deg,#a85050,#8f4242); }
+  .empty { flex: 1; height: 36px; border-radius: 7px; border: 1px dashed rgba(196,91,154,0.5); }
+  .gesture { margin-top: 26px; color: var(--muted); font-size: 14px; }
+
+  /* floating canvas controls (zoom lives here, not in the nav) */
+  .canvas-fit { position: absolute; right: 26px; bottom: 22px; display: flex;
+    flex-direction: column; align-items: center; gap: 6px; }
+  .fitbtn { width: 54px; height: 54px; border-radius: 999px; background: var(--bg-darker);
+    border: 1px solid var(--border); display: grid; place-items: center; color: var(--text);
+    font-size: 24px; box-shadow: 0 5px 16px rgba(0,0,0,0.45); }
+  .zoomread { font-size: 12px; color: var(--muted); }
+  body[data-mode="placement"] .canvas-fit { display: none; }
+
+  /* selected + valid-slot states */
+  body[data-mode="edit"] #u8 .dev { box-shadow: 0 0 0 2px var(--pink); }
+  body[data-mode="placement"] .empty.valid {
+    border: 1px solid var(--green); background: rgba(80,250,123,0.13);
+  }
+
+  /* ---------- bottom nav (view) ---------- */
+  .bottomnav { height: 78px; flex: 0 0 78px; display: none; align-items: center;
+    justify-content: space-around; background: var(--bg-darker); border-top: 1px solid var(--border);
+    padding-bottom: 6px; }
+  .navitem { display: flex; flex-direction: column; align-items: center; gap: 5px;
+    color: var(--muted); font-size: 13px; }
+  .navitem .ic { width: 24px; height: 24px; display: grid; place-items: center; }
+  .navitem.active { color: var(--text); }
+
+  /* ---------- inspector sheet (edit) ---------- */
+  .sheet { display: none; flex: 0 0 auto; background: var(--bg-darker);
+    border-top: 1px solid var(--border); border-radius: 18px 18px 0 0; padding: 18px 22px 26px; }
+  .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--selection);
+    margin: 0 auto 16px; }
+  .sheet .head { display: flex; align-items: center; }
+  .sheet .head .name { font-size: 22px; font-weight: 700; }
+  .sheet .head .x { margin-left: auto; color: var(--muted); font-size: 22px; }
+  .sheet .sub { color: var(--muted); font-size: 15px; margin: 4px 0 18px; }
+  .verbs { display: flex; gap: 10px; margin-bottom: 18px; }
+  .verb { flex: 1; height: 50px; border-radius: 11px; background: var(--surface-light);
+    border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+    gap: 7px; font-size: 15px; font-weight: 600; color: var(--text); }
+  .verb .ic { width: 18px; height: 18px; }
+  .field { display: flex; align-items: center; height: 48px; border-bottom: 1px solid var(--border);
+    font-size: 16px; }
+  .field .lab { width: 70px; color: var(--muted); }
+  .field .val { flex: 1; }
+  .field .pen { color: var(--muted); font-size: 15px; }
+  .sheet .foot { display: flex; align-items: center; margin-top: 18px; }
+  .more { color: var(--muted); font-size: 15px; }
+  .remove { margin-left: auto; display: flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 9px; border: 1px solid #6e3a3a;
+    background: rgba(168,74,74,0.18); color: #ff9b9b; font-size: 15px; font-weight: 600; }
+
+  /* view-options sheet (option C: zoom/fit/display live here) */
+  .seg { display: flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; flex: 1; height: 66px; }
+  .seg span { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--muted); }
+  .seg span.on { background: var(--surface-light); color: var(--text); font-weight: 600; }
+  .vrow { display: flex; align-items: center; gap: 16px; height: 92px; border-bottom: 1px solid var(--border); font-size: 16px; }
+  .vrow .lab { width: 86px; color: var(--muted); flex: 0 0 86px; }
+  .stepper { display: flex; align-items: center; flex: 1; border: 1px solid var(--border);
+    border-radius: 9px; overflow: hidden; }
+  .stepper .pm { width: 98px; height: 66px; display: grid; place-items: center; font-size: 30px;
+    background: var(--surface-light); color: var(--text); }
+  .stepper .val { flex: 1; text-align: center; height: 66px; line-height: 66px; font-size: 18px;
+    border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  .vrow.tall { height: 92px; border-bottom: none; gap: 14px; }
+  .fitinline { height: 66px; padding: 0 24px; border-radius: 10px; background: var(--surface-light);
+    border: 1px solid var(--border); color: var(--text); font-size: 16px; font-weight: 600;
+    display: flex; align-items: center; gap: 9px; flex: 0 0 auto; }
+  .lockswitch { width: 58px; height: 34px; border-radius: 9px; background: var(--surface-light);
+    border: 1px solid var(--border); position: relative; flex: 0 0 auto; }
+  .lockswitch .knob { position: absolute; top: 3px; left: 4px; width: 26px; height: 26px; border-radius: 5px;
+    background: var(--muted); }
+  .lrow { display: flex; align-items: center; justify-content: space-between; height: 66px;
+    border-bottom: 1px solid var(--border); font-size: 17px; padding: 0 4px; }
+  .lrow .meta { color: var(--muted); font-size: 14px; }
+  .lrow.current { border-left: 3px solid var(--pink); padding-left: 12px; margin-left: -4px; }
+  .lrow.current .meta { color: var(--pink); }
+  .newrow { margin-top: 18px; height: 60px; width: 100%; border-radius: 10px; border: 1px dashed var(--border);
+    background: transparent; color: var(--text); font-size: 16px; font-weight: 600; }
+  .fitrow { display: flex; align-items: center; justify-content: space-between; height: 64px; margin-top: 4px; }
+  .fitrow .cap { color: var(--muted); font-size: 15px; }
+  .fitbig { display: flex; align-items: center; gap: 9px; padding: 12px 20px; border-radius: 10px;
+    background: var(--surface-light); border: 1px solid var(--border); font-size: 16px; font-weight: 600; }
+
+  .phone-note { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+    color: var(--comment); font-size: 12px; }
+</style>
+</head>
+<body data-mode="view">
+<div class="app">
+
+  <!-- TOP BAR (view / edit) -->
+  <div class="topbar" id="topbar">
+    <div class="tb-left">
+      <div class="logo">&#9776;</div>
+      <div class="iconbtn boxed"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="20.5" y1="20.5" x2="16.5" y2="16.5"></line></svg></div>
+    </div>
+    <div class="layoutname">Network Closet</div>
+    <div class="tb-right">
+      <div class="chip"><span class="dot"></span>Unsaved <span class="chip-target">&middot; Browser</span></div>
+    </div>
+  </div>
+
+  <!-- PLACEMENT BANNER -->
+  <div class="banner" id="banner">
+    <span class="dot">&#10753;</span> Placing: PowerEdge R320 (1U)
+    <span class="cancel">Cancel</span>
+  </div>
+
+  <!-- CANVAS (shared) -->
+  <div class="canvas">
+    <div class="title">Network Closet</div>
+    <div class="racks">
+      <div class="rack">
+        <h3>FRONT</h3>
+        <div class="slot"><span class="u">9</span><div class="dev firewall"><span class="ic">&#9670;</span>Edge Firewall</div></div>
+        <div class="slot" id="u8"><span class="u">8</span><div class="dev switch"><span class="ic">&#9776;</span>Access Switch A</div></div>
+        <div class="slot"><span class="u">7</span><div class="dev cable"><span class="ic">&#8767;</span>Cable Manager</div></div>
+        <div class="slot"><span class="u">6</span><div class="dev switch"><span class="ic">&#9776;</span>Access Switch B</div></div>
+        <div class="slot"><span class="u">5</span><div class="dev cable"><span class="ic">&#8767;</span>Cable Manager</div></div>
+        <div class="slot"><span class="u">4</span><div class="empty valid"></div></div>
+        <div class="slot"><span class="u">3</span><div class="empty valid"></div></div>
+        <div class="slot"><span class="u">2</span><div class="empty valid"></div></div>
+        <div class="slot"><span class="u">1</span><div class="dev pdu"><span class="ic">&#9889;</span>PDU</div></div>
+      </div>
+      <div class="rack">
+        <h3>REAR</h3>
+        <div class="slot"><span class="u">9</span><div class="empty"></div></div>
+        <div class="slot"><span class="u">8</span><div class="empty"></div></div>
+        <div class="slot"><span class="u">7</span><div class="empty"></div></div>
+        <div class="slot"><span class="u">6</span><div class="empty"></div></div>
+        <div class="slot"><span class="u">5</span><div class="empty"></div></div>
+        <div class="slot"><span class="u">4</span><div class="empty"></div></div>
+        <div class="slot"><span class="u">3</span><div class="empty"></div></div>
+        <div class="slot"><span class="u">2</span><div class="empty"></div></div>
+        <div class="slot"><span class="u">1</span><div class="empty"></div></div>
+      </div>
+    </div>
+    <div class="gesture" id="gesture">pinch to zoom &middot; two-finger pan &middot; double-tap to fit</div>
+    <div class="canvas-history"><div class="histbtn">&#8634;</div><div class="histbtn">&#8635;</div></div>
+  </div>
+
+  <!-- BOTTOM NAV (view) -->
+  <div class="bottomnav" id="bottomnav">
+    <div class="navitem active"><span class="ic">&#9636;</span>Layouts</div>
+    <div class="navitem"><span class="ic">&#9707;</span>Racks</div>
+    <div class="navitem"><span class="ic">&#9783;</span>Devices</div>
+    <div class="navitem"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>View</div>
+  </div>
+
+  <!-- INSPECTOR SHEET (edit) -->
+  <div class="sheet" id="sheet">
+    <div class="grab"></div>
+    <div class="head"><span class="name">Access Switch A</span><span class="x">&#10005;</span></div>
+    <div class="sub">Switch (48-Port) &middot; 1U &middot; U8 &middot; Front</div>
+    <div class="verbs">
+      <div class="verb"><span class="ic">&#9650;</span>Up</div>
+      <div class="verb"><span class="ic">&#9660;</span>Down</div>
+      <div class="verb"><span class="ic">&#8646;</span>Flip</div>
+      <div class="verb"><span class="ic">&#10697;</span>Duplicate</div>
+    </div>
+    <div class="field"><span class="lab">Name</span><span class="val">Access Switch A</span><span class="pen">&#9998;</span></div>
+    <div class="field"><span class="lab">IP</span><span class="val" style="color:var(--muted)">e.g. 192.168.1.10</span><span class="pen">&#9998;</span></div>
+    <div class="foot"><span class="more">&#8943; More fields</span><span class="remove">&#128465; Remove</span></div>
+  </div>
+
+  <!-- VIEW OPTIONS SHEET (option C) -->
+  <div class="sheet" id="viewsheet">
+    <div class="grab"></div>
+    <div class="head"><span class="name">View</span><span class="x">&#10005;</span></div>
+    <div style="height:14px"></div>
+    <div class="vrow"><span class="lab">Display</span>
+      <div class="seg"><span class="on">Labels</span><span>Images</span><span>Both</span></div></div>
+    <div class="vrow"><span class="lab">Read-only</span>
+      <span class="cap" style="flex:1">Lock the layout for viewing</span>
+      <div class="lockswitch"><span class="knob"></span></div></div>
+    <div class="vrow tall"><span class="lab">Zoom</span>
+      <div class="stepper"><div class="pm">&#8722;</div><div class="val">100%</div><div class="pm">&#43;</div></div>
+      <button class="fitinline">&#10530; Fit to screen</button></div>
+  </div>
+
+  <!-- LAYOUTS SHEET (from the bottom Layouts tab) -->
+  <div class="sheet" id="layoutsheet">
+    <div class="grab"></div>
+    <div class="head"><span class="name">Layouts</span><span class="x">&#10005;</span></div>
+    <div style="height:10px"></div>
+    <div class="lrow current"><span>Network Closet</span><span class="meta">2 racks &middot; current</span></div>
+    <div class="lrow"><span>Home Lab</span><span class="meta">1 rack</span></div>
+    <div class="lrow"><span>Studio Rack</span><span class="meta">3 racks</span></div>
+    <button class="newrow">+ New layout</button>
+  </div>
+
+</div>
+<script>
+  const mode = new URLSearchParams(location.search).get('mode') || 'view';
+  document.body.dataset.mode = mode;
+  const show = (id, on, disp='flex') => { const e=document.getElementById(id); if(e) e.style.display = on?disp:'none'; };
+  show('layoutsheet', false);
+  if (mode === 'view') {
+    show('bottomnav', true); show('sheet', false); show('viewsheet', false); show('topbar', true); show('banner', false);
+  } else if (mode === 'edit') {
+    show('bottomnav', false); show('sheet', true, 'block'); show('viewsheet', false); show('topbar', true); show('banner', false);
+    document.getElementById('gesture').style.display='none';
+  } else if (mode === 'placement') {
+    show('bottomnav', false); show('sheet', false); show('viewsheet', false); show('topbar', false); show('banner', true);
+    document.getElementById('gesture').textContent = 'canvas pan paused while placing';
+  } else if (mode === 'viewopts') {
+    show('bottomnav', false); show('sheet', false); show('viewsheet', true, 'block'); show('topbar', true); show('banner', false);
+  } else if (mode === 'layouts') {
+    show('bottomnav', false); show('sheet', false); show('viewsheet', false); show('layoutsheet', true, 'block'); show('topbar', true); show('banner', false);
+  }
+</script>
+</body>
+</html>
