@@ -18,6 +18,10 @@ reviews:
     - "!**/dist/**"
     - "!**/*.snap"
     - "!**/package-lock.json"
+    # Vendored third-party skill loaded into the security-triage CI run as-is.
+    # Reviewing it against local doc style would diverge from its upstream source
+    # (BehiSecc/VibeSec-Skill); refresh it from upstream instead.
+    - "!.github/claude-plugins/**"
 
   # Enable auto-review on all PRs
   auto_review:
