@@ -63,6 +63,34 @@ describe("Edit tab contextual properties (#2077)", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("populates the panel for a selected rack even when a different rack is active", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+
+    // Two racks. Rack A is the active rack; rack B is the one the user selects
+    // via the canvas click target / title (#2407). Selection alone must populate
+    // the Edit panel, regardless of which rack the store considers active.
+    const rackA = layoutStore.addRack("Rack A", 42);
+    const rackB = layoutStore.addRack("Rack B", 24);
+    layoutStore.setActiveRack(rackA!.id);
+    selectionStore.selectRack(rackB!.id);
+
+    renderEditTab();
+
+    // The panel resolves to the SELECTED rack (B), not the empty state.
+    expect(
+      screen.getByRole("heading", { name: /^rack$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /delete rack/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("side-panel-edit-empty"),
+    ).not.toBeInTheDocument();
+    // The body shows rack B's properties: its name appears in the name field.
+    expect(screen.getByDisplayValue("Rack B")).toBeInTheDocument();
+  });
+
   it("names a bayed rack group as the multi-rack selection", () => {
     const layoutStore = getLayoutStore();
     const selectionStore = getSelectionStore();
