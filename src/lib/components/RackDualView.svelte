@@ -19,6 +19,8 @@
   import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
   import { appDebug } from "$lib/utils/debug";
   import { hapticTap } from "$lib/utils/haptics";
+  import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import { getPlacementStore } from "$lib/stores/placement.svelte";
 
   interface Props {
     rack: RackType;
@@ -116,6 +118,9 @@
     ondelete,
   }: Props = $props();
 
+  const canvasStore = getCanvasStore();
+  const placementStore = getPlacementStore();
+
   // Element reference for long press
   let containerElement: HTMLDivElement | null = $state(null);
   const rackDualLongPressDebug = appDebug.mobile.extend("rack-dual-view");
@@ -211,8 +216,27 @@
     }
   }
 
-  // Note: Selection is handled by the Rack component's onselect callback
-  // No need for separate click handlers on wrapper divs
+  function handleContainerClick(event: MouseEvent) {
+    // Clicks on the rack views (front/rear) are handled by the Rack component.
+    // Only clicks on the container's own chrome (the rack name and the padding
+    // around the views) reach here unhandled. Without this they merely focus
+    // the container, whose focus outline is the same colour and weight as the
+    // selection outline, so the rack looks selected while the Edit panel stays
+    // empty (#2407). Select the rack so the chrome is a real click target,
+    // consistent with the keyboard handler above.
+    if (
+      event.target instanceof Element &&
+      event.target.closest(
+        '[data-testid="rack-front"], [data-testid="rack-rear"]',
+      )
+    ) {
+      return;
+    }
+    // Mirror Rack's guards so a post-pan synthetic click or a click during
+    // device placement does not select the rack from its chrome.
+    if (canvasStore.isPanning || placementStore.isPlacing) return;
+    handleSelect();
+  }
 
   // Handle device drop on front view - add face: 'front' to the event
   function handleFrontDeviceDrop(
@@ -275,6 +299,7 @@
       : 'front view only'}{isActive ? ', active' : ''}{selected
       ? ', selected'
       : ''}"
+    onclick={handleContainerClick}
     onkeydown={handleKeyDown}
     style:--long-press-progress={longPressProgress}
   >
