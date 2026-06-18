@@ -26,7 +26,7 @@ cd "$REPO_ROOT"
 # Resolve the previous released tag (newest v* tag not pointing at HEAD).
 OLD_TAG="${OLD_TAG:-}"
 if [[ -z "$OLD_TAG" ]]; then
-  head_tag="$(git tag --points-at HEAD --list 'v*' | head -1 || true)"
+  head_tag="$(git tag --points-at HEAD --list 'v*' --sort=-v:refname | head -1 || true)"
   while IFS= read -r t; do
     [[ -z "$t" ]] && continue
     if [[ "$t" != "$head_tag" ]]; then OLD_TAG="$t"; break; fi
@@ -48,9 +48,11 @@ API_PORT=13001
 cleanup() {
   docker rm -f "${PROJECT}-api" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
+  docker volume rm "$VOLUME" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
+docker volume rm "$VOLUME" >/dev/null 2>&1 || true
 docker volume create "$VOLUME" >/dev/null
 docker network create "$NET" >/dev/null 2>&1 || true
 
