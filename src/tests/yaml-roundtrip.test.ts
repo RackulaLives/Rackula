@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { serializeLayoutToYaml, parseLayoutYaml } from "$lib/utils/yaml";
+import {
+  serializeLayoutToYaml,
+  serializeLayoutToYamlWithMetadata,
+  parseLayoutYaml,
+} from "$lib/utils/yaml";
 import type { DeviceType } from "$lib/types";
 import {
   createTestContainerChild,
@@ -101,6 +105,83 @@ describe("YAML layout round-trip", () => {
     const child = restored.racks[0]?.devices.find((d) => d.id === "child-1");
     expect(child?.container_id).toBe("container-1");
     expect(child?.slot_id).toBe("slot-left");
+  });
+});
+
+describe("YAML editor schema hint (#2230)", () => {
+  // Asserted via startsWith/string equality on a captured variable rather than a
+  // `toBe("#...")` literal: the latter trips the no-restricted-syntax hardcoded
+  // colour rule (any first arg matching /^#/), a false positive for a YAML
+  // comment line.
+  const HINT_PREFIX = "# yaml-language-server: $schema=";
+
+  it("prepends a yaml-language-server $schema comment as the first line for a v1 layout", async () => {
+    const layout = createTestLayout({
+      metadata: {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Test Layout",
+        schema_version: "1.0",
+      },
+    });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    const firstLine = yaml.split("\n")[0];
+    const expected = `${HINT_PREFIX}https://count.racku.la/schemas/layout-v1.json`;
+
+    expect(firstLine.startsWith(HINT_PREFIX)).toBe(true);
+    expect(firstLine === expected).toBe(true);
+  });
+
+  it("derives the schema URL MAJOR from the layout's schema_version", async () => {
+    const layout = createTestLayout({
+      metadata: {
+        id: "22222222-2222-4222-8222-222222222222",
+        name: "Future Layout",
+        schema_version: "2.3",
+      },
+    });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    const firstLine = yaml.split("\n")[0];
+    const expected = `${HINT_PREFIX}https://count.racku.la/schemas/layout-v2.json`;
+
+    expect(firstLine === expected).toBe(true);
+  });
+
+  it("defaults to MAJOR 1 when schema_version is absent", async () => {
+    // createTestLayout has no metadata block, so there is no schema_version.
+    const yaml = await serializeLayoutToYaml(createTestLayout());
+    const firstLine = yaml.split("\n")[0];
+    const expected = `${HINT_PREFIX}https://count.racku.la/schemas/layout-v1.json`;
+
+    expect(firstLine === expected).toBe(true);
+  });
+
+  it("still round-trips cleanly with the comment prepended", async () => {
+    const layout = createTestLayout({ name: "Round Trip Lab" });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    const restored = await parseLayoutYaml(yaml);
+
+    expect(restored.name).toBe("Round Trip Lab");
+  });
+
+  it("prepends the hint on the folder-ZIP metadata export path too", async () => {
+    // The .rackula.yaml inside a folder ZIP is an editor-openable export, so it
+    // carries the same hint, derived from the metadata's schema_version.
+    const yaml = await serializeLayoutToYamlWithMetadata(createTestLayout(), {
+      id: "33333333-3333-4333-8333-333333333333",
+      name: "Archive Lab",
+      schema_version: "1.0",
+    });
+    const firstLine = yaml.split("\n")[0];
+    const expected = `${HINT_PREFIX}https://count.racku.la/schemas/layout-v1.json`;
+
+    expect(firstLine === expected).toBe(true);
+
+    // And the file still parses (the comment is ignored on read).
+    const restored = await parseLayoutYaml(yaml);
+    expect(restored.name).toBeTruthy();
   });
 });
 
