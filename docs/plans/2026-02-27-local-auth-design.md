@@ -1,9 +1,6 @@
 # Design Spec: Local Authentication Mode (#1117)
 
-**Status:** Draft
-**Date:** 2026-02-27
-**Issue:** [#1117](https://github.com/RackulaLives/Rackula/issues/1117)
-**Author:** Claude Code (design assist)
+**Status:** Draft **Date:** 2026-02-27 **Issue:** [#1117](https://github.com/RackulaLives/Rackula/issues/1117) **Author:** Claude Code (design assist)
 
 ---
 
@@ -46,25 +43,25 @@ RACKULA_LOCAL_PASSWORD=<plaintext>        # required, min 12 chars
 
 ### Approach A: Environment-Only (Recommended for MVP)
 
-| Aspect          | Detail                                                                  |
-| --------------- | ----------------------------------------------------------------------- |
-| How it works    | Credentials from env -> hashed once at startup -> stored in memory      |
-| Persistence     | Env vars persist in Docker/compose config; hash lives in process memory |
-| Password change | Requires container restart                                              |
-| Security        | Plaintext in env only; visible in `docker inspect` unless using secrets |
-| Complexity      | Zero — no files, no permissions, no volumes                             |
+| Aspect | Detail |
+| --- | --- |
+| How it works | Credentials from env -> hashed once at startup -> stored in memory |
+| Persistence | Env vars persist in Docker/compose config; hash lives in process memory |
+| Password change | Requires container restart |
+| Security | Plaintext in env only; visible in `docker inspect` unless using secrets |
+| Complexity | Zero — no files, no permissions, no volumes |
 
 **Fits the homelab model:** Homelabbers manage config through `.env` files and compose. This is their existing workflow for `RACKULA_AUTH_SESSION_SECRET`.
 
 ### Approach B: File-Based Storage (Deferred)
 
-| Aspect          | Detail                                                                   |
-| --------------- | ------------------------------------------------------------------------ |
-| How it works    | Hash written to `/app/data/local-auth.json` on persistent volume         |
-| Persistence     | Survives container replacement, not just restart                         |
-| Password change | Via API endpoint — no restart needed                                     |
-| Security        | File permissions must be locked down (600, root-only)                    |
-| Complexity      | Volume mount, bootstrap priority (env vs file conflict), backup concerns |
+| Aspect | Detail |
+| --- | --- |
+| How it works | Hash written to `/app/data/local-auth.json` on persistent volume |
+| Persistence | Survives container replacement, not just restart |
+| Password change | Via API endpoint — no restart needed |
+| Security | File permissions must be locked down (600, root-only) |
+| Complexity | Volume mount, bootstrap priority (env vs file conflict), backup concerns |
 
 **Why defer:** Adds operational complexity (volume mount, file permissions, env-vs-file priority resolution) for marginal benefit in single-admin context. Password changes are rare events; restart is acceptable.
 
@@ -97,8 +94,7 @@ saltLength: 16       (bytes, auto-generated)
 
 ### Route Change: `/auth/login`
 
-**Current (OIDC):** `GET /auth/login` -> API returns 302 redirect to IdP
-**Local:** `GET /auth/login` -> serve login HTML page; `POST /api/auth/login` -> validate credentials
+**Current (OIDC):** `GET /auth/login` -> API returns 302 redirect to IdP **Local:** `GET /auth/login` -> serve login HTML page; `POST /api/auth/login` -> validate credentials
 
 This is the key architectural difference. For local auth:
 
@@ -167,13 +163,13 @@ Same cookie format, same validation path. Auth gate sees no difference between l
 
 **Strategy:** In-memory sliding window per IP address.
 
-| Parameter    | Value                                      | Rationale                                    |
-| ------------ | ------------------------------------------ | -------------------------------------------- |
-| Window       | 60 seconds                                 | Short enough to not punish legitimate typos  |
-| Max attempts | 5 per window                               | Prevents brute force while allowing mistakes |
-| Lockout      | 60 seconds                                 | Auto-recovery, no admin intervention         |
-| Storage      | In-memory Map                              | Resets on restart (acceptable for homelab)   |
-| Cleanup      | Every 5 minutes, prune entries > 2 min old | Prevent memory bloat                         |
+| Parameter | Value | Rationale |
+| --- | --- | --- |
+| Window | 60 seconds | Short enough to not punish legitimate typos |
+| Max attempts | 5 per window | Prevents brute force while allowing mistakes |
+| Lockout | 60 seconds | Auto-recovery, no admin intervention |
+| Storage | In-memory Map | Resets on restart (acceptable for homelab) |
+| Cleanup | Every 5 minutes, prune entries > 2 min old | Prevent memory bloat |
 
 **IP extraction:** `x-real-ip` header (set by nginx) — same source as auth logger.
 
@@ -191,11 +187,11 @@ Rackula is a **plain Svelte 5 SPA** (not SvelteKit) — `src/main.ts` mounts `Ap
 
 **Recommended approach:** Build the login form as a **separate Vite entry point** (`src/login.ts` + `login.html`) that produces a standalone page. Nginx serves this page for `GET /auth/login` when `AUTH_MODE=local`.
 
-| Option                  | Approach                                                | Verdict                                                      |
-| ----------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| Option | Approach | Verdict |
+| --- | --- | --- |
 | A. Separate entry point | `login.html` + `src/login.ts` -> standalone Svelte page | **Recommended** — clean separation, nginx serves static file |
-| B. SPA route            | Conditional rendering in App.svelte based on URL        | Overcomplicated — requires SPA to load before showing login  |
-| C. Server-rendered      | API returns HTML from `GET /auth/login`                 | Mixes concerns — API shouldn't serve HTML                    |
+| B. SPA route | Conditional rendering in App.svelte based on URL | Overcomplicated — requires SPA to load before showing login |
+| C. Server-rendered | API returns HTML from `GET /auth/login` | Mixes concerns — API shouldn't serve HTML |
 
 ### Nginx Changes
 
@@ -248,13 +244,13 @@ The logout handler in `app.ts` validates the session cookie, invalidates the SID
 
 ### What Changes
 
-| Concern                | OIDC (current)                   | Local (new)                       |
-| ---------------------- | -------------------------------- | --------------------------------- |
-| `GET /auth/login`      | Proxied to API -> 302 to IdP     | Serve static `login.html`         |
-| `GET /auth/callback`   | Proxied to API (OIDC callback)   | Not used (return 404 or 501)      |
-| `POST /api/auth/login` | Not used                         | Proxied to API (credential check) |
-| Auth check probe       | Proxied to API `/api/auth/check` | **Same**                          |
-| Login redirect         | `302 /auth/login?next=...`       | **Same**                          |
+| Concern | OIDC (current) | Local (new) |
+| --- | --- | --- |
+| `GET /auth/login` | Proxied to API -> 302 to IdP | Serve static `login.html` |
+| `GET /auth/callback` | Proxied to API (OIDC callback) | Not used (return 404 or 501) |
+| `POST /api/auth/login` | Not used | Proxied to API (credential check) |
+| Auth check probe | Proxied to API `/api/auth/check` | **Same** |
+| Login redirect | `302 /auth/login?next=...` | **Same** |
 
 ### What Stays the Same
 
@@ -319,18 +315,18 @@ Existing: `RACKULA_AUTH_SESSION_COOKIE_SECURE=true` enforces HTTPS in production
 
 ## 11. Devil's Advocate Review
 
-| Challenge                                                        | Assessment                                                                                                                                                                                                                                 |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| "Argon2id is overkill for one account"                           | No. If the container env leaks (misconfigured volume mount, backup exposure), Argon2id makes offline cracking infeasible. The cost is ~200ms on startup — invisible.                                                                       |
-| "12-char minimum is annoying"                                    | Valid friction, but this is the only defence for a single-account system. Lower minimum = brute-forceable even with rate limiting. Document clearly.                                                                                       |
-| "Password in env = visible in docker inspect"                    | Real risk. Docker secrets (`_FILE` suffix) mitigate this. Document as recommended practice. MVP: env vars work; secrets are stretch goal.                                                                                                  |
-| "No password change UI?"                                         | Correct for MVP. Single admin changes password by updating env and restarting. Frequency: rarely. Adding password change requires file-based storage (deferred complexity).                                                                |
-| "What if they forget the password?"                              | Restart container with new `RACKULA_LOCAL_PASSWORD`. Same recovery path as forgetting `RACKULA_AUTH_SESSION_SECRET`. Document in troubleshooting.                                                                                          |
-| "Rate limiting resets on restart"                                | Acceptable. Attacker who can restart containers already has host access. The 5-per-60s window stops remote brute force during normal operation.                                                                                            |
-| "In-memory rate limit doesn't work for HA"                       | Correct, but Rackula single-instance is the target for local auth. HA deployments should use OIDC (external IdP handles brute force protection).                                                                                           |
+| Challenge | Assessment |
+| --- | --- |
+| "Argon2id is overkill for one account" | No. If the container env leaks (misconfigured volume mount, backup exposure), Argon2id makes offline cracking infeasible. The cost is ~200ms on startup — invisible. |
+| "12-char minimum is annoying" | Valid friction, but this is the only defence for a single-account system. Lower minimum = brute-forceable even with rate limiting. Document clearly. |
+| "Password in env = visible in docker inspect" | Real risk. Docker secrets (`_FILE` suffix) mitigate this. Document as recommended practice. MVP: env vars work; secrets are stretch goal. |
+| "No password change UI?" | Correct for MVP. Single admin changes password by updating env and restarting. Frequency: rarely. Adding password change requires file-based storage (deferred complexity). |
+| "What if they forget the password?" | Restart container with new `RACKULA_LOCAL_PASSWORD`. Same recovery path as forgetting `RACKULA_AUTH_SESSION_SECRET`. Document in troubleshooting. |
+| "Rate limiting resets on restart" | Acceptable. Attacker who can restart containers already has host access. The 5-per-60s window stops remote brute force during normal operation. |
+| "In-memory rate limit doesn't work for HA" | Correct, but Rackula single-instance is the target for local auth. HA deployments should use OIDC (external IdP handles brute force protection). |
 | "Separate Vite entry point for login page adds build complexity" | True, but cleaner than alternatives. SPA conditional rendering means loading the entire app before showing login (wasteful, flash of content). Server-rendered HTML from API mixes concerns. A separate entry point is ~50 lines of setup. |
-| "What about session fixation?"                                   | Non-issue. Session is created fresh after successful login. No pre-authentication session exists to fixate.                                                                                                                                |
-| "What about credential stuffing?"                                | Rate limiting + single known username = limited attack surface. Attacker must know the username AND brute force the password within rate limits.                                                                                           |
+| "What about session fixation?" | Non-issue. Session is created fresh after successful login. No pre-authentication session exists to fixate. |
+| "What about credential stuffing?" | Rate limiting + single known username = limited attack surface. Attacker must know the username AND brute force the password within rate limits. |
 
 ---
 
@@ -338,11 +334,11 @@ Existing: `RACKULA_AUTH_SESSION_COOKIE_SECURE=true` enforces HTTPS in production
 
 ### New Variables
 
-| Variable                      | When Required     | Default | Validation         |
-| ----------------------------- | ----------------- | ------- | ------------------ |
-| `RACKULA_LOCAL_USERNAME`      | `AUTH_MODE=local` | —       | Non-empty string   |
-| `RACKULA_LOCAL_PASSWORD`      | `AUTH_MODE=local` | —       | Min 12 characters  |
-| `RACKULA_LOCAL_PASSWORD_FILE` | Never (stretch)   | —       | Readable file path |
+| Variable | When Required | Default | Validation |
+| --- | --- | --- | --- |
+| `RACKULA_LOCAL_USERNAME` | `AUTH_MODE=local` | — | Non-empty string |
+| `RACKULA_LOCAL_PASSWORD` | `AUTH_MODE=local` | — | Min 12 characters |
+| `RACKULA_LOCAL_PASSWORD_FILE` | Never (stretch) | — | Readable file path |
 
 ### Existing Variables (No Changes)
 
@@ -354,20 +350,20 @@ Existing: `RACKULA_AUTH_SESSION_COOKIE_SECURE=true` enforces HTTPS in production
 
 ## 13. Files to Modify
 
-| File                                  | Change                                                                         |
-| ------------------------------------- | ------------------------------------------------------------------------------ |
-| `api/src/app.ts`                      | Add local auth login handler, conditional route registration                   |
-| `api/src/security.ts`                 | Add local credential config parsing/validation to `resolveApiSecurityConfig()` |
-| `api/src/auth-logger.ts`              | Verify body fields aren't logged (likely no change needed)                     |
-| `api/package.json`                    | Add `argon2` dependency                                                        |
-| `deploy/nginx.conf.template`          | Conditional `/auth/login` serving (static page vs API proxy)                   |
-| `src/login.ts`                        | **New** — Login page entry point                                               |
-| `login.html`                          | **New** — Login page HTML shell                                                |
-| `src/lib/components/LoginForm.svelte` | **New** — Login form component                                                 |
-| `vite.config.ts`                      | Add `login.html` as additional entry point                                     |
-| `.env.example`                        | Add `RACKULA_LOCAL_*` variables                                                |
-| `deploy/docker-compose.persist.yml`   | Add local auth env vars                                                        |
-| `docs/deployment/AUTHENTICATION.md`   | Add local auth setup guide, migration steps between modes                      |
+| File | Change |
+| --- | --- |
+| `api/src/app.ts` | Add local auth login handler, conditional route registration |
+| `api/src/security.ts` | Add local credential config parsing/validation to `resolveApiSecurityConfig()` |
+| `api/src/auth-logger.ts` | Verify body fields aren't logged (likely no change needed) |
+| `api/package.json` | Add `argon2` dependency |
+| `deploy/nginx.conf.template` | Conditional `/auth/login` serving (static page vs API proxy) |
+| `src/login.ts` | **New** — Login page entry point |
+| `login.html` | **New** — Login page HTML shell |
+| `src/lib/components/LoginForm.svelte` | **New** — Login form component |
+| `vite.config.ts` | Add `login.html` as additional entry point |
+| `.env.example` | Add `RACKULA_LOCAL_*` variables |
+| `deploy/docker-compose.persist.yml` | Add local auth env vars |
+| `docs/deployment/AUTHENTICATION.md` | Add local auth setup guide, migration steps between modes |
 
 ---
 

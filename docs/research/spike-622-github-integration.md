@@ -1,7 +1,6 @@
 # Spike #622: Git/GitHub Integration for Layout Sync
 
-**Date:** 2026-01-14
-**Parent Epic:** #570 (Developer-Friendly Data Format)
+**Date:** 2026-01-14 **Parent Epic:** #570 (Developer-Friendly Data Format)
 
 ---
 
@@ -34,11 +33,11 @@ This spike evaluated the feasibility of integrating GitHub directly into Rackula
 
 ### Authentication Options
 
-| Method                      | SPA Ready     | Notes                                       |
-| --------------------------- | ------------- | ------------------------------------------- |
-| PAT (Personal Access Token) | Yes           | Simplest, user controls permissions         |
-| OAuth App                   | Needs backend | Legacy, broad permissions                   |
-| GitHub App + PKCE           | Almost        | Best security, waiting for full SPA support |
+| Method | SPA Ready | Notes |
+| --- | --- | --- |
+| PAT (Personal Access Token) | Yes | Simplest, user controls permissions |
+| OAuth App | Needs backend | Legacy, broad permissions |
+| GitHub App + PKCE | Almost | Best security, waiting for full SPA support |
 
 ### Industry Comparison
 
@@ -75,8 +74,7 @@ User provides a Personal Access Token. Rackula uses Octokit to read/write layout
 
 Use Gists instead of repos. Each layout = one gist.
 
-**Pros:** Simpler model, built-in versioning, shareable URLs
-**Cons:** No folder organization, same PAT friction
+**Pros:** Simpler model, built-in versioning, shareable URLs **Cons:** No folder organization, same PAT friction
 
 **Timeline:** 1 day
 
@@ -84,8 +82,7 @@ Use Gists instead of repos. Each layout = one gist.
 
 OAuth flow with Cloudflare Worker for token exchange.
 
-**Pros:** Polished UX (OAuth popup)
-**Cons:** Requires Worker (~$5/month), more moving parts
+**Pros:** Polished UX (OAuth popup) **Cons:** Requires Worker (~$5/month), more moving parts
 
 **Timeline:** 3-5 days
 
@@ -93,8 +90,7 @@ OAuth flow with Cloudflare Worker for token exchange.
 
 Full git semantics in browser: clone, branch, commit, push.
 
-**Pros:** Offline-capable, full history, conflict resolution
-**Cons:** Complex (~1000 LOC), CORS proxy required, large bundle
+**Pros:** Offline-capable, full history, conflict resolution **Cons:** Complex (~1000 LOC), CORS proxy required, large bundle
 
 **Timeline:** 1-2 weeks
 

@@ -1,9 +1,6 @@
 # Spike: Beszel Integration for Rackula Dashboard
 
-**Issue:** #199
-**Date:** 2025-12-28
-**Status:** Complete
-**Time Box:** 2-4 hours (actual: ~2 hours)
+**Issue:** #199 **Date:** 2025-12-28 **Status:** Complete **Time Box:** 2-4 hours (actual: ~2 hours)
 
 ---
 
@@ -97,15 +94,15 @@ pb.collection('systems').subscribe('*', (data) => {
 
 ### 2.3 Data Collections
 
-| Collection        | Purpose               | Key Fields                                              |
-| ----------------- | --------------------- | ------------------------------------------------------- |
-| `systems`         | Monitored systems     | `name`, `host`, `port`, `status`, `info` (JSON)         |
-| `system_stats`    | Time-series metrics   | `system`, `stats` (JSON), `type` (1m/10m/20m/120m/480m) |
-| `system_details`  | Static system info    | `hostname`, `os`, `kernel`, `cpu`, `cores`, `memory`    |
-| `containers`      | Docker/Podman         | `name`, `image`, `cpu`, `memory`, `status`              |
-| `container_stats` | Container time-series | `system`, `stats` (JSON), `type`                        |
-| `alerts`          | User-defined alerts   | `system`, `name`, `value`, `triggered`                  |
-| `smart_devices`   | Disk health           | `system`, `name`, `model`, `state`, `capacity`          |
+| Collection | Purpose | Key Fields |
+| --- | --- | --- |
+| `systems` | Monitored systems | `name`, `host`, `port`, `status`, `info` (JSON) |
+| `system_stats` | Time-series metrics | `system`, `stats` (JSON), `type` (1m/10m/20m/120m/480m) |
+| `system_details` | Static system info | `hostname`, `os`, `kernel`, `cpu`, `cores`, `memory` |
+| `containers` | Docker/Podman | `name`, `image`, `cpu`, `memory`, `status` |
+| `container_stats` | Container time-series | `system`, `stats` (JSON), `type` |
+| `alerts` | User-defined alerts | `system`, `name`, `value`, `triggered` |
+| `smart_devices` | Disk health | `system`, `name`, `model`, `state`, `capacity` |
 
 ---
 

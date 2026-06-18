@@ -1,8 +1,6 @@
 # Spike #426: Evaluate SvelteFlow for Connection/Cable Rendering
 
-**Date:** 2026-01-14
-**Parent Epic:** #362 (Connection Graph Model)
-**Status:** Complete - No-Go Recommendation
+**Date:** 2026-01-14 **Parent Epic:** #362 (Connection Graph Model) **Status:** Complete - No-Go Recommendation
 
 ---
 
@@ -14,14 +12,14 @@ This spike evaluated whether SvelteFlow (@xyflow/svelte) could accelerate implem
 
 ### Key Findings
 
-| Criterion         | Result    | Detail                                                 |
-| ----------------- | --------- | ------------------------------------------------------ |
+| Criterion | Result | Detail |
+| --- | --- | --- |
 | Coordinate System | **No-Go** | SVG viewBox vs. flow coordinates requires bridge layer |
-| Export Support    | **No-Go** | SvelteFlow's DOM nodes don't export to SVG/PNG/PDF     |
-| Pan/Zoom          | **No-Go** | Conflicts with existing panzoom library                |
-| Bundle Size       | **No-Go** | 40-60KB vs. <30KB threshold                            |
-| Development Time  | **No-Go** | 7-10 days vs. 3-5 days for custom                      |
-| Prior Research    | N/A       | Spike #262 provides complete algorithm design          |
+| Export Support | **No-Go** | SvelteFlow's DOM nodes don't export to SVG/PNG/PDF |
+| Pan/Zoom | **No-Go** | Conflicts with existing panzoom library |
+| Bundle Size | **No-Go** | 40-60KB vs. <30KB threshold |
+| Development Time | **No-Go** | 7-10 days vs. 3-5 days for custom |
+| Prior Research | N/A | Spike #262 provides complete algorithm design |
 
 ---
 
@@ -99,13 +97,13 @@ SvelteFlow's limitations:
 
 ### Go Criteria (from Issue #426)
 
-| Criterion                         | Result      | Evidence                                  |
-| --------------------------------- | ----------- | ----------------------------------------- |
-| Coordinate sync without jitter    | **No**      | Bridge layer required; zoom sync unproven |
+| Criterion | Result | Evidence |
+| --- | --- | --- |
+| Coordinate sync without jitter | **No** | Bridge layer required; zoom sync unproven |
 | Cross-face connections achievable | **Partial** | Custom edges possible but adds complexity |
-| 60fps with 50+ connections        | **Likely**  | SvelteFlow handles large graphs           |
-| Bundle size < 30KB gzipped        | **No**      | Estimated 40-60KB                         |
-| Integration < 2 sprints           | **No**      | 7-10 days for bridge + export layers      |
+| 60fps with 50+ connections | **Likely** | SvelteFlow handles large graphs |
+| Bundle size < 30KB gzipped | **No** | Estimated 40-60KB |
+| Integration < 2 sprints | **No** | 7-10 days for bridge + export layers |
 
 **Verdict: No-Go** - 4 of 5 criteria fail.
 
@@ -205,11 +203,11 @@ function getPathMidpoint(path: SVGPathElement, t = 0.5): Point {
 
 ## 6. Decision Log
 
-| Date       | Decision                   | Rationale                                                |
-| ---------- | -------------------------- | -------------------------------------------------------- |
-| 2026-01-14 | No-Go for SvelteFlow       | Coordinate mismatch, export incompatibility, bundle size |
-| 2026-01-14 | Proceed with custom SVG    | Prior research (#262), architectural alignment           |
-| 2026-01-14 | Defer interactive creation | Start with panel-based connections                       |
+| Date | Decision | Rationale |
+| --- | --- | --- |
+| 2026-01-14 | No-Go for SvelteFlow | Coordinate mismatch, export incompatibility, bundle size |
+| 2026-01-14 | Proceed with custom SVG | Prior research (#262), architectural alignment |
+| 2026-01-14 | Defer interactive creation | Start with panel-based connections |
 
 ---
 

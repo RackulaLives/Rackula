@@ -12,12 +12,12 @@
 
 ## File Structure
 
-| File                                                                    | Action          | Responsibility                                                                             |
-| ----------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------ |
-| `docs/planning/ROADMAP.md`                                              | Modify          | Replace sprint cadence with thematic plan, strip months/version ranges, add status markers |
-| `CLAUDE.md`                                                             | Modify          | Update versioning policy section and current milestones list                               |
-| `docs/superpowers/specs/2026-06-01-milestone-cadence-reframe-design.md` | Already created | Design spec (commit in this plan)                                                          |
-| GitHub milestones M01, M02, M03                                         | Rename          | Remove version suffixes from titles                                                        |
+| File | Action | Responsibility |
+| --- | --- | --- |
+| `docs/planning/ROADMAP.md` | Modify | Replace sprint cadence with thematic plan, strip months/version ranges, add status markers |
+| `CLAUDE.md` | Modify | Update versioning policy section and current milestones list |
+| `docs/superpowers/specs/2026-06-01-milestone-cadence-reframe-design.md` | Already created | Design spec (commit in this plan) |
+| GitHub milestones M01, M02, M03 | Rename | Remove version suffixes from titles |
 
 ---
 

@@ -1,7 +1,6 @@
 # Research Spike #492: bits-ui External Research
 
-**Date:** 2026-01-12
-**Purpose:** Evaluate bits-ui component library for adoption in Rackula
+**Date:** 2026-01-12 **Purpose:** Evaluate bits-ui component library for adoption in Rackula
 
 ## bits-ui Overview
 
@@ -34,18 +33,21 @@
 bits-ui provides 44+ components organized into several categories:
 
 ### Interactive Elements
+
 - **Button** - Basic interactive button primitive
 - **Toggle** - Binary on/off switch
 - **Toggle Group** - Group of toggle buttons (single/multiple selection)
 - **Switch** - Accessible toggle switch
 
 ### Overlays & Dialogs
+
 - **Dialog** - Modal dialog with focus trapping
 - **Alert Dialog** - Confirmation dialog with cancel/action buttons
 - **Popover** - Floating panel anchored to trigger
 - **Tooltip** - Hover/focus information display
 
 ### Navigation & Organization
+
 - **Accordion** - Collapsible content sections
 - **Tabs** - Tabbed content organization
 - **Navigation Menu** - Accessible navigation with submenus
@@ -54,6 +56,7 @@ bits-ui provides 44+ components organized into several categories:
 - **Dropdown Menu** - Click-triggered dropdown menus
 
 ### Form Components
+
 - **Checkbox** - Single/indeterminate checkbox
 - **Radio Group** - Exclusive selection group
 - **Select** - Enhanced dropdown select
@@ -62,6 +65,7 @@ bits-ui provides 44+ components organized into several categories:
 - **Label** - Accessible form labels
 
 ### Date & Time
+
 - **Calendar** - Date calendar picker
 - **Date Field** - Text input with date parsing
 - **Date Picker** - Combined field + calendar
@@ -70,6 +74,7 @@ bits-ui provides 44+ components organized into several categories:
 - **Range Calendar** - Calendar for date ranges
 
 ### Utilities
+
 - **Collapsible** - Expandable/collapsible content
 - **Separator** - Visual divider
 - **Avatar** - User avatar with fallback
@@ -110,24 +115,26 @@ bits-ui does **not** include a Sheet/Drawer component natively. For drawer funct
 
 ### Sub-components
 
-| Component | Purpose |
-|-----------|---------|
-| `Dialog.Root` | Manages dialog state and context |
-| `Dialog.Trigger` | Opens the dialog on click |
-| `Dialog.Portal` | Renders content outside DOM hierarchy |
-| `Dialog.Overlay` | Backdrop/scrim element |
-| `Dialog.Content` | Main content container |
-| `Dialog.Title` | Accessible title (required for a11y) |
-| `Dialog.Description` | Accessible description |
-| `Dialog.Close` | Closes the dialog |
+| Component            | Purpose                               |
+| -------------------- | ------------------------------------- |
+| `Dialog.Root`        | Manages dialog state and context      |
+| `Dialog.Trigger`     | Opens the dialog on click             |
+| `Dialog.Portal`      | Renders content outside DOM hierarchy |
+| `Dialog.Overlay`     | Backdrop/scrim element                |
+| `Dialog.Content`     | Main content container                |
+| `Dialog.Title`       | Accessible title (required for a11y)  |
+| `Dialog.Description` | Accessible description                |
+| `Dialog.Close`       | Closes the dialog                     |
 
 ### Key Props
 
 **Dialog.Root:**
+
 - `open` (bindable) - Controls open state
 - `onOpenChange` - Callback when state changes
 
 **Dialog.Content:**
+
 - `trapFocus` - Enable focus trapping (default: true)
 - `preventScroll` - Lock body scroll (default: true)
 - `escapeKeydownBehavior` - 'close' | 'ignore' | 'defer-otherwise-close'
@@ -177,22 +184,24 @@ bits-ui does **not** include a Sheet/Drawer component natively. For drawer funct
 
 ### Sub-components
 
-| Component | Purpose |
-|-----------|---------|
-| `Tabs.Root` | Container managing tab state |
-| `Tabs.List` | Wrapper for tab triggers |
-| `Tabs.Trigger` | Clickable tab button |
-| `Tabs.Content` | Panel content for each tab |
+| Component      | Purpose                      |
+| -------------- | ---------------------------- |
+| `Tabs.Root`    | Container managing tab state |
+| `Tabs.List`    | Wrapper for tab triggers     |
+| `Tabs.Trigger` | Clickable tab button         |
+| `Tabs.Content` | Panel content for each tab   |
 
 ### Key Props
 
 **Tabs.Root:**
+
 - `value` (bindable) - Active tab value
 - `orientation` - 'horizontal' | 'vertical' (affects keyboard nav)
 - `activationMode` - 'automatic' | 'manual'
 - `loop` - Enable keyboard loop navigation (default: true)
 
 **Tabs.Trigger:**
+
 - `value` - Unique identifier matching content
 - `disabled` - Disable this trigger
 
@@ -234,17 +243,18 @@ bits-ui does **not** include a Sheet/Drawer component natively. For drawer funct
 
 ### Sub-components
 
-| Component | Purpose |
-|-----------|---------|
-| `Accordion.Root` | Manages accordion state |
-| `Accordion.Item` | Individual collapsible section |
-| `Accordion.Header` | Wrapper for trigger (semantic heading) |
-| `Accordion.Trigger` | Clickable expand/collapse button |
-| `Accordion.Content` | Collapsible content area |
+| Component           | Purpose                                |
+| ------------------- | -------------------------------------- |
+| `Accordion.Root`    | Manages accordion state                |
+| `Accordion.Item`    | Individual collapsible section         |
+| `Accordion.Header`  | Wrapper for trigger (semantic heading) |
+| `Accordion.Trigger` | Clickable expand/collapse button       |
+| `Accordion.Content` | Collapsible content area               |
 
 ### Key Props
 
 **Accordion.Root:**
+
 - `type` - 'single' | 'multiple' (required)
 - `value` (bindable) - Open item(s)
 - `collapsible` - Allow closing all items (single mode)
@@ -330,11 +340,13 @@ bits-ui **includes a full Tooltip component**.
 ### Key Props
 
 **Tooltip.Root:**
+
 - `open` (bindable) - Control visibility
 - `delayDuration` - Hover delay (default: 700ms)
 - `disableHoverableContent` - Close when leaving trigger
 
 **Tooltip.Content:**
+
 - `side` - 'top' | 'bottom' | 'left' | 'right'
 - `align` - 'start' | 'center' | 'end'
 - `sideOffset` - Distance from trigger
@@ -385,10 +397,7 @@ For more control, use function bindings:
   }
 </script>
 
-<Dialog.Root
-  open={isOpen}
-  onOpenChange={handleOpenChange}
->
+<Dialog.Root open={isOpen} onOpenChange={handleOpenChange}>
   <!-- ... -->
 </Dialog.Root>
 ```
@@ -414,9 +423,7 @@ bits-ui uses standard event handler naming (Svelte 5 style):
 
 ```svelte
 <!-- Svelte 5 style -->
-<Dialog.Trigger onclick={() => console.log("clicked")}>
-  Open
-</Dialog.Trigger>
+<Dialog.Trigger onclick={() => console.log("clicked")}>Open</Dialog.Trigger>
 
 <!-- NOT on:click (Svelte 4 style) -->
 ```
@@ -427,20 +434,21 @@ bits-ui uses standard event handler naming (Svelte 5 style):
 
 Key breaking changes documented in the [Migration Guide](https://www.bits-ui.com/docs/migration-guide):
 
-| v0.x | v2.x |
-|------|------|
-| `el` prop | `ref` prop |
-| `asChild` prop | `child` snippet |
-| Transition props | `forceMount` + Svelte transitions |
-| `let:` directives | Snippet props |
-| Auto-portal | Explicit `Portal` component |
-| `group` prop (Tooltip) | `Tooltip.Provider` wrapper |
+| v0.x                   | v2.x                              |
+| ---------------------- | --------------------------------- |
+| `el` prop              | `ref` prop                        |
+| `asChild` prop         | `child` snippet                   |
+| Transition props       | `forceMount` + Svelte transitions |
+| `let:` directives      | Snippet props                     |
+| Auto-portal            | Explicit `Portal` component       |
+| `group` prop (Tooltip) | `Tooltip.Provider` wrapper        |
 
 ### From Custom Components to bits-ui
 
 #### Custom Dialog → bits-ui Dialog
 
 **Before (custom):**
+
 ```svelte
 <script>
   export let open = false;
@@ -457,6 +465,7 @@ Key breaking changes documented in the [Migration Guide](https://www.bits-ui.com
 ```
 
 **After (bits-ui):**
+
 ```svelte
 <script lang="ts">
   import { Dialog } from "bits-ui";
@@ -482,16 +491,17 @@ Key breaking changes documented in the [Migration Guide](https://www.bits-ui.com
 #### Custom Tabs → bits-ui Tabs
 
 **Before:**
+
 ```svelte
 <script>
   let activeTab = 0;
 </script>
 
 <div class="tabs">
-  <button class:active={activeTab === 0} on:click={() => activeTab = 0}>
+  <button class:active={activeTab === 0} on:click={() => (activeTab = 0)}>
     Tab 1
   </button>
-  <button class:active={activeTab === 1} on:click={() => activeTab = 1}>
+  <button class:active={activeTab === 1} on:click={() => (activeTab = 1)}>
     Tab 2
   </button>
 </div>
@@ -503,6 +513,7 @@ Key breaking changes documented in the [Migration Guide](https://www.bits-ui.com
 ```
 
 **After:**
+
 ```svelte
 <script lang="ts">
   import { Tabs } from "bits-ui";
@@ -556,13 +567,9 @@ bits-ui uses data attributes for state-based styling:
 </script>
 
 <PaneGroup direction="horizontal">
-  <Pane defaultSize={25}>
-    Sidebar content
-  </Pane>
+  <Pane defaultSize={25}>Sidebar content</Pane>
   <PaneResizer />
-  <Pane defaultSize={75}>
-    Main content
-  </Pane>
+  <Pane defaultSize={75}>Main content</Pane>
 </PaneGroup>
 ```
 
@@ -578,6 +585,7 @@ bits-ui uses data attributes for state-based styling:
 ### Rackula Application
 
 PaneForge could be useful for:
+
 - Resizable sidebar panels
 - Split-view layouts (e.g., device library + rack view)
 - Responsive panel arrangements
@@ -596,6 +604,7 @@ Based on recent releases (v2.14.x - v2.15.x):
 ### Maintenance Focus
 
 Recent releases have focused on:
+
 - Bug fixes for edge cases
 - Scroll locking improvements
 - Form component refinements
@@ -604,6 +613,7 @@ Recent releases have focused on:
 ### Active Development
 
 The project maintains:
+
 - Regular patch releases (319 releases total)
 - Active GitHub issue tracking
 - Discord community for support
@@ -612,6 +622,7 @@ The project maintains:
 ### No Major Announced Features
 
 The project doesn't maintain a public roadmap, but based on the activity pattern:
+
 - Focus on stability and polish
 - Community-driven feature requests
 - Compatibility with latest Svelte releases
@@ -634,12 +645,14 @@ bits-ui supports the [llms.txt standard](https://llmstxt.org/) for machine-reada
 #### Option 1: Svelte MCP Server (RECOMMENDED)
 
 The project already has access to the official Svelte MCP server which provides:
+
 - `list-sections` - Discover all available documentation (171+ sections)
 - `get-documentation` - Fetch specific sections on-demand
 - `svelte-autofixer` - Validate Svelte code against best practices
 - `playground-link` - Generate playground links for code testing
 
 **Benefits:**
+
 - Already configured and available
 - Covers Svelte 5, SvelteKit, and MCP documentation
 - Tools work seamlessly with Claude Code
@@ -650,11 +663,13 @@ The project already has access to the official Svelte MCP server which provides:
 #### Option 2: bits-ui llms.txt On-Demand Fetch
 
 Use WebFetch to grab component docs when needed:
+
 ```
 WebFetch: https://bits-ui.com/docs/components/dialog/llms.txt
 ```
 
 **Benefits:**
+
 - Always current documentation
 - No storage/maintenance overhead
 - Fetch only what's needed
@@ -664,6 +679,7 @@ WebFetch: https://bits-ui.com/docs/components/dialog/llms.txt
 #### Option 3: Local Documentation Cache
 
 Download and commit key bits-ui llms.txt files to the project:
+
 ```
 docs/reference/bits-ui/
 ├── dialog.md
@@ -674,6 +690,7 @@ docs/reference/bits-ui/
 ```
 
 **Benefits:**
+
 - Available offline
 - Faster access during development
 - Can be customized with project-specific notes
@@ -683,11 +700,13 @@ docs/reference/bits-ui/
 #### Option 4: Custom MCP Server for bits-ui
 
 Create a bits-ui MCP server similar to the Svelte one:
+
 - Fetch and cache llms.txt content
 - Provide tools for component lookup
 - Integrate with autofixer patterns
 
 **Benefits:**
+
 - Full integration with Claude Code workflow
 - Can combine with project-specific patterns
 - Tooling support (autofixer, playground)
@@ -703,10 +722,12 @@ Create a bits-ui MCP server similar to the Svelte one:
 3. Document bits-ui patterns in `CLAUDE.md` as we learn them
 
 Add to `CLAUDE.md`:
+
 ```markdown
 ### bits-ui Components
 
 For bits-ui documentation during development:
+
 - Dialog: `WebFetch https://bits-ui.com/docs/components/dialog/llms.txt`
 - Tabs: `WebFetch https://bits-ui.com/docs/components/tabs/llms.txt`
 - Accordion: `WebFetch https://bits-ui.com/docs/components/accordion/llms.txt`
@@ -716,6 +737,7 @@ Use the Svelte MCP `svelte-autofixer` tool to validate components after writing.
 ```
 
 This approach:
+
 - Leverages existing infrastructure
 - Keeps documentation current
 - Minimal maintenance burden

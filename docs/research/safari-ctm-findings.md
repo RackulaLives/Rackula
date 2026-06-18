@@ -1,8 +1,6 @@
 # Safari CTM Research Findings
 
-**Issue**: #411 (reopened)
-**Date**: 2026-01-05
-**Browser**: Safari 26.2 (WebKit 605.1.15) on macOS 15.6.1
+**Issue**: #411 (reopened) **Date**: 2026-01-05 **Browser**: Safari 26.2 (WebKit 605.1.15) on macOS 15.6.1
 
 ## Executive Summary
 
@@ -10,13 +8,13 @@ Safari's `SVGSVGElement.getScreenCTM()` method has a bug where it **does not inc
 
 ## Test Results
 
-| CSS Transform                | CTM Accuracy             | BBox Accuracy | Notes             |
-| ---------------------------- | ------------------------ | ------------- | ----------------- |
-| None                         | Correct                  | Correct       | Baseline          |
-| `translate(50px, 50px)`      | Correct                  | Correct       | Translation works |
-| `scale(0.5)`                 | **Wrong (2x error)**     | Correct       | Scale ignored     |
-| `scale(1.5)`                 | **Wrong (1.5x error)**   | Correct       | Scale ignored     |
-| `scale(0.8) translate(30px)` | **Wrong (~1.25x error)** | Correct       | Scale ignored     |
+| CSS Transform | CTM Accuracy | BBox Accuracy | Notes |
+| --- | --- | --- | --- |
+| None | Correct | Correct | Baseline |
+| `translate(50px, 50px)` | Correct | Correct | Translation works |
+| `scale(0.5)` | **Wrong (2x error)** | Correct | Scale ignored |
+| `scale(1.5)` | **Wrong (1.5x error)** | Correct | Scale ignored |
+| `scale(0.8) translate(30px)` | **Wrong (~1.25x error)** | Correct | Scale ignored |
 
 ## Root Cause
 

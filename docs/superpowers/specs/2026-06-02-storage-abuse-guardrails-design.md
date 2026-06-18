@@ -1,9 +1,6 @@
 # Storage Abuse Guardrails — Design Spec
 
-**Issue:** #1780
-**Epic:** #1274 (Self-hosted API hardening baseline)
-**Date:** 2026-06-02
-**Status:** Draft
+**Issue:** #1780 **Epic:** #1274 (Self-hosted API hardening baseline) **Date:** 2026-06-02 **Status:** Draft
 
 ## Problem
 
@@ -40,23 +37,23 @@ Status: planned behavior, not yet live. Tracked in issue #2040; implementation i
 
 ## Design Decisions
 
-| Decision         | Choice                                      | Rationale                                                                         |
-| ---------------- | ------------------------------------------- | --------------------------------------------------------------------------------- |
-| Approach         | Guardrails module + middleware              | Follows existing rate-limiter pattern. Separate concerns.                         |
-| Quota dimensions | Layout count + per-layout asset count       | Fast to check (directory counts, no disk-size scan). Effective against flood.     |
-| Retention policy | None (quota-only)                           | No data loss risk. When limit is hit, operator must delete old layouts.           |
-| Caching          | No cache (filesystem is truth)              | Homelab scale (10-100 layouts) makes sub-ms scan acceptable. No cache drift risk. |
-| Unlimited mode   | `0` = no limit                              | Preserves backward compatibility. Operators can opt out.                          |
-| Error handling   | 429/507 + descriptive message + log warning | Operators monitoring logs see when quotas are approached.                         |
+| Decision | Choice | Rationale |
+| --- | --- | --- |
+| Approach | Guardrails module + middleware | Follows existing rate-limiter pattern. Separate concerns. |
+| Quota dimensions | Layout count + per-layout asset count | Fast to check (directory counts, no disk-size scan). Effective against flood. |
+| Retention policy | None (quota-only) | No data loss risk. When limit is hit, operator must delete old layouts. |
+| Caching | No cache (filesystem is truth) | Homelab scale (10-100 layouts) makes sub-ms scan acceptable. No cache drift risk. |
+| Unlimited mode | `0` = no limit | Preserves backward compatibility. Operators can opt out. |
+| Error handling | 429/507 + descriptive message + log warning | Operators monitoring logs see when quotas are approached. |
 
 ## Configuration
 
 New environment variables, resolved in `security/config.ts`:
 
-| Env Var                         | Default | Range            | Description                                 |
-| ------------------------------- | ------- | ---------------- | ------------------------------------------- |
-| `RACKULA_MAX_LAYOUTS`           | `100`   | `0` or `1-10000` | Maximum number of layouts. `0` = unlimited. |
-| `RACKULA_MAX_ASSETS_PER_LAYOUT` | `50`    | `0` or `1-1000`  | Maximum assets per layout. `0` = unlimited. |
+| Env Var | Default | Range | Description |
+| --- | --- | --- | --- |
+| `RACKULA_MAX_LAYOUTS` | `100` | `0` or `1-10000` | Maximum number of layouts. `0` = unlimited. |
+| `RACKULA_MAX_ASSETS_PER_LAYOUT` | `50` | `0` or `1-1000` | Maximum assets per layout. `0` = unlimited. |
 
 **Bounds:** Values are validated as positive integers or zero. Values exceeding max bounds are clamped. Invalid values fall back to defaults.
 
@@ -121,12 +118,12 @@ logger → CORS → rate-limit → auth-gate → CSRF → origin-policy → writ
 
 ### Enforcement Points
 
-| Route                                 | Method       | Quota Check                       |
-| ------------------------------------- | ------------ | --------------------------------- |
-| `/layouts/:uuid`                      | PUT (create) | Layout count quota                |
-| `/layouts/:uuid`                      | PUT (update) | Skip — UUID already exists        |
-| `/assets/:layoutId/:deviceSlug/:face` | PUT          | Asset count quota for that layout |
-| All other routes                      | —            | No quota check                    |
+| Route | Method | Quota Check |
+| --- | --- | --- |
+| `/layouts/:uuid` | PUT (create) | Layout count quota |
+| `/layouts/:uuid` | PUT (update) | Skip — UUID already exists |
+| `/assets/:layoutId/:deviceSlug/:face` | PUT | Asset count quota for that layout |
+| All other routes | — | No quota check |
 
 ### Create vs Update Detection
 
@@ -208,32 +205,32 @@ A legacy layout could be auto-migrated to folder format between the quota check 
 
 ### New Files
 
-| File                                                | Purpose                               |
-| --------------------------------------------------- | ------------------------------------- |
-| `api/src/storage/quota.ts`                          | Quota check functions                 |
-| `api/src/storage/quota.test.ts`                     | Tests for quota module                |
-| `api/src/security/storage-quota-middleware.ts`      | Hono middleware for quota enforcement |
-| `api/src/security/storage-quota-middleware.test.ts` | Tests for quota middleware            |
+| File | Purpose |
+| --- | --- |
+| `api/src/storage/quota.ts` | Quota check functions |
+| `api/src/storage/quota.test.ts` | Tests for quota module |
+| `api/src/security/storage-quota-middleware.ts` | Hono middleware for quota enforcement |
+| `api/src/security/storage-quota-middleware.test.ts` | Tests for quota middleware |
 
 ### Modified Files
 
-| File                              | Changes                                                          |
-| --------------------------------- | ---------------------------------------------------------------- |
-| `api/src/security/config.ts`      | Add `maxLayouts` and `maxAssetsPerLayout` to config resolution   |
-| `api/src/security/types.ts`       | Add `maxLayouts` and `maxAssetsPerLayout` to `ApiSecurityConfig` |
-| `api/src/security/index.ts`       | Export new middleware                                            |
-| `api/src/app.ts`                  | Register storage quota middleware in the chain                   |
-| `api/.env.example`                | Document new env vars                                            |
-| `docs/deployment/SELF-HOSTING.md` | Document quota configuration                                     |
+| File | Changes |
+| --- | --- |
+| `api/src/security/config.ts` | Add `maxLayouts` and `maxAssetsPerLayout` to config resolution |
+| `api/src/security/types.ts` | Add `maxLayouts` and `maxAssetsPerLayout` to `ApiSecurityConfig` |
+| `api/src/security/index.ts` | Export new middleware |
+| `api/src/app.ts` | Register storage quota middleware in the chain |
+| `api/.env.example` | Document new env vars |
+| `docs/deployment/SELF-HOSTING.md` | Document quota configuration |
 
 ### No Changes
 
-| Area                             | Why                                                                     |
-| -------------------------------- | ----------------------------------------------------------------------- |
-| `api/src/storage/filesystem.ts`  | Quota enforcement happens at middleware level, not in storage functions |
-| `api/src/storage/assets.ts`      | Same — middleware handles quota, storage functions unchanged            |
-| `api/src/security/rate-limit.ts` | Existing rate limiter remains unchanged; quota is a separate concern    |
-| Dockerfile                       | No changes needed — env vars are sufficient                             |
+| Area | Why |
+| --- | --- |
+| `api/src/storage/filesystem.ts` | Quota enforcement happens at middleware level, not in storage functions |
+| `api/src/storage/assets.ts` | Same — middleware handles quota, storage functions unchanged |
+| `api/src/security/rate-limit.ts` | Existing rate limiter remains unchanged; quota is a separate concern |
+| Dockerfile | No changes needed — env vars are sufficient |
 
 ## Test Plan
 

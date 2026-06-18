@@ -1,8 +1,6 @@
 # Design: Auto-Acknowledge Contributors Per Release
 
-**Issue:** #1876
-**Date:** 2026-06-04
-**Status:** Approved
+**Issue:** #1876 **Date:** 2026-06-04 **Status:** Approved
 
 ## Problem
 
@@ -112,14 +110,14 @@ This is consistent with `next-version.sh` which also has no formal test suite bu
 
 ## Acceptance Criteria Mapping
 
-| Criterion                                                | How it's met                                             |
-| -------------------------------------------------------- | -------------------------------------------------------- |
-| Identify contributors with merged PRs since previous tag | `gh pr list --state merged --search "merged:>=<date>"`   |
-| Append per-release notes to ACKNOWLEDGEMENTS.md          | `scripts/contributors.sh` inserts formatted block        |
-| Dedupe: no duplicate maintainer entries, exclude bots    | `EXCLUDED_AUTHORS` filter in script                      |
-| Idempotent: re-running does not duplicate entries        | Check for existing `### vX.Y.Z` heading before inserting |
-| ACKNOWLEDGEMENTS.md update is part of the release        | `/release` skill step 4d                                 |
-| Writing style rules respected                            | PR title derivation, no em dashes/emoji                  |
+| Criterion | How it's met |
+| --- | --- |
+| Identify contributors with merged PRs since previous tag | `gh pr list --state merged --search "merged:>=<date>"` |
+| Append per-release notes to ACKNOWLEDGEMENTS.md | `scripts/contributors.sh` inserts formatted block |
+| Dedupe: no duplicate maintainer entries, exclude bots | `EXCLUDED_AUTHORS` filter in script |
+| Idempotent: re-running does not duplicate entries | Check for existing `### vX.Y.Z` heading before inserting |
+| ACKNOWLEDGEMENTS.md update is part of the release | `/release` skill step 4d |
+| Writing style rules respected | PR title derivation, no em dashes/emoji |
 
 ## Out of Scope
 

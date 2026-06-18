@@ -227,16 +227,16 @@ my-homelab-docs/
 
 ## Trade-offs Matrix
 
-| Criterion                     | A: Single YAML                | B: Dual Format          | C: Smart Hybrid | D: External Refs       |
-| ----------------------------- | ----------------------------- | ----------------------- | --------------- | ---------------------- |
-| **Git-friendliness**          | Good (noisy if images change) | Excellent (folder mode) | Varies          | Excellent              |
-| **Single-file sharing**       | Excellent                     | Good (ZIP mode)         | Excellent       | Poor (must zip)        |
-| **Human editability**         | Excellent                     | Good                    | Varies          | Excellent              |
-| **Migration effort**          | Low                           | Low                     | Medium          | Medium                 |
-| **Implementation complexity** | Low                           | Medium                  | Medium-High     | Medium                 |
-| **User experience**           | Simple                        | Requires choice         | Opaque          | Requires understanding |
-| **Image size handling**       | Poor for large                | Excellent               | Good            | Excellent              |
-| **Bundle size impact**        | Removes JSZip                 | Keeps JSZip             | Keeps JSZip     | Removes JSZip          |
+| Criterion | A: Single YAML | B: Dual Format | C: Smart Hybrid | D: External Refs |
+| --- | --- | --- | --- | --- |
+| **Git-friendliness** | Good (noisy if images change) | Excellent (folder mode) | Varies | Excellent |
+| **Single-file sharing** | Excellent | Good (ZIP mode) | Excellent | Poor (must zip) |
+| **Human editability** | Excellent | Good | Varies | Excellent |
+| **Migration effort** | Low | Low | Medium | Medium |
+| **Implementation complexity** | Low | Medium | Medium-High | Medium |
+| **User experience** | Simple | Requires choice | Opaque | Requires understanding |
+| **Image size handling** | Poor for large | Excellent | Good | Excellent |
+| **Bundle size impact** | Removes JSZip | Keeps JSZip | Keeps JSZip | Removes JSZip |
 
 ### Scoring (1-5, higher is better)
 

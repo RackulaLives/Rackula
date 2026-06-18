@@ -1,8 +1,6 @@
 # E2E Test Infrastructure Design
 
-**Date:** 2026-01-21
-**Status:** Ready for implementation
-**Related Issue:** #901 (superseded by this design)
+**Date:** 2026-01-21 **Status:** Ready for implementation **Related Issue:** #901 (superseded by this design)
 
 > Note: this design remains under `docs/plans/` to preserve existing issue links. Roadmap-level docs continue to live in `docs/planning/`.
 
@@ -87,25 +85,9 @@ e2e/
 
 Add keyboard support to NewRackWizard for both testing and UX:
 
-**Step 1: Rack Configuration**
-| Key | Action |
-|-----|--------|
-| `Tab` / `Shift+Tab` | Move between fields |
-| `←` / `→` | Switch layout type (Column/Bayed) |
-| `1` | Select 12U |
-| `2` | Select 18U |
-| `3` | Select 24U |
-| `4` | Select 42U |
-| `Enter` | Next step |
-| `Escape` | Cancel wizard |
+**Step 1: Rack Configuration** | Key | Action | |-----|--------| | `Tab` / `Shift+Tab` | Move between fields | | `←` / `→` | Switch layout type (Column/Bayed) | | `1` | Select 12U | | `2` | Select 18U | | `3` | Select 24U | | `4` | Select 42U | | `Enter` | Next step | | `Escape` | Cancel wizard |
 
-**Step 2: Bay Selection (if Bayed)**
-| Key | Action |
-|-----|--------|
-| `←` / `→` | Select bay count |
-| `Enter` | Create rack |
-| `Backspace` | Go back |
-| `Escape` | Cancel |
+**Step 2: Bay Selection (if Bayed)** | Key | Action | |-----|--------| | `←` / `→` | Select bay count | | `Enter` | Create rack | | `Backspace` | Go back | | `Escape` | Cancel |
 
 ### 5. Keyboard Helper for Tests
 
@@ -140,17 +122,17 @@ export async function completeWizardWithKeyboard(
 
 ## Files to Modify
 
-| File                                             | Action | Purpose                 |
-| ------------------------------------------------ | ------ | ----------------------- |
-| `e2e/helpers/test-layouts.ts`                    | Create | Pre-encoded share links |
-| `e2e/helpers/rack-setup.ts`                      | Create | Wizard helpers          |
-| `e2e/helpers/device-actions.ts`                  | Create | Unified drag-drop       |
-| `e2e/helpers/index.ts`                           | Create | Re-exports              |
-| `src/lib/components/wizard/NewRackWizard.svelte` | Modify | Keyboard shortcuts      |
-| `e2e/device-metadata.spec.ts`                    | Modify | Use new helpers         |
-| `e2e/basic-workflow.spec.ts`                     | Modify | Use new helpers         |
-| `e2e/smoke.spec.ts`                              | Modify | Use new helpers         |
-| `docs/guides/TESTING.md`                         | Modify | Document patterns       |
+| File | Action | Purpose |
+| --- | --- | --- |
+| `e2e/helpers/test-layouts.ts` | Create | Pre-encoded share links |
+| `e2e/helpers/rack-setup.ts` | Create | Wizard helpers |
+| `e2e/helpers/device-actions.ts` | Create | Unified drag-drop |
+| `e2e/helpers/index.ts` | Create | Re-exports |
+| `src/lib/components/wizard/NewRackWizard.svelte` | Modify | Keyboard shortcuts |
+| `e2e/device-metadata.spec.ts` | Modify | Use new helpers |
+| `e2e/basic-workflow.spec.ts` | Modify | Use new helpers |
+| `e2e/smoke.spec.ts` | Modify | Use new helpers |
+| `docs/guides/TESTING.md` | Modify | Document patterns |
 
 ## Acceptance Criteria
 

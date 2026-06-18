@@ -13,6 +13,7 @@ With persistence enabled, unauthorized access can mutate or delete shared layout
 Auth must remain optional by deployment choice, but when enabled it must enforce no-anonymous access across app/API surfaces.
 
 The candidate auth mode paths were:
+
 - Local password/user mode.
 - Generic OIDC mode.
 - Hybrid mode.

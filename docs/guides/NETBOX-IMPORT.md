@@ -193,18 +193,18 @@ Add device to the appropriate brand pack file in `src/lib/data/brandPacks/`:
 ```typescript
 // src/lib/data/brandPacks/ubiquiti.ts
 export const ubiquitiDevices: DeviceType[] = [
-	// ... existing devices
-	{
-		slug: 'ubiquiti-usw-pro-24',
-		u_height: 1,
-		manufacturer: 'Ubiquiti',
-		model: 'USW-Pro-24',
-		is_full_depth: false,
-		colour: CATEGORY_COLOURS.network,
-		category: 'network',
-		front_image: true,
-		rear_image: true
-	}
+  // ... existing devices
+  {
+    slug: "ubiquiti-usw-pro-24",
+    u_height: 1,
+    manufacturer: "Ubiquiti",
+    model: "USW-Pro-24",
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+  },
 ];
 ```
 

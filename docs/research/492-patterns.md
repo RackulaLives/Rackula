@@ -1,13 +1,13 @@
 # Research Spike #492: Pattern Analysis
 
-**Date:** 2026-01-12
-**Status:** Complete
+**Date:** 2026-01-12 **Status:** Complete
 
 ## Key Insights
 
 ### 1. bits-ui Adoption is Mature and Strategic
 
 The codebase already has successful bits-ui integrations that establish clear patterns:
+
 - **Dialog wrapper pattern** (`Dialog.svelte`) provides consistent styling and API
 - **SidebarTabs** (PR #521) demonstrates direct bits-ui Tabs usage with data-attribute styling
 - **DevicePalette** uses Accordion with controlled state via `$effect`
@@ -18,6 +18,7 @@ The codebase already has successful bits-ui integrations that establish clear pa
 ### 2. Sheet/Drawer Gap Requires Decision
 
 bits-ui does **not** include Sheet/Drawer components. Two options exist:
+
 - **vaul-svelte**: Same author (Huntabyte), built on bits-ui Dialog, Svelte 5 compatible
 - **Current BottomSheet.svelte**: Custom implementation with swipe-to-dismiss that works well
 
@@ -26,6 +27,7 @@ bits-ui does **not** include Sheet/Drawer components. Two options exist:
 ### 3. Tooltip Migration is Now Viable
 
 The codebase research noted bits-ui v2.14.4 doesn't export Tooltip, but the external research confirms **Tooltip IS available** in current bits-ui versions. This opens migration path for:
+
 - `Tooltip.svelte` (custom)
 - `PortTooltip.svelte` (network port info)
 
@@ -34,6 +36,7 @@ The codebase research noted bits-ui v2.14.4 doesn't export Tooltip, but the exte
 ### 4. MobileWarningModal is Migration-Ready
 
 `MobileWarningModal.svelte` uses custom modal implementation with:
+
 - Manual focus trap (`trapFocus` directive)
 - Manual keyboard handling (Escape via `onMount`)
 - SessionStorage for dismissal persistence
@@ -43,6 +46,7 @@ bits-ui Dialog provides all accessibility features automatically. Migration is s
 ### 5. ImportFromNetBoxDialog Tabs Pattern is Clear
 
 Currently uses manual button-based tabs for paste/upload modes. bits-ui Tabs migration would provide:
+
 - Arrow key navigation
 - Proper ARIA roles (`tablist`, `tab`, `tabpanel`)
 - Focus management
@@ -57,13 +61,14 @@ Currently uses manual button-based tabs for paste/upload modes. bits-ui Tabs mig
 **Recommended sequence based on effort/benefit ratio:**
 
 | Priority | Component | Effort | Benefit | Dependencies |
-|----------|-----------|--------|---------|--------------|
+| --- | --- | --- | --- | --- |
 | 1 | ImportFromNetBoxDialog tabs | Low | Medium | None - isolated tabs UI |
 | 2 | MobileWarningModal | Low | High | None - self-contained modal |
 | 3 | Tooltip.svelte | Medium | Medium | Tooltip.Provider wrapper needed |
 | 4 | BottomSheet.svelte | High | Medium | vaul-svelte evaluation required |
 
 **Rationale:**
+
 1. **ImportFromNetBoxDialog**: Small scope, no external dependencies, existing Tabs pattern in codebase (SidebarTabs)
 2. **MobileWarningModal**: Eliminates custom a11y code, immediate quality improvement, no ripple effects
 3. **Tooltip**: Larger scope (multiple uses), requires Provider pattern, mobile fallback decisions
@@ -87,10 +92,12 @@ Currently uses manual button-based tabs for paste/upload modes. bits-ui Tabs mig
 ```
 
 **Migration targets:**
+
 - `MobileWarningModal.svelte` → use `Dialog.svelte` wrapper (uses `role="alertdialog"`, keep semantic)
 - Direct bits-ui usage in `ConfirmReplaceDialog` and `HelpPanel` → consider migrating to wrapper for consistency (low priority)
 
 **Non-targets:**
+
 - Dialog.svelte wrapper is working well - no changes needed
 - dialogStore centralization is correct pattern
 
@@ -99,6 +106,7 @@ Currently uses manual button-based tabs for paste/upload modes. bits-ui Tabs mig
 **Recommended: Evaluate vaul-svelte, keep custom if UX differs**
 
 #### Option A: Adopt vaul-svelte (Preferred if UX acceptable)
+
 ```bash
 npm install vaul-svelte
 ```
@@ -119,23 +127,28 @@ npm install vaul-svelte
 ```
 
 **Pros:**
+
 - Consistent API with bits-ui Dialog
 - Built-in swipe gesture support
 - Snap points for multi-position sheets
 - Same author ecosystem (huntabyte)
 
 **Cons:**
+
 - New dependency
 - May not match exact swipe UX of current implementation
 - Requires UX validation
 
 #### Option B: Keep Custom BottomSheet
+
 If vaul-svelte swipe behavior differs from current UX requirements, keep `BottomSheet.svelte` but:
+
 - Extract shared focus management utilities
 - Document as intentional custom implementation
 - Add tests for swipe behavior
 
 **Decision process:**
+
 1. Install vaul-svelte in branch
 2. Create test component with equivalent behavior
 3. Compare swipe-to-dismiss UX on iOS/Android
@@ -177,15 +190,16 @@ If vaul-svelte swipe behavior differs from current UX requirements, keep `Bottom
 </Tooltip.Provider>
 ```
 
-**Mobile handling:**
-bits-ui Tooltip does not show on mobile by design. This matches user expectations (tooltips require hover).
+**Mobile handling:** bits-ui Tooltip does not show on mobile by design. This matches user expectations (tooltips require hover).
 
 For mobile info display, consider:
+
 - Long-press to show (custom handler)
 - Info icons with Popover for explicit tap-to-reveal
 - Inline labels instead of tooltips
 
 **Migration steps:**
+
 1. Create bits-ui Tooltip wrapper component
 2. Update `Tooltip.svelte` consumers one at a time
 3. Test on desktop (hover) and mobile (no tooltip expected)
@@ -222,6 +236,7 @@ Based on SidebarTabs.svelte (PR #521), the project pattern is:
 ```
 
 **Benefits over current manual implementation:**
+
 - Arrow key navigation between tabs
 - Proper ARIA roles
 - Consistent data-attribute styling
@@ -233,24 +248,26 @@ Based on SidebarTabs.svelte (PR #521), the project pattern is:
 
 ### bits-ui Adoption Trade-offs
 
-| Aspect | Custom Components | bits-ui Migration |
-|--------|-------------------|-------------------|
-| **Bundle size** | Only what we write | Additional dependency |
-| **A11y coverage** | Manual, may have gaps | Comprehensive, tested |
-| **Maintenance** | Full responsibility | Upstream updates |
-| **Customization** | Total control | Within component API |
-| **Consistency** | Project-specific | Cross-project standards |
-| **Learning curve** | Familiar code | bits-ui patterns |
+| Aspect             | Custom Components     | bits-ui Migration       |
+| ------------------ | --------------------- | ----------------------- |
+| **Bundle size**    | Only what we write    | Additional dependency   |
+| **A11y coverage**  | Manual, may have gaps | Comprehensive, tested   |
+| **Maintenance**    | Full responsibility   | Upstream updates        |
+| **Customization**  | Total control         | Within component API    |
+| **Consistency**    | Project-specific      | Cross-project standards |
+| **Learning curve** | Familiar code         | bits-ui patterns        |
 
 ### Component-Specific Trade-offs
 
 #### MobileWarningModal Migration
+
 - **Pro:** Eliminates ~50 lines of focus management code
 - **Pro:** Proven a11y implementation
 - **Con:** Minor API adjustment needed
 - **Risk:** Low - straightforward mapping
 
 #### BottomSheet Migration (vaul-svelte)
+
 - **Pro:** Ecosystem consistency
 - **Pro:** Built-in snap points for future features
 - **Con:** New dependency (~20KB)
@@ -258,6 +275,7 @@ Based on SidebarTabs.svelte (PR #521), the project pattern is:
 - **Risk:** Medium - requires UX validation
 
 #### Tooltip Migration
+
 - **Pro:** Correct ARIA and focus handling
 - **Pro:** Built-in positioning and collision detection
 - **Con:** Requires Provider wrapper
@@ -265,6 +283,7 @@ Based on SidebarTabs.svelte (PR #521), the project pattern is:
 - **Risk:** Low - clear behavior boundaries
 
 #### ImportFromNetBoxDialog Tabs
+
 - **Pro:** Minimal code change
 - **Pro:** Immediate a11y improvement
 - **Con:** None significant
@@ -328,6 +347,7 @@ Based on SidebarTabs.svelte (PR #521), the project pattern is:
 ### Current State
 
 The project already has:
+
 - Svelte MCP server with `list-sections`, `get-documentation`, `svelte-autofixer`
 - Project CLAUDE.md with Svelte 5 runes patterns
 
@@ -339,15 +359,18 @@ The project already has:
 ### bits-ui Components
 
 The project uses bits-ui for accessible UI primitives. Key components:
+
 - Dialog (wrapper at `src/lib/components/Dialog.svelte`)
 - Tabs (via `$lib/components/ui/Tabs`)
 - Accordion (via `$lib/components/ui/Accordion`)
 
 **For bits-ui documentation during development:**
+
 - Fetch on-demand: `WebFetch https://bits-ui.com/docs/components/{component}/llms.txt`
 - Components: dialog, tabs, accordion, tooltip, popover
 
 **Wrapper pattern:**
+
 - bits-ui provides unstyled primitives
 - Project wrappers add design tokens and consistent API
 - Use existing wrappers, create new ones for new components
@@ -356,6 +379,7 @@ The project uses bits-ui for accessible UI primitives. Key components:
 #### 2. Document Usage Pattern
 
 When implementing bits-ui components:
+
 1. Use Svelte MCP `svelte-autofixer` to validate component syntax
 2. Fetch bits-ui llms.txt for specific component API
 3. Follow existing wrapper patterns in codebase
@@ -379,6 +403,7 @@ WebFetch https://bits-ui.com/docs/components/tooltip/llms.txt
 #### 4. Local Cache (Optional, Not Recommended)
 
 Caching llms.txt locally adds maintenance burden. The on-demand fetch pattern is preferred because:
+
 - bits-ui releases frequently (v2.15.4 as of Jan 2026)
 - Documentation stays current
 - No repo bloat
@@ -386,12 +411,12 @@ Caching llms.txt locally adds maintenance burden. The on-demand fetch pattern is
 
 ### Integration Summary
 
-| Resource | Access Method | When to Use |
-|----------|---------------|-------------|
-| Svelte 5 / SvelteKit | Svelte MCP server | Always available |
-| bits-ui components | WebFetch llms.txt | When implementing bits-ui |
-| Project patterns | Codebase examples | Reference existing wrappers |
-| svelte-autofixer | Svelte MCP tool | Validate component syntax |
+| Resource             | Access Method     | When to Use                 |
+| -------------------- | ----------------- | --------------------------- |
+| Svelte 5 / SvelteKit | Svelte MCP server | Always available            |
+| bits-ui components   | WebFetch llms.txt | When implementing bits-ui   |
+| Project patterns     | Codebase examples | Reference existing wrappers |
+| svelte-autofixer     | Svelte MCP tool   | Validate component syntax   |
 
 ---
 

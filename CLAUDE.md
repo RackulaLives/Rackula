@@ -565,11 +565,22 @@ Two environments with different deployment triggers:
 
 ### Dev Deployment
 
-Automatically deploys on every push to `main` (after lint/tests pass):
+Automatically deploys on code pushes to `main` (after lint/tests pass):
 
 ```bash
 git push origin main  # Triggers: lint → test → build → deploy to GitHub Pages
 ```
+
+The Deploy Dev workflow is path-filtered: it runs only when the push changes app
+inputs (`api/**`, `src/**`, `deploy/**`, `assets/**`, `static/**`, `login.html`,
+the lockfiles, build configs, `index.html`), and a trailing `!**/*.md` excludes
+markdown anywhere. Docs-only pushes (markdown-only, or paths outside that list
+such as `.claude/**`, `docs/**`, `.github/**`) do not trigger a deploy.
+
+Do not watch or wait for a dev deploy after a docs-only push: no Deploy Dev run
+is queued, so there is nothing to go green. To confirm it was skipped, check that
+the Deploy Dev run is absent for the commit:
+`gh api "repos/RackulaLives/Rackula/actions/runs?head_sha=$(git rev-parse HEAD)"`.
 
 ### Production Deployment
 

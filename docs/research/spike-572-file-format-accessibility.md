@@ -1,7 +1,6 @@
 # Spike #572: File Format Accessibility (ZIP vs Alternatives)
 
-**Date:** 2026-01-14
-**Parent Epic:** #570 (Developer-Friendly Data Format)
+**Date:** 2026-01-14 **Parent Epic:** #570 (Developer-Friendly Data Format)
 
 ---
 
@@ -51,12 +50,12 @@ The `.rackula` file is a ZIP archive containing:
 
 ### Format Options Evaluated
 
-| Option                        | Git-friendly | Single File | Human-editable | Complexity |
-| ----------------------------- | ------------ | ----------- | -------------- | ---------- |
-| A: Single YAML + base64       | Good         | Excellent   | Excellent      | Low        |
-| B: Dual format (ZIP + folder) | Excellent    | Good        | Good           | Medium     |
-| C: Smart hybrid (auto-switch) | Varies       | Excellent   | Varies         | High       |
-| D: YAML + external refs       | Excellent    | Poor        | Excellent      | Medium     |
+| Option | Git-friendly | Single File | Human-editable | Complexity |
+| --- | --- | --- | --- | --- |
+| A: Single YAML + base64 | Good | Excellent | Excellent | Low |
+| B: Dual format (ZIP + folder) | Excellent | Good | Good | Medium |
+| C: Smart hybrid (auto-switch) | Varies | Excellent | Varies | High |
+| D: YAML + external refs | Excellent | Poor | Excellent | Medium |
 
 ### Industry Research
 

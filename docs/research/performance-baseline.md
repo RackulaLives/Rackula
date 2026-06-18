@@ -1,8 +1,6 @@
 # Performance Baseline for Port Visualization
 
-**Date:** 2025-12-30
-**Issue:** #255
-**Parent Epic:** #71 (Network Interface Visualization and Connectivity)
+**Date:** 2025-12-30 **Issue:** #255 **Parent Epic:** #71 (Network Interface Visualization and Connectivity)
 
 ---
 
@@ -63,14 +61,14 @@ npm run build && npm run preview
 
 ### 1.3 Test Scenarios
 
-| Scenario         | Devices | Ports/Device | Total Ports | Expected SVG Elements |
-| ---------------- | ------- | ------------ | ----------- | --------------------- |
-| Empty rack       | 0       | 0            | 0           | ~400                  |
-| Light load       | 10      | 0            | 0           | ~550                  |
-| Dense (no ports) | 20      | 0            | 0           | ~700                  |
-| Light + ports    | 10      | 24           | 240         | ~800                  |
-| Dense + ports    | 10      | 48           | 480         | ~1,000                |
-| Max load         | 20      | 24           | 480         | ~1,200                |
+| Scenario | Devices | Ports/Device | Total Ports | Expected SVG Elements |
+| --- | --- | --- | --- | --- |
+| Empty rack | 0 | 0 | 0 | ~400 |
+| Light load | 10 | 0 | 0 | ~550 |
+| Dense (no ports) | 20 | 0 | 0 | ~700 |
+| Light + ports | 10 | 24 | 240 | ~800 |
+| Dense + ports | 10 | 48 | 480 | ~1,000 |
+| Max load | 20 | 24 | 480 | ~1,200 |
 
 ---
 

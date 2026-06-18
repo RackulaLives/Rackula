@@ -1,7 +1,6 @@
 # Research Spike #1927: Pro Audio and AV Connectivity Modeling
 
-**Date:** 2026-06-05
-**Status:** Complete
+**Date:** 2026-06-05 **Status:** Complete
 
 ---
 
@@ -28,7 +27,7 @@ How the pro audio and AV industry models connectivity:
 NetBox models four distinct component types for device I/O, each with its own direction semantics:
 
 | Component | Direction Model | Purpose |
-|-----------|----------------|---------|
+| --- | --- | --- |
 | **Interface** | No direction field (inherently bidirectional) | Network interfaces (Ethernet, fiber, wireless) |
 | **ConsolePort** | Implied input (connects TO a console server) | Serial console access |
 | **ConsoleServerPort** | Implied output (provides access TO console ports) | Serial console server |
@@ -46,6 +45,7 @@ NetBox models four distinct component types for device I/O, each with its own di
 **Front/Rear Port connector types (PortTypeChoices).** These include relevant AV connectors:
 
 **Copper:**
+
 - `8p8c`, `8p6c`, `8p4c`, `8p2c` (RJ45 variants)
 - `6p6c`, `6p4c`, `6p2c` (RJ11/RJ12/RJ9)
 - `4p4c`, `4p2c` (handset)
@@ -56,15 +56,18 @@ NetBox models four distinct component types for device I/O, each with its own di
 - `mrj21` (MRJ21)
 
 **Fiber optic:**
+
 - SC, LC, FC, ST, MPO, MTRJ, MU, LSH, LX.5 (with PC/UPC/APC variants)
 - CS, SN, SMA 905, SMA 906
 - URM-P2/P4/P8
 - Splice
 
 **USB:**
+
 - USB Type A, B, C, Mini A/B, Micro A/B/AB
 
 **Power connector types** (separate from above, for PowerPort/PowerOutlet):
+
 - IEC 60320 (C6, C8, C13, C14, C15, C16, C17, C18, C19, C20, C22)
 - IEC 60309 (various pin configurations)
 - NEMA (locking and non-locking, L1 through L22)
@@ -76,7 +79,7 @@ NetBox models four distinct component types for device I/O, each with its own di
 **Cable types (CableTypeChoices):**
 
 | Category | Types |
-|----------|-------|
+| --- | --- |
 | Copper twisted pair | CAT3, CAT5, CAT5e, CAT6, CAT6a, CAT7, CAT7a, CAT8, MRJ21 trunk |
 | Twinax | DAC active, DAC passive |
 | Coaxial | Coaxial, RG-6, RG-8, RG-11, RG-59, RG-213, LMR-100/200/400 |
@@ -89,18 +92,21 @@ NetBox models four distinct component types for device I/O, each with its own di
 ### NetBox 4.5 Enhancements
 
 **Cable Profiles** describe internal structure of multi-channel cables:
+
 - **Single:** One connector per side (1C1P through 1C16P)
 - **Trunk:** Multiple connectors per side, symmetrical
 - **Breakout:** Fewer connectors on one side (fanout)
 - **Shuffle:** Non-linear position mapping (polarity swap)
 
 **Port Mappings** (replacing the old `rear_port_position` field) allow:
+
 - A single front port to map to multiple positions on one or more rear ports
 - Accurate modeling of fiber cassettes and MPO modules
 
 ### Relevance to Rackula
 
 NetBox's model demonstrates that:
+
 1. Direction is a property of the component type, not the interface type
 2. Passthrough (front/rear port pairs) is a separate concept from endpoints (interfaces)
 3. AV connector types belong on port types, not interface types
@@ -108,6 +114,7 @@ NetBox's model demonstrates that:
 5. The plugin system and `FIELD_CHOICES` configuration allow extending types without modifying core
 
 Sources:
+
 - [NetBox interfaces documentation](https://netboxlabs.com/docs/netbox/models/dcim/interface/)
 - [NetBox cables documentation](https://netboxlabs.com/docs/netbox/features/devices-cabling/)
 - [NetBox SDI interface types issue #14597](https://github.com/netbox-community/netbox/issues/14597)
@@ -123,7 +130,7 @@ Sources:
 ### Comprehensive Connector Reference
 
 | Connector | Signal Types | Direction Model | Balanced | Common Use |
-|-----------|-------------|----------------|----------|------------|
+| --- | --- | --- | --- | --- |
 | **XLR 3-pin** | Analog audio, AES3 (digital) | Male = output, Female = input (AES14-1992) | Yes | Microphones, line I/O, AES3 |
 | **XLR 4-pin** | Analog audio (stereo/balanced mono), intercom | Male = output, Female = input | Yes | Headsets, intercom, clear-com |
 | **XLR 5-pin** | DMX512 (lighting), analog stereo | Male = output, Female = input | Yes | Lighting control, stereo audio |
@@ -147,7 +154,7 @@ Sources:
 ### Signal Level Categories
 
 | Level | Typical Voltage | dBu/dBV | Impedance | Key Rule |
-|-------|----------------|---------|-----------|----------|
+| --- | --- | --- | --- | --- |
 | **Mic level** | 1-10 mV | -60 to -40 dBu | 150-250 ohm (output) | Needs preamp before line-level gear |
 | **Instrument level** | 70-150 mV | ~-20 dBu | Very high (Hi-Z, ~1Mohm input expected) | Needs DI box or Hi-Z input |
 | **Line level (pro)** | 1.228 V RMS | +4 dBu | Low output, high input (bridging) | Standard interconnect level |
@@ -159,7 +166,7 @@ Sources:
 ### Digital Audio Protocol Specifications
 
 | Protocol | Channels | Sample Rate | Connector | Direction | Key Property |
-|----------|----------|-------------|-----------|-----------|--------------|
+| --- | --- | --- | --- | --- | --- |
 | **AES3 (AES/EBU)** | 2 | Up to 192 kHz | XLR (110 ohm) or BNC (75 ohm) | Unidirectional | Self-clocking (biphase mark) |
 | **AES3id** | 2 | Up to 192 kHz | BNC (75 ohm) | Unidirectional | 75 ohm variant of AES3 |
 | **ADAT Lightpipe** | 8 (48 kHz), 4 (96 kHz) | 44.1/48/96 kHz | TOSLINK optical | Unidirectional (separate TX/RX) | 5-10m max (plastic fiber) |
@@ -173,6 +180,7 @@ Sources:
 | **AES50** | Up to 64ch bidirectional | 44.1-96 kHz | RJ45 (Cat5e+) | Bidirectional | Behringer/Midas protocol |
 
 Sources:
+
 - [Sweetwater: Mic, Instrument, Line, Speaker Levels](https://www.sweetwater.com/sweetcare/articles/whats-the-difference-between-mic-instrument-line-and-speaker-level-signals/)
 - [Shure: Line vs Mic Levels](https://www.shure.com/en-eu/insights/differences-line-mic-level/)
 - [MADI (AES10) Wikipedia](https://en.m.wikipedia.org/wiki/MADI)
@@ -189,7 +197,7 @@ Normalling defines the default signal path between the top (output) and bottom (
 ### Three Types
 
 | Type | Behavior | Use Case |
-|------|----------|----------|
+| --- | --- | --- |
 | **Full-Normal** | Inserting a cable into **either** the top OR bottom jack breaks the default connection. | Maximum control. Any insertion overrides the default path. |
 | **Half-Normal** | Inserting into the **top** (output) jack does NOT break the link. Signal is multed (split) to both the normal destination and the patch cable. Inserting into the **bottom** (input) jack DOES break the link. | Frequent signal tapping. Common in recording studios for "dry/wet" monitoring. |
 | **De-Normal (Non-Normal/Isolated)** | No default connection between top and bottom jacks. Every connection must be made manually with patch cables. | Maximum flexibility. Used when all routing is manual. |
@@ -197,6 +205,7 @@ Normalling defines the default signal path between the top (output) and bottom (
 ### How It Works Physically
 
 Normalling is implemented via normally-closed (NC) switching contacts inside the jack sockets:
+
 - **Full-normal:** Both top and bottom jacks have NC switches. Inserting a plug into either jack physically pushes the contacts apart, breaking the circuit.
 - **Half-normal:** Only the bottom (input) jack has an NC switch. The top (output) jack connects directly, so inserting there does not interrupt the signal. The signal is "multed" to both the normal destination and the patch cable.
 - **De-normal:** No internal connection between jacks. Each operates independently.
@@ -221,6 +230,7 @@ InternalConnection with type "passthrough" + normalling property:
 ```
 
 This allows Rackula to:
+
 1. Render the default signal path without cables (normalling)
 2. Show what happens when a cable is inserted (signal continues or breaks)
 3. Trace signal flow through patch bays with proper behavior
@@ -228,6 +238,7 @@ This allows Rackula to:
 Half-normalling is particularly important because it creates an implicit signal split (mult), which has no equivalent in network connectivity.
 
 Sources:
+
 - [Sweetwater: What is Normalling?](https://www.sweetwater.com/sweetcare/articles/what-normalling-what-difference-between-full-normal-half-nornal/)
 - [Clark Wire: Understanding Audio Normalling](https://www.clarkwire.com/understanding-audio-normalling)
 - [North Coast Synthesis: All about Normalling](https://northcoastsynthesis.com/news/all-about-normalling/)
@@ -254,7 +265,7 @@ A video matrix switcher (e.g., Extron CrossPoint, Barco, Lightware) has N inputs
 ### Special Routing Features
 
 | Feature | Description | Modeling Implication |
-|---------|-------------|---------------------|
+| --- | --- | --- |
 | **Breakaway routing** | Audio can be routed independently from video on the same input | Need separate audio and video routing tables |
 | **Salvo** | Preset routing configurations recalled as a group | Store named presets of the routing table |
 | **Multiview** | One output showing multiple inputs simultaneously (quad-split, picture-in-picture) | An output can have multiple input sources with layout metadata |
@@ -275,6 +286,7 @@ RoutingTable: Map<outputPortId, inputPortId>
 ```
 
 This is sufficient because:
+
 1. The visualization only needs to show which inputs are connected to which outputs
 2. The matrix's internal crosspoint state is a routing table, not 1024 individual connections
 3. Breakaway routing is modeled by having separate routing tables per signal class
@@ -283,6 +295,7 @@ This is sufficient because:
 ### How Dante Models Routing
 
 Dante uses a subscription model:
+
 - **Flows** carry channels (1-4 for unicast, up to 64 for multicast)
 - **Subscriptions** map receiver channels to transmitter channels by name
 - Routing is receiver-pulled: the receiver subscribes to a specific transmitter channel
@@ -292,12 +305,14 @@ This is a simpler model than crosspoint matrices and aligns well with Rackula's 
 ### How AES70 (OCA) Models Routing
 
 AES70 uses an object model:
+
 - `OcaMatrix` represents a routing matrix with N inputs and M outputs
 - Crosspoints are addressed as (input, output) pairs
 - The matrix object supports switching, gain control, and label management
 - `OcaNetworkSignalChannel` provides network-level connection management
 
 Sources:
+
 - [FOR-A MFR-6100 (144x144 SDI matrix)](https://www.for-a.com/products/mfr6100/)
 - [Lightware MX2M-FR24R-F (24x24 matrix)](https://www.lightware.com/en/products/Matrix-Switchers/mx2m-fr24r-f)
 - [Extron XTP II CrossPoint 6400](https://www.extron.com/product/xtpiicp6400)
@@ -313,6 +328,7 @@ Sources:
 **What it models:** Data center infrastructure (servers, switches, PDUs, patch panels).
 
 **Relevant model:** Separate component types for different I/O:
+
 - Interface (network, bidirectional)
 - ConsolePort/ConsoleServerPort (serial, directional)
 - PowerPort/PowerOutlet (power, directional)
@@ -323,6 +339,7 @@ Sources:
 **AV relevance:** Limited. NetBox explicitly declined SDI and other broadcast types. AV connectors would go on Front/Rear Ports, not Interfaces. The plugin system and `FIELD_CHOICES` configuration allow adding custom types.
 
 **What Rackula can learn:**
+
 - Separate component types for fundamentally different I/O categories (power, network, console, AV) is clean
 - Front/Rear Port passthrough model works well for patch panels
 - The port mapping model (NetBox 4.5+) handles multi-channel connections
@@ -337,6 +354,7 @@ Sources:
 **AV relevance:** None built-in. No AV port types, no signal flow diagrams, no normalling concept.
 
 **What Rackula can learn:**
+
 - Circuit tracing through intermediate devices is essential
 - Multi-point links (breakout cables) need explicit modeling
 - Visual topology diagrams are valuable for understanding connections
@@ -346,6 +364,7 @@ Sources:
 **What it models:** Pro AV signal flow diagrams with 500+ device templates and 68 signal types.
 
 **Data model highlights:**
+
 - Ports with direction (input/output/bidirectional)
 - Network ports connect in any direction (input-to-input, output-to-output)
 - Signal type compatibility validation (green/red indicators)
@@ -359,6 +378,7 @@ Sources:
 **Signal types (68 total):** SDI, HDMI, NDI, Dante, AVB, Analog Audio, Speaker-Level, Bluetooth, AES, AES67, DMX, MADI, USB, Ethernet, Fiber, DisplayPort, HDBaseT, SRT, ST 2110, Genlock, Word Clock, GPIO, Contact Closure, RS-422, Serial, Thunderbolt, Composite, Component Video, S-Video, VGA, DVI, RF, Power, L1, L2, L3, Neutral, Ground, MIDI, Tally, S/PDIF, ADAT, YDIF, Ultranet, AES50, StageConnect, Art-Net, sACN, IR, Timecode, GigaACE, DX5, SLink, SoundGrid, fibreACE, dSnake, DX Link, Digilink, eBUS, Control Voltage, Extron Expansion, POTS, GPS, DARS, RTMP, RTSP, MPEG-TS, Custom
 
 **What Rackula can learn:**
+
 - Signal type and connector type are separate properties on a port
 - Port direction is essential (input/output/bidirectional)
 - Network signal types relax direction constraints
@@ -379,6 +399,7 @@ Source: [EasySchematic GitHub](https://github.com/duremovich/EasySchematic)
 None of these define a machine-readable data model, but they establish conventions (left-to-right signal flow, color-coded signal types, labeled connectors) that should inform Rackula's rendering.
 
 Sources:
+
 - [AVIXA Standards](https://www.avixa.org/resources/standards/published-standards)
 - [AVIXA Rack Design](https://www.avixa.org/resources/standards/rack-design-for-av-systems)
 - [AVIXA Documentation Requirements](https://store.avixa.org/CPBase__item?id=a13f200000C2UkcAAF)
@@ -400,43 +421,43 @@ Based on the research findings and Rackula's current data model (port-based conn
 // Start with a focused set; extend later
 const SignalTypeSchema = z.enum([
   // Analog audio
-  "analog-audio-mic",      // Mic level
-  "analog-audio-line",     // Line level (pro +4 dBu)
+  "analog-audio-mic", // Mic level
+  "analog-audio-line", // Line level (pro +4 dBu)
   "analog-audio-consumer", // Consumer line level (-10 dBV)
-  "analog-audio-instrument",// Instrument level (Hi-Z)
-  "analog-audio-speaker",  // Speaker level (post-amp)
+  "analog-audio-instrument", // Instrument level (Hi-Z)
+  "analog-audio-speaker", // Speaker level (post-amp)
   // Digital audio
-  "aes3",                   // AES/EBU (2-channel, XLR/BNC)
-  "aes3id",                 // AES3id (75 ohm BNC variant)
-  "adat",                   // ADAT Lightpipe (8ch optical)
-  "spdif-coaxial",          // S/PDIF coaxial (RCA)
-  "spdif-optical",          // S/PDIF optical (TOSLINK)
-  "madi",                   // MADI/AES10 (56/64ch, BNC/SC)
+  "aes3", // AES/EBU (2-channel, XLR/BNC)
+  "aes3id", // AES3id (75 ohm BNC variant)
+  "adat", // ADAT Lightpipe (8ch optical)
+  "spdif-coaxial", // S/PDIF coaxial (RCA)
+  "spdif-optical", // S/PDIF optical (TOSLINK)
+  "madi", // MADI/AES10 (56/64ch, BNC/SC)
   // Networked audio
-  "dante",                  // Dante (Audinate)
-  "avb",                    // AVB/Milan (IEEE 1722)
-  "aes67",                  // AES67 (interoperable IP audio)
+  "dante", // Dante (Audinate)
+  "avb", // AVB/Milan (IEEE 1722)
+  "aes67", // AES67 (interoperable IP audio)
   // Video
-  "hdmi",                   // HDMI (all versions)
-  "displayport",            // DisplayPort
-  "sdi",                    // SDI (HD/3G/6G/12G)
-  "composite-video",        // Composite (RCA/BNC)
-  "vga",                    // VGA analog video
-  "dvi",                    // DVI digital video
+  "hdmi", // HDMI (all versions)
+  "displayport", // DisplayPort
+  "sdi", // SDI (HD/3G/6G/12G)
+  "composite-video", // Composite (RCA/BNC)
+  "vga", // VGA analog video
+  "dvi", // DVI digital video
   // Control & sync
-  "word-clock",             // Word clock (BNC)
-  "dmx",                    // DMX512 lighting control
-  "rs-232",                 // Serial control
-  "rs-422",                 // Differential serial
-  "midi",                   // MIDI (5-pin DIN or USB)
-  "gpio",                   // General purpose I/O
+  "word-clock", // Word clock (BNC)
+  "dmx", // DMX512 lighting control
+  "rs-232", // Serial control
+  "rs-422", // Differential serial
+  "midi", // MIDI (5-pin DIN or USB)
+  "gpio", // General purpose I/O
   // Network & power
-  "ethernet",               // Standard Ethernet
-  "poe",                    // Power over Ethernet
-  "power-ac",               // AC power
-  "power-dc",               // DC power
+  "ethernet", // Standard Ethernet
+  "poe", // Power over Ethernet
+  "power-ac", // AC power
+  "power-dc", // DC power
   // Virtual
-  "virtual",                // Logical/virtual interface
+  "virtual", // Logical/virtual interface
 ]);
 ```
 
@@ -510,29 +531,75 @@ const PortDirectionSchema = z.enum(["input", "output", "bidirectional"]);
 ```typescript
 const ConnectorTypeSchema = z.enum([
   // Network
-  "rj45", "rj45-shielded", "sfp", "sfpp", "sfp28", "qsfp", "qsfpp", "qsfp28", "qsfpdd", "qsfp56",
+  "rj45",
+  "rj45-shielded",
+  "sfp",
+  "sfpp",
+  "sfp28",
+  "qsfp",
+  "qsfpp",
+  "qsfp28",
+  "qsfpdd",
+  "qsfp56",
   // Fiber optic
-  "lc", "sc", "fc", "st", "mpo", "mtrj",
+  "lc",
+  "sc",
+  "fc",
+  "st",
+  "mpo",
+  "mtrj",
   // Audio
-  "xlr-3", "xlr-4", "xlr-5", "xlr-6",
-  "trs-1-4", "ts-1-4", "trs-3-5mm", "trrs-3-5mm",
-  "rca", "speakon-2", "speakon-4", "speakon-8",
-  "adat-toslink", "db25-tascam", "db25-aes",
-  "phoenix-3", "phoenix-5", "phoenix-8",
-  "mini-din-8", "midi-din-5",
+  "xlr-3",
+  "xlr-4",
+  "xlr-5",
+  "xlr-6",
+  "trs-1-4",
+  "ts-1-4",
+  "trs-3-5mm",
+  "trrs-3-5mm",
+  "rca",
+  "speakon-2",
+  "speakon-4",
+  "speakon-8",
+  "adat-toslink",
+  "db25-tascam",
+  "db25-aes",
+  "phoenix-3",
+  "phoenix-5",
+  "phoenix-8",
+  "mini-din-8",
+  "midi-din-5",
   // Video
-  "hdmi-a", "hdmi-c", "hdmi-d",
-  "displayport", "mini-displayport",
-  "bnc", "hd-bnc",
-  "vga-d-sub-15", "dvi-d", "dvi-i", "dvi-a",
+  "hdmi-a",
+  "hdmi-c",
+  "hdmi-d",
+  "displayport",
+  "mini-displayport",
+  "bnc",
+  "hd-bnc",
+  "vga-d-sub-15",
+  "dvi-d",
+  "dvi-i",
+  "dvi-a",
   // Power
-  "iec-c13", "iec-c14", "iec-c19", "iec-c20",
-  "neutrik-powercon-20", "neutrik-powercon-32", "neutrik-powercon-true1",
-  "nema-5-15", "nema-l6-20",
+  "iec-c13",
+  "iec-c14",
+  "iec-c19",
+  "iec-c20",
+  "neutrik-powercon-20",
+  "neutrik-powercon-32",
+  "neutrik-powercon-true1",
+  "nema-5-15",
+  "nema-l6-20",
   // Serial/Console
-  "de-9", "db-25", "usb-a", "usb-b", "usb-c",
+  "de-9",
+  "db-25",
+  "usb-a",
+  "usb-b",
+  "usb-c",
   // Coaxial
-  "f-connector", "n-connector",
+  "f-connector",
+  "n-connector",
   // Multi-purpose
   "usb-c-displayport-alt",
   "other",
@@ -549,9 +616,9 @@ const ConnectorTypeSchema = z.enum([
 
 ```typescript
 const NormallingSchema = z.enum([
-  "full-normal",   // Inserting into either jack breaks the connection
-  "half-normal",   // Inserting into top (output) jack does NOT break connection
-  "non-normal",    // No default connection; all routing is manual
+  "full-normal", // Inserting into either jack breaks the connection
+  "half-normal", // Inserting into top (output) jack does NOT break connection
+  "non-normal", // No default connection; all routing is manual
 ]);
 ```
 
@@ -595,14 +662,14 @@ This applies to patch panels, audio patch bays, and video patch panels where def
 
 ```typescript
 const SignalLevelSchema = z.enum([
-  "mic",       // Mic level (-60 to -40 dBu)
-  "instrument",// Instrument level (~-20 dBu, Hi-Z)
-  "line-pro",  // Professional line level (+4 dBu)
+  "mic", // Mic level (-60 to -40 dBu)
+  "instrument", // Instrument level (~-20 dBu, Hi-Z)
+  "line-pro", // Professional line level (+4 dBu)
   "line-consumer", // Consumer line level (-10 dBV)
-  "speaker",   // Speaker level (post-amp)
-  "digital",   // Digital audio signal (AES3, ADAT, S/PDIF, etc.)
-  "clock",     // Clock/sync signal (word clock, genlock)
-  "network",   // Network data (Dante, AVB, AES67, NDI)
+  "speaker", // Speaker level (post-amp)
+  "digital", // Digital audio signal (AES3, ADAT, S/PDIF, etc.)
+  "clock", // Clock/sync signal (word clock, genlock)
+  "network", // Network data (Dante, AVB, AES67, NDI)
 ]);
 ```
 
@@ -629,16 +696,16 @@ EasySchematic auto-derives gender from connector type and direction, with per-po
 const SIGNAL_COMPATIBILITY: [SignalType, SignalType][] = [
   // Same type is always compatible
   // Analog audio levels: can connect with level warnings
-  ["analog-audio-mic", "analog-audio-line"],     // Warning: level mismatch
-  ["analog-audio-line", "analog-audio-consumer"],  // Warning: level mismatch
+  ["analog-audio-mic", "analog-audio-line"], // Warning: level mismatch
+  ["analog-audio-line", "analog-audio-consumer"], // Warning: level mismatch
   // Network audio protocols: Dante, AVB, AES67 all run over Ethernet
-  ["dante", "ethernet"],    // Dante requires Ethernet
-  ["avb", "ethernet"],      // AVB requires Ethernet
-  ["aes67", "ethernet"],    // AES67 requires Ethernet
+  ["dante", "ethernet"], // Dante requires Ethernet
+  ["avb", "ethernet"], // AVB requires Ethernet
+  ["aes67", "ethernet"], // AES67 requires Ethernet
   // Digital audio: some connectors carry multiple protocols
   ["adat", "spdif-optical"], // Same connector, different protocols (warning)
   // SDI: backward compatible (12G-SDI can carry HD-SDI signals)
-  ["sdi", "sdi"],            // Always compatible with same connector
+  ["sdi", "sdi"], // Always compatible with same connector
 ];
 ```
 
@@ -663,7 +730,7 @@ const SIGNAL_COMPATIBILITY: [SignalType, SignalType][] = [
 ## Summary
 
 | Concept | Industry Standard | Rackula Recommendation |
-|---------|-------------------|----------------------|
+| --- | --- | --- |
 | Port direction | Universal in AV tools (input/output/bidirectional) | Add `direction` to `PlacedPort` and `InterfaceTemplate` |
 | Signal type vs connector type | EasySchematic, AES70 separate them | Add `signal_type` to ports; keep `type` for connector |
 | Signal level | Pro audio standard (mic/line/instrument/speaker) | Add optional `signal_level` to `InterfaceTemplate` |

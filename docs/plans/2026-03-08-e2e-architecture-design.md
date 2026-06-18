@@ -1,8 +1,6 @@
 # E2E Testing Architecture Design Doc
 
-**Date:** 2026-03-08
-**Spike:** [#1393](https://github.com/RackulaLives/Rackula/issues/1393)
-**Status:** Proposed
+**Date:** 2026-03-08 **Spike:** [#1393](https://github.com/RackulaLives/Rackula/issues/1393) **Status:** Proposed
 
 ---
 
@@ -22,7 +20,7 @@ CSS class selectors (`.class-name`) and `:has-text()` should be eliminated from 
 Format: `{scope}-{element}-{qualifier}` in kebab-case.
 
 | TestId | Component | Purpose |
-|--------|-----------|---------|
+| --- | --- | --- |
 | `rack-canvas` | RackCanvas.svelte | SVG canvas container |
 | `rack-device` | RackDevice.svelte | Device rectangle in rack (repeating) |
 | `rack-front` | RackView.svelte | Front face container |
@@ -43,18 +41,18 @@ Format: `{scope}-{element}-{qualifier}` in kebab-case.
 
 ```typescript
 // Interactive elements → getByRole()
-await page.getByRole('button', { name: 'Save' }).click();
-await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
-await page.getByLabel('Rack name').fill('Main Rack');
+await page.getByRole("button", { name: "Save" }).click();
+await page.getByRole("dialog").getByRole("button", { name: "Create" }).click();
+await page.getByLabel("Rack name").fill("Main Rack");
 
 // Structural/SVG elements → getByTestId()
-await expect(page.getByTestId('rack-canvas')).toBeVisible();
-const devices = page.getByTestId('rack-front').getByTestId('rack-device');
+await expect(page.getByTestId("rack-canvas")).toBeVisible();
+const devices = page.getByTestId("rack-front").getByTestId("rack-device");
 await expect(devices).toHaveCount(3);
 
 // Scoped queries → chaining
-const editPanel = page.getByTestId('drawer-device-edit');
-await editPanel.getByLabel('Display name').fill('My Server');
+const editPanel = page.getByTestId("drawer-device-edit");
+await editPanel.getByLabel("Display name").fill("My Server");
 ```
 
 ---
@@ -69,29 +67,29 @@ No change to the core pattern. Rackula's functional helpers (`dragDeviceToRack`,
 
 ```typescript
 // e2e/helpers/locators.ts
-import type { Page } from '@playwright/test';
+import type { Page } from "@playwright/test";
 
 export const locators = {
   rack: {
-    canvas: (page: Page) => page.getByTestId('rack-canvas'),
-    device: (page: Page) => page.getByTestId('rack-device'),
-    front: (page: Page) => page.getByTestId('rack-front'),
-    rear: (page: Page) => page.getByTestId('rack-rear'),
-    dropZone: (page: Page) => page.getByTestId('rack-drop-zone'),
+    canvas: (page: Page) => page.getByTestId("rack-canvas"),
+    device: (page: Page) => page.getByTestId("rack-device"),
+    front: (page: Page) => page.getByTestId("rack-front"),
+    rear: (page: Page) => page.getByTestId("rack-rear"),
+    dropZone: (page: Page) => page.getByTestId("rack-drop-zone"),
   },
   palette: {
-    search: (page: Page) => page.getByTestId('palette-search'),
+    search: (page: Page) => page.getByTestId("palette-search"),
     item: (page: Page, name: string) =>
-      page.getByTestId('palette-item').filter({ hasText: name }),
+      page.getByTestId("palette-item").filter({ hasText: name }),
   },
   drawer: {
-    deviceEdit: (page: Page) => page.getByTestId('drawer-device-edit'),
+    deviceEdit: (page: Page) => page.getByTestId("drawer-device-edit"),
   },
   toolbar: {
-    undo: (page: Page) => page.getByTestId('btn-undo'),
-    redo: (page: Page) => page.getByTestId('btn-redo'),
-    export: (page: Page) => page.getByTestId('btn-export'),
-    fileMenu: (page: Page) => page.getByRole('button', { name: 'File menu' }),
+    undo: (page: Page) => page.getByTestId("btn-undo"),
+    redo: (page: Page) => page.getByTestId("btn-redo"),
+    export: (page: Page) => page.getByTestId("btn-export"),
+    fileMenu: (page: Page) => page.getByRole("button", { name: "File menu" }),
   },
 } as const;
 ```
@@ -122,9 +120,14 @@ export function createTestLayout(overrides?: {
   rackName?: string;
   rackHeight?: number;
   rackWidth?: 10 | 19;
-  devices?: Array<{ type: string; position: number; face: 'front' | 'rear' }>;
-  customTypes?: Array<{ slug: string; height: number; colour: string; category: string }>;
-}): string
+  devices?: Array<{ type: string; position: number; face: "front" | "rear" }>;
+  customTypes?: Array<{
+    slug: string;
+    height: number;
+    colour: string;
+    category: string;
+  }>;
+}): string;
 ```
 
 Enables tests to create specific configurations without manually encoding share links. Complements (not replaces) the 5 existing static fixtures.
@@ -139,9 +142,7 @@ Wrap `gotoWithRack()` in `test.extend()` for declarative test setup. This is opt
 
 ### Phase 1: Centralise Selectors
 
-**Scope:** E2E test files only (no component changes)
-**Effort:** Small
-**Related issue:** New issue (selector centralisation)
+**Scope:** E2E test files only (no component changes) **Effort:** Small **Related issue:** New issue (selector centralisation)
 
 1. Create `e2e/helpers/locators.ts` with all CSS class selectors as named constants
 2. Update `device-actions.ts`, `rack-setup.ts`, `toolbar-actions.ts` to import from locators
@@ -151,9 +152,7 @@ Wrap `gotoWithRack()` in `test.extend()` for declarative test setup. This is opt
 
 ### Phase 2: Add data-testid to Components
 
-**Scope:** Svelte components + locators.ts
-**Effort:** Medium
-**Related issues:** #1228, #1264
+**Scope:** Svelte components + locators.ts **Effort:** Medium **Related issues:** #1228, #1264
 
 1. Add `data-testid` to ~15 structural elements (see naming scheme table above)
 2. Update `locators.ts` to use `getByTestId()` instead of CSS class selectors
@@ -163,9 +162,7 @@ Wrap `gotoWithRack()` in `test.extend()` for declarative test setup. This is opt
 
 ### Phase 3: Migrate Interactive Selectors
 
-**Scope:** Helpers and spec files
-**Effort:** Medium
-**Related issue:** #1228
+**Scope:** Helpers and spec files **Effort:** Medium **Related issue:** #1228
 
 1. Replace `:has-text()` button selectors with `getByRole('button', { name: ... })`
 2. Replace `#id` form selectors with `getByLabel()`
@@ -175,8 +172,7 @@ Wrap `gotoWithRack()` in `test.extend()` for declarative test setup. This is opt
 
 ### Phase 4: Clean Up and Enforce
 
-**Scope:** E2E test files + ESLint config
-**Effort:** Small
+**Scope:** E2E test files + ESLint config **Effort:** Small
 
 1. Remove remaining inline CSS selectors from spec files
 2. Add ESLint rule to warn on `.locator('.')` patterns in E2E files
@@ -201,7 +197,7 @@ Phases 3 and 4 can be done in parallel after Phase 2.
 ## 5. Disabled Test Strategy
 
 | Category | Tests | Action | Linked To |
-|----------|-------|--------|-----------|
+| --- | --- | --- | --- |
 | File chooser | 3 | Fix with `page.setInputFiles()` | #1226 |
 | Unimplemented UI | 3 | Keep skipped | Feature backlog |
 | UX redesign (#903) | 3 | Review against current UX | #903, #1226 |
@@ -213,7 +209,7 @@ Phases 3 and 4 can be done in parallel after Phase 2.
 ## 6. Relationship to Open Issues
 
 | Issue | Title | How This Design Addresses It |
-|-------|-------|------------------------------|
+| --- | --- | --- |
 | #1228 | Selector reliability | Phases 1-4 replace CSS selectors with stable alternatives |
 | #1226 | Disabled test triage | Root causes identified; file chooser fix + selector migration unblocks most |
 | #1264 | Workflow/dialog selectors | Phase 2 adds testids to dialogs, drawers, context menus |

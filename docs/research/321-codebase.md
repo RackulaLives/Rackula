@@ -2,13 +2,14 @@
 
 **Issue:** #321  
 **Date:** 2025-12-30  
-**Context:** Research for extracting isometric rendering POC from spike #300 as a standalone backend API service  
+**Context:** Research for extracting isometric rendering POC from spike #300 as a standalone backend API service
 
 ---
 
 ## Files Examined
 
 ### Isometric Rendering (Spike #300 POC)
+
 - `/Users/gvns/code/projects/Rackula/Rackula/scripts/isometric-poc.ts` - Full 3D isometric SVG generation script (v2 POC)
 - `/Users/gvns/code/projects/Rackula/Rackula/docs/research/isometric-poc-notes.md` - Visual assessment and technical parameters
 - `/Users/gvns/code/projects/Rackula/Rackula/docs/research/spike-293-isometric-3d-view.md` - Pre-spike #300 research document
@@ -16,15 +17,18 @@
 - `/Users/gvns/code/projects/Rackula/Rackula/docs/research/isometric-poc-dual.svg` - Generated dual-view example
 
 ### Export Infrastructure
+
 - `/Users/gvns/code/projects/Rackula/Rackula/src/lib/utils/export.ts` - Main export SVG generation (1,492 lines)
 - `/Users/gvns/code/projects/Rackula/Rackula/src/lib/components/ExportDialog.svelte` - Export UI component
 - `/Users/gvns/code/projects/Rackula/Rackula/src/tests/export.test.ts` - Export test suite
 - `/Users/gvns/code/projects/Rackula/Rackula/src/lib/utils/canvas.ts` - Canvas positioning and zoom calculations
 
 ### Type Definitions
+
 - `/Users/gvns/code/projects/Rackula/Rackula/src/lib/types/index.ts` - Core data types (Rack, DeviceType, ExportOptions, etc.)
 
 ### Supporting Utilities
+
 - `/Users/gvns/code/projects/Rackula/Rackula/package.json` - Project dependencies
 
 ---
@@ -64,7 +68,7 @@ The POC is a **self-contained Node.js script** that generates realistic 3D isome
    - `drawDeviceFrontDetails()` - Bezel lines, LEDs, drive bays
    - Supports:
      - Full-depth devices (90px depth = RACK_DEPTH - 10)
-     - Half-depth devices (40px depth = RACK_DEPTH * 0.4)
+     - Half-depth devices (40px depth = RACK_DEPTH \* 0.4)
      - Device color + darkened side panel
      - Front panel decorative details (horizontal lines, indicators)
      - Optional LED indicators and drive bay visualization
@@ -82,18 +86,18 @@ The POC is a **self-contained Node.js script** that generates realistic 3D isome
 
 ### Technical Parameters (from POC)
 
-| Parameter | Value | Purpose |
-|-----------|-------|---------|
-| Rack Width (front) | 160px | Cabinet width |
-| Rack Depth | 100px | Cabinet depth |
-| U Height | 18px | Pixels per rack unit |
-| Sample Rack Size | 12U | Demo rack |
-| Frame Thickness | 8px | Cabinet frame |
-| Rail Width | 6px | Mounting rails |
-| Rail Inset | 12px | Distance from edge to rails |
-| Side Darkening | 30% | RGB multiplication for depth |
-| Top Lightening | 20% | RGB interpolation for highlights |
-| Dracula Color Scheme | 10 colors | Dark theme matching app |
+| Parameter            | Value     | Purpose                          |
+| -------------------- | --------- | -------------------------------- |
+| Rack Width (front)   | 160px     | Cabinet width                    |
+| Rack Depth           | 100px     | Cabinet depth                    |
+| U Height             | 18px      | Pixels per rack unit             |
+| Sample Rack Size     | 12U       | Demo rack                        |
+| Frame Thickness      | 8px       | Cabinet frame                    |
+| Rail Width           | 6px       | Mounting rails                   |
+| Rail Inset           | 12px      | Distance from edge to rails      |
+| Side Darkening       | 30%       | RGB multiplication for depth     |
+| Top Lightening       | 20%       | RGB interpolation for highlights |
+| Dracula Color Scheme | 10 colors | Dark theme matching app          |
 
 ### Rendering Pipeline (POC)
 
@@ -116,11 +120,13 @@ The POC is a **self-contained Node.js script** that generates realistic 3D isome
 ### Function Architecture
 
 **Main Entry Point:**
+
 - `generateExportSVG(racks, deviceLibrary, options, images?)` - Creates SVG element for export
   - Returns: `SVGElement` (native DOM element)
   - Supports: multiple racks, dual-view (front+rear), QR codes, legends
 
 **Export Formats:**
+
 - `exportAsSVG(svg)` - Returns SVG string
 - `exportAsPNG(svg, options)` - Canvas rasterization (dynamic html2canvas + canvas.toBlob)
 - `exportAsJPEG(svg, options)` - Canvas rasterization with quality
@@ -129,6 +135,7 @@ The POC is a **self-contained Node.js script** that generates realistic 3D isome
 - `downloadBlob(blob, filename)` - Trigger browser download
 
 **Supporting Functions:**
+
 - `generateExportFilename()` - Creates timestamped filenames
 - `filterDevicesByFace()` - Filter devices for front/rear views
 - `createCategoryIconElements()` - Render device category icons (12 categories)
@@ -141,22 +148,22 @@ From `/src/lib/types/index.ts`:
 export interface Rack {
   id?: string;
   name: string;
-  height: number;            // 1-100U
-  width: 10 | 19 | 23;       // Inches
-  desc_units: boolean;       // Descending units
-  show_rear: boolean;        // Show rear view
+  height: number; // 1-100U
+  width: 10 | 19 | 23; // Inches
+  desc_units: boolean; // Descending units
+  show_rear: boolean; // Show rear view
   form_factor: FormFactor;
   starting_unit: number;
   position: number;
   devices: PlacedDevice[];
   notes?: string;
-  view?: RackView;           // Runtime only
+  view?: RackView; // Runtime only
 }
 
 export interface PlacedDevice {
   id: string;
-  device_type: string;       // Slug reference
-  position: number;          // Starting U
+  device_type: string; // Slug reference
+  position: number; // Starting U
   face: "front" | "rear" | "both";
 }
 
@@ -164,9 +171,9 @@ export interface DeviceType {
   slug: string;
   name: string;
   u_height: number;
-  category: DeviceCategory;  // 12 categories
-  colour: string;            // Hex color
-  is_full_depth?: boolean;   // Default: true
+  category: DeviceCategory; // 12 categories
+  colour: string; // Hex color
+  is_full_depth?: boolean; // Default: true
   is_powered?: boolean;
   airflow?: Airflow;
   // ... 15+ more optional fields
@@ -190,9 +197,9 @@ export interface ExportOptions {
 
 ```typescript
 const U_HEIGHT = 18;
-const RACK_WIDTH = 220;        // Display rack width
-const RACK_PADDING = 32;       // Hidden padding
-const RACK_GAP = 40;           // Between dual-view racks
+const RACK_WIDTH = 220; // Display rack width
+const RACK_PADDING = 32; // Hidden padding
+const RACK_GAP = 40; // Between dual-view racks
 const LEGEND_PADDING = 20;
 const LEGEND_ITEM_HEIGHT = 24;
 const EXPORT_PADDING = 20;
@@ -239,16 +246,17 @@ const LIGHT_RACK_INTERIOR = "#e0e0e0";
 
 ```json
 {
-  "jspdf": "^3.0.4",          // PDF generation (lazy-loaded)
-  "jszip": "^3.10.1",         // ZIP archive handling
-  "qrcode": "^1.5.4",         // QR code generation
-  "zod": "^4.1.13",           // Data validation
-  "pako": "^2.1.0",           // Compression (for YAML in archives)
-  "js-yaml": "^4.1.1"         // YAML parsing/generation
+  "jspdf": "^3.0.4", // PDF generation (lazy-loaded)
+  "jszip": "^3.10.1", // ZIP archive handling
+  "qrcode": "^1.5.4", // QR code generation
+  "zod": "^4.1.13", // Data validation
+  "pako": "^2.1.0", // Compression (for YAML in archives)
+  "js-yaml": "^4.1.1" // YAML parsing/generation
 }
 ```
 
 **Not included (browser-only):**
+
 - `html2canvas` - DOM to canvas (lazy-imported in exportAsPNG)
 - `panzoom` - Canvas interaction library
 - `svelte` - UI framework
@@ -256,6 +264,7 @@ const LIGHT_RACK_INTERIOR = "#e0e0e0";
 ### What Would Be Needed for Server Service
 
 **Required Additions (for Node.js backend):**
+
 1. **SVG → Image Conversion:**
    - Option A: Puppeteer/Playwright (headless browser rendering)
    - Option B: Sharp + svg2png (lightweight native C++ binding)
@@ -302,6 +311,7 @@ isometric-service/
 ### Phase 1: Extract Isometric Math & SVG Generation
 
 **What Can Be Extracted Directly:**
+
 1. All math utilities from isometric-poc.ts can be moved as-is:
    - `isoProject()` - Pure function, no dependencies
    - Color utilities - Pure functions
@@ -313,27 +323,29 @@ isometric-service/
    - All SVG element creation via `document.createElementNS()`
 
 **Refactoring Needed:**
+
 1. Decouple from JSDOM initialization:
    - Move JSDOM creation to service setup, not per-call
    - Pass document/svg as parameters or class state
 
 2. Create abstraction layer:
+
    ```typescript
    interface IsometricRenderContext {
      document: Document;
      svg: SVGSVGElement;
      ns: string; // "http://www.w3.org/2000/svg"
    }
-   
+
    function createRenderContext(): IsometricRenderContext {
      // Initialize once per service
    }
-   
+
    function drawDevice(
      ctx: IsometricRenderContext,
      device: PlacedDevice,
      deviceType: DeviceType,
-     position: { x: number; y: number; z: number }
+     position: { x: number; y: number; z: number },
    ): void {
      // Render to ctx.svg
    }
@@ -347,17 +359,20 @@ isometric-service/
 ### Phase 2: Integrate with Export.ts Architecture
 
 **Compatibility Layer:**
+
 - Export.ts already creates SVG DOM elements
 - Could call `generateExportSVG()` from Node.js backend if refactored
 - Would need to abstract browser-specific code paths
 
 **Option A: Unified codebase**
+
 - Share `generateExportSVG()` between browser and backend
 - Conditional imports for browser-only features
 - Export.ts has ~1,000 LOC for flat export logic
 - Would need to extract isometric as optional branch
 
 **Option B: Separate isometric service**
+
 - Dedicated Node.js module
 - Input: Rack + DeviceType data (JSON/protobuf)
 - Output: SVG string
@@ -366,20 +381,22 @@ isometric-service/
 ### Phase 3: Configuration & Parameters
 
 **Extractable Parameters:**
+
 - Rack dimensions (U_HEIGHT, RACK_WIDTH, RACK_DEPTH, etc.)
 - Frame dimensions (FRAME_THICKNESS, RAIL_WIDTH, RAIL_INSET)
 - Colors (cabinet, rail, interior, text)
 - Device depth ratios (full-depth = 90px, half = 40px)
 
 **Recommended Approach:**
+
 ```typescript
 interface IsometricConfig {
   // Dimensions (pixels)
-  uHeightPx: number;              // Default: 18
-  rackWidthPx: number;            // Default: 160
-  rackDepthPx: number;            // Default: 100
-  frameThicknessPx: number;       // Default: 8
-  
+  uHeightPx: number; // Default: 18
+  rackWidthPx: number; // Default: 160
+  rackDepthPx: number; // Default: 100
+  frameThicknessPx: number; // Default: 8
+
   // Colors
   colorScheme: "dracula" | "light" | "dark";
   customColors?: {
@@ -388,16 +405,16 @@ interface IsometricConfig {
     rail: string;
     // ... etc
   };
-  
+
   // Features
-  includeMountingHoles: boolean;   // Default: true
-  includeStatusLeds: boolean;      // Default: true
-  includeDeviceDetails: boolean;   // Default: true (bezel lines, etc)
-  
+  includeMountingHoles: boolean; // Default: true
+  includeStatusLeds: boolean; // Default: true
+  includeDeviceDetails: boolean; // Default: true (bezel lines, etc)
+
   // Output
-  dualView: boolean;               // Front+rear
+  dualView: boolean; // Front+rear
   includeLegend: boolean;
-  canvasPaddingPx: number;         // Default: 60
+  canvasPaddingPx: number; // Default: 60
 }
 ```
 
@@ -580,34 +597,37 @@ isometric-service/
    - Keep all math and drawing functions
 
 2. **Create wrapper for Rackula domain model:**
+
    ```typescript
    function renderRackIsometric(
      rack: Rack,
      deviceTypes: DeviceType[],
-     config: IsometricConfig
+     config: IsometricConfig,
    ): SVGElement {
      const context = createRenderContext();
-     
+
      // Validate
      validateRack(rack, deviceTypes);
-     
+
      // Initialize SVG
      const svg = initializeSvg(context, config);
-     
+
      // Draw
      drawRackCabinet(context, svg, config);
-     
+
      // Render devices
      for (const device of rack.devices) {
-       const deviceType = deviceTypes.find(d => d.slug === device.device_type);
+       const deviceType = deviceTypes.find(
+         (d) => d.slug === device.device_type,
+       );
        drawDevice(context, svg, device, deviceType, config);
      }
-     
+
      // Add legend if needed
      if (config.includeLegend) {
        drawLegend(context, svg, rack.devices, deviceTypes);
      }
-     
+
      return svg;
    }
    ```
@@ -654,14 +674,14 @@ isometric-service/
 
 ### Effort Estimate
 
-| Phase | Task | Est. Hours |
-|-------|------|-----------|
-| 1 | Extract & refactor isometric math | 4-6 |
-| 2 | Server wrapper + API design | 6-8 |
-| 3 | Image export (PNG/PDF) backends | 8-12 |
-| 4 | Testing & validation | 6-10 |
-| 5 | Documentation & deployment | 4-6 |
-| **Total** | | **28-42 hours** |
+| Phase     | Task                              | Est. Hours      |
+| --------- | --------------------------------- | --------------- |
+| 1         | Extract & refactor isometric math | 4-6             |
+| 2         | Server wrapper + API design       | 6-8             |
+| 3         | Image export (PNG/PDF) backends   | 8-12            |
+| 4         | Testing & validation              | 6-10            |
+| 5         | Documentation & deployment        | 4-6             |
+| **Total** |                                   | **28-42 hours** |
 
 ### Recommended Path Forward
 
@@ -669,4 +689,3 @@ isometric-service/
 2. **Medium term:** Build minimal Node.js HTTP service (svg-only output)
 3. **Long term:** Add image export backends (Puppeteer for initial MVP, optimize with Sharp later)
 4. **Future:** Consider asset caching, per-device customization, alternative projection angles
-

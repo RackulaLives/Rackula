@@ -9,24 +9,20 @@ depends-on: 1315
 
 ## Context
 
-Issue #1315 decided that the Rackula app adopts CalVer `YY.M.MICRO` (e.g., `v26.6.0`), while
-reserving SemVer for any future published packages (`@rackula/core`). The decision record
-(`docs/superpowers/specs/2026-05-29-versioning-policy-calver-design.md`) is merged. This spec
-covers the implementation: what changes, in what order, and how to verify it.
+Issue #1315 decided that the Rackula app adopts CalVer `YY.M.MICRO` (e.g., `v26.6.0`), while reserving SemVer for any future published packages (`@rackula/core`). The decision record (`docs/superpowers/specs/2026-05-29-versioning-policy-calver-design.md`) is merged. This spec covers the implementation: what changes, in what order, and how to verify it.
 
-**Why now?** The LXC release is the designated anchor point. The current SemVer pipeline
-requires a minor-vs-patch decision on every release; CalVer eliminates that friction.
+**Why now?** The LXC release is the designated anchor point. The current SemVer pipeline requires a minor-vs-patch decision on every release; CalVer eliminates that friction.
 
 ## Key Decisions (Confirmed)
 
-| Decision                | Choice                           | Rationale                                      |
-| ----------------------- | -------------------------------- | ---------------------------------------------- |
-| CalVer format           | `YY.M.MICRO` (e.g., `v26.6.0`)   | Valid-semver-shaped, 3-segment, unpadded month |
-| First CalVer release    | LXC milestone                    | Natural pipeline touch-point                   |
-| Docker rolling tags     | `YY.M` (e.g., `26.6`) + `latest` | Same pattern as current `major.minor`          |
-| Migration thresholds    | Leave `0.7.0` as-is              | Any CalVer > `0.7.0`, no code changes needed   |
-| `api/package.json`      | Track same version as root       | Unify for simplicity                           |
-| Implementation approach | Staged prep + single cutover     | Validate CI before committing to CalVer        |
+| Decision | Choice | Rationale |
+| --- | --- | --- |
+| CalVer format | `YY.M.MICRO` (e.g., `v26.6.0`) | Valid-semver-shaped, 3-segment, unpadded month |
+| First CalVer release | LXC milestone | Natural pipeline touch-point |
+| Docker rolling tags | `YY.M` (e.g., `26.6`) + `latest` | Same pattern as current `major.minor` |
+| Migration thresholds | Leave `0.7.0` as-is | Any CalVer > `0.7.0`, no code changes needed |
+| `api/package.json` | Track same version as root | Unify for simplicity |
+| Implementation approach | Staged prep + single cutover | Validate CI before committing to CalVer |
 
 ## What Changes
 
@@ -66,8 +62,7 @@ requires a minor-vs-patch decision on every release; CalVer eliminates that fric
 
 **What:** Create `scripts/next-version.sh` that computes the next CalVer version.
 
-**Why:** Both the `/release` skill and CI workflows need to compute `YY.M.MICRO` from the current
-date and existing git tags. A single script prevents drift between them.
+**Why:** Both the `/release` skill and CI workflows need to compute `YY.M.MICRO` from the current date and existing git tags. A single script prevents drift between them.
 
 **Requirements:**
 
@@ -96,8 +91,7 @@ date and existing git tags. A single script prevents drift between them.
 
 **What:** Replace SemVer bump logic in `.claude/commands/release.md` with CalVer computation.
 
-**Why:** The release skill currently accepts `patch`/`minor`/`major` and does SemVer arithmetic.
-CalVer eliminates bump types — version is computed from date + tag counter.
+**Why:** The release skill currently accepts `patch`/`minor`/`major` and does SemVer arithmetic. CalVer eliminates bump types — version is computed from date + tag counter.
 
 **Requirements:**
 
@@ -125,10 +119,7 @@ CalVer eliminates bump types — version is computed from date + tag counter.
 
 **What:** Update the production deployment workflow to handle CalVer tags and Docker tags.
 
-**Why:** The current workflow validates strict SemVer (`^v[0-9]+\.[0-9]+\.[0-9]+$`) and uses
-`type=semver` Docker metadata patterns. CalVer `v26.6.0` technically matches this regex (it's
-still 3 numeric segments), but the semantics of `major.minor` change to `YY.M`, and the
-Docker metadata action's `type=semver` pattern needs review.
+**Why:** The current workflow validates strict SemVer (`^v[0-9]+\.[0-9]+\.[0-9]+$`) and uses `type=semver` Docker metadata patterns. CalVer `v26.6.0` technically matches this regex (it's still 3 numeric segments), but the semantics of `major.minor` change to `YY.M`, and the Docker metadata action's `type=semver` pattern needs review.
 
 **Requirements:**
 
@@ -159,8 +150,7 @@ Docker metadata action's `type=semver` pattern needs review.
 
 **What:** Minor documentation updates to the release creation workflow.
 
-**Why:** The changelog validation is format-agnostic (just greps for `## [VERSION]`), but comments
-reference "semver".
+**Why:** The changelog validation is format-agnostic (just greps for `## [VERSION]`), but comments reference "semver".
 
 **Requirements:**
 
@@ -180,8 +170,7 @@ reference "semver".
 
 **What:** Replace the Cargo SemVer policy (lines 8–59) with the CalVer `YY.M.MICRO` policy.
 
-**Why:** CLAUDE.md is the AI assistant's primary reference for project conventions. It currently
-describes SemVer bump types and Cargo conventions that are no longer accurate.
+**Why:** CLAUDE.md is the AI assistant's primary reference for project conventions. It currently describes SemVer bump types and Cargo conventions that are no longer accurate.
 
 **Requirements:**
 
@@ -237,8 +226,7 @@ describes SemVer bump types and Cargo conventions that are no longer accurate.
 
 **What:** Rename GitHub milestones from SemVer names to theme-based names with CalVer ranges.
 
-**Why:** Under CalVer, a milestone named `v1.0.0` no longer maps to a version. Milestones should
-reflect theme and target date instead.
+**Why:** Under CalVer, a milestone named `v1.0.0` no longer maps to a version. Milestones should reflect theme and target date instead.
 
 **Requirements:**
 
@@ -258,18 +246,15 @@ reflect theme and target date instead.
 
 ### Monotonic ordering
 
-The transition `0.10.1 → 26.6.0` only ever increases. `compareVersions("26.6.0", "0.7.0")` returns
-`1` (greater), so all existing migration thresholds work correctly. No data migration needed.
+The transition `0.10.1 → 26.6.0` only ever increases. `compareVersions("26.6.0", "0.7.0")` returns `1` (greater), so all existing migration thresholds work correctly. No data migration needed.
 
 ### Docker tag safety
 
-CalVer tags (`26.6.0`, `26.6`, `latest`) don't collide with existing SemVer tags (`0.10.1`,
-`0.10`, `latest`). The `latest` tag will be overwritten as expected on the first CalVer release.
+CalVer tags (`26.6.0`, `26.6`, `latest`) don't collide with existing SemVer tags (`0.10.1`, `0.10`, `latest`). The `latest` tag will be overwritten as expected on the first CalVer release.
 
 ### CI validation
 
-The regex `^v[0-9]+\.[0-9]+\.[0-9]+$` already matches `v26.6.0`. No regex change is strictly
-required, but the error message should reference "CalVer" instead of "semver".
+The regex `^v[0-9]+\.[0-9]+\.[0-9]+$` already matches `v26.6.0`. No regex change is strictly required, but the error message should reference "CalVer" instead of "semver".
 
 ### Rollback
 
@@ -284,11 +269,9 @@ If the CalVer tag causes unexpected CI failures:
 
 ### Phase 1 Verification (Preparation)
 
-1. **`scripts/next-version.sh`**: Run with `--dry-run` on current repo. Should compute a valid
-   CalVer version based on current date and existing tags.
+1. **`scripts/next-version.sh`**: Run with `--dry-run` on current repo. Should compute a valid CalVer version based on current date and existing tags.
 2. **`/release` skill**: Dry-run with no argument. Should propose the correct CalVer version.
-3. **`deploy-prod.yml`**: Push a test tag (or use `workflow_dispatch`) to validate the regex and
-   Docker tag generation with a CalVer-format tag.
+3. **`deploy-prod.yml`**: Push a test tag (or use `workflow_dispatch`) to validate the regex and Docker tag generation with a CalVer-format tag.
 4. **`CLAUDE.md`**: Review the versioning policy section for accuracy.
 
 ### Phase 2 Verification (Cutover)

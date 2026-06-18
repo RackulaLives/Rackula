@@ -1,8 +1,6 @@
 # Spike #262: Cable Path Rendering Algorithm
 
-**Date:** 2026-01-03
-**Parent Epic:** #71 (Network Interface Visualization and Connectivity)
-**Depends On:** #365 (Connection model), #363 (PlacedPort schema)
+**Date:** 2026-01-03 **Parent Epic:** #71 (Network Interface Visualization and Connectivity) **Depends On:** #365 (Connection model), #363 (PlacedPort schema)
 
 ---
 
@@ -649,12 +647,12 @@ function calculateConnectionPath(
 
 ## 13. Decision Log
 
-| Date       | Decision                  | Rationale                                                |
-| ---------- | ------------------------- | -------------------------------------------------------- |
-| 2026-01-03 | Use cubic bezier curves   | Best balance of aesthetics and implementation complexity |
-| 2026-01-03 | External channel routing  | Prevents device occlusion, clearest visual hierarchy     |
-| 2026-01-03 | Render behind devices     | Connections support devices, not vice versa              |
-| 2026-01-03 | Defer bundling to Phase 3 | MVP doesn't need it, complexity can wait                 |
+| Date | Decision | Rationale |
+| --- | --- | --- |
+| 2026-01-03 | Use cubic bezier curves | Best balance of aesthetics and implementation complexity |
+| 2026-01-03 | External channel routing | Prevents device occlusion, clearest visual hierarchy |
+| 2026-01-03 | Render behind devices | Connections support devices, not vice versa |
+| 2026-01-03 | Defer bundling to Phase 3 | MVP doesn't need it, complexity can wait |
 
 ---
 

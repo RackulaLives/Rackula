@@ -1,9 +1,6 @@
 # Research Spike: Issue #1005 — Layout Name Separation
 
-**Issue:** [#1005](https://github.com/RackulaLives/Rackula/issues/1005) — New layouts auto-named "Racky McRackface" (the default rack name)
-**Reporter:** @timothystewart6 via PR #1001 comment
-**Date:** 2026-03-13
-**Status:** Research complete, pending design approval
+**Issue:** [#1005](https://github.com/RackulaLives/Rackula/issues/1005) — New layouts auto-named "Racky McRackface" (the default rack name) **Reporter:** @timothystewart6 via PR #1001 comment **Date:** 2026-03-13 **Status:** Research complete, pending design approval
 
 ---
 
@@ -24,6 +21,7 @@ New layouts inherit the first rack's name due to an implicit name-sync in `addRa
 ### Confirmed: No Schema Changes Needed
 
 The data model already supports separate layout and rack names:
+
 - `layout.name` — mutable, live layout name
 - `layout.metadata.name` — set once at creation, written to YAML
 - Rack names are independent (`rack.name` in each rack object)
@@ -32,15 +30,15 @@ The problem is purely behavioural: `addRack()`, `addBayedRackGroup()`, `updateRa
 
 ### Name Authority Map
 
-| Context | Source | Stale Risk |
-|---------|--------|------------|
-| In-memory display | `layout.name` | No |
-| YAML top-level | `layout.name` at serialize time | No |
-| YAML metadata | `metadata.name` (from creation) | **Yes** |
-| Archive folder/filename | `metadata.name` or rebuilt | **Possible** |
-| Export filename (PNG/SVG) | `layout.name` (live) | No |
-| Persistence API | UUID only | N/A |
-| Session storage | `layout.name` (stored) | No |
+| Context                   | Source                          | Stale Risk   |
+| ------------------------- | ------------------------------- | ------------ |
+| In-memory display         | `layout.name`                   | No           |
+| YAML top-level            | `layout.name` at serialize time | No           |
+| YAML metadata             | `metadata.name` (from creation) | **Yes**      |
+| Archive folder/filename   | `metadata.name` or rebuilt      | **Possible** |
+| Export filename (PNG/SVG) | `layout.name` (live)            | No           |
+| Persistence API           | UUID only                       | N/A          |
+| Session storage           | `layout.name` (stored)          | No           |
 
 ### Fix for Metadata Divergence
 
@@ -53,7 +51,7 @@ Sync `metadata.name = layout.name` in `serializeLayoutToYamlWithMetadata()` befo
 ### Industry Survey
 
 | Tool | Pattern | Naming Flow |
-|------|---------|-------------|
+| --- | --- | --- |
 | Figma | Auto-name + inline rename | "Untitled" → click title to rename |
 | Excalidraw | Auto-name | No naming step; timestamp on export |
 | draw.io | Name on save | Prompt only at save/export time |
@@ -76,25 +74,25 @@ Sync `metadata.name = layout.name` in `serializeLayoutToYamlWithMetadata()` befo
 ## 4. Design Options
 
 ### Option A: Layout Name Field in NewRackWizard
-Add a "Layout Name" input to Step 1, visible only for the first rack.
-**Rejected:** Couples layout naming to rack creation; adds cognitive load.
+
+Add a "Layout Name" input to Step 1, visible only for the first rack. **Rejected:** Couples layout naming to rack creation; adds cognitive load.
 
 ### Option B: Separate "Name Your Layout" Dialog
-Modal dialog before the wizard with naming suggestions.
-**Rejected:** Against industry norms; forces decision before context; adds friction.
+
+Modal dialog before the wizard with naming suggestions. **Rejected:** Against industry norms; forces decision before context; adds friction.
 
 ### Option C: "Step 0" in Wizard (3-Step First-Rack Flow)
-Extend wizard to Name Layout → Rack Type → Rack Details.
-**Rejected:** Over-engineered; more steps = more friction, especially on mobile.
+
+Extend wizard to Name Layout → Rack Type → Rack Details. **Rejected:** Over-engineered; more steps = more friction, especially on mobile.
 
 ### Option D: Auto-Name + Inline Rename (Recommended)
-Remove name-sync, auto-name "My Layout", click-to-edit in header.
-**Selected:** Matches industry standard; zero friction; ADHD-friendly.
+
+Remove name-sync, auto-name "My Layout", click-to-edit in header. **Selected:** Matches industry standard; zero friction; ADHD-friendly.
 
 ### Trade-Off Matrix
 
 | Criterion | A: Wizard | B: Dialog | C: Step 0 | **D: Auto+Rename** |
-|-----------|:---------:|:---------:|:---------:|:-------------------:|
+| --- | :-: | :-: | :-: | :-: |
 | Industry alignment | ~ | - | ~ | **++** |
 | Mobile UX | ~ | - | - | **++** |
 | ADHD-friendly | - | - | - | **++** |
@@ -135,6 +133,7 @@ Remove name-sync, auto-name "My Layout", click-to-edit in header.
 ### Prior Work (Sessions #52519, #52522)
 
 Some foundation work was completed in a prior session:
+
 - `createLayout()` updated to require explicit name parameter
 - `setLayoutName()` added to LayoutState with change tracking
 - LayoutNameDialog.svelte created (may be repurposed or removed)
@@ -159,11 +158,11 @@ Some foundation work was completed in a prior session:
 
 ### Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/lib/stores/layout.svelte.ts` | Remove 4 name-sync blocks |
-| `src/lib/utils/yaml.ts` | Sync metadata.name on serialize |
-| Tests referencing name-sync | Update assertions |
+| File                              | Change                          |
+| --------------------------------- | ------------------------------- |
+| `src/lib/stores/layout.svelte.ts` | Remove 4 name-sync blocks       |
+| `src/lib/utils/yaml.ts`           | Sync metadata.name on serialize |
+| Tests referencing name-sync       | Update assertions               |
 
 ---
 

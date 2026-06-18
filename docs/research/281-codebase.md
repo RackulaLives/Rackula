@@ -18,36 +18,44 @@
 ## Current Search Implementation
 
 ### Location
+
 **File:** `src/lib/utils/deviceFilters.ts`
 
 ### Current Logic
+
 ```typescript
-export function searchDevices(devices: DeviceType[], query: string): DeviceType[] {
-	if (!query.trim()) {
-		return devices;
-	}
+export function searchDevices(
+  devices: DeviceType[],
+  query: string,
+): DeviceType[] {
+  if (!query.trim()) {
+    return devices;
+  }
 
-	const normalizedQuery = query.toLowerCase().trim();
+  const normalizedQuery = query.toLowerCase().trim();
 
-	return devices.filter((device) => {
-		const name = device.model ?? device.slug;
-		return name.toLowerCase().includes(normalizedQuery);
-	});
+  return devices.filter((device) => {
+    const name = device.model ?? device.slug;
+    return name.toLowerCase().includes(normalizedQuery);
+  });
 }
 ```
 
 ### What It Matches
+
 - **Only the `model` field** (or fallback to `slug` if model is undefined)
 - Uses **case-insensitive substring matching** (`.includes()`)
 - **Does NOT match**: `manufacturer`, `category`, `tags`, `part_number`, or any other fields
 
 ### How It's Used
+
 1. **DevicePalette.svelte** (line ~153): Filters generic devices
 2. **DevicePalette.svelte** (line ~163): Filters brand pack devices
 3. **DevicePalette.svelte** (line ~179): Filters all devices combined
 4. Called with debounced search input (150ms debounce)
 
 ### Highlighting
+
 - **File:** `src/lib/utils/searchHighlight.ts`
 - Uses `highlightMatch()` which splits text into matched/unmatched segments
 - Only highlights the display name (model/slug), not manufacturer
@@ -59,12 +67,14 @@ export function searchDevices(devices: DeviceType[], query: string): DeviceType[
 ### DeviceType Fields (Storage Format - Schema v1.0.0)
 
 **Core Identity Fields:**
+
 - `slug` - Unique identifier, kebab-case (required)
 - `manufacturer` - Manufacturer/brand name (optional)
 - `model` - Model name (optional)
 - `part_number` - SKU (optional)
 
 **Physical Properties:**
+
 - `u_height` - Rack units height (required)
 - `is_full_depth` - Whether device occupies full depth (optional, default: true)
 - `is_powered` - Whether device is powered (optional)
@@ -72,12 +82,14 @@ export function searchDevices(devices: DeviceType[], query: string): DeviceType[
 - `airflow` - Airflow direction (optional)
 
 **Display/UI Fields:**
+
 - `colour` - Hex colour for display (required)
 - `category` - Device category from enum (required)
 - `tags` - User organization tags array (optional)
 - `front_image` / `rear_image` - Boolean flags (optional)
 
 **Extended Fields:**
+
 - `notes` - Notes/comments (optional)
 - `serial_number` - Serial number (optional)
 - `asset_tag` - Asset tag (optional)
@@ -85,7 +97,9 @@ export function searchDevices(devices: DeviceType[], query: string): DeviceType[
 - `custom_fields` - User-defined fields object (optional)
 
 ### Example Data Structure
+
 From Dell brand pack:
+
 ```typescript
 {
   slug: 'poweredge-r650',
@@ -99,6 +113,7 @@ From Dell brand pack:
 ```
 
 From APC brand pack:
+
 ```typescript
 {
   slug: 'smt1000rmi2uc',
@@ -116,33 +131,34 @@ From APC brand pack:
 ## Fields Available for Fuzzy Search
 
 **High-Value Search Candidates:**
+
 1. `manufacturer` - Critical for brand-based search (Dell, APC, Ubiquiti, etc.)
 2. `model` - Currently searched, contains product line info
 3. `slug` - Unique identifier, contains keywords (poweredge, smart-ups, etc.)
 4. `category` - Device type (server, network, power, storage, etc.)
 5. `tags` - User-defined organizational keywords
 
-**Medium-Value Candidates:**
-6. `part_number` - SKU/PN for specific model lookups
-7. `notes` - User-added descriptions
+**Medium-Value Candidates:** 6. `part_number` - SKU/PN for specific model lookups 7. `notes` - User-added descriptions
 
-**Low-Value (Future):**
-8. Interface types (1000base-t, 10gbase-x-sfpp, etc.)
-9. Power specs (VA rating, wattage)
+**Low-Value (Future):** 8. Interface types (1000base-t, 10gbase-x-sfpp, etc.) 9. Power specs (VA rating, wattage)
 
 ---
 
 ## Data Sources
 
 ### Starter Library
+
 **File:** `src/lib/data/starterLibrary.ts`
+
 - 43 generic, unbranded devices
 - Categories: servers, network, storage, power, patch-panels, kvm, av-media, cooling, shelf, blank, cable-management
 - No manufacturer field
 - Examples: "1u-server", "24-port-switch", "2u-ups"
 
 ### Brand Packs
+
 **File:** `src/lib/data/brandPacks/index.ts`
+
 - 18 brands total:
   - Network: Ubiquiti, MikroTik, TP-Link, Fortinet, Netgear, Palo Alto, Netgate
   - Storage: Synology, QNAP
@@ -175,14 +191,18 @@ DevicePaletteItem.svelte (Individual Device)
 ```
 
 ### State Management
+
 **File:** DevicePalette.svelte
+
 - `searchQueryRaw` - User input (untyped)
 - `searchQuery` - Debounced query (150ms debounce)
 - `isSearchActive` - Boolean derived state
 - Accordion expands all matching sections during search, restores on clear
 
 ### Grouping Modes
+
 DevicePalette supports 3 views (localStorage-persisted):
+
 1. **Brand** (default) - Generic section with categories, then brand sections
 2. **Category** - All devices grouped by category, sorted by brand then model
 3. **Flat (A-Z)** - Single "All Devices" section, alphabetically sorted
@@ -192,6 +212,7 @@ DevicePalette supports 3 views (localStorage-persisted):
 ## Constraints & Considerations
 
 ### Current Constraints
+
 1. **Substring-only matching** - No fuzzy/partial matching
 2. **Single field search** - Only searches device.model/slug, ignores manufacturer
 3. **No typo tolerance** - "Deli" won't match "Dell"
@@ -199,12 +220,14 @@ DevicePalette supports 3 views (localStorage-persisted):
 5. **No search ranking** - All matches treated equally
 
 ### Architecture Constraints
+
 1. **No external dependencies** - No fuzzy search library (fuse.js, minisearch, etc.)
 2. **Synchronous only** - Search happens in derived() reactivity
 3. **Client-side only** - No server-side search capability
 4. **Single-rack mode** - Only searches devices for one rack at a time
 
 ### Data Quality
+
 1. **Inconsistent manufacturer field** - Starter library devices have no manufacturer
 2. **Brand-specific naming** - Different capitalization patterns (APC, HPE, TP-Link, etc.)
 3. **Complex model names** - Mix of alphanumeric (PowerEdge R650, SMT1000RMI2UC)
@@ -217,6 +240,7 @@ DevicePalette supports 3 views (localStorage-persisted):
 **File:** `src/tests/deviceFilters.test.ts`
 
 Current tests cover:
+
 - Empty query returns all devices
 - Case-insensitive matching
 - Partial string matching

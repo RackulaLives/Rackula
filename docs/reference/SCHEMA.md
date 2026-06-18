@@ -1,8 +1,6 @@
 # Rackula Data Schema Reference
 
-**Schema Version:** 1.0.0
-**Updated:** 2026-06-13
-**Status:** Active
+**Schema Version:** 1.0.0 **Updated:** 2026-06-13 **Status:** Active
 
 ---
 
@@ -23,8 +21,7 @@ This document is the authoritative reference for the Rackula v1.0.0 data schema.
 
 ## Schema Versioning and Compatibility Policy
 
-This is the contract for how the layout format evolves and how readers behave across
-versions. Policy origin and full analysis: [spike #1113](../research/spike-1113-schema-versioning-policy.md).
+This is the contract for how the layout format evolves and how readers behave across versions. Policy origin and full analysis: [spike #1113](../research/spike-1113-schema-versioning-policy.md).
 
 ### Version fields
 
@@ -35,19 +32,12 @@ versions. Policy origin and full analysis: [spike #1113](../research/spike-1113-
 
 Rules:
 
-- Every writer must emit `schema_version` (it defaults to `"1.0"` on save). A serializer test
-  must assert that saved output always contains it, so a future writer cannot omit it and let a
-  newer file masquerade as 1.0. This assertion is not yet in the suite; it is tracked with the
-  reject-newer-major gate (#2205).
-- On read, an absent `schema_version` in a YAML layout file is treated as `1.0` (every YAML
-  file predating versioning is 1.0 by construction). This defaulting is scoped to the YAML
-  parser, is a read-side allowance only, and is never produced on write. Payloads that carry no
-  version marker by design (share-links) are not covered by this default.
+- Every writer must emit `schema_version` (it defaults to `"1.0"` on save). A serializer test must assert that saved output always contains it, so a future writer cannot omit it and let a newer file masquerade as 1.0. This assertion is not yet in the suite; it is tracked with the reject-newer-major gate (#2205).
+- On read, an absent `schema_version` in a YAML layout file is treated as `1.0` (every YAML file predating versioning is 1.0 by construction). This defaulting is scoped to the YAML parser, is a read-side allowance only, and is never produced on write. Payloads that carry no version marker by design (share-links) are not covered by this default.
 
 ### Reader rule (compatibility)
 
-Gate strictly on `schema_version` MAJOR. Never gate on the app `version` (it bumps every
-release and would over-reject).
+Gate strictly on `schema_version` MAJOR. Never gate on the app `version` (it bumps every release and would over-reject).
 
 | Document vs app | Behaviour |
 | --- | --- |
@@ -55,90 +45,59 @@ release and would over-reject).
 | Same MAJOR (any MINOR) | Load. Unknown additive fields are ignored by validation (tolerant reader). |
 | Older MAJOR | Load and migrate (a MAJOR bump ships a migration from the previous MAJOR, with prior-version fixtures). |
 
-Reject is the preferred failure over silently misreading data: it is loud, non-destructive,
-and recoverable.
+Reject is the preferred failure over silently misreading data: it is loud, non-destructive, and recoverable.
 
 ### Additive vs breaking (run this at every release)
 
-Five-point check. Any of remove / rename / retype / require / redefine on an existing field
-is MAJOR. Otherwise it is additive and MINOR.
+Five-point check. Any of remove / rename / retype / require / redefine on an existing field is MAJOR. Otherwise it is additive and MINOR.
 
 | Change | Classification |
 | --- | --- |
 | New optional field, new optional top-level section, enum widening | MINOR (additive) |
 | Remove or rename a field; change its type, units, or semantics; make an optional field required; restructure existing data | MAJOR (breaking) |
 
-`cables` was additive (MINOR). The pre-0.7.0 position-units change would have been MAJOR.
-The `images` section (issue #617) is additive (MINOR): `schema_version` stays `1.0`.
+`cables` was additive (MINOR). The pre-0.7.0 position-units change would have been MAJOR. The `images` section (issue #617) is additive (MINOR): `schema_version` stays `1.0`.
 
 ### Preserving additive data on save
 
-Additive MINOR changes are only safe across builds if writers preserve sections they do not
-recognize. The serializer (`serializeLayoutToYaml`) emits a fixed set of top-level keys, so
-the format requires unknown top-level sections to be round-tripped: captured on read and
-re-emitted on save, so an older build cannot silently drop a newer build's additive section on
-resave. A section whose loss would be unacceptable and that cannot be round-tripped is a signal
-to make the change MAJOR instead.
+Additive MINOR changes are only safe across builds if writers preserve sections they do not recognize. The serializer (`serializeLayoutToYaml`) emits a fixed set of top-level keys, so the format requires unknown top-level sections to be round-tripped: captured on read and re-emitted on save, so an older build cannot silently drop a newer build's additive section on resave. A section whose loss would be unacceptable and that cannot be round-tripped is a signal to make the change MAJOR instead.
 
 ### Enforcement surfaces
 
-The reject-newer-MAJOR check lives at the shared validation ingress (`parseLayoutYaml` /
-`LayoutSchema`), covering file load and server GET. Two read paths are tracked as open work:
-the localStorage working copy is currently unvalidated, and share-link payloads carry no
-version marker. Both are follow-ups; until they get validation or a version marker, treat their
-inputs as unversioned rather than assuming they are safe. In normal use neither is a common
-cross-version vector (localStorage is same-build session state; share-links are regenerated on
-encode), but that does not substitute for the gate.
+The reject-newer-MAJOR check lives at the shared validation ingress (`parseLayoutYaml` / `LayoutSchema`), covering file load and server GET. Two read paths are tracked as open work: the localStorage working copy is currently unvalidated, and share-link payloads carry no version marker. Both are follow-ups; until they get validation or a version marker, treat their inputs as unversioned rather than assuming they are safe. In normal use neither is a common cross-version vector (localStorage is same-build session state; share-links are regenerated on encode), but that does not substitute for the gate.
 
 ---
 
 ## Published Schema
 
-A language-agnostic JSON Schema is generated from the Zod source and committed at
-`static/schemas/layout-v1.json`. It is the structural contract for the saved-layout format.
-Run `npm run generate-schema` to regenerate it after changing the Zod schema; a CI drift check
-fails if the committed artifact and the generated output diverge.
+A language-agnostic JSON Schema is generated from the Zod source and committed at `static/schemas/layout-v1.json`. It is the structural contract for the saved-layout format. Run `npm run generate-schema` to regenerate it after changing the Zod schema; a CI drift check fails if the committed artifact and the generated output diverge.
 
 ### Canonical `$id`
 
-The artifact carries the canonical identifier `https://schemas.racku.la/layout/v{MAJOR}.json`,
-which for the current MAJOR is:
+The artifact carries the canonical identifier `https://schemas.racku.la/layout/v{MAJOR}.json`, which for the current MAJOR is:
 
 ```text
 https://schemas.racku.la/layout/v1.json
 ```
 
-The `$id` is an identifier, not a fetch target. Readers decide loadability offline from
-`metadata.schema_version` (see the reader rule above) and never resolve the `$id` over the
-network, so the canonical `$id` is wired before the `schemas.racku.la` domain exists.
+The `$id` is an identifier, not a fetch target. Readers decide loadability offline from `metadata.schema_version` (see the reader rule above) and never resolve the `$id` over the network, so the canonical `$id` is wired before the `schemas.racku.la` domain exists.
 
 ### Served location (interim fetch URL)
 
-`static/` is served at the deployment root, so the artifact is published at these paths once
-a release deploys it:
+`static/` is served at the deployment root, so the artifact is published at these paths once a release deploys it:
 
-| Environment | URL                                            |
-| ----------- | ---------------------------------------------- |
+| Environment | URL                                             |
+| ----------- | ----------------------------------------------- |
 | Prod        | `https://count.racku.la/schemas/layout-v1.json` |
 | Dev         | `https://d.racku.la/schemas/layout-v1.json`     |
 
-Availability: production (`count.racku.la`) publishes the schema only on a tagged release, and
-the dev path is behind access control, so the artifact is not externally fetchable until the
-next release ships it. The committed file in `static/schemas/` is the source of truth, and the
-reader rule above works offline regardless of whether the schema is served.
+Availability: production (`count.racku.la`) publishes the schema only on a tagged release, and the dev path is behind access control, so the artifact is not externally fetchable until the next release ships it. The committed file in `static/schemas/` is the source of truth, and the reader rule above works offline regardless of whether the schema is served.
 
-Until the `schemas.racku.la` DNS is live, use the prod served URL above as the fetch URL for
-tooling that resolves a schema (for example a `# yaml-language-server: $schema=...` editor
-hint). The served path (`/schemas/layout-v1.json`) differs from the canonical `$id` path
-(`/layout/v1.json`) on purpose: the `$id` follows the long-term canonical shape while the
-served path matches the committed artifact's location. When `schemas.racku.la` is configured,
-it will serve the artifact at the canonical `$id` path and the fetch URL converges on the
-`$id`.
+Until the `schemas.racku.la` DNS is live, use the prod served URL above as the fetch URL for tooling that resolves a schema (for example a `# yaml-language-server: $schema=...` editor hint). The served path (`/schemas/layout-v1.json`) differs from the canonical `$id` path (`/layout/v1.json`) on purpose: the `$id` follows the long-term canonical shape while the served path matches the committed artifact's location. When `schemas.racku.la` is configured, it will serve the artifact at the canonical `$id` path and the fetch URL converges on the `$id`.
 
 ### Editor validation
 
-To validate hand-edited layout YAML in an editor (VS Code, Neovim, JetBrains) against this
-schema, see the [YAML Schema Validation Guide](../guides/yaml-schema-validation.md).
+To validate hand-edited layout YAML in an editor (VS Code, Neovim, JetBrains) against this schema, see the [YAML Schema Validation Guide](../guides/yaml-schema-validation.md).
 
 ---
 
@@ -150,23 +109,23 @@ Template definition for devices in the library. Referenced by `PlacedDevice.devi
 
 #### Core Identity
 
-| Field          | Type     | Required | Description                                       |
-| -------------- | -------- | -------- | ------------------------------------------------- |
-| `slug`         | `string` | Yes      | Unique identifier, kebab-case (e.g., `dell-r650`) |
-| `manufacturer` | `string` | No       | Manufacturer name (max 100 chars)                 |
-| `model`        | `string` | No       | Model/display name (max 100 chars)                |
-| `part_number`  | `string` | No       | Part number / SKU (max 100 chars)                 |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slug` | `string` | Yes | Unique identifier, kebab-case (e.g., `dell-r650`) |
+| `manufacturer` | `string` | No | Manufacturer name (max 100 chars) |
+| `model` | `string` | No | Model/display name (max 100 chars) |
+| `part_number` | `string` | No | Part number / SKU (max 100 chars) |
 
 #### Physical Properties
 
-| Field           | Type             | Required | Description                                     |
-| --------------- | ---------------- | -------- | ----------------------------------------------- |
-| `u_height`      | `number`         | Yes      | Height in rack units (0.5-50, multiples of 0.5) |
-| `is_full_depth` | `boolean`        | No       | Full rack depth? (default: `true`)              |
-| `is_powered`    | `boolean`        | No       | Device requires power? (default: `true`)        |
-| `weight`        | `number`         | No       | Weight value (positive number)                  |
-| `weight_unit`   | `"kg"` \| `"lb"` | No       | Weight unit (required if `weight` provided)     |
-| `airflow`       | `Airflow`        | No       | Airflow direction pattern                       |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `u_height` | `number` | Yes | Height in rack units (0.5-50, multiples of 0.5) |
+| `is_full_depth` | `boolean` | No | Full rack depth? (default: `true`) |
+| `is_powered` | `boolean` | No | Device requires power? (default: `true`) |
+| `weight` | `number` | No | Weight value (positive number) |
+| `weight_unit` | `"kg"` \| `"lb"` | No | Weight unit (required if `weight` provided) |
+| `airflow` | `Airflow` | No | Airflow direction pattern |
 
 #### Image Flags
 
@@ -185,35 +144,35 @@ Template definition for devices in the library. Referenced by `PlacedDevice.devi
 
 #### Extension Fields
 
-| Field           | Type                      | Required | Description                     |
-| --------------- | ------------------------- | -------- | ------------------------------- |
-| `notes`         | `string`                  | No       | Notes/comments (max 1000 chars) |
-| `serial_number` | `string`                  | No       | Serial number (max 100 chars)   |
-| `asset_tag`     | `string`                  | No       | Asset tag (max 100 chars)       |
-| `links`         | `DeviceLink[]`            | No       | External links/references       |
-| `custom_fields` | `Record<string, unknown>` | No       | User-defined custom fields      |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `notes` | `string` | No | Notes/comments (max 1000 chars) |
+| `serial_number` | `string` | No | Serial number (max 100 chars) |
+| `asset_tag` | `string` | No | Asset tag (max 100 chars) |
+| `links` | `DeviceLink[]` | No | External links/references |
+| `custom_fields` | `Record<string, unknown>` | No | User-defined custom fields |
 
 #### Component Arrays
 
-| Field             | Type              | Required | Description                     |
-| ----------------- | ----------------- | -------- | ------------------------------- |
-| `interfaces`      | `Interface[]`     | No       | Network interfaces              |
-| `power_ports`     | `PowerPort[]`     | No       | Power input ports               |
-| `power_outlets`   | `PowerOutlet[]`   | No       | Power output outlets (for PDUs) |
-| `device_bays`     | `DeviceBay[]`     | No       | Device bays (for blade chassis) |
-| `inventory_items` | `InventoryItem[]` | No       | Internal components             |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `interfaces` | `Interface[]` | No | Network interfaces |
+| `power_ports` | `PowerPort[]` | No | Power input ports |
+| `power_outlets` | `PowerOutlet[]` | No | Power output outlets (for PDUs) |
+| `device_bays` | `DeviceBay[]` | No | Device bays (for blade chassis) |
+| `inventory_items` | `InventoryItem[]` | No | Internal components |
 
 #### Subdevice Support
 
-| Field            | Type            | Required | Description                       |
-| ---------------- | --------------- | -------- | --------------------------------- |
-| `subdevice_role` | `SubdeviceRole` | No       | Role in parent/child relationship |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `subdevice_role` | `SubdeviceRole` | No | Role in parent/child relationship |
 
 #### Power Device Properties
 
-| Field       | Type     | Required | Description                                |
-| ----------- | -------- | -------- | ------------------------------------------ |
-| `va_rating` | `number` | No       | VA capacity for UPS devices (positive int) |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `va_rating` | `number` | No | VA capacity for UPS devices (positive int) |
 
 ### YAML Example
 
@@ -231,7 +190,7 @@ device_types:
     airflow: front-to-rear
     front_image: true
     rear_image: true
-    colour: '#8BE9FD'
+    colour: "#8BE9FD"
     category: server
     tags:
       - production
@@ -265,17 +224,17 @@ Instance of a device type placed in a rack.
 
 ### Field Reference
 
-| Field           | Type                      | Required | Description                                   |
-| --------------- | ------------------------- | -------- | --------------------------------------------- |
-| `id`            | `string`                  | Yes      | Unique identifier (UUID)                      |
-| `device_type`   | `string`                  | Yes      | Reference to `DeviceType.slug`                |
-| `position`      | `number`                  | Yes      | Bottom U position (1-indexed, integer, min 1) |
-| `face`          | `DeviceFace`              | Yes      | Which face(s) device occupies                 |
-| `name`          | `string`                  | No       | Custom display name (max 100 chars)           |
-| `parent_device` | `string`                  | No       | Parent placement ID (for child devices)       |
-| `device_bay`    | `string`                  | No       | Bay name in parent device                     |
-| `notes`         | `string`                  | No       | Notes for this placement (max 1000 chars)     |
-| `custom_fields` | `Record<string, unknown>` | No       | User-defined custom fields                    |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `string` | Yes | Unique identifier (UUID) |
+| `device_type` | `string` | Yes | Reference to `DeviceType.slug` |
+| `position` | `number` | Yes | Bottom U position (1-indexed, integer, min 1) |
+| `face` | `DeviceFace` | Yes | Which face(s) device occupies |
+| `name` | `string` | No | Custom display name (max 100 chars) |
+| `parent_device` | `string` | No | Parent placement ID (for child devices) |
+| `device_bay` | `string` | No | Bay name in parent device |
+| `notes` | `string` | No | Notes for this placement (max 1000 chars) |
+| `custom_fields` | `Record<string, unknown>` | No | User-defined custom fields |
 
 ### YAML Example
 
@@ -308,18 +267,18 @@ Container for placed devices.
 
 ### Field Reference
 
-| Field           | Type             | Required | Description                                |
-| --------------- | ---------------- | -------- | ------------------------------------------ |
-| `id`            | `string`         | No       | Unique identifier (for multi-rack support) |
-| `name`          | `string`         | Yes      | Display name (1-100 chars)                 |
-| `height`        | `number`         | Yes      | Height in rack units (1-100, integer)      |
-| `width`         | `10 \| 19 \| 23` | Yes      | Width in inches                            |
-| `desc_units`    | `boolean`        | Yes      | U1 at top if true (default: `false`)       |
-| `form_factor`   | `FormFactor`     | Yes      | Rack form factor                           |
-| `starting_unit` | `number`         | Yes      | Starting unit number (default: `1`)        |
-| `position`      | `number`         | Yes      | Order position (for future multi-rack)     |
-| `devices`       | `PlacedDevice[]` | Yes      | Devices placed in this rack                |
-| `notes`         | `string`         | No       | Notes for this rack (max 1000 chars)       |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `string` | No | Unique identifier (for multi-rack support) |
+| `name` | `string` | Yes | Display name (1-100 chars) |
+| `height` | `number` | Yes | Height in rack units (1-100, integer) |
+| `width` | `10 \| 19 \| 23` | Yes | Width in inches |
+| `desc_units` | `boolean` | Yes | U1 at top if true (default: `false`) |
+| `form_factor` | `FormFactor` | Yes | Rack form factor |
+| `starting_unit` | `number` | Yes | Starting unit number (default: `1`) |
+| `position` | `number` | Yes | Order position (for future multi-rack) |
+| `devices` | `PlacedDevice[]` | Yes | Devices placed in this rack |
+| `notes` | `string` | No | Notes for this rack (max 1000 chars) |
 
 **Note:** The `view` field (`"front"` | `"rear"`) is runtime-only and not persisted.
 
@@ -352,25 +311,25 @@ Complete layout structure saved in `.Rackula.zip` archives.
 
 ### Field Reference
 
-| Field          | Type             | Required | Description                               |
-| -------------- | ---------------- | -------- | ----------------------------------------- |
-| `version`      | `string`         | Yes      | Schema version (e.g., `"1.0.0"`)          |
-| `name`         | `string`         | Yes      | Layout name (1-100 chars)                 |
-| `rack`         | `Rack`           | Yes      | Single rack (Rackula is single-rack mode) |
-| `device_types` | `DeviceType[]`   | Yes      | Device type library                       |
-| `settings`     | `LayoutSettings` | Yes      | Layout settings                           |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `version` | `string` | Yes | Schema version (e.g., `"1.0.0"`) |
+| `name` | `string` | Yes | Layout name (1-100 chars) |
+| `rack` | `Rack` | Yes | Single rack (Rackula is single-rack mode) |
+| `device_types` | `DeviceType[]` | Yes | Device type library |
+| `settings` | `LayoutSettings` | Yes | Layout settings |
 
 ### LayoutSettings
 
-| Field                   | Type          | Required | Description                    |
-| ----------------------- | ------------- | -------- | ------------------------------ |
-| `display_mode`          | `DisplayMode` | Yes      | Device display mode            |
-| `show_labels_on_images` | `boolean`     | Yes      | Show labels overlaid on images |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `display_mode` | `DisplayMode` | Yes | Device display mode |
+| `show_labels_on_images` | `boolean` | Yes | Show labels overlaid on images |
 
 ### Complete YAML Example
 
 ```yaml
-version: '1.0.0'
+version: "1.0.0"
 name: My Homelab Rack
 
 rack:
@@ -408,7 +367,7 @@ device_types:
     u_height: 1
     is_full_depth: true
     airflow: front-to-rear
-    colour: '#8BE9FD'
+    colour: "#8BE9FD"
     category: server
     front_image: true
     rear_image: true
@@ -419,7 +378,7 @@ device_types:
     u_height: 1
     is_full_depth: true
     airflow: side-to-rear
-    colour: '#BD93F9'
+    colour: "#BD93F9"
     category: network
 
   - slug: 2u-ups
@@ -427,7 +386,7 @@ device_types:
     model: Smart-UPS 3000
     u_height: 2
     is_full_depth: true
-    colour: '#FF5555'
+    colour: "#FF5555"
     category: power
     va_rating: 3000
     power_ports:
@@ -450,11 +409,11 @@ Reference for component array types used in `DeviceType`.
 
 Network interface definition.
 
-| Field       | Type      | Required | Description                              |
-| ----------- | --------- | -------- | ---------------------------------------- |
-| `name`      | `string`  | Yes      | Interface name (e.g., `eth0`, `Gi1/0/1`) |
-| `type`      | `string`  | Yes      | Interface type (e.g., `1000base-t`)      |
-| `mgmt_only` | `boolean` | No       | Management interface only                |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Interface name (e.g., `eth0`, `Gi1/0/1`) |
+| `type` | `string` | Yes | Interface type (e.g., `1000base-t`) |
+| `mgmt_only` | `boolean` | No | Management interface only |
 
 ### PowerPort
 
@@ -471,12 +430,12 @@ Power input port definition.
 
 Power output outlet definition (for PDUs).
 
-| Field        | Type                    | Required | Description                    |
-| ------------ | ----------------------- | -------- | ------------------------------ |
-| `name`       | `string`                | Yes      | Outlet name (e.g., `Outlet 1`) |
-| `type`       | `string`                | No       | Outlet type                    |
-| `power_port` | `string`                | No       | Reference to `PowerPort.name`  |
-| `feed_leg`   | `"A"` \| `"B"` \| `"C"` | No       | Feed leg for three-phase power |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Outlet name (e.g., `Outlet 1`) |
+| `type` | `string` | No | Outlet type |
+| `power_port` | `string` | No | Reference to `PowerPort.name` |
+| `feed_leg` | `"A"` \| `"B"` \| `"C"` | No | Feed leg for three-phase power |
 
 ### DeviceBay
 
@@ -607,8 +566,7 @@ Slugs must be lowercase alphanumeric with hyphens:
 - No leading, trailing, or consecutive hyphens
 - Maximum 100 characters
 
-**Valid:** `dell-r650`, `1u-server`, `usw-pro-48-poe`
-**Invalid:** `-server`, `server-`, `dell--r650`, `Dell-R650`
+**Valid:** `dell-r650`, `1u-server`, `usw-pro-48-poe` **Invalid:** `-server`, `server-`, `dell--r650`, `Dell-R650`
 
 #### u_height
 
@@ -616,16 +574,14 @@ Slugs must be lowercase alphanumeric with hyphens:
 - Maximum: `50`
 - Must be a multiple of `0.5`
 
-**Valid:** `0.5`, `1`, `1.5`, `2`, `42`
-**Invalid:** `0`, `0.3`, `51`, `1.25`
+**Valid:** `0.5`, `1`, `1.5`, `2`, `42` **Invalid:** `0`, `0.3`, `51`, `1.25`
 
 #### Colour
 
 - Pattern: `^#[0-9a-fA-F]{6}$`
 - 6-character hex with `#` prefix
 
-**Valid:** `#4A90D9`, `#ffffff`, `#000000`
-**Invalid:** `#FFF`, `4A90D9`, `rgb(255,0,0)`
+**Valid:** `#4A90D9`, `#ffffff`, `#000000` **Invalid:** `#FFF`, `4A90D9`, `rgb(255,0,0)`
 
 #### Rack Dimensions
 
@@ -644,15 +600,9 @@ Slugs must be lowercase alphanumeric with hyphens:
 
 ### Unknown Fields
 
-The schema uses lenient parsing (`.passthrough()` in Zod), so unknown fields survive
-validation into memory on read and are not validated (any value accepted).
+The schema uses lenient parsing (`.passthrough()` in Zod), so unknown fields survive validation into memory on read and are not validated (any value accepted).
 
-On save, the serializer re-emits fields through explicit ordering functions
-(`serializeLayoutToYaml`, `orderDeviceTypeFields`, and similar), which list known fields only.
-A genuinely unknown field is therefore not automatically written back. For forward
-compatibility the format requires unknown top-level sections to be round-tripped (see the
-Schema Versioning and Compatibility Policy above); for user-defined data on a device, use the
-dedicated `custom_fields` map, which is a known field and is preserved.
+On save, the serializer re-emits fields through explicit ordering functions (`serializeLayoutToYaml`, `orderDeviceTypeFields`, and similar), which list known fields only. A genuinely unknown field is therefore not automatically written back. For forward compatibility the format requires unknown top-level sections to be round-tripped (see the Schema Versioning and Compatibility Policy above); for user-defined data on a device, use the dedicated `custom_fields` map, which is a known field and is preserved.
 
 ### Slug Uniqueness
 

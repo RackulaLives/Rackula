@@ -225,12 +225,12 @@ All variables have sensible defaults. Only configure if you need to change somet
 
 ### Runtime Variables
 
-| Variable           | Default       | Description                                 |
-| ------------------ | ------------- | ------------------------------------------- |
-| `RACKULA_PORT`     | `8080`        | Host port for the web UI                    |
-| `RACKULA_API_PORT` | `3001`        | Port the API listens on                     |
-| `API_HOST`         | `rackula-api` | Hostname of API container (for nginx proxy) |
-| `API_PORT`         | `3001`        | Port of API container (for nginx proxy)     |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `RACKULA_PORT` | `8080` | Host port for the web UI |
+| `RACKULA_API_PORT` | `3001` | Port the API listens on |
+| `API_HOST` | `rackula-api` | Hostname of API container (for nginx proxy) |
+| `API_PORT` | `3001` | Port of API container (for nginx proxy) |
 
 Example with custom ports:
 
@@ -243,8 +243,8 @@ RACKULA_PORT=3000 RACKULA_API_PORT=4000 docker compose up -d
 
 These require rebuilding the image - see [Advanced: Building from Source](#building-from-source).
 
-| Variable               | Default | Description                                         |
-| ---------------------- | ------- | --------------------------------------------------- |
+| Variable | Default | Description |
+| --- | --- | --- |
 | `VITE_PERSIST_ENABLED` | `false` | Enable persistence UI (`:persist` tag has this set) |
 
 ````

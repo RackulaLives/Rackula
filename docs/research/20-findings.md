@@ -1,8 +1,6 @@
 # Research Spike #20: Branded Rack Support - Findings
 
-**Issue:** #20 - Branded rack support
-**Date:** 2025-12-30
-**Status:** Complete
+**Issue:** #20 - Branded rack support **Date:** 2025-12-30 **Status:** Complete
 
 ---
 
@@ -17,7 +15,7 @@ This spike investigated how to add manufacturer and model support for racks in R
 ## Research Artifacts
 
 | Document | Purpose |
-|----------|---------|
+| --- | --- |
 | [20-codebase.md](./20-codebase.md) | Rackula rack rendering architecture analysis |
 | [20-external.md](./20-external.md) | NetBox RackType model, industry standards, manufacturer catalog |
 | [20-patterns.md](./20-patterns.md) | Implementation patterns and phasing strategy |
@@ -31,8 +29,8 @@ Extend the existing `Rack` type with optional manufacturer/model fields:
 ```typescript
 interface Rack {
   // ... existing fields ...
-  manufacturer?: string;  // e.g., 'APC', 'Tripp Lite', 'HPE'
-  model?: string;         // e.g., 'NetShelter SX AR3100'
+  manufacturer?: string; // e.g., 'APC', 'Tripp Lite', 'HPE'
+  model?: string; // e.g., 'NetShelter SX AR3100'
 }
 ```
 
@@ -43,9 +41,11 @@ This aligns with NetBox's RackType model and maintains backward compatibility.
 ## Implementation Phases
 
 ### Phase 1: Form Factor Visualization
+
 **Effort:** Low | **Value:** High | **Issues:** 1
 
 Use existing `form_factor` field for visual differentiation:
+
 - `2-post`: Minimal rails only
 - `4-post`: Standard with visible rear rails
 - `4-post-cabinet`: Full enclosure indicators
@@ -55,6 +55,7 @@ Use existing `form_factor` field for visual differentiation:
 **No schema changes required.**
 
 ### Phase 2: Manufacturer/Model Fields
+
 **Effort:** Low | **Value:** Medium | **Issues:** 2
 
 - Add optional `manufacturer` and `model` fields
@@ -62,6 +63,7 @@ Use existing `form_factor` field for visual differentiation:
 - Display in rack header
 
 ### Phase 3: Brand Styling
+
 **Effort:** Medium | **Value:** Medium | **Issues:** 2
 
 - `RACK_BRAND_STYLES` color mapping
@@ -69,6 +71,7 @@ Use existing `form_factor` field for visual differentiation:
 - CSS variable integration
 
 ### Phase 4: Rack Presets
+
 **Effort:** Medium | **Value:** High | **Issues:** 2
 
 - `rackBrands/` data structure (like `brandPacks/`)
@@ -76,6 +79,7 @@ Use existing `form_factor` field for visual differentiation:
 - Auto-fill height, width, form_factor, manufacturer
 
 ### Phase 5: Visual Branding
+
 **Effort:** Higher | **Value:** Medium | **Issues:** 2
 
 - Optional manufacturer logo
@@ -89,12 +93,13 @@ Use existing `form_factor` field for visual differentiation:
 Based on this research, the following implementation issues are recommended:
 
 ### Issue A: Form Factor Visual Differentiation
-**Priority:** High
-**Labels:** `feature`, `ready`
+
+**Priority:** High **Labels:** `feature`, `ready`
 
 Implement visual differences for the 5 form factors already stored in rack data. This requires no schema changes and provides immediate value.
 
 **Acceptance Criteria:**
+
 - 2-post racks render with minimal rails only
 - 4-post-cabinet shows enclosure indicators
 - Wall-mount shows mounting bracket styling
@@ -102,12 +107,13 @@ Implement visual differences for the 5 form factors already stored in rack data.
 - Changes reflect in exports (PNG/PDF)
 
 ### Issue B: Add Manufacturer/Model Fields to Rack
-**Priority:** Medium
-**Labels:** `feature`, `enhancement`
+
+**Priority:** Medium **Labels:** `feature`, `enhancement`
 
 Add optional `manufacturer` and `model` text fields to the Rack type and NewRackForm.
 
 **Acceptance Criteria:**
+
 - New optional fields in Rack type
 - Text inputs in NewRackForm
 - Manufacturer/model shown below rack name
@@ -115,36 +121,39 @@ Add optional `manufacturer` and `model` text fields to the Rack type and NewRack
 - NetBox YAML import maps manufacturer field
 
 ### Issue C: Rack Brand Style System
-**Priority:** Medium
-**Labels:** `feature`, `design`
+
+**Priority:** Medium **Labels:** `feature`, `design`
 
 Create color mappings for major rack manufacturers (APC, HPE, Vertiv, Tripp Lite).
 
 **Acceptance Criteria:**
+
 - `RACK_BRAND_STYLES` mapping with rail/accent colors
 - Colors applied when manufacturer is set
 - Graceful fallback for unknown manufacturers
 - Works with existing dark theme
 
 ### Issue D: Rack Preset Library
-**Priority:** Medium
-**Labels:** `feature`, `enhancement`
+
+**Priority:** Medium **Labels:** `feature`, `enhancement`
 
 Create preset buttons for common homelab rack models (similar to height presets).
 
 **Acceptance Criteria:**
+
 - `rackBrands/` data structure with common models
 - Preset buttons in NewRackForm
 - Clicking preset fills all related fields
 - Include: Tripp Lite SmartRack, APC NetShelter, StarTech
 
 ### Issue E: Manufacturer Logo Rendering (Optional)
-**Priority:** Low
-**Labels:** `feature`, `polish`
+
+**Priority:** Low **Labels:** `feature`, `polish`
 
 Optional manufacturer logo display in rack header area.
 
 **Acceptance Criteria:**
+
 - Small logo in top rail area (optional)
 - User toggle to enable/disable
 - Logos included in exports

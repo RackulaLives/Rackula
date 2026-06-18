@@ -1,7 +1,6 @@
 # Spike #1927: Pro Audio and AV Connectivity Modeling
 
-**Date:** 2026-06-05
-**Parent Epics:** #71 (Network Interface Visualization and Connectivity), #362 (Connection Graph Model)
+**Date:** 2026-06-05 **Parent Epics:** #71 (Network Interface Visualization and Connectivity), #362 (Connection Graph Model)
 
 ---
 
@@ -16,9 +15,9 @@ Rackula's current connectivity model is designed for networking (symmetric, bidi
 ### Current State
 
 | Component | Status | AV Gap |
-|-----------|--------|--------|
+| --- | --- | --- |
 | `InterfaceType` | 25 values, network-only | No HDMI, XLR, SDI, BNC, Speakon, etc. |
-| `InterfaceTemplate` | name, type, label, mgmt_only, position, poe_* | No `direction`, no `signal_type`, no `gender` |
+| `InterfaceTemplate` | name, type, label, mgmt*only, position, poe*\* | No `direction`, no `signal_type`, no `gender` |
 | `PlacedPort` | id, template_name, template_index, type, label | No `direction`, no `signal_type`, no `gender` |
 | `Connection` | a_port_id, b_port_id, label, color | No `cable_type`, no signal direction |
 | `Cable` (deprecated) | device+interface references, type, length, status | Still in codebase, needs removal |
@@ -32,7 +31,7 @@ Rackula's current connectivity model is designed for networking (symmetric, bidi
 The same physical connector carries different signal types:
 
 | Connector | Signal Type 1 | Signal Type 2 | Signal Type 3 |
-|-----------|---------------|---------------|---------------|
+| --- | --- | --- | --- |
 | XLR-3 | Mic level (analog) | Line level (analog) | AES3 (digital) |
 | RJ45 | Ethernet | Dante (audio over IP) | DMX-over-Art-Net |
 | BNC | SDI (video) | Word clock (sync) | AES3id (digital audio) |
@@ -61,7 +60,7 @@ NetBox issues #14597 and #11915 requested SDI and broadcast interface types. Net
 **Essential (Phase 1 - 20 types):**
 
 | Type | Connectors | Signal Types | Direction |
-|------|-----------|-------------|-----------|
+| --- | --- | --- | --- |
 | xlr-3 | XLR 3-pin | Mic, line, AES3 | Directional (input/output) |
 | xlr-5 | XLR 5-pin | DMX, stereo audio | Directional |
 | trs-1-4 | 1/4" TRS | Balanced line, headphones | Directional or bidirectional |
@@ -84,7 +83,7 @@ NetBox issues #14597 and #11915 requested SDI and broadcast interface types. Net
 ### Signal Type Taxonomy (Phase 1)
 
 | Signal Type | Description | Typical Connectors |
-|-------------|-------------|-------------------|
+| --- | --- | --- |
 | analog-audio-mic | Microphone level | XLR-3, TRS |
 | analog-audio-line | Line level (+4 dBu pro / -10 dBV consumer) | XLR-3, TRS, RCA |
 | analog-audio-instrument | Instrument level (high-Z) | TS, TRS |
@@ -113,7 +112,7 @@ NetBox issues #14597 and #11915 requested SDI and broadcast interface types. Net
 Patch bays have three normalling modes that determine default signal routing:
 
 | Mode | Behaviour | When Cable Inserted (Top) | When Cable Inserted (Bottom) |
-|------|-----------|---------------------------|------------------------------|
+| --- | --- | --- | --- |
 | Full-normal | Default path active | Signal breaks; bottom jack gets no signal | Signal breaks; top jack sends no signal |
 | Half-normal | Default path active with sniffing | Signal continues; bottom jack gets signal (mult) | Signal breaks |
 | Non-normal | No default path | No effect (no default to break) | No effect |
@@ -130,7 +129,7 @@ Matrix switchers (video routers, audio mixers) have N×M internal crosspoints. T
   interface RoutingConfig {
     id: string;
     device_id: string;
-    routes: Record<string, string | null>;  // output_name → input_name
+    routes: Record<string, string | null>; // output_name → input_name
   }
   ```
 
@@ -145,7 +144,7 @@ Extend the existing model with new fields and enum values. No new top-level data
 **Phase 1 Changes:**
 
 | Change | Files Affected | Priority |
-|--------|---------------|----------|
+| --- | --- | --- |
 | Add 20 AV types to `InterfaceType` | types/index.ts, schemas/index.ts | P0 |
 | Add `SignalType` enum (~20 values) | types/index.ts, schemas/index.ts | P0 |
 | Add `signal_type` field to InterfaceTemplate + PlacedPort | types/index.ts, schemas/index.ts, port-utils.ts | P0 |
@@ -162,6 +161,7 @@ Extend the existing model with new fields and enum values. No new top-level data
 | Update SCHEMA.md documentation | docs/reference/SCHEMA.md | P1 |
 
 **Phase 2 Deferred Items:**
+
 - `RoutingConfig` for matrix switcher routing
 - `PatchBayNormal` rendering (visual default paths)
 - Signal type compatibility validation (warn on mic→line)
@@ -169,6 +169,7 @@ Extend the existing model with new fields and enum values. No new top-level data
 - Front-to-rear port tracing
 
 **Phase 3 Deferred Items:**
+
 - `InternalConnection` for device internals
 - Breakaway routing (separate audio/video per output)
 - Salvo presets
@@ -200,6 +201,7 @@ Adopting the perspective of a senior live audio engineer who builds rack plans f
 **Problem:** Console ports should default to `input`, not `bidirectional`. Management ports are `input`. USB-C can be `bidirectional`. A blanket default loses important semantics.
 
 **Recommendation:** Add `inferDirection(type, mgmtOnly)` utility:
+
 - `mgmt_only: true` → `input`
 - `console`, `serial` types → `input`
 - All AV types → require explicit direction (no default)
@@ -222,14 +224,16 @@ Adopting the perspective of a senior live audio engineer who builds rack plans f
 **Problem:** Live audio rack plans connect to wall plates, stage boxes, ceiling speakers, and projectors - things that aren't in the rack and don't have U height. The current DeviceType requires `u_height` and a rack position. Issue #267 (external connections) addresses this but is deferred.
 
 **Recommendation:** Add a minimal `ExternalEndpoint` concept for Phase 1:
+
 ```typescript
 interface ExternalEndpoint {
   id: string;
-  name: string;           // "Ballroom Wall Plate"
-  location?: string;      // "Ballroom, stage left"
-  ports: PlacedPort[];     // Same port model as devices
+  name: string; // "Ballroom Wall Plate"
+  location?: string; // "Ballroom, stage left"
+  ports: PlacedPort[]; // Same port model as devices
 }
 ```
+
 This is not the full `InfrastructureNode` from #362 - it's just a connection endpoint that lives outside the rack. Connections reference its ports the same way they reference device ports.
 
 ### Finding 6: gender should be auto-derived, not manually specified
@@ -243,6 +247,7 @@ This is not the full `InfrastructureNode` from #362 - it's just a connection end
 **Problem:** Discussion #1529 shows a live audio tech who wants to draw rack plans. Schema changes without visual output are invisible work. The live audio user sees zero benefit until connections are rendered.
 
 **Recommendation:** Pair each schema change with a visible UI change:
+
 - AV InterfaceType values → AV port colours in PortIndicators
 - `direction` field → direction indicators on ports
 - `signal_type` field → signal type in PortTooltip
@@ -263,11 +268,11 @@ A second-pass review from senior AV engineer and security-conscious Svelte 5 arc
 ### Decisions
 
 | # | Recommendation | Decision | Rationale |
-|---|---------------|----------|-----------|
+| --- | --- | --- | --- |
 | 1 | Drop `gender` from data model | **Compute only** | Auto-derived from connector type + direction (AES14: XLR male = output). Zero storage, zero migration, zero drift. Override only for ambiguous connectors via `deriveGender()` utility function. |
 | 2 | Defer `cable_type` on Connection | **P2** | Connections don't exist yet (#369, #1931). Cable type is inferable from ports. Only store when users need overrides (e.g., "50ft active optical HDMI"). |
 | 3 | Downgrade 20 AV InterfaceType values from P0 | **Split P0** | True P0 = PortDirection + SignalType enums + inference utilities (changes rendering). InterfaceType additions = P1 (device library data entry, not schema work). |
-| 4 | Remove signal compatibility matrix from all phases | **Removed** | Connection validation cannot exist until connection *creation* exists (#1932 hasn't landed). Designing validation before the canvas can draw cables is premature. Add back when connections are renderable. |
+| 4 | Remove signal compatibility matrix from all phases | **Removed** | Connection validation cannot exist until connection _creation_ exists (#1932 hasn't landed). Designing validation before the canvas can draw cables is premature. Add back when connections are renderable. |
 | 5 | Make inference utilities P0 deliverables | **P0** | `inferDirection(type, mgmtOnly)` and `inferSignalType(type, direction)` ARE the product. Without them, every port needs 2-3 manual taxonomy decisions. Ship with enum additions. |
 | 6 | Block ExternalEndpoint on rendering spec | **Blocked** | Current canvas has no concept of off-rack elements. Must decide UI placement (sidebar panel, floating canvas nodes, or connection endpoint labels) before adding to schema. |
 | 7 | Direction arrow rendering spec | **Spec defined** | SVG path markers on connection lines. Output→input arrow direction. Bidirectional = no arrow (plain line). Mixed (one port has direction, other is bidirectional) = single arrow from output side. Use existing connection colours from tokens.css. |
@@ -286,7 +291,7 @@ A second-pass review from senior AV engineer and security-conscious Svelte 5 arc
 Schema changes that change how ports render. Each change paired with visible UI output.
 
 | Change | Visible Counterpart | Issue |
-|--------|-------------------|-------|
+| --- | --- | --- |
 | `PortDirection` enum (input/output/bidirectional) | Direction indicators on port circles | #1930 |
 | `direction` field on InterfaceTemplate + PlacedPort | Direction indicators on port circles | #1930 |
 | `inferDirection(type, mgmtOnly)` utility | Smart defaults in device editor | #1930 |
@@ -302,7 +307,7 @@ Schema changes that change how ports render. Each change paired with visible UI 
 Device library work and connection creation. Depends on P0 enums landing first.
 
 | Change | Visible Counterpart | Issue |
-|--------|-------------------|-------|
+| --- | --- | --- |
 | 20 AV InterfaceType values | AV port colours in PortIndicators | #1929 |
 | AV device types with interfaces | AV devices show ports in library | #1929 |
 | Connection store with validation | Create/delete connections | #369 |
@@ -316,7 +321,7 @@ Device library work and connection creation. Depends on P0 enums landing first.
 AV-specific features that need working connections first.
 
 | Change | Visible Counterpart | Issue |
-|--------|-------------------|-------|
+| --- | --- | --- |
 | `PatchBayNormal` (port-pair array on PlacedDevice) | Default paths on patch bays | TBD |
 | `cable_type` on Connection (optional, inferable) | Cable type label on connections | TBD |
 | `RoutingConfig` (simple map: deviceId + routes) | Matrix routing table UI | TBD |
@@ -328,7 +333,7 @@ AV-specific features that need working connections first.
 Signal compatibility, breakaway routing, full infrastructure nodes.
 
 | Change | Visible Counterpart | Issue |
-|--------|-------------------|-------|
+| --- | --- | --- |
 | Signal type compatibility warnings | Red highlight on incompatible connections | TBD |
 | `gender` (computed via `deriveGender()`, not stored) | Male/female indicators on ports | TBD |
 | Breakaway routing, salvos, multiview | Advanced matrix routing UI | TBD |

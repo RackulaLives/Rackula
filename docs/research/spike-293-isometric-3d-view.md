@@ -1,8 +1,6 @@
 # Spike #293: Isometric/3D View Research
 
-**Issue:** #293 (parent: #289)
-**Time box:** 2-4 hours
-**Date:** 2025-12-30
+**Issue:** #293 (parent: #289) **Time box:** 2-4 hours **Date:** 2025-12-30
 
 ## Research Question
 
@@ -56,13 +54,13 @@ CSS 3D transforms can create an isometric projection using combinations of:
 
 ### Canvas (Live View) Feasibility
 
-| Aspect             | Assessment                                                      |
-| ------------------ | --------------------------------------------------------------- |
-| Visual rendering   | **Possible** - CSS transforms on wrapper work                   |
+| Aspect | Assessment |
+| --- | --- |
+| Visual rendering | **Possible** - CSS transforms on wrapper work |
 | Device interaction | **Problematic** - Click coordinates need inverse transform math |
-| Drag-and-drop      | **Complex** - Needs coordinate space conversion for placement   |
-| Pan/zoom           | **Tricky** - panzoom library may conflict with 3D transforms    |
-| Performance        | **Good** - CSS transforms are GPU-accelerated                   |
+| Drag-and-drop | **Complex** - Needs coordinate space conversion for placement |
+| Pan/zoom | **Tricky** - panzoom library may conflict with 3D transforms |
+| Performance | **Good** - CSS transforms are GPU-accelerated |
 
 **Effort estimate:** Medium-High (2-3 days) to get basic display, additional work for interactions.
 
@@ -511,18 +509,18 @@ Example: 220px × 968px rack (42U)
 
 ### H. Edge Cases Checklist
 
-| Scenario                  | Consideration                          | Resolution                                                 |
-| ------------------------- | -------------------------------------- | ---------------------------------------------------------- |
-| **Empty rack**            | Rack frame only, no devices            | Should still render 3D frame correctly                     |
-| **Single 1U device**      | Very small visual                      | Renders fine, legend provides context                      |
-| **42U fully populated**   | Many overlapping side panels           | Depth sorting ensures correct overlap                      |
-| **0.5U device**           | Very thin (11px height)                | May need minimum visual height for side panel              |
-| **Custom devices**        | No images, only colors                 | Works same as library devices (color rectangle)            |
-| **Device images**         | Would be distorted                     | Fall back to category icons in isometric mode              |
-| **10" rack**              | Narrower (116px)                       | Isometric proportions scale down correctly                 |
-| **Mixed half/full depth** | Adjacent devices with different depths | Each device renders its own depth independently            |
-| **Device at U1**          | Bottom of rack                         | Side panel may extend below rack frame—clip to rack bounds |
-| **Device at U42**         | Top of rack                            | Side panel must not exceed top bar                         |
+| Scenario | Consideration | Resolution |
+| --- | --- | --- |
+| **Empty rack** | Rack frame only, no devices | Should still render 3D frame correctly |
+| **Single 1U device** | Very small visual | Renders fine, legend provides context |
+| **42U fully populated** | Many overlapping side panels | Depth sorting ensures correct overlap |
+| **0.5U device** | Very thin (11px height) | May need minimum visual height for side panel |
+| **Custom devices** | No images, only colors | Works same as library devices (color rectangle) |
+| **Device images** | Would be distorted | Fall back to category icons in isometric mode |
+| **10" rack** | Narrower (116px) | Isometric proportions scale down correctly |
+| **Mixed half/full depth** | Adjacent devices with different depths | Each device renders its own depth independently |
+| **Device at U1** | Bottom of rack | Side panel may extend below rack frame—clip to rack bounds |
+| **Device at U42** | Top of rack | Side panel must not exceed top bar |
 
 ---
 

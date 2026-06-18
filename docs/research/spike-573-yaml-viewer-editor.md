@@ -1,7 +1,6 @@
 # Spike #573: In-App YAML Viewer/Editor
 
-**Date:** 2026-02-10
-**Parent Epic:** #570 (Developer-Friendly Data Format)
+**Date:** 2026-02-10 **Parent Epic:** #570 (Developer-Friendly Data Format)
 
 ---
 
@@ -163,4 +162,3 @@ Measured from current production build via `scripts/measure-startup-payload.ts`:
 - [x] Estimate implementation complexity
 - [x] Identify bundle size impact and mitigation
 - [x] Propose follow-up implementation issues
-

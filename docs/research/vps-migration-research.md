@@ -1,8 +1,6 @@
 # VPS Migration Research
 
-**Date:** 2026-05-01
-**Status:** Tabled — research only, no migration in progress
-**Context:** Triggered by disk-pressure incident on current Vultr VPS that blocked GitHub Actions deploys (`d.racku.la`). Revisiting whether the current host is still the right choice.
+**Date:** 2026-05-01 **Status:** Tabled — research only, no migration in progress **Context:** Triggered by disk-pressure incident on current Vultr VPS that blocked GitHub Actions deploys (`d.racku.la`). Revisiting whether the current host is still the right choice.
 
 ---
 
@@ -32,16 +30,16 @@
 
 ### Cheaper VPS providers (active option)
 
-| Plan                   | Spec                          | Native price | **CAD/mo** | Datacenter     | Notes                               |
-| ---------------------- | ----------------------------- | ------------ | ---------- | -------------- | ----------------------------------- |
-| Vultr (current)        | 1 vCPU / 2 GB / 25 GB         | $12 USD      | ~$17       | various        | baseline                            |
-| **Hetzner CX23** (x86) | 2 vCPU / 4 GB / 40 GB / 20 TB | €3.49        | **~$5.25** | DE/FI/US       | replaced CX22 in April 2026 refresh |
-| Hetzner CAX11 (ARM)    | 2 vCPU / 4 GB / 40 GB / 20 TB | €3.79        | ~$5.70     | DE/FI only     | requires multi-arch Docker images   |
-| **OVH Canada VPS-1**   | 4 vCPU / 8 GB / 75 GB NVMe    | $8.71 CAD    | **$8.71**  | Beauharnois QC | **currently sold out**              |
-| OVH Canada VPS-2       | 6 vCPU / 12 GB / 100 GB NVMe  | $13.60 CAD   | $13.60     | Beauharnois QC | sold out                            |
-| DigitalOcean Toronto   | 1 vCPU / 2 GB / 50 GB         | $12 USD      | ~$17       | YYZ            | no upgrade vs Vultr                 |
-| Linode Toronto         | similar                       | $12 USD      | ~$17       | YYZ            | no upgrade vs Vultr                 |
-| Contabo                | generous                      | low          | low        | various        | poor disk IO for Docker — avoid     |
+| Plan | Spec | Native price | **CAD/mo** | Datacenter | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Vultr (current) | 1 vCPU / 2 GB / 25 GB | $12 USD | ~$17 | various | baseline |
+| **Hetzner CX23** (x86) | 2 vCPU / 4 GB / 40 GB / 20 TB | €3.49 | **~$5.25** | DE/FI/US | replaced CX22 in April 2026 refresh |
+| Hetzner CAX11 (ARM) | 2 vCPU / 4 GB / 40 GB / 20 TB | €3.79 | ~$5.70 | DE/FI only | requires multi-arch Docker images |
+| **OVH Canada VPS-1** | 4 vCPU / 8 GB / 75 GB NVMe | $8.71 CAD | **$8.71** | Beauharnois QC | **currently sold out** |
+| OVH Canada VPS-2 | 6 vCPU / 12 GB / 100 GB NVMe | $13.60 CAD | $13.60 | Beauharnois QC | sold out |
+| DigitalOcean Toronto | 1 vCPU / 2 GB / 50 GB | $12 USD | ~$17 | YYZ | no upgrade vs Vultr |
+| Linode Toronto | similar | $12 USD | ~$17 | YYZ | no upgrade vs Vultr |
+| Contabo | generous | low | low | various | poor disk IO for Docker — avoid |
 
 ### Ingress patterns (if homelab path is ever revisited)
 

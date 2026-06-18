@@ -8,11 +8,11 @@ Testing the Proxmox LXC install without cutting a release.
 
 There are three distinct concerns in the LXC install pipeline. Each has a different testing strategy:
 
-| Layer                         | What it covers                                                          | Needs a release? |
-| ----------------------------- | ----------------------------------------------------------------------- | ---------------- |
-| Install script logic          | Dependencies, Bun install, nginx/systemd wiring in `rackula-install.sh` | No               |
-| Payload                       | Frontend build, API source, native deps, config files in the tarball    | No               |
-| Fetch/verify/update machinery | `fetch_and_deploy_gh_release`, update flow                              | Yes              |
+| Layer | What it covers | Needs a release? |
+| --- | --- | --- |
+| Install script logic | Dependencies, Bun install, nginx/systemd wiring in `rackula-install.sh` | No |
+| Payload | Frontend build, API source, native deps, config files in the tarball | No |
+| Fetch/verify/update machinery | `fetch_and_deploy_gh_release`, update flow | Yes |
 
 The fetch/verify/update machinery is stable framework code proven by the initial release and rarely changed. The install script and payload change frequently during active development. Test those without releasing.
 
@@ -40,9 +40,7 @@ Use the `build-lxc-dev.yml` workflow to build a tarball from any branch or SHA a
 
 ### Trigger a dev build
 
-In the GitHub Actions UI, open "Build LXC Tarball (dev)" (`build-lxc-dev.yml`), pick the
-branch or tag to build from the "Use workflow from" dropdown, and optionally set a custom
-**version** label (defaults to `vDEV-<sha>`).
+In the GitHub Actions UI, open "Build LXC Tarball (dev)" (`build-lxc-dev.yml`), pick the branch or tag to build from the "Use workflow from" dropdown, and optionally set a custom **version** label (defaults to `vDEV-<sha>`).
 
 Or with the `gh` CLI (`--ref` selects the branch or tag to build from):
 
@@ -65,15 +63,9 @@ ls /tmp/rackula-lxc-test/
 
 ### Smoke test on a Proxmox host
 
-Run `scripts/lxc-smoke-test.sh` on your Proxmox host. It auto-allocates a throwaway CT
-(hostname `rackula-smoke-*`), runs the real `rackula-install.sh` against the payload, exercises
-the upgrade path, runs health/frontend/service checks, and tears the CT down (unless `--keep`).
-It refuses to touch any CT whose hostname lacks the `rackula-smoke-` prefix, so a real container
-is never at risk.
+Run `scripts/lxc-smoke-test.sh` on your Proxmox host. It auto-allocates a throwaway CT (hostname `rackula-smoke-*`), runs the real `rackula-install.sh` against the payload, exercises the upgrade path, runs health/frontend/service checks, and tears the CT down (unless `--keep`). It refuses to touch any CT whose hostname lacks the `rackula-smoke-` prefix, so a real container is never at risk.
 
-The script runs the canonical install/update scripts, so it needs the repo layout
-(`deploy/lxc/community-scripts/`), not just `lxc-smoke-test.sh` on its own. Clone the repo on
-the host, or `rsync` the repo (or at least `scripts/` + `deploy/lxc/community-scripts/`) across:
+The script runs the canonical install/update scripts, so it needs the repo layout (`deploy/lxc/community-scripts/`), not just `lxc-smoke-test.sh` on its own. Clone the repo on the host, or `rsync` the repo (or at least `scripts/` + `deploy/lxc/community-scripts/`) across:
 
 ```bash
 # Option A: clone on the host
@@ -88,21 +80,13 @@ scp /tmp/rackula-lxc-test/rackula-lxc-*.tar.gz root@<pve-host>:/tmp/
 ./scripts/lxc-smoke-test.sh --tarball /tmp/rackula-lxc-vDEV-*.tar.gz --mode deploy --keep
 ```
 
-Flags: `--mode deploy|upgrade|both`, `--baseline release|<tarball>` (upgrade-from payload,
-default the real latest release), `--storage`/`--bridge`/`--template` (auto-detected),
-`--keep` (skip teardown). Exit code is non-zero if any check fails.
+Flags: `--mode deploy|upgrade|both`, `--baseline release|<tarball>` (upgrade-from payload, default the real latest release), `--storage`/`--bridge`/`--template` (auto-detected), `--keep` (skip teardown). Exit code is non-zero if any check fails.
 
-The upgrade test installs the baseline, seeds a marker in `/opt/rackula/data`, runs the real
-`update_script`, and verifies the marker survived.
+The upgrade test installs the baseline, seeds a marker in `/opt/rackula/data`, runs the real `update_script`, and verifies the marker survived.
 
 ### How the override works
 
-`scripts/lxc-smoke-test.sh` deploys a local tarball by setting `RACKULA_PREBUILD_TARBALL` for
-the real install and update scripts. Both `install/rackula-install.sh` and the ct
-`update_script` honor it: when set to an existing tarball they extract that payload instead of
-calling `fetch_and_deploy_gh_release ... latest`, and `update_script` skips its
-`check_for_gh_release` version gate so the upgrade body runs. The override is inert when the
-variable is unset, so a normal release install is unaffected.
+`scripts/lxc-smoke-test.sh` deploys a local tarball by setting `RACKULA_PREBUILD_TARBALL` for the real install and update scripts. Both `install/rackula-install.sh` and the ct `update_script` honor it: when set to an existing tarball they extract that payload instead of calling `fetch_and_deploy_gh_release ... latest`, and `update_script` skips its `check_for_gh_release` version gate so the upgrade body runs. The override is inert when the variable is unset, so a normal release install is unaffected.
 
 ---
 

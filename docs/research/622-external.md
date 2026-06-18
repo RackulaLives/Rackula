@@ -1,8 +1,6 @@
 # GitHub/Git Integration Research for Layout Sync
 
-**Issue:** #622
-**Date:** 2026-01-14
-**Purpose:** Research technical approaches for syncing Rackula layouts via GitHub
+**Issue:** #622 **Date:** 2026-01-14 **Purpose:** Research technical approaches for syncing Rackula layouts via GitHub
 
 ---
 
@@ -27,8 +25,7 @@
 - Requires CORS proxy for cross-origin git operations
 - Supported: Chrome, Edge, Firefox, Safari, Android, iOS
 
-**Critical Limitation - CORS:**
-Due to same-origin policy, isomorphic-git can only clone from the same origin as the webpage by default. For GitHub operations, a CORS proxy is required.
+**Critical Limitation - CORS:** Due to same-origin policy, isomorphic-git can only clone from the same origin as the webpage by default. For GitHub operations, a CORS proxy is required.
 
 **CORS Proxy Options:**
 
@@ -36,19 +33,16 @@ Due to same-origin policy, isomorphic-git can only clone from the same origin as
 2. **CloudFlare Workers** - Serverless proxy option
 3. **<https://cors.isomorphic-git.org>** - Free proxy (sponsored by Clever Cloud, for testing/small projects only)
 
-**File System - LightningFS:**
-[LightningFS](https://github.com/isomorphic-git/lightning-fs) is the recommended virtual filesystem:
+**File System - LightningFS:** [LightningFS](https://github.com/isomorphic-git/lightning-fs) is the recommended virtual filesystem:
 
 - Uses IndexedDB for persistence
 - Only implements the subset of `fs` API needed by isomorphic-git
 - 500ms debounce for IndexedDB writes
 - Alternative: ZenFS, Filer
 
-**Bundler Considerations (Vite):**
-With Vite, you may encounter "Module 'buffer' has been externalized for browser compatibility" error. Fix by adding the `buffer` package.
+**Bundler Considerations (Vite):** With Vite, you may encounter "Module 'buffer' has been externalized for browser compatibility" error. Fix by adding the `buffer` package.
 
-**Performance Note:**
-May not match native git performance for large repositories due to lack of native bindings.
+**Performance Note:** May not match native git performance for large repositories due to lack of native bindings.
 
 **Verdict:** Full git operations possible but requires CORS proxy infrastructure. Best for scenarios requiring actual git history/branching.
 
@@ -58,8 +52,7 @@ May not match native git performance for large repositories due to lack of nativ
 
 The [GitHub REST API](https://docs.github.com/en/rest) provides direct file operations without needing full git clone.
 
-**CORS Support:**
-GitHub REST API **fully supports CORS** for browser requests:
+**CORS Support:** GitHub REST API **fully supports CORS** for browser requests:
 
 - `Access-Control-Allow-Origin: *`
 - `Access-Control-Allow-Headers: Authorization, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since, X-Requested-With`
@@ -78,8 +71,7 @@ GitHub REST API **fully supports CORS** for browser requests:
 - Content must be Base64 encoded
 - Requires `workflow` scope for workflow files
 
-**Committing Multiple Files:**
-Process requires creating Blobs, Trees, and Commits via Git Data API:
+**Committing Multiple Files:** Process requires creating Blobs, Trees, and Commits via Git Data API:
 
 1. Create Blobs for each file
 2. Create Tree with Blob SHAs
@@ -139,11 +131,11 @@ An alternative approach using Gists for layout storage.
 
 ### Authentication Options Comparison
 
-| Method                      | Best For                               | Browser SPA Support          | Security           |
-| --------------------------- | -------------------------------------- | ---------------------------- | ------------------ |
-| Personal Access Token (PAT) | Personal tools, dev workflows          | Requires user to paste token | User manages token |
-| OAuth App                   | User-centric access, broad permissions | Yes (legacy)                 | Less granular      |
-| GitHub App                  | Production apps, fine-grained control  | Yes (2025 SPA support!)      | Best               |
+| Method | Best For | Browser SPA Support | Security |
+| --- | --- | --- | --- |
+| Personal Access Token (PAT) | Personal tools, dev workflows | Requires user to paste token | User manages token |
+| OAuth App | User-centric access, broad permissions | Yes (legacy) | Less granular |
+| GitHub App | Production apps, fine-grained control | Yes (2025 SPA support!) | Best |
 
 ### Personal Access Tokens
 
@@ -241,8 +233,7 @@ As of [July 2025](https://github.blog/changelog/2025-07-14-pkce-support-for-oaut
 - Navigate between hunks
 - Submodule support
 
-**Alternative - Obsidian-GitHub-Sync:**
-A simpler ~200 SLOC alternative:
+**Alternative - Obsidian-GitHub-Sync:** A simpler ~200 SLOC alternative:
 
 - No branching (main only)
 - Uses Node.js Git API
@@ -262,8 +253,7 @@ A simpler ~200 SLOC alternative:
 2. **Android:** Termux with pull/push scripts + Termux Widget
 3. **iOS:** a-shell or Working Copy + Shortcuts automation
 
-**Third-party Backend:**
-[logseq-sync](https://github.com/bcspragu/logseq-sync) - Self-hosted open-source Logseq Sync backend:
+**Third-party Backend:** [logseq-sync](https://github.com/bcspragu/logseq-sync) - Self-hosted open-source Logseq Sync backend:
 
 - SQLite persistence
 - Signed blob downloads
@@ -322,26 +312,26 @@ A simpler ~200 SLOC alternative:
 
 ### Core Libraries
 
-| Library                                                       | Purpose            | Browser Support  | Notes                       |
-| ------------------------------------------------------------- | ------------------ | ---------------- | --------------------------- |
-| [Octokit](https://github.com/octokit/octokit.js)              | GitHub API client  | Yes              | Official, full TypeScript   |
-| [@octokit/rest](https://www.npmjs.com/package/@octokit/rest)  | REST API only      | Yes              | Smaller bundle              |
-| [@octokit/graphql](https://github.com/octokit/graphql.js)     | GraphQL API only   | Yes              | For complex queries         |
-| [isomorphic-git](https://isomorphic-git.org/)                 | Full git in JS     | Yes (with proxy) | For git history needs       |
-| [LightningFS](https://github.com/isomorphic-git/lightning-fs) | Browser filesystem | Yes (IndexedDB)  | Required for isomorphic-git |
+| Library | Purpose | Browser Support | Notes |
+| --- | --- | --- | --- |
+| [Octokit](https://github.com/octokit/octokit.js) | GitHub API client | Yes | Official, full TypeScript |
+| [@octokit/rest](https://www.npmjs.com/package/@octokit/rest) | REST API only | Yes | Smaller bundle |
+| [@octokit/graphql](https://github.com/octokit/graphql.js) | GraphQL API only | Yes | For complex queries |
+| [isomorphic-git](https://isomorphic-git.org/) | Full git in JS | Yes (with proxy) | For git history needs |
+| [LightningFS](https://github.com/isomorphic-git/lightning-fs) | Browser filesystem | Yes (IndexedDB) | Required for isomorphic-git |
 
 ### Utility Libraries
 
-| Library                                                                    | Purpose             | Notes                                    |
-| -------------------------------------------------------------------------- | ------------------- | ---------------------------------------- |
-| [localforage](https://localforage.github.io/localForage/)                  | Storage abstraction | localStorage-like API, IndexedDB backend |
-| [@isomorphic-git/cors-proxy](https://github.com/isomorphic-git/cors-proxy) | CORS proxy          | Self-host for git operations             |
-| [buffer](https://www.npmjs.com/package/buffer)                             | Buffer polyfill     | Required for Vite + isomorphic-git       |
+| Library | Purpose | Notes |
+| --- | --- | --- |
+| [localforage](https://localforage.github.io/localForage/) | Storage abstraction | localStorage-like API, IndexedDB backend |
+| [@isomorphic-git/cors-proxy](https://github.com/isomorphic-git/cors-proxy) | CORS proxy | Self-host for git operations |
+| [buffer](https://www.npmjs.com/package/buffer) | Buffer polyfill | Required for Vite + isomorphic-git |
 
 ### OAuth/Auth Libraries
 
-| Library                                                 | Purpose             | Notes                       |
-| ------------------------------------------------------- | ------------------- | --------------------------- |
+| Library | Purpose | Notes |
+| --- | --- | --- |
 | [oauth2-pkce](https://github.com/Archelyst/oauth2-pkce) | PKCE implementation | TypeScript, browser-focused |
 
 ---
@@ -464,11 +454,11 @@ Monitor [GitHub PKCE support](https://github.blog/changelog/2025-07-14-pkce-supp
 
 ### Storage Location Options
 
-| Option             | Format    | Pros                       | Cons                     |
-| ------------------ | --------- | -------------------------- | ------------------------ |
-| User's repo        | JSON file | Familiar, version control  | Requires repo setup      |
-| Gist               | JSON      | Simple, shareable URL      | Less organized           |
-| Dedicated org repo | JSON      | Central, community layouts | More complex permissions |
+| Option | Format | Pros | Cons |
+| --- | --- | --- | --- |
+| User's repo | JSON file | Familiar, version control | Requires repo setup |
+| Gist | JSON | Simple, shareable URL | Less organized |
+| Dedicated org repo | JSON | Central, community layouts | More complex permissions |
 
 ---
 

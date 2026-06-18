@@ -1,7 +1,6 @@
 # Spike #1393: Pattern Analysis
 
-**Date:** 2026-03-08
-**Scope:** Synthesise codebase findings + external research into recommended patterns with trade-off analysis
+**Date:** 2026-03-08 **Scope:** Synthesise codebase findings + external research into recommended patterns with trade-off analysis
 
 ---
 
@@ -10,6 +9,7 @@
 ### Current State
 
 Rackula uses **functional helpers** organised by domain:
+
 - `device-actions.ts` — drag, select, deselect, delete
 - `rack-setup.ts` — wizard completion
 - `toolbar-actions.ts` — toolbar button interactions
@@ -18,7 +18,7 @@ Rackula uses **functional helpers** organised by domain:
 ### Trade-off Analysis
 
 | Dimension | Class-Based POM | Functional Helpers (current) |
-|-----------|----------------|------------------------------|
+| --- | --- | --- |
 | Discoverability | IDE autocomplete on `rack.` | File/barrel imports |
 | Composition | Inheritance (brittle) | Import individual functions |
 | Fit for SPA | Designed for multi-page flows | Natural for single-page actions |
@@ -49,7 +49,7 @@ e2e/helpers/
 ### Trade-off Analysis
 
 | Approach | Stability | Accessibility Testing | Effort | Risk |
-|----------|-----------|----------------------|--------|------|
+| --- | --- | --- | --- | --- |
 | `data-testid` everywhere | High | None (tests pass even if a11y breaks) | Low (mechanical) | Tests silently ignore a11y regressions |
 | `getByRole()` everywhere | Medium | High (catches a11y bugs) | High (needs ARIA markup) | SVG elements have no roles |
 | **Hybrid** (recommended) | High | Partial | Medium | Best balance |
@@ -57,21 +57,24 @@ e2e/helpers/
 ### Recommended Hybrid Strategy
 
 **Use `getByRole()` for interactive elements:**
+
 - Buttons: `page.getByRole('button', { name: 'Save' })`
 - Form inputs: `page.getByLabel('Rack name')`
 - Dialogs: `page.getByRole('dialog')`
 - Menu items: `page.getByRole('menuitem', { name: 'Export' })`
 
 **Use `getByTestId()` for structural/SVG elements:**
+
 - Rack canvas: `page.getByTestId('rack-canvas')`
 - Device slots: `page.getByTestId('rack-device')`
 - Panels: `page.getByTestId('drawer-device-edit')`
 - Drop zones: `page.getByTestId('rack-drop-zone')`
 
 **Use chaining for scoped queries:**
+
 ```typescript
 // Instead of a unique testid per device:
-page.getByTestId('rack-front').locator('[data-testid="rack-device"]').nth(0)
+page.getByTestId("rack-front").locator('[data-testid="rack-device"]').nth(0);
 ```
 
 ### Naming Convention
@@ -98,31 +101,35 @@ toast-message         — toast notification
 ### Trade-off Analysis
 
 | Approach | Risk | Effort | Disruption | Time to Value |
-|----------|------|--------|------------|---------------|
+| --- | --- | --- | --- | --- |
 | Big-bang rewrite | High (all tests break simultaneously) | 1-2 weeks | High | Delayed |
 | **Incremental** (recommended) | Low (one file at a time) | 3-4 weeks | Low | Immediate |
 
 ### Recommended 4-Phase Incremental Migration
 
 **Phase 1: Centralise selectors** (no component changes)
+
 - Create `e2e/helpers/locators.ts`
 - Move all CSS class strings from helpers and specs into named constants
 - Tests continue working identically
 - **Gate:** All class selectors in helpers reference `locators.ts`
 
 **Phase 2: Add data-testid to components** (component changes, no test changes)
+
 - Add `data-testid` to ~15 structural elements (rack canvas, device slots, drawers, dialogs, context menus)
 - Update `locators.ts` to use testid selectors instead of class selectors
 - Tests automatically pick up new selectors via locators
 - **Gate:** Zero CSS class selectors in `locators.ts` for structural elements
 
 **Phase 3: Migrate interactive selectors to getByRole()** (test changes)
+
 - Replace `:has-text()` button selectors with `getByRole('button', { name: ... })`
 - Replace `#id` form selectors with `getByLabel()`
 - Update helpers to use Playwright semantic locators
 - **Gate:** No `:has-text()` selectors in helpers
 
 **Phase 4: Clean up spec files** (test changes)
+
 - Remaining inline CSS selectors in spec files → use helpers or locators
 - Add ESLint rule to warn on `.locator('.')` in E2E files
 - **Gate:** ESLint rule passes, no new CSS class selectors
@@ -151,19 +158,33 @@ export function createTestLayout(overrides?: {
   rackName?: string;
   rackHeight?: number;
   rackWidth?: 10 | 19;
-  devices?: Array<{ type: string; position: number; face: 'front' | 'rear' }>;
-  customTypes?: Array<{ slug: string; height: number; colour: string; category: string }>;
+  devices?: Array<{ type: string; position: number; face: "front" | "rear" }>;
+  customTypes?: Array<{
+    slug: string;
+    height: number;
+    colour: string;
+    category: string;
+  }>;
 }): string {
   const layout: MinimalLayout = {
     v: APP_VERSION,
-    n: overrides?.name ?? 'Test Layout',
+    n: overrides?.name ?? "Test Layout",
     r: {
-      n: overrides?.rackName ?? 'Test Rack',
+      n: overrides?.rackName ?? "Test Rack",
       h: overrides?.rackHeight ?? 42,
       w: overrides?.rackWidth ?? 19,
-      d: (overrides?.devices ?? []).map(d => ({ t: d.type, p: d.position, f: d.face })),
+      d: (overrides?.devices ?? []).map((d) => ({
+        t: d.type,
+        p: d.position,
+        f: d.face,
+      })),
     },
-    dt: (overrides?.customTypes ?? []).map(t => ({ s: t.slug, h: t.height, c: t.colour, x: t.category })),
+    dt: (overrides?.customTypes ?? []).map((t) => ({
+      s: t.slug,
+      h: t.height,
+      c: t.colour,
+      x: t.category,
+    })),
   };
   return encodeMinimal(layout);
 }
@@ -172,13 +193,16 @@ export function createTestLayout(overrides?: {
 This enables tests to create specific configurations without opaque encoded strings:
 
 ```typescript
-await gotoWithRack(page, createTestLayout({
-  rackHeight: 12,
-  devices: [
-    { type: 'dell-r750', position: 1, face: 'front' },
-    { type: 'dell-r750', position: 3, face: 'front' },
-  ],
-}));
+await gotoWithRack(
+  page,
+  createTestLayout({
+    rackHeight: 12,
+    devices: [
+      { type: "dell-r750", position: 1, face: "front" },
+      { type: "dell-r750", position: 3, face: "front" },
+    ],
+  }),
+);
 ```
 
 ### Optional: Playwright Fixture Wrapping
@@ -187,14 +211,20 @@ Wrap common scenarios in `test.extend()` for declarative test setup:
 
 ```typescript
 export const test = base.extend<{ emptyRack: void; rackWithDevice: void }>({
-  emptyRack: [async ({ page }, use) => {
-    await gotoWithRack(page, EMPTY_RACK_SHARE);
-    await use();
-  }, { auto: false }],
-  rackWithDevice: [async ({ page }, use) => {
-    await gotoWithRack(page, RACK_WITH_DEVICE_SHARE);
-    await use();
-  }, { auto: false }],
+  emptyRack: [
+    async ({ page }, use) => {
+      await gotoWithRack(page, EMPTY_RACK_SHARE);
+      await use();
+    },
+    { auto: false },
+  ],
+  rackWithDevice: [
+    async ({ page }, use) => {
+      await gotoWithRack(page, RACK_WITH_DEVICE_SHARE);
+      await use();
+    },
+    { auto: false },
+  ],
 });
 ```
 
@@ -229,6 +259,7 @@ Likely blocked by the same save/load mechanism. Should work once file chooser is
 ## 6. Documentation Gap: TESTING.md
 
 The current `docs/guides/TESTING.md` lists `data-testid` values that don't exist in the codebase:
+
 - `btn-save` — doesn't exist (save is in File menu dropdown)
 - `btn-help` — doesn't exist
 

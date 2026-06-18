@@ -13,6 +13,7 @@ This spike evaluates Rackula Authentication v1 options for persistent self-hoste
 Keep `local` mode as a follow-up track (issue #1117), and defer fully flexible hybrid execution to later phases.
 
 This recommendation balances:
+
 - Stronger default security posture for shared deployments.
 - Lower operational burden than maintaining a local credential system in v1.
 - A clear upgrade path to local and hybrid modes without breaking config model (`none | oidc | local`).
@@ -22,11 +23,13 @@ This recommendation balances:
 ## Scope and Requirements
 
 This spike evaluates three auth mode paths:
+
 - Local password/user mode.
 - Generic OIDC mode.
 - Hybrid mode.
 
 Decision constraints from #1095 and #1100:
+
 - Auth remains optional by deployment choice.
 - When auth is enabled, anonymous access is not allowed.
 - MVP authorization is single-admin.
@@ -82,14 +85,14 @@ Decision constraints from #1095 and #1100:
 
 ### Effort Detail (S/M/L)
 
-| Workstream | Local | OIDC | Hybrid |
-| --- | --- | --- | --- |
-| Auth flow implementation | M | L | L |
-| Session/cookie hardening | M | M | L |
-| Admin UX and bootstrap | M | M | L |
-| Testing burden | M | L | L |
-| Documentation burden | M | M | L |
-| Total | **M** | **L** | **L** |
+| Workstream               | Local | OIDC  | Hybrid |
+| ------------------------ | ----- | ----- | ------ |
+| Auth flow implementation | M     | L     | L      |
+| Session/cookie hardening | M     | M     | L      |
+| Admin UX and bootstrap   | M     | M     | L      |
+| Testing burden           | M     | L     | L      |
+| Documentation burden     | M     | M     | L      |
+| Total                    | **M** | **L** | **L**  |
 
 ---
 
@@ -117,6 +120,7 @@ Decision constraints from #1095 and #1100:
 ## MVP Security and Logging Requirements
 
 When auth is enabled in v1:
+
 - No anonymous reads or writes across app/API surfaces.
 - Single-admin authorization policy only.
 - Session hardening baseline (secure cookie attributes, rotation on auth transitions, bounded lifetime).

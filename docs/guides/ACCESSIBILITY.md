@@ -4,9 +4,7 @@ This document tracks accessibility compliance for the Rackula application.
 
 ## Standards
 
-These are the accessibility gates every UI pull request must meet. They are
-named here so PRs do not re-litigate or forget them. The PR template carries a
-self-certification block that points back to this section.
+These are the accessibility gates every UI pull request must meet. They are named here so PRs do not re-litigate or forget them. The PR template carries a self-certification block that points back to this section.
 
 - WCAG 2.2 AA is the conformance target.
 - Interactive controls on mobile surfaces have a minimum touch target of 44x44 CSS pixels.
@@ -14,8 +12,7 @@ self-certification block that points back to this section.
 - Every interactive element has a visible focus state.
 - Focus is managed, not dropped, on open and close of panels, dialogs, and sheets.
 
-Automated enforcement comes from the axe-core CI check (#2099). This document and
-the PR self-certification are the manual backstop.
+Automated enforcement comes from the axe-core CI check (#2099). This document and the PR self-certification are the manual backstop.
 
 ## ARIA Labels
 

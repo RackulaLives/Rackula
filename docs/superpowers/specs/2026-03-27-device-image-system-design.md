@@ -1,27 +1,21 @@
 # Device Image System: Discoverability & Coverage
 
-**Date:** 2026-03-27
-**Issue:** #1517 (Pictures of assets)
-**Status:** Design approved
+**Date:** 2026-03-27 **Issue:** #1517 (Pictures of assets) **Status:** Design approved
 
 ## Problem
 
-A user reported not seeing "pictures" of equipment when placing devices. Investigation
-revealed this isn't a bug — it's a gap between expectations and reality:
+A user reported not seeing "pictures" of equipment when placing devices. Investigation revealed this isn't a bug — it's a gap between expectations and reality:
 
-- The README promises "real device images so it actually looks like your gear, not sad
-  grey boxes"
+- The README promises "real device images so it actually looks like your gear, not sad grey boxes"
 - Only 28% of devices (179 of 634) across 24 brands have bundled product images
 - The default display mode is "label" (coloured blocks with text), not images
-- The UI doesn't surface image availability, the display mode toggle, or the upload
-  capability clearly
+- The UI doesn't surface image availability, the display mode toggle, or the upload capability clearly
 - No user-facing documentation explains the image system
 - Custom device types have no bundled images and no guidance on uploading
 
 ## Approach
 
-Phased rollout — each phase ships standalone value. Parent tracking issue with sub-issues
-per phase. #1517 becomes a child of the Phase 1 issue.
+Phased rollout — each phase ships standalone value. Parent tracking issue with sub-issues per phase. #1517 becomes a child of the Phase 1 issue.
 
 A separate feature issue will be created for an auto-generated image coverage table.
 
@@ -47,8 +41,7 @@ Before:
 
 After:
 
-> "Product images for popular brands (Ubiquiti, HPE, Arista, and more) — upload your own
-> for any device"
+> "Product images for popular brands (Ubiquiti, HPE, Arista, and more) — upload your own for any device"
 
 ### User-Facing Docs Page
 
@@ -62,13 +55,11 @@ Create a user-facing guide (location TBD — likely `docs/guides/` or in-app hel
 
 ### Reply to #1517
 
-Link the reporter to the new docs page with specific guidance on the display mode toggle
-and image upload.
+Link the reporter to the new docs page with specific guidance on the display mode toggle and image upload.
 
 ### Success Criteria
 
-Reporter's question is answered. New users landing on README have accurate expectations
-about image availability.
+Reporter's question is answered. New users landing on README have accurate expectations about image availability.
 
 ---
 
@@ -82,13 +73,11 @@ about image availability.
 - Improve ImageIndicator — clearer icon for devices that have images (presence only)
 - Better EditPanel image upload section (less jargon, clearer affordance)
 - Help panel explains the image system, not just the keyboard shortcut
-- Account for custom device types in all UI changes (they behave like brand devices
-  without bundled images)
+- Account for custom device types in all UI changes (they behave like brand devices without bundled images)
 
 ### Success Criteria
 
-A new user can discover and activate image mode without reading docs or knowing keyboard
-shortcuts.
+A new user can discover and activate image mode without reading docs or knowing keyboard shortcuts.
 
 ---
 
@@ -98,8 +87,7 @@ shortcuts.
 
 ### Approach
 
-1. Audit NetBox Device Type Library for images available upstream that haven't been
-   imported into Rackula
+1. Audit NetBox Device Type Library for images available upstream that haven't been imported into Rackula
 2. Import available images for priority brands
 
 ### Priority Brands by Gap Score
@@ -131,9 +119,7 @@ Overall image coverage increases from 28% to >=50%.
 ### Changes
 
 - Streamline image upload (drag-drop in palette, not buried in EditPanel)
-- Image sharing via layout exports (needs architectural design — bundled images are
-  static Vite assets referenced by URL, user-uploaded images are in-memory blobs/dataUrls;
-  export format needs to handle both)
+- Image sharing via layout exports (needs architectural design — bundled images are static Vite assets referenced by URL, user-uploaded images are in-memory blobs/dataUrls; export format needs to handle both)
 
 ### Success Criteria
 
@@ -151,36 +137,31 @@ Arista (8), Juniper (8), AC Infinity (3), Apple (2)
 
 ### Partial Coverage
 
-Ubiquiti 49% (55/111), HPE 37% (21/56), Palo Alto 34% (8/23), Fortinet 31% (9/29),
-Eaton 25% (7/27), Cisco 21% (8/38)
+Ubiquiti 49% (55/111), HPE 37% (21/56), Palo Alto 34% (8/23), Fortinet 31% (9/29), Eaton 25% (7/27), Cisco 21% (8/38)
 
 ### Low Coverage (<15%)
 
-APC 16% (10/60), Supermicro 13% (3/22), Lenovo 9% (1/11), Dell 8% (6/74),
-Netgear 5% (1/19), MikroTik 3% (2/61)
+APC 16% (10/60), Supermicro 13% (3/22), Lenovo 9% (1/11), Dell 8% (6/74), Netgear 5% (1/19), MikroTik 3% (2/61)
 
 ### Zero Coverage
 
-Synology (33), TP-Link (29), QNAP (13), CyberPower (10), Netgate (8), DeskPi (8),
-Blackmagic Design (7), Vertiv (1)
+Synology (33), TP-Link (29), QNAP (13), CyberPower (10), Netgate (8), DeskPi (8), Blackmagic Design (7), Vertiv (1)
 
 ### Starter Library
 
-11 generic devices (1u-server, 2u-server, 4u-server, 24-port-switch, 48-port-switch,
-1u-router-firewall, 1u-storage, 2u-storage, 4u-storage, 2u-ups, 1u-console-drawer) all
-have bundled images.
+11 generic devices (1u-server, 2u-server, 4u-server, 24-port-switch, 48-port-switch, 1u-router-firewall, 1u-storage, 2u-storage, 4u-storage, 2u-ups, 1u-console-drawer) all have bundled images.
 
 ---
 
 ## Key Files
 
-| File                                       | Purpose                                        |
-| ------------------------------------------ | ---------------------------------------------- |
-| `src/lib/stores/ui.svelte.ts`              | Display mode state (default: "label")          |
-| `src/lib/components/RackDevice.svelte`     | Device rendering (label/image/image-label)     |
-| `src/lib/components/ImageIndicator.svelte` | Camera icon showing image availability         |
-| `src/lib/components/ImageUpload.svelte`    | Image upload in EditPanel                      |
-| `src/lib/stores/images.svelte.ts`          | Image store (bundled + user-uploaded)          |
-| `src/lib/data/bundledImages.ts`            | Auto-generated manifest of bundled WebP images |
-| `src/lib/data/brandPacks/`                 | Brand pack device definitions with image flags |
-| `src/lib/components/DragTooltip.svelte`    | Drag feedback (text label, not image preview)  |
+| File | Purpose |
+| --- | --- |
+| `src/lib/stores/ui.svelte.ts` | Display mode state (default: "label") |
+| `src/lib/components/RackDevice.svelte` | Device rendering (label/image/image-label) |
+| `src/lib/components/ImageIndicator.svelte` | Camera icon showing image availability |
+| `src/lib/components/ImageUpload.svelte` | Image upload in EditPanel |
+| `src/lib/stores/images.svelte.ts` | Image store (bundled + user-uploaded) |
+| `src/lib/data/bundledImages.ts` | Auto-generated manifest of bundled WebP images |
+| `src/lib/data/brandPacks/` | Brand pack device definitions with image flags |
+| `src/lib/components/DragTooltip.svelte` | Drag feedback (text label, not image preview) |
