@@ -40,7 +40,9 @@ describe("upgrade corpus: YAML ingress via parseLayoutYaml", () => {
 
     if (spec.reject) {
       it(`${name}: is rejected by the version gate`, async () => {
-        await expect(parseLayoutYaml(yaml)).rejects.toThrow();
+        await expect(parseLayoutYaml(yaml)).rejects.toThrow(
+          /newer version of Rackula/,
+        );
       });
       continue;
     }

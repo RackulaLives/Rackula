@@ -83,13 +83,10 @@ describe("browser upgrade: localStorage ingress", () => {
   });
 
   it("loadWorkspaceIndex still finds layouts under the current key structure", () => {
-    // Seed both the body and a workspace index that references it.
-    // This mirrors an upgraded browser whose index was written by a previous
-    // release: if the key names or the index schema changed, loadWorkspaceIndex
-    // would return null or drop "old-1" from openTabs, which is the orphaning
-    // we guard against.
-    localStorage.setItem(LAYOUT_KEY, JSON.stringify(V06_WRAPPED));
-
+    // Seed a workspace index that references "old-1", as a previous release
+    // would have written it. If the key name or the index schema changed,
+    // loadWorkspaceIndex would return null or drop "old-1" from openTabs, which
+    // is the orphaning we guard against.
     const seededIndex: WorkspaceIndex = {
       schemaVersion: 2,
       activeId: "old-1",
