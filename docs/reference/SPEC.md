@@ -1,8 +1,6 @@
 # Rackula Technical Overview
 
-**Version:** 26.5.0
-**Updated:** 2026-06-11
-**Status:** Active
+**Version:** 26.5.0 **Updated:** 2026-06-11 **Status:** Active
 
 ---
 
@@ -86,10 +84,10 @@ Devices smaller than a full U, or narrower than full width, do not bolt to the r
 
 The mounting rule:
 
-| Device                                          | Mounts on  |
-| ----------------------------------------------- | ---------- |
-| Full-width, integer u_height                    | Rails      |
-| Sub-U height, non-integer height, or sub-width  | A carrier  |
+| Device                                         | Mounts on |
+| ---------------------------------------------- | --------- |
+| Full-width, integer u_height                   | Rails     |
+| Sub-U height, non-integer height, or sub-width | A carrier |
 
 Carriers are ordinary devices with a face and a whole-U position. A device with `u_height` below 1, a non-integer `u_height`, or less than full width cannot be placed on the rails directly; it must be a child of a carrier. This rule is enforced in the schema, in store placement actions, and in drag-and-drop targeting, so a fractional rail position cannot be reintroduced from any path.
 
@@ -142,10 +140,7 @@ The `face` property is the single source of truth for collision detection:
 
 **Interface Position Constraints:**
 
-Half-depth device types (`is_full_depth: false`) have a single physical face. Their interface
-templates cannot have mixed `position` values — all explicitly positioned interfaces must use
-the same face (`front` or `rear`). Unpositioned interfaces default to `front`. This constraint
-is enforced by `DeviceTypeSchema`.
+Half-depth device types (`is_full_depth: false`) have a single physical face. Their interface templates cannot have mixed `position` values — all explicitly positioned interfaces must use the same face (`front` or `rear`). Unpositioned interfaces default to `front`. This constraint is enforced by `DeviceTypeSchema`.
 
 **Interaction Consistency:**
 

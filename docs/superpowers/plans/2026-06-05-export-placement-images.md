@@ -15,6 +15,7 @@
 ### Task 1: Render placement images in exports with per-face fallback
 
 **Files:**
+
 - Modify: `src/lib/utils/export.ts` (inside `renderRackView()`, the image lookup near line 886-891)
 - Test: `src/tests/export-placement-images.test.ts` (create)
 
@@ -140,50 +141,46 @@ describe("export placement images (#1902)", () => {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `npx vitest run src/tests/export-placement-images.test.ts`
-Expected: FAIL. The first test fails because the export uses `images.get(device.slug)` and returns `SLUGFRONT` (or nothing), never `PLACEMENTFRONT`.
+Run: `npx vitest run src/tests/export-placement-images.test.ts` Expected: FAIL. The first test fails because the export uses `images.get(device.slug)` and returns `SLUGFRONT` (or nothing), never `PLACEMENTFRONT`.
 
 - [ ] **Step 3: Apply the fix**
 
 In `src/lib/utils/export.ts`, inside `renderRackView()`, find this block (around line 886-891):
 
 ```typescript
-      // Check if we should show an image
-      const face = faceFilter === "rear" ? "rear" : "front";
-      const deviceImages = images?.get(device.slug);
-      const deviceImage = deviceImages?.[face];
-      // Support both URL-based (bundled) and dataUrl-based (user upload) images
-      const imageUrl = deviceImage?.url ?? deviceImage?.dataUrl;
+// Check if we should show an image
+const face = faceFilter === "rear" ? "rear" : "front";
+const deviceImages = images?.get(device.slug);
+const deviceImage = deviceImages?.[face];
+// Support both URL-based (bundled) and dataUrl-based (user upload) images
+const imageUrl = deviceImage?.url ?? deviceImage?.dataUrl;
 ```
 
 Replace it with:
 
 ```typescript
-      // Check if we should show an image
-      const face = faceFilter === "rear" ? "rear" : "front";
-      // Placement-first, per-face lookup mirrors RackDevice.svelte: a placement
-      // image wins for this face, otherwise fall back to the device-type image.
-      // Per-face (not per-device) so a front-only placement still inherits the
-      // device-type rear image.
-      const placementImages = images?.get(`placement-${placedDevice.id}`);
-      const slugImages = images?.get(device.slug);
-      const deviceImage = placementImages?.[face] ?? slugImages?.[face];
-      // Support both URL-based (bundled) and dataUrl-based (user upload) images
-      const imageUrl = deviceImage?.url ?? deviceImage?.dataUrl;
+// Check if we should show an image
+const face = faceFilter === "rear" ? "rear" : "front";
+// Placement-first, per-face lookup mirrors RackDevice.svelte: a placement
+// image wins for this face, otherwise fall back to the device-type image.
+// Per-face (not per-device) so a front-only placement still inherits the
+// device-type rear image.
+const placementImages = images?.get(`placement-${placedDevice.id}`);
+const slugImages = images?.get(device.slug);
+const deviceImage = placementImages?.[face] ?? slugImages?.[face];
+// Support both URL-based (bundled) and dataUrl-based (user upload) images
+const imageUrl = deviceImage?.url ?? deviceImage?.dataUrl;
 ```
 
-Note: `placedDevice` is the `renderRackView()` loop variable and `device` is its
-resolved `DeviceType`; both are already in scope at this point. No signature changes.
+Note: `placedDevice` is the `renderRackView()` loop variable and `device` is its resolved `DeviceType`; both are already in scope at this point. No signature changes.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `npx vitest run src/tests/export-placement-images.test.ts`
-Expected: PASS (2 tests).
+Run: `npx vitest run src/tests/export-placement-images.test.ts` Expected: PASS (2 tests).
 
 - [ ] **Step 5: Run lint and the full unit suite to confirm no regressions**
 
-Run: `npm run lint && npm run test:run`
-Expected: lint clean; all tests pass (including the existing export tests).
+Run: `npm run lint && npm run test:run` Expected: lint clean; all tests pass (including the existing export tests).
 
 - [ ] **Step 6: Commit**
 
@@ -199,6 +196,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## Self-Review
 
 **Spec coverage:**
+
 - "Mirror the editor's per-face fallback at the single export render point" -> Task 1 Step 3.
 - "Per-face, not per-device" with the front-only edge case -> Task 1 Step 1 second test + Step 3 comment.
 - "Fixes SVG/PNG/JPEG/PDF together" -> single change in the shared `renderRackView()`; no per-format work needed.

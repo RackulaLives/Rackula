@@ -1,9 +1,6 @@
 # Isometric Export POC v2 - Visual Notes
 
-**Issue:** #300
-**Date:** 2025-12-30
-**Version:** 2.0 (Full 3D Cabinet)
-**Files generated:**
+**Issue:** #300 **Date:** 2025-12-30 **Version:** 2.0 (Full 3D Cabinet) **Files generated:**
 
 - `isometric-poc-single.svg` - Single rack cabinet front view
 - `isometric-poc-dual.svg` - Dual view (front + rear cabinets)
@@ -25,19 +22,19 @@ This version renders a **proper 3D server rack cabinet enclosure** with devices 
 
 ## Technical Parameters
 
-| Parameter       | Value                                | Notes                        |
-| --------------- | ------------------------------------ | ---------------------------- |
-| Projection      | True isometric (30°)                 | `isoProject(x, y, z)` helper |
-| Rack Width      | 160px                                | Front face width             |
-| Rack Depth      | 100px                                | Cabinet depth                |
-| U Height        | 18px                                 | Pixels per rack unit         |
-| Rack Size       | 12U                                  | Demo rack                    |
-| Frame Thickness | 8px                                  | Cabinet frame                |
-| Rail Width      | 6px                                  | Mounting rails               |
-| Full-depth      | 90px (RACK_DEPTH - 10)               | Full-depth devices           |
-| Half-depth      | 40px (RACK_DEPTH \* 0.4)             | Half-depth devices           |
-| Side darkening  | 30% (RGB multiplication)             | Side panel shading           |
-| Top lightening  | 20% (RGB interpolation toward white) | Top surface highlight        |
+| Parameter | Value | Notes |
+| --- | --- | --- |
+| Projection | True isometric (30°) | `isoProject(x, y, z)` helper |
+| Rack Width | 160px | Front face width |
+| Rack Depth | 100px | Cabinet depth |
+| U Height | 18px | Pixels per rack unit |
+| Rack Size | 12U | Demo rack |
+| Frame Thickness | 8px | Cabinet frame |
+| Rail Width | 6px | Mounting rails |
+| Full-depth | 90px (RACK_DEPTH - 10) | Full-depth devices |
+| Half-depth | 40px (RACK_DEPTH \* 0.4) | Half-depth devices |
+| Side darkening | 30% (RGB multiplication) | Side panel shading |
+| Top lightening | 20% (RGB interpolation toward white) | Top surface highlight |
 
 ## Visual Assessment
 

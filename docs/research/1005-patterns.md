@@ -13,7 +13,7 @@ Synthesised codebase analysis and external UX research into four UX options and 
 Add a "Layout Name" text input to the first step of the wizard, visible only when `rackCount === 0` (creating the first rack in a new layout).
 
 | Criterion | Rating | Notes |
-|-----------|--------|-------|
+| --- | --- | --- |
 | Alignment with existing patterns | Good | Wizard already exists, just adds a field |
 | Mobile UX | Neutral | Works in bottom sheet |
 | Cognitive load (ADHD) | **Poor** | Adds decision point before user has context |
@@ -28,7 +28,7 @@ Add a "Layout Name" text input to the first step of the wizard, visible only whe
 A modal dialog that appears before the NewRackWizard when creating a new layout. Contains a text input with suggestions.
 
 | Criterion | Rating | Notes |
-|-----------|--------|-------|
+| --- | --- | --- |
 | Alignment with existing patterns | Poor | No other tool prompts for name before canvas |
 | Mobile UX | Poor | Extra dialog = extra tap = friction |
 | Cognitive load (ADHD) | **Poor** | Forces decision before user has context |
@@ -43,7 +43,7 @@ A modal dialog that appears before the NewRackWizard when creating a new layout.
 Extend the wizard to 3 steps when creating the first rack: Name Layout → Rack Type → Rack Details.
 
 | Criterion | Rating | Notes |
-|-----------|--------|-------|
+| --- | --- | --- |
 | Alignment with existing patterns | Neutral | Wizard pattern exists, but 3 steps is longer |
 | Mobile UX | Poor | More steps = more swipes = more friction |
 | Cognitive load (ADHD) | **Poor** | Same issue as Option 1+2: forced decision |
@@ -58,7 +58,7 @@ Extend the wizard to 3 steps when creating the first rack: Name Layout → Rack 
 Remove the name-sync from `addRack()`. Auto-name layouts with "My Layout". Make the layout name in the header clickable/editable.
 
 | Criterion | Rating | Notes |
-|-----------|--------|-------|
+| --- | --- | --- |
 | Alignment with existing patterns | **Excellent** | Matches Figma, Miro, Google Docs |
 | Mobile UX | **Excellent** | Tap-to-edit in header, no extra dialogs |
 | Cognitive load (ADHD) | **Excellent** | Zero new decision points; rename when ready |
@@ -73,7 +73,7 @@ Remove the name-sync from `addRack()`. Auto-name layouts with "My Layout". Make 
 ## Trade-Off Matrix
 
 | Criterion | Opt 1: Wizard Field | Opt 2: Dialog | Opt 3: Step 0 | Opt 4: Auto+Rename |
-|-----------|:---:|:---:|:---:|:---:|
+| --- | :-: | :-: | :-: | :-: |
 | Industry alignment | ~ | - | ~ | ++ |
 | Mobile UX | ~ | - | - | ++ |
 | ADHD-friendly | - | - | - | ++ |
@@ -92,6 +92,7 @@ Remove the name-sync from `addRack()`. Auto-name layouts with "My Layout". Make 
 **Remove entirely.** The sync creates the exact problem Issue #1005 reports. No user expects "rename my rack" to also rename the layout. The sync exists because there was no separate layout-naming mechanism — once we provide one (inline editing), the sync is unnecessary and harmful.
 
 **Impact of removal:**
+
 - `addRack()`: Remove 3 lines (the `isFirstRack` name sync)
 - `addBayedRackGroup()`: Remove the ternary name logic
 - `updateRackRaw()`: Remove 3 lines (first-rack name sync)
@@ -109,6 +110,7 @@ The simplest approach: In `serializeLayoutToYamlWithMetadata()`, always set `met
 ### Q3: Should we remove `metadata.name` from the type?
 
 **Not yet.** While `metadata.name` is redundant with `layout.name`, removing it would:
+
 - Change the YAML schema (breaking existing saved layouts on load)
 - Require migration logic in `deserializeYaml()`
 - Add risk for a cosmetic cleanup
@@ -118,6 +120,7 @@ The simplest approach: In `serializeLayoutToYamlWithMetadata()`, always set `met
 ### Q4: Impact on existing saved layouts
 
 **None with the sync approach.** Existing layouts that have divergent `metadata.name` and `layout.name` will:
+
 - Load normally (both fields preserved)
 - Re-save with synced names (next save fixes divergence)
 - No migration needed
@@ -145,6 +148,7 @@ The simplest approach: In `serializeLayoutToYamlWithMetadata()`, always set `met
 ### What's Already Done
 
 From prior session (#52519, #52522):
+
 - `createLayout()` signature changed to require explicit name
 - `setLayoutName()` method added to LayoutState
 - Default name changed to "My Layout"

@@ -1,8 +1,6 @@
 # NetBox Device Library Audit for Homelab Relevance
 
-**Date:** 2025-12-19
-**Related Issue:** [#96](https://github.com/RackulaLives/Rackula/issues/96)
-**Repository:** [netbox-community/devicetype-library](https://github.com/netbox-community/devicetype-library)
+**Date:** 2025-12-19 **Related Issue:** [#96](https://github.com/RackulaLives/Rackula/issues/96) **Repository:** [netbox-community/devicetype-library](https://github.com/netbox-community/devicetype-library)
 
 ---
 
@@ -33,30 +31,30 @@ This research spike audits the NetBox community device library to identify homel
 
 ### Tier 1: High Priority (Immediate Implementation)
 
-| Vendor       | Total Devices | Rack-Mount | Image Coverage | Recommendation         |
-| ------------ | ------------- | ---------- | -------------- | ---------------------- |
-| **Ubiquiti** | 139           | 60         | 40%            | Expand to full catalog |
-| **MikroTik** | 107           | 85         | 16%            | Expand to full catalog |
-| **Synology** | 48            | 19         | 47%            | Full rack NAS coverage |
-| **APC**      | 130+          | 13         | 8%             | UPS/PDU essentials     |
+| Vendor | Total Devices | Rack-Mount | Image Coverage | Recommendation |
+| --- | --- | --- | --- | --- |
+| **Ubiquiti** | 139 | 60 | 40% | Expand to full catalog |
+| **MikroTik** | 107 | 85 | 16% | Expand to full catalog |
+| **Synology** | 48 | 19 | 47% | Full rack NAS coverage |
+| **APC** | 130+ | 13 | 8% | UPS/PDU essentials |
 
 ### Tier 2: Medium Priority (Phase 2)
 
-| Vendor         | Total Devices | Rack-Mount | Image Coverage | Recommendation           |
-| -------------- | ------------- | ---------- | -------------- | ------------------------ |
-| **Dell**       | 151           | 57         | 25%            | Popular PowerEdge models |
-| **Supermicro** | 81            | 40+        | 15%            | Homelab server selection |
-| **HPE**        | 200+          | 120+       | 75%            | Aruba switches only      |
-| **CyberPower** | 12            | 10         | 0%             | UPS/PDU (need images)    |
+| Vendor | Total Devices | Rack-Mount | Image Coverage | Recommendation |
+| --- | --- | --- | --- | --- |
+| **Dell** | 151 | 57 | 25% | Popular PowerEdge models |
+| **Supermicro** | 81 | 40+ | 15% | Homelab server selection |
+| **HPE** | 200+ | 120+ | 75% | Aruba switches only |
+| **CyberPower** | 12 | 10 | 0% | UPS/PDU (need images) |
 
 ### Tier 3: Lower Priority (Phase 3)
 
-| Vendor      | Total Devices | Rack-Mount | Image Coverage | Recommendation      |
-| ----------- | ------------- | ---------- | -------------- | ------------------- |
-| **QNAP**    | 47            | 25         | 35%            | Rack NAS selection  |
-| **TP-Link** | 42            | 18         | 12%            | Budget switches     |
-| **Cisco**   | 1000+         | 200+       | <5%            | Small business only |
-| **Netgear** | 37            | 25         | 8%             | Managed switches    |
+| Vendor | Total Devices | Rack-Mount | Image Coverage | Recommendation |
+| --- | --- | --- | --- | --- |
+| **QNAP** | 47 | 25 | 35% | Rack NAS selection |
+| **TP-Link** | 42 | 18 | 12% | Budget switches |
+| **Cisco** | 1000+ | 200+ | <5% | Small business only |
+| **Netgear** | 37 | 25 | 8% | Managed switches |
 
 ---
 
@@ -64,9 +62,7 @@ This research spike audits the NetBox community device library to identify homel
 
 ### 1. Ubiquiti Networks
 
-**Current in Rackula:** 10 devices
-**Available in NetBox:** 139 devices
-**Rack-Mountable:** 60 devices
+**Current in Rackula:** 10 devices **Available in NetBox:** 139 devices **Rack-Mountable:** 60 devices
 
 #### Device Categories
 
@@ -100,9 +96,7 @@ This research spike audits the NetBox community device library to identify homel
 
 ### 2. MikroTik
 
-**Current in Rackula:** 5 devices
-**Available in NetBox:** 107 devices
-**Rack-Mountable:** 85 devices
+**Current in Rackula:** 5 devices **Available in NetBox:** 107 devices **Rack-Mountable:** 85 devices
 
 #### Device Categories
 
@@ -134,9 +128,7 @@ This research spike audits the NetBox community device library to identify homel
 
 ### 3. Synology
 
-**Current in Rackula:** 0 devices
-**Available in NetBox:** 48 devices
-**Rack-Mountable:** 19 devices
+**Current in Rackula:** 0 devices **Available in NetBox:** 48 devices **Rack-Mountable:** 19 devices
 
 #### Rack-Mount NAS by Form Factor
 
@@ -161,9 +153,7 @@ This research spike audits the NetBox community device library to identify homel
 
 ### 4. APC (Schneider Electric)
 
-**Current in Rackula:** 0 devices
-**Available in NetBox:** 130+ devices
-**Rack UPS/PDU:** 13 devices
+**Current in Rackula:** 0 devices **Available in NetBox:** 130+ devices **Rack UPS/PDU:** 13 devices
 
 #### Rack-Mount Power Devices
 
@@ -186,9 +176,7 @@ This research spike audits the NetBox community device library to identify homel
 
 ### 5. Dell
 
-**Current in Rackula:** 0 devices
-**Available in NetBox:** 151 devices
-**PowerEdge Servers:** 57 models
+**Current in Rackula:** 0 devices **Available in NetBox:** 151 devices **PowerEdge Servers:** 57 models
 
 #### Homelab-Popular PowerEdge Models
 
@@ -218,9 +206,7 @@ This research spike audits the NetBox community device library to identify homel
 
 ### 6. Supermicro
 
-**Current in Rackula:** 0 devices
-**Available in NetBox:** 81 devices
-**Rack Servers:** 40+ models
+**Current in Rackula:** 0 devices **Available in NetBox:** 81 devices **Rack Servers:** 40+ models
 
 #### Server Categories
 
@@ -250,9 +236,7 @@ This research spike audits the NetBox community device library to identify homel
 
 ### 7. HPE / Aruba
 
-**Current in Rackula:** 0 devices
-**Available in NetBox:** 200+ devices
-**Network Switches:** 120+ models
+**Current in Rackula:** 0 devices **Available in NetBox:** 200+ devices **Network Switches:** 120+ models
 
 #### Important Finding
 
@@ -281,9 +265,7 @@ This research spike audits the NetBox community device library to identify homel
 
 ### 8. CyberPower
 
-**Current in Rackula:** 0 devices
-**Available in NetBox:** 12 devices
-**Rack UPS/PDU:** 10 devices
+**Current in Rackula:** 0 devices **Available in NetBox:** 12 devices **Rack UPS/PDU:** 10 devices
 
 #### Critical Gap: Zero Images
 
@@ -305,9 +287,7 @@ This research spike audits the NetBox community device library to identify homel
 
 ### 9. QNAP
 
-**Current in Rackula:** 0 devices
-**Available in NetBox:** 47 devices
-**Rack-Mount NAS:** 25 devices
+**Current in Rackula:** 0 devices **Available in NetBox:** 47 devices **Rack-Mount NAS:** 25 devices
 
 #### Rack NAS by Form Factor
 
@@ -329,9 +309,7 @@ This research spike audits the NetBox community device library to identify homel
 
 ### 10. TP-Link
 
-**Current in Rackula:** 0 devices
-**Available in NetBox:** 42 devices
-**Rack Switches:** 18 devices
+**Current in Rackula:** 0 devices **Available in NetBox:** 42 devices **Rack Switches:** 18 devices
 
 #### Switch Categories
 
@@ -353,9 +331,7 @@ This research spike audits the NetBox community device library to identify homel
 
 ### 11. Cisco
 
-**Current in Rackula:** 0 devices
-**Available in NetBox:** 1000+ devices
-**Homelab-Relevant:** ~50 devices
+**Current in Rackula:** 0 devices **Available in NetBox:** 1000+ devices **Homelab-Relevant:** ~50 devices
 
 #### Homelab-Friendly Categories
 
@@ -381,9 +357,7 @@ This research spike audits the NetBox community device library to identify homel
 
 ### 12. Netgear
 
-**Current in Rackula:** 0 devices
-**Available in NetBox:** 37 devices
-**Rack Switches:** 25 devices
+**Current in Rackula:** 0 devices **Available in NetBox:** 37 devices **Rack Switches:** 25 devices
 
 #### Switch Categories
 

@@ -1,7 +1,6 @@
 # Spike #681: Design Annotations Placement for Bayed Racks
 
-**Date:** 2026-01-16
-**Status:** Complete
+**Date:** 2026-01-16 **Status:** Complete
 
 ---
 
@@ -249,12 +248,12 @@ Leave bayed racks without annotation support.
 
 ## Questions Resolved
 
-| Question                                 | Resolution                                        |
-| ---------------------------------------- | ------------------------------------------------- |
-| Per-bay or per-row?                      | Per-bay (Option A)                                |
-| Where positioned relative to FRONT/REAR? | Adjacent to each bay, mirrored for rear           |
-| How scale with different bay counts?     | Use narrower width; consider collapse threshold   |
-| Should they be interactive/editable?     | Same as single rack (not in scope for this spike) |
+| Question | Resolution |
+| --- | --- |
+| Per-bay or per-row? | Per-bay (Option A) |
+| Where positioned relative to FRONT/REAR? | Adjacent to each bay, mirrored for rear |
+| How scale with different bay counts? | Use narrower width; consider collapse threshold |
+| Should they be interactive/editable? | Same as single rack (not in scope for this spike) |
 
 ---
 

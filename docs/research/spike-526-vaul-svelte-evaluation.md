@@ -59,8 +59,7 @@
 
 ## Created Prototype
 
-A vaul-svelte equivalent component was created at:
-`src/lib/components/VaulBottomSheet.svelte`
+A vaul-svelte equivalent component was created at: `src/lib/components/VaulBottomSheet.svelte`
 
 This provides the same API as `BottomSheet.svelte`:
 

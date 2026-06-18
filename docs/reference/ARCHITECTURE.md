@@ -175,20 +175,20 @@ No legacy support or migration code. Features are implemented as if they're the 
 └─────────────────────────────────────────────────────────────┘
 ```
 
-| Environment | URL           | Trigger        | Use Case         |
-| ----------- | ------------- | -------------- | ---------------- |
-| Dev         | d.racku.la  | Push to `main` | Preview, testing |
-| Prod        | count.racku.la  | Git tag `v*`   | Live users       |
+| Environment | URL            | Trigger        | Use Case         |
+| ----------- | -------------- | -------------- | ---------------- |
+| Dev         | d.racku.la     | Push to `main` | Preview, testing |
+| Prod        | count.racku.la | Git tag `v*`   | Live users       |
 
 ## Documentation Map
 
-| Document                            | Purpose                               |
-| ----------------------------------- | ------------------------------------- |
-| `docs/reference/SPEC.md`            | Technical overview and design principles |
-| `docs/reference/BRAND.md`           | Design system quick reference         |
-| `docs/reference/GITHUB-WORKFLOW.md` | GitHub Issues workflow                |
-| `docs/guides/TESTING.md`            | Testing patterns and commands         |
-| `docs/guides/ACCESSIBILITY.md`      | A11y compliance checklist             |
+| Document | Purpose |
+| --- | --- |
+| `docs/reference/SPEC.md` | Technical overview and design principles |
+| `docs/reference/BRAND.md` | Design system quick reference |
+| `docs/reference/GITHUB-WORKFLOW.md` | GitHub Issues workflow |
+| `docs/guides/TESTING.md` | Testing patterns and commands |
+| `docs/guides/ACCESSIBILITY.md` | A11y compliance checklist |
 
 ## See Also
 

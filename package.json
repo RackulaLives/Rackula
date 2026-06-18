@@ -30,6 +30,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "format:docs": "prettier --write \"docs/**/*.md\"",
+    "format:check:docs": "prettier --check \"docs/**/*.md\"",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "prepare": "husky",
     "process-images": "npx tsx scripts/process-images.ts",

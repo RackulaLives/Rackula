@@ -88,13 +88,10 @@ services:
 
 ### Kubernetes
 
-Rackula's nginx config defers DNS resolution to request time using nginx's `resolver`
-directive. Two settings need adjustment for Kubernetes:
+Rackula's nginx config defers DNS resolution to request time using nginx's `resolver` directive. Two settings need adjustment for Kubernetes:
 
-1. **`NGINX_RESOLVER`**: Set to your cluster DNS IP (check with
-   `kubectl get svc -n kube-system kube-dns -o jsonpath='{.spec.clusterIP}'`)
-2. **`API_HOST`**: Must be a FQDN because nginx's resolver doesn't use search domains
-   (e.g., `rackula-api.default.svc.cluster.local`)
+1. **`NGINX_RESOLVER`**: Set to your cluster DNS IP (check with `kubectl get svc -n kube-system kube-dns -o jsonpath='{.spec.clusterIP}'`)
+2. **`API_HOST`**: Must be a FQDN because nginx's resolver doesn't use search domains (e.g., `rackula-api.default.svc.cluster.local`)
 
 Example pod environment:
 
@@ -108,9 +105,7 @@ env:
     value: "3001"
 ```
 
-**Troubleshooting:** If you see `send() failed (111: Connection refused) while resolving`
-in nginx logs, your `NGINX_RESOLVER` value is wrong. Check `kubectl logs <pod>` for the
-startup line showing the configured resolver.
+**Troubleshooting:** If you see `send() failed (111: Connection refused) while resolving` in nginx logs, your `NGINX_RESOLVER` value is wrong. Check `kubectl logs <pod>` for the startup line showing the configured resolver.
 
 ### Add Authentication
 
@@ -135,8 +130,7 @@ For a copy-pastable hardening path with Docker + NGINX (UI and API protection, d
 
 ## Stop-Gap Authentication Hardening (Docker + NGINX)
 
-This section adds an interim authentication layer for self-hosted Rackula using Docker and NGINX.
-It is designed for internal deployments that need immediate protection while first-class app auth is in progress.
+This section adds an interim authentication layer for self-hosted Rackula using Docker and NGINX. It is designed for internal deployments that need immediate protection while first-class app auth is in progress.
 
 Tracking:
 
@@ -512,9 +506,7 @@ server {
 }
 ```
 
-Also mount certificate files into `auth-proxy` read-only and publish `443`.
-Only enable HSTS after confirming all subdomains are HTTPS-only to avoid client lockout.
-For production-hardened TLS settings, generate a tuned config from Mozilla SSL Configuration Generator: <https://ssl-config.mozilla.org/>.
+Also mount certificate files into `auth-proxy` read-only and publish `443`. Only enable HSTS after confirming all subdomains are HTTPS-only to avoid client lockout. For production-hardened TLS settings, generate a tuned config from Mozilla SSL Configuration Generator: <https://ssl-config.mozilla.org/>.
 
 ### Credential Rotation and Secret Handling
 
@@ -602,38 +594,38 @@ All variables have sensible defaults. Only configure if you need to change somet
 
 ### Runtime Variables
 
-| Variable                             | Default                 | Description                                                                                         |
-| ------------------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------- |
-| `RACKULA_PORT`                       | `8080`                  | Host port for the web UI                                                                            |
-| `RACKULA_LISTEN_PORT`                | `8080`                  | Port nginx listens on inside the container                                                          |
-| `RACKULA_API_PORT`                   | `3001`                  | Port the API listens on                                                                             |
-| `API_HOST`                           | `rackula-api`           | Hostname of API container (for nginx proxy)                                                         |
-| `API_PORT`                           | `3001`                  | Port of API container (for nginx proxy)                                                             |
-| `RACKULA_STORAGE_MODE`               | `browser`               | Frontend storage mode: `browser` or `server` (`docker-compose.persist.yml` defaults it to `server`) |
-| `CORS_ORIGIN`                        | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default)                                  |
-| `RACKULA_API_WRITE_TOKEN`            | _unset_                 | Optional bearer token required for API `PUT`/`DELETE`                                               |
-| `ALLOW_INSECURE_CORS`                | `false`                 | Explicitly allow wildcard CORS in production (not recommended)                                      |
-| `NGINX_RESOLVER`                     | `127.0.0.11`            | DNS resolver for nginx upstream resolution (override for Kubernetes)                                |
-| `DATA_DIR`                           | `/data`                 | Path to data directory inside API container                                                         |
-| `RACKULA_AUTH_MODE`                  | `none`                  | Auth gate mode: `none`, `local`, or `oidc`                                                          |
-| `RACKULA_AUTH_SESSION_SECRET`        | _unset_                 | Required when auth mode is enabled (min 32 chars, use `openssl rand -hex 32`)                       |
-| `RACKULA_AUTH_SESSION_COOKIE_SECURE` | `true`                  | Set `false` for local HTTP testing only                                                             |
-| `RACKULA_LOCAL_USERNAME`             | _unset_                 | Username for local auth mode (min 3 chars)                                                          |
-| `RACKULA_LOCAL_PASSWORD`             | _unset_                 | Password for local auth mode (min 12 chars)                                                         |
-| `RACKULA_OIDC_ISSUER`                | _unset_                 | OIDC issuer URL (required for `oidc` mode)                                                          |
-| `RACKULA_OIDC_CLIENT_ID`             | _unset_                 | OIDC client ID (required for `oidc` mode)                                                           |
-| `RACKULA_OIDC_CLIENT_SECRET`         | _unset_                 | OIDC client secret (required for `oidc` mode)                                                       |
-| `RACKULA_TRUST_PROXY`                | `0`                     | Set to `1` behind a TLS-terminating reverse proxy; enables HTTPS redirects via `X-Forwarded-Proto`  |
-| `RACKULA_BASE_URL`                   | `http://localhost:3000` | External URL for OIDC callback construction; set to your HTTPS URL behind a proxy                   |
-| `RACKULA_OIDC_REDIRECT_URI`          | _derived from BASE_URL_ | Explicit OIDC callback URL; must match the IdP's registered redirect URI exactly                    |
-| `RACKULA_MAX_LAYOUTS`                | `100`                   | Maximum number of stored layouts. Set to `0` for unlimited                                          |
-| `RACKULA_MAX_ASSETS_PER_LAYOUT`      | `50`                    | Maximum number of assets per layout. Set to `0` for unlimited                                       |
-| `RACKULA_RATE_LIMIT_ENABLED`         | `true`                  | Set to `false` to disable the in-app IP rate limiter                                                |
-| `RACKULA_RATE_LIMIT_WRITE_MAX`       | `30`                    | Max write requests (PUT, DELETE) per IP per window                                                  |
-| `RACKULA_RATE_LIMIT_WRITE_WINDOW_MS` | `60000`                 | Write rate-limit window in milliseconds                                                             |
-| `RACKULA_RATE_LIMIT_READ_MAX`        | `120`                   | Max read requests (GET, HEAD) per IP per window                                                     |
-| `RACKULA_RATE_LIMIT_READ_WINDOW_MS`  | `60000`                 | Read rate-limit window in milliseconds                                                              |
-| `LOG_LEVEL`                          | `info`                  | API log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, or `silent`                  |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `RACKULA_PORT` | `8080` | Host port for the web UI |
+| `RACKULA_LISTEN_PORT` | `8080` | Port nginx listens on inside the container |
+| `RACKULA_API_PORT` | `3001` | Port the API listens on |
+| `API_HOST` | `rackula-api` | Hostname of API container (for nginx proxy) |
+| `API_PORT` | `3001` | Port of API container (for nginx proxy) |
+| `RACKULA_STORAGE_MODE` | `browser` | Frontend storage mode: `browser` or `server` (`docker-compose.persist.yml` defaults it to `server`) |
+| `CORS_ORIGIN` | `http://localhost:8080` | Allowed browser origin(s) for API access (production-safe default) |
+| `RACKULA_API_WRITE_TOKEN` | _unset_ | Optional bearer token required for API `PUT`/`DELETE` |
+| `ALLOW_INSECURE_CORS` | `false` | Explicitly allow wildcard CORS in production (not recommended) |
+| `NGINX_RESOLVER` | `127.0.0.11` | DNS resolver for nginx upstream resolution (override for Kubernetes) |
+| `DATA_DIR` | `/data` | Path to data directory inside API container |
+| `RACKULA_AUTH_MODE` | `none` | Auth gate mode: `none`, `local`, or `oidc` |
+| `RACKULA_AUTH_SESSION_SECRET` | _unset_ | Required when auth mode is enabled (min 32 chars, use `openssl rand -hex 32`) |
+| `RACKULA_AUTH_SESSION_COOKIE_SECURE` | `true` | Set `false` for local HTTP testing only |
+| `RACKULA_LOCAL_USERNAME` | _unset_ | Username for local auth mode (min 3 chars) |
+| `RACKULA_LOCAL_PASSWORD` | _unset_ | Password for local auth mode (min 12 chars) |
+| `RACKULA_OIDC_ISSUER` | _unset_ | OIDC issuer URL (required for `oidc` mode) |
+| `RACKULA_OIDC_CLIENT_ID` | _unset_ | OIDC client ID (required for `oidc` mode) |
+| `RACKULA_OIDC_CLIENT_SECRET` | _unset_ | OIDC client secret (required for `oidc` mode) |
+| `RACKULA_TRUST_PROXY` | `0` | Set to `1` behind a TLS-terminating reverse proxy; enables HTTPS redirects via `X-Forwarded-Proto` |
+| `RACKULA_BASE_URL` | `http://localhost:3000` | External URL for OIDC callback construction; set to your HTTPS URL behind a proxy |
+| `RACKULA_OIDC_REDIRECT_URI` | _derived from BASE_URL_ | Explicit OIDC callback URL; must match the IdP's registered redirect URI exactly |
+| `RACKULA_MAX_LAYOUTS` | `100` | Maximum number of stored layouts. Set to `0` for unlimited |
+| `RACKULA_MAX_ASSETS_PER_LAYOUT` | `50` | Maximum number of assets per layout. Set to `0` for unlimited |
+| `RACKULA_RATE_LIMIT_ENABLED` | `true` | Set to `false` to disable the in-app IP rate limiter |
+| `RACKULA_RATE_LIMIT_WRITE_MAX` | `30` | Max write requests (PUT, DELETE) per IP per window |
+| `RACKULA_RATE_LIMIT_WRITE_WINDOW_MS` | `60000` | Write rate-limit window in milliseconds |
+| `RACKULA_RATE_LIMIT_READ_MAX` | `120` | Max read requests (GET, HEAD) per IP per window |
+| `RACKULA_RATE_LIMIT_READ_WINDOW_MS` | `60000` | Read rate-limit window in milliseconds |
+| `LOG_LEVEL` | `info` | API log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, or `silent` |
 
 **Port mapping explained:**
 
@@ -673,31 +665,25 @@ docker compose up -d
 
 ### Proxmox LXC Installer Variables
 
-The Proxmox community-scripts installer generates the API config itself, so a few
-settings are passed as environment variables when running the installer rather
-than in a compose file. Export them before the install command.
+The Proxmox community-scripts installer generates the API config itself, so a few settings are passed as environment variables when running the installer rather than in a compose file. Export them before the install command.
 
-| Variable              | Default  | Description                                             |
-| --------------------- | -------- | ------------------------------------------------------- |
-| `BUN_VERSION`         | `1.3.14` | Bun runtime version installed to `/usr/local/bun`       |
-| `CORS_SCHEME`         | `http`   | Scheme for the generated `CORS_ORIGIN` (`http`/`https`) |
-| `ALLOW_INSECURE_CORS` | `false`  | Allow wildcard CORS (`true`/`false`)                    |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `BUN_VERSION` | `1.3.14` | Bun runtime version installed to `/usr/local/bun` |
+| `CORS_SCHEME` | `http` | Scheme for the generated `CORS_ORIGIN` (`http`/`https`) |
+| `ALLOW_INSECURE_CORS` | `false` | Allow wildcard CORS (`true`/`false`) |
 
-Behind an HTTPS reverse proxy, set `CORS_SCHEME=https` so the generated
-`CORS_ORIGIN` matches the browser origin. To change CORS after install, edit
-`CORS_ORIGIN` in `/opt/rackula/data/.env` and run `systemctl restart rackula-api`.
+Behind an HTTPS reverse proxy, set `CORS_SCHEME=https` so the generated `CORS_ORIGIN` matches the browser origin. To change CORS after install, edit `CORS_ORIGIN` in `/opt/rackula/data/.env` and run `systemctl restart rackula-api`.
 
 ### Build-Time Variables
 
 These require rebuilding the image - see [Building from Source](#building-from-source).
 
-| Variable     | Default | Description                                              |
-| ------------ | ------- | -------------------------------------------------------- |
-| `APP_COMMIT` | `""`    | Short commit hash reported in `version.json` (set by CI) |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `APP_COMMIT` | `""` | Short commit hash reported in `version.json` (set by CI) |
 
-Persistence is detected at runtime (the app probes the API on load), so there is
-no build-time persistence flag. The `:persist` tag signals the API-backed compose
-profile; the frontend image contents are the same.
+Persistence is detected at runtime (the app probes the API on load), so there is no build-time persistence flag. The `:persist` tag signals the API-backed compose profile; the frontend image contents are the same.
 
 ---
 
@@ -771,23 +757,16 @@ curl -fsS http://localhost:8080/api/version
 
 Each returns `{ "version": "...", "commit": "...", "buildTime": "..." }`.
 
-**Version alignment:** every image published for a given release - the default
-frontend, the `:persist` frontend, and `rackula-api` - reports the **same**
-version. If `/version.json` and `/api/version` disagree, your containers are
-from different releases. Pull the matching tags and recreate:
+**Version alignment:** every image published for a given release - the default frontend, the `:persist` frontend, and `rackula-api` - reports the **same** version. If `/version.json` and `/api/version` disagree, your containers are from different releases. Pull the matching tags and recreate:
 
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
-Official images released together are guaranteed to match: a release-time CI
-check runs every published image and fails the release if their versions
-diverge, so a mismatch locally means stale tags rather than a bad release.
+Official images released together are guaranteed to match: a release-time CI check runs every published image and fails the release if their versions diverge, so a mismatch locally means stale tags rather than a bad release.
 
-> Using the stop-gap auth proxy above? `/version.json` sits behind Basic auth
-> like the rest of `/`, and `/api/version` is not in the API allowlist - add it
-> the same way as `/api/health` if you want to query it through the proxy.
+> Using the stop-gap auth proxy above? `/version.json` sits behind Basic auth like the rest of `/`, and `/api/version` is not in the API allowlist - add it the same way as `/api/health` if you want to query it through the proxy.
 
 ---
 
@@ -849,50 +828,34 @@ The provided docker-compose.persist.yml includes:
 - production-safe CORS defaults (`CORS_ORIGIN`, `ALLOW_INSECURE_CORS=false`)
 - optional write-route bearer auth (`RACKULA_API_WRITE_TOKEN`)
 
-The API ships a hardening baseline for self-hosted deployments built from three
-abuse-resistance controls: write-route rate limiting, a mutating-request origin policy,
-and storage quotas. Each has safe defaults and operator overrides, described below.
+The API ships a hardening baseline for self-hosted deployments built from three abuse-resistance controls: write-route rate limiting, a mutating-request origin policy, and storage quotas. Each has safe defaults and operator overrides, described below.
 
 ### Rate Limiting
 
-The API applies an in-process, per-IP rate limit to absorb bursts and abuse, independent
-of any reverse-proxy limit. Write requests (PUT, DELETE) and read requests (GET, HEAD)
-have separate budgets. It is enabled by default.
+The API applies an in-process, per-IP rate limit to absorb bursts and abuse, independent of any reverse-proxy limit. Write requests (PUT, DELETE) and read requests (GET, HEAD) have separate budgets. It is enabled by default.
 
-| Setting                              | Default | Description                                  |
-| ------------------------------------ | ------- | -------------------------------------------- |
-| `RACKULA_RATE_LIMIT_ENABLED`         | `true`  | Set to `false` to disable in-app rate limits |
-| `RACKULA_RATE_LIMIT_WRITE_MAX`       | `30`    | Max write requests per IP per window         |
-| `RACKULA_RATE_LIMIT_WRITE_WINDOW_MS` | `60000` | Write window length in milliseconds          |
-| `RACKULA_RATE_LIMIT_READ_MAX`        | `120`   | Max read requests per IP per window          |
-| `RACKULA_RATE_LIMIT_READ_WINDOW_MS`  | `60000` | Read window length in milliseconds           |
+| Setting | Default | Description |
+| --- | --- | --- |
+| `RACKULA_RATE_LIMIT_ENABLED` | `true` | Set to `false` to disable in-app rate limits |
+| `RACKULA_RATE_LIMIT_WRITE_MAX` | `30` | Max write requests per IP per window |
+| `RACKULA_RATE_LIMIT_WRITE_WINDOW_MS` | `60000` | Write window length in milliseconds |
+| `RACKULA_RATE_LIMIT_READ_MAX` | `120` | Max read requests per IP per window |
+| `RACKULA_RATE_LIMIT_READ_WINDOW_MS` | `60000` | Read window length in milliseconds |
 
-When a limit is exceeded the API returns HTTP 429 with a `Retry-After` header and a JSON
-body `{ "error": "Too Many Requests" }`. Rate limiting is skipped when the client IP
-cannot be determined. This is separate from, and complementary to, any NGINX `limit_req`
-applied at the proxy.
+When a limit is exceeded the API returns HTTP 429 with a `Retry-After` header and a JSON body `{ "error": "Too Many Requests" }`. Rate limiting is skipped when the client IP cannot be determined. This is separate from, and complementary to, any NGINX `limit_req` applied at the proxy.
 
 ### Mutating-Request Origin Policy
 
-For state-changing requests (POST, PUT, PATCH, DELETE), the API requires a trusted
-`Origin` (or `Referer`) header. This closes the cross-origin write gap that bearer-token
-checks alone do not cover, for example a malicious page in a victim's browser issuing
-writes to a reachable API.
+For state-changing requests (POST, PUT, PATCH, DELETE), the API requires a trusted `Origin` (or `Referer`) header. This closes the cross-origin write gap that bearer-token checks alone do not cover, for example a malicious page in a victim's browser issuing writes to a reachable API.
 
-The origin policy is enforced automatically when authentication is enabled and CSRF
-protection is active. Both require an explicit `CORS_ORIGIN` (wildcard origins are
-rejected in this mode), and the trusted origins are taken from `CORS_ORIGIN`. There is no
-separate toggle.
+The origin policy is enforced automatically when authentication is enabled and CSRF protection is active. Both require an explicit `CORS_ORIGIN` (wildcard origins are rejected in this mode), and the trusted origins are taken from `CORS_ORIGIN`. There is no separate toggle.
 
 When enforced:
 
 - Requests from a trusted origin pass.
-- A valid write bearer token (`RACKULA_API_WRITE_TOKEN`) bypasses the origin check, for
-  non-browser clients that cannot send an `Origin`.
-- Mutating requests with no `Origin` or `Referer` and no valid token are rejected with
-  HTTP 403.
-- When auth is disabled or `CORS_ORIGIN` is a wildcard, the policy is skipped, because
-  write-token auth alone protects write routes.
+- A valid write bearer token (`RACKULA_API_WRITE_TOKEN`) bypasses the origin check, for non-browser clients that cannot send an `Origin`.
+- Mutating requests with no `Origin` or `Referer` and no valid token are rejected with HTTP 403.
+- When auth is disabled or `CORS_ORIGIN` is a wildcard, the policy is skipped, because write-token auth alone protects write routes.
 
 ### Storage Quotas
 
@@ -916,8 +879,7 @@ Layout quota only applies to new layouts. Updating an existing layout always suc
 
 ### Logging
 
-The API logs through a single pino logger. Verbosity is controlled by the `LOG_LEVEL`
-environment variable (default `info`), so debug tracing is off by default in production.
+The API logs through a single pino logger. Verbosity is controlled by the `LOG_LEVEL` environment variable (default `info`), so debug tracing is off by default in production.
 
 | `LOG_LEVEL`        | Output                                              |
 | ------------------ | --------------------------------------------------- |
@@ -927,10 +889,7 @@ environment variable (default `info`), so debug tracing is off by default in pro
 | `error` or `fatal` | Errors only                                         |
 | `silent`           | No output                                           |
 
-In production (`NODE_ENV=production`) logs are emitted as structured JSON, one object per
-line, suitable for log shippers. In non-production interactive terminals (TTY) logs are
-pretty-printed for readability; non-interactive runs (CI, systemd, Docker) still emit
-structured JSON.
+In production (`NODE_ENV=production`) logs are emitted as structured JSON, one object per line, suitable for log shippers. In non-production interactive terminals (TTY) logs are pretty-printed for readability; non-interactive runs (CI, systemd, Docker) still emit structured JSON.
 
 ### Single-User Design
 

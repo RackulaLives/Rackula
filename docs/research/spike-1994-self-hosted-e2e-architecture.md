@@ -1,8 +1,6 @@
 # Spike #1994: Self-Hosted E2E Test Runner Architecture
 
-**Date:** 2026-06-08
-**Status:** Complete
-**Related:** #567, #1394, #1977, #1983, #1985
+**Date:** 2026-06-08 **Status:** Complete **Related:** #567, #1394, #1977, #1983, #1985
 
 ---
 
@@ -39,7 +37,7 @@ The real performance optimizations are **Playwright browser caching** (done, sav
 GitHub's own documentation warns: **"We recommend that you do not use self-hosted runners for public repositories."** The attack model is straightforward:
 
 | Vector | Description | Severity | Mitigated By |
-|--------|-------------|----------|-------------|
+| --- | --- | --- | --- |
 | Arbitrary code execution | `npm ci` + `npx playwright install` runs any postinstall script | Critical | Environment approval gate |
 | PR author trust | Direct repo collaborators bypass fork-PR approval | High | Trusted-actor bypass only for ggfevans |
 | Lateral movement | ci-runner on pve-rusty, same host as production | High | Approval gate limits exposure window |
@@ -49,7 +47,7 @@ GitHub's own documentation warns: **"We recommend that you do not use self-hoste
 **The two-tier model addresses these risks:**
 
 | Risk Tier | Environment | Who Can Trigger | Approval Required | Runner |
-|-----------|-------------|-----------------|-------------------|--------|
+| --- | --- | --- | --- | --- |
 | Trusted | `e2e-trusted` | ggfevans, org members | No (auto-runs) | ci-runner |
 | Approval | `e2e-approval` | Any external contributor | Yes (ggfevans reviews) | ci-runner |
 | Baseline | none | Everyone | No | ubuntu-latest (ephemeral) |
@@ -61,7 +59,7 @@ GitHub's own documentation warns: **"We recommend that you do not use self-hoste
 The original #1977 mitigations were designed for **trusted-actor** jobs (tag push by maintainer). The two-tier E2E model extends this:
 
 | Mitigation | LXC Gate (tag push) | Trusted E2E (ggfevans PR) | Approval E2E (external PR) |
-|------------|---------------------|---------------------------|----------------------------|
+| --- | --- | --- | --- |
 | Trigger | Tag push only | PR from org member | PR from external contributor |
 | Approval | N/A (trusted actor) | N/A (trusted actor) | ggfevans must review and approve |
 | Label confinement | `pve-rusty` on gate job only | `ci-runner` on E2E job only | `ci-runner` on E2E job only |
@@ -120,7 +118,7 @@ The approval gate means you review the PR diff before code executes on your home
 ### Current State
 
 | Metric | Value |
-|--------|-------|
+| --- | --- |
 | GitHub Actions cost | $0 (public repo, unlimited minutes) |
 | E2E smoke per PR | ~3m20s (validate job) |
 | E2E full per week | ~13m22s (chromium + webkit) |
@@ -131,7 +129,7 @@ The approval gate means you review the PR diff before code executes on your home
 ### Self-Hosted E2E with Approval Gate
 
 | Factor | Value |
-|--------|-------|
+| --- | --- |
 | Hardware cost | $0 (ci-runner already provisioned) |
 | Maintenance burden | OS patches, Playwright updates, disk cleanup (moderate, infrequent) |
 | Security risk | **Low** (approval gate + trusted-actor bypass; no untrusted code without review) |
@@ -144,7 +142,7 @@ The approval gate means you review the PR diff before code executes on your home
 ### Playwright Caching (Recommended)
 
 | Factor | Value |
-|--------|-------|
+| --- | --- |
 | Implementation cost | 8 lines of YAML per workflow |
 | Time saved | ~55s per PR run, ~80s per weekly run |
 | Risk | None (standard GitHub Actions pattern) |
@@ -160,7 +158,7 @@ The approval gate means you review the PR diff before code executes on your home
 ### Current Runner Allocation
 
 | Runner | Host | OS | Labels | Trust | Jobs |
-|--------|------|----|--------|-------|------|
+| --- | --- | --- | --- | --- | --- |
 | `ubuntu-latest` | GitHub | Ubuntu (ephemeral) | `ubuntu-latest` | Ephemeral/untrusted | test, build, scan, lint |
 | `vps-rackula` | Vultr VPS | Debian 12 | `[self-hosted, vps-rackula]` | Semi-trusted | deploy-dev smoke, deploy-prod smoke |
 | `ci-runner` | pve-rusty VM | **Debian 13** (trixie) | `[self-hosted, Linux, X64, pve-rusty, ci-runner]` | Trusted (maintainer) | LXC gate, E2E (approval-gated) |
@@ -170,7 +168,7 @@ The approval gate means you review the PR diff before code executes on your home
 ### Recommended Runner Allocation
 
 | Job | Runner | OS | Environment | Trust Level |
-|-----|--------|----|-------------|-------------|
+| --- | --- | --- | --- | --- |
 | PR validate (lint + unit + smoke) | `ubuntu-latest` | Ubuntu (ephemeral) | none | Untrusted (all PRs) |
 | PR full E2E (ggfevans/org) | `[self-hosted, ci-runner]` | Debian 13 | `e2e-trusted` | Trusted (auto-run) |
 | PR full E2E (external) | `[self-hosted, ci-runner]` | Debian 13 | `e2e-approval` | Approved (manual gate) |
@@ -186,6 +184,7 @@ The approval gate means you review the PR diff before code executes on your home
 ### VPS Elimination (#1983) Impact
 
 When the VPS is decommissioned (#1985, #1986):
+
 - Dev deployment moves to homelab (Cloudflare Tunnel or Tailscale Funnel)
 - Prod deployment moves to Cloudflare Worker (static site, #1984)
 - Deploy smoke tests move to `ci-runner` or become health checks
@@ -200,7 +199,7 @@ When the VPS is decommissioned (#1985, #1986):
 Create two GitHub Environments in the RackulaLives org:
 
 | Environment | Required Reviewers | Deployment Branch Policy | Purpose |
-|-------------|-------------------|--------------------------|---------|
+| --- | --- | --- | --- |
 | `e2e-trusted` | None | `main` only | Auto-runs for ggfevans/org PRs |
 | `e2e-approval` | `ggfevans` | Any branch | Pauses for approval on external PRs |
 
@@ -229,6 +228,7 @@ jobs:
 ```
 
 **Properties:**
+
 - Your PRs auto-run the full E2E suite on ci-runner (trusted, no approval delay)
 - External PRs pause until you review and approve (approval gate)
 - All PRs always get the baseline chromium smoke on `ubuntu-latest` (untrusted, no approval)
@@ -242,6 +242,7 @@ Already implemented in this PR for `test.yml` and `test-full.yml`. Reduces brows
 ### 3. Reserve ci-runner for Approval-Gated Jobs
 
 The `ci-runner` should only run jobs with explicit trust guarantees:
+
 - `e2e-trusted` environment (ggfevans/org PRs, auto-approved)
 - `e2e-approval` environment (external PRs, manually approved)
 - LXC smoke-test gate (#1977, tag push by maintainer)
@@ -250,6 +251,7 @@ The `ci-runner` should only run jobs with explicit trust guarantees:
 ### 4. Scope Post-Deploy Smoke Enrichment (#567)
 
 The current deploy smoke test is a thin curl health check. Enriching it with Playwright would provide real browser verification. This is a **trusted-actor job** (runs after deploy, triggered by maintainer push), making it suitable for self-hosted runners. Scope:
+
 - Browser: chromium only (keep it fast)
 - Tests: load the app, verify canvas renders, check version endpoint
 - Environment: VPS (current) or ci-runner (after VPS elimination)
@@ -258,6 +260,7 @@ The current deploy smoke test is a thin curl health check. Enriching it with Pla
 ### 5. CI Performance Tuning (Separate Issues)
 
 See the [CI Performance Analysis](#ci-performance-analysis) section. Key issues:
+
 - #1999: Shard full E2E suite across parallel runners
 - #2000: Reduce Playwright retries from 2 to 1/0
 - #2001: Add github/list reporters for CI visibility
@@ -273,19 +276,19 @@ Beyond the "should we migrate" question, the spike also needs to address **CI an
 
 **PR gate (`test.yml`): ~3m20s wall clock**
 
-| Step | Time | % of total |
-|------|------|------------|
-| Install dependencies | 9s | 5% |
-| Run linter | 37s | 19% |
-| Run unit tests | 102s (1m42s) | **51%** |
-| Install Playwright browsers | 24s | 12% |
-| Run smoke E2E tests | 16s | 8% |
-| Other (checkout, setup, upload) | ~52s | 26% |
+| Step                            | Time         | % of total |
+| ------------------------------- | ------------ | ---------- |
+| Install dependencies            | 9s           | 5%         |
+| Run linter                      | 37s          | 19%        |
+| Run unit tests                  | 102s (1m42s) | **51%**    |
+| Install Playwright browsers     | 24s          | 12%        |
+| Run smoke E2E tests             | 16s          | 8%         |
+| Other (checkout, setup, upload) | ~52s         | 26%        |
 
 **Weekly full suite (`test-full.yml`): ~13m22s wall clock**
 
 | Step | Time | % of total |
-|------|------|------------|
+| --- | --- | --- |
 | Install dependencies | 12s | 2% |
 | Run linter | 38s | 5% |
 | Run unit tests | 106s (1m46s) | 13% |
@@ -296,7 +299,7 @@ Beyond the "should we migrate" question, the spike also needs to address **CI an
 ### Bottleneck Ranking (by impact)
 
 | # | Bottleneck | Impact | Effort | Recommendation |
-|---|-----------|--------|--------|----------------|
+| --- | --- | --- | --- | --- |
 | 1 | Full E2E suite 9m36s (6 projects, no sharding) | 72% of weekly time | Medium | Add sharding to `test-full.yml` |
 | 2 | Unit tests 1m42s (8GB heap, memory pressure) | 51% of PR time | Medium | Investigate memory usage, split test files |
 | 3 | `retries: 2` on all configs | Up to 2 extra runs per failure | Low | Reduce to `1` for CI, `0` for dev |
@@ -316,7 +319,7 @@ Split the full E2E suite across 2-4 parallel GitHub Actions runners using `--sha
 # test-full.yml: matrix strategy for sharding
 strategy:
   matrix:
-    shard: [1/2, 2/2]  # or [1/4, 2/4, 3/4, 4/4] for more parallelism
+    shard: [1/2, 2/2] # or [1/4, 2/4, 3/4, 4/4] for more parallelism
 steps:
   - name: Run full E2E tests
     run: npx playwright test --config e2e/playwright.config.ts --shard ${{ matrix.shard }}

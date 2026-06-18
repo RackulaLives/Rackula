@@ -1,7 +1,6 @@
 # NetBox Interface and Cable Schema Research
 
-**Research Date:** 2025-12-29
-**Purpose:** Spike for adding network interface visualization to Rackula
+**Research Date:** 2025-12-29 **Purpose:** Spike for adding network interface visualization to Rackula
 
 ## Overview
 
@@ -17,33 +16,33 @@ Interfaces in NetBox represent network interfaces used to exchange data with con
 
 **Key Fields:**
 
-| Field                 | Type        | Required | Description                                               |
-| --------------------- | ----------- | -------- | --------------------------------------------------------- |
-| `id`                  | integer     | auto     | Unique identifier                                         |
-| `device`              | FK          | yes      | Parent device reference                                   |
-| `module`              | FK          | no       | Installed module within device (optional)                 |
-| `name`                | string(64)  | yes      | Interface name (must be unique per device)                |
-| `type`                | choice      | yes      | Physical/logical interface type (see section 1.2)         |
-| `enabled`             | boolean     | no       | Whether interface is enabled                              |
-| `label`               | string(64)  | no       | Alternative label for display                             |
-| `description`         | string(200) | no       | Free-form description                                     |
-| `mgmt_only`           | boolean     | no       | Management-only interface flag (default: false)           |
-| `mac_address`         | string      | no       | MAC address                                               |
-| `mtu`                 | integer     | no       | Maximum transmission unit                                 |
-| `speed`               | integer     | no       | Interface speed (derived from type)                       |
-| `duplex`              | choice      | no       | Full/half duplex                                          |
-| `mode`                | choice      | no       | 802.1Q mode (access/tagged/tagged-all)                    |
-| `untagged_vlan`       | FK          | no       | Native VLAN for interface                                 |
-| `tagged_vlans`        | M2M         | no       | Tagged VLANs (for trunk mode)                             |
-| `cable`               | FK          | no       | Connected cable reference                                 |
-| `link_peers`          | computed    | -        | Directly connected objects                                |
-| `connected_endpoints` | computed    | -        | Remote endpoints (through full cable path)                |
-| `poe_mode`            | choice      | no       | PoE mode: `pd` (powered device) or `pse` (power sourcing) |
-| `poe_type`            | choice      | no       | PoE standard (type1/type2/type3/type4/passive)            |
-| `rf_role`             | choice      | no       | Wireless role (AP or station)                             |
-| `rf_channel`          | choice      | no       | Wireless channel                                          |
-| `bridge`              | FK          | no       | Bridge interface reference                                |
-| `lag`                 | FK          | no       | Parent LAG interface                                      |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | auto | Unique identifier |
+| `device` | FK | yes | Parent device reference |
+| `module` | FK | no | Installed module within device (optional) |
+| `name` | string(64) | yes | Interface name (must be unique per device) |
+| `type` | choice | yes | Physical/logical interface type (see section 1.2) |
+| `enabled` | boolean | no | Whether interface is enabled |
+| `label` | string(64) | no | Alternative label for display |
+| `description` | string(200) | no | Free-form description |
+| `mgmt_only` | boolean | no | Management-only interface flag (default: false) |
+| `mac_address` | string | no | MAC address |
+| `mtu` | integer | no | Maximum transmission unit |
+| `speed` | integer | no | Interface speed (derived from type) |
+| `duplex` | choice | no | Full/half duplex |
+| `mode` | choice | no | 802.1Q mode (access/tagged/tagged-all) |
+| `untagged_vlan` | FK | no | Native VLAN for interface |
+| `tagged_vlans` | M2M | no | Tagged VLANs (for trunk mode) |
+| `cable` | FK | no | Connected cable reference |
+| `link_peers` | computed | - | Directly connected objects |
+| `connected_endpoints` | computed | - | Remote endpoints (through full cable path) |
+| `poe_mode` | choice | no | PoE mode: `pd` (powered device) or `pse` (power sourcing) |
+| `poe_type` | choice | no | PoE standard (type1/type2/type3/type4/passive) |
+| `rf_role` | choice | no | Wireless role (AP or station) |
+| `rf_channel` | choice | no | Wireless channel |
+| `bridge` | FK | no | Bridge interface reference |
+| `lag` | FK | no | Parent LAG interface |
 
 **API Endpoints:**
 
@@ -207,20 +206,20 @@ All connections between device components are represented using cables. A cable 
 
 **Core Fields:**
 
-| Field            | Type    | Required | Description                                            |
-| ---------------- | ------- | -------- | ------------------------------------------------------ |
-| `id`             | integer | auto     | Unique identifier                                      |
-| `type`           | choice  | no       | Cable physical medium/classification                   |
-| `status`         | choice  | yes      | Operational status (connected/planned/decommissioning) |
-| `label`          | string  | no       | Arbitrary identification label                         |
-| `color`          | string  | no       | Cable color (6-digit hex)                              |
-| `length`         | decimal | no       | Physical length with unit                              |
-| `length_unit`    | choice  | no       | Unit (m/cm/ft/in)                                      |
-| `a_terminations` | array   | yes      | A-side endpoint(s)                                     |
-| `b_terminations` | array   | yes      | B-side endpoint(s)                                     |
-| `tenant`         | FK      | no       | Tenant assignment                                      |
-| `description`    | string  | no       | Description                                            |
-| `comments`       | text    | no       | Additional notes                                       |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | auto | Unique identifier |
+| `type` | choice | no | Cable physical medium/classification |
+| `status` | choice | yes | Operational status (connected/planned/decommissioning) |
+| `label` | string | no | Arbitrary identification label |
+| `color` | string | no | Cable color (6-digit hex) |
+| `length` | decimal | no | Physical length with unit |
+| `length_unit` | choice | no | Unit (m/cm/ft/in) |
+| `a_terminations` | array | yes | A-side endpoint(s) |
+| `b_terminations` | array | yes | B-side endpoint(s) |
+| `tenant` | FK | no | Tenant assignment |
+| `description` | string | no | Description |
+| `comments` | text | no | Additional notes |
 
 ### 2.2 Cable Types
 

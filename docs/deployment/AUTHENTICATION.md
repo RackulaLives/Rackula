@@ -62,11 +62,11 @@ Rackula uses **Better Auth** with stateless cookie-based sessions to provide per
 
 When auth is enabled (`oidc` or `local`), the following routes remain publicly accessible:
 
-| Route                                                                          | Purpose                         |
-| ------------------------------------------------------------------------------ | ------------------------------- |
-| `/auth/login`, `/auth/callback`, `/auth/check`, `/auth/logout`                 | Browser-facing auth flow        |
-| `/api/auth/login`, `/api/auth/callback`, `/api/auth/check`, `/api/auth/logout` | API compatibility auth routes   |
-| `/health`, `/api/health`                                                       | Container and API health checks |
+| Route | Purpose |
+| --- | --- |
+| `/auth/login`, `/auth/callback`, `/auth/check`, `/auth/logout` | Browser-facing auth flow |
+| `/api/auth/login`, `/api/auth/callback`, `/api/auth/check`, `/api/auth/logout` | API compatibility auth routes |
+| `/health`, `/api/health` | Container and API health checks |
 
 All other routes require a valid session. Unauthenticated requests are handled differently depending on the route type:
 
@@ -601,13 +601,13 @@ Rackula includes IP-based rate-limiting on API routes, with separate limits for 
 
 **Environment variables:**
 
-| Variable                             | Default | Min  | Max     | Description                               |
-| ------------------------------------ | ------- | ---- | ------- | ----------------------------------------- |
-| `RACKULA_RATE_LIMIT_ENABLED`         | `true`  | -    | -       | Enable or disable rate-limiting           |
-| `RACKULA_RATE_LIMIT_WRITE_MAX`       | `30`    | 1    | 10000   | Max PUT/DELETE requests per IP per window |
-| `RACKULA_RATE_LIMIT_WRITE_WINDOW_MS` | `60000` | 1000 | 3600000 | Write rate limit window (ms)              |
-| `RACKULA_RATE_LIMIT_READ_MAX`        | `120`   | 1    | 100000  | Max GET/HEAD requests per IP per window   |
-| `RACKULA_RATE_LIMIT_READ_WINDOW_MS`  | `60000` | 1000 | 3600000 | Read rate limit window (ms)               |
+| Variable | Default | Min | Max | Description |
+| --- | --- | --- | --- | --- |
+| `RACKULA_RATE_LIMIT_ENABLED` | `true` | - | - | Enable or disable rate-limiting |
+| `RACKULA_RATE_LIMIT_WRITE_MAX` | `30` | 1 | 10000 | Max PUT/DELETE requests per IP per window |
+| `RACKULA_RATE_LIMIT_WRITE_WINDOW_MS` | `60000` | 1000 | 3600000 | Write rate limit window (ms) |
+| `RACKULA_RATE_LIMIT_READ_MAX` | `120` | 1 | 100000 | Max GET/HEAD requests per IP per window |
+| `RACKULA_RATE_LIMIT_READ_WINDOW_MS` | `60000` | 1000 | 3600000 | Read rate limit window (ms) |
 
 **Exempt paths:**
 
@@ -818,12 +818,12 @@ Cookie not set after OIDC login:
 
 Different deployment contexts call for different auth configurations. Use this table to choose the right mode:
 
-| Scenario                 | Recommended Mode                  | Notes                                                     |
-| ------------------------ | --------------------------------- | --------------------------------------------------------- |
-| Solo homelab             | `local` or `none`                 | Simplest setup; `none` if behind VPN/firewall already     |
-| Homelab team (2-5 users) | `oidc` with Authentik or Authelia | Individual accounts, shared access, audit trail           |
-| School lab / classroom   | `oidc` with school IdP            | AD/LDAP-backed OIDC for per-student access                |
-| Enterprise / multi-team  | `oidc` with organisation IdP      | Enforce MFA via IdP policies, centralised user management |
+| Scenario | Recommended Mode | Notes |
+| --- | --- | --- |
+| Solo homelab | `local` or `none` | Simplest setup; `none` if behind VPN/firewall already |
+| Homelab team (2-5 users) | `oidc` with Authentik or Authelia | Individual accounts, shared access, audit trail |
+| School lab / classroom | `oidc` with school IdP | AD/LDAP-backed OIDC for per-student access |
+| Enterprise / multi-team | `oidc` with organisation IdP | Enforce MFA via IdP policies, centralised user management |
 
 ### When Local Mode Is Insufficient
 
@@ -995,11 +995,9 @@ The current authentication implementation has the following known limitations:
 
 ### 1. Single-Process Session Revocation Only
 
-**Current state:**
-In-memory session ID invalidation exists via `invalidateAuthSession()` in `security.ts`. Individual sessions can be revoked within a single API process.
+**Current state:** In-memory session ID invalidation exists via `invalidateAuthSession()` in `security.ts`. Individual sessions can be revoked within a single API process.
 
-**Limitation:**
-Session revocation state is held in-process memory and is not shared across replicas. In a multi-replica deployment, a session revoked on one replica remains valid on others until it expires naturally.
+**Limitation:** Session revocation state is held in-process memory and is not shared across replicas. In a multi-replica deployment, a session revoked on one replica remains valid on others until it expires naturally.
 
 **Impact:**
 
@@ -1015,8 +1013,7 @@ Session revocation state is held in-process memory and is not shared across repl
 
 ### 2. No Multi-Factor Authentication (MFA) in Rackula
 
-**Limitation:**
-MFA is delegated entirely to the identity provider. Rackula does not enforce or verify MFA.
+**Limitation:** MFA is delegated entirely to the identity provider. Rackula does not enforce or verify MFA.
 
 **Impact:**
 
@@ -1029,13 +1026,11 @@ MFA is delegated entirely to the identity provider. Rackula does not enforce or 
 - Configure MFA enforcement in IdP (Authentik flows, Authelia policies, Keycloak authentication flows)
 - Use IdP's conditional access policies to require MFA
 
-**When to address:**
-No plans to implement in Rackula; IdP-based MFA is sufficient for target use case.
+**When to address:** No plans to implement in Rackula; IdP-based MFA is sufficient for target use case.
 
 ### 3. No User Management UI in Rackula
 
-**Limitation:**
-All user management (create users, reset passwords, manage permissions) must be done in IdP admin console.
+**Limitation:** All user management (create users, reset passwords, manage permissions) must be done in IdP admin console.
 
 **Impact:**
 
@@ -1047,8 +1042,7 @@ All user management (create users, reset passwords, manage permissions) must be 
 - Use IdP's admin console or API for user management
 - Document IdP access for administrators
 
-**When to address:**
-No plans to implement; IdP-based user management is appropriate for homelab deployments.
+**When to address:** No plans to implement; IdP-based user management is appropriate for homelab deployments.
 
 ## Future Enhancements
 

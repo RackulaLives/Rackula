@@ -1,8 +1,6 @@
 # Spike #781: Share URL Strategy for Multi-Rack Layouts
 
-**Date:** 2026-01-20
-**Parent Epic:** #150 (Multi-rack support)
-**Blocked Issue:** #780 (Multi-rack share/export implementation)
+**Date:** 2026-01-20 **Parent Epic:** #150 (Multi-rack support) **Blocked Issue:** #780 (Multi-rack share/export implementation)
 
 ---
 
@@ -29,61 +27,61 @@ This spike investigated how to extend Rackula's share URL system to support mult
 
 ### 1. URL Size Measurements & Projections
 
-| Configuration     | Racks | Devices/Rack | Device Types | Est. URL Size    | QR Fit? | Browser Safe? |
-| ----------------- | ----- | ------------ | ------------ | ---------------- | ------- | ------------- |
-| Empty rack        | 1     | 0            | 0            | ~200 chars       | ✅      | ✅            |
-| Typical homelab   | 1     | 15           | 5            | ~800 chars       | ✅      | ✅            |
-| Dense single rack | 1     | 30           | 10           | ~1,500 chars     | ⚠️      | ✅            |
-| Light 2-rack      | 2     | 5            | 5            | ~900 chars       | ✅      | ✅            |
-| **Medium 2-rack** | **2** | **15**       | **8**        | **~1,600 chars** | **⚠️**  | **✅**        |
-| Dense 2-rack      | 2     | 25           | 12           | ~2,400 chars     | ❌      | ❌            |
-| Medium 3-rack     | 3     | 15           | 10           | ~2,200 chars     | ❌      | ⚠️            |
-| 5-rack homelab    | 5     | 10           | 12           | ~2,800 chars     | ❌      | ❌            |
+| Configuration | Racks | Devices/Rack | Device Types | Est. URL Size | QR Fit? | Browser Safe? |
+| --- | --- | --- | --- | --- | --- | --- |
+| Empty rack | 1 | 0 | 0 | ~200 chars | ✅ | ✅ |
+| Typical homelab | 1 | 15 | 5 | ~800 chars | ✅ | ✅ |
+| Dense single rack | 1 | 30 | 10 | ~1,500 chars | ⚠️ | ✅ |
+| Light 2-rack | 2 | 5 | 5 | ~900 chars | ✅ | ✅ |
+| **Medium 2-rack** | **2** | **15** | **8** | **~1,600 chars** | **⚠️** | **✅** |
+| Dense 2-rack | 2 | 25 | 12 | ~2,400 chars | ❌ | ❌ |
+| Medium 3-rack | 3 | 15 | 10 | ~2,200 chars | ❌ | ⚠️ |
+| 5-rack homelab | 5 | 10 | 12 | ~2,800 chars | ❌ | ❌ |
 
 **Key Insight:** Device types dominate URL size (~80 chars each). Homelabbers with diverse gear hit limits faster than users with homogeneous equipment.
 
 ### 2. The "Cliff" Points
 
-| Limit                          | Characters | Impact                                |
-| ------------------------------ | ---------- | ------------------------------------- |
-| **QR Code (Version 24, EC-L)** | 1,588      | QR codes become impractical to scan   |
-| **Browser URL (Edge)**         | 2,083      | URLs truncated in address bar         |
-| **Bitly input limit**          | 2,048      | Third-party shorteners refuse the URL |
-| **nginx default**              | 4,096      | Server-side truncation risk           |
+| Limit | Characters | Impact |
+| --- | --- | --- |
+| **QR Code (Version 24, EC-L)** | 1,588 | QR codes become impractical to scan |
+| **Browser URL (Edge)** | 2,083 | URLs truncated in address bar |
+| **Bitly input limit** | 2,048 | Third-party shorteners refuse the URL |
+| **nginx default** | 4,096 | Server-side truncation risk |
 
 **Practical ceiling for URL-only sharing:** ~1,800 characters (with headroom)
 
 ### 3. Compression Options Evaluated
 
-| Algorithm      | Compression Ratio | Bundle Size | URL-Safe Output    | Verdict         |
-| -------------- | ----------------- | ----------- | ------------------ | --------------- |
-| **lz-string**  | 88%               | ~1KB        | ✅ Native          | **Recommended** |
-| pako (current) | 82%               | ~26KB       | ❌ Needs base64url | Replace         |
-| LZMA-JS        | 85%+              | ~9KB        | ❌                 | Overkill        |
-| Brotli WASM    | 90%+              | ~681KB      | ❌                 | Too heavy       |
+| Algorithm | Compression Ratio | Bundle Size | URL-Safe Output | Verdict |
+| --- | --- | --- | --- | --- |
+| **lz-string** | 88% | ~1KB | ✅ Native | **Recommended** |
+| pako (current) | 82% | ~26KB | ❌ Needs base64url | Replace |
+| LZMA-JS | 85%+ | ~9KB | ❌ | Overkill |
+| Brotli WASM | 90%+ | ~681KB | ❌ | Too heavy |
 
 **Migration benefit:** ~25KB bundle reduction + simpler code + better compression
 
 ### 4. Industry Practices
 
-| Tool                   | Approach                             | URL Length            | Server Required |
-| ---------------------- | ------------------------------------ | --------------------- | --------------- |
-| draw.io                | Compressed XML in URL                | Variable (has limits) | No              |
-| Excalidraw             | E2E encrypted server storage         | Short                 | Yes             |
-| Figma                  | Server-stored with permissions       | Short                 | Yes             |
-| Compiler Explorer      | Own shortener (after goo.gl sunset)  | Short                 | Yes             |
-| **Rackula (proposed)** | **Hybrid: URL + optional shortener** | **Variable**          | **Optional**    |
+| Tool | Approach | URL Length | Server Required |
+| --- | --- | --- | --- |
+| draw.io | Compressed XML in URL | Variable (has limits) | No |
+| Excalidraw | E2E encrypted server storage | Short | Yes |
+| Figma | Server-stored with permissions | Short | Yes |
+| Compiler Explorer | Own shortener (after goo.gl sunset) | Short | Yes |
+| **Rackula (proposed)** | **Hybrid: URL + optional shortener** | **Variable** | **Optional** |
 
 **Lesson from Compiler Explorer:** "Never trust a third-party service with your core infrastructure"
 
 ### 5. Serverless Shortener Options
 
-| Service           | Free Tier      | Cold Starts | Complexity | Verdict            |
-| ----------------- | -------------- | ----------- | ---------- | ------------------ |
-| **Cloudflare KV** | 100K reads/day | None        | Low        | **Recommended**    |
-| Vercel KV         | 30K/month      | Minimal     | Low        | Viable alternative |
-| Supabase          | 500MB (pauses) | Yes         | Medium     | Not suitable       |
-| Firebase          | 1GB            | Minimal     | Medium     | Overkill           |
+| Service | Free Tier | Cold Starts | Complexity | Verdict |
+| --- | --- | --- | --- | --- |
+| **Cloudflare KV** | 100K reads/day | None | Low | **Recommended** |
+| Vercel KV | 30K/month | Minimal | Low | Viable alternative |
+| Supabase | 500MB (pauses) | Yes | Medium | Not suitable |
+| Firebase | 1GB | Minimal | Medium | Overkill |
 
 ---
 
@@ -168,12 +166,12 @@ URL length < 1,800 chars?
 
 ## What to Defer (Future Work)
 
-| Feature                            | Reason                        | When                |
-| ---------------------------------- | ----------------------------- | ------------------- |
+| Feature | Reason | When |
+| --- | --- | --- |
 | Connections/cables in share format | Cable management not complete | After cable feature |
-| E2E encrypted storage              | Only needed for collaboration | v1.0+               |
-| API rate limiting                  | Only if abuse occurs          | As needed           |
-| Settings preservation              | Low user impact               | If requested        |
+| E2E encrypted storage | Only needed for collaboration | v1.0+ |
+| API rate limiting | Only if abuse occurs | As needed |
+| Settings preservation | Low user impact | If requested |
 
 ---
 
@@ -195,12 +193,12 @@ URL length < 1,800 chars?
 
 ## Files Changed in This Spike
 
-| File                                            | Purpose                              |
-| ----------------------------------------------- | ------------------------------------ |
-| `docs/research/781-codebase.md`                 | Current implementation analysis      |
-| `docs/research/781-external.md`                 | External research findings           |
-| `docs/research/781-patterns.md`                 | Pattern analysis and recommendations |
-| `docs/research/spike-781-share-url-strategy.md` | This summary document                |
+| File | Purpose |
+| --- | --- |
+| `docs/research/781-codebase.md` | Current implementation analysis |
+| `docs/research/781-external.md` | External research findings |
+| `docs/research/781-patterns.md` | Pattern analysis and recommendations |
+| `docs/research/spike-781-share-url-strategy.md` | This summary document |
 
 ---
 

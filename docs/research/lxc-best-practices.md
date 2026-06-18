@@ -1,7 +1,6 @@
 # LXC Best Practices Research for Rackula
 
-**Date:** 2026-05-29
-**Purpose:** Research best practices for deploying Rackula as an LXC container on Proxmox VE, targeting community-scripts submission.
+**Date:** 2026-05-29 **Purpose:** Research best practices for deploying Rackula as an LXC container on Proxmox VE, targeting community-scripts submission.
 
 ---
 
@@ -19,62 +18,19 @@
 
 The existing `rackula-api.service` has a basic sandbox with `NoNewPrivileges`, `ProtectSystem=strict`, `ProtectHome`, `PrivateTmp`, and `ReadWritePaths`. This is a good start but far from complete. The full hardening cookbook adds:
 
-**Filesystem protection:**
-| Directive | Purpose | Current State |
-|---|---|---|
-| `ProtectSystem=strict` | Entire FS read-only except ReadWritePaths | Present |
-| `ProtectHome=true` | Hides /home, /root, /run/user | Present |
-| `PrivateTmp=true` | Isolated /tmp namespace | Present |
-| `ReadWritePaths=` | Writable directory whitelist | Present (only /opt/rackula/data) |
-| `ReadOnlyPaths=` | Explicit read-only paths | Missing |
-| `InaccessiblePaths=` | Completely hidden paths | Missing |
-| `UMask=0077` | Restricts default file creation | Missing |
+**Filesystem protection:** | Directive | Purpose | Current State | |---|---|---| | `ProtectSystem=strict` | Entire FS read-only except ReadWritePaths | Present | | `ProtectHome=true` | Hides /home, /root, /run/user | Present | | `PrivateTmp=true` | Isolated /tmp namespace | Present | | `ReadWritePaths=` | Writable directory whitelist | Present (only /opt/rackula/data) | | `ReadOnlyPaths=` | Explicit read-only paths | Missing | | `InaccessiblePaths=` | Completely hidden paths | Missing | | `UMask=0077` | Restricts default file creation | Missing |
 
-**Kernel protection:**
-| Directive | Purpose | Current State |
-|---|---|---|
-| `ProtectKernelTunables=true` | Blocks /proc/sys, /sys access | Missing |
-| `ProtectKernelModules=true` | Prevents kernel module load/unload | Missing |
-| `ProtectKernelLogs=true` | Blocks dmesg access | Missing |
-| `ProtectControlGroups=true` | Blocks /sys/fs/cgroup writes | Missing |
-| `ProtectClock=true` | Prevents clock modification | Missing |
-| `ProtectHostname=true` | Blocks hostname changes | Missing |
-| `ProtectProc=invisible` | Hides other users' /proc entries | Missing |
-| `ProcSubset=pid` | Limits /proc to PID entries only | Missing |
+**Kernel protection:** | Directive | Purpose | Current State | |---|---|---| | `ProtectKernelTunables=true` | Blocks /proc/sys, /sys access | Missing | | `ProtectKernelModules=true` | Prevents kernel module load/unload | Missing | | `ProtectKernelLogs=true` | Blocks dmesg access | Missing | | `ProtectControlGroups=true` | Blocks /sys/fs/cgroup writes | Missing | | `ProtectClock=true` | Prevents clock modification | Missing | | `ProtectHostname=true` | Blocks hostname changes | Missing | | `ProtectProc=invisible` | Hides other users' /proc entries | Missing | | `ProcSubset=pid` | Limits /proc to PID entries only | Missing |
 
-**Process restrictions:**
-| Directive | Purpose | Current State |
-|---|---|---|
-| `NoNewPrivileges=true` | Prevents privilege escalation | Present |
-| `RestrictSUIDSGID=true` | Blocks setuid/setgid | Missing |
-| `RestrictRealtime=true` | Denies realtime scheduling | Missing |
-| `RestrictNamespaces=true` | Blocks namespace creation | Missing |
-| `LockPersonality=true` | Prevents execution domain changes | Missing |
-| `MemoryDenyWriteExecute=true` | Blocks W+X memory | Missing (breaks JIT -- see note) |
-| `PrivateDevices=true` | Private /dev without real device nodes | Missing |
-| `RemoveIPC=true` | Removes IPC on service stop | Missing |
+**Process restrictions:** | Directive | Purpose | Current State | |---|---|---| | `NoNewPrivileges=true` | Prevents privilege escalation | Present | | `RestrictSUIDSGID=true` | Blocks setuid/setgid | Missing | | `RestrictRealtime=true` | Denies realtime scheduling | Missing | | `RestrictNamespaces=true` | Blocks namespace creation | Missing | | `LockPersonality=true` | Prevents execution domain changes | Missing | | `MemoryDenyWriteExecute=true` | Blocks W+X memory | Missing (breaks JIT -- see note) | | `PrivateDevices=true` | Private /dev without real device nodes | Missing | | `RemoveIPC=true` | Removes IPC on service stop | Missing |
 
-**Capability dropping:**
-| Directive | Purpose | Current State |
-|---|---|---|
-| `CapabilityBoundingSet=` | Strips all capabilities | Missing |
-| `AmbientCapabilities=` | No inherited caps for non-root | Missing |
+**Capability dropping:** | Directive | Purpose | Current State | |---|---|---| | `CapabilityBoundingSet=` | Strips all capabilities | Missing | | `AmbientCapabilities=` | No inherited caps for non-root | Missing |
 
 Since the API runs as `rackula` user on port 3001 (high port), both should be empty.
 
-**Syscall filtering:**
-| Directive | Purpose | Current State |
-|---|---|---|
-| `SystemCallArchitectures=native` | Blocks compat-arch syscalls | Missing |
-| `SystemCallFilter=@system-service` | Allowlist of standard syscalls | Missing |
-| `SystemCallFilter=~@privileged @resources` | Deny privileged syscall groups | Missing |
+**Syscall filtering:** | Directive | Purpose | Current State | |---|---|---| | `SystemCallArchitectures=native` | Blocks compat-arch syscalls | Missing | | `SystemCallFilter=@system-service` | Allowlist of standard syscalls | Missing | | `SystemCallFilter=~@privileged @resources` | Deny privileged syscall groups | Missing |
 
-**Network egress control:**
-| Directive | Purpose | Current State |
-|---|---|---|
-| `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6` | Limits address families | Missing |
-| `IPAddressDeny=any` | Blocks all IP egress | Missing |
-| `IPAddressAllow=127.0.0.0/8` | Whitelists localhost only | Missing |
+**Network egress control:** | Directive | Purpose | Current State | |---|---|---| | `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6` | Limits address families | Missing | | `IPAddressDeny=any` | Blocks all IP egress | Missing | | `IPAddressAllow=127.0.0.0/8` | Whitelists localhost only | Missing |
 
 The API only needs localhost access (nginx proxies to it), so `IPAddressDeny=any` + `IPAddressAllow=127.0.0.0/8` would prevent any exfiltration if the service were compromised.
 
@@ -108,10 +64,10 @@ The API only needs localhost access (nginx proxies to it), so `IPAddressDeny=any
 
 ### Required Two-File Structure
 
-| File                         | Purpose                                             |
-| ---------------------------- | --------------------------------------------------- |
-| `ct/rackula.sh`              | Container creation, variable setup, update handling |
-| `install/rackula-install.sh` | Application installation logic                      |
+| File | Purpose |
+| --- | --- |
+| `ct/rackula.sh` | Container creation, variable setup, update handling |
+| `install/rackula-install.sh` | Application installation logic |
 
 Both files must exist and follow naming convention: lowercase, hyphen-separated, matching names between directories.
 
@@ -167,24 +123,24 @@ cleanup_lxc
 
 ### Anti-Patterns That Will Get PRs Rejected
 
-| Anti-Pattern                                                                      | Correct Pattern                                              |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Custom curl/wget for GitHub releases                                              | `fetch_and_deploy_gh_release "app" "owner/repo" "tarball"`   |
-| Docker-based installation                                                         | Bare-metal only                                              |
-| Custom runtime install (curl pipe bash for Node/Bun)                              | `setup_*` functions                                          |
-| Wrapping `tools.func` functions in `msg_info`/`msg_ok`                            | Call directly -- they have built-in messaging                |
-| `apt-get` instead of `apt`                                                        | `$STD apt install -y`                                        |
-| Creating system users in LXC                                                      | Run as root (LXC containers run as root)                     |
-| Using `sudo` in LXC                                                               | Already root                                                 |
-| Backing up to `/tmp`                                                              | Back up within `/opt`                                        |
-| `export` in `.env` files                                                          | Plain `KEY=VALUE`                                            |
-| Hardcoded versions for external tools                                             | `fetch_and_deploy_gh_release` or `get_latest_github_release` |
-| `systemctl daemon-reload` for new services                                        | Not needed for new units                                     |
-| External shell scripts                                                            | Run commands directly                                        |
-| Writing files without heredocs                                                    | Always use a single heredoc                                  |
-| Pre-installed packages as deps (curl, sudo, wget, jq, gnupg, ca-certificates, mc) | Omit these                                                   |
-| Default "(Patience)" in msg_info                                                  | Plain label only                                             |
-| Missing `$STD` before apt/npm/build commands                                      | Always prefix                                                |
+| Anti-Pattern | Correct Pattern |
+| --- | --- |
+| Custom curl/wget for GitHub releases | `fetch_and_deploy_gh_release "app" "owner/repo" "tarball"` |
+| Docker-based installation | Bare-metal only |
+| Custom runtime install (curl pipe bash for Node/Bun) | `setup_*` functions |
+| Wrapping `tools.func` functions in `msg_info`/`msg_ok` | Call directly -- they have built-in messaging |
+| `apt-get` instead of `apt` | `$STD apt install -y` |
+| Creating system users in LXC | Run as root (LXC containers run as root) |
+| Using `sudo` in LXC | Already root |
+| Backing up to `/tmp` | Back up within `/opt` |
+| `export` in `.env` files | Plain `KEY=VALUE` |
+| Hardcoded versions for external tools | `fetch_and_deploy_gh_release` or `get_latest_github_release` |
+| `systemctl daemon-reload` for new services | Not needed for new units |
+| External shell scripts | Run commands directly |
+| Writing files without heredocs | Always use a single heredoc |
+| Pre-installed packages as deps (curl, sudo, wget, jq, gnupg, ca-certificates, mc) | Omit these |
+| Default "(Patience)" in msg_info | Plain label only |
+| Missing `$STD` before apt/npm/build commands | Always prefix |
 
 ### Bun Runtime -- Three Paths
 
@@ -369,13 +325,13 @@ This means:
 
 ### Patterns Used by Other Self-Hosted Apps
 
-| Pattern                    | How It Works                                         | Example               | Trade-off                                                     |
-| -------------------------- | ---------------------------------------------------- | --------------------- | ------------------------------------------------------------- |
-| **Auth proxy in front**    | Lightweight Go proxy handles auth before forwarding  | auth-proxy            | Adds a process; supports separate read/write protection flags |
-| **Built-in app auth**      | App implements session/JWT auth directly             | GitLab CE in LXC      | More complex; requires user management                        |
-| **Localhost-only + token** | Bind to 127.0.0.1, bearer tokens, no public exposure | sentinelx-core        | No remote access without proxy                                |
-| **App-terminated TLS**     | App handles TLS directly                             | GitLab built-in Nginx | Requires cert management                                      |
-| **nginx token injection**  | nginx maps inject auth header                        | Rackula current       | Smart but non-obvious; trust in nginx config                  |
+| Pattern | How It Works | Example | Trade-off |
+| --- | --- | --- | --- |
+| **Auth proxy in front** | Lightweight Go proxy handles auth before forwarding | auth-proxy | Adds a process; supports separate read/write protection flags |
+| **Built-in app auth** | App implements session/JWT auth directly | GitLab CE in LXC | More complex; requires user management |
+| **Localhost-only + token** | Bind to 127.0.0.1, bearer tokens, no public exposure | sentinelx-core | No remote access without proxy |
+| **App-terminated TLS** | App handles TLS directly | GitLab built-in Nginx | Requires cert management |
+| **nginx token injection** | nginx maps inject auth header | Rackula current | Smart but non-obvious; trust in nginx config |
 
 ### Concerns with Current Approach
 
@@ -403,13 +359,13 @@ This means:
 
 ### Benchmarks from Similar Apps
 
-| Workload                           | RAM        | CPU       | Disk    | Source                    |
-| ---------------------------------- | ---------- | --------- | ------- | ------------------------- |
-| Minimal Node.js/Bun API            | 128-256 MB | 1 core    | 4 GB    | runesoft.net, datazone.de |
-| Standard web app (Node + nginx)    | 256-512 MB | 1-2 cores | 8 GB    | mathbong.com              |
-| Homarr (Node.js + Redis + nginx)   | 2048 MB    | 2 cores   | 8 GB    | community-scripts         |
-| 2FAuth (PHP-FPM + MariaDB + nginx) | 512 MB     | 1 core    | 2 GB    | community-scripts         |
-| LXC base overhead                  | ~20 MB     | N/A       | ~500 MB | datazone.de               |
+| Workload | RAM | CPU | Disk | Source |
+| --- | --- | --- | --- | --- |
+| Minimal Node.js/Bun API | 128-256 MB | 1 core | 4 GB | runesoft.net, datazone.de |
+| Standard web app (Node + nginx) | 256-512 MB | 1-2 cores | 8 GB | mathbong.com |
+| Homarr (Node.js + Redis + nginx) | 2048 MB | 2 cores | 8 GB | community-scripts |
+| 2FAuth (PHP-FPM + MariaDB + nginx) | 512 MB | 1 core | 2 GB | community-scripts |
+| LXC base overhead | ~20 MB | N/A | ~500 MB | datazone.de |
 
 ### Rackula-Specific Analysis
 
@@ -425,12 +381,12 @@ This means:
 
 ### Current Allocation vs Recommendation
 
-| Resource | Current | Recommended       | Rationale                                                |
-| -------- | ------- | ----------------- | -------------------------------------------------------- |
-| RAM      | 256 MB  | 512 MB            | Provides headroom for peak load + OOM safety margin      |
-| CPU      | 1 core  | 1 core            | Sufficient for a single-user homelab tool                |
-| Disk     | 4 GB    | 8 GB              | 4 GB is tight with OS + nginx + Bun + logs + growth room |
-| Swap     | Not set | 0 (use host zram) | Swap in LXC adds latency; host zram is better            |
+| Resource | Current | Recommended | Rationale |
+| --- | --- | --- | --- |
+| RAM | 256 MB | 512 MB | Provides headroom for peak load + OOM safety margin |
+| CPU | 1 core | 1 core | Sufficient for a single-user homelab tool |
+| Disk | 4 GB | 8 GB | 4 GB is tight with OS + nginx + Bun + logs + growth room |
+| Swap | Not set | 0 (use host zram) | Swap in LXC adds latency; host zram is better |
 
 **Why 512 MB over 256 MB:** While 256 MB can technically run the app, the margin is thin. A burst of API requests or a garbage collection cycle could trigger OOM. 512 MB gives a 2x safety factor and aligns with community-scripts norms (2FAuth allocates 512 MB for a simpler PHP app).
 
@@ -707,48 +663,48 @@ Alternatively, the CT script could configure the mount point during container cr
 
 ### Critical Issues (Must Fix Before Submission)
 
-| Gap                                             | Severity | Detail                                                                                                                                                                                                                    |
-| ----------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| **Bun install pattern non-standard**            | MEDIUM   | Uses `/root/.bun` prefix instead of `/opt/bun` (matches `yubal`/`gitea-mirror`). The `curl \| bash` install is actually accepted by maintainers (see `yubal`, `gitea-mirror`). Fix: change install prefix to `/opt/bun`.  |
-| **Uses `apt-get` instead of `apt`**             | CRITICAL | Line 17: `$STD apt-get install -y` must be `$STD apt install -y`                                                                                                                                                          |
-| **Version file in wrong location**              | CRITICAL | Current: `~/.rackula`. Required: `/opt/${APP}_version.txt` or the community-scripts standard `~/.rackula` (both accepted but the `check_for_gh_release` function expects `~/.appname`)                                    |
-| **Custom download logic in update**             | CRITICAL | Uses custom `curl` + `tar` instead of `fetch_and_deploy_gh_release`                                                                                                                                                       |
-| **Update script downloads to `/tmp`**           | HIGH     | Backups go to `/opt/rackula/data.bak` (correct) but tarball extraction to `/tmp` may be flagged                                                                                                                           |
-| **No service health verification after update** | HIGH     | Services are started but never verified to be running                                                                                                                                                                     |
-| **User creation may be rejected**               | MEDIUM   | Anti-pattern says "LXC containers run as root; don't create system users." However, the `rackula` user exists for systemd `User=` directive which is a security best practice. This may need discussion with maintainers. |
-| **systemctl daemon-reload for new service**     | MEDIUM   | Line 219: not needed for new service creation per community-scripts rules                                                                                                                                                 |
-| **Missing `setup_*` function call for Bun**     | LOW      | No standard function exists yet; `curl                                                                                                                                                                                    | bash`accepted in other scripts with`/opt/bun` prefix |
+| Gap | Severity | Detail |
+| --- | --- | --- | --- |
+| **Bun install pattern non-standard** | MEDIUM | Uses `/root/.bun` prefix instead of `/opt/bun` (matches `yubal`/`gitea-mirror`). The `curl \| bash` install is actually accepted by maintainers (see `yubal`, `gitea-mirror`). Fix: change install prefix to `/opt/bun`. |
+| **Uses `apt-get` instead of `apt`** | CRITICAL | Line 17: `$STD apt-get install -y` must be `$STD apt install -y` |
+| **Version file in wrong location** | CRITICAL | Current: `~/.rackula`. Required: `/opt/${APP}_version.txt` or the community-scripts standard `~/.rackula` (both accepted but the `check_for_gh_release` function expects `~/.appname`) |
+| **Custom download logic in update** | CRITICAL | Uses custom `curl` + `tar` instead of `fetch_and_deploy_gh_release` |
+| **Update script downloads to `/tmp`** | HIGH | Backups go to `/opt/rackula/data.bak` (correct) but tarball extraction to `/tmp` may be flagged |
+| **No service health verification after update** | HIGH | Services are started but never verified to be running |
+| **User creation may be rejected** | MEDIUM | Anti-pattern says "LXC containers run as root; don't create system users." However, the `rackula` user exists for systemd `User=` directive which is a security best practice. This may need discussion with maintainers. |
+| **systemctl daemon-reload for new service** | MEDIUM | Line 219: not needed for new service creation per community-scripts rules |
+| **Missing `setup_*` function call for Bun** | LOW | No standard function exists yet; `curl | bash`accepted in other scripts with`/opt/bun` prefix |
 
 ### Security Gaps (Should Fix Before Submission)
 
-| Gap                            | Severity | Detail                                                                                                                         |
-| ------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Minimal systemd sandboxing** | HIGH     | Only 5 directives; full cookbook has 20+. Missing kernel protection, capability drops, syscall filters, network egress control |
-| **No nginx sandboxing**        | HIGH     | nginx runs with default unit; should apply same hardening pattern                                                              |
-| **HSTS over HTTP**             | MEDIUM   | `Strict-Transport-Security` header included but meaningless over port 80 without TLS proxy                                     |
-| **No token rotation**          | MEDIUM   | Write token generated once, never rotated                                                                                      |
-| **No rate limiting**           | LOW      | nginx has no `limit_req` directives for API endpoints                                                                          |
+| Gap | Severity | Detail |
+| --- | --- | --- |
+| **Minimal systemd sandboxing** | HIGH | Only 5 directives; full cookbook has 20+. Missing kernel protection, capability drops, syscall filters, network egress control |
+| **No nginx sandboxing** | HIGH | nginx runs with default unit; should apply same hardening pattern |
+| **HSTS over HTTP** | MEDIUM | `Strict-Transport-Security` header included but meaningless over port 80 without TLS proxy |
+| **No token rotation** | MEDIUM | Write token generated once, never rotated |
+| **No rate limiting** | LOW | nginx has no `limit_req` directives for API endpoints |
 
 ### Operational Gaps (Should Fix)
 
-| Gap                                         | Severity | Detail                                                                         |
-| ------------------------------------------- | -------- | ------------------------------------------------------------------------------ |
-| **RAM allocation too low**                  | MEDIUM   | 256 MB is on the edge; 512 MB is safer and aligns with community-scripts norms |
-| **Disk allocation too low**                 | MEDIUM   | 4 GB is tight for OS + app + updates; 8 GB is standard                         |
-| **No WatchdogSec**                          | LOW      | No hang detection beyond Restart=always                                        |
-| **No OOM handling**                         | LOW      | No OOMPolicy, OOMScoreAdjust, or MemoryMax                                     |
-| **No update lock file**                     | LOW      | Concurrent updates could corrupt data                                          |
-| **No automatic rollback on update failure** | MEDIUM   | If update fails mid-way, manual intervention required                          |
-| **No data mount point documentation**       | LOW      | Users should be told to use a mount point for data persistence                 |
+| Gap | Severity | Detail |
+| --- | --- | --- |
+| **RAM allocation too low** | MEDIUM | 256 MB is on the edge; 512 MB is safer and aligns with community-scripts norms |
+| **Disk allocation too low** | MEDIUM | 4 GB is tight for OS + app + updates; 8 GB is standard |
+| **No WatchdogSec** | LOW | No hang detection beyond Restart=always |
+| **No OOM handling** | LOW | No OOMPolicy, OOMScoreAdjust, or MemoryMax |
+| **No update lock file** | LOW | Concurrent updates could corrupt data |
+| **No automatic rollback on update failure** | MEDIUM | If update fails mid-way, manual intervention required |
+| **No data mount point documentation** | LOW | Users should be told to use a mount point for data persistence |
 
 ### Missing Features (Nice to Have)
 
-| Feature                                        | Priority | Detail                                         |
-| ---------------------------------------------- | -------- | ---------------------------------------------- |
-| Token rotation helper script                   | Low      | Convenience feature                            |
-| Health check integration with systemd watchdog | Low      | Requires Bun sd_notify                         |
-| IPv6 support documentation                     | Low      | nginx already listens on `[::]:80`             |
-| MOTD with access info                          | Low      | community-scripts provides this via `motd_ssh` |
+| Feature | Priority | Detail |
+| --- | --- | --- |
+| Token rotation helper script | Low | Convenience feature |
+| Health check integration with systemd watchdog | Low | Requires Bun sd_notify |
+| IPv6 support documentation | Low | nginx already listens on `[::]:80` |
+| MOTD with access info | Low | community-scripts provides this via `motd_ssh` |
 
 ### What Already Works Well
 

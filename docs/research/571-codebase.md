@@ -40,7 +40,7 @@ The final exported `LayoutSchema` is the complete entry point for validation on 
 Zod features that DON'T translate to JSON Schema and their locations:
 
 | Construct | Purpose | File:Lines | Impact |
-|-----------|---------|-----------|--------|
+| --- | --- | --- | --- |
 | `.refine()` | Single-field validation with custom message | `index.ts:416–419` (ConnectionSchema: "Cannot connect a port to itself") | Expressed as JSON Schema `not` or custom error message in editor, not automatically |
 | `.refine()` | Container+slot validation | `index.ts:615–626` (PlacedDeviceSchema: slot_id required when container_id set) | **Critical:** requires conditional logic in editor validation |
 | `.superRefine()` | Half-depth device interface validation | `index.ts:543–564` (DeviceTypeSchema: half-depth cannot have interfaces on both faces) | Custom error path handling; needs editor-side replication |
@@ -54,6 +54,7 @@ Zod features that DON'T translate to JSON Schema and their locations:
 **Current value:** `"1.0"` (hardcoded default in serializers at `yaml.ts:310`, `archive.ts:250`, `archive.ts:699`, `archive.ts:730`)
 
 **How it is set:**
+
 - Every save defaults to `"1.0"` (no runtime bump mechanism exists yet)
 - Writers at `serializeLayoutToYamlWithMetadata` and `serializeLayoutToYaml` emit this field
 - Input schema allows any non-empty string (line 753: `z.string().min(1, "Schema version is required")`)
@@ -83,6 +84,7 @@ However, **issue #2205** (tracked open in spike-1113 section 10) is the issue to
 **Confirmed:** Zod 4.4.3 (the pinned version in `package.json` line 97) includes native JSON Schema support.
 
 **Evidence:**
+
 - File `/Users/gvns/code/projects/Rackula/Rackula/node_modules/zod/v4/core/to-json-schema.d.ts` exists with exports for:
   - `createToJSONSchemaMethod<T>` (creates a `.toJSONSchema()` instance method)
   - Parameters: `target` ("draft-04", "draft-07", "draft-2020-12", "openapi-3.0")
@@ -139,6 +141,7 @@ From the spec (sections "Data model" and "Changes"):
 4. **New field:** Containers now use `DeviceType.slots[]` (already implemented; no change needed)
 
 **What changes in the schema:**
+
 - `PlacedDeviceSchema.slot_position` field removed (currently optional, line 582)
 - `PlacedDeviceSchema.position` validation changes: currently accepts any number >= 0.5; will enforce integer-only for rack-level devices
 - `DeviceTypeSchema` constraint added: if `u_height < 1` or non-integer, device is rejected if not a container (currently no such validation)
@@ -168,6 +171,7 @@ No blocker.
 **Search result:** No scripts named `*schema*` exist in `scripts/`.
 
 Scripts found in `scripts/`:
+
 - `generate-brand-assets.ts` (device library generation)
 - `generate-bundled-images.ts` (image bundling)
 - `generate-gh-dash-config.js` (GitHub dashboard)
@@ -184,6 +188,7 @@ Scripts found in `scripts/`:
 ### Where Generated Schema Would Live
 
 **Candidate locations:**
+
 1. `static/schemas/layout-v1.json` — served at dev deployment (GitHub Pages)
 2. `api/schemas/layout-v1.json` — if VPS has a dedicated `/schemas/` endpoint
 3. Both, with a redirect/mirror setup
@@ -214,6 +219,7 @@ These would be new npm scripts, added before publishing.
 **Primary function:** `serializeLayoutToYaml` (`src/lib/utils/yaml.ts:300–340`)
 
 Called from:
+
 - `downloadYamlFile` (App.svelte) — user triggers manual export
 - `saveLayoutToServer` (api.ts) — server PUT request
 - `handleSaveAsArchive` (archive.ts:628) — ZIP save operation
@@ -252,12 +258,13 @@ Served at deployment root (`https://d.racku.la/`, `https://count.racku.la/`) by 
 
 From `CLAUDE.md` (lines 555–567):
 
-| Environment | URL            | Trigger     | Infrastructure       |
-|-------------|----------------|-------------|----------------------|
-| Dev         | d.racku.la     | Push main   | GitHub Pages         |
-| Prod        | count.racku.la | Git tag v*  | VPS (Docker)         |
+| Environment | URL            | Trigger     | Infrastructure |
+| ----------- | -------------- | ----------- | -------------- |
+| Dev         | d.racku.la     | Push main   | GitHub Pages   |
+| Prod        | count.racku.la | Git tag v\* | VPS (Docker)   |
 
 **Schema URL would be:**
+
 - Dev: `https://d.racku.la/schemas/layout-v1.json`
 - Prod: `https://count.racku.la/schemas/layout-v1.json`
 
@@ -284,6 +291,7 @@ From `CLAUDE.md` (lines 555–567):
 **Risk:** Users download the v1.0 schema, configure editors for it, then M03 ships and their editors show incorrect validation errors on any file using the new structure.
 
 **Resolution options:**
+
 1. Wait for M03 (#2158 merge), publish v2.0 as the first published version
 2. Publish v1.0 now with prominent deprecation notice: "This schema is for layouts made before M03; v2.0 will be published in July 2026"
 3. Hold off on publishing until M03 lands
@@ -351,7 +359,7 @@ Codify the five-point check (remove/rename/retype/require/redefine => MAJOR) int
 ## Summary Table
 
 | Area | Status | Details |
-|------|--------|---------|
+| --- | --- | --- |
 | **Zod schemas** | Ready | LayoutSchema fully defined; non-translatable constructs identified |
 | **Zod 4 JSON Schema** | Ready | Native support confirmed; not yet integrated |
 | **Versioning policy** | Documented | SCHEMA.md and spike-1113 fully specify contract |

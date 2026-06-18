@@ -1,7 +1,6 @@
 # Drag-and-Drop & Collision Research for Rackula
 
-**Date**: 2026-01-05
-**Purpose**: Evaluate external DnD libraries and open source projects for patterns applicable to Rackula
+**Date**: 2026-01-05 **Purpose**: Evaluate external DnD libraries and open source projects for patterns applicable to Rackula
 
 ---
 
@@ -13,8 +12,7 @@ These projects share Rackula's technical challenges (SVG/Canvas, drag-drop, coll
 
 #### tldraw
 
-**URL**: https://github.com/tldraw/tldraw
-**Tech**: React, TypeScript, DOM-based rendering
+**URL**: https://github.com/tldraw/tldraw **Tech**: React, TypeScript, DOM-based rendering
 
 | Relevance   | Details                                               |
 | ----------- | ----------------------------------------------------- |
@@ -29,8 +27,7 @@ These projects share Rackula's technical challenges (SVG/Canvas, drag-drop, coll
 
 #### Excalidraw
 
-**URL**: https://github.com/excalidraw/excalidraw
-**Tech**: React, TypeScript, Canvas rendering
+**URL**: https://github.com/excalidraw/excalidraw **Tech**: React, TypeScript, Canvas rendering
 
 | Relevance   | Details                                                  |
 | ----------- | -------------------------------------------------------- |
@@ -46,8 +43,7 @@ These projects share Rackula's technical challenges (SVG/Canvas, drag-drop, coll
 
 #### Svelvet
 
-**URL**: https://github.com/open-source-labs/Svelvet
-**Tech**: Svelte, TypeScript
+**URL**: https://github.com/open-source-labs/Svelvet **Tech**: Svelte, TypeScript
 
 | Relevance | Details                                      |
 | --------- | -------------------------------------------- |
@@ -60,8 +56,7 @@ These projects share Rackula's technical challenges (SVG/Canvas, drag-drop, coll
 
 #### Svelte Flow (xyflow)
 
-**URL**: https://github.com/xyflow/xyflow
-**Tech**: Svelte/React, TypeScript
+**URL**: https://github.com/xyflow/xyflow **Tech**: Svelte/React, TypeScript
 
 | Relevance | Details                       |
 | --------- | ----------------------------- |
@@ -73,8 +68,7 @@ These projects share Rackula's technical challenges (SVG/Canvas, drag-drop, coll
 
 #### FloorspaceJS (NREL)
 
-**URL**: https://github.com/nrel/floorspace.js
-**Tech**: Vanilla JavaScript, custom JSON format
+**URL**: https://github.com/nrel/floorspace.js **Tech**: Vanilla JavaScript, custom JSON format
 
 | Relevance | Details                                 |
 | --------- | --------------------------------------- |
@@ -86,8 +80,7 @@ These projects share Rackula's technical challenges (SVG/Canvas, drag-drop, coll
 
 #### Floor Plan Lab
 
-**URL**: https://github.com/dcarubia/floor-plan-lab
-**Tech**: React
+**URL**: https://github.com/dcarubia/floor-plan-lab **Tech**: React
 
 | Relevance | Details                               |
 | --------- | ------------------------------------- |
@@ -98,8 +91,7 @@ These projects share Rackula's technical challenges (SVG/Canvas, drag-drop, coll
 
 #### CanvasInventory
 
-**URL**: https://github.com/Oen44/CanvasInventory
-**Tech**: TypeScript, Canvas
+**URL**: https://github.com/Oen44/CanvasInventory **Tech**: TypeScript, Canvas
 
 | Relevance | Details                          |
 | --------- | -------------------------------- |
@@ -111,8 +103,7 @@ These projects share Rackula's technical challenges (SVG/Canvas, drag-drop, coll
 
 #### grid-based-inventory-system (Godot)
 
-**URL**: https://github.com/Hexadotz/grid-based-inventory-system
-**Tech**: Godot (GDScript), but patterns applicable
+**URL**: https://github.com/Hexadotz/grid-based-inventory-system **Tech**: Godot (GDScript), but patterns applicable
 
 | Relevance | Details                     |
 | --------- | --------------------------- |
@@ -275,12 +266,12 @@ The current implementation is battle-tested and works well.
 
 ### Patterns Worth Stealing
 
-| Pattern                     | From          | Application                                                       |
-| --------------------------- | ------------- | ----------------------------------------------------------------- |
-| **Monitor pattern**         | Pragmatic DnD | Observe drags without being drop target (analytics, global state) |
-| **Modifier composition**    | interact.js   | Chain constraints (snap → restrict → aspectRatio)                 |
-| **Accessibility toolchain** | Pragmatic DnD | Keyboard-based drag alternatives                                  |
-| **Adapter pattern**         | Pragmatic DnD | Different drag sources (element, file, text)                      |
+| Pattern | From | Application |
+| --- | --- | --- |
+| **Monitor pattern** | Pragmatic DnD | Observe drags without being drop target (analytics, global state) |
+| **Modifier composition** | interact.js | Chain constraints (snap → restrict → aspectRatio) |
+| **Accessibility toolchain** | Pragmatic DnD | Keyboard-based drag alternatives |
+| **Adapter pattern** | Pragmatic DnD | Different drag sources (element, file, text) |
 
 ### Future Use Cases
 
@@ -309,12 +300,12 @@ The current implementation is battle-tested and works well.
 
 ### Patterns to Study (Priority Order)
 
-| Priority | Project             | What to Study                                       | Why                                       |
-| -------- | ------------------- | --------------------------------------------------- | ----------------------------------------- |
-| 1        | **tldraw**          | Geometry utils (`@tldraw/vec`, `@tldraw/intersect`) | Mature hit-testing, works at scale        |
-| 2        | **Excalidraw**      | Two-phase collision (BBox → precise)                | Performance pattern for many elements     |
-| 3        | **Svelvet**         | Drawer → Canvas pattern, Svelte stores              | Same framework, similar palette flow      |
-| 4        | **CanvasInventory** | Grid-cell collision                                 | NxM cell occupancy (like U-height + slot) |
+| Priority | Project | What to Study | Why |
+| --- | --- | --- | --- |
+| 1 | **tldraw** | Geometry utils (`@tldraw/vec`, `@tldraw/intersect`) | Mature hit-testing, works at scale |
+| 2 | **Excalidraw** | Two-phase collision (BBox → precise) | Performance pattern for many elements |
+| 3 | **Svelvet** | Drawer → Canvas pattern, Svelte stores | Same framework, similar palette flow |
+| 4 | **CanvasInventory** | Grid-cell collision | NxM cell occupancy (like U-height + slot) |
 
 ### Code Worth Reading
 

@@ -1,8 +1,6 @@
 # E2E Testing Best Practices Research
 
-**Date:** 2026-03-08
-**Scope:** Playwright selector strategy, test architecture, fixture patterns, Svelte considerations, migration path
-**Applicability:** Rackula (Svelte 5 SPA, client-side only, SVG-heavy rack layout designer)
+**Date:** 2026-03-08 **Scope:** Playwright selector strategy, test architecture, fixture patterns, Svelte considerations, migration path **Applicability:** Rackula (Svelte 5 SPA, client-side only, SVG-heavy rack layout designer)
 
 ---
 
@@ -13,7 +11,7 @@
 Playwright's documentation defines a clear hierarchy. Use the highest-priority locator that works for your element:
 
 | Priority | Locator | Use When | Example |
-|----------|---------|----------|---------|
+| --- | --- | --- | --- |
 | 1 (best) | `getByRole()` | Interactive elements with ARIA roles | `page.getByRole('button', { name: 'Save' })` |
 | 2 | `getByLabel()` | Form controls with `<label>` | `page.getByLabel('Rack name')` |
 | 3 | `getByText()` | Non-interactive elements with visible text | `page.getByText('42U Standard Rack')` |
@@ -46,6 +44,7 @@ Playwright's documentation defines a clear hierarchy. Use the highest-priority l
 Format: `{scope}-{element}-{qualifier}`
 
 Examples:
+
 ```
 data-testid="rack-canvas"
 data-testid="rack-slot-15"
@@ -56,11 +55,13 @@ data-testid="drawer-device-name-input"
 ```
 
 **Rationale:**
+
 - kebab-case matches HTML attribute conventions and Rackula's existing file naming
 - Scope prefix prevents collisions (e.g., `rack-name` in the sidebar vs `rack-name` in the header)
 - Qualifiers go last for natural reading order
 
 **Anti-patterns to avoid:**
+
 - `data-testid="RackCanvas"` -- camelCase feels foreign in HTML
 - `data-testid="test-rack-canvas"` -- the `test-` prefix is redundant; it is already a test ID
 - `data-testid="1"` -- meaningless without context
@@ -72,15 +73,16 @@ Playwright's locator chaining is extremely powerful and often eliminates the nee
 
 ```typescript
 // Instead of data-testid="front-rack-device-3":
-page.getByTestId('rack-front').locator('.rack-device').nth(2)
+page.getByTestId("rack-front").locator(".rack-device").nth(2);
 
 // Instead of data-testid="file-menu-save":
-page.getByRole('button', { name: 'File menu' })
-  .locator('..') // parent menu
-  .getByText('Save')
+page
+  .getByRole("button", { name: "File menu" })
+  .locator("..") // parent menu
+  .getByText("Save");
 
 // Filter by containing text:
-page.getByRole('listitem').filter({ hasText: 'Dell PowerEdge' })
+page.getByRole("listitem").filter({ hasText: "Dell PowerEdge" });
 ```
 
 **Source:** [Playwright Locators - Filtering](https://playwright.dev/docs/locators), [BrowserStack Selectors Guide](https://www.browserstack.com/guide/playwright-selectors-best-practices)
@@ -104,27 +106,33 @@ class RackPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.canvas = page.getByTestId('rack-canvas');
-    this.devicePalette = page.getByTestId('device-palette');
+    this.canvas = page.getByTestId("rack-canvas");
+    this.devicePalette = page.getByTestId("device-palette");
   }
 
-  async dragDeviceToSlot(slug: string, position: number) { /* ... */ }
-  async selectDevice(index: number) { /* ... */ }
+  async dragDeviceToSlot(slug: string, position: number) {
+    /* ... */
+  }
+  async selectDevice(index: number) {
+    /* ... */
+  }
 }
 
 // Usage in test
-test('can place device', async ({ page }) => {
+test("can place device", async ({ page }) => {
   const rack = new RackPage(page);
-  await rack.dragDeviceToSlot('dell-r750', 10);
+  await rack.dragDeviceToSlot("dell-r750", 10);
 });
 ```
 
 **Pros:**
+
 - Clear ownership: one class per page/component
 - IDE autocomplete on instance methods
 - Encapsulates locators and actions together
 
 **Cons:**
+
 - Inheritance hierarchies get brittle (`BasePage -> AuthenticatedPage -> RackPage`)
 - Classes accumulate methods over time (God Object)
 - Harder to share individual actions across unrelated page objects
@@ -140,6 +148,7 @@ export async function clickNewRack(page: Page): Promise<void> { /* ... */ }
 ```
 
 **Pros:**
+
 - Composition over inheritance: import only what you need
 - Each function is independently testable and understandable
 - Natural fit for Playwright's `page` parameter pattern
@@ -147,6 +156,7 @@ export async function clickNewRack(page: Page): Promise<void> { /* ... */ }
 - Easy to share cross-cutting concerns (a `dragDeviceToRack` helper doesn't "belong" to a page class)
 
 **Cons:**
+
 - No namespace grouping (mitigated by file organisation)
 - Discoverability depends on good file naming and barrel exports
 - Teams can scatter functions across files inconsistently
@@ -176,6 +186,7 @@ Each file exports pure functions that take `Page` (or `Locator`) as the first ar
 **Keep the functional helper pattern. Rackula already uses it and it is the right fit.**
 
 Rationale:
+
 1. Rackula is a single-page app, not a multi-page site. There is no "login page" -> "dashboard page" flow that POM was designed for.
 2. The existing helpers (`dragDeviceToRack`, `selectDevice`, `gotoWithRack`) are exactly the right granularity.
 3. The functional approach composes naturally with Playwright's fixture system via `test.extend()`.
@@ -192,7 +203,12 @@ Rationale:
 Rackula's `test-layouts.ts` builds `MinimalLayout` objects, compresses them with pako, and encodes them as URL-safe base64 share parameters. Tests navigate to `/?l={encoded}` to load a known state.
 
 ```typescript
-const EMPTY_RACK_MINIMAL: MinimalLayout = { v: APP_VERSION, n: "Test Layout", r: { n: "Test Rack", h: 42, w: 19, d: [] }, dt: [] };
+const EMPTY_RACK_MINIMAL: MinimalLayout = {
+  v: APP_VERSION,
+  n: "Test Layout",
+  r: { n: "Test Rack", h: 42, w: 19, d: [] },
+  dt: [],
+};
 export const EMPTY_RACK_SHARE = encodeMinimal(EMPTY_RACK_MINIMAL);
 
 // In test:
@@ -223,12 +239,20 @@ function createTestLayout(overrides?: Partial<MinimalLayout>): string {
 }
 
 // Usage
-await gotoWithRack(page, createTestLayout({
-  r: { n: "Full Rack", h: 42, w: 19, d: [
-    { t: "dell-r750", p: 1, f: "front" },
-    { t: "dell-r750", p: 3, f: "front" },
-  ]},
-}));
+await gotoWithRack(
+  page,
+  createTestLayout({
+    r: {
+      n: "Full Rack",
+      h: 42,
+      w: 19,
+      d: [
+        { t: "dell-r750", p: 1, f: "front" },
+        { t: "dell-r750", p: 3, f: "front" },
+      ],
+    },
+  }),
+);
 ```
 
 Rackula's `test-layouts.ts` already does a lightweight version of this with spread operators. A dedicated factory function would make it more flexible for tests that need specific device configurations.
@@ -240,8 +264,8 @@ Playwright's built-in fixture system can wrap the share-link pattern:
 ```typescript
 // e2e/helpers/base-test.ts (extend existing)
 type TestFixtures = {
-  emptyRack: void;       // navigates to empty rack
-  rackWithDevice: void;  // navigates to rack with one device
+  emptyRack: void; // navigates to empty rack
+  rackWithDevice: void; // navigates to rack with one device
 };
 
 export const test = base.extend<TestFixtures>({
@@ -249,21 +273,27 @@ export const test = base.extend<TestFixtures>({
     await context.addInitScript(`delete window.showOpenFilePicker; ...`);
     await use(context);
   },
-  emptyRack: [async ({ page }, use) => {
-    await gotoWithRack(page, EMPTY_RACK_SHARE);
-    await use();
-  }, { auto: false }],
-  rackWithDevice: [async ({ page }, use) => {
-    await gotoWithRack(page, RACK_WITH_DEVICE_SHARE);
-    await use();
-  }, { auto: false }],
+  emptyRack: [
+    async ({ page }, use) => {
+      await gotoWithRack(page, EMPTY_RACK_SHARE);
+      await use();
+    },
+    { auto: false },
+  ],
+  rackWithDevice: [
+    async ({ page }, use) => {
+      await gotoWithRack(page, RACK_WITH_DEVICE_SHARE);
+      await use();
+    },
+    { auto: false },
+  ],
 });
 ```
 
 This would replace the `beforeEach` pattern in each test file with a declarative fixture:
 
 ```typescript
-test('can select device', async ({ page, rackWithDevice }) => {
+test("can select device", async ({ page, rackWithDevice }) => {
   // page is already at the rack-with-device URL
   await selectDevice(page, 0);
 });
@@ -278,7 +308,7 @@ Not applicable to Rackula. The app is a client-side SPA with no backend database
 ### 3.5 Trade-off Summary for Client-Side SPAs
 
 | Strategy | Speed | Flexibility | Maintenance | Best For |
-|----------|-------|-------------|-------------|----------|
+| --- | --- | --- | --- | --- |
 | Pre-encoded share links | Fastest | Limited | Low | Standard scenarios |
 | Factory builders | Fast | High | Medium | Varied configurations |
 | Playwright fixtures | Fast | High | Medium | Declarative test setup |
@@ -302,11 +332,11 @@ Svelte's testing documentation is deliberately framework-agnostic for E2E tests.
 
 ```typescript
 // Good: Playwright auto-waits for visibility
-await expect(page.getByTestId('rack-device')).toBeVisible();
+await expect(page.getByTestId("rack-device")).toBeVisible();
 
 // Bad: Manual wait
 await page.waitForTimeout(500);
-await expect(page.getByTestId('rack-device')).toBeVisible();
+await expect(page.getByTestId("rack-device")).toBeVisible();
 ```
 
 **Component boundaries are invisible:** Unlike React (where you might query by component name), Svelte compiles components into vanilla DOM. You cannot locate "the RackCanvas component." You locate the DOM elements it produces. This makes `data-testid` and ARIA roles even more important as stable anchors.
@@ -338,13 +368,14 @@ SvelteKit itself uses Playwright for its own E2E test suite. The tests interact 
 Rackula's E2E tests use a mix of selector strategies:
 
 | Current Pattern | Count (approx.) | Risk Level |
-|-----------------|-----------------|------------|
+| --- | --- | --- |
 | `.class-name` CSS selectors | High (primary pattern) | High -- breaks on CSS refactors |
 | `page.click('button[aria-label="..."]')` | Medium | Good -- accessible |
 | `page.getByTestId('...')` | Low (toolbar only) | Good -- stable |
 | `page.locator('[data-accordion-trigger]')` | Low | Medium -- coupled to bits-ui internals |
 
 Examples of fragile selectors currently in use:
+
 - `.rack-container`, `.rack-device`, `.rack-svg`, `.rack-front`
 - `.device-palette`, `.device-palette-item`
 - `.toolbar`, `.rack-dual-view-name`
@@ -361,21 +392,21 @@ Create a single `e2e/helpers/locators.ts` file that maps all CSS selectors to na
 // e2e/helpers/locators.ts
 export const LOCATORS = {
   rack: {
-    container: '.rack-container',
-    device: '.rack-device',
-    svg: '.rack-svg',
-    front: '.rack-front',
-    dualViewName: '.rack-dual-view-name',
+    container: ".rack-container",
+    device: ".rack-device",
+    svg: ".rack-svg",
+    front: ".rack-front",
+    dualViewName: ".rack-dual-view-name",
   },
   palette: {
-    root: '.device-palette',
-    item: '.device-palette-item',
+    root: ".device-palette",
+    item: ".device-palette-item",
   },
   toolbar: {
-    root: '.toolbar',
+    root: ".toolbar",
   },
   drawer: {
-    open: 'aside.drawer-right.open',
+    open: "aside.drawer-right.open",
   },
 } as const;
 ```
@@ -413,15 +444,17 @@ For interactive elements (buttons, inputs, links), replace CSS selectors with `g
 await page.locator('.menu-item:has-text("Save")').click();
 
 // After
-await page.getByRole('menuitem', { name: 'Save' }).click();
+await page.getByRole("menuitem", { name: "Save" }).click();
 ```
 
 ```typescript
 // Before
-await expect(page.locator('aside.drawer-right.open')).toBeVisible();
+await expect(page.locator("aside.drawer-right.open")).toBeVisible();
 
 // After
-await expect(page.getByRole('complementary', { name: 'Device details' })).toBeVisible();
+await expect(
+  page.getByRole("complementary", { name: "Device details" }),
+).toBeVisible();
 ```
 
 **Phase 4: Remove CSS class selectors from test code**
@@ -458,7 +491,7 @@ Prioritise by brittleness and frequency of use:
 ### 5.5 Common Migration Pitfalls
 
 | Pitfall | Mitigation |
-|---------|------------|
+| --- | --- |
 | Adding `data-testid` to every element | Only add where no semantic locator works |
 | Breaking tests during migration | Migrate one helper file at a time, run tests after each |
 | `data-testid` in production builds | Keep them; they cost ~0 bytes gzipped and aid debugging. Stripping is premature optimisation |
@@ -474,7 +507,7 @@ Prioritise by brittleness and frequency of use:
 ### Decision Matrix
 
 | Question | Recommendation | Confidence |
-|----------|---------------|------------|
+| --- | --- | --- |
 | POM or functional helpers? | **Functional helpers** (keep current approach) | High |
 | Primary selector strategy? | **`getByRole()` for interactive, `getByTestId()` for SVG/structural** | High |
 | `data-testid` naming? | **kebab-case with scope prefix** (`rack-canvas`, `sidebar-tab-racks`) | High |

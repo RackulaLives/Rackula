@@ -137,7 +137,7 @@ Ordering inside this stage is expressed by blockers: #1419 first, then #1420, th
 
 - Blockers: #1420, #1264 (the rule must pass on all E2E files after the migration phases)
 - Why this position: the lockdown step; prevents re-accumulation once the migration is complete.
-- Scope: add a no-restricted-syntax rule scoped to e2e/**/*.ts that flags page.locator() calls with CSS class selectors (strings starting with "."); consider also flagging :has-text() and adopting eslint-plugin-playwright rules. Start as warn, upgrade to error once the migration phases are merged. Update docs/guides/TESTING.md with the selector convention and remove stale testid documentation (btn-save, btn-help).
+- Scope: add a no-restricted-syntax rule scoped to e2e/\*_/_.ts that flags page.locator() calls with CSS class selectors (strings starting with "."); consider also flagging :has-text() and adopting eslint-plugin-playwright rules. Start as warn, upgrade to error once the migration phases are merged. Update docs/guides/TESTING.md with the selector convention and remove stale testid documentation (btn-save, btn-help).
 - Key files: eslint.config.js, docs/guides/TESTING.md
 - Verify: npm run lint passes on all E2E files; add a deliberate .locator(".foo") violation locally, confirm the rule fires, revert it
 - [ ] Done when: the rule is active, TESTING.md documents the convention, and lint is green across e2e/.

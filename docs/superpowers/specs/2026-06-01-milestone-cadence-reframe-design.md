@@ -1,8 +1,6 @@
 # Milestone Cadence Reframe
 
-**Date:** 2026-06-01
-**Status:** Approved
-**Context:** The monthly cadence was designed for human-paced development. With LLM codegen, a 12-issue sprint ships in days, not weeks. The calendar-month mapping creates false expectations and doesn't reflect actual velocity.
+**Date:** 2026-06-01 **Status:** Approved **Context:** The monthly cadence was designed for human-paced development. With LLM codegen, a 12-issue sprint ships in days, not weeks. The calendar-month mapping creates false expectations and doesn't reflect actual velocity.
 
 ## Decision
 
@@ -46,11 +44,11 @@ Milestone titles become `M{N} -- {Theme}` with no version suffix. Version is det
 
 ## Milestone Title Migration
 
-| Current                                       | Proposed                                      |
-| --------------------------------------------- | --------------------------------------------- |
-| M01 -- LXC Build & Hardening, v26.5.x         | M01 -- LXC Build & Hardening                  |
-| M02 -- LXC Release & Stability, v26.6.x       | M02 -- LXC Release & Stability                |
-| M03 -- Data Format & Interop, v26.7.x         | M03 -- Data Format & Interop                  |
+| Current | Proposed |
+| --- | --- |
+| M01 -- LXC Build & Hardening, v26.5.x | M01 -- LXC Build & Hardening |
+| M02 -- LXC Release & Stability, v26.6.x | M02 -- LXC Release & Stability |
+| M03 -- Data Format & Interop, v26.7.x | M03 -- Data Format & Interop |
 | M04 -- Type Safety, Decomposition & Stability | M04 -- Type Safety, Decomposition & Stability |
 
 ## Roadmap Diff (Conceptual)

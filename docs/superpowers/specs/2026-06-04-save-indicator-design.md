@@ -1,8 +1,6 @@
 # Save Indicator Design: Replace SaveStatus with Toast Notifications
 
-**Issue:** #1901
-**Date:** 2026-06-04
-**Status:** Approved, amended 2026-06-10 (see Amendment below)
+**Issue:** #1901 **Date:** 2026-06-04 **Status:** Approved, amended 2026-06-10 (see Amendment below)
 
 ## Problem
 
@@ -14,14 +12,14 @@ Remove the `SaveStatus` component and move all save feedback to the existing toa
 
 ## Toast Flow
 
-| Event                     | Toast                                                                                                                                                        | Duration       | ARIA role | Action |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- | --------- | ------ |
-| Manual save succeeds      | Success: "Layout saved"                                                                                                                                      | 3000ms         | status    | None   |
-| Auto-save succeeds        | None (silent)                                                                                                                                                | -              | -         | -      |
-| Save fails (server error) | Error: "Save failed: {message}"                                                                                                                              | 0 (persistent) | alert     | Retry  |
-| Save fails (offline)      | Warning: "Server save unavailable, working offline. Use Ctrl+S to retry." (persistence-manager); App init uses shorter "Server unavailable, working offline" | 0 (persistent) | alert     | Retry  |
-| Save in progress          | None                                                                                                                                                         | -              | -         | -      |
-| API disabled (local-auth) | None                                                                                                                                                         | -              | -         | -      |
+| Event | Toast | Duration | ARIA role | Action |
+| --- | --- | --- | --- | --- |
+| Manual save succeeds | Success: "Layout saved" | 3000ms | status | None |
+| Auto-save succeeds | None (silent) | - | - | - |
+| Save fails (server error) | Error: "Save failed: {message}" | 0 (persistent) | alert | Retry |
+| Save fails (offline) | Warning: "Server save unavailable, working offline. Use Ctrl+S to retry." (persistence-manager); App init uses shorter "Server unavailable, working offline" | 0 (persistent) | alert | Retry |
+| Save in progress | None | - | - | - |
+| API disabled (local-auth) | None | - | - | - |
 
 ## Key Design Decisions
 

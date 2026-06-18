@@ -1,7 +1,6 @@
 # Spike #1393: Codebase Exploration
 
-**Date:** 2026-03-08
-**Scope:** Catalogue of E2E test files, selector patterns, helper modules, fixtures, and disabled tests
+**Date:** 2026-03-08 **Scope:** Catalogue of E2E test files, selector patterns, helper modules, fixtures, and disabled tests
 
 ---
 
@@ -10,7 +9,7 @@
 **Total:** 23 spec files | **~3,875 LOC**
 
 | File | LOC | Purpose | Category |
-|------|-----|---------|----------|
+| --- | --- | --- | --- |
 | basic-workflow.spec.ts | 109 | Device placement, movement, deletion | Core |
 | smoke.spec.ts | 154 | JS initialisation, error collection | QA |
 | export.spec.ts | 121 | Export PNG/SVG/JPEG, legend options | Features |
@@ -42,7 +41,7 @@
 ### Defined in Source (34 across 11 components)
 
 | Component | TestIds | Count |
-|-----------|---------|-------|
+| --- | --- | --- |
 | Toolbar.svelte | `btn-logo-about`, `btn-undo`, `btn-redo`, `btn-display-mode`, `btn-fit-all`, `btn-export`, `btn-share`, `btn-mobile-save`, `btn-mobile-load`, `btn-mobile-export` | 10 |
 | ShareDialog.svelte | `share-url-input`, `share-copy-btn`, `qr-error`, `qr-loading`, `qr-container`, `qr-download-btn` | 6 |
 | LayoutYamlPanel.svelte | `yaml-mode-label`, `yaml-conflict-prompt`, `yaml-validation-message`, `yaml-textarea` | 4 |
@@ -58,6 +57,7 @@
 ### Used in E2E Tests
 
 Only **6 unique testids** are actively used in tests:
+
 - `sidebar-tab-racks`, `btn-new-rack`, `btn-export` (toolbar-actions.ts)
 - `search-devices`, `btn-create-custom-device` (custom-device.spec.ts, shelf-category.spec.ts)
 - `layout-name` (migration specs)
@@ -67,7 +67,7 @@ Only **6 unique testids** are actively used in tests:
 ### Critical Gaps (No testid exists)
 
 | UI Region | Current Selector | Impact |
-|-----------|-----------------|--------|
+| --- | --- | --- |
 | Rack canvas | `.rack-container`, `.rack-svg` | Every test that interacts with rack |
 | Devices in rack | `.rack-device` | Device selection, counting, assertions |
 | Front/rear views | `.rack-front`, `.rack-rear` | Dual-view tests |
@@ -114,7 +114,7 @@ Only **6 unique testids** are actively used in tests:
 ## 4. Selector Pattern Statistics
 
 | Pattern | Approx. Count | % of Total | Reliability |
-|---------|--------------|------------|-------------|
+| --- | --- | --- | --- |
 | `.locator(".class-name")` | ~180 | 55% | Low |
 | `:has-text("...")` | ~40 | 12% | Low |
 | `getByRole(...)` | ~35 | 11% | High |
@@ -134,7 +134,7 @@ Only **6 unique testids** are actively used in tests:
 ### File Chooser Interaction (3 tests)
 
 | File | Test | Notes |
-|------|------|-------|
+| --- | --- | --- |
 | persistence.spec.ts:66 | `load layout from file` | File chooser unreliable in headless |
 | archive-format.spec.ts:84 | `load saved ZIP restores layout` | Same |
 | device-name.spec.ts:43 | `display name persists after save/load` | Likely same root cause |
@@ -142,29 +142,29 @@ Only **6 unique testids** are actively used in tests:
 ### Unimplemented UI (3 tests)
 
 | File | Test | Notes |
-|------|------|-------|
+| --- | --- | --- |
 | rack-configuration.spec.ts:72 | `descending units shows U1 at top` | Checkbox not implemented |
 | rack-configuration.spec.ts:106 | `custom starting unit displays correct labels` | Input not implemented |
 | rack-configuration.spec.ts:112 | `form factor selection is available` | Dropdown not implemented |
 
 ### UX Redesign Pending (3 tests)
 
-| File | Test | Notes |
-|------|------|-------|
-| basic-workflow.spec.ts:25 | `can replace current rack` | FIXME(#903) |
-| basic-workflow.spec.ts:33 | `rack appears after replacement` | FIXME(#903) |
-| basic-workflow.spec.ts:103 | `can clear rack` | FIXME(#903) |
+| File                       | Test                             | Notes       |
+| -------------------------- | -------------------------------- | ----------- |
+| basic-workflow.spec.ts:25  | `can replace current rack`       | FIXME(#903) |
+| basic-workflow.spec.ts:33  | `rack appears after replacement` | FIXME(#903) |
+| basic-workflow.spec.ts:103 | `can clear rack`                 | FIXME(#903) |
 
 ### Complex UI Interaction (1 test)
 
 | File | Test | Notes |
-|------|------|-------|
+| --- | --- | --- |
 | device-metadata.spec.ts:293 | `metadata persists across racks` | Multi-rack sidebar complexity |
 
 ### Undo/Redo (1 test)
 
 | File | Test | Notes |
-|------|------|-------|
+| --- | --- | --- |
 | device-name.spec.ts | `display name persists after undo/redo` | Undo/redo not tested for names |
 
 ---
@@ -177,8 +177,7 @@ Only **6 unique testids** are actively used in tests:
 
 5 pre-built fixtures in `test-layouts.ts`, loaded via `gotoWithRack(page, fixture)`.
 
-**Strengths:** Fast, deterministic, stateless, parallel-safe, uses production code path.
-**Weakness:** Opaque encoded strings; adding new fixture requires encoding pipeline.
+**Strengths:** Fast, deterministic, stateless, parallel-safe, uses production code path. **Weakness:** Opaque encoded strings; adding new fixture requires encoding pipeline.
 
 ### Secondary: Wizard Form Completion
 

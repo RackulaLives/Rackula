@@ -9,6 +9,7 @@ Surveyed naming UX patterns across creative/design tools. The dominant pattern i
 ## 1. Tool Survey: How Comparable Tools Handle Naming
 
 ### Figma
+
 - **Pattern:** Auto-name ("Untitled")
 - **Flow:** New file opens immediately as "Untitled" — no prompt
 - **Rename:** Click the title in the toolbar to rename inline
@@ -16,6 +17,7 @@ Surveyed naming UX patterns across creative/design tools. The dominant pattern i
 - **Key insight:** Figma treats naming as a secondary action. The primary action is designing.
 
 ### Excalidraw
+
 - **Pattern:** Auto-name (timestamp-based for downloads)
 - **Flow:** Opens a blank canvas immediately — no naming step
 - **Rename:** File name only matters on export/download; defaults to `excalidraw-{timestamp}`
@@ -23,24 +25,28 @@ Surveyed naming UX patterns across creative/design tools. The dominant pattern i
 - **Key insight:** Excalidraw prioritises zero-friction start over naming discipline
 
 ### draw.io / diagrams.net
+
 - **Pattern:** Name-on-save (not on create)
 - **Flow:** Opens blank canvas, prompts for name only when saving/exporting
 - **Storage:** When connected to Google Drive/OneDrive, uses "Untitled Diagram" as default
 - **Key insight:** Defers naming to the point where it actually matters (persistence)
 
 ### Miro
+
 - **Pattern:** Auto-name ("Untitled board") with inline rename
 - **Flow:** New board opens immediately as "Untitled board"
 - **Rename:** Click board title in header to edit inline
 - **Key insight:** Similar to Figma — naming is available but never required
 
 ### Lucidchart
+
 - **Pattern:** Auto-name ("Untitled Document") with inline rename
 - **Flow:** Template picker or blank document, named "Untitled Document"
 - **Rename:** Click title to rename
 - **Key insight:** Same pattern as Figma/Miro
 
 ### Google Docs/Sheets/Slides
+
 - **Pattern:** Auto-name ("Untitled document") with inline rename
 - **Flow:** Opens immediately, title is editable in the toolbar
 - **Auto-save:** Name persists automatically once set
@@ -51,7 +57,7 @@ Surveyed naming UX patterns across creative/design tools. The dominant pattern i
 ## 2. Pattern Analysis: Name-on-Create vs Name-Later vs Auto-Name
 
 | Pattern | Tools Using It | Pros | Cons |
-|---------|---------------|------|------|
+| --- | --- | --- | --- |
 | **Name on Create** (prompt before canvas) | None of the surveyed tools | Forces intentional naming | Blocks flow, adds friction |
 | **Name on Save** (prompt at save/export time) | draw.io | Name only matters when it matters | Confusing if auto-save exists |
 | **Auto-Name + Rename** (default name, edit anytime) | Figma, Miro, Lucidchart, Google Docs | Zero friction start, naming optional | Users may never rename |
@@ -63,7 +69,7 @@ Surveyed naming UX patterns across creative/design tools. The dominant pattern i
 ## 3. Default Naming Strategies
 
 | Strategy | Examples | Pros | Cons |
-|----------|----------|------|------|
+| --- | --- | --- | --- |
 | **"Untitled"** | Figma, Google Docs, Miro | Simple, universal, signals "needs naming" | Unhelpful if user has many "Untitled" items |
 | **Sequential** ("Untitled 1", "Untitled 2") | Some IDEs | Distinguishes multiple unnamed items | Requires tracking a counter |
 | **Timestamp-based** | Excalidraw downloads | Unique by default | Not human-friendly |
@@ -86,11 +92,13 @@ Surveyed naming UX patterns across creative/design tools. The dominant pattern i
 ## 5. Suggestion Chips / Contextual Defaults
 
 No surveyed tool uses suggestion chips for naming. The pattern is:
+
 1. Provide a sensible default
 2. Make it trivially easy to change
 3. Don't force a decision
 
 **However**, some tools offer contextual naming in specific flows:
+
 - Google Docs names files from the first heading if the user types one
 - Notion auto-names pages from the first line of content
 - Apple Notes auto-names from the first line of text
@@ -113,7 +121,7 @@ From UX research on ADHD and cognitive load:
 ### Application to Rackula
 
 | Principle | Implication |
-|-----------|------------|
+| --- | --- |
 | **Don't add decision points** | Don't prompt for layout name before creating — auto-name instead |
 | **Make rename discoverable but optional** | Inline editing in the header, visible but not forced |
 | **Sensible defaults** | "My Layout" is better than "Untitled" (domain-specific) |

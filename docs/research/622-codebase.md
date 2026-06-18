@@ -29,11 +29,11 @@
 
 ### Data Persistence Methods
 
-| Method          | Storage                 | Authentication | User Action      |
-| --------------- | ----------------------- | -------------- | ---------------- |
-| Session Storage | localStorage            | None           | Automatic        |
-| File-based      | Browser download/upload | None           | Manual save/load |
-| URL Sharing     | Query param             | None           | Copy/paste URL   |
+| Method | Storage | Authentication | User Action |
+| --- | --- | --- | --- |
+| Session Storage | localStorage | None | Automatic |
+| File-based | Browser download/upload | None | Manual save/load |
+| URL Sharing | Query param | None | Copy/paste URL |
 
 ### File Save/Load Flow
 
@@ -113,12 +113,12 @@ async function openFile(): Promise<Result> {
 
 ### Browser Limitations
 
-| Constraint            | Impact                         | Workaround                     |
-| --------------------- | ------------------------------ | ------------------------------ |
-| No file system access | Can't write to arbitrary paths | File picker + download only    |
-| CORS restrictions     | Can't call GitHub API directly | Need proxy or CORS headers     |
-| Token storage         | localStorage is JS-readable    | Short-lived tokens, OAuth flow |
-| No native git         | Can't run git commands         | isomorphic-git or API-only     |
+| Constraint | Impact | Workaround |
+| --- | --- | --- |
+| No file system access | Can't write to arbitrary paths | File picker + download only |
+| CORS restrictions | Can't call GitHub API directly | Need proxy or CORS headers |
+| Token storage | localStorage is JS-readable | Short-lived tokens, OAuth flow |
+| No native git | Can't run git commands | isomorphic-git or API-only |
 
 ### GitHub API Considerations
 

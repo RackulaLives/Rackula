@@ -1,9 +1,6 @@
 # AutoCAD Integration — Design Spec
 
-**Source:** Discussion [#1727](https://github.com/RackulaLives/Rackula/discussions/1727), Issue [#1729](https://github.com/RackulaLives/Rackula/issues/1729)
-**Date:** 2026-05-25
-**Status:** Design approved, ready for implementation planning
-**Milestone:** v0.11.0 (all tracks)
+**Source:** Discussion [#1727](https://github.com/RackulaLives/Rackula/discussions/1727), Issue [#1729](https://github.com/RackulaLives/Rackula/issues/1729) **Date:** 2026-05-25 **Status:** Design approved, ready for implementation planning **Milestone:** v0.11.0 (all tracks)
 
 ## Context
 
@@ -19,13 +16,13 @@ Research confirmed: AutoCAD has no native SVG import in any version through 2026
 
 ### Key Findings
 
-| Finding                   | Detail                                                                         |
-| ------------------------- | ------------------------------------------------------------------------------ |
-| AutoCAD SVG support       | None. No native import in any version including 2026                           |
-| PDFIMPORT requirements    | PDF must contain vector geometry (not raster) to produce editable DWG entities |
-| Best SVG→AutoCAD pipeline | SVG → Inkscape → DXF (R14) or SVG → Inkscape → PDF → PDFIMPORT                 |
-| svg2pdf.js                | MIT, 88K/week, maintained by yWorks, converts SVG DOM to jsPDF vector calls    |
-| dxf-writer                | MIT, 15K/week, zero deps, generates DXF in browser/Node                        |
+| Finding | Detail |
+| --- | --- |
+| AutoCAD SVG support | None. No native import in any version including 2026 |
+| PDFIMPORT requirements | PDF must contain vector geometry (not raster) to produce editable DWG entities |
+| Best SVG→AutoCAD pipeline | SVG → Inkscape → DXF (R14) or SVG → Inkscape → PDF → PDFIMPORT |
+| svg2pdf.js | MIT, 88K/week, maintained by yWorks, converts SVG DOM to jsPDF vector calls |
+| dxf-writer | MIT, 15K/week, zero deps, generates DXF in browser/Node |
 
 ---
 
@@ -61,16 +58,16 @@ await doc.svg(svgElement, { x, y, width, height });
 
 ### SVG Feature Compatibility
 
-| Rackula SVG Feature                   | svg2pdf.js Support                                         | Risk                                          |
-| ------------------------------------- | ---------------------------------------------------------- | --------------------------------------------- |
-| `<rect>`, `<line>`, `<circle>`        | Full                                                       | None                                          |
-| `<text>` with system-ui font          | Supported (falls back to helvetica if font not registered) | Low — text may use fallback font              |
-| `<image>` with data URL               | Supported                                                  | Low                                           |
-| `clip-path` (device image rounding)   | Partial (v2.5.0 added basic clip-rule)                     | Medium — test and verify                      |
-| `text-shadow` CSS (image-mode labels) | Not supported                                              | Low — omit or replace with drop-shadow filter |
-| `<pattern>` (blocked-slot hatching)   | Supported                                                  | Low                                           |
-| `rgba()` fill colours                 | Supported                                                  | Low                                           |
-| `<tspan>` with different colours      | Supported                                                  | Low                                           |
+| Rackula SVG Feature | svg2pdf.js Support | Risk |
+| --- | --- | --- |
+| `<rect>`, `<line>`, `<circle>` | Full | None |
+| `<text>` with system-ui font | Supported (falls back to helvetica if font not registered) | Low — text may use fallback font |
+| `<image>` with data URL | Supported | Low |
+| `clip-path` (device image rounding) | Partial (v2.5.0 added basic clip-rule) | Medium — test and verify |
+| `text-shadow` CSS (image-mode labels) | Not supported | Low — omit or replace with drop-shadow filter |
+| `<pattern>` (blocked-slot hatching) | Supported | Low |
+| `rgba()` fill colours | Supported | Low |
+| `<tspan>` with different colours | Supported | Low |
 
 ### Mitigations
 
@@ -112,18 +109,18 @@ DXF is AutoCAD's native interchange format. Unlike PDFIMPORT (which reverse-engi
 
 ### Entity Mapping
 
-| Rackula Element         | DXF Entity                      | Notes                                           |
-| ----------------------- | ------------------------------- | ----------------------------------------------- |
-| Rack rails (rectangles) | `LINE` (4 per rail)             | Horizontal/vertical rail edges                  |
-| Rack interior           | `LINE` (rectangle)              | Background fill not needed — DXF has background |
-| Device rectangles       | `POLYLINE` (closed, 4 vertices) | Filled with device colour                       |
-| Device labels           | `TEXT`                          | Positioned at device centre                     |
-| Grid lines              | `LINE` (dashed)                 | Horizontal lines at each U boundary             |
-| Mounting holes          | `CIRCLE`                        | Small filled circles on rails                   |
-| U number labels         | `TEXT`                          | Left-rail position numbers                      |
-| Category icons          | `LINE`/`POLYLINE`/`CIRCLE`      | Decomposed into primitives                      |
-| Legend                  | `TEXT` + `POLYLINE`             | Separate layer                                  |
-| QR code                 | Skip (DXF doesn't do QR)        | Or render as bitmap image reference             |
+| Rackula Element | DXF Entity | Notes |
+| --- | --- | --- |
+| Rack rails (rectangles) | `LINE` (4 per rail) | Horizontal/vertical rail edges |
+| Rack interior | `LINE` (rectangle) | Background fill not needed — DXF has background |
+| Device rectangles | `POLYLINE` (closed, 4 vertices) | Filled with device colour |
+| Device labels | `TEXT` | Positioned at device centre |
+| Grid lines | `LINE` (dashed) | Horizontal lines at each U boundary |
+| Mounting holes | `CIRCLE` | Small filled circles on rails |
+| U number labels | `TEXT` | Left-rail position numbers |
+| Category icons | `LINE`/`POLYLINE`/`CIRCLE` | Decomposed into primitives |
+| Legend | `TEXT` + `POLYLINE` | Separate layer |
+| QR code | Skip (DXF doesn't do QR) | Or render as bitmap image reference |
 
 ### Layer Organisation
 

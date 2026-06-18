@@ -18,38 +18,38 @@ This research investigates constraints and alternatives for encoding multi-rack 
 
 ### Browser Address Bar Limits
 
-| Browser         | Maximum URL Length                  | Notes                             |
-| --------------- | ----------------------------------- | --------------------------------- |
-| Google Chrome   | 32,779 characters (some report 2MB) | Most permissive                   |
-| Mozilla Firefox | 65,536+ characters                  | Display truncates after 65K       |
-| Apple Safari    | 80,000+ characters                  | May show errors after this        |
-| Microsoft Edge  | **2,083 characters**                | **Lowest limit - path max 2,048** |
-| Opera           | Unlimited                           | No practical limit                |
+| Browser | Maximum URL Length | Notes |
+| --- | --- | --- |
+| Google Chrome | 32,779 characters (some report 2MB) | Most permissive |
+| Mozilla Firefox | 65,536+ characters | Display truncates after 65K |
+| Apple Safari | 80,000+ characters | May show errors after this |
+| Microsoft Edge | **2,083 characters** | **Lowest limit - path max 2,048** |
+| Opera | Unlimited | No practical limit |
 
 **Practical limit: 2,083 characters** (Edge is the bottleneck)
 
 ### Server-Side Limits
 
-| Server/Service     | Default URL Limit     | Configurable?                          |
-| ------------------ | --------------------- | -------------------------------------- |
-| Apache             | 8,177 characters      | `LimitRequestLine` (max ~8190 for 2.2) |
-| nginx              | 4,096 characters      | `large_client_header_buffers`          |
-| Microsoft IIS      | 16,384 characters     | Yes                                    |
-| Cloudflare CDN     | **32,768 characters** | No (414 error beyond)                  |
-| Amazon CloudFront  | 8,192 characters      | No                                     |
-| Fastly CDN         | 8,192 characters      | No                                     |
-| Cloudflare Workers | 16,000 characters     | No                                     |
+| Server/Service | Default URL Limit | Configurable? |
+| --- | --- | --- |
+| Apache | 8,177 characters | `LimitRequestLine` (max ~8190 for 2.2) |
+| nginx | 4,096 characters | `large_client_header_buffers` |
+| Microsoft IIS | 16,384 characters | Yes |
+| Cloudflare CDN | **32,768 characters** | No (414 error beyond) |
+| Amazon CloudFront | 8,192 characters | No |
+| Fastly CDN | 8,192 characters | No |
+| Cloudflare Workers | 16,000 characters | No |
 
 **Rackula consideration:** Currently on GitHub Pages (no server config needed). If using Cloudflare in front, 32KB limit applies.
 
 ### Social Media Platform URL Handling
 
-| Platform  | URL Handling                                    | Effective Limit        |
-| --------- | ----------------------------------------------- | ---------------------- |
+| Platform | URL Handling | Effective Limit |
+| --- | --- | --- |
 | Twitter/X | t.co shortener auto-applied, counts as 23 chars | Any length (shortened) |
-| LinkedIn  | Accepts long URLs, 700-1300 char post limits    | URL itself unlimited   |
-| Discord   | 512 char limit for link-style buttons           | Embeds allow longer    |
-| Reddit    | Accepts long URLs                               | No documented limit    |
+| LinkedIn | Accepts long URLs, 700-1300 char post limits | URL itself unlimited |
+| Discord | 512 char limit for link-style buttons | Embeds allow longer |
+| Reddit | Accepts long URLs | No documented limit |
 
 **Key insight:** Social platforms auto-shorten or have generous limits. The bottleneck is browsers and QR codes, not social sharing.
 
@@ -75,13 +75,13 @@ This research investigates constraints and alternatives for encoding multi-rack 
 
 ### Algorithm Comparison
 
-| Algorithm     | Compression Ratio | Speed (Browser)       | Bundle Size      | URL-Safe Output                           |
-| ------------- | ----------------- | --------------------- | ---------------- | ----------------------------------------- |
-| **lz-string** | 50-70% reduction  | Fast (~10x LZMA)      | **~1KB gzipped** | **Yes** (`compressToEncodedURIComponent`) |
-| pako (gzip)   | 60-75% reduction  | Fast                  | ~26KB gzipped    | No (needs base64url)                      |
-| LZMA-JS       | 70-85% reduction  | Slow (use Web Worker) | 9KB gzipped      | No                                        |
-| Brotli (WASM) | 75-90% reduction  | Medium                | **681KB**        | No                                        |
-| lz4           | 40-50% reduction  | Very fast             | ~5KB             | No                                        |
+| Algorithm | Compression Ratio | Speed (Browser) | Bundle Size | URL-Safe Output |
+| --- | --- | --- | --- | --- |
+| **lz-string** | 50-70% reduction | Fast (~10x LZMA) | **~1KB gzipped** | **Yes** (`compressToEncodedURIComponent`) |
+| pako (gzip) | 60-75% reduction | Fast | ~26KB gzipped | No (needs base64url) |
+| LZMA-JS | 70-85% reduction | Slow (use Web Worker) | 9KB gzipped | No |
+| Brotli (WASM) | 75-90% reduction | Medium | **681KB** | No |
+| lz4 | 40-50% reduction | Very fast | ~5KB | No |
 
 ### Detailed Analysis
 
@@ -209,12 +209,12 @@ const encoded = LZString.compressToEncodedURIComponent(JSON.stringify(layout));
 
 ### Practical Scanning Limits
 
-| Version | Modules | Capacity (Alphanumeric) | Practical Use                          |
-| ------- | ------- | ----------------------- | -------------------------------------- |
-| 3-4     | 29-33   | ~134 characters         | Business cards, marketing              |
-| 6       | 41      | ~224 characters         | Maximum for reliable scanning          |
-| 10      | 57      | ~395 characters         | Requires good lighting, steady camera  |
-| 40      | 177     | ~4,296 characters       | **Nearly impossible to scan reliably** |
+| Version | Modules | Capacity (Alphanumeric) | Practical Use |
+| --- | --- | --- | --- |
+| 3-4 | 29-33 | ~134 characters | Business cards, marketing |
+| 6 | 41 | ~224 characters | Maximum for reliable scanning |
+| 10 | 57 | ~395 characters | Requires good lighting, steady camera |
+| 40 | 177 | ~4,296 characters | **Nearly impossible to scan reliably** |
 
 ### Key Insights
 
@@ -361,15 +361,15 @@ https://godbolt.org/z/{short_hash}
 
 ### Summary: State Sharing Patterns
 
-| Tool                  | State Location         | URL Length            | Requires Server |
-| --------------------- | ---------------------- | --------------------- | --------------- |
-| draw.io               | URL (compressed)       | Variable (has limits) | No              |
-| Excalidraw            | Server (E2E encrypted) | Short                 | Yes             |
-| Figma                 | Server                 | Short                 | Yes             |
-| CodePen               | Server                 | Short                 | Yes             |
-| JSPen                 | URL (compressed)       | Long                  | Shortener only  |
-| Godbolt               | Server                 | Short                 | Yes             |
-| **Rackula (current)** | URL (gzip+base64)      | Long                  | No              |
+| Tool | State Location | URL Length | Requires Server |
+| --- | --- | --- | --- |
+| draw.io | URL (compressed) | Variable (has limits) | No |
+| Excalidraw | Server (E2E encrypted) | Short | Yes |
+| Figma | Server | Short | Yes |
+| CodePen | Server | Short | Yes |
+| JSPen | URL (compressed) | Long | Shortener only |
+| Godbolt | Server | Short | Yes |
+| **Rackula (current)** | URL (gzip+base64) | Long | No |
 
 **Recommendation for Rackula:**
 
@@ -534,13 +534,13 @@ const snapshot = await get(ref(db, `urls/${slug}`));
 
 ### Comparison Summary
 
-| Service           | Free Tier      | Complexity | Cold Starts | Best For         |
-| ----------------- | -------------- | ---------- | ----------- | ---------------- |
-| **Cloudflare KV** | 100K reads/day | Low        | None        | **Recommended**  |
-| Vercel KV         | 30K/month      | Low        | Minimal     | Vercel users     |
-| Supabase          | 500MB, pauses  | Medium     | Yes         | Apps needing SQL |
-| Firebase          | 1GB            | Medium     | Minimal     | Real-time needs  |
-| BunnyCDN          | $0.01/GB       | High       | N/A         | Budget priority  |
+| Service | Free Tier | Complexity | Cold Starts | Best For |
+| --- | --- | --- | --- | --- |
+| **Cloudflare KV** | 100K reads/day | Low | None | **Recommended** |
+| Vercel KV | 30K/month | Low | Minimal | Vercel users |
+| Supabase | 500MB, pauses | Medium | Yes | Apps needing SQL |
+| Firebase | 1GB | Medium | Minimal | Real-time needs |
+| BunnyCDN | $0.01/GB | High | N/A | Budget priority |
 
 ### Minimal Requirements for a Persistent URL Shortener
 

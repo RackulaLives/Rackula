@@ -12,12 +12,12 @@
 
 ## File Structure
 
-| File                           | Action | Responsibility                                                                              |
-| ------------------------------ | ------ | ------------------------------------------------------------------------------------------- |
-| `scripts/contributors.sh`      | Create | Extract contributors from merged PRs, format as markdown, insert into ACKNOWLEDGEMENTS.md   |
-| `scripts/test-contributors.sh` | Create | Validate contributors.sh: correct extraction, bot exclusion, idempotency, dry-run           |
-| `.claude/commands/release.md`  | Modify | Add contributor block generation to Phase 2 and ACKNOWLEDGEMENTS.md update to Phase 4       |
-| `ACKNOWLEDGEMENTS.md`          | Modify | Add `## Contributions by Release` section header (placeholder, will be populated by script) |
+| File | Action | Responsibility |
+| --- | --- | --- |
+| `scripts/contributors.sh` | Create | Extract contributors from merged PRs, format as markdown, insert into ACKNOWLEDGEMENTS.md |
+| `scripts/test-contributors.sh` | Create | Validate contributors.sh: correct extraction, bot exclusion, idempotency, dry-run |
+| `.claude/commands/release.md` | Modify | Add contributor block generation to Phase 2 and ACKNOWLEDGEMENTS.md update to Phase 4 |
+| `ACKNOWLEDGEMENTS.md` | Modify | Add `## Contributions by Release` section header (placeholder, will be populated by script) |
 
 ---
 
@@ -793,20 +793,20 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 
 ### Spec Coverage
 
-| Spec Requirement                                             | Task                                                |
-| ------------------------------------------------------------ | --------------------------------------------------- |
-| Standalone shell script (`scripts/contributors.sh`)          | Task 1                                              |
-| PR-based extraction via `gh pr list`                         | Task 1 (script logic)                               |
-| Bot/maintainer exclusion                                     | Task 1 (EXCLUDED_AUTHORS), Task 2 (tests)           |
-| Deduplication by author                                      | Task 1 (script logic)                               |
-| Idempotency via heading check                                | Task 1 (script logic), Task 2 (test)                |
-| `--dry-run` flag                                             | Task 1 (script), Task 2 (test)                      |
-| `## Contributions by Release` section in ACKNOWLEDGEMENTS.md | Task 3                                              |
-| `/release` skill Phase 2 integration                         | Task 4                                              |
-| `/release` skill Phase 4 step 4d                             | Task 4                                              |
-| Error handling (non-blocking on failure)                     | Task 1 (exit 0 on gh failure), Task 4 (error table) |
-| Writing style (no em dashes, no emoji)                       | Task 1 (script output format)                       |
-| Test script for validation                                   | Task 2                                              |
+| Spec Requirement | Task |
+| --- | --- |
+| Standalone shell script (`scripts/contributors.sh`) | Task 1 |
+| PR-based extraction via `gh pr list` | Task 1 (script logic) |
+| Bot/maintainer exclusion | Task 1 (EXCLUDED_AUTHORS), Task 2 (tests) |
+| Deduplication by author | Task 1 (script logic) |
+| Idempotency via heading check | Task 1 (script logic), Task 2 (test) |
+| `--dry-run` flag | Task 1 (script), Task 2 (test) |
+| `## Contributions by Release` section in ACKNOWLEDGEMENTS.md | Task 3 |
+| `/release` skill Phase 2 integration | Task 4 |
+| `/release` skill Phase 4 step 4d | Task 4 |
+| Error handling (non-blocking on failure) | Task 1 (exit 0 on gh failure), Task 4 (error table) |
+| Writing style (no em dashes, no emoji) | Task 1 (script output format) |
+| Test script for validation | Task 2 |
 
 ### Placeholder Scan
 

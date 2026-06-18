@@ -1,7 +1,6 @@
 # External Research - Spike #321: Isometric Rendering Service
 
-**Date:** 2025-12-30
-**Author:** Claude (automated research)
+**Date:** 2025-12-30 **Author:** Claude (automated research)
 
 ---
 
@@ -21,11 +20,13 @@ This research investigates the feasibility of providing a backend service that g
 ### Rack Elevation Endpoint
 
 NetBox provides a dedicated endpoint for rack data:
+
 ```
 GET /api/dcim/racks/<id>/elevation/
 ```
 
 Parameters:
+
 - `render=svg` - Render as SVG (NetBox's basic 2D view)
 - `face=front|rear` - Which face to show
 - `unit_width=300` - Unit width in pixels
@@ -34,6 +35,7 @@ Parameters:
 ### Device Position Data
 
 NetBox returns:
+
 - Device position (U number, supports decimals like 1.5)
 - Face (front/rear)
 - Device type with height (`u_height`)
@@ -48,6 +50,7 @@ NetBox returns:
 - Config context can be excluded for performance: `?exclude=config_context`
 
 **Sources:**
+
 - [NetBox REST API Overview](https://netboxlabs.com/docs/netbox/integrations/rest-api/)
 - [Racks Documentation](https://netboxlabs.com/docs/netbox/models/dcim/rack/)
 
@@ -59,20 +62,22 @@ NetBox returns:
 
 **Description:** Rust-powered SVG renderer with Node.js bindings via napi-rs.
 
-| Metric | Value |
-|--------|-------|
-| Render speed | ~55-66ms per image |
-| Memory | Low footprint |
-| Dependencies | Zero (native binary) |
+| Metric           | Value                              |
+| ---------------- | ---------------------------------- |
+| Render speed     | ~55-66ms per image                 |
+| Memory           | Low footprint                      |
+| Dependencies     | Zero (native binary)               |
 | Platform support | Windows, macOS, Linux, WebAssembly |
 
 **Pros:**
+
 - Fast: 12 ops/s vs 9 ops/s for sharp
 - Consistent cross-platform output
 - No browser required
 - Supports custom fonts and system fonts
 
 **Cons:**
+
 - Limited to PNG output (no AVIF, WebP)
 - No dynamic SVG features (animations, scripting)
 
@@ -82,19 +87,21 @@ NetBox returns:
 
 **Description:** Headless browser for rendering.
 
-| Metric | Value |
-|--------|-------|
-| Render speed | 4-10 seconds for batch |
-| Memory | High (full browser) |
-| Dependencies | Chromium |
-| Platform support | All major platforms |
+| Metric           | Value                  |
+| ---------------- | ---------------------- |
+| Render speed     | 4-10 seconds for batch |
+| Memory           | High (full browser)    |
+| Dependencies     | Chromium               |
+| Platform support | All major platforms    |
 
 **Pros:**
+
 - Browser-accurate rendering
 - Supports all CSS/SVG features
 - PDF generation built-in
 
 **Cons:**
+
 - Slower (5-10s for 20 images)
 - Higher memory usage
 - Occasional rendering inconsistencies
@@ -105,17 +112,19 @@ NetBox returns:
 
 **Description:** High-performance image processing library.
 
-| Metric | Value |
-|--------|-------|
+| Metric       | Value                    |
+| ------------ | ------------------------ |
 | Render speed | Fast for bulk operations |
-| Memory | Moderate |
-| Dependencies | Native dependencies |
+| Memory       | Moderate                 |
+| Dependencies | Native dependencies      |
 
 **Pros:**
+
 - 3x faster than resvg-js for bulk simple icons
 - Wide format support (WebP, AVIF, etc.)
 
 **Cons:**
+
 - May not handle complex SVGs as well
 - Less consistent emoji/text rendering
 
@@ -124,6 +133,7 @@ NetBox returns:
 ### Recommendation
 
 **Use resvg-js for isometric renders** because:
+
 1. Our SVGs are static (no animations)
 2. ~66ms per render is acceptable latency
 3. Consistent output across environments
@@ -138,11 +148,13 @@ NetBox returns:
 NetBox → HTTP request → Isometric Service → PNG/SVG response
 
 **Pros:**
+
 - Decoupled architecture
 - Independent scaling
 - Can serve multiple NetBox instances
 
 **Cons:**
+
 - Requires external hosting
 - Network latency
 - Authentication complexity
@@ -152,11 +164,13 @@ NetBox → HTTP request → Isometric Service → PNG/SVG response
 NetBox event → Webhook → Isometric Service → Stores result
 
 **Pros:**
+
 - Event-driven (auto-regenerate on changes)
 - Uses NetBox's built-in webhook system
 - Can cache rendered images
 
 **Cons:**
+
 - More complex setup
 - Webhook configuration per instance
 
@@ -165,11 +179,13 @@ NetBox event → Webhook → Isometric Service → Stores result
 Plugin directly calls rendering service API.
 
 **Pros:**
+
 - Seamless integration
 - Single deployment
 - Access to NetBox auth
 
 **Cons:**
+
 - Plugin must handle async rendering
 - Couples service to NetBox version
 
@@ -183,27 +199,30 @@ Plugin directly calls rendering service API.
 
 ### Industry Benchmarks (AI Image APIs)
 
-| Provider | Price per Image | Model |
-|----------|----------------|-------|
-| OpenAI DALL-E | $0.01-0.17 | Pay-per-use |
-| Runware | $0.0006-0.24 | Pay-per-use |
-| Leonardo.Ai | Custom | Subscription + usage |
-| Novita | $0.0015 | Pay-per-use |
+| Provider      | Price per Image | Model                |
+| ------------- | --------------- | -------------------- |
+| OpenAI DALL-E | $0.01-0.17      | Pay-per-use          |
+| Runware       | $0.0006-0.24    | Pay-per-use          |
+| Leonardo.Ai   | Custom          | Subscription + usage |
+| Novita        | $0.0015         | Pay-per-use          |
 
 ### Proposed Pricing Tiers
 
 **Free Tier:**
+
 - 100 renders/month
 - SVG output only
 - Rate limited (10 req/min)
 
 **Pro Tier ($9/month):**
+
 - 1,000 renders/month
 - PNG + SVG output
 - Higher rate limit (60 req/min)
 - Custom themes
 
 **Enterprise:**
+
 - Unlimited renders
 - Self-hosted option
 - Priority support
@@ -212,6 +231,7 @@ Plugin directly calls rendering service API.
 ### Self-Hosted Option
 
 Offer Docker image for self-hosting:
+
 - Free for self-hosting
 - No usage limits
 - Requires own infrastructure
@@ -228,6 +248,7 @@ Authorization: Bearer <api_key>
 ```
 
 **Pros:**
+
 - Simple to implement
 - Works for all integration patterns
 - Easy to rotate/revoke
@@ -237,11 +258,13 @@ Authorization: Bearer <api_key>
 Service accepts NetBox API token, fetches rack data directly.
 
 **Pros:**
+
 - No duplicate data in request
 - Respects NetBox permissions
 - Simpler client implementation
 
 **Cons:**
+
 - Service needs NetBox URL
 - Token exposure to third party
 
@@ -255,13 +278,14 @@ Service accepts NetBox API token, fetches rack data directly.
 
 ### Caching Strategy
 
-| Cache Layer | TTL | Purpose |
-|-------------|-----|---------|
-| CDN edge cache | 1 hour | Reduce service load |
-| In-memory cache | 5 min | Hot requests |
-| Persistent cache | 24 hours | Reduce re-renders |
+| Cache Layer      | TTL      | Purpose             |
+| ---------------- | -------- | ------------------- |
+| CDN edge cache   | 1 hour   | Reduce service load |
+| In-memory cache  | 5 min    | Hot requests        |
+| Persistent cache | 24 hours | Reduce re-renders   |
 
 **Cache Key:**
+
 ```
 {rack_id}:{face}:{theme}:{format}:{hash(device_positions)}
 ```
@@ -269,17 +293,18 @@ Service accepts NetBox API token, fetches rack data directly.
 ### Invalidation
 
 Options:
+
 1. **Time-based**: Cache expires after TTL
 2. **Webhook-based**: NetBox webhook on rack/device change
 3. **ETag/versioning**: Include rack modified timestamp
 
 ### Expected Performance
 
-| Scenario | Latency |
-|----------|---------|
-| Cache hit | <50ms |
-| Cache miss (SVG) | ~100ms |
-| Cache miss (PNG) | ~150-200ms |
+| Scenario                | Latency     |
+| ----------------------- | ----------- |
+| Cache hit               | <50ms       |
+| Cache miss (SVG)        | ~100ms      |
+| Cache miss (PNG)        | ~150-200ms  |
 | Cold start (serverless) | +500-1000ms |
 
 ---
@@ -289,11 +314,13 @@ Options:
 ### Option A: Serverless (AWS Lambda, Vercel, Cloudflare Workers)
 
 **Pros:**
+
 - Pay-per-use
 - Auto-scaling
 - Low maintenance
 
 **Cons:**
+
 - Cold start latency
 - Size limits for Puppeteer (if needed)
 - Platform lock-in
@@ -303,11 +330,13 @@ Options:
 ### Option B: Container (Docker on VPS/ECS/GKE)
 
 **Pros:**
+
 - Predictable performance
 - Full control
 - Persistent cache
 
 **Cons:**
+
 - Always-on costs
 - Manual scaling
 - More ops burden
@@ -317,6 +346,7 @@ Options:
 ### Option C: Hybrid
 
 Serverless edge + container origin:
+
 - CDN caches at edge
 - Container handles cache misses
 - Best of both worlds
@@ -344,13 +374,13 @@ interface RenderRequest {
   rack: {
     id: number;
     name: string;
-    height: number;  // U
+    height: number; // U
   };
   devices: Array<{
     name: string;
     position: number;
     height: number;
-    face: 'front' | 'rear';
+    face: "front" | "rear";
     is_full_depth: boolean;
     device_type: {
       model: string;
@@ -358,8 +388,8 @@ interface RenderRequest {
     };
   }>;
   options?: {
-    theme?: 'dracula' | 'light' | 'dark';
-    format?: 'svg' | 'png';
+    theme?: "dracula" | "light" | "dark";
+    format?: "svg" | "png";
     width?: number;
   };
 }
@@ -369,10 +399,10 @@ interface RenderRequest {
 
 ```typescript
 interface RenderResponse {
-  format: 'svg' | 'png';
+  format: "svg" | "png";
   width: number;
   height: number;
-  data: string;  // Base64 for PNG, raw for SVG
+  data: string; // Base64 for PNG, raw for SVG
   cache_key: string;
 }
 ```

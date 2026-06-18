@@ -1,8 +1,6 @@
 # Spike #237: Network Interface Visualization Research
 
-**Date:** 2025-12-29
-**Parent Epic:** #71 (Network Interface Visualization and Connectivity)
-**Time Investment:** ~6 hours
+**Date:** 2025-12-29 **Parent Epic:** #71 (Network Interface Visualization and Connectivity) **Time Investment:** ~6 hours
 
 ---
 
@@ -240,12 +238,12 @@ export const InterfaceTemplateSchema = z
 
 ### 3.1 Common Patterns Observed
 
-| Tool           | Port Display                              | Connection Creation           | High-Density Handling   |
-| -------------- | ----------------------------------------- | ----------------------------- | ----------------------- |
-| **NetBox**     | SVG rack elevations, plugins for topology | Database-driven cables        | Table-based port lists  |
-| **draw.io**    | Fixed connection points                   | Drag from port to port        | Manual grouping         |
-| **Device42**   | Hover highlights, tooltips                | Drag-and-drop with validation | Color-coded port groups |
-| **RackTables** | Table-based                               | Link creation forms           | GraphViz export         |
+| Tool | Port Display | Connection Creation | High-Density Handling |
+| --- | --- | --- | --- |
+| **NetBox** | SVG rack elevations, plugins for topology | Database-driven cables | Table-based port lists |
+| **draw.io** | Fixed connection points | Drag from port to port | Manual grouping |
+| **Device42** | Hover highlights, tooltips | Drag-and-drop with validation | Color-coded port groups |
+| **RackTables** | Table-based | Link creation forms | GraphViz export |
 
 ### 3.2 Best Practices to Adopt
 
@@ -357,13 +355,13 @@ export const InterfaceTemplateSchema = z
 
 ### 6.1 Decisions Made
 
-| Decision                       | Rationale                                         |
-| ------------------------------ | ------------------------------------------------- |
-| Use SVG circles for ports      | Native, performant, styleable                     |
-| Use `foreignObject` for clicks | Reliable event handling, a11y support             |
-| Color by interface type        | Visual categorization matches industry convention |
-| Position at device bottom      | Least interference with device label/image        |
-| Group at >24 ports             | Prevents visual overload, UX best practice        |
+| Decision | Rationale |
+| --- | --- |
+| Use SVG circles for ports | Native, performant, styleable |
+| Use `foreignObject` for clicks | Reliable event handling, a11y support |
+| Color by interface type | Visual categorization matches industry convention |
+| Position at device bottom | Least interference with device label/image |
+| Group at >24 ports | Prevents visual overload, UX best practice |
 
 ### 6.2 Decisions Deferred
 

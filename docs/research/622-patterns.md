@@ -1,8 +1,6 @@
 # Git/GitHub Integration Patterns for Rackula
 
-**Issue:** #622
-**Date:** 2026-01-14
-**Purpose:** Synthesize research into actionable implementation patterns
+**Issue:** #622 **Date:** 2026-01-14 **Purpose:** Synthesize research into actionable implementation patterns
 
 ---
 
@@ -31,12 +29,12 @@ The codebase already has:
 
 ### 4. Similar Apps Chose Pragmatic Solutions
 
-| App        | Approach                                | Reason                                      |
-| ---------- | --------------------------------------- | ------------------------------------------- |
-| draw.io    | OAuth (web) + VS Code extension (local) | Different contexts need different solutions |
-| Excalidraw | Embed data in PNG metadata              | Sidesteps sync entirely                     |
-| Obsidian   | Native git (Electron)                   | Has filesystem access                       |
-| Logseq     | External git sync                       | Avoids built-in complexity                  |
+| App | Approach | Reason |
+| --- | --- | --- |
+| draw.io | OAuth (web) + VS Code extension (local) | Different contexts need different solutions |
+| Excalidraw | Embed data in PNG metadata | Sidesteps sync entirely |
+| Obsidian | Native git (Electron) | Has filesystem access |
+| Logseq | External git sync | Avoids built-in complexity |
 
 ### 5. File Operations are Simple; Git History is Complex
 
@@ -48,8 +46,7 @@ If you only need read/write, the Contents API is straightforward. If you need br
 
 ### Option A: PAT-Based Direct API (Simplest)
 
-**Description:**
-User provides a Personal Access Token (fine-grained). Rackula stores it in localStorage and uses Octokit to read/write layouts directly to a user-specified repository.
+**Description:** User provides a Personal Access Token (fine-grained). Rackula stores it in localStorage and uses Octokit to read/write layouts directly to a user-specified repository.
 
 **Implementation:**
 
@@ -124,8 +121,7 @@ async function saveToGitHub(layout: Layout, config: GitHubConfig) {
 
 ### Option B: Gist-Based Sharing (Alternative Simple)
 
-**Description:**
-Use GitHub Gists instead of repositories. Simpler model: each layout = one gist.
+**Description:** Use GitHub Gists instead of repositories. Simpler model: each layout = one gist.
 
 **Implementation:**
 
@@ -175,8 +171,7 @@ async function saveToGist(layout: Layout, gistId?: string) {
 
 ### Option C: OAuth with Serverless Backend (Moderate)
 
-**Description:**
-Implement OAuth flow with a minimal Cloudflare Worker to handle token exchange. Better UX than PAT.
+**Description:** Implement OAuth flow with a minimal Cloudflare Worker to handle token exchange. Better UX than PAT.
 
 **Architecture:**
 
@@ -291,8 +286,7 @@ function startOAuth() {
 
 ### Option D: Full Git Integration with isomorphic-git (Comprehensive)
 
-**Description:**
-Implement full git semantics in the browser using isomorphic-git. Clone repos, create branches, make commits, push changes.
+**Description:** Implement full git semantics in the browser using isomorphic-git. Clone repos, create branches, make commits, push changes.
 
 **Architecture:**
 
@@ -387,19 +381,19 @@ async function cloneAndUpdate(repoUrl: string, layout: Layout) {
 
 ## Trade-offs Matrix
 
-| Criterion               | A: PAT Direct   | B: Gist         | C: OAuth+Worker   | D: Full Git       |
-| ----------------------- | --------------- | --------------- | ----------------- | ----------------- |
-| **Infrastructure**      | None            | None            | Cloudflare Worker | CORS Proxy        |
-| **UX Friction**         | High (PAT copy) | High (PAT copy) | Low (OAuth popup) | Low (OAuth popup) |
-| **Implementation Time** | 1-2 days        | 1 day           | 3-5 days          | 1-2 weeks         |
-| **Bundle Size**         | ~30KB (Octokit) | ~30KB           | ~30KB             | ~200KB            |
-| **Feature Scope**       | Read/Write      | Read/Write      | Read/Write        | Full Git          |
-| **Offline Support**     | None            | None            | None              | Yes               |
-| **Multi-file Support**  | Manual          | Single gist     | Manual            | Native            |
-| **Version History**     | Via GitHub      | Via Gist        | Via GitHub        | Local + Remote    |
-| **Maintenance**         | Minimal         | Minimal         | Low               | Medium            |
-| **User Owns Data**      | Yes             | Yes             | Yes               | Yes               |
-| **Safari Reliability**  | Good            | Good            | Good              | Poor              |
+| Criterion | A: PAT Direct | B: Gist | C: OAuth+Worker | D: Full Git |
+| --- | --- | --- | --- | --- |
+| **Infrastructure** | None | None | Cloudflare Worker | CORS Proxy |
+| **UX Friction** | High (PAT copy) | High (PAT copy) | Low (OAuth popup) | Low (OAuth popup) |
+| **Implementation Time** | 1-2 days | 1 day | 3-5 days | 1-2 weeks |
+| **Bundle Size** | ~30KB (Octokit) | ~30KB | ~30KB | ~200KB |
+| **Feature Scope** | Read/Write | Read/Write | Read/Write | Full Git |
+| **Offline Support** | None | None | None | Yes |
+| **Multi-file Support** | Manual | Single gist | Manual | Native |
+| **Version History** | Via GitHub | Via Gist | Via GitHub | Local + Remote |
+| **Maintenance** | Minimal | Minimal | Low | Medium |
+| **User Owns Data** | Yes | Yes | Yes | Yes |
+| **Safari Reliability** | Good | Good | Good | Poor |
 
 ---
 

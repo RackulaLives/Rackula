@@ -1,8 +1,6 @@
 # Spike #200: Research NetBox UX Patterns for Improved DnD Integration
 
-**Date:** 2025-12-30
-**Status:** Complete
-**Time Spent:** ~2 hours
+**Date:** 2025-12-30 **Status:** Complete **Time Spent:** ~2 hours
 
 ---
 
@@ -13,6 +11,7 @@ This spike investigated whether NetBox provides contextual UX patterns that coul
 **Key Finding:** Rackula's current DnD implementation is **more advanced** than both NetBox core and the community plugin ecosystem. NetBox core does not include drag-and-drop device placement at all - this was explicitly deferred to plugins. The community-developed `netbox-reorder-rack` plugin fills part of this gap but offers fewer capabilities than Rackula's native implementation.
 
 **Recommendation:** Adopt three low-effort polish patterns from NetBox community feedback:
+
 1. Device name tooltip during drag
 2. Enhanced collision messaging
 3. Improved blocked-slot visual styling
@@ -34,12 +33,14 @@ This spike investigated whether NetBox provides contextual UX patterns that coul
 ### NetBox Device Placement (Core)
 
 NetBox core uses a **form-based workflow**:
+
 1. Navigate to device edit form
 2. Manually enter rack position (numeric field)
 3. Select rack face (front/rear dropdown)
 4. Submit form to save position
 
 This approach has documented pain points:
+
 - "Planning rack layouts required tedious manual calculations"
 - "Rearranging devices meant repeatedly editing individual device records"
 - "Visual feedback during layout planning was critical but unavailable"
@@ -47,6 +48,7 @@ This approach has documented pain points:
 ### NetBox Community Plugin: netbox-reorder-rack
 
 A community plugin adds drag-and-drop reordering:
+
 - Built on Gridstack JavaScript library
 - Allows repositioning within a single rack
 - Does not support palette → rack placement
@@ -55,7 +57,7 @@ A community plugin adds drag-and-drop reordering:
 ### Rackula's Current Capabilities
 
 | Feature | NetBox Core | netbox-reorder-rack | Rackula |
-|---------|-------------|---------------------|---------|
+| --- | --- | --- | --- |
 | Palette → Rack DnD | ❌ | ❌ | ✅ |
 | Rack reorder DnD | ❌ | ✅ | ✅ |
 | Cross-rack DnD | ❌ | ❌ | 🔧 (scaffolded) |
@@ -103,29 +105,33 @@ Based on NetBox community feedback and feature requests, three patterns would en
 ## Patterns NOT Recommended
 
 ### Form-Based Position Selection
+
 NetBox Issue #17953 proposed a modal for clicking rack positions. **Not recommended** because:
+
 - Rackula's DnD is already more intuitive
 - Would add UI complexity with two placement paradigms
 - Wait for accessibility feedback before adding alternatives
 
 ### NetBox API Integration
+
 Importing/exporting rack positions via NetBox API is a separate feature, not DnD UX. **Defer** to a dedicated spike if desired.
 
 ### Plugin Architecture
+
 NetBox uses plugins because DnD was out of scope for core. Rackula doesn't need this complexity as a single-purpose application.
 
 ---
 
 ## Go/No-Go Summary
 
-| Pattern | Verdict | Rationale |
-|---------|---------|-----------|
-| Drag tooltip | **GO** | Low effort, noticeable improvement |
-| Collision messaging | **GO** | Improves error recovery UX |
-| Blocked-slot styling | **GO** | Visual clarity for half-depth |
-| Click-to-select modal | **DEFER** | Wait for accessibility feedback |
-| NetBox API integration | **DEFER** | Out of scope for this spike |
-| Form-based placement | **NO-GO** | Would regress UX |
+| Pattern                | Verdict   | Rationale                          |
+| ---------------------- | --------- | ---------------------------------- |
+| Drag tooltip           | **GO**    | Low effort, noticeable improvement |
+| Collision messaging    | **GO**    | Improves error recovery UX         |
+| Blocked-slot styling   | **GO**    | Visual clarity for half-depth      |
+| Click-to-select modal  | **DEFER** | Wait for accessibility feedback    |
+| NetBox API integration | **DEFER** | Out of scope for this spike        |
+| Form-based placement   | **NO-GO** | Would regress UX                   |
 
 ---
 
@@ -134,6 +140,7 @@ NetBox uses plugins because DnD was out of scope for core. Rackula doesn't need 
 ### Recommended: Incremental Polish
 
 Create 2-3 small issues for the GO patterns:
+
 1. `feat: drag tooltip with device info` - Show name/U during drag
 2. `feat: collision reason messaging` - Toast explaining blocks
 3. `chore: improve blocked-slot visual styling` - CSS polish

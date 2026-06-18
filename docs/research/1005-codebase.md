@@ -3,6 +3,7 @@
 ## Summary
 
 The layout naming conflation stems from three design decisions that interact poorly:
+
 1. Dual name fields (`layout.name` + `layout.metadata.name`) with unclear authority
 2. Implicit layout naming via first-rack name sync
 3. No metadata sync after creation
@@ -18,15 +19,15 @@ The layout naming conflation stems from three design decisions that interact poo
 ```typescript
 // LayoutMetadata (lines 19-28)
 export interface LayoutMetadata {
-  id: string;           // UUID — stable identity
-  name: string;         // Layout name (set once at creation, never updated)
+  id: string; // UUID — stable identity
+  name: string; // Layout name (set once at creation, never updated)
   schema_version: string;
   description?: string;
 }
 
 // Layout interface (line 717)
 export interface Layout {
-  name: string;         // Layout name (mutable, synced with first rack)
+  name: string; // Layout name (mutable, synced with first rack)
   metadata?: LayoutMetadata;
   // ... racks, etc.
 }
@@ -46,7 +47,7 @@ export function createLayout(name: string): Layout {
     name,
     metadata: {
       id: generateId(),
-      name,              // ← Copied once, never synced again
+      name, // ← Copied once, never synced again
       schema_version: CURRENT_SCHEMA_VERSION,
     },
     // ...
@@ -67,7 +68,7 @@ function addRack(name: string, height: number, width: number) {
   const isFirstRack = layout.racks.length === 0;
   // ... create rack ...
   if (isFirstRack) {
-    layout = { ...layout, name };  // ← Overwrites layout name with rack name!
+    layout = { ...layout, name }; // ← Overwrites layout name with rack name!
   }
 }
 ```
@@ -114,10 +115,13 @@ if (target.index === 0) {
 ### Serialize (lines 304-332)
 
 ```typescript
-export function serializeLayoutToYamlWithMetadata(layout: Layout, metadata?: LayoutMetadata) {
+export function serializeLayoutToYamlWithMetadata(
+  layout: Layout,
+  metadata?: LayoutMetadata,
+) {
   const meta = metadata ?? {
     id: generateId(),
-    name: layout.name,     // ← Falls back to layout.name
+    name: layout.name, // ← Falls back to layout.name
     schema_version: CURRENT_SCHEMA_VERSION,
   };
   // Writes both name and metadata.name to YAML
@@ -142,10 +146,13 @@ metadata: {
 ### Archive (archive.ts, lines 234-250, 671-681)
 
 ```typescript
-export function generateArchiveFilename(layout: Layout, metadata?: LayoutMetadata) {
+export function generateArchiveFilename(
+  layout: Layout,
+  metadata?: LayoutMetadata,
+) {
   const layoutMetadata = metadata ?? {
     id: generateId(),
-    name: layout.name,        // ← Uses current layout.name
+    name: layout.name, // ← Uses current layout.name
   };
   return `${buildFolderName(layoutMetadata.name, layoutMetadata.id)}${ARCHIVE_EXTENSION}`;
 }
@@ -191,7 +198,7 @@ Uses current `layout.name` passed as parameter.
 ## 8. UI Name References
 
 | Component | File | Usage |
-|-----------|------|-------|
+| --- | --- | --- |
 | ShareDialog | ShareDialog.svelte | `layoutName={layoutStore.layout.name}` |
 | HelpPanel | HelpPanel.svelte:117-125 | `layoutStore.layout.name \|\| "Untitled"` |
 | ExportDialog | ExportDialog.svelte | Shows `layout.name` in UI |
@@ -238,7 +245,7 @@ type DialogId = 'new-rack' | 'edit-rack' | 'export' | 'share' | 'help' | ...
 ## Key Insight: Name Authority Map
 
 | Context | Name Source | Stale Risk |
-|---------|-----------|------------|
+| --- | --- | --- |
 | In-memory display | `layout.name` | No (live) |
 | YAML top-level | `layout.name` at serialize time | No |
 | YAML metadata | `metadata.name` (from creation) | **Yes** |

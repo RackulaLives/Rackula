@@ -18,13 +18,13 @@
 
 From test data and codebase analysis:
 
-| Configuration               | Estimated URL Size | QR Fit?    | Browser Safe? |
-| --------------------------- | ------------------ | ---------- | ------------- |
-| Empty rack                  | ~200 chars         | Yes        | Yes           |
-| 1 device type, 5 devices    | ~400 chars         | Yes        | Yes           |
-| 3 device types, 10 devices  | ~600 chars         | Yes        | Yes           |
-| 5 device types, 20 devices  | ~1,200 chars       | Yes        | Yes           |
-| 10 device types, 30 devices | ~1,500 chars       | Borderline | Yes           |
+| Configuration | Estimated URL Size | QR Fit? | Browser Safe? |
+| --- | --- | --- | --- |
+| Empty rack | ~200 chars | Yes | Yes |
+| 1 device type, 5 devices | ~400 chars | Yes | Yes |
+| 3 device types, 10 devices | ~600 chars | Yes | Yes |
+| 5 device types, 20 devices | ~1,200 chars | Yes | Yes |
+| 10 device types, 30 devices | ~1,500 chars | Borderline | Yes |
 
 ### Multi-Rack Projections
 
@@ -35,16 +35,16 @@ From test data and codebase analysis:
 - Per-device-type overhead: ~80 chars (slug, height, manufacturer, model, colour, category)
 - Device types are deduplicated across racks (typical homelabber reuses same gear)
 
-| Configuration       | Racks | Devices/Rack | Device Types | Estimated URL Size | QR Fit?    | Browser Safe?  |
-| ------------------- | ----- | ------------ | ------------ | ------------------ | ---------- | -------------- |
-| **Light 2-rack**    | 2     | 5            | 5            | ~900 chars         | Yes        | Yes            |
-| **Medium 2-rack**   | 2     | 15           | 8            | ~1,600 chars       | Borderline | Yes            |
-| **Dense 2-rack**    | 2     | 25           | 12           | ~2,400 chars       | **No**     | **No**         |
-| **Light 3-rack**    | 3     | 5            | 6            | ~1,100 chars       | Yes        | Yes            |
-| **Medium 3-rack**   | 3     | 15           | 10           | ~2,200 chars       | **No**     | **Borderline** |
-| **Dense 3-rack**    | 3     | 25           | 15           | ~3,400 chars       | **No**     | **No**         |
-| **5-rack homelab**  | 5     | 10           | 12           | ~2,800 chars       | **No**     | **No**         |
-| **Enterprise (10)** | 10    | 20           | 20           | ~7,500 chars       | **No**     | **No**         |
+| Configuration | Racks | Devices/Rack | Device Types | Estimated URL Size | QR Fit? | Browser Safe? |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Light 2-rack** | 2 | 5 | 5 | ~900 chars | Yes | Yes |
+| **Medium 2-rack** | 2 | 15 | 8 | ~1,600 chars | Borderline | Yes |
+| **Dense 2-rack** | 2 | 25 | 12 | ~2,400 chars | **No** | **No** |
+| **Light 3-rack** | 3 | 5 | 6 | ~1,100 chars | Yes | Yes |
+| **Medium 3-rack** | 3 | 15 | 10 | ~2,200 chars | **No** | **Borderline** |
+| **Dense 3-rack** | 3 | 25 | 15 | ~3,400 chars | **No** | **No** |
+| **5-rack homelab** | 5 | 10 | 12 | ~2,800 chars | **No** | **No** |
+| **Enterprise (10)** | 10 | 20 | 20 | ~7,500 chars | **No** | **No** |
 
 ### The "Cliff" Points
 
@@ -203,8 +203,7 @@ URL length < 1,800 chars?
 {/if}
 ```
 
-**Offline Fallback:**
-When shortener is unavailable or user prefers offline:
+**Offline Fallback:** When shortener is unavailable or user prefers offline:
 
 - Export as `.rackula` JSON file
 - File can be imported via drag-drop or file picker
@@ -248,12 +247,12 @@ URL format: https://count.racku.la/#id={layoutId}&key={encryptionKey}
 
 ## Trade-offs Matrix
 
-| Approach                    | Complexity | Cost (Monthly) | Offline Support | Privacy  | Max Layout Size | QR Codes            |
-| --------------------------- | ---------- | -------------- | --------------- | -------- | --------------- | ------------------- |
-| **A: lz-string only**       | Low        | $0             | Full            | Full     | ~2,000 chars    | Limited             |
-| **B: Cloudflare shortener** | Medium     | $0-5           | None            | Medium\* | Unlimited       | Yes (via short URL) |
-| **C: Hybrid**               | Medium     | $0-5           | Partial         | High     | Unlimited       | Yes (with fallback) |
-| **D: E2E encrypted**        | High       | $10-20         | None            | Full     | Unlimited       | Yes                 |
+| Approach | Complexity | Cost (Monthly) | Offline Support | Privacy | Max Layout Size | QR Codes |
+| --- | --- | --- | --- | --- | --- | --- |
+| **A: lz-string only** | Low | $0 | Full | Full | ~2,000 chars | Limited |
+| **B: Cloudflare shortener** | Medium | $0-5 | None | Medium\* | Unlimited | Yes (via short URL) |
+| **C: Hybrid** | Medium | $0-5 | Partial | High | Unlimited | Yes (with fallback) |
+| **D: E2E encrypted** | High | $10-20 | None | Full | Unlimited | Yes |
 
 \*Medium privacy = Cloudflare can see layout data in KV. Data is not encrypted at rest but also not public.
 

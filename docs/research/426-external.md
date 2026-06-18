@@ -1,7 +1,6 @@
 # Spike #426: SvelteFlow Evaluation - External Research
 
-**Date:** 2026-01-14
-**Sources:** svelteflow.dev, xyflow GitHub, npm registry
+**Date:** 2026-01-14 **Sources:** svelteflow.dev, xyflow GitHub, npm registry
 
 ---
 
@@ -177,13 +176,13 @@ SvelteFlow uses Svelte stores internally:
 
 ### Architectural Mismatches with Rackula
 
-| SvelteFlow            | Rackula                           | Conflict             |
-| --------------------- | --------------------------------- | -------------------- |
-| DOM nodes + SVG edges | Pure SVG                          | Rendering model      |
-| Single viewport       | Multiple racks (SVGs)             | Coordinate spaces    |
-| Built-in panzoom      | panzoom library                   | Dual control systems |
-| Nodes have positions  | Ports derive from device position | Position management  |
-| Canvas-first          | SVG-first (for export)            | Export compatibility |
+| SvelteFlow | Rackula | Conflict |
+| --- | --- | --- |
+| DOM nodes + SVG edges | Pure SVG | Rendering model |
+| Single viewport | Multiple racks (SVGs) | Coordinate spaces |
+| Built-in panzoom | panzoom library | Dual control systems |
+| Nodes have positions | Ports derive from device position | Position management |
+| Canvas-first | SVG-first (for export) | Export compatibility |
 
 ---
 

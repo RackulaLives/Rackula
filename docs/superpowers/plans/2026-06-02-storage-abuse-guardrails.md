@@ -12,18 +12,18 @@
 
 ## File Structure
 
-| File                                                | Action | Responsibility                                                |
-| --------------------------------------------------- | ------ | ------------------------------------------------------------- |
-| `api/src/storage/quota.ts`                          | Create | Quota check functions (`checkLayoutQuota`, `checkAssetQuota`) |
-| `api/src/storage/quota.test.ts`                     | Create | Tests for quota module                                        |
-| `api/src/security/storage-quota-middleware.ts`      | Create | Hono middleware enforcing quotas on write routes              |
-| `api/src/security/storage-quota-middleware.test.ts` | Create | Tests for quota middleware                                    |
-| `api/src/security/config.ts`                        | Modify | Add `maxLayouts` and `maxAssetsPerLayout` config resolution   |
-| `api/src/security/types.ts`                         | Modify | Add quota fields to `ApiSecurityConfig`                       |
-| `api/src/security/index.ts`                         | Modify | Export new middleware and types                               |
-| `api/src/app.ts`                                    | Modify | Register storage quota middleware                             |
-| `api/.env.example`                                  | Modify | Document new env vars                                         |
-| `docs/deployment/SELF-HOSTING.md`                   | Modify | Document quota configuration                                  |
+| File | Action | Responsibility |
+| --- | --- | --- |
+| `api/src/storage/quota.ts` | Create | Quota check functions (`checkLayoutQuota`, `checkAssetQuota`) |
+| `api/src/storage/quota.test.ts` | Create | Tests for quota module |
+| `api/src/security/storage-quota-middleware.ts` | Create | Hono middleware enforcing quotas on write routes |
+| `api/src/security/storage-quota-middleware.test.ts` | Create | Tests for quota middleware |
+| `api/src/security/config.ts` | Modify | Add `maxLayouts` and `maxAssetsPerLayout` config resolution |
+| `api/src/security/types.ts` | Modify | Add quota fields to `ApiSecurityConfig` |
+| `api/src/security/index.ts` | Modify | Export new middleware and types |
+| `api/src/app.ts` | Modify | Register storage quota middleware |
+| `api/.env.example` | Modify | Document new env vars |
+| `docs/deployment/SELF-HOSTING.md` | Modify | Document quota configuration |
 
 ---
 
@@ -49,8 +49,7 @@ The full interface addition is two lines: `maxLayouts: number;` and `maxAssetsPe
 
 - [ ] **Step 2: Run existing security tests to verify types compile**
 
-Run: `cd api && bun test src/security/security.test.ts`
-Expected: All tests pass (no behavior change, just new interface fields)
+Run: `cd api && bun test src/security/security.test.ts` Expected: All tests pass (no behavior change, just new interface fields)
 
 - [ ] **Step 3: Commit**
 
@@ -151,8 +150,7 @@ return {
 
 - [ ] **Step 3: Run config tests to verify parsing**
 
-Run: `cd api && bun test src/security/security.test.ts`
-Expected: Existing tests pass (new fields have defaults, no env var required)
+Run: `cd api && bun test src/security/security.test.ts` Expected: Existing tests pass (new fields have defaults, no env var required)
 
 - [ ] **Step 4: Commit**
 
@@ -490,8 +488,7 @@ describe("checkAssetQuota", () => {
 
 - [ ] **Step 3: Run the tests to verify they pass**
 
-Run: `cd api && bun test src/storage/quota.test.ts`
-Expected: All tests pass
+Run: `cd api && bun test src/storage/quota.test.ts` Expected: All tests pass
 
 - [ ] **Step 4: Commit**
 
@@ -868,8 +865,7 @@ describe("createStorageQuotaMiddleware", () => {
 
 - [ ] **Step 2: Run the tests to verify they pass**
 
-Run: `cd api && bun test src/security/storage-quota-middleware.test.ts src/storage/quota.test.ts`
-Expected: All tests pass
+Run: `cd api && bun test src/security/storage-quota-middleware.test.ts src/storage/quota.test.ts` Expected: All tests pass
 
 - [ ] **Step 3: Commit**
 
@@ -897,8 +893,7 @@ export type { StorageQuotaMiddlewareConfig } from "./storage-quota-middleware";
 
 - [ ] **Step 2: Verify exports compile**
 
-Run: `cd api && bun test src/security/security.test.ts`
-Expected: Tests pass (no behavior change, just new exports)
+Run: `cd api && bun test src/security/security.test.ts` Expected: Tests pass (no behavior change, just new exports)
 
 - [ ] **Step 3: Commit**
 
@@ -966,8 +961,7 @@ This places the quota middleware in the correct position in the chain: after aut
 
 - [ ] **Step 3: Run all tests to verify integration**
 
-Run: `cd api && bun test`
-Expected: All tests pass, including the new quota tests
+Run: `cd api && bun test` Expected: All tests pass, including the new quota tests
 
 - [ ] **Step 4: Commit**
 
@@ -1042,13 +1036,11 @@ git commit -m "docs: add storage quota configuration to self-hosting guide (#178
 
 - [ ] **Step 1: Run the full API test suite**
 
-Run: `cd api && bun test`
-Expected: All tests pass, including existing security, storage, and new quota tests
+Run: `cd api && bun test` Expected: All tests pass, including existing security, storage, and new quota tests
 
 - [ ] **Step 2: Run the full project lint check**
 
-Run: `npm run lint`
-Expected: No lint errors
+Run: `npm run lint` Expected: No lint errors
 
 - [ ] **Step 3: Verify the app starts with default config**
 

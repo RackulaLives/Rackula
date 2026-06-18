@@ -46,14 +46,14 @@ The `.rackula` file is a **ZIP archive** with a folder-based internal structure:
 
 ## Image Handling
 
-| Aspect        | Details                                                             |
-| ------------- | ------------------------------------------------------------------- |
-| **Formats**   | PNG, JPEG, WebP                                                     |
-| **Max size**  | 5 MB per image                                                      |
-| **Storage**   | Only user-uploaded images saved; bundled device images not included |
-| **Paths**     | `assets/[device-slug]/[face].[ext]` for device types                |
-| **In-memory** | Stored as data URLs (base64 encoded)                                |
-| **Archive**   | Converted to blobs when saving to ZIP                               |
+| Aspect | Details |
+| --- | --- |
+| **Formats** | PNG, JPEG, WebP |
+| **Max size** | 5 MB per image |
+| **Storage** | Only user-uploaded images saved; bundled device images not included |
+| **Paths** | `assets/[device-slug]/[face].[ext]` for device types |
+| **In-memory** | Stored as data URLs (base64 encoded) |
+| **Archive** | Converted to blobs when saving to ZIP |
 
 ### Typical Image Sizes (estimated)
 
@@ -63,13 +63,13 @@ The `.rackula` file is a **ZIP archive** with a folder-based internal structure:
 
 ## Integration Points
 
-| Component          | Dependency                                                        |
-| ------------------ | ----------------------------------------------------------------- |
-| `layout.svelte.ts` | Consumes extracted layout via `loadLayout()`                      |
-| `imageStore`       | Provides images for save, receives images on load                 |
-| `App.svelte`       | Triggers save via toolbar/keyboard shortcut                       |
-| Export functions   | Independent (SVG, PNG, PDF, CSV exports don't use archive format) |
-| Schema validation  | Layout YAML validated against LayoutSchema on load                |
+| Component | Dependency |
+| --- | --- |
+| `layout.svelte.ts` | Consumes extracted layout via `loadLayout()` |
+| `imageStore` | Provides images for save, receives images on load |
+| `App.svelte` | Triggers save via toolbar/keyboard shortcut |
+| Export functions | Independent (SVG, PNG, PDF, CSV exports don't use archive format) |
+| Schema validation | Layout YAML validated against LayoutSchema on load |
 
 ## Constraints
 

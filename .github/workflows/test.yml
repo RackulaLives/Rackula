@@ -72,6 +72,9 @@ jobs:
       - name: Run linter
         run: npm run lint
 
+      - name: Check docs formatting
+        run: npm run format:check:docs
+
       - name: Run unit tests
         run: npm run test:run
 

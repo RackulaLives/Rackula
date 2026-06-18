@@ -84,8 +84,7 @@
   });
   ```
 
-- [ ] Run it - fails. `cd .worktree/Rackula-issue-2212 && npx vitest run src/tests/actions-registry.test.ts`
-      Expected: 3 failing assertions; `findActionForEvent` returns `undefined` for Ctrl/Cmd+K, label not present. The existing `registry integrity` test ("every binding's key shape is reproducible") will also start failing until the action exists - that is expected and confirms the binding is wired.
+- [ ] Run it - fails. `cd .worktree/Rackula-issue-2212 && npx vitest run src/tests/actions-registry.test.ts` Expected: 3 failing assertions; `findActionForEvent` returns `undefined` for Ctrl/Cmd+K, label not present. The existing `registry integrity` test ("every binding's key shape is reproducible") will also start failing until the action exists - that is expected and confirms the binding is wired.
 - [ ] Add `"command-palette"` to the `ActionId` union (alongside the other ids, e.g. after `"show-help"`).
 - [ ] Add the action to `ACTION_REGISTRY` in the General group, immediately after the `show-help` entry (so it sits with the other general commands and the help projection picks it up):
   ```ts
@@ -101,8 +100,7 @@
     keywords: ["palette", "commands", "search", "jump to"],
   },
   ```
-- [ ] Run it - passes. `cd .worktree/Rackula-issue-2212 && npx vitest run src/tests/actions-registry.test.ts`
-      Expected: all green, including `registry integrity` (Ctrl+K resolves back to `command-palette`; both bindings reproduce).
+- [ ] Run it - passes. `cd .worktree/Rackula-issue-2212 && npx vitest run src/tests/actions-registry.test.ts` Expected: all green, including `registry integrity` (Ctrl+K resolves back to `command-palette`; both bindings reproduce).
 - [ ] Commit. `git add -A && git commit -m "feat: register command-palette action (Ctrl/Cmd+K)"`
 
 ---
@@ -125,8 +123,7 @@ No unit test: this is a one-line union extension that TypeScript validates, and 
     | "load"
     | "commandPalette";
   ```
-- [ ] Verify it type-checks. `cd .worktree/Rackula-issue-2212 && npm run check`
-      Expected: no new errors from this file.
+- [ ] Verify it type-checks. `cd .worktree/Rackula-issue-2212 && npm run check` Expected: no new errors from this file.
 - [ ] Commit. `git add -A && git commit -m "feat: add commandPalette dialog id"`
 
 ---
@@ -172,8 +169,7 @@ This moves the `dispatch` map and its helper closures (`performUndo`, `performRe
   });
   ```
 
-- [ ] Run it - fails (module does not exist). `cd .worktree/Rackula-issue-2212 && npx vitest run src/tests/dispatch.test.ts`
-      Expected: import error / `createActionDispatch is not a function`.
+- [ ] Run it - fails (module does not exist). `cd .worktree/Rackula-issue-2212 && npx vitest run src/tests/dispatch.test.ts` Expected: import error / `createActionDispatch is not a function`.
 - [ ] Create `src/lib/actions/dispatch.ts`. Move the helper closures from `KeyboardHandler.svelte` verbatim (resolving stores internally), wire the App-level callbacks via the existing singleton functions, and add `command-palette`:
 
   ```ts
@@ -334,8 +330,7 @@ This moves the `dispatch` map and its helper closures (`performUndo`, `performRe
   - `toggle-display-mode`: App's `handleToggleDisplayMode` reads `uiStore` then calls `layoutStore.updateDisplayMode(...)`. There is no singleton in `app-actions`/`dialog-actions` for it. The minimal correct behaviour is to replicate it: `() => { const ui = getUIStore(); const layout = getLayoutStore(); ui.toggleDisplayMode(); layout.updateDisplayMode(ui.displayMode); layout.updateShowLabelsOnImages(ui.showLabelsOnImages); }`. Replace the `noop` above with this implementation and verify `uiStore.toggleDisplayMode`, `uiStore.displayMode`, `uiStore.showLabelsOnImages`, `layoutStore.updateDisplayMode`, `layoutStore.updateShowLabelsOnImages` all exist (they are used in `App.handleToggleDisplayMode`, so they do).
   - `load` and `import-devices`: these were App-callback props in the old handler but neither had a _keyboard binding_ in the old `KeyboardHandler` dispatch except `load` (Ctrl+O). `load` DID have a binding and DID map to `onload` (= `handleLoad` from `$lib/storage`). Import `handleLoad` from `$lib/storage` and wire `load: handleLoad` (verify it is a parameterless function - App passes it directly as `onload={handleLoad}`, so it is callable with no args). Replace the `load: noop` line accordingly.
 
-- [ ] Run it - passes. `cd .worktree/Rackula-issue-2212 && npx vitest run src/tests/dispatch.test.ts`
-      Expected: both tests green; the totality test confirms an entry for all ids including `command-palette`, `flip-device-face`, `focus-rack`, `export-rack`.
+- [ ] Run it - passes. `cd .worktree/Rackula-issue-2212 && npx vitest run src/tests/dispatch.test.ts` Expected: both tests green; the totality test confirms an entry for all ids including `command-palette`, `flip-device-face`, `focus-rack`, `export-rack`.
 - [ ] Commit. `git add -A && git commit -m "refactor: extract action dispatch into dispatch.ts"`
 
 ---
@@ -468,8 +463,7 @@ The existing `src/tests/keyboard.test.ts` renders `KeyboardHandler` and exercise
   Note: preserve the original `handleTabJump` guard exactly (`if (!event.altKey || ...)`); the snippet above rewrote it as `event.altKey === false` for clarity - use whichever matches the original semantics (`!event.altKey`). Keep the existing comment about Alt+digit/macOS.
 
 - [ ] Update `src/App.svelte`: the `<KeyboardHandler ... />` element (lines 696-707) now needs NO props. Replace it with `<KeyboardHandler />`. Then check whether any of `handleToggleAnnotations` / `handleToggleDisplayMode` (the local App functions) become unused. They are still passed to other components (`CanvasViewControls`, `DevicePalette`, mobile sheets) - verify with grep before deleting; do NOT delete functions still referenced. Only remove the props on the `<KeyboardHandler/>` tag.
-- [ ] Run the full keyboard regression + check. `cd .worktree/Rackula-issue-2212 && npx vitest run src/tests/keyboard.test.ts src/tests/keyboard-viewport.test.ts && npm run check`
-      Expected: existing keyboard tests still green (dispatch behaviour unchanged); no type errors; no unused-prop lint failures.
+- [ ] Run the full keyboard regression + check. `cd .worktree/Rackula-issue-2212 && npx vitest run src/tests/keyboard.test.ts src/tests/keyboard-viewport.test.ts && npm run check` Expected: existing keyboard tests still green (dispatch behaviour unchanged); no type errors; no unused-prop lint failures.
 - [ ] Commit. `git add -A && git commit -m "refactor: keyboard handler uses shared dispatch; intercept Ctrl/Cmd+K"`
 
 ---
@@ -694,8 +688,7 @@ Visual-only: no test (TDD policy - icons are explicitly in the skip list).
   ```ts
   export { default as IconSearch } from "./IconSearch.svelte";
   ```
-- [ ] Verify it type-checks. `cd .worktree/Rackula-issue-2212 && npm run check`
-      Expected: no errors.
+- [ ] Verify it type-checks. `cd .worktree/Rackula-issue-2212 && npm run check` Expected: no errors.
 - [ ] Commit. `git add -A && git commit -m "feat: add IconSearch"`
 
 ---
@@ -1016,8 +1009,7 @@ This is a UI composition component. Per TDD policy ("components where the only p
   - Confirm `Command.GroupItems` is required as a wrapper for items inside a `Command.Group` (the barrel exports it and the types include `CommandGroupItemsProps`; the spike lists it in the anatomy). If autofixer or runtime indicates items can sit directly in `Command.Group`, keep the structure that bits-ui v2.18.1 actually requires - verify against `node_modules/bits-ui/dist/bits/command/components/command-group.svelte` if unsure.
   - `--shadow-lg`, `--z-dialog`, `--font-size-md`, `--font-mono`, `--radius-sm` are used with fallbacks; verify the token names against `tokens.css` and drop the fallback if the token exists, or keep the fallback if not. Do NOT introduce a hardcoded hex without a token.
 
-- [ ] Type-check + lint. `cd .worktree/Rackula-issue-2212 && npm run check && npm run lint`
-      Expected: clean.
+- [ ] Type-check + lint. `cd .worktree/Rackula-issue-2212 && npm run check && npm run lint` Expected: clean.
 - [ ] Commit. `git add -A && git commit -m "feat: CommandPalette component (bits-ui Command in Dialog)"`
 
 ---
@@ -1138,8 +1130,7 @@ No new unit tests (UI wiring; covered by E2E in Task 9). The existing `src/tests
   }
   ```
   Do NOT touch the centre (`toolbar-name`) or right (`toolbar-right`) sections.
-- [ ] Type-check, lint, run Toolbar regression. `cd .worktree/Rackula-issue-2212 && npm run check && npm run lint && npx vitest run src/tests/Toolbar.mobile-actions.test.ts`
-      Expected: clean; Toolbar mobile-actions test still green.
+- [ ] Type-check, lint, run Toolbar regression. `cd .worktree/Rackula-issue-2212 && npm run check && npm run lint && npx vitest run src/tests/Toolbar.mobile-actions.test.ts` Expected: clean; Toolbar mobile-actions test still green.
 - [ ] Commit. `git add -A && git commit -m "feat: mount palette, add top-bar pill, drop logo wordmark"`
 
 ---
@@ -1246,8 +1237,7 @@ Covers the high-value journeys from the constraints: shortcut opens; typing filt
   - The `new-layout` run path: `createActionDispatch()["new-layout"]` = `resetAndOpenNewRack`, which opens the new-rack wizard. Confirm the wizard's dialog title / testid so the "closes" assertion is robust; if `resetAndOpenNewRack` shows a confirm-replace dialog when the layout is dirty (it may, per `app-actions`), pick a command with a side-effect-free, deterministic close instead (e.g. filter to `toggle-display-mode` and assert the palette closed, since that command does not open another dialog). Choose whichever is deterministic against `SMALL_RACK_SHARE`'s loaded (clean) state - a freshly shared layout loads `markClean`, so `resetAndOpenNewRack` should go straight to the wizard, but verify.
   - The `?`-then-Ctrl+K precedence test depends on Task 4's interception running before `shouldIgnoreKeyboard` - it should, since `?` help is a dialog without a focused text field.
 
-- [ ] Run the spec (chromium + webkit). `cd .worktree/Rackula-issue-2212 && npm run test:e2e -- e2e/command-palette.spec.ts`
-      Expected: all scenarios pass on both projects. (First run builds + previews per `playwright.config.ts` webServer.)
+- [ ] Run the spec (chromium + webkit). `cd .worktree/Rackula-issue-2212 && npm run test:e2e -- e2e/command-palette.spec.ts` Expected: all scenarios pass on both projects. (First run builds + previews per `playwright.config.ts` webServer.)
 - [ ] Commit. `git add -A && git commit -m "test: e2e for command palette shell"`
 
 ---
@@ -1256,12 +1246,9 @@ Covers the high-value journeys from the constraints: shortcut opens; typing filt
 
 **Steps**
 
-- [ ] Run the full unit suite. `cd .worktree/Rackula-issue-2212 && npm run test:run`
-      Expected: green, including `actions-registry`, `dispatch`, `palette-commands`, `keyboard`, `keyboard-viewport`, `keyboard-palette`, `Toolbar.mobile-actions`, `selection-actions`.
-- [ ] Type-check + lint. `cd .worktree/Rackula-issue-2212 && npm run check && npm run lint`
-      Expected: clean (no querySelector/toHaveClass/toHaveLength-literal/hardcoded-colour violations in the new tests; the new tests only assert ids/labels/booleans).
-- [ ] Run the full e2e keyboard + palette specs together to confirm no regression in shortcut handling. `cd .worktree/Rackula-issue-2212 && npm run test:e2e -- e2e/keyboard.spec.ts e2e/command-palette.spec.ts`
-      Expected: green. In particular, `keyboard.spec.ts` "Escape closes dialogs" and "? key opens help dialog" still pass (the palette interception does not steal Escape or `?`).
+- [ ] Run the full unit suite. `cd .worktree/Rackula-issue-2212 && npm run test:run` Expected: green, including `actions-registry`, `dispatch`, `palette-commands`, `keyboard`, `keyboard-viewport`, `keyboard-palette`, `Toolbar.mobile-actions`, `selection-actions`.
+- [ ] Type-check + lint. `cd .worktree/Rackula-issue-2212 && npm run check && npm run lint` Expected: clean (no querySelector/toHaveClass/toHaveLength-literal/hardcoded-colour violations in the new tests; the new tests only assert ids/labels/booleans).
+- [ ] Run the full e2e keyboard + palette specs together to confirm no regression in shortcut handling. `cd .worktree/Rackula-issue-2212 && npm run test:e2e -- e2e/keyboard.spec.ts e2e/command-palette.spec.ts` Expected: green. In particular, `keyboard.spec.ts` "Escape closes dialogs" and "? key opens help dialog" still pass (the palette interception does not steal Escape or `?`).
 - [ ] Final commit if anything changed. `git add -A && git commit -m "chore: command palette shell full-suite verification"`
 
 ---

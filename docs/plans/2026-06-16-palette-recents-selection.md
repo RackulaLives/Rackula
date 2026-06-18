@@ -361,7 +361,7 @@ export function getPaletteEmptyState(
 }
 ```
 
-  Refactor `getPaletteCommands`'s inner object literal to `const command = toPaletteCommand(action);`.
+Refactor `getPaletteCommands`'s inner object literal to `const command = toPaletteCommand(action);`.
 
 - [ ] Run green: `npx vitest run src/tests/palette-commands.test.ts`.
 - [ ] Lint: `npm run lint`.
@@ -380,26 +380,29 @@ Testid scheme: Recent rows `command-palette-recent-item-<id>`; Selection rows `c
 - [ ] In the `<script>`: add imports and derived state:
 
 ```typescript
-import { getPaletteCommands, getPaletteEmptyState } from "$lib/actions/palette-commands";
+import {
+  getPaletteCommands,
+  getPaletteEmptyState,
+} from "$lib/actions/palette-commands";
 import { recordCommand, getRecents } from "$lib/stores/palette-recents.svelte";
 ```
 
-  After `const groups = $derived(getPaletteCommands(ctx));`:
+After `const groups = $derived(getPaletteCommands(ctx));`:
 
 ```typescript
-  const showEmptyState = $derived(search.trim() === "");
-  const emptyState = $derived(getPaletteEmptyState(ctx, getRecents()));
+const showEmptyState = $derived(search.trim() === "");
+const emptyState = $derived(getPaletteEmptyState(ctx, getRecents()));
 ```
 
 - [ ] Update `run`:
 
 ```typescript
-  function run(id: ActionId) {
-    recordCommand(id);
-    search = "";
-    dialogStore.close();
-    dispatch[id]?.();
-  }
+function run(id: ActionId) {
+  recordCommand(id);
+  search = "";
+  dialogStore.close();
+  dispatch[id]?.();
+}
 ```
 
 - [ ] Replace the body inside `<Command.Viewport>` with the empty-state sections (`{#if showEmptyState}`) and the flat list (`{:else}`). Recent and Selection use `Command.Group`/`Command.GroupHeading`/`Command.GroupItems`/`Command.Item` (so bits-ui registers them as navigable items); `Command.Empty` stays for the no-match case. Recent group carries `data-testid="command-palette-recent"`, its items `command-palette-recent-item-<id>`; Selection group `data-testid="command-palette-selection"`, items `command-palette-selection-item-<id>`; Commands groups and the `{:else}` flat list keep `command-palette-item-<id>`. Insert a `Command.Separator` between sections when a prior section rendered. (Full markup per the component's existing item structure; reuse `.command-group`, `.command-group-heading`, `.command-item`, `.command-separator`, `.command-item-label`, `.command-item-shortcut` classes; NO new CSS.)
@@ -418,55 +421,55 @@ Add three tests to `e2e/command-palette.spec.ts`. localStorage is fresh per Play
 - [ ] Recents-after-run (use `fit-all`, no secondary dialog):
 
 ```typescript
-  test("a command run from the palette appears under Recent on reopen", async ({
-    page,
-  }) => {
-    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
-    await page.getByTestId("command-palette-input").fill("fit all");
-    await expect(page.getByTestId("command-palette-item-fit-all")).toBeVisible();
-    await page.keyboard.press("Enter");
-    await expect(
-      page.getByRole("dialog", { name: "Command palette" }),
-    ).not.toBeVisible();
+test("a command run from the palette appears under Recent on reopen", async ({
+  page,
+}) => {
+  await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+  await page.getByTestId("command-palette-input").fill("fit all");
+  await expect(page.getByTestId("command-palette-item-fit-all")).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("dialog", { name: "Command palette" }),
+  ).not.toBeVisible();
 
-    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
-    await expect(page.getByTestId("command-palette-recent")).toBeVisible();
-    await expect(
-      page.getByTestId("command-palette-recent-item-fit-all"),
-    ).toBeVisible();
-  });
+  await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+  await expect(page.getByTestId("command-palette-recent")).toBeVisible();
+  await expect(
+    page.getByTestId("command-palette-recent-item-fit-all"),
+  ).toBeVisible();
+});
 ```
 
 - [ ] Selection block (use a fixture/placed device + `selectDevice`). Update the spec's top import to include `RACK_WITH_DEVICE_SHARE` and `selectDevice` (verify the fixture carries a device; else `dragDeviceToRack` after `gotoWithRack(SMALL_RACK_SHARE)`):
 
 ```typescript
-  test("selecting a device surfaces its verbs in the Selection block", async ({
-    page,
-  }) => {
-    await gotoWithRack(page, RACK_WITH_DEVICE_SHARE);
-    await selectDevice(page, 0);
-    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
-    await expect(page.getByTestId("command-palette-selection")).toBeVisible();
-    await expect(
-      page.getByTestId("command-palette-selection-item-duplicate-selection"),
-    ).toBeVisible();
-    await expect(
-      page.getByTestId("command-palette-selection-item-delete-selection"),
-    ).toBeVisible();
-  });
+test("selecting a device surfaces its verbs in the Selection block", async ({
+  page,
+}) => {
+  await gotoWithRack(page, RACK_WITH_DEVICE_SHARE);
+  await selectDevice(page, 0);
+  await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+  await expect(page.getByTestId("command-palette-selection")).toBeVisible();
+  await expect(
+    page.getByTestId("command-palette-selection-item-duplicate-selection"),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId("command-palette-selection-item-delete-selection"),
+  ).toBeVisible();
+});
 ```
 
 - [ ] Never-blank:
 
 ```typescript
-  test("the empty palette is never blank", async ({ page }) => {
-    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
-    await expect(
-      page.getByRole("dialog", { name: "Command palette" }),
-    ).toBeVisible();
-    await expect(page.getByTestId("command-palette-item-fit-all")).toBeVisible();
-    await expect(page.getByText("No matching commands")).toHaveCount(0);
-  });
+test("the empty palette is never blank", async ({ page }) => {
+  await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+  await expect(
+    page.getByRole("dialog", { name: "Command palette" }),
+  ).toBeVisible();
+  await expect(page.getByTestId("command-palette-item-fit-all")).toBeVisible();
+  await expect(page.getByText("No matching commands")).toHaveCount(0);
+});
 ```
 
 - [ ] Run: `npm run test:e2e -- e2e/command-palette.spec.ts` (all existing + 3 new pass).

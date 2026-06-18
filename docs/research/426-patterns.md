@@ -10,13 +10,13 @@
 
 The fundamental mismatch between SvelteFlow and Rackula is **rendering model**:
 
-| Aspect           | SvelteFlow                | Rackula                          | Verdict          |
-| ---------------- | ------------------------- | -------------------------------- | ---------------- |
-| Node rendering   | DOM elements (divs)       | SVG elements                     | **Incompatible** |
-| Edge rendering   | SVG paths                 | SVG paths                        | Compatible       |
-| Coordinate space | Single canvas viewport    | Multiple SVG viewBoxes per rack  | **Incompatible** |
-| Pan/zoom         | Built-in (internal state) | panzoom library (CSS transforms) | **Conflict**     |
-| Export           | No native static export   | SVG/PNG/PDF required             | **Incompatible** |
+| Aspect | SvelteFlow | Rackula | Verdict |
+| --- | --- | --- | --- |
+| Node rendering | DOM elements (divs) | SVG elements | **Incompatible** |
+| Edge rendering | SVG paths | SVG paths | Compatible |
+| Coordinate space | Single canvas viewport | Multiple SVG viewBoxes per rack | **Incompatible** |
+| Pan/zoom | Built-in (internal state) | panzoom library (CSS transforms) | **Conflict** |
+| Export | No native static export | SVG/PNG/PDF required | **Incompatible** |
 
 ### 2. What SvelteFlow Solves vs. What Rackula Needs
 

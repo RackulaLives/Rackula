@@ -3,26 +3,31 @@
 ## Files Examined
 
 **Core Rack Components:**
+
 - `src/lib/components/Rack.svelte` - Main SVG rack rendering component
 - `src/lib/components/RackDevice.svelte` - Individual device rendering within rack
 - `src/lib/components/RackDualView.svelte` - Dual front/rear view component
 - `src/lib/components/Canvas.svelte` - Canvas container with panzoom
 
 **Data Types & Schemas:**
+
 - `src/lib/types/index.ts` - Core type definitions (Rack, DeviceType, PlacedDevice)
 - `src/lib/schemas/index.ts` - Zod validation schemas
 - `src/lib/types/constants.ts` - Constants and category colors
 
 **Rack Configuration & Utilities:**
+
 - `src/lib/utils/rack.ts` - Rack utility functions
 - `src/lib/constants/layout.ts` - Visual dimension constants
 - `src/lib/stores/layout.svelte.ts` - Layout state management
 
 **NetBox Integration:**
+
 - `src/lib/utils/netbox-import.ts` - NetBox YAML import parser
 - `src/lib/data/brandPacks/` - Pre-defined brand device packs (18 manufacturers)
 
 **Export & Visualization:**
+
 - `src/lib/utils/export.ts` - SVG/PNG/PDF export generation
 - `src/lib/components/ExportDialog.svelte` - Export UI
 
@@ -30,8 +35,8 @@
 
 ## Existing Rack Rendering Architecture
 
-**Rack Structure (SVG-based):**
-The rack is rendered as an SVG with the following layered components:
+**Rack Structure (SVG-based):** The rack is rendered as an SVG with the following layered components:
+
 1. **Rails (mounting structure):** Four rectangles forming the frame (left/right vertical rails, top/bottom horizontal bars)
 2. **Interior background:** Alternating light/dark U slots for visual distinction
 3. **Grid lines:** Horizontal dividers between each U, half-U lines shown with Shift key for fine positioning
@@ -42,6 +47,7 @@ The rack is rendered as an SVG with the following layered components:
 8. **Rack name & view labels:** "FRONT" or "REAR" text displayed at top
 
 **Rendering Constants (from constants/layout.ts):**
+
 - U_HEIGHT_PX: 22px (industry standard 1.75" representation)
 - RAIL_WIDTH: 17px (for both vertical and horizontal rails)
 - BASE_RACK_WIDTH: 220px (19" rack baseline; 10"=116px, 21"=242px, 23"=264px)
@@ -49,25 +55,26 @@ The rack is rendered as an SVG with the following layered components:
 - RACK_PADDING_HIDDEN: 4px (in dual-view mode)
 
 **Rack Type Definition:**
+
 ```typescript
 interface Rack {
   id?: string;
   name: string;
   height: number;
-  width: 10 | 19 | 21 | 23;  // Supported widths in inches
-  desc_units: boolean;         // Descending or ascending unit labels
-  show_rear: boolean;          // Whether to show rear view
-  form_factor: FormFactor;     // '2-post', '4-post', '4-post-cabinet', 'wall-mount', 'open-frame'
-  starting_unit: number;       // Custom starting unit number
-  position: number;            // Order position (for multi-rack)
+  width: 10 | 19 | 21 | 23; // Supported widths in inches
+  desc_units: boolean; // Descending or ascending unit labels
+  show_rear: boolean; // Whether to show rear view
+  form_factor: FormFactor; // '2-post', '4-post', '4-post-cabinet', 'wall-mount', 'open-frame'
+  starting_unit: number; // Custom starting unit number
+  position: number; // Order position (for multi-rack)
   devices: PlacedDevice[];
   notes?: string;
-  view?: RackView;             // Current view ('front' | 'rear'), runtime only
+  view?: RackView; // Current view ('front' | 'rear'), runtime only
 }
 ```
 
-**FormFactor Support (from NetBox):**
-Rackula supports 5 form factors:
+**FormFactor Support (from NetBox):** Rackula supports 5 form factors:
+
 - `2-post` - Open frame, minimal rails
 - `4-post` - Standard 4-post cabinet
 - `4-post-cabinet` - Enclosed cabinet with doors
@@ -81,6 +88,7 @@ Currently, the form_factor is **stored but not used for visual differentiation**
 ## Current Rack Configuration Options
 
 The Rack type supports:
+
 1. **Width variants:** 10", 19", 21", 23" (with proportional scaling)
 2. **Height:** 1-100 U (validated in schemas)
 3. **Unit labeling:** Ascending (U1 at bottom) or descending (U1 at top)
@@ -90,6 +98,7 @@ The Rack type supports:
 7. **View toggle:** Can switch between front/rear on single-view canvas
 
 **Not currently configurable:**
+
 - Mounting hole size/spacing
 - Rail thickness/appearance
 - Interior material/texture
@@ -106,11 +115,12 @@ The Rack type supports:
    - Location: `src/lib/types/index.ts` (FormFactor type definition)
 
 2. **Add manufacturer field to Rack type**
+
    ```typescript
    export interface Rack {
      // ... existing fields ...
-     manufacturer?: string;  // 'Dell', 'HP', 'Eaton', 'Vertiv', etc.
-     branding_enabled?: boolean;  // Toggle branded visuals
+     manufacturer?: string; // 'Dell', 'HP', 'Eaton', 'Vertiv', etc.
+     branding_enabled?: boolean; // Toggle branded visuals
    }
    ```
    - Location: `src/lib/types/index.ts`
@@ -192,22 +202,35 @@ The Rack type supports:
 **Existing patterns to follow:**
 
 1. **Form factors** (types/index.ts):
+
    ```typescript
-   export type FormFactor = "2-post" | "4-post" | "4-post-cabinet" | "wall-mount" | "open-frame";
+   export type FormFactor =
+     | "2-post"
+     | "4-post"
+     | "4-post-cabinet"
+     | "wall-mount"
+     | "open-frame";
    ```
 
 2. **Category color mapping** (constants.ts):
+
    ```typescript
    export const CATEGORY_COLOURS: Record<DeviceCategory, string> = { ... };
    ```
    - Could create `MANUFACTURER_STYLES` mapping
 
 3. **Brand pack structure** (brandPacks/apc.ts):
+
    ```typescript
-   export const apcDevices: DeviceType[] = [{ /* device configs */ }];
+   export const apcDevices: DeviceType[] = [
+     {
+       /* device configs */
+     },
+   ];
    ```
 
 4. **Conditional SVG rendering** (Rack.svelte):
+
    ```svelte
    {#if showChristmasHats && effectiveFaceFilter === "front"}
      <!-- SVG elements -->
@@ -221,6 +244,7 @@ The Rack type supports:
 ## NetBox Compatibility Notes
 
 NetBox supports these rack-related fields:
+
 - `manufacturer` - Brand name
 - `model` - Rack model identifier
 - `slug` - URL-safe identifier
@@ -228,10 +252,11 @@ NetBox supports these rack-related fields:
 - `comments` - General notes
 
 Could extend Rackula's Rack type:
+
 ```typescript
 interface Rack {
-  manufacturer?: string;  // New
-  model?: string;         // New
+  manufacturer?: string; // New
+  model?: string; // New
   // ... existing fields
 }
 ```

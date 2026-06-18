@@ -122,13 +122,13 @@ Common metadata fields tracked in rack diagrams:
 
 ## Summary of Industry Patterns
 
-| Pattern              | Description                                        | Relevance to #681                       |
-| -------------------- | -------------------------------------------------- | --------------------------------------- |
-| Edge labels          | Labels positioned on left or right edge of rack    | Current single-rack approach            |
-| Toggle views         | Switch between front/rear rather than showing both | Could apply per-row in bayed            |
-| Row limit            | 5-7 racks per view before switching to overview    | Already applies to bay count            |
-| Consistent placement | Same position across all racks                     | Per-bay annotations maintain this       |
-| Zoom hierarchy       | Overview → detail views                            | Could show annotations only when zoomed |
+| Pattern | Description | Relevance to #681 |
+| --- | --- | --- |
+| Edge labels | Labels positioned on left or right edge of rack | Current single-rack approach |
+| Toggle views | Switch between front/rear rather than showing both | Could apply per-row in bayed |
+| Row limit | 5-7 racks per view before switching to overview | Already applies to bay count |
+| Consistent placement | Same position across all racks | Per-bay annotations maintain this |
+| Zoom hierarchy | Overview → detail views | Could show annotations only when zoomed |
 
 ---
 

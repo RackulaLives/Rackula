@@ -1,8 +1,6 @@
 # Spike #1393: E2E Testing Architecture — Summary
 
-**Date:** 2026-03-08
-**Issue:** [#1393](https://github.com/RackulaLives/Rackula/issues/1393)
-**Research docs:** `1393-codebase.md`, `1393-external.md`, `1393-patterns.md`
+**Date:** 2026-03-08 **Issue:** [#1393](https://github.com/RackulaLives/Rackula/issues/1393) **Research docs:** `1393-codebase.md`, `1393-external.md`, `1393-patterns.md`
 
 ---
 
@@ -17,7 +15,7 @@ The recommended path forward is an **incremental migration** from CSS class sele
 ## Key Decisions
 
 | Question | Decision | Rationale |
-|----------|----------|-----------|
+| --- | --- | --- |
 | POM or functional helpers? | **Keep functional helpers** | Single-page app; current pattern is right fit |
 | Primary selector strategy? | **Hybrid: getByRole() + getByTestId()** | Role selectors for interactive elements test a11y; testids for SVG/structural |
 | data-testid naming? | **kebab-case, `{scope}-{element}-{qualifier}`** | Matches project conventions |
@@ -35,7 +33,7 @@ The recommended path forward is an **incremental migration** from CSS class sele
 ## Relationship to Existing Issues
 
 | Issue | Status | Relationship |
-|-------|--------|-------------|
+| --- | --- | --- |
 | #1228 | Open | Selector reliability — directly addressed by this spike's migration plan |
 | #1226 | Open | Disabled test triage — root causes identified, fix strategies proposed |
 | #1264 | Open | Workflow/dialog selectors — covered by Phase 2 testid additions |

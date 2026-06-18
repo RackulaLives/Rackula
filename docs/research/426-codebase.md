@@ -1,7 +1,6 @@
 # Spike #426: SvelteFlow Evaluation - Codebase Analysis
 
-**Date:** 2026-01-14
-**Parent Epic:** #362 (Connection Graph Model)
+**Date:** 2026-01-14 **Parent Epic:** #362 (Connection Graph Model)
 
 ---
 
@@ -208,13 +207,13 @@ PORT_Y_OFFSET = 8; // Distance from device bottom edge
 
 ### 1. SvelteFlow Fit Assessment
 
-| Aspect                   | Fit Level | Notes                                  |
-| ------------------------ | --------- | -------------------------------------- |
-| Data model (nodes/edges) | Fair      | PlacedPort/Connection map conceptually |
-| Coordinate system        | Poor      | SVG viewBox vs. absolute coords        |
-| SVG rendering            | Poor      | Canvas-first design, SVG is secondary  |
-| Panzoom integration      | Poor      | Dual systems would conflict            |
-| Export capabilities      | Poor      | Canvas doesn't export to SVG/PDF well  |
+| Aspect | Fit Level | Notes |
+| --- | --- | --- |
+| Data model (nodes/edges) | Fair | PlacedPort/Connection map conceptually |
+| Coordinate system | Poor | SVG viewBox vs. absolute coords |
+| SVG rendering | Poor | Canvas-first design, SVG is secondary |
+| Panzoom integration | Poor | Dual systems would conflict |
+| Export capabilities | Poor | Canvas doesn't export to SVG/PDF well |
 
 ### 2. Existing Research Assets
 
@@ -245,10 +244,10 @@ src/lib/components/
 
 ### 5. Integration Complexity
 
-| Approach               | Estimated Effort | Risk Level                           |
-| ---------------------- | ---------------- | ------------------------------------ |
-| SvelteFlow integration | 7-10 days        | High (architectural friction)        |
-| Custom SVG rendering   | 3-5 days         | Low (aligned with existing patterns) |
+| Approach | Estimated Effort | Risk Level |
+| --- | --- | --- |
+| SvelteFlow integration | 7-10 days | High (architectural friction) |
+| Custom SVG rendering | 3-5 days | Low (aligned with existing patterns) |
 
 ---
 

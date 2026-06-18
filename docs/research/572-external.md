@@ -48,8 +48,7 @@ Research spike for evaluating file format patterns for applications that need to
 
 ### Sketch (.sketch files)
 
-**Format:** ZIP archive containing JSON + binary assets
-**Structure:**
+**Format:** ZIP archive containing JSON + binary assets **Structure:**
 
 ```
 document.sketch (renamed .zip)
@@ -73,8 +72,7 @@ document.sketch (renamed .zip)
 
 ### ODF (Open Document Format)
 
-**Format:** ZIP archive containing XML + binary assets (ISO 26300)
-**Structure:**
+**Format:** ZIP archive containing XML + binary assets (ISO 26300) **Structure:**
 
 ```
 document.odt (renamed .zip)
@@ -99,8 +97,7 @@ document.odt (renamed .zip)
 
 ### Godot Engine (.tscn files)
 
-**Format:** Plain text S-expression-like format
-**Structure:**
+**Format:** Plain text S-expression-like format **Structure:**
 
 ```
 scene.tscn
@@ -121,8 +118,7 @@ scene.tscn
 
 ### Excalidraw
 
-**Format:** JSON with embedded base64 images
-**Structure:**
+**Format:** JSON with embedded base64 images **Structure:**
 
 ```json
 {
@@ -150,8 +146,7 @@ scene.tscn
 
 ### draw.io
 
-**Format:** XML with optional compression
-**Key Features:**
+**Format:** XML with optional compression **Key Features:**
 
 - Supports both compressed and uncompressed XML
 - Configuration option: `compressXml=true/false`
@@ -162,8 +157,7 @@ scene.tscn
 
 ### FreeCAD (.FCStd files)
 
-**Format:** ZIP containing XML + binary BREP shapes
-**Structure:**
+**Format:** ZIP containing XML + binary BREP shapes **Structure:**
 
 ```
 project.FCStd (renamed .zip)
@@ -183,8 +177,7 @@ project.FCStd (renamed .zip)
 
 ### Krita (.kra files)
 
-**Format:** ZIP containing XML metadata + binary layer data
-**Key Features:**
+**Format:** ZIP containing XML metadata + binary layer data **Key Features:**
 
 - Based on ODF structure
 - Layers stored as compressed binary (LZF algorithm)
@@ -193,8 +186,7 @@ project.FCStd (renamed .zip)
 
 ### Apple Bundles (.app, .xcodeproj)
 
-**Format:** Folder that appears as single file in Finder
-**Key Features:**
+**Format:** Folder that appears as single file in Finder **Key Features:**
 
 - macOS treats folders with specific extensions as "packages"
 - Contents accessible via "Show Package Contents" or terminal

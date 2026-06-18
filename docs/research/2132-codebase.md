@@ -1,6 +1,7 @@
 # Spike #2132 — Rackula API Codebase Inventory: Portability to Cloudflare Workers
 
 ## Executive Summary
+
 The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js filesystem APIs and native dependencies. Current architecture requires substantial refactoring to port to Cloudflare Workers: the storage layer is built entirely around `node:fs/promises`, quota enforcement scans the filesystem, and authentication depends on the `@node-rs/argon2` native binding. This document catalogs the current implementation with exact file paths and line citations to guide portability assessment.
 
 ---
@@ -8,7 +9,9 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
 ## 1. Runtime & Environment Access
 
 ### Entry Point: `/src/index.ts`
+
 - **Lines 13–20:** Port and data directory read from `process.env`:
+
   ```typescript
   const portEnv = process.env.RACKULA_API_PORT ?? process.env.PORT ?? "3001";
   // ...
@@ -28,6 +31,7 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
   Directly invokes Bun.serve via the default export pattern.
 
 ### App Creation: `/src/app.ts`
+
 - **Lines 277–279:** `createApp()` function accepts optional `env: EnvMap = process.env` parameter
   - Allows dependency injection for testing
   - Falls back to `process.env` in production
@@ -36,8 +40,9 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
 - **Line 289:** **Mutates env:** `delete env.RACKULA_LOCAL_PASSWORD` (scrubs plaintext password after hashing)
 
 ### Environment Variables Summary
+
 | Variable | Source | Default | Usage |
-|----------|--------|---------|-------|
+| --- | --- | --- | --- |
 | `RACKULA_API_PORT` | index.ts:13 | "3001" | Port binding |
 | `PORT` | index.ts:13 | "3001" | Fallback port (legacy) |
 | `DATA_DIR` | filesystem.ts:29, index.ts:20 | "./data" | Layout/asset storage root |
@@ -54,29 +59,28 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
 | `APP_VERSION`, `APP_COMMIT`, `APP_BUILD_TIME` | app.ts:68–72 | from package.json or "" | Build metadata for /version endpoint |
 
 ### Hono `c.env` / Worker Bindings
+
 - **Not used.** The codebase does not reference `c.env` (Hono's Worker binding mechanism). All config comes from `process.env`.
 
 ### Node-Only APIs Used
 
 #### In Production Code:
+
 - **`node:fs/promises`** (filesystem.ts, assets.ts, quota.ts):
   - `readdir`, `readFile`, `writeFile`, `stat`, `mkdir`, `open`, `rm`, `rename`, `unlink`
   - All layout YAML persistence, snapshot management, asset uploads
-  
 - **`node:path`** (filesystem.ts, assets.ts, quota.ts):
   - `join`, `dirname` — folder/file path construction
-  
 - **`node:crypto`** (multiple security modules):
   - `createHmac`, `randomUUID`, `timingSafeEqual`, `randomBytes` — session tokens, CSRF, rate limit keying
   - **WebCrypto-compatible** (SubtleCrypto equivalents exist in Workers)
-  
 - **`process.env`** (multiple):
   - Direct environment variable reads; **no Hono `c.env` fallback**
-  
 - **No `Bun.*` runtime APIs in production code.**
   - Exception: index.ts exports a Bun server object (the default export pattern)
 
 #### In Test Code (non-blocking for Workers port):
+
 - **`node:fs/promises`**: `mkdtemp`, `utimes` in snapshots.test.ts and storage tests
 - **`node:os`**: `tmpdir()` in filesystem.test.ts:17
 - **`@types/bun`**: Test runner (bun:test)
@@ -86,6 +90,7 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
 ## 2. Auth & Native Dependencies
 
 ### Primary Issue: `@node-rs/argon2`
+
 - **Import:** `/src/local-auth.ts:1`
   ```typescript
   import { hash, verify, Algorithm } from "@node-rs/argon2";
@@ -98,6 +103,7 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
 ### Auth Flow & Dependencies
 
 #### Local Auth (AUTH_MODE=local)
+
 1. **Bootstrap** (`app.ts:286`):
    - Calls `bootstrapLocalCredentials(env)` → **calls `hashPassword()` (async)**
    - Stores hash in `securityConfig.localCredentials.passwordHash`
@@ -113,20 +119,24 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
    - If any route handler directly imports the auth route (not current), argon2 would be pulled in
 
 #### OIDC Auth
+
 - Uses `better-auth` npm package
 - Not directly coupled to argon2
 - **Does not use argon2 when AUTH_MODE=oidc**
 
 #### Session Token Signing (all auth modes)
+
 - `/src/security/tokens.ts:1,34–39`: Uses `node:crypto.createHmac` + `randomUUID`
 - **WebCrypto-compatible:** SubtleCrypto supports HMAC-SHA256
 
 #### CSRF/Origin Protection
+
 - `/src/security/csrf.ts` (not fully read): Uses `node:crypto.createHash`, `timingSafeEqual`
 - `/src/security/origin-policy.ts:17`: Uses `createHash`, `timingSafeEqual`
 - **WebCrypto-compatible**
 
 ### Security Config Resolution (`/src/security/config.ts`)
+
 - **Lines 1–2:** Imports `createHmac`, `randomBytes` from `node:crypto`
 - **Line 62:** Uses `randomBytes()` to generate ephemeral auth log hash key
 - **Line 301:** Reads `CORS_ORIGIN` env variable
@@ -140,7 +150,9 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
 ### Module Structure: `/src/storage/`
 
 #### **filesystem.ts** (450 lines)
+
 **Exports:**
+
 - `ensureDataDir()` — Creates `DATA_DIR` if missing
 - `findFolderByUuid(uuid: string)` — Scans DATA_DIR for folder matching UUID suffix
 - `listLayouts()` — Lists all layouts (new UUID folders + legacy flat files)
@@ -151,12 +163,14 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
 - `saveSnapshot(uuid: string, yamlContent: string)` — Stores losing local copy before overwrite
 
 **Key Patterns:**
+
 1. **updatedAt derivation (lines 234, 286, 296, 310, 348, 359, 373, 472, 496, 582, 749)**:
    - Derived from `stats.mtime.toISOString()`
    - File system modification time is the source of truth
    - Returned to clients in response headers and JSON bodies
 
 2. **Echo-based conflict detection (lines 697–707):**
+
    ```typescript
    if (echoedUpdatedAt && existingFolder) {
      const existingYamlFilename = await findYamlInFolder(existingFolder);
@@ -191,11 +205,14 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
    - Ensures returned `updatedAt` reflects this write (not concurrent writer's mtime)
 
 #### **quota.ts** (154 lines)
+
 **Exports:**
+
 - `checkLayoutQuota(dataDir: string, maxLayouts: number)` — Counts layouts; allows/denies new creation
 - `checkAssetQuota(layoutDir: string, maxAssetsPerLayout: number)` — Counts images per layout
 
 **Quota Enforcement:**
+
 1. **Layout quota (lines 38–84):**
    - Counts UUID-suffixed folders AND legacy `.yaml`/`.yml` files in DATA_DIR
    - `maxLayouts=0` means unlimited
@@ -208,11 +225,14 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
    - Allows write if `assetCount < maxAssetsPerLayout`
 
 **Error handling:**
+
 - ENOENT (directory doesn't exist) → allow write, return `allowed: true` (not an enforcement failure)
 - Permission errors, I/O failures → rethrow (must not silently disable quota)
 
 #### **assets.ts** (340 lines)
+
 **Exports:**
+
 - `saveAsset(layoutId, deviceSlug, face, data, contentType)` — Upload image (front/rear)
 - `getAsset(layoutId, deviceSlug, face)` — Download image
 - `deleteAsset(layoutId, deviceSlug, face)` — Delete one image
@@ -220,12 +240,14 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
 - `listLayoutAssets(layoutId)` — List all assets with metadata
 
 **Storage Structure:**
+
 - Base: `{DATA_DIR}/{layoutFolder}/assets/{deviceSlug}/{face}.{ext}`
 - Example: `data/Production-550e8400/assets/dell_r640/front.png`
 - Allowed extensions: `png`, `jpg`, `webp`
 - Allowed image types: `image/png`, `image/jpeg`, `image/webp`
 
 **Asset Upload Pattern (lines 152–210):**
+
 1. Validate image type and size (5 MB max)
 2. Compute destination path via `buildAssetPath()` (validates layout UUID, device slug, ext)
 3. Create device folder with `mkdir(..., { recursive: true })`
@@ -240,7 +262,7 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
 ### Layout Routes: `/src/routes/layouts.ts`
 
 | Method | Path | Handler | Requires Auth | Write-Token | Notes |
-|--------|------|---------|---------------|-------------|-------|
+| --- | --- | --- | --- | --- | --- |
 | `GET` | `/layouts` | `listLayouts()` | ✗ | ✗ | Returns `{ layouts: [...] }` |
 | `GET` | `/layouts/:uuid` | `getLayout(uuid)` | ✗ | ✗ | Returns YAML in body; `X-Rackula-Updated-At` header |
 | `PUT` | `/layouts/:uuid` | `saveLayout(uuid, echoedUpdatedAt?)` | ✗ | ✓ | Body: YAML; header: `X-Rackula-Updated-At` (echoed); response: `{ id, updatedAt, message, status 200/201 }` |
@@ -251,20 +273,22 @@ The rackula-api is a Bun/Hono-based persistence layer tightly coupled to Node.js
 **All routes also mounted at `/api/layouts` (alias via `app.route()` in app.ts:886).**
 
 **Echo-based Conflict Detection (lines 118–122):**
+
 ```typescript
 const result = await saveLayout(
   yamlContent,
   uuidResult.data,
-  c.req.header(UPDATED_AT_HEADER),  // Client echoes this
+  c.req.header(UPDATED_AT_HEADER), // Client echoes this
 );
 ```
+
 - Client sends `X-Rackula-Updated-At` header on PUT
 - Mismatch triggers pre-overwrite snapshot (filesystem.ts:697–707)
 
 ### Asset Routes: `/src/routes/assets.ts`
 
 | Method | Path | Handler | Requires Auth | Write-Token | Notes |
-|--------|------|---------|---------------|-------------|-------|
+| --- | --- | --- | --- | --- | --- |
 | `GET` | `/assets/:layoutId/:deviceSlug/:face` | `getAsset()` | ✗ | ✗ | Returns image binary; `Cache-Control: public, max-age=3600` |
 | `PUT` | `/assets/:layoutId/:deviceSlug/:face` | `saveAsset()` | ✗ | ✓ | Body: image binary; validates Content-Type, Content-Length, actual size |
 | `DELETE` | `/assets/:layoutId/:deviceSlug/:face` | `deleteAsset()` | ✗ | ✓ | Returns `{ message: "Asset deleted" }` (or 404 if not found) |
@@ -276,7 +300,7 @@ const result = await saveLayout(
 ### Non-Data Routes: `/src/app.ts`
 
 | Method | Path | Handler | Public | Notes |
-|--------|------|---------|--------|-------|
+| --- | --- | --- | --- | --- |
 | `GET` | `/health` | Returns `HEALTH_RESPONSE` | ✓ | `{ ok: true, status: "ok", service: "rackula-persistence-api", version: 1 }` |
 | `GET` | `/version` | `resolveVersionInfo()` | ✓ | `{ version, commit, buildTime }` — unauthenticated (see AUTH_PUBLIC_PATHS) |
 | `GET` | `/auth/login` | OIDC or local form | ✓ | Routes also at `/api/auth/login` |
@@ -304,6 +328,7 @@ const result = await saveLayout(
 ## 5. CORS & Config
 
 ### CORS Setup: `/src/app.ts:320–327`
+
 ```typescript
 cors({
   origin: securityConfig.corsOrigin,
@@ -312,6 +337,7 @@ cors({
   exposeHeaders: [UPDATED_AT_HEADER],
 }),
 ```
+
 - Uses Hono's `cors()` middleware
 - `origin` is resolved from `CORS_ORIGIN` environment variable
 - Special header `X-Rackula-Updated-At` is explicitly allowed and exposed
@@ -329,14 +355,19 @@ if (!configuredOrigin) {
 
 if (isProduction && !hasWildcardOrigin(corsOrigin) && !allowInsecureCors) {
   // Allow specific origins
-} else if (isProduction && hasWildcardOrigin(corsOrigin) && !allowInsecureCors) {
+} else if (
+  isProduction &&
+  hasWildcardOrigin(corsOrigin) &&
+  !allowInsecureCors
+) {
   throw new Error(
-    "Refusing to start in production without CORS_ORIGIN. Set CORS_ORIGIN=https://your-domain.com (or ALLOW_INSECURE_CORS=true to explicitly allow wildcard CORS)."
+    "Refusing to start in production without CORS_ORIGIN. Set CORS_ORIGIN=https://your-domain.com (or ALLOW_INSECURE_CORS=true to explicitly allow wildcard CORS).",
   );
 }
 ```
 
 **Rules:**
+
 - **Development:** Defaults to `*` (wildcard) if CORS_ORIGIN not set
 - **Production without ALLOW_INSECURE_CORS=true:**
   - **REQUIRED:** Explicit `CORS_ORIGIN` (or comma-separated list)
@@ -348,11 +379,13 @@ if (isProduction && !hasWildcardOrigin(corsOrigin) && !allowInsecureCors) {
 ## 6. Test Harness (Current)
 
 ### Test Runner: **Bun Test**
+
 - **Package.json scripts (lines 12):** `"test": "bun test"`
 - **Test discovery:** `*.test.ts` files in `/src` and subdirectories
 - **Framework:** `bun:test` (built-in Bun testing, similar to Jest API)
 
 ### Test Files & Coverage
+
 - **`snapshots.test.ts`** (pre-overwrite conflict detection)
   - Tests echo-based `X-Rackula-Updated-At` header matching
   - Snapshot listing, pruning, and invisibility to quota
@@ -388,15 +421,18 @@ if (isProduction && !hasWildcardOrigin(corsOrigin) && !allowInsecureCors) {
   - Validates config resolution in various environments
 
 ### Test Execution
+
 ```bash
 bun test
 ```
+
 - Runs all `*.test.ts` files
 - Uses `describe()`, `it()`, `expect()` API
 - Async/await support
 - Temp directory cleanup in `afterEach()` hooks
 
 ### Key Test Patterns
+
 - **Temp directory per test:** `mkdtemp(join(tmpdir(), "rackula-...-test-"))` (snapshots.test.ts:36)
 - **Env isolation:** Save/restore `process.env` in beforeEach/afterEach
 - **App creation with test config:** `createApp(buildEnv({ overrides }))`
@@ -426,6 +462,7 @@ export const logger = pino({
 ```
 
 **Rules:**
+
 1. **Pretty output transport (pino-pretty):**
    - **Enabled if:** `NODE_ENV !== "production"` AND `process.stdout.isTTY`
    - **Disabled if:** Production OR non-interactive (CI, systemd, Docker)
@@ -440,12 +477,14 @@ export const logger = pino({
    - **Everywhere else:** Structured JSON to stdout (no worker thread)
 
 ### Pino Dependency
+
 - **Package.json:** `pino: ^10.3.1`
 - **Dev dependency:** `pino-pretty: ^13.1.3` (devDependency, not in production)
 - **Workers compatibility:** pino-pretty uses a worker thread (Node.js feature); not available in Workers
 - **Fallback:** Structured JSON mode (no transport) is Workers-compatible
 
 ### Transports
+
 - **No file transports:** Logs to stdout only
 - **No external sinks:** No integration with external logging services
 
@@ -454,7 +493,7 @@ export const logger = pino({
 ## Portability Risk Summary
 
 | Concern | Current Implementation | Workers-Compatible? | Notes & Blockers |
-|---------|------------------------|---------------------|------------------|
+| --- | --- | --- | --- |
 | **File I/O** | All fs via `node:fs/promises` | ✗ **BLOCKER** | Storage layer entirely filesystem-dependent (layouts, assets, snapshots, quota counting). Requires external storage (R2, D1, KV, Durable Objects). |
 | **Path manipulation** | `node:path.join()`, `node:path.dirname()` | ✓ Partial | Use string manipulation or minimal polyfill; low complexity. |
 | **Environment access** | `process.env` reads only | ✓ Medium lift | Switch to `c.env` (Hono Workers bindings). Requires conditional code paths for runtime detection. |
@@ -475,6 +514,7 @@ export const logger = pino({
 ## Key Technical Debt for Workers Migration
 
 ### 1. **Storage Backend Architecture**
+
 - **Current:** Local filesystem only (`DATA_DIR`/`node:fs/promises`)
 - **Required for Workers:**
   - **Option A:** Cloudflare R2 (object storage for layouts/assets) + D1 (SQLite for metadata: updatedAt, snapshots manifest, quota accounting)
@@ -482,11 +522,13 @@ export const logger = pino({
   - **Option C:** Durable Objects (state machine per layout; new architecture)
 
 ### 2. **Timestamp Source of Truth**
+
 - **Current:** `stat.mtime.toISOString()` from filesystem
 - **Required:** Explicit timestamp field in database or R2 object metadata
 - **Challenge:** Multiple replica writes or concurrent clients; must establish write-win ordering
 
 ### 3. **Password Hashing Migration**
+
 - **Current:** `@node-rs/argon2` (Argon2id, 64 MiB cost)
 - **Options:**
   - **Option A:** Server-side: Move hashing to a server-side service (e.g., Auth0, Firebase Auth); API validates session tokens, not passwords
@@ -494,15 +536,18 @@ export const logger = pino({
   - **Option C:** Degrade to PBKDF2 or scrypt via WebCrypto (lower security, acceptable if combined with rate limiting)
 
 ### 4. **Atomic Snapshot Collision Avoidance**
+
 - **Current:** `writeFile(..., { flag: "wx" })` (exclusive create) + counter suffix retry logic
 - **Required:** Transactional DB write or KV conditional put
 - **Trade-off:** Suffix collision rate becomes acceptable risk if DB has millisecond precision timestamp
 
 ### 5. **Session Invalidation State**
+
 - **Current:** In-memory cache in `security/sessions.ts`
 - **Required:** Distributed session store (KV with TTL, or D1 with cleanup job)
 
 ### 6. **Auth Bootstrap (Local Mode)**
+
 - **Current:** Synchronous `process.env` read + async `hashPassword()` during `createApp()`
 - **Challenge:** Argon2 hashing incompatible with Workers; must pre-hash credentials or use a server-side service
 

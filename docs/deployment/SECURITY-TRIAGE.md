@@ -42,13 +42,13 @@ The token is valid for about one year and does not auto-refresh. When it expires
 If your pinned version of `anthropics/claude-code-action` does not expose the `claude_code_oauth_token` input, pass the token as an environment variable on the step instead:
 
 ```yaml
-      - name: Run security triage
-        uses: anthropics/claude-code-action@<pin>
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: ...
+- name: Run security triage
+  uses: anthropics/claude-code-action@<pin>
+  env:
+    CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  with:
+    github_token: ${{ secrets.GITHUB_TOKEN }}
+    prompt: ...
 ```
 
 ## Usage Limits

@@ -2,12 +2,12 @@
 
 ## Files Examined
 
-| File                                         | Purpose                                        |
-| -------------------------------------------- | ---------------------------------------------- |
-| `src/lib/components/AnnotationColumn.svelte` | SVG-based annotation column component          |
-| `src/lib/components/RackDualView.svelte`     | Single rack with FRONT/REAR side-by-side views |
-| `src/lib/components/BayedRackView.svelte`    | Bayed rack with stacked FRONT/REAR rows        |
-| `src/lib/types/index.ts`                     | Type definitions for AnnotationField           |
+| File | Purpose |
+| --- | --- |
+| `src/lib/components/AnnotationColumn.svelte` | SVG-based annotation column component |
+| `src/lib/components/RackDualView.svelte` | Single rack with FRONT/REAR side-by-side views |
+| `src/lib/components/BayedRackView.svelte` | Bayed rack with stacked FRONT/REAR rows |
+| `src/lib/types/index.ts` | Type definitions for AnnotationField |
 
 ---
 
@@ -125,14 +125,14 @@ This means annotations would need to match this shared height.
 
 ## Layout Differences Summary
 
-| Aspect                 | Single Rack (RackDualView)           | Bayed Rack (BayedRackView)    |
-| ---------------------- | ------------------------------------ | ----------------------------- |
-| FRONT/REAR orientation | Side-by-side (horizontal)            | Stacked (vertical)            |
-| U-labels               | Hidden (uses Rack's internal labels) | Flanking columns (LEFT/RIGHT) |
-| Annotation placement   | LEFT of front view                   | Not implemented               |
-| Balance mechanism      | Right-side spacer                    | N/A                           |
-| Gap between views      | 24px                                 | 0 (bays touch)                |
-| View structure         | Single container                     | Two separate rows             |
+| Aspect | Single Rack (RackDualView) | Bayed Rack (BayedRackView) |
+| --- | --- | --- |
+| FRONT/REAR orientation | Side-by-side (horizontal) | Stacked (vertical) |
+| U-labels | Hidden (uses Rack's internal labels) | Flanking columns (LEFT/RIGHT) |
+| Annotation placement | LEFT of front view | Not implemented |
+| Balance mechanism | Right-side spacer | N/A |
+| Gap between views | 24px | 0 (bays touch) |
+| View structure | Single container | Two separate rows |
 
 ---
 

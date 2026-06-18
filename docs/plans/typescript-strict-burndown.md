@@ -1,9 +1,6 @@
 # TypeScript Strict Mode Burndown
 
-> Baseline created: 2026-05-19
-> Issue: #1609
-> Milestone: [M04 -- Type Safety, Decomposition & Stability](https://github.com/RackulaLives/Rackula/milestone/24) (`v26.9.x`, ~September 2026)
-> Config: `strict: true`, `noUnusedLocals: true`, `noUnusedParameters: true`, `noUncheckedIndexedAccess: true`
+> Baseline created: 2026-05-19 Issue: #1609 Milestone: [M04 -- Type Safety, Decomposition & Stability](https://github.com/RackulaLives/Rackula/milestone/24) (`v26.9.x`, ~September 2026) Config: `strict: true`, `noUnusedLocals: true`, `noUnusedParameters: true`, `noUncheckedIndexedAccess: true`
 
 ## Summary
 
@@ -64,15 +61,15 @@
 
 ## Error Categories Reference
 
-| Category                 | Description                                               | Typical Fix                                             |
-| ------------------------ | --------------------------------------------------------- | ------------------------------------------------------- |
-| strictNullChecks         | Possibly null/undefined values                            | Add null checks, optional chaining, non-null assertions |
-| noUncheckedIndexedAccess | Array/object index access returns T \| undefined          | Add bounds checks or type guards                        |
-| noUnusedLocals           | Declared but unread variables                             | Remove or prefix with `_`                               |
-| noUnusedParameters       | Unused function parameters                                | Prefix with `_`                                         |
-| type mismatch            | Incompatible types (string vs literal, null vs undefined) | Fix type annotations, use type assertions               |
-| missing types            | Implicit any, missing declarations                        | Add type annotations or declaration files               |
-| unknown prop             | Unknown component property                                | Add prop to interface                                   |
+| Category | Description | Typical Fix |
+| --- | --- | --- |
+| strictNullChecks | Possibly null/undefined values | Add null checks, optional chaining, non-null assertions |
+| noUncheckedIndexedAccess | Array/object index access returns T \| undefined | Add bounds checks or type guards |
+| noUnusedLocals | Declared but unread variables | Remove or prefix with `_` |
+| noUnusedParameters | Unused function parameters | Prefix with `_` |
+| type mismatch | Incompatible types (string vs literal, null vs undefined) | Fix type annotations, use type assertions |
+| missing types | Implicit any, missing declarations | Add type annotations or declaration files |
+| unknown prop | Unknown component property | Add prop to interface |
 
 ## How to Remove @ts-nocheck
 
