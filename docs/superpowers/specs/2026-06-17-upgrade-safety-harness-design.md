@@ -1,7 +1,6 @@
 # Upgrade-Safety Harness Design
 
-Date: 2026-06-17
-Status: Approved design, pending implementation plan
+Date: 2026-06-17 Status: Approved design, pending implementation plan
 
 ## Problem
 

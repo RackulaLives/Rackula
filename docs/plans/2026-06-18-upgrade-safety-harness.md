@@ -39,6 +39,7 @@
 ## Reference: verified code surface
 
 Load path (frontend):
+
 - `parseLayoutYaml(yamlString: string): Promise<Layout>` at `src/lib/utils/yaml.ts:624`. Runs YAML parse, schema-version gate, Zod validation, then `adaptLegacyLayout`. Throws on invalid. Does NOT run `migrateLayout`.
 - `parseLayoutYamlWithImages(yamlString: string): Promise<{ layout: Layout; images: ... }>` at `src/lib/utils/yaml.ts:637`.
 - `parseYaml<T = unknown>(yamlString: string): Promise<T>` at `src/lib/utils/yaml.ts:101` (raw parse, no validation).
@@ -51,11 +52,13 @@ Load path (frontend):
 - Test factories in `src/tests/factories.ts`: `createTestLayout`, `createTestRack`, `createTestDevice`, `createTestDeviceType`.
 
 API (Bun):
+
 - `PUT /api/layouts/{uuid}` body = raw YAML (Content-Type `text/yaml`), returns `{ id, updatedAt, message }`, 201 if new.
 - `GET /api/layouts/{uuid}` returns YAML text + header `X-Rackula-Updated-At`.
 - `GET /api/version` returns `{ version, commit, buildTime }`. `GET /api/health` returns `{ ok: true, ... }`. API port 3001.
 
 Docker:
+
 - Persist compose: `deploy/docker-compose.persist.yml`. Frontend image `ghcr.io/rackulalives/rackula:persist`, API `ghcr.io/rackulalives/rackula-api:latest`. Volume `./data:/data`, container user uid 1001. Frontend port `8080`, proxies `/api/*` to `rackula-api:3001`.
 - Released image tags: `ghcr.io/rackulalives/rackula:v{version}-persist` and `ghcr.io/rackulalives/rackula-api:{version}`.
 - Previous released tag: `git tag --list 'v*' --sort=-v:refname`.
@@ -65,10 +68,12 @@ Docker:
 ### Task 1: Silent-loss detection helper
 
 **Files:**
+
 - Create: `src/tests/upgrade-corpus-helpers.ts`
 - Test: `src/tests/upgrade-corpus-helpers.test.ts`
 
 **Interfaces:**
+
 - Produces: `collectLeaves(node: unknown): LeafIndex`, `findSilentLosses(raw: unknown, loaded: unknown, allowList: AllowListEntry[]): SilentLoss[]`, and types `AllowListEntry = { pathPattern: string; reason: string }`, `SilentLoss = { value: string; paths: string[] }`. Used by Tasks 2, 3, 4.
 
 - [ ] **Step 1: Write the failing test**
@@ -96,7 +101,9 @@ describe("findSilentLosses", () => {
   it("allows a declared drop when every source path matches the allow-list", () => {
     const raw = { racks: [{ devices: [{ slot_position: "0" }] }] };
     const loaded = { racks: [{ devices: [{}] }] };
-    const allow = [{ pathPattern: "slot_position$", reason: "consumed by carrier adapter" }];
+    const allow = [
+      { pathPattern: "slot_position$", reason: "consumed by carrier adapter" },
+    ];
     expect(findSilentLosses(raw, loaded, allow)).toEqual([]);
   });
 
@@ -112,8 +119,7 @@ describe("findSilentLosses", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npm run test:run -- src/tests/upgrade-corpus-helpers.test.ts`
-Expected: FAIL with "Failed to resolve import './upgrade-corpus-helpers'".
+Run: `npm run test:run -- src/tests/upgrade-corpus-helpers.test.ts` Expected: FAIL with "Failed to resolve import './upgrade-corpus-helpers'".
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -144,14 +150,20 @@ export interface SilentLoss {
   paths: string[];
 }
 
-export function collectLeaves(node: unknown, path = "$", acc?: LeafIndex): LeafIndex {
+export function collectLeaves(
+  node: unknown,
+  path = "$",
+  acc?: LeafIndex,
+): LeafIndex {
   const index: LeafIndex = acc ?? { values: new Map(), paths: new Map() };
   if (node === null || node === undefined) return index;
   if (typeof node === "object") {
     if (Array.isArray(node)) {
       node.forEach((item, i) => collectLeaves(item, `${path}[${i}]`, index));
     } else {
-      for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      for (const [key, value] of Object.entries(
+        node as Record<string, unknown>,
+      )) {
         collectLeaves(value, `${path}.${key}`, index);
       }
     }
@@ -187,8 +199,7 @@ export function findSilentLosses(
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npm run test:run -- src/tests/upgrade-corpus-helpers.test.ts`
-Expected: PASS (4 tests).
+Run: `npm run test:run -- src/tests/upgrade-corpus-helpers.test.ts` Expected: PASS (4 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -202,11 +213,13 @@ git commit -m "test: add silent-loss detection helper for upgrade corpus"
 ### Task 2: Corpus directory, first current-format fixture, and the YAML-ingress test
 
 **Files:**
+
 - Create: `src/tests/fixtures/upgrade-corpus/v26.5.0-representative.rackula.yaml`
 - Create: `src/tests/fixtures/upgrade-corpus/v26.5.0-representative.expected.json`
 - Create: `src/tests/upgrade-corpus.test.ts`
 
 **Interfaces:**
+
 - Consumes: `findSilentLosses`, `AllowListEntry` from Task 1; `parseLayoutYaml`, `parseYaml` from `$lib/utils/yaml`.
 - Produces: the globbing test pattern reused by Tasks 3 and 4. Sidecar JSON shape: `{ "reject"?: boolean, "hasImages"?: boolean, "allowList"?: AllowListEntry[] }`.
 
@@ -269,8 +282,15 @@ settings:
 ```typescript
 // src/tests/upgrade-corpus.test.ts
 import { describe, it, expect } from "vitest";
-import { parseLayoutYaml, parseLayoutYamlWithImages, parseYaml } from "$lib/utils/yaml";
-import { findSilentLosses, type AllowListEntry } from "./upgrade-corpus-helpers";
+import {
+  parseLayoutYaml,
+  parseLayoutYamlWithImages,
+  parseYaml,
+} from "$lib/utils/yaml";
+import {
+  findSilentLosses,
+  type AllowListEntry,
+} from "./upgrade-corpus-helpers";
 
 interface Sidecar {
   reject?: boolean;
@@ -331,13 +351,11 @@ describe("upgrade corpus: YAML ingress via parseLayoutYaml", () => {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `npm run test:run -- src/tests/upgrade-corpus.test.ts`
-Expected: PASS. The discovery test passes and `v26.5.0-representative.rackula.yaml` loads with no losses.
+Run: `npm run test:run -- src/tests/upgrade-corpus.test.ts` Expected: PASS. The discovery test passes and `v26.5.0-representative.rackula.yaml` loads with no losses.
 
 - [ ] **Step 5: Verify lint is clean on the new test**
 
-Run: `npm run lint`
-Expected: no errors in `src/tests/upgrade-corpus.test.ts`.
+Run: `npm run lint` Expected: no errors in `src/tests/upgrade-corpus.test.ts`.
 
 - [ ] **Step 6: Commit**
 
@@ -351,6 +369,7 @@ git commit -m "test: add upgrade corpus YAML-ingress test with first fixture"
 ### Task 3: Legacy and edge-case YAML fixtures
 
 **Files:**
+
 - Create: `src/tests/fixtures/upgrade-corpus/pre-carrier-slot-position.rackula.yaml`
 - Create: `src/tests/fixtures/upgrade-corpus/pre-carrier-slot-position.expected.json`
 - Create: `src/tests/fixtures/upgrade-corpus/schema-version-absent.rackula.yaml`
@@ -359,6 +378,7 @@ git commit -m "test: add upgrade corpus YAML-ingress test with first fixture"
 - Create: `src/tests/fixtures/upgrade-corpus/schema-version-future.expected.json`
 
 **Interfaces:**
+
 - Consumes: the globbing test from Task 2 (no test-code changes; fixtures are discovered automatically).
 
 - [ ] **Step 1: Create the pre-carrier slot_position fixture**
@@ -415,7 +435,10 @@ Note: if `adaptLegacyLayout` or `LayoutSchema` rejects this exact shape when run
 ```json
 {
   "allowList": [
-    { "pathPattern": "slot_position$", "reason": "consumed by carrier adapter into container placement" }
+    {
+      "pathPattern": "slot_position$",
+      "reason": "consumed by carrier adapter into container placement"
+    }
   ]
 }
 ```
@@ -442,8 +465,7 @@ Copy the representative fixture but set `metadata.schema_version: "2.0"`. The si
 
 - [ ] **Step 5: Run the corpus test against all fixtures**
 
-Run: `npm run test:run -- src/tests/upgrade-corpus.test.ts`
-Expected: PASS. The slot_position and absent-version fixtures load with no undeclared losses; the future-version fixture is rejected.
+Run: `npm run test:run -- src/tests/upgrade-corpus.test.ts` Expected: PASS. The slot_position and absent-version fixtures load with no undeclared losses; the future-version fixture is rejected.
 
 - [ ] **Step 6: Commit**
 
@@ -457,9 +479,11 @@ git commit -m "test: add legacy and edge-case fixtures to upgrade corpus"
 ### Task 4: Browser-mode localStorage upgrade tests
 
 **Files:**
+
 - Create: `src/tests/browser-upgrade.test.ts`
 
 **Interfaces:**
+
 - Consumes: `loadLayoutBody`, `loadWorkspaceIndex` from `$lib/storage/browser-workspace`; `findSilentLosses` from Task 1.
 
 **Why a separate file:** the localStorage path runs `migrateLayout` (the v0.6 single-`rack` to `racks[]` migration), which the YAML path does not. It also has a key structure (`Rackula:workspace` index plus `Rackula:layout:<id>` bodies) that, if changed, orphans old browser data even when each body parses. Neither risk is visible to Task 2/3.
@@ -473,7 +497,10 @@ Read `src/lib/storage/browser-workspace.ts:118-206` and `src/tests/browser-works
 ```typescript
 // src/tests/browser-upgrade.test.ts
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadLayoutBody, loadWorkspaceIndex } from "$lib/storage/browser-workspace";
+import {
+  loadLayoutBody,
+  loadWorkspaceIndex,
+} from "$lib/storage/browser-workspace";
 import { findSilentLosses } from "./upgrade-corpus-helpers";
 
 // A v0.6-shaped layout body: single `rack` (not `racks[]`), U-value position.
@@ -485,9 +512,18 @@ const V06_BODY = {
     id: "rack-a",
     name: "Rack A",
     height: 42,
-    devices: [{ id: "dev-1", device_type: "switch-1u", position: 5, face: "front" }],
+    devices: [
+      { id: "dev-1", device_type: "switch-1u", position: 5, face: "front" },
+    ],
   },
-  device_types: [{ slug: "switch-1u", u_height: 1, manufacturer: "Acme", category: "network" }],
+  device_types: [
+    {
+      slug: "switch-1u",
+      u_height: 1,
+      manufacturer: "Acme",
+      category: "network",
+    },
+  ],
 };
 
 describe("browser upgrade: localStorage ingress", () => {
@@ -503,9 +539,14 @@ describe("browser upgrade: localStorage ingress", () => {
     // position scales (5 -> 5 * UNITS_PER_U) so allow position changes;
     // singular `rack` -> racks[0] preserves the id/name/slug values.
     const losses = findSilentLosses(V06_BODY, result.layout, [
-      { pathPattern: "position$", reason: "U value scaled to internal units by migrateLayout" },
+      {
+        pathPattern: "position$",
+        reason: "U value scaled to internal units by migrateLayout",
+      },
     ]);
-    expect(losses, `silent loss:\n${JSON.stringify(losses, null, 2)}`).toEqual([]);
+    expect(losses, `silent loss:\n${JSON.stringify(losses, null, 2)}`).toEqual(
+      [],
+    );
   });
 
   it("loadWorkspaceIndex still finds layouts under the current key structure", () => {
@@ -523,13 +564,11 @@ Note on the second test: read `loadWorkspaceIndex` and the index shape first, th
 
 - [ ] **Step 3: Run the test to verify it fails, then passes**
 
-Run: `npm run test:run -- src/tests/browser-upgrade.test.ts`
-Expected first run: FAIL if the seeded shape does not match the reader (fix the shape per Step 1). Then PASS once shapes align.
+Run: `npm run test:run -- src/tests/browser-upgrade.test.ts` Expected first run: FAIL if the seeded shape does not match the reader (fix the shape per Step 1). Then PASS once shapes align.
 
 - [ ] **Step 4: Verify lint**
 
-Run: `npm run lint`
-Expected: no errors in `src/tests/browser-upgrade.test.ts`.
+Run: `npm run lint` Expected: no errors in `src/tests/browser-upgrade.test.ts`.
 
 - [ ] **Step 5: Commit**
 
@@ -543,9 +582,11 @@ git commit -m "test: add browser-mode localStorage upgrade tests"
 ### Task 5: Manual Docker upgrade smoke script
 
 **Files:**
+
 - Create: `scripts/upgrade-smoke.sh`
 
 **Interfaces:**
+
 - Consumes: a corpus fixture as seed data (reuses `src/tests/fixtures/upgrade-corpus/v26.5.0-representative.rackula.yaml`).
 - Produces: a zero-argument script; exit 0 on PASS, non-zero on FAIL.
 
@@ -667,15 +708,13 @@ echo "PASS: upgrade from ${OLD_TAG} preserved the seeded layout" >&2
 chmod +x scripts/upgrade-smoke.sh
 ```
 
-- [ ] **Step 3: Run it (requires Docker and at least one prior v* tag)**
+- [ ] **Step 3: Run it (requires Docker and at least one prior v\* tag)**
 
-Run: `scripts/upgrade-smoke.sh`
-Expected: ends with `PASS: upgrade from vX.Y.Z preserved the seeded layout`. If no prior tag exists or Docker is unavailable, it exits non-zero with a clear ERROR; record that as a known precondition rather than a code defect.
+Run: `scripts/upgrade-smoke.sh` Expected: ends with `PASS: upgrade from vX.Y.Z preserved the seeded layout`. If no prior tag exists or Docker is unavailable, it exits non-zero with a clear ERROR; record that as a known precondition rather than a code defect.
 
 - [ ] **Step 4: Lint the script**
 
-Run: `command -v shellcheck >/dev/null && shellcheck scripts/upgrade-smoke.sh || echo "shellcheck not installed, skipping"`
-Expected: no errors (or skipped).
+Run: `command -v shellcheck >/dev/null && shellcheck scripts/upgrade-smoke.sh || echo "shellcheck not installed, skipping"` Expected: no errors (or skipped).
 
 - [ ] **Step 5: Commit**
 
@@ -689,10 +728,12 @@ git commit -m "test: add manual Docker upgrade smoke script"
 ### Task 6: Release guard (fail-closed CI)
 
 **Files:**
+
 - Create: `scripts/check-corpus-freshness.sh`
 - Modify: `.github/workflows/release.yml`
 
 **Interfaces:**
+
 - Consumes: git tags and the corpus directory.
 - Produces: a `corpus-guard` job that `stage-release` depends on.
 
@@ -747,6 +788,7 @@ echo ">> schema changed and ${added} new corpus fixture(s) added since ${BASE}; 
 chmod +x scripts/check-corpus-freshness.sh
 scripts/check-corpus-freshness.sh "$(git tag --list 'v*' --sort=-v:refname | head -1)"
 ```
+
 Expected: prints either "no schema-path changes" or "N new corpus fixture(s) added; OK", exit 0. (On this branch the corpus is brand new, so it passes.)
 
 - [ ] **Step 3: Add the `corpus-guard` job to release.yml**
@@ -754,23 +796,23 @@ Expected: prints either "no schema-path changes" or "N new corpus fixture(s) add
 Insert this job after the `validate` job (after line 88, before the `stage-release` job at line 93) in `.github/workflows/release.yml`:
 
 ```yaml
-  # Fail-closed guard: a release that changes the data schema must add a new
-  # upgrade-corpus fixture, so every future release is forced to load this
-  # release's format. See docs/superpowers/specs/2026-06-17-upgrade-safety-harness-design.md.
-  corpus-guard:
-    name: "Guard: upgrade corpus freshness"
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout (full history + tags)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-      - name: Check corpus freshness
-        run: scripts/check-corpus-freshness.sh
+# Fail-closed guard: a release that changes the data schema must add a new
+# upgrade-corpus fixture, so every future release is forced to load this
+# release's format. See docs/superpowers/specs/2026-06-17-upgrade-safety-harness-design.md.
+corpus-guard:
+  name: "Guard: upgrade corpus freshness"
+  runs-on: ubuntu-latest
+  timeout-minutes: 5
+  permissions:
+    contents: read
+  steps:
+    - name: Checkout (full history + tags)
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+    - name: Check corpus freshness
+      run: scripts/check-corpus-freshness.sh
 ```
 
 - [ ] **Step 4: Make `stage-release` depend on the guard**
@@ -778,19 +820,18 @@ Insert this job after the `validate` job (after line 88, before the `stage-relea
 In `.github/workflows/release.yml`, change the `stage-release` job's needs line (line 95) from:
 
 ```yaml
-    needs: [validate]
+needs: [validate]
 ```
 
 to:
 
 ```yaml
-    needs: [validate, corpus-guard]
+needs: [validate, corpus-guard]
 ```
 
 - [ ] **Step 5: Validate the workflow YAML**
 
-Run: `command -v actionlint >/dev/null && actionlint .github/workflows/release.yml || python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/release.yml')); print('yaml ok')"`
-Expected: no errors / "yaml ok".
+Run: `command -v actionlint >/dev/null && actionlint .github/workflows/release.yml || python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/release.yml')); print('yaml ok')"` Expected: no errors / "yaml ok".
 
 - [ ] **Step 6: Commit**
 
@@ -804,12 +845,14 @@ git commit -m "ci: add fail-closed release guard for upgrade corpus freshness"
 ### Task 7: Capture tooling, docs, and policy
 
 **Files:**
+
 - Create: `scripts/add-corpus-fixture.sh`
 - Create: `src/tests/fixtures/upgrade-corpus/README.md`
 - Modify: `CLAUDE.md`
 - Modify: `docs/deployment/SELF-HOSTING.md`
 
 **Interfaces:**
+
 - Consumes: nothing. Produces: the recurring-ritual one-command helper and updated policy.
 
 - [ ] **Step 1: Write the capture helper**
@@ -848,7 +891,7 @@ chmod +x scripts/add-corpus-fixture.sh
 
 - [ ] **Step 3: Write the corpus README**
 
-```markdown
+````markdown
 # Upgrade Corpus
 
 Each entry is a pair: a `.rackula.yaml` layout exactly as some past version wrote it, and a `.expected.json` sidecar listing intentional transformations the load may apply.
@@ -861,9 +904,12 @@ Each entry is a pair: a `.rackula.yaml` layout exactly as some past version wrot
 {
   "reject": false,
   "hasImages": false,
-  "allowList": [{ "pathPattern": "slot_position$", "reason": "consumed by carrier adapter" }]
+  "allowList": [
+    { "pathPattern": "slot_position$", "reason": "consumed by carrier adapter" }
+  ]
 }
 ```
+````
 
 `reject: true` asserts the version gate rejects the fixture. `hasImages: true` routes loading through `parseLayoutYamlWithImages`. `allowList` patterns are JS regexes matched against the raw leaf path; a value that vanishes is a failure unless every path it appeared at matches an entry.
 
@@ -875,7 +921,8 @@ Each entry is a pair: a `.rackula.yaml` layout exactly as some past version wrot
 4. Commit both files.
 
 The release pipeline blocks (see `scripts/check-corpus-freshness.sh`) if a schema-touching release adds no new fixture.
-```
+
+````
 
 - [ ] **Step 4: Rewrite the greenfield policy in CLAUDE.md**
 
@@ -885,20 +932,18 @@ Replace:
 ```markdown
 **Greenfield approach:** Do not use migration or legacy support concepts in this project.
 Implement features as if they are the first and only implementation.
-```
+````
+
 with:
+
 ```markdown
-**Prior-release data is supported and tested:** Rackula has shipped releases that
-real users run with saved data. Reading data written by a prior release is a
-first-class, tested requirement. A schema change must be backward-compatible, or
-ship a migration plus a new fixture in the upgrade corpus
-(`src/tests/fixtures/upgrade-corpus/`). See the design at
-`docs/superpowers/specs/2026-06-17-upgrade-safety-harness-design.md`.
+**Prior-release data is supported and tested:** Rackula has shipped releases that real users run with saved data. Reading data written by a prior release is a first-class, tested requirement. A schema change must be backward-compatible, or ship a migration plus a new fixture in the upgrade corpus (`src/tests/fixtures/upgrade-corpus/`). See the design at `docs/superpowers/specs/2026-06-17-upgrade-safety-harness-design.md`.
 ```
 
 - [ ] **Step 5: Update the No-backwards-compatibility-hacks subsection in CLAUDE.md**
 
 Replace the `**No backwards compatibility hacks:**` block:
+
 ```markdown
 **No backwards compatibility hacks:**
 
@@ -907,7 +952,9 @@ Replace the `**No backwards compatibility hacks:**` block:
 - No `// removed` comments
 - If unused, delete it
 ```
+
 with:
+
 ```markdown
 **No dead-code hacks:**
 
@@ -916,9 +963,7 @@ with:
 - No `// removed` comments
 - If unused, delete it
 
-This is about dead code, not data. Migrations and legacy-data adapters that let
-prior-release layouts load are required code, not hacks; keep them and test them
-via the upgrade corpus.
+This is about dead code, not data. Migrations and legacy-data adapters that let prior-release layouts load are required code, not hacks; keep them and test them via the upgrade corpus.
 ```
 
 - [ ] **Step 6: Add the upgrade section to SELF-HOSTING.md**
@@ -934,17 +979,12 @@ Your layouts live in the `/data` volume and are not touched by pulling a new ima
 2. Pull the new images: `docker compose pull`.
 3. Recreate the containers: `docker compose up -d`.
 
-Layouts written by the previous release load as-is. If a release migrates the data
-format, the migration runs on load and the upgraded layout is written back on your
-next save. The server also keeps automatic snapshots per layout, so a bad write does
-not lose the prior copy. Keep the directory owned by uid 1001 (`sudo chown -R 1001:1001 data`).
+Layouts written by the previous release load as-is. If a release migrates the data format, the migration runs on load and the upgraded layout is written back on your next save. The server also keeps automatic snapshots per layout, so a bad write does not lose the prior copy. Keep the directory owned by uid 1001 (`sudo chown -R 1001:1001 data`).
 ```
 
 - [ ] **Step 7: Format docs and verify**
 
-Run: `npx prettier --write CLAUDE.md docs/deployment/SELF-HOSTING.md "src/tests/fixtures/upgrade-corpus/README.md"`
-Then run: `command -v shellcheck >/dev/null && shellcheck scripts/add-corpus-fixture.sh || echo "shellcheck skipped"`
-Expected: files formatted, no shellcheck errors.
+Run: `npx prettier --write CLAUDE.md docs/deployment/SELF-HOSTING.md "src/tests/fixtures/upgrade-corpus/README.md"` Then run: `command -v shellcheck >/dev/null && shellcheck scripts/add-corpus-fixture.sh || echo "shellcheck skipped"` Expected: files formatted, no shellcheck errors.
 
 - [ ] **Step 8: Commit**
 
@@ -984,13 +1024,13 @@ EOF
 ## Self-Review
 
 **1. Spec coverage:**
+
 - Component 1 (fixture corpus, real+synthetic, split sidecar): Tasks 2, 3 (synthetic + first real-format), Task 7 Step 1 (auto sidecar via `add-corpus-fixture.sh`). Operator-supplied real fixtures are captured with the Task 7 helper after merge; noted in handoff.
 - Component 2 (corpus test, real entry point, round-trip completeness, localStorage case): Task 1 (helper), Task 2 (YAML ingress via `parseLayoutYaml`), Task 4 (localStorage via `loadLayoutBody` + `loadWorkspaceIndex`).
 - Component 3 (Docker smoke, perms + on-disk, zero-arg auto-tag): Task 5.
 - Component 4 (ritual blocks, auto sidecar): Task 6 (guard) + Task 7 (helper, README).
 - Component 5 (CLAUDE.md + SELF-HOSTING.md): Task 7 Steps 4-6.
-- Out-of-scope API validation fast-follow: Task 8.
-All spec components map to tasks. No gaps.
+- Out-of-scope API validation fast-follow: Task 8. All spec components map to tasks. No gaps.
 
 **2. Placeholder scan:** Two spots intentionally instruct verify-then-adjust against real code (Task 3 Step 1 legacy shape, Task 4 Step 1 body shape) because the exact accepted shape must be read from source; both name the concrete function and the failure signal, and Task 4 Step 2 explicitly forbids leaving the weak assertion. No "TBD"/"handle edge cases"/empty-code placeholders remain.
 
