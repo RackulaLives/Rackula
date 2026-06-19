@@ -432,9 +432,16 @@
 
     {#if hasRacks && allRacksEmpty && !hintDismissed}
       <div class="onboarding-hint" role="status" aria-live="polite">
-        <span
-          >Open the Devices tab on the left and drag items into your rack.</span
-        >
+        {#if viewportStore.isMobile}
+          <span
+            >Open the Devices tab, tap a device to arm it, then tap a rack slot
+            to place it.</span
+          >
+        {:else}
+          <span
+            >Open the Devices tab on the left and drag items into your rack.</span
+          >
+        {/if}
         <button
           class="hint-dismiss"
           onclick={dismissOnboardingHint}
