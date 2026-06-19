@@ -26,6 +26,7 @@
   import LabelOverlaySVG from "./LabelOverlaySVG.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { placementKey } from "$lib/utils/placement-key";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { useLongPress } from "$lib/utils/gestures";
@@ -174,6 +175,7 @@
 
   // Viewport detection for mobile-specific interactions
   const viewportStore = getViewportStore();
+  const canvasStore = getCanvasStore();
 
   // SVG group element ref for long-press gesture
   let groupElement: SVGGElement | null = $state(null);
@@ -490,14 +492,18 @@
     );
   }
 
-  // Long-press handler for mobile/tablet (opens device actions)
+  // Long-press handler for mobile/tablet (zooms view to the pressed device)
   function handleLongPress() {
     if (!longPressPoint) return;
 
     longPressFired = true;
     hapticTap();
-    openDeviceContextMenu(longPressPoint.x, longPressPoint.y);
     longPressPoint = null;
+
+    const rack = layoutStore.getRackById(rackId);
+    if (rack) {
+      canvasStore.zoomToDevice(rack, deviceIndex, layoutStore.device_types);
+    }
   }
 
   // Context menu handler (right-click) - opens device context menu
