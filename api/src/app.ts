@@ -2,7 +2,10 @@ import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { logger as honoLogger } from "hono/logger";
 import { bodyLimit } from "hono/body-limit";
-import layouts, { UPDATED_AT_HEADER } from "./routes/layouts";
+import layouts, {
+  UPDATED_AT_HEADER,
+  PRE_CARRIER_MIGRATION_HEADER,
+} from "./routes/layouts";
 import assets from "./routes/assets";
 import {
   createSignedAuthSessionToken,
@@ -321,7 +324,12 @@ export async function createApp(
     cors({
       origin: securityConfig.corsOrigin,
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowHeaders: ["Content-Type", "Authorization", UPDATED_AT_HEADER],
+      allowHeaders: [
+        "Content-Type",
+        "Authorization",
+        UPDATED_AT_HEADER,
+        PRE_CARRIER_MIGRATION_HEADER,
+      ],
       exposeHeaders: [UPDATED_AT_HEADER],
     }),
   );

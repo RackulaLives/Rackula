@@ -9,6 +9,7 @@
  * GET    /layouts/:uuid/snapshots           - List pre-overwrite snapshots
  * GET    /layouts/:uuid/snapshots/:filename - Get a snapshot's YAML content
  * POST   /layouts/:uuid/snapshots           - Upload a losing local copy as a snapshot
+ * GET    /layouts/:uuid/pre-carrier-backup  - Get the durable pre-carrier-migration backup
  *
  * When accessed through nginx proxy (recommended), the same routes are
  * available under /api/layouts (nginx strips /api before forwarding).
@@ -28,6 +29,7 @@ import {
   listSnapshots,
   getSnapshot,
   saveSnapshot,
+  getPreCarrierBackup,
   SNAPSHOT_NAME_PATTERN,
 } from "../storage/filesystem";
 import { deleteLayoutAssets } from "../storage/assets";
@@ -35,6 +37,13 @@ import { logger } from "../logger";
 
 /** Header carrying the layout's updatedAt for echo-based conflict detection. */
 export const UPDATED_AT_HEADER = "X-Rackula-Updated-At";
+
+/**
+ * Header by which the client signals that this PUT is the one-time carrier-first
+ * migration write, so the server durably backs up the prior YAML before the
+ * overwrite. The enabling value is the exact string "1".
+ */
+export const PRE_CARRIER_MIGRATION_HEADER = "X-Rackula-Pre-Carrier-Migration";
 
 /** Matches a control character (C0 range plus DEL) anywhere in a string. */
 // eslint-disable-next-line no-control-regex -- intentionally rejecting control chars in filenames
@@ -155,6 +164,9 @@ layouts.put("/:uuid", async (c) => {
       yamlContent,
       uuidResult.data,
       c.req.header(UPDATED_AT_HEADER),
+      {
+        preCarrierMigration: c.req.header(PRE_CARRIER_MIGRATION_HEADER) === "1",
+      },
     );
 
     c.header(UPDATED_AT_HEADER, result.updatedAt);
@@ -310,6 +322,31 @@ layouts.post("/:uuid/snapshots", async (c) => {
       `Failed to save snapshot for layout ${uuidResult.data}`,
     );
     return c.json({ error: "Failed to save snapshot" }, 500);
+  }
+});
+
+// Get the durable pre-carrier-migration backup (read-only restore source)
+layouts.get("/:uuid/pre-carrier-backup", async (c) => {
+  const uuid = c.req.param("uuid");
+
+  const uuidResult = UuidSchema.safeParse(uuid);
+  if (!uuidResult.success) {
+    return c.json({ error: "Invalid layout UUID format" }, 400);
+  }
+
+  try {
+    const content = await getPreCarrierBackup(uuidResult.data);
+    if (content === null) {
+      return c.json({ error: "Pre-carrier backup not found" }, 404);
+    }
+
+    return c.text(content, 200, { "Content-Type": "text/yaml" });
+  } catch (error) {
+    logger.error(
+      { err: error },
+      `Failed to get pre-carrier backup for layout ${uuidResult.data}`,
+    );
+    return c.json({ error: "Failed to get pre-carrier backup" }, 500);
   }
 });
 

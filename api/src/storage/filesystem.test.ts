@@ -18,8 +18,15 @@ import { isUuid } from "../schemas/layout";
 const testDir = await mkdtemp(join(tmpdir(), "rackula-test-"));
 process.env.DATA_DIR = testDir;
 
-const { listLayouts, getLayout, saveLayout, deleteLayout, slugify } =
-  await import("./filesystem");
+const {
+  listLayouts,
+  getLayout,
+  saveLayout,
+  deleteLayout,
+  slugify,
+  getPreCarrierBackup,
+  PRE_CARRIER_BACKUP_FILENAME,
+} = await import("./filesystem");
 
 // ============================================================================
 // Test Helpers
@@ -294,6 +301,179 @@ describe("deleteLayout", () => {
   it("rejects path traversal attempts", async () => {
     const deleted = await deleteLayout("../../../etc/passwd");
     expect(deleted).toBe(false);
+  });
+});
+
+describe("pre-carrier server backup", () => {
+  beforeEach(async () => {
+    await cleanupTestDir();
+  });
+
+  /**
+   * Locate the layout folder matching a UUID (case-insensitive suffix) and
+   * return its full path, or null when absent.
+   */
+  async function folderForUuid(uuid: string): Promise<string | null> {
+    const entries = await readdir(testDir, { withFileTypes: true });
+    const folder = entries.find(
+      (entry) => entry.isDirectory() && entry.name.toLowerCase().endsWith(uuid),
+    );
+    return folder ? join(testDir, folder.name) : null;
+  }
+
+  /** Read the durable backup file's bytes for a UUID, or null when missing. */
+  async function readBackup(uuid: string): Promise<string | null> {
+    const folder = await folderForUuid(uuid);
+    if (!folder) return null;
+    try {
+      return await readFile(join(folder, PRE_CARRIER_BACKUP_FILENAME), "utf-8");
+    } catch {
+      return null;
+    }
+  }
+
+  it("copies the prior on-disk YAML to the durable backup on a migrating save", async () => {
+    const v1 = createLayoutYaml({ name: "My Layout" });
+    const created = await saveLayout(v1);
+
+    const v2 = createLayoutYaml({
+      name: "My Layout",
+      racks: [{ devices: [] }],
+    });
+    await saveLayout(v2, created.id, undefined, { preCarrierMigration: true });
+
+    // Backup holds the PRIOR bytes; the layout file holds the NEW bytes.
+    expect(await readBackup(created.id)).toBe(v1);
+    const current = await getLayout(created.id);
+    expect(current?.content).toBe(v2);
+  });
+
+  it("does not overwrite the backup on a second migrating save (idempotent)", async () => {
+    const v1 = createLayoutYaml({ name: "My Layout" });
+    const created = await saveLayout(v1);
+
+    const v2 = createLayoutYaml({
+      name: "My Layout",
+      racks: [{ devices: [] }],
+    });
+    await saveLayout(v2, created.id, undefined, { preCarrierMigration: true });
+
+    const v3 = createLayoutYaml({
+      name: "My Layout",
+      racks: [{ devices: [{ id: "d1" }] }],
+    });
+    await saveLayout(v3, created.id, undefined, { preCarrierMigration: true });
+
+    // Backup still holds v1 (the bytes from before the FIRST migrating save).
+    expect(await readBackup(created.id)).toBe(v1);
+  });
+
+  it("writes no backup for a brand-new layout even with the flag set", async () => {
+    const v1 = createLayoutYaml({ name: "Brand New" });
+    const created = await saveLayout(v1, undefined, undefined, {
+      preCarrierMigration: true,
+    });
+
+    expect(await readBackup(created.id)).toBeNull();
+  });
+
+  it("writes no backup on a normal overwrite when the flag is not set", async () => {
+    const v1 = createLayoutYaml({ name: "My Layout" });
+    const created = await saveLayout(v1);
+
+    const v2 = createLayoutYaml({
+      name: "My Layout",
+      racks: [{ devices: [] }],
+    });
+    await saveLayout(v2, created.id);
+
+    expect(await readBackup(created.id)).toBeNull();
+  });
+
+  it("writes the backup against the correct folder and survives a rename", async () => {
+    const v1 = createLayoutYaml({ name: "Original" });
+    const created = await saveLayout(v1);
+
+    // Rename (new folder name) in the same migrating save.
+    const v2 = createLayoutYaml({ name: "Renamed" });
+    await saveLayout(v2, created.id, undefined, { preCarrierMigration: true });
+
+    // The backup exists post-rename, in the renamed folder, holding prior bytes.
+    const folder = await folderForUuid(created.id);
+    expect(folder).not.toBeNull();
+    expect(folder!.endsWith(created.id)).toBe(true);
+    expect(await readBackup(created.id)).toBe(v1);
+    const current = await getLayout(created.id);
+    expect(current?.content).toBe(v2);
+  });
+
+  it("writes both a snapshot and the durable backup when echo diverges, and the backup is never pruned", async () => {
+    const v1 = createLayoutYaml({ name: "My Layout" });
+    const created = await saveLayout(v1);
+
+    // A migrating save that also diverges on echoedUpdatedAt: stale echo forces
+    // the rolling snapshot, and the migration flag forces the durable backup.
+    const v2 = createLayoutYaml({
+      name: "My Layout",
+      racks: [{ devices: [] }],
+    });
+    await saveLayout(v2, created.id, "1999-01-01T00:00:00.000Z", {
+      preCarrierMigration: true,
+    });
+
+    const folder = await folderForUuid(created.id);
+    expect(folder).not.toBeNull();
+
+    // A snapshots/ entry exists from the divergence.
+    const snapshots = await readdir(join(folder!, "snapshots"));
+    expect(snapshots.length).toBeGreaterThan(0);
+
+    // The durable backup lives outside snapshots/ and holds the prior bytes.
+    expect(await readBackup(created.id)).toBe(v1);
+
+    // Push past the snapshot retention bound with more diverging migrating
+    // saves; the durable backup must remain (it is never pruned).
+    for (let i = 3; i <= 9; i += 1) {
+      const next = createLayoutYaml({
+        name: "My Layout",
+        racks: [{ devices: [{ id: `d${i}` }] }],
+      });
+      await saveLayout(next, created.id, "1999-01-01T00:00:00.000Z", {
+        preCarrierMigration: true,
+      });
+    }
+    expect(await readBackup(created.id)).toBe(v1);
+  });
+});
+
+describe("getPreCarrierBackup", () => {
+  beforeEach(async () => {
+    await cleanupTestDir();
+  });
+
+  it("returns the prior YAML after a migrating save", async () => {
+    const v1 = createLayoutYaml({ name: "My Layout" });
+    const created = await saveLayout(v1);
+    const v2 = createLayoutYaml({
+      name: "My Layout",
+      racks: [{ devices: [] }],
+    });
+    await saveLayout(v2, created.id, undefined, { preCarrierMigration: true });
+
+    expect(await getPreCarrierBackup(created.id)).toBe(v1);
+  });
+
+  it("returns null when no backup exists", async () => {
+    const v1 = createLayoutYaml({ name: "My Layout" });
+    const created = await saveLayout(v1);
+
+    expect(await getPreCarrierBackup(created.id)).toBeNull();
+  });
+
+  it("returns null for an unknown uuid", async () => {
+    expect(
+      await getPreCarrierBackup("00000000-0000-0000-0000-000000000999"),
+    ).toBeNull();
   });
 });
 

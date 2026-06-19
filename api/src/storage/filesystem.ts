@@ -33,6 +33,14 @@ const SNAPSHOTS_DIR = "snapshots";
 const MAX_SNAPSHOTS_PER_LAYOUT = 5;
 
 /**
+ * Filename of the one-time durable pre-carrier-migration backup, stored at the
+ * layout folder root (outside snapshots/, so it is never pruned). Written once
+ * via exclusive create on the first migrating save and read back by
+ * {@link getPreCarrierBackup}.
+ */
+export const PRE_CARRIER_BACKUP_FILENAME = "pre-carrier-backup.yaml";
+
+/**
  * Per-layout in-process write locks, keyed by layout uuid.
  *
  * The API is a single-process Bun container, so a chained promise per uuid
@@ -316,6 +324,28 @@ export async function getSnapshot(
 
   try {
     return await readFile(join(folder, SNAPSHOTS_DIR, filename), "utf-8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Read the durable pre-carrier-migration backup for a layout.
+ * Returns null when the layout folder or the backup file is missing.
+ */
+export async function getPreCarrierBackup(
+  uuid: string,
+): Promise<string | null> {
+  const folder = await findFolderByUuid(uuid);
+  if (!folder) {
+    return null;
+  }
+
+  try {
+    return await readFile(join(folder, PRE_CARRIER_BACKUP_FILENAME), "utf-8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return null;
@@ -714,6 +744,12 @@ async function legacyLayoutExists(slug: string): Promise<boolean> {
  * YAML is copied into the layout's snapshots folder before the write.
  * Last write wins; the save is never rejected.
  *
+ * When `options.preCarrierMigration` is set and the layout already exists, the
+ * current on-disk YAML is also copied once to a durable pre-carrier-migration
+ * backup ({@link PRE_CARRIER_BACKUP_FILENAME}) before the overwrite. The backup
+ * is written with exclusive create, so a later migrating save never clobbers
+ * it (idempotent), and it lives outside snapshots/ so it is never pruned.
+ *
  * Returns the layout UUID, whether it was a new layout, and the stored
  * file's updatedAt (mtime, ISO 8601) for clients to echo on the next save
  */
@@ -721,6 +757,7 @@ export async function saveLayout(
   yamlContent: string,
   existingId?: string,
   echoedUpdatedAt?: string,
+  options?: { preCarrierMigration?: boolean },
 ): Promise<{ id: string; isNew: boolean; updatedAt: string }> {
   await ensureDataDir();
 
@@ -816,12 +853,34 @@ export async function saveLayout(
           try {
             const existingStats = await handle.stat();
             overwrittenMtimeMs = existingStats.mtime.getTime();
-            if (
-              echoedUpdatedAt &&
-              existingStats.mtime.toISOString() !== echoedUpdatedAt
-            ) {
-              const existingContent = await handle.readFile("utf-8");
+            const diverged =
+              echoedUpdatedAt !== undefined &&
+              existingStats.mtime.toISOString() !== echoedUpdatedAt;
+            // Read the prior bytes once when either the rolling snapshot
+            // (echo divergence) or the durable pre-carrier backup needs them.
+            let existingContent: string | undefined;
+            if (diverged || options?.preCarrierMigration) {
+              existingContent = await handle.readFile("utf-8");
+            }
+            if (diverged && existingContent !== undefined) {
               await writeSnapshot(existingFolder, existingContent);
+            }
+            // Durable one-time pre-carrier-migration backup. Runs against the
+            // pre-rename folder (existingFolder), with exclusive create so a
+            // second migrating save never clobbers the original backup; an
+            // EEXIST is the idempotent no-op for "already backed up".
+            if (options?.preCarrierMigration && existingContent !== undefined) {
+              try {
+                await writeFile(
+                  join(existingFolder, PRE_CARRIER_BACKUP_FILENAME),
+                  existingContent,
+                  { encoding: "utf-8", flag: "wx" },
+                );
+              } catch (error) {
+                if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+                  throw error;
+                }
+              }
             }
           } finally {
             await handle.close();
