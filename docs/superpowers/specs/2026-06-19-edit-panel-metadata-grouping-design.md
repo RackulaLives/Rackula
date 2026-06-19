@@ -1,10 +1,10 @@
 # Edit-panel metadata regrouping (B1 spike)
 
-Status: Decided
-Date: 2026-06-19
-Spike: #2441
-Implements via: #2442 (editable vs read-only treatment), #2443 (collapsible device-type block)
-Component: `src/lib/components/EditPanelMetadata.svelte`
+- Status: Decided
+- Date: 2026-06-19
+- Spike: #2441
+- Implements via: #2442 (editable vs read-only treatment), #2443 (collapsible device-type block)
+- Component: `src/lib/components/EditPanelMetadata.svelte`
 
 ## Problem
 
