@@ -54,9 +54,14 @@ let openSheet = $state<SheetId | null>(null);
 let selectedDeviceIndex = $state<number | null>(null);
 
 /**
- * Open a dialog by ID. Closes any other open dialog.
+ * Open a dialog by ID. Closes any other open dialog and any open sheet so
+ * dialogs always render without a sheet underneath them. On mobile this
+ * prevents the device-details bottom sheet from occluding a confirm dialog
+ * that opens on top of it (#2490).
  */
 function open(id: DialogId) {
+  openSheet = null;
+  selectedDeviceIndex = null;
   openDialog = id;
 }
 

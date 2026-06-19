@@ -268,7 +268,23 @@
 
   function handleCancelDelete() {
     dialogStore.close();
-    handleFitAll();
+    // On mobile a device removal was triggered from the device-details bottom
+    // sheet. handleDelete() closed the sheet so the confirm dialog would not
+    // render behind it (#2490). If the device is still selected (cancel path),
+    // reopen the sheet so the user can continue editing.
+    if (viewportStore.isMobile && selectionStore.isDeviceSelected) {
+      const activeRack = layoutStore.activeRack;
+      if (activeRack) {
+        const deviceIndex = selectionStore.getSelectedDeviceIndex(
+          activeRack.devices,
+        );
+        if (deviceIndex !== null) {
+          dialogStore.openSheet("deviceDetails", deviceIndex);
+        }
+      }
+    } else {
+      handleFitAll();
+    }
   }
 
   // --- Export / Share handlers ---
@@ -385,7 +401,6 @@
   // --- Add device handlers ---
 
   function handleAddDevice() {
-    dialogStore.closeSheet();
     dialogStore.open("addDevice");
   }
 

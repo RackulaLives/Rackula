@@ -61,7 +61,6 @@ export function handleHelp(): void {
 
 /** Close any open sheet, then open the Add Device dialog. */
 export function handleAddDevice(): void {
-  dialogStore.closeSheet();
   dialogStore.open("addDevice");
 }
 
