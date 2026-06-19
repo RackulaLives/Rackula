@@ -6,7 +6,11 @@
 <script lang="ts">
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { isContainerChild } from "$lib/utils/collision";
-  import { toHumanUnits, toInternalUnits, formatPosition } from "$lib/utils/position";
+  import {
+    toHumanUnits,
+    toInternalUnits,
+    formatPosition,
+  } from "$lib/utils/position";
   import { canMoveUp, canMoveDown } from "$lib/utils/device-movement";
   import {
     moveSelectedDeviceUp,

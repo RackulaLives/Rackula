@@ -200,12 +200,16 @@ describe("selection-actions", () => {
       // Place the device at U1 explicitly
       const deviceIndex = rack.devices.findIndex((d) => d.id === deviceId);
       layout.moveDevice(rackId, deviceIndex, 1);
-      const posBefore = layout.getRackById(rackId)!.devices.find((d) => d.id === deviceId)!.position;
+      const posBefore = layout
+        .getRackById(rackId)!
+        .devices.find((d) => d.id === deviceId)!.position;
 
       getSelectionStore().selectDevice(rackId, deviceId);
       moveSelectedDeviceDown();
 
-      const posAfter = layout.getRackById(rackId)!.devices.find((d) => d.id === deviceId)!.position;
+      const posAfter = layout
+        .getRackById(rackId)!
+        .devices.find((d) => d.id === deviceId)!.position;
       expect(posAfter).toBe(posBefore);
     });
 
@@ -215,12 +219,16 @@ describe("selection-actions", () => {
       // Move device to rack height (top U)
       const deviceIndex = rack.devices.findIndex((d) => d.id === deviceId);
       layout.moveDevice(rackId, deviceIndex, rack.height);
-      const posBefore = layout.getRackById(rackId)!.devices.find((d) => d.id === deviceId)!.position;
+      const posBefore = layout
+        .getRackById(rackId)!
+        .devices.find((d) => d.id === deviceId)!.position;
 
       getSelectionStore().selectDevice(rackId, deviceId);
       moveSelectedDeviceUp();
 
-      const posAfter = layout.getRackById(rackId)!.devices.find((d) => d.id === deviceId)!.position;
+      const posAfter = layout
+        .getRackById(rackId)!
+        .devices.find((d) => d.id === deviceId)!.position;
       expect(posAfter).toBe(posBefore);
     });
 
