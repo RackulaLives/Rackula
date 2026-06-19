@@ -409,7 +409,7 @@
   <h3 class="group-header">Notes</h3>
   <div class="form-group">
     <label for="device-notes">
-      Placement notes
+      Notes
       {#if notesSaved}
         <Tooltip text="Saved">
           <span class="saved-indicator" data-testid="saved-indicator-notes"
