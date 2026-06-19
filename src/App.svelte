@@ -722,6 +722,10 @@
     flex-direction: column;
     overflow: hidden;
     transition: width var(--duration-normal) var(--ease-in-out);
+    /* Stack above the canvas overlays (verb bar, placement indicator) so the
+       panel occludes them where they overlap the canvas edge (#2491). */
+    position: relative;
+    z-index: var(--z-sidebar);
   }
 
   /* Collapsed: shrink to the 44px strip; the strip owns its own outer border. */

@@ -356,9 +356,13 @@
 
   /* Z-Index Layers */
   --z-toolbar: 20;
-  --z-sidebar: 10;
+  /* Canvas overlays: anchored to the canvas, must sit under the side panels so
+     a panel occludes them where they overlap (#2491). */
   --z-placement-indicator: 50;
   --z-verb-bar: 50;
+  /* Side panels: persistent chrome that flanks the canvas. Above the canvas
+     overlays, below the drawer/modal/dropdown layers. */
+  --z-sidebar: 60;
   --z-drawer-backdrop: 99;
   --z-drawer: 100;
   --z-fab: 100;
