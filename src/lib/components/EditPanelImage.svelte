@@ -19,7 +19,7 @@
   const layoutStore = getLayoutStore();
   const imageStore = getImageStore();
 
-  const layoutId = $derived(layoutStore.layout.metadata!.id);
+  const layoutId = $derived(layoutStore.layout.metadata?.id ?? "");
 
   // Get the current placement images (if any)
   const placementFrontImage = $derived.by(() =>
