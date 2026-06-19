@@ -161,6 +161,8 @@ describe("placement store", () => {
       const store = getPlacementStore();
       expect(() => store.completePlacement()).not.toThrow();
       expect(store.isPlacing).toBe(false);
+      // No active placement means nothing to announce to screen readers.
+      expect(store.placementAnnouncement).toBeNull();
     });
   });
 

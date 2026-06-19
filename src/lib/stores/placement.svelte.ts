@@ -67,8 +67,10 @@ function abandonPlacement(): void {
  * Complete placement mode after successfully placing the device.
  */
 function completePlacement(): void {
-  const deviceName = pendingDevice?.model ?? pendingDevice?.slug ?? "Device";
-  placementAnnouncement = `${deviceName} placed`;
+  if (isPlacing) {
+    const deviceName = pendingDevice?.model ?? pendingDevice?.slug ?? "Device";
+    placementAnnouncement = `${deviceName} placed`;
+  }
   resetState();
 }
 
