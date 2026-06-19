@@ -85,8 +85,7 @@
   });
 
   // Custom detection injected into the attribute predicate.
-  const isCustomDevice = (slug: string) =>
-    layoutStore.isCustomDeviceType(slug);
+  const isCustomDevice = (slug: string) => layoutStore.isCustomDeviceType(slug);
 
   const hasActiveAttributeFilters = $derived(
     attributeFilters.heights.size > 0 ||
