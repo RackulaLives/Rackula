@@ -35,19 +35,19 @@ The canonical self-host file `deploy/docker-compose.persist.yml` hardcodes image
 
 The script drives a real compose stack through an old-to-new upgrade.
 
-1. Preflight. Require `docker`, `docker compose`, `curl`, `cmp`, `git`. Resolve `OLD_TAG` (auto-resolve to the previous `v*` tag, or accept an `OLD_TAG=` override).
+1. Preflight. Require `docker`, `docker compose`, `curl`, `cmp`, `git`, and `sudo` (the bind mount is chowned to uid 1001 before the run and the resulting uid-1001-owned files are removed with `sudo` at the end). `jq` is not required: byte-equality uses `cmp` and snapshot counts use `grep`. Resolve `OLD_TAG` (auto-resolve to the previous `v*` tag, or accept an `OLD_TAG=` override).
 2. Throwaway data and override. Create a temp host data dir with `mktemp -d`. Generate a compose override that repoints the api bind-mount source at the temp dir and publishes the api port (`13001:3001`) so the script can curl the API directly. The `/data` target, `read_only: true`, `/tmp` tmpfs, uid 1001, and env all come from the real compose file.
 3. Seed under the old image. Bring up `rackula-api` with `RACKULA_API_IMAGE=ghcr.io/rackulalives/rackula-api:${OLD_VERSION}` via `docker compose -f docker-compose.yml -f <override> --profile persist up -d rackula-api`; wait for health. First `PUT` the existing `src/tests/fixtures/upgrade-corpus/v26.5.0-representative.rackula.yaml` to a known UUID (creates the layout). Then issue a second `PUT` of the same body with a deliberately stale `X-Rackula-Updated-At` header (for example `1970-01-01T00:00:00.000Z`). `saveLayout` writes a pre-overwrite snapshot only when an echoed updated-at is present and mismatches the stored copy, so the stale header is what deterministically produces a snapshot; a header-less `PUT` writes none. `GET` the layout back and save it as `before.yaml`, the canonical copy of what the old release persisted.
 4. Upgrade. `compose down` (the temp data dir survives because it is a bind mount), build the new image from the working tree (`docker build -f api/Dockerfile -t rackula-upgrade-smoke/api:new api`), and bring the stack back up with `RACKULA_API_IMAGE=rackula-upgrade-smoke/api:new`.
 5. Assertions, in order:
    - Discovery: `GET /layouts` lists the seeded UUID, proving new code finds the old-written folder.
    - No loss: `GET /layouts/:uuid` is byte-identical to `before.yaml` via `cmp`.
-   - Snapshots survive: `GET /layouts/:uuid/snapshots` still lists the pre-upgrade snapshot.
+   - Snapshots survive (version-conditional): `GET /layouts/:uuid/snapshots` still lists the pre-upgrade snapshot. The snapshot feature (echoed `X-Rackula-Updated-At` plus the snapshots route) is unreleased as of v26.6.3, so when the old image produced no snapshot the script skips this assertion with a logged note rather than failing. Use a tolerant request (not `curl -f`) because pre-feature images return 404 on the snapshots route. The snapshot-write path is still proven on the new build by the read_only write assertion below.
    - Writes work under read_only: `PUT` a genuinely modified body (again with a stale `X-Rackula-Updated-At` so the prior copy is snapshotted) returns 200, the subsequent `GET` matches the modified body, and the snapshot count increases by one. This proves the upgraded container can persist with a read-only rootfs and a `/tmp`-only tmpfs.
    - The version endpoint responds.
-6. Cleanup trap. `compose down`, remove the temp data dir, the override file, and the built image.
+6. Cleanup trap. `compose down --remove-orphans`, then `sudo rm -rf` the temp data dir (the container writes uid-1001-owned files into the bind mount that the host user cannot remove otherwise), and remove the override file and the built image.
 
-The frontend container is excluded deliberately: it is stateless nginx with no data-loss signal, and skipping its build keeps the test fast. The script talks to the API directly through the published port.
+The frontend container is excluded deliberately: it is stateless nginx with no data-loss signal, and skipping its build keeps the test fast. The script talks to the API directly through the published port, using the unprefixed routes (`/health`, `/version`, `/layouts`). Those are the paths the API serves in production, because nginx strips the `/api` prefix before forwarding; the `/api/*` alias exists only for direct-access convenience.
 
 ### Part 2: docs/guides/DOCKER-UPGRADE-TESTING.md
 
@@ -59,7 +59,7 @@ A layered, honest guide:
 
 ## Environment caveat
 
-On macOS Docker Desktop, host uid 1001 and bind-mount permissions are virtualized, so the uid-permission dimension is only truly exercised on Linux. The guide states that Linux or the self-hosted runner is the supported environment. On macOS the test still validates on-disk format and `read_only` behaviour but not host permissions.
+On macOS Docker Desktop, host uid 1001 and bind-mount permissions are virtualized, so the uid-permission dimension is only truly exercised on Linux. The guide states that Linux or the self-hosted runner is the supported environment. On macOS the test still validates on-disk format and `read_only` behaviour but not host permissions. The flow was validated end to end on a Debian 13 (trixie) x86_64 VM (see Validation).
 
 ## Out of scope
 
@@ -71,8 +71,25 @@ The Vitest corpus, `browser-upgrade.test.ts`, and the `corpus-guard` release job
 - Include the snapshot create and survival assertions. Snapshots are core to the data-safety story.
 - Drive the root compose file with an override, relying on parity CI for persist-file fidelity.
 
-## Verification
+## Validation
+
+The flow was run manually as a spike on a Debian 13 (trixie) x86_64 VM on 2026-06-19, before writing the concrete script, driving the latest release (v26.6.3) to a working-tree build of `main`. Result: 5 assertions passed, 1 skipped.
+
+Confirmed working:
+
+- Compose stack old image to new image via `RACKULA_API_IMAGE`, a port-publish override, and `--project-directory` pointing `./data` at a throwaway dir.
+- Bind mount plus uid 1001 plus `read_only: true`: the new container wrote to the bind-mounted `/data` under a read-only rootfs (the write assertion passed). This is the environment fidelity the old test lacked.
+- Byte-equality no-loss: the 919-byte layout was byte-identical after the upgrade.
+- Discovery: the new API listed the old-written folder.
+
+Findings folded into the design:
+
+- The snapshot feature is unreleased as of v26.6.3, so seeding under the latest release produced no snapshot and the snapshots route returned 404. The snapshot-survival assertion is therefore version-conditional and self-skips; the snapshot count query must tolerate a 404. The snapshot-write path is still proven on the new build (a post-upgrade write created a snapshot).
+- The bind mount accumulates uid-1001-owned files, so cleanup requires `sudo rm -rf`.
+- A working-tree build carries no version metadata (empty commit and buildTime), so the version assertion only checks that the endpoint responds.
+
+## Verification (for the concrete implementation)
 
 - ShellCheck clean on the reworked script.
-- A local end-to-end run on Linux (or the self-hosted runner) against the previous release tag, confirming the script passes and that removing a seeded value makes the byte-equality assertion fail (teeth check).
+- An end-to-end run on Linux (or the self-hosted runner) against the previous release tag, confirming the script passes and that perturbing the stored layout makes the byte-equality assertion fail (teeth check).
 - `prettier --check` clean on the new guide.
