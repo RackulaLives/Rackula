@@ -23,6 +23,7 @@
   import MobileBottomNav from "$lib/components/mobile/MobileBottomNav.svelte";
   import RackEditSheet from "$lib/components/RackEditSheet.svelte";
   import MobileViewSheet from "$lib/components/mobile/MobileViewSheet.svelte";
+  import MobileLayoutsSheet from "$lib/components/mobile/MobileLayoutsSheet.svelte";
   import DevicePalette from "$lib/components/DevicePalette.svelte";
   import LoadDialog from "$lib/components/LoadDialog.svelte";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
@@ -617,6 +618,13 @@
     dialogStore.closeSheet();
   }
 
+  // The Layouts sheet opens a fresh layout itself (via the workspace store) and
+  // then asks the orchestrator to raise the New Rack wizard, mirroring the
+  // desktop New layout flow.
+  function handleLayoutsNewLayout() {
+    dialogStore.open("newRack");
+  }
+
   function handleRacksTabClick() {
     dialogStore.openSheet("racks");
   }
@@ -828,7 +836,10 @@
     size="M"
     onclose={handleLayoutsSheetClose}
   >
-    <p class="sheet-placeholder">Layout switching is coming soon.</p>
+    <MobileLayoutsSheet
+      onnewlayout={handleLayoutsNewLayout}
+      onclose={handleLayoutsSheetClose}
+    />
   </Dialog>
 {/if}
 
