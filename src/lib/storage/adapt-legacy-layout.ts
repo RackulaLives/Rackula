@@ -25,6 +25,8 @@ import { UNITS_PER_U } from "$lib/types/constants";
 import { generateId } from "$lib/utils/device";
 import { findStarterDevice } from "$lib/data/starterLibrary";
 import { ensurePreCarrierBackup } from "./pre-carrier-backup";
+import { getStorageMode } from "./availability.svelte";
+import { markPreCarrierMigrationPending } from "./pre-carrier-migration-pending";
 
 /**
  * A placed device as it may appear in raw legacy input. The carrier-first model
@@ -374,9 +376,18 @@ export function adaptLegacyLayout(layout: Layout): Layout {
 
   if (!racksChanged && !typesChanged) return layout;
 
-  // Snapshot the pre-carrier browser state once, before the adapted layout can
-  // be written back over the original by autosave.
-  ensurePreCarrierBackup();
+  // Preserve the pre-carrier state once before the adapted layout can be written
+  // back over the original. The two storage modes are mutually exclusive:
+  // browser mode snapshots the whole localStorage state locally; server mode
+  // instead marks this layout's uuid pending, so its next save-to-server signals
+  // the server to durably back up the prior YAML (#2517).
+  if (getStorageMode() === "server") {
+    if (layout.metadata?.id) {
+      markPreCarrierMigrationPending(layout.metadata.id);
+    }
+  } else {
+    ensurePreCarrierBackup();
+  }
 
   return {
     ...layout,

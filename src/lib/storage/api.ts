@@ -4,6 +4,7 @@
  * Uses UUID-based routing for stable URLs across renames
  */
 import { isApiAvailable } from "./availability.svelte";
+import { takePreCarrierMigrationPending } from "./pre-carrier-migration-pending";
 import type { Layout } from "$lib/types";
 import type { ImageStoreMap } from "$lib/types/images";
 import {
@@ -407,6 +408,12 @@ export async function saveLayoutToServer(
   const headers: Record<string, string> = { "Content-Type": "text/yaml" };
   if (lastKnownUpdatedAt) {
     headers["X-Rackula-Updated-At"] = lastKnownUpdatedAt;
+  }
+  // Signal the one-time carrier-first migration to the server so it durably
+  // backs up the prior YAML before this overwrite. Consume-once: the mark is
+  // cleared here so only the first save after the migration carries it (#2517).
+  if (takePreCarrierMigrationPending(uuid)) {
+    headers["X-Rackula-Pre-Carrier-Migration"] = "1";
   }
 
   const response = await fetch(url, {
