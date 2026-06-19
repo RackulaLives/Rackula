@@ -45,9 +45,18 @@ const V06_BODY = {
     id: "rack-a",
     name: "Rack A",
     height: 42,
-    devices: [{ id: "dev-1", device_type: "switch-1u", position: 5, face: "front" }],
+    devices: [
+      { id: "dev-1", device_type: "switch-1u", position: 5, face: "front" },
+    ],
   },
-  device_types: [{ slug: "switch-1u", u_height: 1, manufacturer: "Acme", category: "network" }],
+  device_types: [
+    {
+      slug: "switch-1u",
+      u_height: 1,
+      manufacturer: "Acme",
+      category: "network",
+    },
+  ],
 };
 
 // loadLayoutBody (browser-workspace.ts:200) checks:
@@ -76,10 +85,18 @@ describe("browser upgrade: localStorage ingress", () => {
     // Both are intentional transformations declared in the allow list.
     // All other distinctive values (ids, names, slugs, face) must survive.
     const losses = findSilentLosses(V06_BODY, result.layout, [
-      { pathPattern: "position$", reason: "U value scaled to internal units by migrateLayout" },
-      { pathPattern: "\\.version$", reason: "migrateLayout stamps current VERSION after position migration" },
+      {
+        pathPattern: "position$",
+        reason: "U value scaled to internal units by migrateLayout",
+      },
+      {
+        pathPattern: "\\.version$",
+        reason: "migrateLayout stamps current VERSION after position migration",
+      },
     ]);
-    expect(losses, `silent loss:\n${JSON.stringify(losses, null, 2)}`).toEqual([]);
+    expect(losses, `silent loss:\n${JSON.stringify(losses, null, 2)}`).toEqual(
+      [],
+    );
   });
 
   it("loadWorkspaceIndex still finds layouts under the current key structure", () => {

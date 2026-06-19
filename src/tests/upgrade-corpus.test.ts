@@ -1,7 +1,14 @@
 // src/tests/upgrade-corpus.test.ts
 import { describe, it, expect } from "vitest";
-import { parseLayoutYaml, parseLayoutYamlWithImages, parseYaml } from "$lib/utils/yaml";
-import { findSilentLosses, type AllowListEntry } from "./upgrade-corpus-helpers";
+import {
+  parseLayoutYaml,
+  parseLayoutYamlWithImages,
+  parseYaml,
+} from "$lib/utils/yaml";
+import {
+  findSilentLosses,
+  type AllowListEntry,
+} from "./upgrade-corpus-helpers";
 
 interface Sidecar {
   reject?: boolean;

@@ -164,12 +164,7 @@ gh pr view <number> --comments
 
 ## Development Philosophy
 
-**Prior-release data is supported and tested:** Rackula has shipped releases that
-real users run with saved data. Reading data written by a prior release is a
-first-class, tested requirement. A schema change must be backward-compatible, or
-ship a migration plus a new fixture in the upgrade corpus
-(`src/tests/fixtures/upgrade-corpus/`). See the design at
-`docs/superpowers/specs/2026-06-17-upgrade-safety-harness-design.md`.
+**Prior-release data is supported and tested:** Rackula has shipped releases that real users run with saved data. Reading data written by a prior release is a first-class, tested requirement. A schema change must be backward-compatible, or ship a migration plus a new fixture in the upgrade corpus (`src/tests/fixtures/upgrade-corpus/`). See the design at `docs/superpowers/specs/2026-06-17-upgrade-safety-harness-design.md`.
 
 **Simplicity first:**
 
@@ -184,9 +179,7 @@ ship a migration plus a new fixture in the upgrade corpus
 - No `// removed` comments
 - If unused, delete it
 
-This is about dead code, not data. Migrations and legacy-data adapters that let
-prior-release layouts load are required code, not hacks; keep them and test them
-via the upgrade corpus.
+This is about dead code, not data. Migrations and legacy-data adapters that let prior-release layouts load are required code, not hacks; keep them and test them via the upgrade corpus.
 
 **File operations:**
 
