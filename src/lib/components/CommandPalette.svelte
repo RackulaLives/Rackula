@@ -156,6 +156,8 @@
   }
 
   function placeDevice(device: DeviceType) {
+    // Tap-to-place is suppressed when the layout is locked for viewing.
+    if (uiStore.readOnly) return;
     // Mirror the mobile tap-to-place path: start placement, then close. The
     // palette closing is the cue to position the device on the canvas.
     placementStore.startPlacement(device);

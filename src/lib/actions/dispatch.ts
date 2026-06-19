@@ -163,13 +163,32 @@ export function createActionDispatch(): ActionDispatch {
     "toggle-annotations": () => getUIStore().toggleAnnotations(),
     "cycle-rack-prev": () => cycleActiveRack(-1),
     "cycle-rack-next": () => cycleActiveRack(1),
-    // selection
-    "delete-selection": handleDelete,
-    "move-device-up": moveSelectedDeviceUp,
-    "move-device-down": moveSelectedDeviceDown,
-    "move-device-slot": moveSelectedDeviceToSlot,
-    "duplicate-selection": duplicateSelection,
-    "flip-device-face": flipSelectedDeviceFace,
+    // selection — each mutation verb checks readOnly so keyboard shortcuts
+    // and the command palette respect the lock without per-call-site guards.
+    "delete-selection": () => {
+      if (getUIStore().readOnly) return;
+      handleDelete();
+    },
+    "move-device-up": () => {
+      if (getUIStore().readOnly) return;
+      moveSelectedDeviceUp();
+    },
+    "move-device-down": () => {
+      if (getUIStore().readOnly) return;
+      moveSelectedDeviceDown();
+    },
+    "move-device-slot": () => {
+      if (getUIStore().readOnly) return;
+      moveSelectedDeviceToSlot();
+    },
+    "duplicate-selection": () => {
+      if (getUIStore().readOnly) return;
+      duplicateSelection();
+    },
+    "flip-device-face": () => {
+      if (getUIStore().readOnly) return;
+      flipSelectedDeviceFace();
+    },
     // rack-actions take string[] not string; wrap selectedRackId in array
     "focus-rack": () => {
       const id = getSelectionStore().selectedRackId;

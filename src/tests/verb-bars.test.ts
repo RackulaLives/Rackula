@@ -272,4 +272,79 @@ describe("verb-bars projection", () => {
       expect(upVerb?.label).toBe(registryAction?.label);
     });
   });
+
+  describe("read-only lock: enabledWhen respects ctx.readOnly", () => {
+    const readOnlyCtx: ActionEnabledContext = {
+      ...deviceCtx,
+      canMoveDeviceSlot: true,
+      readOnly: true,
+    };
+
+    it("disables all device mutation verbs when readOnly is true", () => {
+      const result = getSelectionVerbsWithState(readOnlyCtx);
+      for (const verb of result) {
+        expect(verb.disabled).toBe(true);
+      }
+    });
+
+    it("move-device-up is disabled when readOnly", () => {
+      const result = getSelectionVerbsWithState(readOnlyCtx);
+      const verb = result.find((v) => v.id === "move-device-up");
+      expect(verb?.disabled).toBe(true);
+    });
+
+    it("move-device-down is disabled when readOnly", () => {
+      const result = getSelectionVerbsWithState(readOnlyCtx);
+      const verb = result.find((v) => v.id === "move-device-down");
+      expect(verb?.disabled).toBe(true);
+    });
+
+    it("move-device-slot is disabled when readOnly (even if canMoveDeviceSlot is true)", () => {
+      const result = getSelectionVerbsWithState(readOnlyCtx);
+      const verb = result.find((v) => v.id === "move-device-slot");
+      expect(verb?.disabled).toBe(true);
+    });
+
+    it("flip-device-face is disabled when readOnly", () => {
+      const result = getSelectionVerbsWithState(readOnlyCtx);
+      const verb = result.find((v) => v.id === "flip-device-face");
+      expect(verb?.disabled).toBe(true);
+    });
+
+    it("duplicate-selection is disabled when readOnly", () => {
+      const result = getSelectionVerbsWithState(readOnlyCtx);
+      const verb = result.find((v) => v.id === "duplicate-selection");
+      expect(verb?.disabled).toBe(true);
+    });
+
+    it("delete-selection is disabled when readOnly", () => {
+      const result = getSelectionVerbsWithState(readOnlyCtx);
+      const verb = result.find((v) => v.id === "delete-selection");
+      expect(verb?.disabled).toBe(true);
+    });
+
+    it("all device mutation verbs are enabled when readOnly is false", () => {
+      const readWriteCtx: ActionEnabledContext = {
+        ...deviceCtx,
+        canMoveDeviceSlot: true,
+        readOnly: false,
+      };
+      const result = getSelectionVerbsWithState(readWriteCtx);
+      for (const verb of result) {
+        expect(verb.disabled).toBe(false);
+      }
+    });
+
+    it("all device mutation verbs are enabled when readOnly is omitted", () => {
+      // Backward-compatibility: omitting readOnly is identical to false.
+      const ctxWithSlot: ActionEnabledContext = {
+        ...deviceCtx,
+        canMoveDeviceSlot: true,
+      };
+      const result = getSelectionVerbsWithState(ctxWithSlot);
+      for (const verb of result) {
+        expect(verb.disabled).toBe(false);
+      }
+    });
+  });
 });

@@ -32,6 +32,12 @@
     /** Show the verb row, editable fields, and Remove. Used on mobile. */
     showActions?: boolean;
     /**
+     * Whether the layout is in read-only mode. When true the inspector hides
+     * all mutating verbs and editable fields, showing only the device summary
+     * line. The caller is still responsible for gating dispatched actions.
+     */
+    readOnly?: boolean;
+    /**
      * Registry-projected selection verbs with disabled state. When supplied
      * (with onaction), the action buttons render from the registry instead of
      * bespoke per-consumer callbacks.
@@ -55,6 +61,7 @@
     rackView: _rackView = "front",
     rackHeight: _rackHeight,
     showActions = false,
+    readOnly = false,
     verbs = [],
     onaction,
     ip = "",
@@ -178,108 +185,110 @@
     <div class="inspector">
       <p class="summary">{summary}</p>
 
-      <div class="verbs">
-        {#each rowVerbs as verb (verb.id)}
-          <button
-            type="button"
-            class="verb"
-            onclick={() => dispatch(verb.id)}
-            disabled={verb.disabled}
-            aria-label={verb.label}
-          >
-            {#if verb.id === "move-device-up"}
-              <IconChevronUp />
-              <span>Up</span>
-            {:else if verb.id === "move-device-down"}
-              <IconChevronDown />
-              <span>Down</span>
-            {:else if verb.id === "move-device-slot"}
-              <IconChevronRight size={ICON_SIZE.sm} />
-              <span>Move</span>
-            {:else if verb.id === "flip-device-face"}
-              <IconFlip size={ICON_SIZE.sm} />
-              <span>Flip</span>
-            {/if}
-          </button>
-        {/each}
-        {#if duplicateVerb}
-          <button
-            type="button"
-            class="verb"
-            onclick={() => dispatch(duplicateVerb.id)}
-            disabled={duplicateVerb.disabled}
-            aria-label={duplicateVerb.label}
-          >
-            <IconCopy size={ICON_SIZE.sm} />
-            <span>Duplicate</span>
-          </button>
-        {/if}
-      </div>
-
-      <div class="fields">
-        <div class="field">
-          <span class="field-label" id="inspector-name-label">Name</span>
-          {#if editingName}
-            <!-- svelte-ignore a11y_autofocus -->
-            <input
-              type="text"
-              class="field-input"
-              aria-labelledby="inspector-name-label"
-              bind:value={nameInput}
-              onblur={commitName}
-              onkeydown={handleNameKeydown}
-              autofocus
-            />
-          {:else}
+      {#if !readOnly}
+        <div class="verbs">
+          {#each rowVerbs as verb (verb.id)}
             <button
               type="button"
-              class="field-edit"
-              onclick={startEditingName}
-              aria-label="Edit name"
+              class="verb"
+              onclick={() => dispatch(verb.id)}
+              disabled={verb.disabled}
+              aria-label={verb.label}
             >
-              <span class="field-value">{displayName}</span>
-              <IconEdit />
+              {#if verb.id === "move-device-up"}
+                <IconChevronUp />
+                <span>Up</span>
+              {:else if verb.id === "move-device-down"}
+                <IconChevronDown />
+                <span>Down</span>
+              {:else if verb.id === "move-device-slot"}
+                <IconChevronRight size={ICON_SIZE.sm} />
+                <span>Move</span>
+              {:else if verb.id === "flip-device-face"}
+                <IconFlip size={ICON_SIZE.sm} />
+                <span>Flip</span>
+              {/if}
+            </button>
+          {/each}
+          {#if duplicateVerb}
+            <button
+              type="button"
+              class="verb"
+              onclick={() => dispatch(duplicateVerb.id)}
+              disabled={duplicateVerb.disabled}
+              aria-label={duplicateVerb.label}
+            >
+              <IconCopy size={ICON_SIZE.sm} />
+              <span>Duplicate</span>
             </button>
           {/if}
         </div>
 
-        <div class="field">
-          <label class="field-label" for="inspector-ip">IP</label>
-          <input
-            id="inspector-ip"
-            type="text"
-            class="field-input"
-            placeholder="e.g. 192.168.1.10"
-            bind:value={ipInput}
-            onblur={commitIp}
-          />
+        <div class="fields">
+          <div class="field">
+            <span class="field-label" id="inspector-name-label">Name</span>
+            {#if editingName}
+              <!-- svelte-ignore a11y_autofocus -->
+              <input
+                type="text"
+                class="field-input"
+                aria-labelledby="inspector-name-label"
+                bind:value={nameInput}
+                onblur={commitName}
+                onkeydown={handleNameKeydown}
+                autofocus
+              />
+            {:else}
+              <button
+                type="button"
+                class="field-edit"
+                onclick={startEditingName}
+                aria-label="Edit name"
+              >
+                <span class="field-value">{displayName}</span>
+                <IconEdit />
+              </button>
+            {/if}
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="inspector-ip">IP</label>
+            <input
+              id="inspector-ip"
+              type="text"
+              class="field-input"
+              placeholder="e.g. 192.168.1.10"
+              bind:value={ipInput}
+              onblur={commitIp}
+            />
+          </div>
+
+          <div class="field field-notes">
+            <label class="field-label" for="inspector-notes">Notes</label>
+            <textarea
+              id="inspector-notes"
+              class="field-input notes-input"
+              rows="2"
+              placeholder="Add notes about this placement"
+              bind:value={notesInput}
+              onblur={commitNotes}></textarea>
+          </div>
         </div>
 
-        <div class="field field-notes">
-          <label class="field-label" for="inspector-notes">Notes</label>
-          <textarea
-            id="inspector-notes"
-            class="field-input notes-input"
-            rows="2"
-            placeholder="Add notes about this placement"
-            bind:value={notesInput}
-            onblur={commitNotes}></textarea>
-        </div>
-      </div>
-
-      {#if deleteVerb}
-        <div class="foot">
-          <button
-            type="button"
-            class="remove"
-            onclick={() => dispatch(deleteVerb.id)}
-            disabled={deleteVerb.disabled}
-            aria-label={deleteVerb.label}
-          >
-            <IconTrash size={ICON_SIZE.sm} />
-            <span>Remove</span>
-          </button>
-        </div>
+        {#if deleteVerb}
+          <div class="foot">
+            <button
+              type="button"
+              class="remove"
+              onclick={() => dispatch(deleteVerb.id)}
+              disabled={deleteVerb.disabled}
+              aria-label={deleteVerb.label}
+            >
+              <IconTrash size={ICON_SIZE.sm} />
+              <span>Remove</span>
+            </button>
+          </div>
+        {/if}
       {/if}
     </div>
   {:else}

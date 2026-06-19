@@ -528,7 +528,8 @@
 
   // Build the live enabledWhen context from the stores, mirroring
   // VerbBarOverlay's desktop projection so mobile and desktop share one
-  // source of truth for verb availability.
+  // source of truth for verb availability. readOnly gates all mutation verbs
+  // through the registry, so no individual call site needs to check it.
   const mobileActionCtx = $derived<ActionEnabledContext>({
     hasSelection: selectionStore.hasSelection,
     isDeviceSelected: selectionStore.isDeviceSelected,
@@ -538,6 +539,7 @@
     hasRacks: layoutStore.rackCount > 0,
     mode: getStorageMode(),
     canMoveDeviceSlot: canMoveSelectedDeviceSlot(),
+    readOnly: uiStore.readOnly,
   });
 
   // The rack and device index the mobile sheet is acting on. The bottom sheet
@@ -641,8 +643,13 @@
 
   // Dispatch a registry verb by action id to the shared handler. The handlers
   // read live selection state from the stores, so they act on the same device
-  // the mobile bottom sheet is showing.
+  // the mobile bottom sheet is showing. The readOnly guard here is defence-in-
+  // depth: the registry's enabledWhen already disables all mutation verbs when
+  // readOnly is set, and DeviceDetails hides the controls entirely, so this
+  // path should not be reachable while locked. Belt-and-suspenders keeps it safe
+  // even if a future refactor opens another route to this function.
   function handleMobileVerb(id: ActionId): void {
+    if (uiStore.readOnly) return;
     switch (id) {
       case "move-device-up":
         nudgeSelectedDevice(1);
@@ -733,6 +740,8 @@
   function handleMobileDeviceSelect(
     event: CustomEvent<{ device: import("$lib/types").DeviceType }>,
   ) {
+    // Tap-to-place is suppressed when the layout is locked for viewing.
+    if (uiStore.readOnly) return;
     const { device } = event.detail;
     hapticTap();
     placementStore.startPlacement(device);
@@ -783,6 +792,7 @@
         rackView={activeRack.view}
         {rackHeight}
         showActions={true}
+        readOnly={uiStore.readOnly}
         verbs={mobileVerbs}
         onaction={handleMobileVerb}
         ip={deviceIp}

@@ -140,6 +140,12 @@ export interface ActionEnabledContext {
    * cells. False for full-width devices and single-cell carriers (#2322).
    */
   canMoveDeviceSlot: boolean;
+  /**
+   * Whether the layout is in read-only mode (presentation safety valve). When
+   * true, all mutation verbs are disabled regardless of selection state. Omit
+   * or set to false for normal edit mode.
+   */
+  readOnly?: boolean;
 }
 
 /**
@@ -245,7 +251,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Delete selected",
     scope: "selection",
     bindings: [{ key: "Delete" }, { key: "Backspace" }],
-    enabledWhen: (ctx) => ctx.hasSelection,
+    enabledWhen: (ctx) => !ctx.readOnly && ctx.hasSelection,
     helpGroup: "Editing",
     keywords: ["remove"],
   },
@@ -254,7 +260,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Move device up",
     scope: "selection",
     bindings: [{ key: "ArrowUp" }],
-    enabledWhen: (ctx) => ctx.isDeviceSelected,
+    enabledWhen: (ctx) => !ctx.readOnly && ctx.isDeviceSelected,
     helpGroup: "Editing",
     helpKeyLabel: "↑ / ↓",
     keywords: ["nudge", "up"],
@@ -264,7 +270,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Move device down",
     scope: "selection",
     bindings: [{ key: "ArrowDown" }],
-    enabledWhen: (ctx) => ctx.isDeviceSelected,
+    enabledWhen: (ctx) => !ctx.readOnly && ctx.isDeviceSelected,
     keywords: ["nudge", "down"],
   },
   {
@@ -272,7 +278,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Move to next cell",
     scope: "selection",
     bindings: [],
-    enabledWhen: (ctx) => ctx.canMoveDeviceSlot,
+    enabledWhen: (ctx) => !ctx.readOnly && ctx.canMoveDeviceSlot,
     keywords: ["cell", "carrier", "slot", "shuffle"],
   },
   {
@@ -283,7 +289,8 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
       { key: "d", ctrl: true },
       { key: "d", meta: true },
     ],
-    enabledWhen: (ctx) => ctx.isDeviceSelected || ctx.isRackSelected,
+    enabledWhen: (ctx) =>
+      !ctx.readOnly && (ctx.isDeviceSelected || ctx.isRackSelected),
     keywords: ["copy", "clone"],
   },
   {
@@ -291,7 +298,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Flip face",
     scope: "selection",
     bindings: [],
-    enabledWhen: (ctx) => ctx.isDeviceSelected,
+    enabledWhen: (ctx) => !ctx.readOnly && ctx.isDeviceSelected,
     keywords: ["rotate", "front", "rear", "face"],
   },
   {

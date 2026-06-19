@@ -30,6 +30,7 @@
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import { getUIStore } from "$lib/stores/ui.svelte";
   import { getStorageMode } from "$lib/storage";
 
   interface Props {
@@ -48,6 +49,7 @@
   const selection = getSelectionStore();
   const layout = getLayoutStore();
   const canvas = getCanvasStore();
+  const ui = getUIStore();
 
   const ctx = $derived<ActionEnabledContext>({
     hasSelection: selection.hasSelection,
@@ -58,6 +60,7 @@
     hasRacks: layout.rackCount > 0,
     mode: getStorageMode(),
     canMoveDeviceSlot: canMoveSelectedDeviceSlot(),
+    readOnly: ui.readOnly,
   });
 
   const verbs = $derived(

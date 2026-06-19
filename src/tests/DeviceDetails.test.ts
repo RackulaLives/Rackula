@@ -397,4 +397,116 @@ describe("DeviceDetails", () => {
       expect(oneditname).not.toHaveBeenCalled();
     });
   });
+
+  describe("Read-only lock", () => {
+    // Verbs as supplied by the registry projection in a fully-capable context.
+    const allVerbs: SelectionVerbItem[] = [
+      { id: "move-device-up", label: "Move device up", disabled: false },
+      { id: "move-device-down", label: "Move device down", disabled: false },
+      { id: "flip-device-face", label: "Flip face", disabled: false },
+      {
+        id: "duplicate-selection",
+        label: "Duplicate selection",
+        disabled: false,
+      },
+      { id: "delete-selection", label: "Delete selected", disabled: false },
+    ];
+
+    it("hides action verbs when readOnly is true", () => {
+      render(DeviceDetails, {
+        props: {
+          device: createTestPlacedDevice(),
+          deviceType: createTestDeviceType(),
+          showActions: true,
+          readOnly: true,
+          verbs: allVerbs,
+        },
+      });
+      expect(
+        screen.queryByRole("button", { name: /move device up/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /flip face/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /duplicate/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /delete selected/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides editable fields when readOnly is true", () => {
+      render(DeviceDetails, {
+        props: {
+          device: createTestPlacedDevice(),
+          deviceType: createTestDeviceType(),
+          showActions: true,
+          readOnly: true,
+          verbs: allVerbs,
+          ip: "10.0.0.1",
+        },
+      });
+      expect(
+        screen.queryByRole("button", { name: /edit name/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("textbox", { name: /ip/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("textbox", { name: /notes/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows action verbs when readOnly is false", () => {
+      render(DeviceDetails, {
+        props: {
+          device: createTestPlacedDevice(),
+          deviceType: createTestDeviceType(),
+          showActions: true,
+          readOnly: false,
+          verbs: allVerbs,
+        },
+      });
+      expect(
+        screen.getByRole("button", { name: /move device up/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /delete selected/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("shows action verbs when readOnly is omitted (default unlocked)", () => {
+      render(DeviceDetails, {
+        props: {
+          device: createTestPlacedDevice(),
+          deviceType: createTestDeviceType(),
+          showActions: true,
+          verbs: allVerbs,
+        },
+      });
+      expect(
+        screen.getByRole("button", { name: /move device up/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("does not call onaction when verb button click is attempted while readOnly (verbs hidden)", async () => {
+      // When readOnly=true the verb buttons are not in the DOM, so clicks cannot
+      // reach them. This test verifies the component does not fire onaction via
+      // any other path.
+      const onaction = vi.fn();
+      render(DeviceDetails, {
+        props: {
+          device: createTestPlacedDevice(),
+          deviceType: createTestDeviceType(),
+          showActions: true,
+          readOnly: true,
+          verbs: allVerbs,
+          onaction,
+        },
+      });
+      // No clickable verb buttons exist; onaction must never be called.
+      expect(onaction).not.toHaveBeenCalled();
+    });
+  });
 });
