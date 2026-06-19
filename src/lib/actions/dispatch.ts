@@ -47,8 +47,9 @@ import {
   handleRackContextFocus,
   handleRackContextExport,
 } from "$lib/utils/rack-actions";
-import { handleLoad } from "$lib/storage";
+import { handleLoad, handleExportAll } from "$lib/storage";
 import { runImportDevices } from "$lib/actions/import-devices-trigger";
+import { runRestoreFromFile } from "$lib/actions/restore-file-trigger";
 
 export type ActionDispatch = Record<ActionId, () => void>;
 
@@ -158,6 +159,10 @@ export function createActionDispatch(): ActionDispatch {
     save: maybeSave,
     "save-as": maybeSaveAs,
     "export-backup": maybeSaveAs,
+    "export-all": () => {
+      void handleExportAll();
+    },
+    "restore-file": runRestoreFromFile,
     export: maybeExport,
     share: handleShare,
     load: handleLoad,

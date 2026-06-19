@@ -2,7 +2,9 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { createActionDispatch } from "$lib/actions/dispatch";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import * as appActions from "$lib/utils/app-actions";
+import * as storage from "$lib/storage";
 import { registerImportDevicesTrigger } from "$lib/actions/import-devices-trigger";
+import { registerRestoreFromFileTrigger } from "$lib/actions/restore-file-trigger";
 
 describe("createActionDispatch", () => {
   afterEach(() => {
@@ -37,6 +39,25 @@ describe("createActionDispatch", () => {
     try {
       const dispatch = createActionDispatch();
       dispatch["import-devices"]();
+      expect(trigger).toHaveBeenCalledOnce();
+    } finally {
+      unregister();
+    }
+  });
+
+  it("calls handleExportAll when export-all runs", () => {
+    const spy = vi.spyOn(storage, "handleExportAll").mockResolvedValue(true);
+    const dispatch = createActionDispatch();
+    dispatch["export-all"]();
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it("runs the registered trigger when restore-file runs", () => {
+    const trigger = vi.fn();
+    const unregister = registerRestoreFromFileTrigger(trigger);
+    try {
+      const dispatch = createActionDispatch();
+      dispatch["restore-file"]();
       expect(trigger).toHaveBeenCalledOnce();
     } finally {
       unregister();

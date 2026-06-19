@@ -29,6 +29,8 @@ export type ActionId =
   | "save"
   | "save-as"
   | "export-backup"
+  | "export-all"
+  | "restore-file"
   | "new-layout"
   | "load"
   | "import-devices"
@@ -355,6 +357,14 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     keywords: ["download", "backup", "zip"],
   },
   {
+    id: "export-all",
+    label: "Back up all layouts",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "file",
+    keywords: ["backup", "export all", "zip", "archive", "copy"],
+  },
+  {
     id: "export",
     label: "Export image",
     scope: "global",
@@ -379,6 +389,14 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     helpGroup: "File",
     appMenuGroup: "file",
     keywords: ["link", "url", "qr"],
+  },
+  {
+    id: "restore-file",
+    label: "Restore from file",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "file",
+    keywords: ["restore", "load", "open", "import", "replace"],
   },
   {
     id: "view-yaml",

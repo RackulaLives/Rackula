@@ -22,6 +22,7 @@
   import LayoutsLibrary from "$lib/components/LayoutsLibrary.svelte";
   import PersistenceEffects from "$lib/components/PersistenceEffects.svelte";
   import DialogOrchestrator from "$lib/components/DialogOrchestrator.svelte";
+  import RestoreFromFileDialog from "$lib/components/RestoreFromFileDialog.svelte";
   import {
     getShareParam,
     clearShareParam,
@@ -655,6 +656,8 @@
     </main>
 
     <DialogOrchestrator />
+
+    <RestoreFromFileDialog />
 
     <KeyboardHandler />
 

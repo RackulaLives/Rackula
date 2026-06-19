@@ -79,13 +79,14 @@ test.describe("Accessibility", () => {
 
       // Walk forward with Tab and record what each stop is. A keyboard user
       // must be able to reach controls without the focus ring vanishing into a
-      // non-interactive void, and the far end of the top-bar chrome must be on
-      // the path. The top bar is the workspace frame only (#2072): file commands
-      // and Settings live in the app menu (#2398, #2072) and the view/history
-      // controls relocate to the canvas (#2074), so the storage status chip in
-      // the right region is the workspace-chrome anchor at the end of the sweep.
+      // non-interactive void. The top bar is the workspace frame only (#2072):
+      // file commands and Settings live in the app menu (#2398, #2072) and the
+      // view/history controls relocate to the canvas (#2074). The storage chip
+      // is now a status-only indicator (#2446, role="status"), so it is not a
+      // tab stop; the command-palette pill is the next interactive control after
+      // the app menu, so we anchor the sweep on it.
       let sawInteractiveControl = false;
-      let reachedStorageChip = false;
+      let reachedCommandPalette = false;
 
       for (let i = 0; i < 25; i++) {
         await page.keyboard.press("Tab");
@@ -94,7 +95,11 @@ test.describe("Accessibility", () => {
         // Focus must always land on something focusable, never <body>.
         expect(info.tag).not.toBe("body");
 
-        if (info.testid === "storage-status-chip") reachedStorageChip = true;
+        // The status chip is informational, not operable: it must never take
+        // keyboard focus.
+        expect(info.testid).not.toBe("storage-status-chip");
+
+        if (info.testid === "btn-command-palette") reachedCommandPalette = true;
 
         // Native controls and ARIA widgets are the keyboard-operable surface.
         const interactiveTags = ["button", "input", "a", "select", "textarea"];
@@ -107,12 +112,12 @@ test.describe("Accessibility", () => {
           sawInteractiveControl = true;
         }
 
-        if (reachedStorageChip) break;
+        if (reachedCommandPalette) break;
       }
 
       expect(sawInteractiveControl).toBe(true);
-      // The storage chip must be reachable in a single forward sweep.
-      expect(reachedStorageChip).toBe(true);
+      // The command-palette pill must be reachable in a single forward sweep.
+      expect(reachedCommandPalette).toBe(true);
     });
 
     test("canvas exposes an application region with a descriptive name", async ({
