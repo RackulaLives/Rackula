@@ -175,6 +175,9 @@ jobs:
           cd /opt/rackula/rackula-dev
           docker compose --profile persist pull
           docker compose --profile persist up -d --remove-orphans
+          # Each main build supersedes the previous :main image, leaving it
+          # dangling. Prune so untagged images don't accumulate on the VPS.
+          docker image prune -f
 
   smoke-test:
     needs: deploy

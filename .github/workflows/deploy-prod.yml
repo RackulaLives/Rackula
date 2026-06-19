@@ -50,6 +50,9 @@ jobs:
           docker stop rackula-app 2>/dev/null && docker rm rackula-app 2>/dev/null || true
           docker compose pull
           docker compose up -d --remove-orphans
+          # Prune the image the new pull just superseded (now dangling);
+          # running containers keep their tagged images. Prevents disk fill.
+          docker image prune -f
 
   smoke-test:
     needs: [deploy]
