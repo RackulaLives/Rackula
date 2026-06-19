@@ -7,10 +7,11 @@
   app menu's file section, projected from the actions registry (#2446).
 
   Accessibility (#2064): state is conveyed by icon + text, never colour alone
-  (WCAG 1.4.1). The chip is a non-interactive status indicator (role="status"),
-  so its text content is its accessible name. The save->saved debounce cascade
-  produces several intermediate statuses in quick succession; the aria-live
-  region is debounced so only the settled state reaches a screen reader.
+  (WCAG 1.4.1). The visible chip is a labelled but non-live status indicator
+  (role="status" with aria-live="off"), so it is not announced on every change.
+  The save->saved debounce cascade produces several intermediate statuses in
+  quick succession; a single hidden live region announces only the settled
+  state (debounced), so a screen reader is not spammed with intermediate ones.
 -->
 <script lang="ts">
   import { IconCheck, IconClock, IconWarningTriangle } from "./icons";
@@ -73,6 +74,7 @@
 <div
   class="storage-chip storage-chip-{durability.status}"
   role="status"
+  aria-live="off"
   aria-label={`Storage status: ${durability.label}`}
   data-testid="storage-status-chip"
 >
