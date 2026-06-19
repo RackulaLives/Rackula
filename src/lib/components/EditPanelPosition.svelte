@@ -5,12 +5,13 @@
 -->
 <script lang="ts">
   import { getLayoutStore } from "$lib/stores/layout.svelte";
-  import { canPlaceDevice, isContainerChild } from "$lib/utils/collision";
+  import { isContainerChild } from "$lib/utils/collision";
+  import { toHumanUnits, toInternalUnits, formatPosition } from "$lib/utils/position";
+  import { canMoveUp, canMoveDown } from "$lib/utils/device-movement";
   import {
-    toHumanUnits,
-    toInternalUnits,
-    formatPosition,
-  } from "$lib/utils/position";
+    moveSelectedDeviceUp,
+    moveSelectedDeviceDown,
+  } from "$lib/actions/selection-actions";
   import type { Rack, SelectedDeviceInfo } from "$lib/types";
 
   interface Props {
@@ -39,84 +40,19 @@
     return formatPosition(toInternalUnits(displayWholeU));
   }
 
-  /**
-   * Move device up or down by one whole rack unit. Rails register equipment at
-   * whole-U boundaries only (carrier-first model).
-   * @param direction - 1 for up (higher U), -1 for down (lower U)
-   */
-  function moveDevice(direction: number) {
-    // A rack-level move would eject a container child from its container.
-    if (isChildDevice) return;
-
-    const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-
-    // Convert internal units to human U for calculations
-    const currentPositionU = toHumanUnits(placedDevice.position);
-
-    // Calculate new position in human U
-    let newPositionU = currentPositionU + direction;
-
-    // Clamp to valid range (human U: 1 to rack.height)
-    if (newPositionU < 1) newPositionU = 1;
-    if (newPositionU + device.u_height - 1 > rack.height) {
-      newPositionU = rack.height - device.u_height + 1;
-    }
-
-    // Check if new position is valid (canPlaceDevice expects internal units)
-    // Face is authoritative: the device's face value determines blocking
-    const isValid = canPlaceDevice(
-      rack,
-      layoutStore.device_types,
-      device.u_height,
-      toInternalUnits(newPositionU),
-      deviceIndex,
-      placedDevice.face,
-    );
-
-    if (isValid) {
-      // layoutStore.moveDevice expects human U
-      layoutStore.moveDevice(
-        selectedDeviceInfo.rack.id,
-        deviceIndex,
-        newPositionU,
-      );
-    }
-  }
-
-  // Check if device can move up
-  const canMoveUp = $derived.by(() => {
+  // Whether the selected device can move up/down. Delegates to the shared
+  // collision-aware helpers from device-movement so desktop, keyboard, and
+  // mobile all use the same reachability logic.
+  const canMoveDeviceUp = $derived.by(() => {
     if (isChildDevice) return false;
-    const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-    // Convert to human U and add 1
-    const newPositionU = toHumanUnits(placedDevice.position) + 1;
-    if (newPositionU + device.u_height - 1 > rack.height) return false;
-    // canPlaceDevice expects internal units
-    return canPlaceDevice(
-      rack,
-      layoutStore.device_types,
-      device.u_height,
-      toInternalUnits(newPositionU),
-      deviceIndex,
-      placedDevice.face,
-    );
+    const { rack, deviceIndex } = selectedDeviceInfo;
+    return canMoveUp(rack, layoutStore.device_types, deviceIndex);
   });
 
-  // Check if device can move down
-  const canMoveDown = $derived.by(() => {
+  const canMoveDeviceDown = $derived.by(() => {
     if (isChildDevice) return false;
-    const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-    // Convert to human U and subtract 1
-    const newPositionU = toHumanUnits(placedDevice.position) - 1;
-    if (newPositionU < 1) return false;
-    // canPlaceDevice expects internal units
-    return canPlaceDevice(
-      rack,
-      layoutStore.device_types,
-      device.u_height,
-      toInternalUnits(newPositionU),
-      deviceIndex,
-      placedDevice.face,
-    );
+    const { rack, deviceIndex } = selectedDeviceInfo;
+    return canMoveDown(rack, layoutStore.device_types, deviceIndex);
   });
 
   // Transform internal position to a whole-U display label.
@@ -208,8 +144,8 @@
         <button
           type="button"
           class="position-btn"
-          onclick={() => moveDevice(-1)}
-          disabled={!canMoveDown}
+          onclick={moveSelectedDeviceDown}
+          disabled={!canMoveDeviceDown}
           aria-label="Move device down by 1 rack unit"
           title="Move down 1U"
         >
@@ -218,8 +154,8 @@
         <button
           type="button"
           class="position-btn"
-          onclick={() => moveDevice(1)}
-          disabled={!canMoveUp}
+          onclick={moveSelectedDeviceUp}
+          disabled={!canMoveDeviceUp}
           aria-label="Move device up by 1 rack unit"
           title="Move up 1U"
         >

@@ -12,6 +12,7 @@ import {
   flipSelectedDeviceFace,
 } from "$lib/actions/selection-actions";
 import { createTestDeviceType, createTestDeviceTypeInput } from "./factories";
+import { toInternalUnits } from "$lib/utils/position";
 import type { DeviceFace } from "$lib/types";
 
 function resetAll() {
@@ -153,6 +154,101 @@ describe("selection-actions", () => {
       const posAfter = layout.getRackById(rack.id)!.devices[0]!.position;
 
       expect(posAfter).toBeLessThan(posBefore);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Shared handler: collision and bounds (desktop + mobile + keyboard all
+  // route through moveSelectedDeviceUp/Down from selection-actions, so these
+  // tests cover the shared handler that EditPanelPosition now delegates to).
+  // ---------------------------------------------------------------------------
+
+  describe("shared move handler - collision rejection", () => {
+    it("does not move up when the next position is occupied on the same face", () => {
+      const layout = getLayoutStore();
+      const rack = layout.addRack("Test Rack", 42);
+      if (!rack) throw new Error("addRack returned null");
+
+      const dt = createTestDeviceType({
+        slug: "blocker-server",
+        u_height: 1,
+        is_full_depth: true,
+      });
+      layout.addDeviceTypeRaw(dt);
+
+      // Place device at U10 and a full-rack-of-blockers above it: U11-U42
+      layout.placeDevice(rack.id, dt.slug, 10, "front");
+      for (let u = 11; u <= 42; u++) {
+        layout.placeDevice(rack.id, dt.slug, u, "front");
+      }
+      // devices[0] is at U10 (all others are the blockers)
+      const deviceUnderTest = layout.getRackById(rack.id)!.devices[0]!;
+      const posBefore = deviceUnderTest.position;
+
+      getSelectionStore().selectDevice(rack.id, deviceUnderTest.id);
+      moveSelectedDeviceUp();
+
+      const posAfter = layout
+        .getRackById(rack.id)!
+        .devices.find((d) => d.id === deviceUnderTest.id)!.position;
+      expect(posAfter).toBe(posBefore);
+    });
+
+    it("does not move down when at the bottom boundary (U1)", () => {
+      const { layout, rackId, deviceId } = setupHalfDepthDevice();
+      const rack = layout.getRackById(rackId)!;
+      // Place the device at U1 explicitly
+      const deviceIndex = rack.devices.findIndex((d) => d.id === deviceId);
+      layout.moveDevice(rackId, deviceIndex, 1);
+      const posBefore = layout.getRackById(rackId)!.devices.find((d) => d.id === deviceId)!.position;
+
+      getSelectionStore().selectDevice(rackId, deviceId);
+      moveSelectedDeviceDown();
+
+      const posAfter = layout.getRackById(rackId)!.devices.find((d) => d.id === deviceId)!.position;
+      expect(posAfter).toBe(posBefore);
+    });
+
+    it("does not move up when at the top boundary", () => {
+      const { layout, rackId, deviceId } = setupHalfDepthDevice();
+      const rack = layout.getRackById(rackId)!;
+      // Move device to rack height (top U)
+      const deviceIndex = rack.devices.findIndex((d) => d.id === deviceId);
+      layout.moveDevice(rackId, deviceIndex, rack.height);
+      const posBefore = layout.getRackById(rackId)!.devices.find((d) => d.id === deviceId)!.position;
+
+      getSelectionStore().selectDevice(rackId, deviceId);
+      moveSelectedDeviceUp();
+
+      const posAfter = layout.getRackById(rackId)!.devices.find((d) => d.id === deviceId)!.position;
+      expect(posAfter).toBe(posBefore);
+    });
+
+    it("leapfrogs over a blocking device to the next free slot", () => {
+      const layout = getLayoutStore();
+      const rack = layout.addRack("Test Rack", 42);
+      if (!rack) throw new Error("addRack returned null");
+
+      const dt = createTestDeviceType({
+        slug: "leap-device",
+        u_height: 1,
+        is_full_depth: false,
+      });
+      layout.addDeviceTypeRaw(dt);
+
+      // Place target at U10, blocker at U11 (same face), U12 is free
+      layout.placeDevice(rack.id, dt.slug, 10, "front");
+      layout.placeDevice(rack.id, dt.slug, 11, "front");
+      const target = layout.getRackById(rack.id)!.devices[0]!;
+
+      getSelectionStore().selectDevice(rack.id, target.id);
+      moveSelectedDeviceUp();
+
+      // Should leapfrog to U12
+      const posAfter = layout
+        .getRackById(rack.id)!
+        .devices.find((d) => d.id === target.id)!.position;
+      expect(posAfter).toBe(toInternalUnits(12));
     });
   });
 
