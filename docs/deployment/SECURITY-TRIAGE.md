@@ -8,10 +8,25 @@ It authenticates with a Claude subscription OAuth token, so it bills against a P
 
 1. CodeQL or Trivy completes a scan on the `main` branch.
 2. `security-triage.yml` fires via `workflow_run`.
-3. Claude Code (run by `anthropics/claude-code-action`) reads `.github/prompts/security-triage.md` and follows it.
-4. It queries the GitHub Code Scanning API for net-new open alerts from that scan (up to 5 per run), reading the affected code for context.
-5. For false positives: it dismisses the alert via the Code Scanning API with an explanation.
-6. For real findings: it opens a draft PR on a branch `fix/security-<alert-number>` with the triage reasoning and a suggested or implemented fix, labelled `security` and `automated`.
+3. A cheap gate step (`actions/github-script`) polls the Code Scanning API for net-new open alerts from the triggering tool, then sets `has_alerts`. If the scan produced no net-new alerts, the gate returns `false` and every later step (checkout, git config, Claude) is skipped, so no action is invoked and no subscription usage is spent. See [The alert gate](#the-alert-gate).
+4. When `has_alerts` is `true`, Claude Code (run by `anthropics/claude-code-action`) reads `.github/prompts/security-triage.md` and follows it.
+5. It queries the GitHub Code Scanning API for net-new open alerts from that scan (up to 5 per run), reading the affected code for context.
+6. For false positives: it dismisses the alert via the Code Scanning API with an explanation.
+7. For real findings: it opens a draft PR on a branch `fix/security-<alert-number>` with the triage reasoning and a suggested or implemented fix, labelled `security` and `automated`.
+
+## The alert gate
+
+The gate keeps the expensive Claude invocation off the critical path of every push. It runs before checkout and:
+
+- Maps the triggering workflow name to the SARIF tool name the Code Scanning API indexes alerts under (`CodeQL` -> `CodeQL`, `Trivy Security Scan` -> `Trivy`).
+- Counts open alerts for that tool on `main` whose `created_at` is at or after `run_started_at - 30 minutes`, matching the playbook's net-new definition.
+- Polls in steps of roughly 30 seconds up to a total of about 90 seconds (the budget the old fixed `sleep 90` spent), because GitHub turns uploaded SARIF into alerts asynchronously. It polls the whole budget before deciding rather than stopping at the first alert, so a scan's alerts have time to finish landing and Claude is not started against a partially-processed set.
+- On a manual `workflow_dispatch` there is no scan start time, so the gate does not wait or time-filter: any currently-open alert for the tool counts (matching the dry-run behaviour of the playbook).
+- Fails secure: if the Code Scanning API errors persistently, the gate sets `has_alerts=true` so real findings are never silently skipped.
+
+## The secure-coding skill
+
+The triage call loads the `secure-coding` skill so the analysis and any drafted fix follow secure-coding practice. Headless CI does not auto-install plugins from settings (the marketplace clone races session start, see `anthropics/claude-code#63028`), so the skill is vendored into the repo at `.github/claude-plugins/secure-coding/` and loaded deterministically with `--plugin-dir` via `claude_args`. The triage prompt invokes it as `/secure-coding:secure-coding`. The skill body is the community VibeSec guide (`BehiSecc/VibeSec-Skill`); update `skills/secure-coding/SKILL.md` to refresh it.
 
 ## Required Secret: CLAUDE_CODE_OAUTH_TOKEN
 
@@ -72,7 +87,8 @@ For each draft PR:
 ## Tuning
 
 - Triage playbook: `.github/prompts/security-triage.md` - edit to adjust guidance, the per-run cap, or the dismiss/PR rules.
-- SARIF processing delay: the `sleep 90` step in the workflow gives GitHub time to turn uploaded SARIF into Code Scanning alerts. Increase it if Claude reports zero findings immediately after a scan that produced results.
+- SARIF processing delay: the alert gate polls the Code Scanning API for up to about 90 seconds to let GitHub turn uploaded SARIF into alerts. If Claude is skipped immediately after a scan that produced results, increase the poll budget in the `Check for net-new Code Scanning alerts` step.
+- Vendored skill: `.github/claude-plugins/secure-coding/` holds the skill loaded into the triage call. Update its `skills/secure-coding/SKILL.md` to adjust the secure-coding guidance.
 
 ## Testing
 

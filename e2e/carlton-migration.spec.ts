@@ -1,6 +1,11 @@
 import { test, expect } from "./helpers/base-test";
 import path from "path";
-import { gotoWithRack, PLATFORM_MODIFIER, loadFileFromDisk, locators } from "./helpers";
+import {
+  gotoWithRack,
+  PLATFORM_MODIFIER,
+  loadFileFromDisk,
+  locators,
+} from "./helpers";
 
 /**
  * Carlton Migration Test (#883)
@@ -28,7 +33,6 @@ test.describe("Carlton Migration (#879)", () => {
     "fixtures",
     "carlton-5123home.Rackula.zip",
   );
-
 
   test.beforeEach(async ({ page }) => {
     // Load a rack via share link so the app is in a ready state for file loading

@@ -96,8 +96,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
     padding: 0;
     border: none;
     background: transparent;

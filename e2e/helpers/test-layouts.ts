@@ -185,5 +185,8 @@ export async function gotoWithRack(
   shareParam: string = EMPTY_RACK_SHARE,
 ): Promise<void> {
   await page.goto(`/?l=${shareParam}`);
-  await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
+  await page
+    .locator(locators.rack.container)
+    .first()
+    .waitFor({ state: "visible" });
 }

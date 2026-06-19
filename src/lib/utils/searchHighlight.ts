@@ -4,8 +4,8 @@
  */
 
 export interface TextSegment {
-	text: string;
-	isMatch: boolean;
+  text: string;
+  isMatch: boolean;
 }
 
 /**
@@ -15,52 +15,52 @@ export interface TextSegment {
  * @returns Array of text segments with match flags
  */
 export function highlightMatch(text: string, query: string): TextSegment[] {
-	if (!query.trim()) {
-		return [{ text, isMatch: false }];
-	}
+  if (!query.trim()) {
+    return [{ text, isMatch: false }];
+  }
 
-	const normalizedText = text.toLowerCase();
-	const normalizedQuery = query.toLowerCase().trim();
-	const segments: TextSegment[] = [];
+  const normalizedText = text.toLowerCase();
+  const normalizedQuery = query.toLowerCase().trim();
+  const segments: TextSegment[] = [];
 
-	let currentIndex = 0;
-	let matchIndex = normalizedText.indexOf(normalizedQuery);
+  let currentIndex = 0;
+  let matchIndex = normalizedText.indexOf(normalizedQuery);
 
-	// If no match found, return entire text as non-match
-	if (matchIndex === -1) {
-		return [{ text, isMatch: false }];
-	}
+  // If no match found, return entire text as non-match
+  if (matchIndex === -1) {
+    return [{ text, isMatch: false }];
+  }
 
-	// Build segments by finding all matches
-	while (matchIndex !== -1 && currentIndex < text.length) {
-		// Add non-matching text before the match
-		if (matchIndex > currentIndex) {
-			segments.push({
-				text: text.substring(currentIndex, matchIndex),
-				isMatch: false
-			});
-		}
+  // Build segments by finding all matches
+  while (matchIndex !== -1 && currentIndex < text.length) {
+    // Add non-matching text before the match
+    if (matchIndex > currentIndex) {
+      segments.push({
+        text: text.substring(currentIndex, matchIndex),
+        isMatch: false,
+      });
+    }
 
-		// Add matching text
-		const matchEnd = matchIndex + normalizedQuery.length;
-		segments.push({
-			text: text.substring(matchIndex, matchEnd),
-			isMatch: true
-		});
+    // Add matching text
+    const matchEnd = matchIndex + normalizedQuery.length;
+    segments.push({
+      text: text.substring(matchIndex, matchEnd),
+      isMatch: true,
+    });
 
-		currentIndex = matchEnd;
-		matchIndex = normalizedText.indexOf(normalizedQuery, currentIndex);
-	}
+    currentIndex = matchEnd;
+    matchIndex = normalizedText.indexOf(normalizedQuery, currentIndex);
+  }
 
-	// Add remaining non-matching text
-	if (currentIndex < text.length) {
-		segments.push({
-			text: text.substring(currentIndex),
-			isMatch: false
-		});
-	}
+  // Add remaining non-matching text
+  if (currentIndex < text.length) {
+    segments.push({
+      text: text.substring(currentIndex),
+      isMatch: false,
+    });
+  }
 
-	return segments;
+  return segments;
 }
 
 /**
@@ -70,9 +70,9 @@ export function highlightMatch(text: string, query: string): TextSegment[] {
  * @returns Truncated text with ellipsis if needed
  */
 export function truncateWithEllipsis(text: string, maxLength: number): string {
-	if (text.length <= maxLength) {
-		return text;
-	}
+  if (text.length <= maxLength) {
+    return text;
+  }
 
-	return text.substring(0, maxLength) + '...';
+  return text.substring(0, maxLength) + "...";
 }

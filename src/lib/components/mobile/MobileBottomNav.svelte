@@ -1,30 +1,39 @@
 <!--
   MobileBottomNav Component
   Fixed bottom navigation bar for mobile viewports.
-  Three tabs: File, View, Devices.
+  Four tabs in the thumb zone, each opening a bottom sheet: Layouts, Racks, Devices, View.
+  Mirrors the desktop left-panel structure. Tab actions resolve through the
+  dialogStore sheet keys in DialogOrchestrator; this component is presentation only.
   Only renders on mobile (self-guarded via viewportStore.isMobile).
 -->
 <script lang="ts">
   import { getViewportStore } from "$lib/utils/viewport.svelte";
-  import { IconFolderBold, IconFitAllBold, IconServerBold } from "../icons";
+  import {
+    IconFolderBold,
+    IconServerBold,
+    IconImageBold,
+    IconFitAllBold,
+  } from "../icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
 
-  type Tab = "file" | "view" | "devices";
+  type Tab = "layouts" | "racks" | "devices" | "view";
 
   interface Props {
     activeTab?: Tab | null;
     hidden?: boolean;
-    onfileclick?: () => void;
-    onviewclick?: () => void;
+    onlayoutsclick?: () => void;
+    onracksclick?: () => void;
     ondevicesclick?: () => void;
+    onviewclick?: () => void;
   }
 
   let {
     activeTab = null,
     hidden = false,
-    onfileclick,
-    onviewclick,
+    onlayoutsclick,
+    onracksclick,
     ondevicesclick,
+    onviewclick,
   }: Props = $props();
 
   const viewportStore = getViewportStore();
@@ -39,14 +48,38 @@
   >
     <button
       class="nav-tab"
-      class:active={activeTab === "file"}
+      class:active={activeTab === "layouts"}
       type="button"
-      data-testid="nav-tab-file"
-      aria-current={activeTab === "file" ? "page" : undefined}
-      onclick={onfileclick}
+      data-testid="nav-tab-layouts"
+      aria-current={activeTab === "layouts" ? "page" : undefined}
+      onclick={onlayoutsclick}
     >
       <IconFolderBold size={ICON_SIZE.xl} />
-      <span class="nav-label">File</span>
+      <span class="nav-label">Layouts</span>
+    </button>
+
+    <button
+      class="nav-tab"
+      class:active={activeTab === "racks"}
+      type="button"
+      data-testid="nav-tab-racks"
+      aria-current={activeTab === "racks" ? "page" : undefined}
+      onclick={onracksclick}
+    >
+      <IconServerBold size={ICON_SIZE.xl} />
+      <span class="nav-label">Racks</span>
+    </button>
+
+    <button
+      class="nav-tab"
+      class:active={activeTab === "devices"}
+      type="button"
+      data-testid="nav-tab-devices"
+      aria-current={activeTab === "devices" ? "page" : undefined}
+      onclick={ondevicesclick}
+    >
+      <IconImageBold size={ICON_SIZE.xl} />
+      <span class="nav-label">Devices</span>
     </button>
 
     <button
@@ -59,18 +92,6 @@
     >
       <IconFitAllBold size={ICON_SIZE.xl} />
       <span class="nav-label">View</span>
-    </button>
-
-    <button
-      class="nav-tab"
-      class:active={activeTab === "devices"}
-      type="button"
-      data-testid="nav-tab-devices"
-      aria-current={activeTab === "devices" ? "page" : undefined}
-      onclick={ondevicesclick}
-    >
-      <IconServerBold size={ICON_SIZE.xl} />
-      <span class="nav-label">Devices</span>
     </button>
   </nav>
 {/if}

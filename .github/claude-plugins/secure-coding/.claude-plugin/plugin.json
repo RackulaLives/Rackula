@@ -1,0 +1,9 @@
+{
+  "name": "secure-coding",
+  "version": "1.0.0",
+  "description": "Vendored secure-coding skill (community VibeSec guide, BehiSecc/VibeSec-Skill) loaded into the Security Triage CI workflow via --plugin-dir, because headless CI does not auto-install marketplace plugins.",
+  "author": {
+    "name": "BehiSecc (VibeSec-Skill)",
+    "url": "https://github.com/BehiSecc/VibeSec-Skill"
+  }
+}

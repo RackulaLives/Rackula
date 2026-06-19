@@ -53,10 +53,7 @@ const REDACTED_FIELDS = new Set([
 export function configureAuthLogHashKey(hashKey: string | undefined): void {
   const normalized = hashKey?.trim();
   const normalizedLength = normalized?.length ?? 0;
-  if (
-    normalizedLength > 0 &&
-    normalizedLength < MIN_AUTH_LOG_HASH_KEY_LENGTH
-  ) {
+  if (normalizedLength > 0 && normalizedLength < MIN_AUTH_LOG_HASH_KEY_LENGTH) {
     // Primary validation lives in resolveApiSecurityConfig(security.ts); this is a
     // defensive fallback for direct caller usage that bypasses config resolution.
     logger.warn(

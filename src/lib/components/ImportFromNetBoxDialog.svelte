@@ -231,8 +231,7 @@ model: USW-Pro-24
 slug: ubiquiti-usw-pro-24
 u_height: 1
 is_full_depth: false"
-          rows="10"
-        ></textarea>
+          rows="10"></textarea>
       </Tabs.Content>
 
       <Tabs.Content value="upload" class="input-area">

@@ -54,9 +54,9 @@ describe("successful save epilogue", () => {
     finalizeSuccessfulSave();
 
     expect(getConsecutiveSaveFailures()).toBe(0);
-    expect(
-      getToastStore().toasts.some((t) => t.id === errorToast?.id),
-    ).toBe(false);
+    expect(getToastStore().toasts.some((t) => t.id === errorToast?.id)).toBe(
+      false,
+    );
   });
 
   it("leaves the layout dirty when a save fails", () => {

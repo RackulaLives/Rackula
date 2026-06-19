@@ -191,6 +191,8 @@ test.describe("Undo/Redo", () => {
     // count stays at 1 and the surviving device is the freshly placed one.
     await redo(page);
     await expect(frontDevices(page)).toHaveCount(1);
-    expect((await frontDevices(page).first().boundingBox())?.y).toBe(newDeviceY);
+    expect((await frontDevices(page).first().boundingBox())?.y).toBe(
+      newDeviceY,
+    );
   });
 });

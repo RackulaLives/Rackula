@@ -378,7 +378,7 @@ export const ciscoDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -391,7 +391,7 @@ export const ciscoDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -404,7 +404,7 @@ export const ciscoDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -417,7 +417,7 @@ export const ciscoDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -430,7 +430,7 @@ export const ciscoDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -443,6 +443,6 @@ export const ciscoDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 ];

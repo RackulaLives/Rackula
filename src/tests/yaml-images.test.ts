@@ -11,7 +11,11 @@ import {
 } from "$lib/utils/yaml";
 import type { ImageData, ImageStoreMap } from "$lib/types/images";
 import { MAX_IMAGE_SIZE_BYTES } from "$lib/types/constants";
-import { createTestLayout, createTestDeviceType, createTestRack } from "./factories";
+import {
+  createTestLayout,
+  createTestDeviceType,
+  createTestRack,
+} from "./factories";
 
 // Real PNG magic bytes (89 50 4E 47 0D 0A 1A 0A) so detectImageMime accepts it.
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -66,7 +70,9 @@ describe("detectImageMime", () => {
   });
 
   it("returns null for unknown bytes", () => {
-    expect(detectImageMime(new Uint8Array([0x00, 0x01, 0x02, 0x03]))).toBeNull();
+    expect(
+      detectImageMime(new Uint8Array([0x00, 0x01, 0x02, 0x03])),
+    ).toBeNull();
   });
 });
 
@@ -98,7 +104,10 @@ describe("encodeUserImagesToYaml", () => {
   });
 
   it("reports oversized when a face exceeds ~100KB", () => {
-    const bigBytes = new Uint8Array([...PNG_MAGIC, ...new Array(120 * 1024).fill(0)]);
+    const bigBytes = new Uint8Array([
+      ...PNG_MAGIC,
+      ...new Array(120 * 1024).fill(0),
+    ]);
     const big: ImageData = {
       blob: new Blob([bigBytes], { type: "image/png" }),
       dataUrl: `data:image/png;base64,${bytesToBase64(bigBytes)}`,
@@ -384,7 +393,7 @@ describe("image-encoding security hardening (#2221)", () => {
 
     // The reserved key never lands as an entry, and the prototype is intact.
     expect(Object.hasOwn(serialized, "__proto__")).toBe(false);
-    expect((({}) as Record<string, unknown>).front).toBeUndefined();
+    expect(({} as Record<string, unknown>).front).toBeUndefined();
     // A normal device is still serialized.
     expect(Object.hasOwn(serialized, "real-device")).toBe(true);
   });

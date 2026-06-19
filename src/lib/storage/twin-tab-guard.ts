@@ -71,7 +71,11 @@ export function readWriterTabId(serialized: string | null): string | null {
   if (!serialized) return null;
   try {
     const parsed = JSON.parse(serialized) as unknown;
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
       return null;
     }
     const writer = (parsed as Record<string, unknown>)[WRITER_TAB_ID_FIELD];
@@ -138,7 +142,9 @@ export interface TwinTabGuard {
   withLayoutLock<T>(layoutId: string, write: () => T): Promise<T>;
 }
 
-function resolveLocks(explicit: LockManager | undefined): LockManager | undefined {
+function resolveLocks(
+  explicit: LockManager | undefined,
+): LockManager | undefined {
   if (explicit !== undefined) return explicit;
   if (typeof navigator !== "undefined" && "locks" in navigator) {
     return navigator.locks;
@@ -164,7 +170,10 @@ export function createTwinTabGuard(
     if (!result.foreign) return;
     if (paused.has(result.layoutId)) return;
     paused.add(result.layoutId);
-    log("twin-tab: foreign write detected for layout %s, pausing", result.layoutId);
+    log(
+      "twin-tab: foreign write detected for layout %s, pausing",
+      result.layoutId,
+    );
     options.onForeignWrite?.(result.layoutId);
   }
 

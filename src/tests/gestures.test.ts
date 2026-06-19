@@ -390,9 +390,7 @@ describe("classifyRackSwipeGesture", () => {
       isMultiTouch: false,
     });
 
-    expect(
-      Math.hypot(25, 50) > RACK_SWIPE_PAN_THRESHOLD,
-    ).toBeTruthy();
+    expect(Math.hypot(25, 50) > RACK_SWIPE_PAN_THRESHOLD).toBeTruthy();
     expect(direction).toBeNull();
   });
 

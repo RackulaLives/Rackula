@@ -4,15 +4,17 @@
   - Left (fixed, = sidebar width): logo lockup (the app menu) + command-palette
     search field. The field fills the region after the logo, up to the tab strip
     (#2398). Width tracks --sidebar-width so it aligns with the column below.
-  - Centre (flex): the layout tab strip (LayoutTabs), desktop only. Spans the
-    canvas gap between the sidebar and side panel.
-  - Right (fixed, = panel width): storage chip filling the region (desktop);
-    quick file actions (mobile). Width tracks --side-panel-width. The Settings
-    gear moved into the app menu (#2398) and the side-panel collapse/expand
-    chevron lives in the panel itself (#2397).
+  - Centre (flex): the layout tab strip (LayoutTabs) on desktop; on mobile the
+    current layout name as a plain centred label (switching lives in the Layouts
+    tab, so the mobile name is a label only) (#2458). Spans the canvas gap.
+  - Right (fixed, = panel width): the storage chip filling the region. On mobile
+    the chip is the right zone (it replaces the old quick file actions, which now
+    live in the registry-driven app menu) (#2458). Width tracks --side-panel-width.
+    The Settings gear moved into the app menu (#2398) and the side-panel
+    collapse/expand chevron lives in the panel itself (#2397).
   View and history controls (zoom, fit, display mode, undo, redo) relocate to the
-  canvas bottom-left in #2074. File and settings commands live in the app menu
-  behind the logo.
+  canvas bottom-left in #2074 / #2458. File and settings commands live in the app
+  menu behind the logo.
 -->
 <script lang="ts">
   import AppMenu from "./AppMenu.svelte";
@@ -21,6 +23,7 @@
   import type { ActionId } from "$lib/actions/registry";
   import { IconSearch } from "./icons";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
+  import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { formatShortcut } from "$lib/utils/platform";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
@@ -69,19 +72,8 @@
   }: Props = $props();
 
   const viewportStore = getViewportStore();
+  const layoutStore = getLayoutStore();
   const paletteShortcut = formatShortcut("mod", "K");
-
-  function handleSave() {
-    onsave?.();
-  }
-
-  function handleLoad() {
-    onload?.();
-  }
-
-  function handleExport() {
-    onexport?.();
-  }
 
   // Dispatch map from app-menu action id to its handler. The menu items
   // themselves come from the registry (AppMenu projects getAppMenuSections);
@@ -115,6 +107,7 @@
   <div
     class="toolbar-section toolbar-left"
     class:toolbar-left--collapsed={sidebarCollapsed}
+    class:toolbar-left--mobile={viewportStore.isMobile}
   >
     <AppMenu onaction={handleAppMenuAction} {hasRacks} {partyMode} />
     <button
@@ -137,19 +130,28 @@
     </button>
   </div>
 
-  <!-- Centre: the layout tab strip (desktop only).
-       flex: 1 spans the canvas gap between the sidebar and side panel. -->
+  <!-- Centre: the layout tab strip (desktop) / the current layout name as a
+       plain centred label (mobile). On mobile, switching and managing layouts
+       lives in the Layouts tab, so the name here is a label only (#2458).
+       flex: 1 spans the canvas gap between the left and right zones. -->
   {#if !viewportStore.isMobile}
     <div class="toolbar-section toolbar-tabs">
       <LayoutTabs onexport={onlayoutexport} />
     </div>
+  {:else}
+    <div class="toolbar-section toolbar-layout-name">
+      <span class="toolbar-layout-name-text" data-testid="mobile-layout-name">
+        {layoutStore.layout.name}
+      </span>
+    </div>
   {/if}
 
-  <!-- Right: panel-width region (desktop) / quick file actions (mobile).
-       Holds the storage chip, which fills the full region as the status zone
-       for the side panel beneath it. The Settings gear moved into the app menu
-       (#2398) and the side-panel collapse/expand chevron lives in the panel
-       itself (#2397). -->
+  <!-- Right: panel-width region holding the storage chip, which fills the full
+       region as the status zone for the side panel beneath it (desktop). On
+       mobile the chip is the right zone (#2458): it replaces the old quick file
+       actions, whose Save / Load / Export now live in the registry-driven app
+       menu behind the logo. The Settings gear moved into the app menu (#2398)
+       and the side-panel collapse/expand chevron lives in the panel (#2397). -->
   {#if !viewportStore.isMobile}
     <div
       class="toolbar-section toolbar-right"
@@ -158,39 +160,8 @@
       <StorageStatusChip />
     </div>
   {:else}
-    <div
-      class="toolbar-section toolbar-right toolbar-right-mobile"
-      role="group"
-      aria-label="Quick file actions"
-    >
-      <button
-        class="toolbar-mobile-action-btn"
-        type="button"
-        aria-label="Save layout"
-        onclick={handleSave}
-        data-testid="btn-mobile-save"
-      >
-        Save
-      </button>
-      <button
-        class="toolbar-mobile-action-btn"
-        type="button"
-        aria-label="Load layout"
-        onclick={handleLoad}
-        data-testid="btn-mobile-load"
-      >
-        Load
-      </button>
-      <button
-        class="toolbar-mobile-action-btn"
-        type="button"
-        aria-label="Export layout"
-        disabled={!hasRacks}
-        onclick={handleExport}
-        data-testid="btn-mobile-export"
-      >
-        Export
-      </button>
+    <div class="toolbar-section toolbar-right toolbar-right-mobile">
+      <StorageStatusChip />
     </div>
   {/if}
 </header>
@@ -228,6 +199,14 @@
 
   .toolbar-left--collapsed {
     flex: 0 0 auto;
+  }
+
+  /* Mobile left lane: there is no column to align with, so the lane shrinks to
+     its natural width (logo + compact search icon). This lets the centred layout
+     name actually centre between the left and right zones (#2458). */
+  .toolbar-left--mobile {
+    flex: 0 0 auto;
+    padding-left: max(var(--space-2), env(safe-area-inset-left, 0px));
   }
 
   /* Centre lane: fills the canvas gap between left and right fixed lanes. */
@@ -269,44 +248,33 @@
     flex: 0 0 auto;
   }
 
-  .toolbar-right-mobile {
-    gap: var(--space-1);
-    flex: 0 0 auto;
-    padding-right: var(--space-2);
-  }
-
-  .toolbar-mobile-action-btn {
-    min-width: var(--touch-target-min);
-    min-height: var(--touch-target-min);
+  /* Mobile centre lane: the current layout name as a plain centred label. It
+     takes the slack between the left and right zones and truncates rather than
+     wrapping so the three-zone bar stays one row (#2458). */
+  .toolbar-layout-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
     padding: 0 var(--space-2);
-    border: none;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--colour-text);
-    font-size: var(--font-size-xs);
+  }
+
+  .toolbar-layout-name-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-size-sm);
     font-weight: 600;
-    cursor: pointer;
-    transition:
-      background-color var(--duration-fast) var(--ease-out),
-      color var(--duration-fast) var(--ease-out);
+    color: var(--colour-text);
   }
 
-  @media (hover: hover) and (pointer: fine) {
-    .toolbar-mobile-action-btn:hover:not(:disabled) {
-      color: var(--dracula-cyan);
-      background: var(--colour-surface-hover);
-    }
-  }
-
-  .toolbar-mobile-action-btn:focus-visible {
-    outline: none;
-    color: var(--dracula-cyan);
-    box-shadow: 0 0 0 2px var(--colour-focus-ring);
-  }
-
-  .toolbar-mobile-action-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+  /* Mobile right lane: the storage chip pinned to the right edge. It is the
+     status zone and the entry to export / restore, replacing the old quick file
+     actions (now in the app menu) (#2458). */
+  .toolbar-right-mobile {
+    flex: 0 0 auto;
+    padding-right: max(var(--space-2), env(safe-area-inset-right, 0px));
+    justify-content: flex-end;
   }
 
   /* Command pill: the button is the hit target, a true 44px-tall layout box

@@ -11,10 +11,7 @@
  * import cycle if the formula lived in the store layer.
  */
 
-import {
-  getStorageChipState,
-  type SaveStatus,
-} from "./manager.svelte";
+import { getStorageChipState, type SaveStatus } from "./manager.svelte";
 import {
   getApiAvailableState,
   getApiEverReached,
@@ -212,7 +209,9 @@ export function computeServerHint(
  * stays in sync as save state, API availability, or export state change. Do not
  * destructure: that snapshots the values and breaks reactivity.
  */
-export function getLayoutDurability(layoutStore: LayoutStore): LayoutDurability {
+export function getLayoutDurability(
+  layoutStore: LayoutStore,
+): LayoutDurability {
   // Per-layout export tracking comes from the passed store (each layout owns its
   // own changesSinceExport / hasEverExported, ready for the multi-layout
   // workspace #2017). Save state and the failure circuit breaker come from the

@@ -230,8 +230,9 @@ test.describe("Accessibility", () => {
       page,
     }) => {
       // Mobile uses tap-to-place: selecting a palette device arms placement and
-      // surfaces a role="status" / aria-live header so the pending device is
-      // announced. Desktop has no equivalent flow, so this is mobile-scoped.
+      // surfaces a role="status" / aria-live banner so the pending device is
+      // announced. Desktop has the same banner, so this stays mobile-scoped for
+      // the arming flow it exercises.
       await gotoMobileWithRack(page);
 
       // Open the device library and arm a device for placement.
@@ -241,12 +242,11 @@ test.describe("Accessibility", () => {
       ).toBeVisible();
       await page.locator(locators.device.paletteItem).first().click();
 
-      // The placement header is a polite status region naming the pending
-      // device. The dual-view renders front and rear copies, so scope to the
-      // first match. getByRole finds the live region regardless of markup.
+      // The placement banner is a polite status region naming the pending
+      // device. getByRole finds the live region regardless of markup.
       const status = page
         .getByRole("status")
-        .filter({ hasText: /tap to place/i })
+        .filter({ hasText: /placing:/i })
         .first();
       await expect(status).toBeVisible();
     });

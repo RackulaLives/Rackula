@@ -322,7 +322,10 @@
                             <button
                               class="restore-btn"
                               onclick={() =>
-                                handleRestoreSnapshot(item.id, snapshot.filename)}
+                                handleRestoreSnapshot(
+                                  item.id,
+                                  snapshot.filename,
+                                )}
                               disabled={restoringFilename !== null}
                             >
                               {restoringFilename === snapshot.filename

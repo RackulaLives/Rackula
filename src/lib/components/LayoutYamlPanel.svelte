@@ -364,8 +364,7 @@
     readonly={!isEditing}
     spellcheck="false"
     aria-label="Layout YAML editor"
-    data-testid="yaml-textarea"
-  ></textarea>
+    data-testid="yaml-textarea"></textarea>
 
   {#if isEditing}
     <div class="footer-actions">
@@ -388,6 +387,7 @@
     gap: var(--space-3);
     width: 100%;
     min-height: min(68vh, 700px);
+    min-height: min(68dvh, 700px);
   }
 
   .yaml-panel-header {
@@ -587,6 +587,7 @@
   @media (max-width: 680px) {
     .yaml-panel {
       min-height: min(74vh, 780px);
+      min-height: min(74dvh, 780px);
     }
 
     .yaml-textarea {

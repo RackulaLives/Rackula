@@ -124,7 +124,11 @@ services:
       - /tmp:size=5M
 
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${RACKULA_API_PORT:-3001}/health"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:${RACKULA_API_PORT:-3001}/health",
+        ]
       interval: 30s
       timeout: 10s
       start_period: 5s

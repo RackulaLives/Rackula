@@ -7,7 +7,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "daily"  # Daily catches updates sooner, prevents batch accumulation
+      interval: "daily" # Daily catches updates sooner, prevents batch accumulation
     open-pull-requests-limit: 15
     groups:
       # Related packages that MUST update together

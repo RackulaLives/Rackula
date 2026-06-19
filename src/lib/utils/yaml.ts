@@ -490,7 +490,10 @@ export function parseLayoutObject(parsed: unknown): Layout | null {
   let body = parsed;
 
   if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
-    const { metadata: rawMetadata, ...rest } = parsed as Record<string, unknown>;
+    const { metadata: rawMetadata, ...rest } = parsed as Record<
+      string,
+      unknown
+    >;
     if (
       rawMetadata !== null &&
       typeof rawMetadata === "object" &&

@@ -1,7 +1,6 @@
 # Research Spike Workflow v1
 
-Execute research spikes with context-optimized patterns.
-Designed for autonomous research with checkpointing and file-based output.
+Execute research spikes with context-optimized patterns. Designed for autonomous research with checkpointing and file-based output.
 
 **Arguments:** `$ARGUMENTS` (required: spike issue number)
 
@@ -172,10 +171,10 @@ blockers: []
 
 **Use:** `episodic-memory:search-conversations` or `claude-mem:mem-search`
 
-Query: "#$ARGUMENTS OR <spike keywords>"
-Type: decision, discovery
+Query: "#$ARGUMENTS OR <spike keywords>" Type: decision, discovery
 
 Load any prior work on this spike or related topics. Check for:
+
 - Previous research on similar topics
 - Architectural decisions that may constrain approach
 - Past patterns that worked well
@@ -342,8 +341,7 @@ Create `docs/research/spike-<N>-<slug>.md` with initial structure:
 ```markdown
 # Spike #<N>: <Title>
 
-**Date:** <today>
-**Parent Epic:** <if applicable>
+**Date:** <today> **Parent Epic:** <if applicable>
 
 ---
 
@@ -576,8 +574,7 @@ Will resume from last checkpoint.
 
 **Use:** `superpowers:systematic-debugging` if agent failures persist.
 
-**Success:** Output file exists and size > 0 bytes
-**Failure:** After one retry, file is still missing or below minimum size (< 1KB)
+**Success:** Output file exists and size > 0 bytes **Failure:** After one retry, file is still missing or below minimum size (< 1KB)
 
 1. Verify output file exists and size > 0 bytes
 2. If missing or empty, retry once with a refined prompt (one additional attempt)
@@ -588,8 +585,7 @@ Will resume from last checkpoint.
 
 ### GitHub API Failure
 
-**Success:** Any HTTP 2xx response
-**Failure:** No 2xx after maximum 3 retries with exponential backoff (1s, 2s, 4s)
+**Success:** Any HTTP 2xx response **Failure:** No 2xx after maximum 3 retries with exponential backoff (1s, 2s, 4s)
 
 1. Attempt API call
 2. On non-2xx response, retry with exponential backoff intervals: 1s, 2s, 4s

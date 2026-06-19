@@ -545,7 +545,7 @@ export const apcDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.power,
     category: "power",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -558,7 +558,7 @@ export const apcDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.power,
     category: "power",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -571,7 +571,7 @@ export const apcDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.power,
     category: "power",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -584,6 +584,6 @@ export const apcDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.power,
     category: "power",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 ];

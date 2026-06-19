@@ -228,10 +228,7 @@ function adaptRackDevices(
   }
   const forcedPairIds = new Set<string>();
   for (const group of coLocated.values()) {
-    if (
-      group.length === 2 &&
-      group.every((d) => legacySlot(d) === undefined)
-    ) {
+    if (group.length === 2 && group.every((d) => legacySlot(d) === undefined)) {
       for (const d of group) forcedPairIds.add(d.id);
     }
   }

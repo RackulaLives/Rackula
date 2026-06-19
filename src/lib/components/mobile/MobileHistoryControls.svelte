@@ -1,6 +1,10 @@
 <!--
   MobileHistoryControls Component
-  Floating undo/redo controls for mobile users when keyboard shortcuts are unavailable.
+  Floating undo/redo controls for mobile users when keyboard shortcuts are
+  unavailable. The cluster sits at the canvas bottom-left, a rounded rectangle
+  consistent with the rectilinear mobile language (no pills or circles) and
+  mirroring the desktop relocation of the history controls (#2458). It clears the
+  fixed bottom navigation and the safe-area inset so it is never occluded.
 -->
 <script lang="ts">
   import { ICON_SIZE } from "$lib/constants/sizing";
@@ -55,7 +59,11 @@
 </script>
 
 {#if shouldShow}
-  <div class="mobile-history-controls" role="group" aria-label="History actions">
+  <div
+    class="mobile-history-controls"
+    role="group"
+    aria-label="History actions"
+  >
     <button
       class="history-button"
       type="button"
@@ -83,14 +91,21 @@
 <style>
   .mobile-history-controls {
     position: absolute;
-    top: var(--space-2);
-    right: max(var(--space-3), env(safe-area-inset-right, 0px));
+    /* Sit above the fixed bottom nav, the safe-area inset, and the on-screen
+       keyboard. The nav itself shifts up by --keyboard-height when the keyboard
+       opens (MobileBottomNav), so the cluster tracks the same offset to stay
+       above it rather than slipping behind the raised nav. */
+    bottom: calc(
+      var(--bottom-nav-height) + var(--safe-area-bottom, 0px) +
+        var(--keyboard-height, 0px) + var(--space-3)
+    );
+    left: max(var(--space-3), env(safe-area-inset-left, 0px));
     z-index: calc(var(--z-toolbar) + 1);
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
     padding: var(--space-1);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-lg);
     border: 1px solid var(--bottom-nav-border);
     background: var(--bottom-nav-bg);
     backdrop-filter: blur(12px);
@@ -108,7 +123,7 @@
     height: var(--touch-target-min);
     padding: 0;
     border: none;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-md);
     background: transparent;
     color: var(--colour-text);
     cursor: pointer;

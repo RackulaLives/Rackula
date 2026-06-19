@@ -5,7 +5,6 @@
   Sub-components:
   - RackFrame: static frame (rails, grid, labels, blocked slots)
   - RackDropZone: drop preview indicator
-  - RackPlacementHeader: mobile placement header overlay
   - RackChristmasHat: seasonal easter egg
 
   Logic modules:
@@ -27,7 +26,6 @@
   import RackDevice from "./RackDevice.svelte";
   import RackFrame from "./RackFrame.svelte";
   import RackDropZone from "./RackDropZone.svelte";
-  import RackPlacementHeader from "./RackPlacementHeader.svelte";
   import RackChristmasHat from "./RackChristmasHat.svelte";
   import DeviceContextMenu from "./DeviceContextMenu.svelte";
   import {
@@ -42,7 +40,6 @@
   import { isChristmas } from "$lib/utils/christmas";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
-  import { hapticCancel } from "$lib/utils/haptics";
   import { SvelteSet, SvelteMap } from "svelte/reactivity";
   import { toHumanUnits } from "$lib/utils/position";
   import {
@@ -284,8 +281,6 @@
   // viewport. Touch placement is completed by `ontouchend`; pointer placement by
   // `handleClick` -> handlePlacementClick, both reading the same store.
   const isPlacementMode = $derived(placementStore.isPlacing);
-  // "Tap" on touch viewports, "Click" on desktop, for the placement header copy.
-  const placementVerb = $derived(viewportStore.isMobile ? "Tap" : "Click");
 
   const validPlacementSlots = $derived.by(() => {
     if (!isPlacementMode || !placementStore.pendingDevice)
@@ -358,13 +353,6 @@
       toastStore,
     });
   });
-
-  // --- Simple interaction handlers ---
-  function handleCancelPlacement() {
-    hapticCancel();
-    placementStore.cancelPlacement();
-    canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-  }
 
   /**
    * Handle a click on the rack container.
@@ -527,19 +515,7 @@
       />
     {/if}
 
-    <!-- Layer 4: Placement header (tap/click-to-place) -->
-    {#if isPlacementMode && placementStore.pendingDevice}
-      {@const pendingDevice = placementStore.pendingDevice}
-      <RackPlacementHeader
-        rackWidth={RACK_WIDTH}
-        rackPadding={RACK_PADDING}
-        deviceModel={pendingDevice.model ?? pendingDevice.slug}
-        actionVerb={placementVerb}
-        oncancel={handleCancelPlacement}
-      />
-    {/if}
-
-    <!-- Layer 5: Christmas hat (front view only) -->
+    <!-- Layer 4: Christmas hat (front view only) -->
     {#if showChristmasHats && effectiveFaceFilter === "front"}
       <RackChristmasHat rackPadding={RACK_PADDING} />
     {/if}

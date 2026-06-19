@@ -354,7 +354,11 @@ describe("adaptLegacyLayout", () => {
       const adapted = adaptLegacyLayout(layout);
       // No carriers synthesized for a clean full-width whole-U layout.
       expect(children(adapted).length).toBe(0);
-      expect(rackLevel(adapted).map((d) => d.id).sort()).toEqual(["a", "b"]);
+      expect(
+        rackLevel(adapted)
+          .map((d) => d.id)
+          .sort(),
+      ).toEqual(["a", "b"]);
     });
   });
 
@@ -650,9 +654,7 @@ describe("adaptLegacyLayout", () => {
       const decodedShelfType = decoded!.device_types.find(
         (t) => t.slug === "shelf-2bay",
       );
-      expect(
-        decodedShelfType?.slots?.some((s) => s.id === "bay-1"),
-      ).toBe(true);
+      expect(decodedShelfType?.slots?.some((s) => s.id === "bay-1")).toBe(true);
     });
   });
 });

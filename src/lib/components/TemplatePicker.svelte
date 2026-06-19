@@ -15,8 +15,11 @@
 -->
 <script lang="ts">
   import type { StarterTemplate } from "$lib/templates/starter-templates";
+  import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { renderLayoutPreviewSvg } from "./layout-preview-render";
   import { IconPlus, IconUpload, IconShareBold } from "./icons";
+
+  const viewportStore = getViewportStore();
 
   interface Props {
     /** Starter templates to offer. Empty array renders the blank-only state. */
@@ -53,7 +56,11 @@
   }
 </script>
 
-<section class="template-picker" aria-labelledby="template-picker-heading">
+<section
+  class="template-picker"
+  class:is-mobile={viewportStore.isMobile}
+  aria-labelledby="template-picker-heading"
+>
   <header class="picker-header">
     <h2 id="template-picker-heading" class="picker-title">
       Start a new layout
@@ -269,5 +276,66 @@
     .template-card:hover {
       transform: none;
     }
+  }
+
+  /* Mobile: a touch-friendly, single-column picker that reads well on a
+     narrow viewport. Cards stack full-width with larger tap areas, and the
+     text steps up a size so a new user on a phone can scan and choose. */
+  .template-picker.is-mobile {
+    gap: var(--space-5);
+    width: 100%;
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .template-picker.is-mobile .picker-title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .template-picker.is-mobile .picker-subtitle {
+    font-size: var(--font-size-base);
+  }
+
+  .template-picker.is-mobile .template-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
+  .template-picker.is-mobile .template-card {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4);
+  }
+
+  .template-picker.is-mobile .card-preview {
+    flex: 0 0 calc(var(--space-12) * 2);
+    height: calc(var(--space-12) * 2);
+  }
+
+  .template-picker.is-mobile .card-body {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: var(--space-1);
+  }
+
+  .template-picker.is-mobile .card-name {
+    font-size: var(--font-size-lg);
+  }
+
+  .template-picker.is-mobile .card-meta {
+    font-size: var(--font-size-sm);
+  }
+
+  .template-picker.is-mobile .picker-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: var(--space-2);
+  }
+
+  .template-picker.is-mobile .action-button {
+    width: 100%;
+    min-height: var(--touch-target-min);
+    font-size: var(--font-size-base);
   }
 </style>

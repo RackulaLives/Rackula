@@ -117,7 +117,9 @@ export function loadSessionWithTimestamp(): SessionLoadResult | null {
       // New format with timestamp wrapper - validate the body through the schema
       const layout = parseLayoutObject(obj.layout);
       if (!layout) {
-        log("invalid layout data in session wrapper - schema validation failed");
+        log(
+          "invalid layout data in session wrapper - schema validation failed",
+        );
         return null;
       }
       return {

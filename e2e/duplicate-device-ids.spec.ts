@@ -53,8 +53,12 @@ test.describe("Duplicate Device ID Handling (#1363)", () => {
     // Create a .Rackula.zip fixture with duplicate device IDs
     // Uses the folder structure: {name}-{uuid}/{slug}.rackula.yaml
     const zip = new JSZip();
-    const folderName = "Duplicate Device ID Layout-00000000-0000-0000-0000-000000001363";
-    zip.file(`${folderName}/duplicate-device-id-layout.rackula.yaml`, LAYOUT_YAML);
+    const folderName =
+      "Duplicate Device ID Layout-00000000-0000-0000-0000-000000001363";
+    zip.file(
+      `${folderName}/duplicate-device-id-layout.rackula.yaml`,
+      LAYOUT_YAML,
+    );
 
     const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rackula-dup-ids-"));

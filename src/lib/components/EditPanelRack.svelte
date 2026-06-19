@@ -257,8 +257,7 @@
       bind:value={rackNotes}
       onblur={handleNotesBlur}
       rows="4"
-      placeholder="Add notes about this rack..."
-    ></textarea>
+      placeholder="Add notes about this rack..."></textarea>
     {#if rackNotes.trim()}
       <div class="notes-preview">
         <span class="preview-label">Preview</span>

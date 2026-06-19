@@ -16,23 +16,23 @@ const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  * slugify('UniFi Dream Machine') // 'unifi-dream-machine'
  */
 export function slugify(input: string): string {
-	if (!input) return '';
+  if (!input) return "";
 
-	return (
-		input
-			.toLowerCase()
-			.trim()
-			// Replace plus signs with 'plus' before other processing
-			.replace(/\+/g, '-plus')
-			// Replace non-alphanumeric with hyphens
-			.replace(/[^a-z0-9]+/g, '-')
-			// Remove leading hyphens
-			.replace(/^-+/, '')
-			// Remove trailing hyphens
-			.replace(/-+$/, '')
-			// Collapse multiple hyphens
-			.replace(/-+/g, '-')
-	);
+  return (
+    input
+      .toLowerCase()
+      .trim()
+      // Replace plus signs with 'plus' before other processing
+      .replace(/\+/g, "-plus")
+      // Replace non-alphanumeric with hyphens
+      .replace(/[^a-z0-9]+/g, "-")
+      // Remove leading hyphens
+      .replace(/^-+/, "")
+      // Remove trailing hyphens
+      .replace(/-+$/, "")
+      // Collapse multiple hyphens
+      .replace(/-+/g, "-")
+  );
 }
 
 /**
@@ -47,19 +47,23 @@ export function slugify(input: string): string {
  * generateDeviceSlug('Synology', 'DS920+') // 'synology-ds920-plus'
  * generateDeviceSlug(undefined, undefined, 'Custom Server') // 'custom-server'
  */
-export function generateDeviceSlug(manufacturer?: string, model?: string, name?: string): string {
-	// Try manufacturer + model first
-	if (manufacturer && model) {
-		return slugify(`${manufacturer}-${model}`);
-	}
+export function generateDeviceSlug(
+  manufacturer?: string,
+  model?: string,
+  name?: string,
+): string {
+  // Try manufacturer + model first
+  if (manufacturer && model) {
+    return slugify(`${manufacturer}-${model}`);
+  }
 
-	// Try name
-	if (name) {
-		return slugify(name);
-	}
+  // Try name
+  if (name) {
+    return slugify(name);
+  }
 
-	// Fallback to timestamp-based
-	return `device-${Date.now()}`;
+  // Fallback to timestamp-based
+  return `device-${Date.now()}`;
 }
 
 /**
@@ -76,8 +80,8 @@ export function generateDeviceSlug(manufacturer?: string, model?: string, name?:
  * isValidSlug('Invalid Slug') // false
  */
 export function isValidSlug(slug: string): boolean {
-	if (!slug) return false;
-	return SLUG_PATTERN.test(slug);
+  if (!slug) return false;
+  return SLUG_PATTERN.test(slug);
 }
 
 /**
@@ -87,18 +91,21 @@ export function isValidSlug(slug: string): boolean {
  * ensureUniqueSlug('my-slug', new Set(['my-slug'])) // 'my-slug-2'
  * ensureUniqueSlug('my-slug', new Set(['my-slug', 'my-slug-2'])) // 'my-slug-3'
  */
-export function ensureUniqueSlug(slug: string, existingSlugs: Set<string>): string {
-	if (!existingSlugs.has(slug)) {
-		return slug;
-	}
+export function ensureUniqueSlug(
+  slug: string,
+  existingSlugs: Set<string>,
+): string {
+  if (!existingSlugs.has(slug)) {
+    return slug;
+  }
 
-	let counter = 2;
-	let candidate = `${slug}-${counter}`;
+  let counter = 2;
+  let candidate = `${slug}-${counter}`;
 
-	while (existingSlugs.has(candidate)) {
-		counter++;
-		candidate = `${slug}-${counter}`;
-	}
+  while (existingSlugs.has(candidate)) {
+    counter++;
+    candidate = `${slug}-${counter}`;
+  }
 
-	return candidate;
+  return candidate;
 }

@@ -37,7 +37,12 @@ import {
   buildYamlFilename,
   extractUuidFromFolderName,
 } from "./folder-structure";
-import { isPlacementKey, deviceIdFromPlacementKey, layoutIdFromPlacementKey, placementKey } from "./placement-key";
+import {
+  isPlacementKey,
+  deviceIdFromPlacementKey,
+  layoutIdFromPlacementKey,
+  placementKey,
+} from "./placement-key";
 
 /**
  * Lazily load JSZip library
@@ -312,7 +317,8 @@ async function addLayoutFolderToZip(
       if (isPlacementKey(imageKey)) {
         // Skip images belonging to a different layout (multi-tab: same device UUID, different layout)
         const keyLayoutId = layoutIdFromPlacementKey(imageKey);
-        if (keyLayoutId !== undefined && keyLayoutId !== layoutMetadata.id) continue;
+        if (keyLayoutId !== undefined && keyLayoutId !== layoutMetadata.id)
+          continue;
         const deviceId = deviceIdFromPlacementKey(imageKey);
         // Find the device across all racks to get its device_type slug for the folder path
         const placedDevice = layout.racks
@@ -489,9 +495,10 @@ async function extractNewFormatZip(
   const layout = await parseLayoutYaml(yamlContent);
 
   // Derive the layout id from the folder name UUID (canonical persisted identity).
-  const layoutId = (format.folderName && extractUuidFromFolderName(format.folderName))
-    || layout.metadata?.id
-    || "";
+  const layoutId =
+    (format.folderName && extractUuidFromFolderName(format.folderName)) ||
+    layout.metadata?.id ||
+    "";
 
   // Extract images from assets folder
   const images: ImageStoreMap = new Map();

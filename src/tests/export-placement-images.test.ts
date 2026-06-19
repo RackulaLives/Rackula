@@ -68,10 +68,15 @@ describe("export placement images (#1902)", () => {
       },
     });
 
-    const svg = generateExportSVG([rack], [deviceType], {
-      ...baseOptions,
-      exportView: "front",
-    }, images);
+    const svg = generateExportSVG(
+      [rack],
+      [deviceType],
+      {
+        ...baseOptions,
+        exportView: "front",
+      },
+      images,
+    );
 
     expect(imageHrefs(svg)).toContain("data:image/png;base64,PLACEMENTFRONT");
   });
@@ -104,10 +109,15 @@ describe("export placement images (#1902)", () => {
       },
     });
 
-    const svg = generateExportSVG([rack], [deviceType], {
-      ...baseOptions,
-      exportView: "rear",
-    }, images);
+    const svg = generateExportSVG(
+      [rack],
+      [deviceType],
+      {
+        ...baseOptions,
+        exportView: "rear",
+      },
+      images,
+    );
 
     const hrefs = imageHrefs(svg);
     expect(hrefs).toContain("data:image/png;base64,SLUGREAR");

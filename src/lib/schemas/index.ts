@@ -1128,7 +1128,13 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
               message: `Device "${device.name ?? device.id}" is sub-U or half-width and cannot mount directly to the rails. It must be a child of a carrier (set container_id and slot_id).`,
-              path: ["racks", rackIndex, "devices", deviceIndex, "container_id"],
+              path: [
+                "racks",
+                rackIndex,
+                "devices",
+                deviceIndex,
+                "container_id",
+              ],
             });
           }
         }
@@ -1215,7 +1221,8 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
           // tolerance, so the schema and the store agree on third-width slots
           // (0.33 / 0.34). Tightening the tolerance here would diverge from the
           // store's fit check.
-          const requiredFraction = (childForFit.slot_width ?? 2) === 1 ? 0.5 : 1.0;
+          const requiredFraction =
+            (childForFit.slot_width ?? 2) === 1 ? 0.5 : 1.0;
           const availableFraction = slot.width_fraction ?? 1.0;
           if (requiredFraction > availableFraction + 0.01) {
             ctx.addIssue({

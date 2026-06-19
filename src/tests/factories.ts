@@ -453,8 +453,18 @@ export function createBladeContainerWithChild(): {
     category: "server",
     colour: CATEGORY_COLOURS.server,
     slots: [
-      { id: "slot-left", name: "Left", position: { row: 0, col: 0 }, width_fraction: 0.5 },
-      { id: "slot-right", name: "Right", position: { row: 0, col: 1 }, width_fraction: 0.5 },
+      {
+        id: "slot-left",
+        name: "Left",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.5,
+      },
+      {
+        id: "slot-right",
+        name: "Right",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.5,
+      },
     ],
   });
   const childType = store.addDeviceType({

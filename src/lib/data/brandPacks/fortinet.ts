@@ -250,7 +250,7 @@ export const fortinetDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -263,7 +263,7 @@ export const fortinetDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -276,7 +276,7 @@ export const fortinetDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -289,7 +289,7 @@ export const fortinetDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -302,7 +302,7 @@ export const fortinetDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -315,6 +315,6 @@ export const fortinetDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.firewall,
     category: "firewall",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 ];

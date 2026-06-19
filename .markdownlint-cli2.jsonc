@@ -8,4 +8,7 @@
     // hand-wrapped lines.
     "MD013": false,
   },
+  // Vendored third-party skills are kept verbatim from their upstream source, so
+  // they are not held to this repo's markdown style. Refresh them from upstream.
+  "ignores": [".github/claude-plugins/**"],
 }

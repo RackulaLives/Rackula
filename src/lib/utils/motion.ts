@@ -8,8 +8,8 @@
  * @returns true if user has enabled reduced motion in system settings
  */
 export function prefersReducedMotion(): boolean {
-	if (typeof window === 'undefined') return false;
-	return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 /**
@@ -18,5 +18,5 @@ export function prefersReducedMotion(): boolean {
  * @returns 0 if reduced motion is preferred, otherwise the normal duration
  */
 export function getAnimationDuration(normalDuration: number): number {
-	return prefersReducedMotion() ? 0 : normalDuration;
+  return prefersReducedMotion() ? 0 : normalDuration;
 }

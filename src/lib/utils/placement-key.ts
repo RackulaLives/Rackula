@@ -8,7 +8,9 @@
 
 /** Build a namespaced placement image key. Falls back to legacy format when layoutId is absent. */
 export function placementKey(layoutId: string, deviceId: string): string {
-  return layoutId ? `placement-${layoutId}:${deviceId}` : `placement-${deviceId}`;
+  return layoutId
+    ? `placement-${layoutId}:${deviceId}`
+    : `placement-${deviceId}`;
 }
 
 /** True for any key that starts with the placement prefix. */

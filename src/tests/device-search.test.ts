@@ -37,9 +37,7 @@ describe("searchDevices typo tolerance", () => {
 
     // At least one network switch is returned for the typo.
     expect(
-      results.some(
-        (d) => d.category === "network" && /switch/i.test(d.model),
-      ),
+      results.some((d) => d.category === "network" && /switch/i.test(d.model)),
     ).toBe(true);
   });
 
@@ -67,9 +65,7 @@ describe("searchDevices cross-category precision", () => {
 
     // Positive: relevant switches are present.
     expect(
-      results.some(
-        (d) => d.category === "network" && /switch/i.test(d.model),
-      ),
+      results.some((d) => d.category === "network" && /switch/i.test(d.model)),
     ).toBe(true);
 
     // Negative: no unrelated server-category device leaks in.
@@ -99,8 +95,6 @@ describe("searchDevices cross-category precision", () => {
     expect(results.length).toBeGreaterThan(0);
 
     // Every result should be cable-management related, not random categories.
-    expect(
-      results.every((d) => d.category === "cable-management"),
-    ).toBe(true);
+    expect(results.every((d) => d.category === "cable-management")).toBe(true);
   });
 });

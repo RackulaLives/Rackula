@@ -224,7 +224,10 @@ describe("rollupDurabilities — worst-wins", () => {
   });
 
   it("all saved rolls up to saved", () => {
-    const result = rollupDurabilities([durability("saved"), durability("saved")]);
+    const result = rollupDurabilities([
+      durability("saved"),
+      durability("saved"),
+    ]);
     expect(result.status).toBe("saved");
   });
 });

@@ -1,6 +1,6 @@
 name: Implementation Task
 description: Internal task with full implementation details (maintainers only)
-labels: ['triage']
+labels: ["triage"]
 type: Task
 body:
   - type: markdown
@@ -58,7 +58,7 @@ body:
     attributes:
       label: Spec Reference
       description: Link to relevant spec-combined.md section (if applicable)
-      placeholder: 'docs/planning/spec-combined.md#section-12-3'
+      placeholder: "docs/planning/spec-combined.md#section-12-3"
     validations:
       required: false
 
@@ -67,8 +67,8 @@ body:
     attributes:
       label: Size Estimate
       options:
-        - 'small (<1 hour)'
-        - 'medium (1-4 hours)'
-        - 'large (needs breakdown)'
+        - "small (<1 hour)"
+        - "medium (1-4 hours)"
+        - "large (needs breakdown)"
     validations:
       required: true

@@ -1,7 +1,6 @@
 # Issue Creation Workflow v2
 
-Create well-formed GitHub Issues or triage existing ones for the ready queue.
-Designed for quick capture during development and structured issue planning.
+Create well-formed GitHub Issues or triage existing ones for the ready queue. Designed for quick capture during development and structured issue planning.
 
 **Arguments:** `$ARGUMENTS` (optional)
 
@@ -806,13 +805,13 @@ _Logged via /create-issue quick capture_
 
 ## Error Handling
 
-| Scenario                 | Response                                                    |
-| ------------------------ | ----------------------------------------------------------- |
-| `gh` not authenticated   | "Error: GitHub CLI not authenticated. Run `gh auth login`." |
-| Issue not found (triage) | "Error: Issue #N not found."                                |
-| Network error            | "Error: Could not reach GitHub. Check connection."          |
-| User cancels             | "Issue creation cancelled."                                 |
-| Duplicate confirmed      | "Linked to existing issue #X. No new issue created."        |
+| Scenario | Response |
+| --- | --- |
+| `gh` not authenticated | "Error: GitHub CLI not authenticated. Run `gh auth login`." |
+| Issue not found (triage) | "Error: Issue #N not found." |
+| Network error | "Error: Could not reach GitHub. Check connection." |
+| User cancels | "Issue creation cancelled." |
+| Duplicate confirmed | "Linked to existing issue #X. No new issue created." |
 
 ---
 

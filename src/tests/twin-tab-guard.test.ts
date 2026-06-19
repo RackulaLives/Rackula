@@ -45,19 +45,13 @@ describe("detectForeignLayoutWrite", () => {
 
   it("flags a write whose writer id differs from this tab", () => {
     const newValue = stampBodyWrite('{"layout":{}}', "other-tab");
-    const result = detectForeignLayoutWrite(
-      { key, newValue },
-      "this-tab",
-    );
+    const result = detectForeignLayoutWrite({ key, newValue }, "this-tab");
     expect(result).toEqual({ foreign: true, layoutId: "layout-a" });
   });
 
   it("ignores this tab's own echoed write", () => {
     const newValue = stampBodyWrite('{"layout":{}}', "this-tab");
-    const result = detectForeignLayoutWrite(
-      { key, newValue },
-      "this-tab",
-    );
+    const result = detectForeignLayoutWrite({ key, newValue }, "this-tab");
     expect(result.foreign).toBe(false);
   });
 

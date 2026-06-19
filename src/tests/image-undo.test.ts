@@ -126,7 +126,13 @@ describe("Image Undo — Device Removal", () => {
     expect(imageStore.hasImage(imageKey, "front")).toBe(true);
 
     // Create the remove command (should snapshot images)
-    const cmd = createRemoveDeviceCommand(0, device, store, "Test Device", TEST_LAYOUT_ID);
+    const cmd = createRemoveDeviceCommand(
+      0,
+      device,
+      store,
+      "Test Device",
+      TEST_LAYOUT_ID,
+    );
 
     // Execute: removes device and cleans up images
     cmd.execute();
@@ -161,7 +167,13 @@ describe("Image Undo — Device Removal", () => {
       createMockImageData("dev-2-rear.png"),
     );
 
-    const cmd = createRemoveDeviceCommand(0, device, store, "Test Device", TEST_LAYOUT_ID);
+    const cmd = createRemoveDeviceCommand(
+      0,
+      device,
+      store,
+      "Test Device",
+      TEST_LAYOUT_ID,
+    );
 
     cmd.execute();
     expect(imageStore.hasImage(imageKey, "front")).toBe(false);
@@ -186,7 +198,13 @@ describe("Image Undo — Device Removal", () => {
     const devices = [device];
     const store = createMockDeviceStore(devices);
 
-    const cmd = createRemoveDeviceCommand(0, device, store, "Test Device", TEST_LAYOUT_ID);
+    const cmd = createRemoveDeviceCommand(
+      0,
+      device,
+      store,
+      "Test Device",
+      TEST_LAYOUT_ID,
+    );
 
     cmd.execute();
     // Should not throw
@@ -261,13 +279,13 @@ describe("Image Undo — Device Type Deletion", () => {
       "my-server-front.png",
     );
     expect(imageStore.hasImage(pk1, "front")).toBe(true);
-    expect(
-      imageStore.getDeviceImage(pk1, "front")?.filename,
-    ).toBe("placed-1-front.png");
+    expect(imageStore.getDeviceImage(pk1, "front")?.filename).toBe(
+      "placed-1-front.png",
+    );
     expect(imageStore.hasImage(pk2, "rear")).toBe(true);
-    expect(
-      imageStore.getDeviceImage(pk2, "rear")?.filename,
-    ).toBe("placed-2-rear.png");
+    expect(imageStore.getDeviceImage(pk2, "rear")?.filename).toBe(
+      "placed-2-rear.png",
+    );
   });
 
   it("deleting device type without images does not fail on undo", () => {
@@ -276,7 +294,13 @@ describe("Image Undo — Device Type Deletion", () => {
     const devices: PlacedDevice[] = [];
     const store = createMockDeviceTypeStore(deviceTypes, devices);
 
-    const cmd = createDeleteDeviceTypeCommand(deviceType, [], store, [], TEST_LAYOUT_ID);
+    const cmd = createDeleteDeviceTypeCommand(
+      deviceType,
+      [],
+      store,
+      [],
+      TEST_LAYOUT_ID,
+    );
 
     cmd.execute();
     expect(() => cmd.undo()).not.toThrow();
@@ -376,9 +400,9 @@ describe("Image Undo — Cross-Rack Move (#1478)", () => {
     // After undo: device is back in source with original ID; image must follow back
     expect(imageStore.hasImage(remappedKey, "front")).toBe(false);
     expect(imageStore.hasImage(parentKey, "front")).toBe(true);
-    expect(
-      imageStore.getDeviceImage(parentKey, "front")?.filename,
-    ).toBe("server-front.png");
+    expect(imageStore.getDeviceImage(parentKey, "front")?.filename).toBe(
+      "server-front.png",
+    );
   });
 
   it("placement images follow child devices when cross-rack move remaps child IDs", () => {

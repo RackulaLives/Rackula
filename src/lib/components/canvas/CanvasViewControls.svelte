@@ -57,7 +57,6 @@
     layoutStore.redo();
     toastStore.showToast(`Redid: ${desc}`, "info");
   }
-
 </script>
 
 <div class="canvas-view-controls">

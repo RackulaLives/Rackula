@@ -49,8 +49,12 @@ describe("YAML layout round-trip", () => {
     expect(yaml).toContain("auto_created");
 
     const restored = await parseLayoutYaml(yaml);
-    const auto = restored.racks[0]?.devices.find((d) => d.id === "auto-carrier");
-    const user = restored.racks[0]?.devices.find((d) => d.id === "user-carrier");
+    const auto = restored.racks[0]?.devices.find(
+      (d) => d.id === "auto-carrier",
+    );
+    const user = restored.racks[0]?.devices.find(
+      (d) => d.id === "user-carrier",
+    );
     expect(auto?.auto_created).toBe(true);
     // A placement that never set the flag round-trips as the default (false).
     expect(user?.auto_created).toBe(false);
@@ -271,6 +275,6 @@ describe("YAML unknown top-level section round-trip (#2208)", () => {
 
     // None of the reserved keys are emitted, and the global prototype is intact.
     expect(yaml).not.toContain("hacked");
-    expect((({}) as Record<string, unknown>).hacked).toBeUndefined();
+    expect(({} as Record<string, unknown>).hacked).toBeUndefined();
   });
 });

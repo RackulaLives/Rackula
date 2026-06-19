@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       vendor:
-        description: 'Vendor name (case-sensitive, e.g., Ubiquiti, Dell, Synology)'
+        description: "Vendor name (case-sensitive, e.g., Ubiquiti, Dell, Synology)"
         required: true
         type: string
       slug:
-        description: 'Device slug to import (leave empty for all)'
+        description: "Device slug to import (leave empty for all)"
         required: false
         type: string
       dry_run:
-        description: 'Dry run only (no changes)'
+        description: "Dry run only (no changes)"
         required: false
         type: boolean
         default: true
@@ -31,8 +31,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -74,8 +74,8 @@ jobs:
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'feat(devices): import ${{ inputs.vendor }} devices from NetBox'
-          title: 'feat(devices): Import ${{ inputs.vendor }} devices from NetBox'
+          commit-message: "feat(devices): import ${{ inputs.vendor }} devices from NetBox"
+          title: "feat(devices): Import ${{ inputs.vendor }} devices from NetBox"
           body: |
             ## Summary
             Automated import of ${{ inputs.vendor }} devices from the NetBox devicetype-library.

@@ -19,6 +19,7 @@
   import { isRackInteractionTarget } from "$lib/utils/canvas-coordinates";
   import { createCanvasPanzoom } from "$lib/utils/panzoom-lifecycle";
   import { createRackSwipeController } from "$lib/utils/canvas-swipe.svelte";
+  import { createCanvasDoubleTap } from "$lib/utils/canvas-double-tap.svelte";
   import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
   import { hapticTap } from "$lib/utils/haptics";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
@@ -31,6 +32,7 @@
   import WelcomeScreen from "./WelcomeScreen.svelte";
   import CanvasContextMenu from "./CanvasContextMenu.svelte";
   import VerbBarOverlay from "./VerbBarOverlay.svelte";
+  import PlacementIndicator from "./PlacementIndicator.svelte";
 
   const ONBOARDING_HINT_KEY = "Rackula_onboarding_hint_dismissed";
 
@@ -168,6 +170,21 @@
       canvasStore.focusRack(rackIds, allRacks, groups, rightOffset),
   });
 
+  // Double-tap-to-fit gesture. Two quick taps in the same spot fit the layout
+  // to the screen, resolving the fit verb through the same path as the toolbar
+  // and context menu so mobile does not fork its own fit logic.
+  const doubleTapController = createCanvasDoubleTap({
+    isMobile: () => viewportStore.isMobile,
+    isPlacing: () => placementStore.isPlacing,
+    onfit: () => {
+      if (onfitall) {
+        onfitall();
+      } else {
+        canvasStore.fitAll(racks);
+      }
+    },
+  });
+
   const TOUCH_LISTENER_OPTIONS: AddEventListenerOptions = {
     // Capture keeps swipe tracking robust even if child components stop bubbling.
     // Because listeners are passive and never call stopPropagation/preventDefault,
@@ -208,6 +225,21 @@
       swipeController.handleTouchCancel,
       TOUCH_LISTENER_OPTIONS,
     );
+    element.addEventListener(
+      "touchstart",
+      doubleTapController.handleTouchStart,
+      TOUCH_LISTENER_OPTIONS,
+    );
+    element.addEventListener(
+      "touchend",
+      doubleTapController.handleTouchEnd,
+      TOUCH_LISTENER_OPTIONS,
+    );
+    element.addEventListener(
+      "touchcancel",
+      doubleTapController.handleTouchCancel,
+      TOUCH_LISTENER_OPTIONS,
+    );
 
     return () => {
       element.removeEventListener(
@@ -228,6 +260,21 @@
       element.removeEventListener(
         "touchcancel",
         swipeController.handleTouchCancel,
+        TOUCH_LISTENER_OPTIONS,
+      );
+      element.removeEventListener(
+        "touchstart",
+        doubleTapController.handleTouchStart,
+        TOUCH_LISTENER_OPTIONS,
+      );
+      element.removeEventListener(
+        "touchend",
+        doubleTapController.handleTouchEnd,
+        TOUCH_LISTENER_OPTIONS,
+      );
+      element.removeEventListener(
+        "touchcancel",
+        doubleTapController.handleTouchCancel,
         TOUCH_LISTENER_OPTIONS,
       );
       canvasStore.setCanvasElement(null);
@@ -306,6 +353,18 @@
     onnewrack?.();
   }
 
+  // Cancel an armed tap/click-to-place from the placement banner. Mirrors the
+  // rack-level cancel: drop placement state and re-fit so the rack is fully in
+  // view again (the same exit used after a successful placement).
+  function handleCancelPlacement() {
+    placementStore.cancelPlacement();
+    if (onfitall) {
+      onfitall();
+    } else {
+      canvasStore.fitAll(racks, layoutStore.rack_groups);
+    }
+  }
+
   // Screen reader accessible description of rack contents
   const rackDescription = $derived.by(() => {
     if (racks.length === 0) return "No racks configured";
@@ -362,6 +421,15 @@
       <p id="canvas-device-list" class="sr-only">{deviceListDescription}</p>
     {/if}
 
+    <!-- Tap/click-to-place banner: full-width overlay that names the armed
+         device and offers Cancel. Valid U-slots are highlighted on the rack and
+         canvas pan is paused while placing (panzoom defers to the rack). -->
+    <PlacementIndicator
+      isPlacing={placementStore.isPlacing}
+      device={placementStore.pendingDevice}
+      oncancel={handleCancelPlacement}
+    />
+
     {#if hasRacks && allRacksEmpty && !hintDismissed}
       <div class="onboarding-hint" role="status" aria-live="polite">
         <span
@@ -395,12 +463,14 @@
           {onrackdelete}
         />
       </div>
-      <VerbBarOverlay
-        canvasEl={canvasContainer}
-        {ondelete}
-        {onrackfocus}
-        {onrackexport}
-      />
+      {#if !viewportStore.isMobile}
+        <VerbBarOverlay
+          canvasEl={canvasContainer}
+          {ondelete}
+          {onrackfocus}
+          {onrackexport}
+        />
+      {/if}
     {:else}
       <WelcomeScreen
         templates={starterTemplates}

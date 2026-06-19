@@ -95,7 +95,9 @@
   const CONTROL_WIDTH_PX = 44;
   const partition = $derived.by(() => {
     const budget = (reserved: number) =>
-      Number.isFinite(laneWidth) ? Math.max(0, laneWidth - reserved) : laneWidth;
+      Number.isFinite(laneWidth)
+        ? Math.max(0, laneWidth - reserved)
+        : laneWidth;
     const firstPass = partitionTabs(
       tabViews,
       workspace.activeId,

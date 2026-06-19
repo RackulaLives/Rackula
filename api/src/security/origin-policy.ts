@@ -71,7 +71,10 @@ export function createOriginPolicyMiddleware(
     if (securityConfig.writeAuthToken) {
       const authorization = c.req.header("Authorization");
       const match = authorization?.match(/^Bearer\s+(.+)$/i);
-      if (match?.[1] && timingSafeStringEqual(match[1].trim(), securityConfig.writeAuthToken)) {
+      if (
+        match?.[1] &&
+        timingSafeStringEqual(match[1].trim(), securityConfig.writeAuthToken)
+      ) {
         await next();
         return;
       }

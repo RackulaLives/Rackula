@@ -63,9 +63,7 @@ export interface WorkspaceIndex {
 }
 
 /** Result of reading a layout body: the migrated layout, or unreadable. */
-export type LayoutBodyResult =
-  | { ok: true; layout: Layout }
-  | { ok: false };
+export type LayoutBodyResult = { ok: true; layout: Layout } | { ok: false };
 
 /** Durability fields a caller can update without rewriting the body. */
 export interface DurabilityInput {
@@ -84,9 +82,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Object.prototype, so they are never accepted as a layout id.
  */
 function isSafeLayoutId(id: string): boolean {
-  return (
-    id !== "__proto__" && id !== "constructor" && id !== "prototype"
-  );
+  return id !== "__proto__" && id !== "constructor" && id !== "prototype";
 }
 
 function coerceStorageMode(value: unknown): StorageMode {
@@ -94,7 +90,10 @@ function coerceStorageMode(value: unknown): StorageMode {
 }
 
 /** Coerce an untrusted library entry into a complete, safe LibraryEntry. */
-function coerceLibraryEntry(value: unknown, fallbackName: string): LibraryEntry {
+function coerceLibraryEntry(
+  value: unknown,
+  fallbackName: string,
+): LibraryEntry {
   const obj = isRecord(value) ? value : {};
   const changes = obj.changesSinceExport;
   return {
@@ -153,8 +152,7 @@ export function loadWorkspaceIndex(): WorkspaceIndex | null {
       Object.prototype.hasOwnProperty.call(library, id),
   );
 
-  let activeId =
-    typeof parsed.activeId === "string" ? parsed.activeId : null;
+  let activeId = typeof parsed.activeId === "string" ? parsed.activeId : null;
   if (activeId === null || !openTabs.includes(activeId)) {
     activeId = openTabs[0] ?? null;
   }

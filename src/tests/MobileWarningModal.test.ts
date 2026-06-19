@@ -24,9 +24,7 @@ describe("MobileWarningModal", () => {
       render(MobileWarningModal);
 
       expect(screen.getByRole("alertdialog")).toBeInTheDocument();
-      expect(
-        screen.getByText("Welcome to Rackula Mobile"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Welcome to Rackula Mobile")).toBeInTheDocument();
     });
 
     it("does not show modal on desktop viewport (>= 1024px)", () => {
@@ -60,17 +58,13 @@ describe("MobileWarningModal", () => {
     it("shows title", () => {
       render(MobileWarningModal);
 
-      expect(
-        screen.getByText("Welcome to Rackula Mobile"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Welcome to Rackula Mobile")).toBeInTheDocument();
     });
 
     it("shows description about mobile experience", () => {
       render(MobileWarningModal);
 
-      expect(
-        screen.getByText(/rack layouts on the go/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/rack layouts on the go/i)).toBeInTheDocument();
     });
 
     it("shows the load tip", () => {

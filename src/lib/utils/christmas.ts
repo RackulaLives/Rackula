@@ -10,11 +10,11 @@
  * Debug: Add ?christmas=true to URL to force enable
  */
 export function isChristmas(date: Date = new Date()): boolean {
-	// Check URL param for testing (browser only)
-	if (typeof window !== 'undefined') {
-		const params = new URLSearchParams(window.location.search);
-		if (params.get('christmas') === 'true') return true;
-	}
+  // Check URL param for testing (browser only)
+  if (typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("christmas") === "true") return true;
+  }
 
-	return date.getMonth() === 11 && date.getDate() === 25;
+  return date.getMonth() === 11 && date.getDate() === 25;
 }

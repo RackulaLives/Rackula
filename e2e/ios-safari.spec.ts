@@ -35,7 +35,10 @@ async function setupMobileViewport(
     sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
   });
   await page.goto(`/?l=${EMPTY_RACK_SHARE}`);
-  await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
+  await page
+    .locator(locators.rack.container)
+    .first()
+    .waitFor({ state: "visible" });
 }
 
 /**
@@ -94,7 +97,10 @@ test.describe("Devices Tab (Device Library)", () => {
       sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
     });
     await page.goto(`/?l=${EMPTY_RACK_SHARE}`);
-    await page.locator(locators.rack.container).first().waitFor({ state: "visible" });
+    await page
+      .locator(locators.rack.container)
+      .first()
+      .waitFor({ state: "visible" });
 
     await expect(page.locator(locators.mobile.deviceLibraryFab)).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Devices" })).toHaveCount(0);
@@ -191,6 +197,86 @@ test.describe("No Horizontal Scroll", () => {
       expect(hasHorizontalScroll).toBe(false);
     });
   }
+});
+
+// ============================================================================
+// Tap-to-place (real touch) — #2454
+// ============================================================================
+
+test.describe("Tap-to-place on touch (#2454)", () => {
+  // iPhone 14: a real-touch (hasTouch) WebKit profile, so .tap() and
+  // touchscreen.tap() dispatch genuine TouchEvents and exercise the rack SVG's
+  // ontouchend placement path (not the mouse/click path covered elsewhere).
+  const device = iosDevices.find((d) => d.name === "iPhone 14")!;
+
+  test.beforeEach(async ({ page }) => {
+    await setupMobileViewport(page, device);
+  });
+
+  test("arming a device and tapping a valid slot places it", async ({
+    page,
+  }) => {
+    const devicesBefore = await page.locator(locators.rack.device).count();
+
+    // Arm placement: tap a palette device. This closes the bottom sheet and
+    // surfaces the "Placing:" banner. Do NOT press Escape — it cancels.
+    await openDeviceLibraryFromBottomNav(page);
+    const firstDevice = page.locator(locators.device.paletteItem).first();
+    await expect(firstDevice).toBeVisible();
+    await firstDevice.tap();
+
+    const placementBanner = page
+      .getByRole("status")
+      .filter({ hasText: "Placing:" })
+      .first();
+    await expect(placementBanner).toBeVisible();
+    await expect(page.locator(locators.mobile.bottomSheet)).not.toBeVisible();
+
+    // Tap a rack slot with real touch. Aim ~45% down the front-view SVG to land
+    // in clear rack interior, clear of the top banner.
+    const rackSvg = page
+      .locator(`${locators.rackView.front} ${locators.rack.svg}`)
+      .first();
+    const box = await rackSvg.boundingBox();
+    if (!box) {
+      throw new Error(
+        "rackSvg boundingBox() returned null; cannot tap placement target",
+      );
+    }
+    await page.touchscreen.tap(
+      box.x + box.width / 2,
+      box.y + box.height * 0.45,
+    );
+
+    // The device is placed: count increases and placement mode exits.
+    await expect(async () => {
+      const devicesAfter = await page.locator(locators.rack.device).count();
+      expect(devicesAfter).toBeGreaterThan(devicesBefore);
+    }).toPass({ timeout: 5000 });
+    await expect(placementBanner).not.toBeVisible({ timeout: 5000 });
+  });
+
+  test("the Cancel button in the banner aborts placement", async ({ page }) => {
+    const devicesBefore = await page.locator(locators.rack.device).count();
+
+    await openDeviceLibraryFromBottomNav(page);
+    const firstDevice = page.locator(locators.device.paletteItem).first();
+    await expect(firstDevice).toBeVisible();
+    await firstDevice.tap();
+
+    const placementBanner = page
+      .getByRole("status")
+      .filter({ hasText: "Placing:" })
+      .first();
+    await expect(placementBanner).toBeVisible();
+
+    await page.getByRole("button", { name: /cancel placement/i }).tap();
+
+    // Placement is cancelled: the banner is gone and nothing was placed.
+    await expect(placementBanner).not.toBeVisible({ timeout: 5000 });
+    const devicesAfter = await page.locator(locators.rack.device).count();
+    expect(devicesAfter).toBe(devicesBefore);
+  });
 });
 
 // ============================================================================

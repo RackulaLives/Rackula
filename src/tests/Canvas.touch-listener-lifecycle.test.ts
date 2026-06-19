@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render } from "@testing-library/svelte";
 import Canvas from "$lib/components/Canvas.svelte";
-import {
-  getCanvasStore,
-  resetCanvasStore,
-} from "$lib/stores/canvas.svelte";
+import { getCanvasStore, resetCanvasStore } from "$lib/stores/canvas.svelte";
 import { resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetSelectionStore } from "$lib/stores/selection.svelte";
 import { resetUIStore } from "$lib/stores/ui.svelte";
@@ -21,16 +18,19 @@ describe("Canvas touch listener lifecycle", () => {
     resetPlacementStore();
     resetViewportStore();
 
-    vi.stubGlobal("matchMedia", (query: string): MediaQueryList => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => true,
-    }));
+    vi.stubGlobal(
+      "matchMedia",
+      (query: string): MediaQueryList => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => true,
+      }),
+    );
   });
 
   afterEach(() => {
@@ -39,7 +39,12 @@ describe("Canvas touch listener lifecycle", () => {
   });
 
   it("attaches and detaches touch listeners across remount without duplicates", () => {
-    const touchEventTypes = ["touchcancel", "touchend", "touchmove", "touchstart"];
+    const touchEventTypes = [
+      "touchcancel",
+      "touchend",
+      "touchmove",
+      "touchstart",
+    ];
     const originalAdd = HTMLElement.prototype.addEventListener;
     const originalRemove = HTMLElement.prototype.removeEventListener;
     const touchAdds: Array<{ target: EventTarget; type: string }> = [];
@@ -76,19 +81,22 @@ describe("Canvas touch listener lifecycle", () => {
     const firstRender = render(Canvas);
     const firstCanvas = firstRender.getByRole("application");
 
+    // Every touch event type the canvas wires must be registered at least once
+    // (the swipe and double-tap controllers each claim some of these).
     const firstAdds = touchAdds
       .filter((entry) => entry.target === firstCanvas)
       .map((entry) => entry.type)
       .sort();
-    expect(firstAdds).toEqual(touchEventTypes);
+    expect([...new Set(firstAdds)].sort()).toEqual(touchEventTypes);
 
     firstRender.unmount();
 
+    // Detach removes exactly what attach added: same multiset, no leaks.
     const firstRemoves = touchRemoves
       .filter((entry) => entry.target === firstCanvas)
       .map((entry) => entry.type)
       .sort();
-    expect(firstRemoves).toEqual(touchEventTypes);
+    expect(firstRemoves).toEqual(firstAdds);
 
     const secondRender = render(Canvas);
     const secondCanvas = secondRender.getByRole("application");
@@ -98,7 +106,8 @@ describe("Canvas touch listener lifecycle", () => {
       .filter((entry) => entry.target === secondCanvas)
       .map((entry) => entry.type)
       .sort();
-    expect(secondAdds).toEqual(touchEventTypes);
+    // The remount registers the same multiset as the first mount (no duplication).
+    expect(secondAdds).toEqual(firstAdds);
 
     secondRender.unmount();
   });

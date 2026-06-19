@@ -13,11 +13,13 @@ describe("Archive Guardrails", () => {
     const zip = new JSZip();
     zip.file("test.txt", "small");
     const blob = await zip.generateAsync({ type: "blob" });
-    
+
     // Mock the size property
     Object.defineProperty(blob, "size", { value: 51 * 1024 * 1024 });
 
-    await expect(extractFolderArchive(blob)).rejects.toThrow(/Archive too large/);
+    await expect(extractFolderArchive(blob)).rejects.toThrow(
+      /Archive too large/,
+    );
   });
 
   it("rejects archives with too many entries (MAX_ENTRY_COUNT = 500)", async () => {
@@ -38,26 +40,33 @@ describe("Archive Guardrails", () => {
     zip.file("bomb.txt", largeContent);
     zip.file("bomb2.txt", largeContent);
     zip.file("bomb3.txt", largeContent);
-    
-    const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
-    
-    // Force a tiny blob size in the check
-    Object.defineProperty(blob, "size", { value: 100 }); 
 
-    await expect(extractFolderArchive(blob)).rejects.toThrow(/suspicious compression ratio/);
+    const blob = await zip.generateAsync({
+      type: "blob",
+      compression: "DEFLATE",
+    });
+
+    // Force a tiny blob size in the check
+    Object.defineProperty(blob, "size", { value: 100 });
+
+    await expect(extractFolderArchive(blob)).rejects.toThrow(
+      /suspicious compression ratio/,
+    );
   });
 
   it("rejects archives with oversized YAML (MAX_YAML_BYTES = 5MB)", async () => {
     const zip = new JSZip();
     const folderName = "Layout-550e8400-e29b-41d4-a716-446655440000";
     const folder = zip.folder(folderName);
-    
+
     // 6MB YAML content
     const hugeYaml = "name: Huge\n" + "x: ".repeat(3 * 1024 * 1024);
     folder?.file("huge.rackula.yaml", hugeYaml);
 
     const blob = await zip.generateAsync({ type: "blob" });
 
-    await expect(extractFolderArchive(blob)).rejects.toThrow(/Layout file too large/);
+    await expect(extractFolderArchive(blob)).rejects.toThrow(
+      /Layout file too large/,
+    );
   });
 });

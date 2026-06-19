@@ -36,12 +36,16 @@ describe("layoutPreviewKey", () => {
   it("changes when a device moves to a new position", () => {
     const before = createTestLayout({
       racks: [
-        createTestRack({ devices: [createTestDevice({ id: "d1", position: 1 })] }),
+        createTestRack({
+          devices: [createTestDevice({ id: "d1", position: 1 })],
+        }),
       ],
     });
     const after = createTestLayout({
       racks: [
-        createTestRack({ devices: [createTestDevice({ id: "d1", position: 5 })] }),
+        createTestRack({
+          devices: [createTestDevice({ id: "d1", position: 5 })],
+        }),
       ],
     });
 
@@ -49,7 +53,9 @@ describe("layoutPreviewKey", () => {
   });
 
   it("changes when rack geometry changes", () => {
-    const before = createTestLayout({ racks: [createTestRack({ height: 42 })] });
+    const before = createTestLayout({
+      racks: [createTestRack({ height: 42 })],
+    });
     const after = createTestLayout({ racks: [createTestRack({ height: 24 })] });
 
     expect(layoutPreviewKey(before)).not.toBe(layoutPreviewKey(after));

@@ -323,44 +323,41 @@ describe("keyboard viewport adaptation", () => {
         return el;
       },
     },
-  ])(
-    "does not scroll focused $name into view",
-    ({ createElement }) => {
-      const { viewport, getResizeHandler } = createMockVisualViewport();
-      setVisualViewport(viewport as unknown as VisualViewport);
+  ])("does not scroll focused $name into view", ({ createElement }) => {
+    const { viewport, getResizeHandler } = createMockVisualViewport();
+    setVisualViewport(viewport as unknown as VisualViewport);
 
-      const element = createElement();
-      const scrollIntoView = vi.fn();
-      element.scrollIntoView = scrollIntoView;
-      element.getBoundingClientRect = vi.fn(() => ({
-        x: 0,
-        y: 700,
-        width: 200,
-        height: 32,
-        top: 700,
-        right: 200,
-        bottom: 732,
-        left: 0,
-        toJSON: () => ({}),
-      }));
-      document.body.appendChild(element);
-      element.focus();
+    const element = createElement();
+    const scrollIntoView = vi.fn();
+    element.scrollIntoView = scrollIntoView;
+    element.getBoundingClientRect = vi.fn(() => ({
+      x: 0,
+      y: 700,
+      width: 200,
+      height: 32,
+      top: 700,
+      right: 200,
+      bottom: 732,
+      left: 0,
+      toJSON: () => ({}),
+    }));
+    document.body.appendChild(element);
+    element.focus();
 
-      const cleanup = setupKeyboardViewportAdaptation({
-        isMobile: () => true,
-        debounceMs: 0,
-        keyboardThresholdPx: 0,
-      });
+    const cleanup = setupKeyboardViewportAdaptation({
+      isMobile: () => true,
+      debounceMs: 0,
+      keyboardThresholdPx: 0,
+    });
 
-      viewport.height = 560;
-      const resizeHandler = getResizeHandler();
-      resizeHandler(new Event("resize"));
-      vi.runAllTimers();
+    viewport.height = 560;
+    const resizeHandler = getResizeHandler();
+    resizeHandler(new Event("resize"));
+    vi.runAllTimers();
 
-      expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(scrollIntoView).not.toHaveBeenCalled();
 
-      cleanup();
-      element.remove();
-    },
-  );
+    cleanup();
+    element.remove();
+  });
 });

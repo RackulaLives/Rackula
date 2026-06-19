@@ -427,7 +427,9 @@ describe("Session Storage", () => {
       expect(loaded).not.toBeNull();
       // Position values should be multiplied by UNITS_PER_U
       expect(loaded!.layout.racks[0].devices[0].position).toBe(1 * UNITS_PER_U);
-      expect(loaded!.layout.racks[0].devices[1].position).toBe(10 * UNITS_PER_U);
+      expect(loaded!.layout.racks[0].devices[1].position).toBe(
+        10 * UNITS_PER_U,
+      );
     });
 
     it("does not migrate container child positions", () => {

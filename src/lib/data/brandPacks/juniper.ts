@@ -45,7 +45,7 @@ export const juniperDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -58,7 +58,7 @@ export const juniperDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -71,7 +71,7 @@ export const juniperDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -84,7 +84,7 @@ export const juniperDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -97,7 +97,7 @@ export const juniperDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 
   {
@@ -110,6 +110,6 @@ export const juniperDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
     front_image: true,
-    rear_image: true
+    rear_image: true,
   },
 ];

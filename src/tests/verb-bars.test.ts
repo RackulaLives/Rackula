@@ -3,6 +3,7 @@ import {
   DEVICE_VERB_IDS,
   RACK_VERB_IDS,
   getVerbsForSelection,
+  getSelectionVerbsWithState,
 } from "$lib/actions/verb-bars";
 import { getActionById } from "$lib/actions/registry";
 import type { ActionEnabledContext } from "$lib/actions/registry";
@@ -214,6 +215,61 @@ describe("verb-bars projection", () => {
     it("export-rack enabledWhen passes for rack selection", () => {
       const action = getActionById("export-rack");
       expect(action?.enabledWhen?.(rackCtx)).toBe(true);
+    });
+  });
+
+  describe("getSelectionVerbsWithState - mobile projection", () => {
+    it("includes all device verbs (even disabled ones) for a device selection", () => {
+      const result = getSelectionVerbsWithState(deviceCtx);
+      // move-device-slot is disabled (canMoveDeviceSlot=false) but still present,
+      // unlike getVerbsForSelection which filters it out.
+      expect(result.map((v) => v.id)).toEqual(DEVICE_VERB_IDS);
+    });
+
+    it("marks move-device-slot as disabled when canMoveDeviceSlot is false", () => {
+      const result = getSelectionVerbsWithState(deviceCtx);
+      const slotVerb = result.find((v) => v.id === "move-device-slot");
+      expect(slotVerb?.disabled).toBe(true);
+    });
+
+    it("marks move-device-slot as enabled when canMoveDeviceSlot is true", () => {
+      const childCtx = { ...deviceCtx, canMoveDeviceSlot: true };
+      const result = getSelectionVerbsWithState(childCtx);
+      const slotVerb = result.find((v) => v.id === "move-device-slot");
+      expect(slotVerb?.disabled).toBe(false);
+    });
+
+    it("marks all device verbs enabled for a fully-capable device context", () => {
+      const childCtx = { ...deviceCtx, canMoveDeviceSlot: true };
+      const result = getSelectionVerbsWithState(childCtx);
+      for (const verb of result) {
+        expect(verb.disabled).toBe(false);
+      }
+    });
+
+    it("returns rack verbs with state when a rack is selected", () => {
+      const result = getSelectionVerbsWithState(rackCtx);
+      expect(result.map((v) => v.id)).toEqual(RACK_VERB_IDS);
+    });
+
+    it("returns an empty array when nothing is selected", () => {
+      expect(getSelectionVerbsWithState(emptyCtx)).toEqual([]);
+    });
+
+    it("device verbs take precedence when both device and rack are selected", () => {
+      const bothCtx: ActionEnabledContext = {
+        ...deviceCtx,
+        isRackSelected: true,
+      };
+      const ids = getSelectionVerbsWithState(bothCtx).map((v) => v.id);
+      expect(ids).toEqual(DEVICE_VERB_IDS);
+    });
+
+    it("labels come from the registry, not hardcoded", () => {
+      const result = getSelectionVerbsWithState(deviceCtx);
+      const upVerb = result.find((v) => v.id === "move-device-up");
+      const registryAction = getActionById("move-device-up");
+      expect(upVerb?.label).toBe(registryAction?.label);
     });
   });
 });

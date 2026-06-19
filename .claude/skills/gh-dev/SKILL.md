@@ -5,8 +5,7 @@ description: Pick up GitHub issues and develop them with worktree isolation. Wor
 
 # GitHub Issue Development
 
-Pick up the next issue, assess it, and either complete it or document blockers.
-Works with any GitHub repository with worktree isolation.
+Pick up the next issue, assess it, and either complete it or document blockers. Works with any GitHub repository with worktree isolation.
 
 **Arguments:** `$ARGUMENTS` (optional: issue number to work on specific issue)
 
@@ -78,12 +77,14 @@ Use `WORKTREE_DIR` variable and subshells `(cd "$WORKTREE_DIR" && ...)` for all 
 ## Branch Checkout Rules
 
 **NEVER in main directory:**
+
 ```bash
 git checkout <branch>      # Changes branch for ALL agents
 git switch <branch>        # Same problem
 ```
 
 **ALWAYS use worktrees:**
+
 ```bash
 git worktree add .worktree/${REPO_NAME}-issue-<N> -b <type>/<N>-<desc>
 ```
@@ -201,14 +202,13 @@ gh issue view <N> --json number,title,body,labels,assignees
 
 ### 2b. Complexity Assessment
 
-| Criteria | Simple | Complex |
-|----------|--------|---------|
-| Size label | `size:small` | `size:medium+` |
-| Files affected | ≤3 | >3 |
-| Type | Bug fix | Feature, architectural |
+| Criteria       | Simple       | Complex                |
+| -------------- | ------------ | ---------------------- |
+| Size label     | `size:small` | `size:medium+`         |
+| Files affected | ≤3           | >3                     |
+| Type           | Bug fix      | Feature, architectural |
 
-**Simple:** Proceed to Phase 3.
-**Complex:** Use Plan agent first.
+**Simple:** Proceed to Phase 3. **Complex:** Use Plan agent first.
 
 ---
 
@@ -241,8 +241,7 @@ If not configured, skip or ask user.
 
 **MANDATORY before opening a PR.** Review the diff and resolve findings before pushing.
 
-**Do NOT run the CodeRabbit CLI here.** Repos that gate on CodeRabbit run it at push
-time via a pre-push hook in agent mode (see 3f). Running it manually first doubles the work.
+**Do NOT run the CodeRabbit CLI here.** Repos that gate on CodeRabbit run it at push time via a pre-push hook in agent mode (see 3f). Running it manually first doubles the work.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -268,27 +267,21 @@ time via a pre-push hook in agent mode (see 3f). Running it manually first doubl
 
 **Step 1: Run the review (auto-detect)**
 
-- **Preferred:** if a `/code-review` command is available in this environment, use it.
-  It reviews the current diff for correctness bugs plus reuse/simplification/efficiency
-  cleanups.
-- **Fallback:** if `/code-review` is unavailable, use the repo's configured reviewer
-  (check CLAUDE.md `### Review Command`). If none, self-review the diff against the
-  issue's acceptance criteria.
+- **Preferred:** if a `/code-review` command is available in this environment, use it. It reviews the current diff for correctness bugs plus reuse/simplification/efficiency cleanups.
+- **Fallback:** if `/code-review` is unavailable, use the repo's configured reviewer (check CLAUDE.md `### Review Command`). If none, self-review the diff against the issue's acceptance criteria.
 
 **Step 2: Fix findings**
 
-Address each finding. For multiple findings, track them as tasks and mark completed as
-you go.
+Address each finding. For multiple findings, track them as tasks and mark completed as you go.
 
 **Step 3: Re-verify**
 
-After fixing, re-run verification commands (lint, test, build), then re-review. Only
-proceed when the review is clean.
+After fixing, re-run verification commands (lint, test, build), then re-review. Only proceed when the review is clean.
 
 **Exit Conditions:**
+
 - **Success:** review returns no findings → proceed to commit
-- **Max iterations (3):** if findings persist after 3 cycles, ask the user whether to
-  proceed or abort
+- **Max iterations (3):** if findings persist after 3 cycles, ask the user whether to proceed or abort
 
 ### 3e. Commit
 
@@ -304,8 +297,7 @@ Fixes #<N>")
 (cd "$WORKTREE_DIR" && git push -u origin <branch>)
 ```
 
-Some repos run a **pre-push hook** that gates the push on a CodeRabbit review.
-Detect a *CodeRabbit* gate specifically (not just any pre-push hook):
+Some repos run a **pre-push hook** that gates the push on a CodeRabbit review. Detect a _CodeRabbit_ gate specifically (not just any pre-push hook):
 
 ```bash
 HOOK_FILE=""
@@ -316,20 +308,16 @@ if [ -n "$HOOK_FILE" ] && grep -qi "coderabbit" "$HOOK_FILE"; then
 fi
 ```
 
-When present, the hook runs **CodeRabbit in agent mode**
-(`coderabbit review --agent`, default-deny) and blocks the push on real findings.
-The `--no-verify` fallback below applies **only to a CodeRabbit gate**. If a hook
-runs other checks (tests, lint), do not bypass them blindly.
+When present, the hook runs **CodeRabbit in agent mode** (`coderabbit review --agent`, default-deny) and blocks the push on real findings. The `--no-verify` fallback below applies **only to a CodeRabbit gate**. If a hook runs other checks (tests, lint), do not bypass them blindly.
 
 **If the push is blocked, classify the cause:**
 
 | Cause | What to do |
-|-------|-----------|
+| --- | --- |
 | Real review findings reported | Address them (loop back to 3d), then push again. |
 | Timeout, CLI unavailable, or unparseable output (infra failure, not findings) | Retry once with `git push --no-verify` to bypass the gate. |
 
-Only use `--no-verify` for transient/infrastructure failures. **Never** bypass to skip
-real findings.
+Only use `--no-verify` for transient/infrastructure failures. **Never** bypass to skip real findings.
 
 ### 3g. Create PR
 
@@ -374,8 +362,7 @@ Check for more issues:
 # Re-run issue fetch logic
 ```
 
-**Continue if:** More issues AND autonomous mode.
-**Stop if:** No issues, blocker hit, or user interruption.
+**Continue if:** More issues AND autonomous mode. **Stop if:** No issues, blocker hit, or user interruption.
 
 ---
 
@@ -396,6 +383,7 @@ If project has `## GitHub Workflow` section, read for:
 
 ````markdown
 ### Verification Commands
+
 ```bash
 npm run lint
 npm run test:run
@@ -407,6 +395,7 @@ npm run build
 
 ```markdown
 ### Branch Prefixes
+
 - Bug: fix/
 - Feature: feat/
 - Chore: chore/
@@ -416,6 +405,7 @@ npm run build
 
 ```markdown
 ### Worktree Pattern
+
 .worktree/<custom>-issue-<N>
 ```
 
@@ -425,6 +415,7 @@ Used by step 3d when `/code-review` is unavailable in the environment.
 
 ````markdown
 ### Review Command
+
 ```bash
 <repo-specific local review command>
 ```
@@ -439,13 +430,12 @@ Used by step 3d when `/code-review` is unavailable in the environment.
 ```markdown
 ## Issue #<N>: <title>
 
-**Status:** Completed | Blocked
-**Branch:** `<branch>`
-**PR:** <url>
+**Status:** Completed | Blocked **Branch:** `<branch>` **PR:** <url>
 
 **Summary:** <what was done>
 
 **Files Changed:**
+
 - `file.ts`: <change>
 ```
 
@@ -454,12 +444,13 @@ Used by step 3d when `/code-review` is unavailable in the environment.
 ```markdown
 ## Session Summary
 
-**Completed:** N issues
-**Blocked:** M issues
+**Completed:** N issues **Blocked:** M issues
 
 **Completed:**
+
 1. #42: Title - PR #123
 
 **Blocked:**
+
 1. #44: Title - <reason>
 ```

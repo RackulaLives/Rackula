@@ -114,9 +114,10 @@ describe("nginx API proxy query string preservation", () => {
     const marker = config.indexOf("location /api/ {");
     expect(marker, "missing 'location /api/' prefix block").toBeGreaterThan(-1);
     const blockEnd = config.indexOf("error_page", marker);
-    expect(blockEnd, "missing error_page fallback in /api/ block").toBeGreaterThan(
-      marker,
-    );
+    expect(
+      blockEnd,
+      "missing error_page fallback in /api/ block",
+    ).toBeGreaterThan(marker);
     return config.slice(marker, blockEnd);
   };
 

@@ -148,7 +148,9 @@ describe("saveLayoutToServer", () => {
       updatedAt: "2026-06-14T10:00:00.000Z",
     });
     const headers = new Headers(fetchMock.mock.calls[0][1].headers);
-    expect(headers.get("X-Rackula-Updated-At")).toBe("2026-06-14T09:00:00.000Z");
+    expect(headers.get("X-Rackula-Updated-At")).toBe(
+      "2026-06-14T09:00:00.000Z",
+    );
   });
 
   it("omits X-Rackula-Updated-At when no base updatedAt is known", async () => {
@@ -186,12 +188,14 @@ describe("saveLayoutToServer", () => {
     };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({ id: "11111111-1111-4111-8111-111111111111" }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ id: "11111111-1111-4111-8111-111111111111" }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
         ),
-      ),
     );
 
     await expect(
@@ -232,42 +236,28 @@ describe("uploadSnapshot", () => {
       ),
     );
     expect(
-      await uploadSnapshot(
-        "11111111-1111-4111-8111-111111111111",
-        "name: L\n",
-      ),
+      await uploadSnapshot("11111111-1111-4111-8111-111111111111", "name: L\n"),
     ).toBe(true);
   });
 
   it("returns false on 404 (layout unknown)", async () => {
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(JSON.stringify({ error: "Layout not found" }), {
-            status: 404,
-          }),
-        ),
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: "Layout not found" }), {
+          status: 404,
+        }),
+      ),
     );
     expect(
-      await uploadSnapshot(
-        "11111111-1111-4111-8111-111111111111",
-        "name: L\n",
-      ),
+      await uploadSnapshot("11111111-1111-4111-8111-111111111111", "name: L\n"),
     ).toBe(false);
   });
 
   it("returns false when fetch rejects", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("network")),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network")));
     expect(
-      await uploadSnapshot(
-        "11111111-1111-4111-8111-111111111111",
-        "name: L\n",
-      ),
+      await uploadSnapshot("11111111-1111-4111-8111-111111111111", "name: L\n"),
     ).toBe(false);
   });
 });

@@ -42,9 +42,7 @@ interface PreCarrierBackup {
 function isSafeBackupKey(key: string): boolean {
   const suffix = key.slice(LAYOUT_BODY_PREFIX.length);
   return (
-    suffix !== "__proto__" &&
-    suffix !== "constructor" &&
-    suffix !== "prototype"
+    suffix !== "__proto__" && suffix !== "constructor" && suffix !== "prototype"
   );
 }
 

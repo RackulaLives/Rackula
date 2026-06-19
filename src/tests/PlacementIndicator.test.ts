@@ -28,7 +28,7 @@ describe("PlacementIndicator", () => {
         },
       });
 
-      expect(screen.queryByText(/tap rack to place/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/placing:/i)).not.toBeInTheDocument();
     });
 
     it("does not render when device is null", () => {
@@ -39,7 +39,7 @@ describe("PlacementIndicator", () => {
         },
       });
 
-      expect(screen.queryByText(/tap rack to place/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/placing:/i)).not.toBeInTheDocument();
     });
 
     it("renders when isPlacing is true and device is set", () => {
@@ -50,7 +50,7 @@ describe("PlacementIndicator", () => {
         },
       });
 
-      expect(screen.getByText(/tap rack to place/i)).toBeInTheDocument();
+      expect(screen.getByText(/placing:/i)).toBeInTheDocument();
     });
   });
 
@@ -64,12 +64,12 @@ describe("PlacementIndicator", () => {
       });
     });
 
-    it("shows device model name", () => {
-      expect(screen.getByText(/Server 2U/)).toBeInTheDocument();
+    it("shows device model name and U-height", () => {
+      expect(screen.getByText(/Server 2U \(2U\)/)).toBeInTheDocument();
     });
 
-    it("shows placement instruction", () => {
-      expect(screen.getByText(/tap rack to place/i)).toBeInTheDocument();
+    it("shows the placing label", () => {
+      expect(screen.getByText(/placing:/i)).toBeInTheDocument();
     });
 
     it("shows cancel button", () => {

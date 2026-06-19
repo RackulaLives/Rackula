@@ -540,4 +540,49 @@ describe("UI Store", () => {
       expect(store.sidePanelCollapsed).toBe(true);
     });
   });
+
+  describe("Read-only lock", () => {
+    it("starts unlocked", () => {
+      const store = getUIStore();
+      expect(store.readOnly).toBe(false);
+    });
+
+    it("toggleReadOnly flips the lock both ways", () => {
+      const store = getUIStore();
+
+      store.toggleReadOnly();
+      expect(store.readOnly).toBe(true);
+
+      store.toggleReadOnly();
+      expect(store.readOnly).toBe(false);
+    });
+
+    it("setReadOnly sets the lock explicitly", () => {
+      const store = getUIStore();
+
+      store.setReadOnly(true);
+      expect(store.readOnly).toBe(true);
+
+      store.setReadOnly(false);
+      expect(store.readOnly).toBe(false);
+    });
+
+    it("does not persist the lock to localStorage", () => {
+      const store = getUIStore();
+      localStorageMock.setItem.mockClear();
+
+      store.setReadOnly(true);
+      store.toggleReadOnly();
+
+      expect(localStorageMock.setItem).not.toHaveBeenCalled();
+    });
+
+    it("resets to unlocked on store reset", () => {
+      const store = getUIStore();
+      store.setReadOnly(true);
+
+      resetUIStore();
+      expect(store.readOnly).toBe(false);
+    });
+  });
 });

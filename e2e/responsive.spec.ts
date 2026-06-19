@@ -51,25 +51,31 @@ test.describe("Responsive Layout", () => {
       await gotoWithRack(page);
     });
 
-    test("mobile mode is active — desktop chrome hidden", async ({ page }) => {
-      // In mobile mode the desktop-only storage chip gives way to the mobile
-      // quick file actions (asserted in the next test).
-      await expect(page.getByTestId("storage-status-chip")).not.toBeVisible();
+    test("storage chip is the mobile top-bar right zone", async ({ page }) => {
+      // The restructured mobile top bar (#2458) keeps the storage chip in the
+      // right zone. The old quick file actions (Save / Load / Export) moved into
+      // the registry-driven app menu behind the logo, so they no longer sit in
+      // the top bar.
+      await expect(page.getByTestId("storage-status-chip")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /save layout/i }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: /load layout/i }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: /export layout/i }),
+      ).toHaveCount(0);
+    });
+
+    test("layout name shows in the mobile top bar", async ({ page }) => {
+      // Centred plain label; switching lives in the Layouts tab (#2458).
+      await expect(page.getByTestId("mobile-layout-name")).toBeVisible();
     });
 
     test("brand logo is still visible", async ({ page }) => {
       const logoMark = page.locator(locators.toolbar.brandLogoMark);
       await expect(logoMark).toBeVisible();
-    });
-
-    test("mobile action buttons are shown", async ({ page }) => {
-      const saveBtn = page.getByRole("button", { name: /save layout/i });
-      const loadBtn = page.getByRole("button", { name: /load layout/i });
-      const exportBtn = page.getByRole("button", { name: /export layout/i });
-
-      await expect(saveBtn).toBeVisible();
-      await expect(loadBtn).toBeVisible();
-      await expect(exportBtn).toBeVisible();
     });
 
     test("mobile bottom navigation is visible", async ({ page }) => {

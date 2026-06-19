@@ -47,14 +47,16 @@ export function extractUuidFromFolderName(folderName: string): string | null {
  * Removes path separators and other dangerous characters while keeping readability
  */
 function sanitizeForPath(name: string): string {
-  return name
-    .replace(/[/\\:*?"<>|]/g, "-") // Replace path separators and reserved chars
-    .replace(/\.\./g, "-") // Prevent directory traversal
-    .replace(/-+/g, "-") // Collapse multiple hyphens
-    .replace(/^-|-$/g, "") // Remove leading/trailing hyphens
-    .trim()
-    .slice(0, 100) // Limit length
-    || "untitled"; // Fallback for empty result
+  return (
+    name
+      .replace(/[/\\:*?"<>|]/g, "-") // Replace path separators and reserved chars
+      .replace(/\.\./g, "-") // Prevent directory traversal
+      .replace(/-+/g, "-") // Collapse multiple hyphens
+      .replace(/^-|-$/g, "") // Remove leading/trailing hyphens
+      .trim()
+      .slice(0, 100) || // Limit length
+    "untitled"
+  ); // Fallback for empty result
 }
 
 /**

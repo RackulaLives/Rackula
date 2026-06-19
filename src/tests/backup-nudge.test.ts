@@ -48,7 +48,9 @@ describe("currentNudgeCheckpoint", () => {
 
   it("returns the highest crossed multiple of the interval", () => {
     expect(currentNudgeCheckpoint(NUDGE_INTERVAL, true)).toBe(NUDGE_INTERVAL);
-    expect(currentNudgeCheckpoint(NUDGE_INTERVAL + 5, true)).toBe(NUDGE_INTERVAL);
+    expect(currentNudgeCheckpoint(NUDGE_INTERVAL + 5, true)).toBe(
+      NUDGE_INTERVAL,
+    );
     expect(currentNudgeCheckpoint(NUDGE_INTERVAL * 3, false)).toBe(
       NUDGE_INTERVAL * 3,
     );
