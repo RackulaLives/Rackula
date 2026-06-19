@@ -324,7 +324,9 @@
       type="button"
       class="group-header group-toggle"
       aria-expanded={uiStore.deviceTypeDetailsExpanded}
-      aria-controls="device-type-details-facts"
+      aria-controls={uiStore.deviceTypeDetailsExpanded
+        ? "device-type-details-facts"
+        : undefined}
       onclick={uiStore.toggleDeviceTypeDetailsExpanded}
     >
       <span

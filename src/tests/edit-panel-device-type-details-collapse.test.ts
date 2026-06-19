@@ -11,6 +11,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import SidePanelContent from "$lib/components/SidePanelContent.svelte";
 import { resetLayoutStore, getLayoutStore } from "$lib/stores/layout.svelte";
+import { createTestDeviceTypeInput } from "./factories";
 import {
   resetSelectionStore,
   getSelectionStore,
@@ -43,12 +44,9 @@ describe("EditPanel Device type details collapse (#2443)", () => {
     const rack = layoutStore.addRack("Test Rack", 42);
     const rackId = rack!.id;
 
-    const deviceType = layoutStore.addDeviceType({
-      name: "Server Type",
-      u_height: 1,
-      category: "server",
-      colour: "#4A90D9",
-    });
+    const deviceType = layoutStore.addDeviceType(
+      createTestDeviceTypeInput({ name: "Server Type" }),
+    );
 
     layoutStore.placeDevice(rackId, deviceType.slug, 1, "front");
     const device = layoutStore.rack!.devices[0]!;
@@ -94,12 +92,9 @@ describe("EditPanel Device type details collapse (#2443)", () => {
     const rack = layoutStore.addRack("Test Rack", 42);
     const rackId = rack!.id;
 
-    const deviceType = layoutStore.addDeviceType({
-      name: "Server Type",
-      u_height: 1,
-      category: "server",
-      colour: "#4A90D9",
-    });
+    const deviceType = layoutStore.addDeviceType(
+      createTestDeviceTypeInput({ name: "Server Type" }),
+    );
 
     layoutStore.placeDevice(rackId, deviceType.slug, 1, "front");
     layoutStore.placeDevice(rackId, deviceType.slug, 2, "front");
