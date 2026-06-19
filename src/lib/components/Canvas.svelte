@@ -21,7 +21,7 @@
   import { createRackSwipeController } from "$lib/utils/canvas-swipe.svelte";
   import { createCanvasDoubleTap } from "$lib/utils/canvas-double-tap.svelte";
   import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
-  import { hapticTap } from "$lib/utils/haptics";
+  import { hapticTap, hapticCancel } from "$lib/utils/haptics";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
   import type { DeviceFace } from "$lib/types";
   import {
@@ -32,6 +32,7 @@
   import WelcomeScreen from "./WelcomeScreen.svelte";
   import CanvasContextMenu from "./CanvasContextMenu.svelte";
   import VerbBarOverlay from "./VerbBarOverlay.svelte";
+  import PlacementIndicator from "./PlacementIndicator.svelte";
 
   const ONBOARDING_HINT_KEY = "Rackula_onboarding_hint_dismissed";
 
@@ -352,6 +353,19 @@
     onnewrack?.();
   }
 
+  // Cancel an armed tap/click-to-place from the placement banner. Mirrors the
+  // rack-level cancel: drop placement state and re-fit so the rack is fully in
+  // view again (the same exit used after a successful placement).
+  function handleCancelPlacement() {
+    hapticCancel();
+    placementStore.cancelPlacement();
+    if (onfitall) {
+      onfitall();
+    } else {
+      canvasStore.fitAll(racks, layoutStore.rack_groups);
+    }
+  }
+
   // Screen reader accessible description of rack contents
   const rackDescription = $derived.by(() => {
     if (racks.length === 0) return "No racks configured";
@@ -407,6 +421,15 @@
     {#if deviceListDescription}
       <p id="canvas-device-list" class="sr-only">{deviceListDescription}</p>
     {/if}
+
+    <!-- Tap/click-to-place banner: full-width overlay that names the armed
+         device and offers Cancel. Valid U-slots are highlighted on the rack and
+         canvas pan is paused while placing (panzoom defers to the rack). -->
+    <PlacementIndicator
+      isPlacing={placementStore.isPlacing}
+      device={placementStore.pendingDevice}
+      oncancel={handleCancelPlacement}
+    />
 
     {#if hasRacks && allRacksEmpty && !hintDismissed}
       <div class="onboarding-hint" role="status" aria-live="polite">

@@ -300,11 +300,11 @@ test.describe("Command palette", () => {
       page.getByRole("dialog", { name: "Command palette" }),
     ).not.toBeVisible();
 
-    // On desktop the cue now surfaces: a "Click to place" status header. Scope
-    // by text since dual-view renders one in each face SVG.
+    // On desktop the cue now surfaces: a "Placing:" status banner mounted once
+    // at the canvas level. Scope by text in case other status regions exist.
     const placementHeader = page
       .getByRole("status")
-      .filter({ hasText: "Click to place" })
+      .filter({ hasText: "Placing:" })
       .first();
     await expect(placementHeader).toBeVisible();
 
