@@ -20,7 +20,9 @@ describe("findSilentLosses", () => {
   it("allows a declared drop when every source path matches the allow-list", () => {
     const raw = { racks: [{ devices: [{ slot_position: "0" }] }] };
     const loaded = { racks: [{ devices: [{}] }] };
-    const allow = [{ pathPattern: "slot_position$", reason: "consumed by carrier adapter" }];
+    const allow = [
+      { pathPattern: "slot_position$", reason: "consumed by carrier adapter" },
+    ];
     expect(findSilentLosses(raw, loaded, allow)).toEqual([]);
   });
 
