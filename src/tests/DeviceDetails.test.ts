@@ -330,9 +330,7 @@ describe("DeviceDetails", () => {
       renderInspector({ oneditname });
 
       // The name field opens an editor when activated.
-      await fireEvent.click(
-        screen.getByRole("button", { name: /edit name/i }),
-      );
+      await fireEvent.click(screen.getByRole("button", { name: /edit name/i }));
       const input = screen.getByRole("textbox", { name: /name/i });
       await fireEvent.input(input, { target: { value: "Web Server" } });
       await fireEvent.blur(input);

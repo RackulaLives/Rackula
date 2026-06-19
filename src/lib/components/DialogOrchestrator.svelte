@@ -539,7 +539,11 @@
   function handleEditDeviceName(name: string): void {
     const rackId = layoutStore.activeRack?.id;
     if (rackId == null || selectedDeviceForSheet === null) return;
-    layoutStore.updateDeviceName(rackId, selectedDeviceForSheet, name || undefined);
+    layoutStore.updateDeviceName(
+      rackId,
+      selectedDeviceForSheet,
+      name || undefined,
+    );
   }
 
   function handleEditDeviceIp(ip: string): void {
@@ -673,7 +677,9 @@
   {#if device && deviceType}
     {@const rackHeight = activeRack.height}
     {@const deviceIp =
-      typeof device.custom_fields?.ip === "string" ? device.custom_fields.ip : ""}
+      typeof device.custom_fields?.ip === "string"
+        ? device.custom_fields.ip
+        : ""}
     <Dialog
       open={bottomSheetOpen}
       title={deviceType.model ?? "Device"}

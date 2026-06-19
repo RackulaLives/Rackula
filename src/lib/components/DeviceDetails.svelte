@@ -251,8 +251,7 @@
             rows="2"
             placeholder="Add notes about this placement"
             bind:value={notesInput}
-            onblur={commitNotes}
-          ></textarea>
+            onblur={commitNotes}></textarea>
         </div>
       </div>
 
