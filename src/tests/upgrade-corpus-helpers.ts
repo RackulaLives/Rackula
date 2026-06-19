@@ -27,14 +27,20 @@ export interface SilentLoss {
   paths: string[];
 }
 
-export function collectLeaves(node: unknown, path = "$", acc?: LeafIndex): LeafIndex {
+export function collectLeaves(
+  node: unknown,
+  path = "$",
+  acc?: LeafIndex,
+): LeafIndex {
   const index: LeafIndex = acc ?? { values: new Map(), paths: new Map() };
   if (node === undefined) return index; // undefined never appears in parsed YAML/JSON
   if (node !== null && typeof node === "object") {
     if (Array.isArray(node)) {
       node.forEach((item, i) => collectLeaves(item, `${path}[${i}]`, index));
     } else {
-      for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      for (const [key, value] of Object.entries(
+        node as Record<string, unknown>,
+      )) {
         collectLeaves(value, `${path}.${key}`, index);
       }
     }
