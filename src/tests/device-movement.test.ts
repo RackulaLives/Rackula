@@ -9,6 +9,7 @@ import {
   canMoveUp,
   canMoveDown,
   getDeviceWithType,
+  getMoveBlockedMessage,
 } from "$lib/utils/device-movement";
 import type { Rack, DeviceType, PlacedDevice } from "$lib/types";
 import { toInternalUnits } from "$lib/utils/position";
@@ -407,6 +408,58 @@ describe("Device Movement Utility", () => {
       const deviceTypes = createDeviceTypes();
 
       expect(canMoveDown(rack, deviceTypes, 0)).toBe(false);
+    });
+  });
+
+  // The mobile selection inspector nudges a device with Move Up / Move Down.
+  // A blocked nudge must give the user feedback (a toast) instead of silently
+  // doing nothing, mirroring the desktop edit panel's disabled controls. This
+  // helper turns a MoveResult into that feedback message so the mobile handler
+  // can surface it without reimplementing collision logic.
+  describe("getMoveBlockedMessage", () => {
+    it("returns null when the move succeeded (no feedback needed)", () => {
+      const rack = createTestRack(42, [pd("1u-server", 10, "front")]);
+      const deviceTypes = createDeviceTypes();
+      const result = findNextValidPosition(rack, deviceTypes, 0, 1);
+
+      expect(getMoveBlockedMessage(result, 1)).toBeNull();
+    });
+
+    it("reports the top boundary when moving up from the top", () => {
+      const rack = createTestRack(42, [pd("1u-server", 42, "front")]);
+      const deviceTypes = createDeviceTypes();
+      const result = findNextValidPosition(rack, deviceTypes, 0, 1);
+
+      const message = getMoveBlockedMessage(result, 1);
+      expect(message).not.toBeNull();
+      expect(message?.toLowerCase()).toContain("top");
+    });
+
+    it("reports the bottom boundary when moving down from the bottom", () => {
+      const rack = createTestRack(42, [pd("1u-server", 1, "front")]);
+      const deviceTypes = createDeviceTypes();
+      const result = findNextValidPosition(rack, deviceTypes, 0, -1);
+
+      const message = getMoveBlockedMessage(result, -1);
+      expect(message).not.toBeNull();
+      expect(message?.toLowerCase()).toContain("bottom");
+    });
+
+    it("reports a blocked move when neighbours fill the way to the boundary", () => {
+      const rack = createTestRack(10, [
+        pd("1u-server", 5, "front"), // device to move
+        pd("1u-server", 6, "front"),
+        pd("1u-server", 7, "front"),
+        pd("1u-server", 8, "front"),
+        pd("1u-server", 9, "front"),
+        pd("1u-server", 10, "front"),
+      ]);
+      const deviceTypes = createDeviceTypes();
+      const result = findNextValidPosition(rack, deviceTypes, 0, 1);
+
+      const message = getMoveBlockedMessage(result, 1);
+      expect(message).not.toBeNull();
+      expect(message?.toLowerCase()).toContain("up");
     });
   });
 

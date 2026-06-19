@@ -69,6 +69,13 @@
     canMoveSelectedDeviceSlot,
   } from "$lib/actions/selection-actions";
   import { handleDelete } from "$lib/utils/dialog-actions";
+  import {
+    findNextValidPosition,
+    canMoveUp,
+    canMoveDown,
+    getMoveBlockedMessage,
+    type MoveDirection,
+  } from "$lib/utils/device-movement";
   import { getStorageMode } from "$lib/storage";
 
   const layoutStore = getLayoutStore();
@@ -531,7 +538,47 @@
     canMoveDeviceSlot: canMoveSelectedDeviceSlot(),
   });
 
-  const mobileVerbs = $derived(getSelectionVerbsWithState(mobileActionCtx));
+  // The rack and device index the mobile sheet is acting on. The bottom sheet
+  // renders activeRack.devices[selectedDeviceForSheet], so the nudge controls
+  // must validate against that same target.
+  const mobileMoveTarget = $derived.by(() => {
+    const rack = layoutStore.activeRack;
+    if (!rack || selectedDeviceForSheet === null) return null;
+    if (!rack.devices[selectedDeviceForSheet]) return null;
+    return { rack, deviceIndex: selectedDeviceForSheet };
+  });
+
+  // The registry's enabledWhen for the move verbs only checks isDeviceSelected,
+  // not whether the nudge would actually land (bounds plus neighbours). Resolve
+  // the real collision-aware reachability here so the mobile Move Up / Move Down
+  // controls disable when blocked, matching the desktop edit panel (#2453). The
+  // shared registry-bound move handler is tracked separately (#2471).
+  const mobileVerbs = $derived.by(() => {
+    const verbs = getSelectionVerbsWithState(mobileActionCtx);
+    const target = mobileMoveTarget;
+    if (!target) return verbs;
+
+    const upBlocked = !canMoveUp(
+      target.rack,
+      layoutStore.device_types,
+      target.deviceIndex,
+    );
+    const downBlocked = !canMoveDown(
+      target.rack,
+      layoutStore.device_types,
+      target.deviceIndex,
+    );
+
+    return verbs.map((verb) => {
+      if (verb.id === "move-device-up") {
+        return { ...verb, disabled: verb.disabled || upBlocked };
+      }
+      if (verb.id === "move-device-down") {
+        return { ...verb, disabled: verb.disabled || downBlocked };
+      }
+      return verb;
+    });
+  });
 
   // Inline-edit handlers for the mobile inspector fields. They write through
   // the recorded layout-store mutators (undo/redo aware) against the same rack
@@ -562,16 +609,44 @@
     );
   }
 
+  // Nudge the sheet's device one whole U, surfacing a toast when the move is
+  // blocked instead of silently doing nothing (#2453). Reuses the shared
+  // collision logic (findNextValidPosition) to decide, then defers the actual
+  // recorded move to the shared selection handler so undo/redo still applies.
+  function nudgeSelectedDevice(direction: MoveDirection): void {
+    const target = mobileMoveTarget;
+    if (!target) return;
+
+    const result = findNextValidPosition(
+      target.rack,
+      layoutStore.device_types,
+      target.deviceIndex,
+      direction,
+    );
+
+    const blockedMessage = getMoveBlockedMessage(result, direction);
+    if (blockedMessage) {
+      toastStore.showToast(blockedMessage, "warning");
+      return;
+    }
+
+    if (direction === 1) {
+      moveSelectedDeviceUp();
+    } else {
+      moveSelectedDeviceDown();
+    }
+  }
+
   // Dispatch a registry verb by action id to the shared handler. The handlers
   // read live selection state from the stores, so they act on the same device
   // the mobile bottom sheet is showing.
   function handleMobileVerb(id: ActionId): void {
     switch (id) {
       case "move-device-up":
-        moveSelectedDeviceUp();
+        nudgeSelectedDevice(1);
         break;
       case "move-device-down":
-        moveSelectedDeviceDown();
+        nudgeSelectedDevice(-1);
         break;
       case "move-device-slot":
         moveSelectedDeviceToSlot();

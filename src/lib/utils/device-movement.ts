@@ -160,6 +160,35 @@ export function canMoveDown(
 }
 
 /**
+ * Human-readable feedback for a blocked nudge, or null when the move succeeded.
+ *
+ * The mobile selection inspector disables its Move Up / Move Down controls when
+ * a nudge is impossible, but a tap that still reaches a blocked move must give
+ * the user a reason rather than silently doing nothing. This turns the shared
+ * MoveResult into that message so the mobile handler reuses the same collision
+ * logic the desktop edit panel uses, without reimplementing it.
+ *
+ * @param result - The outcome from findNextValidPosition
+ * @param direction - 1 for up (higher U), -1 for down (lower U)
+ * @returns A feedback message when the move was blocked, or null when it moved
+ */
+export function getMoveBlockedMessage(
+  result: MoveResult,
+  direction: MoveDirection,
+): string | null {
+  if (result.success) return null;
+
+  const directionWord = direction === 1 ? "up" : "down";
+
+  if (result.reason === "at_boundary") {
+    const edge = direction === 1 ? "top" : "bottom";
+    return `Already at the ${edge} of the rack`;
+  }
+
+  return `No free slot to move ${directionWord}`;
+}
+
+/**
  * Get the placed device and its type for a given index
  * Helper function to reduce boilerplate in callers
  *
