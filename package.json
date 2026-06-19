@@ -67,7 +67,7 @@
     "lint-staged": "^17.0.5",
     "prettier": "^3.8.4",
     "prettier-plugin-svelte": "^4.1.1",
-    "sharp": "^0.35.1",
+    "sharp": "^0.35.2",
     "svelte": "^5.56.3",
     "svelte-check": "^4.6.0",
     "tsx": "^4.22.3",
