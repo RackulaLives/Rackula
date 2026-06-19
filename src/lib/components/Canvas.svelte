@@ -21,7 +21,7 @@
   import { createRackSwipeController } from "$lib/utils/canvas-swipe.svelte";
   import { createCanvasDoubleTap } from "$lib/utils/canvas-double-tap.svelte";
   import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
-  import { hapticTap, hapticCancel } from "$lib/utils/haptics";
+  import { hapticTap } from "$lib/utils/haptics";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
   import type { DeviceFace } from "$lib/types";
   import {
@@ -357,7 +357,6 @@
   // rack-level cancel: drop placement state and re-fit so the rack is fully in
   // view again (the same exit used after a successful placement).
   function handleCancelPlacement() {
-    hapticCancel();
     placementStore.cancelPlacement();
     if (onfitall) {
       onfitall();
