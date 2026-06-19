@@ -215,6 +215,10 @@ let compatibleOnly = $state(initialCompatibleOnly);
 // Read-only lock: presentation safety valve that locks the layout for viewing.
 // Session-scoped (not persisted) so a reload always returns to an editable state.
 let readOnly = $state(false);
+// Device type details disclosure in the edit panel: a single UI flag shared
+// across device selections (not per device), so toggling it stays sticky as the
+// user clicks between devices. Defaults to expanded. Session-scoped.
+let deviceTypeDetailsExpanded = $state(true);
 
 // Derived values (using $derived rune)
 const canZoomIn = $derived(zoom < ZOOM_MAX);
@@ -246,6 +250,7 @@ export function resetUIStore(): void {
   promptCleanupOnSave = loadPromptCleanupFromStorage();
   compatibleOnly = loadCompatibleOnlyFromStorage();
   readOnly = false;
+  deviceTypeDetailsExpanded = true;
   applyThemeToDocument(theme);
 }
 
@@ -331,6 +336,11 @@ export function getUIStore() {
       return readOnly;
     },
 
+    // Device type details disclosure getter
+    get deviceTypeDetailsExpanded() {
+      return deviceTypeDetailsExpanded;
+    },
+
     // Theme actions
     toggleTheme,
     setTheme,
@@ -384,6 +394,9 @@ export function getUIStore() {
     // Read-only lock actions
     toggleReadOnly,
     setReadOnly,
+
+    // Device type details disclosure action
+    toggleDeviceTypeDetailsExpanded,
   };
 }
 
@@ -653,4 +666,11 @@ function toggleReadOnly(): void {
  */
 function setReadOnly(locked: boolean): void {
   readOnly = locked;
+}
+
+/**
+ * Toggle the device type details disclosure in the edit panel
+ */
+function toggleDeviceTypeDetailsExpanded(): void {
+  deviceTypeDetailsExpanded = !deviceTypeDetailsExpanded;
 }

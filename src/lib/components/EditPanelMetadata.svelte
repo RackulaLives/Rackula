@@ -12,9 +12,10 @@
   import BrandIcon from "./BrandIcon.svelte";
   import MarkdownPreview from "./MarkdownPreview.svelte";
   import Tooltip from "./Tooltip.svelte";
-  import { IconEdit } from "./icons";
+  import { IconEdit, IconChevronDown } from "./icons";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
+  import { getUIStore } from "$lib/stores/ui.svelte";
   import { getCategoryDisplayName } from "$lib/utils/deviceFilters";
   import { findDeviceType } from "$lib/utils/device-lookup";
   import { getBrandIconSlug } from "$lib/data/brandPacks";
@@ -31,6 +32,19 @@
 
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
+  const uiStore = getUIStore();
+
+  // Count of device type facts shown in the collapsible block, so the header can
+  // report how many are hidden when collapsed. Type, Brand, Height and Category
+  // always show; outlet count, VA rating and device-type notes are conditional.
+  const deviceTypeFactCount = $derived.by(() => {
+    const device = selectedDeviceInfo.device;
+    let count = 4; // Type, Brand, Height, Category
+    if (device.category === "power" && device.outlet_count) count += 1;
+    if (device.category === "power" && device.va_rating) count += 1;
+    if (device.notes) count += 1;
+    return count;
+  });
 
   // Authoritative device definition from the starter/brand library, falling back
   // to the layout copy. The layout copy can be stale (e.g. a device placed before
@@ -301,61 +315,87 @@
   </div>
 </section>
 
-<!-- Device type details: read-only reference facts (muted, non-interactive) -->
+<!-- Device type details: read-only reference facts (muted, non-interactive),
+     collapsible behind a disclosure toggle. The expanded flag is shared across
+     device selections, not stored per device. -->
 <section class="field-group">
-  <h3 class="group-header">Device type details</h3>
-  <div class="facts">
-    <div class="fact-row">
-      <span class="fact-label">Type</span>
-      <span class="fact-value fact-value-icon">
-        <ColourSwatch
-          colour={selectedDeviceInfo.device.colour}
-          size={ICON_SIZE.sm}
-        />
-        {selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug}
-      </span>
-    </div>
-    <div class="fact-row">
-      <span class="fact-label">Brand</span>
-      <span class="fact-value fact-value-icon">
-        <BrandIcon
-          slug={getBrandIconSlug(authoritativeDevice.slug)}
-          size={ICON_SIZE.sm}
-        />
-        {authoritativeDevice.manufacturer ??
-          selectedDeviceInfo.device.manufacturer ??
-          "Generic"}
-      </span>
-    </div>
-    <div class="fact-row">
-      <span class="fact-label">Height</span>
-      <span class="fact-value">{selectedDeviceInfo.device.u_height}U</span>
-    </div>
-    <div class="fact-row">
-      <span class="fact-label">Category</span>
-      <span class="fact-value"
-        >{getCategoryDisplayName(selectedDeviceInfo.device.category)}</span
+  <h3 class="group-header-heading">
+    <button
+      type="button"
+      class="group-header group-toggle"
+      aria-expanded={uiStore.deviceTypeDetailsExpanded}
+      aria-controls="device-type-details-facts"
+      onclick={uiStore.toggleDeviceTypeDetailsExpanded}
+    >
+      <span
+        class="group-chevron"
+        class:group-chevron-collapsed={!uiStore.deviceTypeDetailsExpanded}
+        aria-hidden="true"
       >
+        <IconChevronDown size={ICON_SIZE.sm} />
+      </span>
+      <span>Device type details</span>
+      {#if !uiStore.deviceTypeDetailsExpanded}
+        <span class="group-count">({deviceTypeFactCount})</span>
+      {/if}
+    </button>
+  </h3>
+  {#if uiStore.deviceTypeDetailsExpanded}
+    <div class="facts" id="device-type-details-facts">
+      <div class="fact-row">
+        <span class="fact-label">Type</span>
+        <span class="fact-value fact-value-icon">
+          <ColourSwatch
+            colour={selectedDeviceInfo.device.colour}
+            size={ICON_SIZE.sm}
+          />
+          {selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug}
+        </span>
+      </div>
+      <div class="fact-row">
+        <span class="fact-label">Brand</span>
+        <span class="fact-value fact-value-icon">
+          <BrandIcon
+            slug={getBrandIconSlug(authoritativeDevice.slug)}
+            size={ICON_SIZE.sm}
+          />
+          {authoritativeDevice.manufacturer ??
+            selectedDeviceInfo.device.manufacturer ??
+            "Generic"}
+        </span>
+      </div>
+      <div class="fact-row">
+        <span class="fact-label">Height</span>
+        <span class="fact-value">{selectedDeviceInfo.device.u_height}U</span>
+      </div>
+      <div class="fact-row">
+        <span class="fact-label">Category</span>
+        <span class="fact-value"
+          >{getCategoryDisplayName(selectedDeviceInfo.device.category)}</span
+        >
+      </div>
+      {#if selectedDeviceInfo.device.category === "power" && selectedDeviceInfo.device.outlet_count}
+        <div class="fact-row">
+          <span class="fact-label">Outlets</span>
+          <span class="fact-value"
+            >{selectedDeviceInfo.device.outlet_count}</span
+          >
+        </div>
+      {/if}
+      {#if selectedDeviceInfo.device.category === "power" && selectedDeviceInfo.device.va_rating}
+        <div class="fact-row">
+          <span class="fact-label">VA Rating</span>
+          <span class="fact-value">{selectedDeviceInfo.device.va_rating}</span>
+        </div>
+      {/if}
+      {#if selectedDeviceInfo.device.notes}
+        <div class="fact-notes">
+          <span class="fact-label">Device type notes</span>
+          <p class="fact-notes-text">{selectedDeviceInfo.device.notes}</p>
+        </div>
+      {/if}
     </div>
-    {#if selectedDeviceInfo.device.category === "power" && selectedDeviceInfo.device.outlet_count}
-      <div class="fact-row">
-        <span class="fact-label">Outlets</span>
-        <span class="fact-value">{selectedDeviceInfo.device.outlet_count}</span>
-      </div>
-    {/if}
-    {#if selectedDeviceInfo.device.category === "power" && selectedDeviceInfo.device.va_rating}
-      <div class="fact-row">
-        <span class="fact-label">VA Rating</span>
-        <span class="fact-value">{selectedDeviceInfo.device.va_rating}</span>
-      </div>
-    {/if}
-    {#if selectedDeviceInfo.device.notes}
-      <div class="fact-notes">
-        <span class="fact-label">Device type notes</span>
-        <p class="fact-notes-text">{selectedDeviceInfo.device.notes}</p>
-      </div>
-    {/if}
-  </div>
+  {/if}
 </section>
 
 <!-- Placement: editable mounted face -->
@@ -449,6 +489,56 @@
     color: var(--colour-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  /* Heading wrapper keeps the section landmark while the toggle does the work. */
+  .group-header-heading {
+    margin: 0;
+  }
+
+  /* Disclosure toggle for Device type details: a real button that keeps the
+     muted group-header look, full-width so the whole row is the hit target. */
+  .group-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .group-toggle:hover {
+    color: var(--colour-text);
+  }
+
+  .group-toggle:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  .group-count {
+    color: var(--colour-text-muted);
+  }
+
+  .group-chevron {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    transition: transform var(--duration-fast) ease;
+  }
+
+  .group-chevron-collapsed {
+    transform: rotate(-90deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .group-chevron {
+      transition: none;
+    }
   }
 
   .form-group {
