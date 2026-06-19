@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   import { Accordion } from "bits-ui";
+  import { SvelteSet } from "svelte/reactivity";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import {
@@ -14,9 +15,11 @@
     sortDevicesByBrandThenModel,
     sortDevicesAlphabetically,
     filterPaletteDevicesByRackWidth,
+    filterDevicesByAttributes,
     isDeviceCompatibleWithRackWidth,
     getRackWidthIncompatibilityReason,
     categoryOrder,
+    type DeviceAttributeFilters,
   } from "$lib/utils/deviceFilters";
   import {
     loadGroupingModeFromStorage,
@@ -37,6 +40,7 @@
   import VirtualList from "./VirtualList.svelte";
   import BrandIcon from "./BrandIcon.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
+  import DeviceFilterPopover from "./DeviceFilterPopover.svelte";
   import Tooltip from "./Tooltip.svelte";
   import IconPin from "./icons/IconPin.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
@@ -69,6 +73,26 @@
   let searchQueryRaw = $state("");
   let searchQuery = $state("");
   const isSearchActive = $derived(searchQuery.trim().length > 0);
+
+  // Attribute filter state, session-only (no persistence; resets on reload).
+  // SvelteSet keeps mutations to the height bucket set reactive.
+  let attributeFilters = $state<DeviceAttributeFilters>({
+    heights: new SvelteSet(),
+    halfWidth: false,
+    fullWidth: false,
+    hasImage: false,
+    customOnly: false,
+  });
+
+  // Custom detection injected into the attribute predicate.
+  const isCustomDevice = (slug: string) => layoutStore.isCustomDeviceType(slug);
+
+  const hasActiveAttributeFilters = $derived(
+    attributeFilters.heights.size > 0 ||
+      attributeFilters.halfWidth !== attributeFilters.fullWidth ||
+      attributeFilters.hasImage ||
+      attributeFilters.customOnly,
+  );
 
   // Grouping mode state with localStorage persistence
   let groupingMode = $state<DeviceGroupingMode>(loadGroupingModeFromStorage());
@@ -298,10 +322,14 @@
   });
 
   const visibleGenericDevices = $derived(
-    filterPaletteDevicesByRackWidth(
-      allGenericDevices,
-      activeRackWidth,
-      uiStore.compatibleOnly,
+    filterDevicesByAttributes(
+      filterPaletteDevicesByRackWidth(
+        allGenericDevices,
+        activeRackWidth,
+        uiStore.compatibleOnly,
+      ),
+      attributeFilters,
+      isCustomDevice,
     ),
   );
   const filteredGenericDevices = $derived(
@@ -316,10 +344,14 @@
     brandPacks.map((pack) => ({
       ...pack,
       devices: searchDevices(
-        filterPaletteDevicesByRackWidth(
-          pack.devices,
-          activeRackWidth,
-          uiStore.compatibleOnly,
+        filterDevicesByAttributes(
+          filterPaletteDevicesByRackWidth(
+            pack.devices,
+            activeRackWidth,
+            uiStore.compatibleOnly,
+          ),
+          attributeFilters,
+          isCustomDevice,
         ),
         searchQuery,
       ),
@@ -335,10 +367,14 @@
 
   // All devices combined (for category and flat modes) - filtered by rack width
   const allDevicesCombined = $derived(
-    filterPaletteDevicesByRackWidth(
-      allPaletteDevices,
-      activeRackWidth,
-      uiStore.compatibleOnly,
+    filterDevicesByAttributes(
+      filterPaletteDevicesByRackWidth(
+        allPaletteDevices,
+        activeRackWidth,
+        uiStore.compatibleOnly,
+      ),
+      attributeFilters,
+      isCustomDevice,
     ),
   );
   const filteredAllDevices = $derived(
@@ -526,6 +562,7 @@
         aria-label="Search devices"
         data-testid="search-devices"
       />
+      <DeviceFilterPopover bind:filters={attributeFilters} />
       {#if oncreatedevice}
         <Tooltip text="Create custom device" position="bottom">
           <button
@@ -596,7 +633,15 @@
       </div>
     {:else if !hasResults}
       <div class="empty-state">
-        <p class="empty-message">No devices match your search</p>
+        <p class="empty-message">
+          {#if isSearchActive && hasActiveAttributeFilters}
+            No devices match your search and filters
+          {:else if hasActiveAttributeFilters}
+            No devices match your filters
+          {:else}
+            No devices match your search
+          {/if}
+        </p>
       </div>
     {:else}
       {#if pinnedDevices.length > 0}

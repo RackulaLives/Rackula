@@ -36,6 +36,7 @@ export { default as IconCopy } from "./IconCopy.svelte";
 export { default as IconDownload } from "./IconDownload.svelte";
 export { default as IconUpload } from "./IconUpload.svelte";
 export { default as IconClose } from "./IconClose.svelte";
+export { default as IconFilter } from "./IconFilter.svelte";
 
 // Navigation icons
 export { default as IconChevronUp } from "./IconChevronUp.svelte";

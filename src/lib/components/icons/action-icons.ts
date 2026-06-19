@@ -39,6 +39,8 @@ export const iconForAction: Partial<
   "export-backup": IconFileDownloadBold,
   save: IconDownloadBold,
   "save-as": IconFileDownloadBold,
+  "export-all": IconDownloadBold,
+  "restore-file": IconUpload,
   export: IconImageBold,
   share: IconShareBold,
   "view-yaml": IconTextBold,

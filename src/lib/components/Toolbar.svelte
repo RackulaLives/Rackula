@@ -27,6 +27,8 @@
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { formatShortcut } from "$lib/utils/platform";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
+  import { handleExportAll } from "$lib/storage";
+  import { runRestoreFromFile } from "$lib/actions/restore-file-trigger";
 
   interface Props {
     hasRacks?: boolean;
@@ -85,6 +87,10 @@
     save: () => onsave?.(),
     "save-as": () => onsaveas?.(),
     "export-backup": () => onsaveas?.(),
+    "export-all": () => {
+      void handleExportAll();
+    },
+    "restore-file": () => runRestoreFromFile(),
     export: () => onexport?.(),
     share: () => onshare?.(),
     "view-yaml": () => onviewyaml?.(),
