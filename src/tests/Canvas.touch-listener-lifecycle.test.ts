@@ -81,19 +81,22 @@ describe("Canvas touch listener lifecycle", () => {
     const firstRender = render(Canvas);
     const firstCanvas = firstRender.getByRole("application");
 
+    // Every touch event type the canvas wires must be registered at least once
+    // (the swipe and double-tap controllers each claim some of these).
     const firstAdds = touchAdds
       .filter((entry) => entry.target === firstCanvas)
       .map((entry) => entry.type)
       .sort();
-    expect(firstAdds).toEqual(touchEventTypes);
+    expect([...new Set(firstAdds)].sort()).toEqual(touchEventTypes);
 
     firstRender.unmount();
 
+    // Detach removes exactly what attach added: same multiset, no leaks.
     const firstRemoves = touchRemoves
       .filter((entry) => entry.target === firstCanvas)
       .map((entry) => entry.type)
       .sort();
-    expect(firstRemoves).toEqual(touchEventTypes);
+    expect(firstRemoves).toEqual(firstAdds);
 
     const secondRender = render(Canvas);
     const secondCanvas = secondRender.getByRole("application");
@@ -103,7 +106,8 @@ describe("Canvas touch listener lifecycle", () => {
       .filter((entry) => entry.target === secondCanvas)
       .map((entry) => entry.type)
       .sort();
-    expect(secondAdds).toEqual(touchEventTypes);
+    // The remount registers the same multiset as the first mount (no duplication).
+    expect(secondAdds).toEqual(firstAdds);
 
     secondRender.unmount();
   });

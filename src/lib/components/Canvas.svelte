@@ -19,6 +19,7 @@
   import { isRackInteractionTarget } from "$lib/utils/canvas-coordinates";
   import { createCanvasPanzoom } from "$lib/utils/panzoom-lifecycle";
   import { createRackSwipeController } from "$lib/utils/canvas-swipe.svelte";
+  import { createCanvasDoubleTap } from "$lib/utils/canvas-double-tap.svelte";
   import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
   import { hapticTap } from "$lib/utils/haptics";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
@@ -168,6 +169,21 @@
       canvasStore.focusRack(rackIds, allRacks, groups, rightOffset),
   });
 
+  // Double-tap-to-fit gesture. Two quick taps in the same spot fit the layout
+  // to the screen, resolving the fit verb through the same path as the toolbar
+  // and context menu so mobile does not fork its own fit logic.
+  const doubleTapController = createCanvasDoubleTap({
+    isMobile: () => viewportStore.isMobile,
+    isPlacing: () => placementStore.isPlacing,
+    onfit: () => {
+      if (onfitall) {
+        onfitall();
+      } else {
+        canvasStore.fitAll(racks);
+      }
+    },
+  });
+
   const TOUCH_LISTENER_OPTIONS: AddEventListenerOptions = {
     // Capture keeps swipe tracking robust even if child components stop bubbling.
     // Because listeners are passive and never call stopPropagation/preventDefault,
@@ -208,6 +224,21 @@
       swipeController.handleTouchCancel,
       TOUCH_LISTENER_OPTIONS,
     );
+    element.addEventListener(
+      "touchstart",
+      doubleTapController.handleTouchStart,
+      TOUCH_LISTENER_OPTIONS,
+    );
+    element.addEventListener(
+      "touchend",
+      doubleTapController.handleTouchEnd,
+      TOUCH_LISTENER_OPTIONS,
+    );
+    element.addEventListener(
+      "touchcancel",
+      doubleTapController.handleTouchCancel,
+      TOUCH_LISTENER_OPTIONS,
+    );
 
     return () => {
       element.removeEventListener(
@@ -228,6 +259,21 @@
       element.removeEventListener(
         "touchcancel",
         swipeController.handleTouchCancel,
+        TOUCH_LISTENER_OPTIONS,
+      );
+      element.removeEventListener(
+        "touchstart",
+        doubleTapController.handleTouchStart,
+        TOUCH_LISTENER_OPTIONS,
+      );
+      element.removeEventListener(
+        "touchend",
+        doubleTapController.handleTouchEnd,
+        TOUCH_LISTENER_OPTIONS,
+      );
+      element.removeEventListener(
+        "touchcancel",
+        doubleTapController.handleTouchCancel,
         TOUCH_LISTENER_OPTIONS,
       );
       canvasStore.setCanvasElement(null);

@@ -1,11 +1,20 @@
 <!--
   MobileViewSheet Component
-  Mobile bottom sheet controls for display mode, annotations, theme, and zoom actions.
+  Mobile bottom sheet controls for display mode, annotations, theme, and zoom.
+  The zoom stepper reads the shared canvas store directly (the same verbs the
+  desktop CanvasViewControls cluster uses) so mobile does not fork zoom logic.
 -->
 <script lang="ts">
   import type { DisplayMode } from "$lib/types";
   import SegmentedControl from "$lib/components/SegmentedControl.svelte";
   import Switch from "$lib/components/Switch.svelte";
+  import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import { ICON_SIZE } from "$lib/constants/sizing";
+  import {
+    IconMinusBold,
+    IconPlusBold,
+    IconFitAllBold,
+  } from "$lib/components/icons";
 
   interface Props {
     displayMode: DisplayMode;
@@ -30,6 +39,8 @@
     onresetzoom,
     onclose,
   }: Props = $props();
+
+  const canvasStore = getCanvasStore();
 
   const displayModeOptions: Array<{ value: DisplayMode; label: string }> = [
     { value: "label", label: "Label" },
@@ -92,14 +103,49 @@
 
   <div class="divider" role="separator" aria-hidden="true"></div>
 
-  <section class="actions">
-    <button type="button" class="action-button" onclick={handleFitAll}>
-      Fit All
-    </button>
-    <button type="button" class="action-button" onclick={handleResetZoom}>
-      Reset Zoom
+  <section class="section">
+    <h3 class="section-title">Zoom</h3>
+    <div class="zoom-row" role="group" aria-label="Zoom controls">
+      <button
+        type="button"
+        class="zoom-step"
+        aria-label="Zoom out"
+        disabled={!canvasStore.canZoomOut}
+        onclick={() => canvasStore.zoomOut()}
+      >
+        <IconMinusBold size={ICON_SIZE.md} />
+      </button>
+      <span
+        class="zoom-readout"
+        role="status"
+        aria-live="polite"
+        aria-label={`Zoom level ${canvasStore.zoomPercentage} percent`}
+      >
+        {canvasStore.zoomPercentage}%
+      </span>
+      <button
+        type="button"
+        class="zoom-step"
+        aria-label="Zoom in"
+        disabled={!canvasStore.canZoomIn}
+        onclick={() => canvasStore.zoomIn()}
+      >
+        <IconPlusBold size={ICON_SIZE.md} />
+      </button>
+    </div>
+    <button
+      type="button"
+      class="action-button fit-button"
+      onclick={handleFitAll}
+    >
+      <IconFitAllBold size={ICON_SIZE.sm} />
+      Fit to screen
     </button>
   </section>
+
+  <button type="button" class="reset-link" onclick={handleResetZoom}>
+    Reset zoom
+  </button>
 </div>
 
 <style>
@@ -128,13 +174,66 @@
     background: var(--colour-border);
   }
 
-  .actions {
+  .zoom-row {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
     gap: var(--space-2);
+    padding: var(--space-1);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+  }
+
+  .zoom-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--colour-text);
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--ease-out);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .zoom-step:hover:not(:disabled) {
+    background: var(--colour-surface-hover);
+  }
+
+  .zoom-step:active:not(:disabled) {
+    scale: 0.97;
+  }
+
+  .zoom-step:focus-visible {
+    outline: 2px solid var(--colour-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .zoom-step:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .zoom-readout {
+    flex: 1;
+    text-align: center;
+    color: var(--colour-text);
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-medium);
+    font-variant-numeric: tabular-nums;
+    user-select: none;
   }
 
   .action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
     width: 100%;
     min-height: var(--touch-target-min);
     padding: var(--space-2) var(--space-3);
@@ -163,5 +262,26 @@
   .action-button:focus-visible {
     outline: 2px solid var(--colour-focus-ring);
     outline-offset: 2px;
+  }
+
+  .reset-link {
+    align-self: center;
+    min-height: var(--touch-target-min);
+    padding: var(--space-1) var(--space-3);
+    border: none;
+    background: transparent;
+    color: var(--colour-text-muted);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+  }
+
+  .reset-link:hover {
+    color: var(--colour-text);
+  }
+
+  .reset-link:focus-visible {
+    outline: 2px solid var(--colour-focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
   }
 </style>
