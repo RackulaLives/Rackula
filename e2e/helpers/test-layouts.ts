@@ -175,6 +175,28 @@ export function createTestLayout(overrides?: {
   return encodeMinimal(layout);
 }
 
+/** A representative phone viewport for mobile-only test helpers. */
+const MOBILE_VIEWPORT = { width: 412, height: 915 };
+
+/**
+ * Navigate to the app at a phone viewport with a rack preloaded, dismissing
+ * the mobile warning before navigation so it never intercepts interactions.
+ * Mirrors the same setup in accessibility.spec.ts and axe.spec.ts.
+ */
+export async function gotoMobileWithRack(
+  page: import("@playwright/test").Page,
+): Promise<void> {
+  await page.setViewportSize(MOBILE_VIEWPORT);
+  await page.addInitScript(() => {
+    sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
+  });
+  await page.goto(`/?l=${EMPTY_RACK_SHARE}`);
+  await page
+    .locator(locators.rack.container)
+    .first()
+    .waitFor({ state: "visible" });
+}
+
 /**
  * Navigate to app with pre-loaded rack
  * @param page - Playwright page

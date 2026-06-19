@@ -14,32 +14,13 @@ import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
 import {
   gotoWithRack,
-  EMPTY_RACK_SHARE,
+  gotoMobileWithRack,
   clickNewRack,
   locators,
 } from "./helpers";
 
 /** WCAG 2.5.5 Target Size (Level AAA) / 2.5.8 (Level AA) minimum. */
 const MIN_TOUCH_TARGET_PX = 44;
-
-/** A representative phone viewport for mobile-only accessibility checks. */
-const MOBILE_VIEWPORT = { width: 412, height: 915 };
-
-/**
- * Load the app at a phone viewport with a rack preloaded, dismissing the
- * mobile warning before navigation so it never intercepts interactions.
- */
-async function gotoMobileWithRack(page: Page): Promise<void> {
-  await page.setViewportSize(MOBILE_VIEWPORT);
-  await page.addInitScript(() => {
-    sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
-  });
-  await page.goto(`/?l=${EMPTY_RACK_SHARE}`);
-  await page
-    .locator(locators.rack.container)
-    .first()
-    .waitFor({ state: "visible" });
-}
 
 /**
  * Resolve the accessible role and name of the currently focused element.
@@ -286,7 +267,10 @@ test.describe("Accessibility", () => {
       await page.locator(locators.device.paletteItem).first().click();
 
       // Confirm the Placing banner is visible.
-      const banner = page.locator('[aria-live]').filter({ hasText: /placing:/i }).first();
+      const banner = page
+        .getByRole("status")
+        .filter({ hasText: /placing:/i })
+        .first();
       await expect(banner).toBeVisible();
 
       // Pressing Escape must cancel placement and hide the banner.

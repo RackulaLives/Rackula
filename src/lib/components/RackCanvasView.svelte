@@ -199,7 +199,7 @@
     // abandon any placement armed via the command palette "Add device" flow
     // (#2352). Without this the desktop click-to-place stays armed and the next
     // rack click would silently place the still-pending device.
-    if (placementStore.isPlacing) placementStore.cancelPlacement();
+    if (placementStore.isPlacing) placementStore.abandonPlacement();
     ondevicedrop?.(event);
   }
 

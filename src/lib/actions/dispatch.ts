@@ -96,9 +96,13 @@ function handleEscape(): void {
     return;
   }
   // Close any open mobile sheet before clearing selection so Escape gives the
-  // user a progressive exit: sheet first, then selection.
+  // user a progressive exit: sheet first, then selection. Clear selection at
+  // the same time so the device-details $effect in DialogOrchestrator (which
+  // auto-opens that sheet whenever a device is selected on mobile) does not
+  // immediately reopen the sheet we just closed.
   if (dialogStore.currentSheet !== null) {
     dialogStore.closeSheet();
+    selectionStore.clearSelection();
     return;
   }
   selectionStore.clearSelection();

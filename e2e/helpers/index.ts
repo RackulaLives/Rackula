@@ -12,6 +12,7 @@ export {
   RACK_WITH_DEVICE_SHARE,
   createTestLayout,
   gotoWithRack,
+  gotoMobileWithRack,
 } from "./test-layouts";
 
 // Device actions

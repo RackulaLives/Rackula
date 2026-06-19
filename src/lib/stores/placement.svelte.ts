@@ -42,9 +42,22 @@ function resetState(): void {
 
 /**
  * Cancel placement mode without placing the device.
+ * Announces "Placement cancelled" to screen readers via the assertive live region.
+ * Use abandonPlacement() for silent internal resets that should not be announced.
  */
 function cancelPlacement(): void {
   placementAnnouncement = "Placement cancelled";
+  resetState();
+}
+
+/**
+ * Silently abandon placement without a screen-reader announcement.
+ * Use this when placement is being cleared as an internal side-effect of another
+ * action (e.g. a drag-and-drop completing while click-to-place was still armed),
+ * not when the user has explicitly cancelled. cancelPlacement() would announce
+ * "Placement cancelled" in that case, which would be misleading.
+ */
+function abandonPlacement(): void {
   resetState();
 }
 
@@ -99,6 +112,7 @@ export function getPlacementStore() {
     },
     startPlacement,
     cancelPlacement,
+    abandonPlacement,
     completePlacement,
     setTargetFace,
   };

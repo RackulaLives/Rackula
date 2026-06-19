@@ -113,6 +113,24 @@ describe("placement store", () => {
       expect(() => store.cancelPlacement()).not.toThrow();
       expect(store.isPlacing).toBe(false);
     });
+
+    it("sets placementAnnouncement to cancelled text", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.cancelPlacement();
+      expect(store.placementAnnouncement).toBe("Placement cancelled");
+    });
+  });
+
+  describe("abandonPlacement()", () => {
+    it("resets placement state without an SR announcement", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.abandonPlacement();
+      expect(store.isPlacing).toBe(false);
+      expect(store.pendingDevice).toBeNull();
+      expect(store.placementAnnouncement).toBeNull();
+    });
   });
 
   describe("completePlacement()", () => {

@@ -22,36 +22,16 @@
  */
 import { test } from "./helpers/base-test";
 import { expect } from "@playwright/test";
-import type { Page } from "@playwright/test";
 import {
   createTestLayout,
   gotoWithRack,
+  gotoMobileWithRack,
   selectDevice,
   clickExport,
   clickSettings,
-  EMPTY_RACK_SHARE,
   locators,
 } from "./helpers";
 import { expectNoA11yViolations } from "./helpers/a11y";
-
-/** A representative phone viewport for mobile-only scans. */
-const MOBILE_VIEWPORT = { width: 412, height: 915 };
-
-/**
- * Load the app at a phone viewport, dismiss the mobile warning, and wait for
- * the rack to be visible. Mirrors the pattern in accessibility.spec.ts.
- */
-async function gotoMobileWithRack(page: Page): Promise<void> {
-  await page.setViewportSize(MOBILE_VIEWPORT);
-  await page.addInitScript(() => {
-    sessionStorage.setItem("rackula-mobile-warning-dismissed", "true");
-  });
-  await page.goto(`/?l=${EMPTY_RACK_SHARE}`);
-  await page
-    .locator(locators.rack.container)
-    .first()
-    .waitFor({ state: "visible" });
-}
 
 // A small, deterministic rack so the canvas and sidebar render real content for
 // the scan. Category codes are the single-char share abbreviations:
@@ -175,7 +155,9 @@ test.describe("axe accessibility scans - mobile viewport", () => {
     page,
   }) => {
     await page.getByRole("button", { name: "Devices" }).click();
-    await expect(page.getByRole("dialog", { name: "Device Library" })).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "Device Library" }),
+    ).toBeVisible();
     await expectNoA11yViolations(page, locators.mobile.bottomSheet);
   });
 
@@ -210,7 +192,12 @@ test.describe("axe accessibility scans - mobile viewport", () => {
     await page.locator(locators.device.paletteItem).first().click();
 
     // Wait for the sheet to close and the banner to appear.
-    await expect(page.getByRole("status").filter({ hasText: /placing:/i }).first()).toBeVisible();
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: /placing:/i })
+        .first(),
+    ).toBeVisible();
     await expectNoA11yViolations(page);
   });
 });
