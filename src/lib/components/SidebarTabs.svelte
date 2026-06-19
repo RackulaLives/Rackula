@@ -1,7 +1,11 @@
 <!--
   SidebarTabs Component
-  Tab bar for sidebar navigation: Layouts | Racks | Devices
+  Segmented navigation for the sidebar: Layouts | Racks | Devices
   Uses bits-ui Tabs for accessibility and keyboard navigation.
+
+  Styled to match the Brand / Category / A-Z SegmentedControl directly below it
+  (issue #2435): one connected row of square segments with a filled active
+  segment, rather than the raised tab-bar sheets used elsewhere.
 
   The collapse chevron (`«`) sits at the far-left of the row and collapses the
   panel leftward to its 44px strip, mirroring the right panel's `»` (issue #2397).
@@ -11,7 +15,6 @@
   import { IconChevronLeft } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import type { SidebarTab } from "$lib/stores/ui.svelte";
-  import "$lib/styles/tabs.css";
 
   interface Props {
     activeTab: SidebarTab;
@@ -54,11 +57,11 @@
     loop={true}
     class="sidebar-tabs"
   >
-    <Tabs.List class="tabs-list" aria-label="Sidebar navigation">
+    <Tabs.List class="sidebar-segments" aria-label="Sidebar navigation">
       {#each tabs as tab (tab.id)}
         <Tabs.Trigger
           value={tab.id}
-          class="tab-btn"
+          class="sidebar-segment"
           data-testid="sidebar-tab-{tab.id}"
         >
           <span class="tab-icon" aria-hidden="true">{tab.icon}</span>
@@ -80,7 +83,7 @@
     flex-shrink: 0;
   }
 
-  /* 44px-square collapse control, matching the tab height (issue #2397). */
+  /* 44px-square collapse control, matching the segment height (issue #2397). */
   .sidebar-collapse-btn {
     display: flex;
     align-items: center;
@@ -113,16 +116,17 @@
     display: contents;
   }
 
-  :global(.tabs-list) {
+  /* Connected segmented row, matching the Brand / Category / A-Z control. */
+  :global(.sidebar-segments) {
     display: flex;
     flex: 1;
-    gap: var(--space-1);
+    gap: 0;
     min-width: 0;
   }
 
-  /* Layout-only rules. The raised "layered sheet" look (background, colour, top
-     accent, rounded top corners, active merge) is shared via tabs.css. */
-  :global(.tab-btn) {
+  /* Square segments with collapsed borders and a filled active state, mirroring
+     SegmentedControl. Rounded corners only on the row ends. */
+  :global(.sidebar-segment) {
     flex: 1;
     display: flex;
     align-items: center;
@@ -133,13 +137,44 @@
     padding: var(--space-2) var(--space-3);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
+    background: transparent;
+    border: 1px solid var(--colour-border);
+    border-radius: 0;
+    color: var(--colour-text-muted);
     cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
+    /* Collapse adjacent borders so the row reads as one connected control. */
+    margin-left: -1px;
+    position: relative;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
   }
 
-  :global(.tab-btn:focus-visible) {
+  :global(.sidebar-segment:first-child) {
+    margin-left: 0;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  }
+
+  :global(.sidebar-segment:last-child) {
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  }
+
+  :global(.sidebar-segment:hover:not([data-state="active"])) {
+    background: var(--colour-surface-hover);
+    color: var(--colour-text);
+  }
+
+  :global(.sidebar-segment[data-state="active"]) {
+    background: color-mix(in srgb, var(--colour-selection) 20%, transparent);
+    border-color: var(--colour-selection);
+    color: var(--colour-text);
+    z-index: 1;
+  }
+
+  :global(.sidebar-segment:focus-visible) {
     outline: 2px solid var(--colour-selection);
-    outline-offset: -2px;
+    outline-offset: 2px;
+    z-index: 2;
   }
 
   .tab-icon {
@@ -148,7 +183,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .sidebar-collapse-btn,
-    :global(.tab-btn) {
+    :global(.sidebar-segment) {
       transition: none;
     }
   }
