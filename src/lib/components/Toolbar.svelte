@@ -288,7 +288,7 @@
     align-items: center;
     align-self: center;
     flex: 1 1 auto;
-    min-width: 0;
+    min-width: 14rem;
     height: 44px;
     margin-right: var(--space-2);
     padding: 0;
@@ -360,6 +360,8 @@
   }
 
   .command-pill-badge {
+    flex: 0 0 auto;
+    white-space: nowrap;
     font-family: var(--font-mono, monospace);
     font-size: var(--font-size-xs);
     padding: 1px var(--space-1);
