@@ -180,8 +180,6 @@ describe("DeviceDetails", () => {
       expect(
         screen.getByRole("button", { name: /duplicate selection/i }),
       ).toBeInTheDocument();
-      // Remove resolves from the registry (delete-selection) but lives in the
-      // footer, de-emphasised, not in the primary verb row.
       expect(
         screen.getByRole("button", { name: /delete selected/i }),
       ).toBeInTheDocument();
