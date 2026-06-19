@@ -31,6 +31,8 @@ export type SheetId =
   | "deviceLibrary"
   | "rackEdit"
   | "fileActions"
+  | "layouts"
+  | "racks"
   | "view"
   | "yamlEditor";
 

@@ -20,7 +20,6 @@
   import HelpPanel from "$lib/components/HelpPanel.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
   import DeviceDetails from "$lib/components/DeviceDetails.svelte";
-  import MobileFileSheet from "$lib/components/MobileFileSheet.svelte";
   import MobileBottomNav from "$lib/components/mobile/MobileBottomNav.svelte";
   import RackEditSheet from "$lib/components/RackEditSheet.svelte";
   import MobileViewSheet from "$lib/components/mobile/MobileViewSheet.svelte";
@@ -40,19 +39,14 @@
   import { dialogStore } from "$lib/stores/dialogs.svelte";
 
   import {
-    handleLoad,
     handleSaveToServer,
     handleSaveAsArchive,
     shouldSaveToServer,
     clearSession,
   } from "$lib/storage";
   import {
-    maybeSave,
-    maybeSaveAs,
-    maybeExport,
     handleExport,
     handleExportSubmit,
-    handleShare,
     handleFitAll,
     resetAndOpenNewRack,
   } from "$lib/utils/app-actions";
@@ -106,12 +100,13 @@
 
   // Mobile bottom sheet state
   let bottomSheetOpen = $derived(dialogStore.isSheetOpen("deviceDetails"));
-  let fileSheetOpen = $derived(dialogStore.isSheetOpen("fileActions"));
   let deviceLibrarySheetOpen = $derived(
     dialogStore.isSheetOpen("deviceLibrary"),
   );
   let yamlEditorSheetOpen = $derived(dialogStore.isSheetOpen("yamlEditor"));
   let rackEditSheetOpen = $derived(dialogStore.isSheetOpen("rackEdit"));
+  let layoutsSheetOpen = $derived(dialogStore.isSheetOpen("layouts"));
+  let racksSheetOpen = $derived(dialogStore.isSheetOpen("racks"));
   let viewSheetOpen = $derived(dialogStore.isSheetOpen("view"));
 
   // Aliases to dialogStore properties for template access
@@ -280,14 +275,6 @@
   }
 
   // --- YAML editor handlers ---
-
-  function handleOpenYamlEditor() {
-    if (viewportStore.isMobile) {
-      dialogStore.openSheet("yamlEditor");
-      return;
-    }
-    dialogStore.open("yamlEditor");
-  }
 
   function handleYamlEditorClose() {
     dialogStore.close();
@@ -591,11 +578,21 @@
     dialogStore.openSheet("deviceLibrary");
   }
 
-  function handleFileTabClick() {
-    dialogStore.openSheet("fileActions");
+  // The Layouts and Racks tabs open titled scaffold sheets; their bodies are
+  // populated by #2460 (layout switcher) and #2461 (rack editing) respectively.
+  function handleLayoutsTabClick() {
+    dialogStore.openSheet("layouts");
   }
 
-  function handleFileSheetClose() {
+  function handleLayoutsSheetClose() {
+    dialogStore.closeSheet();
+  }
+
+  function handleRacksTabClick() {
+    dialogStore.openSheet("racks");
+  }
+
+  function handleRacksSheetClose() {
     dialogStore.closeSheet();
   }
 
@@ -770,36 +767,43 @@
 
 <!-- Mobile bottom navigation bar -->
 <MobileBottomNav
-  activeTab={fileSheetOpen
-    ? "file"
-    : viewSheetOpen
-      ? "view"
+  activeTab={layoutsSheetOpen
+    ? "layouts"
+    : racksSheetOpen
+      ? "racks"
       : deviceLibrarySheetOpen
         ? "devices"
-        : null}
+        : viewSheetOpen
+          ? "view"
+          : null}
   hidden={false}
-  onfileclick={handleFileTabClick}
-  onviewclick={handleViewSheetClick}
+  onlayoutsclick={handleLayoutsTabClick}
+  onracksclick={handleRacksTabClick}
   ondevicesclick={handleDeviceLibraryTabClick}
+  onviewclick={handleViewSheetClick}
 />
 
-{#if viewportStore.isMobile && fileSheetOpen}
+<!-- Layouts tab sheet: scaffold. #2460 populates the layout switcher body. -->
+{#if viewportStore.isMobile && layoutsSheetOpen}
   <Dialog
-    open={fileSheetOpen}
-    title="File"
+    open={layoutsSheetOpen}
+    title="Layouts"
     size="M"
-    onclose={handleFileSheetClose}
+    onclose={handleLayoutsSheetClose}
   >
-    <MobileFileSheet
-      onload={handleLoad}
-      onsave={maybeSave}
-      onsaveas={maybeSaveAs}
-      onexport={maybeExport}
-      onshare={handleShare}
-      onviewyaml={handleOpenYamlEditor}
-      onclose={handleFileSheetClose}
-      hasRacks={layoutStore.hasRack}
-    />
+    <p class="sheet-placeholder">Layout switching is coming soon.</p>
+  </Dialog>
+{/if}
+
+<!-- Racks tab sheet: scaffold. #2461 populates rack list and properties. -->
+{#if viewportStore.isMobile && racksSheetOpen}
+  <Dialog
+    open={racksSheetOpen}
+    title="Racks"
+    size="M"
+    onclose={handleRacksSheetClose}
+  >
+    <p class="sheet-placeholder">Rack editing is coming soon.</p>
   </Dialog>
 {/if}
 
@@ -877,3 +881,12 @@
   style="display: none;"
   aria-label="Import device library file"
 />
+
+<style>
+  .sheet-placeholder {
+    margin: 0;
+    padding: var(--space-4) 0;
+    color: var(--colour-text-muted);
+    text-align: center;
+  }
+</style>
