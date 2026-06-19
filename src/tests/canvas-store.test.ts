@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   getCanvasStore,
   resetCanvasStore,
@@ -512,17 +512,23 @@ describe("Canvas Store", () => {
   });
 
   describe("zoomToDevice", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    });
+
     function setupCanvasAndPanzoom(
       viewportWidth: number,
       viewportHeight: number,
       initialScale = 1,
+      prefersReducedMotion = false,
     ) {
       const store = getCanvasStore();
       const mockPanzoom = createMockPanzoom(initialScale);
 
       vi.stubGlobal(
         "matchMedia",
-        vi.fn(() => ({ matches: false })),
+        vi.fn(() => ({ matches: prefersReducedMotion })),
       );
 
       const mockCanvas = document.createElement("div");
@@ -560,8 +566,6 @@ describe("Canvas Store", () => {
       // No devices in rack: index 0 is out of range, nothing should be called
       expect(mockPanzoom.smoothZoomAbs).not.toHaveBeenCalled();
       expect(mockPanzoom.zoomAbs).not.toHaveBeenCalled();
-
-      vi.unstubAllGlobals();
     });
 
     it("does nothing when device type is not found in library", () => {
@@ -586,8 +590,6 @@ describe("Canvas Store", () => {
 
       expect(mockPanzoom.smoothZoomAbs).not.toHaveBeenCalled();
       expect(mockPanzoom.zoomAbs).not.toHaveBeenCalled();
-
-      vi.unstubAllGlobals();
     });
 
     it("clamps target zoom to ZOOM_MAX for small devices in large viewports", () => {
@@ -620,8 +622,6 @@ describe("Canvas Store", () => {
         number,
       ];
       expect(scale).toBeLessThanOrEqual(ZOOM_MAX);
-
-      vi.unstubAllGlobals();
     });
 
     it("clamps target zoom to ZOOM_MIN for very tall devices", () => {
@@ -653,8 +653,6 @@ describe("Canvas Store", () => {
         number,
       ];
       expect(scale).toBeGreaterThanOrEqual(ZOOM_MIN);
-
-      vi.unstubAllGlobals();
     });
 
     it("centers the device in the viewport", () => {
@@ -688,6 +686,7 @@ describe("Canvas Store", () => {
         u_height: deviceUHeight,
       });
 
+      vi.useFakeTimers();
       store.zoomToDevice(rack, 0, [deviceType]);
 
       expect(mockPanzoom.smoothZoomAbs).toHaveBeenCalled();
@@ -713,37 +712,19 @@ describe("Canvas Store", () => {
       const expectedPanY =
         viewportHeight / 2 - (deviceAbsY + deviceHeight / 2) * zoom;
 
-      // smoothMoveTo calls smoothZoomAbs then moveTo asynchronously via
-      // setTimeout. We can only check the zoom call synchronously.
-      // Pan is delivered async; verify only that zoom is in bounds.
-      expect(zoom).toBeGreaterThanOrEqual(ZOOM_MIN);
-      expect(zoom).toBeLessThanOrEqual(ZOOM_MAX);
+      // smoothMoveTo delivers the moveTo call via setTimeout(..., 0).
+      // Flush all pending timers so moveTo fires synchronously here.
+      vi.runAllTimers();
 
-      // Verify the expected pan values are finite (sanity check on the math)
-      expect(Number.isFinite(expectedPanX)).toBe(true);
-      expect(Number.isFinite(expectedPanY)).toBe(true);
-
-      vi.unstubAllGlobals();
+      expect(mockPanzoom.moveTo).toHaveBeenCalledOnce();
+      const [panX, panY] = mockPanzoom.moveTo.mock.calls[0] as [number, number];
+      expect(panX).toBeCloseTo(expectedPanX, 5);
+      expect(panY).toBeCloseTo(expectedPanY, 5);
     });
 
     it("uses instant transition when reduced motion is preferred", () => {
-      const store = getCanvasStore();
-      const mockPanzoom = createMockPanzoom(1);
-
-      // Stub matchMedia to return true for reduced motion
-      vi.stubGlobal(
-        "matchMedia",
-        vi.fn(() => ({ matches: true })),
-      );
-
-      const mockCanvas = document.createElement("div");
-      Object.defineProperty(mockCanvas, "clientWidth", { value: 400 });
-      Object.defineProperty(mockCanvas, "clientHeight", { value: 700 });
-
-      store.setCanvasElement(mockCanvas);
-      store.setPanzoomInstance(
-        mockPanzoom as ReturnType<typeof import("panzoom").default>,
-      );
+      // prefersReducedMotion=true routes through the instant path (zoomAbs + moveTo)
+      const { store, mockPanzoom } = setupCanvasAndPanzoom(400, 700, 1, true);
 
       const rack = createTestRack({
         height: 42,
@@ -766,10 +747,8 @@ describe("Canvas Store", () => {
       // Reduced motion: uses zoomAbs (instant) not smoothZoomAbs
       expect(mockPanzoom.zoomAbs).toHaveBeenCalled();
       expect(mockPanzoom.smoothZoomAbs).not.toHaveBeenCalled();
-      // And moveTo is called synchronously
+      // moveTo is called synchronously (no timer on the reduced-motion path)
       expect(mockPanzoom.moveTo).toHaveBeenCalled();
-
-      vi.unstubAllGlobals();
     });
   });
 });
