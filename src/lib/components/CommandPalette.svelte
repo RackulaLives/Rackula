@@ -66,6 +66,8 @@
   let inputEl = $state<HTMLElement | null>(null);
 
   // Live enable context for gating selection (and rack-dependent) commands.
+  // readOnly is included so that mutation commands are suppressed in the palette
+  // command list while the lock is active, matching the visual affordance.
   const ctx = $derived<ActionEnabledContext>({
     hasSelection: selectionStore.hasSelection,
     isDeviceSelected: selectionStore.isDeviceSelected,
@@ -75,6 +77,7 @@
     hasRacks: layoutStore.hasRack,
     mode: getStorageMode(),
     canMoveDeviceSlot: canMoveSelectedDeviceSlot(),
+    readOnly: uiStore.readOnly,
   });
 
   const groups = $derived(getPaletteCommands(ctx));
