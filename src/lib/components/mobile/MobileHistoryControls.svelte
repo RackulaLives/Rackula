@@ -91,8 +91,13 @@
 <style>
   .mobile-history-controls {
     position: absolute;
+    /* Sit above the fixed bottom nav, the safe-area inset, and the on-screen
+       keyboard. The nav itself shifts up by --keyboard-height when the keyboard
+       opens (MobileBottomNav), so the cluster tracks the same offset to stay
+       above it rather than slipping behind the raised nav. */
     bottom: calc(
-      var(--bottom-nav-height) + var(--safe-area-bottom, 0px) + var(--space-3)
+      var(--bottom-nav-height) + var(--safe-area-bottom, 0px) +
+        var(--keyboard-height, 0px) + var(--space-3)
     );
     left: max(var(--space-3), env(safe-area-inset-left, 0px));
     z-index: calc(var(--z-toolbar) + 1);
