@@ -380,7 +380,7 @@
   --bottom-nav-bg: rgba(33, 34, 44, 0.85);
   --bottom-nav-border: rgba(52, 55, 70, 0.6);
   --bottom-nav-blur: 20px;
-  --verb-bar-bg: rgba(33, 34, 44, 0.85);
+  --verb-bar-bg: rgba(33, 34, 44, 0.92);
   /* Specular glass: translucent body lets devices show through; the rim and
      sheen sell it as a lens. Dark theme uses a lighter top edge for the
      highlight and a soft dark bottom for grounding. */
@@ -636,7 +636,7 @@
   --bottom-nav-bg: rgba(239, 237, 220, 0.85);
   --bottom-nav-border: rgba(222, 220, 207, 0.6);
   --bottom-nav-active-pill-bg: rgba(3, 106, 150, 0.1);
-  --verb-bar-bg: rgba(239, 237, 220, 0.85);
+  --verb-bar-bg: rgba(239, 237, 220, 0.92);
   /* Light theme: the cream body needs a brighter top sheen and a softer,
      warmer bottom edge so the rim reads on a pale background. */
   --verb-bar-bg-solid: rgba(243, 241, 226, 0.97);
