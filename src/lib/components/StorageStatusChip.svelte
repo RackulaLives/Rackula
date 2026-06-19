@@ -86,8 +86,6 @@
   <span class="storage-chip-text">{durability.label}</span>
 </div>
 
-<!-- Settled-state announcer: aria-live region debounced from the chip text so a
-     screen reader hears the final state once, not every intermediate status. -->
 <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">
   {announced}
 </span>
