@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/svelte";
 import MobileViewSheet from "$lib/components/mobile/MobileViewSheet.svelte";
 import { getCanvasStore, resetCanvasStore } from "$lib/stores/canvas.svelte";
+import { getUIStore, resetUIStore } from "$lib/stores/ui.svelte";
 import { createMockPanzoom } from "./mocks/panzoom";
 import type { DisplayMode } from "$lib/types";
 
@@ -9,10 +10,8 @@ function renderSheet(
   overrides: Partial<{
     displayMode: DisplayMode;
     showAnnotations: boolean;
-    theme: "dark" | "light";
     ondisplaymodechange: (mode: DisplayMode) => void;
     onannotationschange: (enabled: boolean) => void;
-    onthemechange: (theme: "dark" | "light") => void;
     onfitall: () => void;
     onresetzoom: () => void;
     onclose: () => void;
@@ -21,10 +20,8 @@ function renderSheet(
   const props = {
     displayMode: "label" as DisplayMode,
     showAnnotations: false,
-    theme: "dark" as const,
     ondisplaymodechange: vi.fn(),
     onannotationschange: vi.fn(),
-    onthemechange: vi.fn(),
     onfitall: vi.fn(),
     onresetzoom: vi.fn(),
     onclose: vi.fn(),
@@ -38,16 +35,19 @@ function renderSheet(
 describe("MobileViewSheet", () => {
   beforeEach(() => {
     resetCanvasStore();
+    resetUIStore();
   });
 
-  it("reflects current toggle state on open", () => {
-    renderSheet({
-      showAnnotations: true,
-      theme: "dark",
-    });
+  it("reflects current annotation state on open", () => {
+    renderSheet({ showAnnotations: true });
 
     expect(screen.getByRole("switch", { name: "Annotations" })).toBeChecked();
-    expect(screen.getByRole("switch", { name: /Theme/ })).toBeChecked();
+  });
+
+  it("omits the Theme control", () => {
+    renderSheet();
+
+    expect(screen.queryByRole("switch", { name: /Theme/ })).toBeNull();
   });
 
   it("calls ondisplaymodechange when display mode is changed", async () => {
@@ -58,17 +58,34 @@ describe("MobileViewSheet", () => {
     expect(props.ondisplaymodechange).toHaveBeenCalledWith("image");
   });
 
-  it("applies annotations and theme changes immediately", async () => {
-    const props = renderSheet({
-      showAnnotations: false,
-      theme: "light",
-    });
+  it("applies annotation changes immediately", async () => {
+    const props = renderSheet({ showAnnotations: false });
 
     await fireEvent.click(screen.getByRole("switch", { name: "Annotations" }));
-    await fireEvent.click(screen.getByRole("switch", { name: /Theme/ }));
 
     expect(props.onannotationschange).toHaveBeenCalledWith(true);
-    expect(props.onthemechange).toHaveBeenCalledWith("dark");
+  });
+
+  it("reflects the read-only lock state from the UI store", () => {
+    getUIStore().setReadOnly(true);
+
+    renderSheet();
+
+    expect(screen.getByRole("switch", { name: "Read-only" })).toBeChecked();
+  });
+
+  it("locks and unlocks the layout via the read-only toggle", async () => {
+    const uiStore = getUIStore();
+    renderSheet();
+
+    const lock = screen.getByRole("switch", { name: "Read-only" });
+    expect(uiStore.readOnly).toBe(false);
+
+    await fireEvent.click(lock);
+    expect(uiStore.readOnly).toBe(true);
+
+    await fireEvent.click(lock);
+    expect(uiStore.readOnly).toBe(false);
   });
 
   it("runs Fit to screen and closes the sheet", async () => {

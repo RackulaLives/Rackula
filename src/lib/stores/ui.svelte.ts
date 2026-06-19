@@ -212,6 +212,9 @@ let sidePanelCollapsed = $state(initialSidePanelCollapsed);
 let warnOnUnsavedChanges = $state(initialWarnUnsaved);
 let promptCleanupOnSave = $state(initialPromptCleanup);
 let compatibleOnly = $state(initialCompatibleOnly);
+// Read-only lock: presentation safety valve that locks the layout for viewing.
+// Session-scoped (not persisted) so a reload always returns to an editable state.
+let readOnly = $state(false);
 
 // Derived values (using $derived rune)
 const canZoomIn = $derived(zoom < ZOOM_MAX);
@@ -242,6 +245,7 @@ export function resetUIStore(): void {
   warnOnUnsavedChanges = loadWarnUnsavedFromStorage();
   promptCleanupOnSave = loadPromptCleanupFromStorage();
   compatibleOnly = loadCompatibleOnlyFromStorage();
+  readOnly = false;
   applyThemeToDocument(theme);
 }
 
@@ -322,6 +326,11 @@ export function getUIStore() {
       return compatibleOnly;
     },
 
+    // Read-only lock state getter
+    get readOnly() {
+      return readOnly;
+    },
+
     // Theme actions
     toggleTheme,
     setTheme,
@@ -371,6 +380,10 @@ export function getUIStore() {
 
     // Compatible-only filter action
     toggleCompatibleOnly,
+
+    // Read-only lock actions
+    toggleReadOnly,
+    setReadOnly,
   };
 }
 
@@ -625,4 +638,19 @@ function setPromptCleanupOnSave(prompt: boolean): void {
 function toggleCompatibleOnly(): void {
   compatibleOnly = !compatibleOnly;
   saveCompatibleOnlyToStorage(compatibleOnly);
+}
+
+/**
+ * Toggle the read-only lock
+ */
+function toggleReadOnly(): void {
+  readOnly = !readOnly;
+}
+
+/**
+ * Set the read-only lock state explicitly
+ * @param locked - Whether the layout is locked for viewing
+ */
+function setReadOnly(locked: boolean): void {
+  readOnly = locked;
 }

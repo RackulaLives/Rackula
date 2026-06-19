@@ -1,14 +1,16 @@
 <!--
   MobileViewSheet Component
-  Mobile bottom sheet controls for display mode, annotations, theme, and zoom.
-  The zoom stepper reads the shared canvas store directly (the same verbs the
-  desktop CanvasViewControls cluster uses) so mobile does not fork zoom logic.
+  Mobile bottom sheet controls for display mode, annotations, a read-only lock,
+  and zoom. The zoom stepper reads the shared canvas store directly (the same
+  verbs the desktop CanvasViewControls cluster uses) so mobile does not fork zoom
+  logic, and the read-only lock drives the shared UI store.
 -->
 <script lang="ts">
   import type { DisplayMode } from "$lib/types";
   import SegmentedControl from "$lib/components/SegmentedControl.svelte";
   import Switch from "$lib/components/Switch.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import { getUIStore } from "$lib/stores/ui.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import {
     IconMinusBold,
@@ -19,10 +21,8 @@
   interface Props {
     displayMode: DisplayMode;
     showAnnotations: boolean;
-    theme: "dark" | "light";
     ondisplaymodechange?: (mode: DisplayMode) => void;
     onannotationschange?: (enabled: boolean) => void;
-    onthemechange?: (theme: "dark" | "light") => void;
     onfitall?: () => void;
     onresetzoom?: () => void;
     onclose?: () => void;
@@ -31,23 +31,21 @@
   let {
     displayMode,
     showAnnotations,
-    theme,
     ondisplaymodechange,
     onannotationschange,
-    onthemechange,
     onfitall,
     onresetzoom,
     onclose,
   }: Props = $props();
 
   const canvasStore = getCanvasStore();
+  const uiStore = getUIStore();
 
   const displayModeOptions: Array<{ value: DisplayMode; label: string }> = [
     { value: "label", label: "Label" },
     { value: "image", label: "Image" },
     { value: "image-label", label: "Image + Label" },
   ];
-  const themeLabel = $derived(`Theme (${theme === "dark" ? "Dark" : "Light"})`);
 
   function handleDisplayModeChange(mode: DisplayMode) {
     ondisplaymodechange?.(mode);
@@ -57,8 +55,8 @@
     onannotationschange?.(enabled);
   }
 
-  function handleThemeChange(darkMode: boolean) {
-    onthemechange?.(darkMode ? "dark" : "light");
+  function handleReadOnlyChange(locked: boolean) {
+    uiStore.setReadOnly(locked);
   }
 
   function handleFitAll() {
@@ -94,10 +92,11 @@
 
   <section class="section">
     <Switch
-      id="mobile-view-theme"
-      checked={theme === "dark"}
-      label={themeLabel}
-      onchange={handleThemeChange}
+      id="mobile-view-readonly"
+      checked={uiStore.readOnly}
+      label="Read-only"
+      helperText="Lock the layout for viewing"
+      onchange={handleReadOnlyChange}
     />
   </section>
 
