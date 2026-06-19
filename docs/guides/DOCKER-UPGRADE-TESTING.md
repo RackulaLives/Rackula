@@ -9,7 +9,9 @@ Saved layouts live in the `/data` volume and are stored by the API as YAML, verb
 1. On-disk format compatibility. The API stores each layout as a folder, `{DATA_DIR}/{Name}-{UUID}/{name}.rackula.yaml`, with snapshots and assets inside the folder, and finds it by scanning for the UUID. If new code stops recognizing a folder that old code wrote, the layout becomes invisible: the data is still on disk, but the API returns 404, which looks like the layout was wiped.
 2. The deployment environment. The shipped compose file declares the bind mount and runs the API under a read-only rootfs as uid 1001. A changed mount path, a permission problem, or a write outside `/data` and `/tmp` can break reads or writes after an upgrade.
 
-Field-level migration of a layout (for example an old single-rack file becoming a multi-rack one) happens in the browser, not the server. That path is covered separately by the Vitest upgrade corpus. This guide does not cover it.
+Field-level migration of a layout (for example a pre-carrier `slot_position` layout becoming a carrier layout) happens in the browser, not the server. That path is covered separately by the Vitest upgrade corpus. This guide does not cover it.
+
+One gap to be aware of: the migration is one-way and the first save rewrites the file in the new format. Browser users get an automatic pre-migration backup; server-storage (Docker) deployments do not, and a routine migrating save is not snapshotted. Until that is closed (#2517), backing up `/data` before an upgrade is the reliable safety net. The smoke test confirms a pre-carrier file is served back unchanged after a pull with no save, but it does not yet assert the migrating save retains the original; that assertion lands with #2517.
 
 ## The two layers
 
@@ -47,6 +49,8 @@ A successful run ends with `PASS: upgrade from <tag> preserved the seeded layout
 | --- | --- |
 | discovery | New code finds and lists the folder the old release wrote. |
 | no data loss | The layout is byte-identical after the upgrade. Since the API stores YAML verbatim, any difference is corruption. |
+| pre-carrier discovery | The new release lists a layout written in the pre-carrier (`slot_position`) format. |
+| pre-carrier untouched at rest | A pre-carrier layout is served back byte-identical after a pull with no save. The server does not transform data at rest; migration happens only when the app loads and saves it. |
 | snapshots survive | Snapshots written by the old release are still readable. This is skipped when the old release predates the snapshot feature. |
 | writes work under read_only | The upgraded container can still persist a change with a read-only rootfs and only `/data` and `/tmp` writable. |
 | the write created a snapshot | The new build snapshots the prior copy before overwriting it. |

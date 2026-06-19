@@ -40,13 +40,26 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
 COMPOSE_FILE="$REPO_ROOT/docker-compose.yml"
-SEED_YAML="$REPO_ROOT/src/tests/fixtures/upgrade-corpus/v26.5.0-representative.rackula.yaml"
+FIXTURE_DIR="$REPO_ROOT/src/tests/fixtures/upgrade-corpus"
+SEED_YAML="$FIXTURE_DIR/v26.5.0-representative.rackula.yaml"
+# A pre-carrier layout exercises the format the carrier-first refactor (#2158)
+# replaced. The server stores it verbatim and must serve it back unchanged: a
+# pull alone must never alter pre-carrier data. The carrier transform itself is
+# client-side and covered by the Vitest corpus, not here.
+PRECARRIER_YAML="$FIXTURE_DIR/pre-carrier-slot-position.rackula.yaml"
 [[ -f "$COMPOSE_FILE" ]] || die "compose file not found: $COMPOSE_FILE"
 [[ -f "$SEED_YAML" ]] || die "seed fixture not found: $SEED_YAML"
+[[ -f "$PRECARRIER_YAML" ]] || die "pre-carrier fixture not found: $PRECARRIER_YAML"
 
 # The URL uuid must match the fixture's metadata.id, or the PUT is rejected.
-SEED_UUID="$(grep -oiE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' "$SEED_YAML" | head -1)"
-[[ -n "$SEED_UUID" ]] || die "could not read a layout UUID from $SEED_YAML"
+uuid_of() {
+  local u
+  u="$(grep -oiE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' "$1" | head -1)"
+  [[ -n "$u" ]] || die "could not read a layout UUID from $1"
+  echo "$u"
+}
+SEED_UUID="$(uuid_of "$SEED_YAML")"
+PRECARRIER_UUID="$(uuid_of "$PRECARRIER_YAML")"
 
 # Resolve the previous released tag (newest v* tag not pointing at HEAD).
 OLD_TAG="${OLD_TAG:-}"
@@ -137,6 +150,13 @@ curl -fsS "${BASE}/layouts/${SEED_UUID}" -o "${WORKDIR}/before.yaml" || die "GET
 SNAP_OLD="$(snap_count "$SEED_UUID")"
 info "Seeded: $(wc -c <"${WORKDIR}/before.yaml" | tr -d ' ') bytes, ${SNAP_OLD} snapshot(s) under OLD"
 
+info "Seeding pre-carrier layout ${PRECARRIER_UUID} through the OLD API"
+curl -fsS -X PUT "${BASE}/layouts/${PRECARRIER_UUID}" \
+  -H "Content-Type: text/yaml" --data-binary "@${PRECARRIER_YAML}" >/dev/null ||
+  die "pre-carrier seed PUT failed"
+curl -fsS "${BASE}/layouts/${PRECARRIER_UUID}" -o "${WORKDIR}/before-precarrier.yaml" ||
+  die "GET pre-carrier before upgrade failed"
+
 info "Stopping OLD API (keeping the bind mount)"
 "${COMPOSE[@]}" down --remove-orphans >/dev/null 2>&1 || true
 docker rm -f rackula-upgrade-smoke-api >/dev/null 2>&1 || true
@@ -169,6 +189,14 @@ check "discovery: new API lists the old-written layout" "grep -qi '${SEED_UUID}'
 curl -fsS "${BASE}/layouts/${SEED_UUID}" -o "${WORKDIR}/after.yaml" ||
   die "GET after upgrade failed (not found, permissions, or discovery change)"
 check "no data loss: layout is byte-identical after upgrade" "cmp -s '${WORKDIR}/before.yaml' '${WORKDIR}/after.yaml'"
+
+# Pre-carrier file at rest: the new release must serve it back unchanged. It is
+# not transformed server-side; the carrier migration happens only when the app
+# loads and then saves it (the migrating-save backup is tracked in #2517).
+check "pre-carrier discovery: new API lists the pre-carrier layout" "grep -qi '${PRECARRIER_UUID}' '${WORKDIR}/list.json'"
+curl -fsS "${BASE}/layouts/${PRECARRIER_UUID}" -o "${WORKDIR}/after-precarrier.yaml" ||
+  die "GET pre-carrier after upgrade failed"
+check "pre-carrier untouched at rest: byte-identical after a pull (no save)" "cmp -s '${WORKDIR}/before-precarrier.yaml' '${WORKDIR}/after-precarrier.yaml'"
 
 SNAP_NEW="$(snap_count "$SEED_UUID")"
 if [[ "$SNAP_OLD" -ge 1 ]]; then
