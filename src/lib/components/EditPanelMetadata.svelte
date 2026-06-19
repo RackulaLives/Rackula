@@ -1,8 +1,9 @@
 <!--
   EditPanelMetadata Component
-  Edit panel section: descriptive properties for the selected device:
-  name, device type/brand, height, category, colour, mounted face, power
-  ratings, device-type notes, IP/hostname, and placement notes.
+  Edit panel section: descriptive properties for the selected device, grouped
+  by meaning. Identity (name, colour), Device type details (read-only facts:
+  type, brand, height, category, power ratings, device-type notes), Placement
+  (mounted face), Network (IP/hostname), and Notes (placement notes).
 -->
 <script lang="ts">
   import { onDestroy } from "svelte";
@@ -83,6 +84,13 @@
   // is_full_depth undefined or true means full-depth.
   const isFullDepthDevice = $derived(
     authoritativeDevice.is_full_depth !== false,
+  );
+
+  // Resolved colour shown by the swatch button: placement override wins over the
+  // device-type default.
+  const resolvedColour = $derived(
+    selectedDeviceInfo.placedDevice.colour_override ??
+      selectedDeviceInfo.device.colour,
   );
 
   // Start editing device name
@@ -217,219 +225,240 @@
   }
 </script>
 
-<!-- Display Name at top (click-to-edit) -->
-<div class="form-group">
-  <label for="device-display-name">Name</label>
-  {#if editingDeviceName}
-    <input
-      id="device-display-name"
-      type="text"
-      class="input-field"
-      bind:value={deviceNameInput}
-      onblur={saveDeviceName}
-      onkeydown={handleDeviceNameKeydown}
-    />
-  {:else}
+<!-- Identity: editable name and colour -->
+<section class="field-group">
+  <h3 class="group-header">Identity</h3>
+
+  <!-- Display Name (click-to-edit) -->
+  <div class="form-group">
+    <label for="device-display-name">Name</label>
+    {#if editingDeviceName}
+      <input
+        id="device-display-name"
+        type="text"
+        class="input-field"
+        bind:value={deviceNameInput}
+        onblur={saveDeviceName}
+        onkeydown={handleDeviceNameKeydown}
+      />
+    {:else}
+      <button
+        id="device-display-name"
+        type="button"
+        class="display-name-display"
+        onclick={startEditingDeviceName}
+        aria-label="Edit display name"
+      >
+        <span class="display-name-text">
+          {selectedDeviceInfo.placedDevice.name ??
+            selectedDeviceInfo.device.model ??
+            selectedDeviceInfo.device.slug}
+        </span>
+        <span class="edit-icon-wrapper"><IconEdit /></span>
+      </button>
+    {/if}
+  </div>
+
+  <!-- Colour (click-to-edit swatch button, opens picker) -->
+  <div class="form-group">
+    <span class="field-label" id="device-colour-label">Colour</span>
     <button
-      id="device-display-name"
       type="button"
-      class="display-name-display"
-      onclick={startEditingDeviceName}
-      aria-label="Edit display name"
+      class="colour-swatch-btn"
+      onclick={() => (showColourPicker = !showColourPicker)}
+      aria-expanded={showColourPicker}
+      aria-labelledby="device-colour-label"
     >
-      <span class="display-name-text">
-        {selectedDeviceInfo.placedDevice.name ??
-          selectedDeviceInfo.device.model ??
-          selectedDeviceInfo.device.slug}
+      <ColourSwatch colour={resolvedColour} size={ICON_SIZE.sm} />
+      <span class="colour-value">
+        {resolvedColour}
+        {#if selectedDeviceInfo.placedDevice.colour_override}
+          <span class="colour-badge">custom</span>
+        {/if}
       </span>
       <span class="edit-icon-wrapper"><IconEdit /></span>
     </button>
-  {/if}
-</div>
+    {#if showColourPicker}
+      <div class="colour-picker-container">
+        <ColourPicker
+          value={resolvedColour}
+          defaultValue={selectedDeviceInfo.device.colour}
+          onchange={(colour) =>
+            layoutStore.updateDeviceColour(
+              selectedDeviceInfo.rack.id,
+              selectedDeviceInfo.deviceIndex,
+              colour,
+            )}
+          onreset={() =>
+            layoutStore.updateDeviceColour(
+              selectedDeviceInfo.rack.id,
+              selectedDeviceInfo.deviceIndex,
+              undefined,
+            )}
+        />
+      </div>
+    {/if}
+  </div>
+</section>
 
-<!-- Device Type (read-only) -->
-<div class="info-section">
-  <div class="info-row">
-    <span class="info-label">Device Type</span>
-    <span class="info-value device-type">
-      <ColourSwatch
-        colour={selectedDeviceInfo.device.colour}
-        size={ICON_SIZE.sm}
-      />
-      {selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug}
-    </span>
+<!-- Device type details: read-only reference facts (muted, non-interactive) -->
+<section class="field-group">
+  <h3 class="group-header">Device type details</h3>
+  <div class="facts">
+    <div class="fact-row">
+      <span class="fact-label">Type</span>
+      <span class="fact-value fact-value-icon">
+        <ColourSwatch
+          colour={selectedDeviceInfo.device.colour}
+          size={ICON_SIZE.sm}
+        />
+        {selectedDeviceInfo.device.model ?? selectedDeviceInfo.device.slug}
+      </span>
+    </div>
+    <div class="fact-row">
+      <span class="fact-label">Brand</span>
+      <span class="fact-value fact-value-icon">
+        <BrandIcon
+          slug={getBrandIconSlug(authoritativeDevice.slug)}
+          size={ICON_SIZE.sm}
+        />
+        {authoritativeDevice.manufacturer ??
+          selectedDeviceInfo.device.manufacturer ??
+          "Generic"}
+      </span>
+    </div>
+    <div class="fact-row">
+      <span class="fact-label">Height</span>
+      <span class="fact-value">{selectedDeviceInfo.device.u_height}U</span>
+    </div>
+    <div class="fact-row">
+      <span class="fact-label">Category</span>
+      <span class="fact-value"
+        >{getCategoryDisplayName(selectedDeviceInfo.device.category)}</span
+      >
+    </div>
+    {#if selectedDeviceInfo.device.category === "power" && selectedDeviceInfo.device.outlet_count}
+      <div class="fact-row">
+        <span class="fact-label">Outlets</span>
+        <span class="fact-value">{selectedDeviceInfo.device.outlet_count}</span>
+      </div>
+    {/if}
+    {#if selectedDeviceInfo.device.category === "power" && selectedDeviceInfo.device.va_rating}
+      <div class="fact-row">
+        <span class="fact-label">VA Rating</span>
+        <span class="fact-value">{selectedDeviceInfo.device.va_rating}</span>
+      </div>
+    {/if}
+    {#if selectedDeviceInfo.device.notes}
+      <div class="fact-notes">
+        <span class="fact-label">Device type notes</span>
+        <p class="fact-notes-text">{selectedDeviceInfo.device.notes}</p>
+      </div>
+    {/if}
   </div>
-  <div class="info-row">
-    <span class="info-label">Brand</span>
-    <span class="info-value brand-info">
-      <BrandIcon
-        slug={getBrandIconSlug(authoritativeDevice.slug)}
-        size={ICON_SIZE.sm}
-      />
-      {authoritativeDevice.manufacturer ??
-        selectedDeviceInfo.device.manufacturer ??
-        "Generic"}
-    </span>
-  </div>
-</div>
+</section>
 
-<div class="info-section">
-  <div class="info-row">
-    <span class="info-label">Height</span>
-    <span class="info-value">{selectedDeviceInfo.device.u_height}U</span>
-  </div>
-  <div class="info-row">
-    <span class="info-label">Category</span>
-    <span class="info-value"
-      >{getCategoryDisplayName(selectedDeviceInfo.device.category)}</span
+<!-- Placement: editable mounted face -->
+<section class="field-group">
+  <h3 class="group-header">Placement</h3>
+  <div class="form-group">
+    <label for="device-face">Mounted Face</label>
+    <select
+      id="device-face"
+      class="input-field"
+      value={selectedDeviceInfo.placedDevice.face}
+      onchange={(e) =>
+        handleFaceChange((e.target as HTMLSelectElement).value as DeviceFace)}
     >
+      <option value="front">Front</option>
+      <option value="rear">Rear</option>
+      <option value="both">Both (full-depth)</option>
+    </select>
+    {#if isFullDepthDevice && selectedDeviceInfo.placedDevice.face !== "both"}
+      <p class="helper-text">Overriding default full-depth setting</p>
+    {/if}
   </div>
-  <!-- Colour row - clickable to open picker -->
-  <button
-    type="button"
-    class="info-row colour-row-btn"
-    onclick={() => (showColourPicker = !showColourPicker)}
-    aria-expanded={showColourPicker}
-    aria-label="Edit device colour"
-  >
-    <span class="info-label">Colour</span>
-    <span class="info-value colour-info">
-      <ColourSwatch
-        colour={selectedDeviceInfo.placedDevice.colour_override ??
-          selectedDeviceInfo.device.colour}
-        size={ICON_SIZE.sm}
-      />
-      {#if selectedDeviceInfo.placedDevice.colour_override}
-        {selectedDeviceInfo.placedDevice.colour_override}
-        <span class="colour-badge">custom</span>
-      {:else}
-        {selectedDeviceInfo.device.colour}
+</section>
+
+<!-- Network: editable IP/hostname -->
+<section class="field-group">
+  <h3 class="group-header">Network</h3>
+  <div class="form-group">
+    <label for="device-ip">
+      IP Address/Hostname
+      {#if ipSaved}
+        <Tooltip text="Saved">
+          <span class="saved-indicator" data-testid="saved-indicator-ip">✓</span
+          >
+        </Tooltip>
       {/if}
-    </span>
-  </button>
-  {#if showColourPicker}
-    <div class="colour-picker-container">
-      <ColourPicker
-        value={selectedDeviceInfo.placedDevice.colour_override ??
-          selectedDeviceInfo.device.colour}
-        defaultValue={selectedDeviceInfo.device.colour}
-        onchange={(colour) =>
-          layoutStore.updateDeviceColour(
-            selectedDeviceInfo.rack.id,
-            selectedDeviceInfo.deviceIndex,
-            colour,
-          )}
-        onreset={() =>
-          layoutStore.updateDeviceColour(
-            selectedDeviceInfo.rack.id,
-            selectedDeviceInfo.deviceIndex,
-            undefined,
-          )}
-      />
-    </div>
-  {/if}
-</div>
+    </label>
+    <input
+      type="text"
+      id="device-ip"
+      class="input-field"
+      bind:value={deviceIp}
+      onblur={handleDeviceIpBlur}
+      placeholder="e.g., 192.168.1.100"
+    />
+  </div>
+</section>
 
-<!-- Face selector (dropdown) - enabled for all devices per issue #144 -->
-<div class="form-group">
-  <label for="device-face">Mounted Face</label>
-  <select
-    id="device-face"
-    class="input-field"
-    value={selectedDeviceInfo.placedDevice.face}
-    onchange={(e) =>
-      handleFaceChange((e.target as HTMLSelectElement).value as DeviceFace)}
-  >
-    <option value="front">Front</option>
-    <option value="rear">Rear</option>
-    <option value="both">Both (full-depth)</option>
-  </select>
-  {#if isFullDepthDevice && selectedDeviceInfo.placedDevice.face !== "both"}
-    <p class="helper-text">Overriding default full-depth setting</p>
-  {/if}
-</div>
-
-<!-- Power device properties -->
-{#if selectedDeviceInfo.device.category === "power" && (selectedDeviceInfo.device.outlet_count || selectedDeviceInfo.device.va_rating)}
-  <div class="info-section">
-    {#if selectedDeviceInfo.device.outlet_count}
-      <div class="info-row">
-        <span class="info-label">Outlets</span>
-        <span class="info-value">{selectedDeviceInfo.device.outlet_count}</span>
-      </div>
-    {/if}
-    {#if selectedDeviceInfo.device.va_rating}
-      <div class="info-row">
-        <span class="info-label">VA Rating</span>
-        <span class="info-value">{selectedDeviceInfo.device.va_rating}</span>
+<!-- Notes: editable placement notes -->
+<section class="field-group">
+  <h3 class="group-header">Notes</h3>
+  <div class="form-group">
+    <label for="device-notes">
+      Notes
+      {#if notesSaved}
+        <Tooltip text="Saved">
+          <span class="saved-indicator" data-testid="saved-indicator-notes"
+            >✓</span
+          >
+        </Tooltip>
+      {/if}
+    </label>
+    <textarea
+      id="device-notes"
+      class="input-field textarea"
+      bind:value={deviceNotes}
+      onblur={handleDeviceNotesBlur}
+      rows="4"
+      placeholder="Add notes about this device placement..."></textarea>
+    {#if deviceNotes.trim()}
+      <div class="notes-preview">
+        <span class="preview-label">Preview</span>
+        <MarkdownPreview content={deviceNotes} />
       </div>
     {/if}
   </div>
-{/if}
-
-<!-- Device Type Notes (read-only) -->
-{#if selectedDeviceInfo.device.notes}
-  <div class="notes-section">
-    <span class="info-label">Device Type Notes</span>
-    <p class="notes-text">{selectedDeviceInfo.device.notes}</p>
-  </div>
-{/if}
-
-<!-- IP Address/Hostname (editable) -->
-<div class="form-group">
-  <label for="device-ip">
-    IP Address/Hostname
-    {#if ipSaved}
-      <Tooltip text="Saved">
-        <span class="saved-indicator" data-testid="saved-indicator-ip">✓</span>
-      </Tooltip>
-    {/if}
-  </label>
-  <input
-    type="text"
-    id="device-ip"
-    class="input-field"
-    bind:value={deviceIp}
-    onblur={handleDeviceIpBlur}
-    placeholder="e.g., 192.168.1.100"
-  />
-</div>
-
-<!-- Placement Notes (editable) -->
-<div class="form-group">
-  <label for="device-notes">
-    Notes
-    {#if notesSaved}
-      <Tooltip text="Saved">
-        <span class="saved-indicator" data-testid="saved-indicator-notes"
-          >✓</span
-        >
-      </Tooltip>
-    {/if}
-  </label>
-  <textarea
-    id="device-notes"
-    class="input-field textarea"
-    bind:value={deviceNotes}
-    onblur={handleDeviceNotesBlur}
-    rows="4"
-    placeholder="Add notes about this device placement..."></textarea>
-  {#if deviceNotes.trim()}
-    <div class="notes-preview">
-      <span class="preview-label">Preview</span>
-      <MarkdownPreview content={deviceNotes} />
-    </div>
-  {/if}
-</div>
+</section>
 
 <style>
+  /* Section wrapper grouping related fields under a header. */
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .group-header {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--colour-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
   .form-group {
     display: flex;
     flex-direction: column;
     gap: var(--space-1-5);
   }
 
-  .form-group label {
+  .form-group label,
+  .field-label {
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-medium);
     color: var(--colour-text);
@@ -505,53 +534,87 @@
     color: var(--colour-text-muted);
   }
 
-  .info-section {
+  /* Device type details: borderless, muted, non-interactive facts. */
+  .facts {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
   }
 
-  .info-row {
+  .fact-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: var(--space-2);
   }
 
-  .info-label {
+  .fact-label {
     font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
   }
 
-  .info-value {
+  .fact-value {
     font-size: var(--font-size-base);
-    color: var(--colour-text);
+    color: var(--colour-text-muted);
+    text-align: right;
   }
 
-  .colour-info {
+  .fact-value-icon {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .fact-notes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .fact-notes-text {
+    font-size: var(--font-size-base);
+    color: var(--colour-text-muted);
+    margin: 0;
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
+
+  /* Colour swatch button: a real interactive control with form-control
+     affordance (border, hover, focus), distinct from the muted facts. */
+  .colour-swatch-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+    color: var(--colour-text);
+    font-size: var(--font-size-base);
+    transition: border-color 0.15s ease;
+  }
+
+  .colour-swatch-btn:hover {
+    border-color: var(--colour-selection);
+  }
+
+  .colour-swatch-btn:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
+  }
+
+  .colour-value {
+    flex: 1;
     display: flex;
     align-items: center;
     gap: var(--space-2);
     font-family: monospace;
-  }
-
-  .colour-row-btn {
-    width: 100%;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    text-align: left;
-    padding: var(--space-1) 0;
-    border-radius: var(--radius-sm);
-    transition: background-color var(--duration-fast);
-  }
-
-  .colour-row-btn:hover {
-    background: var(--colour-surface-hover);
-  }
-
-  .colour-row-btn:focus-visible {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .colour-badge {
@@ -569,18 +632,6 @@
     margin-bottom: var(--space-2);
   }
 
-  .device-type {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .brand-info {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
   .display-name-display {
     display: flex;
     align-items: center;
@@ -588,8 +639,8 @@
     gap: var(--space-2);
     width: 100%;
     padding: var(--space-2) var(--space-3);
-    background: var(--colour-surface);
-    border: 1px solid var(--colour-border);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
     border-radius: var(--radius-sm);
     cursor: pointer;
     text-align: left;
@@ -626,22 +677,9 @@
     height: var(--icon-size-xs);
   }
 
-  .display-name-display:hover .edit-icon-wrapper {
+  .display-name-display:hover .edit-icon-wrapper,
+  .colour-swatch-btn:hover .edit-icon-wrapper {
     opacity: 1;
-  }
-
-  .notes-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1-5);
-  }
-
-  .notes-text {
-    font-size: var(--font-size-base);
-    color: var(--colour-text-muted);
-    margin: 0;
-    white-space: pre-wrap;
-    line-height: 1.5;
   }
 
   /* Markdown preview for notes */
