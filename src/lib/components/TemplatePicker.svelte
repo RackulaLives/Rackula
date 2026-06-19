@@ -308,8 +308,8 @@
   }
 
   .template-picker.is-mobile .card-preview {
-    flex: 0 0 96px;
-    height: 96px;
+    flex: 0 0 calc(var(--space-12) * 2);
+    height: calc(var(--space-12) * 2);
   }
 
   .template-picker.is-mobile .card-body {
@@ -335,7 +335,7 @@
 
   .template-picker.is-mobile .action-button {
     width: 100%;
-    min-height: 48px;
+    min-height: var(--touch-target-min);
     font-size: var(--font-size-base);
   }
 </style>
