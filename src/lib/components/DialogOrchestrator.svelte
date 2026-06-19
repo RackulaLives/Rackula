@@ -24,6 +24,7 @@
   import RackEditSheet from "$lib/components/RackEditSheet.svelte";
   import MobileViewSheet from "$lib/components/mobile/MobileViewSheet.svelte";
   import MobileLayoutsSheet from "$lib/components/mobile/MobileLayoutsSheet.svelte";
+  import MobileRacksSheet from "$lib/components/mobile/MobileRacksSheet.svelte";
   import DevicePalette from "$lib/components/DevicePalette.svelte";
   import LoadDialog from "$lib/components/LoadDialog.svelte";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
@@ -683,8 +684,9 @@
     dialogStore.openSheet("deviceLibrary");
   }
 
-  // The Layouts and Racks tabs open titled scaffold sheets; their bodies are
-  // populated by #2460 (layout switcher) and #2461 (rack editing) respectively.
+  // The Layouts and Racks tabs open titled bottom sheets: Layouts switches the
+  // active layout (#2460) and Racks lists racks and opens their properties
+  // (#2461).
   function handleLayoutsTabClick() {
     dialogStore.openSheet("layouts");
   }
@@ -706,6 +708,12 @@
 
   function handleRacksSheetClose() {
     dialogStore.closeSheet();
+  }
+
+  // The Racks sheet raises the New Rack wizard, mirroring the desktop New rack
+  // flow. The wizard's create handler places the rack and centres the canvas.
+  function handleRacksNewRack() {
+    dialogStore.open("newRack");
   }
 
   function handleDeviceLibrarySheetClose() {
@@ -918,7 +926,7 @@
   </Dialog>
 {/if}
 
-<!-- Racks tab sheet: scaffold. #2461 populates rack list and properties. -->
+<!-- Racks tab sheet: lists racks and opens their properties (#2461). -->
 {#if viewportStore.isMobile && racksSheetOpen}
   <Dialog
     open={racksSheetOpen}
@@ -926,7 +934,10 @@
     size="M"
     onclose={handleRacksSheetClose}
   >
-    <p class="sheet-placeholder">Rack editing is coming soon.</p>
+    <MobileRacksSheet
+      onnewrack={handleRacksNewRack}
+      onclose={handleRacksSheetClose}
+    />
   </Dialog>
 {/if}
 
@@ -1004,12 +1015,3 @@
   style="display: none;"
   aria-label="Import device library file"
 />
-
-<style>
-  .sheet-placeholder {
-    margin: 0;
-    padding: var(--space-4) 0;
-    color: var(--colour-text-muted);
-    text-align: center;
-  }
-</style>
