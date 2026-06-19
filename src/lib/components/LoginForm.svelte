@@ -122,6 +122,7 @@
     align-items: center;
     justify-content: center;
     min-height: 100vh;
+    min-height: 100dvh;
     background: var(--colour-bg, #282a36);
     font-family: var(--font-sans, system-ui, sans-serif);
     color: var(--colour-text, #f8f8f2);

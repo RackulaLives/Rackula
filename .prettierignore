@@ -7,3 +7,7 @@
 # byte-for-byte by src/tests/layout-json-schema.test.ts. Prettier's array
 # collapsing would diverge from the generator and break that test.
 static/schemas/
+
+# Design spec assets from the M12 mobile UX brainstorm (#2467).
+# The HTML mockup is a one-off design artifact, not production code.
+docs/superpowers/specs/assets/
