@@ -180,6 +180,8 @@ describe("DeviceDetails", () => {
       expect(
         screen.getByRole("button", { name: /duplicate selection/i }),
       ).toBeInTheDocument();
+      // Remove resolves from the registry (delete-selection) but lives in the
+      // footer, de-emphasised, not in the primary verb row.
       expect(
         screen.getByRole("button", { name: /delete selected/i }),
       ).toBeInTheDocument();
@@ -287,6 +289,85 @@ describe("DeviceDetails", () => {
         },
       });
       expect(screen.getByText("Primary database server")).toBeTruthy();
+    });
+  });
+
+  describe("Editable fields", () => {
+    // Editable fields only render in the mobile inspector (showActions + verbs).
+    const allVerbs: SelectionVerbItem[] = [
+      { id: "move-device-up", label: "Move device up", disabled: false },
+      { id: "move-device-down", label: "Move device down", disabled: false },
+      { id: "flip-device-face", label: "Flip face", disabled: false },
+      {
+        id: "duplicate-selection",
+        label: "Duplicate selection",
+        disabled: false,
+      },
+      { id: "delete-selection", label: "Delete selected", disabled: false },
+    ];
+
+    function renderInspector(overrides: {
+      device?: Partial<PlacedDevice>;
+      ip?: string;
+      oneditname?: (name: string) => void;
+      oneditip?: (ip: string) => void;
+      oneditnotes?: (notes: string) => void;
+    }) {
+      const { device, ...rest } = overrides;
+      return render(DeviceDetails, {
+        props: {
+          device: createTestPlacedDevice(device),
+          deviceType: createTestDeviceType({ model: "Dell PowerEdge R740" }),
+          showActions: true,
+          verbs: allVerbs,
+          ...rest,
+        },
+      });
+    }
+
+    it("commits a name edit through oneditname", async () => {
+      const oneditname = vi.fn();
+      renderInspector({ oneditname });
+
+      // The name field opens an editor when activated.
+      await fireEvent.click(
+        screen.getByRole("button", { name: /edit name/i }),
+      );
+      const input = screen.getByRole("textbox", { name: /name/i });
+      await fireEvent.input(input, { target: { value: "Web Server" } });
+      await fireEvent.blur(input);
+
+      expect(oneditname).toHaveBeenCalledWith("Web Server");
+    });
+
+    it("commits an IP edit through oneditip", async () => {
+      const oneditip = vi.fn();
+      renderInspector({ oneditip });
+
+      const input = screen.getByRole("textbox", { name: /ip/i });
+      await fireEvent.input(input, { target: { value: "10.0.0.5" } });
+      await fireEvent.blur(input);
+
+      expect(oneditip).toHaveBeenCalledWith("10.0.0.5");
+    });
+
+    it("commits a notes edit through oneditnotes", async () => {
+      const oneditnotes = vi.fn();
+      renderInspector({ oneditnotes });
+
+      const input = screen.getByRole("textbox", { name: /notes/i });
+      await fireEvent.input(input, { target: { value: "Rebooted nightly" } });
+      await fireEvent.blur(input);
+
+      expect(oneditnotes).toHaveBeenCalledWith("Rebooted nightly");
+    });
+
+    it("seeds the IP editor with the supplied ip value", () => {
+      renderInspector({ ip: "192.168.1.10" });
+      const input = screen.getByRole("textbox", {
+        name: /ip/i,
+      }) as HTMLInputElement;
+      expect(input.value).toBe("192.168.1.10");
     });
   });
 });

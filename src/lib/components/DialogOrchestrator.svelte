@@ -533,6 +533,31 @@
 
   const mobileVerbs = $derived(getSelectionVerbsWithState(mobileActionCtx));
 
+  // Inline-edit handlers for the mobile inspector fields. They write through
+  // the recorded layout-store mutators (undo/redo aware) against the same rack
+  // and device index the bottom sheet is showing.
+  function handleEditDeviceName(name: string): void {
+    const rackId = layoutStore.activeRack?.id;
+    if (rackId == null || selectedDeviceForSheet === null) return;
+    layoutStore.updateDeviceName(rackId, selectedDeviceForSheet, name || undefined);
+  }
+
+  function handleEditDeviceIp(ip: string): void {
+    const rackId = layoutStore.activeRack?.id;
+    if (rackId == null || selectedDeviceForSheet === null) return;
+    layoutStore.updateDeviceIp(rackId, selectedDeviceForSheet, ip || undefined);
+  }
+
+  function handleEditDeviceNotes(notes: string): void {
+    const rackId = layoutStore.activeRack?.id;
+    if (rackId == null || selectedDeviceForSheet === null) return;
+    layoutStore.updateDeviceNotes(
+      rackId,
+      selectedDeviceForSheet,
+      notes || undefined,
+    );
+  }
+
   // Dispatch a registry verb by action id to the shared handler. The handlers
   // read live selection state from the stores, so they act on the same device
   // the mobile bottom sheet is showing.
@@ -647,6 +672,8 @@
     : null}
   {#if device && deviceType}
     {@const rackHeight = activeRack.height}
+    {@const deviceIp =
+      typeof device.custom_fields?.ip === "string" ? device.custom_fields.ip : ""}
     <Dialog
       open={bottomSheetOpen}
       title={deviceType.model ?? "Device"}
@@ -661,6 +688,10 @@
         showActions={true}
         verbs={mobileVerbs}
         onaction={handleMobileVerb}
+        ip={deviceIp}
+        oneditname={handleEditDeviceName}
+        oneditip={handleEditDeviceIp}
+        oneditnotes={handleEditDeviceNotes}
       />
     </Dialog>
   {/if}
