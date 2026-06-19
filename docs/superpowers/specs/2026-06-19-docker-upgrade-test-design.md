@@ -1,7 +1,6 @@
 # Faithful Docker upgrade test and guide
 
-Date: 2026-06-19
-Status: approved, pending implementation plan
+Date: 2026-06-19 Status: approved, pending implementation plan
 
 ## Problem
 
