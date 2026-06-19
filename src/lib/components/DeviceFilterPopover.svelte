@@ -61,7 +61,9 @@
 <Popover.Root>
   <Popover.Trigger
     class="filter-trigger"
-    aria-label="Filter devices"
+    aria-label={hasActiveFilters
+      ? `Filter devices (${activeFilterCount} active)`
+      : "Filter devices"}
     data-testid="btn-device-filter"
   >
     <IconFilter size={ICON_SIZE.sm} />
