@@ -74,6 +74,13 @@ export type FormFactor =
  */
 export type DisplayMode = "label" | "image" | "image-label";
 
+/** Short human labels for each display mode, shown on the display-mode controls. */
+export const DISPLAY_MODE_LABELS: Record<DisplayMode, string> = {
+  label: "Labels",
+  image: "Images",
+  "image-label": "Both",
+};
+
 /**
  * Annotation field for rack-side annotation column
  * - 'name': Custom placement name

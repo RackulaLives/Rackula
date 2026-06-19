@@ -38,22 +38,16 @@
   import BrandIcon from "./BrandIcon.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
   import Tooltip from "./Tooltip.svelte";
-  import IconTextBold from "./icons/IconTextBold.svelte";
-  import IconImageBold from "./icons/IconImageBold.svelte";
-  import IconImageLabel from "./icons/IconImageLabel.svelte";
   import IconPin from "./icons/IconPin.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
-  import type { DeviceType, DisplayMode } from "$lib/types";
+  import type { DeviceType } from "$lib/types";
 
   interface Props {
     ondeviceselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
     oncreatedevice?: () => void;
-    /** Cycle the canvas display mode (label -> image -> image-label). The
-     *  palette toggle mirrors the canonical lens; it does not own the state. */
-    ontoggledisplaymode?: () => void;
   }
 
-  let { ondeviceselect, oncreatedevice, ontoggledisplaymode }: Props = $props();
+  let { ondeviceselect, oncreatedevice }: Props = $props();
 
   // Estimated palette row height in pixels, used by the virtualized lists.
   // Rows are a flex line with var(--touch-target-min) min-height (48px) plus
@@ -103,14 +97,6 @@
     favouriteSlugs = toggleFavourite(favouriteSlugs, event.detail.device.slug);
     saveFavouritesToStorage(favouriteSlugs);
   }
-
-  // Display mode mirrors the canonical canvas lens (uiStore.displayMode); the
-  // palette only reflects and forwards toggle requests, it never owns the state.
-  const displayModeLabels: Record<DisplayMode, string> = {
-    label: "Labels",
-    image: "Images",
-    "image-label": "Both",
-  };
 
   // Accordion mode and state tracking
   let accordionMode = $state<"single" | "multiple">("single");
@@ -540,29 +526,6 @@
         aria-label="Search devices"
         data-testid="search-devices"
       />
-      {#if ontoggledisplaymode}
-        <Tooltip
-          text={`Display: ${displayModeLabels[uiStore.displayMode]}`}
-          shortcut="I"
-          position="bottom"
-        >
-          <button
-            type="button"
-            class="palette-header-btn"
-            onclick={ontoggledisplaymode}
-            aria-label="Toggle device display mode"
-            data-testid="btn-palette-display-mode"
-          >
-            {#if uiStore.displayMode === "label"}
-              <IconTextBold size={ICON_SIZE.sm} />
-            {:else if uiStore.displayMode === "image"}
-              <IconImageBold size={ICON_SIZE.sm} />
-            {:else}
-              <IconImageLabel size={ICON_SIZE.sm} />
-            {/if}
-          </button>
-        </Tooltip>
-      {/if}
       {#if oncreatedevice}
         <Tooltip text="Create custom device" position="bottom">
           <button
@@ -766,8 +729,7 @@
       box-shadow var(--duration-fast) ease;
   }
 
-  .create-device-btn,
-  .palette-header-btn {
+  .create-device-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -790,21 +752,18 @@
       border-color var(--duration-fast) ease;
   }
 
-  .create-device-btn:hover,
-  .palette-header-btn:hover {
+  .create-device-btn:hover {
     color: var(--colour-text);
     background: var(--colour-surface-hover);
     border-color: var(--colour-border-hover);
   }
 
-  .create-device-btn:focus-visible,
-  .palette-header-btn:focus-visible {
+  .create-device-btn:focus-visible {
     outline: 2px solid var(--colour-selection);
     outline-offset: 2px;
   }
 
-  .create-device-btn:active,
-  .palette-header-btn:active {
+  .create-device-btn:active {
     background: var(--colour-surface-active);
   }
 

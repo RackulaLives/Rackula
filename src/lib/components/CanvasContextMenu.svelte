@@ -6,6 +6,7 @@
 <script lang="ts">
   import { ContextMenu } from "bits-ui";
   import type { Snippet } from "svelte";
+  import { DISPLAY_MODE_LABELS, type DisplayMode } from "$lib/types";
   import "$lib/styles/context-menus.css";
 
   interface Props {
@@ -19,6 +20,10 @@
     onfitall?: () => void;
     /** Reset zoom to 100% callback */
     onresetzoom?: () => void;
+    /** Current display mode, used to label the toggle entry */
+    displayMode?: DisplayMode;
+    /** Cycle the canvas display mode (label -> image -> image-label) */
+    ontoggledisplaymode?: () => void;
     /** Trigger element (the canvas) */
     children: Snippet;
   }
@@ -29,6 +34,8 @@
     onnewrack,
     onfitall,
     onresetzoom,
+    displayMode,
+    ontoggledisplaymode,
     children,
   }: Props = $props();
 
@@ -82,6 +89,21 @@
       >
         <span class="context-menu-label">Reset Zoom</span>
       </ContextMenu.Item>
+
+      {#if ontoggledisplaymode}
+        <ContextMenu.Separator class="context-menu-separator" />
+
+        <ContextMenu.Item
+          class="context-menu-item"
+          data-testid="ctx-menu-item"
+          onSelect={handleSelect(ontoggledisplaymode)}
+        >
+          <span class="context-menu-label">
+            Display{displayMode ? `: ${DISPLAY_MODE_LABELS[displayMode]}` : ""}
+          </span>
+          <span class="context-menu-shortcut">I</span>
+        </ContextMenu.Item>
+      {/if}
     </ContextMenu.Content>
   </ContextMenu.Portal>
 </ContextMenu.Root>

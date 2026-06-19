@@ -13,7 +13,7 @@
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
-  import type { DisplayMode } from "$lib/types";
+  import { DISPLAY_MODE_LABELS, type DisplayMode } from "$lib/types";
   import Tooltip from "../Tooltip.svelte";
   import {
     IconFitAllBold,
@@ -37,12 +37,6 @@
   const canvasStore = getCanvasStore();
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
-
-  const displayModeLabels: Record<DisplayMode, string> = {
-    label: "Labels",
-    image: "Images",
-    "image-label": "Both",
-  };
 
   function handleUndo() {
     if (!layoutStore.canUndo) return;
@@ -146,7 +140,7 @@
     </Tooltip>
 
     <Tooltip
-      text={`Display: ${displayModeLabels[displayMode]}`}
+      text={`Display: ${DISPLAY_MODE_LABELS[displayMode]}`}
       shortcut="I"
       position="top"
     >

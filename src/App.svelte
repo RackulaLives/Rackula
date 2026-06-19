@@ -581,10 +581,7 @@
                 oncollapse={handleCollapseSidebar}
               />
               {#if uiStore.sidebarTab === "devices"}
-                <DevicePalette
-                  oncreatedevice={handleAddDevice}
-                  ontoggledisplaymode={handleToggleDisplayMode}
-                />
+                <DevicePalette oncreatedevice={handleAddDevice} />
               {:else if uiStore.sidebarTab === "racks"}
                 <RackList
                   onnewrack={handleNewRack}
@@ -611,6 +608,8 @@
               onshare={handleShare}
               onfitall={handleFitAll}
               onresetzoom={() => canvasStore.resetZoom()}
+              displayMode={uiStore.displayMode}
+              ontoggledisplaymode={handleToggleDisplayMode}
               {partyMode}
               enableLongPress={false}
               onracklongpress={handleRackLongPress}
@@ -640,6 +639,8 @@
           onshare={handleShare}
           onfitall={handleFitAll}
           onresetzoom={() => canvasStore.resetZoom()}
+          displayMode={uiStore.displayMode}
+          ontoggledisplaymode={handleToggleDisplayMode}
           {partyMode}
           enableLongPress={viewportStore.isMobile && !placementStore.isPlacing}
           onracklongpress={handleRackLongPress}

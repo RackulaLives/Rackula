@@ -23,7 +23,7 @@
   import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
   import { hapticTap } from "$lib/utils/haptics";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
-  import type { DeviceFace } from "$lib/types";
+  import type { DeviceFace, DisplayMode } from "$lib/types";
   import {
     loadStarterTemplates,
     type StarterTemplate,
@@ -48,6 +48,10 @@
     onshare?: () => void;
     onfitall?: () => void;
     onresetzoom?: () => void;
+    /** Current display mode, for the canvas context-menu toggle entry */
+    displayMode?: DisplayMode;
+    /** Cycle the canvas display mode from the context menu */
+    ontoggledisplaymode?: () => void;
     onrackselect?: (event: CustomEvent<{ rackId: string }>) => void;
     ondeviceselect?: (
       event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
@@ -103,6 +107,8 @@
     onshare,
     onfitall,
     onresetzoom,
+    displayMode,
+    ontoggledisplaymode,
     onrackselect,
     ondeviceselect,
     ondevicedrop,
@@ -403,6 +409,8 @@
   onnewrack={handleNewRack}
   onfitall={() => onfitall?.() ?? canvasStore.fitAll(racks)}
   onresetzoom={() => onresetzoom?.() ?? canvasStore.resetZoom()}
+  {displayMode}
+  {ontoggledisplaymode}
 >
   <div
     class="canvas"
