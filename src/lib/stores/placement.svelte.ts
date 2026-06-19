@@ -46,7 +46,9 @@ function resetState(): void {
  * Use abandonPlacement() for silent internal resets that should not be announced.
  */
 function cancelPlacement(): void {
-  placementAnnouncement = "Placement cancelled";
+  if (isPlacing) {
+    placementAnnouncement = "Placement cancelled";
+  }
   resetState();
 }
 
