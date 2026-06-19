@@ -334,3 +334,101 @@ export function getRackWidthIncompatibilityReason(
 function resolveDeviceRackWidths(device: DeviceType): number[] {
   return device.rack_widths?.length ? device.rack_widths : DEFAULT_RACK_WIDTHS;
 }
+
+/**
+ * Height bucket facets for attribute filtering.
+ * `"0.5"` covers all sub-1U devices; `"1"`/`"2"`/`"3"` are exact U heights;
+ * `"4plus"` covers 4U and taller.
+ */
+export type HeightBucket = "0.5" | "1" | "2" | "3" | "4plus";
+
+/**
+ * Attribute filter selections for the device palette.
+ * An empty object (no heights, both width flags false, facets false) is a no-op.
+ */
+export interface DeviceAttributeFilters {
+  /** Selected height buckets. OR within the group. */
+  heights: Set<HeightBucket>;
+  /** Keep half-width devices (`slot_width === 1`). */
+  halfWidth: boolean;
+  /** Keep full-width devices (`slot_width === 2` or unset). */
+  fullWidth: boolean;
+  /** Keep only devices with a front or rear image. */
+  hasImage: boolean;
+  /** Keep only custom (user-created) devices. */
+  customOnly: boolean;
+}
+
+/** Whether a device's height falls into the given bucket. */
+function matchesHeightBucket(uHeight: number, bucket: HeightBucket): boolean {
+  switch (bucket) {
+    case "0.5":
+      return uHeight < 1;
+    case "4plus":
+      return uHeight >= 4;
+    default:
+      return uHeight === Number(bucket);
+  }
+}
+
+/**
+ * Filter devices by attribute facets: height bucket, half/full width,
+ * has-image, and custom-only. Pure function; custom detection is injected
+ * via `isCustom` rather than imported, so the predicate stays testable.
+ *
+ * Within the height group, buckets are OR'd. Width is OR'd too: selecting both
+ * or neither half and full applies no width filter. Across groups the result is
+ * AND'd, so a group with no active selection is skipped and empty filters return
+ * the input array unchanged.
+ *
+ * @param devices - Devices to filter
+ * @param filters - Active attribute selections
+ * @param isCustom - Predicate returning true for custom (user-created) device slugs
+ * @returns Filtered devices (the original array reference when no filter is active)
+ */
+export function filterDevicesByAttributes(
+  devices: DeviceType[],
+  filters: DeviceAttributeFilters,
+  isCustom: (slug: string) => boolean,
+): DeviceType[] {
+  const filterByHeight = filters.heights.size > 0;
+  // Both or neither selected means no width filtering.
+  const filterByWidth = filters.halfWidth !== filters.fullWidth;
+
+  if (
+    !filterByHeight &&
+    !filterByWidth &&
+    !filters.hasImage &&
+    !filters.customOnly
+  ) {
+    return devices;
+  }
+
+  return devices.filter((device) => {
+    if (
+      filterByHeight &&
+      ![...filters.heights].some((bucket) =>
+        matchesHeightBucket(device.u_height, bucket),
+      )
+    ) {
+      return false;
+    }
+
+    if (filterByWidth) {
+      const isHalf = device.slot_width === 1;
+      if (filters.halfWidth !== isHalf) {
+        return false;
+      }
+    }
+
+    if (filters.hasImage && !(device.front_image || device.rear_image)) {
+      return false;
+    }
+
+    if (filters.customOnly && !isCustom(device.slug)) {
+      return false;
+    }
+
+    return true;
+  });
+}
