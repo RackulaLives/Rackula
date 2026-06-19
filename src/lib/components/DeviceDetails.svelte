@@ -115,17 +115,29 @@
   }
 
   // --- Inline name editing (click to edit, commit on blur/Enter) ---
-  let editingName = $state(false);
+  // editingDeviceId pins the edit to the placement it started on. A blur can
+  // fire after the selection has advanced to another placement, so commits and
+  // the open editor are gated on the current device still matching (mirrors the
+  // desktop EditPanelMetadata guard, #2223).
+  let editingDeviceId = $state<string | null>(null);
   let nameInput = $state("");
+  const editingName = $derived(
+    editingDeviceId !== null && device.id === editingDeviceId,
+  );
 
   function startEditingName() {
     nameInput = device.name ?? deviceType.model ?? deviceType.slug;
-    editingName = true;
+    editingDeviceId = device.id;
   }
 
   function commitName() {
-    if (!editingName) return;
-    editingName = false;
+    // Abort if the selection moved to a different placement mid-edit, so a
+    // pending commit never lands on the wrong device.
+    if (device.id !== editingDeviceId) {
+      editingDeviceId = null;
+      return;
+    }
+    editingDeviceId = null;
     const next = nameInput.trim();
     const typeName = deviceType.model ?? deviceType.slug;
     oneditname?.(next === typeName ? "" : next);
@@ -136,7 +148,7 @@
       event.preventDefault();
       commitName();
     } else if (event.key === "Escape") {
-      editingName = false;
+      editingDeviceId = null;
     }
   }
 
@@ -504,14 +516,14 @@
 
   .name-section {
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--colour-border);
   }
 
   .device-name {
     font-size: 1.25rem;
     font-weight: 600;
     margin: 0;
-    color: var(--color-text);
+    color: var(--colour-text);
   }
 
   .info-section,
@@ -530,24 +542,24 @@
 
   .info-label {
     font-weight: 500;
-    color: var(--color-text-secondary);
+    color: var(--colour-text-muted);
     flex-shrink: 0;
   }
 
   .info-value {
     text-align: right;
-    color: var(--color-text);
+    color: var(--colour-text);
     flex-grow: 1;
   }
 
   .notes-section {
     padding-top: 0.5rem;
-    border-top: 1px solid var(--color-border);
+    border-top: 1px solid var(--colour-border);
   }
 
   .notes-text {
     margin: 0;
-    color: var(--color-text);
+    color: var(--colour-text);
     white-space: pre-wrap;
     word-break: break-word;
   }

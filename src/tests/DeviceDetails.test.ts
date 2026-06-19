@@ -365,5 +365,36 @@ describe("DeviceDetails", () => {
       }) as HTMLInputElement;
       expect(input.value).toBe("192.168.1.10");
     });
+
+    it("aborts a pending name commit when the selection changes mid-edit", async () => {
+      const oneditname = vi.fn();
+      const deviceType = createTestDeviceType({ model: "Dell PowerEdge R740" });
+      const { rerender } = render(DeviceDetails, {
+        props: {
+          device: createTestPlacedDevice({ id: "device-a" }),
+          deviceType,
+          showActions: true,
+          verbs: allVerbs,
+          oneditname,
+        },
+      });
+
+      await fireEvent.click(screen.getByRole("button", { name: /edit name/i }));
+      const input = screen.getByRole("textbox", { name: /name/i });
+      await fireEvent.input(input, { target: { value: "Web Server" } });
+
+      // Selection advances to a different placement before the input blurs.
+      await rerender({
+        device: createTestPlacedDevice({ id: "device-b" }),
+        deviceType,
+        showActions: true,
+        verbs: allVerbs,
+        oneditname,
+      });
+      await fireEvent.blur(input);
+
+      // The stale edit must not land on the newly selected device.
+      expect(oneditname).not.toHaveBeenCalled();
+    });
   });
 });
