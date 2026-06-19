@@ -30,7 +30,6 @@ export type SheetId =
   | "deviceDetails"
   | "deviceLibrary"
   | "rackEdit"
-  | "fileActions"
   | "layouts"
   | "racks"
   | "view"
