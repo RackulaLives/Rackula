@@ -63,6 +63,9 @@ test.describe("Responsive Layout", () => {
       await expect(
         page.getByRole("button", { name: /load layout/i }),
       ).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: /export layout/i }),
+      ).toHaveCount(0);
     });
 
     test("layout name shows in the mobile top bar", async ({ page }) => {
