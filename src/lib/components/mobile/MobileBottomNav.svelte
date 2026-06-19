@@ -37,6 +37,21 @@
   }: Props = $props();
 
   const viewportStore = getViewportStore();
+
+  /**
+   * Focus the tapped button before invoking the sheet-open handler.
+   * Touch taps do not move keyboard focus on mobile by default, so bits-ui
+   * cannot capture a "previously focused element" for focus restoration on
+   * sheet close. Calling focus() first ensures the button is the pre-focus
+   * element that bits-ui restores when the sheet closes.
+   */
+  function handleTabClick(
+    event: MouseEvent,
+    handler: (() => void) | undefined,
+  ): void {
+    (event.currentTarget as HTMLElement).focus();
+    handler?.();
+  }
 </script>
 
 {#if viewportStore.isMobile}
@@ -52,7 +67,8 @@
       type="button"
       data-testid="nav-tab-layouts"
       aria-current={activeTab === "layouts" ? "page" : undefined}
-      onclick={onlayoutsclick}
+      aria-expanded={activeTab === "layouts"}
+      onclick={(e) => handleTabClick(e, onlayoutsclick)}
     >
       <IconFolderBold size={ICON_SIZE.xl} />
       <span class="nav-label">Layouts</span>
@@ -64,7 +80,8 @@
       type="button"
       data-testid="nav-tab-racks"
       aria-current={activeTab === "racks" ? "page" : undefined}
-      onclick={onracksclick}
+      aria-expanded={activeTab === "racks"}
+      onclick={(e) => handleTabClick(e, onracksclick)}
     >
       <IconServerBold size={ICON_SIZE.xl} />
       <span class="nav-label">Racks</span>
@@ -76,7 +93,8 @@
       type="button"
       data-testid="nav-tab-devices"
       aria-current={activeTab === "devices" ? "page" : undefined}
-      onclick={ondevicesclick}
+      aria-expanded={activeTab === "devices"}
+      onclick={(e) => handleTabClick(e, ondevicesclick)}
     >
       <IconImageBold size={ICON_SIZE.xl} />
       <span class="nav-label">Devices</span>
@@ -88,7 +106,8 @@
       type="button"
       data-testid="nav-tab-view"
       aria-current={activeTab === "view" ? "page" : undefined}
-      onclick={onviewclick}
+      aria-expanded={activeTab === "view"}
+      onclick={(e) => handleTabClick(e, onviewclick)}
     >
       <IconFitAllBold size={ICON_SIZE.xl} />
       <span class="nav-label">View</span>

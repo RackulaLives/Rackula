@@ -95,6 +95,12 @@ function handleEscape(): void {
     handleFitAll();
     return;
   }
+  // Close any open mobile sheet before clearing selection so Escape gives the
+  // user a progressive exit: sheet first, then selection.
+  if (dialogStore.currentSheet !== null) {
+    dialogStore.closeSheet();
+    return;
+  }
   selectionStore.clearSelection();
   layoutStore.setActiveRack(null);
   uiStore.closeLeftDrawer();

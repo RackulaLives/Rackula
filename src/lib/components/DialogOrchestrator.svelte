@@ -1040,3 +1040,21 @@
   style="display: none;"
   aria-label="Import device library file"
 />
+
+<!--
+  Placement outcome SR announcer (#2473).
+  Assertive live region announces placement transitions (placed, cancelled).
+  The PlacementIndicator banner already covers the active-placing state via a
+  polite region; this assertive region interrupts immediately when placement ends.
+  No explicit role: role="alert" would redundantly duplicate aria-live="assertive"
+  and could trigger axe-core's redundant-role rule. The region is always in the
+  DOM so assistive technology registers it before any content arrives.
+-->
+<div
+  aria-live="assertive"
+  aria-atomic="true"
+  class="sr-only"
+  data-testid="placement-sr-announcer"
+>
+  {placementStore.placementAnnouncement ?? ""}
+</div>

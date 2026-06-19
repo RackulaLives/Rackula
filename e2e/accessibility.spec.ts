@@ -225,6 +225,76 @@ test.describe("Accessibility", () => {
     });
   });
 
+  test.describe("Mobile bottom sheet focus management", () => {
+    test.beforeEach(async ({ page, browserName }) => {
+      // Tab-based focus traversal relies on the browser visiting buttons in Tab
+      // order. WebKit skips buttons by default (macOS "Full Keyboard Access").
+      test.skip(
+        browserName === "webkit",
+        "WebKit skips buttons in Tab order by default (macOS keyboard setting)",
+      );
+      await gotoMobileWithRack(page);
+    });
+
+    test("mobile sheet traps Tab focus while open", async ({ page }) => {
+      // Open the Devices sheet via the bottom nav.
+      const devicesTab = page.getByRole("button", { name: "Devices" });
+      await devicesTab.focus();
+      await devicesTab.click();
+
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+
+      // Tab repeatedly; focus must stay inside the sheet on every stop.
+      for (let i = 0; i < 15; i++) {
+        await page.keyboard.press("Tab");
+        const focusInDialog = await dialog.evaluate((node) =>
+          node.contains(document.activeElement),
+        );
+        expect(focusInDialog).toBe(true);
+      }
+    });
+
+    test("closing a mobile sheet via Escape restores focus to the nav tab", async ({
+      page,
+    }) => {
+      // Open the View sheet via the bottom nav.
+      const viewTab = page.getByRole("button", { name: "View" });
+      await viewTab.focus();
+      await viewTab.click();
+
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+
+      await page.keyboard.press("Escape");
+      await expect(dialog).not.toBeVisible();
+
+      // Focus must return to the View tab button that opened the sheet.
+      await expect(viewTab).toBeFocused();
+    });
+
+    test("Escape cancels active placement and hides the Placing banner", async ({
+      page,
+    }) => {
+      // Arm a device for placement via the Devices sheet.
+      const devicesTab = page.getByRole("button", { name: "Devices" });
+      await devicesTab.focus();
+      await devicesTab.click();
+      await expect(
+        page.locator(locators.device.paletteItem).first(),
+      ).toBeVisible();
+      await page.locator(locators.device.paletteItem).first().click();
+
+      // Confirm the Placing banner is visible.
+      const banner = page.locator('[aria-live]').filter({ hasText: /placing:/i }).first();
+      await expect(banner).toBeVisible();
+
+      // Pressing Escape must cancel placement and hide the banner.
+      await page.keyboard.press("Escape");
+      await expect(banner).not.toBeVisible();
+    });
+  });
+
   test.describe("Live regions", () => {
     test("a status live region announces tap-to-place on mobile", async ({
       page,
@@ -249,6 +319,33 @@ test.describe("Accessibility", () => {
         .filter({ hasText: /placing:/i })
         .first();
       await expect(status).toBeVisible();
+    });
+
+    test("placement cancellation is announced to screen readers", async ({
+      page,
+    }) => {
+      await gotoMobileWithRack(page);
+
+      // Arm a device for placement.
+      await page.getByRole("button", { name: "Devices" }).click();
+      await expect(
+        page.locator(locators.device.paletteItem).first(),
+      ).toBeVisible();
+      await page.locator(locators.device.paletteItem).first().click();
+
+      // The Placing banner must be visible before cancel.
+      const banner = page
+        .getByRole("status")
+        .filter({ hasText: /placing:/i })
+        .first();
+      await expect(banner).toBeVisible();
+
+      // Cancel via the Cancel button in the banner.
+      await page.getByRole("button", { name: /cancel placement/i }).click();
+
+      // The assertive announcer must carry the cancellation message.
+      const announcer = page.getByTestId("placement-sr-announcer");
+      await expect(announcer).toContainText(/cancelled/i);
     });
   });
 
