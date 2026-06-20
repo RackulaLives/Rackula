@@ -121,14 +121,16 @@
     selectedRack !== null || selectedDeviceInfo !== null,
   );
 
-  // Contextual heading naming the current selection kind. The branches mirror the
-  // tabpanel's render order (rack/group first, then device) so the heading never
-  // diverges from the body. A bayed rack group is the multi-rack selection the
-  // model supports; it reads as "Bayed Rack". With nothing selected the heading
+  // Contextual heading naming the current selection kind. A rack heading carries
+  // signal the Name field does not: "Rack" vs "Bayed Rack" tells you the selection
+  // kind, and a bayed group's Name field shows the group name rather than the fact
+  // that it is a multi-rack group. A device heading would be redundant (the Identity
+  // group's Name field already names the device, inside a tab labelled "Edit"), so a
+  // device selection renders no heading (#2525). With nothing selected the heading
   // stays the neutral tab name and the empty state shows.
   const editHeadingLabel = $derived.by(() => {
     if (selectedRack) return selectedGroup ? "Bayed Rack" : "Rack";
-    if (selectedDeviceInfo) return "Device";
+    if (selectedDeviceInfo) return null;
     return "Edit";
   });
 
@@ -216,13 +218,20 @@
     class="side-panel-tabpanel"
     data-testid="side-panel-panel-edit"
   >
-    <h2 id={editHeadingId} class="side-panel-heading" tabindex="-1">
-      {editHeadingLabel}
-    </h2>
+    <!-- A device selection renders no heading (#2525): the Identity group's Name
+         field already names the device, inside a tab labelled "Edit". The Edit
+         panel still needs a programmatic focus target for expand/tab-switch focus
+         management (#2076); in the device case the editHeadingId moves to the
+         device-view container, which only renders when no heading is present. -->
+    {#if editHeadingLabel}
+      <h2 id={editHeadingId} class="side-panel-heading" tabindex="-1">
+        {editHeadingLabel}
+      </h2>
+    {/if}
     {#if selectedRack}
       <EditPanelRack {selectedRack} {selectedGroup} />
     {:else if selectedDeviceInfo}
-      <div class="device-view">
+      <div id={editHeadingId} class="device-view" tabindex="-1">
         <EditPanelMetadata {selectedDeviceInfo} />
         <EditPanelPosition {selectedDeviceInfo} />
         <EditPanelImage {selectedDeviceInfo} />
@@ -370,6 +379,19 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
+  }
+
+  /* When a device is selected the heading is dropped (#2525) and this container
+     becomes the Edit tab's programmatic focus target. Mirror the heading's focus
+     treatment: no ring for programmatic focus, a visible ring for keyboard. */
+  .device-view:focus {
+    outline: none;
+  }
+
+  .device-view:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
   }
 
   .side-panel-empty {

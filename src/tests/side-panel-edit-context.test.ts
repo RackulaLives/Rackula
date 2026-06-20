@@ -111,7 +111,7 @@ describe("Edit tab contextual properties (#2077)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("names a selected device and shows its device properties", () => {
+  it("shows device properties without a redundant Device heading (#2525)", () => {
     const layoutStore = getLayoutStore();
     const selectionStore = getSelectionStore();
 
@@ -129,9 +129,15 @@ describe("Edit tab contextual properties (#2077)", () => {
 
     renderEditTab();
 
+    // No "Device" heading: the Identity group's Name field already names the
+    // device, inside a tab labelled "Edit" (#2525). The "Edit" empty-state
+    // heading must also be absent, since a device is selected.
     expect(
-      screen.getByRole("heading", { name: /^device$/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole("heading", { name: /^device$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /^edit$/i }),
+    ).not.toBeInTheDocument();
     // The device name editor proves the device body rendered.
     expect(
       screen.getByRole("button", { name: /edit display name/i }),
