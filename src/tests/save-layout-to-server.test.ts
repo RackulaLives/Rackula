@@ -21,6 +21,14 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 const PNG_DATA_URL = `data:image/png;base64,${bytesToBase64(PNG_BYTES)}`;
 
+// A distinct JPEG body (FF D8 FF signature) so its base64 differs from the PNG,
+// letting a mixed-routing test prove WHICH image's base64 survives in the YAML.
+const JPEG_BYTES = Uint8Array.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x02,
+  0x03, 0x04, 0x05,
+]);
+const JPEG_DATA_URL = `data:image/jpeg;base64,${bytesToBase64(JPEG_BYTES)}`;
+
 /** A user image face carrying both a blob and the verbatim data URL. */
 function userFace(): DeviceImageData {
   return {
@@ -28,6 +36,17 @@ function userFace(): DeviceImageData {
       blob: new Blob([PNG_BYTES], { type: "image/png" }),
       dataUrl: PNG_DATA_URL,
       filename: "front.png",
+    },
+  };
+}
+
+/** A distinct JPEG user image face, for tests that need two different payloads. */
+function jpegFace(): DeviceImageData {
+  return {
+    front: {
+      blob: new Blob([JPEG_BYTES], { type: "image/jpeg" }),
+      dataUrl: JPEG_DATA_URL,
+      filename: "front.jpg",
     },
   };
 }
@@ -452,25 +471,28 @@ describe("saveLayoutToServer asset reconcile (server mode)", () => {
     const { fetchMock, calls } = makeRoutedFetch();
     vi.stubGlobal("fetch", fetchMock);
 
+    // Distinct payloads (PNG for the placement, JPEG for the slug) so the body
+    // assertions can prove WHICH image's bytes survive: the placement PNG must
+    // be dropped (on disk), the slug JPEG must remain embedded.
     await saveLayoutToServer(
       createTestLayout({ metadata: { id: SERVER_UUID } }),
       imageMap([
         [PLACEMENT_KEY, userFace()],
-        ["server-1u", userFace()],
+        ["server-1u", jpegFace()],
       ]),
       null,
     );
 
-    // Placement image goes to disk.
+    // Placement PNG goes to disk.
     const assetPut = calls.find(
       (c) =>
         c.method === "PUT" &&
         c.url.endsWith(`/assets/${SERVER_UUID}/${DEVICE_ID}/front`),
     );
     expect(assetPut).toBeDefined();
-    // Slug image stays embedded; the placement image's base64 is dropped.
+    // The slug JPEG stays embedded; the placement PNG's base64 is gone.
     const body = yamlBodyOf(calls);
-    expect(body).toContain("server-1u");
-    expect(body).toContain("data:image/png;base64");
+    expect(body).toContain(JPEG_DATA_URL);
+    expect(body).not.toContain(PNG_DATA_URL);
   });
 });
