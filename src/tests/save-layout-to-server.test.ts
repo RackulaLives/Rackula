@@ -43,9 +43,7 @@ function embeddedOnlyFace(): DeviceImageData {
 }
 
 /** Build a user-image store map keyed by namespaced placement keys. */
-function imageMap(
-  entries: Array<[string, DeviceImageData]>,
-): ImageStoreMap {
+function imageMap(entries: Array<[string, DeviceImageData]>): ImageStoreMap {
   return new Map(entries);
 }
 
@@ -94,7 +92,10 @@ function makeRoutedFetch(opts?: {
       }
       // PUT /layouts/:uuid  (YAML save)
       return new Response(
-        JSON.stringify({ id: SERVER_UUID, updatedAt: "2026-06-20T00:00:00.000Z" }),
+        JSON.stringify({
+          id: SERVER_UUID,
+          updatedAt: "2026-06-20T00:00:00.000Z",
+        }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       );
     },
@@ -333,7 +334,9 @@ describe("saveLayoutToServer asset reconcile (server mode)", () => {
       (c) => c.method === "PUT" && c.url.includes(`/assets/${SERVER_UUID}/`),
     );
     expect(assetPut).toBeDefined();
-    expect(assetPut?.url).toContain(`/assets/${SERVER_UUID}/${DEVICE_ID}/front`);
+    expect(assetPut?.url).toContain(
+      `/assets/${SERVER_UUID}/${DEVICE_ID}/front`,
+    );
   });
 
   it("omits the embedded base64 images block from the YAML body", async () => {

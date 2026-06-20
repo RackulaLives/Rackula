@@ -53,7 +53,10 @@ assets.get("/:layoutId", async (c) => {
   } catch (error) {
     // listLayoutAssets throws "Layout not found" when the layout folder is
     // absent. For the reconcile that means an empty on-disk set, not a failure.
-    if (error instanceof Error && error.message.startsWith("Layout not found")) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Layout not found")
+    ) {
       return c.json({ assets: [] }, 200);
     }
     // listLayoutAssets validates the id more strictly (full UUID) than the
