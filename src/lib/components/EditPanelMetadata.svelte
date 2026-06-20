@@ -34,20 +34,6 @@
   const toastStore = getToastStore();
   const uiStore = getUIStore();
 
-  // Count of device type facts shown in the collapsible block, so the header can
-  // report how many are hidden when collapsed. Type, Brand, Height, Depth, Width
-  // and Category always show; outlet count, VA rating, tags and device-type notes
-  // are conditional.
-  const deviceTypeFactCount = $derived.by(() => {
-    const device = selectedDeviceInfo.device;
-    let count = 6; // Type, Brand, Height, Depth, Width, Category
-    if (device.category === "power" && device.outlet_count) count += 1;
-    if (device.category === "power" && device.va_rating) count += 1;
-    if (deviceTags.length > 0) count += 1;
-    if (device.notes) count += 1;
-    return count;
-  });
-
   // Authoritative device definition from the starter/brand library, falling back
   // to the layout copy. The layout copy can be stale (e.g. a device placed before
   // its library definition gained a manufacturer), so brand and full-depth display
@@ -61,6 +47,20 @@
   const deviceTags = $derived(
     authoritativeDevice.tags ?? selectedDeviceInfo.device.tags ?? [],
   );
+
+  // Count of device type facts shown in the collapsible block, so the header can
+  // report how many are hidden when collapsed. Type, Brand, Height, Depth, Width
+  // and Category always show; outlet count, VA rating, tags and device-type notes
+  // are conditional.
+  const deviceTypeFactCount = $derived.by(() => {
+    const device = selectedDeviceInfo.device;
+    let count = 6; // Type, Brand, Height, Depth, Width, Category
+    if (device.category === "power" && device.outlet_count) count += 1;
+    if (device.category === "power" && device.va_rating) count += 1;
+    if (deviceTags.length > 0) count += 1;
+    if (device.notes) count += 1;
+    return count;
+  });
 
   // State for device name editing. editingDeviceId pins the edit to the device
   // it started on; the editor is only open while the current selection still
