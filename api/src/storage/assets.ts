@@ -25,6 +25,79 @@ const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const ALLOWED_EXTS = new Set(["png", "jpg", "webp"]);
 export const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
+/**
+ * Detect an image MIME type purely from leading magic bytes.
+ *
+ * Recognises PNG, JPEG, and WebP. Returns null for anything unrecognised
+ * (including GIF, SVG, and text/HTML starting with "<"), so the asset write
+ * path can reject untrusted or disallowed content without trusting the
+ * declared Content-Type. SVG is excluded by construction (it has no raster
+ * magic bytes), which keeps stored-XSS payloads off the app origin.
+ *
+ * ALLOWLIST PARITY: this is an independent copy of the client detector
+ * `detectImageMime` in `src/lib/utils/image-encoding.ts` (the Bun API cannot
+ * import the Svelte bundle). The two must accept the same formats; if you
+ * change one, change the other. The client pre-check is advisory; this server
+ * copy is the authority for what lands on disk.
+ */
+function detectImageMime(bytes: Uint8Array): string | null {
+  // PNG: full 8-byte signature 89 50 4E 47 0D 0A 1A 0A
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+
+  // JPEG: FF D8 FF
+  if (
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  ) {
+    return "image/jpeg";
+  }
+
+  // WebP: "RIFF" at 0-3 and "WEBP" at 8-11
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+
+  return null;
+}
+
+/**
+ * Thrown by saveAsset when a write is rejected because the bytes fail the
+ * magic-byte sniff (non-raster, SVG/GIF/polyglot) or sniff to a type that
+ * disagrees with the declared Content-Type. This is a client error (the upload
+ * is bad), so the route maps it to a 400. A typed error keeps that mapping
+ * robust against message rewording (a plain Error would fall through to a 500).
+ */
+export class AssetRejectedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AssetRejectedError";
+  }
+}
+
 // Schema for device slug validation
 // Prevents path traversal attacks
 // Note: Device slugs allow underscores (unlike LayoutIdSchema) to support
@@ -166,7 +239,28 @@ export async function saveAsset(
     );
   }
 
-  const ext = getExtFromContentType(contentType);
+  // Magic-byte sniff is the authority for what reaches disk. The declared
+  // Content-Type is advisory: a non-image body sent as image/png, an SVG, a
+  // GIF, or an HTML/JS polyglot would otherwise be stored and served from the
+  // app origin (stored XSS / MIME confusion). Reject when the bytes do not
+  // sniff to a raster format, or sniff to a format that disagrees with the
+  // declared type. Every disk write (PUT and the migration rewrite) flows
+  // through here, so both share this one chokepoint.
+  const sniffedType = detectImageMime(new Uint8Array(data));
+  if (!sniffedType) {
+    throw new AssetRejectedError(
+      "Rejected asset: bytes do not match an allowed image format (png/jpeg/webp)",
+    );
+  }
+  if (sniffedType !== contentType) {
+    throw new AssetRejectedError(
+      `Rejected asset: declared content type ${contentType} disagrees with sniffed type ${sniffedType}`,
+    );
+  }
+
+  // Derive the on-disk extension from the SNIFFED type, never the declared
+  // header, so a spoofed Content-Type cannot pick the filename.
+  const ext = getExtFromContentType(sniffedType);
   const assetPath = await buildAssetPath(layoutId, deviceSlug, face, ext);
 
   // Ensure directory exists (creates assets/ and device folder only when needed)
