@@ -24,7 +24,10 @@ import {
   SUPPORTED_IMAGE_FORMATS,
   MAX_IMAGE_SIZE_BYTES,
 } from "$lib/types/constants";
-import { deviceIdFromPlacementKey } from "$lib/utils/placement-key";
+import {
+  deviceIdFromPlacementKey,
+  isPlacementKey,
+} from "$lib/utils/placement-key";
 import { persistenceDebug } from "$lib/utils/debug";
 
 const log = persistenceDebug.api;
@@ -55,6 +58,11 @@ const BARE_UUID =
  * path-character-bearing segment can never reach the server.
  */
 export function deviceKeyForWire(placementKey: string): string {
+  if (!isPlacementKey(placementKey)) {
+    throw new PersistenceError(
+      `Unsafe asset device key: expected a "placement-" key, got "${placementKey}"`,
+    );
+  }
   const deviceId = deviceIdFromPlacementKey(placementKey);
   if (!BARE_UUID.test(deviceId)) {
     throw new PersistenceError(
@@ -64,9 +72,14 @@ export function deviceKeyForWire(placementKey: string): string {
   return deviceId;
 }
 
-/** Listing entry from `GET /assets/:layoutId` (route added in the Save issue). */
+/**
+ * Listing entry from `GET /assets/:layoutId` (route added in the Save issue).
+ * `deviceSlug` is constrained to the same bare lowercase UUID as the wire path
+ * segment, so malformed server data (a colon, a path char, an unexpected
+ * device-type slug) is rejected before it reaches the save reconcile.
+ */
 const AssetListItemSchema = z.object({
-  deviceSlug: z.string().min(1),
+  deviceSlug: z.string().regex(BARE_UUID),
   face: z.enum(["front", "rear"]),
   ext: z.string().min(1),
   size: z.number().int().nonnegative(),
@@ -76,6 +89,12 @@ const AssetListResponseSchema = z.object({
   assets: z.array(AssetListItemSchema),
 });
 
+/**
+ * One on-disk asset face for a placed device, as returned by `listAssets`.
+ * `deviceSlug` is the placed-device instance UUID; `face` is the physical face;
+ * `ext` is the stored file extension; `size` is the byte length on disk. The
+ * save reconcile set-diffs these against the layout's current custom faces.
+ */
 export type AssetListItem = z.infer<typeof AssetListItemSchema>;
 
 /**

@@ -33,6 +33,11 @@ function normalizeApiBaseUrl(raw: string | undefined): string {
   return `/${trimmed}`;
 }
 
+/**
+ * Normalized API base URL with no trailing slash. Either an absolute
+ * `http(s)://` origin (from `VITE_API_URL`) or a relative path (default
+ * `/api`). Callers append their route to it directly.
+ */
 export const API_BASE_URL: string = normalizeApiBaseUrl(
   import.meta.env.VITE_API_URL,
 );

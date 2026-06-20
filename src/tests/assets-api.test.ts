@@ -70,6 +70,14 @@ describe("deviceKeyForWire", () => {
     const upper = crypto.randomUUID().toUpperCase();
     expect(() => deviceKeyForWire(placementKey(LAYOUT_ID, upper))).toThrow();
   });
+
+  it("rejects a key without the placement- prefix before extracting", () => {
+    // A bare or mis-prefixed key would mis-slice in deviceIdFromPlacementKey;
+    // the prefix guard fails fast rather than relying on the UUID assertion.
+    const uuid = crypto.randomUUID();
+    expect(() => deviceKeyForWire(uuid)).toThrow();
+    expect(() => deviceKeyForWire(`evil:${uuid}`)).toThrow();
+  });
 });
 
 describe("assetUrl", () => {
