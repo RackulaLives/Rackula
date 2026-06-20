@@ -8,7 +8,13 @@ import {
 } from "$lib/storage/api";
 import { setApiAvailable } from "$lib/storage/availability.svelte";
 import { serializeLayoutToYaml } from "$lib/utils/yaml";
-import { createTestLayout } from "./factories";
+import { createMultiLayoutArchive } from "$lib/utils/archive";
+import { placementKey } from "$lib/utils/placement-key";
+import {
+  createTestLayout,
+  createTestRack,
+  createTestDevice,
+} from "./factories";
 
 describe("checkApiHealth", () => {
   function stubBrowserGlobals(): void {
@@ -314,6 +320,154 @@ describe("loadSavedLayout", () => {
       "11111111-1111-4111-8111-111111111111",
     );
     expect(result.updatedAt).toBe("2026-06-14T10:00:00.000Z");
+  });
+});
+
+describe("loadSavedLayout server-mode image eager-fetch", () => {
+  const UUID = "11111111-1111-4111-8111-111111111111";
+  const DEVICE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  // Minimal but valid PNG byte sequence (8-byte signature + a marker byte).
+  const PNG_BYTES = new Uint8Array([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01,
+  ]);
+
+  const originalConfig = window.__RACKULA_CONFIG__;
+
+  function stubBrowserGlobals(): void {
+    vi.stubGlobal("AbortSignal", {
+      timeout: () => new AbortController().signal,
+    });
+  }
+
+  /**
+   * A server-mode layout: one rack, one placed device whose `front_image`
+   * reference points at an on-disk face. The YAML carries no embedded `images:`
+   * block (the migrated, disk-backed shape).
+   */
+  async function serverLayoutYaml(): Promise<string> {
+    const layout = createTestLayout({
+      metadata: { id: UUID },
+      racks: [
+        createTestRack({
+          devices: [
+            createTestDevice({
+              id: DEVICE_ID,
+              front_image: `${DEVICE_ID}.front.png`,
+            }),
+          ],
+        }),
+      ],
+    });
+    return serializeLayoutToYaml(layout, "");
+  }
+
+  /**
+   * Route fetches by URL: the layout GET returns the YAML; an asset GET returns
+   * the PNG bytes unless `failAsset` is set, in which case it 404s.
+   */
+  function routedFetch(yaml: string, opts: { failAsset?: boolean } = {}) {
+    return vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/assets/")) {
+        if (opts.failAsset) {
+          return new Response(JSON.stringify({ error: "Not found" }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return new Response(PNG_BYTES, {
+          status: 200,
+          headers: { "Content-Type": "image/png" },
+        });
+      }
+      return new Response(yaml, {
+        status: 200,
+        headers: { "Content-Type": "text/yaml" },
+      });
+    });
+  }
+
+  beforeEach(() => {
+    setApiAvailable(true);
+    stubBrowserGlobals();
+    window.__RACKULA_CONFIG__ = { storage: "server" };
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    setApiAvailable(false);
+    window.__RACKULA_CONFIG__ = originalConfig;
+  });
+
+  it("eager-fetches each custom face to a blob-bearing store entry keyed by placement key", async () => {
+    const yaml = await serverLayoutYaml();
+    vi.stubGlobal("fetch", routedFetch(yaml));
+
+    const { images, failedKeys, failedImagesCount } =
+      await loadSavedLayout(UUID);
+
+    const key = placementKey(UUID, DEVICE_ID);
+    const entry = images.get(key);
+    expect(entry?.front?.blob).toBeInstanceOf(Blob);
+    expect(failedKeys).toEqual([]);
+    expect(failedImagesCount).toBe(0);
+  });
+
+  it("gives each eager-fetched face a dataUrl so the server YAML encoder round-trips it", async () => {
+    const yaml = await serverLayoutYaml();
+    vi.stubGlobal("fetch", routedFetch(yaml));
+
+    const { images } = await loadSavedLayout(UUID);
+
+    // The store entry must carry a base64 dataUrl, not just a blob/object URL:
+    // encodeUserImagesToYaml embeds from dataUrl and silently drops faces that
+    // lack one, so a load -> edit -> autosave round-trip would otherwise lose
+    // the image. The encoder serializing it back proves the entry survives.
+    const key = placementKey(UUID, DEVICE_ID);
+    const front = images.get(key)?.front;
+    expect(front?.dataUrl).toMatch(/^data:image\/png;base64,/);
+
+    const { encodeUserImagesToYaml } =
+      await import("$lib/utils/image-encoding");
+    const { serialized } = encodeUserImagesToYaml(images);
+    expect(serialized[key]?.front).toBe(front?.dataUrl);
+  });
+
+  it("populates blobs so a subsequent export archive carries the image bytes", async () => {
+    const yaml = await serverLayoutYaml();
+    vi.stubGlobal("fetch", routedFetch(yaml));
+
+    const { layout, images } = await loadSavedLayout(UUID);
+
+    // The store now holds a blob, satisfying createMultiLayoutArchive's .blob
+    // gate, so a load -> export round-trip preserves the bytes.
+    const archive = await createMultiLayoutArchive([{ layout, images }]);
+    expect(archive.size).toBeGreaterThan(0);
+
+    const { getJSZip } = await import("$lib/utils/archive");
+    const JSZip = await getJSZip();
+    const zip = await JSZip.loadAsync(archive);
+    const assetPaths = Object.keys(zip.files).filter(
+      (p) => p.includes("/assets/") && p.includes(DEVICE_ID),
+    );
+    expect(assetPaths.length).toBeGreaterThan(0);
+  });
+
+  it("treats a 404 face as non-fatal: the layout still loads and the key is reported", async () => {
+    const yaml = await serverLayoutYaml();
+    vi.stubGlobal("fetch", routedFetch(yaml, { failAsset: true }));
+
+    const { layout, images, failedKeys, failedImagesCount } =
+      await loadSavedLayout(UUID);
+
+    // The layout itself parsed fine.
+    expect(layout.racks[0]?.devices[0]?.id).toBe(DEVICE_ID);
+    // The missing face produced no blob entry but was recorded, not thrown.
+    const key = placementKey(UUID, DEVICE_ID);
+    expect(images.get(key)?.front?.blob).toBeUndefined();
+    expect(failedKeys).toContain(key);
+    expect(failedImagesCount).toBeGreaterThan(0);
   });
 });
 
