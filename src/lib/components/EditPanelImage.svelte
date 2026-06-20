@@ -81,7 +81,11 @@
     }
 
     try {
-      const data = await fileToImageData(file, "device", face);
+      const data = await fileToImageData(
+        file,
+        selectedDeviceInfo.device.slug,
+        face,
+      );
       const deviceId = selectedDeviceInfo.placedDevice.id;
       imageStore.setDeviceImage(placementKey(layoutId, deviceId), face, data);
       layoutStore.updateDevicePlacementImage(
