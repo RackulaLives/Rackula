@@ -222,15 +222,19 @@
     gap: var(--space-1);
   }
 
+  /* Neutral form-control vocabulary shared with the edit panel's colour swatch
+     and the palette create/filter buttons (#2524): input-bg fill, input-border,
+     selection border on hover and focus. 44px square keeps the touch standard
+     (#2100). */
   .position-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: 44px;
+    height: 44px;
     padding: 0;
-    background: var(--button-bg);
-    border: 1px solid var(--colour-border);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
     border-radius: var(--radius-sm);
     color: var(--colour-text);
     cursor: pointer;
@@ -245,7 +249,6 @@
   }
 
   .position-btn:hover:not(:disabled) {
-    background: var(--button-bg-hover);
     border-color: var(--colour-selection);
   }
 
@@ -256,7 +259,7 @@
 
   .position-btn:focus-visible {
     outline: 2px solid var(--colour-selection);
-    outline-offset: 1px;
+    outline-offset: 2px;
   }
 
   .arrow-label {

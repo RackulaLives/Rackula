@@ -746,6 +746,9 @@
     align-items: center;
     gap: var(--space-2);
     width: 100%;
+    /* 44px min height keeps the touch standard shared with the palette
+       controls and position arrows (#2524, #2100). */
+    min-height: 44px;
     padding: var(--space-2) var(--space-3);
     background: var(--input-bg);
     border: 1px solid var(--input-border);
@@ -798,6 +801,9 @@
     justify-content: space-between;
     gap: var(--space-2);
     width: 100%;
+    /* 44px min height keeps the touch standard shared with the palette
+       controls and position arrows (#2524, #2100). */
+    min-height: 44px;
     padding: var(--space-2) var(--space-3);
     background: var(--input-bg);
     border: 1px solid var(--input-border);
@@ -813,7 +819,7 @@
     border-color: var(--colour-selection);
   }
 
-  .display-name-display:focus {
+  .display-name-display:focus-visible {
     outline: 2px solid var(--colour-selection);
     outline-offset: 2px;
   }

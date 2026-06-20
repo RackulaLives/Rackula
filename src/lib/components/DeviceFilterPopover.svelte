@@ -150,18 +150,21 @@
 </Popover.Root>
 
 <style>
+  /* Neutral form-control vocabulary shared with the edit panel's colour swatch
+     and the palette create button (#2524): input-bg fill, input-border,
+     selection border on hover and focus. 44px square keeps the touch standard
+     (#2397). */
   :global(.filter-trigger) {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    /* 44px square control, matching the search field and touch standard (#2397). */
     width: 44px;
     height: 44px;
     padding: 0;
     color: var(--colour-text-muted);
-    background: var(--colour-surface-secondary);
-    border: 1px solid var(--colour-border);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
     border-radius: var(--radius-sm);
     cursor: pointer;
     flex-shrink: 0;
@@ -173,8 +176,7 @@
 
   :global(.filter-trigger:hover) {
     color: var(--colour-text);
-    background: var(--colour-surface-hover);
-    border-color: var(--colour-border-hover);
+    border-color: var(--colour-selection);
   }
 
   :global(.filter-trigger:focus-visible) {

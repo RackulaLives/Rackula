@@ -774,11 +774,13 @@
       box-shadow var(--duration-fast) ease;
   }
 
+  /* Neutral form-control vocabulary shared with the edit panel's colour swatch
+     and name-edit controls (#2524): input-bg fill, input-border, selection
+     border on hover and focus. 44px square keeps the touch standard (#2397). */
   .create-device-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    /* 44px square controls, matching the search field and touch standard (#2397). */
     width: 44px;
     height: 44px;
     padding: 0;
@@ -786,8 +788,8 @@
     font-weight: 400;
     line-height: 1;
     color: var(--colour-text-muted);
-    background: var(--colour-surface-secondary);
-    border: 1px solid var(--colour-border);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
     border-radius: var(--radius-sm);
     cursor: pointer;
     flex-shrink: 0;
@@ -799,8 +801,7 @@
 
   .create-device-btn:hover {
     color: var(--colour-text);
-    background: var(--colour-surface-hover);
-    border-color: var(--colour-border-hover);
+    border-color: var(--colour-selection);
   }
 
   .create-device-btn:focus-visible {
