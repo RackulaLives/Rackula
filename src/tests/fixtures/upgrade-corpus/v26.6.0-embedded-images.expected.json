@@ -1,0 +1,9 @@
+{
+  "hasImages": true,
+  "allowList": [
+    {
+      "pathPattern": "^\\$\\.images\\.",
+      "reason": "embedded base64 images are extracted into the image store on load, not kept on the layout object; the save layer (#2530) writes them to disk verbatim"
+    }
+  ]
+}

@@ -18,6 +18,7 @@ import {
   getAsset,
   saveAsset,
   deleteAsset,
+  listLayoutAssets,
   isValidImageType,
   isValidDeviceSlug,
   AssetRejectedError,
@@ -31,6 +32,43 @@ const assets = new Hono();
 function isValidFace(face: string): face is "front" | "rear" {
   return face === "front" || face === "rear";
 }
+
+// List the on-disk asset faces for a layout. Drives the save-time set-diff
+// reconcile (#2530): the client diffs this against the layout's current custom
+// faces and deletes the difference. A valid UUID whose layout folder does not
+// exist yet (e.g. a reconcile run before the first YAML PUT lands) is "no
+// assets on disk", not an error, so it returns an empty list rather than a 404.
+// Inherits the per-asset GET read posture (no auth beyond app-level middleware).
+assets.get("/:layoutId", async (c) => {
+  const { layoutId } = c.req.param();
+
+  const idResult = LayoutIdSchema.safeParse(layoutId);
+  if (!idResult.success) {
+    return c.json({ error: "Invalid layout ID format" }, 400);
+  }
+
+  try {
+    const list = await listLayoutAssets(layoutId);
+    return c.json({ assets: list }, 200);
+  } catch (error) {
+    // listLayoutAssets throws "Layout not found" when the layout folder is
+    // absent. For the reconcile that means an empty on-disk set, not a failure.
+    if (error instanceof Error && error.message.startsWith("Layout not found")) {
+      return c.json({ assets: [] }, 200);
+    }
+    // listLayoutAssets validates the id more strictly (full UUID) than the
+    // route's LayoutIdSchema (which also accepts hyphenated non-UUID slugs). A
+    // route-valid id that is not a UUID is a bad request, not a server fault.
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Invalid layout UUID")
+    ) {
+      return c.json({ error: "Invalid layout ID format" }, 400);
+    }
+    logger.error({ err: error }, `Failed to list assets`);
+    return c.json({ error: "Failed to list assets" }, 500);
+  }
+});
 
 // Get an asset
 assets.get("/:layoutId/:deviceSlug/:face", async (c) => {

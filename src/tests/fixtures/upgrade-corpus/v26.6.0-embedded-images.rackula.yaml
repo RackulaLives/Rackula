@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/layout-v1.json
+metadata:
+  id: 660e8400-e29b-41d4-a716-446655440000
+  name: Embedded Images Lab
+  schema_version: "1.0"
+version: "1.0"
+name: Embedded Images Lab
+racks:
+  - id: "rack-a"
+    name: "Rack A"
+    height: 42
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: "4-post-cabinet"
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+        device_type: "server-2u"
+        position: 60
+        face: "front"
+device_types:
+  - slug: "server-2u"
+    u_height: 2
+    manufacturer: "Acme"
+    colour: "#336699"
+    category: "server"
+settings:
+  display_mode: "label"
+  show_labels_on_images: false
+images:
+  placement-660e8400-e29b-41d4-a716-446655440000:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:
+    front: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"

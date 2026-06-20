@@ -6,6 +6,103 @@ import {
   clearPreCarrierMigrationPending,
 } from "$lib/storage/pre-carrier-migration-pending";
 import { createTestLayout } from "./factories";
+import type { ImageStoreMap, DeviceImageData } from "$lib/types/images";
+
+// A 16-byte PNG body (full 8-byte signature plus tail) base64-encoded into a
+// data URL, so detectImageMime sniffs it as image/png on both client and server.
+const PNG_BYTES = Uint8Array.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49,
+  0x48, 0x44, 0x52,
+]);
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary);
+}
+const PNG_DATA_URL = `data:image/png;base64,${bytesToBase64(PNG_BYTES)}`;
+
+/** A user image face carrying both a blob and the verbatim data URL. */
+function userFace(): DeviceImageData {
+  return {
+    front: {
+      blob: new Blob([PNG_BYTES], { type: "image/png" }),
+      dataUrl: PNG_DATA_URL,
+      filename: "front.png",
+    },
+  };
+}
+
+/** A migrate-on-save face: embedded data URL only, no blob. */
+function embeddedOnlyFace(): DeviceImageData {
+  return {
+    front: {
+      dataUrl: PNG_DATA_URL,
+      filename: "front.png",
+    },
+  };
+}
+
+/** Build a user-image store map keyed by namespaced placement keys. */
+function imageMap(
+  entries: Array<[string, DeviceImageData]>,
+): ImageStoreMap {
+  return new Map(entries);
+}
+
+interface FetchCall {
+  url: string;
+  method: string;
+  body: BodyInit | null | undefined;
+}
+
+/**
+ * Route-aware fetch mock for the server save path. Records every call and lets
+ * a test fail specific asset PUTs. The YAML PUT and the asset listing succeed
+ * unless overridden.
+ */
+function makeRoutedFetch(opts?: {
+  listing?: Array<{
+    deviceSlug: string;
+    face: string;
+    ext: string;
+    size: number;
+  }>;
+  failAssetPut?: boolean;
+}) {
+  const calls: FetchCall[] = [];
+  const fetchMock = vi.fn(
+    async (url: string | URL, init?: RequestInit): Promise<Response> => {
+      const u = typeof url === "string" ? url : url.toString();
+      const method = (init?.method ?? "GET").toUpperCase();
+      calls.push({ url: u, method, body: init?.body ?? null });
+
+      // GET /assets/:layoutId  (listing — no further path segments)
+      if (method === "GET" && /\/assets\/[^/]+$/.test(u)) {
+        return new Response(JSON.stringify({ assets: opts?.listing ?? [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      // PUT/DELETE /assets/:layoutId/:deviceId/:face
+      if (/\/assets\/[^/]+\/[^/]+\/[^/]+$/.test(u)) {
+        if (method === "PUT" && opts?.failAssetPut) {
+          return new Response(JSON.stringify({ error: "boom" }), {
+            status: 500,
+          });
+        }
+        return new Response(JSON.stringify({ message: "ok" }), { status: 200 });
+      }
+      // PUT /layouts/:uuid  (YAML save)
+      return new Response(
+        JSON.stringify({ id: SERVER_UUID, updatedAt: "2026-06-20T00:00:00.000Z" }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    },
+  );
+  return { fetchMock, calls };
+}
+
+const SERVER_UUID = "33333333-3333-4333-8333-333333333333";
 
 /**
  * In server-storage mode, a layout whose carrier-first migration was marked
@@ -32,6 +129,38 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
     );
   }
 
+  /**
+   * In server mode a save also lists assets (the reconcile). These tests pass an
+   * empty image map, so the listing must answer with an empty set; everything
+   * else delegates to the provided save-response factory.
+   */
+  function withListing(saveResponse: () => Response) {
+    return vi.fn(async (url: string | URL, init?: RequestInit) => {
+      const u = typeof url === "string" ? url : url.toString();
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "GET" && /\/assets\/[^/]+$/.test(u)) {
+        return new Response(JSON.stringify({ assets: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return saveResponse();
+    });
+  }
+
+  /** All YAML-PUT requests (the layout save), in call order. */
+  function yamlPutCalls(
+    fetchMock: ReturnType<typeof vi.fn>,
+  ): Array<{ headers: HeadersInit }> {
+    return fetchMock.mock.calls
+      .filter(([url, init]) => {
+        const u = typeof url === "string" ? url : String(url);
+        const method = (init?.method ?? "GET").toUpperCase();
+        return method === "PUT" && /\/layouts\/[^/]+$/.test(u);
+      })
+      .map(([, init]) => init as { headers: HeadersInit });
+  }
+
   beforeEach(() => {
     window.__RACKULA_CONFIG__ = { storage: "server" };
     setApiAvailable(true);
@@ -48,7 +177,7 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
   });
 
   it("attaches the header when the uuid is pending", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(okSaveResponse(UUID));
+    const fetchMock = withListing(() => okSaveResponse(UUID));
     vi.stubGlobal("fetch", fetchMock);
 
     markPreCarrierMigrationPending(UUID);
@@ -58,15 +187,13 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
       null,
     );
 
-    const headers = new Headers(fetchMock.mock.calls[0][1].headers);
+    const headers = new Headers(yamlPutCalls(fetchMock)[0].headers);
     expect(headers.get("X-Rackula-Pre-Carrier-Migration")).toBe("1");
   });
 
   it("does not re-attach the header on a subsequent save of the same uuid", async () => {
     // Fresh Response per call: a Response body can only be read once.
-    const fetchMock = vi
-      .fn()
-      .mockImplementation(async () => okSaveResponse(UUID));
+    const fetchMock = withListing(() => okSaveResponse(UUID));
     vi.stubGlobal("fetch", fetchMock);
 
     markPreCarrierMigrationPending(UUID);
@@ -81,12 +208,12 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
       null,
     );
 
-    const secondHeaders = new Headers(fetchMock.mock.calls[1][1].headers);
+    const secondHeaders = new Headers(yamlPutCalls(fetchMock)[1].headers);
     expect(secondHeaders.has("X-Rackula-Pre-Carrier-Migration")).toBe(false);
   });
 
   it("never attaches the header for a non-pending uuid", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(okSaveResponse(OTHER_UUID));
+    const fetchMock = withListing(() => okSaveResponse(OTHER_UUID));
     vi.stubGlobal("fetch", fetchMock);
 
     await saveLayoutToServer(
@@ -95,12 +222,12 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
       null,
     );
 
-    const headers = new Headers(fetchMock.mock.calls[0][1].headers);
+    const headers = new Headers(yamlPutCalls(fetchMock)[0].headers);
     expect(headers.has("X-Rackula-Pre-Carrier-Migration")).toBe(false);
   });
 
   it("attaches the header alongside X-Rackula-Updated-At", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(okSaveResponse(UUID));
+    const fetchMock = withListing(() => okSaveResponse(UUID));
     vi.stubGlobal("fetch", fetchMock);
 
     markPreCarrierMigrationPending(UUID);
@@ -110,7 +237,7 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
       "2026-06-14T09:00:00.000Z",
     );
 
-    const headers = new Headers(fetchMock.mock.calls[0][1].headers);
+    const headers = new Headers(yamlPutCalls(fetchMock)[0].headers);
     expect(headers.get("X-Rackula-Pre-Carrier-Migration")).toBe("1");
     expect(headers.get("X-Rackula-Updated-At")).toBe(
       "2026-06-14T09:00:00.000Z",
@@ -118,11 +245,23 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
   });
 
   it("retries with the header after a failed save so the backup is not skipped", async () => {
-    // First save fails (non-2xx), the retry succeeds.
-    const fetchMock = vi
-      .fn()
-      .mockImplementationOnce(async () => new Response("nope", { status: 503 }))
-      .mockImplementationOnce(async () => okSaveResponse(UUID));
+    // First save fails at the YAML PUT (non-2xx), the retry succeeds. The
+    // listing GET (reconcile) is answered with an empty set on the retry.
+    let yamlPuts = 0;
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      const u = typeof url === "string" ? url : url.toString();
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "GET" && /\/assets\/[^/]+$/.test(u)) {
+        return new Response(JSON.stringify({ assets: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      yamlPuts += 1;
+      return yamlPuts === 1
+        ? new Response("nope", { status: 503 })
+        : okSaveResponse(UUID);
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     markPreCarrierMigrationPending(UUID);
@@ -142,7 +281,144 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
       null,
     );
 
-    const retryHeaders = new Headers(fetchMock.mock.calls[1][1].headers);
+    const retryHeaders = new Headers(yamlPutCalls(fetchMock)[1].headers);
     expect(retryHeaders.get("X-Rackula-Pre-Carrier-Migration")).toBe("1");
+  });
+});
+
+/**
+ * Server-mode save writes user images to disk via the asset API (#2530, #2513,
+ * #1426). The layout YAML no longer carries the embedded base64 images block, so
+ * an image-heavy layout stays under the 1MB layout PUT cap, and the save reaches
+ * a clean state only after the YAML PUT and every asset PUT/DELETE resolve.
+ */
+describe("saveLayoutToServer asset reconcile (server mode)", () => {
+  const originalConfig = window.__RACKULA_CONFIG__;
+  const PLACEMENT_KEY = `placement-${SERVER_UUID}:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee`;
+  const DEVICE_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+
+  beforeEach(() => {
+    window.__RACKULA_CONFIG__ = { storage: "server" };
+    setApiAvailable(true);
+    vi.stubGlobal("AbortSignal", {
+      timeout: () => new AbortController().signal,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    setApiAvailable(false);
+    window.__RACKULA_CONFIG__ = originalConfig;
+  });
+
+  function yamlBodyOf(calls: FetchCall[]): string {
+    const yamlPut = calls.find(
+      (c) => c.method === "PUT" && /\/layouts\/[^/]+$/.test(c.url),
+    );
+    return typeof yamlPut?.body === "string" ? yamlPut.body : "";
+  }
+
+  it("PUTs each user image to the asset API per (deviceId, face)", async () => {
+    const { fetchMock, calls } = makeRoutedFetch();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveLayoutToServer(
+      createTestLayout({ metadata: { id: SERVER_UUID } }),
+      imageMap([[PLACEMENT_KEY, userFace()]]),
+      null,
+    );
+
+    const assetPut = calls.find(
+      (c) => c.method === "PUT" && c.url.includes(`/assets/${SERVER_UUID}/`),
+    );
+    expect(assetPut).toBeDefined();
+    expect(assetPut?.url).toContain(`/assets/${SERVER_UUID}/${DEVICE_ID}/front`);
+  });
+
+  it("omits the embedded base64 images block from the YAML body", async () => {
+    const { fetchMock, calls } = makeRoutedFetch();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveLayoutToServer(
+      createTestLayout({ metadata: { id: SERVER_UUID } }),
+      imageMap([[PLACEMENT_KEY, userFace()]]),
+      null,
+    );
+
+    const body = yamlBodyOf(calls);
+    expect(body).not.toContain("data:image/png;base64");
+  });
+
+  it("a failed asset PUT rejects the save so the layout stays dirty for retry", async () => {
+    const { fetchMock } = makeRoutedFetch({ failAssetPut: true });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      saveLayoutToServer(
+        createTestLayout({ metadata: { id: SERVER_UUID } }),
+        imageMap([[PLACEMENT_KEY, userFace()]]),
+        null,
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("deletes an on-disk face that is not in the desired set (orphan reconcile)", async () => {
+    // Disk has a rear face for the device; the layout no longer has any rear
+    // image, so the reconcile must DELETE it.
+    const { fetchMock, calls } = makeRoutedFetch({
+      listing: [
+        { deviceSlug: DEVICE_ID, face: "front", ext: "png", size: 16 },
+        { deviceSlug: DEVICE_ID, face: "rear", ext: "png", size: 16 },
+      ],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveLayoutToServer(
+      createTestLayout({ metadata: { id: SERVER_UUID } }),
+      imageMap([[PLACEMENT_KEY, userFace()]]),
+      null,
+    );
+
+    // The rear orphan is deleted and never re-PUT.
+    const rearDelete = calls.find(
+      (c) =>
+        c.method === "DELETE" &&
+        c.url.endsWith(`/assets/${SERVER_UUID}/${DEVICE_ID}/rear`),
+    );
+    expect(rearDelete).toBeDefined();
+    const rearPut = calls.find(
+      (c) =>
+        c.method === "PUT" &&
+        c.url.endsWith(`/assets/${SERVER_UUID}/${DEVICE_ID}/rear`),
+    );
+    expect(rearPut).toBeUndefined();
+    // The desired front face is re-PUT (DELETE-then-PUT dodges the 507 on an
+    // at-limit replace).
+    const frontPut = calls.find(
+      (c) =>
+        c.method === "PUT" &&
+        c.url.endsWith(`/assets/${SERVER_UUID}/${DEVICE_ID}/front`),
+    );
+    expect(frontPut).toBeDefined();
+  });
+
+  it("migrate-on-save: writes an embedded-only image to disk and drops the embed", async () => {
+    const { fetchMock, calls } = makeRoutedFetch();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveLayoutToServer(
+      createTestLayout({ metadata: { id: SERVER_UUID } }),
+      imageMap([[PLACEMENT_KEY, embeddedOnlyFace()]]),
+      null,
+    );
+
+    const assetPut = calls.find(
+      (c) =>
+        c.method === "PUT" &&
+        c.url.endsWith(`/assets/${SERVER_UUID}/${DEVICE_ID}/front`),
+    );
+    expect(assetPut).toBeDefined();
+    expect(yamlBodyOf(calls)).not.toContain("data:image/png;base64");
   });
 });

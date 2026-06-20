@@ -14,6 +14,7 @@ import {
 import { loadSessionWithTimestamp } from "$lib/storage/working-copy";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
+import { getImageStore, resetImageStore } from "$lib/stores/images.svelte";
 import { setApiAvailable } from "$lib/storage/availability.svelte";
 import { createTestLayout } from "./factories";
 
@@ -161,5 +162,85 @@ describe("echo threads into the next PUT header", () => {
     expect(secondHeaders.get("X-Rackula-Updated-At")).toBe(
       "2026-06-14T10:00:00.000Z",
     );
+  });
+});
+
+/**
+ * The originating bug (#1426): in server mode the save chip flipped to "saved"
+ * (markClean) immediately after the YAML PUT, before the images persisted, so a
+ * crash between the YAML save and the image write lost the images silently. The
+ * fix folds the asset writes into saveLayoutToServer, so a save reaches a clean
+ * state only after the YAML PUT and every asset PUT/DELETE resolve. A failed
+ * asset PUT must leave the layout dirty so the next autosave retries.
+ */
+describe("server-mode save stays dirty when an asset write fails (#1426)", () => {
+  const UUID = "44444444-4444-4444-8444-444444444444";
+  const PLACEMENT_KEY = `placement-${UUID}:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee`;
+  const originalConfig = window.__RACKULA_CONFIG__;
+  const PNG_BYTES = Uint8Array.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+    0x49, 0x48, 0x44, 0x52,
+  ]);
+
+  beforeEach(() => {
+    resetLayoutStore();
+    resetToastStore();
+    resetImageStore();
+    resetPersistenceManager();
+    setServerBaseUpdatedAt(null);
+    window.__RACKULA_CONFIG__ = { storage: "server" };
+    setApiAvailable(true);
+    vi.stubGlobal("AbortSignal", {
+      timeout: () => new AbortController().signal,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    resetImageStore();
+    setServerBaseUpdatedAt(null);
+    setApiAvailable(false);
+    window.__RACKULA_CONFIG__ = originalConfig;
+  });
+
+  it("does not markClean when the YAML PUT succeeds but the asset PUT fails", async () => {
+    const layoutStore = getLayoutStore();
+    layoutStore.loadLayout(createTestLayout({ metadata: { id: UUID } }));
+    layoutStore.markStarted();
+
+    // One user image so the save attempts an asset PUT.
+    getImageStore().setDeviceImage(PLACEMENT_KEY, "front", {
+      blob: new Blob([PNG_BYTES], { type: "image/png" }),
+      dataUrl: `data:image/png;base64,${btoa(String.fromCharCode(...PNG_BYTES))}`,
+      filename: "front.png",
+    });
+    layoutStore.markDirty();
+
+    // YAML PUT succeeds; the asset PUT fails (500). The reconcile listing GET
+    // returns an empty set.
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      const u = typeof url === "string" ? url : url.toString();
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "GET" && /\/assets\/[^/]+$/.test(u)) {
+        return new Response(JSON.stringify({ assets: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (/\/assets\/[^/]+\/[^/]+\/[^/]+$/.test(u) && method === "PUT") {
+        return new Response(JSON.stringify({ error: "boom" }), { status: 500 });
+      }
+      return new Response(
+        JSON.stringify({ id: UUID, updatedAt: "2026-06-20T00:00:00.000Z" }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const ok = await handleSaveToServer(false);
+
+    expect(ok).toBe(false);
+    expect(layoutStore.isDirty).toBe(true);
   });
 });

@@ -3,18 +3,33 @@
  * Communicates with the API sidecar for layout CRUD
  * Uses UUID-based routing for stable URLs across renames
  */
-import { isApiAvailable } from "./availability.svelte";
+import { isApiAvailable, getStorageMode } from "./availability.svelte";
 import {
   hasPreCarrierMigrationPending,
   clearPreCarrierMigrationPending,
 } from "./pre-carrier-migration-pending";
+import {
+  putAsset,
+  deleteAsset,
+  listAssets,
+  deviceKeyForWire,
+  type AssetFace,
+} from "./assets-api";
 import type { Layout } from "$lib/types";
-import type { ImageStoreMap } from "$lib/types/images";
+import type {
+  ImageStoreMap,
+  ImageData,
+  SupportedImageFormat,
+} from "$lib/types/images";
 import {
   serializeLayoutToYaml,
   parseLayoutYamlWithImages,
 } from "$lib/utils/yaml";
-import { encodeUserImagesToYaml } from "$lib/utils/image-encoding";
+import {
+  encodeUserImagesToYaml,
+  decodeDataUrl,
+  detectImageMime,
+} from "$lib/utils/image-encoding";
 import { persistenceDebug } from "$lib/utils/debug";
 import { z } from "zod";
 
@@ -364,6 +379,108 @@ export async function loadSavedLayout(uuid: string): Promise<{
   }
 }
 
+/** The two physical faces written to disk; "both" is never an on-disk face. */
+const DISK_FACES: readonly AssetFace[] = ["front", "rear"];
+
+/** A user image face resolved to verbatim bytes plus its server content type. */
+interface DiskFace {
+  deviceId: string;
+  face: AssetFace;
+  blob: Blob;
+  contentType: SupportedImageFormat;
+}
+
+/**
+ * Resolve one user image face to the verbatim bytes that will land on disk.
+ *
+ * Prefers decoding the verbatim `dataUrl` (fresh uploads and #2531-rehydrated
+ * migrate images both carry one) so the body PUT and the bytes sniffed for the
+ * content type are the same bytes; falls back to the in-memory `blob` only when
+ * no dataUrl is present. The bytes are sniffed by magic byte with the same
+ * client detector the YAML path uses: a face whose bytes do not sniff to an
+ * allowed raster format is NOT written to disk and is left to the caller to
+ * retain in the embedded block, so a malformed migrate payload is never lost.
+ * The server (#2528) re-sniffs every write as the authority.
+ *
+ * Returns null when no usable bytes resolve or the sniff fails; the caller then
+ * keeps the face embedded rather than dropping it.
+ */
+function resolveDiskFace(
+  deviceId: string,
+  face: AssetFace,
+  image: ImageData,
+): DiskFace | null {
+  // Decode the verbatim data URL when present so the sniffed bytes and the PUT
+  // body are identical. The blob is a fallback for a blob-only image.
+  const bytes = image.dataUrl ? decodeDataUrl(image.dataUrl) : null;
+  if (!bytes && !image.blob) return null;
+
+  // Content type comes from the actual bytes (never a declared MIME). With only
+  // a blob and no decodable data URL, trust the blob's type if it is an allowed
+  // raster format. A sniff that does not match an allowed format rejects the
+  // face so it stays embedded.
+  let contentType: SupportedImageFormat;
+  let blob: Blob;
+  if (bytes) {
+    const sniffed = detectImageMime(bytes);
+    if (!sniffed) return null;
+    contentType = sniffed as SupportedImageFormat;
+    blob = new Blob([bytes], { type: contentType });
+  } else if (
+    image.blob &&
+    (image.blob.type === "image/png" ||
+      image.blob.type === "image/jpeg" ||
+      image.blob.type === "image/webp")
+  ) {
+    contentType = image.blob.type;
+    blob = image.blob;
+  } else {
+    return null;
+  }
+
+  return { deviceId, face, blob, contentType };
+}
+
+/**
+ * Reconcile a server-mode layout's user images to disk via the asset API.
+ *
+ * Runs after the YAML PUT (which creates the layout folder the asset writes
+ * need). Returns nothing; any failed PUT/DELETE throws so the caller's save
+ * never reaches a clean state and the layout stays dirty for the next autosave
+ * retry (the originating #1426 bug was flipping to "saved" before images
+ * persisted).
+ *
+ * Set-diff: the desired set is the layout's current user faces; the on-disk set
+ * is `GET /assets/:layoutId`. Faces on disk but not desired are deleted (removed
+ * faces/devices and crash-leaked orphans). A face that is both replaced and at
+ * the quota limit is deleted before its replacement is PUT, because the quota
+ * check counts before the write (non-atomic), so a DELETE-then-PUT lets an
+ * at-limit layout still replace a face without tripping the 507.
+ */
+async function reconcileServerAssets(
+  layoutId: string,
+  diskFaces: DiskFace[],
+): Promise<void> {
+  // Desired on-disk identity per face: `${deviceId}/${face}`.
+  const desired = new Set(diskFaces.map((f) => `${f.deviceId}/${f.face}`));
+
+  // On-disk faces not in the desired set are orphans to delete. A desired face
+  // is deleted first too (DELETE-then-PUT) to dodge the non-atomic 507 on an
+  // at-limit replace; deleteAsset treats a 404 as a no-op so a first write is
+  // unaffected.
+  const onDisk = await listAssets(layoutId);
+  for (const entry of onDisk) {
+    const key = `${entry.deviceSlug}/${entry.face}`;
+    if (!desired.has(key)) {
+      await deleteAsset(layoutId, entry.deviceSlug, entry.face);
+    }
+  }
+  for (const f of diskFaces) {
+    await deleteAsset(layoutId, f.deviceId, f.face);
+    await putAsset(layoutId, f.deviceId, f.face, f.blob, f.contentType);
+  }
+}
+
 /**
  * Save a layout (create or update)
  * Uses the UUID from layout metadata for routing
@@ -401,15 +518,48 @@ export async function saveLayoutToServer(
     );
   }
 
+  // Server mode writes user images to disk via the asset API and saves the YAML
+  // without the embedded base64 block, so an image-heavy layout stays under the
+  // 1MB layout PUT cap (#2530, #2513, #1426). Each user face is resolved to its
+  // verbatim bytes; a face whose bytes fail the magic-byte sniff is NOT written
+  // to disk and stays embedded so a malformed migrate payload is never lost.
+  // Browser-mode callers (none today) keep the full embed.
+  const isServerMode = getStorageMode() === "server";
+  const diskFaces: DiskFace[] = [];
+  const retainedImages: ImageStoreMap = new Map();
+
+  if (isServerMode) {
+    for (const [key, deviceImages] of userImages) {
+      for (const face of DISK_FACES) {
+        const image = deviceImages[face];
+        if (!image) continue;
+        // The wire device id is the bare UUID from the placement key; a
+        // malformed key throws here (path-traversal guard) and fails the save.
+        const deviceId = deviceKeyForWire(key);
+        const resolved = resolveDiskFace(deviceId, face, image);
+        if (resolved) {
+          diskFaces.push(resolved);
+        } else {
+          // Sniff failed: retain the embedded payload rather than drop it.
+          const existing = retainedImages.get(key) ?? {};
+          retainedImages.set(key, { ...existing, [face]: image });
+        }
+      }
+    }
+  }
+
   // Embed user images so server-mode saves do not silently drop them (#617).
-  // The 1MB server PUT cap then trips loudly for image-heavy layouts; that is
-  // intentional until storage quotas exist (see image-encoding.ts SIZE DIVERGENCE).
-  const { serialized } = encodeUserImagesToYaml(userImages);
+  // In server mode only the retained (sniff-failed) faces are embedded; the rest
+  // go to disk. In browser mode every user image is embedded.
+  const { serialized } = encodeUserImagesToYaml(
+    isServerMode ? retainedImages : userImages,
+  );
   const yamlContent = await serializeLayoutToYaml(layout, serialized);
   log(
-    "saveLayoutToServer: uuid=%s yamlSize=%d bytes",
+    "saveLayoutToServer: uuid=%s yamlSize=%d bytes diskFaces=%d",
     uuid,
     yamlContent.length,
+    diskFaces.length,
   );
 
   const url = `${API_BASE_URL}/layouts/${encodeURIComponent(uuid)}`;
@@ -452,6 +602,14 @@ export async function saveLayoutToServer(
   // the mark so later saves of this layout do not re-send the header.
   if (needsPreCarrierBackup) {
     clearPreCarrierMigrationPending(uuid);
+  }
+
+  // Reconcile assets to disk AFTER the YAML PUT (which created the layout
+  // folder the asset writes need). This runs before the function returns its
+  // success, so any failed PUT/DELETE throws and the caller never reaches a
+  // clean save state: the layout stays dirty and the next autosave retries.
+  if (isServerMode) {
+    await reconcileServerAssets(uuid, diskFaces);
   }
 
   try {

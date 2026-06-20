@@ -143,3 +143,69 @@ describe("GET /assets response headers", () => {
     expect(res.headers.get("Content-Type")).toBe("image/png");
   });
 });
+
+describe("GET /assets/:layoutId listing", () => {
+  it("returns the per-layout asset listing after a PUT", async () => {
+    const putRes = await putAsset(pngBytes(), "image/png");
+    expect(putRes.status).toBe(200);
+
+    const res = await app.request(`/assets/${LAYOUT_UUID}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      assets: Array<{
+        deviceSlug: string;
+        face: string;
+        ext: string;
+        size: number;
+      }>;
+    };
+    expect(body.assets).toContainEqual(
+      expect.objectContaining({
+        deviceSlug: DEVICE_SLUG,
+        face: "front",
+        ext: "png",
+      }),
+    );
+  });
+
+  it("returns an empty listing for a layout with no assets", async () => {
+    const res = await app.request(`/assets/${LAYOUT_UUID}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { assets: unknown[] };
+    expect(body.assets).toEqual([]);
+  });
+
+  it("returns an empty listing for a valid-but-unknown layout id", async () => {
+    // A reconcile may list before the layout folder exists (first save). A
+    // valid UUID that has no folder yet is "no assets on disk", not an error.
+    const unknown = "11111111-2222-4333-8444-555555555555";
+    const res = await app.request(`/assets/${unknown}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { assets: unknown[] };
+    expect(body.assets).toEqual([]);
+  });
+
+  it("rejects a non-UUID layout id with a 4xx (not 500)", async () => {
+    const res = await app.request(`/assets/not-a-uuid-../etc/passwd`);
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
+  });
+
+  it("returns a clean 4xx (not 500) for a route-valid but non-UUID id", async () => {
+    // `abc` passes LayoutIdSchema (lowercase alphanumeric) but is not a UUID, so
+    // listLayoutAssets throws "Invalid layout UUID". That must surface as a 400,
+    // not a 500.
+    const res = await app.request(`/assets/abc`);
+    expect(res.status).toBe(400);
+  });
+
+  it("is reachable at the /api alias", async () => {
+    const putRes = await putAsset(pngBytes(), "image/png");
+    expect(putRes.status).toBe(200);
+
+    const res = await app.request(`/api/assets/${LAYOUT_UUID}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { assets: unknown[] };
+    expect(body.assets.length).toBeGreaterThan(0);
+  });
+});
