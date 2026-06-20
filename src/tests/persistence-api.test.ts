@@ -10,7 +10,11 @@ import { setApiAvailable } from "$lib/storage/availability.svelte";
 import { serializeLayoutToYaml } from "$lib/utils/yaml";
 import { createMultiLayoutArchive } from "$lib/utils/archive";
 import { placementKey } from "$lib/utils/placement-key";
-import { createTestLayout, createTestRack, createTestDevice } from "./factories";
+import {
+  createTestLayout,
+  createTestRack,
+  createTestDevice,
+} from "./factories";
 
 describe("checkApiHealth", () => {
   function stubBrowserGlobals(): void {
@@ -424,9 +428,8 @@ describe("loadSavedLayout server-mode image eager-fetch", () => {
     const front = images.get(key)?.front;
     expect(front?.dataUrl).toMatch(/^data:image\/png;base64,/);
 
-    const { encodeUserImagesToYaml } = await import(
-      "$lib/utils/image-encoding"
-    );
+    const { encodeUserImagesToYaml } =
+      await import("$lib/utils/image-encoding");
     const { serialized } = encodeUserImagesToYaml(images);
     expect(serialized[key]?.front).toBe(front?.dataUrl);
   });

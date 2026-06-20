@@ -52,7 +52,8 @@ function blobToDataUrl(blob: Blob): Promise<string> {
       if (typeof reader.result === "string") resolve(reader.result);
       else reject(new Error("Unexpected FileReader result type"));
     };
-    reader.onerror = () => reject(reader.error ?? new Error("FileReader error"));
+    reader.onerror = () =>
+      reject(reader.error ?? new Error("FileReader error"));
     reader.readAsDataURL(blob);
   });
 }
