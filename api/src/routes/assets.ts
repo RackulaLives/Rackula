@@ -57,6 +57,9 @@ assets.get("/:layoutId/:deviceSlug/:face", async (c) => {
     return c.body(new Uint8Array(asset.data), 200, {
       "Content-Type": asset.contentType,
       "Cache-Control": "public, max-age=3600, must-revalidate",
+      // Stop MIME sniffing so a polyglot upload cannot be reinterpreted as
+      // active content (HTML/JS) when served from the app origin.
+      "X-Content-Type-Options": "nosniff",
     });
   } catch (error) {
     logger.error({ err: error }, `Failed to get asset`);
