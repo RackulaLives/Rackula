@@ -57,7 +57,9 @@ function message(facePhrase: string, label: string): string {
 /**
  * @param failedKeys - Device-level store keys, one entry per failed face.
  * @param layout - The loaded layout, used to resolve labels and faces.
- * @returns One de-duped message per failed device.
+ * @returns One message per failed device. Repeated keys for the same device are
+ * aggregated, but two distinct devices each surface a message even when their
+ * labels match, so the toast count never under-reports failed devices.
  */
 export function resolveImageFailureMessages(
   failedKeys: string[],
@@ -68,21 +70,24 @@ export function resolveImageFailureMessages(
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
 
-  const messages = new Set<string>();
+  // One message per device key (counts already de-duped repeated keys above).
+  // Collect into an array, not a Set: two distinct devices that resolve to the
+  // same label must each surface, or the user under-counts failed devices.
+  const messages: string[] = [];
   for (const [key, count] of counts) {
     if (isPlacementKey(key)) {
       const placed = findPlacedDevice(layout, deviceIdFromPlacementKey(key));
       // Device gone from the layout: drop it rather than surface a bare UUID.
       if (!placed) continue;
-      messages.add(
+      messages.push(
         message(facePhrase(placed, count), deviceLabel(layout, placed)),
       );
     } else {
       // A device-type slug key (embedded image): the face is not encoded, so
       // the slug is the most specific label we can name.
-      messages.add(message("An image", key));
+      messages.push(message("An image", key));
     }
   }
 
-  return [...messages];
+  return messages;
 }

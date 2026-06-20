@@ -154,4 +154,45 @@ describe("resolveImageFailureMessages", () => {
 
     expect(messages).toEqual(['Front image for "One Face" failed to load']);
   });
+
+  it("surfaces each failed device even when two share the same label", () => {
+    const DEVICE_ID_2 = "44444444-4444-4444-8444-444444444444";
+    const layout = createTestLayout({
+      metadata: { id: LAYOUT_ID },
+      device_types: [createTestDeviceType({ slug: "test-device" })],
+      racks: [
+        createTestRack({
+          devices: [
+            createTestDevice({
+              id: DEVICE_ID,
+              device_type: "test-device",
+              name: "NAS",
+              front_image: "front.png",
+            }),
+            createTestDevice({
+              id: DEVICE_ID_2,
+              device_type: "test-device",
+              name: "NAS",
+              front_image: "front.png",
+            }),
+          ],
+        }),
+      ],
+    });
+
+    // Two distinct devices with an identical label both fail: each must surface,
+    // so the user is not told fewer images failed than actually did.
+    const messages = resolveImageFailureMessages(
+      [
+        placementKey(LAYOUT_ID, DEVICE_ID),
+        placementKey(LAYOUT_ID, DEVICE_ID_2),
+      ],
+      layout,
+    );
+
+    expect(messages).toEqual([
+      'Front image for "NAS" failed to load',
+      'Front image for "NAS" failed to load',
+    ]);
+  });
 });

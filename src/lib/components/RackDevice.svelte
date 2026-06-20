@@ -157,40 +157,47 @@
   // The physical face currently in view.
   const currentFace = $derived(rackView === "rear" ? "rear" : "front");
 
-  // Get the device image URL for the current view
-  // Fallback chain: placement image → device type image → null
-  const deviceImageUrl = $derived.by(() => {
-    if (!isImageMode) return null;
-
-    // Try placement-specific image first (if placedDeviceId is provided)
-    if (placedDeviceId) {
-      const layoutId = layoutStore.layout.metadata?.id;
-      const placementUrl = layoutId
-        ? imageStore.getImageUrl(
-            placementKey(layoutId, placedDeviceId),
-            currentFace,
-          )
-        : undefined;
-      if (placementUrl) return placementUrl;
-    }
-
-    // Fall back to device type image
-    return imageStore.getImageUrl(device.slug, currentFace);
+  // The placement-specific custom image URL for the current face, if present in
+  // the store. Kept separate from the device-type fallback so that a missing or
+  // failed placement image surfaces as a placeholder instead of silently showing
+  // the device-type image in its place.
+  const placementImageUrl = $derived.by(() => {
+    if (!isImageMode || !placedDeviceId) return null;
+    const layoutId = layoutStore.layout.metadata?.id;
+    if (!layoutId) return null;
+    return (
+      imageStore.getImageUrl(
+        placementKey(layoutId, placedDeviceId),
+        currentFace,
+      ) ?? null
+    );
   });
-
-  // Should show image or fall back to label
-  const showImage = $derived(isImageMode && deviceImageUrl);
 
   // This placement references a custom image for the face in view.
   const hasImageRefForFace = $derived(
     currentFace === "rear" ? !!rearImageRef : !!frontImageRef,
   );
 
+  // Image to render for the current view.
+  // - If the placement references a custom image for this face, that image wins;
+  //   while it is absent (loading or failed) we render a placeholder rather than
+  //   the device-type image, so the user sees the load state of their own image.
+  // - Otherwise fall back to the device-type image (or null, which shows a label).
+  const deviceImageUrl = $derived.by(() => {
+    if (!isImageMode) return null;
+    if (placementImageUrl) return placementImageUrl;
+    if (hasImageRefForFace) return null;
+    return imageStore.getImageUrl(device.slug, currentFace);
+  });
+
+  // Should show image or fall back to label
+  const showImage = $derived(isImageMode && deviceImageUrl);
+
   // The face is expected to carry an image but none is in the store yet: it is
   // still being fetched, or its fetch failed and will retry on the next reopen.
   // Show a graceful placeholder rather than a blank cell or a broken image.
   const showImagePlaceholder = $derived(
-    isImageMode && hasImageRefForFace && !deviceImageUrl,
+    isImageMode && hasImageRefForFace && !placementImageUrl,
   );
 
   // Accessible name for the device image, naming the device and the face shown.
