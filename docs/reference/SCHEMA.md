@@ -134,6 +134,20 @@ Template definition for devices in the library. Referenced by `PlacedDevice.devi
 | `front_image` | `boolean` | No       | Front image available |
 | `rear_image`  | `boolean` | No       | Rear image available  |
 
+`front_image` and `rear_image` are boolean availability flags, not the image data. They record whether a face has a custom image; the bytes are stored separately depending on the storage mode.
+
+#### Where image bytes are stored
+
+The image bytes referenced by `front_image` and `rear_image` are not part of the schema fields above. Their storage depends on the mode:
+
+| Mode | Where bytes live |
+| --- | --- |
+| Server-side persistence | On disk, one file per face, at `assets/{deviceId}/{face}.{ext}` inside the layout folder. The YAML holds only the boolean flags. |
+| Browser, `.rackula.yaml` single file | Embedded in the YAML as base64 data URIs. |
+| Browser, `.Rackula.zip` archive | Stored in the archive at `assets/{device_type-slug}/{deviceId}-{face}.{ext}`. |
+
+In server-side persistence mode, no base64 image data appears in the stored layout YAML. For the on-disk layout, the per-asset and per-layout limits, and the snapshot behaviour, see the [Self-Hosting Guide](../deployment/SELF-HOSTING.md#custom-device-image-storage).
+
 #### Rackula Fields
 
 | Field      | Type             | Required | Description                       |

@@ -37,7 +37,7 @@ docker run -d -p 8080:8080 ghcr.io/rackulalives/rackula:latest
 - **Layouts saved as YAML** in per-layout folders under `./data/`
 - **Access from any browser** on your network
 - **Optional write-route token auth** for `PUT`/`DELETE` API routes
-- **Custom device images** stored under each layout folder in `assets/`
+- **Custom device images** stored as files on disk under each layout folder in `assets/{deviceId}/{face}.{ext}`, not embedded in the YAML
 
 **Architecture:**
 
@@ -133,6 +133,48 @@ A write token (`RACKULA_API_WRITE_TOKEN`) gates only the write methods (`POST`, 
 To gate reads, set `RACKULA_AUTH_MODE` to `local` or `oidc`. The session gate then covers `GET` requests too, so reads require a logged-in session. Enabling `RACKULA_AUTH_MODE` is the way to require auth for reading layouts and assets.
 
 Served assets carry `X-Content-Type-Options: nosniff` from both the API and the nginx edge, so a polyglot image cannot be MIME-sniffed into active content even when reads are open.
+
+---
+
+## Custom device image storage
+
+In server-side persistence mode, custom device images live as files on disk, not embedded in the layout YAML. This keeps image-heavy layouts under the 1MB layout-body cap (see [Size limits](#size-limits) below) and lets the API serve each image directly.
+
+### Three `assets/` shapes
+
+The string `assets/` appears in three different contexts with three different layouts. They are not interchangeable. Know which one you are looking at:
+
+| Context | Path shape | Folder key | Image bytes |
+| --- | --- | --- | --- |
+| Server API on disk | `assets/{deviceId}/{face}.{ext}` | per-placement device UUID | a file per face |
+| Browser ZIP export (`.Rackula.zip`) | `assets/{device_type-slug}/{deviceId}-{face}.{ext}` | device-type slug | a file per face, named with the placement UUID |
+| Browser `.rackula.yaml` | no `assets/` folder | not applicable | embedded as base64 in the YAML |
+
+The server on-disk shape and the browser ZIP shape differ by design: the on-disk folder is keyed by the placement's device UUID, while the ZIP groups images under the device-type slug and carries the placement UUID in the filename. The browser `.rackula.yaml` single-file save embeds images as base64 data URIs and has no `assets/` folder at all; this is unchanged.
+
+### When `assets/` appears (migrate on next save)
+
+A layout written by an earlier server-mode release may still carry its images embedded in the YAML. Those images move to disk on the next save of that layout, not when you open it. So `assets/` appears after you next save a layout that had embedded images; reopening a layout read-only does not create it. The embedded copy continues to load until that save happens.
+
+### Size limits
+
+Three separate caps apply. They are distinct and enforced independently:
+
+| Limit | Default | Override | Response when exceeded |
+| --- | --- | --- | --- |
+| Per-asset image size | 5MB | `MAX_ASSET_SIZE` (bytes) | HTTP 413 |
+| Per-layout asset count | 50 | `RACKULA_MAX_ASSETS_PER_LAYOUT` (`0` for unlimited) | HTTP 507 |
+| Per-layout YAML body size | 1MB | not configurable | HTTP 413 |
+
+Moving images to disk is what keeps the layout YAML under the 1MB body cap: the YAML stores only the structure and references, while the image bytes count against the per-asset and per-layout asset limits instead.
+
+### Type safety for served images
+
+Custom images are accepted only when their leading bytes sniff to PNG, JPEG, or WebP, regardless of the declared content type. SVG and other formats are rejected. Served images rely on this byte allowlist plus the `nosniff` header described under [Read access in write-token-only mode](#read-access-in-write-token-only-mode) for type safety; they are not gated by a Content-Security-Policy.
+
+### Snapshots are structure only
+
+Server-mode keeps a per-layout snapshot before an overwrite that conflicts with a copy changed elsewhere (see [Upgrading an existing deployment](#upgrading-an-existing-deployment)). A snapshot captures the layout YAML, that is, its structure, only. Image bytes are not copied into the snapshot. Restoring an older snapshot therefore pairs the older structure with the current on-disk assets: if an image was replaced since the snapshot, you get the current image, and if it was deleted, that face shows as missing. Restoring does not bring back the image as it was at snapshot time. Snapshots taken by an earlier release that still embed images continue to load via the backward-compatible decoder, so older snapshots are not lost.
 
 ---
 
@@ -832,12 +874,14 @@ tar xzf rackula-backup.tar.gz -C ./data
 ├── my-homelab-11111111-1111-4111-8111-111111111111/
 │   ├── my-homelab.rackula.yaml
 │   └── assets/
-│       └── custom-nas/
+│       └── 33333333-3333-4333-8333-333333333333/
 │           ├── front.png
 │           └── rear.png
 └── production-rack-22222222-2222-4222-8222-222222222222/
     └── production-rack.rackula.yaml
 ```
+
+Each layout lives in its own folder named `{layout-name}-{layout-UUID}`, holding one `*.rackula.yaml` file. Custom device images are stored on disk, not in the YAML. The `assets/` folder appears only when a layout has at least one custom image, and each placed device that has an image gets a folder named after that placement's device UUID, with one file per face: `assets/{deviceId}/{face}.{ext}`. The face is `front` or `rear`; the extension is `png`, `jpg`, or `webp`, derived from the image's sniffed bytes (see [Custom device image storage](#custom-device-image-storage) below).
 
 ### Security Hardening
 
@@ -898,6 +942,8 @@ When a quota is exceeded:
 - Asset limit reached returns HTTP 507 with a message to remove existing assets
 
 Layout quota only applies to new layouts. Updating an existing layout always succeeds.
+
+Two request-body size caps apply alongside these count quotas: each uploaded image is limited to 5MB (override with `MAX_ASSET_SIZE` in bytes), and each layout YAML body is limited to 1MB. Both return HTTP 413 when exceeded. These are distinct from the count quotas above; see [Custom device image storage](#custom-device-image-storage) for how the caps interact.
 
 ### Logging
 
