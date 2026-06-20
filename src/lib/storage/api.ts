@@ -3,7 +3,8 @@
  * Communicates with the API sidecar for layout CRUD
  * Uses UUID-based routing for stable URLs across renames
  */
-import { isApiAvailable } from "./availability.svelte";
+import { isApiAvailable, getStorageMode } from "./availability.svelte";
+import { eagerFetchServerImages } from "./server-load-images";
 import {
   hasPreCarrierMigrationPending,
   clearPreCarrierMigrationPending,
@@ -354,14 +355,42 @@ export async function loadSavedLayout(uuid: string): Promise<{
     uuid,
     yamlContent.length,
   );
+  let parsed: Awaited<ReturnType<typeof parseLayoutYamlWithImages>>;
   try {
-    const { layout, images, failedImagesCount, failedKeys } =
-      await parseLayoutYamlWithImages(yamlContent);
-    return { layout, images, failedImagesCount, failedKeys, updatedAt };
+    parsed = await parseLayoutYamlWithImages(yamlContent);
   } catch (error) {
     log("loadSavedLayout: failed to parse uuid=%s %O", uuid, error);
     throw new PersistenceError("Layout data is corrupted - could not parse");
   }
+
+  const { layout } = parsed;
+
+  // Server mode only: eager-fetch each placed device's custom faces from disk
+  // as blobs, so render and export reuse the existing blob path. A migrated
+  // layout carries face references but no embedded images; a not-yet-migrated
+  // one keeps its decoded embedded bytes (merged under the same keys), so it
+  // displays and then migrates on the next save (#2531). Browser/file/snapshot
+  // loads never reach here and stay on the embedded-image decode unchanged.
+  if (getStorageMode() === "server") {
+    const layoutId = layout.metadata?.id ?? uuid;
+    const { images, failedImagesCount, failedKeys } =
+      await eagerFetchServerImages(layout, layoutId, parsed.images);
+    return {
+      layout,
+      images,
+      failedImagesCount: parsed.failedImagesCount + failedImagesCount,
+      failedKeys: [...parsed.failedKeys, ...failedKeys],
+      updatedAt,
+    };
+  }
+
+  return {
+    layout,
+    images: parsed.images,
+    failedImagesCount: parsed.failedImagesCount,
+    failedKeys: parsed.failedKeys,
+    updatedAt,
+  };
 }
 
 /**
