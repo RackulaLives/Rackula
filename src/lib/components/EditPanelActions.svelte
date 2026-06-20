@@ -37,7 +37,7 @@
 <div class="actions">
   <button
     type="button"
-    class="btn-danger"
+    class="btn-remove"
     onclick={handleRemoveDevice}
     aria-label="Remove from rack"
   >
@@ -46,7 +46,7 @@
   {#if isSelectedDeviceCustom}
     <button
       type="button"
-      class="btn-danger btn-delete-type"
+      class="btn-delete-type"
       onclick={() => ondeletetype?.()}
       aria-label="Delete from library"
     >
@@ -58,13 +58,45 @@
 <style>
   .actions {
     margin-top: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
   }
 
-  .btn-danger {
+  /*
+    Remove from Rack affects a single placement, so it gets a quieter
+    ghost-danger treatment: destructive red is retained, but it no longer
+    dominates the panel's primary editing controls.
+  */
+  .btn-remove {
+    align-self: flex-start;
+    padding: var(--space-1-5) var(--space-3);
+    background: transparent;
+    border: 1px solid var(--colour-error);
+    border-radius: var(--radius-sm);
+    color: var(--colour-error);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast),
+      color var(--duration-fast);
+  }
+
+  .btn-remove:hover {
+    background: var(--colour-error-bg);
+  }
+
+  /*
+    Delete from Library removes the device type across every instance, a far
+    larger blast radius, so it keeps the loud full-width solid-danger styling
+    to read as the more serious action.
+  */
+  .btn-delete-type {
     width: 100%;
     padding: var(--space-3) var(--space-4);
     background: var(--colour-error);
-    border: none;
+    border: 1px solid var(--colour-error);
     border-radius: var(--radius-sm);
     color: var(--colour-text-inverse);
     font-size: var(--font-size-base);
@@ -73,11 +105,7 @@
     transition: background-color var(--duration-fast);
   }
 
-  .btn-danger:hover {
+  .btn-delete-type:hover {
     background: var(--colour-error-hover);
-  }
-
-  .btn-delete-type {
-    margin-top: var(--space-2);
   }
 </style>
