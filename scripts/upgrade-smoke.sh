@@ -221,6 +221,31 @@ check "the write created a snapshot (${SNAP_NEW} -> ${SNAP_WRITE})" "[[ '${SNAP_
 
 check "version endpoint responds" "curl -fsS '${BASE}/version' | grep -q version"
 
+# The migrating save must preserve the pre-carrier original (#2517). Simulate the
+# client's carrier-first autosave: PUT a changed body for the pre-carrier layout
+# with the migration header, then confirm the durable backup holds the ORIGINAL
+# pre-carrier bytes, so an existing deployment can recover from the one-way
+# rewrite even without a manual /data backup.
+sed 's/Pre-Carrier Slot Position Lab/Pre-Carrier MIGRATED/' \
+  "${WORKDIR}/before-precarrier.yaml" >"${WORKDIR}/precarrier-migrated.yaml"
+mig_code="$(curl -s -X PUT "${BASE}/layouts/${PRECARRIER_UUID}" \
+  -H "Content-Type: text/yaml" -H "X-Rackula-Pre-Carrier-Migration: 1" \
+  --data-binary "@${WORKDIR}/precarrier-migrated.yaml" -o /dev/null -w '%{http_code}' 2>/dev/null || echo "000")"
+check "migrating save accepted (http=${mig_code})" "[[ '${mig_code}' == '200' ]]"
+backup_code="$(curl -s -o "${WORKDIR}/precarrier-backup.yaml" -w '%{http_code}' \
+  "${BASE}/layouts/${PRECARRIER_UUID}/pre-carrier-backup" 2>/dev/null || echo "000")"
+check "migrating save created a pre-carrier backup (http=${backup_code})" "[[ '${backup_code}' == '200' ]]"
+check "backup holds the ORIGINAL pre-carrier bytes" \
+  "cmp -s '${WORKDIR}/before-precarrier.yaml' '${WORKDIR}/precarrier-backup.yaml'"
+# One-time guard: a second migrating save must not clobber the original backup.
+curl -s -X PUT "${BASE}/layouts/${PRECARRIER_UUID}" \
+  -H "Content-Type: text/yaml" -H "X-Rackula-Pre-Carrier-Migration: 1" \
+  --data-binary "@${WORKDIR}/precarrier-migrated.yaml" -o /dev/null 2>/dev/null || true
+curl -s -o "${WORKDIR}/precarrier-backup2.yaml" \
+  "${BASE}/layouts/${PRECARRIER_UUID}/pre-carrier-backup" 2>/dev/null || true
+check "backup is one-time (second migrating save preserves the original)" \
+  "cmp -s '${WORKDIR}/before-precarrier.yaml' '${WORKDIR}/precarrier-backup2.yaml'"
+
 echo "===== result: ${pass} passed, ${fail} failed, ${skip} skipped =====" >&2
 [[ "$fail" -eq 0 ]] || die "upgrade smoke FAILED"
 echo "PASS: upgrade from ${OLD_TAG} preserved the seeded layout" >&2
