@@ -3,9 +3,9 @@
  * panel.
  *
  * The read-only type facts live behind a disclosure toggle. The block defaults
- * to expanded, and the collapsed state is a single UI flag shared across device
- * selections (not stored per device), so toggling it stays sticky as the user
- * clicks between devices.
+ * to collapsed (#2535), and the expanded state is a single UI flag shared across
+ * device selections (not stored per device), so toggling it stays sticky as the
+ * user clicks between devices.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
@@ -55,37 +55,40 @@ describe("EditPanel Device type details collapse (#2443)", () => {
     return { layoutStore, selectionStore, rackId };
   }
 
-  it("defaults to expanded, showing the read-only facts", () => {
+  it("defaults to collapsed, hiding the read-only facts but showing the count", () => {
     setupSelectedDevice();
     renderEditTab();
 
-    expect(getDetailsToggle()).toHaveAttribute("aria-expanded", "true");
-    // A read-only fact label is visible when the block is expanded.
-    expect(screen.getByText("Brand")).toBeInTheDocument();
+    const toggle = getDetailsToggle();
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    // The read-only facts are hidden while the block is collapsed.
+    expect(screen.queryByText("Brand")).not.toBeInTheDocument();
+    // The header surfaces the hidden-fact count, e.g. "Device type details (4)".
+    expect(toggle).toHaveAccessibleName(/device type details\s*\(\d+\)/i);
   });
 
-  it("toggling hides and shows the read-only facts", async () => {
+  it("toggling shows and hides the read-only facts", async () => {
     setupSelectedDevice();
     renderEditTab();
 
     const toggle = getDetailsToggle();
 
-    // Collapse: facts disappear and aria-expanded flips to false.
-    await fireEvent.click(toggle);
-    await waitFor(() => {
-      expect(toggle).toHaveAttribute("aria-expanded", "false");
-    });
-    expect(screen.queryByText("Brand")).not.toBeInTheDocument();
-
-    // Expand again: facts come back.
+    // Expand: facts appear and aria-expanded flips to true.
     await fireEvent.click(toggle);
     await waitFor(() => {
       expect(toggle).toHaveAttribute("aria-expanded", "true");
     });
     expect(screen.getByText("Brand")).toBeInTheDocument();
+
+    // Collapse again: facts disappear.
+    await fireEvent.click(toggle);
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+    });
+    expect(screen.queryByText("Brand")).not.toBeInTheDocument();
   });
 
-  it("keeps the collapsed state across device selections (single UI flag)", async () => {
+  it("keeps the expanded state across device selections (single UI flag)", async () => {
     const layoutStore = getLayoutStore();
     const selectionStore = getSelectionStore();
 
@@ -104,18 +107,18 @@ describe("EditPanel Device type details collapse (#2443)", () => {
     selectionStore.selectDevice(rackId, deviceA.id);
     renderEditTab();
 
-    // Collapse while device A is selected.
+    // Expand while device A is selected (default is collapsed).
     await fireEvent.click(getDetailsToggle());
     await waitFor(() => {
-      expect(getDetailsToggle()).toHaveAttribute("aria-expanded", "false");
+      expect(getDetailsToggle()).toHaveAttribute("aria-expanded", "true");
     });
 
-    // Switch to device B: the block stays collapsed (sticky single flag).
+    // Switch to device B: the block stays expanded (sticky single flag).
     selectionStore.selectDevice(rackId, deviceB.id);
     await waitFor(() => {
       expect(selectionStore.selectedDeviceId).toBe(deviceB.id);
     });
-    expect(getDetailsToggle()).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("Brand")).not.toBeInTheDocument();
+    expect(getDetailsToggle()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Brand")).toBeInTheDocument();
   });
 });

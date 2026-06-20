@@ -217,8 +217,9 @@ let compatibleOnly = $state(initialCompatibleOnly);
 let readOnly = $state(false);
 // Device type details disclosure in the edit panel: a single UI flag shared
 // across device selections (not per device), so toggling it stays sticky as the
-// user clicks between devices. Defaults to expanded. Session-scoped.
-let deviceTypeDetailsExpanded = $state(true);
+// user clicks between devices. Defaults to collapsed to keep the read-only type
+// facts out of the way of the editable fields. Session-scoped.
+let deviceTypeDetailsExpanded = $state(false);
 
 // Derived values (using $derived rune)
 const canZoomIn = $derived(zoom < ZOOM_MAX);
@@ -250,7 +251,7 @@ export function resetUIStore(): void {
   promptCleanupOnSave = loadPromptCleanupFromStorage();
   compatibleOnly = loadCompatibleOnlyFromStorage();
   readOnly = false;
-  deviceTypeDetailsExpanded = true;
+  deviceTypeDetailsExpanded = false;
   applyThemeToDocument(theme);
 }
 
