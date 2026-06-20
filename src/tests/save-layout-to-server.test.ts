@@ -424,4 +424,53 @@ describe("saveLayoutToServer asset reconcile (server mode)", () => {
     expect(assetPut).toBeDefined();
     expect(yamlBodyOf(calls)).not.toContain("data:image/png;base64");
   });
+
+  it("keeps a slug-keyed device-type image embedded and never aborts the save", async () => {
+    // Custom device-type images are keyed by the bare device-type slug (e.g.
+    // "server-1u"), not a placement key. They must not be routed to the asset
+    // API (deviceKeyForWire would throw on a non-placement key and abort the
+    // whole save); they stay embedded in the YAML.
+    const { fetchMock, calls } = makeRoutedFetch();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveLayoutToServer(
+      createTestLayout({ metadata: { id: SERVER_UUID } }),
+      imageMap([["server-1u", userFace()]]),
+      null,
+    );
+
+    // No asset PUT for a slug-keyed image.
+    const assetPut = calls.find(
+      (c) => c.method === "PUT" && c.url.includes(`/assets/${SERVER_UUID}/`),
+    );
+    expect(assetPut).toBeUndefined();
+    // The slug-keyed image stays embedded in the YAML.
+    expect(yamlBodyOf(calls)).toContain("data:image/png;base64");
+  });
+
+  it("routes a placement-keyed image to disk while keeping a slug-keyed image embedded", async () => {
+    const { fetchMock, calls } = makeRoutedFetch();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveLayoutToServer(
+      createTestLayout({ metadata: { id: SERVER_UUID } }),
+      imageMap([
+        [PLACEMENT_KEY, userFace()],
+        ["server-1u", userFace()],
+      ]),
+      null,
+    );
+
+    // Placement image goes to disk.
+    const assetPut = calls.find(
+      (c) =>
+        c.method === "PUT" &&
+        c.url.endsWith(`/assets/${SERVER_UUID}/${DEVICE_ID}/front`),
+    );
+    expect(assetPut).toBeDefined();
+    // Slug image stays embedded; the placement image's base64 is dropped.
+    const body = yamlBodyOf(calls);
+    expect(body).toContain("server-1u");
+    expect(body).toContain("data:image/png;base64");
+  });
 });

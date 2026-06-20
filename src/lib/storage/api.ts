@@ -16,6 +16,7 @@ import {
   deviceKeyForWire,
   type AssetFace,
 } from "./assets-api";
+import { isPlacementKey } from "$lib/utils/placement-key";
 import type { Layout } from "$lib/types";
 import type {
   ImageStoreMap,
@@ -559,6 +560,14 @@ export async function saveLayoutToServer(
 
   if (isServerMode) {
     for (const [key, deviceImages] of userImages) {
+      // Only placement-keyed instance images go to disk. Custom device-type
+      // images are keyed by the bare device-type slug (e.g. "server-1u"), which
+      // is not a placement key; routing them through deviceKeyForWire would
+      // throw and abort the save, so they stay embedded in the YAML.
+      if (!isPlacementKey(key)) {
+        retainedImages.set(key, deviceImages);
+        continue;
+      }
       for (const face of DISK_FACES) {
         const image = deviceImages[face];
         if (!image) continue;
