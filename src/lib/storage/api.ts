@@ -4,7 +4,10 @@
  * Uses UUID-based routing for stable URLs across renames
  */
 import { isApiAvailable } from "./availability.svelte";
-import { takePreCarrierMigrationPending } from "./pre-carrier-migration-pending";
+import {
+  hasPreCarrierMigrationPending,
+  clearPreCarrierMigrationPending,
+} from "./pre-carrier-migration-pending";
 import type { Layout } from "$lib/types";
 import type { ImageStoreMap } from "$lib/types/images";
 import {
@@ -410,9 +413,11 @@ export async function saveLayoutToServer(
     headers["X-Rackula-Updated-At"] = lastKnownUpdatedAt;
   }
   // Signal the one-time carrier-first migration to the server so it durably
-  // backs up the prior YAML before this overwrite. Consume-once: the mark is
-  // cleared here so only the first save after the migration carries it (#2517).
-  if (takePreCarrierMigrationPending(uuid)) {
+  // backs up the prior YAML before this overwrite (#2517). Peek here, but only
+  // clear the mark after a successful save: if this request fails, the retry
+  // must still carry the header so the server backup is never skipped.
+  const needsPreCarrierBackup = hasPreCarrierMigrationPending(uuid);
+  if (needsPreCarrierBackup) {
     headers["X-Rackula-Pre-Carrier-Migration"] = "1";
   }
 
@@ -434,6 +439,12 @@ export async function saveLayoutToServer(
       error.error ?? "Failed to save layout",
       response.status,
     );
+  }
+
+  // The save landed (2xx), so the server has taken the durable backup; clear
+  // the mark so later saves of this layout do not re-send the header.
+  if (needsPreCarrierBackup) {
+    clearPreCarrierMigrationPending(uuid);
   }
 
   try {

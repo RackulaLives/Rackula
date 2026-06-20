@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, it, expect } from "vitest";
 import {
   markPreCarrierMigrationPending,
-  takePreCarrierMigrationPending,
+  hasPreCarrierMigrationPending,
+  clearPreCarrierMigrationPending,
 } from "$lib/storage/pre-carrier-migration-pending";
 import { adaptLegacyLayout } from "$lib/storage/adapt-legacy-layout";
 import {
@@ -16,25 +17,33 @@ const UUID_A = "11111111-1111-4111-8111-111111111111";
 const UUID_B = "22222222-2222-4222-8222-222222222222";
 
 describe("pre-carrier migration pending registry", () => {
-  it("returns true once then false (consume-once) for a marked uuid", () => {
+  afterEach(() => {
+    clearPreCarrierMigrationPending(UUID_A);
+    clearPreCarrierMigrationPending(UUID_B);
+  });
+
+  it("peek is non-destructive and clear removes the mark", () => {
     markPreCarrierMigrationPending(UUID_A);
-    expect(takePreCarrierMigrationPending(UUID_A)).toBe(true);
-    expect(takePreCarrierMigrationPending(UUID_A)).toBe(false);
+    expect(hasPreCarrierMigrationPending(UUID_A)).toBe(true);
+    // Peeking again must not clear it: a failed save retries with the header.
+    expect(hasPreCarrierMigrationPending(UUID_A)).toBe(true);
+    clearPreCarrierMigrationPending(UUID_A);
+    expect(hasPreCarrierMigrationPending(UUID_A)).toBe(false);
   });
 
   it("tracks distinct uuids independently", () => {
     markPreCarrierMigrationPending(UUID_A);
     markPreCarrierMigrationPending(UUID_B);
 
-    expect(takePreCarrierMigrationPending(UUID_A)).toBe(true);
-    // Taking A does not consume B.
-    expect(takePreCarrierMigrationPending(UUID_B)).toBe(true);
-    expect(takePreCarrierMigrationPending(UUID_B)).toBe(false);
+    clearPreCarrierMigrationPending(UUID_A);
+    // Clearing A leaves B marked.
+    expect(hasPreCarrierMigrationPending(UUID_A)).toBe(false);
+    expect(hasPreCarrierMigrationPending(UUID_B)).toBe(true);
   });
 
-  it("returns false when taking a uuid that was never marked", () => {
+  it("has is false for a uuid that was never marked", () => {
     expect(
-      takePreCarrierMigrationPending("33333333-3333-4333-8333-333333333333"),
+      hasPreCarrierMigrationPending("33333333-3333-4333-8333-333333333333"),
     ).toBe(false);
   });
 });
@@ -51,7 +60,7 @@ describe("adaptLegacyLayout pre-carrier migration signalling", () => {
   beforeEach(() => {
     delete window.__RACKULA_CONFIG__;
     // Drain any leftover marks so each test starts clean.
-    takePreCarrierMigrationPending(UUID_A);
+    clearPreCarrierMigrationPending(UUID_A);
   });
 
   afterEach(() => {
@@ -87,7 +96,7 @@ describe("adaptLegacyLayout pre-carrier migration signalling", () => {
 
     adaptLegacyLayout(changedLayout(UUID_A));
 
-    expect(takePreCarrierMigrationPending(UUID_A)).toBe(true);
+    expect(hasPreCarrierMigrationPending(UUID_A)).toBe(true);
   });
 
   it("does not mark in browser mode even when the layout changed", () => {
@@ -95,7 +104,7 @@ describe("adaptLegacyLayout pre-carrier migration signalling", () => {
 
     adaptLegacyLayout(changedLayout(UUID_A));
 
-    expect(takePreCarrierMigrationPending(UUID_A)).toBe(false);
+    expect(hasPreCarrierMigrationPending(UUID_A)).toBe(false);
   });
 
   it("does not mark when nothing changed (server mode)", () => {
@@ -120,6 +129,6 @@ describe("adaptLegacyLayout pre-carrier migration signalling", () => {
 
     adaptLegacyLayout(layout);
 
-    expect(takePreCarrierMigrationPending(UUID_A)).toBe(false);
+    expect(hasPreCarrierMigrationPending(UUID_A)).toBe(false);
   });
 });

@@ -315,8 +315,11 @@ describe("pre-carrier server backup", () => {
    */
   async function folderForUuid(uuid: string): Promise<string | null> {
     const entries = await readdir(testDir, { withFileTypes: true });
+    const normalizedUuid = uuid.toLowerCase();
     const folder = entries.find(
-      (entry) => entry.isDirectory() && entry.name.toLowerCase().endsWith(uuid),
+      (entry) =>
+        entry.isDirectory() &&
+        entry.name.toLowerCase().endsWith(normalizedUuid),
     );
     return folder ? join(testDir, folder.name) : null;
   }
@@ -327,8 +330,11 @@ describe("pre-carrier server backup", () => {
     if (!folder) return null;
     try {
       return await readFile(join(folder, PRE_CARRIER_BACKUP_FILENAME), "utf-8");
-    } catch {
-      return null;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return null;
+      }
+      throw error;
     }
   }
 

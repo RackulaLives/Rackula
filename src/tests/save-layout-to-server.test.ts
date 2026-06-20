@@ -1,14 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { saveLayoutToServer } from "$lib/storage/api";
 import { setApiAvailable } from "$lib/storage/availability.svelte";
-import { markPreCarrierMigrationPending } from "$lib/storage/pre-carrier-migration-pending";
+import {
+  markPreCarrierMigrationPending,
+  clearPreCarrierMigrationPending,
+} from "$lib/storage/pre-carrier-migration-pending";
 import { createTestLayout } from "./factories";
 
 /**
  * In server-storage mode, a layout whose carrier-first migration was marked
- * pending (by adapt-legacy-layout) must carry the X-Rackula-Pre-Carrier-Migration
- * header on its NEXT save only (consume-once), so the server takes the durable
- * backup exactly once. The header coexists with X-Rackula-Updated-At.
+ * pending (by adapt-legacy-layout) carries the X-Rackula-Pre-Carrier-Migration
+ * header on its next save. The mark is cleared only after a save succeeds, so a
+ * failed save retries with the header and the durable backup is never skipped.
+ * The header coexists with X-Rackula-Updated-At.
  */
 describe("saveLayoutToServer pre-carrier migration header", () => {
   const originalConfig = window.__RACKULA_CONFIG__;
@@ -39,6 +43,8 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
     vi.restoreAllMocks();
     setApiAvailable(false);
     window.__RACKULA_CONFIG__ = originalConfig;
+    clearPreCarrierMigrationPending(UUID);
+    clearPreCarrierMigrationPending(OTHER_UUID);
   });
 
   it("attaches the header when the uuid is pending", async () => {
@@ -109,5 +115,34 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
     expect(headers.get("X-Rackula-Updated-At")).toBe(
       "2026-06-14T09:00:00.000Z",
     );
+  });
+
+  it("retries with the header after a failed save so the backup is not skipped", async () => {
+    // First save fails (non-2xx), the retry succeeds.
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async () => new Response("nope", { status: 503 }))
+      .mockImplementationOnce(async () => okSaveResponse(UUID));
+    vi.stubGlobal("fetch", fetchMock);
+
+    markPreCarrierMigrationPending(UUID);
+
+    await expect(
+      saveLayoutToServer(
+        createTestLayout({ metadata: { id: UUID } }),
+        new Map(),
+        null,
+      ),
+    ).rejects.toThrow();
+
+    // The failed save must not have consumed the mark.
+    await saveLayoutToServer(
+      createTestLayout({ metadata: { id: UUID } }),
+      new Map(),
+      null,
+    );
+
+    const retryHeaders = new Headers(fetchMock.mock.calls[1][1].headers);
+    expect(retryHeaders.get("X-Rackula-Pre-Carrier-Migration")).toBe("1");
   });
 });

@@ -106,5 +106,6 @@ export {
 } from "./pre-carrier-backup";
 export {
   markPreCarrierMigrationPending,
-  takePreCarrierMigrationPending,
+  hasPreCarrierMigrationPending,
+  clearPreCarrierMigrationPending,
 } from "./pre-carrier-migration-pending";

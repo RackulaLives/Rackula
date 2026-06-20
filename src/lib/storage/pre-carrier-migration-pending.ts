@@ -21,9 +21,16 @@ export function markPreCarrierMigrationPending(uuid: string): void {
 }
 
 /**
- * Return whether the uuid was pending and clear it (consume-once). A second
- * call for the same uuid returns false until it is marked again.
+ * Whether this layout still needs the pre-carrier-migration header on its next
+ * save. Non-destructive: the mark is only cleared once a save has succeeded
+ * (via {@link clearPreCarrierMigrationPending}), so a failed-then-retried save
+ * still signals the server and the durable backup is never skipped.
  */
-export function takePreCarrierMigrationPending(uuid: string): boolean {
-  return pending.delete(uuid);
+export function hasPreCarrierMigrationPending(uuid: string): boolean {
+  return pending.has(uuid);
+}
+
+/** Clear the mark after a migrating save has succeeded. Idempotent. */
+export function clearPreCarrierMigrationPending(uuid: string): void {
+  pending.delete(uuid);
 }
