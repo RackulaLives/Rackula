@@ -114,8 +114,10 @@ assets.put("/:layoutId/:deviceSlug/:face", async (c) => {
 
     return c.json({ message: "Asset uploaded" }, 200);
   } catch (error) {
-    logger.error({ err: error }, `Failed to save asset`);
-
+    // Client errors (oversized body, rejected bytes) are expected bad uploads,
+    // not server faults, so they return a 4xx without logging at error level.
+    // Logging them would make routine bad uploads look like server failures in
+    // logs and alerts.
     if (error instanceof Error && error.message.includes("too large")) {
       return c.json({ error: error.message }, 413);
     }
@@ -129,6 +131,8 @@ assets.put("/:layoutId/:deviceSlug/:face", async (c) => {
       return c.json({ error: error.message }, 400);
     }
 
+    // Anything reaching here is an unexpected server fault: log it.
+    logger.error({ err: error }, `Failed to save asset`);
     return c.json({ error: "Failed to save asset" }, 500);
   }
 });

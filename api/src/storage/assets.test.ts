@@ -258,6 +258,18 @@ describe("saveAsset rejects content the bytes do not vouch for", () => {
     ).rejects.toThrow();
     expect(await countAssetFiles()).toBe(0);
   });
+
+  it("rejects a truncated PNG that lacks the full 8-byte signature", async () => {
+    // Only the first 4 PNG bytes (89 50 4E 47) without the 0D 0A 1A 0A
+    // continuation. The full signature is required, so this sniffs to null.
+    const partialPng = Uint8Array.from([
+      0x89, 0x50, 0x4e, 0x47, 0x00, 0x01,
+    ]).buffer;
+    await expect(
+      saveAsset(LAYOUT_UUID, DEVICE_SLUG, "front", partialPng, "image/png"),
+    ).rejects.toThrow(AssetRejectedError);
+    expect(await countAssetFiles()).toBe(0);
+  });
 });
 
 // ============================================================================
