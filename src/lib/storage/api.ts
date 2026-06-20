@@ -33,7 +33,9 @@ function normalizeApiBaseUrl(raw: string | undefined): string {
   return `/${trimmed}`;
 }
 
-const API_BASE_URL: string = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
+export const API_BASE_URL: string = normalizeApiBaseUrl(
+  import.meta.env.VITE_API_URL,
+);
 
 /**
  * Human-readable label for the server instance, used in offline/recovery toasts.
