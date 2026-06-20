@@ -215,7 +215,14 @@ export async function getAssetBlob(
   return response.blob();
 }
 
-/** Delete one image face for a placed device (used by the save reconcile). */
+/**
+ * Delete one image face for a placed device (used by the save reconcile).
+ *
+ * Idempotent: a 404 means the face is already absent, which is the desired end
+ * state for a reconcile, so it resolves as a successful no-op rather than
+ * failing the save. A concurrent delete or a stale listing must not abort the
+ * reconcile loop.
+ */
 export async function deleteAsset(
   layoutId: string,
   deviceId: string,
@@ -232,6 +239,11 @@ export async function deleteAsset(
     method: "DELETE",
     signal: AbortSignal.timeout(ASSET_TIMEOUT_MS),
   });
+
+  if (response.status === 404) {
+    log("deleteAsset: 404 (already absent), treating as no-op");
+    return;
+  }
 
   if (!response.ok) {
     const message = await errorMessage(response);

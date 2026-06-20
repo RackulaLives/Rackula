@@ -291,6 +291,23 @@ describe("asset transport wrappers", () => {
     ).rejects.toBeInstanceOf(PersistenceError);
   });
 
+  it("deleteAsset treats 404 as an idempotent no-op", async () => {
+    // An already-absent face is the reconcile's desired end state, so a 404
+    // must resolve rather than abort the save loop.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: "Asset not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    await expect(
+      deleteAsset(LAYOUT_ID, DEVICE_ID, "front"),
+    ).resolves.toBeUndefined();
+  });
+
   it("listAssets returns the on-disk face set for the reconcile", async () => {
     vi.stubGlobal(
       "fetch",
