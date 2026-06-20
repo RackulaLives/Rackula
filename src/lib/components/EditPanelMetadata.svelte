@@ -2,7 +2,7 @@
   EditPanelMetadata Component
   Edit panel section: descriptive properties for the selected device, grouped
   by meaning. Identity (name, colour), Device type details (read-only facts:
-  type, brand, height, category, power ratings, device-type notes), Placement
+  type, brand, height, category, power ratings, tags, device-type notes), Placement
   (mounted face), Network (IP/hostname), and Notes (placement notes).
 -->
 <script lang="ts">
@@ -36,13 +36,14 @@
 
   // Count of device type facts shown in the collapsible block, so the header can
   // report how many are hidden when collapsed. Type, Brand, Height, Depth, Width
-  // and Category always show; outlet count, VA rating and device-type notes are
-  // conditional.
+  // and Category always show; outlet count, VA rating, tags and device-type notes
+  // are conditional.
   const deviceTypeFactCount = $derived.by(() => {
     const device = selectedDeviceInfo.device;
     let count = 6; // Type, Brand, Height, Depth, Width, Category
     if (device.category === "power" && device.outlet_count) count += 1;
     if (device.category === "power" && device.va_rating) count += 1;
+    if (deviceTags.length > 0) count += 1;
     if (device.notes) count += 1;
     return count;
   });
@@ -53,6 +54,12 @@
   // resolve against the current library value.
   const authoritativeDevice = $derived(
     findDeviceType(selectedDeviceInfo.device.slug) ?? selectedDeviceInfo.device,
+  );
+
+  // Read-only tag chips. Resolves against the authoritative library value first,
+  // falling back to the layout copy, mirroring Brand/Depth/Width.
+  const deviceTags = $derived(
+    authoritativeDevice.tags ?? selectedDeviceInfo.device.tags ?? [],
   );
 
   // State for device name editing. editingDeviceId pins the edit to the device
@@ -418,6 +425,16 @@
           <span class="fact-value">{selectedDeviceInfo.device.va_rating}</span>
         </div>
       {/if}
+      {#if deviceTags.length > 0}
+        <div class="fact-tags">
+          <span class="fact-label">Tags</span>
+          <div class="tag-chips">
+            {#each deviceTags as tag, i (i)}
+              <span class="tag-chip">{tag}</span>
+            {/each}
+          </div>
+        </div>
+      {/if}
       {#if selectedDeviceInfo.device.notes}
         <div class="fact-notes">
           <span class="fact-label">Device type notes</span>
@@ -697,6 +714,29 @@
     margin: 0;
     white-space: pre-wrap;
     line-height: 1.5;
+  }
+
+  /* Read-only tag chips. Matches DeviceFilterPopover's quiet chip styling
+     (rounded, muted, bordered) but non-interactive to fit the read-only group. */
+  .fact-tags {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .tag-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1-5);
+  }
+
+  .tag-chip {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-sm);
+    color: var(--colour-text-muted);
+    background: transparent;
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-full);
   }
 
   /* Colour swatch button: a real interactive control with form-control
