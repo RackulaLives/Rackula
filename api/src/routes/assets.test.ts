@@ -1,10 +1,14 @@
 /**
- * Asset PUT route tests (#2528)
+ * Asset route tests.
  *
- * Proves the full request chain: the declared Content-Type passes the route's
+ * PUT sniff enforcement (#2528): the declared Content-Type passes the route's
  * allowlist check, then saveAsset's magic-byte sniff is the authority. A body
  * that does not sniff to the declared raster type is rejected at the route with
  * a 400 (not a 500), and nothing is written.
+ *
+ * GET response headers (#2529): a served asset carries
+ * X-Content-Type-Options: nosniff so a polyglot upload cannot be MIME-sniffed
+ * into active content, and the served Content-Type matches the stored format.
  */
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, rm, readdir } from "node:fs/promises";
@@ -90,6 +94,7 @@ async function assetFileCount(): Promise<number> {
   return count;
 }
 
+/** A 12-byte PNG body: full 8-byte signature plus a short tail. */
 function pngBytes(): ArrayBuffer {
   return Uint8Array.from([
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
@@ -122,5 +127,19 @@ describe("PUT /assets sniff enforcement", () => {
     const res = await putAsset(gif, "image/gif");
     expect(res.status).toBe(400);
     expect(await assetFileCount()).toBe(0);
+  });
+});
+
+describe("GET /assets response headers", () => {
+  it("serves a stored asset with X-Content-Type-Options: nosniff", async () => {
+    const putRes = await putAsset(pngBytes(), "image/png");
+    expect(putRes.status).toBe(200);
+
+    const res = await app.request(
+      `/assets/${LAYOUT_UUID}/${DEVICE_SLUG}/front`,
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(res.headers.get("Content-Type")).toBe("image/png");
   });
 });

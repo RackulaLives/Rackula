@@ -126,6 +126,14 @@ For reverse-proxy-based auth (outside the built-in modes):
 
 For a copy-pastable hardening path with Docker + NGINX (UI and API protection, deny-by-default route allowlist, Docker secrets, and API rate limits), use the stop-gap section below.
 
+#### Read access in write-token-only mode
+
+A write token (`RACKULA_API_WRITE_TOKEN`) gates only the write methods (`POST`, `PUT`, `DELETE`). It does not gate reads. In the common homelab config where a write token is set but `RACKULA_AUTH_MODE` is unset, `GET /layouts` and `GET /assets` are unauthenticated: anyone who can reach the API and supplies a valid layout UUID and device UUID can read your layouts and your custom device images. Asset reads inherit the same posture as layout reads here, so this is the existing behaviour for read access, not a new gap, and there is no separate read token.
+
+To gate reads, set `RACKULA_AUTH_MODE` to `local` or `oidc`. The session gate then covers `GET` requests too, so reads require a logged-in session. Enabling `RACKULA_AUTH_MODE` is the way to require auth for reading layouts and assets.
+
+Served assets carry `X-Content-Type-Options: nosniff` from both the API and the nginx edge, so a polyglot image cannot be MIME-sniffed into active content even when reads are open.
+
 ---
 
 ## Upgrading an existing deployment
