@@ -53,6 +53,12 @@ const MIME_TO_EXT: Record<string, string> = {
  * Recognises PNG, JPEG, and WebP. Returns null for anything unrecognised
  * (including GIF, SVG, and text starting with "<"), so callers can reject untrusted or
  * disallowed content without trusting any declared prefix.
+ *
+ * ALLOWLIST PARITY: an independent copy of this detector lives in the Bun API
+ * at `api/src/storage/assets.ts` (the server cannot import this Svelte bundle).
+ * This client copy is advisory; the server copy is the authority for what
+ * lands on disk. If you change the accepted formats here, change the server
+ * copy too.
  */
 export function detectImageMime(bytes: Uint8Array): string | null {
   // PNG: 89 50 4E 47

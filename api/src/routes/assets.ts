@@ -20,6 +20,7 @@ import {
   deleteAsset,
   isValidImageType,
   isValidDeviceSlug,
+  AssetRejectedError,
   MAX_SIZE,
 } from "../storage/assets";
 import { logger } from "../logger";
@@ -117,6 +118,15 @@ assets.put("/:layoutId/:deviceSlug/:face", async (c) => {
 
     if (error instanceof Error && error.message.includes("too large")) {
       return c.json({ error: error.message }, 413);
+    }
+
+    // saveAsset throws AssetRejectedError when the bytes fail the magic-byte
+    // sniff (SVG/GIF/polyglot or a body that disagrees with the declared
+    // Content-Type). That is a bad request, not a server fault, so surface it
+    // as a 400. The message is a fixed category string that interpolates only
+    // server-validated allowlist values, so it is safe to return.
+    if (error instanceof AssetRejectedError) {
+      return c.json({ error: error.message }, 400);
     }
 
     return c.json({ error: "Failed to save asset" }, 500);
