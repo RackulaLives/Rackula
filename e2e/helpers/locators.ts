@@ -115,10 +115,10 @@ export const locators = {
   deviceDetail: {
     colourPickerContainer: ".colour-picker-container",
     displayNameText: ".display-name-text",
-    colourInfo: ".colour-info",
+    colourInfo: ".colour-value",
     categoryIconIndicator: ".category-icon-indicator svg",
     imagePreview: ".image-upload img, .image-preview img",
-    colourRowButton: "button.colour-row-btn",
+    colourRowButton: "button.colour-swatch-btn",
     colourPickerInput: '.colour-picker-container input[type="text"]',
   },
 

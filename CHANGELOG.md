@@ -66,6 +66,7 @@ A large usability release. The workspace is rebuilt around the canvas, and the s
 - Layout store decomposed into per-layout instances behind a facade, with rack and device logic split into domain action modules; Canvas coordinate math and markup extracted; export.ts and EditPanel.svelte split into focused modules (#1077, #1080, #1396, #1398, #1610, #2024, #2025)
 - E2E suite reworked: two-tier model with an environment approval gate, 4-way sharding, assertion-based waits, and role/label selectors, plus new undo/redo and accessibility coverage (#1227, #1231, #1420, #2002, #2003)
 - Regression gates added: visual-diff tripwire, axe-core accessibility checks, a bundle-size budget, and a ban on CSS-class selectors in tests (#1423, #2098, #2099, #2185)
+- Upgrade-safety net so a self-hosted deployment can take new images without losing saved data: prior-release layouts load through the real parse path in a self-discovering fixture corpus with silent-loss detection, plus a fail-closed release guard; the Docker upgrade smoke drives the compose stack from the previous released image to the new build against the same volume and confirms the saved layout survives byte-for-byte (#2448, #2515)
 - i18n deferred to M11; the orphaned Paraglide runtime removed (#2184)
 - Dev tooling hardened: cloud-safe superpowers bootstrap, worktree-aware main-edit guard, POSIX husky hooks, the /orchestrate-issues command, and pre-push gate fixes (#2102, #2288)
 - Dependency updates across the production, development, vitest, eslint, and api groups

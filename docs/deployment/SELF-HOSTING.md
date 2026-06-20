@@ -130,13 +130,15 @@ For a copy-pastable hardening path with Docker + NGINX (UI and API protection, d
 
 ## Upgrading an existing deployment
 
-Your layouts live in the `/data` volume and are not touched by pulling a new image.
+Your layouts live in the `/data` volume and are not touched by pulling a new image. Pulling new images is safe on its own; the risk is the first save after a format-changing upgrade, which rewrites the file in the new format.
 
-1. Back up the data directory first: `cp -a data data.bak` (or snapshot the volume).
+Back up `/data` before every upgrade. This is required, not optional.
+
+1. Back up the data directory: `cp -a data data.bak` (or snapshot the volume). Do this while the stack is stopped, or right before you upgrade.
 2. Pull the new images: `docker compose pull`.
 3. Recreate the containers: `docker compose up -d`.
 
-Layouts written by the previous release load as-is. If a release migrates the data format, the migration runs on load and the upgraded layout is written back on your next save. The server also keeps automatic snapshots per layout, so a bad write does not lose the prior copy. Keep the directory owned by uid 1001 (`sudo chown -R 1001:1001 data`).
+Layouts written by the previous release load as-is. If a release migrates the data format, the migration runs on load and the upgraded layout is written back on your next save. That rewrite is one-way: once a layout is saved in the new format, the previous on-disk copy is gone. The server keeps per-layout snapshots, but only when a save conflicts with a copy changed elsewhere, so a routine migrating save is not snapshotted. Your `data.bak` is the reliable way back. Keep the directory owned by uid 1001 (`sudo chown -R 1001:1001 data`).
 
 ---
 
