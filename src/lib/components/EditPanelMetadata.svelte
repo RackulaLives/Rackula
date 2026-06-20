@@ -35,11 +35,12 @@
   const uiStore = getUIStore();
 
   // Count of device type facts shown in the collapsible block, so the header can
-  // report how many are hidden when collapsed. Type, Brand, Height and Category
-  // always show; outlet count, VA rating and device-type notes are conditional.
+  // report how many are hidden when collapsed. Type, Brand, Height, Depth, Width
+  // and Category always show; outlet count, VA rating and device-type notes are
+  // conditional.
   const deviceTypeFactCount = $derived.by(() => {
     const device = selectedDeviceInfo.device;
-    let count = 4; // Type, Brand, Height, Category
+    let count = 6; // Type, Brand, Height, Depth, Width, Category
     if (device.category === "power" && device.outlet_count) count += 1;
     if (device.category === "power" && device.va_rating) count += 1;
     if (device.notes) count += 1;
@@ -98,6 +99,25 @@
   // is_full_depth undefined or true means full-depth.
   const isFullDepthDevice = $derived(
     authoritativeDevice.is_full_depth !== false,
+  );
+
+  // Read-only depth fact label. Resolves against the authoritative library value
+  // first, falling back to the layout copy. is_full_depth undefined or true means
+  // full-depth; false means half-depth.
+  const depthLabel = $derived(
+    (authoritativeDevice.is_full_depth ??
+      selectedDeviceInfo.device.is_full_depth) === false
+      ? "Half"
+      : "Full",
+  );
+
+  // Read-only width fact label. slot_width 2 (or undefined) means full-width;
+  // 1 means half-width.
+  const widthLabel = $derived(
+    (authoritativeDevice.slot_width ?? selectedDeviceInfo.device.slot_width) ===
+      1
+      ? "Half"
+      : "Full",
   );
 
   // Resolved colour shown by the swatch button: placement override wins over the
@@ -369,6 +389,14 @@
       <div class="fact-row">
         <span class="fact-label">Height</span>
         <span class="fact-value">{selectedDeviceInfo.device.u_height}U</span>
+      </div>
+      <div class="fact-row">
+        <span class="fact-label">Depth</span>
+        <span class="fact-value">{depthLabel}</span>
+      </div>
+      <div class="fact-row">
+        <span class="fact-label">Width</span>
+        <span class="fact-value">{widthLabel}</span>
       </div>
       <div class="fact-row">
         <span class="fact-label">Category</span>
