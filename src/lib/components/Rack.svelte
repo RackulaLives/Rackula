@@ -480,6 +480,8 @@
             {showLabelsOnImages}
             placedDeviceName={placedDevice.name}
             placedDeviceId={placedDevice.id}
+            frontImageRef={placedDevice.front_image}
+            rearImageRef={placedDevice.rear_image}
             colourOverride={placedDevice.colour_override}
             containerContext={containerCtx}
             {deviceLibrary}

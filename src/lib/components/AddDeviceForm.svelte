@@ -335,12 +335,14 @@
       <ImageUpload
         face="front"
         currentImage={frontImage}
+        deviceName={name}
         onupload={(data) => (frontImage = data)}
         onremove={() => (frontImage = undefined)}
       />
       <ImageUpload
         face="rear"
         currentImage={rearImage}
+        deviceName={name}
         onupload={(data) => (rearImage = data)}
         onremove={() => (rearImage = undefined)}
       />

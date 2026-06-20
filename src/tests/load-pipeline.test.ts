@@ -14,7 +14,13 @@ import {
 } from "$lib/storage/server-base";
 import * as archive from "$lib/utils/archive";
 import * as fileUtils from "$lib/utils/file";
-import { createTestLayout } from "./factories";
+import {
+  createTestLayout,
+  createTestRack,
+  createTestDevice,
+  createTestDeviceType,
+} from "./factories";
+import { placementKey } from "$lib/utils/placement-key";
 
 const mockImageStore = {
   clearAllImages: vi.fn(),
@@ -128,6 +134,67 @@ describe("load-pipeline", () => {
       );
       // The warning fires but the generic success toast stays suppressed.
       expect(toastStore.toasts.some((t) => t.type === "success")).toBe(false);
+    });
+
+    it("names the device and face in a per-face failure toast when keys are given", () => {
+      const layoutId = "11111111-1111-4111-8111-111111111111";
+      const deviceId = "22222222-2222-4222-8222-222222222222";
+      const rack = createTestRack({
+        devices: [
+          createTestDevice({
+            id: deviceId,
+            device_type: "test-device",
+            name: "Synology NAS",
+            front_image: "front.png",
+          }),
+        ],
+      });
+      const layout = createTestLayout({
+        name: "Named Failure",
+        metadata: { id: layoutId },
+        device_types: [createTestDeviceType({ slug: "test-device" })],
+        racks: [rack],
+      });
+
+      finalizeLayoutLoad(layout, undefined, 1, {
+        failedKeys: [placementKey(layoutId, deviceId)],
+      });
+
+      // The named per-face toast replaces the generic count toast.
+      expect(toastStore.toasts).toContainEqual(
+        expect.objectContaining({
+          message: 'Front image for "Synology NAS" failed to load',
+          type: "warning",
+        }),
+      );
+      expect(
+        toastStore.toasts.some((t) =>
+          t.message.includes("that couldn't be read"),
+        ),
+      ).toBe(false);
+      // A partial failure is not a failed save: no success toast either.
+      expect(toastStore.toasts.some((t) => t.type === "success")).toBe(false);
+    });
+
+    it("falls back to the generic count toast when no keys resolve to a device", () => {
+      const layout = createTestLayout({ name: "Orphan Keys" });
+
+      finalizeLayoutLoad(layout, undefined, 1, {
+        // A placement key whose device is not in the layout resolves to nothing.
+        failedKeys: [
+          placementKey(
+            "11111111-1111-4111-8111-111111111111",
+            "99999999-9999-4999-8999-999999999999",
+          ),
+        ],
+      });
+
+      expect(toastStore.toasts).toContainEqual(
+        expect.objectContaining({
+          message: "Layout loaded with 1 image that couldn't be read",
+          type: "warning",
+        }),
+      );
     });
   });
 

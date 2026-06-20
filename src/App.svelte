@@ -390,6 +390,7 @@
             setServerBaseUpdatedAt(updatedAt ?? null);
             finalizeLayoutLoad(layout, images, failedImagesCount, {
               successMessage: null,
+              failedKeys,
             });
           },
           restoreLocal: (reason) => {

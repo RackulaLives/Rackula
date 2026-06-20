@@ -56,6 +56,10 @@
     showLabelsOnImages?: boolean;
     placedDeviceName?: string;
     placedDeviceId?: string;
+    /** This placement's custom front image reference, if it sets one. */
+    frontImageRef?: string;
+    /** This placement's custom rear image reference, if it sets one. */
+    rearImageRef?: string;
     /** Custom colour override for this placement (overrides device type colour) */
     colourOverride?: string;
     /** Container context for child devices (for accessibility announcements) */
@@ -115,6 +119,8 @@
     showLabelsOnImages = false,
     placedDeviceName,
     placedDeviceId,
+    frontImageRef,
+    rearImageRef,
     colourOverride,
     containerContext,
     deviceLibrary = [],
@@ -148,27 +154,47 @@
     displayMode === "image" || displayMode === "image-label",
   );
 
+  // The physical face currently in view.
+  const currentFace = $derived(rackView === "rear" ? "rear" : "front");
+
   // Get the device image URL for the current view
   // Fallback chain: placement image → device type image → null
   const deviceImageUrl = $derived.by(() => {
     if (!isImageMode) return null;
-    const face = rackView === "rear" ? "rear" : "front";
 
     // Try placement-specific image first (if placedDeviceId is provided)
     if (placedDeviceId) {
       const layoutId = layoutStore.layout.metadata?.id;
       const placementUrl = layoutId
-        ? imageStore.getImageUrl(placementKey(layoutId, placedDeviceId), face)
+        ? imageStore.getImageUrl(
+            placementKey(layoutId, placedDeviceId),
+            currentFace,
+          )
         : undefined;
       if (placementUrl) return placementUrl;
     }
 
     // Fall back to device type image
-    return imageStore.getImageUrl(device.slug, face);
+    return imageStore.getImageUrl(device.slug, currentFace);
   });
 
   // Should show image or fall back to label
   const showImage = $derived(isImageMode && deviceImageUrl);
+
+  // This placement references a custom image for the face in view.
+  const hasImageRefForFace = $derived(
+    currentFace === "rear" ? !!rearImageRef : !!frontImageRef,
+  );
+
+  // The face is expected to carry an image but none is in the store yet: it is
+  // still being fetched, or its fetch failed and will retry on the next reopen.
+  // Show a graceful placeholder rather than a blank cell or a broken image.
+  const showImagePlaceholder = $derived(
+    isImageMode && hasImageRefForFace && !deviceImageUrl,
+  );
+
+  // Accessible name for the device image, naming the device and the face shown.
+  const imageAccessibleName = $derived(`${displayName}, ${currentFace} image`);
 
   // Track dragging state for visual feedback
   let isDragging = $state(false);
@@ -289,13 +315,21 @@
   const ariaLabel = $derived.by(() => {
     const base = `${deviceName}, ${device.u_height}U ${device.category}`;
 
+    // Convey the device image and the face shown: the SVG <image> has no native
+    // accessible name, so the device button announces it instead.
+    const imageState = showImage
+      ? `, showing ${currentFace} image`
+      : showImagePlaceholder
+        ? `, ${currentFace} image loading`
+        : "";
+
     if (containerContext) {
       // Child device: announce hierarchy per Epic #159
-      return `${base} in ${containerContext.slotName} of ${containerContext.containerName} at U${containerContext.containerPosition}${selected ? ", selected" : ""}`;
+      return `${base} in ${containerContext.slotName} of ${containerContext.containerName} at U${containerContext.containerPosition}${imageState}${selected ? ", selected" : ""}`;
     }
 
     // Rack-level device: standard announcement
-    return `${base} at U${positionHuman}${selected ? ", selected" : ""}`;
+    return `${base} at U${positionHuman}${imageState}${selected ? ", selected" : ""}`;
   });
 
   // Handle keyboard activation (Enter/Space to select, Tab to enter container)
@@ -592,7 +626,7 @@
     />
   {/if}
 
-  <!-- Device content: Image or Label -->
+  <!-- Device content: Image, loading placeholder, or Label -->
   {#if showImage}
     <!-- ClipPath for rounded corners on device image -->
     <defs>
@@ -607,17 +641,24 @@
         />
       </clipPath>
     </defs>
-    <!-- Device image: extends past rack rails for realistic front-mounting appearance -->
-    <image
-      class="device-image"
-      x={imageX}
-      y="0"
-      width={imageWidth}
-      height={deviceHeight}
-      href={deviceImageUrl}
-      preserveAspectRatio="xMidYMid slice"
-      clip-path="url(#{clipId})"
-    />
+    <!-- Device image: extends past rack rails for realistic front-mounting
+         appearance. Keyed on the URL so the fade-in animation re-fires when a
+         freshly fetched image replaces a placeholder. The fade is a CSS
+         animation, so the global prefers-reduced-motion reset disables it. -->
+    {#key deviceImageUrl}
+      <image
+        class="device-image"
+        x={imageX}
+        y="0"
+        width={imageWidth}
+        height={deviceHeight}
+        href={deviceImageUrl}
+        preserveAspectRatio="xMidYMid slice"
+        clip-path="url(#{clipId})"
+        role="img"
+        aria-label={imageAccessibleName}
+      />
+    {/key}
     <!-- Label overlay when showLabelsOnImages is true
          Safari 18.x fix #420: Use SVG-native component instead of foreignObject
          to avoid transform inheritance bug -->
@@ -627,6 +668,30 @@
         fontSize={fittedImageLabel.fontSize}
         width={deviceWidth}
         height={deviceHeight}
+      />
+    {/if}
+  {:else if showImagePlaceholder}
+    <!-- A custom image is expected here but not yet in the store (still loading,
+         or its fetch failed and will retry on the next reopen). Show a quiet
+         placeholder over the device rect rather than a blank cell or a broken
+         image. The device button's aria-label announces the loading state. -->
+    <rect
+      class="device-image-placeholder"
+      x="0"
+      y="0"
+      width={deviceWidth}
+      height={deviceHeight}
+      rx="2"
+      ry="2"
+      role="presentation"
+      aria-hidden="true"
+    />
+    {#if deviceHeight >= 22}
+      <CategoryIconSVG
+        category={device.category}
+        size={14}
+        x={(deviceWidth - 14) / 2}
+        y={(deviceHeight - 14) / 2}
       />
     {/if}
   {:else}
@@ -842,6 +907,28 @@
 
   .device-image {
     pointer-events: none;
+    /* Fade the image in as its blob resolves. A CSS animation (not a Svelte
+       transition: directive) is used deliberately so the global
+       prefers-reduced-motion reset in animations.css collapses it to instant. */
+    animation: device-image-fade-in 180ms ease-out;
+  }
+
+  @keyframes device-image-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Quiet placeholder shown over the device rect while a custom image for the
+     face in view is still loading (or awaiting an auto-retry after a failed
+     fetch). Reads as pending media, never a blank or broken cell. */
+  .device-image-placeholder {
+    pointer-events: none;
+    fill: var(--colour-surface-raised);
+    opacity: 0.6;
   }
 
   /* Respect reduced motion preference */

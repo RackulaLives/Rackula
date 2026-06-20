@@ -15,6 +15,7 @@ import { loadSavedLayout, loadSnapshot, PersistenceError } from "./api";
 import { extractFolderArchive } from "$lib/utils/archive";
 import { openFilePicker } from "$lib/utils/file";
 import { layoutDebug } from "$lib/utils/debug";
+import { resolveImageFailureMessages } from "$lib/utils/image-failure-labels";
 
 /**
  * Options for {@link finalizeLayoutLoad}.
@@ -27,6 +28,13 @@ export interface FinalizeLayoutLoadOptions {
    * shows when images failed to read, regardless of this option.
    */
   successMessage?: string | null;
+  /**
+   * The device-level store keys of the faces that failed to read (one entry per
+   * failed face). When given and resolvable to a placed device, each device gets
+   * its own warning toast naming the device and face; otherwise the generic
+   * "N images couldn't be read" count toast is used.
+   */
+  failedKeys?: string[];
 }
 
 /**
@@ -39,7 +47,8 @@ export function finalizeLayoutLoad(
   failedImagesCount: number = 0,
   options: FinalizeLayoutLoadOptions = {},
 ) {
-  const { successMessage = "Layout loaded successfully" } = options;
+  const { successMessage = "Layout loaded successfully", failedKeys = [] } =
+    options;
   const layoutStore = getLayoutStore();
   const imageStore = getImageStore();
   const toastStore = getToastStore();
@@ -74,8 +83,14 @@ export function finalizeLayoutLoad(
     canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
   });
 
-  // Show status toast
-  if (failedImagesCount > 0) {
+  // Show status toast. Prefer a per-device, per-face warning naming the device
+  // and face; fall back to the generic count when no key resolves to a device.
+  const failureMessages = resolveImageFailureMessages(failedKeys, layout);
+  if (failureMessages.length > 0) {
+    for (const failureMessage of failureMessages) {
+      toastStore.showToast(failureMessage, "warning");
+    }
+  } else if (failedImagesCount > 0) {
     toastStore.showToast(
       `Layout loaded with ${failedImagesCount} image${failedImagesCount > 1 ? "s" : ""} that couldn't be read`,
       "warning",
@@ -92,12 +107,12 @@ export async function loadFromApi(uuid: string) {
   const toastStore = getToastStore();
 
   try {
-    const { layout, images, failedImagesCount, updatedAt } =
+    const { layout, images, failedImagesCount, failedKeys, updatedAt } =
       await loadSavedLayout(uuid);
     // Record the server's updatedAt as the base for this copy before finalizing,
     // so the first autosave PUT carries the correct last-known timestamp.
     setServerBaseUpdatedAt(updatedAt ?? null);
-    finalizeLayoutLoad(layout, images, failedImagesCount);
+    finalizeLayoutLoad(layout, images, failedImagesCount, { failedKeys });
     return true;
   } catch (e) {
     let message: string;
@@ -130,15 +145,14 @@ export async function restoreFromSnapshot(uuid: string, filename: string) {
   const toastStore = getToastStore();
 
   try {
-    const { layout, images, failedImagesCount } = await loadSnapshot(
-      uuid,
-      filename,
-    );
+    const { layout, images, failedImagesCount, failedKeys } =
+      await loadSnapshot(uuid, filename);
     // No server base: the next save PUT carries a null last-known timestamp,
     // so the server snapshots its current copy before this restore overwrites it.
     setServerBaseUpdatedAt(null);
     finalizeLayoutLoad(layout, images, failedImagesCount, {
       successMessage: "Snapshot restored",
+      failedKeys,
     });
     return true;
   } catch (e) {

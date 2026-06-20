@@ -10,11 +10,13 @@
   interface Props {
     face: "front" | "rear";
     currentImage?: ImageData;
+    /** Device name, used to name the device and face in the preview alt text. */
+    deviceName?: string;
     onupload?: (data: ImageData) => void;
     onremove?: () => void;
   }
 
-  let { face, currentImage, onupload, onremove }: Props = $props();
+  let { face, currentImage, deviceName, onupload, onremove }: Props = $props();
 
   // Local state
   let error = $state<string | null>(null);
@@ -22,6 +24,13 @@
 
   // Computed label
   const faceLabel = $derived(face === "front" ? "Front Image" : "Rear Image");
+
+  // Preview alt names the device (when known) and the face.
+  const previewAlt = $derived(
+    deviceName
+      ? `${deviceName} ${face} image preview`
+      : `${face} image preview`,
+  );
 
   // Build accept string from supported formats
   const acceptTypes = SUPPORTED_IMAGE_FORMATS.join(",");
@@ -79,11 +88,7 @@
 
   {#if currentImage}
     <div class="image-preview">
-      <img
-        src={currentImage.dataUrl}
-        alt="{face} view preview"
-        class="preview-image"
-      />
+      <img src={currentImage.dataUrl} alt={previewAlt} class="preview-image" />
       <button
         type="button"
         class="btn btn-remove"
@@ -146,6 +151,8 @@
   }
 
   .btn {
+    /* min-height meets the 44px touch target on mobile (a11y standards). */
+    min-height: 44px;
     padding: var(--space-2) var(--space-4);
     border: none;
     border-radius: var(--radius-md);

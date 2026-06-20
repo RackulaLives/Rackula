@@ -24,6 +24,13 @@
 
   const layoutId = $derived(layoutStore.layout.metadata?.id ?? "");
 
+  // Human label for the selected device, for image alt text.
+  const deviceLabel = $derived(
+    selectedDeviceInfo.placedDevice.name ??
+      selectedDeviceInfo.device.model ??
+      selectedDeviceInfo.device.slug,
+  );
+
   const acceptTypes = SUPPORTED_IMAGE_FORMATS.join(",");
 
   // Per-face validation errors and hidden file inputs
@@ -137,7 +144,11 @@
 
     {#if overrideSrc}
       <div class="thumb-row">
-        <img class="thumb" src={overrideSrc} alt="{face} override preview" />
+        <img
+          class="thumb"
+          src={overrideSrc}
+          alt="{deviceLabel} {face} image override preview"
+        />
         <div class="slot-actions">
           <span class="slot-status">Override set</span>
           <div class="button-row">
@@ -274,6 +285,8 @@
   }
 
   .btn {
+    /* min-height meets the 44px touch target on mobile (a11y standards). */
+    min-height: 44px;
     padding: var(--space-1-5) var(--space-3);
     border: 1px solid transparent;
     border-radius: var(--radius-md);
