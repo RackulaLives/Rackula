@@ -101,11 +101,16 @@ export async function eagerFetchServerImages(
 }> {
   const images: ImageStoreMap = new Map(base);
   const failedKeys: string[] = [];
-  let failedImagesCount = 0;
 
   // Container children live flat in the same rack.devices[] array (linked by
   // container_id), so a single flatMap reaches every placed device.
   const devices = layout.racks.flatMap((rack) => rack.devices);
+
+  // One fetch task per placed face that carries a reference. Fetching every
+  // face concurrently (rather than awaiting in a loop) keeps total load time
+  // flat in face count, and one face's 10s timeout never blocks the rest.
+  const tasks: Promise<{ key: string; face: AssetFace; entry?: ImageData }>[] =
+    [];
 
   for (const device of devices) {
     const key = placementKey(layoutId, device.id);
@@ -113,44 +118,57 @@ export async function eagerFetchServerImages(
     // The placement key feeds a network fetch addressed by the device id path
     // segment. deviceKeyForWire asserts that segment is a bare UUID, so a
     // malformed id can never widen the server's path-traversal surface. A key
-    // that fails the gate is treated as a (recorded) failed face, never a throw.
-    let wireDeviceId: string;
+    // that fails the gate yields a recorded failure for each referenced face,
+    // never a throw and never a request.
+    let wireDeviceId: string | null = null;
     try {
       wireDeviceId = deviceKeyForWire(key);
     } catch (error) {
-      const refs = FACES.filter((face) => faceReference(device, face));
-      if (refs.length === 0) continue;
       log("eagerFetchServerImages: unsafe key %s rejected %O", key, error);
-      for (const _face of refs) {
-        failedKeys.push(key);
-        failedImagesCount++;
-      }
-      continue;
     }
 
     for (const face of FACES) {
       if (!faceReference(device, face)) continue;
 
-      try {
-        const blob = await getAssetBlob(layoutId, wireDeviceId, face);
-        const entry = await imageDataFromBlob(blob, key, face);
-        const existing = images.get(key) ?? {};
-        images.set(key, {
-          ...existing,
-          [face]: entry,
-        });
-      } catch (error) {
-        log(
-          "eagerFetchServerImages: face %s of %s failed %O",
-          face,
-          key,
-          error,
-        );
-        failedKeys.push(key);
-        failedImagesCount++;
+      if (wireDeviceId === null) {
+        tasks.push(Promise.resolve({ key, face }));
+        continue;
       }
+
+      const safeDeviceId = wireDeviceId;
+      tasks.push(
+        (async () => {
+          try {
+            const blob = await getAssetBlob(layoutId, safeDeviceId, face);
+            return {
+              key,
+              face,
+              entry: await imageDataFromBlob(blob, key, face),
+            };
+          } catch (error) {
+            log(
+              "eagerFetchServerImages: face %s of %s failed %O",
+              face,
+              key,
+              error,
+            );
+            return { key, face };
+          }
+        })(),
+      );
     }
   }
 
-  return { images, failedImagesCount, failedKeys };
+  // Merge after the concurrent phase so the map is mutated single-threaded and
+  // a device's two faces never race each other's read-modify-write.
+  for (const { key, face, entry } of await Promise.all(tasks)) {
+    if (entry) {
+      const existing = images.get(key) ?? {};
+      images.set(key, { ...existing, [face]: entry });
+    } else {
+      failedKeys.push(key);
+    }
+  }
+
+  return { images, failedImagesCount: failedKeys.length, failedKeys };
 }
