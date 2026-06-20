@@ -12,10 +12,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp } from "../app";
 import type { EnvMap } from "../security";
+import { PRE_CARRIER_MIGRATION_HEADER } from "./layouts";
 
 type App = Awaited<ReturnType<typeof createApp>>;
 
-const MIGRATION_HEADER = "X-Rackula-Pre-Carrier-Migration";
+// Use the route's own constant so the test cannot drift from the real header.
+const MIGRATION_HEADER = PRE_CARRIER_MIGRATION_HEADER;
 const TEST_UUID = "550e8400-e29b-41d4-a716-446655440000";
 const UNKNOWN_UUID = "00000000-0000-0000-0000-000000000999";
 

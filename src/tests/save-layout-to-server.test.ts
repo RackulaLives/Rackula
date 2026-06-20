@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { saveLayoutToServer } from "$lib/storage/api";
 import { setApiAvailable } from "$lib/storage/availability.svelte";
 import { markPreCarrierMigrationPending } from "$lib/storage/pre-carrier-migration-pending";
+import { createTestLayout } from "./factories";
 
 /**
  * In server-storage mode, a layout whose carrier-first migration was marked
@@ -18,10 +19,6 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
     vi.stubGlobal("AbortSignal", {
       timeout: () => new AbortController().signal,
     });
-  }
-
-  function layoutWithId(id: string) {
-    return { name: "L", racks: [], device_types: [], metadata: { id } };
   }
 
   function okSaveResponse(id: string): Response {
@@ -49,7 +46,11 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     markPreCarrierMigrationPending(UUID);
-    await saveLayoutToServer(layoutWithId(UUID) as never, new Map(), null);
+    await saveLayoutToServer(
+      createTestLayout({ metadata: { id: UUID } }),
+      new Map(),
+      null,
+    );
 
     const headers = new Headers(fetchMock.mock.calls[0][1].headers);
     expect(headers.get("X-Rackula-Pre-Carrier-Migration")).toBe("1");
@@ -63,8 +64,16 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     markPreCarrierMigrationPending(UUID);
-    await saveLayoutToServer(layoutWithId(UUID) as never, new Map(), null);
-    await saveLayoutToServer(layoutWithId(UUID) as never, new Map(), null);
+    await saveLayoutToServer(
+      createTestLayout({ metadata: { id: UUID } }),
+      new Map(),
+      null,
+    );
+    await saveLayoutToServer(
+      createTestLayout({ metadata: { id: UUID } }),
+      new Map(),
+      null,
+    );
 
     const secondHeaders = new Headers(fetchMock.mock.calls[1][1].headers);
     expect(secondHeaders.has("X-Rackula-Pre-Carrier-Migration")).toBe(false);
@@ -75,7 +84,7 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await saveLayoutToServer(
-      layoutWithId(OTHER_UUID) as never,
+      createTestLayout({ metadata: { id: OTHER_UUID } }),
       new Map(),
       null,
     );
@@ -90,7 +99,7 @@ describe("saveLayoutToServer pre-carrier migration header", () => {
 
     markPreCarrierMigrationPending(UUID);
     await saveLayoutToServer(
-      layoutWithId(UUID) as never,
+      createTestLayout({ metadata: { id: UUID } }),
       new Map(),
       "2026-06-14T09:00:00.000Z",
     );
