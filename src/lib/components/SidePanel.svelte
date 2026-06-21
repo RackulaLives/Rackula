@@ -22,11 +22,14 @@
 <script lang="ts">
   import SidePanelContent from "./SidePanelContent.svelte";
   import CollapsedPanelStrip from "./CollapsedPanelStrip.svelte";
+  import PanelEdgeGrip from "./PanelEdgeGrip.svelte";
   import { getUIStore, type SidePanelTab } from "$lib/stores/ui.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
+  import { getViewportStore } from "$lib/utils/viewport.svelte";
 
   const uiStore = getUIStore();
   const selectionStore = getSelectionStore();
+  const viewportStore = getViewportStore();
 
   const EDIT_HEADING_ID = "side-panel-edit-heading";
   const VIEW_HEADING_ID = "side-panel-view-heading";
@@ -122,6 +125,12 @@
         oncollapse={handleCollapse}
       />
     </div>
+    <!-- Secondary collapse affordance on the canvas-facing (left) edge for
+         mouse users (#2553). Non-mobile only: touch has no hover. The in-row
+         chevron stays the primary control. -->
+    {#if !viewportStore.isMobile}
+      <PanelEdgeGrip side="left" oncollapse={handleCollapse} />
+    {/if}
   {/if}
 </aside>
 

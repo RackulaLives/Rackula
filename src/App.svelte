@@ -11,6 +11,7 @@
   import DevicePalette from "$lib/components/DevicePalette.svelte";
   import SidePanel from "$lib/components/SidePanel.svelte";
   import CollapsedPanelStrip from "$lib/components/CollapsedPanelStrip.svelte";
+  import PanelEdgeGrip from "$lib/components/PanelEdgeGrip.svelte";
   import ToastContainer from "$lib/components/ToastContainer.svelte";
   import PortTooltip from "$lib/components/PortTooltip.svelte";
   import DragTooltip from "$lib/components/DragTooltip.svelte";
@@ -597,6 +598,15 @@
                 <LayoutsLibrary
                   onnewlayout={handleNewLayout}
                   onexport={handleLayoutExport}
+                />
+              {/if}
+              <!-- Secondary collapse affordance on the canvas-facing (right)
+                   edge for mouse users (#2553). Non-mobile only: touch has no
+                   hover. The in-row chevron stays the primary control. -->
+              {#if !viewportStore.isMobile}
+                <PanelEdgeGrip
+                  side="right"
+                  oncollapse={handleCollapseSidebar}
                 />
               {/if}
             {/if}
