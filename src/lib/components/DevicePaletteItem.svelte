@@ -69,6 +69,7 @@
   const ariaDescription = $derived.by(() => {
     const parts = [deviceName, `${device.u_height}U`, device.category];
     if (isHalfWidth) parts.push("half-width");
+    if (device.is_full_depth === false) parts.push("half-depth");
     if (isFavourite) parts.push("pinned");
     if (!isCompatible && incompatibilityReason)
       parts.push(`(${incompatibilityReason})`);
@@ -259,7 +260,7 @@
   <span class="category-icon-indicator" style="color: {device.colour}">
     <CategoryIcon category={device.category} size={ICON_SIZE.sm} />
   </span>
-  <span class="device-name" title={deviceName}>
+  <span class="device-name" title={isCompatible ? deviceName : undefined}>
     {#each highlightedSegments as segment, i (i)}
       {#if segment.isMatch}
         <strong>{segment.text}</strong>
