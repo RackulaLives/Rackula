@@ -23,7 +23,7 @@
     IconCopy,
     IconDownloadBold,
     IconFitAllBold,
-    IconFlip,
+    IconTransitionRight,
     IconTrash,
   } from "./icons";
 
@@ -47,7 +47,7 @@
     "move-device-up": IconChevronUp,
     "move-device-down": IconChevronDown,
     "move-device-slot": IconChevronRight,
-    "flip-device-face": IconFlip,
+    "flip-device-face": IconTransitionRight,
     "duplicate-selection": IconCopy,
     "delete-selection": IconTrash,
     "focus-rack": IconFitAllBold,

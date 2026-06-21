@@ -15,7 +15,7 @@
     IconChevronUp,
     IconChevronDown,
     IconTrash,
-    IconFlip,
+    IconTransitionRight,
     IconCopy,
     IconChevronRight,
     IconEdit,
@@ -205,7 +205,7 @@
                 <IconChevronRight size={ICON_SIZE.sm} />
                 <span>Move</span>
               {:else if verb.id === "flip-device-face"}
-                <IconFlip size={ICON_SIZE.sm} />
+                <IconTransitionRight size={ICON_SIZE.sm} />
                 <span>Flip</span>
               {/if}
             </button>
