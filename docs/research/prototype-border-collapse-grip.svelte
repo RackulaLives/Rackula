@@ -34,7 +34,7 @@
 <button
   type="button"
   class="edge-grip edge-grip--{side}"
-  aria-label="Collapse panel"
+  aria-label={`Collapse ${side} panel`}
   onclick={oncollapse}
 >
   <span class="edge-grip-handle" aria-hidden="true"></span>
@@ -45,12 +45,13 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    /* Comfortable pointer hit area even though the resting visual is 1px. */
-    width: 10px;
+    /* Comfortable pointer hit area even though the resting visual is 1px.
+       At least 24px wide to meet WCAG 2.2 target-size guidance. */
+    width: 24px;
     padding: 0;
     border: none;
     background: transparent;
-    cursor: pointer;
+    cursor: col-resize;
     z-index: 1;
     display: flex;
     align-items: center;
@@ -58,11 +59,11 @@
   }
 
   .edge-grip--left {
-    left: -5px;
+    left: -12px;
   }
 
   .edge-grip--right {
-    right: -5px;
+    right: -12px;
   }
 
   /* The resting hairline that reads as the panel border. */
@@ -77,11 +78,11 @@
   }
 
   .edge-grip--left::before {
-    left: 5px;
+    left: 12px;
   }
 
   .edge-grip--right::before {
-    right: 5px;
+    right: 12px;
   }
 
   /* Hover and focus reveal the grip and brighten the border line. */
