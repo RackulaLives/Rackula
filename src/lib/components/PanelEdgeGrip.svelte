@@ -46,8 +46,9 @@
     top: 0;
     bottom: 0;
     /* Comfortable pointer hit area even though the resting visual is 1px.
-       24px wide meets WCAG 2.2 SC 2.5.8 target-size guidance. */
-    width: 24px;
+       24px wide meets WCAG 2.2 SC 2.5.8 target-size guidance. The host panel
+       reserves a matching gutter so the grip never obscures a control. */
+    width: var(--panel-edge-grip-width);
     padding: 0;
     border: none;
     background: transparent;

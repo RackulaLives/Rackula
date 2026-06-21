@@ -583,23 +583,27 @@
                 onchange={(tab) => uiStore.setSidebarTab(tab)}
                 oncollapse={handleCollapseSidebar}
               />
-              {#if uiStore.sidebarTab === "devices"}
-                <DevicePalette oncreatedevice={handleAddDevice} />
-              {:else if uiStore.sidebarTab === "racks"}
-                <RackList
-                  onnewrack={handleNewRack}
-                  onexport={handleRackContextExport}
-                  onfocus={handleRackContextFocus}
-                  onedit={handleRackContextEdit}
-                  onrename={handleRackContextRename}
-                  onduplicate={handleRackContextDuplicate}
-                />
-              {:else if uiStore.sidebarTab === "layouts"}
-                <LayoutsLibrary
-                  onnewlayout={handleNewLayout}
-                  onexport={handleLayoutExport}
-                />
-              {/if}
+              <!-- Content reserves a right gutter for PanelEdgeGrip so no
+                   control sits under its hit strip (#2553); see styles below. -->
+              <div class="sidebar-content">
+                {#if uiStore.sidebarTab === "devices"}
+                  <DevicePalette oncreatedevice={handleAddDevice} />
+                {:else if uiStore.sidebarTab === "racks"}
+                  <RackList
+                    onnewrack={handleNewRack}
+                    onexport={handleRackContextExport}
+                    onfocus={handleRackContextFocus}
+                    onedit={handleRackContextEdit}
+                    onrename={handleRackContextRename}
+                    onduplicate={handleRackContextDuplicate}
+                  />
+                {:else if uiStore.sidebarTab === "layouts"}
+                  <LayoutsLibrary
+                    onnewlayout={handleNewLayout}
+                    onexport={handleLayoutExport}
+                  />
+                {/if}
+              </div>
               <!-- Secondary collapse affordance on the canvas-facing (right)
                    edge for mouse users (#2553). Non-mobile only: touch has no
                    hover. The in-row chevron stays the primary control. -->
@@ -747,6 +751,27 @@
   .sidebar-panel--collapsed {
     width: var(--panel-collapsed-strip-width, 44px);
     border-right: none;
+  }
+
+  /* Holds the active tab's content below the tab row. */
+  .sidebar-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Non-mobile: reserve the canvas-facing (right) edge of the whole expanded
+     panel, tab row included, for PanelEdgeGrip so no interactive control (the
+     last tab segment, the list scrollbar, per-row actions) sits under its
+     full-height hit strip (#2553, WCAG 2.2 SC 2.5.8). Padding the aside (not
+     just .sidebar-content) keeps the tab row inset too; the absolutely
+     positioned grip stays flush at the edge. Matches the viewport gate
+     (isMobile = max-width: 1024px). */
+  @media (min-width: 1025px) {
+    .sidebar-panel:not(.sidebar-panel--collapsed) {
+      padding-right: var(--panel-edge-grip-width);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

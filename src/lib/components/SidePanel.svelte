@@ -167,6 +167,16 @@
     flex-direction: column;
   }
 
+  /* Non-mobile: reserve the canvas-facing (left) edge for PanelEdgeGrip so no
+     interactive control sits under its hit strip (#2553, WCAG 2.2 SC 2.5.8).
+     The grip is a sibling of this body and stays flush at the edge. Matches the
+     viewport gate (isMobile = max-width: 1024px). */
+  @media (min-width: 1025px) {
+    .side-panel-body {
+      padding-left: var(--panel-edge-grip-width);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .side-panel {
       transition: none;
