@@ -259,7 +259,7 @@
   <span class="category-icon-indicator" style="color: {device.colour}">
     <CategoryIcon category={device.category} size={ICON_SIZE.sm} />
   </span>
-  <span class="device-name">
+  <span class="device-name" title={deviceName}>
     {#each highlightedSegments as segment, i (i)}
       {#if segment.isMatch}
         <strong>{segment.text}</strong>
@@ -275,21 +275,23 @@
       size={14}
     />
   {/if}
-  <span class="device-height">{device.u_height}U</span>
-  {#if isHalfWidth}
-    <span
-      class="width-indicator"
-      title="Half-width: Mounts inside a carrier, not directly on the rails"
-      aria-label="Half-width device">½W</span
-    >
-  {/if}
-  {#if device.is_full_depth === false}
-    <span
-      class="depth-indicator"
-      title="Half-depth: Mounts on one face only"
-      aria-label="Half-depth device">½D</span
-    >
-  {/if}
+  <span class="device-spec">
+    <span class="device-height">{device.u_height}U</span>
+    {#if isHalfWidth}
+      <span
+        class="form-marker"
+        title="Half-width: Mounts inside a carrier, not directly on the rails"
+        aria-label="Half-width device">½W</span
+      >
+    {/if}
+    {#if device.is_full_depth === false}
+      <span
+        class="form-marker"
+        title="Half-depth: Mounts on one face only"
+        aria-label="Half-depth device">½D</span
+      >
+    {/if}
+  </span>
   <Tooltip text={isFavourite ? "Unpin device" : "Pin device"} position="left">
     <button
       type="button"
@@ -349,7 +351,7 @@
   .device-palette-item {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     padding: var(--space-2) var(--space-3);
     min-height: var(--touch-target-min);
     border-radius: var(--radius-sm);
@@ -444,6 +446,16 @@
     min-width: 0;
   }
 
+  /* Spec cluster: U-height pill plus optional form-factor markers, grouped
+     tightly so they read as one block of metadata rather than three pills
+     each competing with the device name for width. */
+  .device-spec {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-shrink: 0;
+  }
+
   .device-height {
     background-color: var(--colour-surface-active);
     padding: 2px var(--space-2);
@@ -451,28 +463,14 @@
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
     color: var(--colour-text);
-    flex-shrink: 0;
   }
 
-  .depth-indicator {
-    background-color: var(--colour-surface-hover);
-    padding: 2px var(--space-2);
-    border-radius: var(--radius-full);
+  /* Half-width and half-depth are quiet glyph markers, not background pills,
+     so they annotate the spec without holding pill-sized horizontal budget. */
+  .form-marker {
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
     color: var(--colour-text-muted);
-    flex-shrink: 0;
-    cursor: help;
-  }
-
-  .width-indicator {
-    background-color: var(--colour-surface-hover);
-    padding: 2px var(--space-2);
-    border-radius: var(--radius-full);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    color: var(--colour-text-muted);
-    flex-shrink: 0;
     cursor: help;
   }
 
