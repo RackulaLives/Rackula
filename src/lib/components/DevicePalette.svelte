@@ -41,7 +41,6 @@
   import BrandIcon from "./BrandIcon.svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
   import DeviceFilterPopover from "./DeviceFilterPopover.svelte";
-  import Tooltip from "./Tooltip.svelte";
   import IconPin from "./icons/IconPin.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import type { DeviceType } from "$lib/types";
@@ -563,19 +562,6 @@
         data-testid="search-devices"
       />
       <DeviceFilterPopover bind:filters={attributeFilters} />
-      {#if oncreatedevice}
-        <Tooltip text="Create custom device" position="bottom">
-          <button
-            type="button"
-            class="create-device-btn"
-            onclick={oncreatedevice}
-            aria-label="Create custom device"
-            data-testid="btn-create-custom-device"
-          >
-            +
-          </button>
-        </Tooltip>
-      {/if}
     </div>
   </div>
 
@@ -728,6 +714,20 @@
       {/if}
     {/if}
   </div>
+
+  {#if oncreatedevice}
+    <div class="palette-footer">
+      <button
+        type="button"
+        class="add-device-btn"
+        onclick={oncreatedevice}
+        data-testid="btn-create-custom-device"
+      >
+        <span class="add-device-glyph" aria-hidden="true">+</span>
+        Add custom device
+      </button>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -774,42 +774,56 @@
       box-shadow var(--duration-fast) ease;
   }
 
+  /* Footer pinned below the scrolling device list: .device-list takes the
+     remaining height (flex: 1), so this block sits flush at the panel bottom.
+     A top border separates it from the list as it scrolls. */
+  .palette-footer {
+    flex-shrink: 0;
+    padding: var(--space-2);
+    border-top: 1px solid var(--colour-border);
+  }
+
   /* Neutral form-control vocabulary shared with the edit panel's colour swatch
      and name-edit controls (#2524): input-bg fill, input-border, selection
-     border on hover and focus. 44px square keeps the touch standard (#2397). */
-  .create-device-btn {
+     border on hover and focus. 44px height keeps the touch standard (#2397). */
+  .add-device-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    font-size: var(--font-size-lg);
-    font-weight: 400;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: 44px;
+    padding: 0 var(--space-3);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
     line-height: 1;
     color: var(--colour-text-muted);
     background: var(--input-bg);
     border: 1px solid var(--input-border);
     border-radius: var(--radius-sm);
     cursor: pointer;
-    flex-shrink: 0;
     transition:
       background-color var(--duration-fast) ease,
       color var(--duration-fast) ease,
       border-color var(--duration-fast) ease;
   }
 
-  .create-device-btn:hover {
+  .add-device-glyph {
+    font-size: var(--font-size-lg);
+    font-weight: 400;
+  }
+
+  .add-device-btn:hover {
     color: var(--colour-text);
     border-color: var(--colour-selection);
   }
 
-  .create-device-btn:focus-visible {
+  .add-device-btn:focus-visible {
     outline: 2px solid var(--colour-selection);
     outline-offset: 2px;
   }
 
-  .create-device-btn:active {
+  .add-device-btn:active {
     background: var(--colour-surface-active);
   }
 
