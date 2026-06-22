@@ -339,10 +339,12 @@
      44px collapsed strip on their outer edge (issue #2397). */
   --sidebar-width: 320px;
   --panel-collapsed-strip-width: 44px;
-  /* Width of the PanelEdgeGrip edge affordance (#2553). Panels reserve this as
-     a content-free gutter on the canvas-facing edge so the grip never obscures
-     an interactive control; 24px meets WCAG 2.2 SC 2.5.8 target size. */
-  --panel-edge-grip-width: var(--space-6);
+  /* Width of the PanelEdgeGrip hit strip (#2553), floated on each panel's
+     canvas-facing seam clear of panel content (#2560). It is a secondary
+     affordance: the always-visible 44px tab-row chevron is the WCAG 2.2
+     target-size control, so the strip can be compact and intrude minimally on
+     the canvas. */
+  --panel-edge-grip-width: var(--space-3);
   --colour-sidebar-bg: var(--dracula-bg-darker);
   --colour-surface-secondary: var(--dracula-bg-light);
 
