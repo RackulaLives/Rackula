@@ -16,25 +16,25 @@
 // ============================================
 
 // Server images
-import server1uFront from "$lib/assets/device-images/server/1u-server.front.webp";
-import server2uFront from "$lib/assets/device-images/server/2u-server.front.webp";
-import server4uFront from "$lib/assets/device-images/server/4u-server.front.webp";
+import server1uFront from "$lib/assets/device-images/_generic/server/1u-server.front.webp";
+import server2uFront from "$lib/assets/device-images/_generic/server/2u-server.front.webp";
+import server4uFront from "$lib/assets/device-images/_generic/server/4u-server.front.webp";
 
 // Network images
-import switch24portFront from "$lib/assets/device-images/network/24-port-switch.front.webp";
-import switch48portFront from "$lib/assets/device-images/network/48-port-switch.front.webp";
-import routerFirewallFront from "$lib/assets/device-images/network/1u-router-firewall.front.webp";
+import switch24portFront from "$lib/assets/device-images/_generic/network/24-port-switch.front.webp";
+import switch48portFront from "$lib/assets/device-images/_generic/network/48-port-switch.front.webp";
+import routerFirewallFront from "$lib/assets/device-images/_generic/network/1u-router-firewall.front.webp";
 
 // Storage images
-import storage1uFront from "$lib/assets/device-images/storage/1u-storage.front.webp";
-import storage2uFront from "$lib/assets/device-images/storage/2u-storage.front.webp";
-import storage4uFront from "$lib/assets/device-images/storage/4u-storage.front.webp";
+import storage1uFront from "$lib/assets/device-images/_generic/storage/1u-storage.front.webp";
+import storage2uFront from "$lib/assets/device-images/_generic/storage/2u-storage.front.webp";
+import storage4uFront from "$lib/assets/device-images/_generic/storage/4u-storage.front.webp";
 
 // Power images
-import ups2uFront from "$lib/assets/device-images/power/2u-ups.front.webp";
+import ups2uFront from "$lib/assets/device-images/_generic/power/2u-ups.front.webp";
 
 // KVM images
-import consoleDrawerFront from "$lib/assets/device-images/kvm/1u-console-drawer.front.webp";
+import consoleDrawerFront from "$lib/assets/device-images/_generic/kvm/1u-console-drawer.front.webp";
 
 // ============================================
 // Brand Pack Images - Auto-generated
@@ -284,10 +284,6 @@ import aristaDcs7280tr48c6RFront from "$lib/assets/device-images/arista/arista-d
 import aristaDcs7280tr340c6FFront from "$lib/assets/device-images/arista/arista-dcs-7280tr3-40c6-f.front.webp";
 import aristaDcs7280tr340c6FRear from "$lib/assets/device-images/arista/arista-dcs-7280tr3-40c6-f.rear.webp";
 import aristaDcs7280tr340c6RFront from "$lib/assets/device-images/arista/arista-dcs-7280tr3-40c6-r.front.webp";
-
-// ASUS images
-import asusRs300E11Rs4Front from "$lib/assets/device-images/asus/asus-rs300-e11-rs4.front.webp";
-import asusRs300E11Rs4Rear from "$lib/assets/device-images/asus/asus-rs300-e11-rs4.rear.webp";
 
 // CISCO images
 import ciscoC100048t4gLFront from "$lib/assets/device-images/cisco/cisco-c1000-48t-4g-l.front.webp";
@@ -841,51 +837,51 @@ import netgearProsafeGs510tppRear from "$lib/assets/device-images/netgear/netgea
 import netgearS330028xPoepFront from "$lib/assets/device-images/netgear/netgear-s3300-28x-poep.front.webp";
 import netgearS330052xFront from "$lib/assets/device-images/netgear/netgear-s3300-52x.front.webp";
 
-// PALO ALTO images
-import paloAltoPa200Front from "$lib/assets/device-images/palo alto/palo-alto-pa-200.front.webp";
-import paloAltoPa3020Front from "$lib/assets/device-images/palo alto/palo-alto-pa-3020.front.webp";
-import paloAltoPa3050Front from "$lib/assets/device-images/palo alto/palo-alto-pa-3050.front.webp";
-import paloAltoPa3060Front from "$lib/assets/device-images/palo alto/palo-alto-pa-3060.front.webp";
-import paloAltoPa3060Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-3060.rear.webp";
-import paloAltoPa3220Front from "$lib/assets/device-images/palo alto/palo-alto-pa-3220.front.webp";
-import paloAltoPa3220Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-3220.rear.webp";
-import paloAltoPa3250Front from "$lib/assets/device-images/palo alto/palo-alto-pa-3250.front.webp";
-import paloAltoPa3250Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-3250.rear.webp";
-import paloAltoPa3260Front from "$lib/assets/device-images/palo alto/palo-alto-pa-3260.front.webp";
-import paloAltoPa3260Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-3260.rear.webp";
-import paloAltoPa3410Front from "$lib/assets/device-images/palo alto/palo-alto-pa-3410.front.webp";
-import paloAltoPa3410Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-3410.rear.webp";
-import paloAltoPa3420Front from "$lib/assets/device-images/palo alto/palo-alto-pa-3420.front.webp";
-import paloAltoPa3420Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-3420.rear.webp";
-import paloAltoPa3430Front from "$lib/assets/device-images/palo alto/palo-alto-pa-3430.front.webp";
-import paloAltoPa3430Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-3430.rear.webp";
-import paloAltoPa3440Front from "$lib/assets/device-images/palo alto/palo-alto-pa-3440.front.webp";
-import paloAltoPa3440Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-3440.rear.webp";
-import paloAltoPa500Front from "$lib/assets/device-images/palo alto/palo-alto-pa-500.front.webp";
-import paloAltoPa5050Front from "$lib/assets/device-images/palo alto/palo-alto-pa-5050.front.webp";
-import paloAltoPa5060Front from "$lib/assets/device-images/palo alto/palo-alto-pa-5060.front.webp";
-import paloAltoPa5220Front from "$lib/assets/device-images/palo alto/palo-alto-pa-5220.front.webp";
-import paloAltoPa5220Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-5220.rear.webp";
-import paloAltoPa5250Front from "$lib/assets/device-images/palo alto/palo-alto-pa-5250.front.webp";
-import paloAltoPa5250Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-5250.rear.webp";
-import paloAltoPa5260Front from "$lib/assets/device-images/palo alto/palo-alto-pa-5260.front.webp";
-import paloAltoPa5260Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-5260.rear.webp";
-import paloAltoPa5280Front from "$lib/assets/device-images/palo alto/palo-alto-pa-5280.front.webp";
-import paloAltoPa5280Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-5280.rear.webp";
-import paloAltoPa5410Front from "$lib/assets/device-images/palo alto/palo-alto-pa-5410.front.webp";
-import paloAltoPa5410Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-5410.rear.webp";
-import paloAltoPa5420Front from "$lib/assets/device-images/palo alto/palo-alto-pa-5420.front.webp";
-import paloAltoPa5420Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-5420.rear.webp";
-import paloAltoPa5430Front from "$lib/assets/device-images/palo alto/palo-alto-pa-5430.front.webp";
-import paloAltoPa5430Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-5430.rear.webp";
-import paloAltoPa5440Front from "$lib/assets/device-images/palo alto/palo-alto-pa-5440.front.webp";
-import paloAltoPa5440Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-5440.rear.webp";
-import paloAltoPa7080Front from "$lib/assets/device-images/palo alto/palo-alto-pa-7080.front.webp";
-import paloAltoPa7080Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-7080.rear.webp";
-import paloAltoPa820Front from "$lib/assets/device-images/palo alto/palo-alto-pa-820.front.webp";
-import paloAltoPa820Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-820.rear.webp";
-import paloAltoPa850Front from "$lib/assets/device-images/palo alto/palo-alto-pa-850.front.webp";
-import paloAltoPa850Rear from "$lib/assets/device-images/palo alto/palo-alto-pa-850.rear.webp";
+// PALO-ALTO images
+import paloAltoPa200Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-200.front.webp";
+import paloAltoPa3020Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-3020.front.webp";
+import paloAltoPa3050Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-3050.front.webp";
+import paloAltoPa3060Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-3060.front.webp";
+import paloAltoPa3060Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-3060.rear.webp";
+import paloAltoPa3220Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-3220.front.webp";
+import paloAltoPa3220Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-3220.rear.webp";
+import paloAltoPa3250Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-3250.front.webp";
+import paloAltoPa3250Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-3250.rear.webp";
+import paloAltoPa3260Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-3260.front.webp";
+import paloAltoPa3260Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-3260.rear.webp";
+import paloAltoPa3410Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-3410.front.webp";
+import paloAltoPa3410Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-3410.rear.webp";
+import paloAltoPa3420Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-3420.front.webp";
+import paloAltoPa3420Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-3420.rear.webp";
+import paloAltoPa3430Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-3430.front.webp";
+import paloAltoPa3430Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-3430.rear.webp";
+import paloAltoPa3440Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-3440.front.webp";
+import paloAltoPa3440Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-3440.rear.webp";
+import paloAltoPa500Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-500.front.webp";
+import paloAltoPa5050Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-5050.front.webp";
+import paloAltoPa5060Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-5060.front.webp";
+import paloAltoPa5220Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-5220.front.webp";
+import paloAltoPa5220Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-5220.rear.webp";
+import paloAltoPa5250Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-5250.front.webp";
+import paloAltoPa5250Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-5250.rear.webp";
+import paloAltoPa5260Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-5260.front.webp";
+import paloAltoPa5260Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-5260.rear.webp";
+import paloAltoPa5280Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-5280.front.webp";
+import paloAltoPa5280Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-5280.rear.webp";
+import paloAltoPa5410Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-5410.front.webp";
+import paloAltoPa5410Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-5410.rear.webp";
+import paloAltoPa5420Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-5420.front.webp";
+import paloAltoPa5420Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-5420.rear.webp";
+import paloAltoPa5430Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-5430.front.webp";
+import paloAltoPa5430Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-5430.rear.webp";
+import paloAltoPa5440Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-5440.front.webp";
+import paloAltoPa5440Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-5440.rear.webp";
+import paloAltoPa7080Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-7080.front.webp";
+import paloAltoPa7080Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-7080.rear.webp";
+import paloAltoPa820Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-820.front.webp";
+import paloAltoPa820Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-820.rear.webp";
+import paloAltoPa850Front from "$lib/assets/device-images/palo-alto/palo-alto-pa-850.front.webp";
+import paloAltoPa850Rear from "$lib/assets/device-images/palo-alto/palo-alto-pa-850.rear.webp";
 
 // QNAP images
 import qnapTs432pxuFront from "$lib/assets/device-images/qnap/qnap-ts-432pxu.front.webp";
@@ -1420,12 +1416,6 @@ const BUNDLED_IMAGES: Record<string, BundledImageSet> = {
     rear: aristaDcs7280tr340c6FRear,
   },
   "arista-dcs-7280tr3-40c6-r": { front: aristaDcs7280tr340c6RFront },
-
-  // ASUS
-  "asus-rs300-e11-rs4": {
-    front: asusRs300E11Rs4Front,
-    rear: asusRs300E11Rs4Rear,
-  },
 
   // CISCO
   "cisco-c1000-48t-4g-l": {
@@ -2299,7 +2289,7 @@ const BUNDLED_IMAGES: Record<string, BundledImageSet> = {
   "netgear-s3300-28x-poep": { front: netgearS330028xPoepFront },
   "netgear-s3300-52x": { front: netgearS330052xFront },
 
-  // PALO ALTO
+  // PALO-ALTO
   "palo-alto-pa-200": { front: paloAltoPa200Front },
   "palo-alto-pa-3020": { front: paloAltoPa3020Front },
   "palo-alto-pa-3050": { front: paloAltoPa3050Front },

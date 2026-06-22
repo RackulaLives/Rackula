@@ -40,8 +40,10 @@ const OUTPUT_FILE = join(
   "bundledImages.ts",
 );
 
-// Vendors to skip (already manually maintained in bundledImages.ts)
-const STARTER_LIBRARY_DIRS = ["server", "network", "storage", "power", "kvm"];
+// Generic starter-library buckets (server, network, storage, power, kvm) live
+// under this folder and are maintained manually in the template below, so the
+// scanner skips it to keep the top level brands-only.
+const GENERIC_LIBRARY_DIR = "_generic";
 
 async function getImageFiles(
   dir: string,
@@ -57,8 +59,8 @@ async function getImageFiles(
       const relativePath = basePath ? `${basePath}/${entry.name}` : entry.name;
 
       if (entry.isDirectory()) {
-        // Skip starter library directories
-        if (!basePath && STARTER_LIBRARY_DIRS.includes(entry.name)) {
+        // Skip the generic starter-library folder (maintained manually below)
+        if (!basePath && entry.name === GENERIC_LIBRARY_DIR) {
           continue;
         }
         const subFiles = await getImageFiles(fullPath, relativePath);
@@ -145,25 +147,25 @@ function generateFileContent(
 // ============================================
 
 // Server images
-import server1uFront from '$lib/assets/device-images/server/1u-server.front.webp';
-import server2uFront from '$lib/assets/device-images/server/2u-server.front.webp';
-import server4uFront from '$lib/assets/device-images/server/4u-server.front.webp';
+import server1uFront from '$lib/assets/device-images/_generic/server/1u-server.front.webp';
+import server2uFront from '$lib/assets/device-images/_generic/server/2u-server.front.webp';
+import server4uFront from '$lib/assets/device-images/_generic/server/4u-server.front.webp';
 
 // Network images
-import switch24portFront from '$lib/assets/device-images/network/24-port-switch.front.webp';
-import switch48portFront from '$lib/assets/device-images/network/48-port-switch.front.webp';
-import routerFirewallFront from '$lib/assets/device-images/network/1u-router-firewall.front.webp';
+import switch24portFront from '$lib/assets/device-images/_generic/network/24-port-switch.front.webp';
+import switch48portFront from '$lib/assets/device-images/_generic/network/48-port-switch.front.webp';
+import routerFirewallFront from '$lib/assets/device-images/_generic/network/1u-router-firewall.front.webp';
 
 // Storage images
-import storage1uFront from '$lib/assets/device-images/storage/1u-storage.front.webp';
-import storage2uFront from '$lib/assets/device-images/storage/2u-storage.front.webp';
-import storage4uFront from '$lib/assets/device-images/storage/4u-storage.front.webp';
+import storage1uFront from '$lib/assets/device-images/_generic/storage/1u-storage.front.webp';
+import storage2uFront from '$lib/assets/device-images/_generic/storage/2u-storage.front.webp';
+import storage4uFront from '$lib/assets/device-images/_generic/storage/4u-storage.front.webp';
 
 // Power images
-import ups2uFront from '$lib/assets/device-images/power/2u-ups.front.webp';
+import ups2uFront from '$lib/assets/device-images/_generic/power/2u-ups.front.webp';
 
 // KVM images
-import consoleDrawerFront from '$lib/assets/device-images/kvm/1u-console-drawer.front.webp';
+import consoleDrawerFront from '$lib/assets/device-images/_generic/kvm/1u-console-drawer.front.webp';
 
 // ============================================
 // Brand Pack Images - Auto-generated
