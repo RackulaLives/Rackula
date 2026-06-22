@@ -156,6 +156,10 @@
     // activation.
     if (event.target !== event.currentTarget) return;
 
+    // `.layout-item` is the row element. It serves both styling and this
+    // keyboard navigation; the rows are role="listitem" (not role="option",
+    // which forbids the focusable close button they contain), so we select by
+    // class rather than role here.
     const items = listEl
       ? Array.from(listEl.querySelectorAll<HTMLElement>(".layout-item"))
       : [];
