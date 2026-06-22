@@ -185,8 +185,10 @@
   }
 
   /* Absorb any overflow as an ellipsis rather than clipping at the panel edge;
-     the icon holds its width, the label flexes. */
+     the icon holds its width, the label flexes. min-width: 0 lets this flex
+     child shrink below its content width so the ellipsis actually triggers. */
   .tab-label {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
