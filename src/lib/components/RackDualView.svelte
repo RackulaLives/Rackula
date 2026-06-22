@@ -210,6 +210,11 @@
   }
 
   function handleKeyDown(event: KeyboardEvent) {
+    // Only act on keys aimed at the container itself. The listitem holds the
+    // rack's interactive device buttons; without this guard a bubbled Enter or
+    // Space from a focused device button is preventDefault'd here and selects
+    // the rack instead of activating the button.
+    if (event.target !== event.currentTarget) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handleSelect();
