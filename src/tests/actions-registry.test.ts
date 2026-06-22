@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   ACTION_REGISTRY,
   getActionById,
+  getActionTooltip,
   findActionForEvent,
   getHelpGroups,
   getAppMenuSections,
@@ -438,6 +439,40 @@ describe("actions registry", () => {
       expect(viewYaml?.enabledWhen).toBeDefined();
       expect(viewYaml?.enabledWhen?.({ ...base, hasRacks: true })).toBe(true);
       expect(viewYaml?.enabledWhen?.({ ...base, hasRacks: false })).toBe(false);
+    });
+  });
+
+  describe("getActionTooltip (registry-driven tooltip content)", () => {
+    it("returns the action label as the tooltip text", () => {
+      const tooltip = getActionTooltip("toggle-display-mode");
+      expect(tooltip?.label).toBe(getActionById("toggle-display-mode")?.label);
+    });
+
+    it("includes the primary key for an action with a bare-key binding", () => {
+      // toggle-display-mode binds the single key "i"; the badge shows it
+      // uppercased with no modifier.
+      const tooltip = getActionTooltip("toggle-display-mode");
+      expect(tooltip?.shortcut).toBe("I");
+    });
+
+    it("includes a modifier for an action with a chorded binding", () => {
+      // duplicate-selection binds mod+D; the formatted shortcut carries the
+      // platform modifier label and the key, joined as "<mod> + D".
+      const tooltip = getActionTooltip("duplicate-selection");
+      expect(tooltip?.shortcut).toMatch(/ \+ D$/);
+    });
+
+    it("omits the shortcut for an action with no binding", () => {
+      // flip-device-face has no keyboard binding, so the tooltip is label-only.
+      const flip = getActionById("flip-device-face");
+      expect(flip?.bindings.length).toBe(0);
+      const tooltip = getActionTooltip("flip-device-face");
+      expect(tooltip?.label).toBe(flip?.label);
+      expect(tooltip?.shortcut).toBeUndefined();
+    });
+
+    it("returns undefined for an unknown id", () => {
+      expect(getActionTooltip("not-a-real-command" as never)).toBeUndefined();
     });
   });
 

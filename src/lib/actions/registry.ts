@@ -518,6 +518,34 @@ export function getActionById(id: ActionId): ActionDefinition | undefined {
   return ACTION_REGISTRY.find((action) => action.id === id);
 }
 
+/** Tooltip content for a control bound to a registry action (#117). */
+export interface ActionTooltip {
+  /** The action's label, used as the tooltip text. */
+  label: string;
+  /**
+   * The platform-formatted primary shortcut, if the action has a keybinding.
+   * Omitted when the action has no shortcut so the tooltip shows the label
+   * alone rather than an empty badge.
+   */
+  shortcut?: string;
+}
+
+/**
+ * Resolve an action id to its tooltip content (label plus formatted shortcut).
+ * Lets a control source its tooltip from the registry rather than hand-authored
+ * copy, so the tooltip cannot drift from the keyboard handler or help overlay.
+ * Returns undefined for an unknown id so the caller can fall back to its own
+ * label.
+ */
+export function getActionTooltip(id: ActionId): ActionTooltip | undefined {
+  const action = getActionById(id);
+  if (!action) return undefined;
+  return {
+    label: action.label,
+    shortcut: formatMenuShortcut(action),
+  };
+}
+
 /**
  * Resolve a keyboard event to the action it should trigger. Returns the first
  * action whose any binding matches, or undefined if none do. Uses the same

@@ -13,9 +13,11 @@
 -->
 <script lang="ts">
   import type { ActionId } from "$lib/actions/registry";
+  import { getActionTooltip } from "$lib/actions/registry";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { nextRovingIndex } from "$lib/utils/roving-index";
   import type { Component } from "svelte";
+  import Tooltip from "./Tooltip.svelte";
   import {
     IconChevronUp,
     IconChevronDown,
@@ -90,20 +92,25 @@
   >
     {#each verbs as verb, index (verb.id)}
       {@const Icon = iconForVerb[verb.id]}
-      <button
-        bind:this={buttons[index]}
-        class="verb-button"
-        class:destructive={isDestructive(verb.id)}
-        type="button"
-        aria-label={verb.label}
-        title={verb.label}
-        tabindex={index === clampedActiveIndex ? 0 : -1}
-        onclick={() => ondispatch(verb.id)}
-      >
-        {#if Icon}
-          <Icon size={ICON_SIZE.md} />
-        {/if}
-      </button>
+      {@const tooltip = getActionTooltip(verb.id)}
+      <Tooltip text={tooltip?.label ?? verb.label} shortcut={tooltip?.shortcut}>
+        {#snippet triggerChild({ props })}
+          <button
+            {...props}
+            bind:this={buttons[index]}
+            class="verb-button"
+            class:destructive={isDestructive(verb.id)}
+            type="button"
+            aria-label={verb.label}
+            tabindex={index === clampedActiveIndex ? 0 : -1}
+            onclick={() => ondispatch(verb.id)}
+          >
+            {#if Icon}
+              <Icon size={ICON_SIZE.md} />
+            {/if}
+          </button>
+        {/snippet}
+      </Tooltip>
     {/each}
   </div>
 {/if}

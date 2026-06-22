@@ -10,6 +10,7 @@
 -->
 <script lang="ts">
   import { ICON_SIZE } from "$lib/constants/sizing";
+  import { getActionTooltip } from "$lib/actions/registry";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
@@ -38,6 +39,14 @@
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
 
+  // Shortcuts come from the registry so they cannot drift from the keyboard
+  // handler or help overlay (#117). Zoom in/out have no registry action (they
+  // are canvas-only, not bound keys), so they keep a label-only tooltip.
+  const undoShortcut = getActionTooltip("undo")?.shortcut;
+  const redoShortcut = getActionTooltip("redo")?.shortcut;
+  const fitAllShortcut = getActionTooltip("fit-all")?.shortcut;
+  const displayModeShortcut = getActionTooltip("toggle-display-mode")?.shortcut;
+
   function handleUndo() {
     if (!layoutStore.canUndo) return;
     const desc = layoutStore.undoDescription?.replace("Undo: ", "") ?? "action";
@@ -57,7 +66,7 @@
   <div class="control-group" role="group" aria-label="History actions">
     <Tooltip
       text={layoutStore.undoDescription ?? "Undo"}
-      shortcut="Ctrl+Z"
+      shortcut={undoShortcut}
       position="top"
     >
       {#snippet triggerChild({ props })}
@@ -77,7 +86,7 @@
 
     <Tooltip
       text={layoutStore.redoDescription ?? "Redo"}
-      shortcut="Ctrl+Shift+Z"
+      shortcut={redoShortcut}
       position="top"
     >
       {#snippet triggerChild({ props })}
@@ -139,7 +148,7 @@
       {/snippet}
     </Tooltip>
 
-    <Tooltip text="Fit all" shortcut="F" position="top">
+    <Tooltip text="Fit all" shortcut={fitAllShortcut} position="top">
       {#snippet triggerChild({ props })}
         <button
           {...props}
@@ -156,7 +165,7 @@
 
     <Tooltip
       text={`Display: ${DISPLAY_MODE_LABELS[displayMode]}`}
-      shortcut="I"
+      shortcut={displayModeShortcut}
       position="top"
     >
       {#snippet triggerChild({ props })}
