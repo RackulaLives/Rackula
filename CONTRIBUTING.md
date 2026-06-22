@@ -1,43 +1,24 @@
 # Contributing to Rackula
 
-Thank you for your interest in contributing to Rackula!
+Thanks for contributing to Rackula.
 
 ## AI-Assisted Development
 
-Rackula is built using AI-assisted development workflows, primarily using [Claude Code](https://claude.com/claude-code) via [Happy](https://happy.engineering). This approach enables rapid iteration, comprehensive testing, and high code quality through AI-human collaboration.
+Rackula is built largely with [Claude Code](https://claude.com/claude-code), but it is not an AI-exclusive project. Human and AI-assisted contributions are equally welcome.
 
-### Working with the AI Workflow
-
-- **Planning documents**: See `.claude/context/` for technical specifications, prompts, and roadmaps
-- **AI-specific guidance**: Read `CLAUDE.md` for detailed instructions on using Claude Code with this project
-- **Commit co-authoring**: Many commits include AI co-authorship attribution
-- **Both approaches welcome**: You can contribute using traditional development or AI-assisted workflows
-
-This is NOT an AI-exclusive project - human contributors are equally welcome! The AI tooling simply provides additional development capabilities and maintains consistency with the existing codebase architecture.
+- Read `CLAUDE.md` for how Claude Code is used with this project.
+- Planning and design docs live in `docs/` (start with `docs/ARCHITECTURE.md`).
 
 ### When to Include AI Attribution
 
-Follow these guidelines when using AI assistance in your contributions:
+Add a `Co-authored-by:` trailer (format in `CLAUDE.md`) when AI generates substantial code: complete functions, whole features, or the bulk of a commit's changes.
 
-- ✅ **Include attribution** when AI generates substantial code:
-  - Complete functions or classes
-  - Entire features or components
-  - The bulk of a commit's changes
-  - Complex algorithms or logic
-
-- ❌ **Skip attribution** for trivial AI assists:
-  - Autocomplete suggestions
-  - Code formatting
-  - Variable name suggestions
-  - Docstring generation
-  - Minor syntax fixes
-
-When attribution is appropriate, use the `Co-authored-by:` trailer in your commit message (see `CLAUDE.md` for the exact format).
+Skip attribution for trivial assists: autocomplete, formatting, variable names, docstrings, or minor syntax fixes.
 
 ## Development Setup
 
 1. **Prerequisites**
-   - Node.js 20 or later
+   - Node.js 22 or later (CI runs Node 22)
    - npm 10 or later
 
 2. **Clone and Install**
@@ -63,7 +44,7 @@ This project uses automated code formatting and linting:
 - **Prettier**: Code formatting
 - **svelte-check**: Svelte-specific type checking
 
-Pre-commit hooks automatically run linting and formatting on staged files.
+Pre-commit hooks automatically format staged files with Prettier.
 
 ```bash
 # Run linting
@@ -106,10 +87,10 @@ npm run test:coverage
 
 Key documentation for contributors:
 
-- **Architecture overview:** `docs/ARCHITECTURE.md` - Start here for codebase orientation
-- **Technical overview:** `docs/reference/SPEC.md` - Technical overview and design principles
-- **Testing guide:** `docs/guides/TESTING.md` - Testing patterns and best practices
-- **AI instructions:** `CLAUDE.md` - Claude Code development workflow
+- **Architecture overview:** `docs/ARCHITECTURE.md` (start here for orientation)
+- **Technical overview:** `docs/reference/SPEC.md` (design principles)
+- **Testing guide:** `docs/guides/TESTING.md` (testing patterns)
+- **AI instructions:** `CLAUDE.md` (Claude Code workflow)
 
 ### Svelte 5 Runes
 
@@ -143,7 +124,7 @@ Do NOT use Svelte 4 stores (`writable`, `readable`, `derived` from `svelte/store
 1. **Create a Branch**
 
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b feat/short-description
    ```
 
 2. **Make Changes**
@@ -153,8 +134,8 @@ Do NOT use Svelte 4 stores (`writable`, `readable`, `derived` from `svelte/store
    - Run linting and formatting
 
 3. **Commit**
-   - Use clear, descriptive commit messages
-   - Follow conventional commits format when applicable
+   - Use the `type: description` format (feat, fix, docs, refactor, test, chore)
+   - Sign off each commit with `git commit -s` (see Certifying Your Contributions below)
    - If using AI assistance, include co-author attribution (see `CLAUDE.md` for format)
 
 4. **Push and Create PR**
@@ -162,19 +143,39 @@ Do NOT use Svelte 4 stores (`writable`, `readable`, `derived` from `svelte/store
    - Create a pull request with a clear description
    - Reference any related issues
 
-## Project Structure
+## Certifying Your Contributions
+
+Rackula uses the [Developer Certificate of Origin](https://developercertificate.org/) (DCO) rather than a Contributor Licence Agreement (CLA). The DCO is a lightweight, one-line certification that you have the right to submit your contribution under the project's MIT licence. There is no paperwork and no copyright assignment: you keep the copyright to your work.
+
+To certify a contribution, sign off your commits with the `-s` flag:
+
+```bash
+git commit -s -m "feat: add rail snapping"
+```
+
+This appends a trailer to the commit message:
 
 ```
-src/
-├── lib/
-│   ├── components/     # UI components
-│   ├── stores/         # State management
-│   ├── types/          # TypeScript types
-│   ├── utils/          # Utility functions
-│   └── data/           # Static data
-├── tests/              # Test files
-└── App.svelte          # Root component
+Signed-off-by: Your Name <your.email@example.com>
 ```
+
+The name and email must be real and match the identity you commit under. By signing off, you certify the statement published at <https://developercertificate.org/>.
+
+If you forget to sign off the most recent commit, amend it:
+
+```bash
+git commit --amend -s --no-edit
+```
+
+To sign off a range of commits on your branch, rebase against `main`:
+
+```bash
+git rebase --signoff main
+```
+
+## Project Structure
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the codebase map and entry points. It stays current as the structure evolves, so this guide does not duplicate the directory tree.
 
 ## Questions?
 

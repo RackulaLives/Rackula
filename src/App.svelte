@@ -583,8 +583,6 @@
                 onchange={(tab) => uiStore.setSidebarTab(tab)}
                 oncollapse={handleCollapseSidebar}
               />
-              <!-- Content reserves a right gutter for PanelEdgeGrip so no
-                   control sits under its hit strip (#2553); see styles below. -->
               <div class="sidebar-content">
                 {#if uiStore.sidebarTab === "devices"}
                   <DevicePalette oncreatedevice={handleAddDevice} />
@@ -604,15 +602,6 @@
                   />
                 {/if}
               </div>
-              <!-- Secondary collapse affordance on the canvas-facing (right)
-                   edge for mouse users (#2553). Non-mobile only: touch has no
-                   hover. The in-row chevron stays the primary control. -->
-              {#if !viewportStore.isMobile}
-                <PanelEdgeGrip
-                  side="right"
-                  oncollapse={handleCollapseSidebar}
-                />
-              {/if}
             {/if}
           </aside>
 
@@ -646,6 +635,25 @@
           </div>
 
           <SidePanel />
+
+          <!-- Secondary collapse affordance for mouse users (#2553): a
+               hover-revealed grip floated on each panel's canvas-facing seam,
+               clear of panel content and the scrollbar (#2560). This branch is
+               already non-mobile; the grips hide while a panel is collapsed, and
+               the in-row chevron stays the primary control. -->
+          {#if !uiStore.sidebarCollapsed}
+            <div class="edge-grip-seam edge-grip-seam--left">
+              <PanelEdgeGrip panel="left" oncollapse={handleCollapseSidebar} />
+            </div>
+          {/if}
+          {#if !uiStore.sidePanelCollapsed}
+            <div class="edge-grip-seam edge-grip-seam--right">
+              <PanelEdgeGrip
+                panel="right"
+                oncollapse={() => uiStore.setSidePanelCollapsed(true)}
+              />
+            </div>
+          {/if}
         </div>
       {:else}
         <Canvas
@@ -730,6 +738,8 @@
     overflow: hidden;
     min-height: 0;
     background-color: var(--canvas-bg);
+    /* Positioning context for the seam-mounted edge grips (.edge-grip-seam). */
+    position: relative;
   }
 
   .sidebar-panel {
@@ -761,16 +771,51 @@
     min-height: 0;
   }
 
-  /* Non-mobile: reserve the canvas-facing (right) edge of the whole expanded
-     panel, tab row included, for PanelEdgeGrip so no interactive control (the
-     last tab segment, the list scrollbar, per-row actions) sits under its
-     full-height hit strip (#2553, WCAG 2.2 SC 2.5.8). Padding the aside (not
-     just .sidebar-content) keeps the tab row inset too; the absolutely
-     positioned grip stays flush at the edge. Matches the viewport gate
-     (isMobile = max-width: 1024px). */
-  @media (min-width: 1025px) {
-    .sidebar-panel:not(.sidebar-panel--collapsed) {
-      padding-right: var(--panel-edge-grip-width);
+  /* The hover-revealed edge grips float on each panel's canvas-facing seam,
+     entirely on the canvas side, so they never overlap panel content or the
+     device-list scrollbar (#2560). Stacked above the panels and canvas so the
+     strip is clickable on the seam. Gated and hidden-while-collapsed in markup. */
+  .edge-grip-seam {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: var(--panel-edge-grip-width, 12px);
+    z-index: calc(var(--z-sidebar) + 1);
+    /* The seam is pinned to the expanded panel width, but the panel animates its
+       width on expand. Hold the grip hidden and non-interactive until the panel
+       finishes expanding (the animation delay matches the panel's transition), so
+       it never looks detached from the moving seam or intercepts a canvas click
+       mid-transition (#2560). On collapse the grip unmounts immediately. */
+    opacity: 0;
+    pointer-events: none;
+    animation: edge-grip-appear var(--duration-fast) var(--ease-out)
+      var(--duration-normal) forwards;
+  }
+
+  @keyframes edge-grip-appear {
+    from {
+      opacity: 0;
+      pointer-events: none;
+    }
+    to {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
+  .edge-grip-seam--left {
+    left: var(--sidebar-width, 320px);
+  }
+
+  .edge-grip-seam--right {
+    right: var(--side-panel-width, 320px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .edge-grip-seam {
+      animation: none;
+      opacity: 1;
+      pointer-events: auto;
     }
   }
 
