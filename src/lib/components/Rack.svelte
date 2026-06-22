@@ -80,10 +80,10 @@
     rack: RackType;
     deviceLibrary: DeviceType[];
     selected: boolean;
-    /** Whether this rack is itself the selectable unit (role="option"). True for
-     *  standalone and bayed racks. False when an ancestor already carries the
-     *  selectable role (dual view wraps two faces under one role="option"), so
-     *  the face renders as presentation to avoid nesting option inside option. */
+    /** Whether this rack is itself the selectable unit (role="listitem"). True
+     *  for standalone and bayed racks. False when an ancestor already carries the
+     *  selectable role (dual view wraps two faces under one listitem), so the
+     *  face renders as presentation to avoid nesting one listitem inside another. */
     selectable?: boolean;
     selectedDeviceId?: string | null;
     displayMode?: DisplayMode;
@@ -405,9 +405,13 @@
 
 <svelte:window onkeydown={handleShiftDown} onkeyup={handleShiftUp} />
 
-<!-- tabindex is only set alongside role="option" (interactive); the analyzer
-     cannot correlate the two dynamic values, so the noninteractive-tabindex
-     warning is a false positive here. -->
+<!-- The rack is a list item that holds interactive devices, so it is a
+     non-interactive role="listitem" container, not an interactive role="option"
+     (an option may not contain focusable descendants: nested-interactive, #2255).
+     It stays a focus stop (tabindex) for rack-level selection, with the active
+     rack announced via aria-current. The analyzer cannot correlate the dynamic
+     tabindex with the role, so the noninteractive-tabindex warning is a false
+     positive here. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   class="rack-container"
@@ -415,8 +419,8 @@
   class:party-mode={partyMode}
   class:placement-mode={isPlacementMode}
   tabindex={selectable ? 0 : undefined}
-  aria-selected={selectable ? selected : undefined}
-  role={selectable ? "option" : "presentation"}
+  aria-current={selectable && selected ? "true" : undefined}
+  role={selectable ? "listitem" : "presentation"}
   onkeydown={handleKeyDown}
   onclick={handleClick}
 >
@@ -426,7 +430,7 @@
     width={RACK_WIDTH}
     height={viewBoxHeight + viewBoxYOffset}
     viewBox="0 -{viewBoxYOffset} {RACK_WIDTH} {viewBoxHeight + viewBoxYOffset}"
-    role="img"
+    role="group"
     aria-label="{rack.name}, {rack.height}U rack{selected ? ', selected' : ''}"
     ondragover={(e) => onDragOver(e, handlerCtx)}
     ondragenter={onDragEnter}
@@ -575,7 +579,7 @@
     outline-offset: 2px;
   }
 
-  .rack-container[aria-selected="true"],
+  .rack-container[aria-current="true"],
   .rack-container.selected {
     outline: 2px solid var(--colour-selection);
     outline-offset: 4px;

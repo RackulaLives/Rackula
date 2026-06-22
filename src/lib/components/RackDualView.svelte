@@ -283,6 +283,13 @@
   {onduplicate}
   {ondelete}
 >
+  <!-- The rack is a role="listitem" (it holds interactive device buttons, so it
+       cannot be a role="option", which forbids focusable descendants:
+       nested-interactive, #2255). It stays a click/keyboard focus stop for
+       rack-level selection, so the noninteractive-tabindex and
+       noninteractive-element-interactions warnings are expected here. -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div
     bind:this={containerElement}
     class="rack-dual-view"
@@ -291,8 +298,7 @@
     class:active={isActive}
     class:long-press-active={longPressActive}
     tabindex="0"
-    role="option"
-    aria-selected={selected}
+    role="listitem"
     aria-current={isActive ? "location" : undefined}
     aria-label="{rack.name}, {rack.height}U rack, {rack.show_rear
       ? 'front and rear view'
@@ -398,7 +404,6 @@
     outline-offset: 2px;
   }
 
-  .rack-dual-view[aria-selected="true"],
   .rack-dual-view.selected {
     outline: 2px solid var(--colour-selection);
     outline-offset: 4px;

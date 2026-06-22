@@ -61,7 +61,6 @@ export const BASELINED_RULES: Record<string, string> = {
   // rule is enforced again everywhere.
   "aria-required-children":
     "https://github.com/RackulaLives/Rackula/issues/2254",
-  "nested-interactive": "https://github.com/RackulaLives/Rackula/issues/2255",
 };
 
 /**

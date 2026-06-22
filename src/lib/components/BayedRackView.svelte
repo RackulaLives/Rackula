@@ -649,7 +649,7 @@
     outline: none !important;
   }
 
-  .bay-container :global(.rack-container[aria-selected="true"]) {
+  .bay-container :global(.rack-container[aria-current="true"]) {
     outline: none !important;
   }
 

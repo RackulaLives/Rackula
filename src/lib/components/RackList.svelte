@@ -193,20 +193,23 @@
     </span>
     {#if onnewrack}
       <Tooltip text="New Rack" position="bottom">
-        <button
-          type="button"
-          class="new-rack-btn"
-          onclick={onnewrack}
-          aria-label="New Rack"
-          data-testid="btn-new-rack"
-        >
-          +
-        </button>
+        {#snippet triggerChild({ props })}
+          <button
+            {...props}
+            type="button"
+            class="new-rack-btn"
+            onclick={onnewrack}
+            aria-label="New Rack"
+            data-testid="btn-new-rack"
+          >
+            +
+          </button>
+        {/snippet}
       </Tooltip>
     {/if}
   </div>
 
-  <div class="rack-items" role="listbox" aria-label="Rack list">
+  <div class="rack-items" role="list" aria-label="Rack list">
     <!-- Bayed rack groups as single entries -->
     {#each rackGroups as group (group.id)}
       {@const firstRack = getGroupFirstRack(group)}
@@ -230,6 +233,13 @@
         }}
         ondelete={() => initiateGroupDelete(group)}
       >
+        <!-- The row is a role="listitem", not a role="option": it holds an
+             interactive delete button, and an option may not contain focusable
+             descendants (nested-interactive, #2255). It stays a click/keyboard
+             focus stop for rack selection, so the noninteractive-tabindex and
+             noninteractive-element-interactions warnings are expected here. -->
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <div
           class="rack-item"
           class:active={isActive}
@@ -238,8 +248,8 @@
             if (e.key === " ") e.preventDefault();
             if (e.key === "Enter" || e.key === " ") handleGroupClick(group.id);
           }}
-          role="option"
-          aria-selected={isActive}
+          role="listitem"
+          aria-current={isActive ? "true" : undefined}
           tabindex="0"
           data-testid="rack-item-group-{group.id}"
         >
@@ -280,6 +290,13 @@
         onduplicate={() => onduplicate?.(rack.id)}
         ondelete={() => initiateRackDelete({ id: rack.id, name: rack.name })}
       >
+        <!-- The row is a role="listitem", not a role="option": it holds an
+             interactive delete button, and an option may not contain focusable
+             descendants (nested-interactive, #2255). It stays a click/keyboard
+             focus stop for rack selection, so the noninteractive-tabindex and
+             noninteractive-element-interactions warnings are expected here. -->
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <div
           class="rack-item"
           class:active={isActive}
@@ -288,8 +305,8 @@
             if (e.key === " ") e.preventDefault();
             if (e.key === "Enter" || e.key === " ") handleRackClick(rack.id);
           }}
-          role="option"
-          aria-selected={isActive}
+          role="listitem"
+          aria-current={isActive ? "true" : undefined}
           tabindex="0"
           data-testid="rack-item-{rack.id}"
         >

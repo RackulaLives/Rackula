@@ -237,12 +237,15 @@
   }
 </script>
 
-<!-- Multi-rack mode: render racks with visual grouping. role="listbox" gives the
-     rack containers (role="option", see RackDualView) a valid required parent so
-     aria-selected is announced correctly; the racks are a single-select set. -->
+<!-- Multi-rack mode: render racks with visual grouping. role="list" gives the
+     rack containers (role="listitem", see RackDualView and Rack) a valid required
+     parent. The racks are listitems, not options, because each holds interactive
+     device buttons and an interactive option may not contain focusable
+     descendants (nested-interactive, #2255); the active rack is announced via
+     aria-current. -->
 <div
   class="racks-wrapper"
-  role="listbox"
+  role="list"
   aria-label="Racks"
   class:swipe-next={swipeAnimationDirection === "next"}
   class:swipe-previous={swipeAnimationDirection === "previous"}

@@ -294,31 +294,37 @@
     {/if}
   </span>
   <Tooltip text={isFavourite ? "Unpin device" : "Pin device"} position="left">
-    <button
-      type="button"
-      class="favourite-btn"
-      class:active={isFavourite}
-      onclick={handleFavouriteClick}
-      onkeydown={handleFavouriteKeyDown}
-      aria-label={favouriteLabel}
-      aria-pressed={isFavourite}
-      data-testid="favourite-device-btn"
-    >
-      <IconPin size={ICON_SIZE.sm} filled={isFavourite} />
-    </button>
+    {#snippet triggerChild({ props })}
+      <button
+        {...props}
+        type="button"
+        class="favourite-btn"
+        class:active={isFavourite}
+        onclick={handleFavouriteClick}
+        onkeydown={handleFavouriteKeyDown}
+        aria-label={favouriteLabel}
+        aria-pressed={isFavourite}
+        data-testid="favourite-device-btn"
+      >
+        <IconPin size={ICON_SIZE.sm} filled={isFavourite} />
+      </button>
+    {/snippet}
   </Tooltip>
   {#if canDelete}
     <Tooltip text="Delete unused device type" position="left">
-      <button
-        type="button"
-        class="delete-btn"
-        onclick={handleDeleteClick}
-        onkeydown={handleDeleteKeyDown}
-        aria-label="Delete {deviceName}"
-        data-testid="delete-device-type-btn"
-      >
-        <IconTrash size={ICON_SIZE.sm} />
-      </button>
+      {#snippet triggerChild({ props })}
+        <button
+          {...props}
+          type="button"
+          class="delete-btn"
+          onclick={handleDeleteClick}
+          onkeydown={handleDeleteKeyDown}
+          aria-label="Delete {deviceName}"
+          data-testid="delete-device-type-btn"
+        >
+          <IconTrash size={ICON_SIZE.sm} />
+        </button>
+      {/snippet}
     </Tooltip>
   {/if}
 </div>

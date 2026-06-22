@@ -7,29 +7,59 @@
   bits-ui tooltips are intentionally unsupported on touch devices because hover
   doesn't exist on touch. This is a deliberate UX decision - tooltip content
   should be non-essential information that can be discovered via other means.
+
+  Trigger markup
+  When the tooltip wraps content that is itself interactive (a button, a link),
+  pass a `triggerChild` snippet: it receives the trigger `props` and spreads
+  them onto that element so the element IS the trigger. That avoids nesting an
+  interactive element inside the default trigger button, which fails the axe
+  `nested-interactive` rule and confuses keyboard focus order (#2255). When the
+  content is static (an icon, a status glyph), use the default `children`
+  snippet and bits-ui renders its own trigger button.
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { Tooltip } from "bits-ui";
 
   type Position = "top" | "bottom" | "left" | "right";
+  type TriggerProps = Record<string, unknown>;
 
   interface Props {
     text: string;
     shortcut?: string;
     position?: Position;
+    /** Static trigger content; bits-ui renders its own trigger button. */
     children?: Snippet;
+    /**
+     * Interactive trigger content. Receives the trigger `props` to spread onto
+     * your own element so it becomes the trigger (no wrapper button).
+     */
+    triggerChild?: Snippet<[{ props: TriggerProps }]>;
   }
 
-  let { text, shortcut, position = "top", children }: Props = $props();
+  let {
+    text,
+    shortcut,
+    position = "top",
+    children,
+    triggerChild,
+  }: Props = $props();
 </script>
 
 <Tooltip.Root>
-  <Tooltip.Trigger class="tooltip-trigger">
-    {#if children}
-      {@render children()}
-    {/if}
-  </Tooltip.Trigger>
+  {#if triggerChild}
+    <Tooltip.Trigger>
+      {#snippet child({ props })}
+        {@render triggerChild({ props })}
+      {/snippet}
+    </Tooltip.Trigger>
+  {:else}
+    <Tooltip.Trigger class="tooltip-trigger">
+      {#if children}
+        {@render children()}
+      {/if}
+    </Tooltip.Trigger>
+  {/if}
   <Tooltip.Portal>
     <Tooltip.Content
       class="tooltip-content"
