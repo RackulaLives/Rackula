@@ -229,3 +229,48 @@ jobs:
           # not auto-install marketplace plugins (see docs/deployment/SECURITY-TRIAGE.md
           # and .claude/cloud-setup.sh), so --plugin-dir loads it deterministically.
           claude_args: '--plugin-dir .github/claude-plugins/secure-coding --allowedTools "Bash,Read,Write,Edit,Glob,Grep"'
+
+      # Safety net for a failure mode seen in practice: the triage step can
+      # commit and push a fix/security-<alert> branch but end its turn before
+      # running `gh pr create`, stranding the fix on an orphan branch with no PR.
+      # The alert then stays open and nothing surfaces for review. This step
+      # opens a draft PR for any fix/security-* branch that is ahead of main and
+      # has never had a PR, so a drafted fix can never be silently lost. Runs even
+      # if the triage step failed (always()), so a crash mid-run is still caught.
+      #
+      # Caveat: PRs opened with GITHUB_TOKEN do not trigger pull_request CI
+      # workflows (GitHub's recursion guard). CodeRabbit and CodeAnt still review
+      # via their own app webhooks. A maintainer marks the draft ready, or pushes
+      # a commit, to run CI before merge.
+      - name: Ensure a PR exists for every drafted security fix
+        if: always() && steps.gate.outputs.has_alerts == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          git fetch origin main 'refs/heads/fix/security-*:refs/remotes/origin/fix/security-*' --quiet || true
+          opened=0
+          for ref in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin | grep -E '^origin/fix/security-' || true); do
+            branch="${ref#origin/}"
+            # Skip if this branch ever had a PR (open, closed, or merged): a
+            # closed/merged PR means a human already handled it; do not reopen.
+            if [ -n "$(gh pr list --head "$branch" --state all --json number --jq '.[].number' 2>/dev/null)" ]; then
+              continue
+            fi
+            # Only branches with a real commit ahead of main.
+            if [ "$(git rev-list --count "origin/main..$ref" 2>/dev/null || echo 0)" -eq 0 ]; then
+              continue
+            fi
+            alert="${branch#fix/security-}"
+            echo "::warning::Triage left ${branch} without a PR; opening a draft PR as a safety net."
+            if gh pr create --draft --base main --head "$branch" \
+              --title "security: triage finding (alert #${alert})" \
+              --body "Automated safety-net PR. The triage run pushed \`${branch}\` but did not open a PR; this step opened one so the drafted fix is not lost. See alert #${alert} at https://github.com/${REPO}/security/code-scanning/${alert} for details. CI (pull_request workflows) does not run on PRs opened by GITHUB_TOKEN, so a maintainer should mark this PR ready, or push a commit, to trigger CI before merge." \
+              --label security --label automated; then
+              opened=$((opened + 1))
+            else
+              echo "::warning::Failed to open a safety-net PR for ${branch}."
+            fi
+          done
+          echo "Safety-net opened ${opened} PR(s)."

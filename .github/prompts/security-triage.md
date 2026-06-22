@@ -60,11 +60,23 @@ If the finding is real:
 4. Commit, push the branch, and open a DRAFT PR against `main`. Title: `security: triage <rule-id> in <file> (alert #<number>)`.
 5. The PR body must include: the tool, severity, your confidence, the file, the alert URL, your triage reasoning, and the suggested fix (or the implemented fix if you made one).
 6. Label the PR `security` and `automated`.
+7. Verify the PR exists before moving on: run `gh pr view <branch> --json url -q .url`. If it returns nothing, `gh pr create` did not succeed: retry it. A real finding is not handled until its draft PR exists and you have its URL. Pushing the branch is not enough.
 
 ```bash
 gh pr create --draft --base main --head <branch> \
   --title "..." --body "..." --label security --label automated
 ```
+
+A workflow safety-net step opens a draft PR for any orphaned `fix/security-*` branch as a backstop, but do not rely on it: open and confirm the PR yourself.
+
+## Container image and OS-package findings (Trivy)
+
+Trivy `OsPackageVulnerability` findings live in a published container image, not in the source tree. The fix is usually a Dockerfile change in `deploy/Dockerfile` (app and persist images) or `api/Dockerfile` (API image): pin the patched package following the existing explicit-pin pattern (the `apk add --upgrade` line that pins libssl3/libcrypto3), or bump the base image.
+
+Two things to get right for these:
+
+- The apk package name Trivy reports is the name to pin (for example `libexpat`, which is built from the `expat` aport). Use `>=<fixed-version>` from the advisory.
+- Merging the Dockerfile fix does not clear the alert. The alert is bound to the published image, so it only clears after the rolling image is rebuilt and rescanned by the `Rebuild Images (OS patch)` workflow (`rebuild-images.yml`, run via `workflow_dispatch`). Say so in the PR body so the maintainer runs that workflow after merge. Often the rebuild alone clears the alert because the current base already ships the fix, and the pin just keeps future builds from regressing.
 
 ## Constraints
 
@@ -76,4 +88,4 @@ gh pr create --draft --base main --head <branch> \
 
 ## Report
 
-At the end, summarize what you did: how many net-new findings, how many dismissed as false positives, how many draft PRs opened (with their URLs), and how many skipped due to the cap.
+At the end, summarize what you did: how many net-new findings, how many dismissed as false positives, how many draft PRs opened (with their URLs), and how many skipped due to the cap. For every real finding, confirm its draft PR exists and include the URL. If you pushed a branch but could not open its PR, say so explicitly and loudly: that is a bug, not a completed triage.
