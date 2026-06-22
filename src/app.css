@@ -231,7 +231,7 @@ textarea {
 }
 
 .text-medium-contrast {
-  color: var(--colour-text-muted); /* 7:1+ on bg, meets 4.5:1 AA */
+  color: var(--colour-text-muted); /* 4.5:1+ on every surface, meets AA */
 }
 
 /* Use for decorative/non-essential text only */
