@@ -58,10 +58,10 @@ Rackula uses a **three-tier colour hierarchy**:
 | Token | Hex | Contrast | Usage |
 | --- | --- | --- | --- |
 | `--colour-text` | `#F8F8F2` | 11.6:1 | Primary text |
-| `--colour-text-muted` | `#9A9A9A` | 5.1:1 | Secondary text (WCAG AA) |
+| `--colour-text-muted` | `#BBBBBB` | 4.8:1 | Secondary text (WCAG AA) |
 | `--colour-text-disabled` | `#6272A4` | 3.3:1 | Disabled only (exempt from WCAG) |
 
-**Note:** Original Dracula comment (`#6272A4`) fails WCAG AA at 3.3:1. Use `#9A9A9A` for muted text that must be readable.
+**Note:** Original Dracula comment (`#6272A4`) fails WCAG AA at 3.3:1. Use `#BBBBBB` for muted text that must be readable: it clears 4.5:1 on every dark surface, including the lightest (`#44475A`) at 4.77:1.
 
 ### Accent Colours (Small UI Only)
 

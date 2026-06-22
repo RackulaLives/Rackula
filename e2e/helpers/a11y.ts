@@ -63,7 +63,6 @@ export const BASELINED_RULES: Record<string, string> = {
   "aria-required-children":
     "https://github.com/RackulaLives/Rackula/issues/2254",
   "nested-interactive": "https://github.com/RackulaLives/Rackula/issues/2255",
-  "color-contrast": "https://github.com/RackulaLives/Rackula/issues/2256",
 };
 
 /**
@@ -84,6 +83,31 @@ export async function expectNoA11yViolations(
   page: Page,
   selector?: string,
 ): Promise<void> {
+  // Wait for any in-flight FINITE CSS animation or transition to finish before
+  // scanning. A surface mid-transition (a sheet sliding up, a backdrop fading)
+  // composites partially: axe then samples blended, anti-aliased pixels and
+  // reports a colour pair that does not match the element's resting style,
+  // producing flaky colour-contrast results under load. Settling first makes the
+  // scan sample resting pixels deterministically. Infinite/looping animations
+  // (the env-badge cylon, the logo gradient) never settle, so they are excluded
+  // here rather than blocking the scan for the full timeout.
+  await page
+    .waitForFunction(
+      () =>
+        document.getAnimations().every((animation) => {
+          if (animation.playState !== "running") return true;
+          const timing = animation.effect?.getComputedTiming();
+          const iterations = timing?.iterations ?? 1;
+          // Only wait on animations that will end on their own.
+          return iterations === Infinity;
+        }),
+      undefined,
+      { timeout: 5000 },
+    )
+    .catch(() => {
+      // Best-effort: never fail the scan because a settle wait timed out.
+    });
+
   let builder = axeBuilder(page);
 
   if (selector) {

@@ -180,7 +180,7 @@ export const darkThemeColors = {
   surface: draculaColors.bgLight,
   surfaceRaised: draculaColors.bgLighter,
   text: draculaColors.foreground,
-  textMuted: "#9A9A9A", // BRAND.md v0.6.0: improved contrast (5.1:1)
+  textMuted: "#BBBBBB", // WCAG AA: clears 4.5:1 on every dark surface (4.77:1 on #44475A, the lightest)
   textDisabled: draculaColors.comment,
   selection: draculaColors.pink, // BRAND.md v0.6.0: pink (not purple)
   focusRing: draculaColors.pink, // BRAND.md v0.6.0: pink (not purple)
@@ -200,7 +200,7 @@ export const lightThemeColors = {
   surface: alucardColors.bgLight,
   surfaceRaised: alucardColors.bgLighter,
   text: alucardColors.foreground,
-  textMuted: alucardColors.comment, // Light theme already has good contrast (6.8:1)
+  textMuted: "#5C5647", // WCAG AA: darker Alucard olive, clears 4.5:1 on every light surface (4.74:1 on #CFCFDE, the darkest)
   textDisabled: alucardColors.comment,
   selection: alucardColors.pink, // BRAND.md v0.6.0: pink (not purple)
   focusRing: alucardColors.pink, // BRAND.md v0.6.0: pink (not purple)

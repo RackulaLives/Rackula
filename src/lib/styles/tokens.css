@@ -201,7 +201,7 @@
 
   /* Text */
   --colour-text: var(--dracula-foreground);
-  --colour-text-muted: #9a9a9a; /* BRAND.md v0.6.0: improved contrast (5.1:1) */
+  --colour-text-muted: #bbbbbb; /* WCAG AA: clears 4.5:1 on every dark surface (4.77:1 on #44475a, the lightest) */
   --colour-text-disabled: var(--dracula-comment);
 
   /* Borders */
@@ -545,7 +545,7 @@
 
   /* Text */
   --colour-text: var(--alucard-foreground);
-  --colour-text-muted: var(--alucard-comment);
+  --colour-text-muted: #5c5647; /* WCAG AA (BRAND.md): darker Alucard olive, clears 4.5:1 on every light surface (4.74:1 on #cfcfde, the darkest) */
   --colour-text-disabled: var(--alucard-comment);
 
   /* Borders */

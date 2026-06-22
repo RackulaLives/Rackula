@@ -8,6 +8,8 @@ import {
   meetsUIComponentContrast,
   darkThemeColors,
   lightThemeColors,
+  draculaColors,
+  alucardColors,
 } from "$lib/utils/contrast";
 
 describe("Color Contrast Utilities", () => {
@@ -112,18 +114,20 @@ describe("Dark Theme Contrast (Dracula - WCAG AA)", () => {
     });
   });
 
-  describe("Muted text (BRAND.md v0.6.0 - improved accessibility)", () => {
-    // BRAND.md requires #8A8A9A (5.2:1) instead of #6272A4 (3.3:1)
-    // This improves readability for secondary/muted content
-    it("muted text meets 5:1 on background for WCAG AA compliance", () => {
-      const ratio = getContrastRatio(textMuted, bg);
-      expect(ratio).toBeGreaterThanOrEqual(5);
-    });
-
-    it("muted text on surface has acceptable contrast", () => {
-      // Surface (#343746) is lighter than bg, muted text should still be readable
-      const ratio = getContrastRatio(textMuted, surface);
-      expect(ratio).toBeGreaterThanOrEqual(4);
+  describe("Muted text meets WCAG AA (4.5:1) on every dark surface", () => {
+    // Muted text renders on the base, both raised surfaces, and the lightest
+    // surface of all (the selection primitive, behind active/hover rows). The
+    // lightest background is the worst case, so it is the one that must clear
+    // 4.5:1; an earlier value passed on the base background but failed here
+    // (issue #2256). Each surface is asserted so a regression names the surface.
+    it.each([
+      ["background", bg],
+      ["surface", surface],
+      ["surface-raised", draculaColors.bgLighter],
+      ["selection (lightest)", draculaColors.selection],
+    ])("muted text meets 4.5:1 on %s", (_label, background) => {
+      const ratio = getContrastRatio(textMuted, background);
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
     });
   });
 
@@ -188,16 +192,17 @@ describe("Light Theme Contrast (Alucard - WCAG AA)", () => {
     });
   });
 
-  describe("Muted text (3:1 - secondary content)", () => {
-    // Alucard comment color is intentionally muted
-    it("muted text meets 3:1 on background", () => {
-      const ratio = getContrastRatio(textMuted, bg);
-      expect(ratio).toBeGreaterThanOrEqual(3);
-    });
-
-    it("muted text meets 3:1 on surface", () => {
-      const ratio = getContrastRatio(textMuted, surface);
-      expect(ratio).toBeGreaterThanOrEqual(3);
+  describe("Muted text meets WCAG AA (4.5:1) on every light surface", () => {
+    // Mirror of the dark-theme assertion: the selection primitive (#CFCFDE) is
+    // the darkest light surface and the worst case for muted text contrast.
+    it.each([
+      ["background", bg],
+      ["surface", surface],
+      ["surface-raised", alucardColors.bgLighter],
+      ["selection (darkest)", alucardColors.selection],
+    ])("muted text meets 4.5:1 on %s", (_label, background) => {
+      const ratio = getContrastRatio(textMuted, background);
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
     });
   });
 
