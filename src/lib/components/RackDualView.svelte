@@ -318,6 +318,7 @@
           {rack}
           {deviceLibrary}
           selected={false}
+          selectable={false}
           {selectedDeviceId}
           {displayMode}
           {showLabelsOnImages}
@@ -347,6 +348,7 @@
             {rack}
             {deviceLibrary}
             selected={false}
+            selectable={false}
             {selectedDeviceId}
             {displayMode}
             {showLabelsOnImages}

@@ -237,9 +237,13 @@
   }
 </script>
 
-<!-- Multi-rack mode: render racks with visual grouping -->
+<!-- Multi-rack mode: render racks with visual grouping. role="listbox" gives the
+     rack containers (role="option", see RackDualView) a valid required parent so
+     aria-selected is announced correctly; the racks are a single-select set. -->
 <div
   class="racks-wrapper"
+  role="listbox"
+  aria-label="Racks"
   class:swipe-next={swipeAnimationDirection === "next"}
   class:swipe-previous={swipeAnimationDirection === "previous"}
 >

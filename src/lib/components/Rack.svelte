@@ -80,6 +80,11 @@
     rack: RackType;
     deviceLibrary: DeviceType[];
     selected: boolean;
+    /** Whether this rack is itself the selectable unit (role="option"). True for
+     *  standalone and bayed racks. False when an ancestor already carries the
+     *  selectable role (dual view wraps two faces under one role="option"), so
+     *  the face renders as presentation to avoid nesting option inside option. */
+    selectable?: boolean;
     selectedDeviceId?: string | null;
     displayMode?: DisplayMode;
     showLabelsOnImages?: boolean;
@@ -124,6 +129,7 @@
     rack,
     deviceLibrary,
     selected,
+    selectable = true,
     selectedDeviceId = null,
     displayMode = "label",
     showLabelsOnImages = false,
@@ -399,14 +405,18 @@
 
 <svelte:window onkeydown={handleShiftDown} onkeyup={handleShiftUp} />
 
+<!-- tabindex is only set alongside role="option" (interactive); the analyzer
+     cannot correlate the two dynamic values, so the noninteractive-tabindex
+     warning is a false positive here. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   class="rack-container"
   class:selected
   class:party-mode={partyMode}
   class:placement-mode={isPlacementMode}
-  tabindex="0"
-  aria-selected={selected}
-  role="option"
+  tabindex={selectable ? 0 : undefined}
+  aria-selected={selectable ? selected : undefined}
+  role={selectable ? "option" : "presentation"}
   onkeydown={handleKeyDown}
   onclick={handleClick}
 >
