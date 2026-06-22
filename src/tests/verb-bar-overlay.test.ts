@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, cleanup, fireEvent, screen } from "@testing-library/svelte";
-import VerbBarOverlay from "$lib/components/VerbBarOverlay.svelte";
+// Rendered through a thin wrapper that supplies the Tooltip.Provider context
+// the verb buttons' tooltips need (App.svelte provides it in the real app).
+import VerbBarOverlay from "./helpers/TestVerbBarOverlay.svelte";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import {
   getSelectionStore,

@@ -14,7 +14,7 @@
 
   Indicators are never colour-only (WCAG 1.4.1): each row pairs a state dot
   (filled for open, outline for closed) with a text label (Active / Open /
-  Closed) and, for open rows, an aria-selected state. The list is keyboard
+  Closed) and, for the active row, an aria-current state. The list is keyboard
   navigable (Up/Down to move, Home/End to jump, Enter to open).
 -->
 <script lang="ts">
@@ -156,8 +156,12 @@
     // activation.
     if (event.target !== event.currentTarget) return;
 
+    // `.layout-item` is the row element. It serves both styling and this
+    // keyboard navigation; the rows are role="listitem" (not role="option",
+    // which forbids the focusable close button they contain), so we select by
+    // class rather than role here.
     const items = listEl
-      ? Array.from(listEl.querySelectorAll<HTMLElement>("[role='option']"))
+      ? Array.from(listEl.querySelectorAll<HTMLElement>(".layout-item"))
       : [];
     const index = items.findIndex((el) => el === event.currentTarget);
 
@@ -319,15 +323,18 @@
     </span>
     {#if onnewlayout}
       <Tooltip text="New Layout" position="bottom">
-        <button
-          type="button"
-          class="new-layout-btn"
-          onclick={onnewlayout}
-          aria-label="New Layout"
-          data-testid="btn-new-layout"
-        >
-          +
-        </button>
+        {#snippet triggerChild({ props })}
+          <button
+            {...props}
+            type="button"
+            class="new-layout-btn"
+            onclick={onnewlayout}
+            aria-label="New Layout"
+            data-testid="btn-new-layout"
+          >
+            +
+          </button>
+        {/snippet}
       </Tooltip>
     {/if}
   </div>
@@ -335,7 +342,7 @@
   <div
     bind:this={listEl}
     class="layout-items"
-    role="listbox"
+    role="list"
     aria-label="Layout library"
   >
     {#each rows as row (rowKey(row))}
@@ -347,65 +354,77 @@
         onexport={onexport ? () => exportLayout(row) : undefined}
         ondelete={() => initiateDelete(row)}
       >
-        <div
-          class="layout-item"
-          class:active={row.isActive}
-          class:closed={!row.isOpen}
-          onclick={() => activateRow(row)}
-          onkeydown={(e) => handleRowKeydown(e, row)}
-          role="option"
-          aria-selected={row.isActive}
-          tabindex={row.isActive ? 0 : -1}
-          data-testid="layout-item-{rowKey(row)}"
-        >
-          <span
-            class="layout-indicator"
-            class:is-active={row.isActive}
-            class:is-open={row.isOpen}
-            aria-hidden="true"
-          ></span>
-          <span class="layout-preview" aria-hidden="true">
-            {#if previewSvg}
-              <!-- eslint-disable-next-line svelte/no-at-html-tags -- Safe: SVG built by generateExportSVG via the DOM API; all user text is set with textContent and escaped by XMLSerializer, never raw-HTML injected. -->
-              {@html previewSvg}
-            {:else}
-              <span class="layout-preview-empty"></span>
-            {/if}
-          </span>
-          <span class="layout-info">
-            <span class="layout-name">{row.name}</span>
-            <span class="layout-meta">
-              <span class="layout-state">
-                {#if row.isActive}
-                  Active
-                {:else if row.isOpen}
-                  Open
-                {:else}
-                  Closed
-                {/if}
-              </span>
-              {#if row.isOpen}
-                <span aria-hidden="true">·</span>
-                {row.rackCount} rack{row.rackCount !== 1 ? "s" : ""} ·
-                {row.deviceCount} device{row.deviceCount !== 1 ? "s" : ""}
+        {#snippet trigger(triggerProps)}
+          <!-- The row is a role="listitem", not a role="option": an open row
+               holds an interactive close button, and an option may not contain
+               focusable descendants (nested-interactive, #2255). It stays a
+               click/keyboard focus stop for row selection, so the
+               noninteractive-tabindex warning is expected here. The context-menu
+               trigger props spread directly onto it (render delegation), so
+               there is no roleless wrapper between the list and the listitem
+               (aria-required-children, #2254). -->
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+          <div
+            {...triggerProps}
+            class="layout-item"
+            class:active={row.isActive}
+            class:closed={!row.isOpen}
+            onclick={() => activateRow(row)}
+            onkeydown={(e) => handleRowKeydown(e, row)}
+            role="listitem"
+            aria-current={row.isActive ? "true" : undefined}
+            tabindex={row.isActive ? 0 : -1}
+            data-testid="layout-item-{rowKey(row)}"
+          >
+            <span
+              class="layout-indicator"
+              class:is-active={row.isActive}
+              class:is-open={row.isOpen}
+              aria-hidden="true"
+            ></span>
+            <span class="layout-preview" aria-hidden="true">
+              {#if previewSvg}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -- Safe: SVG built by generateExportSVG via the DOM API; all user text is set with textContent and escaped by XMLSerializer, never raw-HTML injected. -->
+                {@html previewSvg}
+              {:else}
+                <span class="layout-preview-empty"></span>
               {/if}
             </span>
-          </span>
-          {#if row.isOpen}
-            <button
-              type="button"
-              class="layout-delete"
-              onclick={(e) => {
-                e.stopPropagation();
-                closeLayout(row);
-              }}
-              aria-label="Close {row.name}"
-              title="Close layout"
-            >
-              ✕
-            </button>
-          {/if}
-        </div>
+            <span class="layout-info">
+              <span class="layout-name">{row.name}</span>
+              <span class="layout-meta">
+                <span class="layout-state">
+                  {#if row.isActive}
+                    Active
+                  {:else if row.isOpen}
+                    Open
+                  {:else}
+                    Closed
+                  {/if}
+                </span>
+                {#if row.isOpen}
+                  <span aria-hidden="true">·</span>
+                  {row.rackCount} rack{row.rackCount !== 1 ? "s" : ""} ·
+                  {row.deviceCount} device{row.deviceCount !== 1 ? "s" : ""}
+                {/if}
+              </span>
+            </span>
+            {#if row.isOpen}
+              <button
+                type="button"
+                class="layout-delete"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  closeLayout(row);
+                }}
+                aria-label="Close {row.name}"
+                title="Close layout"
+              >
+                ✕
+              </button>
+            {/if}
+          </div>
+        {/snippet}
       </LayoutContextMenu>
     {/each}
 

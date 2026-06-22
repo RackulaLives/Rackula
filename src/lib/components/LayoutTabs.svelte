@@ -279,77 +279,93 @@
   }
 </script>
 
-<div
-  class="layout-tabs"
-  bind:this={stripEl}
-  role="tablist"
-  aria-label="Open layouts"
->
-  {#each visibleTabs as view (view.id)}
-    {@const selected = view.id === workspace.activeId}
-    <LayoutContextMenu
-      onrename={() => contextRename(view.id)}
-      onduplicate={() => contextDuplicate(view.id)}
-      onexport={onexport ? () => onexport(view.id) : undefined}
-      ondelete={showClose ? () => workspace.closeTab(view.id) : undefined}
-    >
-      {#if selected && isEditingName}
-        <input
-          bind:this={nameInputElement}
-          class="layout-tab-input"
-          type="text"
-          bind:value={editNameValue}
-          onkeydown={handleNameKeydown}
-          onblur={() => isEditingName && commitName()}
-          aria-label="Layout name"
-          data-testid="layout-name-input"
-        />
-      {:else}
-        <!--
-          The tab is a div with role="tab" so the close affordance can be a real
-          nested button without a button-in-button. The div carries roving
-          tabindex, aria-selected, click and key activation, drag, and the
-          double-click rename on the active tab.
-        -->
-        <div
-          id="layout-tab-{view.id}"
-          class="layout-tab"
-          class:active={selected}
-          class:drag-over={dragOverId === view.id &&
-            dragIndex !== tabIndex(view.id)}
-          role="tab"
-          aria-selected={selected}
-          tabindex={selected ? 0 : -1}
-          data-testid="layout-tab-{view.id}"
-          draggable="true"
-          onclick={() => workspace.switchTo(view.id)}
-          ondblclick={() => startEditingName(view.id)}
-          onkeydown={(e) => handleTabKeydown(e, view.id)}
-          ondragstart={(e) => handleDragStart(e, view.id)}
-          ondragover={(e) => handleDragOver(e, view.id)}
-          ondrop={(e) => handleDrop(e, view.id)}
-          ondragend={handleDragEnd}
-        >
-          {#if view.unbacked}
-            <span class="layout-tab-dot" aria-hidden="true"></span>
-            <span class="sr-only">{view.statusLabel}.</span>
-          {/if}
-          <span class="layout-tab-label">{view.name}</span>
-          {#if showClose}
-            <button
-              type="button"
-              class="layout-tab-close"
-              aria-label={`Close ${view.name}`}
-              data-testid="layout-tab-close-{view.id}"
-              onclick={(e) => handleClose(e, view.id)}
-            >
-              <IconClose size={ICON_SIZE.sm} />
-            </button>
-          {/if}
-        </div>
-      {/if}
-    </LayoutContextMenu>
-  {/each}
+<!--
+  The outer strip is a plain flex row, not the tablist, and is the width the
+  ResizeObserver measures: it holds the tabs AND the persistent "+"/overflow
+  controls, so the partition can reserve the controls' width from the full lane
+  (see partition below). role="tablist" sits on the inner element that owns only
+  the tabs, so the "+" and the overflow chevron (neither of which is a tab) are
+  siblings of the tablist rather than non-tab children of it
+  (aria-required-children, #2254).
+-->
+<div class="layout-tabs" bind:this={stripEl}>
+  <div class="layout-tablist" role="tablist" aria-label="Open layouts">
+    {#each visibleTabs as view (view.id)}
+      {@const selected = view.id === workspace.activeId}
+      <LayoutContextMenu
+        onrename={() => contextRename(view.id)}
+        onduplicate={() => contextDuplicate(view.id)}
+        onexport={onexport ? () => onexport(view.id) : undefined}
+        ondelete={showClose ? () => workspace.closeTab(view.id) : undefined}
+      >
+        {#snippet trigger(triggerProps)}
+          {@const editing = selected && isEditingName}
+          <!--
+            The tab is always a div with role="tab" so it stays a valid direct
+            child of the tablist in both states (aria-required-children, #2254);
+            rename swaps only the inner content to the input, never the tab root.
+            role="tab" also lets the close affordance be a real nested button
+            without a button-in-button. The div carries roving tabindex,
+            aria-selected, click and key activation, drag, and the double-click
+            rename on the active tab. The context-menu trigger props spread
+            directly onto it (render delegation), so there is no roleless wrapper
+            between the tablist and the tab.
+          -->
+          <div
+            {...triggerProps}
+            id="layout-tab-{view.id}"
+            class="layout-tab"
+            class:active={selected}
+            class:editing
+            class:drag-over={dragOverId === view.id &&
+              dragIndex !== tabIndex(view.id)}
+            role="tab"
+            aria-selected={selected}
+            tabindex={selected ? 0 : -1}
+            data-testid="layout-tab-{view.id}"
+            draggable={!editing}
+            onclick={() => !editing && workspace.switchTo(view.id)}
+            ondblclick={() => startEditingName(view.id)}
+            onkeydown={(e) => !editing && handleTabKeydown(e, view.id)}
+            ondragstart={(e) => handleDragStart(e, view.id)}
+            ondragover={(e) => handleDragOver(e, view.id)}
+            ondrop={(e) => handleDrop(e, view.id)}
+            ondragend={handleDragEnd}
+          >
+            {#if editing}
+              <input
+                bind:this={nameInputElement}
+                class="layout-tab-input"
+                type="text"
+                bind:value={editNameValue}
+                onkeydown={handleNameKeydown}
+                onblur={() => isEditingName && commitName()}
+                aria-label="Layout name"
+                data-testid="layout-name-input"
+              />
+            {:else}
+              {#if view.unbacked}
+                <span class="layout-tab-dot" aria-hidden="true"></span>
+                <span class="sr-only">{view.statusLabel}.</span>
+              {/if}
+              <span class="layout-tab-label">{view.name}</span>
+              {#if showClose}
+                <button
+                  type="button"
+                  class="layout-tab-close"
+                  aria-label={`Close ${view.name}`}
+                  data-testid="layout-tab-close-{view.id}"
+                  onclick={(e) => handleClose(e, view.id)}
+                >
+                  <IconClose size={ICON_SIZE.sm} />
+                </button>
+              {/if}
+            {/if}
+          </div>
+        {/snippet}
+      </LayoutContextMenu>
+    {/each}
+  </div>
 
   <button
     type="button"
@@ -403,7 +419,24 @@
 </div>
 
 <style>
+  /* The measured lane: holds the tabs plus the "+"/overflow controls. The
+     ResizeObserver reads this full width and the partition reserves the
+     controls' width from it, so the visible-tab count matches what fits beside
+     the controls. */
   .layout-tabs {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  /* The tablist owns only the tabs and takes the space the "+"/overflow
+     controls (its flex siblings) leave. overflow: hidden clips tabs that exceed
+     that space; the partition keeps them from rendering, so they move behind the
+     overflow chevron instead of being cut off. */
+  .layout-tablist {
     display: flex;
     align-items: center;
     gap: var(--space-1);
@@ -441,6 +474,15 @@
     box-shadow:
       0 0 0 2px var(--colour-bg),
       0 0 0 4px var(--colour-focus-ring);
+  }
+
+  /* While renaming, the tab is just a host for the input: drop its own padding,
+     border and text cursor so the input fills the slot as before. The input
+     carries its own height, border and background. */
+  .layout-tab.editing {
+    padding: 0;
+    border: none;
+    cursor: text;
   }
 
   .layout-tab-label {

@@ -193,20 +193,23 @@
     </span>
     {#if onnewrack}
       <Tooltip text="New Rack" position="bottom">
-        <button
-          type="button"
-          class="new-rack-btn"
-          onclick={onnewrack}
-          aria-label="New Rack"
-          data-testid="btn-new-rack"
-        >
-          +
-        </button>
+        {#snippet triggerChild({ props })}
+          <button
+            {...props}
+            type="button"
+            class="new-rack-btn"
+            onclick={onnewrack}
+            aria-label="New Rack"
+            data-testid="btn-new-rack"
+          >
+            +
+          </button>
+        {/snippet}
       </Tooltip>
     {/if}
   </div>
 
-  <div class="rack-items" role="listbox" aria-label="Rack list">
+  <div class="rack-items" role="list" aria-label="Rack list">
     <!-- Bayed rack groups as single entries -->
     {#each rackGroups as group (group.id)}
       {@const firstRack = getGroupFirstRack(group)}
@@ -230,41 +233,55 @@
         }}
         ondelete={() => initiateGroupDelete(group)}
       >
-        <div
-          class="rack-item"
-          class:active={isActive}
-          onclick={() => handleGroupClick(group.id)}
-          onkeydown={(e) => {
-            if (e.key === " ") e.preventDefault();
-            if (e.key === "Enter" || e.key === " ") handleGroupClick(group.id);
-          }}
-          role="option"
-          aria-selected={isActive}
-          tabindex="0"
-          data-testid="rack-item-group-{group.id}"
-        >
-          <span class="rack-indicator" aria-hidden="true">
-            {isActive ? "●" : "○"}
-          </span>
-          <span class="rack-info">
-            <span class="rack-name">{group.name ?? "Bayed Rack"}</span>
-            <span class="rack-meta"
-              >{firstRack?.height ?? "?"}U · {bayCount}-bay · {deviceCount} device{deviceCount !==
-              1
-                ? "s"
-                : ""}</span
-            >
-          </span>
-          <button
-            type="button"
-            class="rack-delete"
-            onclick={(e) => handleGroupDeleteClick(e, group)}
-            aria-label="Delete {group.name ?? 'bayed rack'}"
-            title="Delete bayed rack"
+        {#snippet trigger(triggerProps)}
+          <!-- The row is a role="listitem", not a role="option": it holds an
+               interactive delete button, and an option may not contain focusable
+               descendants (nested-interactive, #2255). It stays a click/keyboard
+               focus stop for rack selection, so the noninteractive-tabindex
+               warning is expected here. The context-menu trigger props spread
+               directly onto it (render delegation), so there is no roleless
+               wrapper between the list and the listitem
+               (aria-required-children, #2254). -->
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+          <div
+            {...triggerProps}
+            class="rack-item"
+            class:active={isActive}
+            onclick={() => handleGroupClick(group.id)}
+            onkeydown={(e) => {
+              if (e.target !== e.currentTarget) return;
+              if (e.key === " ") e.preventDefault();
+              if (e.key === "Enter" || e.key === " ")
+                handleGroupClick(group.id);
+            }}
+            role="listitem"
+            aria-current={isActive ? "true" : undefined}
+            tabindex="0"
+            data-testid="rack-item-group-{group.id}"
           >
-            ✕
-          </button>
-        </div>
+            <span class="rack-indicator" aria-hidden="true">
+              {isActive ? "●" : "○"}
+            </span>
+            <span class="rack-info">
+              <span class="rack-name">{group.name ?? "Bayed Rack"}</span>
+              <span class="rack-meta"
+                >{firstRack?.height ?? "?"}U · {bayCount}-bay · {deviceCount} device{deviceCount !==
+                1
+                  ? "s"
+                  : ""}</span
+              >
+            </span>
+            <button
+              type="button"
+              class="rack-delete"
+              onclick={(e) => handleGroupDeleteClick(e, group)}
+              aria-label="Delete {group.name ?? 'bayed rack'}"
+              title="Delete bayed rack"
+            >
+              ✕
+            </button>
+          </div>
+        {/snippet}
       </RackContextMenu>
     {/each}
 
@@ -280,41 +297,54 @@
         onduplicate={() => onduplicate?.(rack.id)}
         ondelete={() => initiateRackDelete({ id: rack.id, name: rack.name })}
       >
-        <div
-          class="rack-item"
-          class:active={isActive}
-          onclick={() => handleRackClick(rack.id)}
-          onkeydown={(e) => {
-            if (e.key === " ") e.preventDefault();
-            if (e.key === "Enter" || e.key === " ") handleRackClick(rack.id);
-          }}
-          role="option"
-          aria-selected={isActive}
-          tabindex="0"
-          data-testid="rack-item-{rack.id}"
-        >
-          <span class="rack-indicator" aria-hidden="true">
-            {isActive ? "●" : "○"}
-          </span>
-          <span class="rack-info">
-            <span class="rack-name">{rack.name}</span>
-            <span class="rack-meta"
-              >{rack.height}U · {deviceCount} device{deviceCount !== 1
-                ? "s"
-                : ""}</span
-            >
-          </span>
-          <button
-            type="button"
-            class="rack-delete"
-            onclick={(e) =>
-              handleDeleteClick(e, { id: rack.id, name: rack.name })}
-            aria-label="Delete {rack.name}"
-            title="Delete rack"
+        {#snippet trigger(triggerProps)}
+          <!-- The row is a role="listitem", not a role="option": it holds an
+               interactive delete button, and an option may not contain focusable
+               descendants (nested-interactive, #2255). It stays a click/keyboard
+               focus stop for rack selection, so the noninteractive-tabindex
+               warning is expected here. The context-menu trigger props spread
+               directly onto it (render delegation), so there is no roleless
+               wrapper between the list and the listitem
+               (aria-required-children, #2254). -->
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+          <div
+            {...triggerProps}
+            class="rack-item"
+            class:active={isActive}
+            onclick={() => handleRackClick(rack.id)}
+            onkeydown={(e) => {
+              if (e.target !== e.currentTarget) return;
+              if (e.key === " ") e.preventDefault();
+              if (e.key === "Enter" || e.key === " ") handleRackClick(rack.id);
+            }}
+            role="listitem"
+            aria-current={isActive ? "true" : undefined}
+            tabindex="0"
+            data-testid="rack-item-{rack.id}"
           >
-            ✕
-          </button>
-        </div>
+            <span class="rack-indicator" aria-hidden="true">
+              {isActive ? "●" : "○"}
+            </span>
+            <span class="rack-info">
+              <span class="rack-name">{rack.name}</span>
+              <span class="rack-meta"
+                >{rack.height}U · {deviceCount} device{deviceCount !== 1
+                  ? "s"
+                  : ""}</span
+              >
+            </span>
+            <button
+              type="button"
+              class="rack-delete"
+              onclick={(e) =>
+                handleDeleteClick(e, { id: rack.id, name: rack.name })}
+              aria-label="Delete {rack.name}"
+              title="Delete rack"
+            >
+              ✕
+            </button>
+          </div>
+        {/snippet}
       </RackContextMenu>
     {/each}
 

@@ -150,9 +150,12 @@ test.describe("Dual-View Rack Display", () => {
 
     await page.locator(locators.rackView.front).click();
 
+    // The rack is a role="listitem" (it holds interactive devices, so it cannot
+    // be a role="option", which forbids focusable descendants). Selection is
+    // announced through the accessible name, not aria-selected.
     await expect(page.locator(locators.rackView.dualView)).toHaveAttribute(
-      "aria-selected",
-      "true",
+      "aria-label",
+      /, selected$/,
     );
   });
 

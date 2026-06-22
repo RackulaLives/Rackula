@@ -17,7 +17,7 @@
   import type { Snippet } from "svelte";
   import "$lib/styles/context-menus.css";
 
-  interface Props {
+  interface BaseProps {
     /** Whether the menu is open */
     open?: boolean;
     /** Callback when open state changes */
@@ -34,9 +34,25 @@
     onduplicate?: () => void;
     /** Delete rack callback */
     ondelete?: () => void;
-    /** Trigger element (the rack) */
-    children: Snippet;
   }
+
+  /**
+   * Exactly one trigger source. A discriminated union so passing both, or
+   * neither, is a compile-time error rather than a silently empty trigger.
+   * - `children`: the trigger content, wrapped in bits-ui's default trigger
+   *   div. Use for canvas triggers that are not inside a role that constrains
+   *   its children.
+   * - `trigger`: bits-ui render delegation. Receives the trigger `props` to
+   *   spread onto your own root element, with no wrapper. Use when the trigger
+   *   sits inside a `list` (the Racks panel rows), so a roleless, focusable
+   *   wrapper between the `list` and its `listitem` does not break
+   *   aria-required-children (#2254).
+   */
+  type TriggerProps =
+    | { children: Snippet; trigger?: never }
+    | { trigger: Snippet<[Record<string, unknown>]>; children?: never };
+
+  type Props = BaseProps & TriggerProps;
 
   let {
     open = $bindable(false),
@@ -48,6 +64,7 @@
     onduplicate,
     ondelete,
     children,
+    trigger,
   }: Props = $props();
 
   function handleSelect(action?: () => void) {
@@ -65,7 +82,15 @@
 
 <ContextMenu.Root {open} onOpenChange={handleOpenChange}>
   <ContextMenu.Trigger>
-    {@render children()}
+    {#snippet child({ props })}
+      {#if trigger}
+        {@render trigger(props)}
+      {:else}
+        <div {...props}>
+          {@render children?.()}
+        </div>
+      {/if}
+    {/snippet}
   </ContextMenu.Trigger>
 
   <ContextMenu.Portal>
