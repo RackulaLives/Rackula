@@ -83,12 +83,13 @@
     flex-shrink: 0;
   }
 
-  /* 44px-square collapse control, matching the segment height (issue #2397). */
+  /* Collapse control: 44px tall to match the segment height and touch row,
+     with a tightened width so the three tabs clear the 320px panel (issue #2397). */
   .sidebar-collapse-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: var(--panel-collapsed-strip-width, 44px);
+    width: 35px;
     height: var(--panel-collapsed-strip-width, 44px);
     flex-shrink: 0;
     padding: 0;
@@ -134,7 +135,8 @@
     gap: var(--space-1);
     /* 44px control height, matching the right panel and touch standard (#2397). */
     min-height: 44px;
-    padding: var(--space-2) var(--space-3);
+    min-width: 0;
+    padding: var(--space-2) var(--space-2);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     background: transparent;
@@ -179,6 +181,15 @@
 
   .tab-icon {
     font-size: var(--font-size-base);
+    flex-shrink: 0;
+  }
+
+  /* Absorb any overflow as an ellipsis rather than clipping at the panel edge;
+     the icon holds its width, the label flexes. */
+  .tab-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   @media (prefers-reduced-motion: reduce) {
