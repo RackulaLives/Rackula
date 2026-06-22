@@ -210,6 +210,10 @@
   }
 
   function handleKeyDown(event: KeyboardEvent) {
+    // During keyboard placement the global handler owns Enter/Space (it places
+    // the armed device). Selecting the rack from its own handler here would
+    // race that, so defer while placing.
+    if (placementStore.isPlacing) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handleSelect();

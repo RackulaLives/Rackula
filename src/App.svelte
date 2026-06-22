@@ -83,6 +83,11 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
+  import {
+    primeKeyboardPlacement,
+    focusRackContainer,
+  } from "$lib/utils/placement-keyboard-controller";
+  import type { DeviceType } from "$lib/types";
   import { createKonamiDetector } from "$lib/utils/konami";
   import {
     formatDevBuildMessage,
@@ -527,6 +532,39 @@
   function handleRackContextRename(rackId: string) {
     handleRackContextEdit(rackId);
   }
+
+  // Desktop keyboard placement (#106): Enter (or click) on a palette device arms
+  // placement and seeds a keyboard cursor in the focused rack, so a keyboard-only
+  // user can pick a device then drive the U-slot with the arrow keys. Pointer
+  // placement (mobile tap-to-place) arms via a different handler and shows no
+  // cursor; this path is the desktop sidebar palette.
+  function handleDevicePaletteSelect(
+    event: CustomEvent<{ device: DeviceType }>,
+  ) {
+    if (uiStore.readOnly) return;
+    const { device } = event.detail;
+    placementStore.startPlacement(device);
+    primeKeyboardPlacement(
+      {
+        getRacks: () => layoutStore.racks,
+        getDeviceLibrary: () => layoutStore.device_types,
+        getActiveRackId: () => layoutStore.activeRackId,
+        getTargetFace: () => placementStore.targetFace,
+        setActiveRack: (id) => layoutStore.setActiveRack(id),
+        setCursor: (rackId, position) =>
+          placementStore.setCursor(rackId, position),
+        announce: (text) => placementStore.announcePosition(text),
+      },
+      device,
+    );
+    // Move focus off the palette item onto the rack the cursor is now in, so the
+    // palette item does not also handle the next Enter (which would re-arm the
+    // device) and so focus follows the placement context. Synchronous so an
+    // immediate second Enter (pick up, then place) lands on the rack.
+    if (placementStore.targetRackId) {
+      focusRackContainer(placementStore.targetRackId);
+    }
+  }
 </script>
 
 <svelte:window onkeydown={(e) => konamiDetector.handleKeyDown(e)} />
@@ -585,7 +623,10 @@
               />
               <div class="sidebar-content">
                 {#if uiStore.sidebarTab === "devices"}
-                  <DevicePalette oncreatedevice={handleAddDevice} />
+                  <DevicePalette
+                    ondeviceselect={handleDevicePaletteSelect}
+                    oncreatedevice={handleAddDevice}
+                  />
                 {:else if uiStore.sidebarTab === "racks"}
                   <RackList
                     onnewrack={handleNewRack}

@@ -1,7 +1,8 @@
 /**
  * Placement Store
- * Manages tap-to-place workflow state for mobile editing.
- * Tracks the pending device being placed and target face.
+ * Manages tap-to-place and keyboard-place workflow state.
+ * Tracks the pending device being placed, the target face, and (for the
+ * keyboard flow) a U-slot cursor within a target rack.
  */
 
 import type { DeviceType, DeviceFace } from "$lib/types";
@@ -12,9 +13,19 @@ let pendingDevice = $state<DeviceType | null>(null);
 let targetFace = $state<DeviceFace>("front");
 
 /**
+ * Keyboard placement cursor.
+ * `targetRackId` is the rack the cursor is currently in; `cursorPosition` is the
+ * highlighted whole-U slot (1-indexed) within that rack. Both are null while no
+ * keyboard cursor is active (e.g. pure pointer tap-to-place never sets them).
+ */
+let targetRackId = $state<string | null>(null);
+let cursorPosition = $state<number | null>(null);
+
+/**
  * Screen-reader announcement for placement state transitions.
- * Set on cancel and complete so assistive technologies can announce the outcome.
- * Cleared on the next startPlacement so stale text is never re-read.
+ * Set on pick-up, slot change, cancel, and complete so assistive technologies
+ * can announce the mode and position. Cleared on the next startPlacement so
+ * stale text is never re-read.
  */
 let placementAnnouncement = $state<string | null>(null);
 
@@ -28,6 +39,8 @@ function startPlacement(device: DeviceType, face: DeviceFace = "front"): void {
   isPlacing = true;
   pendingDevice = device;
   targetFace = face;
+  targetRackId = null;
+  cursorPosition = null;
 }
 
 /**
@@ -38,6 +51,8 @@ function resetState(): void {
   isPlacing = false;
   pendingDevice = null;
   targetFace = "front";
+  targetRackId = null;
+  cursorPosition = null;
 }
 
 /**
@@ -65,11 +80,13 @@ function abandonPlacement(): void {
 
 /**
  * Complete placement mode after successfully placing the device.
+ * `summary` overrides the announcement (the keyboard flow passes a rich
+ * "Placed X at U12 of Rack 1" string); without it the default names the device.
  */
-function completePlacement(): void {
+function completePlacement(summary?: string): void {
   if (isPlacing) {
     const deviceName = pendingDevice?.model ?? pendingDevice?.slug ?? "Device";
-    placementAnnouncement = `${deviceName} placed`;
+    placementAnnouncement = summary ?? `${deviceName} placed`;
   }
   resetState();
 }
@@ -80,6 +97,26 @@ function completePlacement(): void {
  */
 function setTargetFace(face: DeviceFace): void {
   targetFace = face;
+}
+
+/**
+ * Move the keyboard cursor to a rack and U-slot. Setting the cursor does not
+ * place anything; it only drives the preview and the position announcement.
+ * @param rackId - Rack the cursor is in
+ * @param position - Whole-U slot (1-indexed) within that rack
+ */
+function setCursor(rackId: string, position: number): void {
+  targetRackId = rackId;
+  cursorPosition = position;
+}
+
+/**
+ * Set the live position announcement (e.g. "U12 of Rack 1, available").
+ * Kept separate from completePlacement so slot changes announce without ending
+ * placement.
+ */
+function announcePosition(text: string): void {
+  placementAnnouncement = text;
 }
 
 /**
@@ -105,11 +142,19 @@ export function getPlacementStore() {
     get targetFace() {
       return targetFace;
     },
+    /** Rack the keyboard cursor is in, or null when no keyboard cursor is active. */
+    get targetRackId() {
+      return targetRackId;
+    },
+    /** Highlighted whole-U slot (1-indexed) of the keyboard cursor, or null. */
+    get cursorPosition() {
+      return cursorPosition;
+    },
     /**
      * Screen-reader announcement text for the most recent placement state
-     * transition (placed or cancelled). Null while idle or during active
-     * placement. Rendered in an assertive aria-live region so screen readers
-     * announce the outcome immediately.
+     * transition (mode entered, position changed, placed, or cancelled). Null
+     * while idle. Rendered in an assertive aria-live region so screen readers
+     * announce it immediately.
      */
     get placementAnnouncement() {
       return placementAnnouncement;
@@ -119,5 +164,7 @@ export function getPlacementStore() {
     abandonPlacement,
     completePlacement,
     setTargetFace,
+    setCursor,
+    announcePosition,
   };
 }

@@ -40,6 +40,7 @@
   import { isChristmas } from "$lib/utils/christmas";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
+  import { validStartPositions } from "$lib/utils/placement-keyboard";
   import { SvelteSet, SvelteMap } from "svelte/reactivity";
   import { toHumanUnits } from "$lib/utils/position";
   import {
@@ -291,24 +292,55 @@
   const validPlacementSlots = $derived.by(() => {
     if (!isPlacementMode || !placementStore.pendingDevice)
       return new SvelteSet<number>();
-    const { u_height: deviceHeight } = placementStore.pendingDevice;
+    const device = placementStore.pendingDevice;
+    const deviceHeight = device.u_height;
+    // Reuse the keyboard cursor's valid-start scan so the highlight and the
+    // keyboard cursor agree by construction; expand each valid start into the
+    // U-slots the device would occupy.
     const validSlots = new SvelteSet<number>();
-    for (let startU = 1; startU <= rack.height - deviceHeight + 1; startU++) {
-      if (
-        getDropFeedback(
-          rack,
-          deviceLibrary,
-          deviceHeight,
-          startU,
-          undefined,
-          effectiveFaceFilter,
-        ) === "valid"
-      ) {
-        for (let u = startU; u < startU + deviceHeight; u++) validSlots.add(u);
-      }
+    for (const startU of validStartPositions(
+      rack,
+      deviceLibrary,
+      device,
+      effectiveFaceFilter,
+    )) {
+      for (let u = startU; u < startU + deviceHeight; u++) validSlots.add(u);
     }
     return validSlots;
   });
+
+  // Keyboard-placement cursor preview (#106). When the keyboard cursor is in
+  // this rack, surface it through the same drop-preview rectangle the drag/tap
+  // flow uses, so the keyboard preview is visually identical. The pointer
+  // `dropPreview` takes precedence while a drag is active; otherwise this drives
+  // the preview.
+  const keyboardCursorPreview = $derived.by<DropPreviewState | null>(() => {
+    if (!isPlacementMode || !placementStore.pendingDevice) return null;
+    if (placementStore.targetRackId !== rack.id) return null;
+    // Keyboard placement targets one face (placementStore.targetFace). In dual
+    // view the same rack renders a front and a rear Rack; only the face being
+    // placed onto should show the cursor, so the preview matches where the
+    // device actually lands.
+    if (effectiveFaceFilter !== placementStore.targetFace) return null;
+    const position = placementStore.cursorPosition;
+    if (position == null) return null;
+    const { u_height: deviceHeight } = placementStore.pendingDevice;
+    return {
+      position,
+      height: deviceHeight,
+      feedback: getDropFeedback(
+        rack,
+        deviceLibrary,
+        deviceHeight,
+        position,
+        undefined,
+        effectiveFaceFilter,
+      ),
+    };
+  });
+
+  // The active preview: a live pointer drag wins; otherwise the keyboard cursor.
+  const activePreview = $derived(dropPreview ?? keyboardCursorPreview);
 
   // --- Handler context for extracted interaction handlers ---
   const handlerCtx = $derived<RackHandlerContext>({
@@ -389,6 +421,9 @@
   }
 
   function handleKeyDown(event: KeyboardEvent) {
+    // During keyboard placement the global handler owns Enter/Space (it places
+    // the armed device), so don't also select the rack from here.
+    if (placementStore.isPlacing) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       onselect?.(new CustomEvent("select", { detail: { rackId: rack.id } }));
@@ -460,7 +495,7 @@
       nameYOffset={NAME_Y_OFFSET}
       {shiftKeyHeld}
       {blockedSlots}
-      {dropPreview}
+      dropPreview={activePreview}
       {isPlacementMode}
       {validPlacementSlots}
     />
@@ -513,12 +548,12 @@
       {/each}
     </g>
 
-    <!-- Layer 3: Drop preview -->
-    {#if dropPreview}
+    <!-- Layer 3: Drop preview (pointer drag or keyboard cursor) -->
+    {#if activePreview}
       <RackDropZone
-        position={dropPreview.position}
-        height={dropPreview.height}
-        feedback={dropPreview.feedback}
+        position={activePreview.position}
+        height={activePreview.height}
+        feedback={activePreview.feedback}
         railWidth={RAIL_WIDTH}
         {interiorWidth}
         uHeight={U_HEIGHT}

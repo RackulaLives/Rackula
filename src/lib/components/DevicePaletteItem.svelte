@@ -99,6 +99,11 @@
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
+      // Stop the event reaching the global key handler: this same Enter arms
+      // keyboard placement (#106), and without this it would also bubble to the
+      // window where the placement handler would immediately place at the seeded
+      // slot, collapsing pick-up and place into one keystroke.
+      event.stopPropagation();
       onselect?.(new CustomEvent("select", { detail: { device } }));
     }
   }

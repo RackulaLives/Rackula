@@ -11,9 +11,46 @@
   } from "$lib/actions/dispatch";
   import { getWorkspaceStore } from "$lib/stores/workspace.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
+  import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getPlacementStore } from "$lib/stores/placement.svelte";
+  import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import {
+    createPlacementKeyboardController,
+    focusRackContainer,
+  } from "$lib/utils/placement-keyboard-controller";
 
   const workspace = getWorkspaceStore();
   const dispatch = createActionDispatch();
+
+  const layoutStore = getLayoutStore();
+  const placementStore = getPlacementStore();
+  const canvasStore = getCanvasStore();
+
+  // Keyboard placement (#106): while a device is armed, arrow / Tab / Enter /
+  // Escape drive a U-slot cursor and place via the same store path as
+  // tap-to-place. Reads live store values through getters so one controller
+  // instance stays correct as racks and the armed device change.
+  const placementKeyboard = createPlacementKeyboardController({
+    getRacks: () => layoutStore.racks,
+    getDeviceLibrary: () => layoutStore.device_types,
+    getActiveRackId: () => layoutStore.activeRackId,
+    isPlacing: () => placementStore.isPlacing,
+    getPendingDevice: () => placementStore.pendingDevice,
+    getTargetFace: () => placementStore.targetFace,
+    getCursorPosition: () => placementStore.cursorPosition,
+    setActiveRack: (id) => layoutStore.setActiveRack(id),
+    setCursor: (rackId, position) => placementStore.setCursor(rackId, position),
+    announce: (text) => placementStore.announcePosition(text),
+    cancelPlacement: () => placementStore.cancelPlacement(),
+    placeDevice: (rackId, slug, position, face) =>
+      layoutStore.placeDeviceSmart(rackId, slug, position, face),
+    completePlacement: (summary) => placementStore.completePlacement(summary),
+    onPlaced: () =>
+      canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups),
+    // Move focus to the newly focused rack so the visible focus ring follows the
+    // cursor across a Tab/arrow rack switch.
+    onFocusRack: (rackId) => focusRackContainer(rackId),
+  });
 
   /**
    * Alt+1-9 jumps to the Nth open layout tab. Keyed off event.code (Digit1..9)
@@ -53,6 +90,15 @@
 
     // Ignore if in input field
     if (shouldIgnoreKeyboard(event)) return;
+
+    // Keyboard placement (#106) owns arrow / Tab / Enter / Escape while a device
+    // is armed, so it runs before the action registry (which binds arrows to
+    // move-device and Escape to clear-selection). It only consumes keys while
+    // placing; otherwise it returns false and handling continues as normal.
+    if (placementKeyboard.handleKeyDown(event)) {
+      event.preventDefault();
+      return;
+    }
 
     // Workspace tab jumps (Alt+1-9) are dynamic, not fixed registry actions, so
     // they take precedence over the action registry.
