@@ -27,6 +27,7 @@ import {
   positionAnnouncement,
   noSpaceAnnouncement,
   singleRackAnnouncement,
+  noRacksAnnouncement,
   placedAnnouncement,
 } from "./placement-keyboard";
 
@@ -44,7 +45,7 @@ export interface PlacementKeyboardDeps {
   getCursorPosition: () => number | null;
   /** Placement store actions. */
   setActiveRack: (id: string) => void;
-  setCursor: (rackId: string, position: number) => void;
+  setCursor: (rackId: string, position: number | null) => void;
   announce: (text: string) => void;
   cancelPlacement: () => void;
   /** Place the armed device. Returns true on success. */
@@ -71,9 +72,13 @@ function resolveFace(face: DeviceFace): DeviceFace {
  * palette pick-up (so the next Enter places on the rack, not the palette item)
  * and the Tab rack-switch (so the focus ring follows the cursor). The rack
  * element is already in the DOM, so this runs synchronously. No-op if not found.
+ * `CSS.escape` guards against ids that carry selector-special characters (e.g.
+ * imported or legacy layouts), which would otherwise throw in querySelector.
  */
 export function focusRackContainer(rackId: string): void {
-  document.querySelector<HTMLElement>(`[data-rack-id="${rackId}"]`)?.focus();
+  document
+    .querySelector<HTMLElement>(`[data-rack-id="${CSS.escape(rackId)}"]`)
+    ?.focus();
 }
 
 /** Deps needed to prime the keyboard cursor (a subset of the controller deps). */
@@ -118,7 +123,11 @@ export function primeKeyboardPlacement(
   device: DeviceType,
 ): void {
   const rack = resolveActiveRack(deps);
-  if (!rack) return;
+  if (!rack) {
+    // Armed with no rack to place into: say so rather than fall silent.
+    deps.announce(noRacksAnnouncement(device));
+    return;
+  }
   deps.setActiveRack(rack.id);
   const positions = validFor(deps, rack, device);
   const start = initialCursorPosition(positions);
@@ -165,7 +174,11 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
   /** Switch the focused rack by `step` (+1 next, -1 previous), wrapping. */
   function switchRack(device: DeviceType, step: 1 | -1): void {
     const racks = deps.getRacks();
-    if (racks.length <= 1) {
+    if (racks.length === 0) {
+      deps.announce(noRacksAnnouncement(device));
+      return;
+    }
+    if (racks.length === 1) {
       // Tab is consumed during placement (so focus stays on the canvas), so a
       // single-rack layout would otherwise swallow it silently. Announce instead.
       deps.announce(singleRackAnnouncement());
@@ -181,12 +194,15 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
     // Keep the cursor near the same height across the switch.
     const positions = validFor(deps, nextRack, device);
     const start = initialCursorPosition(positions, deps.getCursorPosition());
-    if (start == null) {
-      deps.announce(noSpaceAnnouncement(nextRack.name));
-      return;
-    }
+    // Point the cursor at the new rack either way (start may be null for a full
+    // rack) so targetRackId and cursorPosition stay consistent with the active
+    // rack; a null cursor shows no preview and the user can Tab on to find space.
     deps.setCursor(nextRack.id, start);
-    deps.announce(positionAnnouncement(nextRack.name, start));
+    deps.announce(
+      start == null
+        ? noSpaceAnnouncement(nextRack.name)
+        : positionAnnouncement(nextRack.name, start),
+    );
   }
 
   function place(device: DeviceType): void {

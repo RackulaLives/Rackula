@@ -557,12 +557,15 @@
       },
       device,
     );
-    // Move focus off the palette item onto the rack the cursor is now in, so the
-    // palette item does not also handle the next Enter (which would re-arm the
-    // device) and so focus follows the placement context. Synchronous so an
-    // immediate second Enter (pick up, then place) lands on the rack.
-    if (placementStore.targetRackId) {
-      focusRackContainer(placementStore.targetRackId);
+    // Move focus off the palette item onto the active rack, so the palette item
+    // does not also handle the next Enter (which would re-arm the device) and so
+    // focus follows the placement context. Use the active rack (not the cursor's
+    // target) so focus still transfers when the rack is full and no cursor was
+    // seeded; the user can then Tab to a rack with space. Synchronous so an
+    // immediate second Enter lands on the rack.
+    const rackToFocus = placementStore.targetRackId ?? layoutStore.activeRackId;
+    if (rackToFocus) {
+      focusRackContainer(rackToFocus);
     }
   }
 </script>

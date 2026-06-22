@@ -148,6 +148,12 @@ export function singleRackAnnouncement(): string {
   return "Only one rack";
 }
 
+/** Copy announced when a device is armed but the layout has no racks. */
+export function noRacksAnnouncement(device: DeviceType): string {
+  const name = device.model ?? device.slug;
+  return `Placing ${name}. Add a rack first.`;
+}
+
 /** Outcome copy announced after a successful keyboard placement. */
 export function placedAnnouncement(
   device: DeviceType,

@@ -102,12 +102,17 @@ function setTargetFace(face: DeviceFace): void {
 /**
  * Move the keyboard cursor to a rack and U-slot. Setting the cursor does not
  * place anything; it only drives the preview and the position announcement.
+ * Passing `position: null` targets the rack with no slot (e.g. switching to a
+ * full rack), keeping `targetRackId` and `cursorPosition` consistent so the
+ * preview never shows on a stale rack.
  * @param rackId - Rack the cursor is in
- * @param position - Whole-U slot (1-indexed) within that rack
+ * @param position - Whole-U slot (1-indexed) within that rack, or null for none
  */
-function setCursor(rackId: string, position: number): void {
+function setCursor(rackId: string, position: number | null): void {
   targetRackId = rackId;
-  cursorPosition = position;
+  // Rail positions are whole-U integers (carrier-first model); reject a
+  // fractional slot rather than carry it into placement.
+  cursorPosition = position == null ? null : Math.round(position);
 }
 
 /**
