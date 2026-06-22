@@ -781,6 +781,26 @@
     bottom: 0;
     width: var(--panel-edge-grip-width, 12px);
     z-index: calc(var(--z-sidebar) + 1);
+    /* The seam is pinned to the expanded panel width, but the panel animates its
+       width on expand. Hold the grip hidden and non-interactive until the panel
+       finishes expanding (the animation delay matches the panel's transition), so
+       it never looks detached from the moving seam or intercepts a canvas click
+       mid-transition (#2560). On collapse the grip unmounts immediately. */
+    opacity: 0;
+    pointer-events: none;
+    animation: edge-grip-appear var(--duration-fast) var(--ease-out)
+      var(--duration-normal) forwards;
+  }
+
+  @keyframes edge-grip-appear {
+    from {
+      opacity: 0;
+      pointer-events: none;
+    }
+    to {
+      opacity: 1;
+      pointer-events: auto;
+    }
   }
 
   .edge-grip-seam--left {
@@ -789,6 +809,14 @@
 
   .edge-grip-seam--right {
     right: var(--side-panel-width, 320px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .edge-grip-seam {
+      animation: none;
+      opacity: 1;
+      pointer-events: auto;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
