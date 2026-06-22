@@ -215,12 +215,15 @@
     padding-left: max(var(--space-2), env(safe-area-inset-left, 0px));
   }
 
-  /* Centre lane: fills the canvas gap between left and right fixed lanes. */
+  /* Centre lane: fills the canvas gap between left and right fixed lanes. The
+     left margin keeps the first tab clear of the search pill so the two do not
+     crowd at the lane boundary; it pairs with the pill's own margin-right. */
   .toolbar-tabs {
     flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     justify-content: flex-start;
+    margin-left: var(--space-3);
   }
 
   /* Right lane: fixed to side-panel width so it aligns with the panel column.
