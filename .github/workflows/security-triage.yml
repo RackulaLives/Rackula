@@ -249,7 +249,15 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -uo pipefail
-          git fetch origin main 'refs/heads/fix/security-*:refs/remotes/origin/fix/security-*' --quiet || true
+          # Fail loud, not silent: a swallowed fetch failure (network/auth) would
+          # leave the scan seeing no fix/security-* refs and report "opened 0",
+          # which looks like success while the backstop did nothing. A glob
+          # refspec that matches no branches still exits 0 (main is fetched), so
+          # this only fires on a genuine fetch failure.
+          if ! git fetch origin main 'refs/heads/fix/security-*:refs/remotes/origin/fix/security-*' --quiet; then
+            echo "::warning::Safety-net could not fetch fix/security-* branches from origin; the PR backstop did not run."
+            exit 1
+          fi
           opened=0
           for ref in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin | grep -E '^origin/fix/security-' || true); do
             branch="${ref#origin/}"
