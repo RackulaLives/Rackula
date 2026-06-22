@@ -183,16 +183,53 @@ describe("placement store", () => {
     });
   });
 
+  describe("setCursor() (keyboard placement)", () => {
+    it("records the target rack and slot for the keyboard cursor", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.setCursor("rack-1", 5);
+      expect(store.targetRackId).toBe("rack-1");
+      expect(store.cursorPosition).toBe(5);
+    });
+
+    it("rounds a fractional slot to a whole U (rail invariant)", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.setCursor("rack-1", 4.6);
+      expect(store.cursorPosition).toBe(5);
+    });
+
+    it("targets a rack with no slot when position is null (full rack)", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.setCursor("rack-2", null);
+      expect(store.targetRackId).toBe("rack-2");
+      expect(store.cursorPosition).toBeNull();
+    });
+
+    it("clears the cursor on startPlacement so a new pick-up starts fresh", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.setCursor("rack-1", 5);
+      store.startPlacement(mockDevice);
+      expect(store.targetRackId).toBeNull();
+      expect(store.cursorPosition).toBeNull();
+    });
+  });
+
   describe("resetPlacementStore()", () => {
     it("resets all state to defaults", () => {
       const store = getPlacementStore();
       store.startPlacement(mockDevice, "rear");
+      store.setCursor("rack-1", 5);
 
       resetPlacementStore();
 
       expect(store.isPlacing).toBe(false);
       expect(store.pendingDevice).toBeNull();
       expect(store.targetFace).toBe("front");
+      expect(store.targetRackId).toBeNull();
+      expect(store.cursorPosition).toBeNull();
     });
   });
 });
