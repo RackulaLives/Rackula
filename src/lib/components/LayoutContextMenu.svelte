@@ -31,8 +31,16 @@
     onexport?: () => void;
     /** Delete (close) layout callback */
     ondelete?: () => void;
-    /** Trigger element (the layout row) */
-    children: Snippet;
+    /**
+     * The trigger element, rendered via bits-ui render delegation. Spread the
+     * supplied `props` onto your own root element so the context-menu wiring
+     * (right-click handler, data attributes) lands on it directly, with no
+     * extra wrapper. The wrapper-free trigger keeps the parent role intact:
+     * the trigger sits inside a `tablist`/`list`, so a roleless, focusable
+     * wrapper between it and the `tab`/`listitem` would break
+     * aria-required-children (#2254).
+     */
+    trigger: Snippet<[Record<string, unknown>]>;
   }
 
   let {
@@ -43,7 +51,7 @@
     onduplicate,
     onexport,
     ondelete,
-    children,
+    trigger,
   }: Props = $props();
 
   function handleSelect(action?: () => void) {
@@ -61,7 +69,9 @@
 
 <ContextMenu.Root {open} onOpenChange={handleOpenChange}>
   <ContextMenu.Trigger>
-    {@render children()}
+    {#snippet child({ props })}
+      {@render trigger(props)}
+    {/snippet}
   </ContextMenu.Trigger>
 
   <ContextMenu.Portal>

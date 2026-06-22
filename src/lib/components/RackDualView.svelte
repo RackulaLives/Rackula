@@ -283,73 +283,46 @@
   {onduplicate}
   {ondelete}
 >
-  <!-- The rack is a role="listitem" (it holds interactive device buttons, so it
-       cannot be a role="option", which forbids focusable descendants:
-       nested-interactive, #2255). It stays a click/keyboard focus stop for
-       rack-level selection, so the noninteractive-tabindex and
-       noninteractive-element-interactions warnings are expected here. -->
-  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <div
-    bind:this={containerElement}
-    class="rack-dual-view"
-    data-rack-id={rack.id}
-    class:selected
-    class:active={isActive}
-    class:long-press-active={longPressActive}
-    tabindex="0"
-    role="listitem"
-    aria-current={isActive ? "location" : undefined}
-    aria-label="{rack.name}, {rack.height}U rack, {rack.show_rear
-      ? 'front and rear view'
-      : 'front view only'}{isActive ? ', active' : ''}{selected
-      ? ', selected'
-      : ''}"
-    onclick={handleContainerClick}
-    onkeydown={handleKeyDown}
-    style:--long-press-progress={longPressProgress}
-  >
-    <!-- Rack name centered above both views -->
-    <div class="rack-dual-view-name">{rack.name}</div>
+  {#snippet trigger(triggerProps)}
+    <!-- The rack is a role="listitem" (it holds interactive device buttons, so
+         it cannot be a role="option", which forbids focusable descendants:
+         nested-interactive, #2255). It stays a click/keyboard focus stop for
+         rack-level selection, so the noninteractive-tabindex warning is expected
+         here. The context-menu trigger props spread directly onto it (render
+         delegation), so there is no roleless wrapper between the canvas list and
+         the listitem (aria-required-children, #2254). -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div
+      {...triggerProps}
+      bind:this={containerElement}
+      class="rack-dual-view"
+      data-rack-id={rack.id}
+      class:selected
+      class:active={isActive}
+      class:long-press-active={longPressActive}
+      tabindex="0"
+      role="listitem"
+      aria-current={isActive ? "location" : undefined}
+      aria-label="{rack.name}, {rack.height}U rack, {rack.show_rear
+        ? 'front and rear view'
+        : 'front view only'}{isActive ? ', active' : ''}{selected
+        ? ', selected'
+        : ''}"
+      onclick={handleContainerClick}
+      onkeydown={handleKeyDown}
+      style:--long-press-progress={longPressProgress}
+    >
+      <!-- Rack name centered above both views -->
+      <div class="rack-dual-view-name">{rack.name}</div>
 
-    <div class="rack-dual-view-container" class:single-view={!rack.show_rear}>
-      <!-- Annotation column (left of front view) -->
-      {#if showAnnotations}
-        <AnnotationColumn {rack} {deviceLibrary} {annotationField} />
-      {/if}
-
-      <!-- Front view -->
-      <div class="rack-front" data-testid="rack-front" role="presentation">
-        <Rack
-          {rack}
-          {deviceLibrary}
-          selected={false}
-          selectable={false}
-          {selectedDeviceId}
-          {displayMode}
-          {showLabelsOnImages}
-          {partyMode}
-          faceFilter="front"
-          hideRackName={true}
-          viewLabel={rack.show_rear ? "FRONT" : undefined}
-          onselect={() => handleSelect()}
-          {ondeviceselect}
-          ondevicedrop={handleFrontDeviceDrop}
-          {ondevicemove}
-          {ondevicemoverack}
-          {onplacementtap}
-        />
-        <!-- Banana for scale (single view - front panel only) -->
-        {#if showBanana && !rack.show_rear}
-          <div class="banana-container" aria-hidden="true">
-            <BananaForScale />
-          </div>
+      <div class="rack-dual-view-container" class:single-view={!rack.show_rear}>
+        <!-- Annotation column (left of front view) -->
+        {#if showAnnotations}
+          <AnnotationColumn {rack} {deviceLibrary} {annotationField} />
         {/if}
-      </div>
 
-      <!-- Rear view (conditionally shown based on rack.show_rear) -->
-      {#if rack.show_rear}
-        <div class="rack-rear" data-testid="rack-rear" role="presentation">
+        <!-- Front view -->
+        <div class="rack-front" data-testid="rack-front" role="presentation">
           <Rack
             {rack}
             {deviceLibrary}
@@ -359,31 +332,62 @@
             {displayMode}
             {showLabelsOnImages}
             {partyMode}
-            faceFilter="rear"
+            faceFilter="front"
             hideRackName={true}
-            viewLabel="REAR"
+            viewLabel={rack.show_rear ? "FRONT" : undefined}
             onselect={() => handleSelect()}
             {ondeviceselect}
-            ondevicedrop={handleRearDeviceDrop}
+            ondevicedrop={handleFrontDeviceDrop}
             {ondevicemove}
             {ondevicemoverack}
             {onplacementtap}
           />
-          <!-- Banana for scale (dual view - rear panel) -->
-          {#if showBanana}
+          <!-- Banana for scale (single view - front panel only) -->
+          {#if showBanana && !rack.show_rear}
             <div class="banana-container" aria-hidden="true">
               <BananaForScale />
             </div>
           {/if}
         </div>
-      {/if}
 
-      <!-- Balancing spacer to keep rack centered when annotations are shown -->
-      {#if showAnnotations}
-        <div class="annotation-spacer" aria-hidden="true"></div>
-      {/if}
+        <!-- Rear view (conditionally shown based on rack.show_rear) -->
+        {#if rack.show_rear}
+          <div class="rack-rear" data-testid="rack-rear" role="presentation">
+            <Rack
+              {rack}
+              {deviceLibrary}
+              selected={false}
+              selectable={false}
+              {selectedDeviceId}
+              {displayMode}
+              {showLabelsOnImages}
+              {partyMode}
+              faceFilter="rear"
+              hideRackName={true}
+              viewLabel="REAR"
+              onselect={() => handleSelect()}
+              {ondeviceselect}
+              ondevicedrop={handleRearDeviceDrop}
+              {ondevicemove}
+              {ondevicemoverack}
+              {onplacementtap}
+            />
+            <!-- Banana for scale (dual view - rear panel) -->
+            {#if showBanana}
+              <div class="banana-container" aria-hidden="true">
+                <BananaForScale />
+              </div>
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Balancing spacer to keep rack centered when annotations are shown -->
+        {#if showAnnotations}
+          <div class="annotation-spacer" aria-hidden="true"></div>
+        {/if}
+      </div>
     </div>
-  </div>
+  {/snippet}
 </RackContextMenu>
 
 <style>

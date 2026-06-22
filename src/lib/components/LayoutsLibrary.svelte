@@ -354,72 +354,77 @@
         onexport={onexport ? () => exportLayout(row) : undefined}
         ondelete={() => initiateDelete(row)}
       >
-        <!-- The row is a role="listitem", not a role="option": an open row holds
-             an interactive close button, and an option may not contain focusable
-             descendants (nested-interactive, #2255). It stays a click/keyboard
-             focus stop for row selection, so the noninteractive-tabindex and
-             noninteractive-element-interactions warnings are expected here. -->
-        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-        <div
-          class="layout-item"
-          class:active={row.isActive}
-          class:closed={!row.isOpen}
-          onclick={() => activateRow(row)}
-          onkeydown={(e) => handleRowKeydown(e, row)}
-          role="listitem"
-          aria-current={row.isActive ? "true" : undefined}
-          tabindex={row.isActive ? 0 : -1}
-          data-testid="layout-item-{rowKey(row)}"
-        >
-          <span
-            class="layout-indicator"
-            class:is-active={row.isActive}
-            class:is-open={row.isOpen}
-            aria-hidden="true"
-          ></span>
-          <span class="layout-preview" aria-hidden="true">
-            {#if previewSvg}
-              <!-- eslint-disable-next-line svelte/no-at-html-tags -- Safe: SVG built by generateExportSVG via the DOM API; all user text is set with textContent and escaped by XMLSerializer, never raw-HTML injected. -->
-              {@html previewSvg}
-            {:else}
-              <span class="layout-preview-empty"></span>
-            {/if}
-          </span>
-          <span class="layout-info">
-            <span class="layout-name">{row.name}</span>
-            <span class="layout-meta">
-              <span class="layout-state">
-                {#if row.isActive}
-                  Active
-                {:else if row.isOpen}
-                  Open
-                {:else}
-                  Closed
-                {/if}
-              </span>
-              {#if row.isOpen}
-                <span aria-hidden="true">·</span>
-                {row.rackCount} rack{row.rackCount !== 1 ? "s" : ""} ·
-                {row.deviceCount} device{row.deviceCount !== 1 ? "s" : ""}
+        {#snippet trigger(triggerProps)}
+          <!-- The row is a role="listitem", not a role="option": an open row
+               holds an interactive close button, and an option may not contain
+               focusable descendants (nested-interactive, #2255). It stays a
+               click/keyboard focus stop for row selection, so the
+               noninteractive-tabindex warning is expected here. The context-menu
+               trigger props spread directly onto it (render delegation), so
+               there is no roleless wrapper between the list and the listitem
+               (aria-required-children, #2254). -->
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+          <div
+            {...triggerProps}
+            class="layout-item"
+            class:active={row.isActive}
+            class:closed={!row.isOpen}
+            onclick={() => activateRow(row)}
+            onkeydown={(e) => handleRowKeydown(e, row)}
+            role="listitem"
+            aria-current={row.isActive ? "true" : undefined}
+            tabindex={row.isActive ? 0 : -1}
+            data-testid="layout-item-{rowKey(row)}"
+          >
+            <span
+              class="layout-indicator"
+              class:is-active={row.isActive}
+              class:is-open={row.isOpen}
+              aria-hidden="true"
+            ></span>
+            <span class="layout-preview" aria-hidden="true">
+              {#if previewSvg}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -- Safe: SVG built by generateExportSVG via the DOM API; all user text is set with textContent and escaped by XMLSerializer, never raw-HTML injected. -->
+                {@html previewSvg}
+              {:else}
+                <span class="layout-preview-empty"></span>
               {/if}
             </span>
-          </span>
-          {#if row.isOpen}
-            <button
-              type="button"
-              class="layout-delete"
-              onclick={(e) => {
-                e.stopPropagation();
-                closeLayout(row);
-              }}
-              aria-label="Close {row.name}"
-              title="Close layout"
-            >
-              ✕
-            </button>
-          {/if}
-        </div>
+            <span class="layout-info">
+              <span class="layout-name">{row.name}</span>
+              <span class="layout-meta">
+                <span class="layout-state">
+                  {#if row.isActive}
+                    Active
+                  {:else if row.isOpen}
+                    Open
+                  {:else}
+                    Closed
+                  {/if}
+                </span>
+                {#if row.isOpen}
+                  <span aria-hidden="true">·</span>
+                  {row.rackCount} rack{row.rackCount !== 1 ? "s" : ""} ·
+                  {row.deviceCount} device{row.deviceCount !== 1 ? "s" : ""}
+                {/if}
+              </span>
+            </span>
+            {#if row.isOpen}
+              <button
+                type="button"
+                class="layout-delete"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  closeLayout(row);
+                }}
+                aria-label="Close {row.name}"
+                title="Close layout"
+              >
+                ✕
+              </button>
+            {/if}
+          </div>
+        {/snippet}
       </LayoutContextMenu>
     {/each}
 

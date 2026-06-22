@@ -52,16 +52,7 @@ export function axeBuilder(page: Page): AxeBuilder {
  *   //   "color-contrast": "https://github.com/RackulaLives/Rackula/issues/NNNN",
  *   // } as const;
  */
-export const BASELINED_RULES: Record<string, string> = {
-  // Pre-existing violations found when the guard rail was first wired (#2099).
-  // A baselined rule is disabled for ALL scans, so the guard rail still fails on
-  // any non-baselined rule but will NOT catch a fresh violation of a baselined
-  // rule (even on a new surface). That is the accepted cost of the baseline:
-  // narrow the list, and remove each entry as soon as its issue closes so the
-  // rule is enforced again everywhere.
-  "aria-required-children":
-    "https://github.com/RackulaLives/Rackula/issues/2254",
-};
+export const BASELINED_RULES: Record<string, string> = {};
 
 /**
  * Run an axe scan on `selector` (a whole page or a single surface) and assert it
