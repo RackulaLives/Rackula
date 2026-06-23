@@ -15,6 +15,54 @@ const log = persistenceDebug.health;
 
 export type StorageMode = "browser" | "server";
 
+const STORAGE_MODE_OVERRIDE_KEY = "Rackula:storage-mode-override";
+
+/**
+ * Read the user opt-in override. Returns "server" only when the stored value is
+ * exactly "server"; any other or missing value is null (no override).
+ */
+export function getStorageModeOverride(): "server" | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(STORAGE_MODE_OVERRIDE_KEY) === "server"
+      ? "server"
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Opt this browser into server mode. Only ever upgrades browser to server. */
+export function setStorageModeOverride(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_MODE_OVERRIDE_KEY, "server");
+  } catch {
+    // Quota or unavailable storage: the switch handler re-checks and surfaces.
+  }
+}
+
+/** Remove the opt-in override, returning a browser deployment to browser mode. */
+export function clearStorageModeOverride(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(STORAGE_MODE_OVERRIDE_KEY);
+  } catch {
+    // Nothing to do; a failed remove leaves the prior mode in place.
+  }
+}
+
+/**
+ * True when the resolved server mode comes from the user override rather than
+ * the deployment config. Drives the reverse "switch back to browser" affordance,
+ * which must never appear on a deployment that declares server mode in config.
+ */
+export function isStorageModeFromOverride(): boolean {
+  if (typeof window === "undefined") return false;
+  if (window.__RACKULA_CONFIG__?.storage === "server") return false;
+  return getStorageModeOverride() === "server";
+}
+
 /**
  * The single source of truth for the storage mode. Reads
  * window.__RACKULA_CONFIG__.storage; returns "server" only when the value is
@@ -23,7 +71,11 @@ export type StorageMode = "browser" | "server";
  */
 export function getStorageMode(): StorageMode {
   if (typeof window === "undefined") return "browser";
-  return window.__RACKULA_CONFIG__?.storage === "server" ? "server" : "browser";
+  // Config declaring server is the source of truth; never overridden down.
+  if (window.__RACKULA_CONFIG__?.storage === "server") return "server";
+  // Config is browser or absent: honour a user opt-in upgrade to server.
+  if (getStorageModeOverride() === "server") return "server";
+  return "browser";
 }
 
 // Reactive state for API availability
