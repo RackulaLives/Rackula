@@ -403,7 +403,15 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     scope: "global",
     bindings: [],
     appMenuGroup: "layout-data",
-    keywords: ["restore", "load", "open", "import", "replace", "file", "backup"],
+    keywords: [
+      "restore",
+      "load",
+      "open",
+      "import",
+      "replace",
+      "file",
+      "backup",
+    ],
   },
   {
     id: "view-yaml",
