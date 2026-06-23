@@ -25,6 +25,7 @@
   import MobileViewSheet from "$lib/components/mobile/MobileViewSheet.svelte";
   import MobileLayoutsSheet from "$lib/components/mobile/MobileLayoutsSheet.svelte";
   import MobileRacksSheet from "$lib/components/mobile/MobileRacksSheet.svelte";
+  import MobileMenuSheet from "$lib/components/mobile/MobileMenuSheet.svelte";
   import DevicePalette from "$lib/components/DevicePalette.svelte";
   import LoadDialog from "$lib/components/LoadDialog.svelte";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
@@ -62,6 +63,10 @@
 
   import { getSelectionVerbsWithState } from "$lib/actions/verb-bars";
   import type { ActionEnabledContext, ActionId } from "$lib/actions/registry";
+  import {
+    createActionDispatch,
+    type ActionDispatch,
+  } from "$lib/actions/dispatch";
   import {
     moveSelectedDeviceUp,
     moveSelectedDeviceDown,
@@ -117,6 +122,12 @@
   let layoutsSheetOpen = $derived(dialogStore.isSheetOpen("layouts"));
   let racksSheetOpen = $derived(dialogStore.isSheetOpen("racks"));
   let viewSheetOpen = $derived(dialogStore.isSheetOpen("view"));
+  let menuSheetOpen = $derived(dialogStore.isSheetOpen("menu"));
+
+  // Shared dispatch spine. The mobile app-menu sheet routes its chosen action
+  // here so a command runs identically from the sheet, the command palette, the
+  // keyboard, and the desktop dropdown (#2597).
+  const dispatch: ActionDispatch = createActionDispatch();
 
   // Aliases to dialogStore properties for template access
   let deleteTarget = $derived(dialogStore.deleteTarget);
@@ -706,6 +717,18 @@
     dialogStore.openSheet("deviceLibrary");
   }
 
+  // The mobile app-menu sheet replaces the desktop dropdown on touch (#2597).
+  // The hamburger trigger lives in the Toolbar and opens this sheet; choosing an
+  // item runs it through the shared dispatch spine, so the same command behaves
+  // identically across the dropdown, the palette, the keyboard, and the sheet.
+  function handleMenuSheetClose() {
+    dialogStore.closeSheet();
+  }
+
+  function handleMenuAction(id: ActionId) {
+    dispatch[id]?.();
+  }
+
   // The Layouts and Racks tabs open titled bottom sheets: Layouts switches the
   // active layout (#2460) and Racks lists racks and opens their properties
   // (#2461).
@@ -998,6 +1021,23 @@
       onfitall={handleFitAll}
       onresetzoom={() => canvasStore.resetZoom()}
       onclose={handleViewSheetActionClose}
+    />
+  </Dialog>
+{/if}
+
+<!-- Mobile app-menu sheet: the touch presentation of the desktop dropdown,
+     rendering the shared registry projection (#2597). -->
+{#if viewportStore.isMobile && menuSheetOpen}
+  <Dialog
+    open={menuSheetOpen}
+    title="Menu"
+    size="M"
+    onclose={handleMenuSheetClose}
+  >
+    <MobileMenuSheet
+      onaction={handleMenuAction}
+      hasRacks={layoutStore.hasRack}
+      onclose={handleMenuSheetClose}
     />
   </Dialog>
 {/if}
