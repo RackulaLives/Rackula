@@ -43,7 +43,7 @@
       <p class="server-banner-title">A storage server is available</p>
       <p class="server-banner-text">
         Your layouts are saving to this browser only. Switch to server mode to
-        save them on the server and sync across devices.
+        save them on the server.
       </p>
       <p class="server-banner-hint">
         To make server mode the default for everyone, set
@@ -51,7 +51,7 @@
       </p>
     </div>
     <div class="server-banner-actions">
-      <button type="button" onclick={startSwitch}>Switch to server mode</button>
+      <button type="button" disabled={working} onclick={startSwitch}>Switch to server mode</button>
       <button type="button" class="server-banner-secondary" onclick={onDismiss}>
         Stay in browser mode
       </button>

@@ -6,7 +6,11 @@
  * the app boots cleanly in server mode. Browser localStorage is never deleted.
  */
 import { checkApiHealth, saveLayoutToServer } from "./api";
-import { setApiAvailable, setStorageModeOverride } from "./availability.svelte";
+import {
+  setApiAvailable,
+  setStorageModeOverride,
+  clearStorageModeOverride,
+} from "./availability.svelte";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
 import { getImageStore } from "$lib/stores/images.svelte";
 
@@ -30,10 +34,12 @@ export async function switchToServerMode(): Promise<SwitchResult> {
     };
   }
 
-  // Mark the API available so saveLayoutToServer's guard passes. We have just
-  // confirmed the server is reachable; after the page reloads into server mode,
-  // initializePersistence() re-establishes availability normally.
+  // Mark the API available so saveLayoutToServer's guard passes, and set the
+  // override BEFORE the upload so saveLayoutToServer sees server mode and routes
+  // user images to the asset API (disk) instead of embedding them inline, which
+  // would blow the server's 1MB layout PUT cap for image-heavy layouts.
   setApiAvailable(true);
+  setStorageModeOverride();
 
   const layoutStore = getLayoutStore();
   if (layoutStore.hasRack) {
@@ -41,6 +47,10 @@ export async function switchToServerMode(): Promise<SwitchResult> {
       const snapshot = structuredClone($state.snapshot(layoutStore.layout));
       await saveLayoutToServer(snapshot, getImageStore().getUserImages(), null);
     } catch (error) {
+      // Revert the opt-in so a failed upload leaves the user honestly in browser
+      // mode with their browser data intact, not stranded mid-switch.
+      clearStorageModeOverride();
+      setApiAvailable(false);
       return {
         switched: false,
         reason: "upload-failed",
@@ -52,6 +62,5 @@ export async function switchToServerMode(): Promise<SwitchResult> {
     }
   }
 
-  setStorageModeOverride();
   return { switched: true };
 }

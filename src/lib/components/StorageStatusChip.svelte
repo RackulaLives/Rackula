@@ -26,6 +26,7 @@
   } from "$lib/storage";
   import { maybeSaveAs } from "$lib/utils/app-actions";
   import { evaluateBackupNudge, NUDGE_MESSAGE } from "$lib/utils/backup-nudge";
+  import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
   import ServerAvailableBanner from "./ServerAvailableBanner.svelte";
 
   const layoutStore = getLayoutStore();
@@ -37,10 +38,7 @@
 
   const DISMISS_KEY = "Rackula:server-hint-dismissed";
 
-  let dismissed = $state(
-    typeof window !== "undefined" &&
-      localStorage.getItem(DISMISS_KEY) === "1",
-  );
+  let dismissed = $state(safeGetItem(DISMISS_KEY) === "1");
 
   // durability is the existing reactive value already used to render the chip.
   const showServerBanner = $derived(durability.serverHint && !dismissed);
@@ -48,11 +46,7 @@
 
   function dismissBanner() {
     dismissed = true;
-    try {
-      localStorage.setItem(DISMISS_KEY, "1");
-    } catch {
-      // Dismissal is a convenience; ignore storage failure.
-    }
+    safeSetItem(DISMISS_KEY, "1");
   }
 
   function switchBackToBrowser() {

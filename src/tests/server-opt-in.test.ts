@@ -56,6 +56,13 @@ describe("switchToServerMode", () => {
   });
 
   it("uploads the active layout and sets the override on success", async () => {
+    // Regression guard for Finding 1: the override must be set BEFORE the upload
+    // so saveLayoutToServer sees server mode and routes images to the asset API
+    // instead of embedding them inline (which would blow the 1MB PUT cap).
+    apiMocks.saveLayoutToServer.mockImplementation(async () => {
+      expect(getStorageModeOverride()).toBe("server");
+      return { id: "uuid-1", updatedAt: "t0" };
+    });
     const result = await switchToServerMode();
     expect(result.switched).toBe(true);
     expect(apiMocks.saveLayoutToServer).toHaveBeenCalledTimes(1);
@@ -78,6 +85,9 @@ describe("switchToServerMode", () => {
     expect(result.switched).toBe(false);
     if (!result.switched) expect(result.reason).toBe("upload-failed");
     expect(getStorageModeOverride()).toBe(null);
+    // Regression guard for Finding 3: catch block must revert availability so the
+    // user is not left stranded with apiAvailable=true in browser mode.
+    expect(isApiAvailable()).toBe(false);
   });
 
   it("switches without uploading when there is no layout to move", async () => {
