@@ -534,15 +534,15 @@ Two environments with different deployment triggers:
 
 | Environment | URL            | Trigger        | Infrastructure |
 | ----------- | -------------- | -------------- | -------------- |
-| **Dev**     | d.racku.la     | Push to `main` | GitHub Pages   |
+| **Dev**     | d.racku.la     | Push to `main` | VPS (Docker)   |
 | **Prod**    | count.racku.la | Git tag `v*`   | VPS (Docker)   |
 
 ### Dev Deployment
 
-Automatically deploys on code pushes to `main` (after lint/tests pass):
+Automatically deploys on code pushes to `main`. The Deploy Dev workflow builds and pushes the web and API Docker images, then deploys them via docker-compose to the self-hosted VPS. d.racku.la sits behind Cloudflare Access. Tests are not re-run here (they gate the PR before merge).
 
 ```bash
-git push origin main  # Triggers: lint → test → build → deploy to GitHub Pages
+git push origin main  # Triggers Deploy Dev: build and push Docker images, then deploy to the VPS
 ```
 
 The Deploy Dev workflow is path-filtered: it runs only when the push changes app inputs (`api/**`, `src/**`, `deploy/**`, `assets/**`, `static/**`, `login.html`, the lockfiles, build configs, `index.html`), and a trailing `!**/*.md` excludes markdown anywhere. Docs-only pushes (markdown-only, or paths outside that list such as `.claude/**`, `docs/**`, `.github/**`) do not trigger a deploy.
