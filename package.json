@@ -93,11 +93,11 @@
     "jszip": "^3.10.1",
     "lz-string": "^1.5.0",
     "marked": "^18.0.5",
-    "nanoid": "^5.1.14",
-    "pako": "^2.1.0",
+    "nanoid": "^5.1.15",
+    "pako": "^2.2.0",
     "panzoom": "^9.4.4",
     "qrcode": "^1.5.4",
-    "simple-icons": "^16.23.0",
+    "simple-icons": "^16.24.0",
     "svg2pdf.js": "^2.7.0",
     "zod": "^4.4.3"
   }
