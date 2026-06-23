@@ -62,6 +62,16 @@
   letter-spacing: var(--letter-spacing-wide);
 }
 
+/* Divider between the app menu's intent groups. AppMenu renders a
+   DropdownMenu.Separator with this class between the sections projected from the
+   registry; the larger vertical margin (vs the context-menu separator) gives the
+   six groups clear breathing room so they read as distinct sections. */
+.menu-separator {
+  height: 1px;
+  margin: var(--space-3) 0;
+  background-color: var(--colour-overlay-border);
+}
+
 .menu-shortcut {
   padding: 2px 6px;
   background-color: var(--colour-overlay-hover);
