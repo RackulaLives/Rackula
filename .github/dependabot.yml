@@ -50,6 +50,9 @@ updates:
           - "@types/*"
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "js-yaml"
+        update-types: ["version-update:semver-major"]
 
   # api workspace runs on Bun (api/bun.lock is the source of truth).
   # Dependabot supports bun for version updates (not security updates);
@@ -61,6 +64,9 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "js-yaml"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions - group all together
   - package-ecosystem: "github-actions"
