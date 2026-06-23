@@ -582,13 +582,17 @@ function validateParsedLayout(parsed: unknown): {
     }
   }
 
-  // Carrier-first (#2158): legacy files may carry rack-level sub-U / half-width
-  // placements that the carrier-first enforcement in LayoutSchema rejects. The
-  // store-ingress adapter (adaptLegacyLayout) normalizes those into carriers,
-  // but it runs in loadLayout - after this parse. So migrate first (structural
-  // parse + position snap, no carrier-first enforcement), adapt the migrated
-  // layout, then run the full schema (with enforcement) over the adapted
-  // result. The adapter is idempotent, so loadLayout re-running it is a no-op.
+  // Legacy + carrier-first (#2158, #2451): older files may use the v0.6 single
+  // `rack` shape or carry rack-level sub-U / half-width placements that the
+  // carrier-first enforcement in LayoutSchema rejects. LayoutSchemaBase parses
+  // and migrates structurally first - it converts a single `rack` into `racks[]`
+  // and snaps pre-0.7.0 U-value positions to whole-U internal units (the same
+  // structural migration migrateLayout runs on the browser localStorage path, so
+  // a v0.6 single-rack YAML import reaches the same migrated layout as a browser
+  // load) - but it does NOT enforce carrier-first. adaptLegacyLayout then
+  // normalizes any sub-U / half-width gear into carriers, and the full
+  // LayoutSchema (with enforcement) validates the adapted result. The adapter is
+  // idempotent, so loadLayout re-running it after this parse is a no-op.
   const baseResult = LayoutSchemaBase.safeParse(parsed);
   if (!baseResult.success) {
     const errors = baseResult.error.issues

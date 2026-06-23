@@ -1,0 +1,34 @@
+version: "0.6.0"
+name: Old Single-Rack Lab
+rack:
+  id: "rack-a"
+  name: "Rack A"
+  height: 42
+  width: 19
+  desc_units: false
+  form_factor: "4-post-cabinet"
+  starting_unit: 1
+  position: 0
+  devices:
+    - id: "dev-switch"
+      device_type: "switch-1u"
+      position: 5
+      face: "front"
+    - id: "dev-server"
+      device_type: "server-2u"
+      position: 10
+      face: "front"
+device_types:
+  - slug: "switch-1u"
+    u_height: 1
+    manufacturer: "Acme"
+    colour: "#336699"
+    category: "network"
+  - slug: "server-2u"
+    u_height: 2
+    manufacturer: "Acme"
+    colour: "#996633"
+    category: "server"
+settings:
+  display_mode: "label"
+  show_labels_on_images: false

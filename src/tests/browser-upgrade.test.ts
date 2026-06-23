@@ -10,6 +10,8 @@ import {
   loadWorkspaceIndex,
   type WorkspaceIndex,
 } from "$lib/storage/browser-workspace";
+import { parseLayoutYaml, serializeToYaml } from "$lib/utils/yaml";
+import { UNITS_PER_U } from "$lib/types/constants";
 import { findSilentLosses } from "./upgrade-corpus-helpers";
 
 // In-memory localStorage stand-in (same pattern as browser-workspace.test.ts).
@@ -97,6 +99,86 @@ describe("browser upgrade: localStorage ingress", () => {
     expect(losses, `silent loss:\n${JSON.stringify(losses, null, 2)}`).toEqual(
       [],
     );
+  });
+
+  // Parity guard (#2451): the YAML import path must migrate a v0.6 single-`rack`
+  // layout the same way the browser localStorage path does. The browser path runs
+  // migrateLayout; the YAML path runs the same structural conversion + position
+  // scaling inside LayoutSchemaBase.transform. Both reach a single migrated rack
+  // with both devices, positions scaled to internal units, and the legacy `rack`
+  // key gone. A v0.6 YAML import must NOT be schema-rejected.
+  it("YAML import migrates a v0.6 single-rack layout to parity with the browser path", async () => {
+    // A v0.6 file: single `rack`, U-value positions. device_types and settings
+    // carry the fields the strict YAML schema requires (the localStorage body in
+    // V06_BODY is looser; the file ingress validates against LayoutSchema).
+    const v06File = {
+      version: "0.6.0",
+      name: "Old Single-Rack Lab",
+      rack: {
+        id: "rack-a",
+        name: "Rack A",
+        height: 42,
+        width: 19,
+        desc_units: false,
+        form_factor: "4-post-cabinet",
+        starting_unit: 1,
+        position: 0,
+        devices: [
+          {
+            id: "dev-switch",
+            device_type: "switch-1u",
+            position: 5,
+            face: "front",
+          },
+          {
+            id: "dev-server",
+            device_type: "server-2u",
+            position: 10,
+            face: "front",
+          },
+        ],
+      },
+      device_types: [
+        {
+          slug: "switch-1u",
+          u_height: 1,
+          colour: "#336699",
+          category: "network",
+        },
+        {
+          slug: "server-2u",
+          u_height: 2,
+          colour: "#996633",
+          category: "server",
+        },
+      ],
+      settings: { display_mode: "label", show_labels_on_images: false },
+    };
+
+    const yaml = await serializeToYaml(v06File);
+    const layout = await parseLayoutYaml(yaml);
+
+    // Single `rack` collapsed into a one-element `racks[]`; legacy key is gone.
+    expect(layout.racks.length).toBe(1);
+    expect("rack" in (layout as Record<string, unknown>)).toBe(false);
+
+    // Both devices survive the migration (no silent loss of placements).
+    const rack = layout.racks[0];
+    expect(rack.devices.length).toBe(2);
+    const ids = rack.devices.map((d) => d.id);
+    expect(ids).toContain("dev-switch");
+    expect(ids).toContain("dev-server");
+
+    // Pre-0.7.0 U-value positions are scaled to internal units (U5 -> 30, U10 -> 60).
+    const positions = Object.fromEntries(
+      rack.devices.map((d) => [d.id, d.position]),
+    );
+    expect(positions["dev-switch"]).toBe(5 * UNITS_PER_U);
+    expect(positions["dev-server"]).toBe(10 * UNITS_PER_U);
+
+    // Distinctive identity values (rack id/name, slugs) survive intact.
+    expect(rack.id).toBe("rack-a");
+    expect(rack.name).toBe("Rack A");
   });
 
   it("loadWorkspaceIndex still finds layouts under the current key structure", () => {

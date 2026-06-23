@@ -1,0 +1,14 @@
+{
+  "reject": false,
+  "hasImages": false,
+  "allowList": [
+    {
+      "pathPattern": "\\.position$",
+      "reason": "pre-0.7.0 U-value device positions scaled to internal units (xUNITS_PER_U) on migration"
+    },
+    {
+      "pathPattern": "\\.version$",
+      "reason": "migration stamps the current app version after rescaling pre-0.7.0 positions, replacing 0.6.0"
+    }
+  ]
+}
