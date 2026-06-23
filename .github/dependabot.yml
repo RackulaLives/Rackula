@@ -53,6 +53,12 @@ updates:
     ignore:
       - dependency-name: "js-yaml"
         update-types: ["version-update:semver-major"]
+      # @testing-library/svelte 5.4.0+ pulls @testing-library/svelte-core 1.1.x,
+      # whose wrapper-scaffold.svelte uses `export let` and is rejected by Svelte
+      # runes mode (breaks the whole component-test suite). Hold at 5.3.x until
+      # upstream ships a runes-compatible svelte-core. See issue #2587.
+      - dependency-name: "@testing-library/svelte"
+        versions: [">=5.4.0"]
 
   # api workspace runs on Bun (api/bun.lock is the source of truth).
   # Dependabot supports bun for version updates (not security updates);

@@ -47,7 +47,7 @@
     "@playwright/test": "^1.61.0",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/svelte": "^5.4.1",
+    "@testing-library/svelte": "5.3.1",
     "@testing-library/user-event": "^14.6.1",
     "@types/debug": "^4.1.13",
     "@types/js-yaml": "^4.0.9",
