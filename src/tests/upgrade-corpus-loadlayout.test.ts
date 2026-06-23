@@ -22,9 +22,7 @@ import { findSilentLosses } from "./upgrade-corpus-helpers";
 // slug, and colour must survive the store pass verbatim. This is the same
 // fixture the YAML corpus exercises; here we drive it one layer deeper.
 const representativeYaml = (
-  await import(
-    "./fixtures/upgrade-corpus/v26.5.0-representative.rackula.yaml?raw"
-  )
+  await import("./fixtures/upgrade-corpus/v26.5.0-representative.rackula.yaml?raw")
 ).default as string;
 
 describe("upgrade corpus: store ingress via loadLayout", () => {
