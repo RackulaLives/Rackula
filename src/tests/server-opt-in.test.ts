@@ -32,6 +32,8 @@ import { switchToServerMode } from "$lib/storage/server-opt-in.svelte";
 import {
   getStorageModeOverride,
   clearStorageModeOverride,
+  isApiAvailable,
+  resetAvailabilityState,
 } from "$lib/storage/availability.svelte";
 
 describe("switchToServerMode", () => {
@@ -40,6 +42,7 @@ describe("switchToServerMode", () => {
   beforeEach(() => {
     window.__RACKULA_CONFIG__ = { storage: "browser" };
     clearStorageModeOverride();
+    resetAvailabilityState();
     apiMocks.checkApiHealth.mockClear().mockResolvedValue(true);
     apiMocks.saveLayoutToServer
       .mockClear()
@@ -57,12 +60,14 @@ describe("switchToServerMode", () => {
     expect(result.switched).toBe(true);
     expect(apiMocks.saveLayoutToServer).toHaveBeenCalledTimes(1);
     expect(getStorageModeOverride()).toBe("server");
+    expect(isApiAvailable()).toBe(true);
   });
 
   it("does not switch when the server is no longer reachable", async () => {
     apiMocks.checkApiHealth.mockResolvedValue(false);
     const result = await switchToServerMode();
     expect(result.switched).toBe(false);
+    if (!result.switched) expect(result.reason).toBe("unreachable");
     expect(apiMocks.saveLayoutToServer).not.toHaveBeenCalled();
     expect(getStorageModeOverride()).toBe(null);
   });
@@ -71,6 +76,7 @@ describe("switchToServerMode", () => {
     apiMocks.saveLayoutToServer.mockRejectedValue(new Error("boom"));
     const result = await switchToServerMode();
     expect(result.switched).toBe(false);
+    if (!result.switched) expect(result.reason).toBe("upload-failed");
     expect(getStorageModeOverride()).toBe(null);
   });
 
@@ -80,5 +86,6 @@ describe("switchToServerMode", () => {
     expect(result.switched).toBe(true);
     expect(apiMocks.saveLayoutToServer).not.toHaveBeenCalled();
     expect(getStorageModeOverride()).toBe("server");
+    expect(isApiAvailable()).toBe(true);
   });
 });

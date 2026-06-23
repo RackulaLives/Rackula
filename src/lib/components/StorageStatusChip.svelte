@@ -44,7 +44,7 @@
 
   // durability is the existing reactive value already used to render the chip.
   const showServerBanner = $derived(durability.serverHint && !dismissed);
-  const fromOverride = $derived(isStorageModeFromOverride());
+  const fromOverride = isStorageModeFromOverride();
 
   function dismissBanner() {
     dismissed = true;

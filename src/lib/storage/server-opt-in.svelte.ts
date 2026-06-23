@@ -6,7 +6,7 @@
  * the app boots cleanly in server mode. Browser localStorage is never deleted.
  */
 import { checkApiHealth, saveLayoutToServer } from "./api";
-import { setStorageModeOverride } from "./availability.svelte";
+import { setApiAvailable, setStorageModeOverride } from "./availability.svelte";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
 import { getImageStore } from "$lib/stores/images.svelte";
 
@@ -29,6 +29,11 @@ export async function switchToServerMode(): Promise<SwitchResult> {
       message: "The storage server is no longer reachable.",
     };
   }
+
+  // Mark the API available so saveLayoutToServer's guard passes. We have just
+  // confirmed the server is reachable; after the page reloads into server mode,
+  // initializePersistence() re-establishes availability normally.
+  setApiAvailable(true);
 
   const layoutStore = getLayoutStore();
   if (layoutStore.hasRack) {
