@@ -109,3 +109,9 @@ export {
   hasPreCarrierMigrationPending,
   clearPreCarrierMigrationPending,
 } from "./pre-carrier-migration-pending";
+export {
+  isStorageModeFromOverride,
+  clearStorageModeOverride,
+} from "./availability.svelte";
+export { switchToServerMode } from "./server-opt-in.svelte";
+export type { SwitchResult } from "./server-opt-in.svelte";

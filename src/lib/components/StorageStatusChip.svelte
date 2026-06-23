@@ -18,16 +18,47 @@
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
-  import { getLayoutDurability, getStorageMode } from "$lib/storage";
+  import {
+    getLayoutDurability,
+    getStorageMode,
+    isStorageModeFromOverride,
+    clearStorageModeOverride,
+  } from "$lib/storage";
   import { maybeSaveAs } from "$lib/utils/app-actions";
   import { evaluateBackupNudge, NUDGE_MESSAGE } from "$lib/utils/backup-nudge";
+  import ServerAvailableBanner from "./ServerAvailableBanner.svelte";
 
   const layoutStore = getLayoutStore();
   const durability = getLayoutDurability(layoutStore);
   const toastStore = getToastStore();
 
-  // Storage mode is fixed for the session (read once from runtime config).
+  // Storage mode is fixed for the session (read once; mode switches reload the page).
   const isServerMode = getStorageMode() === "server";
+
+  const DISMISS_KEY = "Rackula:server-hint-dismissed";
+
+  let dismissed = $state(
+    typeof window !== "undefined" &&
+      localStorage.getItem(DISMISS_KEY) === "1",
+  );
+
+  // durability is the existing reactive value already used to render the chip.
+  const showServerBanner = $derived(durability.serverHint && !dismissed);
+  const fromOverride = $derived(isStorageModeFromOverride());
+
+  function dismissBanner() {
+    dismissed = true;
+    try {
+      localStorage.setItem(DISMISS_KEY, "1");
+    } catch {
+      // Dismissal is a convenience; ignore storage failure.
+    }
+  }
+
+  function switchBackToBrowser() {
+    clearStorageModeOverride();
+    window.location.reload();
+  }
 
   // Backup nudge: browser mode only, per the epic signal budget (#2071). Server
   // mode persists to the server, so an export reminder would be noise. The nudge
@@ -73,6 +104,7 @@
 
 <div
   class="storage-chip storage-chip-{durability.status}"
+  class:storage-chip--attention={durability.serverHint}
   role="status"
   aria-live="off"
   aria-label={`Storage status: ${durability.label}`}
@@ -87,6 +119,16 @@
   {/if}
   <span class="storage-chip-text">{durability.label}</span>
 </div>
+
+{#if showServerBanner}
+  <ServerAvailableBanner onDismiss={dismissBanner} />
+{/if}
+
+{#if fromOverride}
+  <button type="button" class="storage-chip-reverse" onclick={switchBackToBrowser}>
+    Switch back to browser mode
+  </button>
+{/if}
 
 <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">
   {announced}
@@ -122,5 +164,31 @@
 
   .storage-chip-text {
     white-space: nowrap;
+  }
+
+  /* Draws attention when a server is reachable in browser mode. */
+  .storage-chip--attention {
+    border-color: var(--colour-warning);
+    background: var(--colour-warning-bg);
+  }
+
+  .storage-chip-reverse {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--colour-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .storage-chip-reverse:hover {
+    border-color: var(--colour-border-hover);
+    color: var(--colour-text);
   }
 </style>
