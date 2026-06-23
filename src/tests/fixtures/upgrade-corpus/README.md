@@ -4,6 +4,8 @@ Each entry is a pair: a `.rackula.yaml` layout exactly as some past version wrot
 
 `src/tests/upgrade-corpus.test.ts` runs every YAML fixture through the real `parseLayoutYaml` and fails if any leaf value disappears that is not declared in the sidecar allow-list. Browser-mode localStorage cases live in `src/tests/browser-upgrade.test.ts`.
 
+The real UI ingress does not stop at `parseLayoutYaml`: it continues into `layoutStore.loadLayout` (`src/lib/stores/layout/layout-lifecycle.ts`), a second pass that re-runs `adaptLegacyLayout` and applies per-rack ID regeneration/dedup plus defensive position defaulting. `src/tests/upgrade-corpus-loadlayout.test.ts` drives a representative fixture one layer deeper, through that store pass, and asserts the same no-silent-loss property so an ID-remap or position-defaulting regression that drops a value is caught (#2450).
+
 ## Sidecar format
 
 ```json
