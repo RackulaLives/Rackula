@@ -124,8 +124,30 @@ export const LayoutYamlMetadataSchema = z
   })
   .passthrough();
 
-// Minimal schema for extracting layout info (we don't need full validation here)
-// The full schema validation happens in the SPA
+/**
+ * Structural shape of a placed device, validated server-side before persisting
+ * (#2449). This is the minimal-but-meaningful subset that every valid device
+ * across shipped releases carries; the full device validation (positions,
+ * containers, port instances) happens in the SPA against the richer
+ * src/lib/schemas LayoutSchema.
+ *
+ * `.passthrough()` keeps unknown and legacy fields (e.g. slot_position) so a
+ * prior-release layout still validates and saves unchanged. The point of this
+ * gate is defense-in-depth: reject a body where a device is clearly not a
+ * device (missing its identifying fields), not to re-enforce the SPA's rules.
+ */
+export const PlacedDeviceFileSchema = z
+  .object({
+    id: z.string().min(1, "Device id is required"),
+    device_type: z.string().min(1, "Device device_type is required"),
+    position: z.number(),
+    face: z.string().min(1, "Device face is required"),
+  })
+  .passthrough();
+
+// Minimal schema for extracting layout info and rejecting clearly malformed
+// bodies before they are persisted (#2449). The full schema validation happens
+// in the SPA against the richer src/lib/schemas LayoutSchema.
 export const LayoutFileSchema = z.object({
   version: z.string(),
   name: z.string().min(1, "Layout name is required"),
@@ -133,9 +155,11 @@ export const LayoutFileSchema = z.object({
   metadata: LayoutYamlMetadataSchema.optional(),
   racks: z
     .array(
-      z.object({
-        devices: z.array(z.unknown()).optional().default([]),
-      }),
+      z
+        .object({
+          devices: z.array(PlacedDeviceFileSchema).optional().default([]),
+        })
+        .passthrough(),
     )
     .optional()
     .default([]),

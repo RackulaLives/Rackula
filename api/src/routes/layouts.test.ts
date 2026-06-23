@@ -8,6 +8,13 @@
  * - Invalid YAML (rejected 400, not silently skipped)
  * - Body without metadata (accepted, no guard applies)
  * - Save target derives from URL uuid, not metadata.id
+ *
+ * PUT /layouts/:uuid schema validation tests (#2449)
+ *
+ * Covers defense-in-depth schema validation before persisting:
+ * - A device missing its required structural fields is rejected 400
+ *   (the prior minimal schema accepted any object as a device)
+ * - A structurally valid prior-release layout still saves unchanged
  */
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, rm, readdir } from "node:fs/promises";
@@ -142,5 +149,54 @@ describe("PUT /layouts/:uuid save target derives from URL uuid", () => {
       e.toLowerCase().includes(OTHER_UUID.toLowerCase()),
     );
     expect(otherFolder).toBeUndefined();
+  });
+});
+
+describe("PUT /layouts/:uuid schema validation (#2449)", () => {
+  it("rejects a layout whose device is missing required fields", async () => {
+    // The device object has no id/device_type/position/face. The prior minimal
+    // schema typed devices as z.unknown() and accepted this, persisting a body
+    // that only fails later in the frontend load.
+    const body = [
+      'version: "1.0.0"',
+      "name: Garbage Device",
+      "racks:",
+      "  - devices:",
+      "      - notadevice: true",
+    ].join("\n");
+
+    const res = await putLayout(URL_UUID, body);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("Invalid layout");
+
+    // The malformed body must not have been written to disk.
+    const entries = await readdir(testDir);
+    expect(
+      entries.find((e) => e.toLowerCase().includes(URL_UUID.toLowerCase())),
+    ).toBeUndefined();
+  });
+
+  it("accepts a structurally valid prior-release layout", async () => {
+    // Shape mirrors src/tests/fixtures/upgrade-corpus: a device carries
+    // id/device_type/position/face plus a legacy passthrough field. Valid
+    // layouts must continue to save unchanged.
+    const body = [
+      'version: "1.0"',
+      "name: Representative Lab",
+      "racks:",
+      '  - id: "rack-a"',
+      "    devices:",
+      '      - id: "dev-switch"',
+      '        device_type: "switch-1u"',
+      "        position: 240",
+      '        face: "front"',
+      '        slot_position: "left"',
+    ].join("\n");
+
+    const res = await putLayout(URL_UUID, body);
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    expect(data.id).toBe(URL_UUID);
   });
 });

@@ -56,7 +56,9 @@ interface LayoutYamlOptions {
 }
 
 /**
- * Create valid layout YAML for testing
+ * Create valid layout YAML for testing. Devices carry the structural fields
+ * every real saved device has (id/device_type/position/face), so fixtures match
+ * what the persistence layer now validates before writing (#2449).
  */
 function createLayoutYaml(options: LayoutYamlOptions): string {
   const { name, racks = [] } = options;
@@ -70,7 +72,10 @@ function createLayoutYaml(options: LayoutYamlOptions): string {
               return "  - devices: []";
             }
             const devicesYaml = rack.devices
-              .map((d) => `      - id: ${d.id}`)
+              .map(
+                (d) =>
+                  `      - id: ${d.id}\n        device_type: server-1u\n        position: 1\n        face: front`,
+              )
               .join("\n");
             return `  - devices:\n${devicesYaml}`;
           })
@@ -274,6 +279,22 @@ describe("saveLayout and getLayout", () => {
       "utf-8",
     );
     expect(restoredAsset).toBe("asset-data");
+  });
+
+  it("rejects a schema-invalid legacy migration with the route-mapped prefix", async () => {
+    // A legacy flat file whose body fails the schema must reject before being
+    // migrated, and use the same "Invalid layout metadata:" prefix the route
+    // maps to 400 (rather than the old "Invalid layout:" prefix that fell
+    // through to a 500). #2449.
+    const slug = "broken-legacy";
+    const brokenYaml =
+      'version: "1.0.0"\nname: Broken\nracks:\n  - devices:\n      - notadevice: true';
+    // A legacy flat file must exist so saveLayout takes the migration path.
+    await writeFile(join(testDir, `${slug}.yaml`), brokenYaml);
+
+    await expect(saveLayout(brokenYaml, slug)).rejects.toThrow(
+      /^Invalid layout metadata:/,
+    );
   });
 });
 

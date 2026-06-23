@@ -641,7 +641,8 @@ async function migrateLegacyLayout(
     const issues = layout.error.issues
       .map((i) => `${i.path.join(".")}: ${i.message}`)
       .join("; ");
-    throw new Error(`Invalid layout: ${issues}`);
+    // Same prefix as the non-migration save path so the route maps both to 400.
+    throw new Error(`Invalid layout metadata: ${issues}`);
   }
 
   // Generate UUID (use metadata.id if valid, else generate new)
