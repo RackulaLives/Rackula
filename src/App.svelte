@@ -578,8 +578,6 @@
     <Toolbar
       hasRacks={layoutStore.hasRack}
       {partyMode}
-      sidebarCollapsed={uiStore.sidebarCollapsed}
-      sidePanelCollapsed={uiStore.sidePanelCollapsed}
       onsave={maybeSave}
       onsaveas={maybeSaveAs}
       onload={handleLoad}

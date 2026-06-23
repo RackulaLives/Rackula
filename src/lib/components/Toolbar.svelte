@@ -15,6 +15,9 @@
   View and history controls (zoom, fit, display mode, undo, redo) relocate to the
   canvas bottom-left in #2074 / #2458. File and settings commands live in the app
   menu behind the logo.
+  The lane widths are held at the expanded column widths in both states, so
+  collapsing a side panel never moves or resizes the search field or the tab
+  strip (#2583).
 -->
 <script lang="ts">
   import AppMenu from "./AppMenu.svelte";
@@ -33,10 +36,6 @@
   interface Props {
     hasRacks?: boolean;
     partyMode?: boolean;
-    /** Left sidebar collapsed: shrink the left lane to align with the strip. */
-    sidebarCollapsed?: boolean;
-    /** Right panel collapsed: shrink the right lane to align with the strip. */
-    sidePanelCollapsed?: boolean;
     onsave?: () => void;
     onsaveas?: () => void;
     onload?: () => void;
@@ -56,8 +55,6 @@
   let {
     hasRacks = false,
     partyMode = false,
-    sidebarCollapsed = false,
-    sidePanelCollapsed = false,
     onsave,
     onsaveas,
     onload,
@@ -108,11 +105,10 @@
 
 <header class="toolbar">
   <!-- Left: Logo (also the app menu) + command palette pill.
-       Width = --sidebar-width so it aligns with the column below; shrinks to
-       natural width when the sidebar is collapsed to its 44px strip (#2397). -->
+       Width = --sidebar-width so it aligns with the column below; held constant
+       across sidebar collapse so the pill never moves or resizes (#2583). -->
   <div
     class="toolbar-section toolbar-left"
-    class:toolbar-left--collapsed={sidebarCollapsed}
     class:toolbar-left--mobile={viewportStore.isMobile}
   >
     <AppMenu onaction={handleAppMenuAction} {hasRacks} {partyMode} />
@@ -157,12 +153,11 @@
        mobile the chip is the right zone (#2458): it replaces the old quick file
        actions, whose Save / Load / Export now live in the registry-driven app
        menu behind the logo. The Settings gear moved into the app menu (#2398)
-       and the side-panel collapse/expand chevron lives in the panel (#2397). -->
+       and the side-panel collapse/expand chevron lives in the panel (#2397).
+       Width = --side-panel-width, held constant across panel collapse so the
+       tab strip never moves (#2583). -->
   {#if !viewportStore.isMobile}
-    <div
-      class="toolbar-section toolbar-right"
-      class:toolbar-right--collapsed={sidePanelCollapsed}
-    >
+    <div class="toolbar-section toolbar-right">
       <StorageStatusChip />
     </div>
   {:else}
@@ -192,19 +187,15 @@
     height: 100%;
   }
 
-  /* Left lane: fixed to the sidebar column width so it aligns with the column
-     below. Left padding gives the logo ~8px from the edge. When the sidebar is
-     collapsed to its 44px strip, the lane shrinks to its natural width so it
-     does not overhang the strip (#2397). */
+  /* Left lane: fixed to the sidebar column width. Left padding gives the logo
+     ~8px from the edge. The width is held at the expanded column width in both
+     states so the search pill and the centre tab strip keep a constant size and
+     position regardless of whether the sidebar is collapsed (#2583). */
   .toolbar-left {
     flex: 0 0 var(--sidebar-width, 320px);
     padding-left: var(--space-2);
     padding-right: var(--space-2);
     min-width: 0;
-  }
-
-  .toolbar-left--collapsed {
-    flex: 0 0 auto;
   }
 
   /* Mobile left lane: there is no column to align with, so the lane shrinks to
@@ -226,11 +217,11 @@
     margin-left: var(--space-3);
   }
 
-  /* Right lane: fixed to side-panel width so it aligns with the panel column.
-     The storage chip is now the sole occupant and fills the lane as the status
-     zone for the panel beneath it (#2398). Shrinks to its natural width (pinned
-     to the right edge) when the panel is collapsed to its 44px strip, so the
-     chip never overhangs it (#2397). */
+  /* Right lane: fixed to side-panel width. The storage chip is the sole
+     occupant and fills the lane as the status zone (#2398). The width is held
+     at the expanded column width in both states so the centre tab strip keeps a
+     constant size and position regardless of whether the panel is collapsed
+     (#2583). */
   .toolbar-right {
     flex: 0 0 var(--side-panel-width, 320px);
     padding-left: var(--space-2);
@@ -244,17 +235,6 @@
   .toolbar-right :global(.storage-chip) {
     flex: 1 1 auto;
     justify-content: flex-start;
-  }
-
-  /* Collapsed: the lane shrinks to the chip's natural width and pins to the
-     right edge over the 44px strip, so it stays aligned and never overhangs. */
-  .toolbar-right--collapsed {
-    flex: 0 0 auto;
-    justify-content: flex-end;
-  }
-
-  .toolbar-right--collapsed :global(.storage-chip) {
-    flex: 0 0 auto;
   }
 
   /* Mobile centre lane: the current layout name as a plain centred label. It
