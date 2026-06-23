@@ -616,6 +616,30 @@ export const mikrotikDevices: DeviceType[] = [
   },
 
   {
+    slug: "mikrotik-css326-24g-2s-plus-rm",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CSS326-24G-2S+RM",
+    slot_width: 1,
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+
+  {
+    slug: "mikrotik-css610-8g-2s-plus-in",
+    u_height: 1,
+    manufacturer: "MikroTik",
+    model: "CSS610-8G-2S+IN",
+    slot_width: 1,
+    is_full_depth: false,
+    airflow: "passive",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+  },
+
+  {
     slug: "mikrotik-crs106-1c-5s",
     u_height: 1,
     manufacturer: "MikroTik",
