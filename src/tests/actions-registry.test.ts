@@ -7,6 +7,7 @@ import {
   getHelpGroups,
   getAppMenuSections,
 } from "$lib/actions/registry";
+import { iconForAction } from "$lib/components/icons/action-icons";
 
 /**
  * The actions registry is the single source of truth for command metadata:
@@ -291,13 +292,106 @@ describe("actions registry", () => {
       expect(ids).toContain("save-as");
     });
 
-    it("leads the browser file section with Export backup, not Save", () => {
-      // Spec: the browser build leads with Export backup.
-      const fileSection = getAppMenuSections("browser").find(
-        (s) => s.group === "file",
+    it("leads the browser this-layout-data section with the backup export", () => {
+      // Spec: the browser build's this-layout-data group leads with the
+      // per-layout backup export (export-backup), the browser-only counterpart
+      // of the server build's Save As.
+      const dataSection = getAppMenuSections("browser").find(
+        (s) => s.group === "layout-data",
       );
-      expect(fileSection).toBeDefined();
-      expect(fileSection?.items[0]?.id).toBe("export-backup");
+      expect(dataSection).toBeDefined();
+      expect(dataSection?.items[0]?.id).toBe("export-backup");
+    });
+
+    it("places the device library imports in the devices group", () => {
+      // Reorg by intent: inbound device actions live together under devices.
+      const devicesSection = getAppMenuSections("browser").find(
+        (s) => s.group === "devices",
+      );
+      const ids = devicesSection?.items.map((i) => i.id) ?? [];
+      expect(ids).toContain("import-devices");
+      expect(ids).toContain("import-netbox");
+      expect(ids).toContain("new-custom-device");
+    });
+
+    it("groups the output actions (image export and share) together", () => {
+      const outputSection = getAppMenuSections("browser").find(
+        (s) => s.group === "output",
+      );
+      const ids = outputSection?.items.map((i) => i.id) ?? [];
+      expect(ids).toContain("export");
+      expect(ids).toContain("share");
+    });
+
+    it("places the workspace-wide backup in its own group", () => {
+      const workspaceSection = getAppMenuSections("browser").find(
+        (s) => s.group === "workspace",
+      );
+      const ids = workspaceSection?.items.map((i) => i.id) ?? [];
+      expect(ids).toContain("export-all");
+    });
+
+    it("orders sections lifecycle -> output -> data -> devices -> workspace -> app", () => {
+      // The intent cadence: get a layout going, get something out of it, manage
+      // this layout's data, manage the device library, back up the workspace,
+      // then app-level entries last.
+      const groups = getAppMenuSections("browser").map((s) => s.group);
+      expect(groups).toEqual([
+        "layout",
+        "output",
+        "layout-data",
+        "devices",
+        "workspace",
+        "app",
+      ]);
+    });
+
+    it("orders the server lifecycle group New -> Open -> Save", () => {
+      // Spec: the server build's lifecycle group reads new-layout, then open,
+      // then save (save trails the create/open pair, not leads it).
+      const layoutSection = getAppMenuSections("server").find(
+        (s) => s.group === "layout",
+      );
+      const ids = layoutSection?.items.map((i) => i.id) ?? [];
+      expect(ids).toEqual(["new-layout", "load", "save"]);
+    });
+
+    it("leads the server this-layout-data section with Save As", () => {
+      const dataSection = getAppMenuSections("server").find(
+        (s) => s.group === "layout-data",
+      );
+      expect(dataSection?.items[0]?.id).toBe("save-as");
+    });
+
+    it("gives every app-menu group a non-empty display heading", () => {
+      // A future mobile sheet renders section titles, not bare separators, so
+      // the registry must carry a heading for every projected group. Asserting
+      // it here keeps the heading data alive even though the desktop dropdown
+      // renders separators instead of visible headings.
+      for (const mode of ["browser", "server"] as const) {
+        for (const section of getAppMenuSections(mode)) {
+          expect(
+            section.heading,
+            `group "${section.group}" has no heading`,
+          ).toBeTruthy();
+        }
+      }
+    });
+
+    it("gives every app-menu item an icon", () => {
+      // Any view (the dropdown today, a sheet later) renders an icon column;
+      // a missing icon leaves a broken-looking gap. Every projected item must
+      // resolve to an icon component.
+      for (const mode of ["browser", "server"] as const) {
+        for (const section of getAppMenuSections(mode)) {
+          for (const item of section.items) {
+            expect(
+              iconForAction[item.id],
+              `app-menu item "${item.id}" has no icon`,
+            ).toBeDefined();
+          }
+        }
+      }
     });
 
     it("carries the registry label and platform shortcut for each item", () => {

@@ -1,5 +1,5 @@
 /**
- * Module-level seam for the "Restore from file" trigger.
+ * Module-level seam for the "Restore from backup (.zip)" trigger.
  *
  * Restoring replaces the working copy with a file the user picks. When there are
  * changes not yet in any exported file, a confirm-replace dialog offers to

@@ -1,7 +1,8 @@
 <!--
   RestoreFromFileDialog Component
-  Owns the "Restore from file" flow moved out of the storage chip (#2446). The
-  app menu's Restore action dispatches through restore-file-trigger, which this
+  Owns the "Restore from backup (.zip)" flow moved out of the storage chip
+  (#2446). The app menu's Restore action dispatches through restore-file-trigger,
+  which this
   component registers on mount. Restoring replaces the working copy; when there
   are changes not yet in any exported file, a confirm-replace dialog offers to
   export first (turning the dangerous moment into the backup moment), otherwise

@@ -75,12 +75,30 @@ export interface KeyBinding {
 export type HelpGroup = "Navigation" | "General" | "Editing" | "File";
 
 /**
- * Sections of the app menu (the menu behind the logo), rendered in this
- * declared order with separators between them. Actions opt into the menu by
- * declaring an appMenuGroup; the menu is projected from the registry so it
- * cannot drift from the keyboard handler or help overlay (#2073).
+ * Sections of the app menu (the menu behind the logo), grouped by intent and
+ * rendered in this declared order with separators between them. Actions opt into
+ * the menu by declaring an appMenuGroup; the menu is projected from the registry
+ * so it cannot drift from the keyboard handler or help overlay (#2073).
+ *
+ * The intent groups (#2596):
+ * - "layout": layout lifecycle (new, open, and server-mode save)
+ * - "output": get something out of this layout (image export, share link)
+ * - "layout-data": this layout's own data (backup export, restore, view source)
+ * - "devices": the device library (import, NetBox, new custom device)
+ * - "workspace": workspace-wide backup (export all layouts)
+ * - "app": application-level entries (about/shortcuts, settings)
+ *
+ * Each group carries a display heading (APP_MENU_GROUP_HEADINGS) so a view that
+ * renders section titles rather than bare separators (a future mobile sheet,
+ * #2597) can reuse the same projection without hand-maintaining a copy.
  */
-export type AppMenuGroup = "file" | "layout" | "devices" | "help" | "settings";
+export type AppMenuGroup =
+  | "layout"
+  | "output"
+  | "layout-data"
+  | "devices"
+  | "workspace"
+  | "app";
 
 export interface ActionDefinition {
   /** Stable identifier; the dispatch map and consumers key off this. */
@@ -221,7 +239,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     // carries shiftKey=true. Bind both states so the shortcut fires whether or
     // not Shift is reported.
     bindings: [{ key: "?" }, { key: "?", shift: true }],
-    appMenuGroup: "help",
+    appMenuGroup: "app",
     keywords: ["shortcuts", "about", "keyboard", "version"],
   },
   {
@@ -229,10 +247,12 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Settings",
     scope: "global",
     bindings: [],
-    // Settings is system configuration, not help, so it sits in its own
-    // trailing menu group (the conventional final slot for a gear) rather than
-    // alongside About and shortcuts (#2406).
-    appMenuGroup: "settings",
+    // Settings is an application-level entry, so it joins About and shortcuts in
+    // the trailing "app" group. #2406 originally made it a standalone trailing
+    // group; the intent reorg (#2596) gives "app" a coherent home for both the
+    // about/shortcuts entry and the settings gear, keeping the gear in the
+    // conventional final slot without a lone single-item group.
+    appMenuGroup: "app",
     keywords: ["settings", "preferences", "options", "theme"],
   },
   {
@@ -323,25 +343,12 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
   // --- File -----------------------------------------------------------------
   {
     id: "export-backup",
-    label: "Export backup",
+    label: "Export layout (.zip)",
     scope: "global",
     bindings: [],
-    appMenuGroup: "file",
+    appMenuGroup: "layout-data",
     storageMode: "browser",
-    keywords: ["download", "backup", "zip", "save"],
-  },
-  {
-    id: "save",
-    label: "Save layout",
-    scope: "global",
-    bindings: [
-      { key: "s", ctrl: true },
-      { key: "s", meta: true },
-    ],
-    helpGroup: "File",
-    appMenuGroup: "file",
-    storageMode: "server",
-    keywords: ["store", "persist"],
+    keywords: ["download", "backup", "zip", "save", "export"],
   },
   {
     id: "save-as",
@@ -352,17 +359,17 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
       { key: "s", meta: true, shift: true },
     ],
     helpGroup: "File",
-    appMenuGroup: "file",
+    appMenuGroup: "layout-data",
     storageMode: "server",
-    keywords: ["download", "backup", "zip"],
+    keywords: ["download", "backup", "zip", "export"],
   },
   {
     id: "export-all",
-    label: "Back up all layouts",
+    label: "Export all layouts (.zip)",
     scope: "global",
     bindings: [],
-    appMenuGroup: "file",
-    keywords: ["backup", "export all", "zip", "archive", "copy"],
+    appMenuGroup: "workspace",
+    keywords: ["backup", "export all", "back up", "zip", "archive", "copy"],
   },
   {
     id: "export",
@@ -373,7 +380,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
       { key: "e", meta: true },
     ],
     helpGroup: "File",
-    appMenuGroup: "file",
+    appMenuGroup: "output",
     keywords: ["png", "svg", "pdf", "image"],
   },
   {
@@ -387,16 +394,16 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     // Sharing needs a rack to encode in the link; disabled on an empty layout.
     enabledWhen: (ctx) => ctx.hasRacks,
     helpGroup: "File",
-    appMenuGroup: "file",
+    appMenuGroup: "output",
     keywords: ["link", "url", "qr"],
   },
   {
     id: "restore-file",
-    label: "Restore from file",
+    label: "Restore from backup (.zip)",
     scope: "global",
     bindings: [],
-    appMenuGroup: "file",
-    keywords: ["restore", "load", "open", "import", "replace"],
+    appMenuGroup: "layout-data",
+    keywords: ["restore", "load", "open", "import", "replace", "file", "backup"],
   },
   {
     id: "view-yaml",
@@ -405,7 +412,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [],
     // The YAML view has nothing to show until a rack exists.
     enabledWhen: (ctx) => ctx.hasRacks,
-    appMenuGroup: "file",
+    appMenuGroup: "layout-data",
     keywords: ["yaml", "source", "raw", "edit"],
   },
 
@@ -429,6 +436,22 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     helpGroup: "File",
     appMenuGroup: "layout",
     keywords: ["open", "load", "import"],
+  },
+  {
+    // Server-only. Placed after New and Open so the lifecycle group reads
+    // new -> open -> save; the projection follows registry order within a
+    // section (#2596).
+    id: "save",
+    label: "Save layout",
+    scope: "global",
+    bindings: [
+      { key: "s", ctrl: true },
+      { key: "s", meta: true },
+    ],
+    helpGroup: "File",
+    appMenuGroup: "layout",
+    storageMode: "server",
+    keywords: ["store", "persist"],
   },
 
   // --- Devices (app menu) ---------------------------------------------------
@@ -457,11 +480,11 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     keywords: ["custom", "device", "create"],
   },
 
-  // --- Help (app menu) ------------------------------------------------------
+  // --- App (app menu) -------------------------------------------------------
   // show-help ("About and shortcuts") is defined in the General group above
-  // with appMenuGroup: "help"; the menu projection places it in this section.
-  // Its dialog (HelpPanel) is the About panel and includes the shortcut list,
-  // so one entry covers both about and shortcuts.
+  // with appMenuGroup: "app"; the menu projection places it in the trailing app
+  // section alongside Settings. Its dialog (HelpPanel) is the About panel and
+  // includes the shortcut list, so one entry covers both about and shortcuts.
   {
     id: "undo",
     label: "Undo",
@@ -651,21 +674,46 @@ export function getHelpGroups(): HelpGroupSection[] {
 
 /**
  * The order app-menu sections appear in, with separators between them. The
- * cadence runs layout lifecycle (new, open), then file operations on the active
- * layout, then the device library, then help/about, and finally settings as a
- * standalone trailing group (#2406).
+ * cadence runs by intent (#2596): layout lifecycle (new, open, save), then
+ * getting something out of this layout (image export, share), then this layout's
+ * own data (backup export, restore, view source), then the device library, then
+ * the workspace-wide backup, and finally the app-level entries (about/shortcuts,
+ * settings).
  */
 const APP_MENU_GROUP_ORDER: AppMenuGroup[] = [
   "layout",
-  "file",
+  "output",
+  "layout-data",
   "devices",
-  "help",
-  "settings",
+  "workspace",
+  "app",
 ];
+
+/**
+ * Display heading per app-menu group. The desktop dropdown renders separators
+ * rather than visible headings, but the heading is carried in the projection so
+ * a view that renders section titles (a future mobile sheet, #2597) reuses the
+ * same data instead of hand-maintaining a copy. Every group in
+ * APP_MENU_GROUP_ORDER has a heading; the registry test asserts this so the data
+ * cannot go stale.
+ */
+const APP_MENU_GROUP_HEADINGS: Record<AppMenuGroup, string> = {
+  layout: "Layout",
+  output: "Share",
+  "layout-data": "Backups",
+  devices: "Devices",
+  workspace: "Workspace",
+  app: "About",
+};
 
 /** A single projected app-menu item. */
 export interface AppMenuItem {
-  /** The registry action id this item dispatches. */
+  /**
+   * The registry action id this item dispatches. It is also the stable key a
+   * view uses to resolve the item's icon via iconForAction (the registry stays
+   * a pure data and functions module, so it does not import icon components).
+   * Every app-menu item has an icon; the registry test asserts that coverage.
+   */
   id: ActionId;
   /** The display label, taken from the registry. */
   label: string;
@@ -682,7 +730,14 @@ export interface AppMenuItem {
 
 /** A named section of the app menu. */
 export interface AppMenuSection {
+  /** The intent group key, in APP_MENU_GROUP_ORDER. */
   group: AppMenuGroup;
+  /**
+   * The group's display heading. The desktop dropdown renders separators
+   * instead, but a view that shows section titles (a future mobile sheet, #2597)
+   * uses this directly without re-deriving it.
+   */
+  heading: string;
   items: AppMenuItem[];
 }
 
@@ -702,14 +757,17 @@ function formatMenuShortcut(action: ActionDefinition): string | undefined {
  * every action that declares an appMenuGroup, grouped into sections in
  * APP_MENU_GROUP_ORDER and following registry order within each section.
  *
+ * Each section also carries its display heading (APP_MENU_GROUP_HEADINGS) so a
+ * view that renders section titles, not bare separators, reuses this projection.
+ *
  * The menu is storage-mode aware in two layers. The item set splits by mode: a
  * server-only action (Save, Save As) is dropped in browser mode and a
- * browser-only action (Export backup) is dropped in server mode. When a live
- * context is supplied, each item's `disabled` is also derived from its action's
- * enabledWhen predicate (e.g. share and view-yaml need a rack), so the menu is
- * the registry's first runtime consumer of enabledWhen. Disabled items stay in
- * the menu (rendered aria-disabled) rather than being hidden. Called with the
- * mode alone, every item is enabled.
+ * browser-only action (the layout backup export) is dropped in server mode. When
+ * a live context is supplied, each item's `disabled` is also derived from its
+ * action's enabledWhen predicate (e.g. share and view-yaml need a rack), so the
+ * menu is the registry's first runtime consumer of enabledWhen. Disabled items
+ * stay in the menu (rendered aria-disabled) rather than being hidden. Called
+ * with the mode alone, every item is enabled.
  */
 export function getAppMenuSections(
   mode: StorageMode,
@@ -733,7 +791,7 @@ export function getAppMenuSections(
     }
 
     if (items.length > 0) {
-      sections.push({ group, items });
+      sections.push({ group, heading: APP_MENU_GROUP_HEADINGS[group], items });
     }
   }
 
