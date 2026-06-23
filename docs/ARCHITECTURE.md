@@ -151,8 +151,8 @@ No legacy support or migration code. Features are implemented as if they're the 
 │                                                  │           │
 │                                                  ▼           │
 │                                        ┌─────────────────┐   │
-│                                        │  GitHub Pages   │   │
-│                                        │  dev.racku.la   │   │
+│                                        │  VPS (Docker)   │   │
+│                                        │  d.racku.la     │   │
 │                                        └─────────────────┘   │
 │                                                              │
 │   Git tag v* ───────────────────────────────────────────────│

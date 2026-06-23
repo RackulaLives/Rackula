@@ -157,6 +157,7 @@ jobs:
           RACKULA_API_CONTAINER_NAME=rackula-api-dev
           CORS_ORIGIN=https://d.racku.la
           ALLOW_INSECURE_CORS=false
+          RACKULA_STORAGE_MODE=server
           EOF
 
       - name: Verify data dir is writable by API container (uid 1001)
