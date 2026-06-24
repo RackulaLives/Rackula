@@ -25,7 +25,6 @@
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import type { SidePanelTab } from "$lib/stores/ui.svelte";
   import type { SelectedDeviceInfo } from "$lib/types";
-  import "$lib/styles/tabs.css";
 
   interface Props {
     /** Active tab. Controlled by the host (rail or sheet). */
@@ -285,10 +284,12 @@
     flex-shrink: 0;
   }
 
+  /* Connected segmented row: zero gap so adjacent segment borders collapse,
+     mirroring the left sidebar's Layouts/Racks/Devices control (#2600, #2435). */
   :global(.side-panel-tablist) {
     display: flex;
     flex: 1;
-    gap: var(--space-1);
+    gap: 0;
     min-width: 0;
   }
 
@@ -322,8 +323,10 @@
     outline-offset: -2px;
   }
 
-  /* Layout-only rules. The raised "layered sheet" look (background, colour, top
-     accent, rounded top corners, active merge) is shared via tabs.css. */
+  /* Connected segmented control matching the left sidebar's Layouts/Racks/Devices
+     row (#2600): square segments with collapsed borders and a filled active state,
+     rather than the raised tab sheets used by the top layout strip. Rounded
+     corners only on the row ends. */
   :global(.side-panel-tab) {
     flex: 1;
     display: flex;
@@ -331,18 +334,48 @@
     justify-content: center;
     /* 44px minimum touch target (mobile spike #2097 / a11y guard rail) */
     min-height: 44px;
-    padding: var(--space-2) var(--space-3);
+    min-width: 0;
+    padding: var(--space-2) var(--space-2);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
+    background: transparent;
+    border: 1px solid var(--colour-border);
+    border-radius: 0;
+    color: var(--colour-text-muted);
     cursor: pointer;
+    /* Collapse adjacent borders so the row reads as one connected control. */
+    margin-left: -1px;
+    position: relative;
     transition:
-      background var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out),
       color var(--duration-fast) var(--ease-out);
+  }
+
+  :global(.side-panel-tab:first-child) {
+    margin-left: 0;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  }
+
+  :global(.side-panel-tab:last-child) {
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  }
+
+  :global(.side-panel-tab:hover:not([data-state="active"])) {
+    background: var(--colour-surface-hover);
+    color: var(--colour-text);
+  }
+
+  :global(.side-panel-tab[data-state="active"]) {
+    background: color-mix(in srgb, var(--colour-selection) 20%, transparent);
+    border-color: var(--colour-selection);
+    color: var(--colour-text);
+    z-index: 1;
   }
 
   :global(.side-panel-tab:focus-visible) {
     outline: 2px solid var(--colour-selection);
-    outline-offset: -2px;
+    outline-offset: 2px;
+    z-index: 2;
   }
 
   :global(.side-panel-tabpanel) {

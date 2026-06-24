@@ -24,7 +24,7 @@
   import StorageStatusChip from "./StorageStatusChip.svelte";
   import LayoutTabs from "./LayoutTabs.svelte";
   import type { ActionId } from "$lib/actions/registry";
-  import { IconSearch } from "./icons";
+  import { IconSearch, IconMenuBold } from "./icons";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
@@ -101,17 +101,46 @@
   function handleAppMenuAction(id: ActionId) {
     appMenuDispatch[id]?.();
   }
+
+  // Mirrors the desktop dropdown's open-state on mobile so the hamburger reports
+  // aria-expanded correctly. The sheet itself lives in DialogOrchestrator.
+  const menuSheetOpen = $derived(dialogStore.isSheetOpen("menu"));
+
+  // Focus the trigger before opening so bits-ui captures it as the element to
+  // restore focus to when the sheet closes. Touch taps do not move keyboard
+  // focus on mobile by default, the same gap MobileBottomNav's handleTabClick
+  // handles for the bottom-nav buttons.
+  function handleMenuTriggerClick(event: MouseEvent) {
+    (event.currentTarget as HTMLElement).focus();
+    dialogStore.openSheet("menu");
+  }
 </script>
 
 <header class="toolbar">
-  <!-- Left: Logo (also the app menu) + command palette pill.
+  <!-- Left: app menu + command palette pill. On desktop the logo lockup is the
+       app-menu dropdown trigger; on mobile a hamburger button opens the same
+       menu as a bottom sheet, since a dropdown is awkward on touch (#2597).
        Width = --sidebar-width so it aligns with the column below; held constant
        across sidebar collapse so the pill never moves or resizes (#2583). -->
   <div
     class="toolbar-section toolbar-left"
     class:toolbar-left--mobile={viewportStore.isMobile}
   >
-    <AppMenu onaction={handleAppMenuAction} {hasRacks} {partyMode} />
+    {#if viewportStore.isMobile}
+      <button
+        class="menu-trigger"
+        type="button"
+        aria-label="App menu"
+        aria-haspopup="dialog"
+        aria-expanded={menuSheetOpen}
+        data-testid="btn-app-menu-mobile"
+        onclick={handleMenuTriggerClick}
+      >
+        <IconMenuBold size={ICON_SIZE.md} />
+      </button>
+    {:else}
+      <AppMenu onaction={handleAppMenuAction} {hasRacks} {partyMode} />
+    {/if}
     <button
       class="command-pill"
       class:command-pill--icon={viewportStore.isMobile}
@@ -264,6 +293,55 @@
     flex: 0 0 auto;
     padding-right: max(var(--space-2), env(safe-area-inset-right, 0px));
     justify-content: flex-end;
+  }
+
+  /* Mobile app-menu trigger: a hamburger button that opens the menu sheet. A
+     true 44px square hit area (WCAG 2.5.5) matching the compact search button
+     beside it, so the mobile left group reads as two equal icon buttons. */
+  .menu-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+    min-width: var(--touch-target-min);
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--colour-text);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .menu-trigger:hover {
+    background: var(--colour-surface-hover);
+  }
+
+  .menu-trigger:active {
+    transform: scale(0.96);
+  }
+
+  .menu-trigger:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--colour-bg),
+      0 0 0 4px var(--colour-focus-ring);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .menu-trigger {
+      transition: none;
+    }
+
+    .menu-trigger:active {
+      transform: none;
+    }
   }
 
   /* Command pill: the button is the hit target, a true 44px-tall layout box
