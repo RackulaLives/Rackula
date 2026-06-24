@@ -41,10 +41,10 @@
     "deps:status": "npm outdated || true"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.11.3",
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.61.0",
+    "@playwright/test": "^1.61.1",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/svelte": "5.3.1",
@@ -69,11 +69,11 @@
     "prettier-plugin-svelte": "^4.1.1",
     "sharp": "^0.35.2",
     "svelte": "^5.56.4",
-    "svelte-check": "^4.6.0",
+    "svelte-check": "^4.7.1",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.0",
-    "vite": "^8.0.14",
+    "vite": "^8.1.0",
     "vitest": "^4.0.17"
   },
   "lint-staged": {
