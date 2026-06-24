@@ -151,6 +151,11 @@ function resetHoistedMocks(): void {
   persistenceStoreMocks.getApiEverReached.mockReturnValue(false);
   persistenceStoreMocks.getStorageMode.mockReset();
   persistenceStoreMocks.getStorageMode.mockReturnValue("server");
+  persistenceStoreMocks.isServerReachableInBrowser.mockReset();
+  persistenceStoreMocks.isServerReachableInBrowser.mockReturnValue(false);
+  persistenceStoreMocks.isStorageModeFromOverride.mockReset();
+  persistenceStoreMocks.isStorageModeFromOverride.mockReturnValue(false);
+  persistenceStoreMocks.clearStorageModeOverride.mockReset();
 
   persistenceApiMocks.saveLayoutToServer.mockReset();
   persistenceApiMocks.saveLayoutToServer.mockResolvedValue("layout-1");

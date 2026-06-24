@@ -98,4 +98,18 @@ describe("switchToServerMode", () => {
     expect(getStorageModeOverride()).toBe("server");
     expect(isApiAvailable()).toBe(true);
   });
+
+  it("does not switch when the override cannot be persisted", async () => {
+    const setItemSpy = vi
+      .spyOn(window.localStorage, "setItem")
+      .mockImplementation(() => {
+        throw new Error("storage blocked");
+      });
+    const result = await switchToServerMode();
+    expect(result.switched).toBe(false);
+    if (!result.switched) expect(result.reason).toBe("override-failed");
+    expect(getStorageModeOverride()).toBe(null);
+    expect(isApiAvailable()).toBe(false);
+    setItemSpy.mockRestore();
+  });
 });

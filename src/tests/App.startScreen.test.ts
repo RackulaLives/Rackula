@@ -146,6 +146,11 @@ describe(
       persistenceStoreMocks.getApiEverReached.mockReturnValue(true);
       persistenceStoreMocks.getStorageMode.mockReset();
       persistenceStoreMocks.getStorageMode.mockReturnValue("server");
+      persistenceStoreMocks.isServerReachableInBrowser.mockReset();
+      persistenceStoreMocks.isServerReachableInBrowser.mockReturnValue(false);
+      persistenceStoreMocks.isStorageModeFromOverride.mockReset();
+      persistenceStoreMocks.isStorageModeFromOverride.mockReturnValue(false);
+      persistenceStoreMocks.clearStorageModeOverride.mockReset();
 
       persistenceApiMocks.listSavedLayouts.mockReset();
       persistenceApiMocks.listSavedLayouts.mockResolvedValue([]);

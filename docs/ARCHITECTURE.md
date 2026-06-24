@@ -166,15 +166,15 @@ No legacy support or migration code. Features are implemented as if they're the 
 │                                                  ▼           │
 │                                        ┌─────────────────┐   │
 │                                        │   VPS (Docker)  │   │
-│                                        │  app.racku.la   │   │
+│                                        │  count.racku.la │   │
 │                                        └─────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 | Environment | URL          | Trigger        | Use Case         |
 | ----------- | ------------ | -------------- | ---------------- |
-| Dev         | dev.racku.la | Push to `main` | Preview, testing |
-| Prod        | app.racku.la | Git tag `v*`   | Live users       |
+| Dev         | d.racku.la         | Push to `main` | Preview, testing |
+| Prod        | count.racku.la     | Git tag `v*`   | Live users       |
 
 ### Version Alignment
 
