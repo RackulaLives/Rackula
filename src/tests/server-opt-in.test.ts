@@ -105,11 +105,14 @@ describe("switchToServerMode", () => {
       .mockImplementation(() => {
         throw new Error("storage blocked");
       });
-    const result = await switchToServerMode();
-    expect(result.switched).toBe(false);
-    if (!result.switched) expect(result.reason).toBe("override-failed");
-    expect(getStorageModeOverride()).toBe(null);
-    expect(isApiAvailable()).toBe(false);
-    setItemSpy.mockRestore();
+    try {
+      const result = await switchToServerMode();
+      expect(result.switched).toBe(false);
+      if (!result.switched) expect(result.reason).toBe("override-failed");
+      expect(getStorageModeOverride()).toBe(null);
+      expect(isApiAvailable()).toBe(false);
+    } finally {
+      setItemSpy.mockRestore();
+    }
   });
 });
