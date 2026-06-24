@@ -260,10 +260,11 @@
   }
 
   /* The chip stretches to fill the right region so it reads as the panel's
-     status zone rather than a small pill pinned to the edge. */
+     status zone rather than a small pill pinned to the edge, with its icon and
+     label centred within that zone. */
   .toolbar-right :global(.storage-chip) {
     flex: 1 1 auto;
-    justify-content: flex-start;
+    justify-content: center;
   }
 
   /* Mobile centre lane: the current layout name as a plain centred label. It
