@@ -707,11 +707,11 @@ const APP_MENU_GROUP_ORDER: AppMenuGroup[] = [
  */
 const APP_MENU_GROUP_HEADINGS: Record<AppMenuGroup, string> = {
   layout: "Layout",
-  output: "Share",
-  "layout-data": "Backups",
+  output: "Export & Share",
+  "layout-data": "Data",
   devices: "Devices",
   workspace: "Workspace",
-  app: "About",
+  app: "App",
 };
 
 /** A single projected app-menu item. */
