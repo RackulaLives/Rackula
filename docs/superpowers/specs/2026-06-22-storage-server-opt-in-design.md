@@ -1,8 +1,6 @@
 # Storage server opt-in: surfacing and adopting an available API
 
-Date: 2026-06-22
-Status: Approved design, ready for plan
-Related: #2036, #2037, #2051 (the change that introduced this behaviour), spike #2019 (storage data-safety model), #2063 (browser-mode misconfiguration probe)
+Date: 2026-06-22 Status: Approved design, ready for plan Related: #2036, #2037, #2051 (the change that introduced this behaviour), spike #2019 (storage data-safety model), #2063 (browser-mode misconfiguration probe)
 
 ## Problem
 

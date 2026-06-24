@@ -119,7 +119,11 @@
 {/if}
 
 {#if fromOverride}
-  <button type="button" class="storage-chip-reverse" onclick={switchBackToBrowser}>
+  <button
+    type="button"
+    class="storage-chip-reverse"
+    onclick={switchBackToBrowser}
+  >
     Switch back to browser mode
   </button>
 {/if}

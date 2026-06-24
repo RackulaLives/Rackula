@@ -51,7 +51,9 @@
       </p>
     </div>
     <div class="server-banner-actions">
-      <button type="button" disabled={working} onclick={startSwitch}>Switch to server mode</button>
+      <button type="button" disabled={working} onclick={startSwitch}
+        >Switch to server mode</button
+      >
       <button type="button" class="server-banner-secondary" onclick={onDismiss}>
         Stay in browser mode
       </button>

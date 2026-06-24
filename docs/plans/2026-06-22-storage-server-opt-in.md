@@ -27,12 +27,14 @@
 This is the standalone fix for the reported symptom. It does not depend on any other task and can ship first.
 
 **Files:**
+
 - Modify: `.github/workflows/deploy-dev.yml` (the generated `.env` heredoc, around lines 152-160)
 - Modify: `CLAUDE.md` (Deployment table and "Dev Deployment" prose)
 - Modify: `docs/ARCHITECTURE.md` (dev deployment description)
 - Modify: `docs/reference/SPEC.md` (only if it describes dev as static GitHub Pages)
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: nothing consumed by later tasks.
 
@@ -71,8 +73,7 @@ In `docs/reference/SPEC.md`, only if a passage states dev is static GitHub Pages
 
 - [ ] **Step 3: Verify no stale references remain**
 
-Run: `grep -rn "GitHub Pages" CLAUDE.md docs/ARCHITECTURE.md docs/reference/SPEC.md`
-Expected: no line still claims dev is hosted on GitHub Pages. (Other historical mentions, if any, that are not about the current dev deployment may remain; the dev deployment must read as VPS Docker server mode.)
+Run: `grep -rn "GitHub Pages" CLAUDE.md docs/ARCHITECTURE.md docs/reference/SPEC.md` Expected: no line still claims dev is hosted on GitHub Pages. (Other historical mentions, if any, that are not about the current dev deployment may remain; the dev deployment must read as VPS Docker server mode.)
 
 - [ ] **Step 4: Commit**
 
@@ -95,10 +96,12 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 Adds the localStorage opt-in override and extends `getStorageMode()` with the upgrade-only precedence rule. Pure logic, tested first.
 
 **Files:**
+
 - Modify: `src/lib/storage/availability.svelte.ts`
 - Test: `src/tests/storage-mode-override.test.ts` (new)
 
 **Interfaces:**
+
 - Consumes: existing `getStorageMode()`, `StorageMode` from `availability.svelte.ts`.
 - Produces (later tasks rely on these exact signatures):
   - `getStorageModeOverride(): "server" | null`
@@ -185,8 +188,7 @@ describe("storage-mode override precedence", () => {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `npm run test:run -- src/tests/storage-mode-override.test.ts`
-Expected: FAIL with import errors (the new functions are not exported yet).
+Run: `npm run test:run -- src/tests/storage-mode-override.test.ts` Expected: FAIL with import errors (the new functions are not exported yet).
 
 - [ ] **Step 3: Implement the override and precedence**
 
@@ -257,13 +259,11 @@ export function getStorageMode(): StorageMode {
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `npm run test:run -- src/tests/storage-mode-override.test.ts`
-Expected: PASS (all six tests).
+Run: `npm run test:run -- src/tests/storage-mode-override.test.ts` Expected: PASS (all six tests).
 
 - [ ] **Step 5: Run the existing storage-mode tests to confirm no regression**
 
-Run: `npm run test:run -- src/tests/storage-mode.test.ts src/tests/persistence-manager-mode.test.ts`
-Expected: PASS.
+Run: `npm run test:run -- src/tests/storage-mode.test.ts src/tests/persistence-manager-mode.test.ts` Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
@@ -281,10 +281,12 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 The logic the banner calls. Uploads the active browser layout to the server (matching `exportAllBrowser`'s active-layout scope), sets the override on success, and reports a result. It does not reload; the caller reloads when `switched` is true, so this stays unit-testable.
 
 **Files:**
+
 - Create: `src/lib/storage/server-opt-in.svelte.ts`
 - Test: `src/tests/server-opt-in.test.ts` (new)
 
 **Interfaces:**
+
 - Consumes:
   - `setStorageModeOverride()` from `availability.svelte.ts` (Task 2)
   - `checkApiHealth()` from `api.ts`: `() => Promise<boolean>`
@@ -292,8 +294,7 @@ The logic the banner calls. Uploads the active browser layout to the server (mat
   - `getLayoutStore()` from `$lib/stores/layout.svelte` (exposes `.layout: Layout`, `.hasRack: boolean`)
   - `getImageStore()` from `$lib/stores/images.svelte` (exposes `.getUserImages(): ImageStoreMap`)
 - Produces (Task 4 relies on this):
-  - `switchToServerMode(): Promise<SwitchResult>` where
-    `type SwitchResult = { switched: true } | { switched: false; reason: "unreachable" | "upload-failed"; message: string }`
+  - `switchToServerMode(): Promise<SwitchResult>` where `type SwitchResult = { switched: true } | { switched: false; reason: "unreachable" | "upload-failed"; message: string }`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -388,8 +389,7 @@ describe("switchToServerMode", () => {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `npm run test:run -- src/tests/server-opt-in.test.ts`
-Expected: FAIL (module `server-opt-in.svelte` not found).
+Run: `npm run test:run -- src/tests/server-opt-in.test.ts` Expected: FAIL (module `server-opt-in.svelte` not found).
 
 - [ ] **Step 3: Implement the handler**
 
@@ -452,8 +452,7 @@ export async function switchToServerMode(): Promise<SwitchResult> {
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `npm run test:run -- src/tests/server-opt-in.test.ts`
-Expected: PASS (all four tests).
+Run: `npm run test:run -- src/tests/server-opt-in.test.ts` Expected: PASS (all four tests).
 
 - [ ] **Step 5: Commit**
 
@@ -471,11 +470,13 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 The UI. This is visual wiring on top of the tested logic from Tasks 2 and 3, so per the project TDD policy it gets no unit tests. The barrel re-exports keep imports consistent with the codebase.
 
 **Files:**
+
 - Modify: `src/lib/storage/index.ts` (re-export the new functions so components import from `$lib/storage`)
 - Create: `src/lib/components/ServerAvailableBanner.svelte`
 - Modify: `src/lib/components/StorageStatusChip.svelte`
 
 **Interfaces:**
+
 - Consumes: `switchToServerMode()` (Task 3); `isStorageModeFromOverride()`, `clearStorageModeOverride()` (Task 2); `getLayoutDurability(layoutStore)` returning `LayoutDurability` with `serverHint: boolean` (existing, `durability.svelte.ts`); `getLayoutStore()`; `getToastStore().showToast(message, type, duration, action?)`.
 - Produces: nothing consumed by later tasks.
 
@@ -629,8 +630,7 @@ import ServerAvailableBanner from "./ServerAvailableBanner.svelte";
 const DISMISS_KEY = "Rackula:server-hint-dismissed";
 
 let dismissed = $state(
-  typeof window !== "undefined" &&
-    localStorage.getItem(DISMISS_KEY) === "1",
+  typeof window !== "undefined" && localStorage.getItem(DISMISS_KEY) === "1",
 );
 
 // durability is the existing reactive value already used to render the chip.
@@ -660,16 +660,13 @@ Validate the modified component with the Svelte MCP `svelte-autofixer` tool.
 
 - [ ] **Step 4: Type-check and lint**
 
-Run: `npm run lint`
-Expected: no new errors from the changed files.
+Run: `npm run lint` Expected: no new errors from the changed files.
 
-Run: `npx tsc --noEmit` (or the project's type-check script if different)
-Expected: no new type errors from the changed files.
+Run: `npx tsc --noEmit` (or the project's type-check script if different) Expected: no new type errors from the changed files.
 
 - [ ] **Step 5: Verify the full unit suite is green**
 
-Run: `npm run test:run`
-Expected: PASS, including the Task 2 and Task 3 suites.
+Run: `npm run test:run` Expected: PASS, including the Task 2 and Task 3 suites.
 
 - [ ] **Step 6: Commit**
 
