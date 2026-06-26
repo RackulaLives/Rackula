@@ -9,7 +9,12 @@ import { render, screen } from "@testing-library/svelte";
 import Rack from "$lib/components/Rack.svelte";
 import { resetLayoutStore, getLayoutStore } from "$lib/stores/layout.svelte";
 import { resetSelectionStore } from "$lib/stores/selection.svelte";
-import { createTestDeviceTypeInput } from "./factories";
+import {
+  createTestDeviceTypeInput,
+  createTestRack,
+  createTestDevice,
+  createTestDeviceType,
+} from "./factories";
 
 describe("Rear view visibility for full-depth devices (#2337)", () => {
   beforeEach(() => {
@@ -58,5 +63,31 @@ describe("Rear view visibility for full-depth devices (#2337)", () => {
       },
     });
     expect(screen.getByText("PDU")).toBeInTheDocument();
+  });
+
+  it("renders a full-depth device stored as front-only under the rear filter (legacy data)", () => {
+    // A full-depth device whose placement carries face: "front" (prior-release
+    // or imported data). It must still render on the rear.
+    const deviceType = createTestDeviceType({
+      slug: "nas",
+      model: "NAS",
+      u_height: 1,
+    });
+    const rack = createTestRack({
+      devices: [
+        createTestDevice({ device_type: "nas", position: 5, face: "front" }),
+      ],
+    });
+
+    render(Rack, {
+      props: {
+        rack,
+        deviceLibrary: [deviceType],
+        selected: false,
+        faceFilter: "rear",
+      },
+    });
+
+    expect(screen.getByText("NAS")).toBeInTheDocument();
   });
 });

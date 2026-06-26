@@ -66,6 +66,7 @@
   } from "$lib/utils/rack-interaction-handlers";
   import { attachPointerDragListeners } from "$lib/utils/rack-pointer-drag";
   import { createContextMenuHandlers } from "$lib/utils/rack-context-menu-handlers";
+  import { effectiveFace } from "$lib/utils/effective-face";
 
   const canvasStore = getCanvasStore();
   const viewportStore = getViewportStore();
@@ -258,10 +259,11 @@
       .map((placedDevice, originalIndex) => ({ placedDevice, originalIndex }))
       .filter(({ placedDevice }) => {
         if (placedDevice.container_id) return false;
-        return (
-          placedDevice.face === "both" ||
-          placedDevice.face === effectiveFaceFilter
+        const ef = effectiveFace(
+          placedDevice,
+          deviceLibrary.find((d) => d.slug === placedDevice.device_type),
         );
+        return ef === "both" || ef === effectiveFaceFilter;
       }),
   );
 
@@ -272,7 +274,11 @@
     >();
     rack.devices.forEach((pd, idx) => {
       if (!pd.container_id) return;
-      if (pd.face !== "both" && pd.face !== effectiveFaceFilter) return;
+      const ef = effectiveFace(
+        pd,
+        deviceLibrary.find((d) => d.slug === pd.device_type),
+      );
+      if (ef !== "both" && ef !== effectiveFaceFilter) return;
       const children = map.get(pd.container_id) ?? [];
       children.push({ placedDevice: pd, originalIndex: idx });
       map.set(pd.container_id, children);
