@@ -157,6 +157,13 @@
   // The physical face currently in view.
   const currentFace = $derived(rackView === "rear" ? "rear" : "front");
 
+  // The back of a full-depth device gets a distinct treatment in the rear view.
+  // Keyed on full-depth, so a rear-mounted half-depth device (whose real front
+  // you see from the back) is not differentiated.
+  const isRearTreatment = $derived(
+    currentFace === "rear" && device.is_full_depth !== false,
+  );
+
   // The placement-specific custom image URL for the current face, if present in
   // the store. Kept separate from the device-type fallback so that a missing or
   // failed placement image surfaces as a placeholder instead of silently showing
@@ -192,6 +199,10 @@
 
   // Should show image or fall back to label
   const showImage = $derived(isImageMode && deviceImageUrl);
+
+  // Mute the colour body only when no real rear image is shown; the image
+  // already differentiates the back, so it stays at full fidelity.
+  const isRearMuted = $derived(isRearTreatment && !showImage);
 
   // The face is expected to carry an image but none is in the store yet: it is
   // still being fetched, or its fetch failed and will retry on the next reopen.
@@ -330,13 +341,16 @@
         ? `, ${currentFace} image loading`
         : "";
 
+    const rearState =
+      isRearTreatment && !showImage && !showImagePlaceholder ? ", rear" : "";
+
     if (containerContext) {
       // Child device: announce hierarchy per Epic #159
-      return `${base} in ${containerContext.slotName} of ${containerContext.containerName} at U${containerContext.containerPosition}${imageState}${selected ? ", selected" : ""}`;
+      return `${base} in ${containerContext.slotName} of ${containerContext.containerName} at U${containerContext.containerPosition}${imageState}${rearState}${selected ? ", selected" : ""}`;
     }
 
     // Rack-level device: standard announcement
-    return `${base} at U${positionHuman}${imageState}${selected ? ", selected" : ""}`;
+    return `${base} at U${positionHuman}${imageState}${rearState}${selected ? ", selected" : ""}`;
   });
 
   // Handle keyboard activation (Enter/Space to select, Tab to enter container)
@@ -605,6 +619,7 @@
   <rect
     bind:this={rectElement}
     class="device-rect"
+    class:rear-muted={isRearMuted}
     x="0"
     y="0"
     width={deviceWidth}
@@ -725,6 +740,19 @@
         y={(deviceHeight - 14) / 2}
       />
     {/if}
+  {/if}
+
+  <!-- Rear affordance: marks this as the back of a full-depth device. -->
+  {#if isRearTreatment}
+    <text
+      class="rear-badge"
+      x={deviceWidth - 4}
+      y="10"
+      text-anchor="end"
+      aria-hidden="true"
+    >
+      REAR
+    </text>
   {/if}
 
   <!-- Port indicators (rendered after device content) -->
@@ -901,6 +929,24 @@
     font-size: var(--font-size-device, 13px);
     font-family: var(--font-family, system-ui, sans-serif);
     font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .device-rect.rear-muted {
+    /* Desaturate and darken the back of a full-depth device so it reads as the
+       rear, not a duplicate of the front. Initial values; the frontend-design
+       pass tunes these against the design tokens. */
+    filter: saturate(0.45) brightness(0.82);
+  }
+
+  .rear-badge {
+    fill: var(--neutral-50);
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    opacity: 0.85;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
     pointer-events: none;
     user-select: none;
