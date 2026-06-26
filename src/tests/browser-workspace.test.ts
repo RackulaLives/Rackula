@@ -62,6 +62,7 @@ function makeIndex(over: Partial<WorkspaceIndex> = {}): WorkspaceIndex {
         updatedAt: "2026-06-14T09:00:00.000Z",
         changesSinceExport: 0,
         hasEverExported: true,
+        lastExportedAt: null,
         writeFailed: false,
         storageMode: "browser",
       },

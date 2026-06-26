@@ -29,6 +29,7 @@ export type PersistTab =
       layout: Layout;
       changesSinceExport: number;
       hasEverExported: boolean;
+      lastExportedAt: string | null;
     }
   | {
       layoutId: string;
@@ -82,6 +83,7 @@ export async function persistBrowserWorkspace(
         saveLayoutBody(tab.layoutId, tab.layout, {
           changesSinceExport: tab.changesSinceExport,
           hasEverExported: tab.hasEverExported,
+          lastExportedAt: tab.lastExportedAt,
         });
       if (withLayoutLock) {
         await withLayoutLock(tab.layoutId, write);
@@ -115,6 +117,7 @@ export async function persistBrowserWorkspace(
         updatedAt: "",
         changesSinceExport: tab.changesSinceExport,
         hasEverExported: tab.hasEverExported,
+        lastExportedAt: tab.lastExportedAt,
         writeFailed: false,
         storageMode: "browser",
       };
@@ -125,6 +128,7 @@ export async function persistBrowserWorkspace(
       updatedAt: previous?.updatedAt ?? "",
       changesSinceExport: previous?.changesSinceExport ?? 0,
       hasEverExported: previous?.hasEverExported ?? false,
+      lastExportedAt: previous?.lastExportedAt ?? null,
       writeFailed: previous?.writeFailed ?? false,
       storageMode: previous?.storageMode ?? "browser",
     };

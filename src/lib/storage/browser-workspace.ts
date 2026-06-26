@@ -47,6 +47,8 @@ export interface LibraryEntry {
   updatedAt: string;
   changesSinceExport: number;
   hasEverExported: boolean;
+  /** ISO timestamp of the last export to a file; null if never exported. */
+  lastExportedAt: string | null;
   writeFailed: boolean;
   storageMode: StorageMode;
 }
@@ -69,6 +71,7 @@ export type LayoutBodyResult = { ok: true; layout: Layout } | { ok: false };
 export interface DurabilityInput {
   changesSinceExport: number;
   hasEverExported?: boolean;
+  lastExportedAt?: string | null;
   writeFailed?: boolean;
 }
 
@@ -104,6 +107,8 @@ function coerceLibraryEntry(
         ? changes
         : 0,
     hasEverExported: obj.hasEverExported === true,
+    lastExportedAt:
+      typeof obj.lastExportedAt === "string" ? obj.lastExportedAt : null,
     writeFailed: obj.writeFailed === true,
     storageMode: coerceStorageMode(obj.storageMode),
   };
@@ -253,6 +258,8 @@ export function saveLayoutBody(
     changesSinceExport: durability.changesSinceExport,
     hasEverExported:
       durability.hasEverExported ?? previous?.hasEverExported ?? false,
+    lastExportedAt:
+      durability.lastExportedAt ?? previous?.lastExportedAt ?? null,
     writeFailed: durability.writeFailed ?? !wrote,
     storageMode: previous?.storageMode ?? "browser",
   };
@@ -260,6 +267,16 @@ export function saveLayoutBody(
   saveWorkspaceIndex(index);
 
   return wrote;
+}
+
+/**
+ * The last time a layout's working copy was written to localStorage, as an ISO
+ * timestamp, or null when the layout has no library entry or has never been
+ * written (an empty updatedAt). Surfaces the "Auto-saved" time in the chip popover.
+ */
+export function getLayoutSavedAt(id: string): string | null {
+  const updatedAt = loadWorkspaceIndex()?.library[id]?.updatedAt;
+  return updatedAt ? updatedAt : null;
 }
 
 /** Remove a layout body and drop its library entry. Open set is left to the caller. */
@@ -326,6 +343,7 @@ export function adoptLegacyAutosave(): WorkspaceIndex | null {
     updatedAt: session.savedAt ?? new Date().toISOString(),
     changesSinceExport: session.changesSinceExport,
     hasEverExported: session.hasEverExported,
+    lastExportedAt: null,
     writeFailed: false,
     storageMode: session.storageMode,
   };

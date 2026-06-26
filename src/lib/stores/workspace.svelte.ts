@@ -65,6 +65,7 @@ export interface RestoreLibraryEntry {
   name: string;
   changesSinceExport: number;
   hasEverExported: boolean;
+  lastExportedAt: string | null;
 }
 
 /** The minimal index shape lazy restore needs (from spike #2179). */
@@ -294,6 +295,7 @@ export function createWorkspaceStore() {
       tab.store.restoreBackupState({
         changesSinceExport: entry.changesSinceExport,
         hasEverExported: entry.hasEverExported,
+        lastExportedAt: entry.lastExportedAt,
       });
     }
     tab.hydrated = true;

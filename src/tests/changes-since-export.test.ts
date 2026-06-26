@@ -9,6 +9,11 @@ import {
   loadSessionWithTimestamp,
   clearSession,
 } from "$lib/storage/working-copy";
+import {
+  saveLayoutBody,
+  getLayoutSavedAt,
+  loadWorkspaceIndex,
+} from "$lib/storage/browser-workspace";
 import { resetToastStore } from "$lib/stores/toast.svelte";
 import { downloadYamlFile } from "$lib/utils/archive";
 
@@ -132,5 +137,22 @@ describe("changesSinceExport", () => {
     expect(store.lastExportedAt).toBe(stamp);
     expect(store.changesSinceExport).toBe(4);
     expect(store.hasEverExported).toBe(true);
+  });
+
+  it("persists and reads back lastExportedAt via the workspace library", () => {
+    const id = "test-layout-id";
+    const stamp = "2026-06-26T12:00:00.000Z";
+    const layout = getLayoutStore().layout;
+
+    saveLayoutBody(id, layout, {
+      changesSinceExport: 2,
+      hasEverExported: true,
+      lastExportedAt: stamp,
+    });
+
+    const index = loadWorkspaceIndex();
+    expect(index?.library[id]?.lastExportedAt).toBe(stamp);
+    // updatedAt is the autosave write time, exposed for the "Auto-saved" line.
+    expect(getLayoutSavedAt(id)).toBe(index?.library[id]?.updatedAt);
   });
 });

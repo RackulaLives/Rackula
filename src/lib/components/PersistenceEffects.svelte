@@ -92,6 +92,7 @@
           layout: $state.snapshot(tab.store.layout),
           changesSinceExport: tab.store.changesSinceExport,
           hasEverExported: tab.store.hasEverExported,
+          lastExportedAt: tab.store.lastExportedAt,
         });
       } else {
         tabs.push({
