@@ -15,6 +15,8 @@ import {
 export interface BackupState {
   changesSinceExport: number;
   hasEverExported: boolean;
+  /** ISO timestamp of the last successful export to a file; null if never exported. */
+  lastExportedAt?: string | null;
 }
 
 /** localStorage key for tracking if user has started (created/loaded a rack) */

@@ -140,6 +140,7 @@ export function createLayoutStore(
   let isDirty = $state(false);
   let changesSinceExport = $state(0);
   let hasEverExported = $state(false);
+  let lastExportedAt = $state<string | null>(null);
   let hasStarted = $state(loadHasStarted());
   let activeRackId = $state<string | null>(null);
 
@@ -171,6 +172,7 @@ export function createLayoutStore(
       isDirty = false;
       changesSinceExport = 0;
       hasEverExported = false;
+      lastExportedAt = null;
     },
     getRackGroups: () => rack_groups,
     findRack: (id: string) => layout.racks.find((r) => r.id === id),
@@ -213,6 +215,7 @@ export function createLayoutStore(
     isDirty = false;
     changesSinceExport = 0;
     hasEverExported = false;
+    lastExportedAt = null;
     activeRackId = null;
     history.clear();
     if (clearStarted) {
@@ -235,6 +238,9 @@ export function createLayoutStore(
     },
     get hasEverExported() {
       return hasEverExported;
+    },
+    get lastExportedAt() {
+      return lastExportedAt;
     },
     get rack() {
       return rack;
@@ -836,6 +842,7 @@ export function createLayoutStore(
   function markExported(): void {
     changesSinceExport = 0;
     hasEverExported = true;
+    lastExportedAt = new Date().toISOString();
   }
 
   /**
@@ -845,6 +852,7 @@ export function createLayoutStore(
   function restoreBackupState(state: BackupState): void {
     changesSinceExport = state.changesSinceExport;
     hasEverExported = state.hasEverExported;
+    lastExportedAt = state.lastExportedAt ?? null;
   }
 
   function markStarted(): void {

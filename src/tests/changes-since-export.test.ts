@@ -108,4 +108,29 @@ describe("changesSinceExport", () => {
     expect(chip.saveStatus).toBeDefined();
     expect(chip.consecutiveSaveFailures).toBe(0);
   });
+
+  it("stamps lastExportedAt on markExported and clears it on load", () => {
+    const store = getLayoutStore();
+    expect(store.lastExportedAt).toBeNull();
+
+    store.markExported();
+    expect(store.lastExportedAt).not.toBeNull();
+    expect(() => new Date(store.lastExportedAt as string)).not.toThrow();
+
+    store.loadLayout(store.layout);
+    expect(store.lastExportedAt).toBeNull();
+  });
+
+  it("restores lastExportedAt through restoreBackupState", () => {
+    const store = getLayoutStore();
+    const stamp = "2026-06-26T12:00:00.000Z";
+    store.restoreBackupState({
+      changesSinceExport: 4,
+      hasEverExported: true,
+      lastExportedAt: stamp,
+    });
+    expect(store.lastExportedAt).toBe(stamp);
+    expect(store.changesSinceExport).toBe(4);
+    expect(store.hasEverExported).toBe(true);
+  });
 });
