@@ -36,6 +36,13 @@
   // Storage mode is fixed for the session (read once; mode switches reload the page).
   const isServerMode = getStorageMode() === "server";
 
+  const locationWord = $derived(isServerMode ? "Server" : "Browser");
+  const accessibleName = $derived(
+    durability.showLocation
+      ? `Storage status: ${durability.label}, ${locationWord}`
+      : `Storage status: ${durability.label}`,
+  );
+
   const DISMISS_KEY = "Rackula:server-hint-dismissed";
 
   let dismissed = $state(safeGetItem(DISMISS_KEY) === "1");
@@ -101,7 +108,7 @@
   class:storage-chip--attention={durability.serverHint}
   role="status"
   aria-live="off"
-  aria-label={`Storage status: ${durability.label}`}
+  aria-label={accessibleName}
   data-testid="storage-status-chip"
 >
   {#if durability.icon === "saved"}
@@ -111,7 +118,11 @@
   {:else}
     <IconWarningTriangle size={ICON_SIZE.sm} />
   {/if}
-  <span class="storage-chip-text">{durability.label}</span>
+  <span class="storage-chip-state">{durability.shortLabel}</span>
+  {#if durability.showLocation}
+    <span class="storage-chip-sep" aria-hidden="true">.</span>
+    <span class="storage-chip-loc">{locationWord}</span>
+  {/if}
 </div>
 
 {#if showServerBanner}
@@ -160,8 +171,16 @@
     color: var(--colour-error);
   }
 
-  .storage-chip-text {
+  .storage-chip-state {
+    font-weight: 600;
     white-space: nowrap;
+  }
+
+  /* Location is secondary: muted so the coloured state word leads. */
+  .storage-chip-sep,
+  .storage-chip-loc {
+    color: var(--colour-text-muted);
+    font-weight: 500;
   }
 
   /* Draws attention when a server is reachable in browser mode. */
