@@ -19,7 +19,14 @@ describe("collision treats full-depth devices as occupying both faces (#2337)", 
 
     // Old behaviour: opposite explicit faces never collide -> would be true.
     expect(
-      canPlaceDevice(rack, [fullDepth], 1, toInternalUnits(5), undefined, "rear"),
+      canPlaceDevice(
+        rack,
+        [fullDepth],
+        1,
+        toInternalUnits(5),
+        undefined,
+        "rear",
+      ),
     ).toBe(false);
 
     const blockers = findCollisions(
@@ -41,12 +48,23 @@ describe("collision treats full-depth devices as occupying both faces (#2337)", 
     });
     const rack = createTestRack({
       devices: [
-        createTestDevice({ device_type: "shallow", position: 5, face: "front" }),
+        createTestDevice({
+          device_type: "shallow",
+          position: 5,
+          face: "front",
+        }),
       ],
     });
 
     expect(
-      canPlaceDevice(rack, [halfDepth], 1, toInternalUnits(5), undefined, "rear"),
+      canPlaceDevice(
+        rack,
+        [halfDepth],
+        1,
+        toInternalUnits(5),
+        undefined,
+        "rear",
+      ),
     ).toBe(true);
   });
 });

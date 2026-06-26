@@ -6,7 +6,9 @@ describe("effectiveFace", () => {
     expect(effectiveFace({ face: "front" }, { is_full_depth: undefined })).toBe(
       "both",
     );
-    expect(effectiveFace({ face: "rear" }, { is_full_depth: true })).toBe("both");
+    expect(effectiveFace({ face: "rear" }, { is_full_depth: true })).toBe(
+      "both",
+    );
     expect(effectiveFace({ face: "both" }, {})).toBe("both");
   });
 

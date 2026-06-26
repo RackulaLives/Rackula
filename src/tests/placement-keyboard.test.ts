@@ -17,7 +17,11 @@ import {
 } from "./factories";
 
 const oneU = createTestDeviceType({ slug: "switch", u_height: 1 });
-const twoU = createTestDeviceType({ slug: "server", u_height: 2, is_full_depth: false });
+const twoU = createTestDeviceType({
+  slug: "server",
+  u_height: 2,
+  is_full_depth: false,
+});
 
 describe("validStartPositions", () => {
   it("lists every whole-U slot in an empty rack for a 1U device", () => {
