@@ -42,22 +42,15 @@ const POPULATED_URL = `/?l=${POPULATED_RACK}`;
 
 test.describe("visual regression", () => {
   test("canvas - welcome (empty state)", async ({ page }) => {
-    await gotoVisual(page, "/", { theme: "dark" });
+    await gotoVisual(page, "/");
     await expect(page).toHaveScreenshot("canvas-welcome.png", {
       mask: dynamicMasks(page),
     });
   });
 
   test("canvas - populated rack, dark theme", async ({ page }) => {
-    await gotoVisual(page, POPULATED_URL, { theme: "dark" });
+    await gotoVisual(page, POPULATED_URL);
     await expect(page).toHaveScreenshot("canvas-populated-dark.png", {
-      mask: dynamicMasks(page),
-    });
-  });
-
-  test("canvas - populated rack, light theme", async ({ page }) => {
-    await gotoVisual(page, POPULATED_URL, { theme: "light" });
-    await expect(page).toHaveScreenshot("canvas-populated-light.png", {
       mask: dynamicMasks(page),
     });
   });
@@ -65,7 +58,7 @@ test.describe("visual regression", () => {
   test("canvas - populated rack, image + label display mode", async ({
     page,
   }) => {
-    await gotoVisual(page, POPULATED_URL, { theme: "light" });
+    await gotoVisual(page, POPULATED_URL);
     // Display mode cycles label -> image -> image-label; two presses land on
     // image-label. It does not persist, so it must be toggled each run. The top
     // bar no longer carries the display-mode lens (#2072); the canonical toggle
@@ -79,7 +72,7 @@ test.describe("visual regression", () => {
   });
 
   test("sidebar - devices tab", async ({ page }) => {
-    await gotoVisual(page, POPULATED_URL, { theme: "light" });
+    await gotoVisual(page, POPULATED_URL);
     await page.getByTestId("sidebar-tab-devices").click();
     await settle(page);
     await expect(page.getByTestId("drawer-left")).toHaveScreenshot(
@@ -89,7 +82,7 @@ test.describe("visual regression", () => {
   });
 
   test("sidebar - racks tab", async ({ page }) => {
-    await gotoVisual(page, POPULATED_URL, { theme: "light" });
+    await gotoVisual(page, POPULATED_URL);
     await page.getByTestId("sidebar-tab-racks").click();
     await settle(page);
     await expect(page.getByTestId("drawer-left")).toHaveScreenshot(
@@ -99,7 +92,7 @@ test.describe("visual regression", () => {
   });
 
   test("sidebar - layouts tab", async ({ page }) => {
-    await gotoVisual(page, POPULATED_URL, { theme: "light" });
+    await gotoVisual(page, POPULATED_URL);
     await page.getByTestId("sidebar-tab-layouts").click();
     await settle(page);
     await expect(page.getByTestId("drawer-left")).toHaveScreenshot(
@@ -109,7 +102,7 @@ test.describe("visual regression", () => {
   });
 
   test("dialog - export", async ({ page }) => {
-    await gotoVisual(page, POPULATED_URL, { theme: "light" });
+    await gotoVisual(page, POPULATED_URL);
     await page.getByRole("button", { name: "App menu" }).click();
     await page.getByTestId("app-menu-export").click();
     const dialog = page.locator(locators.dialog.root);
@@ -121,7 +114,7 @@ test.describe("visual regression", () => {
   });
 
   test("dialog - share", async ({ page }) => {
-    await gotoVisual(page, POPULATED_URL, { theme: "light" });
+    await gotoVisual(page, POPULATED_URL);
     await page.getByRole("button", { name: "App menu" }).click();
     await page.getByTestId("app-menu-share").click();
     const dialog = page.locator(locators.dialog.root);
@@ -139,7 +132,7 @@ test.describe("visual regression", () => {
   });
 
   test("dialog - import from NetBox", async ({ page }) => {
-    await gotoVisual(page, POPULATED_URL, { theme: "light" });
+    await gotoVisual(page, POPULATED_URL);
     await page.getByRole("button", { name: "App menu" }).click();
     await page.getByTestId("app-menu-import-netbox").click();
     const dialog = page.locator(locators.dialog.root);
@@ -151,7 +144,7 @@ test.describe("visual regression", () => {
   });
 
   test("menu - app", async ({ page }) => {
-    await gotoVisual(page, POPULATED_URL, { theme: "light" });
+    await gotoVisual(page, POPULATED_URL);
     await page.getByRole("button", { name: "App menu" }).click();
     const menu = page.getByRole("menu");
     await expect(menu).toBeVisible();
@@ -160,7 +153,7 @@ test.describe("visual regression", () => {
   });
 
   test("dialog - settings", async ({ page }) => {
-    await gotoVisual(page, POPULATED_URL, { theme: "light" });
+    await gotoVisual(page, POPULATED_URL);
     // Settings moved into the app menu behind the logo (#2398); open it via the
     // shared helper so the selector stays centralized.
     await clickSettings(page);

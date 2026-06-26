@@ -7,9 +7,7 @@ import {
   meetsLargeTextContrast,
   meetsUIComponentContrast,
   darkThemeColors,
-  lightThemeColors,
   draculaColors,
-  alucardColors,
 } from "$lib/utils/contrast";
 
 describe("Color Contrast Utilities", () => {
@@ -166,81 +164,6 @@ describe("Dark Theme Contrast (Dracula - WCAG AA)", () => {
   });
 });
 
-describe("Light Theme Contrast (Alucard - WCAG AA)", () => {
-  const {
-    bg,
-    surface,
-    text,
-    textMuted,
-    selection,
-    focusRing,
-    primary,
-    error,
-    success,
-    warning,
-  } = lightThemeColors;
-
-  describe("Primary text on background (4.5:1 required)", () => {
-    it("body text meets 4.5:1 contrast ratio", () => {
-      const ratio = getContrastRatio(text, bg);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-    });
-
-    it("body text on surface meets 4.5:1 contrast ratio", () => {
-      const ratio = getContrastRatio(text, surface);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-    });
-  });
-
-  describe("Muted text meets WCAG AA (4.5:1) on every light surface", () => {
-    // Mirror of the dark-theme assertion: the selection primitive (#CFCFDE) is
-    // the darkest light surface and the worst case for muted text contrast.
-    it.each([
-      ["background", bg],
-      ["surface", surface],
-      ["surface-raised", alucardColors.bgLighter],
-      ["selection (darkest)", alucardColors.selection],
-    ])("muted text meets 4.5:1 on %s", (_label, background) => {
-      const ratio = getContrastRatio(textMuted, background);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-    });
-  });
-
-  describe("Interactive colors (3:1+ for UI components)", () => {
-    it("selection color meets 3:1 on background", () => {
-      const ratio = getContrastRatio(selection, bg);
-      expect(ratio).toBeGreaterThanOrEqual(3);
-    });
-
-    it("primary color meets 3:1 on background", () => {
-      const ratio = getContrastRatio(primary, bg);
-      expect(ratio).toBeGreaterThanOrEqual(3);
-    });
-
-    it("error color meets 3:1 on background", () => {
-      const ratio = getContrastRatio(error, bg);
-      expect(ratio).toBeGreaterThanOrEqual(3);
-    });
-
-    it("success color meets 3:1 on background", () => {
-      const ratio = getContrastRatio(success, bg);
-      expect(ratio).toBeGreaterThanOrEqual(3);
-    });
-
-    it("warning color meets 3:1 on background", () => {
-      const ratio = getContrastRatio(warning, bg);
-      expect(ratio).toBeGreaterThanOrEqual(3);
-    });
-  });
-
-  describe("Focus states (3:1 required)", () => {
-    it("focus ring meets 3:1 on background", () => {
-      const ratio = getContrastRatio(focusRing, bg);
-      expect(ratio).toBeGreaterThanOrEqual(3);
-    });
-  });
-});
-
 describe("Contrast ratio documentation", () => {
   it("documents dark theme contrast ratios", () => {
     const {
@@ -280,45 +203,6 @@ describe("Contrast ratio documentation", () => {
     // Disabled text intentionally has lower contrast (non-essential)
     // WCAG exempts disabled elements from contrast requirements
     // We still ensure a minimum for visual clarity
-    expect(ratios["textDisabled on bg"]).toBeGreaterThanOrEqual(2);
-  });
-
-  it("documents light theme contrast ratios", () => {
-    const {
-      bg,
-      surface,
-      text,
-      textMuted,
-      textDisabled,
-      selection,
-      error,
-      focusRing,
-    } = lightThemeColors;
-
-    const ratios = {
-      "text on bg": getContrastRatio(text, bg),
-      "textMuted on bg": getContrastRatio(textMuted, bg),
-      "textDisabled on bg": getContrastRatio(textDisabled, bg),
-      "text on surface": getContrastRatio(text, surface),
-      "textMuted on surface": getContrastRatio(textMuted, surface),
-      "selection on bg": getContrastRatio(selection, bg),
-      "error on bg": getContrastRatio(error, bg),
-      "focusRing on bg": getContrastRatio(focusRing, bg),
-    };
-
-    // Primary text should have high contrast (10:1+)
-    expect(ratios["text on bg"]).toBeGreaterThan(10);
-
-    // Muted text (Alucard comment #6C664B) - intentionally lower contrast
-    // 3:1 is acceptable for secondary/muted content per WCAG guidelines
-    expect(ratios["textMuted on bg"]).toBeGreaterThanOrEqual(3);
-
-    // Interactive colors meet UI component contrast (3:1+)
-    expect(ratios["selection on bg"]).toBeGreaterThanOrEqual(3);
-    expect(ratios["error on bg"]).toBeGreaterThanOrEqual(3);
-
-    // Disabled text intentionally has lower contrast (non-essential)
-    // WCAG exempts disabled elements from contrast requirements
     expect(ratios["textDisabled on bg"]).toBeGreaterThanOrEqual(2);
   });
 });

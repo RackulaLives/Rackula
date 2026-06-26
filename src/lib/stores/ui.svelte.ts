@@ -1,14 +1,8 @@
 /**
  * UI Store
- * Manages theme, zoom, drawer state, and display mode using Svelte 5 runes
+ * Manages zoom, drawer state, and display mode using Svelte 5 runes
  */
 
-import {
-  loadThemeFromStorage,
-  saveThemeToStorage,
-  applyThemeToDocument,
-  type Theme,
-} from "$lib/utils/theme";
 import type { DisplayMode, AnnotationField } from "$lib/types";
 import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 
@@ -187,7 +181,6 @@ export const ZOOM_MAX = 200;
 export const ZOOM_STEP = 25;
 
 // Load initial values from storage
-const initialTheme = loadThemeFromStorage();
 const initialSidebarTab = loadSidebarTabFromStorage();
 const initialSidebarCollapsed = loadSidebarCollapsedFromStorage();
 const initialSidePanelTab = loadSidePanelTabFromStorage();
@@ -197,7 +190,6 @@ const initialPromptCleanup = loadPromptCleanupFromStorage();
 const initialCompatibleOnly = loadCompatibleOnlyFromStorage();
 
 // Module-level state (using $state rune)
-let theme = $state<Theme>(initialTheme);
 let zoom = $state(100);
 let leftDrawerOpen = $state(false);
 let rightDrawerOpen = $state(false);
@@ -228,14 +220,10 @@ const zoomScale = $derived(zoom / 100);
 // Derive showLabelsOnImages from displayMode for backward compatibility
 const showLabelsOnImages = $derived(displayMode === "image-label");
 
-// Apply initial theme to document (using the non-reactive initial value)
-applyThemeToDocument(initialTheme);
-
 /**
  * Reset the store to initial state (primarily for testing)
  */
 export function resetUIStore(): void {
-  theme = loadThemeFromStorage();
   zoom = 100;
   leftDrawerOpen = false;
   rightDrawerOpen = false;
@@ -252,7 +240,6 @@ export function resetUIStore(): void {
   compatibleOnly = loadCompatibleOnlyFromStorage();
   readOnly = false;
   deviceTypeDetailsExpanded = false;
-  applyThemeToDocument(theme);
 }
 
 /**
@@ -261,11 +248,6 @@ export function resetUIStore(): void {
  */
 export function getUIStore() {
   return {
-    // Theme state getters
-    get theme() {
-      return theme;
-    },
-
     // Zoom state getters
     get zoom() {
       return zoom;
@@ -342,10 +324,6 @@ export function getUIStore() {
       return deviceTypeDetailsExpanded;
     },
 
-    // Theme actions
-    toggleTheme,
-    setTheme,
-
     // Zoom actions
     zoomIn,
     zoomOut,
@@ -399,24 +377,6 @@ export function getUIStore() {
     // Device type details disclosure action
     toggleDeviceTypeDetailsExpanded,
   };
-}
-
-/**
- * Toggle between dark and light themes
- */
-function toggleTheme(): void {
-  const newTheme: Theme = theme === "dark" ? "light" : "dark";
-  setTheme(newTheme);
-}
-
-/**
- * Set a specific theme
- * @param newTheme - Theme to set
- */
-function setTheme(newTheme: Theme): void {
-  theme = newTheme;
-  saveThemeToStorage(newTheme);
-  applyThemeToDocument(newTheme);
 }
 
 /**

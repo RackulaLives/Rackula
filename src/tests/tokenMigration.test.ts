@@ -64,14 +64,13 @@ describe("Token Migration", () => {
     expect(true).toBe(true);
   });
 
-  it("theme switching variables are available", () => {
+  it("dark theme variables are available in :root", () => {
     const tokensPath = resolve(srcDir, "lib/styles/tokens.css");
     const tokensCSS = readFileSync(tokensPath, "utf-8");
 
-    // Check that both dark (default in :root) and light themes are defined
+    // The single (dark) theme lives in :root
     expect(tokensCSS).toContain(":root {");
     expect(tokensCSS).toContain("--colour-bg: var(--dracula-bg)"); // dark theme default
-    expect(tokensCSS).toContain('[data-theme="light"]');
   });
 
   describe("Hardcoded color detection", () => {

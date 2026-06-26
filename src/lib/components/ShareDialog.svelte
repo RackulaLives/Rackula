@@ -326,12 +326,10 @@
   }
 
   .qr-scan-label .brand {
-    /* The QR container is always white in both themes, so this brand text needs a
-       purple that clears WCAG AA on white. The Dracula dark-mode purple (#bd93f9)
-       only reaches 2.41:1 there; this is the Dracula light-mode (Alucard) purple,
-       which is on-brand and clears 4.5:1 at 6.24:1. Hardcoded rather than
-       var(--alucard-purple) because that token is only defined under
-       [data-theme="light"], and this label is white-backed in every theme. */
+    /* The QR container is always white, so this brand text needs a purple that
+       clears WCAG AA on white. The Dracula dark-mode purple (#bd93f9) only reaches
+       2.41:1 there; this darker on-brand purple clears 4.5:1 at 6.24:1. Hardcoded
+       because it is a fixed white-backed label, not themed app chrome. */
     color: #644ac9;
     font-weight: var(--font-weight-semibold);
   }

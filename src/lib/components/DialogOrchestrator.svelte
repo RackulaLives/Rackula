@@ -798,11 +798,6 @@
   function handleSetAnnotations(enabled: boolean) {
     uiStore.setAnnotations(enabled);
   }
-
-  function handleSetTheme(theme: "dark" | "light") {
-    if (uiStore.theme === theme) return;
-    uiStore.setTheme(theme);
-  }
 </script>
 
 <!-- Mobile bottom sheet for device details -->
@@ -1014,10 +1009,8 @@
     <MobileViewSheet
       displayMode={uiStore.displayMode}
       showAnnotations={uiStore.showAnnotations}
-      theme={uiStore.theme}
       ondisplaymodechange={handleSetDisplayMode}
       onannotationschange={handleSetAnnotations}
-      onthemechange={handleSetTheme}
       onfitall={handleFitAll}
       onresetzoom={() => canvasStore.resetZoom()}
       onclose={handleViewSheetActionClose}

@@ -29,10 +29,6 @@
   );
   let promptDismissed = $derived(!uiStore.promptCleanupOnSave);
 
-  function handleThemeChange(checked: boolean) {
-    uiStore.setTheme(checked ? "dark" : "light");
-  }
-
   function handleCleanup() {
     onopencleanup?.();
   }
@@ -48,14 +44,6 @@
       <h3 class="settings-section-title" id="settings-appearance">
         Appearance
       </h3>
-      <div class="settings-row">
-        <Switch
-          checked={uiStore.theme === "dark"}
-          label="Dark theme"
-          helperText="Switch between the dark and light colour schemes."
-          onchange={handleThemeChange}
-        />
-      </div>
       <div class="settings-row">
         <Switch
           checked={uiStore.showBanana}

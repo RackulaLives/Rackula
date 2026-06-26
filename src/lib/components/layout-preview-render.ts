@@ -19,15 +19,15 @@ import { generateExportSVG, exportAsSVG } from "$lib/utils/export";
 /**
  * Fixed options for the thumbnail render. Front view only, label display mode
  * (so previews work without device images), and no names/legend/QR chrome so
- * the miniature stays compact. The transparent background lets the row's own
- * surface colour show through and keeps light/dark themes consistent.
+ * the miniature stays compact. The dark background renders the rack with the
+ * dark palette so the thumbnail reads as a mini-canvas (the app is dark-only).
  */
 const PREVIEW_OPTIONS: ExportOptions = {
   format: "svg",
   scope: "all",
   includeNames: false,
   includeLegend: false,
-  background: "transparent",
+  background: "dark",
   exportView: "front",
   displayMode: "label",
   includeQR: false,

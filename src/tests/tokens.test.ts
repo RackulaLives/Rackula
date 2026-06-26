@@ -85,43 +85,6 @@ describe("Design Token System", () => {
     });
   });
 
-  describe("Primitives - Alucard Colors (Light Mode)", () => {
-    it("defines Alucard background tokens in light mode section", () => {
-      // Alucard backgrounds are defined in the [data-theme='light'] section
-      expect(tokensCSS).toContain("--alucard-bg-darkest:");
-      expect(tokensCSS).toContain("--alucard-bg-darker:");
-      expect(tokensCSS).toContain("--alucard-bg:");
-      expect(tokensCSS).toContain("--alucard-bg-light:");
-      expect(tokensCSS).toContain("--alucard-bg-lighter:");
-      expect(tokensCSS).toContain("--alucard-selection:");
-    });
-
-    it("defines Alucard text tokens", () => {
-      expect(tokensCSS).toContain("--alucard-foreground:");
-      expect(tokensCSS).toContain("--alucard-comment:");
-    });
-
-    it("defines Alucard accent tokens", () => {
-      expect(tokensCSS).toContain("--alucard-purple:");
-      expect(tokensCSS).toContain("--alucard-pink:");
-      expect(tokensCSS).toContain("--alucard-cyan:");
-      expect(tokensCSS).toContain("--alucard-green:");
-      expect(tokensCSS).toContain("--alucard-orange:");
-      expect(tokensCSS).toContain("--alucard-red:");
-      expect(tokensCSS).toContain("--alucard-yellow:");
-    });
-
-    it("defines correct Alucard hex values", () => {
-      // Verify key Alucard palette values (lowercase per prettier)
-      expect(tokensCSS).toContain("#fffbeb"); // bg (warm cream)
-      expect(tokensCSS).toContain("#1f1f1f"); // foreground
-      expect(tokensCSS).toContain("#644ac9"); // purple (darkened)
-      expect(tokensCSS).toContain("#036a96"); // cyan (darkened)
-      expect(tokensCSS).toContain("#14710a"); // green (darkened)
-      expect(tokensCSS).toContain("#cb3a2a"); // red (darkened)
-    });
-  });
-
   describe("Primitives - Typography", () => {
     it("defines font size scale", () => {
       const sizes = ["2xs", "xs", "sm", "base", "md", "lg", "xl", "2xl"];
@@ -222,14 +185,6 @@ describe("Design Token System", () => {
       expect(tokensCSS).toMatch(
         /--colour-selection:\s*var\(\s*--dracula-pink\s*\)/,
       );
-    });
-
-    it("has light theme overrides using Alucard primitives", () => {
-      expect(tokensCSS).toMatch(/\[data-theme="light"\]/);
-      // Verify light theme defines Alucard primitives
-      expect(tokensCSS).toContain('[data-theme="light"]');
-      expect(tokensCSS).toContain("--alucard-bg:");
-      expect(tokensCSS).toContain("--alucard-foreground:");
     });
   });
 });

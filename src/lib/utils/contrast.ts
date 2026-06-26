@@ -144,34 +144,6 @@ export const draculaColors = {
 } as const;
 
 /**
- * Alucard primitive color values for contrast testing.
- * Official Dracula light mode palette.
- */
-export const alucardColors = {
-  // Backgrounds
-  bgDarkest: "#BCBAB3",
-  bgDarker: "#CECCC0",
-  bg: "#FFFBEB",
-  bgLight: "#DEDCCF",
-  bgLighter: "#ECE9DF",
-  selection: "#CFCFDE",
-  floating: "#EFEDDC",
-
-  // Text
-  foreground: "#1F1F1F",
-  comment: "#6C664B",
-
-  // Accents
-  purple: "#644AC9",
-  pink: "#A3144D",
-  cyan: "#036A96",
-  green: "#14710A",
-  orange: "#A34D14",
-  red: "#CB3A2A",
-  yellow: "#846E15",
-} as const;
-
-/**
  * Dark theme semantic colors (Dracula).
  * BRAND.md v0.6.0: Selection/focus uses pink, muted text improved contrast.
  */
@@ -192,26 +164,6 @@ export const darkThemeColors = {
 } as const;
 
 /**
- * Light theme semantic colors (Alucard).
- * BRAND.md v0.6.0: Selection/focus uses pink.
- */
-export const lightThemeColors = {
-  bg: alucardColors.bg,
-  surface: alucardColors.bgLight,
-  surfaceRaised: alucardColors.bgLighter,
-  text: alucardColors.foreground,
-  textMuted: "#5C5647", // WCAG AA: darker Alucard olive, clears 4.5:1 on every light surface (4.74:1 on #CFCFDE, the darkest)
-  textDisabled: alucardColors.comment,
-  selection: alucardColors.pink, // BRAND.md v0.6.0: pink (not purple)
-  focusRing: alucardColors.pink, // BRAND.md v0.6.0: pink (not purple)
-  primary: alucardColors.cyan,
-  error: alucardColors.red,
-  success: alucardColors.green,
-  warning: alucardColors.orange,
-  border: alucardColors.bgLight,
-} as const;
-
-/**
- * Rack background color (stays dark in both themes).
+ * Rack background color (stays dark).
  */
 export const RACK_BG = tokenColors["neutral-900"];

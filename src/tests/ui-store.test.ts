@@ -29,70 +29,11 @@ Object.defineProperty(globalThis, "localStorage", {
   writable: true,
 });
 
-// Mock document.documentElement
-const documentMock = {
-  dataset: {} as Record<string, string>,
-};
-Object.defineProperty(globalThis, "document", {
-  value: { documentElement: documentMock },
-  writable: true,
-});
-
 describe("UI Store", () => {
   beforeEach(() => {
     localStorageMock.clear();
     vi.clearAllMocks();
-    documentMock.dataset = {};
     resetUIStore();
-  });
-
-  describe("Theme", () => {
-    it("initial theme is dark when localStorage empty", () => {
-      const store = getUIStore();
-      expect(store.theme).toBe("dark");
-    });
-
-    it("initial theme loads from localStorage", () => {
-      localStorageMock.getItem.mockReturnValueOnce("light");
-      resetUIStore();
-      const store = getUIStore();
-      expect(store.theme).toBe("light");
-    });
-
-    it("toggleTheme switches between dark and light", () => {
-      const store = getUIStore();
-      expect(store.theme).toBe("dark");
-
-      store.toggleTheme();
-      expect(store.theme).toBe("light");
-
-      store.toggleTheme();
-      expect(store.theme).toBe("dark");
-    });
-
-    it("setTheme applies specified theme", () => {
-      const store = getUIStore();
-      store.setTheme("light");
-      expect(store.theme).toBe("light");
-
-      store.setTheme("dark");
-      expect(store.theme).toBe("dark");
-    });
-
-    it("theme change persists to localStorage", () => {
-      const store = getUIStore();
-      store.setTheme("light");
-      expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        "Rackula_theme",
-        "light",
-      );
-    });
-
-    it("theme change updates document dataset", () => {
-      const store = getUIStore();
-      store.setTheme("light");
-      expect(documentMock.dataset["theme"]).toBe("light");
-    });
   });
 
   describe("Zoom", () => {

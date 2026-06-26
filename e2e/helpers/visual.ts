@@ -1,15 +1,13 @@
 /**
  * Helpers for the visual-regression suite (visual-regression.spec.ts).
  *
- * The goal is a deterministic screenshot every run: pin the theme via
- * localStorage before the app boots, clear any persisted layouts so the canvas
- * empty state renders, wait for the self-hosted fonts to finish loading, and let
- * the network settle before the shot.
+ * The goal is a deterministic screenshot every run: clear any persisted state
+ * before the app boots so the canvas empty state renders, wait for the
+ * self-hosted fonts to finish loading, and let the network settle before the
+ * shot. The app is dark-only, so there is no theme to pin.
  */
 import type { Locator, Page } from "@playwright/test";
 import { locators } from "./locators";
-
-export type Theme = "dark" | "light";
 
 /** Fixed viewport so layout and framing are stable across runs. */
 export const VISUAL_VIEWPORT = { width: 1280, height: 720 } as const;
@@ -28,26 +26,19 @@ export function dynamicMasks(page: Page): Locator[] {
 }
 
 /**
- * Navigate to the app with a pinned theme and a clean storage slate, then wait
- * until it is visually settled (shell rendered, fonts loaded, network idle).
+ * Navigate to the app with a clean storage slate, then wait until it is visually
+ * settled (shell rendered, fonts loaded, network idle).
  *
  * @param path Relative URL. "/" for the empty-state canvas, "/?l=<share>" for a rack.
  */
-export async function gotoVisual(
-  page: Page,
-  path: string,
-  options: { theme?: Theme } = {},
-): Promise<void> {
-  const theme = options.theme ?? "dark";
-
-  await page.addInitScript((t) => {
+export async function gotoVisual(page: Page, path: string): Promise<void> {
+  await page.addInitScript(() => {
     try {
       localStorage.clear();
-      localStorage.setItem("Rackula_theme", t);
     } catch {
-      // Storage may be unavailable; the app falls back to its default theme.
+      // Storage may be unavailable; the app falls back to its defaults.
     }
-  }, theme);
+  });
 
   await page.setViewportSize(VISUAL_VIEWPORT);
   await page.goto(path);
