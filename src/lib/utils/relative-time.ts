@@ -1,0 +1,28 @@
+/**
+ * Format an ISO timestamp as elapsed time relative to now, for the storage chip
+ * popover. Returns null for null or unparseable input so the caller can choose
+ * its own copy (for example "Never exported"). Under 45 seconds (including small
+ * negative skew) it returns "just now". `nowMs` is injectable for deterministic
+ * tests.
+ */
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+
+const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "always" });
+
+export function formatRelativeTime(
+  iso: string | null,
+  nowMs: number = Date.now(),
+): string | null {
+  if (!iso) return null;
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return null;
+
+  const elapsed = nowMs - then;
+  if (elapsed < 45 * SECOND) return "just now";
+  if (elapsed < HOUR) return rtf.format(-Math.round(elapsed / MINUTE), "minute");
+  if (elapsed < DAY) return rtf.format(-Math.round(elapsed / HOUR), "hour");
+  return rtf.format(-Math.round(elapsed / DAY), "day");
+}
