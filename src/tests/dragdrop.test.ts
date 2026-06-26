@@ -251,14 +251,14 @@ describe("Drag and Drop Utilities", () => {
       expect(feedback).toBe("valid");
     });
 
-    it("allows drop on rear when full-depth device has face set to front", () => {
-      // Face-authoritative: face: "front" only blocks front, regardless of is_full_depth
+    it("blocks drop on rear when full-depth device is stored as front-only", () => {
+      // Full-depth devices occupy both faces regardless of stored face (#2337)
       const rackWithFrontOnlyDevice: Rack = {
         ...emptyRack,
         devices: [pd("front-full", "full-server", 5, "front")],
       };
 
-      // Dropping on rear at U5 should be valid (face: "front" doesn't block rear)
+      // Dropping on rear at U5 should be blocked (full-depth spans both faces)
       const feedback = getDropFeedback(
         rackWithFrontOnlyDevice,
         deviceLibrary,
@@ -267,7 +267,7 @@ describe("Drag and Drop Utilities", () => {
         undefined,
         "rear",
       );
-      expect(feedback).toBe("valid");
+      expect(feedback).toBe("blocked");
     });
 
     it("blocks drop on rear when device has face set to both", () => {

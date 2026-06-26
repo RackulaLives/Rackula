@@ -544,27 +544,27 @@ describe("Face-Authoritative Collision Detection", () => {
   });
 
   describe("canPlaceDevice with face-based collision", () => {
-    it("allows placing rear device when front device exists at same U", () => {
-      // Device on front at U5 (position 30)
-      const device = createTestDevice("device-1", 2);
+    it("allows placing rear device when half-depth front device exists at same U", () => {
+      // Half-depth device on front at U5 (position 30)
+      const device = createTestDevice("device-1", 2, { is_full_depth: false });
       const rack = createTestRack(42, [
         { device_type: "device-1", position: 30, face: "front" },
       ]);
 
-      // Face is authoritative: front doesn't block rear
+      // Half-depth front device does not block the rear face
       expect(canPlaceDevice(rack, [device], 2, 30, undefined, "rear")).toBe(
         true,
       );
     });
 
-    it("allows placing front device when rear device exists at same U", () => {
-      // Device on rear at U5 (position 30)
-      const device = createTestDevice("device-1", 2);
+    it("allows placing front device when half-depth rear device exists at same U", () => {
+      // Half-depth device on rear at U5 (position 30)
+      const device = createTestDevice("device-1", 2, { is_full_depth: false });
       const rack = createTestRack(42, [
         { device_type: "device-1", position: 30, face: "rear" },
       ]);
 
-      // Face is authoritative: rear doesn't block front
+      // Half-depth rear device does not block the front face
       expect(canPlaceDevice(rack, [device], 2, 30, undefined, "front")).toBe(
         true,
       );
@@ -596,18 +596,16 @@ describe("Face-Authoritative Collision Detection", () => {
       );
     });
 
-    it("allows rear placement when full-depth device face is overridden to front", () => {
-      // This is the key fix for issue #444
-      // Full-depth device with face explicitly set to 'front'
+    it("rejects rear placement for full-depth device regardless of stored face", () => {
+      // Full-depth device stored with face: "front" (e.g. legacy data or import)
       const device = createTestDevice("full-depth", 2, { is_full_depth: true });
       const rack = createTestRack(42, [
-        { device_type: "full-depth", position: 30, face: "front" }, // Face overridden!
+        { device_type: "full-depth", position: 30, face: "front" },
       ]);
 
-      // Face is authoritative: even though device type is full-depth,
-      // the placed device's face is 'front', so it only blocks front
+      // Full-depth devices occupy both faces; stored face is not authoritative (#2337)
       expect(canPlaceDevice(rack, [device], 2, 30, undefined, "rear")).toBe(
-        true,
+        false,
       );
     });
 

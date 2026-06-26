@@ -18,6 +18,7 @@ import type {
 } from "$lib/types";
 import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 import { findDeviceType } from "$lib/utils/device-lookup";
+import { effectiveFace } from "./effective-face";
 
 /**
  * Check if a placed device is a container child
@@ -166,10 +167,10 @@ export function canPlaceDevice(
         device.u_height,
       );
       // Check U range overlap AND face collision.
-      // Face is authoritative: only the explicit face value matters for collision
+      // Use effectiveFace so full-depth devices collide on both faces.
       if (
         doRangesOverlap(newRange, existingRange) &&
-        doFacesCollide(targetFace, placedDevice.face)
+        doFacesCollide(targetFace, effectiveFace(placedDevice, device))
       ) {
         return false;
       }
@@ -223,10 +224,10 @@ export function findCollisions(
         device.u_height,
       );
       // Check U range overlap AND face collision.
-      // Face is authoritative: only the explicit face value matters for collision
+      // Use effectiveFace so full-depth devices collide on both faces.
       if (
         doRangesOverlap(newRange, existingRange) &&
-        doFacesCollide(targetFace, placedDevice.face)
+        doFacesCollide(targetFace, effectiveFace(placedDevice, device))
       ) {
         collisions.push(placedDevice);
       }
