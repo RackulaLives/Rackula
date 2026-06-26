@@ -113,5 +113,9 @@ export {
   isStorageModeFromOverride,
   clearStorageModeOverride,
 } from "./availability.svelte";
-export { switchToServerMode } from "./server-opt-in.svelte";
-export type { SwitchResult } from "./server-opt-in.svelte";
+export {
+  switchToServerMode,
+  confirmServerOverwrite,
+  adoptServerCopy,
+} from "./server-opt-in.svelte";
+export type { SwitchResult, ServerCopyInfo } from "./server-opt-in.svelte";
