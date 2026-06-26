@@ -7,6 +7,7 @@
 
 import type { Rack, DeviceType, RackView } from "$lib/types";
 import { toHumanUnits } from "$lib/utils/position";
+import { effectiveFace } from "./effective-face";
 
 /**
  * Represents a range of U positions (inclusive)
@@ -39,27 +40,20 @@ export function getBlockedSlots(
   const blocked: URange[] = [];
 
   for (const placedDevice of rack.devices) {
-    // Skip devices on the same face (they're visible, no need for hatching)
-    if (placedDevice.face === view) continue;
-
-    // Skip 'both' face devices (they're visible on both faces)
-    if (placedDevice.face === "both") continue;
-
-    // Find the device type to get height and full-depth info
+    // Find the device type to get height and depth.
     const deviceType = deviceLibrary.find(
       (d) => d.slug === placedDevice.device_type,
     );
     if (!deviceType) continue;
 
-    // Check if this device is half-depth
-    // Only half-depth devices need hatching (full-depth devices are visible from both sides)
-    const isFullDepth = deviceType.is_full_depth !== false; // undefined or true = full depth
+    const face = effectiveFace(placedDevice, deviceType);
 
-    // Skip full-depth devices (they're visible from both sides, rendered as actual devices)
-    if (isFullDepth) continue;
+    // Same face: visible, no hatching. Full-depth ("both"): visible on both
+    // sides, no hatching.
+    if (face === view || face === "both") continue;
 
-    // Calculate the U range this half-depth device occupies
-    // Position is in internal units (6 per U), convert to human units for rendering
+    // A half-depth device on the opposite face: hatch the slots it occupies.
+    // Position is in internal units (6 per U); convert to human units.
     const positionU = toHumanUnits(placedDevice.position);
     const bottom = positionU;
     const top = positionU + deviceType.u_height - 1;

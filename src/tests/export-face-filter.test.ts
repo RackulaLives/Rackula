@@ -38,7 +38,7 @@ describe("PNG export — face filtering (#1681)", () => {
     const deviceType = createTestDeviceType({
       slug: "front-only-server",
       u_height: 2,
-      is_full_depth: true,
+      is_full_depth: false,
     });
 
     const rack = createTestRack({
@@ -98,7 +98,7 @@ describe("PNG export — face filtering (#1681)", () => {
     const deviceType = createTestDeviceType({
       slug: "rear-only-pdu",
       u_height: 1,
-      is_full_depth: true,
+      is_full_depth: false,
     });
 
     const rack = createTestRack({

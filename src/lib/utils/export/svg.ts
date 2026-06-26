@@ -12,6 +12,7 @@ import type {
 import type { ImageStoreMap } from "$lib/types/images";
 import { placementKey } from "$lib/utils/placement-key";
 import { getBlockedSlots } from "../blocked-slots";
+import { effectiveFace } from "$lib/utils/effective-face";
 import {
   fitTextToWidth,
   DEVICE_LABEL_MAX_FONT,
@@ -78,9 +79,16 @@ const LIGHT_GRID = "#a0a0a0";
 function filterDevicesByFace(
   devices: Rack["devices"],
   faceFilter: "front" | "rear" | undefined,
+  deviceLibrary: DeviceType[],
 ): Rack["devices"] {
   if (!faceFilter) return devices;
-  return devices.filter((d) => d.face === "both" || d.face === faceFilter);
+  return devices.filter((d) => {
+    const face = effectiveFace(
+      d,
+      deviceLibrary.find((dt) => dt.slug === d.device_type),
+    );
+    return face === "both" || face === faceFilter;
+  });
 }
 
 /**
@@ -819,7 +827,11 @@ export function generateExportSVG(
     }
 
     // Filter and render devices
-    const filteredDevices = filterDevicesByFace(rack.devices, faceFilter);
+    const filteredDevices = filterDevicesByFace(
+      rack.devices,
+      faceFilter,
+      deviceLibrary,
+    );
     for (const placedDevice of filteredDevices) {
       const device = deviceLibrary.find(
         (d) => d.slug === placedDevice.device_type,
