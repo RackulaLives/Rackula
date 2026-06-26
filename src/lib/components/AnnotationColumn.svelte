@@ -20,6 +20,7 @@
     ANNOTATION_WIDTH_COMPACT,
   } from "$lib/constants/layout";
   import { toHumanUnits } from "$lib/utils/position";
+  import { effectiveFace } from "$lib/utils/effective-face";
 
   interface Props {
     rack: RackType;
@@ -101,10 +102,14 @@
     RACK_PADDING_HIDDEN + RAIL_WIDTH * 2 + rack.height * U_HEIGHT_PX,
   );
 
-  // Filter devices by face if faceFilter is provided
+  // Filter devices by face if faceFilter is provided. Full-depth devices occupy
+  // both faces, so they annotate on either side.
   const filteredDevices = $derived(
     faceFilter
-      ? rack.devices.filter((d) => d.face === faceFilter)
+      ? rack.devices.filter((d) => {
+          const face = effectiveFace(d, deviceTypeMap.get(d.device_type));
+          return face === "both" || face === faceFilter;
+        })
       : rack.devices,
   );
 
