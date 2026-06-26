@@ -14,6 +14,7 @@ import {
 } from "node:fs/promises";
 import { join } from "node:path";
 import * as yaml from "js-yaml";
+import { SNAPSHOT_NAME_PATTERN } from "./snapshot-name";
 import {
   LayoutFileSchema,
   isUuid,
@@ -159,8 +160,6 @@ function formatSnapshotTimestamp(date: Date): string {
     `-${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}`
   );
 }
-
-export const SNAPSHOT_NAME_PATTERN = /~(\d{8}-\d{6})(?:-(\d+))?\.yaml$/;
 
 // Control characters (ASCII 0x00-0x1F and 0x7F) are never valid in a snapshot
 // filename and must be rejected before any filesystem access.

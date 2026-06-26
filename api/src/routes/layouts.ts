@@ -21,17 +21,8 @@
 import { Hono } from "hono";
 import * as yaml from "js-yaml";
 import { UuidSchema, LayoutFileSchema } from "../schemas/layout";
-import {
-  listLayouts,
-  getLayout,
-  saveLayout,
-  deleteLayout,
-  listSnapshots,
-  getSnapshot,
-  saveSnapshot,
-  getPreCarrierBackup,
-  SNAPSHOT_NAME_PATTERN,
-} from "../storage/filesystem";
+import type { StorageVariables } from "../storage/driver";
+import { SNAPSHOT_NAME_PATTERN } from "../storage/snapshot-name";
 import { deleteLayoutAssets } from "../storage/assets";
 import { logger } from "../logger";
 
@@ -66,12 +57,12 @@ function isValidSnapshotFilenameParam(filename: string): boolean {
   return SNAPSHOT_NAME_PATTERN.test(filename);
 }
 
-const layouts = new Hono();
+const layouts = new Hono<{ Variables: StorageVariables }>();
 
 // List all layouts
 layouts.get("/", async (c) => {
   try {
-    const items = await listLayouts();
+    const items = await c.get("storage").listLayouts();
     return c.json({ layouts: items });
   } catch (error) {
     logger.error({ err: error }, "Failed to list layouts");
@@ -89,7 +80,7 @@ layouts.get("/:uuid", async (c) => {
   }
 
   try {
-    const layout = await getLayout(uuidResult.data);
+    const layout = await c.get("storage").getLayout(uuidResult.data);
     if (!layout) {
       return c.json({ error: "Layout not found" }, 404);
     }
@@ -160,14 +151,17 @@ layouts.put("/:uuid", async (c) => {
       }
     }
 
-    const result = await saveLayout(
-      yamlContent,
-      uuidResult.data,
-      c.req.header(UPDATED_AT_HEADER),
-      {
-        preCarrierMigration: c.req.header(PRE_CARRIER_MIGRATION_HEADER) === "1",
-      },
-    );
+    const result = await c
+      .get("storage")
+      .saveLayout(
+        yamlContent,
+        uuidResult.data,
+        c.req.header(UPDATED_AT_HEADER),
+        {
+          preCarrierMigration:
+            c.req.header(PRE_CARRIER_MIGRATION_HEADER) === "1",
+        },
+      );
 
     c.header(UPDATED_AT_HEADER, result.updatedAt);
     return c.json(
@@ -205,7 +199,7 @@ layouts.delete("/:uuid", async (c) => {
   }
 
   try {
-    const deleted = await deleteLayout(uuidResult.data);
+    const deleted = await c.get("storage").deleteLayout(uuidResult.data);
     if (!deleted) {
       return c.json({ error: "Layout not found" }, 404);
     }
@@ -239,7 +233,7 @@ layouts.get("/:uuid/snapshots", async (c) => {
   }
 
   try {
-    const snapshots = await listSnapshots(uuidResult.data);
+    const snapshots = await c.get("storage").listSnapshots(uuidResult.data);
     if (snapshots === null) {
       return c.json({ error: "Layout not found" }, 404);
     }
@@ -269,7 +263,9 @@ layouts.get("/:uuid/snapshots/:filename", async (c) => {
   }
 
   try {
-    const content = await getSnapshot(uuidResult.data, filename);
+    const content = await c
+      .get("storage")
+      .getSnapshot(uuidResult.data, filename);
     if (content === null) {
       return c.json({ error: "Snapshot not found" }, 404);
     }
@@ -307,7 +303,9 @@ layouts.post("/:uuid/snapshots", async (c) => {
       return c.json({ error: `Invalid YAML: ${message}` }, 400);
     }
 
-    const result = await saveSnapshot(uuidResult.data, yamlContent);
+    const result = await c
+      .get("storage")
+      .saveSnapshot(uuidResult.data, yamlContent);
     if (!result) {
       return c.json({ error: "Layout not found" }, 404);
     }
@@ -335,7 +333,7 @@ layouts.get("/:uuid/pre-carrier-backup", async (c) => {
   }
 
   try {
-    const content = await getPreCarrierBackup(uuidResult.data);
+    const content = await c.get("storage").getPreCarrierBackup(uuidResult.data);
     if (content === null) {
       return c.json({ error: "Pre-carrier backup not found" }, 404);
     }

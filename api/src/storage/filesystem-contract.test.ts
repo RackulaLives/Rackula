@@ -21,7 +21,8 @@ async function makeFilesystemDriver(): Promise<{
   const previousDataDir = process.env.DATA_DIR;
   process.env.DATA_DIR = dataDir;
 
-  const { saveLayout, getLayout } = await import("./filesystem");
+  const { createFilesystemDriver } = await import("./filesystem-driver");
+  const fsDriver = createFilesystemDriver();
 
   async function snapshotContents(id: string): Promise<string[]> {
     const entries = await readdir(dataDir, { withFileTypes: true });
@@ -47,11 +48,15 @@ async function makeFilesystemDriver(): Promise<{
 
   const driver: StorageContractDriver = {
     async saveLayout(id, yamlContent, echoedUpdatedAt) {
-      const result = await saveLayout(yamlContent, id, echoedUpdatedAt);
+      const result = await fsDriver.saveLayout(
+        yamlContent,
+        id,
+        echoedUpdatedAt,
+      );
       return { updatedAt: result.updatedAt };
     },
     getLayout(id) {
-      return getLayout(id);
+      return fsDriver.getLayout(id);
     },
     getSnapshotContents(id) {
       return snapshotContents(id);

@@ -22,6 +22,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp } from "../app";
 import type { EnvMap } from "../security";
+import type { StorageDriver } from "../storage/driver";
 
 type App = Awaited<ReturnType<typeof createApp>>;
 
@@ -198,5 +199,100 @@ describe("PUT /layouts/:uuid schema validation (#2449)", () => {
     expect(res.status).toBe(201);
     const data = await res.json();
     expect(data.id).toBe(URL_UUID);
+  });
+});
+
+describe("createApp storage driver injection (#2624)", () => {
+  it("routes resolve the storage driver provided via deps, not the filesystem", async () => {
+    // A stub driver records which methods the routes call and returns a
+    // sentinel updatedAt. If the routes still imported the filesystem free
+    // functions directly, this driver would be ignored and the sentinel would
+    // never surface — so the assertions below prove the per-request seam.
+    const calls: string[] = [];
+    const sentinelUpdatedAt = "2030-01-01T00:00:00.000Z";
+    const stub: StorageDriver = {
+      async listLayouts() {
+        calls.push("listLayouts");
+        return [];
+      },
+      async getLayout() {
+        calls.push("getLayout");
+        return null;
+      },
+      async saveLayout() {
+        calls.push("saveLayout");
+        return { id: URL_UUID, isNew: true, updatedAt: sentinelUpdatedAt };
+      },
+      async deleteLayout() {
+        calls.push("deleteLayout");
+        return false;
+      },
+      async listSnapshots() {
+        calls.push("listSnapshots");
+        return null;
+      },
+      async getSnapshot() {
+        calls.push("getSnapshot");
+        return null;
+      },
+      async saveSnapshot() {
+        calls.push("saveSnapshot");
+        return null;
+      },
+      async getPreCarrierBackup() {
+        calls.push("getPreCarrierBackup");
+        return null;
+      },
+    };
+
+    const stubApp = await createApp(
+      {
+        NODE_ENV: "test",
+        DATA_DIR: testDir,
+        RACKULA_RATE_LIMIT_ENABLED: "false",
+      } satisfies EnvMap,
+      { storage: stub },
+    );
+
+    // Exercise every layout route so each one is proven to resolve the driver
+    // from context. A route reverting to a direct filesystem import (the bypass
+    // class this seam removes) would not record a call on the stub.
+    const snapshotFilename = "injected~20260101-000000.yaml";
+    await stubApp.request("/layouts");
+    await stubApp.request(`/layouts/${URL_UUID}`);
+    const putRes = await stubApp.request(`/layouts/${URL_UUID}`, {
+      method: "PUT",
+      headers: { "Content-Type": "text/yaml" },
+      body: layoutYaml("Injected", URL_UUID),
+    });
+    await stubApp.request(`/layouts/${URL_UUID}`, { method: "DELETE" });
+    await stubApp.request(`/layouts/${URL_UUID}/snapshots`);
+    await stubApp.request(`/layouts/${URL_UUID}/snapshots/${snapshotFilename}`);
+    await stubApp.request(`/layouts/${URL_UUID}/snapshots`, {
+      method: "POST",
+      headers: { "Content-Type": "text/yaml" },
+      body: "version: '1'\nname: Snap\nracks: []",
+    });
+    await stubApp.request(`/layouts/${URL_UUID}/pre-carrier-backup`);
+
+    // The PUT return value flows back through the route, proving the injected
+    // driver's result (not the filesystem's) is what the handler returns.
+    expect(putRes.status).toBe(201);
+    expect(putRes.headers.get("X-Rackula-Updated-At")).toBe(sentinelUpdatedAt);
+
+    // Every driver method backing a layout route was invoked via the context.
+    const expectedDriverCalls = [
+      "listLayouts",
+      "getLayout",
+      "saveLayout",
+      "deleteLayout",
+      "listSnapshots",
+      "getSnapshot",
+      "saveSnapshot",
+      "getPreCarrierBackup",
+    ];
+    for (const method of expectedDriverCalls) {
+      expect(calls).toContain(method);
+    }
   });
 });

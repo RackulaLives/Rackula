@@ -1,4 +1,4 @@
-import { Hono, type Context } from "hono";
+import { Hono, type Context, type Env } from "hono";
 import { cors } from "hono/cors";
 import { logger as honoLogger } from "hono/logger";
 import { bodyLimit } from "hono/body-limit";
@@ -38,6 +38,8 @@ import {
 } from "./local-auth";
 import pkg from "../package.json";
 import { logger } from "./logger";
+import type { StorageDriver, StorageVariables } from "./storage/driver";
+import { createFilesystemDriver } from "./storage/filesystem-driver";
 
 const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
 const DEFAULT_MAX_LAYOUT_SIZE = 1 * 1024 * 1024; // 1MB
@@ -77,11 +79,17 @@ export function resolveVersionInfo(env: EnvMap = process.env): VersionInfo {
 }
 
 type AppEnv = {
-  Variables: {
+  Variables: StorageVariables & {
     authSubject: string;
     authClaims: AuthSessionClaims | undefined;
   };
 };
+
+/** Optional dependency overrides for {@link createApp}. */
+export interface CreateAppDeps {
+  /** Storage backend; defaults to the filesystem driver (self-host / Bun). */
+  storage?: StorageDriver;
+}
 
 type BetterAuthSessionLike = {
   session: {
@@ -279,8 +287,20 @@ function validateFallbackSessionClaims(
  */
 export async function createApp(
   env: EnvMap = process.env,
+  deps: CreateAppDeps = {},
 ): Promise<Hono<AppEnv>> {
   const app = new Hono<AppEnv>();
+
+  // Storage driver seam (#2624): resolve the backend once and inject it per
+  // request. Defaults to the filesystem driver (self-host / Bun); the Workers
+  // entry (#2626) passes an R2-backed driver instead. Route handlers read it
+  // from the context rather than importing the filesystem free functions.
+  const storage = deps.storage ?? createFilesystemDriver();
+  app.use("*", async (c, next) => {
+    c.set("storage", storage);
+    await next();
+  });
+
   const securityConfig = resolveApiSecurityConfig(env);
   configureAuthLogHashKey(securityConfig.authLogHashKey);
 
@@ -886,7 +906,10 @@ export async function createApp(
   // at the /api/* alias for direct access. Using a helper keeps the two
   // mounts adjacent so a new router can't be added at one path and silently
   // missed at the other.
-  const mountWithAlias = (path: `/${string}`, router: Hono) => {
+  const mountWithAlias = <E extends Env>(
+    path: `/${string}`,
+    router: Hono<E>,
+  ) => {
     app.route(path, router);
     app.route(`/api${path}`, router);
   };
