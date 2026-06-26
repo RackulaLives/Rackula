@@ -47,6 +47,8 @@ export interface LayoutDurability {
   hasEverExported: boolean;
   isHealthy: boolean;
   label: string;
+  shortLabel: string;
+  showLocation: boolean;
   detail: string;
   icon: DurabilityStatus;
   /**
@@ -55,6 +57,7 @@ export interface LayoutDurability {
    * only, never a toast, and never changes the status/label/kind.
    */
   serverHint: boolean;
+  lastExportedAt: string | null;
 }
 
 /**
@@ -79,6 +82,8 @@ export function computeLayoutStatus(
   status: DurabilityStatus;
   kind: DurabilityKind;
   label: string;
+  shortLabel: string;
+  showLocation: boolean;
   detail: string;
   icon: DurabilityStatus;
 } {
@@ -92,6 +97,8 @@ export function computeLayoutStatus(
         status: "saved",
         kind: "saved",
         label: "Saved",
+        shortLabel: "Saved",
+        showLocation: true,
         detail: "Stored in this browser",
         icon: "saved",
       };
@@ -100,6 +107,8 @@ export function computeLayoutStatus(
       status: "pending",
       kind: "pending",
       label: "Unsaved changes",
+      shortLabel: "Unsaved",
+      showLocation: true,
       detail: "Stored in this browser",
       icon: "pending",
     };
@@ -114,6 +123,8 @@ export function computeLayoutStatus(
       status: "error",
       kind: "offline",
       label: "Server unavailable",
+      shortLabel: "Server unavailable",
+      showLocation: false,
       detail: "Working from your browser; reload to retry.",
       icon: "error",
     };
@@ -123,6 +134,8 @@ export function computeLayoutStatus(
       status: "pending",
       kind: "pending",
       label: "Checking connection",
+      shortLabel: "Connecting",
+      showLocation: true,
       detail: "Looking for the server.",
       icon: "pending",
     };
@@ -138,6 +151,8 @@ export function computeLayoutStatus(
         status: "error",
         kind: "offline",
         label: "Offline",
+        shortLabel: "Offline",
+        showLocation: true,
         detail: "Working from your browser; reload to retry.",
         icon: "error",
       };
@@ -146,6 +161,8 @@ export function computeLayoutStatus(
       status: "error",
       kind: "server-not-found",
       label: "Server not found",
+      shortLabel: "Server not found",
+      showLocation: false,
       detail:
         "Check that the API container is running and RACKULA_STORAGE_MODE matches the deployment.",
       icon: "error",
@@ -156,6 +173,8 @@ export function computeLayoutStatus(
       status: "error",
       kind: "offline",
       label: "Save error",
+      shortLabel: "Save error",
+      showLocation: true,
       detail: "The last save did not go through.",
       icon: "error",
     };
@@ -165,6 +184,8 @@ export function computeLayoutStatus(
       status: "pending",
       kind: "pending",
       label: "Saving",
+      shortLabel: "Saving",
+      showLocation: true,
       detail: "Saving to server.",
       icon: "pending",
     };
@@ -174,6 +195,8 @@ export function computeLayoutStatus(
       status: "saved",
       kind: "saved",
       label: "Saved",
+      shortLabel: "Saved",
+      showLocation: true,
       detail: "Saved to server",
       icon: "saved",
     };
@@ -182,6 +205,8 @@ export function computeLayoutStatus(
     status: "pending",
     kind: "pending",
     label: "Pending save",
+    shortLabel: "Pending",
+    showLocation: true,
     detail: "Saving to server.",
     icon: "pending",
   };
@@ -237,6 +262,9 @@ export function getLayoutDurability(
     get hasEverExported(): boolean {
       return layoutStore.hasEverExported;
     },
+    get lastExportedAt(): string | null {
+      return layoutStore.lastExportedAt;
+    },
     get status(): DurabilityStatus {
       return compute().status;
     },
@@ -248,6 +276,12 @@ export function getLayoutDurability(
     },
     get label(): string {
       return compute().label;
+    },
+    get shortLabel(): string {
+      return compute().shortLabel;
+    },
+    get showLocation(): boolean {
+      return compute().showLocation;
     },
     get detail(): string {
       return compute().detail;
@@ -289,9 +323,12 @@ export function rollupDurabilities(
       hasEverExported: false,
       isHealthy: true,
       label: "All saved",
+      shortLabel: "Saved",
+      showLocation: true,
       detail: "",
       icon: "saved",
       serverHint: false,
+      lastExportedAt: null,
     };
   }
   return worst;
