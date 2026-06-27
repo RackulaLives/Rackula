@@ -19,6 +19,9 @@ describe("StorageDetailsPopover", () => {
     expect(screen.getByText(/auto-saved/i)).toBeInTheDocument();
     expect(screen.getByText(/never exported/i)).toBeInTheDocument();
     expect(
+      screen.getByText(/3 changes since last export/i),
+    ).toBeInTheDocument();
+    expect(
       screen.getByText(/stored in this browser only/i),
     ).toBeInTheDocument();
   });
