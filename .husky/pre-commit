@@ -11,8 +11,20 @@ fi
 
 STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|ts|svelte|json|md|css|html)$' || true)
 if [ -n "$STAGED" ]; then
-  echo "$STAGED" | tr '\n' '\0' | xargs -0 node node_modules/prettier/bin/prettier.cjs --write --ignore-unknown || {
-    echo "Warning: Prettier formatting failed for some files" >&2
+  # Resolve prettier through node's module resolution instead of a hard-coded
+  # ./node_modules path. Linked git worktrees have no local node_modules, but
+  # they nest under the primary checkout, so require.resolve walks up and finds
+  # its prettier (the same mechanism the vitest step below relies on). Fail
+  # closed if prettier is genuinely unavailable, so unformatted code can never
+  # slip past to CI's format:check.
+  PRETTIER_BIN=$(node -e "process.stdout.write(require.resolve('prettier/bin/prettier.cjs'))" 2>/dev/null)
+  if [ -z "$PRETTIER_BIN" ]; then
+    echo "Error: prettier not found - run 'npm install' at the repo root" >&2
+    exit 1
+  fi
+  echo "$STAGED" | tr '\n' '\0' | xargs -0 node "$PRETTIER_BIN" --write --ignore-unknown || {
+    echo "Error: prettier formatting failed" >&2
+    exit 1
   }
   echo "$STAGED" | tr '\n' '\0' | xargs -0 git add || {
     echo "Error: Failed to re-stage formatted files" >&2
