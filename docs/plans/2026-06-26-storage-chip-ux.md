@@ -19,6 +19,16 @@
 - Commits: `type: description`; sign off with `-s` (DCO) and include `Co-Authored-By`.
 - The chip carries no actions; export/restore actions stay in the app menu (#2446).
 
+## Post-review refinements
+
+The following deltas were applied during PR review and are reflected in the snippets below:
+
+- Failed-write guard in `getLayoutSavedAt`: returns null when the entry's `writeFailed` flag is set, so the chip never shows a fresh autosave time after a failed write.
+- Explicit-null clear in `saveLayoutBody`: `lastExportedAt` uses a `!== undefined` check rather than nullish coalescing, so an intentional null (layout reset or load) clears the stored timestamp rather than preserving a stale one.
+- `formatRelativeTime` renamed to `formatTimeAgo`; absolute-elapsed (`const abs = Math.abs(elapsed)`) replaces the raw elapsed check so future timestamps (small clock skew or genuinely future) format as "in X ..." rather than returning unexpected values.
+- `StorageDetailsPopover` gained a `kind: DurabilityKind` prop; `neverReached` and `degraded` derive from `kind` (not `icon === "error"`), and the server-not-found state shows honest copy ("This layout has not been saved to the server") rather than falling into the "Last saved" row.
+- Popover-open integration test: the test cases for `StorageDetailsPopover` include a `kind` prop on every render call.
+
 ## File structure
 
 - `src/lib/stores/layout/persistence.ts` (modify): add `lastExportedAt` to `BackupState`.
@@ -27,7 +37,7 @@
 - `src/lib/storage/browser-workspace-persist.ts` (modify): carry `lastExportedAt` through `PersistTab` and the shell/paused entry writes.
 - `src/lib/components/PersistenceEffects.svelte` (modify): include `lastExportedAt` in the tab snapshot.
 - `src/lib/stores/workspace.svelte.ts` (modify): restore `lastExportedAt`.
-- `src/lib/utils/relative-time.ts` (create): `formatRelativeTime`.
+- `src/lib/utils/relative-time.ts` (create): `formatTimeAgo`.
 - `src/lib/storage/durability.svelte.ts` (modify): add `shortLabel`, `showLocation`, `lastExportedAt` to the durability source.
 - `src/lib/components/StorageStatusChip.svelte` (modify): two-tone inline rendering; become a popover trigger; wire hover/tap.
 - `src/lib/components/StorageDetailsPopover.svelte` (create): prop-driven popover content.
@@ -263,11 +273,18 @@ Update the index entry write inside `saveLayoutBody` (lines 250-258) to carry th
 ```typescript
 index.library[id] = {
   name: layout.name,
-  updatedAt: savedAt,
+  updatedAt: wrote ? savedAt : (previous?.updatedAt ?? ""),
   changesSinceExport: durability.changesSinceExport,
   hasEverExported:
     durability.hasEverExported ?? previous?.hasEverExported ?? false,
-  lastExportedAt: durability.lastExportedAt ?? previous?.lastExportedAt ?? null,
+  // Distinguish an explicit null (clear, e.g. after a layout reset/load) from
+  // an omitted value (undefined, preserve the prior timestamp). Nullish
+  // coalescing alone would treat the intentional null as "keep previous" and
+  // leave a stale "Last exported" time in the entry.
+  lastExportedAt:
+    durability.lastExportedAt !== undefined
+      ? durability.lastExportedAt
+      : (previous?.lastExportedAt ?? null),
   writeFailed: durability.writeFailed ?? !wrote,
   storageMode: previous?.storageMode ?? "browser",
 };
@@ -278,12 +295,16 @@ Add the read helper (place it after `saveLayoutBody`, before `deleteLayoutBody` 
 ```typescript
 /**
  * The last time a layout's working copy was written to localStorage, as an ISO
- * timestamp, or null when the layout has no library entry or has never been
- * written (an empty updatedAt). Surfaces the "Auto-saved" time in the chip popover.
+ * timestamp, or null when the layout has no library entry, has never been
+ * written (an empty updatedAt), or the last write failed. Surfaces the
+ * "Auto-saved" time in the chip popover; excludes failed writes so the chip
+ * never reports a fresh autosave time after a failed write.
  */
 export function getLayoutSavedAt(id: string): string | null {
-  const updatedAt = loadWorkspaceIndex()?.library[id]?.updatedAt;
-  return updatedAt ? updatedAt : null;
+  const entry = loadWorkspaceIndex()?.library[id];
+  return entry && !entry.writeFailed && entry.updatedAt
+    ? entry.updatedAt
+    : null;
 }
 ```
 
@@ -398,7 +419,7 @@ git commit -s -m "feat: persist lastExportedAt in the browser workspace library"
 
 **Interfaces:**
 
-- Produces: `formatRelativeTime(iso: string | null, nowMs?: number): string | null` returning `null` for null/invalid input, `"just now"` under 45 seconds, else an "N units ago" string. Deterministic when `nowMs` is supplied.
+- Produces: `formatTimeAgo(iso: string | null, nowMs?: number): string | null` returning `null` for null/invalid input, `"just now"` under 45 seconds (or small future skew), else a relative-time string. Deterministic when `nowMs` is supplied.
 
 - [ ] Step 1: Write the failing test
 
@@ -406,18 +427,18 @@ Create `src/tests/relative-time.test.ts`:
 
 ```typescript
 import { describe, it, expect } from "vitest";
-import { formatRelativeTime } from "$lib/utils/relative-time";
+import { formatTimeAgo } from "$lib/utils/relative-time";
 
 const NOW = Date.parse("2026-06-26T12:00:00.000Z");
-const at = (iso: string) => formatRelativeTime(iso, NOW);
+const at = (iso: string) => formatTimeAgo(iso, NOW);
 
-describe("formatRelativeTime", () => {
+describe("formatTimeAgo", () => {
   it("returns null for null or unparseable input", () => {
-    expect(formatRelativeTime(null, NOW)).toBeNull();
-    expect(formatRelativeTime("not-a-date", NOW)).toBeNull();
+    expect(formatTimeAgo(null, NOW)).toBeNull();
+    expect(formatTimeAgo("not-a-date", NOW)).toBeNull();
   });
 
-  it("says 'just now' under 45 seconds, including small clock skew", () => {
+  it("says 'just now' under 45 seconds, including small future skew", () => {
     expect(at("2026-06-26T11:59:30.000Z")).toBe("just now");
     expect(at("2026-06-26T12:00:10.000Z")).toBe("just now");
   });
@@ -451,9 +472,9 @@ const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "always" });
+const rtf = new Intl.RelativeTimeFormat("en", { numeric: "always" });
 
-export function formatRelativeTime(
+export function formatTimeAgo(
   iso: string | null,
   nowMs: number = Date.now(),
 ): string | null {
@@ -462,10 +483,10 @@ export function formatRelativeTime(
   if (Number.isNaN(then)) return null;
 
   const elapsed = nowMs - then;
-  if (elapsed < 45 * SECOND) return "just now";
-  if (elapsed < HOUR)
-    return rtf.format(-Math.round(elapsed / MINUTE), "minute");
-  if (elapsed < DAY) return rtf.format(-Math.round(elapsed / HOUR), "hour");
+  const abs = Math.abs(elapsed);
+  if (abs < 45 * SECOND) return "just now";
+  if (abs < HOUR) return rtf.format(-Math.round(elapsed / MINUTE), "minute");
+  if (abs < DAY) return rtf.format(-Math.round(elapsed / HOUR), "hour");
   return rtf.format(-Math.round(elapsed / DAY), "day");
 }
 ```
@@ -478,7 +499,7 @@ Run: `npm run test:run -- src/tests/relative-time.test.ts` Expected: PASS.
 
 ```bash
 git add src/lib/utils/relative-time.ts src/tests/relative-time.test.ts
-git commit -s -m "feat: add formatRelativeTime util for the storage chip"
+git commit -s -m "feat: add formatTimeAgo util for the storage chip"
 ```
 
 ---
@@ -824,7 +845,7 @@ git commit -s -m "feat: show storage location inline on the chip"
 
 **Interfaces:**
 
-- Consumes: `formatRelativeTime` (Task 3); `getLayoutSavedAt` (Task 2); `getServerBaseUpdatedAt` (existing, exported from `$lib/storage`); `durability.lastExportedAt`, `durability.label`, `durability.icon`, `durability.changesSinceExport` (Task 4).
+- Consumes: `formatTimeAgo` (Task 3); `getLayoutSavedAt` (Task 2); `getServerBaseUpdatedAt` (existing, exported from `$lib/storage`); `durability.lastExportedAt`, `durability.label`, `durability.icon`, `durability.changesSinceExport` (Task 4).
 - Produces: `StorageDetailsPopover` renders mode-aware facts from plain props (so it is testable without opening a popover).
 
 - [ ] Step 1: Write the failing test for the content component
@@ -842,6 +863,7 @@ describe("StorageDetailsPopover", () => {
   it("browser mode shows both timestamps and 'Never exported' when null", () => {
     render(StorageDetailsPopover, {
       mode: "browser",
+      kind: "pending",
       headline: "Unsaved changes",
       icon: "pending",
       changesSinceExport: 3,
@@ -860,6 +882,7 @@ describe("StorageDetailsPopover", () => {
   it("browser mode formats a real export time", () => {
     render(StorageDetailsPopover, {
       mode: "browser",
+      kind: "saved",
       headline: "Saved",
       icon: "saved",
       changesSinceExport: 0,
@@ -875,6 +898,7 @@ describe("StorageDetailsPopover", () => {
   it("server mode shows the last server save and storage location", () => {
     render(StorageDetailsPopover, {
       mode: "server",
+      kind: "saved",
       headline: "Saved",
       icon: "saved",
       changesSinceExport: 0,
@@ -891,6 +915,7 @@ describe("StorageDetailsPopover", () => {
   it("server mode error reframes the time as last reached", () => {
     render(StorageDetailsPopover, {
       mode: "server",
+      kind: "offline",
       headline: "Offline",
       icon: "error",
       changesSinceExport: 0,
@@ -925,10 +950,12 @@ Create `src/lib/components/StorageDetailsPopover.svelte`:
 <script lang="ts">
   import { IconCheck, IconClock, IconWarningTriangle } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
-  import { formatRelativeTime } from "$lib/utils/relative-time";
+  import { formatTimeAgo } from "$lib/utils/relative-time";
+  import type { DurabilityKind } from "$lib/storage";
 
   interface Props {
     mode: "browser" | "server";
+    kind: DurabilityKind;
     headline: string;
     icon: "saved" | "pending" | "error";
     changesSinceExport: number;
@@ -940,6 +967,7 @@ Create `src/lib/components/StorageDetailsPopover.svelte`:
 
   let {
     mode,
+    kind,
     headline,
     icon,
     changesSinceExport,
@@ -949,10 +977,11 @@ Create `src/lib/components/StorageDetailsPopover.svelte`:
     nowMs,
   }: Props = $props();
 
-  const autosaveRel = $derived(formatRelativeTime(autosaveAt, nowMs));
-  const exportRel = $derived(formatRelativeTime(lastExportedAt, nowMs));
-  const serverRel = $derived(formatRelativeTime(serverSavedAt, nowMs));
-  const isDegraded = $derived(icon === "error");
+  const autosaveRel = $derived(formatTimeAgo(autosaveAt, nowMs));
+  const exportRel = $derived(formatTimeAgo(lastExportedAt, nowMs));
+  const serverRel = $derived(formatTimeAgo(serverSavedAt, nowMs));
+  const neverReached = $derived(kind === "server-not-found");
+  const degraded = $derived(kind === "offline");
 </script>
 
 <div class="storage-details">
@@ -992,19 +1021,21 @@ Create `src/lib/components/StorageDetailsPopover.svelte`:
       </p>
     {/if}
     <p class="storage-details-foot">Stored in this browser only</p>
+  {:else if neverReached}
+    <p class="storage-details-note storage-details-warn">
+      This layout has not been saved to the server.
+    </p>
+    <p class="storage-details-foot">Not saved to the server</p>
   {:else}
     <div class="storage-details-row">
       <span class="storage-details-label">
-        {isDegraded ? "Last reached server" : "Last saved"}
+        {degraded ? "Last reached server" : "Last saved"}
       </span>
-      <span
-        class="storage-details-value"
-        class:storage-details-warn={isDegraded}
-      >
+      <span class="storage-details-value" class:storage-details-warn={degraded}>
         {serverRel ?? "Not yet saved"}
       </span>
     </div>
-    {#if isDegraded}
+    {#if degraded}
       <p class="storage-details-note storage-details-warn">
         Your most recent edits may not be saved.
       </p>
@@ -1172,6 +1203,7 @@ Replace the chip `<div>` (the block from Step 3 of Task 5) by wrapping it in a P
     >
       <StorageDetailsPopover
         mode={isServerMode ? "server" : "browser"}
+        kind={durability.kind}
         headline={durability.label}
         icon={durability.icon}
         changesSinceExport={durability.changesSinceExport}
@@ -1288,4 +1320,4 @@ Deviations recorded: server-mode working-copy path is not threaded (server never
 
 Placeholder scan: every code step shows complete code; no TBD/TODO; test code is concrete.
 
-Type consistency: `lastExportedAt: string | null` is consistent across `BackupState` (optional), `LibraryEntry`, `DurabilityInput`, the layout store getter, and `LayoutDurability`. `getLayoutSavedAt(id: string): string | null` and `formatRelativeTime(iso, nowMs?)` signatures match their call sites. `StorageDetailsPopover` props match the test and the chip's usage.
+Type consistency: `lastExportedAt: string | null` is consistent across `BackupState` (optional), `LibraryEntry`, `DurabilityInput`, the layout store getter, and `LayoutDurability`. `getLayoutSavedAt(id: string): string | null` and `formatTimeAgo(iso, nowMs?)` signatures match their call sites. `StorageDetailsPopover` props match the test and the chip's usage.
