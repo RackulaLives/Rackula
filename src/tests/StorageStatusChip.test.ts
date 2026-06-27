@@ -19,4 +19,13 @@ describe("StorageStatusChip", () => {
       /storage status: unsaved changes, browser/i,
     );
   });
+
+  it("trigger exposes aria-haspopup and aria-expanded for the popover", () => {
+    // bits-ui Popover renders the trigger with aria-haspopup and aria-expanded,
+    // confirming the popover integration is wired correctly in happy-dom.
+    render(StorageStatusChip);
+    const chip = screen.getByTestId("storage-status-chip");
+    expect(chip).toHaveAttribute("aria-haspopup");
+    expect(chip).toHaveAttribute("aria-expanded");
+  });
 });

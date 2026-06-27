@@ -120,7 +120,9 @@ describe("changesSinceExport", () => {
 
     store.markExported();
     expect(store.lastExportedAt).not.toBeNull();
-    expect(() => new Date(store.lastExportedAt as string)).not.toThrow();
+    expect(Number.isNaN(Date.parse(store.lastExportedAt as string))).toBe(
+      false,
+    );
 
     store.loadLayout(store.layout);
     expect(store.lastExportedAt).toBeNull();

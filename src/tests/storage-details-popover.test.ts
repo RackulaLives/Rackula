@@ -8,6 +8,7 @@ describe("StorageDetailsPopover", () => {
   it("browser mode shows both timestamps and 'Never exported' when null", () => {
     render(StorageDetailsPopover, {
       mode: "browser",
+      kind: "pending",
       headline: "Unsaved changes",
       icon: "pending",
       changesSinceExport: 3,
@@ -29,6 +30,7 @@ describe("StorageDetailsPopover", () => {
   it("browser mode formats a real export time", () => {
     render(StorageDetailsPopover, {
       mode: "browser",
+      kind: "saved",
       headline: "Saved",
       icon: "saved",
       changesSinceExport: 0,
@@ -44,6 +46,7 @@ describe("StorageDetailsPopover", () => {
   it("server mode shows the last server save and storage location", () => {
     render(StorageDetailsPopover, {
       mode: "server",
+      kind: "saved",
       headline: "Saved",
       icon: "saved",
       changesSinceExport: 0,
@@ -60,6 +63,7 @@ describe("StorageDetailsPopover", () => {
   it("server mode error reframes the time as last reached", () => {
     render(StorageDetailsPopover, {
       mode: "server",
+      kind: "offline",
       headline: "Offline",
       icon: "error",
       changesSinceExport: 0,
@@ -69,5 +73,24 @@ describe("StorageDetailsPopover", () => {
       nowMs: NOW,
     });
     expect(screen.getByText(/last reached server/i)).toBeInTheDocument();
+  });
+
+  it("server-not-found: does not claim stored on server, shows honest note", () => {
+    render(StorageDetailsPopover, {
+      mode: "server",
+      kind: "server-not-found",
+      headline: "Server not found",
+      icon: "error",
+      changesSinceExport: 0,
+      lastExportedAt: null,
+      autosaveAt: null,
+      serverSavedAt: null,
+      nowMs: NOW,
+    });
+    expect(screen.queryByText(/stored on the server/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/this layout has not been saved to the server/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/not saved to the server/i)).toBeInTheDocument();
   });
 });
