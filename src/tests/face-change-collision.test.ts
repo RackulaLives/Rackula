@@ -463,16 +463,15 @@ describe("Face Change Collision Detection (#450)", () => {
       });
     }
 
-    it("should show error toast when face change to 'both' is blocked by collision", async () => {
+    it("should show error toast when face change to 'rear' is blocked by collision", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
       const toastStore = getToastStore();
 
-      // Set up rack with two devices at same U, opposite faces
+      // Set up rack with two half-depth devices at same U, opposite faces
       const rack = layoutStore.addRack("Test Rack", 42);
       const rackId = rack!.id;
 
-      // Add two half-depth device types for testing
       const frontDevice = layoutStore.addDeviceType({
         name: "Front Server",
         u_height: 1,
@@ -492,31 +491,30 @@ describe("Face Change Collision Detection (#450)", () => {
       layoutStore.placeDevice(rackId, frontDevice.slug, 1, "front");
       layoutStore.placeDevice(rackId, rearDevice.slug, 1, "rear");
 
-      // Select the front device
+      // Select the front device and try to move it to the rear
       const deviceId = layoutStore.rack!.devices[0]!.id;
       selectionStore.selectDevice(rackId, deviceId);
 
       renderEditTab();
 
-      // Change face to 'both'
       const faceSelect = screen.getByLabelText(
         /mounted face/i,
       ) as HTMLSelectElement;
-      await fireEvent.change(faceSelect, { target: { value: "both" } });
+      await fireEvent.change(faceSelect, { target: { value: "rear" } });
 
       // Should show error toast
       await waitFor(() => {
         expect(toastStore.toasts.length).toBeGreaterThan(0);
         const errorToast = toastStore.toasts.find((t) => t.type === "warning");
         expect(errorToast).toBeDefined();
-        expect(errorToast!.message).toContain("Cannot change to full-depth");
+        expect(errorToast!.message).toContain("Cannot change to rear");
       });
 
       // Device face should NOT have changed
       expect(layoutStore.rack!.devices[0]!.face).toBe("front");
     });
 
-    it("should successfully change face to 'both' when no collision", async () => {
+    it("should successfully change face to 'rear' when no collision", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
       const toastStore = getToastStore();
@@ -542,7 +540,7 @@ describe("Face Change Collision Detection (#450)", () => {
       const faceSelect = screen.getByLabelText(
         /mounted face/i,
       ) as HTMLSelectElement;
-      await fireEvent.change(faceSelect, { target: { value: "both" } });
+      await fireEvent.change(faceSelect, { target: { value: "rear" } });
 
       // No error toast should appear
       await waitFor(() => {
@@ -550,8 +548,8 @@ describe("Face Change Collision Detection (#450)", () => {
         expect(errorToast).toBeUndefined();
       });
 
-      // Device face should have changed
-      expect(layoutStore.rack!.devices[0]!.face).toBe("both");
+      // Device face should have changed to rear
+      expect(layoutStore.rack!.devices[0]!.face).toBe("rear");
     });
 
     it("should allow changing from 'both' to 'front' even with device at rear", async () => {
@@ -602,7 +600,7 @@ describe("Face Change Collision Detection (#450)", () => {
       expect(layoutStore.rack!.devices[0]!.face).toBe("front");
     });
 
-    it("toast message should include blocking device name", async () => {
+    it("toast message should include blocking device name for rear change", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
       const toastStore = getToastStore();
@@ -636,7 +634,7 @@ describe("Face Change Collision Detection (#450)", () => {
       const faceSelect = screen.getByLabelText(
         /mounted face/i,
       ) as HTMLSelectElement;
-      await fireEvent.change(faceSelect, { target: { value: "both" } });
+      await fireEvent.change(faceSelect, { target: { value: "rear" } });
 
       await waitFor(() => {
         const errorToast = toastStore.toasts.find((t) => t.type === "warning");

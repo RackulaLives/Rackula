@@ -3,7 +3,7 @@ import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
 import { toInternalUnits } from "$lib/utils/position";
 import { createLayout } from "$lib/utils/serialization";
-import { setupStoreWithRack } from "./factories";
+import { setupStoreWithRack, createTestDeviceType } from "./factories";
 
 describe("Layout Store - Undo/Redo Integration", () => {
   let initialDeviceTypeCount: number;
@@ -169,18 +169,24 @@ describe("Layout Store - Undo/Redo Integration", () => {
     });
 
     it("updateDeviceFaceRecorded can be undone", () => {
-      const dt = store.device_types[0]!;
+      // Use a half-depth device so the face can move between front and rear.
+      // Full-depth devices coerce any face value to "both" (guard in recorded-device-actions).
+      const halfDepth = createTestDeviceType({
+        slug: "half-depth-srv",
+        u_height: 1,
+        is_full_depth: false,
+      });
+      store.addDeviceTypeRaw(halfDepth);
 
-      store.placeDeviceRecorded(rack.id, dt.slug, 10);
-      // Full-depth devices (is_full_depth undefined or true) default to 'both' face
+      store.placeDeviceRecorded(rack.id, halfDepth.slug, 10);
       const originalFace = store.rack?.devices[0]?.face;
-      expect(originalFace).toBe("both");
+      expect(originalFace).toBe("front");
 
       store.updateDeviceFaceRecorded(rack.id, 0, "rear");
       expect(store.rack?.devices[0]?.face).toBe("rear");
 
       store.undo();
-      expect(store.rack?.devices[0]?.face).toBe("both");
+      expect(store.rack?.devices[0]?.face).toBe("front");
     });
   });
 

@@ -445,24 +445,36 @@
   {/if}
 </section>
 
-<!-- Placement: editable mounted face -->
+<!-- Placement: mounted face. Full-depth devices are locked to both faces; only
+     half-depth devices choose front or rear. -->
 <section class="field-group">
   <h3 class="group-header">Placement</h3>
   <div class="form-group">
     <label for="device-face">Mounted Face</label>
-    <select
-      id="device-face"
-      class="input-field"
-      value={selectedDeviceInfo.placedDevice.face}
-      onchange={(e) =>
-        handleFaceChange((e.target as HTMLSelectElement).value as DeviceFace)}
-    >
-      <option value="front">Front</option>
-      <option value="rear">Rear</option>
-      <option value="both">Both (full-depth)</option>
-    </select>
-    {#if isFullDepthDevice && selectedDeviceInfo.placedDevice.face !== "both"}
-      <p class="helper-text">Overriding default full-depth setting</p>
+    {#if isFullDepthDevice}
+      <select
+        id="device-face"
+        class="input-field"
+        disabled
+        aria-disabled="true"
+      >
+        <option value="both">Both (full-depth)</option>
+      </select>
+      <p class="helper-text">
+        Set by device depth. To mount on a single face, change the device type
+        to half-depth.
+      </p>
+    {:else}
+      <select
+        id="device-face"
+        class="input-field"
+        value={selectedDeviceInfo.placedDevice.face}
+        onchange={(e) =>
+          handleFaceChange((e.target as HTMLSelectElement).value as DeviceFace)}
+      >
+        <option value="front">Front</option>
+        <option value="rear">Rear</option>
+      </select>
     {/if}
   </div>
 </section>

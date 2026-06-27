@@ -448,13 +448,19 @@ export function updateDeviceFaceRecorded(
   );
   const deviceName = deviceType?.model ?? deviceType?.slug ?? "device";
 
+  // Full-depth devices are always mounted on both faces. Never store a single
+  // face for them, so data on disk matches how they render (they derive to
+  // "both" regardless, but this keeps saved layouts clean).
+  const targetFace: DeviceFace =
+    deviceType && deviceType.is_full_depth !== false ? "both" : face;
+
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createUpdateDeviceFaceCommand(
     deviceIndex,
     oldFace,
-    face,
+    targetFace,
     adapter,
     deviceName,
   );
