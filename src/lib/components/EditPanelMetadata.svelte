@@ -468,7 +468,9 @@
       <select
         id="device-face"
         class="input-field"
-        value={selectedDeviceInfo.placedDevice.face}
+        value={selectedDeviceInfo.placedDevice.face === "both"
+          ? "front"
+          : selectedDeviceInfo.placedDevice.face}
         onchange={(e) =>
           handleFaceChange((e.target as HTMLSelectElement).value as DeviceFace)}
       >

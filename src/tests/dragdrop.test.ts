@@ -9,7 +9,11 @@ import {
 } from "$lib/utils/dragdrop";
 import type { Rack, DeviceType, PlacedDevice } from "$lib/types";
 import { findStarterDevice } from "$lib/data/starterLibrary";
-import { createTestDeviceType } from "./factories";
+import {
+  createTestRack,
+  createTestDevice,
+  createTestDeviceType,
+} from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
 
 // Helper to create a placed device with internal unit position
@@ -545,23 +549,17 @@ describe("Drag and Drop Utilities", () => {
         is_full_depth: false,
       };
       const halfDepthLibrary: DeviceType[] = [halfDepthCarrier, child];
-      const halfDepthRack: Rack = {
-        name: "Test Rack",
+      const halfDepthRack = createTestRack({
         height: 12,
-        width: 19,
-        position: 0,
-        desc_units: false,
-        form_factor: "4-post",
-        starting_unit: 1,
         devices: [
-          {
+          createTestDevice({
             id: "carrier-half",
             device_type: "carrier-half-depth",
-            position: toInternalUnits(5),
+            position: 5,
             face: "front",
-          },
+          }),
         ],
-      };
+      });
       const target = detectContainerDropTarget(
         halfDepthRack,
         halfDepthLibrary,
@@ -591,23 +589,17 @@ describe("Drag and Drop Utilities", () => {
     const deviceLibrary: DeviceType[] = [carrier2x2, child];
 
     it("detects a full-depth carrier stored as front-only when hovering on the rear face", () => {
-      const rack: Rack = {
-        name: "Test Rack",
+      const rack = createTestRack({
         height: 12,
-        width: 19,
-        position: 0,
-        desc_units: false,
-        form_factor: "4-post",
-        starting_unit: 1,
         devices: [
-          {
+          createTestDevice({
             id: "c1",
             device_type: "carrier-1u-2x2",
-            position: toInternalUnits(5),
+            position: 5,
             face: "front",
-          },
+          }),
         ],
-      };
+      });
       // y=170 lands in the U5 band of a 12U rack (uHeight=22)
       const info = detectContainerHover(
         rack,
@@ -630,23 +622,17 @@ describe("Drag and Drop Utilities", () => {
         slug: "carrier-half",
         is_full_depth: false,
       };
-      const rack: Rack = {
-        name: "Test Rack",
+      const rack = createTestRack({
         height: 12,
-        width: 19,
-        position: 0,
-        desc_units: false,
-        form_factor: "4-post",
-        starting_unit: 1,
         devices: [
-          {
+          createTestDevice({
             id: "c2",
             device_type: "carrier-half",
-            position: toInternalUnits(5),
+            position: 5,
             face: "front",
-          },
+          }),
         ],
-      };
+      });
       const info = detectContainerHover(
         rack,
         [halfDepth, child],

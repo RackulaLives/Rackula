@@ -445,7 +445,9 @@ describe("DnD Between Racks", () => {
 
       expect(result).toBe(true);
       const moved = findDevice(store.getRackById(rackA.id)!, serverType.slug);
-      expect(moved!.face).toBe("rear");
+      // serverType has no is_full_depth set (undefined = full-depth), so
+      // effectiveFace normalises any raw newFace to "both".
+      expect(moved!.face).toBe("both");
     });
 
     it("returns false for invalid device index", () => {

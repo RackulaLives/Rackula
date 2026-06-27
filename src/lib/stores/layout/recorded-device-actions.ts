@@ -292,7 +292,7 @@ export function moveDeviceRecorded(
   // newFace is provided (half-depth face-change drag), use that as the base;
   // effectiveFace still overrides to "both" for a full-depth device type.
   const resolvedFace = effectiveFace(
-    { face: newFace ?? device.face },
+    { face: newFace ?? device.face ?? "front" },
     deviceType,
   );
   if (
@@ -332,8 +332,10 @@ export function moveDeviceRecorded(
     deviceName,
   );
 
+  const normalizedNewFace = newFace === undefined ? undefined : resolvedFace;
   const hasFaceChange =
-    newFace !== undefined && newFace !== (device.face ?? "front");
+    normalizedNewFace !== undefined &&
+    normalizedNewFace !== (device.face ?? "front");
   // A move always targets a rack-level position, so a contained device dragged
   // out of its container must shed its container linkage (otherwise it stays
   // excluded from rack-level collision while claiming membership in a container
@@ -347,7 +349,7 @@ export function moveDeviceRecorded(
         createUpdateDeviceFaceCommand(
           deviceIndex,
           device.face ?? "front",
-          newFace!,
+          normalizedNewFace!,
           adapter,
           deviceName,
         ),

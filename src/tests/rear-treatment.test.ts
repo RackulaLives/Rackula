@@ -56,6 +56,7 @@ describe("Rear treatment for full-depth devices", () => {
       },
     });
 
+    expect(screen.getByRole("button", { name: /NAS/i })).toBeInTheDocument();
     expect(screen.queryByText("REAR")).not.toBeInTheDocument();
   });
 

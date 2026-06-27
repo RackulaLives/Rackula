@@ -16,7 +16,7 @@
 - User-facing copy: Canadian spelling, no em dashes, no en dashes, no smart quotes, no emoji.
 - Every commit: `git commit -s` (DCO sign-off is required or CI fails) and include these trailers:
 
-  ```
+  ```text
   Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
   Claude-Session: https://claude.ai/code/session_01FSeSp8srtPQPDYpGGyqJ2t
   ```
@@ -37,7 +37,7 @@
 
 - Produces: `effectiveFace(placedDevice: Pick<PlacedDevice, "face">, deviceType: Pick<DeviceType, "is_full_depth"> | undefined): DeviceFace`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] Step 1: Write the failing test
 
 Create `src/tests/effective-face.test.ts`:
 
@@ -71,11 +71,11 @@ describe("effectiveFace", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] Step 2: Run test to verify it fails
 
 Run: `npm run test:run -- src/tests/effective-face.test.ts` Expected: FAIL (cannot resolve `$lib/utils/effective-face`).
 
-- [ ] **Step 3: Write minimal implementation**
+- [ ] Step 3: Write minimal implementation
 
 Create `src/lib/utils/effective-face.ts`:
 
@@ -104,11 +104,11 @@ export function effectiveFace(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] Step 4: Run test to verify it passes
 
 Run: `npm run test:run -- src/tests/effective-face.test.ts` Expected: PASS (3 tests).
 
-- [ ] **Step 5: Commit**
+- [ ] Step 5: Commit
 
 ```bash
 git add src/lib/utils/effective-face.ts src/tests/effective-face.test.ts
@@ -128,7 +128,7 @@ git commit -s -m "feat: add effectiveFace helper for full-depth face derivation"
 
 - Consumes: `effectiveFace` (Task 1); `canPlaceDevice(rack, deviceLibrary, deviceHeight, targetPosition, excludeIndex?, targetFace)`, `findCollisions(rack, deviceLibrary, newDeviceHeight, newPosition, excludeIndex?, targetFace)` (existing).
 
-- [ ] **Step 1: Write the failing test**
+- [ ] Step 1: Write the failing test
 
 Create `src/tests/collision-full-depth.test.ts`:
 
@@ -205,11 +205,11 @@ describe("collision treats full-depth devices as occupying both faces (#2337)", 
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] Step 2: Run test to verify it fails
 
 Run: `npm run test:run -- src/tests/collision-full-depth.test.ts` Expected: FAIL on the first test (`canPlaceDevice(... "rear")` returns `true`, expected `false`).
 
-- [ ] **Step 3: Add the import**
+- [ ] Step 3: Add the import
 
 At the top of `src/lib/utils/collision.ts`, add alongside the existing imports:
 
@@ -217,7 +217,7 @@ At the top of `src/lib/utils/collision.ts`, add alongside the existing imports:
 import { effectiveFace } from "./effective-face";
 ```
 
-- [ ] **Step 4: Update both collision loops**
+- [ ] Step 4: Update both collision loops
 
 In `canPlaceDevice`, replace lines 170-175:
 
@@ -265,15 +265,15 @@ if (
 
 (`device` is the looked-up `DeviceType` already in scope inside the `if (device) {` block in both loops.)
 
-- [ ] **Step 5: Run test to verify it passes**
+- [ ] Step 5: Run test to verify it passes
 
 Run: `npm run test:run -- src/tests/collision-full-depth.test.ts` Expected: PASS (2 tests).
 
-- [ ] **Step 6: Run the existing collision suite to check for regressions**
+- [ ] Step 6: Run the existing collision suite to check for regressions
 
 Run: `npm run test:run -- src/tests/collision` Expected: PASS (no regressions in existing collision tests).
 
-- [ ] **Step 7: Commit**
+- [ ] Step 7: Commit
 
 ```bash
 git add src/lib/utils/collision.ts src/tests/collision-full-depth.test.ts
@@ -293,7 +293,7 @@ git commit -s -m "fix: full-depth devices collide on both faces via effectiveFac
 
 - Consumes: `effectiveFace` (Task 1). `Rack` props already include `deviceLibrary: DeviceType[]` and `faceFilter?: "front" | "rear"`.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] Step 1: Write the failing test
 
 In `src/tests/rear-view-full-depth.test.ts`, update the import on line 12 to add the factories:
 
@@ -336,11 +336,11 @@ it("renders a full-depth device stored as front-only under the rear filter (lega
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] Step 2: Run test to verify it fails
 
 Run: `npm run test:run -- src/tests/rear-view-full-depth.test.ts` Expected: FAIL on the new test (`Unable to find an element with the text: NAS`); the existing two tests still pass.
 
-- [ ] **Step 3: Add the import**
+- [ ] Step 3: Add the import
 
 In `src/lib/components/Rack.svelte`, add to the script imports:
 
@@ -348,7 +348,7 @@ In `src/lib/components/Rack.svelte`, add to the script imports:
 import { effectiveFace } from "$lib/utils/effective-face";
 ```
 
-- [ ] **Step 4: Update `visibleDevices`**
+- [ ] Step 4: Update `visibleDevices`
 
 Replace lines 256-266:
 
@@ -383,7 +383,7 @@ const visibleDevices = $derived(
 );
 ```
 
-- [ ] **Step 5: Update `containerChildren`**
+- [ ] Step 5: Update `containerChildren`
 
 Replace the face check inside the `forEach` (lines 273-274):
 
@@ -403,15 +403,15 @@ const ef = effectiveFace(
 if (ef !== "both" && ef !== effectiveFaceFilter) return;
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [ ] Step 6: Run test to verify it passes
 
 Run: `npm run test:run -- src/tests/rear-view-full-depth.test.ts` Expected: PASS (3 tests).
 
-- [ ] **Step 7: Validate the Svelte component**
+- [ ] Step 7: Validate the Svelte component
 
 Use the Svelte MCP `svelte-autofixer` tool on `src/lib/components/Rack.svelte`. Apply any fixes it reports, then re-run it until clean.
 
-- [ ] **Step 8: Commit**
+- [ ] Step 8: Commit
 
 ```bash
 git add src/lib/components/Rack.svelte src/tests/rear-view-full-depth.test.ts
@@ -433,7 +433,7 @@ git commit -s -m "fix: render full-depth devices on both faces via effectiveFace
 
 This task is a mechanical refactor onto the shared helper. Blocked-slots behaviour is unchanged, and the SVG filter change is covered by the Task 1 helper tests, so no new test is added (per the project rule against low-value tests). The gate is the full suite plus a type-check.
 
-- [ ] **Step 1: Update `blocked-slots.ts`**
+- [ ] Step 1: Update `blocked-slots.ts`
 
 Add the import at the top:
 
@@ -467,7 +467,7 @@ for (const placedDevice of rack.devices) {
 }
 ```
 
-- [ ] **Step 2: Update `export/svg.ts`**
+- [ ] Step 2: Update `export/svg.ts`
 
 Add the import near the other utils imports:
 
@@ -524,11 +524,11 @@ const filteredDevices = filterDevicesByFace(
 
 (`deviceLibrary` is already in scope here; it is used on the next line at `:824`. Confirm `DeviceType` is imported in `svg.ts`; if not, add it to the type imports from `$lib/types`.)
 
-- [ ] **Step 3: Type-check and run the full suite**
+- [ ] Step 3: Type-check and run the full suite
 
 Run: `npm run test:run` Expected: PASS (whole suite green, including the existing blocked-slots and export tests).
 
-- [ ] **Step 4: Commit**
+- [ ] Step 4: Commit
 
 ```bash
 git add src/lib/utils/blocked-slots.ts src/lib/utils/export/svg.ts
@@ -548,7 +548,7 @@ git commit -s -m "refactor: route blocked-slots and svg export through effective
 
 - Consumes: `effectiveFace` (Task 1). Fixes a latent bug: the current filter `d.face === faceFilter` drops `"both"` devices entirely, so full-depth annotations never showed.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] Step 1: Write the failing test
 
 Create `src/tests/annotation-full-depth.test.ts`:
 
@@ -594,11 +594,11 @@ describe("AnnotationColumn shows full-depth devices on both faces", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] Step 2: Run test to verify it fails
 
 Run: `npm run test:run -- src/tests/annotation-full-depth.test.ts` Expected: FAIL (`Unable to find an element with the text: Big NAS`).
 
-- [ ] **Step 3: Add the import**
+- [ ] Step 3: Add the import
 
 In `src/lib/components/AnnotationColumn.svelte`, add to the script imports:
 
@@ -606,7 +606,7 @@ In `src/lib/components/AnnotationColumn.svelte`, add to the script imports:
 import { effectiveFace } from "$lib/utils/effective-face";
 ```
 
-- [ ] **Step 4: Update `filteredDevices`**
+- [ ] Step 4: Update `filteredDevices`
 
 Replace lines 104-109:
 
@@ -632,15 +632,15 @@ const filteredDevices = $derived(
 );
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [ ] Step 5: Run test to verify it passes
 
 Run: `npm run test:run -- src/tests/annotation-full-depth.test.ts` Expected: PASS.
 
-- [ ] **Step 6: Validate the Svelte component**
+- [ ] Step 6: Validate the Svelte component
 
 Run the Svelte MCP `svelte-autofixer` on `src/lib/components/AnnotationColumn.svelte`; apply fixes until clean.
 
-- [ ] **Step 7: Commit**
+- [ ] Step 7: Commit
 
 ```bash
 git add src/lib/components/AnnotationColumn.svelte src/tests/annotation-full-depth.test.ts
@@ -660,7 +660,7 @@ git commit -s -m "fix: annotate full-depth devices on both faces via effectiveFa
 
 - Consumes: existing `currentFace`, `device.is_full_depth`, `showImage`, `showImagePlaceholder`. No new exported interface.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] Step 1: Write the failing test
 
 Create `src/tests/rear-treatment.test.ts`:
 
@@ -754,11 +754,11 @@ describe("Rear treatment for full-depth devices", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] Step 2: Run test to verify it fails
 
 Run: `npm run test:run -- src/tests/rear-treatment.test.ts` Expected: FAIL on the first test (`Unable to find an element with the text: REAR`).
 
-- [ ] **Step 3: Add the derived flags**
+- [ ] Step 3: Add the derived flags
 
 In `src/lib/components/RackDevice.svelte`, after `currentFace` (line 158) add:
 
@@ -779,7 +779,7 @@ After `showImage` (line 194) add:
 const isRearMuted = $derived(isRearTreatment && !showImage);
 ```
 
-- [ ] **Step 4: Announce the rear face in the accessible name**
+- [ ] Step 4: Announce the rear face in the accessible name
 
 In the `ariaLabel` derived (lines 322-340), after the `imageState` block add:
 
@@ -798,7 +798,7 @@ if (containerContext) {
 return `${base} at U${positionHuman}${imageState}${rearState}${selected ? ", selected" : ""}`;
 ```
 
-- [ ] **Step 5: Mute the device rect and add the badge**
+- [ ] Step 5: Mute the device rect and add the badge
 
 On the `<rect class="device-rect">` (lines 605-621), add the conditional class. Change the opening:
 
@@ -834,7 +834,7 @@ Then add the badge directly before the interfaces block (the `{#if device.interf
 {/if}
 ```
 
-- [ ] **Step 6: Add the styles**
+- [ ] Step 6: Add the styles
 
 In the `<style>` block, after the `.device-name` rule add:
 
@@ -858,15 +858,15 @@ In the `<style>` block, after the `.device-name` rule add:
 }
 ```
 
-- [ ] **Step 7: Run test to verify it passes**
+- [ ] Step 7: Run test to verify it passes
 
 Run: `npm run test:run -- src/tests/rear-treatment.test.ts` Expected: PASS (3 tests).
 
-- [ ] **Step 8: Validate the Svelte component**
+- [ ] Step 8: Validate the Svelte component
 
 Run the Svelte MCP `svelte-autofixer` on `src/lib/components/RackDevice.svelte`; apply fixes until clean.
 
-- [ ] **Step 9: Commit**
+- [ ] Step 9: Commit
 
 ```bash
 git add src/lib/components/RackDevice.svelte src/tests/rear-treatment.test.ts
@@ -886,7 +886,7 @@ git commit -s -m "feat: distinct rear treatment for full-depth devices"
 
 - Consumes: existing `visibleDevices`, `faceFilter`, `RACK_WIDTH`, `RACK_PADDING`, `RAIL_WIDTH`, `totalHeight`.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] Step 1: Write the failing test
 
 Create `src/tests/empty-face-hint.test.ts`:
 
@@ -957,11 +957,11 @@ describe("Empty-face hint", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] Step 2: Run test to verify it fails
 
 Run: `npm run test:run -- src/tests/empty-face-hint.test.ts` Expected: FAIL on the first test (hint text not found).
 
-- [ ] **Step 3: Add the hint to the template**
+- [ ] Step 3: Add the hint to the template
 
 In `src/lib/components/Rack.svelte`, immediately after the devices layer closing `</g>` (line 553) and before the drop-preview block, add:
 
@@ -982,7 +982,7 @@ In `src/lib/components/Rack.svelte`, immediately after the devices layer closing
 {/if}
 ```
 
-- [ ] **Step 4: Add the style**
+- [ ] Step 4: Add the style
 
 In the `<style>` block add:
 
@@ -998,15 +998,15 @@ In the `<style>` block add:
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [ ] Step 5: Run test to verify it passes
 
 Run: `npm run test:run -- src/tests/empty-face-hint.test.ts` Expected: PASS (2 tests).
 
-- [ ] **Step 6: Validate the Svelte component**
+- [ ] Step 6: Validate the Svelte component
 
 Run the Svelte MCP `svelte-autofixer` on `src/lib/components/Rack.svelte`; apply fixes until clean.
 
-- [ ] **Step 7: Commit**
+- [ ] Step 7: Commit
 
 ```bash
 git add src/lib/components/Rack.svelte src/tests/empty-face-hint.test.ts
@@ -1029,7 +1029,7 @@ git commit -s -m "feat: empty-state hint for a face with no devices"
 
 The edit-panel control change is presentational; per the project testing policy it gets no DOM-structure test. The behavioural guard (`updateDeviceFaceRecorded`) is tested.
 
-- [ ] **Step 1: Write the failing test (the store guard)**
+- [ ] Step 1: Write the failing test (the store guard)
 
 Create `src/tests/full-depth-face-guard.test.ts`:
 
@@ -1071,11 +1071,11 @@ describe("updateDeviceFace keeps full-depth devices on both faces", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] Step 2: Run test to verify it fails
 
 Run: `npm run test:run -- src/tests/full-depth-face-guard.test.ts` Expected: FAIL on the first test (face stored as `"front"`, expected `"both"`).
 
-- [ ] **Step 3: Add the clean-on-write guard**
+- [ ] Step 3: Add the clean-on-write guard
 
 In `src/lib/stores/layout/recorded-device-actions.ts`, inside `updateDeviceFaceRecorded`, after the `deviceName` line (around 451) and before `const history = ctx.getHistory();`, add:
 
@@ -1101,11 +1101,11 @@ const command = createUpdateDeviceFaceCommand(
 
 (`DeviceFace` is already imported in this file; if not, add it to the `$lib/types` type import.)
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] Step 4: Run test to verify it passes
 
 Run: `npm run test:run -- src/tests/full-depth-face-guard.test.ts` Expected: PASS (2 tests).
 
-- [ ] **Step 5: Replace the Mounted Face control**
+- [ ] Step 5: Replace the Mounted Face control
 
 In `src/lib/components/EditPanelMetadata.svelte`, replace the Mounted Face block (lines 448-468):
 
@@ -1166,11 +1166,11 @@ with:
 </section>
 ```
 
-- [ ] **Step 6: Validate the Svelte component**
+- [ ] Step 6: Validate the Svelte component
 
 Run the Svelte MCP `svelte-autofixer` on `src/lib/components/EditPanelMetadata.svelte`; apply fixes until clean.
 
-- [ ] **Step 7: Commit**
+- [ ] Step 7: Commit
 
 ```bash
 git add src/lib/components/EditPanelMetadata.svelte src/lib/stores/layout/recorded-device-actions.ts src/tests/full-depth-face-guard.test.ts
@@ -1183,23 +1183,23 @@ git commit -s -m "feat: lock full-depth mounted face to both, clean on write"
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the full unit suite**
+- [ ] Step 1: Run the full unit suite
 
 Run: `npm run test:run` Expected: PASS (whole suite green).
 
-- [ ] **Step 2: Lint**
+- [ ] Step 2: Lint
 
 Run: `npm run lint` Expected: no errors. In particular, confirm no new test triggers the `no-restricted-syntax` rules (querySelector, toHaveClass, toHaveLength literal, hardcoded colours).
 
-- [ ] **Step 3: Type-check / build**
+- [ ] Step 3: Type-check / build
 
 Run: `npm run build` Expected: success, no TypeScript errors.
 
-- [ ] **Step 4: Manual confirmation of the reported bug**
+- [ ] Step 4: Manual confirmation of the reported bug
 
 Run: `npm run dev`. Open the layout with the front-pinned full-depth NAS. Confirm: the NAS now renders in the REAR panel with the muted treatment and a "REAR" badge; selecting it in the rear updates the edit panel and the front instance; the Mounted Face control shows a disabled "Both (full-depth)" with the helper text; a rack face with nothing on it shows the empty-state hint.
 
-- [ ] **Step 5: Commit any final fixups**
+- [ ] Step 5: Commit any final fixups
 
 ```bash
 git add -A
