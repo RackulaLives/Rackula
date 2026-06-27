@@ -73,7 +73,7 @@ Facts only. No actions. Content is mode-aware.
 
 Browser mode:
 
-```
+```text
 [icon] [State headline]
 ----------------------------
 Auto-saved        10s ago      (working-copy savedAt; omit line if never autosaved)
@@ -85,7 +85,7 @@ Stored in this browser only
 
 Server mode:
 
-```
+```text
 [icon] [State headline]
 ----------------------------
 Last saved        2m ago       (server updatedAt)
@@ -101,7 +101,7 @@ Relative-time strings (for example "just now", "10 seconds ago", "2 minutes ago"
 
 One new field. Everything else already exists.
 
-- Add `lastExportedAt: string | null` to `layout.svelte.ts`. Set it to the current ISO timestamp inside the existing `markExported()`. Persist it in the session blob next to `changesSinceExport` (see `session-storage.ts`), and load and reset it on the same paths. Default `null` (never exported).
+- Add `lastExportedAt: string | null` to `layout.svelte.ts`. Set it to the current ISO timestamp inside the existing `markExported()`. Persist it in the browser multi-tab workspace library (`LibraryEntry` in `browser-workspace.ts`), alongside `changesSinceExport`, restored on workspace load; server mode does not display it. Default `null` (never exported).
 
 The popover is a new read-only view derived from `getLayoutDurability()`, which already aggregates layout state, persistence state, and reachability. No new data plumbing beyond the one timestamp.
 
