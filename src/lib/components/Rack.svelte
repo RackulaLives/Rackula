@@ -558,6 +558,21 @@
       {/each}
     </g>
 
+    <!-- Empty-state hint: only in a face-filtered (dual) view, so an empty rear
+         reads as "nothing rear-facing here" rather than looking broken. -->
+    {#if faceFilter && visibleDevices.length === 0}
+      <text
+        class="empty-face-hint"
+        x={RACK_WIDTH / 2}
+        y={RACK_PADDING + RAIL_WIDTH + totalHeight / 2}
+        dominant-baseline="middle"
+        text-anchor="middle"
+        role="note"
+      >
+        No {faceFilter}-facing or full-depth devices
+      </text>
+    {/if}
+
     <!-- Layer 3: Drop preview (pointer drag or keyboard cursor) -->
     {#if activePreview}
       <RackDropZone
@@ -674,5 +689,15 @@
     .rack-container.placement-mode {
       transition: none;
     }
+  }
+
+  .empty-face-hint {
+    /* Muted-text token with a concrete fallback; the frontend-design pass
+       confirms the exact token. */
+    fill: var(--neutral-400, #9aa3ad);
+    font-size: 11px;
+    font-family: var(--font-family, system-ui, sans-serif);
+    pointer-events: none;
+    user-select: none;
   }
 </style>
