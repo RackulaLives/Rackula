@@ -254,7 +254,7 @@ export function saveLayoutBody(
   const previous = index.library[id];
   index.library[id] = {
     name: layout.name,
-    updatedAt: savedAt,
+    updatedAt: wrote ? savedAt : (previous?.updatedAt ?? ""),
     changesSinceExport: durability.changesSinceExport,
     hasEverExported:
       durability.hasEverExported ?? previous?.hasEverExported ?? false,
@@ -271,12 +271,16 @@ export function saveLayoutBody(
 
 /**
  * The last time a layout's working copy was written to localStorage, as an ISO
- * timestamp, or null when the layout has no library entry or has never been
- * written (an empty updatedAt). Surfaces the "Auto-saved" time in the chip popover.
+ * timestamp, or null when the layout has no library entry, has never been
+ * written (an empty updatedAt), or the last write failed. Surfaces the
+ * "Auto-saved" time in the chip popover; excludes failed writes so the chip
+ * never reports a fresh autosave time after a failed write.
  */
 export function getLayoutSavedAt(id: string): string | null {
-  const updatedAt = loadWorkspaceIndex()?.library[id]?.updatedAt;
-  return updatedAt ? updatedAt : null;
+  const entry = loadWorkspaceIndex()?.library[id];
+  return entry && !entry.writeFailed && entry.updatedAt
+    ? entry.updatedAt
+    : null;
 }
 
 /** Remove a layout body and drop its library entry. Open set is left to the caller. */

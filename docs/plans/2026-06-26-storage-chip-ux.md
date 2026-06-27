@@ -53,7 +53,7 @@
 
 - Produces: `BackupState` gains optional `lastExportedAt?: string | null`. The layout store gains a `lastExportedAt: string | null` getter, `markExported()` stamps it with the current ISO time, and `restoreBackupState(state)` restores it (coercing `undefined` to `null`).
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] Step 1: Write the failing tests
 
 Add to `src/tests/changes-since-export.test.ts` (inside the existing top-level `describe`):
 
@@ -84,11 +84,11 @@ it("restores lastExportedAt through restoreBackupState", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [ ] Step 2: Run the tests to verify they fail
 
 Run: `npm run test:run -- src/tests/changes-since-export.test.ts` Expected: FAIL (`store.lastExportedAt` is `undefined`; `restoreBackupState` ignores the new field).
 
-- [ ] **Step 3: Add `lastExportedAt` to `BackupState`**
+- [ ] Step 3: Add `lastExportedAt` to `BackupState`
 
 In `src/lib/stores/layout/persistence.ts`, change the interface (currently lines 15-18):
 
@@ -102,7 +102,7 @@ export interface BackupState {
 }
 ```
 
-- [ ] **Step 4: Track, set, expose, restore, and reset the field in the store**
+- [ ] Step 4: Track, set, expose, restore, and reset the field in the store
 
 In `src/lib/stores/layout.svelte.ts`:
 
@@ -159,15 +159,15 @@ hasEverExported = false;
 lastExportedAt = null;
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [ ] Step 5: Run the tests to verify they pass
 
 Run: `npm run test:run -- src/tests/changes-since-export.test.ts` Expected: PASS (all tests, including the two new ones).
 
-- [ ] **Step 6: Type-check**
+- [ ] Step 6: Type-check
 
 Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5` Expected: no new errors from these files.
 
-- [ ] **Step 7: Commit**
+- [ ] Step 7: Commit
 
 ```bash
 git add src/lib/stores/layout/persistence.ts src/lib/stores/layout.svelte.ts src/tests/changes-since-export.test.ts
@@ -191,7 +191,7 @@ git commit -s -m "feat: track lastExportedAt in the layout store"
 - Consumes: `layoutStore.lastExportedAt` (Task 1).
 - Produces: `LibraryEntry` and `DurabilityInput` gain `lastExportedAt: string | null`. New export `getLayoutSavedAt(id: string): string | null` returns a layout's last localStorage write time (the library entry `updatedAt`, or null when absent or empty).
 
-- [ ] **Step 1: Write the failing test**
+- [ ] Step 1: Write the failing test
 
 Add to `src/tests/changes-since-export.test.ts`. It exercises the real persist+restore round-trip through the multi-tab schema for the active layout. Add the import at the top of the file if not present:
 
@@ -224,11 +224,11 @@ it("persists and reads back lastExportedAt via the workspace library", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] Step 2: Run the test to verify it fails
 
 Run: `npm run test:run -- src/tests/changes-since-export.test.ts` Expected: FAIL (`DurabilityInput` has no `lastExportedAt`; `getLayoutSavedAt` is not exported).
 
-- [ ] **Step 3: Add the field to `LibraryEntry` and `DurabilityInput`, write it, and add the helper**
+- [ ] Step 3: Add the field to `LibraryEntry` and `DurabilityInput`, write it, and add the helper
 
 In `src/lib/storage/browser-workspace.ts`:
 
@@ -287,7 +287,7 @@ export function getLayoutSavedAt(id: string): string | null {
 }
 ```
 
-- [ ] **Step 4: Thread the field through the persist path**
+- [ ] Step 4: Thread the field through the persist path
 
 In `src/lib/storage/browser-workspace-persist.ts`:
 
@@ -343,7 +343,7 @@ library[tab.layoutId] = {
 };
 ```
 
-- [ ] **Step 5: Populate the field in the tab snapshot**
+- [ ] Step 5: Populate the field in the tab snapshot
 
 In `src/lib/components/PersistenceEffects.svelte`, the hydrated branch of `snapshotWorkspaceTabs` (lines 89-95):
 
@@ -358,7 +358,7 @@ tabs.push({
 });
 ```
 
-- [ ] **Step 6: Restore the field**
+- [ ] Step 6: Restore the field
 
 In `src/lib/stores/workspace.svelte.ts`, the restore block (lines 291-298):
 
@@ -374,13 +374,13 @@ if (entry) {
 }
 ```
 
-- [ ] **Step 7: Run the test and the type-check**
+- [ ] Step 7: Run the test and the type-check
 
 Run: `npm run test:run -- src/tests/changes-since-export.test.ts` Expected: PASS.
 
 Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5` Expected: no new errors. (If any other `LibraryEntry` literal is reported as missing `lastExportedAt`, add `lastExportedAt: null` there.)
 
-- [ ] **Step 8: Commit**
+- [ ] Step 8: Commit
 
 ```bash
 git add src/lib/storage/browser-workspace.ts src/lib/storage/browser-workspace-persist.ts src/lib/components/PersistenceEffects.svelte src/lib/stores/workspace.svelte.ts src/tests/changes-since-export.test.ts
@@ -400,7 +400,7 @@ git commit -s -m "feat: persist lastExportedAt in the browser workspace library"
 
 - Produces: `formatRelativeTime(iso: string | null, nowMs?: number): string | null` returning `null` for null/invalid input, `"just now"` under 45 seconds, else an "N units ago" string. Deterministic when `nowMs` is supplied.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] Step 1: Write the failing test
 
 Create `src/tests/relative-time.test.ts`:
 
@@ -430,11 +430,11 @@ describe("formatRelativeTime", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] Step 2: Run the test to verify it fails
 
 Run: `npm run test:run -- src/tests/relative-time.test.ts` Expected: FAIL ("Cannot find module '$lib/utils/relative-time'").
 
-- [ ] **Step 3: Implement the util**
+- [ ] Step 3: Implement the util
 
 Create `src/lib/utils/relative-time.ts`:
 
@@ -470,11 +470,11 @@ export function formatRelativeTime(
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [ ] Step 4: Run the test to verify it passes
 
 Run: `npm run test:run -- src/tests/relative-time.test.ts` Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] Step 5: Commit
 
 ```bash
 git add src/lib/utils/relative-time.ts src/tests/relative-time.test.ts
@@ -495,7 +495,7 @@ git commit -s -m "feat: add formatRelativeTime util for the storage chip"
 - Consumes: `layoutStore.lastExportedAt` (Task 1).
 - Produces: `computeLayoutStatus(...)` returns two extra fields: `shortLabel: string` (the inline state word) and `showLocation: boolean` (false for self-describing error states). `LayoutDurability` gains `shortLabel: string`, `showLocation: boolean`, and `lastExportedAt: string | null`.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] Step 1: Write the failing test
 
 Create `src/tests/durability-inline-labels.test.ts`. `computeLayoutStatus` is a pure exported function (signature: `(saveStatus, consecutiveSaveFailures, storageMode, apiAvailable, changesSinceExport, hasEverExported, apiEverReached)`):
 
@@ -542,11 +542,11 @@ describe("computeLayoutStatus inline fields", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] Step 2: Run the test to verify it fails
 
 Run: `npm run test:run -- src/tests/durability-inline-labels.test.ts` Expected: FAIL (`shortLabel` / `showLocation` are undefined).
 
-- [ ] **Step 3: Add the fields to the `computeLayoutStatus` return type and every branch**
+- [ ] Step 3: Add the fields to the `computeLayoutStatus` return type and every branch
 
 In `src/lib/storage/durability.svelte.ts`, extend the return type annotation (lines 78-84):
 
@@ -668,7 +668,7 @@ return {
 };
 ```
 
-- [ ] **Step 4: Add the fields to `LayoutDurability` and the durability getters**
+- [ ] Step 4: Add the fields to `LayoutDurability` and the durability getters
 
 Extend the `LayoutDurability` interface (lines 42-58) by adding, after `label: string;`:
 
@@ -700,13 +700,13 @@ In `getLayoutDurability` (lines 226-256), add getters alongside the existing one
     },
 ```
 
-- [ ] **Step 5: Run the test and the type-check**
+- [ ] Step 5: Run the test and the type-check
 
 Run: `npm run test:run -- src/tests/durability-inline-labels.test.ts` Expected: PASS.
 
 Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5` Expected: no new errors.
 
-- [ ] **Step 6: Commit**
+- [ ] Step 6: Commit
 
 ```bash
 git add src/lib/storage/durability.svelte.ts src/tests/durability-inline-labels.test.ts
@@ -727,7 +727,7 @@ git commit -s -m "feat: add inline label, location flag, and export time to dura
 - Consumes: `durability.shortLabel`, `durability.showLocation`, `durability.status`, `durability.icon`, `durability.serverHint` (Task 4); `isServerMode` (already computed in the component).
 - Produces: the chip renders `[icon] [shortLabel] . [location]` with the status colour on the state word and a muted location. Accessible name is `Storage status: {label}` plus `, Browser` or `, Server` when `showLocation` is true.
 
-- [ ] **Step 1: Update the test for the new accessible name**
+- [ ] Step 1: Update the test for the new accessible name
 
 Replace the assertion in `src/tests/StorageStatusChip.test.ts` (the existing test expects `/storage status: unsaved changes/i`). A fresh browser-mode store is dirty, so:
 
@@ -741,11 +741,11 @@ it("exposes the current storage state and location in its accessible name", () =
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] Step 2: Run the test to verify it fails
 
 Run: `npm run test:run -- src/tests/StorageStatusChip.test.ts` Expected: FAIL (current accessible name has no location).
 
-- [ ] **Step 3: Add a derived accessible name and split the inline text**
+- [ ] Step 3: Add a derived accessible name and split the inline text
 
 In `src/lib/components/StorageStatusChip.svelte`, add a derived value in the `<script>` (after the `durability` constant, near line 36):
 
@@ -784,7 +784,7 @@ Replace the chip markup (lines 99-133) so the label splits into a coloured state
 </div>
 ```
 
-- [ ] **Step 4: Make the location and separator muted**
+- [ ] Step 4: Make the location and separator muted
 
 In the `<style>` block, the status classes currently colour the whole chip; keep that (so the icon and state word inherit the status colour) and override the location and separator to muted. Add after the `.storage-chip-error` rule:
 
@@ -801,11 +801,11 @@ In the `<style>` block, the status classes currently colour the whole chip; keep
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [ ] Step 5: Run the test to verify it passes
 
 Run: `npm run test:run -- src/tests/StorageStatusChip.test.ts` Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [ ] Step 6: Commit
 
 ```bash
 git add src/lib/components/StorageStatusChip.svelte src/tests/StorageStatusChip.test.ts
@@ -827,7 +827,7 @@ git commit -s -m "feat: show storage location inline on the chip"
 - Consumes: `formatRelativeTime` (Task 3); `getLayoutSavedAt` (Task 2); `getServerBaseUpdatedAt` (existing, exported from `$lib/storage`); `durability.lastExportedAt`, `durability.label`, `durability.icon`, `durability.changesSinceExport` (Task 4).
 - Produces: `StorageDetailsPopover` renders mode-aware facts from plain props (so it is testable without opening a popover).
 
-- [ ] **Step 1: Write the failing test for the content component**
+- [ ] Step 1: Write the failing test for the content component
 
 Create `src/tests/storage-details-popover.test.ts`. It renders the content component directly with props and asserts on copy (text assertions are allowed):
 
@@ -904,11 +904,11 @@ describe("StorageDetailsPopover", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] Step 2: Run the test to verify it fails
 
 Run: `npm run test:run -- src/tests/storage-details-popover.test.ts` Expected: FAIL ("Cannot find module '.../StorageDetailsPopover.svelte'").
 
-- [ ] **Step 3: Create the content component**
+- [ ] Step 3: Create the content component
 
 Create `src/lib/components/StorageDetailsPopover.svelte`:
 
@@ -1066,18 +1066,18 @@ Create `src/lib/components/StorageDetailsPopover.svelte`:
 </style>
 ```
 
-- [ ] **Step 4: Run the content-component test to verify it passes**
+- [ ] Step 4: Run the content-component test to verify it passes
 
 Run: `npm run test:run -- src/tests/storage-details-popover.test.ts` Expected: PASS.
 
-- [ ] **Step 5: Commit the content component**
+- [ ] Step 5: Commit the content component
 
 ```bash
 git add src/lib/components/StorageDetailsPopover.svelte src/tests/storage-details-popover.test.ts
 git commit -s -m "feat: add StorageDetailsPopover content component"
 ```
 
-- [ ] **Step 6: Wire the popover into the chip with hover and tap**
+- [ ] Step 6: Wire the popover into the chip with hover and tap
 
 In `src/lib/components/StorageStatusChip.svelte`:
 
@@ -1187,7 +1187,7 @@ Replace the chip `<div>` (the block from Step 3 of Task 5) by wrapping it in a P
 
 Note: the chip is now a `<button>`, so the old `role="status"` / `aria-live="off"` move off it; the existing hidden `sr-only` live region (the `announced` span at the end of the file) stays and keeps announcing settled state. Leave the `ServerAvailableBanner` and the override `<button>` blocks unchanged.
 
-- [ ] **Step 7: Update the chip styles for the interactive trigger**
+- [ ] Step 7: Update the chip styles for the interactive trigger
 
 In the `<style>` block, replace the base `.storage-chip` rule so it is a borderless, interactive pill with a hover wash and a focus ring (the chip is a button now), and ensure the attention state still shows a border:
 
@@ -1229,7 +1229,7 @@ Add a popover surface rule (this targets the `Popover.Content` via its class):
 }
 ```
 
-- [ ] **Step 8: Validate the Svelte components**
+- [ ] Step 8: Validate the Svelte components
 
 Use the Svelte MCP `svelte-autofixer` on `StorageStatusChip.svelte` and `StorageDetailsPopover.svelte`; apply any fixes and re-run it until clean.
 
@@ -1237,7 +1237,7 @@ Run: `npm run test:run -- src/tests/StorageStatusChip.test.ts src/tests/storage-
 
 Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5` Expected: no new errors.
 
-- [ ] **Step 9: Commit**
+- [ ] Step 9: Commit
 
 ```bash
 git add src/lib/components/StorageStatusChip.svelte
@@ -1250,17 +1250,17 @@ git commit -s -m "feat: reveal storage details on chip hover and tap"
 
 **Files:** none (verification only).
 
-- [ ] **Step 1: Run the full unit suite**
+- [ ] Step 1: Run the full unit suite
 
 Run: `npm run test:run` Expected: PASS. If any other `LibraryEntry` or `BackupState` literal site fails to compile, add `lastExportedAt: null` (entries) or omit it (optional on `BackupState`) and re-run.
 
-- [ ] **Step 2: Lint and type-check**
+- [ ] Step 2: Lint and type-check
 
 Run: `npm run lint` Expected: PASS (no `no-restricted-syntax` test violations, no querySelector/toHaveClass/colour assertions).
 
 Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5` Expected: no errors.
 
-- [ ] **Step 3: Manual smoke (dev server)**
+- [ ] Step 3: Manual smoke (dev server)
 
 Run: `npm run dev`, open the app, and confirm:
 
@@ -1268,7 +1268,7 @@ Run: `npm run dev`, open the app, and confirm:
 - The popover closes on Escape, on click-away, and on mouse-leave (after the short delay), and stays open while the pointer is inside it.
 - Keyboard: Tab to the chip, press Enter or Space to open, Escape to close; the focus ring shows.
 
-- [ ] **Step 4: Stop for review**
+- [ ] Step 4: Stop for review
 
 Stop here and hand back for review. Do not open a PR until the branch is reviewed per the project workflow (CodeRabbit + CodeAnt).
 

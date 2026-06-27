@@ -137,12 +137,15 @@
 
   // Timestamp sources for the popover, read on open. Browser: the layout's last
   // localStorage write (autosave) plus its last export. Server: the last server save.
+  // Reading durability.status ensures these re-run when save state changes while open.
   const layoutId = $derived(layoutStore.layout.metadata?.id ?? null);
   const autosaveAt = $derived(
-    open && !isServerMode && layoutId ? getLayoutSavedAt(layoutId) : null,
+    open && !isServerMode && layoutId
+      ? (durability.status, getLayoutSavedAt(layoutId))
+      : null,
   );
   const serverSavedAt = $derived(
-    open && isServerMode ? getServerBaseUpdatedAt() : null,
+    open && isServerMode ? (durability.status, getServerBaseUpdatedAt()) : null,
   );
 </script>
 
@@ -184,6 +187,7 @@
     >
       <StorageDetailsPopover
         mode={isServerMode ? "server" : "browser"}
+        kind={durability.kind}
         headline={durability.label}
         icon={durability.icon}
         changesSinceExport={durability.changesSinceExport}

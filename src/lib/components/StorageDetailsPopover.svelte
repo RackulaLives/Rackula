@@ -5,15 +5,18 @@
   live in the app menu, #2446). Browser mode shows the autosave time and the
   last-export time, labelled, so a recent autosave never reads as a durable
   backup. Server mode shows the last server save, reframed as "last reached"
-  when the connection is degraded.
+  when the connection is degraded. Server-not-found shows an honest note that
+  the layout has not been saved to the server.
 -->
 <script lang="ts">
   import { IconCheck, IconClock, IconWarningTriangle } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
-  import { formatRelativeTime } from "$lib/utils/relative-time";
+  import { formatTimeAgo } from "$lib/utils/relative-time";
+  import type { DurabilityKind } from "$lib/storage";
 
   interface Props {
     mode: "browser" | "server";
+    kind: DurabilityKind;
     headline: string;
     icon: "saved" | "pending" | "error";
     changesSinceExport: number;
@@ -25,6 +28,7 @@
 
   let {
     mode,
+    kind,
     headline,
     icon,
     changesSinceExport,
@@ -34,10 +38,11 @@
     nowMs,
   }: Props = $props();
 
-  const autosaveRel = $derived(formatRelativeTime(autosaveAt, nowMs));
-  const exportRel = $derived(formatRelativeTime(lastExportedAt, nowMs));
-  const serverRel = $derived(formatRelativeTime(serverSavedAt, nowMs));
-  const isDegraded = $derived(icon === "error");
+  const autosaveRel = $derived(formatTimeAgo(autosaveAt, nowMs));
+  const exportRel = $derived(formatTimeAgo(lastExportedAt, nowMs));
+  const serverRel = $derived(formatTimeAgo(serverSavedAt, nowMs));
+  const neverReached = $derived(kind === "server-not-found");
+  const degraded = $derived(kind === "offline");
 </script>
 
 <div class="storage-details">
@@ -77,19 +82,21 @@
       </p>
     {/if}
     <p class="storage-details-foot">Stored in this browser only</p>
+  {:else if neverReached}
+    <p class="storage-details-note storage-details-warn">
+      This layout has not been saved to the server.
+    </p>
+    <p class="storage-details-foot">Not saved to the server</p>
   {:else}
     <div class="storage-details-row">
       <span class="storage-details-label">
-        {isDegraded ? "Last reached server" : "Last saved"}
+        {degraded ? "Last reached server" : "Last saved"}
       </span>
-      <span
-        class="storage-details-value"
-        class:storage-details-warn={isDegraded}
-      >
+      <span class="storage-details-value" class:storage-details-warn={degraded}>
         {serverRel ?? "Not yet saved"}
       </span>
     </div>
-    {#if isDegraded}
+    {#if degraded}
       <p class="storage-details-note storage-details-warn">
         Your most recent edits may not be saved.
       </p>
