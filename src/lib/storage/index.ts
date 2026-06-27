@@ -79,6 +79,7 @@ export {
   hasEverHadLayouts,
   markEverHadLayouts,
   adoptLegacyAutosave,
+  getLayoutSavedAt,
   type WorkspaceIndex,
   type LibraryEntry,
   type LayoutBodyResult,

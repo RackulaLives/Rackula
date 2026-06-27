@@ -7,11 +7,10 @@
   app menu's file section, projected from the actions registry (#2446).
 
   Accessibility (#2064): state is conveyed by icon + text, never colour alone
-  (WCAG 1.4.1). The visible chip is a labelled but non-live status indicator
-  (role="status" with aria-live="off"), so it is not announced on every change.
-  The save->saved debounce cascade produces several intermediate statuses in
-  quick succession; a single hidden live region announces only the settled
-  state (debounced), so a screen reader is not spammed with intermediate ones.
+  (WCAG 1.4.1). The visible chip is a <button> with an aria-label that carries
+  the current storage state and location. Live announcements come from a
+  separate hidden sr-only span (role="status" aria-live="polite") that is
+  debounced so a screen reader is not spammed with intermediate save states.
 -->
 <script lang="ts">
   import { IconCheck, IconClock, IconWarningTriangle } from "./icons";
@@ -24,8 +23,8 @@
     isStorageModeFromOverride,
     clearStorageModeOverride,
     getServerBaseUpdatedAt,
+    getLayoutSavedAt,
   } from "$lib/storage";
-  import { getLayoutSavedAt } from "$lib/storage/browser-workspace";
   import { maybeSaveAs } from "$lib/utils/app-actions";
   import { evaluateBackupNudge, NUDGE_MESSAGE } from "$lib/utils/backup-nudge";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
@@ -40,7 +39,7 @@
   // Storage mode is fixed for the session (read once; mode switches reload the page).
   const isServerMode = getStorageMode() === "server";
 
-  const locationWord = $derived(isServerMode ? "Server" : "Browser");
+  const locationWord = isServerMode ? "Server" : "Browser";
   const accessibleName = $derived(
     durability.showLocation
       ? `Storage status: ${durability.label}, ${locationWord}`
@@ -109,6 +108,9 @@
   let open = $state(false);
   let nowMs = $state(Date.now());
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  // Clear a pending close timer if the component is destroyed while hovering.
+  $effect(() => () => clearTimeout(closeTimer));
 
   // Recompute the popover's relative times only while it is open.
   $effect(() => {

@@ -328,7 +328,7 @@ export function rollupDurabilities(
       detail: "",
       icon: "saved",
       serverHint: false,
-      lastExportedAt: null,
+      lastExportedAt: null, // no single export timestamp across multiple layouts
     };
   }
   return worst;

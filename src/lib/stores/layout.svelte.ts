@@ -842,6 +842,7 @@ export function createLayoutStore(
   function markExported(): void {
     changesSinceExport = 0;
     hasEverExported = true;
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- transient ISO timestamp, not a stored reactive Date
     lastExportedAt = new Date().toISOString();
   }
 

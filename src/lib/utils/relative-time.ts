@@ -10,7 +10,7 @@ const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "always" });
+const rtf = new Intl.RelativeTimeFormat("en", { numeric: "always" });
 
 export function formatRelativeTime(
   iso: string | null,
