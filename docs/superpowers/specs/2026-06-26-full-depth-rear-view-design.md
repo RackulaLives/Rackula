@@ -54,7 +54,7 @@ Because of (1), data migration is the wrong correctness mechanism. Because of (2
 
 Add a pure helper:
 
-```
+```text
 effectiveFace(placedDevice, deviceType): DeviceFace
   // full-depth (is_full_depth !== false) -> "both"
   // otherwise -> placedDevice.face
@@ -91,7 +91,7 @@ All changes are scoped to `RackDevice.svelte`, which already computes `currentFa
 
 New derived flag:
 
-```
+```text
 isRearTreatment = currentFace === "rear" && device.is_full_depth !== false
 ```
 
@@ -134,7 +134,7 @@ Per the project's prior-release data policy, reading data written by a prior rel
 - Derive-on-read makes any prior-release or imported layout render correctly on both faces with no mutation on open, so there is no migration step that can create an overlap (the manufactured-collision hazard is avoided by construction).
 - No dirty-on-open: opening a file does not mutate it, so it does not appear unsaved, and server storage mode does not trigger an unexpected write on open.
 - No undo hazard: there is no recorded normalization action that a user could undo back into a broken state.
-- Add an upgrade-corpus fixture (`src/tests/fixtures/upgrade-corpus/`) representing a prior-release layout with a full-depth device stored as `face: "front"`, asserting it renders on both faces and that collision treats it as occupying both.
+- The prior-release guard is the legacy-shaped render and collision tests: a full-depth device stored as `face: "front"` must render on both faces and collide as occupying both. These tests are the required backward-compatibility check. A formal upgrade-corpus YAML fixture in `src/tests/fixtures/upgrade-corpus/` is an optional follow-up; derive-on-read changes no load path, so the existing test coverage is sufficient.
 
 ## Edge cases addressed
 
@@ -160,7 +160,7 @@ Per the project's prior-release data policy, reading data written by a prior rel
 - Rendering behaviour: in image mode with no rear image, a full-depth device on the rear shows the colour/label treatment rather than a placeholder.
 - Annotations: a full-depth device's annotation appears on both faces.
 - Empty-state: a face panel with no devices renders the hint; a populated panel does not.
-- Upgrade corpus: the new fixture renders on both faces and collides correctly.
+- Prior-release guard: a full-depth device stored as `face: "front"` renders on both faces and collision treats it as occupying both (required). A formal upgrade-corpus YAML fixture is an optional follow-up.
 - Existing: `src/tests/rear-view-full-depth.test.ts` continues to pass.
 
 Tests assert behaviour, not exact colours or class names, per the project testing rules. The edit-panel control structure is presentational and does not get DOM-structure tests.
