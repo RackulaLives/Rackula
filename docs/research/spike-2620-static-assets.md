@@ -44,7 +44,7 @@ No `main` / Worker entry. (`preview_urls: true` is needed for the versioned-depl
 
 Reproduces `deploy/security-headers.conf` by value (asserted by the #2032 parity guard) and the cache split from `deploy/nginx.conf.template`:
 
-```
+```text
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self';
   X-Frame-Options: SAMEORIGIN
@@ -68,7 +68,7 @@ Notes:
 
 Per the #2029 robots decision. Inject/select the prod variant at the wrangler build step (self-host keeps allow-all):
 
-```
+```text
 User-agent: *
 Disallow: /login
 ```

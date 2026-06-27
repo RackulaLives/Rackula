@@ -92,7 +92,7 @@ For a typical SPA the default `html_handling` is fine; the SPA behaviour is driv
 
 **Path matching:** `*` (splat) greedily matches all characters; `:placeholder_name` matches all characters except the path delimiter; absolute URLs are supported (HTTPS only, no port) (<https://developers.cloudflare.com/workers/static-assets/headers/>).
 
-**Precedence / combining:** "An incoming request which matches multiple rules' URL patterns will inherit all rules' headers." A header can be removed by prefixing its name with `! `. "If a header is applied twice in the `_headers` file, the values are joined with a comma separator." (<https://developers.cloudflare.com/workers/static-assets/headers/>).
+**Precedence / combining:** "An incoming request which matches multiple rules' URL patterns will inherit all rules' headers." A header can be removed by prefixing its name with `!` (e.g. `! X-Frame-Options`). "If a header is applied twice in the `_headers` file, the values are joined with a comma separator." (<https://developers.cloudflare.com/workers/static-assets/headers/>).
 
 **Limits** (<https://developers.cloudflare.com/workers/platform/limits/> and the headers page):
 
@@ -213,15 +213,15 @@ This template is sufficient for `wrangler deploy`, `wrangler versions upload`, a
 
 By default both the HTML shell and hashed assets get the same conservative `max-age=0, must-revalidate`, so clients always revalidate. That default already makes deploy verification safe: a new shell is picked up on the next request because the browser revalidates.
 
-**Yes — you can split caching (immutable `/assets/*` + revalidated `index.html`) via `_headers`** (<https://developers.cloudflare.com/workers/static-assets/headers/>). Vite emits content-hashed filenames under `assets/`, which are safe to cache immutably; the HTML shell should revalidate so a new deploy is seen immediately:
+**Yes — you can split caching (immutable `/assets/*` + revalidated `index.html`) via `_headers`** (<https://developers.cloudflare.com/workers/static-assets/headers/>). Vite emits content-hashed filenames under `assets/`, which are safe to cache immutably; the HTML shell should revalidate so a new deploy is seen immediately. The shell entries below use `Cache-Control: no-cache` to match the current nginx SPA-shell directive (`deploy/nginx.conf.template`, `location /`) exactly; CF's default `public, max-age=0, must-revalidate` is semantically equivalent (both force revalidation) but is not byte-identical:
 
 ```text
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 /index.html
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-cache
 /
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-cache
 ```
 
 This gives long-lived caching for fingerprinted bundles while guaranteeing the SPA shell (and root path) is re-fetched/revalidated on every deploy, so Playwright smoke tests and real clients always pick up the new version. The default behaviour (everything `max-age=0, must-revalidate`) is already smoke-test-friendly; the `_headers` override above is the performance optimization for repeat visitors (<https://developers.cloudflare.com/workers/static-assets/headers/>).
@@ -248,7 +248,7 @@ This gives long-lived caching for fingerprinted bundles while guaranteeing the S
 
 ```text
 /*
-  X-Frame-Options: DENY
+  X-Frame-Options: SAMEORIGIN
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: ...
@@ -256,7 +256,7 @@ This gives long-lived caching for fingerprinted bundles while guaranteeing the S
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 /index.html
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-cache
 ```
 
 CI deploy (items 5 + 6): token = "Edit Cloudflare Workers" template scoped to the one account + `racku.la` zone; flow = `wrangler versions upload` -> Playwright against the version preview URL -> `wrangler versions deploy` -> `wrangler rollback` on failure.

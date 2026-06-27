@@ -16,13 +16,13 @@ This documents the exact behaviour the current VPS/nginx prod deploy provides, s
 
 Current prod CSP (no script hashes — #2028 removed the only inline script, so `script-src 'self'` suffices; **there are no pinned hashes to carry across**, contrary to the spike issue's assumption):
 
-```
+```text
 Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self';
 ```
 
 Plus, on every response (`deploy/security-headers.conf:11-22`):
 
-```
+```text
 X-Frame-Options: SAMEORIGIN
 X-Content-Type-Options: nosniff
 Strict-Transport-Security: max-age=31536000; includeSubDomains   # prod only (TLS terminated)
