@@ -1,8 +1,6 @@
 # Full-depth devices in the rear view: policy and visual treatment
 
-Date: 2026-06-26
-Status: Approved design, revised after devil's-advocate review, ready for implementation plan
-Related: Issue #2337 (rear rack view shows nothing for full-depth devices)
+Date: 2026-06-26 Status: Approved design, revised after devil's-advocate review, ready for implementation plan Related: Issue #2337 (rear rack view shows nothing for full-depth devices)
 
 ## Problem
 
