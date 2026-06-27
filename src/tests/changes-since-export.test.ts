@@ -157,4 +157,27 @@ describe("changesSinceExport", () => {
     // updatedAt is the autosave write time, exposed for the "Auto-saved" line.
     expect(getLayoutSavedAt(id)).toBe(index?.library[id]?.updatedAt);
   });
+
+  it("clears lastExportedAt when an explicit null is persisted (reset/load)", () => {
+    const id = "clear-export-id";
+    const layout = getLayoutStore().layout;
+
+    saveLayoutBody(id, layout, {
+      changesSinceExport: 0,
+      hasEverExported: true,
+      lastExportedAt: "2026-06-26T12:00:00.000Z",
+    });
+    expect(loadWorkspaceIndex()?.library[id]?.lastExportedAt).toBe(
+      "2026-06-26T12:00:00.000Z",
+    );
+
+    // An explicit null (the store after a reset/load) must overwrite the prior
+    // timestamp, not be coalesced back to it.
+    saveLayoutBody(id, layout, {
+      changesSinceExport: 0,
+      hasEverExported: false,
+      lastExportedAt: null,
+    });
+    expect(loadWorkspaceIndex()?.library[id]?.lastExportedAt).toBeNull();
+  });
 });
