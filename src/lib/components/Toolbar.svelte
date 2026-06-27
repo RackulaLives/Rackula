@@ -154,7 +154,7 @@
           ><IconSearch size={ICON_SIZE.sm} /></span
         >
         {#if !viewportStore.isMobile}
-          <span class="command-pill-text">Search or jump to...</span>
+          <span class="command-pill-text">Search</span>
           <span class="command-pill-badge">{paletteShortcut}</span>
         {/if}
       </span>
@@ -435,6 +435,11 @@
     padding: 1px var(--space-1);
     border: 1px solid var(--colour-border);
     border-radius: var(--radius-sm);
+  }
+
+  .command-pill-icon {
+    display: inline-flex;
+    align-items: center;
   }
 
   .command-pill-icon :global(svg) {
