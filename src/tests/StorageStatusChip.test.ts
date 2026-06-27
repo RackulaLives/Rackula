@@ -15,6 +15,8 @@ describe("StorageStatusChip", () => {
   it("exposes the current storage state and location in its accessible name", () => {
     render(StorageStatusChip);
     const chip = screen.getByTestId("storage-status-chip");
-    expect(chip).toHaveAccessibleName(/storage status: unsaved changes, browser/i);
+    expect(chip).toHaveAccessibleName(
+      /storage status: unsaved changes, browser/i,
+    );
   });
 });

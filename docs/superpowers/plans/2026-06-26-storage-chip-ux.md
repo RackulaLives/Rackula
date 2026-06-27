@@ -44,11 +44,13 @@
 ### Task 1: Track `lastExportedAt` in the layout store
 
 **Files:**
+
 - Modify: `src/lib/stores/layout/persistence.ts:15-18`
 - Modify: `src/lib/stores/layout.svelte.ts` (state ~140-142, getters ~233-238, `markExported` ~836-839, `restoreBackupState` ~845-847, resets ~170-173 and ~212-215)
 - Test: `src/tests/changes-since-export.test.ts`
 
 **Interfaces:**
+
 - Produces: `BackupState` gains optional `lastExportedAt?: string | null`. The layout store gains a `lastExportedAt: string | null` getter, `markExported()` stamps it with the current ISO time, and `restoreBackupState(state)` restores it (coercing `undefined` to `null`).
 
 - [ ] **Step 1: Write the failing tests**
@@ -56,36 +58,35 @@
 Add to `src/tests/changes-since-export.test.ts` (inside the existing top-level `describe`):
 
 ```typescript
-  it("stamps lastExportedAt on markExported and clears it on load", () => {
-    const store = getLayoutStore();
-    expect(store.lastExportedAt).toBeNull();
+it("stamps lastExportedAt on markExported and clears it on load", () => {
+  const store = getLayoutStore();
+  expect(store.lastExportedAt).toBeNull();
 
-    store.markExported();
-    expect(store.lastExportedAt).not.toBeNull();
-    expect(() => new Date(store.lastExportedAt as string)).not.toThrow();
+  store.markExported();
+  expect(store.lastExportedAt).not.toBeNull();
+  expect(() => new Date(store.lastExportedAt as string)).not.toThrow();
 
-    store.loadLayout(store.layout);
-    expect(store.lastExportedAt).toBeNull();
+  store.loadLayout(store.layout);
+  expect(store.lastExportedAt).toBeNull();
+});
+
+it("restores lastExportedAt through restoreBackupState", () => {
+  const store = getLayoutStore();
+  const stamp = "2026-06-26T12:00:00.000Z";
+  store.restoreBackupState({
+    changesSinceExport: 4,
+    hasEverExported: true,
+    lastExportedAt: stamp,
   });
-
-  it("restores lastExportedAt through restoreBackupState", () => {
-    const store = getLayoutStore();
-    const stamp = "2026-06-26T12:00:00.000Z";
-    store.restoreBackupState({
-      changesSinceExport: 4,
-      hasEverExported: true,
-      lastExportedAt: stamp,
-    });
-    expect(store.lastExportedAt).toBe(stamp);
-    expect(store.changesSinceExport).toBe(4);
-    expect(store.hasEverExported).toBe(true);
-  });
+  expect(store.lastExportedAt).toBe(stamp);
+  expect(store.changesSinceExport).toBe(4);
+  expect(store.hasEverExported).toBe(true);
+});
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `npm run test:run -- src/tests/changes-since-export.test.ts`
-Expected: FAIL (`store.lastExportedAt` is `undefined`; `restoreBackupState` ignores the new field).
+Run: `npm run test:run -- src/tests/changes-since-export.test.ts` Expected: FAIL (`store.lastExportedAt` is `undefined`; `restoreBackupState` ignores the new field).
 
 - [ ] **Step 3: Add `lastExportedAt` to `BackupState`**
 
@@ -108,7 +109,7 @@ In `src/lib/stores/layout.svelte.ts`:
 Add the state declaration next to the others (after line 142):
 
 ```typescript
-  let lastExportedAt = $state<string | null>(null);
+let lastExportedAt = $state<string | null>(null);
 ```
 
 Add a getter in the returned store object, after the `hasEverExported` getter (after line 238):
@@ -122,21 +123,21 @@ Add a getter in the returned store object, after the `hasEverExported` getter (a
 Update `markExported()` (currently lines 836-839) to stamp the time:
 
 ```typescript
-  function markExported(): void {
-    changesSinceExport = 0;
-    hasEverExported = true;
-    lastExportedAt = new Date().toISOString();
-  }
+function markExported(): void {
+  changesSinceExport = 0;
+  hasEverExported = true;
+  lastExportedAt = new Date().toISOString();
+}
 ```
 
 Update `restoreBackupState()` (currently lines 845-847) to restore it (undefined coerces to null):
 
 ```typescript
-  function restoreBackupState(state: BackupState): void {
-    changesSinceExport = state.changesSinceExport;
-    hasEverExported = state.hasEverExported;
-    lastExportedAt = state.lastExportedAt ?? null;
-  }
+function restoreBackupState(state: BackupState): void {
+  changesSinceExport = state.changesSinceExport;
+  hasEverExported = state.hasEverExported;
+  lastExportedAt = state.lastExportedAt ?? null;
+}
 ```
 
 In `resetBackupTracking` (the object method around lines 170-173), add the reset:
@@ -153,20 +154,18 @@ In `resetBackupTracking` (the object method around lines 170-173), add the reset
 In `resetLayout` (around lines 212-215), add the reset after `hasEverExported = false;`:
 
 ```typescript
-    changesSinceExport = 0;
-    hasEverExported = false;
-    lastExportedAt = null;
+changesSinceExport = 0;
+hasEverExported = false;
+lastExportedAt = null;
 ```
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `npm run test:run -- src/tests/changes-since-export.test.ts`
-Expected: PASS (all tests, including the two new ones).
+Run: `npm run test:run -- src/tests/changes-since-export.test.ts` Expected: PASS (all tests, including the two new ones).
 
 - [ ] **Step 6: Type-check**
 
-Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5`
-Expected: no new errors from these files.
+Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5` Expected: no new errors from these files.
 
 - [ ] **Step 7: Commit**
 
@@ -180,6 +179,7 @@ git commit -s -m "feat: track lastExportedAt in the layout store"
 ### Task 2: Persist `lastExportedAt` across reload (browser multi-tab schema)
 
 **Files:**
+
 - Modify: `src/lib/storage/browser-workspace.ts` (`LibraryEntry` ~45-52, `DurabilityInput` ~69-73, index write ~250-258, add helper near other exports)
 - Modify: `src/lib/storage/browser-workspace-persist.ts` (`PersistTab` ~25-38, `saveLayoutBody` call ~82-85, paused/shell entries ~113-130)
 - Modify: `src/lib/components/PersistenceEffects.svelte` (snapshot ~88-95)
@@ -187,6 +187,7 @@ git commit -s -m "feat: track lastExportedAt in the layout store"
 - Test: `src/tests/changes-since-export.test.ts`
 
 **Interfaces:**
+
 - Consumes: `layoutStore.lastExportedAt` (Task 1).
 - Produces: `LibraryEntry` and `DurabilityInput` gain `lastExportedAt: string | null`. New export `getLayoutSavedAt(id: string): string | null` returns a layout's last localStorage write time (the library entry `updatedAt`, or null when absent or empty).
 
@@ -205,28 +206,27 @@ import {
 Then add the test:
 
 ```typescript
-  it("persists and reads back lastExportedAt via the workspace library", () => {
-    const id = "test-layout-id";
-    const stamp = "2026-06-26T12:00:00.000Z";
-    const layout = getLayoutStore().layout;
+it("persists and reads back lastExportedAt via the workspace library", () => {
+  const id = "test-layout-id";
+  const stamp = "2026-06-26T12:00:00.000Z";
+  const layout = getLayoutStore().layout;
 
-    saveLayoutBody(id, layout, {
-      changesSinceExport: 2,
-      hasEverExported: true,
-      lastExportedAt: stamp,
-    });
-
-    const index = loadWorkspaceIndex();
-    expect(index?.library[id]?.lastExportedAt).toBe(stamp);
-    // updatedAt is the autosave write time, exposed for the "Auto-saved" line.
-    expect(getLayoutSavedAt(id)).toBe(index?.library[id]?.updatedAt);
+  saveLayoutBody(id, layout, {
+    changesSinceExport: 2,
+    hasEverExported: true,
+    lastExportedAt: stamp,
   });
+
+  const index = loadWorkspaceIndex();
+  expect(index?.library[id]?.lastExportedAt).toBe(stamp);
+  // updatedAt is the autosave write time, exposed for the "Auto-saved" line.
+  expect(getLayoutSavedAt(id)).toBe(index?.library[id]?.updatedAt);
+});
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `npm run test:run -- src/tests/changes-since-export.test.ts`
-Expected: FAIL (`DurabilityInput` has no `lastExportedAt`; `getLayoutSavedAt` is not exported).
+Run: `npm run test:run -- src/tests/changes-since-export.test.ts` Expected: FAIL (`DurabilityInput` has no `lastExportedAt`; `getLayoutSavedAt` is not exported).
 
 - [ ] **Step 3: Add the field to `LibraryEntry` and `DurabilityInput`, write it, and add the helper**
 
@@ -261,17 +261,16 @@ export interface DurabilityInput {
 Update the index entry write inside `saveLayoutBody` (lines 250-258) to carry the field, preserving a prior value when the caller omits it:
 
 ```typescript
-  index.library[id] = {
-    name: layout.name,
-    updatedAt: savedAt,
-    changesSinceExport: durability.changesSinceExport,
-    hasEverExported:
-      durability.hasEverExported ?? previous?.hasEverExported ?? false,
-    lastExportedAt:
-      durability.lastExportedAt ?? previous?.lastExportedAt ?? null,
-    writeFailed: durability.writeFailed ?? !wrote,
-    storageMode: previous?.storageMode ?? "browser",
-  };
+index.library[id] = {
+  name: layout.name,
+  updatedAt: savedAt,
+  changesSinceExport: durability.changesSinceExport,
+  hasEverExported:
+    durability.hasEverExported ?? previous?.hasEverExported ?? false,
+  lastExportedAt: durability.lastExportedAt ?? previous?.lastExportedAt ?? null,
+  writeFailed: durability.writeFailed ?? !wrote,
+  storageMode: previous?.storageMode ?? "browser",
+};
 ```
 
 Add the read helper (place it after `saveLayoutBody`, before `deleteLayoutBody` near line 264):
@@ -308,40 +307,40 @@ Extend the hydrated `PersistTab` variant (lines 26-32):
 Pass it into the body write (lines 81-85):
 
 ```typescript
-      const write = () =>
-        saveLayoutBody(tab.layoutId, tab.layout, {
-          changesSinceExport: tab.changesSinceExport,
-          hasEverExported: tab.hasEverExported,
-          lastExportedAt: tab.lastExportedAt,
-        });
+const write = () =>
+  saveLayoutBody(tab.layoutId, tab.layout, {
+    changesSinceExport: tab.changesSinceExport,
+    hasEverExported: tab.hasEverExported,
+    lastExportedAt: tab.lastExportedAt,
+  });
 ```
 
 Add it to the paused-hydrated entry (lines 113-120):
 
 ```typescript
-      library[tab.layoutId] = {
-        name: tab.layout.name,
-        updatedAt: "",
-        changesSinceExport: tab.changesSinceExport,
-        hasEverExported: tab.hasEverExported,
-        lastExportedAt: tab.lastExportedAt,
-        writeFailed: false,
-        storageMode: "browser",
-      };
+library[tab.layoutId] = {
+  name: tab.layout.name,
+  updatedAt: "",
+  changesSinceExport: tab.changesSinceExport,
+  hasEverExported: tab.hasEverExported,
+  lastExportedAt: tab.lastExportedAt,
+  writeFailed: false,
+  storageMode: "browser",
+};
 ```
 
 Add it to the shell entry (lines 123-130), carrying forward any prior value:
 
 ```typescript
-    library[tab.layoutId] = {
-      name: tab.name,
-      updatedAt: previous?.updatedAt ?? "",
-      changesSinceExport: previous?.changesSinceExport ?? 0,
-      hasEverExported: previous?.hasEverExported ?? false,
-      lastExportedAt: previous?.lastExportedAt ?? null,
-      writeFailed: previous?.writeFailed ?? false,
-      storageMode: previous?.storageMode ?? "browser",
-    };
+library[tab.layoutId] = {
+  name: tab.name,
+  updatedAt: previous?.updatedAt ?? "",
+  changesSinceExport: previous?.changesSinceExport ?? 0,
+  hasEverExported: previous?.hasEverExported ?? false,
+  lastExportedAt: previous?.lastExportedAt ?? null,
+  writeFailed: previous?.writeFailed ?? false,
+  storageMode: previous?.storageMode ?? "browser",
+};
 ```
 
 - [ ] **Step 5: Populate the field in the tab snapshot**
@@ -349,14 +348,14 @@ Add it to the shell entry (lines 123-130), carrying forward any prior value:
 In `src/lib/components/PersistenceEffects.svelte`, the hydrated branch of `snapshotWorkspaceTabs` (lines 89-95):
 
 ```typescript
-        tabs.push({
-          layoutId,
-          hydrated: true,
-          layout: $state.snapshot(tab.store.layout),
-          changesSinceExport: tab.store.changesSinceExport,
-          hasEverExported: tab.store.hasEverExported,
-          lastExportedAt: tab.store.lastExportedAt,
-        });
+tabs.push({
+  layoutId,
+  hydrated: true,
+  layout: $state.snapshot(tab.store.layout),
+  changesSinceExport: tab.store.changesSinceExport,
+  hasEverExported: tab.store.hasEverExported,
+  lastExportedAt: tab.store.lastExportedAt,
+});
 ```
 
 - [ ] **Step 6: Restore the field**
@@ -364,24 +363,22 @@ In `src/lib/components/PersistenceEffects.svelte`, the hydrated branch of `snaps
 In `src/lib/stores/workspace.svelte.ts`, the restore block (lines 291-298):
 
 ```typescript
-    const entry = tab.layoutId ? restoreLibrary[tab.layoutId] : undefined;
-    if (entry) {
-      tab.store.markDirty();
-      tab.store.restoreBackupState({
-        changesSinceExport: entry.changesSinceExport,
-        hasEverExported: entry.hasEverExported,
-        lastExportedAt: entry.lastExportedAt,
-      });
-    }
+const entry = tab.layoutId ? restoreLibrary[tab.layoutId] : undefined;
+if (entry) {
+  tab.store.markDirty();
+  tab.store.restoreBackupState({
+    changesSinceExport: entry.changesSinceExport,
+    hasEverExported: entry.hasEverExported,
+    lastExportedAt: entry.lastExportedAt,
+  });
+}
 ```
 
 - [ ] **Step 7: Run the test and the type-check**
 
-Run: `npm run test:run -- src/tests/changes-since-export.test.ts`
-Expected: PASS.
+Run: `npm run test:run -- src/tests/changes-since-export.test.ts` Expected: PASS.
 
-Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5`
-Expected: no new errors. (If any other `LibraryEntry` literal is reported as missing `lastExportedAt`, add `lastExportedAt: null` there.)
+Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5` Expected: no new errors. (If any other `LibraryEntry` literal is reported as missing `lastExportedAt`, add `lastExportedAt: null` there.)
 
 - [ ] **Step 8: Commit**
 
@@ -395,10 +392,12 @@ git commit -s -m "feat: persist lastExportedAt in the browser workspace library"
 ### Task 3: Relative-time util
 
 **Files:**
+
 - Create: `src/lib/utils/relative-time.ts`
 - Test: `src/tests/relative-time.test.ts`
 
 **Interfaces:**
+
 - Produces: `formatRelativeTime(iso: string | null, nowMs?: number): string | null` returning `null` for null/invalid input, `"just now"` under 45 seconds, else an "N units ago" string. Deterministic when `nowMs` is supplied.
 
 - [ ] **Step 1: Write the failing test**
@@ -433,8 +432,7 @@ describe("formatRelativeTime", () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `npm run test:run -- src/tests/relative-time.test.ts`
-Expected: FAIL ("Cannot find module '$lib/utils/relative-time'").
+Run: `npm run test:run -- src/tests/relative-time.test.ts` Expected: FAIL ("Cannot find module '$lib/utils/relative-time'").
 
 - [ ] **Step 3: Implement the util**
 
@@ -465,7 +463,8 @@ export function formatRelativeTime(
 
   const elapsed = nowMs - then;
   if (elapsed < 45 * SECOND) return "just now";
-  if (elapsed < HOUR) return rtf.format(-Math.round(elapsed / MINUTE), "minute");
+  if (elapsed < HOUR)
+    return rtf.format(-Math.round(elapsed / MINUTE), "minute");
   if (elapsed < DAY) return rtf.format(-Math.round(elapsed / HOUR), "hour");
   return rtf.format(-Math.round(elapsed / DAY), "day");
 }
@@ -473,8 +472,7 @@ export function formatRelativeTime(
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `npm run test:run -- src/tests/relative-time.test.ts`
-Expected: PASS.
+Run: `npm run test:run -- src/tests/relative-time.test.ts` Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -488,10 +486,12 @@ git commit -s -m "feat: add formatRelativeTime util for the storage chip"
 ### Task 4: Extend the durability source with inline label, location flag, and export time
 
 **Files:**
+
 - Modify: `src/lib/storage/durability.svelte.ts` (`LayoutDurability` ~42-58, `computeLayoutStatus` return type ~78-84 and all return branches ~90-187, `getLayoutDurability` getters ~226-256)
 - Test: `src/tests/durability-inline-labels.test.ts`
 
 **Interfaces:**
+
 - Consumes: `layoutStore.lastExportedAt` (Task 1).
 - Produces: `computeLayoutStatus(...)` returns two extra fields: `shortLabel: string` (the inline state word) and `showLocation: boolean` (false for self-describing error states). `LayoutDurability` gains `shortLabel: string`, `showLocation: boolean`, and `lastExportedAt: string | null`.
 
@@ -544,8 +544,7 @@ describe("computeLayoutStatus inline fields", () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `npm run test:run -- src/tests/durability-inline-labels.test.ts`
-Expected: FAIL (`shortLabel` / `showLocation` are undefined).
+Run: `npm run test:run -- src/tests/durability-inline-labels.test.ts` Expected: FAIL (`shortLabel` / `showLocation` are undefined).
 
 - [ ] **Step 3: Add the fields to the `computeLayoutStatus` return type and every branch**
 
@@ -567,25 +566,106 @@ Then add `shortLabel` and `showLocation` to each of the eight return objects. Us
 
 ```typescript
 // browser, durable (line ~91)
-    return { status: "saved", kind: "saved", label: "Saved", shortLabel: "Saved", showLocation: true, detail: "Stored in this browser", icon: "saved" };
+return {
+  status: "saved",
+  kind: "saved",
+  label: "Saved",
+  shortLabel: "Saved",
+  showLocation: true,
+  detail: "Stored in this browser",
+  icon: "saved",
+};
 // browser, pending (line ~99)
-    return { status: "pending", kind: "pending", label: "Unsaved changes", shortLabel: "Unsaved", showLocation: true, detail: "Stored in this browser", icon: "pending" };
+return {
+  status: "pending",
+  kind: "pending",
+  label: "Unsaved changes",
+  shortLabel: "Unsaved",
+  showLocation: true,
+  detail: "Stored in this browser",
+  icon: "pending",
+};
 // server, breaker open (line ~113)
-    return { status: "error", kind: "offline", label: "Server unavailable", shortLabel: "Server unavailable", showLocation: false, detail: "Working from your browser; reload to retry.", icon: "error" };
+return {
+  status: "error",
+  kind: "offline",
+  label: "Server unavailable",
+  shortLabel: "Server unavailable",
+  showLocation: false,
+  detail: "Working from your browser; reload to retry.",
+  icon: "error",
+};
 // server, checking (line ~122)
-    return { status: "pending", kind: "pending", label: "Checking connection", shortLabel: "Connecting", showLocation: true, detail: "Looking for the server.", icon: "pending" };
+return {
+  status: "pending",
+  kind: "pending",
+  label: "Checking connection",
+  shortLabel: "Connecting",
+  showLocation: true,
+  detail: "Looking for the server.",
+  icon: "pending",
+};
 // server, reached-then-lost (line ~137)
-    return { status: "error", kind: "offline", label: "Offline", shortLabel: "Offline", showLocation: true, detail: "Working from your browser; reload to retry.", icon: "error" };
+return {
+  status: "error",
+  kind: "offline",
+  label: "Offline",
+  shortLabel: "Offline",
+  showLocation: true,
+  detail: "Working from your browser; reload to retry.",
+  icon: "error",
+};
 // server, never-reached (line ~145)
-    return { status: "error", kind: "server-not-found", label: "Server not found", shortLabel: "Server not found", showLocation: false, detail: "Check that the API container is running and RACKULA_STORAGE_MODE matches the deployment.", icon: "error" };
+return {
+  status: "error",
+  kind: "server-not-found",
+  label: "Server not found",
+  shortLabel: "Server not found",
+  showLocation: false,
+  detail:
+    "Check that the API container is running and RACKULA_STORAGE_MODE matches the deployment.",
+  icon: "error",
+};
 // server, save error (line ~155)
-    return { status: "error", kind: "offline", label: "Save error", shortLabel: "Save error", showLocation: true, detail: "The last save did not go through.", icon: "error" };
+return {
+  status: "error",
+  kind: "offline",
+  label: "Save error",
+  shortLabel: "Save error",
+  showLocation: true,
+  detail: "The last save did not go through.",
+  icon: "error",
+};
 // server, saving (line ~164)
-    return { status: "pending", kind: "pending", label: "Saving", shortLabel: "Saving", showLocation: true, detail: "Saving to server.", icon: "pending" };
+return {
+  status: "pending",
+  kind: "pending",
+  label: "Saving",
+  shortLabel: "Saving",
+  showLocation: true,
+  detail: "Saving to server.",
+  icon: "pending",
+};
 // server, saved (line ~173)
-    return { status: "saved", kind: "saved", label: "Saved", shortLabel: "Saved", showLocation: true, detail: "Saved to server", icon: "saved" };
+return {
+  status: "saved",
+  kind: "saved",
+  label: "Saved",
+  shortLabel: "Saved",
+  showLocation: true,
+  detail: "Saved to server",
+  icon: "saved",
+};
 // server, fallback pending (line ~181)
-    return { status: "pending", kind: "pending", label: "Pending save", shortLabel: "Pending", showLocation: true, detail: "Saving to server.", icon: "pending" };
+return {
+  status: "pending",
+  kind: "pending",
+  label: "Pending save",
+  shortLabel: "Pending",
+  showLocation: true,
+  detail: "Saving to server.",
+  icon: "pending",
+};
 ```
 
 - [ ] **Step 4: Add the fields to `LayoutDurability` and the durability getters**
@@ -593,14 +673,14 @@ Then add `shortLabel` and `showLocation` to each of the eight return objects. Us
 Extend the `LayoutDurability` interface (lines 42-58) by adding, after `label: string;`:
 
 ```typescript
-  shortLabel: string;
-  showLocation: boolean;
+shortLabel: string;
+showLocation: boolean;
 ```
 
 and, after `hasEverExported: boolean;`:
 
 ```typescript
-  lastExportedAt: string | null;
+lastExportedAt: string | null;
 ```
 
 In `getLayoutDurability` (lines 226-256), add getters alongside the existing ones (after the `label` getter and after the `hasEverExported` getter respectively):
@@ -622,11 +702,9 @@ In `getLayoutDurability` (lines 226-256), add getters alongside the existing one
 
 - [ ] **Step 5: Run the test and the type-check**
 
-Run: `npm run test:run -- src/tests/durability-inline-labels.test.ts`
-Expected: PASS.
+Run: `npm run test:run -- src/tests/durability-inline-labels.test.ts` Expected: PASS.
 
-Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5`
-Expected: no new errors.
+Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5` Expected: no new errors.
 
 - [ ] **Step 6: Commit**
 
@@ -640,10 +718,12 @@ git commit -s -m "feat: add inline label, location flag, and export time to dura
 ### Task 5: Two-tone inline chip and accessible name
 
 **Files:**
+
 - Modify: `src/lib/components/StorageStatusChip.svelte` (markup ~99-133, styles ~135-191)
 - Test: `src/tests/StorageStatusChip.test.ts`
 
 **Interfaces:**
+
 - Consumes: `durability.shortLabel`, `durability.showLocation`, `durability.status`, `durability.icon`, `durability.serverHint` (Task 4); `isServerMode` (already computed in the component).
 - Produces: the chip renders `[icon] [shortLabel] . [location]` with the status colour on the state word and a muted location. Accessible name is `Storage status: {label}` plus `, Browser` or `, Server` when `showLocation` is true.
 
@@ -652,29 +732,30 @@ git commit -s -m "feat: add inline label, location flag, and export time to dura
 Replace the assertion in `src/tests/StorageStatusChip.test.ts` (the existing test expects `/storage status: unsaved changes/i`). A fresh browser-mode store is dirty, so:
 
 ```typescript
-  it("exposes the current storage state and location in its accessible name", () => {
-    render(StorageStatusChip);
-    const chip = screen.getByTestId("storage-status-chip");
-    expect(chip).toHaveAccessibleName(/storage status: unsaved changes, browser/i);
-  });
+it("exposes the current storage state and location in its accessible name", () => {
+  render(StorageStatusChip);
+  const chip = screen.getByTestId("storage-status-chip");
+  expect(chip).toHaveAccessibleName(
+    /storage status: unsaved changes, browser/i,
+  );
+});
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `npm run test:run -- src/tests/StorageStatusChip.test.ts`
-Expected: FAIL (current accessible name has no location).
+Run: `npm run test:run -- src/tests/StorageStatusChip.test.ts` Expected: FAIL (current accessible name has no location).
 
 - [ ] **Step 3: Add a derived accessible name and split the inline text**
 
 In `src/lib/components/StorageStatusChip.svelte`, add a derived value in the `<script>` (after the `durability` constant, near line 36):
 
 ```typescript
-  const locationWord = $derived(isServerMode ? "Server" : "Browser");
-  const accessibleName = $derived(
-    durability.showLocation
-      ? `Storage status: ${durability.label}, ${locationWord}`
-      : `Storage status: ${durability.label}`,
-  );
+const locationWord = $derived(isServerMode ? "Server" : "Browser");
+const accessibleName = $derived(
+  durability.showLocation
+    ? `Storage status: ${durability.label}, ${locationWord}`
+    : `Storage status: ${durability.label}`,
+);
 ```
 
 Replace the chip markup (lines 99-133) so the label splits into a coloured state word and a muted location, and the `aria-label` uses the derived name:
@@ -708,22 +789,21 @@ Replace the chip markup (lines 99-133) so the label splits into a coloured state
 In the `<style>` block, the status classes currently colour the whole chip; keep that (so the icon and state word inherit the status colour) and override the location and separator to muted. Add after the `.storage-chip-error` rule:
 
 ```css
-  .storage-chip-state {
-    font-weight: 600;
-  }
+.storage-chip-state {
+  font-weight: 600;
+}
 
-  /* Location is secondary: muted so the coloured state word leads. */
-  .storage-chip-sep,
-  .storage-chip-loc {
-    color: var(--colour-text-muted);
-    font-weight: 500;
-  }
+/* Location is secondary: muted so the coloured state word leads. */
+.storage-chip-sep,
+.storage-chip-loc {
+  color: var(--colour-text-muted);
+  font-weight: 500;
+}
 ```
 
 - [ ] **Step 5: Run the test to verify it passes**
 
-Run: `npm run test:run -- src/tests/StorageStatusChip.test.ts`
-Expected: PASS.
+Run: `npm run test:run -- src/tests/StorageStatusChip.test.ts` Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
@@ -737,11 +817,13 @@ git commit -s -m "feat: show storage location inline on the chip"
 ### Task 6: Details popover (content component + hover/tap wiring)
 
 **Files:**
+
 - Create: `src/lib/components/StorageDetailsPopover.svelte`
 - Modify: `src/lib/components/StorageStatusChip.svelte` (wrap the chip in a Popover; add hover/tap and the refresh timer)
 - Test: `src/tests/storage-details-popover.test.ts`
 
 **Interfaces:**
+
 - Consumes: `formatRelativeTime` (Task 3); `getLayoutSavedAt` (Task 2); `getServerBaseUpdatedAt` (existing, exported from `$lib/storage`); `durability.lastExportedAt`, `durability.label`, `durability.icon`, `durability.changesSinceExport` (Task 4).
 - Produces: `StorageDetailsPopover` renders mode-aware facts from plain props (so it is testable without opening a popover).
 
@@ -770,7 +852,9 @@ describe("StorageDetailsPopover", () => {
     });
     expect(screen.getByText(/auto-saved/i)).toBeInTheDocument();
     expect(screen.getByText(/never exported/i)).toBeInTheDocument();
-    expect(screen.getByText(/stored in this browser only/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/stored in this browser only/i),
+    ).toBeInTheDocument();
   });
 
   it("browser mode formats a real export time", () => {
@@ -822,8 +906,7 @@ describe("StorageDetailsPopover", () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `npm run test:run -- src/tests/storage-details-popover.test.ts`
-Expected: FAIL ("Cannot find module '.../StorageDetailsPopover.svelte'").
+Run: `npm run test:run -- src/tests/storage-details-popover.test.ts` Expected: FAIL ("Cannot find module '.../StorageDetailsPopover.svelte'").
 
 - [ ] **Step 3: Create the content component**
 
@@ -985,8 +1068,7 @@ Create `src/lib/components/StorageDetailsPopover.svelte`:
 
 - [ ] **Step 4: Run the content-component test to verify it passes**
 
-Run: `npm run test:run -- src/tests/storage-details-popover.test.ts`
-Expected: PASS.
+Run: `npm run test:run -- src/tests/storage-details-popover.test.ts` Expected: PASS.
 
 - [ ] **Step 5: Commit the content component**
 
@@ -1002,51 +1084,51 @@ In `src/lib/components/StorageStatusChip.svelte`:
 Add imports (with the existing imports):
 
 ```typescript
-  import { Popover } from "$lib/components/ui/Popover";
-  import StorageDetailsPopover from "./StorageDetailsPopover.svelte";
-  import { getServerBaseUpdatedAt } from "$lib/storage";
-  import { getLayoutSavedAt } from "$lib/storage/browser-workspace";
+import { Popover } from "$lib/components/ui/Popover";
+import StorageDetailsPopover from "./StorageDetailsPopover.svelte";
+import { getServerBaseUpdatedAt } from "$lib/storage";
+import { getLayoutSavedAt } from "$lib/storage/browser-workspace";
 ```
 
 Add the open state, the relative-time refresh, and the hover handlers in the `<script>`:
 
 ```typescript
-  let open = $state(false);
-  let nowMs = $state(Date.now());
-  let closeTimer: ReturnType<typeof setTimeout> | undefined;
+let open = $state(false);
+let nowMs = $state(Date.now());
+let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
-  // Recompute the popover's relative times only while it is open.
-  $effect(() => {
-    if (!open) return;
+// Recompute the popover's relative times only while it is open.
+$effect(() => {
+  if (!open) return;
+  nowMs = Date.now();
+  const id = setInterval(() => {
     nowMs = Date.now();
-    const id = setInterval(() => {
-      nowMs = Date.now();
-    }, 30_000);
-    return () => clearInterval(id);
-  });
+  }, 30_000);
+  return () => clearInterval(id);
+});
 
-  function hoverOpen(event: PointerEvent) {
-    if (event.pointerType === "touch") return; // touch uses tap
-    clearTimeout(closeTimer);
-    open = true;
-  }
-  function hoverClose(event: PointerEvent) {
-    if (event.pointerType === "touch") return;
-    clearTimeout(closeTimer);
-    closeTimer = setTimeout(() => {
-      open = false;
-    }, 150);
-  }
+function hoverOpen(event: PointerEvent) {
+  if (event.pointerType === "touch") return; // touch uses tap
+  clearTimeout(closeTimer);
+  open = true;
+}
+function hoverClose(event: PointerEvent) {
+  if (event.pointerType === "touch") return;
+  clearTimeout(closeTimer);
+  closeTimer = setTimeout(() => {
+    open = false;
+  }, 150);
+}
 
-  // Timestamp sources for the popover, read on open. Browser: the layout's last
-  // localStorage write (autosave) plus its last export. Server: the last server save.
-  const layoutId = $derived(layoutStore.layout.metadata?.id ?? null);
-  const autosaveAt = $derived(
-    open && !isServerMode && layoutId ? getLayoutSavedAt(layoutId) : null,
-  );
-  const serverSavedAt = $derived(
-    open && isServerMode ? getServerBaseUpdatedAt() : null,
-  );
+// Timestamp sources for the popover, read on open. Browser: the layout's last
+// localStorage write (autosave) plus its last export. Server: the last server save.
+const layoutId = $derived(layoutStore.layout.metadata?.id ?? null);
+const autosaveAt = $derived(
+  open && !isServerMode && layoutId ? getLayoutSavedAt(layoutId) : null,
+);
+const serverSavedAt = $derived(
+  open && isServerMode ? getServerBaseUpdatedAt() : null,
+);
 ```
 
 Replace the chip `<div>` (the block from Step 3 of Task 5) by wrapping it in a Popover, turning the chip into the trigger button via the `child` snippet (mirroring `Tooltip.svelte`):
@@ -1110,52 +1192,50 @@ Note: the chip is now a `<button>`, so the old `role="status"` / `aria-live="off
 In the `<style>` block, replace the base `.storage-chip` rule so it is a borderless, interactive pill with a hover wash and a focus ring (the chip is a button now), and ensure the attention state still shows a border:
 
 ```css
-  .storage-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    height: 28px;
-    padding: 0 var(--space-2);
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--colour-text);
-    font-size: var(--font-size-xs);
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-  }
-  .storage-chip:hover,
-  .storage-chip[data-state="open"] {
-    background: var(--colour-surface-hover);
-  }
-  .storage-chip:focus-visible {
-    outline: none;
-    box-shadow: var(--focus-ring-glow);
-  }
+.storage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 28px;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--colour-text);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+.storage-chip:hover,
+.storage-chip[data-state="open"] {
+  background: var(--colour-surface-hover);
+}
+.storage-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring-glow);
+}
 ```
 
 Add a popover surface rule (this targets the `Popover.Content` via its class):
 
 ```css
-  :global(.storage-chip-popover) {
-    background: var(--colour-bg);
-    border: 1px solid var(--colour-border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg, 0 12px 30px rgba(0, 0, 0, 0.45));
-    z-index: var(--z-popover, 50);
-  }
+:global(.storage-chip-popover) {
+  background: var(--colour-bg);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg, 0 12px 30px rgba(0, 0, 0, 0.45));
+  z-index: var(--z-popover, 50);
+}
 ```
 
 - [ ] **Step 8: Validate the Svelte components**
 
 Use the Svelte MCP `svelte-autofixer` on `StorageStatusChip.svelte` and `StorageDetailsPopover.svelte`; apply any fixes and re-run it until clean.
 
-Run: `npm run test:run -- src/tests/StorageStatusChip.test.ts src/tests/storage-details-popover.test.ts`
-Expected: PASS.
+Run: `npm run test:run -- src/tests/StorageStatusChip.test.ts src/tests/storage-details-popover.test.ts` Expected: PASS.
 
-Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5`
-Expected: no new errors.
+Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5` Expected: no new errors.
 
 - [ ] **Step 9: Commit**
 
@@ -1172,20 +1252,18 @@ git commit -s -m "feat: reveal storage details on chip hover and tap"
 
 - [ ] **Step 1: Run the full unit suite**
 
-Run: `npm run test:run`
-Expected: PASS. If any other `LibraryEntry` or `BackupState` literal site fails to compile, add `lastExportedAt: null` (entries) or omit it (optional on `BackupState`) and re-run.
+Run: `npm run test:run` Expected: PASS. If any other `LibraryEntry` or `BackupState` literal site fails to compile, add `lastExportedAt: null` (entries) or omit it (optional on `BackupState`) and re-run.
 
 - [ ] **Step 2: Lint and type-check**
 
-Run: `npm run lint`
-Expected: PASS (no `no-restricted-syntax` test violations, no querySelector/toHaveClass/colour assertions).
+Run: `npm run lint` Expected: PASS (no `no-restricted-syntax` test violations, no querySelector/toHaveClass/colour assertions).
 
-Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5`
-Expected: no errors.
+Run: `npx svelte-check --tsconfig ./tsconfig.json --threshold error 2>&1 | tail -5` Expected: no errors.
 
 - [ ] **Step 3: Manual smoke (dev server)**
 
 Run: `npm run dev`, open the app, and confirm:
+
 - Browser mode: chip reads `Unsaved . Browser` then `Saved . Browser` after an export; hovering (mouse) and tapping (touch) both open the popover; the popover shows "Auto-saved", "Last exported" (or "Never exported"), and "Stored in this browser only".
 - The popover closes on Escape, on click-away, and on mouse-leave (after the short delay), and stays open while the pointer is inside it.
 - Keyboard: Tab to the chip, press Enter or Space to open, Escape to close; the focus ring shows.
@@ -1197,6 +1275,7 @@ Stop here and hand back for review. Do not open a PR until the branch is reviewe
 ## Self-review
 
 Spec coverage:
+
 - Inline two-tone state + location: Task 5 (rendering), Task 4 (`shortLabel`, `showLocation`).
 - De-dup rule for self-describing errors: Task 4 (`showLocation: false` for "Server not found" and "Server unavailable").
 - Popover facts, mode-aware: Task 6 (`StorageDetailsPopover`), with browser "show both, labelled" and server "last saved" / degraded "last reached".

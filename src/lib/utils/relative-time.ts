@@ -22,7 +22,8 @@ export function formatRelativeTime(
 
   const elapsed = nowMs - then;
   if (elapsed < 45 * SECOND) return "just now";
-  if (elapsed < HOUR) return rtf.format(-Math.round(elapsed / MINUTE), "minute");
+  if (elapsed < HOUR)
+    return rtf.format(-Math.round(elapsed / MINUTE), "minute");
   if (elapsed < DAY) return rtf.format(-Math.round(elapsed / HOUR), "hour");
   return rtf.format(-Math.round(elapsed / DAY), "day");
 }

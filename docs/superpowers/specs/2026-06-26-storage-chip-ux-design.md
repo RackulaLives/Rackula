@@ -1,8 +1,6 @@
 # Storage chip UX redesign
 
-Date: 2026-06-26
-Status: design (awaiting plan)
-Topic: surface storage location and last-save facts on the workspace storage chip
+Date: 2026-06-26 Status: design (awaiting plan) Topic: surface storage location and last-save facts on the workspace storage chip
 
 ## Summary
 

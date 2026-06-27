@@ -18,7 +18,9 @@ describe("StorageDetailsPopover", () => {
     });
     expect(screen.getByText(/auto-saved/i)).toBeInTheDocument();
     expect(screen.getByText(/never exported/i)).toBeInTheDocument();
-    expect(screen.getByText(/stored in this browser only/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/stored in this browser only/i),
+    ).toBeInTheDocument();
   });
 
   it("browser mode formats a real export time", () => {
