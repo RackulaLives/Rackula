@@ -9,6 +9,7 @@ import type { getSelectionStore } from "$lib/stores/selection.svelte";
 import type { getToastStore } from "$lib/stores/toast.svelte";
 import { toHumanUnits, toInternalUnits } from "$lib/utils/position";
 import { canPlaceDevice } from "$lib/utils/collision";
+import { effectiveFace } from "$lib/utils/effective-face";
 import { flipDeviceFaceAt } from "$lib/actions/selection-actions";
 
 /** Identifies a right-clicked device and the screen position for the context menu. */
@@ -133,7 +134,7 @@ export function createContextMenuActions(
       deviceType.u_height,
       targetPositionInternal,
       deviceIndex,
-      device.face,
+      effectiveFace(device, deviceType),
     );
   }
 
@@ -154,7 +155,7 @@ export function createContextMenuActions(
       deviceType.u_height,
       targetPositionInternal,
       deviceIndex,
-      device.face,
+      effectiveFace(device, deviceType),
     );
   }
 

@@ -279,17 +279,18 @@ describe("Device Movement Utility", () => {
         expect(result.reason).toBe("moved");
       });
 
-      it("face-front device does not collide with rear device (face-authoritative)", () => {
-        // With face-authoritative model, face: "front" only blocks front
+      it("half-depth front device does not collide with rear-only device (face-authoritative)", () => {
+        // front-only-device has is_full_depth: false, so face: "front" only
+        // blocks the front. A rear-only device at U11 does not block it.
         const rack = createTestRack(42, [
-          pd("1u-server", 10, "front"), // Front face only
-          pd("front-only-device", 11, "rear"), // Rear device
+          pd("front-only-device", 10, "front"), // Half-depth, front face
+          pd("front-only-device", 11, "rear"), // Half-depth, rear-only
         ]);
         const deviceTypes = createDeviceTypes();
 
         const result = findNextValidPosition(rack, deviceTypes, 0, 1);
 
-        // Device with face: "front" can move to U11 (rear device doesn't block)
+        // Half-depth front device can move to U11 (rear-only device doesn't block)
         expect(result.success).toBe(true);
         expect(result.newPosition).toBe(toInternalUnits(11));
         expect(result.reason).toBe("moved");
@@ -460,6 +461,75 @@ describe("Device Movement Utility", () => {
       const message = getMoveBlockedMessage(result, 1);
       expect(message).not.toBeNull();
       expect(message?.toLowerCase()).toContain("up");
+    });
+  });
+
+  describe("Full-depth device collision detection (#2337)", () => {
+    // A full-depth device has is_full_depth omitted or true, meaning it
+    // physically spans both faces. Even when the stored face is "front" (legacy
+    // data), the effective face must resolve to "both" so the device cannot move
+    // into a slot already occupied on the rear.
+
+    it("blocks a full-depth device stored as front-only from moving into a rear-occupied slot", () => {
+      const deviceTypes = createDeviceTypes();
+      // full-depth-server: no is_full_depth field -> full-depth by invariant.
+      const fullDepthType: DeviceType = {
+        slug: "full-depth-server",
+        u_height: 1,
+        model: "Full Depth Server",
+        colour: "#4A90D9",
+        category: "server",
+      };
+      const rearOnlyType: DeviceType = {
+        slug: "rear-patch",
+        u_height: 1,
+        model: "Rear Patch",
+        colour: "#888888",
+        category: "patch_panel",
+        is_full_depth: false,
+      };
+      const allTypes = [...deviceTypes, fullDepthType, rearOnlyType];
+
+      // Full-depth device at U10, stored face "front" (legacy).
+      // Rear-only patch at U11. The full-depth device must NOT be moveable to
+      // U11 because its effective face is "both", which collides with "rear".
+      const rack = createTestRack(42, [
+        pd("full-depth-server", 10, "front"),
+        pd("rear-patch", 11, "rear"),
+      ]);
+
+      const result = findNextValidPosition(rack, allTypes, 0, 1);
+
+      // U11 is occupied by a rear device; full-depth device's effective face is
+      // "both" which collides with "rear". Move must leapfrog to U12.
+      expect(result.success).toBe(true);
+      expect(result.newPosition).toBe(toInternalUnits(12));
+    });
+
+    it("allows a half-depth front device to move into a rear-occupied slot", () => {
+      const deviceTypes = createDeviceTypes();
+      const rearOnlyType: DeviceType = {
+        slug: "rear-patch",
+        u_height: 1,
+        model: "Rear Patch",
+        colour: "#888888",
+        category: "patch_panel",
+        is_full_depth: false,
+      };
+      const allTypes = [...deviceTypes, rearOnlyType];
+
+      // front-only-device is explicitly is_full_depth: false.
+      const rack = createTestRack(42, [
+        pd("front-only-device", 10, "front"),
+        pd("rear-patch", 11, "rear"),
+      ]);
+
+      const result = findNextValidPosition(rack, allTypes, 0, 1);
+
+      // Half-depth front device's effective face is "front"; "front" does not
+      // collide with "rear", so U11 is valid.
+      expect(result.success).toBe(true);
+      expect(result.newPosition).toBe(toInternalUnits(11));
     });
   });
 

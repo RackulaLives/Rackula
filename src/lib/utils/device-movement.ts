@@ -7,6 +7,7 @@
 import type { Rack, DeviceType, PlacedDevice } from "$lib/types";
 import { canPlaceDevice, isContainerChild } from "./collision";
 import { UNITS_PER_U, heightToInternalUnits } from "./position";
+import { effectiveFace } from "./effective-face";
 
 /**
  * Result of attempting to find a valid position for device movement
@@ -99,15 +100,16 @@ export function findNextValidPosition(
     newPosition >= UNITS_PER_U &&
     newPosition + deviceHeightInternal - 1 <= maxValidTop
   ) {
-    // Use canPlaceDevice for face-aware collision detection
-    // Face is authoritative: the device's face value determines blocking
+    // Use canPlaceDevice for face-aware collision detection.
+    // Derive the effective face so full-depth devices (is_full_depth unset or
+    // true) report "both" even when the stored face value is "front" or "rear".
     const isValid = canPlaceDevice(
       rack,
       deviceTypes,
       deviceType.u_height,
       newPosition,
       deviceIndex,
-      placedDevice.face,
+      effectiveFace(placedDevice, deviceType),
     );
 
     if (isValid) {

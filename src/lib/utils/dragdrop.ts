@@ -7,6 +7,7 @@ import type { DeviceType, DeviceFace, Rack, Slot } from "$lib/types";
 import { canPlaceDevice, findNextFreeChildPosition } from "./collision";
 import { RAIL_WIDTH } from "$lib/constants/layout";
 import { toInternalUnits, toHumanUnits } from "./position";
+import { effectiveFace } from "./effective-face";
 
 /**
  * Shared drag state - workaround for browser security restriction
@@ -330,12 +331,15 @@ export function detectContainerDropTarget(
   for (const container of rack.devices) {
     // Skip container children: they live inside a parent, not at the rail.
     if (container.container_id) continue;
-    // Skip containers on the opposite face ('both' always matches).
-    if (!faceMatches(container.face, faceFilter)) continue;
 
     const containerType = deviceLibrary.find(
       (d) => d.slug === container.device_type,
     );
+    // Skip containers on the opposite face ('both' always matches).
+    // Full-depth containers occupy both faces regardless of stored face value.
+    if (!faceMatches(effectiveFace(container, containerType), faceFilter))
+      continue;
+
     const slots = containerType?.slots;
     if (!slots || slots.length === 0) continue;
 
@@ -457,12 +461,15 @@ export function detectContainerHover(
   for (const placedDevice of rack.devices) {
     // Skip container children
     if (placedDevice.container_id) continue;
-    // Skip containers on the opposite face ('both' always matches).
-    if (!faceMatches(placedDevice.face, faceFilter)) continue;
 
     const deviceType = deviceLibrary.find(
       (d) => d.slug === placedDevice.device_type,
     );
+    // Skip containers on the opposite face ('both' always matches).
+    // Full-depth containers occupy both faces regardless of stored face value.
+    if (!faceMatches(effectiveFace(placedDevice, deviceType), faceFilter))
+      continue;
+
     const slots = deviceType?.slots;
     if (!slots || slots.length === 0) continue;
 

@@ -12,6 +12,7 @@ import type { DeviceFace, DeviceType, PlacedDevice } from "$lib/types";
 import { UNITS_PER_U, DEFAULT_DEVICE_FACE } from "$lib/types/constants";
 import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
 import { canPlaceDevice, requiresCarrier } from "$lib/utils/collision";
+import { effectiveFace } from "$lib/utils/effective-face";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { debug } from "$lib/utils/debug";
@@ -285,8 +286,15 @@ export function moveDeviceRecorded(
     return false;
   }
 
-  // Use canPlaceDevice for bounds and collision checking (face and depth aware)
-  const effectiveFace = newFace ?? device.face;
+  // Use canPlaceDevice for bounds and collision checking (face and depth aware).
+  // Derive the effective face so full-depth devices (is_full_depth unset or
+  // true) report "both" even when the stored face is "front" or "rear". When
+  // newFace is provided (half-depth face-change drag), use that as the base;
+  // effectiveFace still overrides to "both" for a full-depth device type.
+  const resolvedFace = effectiveFace(
+    { face: newFace ?? device.face },
+    deviceType,
+  );
   if (
     !canPlaceDevice(
       targetRack,
@@ -294,7 +302,7 @@ export function moveDeviceRecorded(
       deviceType.u_height,
       newPositionInternal,
       deviceIndex,
-      effectiveFace,
+      resolvedFace,
     )
   ) {
     // Determine if it's out of bounds or collision
