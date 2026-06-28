@@ -71,6 +71,60 @@ A large usability release. The workspace is rebuilt around the canvas, and the s
 - Dev tooling hardened: cloud-safe superpowers bootstrap, worktree-aware main-edit guard, POSIX husky hooks, the /orchestrate-issues command, and pre-push gate fixes (#2102, #2288)
 - Dependency updates across the production, development, vitest, eslint, and api groups
 
+## [26.6.4] - 2026-06-27
+
+The rear of the rack is real now. Full-depth devices stop being front-only when you flip the view; they render, collide, and take up space on both faces the way they do in the physical rack. The app menu has been torn apart and put back together in an order that reflects what you actually do rather than what was convenient to build. And the storage layer grew a conscience: it asks before overwriting your server copy, it tells you exactly where your work lives, and server-mode saves now carry device images to disk instead of leaving them stranded in browser memory.
+
+### Added
+
+- Full-depth devices render and collide on both rack faces; a 4U NAS stored with `face: front` now appears on the rear too, occupying space correctly (#2337, PR #2641)
+- Storage chip shows the current storage location inline and opens a last-save details popover on hover or tap (#2446, #2035, PR #2640)
+- Server storage opt-in: dev environments restore to server mode after a browser-mode session; switching from browser to server prompts before overwriting an existing copy (#2608, PR #2604, #2638)
+- App menu reorganized by intent with the registry contract complete; group headings renamed for clarity (#2596, #2611, PR #2598, #2612)
+- Mobile app menu sheet renders the full registry projection (#2597, PR #2603)
+- API validates layout files against the JSON Schema before persisting them (#2449, PR #2586)
+- Hover-revealed edge grip on the panel seam as a secondary collapse affordance
+- Verb-bar and canvas-control tooltips now sourced from the command registry
+- Keyboard alternative for device placement (#106)
+- Device images show a load placeholder and fade in on load, with failure toasts and accessible alt text
+- flip-device-face verb uses the transition-right glyph (#2400)
+- Create-custom-device promoted to a labelled bottom button (#2556)
+- Server-mode saves write device images to disk with set-diff reconciliation
+
+### Changed
+
+- Edit/View tab strip unified with the sidebar's segmented control style (#2600, PR #2601)
+- App light theme (Alucard) removed (#2468, PR #2618)
+
+### Fixed
+
+- Toolbar search label simplified; magnifying glass centred (PR #2623)
+- Storage chip content centred in the toolbar status zone (PR #2614)
+- App menu group dividers render (#2602)
+- SPA entry document revalidated on deploy so stale caches do not serve the old build (PR #2599)
+- Top-bar height no longer shifts when the side panel collapses (#2583, PR #2590)
+- MikroTik CSS326-24G-2S+RM and CSS610-8G-2S+IN added (#1581, PR #2594)
+- Section tabs fit the 320px breakpoint without truncating (#2564)
+- Nested-interactive controls flattened; axe WCAG AA aria-required-children passes (#2255)
+- Muted-text and QR-brand contrast raised to WCAG AA (#2256)
+- Canvas racks given a listbox parent; aria-required-parent passes
+- Breathing room added between the search pill and the layout tab bar (#2574)
+- Panel edge grip floated to the seam; no longer reserves dead margin space
+- @testing-library/svelte pinned to 5.3.1; runes compatibility restored in the unit suite (#2587, PR #2592)
+
+### Security
+
+- Pinned libexpat to >=2.8.1-r0 in the deploy image to address CVE-2026-8823 (PR #2562)
+
+### Technical
+
+- Upgrade corpus exercises the loadLayout store path through the real parse pass with v0.6 YAML fixtures (#2450, #2451, PR #2593, #2582)
+- Vendor asset directories normalized; generic device library split from brand-specific packs (#2552)
+- RackList Space-keydown behaviour locked in; unblocked downstream test suite
+- DCO sign-off section added to CONTRIBUTING (#2559)
+- Research: depth model for M021 (PR #2634), Cloudflare Workers Static Assets for #2029 prep (PR #2621)
+- Dependency updates: svelte 5.56.4, hono 4.12.27, nanoid 5.1.16, better-auth 1.6.22, @types/node 26.0.1, and assorted dev and CI dep bumps
+
 ## [26.6.3] - 2026-06-08
 
 For a while, the way Rackula got released was: someone pushed a tag and hoped. Nobody deployed the LXC install on an actual container first. They just believed in it. That is how v26.6.2 shipped an install that could not start on an unprivileged container, which is the default. We found the guy who did that. It was me. @ggfevans.
