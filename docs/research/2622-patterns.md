@@ -6,12 +6,12 @@ Source: synthesis of `2622-codebase.md` (current categorical model) and `2622-ex
 
 **1. NetBox stops at categorical depth by deliberate design, and that choice does not bind Rackula.** NetBox models device depth as a single boolean `is_full_depth` and explicitly closed the per-device depth request (#14176) as "not planned." Its only depth number, rack `mounting_depth` (mm), is informational and never validated against any device. So the dominant DCIM has consciously decided depth magnitude is out of scope. Rackula should diverge for two grounded reasons:
 
-- **The milestone headline case is inexpressible in NetBox's model.** "A device longer than the full depth of the rack" requires a device magnitude and a rack magnitude to compare. `is_full_depth` is a direction flag with no length, so it can never *exceed* anything. The headline feature is structurally impossible without `depth_mm`.
-- **Rackula already has the harder half of the model that rackbuilder lacks.** rackbuilder.io validates one device `depth_mm` against one rack `depth_mm` from a single front-anchored scalar; it cannot represent a rear-mounted device growing *frontward* meeting a front-mounted device growing *rearward*. Rackula's `face` field already encodes mount direction, so `depth_mm` + `face` yields a genuine two-sided middle-collision that neither NetBox (no magnitude) nor rackbuilder (no rear anchor) can express. That two-sided collision is the differentiator.
+- **The milestone headline case is inexpressible in NetBox's model.** "A device longer than the full depth of the rack" requires a device magnitude and a rack magnitude to compare. `is_full_depth` is a direction flag with no length, so it can never _exceed_ anything. The headline feature is structurally impossible without `depth_mm`.
+- **Rackula already has the harder half of the model that rackbuilder lacks.** rackbuilder.io validates one device `depth_mm` against one rack `depth_mm` from a single front-anchored scalar; it cannot represent a rear-mounted device growing _frontward_ meeting a front-mounted device growing _rearward_. Rackula's `face` field already encodes mount direction, so `depth_mm` + `face` yields a genuine two-sided middle-collision that neither NetBox (no magnitude) nor rackbuilder (no rear anchor) can express. That two-sided collision is the differentiator.
 
-**2. Face is already a mount datum; depth is additive, not a replacement (the load-bearing reframe).** The authoritative collision field is `PlacedDevice.face` ("front" | "rear" | "both"); `is_full_depth` only sets the *default* face. `face` therefore already tells us *where a device is anchored and which way it grows*: front devices grow rearward from the front rail, rear devices grow frontward from the rear rail, "both" spans. A naive port of rackbuilder would add a redundant "mounting offset" field. Rackula does not need one — it adds a scalar `depth_mm` (a length) on top of the direction it already stores. Every depth computation reads `face` for direction and `depth_mm` for magnitude. The categorical model is the magnitude-unknown degenerate case of the mm model, which is why migration is safe.
+**2. Face is already a mount datum; depth is additive, not a replacement (the load-bearing reframe).** The authoritative collision field is `PlacedDevice.face` ("front" | "rear" | "both"); `is_full_depth` only sets the _default_ face. `face` therefore already tells us _where a device is anchored and which way it grows_: front devices grow rearward from the front rail, rear devices grow frontward from the rear rail, "both" spans. A naive port of rackbuilder would add a redundant "mounting offset" field. Rackula does not need one — it adds a scalar `depth_mm` (a length) on top of the direction it already stores. Every depth computation reads `face` for direction and `depth_mm` for magnitude. The categorical model is the magnitude-unknown degenerate case of the mm model, which is why migration is safe.
 
-**3. Unit asymmetry (depth continuous, width enum-inches) is principled, not sloppy.** `depth_mm` is the first continuous physical measurement in a model where width is an enum (`10 | 19 | 21 | 23`). This asymmetry is correct and should be kept deliberately: EIA-310-D / IEC 60297 standardize rack *width*, the rack unit, and hole spacing, but explicitly **not depth** (verified, external doc Section 3). Width is genuinely a four-value enum because only those flange widths exist; depth is genuinely a free scalar because it is vendor-defined and rail-adjustable with no canonical value per rack class. Store width as an enum, depth as `mm`. Do not "fix" the asymmetry by making either match the other.
+**3. Unit asymmetry (depth continuous, width enum-inches) is principled, not sloppy.** `depth_mm` is the first continuous physical measurement in a model where width is an enum (`10 | 19 | 21 | 23`). This asymmetry is correct and should be kept deliberately: EIA-310-D / IEC 60297 standardize rack _width_, the rack unit, and hole spacing, but explicitly **not depth** (verified, external doc Section 3). Width is genuinely a four-value enum because only those flange widths exist; depth is genuinely a free scalar because it is vendor-defined and rail-adjustable with no canonical value per rack class. Store width as an enum, depth as `mm`. Do not "fix" the asymmetry by making either match the other.
 
 **4. Categorical -> mm is lossy on magnitude but lossless on direction.** You cannot reconstruct 678 mm from "full," but `face` survives intact. This single fact dictates the migration policy (Fork A): synthesize nothing for user data, because any synthesized magnitude risks flipping a previously-valid saved layout into a false "exceeds depth" warning, and prior-release load is a tested first-class invariant.
 
@@ -20,18 +20,18 @@ Source: synthesis of `2622-codebase.md` (current categorical model) and `2622-ex
 ### Device type (`DeviceTypeSchema`, `schemas/index.ts:472`)
 
 ```ts
-depth_mm: z.number().positive().optional()   // chassis in-rack projection, measured from the mount rail plane rearward
+depth_mm: z.number().positive().optional(); // chassis in-rack projection, measured from the mount rail plane rearward
 ```
 
 - Optional. `undefined` = depth unknown (the migrated / un-authored state). Keep `is_full_depth` as-is; it continues to set the default `face`. `depth_mm` and `is_full_depth` are orthogonal: direction vs magnitude.
-- **Front-overhang field: not needed in v1.** Bezels, handles, and front-projecting trim sit *in front of* the front rail and never contend for rail-to-rail space, so they cannot cause the collisions this spike targets. Define `depth_mm` as the dimension that consumes mounting depth (rail plane rearward), seeded from chassis depth without bezel (external doc gives both figures for the R740: use 678.8, not 715.5). A `front_overhang_mm` can be added later for door-clearance polish; it is YAGNI for the headline case. Do not add it now.
+- **Front-overhang field: not needed in v1.** Bezels, handles, and front-projecting trim sit _in front of_ the front rail and never contend for rail-to-rail space, so they cannot cause the collisions this spike targets. Define `depth_mm` as the dimension that consumes mounting depth (rail plane rearward), seeded from chassis depth without bezel (external doc gives both figures for the R740: use 678.8, not 715.5). A `front_overhang_mm` can be added later for door-clearance polish; it is YAGNI for the headline case. Do not add it now.
 
 ### Rack (`schemas/index.ts:645`)
 
 ```ts
-mounting_depth_mm: z.number().positive().optional()   // usable rail-to-rail depth — the collision datum
-outer_depth_mm:    z.number().positive().optional()   // outer cabinet depth — visual/cabinet-shell only, never used for collision
-mount_type:        z.enum(["4-post", "2-post", "open-frame", "wall"]).optional()   // keys hard vs advisory enforcement (Fork B / Section 4)
+mounting_depth_mm: z.number().positive().optional(); // usable rail-to-rail depth — the collision datum
+outer_depth_mm: z.number().positive().optional(); // outer cabinet depth — visual/cabinet-shell only, never used for collision
+mount_type: z.enum(["4-post", "2-post", "open-frame", "wall"]).optional(); // keys hard vs advisory enforcement
 ```
 
 - **`mounting_depth_mm` is the single authoritative depth datum**, mapped 1:1 to NetBox `mounting_depth`: "Maximum depth of a mounted device... for four-post racks, the distance between the front and rear rails." This is what `depth_mm` is checked against.
@@ -48,11 +48,11 @@ Define occupancy as an interval along the depth axis, origin at the front rail, 
 | `rear` | 0 | `depth_mm` | `[usable - depth_mm, usable]` |
 | `both` | `usable` | `usable` | `[0, usable]` (full span; `depth_mm` informational + drives exceeds-depth badge) |
 
-`face=both` keeps its current "blocks everything" semantics by occupying the whole span regardless of `depth_mm`. This is what makes the mm model a strict superset of today's categorical model: existing full-depth devices stay full-span blockers, existing half-depth front/rear devices stay non-colliding *until* a real magnitude says otherwise.
+`face=both` keeps its current "blocks everything" semantics by occupying the whole span regardless of `depth_mm`. This is what makes the mm model a strict superset of today's categorical model: existing full-depth devices stay full-span blockers, existing half-depth front/rear devices stay non-colliding _until_ a real magnitude says otherwise.
 
 ### Composition through carriers
 
-Carrier-first mounting is preserved: collision is computed only on **rail-mounted entities** (full-width integer-U devices and carriers). A carrier carries its own `depth_mm` (tray depth) and is the entity checked against `mounting_depth_mm`. A child device's `depth_mm` is checked only against its *carrier's* depth (does it fit the tray — a soft, local check), never directly against the rack. This keeps rail positions whole-U integers and means the rack-level middle-collision logic never has to reason about sub-U children.
+Carrier-first mounting is preserved: collision is computed only on **rail-mounted entities** (full-width integer-U devices and carriers). A carrier carries its own `depth_mm` (tray depth) and is the entity checked against `mounting_depth_mm`. A child device's `depth_mm` is checked only against its _carrier's_ depth (does it fit the tray — a soft, local check), never directly against the rack. This keeps rail positions whole-U integers and means the rack-level middle-collision logic never has to reason about sub-U children.
 
 ## The three forks
 
@@ -68,7 +68,7 @@ Carrier-first mounting is preserved: collision is computed only on **rail-mounte
 
 - **User data**: migrate to `depth_mm: undefined`. Synthesize nothing. This is the only option that satisfies the tested prior-release-load invariant — a previously-valid layout must load with zero new warnings, and the upgrade corpus will assert exactly that.
 - **Starter library** (`starterLibrary.ts`): author real `depth_mm` values from external doc Section 2 (e.g. `1u-server` ~700, `1u-switch` ~280, `1u-fiber-patch-panel` ~45, PDUs as side-channel). This is new authored data, not migrated user data, so realistic values are safe and desirable.
-- **Per-category table**: use it as authoring guidance and behind an explicit, non-destructive "estimate depths" affordance that fills *only* nulls on user request — never auto-applied. The user opts into the guess.
+- **Per-category table**: use it as authoring guidance and behind an explicit, non-destructive "estimate depths" affordance that fills _only_ nulls on user request — never auto-applied. The user opts into the guess.
 
 ### Fork B — rack depth datum + unit policy
 
@@ -81,21 +81,22 @@ Carrier-first mounting is preserved: collision is computed only on **rail-mounte
 **Recommendation: B1 as the authoritative collision datum, B2 optional for visualization, never B3's auto-derivation.** `mounting_depth_mm` is what `depth_mm` is compared against, matching NetBox semantics exactly. `outer_depth_mm` is optional decoration for the depth view.
 
 **Unit policy:**
+
 - **mm canonical for every depth field** (device and rack). Single stored unit.
 - **Width stays enum-inches** (`10 | 19 | 21 | 23`) — principled per Key Insight 3 (width is standardized, depth is not).
 - **Imperial: display-only, never stored.** Offer an optional read-only mm->inch render in the inspector/ruler; do not store inches and do not add a per-field unit selector. This sidesteps NetBox's own dual-unit bug class.
 
 **Recommended `mounting_depth_mm` presets** (from external doc cabinet ladder, Section 3):
 
-| Preset | mounting_depth_mm |
-| --- | --- |
-| Mini-rack (10") | 200 |
-| Wall / shallow | 300 |
-| Comms / half-depth | 450 |
-| Standard server cabinet | 800 |
-| Deep server cabinet | 1000 |
-| Open frame (4-post) | 1016 |
-| Custom | numeric entry |
+| Preset                  | mounting_depth_mm |
+| ----------------------- | ----------------- |
+| Mini-rack (10")         | 200               |
+| Wall / shallow          | 300               |
+| Comms / half-depth      | 450               |
+| Standard server cabinet | 800               |
+| Deep server cabinet     | 1000              |
+| Open frame (4-post)     | 1016              |
+| Custom                  | numeric entry     |
 
 ### Fork C — signature visualization
 

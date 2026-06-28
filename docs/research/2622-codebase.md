@@ -18,29 +18,35 @@ Source: Explore agent sweep of the Rackula codebase, 2026-06-26. Captures the cu
 ## Existing Patterns
 
 ### Depth is categorical, not measured
+
 - `is_full_depth?: boolean` on `DeviceTypeSchema` (`schemas/index.ts:472`). `undefined`/`true` = full-depth; `false` = half-depth. No `depth_mm` / numeric depth anywhere.
 - Width is also categorical: `slot_width: 1 | 2`. The entire physical model is half/full on two axes.
 
 ### Face is authoritative for collision; is_full_depth only sets the default
+
 - `PlacedDevice.face: "front" | "rear" | "both"` (`types/index.ts:558`) drives collision.
 - Default-face logic (`device-actions.ts:95`): `face ?? (is_full_depth !== false ? "both" : (device.face ?? "front"))`.
 - `doFacesCollide` (`collision.ts:95`): `both` collides with everything; same face collides; opposite faces (front/rear) never collide.
 - SPEC `:132-139`: explicit `face` overrides `is_full_depth`; `is_full_depth` only determines the default face.
 
 ### Rack has no depth dimension
+
 - Rack fields: `height` (U), `width: 10 | 19 | 21 | 23` (enum inches), `show_rear: boolean` (default true). No depth.
 - `show_rear` toggles dual front/rear rendering, not a physical depth.
 
 ### Rendering is 2D elevation only
+
 - Front elevation standalone; `RackDualView.svelte` renders front + rear side-by-side. No side, top, or isometric view.
 - `DisplayMode = "label" | "image" | "image-label"` (the `I` key) controls device artwork, unrelated to depth.
 - `blocked-slots.ts:34-70`: half-depth devices already render hatching on the opposite face. Full-depth (`is_full_depth !== false`) are skipped (visible from both sides). This is the existing visual vocabulary for depth occupancy.
 
 ### Carrier-first mounting
+
 - SPEC `:77-96`: sub-U-height, non-integer height, or sub-width devices mount inside a carrier, not on the rails. Full-width integer-U devices mount on rails.
 - Positions stored in internal units (`UNITS_PER_U = 6`); depth/face are categorical, not position-based.
 
 ### Starter library uses half/full only
+
 - `is_full_depth: false` on `1u-pdu`, `2u-pdu`, `1u-fiber-patch-panel`, `1u-fan-panel`, `1u-cantilever-shelf`; omitted (full) on `1u-server`, `1u-switch`. No mm values anywhere.
 
 ## Integration Points (where M021 lands)

@@ -1,7 +1,6 @@
 # Spike #2622: Accurate Depth Model and Visualization
 
-Date: 2026-06-26. Milestone: M021. Parent epic: none (milestone-level spike).
-Status: research complete; three forks settled by maintainer 2026-06-26 (null-on-migration, usable rail-to-rail mm, top-down per-U signature view); ready for issue decomposition.
+Date: 2026-06-26. Milestone: M021. Parent epic: none (milestone-level spike). Status: research complete; three forks settled by maintainer 2026-06-26 (null-on-migration, usable rail-to-rail mm, top-down per-U signature view); ready for issue decomposition.
 
 Detail docs: [`2622-codebase.md`](2622-codebase.md) (current model), [`2622-external.md`](2622-external.md) (NetBox / standards / device data), [`2622-patterns.md`](2622-patterns.md) (options and recommendations).
 
@@ -34,7 +33,7 @@ EIA-310-D / IEC 60297 standardize rack width, the rack unit, and hole spacing, b
 Device type (`DeviceTypeSchema`, `schemas/index.ts:472`):
 
 ```ts
-depth_mm: z.number().positive().optional()   // in-rack projection from the mount rail plane rearward
+depth_mm: z.number().positive().optional(); // in-rack projection from the mount rail plane rearward
 ```
 
 `depth_mm` (magnitude) and `is_full_depth` (default-face direction) are orthogonal and both kept. No `front_overhang_mm` in v1 (bezels and handles sit in front of the rail and never contend for rail-to-rail space; YAGNI for the headline case).
@@ -42,9 +41,9 @@ depth_mm: z.number().positive().optional()   // in-rack projection from the moun
 Rack (`schemas/index.ts:645`):
 
 ```ts
-mounting_depth_mm: z.number().positive().optional()  // usable rail-to-rail; the collision datum (NetBox mounting_depth)
-outer_depth_mm:    z.number().positive().optional()  // outer cabinet shell; visual only, never collision (NetBox outer_depth)
-mount_type:        z.enum(["4-post","2-post","open-frame","wall"]).optional()  // keys hard vs advisory enforcement
+mounting_depth_mm: z.number().positive().optional(); // usable rail-to-rail; the collision datum (NetBox mounting_depth)
+outer_depth_mm: z.number().positive().optional(); // outer cabinet shell; visual only, never collision (NetBox outer_depth)
+mount_type: z.enum(["4-post", "2-post", "open-frame", "wall"]).optional(); // keys hard vs advisory enforcement
 ```
 
 Occupancy as a depth interval, origin at the front rail, `usable = mounting_depth_mm`:
