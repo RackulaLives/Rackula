@@ -131,35 +131,42 @@ Example, `device-types/Dell/PowerEdge-R740.yaml`: `u_height: 2`, `is_full_depth:
 All depths are chassis depth (body), millimetres. Bezels, handles, PSU bulges and cable-management arms add to the in-rack footprint beyond these figures.
 
 ### Rack servers
+
 - **Mainstream 2U (deep):** Dell PowerEdge R740 = **678.8 mm** without bezel, **715.5 mm** with bezel (Dell tech specs).
 - **Short-depth / edge 1U:** Supermicro SYS-510T-ML "Mini-1U short-depth" = 437 x 43 x **368 mm** (W x H x D) (Supermicro datasheet).
 - **Deep 4U GPU:** Supermicro AS-4125GS-TNRT = 17.2"W x 7"H x 29"D = **~737 mm** deep (Supermicro / eStore).
 - **Defensible range:** short-depth/edge **300-400 mm**; mainstream 1-2U **650-780 mm**; deep GPU/storage **750-900 mm** (verified to 737 mm; >800 mm class such as dense storage JBODs and DGX-class GPU systems exists but exact figure unverified here).
 
 ### Network switches and routers
+
 - **Shallow access switch:** Ubiquiti USW-Pro-48 = 44.0 x 28.5 x 4.3 cm → depth **285 mm** (Ubiquiti tech specs).
 - **Deep PoE access switch:** Cisco Catalyst 9300-M = depth **449 mm** (C9300-24T-M) up to **564 mm** (high-PoE 48-port) (Cisco Meraki datasheet).
 - **Defensible range:** shallow access **200-300 mm**; deep PoE / fixed-config **450-600 mm**; modular chassis (Catalyst 9400/9600 class) deeper still (unverified, ~600-900 mm).
 
 ### Patch panels
+
 - 1U 24-port copper panel body ≈ **44-50 mm** projection (e.g. 19"L x 1.97"W x 1.75"H; the ~2" "width" is the front-to-back body depth). Keystone variants ~65 mm.
 - **Defensible range:** **25-70 mm**. Essentially face-plane hardware; depth is negligible for collision but they still occupy a U.
 
 ### PDUs
+
 - **0U vertical (most common in cabinets):** APC AP8853 Metered ZeroU = 1791 x 56 x **44 mm** (H x W x D). Mounts in the rear/side mounting channel, **outside the U-space**; its 44 mm depth is essentially irrelevant to U-depth planning but matters for rear-door clearance.
 - **Horizontal 1U/2U PDU:** shallow body, typically **<100-150 mm** deep but plugs/cords project rearward (figure unverified; varies widely by outlet count).
 - **Modelling note:** treat 0U vertical PDUs as a side-channel mount, not a depth-consuming U device.
 
 ### UPS
+
 - APC Smart-UPS SMT2200RM2U (2U) = max depth **683 mm**, max width 480 mm, 2U (Schneider/APC datasheet). Heavy (battery mass) and among the deepest rack items.
 - **Defensible range:** small rack UPS **400-500 mm**; mid/large **600-750 mm+**. Always treat as deep + heavy.
 
 ### Rack shelves (cantilever vs full-depth)
+
 - StarTech cantilever shelves: 1U/2U from **254 mm (10")** to **559 mm (22")** deep; cantilever = front-rail mount only.
 - Adjustable 4-post shelf: up to **~700 mm (27.5")** deep with 19.5-38" adjustable mounting depth.
 - **Defensible range:** cantilever **250-400 mm** typical; full-depth 4-post shelves **500-750 mm**.
 
 ### AV gear (amps, processors)
+
 - QSC GX5 power amp: min chassis depth **257 mm (10.1")** (QSC).
 - QSC PL380 power amp: **~406 mm (~16")** deep (QSC).
 - **Defensible range:** AV amps/processors **250-560 mm** (touring power amps run deepest; small DSP/processors shallow). Relevant to Rackula's AV/touring/studio audience.
@@ -169,6 +176,7 @@ All depths are chassis depth (body), millimetres. Bezels, handles, PSU bulges an
 ## 3. Enclosure / Cabinet Depth
 
 ### Common outer depths and vendor examples
+
 - **APC NetShelter SX** (Schneider) AR3100 = **1991H x 600W x 1070D mm**; SX family ships in common outer depths of **600, 1070, 1200 mm**.
 - **Tripp Lite (Eaton) SmartRack 42U:** standard-depth **1070 mm (42")** vs deep **SR42UBDP = 1200 mm (47.25")**.
 - **StarTech 42U 4-post open frame:** **1016 mm (40")** adjustable mounting depth.
@@ -176,10 +184,12 @@ All depths are chassis depth (body), millimetres. Bezels, handles, PSU bulges an
 - **Common cabinet outer-depth ladder:** **600, 800, 1000, 1070, 1200 mm**.
 
 ### Outer depth vs usable mounting depth (the delta)
+
 - Mounting posts are **adjustable front-to-back** in 4-post cabinets, so usable rail-to-rail depth is set at install, not by the SKU. NetBox's `mounting_depth` = this rail-to-rail figure.
 - Front door + rear door + cable space typically consume **~100-150 mm+** of the outer depth; rear clearance of **4-6" (100-150 mm)** is recommended for cabling/airflow. So a 1070 mm cabinet commonly yields ~**800-900 mm** usable mounting depth (directional; depends on door/PDU choices).
 
 ### CRITICAL standards point (verified)
+
 > **EIA-310-D (and IEC 60297) standardize rack WIDTH, the rack unit (1U = 1.75"), and hole spacing - NOT depth.** Depth, mounting depth, hole type, front/rear space, and obstructions between front and rear rails are explicitly **not** part of EIA-310-D and are vendor-defined / rail-adjustable.
 
 - NavePoint and RackSolutions confirm EIA-310-D standardizes: rack unit = 1.75", 19" panel/flange width, horizontal hole spacing (18.312" / 465 mm flange-to-flange family), the 0.625" repeating vertical hole pattern, and a minimum rack opening of ~450 mm. Depth is absent.
@@ -248,6 +258,7 @@ Defaults guidance: seed device `depth_mm` per category from "Typical"; if a devi
 ## Sources
 
 NetBox (primary):
+
 - DeviceType model source: https://github.com/netbox-community/netbox/blob/4f4e97f1a67b2f46df9a7ccf8f74a7e28b3f88ce/netbox/dcim/models/devices.py
 - Rack / RackType model source: https://github.com/netbox-community/netbox/blob/4f4e97f1a67b2f46df9a7ccf8f74a7e28b3f88ce/netbox/dcim/models/racks.py
 - DCIM choices source: https://github.com/netbox-community/netbox/blob/4f4e97f1a67b2f46df9a7ccf8f74a7e28b3f88ce/netbox/dcim/choices.py
@@ -261,6 +272,7 @@ NetBox (primary):
 - Issue #21178 (mounting depth display consistency): https://github.com/netbox-community/netbox/issues/21178
 
 Device datasheets (Section 2):
+
 - Dell PowerEdge R740 dimensions: https://www.dell.com/support/manuals/en-us/poweredge-r740/per740_techspecs_pub/system-dimensions
 - Supermicro SYS-510T-ML (short-depth 1U): https://www.supermicro.com/en/products/system/datasheet/SYS-510T-ML
 - Supermicro AS-4125GS-TNRT (4U GPU): https://www.supermicro.com/en/products/system/gpu/4u/as-4125gs-tnrt
@@ -274,6 +286,7 @@ Device datasheets (Section 2):
 - QSC PL380 dimensions: https://www.guitarchalk.com/qsc-pl380-2500-watt-2-channel-power-amp-dimensions/
 
 Cabinets / standards (Section 3):
+
 - APC NetShelter SX AR3100 (1991H x 600W x 1070D): https://www.apc.com/us/en/product/AR3100/
 - Tripp Lite SmartRack 42U deep (SR42UBDP, 1200 mm): https://www.cdw.com/product/tripp-lite-42u-rack-enclosure-server-cabinet-doors-sides/2110388
 - StarTech 42U 4-post open frame (40"/1016 mm mounting depth): https://www.amazon.com/Tripp-Lite-Equipment-Capacity-SR4POST/dp/B000FAKFNC
@@ -284,16 +297,19 @@ Cabinets / standards (Section 3):
 - Intel Server Rack Cabinet Compatibility Guide (mounting depth not standardized): https://cdrdv2-public.intel.com/840778/server_rack_cabinet_compatibility_guide_24.pdf
 
 Clearance / cabling (Section 4):
+
 - Cable bend radius (copper 4x, fibre 10x/20x): https://www.comms-express.com/infozone/article/bend-radius/
 - Minimum bend radius TIA/EIA-568 reference: https://www.elliottelectric.com/StaticPages/ElectricalReferences/DataComm/minimum_bending.aspx
 - Rack depth / rear clearance + CMA guide: https://www.serverrackcabinets.com/blogs/recent-blog/how-deep-should-my-server-rack-cabinet-be-a-complete-guide
 - Schneider White Paper 44 (blanking panels / airflow): https://www.se.com/us/en/download/document/SPD_SADE-5TPLKQ_EN/
 
 Mounting types (Section 5):
+
 - 2-post vs 4-post (mounting depth, cantilever): https://www.racksolutions.com/news/data-center-trends/how-to-mount-server-2-post-rack/
 - What is rack mounting depth: https://www.racksolutions.com/news/blog/what-is-rack-mounting-depth/
 - Enconnex 2-post vs 4-post: https://blog.enconnex.com/differences-between-2-post-vs-4-post-racks
 
 Competitors (Section 6):
+
 - rackbuilder.io: https://www.rackbuilder.io/
 - RackTables (project + wiki): http://www.racktables.org/ , https://wiki.racktables.org/index.php/FeatureWishlist
