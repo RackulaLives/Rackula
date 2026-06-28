@@ -22,8 +22,8 @@ A large usability release. The workspace is rebuilt around the canvas, and the s
 - New layouts open to a template picker instead of a blank canvas; the standalone StartScreen is gone, with entry routed through the sidebar and app menu (#2081, #2095)
 - Export-all renders every layout with per-mode framing in one pass (#2045)
 - Carrier device types host half-width and sub-U gear directly, replacing the fractional-rail model so sub-U placement is predictable (#2158, #2289, #2291, #2159)
-- Storage status chip in the toolbar shows save state at a glance, with the storage location inline and a last-save details popover on hover or tap; the first step toward a fuller storage status surface (#2035, #2446, #2640)
-- Server storage opt-in: dev sessions restore to server mode after running in browser mode, and switching a browser copy to the server prompts before overwriting an existing one (#2608)
+- Storage status chip in the toolbar shows save state at a glance, with the storage location inline and a last-save details popover on hover or tap (#2035, #2446, #2640)
+- Moving browser-stored layouts to server storage prompts before overwriting an existing server copy (#2608)
 - Pre-overwrite snapshots are taken server-side with conflict detection; the Load dialog lists and restores them (#2040, #2041, #2042)
 - Backup nudge tracks changes since the last export and warns before they are discarded, with a restore-from-file confirm step (#2034, #2038, #2039)
 - Custom device images embed as base64 in the YAML save, so one file round-trips with its images (#617)
@@ -64,7 +64,7 @@ A large usability release. The workspace is rebuilt around the canvas, and the s
 - Export download no longer races object-URL revocation (#2201)
 - Layout loads remap rack groups and container IDs in a two-pass load (#2155)
 - Placement images survive server reconciliation and YAML round-trips (#2220, #2225)
-- Layouts mark clean after a debounced auto-save, with corrected save-toast copy (#2057, #2058, #2061, #2084)
+- Layouts mark clean after a debounced auto-save (#2057, #2058, #2061, #2084)
 - Snapshot data loss closed with strictly monotonic updatedAt and a per-layout write lock (#2067, #2233)
 - Muted-text and QR-brand contrast raised to WCAG AA, nested-interactive controls flattened, and canvas racks given a listbox parent so axe WCAG AA passes (#2255, #2256)
 
@@ -73,7 +73,7 @@ A large usability release. The workspace is rebuilt around the canvas, and the s
 - CSV export escapes spreadsheet formula injection (#2200)
 - Patched libssl3 and libcrypto3 for CVE-2026-45447 (alerts #80-83)
 - Automated security-alert triage via Claude Code (#2357)
-- Pinned libexpat to >=2.8.1-r0 in the deploy image for CVE-2026-8823 (#2562)
+- Pinned libexpat to >=2.8.1-r0 in the deploy image for CVE-2026-45186 (#2562)
 
 ### Technical
 
