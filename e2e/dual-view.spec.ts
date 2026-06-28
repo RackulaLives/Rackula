@@ -82,9 +82,11 @@ test.describe("Dual-View Rack Display", () => {
     await expect(page.locator(locators.rackView.rear)).toBeVisible();
 
     await expect(
-      page.getByTestId("rack-front").getByText("FRONT"),
+      page.getByTestId("rack-front").getByText("FRONT", { exact: true }),
     ).toBeVisible();
-    await expect(page.getByTestId("rack-rear").getByText("REAR")).toBeVisible();
+    await expect(
+      page.getByTestId("rack-rear").getByText("REAR", { exact: true }),
+    ).toBeVisible();
 
     await expect(page.locator(locators.rackView.frontSvg)).toBeVisible();
     await expect(page.locator(locators.rackView.rearSvg)).toBeVisible();
