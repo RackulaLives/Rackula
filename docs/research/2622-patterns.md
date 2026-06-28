@@ -31,7 +31,7 @@ depth_mm: z.number().positive().optional(); // chassis in-rack projection, measu
 ```ts
 mounting_depth_mm: z.number().positive().optional(); // usable rail-to-rail depth — the collision datum
 outer_depth_mm: z.number().positive().optional(); // outer cabinet depth — visual/cabinet-shell only, never used for collision
-mount_type: z.enum(["4-post", "2-post", "open-frame", "wall"]).optional(); // keys hard vs advisory enforcement (Fork B / Section 4)
+mount_type: z.enum(["4-post", "2-post", "open-frame", "wall"]).optional(); // keys hard vs advisory enforcement
 ```
 
 - **`mounting_depth_mm` is the single authoritative depth datum**, mapped 1:1 to NetBox `mounting_depth`: "Maximum depth of a mounted device... for four-post racks, the distance between the front and rear rails." This is what `depth_mm` is checked against.
