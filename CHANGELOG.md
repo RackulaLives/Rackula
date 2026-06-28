@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [Unreleased]
+
+### Removed
+
+- Dead octocov coverage-badge workflow (The Count's Code Census) and its config. It had been disabled since January 2026, never ran again, and published badge JSON that nothing in the repo referenced. The orphan report/badges branch and its protecting ruleset were removed too (#2651)
+
 ## [26.6.4] - 2026-06-27
 
 A large usability release. The workspace is rebuilt around the canvas, and the storage layer is rebuilt to stop silently losing work. The rest is targeted fixes and technical-debt paydown that make the app faster to work in and more reliable. You can trust it with your data now. Please. It would mean a lot.
