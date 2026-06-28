@@ -95,6 +95,15 @@ jobs:
           [ "$fe" = "$VERSION" ] || { echo "::error::Live frontend version '${fe}' != '${VERSION}'"; exit 1; }
           echo "✓ Live frontend reports ${VERSION}"
 
+      # The deploy job runs a sparse checkout on this same self-hosted runner and
+      # leaves the shared workspace in sparse mode. actions/checkout does not clear
+      # an existing sparse cone when the sparse-checkout input is omitted, so the
+      # full tree (package-lock.json, e2e specs) would be missing here, breaking
+      # setup-node's npm cache and the npm ci that follows. Disable any leftover
+      # sparse-checkout before the full checkout below.
+      - name: Clear leftover sparse-checkout from the deploy job
+        run: git -C "$GITHUB_WORKSPACE" sparse-checkout disable 2>/dev/null || true
+
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ inputs.tag }}
