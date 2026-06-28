@@ -105,7 +105,7 @@ test.describe("Duplicate Device ID Handling (#1363)", () => {
     await expect(page.locator(locators.rack.device).first()).toBeVisible({
       timeout: 5000,
     });
-    const devices = await page.locator(locators.rack.device).count();
+    const devices = await page.locator(locators.rackView.frontDevice).count();
     expect(devices).toBe(3);
 
     // No each_key_duplicate errors
