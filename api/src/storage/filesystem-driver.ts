@@ -21,13 +21,7 @@ import {
   countLayouts,
   countAssets,
 } from "./filesystem";
-import {
-  getAsset,
-  saveAsset,
-  deleteAsset,
-  deleteLayoutAssets,
-  listLayoutAssets,
-} from "./assets";
+import { getAsset, saveAsset, deleteAsset, listLayoutAssets } from "./assets";
 
 /** Construct the filesystem storage driver. */
 export function createFilesystemDriver(): StorageDriver {
@@ -46,7 +40,6 @@ export function createFilesystemDriver(): StorageDriver {
     getAsset,
     saveAsset,
     deleteAsset,
-    deleteLayoutAssets,
     listLayoutAssets,
   };
 }

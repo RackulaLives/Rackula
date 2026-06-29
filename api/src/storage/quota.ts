@@ -100,8 +100,17 @@ export async function countAssetsInDir(layoutDir: string): Promise<number> {
             count += 1;
           }
         }
-      } catch {
-        // Directory might have been deleted between readdir and read -- skip
+      } catch (err) {
+        // A directory deleted between the listing and this read is fine; any
+        // other error (permissions, I/O) must surface so quota enforcement is
+        // never silently weakened by an incomplete scan.
+        if (
+          err instanceof Error &&
+          (err as NodeJS.ErrnoException).code === "ENOENT"
+        ) {
+          continue;
+        }
+        throw err;
       }
     }
   }

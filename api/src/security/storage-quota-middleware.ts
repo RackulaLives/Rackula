@@ -65,12 +65,13 @@ export function createStorageQuotaMiddleware(
 
     // Layout quota: PUT /layouts/:uuid or PUT /api/layouts/:uuid
     const layoutMatch = pathname.match(/^\/(?:api\/)?layouts\/([^/]+)$/);
-    if (layoutMatch && maxLayouts > 0) {
-      const uuid = layoutMatch[1];
-
+    const layoutId = layoutMatch?.[1];
+    // Only enforce quota for syntactically valid UUIDs; a malformed id is the
+    // route's 400, not a 429 (which would also leak quota saturation).
+    if (layoutId && isUuid(layoutId) && maxLayouts > 0) {
       // Only enforce quota on create, not update
-      if (uuid && isUuid(uuid) && (await storage.layoutExists(uuid))) {
-        logger.debug(`quota: layout update for ${uuid}, skipping check`);
+      if (await storage.layoutExists(layoutId)) {
+        logger.debug(`quota: layout update for ${layoutId}, skipping check`);
         await next();
         return;
       }
@@ -99,33 +100,43 @@ export function createStorageQuotaMiddleware(
       /^\/(?:api\/)?assets\/([^/]+)\/([^/]+)\/([^/]+)$/,
     );
     if (assetMatch && maxAssetsPerLayout > 0) {
-      const layoutId = assetMatch[1];
+      const assetLayoutId = assetMatch[1];
+      const deviceSlug = assetMatch[2];
+      const face = assetMatch[3];
 
       if (
-        layoutId &&
-        isUuid(layoutId) &&
-        (await storage.layoutExists(layoutId))
+        assetLayoutId &&
+        isUuid(assetLayoutId) &&
+        (await storage.layoutExists(assetLayoutId))
       ) {
-        const current = await storage.countAssets(layoutId);
+        const current = await storage.countAssets(assetLayoutId);
         if (current >= maxAssetsPerLayout) {
-          logger.warn(
-            `quota: asset quota exceeded for layout ${layoutId}: ${current}/${maxAssetsPerLayout}`,
-          );
-          return c.json(
-            {
-              error: "Storage quota exceeded",
-              message: `Asset limit reached for this layout (${current}/${maxAssetsPerLayout}). Remove existing assets to add new ones.`,
-              current,
-              max: maxAssetsPerLayout,
-            },
-            507,
-          );
+          // Overwriting an existing asset does not increase the count, so only
+          // reject a genuinely new asset at the cap.
+          const isReplacement =
+            (face === "front" || face === "rear") &&
+            deviceSlug !== undefined &&
+            (await storage.getAsset(assetLayoutId, deviceSlug, face)) !== null;
+          if (!isReplacement) {
+            logger.warn(
+              `quota: asset quota exceeded for layout ${assetLayoutId}: ${current}/${maxAssetsPerLayout}`,
+            );
+            return c.json(
+              {
+                error: "Storage quota exceeded",
+                message: `Asset limit reached for this layout (${current}/${maxAssetsPerLayout}). Remove existing assets to add new ones.`,
+                current,
+                max: maxAssetsPerLayout,
+              },
+              507,
+            );
+          }
         }
       } else {
         // Layout doesn't exist — the route handler will return 404 (or create
         // semantics do not apply to assets).
         logger.debug(
-          `quota: layout ${layoutId} not found, skipping asset check`,
+          `quota: layout ${assetLayoutId} not found, skipping asset check`,
         );
       }
     }

@@ -86,26 +86,35 @@ describe("createStorageQuotaMiddleware", () => {
   describe("layout quota", () => {
     it("allows layout creation when under the limit", async () => {
       const app = createTestApp({ maxLayouts: 5, maxAssetsPerLayout: 50 });
-      const res = await app.request("/layouts/new-uuid-here", {
-        method: "PUT",
-      });
+      const res = await app.request(
+        "/layouts/99999999-9999-4999-8999-999999999999",
+        {
+          method: "PUT",
+        },
+      );
       expect(res.status).toBe(201);
     });
 
     it("allows layout creation via /api/ prefix", async () => {
       const app = createTestApp({ maxLayouts: 5, maxAssetsPerLayout: 50 });
-      const res = await app.request("/api/layouts/new-uuid-here", {
-        method: "PUT",
-      });
+      const res = await app.request(
+        "/api/layouts/99999999-9999-4999-8999-999999999999",
+        {
+          method: "PUT",
+        },
+      );
       expect(res.status).toBe(201);
     });
 
     it("rejects layout creation when at the limit", async () => {
       // Already have 1 layout (created in beforeEach), set limit to 1
       const app = createTestApp({ maxLayouts: 1, maxAssetsPerLayout: 50 });
-      const res = await app.request("/layouts/new-uuid-here", {
-        method: "PUT",
-      });
+      const res = await app.request(
+        "/layouts/99999999-9999-4999-8999-999999999999",
+        {
+          method: "PUT",
+        },
+      );
       expect(res.status).toBe(429);
 
       const body = await res.json();
@@ -127,9 +136,12 @@ describe("createStorageQuotaMiddleware", () => {
 
     it("allows all requests when both quotas are unlimited (max=0)", async () => {
       const app = createTestApp({ maxLayouts: 0, maxAssetsPerLayout: 0 });
-      const res = await app.request("/layouts/new-uuid-here", {
-        method: "PUT",
-      });
+      const res = await app.request(
+        "/layouts/99999999-9999-4999-8999-999999999999",
+        {
+          method: "PUT",
+        },
+      );
       expect(res.status).toBe(201);
     });
 
@@ -143,9 +155,12 @@ describe("createStorageQuotaMiddleware", () => {
 
     it("does not include Retry-After header for hard quota errors", async () => {
       const app = createTestApp({ maxLayouts: 1, maxAssetsPerLayout: 50 });
-      const res = await app.request("/layouts/new-uuid-here", {
-        method: "PUT",
-      });
+      const res = await app.request(
+        "/layouts/99999999-9999-4999-8999-999999999999",
+        {
+          method: "PUT",
+        },
+      );
       // Retry-After is for rate limits, not hard storage quotas
       expect(res.headers.get("Retry-After")).toBeNull();
     });

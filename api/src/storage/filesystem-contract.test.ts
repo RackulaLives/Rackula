@@ -16,20 +16,25 @@ const makeFilesystemDriver: MakeDriver = async () => {
   const previousDataDir = process.env.DATA_DIR;
   process.env.DATA_DIR = dataDir;
 
-  const { createFilesystemDriver } = await import("./filesystem-driver");
-  const driver = createFilesystemDriver();
-
-  return {
-    driver,
-    async cleanup() {
-      if (previousDataDir === undefined) {
-        delete process.env.DATA_DIR;
-      } else {
-        process.env.DATA_DIR = previousDataDir;
-      }
-      await rm(dataDir, { recursive: true, force: true });
-    },
+  const restore = async () => {
+    if (previousDataDir === undefined) {
+      delete process.env.DATA_DIR;
+    } else {
+      process.env.DATA_DIR = previousDataDir;
+    }
+    await rm(dataDir, { recursive: true, force: true });
   };
+
+  // Restore DATA_DIR and remove the tempdir even if driver setup throws, so a
+  // setup failure does not leak env state or the directory into later tests.
+  try {
+    const { createFilesystemDriver } = await import("./filesystem-driver");
+    const driver = createFilesystemDriver();
+    return { driver, cleanup: restore };
+  } catch (error) {
+    await restore();
+    throw error;
+  }
 };
 
 runStorageContract(makeFilesystemDriver, { describe, it, expect });

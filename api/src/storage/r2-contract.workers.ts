@@ -56,13 +56,25 @@ describe("R2 driver specifics", () => {
   it("prunes snapshots to the 5 most recent", async () => {
     const driver = createR2Driver(bucket);
     await driver.saveLayout(layoutYaml("Prune"), ID);
-    // Seven uploaded losing copies; only the 5 newest must survive.
+    // Seven uploaded losing copies, oldest (snap-0) first.
     for (let i = 0; i < 7; i += 1) {
       const saved = await driver.saveSnapshot(ID, layoutYaml(`snap-${i}`));
       expect(saved).not.toBeNull();
     }
     const snapshots = await driver.listSnapshots(ID);
     expect(snapshots?.length).toBe(5);
+
+    const survivingContents = await Promise.all(
+      (snapshots ?? []).map((snapshot) =>
+        driver.getSnapshot(ID, snapshot.filename),
+      ),
+    );
+    // The two oldest are pruned; the five most recent remain.
+    expect(survivingContents).not.toContain(layoutYaml("snap-0"));
+    expect(survivingContents).not.toContain(layoutYaml("snap-1"));
+    for (let i = 2; i < 7; i += 1) {
+      expect(survivingContents).toContain(layoutYaml(`snap-${i}`));
+    }
   });
 
   it("counts layouts via prefix listing", async () => {

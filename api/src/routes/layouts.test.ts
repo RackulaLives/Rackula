@@ -266,9 +266,6 @@ describe("createApp storage driver injection (#2624)", () => {
         calls.push("deleteAsset");
         return false;
       },
-      async deleteLayoutAssets() {
-        calls.push("deleteLayoutAssets");
-      },
       async listLayoutAssets() {
         calls.push("listLayoutAssets");
         return [];

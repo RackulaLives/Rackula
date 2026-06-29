@@ -85,8 +85,6 @@ export interface StorageDriver {
     deviceSlug: string,
     face: AssetFace,
   ): Promise<boolean>;
-  /** Delete every asset for a layout. */
-  deleteLayoutAssets(layoutUuid: string): Promise<void>;
   /** List a layout's stored assets. */
   listLayoutAssets(layoutUuid: string): Promise<AssetInfo[]>;
 }

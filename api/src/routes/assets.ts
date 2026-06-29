@@ -176,6 +176,18 @@ assets.put("/:layoutId/:deviceSlug/:face", async (c) => {
       return c.json({ error: error.message }, 400);
     }
 
+    // A route-valid-but-non-UUID layout id is a bad request, and a write to a
+    // missing layout is a 404, not a server fault. The driver throws these with
+    // fixed category prefixes that interpolate only validated values.
+    if (error instanceof Error) {
+      if (error.message.startsWith("Invalid layout UUID")) {
+        return c.json({ error: "Invalid layout ID format" }, 400);
+      }
+      if (error.message.startsWith("Layout not found")) {
+        return c.json({ error: "Layout not found" }, 404);
+      }
+    }
+
     // Anything reaching here is an unexpected server fault: log it.
     logger.error({ err: error }, `Failed to save asset`);
     return c.json({ error: "Failed to save asset" }, 500);

@@ -15,7 +15,6 @@ import {
   unlink,
   mkdir,
   readdir,
-  rm,
   stat,
   rename,
 } from "node:fs/promises";
@@ -181,29 +180,6 @@ export async function deleteAsset(
   }
 
   return deleted;
-}
-
-/**
- * Delete all assets for a layout
- * Removes the assets/ subfolder inside the layout folder
- */
-export async function deleteLayoutAssets(layoutId: string): Promise<void> {
-  const validLayoutId = validateLayoutUuid(layoutId);
-  if (!validLayoutId) {
-    throw new Error(`Invalid layout UUID: ${layoutId}`);
-  }
-
-  const assetsDir = await getLayoutAssetsDir(validLayoutId);
-  if (!assetsDir) {
-    // Layout doesn't exist, nothing to delete
-    return;
-  }
-
-  try {
-    await rm(assetsDir, { recursive: true });
-  } catch {
-    // Ignore if doesn't exist
-  }
 }
 
 /**

@@ -109,12 +109,16 @@ export function runStorageContract(
       const { driver, cleanup } = await makeDriver();
       try {
         const v1 = layoutYaml("v1");
+        const v2 = layoutYaml("v2");
         const first = await driver.saveLayout(v1, TEST_ID);
 
-        await driver.saveLayout(layoutYaml("v2"), TEST_ID, first.updatedAt);
+        await driver.saveLayout(v2, TEST_ID, first.updatedAt);
 
         const snapshots = await snapshotContents(driver, TEST_ID);
         expect(snapshots).toEqual([]);
+        // The matched-echo save must still commit the new copy.
+        const stored = await driver.getLayout(TEST_ID);
+        expect(stored?.content).toBe(v2);
       } finally {
         await cleanup();
       }
@@ -207,6 +211,9 @@ export function runStorageContract(
         const stored = await driver.getLayout(TEST_ID);
         const finalContent = stored?.content ?? "";
         const snapshots = await snapshotContents(driver, TEST_ID);
+
+        // One of the racing writes must win and persist as the stored copy.
+        expect([v2, v3]).toContain(finalContent);
 
         expect(snapshots.length).toBeGreaterThan(0);
 

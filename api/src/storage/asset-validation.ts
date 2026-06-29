@@ -9,19 +9,32 @@
 import { z } from "zod";
 import { isUuid } from "../schemas/layout";
 
-// Allowed image types
+/** Image MIME types accepted for stored device assets. */
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+/** File extensions the storage layer may use for validated device assets. */
 export const ALLOWED_EXTS = new Set(["png", "jpg", "webp"]);
+/** Maximum accepted asset size in bytes. */
 export const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
+/** Supported device image face identifiers. */
 export type AssetFace = "front" | "rear";
 
+/** Metadata returned when listing a layout's stored assets. */
 export interface AssetInfo {
   layoutId: string;
   deviceSlug: string;
   face: AssetFace;
   ext: string;
   size: number;
+}
+
+/**
+ * Reduce a Content-Type header to its bare media-type token: drop any
+ * parameters (e.g. `; charset=binary`) and lowercase. Lets a parameterized or
+ * differently-cased header still match the allowlist and the sniffed type.
+ */
+function normalizeMediaType(contentType: string): string {
+  return (contentType.split(";")[0] ?? "").trim().toLowerCase();
 }
 
 /**
@@ -114,7 +127,7 @@ export const DeviceSlugSchema = z
  * Validate image content type
  */
 export function isValidImageType(contentType: string): boolean {
-  return ALLOWED_TYPES.has(contentType);
+  return ALLOWED_TYPES.has(normalizeMediaType(contentType));
 }
 
 /**
@@ -190,7 +203,10 @@ export function validateAssetBytes(
   data: ArrayBuffer,
   contentType: string,
 ): { ext: string } {
-  if (!isValidImageType(contentType)) {
+  // Compare against the bare media type so a parameterized/cased header (e.g.
+  // "image/png; charset=binary") is handled the same as "image/png".
+  const mediaType = normalizeMediaType(contentType);
+  if (!ALLOWED_TYPES.has(mediaType)) {
     throw new Error(`Invalid content type: ${contentType}`);
   }
 
@@ -212,9 +228,9 @@ export function validateAssetBytes(
       "Rejected asset: bytes do not match an allowed image format (png/jpeg/webp)",
     );
   }
-  if (sniffedType !== contentType) {
+  if (sniffedType !== mediaType) {
     throw new AssetRejectedError(
-      `Rejected asset: declared content type ${contentType} disagrees with sniffed type ${sniffedType}`,
+      `Rejected asset: declared content type ${mediaType} disagrees with sniffed type ${sniffedType}`,
     );
   }
 

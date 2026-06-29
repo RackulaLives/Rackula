@@ -312,18 +312,28 @@ export function createR2Driver(bucket: R2BucketLike): StorageDriver {
       throw new Error(`Invalid layout metadata: ${issues}`);
     }
 
-    const existingUuid =
-      existingId && isUuid(existingId) ? existingId : undefined;
+    // existingId is the authoritative URL identity. If it is present but not a
+    // valid UUID, reject rather than silently minting a new layout under a
+    // different id (the route validates the UUID, so this is defense in depth).
+    if (existingId !== undefined && !isUuid(existingId)) {
+      throw new Error(`Invalid layout UUID: ${existingId}`);
+    }
     const metadataId = layout.data.metadata?.id;
     const validMetadataId =
       metadataId && isUuid(metadataId) ? metadataId : null;
-    const uuid = existingUuid ?? validMetadataId ?? crypto.randomUUID();
+    const uuid = existingId ?? validMetadataId ?? crypto.randomUUID();
     const key = layoutKey(uuid);
 
     for (let attempt = 0; attempt < SAVE_MAX_ATTEMPTS; attempt += 1) {
       const current = await bucket.get(key);
       const isNew = current === null;
-      const storedUpdatedAt = current?.customMetadata?.updatedAt;
+      // Use the same token getLayout returns (customMetadata, falling back to
+      // the R2 upload time) so the echo the client received matches what the
+      // divergence check compares against, even for objects written without
+      // customMetadata.updatedAt.
+      const storedUpdatedAt = current
+        ? (current.customMetadata?.updatedAt ?? current.uploaded.toISOString())
+        : undefined;
       const updatedAt = nextUpdatedAt(storedUpdatedAt);
 
       if (current) {
@@ -450,7 +460,13 @@ export function createR2Driver(bucket: R2BucketLike): StorageDriver {
   }
 
   async function countLayouts(): Promise<number> {
-    return (await listLayoutPrefixes()).length;
+    // Count actual layout.yaml objects (not raw prefixes) so the quota count
+    // matches listLayouts: an orphan prefix left behind (e.g. assets/snapshots
+    // without a layout file) must not count as a layout.
+    const objects = await listAll(LAYOUTS_PREFIX);
+    return objects.filter((object) =>
+      /^layouts\/[^/]+\/layout\.yaml$/.test(object.key),
+    ).length;
   }
 
   async function countAssets(uuid: string): Promise<number> {
@@ -527,16 +543,6 @@ export function createR2Driver(bucket: R2BucketLike): StorageDriver {
     return deleted;
   }
 
-  async function deleteLayoutAssets(uuid: string): Promise<void> {
-    if (!isUuid(uuid)) {
-      throw new Error(`Invalid layout UUID: ${uuid}`);
-    }
-    const objects = await listAll(assetsPrefix(uuid));
-    if (objects.length > 0) {
-      await bucket.delete(objects.map((object) => object.key));
-    }
-  }
-
   async function listLayoutAssets(uuid: string): Promise<AssetInfo[]> {
     if (!isUuid(uuid)) {
       throw new Error(`Invalid layout UUID: ${uuid}`);
@@ -582,7 +588,6 @@ export function createR2Driver(bucket: R2BucketLike): StorageDriver {
     getAsset,
     saveAsset,
     deleteAsset,
-    deleteLayoutAssets,
     listLayoutAssets,
   };
 }
