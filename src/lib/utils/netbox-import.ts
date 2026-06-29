@@ -12,6 +12,7 @@ import type {
 } from "$lib/types";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import {
+  DeviceTypeSchema,
   InterfaceTypeSchema,
   PoEModeSchema,
   PoETypeSchema,
@@ -20,6 +21,7 @@ import {
   WeightUnitSchema,
 } from "$lib/schemas";
 import { parseYaml } from "./yaml";
+import { generateDeviceSlug, slugify } from "./slug";
 
 const FeedLegSchema = PowerOutletSchema.shape.feed_leg;
 
@@ -114,7 +116,20 @@ export interface NetBoxParseError {
 export type NetBoxParseOutput = NetBoxParseResult | NetBoxParseError;
 
 /**
- * Result of converting to Rackula DeviceType
+ * Result of converting to Rackula DeviceType.
+ *
+ * `convertToDeviceType` returns either a success carrying the validated
+ * `DeviceType`, or a failure carrying a human-readable error. The failure
+ * branch never yields a `DeviceType`, so an out-of-range `u_height` or a
+ * non-conforming `slug` cannot enter the device library.
+ */
+export type ConvertResult =
+  | { success: true; result: ImportResult }
+  | { success: false; error: string };
+
+/**
+ * Successful conversion payload: the validated DeviceType plus the inferred
+ * category and any non-fatal warnings raised while mapping NetBox fields.
  */
 export interface ImportResult {
   deviceType: DeviceType;
@@ -393,7 +408,7 @@ export function convertToDeviceType(
     colour?: string;
     rack_widths?: RackWidth[];
   },
-): ImportResult {
+): ConvertResult {
   const warnings: string[] = [];
 
   // Infer category if not provided
@@ -403,9 +418,17 @@ export function convertToDeviceType(
   // Use provided colour or default for category
   const colour = options?.colour ?? CATEGORY_COLOURS[category];
 
+  // Normalise the slug through the same helper the JSON import path uses so the
+  // stored slug always matches SLUG_PATTERN. NetBox slugs are already lowercase
+  // hyphenated by convention, but a hand-edited paste ("My Switch!") would
+  // otherwise fail LayoutSchema on the next reload and discard the autosave.
+  const slug =
+    slugify(netbox.slug) ||
+    generateDeviceSlug(netbox.manufacturer, netbox.model);
+
   // Build the device type
   const deviceType: DeviceType = {
-    slug: netbox.slug,
+    slug,
     manufacturer: netbox.manufacturer,
     model: netbox.model,
     u_height: netbox.u_height ?? 1,
@@ -513,10 +536,27 @@ export function convertToDeviceType(
     }));
   }
 
+  // Validate the built DeviceType against the schema before it can enter the
+  // library. NetBox values pass through as-is, so an out-of-range u_height
+  // (2.7, 0, -1, 99999) or a slug that could not be normalised must be refused
+  // here rather than stored and silently discarded on the next reload.
+  const parsed = DeviceTypeSchema.safeParse(deviceType);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    const field = first?.path.join(".") || "device";
+    return {
+      success: false,
+      error: `Invalid device type: ${field}: ${first?.message ?? "validation failed"}`,
+    };
+  }
+
   return {
-    deviceType,
-    inferredCategory,
-    warnings,
+    success: true,
+    result: {
+      deviceType: parsed.data,
+      inferredCategory,
+      warnings,
+    },
   };
 }
 
@@ -529,15 +569,12 @@ export async function importFromNetBoxYaml(
     category?: DeviceCategory;
     colour?: string;
   },
-): Promise<
-  { success: true; result: ImportResult } | { success: false; error: string }
-> {
+): Promise<ConvertResult> {
   const parseResult = await parseNetBoxYaml(yamlString);
 
   if (parseResult.success === false) {
     return { success: false, error: parseResult.error };
   }
 
-  const result = convertToDeviceType(parseResult.data, options);
-  return { success: true, result };
+  return convertToDeviceType(parseResult.data, options);
 }

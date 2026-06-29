@@ -9,7 +9,10 @@ import {
   convertToDeviceType,
   importFromNetBoxYaml,
   type NetBoxDeviceType,
+  type ImportResult,
 } from "./netbox-import";
+import { parseLayoutObject } from "./yaml";
+import { createTestLayout } from "../../tests/factories";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import { DeviceTypeSchema } from "$lib/schemas";
 
@@ -305,6 +308,18 @@ model: Some Device
   });
 
   describe("convertToDeviceType", () => {
+    // Unwrap a successful conversion. Fails the test if the conversion was
+    // refused, so the existing happy-path assertions can read .deviceType etc.
+    function convertOk(
+      ...args: Parameters<typeof convertToDeviceType>
+    ): ImportResult {
+      const converted = convertToDeviceType(...args);
+      if (!converted.success) {
+        throw new Error(`expected success, got error: ${converted.error}`);
+      }
+      return converted.result;
+    }
+
     it("converts basic NetBox device to Rackula DeviceType", () => {
       const netbox: NetBoxDeviceType = {
         manufacturer: "Ubiquiti",
@@ -314,7 +329,7 @@ model: Some Device
         is_full_depth: false,
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.slug).toBe("ubiquiti-usw-pro-24");
       expect(result.deviceType.manufacturer).toBe("Ubiquiti");
@@ -333,7 +348,7 @@ model: Some Device
         slug: "generic-unknown-device",
       };
 
-      const result = convertToDeviceType(netbox, { category: "server" });
+      const result = convertOk(netbox, { category: "server" });
 
       expect(result.deviceType.category).toBe("server");
       expect(result.deviceType.colour).toBe(CATEGORY_COLOURS.server);
@@ -346,7 +361,7 @@ model: Some Device
         slug: "ubiquiti-usw-pro-24",
       };
 
-      const result = convertToDeviceType(netbox, { colour: "#FF0000" });
+      const result = convertOk(netbox, { colour: "#FF0000" });
 
       expect(result.deviceType.colour).toBeTruthy(); // Color is set
     });
@@ -359,7 +374,7 @@ model: Some Device
         airflow: "front-to-rear",
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.airflow).toBe("front-to-rear");
     });
@@ -372,7 +387,7 @@ model: Some Device
         airflow: "unknown-airflow-type",
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.airflow).toBeUndefined();
       expect(result.warnings).toContain(
@@ -391,7 +406,7 @@ model: Some Device
         ],
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       // eslint-disable-next-line no-restricted-syntax -- Testing conversion (exactly 2 interfaces)
       expect(result.deviceType.interfaces).toHaveLength(2);
@@ -407,7 +422,7 @@ model: Some Device
         interfaces: [{ name: "Gi1/0/1", type: "1000base-lx" }],
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.interfaces![0].type).toBe("other");
       expect(result.warnings).toContain(
@@ -423,7 +438,7 @@ model: Some Device
         interfaces: [{ name: "Te1/0/1", type: "10gbase-t" }],
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.interfaces![0].type).toBe("10gbase-t");
       expect(result.warnings).toEqual([]);
@@ -444,7 +459,7 @@ model: Some Device
         ],
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.interfaces![0].poe_mode).toBeUndefined();
       expect(result.deviceType.interfaces![0].poe_type).toBeUndefined();
@@ -468,7 +483,7 @@ model: Some Device
         ],
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.interfaces![0].poe_mode).toBe("pse");
       expect(result.deviceType.interfaces![0].poe_type).toBe(
@@ -494,7 +509,7 @@ model: Some Device
         ],
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(() => DeviceTypeSchema.parse(result.deviceType)).not.toThrow();
     });
@@ -508,7 +523,7 @@ model: Some Device
         power_outlets: [{ name: "Outlet 1", power_port: "Input" }],
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       // eslint-disable-next-line no-restricted-syntax -- Testing conversion (exactly 1 power port)
       expect(result.deviceType.power_ports).toHaveLength(1);
@@ -524,7 +539,7 @@ model: Some Device
         slug: "generic-device",
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.u_height).toBe(1);
     });
@@ -536,7 +551,7 @@ model: Some Device
         slug: "generic-device",
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.is_full_depth).toBe(true);
     });
@@ -549,7 +564,7 @@ model: Some Device
         power_outlets: [{ name: "Outlet 1", feed_leg: "A" }],
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.power_outlets![0].feed_leg).toBe("A");
       expect(result.warnings).toEqual([]);
@@ -563,7 +578,7 @@ model: Some Device
         power_outlets: [{ name: "Outlet 1", feed_leg: "N" }],
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.power_outlets![0].feed_leg).toBeUndefined();
       expect(result.warnings).toContain("Unknown feed_leg value: N");
@@ -578,7 +593,7 @@ model: Some Device
         weight_unit: "lb",
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.weight).toBe(21.9);
       expect(result.deviceType.weight_unit).toBe("lb");
@@ -593,7 +608,7 @@ model: Some Device
         weight: 21.9,
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.weight).toBe(21.9);
       expect(result.deviceType.weight_unit).toBe("kg");
@@ -609,7 +624,7 @@ model: Some Device
         weight_unit: "g",
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.weight).toBeUndefined();
       expect(result.deviceType.weight_unit).toBeUndefined();
@@ -624,7 +639,7 @@ model: Some Device
         subdevice_role: "parent",
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.subdevice_role).toBe("parent");
       expect(result.warnings).toEqual([]);
@@ -638,7 +653,7 @@ model: Some Device
         subdevice_role: "standalone",
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.subdevice_role).toBeUndefined();
       expect(result.warnings).toContain(
@@ -653,7 +668,7 @@ model: Some Device
         slug: "generic-device",
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.weight).toBeUndefined();
       expect(result.deviceType.weight_unit).toBeUndefined();
@@ -673,7 +688,7 @@ model: Some Device
         power_outlets: [{ name: "Outlet 1", feed_leg: "N" }],
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(() => DeviceTypeSchema.parse(result.deviceType)).not.toThrow();
       expect(result.warnings.length).toBeGreaterThan(0);
@@ -687,9 +702,91 @@ model: Some Device
         comments: "This is a test device",
       };
 
-      const result = convertToDeviceType(netbox);
+      const result = convertOk(netbox);
 
       expect(result.deviceType.notes).toBe("This is a test device");
+    });
+  });
+
+  describe("convertToDeviceType validation gate", () => {
+    const base: NetBoxDeviceType = {
+      manufacturer: "Generic",
+      model: "Device",
+      slug: "generic-device",
+    };
+
+    it.each([2.7, 0, -1, 99999])(
+      "refuses out-of-range u_height %p instead of producing a DeviceType",
+      (u_height) => {
+        const converted = convertToDeviceType({ ...base, u_height });
+
+        expect(converted.success).toBe(false);
+        if (!converted.success) {
+          expect(converted.error).toContain("u_height");
+        }
+      },
+    );
+
+    it("accepts an in-bounds half-U height", () => {
+      const converted = convertToDeviceType({ ...base, u_height: 1.5 });
+
+      expect(converted.success).toBe(true);
+      if (converted.success) {
+        expect(converted.result.deviceType.u_height).toBe(1.5);
+      }
+    });
+
+    it.each([
+      ["Weird Box", "weird-box"],
+      ["My Switch!", "my-switch"],
+      ["UPPER_CASE Name", "upper-case-name"],
+    ])(
+      "normalises an invalid slug %p to a SLUG_PATTERN-conforming slug",
+      (slug, expected) => {
+        const converted = convertToDeviceType({ ...base, slug });
+
+        expect(converted.success).toBe(true);
+        if (converted.success) {
+          expect(converted.result.deviceType.slug).toBe(expected);
+        }
+      },
+    );
+
+    it("falls back to manufacturer/model when the slug normalises to empty", () => {
+      const converted = convertToDeviceType({
+        manufacturer: "Acme",
+        model: "Rack Unit 1",
+        slug: "!!!",
+      });
+
+      expect(converted.success).toBe(true);
+      if (converted.success) {
+        expect(converted.result.deviceType.slug).toBe("acme-rack-unit-1");
+      }
+    });
+
+    it("round-trips an imported device through parseLayoutObject without rejection", () => {
+      const converted = convertToDeviceType({
+        manufacturer: "Ubiquiti",
+        model: "USW Pro 24",
+        slug: "Weird Box",
+        u_height: 1,
+      });
+
+      expect(converted.success).toBe(true);
+      if (!converted.success) return;
+
+      const layout = createTestLayout({
+        device_types: [converted.result.deviceType],
+      });
+
+      // Mirror the autosave path: JSON serialize, then parse back.
+      const roundTripped = parseLayoutObject(
+        JSON.parse(JSON.stringify(layout)),
+      );
+
+      expect(roundTripped).not.toBeNull();
+      expect(roundTripped?.device_types[0]?.slug).toBe("weird-box");
     });
   });
 

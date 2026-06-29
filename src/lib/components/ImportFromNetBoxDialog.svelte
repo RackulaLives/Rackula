@@ -188,13 +188,20 @@
   function handleImport() {
     if (!parsedData) return;
 
-    const result = convertToDeviceType(parsedData, {
+    parseError = "";
+
+    const converted = convertToDeviceType(parsedData, {
       category: categoryOverride ?? undefined,
       colour: colourOverride ?? undefined,
       rack_widths: getRackWidths(),
     });
 
-    onimport?.(result);
+    if (!converted.success) {
+      parseError = converted.error;
+      return;
+    }
+
+    onimport?.(converted.result);
   }
 
   function handleCancel() {
