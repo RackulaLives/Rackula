@@ -1017,6 +1017,40 @@ describe("LayoutSchema", () => {
       }
     });
 
+    it("clamps an over-rack rail device whose container_id is an empty string", () => {
+      // The rest of the schema treats a falsy/empty container_id as rack-level
+      // (PlacedDeviceSchema uses `!data.container_id`; the carrier-first refine
+      // uses `if (!device.container_id)`). A malformed rail device with
+      // container_id "" and no slot_id must be clamped like any other rail
+      // device, not skipped as if it were a container child (#2661 follow-up).
+      const layout = {
+        ...validLayout,
+        version: "26.5.0",
+        racks: [
+          {
+            ...tenURack,
+            devices: [
+              {
+                id: "dev-empty-cid",
+                device_type: "switch-1u",
+                position: 66,
+                face: "front" as const,
+                container_id: "",
+              },
+            ],
+          },
+        ],
+        device_types: [oneUType],
+      };
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const placed = result.data.racks[0]!.devices[0]!;
+        expect(placed.position).toBe(60);
+        expect(placed.position % 6).toBe(0);
+      }
+    });
+
     it("leaves an in-bounds rail position unchanged", () => {
       const layout = {
         ...validLayout,

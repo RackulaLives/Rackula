@@ -953,7 +953,9 @@ function clampOverRackPositions<
   const maxValidTop = rackHeight * UNITS_PER_U + (UNITS_PER_U - 1);
   return devices.map((device) => {
     // Container children use container-relative positions; not rail-bounded.
-    if (device.container_id !== undefined) {
+    // A falsy container_id (undefined or "") is rack-level here, matching how
+    // PlacedDeviceSchema and the carrier-first refine distinguish the two.
+    if (device.container_id) {
       return device;
     }
     // Default to 1U when the type is unknown so the clamp still bounds the top.
