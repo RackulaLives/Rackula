@@ -33,26 +33,21 @@ function resolveIndexById(
 /**
  * Build a target resolver for a command that was created against `initialIndex`.
  *
- * The first execute/undo runs while `initialIndex` is still valid: it reads the
- * device's stable id there and caches it. Every later run (redo after an
- * intervening insert/remove, repeated undo/redo) resolves the live index by that
- * id, so the command can never act on whichever device has since shifted into the
- * old slot. Returns undefined only when the device is genuinely absent, letting
- * callers no-op instead of mutating an unrelated device (#2665).
+ * The device's stable id is captured at command creation time, while
+ * `initialIndex` is still valid: before any sibling command in a batch can shift
+ * the rack. Every run then resolves the live index by that id, so the command can
+ * never act on whichever device has since shifted into the old slot. Returns
+ * undefined only when the device is genuinely absent, letting callers no-op
+ * instead of mutating an unrelated device (#2665).
  */
 function createTargetResolver(
   store: Pick<DeviceCommandStore, "getDeviceAtIndex">,
   initialIndex: number,
 ): () => number | undefined {
-  let trackedId: string | undefined;
+  const trackedId = store.getDeviceAtIndex(initialIndex)?.id;
   return function resolveTargetIndex(): number | undefined {
-    if (trackedId !== undefined) {
-      return resolveIndexById(store, trackedId);
-    }
-    const device = store.getDeviceAtIndex(initialIndex);
-    if (!device) return undefined;
-    trackedId = device.id;
-    return initialIndex;
+    if (trackedId === undefined) return undefined;
+    return resolveIndexById(store, trackedId);
   };
 }
 
@@ -537,10 +532,6 @@ export function createCrossRackMoveCommand(
   // All device IDs to remove from source rack (resolved by ID at runtime)
   const sourceDeviceIds = [parentCopy.id, ...childrenCopies.map((c) => c.id)];
 
-  // Captured during execute() for undo — target-rack indices of placed devices
-  let parentPlacedIndex = -1;
-  const childPlacedIndices: number[] = [];
-
   // Track current source IDs and image keys — updated across execute/undo when
   // placeDeviceRaw remaps an ID (#1478). Mutable so redo (execute) finds remapped devices.
   const currentSourceDeviceIds = [...sourceDeviceIds];
@@ -576,7 +567,7 @@ export function createCrossRackMoveCommand(
 
       // 2. Place parent in target rack
       store.setActiveRackId(targetRackId);
-      parentPlacedIndex = store.placeDeviceRaw(placedParent);
+      const parentPlacedIndex = store.placeDeviceRaw(placedParent);
 
       // Read back actual parent — placeDeviceRaw may remap the ID (#1363 dedup guard)
       const actualParent = store.getDeviceAtIndex(parentPlacedIndex);
@@ -589,14 +580,12 @@ export function createCrossRackMoveCommand(
       }
 
       // 3. Place children in target rack with remapped container_id
-      childPlacedIndices.length = 0;
       placedChildren.forEach((child, i) => {
         const childToPlace: PlacedDevice =
           child.container_id && child.container_id !== actualParentId
             ? { ...child, container_id: actualParentId }
             : child;
         const idx = store.placeDeviceRaw(childToPlace);
-        childPlacedIndices.push(idx);
 
         // Re-key child placement image if child ID was remapped (#1478)
         const actualChild = store.getDeviceAtIndex(idx);
@@ -614,11 +603,13 @@ export function createCrossRackMoveCommand(
     undo() {
       const savedActiveRack = store.getActiveRackId();
 
-      // 1. Remove devices from target rack (descending index order)
+      // 1. Remove devices from target rack, resolved by id so a change to the
+      // target rack between execute and undo cannot remove the wrong devices (#2665).
       store.setActiveRackId(targetRackId);
-      const allTargetIndices = [parentPlacedIndex, ...childPlacedIndices].sort(
-        (a, b) => b - a,
-      );
+      const allTargetIndices = resolveIndicesDescending([
+        currentParentImageId,
+        ...currentChildImageIds,
+      ]);
       for (const idx of allTargetIndices) {
         store.removeDeviceAtIndexRaw(idx);
       }

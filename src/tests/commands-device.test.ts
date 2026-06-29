@@ -29,6 +29,11 @@ function createMockStore(): DeviceCommandStore & {
     moveDeviceRaw: vi.fn().mockReturnValue(true),
     updateDeviceFaceRaw: vi.fn(),
     updateDeviceNameRaw: vi.fn(),
+    updateDevicePlacementImageRaw: vi.fn(),
+    updateDeviceColourRaw: vi.fn(),
+    updateDeviceContainerLinkageRaw: vi.fn(),
+    updateDeviceNotesRaw: vi.fn(),
+    updateDeviceIpRaw: vi.fn(),
     // Resolve-by-id (#2665): commands read the device at their creation index to
     // learn its stable id, then re-resolve that id on later runs. The mock backs
     // a small fixed roster (ids "mock-0".."mock-9") so an id captured at index N
@@ -264,6 +269,11 @@ describe("Device Commands", () => {
         moveDeviceRaw: vi.fn().mockReturnValue(true),
         updateDeviceFaceRaw: vi.fn(),
         updateDeviceNameRaw: vi.fn(),
+        updateDevicePlacementImageRaw: vi.fn(),
+        updateDeviceColourRaw: vi.fn(),
+        updateDeviceContainerLinkageRaw: vi.fn(),
+        updateDeviceNotesRaw: vi.fn(),
+        updateDeviceIpRaw: vi.fn(),
         getDeviceAtIndex: vi.fn((index: number) => placed[index]),
         addDeviceTypeRaw: vi.fn(),
         removeDeviceTypeRaw: vi.fn(),
