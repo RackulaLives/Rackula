@@ -22,11 +22,14 @@ if [ -n "$STAGED" ]; then
     echo "Error: prettier not found - run 'npm install' at the repo root" >&2
     exit 1
   fi
-  echo "$STAGED" | tr '\n' '\0' | xargs -0 node "$PRETTIER_BIN" --write --ignore-unknown || {
+  # Prefix each path with ./ so a filename starting with '-' is read as a path,
+  # not a CLI option (matching the vitest step below). Without this, prettier and
+  # git add could misparse such a staged file.
+  echo "$STAGED" | sed 's,^,./,' | tr '\n' '\0' | xargs -0 node "$PRETTIER_BIN" --write --ignore-unknown || {
     echo "Error: prettier formatting failed" >&2
     exit 1
   }
-  echo "$STAGED" | tr '\n' '\0' | xargs -0 git add || {
+  echo "$STAGED" | sed 's,^,./,' | tr '\n' '\0' | xargs -0 git add || {
     echo "Error: Failed to re-stage formatted files" >&2
     exit 1
   }
