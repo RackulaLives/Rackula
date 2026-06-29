@@ -9,6 +9,8 @@ node_modules/
 
 # Build artifacts
 dist/
+dist-worker/
+.wrangler/
 coverage/
 
 # OS artifacts

@@ -31,16 +31,12 @@ import { createAuthHandler } from "./middleware/auth";
 import { createAuth } from "./auth/config";
 import { createRequireAdminMiddleware } from "./authorization";
 import { configureAuthLogHashKey, safeLogAuthEvent } from "./auth-logger";
-import {
-  bootstrapLocalCredentials,
-  createLoginRateLimiter,
-  MAX_PASSWORD_LENGTH,
-  verifyCredentials,
-} from "./local-auth";
-import pkg from "../package.json";
+// Named import (not the whole package.json object) so the bundler inlines only
+// the version string. Inlining the full object would embed the dependency list,
+// including the literal "@node-rs/argon2", into the Worker bundle (#2626).
+import { version as pkgVersion } from "../package.json";
 import { logger } from "./logger";
 import type { StorageDriver, StorageVariables } from "./storage/driver";
-import { createFilesystemDriver } from "./storage/filesystem-driver";
 
 const DEFAULT_MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB
 const DEFAULT_MAX_LAYOUT_SIZE = 1 * 1024 * 1024; // 1MB
@@ -73,7 +69,7 @@ export interface VersionInfo {
  */
 export function resolveVersionInfo(env: EnvMap = process.env): VersionInfo {
   return {
-    version: env.APP_VERSION?.trim() || pkg.version,
+    version: env.APP_VERSION?.trim() || pkgVersion,
     commit: env.APP_COMMIT?.trim() || "",
     buildTime: env.APP_BUILD_TIME?.trim() || "",
   };
@@ -296,7 +292,13 @@ export async function createApp(
   // request. Defaults to the filesystem driver (self-host / Bun); the Workers
   // entry (#2626) passes an R2-backed driver instead. Route handlers read it
   // from the context rather than importing the filesystem free functions.
-  const storage = deps.storage ?? createFilesystemDriver();
+  //
+  // The filesystem driver pulls in `node:fs`, so it is loaded via dynamic
+  // import only when no driver is injected. The Workers entry always injects
+  // `deps.storage`, so the filesystem chunk never enters the Worker bundle.
+  const storage =
+    deps.storage ??
+    (await import("./storage/filesystem-driver")).createFilesystemDriver();
   app.use("*", async (c, next) => {
     c.set("storage", storage);
     await next();
@@ -305,9 +307,16 @@ export async function createApp(
   const securityConfig = resolveApiSecurityConfig(env);
   configureAuthLogHashKey(securityConfig.authLogHashKey);
 
+  // Local auth (argon2 password hashing) is loaded via dynamic import so the
+  // `@node-rs/argon2` native addon never enters the Workers bundle, which only
+  // ever runs with AUTH_MODE=none. The module is loaded once here and reused by
+  // the local-login route block below.
+  const localAuth =
+    securityConfig.authMode === "local" ? await import("./local-auth") : null;
+
   // Bootstrap local credentials when auth mode is local
-  if (securityConfig.authMode === "local") {
-    const localCreds = await bootstrapLocalCredentials(env);
+  if (localAuth) {
+    const localCreds = await localAuth.bootstrapLocalCredentials(env);
     securityConfig.localCredentials = localCreds;
     // Scrub plaintext password from environment after hashing
     delete env.RACKULA_LOCAL_PASSWORD;
@@ -664,9 +673,12 @@ export async function createApp(
     // Local auth: POST /auth/login for username/password authentication
     if (
       isLocalAuth &&
+      localAuth &&
       securityConfig.localCredentials &&
       securityConfig.authSessionSecret
     ) {
+      const { createLoginRateLimiter, MAX_PASSWORD_LENGTH, verifyCredentials } =
+        localAuth;
       const rateLimiter = createLoginRateLimiter();
       const localCredentials = securityConfig.localCredentials;
       const sessionSecret = securityConfig.authSessionSecret;

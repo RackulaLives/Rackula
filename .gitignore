@@ -3,6 +3,10 @@ node_modules/
 
 # Build output
 dist/
+dist-worker/
+
+# Cloudflare Workers / wrangler
+.wrangler/
 
 # Vite cache
 .vite/

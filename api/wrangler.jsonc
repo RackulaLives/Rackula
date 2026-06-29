@@ -1,0 +1,51 @@
+{
+  // Cloudflare Workers config for the dev Rackula persistence API (#2626).
+  //
+  // CODE ONLY: this is the dev worker scaffold. Real account_id, the R2
+  // bucket_name, and Cloudflare Access secrets are wired later by the dev
+  // cutover (#2675 / #2134). Do not add real account IDs or secrets here.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rackula-api-dev",
+  "main": "src/worker.ts",
+  // Recent compatibility date; nodejs_compat gives node:crypto etc. on workerd.
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Static assets + routing. The dev cutover (#2675 / #2134) replaces the
+  // placeholder directory with the built SPA. run_worker_first routes `/api/*`
+  // to the Worker before the asset server, so the persistence API is reachable;
+  // it requires wrangler >= 4.20 (pinned in package.json).
+  "assets": {
+    "directory": "./public-placeholder",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"],
+  },
+
+  // R2 bucket binding the storage driver reads/writes. bucket_name is a
+  // placeholder; the real bucket is provisioned and named by #2675 / #2134.
+  "r2_buckets": [
+    {
+      "binding": "LAYOUTS",
+      "bucket_name": "rackula-layouts-dev-placeholder",
+    },
+  ],
+
+  // Bundle exclusions (#2626): keep the native argon2 addon and pino (which
+  // pulls node:fs) out of the workerd graph. Local auth is never reached on the
+  // Worker (AUTH_MODE=none), and the Workers logger path uses a console-JSON
+  // seam, so these aliases are inert at runtime but required so the bundle is
+  // free of @node-rs/argon2 and node:fs.
+  "alias": {
+    "@node-rs/argon2": "./src/worker/argon2-stub.ts",
+    "pino": "./src/worker/pino-stub.ts",
+    "hono/bun": "./src/worker/hono-bun-stub.ts",
+    "./storage/filesystem-driver": "./src/worker/filesystem-driver-stub.ts",
+  },
+
+  // Real values (account_id, vars, secrets, Access config) are added by the dev
+  // cutover. RACKULA_AUTH_MODE is intentionally unset here, so the Worker runs
+  // AUTH_MODE=none and the smoke endpoints are reachable under `wrangler dev`.
+  "observability": {
+    "enabled": true,
+  },
+}
