@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import type { Layout } from "$lib/types";
 import { VERSION } from "$lib/version";
-import { createTestDeviceTypeInput } from "./factories";
+import {
+  createTestDeviceTypeInput,
+  createTestDeviceType,
+  createTestContainerType,
+} from "./factories";
 
 describe("Layout Store", () => {
   beforeEach(() => {
@@ -551,6 +555,95 @@ describe("Layout Store", () => {
       store.updateShowLabelsOnImages(true);
       expect(store.layout.settings.show_labels_on_images).toBe(true);
       expect(store.isDirty).toBe(true);
+    });
+  });
+
+  describe("whole-U rail integer guard", () => {
+    it("rejects a rail placement at a non-integer U", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+      const deviceType = createTestDeviceType({
+        slug: "server-1u",
+        u_height: 1,
+      });
+      store.addDeviceTypeRaw(deviceType);
+
+      // U1.5 is a fractional rail position - must be refused at place time.
+      expect(store.placeDevice(rack.id, deviceType.slug, 1.5)).toBe(false);
+      expect(store.rack?.devices ?? []).not.toContainEqual(
+        expect.objectContaining({ device_type: deviceType.slug }),
+      );
+    });
+
+    it("accepts a rail placement at a whole U", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+      const deviceType = createTestDeviceType({
+        slug: "server-1u",
+        u_height: 1,
+      });
+      store.addDeviceTypeRaw(deviceType);
+
+      expect(store.placeDevice(rack.id, deviceType.slug, 2)).toBe(true);
+      expect(store.rack?.devices ?? []).toContainEqual(
+        expect.objectContaining({ device_type: deviceType.slug }),
+      );
+    });
+
+    it("rejects moving a rail device to a non-integer U", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+      const deviceType = createTestDeviceType({
+        slug: "server-1u",
+        u_height: 1,
+      });
+      store.addDeviceTypeRaw(deviceType);
+      store.placeDevice(rack.id, deviceType.slug, 2);
+      const index = store.rack!.devices.findIndex(
+        (d) => d.device_type === deviceType.slug,
+      );
+
+      expect(store.moveDevice(rack.id, index, 3.5)).toBe(false);
+    });
+
+    it("does not reject a sub-U device placed inside a container", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+
+      const containerType = createTestContainerType({
+        slug: "blade-chassis",
+        u_height: 4,
+      });
+      const childType = createTestDeviceType({
+        slug: "blade-server",
+        u_height: 1,
+        slot_width: 1,
+      });
+      store.addDeviceTypeRaw(containerType);
+      store.addDeviceTypeRaw(childType);
+
+      expect(store.placeDevice(rack.id, containerType.slug, 5)).toBe(true);
+      const container = store.rack!.devices.find(
+        (d) => d.device_type === containerType.slug,
+      )!;
+
+      // Container children carry 0-indexed (non-whole-U internal) positions and
+      // must not be rejected by the rail integer guard.
+      expect(
+        store.placeInContainer(
+          rack.id,
+          childType.slug,
+          container.id,
+          "slot-left",
+          0,
+        ),
+      ).toBe(true);
+      expect(store.rack?.devices ?? []).toContainEqual(
+        expect.objectContaining({
+          device_type: childType.slug,
+          container_id: container.id,
+        }),
+      );
     });
   });
 });

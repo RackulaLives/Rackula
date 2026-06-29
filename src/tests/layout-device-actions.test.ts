@@ -804,7 +804,7 @@ describe("Layout Store", () => {
   });
 
   describe("0.5U device movement", () => {
-    it("allows moving 0.5U device to half-unit positions", () => {
+    it("rejects moving a 0.5U blank to a half-unit rail position", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
 
@@ -818,18 +818,19 @@ describe("Layout Store", () => {
         }),
       );
 
-      // Place at position 1
+      // Place at whole-U position 1 (rails register at whole-U boundaries)
       const placed = store.placeDevice(rack!.id, halfUType.slug, 1, "front");
       expect(placed).toBe(true);
       expect(store.rack.devices[0]!.position).toBe(toInternalUnits(1));
 
-      // Move to position 1.5 - should succeed
+      // Move to fractional position 1.5 - rejected at the chokepoint, the device
+      // stays at its whole-U position (rail positions must be whole-U, #2667).
       const result = store.moveDevice(rack!.id, 0, 1.5);
-      expect(result).toBe(true);
-      expect(store.rack.devices[0]!.position).toBe(toInternalUnits(1.5));
+      expect(result).toBe(false);
+      expect(store.rack.devices[0]!.position).toBe(toInternalUnits(1));
     });
 
-    it("allows moving 0.5U device to integer positions", () => {
+    it("allows moving a 0.5U blank between whole-U rail positions", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
 
@@ -843,11 +844,11 @@ describe("Layout Store", () => {
         }),
       );
 
-      // Place at position 1.5
-      const placed = store.placeDevice(rack!.id, halfUType.slug, 1.5, "front");
+      // Place at whole-U position 1
+      const placed = store.placeDevice(rack!.id, halfUType.slug, 1, "front");
       expect(placed).toBe(true);
 
-      // Move to position 2 - should succeed
+      // Move to whole-U position 2 - should succeed
       const result = store.moveDevice(rack!.id, 0, 2);
       expect(result).toBe(true);
       expect(store.rack.devices[0]!.position).toBe(toInternalUnits(2));
@@ -900,7 +901,7 @@ describe("Layout Store", () => {
       expect(result).toBe(false);
     });
 
-    it("allows adjacent 0.5U devices without collision", () => {
+    it("rejects moving a 0.5U blank onto a half-unit rail position next to a sibling", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);
 
@@ -920,10 +921,11 @@ describe("Layout Store", () => {
       // Place second device at U10
       store.placeDevice(rack!.id, halfUType.slug, 10, "front");
 
-      // Move second device to U5.5 - should succeed (adjacent, no overlap)
+      // Move second device to fractional U5.5 - rejected by the whole-U rail
+      // guard (#2667), so the device keeps its whole-U position.
       const result = store.moveDevice(rack!.id, 1, 5.5);
-      expect(result).toBe(true);
-      expect(store.rack.devices[1]!.position).toBe(toInternalUnits(5.5));
+      expect(result).toBe(false);
+      expect(store.rack.devices[1]!.position).toBe(toInternalUnits(10));
     });
   });
 

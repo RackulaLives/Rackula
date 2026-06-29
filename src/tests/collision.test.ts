@@ -7,8 +7,9 @@ import {
   findCollisions,
   findValidDropPositions,
   snapToNearestValidPosition,
+  isWholeURailPosition,
 } from "$lib/utils/collision";
-import { UNITS_PER_U } from "$lib/utils/position";
+import { UNITS_PER_U, toInternalUnits } from "$lib/utils/position";
 import type { DeviceType, Rack, DeviceFace, SlotWidth } from "$lib/types";
 
 // Helper to create test devices
@@ -176,6 +177,35 @@ describe("Collision Detection", () => {
       expect(canPlaceDevice(rack, [device1], 1, 42)).toBe(true);
       // 1U at U4 (position 24) - ends at 29, adjacent to 30
       expect(canPlaceDevice(rack, [device1], 1, 24)).toBe(true);
+    });
+
+    it("rejects a rail placement at a fractional internal position", () => {
+      const rack = createTestRack(42);
+      const deviceLibrary: DeviceType[] = [];
+
+      // U1.5 in internal units = 9, not a multiple of UNITS_PER_U
+      const fractional = toInternalUnits(1.5);
+      expect(canPlaceDevice(rack, deviceLibrary, 1, fractional)).toBe(false);
+    });
+
+    it("accepts a rail placement at a whole-U internal position", () => {
+      const rack = createTestRack(42);
+      const deviceLibrary: DeviceType[] = [];
+
+      expect(canPlaceDevice(rack, deviceLibrary, 1, toInternalUnits(2))).toBe(
+        true,
+      );
+    });
+  });
+
+  describe("isWholeURailPosition", () => {
+    it("is true for whole-U internal positions", () => {
+      expect(isWholeURailPosition(UNITS_PER_U)).toBe(true);
+      expect(isWholeURailPosition(toInternalUnits(2))).toBe(true);
+    });
+
+    it("is false for fractional-U internal positions", () => {
+      expect(isWholeURailPosition(toInternalUnits(1.5))).toBe(false);
     });
   });
 

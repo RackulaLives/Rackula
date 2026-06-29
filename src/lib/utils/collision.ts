@@ -133,6 +133,13 @@ export function canPlaceDevice(
     return false;
   }
 
+  // Rail-mounted devices must register on a whole-U boundary (carrier-first,
+  // #2158). canPlaceDevice is the rack-level gate; container (sub-U) children
+  // go through canPlaceInContainer, so this only ever guards rail placements.
+  if (!isWholeURailPosition(targetPosition)) {
+    return false;
+  }
+
   // Device must fit within rack height (convert rack height to internal units)
   // A device at position P with height H occupies P to P + H*UNITS_PER_U - 1
   // For a rack of height N, the max valid top is the top of UN = N*UNITS_PER_U + (UNITS_PER_U - 1)
@@ -409,6 +416,22 @@ export function requiresCarrier(deviceType: DeviceType): boolean {
   const isSubU = deviceType.u_height < 1;
   const isNonIntegerHeight = !Number.isInteger(deviceType.u_height);
   return isHalfWidth || isSubU || isNonIntegerHeight;
+}
+
+/**
+ * Whether an internal-unit position sits on a whole-U rail boundary. Rails
+ * register equipment at whole-U boundaries only, so a rail position is always a
+ * multiple of UNITS_PER_U (carrier-first, #2158). This mirrors the schema rule
+ * (LayoutSchema.superRefine) so the store rejects a fractional rail position at
+ * the place/move chokepoint rather than letting it through to an opaque
+ * save-time failure. Container (sub-U) children use 0-indexed positions and are
+ * checked through canPlaceInContainer, never this predicate.
+ *
+ * @param positionInternal - Rail position in internal units (e.g., 6 for U1)
+ * @returns true when the position is a whole-U boundary
+ */
+export function isWholeURailPosition(positionInternal: number): boolean {
+  return positionInternal % UNITS_PER_U === 0;
 }
 
 /**
