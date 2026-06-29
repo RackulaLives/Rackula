@@ -464,6 +464,10 @@ export function updateDeviceFaceRecorded(
   const targetFace: DeviceFace =
     deviceType && deviceType.is_full_depth !== false ? "both" : face;
 
+  // No-op edit: skip executing a command so the redo stack is preserved and no
+  // empty undo entry is recorded.
+  if (oldFace === targetFace) return;
+
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
@@ -592,6 +596,11 @@ export function updateDeviceColourRecorded(
 
   const device = targetRack.devices[deviceIndex]!;
   const oldColour = device.colour_override;
+
+  // No-op edit: skip executing a command so the redo stack is preserved and no
+  // empty undo entry is recorded.
+  if (oldColour === colour) return;
+
   const layout = ctx.getLayout();
   const deviceType = findDeviceTypeInArray(
     layout.device_types,

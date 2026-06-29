@@ -188,6 +188,56 @@ describe("Layout Store - Undo/Redo Integration", () => {
       store.undo();
       expect(store.rack?.devices[0]?.face).toBe("front");
     });
+
+    it("updateDeviceFaceRecorded is a no-op when the face is unchanged", () => {
+      // Half-depth device so the face can vary between front and rear.
+      const halfDepth = createTestDeviceType({
+        slug: "half-depth-srv",
+        u_height: 1,
+        is_full_depth: false,
+      });
+      store.addDeviceTypeRaw(halfDepth);
+      store.placeDeviceRecorded(rack.id, halfDepth.slug, 10);
+
+      // Create a pending redo chain: change the face, then undo it.
+      store.updateDeviceFaceRecorded(rack.id, 0, "rear");
+      store.undo();
+      expect(store.canRedo).toBe(true);
+
+      const currentFace = store.rack!.devices[0]!.face!;
+      const pendingRedo = store.redoDescription;
+      const pendingUndo = store.undoDescription;
+
+      // Re-emitting the current face must not execute a command, so the redo
+      // chain survives and no new undo entry is pushed.
+      store.updateDeviceFaceRecorded(rack.id, 0, currentFace);
+
+      expect(store.canRedo).toBe(true);
+      expect(store.redoDescription).toBe(pendingRedo);
+      expect(store.undoDescription).toBe(pendingUndo);
+    });
+
+    it("updateDeviceColourRecorded is a no-op when the colour is unchanged", () => {
+      const dt = store.device_types[0]!;
+      store.placeDeviceRecorded(rack.id, dt.slug, 10);
+
+      // Create a pending redo chain: set a colour, then undo it.
+      store.updateDeviceColourRecorded(rack.id, 0, "#abcdef");
+      store.undo();
+      expect(store.canRedo).toBe(true);
+
+      const currentColour = store.rack!.devices[0]!.colour_override;
+      const pendingRedo = store.redoDescription;
+      const pendingUndo = store.undoDescription;
+
+      // Re-emitting the current colour must not execute a command, so the redo
+      // chain survives and no new undo entry is pushed.
+      store.updateDeviceColourRecorded(rack.id, 0, currentColour);
+
+      expect(store.canRedo).toBe(true);
+      expect(store.redoDescription).toBe(pendingRedo);
+      expect(store.undoDescription).toBe(pendingUndo);
+    });
   });
 
   describe("Rack Operations", () => {
