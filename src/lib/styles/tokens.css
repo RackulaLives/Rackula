@@ -369,6 +369,11 @@
   /* Side panels: persistent chrome that flanks the canvas. Above the canvas
      overlays, below the drawer/modal/dropdown layers. */
   --z-sidebar: 60;
+  /* Toolbar popovers (e.g. the storage chip details popover) portal to the body
+     and must sit above the side panels so a panel never occludes them (#2645).
+     Below the drawer/modal layers, which the passive chip popover never coexists
+     with. */
+  --z-popover: 70;
   --z-drawer-backdrop: 99;
   --z-drawer: 100;
   --z-fab: 100;
