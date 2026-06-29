@@ -7,37 +7,47 @@
  * write to the same layout must never cause a diverged copy to be lost
  * without a snapshot.
  *
- * The surface is deliberately minimal: just the operations this invariant
- * exercises. The filesystem driver runs it today; the future R2 driver
- * (#2133) will run the same harness against its own makeDriver factory.
+ * Runner-agnostic (#2625): the test functions (`describe`/`it`/`expect`) are
+ * injected via {@link ContractHarness} so the same spec runs under `bun test`
+ * (filesystem driver) and `vitest-pool-workers` (R2 driver). This module never
+ * imports `bun:test` or `cloudflare:test`; each runner's entry passes its own
+ * globals in.
  */
-import { describe, it, expect } from "bun:test";
+import type { StorageDriver } from "./driver";
 
 /**
- * Minimal driver surface the contract exercises. A `makeDriver` factory binds
- * a driver to a fresh, isolated backing store so each test starts clean.
+ * The subset of {@link StorageDriver} the contract exercises. A `makeDriver`
+ * factory binds a driver to a fresh, isolated backing store so each test starts
+ * clean. Snapshot bodies are read back through `listSnapshots` + `getSnapshot`,
+ * so the contract needs no backend-specific snapshot accessor.
  */
-export interface StorageContractDriver {
-  /**
-   * Save a layout. `echoedUpdatedAt` is the updatedAt the client last
-   * received; a mismatch with the stored copy must trigger a pre-overwrite
-   * snapshot. Returns the stored copy's updatedAt for the client to echo next.
-   */
-  saveLayout(
-    id: string,
-    yamlContent: string,
-    echoedUpdatedAt?: string,
-  ): Promise<{ updatedAt: string }>;
-  /** Read the stored layout, or null if it does not exist. */
-  getLayout(id: string): Promise<{ content: string; updatedAt: string } | null>;
-  /** Return the raw YAML content of every snapshot held for the layout. */
-  getSnapshotContents(id: string): Promise<string[]>;
-}
+export type StorageContractDriver = Pick<
+  StorageDriver,
+  "saveLayout" | "getLayout" | "listSnapshots" | "getSnapshot"
+>;
 
 export type MakeDriver = () => Promise<{
   driver: StorageContractDriver;
   cleanup: () => Promise<void>;
 }>;
+
+/** The matcher surface the contract relies on. */
+export interface ContractMatchers {
+  toBe(expected: unknown): void;
+  toEqual(expected: unknown): void;
+  toContain(expected: unknown): void;
+  toBeGreaterThan(expected: number): void;
+}
+
+/**
+ * Minimal test-runner surface, injected so the spec is framework-agnostic.
+ * Both `bun:test` and Vitest satisfy this shape.
+ */
+export interface ContractHarness {
+  describe: (name: string, fn: () => void) => void;
+  it: (name: string, fn: () => void | Promise<void>) => void;
+  expect: (actual: unknown) => ContractMatchers;
+}
 
 const TEST_ID = "550e8400-e29b-41d4-a716-446655440000";
 const STALE_UPDATED_AT = "1999-01-01T00:00:00.000Z";
@@ -47,21 +57,45 @@ function layoutYaml(marker: string): string {
 }
 
 /**
- * Run the storage contract against a driver produced by `makeDriver`.
- * Asserts the atomic snapshot-on-mismatch invariant.
+ * Read every snapshot body held for a layout, via the driver's own
+ * `listSnapshots` + `getSnapshot`. Works on any backend (filesystem folders or
+ * R2 prefixes) without the contract knowing the storage layout.
  */
-export function runStorageContract(makeDriver: MakeDriver): void {
+async function snapshotContents(
+  driver: StorageContractDriver,
+  id: string,
+): Promise<string[]> {
+  const snapshots = await driver.listSnapshots(id);
+  if (!snapshots) {
+    return [];
+  }
+  const contents = await Promise.all(
+    snapshots.map((snapshot) => driver.getSnapshot(id, snapshot.filename)),
+  );
+  return contents.filter((content): content is string => content !== null);
+}
+
+/**
+ * Run the storage contract against a driver produced by `makeDriver`, using the
+ * injected test `harness`. Asserts the atomic snapshot-on-mismatch invariant.
+ */
+export function runStorageContract(
+  makeDriver: MakeDriver,
+  harness: ContractHarness,
+): void {
+  const { describe, it, expect } = harness;
+
   describe("storage contract: atomic snapshot on mismatch", () => {
     it("snapshots the existing copy when the echoed updatedAt mismatches", async () => {
       const { driver, cleanup } = await makeDriver();
       try {
         const v1 = layoutYaml("v1");
         const v2 = layoutYaml("v2");
-        await driver.saveLayout(TEST_ID, v1);
+        await driver.saveLayout(v1, TEST_ID);
 
-        await driver.saveLayout(TEST_ID, v2, STALE_UPDATED_AT);
+        await driver.saveLayout(v2, TEST_ID, STALE_UPDATED_AT);
 
-        const snapshots = await driver.getSnapshotContents(TEST_ID);
+        const snapshots = await snapshotContents(driver, TEST_ID);
         expect(snapshots).toContain(v1);
 
         const stored = await driver.getLayout(TEST_ID);
@@ -75,11 +109,11 @@ export function runStorageContract(makeDriver: MakeDriver): void {
       const { driver, cleanup } = await makeDriver();
       try {
         const v1 = layoutYaml("v1");
-        const first = await driver.saveLayout(TEST_ID, v1);
+        const first = await driver.saveLayout(v1, TEST_ID);
 
-        await driver.saveLayout(TEST_ID, layoutYaml("v2"), first.updatedAt);
+        await driver.saveLayout(layoutYaml("v2"), TEST_ID, first.updatedAt);
 
-        const snapshots = await driver.getSnapshotContents(TEST_ID);
+        const snapshots = await snapshotContents(driver, TEST_ID);
         expect(snapshots).toEqual([]);
       } finally {
         await cleanup();
@@ -92,19 +126,19 @@ export function runStorageContract(makeDriver: MakeDriver): void {
         const v1 = layoutYaml("v1");
         const v2 = layoutYaml("v2");
         const v3 = layoutYaml("v3");
-        const seeded = await driver.saveLayout(TEST_ID, v1);
+        const seeded = await driver.saveLayout(v1, TEST_ID);
 
         // A clean overwrite to v2 (echoing the real updatedAt) racing a
         // stale-echo overwrite to v3. Whichever copy is overwritten must
         // survive as a snapshot: no silent data loss.
         await Promise.all([
-          driver.saveLayout(TEST_ID, v2, seeded.updatedAt),
-          driver.saveLayout(TEST_ID, v3, STALE_UPDATED_AT),
+          driver.saveLayout(v2, TEST_ID, seeded.updatedAt),
+          driver.saveLayout(v3, TEST_ID, STALE_UPDATED_AT),
         ]);
 
         const stored = await driver.getLayout(TEST_ID);
         const finalContent = stored?.content ?? "";
-        const snapshots = await driver.getSnapshotContents(TEST_ID);
+        const snapshots = await snapshotContents(driver, TEST_ID);
 
         // A diverged copy was actually snapshotted. Without this guard the
         // case is vacuous: when no snapshot is produced (the bug) the loop
@@ -127,19 +161,18 @@ export function runStorageContract(makeDriver: MakeDriver): void {
     it("issues a strictly newer updatedAt on every overwrite", async () => {
       const { driver, cleanup } = await makeDriver();
       try {
-        // updatedAt is the token clients echo to detect divergence. mtime
-        // resolution is coarse, so back-to-back writes can land on the same
-        // tick; if two stored copies share a token the echoed-updatedAt check
-        // reads them as identical and a diverged copy is overwritten without a
-        // snapshot. Each overwrite must therefore report a strictly newer
-        // token than the copy it replaced, even with no real-time gap between
-        // saves.
+        // updatedAt is the token clients echo to detect divergence. Storage
+        // clocks are coarse, so back-to-back writes can land on the same tick;
+        // if two stored copies share a token the echoed-updatedAt check reads
+        // them as identical and a diverged copy is overwritten without a
+        // snapshot. Each overwrite must therefore report a strictly newer token
+        // than the copy it replaced, even with no real-time gap between saves.
         let echoed: string | undefined;
         let previous: string | undefined;
         for (let i = 0; i < 12; i += 1) {
           const { updatedAt } = await driver.saveLayout(
-            TEST_ID,
             layoutYaml(`v${i}`),
+            TEST_ID,
             echoed,
           );
           if (previous !== undefined) {
@@ -160,20 +193,20 @@ export function runStorageContract(makeDriver: MakeDriver): void {
         const v2 = layoutYaml("v2");
         const v3 = layoutYaml("v3");
         const upperId = TEST_ID.toUpperCase();
-        const seeded = await driver.saveLayout(TEST_ID, v1);
+        const seeded = await driver.saveLayout(v1, TEST_ID);
 
         // Same logical layout, different UUID casing. UUIDs are matched
-        // case-insensitively, so both saves must serialize on one lock.
+        // case-insensitively, so both saves must serialize on one identity.
         // If they did not, the diverged copy could be overwritten without a
         // snapshot, reopening the TOCTOU this contract guards.
         await Promise.all([
-          driver.saveLayout(TEST_ID, v2, seeded.updatedAt),
-          driver.saveLayout(upperId, v3, STALE_UPDATED_AT),
+          driver.saveLayout(v2, TEST_ID, seeded.updatedAt),
+          driver.saveLayout(v3, upperId, STALE_UPDATED_AT),
         ]);
 
         const stored = await driver.getLayout(TEST_ID);
         const finalContent = stored?.content ?? "";
-        const snapshots = await driver.getSnapshotContents(TEST_ID);
+        const snapshots = await snapshotContents(driver, TEST_ID);
 
         expect(snapshots.length).toBeGreaterThan(0);
 

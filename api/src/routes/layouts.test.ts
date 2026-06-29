@@ -243,6 +243,36 @@ describe("createApp storage driver injection (#2624)", () => {
         calls.push("getPreCarrierBackup");
         return null;
       },
+      async layoutExists() {
+        calls.push("layoutExists");
+        return false;
+      },
+      async countLayouts() {
+        calls.push("countLayouts");
+        return 0;
+      },
+      async countAssets() {
+        calls.push("countAssets");
+        return 0;
+      },
+      async getAsset() {
+        calls.push("getAsset");
+        return null;
+      },
+      async saveAsset() {
+        calls.push("saveAsset");
+      },
+      async deleteAsset() {
+        calls.push("deleteAsset");
+        return false;
+      },
+      async deleteLayoutAssets() {
+        calls.push("deleteLayoutAssets");
+      },
+      async listLayoutAssets() {
+        calls.push("listLayoutAssets");
+        return [];
+      },
     };
 
     const stubApp = await createApp(

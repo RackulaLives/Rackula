@@ -15,6 +15,7 @@ import {
 import { join } from "node:path";
 import * as yaml from "js-yaml";
 import { SNAPSHOT_NAME_PATTERN } from "./snapshot-name";
+import { countLayoutsInDir, countAssetsInDir } from "./quota";
 import {
   LayoutFileSchema,
   isUuid,
@@ -989,6 +990,26 @@ export async function getLayoutAssetsDir(uuid: string): Promise<string | null> {
     return null;
   }
   return join(folder, "assets");
+}
+
+/**
+ * Count stored layouts for the layout-count quota (#2625).
+ * Delegates to the shared counter so the count rule lives in one place.
+ */
+export async function countLayouts(): Promise<number> {
+  return countLayoutsInDir(getDataDir());
+}
+
+/**
+ * Count image assets stored for a layout for the per-layout asset quota (#2625).
+ * A missing layout counts as zero.
+ */
+export async function countAssets(uuid: string): Promise<number> {
+  const folder = await findFolderByUuid(uuid);
+  if (!folder) {
+    return 0;
+  }
+  return countAssetsInDir(folder);
 }
 
 // Re-export slugify from schemas for backwards compatibility

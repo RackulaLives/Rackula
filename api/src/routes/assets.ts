@@ -11,22 +11,24 @@
  * PUT    /api/assets/:layoutId/:deviceSlug/:face - Upload asset image
  * DELETE /api/assets/:layoutId/:deviceSlug/:face - Delete asset image
  * (nginx strips /api prefix before forwarding to API)
+ *
+ * Storage goes through the per-request driver (#2625): filesystem on self-host,
+ * R2 on Workers. The magic-byte sniff is the shared chokepoint inside
+ * driver.saveAsset (asset-validation.ts), so a spoofed Content-Type cannot pick
+ * the stored format on either backend.
  */
 import { Hono } from "hono";
 import { LayoutIdSchema } from "../schemas/layout";
+import type { StorageVariables } from "../storage/driver";
 import {
-  getAsset,
-  saveAsset,
-  deleteAsset,
-  listLayoutAssets,
   isValidImageType,
   isValidDeviceSlug,
   AssetRejectedError,
   MAX_SIZE,
-} from "../storage/assets";
+} from "../storage/asset-validation";
 import { logger } from "../logger";
 
-const assets = new Hono();
+const assets = new Hono<{ Variables: StorageVariables }>();
 
 // Validate face parameter
 function isValidFace(face: string): face is "front" | "rear" {
@@ -35,10 +37,9 @@ function isValidFace(face: string): face is "front" | "rear" {
 
 // List the on-disk asset faces for a layout. Drives the save-time set-diff
 // reconcile (#2530): the client diffs this against the layout's current custom
-// faces and deletes the difference. A valid UUID whose layout folder does not
-// exist yet (e.g. a reconcile run before the first YAML PUT lands) is "no
-// assets on disk", not an error, so it returns an empty list rather than a 404.
-// Inherits the per-asset GET read posture (no auth beyond app-level middleware).
+// faces and deletes the difference. A valid UUID whose layout does not exist
+// yet (e.g. a reconcile run before the first YAML PUT lands) is "no assets",
+// not an error, so it returns an empty list rather than a 404.
 assets.get("/:layoutId", async (c) => {
   const { layoutId } = c.req.param();
 
@@ -48,11 +49,11 @@ assets.get("/:layoutId", async (c) => {
   }
 
   try {
-    const list = await listLayoutAssets(layoutId);
+    const list = await c.get("storage").listLayoutAssets(layoutId);
     return c.json({ assets: list }, 200);
   } catch (error) {
-    // listLayoutAssets throws "Layout not found" when the layout folder is
-    // absent. For the reconcile that means an empty on-disk set, not a failure.
+    // listLayoutAssets throws "Layout not found" when the layout is absent. For
+    // the reconcile that means an empty on-disk set, not a failure.
     if (
       error instanceof Error &&
       error.message.startsWith("Layout not found")
@@ -91,7 +92,7 @@ assets.get("/:layoutId/:deviceSlug/:face", async (c) => {
   }
 
   try {
-    const asset = await getAsset(layoutId, deviceSlug, face);
+    const asset = await c.get("storage").getAsset(layoutId, deviceSlug, face);
     if (!asset) {
       return c.json({ error: "Asset not found" }, 404);
     }
@@ -154,14 +155,14 @@ assets.put("/:layoutId/:deviceSlug/:face", async (c) => {
       return c.json({ error: "File too large. Maximum size is 5MB" }, 413);
     }
 
-    await saveAsset(layoutId, deviceSlug, face, data, contentType);
+    await c
+      .get("storage")
+      .saveAsset(layoutId, deviceSlug, face, data, contentType);
 
     return c.json({ message: "Asset uploaded" }, 200);
   } catch (error) {
     // Client errors (oversized body, rejected bytes) are expected bad uploads,
     // not server faults, so they return a 4xx without logging at error level.
-    // Logging them would make routine bad uploads look like server failures in
-    // logs and alerts.
     if (error instanceof Error && error.message.includes("too large")) {
       return c.json({ error: error.message }, 413);
     }
@@ -199,7 +200,9 @@ assets.delete("/:layoutId/:deviceSlug/:face", async (c) => {
   }
 
   try {
-    const deleted = await deleteAsset(layoutId, deviceSlug, face);
+    const deleted = await c
+      .get("storage")
+      .deleteAsset(layoutId, deviceSlug, face);
     if (!deleted) {
       return c.json({ error: "Asset not found" }, 404);
     }

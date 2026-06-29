@@ -895,9 +895,7 @@ export async function createApp(
   // Storage quota — enforce layout and asset count limits on write operations.
   // Applied after body limits (so request body is already validated) and before
   // route handlers. Skips check when both quotas are unlimited (max=0).
-  const dataDir = env.DATA_DIR ?? "./data";
   const storageQuotaMiddleware = createStorageQuotaMiddleware({
-    dataDir,
     maxLayouts: securityConfig.maxLayouts,
     maxAssetsPerLayout: securityConfig.maxAssetsPerLayout,
   });

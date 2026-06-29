@@ -1,11 +1,11 @@
 /**
- * Filesystem-backed StorageDriver (#2624).
+ * Filesystem-backed StorageDriver (#2624 seam, #2625 quota/asset surface).
  *
- * A thin adapter over the api/src/storage/filesystem.ts free functions;
- * behaviour is unchanged (per-layout write locks, atomic snapshot-on-mismatch,
- * monotonic updatedAt all live in filesystem.ts). This is the default driver
- * for the self-host / Bun runtime; the Workers runtime binds an R2 driver
- * (#2625) behind the same interface.
+ * A thin adapter over the filesystem free functions; behaviour is unchanged
+ * (per-layout write locks, atomic snapshot-on-mismatch, monotonic updatedAt,
+ * magic-byte-sniffed assets all live in filesystem.ts / assets.ts). This is the
+ * default driver for the self-host / Bun runtime; the Workers runtime binds an
+ * R2 driver behind the same interface.
  */
 import type { StorageDriver } from "./driver";
 import {
@@ -13,11 +13,21 @@ import {
   getLayout,
   saveLayout,
   deleteLayout,
+  layoutExists,
   listSnapshots,
   getSnapshot,
   saveSnapshot,
   getPreCarrierBackup,
+  countLayouts,
+  countAssets,
 } from "./filesystem";
+import {
+  getAsset,
+  saveAsset,
+  deleteAsset,
+  deleteLayoutAssets,
+  listLayoutAssets,
+} from "./assets";
 
 /** Construct the filesystem storage driver. */
 export function createFilesystemDriver(): StorageDriver {
@@ -26,9 +36,17 @@ export function createFilesystemDriver(): StorageDriver {
     getLayout,
     saveLayout,
     deleteLayout,
+    layoutExists,
     listSnapshots,
     getSnapshot,
     saveSnapshot,
     getPreCarrierBackup,
+    countLayouts,
+    countAssets,
+    getAsset,
+    saveAsset,
+    deleteAsset,
+    deleteLayoutAssets,
+    listLayoutAssets,
   };
 }

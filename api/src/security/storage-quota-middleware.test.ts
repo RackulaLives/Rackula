@@ -4,6 +4,8 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createStorageQuotaMiddleware } from "./storage-quota-middleware";
+import { createFilesystemDriver } from "../storage/filesystem-driver";
+import type { StorageVariables } from "../storage/driver";
 
 const originalDataDir = process.env.DATA_DIR;
 
@@ -42,11 +44,17 @@ function createTestApp(config: {
   maxLayouts: number;
   maxAssetsPerLayout: number;
 }) {
-  const app = new Hono();
+  // The filesystem driver reads DATA_DIR (set to testDir in beforeEach), so the
+  // quota middleware counts the test directory through the injected driver.
+  const driver = createFilesystemDriver();
+  const app = new Hono<{ Variables: StorageVariables }>();
+  app.use("*", async (c, next) => {
+    c.set("storage", driver);
+    await next();
+  });
   app.use(
     "*",
     createStorageQuotaMiddleware({
-      dataDir: testDir,
       maxLayouts: config.maxLayouts,
       maxAssetsPerLayout: config.maxAssetsPerLayout,
     }),

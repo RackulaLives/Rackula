@@ -1,31 +1,28 @@
 /**
- * Hono middleware for enforcing storage quotas on layout and asset write operations.
+ * Hono middleware for enforcing storage quotas on layout and asset writes.
  *
- * Checks layout count and per-layout asset count before allowing write operations.
- * Layout quota is only enforced on create (UUID not found), not on update.
- * Asset quota is enforced on every PUT to /assets/:layoutId/:deviceSlug/:face.
+ * Counts come from the per-request storage driver (#2625), not the filesystem,
+ * so the middleware works behind any backend (filesystem or R2) and never pulls
+ * a storage module (and node:fs) into the Workers bundle. Layout quota is only
+ * enforced on create (layout does not yet exist), not on update. Asset quota is
+ * enforced on every PUT to /assets/:layoutId/:deviceSlug/:face.
  *
  * When a quota is exceeded, returns:
  * - 429 (Too Many Requests) for layout count quota
  * - 507 (Insufficient Storage) for per-layout asset count quota
  *
- * Both responses include a JSON body with error details.
- *
  * @module storage-quota-middleware
  */
 
 import type { MiddlewareHandler } from "hono";
-import { checkLayoutQuota, checkAssetQuota } from "../storage/quota";
-import { findFolderByUuid } from "../storage/filesystem";
 import { isUuid } from "../schemas/layout";
+import type { StorageVariables } from "../storage/driver";
 import { logger } from "../logger";
 
 /**
  * Configuration for the storage quota middleware.
  */
 export interface StorageQuotaMiddlewareConfig {
-  /** Path to the data directory containing layouts. */
-  dataDir: string;
   /** Maximum number of layouts. 0 = unlimited. */
   maxLayouts: number;
   /** Maximum number of assets per layout. 0 = unlimited. */
@@ -39,14 +36,13 @@ export interface StorageQuotaMiddlewareConfig {
  * - PUT /layouts/:uuid — checks layout count quota (create only, not update)
  * - PUT /assets/:layoutId/:deviceSlug/:face — checks per-layout asset count quota
  *
- * All other routes and methods are passed through without quota checks.
- * When both maxLayouts and maxAssetsPerLayout are 0 (unlimited), the middleware
- * is a no-op pass-through.
+ * All other routes and methods pass through. When both maxLayouts and
+ * maxAssetsPerLayout are 0 (unlimited), the middleware is a no-op pass-through.
  */
 export function createStorageQuotaMiddleware(
   config: StorageQuotaMiddlewareConfig,
-): MiddlewareHandler {
-  const { dataDir, maxLayouts, maxAssetsPerLayout } = config;
+): MiddlewareHandler<{ Variables: StorageVariables }> {
+  const { maxLayouts, maxAssetsPerLayout } = config;
 
   // When both quotas are unlimited, skip all checks
   const unlimited = maxLayouts === 0 && maxAssetsPerLayout === 0;
@@ -58,83 +54,79 @@ export function createStorageQuotaMiddleware(
     }
 
     const method = c.req.method.toUpperCase();
-    const { pathname } = new URL(c.req.url);
-
     // Only enforce quotas on PUT (create/update) requests
     if (method !== "PUT") {
       await next();
       return;
     }
 
+    const { pathname } = new URL(c.req.url);
+    const storage = c.get("storage");
+
     // Layout quota: PUT /layouts/:uuid or PUT /api/layouts/:uuid
     const layoutMatch = pathname.match(/^\/(?:api\/)?layouts\/([^/]+)$/);
-    if (layoutMatch) {
+    if (layoutMatch && maxLayouts > 0) {
       const uuid = layoutMatch[1];
 
       // Only enforce quota on create, not update
-      if (uuid && isUuid(uuid)) {
-        const existingFolder = await findFolderByUuid(uuid, dataDir);
-        if (existingFolder) {
-          logger.debug(`quota: layout update for ${uuid}, skipping check`);
-          await next();
-          return;
-        }
+      if (uuid && isUuid(uuid) && (await storage.layoutExists(uuid))) {
+        logger.debug(`quota: layout update for ${uuid}, skipping check`);
+        await next();
+        return;
       }
 
-      // Create — enforce layout quota
-      // NOTE: Quota check and write are not atomic. Concurrent PUT requests can
-      // both pass the check before either writes, temporarily exceeding the limit.
-      // This is an accepted trade-off for self-hosted homelab use (low concurrency).
-      // Adding file locks would introduce complexity not justified by the threat model.
-      const quota = await checkLayoutQuota(dataDir, maxLayouts);
-      if (!quota.allowed) {
-        logger.warn(
-          `quota: layout quota exceeded ${quota.current}/${quota.max}`,
-        );
+      // Create — enforce layout quota.
+      // NOTE: count and write are not atomic. Concurrent PUTs can both pass the
+      // check before either writes, temporarily exceeding the limit. Accepted
+      // trade-off for self-hosted/low-concurrency use.
+      const current = await storage.countLayouts();
+      if (current >= maxLayouts) {
+        logger.warn(`quota: layout quota exceeded ${current}/${maxLayouts}`);
         return c.json(
           {
             error: "Storage quota exceeded",
-            message: `Layout limit reached (${quota.current}/${quota.max}). Delete existing layouts to create new ones.`,
-            current: quota.current,
-            max: quota.max,
+            message: `Layout limit reached (${current}/${maxLayouts}). Delete existing layouts to create new ones.`,
+            current,
+            max: maxLayouts,
           },
           429,
         );
       }
     }
 
-    // Asset quota: PUT /assets/:layoutId/:deviceSlug/:face or PUT /api/assets/:layoutId/:deviceSlug/:face
+    // Asset quota: PUT /assets/:layoutId/:deviceSlug/:face or /api/assets/...
     const assetMatch = pathname.match(
       /^\/(?:api\/)?assets\/([^/]+)\/([^/]+)\/([^/]+)$/,
     );
-    if (assetMatch) {
+    if (assetMatch && maxAssetsPerLayout > 0) {
       const layoutId = assetMatch[1];
 
-      // Find the layout folder to count its assets
-      if (layoutId && isUuid(layoutId)) {
-        const layoutFolder = await findFolderByUuid(layoutId, dataDir);
-        if (layoutFolder) {
-          const quota = await checkAssetQuota(layoutFolder, maxAssetsPerLayout);
-          if (!quota.allowed) {
-            logger.warn(
-              `quota: asset quota exceeded for layout ${layoutId}: ${quota.current}/${quota.max}`,
-            );
-            return c.json(
-              {
-                error: "Storage quota exceeded",
-                message: `Asset limit reached for this layout (${quota.current}/${quota.max}). Remove existing assets to add new ones.`,
-                current: quota.current,
-                max: quota.max,
-              },
-              507,
-            );
-          }
-        } else {
-          // Layout doesn't exist — the route handler will return 404
-          logger.debug(
-            `quota: layout ${layoutId} not found, skipping asset check`,
+      if (
+        layoutId &&
+        isUuid(layoutId) &&
+        (await storage.layoutExists(layoutId))
+      ) {
+        const current = await storage.countAssets(layoutId);
+        if (current >= maxAssetsPerLayout) {
+          logger.warn(
+            `quota: asset quota exceeded for layout ${layoutId}: ${current}/${maxAssetsPerLayout}`,
+          );
+          return c.json(
+            {
+              error: "Storage quota exceeded",
+              message: `Asset limit reached for this layout (${current}/${maxAssetsPerLayout}). Remove existing assets to add new ones.`,
+              current,
+              max: maxAssetsPerLayout,
+            },
+            507,
           );
         }
+      } else {
+        // Layout doesn't exist — the route handler will return 404 (or create
+        // semantics do not apply to assets).
+        logger.debug(
+          `quota: layout ${layoutId} not found, skipping asset check`,
+        );
       }
     }
 
