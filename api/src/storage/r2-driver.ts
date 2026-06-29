@@ -464,9 +464,10 @@ export function createR2Driver(bucket: R2BucketLike): StorageDriver {
     // matches listLayouts: an orphan prefix left behind (e.g. assets/snapshots
     // without a layout file) must not count as a layout.
     const objects = await listAll(LAYOUTS_PREFIX);
-    return objects.filter((object) =>
-      /^layouts\/[^/]+\/layout\.yaml$/.test(object.key),
-    ).length;
+    return objects.filter((object) => {
+      const match = object.key.match(/^layouts\/([^/]+)\/layout\.yaml$/);
+      return match?.[1] !== undefined && isUuid(match[1]);
+    }).length;
   }
 
   async function countAssets(uuid: string): Promise<number> {

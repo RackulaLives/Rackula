@@ -16,6 +16,7 @@
 
 import type { MiddlewareHandler } from "hono";
 import { isUuid } from "../schemas/layout";
+import { isValidDeviceSlug } from "../storage/asset-validation";
 import type { StorageVariables } from "../storage/driver";
 import { logger } from "../logger";
 
@@ -104,9 +105,14 @@ export function createStorageQuotaMiddleware(
       const deviceSlug = assetMatch[2];
       const face = assetMatch[3];
 
+      // Only enforce the asset quota for a well-formed target; a malformed
+      // deviceSlug/face is the route's 400, not a 507.
       if (
         assetLayoutId &&
         isUuid(assetLayoutId) &&
+        deviceSlug &&
+        isValidDeviceSlug(deviceSlug) &&
+        (face === "front" || face === "rear") &&
         (await storage.layoutExists(assetLayoutId))
       ) {
         const current = await storage.countAssets(assetLayoutId);
@@ -114,8 +120,6 @@ export function createStorageQuotaMiddleware(
           // Overwriting an existing asset does not increase the count, so only
           // reject a genuinely new asset at the cap.
           const isReplacement =
-            (face === "front" || face === "rear") &&
-            deviceSlug !== undefined &&
             (await storage.getAsset(assetLayoutId, deviceSlug, face)) !== null;
           if (!isReplacement) {
             logger.warn(
