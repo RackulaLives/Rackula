@@ -6,7 +6,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { getBlockedSlots } from "$lib/utils/blocked-slots";
+import {
+  getBlockedSlots,
+  isPositionBlocked,
+  wouldOverlapBlocked,
+} from "$lib/utils/blocked-slots";
+import type { URange } from "$lib/utils/collision";
 import {
   createTestRack,
   createTestDeviceType,
@@ -193,5 +198,55 @@ describe("getBlockedSlots", () => {
 
       expect(blockedSlots.length).toBe(0);
     });
+  });
+});
+
+// These pin the edge-inclusive overlap semantics after #2670 routed the checks
+// through doRangesOverlap. A device touching a blocked range edge counts as
+// overlapping (the whole-U invariant depends on it); a device strictly adjacent
+// does not.
+describe("isPositionBlocked", () => {
+  const blocked: URange[] = [{ bottom: 5, top: 9 }];
+
+  it("treats the range edges as blocked (inclusive)", () => {
+    expect(isPositionBlocked(blocked, 5)).toBe(true);
+    expect(isPositionBlocked(blocked, 9)).toBe(true);
+  });
+
+  it("treats positions inside the range as blocked", () => {
+    expect(isPositionBlocked(blocked, 7)).toBe(true);
+  });
+
+  it("treats positions outside the range as not blocked", () => {
+    expect(isPositionBlocked(blocked, 4)).toBe(false);
+    expect(isPositionBlocked(blocked, 10)).toBe(false);
+  });
+});
+
+describe("wouldOverlapBlocked", () => {
+  const blocked: URange[] = [{ bottom: 5, top: 9 }];
+
+  it("reports overlap when the device touches the bottom edge", () => {
+    // Device spans U4-U5: its top edge touches the blocked bottom (U5).
+    expect(wouldOverlapBlocked(blocked, 4, 2)).toBe(true);
+  });
+
+  it("reports overlap when the device touches the top edge", () => {
+    // Device spans U9-U10: its bottom edge touches the blocked top (U9).
+    expect(wouldOverlapBlocked(blocked, 9, 2)).toBe(true);
+  });
+
+  it("reports overlap when the device spans the entire range", () => {
+    expect(wouldOverlapBlocked(blocked, 3, 10)).toBe(true);
+  });
+
+  it("reports no overlap when the device is strictly above the range", () => {
+    // Device spans U10-U11: strictly above the blocked range (5-9).
+    expect(wouldOverlapBlocked(blocked, 10, 2)).toBe(false);
+  });
+
+  it("reports no overlap when the device is strictly below the range", () => {
+    // Device spans U3-U4: strictly below the blocked range (5-9).
+    expect(wouldOverlapBlocked(blocked, 3, 2)).toBe(false);
   });
 });

@@ -7,15 +7,8 @@
 
 import type { Rack, DeviceType, RackView } from "$lib/types";
 import { toHumanUnits } from "$lib/utils/position";
+import { doRangesOverlap, type URange } from "$lib/utils/collision";
 import { effectiveFace } from "./effective-face";
-
-/**
- * Represents a range of U positions (inclusive)
- */
-export interface URange {
-  bottom: number; // Lower U position
-  top: number; // Upper U position
-}
 
 /**
  * Calculate which U slots should show hatching for the given view.
@@ -75,9 +68,8 @@ export function isPositionBlocked(
   blockedSlots: URange[],
   position: number,
 ): boolean {
-  return blockedSlots.some(
-    (range) => position >= range.bottom && position <= range.top,
-  );
+  const point: URange = { bottom: position, top: position };
+  return blockedSlots.some((range) => doRangesOverlap(point, range));
 }
 
 /**
@@ -93,15 +85,6 @@ export function wouldOverlapBlocked(
   position: number,
   height: number,
 ): boolean {
-  const deviceTop = position + height - 1;
-
-  return blockedSlots.some(
-    (range) =>
-      // Device starts within blocked range
-      (position >= range.bottom && position <= range.top) ||
-      // Device ends within blocked range
-      (deviceTop >= range.bottom && deviceTop <= range.top) ||
-      // Device spans entire blocked range
-      (position < range.bottom && deviceTop > range.top),
-  );
+  const deviceRange: URange = { bottom: position, top: position + height - 1 };
+  return blockedSlots.some((range) => doRangesOverlap(deviceRange, range));
 }

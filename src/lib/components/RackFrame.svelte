@@ -8,7 +8,7 @@
   Must be rendered as an early SVG layer (devices render on top).
 -->
 <script lang="ts">
-  import type { URange } from "$lib/utils/blocked-slots";
+  import type { URange } from "$lib/utils/collision";
 
   interface Props {
     /** Total rack width in pixels */
