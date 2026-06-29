@@ -88,6 +88,11 @@ export default defineConfig(
         svelteConfig,
       },
     },
+    rules: {
+      // Regression guard: block raw {@html} sinks. Every legitimate sink must
+      // carry an inline eslint-disable with provenance explaining why it is safe.
+      "svelte/no-at-html-tags": "error",
+    },
   },
   {
     files: ["**/*.test.ts", "**/*.spec.ts"],
@@ -160,6 +165,68 @@ export default defineConfig(
           ],
         },
       ],
+    },
+  },
+  {
+    // Storage access seam: block raw Web Storage member calls so reads/writes
+    // go through the safe-storage helpers, which swallow access failures
+    // (private mode, quota, disabled storage). The seam itself is exempted in
+    // the block below. no-restricted-properties has no per-rule path scoping in
+    // flat config, so scoping is expressed with files/ignores across two blocks.
+    files: ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "localStorage",
+          property: "getItem",
+          message:
+            "Use safeGetItem from $lib/utils/safe-storage instead of localStorage.getItem.",
+        },
+        {
+          object: "localStorage",
+          property: "setItem",
+          message:
+            "Use safeSetItem from $lib/utils/safe-storage instead of localStorage.setItem.",
+        },
+        {
+          object: "localStorage",
+          property: "removeItem",
+          message:
+            "Use safeRemoveItem from $lib/utils/safe-storage instead of localStorage.removeItem.",
+        },
+        {
+          object: "sessionStorage",
+          property: "getItem",
+          message:
+            "Use safeGetItem(key, 'session') from $lib/utils/safe-storage instead of sessionStorage.getItem.",
+        },
+        {
+          object: "sessionStorage",
+          property: "setItem",
+          message:
+            "Use safeSetItem(key, value, 'session') from $lib/utils/safe-storage instead of sessionStorage.setItem.",
+        },
+        {
+          object: "sessionStorage",
+          property: "removeItem",
+          message:
+            "Use safeRemoveItem(key, 'session') from $lib/utils/safe-storage instead of sessionStorage.removeItem.",
+        },
+      ],
+    },
+  },
+  {
+    // Storage access seam exemption: the helpers and the storage barrel are the
+    // one place allowed to touch Web Storage directly. Tests are also exempt so
+    // they can seed, mock, and assert persistence against raw Web Storage.
+    files: [
+      "src/lib/storage/**",
+      "src/lib/utils/safe-storage.ts",
+      "src/tests/**",
+    ],
+    rules: {
+      "no-restricted-properties": "off",
     },
   },
   {
