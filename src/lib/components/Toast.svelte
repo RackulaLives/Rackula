@@ -93,25 +93,26 @@
     animation: slideIn 0.2s ease-out;
   }
 
+  /* Bottom-center stack (#2637): rise in from below and sink back out. */
   @keyframes slideIn {
     from {
       opacity: 0;
-      transform: translateX(100%);
+      transform: translateY(0.5rem);
     }
     to {
       opacity: 1;
-      transform: translateX(0);
+      transform: translateY(0);
     }
   }
 
   @keyframes slideOut {
     from {
       opacity: 1;
-      transform: translateX(0);
+      transform: translateY(0);
     }
     to {
       opacity: 0;
-      transform: translateX(100%);
+      transform: translateY(0.5rem);
     }
   }
 

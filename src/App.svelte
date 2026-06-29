@@ -674,6 +674,9 @@
               onfitall={handleFitAll}
               ontoggledisplaymode={handleToggleDisplayMode}
             />
+
+            <!-- Toasts anchor to the bottom-center of the canvas region (#2637). -->
+            <ToastContainer />
           </div>
 
           <SidePanel />
@@ -718,6 +721,11 @@
           onrackdelete={handleRackContextDelete}
           ondelete={handleDelete}
         />
+
+        <!-- Mobile has no canvas-region wrapper; anchor toasts to .app-main, which
+             spans the full mobile width (no side panels) and is bottom-center over
+             the canvas (#2637). -->
+        <ToastContainer />
       {/if}
     </main>
 
@@ -731,8 +739,6 @@
 
     <!-- Global SVG gradient definitions for animations -->
     <AnimationDefs />
-
-    <ToastContainer />
 
     <!-- Port tooltip for network interface hover -->
     <PortTooltip />
