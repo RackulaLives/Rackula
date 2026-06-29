@@ -103,9 +103,31 @@ export function createRemoveDeviceCommand(
   // structuredClone handles nested objects like ports and custom_fields
   const deviceCopy = structuredClone(device);
 
+  // Track the target device by ID, not by a fixed creation-time index (#2656).
+  // undo() re-appends the device to the end (mutators.ts placeDeviceRaw), which
+  // shifts array positions, so a captured index goes stale and redo would delete
+  // the wrong device. Resolve the current index by ID at execute time, mirroring
+  // createCrossRackMoveCommand's resolveIndicesDescending. currentImageId doubles
+  // as the live device ID, kept in sync across undo when placeDeviceRaw remaps it.
+  let currentImageId = device.id;
+
+  /**
+   * Find the current array index of the device tracked by currentImageId.
+   * Falls back to the creation-time index if the ID is no longer present.
+   */
+  function resolveCurrentIndex(): number {
+    let i = 0;
+    while (true) {
+      const d = store.getDeviceAtIndex(i);
+      if (!d) break;
+      if (d.id === currentImageId) return i;
+      i++;
+    }
+    return index;
+  }
+
   // Snapshot placement images before removal for undo restoration
   const imageStore = getImageStore();
-  let currentImageId = device.id;
   const imageSnapshot = imageStore
     .getAllImages()
     .get(placementKey(layoutId, currentImageId));
@@ -122,7 +144,8 @@ export function createRemoveDeviceCommand(
       getImageStore().removeAllDeviceImages(
         placementKey(layoutId, currentImageId),
       );
-      store.removeDeviceAtIndexRaw(index);
+      // Resolve the target by ID at runtime so redo deletes the right device (#2656)
+      store.removeDeviceAtIndexRaw(resolveCurrentIndex());
     },
     undo() {
       const placedIdx = store.placeDeviceRaw(deviceCopy);

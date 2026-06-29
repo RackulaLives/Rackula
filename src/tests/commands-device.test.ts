@@ -293,6 +293,127 @@ describe("Device Commands", () => {
     });
   });
 
+  describe("createRemoveDeviceCommand redo targets the right device", () => {
+    // Array-backed fake store mirroring the real mutator semantics:
+    // placeDeviceRaw appends to the end (mutators.ts:168), removeDeviceAtIndexRaw
+    // filters positionally (mutators.ts:195), getDeviceAtIndex reads by index.
+    // This faithfully models the index shift that undo's re-append causes.
+    function createArrayBackedStore(
+      initial: PlacedDevice[],
+    ): DeviceCommandStore & {
+      devices: PlacedDevice[];
+    } {
+      const devices = [...initial];
+      return {
+        devices,
+        placeDeviceRaw(device: PlacedDevice): number {
+          devices.push(device);
+          return devices.length - 1;
+        },
+        removeDeviceAtIndexRaw(index: number): PlacedDevice | undefined {
+          if (index < 0 || index >= devices.length) return undefined;
+          const [removed] = devices.splice(index, 1);
+          return removed;
+        },
+        moveDeviceRaw: vi.fn().mockReturnValue(true),
+        updateDeviceFaceRaw: vi.fn(),
+        updateDeviceNameRaw: vi.fn(),
+        updateDevicePlacementImageRaw: vi.fn(),
+        updateDeviceColourRaw: vi.fn(),
+        updateDeviceContainerLinkageRaw: vi.fn(),
+        updateDeviceNotesRaw: vi.fn(),
+        updateDeviceIpRaw: vi.fn(),
+        getDeviceAtIndex(index: number): PlacedDevice | undefined {
+          return devices[index];
+        },
+      };
+    }
+
+    it("redo removes device A (not B) after undo re-appends A to the end", () => {
+      const deviceA = createTestDevice({
+        id: "device-a",
+        device_type: "type-a",
+      });
+      const deviceB = createTestDevice({
+        id: "device-b",
+        device_type: "type-b",
+      });
+      const store = createArrayBackedStore([deviceA, deviceB]);
+
+      // Remove A (index 0). undo re-appends A, shifting B to index 0.
+      const command = createRemoveDeviceCommand(0, deviceA, store, "Device A");
+
+      command.execute(); // [B]
+      expect(store.devices).not.toContainEqual(
+        expect.objectContaining({ id: "device-a" }),
+      );
+      expect(store.devices).toContainEqual(
+        expect.objectContaining({ id: "device-b" }),
+      );
+
+      command.undo(); // [B, A] — A is now at the end, B at index 0
+      expect(store.devices).toContainEqual(
+        expect.objectContaining({ id: "device-a" }),
+      );
+      expect(store.devices).toContainEqual(
+        expect.objectContaining({ id: "device-b" }),
+      );
+
+      command.execute(); // redo re-runs execute (history.redo); must remove A, not B
+      expect(store.devices).not.toContainEqual(
+        expect.objectContaining({ id: "device-a" }),
+      );
+      expect(store.devices).toContainEqual(
+        expect.objectContaining({ id: "device-b" }),
+      );
+    });
+
+    it("stays index-stable across undo-twice / redo-twice cycles", () => {
+      const deviceA = createTestDevice({
+        id: "device-a",
+        device_type: "type-a",
+      });
+      const deviceB = createTestDevice({
+        id: "device-b",
+        device_type: "type-b",
+      });
+      const store = createArrayBackedStore([deviceA, deviceB]);
+
+      const command = createRemoveDeviceCommand(0, deviceA, store, "Device A");
+
+      // redo re-runs execute (history.redo)
+      const runRedo = () => command.execute();
+
+      // Cycle 1
+      command.execute();
+      command.undo();
+      runRedo();
+      expect(store.devices).not.toContainEqual(
+        expect.objectContaining({ id: "device-a" }),
+      );
+      expect(store.devices).toContainEqual(
+        expect.objectContaining({ id: "device-b" }),
+      );
+
+      // Cycle 2: undo again restores A, redo again must still remove A not B
+      command.undo();
+      expect(store.devices).toContainEqual(
+        expect.objectContaining({ id: "device-a" }),
+      );
+      expect(store.devices).toContainEqual(
+        expect.objectContaining({ id: "device-b" }),
+      );
+
+      runRedo();
+      expect(store.devices).not.toContainEqual(
+        expect.objectContaining({ id: "device-a" }),
+      );
+      expect(store.devices).toContainEqual(
+        expect.objectContaining({ id: "device-b" }),
+      );
+    });
+  });
+
   describe("createUpdateDeviceFaceCommand", () => {
     it("creates command with correct type and description", () => {
       const store = createMockStore();
