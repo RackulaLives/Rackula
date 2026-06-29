@@ -853,6 +853,7 @@
 
 <ImportFromNetBoxDialog
   open={importFromNetBoxOpen}
+  existingSlugs={layoutStore.device_types.map((d) => d.slug)}
   onimport={handleNetBoxImport}
   oncancel={handleNetBoxImportCancel}
 />

@@ -12,7 +12,10 @@ import {
   type ImportResult,
 } from "./netbox-import";
 import { parseLayoutObject } from "./yaml";
-import { createTestLayout } from "../../tests/factories";
+import {
+  createTestLayout,
+  createTestNetBoxDeviceType,
+} from "../../tests/factories";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import { DeviceTypeSchema } from "$lib/schemas";
 
@@ -709,16 +712,12 @@ model: Some Device
   });
 
   describe("convertToDeviceType validation gate", () => {
-    const base: NetBoxDeviceType = {
-      manufacturer: "Generic",
-      model: "Device",
-      slug: "generic-device",
-    };
-
     it.each([2.7, 0, -1, 99999])(
       "refuses out-of-range u_height %p instead of producing a DeviceType",
       (u_height) => {
-        const converted = convertToDeviceType({ ...base, u_height });
+        const converted = convertToDeviceType(
+          createTestNetBoxDeviceType({ u_height }),
+        );
 
         expect(converted.success).toBe(false);
         if (!converted.success) {
@@ -727,8 +726,21 @@ model: Some Device
       },
     );
 
+    it.each([0.5, 50])("accepts boundary u_height %p", (u_height) => {
+      const converted = convertToDeviceType(
+        createTestNetBoxDeviceType({ u_height }),
+      );
+
+      expect(converted.success).toBe(true);
+      if (converted.success) {
+        expect(converted.result.deviceType.u_height).toBe(u_height);
+      }
+    });
+
     it("accepts an in-bounds half-U height", () => {
-      const converted = convertToDeviceType({ ...base, u_height: 1.5 });
+      const converted = convertToDeviceType(
+        createTestNetBoxDeviceType({ u_height: 1.5 }),
+      );
 
       expect(converted.success).toBe(true);
       if (converted.success) {
@@ -743,7 +755,9 @@ model: Some Device
     ])(
       "normalises an invalid slug %p to a SLUG_PATTERN-conforming slug",
       (slug, expected) => {
-        const converted = convertToDeviceType({ ...base, slug });
+        const converted = convertToDeviceType(
+          createTestNetBoxDeviceType({ slug }),
+        );
 
         expect(converted.success).toBe(true);
         if (converted.success) {
@@ -753,11 +767,13 @@ model: Some Device
     );
 
     it("falls back to manufacturer/model when the slug normalises to empty", () => {
-      const converted = convertToDeviceType({
-        manufacturer: "Acme",
-        model: "Rack Unit 1",
-        slug: "!!!",
-      });
+      const converted = convertToDeviceType(
+        createTestNetBoxDeviceType({
+          manufacturer: "Acme",
+          model: "Rack Unit 1",
+          slug: "!!!",
+        }),
+      );
 
       expect(converted.success).toBe(true);
       if (converted.success) {
@@ -765,13 +781,88 @@ model: Some Device
       }
     });
 
-    it("round-trips an imported device through parseLayoutObject without rejection", () => {
-      const converted = convertToDeviceType({
-        manufacturer: "Ubiquiti",
-        model: "USW Pro 24",
-        slug: "Weird Box",
-        u_height: 1,
+    it.each(["manufacturer", "model", "slug"] as const)(
+      "refuses a non-string %s instead of throwing",
+      (field) => {
+        // A non-string scalar (e.g. `slug: 123` in the YAML) passes the
+        // truthiness check in parseNetBoxYaml; the guard must return a clean
+        // failure rather than throwing a TypeError inside a string helper.
+        const converted = convertToDeviceType(
+          createTestNetBoxDeviceType({
+            [field]: 123,
+          } as unknown as Partial<NetBoxDeviceType>),
+        );
+
+        expect(converted.success).toBe(false);
+        if (!converted.success) {
+          expect(converted.error).toContain(field);
+        }
+      },
+    );
+
+    it("suffixes the slug when it collides with an existing library slug", () => {
+      // An existing "weird-box" plus an imported "Weird Box" both normalise to
+      // "weird-box"; the import must get a distinct slug, not a duplicate.
+      const converted = convertToDeviceType(
+        createTestNetBoxDeviceType({ slug: "Weird Box" }),
+        { existingSlugs: ["weird-box"] },
+      );
+
+      expect(converted.success).toBe(true);
+      if (converted.success) {
+        expect(converted.result.deviceType.slug).not.toBe("weird-box");
+        expect(converted.result.deviceType.slug).toBe("weird-box-2");
+      }
+    });
+
+    it("keeps the normalised slug when it does not collide", () => {
+      const converted = convertToDeviceType(
+        createTestNetBoxDeviceType({ slug: "Weird Box" }),
+        { existingSlugs: ["something-else"] },
+      );
+
+      expect(converted.success).toBe(true);
+      if (converted.success) {
+        expect(converted.result.deviceType.slug).toBe("weird-box");
+      }
+    });
+
+    it("round-trips a colliding import through parseLayoutObject without duplicate-slug rejection", () => {
+      const existing = convertToDeviceType(
+        createTestNetBoxDeviceType({ slug: "weird-box" }),
+      );
+      expect(existing.success).toBe(true);
+      if (!existing.success) return;
+
+      const imported = convertToDeviceType(
+        createTestNetBoxDeviceType({ model: "Other Box", slug: "Weird Box" }),
+        { existingSlugs: [existing.result.deviceType.slug] },
+      );
+      expect(imported.success).toBe(true);
+      if (!imported.success) return;
+
+      const layout = createTestLayout({
+        device_types: [existing.result.deviceType, imported.result.deviceType],
       });
+
+      // Mirror the autosave path: JSON serialize, then parse back. A duplicate
+      // slug would make validateSlugUniqueness reject the layout (null result).
+      const roundTripped = parseLayoutObject(
+        JSON.parse(JSON.stringify(layout)),
+      );
+
+      expect(roundTripped).not.toBeNull();
+    });
+
+    it("round-trips an imported device through parseLayoutObject without rejection", () => {
+      const converted = convertToDeviceType(
+        createTestNetBoxDeviceType({
+          manufacturer: "Ubiquiti",
+          model: "USW Pro 24",
+          slug: "Weird Box",
+          u_height: 1,
+        }),
+      );
 
       expect(converted.success).toBe(true);
       if (!converted.success) return;

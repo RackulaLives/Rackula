@@ -27,6 +27,7 @@ import type {
   SlotWidth,
 } from "$lib/types";
 import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
+import type { NetBoxDeviceType } from "$lib/utils/netbox-import";
 import type { Command, CommandType } from "$lib/stores/commands/types";
 import { toInternalUnits } from "$lib/utils/position";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
@@ -144,6 +145,24 @@ export function createTestDeviceTypeInput(
     u_height: 1,
     category: "server",
     colour: "#4A90D9",
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a NetBoxDeviceType with the three required identity fields filled in.
+ * Use this in netbox-import tests and override only the field under test.
+ *
+ * @example
+ * const netbox = createTestNetBoxDeviceType({ slug: "Weird Box" });
+ */
+export function createTestNetBoxDeviceType(
+  overrides: Partial<NetBoxDeviceType> = {},
+): NetBoxDeviceType {
+  return {
+    manufacturer: "Generic",
+    model: "Device",
+    slug: "generic-device",
     ...overrides,
   };
 }

@@ -21,7 +21,7 @@ import {
   WeightUnitSchema,
 } from "$lib/schemas";
 import { parseYaml } from "./yaml";
-import { generateDeviceSlug, slugify } from "./slug";
+import { ensureUniqueSlug, generateDeviceSlug, slugify } from "./slug";
 
 const FeedLegSchema = PowerOutletSchema.shape.feed_leg;
 
@@ -407,9 +407,23 @@ export function convertToDeviceType(
     category?: DeviceCategory;
     colour?: string;
     rack_widths?: RackWidth[];
+    existingSlugs?: Iterable<string>;
   },
 ): ConvertResult {
   const warnings: string[] = [];
+
+  // Guard the identity fields before any string helper runs. A non-string
+  // scalar (e.g. `slug: 123` in the YAML) passes parseNetBoxYaml's truthiness
+  // check, so inferCategory/slugify would throw a TypeError before the schema
+  // could return a clean failure. Refuse it here with a readable message.
+  for (const field of ["manufacturer", "model", "slug"] as const) {
+    if (typeof netbox[field] !== "string") {
+      return {
+        success: false,
+        error: `Invalid device type: ${field} must be a string`,
+      };
+    }
+  }
 
   // Infer category if not provided
   const inferredCategory = inferCategory(netbox);
@@ -422,9 +436,18 @@ export function convertToDeviceType(
   // stored slug always matches SLUG_PATTERN. NetBox slugs are already lowercase
   // hyphenated by convention, but a hand-edited paste ("My Switch!") would
   // otherwise fail LayoutSchema on the next reload and discard the autosave.
-  const slug =
+  const normalisedSlug =
     slugify(netbox.slug) ||
     generateDeviceSlug(netbox.manufacturer, netbox.model);
+
+  // Suffix the slug if it collides with an existing device-type slug. Two
+  // imports can normalise to the same slug (an existing "weird-box" plus an
+  // imported "Weird Box"); a duplicate would make LayoutSchema reject the whole
+  // layout on the next reload and discard the autosave, the failure this guards.
+  const slug = ensureUniqueSlug(
+    normalisedSlug,
+    new Set(options?.existingSlugs ?? []),
+  );
 
   // Build the device type
   const deviceType: DeviceType = {
@@ -568,6 +591,7 @@ export async function importFromNetBoxYaml(
   options?: {
     category?: DeviceCategory;
     colour?: string;
+    existingSlugs?: Iterable<string>;
   },
 ): Promise<ConvertResult> {
   const parseResult = await parseNetBoxYaml(yamlString);
