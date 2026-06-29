@@ -280,11 +280,36 @@ describe("decodeLayout", () => {
   });
 
   it("generates a unique id for each decoded device", () => {
-    const original = createLayoutWithDevices();
+    const deviceType = createTestDeviceType({
+      slug: "test-server",
+      u_height: 1,
+      category: "server",
+      model: "Test Server",
+    });
+    const original = createTestLayout({
+      name: "Test Layout",
+      racks: [
+        createTestRack({
+          name: "Main Rack",
+          height: 42,
+          width: 19,
+          devices: [
+            createTestDevice({ device_type: "test-server", position: 1 }),
+            createTestDevice({ device_type: "test-server", position: 10 }),
+            createTestDevice({ device_type: "test-server", position: 20 }),
+          ],
+        }),
+      ],
+      device_types: [deviceType],
+    });
+
     const encoded = requireEncoded(original);
     const decoded = requireDecoded(encoded);
 
-    expect(decoded.racks[0].devices[0].id).toBeTruthy();
+    const ids = decoded.racks[0].devices.map((d) => d.id);
+    expect(ids.every(Boolean)).toBe(true);
+    // Decode assigns a fresh id per device; all must be distinct.
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("applies default layout settings on decode", () => {
