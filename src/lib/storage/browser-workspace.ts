@@ -28,6 +28,8 @@ import {
 import { generateId } from "$lib/utils/device";
 import { sessionDebug } from "$lib/utils/debug";
 import { migrateLayout } from "./migrate-layout";
+import { parseLayoutObject } from "$lib/utils/yaml";
+import { assertSchemaVersionSupported } from "$lib/schemas";
 import { loadSessionWithTimestamp } from "./working-copy";
 import { type StorageMode } from "./availability.svelte";
 import { getTabId, WRITER_TAB_ID_FIELD } from "./twin-tab-guard";
@@ -184,8 +186,15 @@ export function saveWorkspaceIndex(index: WorkspaceIndex): boolean {
 }
 
 /**
- * Read a layout body lazily by id, running the shared migrateLayout. A missing
- * or unreadable body returns { ok: false } (the #2018 on-focus orphan state)
+ * Read a layout body lazily by id and validate it through the shared schema
+ * chokepoint (#2657). The body is untrusted localStorage: after JSON.parse the
+ * forward-compat gate (assertSchemaVersionSupported) refuses a future-major
+ * document, then parseLayoutObject runs the same LayoutSchema validation the
+ * legacy autosave path uses, so a malformed body (for example a null device) is
+ * rejected here rather than crashing startup. migrateLayout still runs first to
+ * apply the legacy v0.6 structural conversion (single `rack` -> `racks[]`,
+ * U-value positions -> internal units) before validation. A missing, unreadable,
+ * or schema-invalid body returns { ok: false } (the #2018 on-focus orphan state)
  * rather than throwing, so one bad layout cannot take down the workspace.
  */
 export function loadLayoutBody(id: string): LayoutBodyResult {
@@ -205,8 +214,36 @@ export function loadLayoutBody(id: string): LayoutBodyResult {
     return { ok: false };
   }
 
-  const layout = migrateLayout(parsed.layout as Record<string, unknown>);
-  if (!layout) return { ok: false };
+  // Legacy structural conversion first (v0.6 single `rack`, pre-0.7.0 positions),
+  // then the read-door validation. migrateLayout is idempotent so re-reading a
+  // body it has already converted is a no-op.
+  const migrated = migrateLayout(parsed.layout as Record<string, unknown>);
+  if (!migrated) return { ok: false };
+
+  // Forward-compat gate (#2205): refuse a body whose data-format MAJOR is newer
+  // than this app. assertSchemaVersionSupported throws on a future major; treat
+  // that as unreadable so the orphan/error state surfaces instead of an
+  // uncaught throw at startup.
+  try {
+    assertSchemaVersionSupported(
+      typeof migrated.metadata?.schema_version === "string"
+        ? migrated.metadata.schema_version
+        : undefined,
+    );
+  } catch (error) {
+    log("layout body for %s refused by version gate: %O", id, error);
+    return { ok: false };
+  }
+
+  // Schema validation (#2657): the same LayoutSchema chokepoint the legacy
+  // autosave path uses, so no read door bypasses the schema. A malformed shape
+  // (e.g. a null device) is rejected here as { ok: false } rather than reaching
+  // the store and crashing startup.
+  const layout = parseLayoutObject(migrated);
+  if (!layout) {
+    log("layout body for %s failed schema validation", id);
+    return { ok: false };
+  }
   return { ok: true, layout };
 }
 

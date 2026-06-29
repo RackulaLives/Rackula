@@ -216,7 +216,17 @@ describe("browser-workspace storage", () => {
           layout: {
             version: "0.6.16",
             name: "Legacy",
-            rack: { id: "rack-1", name: "Main", height: 42, devices: [] },
+            rack: {
+              id: "rack-1",
+              name: "Main",
+              height: 42,
+              width: 19,
+              desc_units: false,
+              form_factor: "4-post-cabinet",
+              starting_unit: 1,
+              position: 0,
+              devices: [],
+            },
             device_types: [],
             settings: { display_mode: "label", show_labels_on_images: false },
           },
@@ -247,17 +257,29 @@ describe("browser-workspace storage", () => {
                 id: "rack-1",
                 name: "Main",
                 height: 42,
+                width: 19,
+                desc_units: false,
+                form_factor: "4-post-cabinet",
+                starting_unit: 1,
+                position: 0,
                 devices: [
                   {
                     id: "d1",
-                    device_type: "server",
+                    device_type: "server-2u",
                     position: 1,
                     face: "front",
                   },
                 ],
               },
             ],
-            device_types: [],
+            device_types: [
+              {
+                slug: "server-2u",
+                u_height: 2,
+                colour: "#996633",
+                category: "server",
+              },
+            ],
             settings: { display_mode: "label", show_labels_on_images: false },
           },
           savedAt: "2026-06-14T09:00:00.000Z",
@@ -306,6 +328,83 @@ describe("browser-workspace storage", () => {
       deleteLayoutBody("a");
       expect(loadLayoutBody("a").ok).toBe(false);
       expect(loadWorkspaceIndex()!.library.a).toBeUndefined();
+    });
+  });
+
+  describe("body schema validation (untrusted localStorage)", () => {
+    // A schema-valid current-version body wrapper, written the way saveLayoutBody
+    // would. Individual tests tamper with the inner layout to exercise each gate.
+    function wrapBody(layout: Record<string, unknown>): string {
+      return JSON.stringify({
+        schemaVersion: 2,
+        layout,
+        savedAt: "2026-06-14T09:00:00.000Z",
+      });
+    }
+
+    function validLayout(): Record<string, unknown> {
+      return {
+        version: "1.0",
+        name: "Homelab",
+        racks: [
+          {
+            id: "rack-0",
+            name: "Main",
+            height: 42,
+            width: 19,
+            desc_units: false,
+            form_factor: "4-post-cabinet",
+            starting_unit: 1,
+            position: 0,
+            devices: [
+              {
+                id: "dev-1",
+                device_type: "switch-1u",
+                position: 6,
+                face: "front",
+              },
+            ],
+          },
+        ],
+        device_types: [
+          {
+            slug: "switch-1u",
+            u_height: 1,
+            colour: "#336699",
+            category: "network",
+          },
+        ],
+        settings: { display_mode: "label", show_labels_on_images: false },
+        metadata: { id: "a", name: "Homelab", schema_version: "1.0" },
+      };
+    }
+
+    it("returns ok with a schema-valid layout for a valid current-version body", () => {
+      localStorage.setItem("Rackula:layout:a", wrapBody(validLayout()));
+      const result = loadLayoutBody("a");
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      // The accepted layout carries the placed device through the schema intact.
+      expect(result.layout.racks[0]!.devices[0]!.id).toBe("dev-1");
+    });
+
+    it("returns { ok: false } for a body with a null device instead of throwing", () => {
+      const layout = validLayout();
+      (layout.racks as Record<string, unknown>[])[0]!.devices = [null];
+      localStorage.setItem("Rackula:layout:a", wrapBody(layout));
+      // The read door must reject the malformed device rather than letting a
+      // null reach the store and crash startup with a TypeError.
+      expect(() => loadLayoutBody("a")).not.toThrow();
+      expect(loadLayoutBody("a").ok).toBe(false);
+    });
+
+    it("refuses a body whose schema_version MAJOR is newer than the app", () => {
+      const layout = validLayout();
+      (layout.metadata as Record<string, unknown>).schema_version = "2.0";
+      localStorage.setItem("Rackula:layout:a", wrapBody(layout));
+      // Forward-compat gate: a future-major body is refused, not loaded, so a
+      // newer Rackula's data does not silently lose fields on an older app.
+      expect(loadLayoutBody("a").ok).toBe(false);
     });
   });
 

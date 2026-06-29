@@ -10,9 +10,16 @@ import {
   loadWorkspaceIndex,
   type WorkspaceIndex,
 } from "$lib/storage/browser-workspace";
-import { parseLayoutYaml, serializeToYaml } from "$lib/utils/yaml";
+import { parseLayoutYaml, parseYaml, serializeToYaml } from "$lib/utils/yaml";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { findSilentLosses } from "./upgrade-corpus-helpers";
+
+// The current-version multi-rack body added to the upgrade corpus (#2657). The
+// browser read door (loadLayoutBody) now validates through LayoutSchema, so a
+// representative current-format body must load through it cleanly.
+const multiRackYaml = (
+  await import("./fixtures/upgrade-corpus/v26.5.0-multi-rack.rackula.yaml?raw")
+).default as string;
 
 // In-memory localStorage stand-in (same pattern as browser-workspace.test.ts).
 const localStorageMock = (() => {
@@ -37,7 +44,11 @@ Object.defineProperty(globalThis, "localStorage", {
 });
 
 // A v0.6-shaped layout: single `rack` (not `racks[]`), U-value position.
-// migrateLayout converts `rack` -> `racks[0]` and scales position by UNITS_PER_U.
+// The browser read door now validates through LayoutSchema (#2657), so this body
+// carries the full rack fields and device-type colour a real v0.6 app wrote (the
+// schema requires them); it is no longer the artificially-loose shape that only
+// the old unvalidated cast accepted. Loading still converts `rack` -> `racks[0]`
+// and scales position by UNITS_PER_U.
 // Distinctive values used below: id "rack-a", name "Rack A", slug "switch-1u",
 // device id "dev-1". These must survive intact so the test has real teeth.
 const V06_BODY = {
@@ -47,6 +58,11 @@ const V06_BODY = {
     id: "rack-a",
     name: "Rack A",
     height: 42,
+    width: 19,
+    desc_units: false,
+    form_factor: "4-post-cabinet",
+    starting_unit: 1,
+    position: 0,
     devices: [
       { id: "dev-1", device_type: "switch-1u", position: 5, face: "front" },
     ],
@@ -56,9 +72,11 @@ const V06_BODY = {
       slug: "switch-1u",
       u_height: 1,
       manufacturer: "Acme",
+      colour: "#336699",
       category: "network",
     },
   ],
+  settings: { display_mode: "label", show_labels_on_images: false },
 };
 
 // loadLayoutBody (browser-workspace.ts:200) checks:
@@ -96,6 +114,27 @@ describe("browser upgrade: localStorage ingress", () => {
         reason: "migrateLayout stamps current VERSION after position migration",
       },
     ]);
+    expect(losses, `silent loss:\n${JSON.stringify(losses, null, 2)}`).toEqual(
+      [],
+    );
+  });
+
+  it("loadLayoutBody loads a current-version multi-rack body through the schema gate (#2657)", async () => {
+    // Drive the corpus's current-format multi-rack fixture through the browser
+    // read door. The body is the real localStorage wrapper shape: { layout }.
+    const parsed = await parseYaml(multiRackYaml);
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify({ layout: parsed }));
+
+    const result = loadLayoutBody("old-1");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // Both racks and their distinctive ids survive the schema validation pass.
+    const rackIds = result.layout.racks.map((r) => r.id);
+    expect(rackIds).toContain("rack-a");
+    expect(rackIds).toContain("rack-b");
+
+    const losses = findSilentLosses(parsed, result.layout, []);
     expect(losses, `silent loss:\n${JSON.stringify(losses, null, 2)}`).toEqual(
       [],
     );

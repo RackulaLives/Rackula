@@ -34,7 +34,19 @@ function makeLayout(id: string, name: string): Layout {
   return {
     version: "1.0",
     name,
-    racks: [{ id: "rack-0", name: "R", height: 42, devices: [] }],
+    racks: [
+      {
+        id: "rack-0",
+        name: "R",
+        height: 42,
+        width: 19,
+        desc_units: false,
+        form_factor: "4-post-cabinet",
+        starting_unit: 1,
+        position: 0,
+        devices: [],
+      },
+    ],
     device_types: [],
     settings: { display_mode: "label", show_labels_on_images: false },
     metadata: { id, name, schema_version: "1.0" },
