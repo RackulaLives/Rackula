@@ -161,9 +161,19 @@ export function parseDeviceLibraryImport(
     const uniqueSlug = generateUniqueSlug(rawDevice.name!, allSlugs);
     allSlugs.push(uniqueSlug);
 
-    // Create device type with assigned slug and colour. Uses the same builder the
-    // validation gate ran against, so the stored device matches what was validated.
+    // Create device type with assigned slug and colour using the same builder the
+    // validation gate ran against.
     const deviceType = buildImportDeviceType(rawDevice, uniqueSlug);
+
+    // Re-validate the final object against the schema with its real generated
+    // slug. The per-row gate above runs against a placeholder slug, so a name
+    // that slugifies to an empty or otherwise invalid slug (for example a
+    // punctuation-only name) would pass the gate but be stored schema-invalid and
+    // later break autosave/load. Skip it so only schema-valid devices are stored.
+    if (!DeviceTypeSchema.safeParse(deviceType).success) {
+      skipped++;
+      continue;
+    }
 
     devices.push(deviceType);
   }
