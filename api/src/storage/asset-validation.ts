@@ -8,7 +8,6 @@
  */
 import { z } from "zod";
 import { isUuid } from "../schemas/layout";
-import { logger } from "../logger";
 
 // Allowed image types
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -148,7 +147,9 @@ export function getContentTypeFromExt(ext: string): string {
     case "webp":
       return "image/webp";
     default:
-      logger.warn(`Unknown extension for content type lookup: ${ext}`);
+      // Defensive fallback for an unknown extension. Callers only pass entries
+      // from ALLOWED_EXTS, so this is unreachable in practice; kept dependency
+      // free (no logger) so this module stays pure for the Workers bundle.
       return "application/octet-stream";
   }
 }
