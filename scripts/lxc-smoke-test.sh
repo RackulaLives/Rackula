@@ -488,6 +488,19 @@ smoke_checks() {
   _check "$id" "nginx active" "systemctl is-active --quiet nginx"
   _check "$id" "no API crash in journal" \
     "! journalctl -u rackula-api --no-pager 2>/dev/null | grep -qiE 'panic|segfault|MODULE_NOT_FOUND|cannot find module'"
+  # Security headers from deploy/lxc/security-headers.conf must reach the client.
+  # Header names are case-insensitive (grep -i); --max-time 5 caps the request.
+  _check "$id" "Content-Security-Policy header present" \
+    "curl -sfI --max-time 5 http://127.0.0.1/ | grep -qi '^Content-Security-Policy:'"
+  _check "$id" "X-Frame-Options header present" \
+    "curl -sfI --max-time 5 http://127.0.0.1/ | grep -qi '^X-Frame-Options:'"
+  # version.json is emitted at build time (vite.config.ts) and served statically.
+  # version must be a non-empty string and commit must be non-empty: the LXC build
+  # runs `npm run build` inside a full git checkout, so APP_COMMIT/commit is set.
+  _check "$id" "version.json reports a non-empty version" \
+    "curl -sf --max-time 5 http://127.0.0.1/version.json | grep -qE '\"version\"[[:space:]]*:[[:space:]]*\"[^\"]+\"'"
+  _check "$id" "version.json reports a non-empty commit" \
+    "curl -sf --max-time 5 http://127.0.0.1/version.json | grep -qE '\"commit\"[[:space:]]*:[[:space:]]*\"[^\"]+\"'"
 }
 
 # --- run --------------------------------------------------------------------
