@@ -361,19 +361,6 @@ function fromMinimalLayoutV2(minimal: MinimalLayoutV2): Layout {
   };
 }
 
-/**
- * Convert MinimalLayout back to full Layout
- * Public wrapper kept for backward compatibility with existing callers
- */
-export function fromMinimalLayout(
-  minimal: MinimalLayout | MinimalLayoutV2,
-): Layout {
-  if ("rs" in minimal) {
-    return fromMinimalLayoutV2(minimal as MinimalLayoutV2);
-  }
-  return fromMinimalLayoutV1(minimal as MinimalLayout);
-}
-
 // =============================================================================
 // Encoding/Decoding Functions
 // =============================================================================

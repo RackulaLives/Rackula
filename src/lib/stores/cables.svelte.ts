@@ -290,29 +290,6 @@ export function getCableStore() {
     return cable;
   }
 
-  /**
-   * Remove all cables connected to a device
-   * Called when a device is removed from the rack
-   * @returns Number of cables removed
-   */
-  function removeCablesByDevice(deviceId: string): number {
-    const cables = getCables();
-    const toRemove = cables.filter(
-      (c) => c.a_device_id === deviceId || c.b_device_id === deviceId,
-    );
-
-    if (toRemove.length > 0) {
-      // Batch removal using layout store's cable removal method
-      // Plain Set is intentional - this is used immediately for filtering, not reactive state
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity
-      const toRemoveIds = new Set(toRemove.map((c) => c.id));
-      layoutStore.removeCablesRaw(toRemoveIds);
-      layoutStore.markDirty();
-    }
-
-    return toRemove.length;
-  }
-
   // =============================================================================
   // Raw operations (bypass dirty tracking, used by undo/redo)
   // =============================================================================
@@ -354,7 +331,6 @@ export function getCableStore() {
     addCable,
     updateCable,
     removeCable,
-    removeCablesByDevice,
 
     // Raw operations (for undo/redo)
     addCableRaw,

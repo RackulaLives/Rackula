@@ -258,19 +258,6 @@ export interface InterfaceTemplate {
 }
 
 /**
- * @deprecated Use InterfaceTemplate instead
- * Legacy interface definition (kept for backward compatibility)
- */
-export interface Interface {
-  /** Interface name (e.g., 'eth0', 'Gi1/0/1') */
-  name: string;
-  /** Interface type (e.g., '1000base-t', '10gbase-x-sfpp') */
-  type: string;
-  /** Management interface only */
-  mgmt_only?: boolean;
-}
-
-/**
  * Power port (input) definition
  */
 export interface PowerPort {

@@ -9,7 +9,6 @@ import {
   encodeLayout,
   decodeLayout,
   toMinimalLayout,
-  fromMinimalLayout,
   generateShareUrl,
   getShareParam,
   clearShareParam,
@@ -202,52 +201,6 @@ describe("toMinimalLayout", () => {
 });
 
 // =============================================================================
-// fromMinimalLayout Tests
-// =============================================================================
-
-describe("fromMinimalLayout", () => {
-  it("converts minimal format back to full layout", () => {
-    const original = createLayoutWithDevices();
-    const minimal = toMinimalLayout(original);
-    const restored = fromMinimalLayout(minimal);
-
-    expect(restored.version).toBe(original.version);
-    expect(restored.name).toBe(original.name);
-    expect(restored.racks[0].name).toBe(original.racks[0].name);
-    expect(restored.racks[0].height).toBe(original.racks[0].height);
-    expect(restored.racks[0].width).toBe(original.racks[0].width);
-  });
-
-  it("generates unique IDs for devices", () => {
-    const original = createLayoutWithDevices();
-    const minimal = toMinimalLayout(original);
-    const restored = fromMinimalLayout(minimal);
-
-    expect(restored.racks[0].devices[0].id).toBeTruthy();
-  });
-
-  it("sets default layout settings", () => {
-    const original = createLayoutWithDevices();
-    const minimal = toMinimalLayout(original);
-    const restored = fromMinimalLayout(minimal);
-
-    expect(restored.settings.display_mode).toBe("label");
-    expect(restored.settings.show_labels_on_images).toBe(false);
-  });
-
-  it("sets default rack properties", () => {
-    const original = createLayoutWithDevices();
-    const minimal = toMinimalLayout(original);
-    const restored = fromMinimalLayout(minimal);
-
-    expect(restored.racks[0].desc_units).toBe(false);
-    expect(restored.racks[0].form_factor).toBe("4-post-cabinet");
-    expect(restored.racks[0].starting_unit).toBe(1);
-    expect(restored.racks[0].view).toBe("front");
-  });
-});
-
-// =============================================================================
 // encodeLayout / decodeLayout Tests
 // =============================================================================
 
@@ -324,6 +277,34 @@ describe("decodeLayout", () => {
     expect(
       decoded.device_types.find((dt) => dt.slug === "test-server"),
     ).toBeDefined();
+  });
+
+  it("generates a unique id for each decoded device", () => {
+    const original = createLayoutWithDevices();
+    const encoded = requireEncoded(original);
+    const decoded = requireDecoded(encoded);
+
+    expect(decoded.racks[0].devices[0].id).toBeTruthy();
+  });
+
+  it("applies default layout settings on decode", () => {
+    const original = createLayoutWithDevices();
+    const encoded = requireEncoded(original);
+    const decoded = requireDecoded(encoded);
+
+    expect(decoded.settings.display_mode).toBe("label");
+    expect(decoded.settings.show_labels_on_images).toBe(false);
+  });
+
+  it("applies default rack properties on decode", () => {
+    const original = createLayoutWithDevices();
+    const encoded = requireEncoded(original);
+    const decoded = requireDecoded(encoded);
+
+    expect(decoded.racks[0].desc_units).toBe(false);
+    expect(decoded.racks[0].form_factor).toBe("4-post-cabinet");
+    expect(decoded.racks[0].starting_unit).toBe(1);
+    expect(decoded.racks[0].view).toBe("front");
   });
 
   it("preserves device positions", () => {

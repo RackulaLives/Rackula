@@ -12,5 +12,3 @@ export const ICON_SIZE = {
   lg: 24, // --icon-size-lg
   xl: 28, // --icon-size-xl
 } as const;
-
-export type IconSize = keyof typeof ICON_SIZE;

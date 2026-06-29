@@ -9,9 +9,6 @@
 // Brand Icons
 // =============================================================================
 
-// Brand mark (not replaceable with standard icon library)
-export { default as IconLogo } from "./IconLogo.svelte";
-
 // Domain-specific rack illustrations for wizard layout type selection
 export { default as ColumnRackIcon } from "./ColumnRackIcon.svelte";
 export { default as BayedRackIcon } from "./BayedRackIcon.svelte";
@@ -29,7 +26,6 @@ export { default as IconImageLabel } from "./IconImageLabel.svelte";
 
 // Action icons
 export { default as IconPlus } from "./IconPlus.svelte";
-export { default as IconPlusIconoir } from "./IconPlusIconoir.svelte";
 export { default as IconTrash } from "./IconTrash.svelte";
 export { default as IconEdit } from "./IconEdit.svelte";
 export { default as IconCopy } from "./IconCopy.svelte";
@@ -49,13 +45,8 @@ export { default as IconTransitionRight } from "./IconTransitionRight.svelte";
 
 // Undo/Redo icons
 export { default as IconUndo } from "./IconUndo.svelte";
-export { default as IconRedo } from "./IconRedo.svelte";
-
-// Display mode icons
-export { default as IconImage } from "./IconImage.svelte";
 
 // Canvas control icons
-export { default as IconFitAll } from "./IconFitAll.svelte";
 export { default as IconGrip } from "./IconGrip.svelte";
 export { default as IconMobile } from "./IconMobile.svelte";
 
@@ -71,7 +62,6 @@ export { default as IconChat } from "./IconChat.svelte";
 export { default as IconCheck } from "./IconCheck.svelte";
 
 // Status icons
-export { default as IconCloudOff } from "./IconCloudOff.svelte";
 export { default as IconClock } from "./IconClock.svelte";
 export { default as IconWarningTriangle } from "./IconWarningTriangle.svelte";
 

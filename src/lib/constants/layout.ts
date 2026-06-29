@@ -180,39 +180,3 @@ export function getInteriorWidth(rackWidth: number): number {
 export function getTotalHeight(uCount: number): number {
   return uCount * U_HEIGHT_PX;
 }
-
-/**
- * Calculate viewBox height for a rack
- * Includes padding, top bar, U slots, and bottom bar
- * @param uCount - Number of rack units
- * @param hideRackName - Whether rack name is hidden (affects padding)
- */
-export function getViewBoxHeight(
-  uCount: number,
-  hideRackName: boolean,
-): number {
-  const padding = hideRackName ? RACK_PADDING_HIDDEN : BASE_RACK_PADDING;
-  return padding + RAIL_WIDTH * 2 + uCount * U_HEIGHT_PX;
-}
-
-/**
- * Calculate dual-view width for a single rack
- * Front and rear views side by side with gap
- */
-export function getDualViewWidth(): number {
-  return BASE_RACK_WIDTH * 2 + DUAL_VIEW_GAP;
-}
-
-/**
- * Calculate dual-view height for a rack
- * Includes rack height plus extra space for view labels
- * @param uCount - Number of rack units
- */
-export function getDualViewHeight(uCount: number): number {
-  return (
-    BASE_RACK_PADDING +
-    RAIL_WIDTH * 2 +
-    uCount * U_HEIGHT_PX +
-    DUAL_VIEW_EXTRA_HEIGHT
-  );
-}

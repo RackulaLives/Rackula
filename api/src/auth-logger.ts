@@ -35,10 +35,6 @@ export function resetAuthLogHashConfigForTests(): void {
   hasWarnedDefaultHashKey = false;
 }
 
-export function getAuthLogHashKeyForTests(): string | undefined {
-  return authLogHashKey;
-}
-
 // Fields that must never appear in logs.
 const REDACTED_FIELDS = new Set([
   "authorization",

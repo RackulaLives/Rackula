@@ -176,13 +176,6 @@ export const LayoutFileSchema = z.object({
     .default([]),
 });
 
-/**
- * @deprecated Use LayoutYamlMetadataSchema for metadata-only validation,
- * or LayoutFileSchema for full layout file validation.
- * This alias exists for backwards compatibility with code that parses whole layout files.
- */
-export const LayoutMetadataSchema = LayoutFileSchema;
-
 // Schema for layout ID (filename without extension)
 export const LayoutIdSchema = z
   .string()
@@ -208,6 +201,4 @@ export const LayoutListItemSchema = z.object({
 
 export type LayoutYamlMetadata = z.infer<typeof LayoutYamlMetadataSchema>;
 export type LayoutFile = z.infer<typeof LayoutFileSchema>;
-/** @deprecated Use LayoutYamlMetadata for metadata-only types, or LayoutFile for full layout file types */
-export type LayoutMetadata = z.infer<typeof LayoutMetadataSchema>;
 export type LayoutListItem = z.infer<typeof LayoutListItemSchema>;

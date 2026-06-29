@@ -296,18 +296,6 @@ export const InterfaceTemplateSchema = z
   .passthrough();
 
 /**
- * @deprecated Use InterfaceTemplateSchema instead
- * Legacy network interface schema (kept for backward compatibility)
- */
-export const InterfaceSchema = z
-  .object({
-    name: z.string().min(1),
-    type: z.string().min(1),
-    mgmt_only: z.boolean().optional(),
-  })
-  .passthrough();
-
-/**
  * Power port (input) schema
  */
 export const PowerPortSchema = z
@@ -1332,8 +1320,6 @@ export type PoEType = z.infer<typeof PoETypeSchema>;
 export type PoEMode = z.infer<typeof PoEModeSchema>;
 export type InterfacePosition = z.infer<typeof InterfacePositionSchema>;
 export type InterfaceTemplate = z.infer<typeof InterfaceTemplateSchema>;
-/** @deprecated Use InterfaceTemplate instead */
-export type Interface = z.infer<typeof InterfaceSchema>;
 export type PowerPort = z.infer<typeof PowerPortSchema>;
 export type PowerOutlet = z.infer<typeof PowerOutletSchema>;
 export type DeviceBay = z.infer<typeof DeviceBaySchema>;
