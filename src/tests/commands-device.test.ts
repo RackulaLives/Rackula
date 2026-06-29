@@ -13,6 +13,7 @@ import {
 import { createBatchCommand } from "$lib/stores/commands/types";
 import { createTestDevice, createTestDeviceType } from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
+import type { PlacedDevice, DeviceFace } from "$lib/types";
 
 function createMockStore(): DeviceCommandStore & {
   placeDeviceRaw: ReturnType<typeof vi.fn>;
@@ -28,7 +29,15 @@ function createMockStore(): DeviceCommandStore & {
     moveDeviceRaw: vi.fn().mockReturnValue(true),
     updateDeviceFaceRaw: vi.fn(),
     updateDeviceNameRaw: vi.fn(),
-    getDeviceAtIndex: vi.fn(),
+    // Resolve-by-id (#2665): commands read the device at their creation index to
+    // learn its stable id, then re-resolve that id on later runs. The mock backs
+    // a small fixed roster (ids "mock-0".."mock-9") so an id captured at index N
+    // always resolves back to index N, leaving the existing index assertions valid.
+    getDeviceAtIndex: vi.fn((index: number) =>
+      index >= 0 && index < 10
+        ? createTestDevice({ id: `mock-${index}` })
+        : undefined,
+    ),
   };
 }
 
@@ -135,7 +144,7 @@ describe("Device Commands", () => {
       const store = createMockStore();
       const device = createTestDevice();
 
-      const command = createRemoveDeviceCommand(0, device, store, "Switch");
+      const command = createRemoveDeviceCommand(device, store, "Switch");
 
       expect(command.type).toBe("REMOVE_DEVICE");
       expect(command.description).toBe("Remove Switch");
@@ -146,7 +155,7 @@ describe("Device Commands", () => {
       const store = createMockStore();
       const device = createTestDevice();
 
-      const command = createRemoveDeviceCommand(0, device, store);
+      const command = createRemoveDeviceCommand(device, store);
 
       expect(command.description).toBe("Remove device");
     });
@@ -163,7 +172,7 @@ describe("Device Commands", () => {
             : undefined,
       );
 
-      const command = createRemoveDeviceCommand(3, device, store);
+      const command = createRemoveDeviceCommand(device, store);
       command.execute();
 
       expect(store.removeDeviceAtIndexRaw).toHaveBeenCalledTimes(1);
@@ -178,8 +187,8 @@ describe("Device Commands", () => {
         i === 0 ? createTestDevice({ id: "someone-else" }) : undefined,
       );
 
-      // Captured index 0 now points at an unrelated device — must NOT be removed.
-      const command = createRemoveDeviceCommand(0, device, store);
+      // The target id is not present — must NOT remove an unrelated device.
+      const command = createRemoveDeviceCommand(device, store);
       command.execute();
 
       expect(store.removeDeviceAtIndexRaw).not.toHaveBeenCalled();
@@ -192,7 +201,7 @@ describe("Device Commands", () => {
         device_type: "my-device",
       });
 
-      const command = createRemoveDeviceCommand(0, device, store);
+      const command = createRemoveDeviceCommand(device, store);
       command.execute();
       command.undo();
 
@@ -210,7 +219,7 @@ describe("Device Commands", () => {
       const store = createMockStore();
       const device = createTestDevice({ position: 15 });
 
-      const command = createRemoveDeviceCommand(0, device, store);
+      const command = createRemoveDeviceCommand(device, store);
 
       // Mutate original
       device.position = 99;
@@ -239,13 +248,23 @@ describe("Device Commands", () => {
         updateDeviceTypeRaw: ReturnType<typeof vi.fn>;
         getPlacedDevicesForType: ReturnType<typeof vi.fn>;
       } {
+      // Array-backed place/remove so resolve-by-id (#2665) can find the placed
+      // device on undo: getDeviceAtIndex reads the same roster placeDeviceRaw
+      // appends to. The spies still record their calls for assertions.
+      const placed: PlacedDevice[] = [];
       return {
-        placeDeviceRaw: vi.fn().mockReturnValue(0),
-        removeDeviceAtIndexRaw: vi.fn(),
+        placeDeviceRaw: vi.fn((device: PlacedDevice) => {
+          placed.push(device);
+          return placed.length - 1;
+        }),
+        removeDeviceAtIndexRaw: vi.fn((index: number) => {
+          if (index < 0 || index >= placed.length) return undefined;
+          return placed.splice(index, 1)[0];
+        }),
         moveDeviceRaw: vi.fn().mockReturnValue(true),
         updateDeviceFaceRaw: vi.fn(),
         updateDeviceNameRaw: vi.fn(),
-        getDeviceAtIndex: vi.fn(),
+        getDeviceAtIndex: vi.fn((index: number) => placed[index]),
         addDeviceTypeRaw: vi.fn(),
         removeDeviceTypeRaw: vi.fn(),
         updateDeviceTypeRaw: vi.fn(),
@@ -364,7 +383,7 @@ describe("Device Commands", () => {
       const store = createArrayBackedStore([deviceA, deviceB]);
 
       // Remove A (index 0). undo re-appends A, shifting B to index 0.
-      const command = createRemoveDeviceCommand(0, deviceA, store, "Device A");
+      const command = createRemoveDeviceCommand(deviceA, store, "Device A");
 
       command.execute(); // [B]
       expect(store.devices).not.toContainEqual(
@@ -402,7 +421,7 @@ describe("Device Commands", () => {
       });
       const store = createArrayBackedStore([deviceA, deviceB]);
 
-      const command = createRemoveDeviceCommand(0, deviceA, store, "Device A");
+      const command = createRemoveDeviceCommand(deviceA, store, "Device A");
 
       // redo re-runs execute (history.redo)
       const runRedo = () => command.execute();
@@ -434,6 +453,140 @@ describe("Device Commands", () => {
       expect(store.devices).toContainEqual(
         expect.objectContaining({ id: "device-b" }),
       );
+    });
+  });
+
+  describe("interleaved device commands resolve their target by id (#2665)", () => {
+    // Fully-functional array-backed store: place appends, remove filters
+    // positionally, move/face mutate the matched index. Mirrors mutators.ts so an
+    // operation recorded against device A keeps hitting A even after a command on a
+    // LOWER-index device B shifts array positions.
+    function createMutatingStore(
+      initial: PlacedDevice[],
+    ): DeviceCommandStore & {
+      devices: PlacedDevice[];
+    } {
+      const devices = [...initial];
+      return {
+        devices,
+        placeDeviceRaw(device: PlacedDevice): number {
+          devices.push(device);
+          return devices.length - 1;
+        },
+        removeDeviceAtIndexRaw(index: number): PlacedDevice | undefined {
+          if (index < 0 || index >= devices.length) return undefined;
+          return devices.splice(index, 1)[0];
+        },
+        moveDeviceRaw(index: number, newPosition: number): boolean {
+          if (index < 0 || index >= devices.length) return false;
+          devices[index] = { ...devices[index]!, position: newPosition };
+          return true;
+        },
+        updateDeviceFaceRaw(index: number, face: DeviceFace): void {
+          if (index < 0 || index >= devices.length) return;
+          devices[index] = { ...devices[index]!, face };
+        },
+        updateDeviceNameRaw: vi.fn(),
+        updateDevicePlacementImageRaw: vi.fn(),
+        updateDeviceColourRaw: vi.fn(),
+        updateDeviceContainerLinkageRaw: vi.fn(),
+        updateDeviceNotesRaw: vi.fn(),
+        updateDeviceIpRaw: vi.fn(),
+        getDeviceAtIndex(index: number): PlacedDevice | undefined {
+          return devices[index];
+        },
+      };
+    }
+
+    function findById(
+      devices: PlacedDevice[],
+      id: string,
+    ): PlacedDevice | undefined {
+      return devices.find((d) => d.id === id);
+    }
+
+    it("MOVE on device A still moves A after a lower-index B is removed then restored", () => {
+      // createTestDevice takes human U and stores internal units.
+      const deviceA = createTestDevice({ id: "device-a", position: 5 });
+      const deviceB = createTestDevice({ id: "device-b", position: 1 });
+      // B at index 0, A at index 1.
+      const store = createMutatingStore([deviceB, deviceA]);
+
+      // Record a MOVE on A (index 1) and a REMOVE on the lower-index B (index 0).
+      const moveA = createMoveDeviceCommand(
+        1,
+        toInternalUnits(5),
+        toInternalUnits(8),
+        store,
+        "Device A",
+      );
+      const removeB = createRemoveDeviceCommand(deviceB, store, "Device B");
+
+      // Apply the move, then remove B. Removing B shifts A from index 1 to 0.
+      moveA.execute();
+      expect(findById(store.devices, "device-a")?.position).toBe(
+        toInternalUnits(8),
+      );
+      removeB.execute();
+      expect(findById(store.devices, "device-b")).toBeUndefined();
+
+      // Undo the move. It must restore A (now at index 0), not whatever sits at
+      // the original index 1. A captured index would target the wrong slot.
+      moveA.undo();
+      expect(findById(store.devices, "device-a")?.position).toBe(
+        toInternalUnits(5),
+      );
+
+      // Restore B (re-appended to the end), then redo the move on A.
+      removeB.undo();
+      expect(findById(store.devices, "device-b")).toBeDefined();
+      moveA.execute();
+      expect(findById(store.devices, "device-a")?.position).toBe(
+        toInternalUnits(8),
+      );
+      // B is untouched by A's command.
+      expect(findById(store.devices, "device-b")?.position).toBe(
+        toInternalUnits(1),
+      );
+    });
+
+    it("UPDATE_FACE on device A targets A across undo-twice / redo-twice while B shifts", () => {
+      const deviceA = createTestDevice({ id: "device-a", face: "front" });
+      const deviceB = createTestDevice({ id: "device-b", face: "front" });
+      // B at index 0, A at index 1.
+      const store = createMutatingStore([deviceB, deviceA]);
+
+      const flipA = createUpdateDeviceFaceCommand(
+        1,
+        "front",
+        "rear",
+        store,
+        "Device A",
+      );
+      const removeB = createRemoveDeviceCommand(deviceB, store, "Device B");
+
+      // Flip A, then remove B (lower index) so A shifts to index 0.
+      flipA.execute();
+      removeB.execute();
+      expect(findById(store.devices, "device-a")?.face).toBe("rear");
+
+      // Cycle 1: undo + redo of the flip must keep hitting A, not B.
+      flipA.undo();
+      expect(findById(store.devices, "device-a")?.face).toBe("front");
+      flipA.execute();
+      expect(findById(store.devices, "device-a")?.face).toBe("rear");
+
+      // Restore B, re-appended at the end. A's command still resolves to A.
+      removeB.undo();
+      expect(findById(store.devices, "device-b")?.face).toBe("front");
+
+      // Cycle 2: undo-twice-equivalent re-check then redo, both by id.
+      flipA.undo();
+      expect(findById(store.devices, "device-a")?.face).toBe("front");
+      flipA.execute();
+      expect(findById(store.devices, "device-a")?.face).toBe("rear");
+      // B was never flipped by A's command.
+      expect(findById(store.devices, "device-b")?.face).toBe("front");
     });
   });
 

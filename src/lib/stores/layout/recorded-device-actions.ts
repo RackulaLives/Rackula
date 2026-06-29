@@ -419,7 +419,6 @@ export function removeDeviceRecorded(
   const adapter = getCommandStoreAdapter(ctx);
 
   const command = createRemoveDeviceCommand(
-    deviceIndex,
     device,
     adapter,
     deviceName,

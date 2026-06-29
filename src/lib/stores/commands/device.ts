@@ -8,6 +8,55 @@ import { getImageStore } from "../images.svelte";
 import { placementKey } from "$lib/utils/placement-key";
 
 /**
+ * Find the current array index of the device whose id matches `id`, scanning the
+ * active rack via getDeviceAtIndex. Returns undefined when no device has that id.
+ *
+ * This is the shared building block for resolve-by-id command targeting (#2665).
+ * It mirrors createCrossRackMoveCommand.resolveIndicesDescending, generalized so
+ * every device command can find its target at runtime instead of trusting a
+ * creation-time index that another command may have invalidated.
+ */
+function resolveIndexById(
+  store: Pick<DeviceCommandStore, "getDeviceAtIndex">,
+  id: string,
+): number | undefined {
+  let i = 0;
+  while (true) {
+    const d = store.getDeviceAtIndex(i);
+    if (!d) break;
+    if (d.id === id) return i;
+    i++;
+  }
+  return undefined;
+}
+
+/**
+ * Build a target resolver for a command that was created against `initialIndex`.
+ *
+ * The first execute/undo runs while `initialIndex` is still valid: it reads the
+ * device's stable id there and caches it. Every later run (redo after an
+ * intervening insert/remove, repeated undo/redo) resolves the live index by that
+ * id, so the command can never act on whichever device has since shifted into the
+ * old slot. Returns undefined only when the device is genuinely absent, letting
+ * callers no-op instead of mutating an unrelated device (#2665).
+ */
+function createTargetResolver(
+  store: Pick<DeviceCommandStore, "getDeviceAtIndex">,
+  initialIndex: number,
+): () => number | undefined {
+  let trackedId: string | undefined;
+  return function resolveTargetIndex(): number | undefined {
+    if (trackedId !== undefined) {
+      return resolveIndexById(store, trackedId);
+    }
+    const device = store.getDeviceAtIndex(initialIndex);
+    if (!device) return undefined;
+    trackedId = device.id;
+    return initialIndex;
+  };
+}
+
+/**
  * Interface for layout store operations needed by device commands
  */
 export interface DeviceCommandStore {
@@ -49,19 +98,30 @@ export function createPlaceDeviceCommand(
   store: DeviceCommandStore,
   deviceName: string = "device",
 ): Command {
-  let placedIndex: number = -1;
+  // Track the placed device by id (#2665). placeDeviceRaw appends and may remap
+  // the id on a collision (#1363), so read the live device back to learn its
+  // actual id. undo resolves the current index by that id rather than trusting
+  // the placement-time index, which an intervening command may have shifted.
+  let placedId: string | undefined;
 
   return {
     type: "PLACE_DEVICE",
     description: `Place ${deviceName}`,
     timestamp: Date.now(),
     execute() {
-      placedIndex = store.placeDeviceRaw(device);
+      const placedIndex = store.placeDeviceRaw(device);
+      if (placedIndex < 0) {
+        placedId = undefined;
+        return;
+      }
+      const placed = store.getDeviceAtIndex(placedIndex);
+      placedId = placed?.id ?? device.id;
     },
     undo() {
-      if (placedIndex >= 0) {
-        store.removeDeviceAtIndexRaw(placedIndex);
-      }
+      if (placedId === undefined) return;
+      const targetIndex = resolveIndexById(store, placedId);
+      if (targetIndex === undefined) return;
+      store.removeDeviceAtIndexRaw(targetIndex);
     },
   };
 }
@@ -76,15 +136,23 @@ export function createMoveDeviceCommand(
   store: DeviceCommandStore,
   deviceName: string = "device",
 ): Command {
+  // Resolve the target by id at runtime (#2665) so redo/undo move the device the
+  // command was created for, even after another command shifted array positions.
+  const resolveTargetIndex = createTargetResolver(store, index);
+
   return {
     type: "MOVE_DEVICE",
     description: `Move ${deviceName}`,
     timestamp: Date.now(),
     execute() {
-      store.moveDeviceRaw(index, newPosition);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.moveDeviceRaw(targetIndex, newPosition);
     },
     undo() {
-      store.moveDeviceRaw(index, oldPosition);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.moveDeviceRaw(targetIndex, oldPosition);
     },
   };
 }
@@ -93,7 +161,6 @@ export function createMoveDeviceCommand(
  * Create a command to remove a device
  */
 export function createRemoveDeviceCommand(
-  index: number,
   device: PlacedDevice,
   store: DeviceCommandStore,
   deviceName: string = "device",
@@ -103,30 +170,13 @@ export function createRemoveDeviceCommand(
   // structuredClone handles nested objects like ports and custom_fields
   const deviceCopy = structuredClone(device);
 
-  // Track the target device by ID, not by a fixed creation-time index (#2656).
-  // undo() re-appends the device to the end (mutators.ts placeDeviceRaw), which
-  // shifts array positions, so a captured index goes stale and redo would delete
-  // the wrong device. Resolve the current index by ID at execute time, mirroring
-  // createCrossRackMoveCommand's resolveIndicesDescending. currentImageId doubles
+  // Track the target device by ID, not by a fixed creation-time index (#2656,
+  // generalized in #2665). undo() re-appends the device to the end (mutators.ts
+  // placeDeviceRaw), which shifts array positions, so a captured index goes stale
+  // and redo would delete the wrong device. Resolve the current index by ID at
+  // execute time via the shared resolveIndexById helper. currentImageId doubles
   // as the live device ID, kept in sync across undo when placeDeviceRaw remaps it.
   let currentImageId = device.id;
-
-  /**
-   * Find the current array index of the device tracked by currentImageId.
-   * Returns undefined when the ID is not present so execute() can no-op:
-   * falling back to the stale creation-time index could delete whichever
-   * device now occupies that position (#2656).
-   */
-  function resolveCurrentIndex(): number | undefined {
-    let i = 0;
-    while (true) {
-      const d = store.getDeviceAtIndex(i);
-      if (!d) break;
-      if (d.id === currentImageId) return i;
-      i++;
-    }
-    return undefined;
-  }
 
   // Snapshot placement images before removal for undo restoration
   const imageStore = getImageStore();
@@ -144,7 +194,7 @@ export function createRemoveDeviceCommand(
     execute() {
       // Resolve the target by ID at runtime so redo deletes the right device (#2656).
       // If the device is no longer present, no-op rather than touching a stale index.
-      const targetIndex = resolveCurrentIndex();
+      const targetIndex = resolveIndexById(store, currentImageId);
       if (targetIndex === undefined) return;
       // Clean up placement images using current ID (may differ from original after undo remap)
       getImageStore().removeAllDeviceImages(
@@ -181,15 +231,23 @@ export function createUpdateDeviceFaceCommand(
   store: DeviceCommandStore,
   deviceName: string = "device",
 ): Command {
+  // Resolve the target by id at runtime (#2665) so the right device is updated
+  // even after another command shifted array positions.
+  const resolveTargetIndex = createTargetResolver(store, index);
+
   return {
     type: "UPDATE_DEVICE_FACE",
     description: `Flip ${deviceName}`,
     timestamp: Date.now(),
     execute() {
-      store.updateDeviceFaceRaw(index, newFace);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceFaceRaw(targetIndex, newFace);
     },
     undo() {
-      store.updateDeviceFaceRaw(index, oldFace);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceFaceRaw(targetIndex, oldFace);
     },
   };
 }
@@ -205,15 +263,21 @@ export function createUpdateDeviceNameCommand(
   deviceTypeName: string = "device",
 ): Command {
   const displayName = newName || deviceTypeName;
+  // Resolve the target by id at runtime (#2665).
+  const resolveTargetIndex = createTargetResolver(store, index);
   return {
     type: "UPDATE_DEVICE_NAME",
     description: `Rename ${displayName}`,
     timestamp: Date.now(),
     execute() {
-      store.updateDeviceNameRaw(index, newName);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceNameRaw(targetIndex, newName);
     },
     undo() {
-      store.updateDeviceNameRaw(index, oldName);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceNameRaw(targetIndex, oldName);
     },
   };
 }
@@ -229,15 +293,21 @@ export function createUpdateDevicePlacementImageCommand(
   store: DeviceCommandStore,
   deviceName: string = "device",
 ): Command {
+  // Resolve the target by id at runtime (#2665).
+  const resolveTargetIndex = createTargetResolver(store, index);
   return {
     type: "UPDATE_DEVICE_PLACEMENT_IMAGE",
     description: `Update ${deviceName} ${face} image`,
     timestamp: Date.now(),
     execute() {
-      store.updateDevicePlacementImageRaw(index, face, newFilename);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDevicePlacementImageRaw(targetIndex, face, newFilename);
     },
     undo() {
-      store.updateDevicePlacementImageRaw(index, face, oldFilename);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDevicePlacementImageRaw(targetIndex, face, oldFilename);
     },
   };
 }
@@ -252,15 +322,21 @@ export function createUpdateDeviceColourCommand(
   store: DeviceCommandStore,
   deviceName: string = "device",
 ): Command {
+  // Resolve the target by id at runtime (#2665).
+  const resolveTargetIndex = createTargetResolver(store, index);
   return {
     type: "UPDATE_DEVICE_COLOUR",
     description: `Update ${deviceName} colour`,
     timestamp: Date.now(),
     execute() {
-      store.updateDeviceColourRaw(index, newColour);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceColourRaw(targetIndex, newColour);
     },
     undo() {
-      store.updateDeviceColourRaw(index, oldColour);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceColourRaw(targetIndex, oldColour);
     },
   };
 }
@@ -276,15 +352,25 @@ export function createDetachContainerCommand(
   store: DeviceCommandStore,
   deviceName: string = "device",
 ): Command {
+  // Resolve the target by id at runtime (#2665).
+  const resolveTargetIndex = createTargetResolver(store, index);
   return {
     type: "DETACH_CONTAINER",
     description: `Detach ${deviceName} from container`,
     timestamp: Date.now(),
     execute() {
-      store.updateDeviceContainerLinkageRaw(index, undefined, undefined);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceContainerLinkageRaw(targetIndex, undefined, undefined);
     },
     undo() {
-      store.updateDeviceContainerLinkageRaw(index, oldContainerId, oldSlotId);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceContainerLinkageRaw(
+        targetIndex,
+        oldContainerId,
+        oldSlotId,
+      );
     },
   };
 }
@@ -302,15 +388,29 @@ export function createMoveToSlotCommand(
   store: DeviceCommandStore,
   deviceName: string = "device",
 ): Command {
+  // Resolve the target by id at runtime (#2665).
+  const resolveTargetIndex = createTargetResolver(store, index);
   return {
     type: "MOVE_TO_SLOT",
     description: `Move ${deviceName} to another cell`,
     timestamp: Date.now(),
     execute() {
-      store.updateDeviceContainerLinkageRaw(index, containerId, newSlotId);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceContainerLinkageRaw(
+        targetIndex,
+        containerId,
+        newSlotId,
+      );
     },
     undo() {
-      store.updateDeviceContainerLinkageRaw(index, containerId, oldSlotId);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceContainerLinkageRaw(
+        targetIndex,
+        containerId,
+        oldSlotId,
+      );
     },
   };
 }
@@ -325,15 +425,21 @@ export function createUpdateDeviceNotesCommand(
   store: DeviceCommandStore,
   deviceName: string = "device",
 ): Command {
+  // Resolve the target by id at runtime (#2665).
+  const resolveTargetIndex = createTargetResolver(store, index);
   return {
     type: "UPDATE_DEVICE_NOTES",
     description: `Update ${deviceName} notes`,
     timestamp: Date.now(),
     execute() {
-      store.updateDeviceNotesRaw(index, newNotes);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceNotesRaw(targetIndex, newNotes);
     },
     undo() {
-      store.updateDeviceNotesRaw(index, oldNotes);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceNotesRaw(targetIndex, oldNotes);
     },
   };
 }
@@ -348,15 +454,21 @@ export function createUpdateDeviceIpCommand(
   store: DeviceCommandStore,
   deviceName: string = "device",
 ): Command {
+  // Resolve the target by id at runtime (#2665).
+  const resolveTargetIndex = createTargetResolver(store, index);
   return {
     type: "UPDATE_DEVICE_IP",
     description: `Update ${deviceName} IP`,
     timestamp: Date.now(),
     execute() {
-      store.updateDeviceIpRaw(index, newIp);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceIpRaw(targetIndex, newIp);
     },
     undo() {
-      store.updateDeviceIpRaw(index, oldIp);
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceIpRaw(targetIndex, oldIp);
     },
   };
 }
@@ -442,16 +554,8 @@ export function createCrossRackMoveCommand(
   function resolveIndicesDescending(ids: string[]): number[] {
     const indices: number[] = [];
     for (const id of ids) {
-      let i = 0;
-      while (true) {
-        const d = store.getDeviceAtIndex(i);
-        if (!d) break;
-        if (d.id === id) {
-          indices.push(i);
-          break;
-        }
-        i++;
-      }
+      const idx = resolveIndexById(store, id);
+      if (idx !== undefined) indices.push(idx);
     }
     return indices.sort((a, b) => b - a);
   }

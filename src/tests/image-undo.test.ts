@@ -127,7 +127,6 @@ describe("Image Undo — Device Removal", () => {
 
     // Create the remove command (should snapshot images)
     const cmd = createRemoveDeviceCommand(
-      0,
       device,
       store,
       "Test Device",
@@ -168,7 +167,6 @@ describe("Image Undo — Device Removal", () => {
     );
 
     const cmd = createRemoveDeviceCommand(
-      0,
       device,
       store,
       "Test Device",
@@ -199,7 +197,6 @@ describe("Image Undo — Device Removal", () => {
     const store = createMockDeviceStore(devices);
 
     const cmd = createRemoveDeviceCommand(
-      0,
       device,
       store,
       "Test Device",
