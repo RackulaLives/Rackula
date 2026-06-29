@@ -4,6 +4,7 @@
  */
 
 import { getJSZip } from "./archive";
+import { slugifyForFilename } from "$lib/utils/slug";
 
 export interface ZipFile {
   /** Filename within the ZIP (e.g., 'rack-name-front.png') */
@@ -42,13 +43,8 @@ export function generateRackFilename(
   view: "front" | "rear" | "both",
   format: string,
 ): string {
-  // Slugify the rack name: lowercase, hyphens, no special chars
-  const slugified = rackName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  const baseName = slugified || "rack";
+  // Slugify the rack name through the shared filename sanitizer.
+  const baseName = slugifyForFilename(rackName, "rack");
 
   return `${baseName}-${view}.${format}`;
 }

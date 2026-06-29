@@ -6,10 +6,14 @@
 import { describe, it, expect } from "vitest";
 import {
   slugify,
+  slugifyForFilename,
   generateDeviceSlug,
   isValidSlug,
   ensureUniqueSlug,
 } from "$lib/utils/slug";
+import { generateExportFilename } from "$lib/utils/export/utils";
+import { generateRackFilename } from "$lib/utils/zip";
+import { buildYamlFilename } from "$lib/utils/folder-structure";
 
 describe("Slug Utilities", () => {
   describe("slugify", () => {
@@ -71,6 +75,48 @@ describe("Slug Utilities", () => {
 
     it("handles underscores", () => {
       expect(slugify("some_thing")).toBe("some-thing");
+    });
+  });
+
+  describe("slugifyForFilename", () => {
+    it("applies the +-to-plus rule like slugify", () => {
+      expect(slugifyForFilename("DS920+", "fallback")).toBe("ds920-plus");
+    });
+
+    it("trims and collapses leading/trailing/repeated separators", () => {
+      expect(slugifyForFilename("--My  Homelab!!--", "fallback")).toBe(
+        "my-homelab",
+      );
+    });
+
+    it("returns the fallback when the name slugifies to empty", () => {
+      expect(slugifyForFilename("!!!", "rack")).toBe("rack");
+      expect(slugifyForFilename("", "layout")).toBe("layout");
+    });
+  });
+
+  describe("filename consistency across export paths", () => {
+    // The same name must produce the same slug regardless of which export path
+    // builds the filename (image export, multi-rack ZIP, YAML folder). The bug
+    // (#2670) was that these paths had diverged: "DS920+" became "ds920-" on
+    // some paths and "ds920-plus" via slugify.
+    it("produces one consistent slug for the +-case across paths", () => {
+      const exportName = generateExportFilename("DS920+", "front", "png");
+      const rackName = generateRackFilename("DS920+", "front", "png");
+      const yamlName = buildYamlFilename("DS920+");
+
+      expect(exportName).toContain("ds920-plus-front-");
+      expect(rackName).toBe("ds920-plus-front.png");
+      expect(yamlName).toBe("ds920-plus.rackula.yaml");
+    });
+
+    it("trims leading/trailing/repeated separators identically across paths", () => {
+      const name = "--My  Homelab!!--";
+      const rackName = generateRackFilename(name, "rear", "png");
+      const yamlName = buildYamlFilename(name);
+
+      expect(rackName).toBe("my-homelab-rear.png");
+      expect(yamlName).toBe("my-homelab.rackula.yaml");
     });
   });
 

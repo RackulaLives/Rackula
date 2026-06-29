@@ -788,5 +788,5 @@ export {
   buildYamlFilename,
   extractUuidFromFolderName,
   isUuid,
-  slugifyForFilename,
 } from "./folder-structure";
+export { slugifyForFilename } from "./slug";

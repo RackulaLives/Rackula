@@ -36,6 +36,27 @@ export function slugify(input: string): string {
 }
 
 /**
+ * Slugify a name for use in a filename, with a fallback when the result is
+ * empty. This is the single sanitizer shared by every export path (image
+ * export, multi-rack ZIP, YAML folder structure) so the same layout or rack
+ * name always yields the same filename regardless of which path produced it.
+ *
+ * Built on slugify so the "+" rule and trim/collapse behaviour stay consistent
+ * (e.g. "DS920+" becomes "ds920-plus", leading/trailing/repeated separators are
+ * trimmed and collapsed).
+ *
+ * @param name - The human-readable name to sanitize
+ * @param fallback - Value returned when the name slugifies to an empty string
+ *
+ * @example
+ * slugifyForFilename('My Homelab Setup!', 'layout') // 'my-homelab-setup'
+ * slugifyForFilename('!!!', 'rack') // 'rack'
+ */
+export function slugifyForFilename(name: string, fallback: string): string {
+  return slugify(name) || fallback;
+}
+
+/**
  * Generate slug from device information
  *
  * Priority:

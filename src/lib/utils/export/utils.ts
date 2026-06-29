@@ -1,4 +1,5 @@
 import type { ExportFormat } from "$lib/types";
+import { slugifyForFilename } from "$lib/utils/slug";
 
 /**
  * Trigger download of a blob
@@ -31,13 +32,8 @@ export function generateExportFilename(
   view: "front" | "rear" | "both" | null,
   format: ExportFormat,
 ): string {
-  // Slugify the layout name: lowercase, hyphens, no special chars
-  const slugified = layoutName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  const baseName = slugified || "Rackula-export";
+  // Slugify the layout name through the shared filename sanitizer.
+  const baseName = slugifyForFilename(layoutName, "Rackula-export");
 
   // Format date as YYYY-MM-DD
   const now = new Date();

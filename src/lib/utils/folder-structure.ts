@@ -6,6 +6,8 @@
  * @see docs/plans/2026-01-22-data-directory-refactor-design.md
  */
 
+import { slugifyForFilename } from "$lib/utils/slug";
+
 /**
  * UUID format: 8-4-4-4-12 hex characters with hyphens
  * Accepts any valid UUID (not just v4) since we generate UUIDs but may import from other sources
@@ -83,21 +85,5 @@ function sanitizeFolderNameForZip(name: string): string {
  * // 'my-homelab.rackula.yaml'
  */
 export function buildYamlFilename(name: string): string {
-  const slug = slugifyForFilename(name);
-  return `${slug || "layout"}.rackula.yaml`;
-}
-
-/**
- * Slugify a name for use in filenames
- * Lowercase, hyphens, no special chars
- *
- * @example
- * slugifyForFilename('My Homelab Setup!')
- * // 'my-homelab-setup'
- */
-export function slugifyForFilename(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+  return `${slugifyForFilename(name, "layout")}.rackula.yaml`;
 }

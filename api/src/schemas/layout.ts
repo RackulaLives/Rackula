@@ -71,13 +71,24 @@ export function buildFolderName(name: string, uuid: string): string {
 /**
  * Slugify a layout name to create a safe filename
  * Handles Unicode names by returning "untitled" if result is empty
+ *
+ * Behaviour mirrors the frontend slugify (src/lib/utils/slug.ts): a "+" becomes
+ * "-plus" before other processing so "DS920+" maps to "ds920-plus", and hyphens
+ * are trimmed and collapsed consistently. The api is a separate Bun package and
+ * cannot import the frontend module, so the rules are kept in sync here.
  */
 export function slugify(name: string): string {
   const slug = name
     .toLowerCase()
     .trim()
+    // Replace plus signs with 'plus' before other processing
+    .replace(/\+/g, "-plus")
+    // Replace non-alphanumeric with hyphens
     .replace(/[^a-z0-9]+/g, "-")
+    // Remove leading/trailing hyphens
     .replace(/^-+|-+$/g, "")
+    // Collapse multiple hyphens
+    .replace(/-+/g, "-")
     .slice(0, 100)
     .replace(/-+$/g, ""); // Remove trailing hyphens after truncation
 
