@@ -219,11 +219,15 @@ export default defineConfig(
   {
     // Storage access seam exemption: the helpers and the storage barrel are the
     // one place allowed to touch Web Storage directly. Tests are also exempt so
-    // they can seed, mock, and assert persistence against raw Web Storage.
+    // they can seed, mock, and assert persistence against raw Web Storage. This
+    // covers both the src/tests tree and co-located *.test.ts/*.spec.ts files
+    // (for example src/lib/utils/netbox-import.test.ts).
     files: [
       "src/lib/storage/**",
       "src/lib/utils/safe-storage.ts",
       "src/tests/**",
+      "**/*.test.ts",
+      "**/*.spec.ts",
     ],
     rules: {
       "no-restricted-properties": "off",
