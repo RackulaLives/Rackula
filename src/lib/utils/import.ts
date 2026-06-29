@@ -4,17 +4,9 @@
  */
 
 import type { DeviceType, DeviceCategory } from "$lib/types";
-import { DeviceCategorySchema } from "$lib/schemas";
+import { DeviceTypeSchema } from "$lib/schemas";
 import { getDefaultColour } from "./device";
 import { generateDeviceSlug } from "./slug";
-
-// Valid device categories for validation (single source of truth: the schema)
-const VALID_CATEGORIES: readonly DeviceCategory[] =
-  DeviceCategorySchema.options;
-
-// Import validation allows broader height range than UI (0.5U-100U)
-const IMPORT_MIN_HEIGHT = 0.5;
-const IMPORT_MAX_HEIGHT = 100;
 
 /**
  * Raw device data from import (before validation and ID assignment)
@@ -28,8 +20,43 @@ interface RawImportDevice {
 }
 
 /**
- * Validate a device object for import
- * More permissive than UI validation (allows 0.5U-100U)
+ * Build the candidate DeviceType for a raw import row.
+ *
+ * Both the validation gate and the importer construct the device through this
+ * helper so import ingress can never drift from what is actually stored: the
+ * exact object validated by validateImportDevice is the one parseDeviceLibraryImport
+ * pushes into the library.
+ */
+function buildImportDeviceType(
+  rawDevice: RawImportDevice,
+  slug: string,
+): DeviceType {
+  const category = rawDevice.category as DeviceCategory;
+
+  const deviceType: DeviceType = {
+    slug,
+    u_height: rawDevice.height as number,
+    model: rawDevice.name,
+    colour: rawDevice.colour ?? getDefaultColour(category),
+    category,
+  };
+
+  if (rawDevice.notes) {
+    deviceType.notes = rawDevice.notes;
+  }
+
+  return deviceType;
+}
+
+/**
+ * Validate a device object for import.
+ *
+ * Routes ingress through DeviceTypeSchema (the canonical device contract) rather
+ * than hand-rolled name/height/category checks, so a payload the schema rejects
+ * (malformed colour, out-of-range or non-half-U height, out-of-enum category)
+ * cannot enter the library. The candidate is built with a placeholder slug
+ * because the real slug is assigned later by generateUniqueSlug and always
+ * conforms to SLUG_PATTERN.
  */
 export function validateImportDevice(device: unknown): boolean {
   // Must be an object
@@ -37,33 +64,16 @@ export function validateImportDevice(device: unknown): boolean {
     return false;
   }
 
-  const rawDevice = device as Record<string, unknown>;
+  const rawDevice = device as RawImportDevice;
 
-  // Validate name exists and is non-empty
+  // Name maps to the device model and supplies the slug source. Guard it here so
+  // a missing or blank name fails cleanly instead of building an unnamed device.
   if (typeof rawDevice.name !== "string" || rawDevice.name.trim() === "") {
     return false;
   }
 
-  // Validate height is a number in valid range
-  if (typeof rawDevice.height !== "number") {
-    return false;
-  }
-  if (
-    rawDevice.height < IMPORT_MIN_HEIGHT ||
-    rawDevice.height > IMPORT_MAX_HEIGHT
-  ) {
-    return false;
-  }
-
-  // Validate category is valid
-  if (typeof rawDevice.category !== "string") {
-    return false;
-  }
-  if (!VALID_CATEGORIES.includes(rawDevice.category as DeviceCategory)) {
-    return false;
-  }
-
-  return true;
+  const candidate = buildImportDeviceType(rawDevice, "import-candidate");
+  return DeviceTypeSchema.safeParse(candidate).success;
 }
 
 /**
@@ -151,20 +161,9 @@ export function parseDeviceLibraryImport(
     const uniqueSlug = generateUniqueSlug(rawDevice.name!, allSlugs);
     allSlugs.push(uniqueSlug);
 
-    // Create device type with assigned slug and colour
-    const deviceType: DeviceType = {
-      slug: uniqueSlug,
-      u_height: rawDevice.height!,
-      model: rawDevice.name,
-      colour:
-        rawDevice.colour ??
-        getDefaultColour(rawDevice.category as DeviceCategory),
-      category: rawDevice.category as DeviceCategory,
-    };
-
-    if (rawDevice.notes) {
-      deviceType.notes = rawDevice.notes;
-    }
+    // Create device type with assigned slug and colour. Uses the same builder the
+    // validation gate ran against, so the stored device matches what was validated.
+    const deviceType = buildImportDeviceType(rawDevice, uniqueSlug);
 
     devices.push(deviceType);
   }
