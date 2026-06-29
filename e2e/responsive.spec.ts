@@ -73,9 +73,13 @@ test.describe("Responsive Layout", () => {
       await expect(page.getByTestId("mobile-layout-name")).toBeVisible();
     });
 
-    test("brand logo is still visible", async ({ page }) => {
-      const logoMark = page.locator(locators.toolbar.brandLogoMark);
-      await expect(logoMark).toBeVisible();
+    test("app menu is reachable via the mobile hamburger", async ({ page }) => {
+      // Below the 1024px mobile breakpoint (viewport.svelte.ts) the desktop
+      // logo lockup (the AppMenu trigger with its .logo-mark) is not rendered.
+      // The restructured mobile top bar (#2458, #2597) exposes the same app
+      // menu through a hamburger button instead, so that is the affordance to
+      // assert here. The desktop .logo-mark is covered by the desktop suite.
+      await expect(page.getByTestId("btn-app-menu-mobile")).toBeVisible();
     });
 
     test("mobile bottom navigation is visible", async ({ page }) => {
@@ -102,14 +106,14 @@ test.describe("Responsive Layout", () => {
       await gotoWithRack(page);
     });
 
-    test("brand logo remains visible in toolbar", async ({ page }) => {
-      const logoMark = page.locator(locators.toolbar.brandLogoMark);
-      await expect(logoMark).toBeVisible();
-    });
-
-    test("logo mark is visible", async ({ page }) => {
-      const logo = page.locator(locators.toolbar.brandLogoMark);
-      await expect(logo).toBeVisible();
+    test("app menu hamburger is visible in the mobile top bar", async ({
+      page,
+    }) => {
+      // At 600px the app renders the mobile top bar (the 1024px mobile
+      // breakpoint in viewport.svelte.ts). The desktop logo lockup and its
+      // .logo-mark are not present; the hamburger button is the app-menu
+      // affordance on mobile (#2458, #2597).
+      await expect(page.getByTestId("btn-app-menu-mobile")).toBeVisible();
     });
 
     test("no horizontal scroll", async ({ page }) => {

@@ -23,7 +23,11 @@ test.describe("Starter Library", () => {
   });
 
   test("all 12 categories are represented in the palette", async ({ page }) => {
-    // Aria-label format: "${model}, ${u_height}U, ${category}"
+    // Aria-label format: "${model}, ${u_height}U, ${category}", with a
+    // trailing ", half-depth" appended when the device sets is_full_depth:
+    // false (DevicePaletteItem.svelte builds the accessible name). Half-depth
+    // devices (patch panels, PDU, fan panel, blank panels, brush panel, cable
+    // manager) therefore carry that suffix, so their assertions match it.
 
     // Server category (3 items)
     await expect(
@@ -58,16 +62,16 @@ test.describe("Starter Library", () => {
       }),
     ).toBeVisible();
 
-    // Patch Panel category (2 items)
+    // Patch Panel category (both half-depth, so the name carries ", half-depth")
     await expect(
       page.getByRole("listitem", {
-        name: "Patch Panel (24-Port), 1U, patch-panel",
+        name: "Patch Panel (24-Port), 1U, patch-panel, half-depth",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", {
-        name: "Patch Panel (48-Port), 2U, patch-panel",
+        name: "Patch Panel (48-Port), 2U, patch-panel, half-depth",
         exact: true,
       }),
     ).toBeVisible();
@@ -92,9 +96,12 @@ test.describe("Starter Library", () => {
       }),
     ).toBeVisible();
 
-    // Power category (3 items)
+    // Power category (3 items). The 1U PDU is half-depth.
     await expect(
-      page.getByRole("listitem", { name: "PDU, 1U, power", exact: true }),
+      page.getByRole("listitem", {
+        name: "PDU, 1U, power, half-depth",
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", { name: "UPS, 2U, power", exact: true }),
@@ -131,30 +138,30 @@ test.describe("Starter Library", () => {
       }),
     ).toBeVisible();
 
-    // Cooling category (1 item)
+    // Cooling category (1 item, half-depth)
     await expect(
       page.getByRole("listitem", {
-        name: "Fan Panel, 1U, cooling",
+        name: "Fan Panel, 1U, cooling, half-depth",
         exact: true,
       }),
     ).toBeVisible();
 
-    // Blank category (3 items)
+    // Blank category (3 items, all half-depth)
     await expect(
       page.getByRole("listitem", {
-        name: "Blank Panel, 0.5U, blank",
+        name: "Blank Panel, 0.5U, blank, half-depth",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", {
-        name: "Blank Panel, 1U, blank",
+        name: "Blank Panel, 1U, blank, half-depth",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", {
-        name: "Blank Panel, 2U, blank",
+        name: "Blank Panel, 2U, blank, half-depth",
         exact: true,
       }),
     ).toBeVisible();
@@ -167,16 +174,16 @@ test.describe("Starter Library", () => {
       page.getByRole("listitem", { name: "Shelf, 2U, shelf", exact: true }),
     ).toBeVisible();
 
-    // Cable Management category (2 items)
+    // Cable Management category (2 items, both half-depth)
     await expect(
       page.getByRole("listitem", {
-        name: "Brush Panel, 1U, cable-management",
+        name: "Brush Panel, 1U, cable-management, half-depth",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("listitem", {
-        name: "Cable Manager, 1U, cable-management",
+        name: "Cable Manager, 1U, cable-management, half-depth",
         exact: true,
       }),
     ).toBeVisible();
