@@ -475,17 +475,33 @@ function toRuntimeLayout(parsed: LayoutZod): Layout {
  *
  * This is the shared ingress chokepoint for read paths that hold a runtime
  * layout object rather than a serialized YAML string (e.g. the localStorage
- * working copy). It applies the same schema validation, migration, and
- * forward-compat gate as the file/server load path, so no read door bypasses the
- * schema.
+ * working copy and the multi-layout browser workspace). It applies the same
+ * schema validation and forward-compat gate as the file/server load path, so no
+ * read door bypasses the schema. Any new read door must route through this
+ * function (or `validateParsedLayout` for the YAML-string path) rather than
+ * calling `LayoutSchema` directly.
+ *
+ * Forward-compat gate (#2205, #2664): a document whose data-format MAJOR
+ * (`metadata.schema_version`) is newer than this app is refused here, so a
+ * future-major body in localStorage is rejected on EVERY read path, not just the
+ * YAML file door. Unlike `validateParsedLayout`, which throws, this function
+ * keeps its null-on-failure contract: the gate's throw is caught and surfaced as
+ * `null` so no caller (autosave, browser workspace) ever sees an uncaught throw.
  *
  * The runtime layout carries an id-only `metadata` ({ id }) for identity, which
  * is intentionally looser than the strict YAML file-header `LayoutMetadataSchema`
- * (id + name + schema_version). The id is preserved across validation and the
- * metadata is not re-validated here: the schema-versioning gate keys off the
- * top-level `version`, not the runtime metadata block.
+ * (id + name + schema_version). The id is preserved across validation.
  */
 export function parseLayoutObject(parsed: unknown): Layout | null {
+  // Forward-compat gate (#2664): refuse a future-major document before any parse,
+  // matching validateParsedLayout. assertSchemaVersionSupported throws; this door
+  // returns null on failure, so a future major surfaces as null, not a throw.
+  try {
+    assertSchemaVersionSupported(readSchemaVersion(parsed));
+  } catch {
+    return null;
+  }
+
   let metadata: Layout["metadata"];
   let body = parsed;
 
