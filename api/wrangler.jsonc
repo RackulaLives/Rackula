@@ -7,8 +7,10 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "rackula-api-dev",
   "main": "src/worker.ts",
-  // Recent compatibility date; nodejs_compat gives node:crypto etc. on workerd.
-  "compatibility_date": "2024-09-23",
+  // Pinned workerd compatibility baseline. nodejs_compat gives node:crypto etc.
+  // on workerd (its v2 module resolution is active for dates >= 2024-09-23).
+  // Bump this deliberately when adopting newer workerd semantics.
+  "compatibility_date": "2025-09-23",
   "compatibility_flags": ["nodejs_compat"],
 
   // Static assets + routing. The dev cutover (#2675 / #2134) replaces the

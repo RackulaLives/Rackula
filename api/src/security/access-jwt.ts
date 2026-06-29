@@ -63,8 +63,25 @@ export function resolveAccessJwtConfig(
   const issuer = env.CF_ACCESS_ISSUER?.trim();
   const audience = env.CF_ACCESS_AUD?.trim();
 
-  if (!jwksUrl || !issuer || !audience) {
+  const present = [jwksUrl, issuer, audience].filter(Boolean).length;
+
+  // None set: Access is not configured. This is the local `wrangler dev` /
+  // AUTH_MODE=none mode where validation is skipped so the smoke endpoints
+  // return 200. Production Access enforcement config is wired by the dev
+  // cutover (#2134).
+  if (present === 0) {
     return null;
+  }
+
+  // Partially set: an incomplete config must never silently disable the auth
+  // gate (fail open). Treat it as a deploy-time misconfiguration and fail
+  // closed by throwing, so it is caught instead of leaving the app exposed.
+  // (The `||` below also narrows all three to `string` for the return.)
+  if (!jwksUrl || !issuer || !audience) {
+    throw new Error(
+      "Cloudflare Access is partially configured: set all of " +
+        "CF_ACCESS_JWKS_URL, CF_ACCESS_ISSUER, and CF_ACCESS_AUD, or none.",
+    );
   }
 
   return { jwksUrl, issuer, audience };

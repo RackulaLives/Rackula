@@ -23,6 +23,7 @@ import {
   type AccessJwtValidator,
 } from "./security/access-jwt";
 import type { EnvMap } from "./security";
+import { logger } from "./logger";
 
 /** The Worker env bindings this entry reads. */
 export interface WorkerEnv {
@@ -58,9 +59,26 @@ export default {
     // Cloudflare Access validation runs before the app when configured.
     // Skipped (returns 200-eligible) when CF_ACCESS_* env vars are absent.
     if (!cachedValidator) {
-      cachedValidator = createAccessJwtValidator(
-        resolveAccessJwtConfig(envMap),
-      );
+      try {
+        cachedValidator = createAccessJwtValidator(
+          resolveAccessJwtConfig(envMap),
+        );
+      } catch (error) {
+        // Misconfigured Access (e.g. a partial CF_ACCESS_* set). Fail closed:
+        // deny the request and do not cache, so a corrected config takes effect
+        // on the next request without needing a redeploy.
+        logger.error(
+          { err: error },
+          "Cloudflare Access is misconfigured; denying request",
+        );
+        return Response.json(
+          {
+            error: "Service Unavailable",
+            message: "Server authentication is misconfigured.",
+          },
+          { status: 503 },
+        );
+      }
     }
     const accessResult = await cachedValidator.validate(request);
     if (accessResult.status === "missing") {

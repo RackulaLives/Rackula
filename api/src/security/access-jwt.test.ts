@@ -73,14 +73,15 @@ describe("resolveAccessJwtConfig", () => {
     expect(resolveAccessJwtConfig({})).toBeNull();
   });
 
-  it("returns null when only some Access env vars are set", () => {
-    expect(
+  it("throws (fails closed) when Access config is only partially set", () => {
+    // An incomplete production config must not silently disable the auth gate.
+    expect(() =>
       resolveAccessJwtConfig({
         CF_ACCESS_JWKS_URL: CONFIG.jwksUrl,
         CF_ACCESS_ISSUER: ISSUER,
         // CF_ACCESS_AUD missing
       }),
-    ).toBeNull();
+    ).toThrow(/partially configured/);
   });
 
   it("resolves config when all three Access env vars are set", () => {
