@@ -89,7 +89,9 @@ test.describe("Devices Tab (Device Library)", () => {
     });
   }
 
-  test("Device library FAB is removed in desktop mode", async ({ page }) => {
+  test("mobile device-library affordances are removed in desktop mode", async ({
+    page,
+  }) => {
     // iPad Pro 12.9 at 1024px is at the mobile breakpoint (max-width: 1024px),
     // so it's still mobile. Use a wider viewport to test desktop mode.
     await page.setViewportSize({ width: 1280, height: 1366 });
@@ -102,8 +104,14 @@ test.describe("Devices Tab (Device Library)", () => {
       .first()
       .waitFor({ state: "visible" });
 
+    // The mobile-only device-library affordances are absent in desktop mode.
     await expect(page.locator(locators.mobile.deviceLibraryFab)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Devices" })).toHaveCount(0);
+    await expect(page.locator(locators.mobile.bottomNav)).toHaveCount(0);
+    await expect(page.getByTestId("nav-tab-devices")).toHaveCount(0);
+
+    // The desktop layout still exposes the device library, now through the
+    // sidebar's Devices tab (role="tab", not the mobile bottom-nav button).
+    await expect(page.getByRole("tab", { name: "Devices" })).toBeVisible();
   });
 });
 

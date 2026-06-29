@@ -97,12 +97,23 @@ test.describe("Devices Tab (Device Library)", () => {
     });
   }
 
-  test("Device library FAB is removed in desktop mode", async ({ page }) => {
+  test("mobile device-library affordances are removed in desktop mode", async ({
+    page,
+  }) => {
+    // Pixel Tablet is 1280px wide, above the 1024px MOBILE_BREAKPOINT, so the
+    // app renders its desktop layout: the mobile bottom nav (and its Devices
+    // tab) and the floating device-library button are gone.
     const device = androidDevices.find((d) => d.name === "Pixel Tablet")!;
     await setupMobileViewport(page, device);
 
+    // The mobile-only device-library affordances are absent in desktop mode.
     await expect(page.locator(locators.mobile.deviceLibraryFab)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Devices" })).toHaveCount(0);
+    await expect(page.locator(locators.mobile.bottomNav)).toHaveCount(0);
+    await expect(page.getByTestId("nav-tab-devices")).toHaveCount(0);
+
+    // The desktop layout still exposes the device library, now through the
+    // sidebar's Devices tab (role="tab", not the mobile bottom-nav button).
+    await expect(page.getByRole("tab", { name: "Devices" })).toBeVisible();
   });
 });
 
@@ -355,48 +366,57 @@ test.describe("Touch Interactions", () => {
 });
 
 // ============================================================================
-// Long-Press Gesture Tests
+// Device Context Menu Tests
 // ============================================================================
 
-test.describe("Long-Press Gesture", () => {
+test.describe("Device Context Menu", () => {
   const device = phoneDevices[0]; // Pixel 7
 
   test.beforeEach(async ({ page }) => {
     await setupMobileViewport(page, device);
   });
 
-  test("long-press opens the device context menu", async ({ page }) => {
+  test("contextmenu on a placed device opens the device context menu", async ({
+    page,
+  }) => {
     // Open bottom sheet to expose palette items on mobile
     await mobileDragDeviceToRack(page);
 
-    // Close the bottom sheet so the backdrop/sheet doesn't intercept the
-    // mouse-based long-press on the placed device. Escape is a no-op if the
-    // sheet already auto-closed after drag.
+    // Close the bottom sheet so the backdrop/sheet doesn't sit over the placed
+    // device. Escape is a no-op if the sheet already auto-closed after drag.
     await page.keyboard.press("Escape");
     await expect(page.locator(locators.mobile.bottomSheet)).toBeHidden();
 
     const rackDevice = page.locator(locators.rack.device).first();
     await expect(rackDevice).toBeVisible({ timeout: 5000 });
 
-    // Feature #1086: long-press on a placed device opens the app's device context menu.
-    // This confirms the gesture fires and the native browser context menu is suppressed
-    // in favour of the app's own menu (see RackDevice.svelte handleLongPress / useLongPress).
-    const contextMenu = page.locator('[role="menu"]');
+    // The app's device context menu opens from the contextmenu event
+    // (RackDevice.svelte oncontextmenu -> handleContextMenu -> oncontextmenuopen),
+    // wired unconditionally regardless of viewport. The previous long-press path
+    // exercised useLongPress, whose handler zooms the canvas to the device and
+    // never opens a menu, so the wait-for-menu assertion could not pass; #2680.
+    // Dispatching the event directly is deterministic across Chromium/WebKit and
+    // removes the timing-sensitive 500ms-hold flake.
+    const contextMenu = page.getByTestId("ctx-menu");
 
+    // Supply cursor coordinates so handleContextMenu anchors the menu over the
+    // device rather than falling back to (0,0); dispatchEvent builds a real
+    // MouseEvent from this init.
     const box = await rackDevice.boundingBox();
-    if (box) {
-      // Simulate long-press via mouse events (touchscreen.tap requires hasTouch).
-      // useLongPress fires its callback after 500ms while the pointer is still
-      // held, so wait for the menu to appear instead of sleeping a fixed 600ms.
-      const startPos = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-      await page.mouse.move(startPos.x, startPos.y);
-      await page.mouse.down();
-      await expect(contextMenu).toBeVisible({ timeout: 3000 });
-      await page.mouse.up();
-    }
+    expect(box).toBeTruthy();
+    await rackDevice.dispatchEvent("contextmenu", {
+      clientX: box!.x + box!.width / 2,
+      clientY: box!.y + box!.height / 2,
+      button: 2,
+      bubbles: true,
+    });
 
-    // Menu stays open after pointer release
-    await expect(contextMenu).toBeVisible();
+    await expect(contextMenu).toBeVisible({ timeout: 5000 });
+    await expect(contextMenu).toHaveAttribute("role", "menu");
+
+    // Escape closes the menu.
+    await page.keyboard.press("Escape");
+    await expect(contextMenu).toBeHidden();
   });
 });
 
