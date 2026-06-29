@@ -75,3 +75,22 @@ describe("upgrade corpus: YAML ingress via parseLayoutYaml", () => {
     });
   }
 });
+
+// === Over-rack rail position is clamped on load, not rejected (#2661) ===
+// The corpus check above only proves no silent data loss; here we pin the actual
+// clamped value the load produces so a regression that stops clamping (or that
+// hard-rejects an over-rack layout, breaking prior-release loading) fails.
+const overRackYaml = (
+  await import("./fixtures/upgrade-corpus/over-rack-rail-position.rackula.yaml?raw")
+).default as string;
+
+describe("upgrade corpus: over-rack rail clamp (#2661)", () => {
+  it("clamps a rail device above a 10U rack to the highest whole-U, loading does not fail", async () => {
+    const layout = await parseLayoutYaml(overRackYaml);
+    const device = layout.racks[0]!.devices[0]!;
+    // UNITS_PER_U = 6; raw position 66 (U11) clamps to U10 = 60 in a 10U rack.
+    expect(device.position).toBe(60);
+    // Invariant: a rail position is always a whole U (no fractional rails).
+    expect(device.position % 6).toBe(0);
+  });
+});

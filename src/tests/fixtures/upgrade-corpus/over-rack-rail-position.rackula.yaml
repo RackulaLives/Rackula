@@ -1,0 +1,26 @@
+version: "26.5.0"
+name: Over-Rack Rail Position
+racks:
+  - id: "rack-a"
+    name: "Rack A"
+    height: 10
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: "4-post-cabinet"
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: "dev-over"
+        device_type: "switch-1u"
+        position: 66
+        face: "front"
+device_types:
+  - slug: "switch-1u"
+    u_height: 1
+    manufacturer: "Acme"
+    colour: "#336699"
+    category: "network"
+settings:
+  display_mode: "label"
+  show_labels_on_images: false

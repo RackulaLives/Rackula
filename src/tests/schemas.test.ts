@@ -893,6 +893,156 @@ describe("LayoutSchema", () => {
       expect(LayoutSchema.safeParse(layout).success).toBe(false);
     });
   });
+
+  // === Over-rack rail position clamping (#2661) ===
+  // A hand-edited or prior-release layout can carry a rail position whose top
+  // extends past rack.height. LayoutSchema enforces whole-U and carrier-first
+  // but never bounded the top, so the device rendered outside the rack. On load
+  // we clamp such a position to the highest within-rack whole-U position rather
+  // than hard-rejecting (prior-release loading must still succeed).
+  describe("over-rack rail position clamping", () => {
+    // 10U rack: UNITS_PER_U = 6, so the highest whole-U bottom position for a
+    // 1U device is U10 = 60 internal units (top 65 = rack.height*6 + 5).
+    const tenURack = {
+      id: "rack-1",
+      name: "Small Rack",
+      height: 10,
+      width: 19 as const,
+      desc_units: false,
+      form_factor: "4-post-cabinet" as const,
+      starting_unit: 1,
+      position: 0,
+      devices: [],
+    };
+    const oneUType = {
+      slug: "switch-1u",
+      u_height: 1,
+      colour: "#4A90D9",
+      category: "network" as const,
+    };
+
+    it("clamps a 1U rail device whose top exceeds the rack to the highest whole-U position", () => {
+      // Modern layout: position 66 is internal units (U11), one U above a 10U rack.
+      const layout = {
+        ...validLayout,
+        version: "26.5.0",
+        racks: [
+          {
+            ...tenURack,
+            devices: [
+              {
+                id: "dev-over",
+                device_type: "switch-1u",
+                position: 66,
+                face: "front" as const,
+              },
+            ],
+          },
+        ],
+        device_types: [oneUType],
+      };
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const placed = result.data.racks[0]!.devices[0]!;
+        // Clamped to U10 = 60 internal units, a whole-U rail position.
+        expect(placed.position).toBe(60);
+        expect(placed.position % 6).toBe(0);
+      }
+    });
+
+    it("clamps a legacy U-value over-rack position (U999) to within the rack", () => {
+      // Legacy layout (< 0.7.0): position 999 is a U-value, migrated to internal
+      // units would be 5994; without an upper clamp it sits far above a 10U rack.
+      const layout = {
+        ...validLayout,
+        version: "0.6.0",
+        racks: [
+          {
+            ...tenURack,
+            devices: [
+              {
+                id: "dev-legacy",
+                device_type: "switch-1u",
+                position: 999,
+                face: "front" as const,
+              },
+            ],
+          },
+        ],
+        device_types: [oneUType],
+      };
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const placed = result.data.racks[0]!.devices[0]!;
+        expect(placed.position).toBe(60);
+        expect(placed.position % 6).toBe(0);
+      }
+    });
+
+    it("clamps a 2U rail device so the whole device fits within the rack", () => {
+      const layout = {
+        ...validLayout,
+        version: "26.5.0",
+        racks: [
+          {
+            ...tenURack,
+            devices: [
+              {
+                id: "dev-2u",
+                device_type: "server-2u",
+                position: 66,
+                face: "front" as const,
+              },
+            ],
+          },
+        ],
+        device_types: [
+          {
+            slug: "server-2u",
+            u_height: 2,
+            colour: "#996633",
+            category: "server" as const,
+          },
+        ],
+      };
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const placed = result.data.racks[0]!.devices[0]!;
+        // A 2U device fits with its bottom at U9 = 54 (top U10 = 65).
+        expect(placed.position).toBe(54);
+        expect(placed.position % 6).toBe(0);
+      }
+    });
+
+    it("leaves an in-bounds rail position unchanged", () => {
+      const layout = {
+        ...validLayout,
+        version: "26.5.0",
+        racks: [
+          {
+            ...tenURack,
+            devices: [
+              {
+                id: "dev-ok",
+                device_type: "switch-1u",
+                position: 30,
+                face: "front" as const,
+              },
+            ],
+          },
+        ],
+        device_types: [oneUType],
+      };
+      const result = LayoutSchema.safeParse(layout);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.racks[0]!.devices[0]!.position).toBe(30);
+      }
+    });
+  });
 });
 
 // ============================================================================

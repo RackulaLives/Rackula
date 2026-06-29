@@ -6,6 +6,7 @@
 import { z } from "../zod";
 import { nanoid } from "nanoid";
 import { UNITS_PER_U } from "$lib/types/constants";
+import { heightToInternalUnits } from "$lib/utils/position";
 import { VERSION } from "$lib/version";
 
 /**
@@ -925,6 +926,55 @@ function migrateDevicePositions<
 }
 
 /**
+ * Clamp rail-mounted device positions that extend above the rack (#2661).
+ *
+ * LayoutSchema enforces the whole-U and carrier-first rules but never bounded a
+ * rail position against rack.height, so a hand-edited or prior-release layout
+ * with an over-rack position loaded and rendered outside the rack. This clamps
+ * an overflowing rail device down to the highest within-rack whole-U position,
+ * mirroring the maxValidTop check in canPlaceDevice (src/lib/utils/collision.ts).
+ * Clamping (not hard-rejecting) keeps prior-release loading working, per the
+ * project's supported-prior-data policy.
+ *
+ * Runs on every load, not only legacy migration: a modern layout stores positions
+ * in internal units already, so its over-rack values never pass through
+ * migrateDevicePositions. Container children (container_id set) use container-
+ * relative positions and are left untouched.
+ *
+ * @param devices - Rack devices, positions already in internal units.
+ * @param rackHeight - Rack height in whole U.
+ * @param uHeightBySlug - Device-type u_height keyed by slug, for the fit math.
+ */
+function clampOverRackPositions<
+  T extends { position: number; device_type: string; container_id?: string },
+>(devices: T[], rackHeight: number, uHeightBySlug: Map<string, number>): T[] {
+  // Mirror canPlaceDevice: a device at P with height H occupies P..P+H*UPU-1,
+  // and the highest valid top is UN's top = rackHeight*UPU + (UPU - 1).
+  const maxValidTop = rackHeight * UNITS_PER_U + (UNITS_PER_U - 1);
+  return devices.map((device) => {
+    // Container children use container-relative positions; not rail-bounded.
+    if (device.container_id !== undefined) {
+      return device;
+    }
+    // Default to 1U when the type is unknown so the clamp still bounds the top.
+    const uHeight = uHeightBySlug.get(device.device_type) ?? 1;
+    const heightInternal = heightToInternalUnits(uHeight);
+    const topPosition = device.position + heightInternal - 1;
+    if (topPosition <= maxValidTop) {
+      return device;
+    }
+    // Highest bottom position that keeps the top within the rack, snapped down
+    // to a whole-U rail boundary and never below U1.
+    const maxBottom = maxValidTop - heightInternal + 1;
+    const clampedWholeU = Math.max(1, Math.floor(maxBottom / UNITS_PER_U));
+    return {
+      ...device,
+      position: clampedWholeU * UNITS_PER_U,
+    } as T;
+  });
+}
+
+/**
  * Complete layout schema (base, with migration transform)
  * Uses racks array for multi-rack support
  * Transform handles:
@@ -953,6 +1003,12 @@ export const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
   // Check if positions need migration (pre-0.7.0 format)
   const migratePositions = needsPositionMigration(data.version, allDevices);
 
+  // Resolve device-type u_height for the over-rack clamp (#2661). Built once per
+  // load; an unknown slug falls back to 1U inside clampOverRackPositions.
+  const uHeightBySlug = new Map(
+    data.device_types.map((t) => [t.slug, t.u_height]),
+  );
+
   // Generate IDs for racks missing them, deduplicate device IDs, and migrate positions if needed.
   const racksWithIds = racks.map((rack) => {
     // Deduplicate device IDs to prevent Svelte each_key_duplicate errors (#1363)
@@ -977,12 +1033,20 @@ export const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
         : { ...d, id: nextId, container_id: nextContainerId };
     });
 
+    const migratedDevices = migratePositions
+      ? migrateDevicePositions(deduplicatedDevices)
+      : deduplicatedDevices;
+
     return {
       ...rack,
       id: rack.id ?? nanoid(),
-      devices: migratePositions
-        ? migrateDevicePositions(deduplicatedDevices)
-        : deduplicatedDevices,
+      // Positions are in internal units here; clamp any rail device whose top
+      // extends above the rack down to the highest within-rack whole-U (#2661).
+      devices: clampOverRackPositions(
+        migratedDevices,
+        rack.height,
+        uHeightBySlug,
+      ),
     };
   });
 

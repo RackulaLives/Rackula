@@ -1,0 +1,10 @@
+{
+  "reject": false,
+  "hasImages": false,
+  "allowList": [
+    {
+      "pathPattern": "\\.position$",
+      "reason": "rail device top exceeds rack.height; position clamped to the highest within-rack whole-U on load (#2661)"
+    }
+  ]
+}
