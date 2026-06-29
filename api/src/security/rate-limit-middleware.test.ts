@@ -1,12 +1,16 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { Hono } from "hono";
-import { createRateLimitMiddleware } from "./rate-limit-middleware";
+import {
+  createRateLimitMiddleware,
+  resolveClientIpFromHeaders,
+} from "./rate-limit-middleware";
 
 // Helper to create a test app with rate limiting
 function createTestApp(config: {
   writeMaxRequests: number;
   readMaxRequests: number;
   windowMs?: number;
+  trustProxy?: boolean;
 }) {
   const middleware = createRateLimitMiddleware({
     writeMaxRequests: config.writeMaxRequests,
@@ -15,6 +19,7 @@ function createTestApp(config: {
     readWindowMs: config.windowMs ?? 60_000,
     cleanupIntervalMs: 300_000,
     entryTtlMs: 120_000,
+    trustProxy: config.trustProxy ?? true,
   });
 
   const app = new Hono();
@@ -26,7 +31,9 @@ function createTestApp(config: {
   app.get("/version", (c) => c.json({ version: "1.0.0" }));
   app.get("/api/version", (c) => c.json({ version: "1.0.0" }));
   app.get("/auth/login", (c) => c.json({ login: true }));
+  app.get("/api/auth/login", (c) => c.json({ login: true }));
   app.get("/auth/callback", (c) => c.json({ callback: true }));
+  app.get("/api/auth/callback", (c) => c.json({ callback: true }));
   app.get("/layouts", (c) => c.json({ layouts: [] }));
   app.get("/layouts/:id", (c) => c.json({ id: c.req.param("id") }));
   app.put("/layouts/:id", (c) => c.json({ updated: c.req.param("id") }));
@@ -189,7 +196,7 @@ describe("createRateLimitMiddleware", () => {
     expect(res.status).not.toBe(429);
   });
 
-  it("exempts auth endpoints from rate limiting", async () => {
+  it("exempts auth callback/check/logout endpoints from rate limiting", async () => {
     const { app, stopCleanup } = createTestApp({
       writeMaxRequests: 1,
       readMaxRequests: 1,
@@ -201,15 +208,59 @@ describe("createRateLimitMiddleware", () => {
       headers: { "x-real-ip": "1.2.3.4" },
     });
 
-    const res = await app.request("/auth/login", {
+    const res = await app.request("/auth/callback", {
       headers: { "x-real-ip": "1.2.3.4" },
     });
     expect(res.status).toBe(200);
 
-    const res2 = await app.request("/auth/callback", {
+    const res2 = await app.request("/api/auth/callback", {
       headers: { "x-real-ip": "1.2.3.4" },
     });
     expect(res2.status).toBe(200);
+  });
+
+  it("throttles GET /auth/login (login initiation is no longer exempt)", async () => {
+    const { app, stopCleanup } = createTestApp({
+      writeMaxRequests: 1,
+      readMaxRequests: 2,
+    });
+    cleanups.push(stopCleanup);
+
+    // Two requests are within the read limit.
+    const first = await app.request("/auth/login", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    expect(first.status).toBe(200);
+    const second = await app.request("/auth/login", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    expect(second.status).toBe(200);
+
+    // The third login initiation from the same IP is rate limited.
+    const third = await app.request("/auth/login", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    expect(third.status).toBe(429);
+  });
+
+  it("throttles GET /api/auth/login (login initiation is no longer exempt)", async () => {
+    const { app, stopCleanup } = createTestApp({
+      writeMaxRequests: 1,
+      readMaxRequests: 2,
+    });
+    cleanups.push(stopCleanup);
+
+    await app.request("/api/auth/login", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    await app.request("/api/auth/login", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+
+    const res = await app.request("/api/auth/login", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    expect(res.status).toBe(429);
   });
 
   it("tracks different IPs independently", async () => {
@@ -325,5 +376,96 @@ describe("createRateLimitMiddleware", () => {
 
     const res2 = await app.request("/layouts");
     expect(res2.status).toBe(200);
+  });
+
+  it("ignores spoofed X-Real-IP when trust-proxy is off (one peer trips the limiter)", async () => {
+    const { app, stopCleanup } = createTestApp({
+      writeMaxRequests: 1,
+      readMaxRequests: 2,
+      trustProxy: false,
+    });
+    cleanups.push(stopCleanup);
+
+    // Mock the Bun server so getConnInfo() resolves a fixed socket peer for
+    // every request, regardless of the (spoofed) X-Real-IP header.
+    const env = {
+      server: {
+        requestIP: () => ({ address: "198.51.100.7", family: "IPv4", port: 0 }),
+      },
+    };
+
+    // Rotating X-Real-IP per request must NOT create fresh buckets when the
+    // peer address is the same.
+    await app.request(
+      "/layouts",
+      { headers: { "x-real-ip": "10.0.0.1" } },
+      env,
+    );
+    await app.request(
+      "/layouts",
+      { headers: { "x-real-ip": "10.0.0.2" } },
+      env,
+    );
+    const res = await app.request(
+      "/layouts",
+      { headers: { "x-real-ip": "10.0.0.3" } },
+      env,
+    );
+    expect(res.status).toBe(429);
+  });
+});
+
+describe("resolveClientIpFromHeaders", () => {
+  function makeReq(headers: Record<string, string>) {
+    const lower: Record<string, string> = {};
+    for (const [key, value] of Object.entries(headers)) {
+      lower[key.toLowerCase()] = value;
+    }
+    return { header: (name: string) => lower[name.toLowerCase()] };
+  }
+
+  it("ignores X-Real-IP and returns the peer address when trust-proxy is off", () => {
+    const req = makeReq({ "x-real-ip": "9.9.9.9" });
+    const result = resolveClientIpFromHeaders(req, {
+      trustProxy: false,
+      peerAddress: "203.0.113.5",
+    });
+    expect(result).toBe("203.0.113.5");
+  });
+
+  it("ignores X-Forwarded-For and returns the peer address when trust-proxy is off", () => {
+    const req = makeReq({ "x-forwarded-for": "1.2.3.4, 9.9.9.9" });
+    const result = resolveClientIpFromHeaders(req, {
+      trustProxy: false,
+      peerAddress: "203.0.113.5",
+    });
+    expect(result).toBe("203.0.113.5");
+  });
+
+  it("returns null when trust-proxy is off and no peer address is available", () => {
+    const req = makeReq({ "x-real-ip": "9.9.9.9" });
+    const result = resolveClientIpFromHeaders(req, {
+      trustProxy: false,
+      peerAddress: null,
+    });
+    expect(result).toBeNull();
+  });
+
+  it("honors X-Real-IP when trust-proxy is on", () => {
+    const req = makeReq({ "x-real-ip": "9.9.9.9" });
+    const result = resolveClientIpFromHeaders(req, {
+      trustProxy: true,
+      peerAddress: "203.0.113.5",
+    });
+    expect(result).toBe("9.9.9.9");
+  });
+
+  it("falls back to the last X-Forwarded-For entry when trust-proxy is on", () => {
+    const req = makeReq({ "x-forwarded-for": "1.2.3.4, 5.6.7.8" });
+    const result = resolveClientIpFromHeaders(req, {
+      trustProxy: true,
+      peerAddress: null,
+    });
+    expect(result).toBe("5.6.7.8");
   });
 });

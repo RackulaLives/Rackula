@@ -19,6 +19,7 @@ import {
   createRateLimitMiddleware,
   createStorageQuotaMiddleware,
   resolveClientIpFromHeaders,
+  resolvePeerAddress,
   invalidateAuthSession,
   resolveAuthenticatedSessionClaims,
   resolveApiSecurityConfig,
@@ -349,6 +350,7 @@ export async function createApp(
       // Cleanup at least every window to bound stale entry retention.
       cleanupIntervalMs: maxWindowMs,
       entryTtlMs: maxWindowMs,
+      trustProxy: securityConfig.trustProxy,
     });
     app.use("*", rateLimitMiddleware);
   }
@@ -714,7 +716,10 @@ export async function createApp(
           );
         }
 
-        const ip = resolveClientIpFromHeaders(c.req);
+        const ip = resolveClientIpFromHeaders(c.req, {
+          trustProxy: securityConfig.trustProxy,
+          peerAddress: resolvePeerAddress(c),
+        });
         if (!ip) {
           // Skip rate limiting when client IP cannot be determined.
           // Using a shared bucket would let one noisy client throttle all

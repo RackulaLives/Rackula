@@ -56,6 +56,7 @@ export interface ApiSecurityConfig {
   csrfTrustedOrigins: string[];
   originPolicyEnabled: boolean;
   localCredentials?: LocalCredentials;
+  trustProxy: boolean;
   rateLimitEnabled: boolean;
   rateLimitWriteMaxRequests: number;
   rateLimitWriteWindowMs: number;

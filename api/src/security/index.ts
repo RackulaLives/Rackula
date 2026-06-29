@@ -47,8 +47,12 @@ export type {
 export {
   createRateLimitMiddleware,
   resolveClientIpFromHeaders,
+  resolvePeerAddress,
 } from "./rate-limit-middleware";
-export type { RateLimitMiddlewareConfig } from "./rate-limit-middleware";
+export type {
+  ClientIpResolution,
+  RateLimitMiddlewareConfig,
+} from "./rate-limit-middleware";
 
 export { createOriginPolicyMiddleware } from "./origin-policy";
 

@@ -22,8 +22,22 @@ const _AUTH_PUBLIC_PATHS = new Set([
   "/api/auth/check",
   "/api/auth/logout",
 ]);
-/** Immutable set of paths exempt from auth and rate limiting. */
+/** Immutable set of paths exempt from auth. */
 export const AUTH_PUBLIC_PATHS: ReadonlySet<string> = _AUTH_PUBLIC_PATHS;
+
+/**
+ * Paths exempt from rate limiting. This is {@link AUTH_PUBLIC_PATHS} minus the
+ * login-initiation routes: those must stay throttled so an attacker cannot
+ * flood OIDC login initiations (state/PKCE generation, Set-Cookie, upstream
+ * IdP work). The callback/check/logout routes remain exempt.
+ */
+const _RATE_LIMIT_EXEMPT_PATHS = new Set(
+  [..._AUTH_PUBLIC_PATHS].filter(
+    (path) => path !== "/auth/login" && path !== "/api/auth/login",
+  ),
+);
+export const RATE_LIMIT_EXEMPT_PATHS: ReadonlySet<string> =
+  _RATE_LIMIT_EXEMPT_PATHS;
 const API_ROUTE_PREFIXES = ["/api", "/layouts", "/assets"];
 
 function timingSafeTokenCompare(

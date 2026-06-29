@@ -8,8 +8,9 @@
  * @module rate-limit-middleware
  */
 
-import type { MiddlewareHandler } from "hono";
-import { AUTH_PUBLIC_PATHS } from "./middleware";
+import type { Context, MiddlewareHandler } from "hono";
+import { getConnInfo } from "hono/bun";
+import { RATE_LIMIT_EXEMPT_PATHS } from "./middleware";
 import { createRateLimiter } from "./rate-limit";
 
 const WRITE_METHODS = new Set(["POST", "PUT", "DELETE"]);
@@ -30,22 +31,47 @@ export interface RateLimitMiddlewareConfig {
   cleanupIntervalMs: number;
   /** Time-to-live for stale entries in milliseconds. */
   entryTtlMs: number;
+  /**
+   * Whether to trust client-supplied X-Real-IP / X-Forwarded-For headers.
+   * When false, the socket peer address is used instead so a direct client
+   * cannot rotate the header to escape its rate-limit bucket.
+   */
+  trustProxy: boolean;
 }
 
 /**
- * Resolve the client IP from a request's headers.
- *
- * Prefers X-Real-IP (set by nginx to $remote_addr, not client-spoofable).
- * Falls back to the last entry in X-Forwarded-For (closest proxy, harder to spoof).
- * Trims values and truncates to 64 chars. Returns null when neither header
- * yields a usable value.
- *
- * Shared by the API rate limiter and the local-login rate limiter so both
- * derive the client identity identically.
+ * Options controlling how the client identity is derived.
  */
-export function resolveClientIpFromHeaders(req: {
-  header: (name: string) => string | undefined;
-}): string | null {
+export interface ClientIpResolution {
+  /** Whether client-supplied forwarding headers are trusted. */
+  trustProxy: boolean;
+  /** The socket peer address, used when headers are not trusted. */
+  peerAddress: string | null;
+}
+
+/**
+ * Resolve the client IP used for rate-limit bucketing.
+ *
+ * When `trustProxy` is true (the request reaches the API only through a trusted
+ * reverse proxy that overwrites the header, e.g. nginx setting `$remote_addr`),
+ * prefers X-Real-IP and falls back to the last X-Forwarded-For entry.
+ *
+ * When `trustProxy` is false, the forwarding headers are client-controlled and
+ * spoofable, so they are ignored and the socket peer address is used instead.
+ * Returns null when no usable identity is available.
+ *
+ * Trims values and truncates to 64 chars. Shared by the API rate limiter and
+ * the local-login rate limiter so both derive the client identity identically.
+ */
+export function resolveClientIpFromHeaders(
+  req: { header: (name: string) => string | undefined },
+  options: ClientIpResolution,
+): string | null {
+  if (!options.trustProxy) {
+    const peer = options.peerAddress?.trim();
+    return peer ? peer.slice(0, 64) : null;
+  }
+
   const realIp = req.header("x-real-ip")?.trim();
   if (realIp) {
     return realIp.slice(0, 64);
@@ -63,16 +89,31 @@ export function resolveClientIpFromHeaders(req: {
 }
 
 /**
+ * Resolve the socket peer address from a Hono context.
+ *
+ * Returns null when the connection info is unavailable (for example under
+ * `app.request()` in tests, where there is no underlying socket).
+ */
+export function resolvePeerAddress(c: Context): string | null {
+  try {
+    return getConnInfo(c).remote.address ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolve the client IP from a Hono context.
  *
  * Thin wrapper over {@link resolveClientIpFromHeaders}. Returns null when the
  * IP cannot be determined, in which case rate limiting is skipped to avoid
  * collapsing all unidentifiable clients into a single shared bucket.
  */
-function resolveClientIp(c: {
-  req: { header: (name: string) => string | undefined };
-}): string | null {
-  return resolveClientIpFromHeaders(c.req);
+function resolveClientIp(c: Context, trustProxy: boolean): string | null {
+  return resolveClientIpFromHeaders(c.req, {
+    trustProxy,
+    peerAddress: resolvePeerAddress(c),
+  });
 }
 
 /**
@@ -126,13 +167,14 @@ export function createRateLimitMiddleware(
         return;
       }
 
-      // Exempt public paths (health, version, auth)
-      if (AUTH_PUBLIC_PATHS.has(pathname)) {
+      // Exempt public paths (health, version, auth callback/check/logout).
+      // Login-initiation paths are intentionally excluded so they stay throttled.
+      if (RATE_LIMIT_EXEMPT_PATHS.has(pathname)) {
         await next();
         return;
       }
 
-      const ip = resolveClientIp(c);
+      const ip = resolveClientIp(c, config.trustProxy);
 
       // Skip rate limiting when client IP cannot be determined.
       // Using a shared "unknown" bucket would let one noisy client throttle

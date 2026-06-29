@@ -62,6 +62,18 @@ docker run -p 3000:3000 \
   rackula-api
 ```
 
+## Deployment behind a reverse proxy
+
+Run the API behind a trusted reverse proxy (for example nginx) that overwrites the client-IP header with the real socket address. Rackula's nginx template sets `X-Real-IP` to `$remote_addr`, which the API trusts by default for client-identity resolution (rate limiting).
+
+Do not expose the API directly to untrusted clients with proxy trust enabled. Rate limiting keys on the client identity, and when proxy trust is on that identity comes from the `X-Real-IP` / `X-Forwarded-For` headers. A direct client can rotate those headers per request to land each one in a fresh bucket and defeat throttling (including the local-login brute-force limiter).
+
+If you must expose the API directly (no trusted proxy), set `RACKULA_TRUST_PROXY=false`. The resolver then ignores the forwarding headers and uses the socket peer address instead.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `RACKULA_TRUST_PROXY` | `true` | Trust `X-Real-IP` / `X-Forwarded-For` for client-identity resolution. Set `false` when the API is exposed directly without a trusted proxy. |
+
 ## Authentication
 
 Rackula supports OIDC authentication for self-hosted deployments. Unauthenticated users can use the app in read-only mode (full design interface, but cannot save layouts).
