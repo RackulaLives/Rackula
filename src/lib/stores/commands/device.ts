@@ -113,9 +113,11 @@ export function createRemoveDeviceCommand(
 
   /**
    * Find the current array index of the device tracked by currentImageId.
-   * Falls back to the creation-time index if the ID is no longer present.
+   * Returns undefined when the ID is not present so execute() can no-op:
+   * falling back to the stale creation-time index could delete whichever
+   * device now occupies that position (#2656).
    */
-  function resolveCurrentIndex(): number {
+  function resolveCurrentIndex(): number | undefined {
     let i = 0;
     while (true) {
       const d = store.getDeviceAtIndex(i);
@@ -123,7 +125,7 @@ export function createRemoveDeviceCommand(
       if (d.id === currentImageId) return i;
       i++;
     }
-    return index;
+    return undefined;
   }
 
   // Snapshot placement images before removal for undo restoration
@@ -140,12 +142,15 @@ export function createRemoveDeviceCommand(
     description: `Remove ${deviceName}`,
     timestamp: Date.now(),
     execute() {
+      // Resolve the target by ID at runtime so redo deletes the right device (#2656).
+      // If the device is no longer present, no-op rather than touching a stale index.
+      const targetIndex = resolveCurrentIndex();
+      if (targetIndex === undefined) return;
       // Clean up placement images using current ID (may differ from original after undo remap)
       getImageStore().removeAllDeviceImages(
         placementKey(layoutId, currentImageId),
       );
-      // Resolve the target by ID at runtime so redo deletes the right device (#2656)
-      store.removeDeviceAtIndexRaw(resolveCurrentIndex());
+      store.removeDeviceAtIndexRaw(targetIndex);
     },
     undo() {
       const placedIdx = store.placeDeviceRaw(deviceCopy);

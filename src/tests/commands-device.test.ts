@@ -151,15 +151,38 @@ describe("Device Commands", () => {
       expect(command.description).toBe("Remove device");
     });
 
-    it("execute calls removeDeviceAtIndexRaw", () => {
+    it("execute removes the target resolved by id at its current index", () => {
       const store = createMockStore();
-      const device = createTestDevice();
+      const device = createTestDevice({ id: "target" });
+      // Device sits at index 3; execute resolves it by id at runtime (#2656)
+      store.getDeviceAtIndex.mockImplementation((i: number) =>
+        i === 3
+          ? device
+          : i < 3
+            ? createTestDevice({ id: `other-${i}` })
+            : undefined,
+      );
 
       const command = createRemoveDeviceCommand(3, device, store);
       command.execute();
 
       expect(store.removeDeviceAtIndexRaw).toHaveBeenCalledTimes(1);
       expect(store.removeDeviceAtIndexRaw).toHaveBeenCalledWith(3);
+    });
+
+    it("execute is a no-op when the tracked device is absent from the store", () => {
+      const store = createMockStore();
+      const device = createTestDevice({ id: "missing" });
+      // Store contains only an unrelated device; the target id is not present.
+      store.getDeviceAtIndex.mockImplementation((i: number) =>
+        i === 0 ? createTestDevice({ id: "someone-else" }) : undefined,
+      );
+
+      // Captured index 0 now points at an unrelated device — must NOT be removed.
+      const command = createRemoveDeviceCommand(0, device, store);
+      command.execute();
+
+      expect(store.removeDeviceAtIndexRaw).not.toHaveBeenCalled();
     });
 
     it("undo calls placeDeviceRaw with device copy", () => {
