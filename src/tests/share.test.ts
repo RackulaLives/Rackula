@@ -14,6 +14,8 @@ import {
   getShareParam,
   clearShareParam,
   base64UrlEncode,
+  MAX_ENCODED_LENGTH,
+  MAX_DECOMPRESSED_BYTES,
 } from "$lib/utils/share";
 import {
   createTestLayout,
@@ -353,6 +355,40 @@ describe("decodeLayout", () => {
     const decoded = requireDecoded(encoded);
 
     expect(decoded.racks[0].devices[0].name).toBe("My Custom Name");
+  });
+
+  it("rejects an over-length encoded input before decompressing", () => {
+    // Spy on the inflate paths to confirm the size guard short-circuits before
+    // any decompression runs. decodeLayout uses pako.Inflate (class) for the
+    // legacy path; pako.inflate (function) is covered too for completeness.
+    const inflateSpy = vi.spyOn(pako, "inflate");
+    const InflateSpy = vi.spyOn(pako, "Inflate");
+    const oversized = "A".repeat(MAX_ENCODED_LENGTH + 1);
+
+    const result = decodeLayout(oversized);
+
+    expect(result.layout).toBeNull();
+    expect(result.error).toBeDefined();
+    expect(inflateSpy).not.toHaveBeenCalled();
+    expect(InflateSpy).not.toHaveBeenCalled();
+    inflateSpy.mockRestore();
+    InflateSpy.mockRestore();
+  });
+
+  it("aborts decompression when output exceeds the decompressed ceiling", () => {
+    // A small, highly compressible payload that inflates past the ceiling.
+    // Stays well under MAX_ENCODED_LENGTH so the input-size guard passes and
+    // the decompressed-size ceiling is the thing under test.
+    const huge = "a".repeat(MAX_DECOMPRESSED_BYTES + 1024);
+    const compressed = pako.deflate(huge);
+    const encoded = base64UrlEncode(compressed);
+
+    expect(encoded.length).toBeLessThanOrEqual(MAX_ENCODED_LENGTH);
+
+    const result = decodeLayout(encoded);
+
+    expect(result.layout).toBeNull();
+    expect(result.error).toBeDefined();
   });
 });
 

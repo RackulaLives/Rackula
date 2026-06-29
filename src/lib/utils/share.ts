@@ -423,6 +423,58 @@ export interface DecodeResult {
 }
 
 /**
+ * Maximum length of an encoded `?l=` value accepted by decodeLayout, in
+ * characters. Checked before any base64 decode or decompression so a crafted
+ * link cannot spend CPU/memory inflating before being rejected.
+ *
+ * Kept small on purpose: lz-string (the primary format) has no streaming decode,
+ * so it fully materializes its output before we can measure it. Capping the
+ * input is the only way to bound that transient, and lz-string's ratio against
+ * crafted repetitive input climbs past 2000:1. 64 KB stays well above the
+ * largest realistic layout (an extreme 100-rack/4200-device layout encodes to
+ * ~35 KB; normal links are a few KB) while keeping the worst-case lz-string
+ * transient far below the unbounded status quo.
+ */
+export const MAX_ENCODED_LENGTH = 64 * 1024;
+
+/**
+ * Maximum number of decompressed bytes accepted by decodeLayout. Bounds the
+ * decompression-bomb surface: inflation aborts once output exceeds this. Chosen
+ * comfortably above any real layout (which serialize to well under 1 MB).
+ */
+export const MAX_DECOMPRESSED_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Inflate a pako/gzip payload to a string, aborting if output exceeds
+ * MAX_DECOMPRESSED_BYTES. Uses an incremental Inflate instance so a high-ratio
+ * payload cannot buffer its entire output before the cap is enforced.
+ * Throws on malformed input or when the size ceiling is exceeded.
+ */
+function inflateBounded(compressed: Uint8Array): string {
+  const inflator = new pako.Inflate({ to: "string" });
+  let result = "";
+  let length = 0;
+
+  inflator.onData = (chunk) => {
+    const text = chunk as string;
+    length += text.length;
+    if (length > MAX_DECOMPRESSED_BYTES) {
+      // Throw from the chunk callback to abort pako's inflate loop early, so a
+      // high-ratio payload cannot finish inflating its full output.
+      throw new Error("Decompressed share link exceeds size limit");
+    }
+    result += text;
+  };
+
+  inflator.push(compressed, true);
+
+  if (inflator.err) {
+    throw new Error(inflator.msg || "Failed to inflate share link");
+  }
+  return result;
+}
+
+/**
  * Decode URL-safe compressed string to Layout
  * Supports both v1 (single rack) and v2 (multi-rack) formats.
  * Detects version by field presence: `r` = v1, `rs` = v2.
@@ -430,13 +482,25 @@ export interface DecodeResult {
  */
 export function decodeLayout(encoded: string): DecodeResult {
   try {
+    // Reject over-length input before any base64 decode or decompression so a
+    // crafted link cannot spend CPU/memory inflating before being rejected.
+    if (encoded.length > MAX_ENCODED_LENGTH) {
+      return { layout: null, error: "Share link is too large" };
+    }
+
     // Try lz-string first (new format); returns null for legacy pako-encoded URLs
     let json = LZString.decompressFromEncodedURIComponent(encoded);
 
-    if (!json) {
-      // Fall back to pako for URLs encoded before the lz-string migration
+    if (json) {
+      // Guard the lz-string output too: it is also attacker-controlled.
+      if (json.length > MAX_DECOMPRESSED_BYTES) {
+        return { layout: null, error: "Share link is too large" };
+      }
+    } else {
+      // Fall back to pako for URLs encoded before the lz-string migration.
+      // inflateBounded aborts if output exceeds the decompressed ceiling.
       const compressed = base64UrlDecode(encoded);
-      json = pako.inflate(compressed, { to: "string" });
+      json = inflateBounded(compressed);
     }
     const parsed = JSON.parse(json);
 
