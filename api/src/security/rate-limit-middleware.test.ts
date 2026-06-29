@@ -32,6 +32,10 @@ function createTestApp(config: {
   app.get("/api/version", (c) => c.json({ version: "1.0.0" }));
   app.get("/auth/login", (c) => c.json({ login: true }));
   app.get("/api/auth/login", (c) => c.json({ login: true }));
+  // Local-auth POST login handlers. These have their own dedicated login
+  // limiter in the real app, so the global write limiter must not consume them.
+  app.post("/auth/login", (c) => c.json({ login: true }));
+  app.post("/api/auth/login", (c) => c.json({ login: true }));
   app.get("/auth/callback", (c) => c.json({ callback: true }));
   app.get("/api/auth/callback", (c) => c.json({ callback: true }));
   app.get("/layouts", (c) => c.json({ layouts: [] }));
@@ -263,6 +267,80 @@ describe("createRateLimitMiddleware", () => {
     expect(res.status).toBe(429);
   });
 
+  it("does not throttle local-auth POST /auth/login with the global write limiter", async () => {
+    const { app, stopCleanup } = createTestApp({
+      writeMaxRequests: 1,
+      readMaxRequests: 100,
+    });
+    cleanups.push(stopCleanup);
+
+    // Exhaust the global write limiter with a real write route.
+    await app.request("/layouts/abc", {
+      method: "PUT",
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    const writeLimited = await app.request("/layouts/abc", {
+      method: "PUT",
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    expect(writeLimited.status).toBe(429);
+
+    // POST login from the same IP must stay exempt from the global write
+    // limiter (its dedicated login limiter handles brute-force throttling), so
+    // it is not 429 even though the write bucket is empty.
+    const first = await app.request("/auth/login", {
+      method: "POST",
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    expect(first.status).toBe(200);
+    const second = await app.request("/api/auth/login", {
+      method: "POST",
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    expect(second.status).toBe(200);
+  });
+
+  it("still throttles GET /auth/login (initiation) even though POST login is exempt", async () => {
+    const { app, stopCleanup } = createTestApp({
+      writeMaxRequests: 100,
+      readMaxRequests: 1,
+    });
+    cleanups.push(stopCleanup);
+
+    const first = await app.request("/auth/login", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    expect(first.status).toBe(200);
+    const second = await app.request("/auth/login", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    expect(second.status).toBe(429);
+  });
+
+  it("rate limits via the socket peer when trust-proxy is on and headers are absent", async () => {
+    const { app, stopCleanup } = createTestApp({
+      writeMaxRequests: 100,
+      readMaxRequests: 1,
+      trustProxy: true,
+    });
+    cleanups.push(stopCleanup);
+
+    // Mock the Bun server so getConnInfo() resolves a fixed socket peer for
+    // every request. With no X-Real-IP / X-Forwarded-For header, the resolver
+    // must fall back to that peer so the request is still rate limited.
+    const env = {
+      server: {
+        requestIP: () => ({ address: "198.51.100.9", family: "IPv4", port: 0 }),
+      },
+    };
+
+    const first = await app.request("/layouts", {}, env);
+    expect(first.status).toBe(200);
+
+    const second = await app.request("/layouts", {}, env);
+    expect(second.status).toBe(429);
+  });
+
   it("tracks different IPs independently", async () => {
     const { app, stopCleanup } = createTestApp({
       writeMaxRequests: 1,
@@ -467,5 +545,23 @@ describe("resolveClientIpFromHeaders", () => {
       peerAddress: null,
     });
     expect(result).toBe("5.6.7.8");
+  });
+
+  it("falls back to the peer address when trust-proxy is on and both headers are absent", () => {
+    const req = makeReq({});
+    const result = resolveClientIpFromHeaders(req, {
+      trustProxy: true,
+      peerAddress: "203.0.113.5",
+    });
+    expect(result).toBe("203.0.113.5");
+  });
+
+  it("returns null when trust-proxy is on but neither headers nor peer are available", () => {
+    const req = makeReq({});
+    const result = resolveClientIpFromHeaders(req, {
+      trustProxy: true,
+      peerAddress: null,
+    });
+    expect(result).toBeNull();
   });
 });

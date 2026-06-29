@@ -14,12 +14,13 @@
  * When accessed through nginx proxy (recommended), the same routes are
  * available under /api/layouts (nginx strips /api before forwarding).
  *
- * Security note: do not expose the API directly without a trusted reverse
- * proxy unless RACKULA_TRUST_PROXY=false is set. Rate limiting keys on the
- * client identity; when proxy trust is enabled (the default), that identity
- * comes from X-Real-IP / X-Forwarded-For, which a direct client can spoof to
- * escape throttling. With RACKULA_TRUST_PROXY=false the socket peer address is
- * used instead. See api/README.md (Deployment behind a reverse proxy).
+ * Security note: RACKULA_TRUST_PROXY is opt-in and defaults to false. Rate
+ * limiting keys on the client identity; with the fail-safe default the identity
+ * comes from the socket peer address, so a directly exposed API is safe out of
+ * the box. Set RACKULA_TRUST_PROXY=true only behind a trusted reverse proxy
+ * that overwrites X-Real-IP / X-Forwarded-For, otherwise a direct client can
+ * spoof those headers to escape throttling. See api/README.md (Deployment
+ * behind a reverse proxy).
  *
  * GET and PUT layout responses carry the stored copy's updatedAt in the
  * X-Rackula-Updated-At header. Clients echo it on PUT; a mismatch with the

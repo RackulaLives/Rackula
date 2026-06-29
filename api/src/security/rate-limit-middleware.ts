@@ -54,11 +54,15 @@ export interface ClientIpResolution {
  *
  * When `trustProxy` is true (the request reaches the API only through a trusted
  * reverse proxy that overwrites the header, e.g. nginx setting `$remote_addr`),
- * prefers X-Real-IP and falls back to the last X-Forwarded-For entry.
+ * prefers X-Real-IP, falls back to the last X-Forwarded-For entry, and finally
+ * falls back to the socket peer address when both headers are absent so a
+ * missing header never lets a client skip rate limiting.
  *
  * When `trustProxy` is false, the forwarding headers are client-controlled and
  * spoofable, so they are ignored and the socket peer address is used instead.
- * Returns null when no usable identity is available.
+ *
+ * Returns null only when there is no usable identity at all (no trusted header
+ * and no peer address).
  *
  * Trims values and truncates to 64 chars. Shared by the API rate limiter and
  * the local-login rate limiter so both derive the client identity identically.
@@ -67,8 +71,9 @@ export function resolveClientIpFromHeaders(
   req: { header: (name: string) => string | undefined },
   options: ClientIpResolution,
 ): string | null {
+  const peer = options.peerAddress?.trim();
+
   if (!options.trustProxy) {
-    const peer = options.peerAddress?.trim();
     return peer ? peer.slice(0, 64) : null;
   }
 
@@ -85,7 +90,9 @@ export function resolveClientIpFromHeaders(
     }
   }
 
-  return null;
+  // Both trusted headers are absent. Fall back to the socket peer so a request
+  // with no forwarding headers still gets rate limited, rather than skipping.
+  return peer ? peer.slice(0, 64) : null;
 }
 
 /**
@@ -168,8 +175,14 @@ export function createRateLimitMiddleware(
       }
 
       // Exempt public paths (health, version, auth callback/check/logout).
-      // Login-initiation paths are intentionally excluded so they stay throttled.
-      if (RATE_LIMIT_EXEMPT_PATHS.has(pathname)) {
+      // GET login-initiation paths are intentionally excluded so they stay
+      // throttled by the global read limiter. Local-auth POST login is exempt
+      // here so it stays on its own dedicated login (brute-force) limiter
+      // rather than being consumed by the global write limiter.
+      const isLocalLoginPost =
+        method === "POST" &&
+        (pathname === "/auth/login" || pathname === "/api/auth/login");
+      if (RATE_LIMIT_EXEMPT_PATHS.has(pathname) || isLocalLoginPost) {
         await next();
         return;
       }

@@ -84,6 +84,11 @@ services:
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:8080}
       # Optional (recommended): protects PUT/DELETE routes via Bearer token
       - RACKULA_API_WRITE_TOKEN=${RACKULA_API_WRITE_TOKEN:-}
+      # nginx (the rackula service above) fronts this API and overwrites
+      # X-Real-IP with $remote_addr, so the API trusts the forwarding header
+      # for per-client rate-limit bucketing. The API default is fail-safe false
+      # (opt-in); this bundled stack always runs behind nginx, so opt in here.
+      - RACKULA_TRUST_PROXY=true
       # Auth mode model: none | oidc | local
       - RACKULA_AUTH_MODE=${RACKULA_AUTH_MODE:-none}
       # Required when auth mode is enabled (oidc/local)

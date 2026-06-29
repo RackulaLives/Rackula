@@ -15,6 +15,10 @@ function buildLocalEnv(overrides: EnvMap = {}): EnvMap {
     RACKULA_LOCAL_PASSWORD: TEST_LOCAL_PASSWORD,
     RACKULA_AUTH_SESSION_MAX_AGE_SECONDS: "3600",
     RACKULA_AUTH_SESSION_IDLE_TIMEOUT_SECONDS: "300",
+    // These tests simulate the behind-proxy deployment and identify the client
+    // via the X-Real-IP header, so trust the forwarding header. The production
+    // default is now fail-safe false (opt-in).
+    RACKULA_TRUST_PROXY: "true",
     ...overrides,
   };
 }
