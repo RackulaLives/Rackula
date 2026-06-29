@@ -178,9 +178,12 @@ export function duplicateSelection(): void {
     if (result.error) {
       toastStore.showToast(result.error, "error");
     } else if (result.device) {
+      // Keep the verb bar anchored to the same view the original was selected in
+      // (#2646); the duplicate shares the original's face.
       selectionStore.selectDevice(
         selectionStore.selectedRackId,
         result.device.id,
+        selectionStore.selectedDeviceFace ?? undefined,
       );
       toastStore.showToast("Device duplicated", "success");
     }

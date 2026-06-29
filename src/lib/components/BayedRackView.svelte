@@ -60,6 +60,7 @@
         deviceId?: string;
         slug: string;
         position: number;
+        face: "front" | "rear";
       }>,
     ) => void;
     ondevicedrop?: (
@@ -324,7 +325,12 @@
   // Handle device select - inject the correct rackId into the event
   function handleDeviceSelect(
     rackId: string,
-    event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
+    event: CustomEvent<{
+      deviceId?: string;
+      slug: string;
+      position: number;
+      face: "front" | "rear";
+    }>,
   ) {
     ondeviceselect?.(
       new CustomEvent("deviceselect", {
@@ -333,6 +339,7 @@
           deviceId: event.detail.deviceId,
           slug: event.detail.slug,
           position: event.detail.position,
+          face: event.detail.face,
         },
       }),
     );

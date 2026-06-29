@@ -110,6 +110,37 @@ describe("Selection Store", () => {
     });
   });
 
+  // The clicked face anchors view-relative UI (the floating verb bar) to the
+  // correct copy of a full-depth device, which renders in both the front and
+  // rear views under one UUID (#2646).
+  describe("selectedDeviceFace", () => {
+    it("records the face a device was selected in", () => {
+      const store = getSelectionStore();
+      store.selectDevice("rack-1", "device-uuid-123", "rear");
+      expect(store.selectedDeviceFace).toBe("rear");
+    });
+
+    it("is null when the face is not given (keyboard/palette selection)", () => {
+      const store = getSelectionStore();
+      store.selectDevice("rack-1", "device-uuid-123");
+      expect(store.selectedDeviceFace).toBeNull();
+    });
+
+    it("clears when a rack is selected", () => {
+      const store = getSelectionStore();
+      store.selectDevice("rack-1", "device-uuid-123", "rear");
+      store.selectRack("rack-2");
+      expect(store.selectedDeviceFace).toBeNull();
+    });
+
+    it("clears when the selection is cleared", () => {
+      const store = getSelectionStore();
+      store.selectDevice("rack-1", "device-uuid-123", "front");
+      store.clearSelection();
+      expect(store.selectedDeviceFace).toBeNull();
+    });
+  });
+
   describe("clearSelection", () => {
     it("resets all selection state", () => {
       const store = getSelectionStore();

@@ -114,9 +114,19 @@
     if (!canvasEl) return null;
 
     if (selection.isDeviceSelected && selection.selectedDeviceId) {
-      return canvasEl.querySelector(
-        `[data-device-uuid="${CSS.escape(selection.selectedDeviceId)}"]`,
-      );
+      const uuid = CSS.escape(selection.selectedDeviceId);
+      // A full-depth device renders in both the front and rear views under one
+      // UUID, so a bare UUID selector always resolves to the first (front) copy.
+      // Anchor to the copy in the view the device was clicked (#2646); fall back
+      // to the first match when the face is unknown (keyboard/palette selection).
+      const face = selection.selectedDeviceFace;
+      if (face === "front" || face === "rear") {
+        const inFace = canvasEl.querySelector(
+          `[data-device-uuid="${uuid}"][data-device-face="${face}"]`,
+        );
+        if (inFace) return inFace;
+      }
+      return canvasEl.querySelector(`[data-device-uuid="${uuid}"]`);
     }
 
     if (selection.isRackSelected && selection.selectedRackId) {

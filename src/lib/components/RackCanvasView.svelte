@@ -26,7 +26,12 @@
     swipeAnimationDirection?: RackSwipeDirection | null;
     onrackselect?: (event: CustomEvent<{ rackId: string }>) => void;
     ondeviceselect?: (
-      event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
+      event: CustomEvent<{
+        deviceId?: string;
+        slug: string;
+        position: number;
+        face: "front" | "rear";
+      }>,
     ) => void;
     ondevicedrop?: (
       event: CustomEvent<{
@@ -160,7 +165,12 @@
 
   function handleDeviceSelect(
     rackId: string,
-    event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
+    event: CustomEvent<{
+      deviceId?: string;
+      slug: string;
+      position: number;
+      face: "front" | "rear";
+    }>,
   ) {
     // Resolve the placed device by its UUID when available. The legacy
     // (slug, position) fallback is ambiguous for two half-width devices sharing
@@ -171,7 +181,10 @@
       const device = resolveSelectedDevice(targetRack, event.detail);
       if (device) {
         layoutStore.setActiveRack(rackId);
-        selectionStore.selectDevice(rackId, device.id);
+        // Pass the clicked face so view-relative UI (the verb bar, #2646) anchors
+        // to the copy that was clicked: a full-depth device renders in both the
+        // front and rear views under one UUID.
+        selectionStore.selectDevice(rackId, device.id, event.detail.face);
       }
     }
     ondeviceselect?.(event);

@@ -84,7 +84,12 @@
     /** Whether the current drag target slot is valid for the dragged device */
     isDragTargetValid?: boolean;
     onselect?: (
-      event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
+      event: CustomEvent<{
+        deviceId?: string;
+        slug: string;
+        position: number;
+        face: "front" | "rear";
+      }>,
     ) => void;
     ondragstart?: (
       event: CustomEvent<{ rackId: string; deviceIndex: number }>,
@@ -360,7 +365,12 @@
       event.stopPropagation();
       onselect?.(
         new CustomEvent("select", {
-          detail: { deviceId: placedDeviceId, slug: device.slug, position },
+          detail: {
+            deviceId: placedDeviceId,
+            slug: device.slug,
+            position,
+            face: currentFace,
+          },
         }),
       );
     }
@@ -479,7 +489,12 @@
       }
       onselect?.(
         new CustomEvent("select", {
-          detail: { deviceId: placedDeviceId, slug: device.slug, position },
+          detail: {
+            deviceId: placedDeviceId,
+            slug: device.slug,
+            position,
+            face: currentFace,
+          },
         }),
       );
     } else if (pointerState === "dragging") {
@@ -599,6 +614,7 @@
   bind:this={groupElement}
   data-device-id={device.slug}
   data-device-uuid={placedDeviceId}
+  data-device-face={currentFace}
   data-device-position={position}
   data-testid="rack-device"
   transform="translate({RAIL_WIDTH + slotXOffset}, {yPosition})"

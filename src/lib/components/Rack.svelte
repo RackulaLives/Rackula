@@ -97,7 +97,12 @@
     partyMode?: boolean;
     onselect?: (event: CustomEvent<{ rackId: string }>) => void;
     ondeviceselect?: (
-      event: CustomEvent<{ deviceId?: string; slug: string; position: number }>,
+      event: CustomEvent<{
+        deviceId?: string;
+        slug: string;
+        position: number;
+        face: "front" | "rear";
+      }>,
     ) => void;
     ondevicedrop?: (
       event: CustomEvent<{
