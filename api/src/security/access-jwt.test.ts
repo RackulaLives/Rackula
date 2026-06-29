@@ -144,6 +144,21 @@ describe("createAccessJwtValidator", () => {
     expect(result.status).toBe("invalid");
   });
 
+  it("fails closed (invalid) when the configured JWKS URL is malformed", async () => {
+    // No `jwks` override, so the real default path runs and `new URL` throws on
+    // the malformed value. The validator must deny (not throw, not skip).
+    const validator = createAccessJwtValidator({
+      jwksUrl: "not-a-url",
+      issuer: ISSUER,
+      audience: AUD,
+    });
+    expect(validator.enabled).toBe(true);
+    const result = await validator.validate(
+      requestWithToken("any.token.value"),
+    );
+    expect(result.status).toBe("invalid");
+  });
+
   it("rejects a token signed by an unknown key", async () => {
     const trusted = await makeKeys();
     const attacker = await makeKeys();

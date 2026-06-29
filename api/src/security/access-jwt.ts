@@ -105,7 +105,29 @@ export function createAccessJwtValidator(
     };
   }
 
-  const jwks = options.jwks ?? createRemoteJWKSet(new URL(config.jwksUrl));
+  let jwks: JWTVerifyGetKey;
+  if (options.jwks) {
+    jwks = options.jwks;
+  } else {
+    let jwksUrl: URL;
+    try {
+      jwksUrl = new URL(config.jwksUrl);
+    } catch {
+      // A configured-but-malformed JWKS URL is an operator error. Fail closed
+      // (deny every request with a controlled 403) rather than letting
+      // `new URL` throw uncaught on each request (repeated 500s), or silently
+      // skipping Access (which would expose the app unauthenticated). The
+      // reason is for server-side logs only; the Worker returns a generic 403.
+      return {
+        enabled: true,
+        validate: async () => ({
+          status: "invalid",
+          reason: `CF_ACCESS_JWKS_URL is not a valid URL: ${config.jwksUrl}`,
+        }),
+      };
+    }
+    jwks = createRemoteJWKSet(jwksUrl);
+  }
 
   return {
     enabled: true,
@@ -119,6 +141,10 @@ export function createAccessJwtValidator(
         const { payload } = await jwtVerify(token, jwks, {
           issuer: config.issuer,
           audience: config.audience,
+          // Cloudflare Access signs assertions with RS256. Pinning the accepted
+          // algorithm prevents algorithm-substitution attacks (e.g. a token
+          // forged with `alg: none` or an HMAC variant).
+          algorithms: ["RS256"],
         });
         return { status: "valid", payload };
       } catch (error) {

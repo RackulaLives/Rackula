@@ -34,7 +34,7 @@ export interface WorkerEnv {
 
 type FetchHandler = (request: Request) => Response | Promise<Response>;
 
-let cachedApp: { fetch: FetchHandler } | null = null;
+let appPromise: Promise<{ fetch: FetchHandler }> | null = null;
 let cachedValidator: AccessJwtValidator | null = null;
 
 /**
@@ -76,12 +76,20 @@ export default {
       );
     }
 
-    if (!cachedApp) {
-      cachedApp = await createApp(envMap, {
+    // Build the app once and share the in-flight promise so concurrent
+    // cold-start requests await the same construction instead of each creating
+    // (and discarding) their own instance. Reset on failure so a transient
+    // construction error does not permanently wedge the Worker.
+    if (!appPromise) {
+      appPromise = createApp(envMap, {
         storage: createR2Driver(env.LAYOUTS),
+      }).catch((error) => {
+        appPromise = null;
+        throw error;
       });
     }
+    const app = await appPromise;
 
-    return cachedApp.fetch(request);
+    return app.fetch(request);
   },
 };
