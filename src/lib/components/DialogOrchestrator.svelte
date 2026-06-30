@@ -56,7 +56,7 @@
   import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { registerImportDevicesTrigger } from "$lib/actions/import-devices-trigger";
   import { hapticTap } from "$lib/utils/haptics";
-  import { appDebug, dialogDebug } from "$lib/utils/debug";
+  import { appDebug, dialogDebug, layoutDebug } from "$lib/utils/debug";
   import type { ImageData } from "$lib/types/images";
   import type { DisplayMode, Layout, RackWidth } from "$lib/types";
   import type { ImportResult } from "$lib/utils/netbox-import";
@@ -266,11 +266,16 @@
       // standalone rack deletes plainly (#2741).
       const group = layoutStore.getRackGroupForRack(rackId);
       if (group?.layout_preset === "bayed") {
-        layoutStore.removeRackFromBay(rackId);
+        const { error } = layoutStore.removeRackFromBay(rackId);
+        if (error) {
+          layoutDebug.group("removeRackFromBay failed for %s: %s", rackId, error);
+        } else {
+          selectionStore.clearSelection();
+        }
       } else {
         layoutStore.deleteRack(rackId);
+        selectionStore.clearSelection();
       }
-      selectionStore.clearSelection();
     } else if (deleteTarget?.type === "device") {
       const rackId = selectionStore.selectedRackId;
       const rack = rackId ? layoutStore.getRackById(rackId) : null;

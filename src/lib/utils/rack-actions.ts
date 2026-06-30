@@ -11,6 +11,7 @@ import { getToastStore } from "$lib/stores/toast.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { DRAWER_WIDTH } from "$lib/constants/layout";
 import { handleFitAll, prepareExportQrCode } from "./app-actions";
+import { layoutDebug } from "$lib/utils/debug";
 
 /** Duplicate a rack, then fit all on success or toast the error. */
 export function handleRackContextDuplicate(rackId: string): void {
@@ -39,8 +40,12 @@ export function handleRackContextDelete(rackId: string): void {
 
   const group = layoutStore.getRackGroupForRack(rackId);
   if (group?.layout_preset === "bayed" && rack.devices.length === 0) {
-    layoutStore.removeRackFromBay(rackId);
-    selectionStore.clearSelection();
+    const { error } = layoutStore.removeRackFromBay(rackId);
+    if (error) {
+      layoutDebug.group("removeRackFromBay failed for %s: %s", rackId, error);
+    } else {
+      selectionStore.clearSelection();
+    }
     return;
   }
 
