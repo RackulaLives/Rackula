@@ -90,12 +90,7 @@ export type HelpGroup = "Navigation" | "General" | "Editing" | "File";
  * - "app": application-level entries (about/shortcuts, settings)
  */
 export type AppMenuGroup =
-  | "layout"
-  | "output"
-  | "layout-data"
-  | "devices"
-  | "workspace"
-  | "app";
+  "layout" | "output" | "layout-data" | "devices" | "workspace" | "app";
 
 export interface ActionDefinition {
   /** Stable identifier; the dispatch map and consumers key off this. */
