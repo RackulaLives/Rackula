@@ -244,6 +244,13 @@ describe("rack-resize", () => {
       expect(
         store.getRackById(rack.id)!.devices.map((d) => d.position),
       ).toEqual(positionsBefore);
+
+      // Redo reapplies the shrink step and still preserves device U-numbers.
+      store.redo();
+      expect(store.getRackById(rack.id)!.height).toBe(12);
+      expect(
+        store.getRackById(rack.id)!.devices.map((d) => d.position),
+      ).toEqual(positionsBefore);
     });
 
     it("updateRackRaw targets the given rack id, not the active rack", () => {
