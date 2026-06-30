@@ -6,8 +6,7 @@ import {
   selectDevice,
   deselectDevice,
   deleteSelectedDevice,
-  clickNewRack,
-  completeWizardWithClicks,
+  createRackDirect,
   PLATFORM_MODIFIER,
   locators,
 } from "./helpers";
@@ -119,8 +118,7 @@ test.describe("Undo/Redo", () => {
     // Start state has a single rack.
     await expect(page.locator(locators.rackView.front)).toHaveCount(1);
 
-    await clickNewRack(page);
-    await completeWizardWithClicks(page, { name: "Second Rack", height: 24 });
+    await createRackDirect(page);
     await expect(page.locator(locators.rackView.front)).toHaveCount(2);
 
     await undo(page);

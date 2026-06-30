@@ -5,6 +5,7 @@
 
 // Test layout fixtures
 export {
+  APP_VERSION,
   EMPTY_RACK_SHARE,
   SMALL_RACK_SHARE,
   MEDIUM_RACK_SHARE,
@@ -30,11 +31,13 @@ export {
 export {
   completeWizardWithKeyboard,
   completeWizardWithClicks,
+  createRackDirect,
 } from "./rack-setup";
 
 // Toolbar actions
 export {
   clickNewRack,
+  clickNewLayout,
   clickSave,
   clickLoad,
   clickExport,

@@ -3,7 +3,7 @@ import {
   gotoWithRack,
   SMALL_RACK_SHARE,
   dragDeviceToRack,
-  clickNewRack,
+  clickNewLayout,
   PLATFORM_MODIFIER,
   locators,
 } from "./helpers";
@@ -92,8 +92,8 @@ test.describe("Keyboard Shortcuts", () => {
   });
 
   test("Escape closes dialogs", async ({ page }) => {
-    // Open new rack wizard dialog
-    await clickNewRack(page);
+    // Open the New Rack wizard. #2732 moved it behind New layout (#2747).
+    await clickNewLayout(page);
     await expect(page.locator(locators.dialog.root)).toBeVisible();
 
     // Press Escape

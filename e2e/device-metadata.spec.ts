@@ -5,8 +5,7 @@ import {
   dragDeviceToRack,
   selectDevice,
   deselectDevice,
-  clickNewRack,
-  completeWizardWithClicks,
+  createRackDirect,
   PLATFORM_MODIFIER,
   locators,
   startEditingDisplayName,
@@ -329,16 +328,15 @@ test.describe("Device Metadata Persistence", () => {
       await setDeviceName(page, TEST_METADATA.name);
       await deselectDevice(page);
 
-      // Create a second rack (multi-rack mode — wizard opens directly)
-      await clickNewRack(page);
-      await completeWizardWithClicks(page, { name: "Second Rack", height: 24 });
+      // Create a second rack directly (#2732: New Rack adds a rack immediately)
+      await createRackDirect(page);
 
       // Wait for the second rack container to mount before continuing —
       // otherwise dragDeviceToRack({ rackIndex: 1 }) can race against the mount
       const rackFronts = page.locator(locators.rackView.front);
       await expect(rackFronts).toHaveCount(2);
 
-      // Switch back to Devices tab (clickNewRack switches to Racks tab)
+      // Switch back to Devices tab (createRackDirect leaves the sidebar on Racks)
       await page.getByTestId("sidebar-tab-devices").click();
 
       // Add a device to the second rack (rackIndex 1)

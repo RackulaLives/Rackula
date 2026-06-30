@@ -1,14 +1,16 @@
 import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
-import { gotoWithRack, clickNewRack, locators } from "./helpers";
+import { gotoWithRack, clickNewLayout, locators } from "./helpers";
 
 /**
  * Helper to open the New Rack wizard and advance past step 1 (name/type).
- * In multi-rack mode, clicking New Rack opens the wizard directly.
- * Fills name in step 1, clicks Next to reach step 2 (width + height).
+ * #2732 rewired the New Rack button to create a rack directly, so the wizard is
+ * reached via New layout, which opens a fresh layout and raises the wizard for
+ * its first rack. Fills name in step 1, clicks Next to reach step 2 (width +
+ * height).
  */
 async function openWizardStep2(page: Page, name: string) {
-  await clickNewRack(page);
+  await clickNewLayout(page);
   await expect(page.getByRole("dialog", { name: "New Rack" })).toBeVisible();
   await page.getByLabel("Rack Name", { exact: true }).fill(name);
   // Advance from step 1 (Name/Type) to step 2 (Width/Height)

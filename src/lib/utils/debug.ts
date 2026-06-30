@@ -54,6 +54,12 @@ export const dialogDebug = {
   import: Debug("rackula:dialog:import"),
 };
 
+/** Debug loggers for archive import and extraction flows. */
+export const archiveDebug = {
+  /** Recoverable diagnostics for archive extraction and image loading. */
+  extract: Debug("rackula:archive:extract"),
+};
+
 export const persistenceDebug = {
   api: Debug("rackula:persistence:api"),
   health: Debug("rackula:persistence:health"),

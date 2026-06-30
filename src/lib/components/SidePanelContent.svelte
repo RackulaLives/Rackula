@@ -80,14 +80,15 @@
     );
   });
 
-  // The selected rack (also resolves the active rack within a selected group).
-  // A group selection carries its active rack as selectedRackId, so both the
-  // single-rack and bayed-group cases resolve through selectionRack.
-  const selectedRack = $derived.by(() => {
-    if (selectionStore.isGroupSelected) return selectionRack;
-    if (!selectionStore.isRackSelected) return null;
-    return selectionRack;
-  });
+  // The rack the inspector shows in rack mode. Any selection that names a rack (a
+  // rack, a bayed group via its active rack, or a device via the rack that holds
+  // it) resolves through selectionRack, so a stale device selection edits the rack
+  // it pointed at rather than the active rack. With nothing selected, or a
+  // selection whose rack no longer exists, it defaults to the active rack so rack
+  // mode shows rather than an empty panel (#2739); null only when the layout has no
+  // racks. A device selection takes precedence (device mode), so this value is
+  // unused while a device resolves.
+  const rackModeRack = $derived(selectionRack ?? layoutStore.activeRack);
 
   // The selected device info, if a device is selected
   const selectedDeviceInfo = $derived.by((): SelectedDeviceInfo | null => {
@@ -115,21 +116,17 @@
     return { device, placedDevice, rack, deviceIndex };
   });
 
-  // Whether the Edit tab has a selection to show, or should render its empty state.
-  const hasEditSelection = $derived(
-    selectedRack !== null || selectedDeviceInfo !== null,
-  );
-
   // Contextual heading naming the current selection kind. A rack heading carries
   // signal the Name field does not: "Rack" vs "Bayed Rack" tells you the selection
   // kind, and a bayed group's Name field shows the group name rather than the fact
   // that it is a multi-rack group. A device heading would be redundant (the Identity
   // group's Name field already names the device, inside a tab labelled "Edit"), so a
-  // device selection renders no heading (#2525). With nothing selected the heading
-  // stays the neutral tab name and the empty state shows.
+  // device selection renders no heading (#2525). With nothing selected the inspector
+  // defaults to rack mode for the active rack, so the heading reads "Rack"; the
+  // neutral "Edit" heading shows only when the layout has no racks at all (#2739).
   const editHeadingLabel = $derived.by(() => {
-    if (selectedRack) return selectedGroup ? "Bayed Rack" : "Rack";
     if (selectedDeviceInfo) return null;
+    if (rackModeRack) return selectedGroup ? "Bayed Rack" : "Rack";
     return "Edit";
   });
 
@@ -227,9 +224,7 @@
         {editHeadingLabel}
       </h2>
     {/if}
-    {#if selectedRack}
-      <EditPanelRack {selectedRack} {selectedGroup} />
-    {:else if selectedDeviceInfo}
+    {#if selectedDeviceInfo}
       <div id={editHeadingId} class="device-view" tabindex="-1">
         <EditPanelMetadata {selectedDeviceInfo} />
         <EditPanelPosition {selectedDeviceInfo} />
@@ -239,8 +234,9 @@
           ondeletetype={handleDeleteDeviceType}
         />
       </div>
-    {/if}
-    {#if !hasEditSelection}
+    {:else if rackModeRack}
+      <EditPanelRack selectedRack={rackModeRack} {selectedGroup} />
+    {:else}
       <p class="side-panel-empty" data-testid="side-panel-edit-empty">
         Select a rack or device to edit its properties.
       </p>

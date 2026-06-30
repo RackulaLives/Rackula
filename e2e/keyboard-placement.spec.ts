@@ -14,8 +14,7 @@ import { test, expect } from "./helpers/base-test";
 import {
   gotoWithRack,
   SMALL_RACK_SHARE,
-  clickNewRack,
-  completeWizardWithClicks,
+  createRackDirect,
   locators,
 } from "./helpers";
 
@@ -121,12 +120,11 @@ test.describe("Keyboard device placement (#106)", () => {
 
   test("Tab switches the target rack during placement", async ({ page }) => {
     // Add a second rack so there is somewhere to Tab to.
-    await clickNewRack(page);
-    await completeWizardWithClicks(page, { name: "Second Rack", height: 12 });
+    await createRackDirect(page, { name: "Second Rack" });
     await expect(page.locator(locators.rackView.dualViewName)).toHaveCount(2);
 
-    // The wizard left the sidebar on the Racks tab; switch back to Devices so
-    // the palette is on screen.
+    // Creating the rack left the sidebar on the Racks tab; switch back to
+    // Devices so the palette is on screen.
     await page.getByRole("tab", { name: "Devices" }).click();
 
     const firstDevice = page.locator(locators.device.paletteItem).first();

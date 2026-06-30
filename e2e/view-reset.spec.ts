@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import {
   gotoWithRack,
   SMALL_RACK_SHARE,
-  clickNewRack,
+  createRackDirect,
   locators,
 } from "./helpers";
 
@@ -43,13 +43,8 @@ test.describe("View Reset on Rack Changes", () => {
     const transformBefore = await getPanzoomTransform(page);
     expect(transformBefore).toBeTruthy();
 
-    // Create a new rack via wizard (multi-rack mode — no replace dialog)
-    await clickNewRack(page);
-    await page.getByLabel("Rack Name", { exact: true }).fill("Test Rack");
-    await page.click('[data-testid="btn-wizard-next"]');
-    await page.click('[data-testid="btn-height-24"]');
-    await page.click('[data-testid="btn-wizard-next"]');
-    await expect(page.locator(locators.rack.container).first()).toBeVisible();
+    // Create a new rack directly (#2732: New Rack adds a rack and resets the view)
+    await createRackDirect(page);
 
     // Wait for the view to reset (transform should change from panned position)
     await expect

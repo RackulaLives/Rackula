@@ -46,7 +46,8 @@
   import {
     U_HEIGHT_PX,
     RAIL_WIDTH as RAIL_WIDTH_CONST,
-    BASE_RACK_WIDTH,
+    getRackWidth,
+    getInteriorWidth,
     BASE_RACK_PADDING as BASE_RACK_PADDING_CONST,
     RACK_PADDING_HIDDEN,
     NAME_Y_OFFSET as NAME_Y_OFFSET_CONST,
@@ -206,14 +207,14 @@
   const RAIL_WIDTH = RAIL_WIDTH_CONST;
   const NAME_Y_OFFSET = NAME_Y_OFFSET_CONST;
 
-  const RACK_WIDTH = $derived(Math.round((BASE_RACK_WIDTH * rack.width) / 19));
+  const RACK_WIDTH = $derived(getRackWidth(rack.width));
   const RACK_PADDING = $derived(
     hideRackName ? RACK_PADDING_HIDDEN : BASE_RACK_PADDING_CONST,
   );
   const viewBoxYOffset = $derived(hideRackName ? 0 : NAME_Y_OFFSET);
   const totalHeight = $derived(rack.height * U_HEIGHT);
   const viewBoxHeight = $derived(RACK_PADDING + RAIL_WIDTH * 2 + totalHeight);
-  const interiorWidth = $derived(RACK_WIDTH - RAIL_WIDTH * 2);
+  const interiorWidth = $derived(getInteriorWidth(RACK_WIDTH));
   const effectiveFaceFilter = $derived(faceFilter ?? rack.view);
 
   const rackDims = $derived<RackDimensions>({

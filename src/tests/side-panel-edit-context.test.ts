@@ -7,7 +7,7 @@
  * matching properties render; with no selection a clear empty state shows instead.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/svelte";
+import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import SidePanelContent from "$lib/components/SidePanelContent.svelte";
 import { resetLayoutStore, getLayoutStore } from "$lib/stores/layout.svelte";
 import {
@@ -31,13 +31,99 @@ describe("Edit tab contextual properties (#2077)", () => {
     resetToastStore();
   });
 
-  it("shows the empty state and an Edit heading when nothing is selected", () => {
+  it("shows the empty state and an Edit heading when nothing is selected and no racks exist", () => {
     renderEditTab();
 
     expect(screen.getByTestId("side-panel-edit-empty")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /^edit$/i }),
     ).toBeInTheDocument();
+  });
+
+  it("defaults to rack mode for the active rack when nothing is selected (#2739)", () => {
+    const layoutStore = getLayoutStore();
+
+    // Two racks, none selected. The inspector defaults to rack mode for the
+    // active rack rather than showing an empty panel.
+    layoutStore.addRack("Rack A", 42);
+    const rackB = layoutStore.addRack("Rack B", 24);
+    layoutStore.setActiveRack(rackB!.id);
+
+    renderEditTab();
+
+    // Rack mode shows for the active rack (B): its name populates the Name field,
+    // the Rack heading renders, and the empty state is absent.
+    expect(
+      screen.getByRole("heading", { name: /^rack$/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Rack B")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("side-panel-edit-empty"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("resolves rack mode for the selected rack when a device selection goes stale (#2739)", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+
+    // Rack B is active; a device in rack A is selected.
+    const rackA = layoutStore.addRack("Rack A", 42);
+    const rackB = layoutStore.addRack("Rack B", 24);
+    layoutStore.setActiveRack(rackB!.id);
+    const deviceType = layoutStore.addDeviceType({
+      name: "Server Type",
+      u_height: 1,
+      category: "server",
+      colour: "#4A90D9",
+    });
+    layoutStore.placeDevice(rackA!.id, deviceType.slug, 1, "front");
+    const device = layoutStore.getRackById(rackA!.id)!.devices[0]!;
+    selectionStore.selectDevice(rackA!.id, device.id);
+
+    // The device is removed without clearing the selection, so the device
+    // selection is stale: selectedType stays "device" and selectedRackId is rack A.
+    layoutStore.removeDeviceFromRack(rackA!.id, 0);
+
+    renderEditTab();
+
+    // Rack mode resolves to rack A (the rack the stale selection points at), not
+    // the active rack B.
+    expect(screen.getByDisplayValue("Rack A")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Rack B")).not.toBeInTheDocument();
+  });
+
+  it("switches from rack mode to device mode when the selection changes (#2739)", async () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+
+    const rack = layoutStore.addRack("Test Rack", 42);
+    const rackId = rack!.id;
+    const deviceType = layoutStore.addDeviceType({
+      name: "Server Type",
+      u_height: 1,
+      category: "server",
+      colour: "#4A90D9",
+    });
+    layoutStore.placeDevice(rackId, deviceType.slug, 1, "front");
+    const device = layoutStore.rack!.devices[0]!;
+
+    // Start in rack mode with the rack selected.
+    selectionStore.selectRack(rackId);
+    renderEditTab();
+    expect(
+      screen.getByRole("button", { name: /delete rack/i }),
+    ).toBeInTheDocument();
+
+    // Selecting a device flips the panel to device mode with no manual tab change.
+    selectionStore.selectDevice(rackId, device.id);
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /edit display name/i }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("button", { name: /delete rack/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("names a single rack and shows its rack properties", () => {

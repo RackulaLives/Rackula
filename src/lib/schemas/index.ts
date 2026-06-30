@@ -126,6 +126,7 @@ export const SlotWidthSchema = z.union([z.literal(1), z.literal(2)]);
 export const RackWidthSchema = z.union([
   z.literal(10),
   z.literal(19),
+  z.literal(21),
   z.literal(23),
 ]);
 
