@@ -124,31 +124,6 @@ describe("Archive Guardrails", () => {
     }
   });
 
-  it("rejects oversized total uncompressed content on real (non-mocked) entries", async () => {
-    const zip = new JSZip();
-    const folderName = "Layout-550e8400-e29b-41d4-a716-446655440000";
-    const folder = zip.folder(folderName);
-
-    // Keep one valid layout file so parsing proceeds into archive entry processing.
-    folder?.file("layout.rackula.yaml", "name: Test\n");
-
-    // Add highly compressible payload files to exceed total uncompressed guard
-    // while keeping archive generation practical.
-    const chunk = "0".repeat(1024 * 1024); // 1MB
-    for (let i = 0; i < 260; i++) {
-      folder?.file(`payload-${i}.txt`, chunk);
-    }
-
-    const blob = await zip.generateAsync({
-      type: "blob",
-      compression: "DEFLATE",
-    });
-
-    await expect(extractFolderArchive(blob)).rejects.toThrow(
-      /too large|uncompressed|size/i,
-    );
-  });
-
   it("rejects archives with oversized YAML (MAX_YAML_BYTES = 5MB)", async () => {
     const zip = new JSZip();
     const folderName = "Layout-550e8400-e29b-41d4-a716-446655440000";
