@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "./helpers/base-test";
 import {
+  APP_VERSION,
   createTestLayout,
   loadFileFromDisk,
   locators,
@@ -249,7 +250,7 @@ const FRAME_WIDTHS = [10, 19, 21, 23] as const;
 
 function widthFixtureYaml(width: number): string {
   return [
-    'version: "0.7.0"',
+    `version: "${APP_VERSION}"`,
     `name: "Width ${width}"`,
     "racks:",
     '  - id: "rack-1"',

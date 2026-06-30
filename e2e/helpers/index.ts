@@ -5,6 +5,7 @@
 
 // Test layout fixtures
 export {
+  APP_VERSION,
   EMPTY_RACK_SHARE,
   SMALL_RACK_SHARE,
   MEDIUM_RACK_SHARE,

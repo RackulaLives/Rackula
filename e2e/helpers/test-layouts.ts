@@ -8,7 +8,7 @@ import pako from "pako";
 import type { MinimalLayout } from "../../src/lib/schemas/share";
 import { locators } from "./locators";
 
-const { version: APP_VERSION } = JSON.parse(
+export const { version: APP_VERSION } = JSON.parse(
   readFileSync(resolve(process.cwd(), "package.json"), "utf8"),
 ) as { version: MinimalLayout["v"] };
 
