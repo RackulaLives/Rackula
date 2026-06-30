@@ -525,12 +525,11 @@
     ondeviceselect?.(event);
   }
 
-  function handleAccordionTriggerClick() {
+  function handleAccordionTriggerClick(sectionId: string) {
     // When user manually clicks accordion after search, switch back to single mode
     if (accordionMode === "multiple" && !isSearchActive) {
       accordionMode = "single";
-      accordionSingleValue = accordionMultipleValue[0] ?? preSearchSingleValue;
-      // The clicked section will be set by the accordion component
+      accordionSingleValue = sectionId ?? preSearchSingleValue;
     }
   }
 
