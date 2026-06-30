@@ -67,13 +67,14 @@ test.describe("Responsive Layout", () => {
       await expect(page.getByTestId("mobile-layout-name")).toBeVisible();
     });
 
-    test("app menu is reachable via the mobile hamburger", async ({ page }) => {
-      // Below the 1024px mobile breakpoint (viewport.svelte.ts) the desktop
-      // logo lockup (the AppMenu trigger with its .logo-mark) is not rendered.
-      // The restructured mobile top bar (#2458, #2597) exposes the same app
-      // menu through a hamburger button instead, so that is the affordance to
-      // assert here. The desktop .logo-mark is covered by the desktop suite.
-      await expect(page.getByTestId("btn-app-menu-mobile")).toBeVisible();
+    test("command palette is reachable via the mobile pill", async ({
+      page,
+    }) => {
+      // Below the 1024px mobile breakpoint (viewport.svelte.ts) the compact
+      // logo + search pill is the single top-left control (#2776). It opens the
+      // command palette (which presents as a full-screen sheet on touch, #2779),
+      // replacing the former hamburger + search buttons.
+      await expect(page.getByTestId("btn-command-palette")).toBeVisible();
     });
 
     test("mobile bottom navigation is visible", async ({ page }) => {
@@ -100,14 +101,13 @@ test.describe("Responsive Layout", () => {
       await gotoWithRack(page);
     });
 
-    test("app menu hamburger is visible in the mobile top bar", async ({
+    test("command palette pill is visible in the mobile top bar", async ({
       page,
     }) => {
       // At 600px the app renders the mobile top bar (the 1024px mobile
-      // breakpoint in viewport.svelte.ts). The desktop logo lockup and its
-      // .logo-mark are not present; the hamburger button is the app-menu
-      // affordance on mobile (#2458, #2597).
-      await expect(page.getByTestId("btn-app-menu-mobile")).toBeVisible();
+      // breakpoint in viewport.svelte.ts). The compact logo + search pill is the
+      // single top-left control on mobile (#2776), opening the command palette.
+      await expect(page.getByTestId("btn-command-palette")).toBeVisible();
     });
 
     test("no horizontal scroll", async ({ page }) => {

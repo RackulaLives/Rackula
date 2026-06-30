@@ -70,26 +70,25 @@ test.describe("Accessibility", () => {
         "WebKit skips buttons in Tab order by default (macOS keyboard setting)",
       );
 
-      // Start from a known anchor: the logo, which opens the command palette
-      // (#2775), leads the toolbar. Anchor on the button itself by testid.
-      const appMenu = page.getByTestId("btn-app-menu");
-      await expect(appMenu).toHaveAttribute(
+      // Start from a known anchor: the unified logo + search pill, the single
+      // top-left control that opens the command palette (#2776). It is a button
+      // with a descriptive accessible name, focusable and operable by keyboard.
+      const palettePill = page.getByTestId("btn-command-palette");
+      await expect(palettePill).toHaveAttribute(
         "aria-label",
-        "Open command palette",
+        "Search or run a command",
       );
-      await appMenu.focus();
-      await expect(appMenu).toBeFocused();
+      await palettePill.focus();
+      await expect(palettePill).toBeFocused();
 
       // Walk forward with Tab and record what each stop is. A keyboard user
       // must be able to reach controls without the focus ring vanishing into a
       // non-interactive void. The top bar is the workspace frame only (#2072):
-      // file commands and Settings live in the app menu (#2398, #2072) and the
+      // file commands and Settings live in the command palette and the
       // view/history controls relocate to the canvas (#2074). The storage chip
-      // is now a status-only indicator (#2446, role="status"), so it is not a
-      // tab stop; the command-palette pill is the next interactive control after
-      // the app menu, so we anchor the sweep on it.
+      // is a status-only indicator (#2446, role="status"), so it is not a tab
+      // stop. The sweep stops at the first interactive control after the pill.
       let sawInteractiveControl = false;
-      let reachedCommandPalette = false;
 
       for (let i = 0; i < 25; i++) {
         await page.keyboard.press("Tab");
@@ -102,8 +101,6 @@ test.describe("Accessibility", () => {
         // keyboard focus.
         expect(info.testid).not.toBe("storage-status-chip");
 
-        if (info.testid === "btn-command-palette") reachedCommandPalette = true;
-
         // Native controls and ARIA widgets are the keyboard-operable surface.
         const interactiveTags = ["button", "input", "a", "select", "textarea"];
         if (
@@ -113,14 +110,11 @@ test.describe("Accessibility", () => {
           info.role === "option"
         ) {
           sawInteractiveControl = true;
+          break;
         }
-
-        if (reachedCommandPalette) break;
       }
 
       expect(sawInteractiveControl).toBe(true);
-      // The command-palette pill must be reachable in a single forward sweep.
-      expect(reachedCommandPalette).toBe(true);
     });
 
     test("canvas exposes an application region with a descriptive name", async ({

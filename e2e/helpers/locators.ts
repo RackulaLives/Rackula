@@ -64,10 +64,11 @@ export const locators = {
 
   toolbar: {
     root: ".toolbar",
-    // The logo opens the command palette (#2775); it keeps the btn-app-menu
-    // testid as the brand anchor.
-    brand: '[data-testid="btn-app-menu"]',
-    brandLogoMark: '[data-testid="btn-app-menu"] .logo-mark',
+    // The unified logo + search pill is the single top-left control (#2776). It
+    // opens the command palette and carries the brand mark, so the palette
+    // trigger testid doubles as the brand anchor.
+    brand: '[data-testid="btn-command-palette"]',
+    brandLogoMark: '[data-testid="btn-command-palette"] .logo-mark',
   },
 
   sidebar: {

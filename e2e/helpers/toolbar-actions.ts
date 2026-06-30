@@ -12,15 +12,15 @@ import type { Page } from "@playwright/test";
 import { PLATFORM_MODIFIER } from "./index";
 
 /**
- * Open the command palette (via the logo, top-left) and run the command with
- * the given registry action id. The command row's testid is
- * `command-palette-item-<id>`.
+ * Open the command palette (via the unified logo + search pill, top-left) and
+ * run the command with the given registry action id. The command row's testid
+ * is `command-palette-item-<id>`.
  */
 export async function runPaletteCommand(
   page: Page,
   actionId: string,
 ): Promise<void> {
-  await page.getByTestId("btn-app-menu").click();
+  await page.getByTestId("btn-command-palette").click();
   await page.getByTestId(`command-palette-item-${actionId}`).click();
 }
 
