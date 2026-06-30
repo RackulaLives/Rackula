@@ -349,4 +349,81 @@ test.describe("Command palette", () => {
     ).not.toBeVisible();
     await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
   });
+
+  // --- #2777: Cmd+K toggles, no-armed-row on open ---
+
+  test("Ctrl/Cmd+K also closes the palette when it is open", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    const palette = page.getByRole("dialog", { name: "Command palette" });
+    await expect(palette).toBeVisible();
+    // A second press toggles it closed (#2777).
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await expect(palette).not.toBeVisible();
+  });
+
+  // --- #2778: search reveals unavailable commands greyed with a reason ---
+
+  test("searching a selection verb with nothing selected reveals it greyed", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    // Nothing is selected, so Duplicate selection is hidden from browse but a
+    // direct search must still surface it (disabled) rather than returning no
+    // match (#2778).
+    await page.getByTestId("command-palette-input").fill("duplicate");
+    const dup = page.getByTestId("command-palette-item-duplicate-selection");
+    // Revealed (not absent) even though it cannot run: browse hides it, search
+    // keeps it (greyed, with a reason). The reason copy renders alongside.
+    await expect(dup).toBeVisible();
+    await expect(dup.getByText("select gear first")).toBeVisible();
+  });
+
+  // --- #2779: no-command-match bridge to the device catalogue ---
+
+  test("a query that matches no command offers the device bridge, pre-filled", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    // A query that matches no command surfaces the "Add a device called ..."
+    // bridge instead of a dead end (#2779).
+    await page.getByTestId("command-palette-input").fill("zzzqqq");
+    const bridge = page.getByTestId("command-palette-create-device");
+    await expect(bridge).toBeVisible();
+
+    // Selecting it enters device search pre-filled with the typed query, so the
+    // device sub-page opens carrying "zzzqqq" (which matches no device).
+    await bridge.click();
+    await expect(page.getByTestId("command-palette-device-back")).toBeVisible();
+    await expect(page.getByTestId("command-palette-input")).toHaveValue(
+      "zzzqqq",
+    );
+    await expect(
+      page.getByTestId("command-palette-device-empty"),
+    ).toBeVisible();
+  });
+
+  test("Escape in the device sub-mode returns to commands before closing", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await page.getByTestId("command-palette-add-device").click();
+    await expect(page.getByTestId("command-palette-device-back")).toBeVisible();
+
+    // First Escape pops the device sub-page back to the command list (#2779).
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByTestId("command-palette-item-fit-all"),
+    ).toBeVisible();
+    await expect(page.getByTestId("command-palette-device-back")).toHaveCount(
+      0,
+    );
+
+    // A second Escape closes the palette.
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).not.toBeVisible();
+  });
 });

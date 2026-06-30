@@ -13,6 +13,31 @@ import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 const RECENTS_KEY = "rackula:palette:recents";
 const MAX_RECENTS = 5;
 
+/**
+ * Destructive commands that must never enter recents (#2777, decision 13): a
+ * one-tap "restore" or "new layout" replays a layout-replacing action, and
+ * delete-selection removes the current selection. Surfacing them under Recent
+ * would invite an accidental destructive run.
+ */
+const NON_RECORDABLE: ReadonlySet<ActionId> = new Set<ActionId>([
+  "restore-file",
+  "new-layout",
+  "delete-selection",
+]);
+
+/**
+ * Recents hold only safe, global commands. A command is recordable when it is a
+ * real registry action, is not in the destructive set above, and is not
+ * selection-scoped (selection verbs depend on a live selection that may be gone
+ * by the time the palette reopens).
+ */
+function isRecordable(id: ActionId): boolean {
+  if (NON_RECORDABLE.has(id)) return false;
+  const action = getActionById(id);
+  if (!action) return false;
+  return action.scope !== "selection";
+}
+
 function sanitise(parsed: unknown): ActionId[] {
   if (!Array.isArray(parsed)) return [];
   const result: ActionId[] = [];
@@ -43,8 +68,12 @@ function persist(): void {
   safeSetItem(RECENTS_KEY, JSON.stringify(recents));
 }
 
-/** Record a command id as just executed: move-to-front, dedupe, cap at 5. */
+/**
+ * Record a command id as just executed: move-to-front, dedupe, cap at 5.
+ * Destructive and selection-scoped commands are skipped (see isRecordable).
+ */
 export function recordCommand(id: ActionId): void {
+  if (!isRecordable(id)) return;
   recents = [id, ...recents.filter((existing) => existing !== id)].slice(
     0,
     MAX_RECENTS,

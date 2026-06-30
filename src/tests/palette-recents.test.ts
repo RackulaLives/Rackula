@@ -70,6 +70,29 @@ describe("palette recents store", () => {
     expect(getRecents()).toEqual([]);
   });
 
+  // #2777 decision 13: recents hold only safe, global commands. Destructive
+  // commands and selection-scoped verbs must never be recorded, so a one-tap
+  // Recent re-run can never replay a destructive or context-dependent action.
+  it("does not record destructive commands", () => {
+    recordCommand("restore-file");
+    recordCommand("new-layout");
+    recordCommand("delete-selection");
+    expect(getRecents()).toEqual([]);
+  });
+
+  it("does not record selection-scoped commands", () => {
+    recordCommand("duplicate-selection");
+    recordCommand("move-device-up");
+    expect(getRecents()).toEqual([]);
+  });
+
+  it("records a safe global command alongside skipping unsafe ones", () => {
+    recordCommand("delete-selection"); // skipped (destructive)
+    recordCommand("fit-all"); // recorded (safe global)
+    recordCommand("duplicate-selection"); // skipped (selection-scoped)
+    expect(getRecents()).toEqual(["fit-all"]);
+  });
+
   it("caps an oversized stored array to five on load", () => {
     safeSetItem(
       KEY,

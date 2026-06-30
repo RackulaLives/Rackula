@@ -23,7 +23,7 @@
   import { getStorageMode } from "$lib/storage";
   import { canMoveSelectedDeviceSlot } from "$lib/actions/selection-actions";
   import {
-    getPaletteCommands,
+    getPaletteSearchCommands,
     getPaletteEmptyState,
   } from "$lib/actions/palette-commands";
   import {
@@ -75,14 +75,20 @@
     canUndo: layoutStore.canUndo,
     canRedo: layoutStore.canRedo,
     hasRacks: layoutStore.hasRack,
+    hasMultipleRacks: layoutStore.rackCount >= 2,
     mode: getStorageMode(),
     canMoveDeviceSlot: canMoveSelectedDeviceSlot(),
     readOnly: uiStore.readOnly,
   });
 
-  const groups = $derived(getPaletteCommands(ctx));
   const showEmptyState = $derived(search.trim() === "");
   const emptyState = $derived(getPaletteEmptyState(ctx, getRecents()));
+  // Flat, relevance-ranked search list (#2777 rule 12). Carries context-gated
+  // commands greyed-with-reason (#2778); bits-ui fuzzy-filters and ranks them.
+  const searchCommands = $derived(getPaletteSearchCommands(ctx));
+  // While browsing (command mode, empty query) nothing is armed: the highlight
+  // is suppressed and Enter is inert until the first keystroke (#2777 decision 8).
+  const browsing = $derived(mode !== "devices" && search.trim() === "");
 
   // "Add device..." is an accelerator into placement, offered only when there is
   // a rack to place into. It is a palette-internal mode switch, NOT a registry
@@ -128,6 +134,17 @@
     deviceQuery = "";
   }
 
+  // The palette is mounted permanently (only its Dialog.Content unmounts), so a
+  // close must reset the sub-mode/search state or it leaks into the next open.
+  // onOpenChange only fires for bits-ui-initiated closes (Escape, click-out), so
+  // a programmatic close - Cmd+K toggle, a command opening another dialog -
+  // would otherwise reopen stuck in device mode or mid-search. Resetting on the
+  // open->false transition covers every close path. Depends only on `open`, so
+  // writing the mode/search state here cannot re-trigger it.
+  $effect(() => {
+    if (!open) resetState();
+  });
+
   function handleOpenChange(next: boolean) {
     if (next) return;
     // Only clear the store if the palette is still the current dialog; a command
@@ -136,8 +153,11 @@
     resetState();
   }
 
-  function enterDeviceMode() {
-    deviceQuery = "";
+  // Enter the device sub-page. An optional prefill seeds the device query so the
+  // no-command-match bridge ("Add a device called '<query>'") carries the typed
+  // text straight into device search (#2779, rule 11).
+  function enterDeviceMode(prefill = "") {
+    deviceQuery = prefill;
     mode = "devices";
     inputEl?.focus();
   }
@@ -148,6 +168,17 @@
     inputEl?.focus();
   }
 
+  // Esc in the device sub-page pops back to the command list first; a second Esc
+  // (now in command mode) lets the Dialog close as usual (#2779). Intercept
+  // before bits-ui's Dialog handles Escape so the first press never closes the
+  // whole palette.
+  function handleContentEscapeKeydown(event: KeyboardEvent) {
+    if (mode === "devices") {
+      event.preventDefault();
+      exitDeviceMode();
+    }
+  }
+
   // Backspace on an empty device query returns to the command list (mirrors the
   // VS Code Quick Open back gesture). Guarded on empty so it never also deletes
   // a character mid-query.
@@ -155,6 +186,20 @@
     if (event.key === "Backspace" && deviceQuery === "") {
       event.preventDefault();
       exitDeviceMode();
+    }
+  }
+
+  // One keydown handler for the persistent input. Device mode keeps the
+  // Backspace-to-pop gesture; command mode makes Enter inert while browsing so
+  // no row fires on a stray Enter before the user has typed (#2777 decision 8).
+  function handleInputKeydown(event: KeyboardEvent) {
+    if (mode === "devices") {
+      handleDeviceInputKeydown(event);
+      return;
+    }
+    if (event.key === "Enter" && search.trim() === "") {
+      event.preventDefault();
+      event.stopPropagation();
     }
   }
 
@@ -197,6 +242,7 @@
         ? 'command-palette--sheet'
         : 'command-palette--centred'}"
       data-testid="command-palette"
+      onEscapeKeydown={handleContentEscapeKeydown}
     >
       <!-- Visually-hidden accessible name for the dialog. -->
       <Dialog.Title class="sr-only">Command palette</Dialog.Title>
@@ -225,7 +271,8 @@
           {/if}
           <!-- One persistent input across modes so focus survives the sub-page
                push/pop. bind:value swaps between the command and device queries;
-               onkeydown handles Backspace-at-empty only while in device mode. -->
+               handleInputKeydown owns the per-mode key behaviour (Backspace-pop
+               in device mode, Enter-inert while browsing in command mode). -->
           <Command.Input
             bind:ref={inputEl}
             bind:value={
@@ -235,9 +282,7 @@
                 else search = v;
               }
             }
-            onkeydown={mode === "devices"
-              ? handleDeviceInputKeydown
-              : undefined}
+            onkeydown={handleInputKeydown}
             class="command-input"
             placeholder={mode === "devices"
               ? "Add device..."
@@ -255,9 +300,15 @@
           </button>
         </div>
 
-        <Command.List class="command-list" aria-label="Commands">
+        <Command.List
+          class="command-list {browsing ? 'command-list--browsing' : ''}"
+          aria-label="Commands"
+        >
           <Command.Viewport class="command-viewport">
-            {#if mode !== "devices"}
+            {#if mode !== "devices" && !canAddDevice}
+              <!-- With a rack present the device bridge below is the non-blank
+                   fallback, so the empty slot is only needed when no rack exists
+                   and the "Add device..." affordance is unavailable. -->
               <Command.Empty class="command-empty">
                 No matching commands
               </Command.Empty>
@@ -313,7 +364,7 @@
                         "insert",
                         "hardware",
                       ]}
-                      onSelect={enterDeviceMode}
+                      onSelect={() => enterDeviceMode()}
                       class="command-item command-item--lead"
                       data-testid="command-palette-add-device"
                     >
@@ -417,60 +468,57 @@
                 </Command.Group>
               {/each}
             {:else}
-              {#if canAddDevice}
-                <Command.Group class="command-group">
-                  <Command.GroupItems>
+              <!-- Searching: one flat, relevance-ranked list, no headings
+                   (#2777 rule 12). Unavailable commands stay, greyed with a
+                   reason (#2778 rule 10); bits-ui filters and ranks all rows. -->
+              <Command.Group class="command-group">
+                <Command.GroupItems>
+                  {#each searchCommands as command (command.id)}
                     <Command.Item
-                      value="Add device..."
-                      keywords={[
-                        "add",
-                        "device",
-                        "place",
-                        "insert",
-                        "hardware",
-                      ]}
-                      onSelect={enterDeviceMode}
+                      value={command.label}
+                      keywords={command.keywords}
+                      disabled={command.disabledReason !== undefined}
+                      onSelect={() => run(command.id)}
+                      class="command-item"
+                      data-testid={`command-palette-item-${command.id}`}
+                    >
+                      <span class="command-item-label">{command.label}</span>
+                      {#if command.disabledReason}
+                        <span class="command-item-reason"
+                          >{command.disabledReason}</span
+                        >
+                      {:else if command.shortcut}
+                        <span class="command-item-shortcut"
+                          >{command.shortcut}</span
+                        >
+                      {/if}
+                    </Command.Item>
+                  {/each}
+                  <!-- No-command-match bridge to the device catalogue (#2779,
+                       rule 11). forceMount keeps it as the always-available last
+                       row: when nothing else matches it is the sole armed item,
+                       and selecting it enters device search pre-filled with the
+                       typed query. -->
+                  {#if canAddDevice}
+                    <Command.Item
+                      forceMount
+                      value="add device"
+                      onSelect={() => enterDeviceMode(search)}
                       class="command-item command-item--lead"
-                      data-testid="command-palette-add-device"
+                      data-testid="command-palette-create-device"
                     >
                       <span class="command-item-lead">
                         <span class="command-item-icon" aria-hidden="true">
                           <IconPlus />
                         </span>
-                        <span class="command-item-label">Add device...</span>
+                        <span class="command-item-label"
+                          >Add a device called "{search}"</span
+                        >
                       </span>
                     </Command.Item>
-                  </Command.GroupItems>
-                </Command.Group>
-              {/if}
-              {#each groups as group, groupIndex (group.heading)}
-                {#if canAddDevice || groupIndex > 0}
-                  <Command.Separator class="command-separator" />
-                {/if}
-                <Command.Group class="command-group">
-                  <Command.GroupHeading class="command-group-heading">
-                    {group.heading}
-                  </Command.GroupHeading>
-                  <Command.GroupItems>
-                    {#each group.commands as command (command.id)}
-                      <Command.Item
-                        value={command.label}
-                        keywords={command.keywords}
-                        onSelect={() => run(command.id)}
-                        class="command-item"
-                        data-testid={`command-palette-item-${command.id}`}
-                      >
-                        <span class="command-item-label">{command.label}</span>
-                        {#if command.shortcut}
-                          <span class="command-item-shortcut"
-                            >{command.shortcut}</span
-                          >
-                        {/if}
-                      </Command.Item>
-                    {/each}
-                  </Command.GroupItems>
-                </Command.Group>
-              {/each}
+                  {/if}
+                </Command.GroupItems>
+              </Command.Group>
             {/if}
           </Command.Viewport>
         </Command.List>
@@ -666,6 +714,24 @@
     font-size: var(--font-size-sm);
     white-space: nowrap;
     color: var(--colour-text-muted);
+  }
+
+  /* Why an unavailable command cannot run, shown on the greyed search row
+     (#2778). Pinned to the trailing edge like the shortcut, but in prose. */
+  .command-item-reason {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+    color: var(--colour-text-muted);
+  }
+
+  /* No highlight while browsing (#2777 decision 8): bits-ui auto-selects the
+     first row, but until the user types nothing should look armed, so the
+     selected background is neutralised. Hover (pointer intent) is unaffected.
+     Enter is made inert separately in handleInputKeydown. */
+  :global(.command-list--browsing .command-item[data-selected]) {
+    background: transparent;
   }
 
   /* "Add device..." lead row: icon plus label, reads as an entry point. */

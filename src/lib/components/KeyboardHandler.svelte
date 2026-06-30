@@ -77,10 +77,16 @@
   function handleKeyDown(event: KeyboardEvent) {
     // Palette shortcut fires even from a text field, and before any other
     // handling. It is the first special-case to run before shouldIgnoreKeyboard.
+    // Cmd/Ctrl+K toggles the palette: it closes it when already open, otherwise
+    // opens it (#2777).
     if (isCommandPaletteShortcut(event)) {
       event.preventDefault();
       event.stopPropagation();
-      dialogStore.open("commandPalette");
+      if (dialogStore.isOpen("commandPalette")) {
+        dialogStore.close();
+      } else {
+        dialogStore.open("commandPalette");
+      }
       return;
     }
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   getPaletteCommands,
   getPaletteEmptyState,
+  getPaletteSearchCommands,
 } from "$lib/actions/palette-commands";
 import type { ActionEnabledContext, ActionId } from "$lib/actions/registry";
 
@@ -79,6 +80,15 @@ describe("getPaletteCommands", () => {
   it("gates global commands by their own enabledWhen too", () => {
     // share needs a rack; with no racks it is hidden from the palette.
     expect(ids({ ...baseCtx, hasRacks: false })).not.toContain("share");
+  });
+
+  it("hides rack-cycling commands in browse until there are 2+ racks", () => {
+    // baseCtx has one rack (hasMultipleRacks undefined): cycle-rack is hidden.
+    expect(ids(baseCtx)).not.toContain("cycle-rack-prev");
+    expect(ids(baseCtx)).not.toContain("cycle-rack-next");
+    const multi = { ...baseCtx, hasMultipleRacks: true };
+    expect(ids(multi)).toContain("cycle-rack-prev");
+    expect(ids(multi)).toContain("cycle-rack-next");
   });
 });
 
@@ -221,5 +231,69 @@ describe("getPaletteEmptyState", () => {
     for (const id of [...recent, ...selection]) {
       expect(commands).not.toContain(id);
     }
+  });
+});
+
+// The browse list hides context-gated commands; the search list keeps them,
+// greyed with a reason, so search stays honest while browse stays short (#2778,
+// rule 10). These tests pin that browse-hides / search-reveals-disabled split.
+describe("getPaletteSearchCommands (#2778)", () => {
+  function find(ctx: ActionEnabledContext, id: ActionId) {
+    return getPaletteSearchCommands(ctx).find((c) => c.id === id);
+  }
+
+  it("includes runnable commands with no disabled reason", () => {
+    const fitAll = find(baseCtx, "fit-all");
+    expect(fitAll).toBeDefined();
+    expect(fitAll?.disabledReason).toBeUndefined();
+  });
+
+  it("reveals selection verbs greyed with a reason when nothing is selected", () => {
+    // Browse hides them; search keeps them disabled with "select gear first".
+    expect(ids(baseCtx)).not.toContain("delete-selection");
+    const del = find(baseCtx, "delete-selection");
+    expect(del).toBeDefined();
+    expect(del?.disabledReason).toBe("select gear first");
+  });
+
+  it("reveals rack-gated globals greyed with a reason when no rack exists", () => {
+    const noRack = { ...baseCtx, hasRacks: false };
+    expect(find(noRack, "share")?.disabledReason).toBe("needs a rack");
+    expect(find(noRack, "view-yaml")?.disabledReason).toBe("needs a rack");
+  });
+
+  it("reveals rack-cycling greyed with a reason when there are fewer than 2 racks", () => {
+    expect(find(baseCtx, "cycle-rack-next")?.disabledReason).toBe(
+      "needs 2 or more racks",
+    );
+  });
+
+  it("labels history commands by history, not by rack, when greyed", () => {
+    // Undo/Redo are global with a rack present but no history: the blocker is
+    // empty history, not a missing rack, so the reason must say so.
+    expect(find(baseCtx, "undo")?.disabledReason).toBe("nothing to undo");
+    expect(find(baseCtx, "redo")?.disabledReason).toBe("nothing to redo");
+  });
+
+  it("greys mutating verbs with a read-only reason when the layout is locked", () => {
+    // A selection exists but the layout is locked: the blocker is the lock, so
+    // the reason is read-only rather than the selection one.
+    const locked = { ...baseCtx, hasSelection: true, readOnly: true };
+    expect(find(locked, "delete-selection")?.disabledReason).toBe("read-only");
+  });
+
+  it("never includes the wrong-mode storage variant, even greyed", () => {
+    // The browser build offers export-backup; Save / Save As (server-only) must
+    // not appear at all, not even as a greyed row.
+    const browserIds = getPaletteSearchCommands(baseCtx).map((c) => c.id);
+    expect(browserIds).toContain("export-backup");
+    expect(browserIds).not.toContain("save");
+    expect(browserIds).not.toContain("save-as");
+  });
+
+  it("excludes the non-pickable actions (command-palette, escape)", () => {
+    const searchIds = getPaletteSearchCommands(baseCtx).map((c) => c.id);
+    expect(searchIds).not.toContain("command-palette");
+    expect(searchIds).not.toContain("escape");
   });
 });

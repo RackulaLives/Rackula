@@ -119,19 +119,72 @@ function shortcutOf(action: ActionDefinition): string | undefined {
   return formatShortcut(...parts);
 }
 
-function isIncluded(
+/**
+ * Whether an action can be projected onto the palette at all (in either the
+ * browse list or the search list). Excludes the non-list-pickable actions and
+ * the wrong-mode half of a storage-mode-split pair (Save / Save As vs Export
+ * layout .zip) - those never appear, even greyed, because the matching-mode
+ * variant covers the intent (#2775).
+ */
+function isProjectable(
   action: ActionDefinition,
   ctx: ActionEnabledContext,
 ): boolean {
   if (EXCLUDED.has(action.id)) return false;
-  // Storage-mode split: a server-only action (Save, Save As) and a browser-only
-  // action (Export layout .zip) are the same intent split by mode, so only the
-  // one matching the active mode is offered - they never both appear (#2775).
   if (action.storageMode && action.storageMode !== ctx.mode) return false;
-  // selection commands appear only when enabled; global/layout always appear,
-  // but still respect their own enabledWhen when they declare one.
+  return true;
+}
+
+/** Whether a projectable action can run right now, given the live context. */
+function isRunnable(
+  action: ActionDefinition,
+  ctx: ActionEnabledContext,
+): boolean {
+  // selection commands run only when enabled; global/layout always run, but
+  // still respect their own enabledWhen when they declare one.
   if (action.enabledWhen) return action.enabledWhen(ctx);
   return true;
+}
+
+function isIncluded(
+  action: ActionDefinition,
+  ctx: ActionEnabledContext,
+): boolean {
+  return isProjectable(action, ctx) && isRunnable(action, ctx);
+}
+
+/**
+ * Per-action reason strings shown when a command is surfaced greyed in search.
+ * Kept tiny: only the cases the generic scope/rack heuristics below get wrong.
+ */
+const UNAVAILABLE_REASON_OVERRIDES: Partial<Record<ActionId, string>> = {
+  "cycle-rack-prev": "needs 2 or more racks",
+  "cycle-rack-next": "needs 2 or more racks",
+  undo: "nothing to undo",
+  redo: "nothing to redo",
+};
+
+/**
+ * Short why-it-cannot-run reason for a projectable-but-not-runnable command,
+ * shown beside the greyed row in search (#2778, rule 10). Read-only is the most
+ * fundamental blocker, so it wins when removing the lock alone would make the
+ * command runnable.
+ */
+function unavailableReason(
+  action: ActionDefinition,
+  ctx: ActionEnabledContext,
+): string {
+  if (
+    ctx.readOnly &&
+    action.enabledWhen &&
+    action.enabledWhen({ ...ctx, readOnly: false })
+  ) {
+    return "read-only";
+  }
+  const override = UNAVAILABLE_REASON_OVERRIDES[action.id];
+  if (override) return override;
+  if (action.scope === "selection") return "select gear first";
+  return "needs a rack";
 }
 
 function toPaletteCommand(action: ActionDefinition): PaletteCommand {
@@ -162,6 +215,40 @@ export function getPaletteCommands(
     if (commands && commands.length > 0) groups.push({ heading, commands });
   }
   return groups;
+}
+
+/**
+ * A palette row for the search (typing) list. Extends PaletteCommand with an
+ * optional reason: when present, the command exists but cannot run in the
+ * current context, so the row renders greyed and non-selectable (#2778).
+ */
+export interface PaletteSearchCommand extends PaletteCommand {
+  /** Why the command cannot run now; absent when the command is runnable. */
+  disabledReason?: string;
+}
+
+/**
+ * Project the flat search list (#2777 rule 12, #2778 rule 10). Unlike the
+ * grouped browse list, search is a single relevance-ranked list with no
+ * headings, and it keeps context-gated commands - rendered greyed with a short
+ * reason - instead of hiding them, so search stays honest while browse stays
+ * short. The component feeds the rows to bits-ui Command, which fuzzy-filters
+ * and ranks them by the live query.
+ */
+export function getPaletteSearchCommands(
+  ctx: ActionEnabledContext,
+): PaletteSearchCommand[] {
+  const out: PaletteSearchCommand[] = [];
+  for (const action of ACTION_REGISTRY) {
+    if (!isProjectable(action, ctx)) continue;
+    const command = toPaletteCommand(action);
+    if (isRunnable(action, ctx)) {
+      out.push(command);
+    } else {
+      out.push({ ...command, disabledReason: unavailableReason(action, ctx) });
+    }
+  }
+  return out;
 }
 
 /**
