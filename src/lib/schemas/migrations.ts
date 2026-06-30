@@ -96,12 +96,12 @@ export function needsPositionMigration(
 
   // Check 2: Heuristic fallback
   // If any rack-level device has position < UNITS_PER_U, it's old format
-  // (U1 in new format = UNITS_PER_U, so valid positions are >= UNITS_PER_U)
+  // (U1 in new format = UNITS_PER_U, so valid positions are >= UNITS_PER_U).
+  // A falsy container_id (undefined or "") is rack-level here, matching how
+  // PlacedDeviceSchema, the carrier-first refine, and clampOverRackPositions
+  // distinguish rail devices from container children.
   const hasOldFormatPosition = devices.some(
-    (d) =>
-      d.container_id === undefined &&
-      d.position >= 1 &&
-      d.position < UNITS_PER_U,
+    (d) => !d.container_id && d.position >= 1 && d.position < UNITS_PER_U,
   );
   if (hasOldFormatPosition) {
     return true;
@@ -128,8 +128,10 @@ export function migrateDevicePositions<
   T extends { position: number; container_id?: string },
 >(devices: T[]): T[] {
   return devices.map((device) => {
-    // Container children keep their 0-indexed positions
-    if (device.container_id !== undefined) {
+    // Container children keep their 0-indexed positions. A falsy container_id
+    // (undefined or "") is rack-level here, matching PlacedDeviceSchema, the
+    // carrier-first refine, and clampOverRackPositions.
+    if (device.container_id) {
       return device;
     }
     // Rack-level devices: snap to the nearest whole U (min U1), in internal units.
