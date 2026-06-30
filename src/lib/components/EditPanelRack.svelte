@@ -45,9 +45,9 @@
   const uiStore = getUIStore();
   const canvasStore = getCanvasStore();
 
-  // Selectable rack widths. 21" is gated behind RackWidthSchema reconciliation
-  // and the to-scale drawing (#2736); offer the validated set until that lands.
-  const widthOptions = [10, 19, 23] as const;
+  // Selectable rack widths. RackSchema.width already permits all four; the
+  // to-scale 21-inch drawing lands in #2736.
+  const widthOptions = [10, 19, 21, 23] as const;
 
   // Form factor options for the selector.
   const formFactorOptions: { value: FormFactor; label: string }[] = [
