@@ -238,8 +238,13 @@
         // Undo: call undo() for each deleted device type to maintain history consistency
         // This properly removes the delete actions from history
         for (let i = 0; i < deletedTypes.length; i++) {
-          if (typeof (layoutStore as { canUndo?: () => boolean }).canUndo === "function") {
-            const canUndo = (layoutStore as { canUndo?: () => boolean }).canUndo?.();
+          if (
+            typeof (layoutStore as { canUndo?: () => boolean }).canUndo ===
+            "function"
+          ) {
+            const canUndo = (
+              layoutStore as { canUndo?: () => boolean }
+            ).canUndo?.();
             if (!canUndo) break;
           }
 
@@ -537,11 +542,12 @@
     ondeviceselect?.(event);
   }
 
-  function handleAccordionTriggerClick(sectionId: string) {
+  function handleAccordionTriggerClick() {
     // When user manually clicks accordion after search, switch back to single mode
     if (accordionMode === "multiple" && !isSearchActive) {
       accordionMode = "single";
-      accordionSingleValue = sectionId ?? preSearchSingleValue;
+      accordionSingleValue = accordionMultipleValue[0] ?? preSearchSingleValue;
+      // The clicked section will be set by the accordion component
     }
   }
 
