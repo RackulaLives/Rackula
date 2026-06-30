@@ -133,3 +133,34 @@ export function planBayedInsert(
   ordered.splice(sourceIndex + 1, 0, newRackId);
   return ordered.map((id, position) => ({ id, position }));
 }
+
+/**
+ * Compute the Rack.position values that close the canvas row after
+ * `removedRackId` is taken out of it. The removed rack is dropped from the row
+ * and from any group, and the remaining racks are reindexed to sequential
+ * positions so no empty slot is left where the rack was. A group that loses its
+ * only resolvable member contributes nothing, so its lone survivor (if any)
+ * simply reindexes as a standalone slot.
+ *
+ * Returns one assignment per remaining rack in row order, or null when
+ * `removedRackId` is not in `racks`.
+ */
+export function planRowAfterRemoval(
+  racks: Rack[],
+  groups: RackGroup[],
+  removedRackId: string,
+): RackPositionAssignment[] | null {
+  if (!racks.some((rack) => rack.id === removedRackId)) return null;
+
+  const remainingRacks = racks.filter((rack) => rack.id !== removedRackId);
+  const remainingGroups = groups.map((group) => ({
+    ...group,
+    rack_ids: group.rack_ids.filter((id) => id !== removedRackId),
+  }));
+
+  return organizeRackRow(remainingRacks, remainingGroups)
+    .flatMap((item) =>
+      item.kind === "rack" ? [item.rack.id] : item.racks.map((r) => r.id),
+    )
+    .map((id, position) => ({ id, position }));
+}

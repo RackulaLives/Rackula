@@ -3,6 +3,7 @@ import {
   organizeRackRow,
   reorderRackRow,
   planBayedInsert,
+  planRowAfterRemoval,
 } from "$lib/utils/rack-row";
 import { createTestRack } from "./factories";
 import type { RackGroup } from "$lib/types";
@@ -260,5 +261,65 @@ describe("planBayedInsert", () => {
   it("returns null when the source rack is not in the row", () => {
     const a = createTestRack({ id: "a", position: 0 });
     expect(planBayedInsert([a], [], "missing", "new")).toBeNull();
+  });
+});
+
+describe("planRowAfterRemoval", () => {
+  it("drops the removed rack and reindexes the remaining row contiguously", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const b = createTestRack({ id: "b", position: 1 });
+    const c = createTestRack({ id: "c", position: 2 });
+
+    const assignments = planRowAfterRemoval([a, b, c], [], "b");
+
+    expect(assignments).toEqual([
+      { id: "a", position: 0 },
+      { id: "c", position: 1 },
+    ]);
+  });
+
+  it("reindexes a bay member removal so the survivors stay contiguous", () => {
+    const m1 = createTestRack({ id: "m1", position: 0 });
+    const m2 = createTestRack({ id: "m2", position: 1 });
+    const m3 = createTestRack({ id: "m3", position: 2 });
+    const solo = createTestRack({ id: "solo", position: 3 });
+    const group: RackGroup = {
+      id: "g1",
+      rack_ids: ["m1", "m2", "m3"],
+      layout_preset: "bayed",
+    };
+
+    const assignments = planRowAfterRemoval([m1, m2, m3, solo], [group], "m1")!;
+
+    expect(assignments).toEqual([
+      { id: "m2", position: 0 },
+      { id: "m3", position: 1 },
+      { id: "solo", position: 2 },
+    ]);
+  });
+
+  it("treats a group's lone survivor as a standalone slot", () => {
+    const m1 = createTestRack({ id: "m1", position: 0 });
+    const m2 = createTestRack({ id: "m2", position: 1 });
+    const solo = createTestRack({ id: "solo", position: 2 });
+    const group: RackGroup = {
+      id: "g1",
+      rack_ids: ["m1", "m2"],
+      layout_preset: "bayed",
+    };
+
+    // Removing m1 leaves the group with a single member; the survivor m2
+    // reindexes ahead of solo exactly as if it were standalone.
+    const assignments = planRowAfterRemoval([m1, m2, solo], [group], "m1")!;
+
+    expect(assignments).toEqual([
+      { id: "m2", position: 0 },
+      { id: "solo", position: 1 },
+    ]);
+  });
+
+  it("returns null when the removed rack is not in the row", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    expect(planRowAfterRemoval([a], [], "missing")).toBeNull();
   });
 });

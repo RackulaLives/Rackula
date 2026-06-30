@@ -25,17 +25,29 @@ export function handleRackContextDuplicate(rackId: string): void {
   }
 }
 
-/** Select a rack and open the confirm-delete dialog targeting it. */
+/**
+ * Remove a rack via the context menu. A bay member is removed from its bay and
+ * the row closes the gap; the confirm dialog only gates a member that holds
+ * gear, so an empty member is removed immediately (#2741). A standalone rack
+ * always opens the confirm dialog.
+ */
 export function handleRackContextDelete(rackId: string): void {
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
   const rack = layoutStore.getRackById(rackId);
-  if (rack) {
-    layoutStore.setActiveRack(rackId);
-    selectionStore.selectRack(rackId);
-    dialogStore.deleteTarget = { type: "rack", name: rack.name };
-    dialogStore.open("confirmDelete");
+  if (!rack) return;
+
+  const group = layoutStore.getRackGroupForRack(rackId);
+  if (group?.layout_preset === "bayed" && rack.devices.length === 0) {
+    layoutStore.removeRackFromBay(rackId);
+    selectionStore.clearSelection();
+    return;
   }
+
+  layoutStore.setActiveRack(rackId);
+  selectionStore.selectRack(rackId);
+  dialogStore.deleteTarget = { type: "rack", name: rack.name };
+  dialogStore.open("confirmDelete");
 }
 
 /** Open the export dialog for the given racks; warns if none are selected. */

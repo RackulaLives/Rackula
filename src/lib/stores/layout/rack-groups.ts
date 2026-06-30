@@ -29,6 +29,7 @@ import { getCommandStoreAdapter } from "./command-adapters";
 import { bindCommandToRack } from "./recorded-rack-actions";
 import {
   planBayedInsert,
+  planRowAfterRemoval,
   type RackPositionAssignment,
 } from "$lib/utils/rack-row";
 import type { LayoutStateAccess } from "./types";
@@ -958,5 +959,89 @@ export function resizeBayedGroupHeight(
     })),
     "Resize bay",
   );
+  return {};
+}
+
+/**
+ * Remove a rack from its bayed group and close the row.
+ *
+ * The rack is deleted and its id dropped from the group. When that leaves the
+ * group with fewer than two members, the group is dissolved so the lone
+ * remaining rack becomes standalone: a one-member bay is never left behind. The
+ * remaining racks reindex so the row closes the gap. The whole operation is one
+ * BatchCommand, so a single undo restores the rack, its group membership, and
+ * the row positions together.
+ *
+ * Confirmation when the rack holds gear is the caller's concern; this action
+ * deletes unconditionally.
+ *
+ * @param ctx - Layout state access
+ * @param rackId - The bay member to remove
+ * @returns Error when the rack is missing or not in a bayed group
+ */
+export function removeRackFromBay(
+  ctx: LayoutStateAccess,
+  rackId: string,
+): { error?: string } {
+  const layout = ctx.getLayout();
+  const rack = layout.racks.find((r) => r.id === rackId);
+  if (!rack) {
+    return { error: "Rack not found" };
+  }
+
+  const group = getRackGroupForRack(ctx, rackId);
+  if (!group || group.layout_preset !== "bayed") {
+    return { error: "Rack is not in a bayed group" };
+  }
+
+  const remainingIds = group.rack_ids.filter((id) => id !== rackId);
+
+  const history = ctx.getHistory();
+  const rackAdapter = getRackLifecycleCommandAdapter(ctx);
+  const groupAdapter = getRackGroupCommandAdapter(ctx);
+
+  const commands: Command[] = [];
+
+  // 1. Update or dissolve the group first. Dissolve when fewer than two members
+  //    remain so the lone survivor becomes standalone instead of a 1-member bay.
+  if (remainingIds.length >= 2) {
+    commands.push(
+      createUpdateRackGroupCommand(
+        group.id,
+        { rack_ids: [...group.rack_ids] },
+        { rack_ids: remainingIds },
+        groupAdapter,
+      ),
+    );
+  } else {
+    commands.push(createDeleteRackGroupCommand(group, groupAdapter));
+  }
+
+  // 2. Reindex the remaining racks so the row closes the gap.
+  const assignments = planRowAfterRemoval(
+    layout.racks,
+    layout.rack_groups ?? [],
+    rackId,
+  );
+  if (assignments) {
+    commands.push(...buildRowReindexCommands(ctx, assignments));
+  }
+
+  // 3. Delete the rack itself. Group membership is already handled above, so no
+  //    affected groups are passed: undo restores the rack alone and the group
+  //    command restores its membership.
+  commands.push(createDeleteRackCommand(rack, [], rackAdapter));
+
+  const batch = createBatchCommand("Remove rack from bay", commands);
+  history.execute(batch);
+  ctx.markDirty();
+
+  layoutDebug.group(
+    "removeRackFromBay: removed rack %s from group %s (%d members remain)",
+    rackId,
+    group.id,
+    remainingIds.length,
+  );
+
   return {};
 }

@@ -261,7 +261,15 @@
 
   function handleConfirmDelete() {
     if (deleteTarget?.type === "rack" && selectionStore.selectedRackId) {
-      layoutStore.deleteRack(selectionStore.selectedRackId);
+      const rackId = selectionStore.selectedRackId;
+      // A bay member removal closes the row and dissolves a 1-member bay; a
+      // standalone rack deletes plainly (#2741).
+      const group = layoutStore.getRackGroupForRack(rackId);
+      if (group?.layout_preset === "bayed") {
+        layoutStore.removeRackFromBay(rackId);
+      } else {
+        layoutStore.deleteRack(rackId);
+      }
       selectionStore.clearSelection();
     } else if (deleteTarget?.type === "device") {
       const rackId = selectionStore.selectedRackId;
