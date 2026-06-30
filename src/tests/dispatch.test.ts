@@ -68,10 +68,18 @@ describe("createActionDispatch", () => {
   // new-layout replaces the working copy. When there are changes not yet in any
   // exported file it must confirm first (the shared confirmReplace dialog),
   // mirroring restore-file; a backed-up copy resets straight away (#2775).
+  // Wrap the real store and override only changesSinceExport, so the mock stays
+  // a complete, type-sound LayoutStore: any other field the new-layout branch
+  // might read returns the real value rather than silently being undefined.
   function stubLayoutChangesSinceExport(value: number) {
-    vi.spyOn(layoutStore, "getLayoutStore").mockReturnValue({
-      changesSinceExport: value,
-    } as ReturnType<typeof layoutStore.getLayoutStore>);
+    const real = layoutStore.getLayoutStore();
+    const stub = new Proxy(real, {
+      get(target, prop) {
+        if (prop === "changesSinceExport") return value;
+        return Reflect.get(target, prop, target);
+      },
+    });
+    vi.spyOn(layoutStore, "getLayoutStore").mockReturnValue(stub);
   }
 
   it("new-layout confirms before resetting when there are unexported changes", () => {

@@ -152,12 +152,15 @@ describe("getPaletteCommands unified grouping (#2775)", () => {
 
   it("lists each command at most once (no duplicated rows)", () => {
     const list = ids(baseCtx);
-    expect(new Set(list).size).toBe(list.length);
+    const duplicates = list.filter((id, i) => list.indexOf(id) !== i);
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: the projection must list each command id at most once, so there are no duplicates
+    expect(duplicates).toHaveLength(0);
   });
 
   it("lists Export image exactly once", () => {
-    const list = ids(baseCtx);
-    expect(list.filter((id) => id === "export").length).toBe(1);
+    const exportRows = ids(baseCtx).filter((id) => id === "export");
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: Export image must surface exactly once across all palette groups
+    expect(exportRows).toHaveLength(1);
   });
 });
 
