@@ -260,5 +260,17 @@ describe("rack-resize", () => {
       expect(store.getRackById(rackA.id)!.height).toBe(30);
       expect(store.getRackById(rackB.id)!.height).toBe(18);
     });
+
+    it("updateRackRaw falls back to the active rack when rack id is omitted", () => {
+      const store = getLayoutStore();
+      const rackA = store.addRack("Rack A", 24)!;
+      const rackB = store.addRack("Rack B", 18)!;
+      store.setActiveRack(rackB.id);
+
+      store.updateRackRaw({ height: 30 });
+
+      expect(store.getRackById(rackA.id)!.height).toBe(24);
+      expect(store.getRackById(rackB.id)!.height).toBe(30);
+    });
   });
 });
