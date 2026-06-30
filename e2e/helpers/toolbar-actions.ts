@@ -34,6 +34,21 @@ export async function clickNewRack(page: Page): Promise<void> {
 }
 
 /**
+ * Open the New Rack wizard via the "New layout" entry point in the sidebar
+ * Layouts tab. #2732 rewired the sidebar New Rack button to create a 24U rack
+ * directly, so the wizard now lives behind New layout (and reset-and-create /
+ * the mobile racks-sheet). Switches to the Layouts tab and clicks the + button,
+ * which opens a fresh layout and raises the wizard for its first rack.
+ */
+export async function clickNewLayout(page: Page): Promise<void> {
+  const layoutsTab = page.getByTestId("sidebar-tab-layouts");
+  await layoutsTab.click();
+  const newLayoutBtn = page.getByTestId("btn-new-layout");
+  await newLayoutBtn.waitFor({ state: "visible" });
+  await newLayoutBtn.click();
+}
+
+/**
  * Save via the app menu. In browser mode this is "Export backup", which
  * downloads the layout as a YAML archive.
  */

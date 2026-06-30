@@ -1,10 +1,5 @@
 import { test, expect } from "./helpers/base-test";
-import {
-  gotoWithRack,
-  clickNewRack,
-  completeWizardWithClicks,
-  locators,
-} from "./helpers";
+import { gotoWithRack, createRackDirect, locators } from "./helpers";
 
 /**
  * Regression: clicking a rack's canvas click target must populate the Edit
@@ -23,8 +18,7 @@ test.describe("Rack selection populates the Edit panel (#2407)", () => {
     page,
   }) => {
     // Two standalone racks.
-    await clickNewRack(page);
-    await completeWizardWithClicks(page, { name: "Second Rack", height: 24 });
+    await createRackDirect(page, { name: "Second Rack" });
     await expect(page.locator(locators.rackView.dualViewName)).toHaveCount(2);
 
     const firstRack = page.locator(locators.rackView.dualView).first();
@@ -48,8 +42,7 @@ test.describe("Rack selection populates the Edit panel (#2407)", () => {
   test("clicking the rack name / outer chrome (not the body) populates the Edit panel", async ({
     page,
   }) => {
-    await clickNewRack(page);
-    await completeWizardWithClicks(page, { name: "Second Rack", height: 24 });
+    await createRackDirect(page, { name: "Second Rack" });
     await expect(page.locator(locators.rackView.dualViewName)).toHaveCount(2);
 
     const firstRack = page.locator(locators.rackView.dualView).first();

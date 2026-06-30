@@ -15,7 +15,7 @@ import type { Page } from "@playwright/test";
 import {
   gotoWithRack,
   gotoMobileWithRack,
-  clickNewRack,
+  clickNewLayout,
   locators,
 } from "./helpers";
 
@@ -152,7 +152,7 @@ test.describe("Accessibility", () => {
         "WebKit skips buttons in Tab order by default (macOS keyboard setting)",
       );
 
-      await clickNewRack(page);
+      await clickNewLayout(page);
 
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
@@ -190,11 +190,13 @@ test.describe("Accessibility", () => {
         "WebKit does not focus buttons on activation by default (macOS keyboard setting)",
       );
 
-      // Switch to the Racks tab and open the wizard from the New Rack button
-      // via keyboard, so the trigger genuinely holds focus before the dialog
-      // opens, the way a keyboard user would experience it.
-      await page.getByTestId("sidebar-tab-racks").click();
-      const trigger = page.getByTestId("btn-new-rack");
+      // Switch to the Layouts tab and open the wizard from the New layout
+      // button via keyboard, so the trigger genuinely holds focus before the
+      // dialog opens, the way a keyboard user would experience it. #2732 rewired
+      // the New Rack button to create directly, so the wizard now opens via New
+      // layout (#2747).
+      await page.getByTestId("sidebar-tab-layouts").click();
+      const trigger = page.getByTestId("btn-new-layout");
       await trigger.focus();
       await expect(trigger).toBeFocused();
       await page.keyboard.press("Enter");

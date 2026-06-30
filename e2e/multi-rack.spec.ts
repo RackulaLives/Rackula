@@ -2,7 +2,8 @@ import { test, expect } from "./helpers/base-test";
 import {
   gotoWithRack,
   clickNewRack,
-  completeWizardWithClicks,
+  clickNewLayout,
+  createRackDirect,
   locators,
 } from "./helpers";
 
@@ -18,33 +19,31 @@ test.describe("Multi-Rack Mode", () => {
     await expect(page.locator(locators.rackView.dualViewName)).toBeVisible();
   });
 
-  test("clicking New Rack opens wizard directly (no replace dialog)", async ({
+  test("clicking New Rack creates a rack directly (no wizard, no replace dialog)", async ({
     page,
   }) => {
+    const fronts = page.locator(locators.rackView.front);
+    await expect(fronts).toHaveCount(1);
+
     await clickNewRack(page);
 
-    // Wizard should open directly — no ConfirmReplaceDialog
-    await expect(page.getByRole("dialog", { name: "New Rack" })).toBeVisible();
-    await expect(page.getByLabel("Rack Name", { exact: true })).toBeVisible();
+    // #2732: a 24U rack is added immediately. No wizard or replace dialog opens.
+    await expect(fronts).toHaveCount(2);
+    await expect(page.locator(locators.dialog.root)).not.toBeVisible();
   });
 
   test("can create a second rack", async ({ page }) => {
-    // Create a second rack via the wizard
-    await clickNewRack(page);
-    await completeWizardWithClicks(page, { name: "Second Rack", height: 24 });
+    // #2732: New Rack adds a rack directly.
+    await createRackDirect(page);
 
-    // Should now have 2 racks (4 containers in dual-view: 2 per rack)
+    // Should now have 2 racks (dual-view renders one name header per rack).
     await expect(page.locator(locators.rackView.dualViewName)).toHaveCount(2);
   });
 
   test("both racks coexist after creation", async ({ page }) => {
-    // Create first named rack
-    await clickNewRack(page);
-    await completeWizardWithClicks(page, { name: "Rack Alpha" });
-
-    // Create second named rack
-    await clickNewRack(page);
-    await completeWizardWithClicks(page, { name: "Rack Beta" });
+    // Create two more racks directly, naming each via the inspector (#2732).
+    await createRackDirect(page, { name: "Rack Alpha" });
+    await createRackDirect(page, { name: "Rack Beta" });
 
     // Both rack names should be visible
     await expect(
@@ -56,28 +55,25 @@ test.describe("Multi-Rack Mode", () => {
   });
 
   test("max rack limit shows toast warning", async ({ page }) => {
-    // Creating 9 racks sequentially through the wizard can take a while on CI
+    // Creating 9 racks sequentially can take a while on CI.
     test.setTimeout(60000);
 
-    // Create 9 more racks (already have 1 from share link) to hit the limit of 10
+    const fronts = page.locator(locators.rackView.front);
+    // Create 9 more racks (already have 1 from the share link) to hit the limit of 10.
     for (let i = 2; i <= 10; i++) {
-      await clickNewRack(page);
-      await completeWizardWithClicks(page, { name: `Rack ${i}` });
+      await createRackDirect(page);
     }
+    await expect(fronts).toHaveCount(10);
 
-    // Attempt to create 11th rack — should show toast warning
+    // The 11th exceeds the limit: no rack is added and a warning toast appears.
     await clickNewRack(page);
-
-    // Wizard should NOT open — wait for hidden to ensure the warning path was taken
-    // rather than racing against wizard mount
-    await expect(page.getByLabel("Rack Name", { exact: true })).toBeHidden();
-
-    // Toast warning should appear
     await expect(page.locator(locators.toast.warning)).toBeVisible();
+    await expect(fronts).toHaveCount(10);
   });
 
-  test("Escape closes wizard dialog", async ({ page }) => {
-    await clickNewRack(page);
+  test("Escape closes the New Rack wizard dialog", async ({ page }) => {
+    // The wizard now opens via New layout (#2732 / #2747), not the New Rack button.
+    await clickNewLayout(page);
     await expect(page.locator(locators.dialog.root)).toBeVisible();
 
     await page.keyboard.press("Escape");

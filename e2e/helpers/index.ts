@@ -30,11 +30,13 @@ export {
 export {
   completeWizardWithKeyboard,
   completeWizardWithClicks,
+  createRackDirect,
 } from "./rack-setup";
 
 // Toolbar actions
 export {
   clickNewRack,
+  clickNewLayout,
   clickSave,
   clickLoad,
   clickExport,
