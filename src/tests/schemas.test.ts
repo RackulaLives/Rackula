@@ -144,6 +144,8 @@ describe("DeviceCategorySchema", () => {
     "shelf",
     "blank",
     "cable-management",
+    "firewall",
+    "chassis",
     "other",
   ];
 
