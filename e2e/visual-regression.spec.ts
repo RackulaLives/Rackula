@@ -9,6 +9,7 @@ import {
   locators,
   clickSettings,
   clickNewRack,
+  runPaletteCommand,
 } from "./helpers";
 import { dynamicMasks, gotoVisual, settle } from "./helpers/visual";
 
@@ -122,8 +123,7 @@ test.describe("visual regression", () => {
 
   test("dialog - export", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL);
-    await page.getByRole("button", { name: "App menu" }).click();
-    await page.getByTestId("app-menu-export").click();
+    await runPaletteCommand(page, "export");
     const dialog = page.locator(locators.dialog.root);
     await expect(dialog).toBeVisible();
     await settle(page);
@@ -134,8 +134,7 @@ test.describe("visual regression", () => {
 
   test("dialog - share", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL);
-    await page.getByRole("button", { name: "App menu" }).click();
-    await page.getByTestId("app-menu-share").click();
+    await runPaletteCommand(page, "share");
     const dialog = page.locator(locators.dialog.root);
     await expect(dialog).toBeVisible();
     await settle(page);
@@ -152,8 +151,7 @@ test.describe("visual regression", () => {
 
   test("dialog - import from NetBox", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL);
-    await page.getByRole("button", { name: "App menu" }).click();
-    await page.getByTestId("app-menu-import-netbox").click();
+    await runPaletteCommand(page, "import-netbox");
     const dialog = page.locator(locators.dialog.root);
     await expect(dialog).toBeVisible();
     await settle(page);
@@ -162,18 +160,9 @@ test.describe("visual regression", () => {
     });
   });
 
-  test("menu - app", async ({ page }) => {
-    await gotoVisual(page, POPULATED_URL);
-    await page.getByRole("button", { name: "App menu" }).click();
-    const menu = page.getByRole("menu");
-    await expect(menu).toBeVisible();
-    await settle(page);
-    await expect(menu).toHaveScreenshot("menu-app.png");
-  });
-
   test("dialog - settings", async ({ page }) => {
     await gotoVisual(page, POPULATED_URL);
-    // Settings moved into the app menu behind the logo (#2398); open it via the
+    // Settings is reachable from the command palette (#2775); open it via the
     // shared helper so the selector stays centralized.
     await clickSettings(page);
     const dialog = page.getByRole("dialog", { name: "Settings" });

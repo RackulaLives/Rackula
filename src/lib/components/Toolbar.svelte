@@ -1,9 +1,10 @@
 <!--
   Toolbar Component
   Workspace frame, three column-aligned regions (issues #2072, #2324, #2386):
-  - Left (fixed, = sidebar width): logo lockup (the app menu) + command-palette
-    search field. The field fills the region after the logo, up to the tab strip
-    (#2398). Width tracks --sidebar-width so it aligns with the column below.
+  - Left (fixed, = sidebar width): logo lockup (opens the command palette) +
+    command-palette search field. The field fills the region after the logo, up
+    to the tab strip (#2398). Width tracks --sidebar-width so it aligns with the
+    column below.
   - Centre (flex): the layout tab strip (LayoutTabs) on desktop; on mobile the
     current layout name as a plain centred label (switching lives in the Layouts
     tab, so the mobile name is a label only) (#2458). Spans the canvas gap.
@@ -13,94 +14,34 @@
     The Settings gear moved into the app menu (#2398) and the side-panel
     collapse/expand chevron lives in the panel itself (#2397).
   View and history controls (zoom, fit, display mode, undo, redo) relocate to the
-  canvas bottom-left in #2074 / #2458. File and settings commands live in the app
-  menu behind the logo.
+  canvas bottom-left in #2074 / #2458. File and settings commands live in the
+  command palette, which the logo and the search pill both open (#2775).
   The lane widths are held at the expanded column widths in both states, so
   collapsing a side panel never moves or resizes the search field or the tab
   strip (#2583).
 -->
 <script lang="ts">
-  import AppMenu from "./AppMenu.svelte";
+  import LogoLockup from "./LogoLockup.svelte";
   import StorageStatusChip from "./StorageStatusChip.svelte";
   import LayoutTabs from "./LayoutTabs.svelte";
-  import type { ActionId } from "$lib/actions/registry";
   import { IconSearch, IconMenuBold } from "./icons";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { formatShortcut } from "$lib/utils/platform";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
-  import { handleExportAll } from "$lib/storage";
-  import { runRestoreFromFile } from "$lib/actions/restore-file-trigger";
 
   interface Props {
-    hasRacks?: boolean;
     partyMode?: boolean;
-    onsave?: () => void;
-    onsaveas?: () => void;
-    onload?: () => void;
-    onexport?: () => void;
-    onshare?: () => void;
-    onviewyaml?: () => void;
-    onimportdevices?: () => void;
-    onimportnetbox?: () => void;
-    onnewcustomdevice?: () => void;
-    onsettings?: () => void;
-    onhelp?: () => void;
-    onnewlayout?: () => void;
     /** Export the layout backing a given tab (tab context menu Export). */
     onlayoutexport?: (tabId: string) => void;
   }
 
-  let {
-    hasRacks = false,
-    partyMode = false,
-    onsave,
-    onsaveas,
-    onload,
-    onexport,
-    onshare,
-    onviewyaml,
-    onimportdevices,
-    onimportnetbox,
-    onnewcustomdevice,
-    onsettings,
-    onhelp,
-    onnewlayout,
-    onlayoutexport,
-  }: Props = $props();
+  let { partyMode = false, onlayoutexport }: Props = $props();
 
   const viewportStore = getViewportStore();
   const layoutStore = getLayoutStore();
   const paletteShortcut = formatShortcut("mod", "K");
-
-  // Dispatch map from app-menu action id to its handler. The menu items
-  // themselves come from the registry (AppMenu projects getAppMenuSections);
-  // this binds each id to the closure that runs it, mirroring how
-  // KeyboardHandler binds the same ids to keyboard shortcuts.
-  const appMenuDispatch: Partial<Record<ActionId, () => void>> = {
-    "new-layout": () => onnewlayout?.(),
-    load: () => onload?.(),
-    save: () => onsave?.(),
-    "save-as": () => onsaveas?.(),
-    "export-backup": () => onsaveas?.(),
-    "export-all": () => {
-      void handleExportAll();
-    },
-    "restore-file": () => runRestoreFromFile(),
-    export: () => onexport?.(),
-    share: () => onshare?.(),
-    "view-yaml": () => onviewyaml?.(),
-    "import-devices": () => onimportdevices?.(),
-    "import-netbox": () => onimportnetbox?.(),
-    "new-custom-device": () => onnewcustomdevice?.(),
-    "show-help": () => onhelp?.(),
-    settings: () => onsettings?.(),
-  };
-
-  function handleAppMenuAction(id: ActionId) {
-    appMenuDispatch[id]?.();
-  }
 
   // Mirrors the desktop dropdown's open-state on mobile so the hamburger reports
   // aria-expanded correctly. The sheet itself lives in DialogOrchestrator.
@@ -117,11 +58,12 @@
 </script>
 
 <header class="toolbar">
-  <!-- Left: app menu + command palette pill. On desktop the logo lockup is the
-       app-menu dropdown trigger; on mobile a hamburger button opens the same
-       menu as a bottom sheet, since a dropdown is awkward on touch (#2597).
-       Width = --sidebar-width so it aligns with the column below; held constant
-       across sidebar collapse so the pill never moves or resizes (#2583). -->
+  <!-- Left: logo + command palette pill. On desktop the logo opens the command
+       palette (the single command surface, #2775); on mobile a hamburger button
+       opens the app menu as a bottom sheet, since a dropdown is awkward on touch
+       (#2597). Width = --sidebar-width so it aligns with the column below; held
+       constant across sidebar collapse so the pill never moves or resizes
+       (#2583). -->
   <div
     class="toolbar-section toolbar-left"
     class:toolbar-left--mobile={viewportStore.isMobile}
@@ -139,7 +81,15 @@
         <IconMenuBold size={ICON_SIZE.md} />
       </button>
     {:else}
-      <AppMenu onaction={handleAppMenuAction} {hasRacks} {partyMode} />
+      <button
+        class="logo-button"
+        type="button"
+        aria-label="Open command palette"
+        data-testid="btn-app-menu"
+        onclick={() => dialogStore.open("commandPalette")}
+      >
+        <LogoLockup size={32} {partyMode} showText={false} />
+      </button>
     {/if}
     <button
       class="command-pill"
@@ -341,6 +291,54 @@
     }
 
     .menu-trigger:active {
+      transform: none;
+    }
+  }
+
+  /* Desktop logo button: the brand mark doubles as a command-palette trigger
+     (#2775). A 1px border + radius give it a persistent button affordance while
+     the mark stays uncaged (transparent fill). The --touch-target-min hit area
+     (WCAG 2.5.5) is enforced on both axes; the border is included (border-box)
+     so the 32px mark centres within it. The segmented logo + search pill
+     redesign is #2776. */
+  .logo-button {
+    display: flex;
+    align-items: center;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    background: transparent;
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+
+  .logo-button:hover {
+    border-color: var(--colour-selection);
+    background: var(--colour-surface-hover);
+  }
+
+  .logo-button:active {
+    transform: scale(0.98);
+  }
+
+  .logo-button:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--colour-bg),
+      0 0 0 4px var(--colour-focus-ring);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .logo-button {
+      transition: none;
+    }
+
+    .logo-button:active {
       transform: none;
     }
   }

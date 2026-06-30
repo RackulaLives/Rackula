@@ -64,7 +64,8 @@ export const locators = {
 
   toolbar: {
     root: ".toolbar",
-    // The logo is also the app-menu trigger.
+    // The logo opens the command palette (#2775); it keeps the btn-app-menu
+    // testid as the brand anchor.
     brand: '[data-testid="btn-app-menu"]',
     brandLogoMark: '[data-testid="btn-app-menu"] .logo-mark',
   },

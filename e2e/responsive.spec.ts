@@ -9,11 +9,11 @@ test.describe("Responsive Layout", () => {
     });
 
     test("workspace-frame controls are visible", async ({ page }) => {
-      // The top bar is the workspace frame only (#2072): the app menu (logo)
-      // on the left and the storage status chip in the right region are the
-      // desktop chrome. Settings moved into the app menu (#2398).
+      // The top bar is the workspace frame only (#2072): the logo (which opens
+      // the command palette, #2775) on the left and the storage status chip in
+      // the right region are the desktop chrome.
       await expect(
-        page.getByRole("button", { name: "App menu" }),
+        page.getByRole("button", { name: "Open command palette" }),
       ).toBeVisible();
       await expect(page.getByTestId("storage-status-chip")).toBeVisible();
     });
@@ -38,10 +38,12 @@ test.describe("Responsive Layout", () => {
       expect(hasHorizontalScroll).toBe(false);
     });
 
-    test("app menu is accessible", async ({ page }) => {
-      // File commands live in the app menu behind the logo (#2072).
-      const appMenu = page.getByRole("button", { name: "App menu" });
-      await expect(appMenu).toBeVisible();
+    test("command palette trigger is accessible", async ({ page }) => {
+      // File commands live in the command palette, which the logo opens (#2775).
+      const paletteTrigger = page.getByRole("button", {
+        name: "Open command palette",
+      });
+      await expect(paletteTrigger).toBeVisible();
     });
   });
 

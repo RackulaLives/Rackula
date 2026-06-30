@@ -44,6 +44,7 @@ export {
   clickSettings,
   loadFileFromDisk,
   loadFileFromDiskViaMenu,
+  runPaletteCommand,
 } from "./toolbar-actions";
 
 // Mobile navigation

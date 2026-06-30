@@ -51,20 +51,14 @@
   } from "$lib/storage";
   import { serializeLayoutToYaml } from "$lib/utils/yaml";
   import {
-    maybeSave,
-    maybeSaveAs,
     maybeExport,
     handleShare,
     handleFitAll,
-    resetAndOpenNewRack,
   } from "$lib/utils/app-actions";
   import {
     handleNewRack,
     handleDelete,
-    handleHelp,
     handleAddDevice,
-    handleImportFromNetBox,
-    handleOpenYamlEditor,
   } from "$lib/utils/dialog-actions";
   import {
     handleRackContextDuplicate,
@@ -72,7 +66,6 @@
     handleRackContextExport,
     handleRackContextFocus,
   } from "$lib/utils/rack-actions";
-  import { runImportDevices } from "$lib/actions/import-devices-trigger";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getWorkspaceStore } from "$lib/stores/workspace.svelte";
   import { createLayout } from "$lib/utils/serialization";
@@ -500,16 +493,6 @@
     layoutStore.updateShowLabelsOnImages(uiStore.showLabelsOnImages);
   }
 
-  function handleImportDevices() {
-    // Opens DialogOrchestrator's hidden file input via the module-level
-    // trigger the orchestrator registers on mount.
-    runImportDevices();
-  }
-
-  function handleOpenSettings() {
-    dialogStore.open("settings");
-  }
-
   // Rack interaction handlers (used by Canvas and RackList)
 
   function handleRackLongPress(event: CustomEvent<{ rackId: string }>) {
@@ -575,23 +558,7 @@
 <!-- Tooltip.Provider enables shared tooltip state - only one tooltip shows at a time -->
 <Tooltip.Provider delayDuration={500}>
   <div class="app-layout">
-    <Toolbar
-      hasRacks={layoutStore.hasRack}
-      {partyMode}
-      onsave={maybeSave}
-      onsaveas={maybeSaveAs}
-      onload={handleLoad}
-      onexport={maybeExport}
-      onshare={handleShare}
-      onviewyaml={handleOpenYamlEditor}
-      onimportdevices={handleImportDevices}
-      onimportnetbox={handleImportFromNetBox}
-      onnewcustomdevice={handleAddDevice}
-      onsettings={handleOpenSettings}
-      onhelp={handleHelp}
-      onnewlayout={resetAndOpenNewRack}
-      onlayoutexport={handleLayoutExport}
-    />
+    <Toolbar {partyMode} onlayoutexport={handleLayoutExport} />
 
     <RackIndicator />
 

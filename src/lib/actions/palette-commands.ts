@@ -13,6 +13,8 @@ import {
   type ActionDefinition,
   type ActionEnabledContext,
   type ActionId,
+  type AppMenuGroup,
+  type HelpGroup,
 } from "$lib/actions/registry";
 import { formatShortcut } from "$lib/utils/platform";
 
@@ -37,18 +39,72 @@ const EXCLUDED: ReadonlySet<ActionId> = new Set<ActionId>([
   "escape",
 ]);
 
-/** Group heading order in the palette. */
-const GROUP_ORDER = [
-  "General",
-  "Navigation",
-  "Editing",
-  "File",
-  "Other",
+/**
+ * The single palette grouping scheme (#2775). One ordered list of real groups
+ * replaces the palette's old helpGroup buckets and the app menu's intent groups,
+ * so every projected action lands in a named group and nothing falls into a
+ * generic "Other" bucket. Order runs context -> frequency -> admin: the
+ * now-relevant and frequent groups sit on top, rare and admin ones sink to the
+ * bottom (the locked order from the unified command surface design).
+ */
+const PALETTE_GROUP_ORDER = [
+  "Selection",
+  "Create",
+  "Navigation / View",
+  "Layout / File",
+  "Devices",
+  "Workspace",
+  "App",
 ] as const;
-type GroupName = (typeof GROUP_ORDER)[number];
+type PaletteGroup = (typeof PALETTE_GROUP_ORDER)[number];
 
-function groupOf(action: ActionDefinition): GroupName {
-  return (action.helpGroup as GroupName | undefined) ?? "Other";
+/**
+ * Actions whose palette group differs from what their registry metadata would
+ * imply. Kept tiny on purpose; every other action folds through its scope,
+ * appMenuGroup, or helpGroup in paletteGroupOf below.
+ */
+const GROUP_OVERRIDES: Partial<Record<ActionId, PaletteGroup>> = {
+  // "New custom device" creates a device type, so it sits in Create alongside
+  // the palette's "Add device..." entry, not in the Devices (import/library)
+  // group its app-menu placement uses.
+  "new-custom-device": "Create",
+  // View toggles carry no help or menu group; they are view controls.
+  "toggle-annotations": "Navigation / View",
+  "toggle-sidebar": "Navigation / View",
+};
+
+/** Fold an action's app-menu intent group onto the unified scheme. */
+const APP_MENU_GROUP_TO_PALETTE: Record<AppMenuGroup, PaletteGroup> = {
+  layout: "Layout / File",
+  output: "Layout / File",
+  "layout-data": "Layout / File",
+  devices: "Devices",
+  workspace: "Workspace",
+  app: "App",
+};
+
+/** Fold an action's help-overlay group onto the unified scheme. */
+const HELP_GROUP_TO_PALETTE: Record<HelpGroup, PaletteGroup> = {
+  Navigation: "Navigation / View",
+  General: "Navigation / View",
+  Editing: "Selection",
+  File: "Layout / File",
+};
+
+/**
+ * Resolve the unified palette group for an action. The mapping is total: an
+ * explicit override wins, then selection scope, then the app-menu intent group,
+ * then the help group, and finally a defensive fallback so a future action with
+ * no grouping metadata still lands in a real group rather than an "Other" bucket.
+ */
+function paletteGroupOf(action: ActionDefinition): PaletteGroup {
+  const override = GROUP_OVERRIDES[action.id];
+  if (override) return override;
+  if (action.scope === "selection") return "Selection";
+  if (action.appMenuGroup)
+    return APP_MENU_GROUP_TO_PALETTE[action.appMenuGroup];
+  if (action.helpGroup) return HELP_GROUP_TO_PALETTE[action.helpGroup];
+  return "Navigation / View";
 }
 
 function shortcutOf(action: ActionDefinition): string | undefined {
@@ -68,6 +124,10 @@ function isIncluded(
   ctx: ActionEnabledContext,
 ): boolean {
   if (EXCLUDED.has(action.id)) return false;
+  // Storage-mode split: a server-only action (Save, Save As) and a browser-only
+  // action (Export layout .zip) are the same intent split by mode, so only the
+  // one matching the active mode is offered - they never both appear (#2775).
+  if (action.storageMode && action.storageMode !== ctx.mode) return false;
   // selection commands appear only when enabled; global/layout always appear,
   // but still respect their own enabledWhen when they declare one.
   if (action.enabledWhen) return action.enabledWhen(ctx);
@@ -87,17 +147,17 @@ function toPaletteCommand(action: ActionDefinition): PaletteCommand {
 export function getPaletteCommands(
   ctx: ActionEnabledContext,
 ): PaletteCommandGroup[] {
-  const buckets = new Map<GroupName, PaletteCommand[]>();
+  const buckets = new Map<PaletteGroup, PaletteCommand[]>();
   for (const action of ACTION_REGISTRY) {
     if (!isIncluded(action, ctx)) continue;
-    const group = groupOf(action);
+    const group = paletteGroupOf(action);
     const command = toPaletteCommand(action);
     const existing = buckets.get(group);
     if (existing) existing.push(command);
     else buckets.set(group, [command]);
   }
   const groups: PaletteCommandGroup[] = [];
-  for (const heading of GROUP_ORDER) {
+  for (const heading of PALETTE_GROUP_ORDER) {
     const commands = buckets.get(heading);
     if (commands && commands.length > 0) groups.push({ heading, commands });
   }

@@ -2,21 +2,26 @@
  * Toolbar action helpers for E2E tests
  *
  * The top bar is the workspace frame only (#2072): file commands (save/export
- * backup, open, export image, share, import) live in the app menu behind the
- * logo, and "New Rack" is in the sidebar Racks tab. These helpers open the app
- * menu and select the matching item. The build under test is browser mode, so
- * "save" is the browser build's "Export backup" (a YAML download).
+ * backup, open, export image, share, import) live in the command palette, which
+ * the logo opens (the app menu dropdown was retired in #2775). "New Rack" is in
+ * the sidebar Racks tab. These helpers open the palette and run the matching
+ * command. The build under test is browser mode, so "save" is the browser
+ * build's "Export backup" (a YAML download).
  */
 import type { Page } from "@playwright/test";
 import { PLATFORM_MODIFIER } from "./index";
 
 /**
- * Open the app menu (the logo, top-left) and click the item with the given
- * registry action id. The item's testid is `app-menu-<id>`.
+ * Open the command palette (via the logo, top-left) and run the command with
+ * the given registry action id. The command row's testid is
+ * `command-palette-item-<id>`.
  */
-async function selectAppMenuItem(page: Page, actionId: string): Promise<void> {
-  await page.getByRole("button", { name: "App menu" }).click();
-  const item = page.getByTestId(`app-menu-${actionId}`);
+export async function runPaletteCommand(
+  page: Page,
+  actionId: string,
+): Promise<void> {
+  await page.getByTestId("btn-app-menu").click();
+  const item = page.getByTestId(`command-palette-item-${actionId}`);
   await item.waitFor({ state: "visible" });
   await item.click();
 }
@@ -49,33 +54,33 @@ export async function clickNewLayout(page: Page): Promise<void> {
 }
 
 /**
- * Save via the app menu. In browser mode this is "Export backup", which
+ * Save via the command palette. In browser mode this is "Export backup", which
  * downloads the layout as a YAML archive.
  */
 export async function clickSave(page: Page): Promise<void> {
-  await selectAppMenuItem(page, "export-backup");
+  await runPaletteCommand(page, "export-backup");
 }
 
 /**
- * Open a layout via the app menu.
+ * Open a layout via the command palette.
  */
 export async function clickLoad(page: Page): Promise<void> {
-  await selectAppMenuItem(page, "load");
+  await runPaletteCommand(page, "load");
 }
 
 /**
- * Open the image export dialog via the app menu.
+ * Open the image export dialog via the command palette.
  */
 export async function clickExport(page: Page): Promise<void> {
-  await selectAppMenuItem(page, "export");
+  await runPaletteCommand(page, "export");
 }
 
 /**
- * Open the Settings dialog via the app menu. Settings moved out of the top bar
- * into the app menu behind the logo (#2398), so this is the only entry point.
+ * Open the Settings dialog via the command palette. Settings is also reachable
+ * from the palette input-row gear; this runs the searchable App-group row.
  */
 export async function clickSettings(page: Page): Promise<void> {
-  await selectAppMenuItem(page, "settings");
+  await runPaletteCommand(page, "settings");
 }
 
 /**

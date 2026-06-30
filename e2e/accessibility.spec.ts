@@ -70,10 +70,13 @@ test.describe("Accessibility", () => {
         "WebKit skips buttons in Tab order by default (macOS keyboard setting)",
       );
 
-      // Start from a known anchor: the logo, which is also the app-menu
-      // trigger, leads the toolbar. Anchor on the button itself by testid.
+      // Start from a known anchor: the logo, which opens the command palette
+      // (#2775), leads the toolbar. Anchor on the button itself by testid.
       const appMenu = page.getByTestId("btn-app-menu");
-      await expect(appMenu).toHaveAttribute("aria-label", "App menu");
+      await expect(appMenu).toHaveAttribute(
+        "aria-label",
+        "Open command palette",
+      );
       await appMenu.focus();
       await expect(appMenu).toBeFocused();
 

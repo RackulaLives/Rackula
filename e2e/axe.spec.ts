@@ -29,6 +29,7 @@ import {
   selectDevice,
   clickExport,
   clickSettings,
+  runPaletteCommand,
   locators,
 } from "./helpers";
 import { expectNoA11yViolations } from "./helpers/a11y";
@@ -118,9 +119,8 @@ test.describe("axe accessibility scans", () => {
   });
 
   test("Share dialog has no WCAG 2.2 AA violations", async ({ page }) => {
-    // Share lives in the app menu behind the logo (#2072).
-    await page.getByRole("button", { name: "App menu" }).click();
-    await page.getByTestId("app-menu-share").click();
+    // Share lives in the command palette, which the logo opens (#2775).
+    await runPaletteCommand(page, "share");
     // Assert by accessible name so the scan runs against the Share dialog, not
     // whatever dialog happens to match the generic selector.
     await expect(

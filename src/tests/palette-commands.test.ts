@@ -20,6 +20,31 @@ function ids(ctx: ActionEnabledContext): string[] {
   return getPaletteCommands(ctx).flatMap((g) => g.commands.map((c) => c.id));
 }
 
+// The unified palette grouping scheme (#2775), in display order. Mirrors the
+// private PALETTE_GROUP_ORDER in palette-commands.ts; kept here so the test
+// pins the contract rather than re-importing an internal.
+const UNIFIED_GROUP_ORDER = [
+  "Selection",
+  "Create",
+  "Navigation / View",
+  "Layout / File",
+  "Devices",
+  "Workspace",
+  "App",
+];
+
+function headings(ctx: ActionEnabledContext): string[] {
+  return getPaletteCommands(ctx).map((g) => g.heading);
+}
+
+function idsInGroup(ctx: ActionEnabledContext, heading: string): string[] {
+  return (
+    getPaletteCommands(ctx)
+      .find((g) => g.heading === heading)
+      ?.commands.map((c) => c.id) ?? []
+  );
+}
+
 describe("getPaletteCommands", () => {
   it("always includes global and layout commands", () => {
     const list = ids(baseCtx);
@@ -54,6 +79,83 @@ describe("getPaletteCommands", () => {
   it("gates global commands by their own enabledWhen too", () => {
     // share needs a rack; with no racks it is hidden from the palette.
     expect(ids({ ...baseCtx, hasRacks: false })).not.toContain("share");
+  });
+});
+
+describe("getPaletteCommands unified grouping (#2775)", () => {
+  it("places every command under a known group (no Other bucket)", () => {
+    for (const heading of headings(baseCtx)) {
+      expect(UNIFIED_GROUP_ORDER).toContain(heading);
+    }
+    expect(headings(baseCtx)).not.toContain("Other");
+  });
+
+  it("orders groups context -> frequency -> admin", () => {
+    const indices = headings(baseCtx).map((h) =>
+      UNIFIED_GROUP_ORDER.indexOf(h),
+    );
+    const ascending = [...indices].sort((a, b) => a - b);
+    expect(indices).toEqual(ascending);
+  });
+
+  it("folds the former app-menu-only actions into the palette", () => {
+    const list = ids(baseCtx); // browser mode
+    for (const id of [
+      "new-layout",
+      "load",
+      "import-devices",
+      "import-netbox",
+      "new-custom-device",
+      "restore-file",
+      "view-yaml",
+      "export-backup",
+      "export-all",
+      "settings",
+    ]) {
+      expect(list).toContain(id);
+    }
+  });
+
+  it("groups New custom device under Create, not Devices", () => {
+    expect(idsInGroup(baseCtx, "Create")).toContain("new-custom-device");
+    expect(idsInGroup(baseCtx, "Devices")).not.toContain("new-custom-device");
+  });
+
+  it("keeps Settings searchable under App", () => {
+    expect(idsInGroup(baseCtx, "App")).toContain("settings");
+  });
+
+  it("shows only the browser save variant in browser mode", () => {
+    const list = ids({ ...baseCtx, mode: "browser" });
+    expect(list).toContain("export-backup");
+    expect(list).not.toContain("save-as");
+    expect(list).not.toContain("save");
+  });
+
+  it("shows only the server save variants in server mode", () => {
+    const list = ids({ ...baseCtx, mode: "server" });
+    expect(list).toContain("save-as");
+    expect(list).toContain("save");
+    expect(list).not.toContain("export-backup");
+  });
+
+  it("never shows both the server and browser save variants at once", () => {
+    for (const mode of ["browser", "server"] as const) {
+      const list = ids({ ...baseCtx, mode });
+      expect(list.includes("save-as") && list.includes("export-backup")).toBe(
+        false,
+      );
+    }
+  });
+
+  it("lists each command at most once (no duplicated rows)", () => {
+    const list = ids(baseCtx);
+    expect(new Set(list).size).toBe(list.length);
+  });
+
+  it("lists Export image exactly once", () => {
+    const list = ids(baseCtx);
+    expect(list.filter((id) => id === "export").length).toBe(1);
   });
 });
 

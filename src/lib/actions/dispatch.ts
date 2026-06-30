@@ -167,7 +167,17 @@ export function createActionDispatch(): ActionDispatch {
     share: handleShare,
     load: handleLoad,
     "view-yaml": handleOpenYamlEditor,
-    "new-layout": resetAndOpenNewRack,
+    // Resetting to a new layout replaces the working copy. Confirm first when
+    // there are changes not yet in any exported file (mirrors restore-file); the
+    // shared confirmReplace dialog offers to export first, then resets. A fully
+    // backed-up copy resets straight away (#2775).
+    "new-layout": () => {
+      if (getLayoutStore().changesSinceExport > 0) {
+        dialogStore.open("confirmReplace");
+      } else {
+        resetAndOpenNewRack();
+      }
+    },
     "import-devices": runImportDevices,
     "import-netbox": handleImportFromNetBox,
     "new-custom-device": handleAddDevice,
