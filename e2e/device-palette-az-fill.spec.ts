@@ -69,6 +69,62 @@ test.describe("Device palette A-Z fill (#2698)", () => {
     expect(renderedRows).toBeLessThan(100);
   });
 
+  test("non-virtualized A-Z search results render without overflow", async ({
+    page,
+  }) => {
+    const palette = page.locator(locators.device.palette);
+    await palette.getByRole("button", { name: "A-Z" }).click();
+
+    // A narrow query drops the flat list below VIRTUALIZE_THRESHOLD, so it
+    // renders as plain DOM (no .virtual-section) - the branch this fill change
+    // explicitly preserves. fill-flat must not engage and clip the short list.
+    await page.getByTestId("search-devices").fill("raspberry");
+
+    const virtualSection = palette.locator(locators.device.virtualSection);
+    await expect.poll(async () => virtualSection.count()).toBe(0);
+
+    const items = palette.locator(locators.device.paletteItem);
+    const count = await items.count();
+    expect(count).toBeGreaterThan(0);
+    // Every matched row is visible (not clipped by a zero-height fill box).
+    for (let i = 0; i < count; i++) {
+      await expect(items.nth(i)).toBeVisible();
+    }
+    // Footer stays in place and the short list does not overflow the panel.
+    await expect(palette.locator(locators.device.paletteFooter)).toBeVisible();
+    const listOverflows = await palette
+      .locator(locators.device.list)
+      .evaluate((el) => el.scrollHeight > el.clientHeight + 1);
+    expect(listOverflows).toBe(false);
+  });
+
+  test("collapsing the A-Z section shrinks it back to its header", async ({
+    page,
+  }) => {
+    const palette = page.locator(locators.device.palette);
+    await palette.getByRole("button", { name: "A-Z" }).click();
+
+    const item = palette.locator(locators.device.accordionItem).first();
+    const openBox = await item.boundingBox();
+    if (!openBox) {
+      throw new Error("expected the open A-Z section to be measurable");
+    }
+    // Open and filling, the section holds most of the panel.
+    expect(openBox.height).toBeGreaterThan(400);
+
+    // Collapse the sole "All Devices" section.
+    await palette.getByRole("button", { name: /All Devices/ }).click();
+
+    // The fill grow is gated on [data-state="open"], so a collapsed section
+    // shrinks back to roughly its header height instead of holding the panel.
+    await expect
+      .poll(async () => {
+        const b = await item.boundingBox();
+        return b ? b.height : Infinity;
+      })
+      .toBeLessThan(120);
+  });
+
   test("Category mode keeps per-section windowing capped (no unbounded fill)", async ({
     page,
   }) => {

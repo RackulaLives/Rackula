@@ -1012,8 +1012,17 @@
     overflow-y: auto;
   }
 
-  .device-list.fill-flat :global(.device-accordion),
-  .device-list.fill-flat :global(.device-accordion .accordion-item) {
+  .device-list.fill-flat :global(.device-accordion) {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Fill only the open section, so a manually-collapsed A-Z section shrinks back
+     to its header height instead of an open item holding the full panel. */
+  .device-list.fill-flat
+    :global(.device-accordion .accordion-item[data-state="open"]) {
     display: flex;
     flex: 1;
     flex-direction: column;

@@ -58,6 +58,8 @@ export const locators = {
     virtualSection: ".virtual-section",
     /** VirtualList's internal scroll viewport. */
     virtualList: ".virtual-list",
+    /** A grouping accordion section's item wrapper (carries data-state). */
+    accordionItem: ".accordion-item",
   },
 
   toolbar: {
