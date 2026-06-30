@@ -268,7 +268,11 @@
       if (group?.layout_preset === "bayed") {
         const { error } = layoutStore.removeRackFromBay(rackId);
         if (error) {
-          layoutDebug.group("removeRackFromBay failed for %s: %s", rackId, error);
+          layoutDebug.group(
+            "removeRackFromBay failed for %s: %s",
+            rackId,
+            error,
+          );
         } else {
           selectionStore.clearSelection();
         }
