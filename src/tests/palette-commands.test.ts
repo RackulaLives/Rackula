@@ -256,6 +256,19 @@ describe("getPaletteSearchCommands (#2778)", () => {
     expect(del?.disabledReason).toBe("select gear first");
   });
 
+  it("uses a neutral reason for a selection verb that does not fit the current selection", () => {
+    // A rack is selected, so "select gear first" would be misleading for a
+    // device-only verb; the reason must be neutral instead.
+    const rackSelected = {
+      ...baseCtx,
+      hasSelection: true,
+      isRackSelected: true,
+    };
+    expect(find(rackSelected, "move-device-up")?.disabledReason).toBe(
+      "unavailable here",
+    );
+  });
+
   it("reveals rack-gated globals greyed with a reason when no rack exists", () => {
     const noRack = { ...baseCtx, hasRacks: false };
     expect(find(noRack, "share")?.disabledReason).toBe("needs a rack");

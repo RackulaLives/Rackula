@@ -55,6 +55,24 @@ describe("palette recents store", () => {
     expect(getRecents()).toEqual(["fit-all"]);
   });
 
+  it("drops unsafe ids persisted by a prior release on load", () => {
+    // Recents written before the safe-only gate (or hand-edited) may carry
+    // destructive or selection-scoped ids; loading must filter them out, not
+    // just rely on the write path.
+    safeSetItem(
+      KEY,
+      JSON.stringify([
+        "restore-file",
+        "fit-all",
+        "duplicate-selection",
+        "delete-selection",
+        "share",
+      ]),
+    );
+    resetPaletteRecents();
+    expect(getRecents()).toEqual(["fit-all", "share"]);
+  });
+
   it("tolerates malformed stored JSON without throwing", () => {
     safeSetItem(KEY, "{not json");
     resetPaletteRecents();

@@ -363,6 +363,22 @@ test.describe("Command palette", () => {
     await expect(palette).not.toBeVisible();
   });
 
+  test("Enter before typing is inert (no row armed on open)", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    const palette = page.getByRole("dialog", { name: "Command palette" });
+    await expect(palette).toBeVisible();
+    await expect(page.getByTestId("command-palette-input")).toBeFocused();
+
+    // No row is armed on open, so Enter before the first keystroke runs nothing
+    // (#2777 decision 8). Any command run would close the palette, so its staying
+    // open is the proof that Enter was inert.
+    await page.keyboard.press("Enter");
+    await expect(palette).toBeVisible();
+    await expect(page.getByTestId("command-palette-input")).toBeFocused();
+  });
+
   // --- #2778: search reveals unavailable commands greyed with a reason ---
 
   test("searching a selection verb with nothing selected reveals it greyed", async ({
@@ -378,6 +394,21 @@ test.describe("Command palette", () => {
     // keeps it (greyed, with a reason). The reason copy renders alongside.
     await expect(dup).toBeVisible();
     await expect(dup.getByText("select gear first")).toBeVisible();
+
+    // A greyed row must be inert: a command row matched, so no device bridge is
+    // offered, and pressing Enter runs nothing. The palette stays open in
+    // command mode (a real run would have closed it; the bridge would have
+    // opened device mode).
+    await expect(page.getByTestId("command-palette-create-device")).toHaveCount(
+      0,
+    );
+    await page.getByTestId("command-palette-input").press("Enter");
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).toBeVisible();
+    await expect(page.getByTestId("command-palette-device-back")).toHaveCount(
+      0,
+    );
   });
 
   // --- #2779: no-command-match bridge to the device catalogue ---

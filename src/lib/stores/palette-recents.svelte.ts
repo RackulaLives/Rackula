@@ -45,6 +45,12 @@ function sanitise(parsed: unknown): ActionId[] {
     if (typeof entry !== "string") continue;
     const action = getActionById(entry as ActionId);
     if (!action) continue;
+    // Drop unsafe entries persisted by a prior release: recordCommand only added
+    // safe global commands going forward, but stored data from before that gate
+    // (or a hand-edited value) may still carry destructive or selection-scoped
+    // ids. Loading is a first-class prior-release-data path, so filter on load
+    // too rather than trusting the writer.
+    if (!isRecordable(action.id)) continue;
     if (result.includes(action.id)) continue;
     result.push(action.id);
     if (result.length >= MAX_RECENTS) break;

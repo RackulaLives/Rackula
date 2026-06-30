@@ -9,11 +9,11 @@ test.describe("Responsive Layout", () => {
     });
 
     test("workspace-frame controls are visible", async ({ page }) => {
-      // The top bar is the workspace frame only (#2072): the logo (which opens
-      // the command palette, #2775) on the left and the storage status chip in
-      // the right region are the desktop chrome.
+      // The top bar is the workspace frame only (#2072): the unified logo +
+      // search pill (which opens the command palette, #2776) on the left and the
+      // storage status chip in the right region are the desktop chrome.
       await expect(
-        page.getByRole("button", { name: "Open command palette" }),
+        page.getByRole("button", { name: "Search or run a command" }),
       ).toBeVisible();
       await expect(page.getByTestId("storage-status-chip")).toBeVisible();
     });

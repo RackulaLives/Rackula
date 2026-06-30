@@ -11,7 +11,7 @@
   Dialog.svelte. All colours via design tokens.
 -->
 <script lang="ts">
-  import { Dialog, Command } from "bits-ui";
+  import { Dialog, Command, computeCommandScore } from "bits-ui";
   import { IconSearch, IconPlus, IconChevronLeft, IconGearBold } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
@@ -86,6 +86,17 @@
   // Flat, relevance-ranked search list (#2777 rule 12). Carries context-gated
   // commands greyed-with-reason (#2778); bits-ui fuzzy-filters and ranks them.
   const searchCommands = $derived(getPaletteSearchCommands(ctx));
+  // True only when the query matches NO command row at all - neither runnable
+  // nor greyed. Computed with the same scorer bits-ui filters by, so it agrees
+  // with what bits-ui renders. Gates the device bridge to a real no-match so it
+  // never blends into command results or hijacks Enter past a greyed row (#2779,
+  // decision 11). Empty/whitespace query is never a no-match (that is browse).
+  const noCommandMatch = $derived.by(() => {
+    if (search.trim() === "") return false;
+    return !searchCommands.some(
+      (c) => computeCommandScore(c.label, search, c.keywords) > 0,
+    );
+  });
   // While browsing (command mode, empty query) nothing is armed: the highlight
   // is suppressed and Enter is inert until the first keystroke (#2777 decision 8).
   const browsing = $derived(mode !== "devices" && search.trim() === "");
@@ -278,8 +289,14 @@
             bind:value={
               () => (mode === "devices" ? deviceQuery : search),
               (v) => {
-                if (mode === "devices") deviceQuery = v;
-                else search = v;
+                // Strip leading whitespace so a standalone or leading space does
+                // not put bits-ui into active-search (reordering/blanking the
+                // browse list) while showEmptyState still reads it as empty.
+                // Interior and trailing spaces are kept so multi-word queries
+                // still type normally.
+                const next = v.trimStart();
+                if (mode === "devices") deviceQuery = next;
+                else search = next;
               }
             }
             onkeydown={handleInputKeydown}
@@ -495,11 +512,13 @@
                     </Command.Item>
                   {/each}
                   <!-- No-command-match bridge to the device catalogue (#2779,
-                       rule 11). forceMount keeps it as the always-available last
-                       row: when nothing else matches it is the sole armed item,
-                       and selecting it enters device search pre-filled with the
-                       typed query. -->
-                  {#if canAddDevice}
+                       rule 11). Shown only when the query matches zero command
+                       rows (so top-level search stays commands-only and it never
+                       hijacks Enter past a greyed row). forceMount keeps it
+                       mounted despite its value not matching the query, so on a
+                       true no-match it is the sole armed item; selecting it
+                       enters device search pre-filled with the typed query. -->
+                  {#if canAddDevice && noCommandMatch}
                     <Command.Item
                       forceMount
                       value="add device"
@@ -753,6 +772,15 @@
 
   :global(.command-item--lead[data-selected]) .command-item-icon {
     color: var(--colour-text);
+  }
+
+  /* Browse parity for the lead-row icon: bits-ui auto-selects the "Add
+     device..." row on open, so without this its icon would carry the armed tint
+     while the rest of the row is neutralised, contradicting "nothing highlighted
+     on open" (#2777 decision 8). */
+  :global(.command-list--browsing .command-item--lead[data-selected])
+    .command-item-icon {
+    color: var(--colour-text-muted);
   }
 
   :global(.command-separator) {

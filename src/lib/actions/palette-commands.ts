@@ -183,7 +183,12 @@ function unavailableReason(
   }
   const override = UNAVAILABLE_REASON_OVERRIDES[action.id];
   if (override) return override;
-  if (action.scope === "selection") return "select gear first";
+  if (action.scope === "selection") {
+    // "select gear first" only fits when nothing is selected. When a selection
+    // exists but this verb still cannot run (wrong selection kind, or a device
+    // that cannot change cells), a neutral reason avoids the misleading nudge.
+    return ctx.hasSelection ? "unavailable here" : "select gear first";
+  }
   return "needs a rack";
 }
 
