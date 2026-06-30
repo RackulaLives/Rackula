@@ -805,8 +805,12 @@
             onbaydragcancel={handleBayDragCancel}
           />
           {#if isBaySelected}
+            <!-- One bay-level handle (AC6). It lives on the top edge: the bay is
+                 bottom-anchored in the row, so a top grip grows upward to match
+                 the drag with no preview transform. A bottom grip cannot: the
+                 stacked front+rear rows grow the wrapper by twice the height
+                 delta, so no single translateY tracks the pointer. -->
             {@render resizeGrip(bayTarget, "top")}
-            {@render resizeGrip(bayTarget, "bottom")}
             {#if resizeDrag?.target.kind === "bay" && resizeDrag.target.groupId === item.group.id}
               <div
                 class="resize-readout resize-readout-{resizeDrag.grip}"
