@@ -9,6 +9,8 @@
 -->
 <script lang="ts">
   import type { URange } from "$lib/utils/collision";
+  import type { FormFactor } from "$lib/types";
+  import { frameChromeFor } from "$lib/utils/rack-frame-chrome";
 
   interface Props {
     /** Total rack width in pixels */
@@ -17,6 +19,8 @@
     interiorWidth: number;
     /** Rail width in pixels */
     railWidth: number;
+    /** Rack form factor (drives the frame chrome) */
+    formFactor: FormFactor;
     /** Top padding for rack name area */
     rackPadding: number;
     /** Height of one U in pixels */
@@ -59,6 +63,7 @@
     rackWidth,
     interiorWidth,
     railWidth,
+    formFactor,
     rackPadding,
     uHeight,
     totalHeight,
@@ -81,6 +86,17 @@
   const patternId = $derived(
     `blocked-crosshatch-${rackId.replace(/[^a-zA-Z0-9_-]/g, "_")}${viewLabel ? `-${viewLabel.toLowerCase()}` : ""}`,
   );
+
+  // Frame chrome geometry per form factor. The U-grid, rails, holes and labels
+  // are unchanged; only the outer chrome (bars and decorations) varies.
+  const chrome = $derived(
+    frameChromeFor(formFactor, {
+      rackWidth,
+      railWidth,
+      totalHeight,
+      rackPadding,
+    }),
+  );
 </script>
 
 <!-- Rack background (interior)
@@ -95,22 +111,22 @@
   style="fill: var(--rack-interior)"
 />
 
-<!-- Top bar (horizontal) — inline fill: Safari iOS workaround (see interior comment) -->
+<!-- Top bar (horizontal) — geometry varies by form factor; inline fill: Safari iOS workaround (see interior comment) -->
 <rect
   x="0"
-  y={rackPadding}
+  y={chrome.topBar.y}
   width={rackWidth}
-  height={railWidth}
+  height={chrome.topBar.height}
   class="rack-rail"
   style="fill: var(--rack-rail)"
 />
 
-<!-- Bottom bar (horizontal) — inline fill: Safari iOS workaround (see interior comment) -->
+<!-- Bottom bar (horizontal) — geometry varies by form factor; inline fill: Safari iOS workaround (see interior comment) -->
 <rect
   x="0"
-  y={rackPadding + railWidth + totalHeight}
+  y={chrome.bottomBar.y}
   width={rackWidth}
-  height={railWidth}
+  height={chrome.bottomBar.height}
   class="rack-rail"
   style="fill: var(--rack-rail)"
 />
@@ -134,6 +150,32 @@
   class="rack-rail"
   style="fill: var(--rack-rail)"
 />
+
+<!-- Form-factor frame chrome (decorations behind the U-grid and devices) -->
+{#each chrome.shapes as shape, i (shape.cls + "-" + i)}
+  {#if shape.kind === "rect"}
+    <rect
+      x={shape.x}
+      y={shape.y}
+      width={shape.width}
+      height={shape.height}
+      rx={shape.rx}
+      class={shape.cls}
+    />
+  {:else if shape.kind === "line"}
+    <line
+      x1={shape.x1}
+      y1={shape.y1}
+      x2={shape.x2}
+      y2={shape.y2}
+      class={shape.cls}
+    />
+  {:else if shape.kind === "circle"}
+    <circle cx={shape.cx} cy={shape.cy} r={shape.r} class={shape.cls} />
+  {:else}
+    <path d={shape.d} class={shape.cls} />
+  {/if}
+{/each}
 
 <!-- U slot backgrounds (for drop zone highlighting) -->
 {#each Array(rackHeight).fill(null) as _slot, i (i)}
@@ -400,6 +442,61 @@
 
   .rack-hole {
     fill: var(--rack-grid);
+  }
+
+  /* Form-factor frame chrome (#2735). Colours come from rack tokens so each
+     variant reads against the dark theme without hardcoded values. The chrome
+     uses --rack-text (the U-label colour) so it is clearly legible against the
+     dark interior. */
+  .frame-cabinet-enclosure {
+    fill: none;
+    stroke: var(--rack-text);
+    stroke-width: 3;
+  }
+
+  .frame-cabinet-handle {
+    fill: var(--rack-text);
+  }
+
+  .frame-rear-outline {
+    fill: none;
+    stroke: var(--rack-text);
+    stroke-width: 2.5;
+    opacity: 0.8;
+  }
+
+  .frame-rear-strut {
+    stroke: var(--rack-text);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    opacity: 0.8;
+  }
+
+  .frame-center-strip {
+    fill: var(--rack-text);
+    opacity: 0.85;
+  }
+
+  .frame-base-stand {
+    fill: var(--rack-text);
+  }
+
+  .frame-wall-bracket {
+    fill: none;
+    stroke: var(--rack-text);
+    stroke-width: 3;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .frame-wall-screw {
+    fill: var(--rack-text-highlight);
+  }
+
+  .frame-open-gusset {
+    stroke: var(--rack-text);
+    stroke-width: 2.5;
+    stroke-linecap: round;
   }
 
   .rack-name {

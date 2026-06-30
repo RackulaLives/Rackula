@@ -498,6 +498,7 @@
       rackWidth={RACK_WIDTH}
       {interiorWidth}
       railWidth={RAIL_WIDTH}
+      formFactor={rack.form_factor}
       rackPadding={RACK_PADDING}
       uHeight={U_HEIGHT}
       {totalHeight}
