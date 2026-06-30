@@ -25,7 +25,8 @@ Code generated with AI assistance undergoes the same security review process as 
 
 - All contributions (AI-assisted or traditional) are tested against our comprehensive test suite (1400+ tests)
 - AI-generated code receives human review before merging
-- Security-sensitive code receives additional scrutiny regardless of authorship
+- Security-sensitive code (for example: authentication/authorization logic, session/cookie handling, input validation/sanitization, cryptographic operations, and file import/export parsing) receives additional scrutiny regardless of authorship
+- Additional scrutiny includes a security-focused reviewer sign-off and verification that relevant automated security checks (for example SAST/dependency scanning) pass before merging
 - Dependencies are regularly audited using `npm audit`
 
 ### Security Considerations
