@@ -493,7 +493,7 @@
       activeRackId && group.rack_ids.includes(activeRackId)
         ? activeRackId
         : group.rack_ids[0];
-    layoutStore.setActiveRack(activeRackInGroup ?? null);
+    layoutStore.setActiveRack(activeRackInGroup);
     selectionStore.selectGroup(groupId, activeRackInGroup);
   }
 
