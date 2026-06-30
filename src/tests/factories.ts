@@ -66,7 +66,8 @@ export function createTestRack(overrides: Partial<Rack> = {}): Rack {
 export interface CreateTestDeviceTypeOptions {
   slug?: string;
   u_height?: number;
-  model?: string;
+  /** `null` omits the model field entirely (to test model-less / slug-fallback). */
+  model?: string | null;
   manufacturer?: string;
   category?: DeviceCategory;
   colour?: string;
@@ -112,11 +113,16 @@ export function createTestDeviceType(
   const result: DeviceType = {
     slug: options.slug ?? "test-device",
     u_height: options.u_height ?? 1,
-    model: options.model ?? "Test Device",
     // Flat structure in v1.0.0
     category: options.category ?? "server",
     colour: options.colour ?? "#336699",
   };
+
+  // model: null explicitly omits the field (to test model-less / slug-fallback
+  // ordering); undefined or omitted uses the default.
+  if (options.model !== null) {
+    result.model = options.model ?? "Test Device";
+  }
 
   // Add optional properties only if specified
   if (options.manufacturer) result.manufacturer = options.manufacturer;

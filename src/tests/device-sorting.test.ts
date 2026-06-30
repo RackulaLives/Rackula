@@ -8,7 +8,6 @@
  */
 
 import { describe, it, expect } from "vitest";
-import type { DeviceType } from "$lib/types";
 import {
   compareNames,
   sortDevicesAlphabetically,
@@ -55,14 +54,11 @@ describe("sortDevicesAlphabetically", () => {
   });
 
   it("falls back to slug when model is absent", () => {
-    // The factory always sets a model, so build minimal model-less devices here.
-    const noModel = (slug: string): DeviceType => ({
-      slug,
-      u_height: 1,
-      category: "server",
-      colour: "#336699",
-    });
-    const devices = [noModel("zebra"), noModel("ant"), noModel("mule")];
+    const devices = [
+      createTestDeviceType({ slug: "zebra", model: null }),
+      createTestDeviceType({ slug: "ant", model: null }),
+      createTestDeviceType({ slug: "mule", model: null }),
+    ];
     const slugs = sortDevicesAlphabetically(devices).map((d) => d.slug);
     expect(slugs).toEqual(["ant", "mule", "zebra"]);
   });
@@ -119,6 +115,28 @@ describe("sortDevicesByBrandThenModel", () => {
       "PowerEdge R660",
       "PowerEdge R6515",
     ]);
+  });
+
+  it("falls back to slug within a brand when model is absent (numeric-aware)", () => {
+    const devices = [
+      createTestDeviceType({
+        slug: "sw-10",
+        manufacturer: "MikroTik",
+        model: null,
+      }),
+      createTestDeviceType({
+        slug: "sw-2",
+        manufacturer: "MikroTik",
+        model: null,
+      }),
+      createTestDeviceType({
+        slug: "sw-24",
+        manufacturer: "MikroTik",
+        model: null,
+      }),
+    ];
+    const slugs = sortDevicesByBrandThenModel(devices).map((d) => d.slug);
+    expect(slugs).toEqual(["sw-2", "sw-10", "sw-24"]);
   });
 
   it("places devices without a manufacturer last", () => {
