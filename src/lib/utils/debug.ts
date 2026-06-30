@@ -54,6 +54,10 @@ export const dialogDebug = {
   import: Debug("rackula:dialog:import"),
 };
 
+export const archiveDebug = {
+  extract: Debug("rackula:archive:extract"),
+};
+
 export const persistenceDebug = {
   api: Debug("rackula:persistence:api"),
   health: Debug("rackula:persistence:health"),

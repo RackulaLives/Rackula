@@ -15,6 +15,7 @@ import type { ImageData, ImageStoreMap } from "$lib/types/images";
 import { parseLayoutYaml, parseLayoutYamlWithImages } from "./yaml";
 import { extractUuidFromFolderName } from "./folder-structure";
 import { placementKey } from "./placement-key";
+import { archiveDebug } from "./debug";
 
 /**
  * Lazily load JSZip library
@@ -24,6 +25,78 @@ type JSZipConstructor = typeof import("jszip");
 type JSZipInstance = ReturnType<JSZipConstructor>;
 
 let jsZipConstructor: JSZipConstructor | null = null;
+
+/** A single ZIP entry, as exposed on `zip.files[name]`. */
+type JSZipFileEntry = JSZipInstance["files"][string];
+
+/**
+ * JSZip's per-entry streaming surface. The bundled JSZip types only expose
+ * `async()` (which buffers the whole entry into memory) and `nodeStream()`
+ * (Node only), but `internalStream()` is a documented, browser-safe method that
+ * emits the inflated output in chunks. We type just the slice we use so the size
+ * guard can count an entry's inflated bytes incrementally and stop early.
+ */
+interface ZipEntryStream {
+  on(event: "data", handler: (chunk: Uint8Array) => void): ZipEntryStream;
+  on(event: "end", handler: () => void): ZipEntryStream;
+  on(event: "error", handler: (error: Error) => void): ZipEntryStream;
+  pause(): ZipEntryStream;
+  resume(): ZipEntryStream;
+}
+
+interface StreamableZipEntry {
+  internalStream(type: "uint8array"): ZipEntryStream;
+}
+
+/**
+ * Measure a ZIP entry's uncompressed size by streaming its inflated output and
+ * counting bytes, aborting as soon as the running total would exceed
+ * `byteBudget`. Chunks are counted then discarded, so peak memory stays at a
+ * single inflate chunk no matter how large the entry decompresses to. This is
+ * what stops a ZIP bomb from being fully inflated into memory before the size
+ * guard can reject it: trusting the ZIP header's declared uncompressed size is
+ * not safe (it is attacker-controlled and may under-report), so we measure the
+ * real inflated output instead. Resolves with the entry's uncompressed byte
+ * length when it fits within the budget.
+ */
+function measureUncompressedSize(
+  entry: JSZipFileEntry,
+  byteBudget: number,
+): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    const stream = (entry as unknown as StreamableZipEntry).internalStream(
+      "uint8array",
+    );
+    let size = 0;
+    let settled = false;
+    const finish = (action: () => void): void => {
+      if (settled) return;
+      settled = true;
+      // Stop the inflate pump so no further chunks are produced.
+      stream.pause();
+      action();
+    };
+    stream
+      .on("data", (chunk) => {
+        if (settled) return;
+        size += chunk.length;
+        if (size > byteBudget) {
+          finish(() =>
+            reject(
+              new Error(
+                `Archive uncompressed size is too large (exceeds ${Math.round(
+                  LIMITS.MAX_TOTAL_UNCOMPRESSED_BYTES / 1024 / 1024,
+                )}MB).`,
+              ),
+            ),
+          );
+        }
+      })
+      .on("error", (error) => finish(() => reject(error)))
+      .on("end", () => finish(() => resolve(size)))
+      .resume();
+  });
+}
 
 export async function getJSZip(): Promise<JSZipConstructor> {
   if (!jsZipConstructor) {
@@ -207,22 +280,24 @@ export async function extractFolderArchive(
     );
   }
 
-  // Guardrail: Total uncompressed size and compression ratio
-  // Uses public API (async decompression) instead of private JSZip internals.
-  // This decompresses each entry once here; extraction functions later decompress
-  // only the YAML/image files they need. The overlap is small and the trade-off
-  // (slightly more work vs lower peak memory from not caching all entries) is acceptable.
+  // Guardrail: Total uncompressed size and compression ratio.
+  // Stream each entry's inflated output and count bytes, aborting the moment the
+  // running total would exceed MAX_TOTAL_UNCOMPRESSED_BYTES. Counting bytes
+  // incrementally (instead of buffering each entry via file.async) keeps peak
+  // memory at a single inflate chunk, so a ZIP bomb is rejected mid-inflation
+  // rather than after being fully decompressed into memory. Extraction later
+  // re-inflates only the YAML/image files it needs; that overlap is small and
+  // bounded by the per-file caps below.
   let totalUncompressedSize = 0;
   for (const name of entries) {
     const file = zip.files[name];
     if (!file || file.dir) continue;
-    const bytes = await file.async("uint8array");
-    totalUncompressedSize += bytes.byteLength;
-    if (totalUncompressedSize > LIMITS.MAX_TOTAL_UNCOMPRESSED_BYTES) {
-      throw new Error(
-        `Archive uncompressed size is too large (${Math.round(totalUncompressedSize / 1024 / 1024)}MB).`,
-      );
-    }
+    // Pass the remaining global budget as this entry's cap so the stream aborts
+    // as soon as the cumulative total would exceed the limit.
+    totalUncompressedSize += await measureUncompressedSize(
+      file,
+      LIMITS.MAX_TOTAL_UNCOMPRESSED_BYTES - totalUncompressedSize,
+    );
   }
 
   const ratio = totalUncompressedSize / blob.size;
@@ -481,7 +556,7 @@ async function extractImageFromZip(
 
     // Graceful degradation: skip images that fail to convert
     if (!dataUrl) {
-      console.warn(`Failed to load image: ${imagePath}`);
+      archiveDebug.extract("Failed to load image: %s", imagePath);
       return { error: true };
     }
 
@@ -494,7 +569,7 @@ async function extractImageFromZip(
     return { imageKey, face, imageData };
   } catch (error) {
     // Catch any unexpected errors during blob extraction
-    console.warn(`Failed to extract image: ${imagePath}`, error);
+    archiveDebug.extract("Failed to extract image: %s", imagePath, error);
     return { error: true };
   }
 }
