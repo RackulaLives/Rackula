@@ -269,6 +269,7 @@
     // Reset batch timer - wait for more potential deletes
     if (batchTimeout) {
       clearTimeout(batchTimeout);
+      batchTimeout = null;
     }
     batchTimeout = setTimeout(showBatchToast, BATCH_DELAY);
   }
