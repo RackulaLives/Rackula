@@ -328,7 +328,9 @@
     else if (event.key === "ArrowDown") delta = -1;
     else return;
     const rackIds = resizeTargetRackIds(target);
-    const firstRack = layoutStore.getRackById(rackIds[0] ?? "");
+    const firstRackId = rackIds[0];
+    if (!firstRackId) return;
+    const firstRack = layoutStore.getRackById(firstRackId);
     if (!firstRack) return;
     event.preventDefault();
     event.stopPropagation();
