@@ -492,15 +492,20 @@ export function getPlacedDevicesWithRackForType(
 
 /**
  * Update rack settings directly (raw)
- * Uses active rack
+ * Targets rackId when given, otherwise the active rack
  * @param ctx - Layout state access
  * @param updates - Settings to update
+ * @param rackId - Optional rack id to target instead of the active rack
  */
 export function updateRackRaw(
   ctx: LayoutStateAccess,
   updates: Partial<Omit<Rack, "devices" | "view">>,
+  rackId?: string,
 ): void {
-  const target = getTargetRack(ctx);
+  // rackId targets a specific rack; without it the active rack is used. The
+  // canvas drag-resize passes the dragged rack's id so a mid-drag active-rack
+  // change (e.g. a cycle-rack shortcut) cannot mutate the wrong rack (#2737).
+  const target = getTargetRack(ctx, rackId);
   if (!target) return;
 
   updateRackAtIndex(ctx, target.index, (rack) => ({ ...rack, ...updates }));

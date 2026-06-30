@@ -28,6 +28,20 @@ export interface ConflictInfo {
 }
 
 /**
+ * Highest whole-U a placed device occupies (its top edge). Converts the stored
+ * internal position to human U and rounds a fractional top up. Shared by the
+ * shrink guard and the resize floor so they cannot drift (#1683, #2737).
+ */
+function getDeviceOccupiedTopU(
+  device: PlacedDevice,
+  deviceTypes: DeviceType[],
+): number {
+  const deviceType = deviceTypes.find((dt) => dt.slug === device.device_type);
+  const uHeight = deviceType?.u_height ?? 1; // Default to 1U if unknown
+  return Math.ceil(toHumanUnits(device.position) + uHeight - 1);
+}
+
+/**
  * Check if a rack can be resized to a new height
  *
  * Rules:
@@ -54,17 +68,7 @@ export function canResizeRackTo(
   const conflicts: PlacedDevice[] = [];
 
   for (const device of rack.devices) {
-    const deviceType = deviceTypes.find((dt) => dt.slug === device.device_type);
-    const uHeight = deviceType?.u_height ?? 1; // Default to 1U if unknown
-
-    // device.position is stored in internal units (UNITS_PER_U per U).
-    // newHeight and u_height are in human U — convert before comparing,
-    // otherwise we read an inflated "U228" for a device actually at U38 (#1683).
-    const positionU = toHumanUnits(device.position);
-    const deviceTop = positionU + uHeight - 1;
-    const effectiveTop = Math.ceil(deviceTop); // Round up for fractional U
-
-    if (effectiveTop > newHeight) {
+    if (getDeviceOccupiedTopU(device, deviceTypes) > newHeight) {
       conflicts.push(device);
     }
   }
@@ -87,9 +91,7 @@ export function getMinResizeHeight(
 ): number {
   let highest = MIN_RACK_HEIGHT;
   for (const device of rack.devices) {
-    const deviceType = deviceTypes.find((dt) => dt.slug === device.device_type);
-    const uHeight = deviceType?.u_height ?? 1;
-    const top = Math.ceil(toHumanUnits(device.position) + uHeight - 1);
+    const top = getDeviceOccupiedTopU(device, deviceTypes);
     if (top > highest) highest = top;
   }
   return highest;

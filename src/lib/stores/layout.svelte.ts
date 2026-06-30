@@ -979,8 +979,9 @@ export function createLayoutStore(
 
   function updateRackRaw(
     updates: Partial<Omit<Rack, "devices" | "view">>,
+    rackId?: string,
   ): void {
-    updateRackRawImpl(stateAccess, updates);
+    updateRackRawImpl(stateAccess, updates, rackId);
   }
 
   function replaceRackRaw(newRack: Rack): void {

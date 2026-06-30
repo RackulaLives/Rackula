@@ -237,9 +237,28 @@ describe("rack-resize", () => {
         store.getRackById(rack.id)!.devices.map((d) => d.position),
       ).toEqual(positionsBefore);
 
-      // A single undo reverts the last resize, not the device placement.
+      // A single undo reverts the last resize, not the device placement: the
+      // height returns and every device keeps its U-number (no renumbering).
       store.undo();
       expect(store.getRackById(rack.id)!.height).toBe(42);
+      expect(
+        store.getRackById(rack.id)!.devices.map((d) => d.position),
+      ).toEqual(positionsBefore);
+    });
+
+    it("updateRackRaw targets the given rack id, not the active rack", () => {
+      // The live resize preview writes to the dragged rack by id. If a
+      // cycle-rack shortcut changes the active rack mid-drag, the preview must
+      // still resize the rack under the grip, never the newly active one.
+      const store = getLayoutStore();
+      const rackA = store.addRack("Rack A", 24)!;
+      const rackB = store.addRack("Rack B", 18)!;
+      store.setActiveRack(rackB.id);
+
+      store.updateRackRaw({ height: 30 }, rackA.id);
+
+      expect(store.getRackById(rackA.id)!.height).toBe(30);
+      expect(store.getRackById(rackB.id)!.height).toBe(18);
     });
   });
 });

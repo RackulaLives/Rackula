@@ -183,9 +183,12 @@
     if (!rack) return;
     event.preventDefault();
     event.stopPropagation();
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    // updateRackRaw targets the active rack; the grips only show on the
-    // selected rack, which is normally active, but make it certain.
+    // setPointerCapture is absent in some runtimes (happy-dom tests); guard it
+    // the same way RackDevice does so a grip press never throws.
+    const target = event.currentTarget as HTMLElement;
+    if (target?.setPointerCapture) target.setPointerCapture(event.pointerId);
+    // Make the dragged rack active so its selection chrome matches; the raw
+    // preview below is id-targeted, so correctness does not depend on this.
     if (activeRackId !== rackId) layoutStore.setActiveRack(rackId);
     resizeDrag = {
       rackId,
@@ -211,17 +214,28 @@
     });
     if (previewHeight === drag.previewHeight) return;
     drag.previewHeight = previewHeight;
-    // Live frame preview: raw set records no history and leaves the doc clean.
-    layoutStore.updateRackRaw({ height: previewHeight });
+    // Live frame preview, id-targeted so a mid-drag active-rack change cannot
+    // resize the wrong rack. Raw set records no history and leaves the doc clean.
+    layoutStore.updateRackRaw({ height: previewHeight }, drag.rackId);
   }
 
   function handleResizeEnd(event: PointerEvent) {
     const drag = resizeDrag;
     if (!drag || event.pointerId !== drag.pointerId) return;
-    const finalHeight = drag.previewHeight;
+    // Recompute from the release position so a fast release that outran the
+    // last pointermove still commits the height under the pointer.
+    const pxPerU = U_HEIGHT_PX * canvasStore.zoom;
+    const finalHeight = snapResizeHeight({
+      startHeight: drag.startHeight,
+      growPx: resizeGrowPx(drag.grip, drag.startClientY, event.clientY),
+      pxPerU,
+      minHeight: drag.minHeight,
+      maxHeight: MAX_RACK_HEIGHT,
+    });
     resizeDrag = null;
-    // Rewind the preview, then commit once so undo sees start -> final.
-    layoutStore.updateRackRaw({ height: drag.startHeight });
+    // Rewind the preview (id-targeted), then commit once so undo sees
+    // start -> final as a single step.
+    layoutStore.updateRackRaw({ height: drag.startHeight }, drag.rackId);
     if (finalHeight !== drag.startHeight) {
       layoutStore.updateRack(drag.rackId, { height: finalHeight });
     }
@@ -231,7 +245,7 @@
     const drag = resizeDrag;
     if (!drag || event.pointerId !== drag.pointerId) return;
     resizeDrag = null;
-    layoutStore.updateRackRaw({ height: drag.startHeight });
+    layoutStore.updateRackRaw({ height: drag.startHeight }, drag.rackId);
   }
 
   // Keyboard resize for a focused grip: Arrow Up grows, Arrow Down shrinks by
@@ -411,7 +425,10 @@
     <button
       type="button"
       class="resize-grip resize-grip-{side}"
-      aria-label="Resize rack height"
+      aria-label={side === "top"
+        ? "Resize rack height from top edge"
+        : "Resize rack height from bottom edge"}
+      aria-keyshortcuts="ArrowUp ArrowDown"
       title="Drag to resize. Arrow Up grows, Arrow Down shrinks."
       onpointerdown={(e) => handleResizeStart(rackId, side, e)}
       onpointermove={handleResizeMove}
@@ -460,6 +477,10 @@
           class="rack-wrapper"
           class:active={isActive}
           class:resizable={isSelected}
+          style:transform={resizeDrag?.rackId === rack.id &&
+          resizeDrag.grip === "bottom"
+            ? `translateY(${(resizeDrag.previewHeight - resizeDrag.startHeight) * U_HEIGHT_PX}px)`
+            : undefined}
         >
           <RackDualView
             {rack}
