@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "./helpers/base-test";
@@ -217,7 +217,8 @@ test.describe("form factor frames", () => {
 
   for (const formFactor of FRAME_FORM_FACTORS) {
     test(`frame - ${formFactor}`, async ({ page }) => {
-      const file = join(tmpdir(), `frame-${formFactor}.rackula.yaml`);
+      const dir = mkdtempSync(join(tmpdir(), "rackula-frame-"));
+      const file = join(dir, `frame-${formFactor}.rackula.yaml`);
       writeFileSync(file, frameFixtureYaml(formFactor), "utf8");
 
       await gotoVisual(page, baseUrl);

@@ -97,6 +97,21 @@
       rackPadding,
     }),
   );
+
+  // Inline fill/stroke per chrome class, duplicating the CSS as the same Safari
+  // iOS workaround the core frame rects use (scoped SVG var() fills mis-resolve;
+  // inline ones do not). The classes still carry stroke-width, opacity and caps.
+  const chromeStyle: Record<string, string> = {
+    "frame-cabinet-enclosure": "fill: none; stroke: var(--rack-text)",
+    "frame-cabinet-handle": "fill: var(--rack-text)",
+    "frame-rear-outline": "fill: none; stroke: var(--rack-text)",
+    "frame-rear-strut": "stroke: var(--rack-text)",
+    "frame-center-strip": "fill: var(--rack-text)",
+    "frame-base-stand": "fill: var(--rack-text)",
+    "frame-wall-bracket": "fill: none; stroke: var(--rack-text)",
+    "frame-wall-screw": "fill: var(--rack-text-highlight)",
+    "frame-open-gusset": "stroke: var(--rack-text)",
+  };
 </script>
 
 <!-- Rack background (interior)
@@ -151,7 +166,9 @@
   style="fill: var(--rack-rail)"
 />
 
-<!-- Form-factor frame chrome (decorations behind the U-grid and devices) -->
+<!-- Form-factor frame chrome (decorations behind the U-grid and devices).
+     Inline style duplicates the class fill/stroke as a Safari iOS workaround
+     (see interior comment). -->
 {#each chrome.shapes as shape, i (shape.cls + "-" + i)}
   {#if shape.kind === "rect"}
     <rect
@@ -161,6 +178,7 @@
       height={shape.height}
       rx={shape.rx}
       class={shape.cls}
+      style={chromeStyle[shape.cls]}
     />
   {:else if shape.kind === "line"}
     <line
@@ -169,11 +187,18 @@
       x2={shape.x2}
       y2={shape.y2}
       class={shape.cls}
+      style={chromeStyle[shape.cls]}
     />
   {:else if shape.kind === "circle"}
-    <circle cx={shape.cx} cy={shape.cy} r={shape.r} class={shape.cls} />
+    <circle
+      cx={shape.cx}
+      cy={shape.cy}
+      r={shape.r}
+      class={shape.cls}
+      style={chromeStyle[shape.cls]}
+    />
   {:else}
-    <path d={shape.d} class={shape.cls} />
+    <path d={shape.d} class={shape.cls} style={chromeStyle[shape.cls]} />
   {/if}
 {/each}
 

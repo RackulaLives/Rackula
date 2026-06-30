@@ -133,7 +133,11 @@ export function frameChromeFor(
     case "4-post": {
       // Depth: a back plane drawn up and inset from the front, joined to the
       // front corners by struts, giving an open four-post box in perspective.
+      // The upward shift is clamped to topZoneY so the rear geometry never goes
+      // above y=0, which the viewBox clips when the rack name is hidden (bayed
+      // and dual views use a near-zero top padding).
       const depth = railWidth * 0.8;
+      const vDepth = Math.min(depth, topZoneY);
       const front: Array<[number, number]> = [
         [0, topZoneY],
         [rackWidth, topZoneY],
@@ -145,7 +149,7 @@ export function frameChromeFor(
         x1: x,
         y1: y,
         x2: x === 0 ? x + depth : x - depth,
-        y2: y - depth,
+        y2: y - vDepth,
         cls: "frame-rear-strut",
       });
       return {
@@ -156,7 +160,7 @@ export function frameChromeFor(
           {
             kind: "rect",
             x: depth,
-            y: topZoneY - depth,
+            y: topZoneY - vDepth,
             width: rackWidth - depth * 2,
             height: frameBottom - topZoneY,
             cls: "frame-rear-outline",
