@@ -25,7 +25,7 @@ describe("Archive Guardrails", () => {
   it("rejects archives with too many entries (MAX_ENTRY_COUNT = 500)", async () => {
     const zip = new JSZip();
     // JSZip handles 500 files easily
-    for (let i = 0; i <= 501; i++) {
+    for (let i = 0; i < 501; i++) {
       zip.file(`file${i}.txt`, "content");
     }
     const blob = await zip.generateAsync({ type: "blob" });
