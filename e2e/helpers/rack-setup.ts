@@ -213,8 +213,13 @@ export async function createRackDirect(
     await expect(nameInput).toBeVisible();
     await nameInput.fill(options.name);
     await nameInput.press("Enter");
+    // Anchor the match so a name that is a substring of another rack's name
+    // cannot satisfy this before the rename actually lands.
+    const escaped = options.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     await expect(
-      page.locator(locators.rackView.dualViewName, { hasText: options.name }),
+      page.locator(locators.rackView.dualViewName, {
+        hasText: new RegExp(`^${escaped}$`),
+      }),
     ).toBeVisible();
   }
 }
