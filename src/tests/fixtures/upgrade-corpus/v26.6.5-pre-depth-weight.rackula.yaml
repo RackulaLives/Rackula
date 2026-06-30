@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/layout-v1.json
+metadata:
+  id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+  name: Pre Depth Weight Lab
+  schema_version: "1.0"
+version: "1.0"
+name: Pre Depth Weight Lab
+racks:
+  - id: "rack-pre"
+    name: "Pre-depth Rack"
+    height: 24
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: "open-frame"
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: "dev-router"
+        device_type: "router-1u"
+        position: 120
+        face: "front"
+device_types:
+  - slug: "router-1u"
+    u_height: 1
+    manufacturer: "Acme"
+    colour: "#7B6BA8"
+    category: "network"
+settings:
+  display_mode: "label"
+  show_labels_on_images: false

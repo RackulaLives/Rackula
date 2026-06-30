@@ -60,7 +60,11 @@ export type WeightUnit = "kg" | "lb";
  * Rack form factor types (NetBox-compatible)
  */
 export type FormFactor =
-  "2-post" | "4-post" | "4-post-cabinet" | "wall-mount" | "open-frame";
+  | "2-post"
+  | "4-post"
+  | "4-post-cabinet"
+  | "wall-mount"
+  | "open-frame";
 
 /**
  * Display mode for devices in rack visualization
@@ -87,7 +91,12 @@ export const DISPLAY_MODE_LABELS: Record<DisplayMode, string> = {
  * - 'manufacturer': Brand name (from DeviceType)
  */
 export type AnnotationField =
-  "name" | "ip" | "notes" | "asset_tag" | "serial" | "manufacturer";
+  | "name"
+  | "ip"
+  | "notes"
+  | "asset_tag"
+  | "serial"
+  | "manufacturer";
 
 /**
  * Airflow direction types (NetBox-compatible with full parity)
@@ -634,6 +643,10 @@ export interface Rack {
   devices: PlacedDevice[];
   /** Notes for this rack */
   notes?: string;
+  /** Internal depth in millimetres (default: 1000) */
+  depth_mm?: number;
+  /** Base weight of the empty rack, in kilograms (default: 0) */
+  base_weight?: number;
   /** Current view mode - runtime only, not persisted */
   view?: RackView;
 }

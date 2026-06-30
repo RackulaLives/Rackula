@@ -129,7 +129,7 @@ function orderPlacedDeviceFields(
 
 /**
  * Order Rack fields according to schema v1.0.0
- * Field order: id, name, height, width, desc_units, form_factor, starting_unit, position, devices, notes
+ * Field order: id, name, height, width, depth_mm, base_weight, desc_units, form_factor, starting_unit, position, devices, notes
  */
 function orderRackFields(rack: Rack): Record<string, unknown> {
   const ordered: Record<string, unknown> = {};
@@ -138,6 +138,8 @@ function orderRackFields(rack: Rack): Record<string, unknown> {
   ordered.name = rack.name;
   ordered.height = rack.height;
   ordered.width = rack.width;
+  if (rack.depth_mm !== undefined) ordered.depth_mm = rack.depth_mm;
+  if (rack.base_weight !== undefined) ordered.base_weight = rack.base_weight;
   ordered.desc_units = rack.desc_units;
   ordered.form_factor = rack.form_factor;
   ordered.starting_unit = rack.starting_unit;

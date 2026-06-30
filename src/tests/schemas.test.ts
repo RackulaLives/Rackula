@@ -745,6 +745,70 @@ describe("RackSchema", () => {
       expect(RackSchema.safeParse(rack).success).toBe(false);
     });
   });
+
+  describe("depth_mm validation", () => {
+    it("fills the default depth when absent (prior-release data)", () => {
+      const parsed = RackSchema.parse(validRack);
+      expect(parsed.depth_mm).toBe(1000);
+    });
+
+    it("accepts an explicit positive depth", () => {
+      const rack = { ...validRack, depth_mm: 800 };
+      expect(RackSchema.parse(rack).depth_mm).toBe(800);
+    });
+
+    it("rejects zero depth", () => {
+      const rack = { ...validRack, depth_mm: 0 };
+      expect(RackSchema.safeParse(rack).success).toBe(false);
+    });
+
+    it("rejects negative depth", () => {
+      const rack = { ...validRack, depth_mm: -600 };
+      expect(RackSchema.safeParse(rack).success).toBe(false);
+    });
+
+    it("rejects NaN depth", () => {
+      const rack = { ...validRack, depth_mm: Number.NaN };
+      expect(RackSchema.safeParse(rack).success).toBe(false);
+    });
+
+    it("rejects non-finite depth", () => {
+      const rack = { ...validRack, depth_mm: Number.POSITIVE_INFINITY };
+      expect(RackSchema.safeParse(rack).success).toBe(false);
+    });
+  });
+
+  describe("base_weight validation", () => {
+    it("fills the default base weight when absent (prior-release data)", () => {
+      const parsed = RackSchema.parse(validRack);
+      expect(parsed.base_weight).toBe(0);
+    });
+
+    it("accepts zero base weight", () => {
+      const rack = { ...validRack, base_weight: 0 };
+      expect(RackSchema.parse(rack).base_weight).toBe(0);
+    });
+
+    it("accepts a fractional positive base weight", () => {
+      const rack = { ...validRack, base_weight: 12.5 };
+      expect(RackSchema.parse(rack).base_weight).toBe(12.5);
+    });
+
+    it("rejects negative base weight", () => {
+      const rack = { ...validRack, base_weight: -1 };
+      expect(RackSchema.safeParse(rack).success).toBe(false);
+    });
+
+    it("rejects NaN base weight", () => {
+      const rack = { ...validRack, base_weight: Number.NaN };
+      expect(RackSchema.safeParse(rack).success).toBe(false);
+    });
+
+    it("rejects non-finite base weight", () => {
+      const rack = { ...validRack, base_weight: Number.POSITIVE_INFINITY };
+      expect(RackSchema.safeParse(rack).success).toBe(false);
+    });
+  });
 });
 
 // ============================================================================
