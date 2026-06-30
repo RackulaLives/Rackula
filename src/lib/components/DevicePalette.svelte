@@ -11,6 +11,7 @@
   import {
     searchDevices,
     groupDevicesByCategory,
+    groupDevicesByCategoryOrdered,
     getCategoryDisplayName,
     sortDevicesByBrandThenModel,
     sortDevicesAlphabetically,
@@ -334,8 +335,14 @@
   const filteredGenericDevices = $derived(
     searchDevices(visibleGenericDevices, searchQuery),
   );
+  // Ordered [category, devices] entries (#2723). While browsing, categories
+  // follow categoryOrder and devices sort A-Z within each. During a search,
+  // preserve the Fuse relevance order (insertion order) within each category so
+  // the generic section stays relevance-ranked like the brand sections.
   const groupedGenericDevices = $derived(
-    groupDevicesByCategory(filteredGenericDevices),
+    isSearchActive
+      ? [...groupDevicesByCategory(filteredGenericDevices).entries()]
+      : groupDevicesByCategoryOrdered(filteredGenericDevices),
   );
 
   // Filter and search brand pack devices - only show compatible devices
@@ -357,12 +364,8 @@
     })),
   );
 
-  // Sort brand packs alphabetically (case-insensitive)
-  const sortedBrandPacks = $derived(
-    [...filteredBrandPacks].sort((a, b) =>
-      a.title.toLowerCase().localeCompare(b.title.toLowerCase()),
-    ),
-  );
+  // Brand packs arrive A-Z by title from getBrandPacks(); filteredBrandPacks is
+  // a map that preserves that order, so no render-time re-sort is needed (#2723).
 
   // All devices combined (for category and flat modes) - filtered by rack width
   const allDevicesCombined = $derived(
@@ -416,7 +419,7 @@
         devices: filteredGenericDevices,
         defaultExpanded: true,
       },
-      ...sortedBrandPacks,
+      ...filteredBrandPacks,
     ]
       .filter((section) => section.devices.length > 0)
       .map((section) => {
@@ -689,7 +692,7 @@
               <div class="accordion-content-inner">
                 {#if section.id === "generic" && groupingMode === "brand"}
                   <!-- Generic section uses category grouping (brand mode only) -->
-                  {#each [...groupedGenericDevices.entries()] as [category, devices] (category)}
+                  {#each groupedGenericDevices as [category, devices] (category)}
                     {#if !isSearchActive || devices.length > 0}
                       <div class="category-group">
                         <h3 class="category-header">

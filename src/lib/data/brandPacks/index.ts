@@ -5,6 +5,10 @@
 
 import type { DeviceType, Airflow } from "$lib/types";
 import { debug } from "$lib/utils/debug";
+import {
+  compareNames,
+  sortDevicesAlphabetically,
+} from "$lib/utils/deviceFilters";
 import { ubiquitiDevices } from "./ubiquiti";
 import { mikrotikDevices } from "./mikrotik";
 import { tplinkDevices } from "./tp-link";
@@ -84,11 +88,21 @@ export interface BrandSection {
 }
 
 /**
+ * Cached, ordered brand pack sections. Brand packs are static data, so the
+ * sorted result is built once and reused (mirrors getAllBrandDevices). See #2723.
+ */
+let cachedBrandPacks: BrandSection[] | null = null;
+
+/**
  * Get all brand pack sections
  * Does not include the generic section (that comes from the layout store)
  */
 export function getBrandPacks(): BrandSection[] {
-  return [
+  if (cachedBrandPacks) {
+    return cachedBrandPacks;
+  }
+
+  const sections: BrandSection[] = [
     // Network Equipment
     {
       id: "ubiquiti",
@@ -309,6 +323,18 @@ export function getBrandPacks(): BrandSection[] {
       icon: "zima",
     },
   ];
+
+  // Single source of truth for device-library ordering (#2723): brand sections
+  // A-Z by title, devices A-Z (numeric-aware) within each section. The palette
+  // consumes this pre-sorted, so it does not re-sort at render.
+  cachedBrandPacks = sections
+    .map((section) => ({
+      ...section,
+      devices: sortDevicesAlphabetically(section.devices),
+    }))
+    .sort((a, b) => compareNames(a.title, b.title));
+
+  return cachedBrandPacks;
 }
 
 /**

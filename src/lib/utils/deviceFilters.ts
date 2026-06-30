@@ -173,6 +173,28 @@ export function groupDevicesByCategory(
 }
 
 /**
+ * Group devices by category, returning entries in the canonical `categoryOrder`
+ * with devices sorted alphabetically within each category. Categories with no
+ * devices are omitted. Use this for grouped device listings so both category and
+ * device order stay consistent with the rest of the palette.
+ *
+ * @param devices - Array of device types to group
+ * @returns Ordered `[category, sortedDevices]` tuples
+ */
+export function groupDevicesByCategoryOrdered(
+  devices: DeviceType[],
+): Array<[DeviceCategory, DeviceType[]]> {
+  const grouped = groupDevicesByCategory(devices);
+
+  return categoryOrder
+    .filter((category) => grouped.has(category))
+    .map((category): [DeviceCategory, DeviceType[]] => [
+      category,
+      sortDevicesAlphabetically(grouped.get(category) ?? []),
+    ]);
+}
+
+/**
  * Get the first device matching a search query
  * @param devices - Array of device types to search
  * @param query - Search query string
@@ -213,6 +235,26 @@ export function getCategoryDisplayName(category: DeviceCategory): string {
 }
 
 /**
+ * Shared comparator for device and brand display names. Numeric-aware so model
+ * numbers order naturally (R650 < R660 < R6515; "Switch 2" < "Switch 10"), and
+ * case/accent-insensitive via the "base" sensitivity. Pinned to the "en" locale
+ * so the "A-Z" ordering is deterministic regardless of the host locale. Use this
+ * everywhere device or brand lists are alphabetized so ordering stays consistent.
+ */
+const nameCollator = new Intl.Collator("en", {
+  numeric: true,
+  sensitivity: "base",
+});
+
+/**
+ * Compare two device/brand display names with the shared numeric-aware,
+ * case-insensitive rule. Returns negative, zero, or positive like `localeCompare`.
+ */
+export function compareNames(a: string, b: string): number {
+  return nameCollator.compare(a, b);
+}
+
+/**
  * Sort devices by manufacturer (brand) first, then by model within each brand
  * Devices without a manufacturer are sorted last, then by model
  * @param devices - Array of device types to sort
@@ -222,22 +264,18 @@ export function sortDevicesByBrandThenModel(
   devices: DeviceType[],
 ): DeviceType[] {
   return [...devices].sort((a, b) => {
-    const aManufacturer = a.manufacturer?.toLowerCase() ?? "";
-    const bManufacturer = b.manufacturer?.toLowerCase() ?? "";
+    const aManufacturer = a.manufacturer ?? "";
+    const bManufacturer = b.manufacturer ?? "";
 
     // Devices with manufacturer come before those without
     if (aManufacturer && !bManufacturer) return -1;
     if (!aManufacturer && bManufacturer) return 1;
 
-    // Sort by manufacturer first
-    if (aManufacturer !== bManufacturer) {
-      return aManufacturer.localeCompare(bManufacturer);
-    }
+    // Sort by manufacturer first, then by model within each brand
+    const byBrand = compareNames(aManufacturer, bManufacturer);
+    if (byBrand !== 0) return byBrand;
 
-    // Then sort by model
-    const aModel = (a.model ?? a.slug).toLowerCase();
-    const bModel = (b.model ?? b.slug).toLowerCase();
-    return aModel.localeCompare(bModel);
+    return compareNames(a.model ?? a.slug, b.model ?? b.slug);
   });
 }
 
@@ -248,11 +286,9 @@ export function sortDevicesByBrandThenModel(
  * @returns New sorted array (does not mutate original)
  */
 export function sortDevicesAlphabetically(devices: DeviceType[]): DeviceType[] {
-  return [...devices].sort((a, b) => {
-    const aName = (a.model ?? a.slug).toLowerCase();
-    const bName = (b.model ?? b.slug).toLowerCase();
-    return aName.localeCompare(bName);
-  });
+  return [...devices].sort((a, b) =>
+    compareNames(a.model ?? a.slug, b.model ?? b.slug),
+  );
 }
 
 /**
