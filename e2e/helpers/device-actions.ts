@@ -204,8 +204,15 @@ export async function deleteSelectedDevice(page: Page): Promise<void> {
     expect(countAfterDelete).toBeLessThan(countBeforeDelete);
   }).toPass({ timeout: 5000 });
 
-  // Removing the device clears the selection; the Edit tab returns to empty.
-  await expect(page.locator(locators.sidePanel.editEmpty)).toBeVisible();
+  // Removing the device clears the selection, but the rack it was in stays
+  // the active rack, so the inspector falls back to rack mode rather than
+  // the empty state (#2739, #2757). Unlike deselectDevice(), this never
+  // presses Escape, which is the only path that also clears the active rack.
+  // Assert the Edit tab is still showing content (not just that the
+  // empty-state testid is absent), matching the pairing selectDevice() uses
+  // above so this can't pass vacuously off an unmounted tabpanel.
+  await expect(page.locator(locators.sidePanel.editPanel)).toBeVisible();
+  await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
 }
 
 /**
