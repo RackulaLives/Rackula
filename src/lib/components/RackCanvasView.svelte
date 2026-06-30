@@ -19,6 +19,8 @@
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
   import { organizeRackRow } from "$lib/utils/rack-row";
+  import { IconChevronLeft, IconChevronRight } from "./icons";
+  import { ICON_SIZE } from "$lib/constants/sizing";
 
   interface Props {
     partyMode?: boolean;
@@ -100,6 +102,37 @@
   // groups stay contiguous and render flush; standalone racks are spaced. See
   // organizeRackRow for the ordering and grouping rules.
   const rowItems = $derived(organizeRackRow(racks, rackGroups));
+
+  // The selected row slot is the rack or group the user has selected; a device
+  // selection does not surface the reorder controls. For a selected group the
+  // selection store holds its active member, so the slot lookup resolves to the
+  // group that owns that member.
+  const selectedSlotRackId = $derived(
+    selectionStore.selectedType === "rack" ||
+      selectionStore.selectedType === "group"
+      ? selectionStore.selectedRackId
+      : null,
+  );
+
+  // Index of the selected slot within the row, or -1 when nothing reorderable
+  // is selected. A grouped rack resolves to its group's single slot.
+  const selectedSlotIndex = $derived.by(() => {
+    const id = selectedSlotRackId;
+    if (!id) return -1;
+    return rowItems.findIndex((item) =>
+      item.kind === "rack"
+        ? item.rack.id === id
+        : item.racks.some((rack) => rack.id === id),
+    );
+  });
+
+  // Reorder the selected slot left or right. A grouped rack moves its whole
+  // group as a unit. Routed through the layout store so undo/redo covers it.
+  function handleMoveRack(direction: "left" | "right") {
+    const id = selectedSlotRackId;
+    if (!id) return;
+    layoutStore.moveRackInRow(id, direction);
+  }
 
   // Handle mobile tap-to-place (uses active rack)
   function handlePlacementTap(
@@ -253,124 +286,150 @@
   class:swipe-next={swipeAnimationDirection === "next"}
   class:swipe-previous={swipeAnimationDirection === "previous"}
 >
-  {#each rowItems as item (item.kind === "rack" ? `rack:${item.rack.id}` : `group:${item.group.id}`)}
-    {#if item.kind === "rack"}
-      {@const rack = item.rack}
-      {@const isActive = rack.id === activeRackId}
-      {@const isSelected =
-        selectionStore.selectedType === "rack" &&
-        selectionStore.selectedRackId === rack.id}
-      <div class="rack-wrapper" class:active={isActive}>
-        <RackDualView
-          {rack}
+  {#each rowItems as item, slotIndex (item.kind === "rack" ? `rack:${item.rack.id}` : `group:${item.group.id}`)}
+    <div class="row-slot">
+      {#if rowItems.length >= 2 && slotIndex === selectedSlotIndex}
+        <div class="rack-move-controls" role="group" aria-label="Reorder rack">
+          <button
+            type="button"
+            class="move-button"
+            aria-label="Move rack left"
+            title="Move rack left"
+            disabled={slotIndex === 0}
+            onclick={() => handleMoveRack("left")}
+          >
+            <IconChevronLeft size={ICON_SIZE.sm} />
+          </button>
+          <button
+            type="button"
+            class="move-button"
+            aria-label="Move rack right"
+            title="Move rack right"
+            disabled={slotIndex === rowItems.length - 1}
+            onclick={() => handleMoveRack("right")}
+          >
+            <IconChevronRight size={ICON_SIZE.sm} />
+          </button>
+        </div>
+      {/if}
+      {#if item.kind === "rack"}
+        {@const rack = item.rack}
+        {@const isActive = rack.id === activeRackId}
+        {@const isSelected =
+          selectionStore.selectedType === "rack" &&
+          selectionStore.selectedRackId === rack.id}
+        <div class="rack-wrapper" class:active={isActive}>
+          <RackDualView
+            {rack}
+            deviceLibrary={layoutStore.device_types}
+            selected={isSelected}
+            {isActive}
+            selectedDeviceId={selectionStore.selectedType === "device" &&
+            selectionStore.selectedRackId === rack.id
+              ? selectionStore.selectedDeviceId
+              : null}
+            displayMode={uiStore.displayMode}
+            showLabelsOnImages={uiStore.showLabelsOnImages}
+            showAnnotations={uiStore.showAnnotations}
+            annotationField={uiStore.annotationField}
+            showBanana={uiStore.showBanana}
+            {partyMode}
+            {enableLongPress}
+            onselect={(e) => handleRackSelect(e)}
+            ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
+            ondevicedrop={(e) => handleDeviceDrop(e)}
+            ondevicemove={(e) => handleDeviceMove(e)}
+            ondevicemoverack={(e) => handleDeviceMoveRack(e)}
+            onplacementtap={(e) => handlePlacementTap(rack.id, e)}
+            onlongpress={(e) => onracklongpress?.(e)}
+            onfocus={() => onrackfocus?.([rack.id])}
+            onexport={() => onrackexport?.([rack.id])}
+            onedit={() => onrackedit?.(rack.id)}
+            onrename={() => onrackrename?.(rack.id)}
+            onduplicate={() => onrackduplicate?.(rack.id)}
+            ondelete={() => onrackdelete?.(rack.id)}
+          />
+        </div>
+      {:else if item.group.layout_preset === "bayed"}
+        <!-- Bayed/touring racks render flush (no gap) via the stacked dual view -->
+        <BayedRackView
+          group={item.group}
+          racks={item.racks}
           deviceLibrary={layoutStore.device_types}
-          selected={isSelected}
-          {isActive}
-          selectedDeviceId={selectionStore.selectedType === "device" &&
-          selectionStore.selectedRackId === rack.id
+          {activeRackId}
+          selectedDeviceId={selectionStore.selectedType === "device"
             ? selectionStore.selectedDeviceId
+            : null}
+          selectedRackId={selectionStore.selectedType === "rack"
+            ? selectionStore.selectedRackId
             : null}
           displayMode={uiStore.displayMode}
           showLabelsOnImages={uiStore.showLabelsOnImages}
           showAnnotations={uiStore.showAnnotations}
           annotationField={uiStore.annotationField}
-          showBanana={uiStore.showBanana}
           {partyMode}
           {enableLongPress}
-          onselect={(e) => handleRackSelect(e)}
-          ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
+          ongroupselect={(e) => handleGroupSelect(e)}
+          ondeviceselect={(e) => handleDeviceSelect(e.detail.rackId, e)}
           ondevicedrop={(e) => handleDeviceDrop(e)}
           ondevicemove={(e) => handleDeviceMove(e)}
           ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-          onplacementtap={(e) => handlePlacementTap(rack.id, e)}
+          onplacementtap={(e) => handlePlacementTap(e.detail.rackId, e)}
           onlongpress={(e) => onracklongpress?.(e)}
-          onfocus={() => onrackfocus?.([rack.id])}
-          onexport={() => onrackexport?.([rack.id])}
-          onedit={() => onrackedit?.(rack.id)}
-          onrename={() => onrackrename?.(rack.id)}
-          onduplicate={() => onrackduplicate?.(rack.id)}
-          ondelete={() => onrackdelete?.(rack.id)}
+          onfocus={(rackIds) => onrackfocus?.(rackIds)}
+          onexport={(rackIds) => onrackexport?.(rackIds)}
+          onedit={(rackId) => onrackedit?.(rackId)}
+          onrename={(rackId) => onrackrename?.(rackId)}
+          onduplicate={(rackId) => onrackduplicate?.(rackId)}
+          ondelete={(rackId) => onrackdelete?.(rackId)}
         />
-      </div>
-    {:else if item.group.layout_preset === "bayed"}
-      <!-- Bayed/touring racks render flush (no gap) via the stacked dual view -->
-      <BayedRackView
-        group={item.group}
-        racks={item.racks}
-        deviceLibrary={layoutStore.device_types}
-        {activeRackId}
-        selectedDeviceId={selectionStore.selectedType === "device"
-          ? selectionStore.selectedDeviceId
-          : null}
-        selectedRackId={selectionStore.selectedType === "rack"
-          ? selectionStore.selectedRackId
-          : null}
-        displayMode={uiStore.displayMode}
-        showLabelsOnImages={uiStore.showLabelsOnImages}
-        showAnnotations={uiStore.showAnnotations}
-        annotationField={uiStore.annotationField}
-        {partyMode}
-        {enableLongPress}
-        ongroupselect={(e) => handleGroupSelect(e)}
-        ondeviceselect={(e) => handleDeviceSelect(e.detail.rackId, e)}
-        ondevicedrop={(e) => handleDeviceDrop(e)}
-        ondevicemove={(e) => handleDeviceMove(e)}
-        ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-        onplacementtap={(e) => handlePlacementTap(e.detail.rackId, e)}
-        onlongpress={(e) => onracklongpress?.(e)}
-        onfocus={(rackIds) => onrackfocus?.(rackIds)}
-        onexport={(rackIds) => onrackexport?.(rackIds)}
-        onedit={(rackId) => onrackedit?.(rackId)}
-        onrename={(rackId) => onrackrename?.(rackId)}
-        onduplicate={(rackId) => onrackduplicate?.(rackId)}
-        ondelete={(rackId) => onrackdelete?.(rackId)}
-      />
-    {:else}
-      <!-- Standard row layout for non-bayed groups -->
-      <div class="rack-group">
-        <div class="group-label">{item.group.name ?? "Group"}</div>
-        <div class="group-racks">
-          {#each item.racks as rack (rack.id)}
-            {@const isActive = rack.id === activeRackId}
-            {@const isSelected =
-              selectionStore.selectedType === "rack" &&
-              selectionStore.selectedRackId === rack.id}
-            <div class="rack-wrapper" class:active={isActive}>
-              <RackDualView
-                {rack}
-                deviceLibrary={layoutStore.device_types}
-                selected={isSelected}
-                {isActive}
-                selectedDeviceId={selectionStore.selectedType === "device" &&
-                selectionStore.selectedRackId === rack.id
-                  ? selectionStore.selectedDeviceId
-                  : null}
-                displayMode={uiStore.displayMode}
-                showLabelsOnImages={uiStore.showLabelsOnImages}
-                showAnnotations={uiStore.showAnnotations}
-                annotationField={uiStore.annotationField}
-                showBanana={uiStore.showBanana}
-                {partyMode}
-                {enableLongPress}
-                onselect={(e) => handleRackSelect(e)}
-                ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
-                ondevicedrop={(e) => handleDeviceDrop(e)}
-                ondevicemove={(e) => handleDeviceMove(e)}
-                ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-                onplacementtap={(e) => handlePlacementTap(rack.id, e)}
-                onlongpress={(e) => onracklongpress?.(e)}
-                onfocus={() => onrackfocus?.([rack.id])}
-                onexport={() => onrackexport?.([rack.id])}
-                onedit={() => onrackedit?.(rack.id)}
-                onrename={() => onrackrename?.(rack.id)}
-                onduplicate={() => onrackduplicate?.(rack.id)}
-                ondelete={() => onrackdelete?.(rack.id)}
-              />
-            </div>
-          {/each}
+      {:else}
+        <!-- Standard row layout for non-bayed groups -->
+        <div class="rack-group">
+          <div class="group-label">{item.group.name ?? "Group"}</div>
+          <div class="group-racks">
+            {#each item.racks as rack (rack.id)}
+              {@const isActive = rack.id === activeRackId}
+              {@const isSelected =
+                selectionStore.selectedType === "rack" &&
+                selectionStore.selectedRackId === rack.id}
+              <div class="rack-wrapper" class:active={isActive}>
+                <RackDualView
+                  {rack}
+                  deviceLibrary={layoutStore.device_types}
+                  selected={isSelected}
+                  {isActive}
+                  selectedDeviceId={selectionStore.selectedType === "device" &&
+                  selectionStore.selectedRackId === rack.id
+                    ? selectionStore.selectedDeviceId
+                    : null}
+                  displayMode={uiStore.displayMode}
+                  showLabelsOnImages={uiStore.showLabelsOnImages}
+                  showAnnotations={uiStore.showAnnotations}
+                  annotationField={uiStore.annotationField}
+                  showBanana={uiStore.showBanana}
+                  {partyMode}
+                  {enableLongPress}
+                  onselect={(e) => handleRackSelect(e)}
+                  ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
+                  ondevicedrop={(e) => handleDeviceDrop(e)}
+                  ondevicemove={(e) => handleDeviceMove(e)}
+                  ondevicemoverack={(e) => handleDeviceMoveRack(e)}
+                  onplacementtap={(e) => handlePlacementTap(rack.id, e)}
+                  onlongpress={(e) => onracklongpress?.(e)}
+                  onfocus={() => onrackfocus?.([rack.id])}
+                  onexport={() => onrackexport?.([rack.id])}
+                  onedit={() => onrackedit?.(rack.id)}
+                  onrename={() => onrackrename?.(rack.id)}
+                  onduplicate={() => onrackduplicate?.(rack.id)}
+                  ondelete={() => onrackdelete?.(rack.id)}
+                />
+              </div>
+            {/each}
+          </div>
         </div>
-      </div>
-    {/if}
+      {/if}
+    </div>
   {/each}
 </div>
 
@@ -462,6 +521,69 @@
     .racks-wrapper.swipe-next,
     .racks-wrapper.swipe-previous {
       animation: none;
+    }
+  }
+
+  /* Each row slot stacks its reorder controls above the rack. The wrapper is
+     the flex child the row gap and bottom-alignment act on, so unselected slots
+     are the rack alone and the selected slot grows upward without shifting the
+     shared baseline. */
+  .row-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .rack-move-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--colour-border);
+    background: var(--colour-surface-overlay, rgba(40, 42, 54, 0.6));
+  }
+
+  .move-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--colour-text);
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .move-button:hover:not(:disabled) {
+    background: var(--colour-overlay-hover);
+    color: var(--colour-primary);
+  }
+
+  .move-button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring-glow);
+    color: var(--colour-primary);
+  }
+
+  .move-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .move-button {
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        color var(--duration-fast) var(--ease-out);
     }
   }
 </style>

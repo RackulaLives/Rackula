@@ -48,6 +48,7 @@ import {
   updateRack as updateRackImpl,
   deleteRack as deleteRackImpl,
   reorderRacks as reorderRacksImpl,
+  moveRackInRow as moveRackInRowImpl,
   duplicateRack as duplicateRackImpl,
   getRackById as getRackByIdImpl,
   setActiveRack as setActiveRackImpl,
@@ -289,6 +290,7 @@ export function createLayoutStore(
     updateRackView,
     deleteRack,
     reorderRacks,
+    moveRackInRow,
     duplicateRack,
     getRackById,
     setActiveRack,
@@ -488,6 +490,15 @@ export function createLayoutStore(
 
   function reorderRacks(fromIndex: number, toIndex: number): void {
     reorderRacksImpl(stateAccess, fromIndex, toIndex);
+  }
+
+  function moveRackInRow(rackId: string, direction: "left" | "right"): boolean {
+    return moveRackInRowImpl(
+      stateAccess,
+      rackId,
+      direction,
+      updateRacksBatchRecorded,
+    );
   }
 
   function duplicateRack(id: string) {

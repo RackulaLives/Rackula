@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { organizeRackRow } from "$lib/utils/rack-row";
+import { organizeRackRow, reorderRackRow } from "$lib/utils/rack-row";
 import { createTestRack } from "./factories";
 import type { RackGroup } from "$lib/types";
 
@@ -104,5 +104,96 @@ describe("organizeRackRow", () => {
     const g2Item = groups.find((item) => item.group.id === "g2");
     expect(g1Item?.racks.map((rack) => rack.id)).toEqual(["shared"]);
     expect(g2Item?.racks.map((rack) => rack.id)).toEqual(["other"]);
+  });
+});
+
+describe("reorderRackRow", () => {
+  it("swaps a standalone rack right past its neighbour", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const b = createTestRack({ id: "b", position: 1 });
+    const c = createTestRack({ id: "c", position: 2 });
+
+    const assignments = reorderRackRow([a, b, c], [], "a", "right");
+
+    expect(assignments).toEqual([
+      { id: "b", position: 0 },
+      { id: "a", position: 1 },
+      { id: "c", position: 2 },
+    ]);
+  });
+
+  it("swaps a standalone rack left past its neighbour", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const b = createTestRack({ id: "b", position: 1 });
+
+    const assignments = reorderRackRow([a, b], [], "b", "left");
+
+    expect(assignments).toEqual([
+      { id: "b", position: 0 },
+      { id: "a", position: 1 },
+    ]);
+  });
+
+  it("is a no-op moving the leftmost slot left", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const b = createTestRack({ id: "b", position: 1 });
+    expect(reorderRackRow([a, b], [], "a", "left")).toBeNull();
+  });
+
+  it("is a no-op moving the rightmost slot right", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const b = createTestRack({ id: "b", position: 1 });
+    expect(reorderRackRow([a, b], [], "b", "right")).toBeNull();
+  });
+
+  it("is a no-op with a single slot", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    expect(reorderRackRow([a], [], "a", "right")).toBeNull();
+    expect(reorderRackRow([a], [], "a", "left")).toBeNull();
+  });
+
+  it("returns null when the rack is not in the row", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const b = createTestRack({ id: "b", position: 1 });
+    expect(reorderRackRow([a, b], [], "missing", "right")).toBeNull();
+  });
+
+  it("moves a whole bay group as one unit when a member is selected", () => {
+    const solo = createTestRack({ id: "solo", position: 0 });
+    const m1 = createTestRack({ id: "m1", position: 1 });
+    const m2 = createTestRack({ id: "m2", position: 2 });
+    const group: RackGroup = {
+      id: "g1",
+      rack_ids: ["m1", "m2"],
+      layout_preset: "bayed",
+    };
+
+    // Row order is [solo, group]; selecting a member and moving left puts the
+    // whole group first, with its members still contiguous and in order.
+    const assignments = reorderRackRow([solo, m1, m2], [group], "m2", "left");
+
+    expect(assignments).toEqual([
+      { id: "m1", position: 0 },
+      { id: "m2", position: 1 },
+      { id: "solo", position: 2 },
+    ]);
+  });
+
+  it("keeps a bay group's members contiguous after a reorder", () => {
+    const solo = createTestRack({ id: "solo", position: 0 });
+    const m1 = createTestRack({ id: "m1", position: 1 });
+    const m2 = createTestRack({ id: "m2", position: 2 });
+    const group: RackGroup = {
+      id: "g1",
+      rack_ids: ["m1", "m2"],
+      layout_preset: "bayed",
+    };
+
+    const assignments = reorderRackRow([solo, m1, m2], [group], "m1", "left")!;
+    const byId = new Map(assignments.map((a) => [a.id, a.position]));
+    // Members stay adjacent (positions differ by one) and the standalone rack
+    // is pushed to the far slot.
+    expect(Math.abs(byId.get("m1")! - byId.get("m2")!)).toBe(1);
+    expect(byId.get("solo")).toBe(2);
   });
 });

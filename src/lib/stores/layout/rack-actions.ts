@@ -22,6 +22,7 @@ import {
 import type { LayoutStateAccess } from "./types";
 import { getRackGroupCommandAdapter, getRackGroupForRack } from "./rack-groups";
 import { setLayoutNamesRaw } from "./mutators";
+import { reorderRackRow } from "$lib/utils/rack-row";
 
 /** Recorded single-rack update action injected by the facade. */
 export type UpdateRackRecordedFn = (
@@ -492,6 +493,42 @@ export function reorderRacks(
     racks: newRacks.map((r, index) => ({ ...r, position: index })),
   });
   ctx.markDirty();
+}
+
+/**
+ * Move the row slot containing `rackId` one place left or right within the
+ * canvas row, reindexing Rack.position so the new order persists. A grouped
+ * rack moves its whole group as a unit; groups are never split. Recorded as a
+ * single undoable step. No-op at the row edges or with a single slot.
+ * @param ctx - Layout state access
+ * @param rackId - The selected rack (a grouped rack moves its whole group)
+ * @param direction - "left" swaps with the previous slot, "right" with the next
+ * @param updateRacksBatchRecordedFn - Recorded batch position update (undo/redo)
+ * @returns true when the row order changed
+ */
+export function moveRackInRow(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  direction: "left" | "right",
+  updateRacksBatchRecordedFn: UpdateRacksBatchRecordedFn,
+): boolean {
+  const layout = ctx.getLayout();
+  const assignments = reorderRackRow(
+    layout.racks,
+    layout.rack_groups ?? [],
+    rackId,
+    direction,
+  );
+  if (!assignments) return false;
+
+  updateRacksBatchRecordedFn(
+    assignments.map(({ id, position }) => ({
+      rackId: id,
+      updates: { position },
+    })),
+    "Reorder rack",
+  );
+  return true;
 }
 
 /**

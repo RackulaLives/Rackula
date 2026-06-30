@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { createTestLayoutStore } from "./factories";
+import { organizeRackRow } from "$lib/utils/rack-row";
 
 describe("Layout Store", () => {
   beforeEach(() => {
@@ -393,6 +394,86 @@ describe("Layout Store", () => {
       store.reorderRacks(0, 0);
       // isDirty should not change since no actual reorder happened
       expect(store.isDirty).toBe(false);
+    });
+  });
+
+  describe("moveRackInRow", () => {
+    const rowOrder = (store: ReturnType<typeof getLayoutStore>) =>
+      organizeRackRow(store.racks, store.rack_groups).map((item) =>
+        item.kind === "rack" ? item.rack.id : item.group.id,
+      );
+
+    it("swaps the selected rack with its right neighbour", () => {
+      const store = getLayoutStore();
+      const a = store.addRack("A", 42)!;
+      const b = store.addRack("B", 42)!;
+      const c = store.addRack("C", 42)!;
+
+      const moved = store.moveRackInRow(a.id, "right");
+
+      expect(moved).toBe(true);
+      expect(rowOrder(store)).toEqual([b.id, a.id, c.id]);
+    });
+
+    it("persists position so the order survives a re-sort by position", () => {
+      const store = getLayoutStore();
+      const a = store.addRack("A", 42)!;
+      const b = store.addRack("B", 42)!;
+      store.addRack("C", 42);
+
+      store.moveRackInRow(a.id, "right");
+
+      const posA = store.racks.find((r) => r.id === a.id)!.position;
+      const posB = store.racks.find((r) => r.id === b.id)!.position;
+      // B now sorts before A by persisted position.
+      expect(posB).toBeLessThan(posA);
+    });
+
+    it("is a no-op at the row edges", () => {
+      const store = getLayoutStore();
+      const a = store.addRack("A", 42)!;
+      store.addRack("B", 42);
+      store.markClean();
+
+      expect(store.moveRackInRow(a.id, "left")).toBe(false);
+      expect(store.isDirty).toBe(false);
+    });
+
+    it("undo reverts a reorder", () => {
+      const store = getLayoutStore();
+      const a = store.addRack("A", 42)!;
+      store.addRack("B", 42);
+      store.addRack("C", 42);
+      const before = rowOrder(store);
+
+      store.moveRackInRow(a.id, "right");
+      expect(rowOrder(store)).not.toEqual(before);
+      store.undo();
+
+      expect(rowOrder(store)).toEqual(before);
+    });
+
+    it("moves a bayed group as a unit without splitting it", () => {
+      const store = getLayoutStore();
+      const solo = store.addRack("Solo", 42)!;
+      const bay = store.addBayedRackGroup("Bay", 2, 12)!;
+
+      // All racks start at position 0, so the group (built first) leads the
+      // row; moving it right places it after the standalone rack.
+      const moved = store.moveRackInRow(bay.racks[0].id, "right");
+      expect(moved).toBe(true);
+
+      const row = organizeRackRow(store.racks, store.rack_groups);
+      expect(row[0]).toMatchObject({ kind: "rack", rack: { id: solo.id } });
+      expect(row[1]?.kind).toBe("group");
+      if (row[1]?.kind === "group") {
+        expect(row[1].racks.map((r) => r.id)).toEqual(
+          bay.racks.map((r) => r.id),
+        );
+      }
+      // The group still owns both bays.
+      const group = store.rack_groups.find((g) => g.id === bay.group.id)!;
+      expect(group.rack_ids).toEqual(bay.racks.map((r) => r.id));
     });
   });
 
