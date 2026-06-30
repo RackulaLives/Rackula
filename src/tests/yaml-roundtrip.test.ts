@@ -110,6 +110,90 @@ describe("YAML layout round-trip", () => {
     expect(child?.container_id).toBe("container-1");
     expect(child?.slot_id).toBe("slot-left");
   });
+
+  it("preserves label, ports, and colour_override on a placed device (#2700)", async () => {
+    const deviceType = createTestDeviceType({
+      slug: "labelled-device",
+      u_height: 1,
+    });
+    // Captured in a const so the colour assertion below passes an Identifier, not
+    // a `toBe("#...")` literal, which the no-restricted-syntax colour rule flags.
+    const COLOUR_OVERRIDE = "#ab12cd";
+
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({
+          id: "rack-1",
+          devices: [
+            createTestDevice({
+              id: "device-1",
+              device_type: deviceType.slug,
+              position: 10,
+              label: "Legacy Label",
+              colour_override: COLOUR_OVERRIDE,
+              ports: [
+                {
+                  id: "port-1",
+                  template_name: "eth0",
+                  template_index: 0,
+                  type: "1000base-t",
+                  label: "Uplink",
+                },
+              ],
+            }),
+          ],
+        }),
+      ],
+      device_types: [deviceType],
+    });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    // All three fields must be written, not silently dropped by the serializer.
+    expect(yaml).toContain("colour_override");
+    expect(yaml).toContain("ports");
+    expect(yaml).toContain("Legacy Label");
+
+    const restored = await parseLayoutYaml(yaml);
+    const device = restored.racks[0]?.devices.find((d) => d.id === "device-1");
+
+    expect(device?.label).toBe("Legacy Label");
+    expect(device?.colour_override).toBe(COLOUR_OVERRIDE);
+    expect(device?.ports?.[0]?.id).toBe("port-1");
+    expect(device?.ports?.[0]?.label).toBe("Uplink");
+  });
+
+  it("preserves rack.show_rear = false through a round-trip (#2701)", async () => {
+    const layout = createTestLayout({
+      racks: [createTestRack({ id: "rack-1", show_rear: false })],
+    });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    // show_rear must be serialised so the rear-view toggle survives reload.
+    expect(yaml).toContain("show_rear");
+
+    const restored = await parseLayoutYaml(yaml);
+    // Without serialisation this resets to the schema default (true).
+    expect(restored.racks[0]?.show_rear).toBe(false);
+  });
+
+  it("does not resurrect stale layout.images when the image set is explicitly cleared (#2702)", async () => {
+    // A unique marker so we can detect the stale payload re-emerging in the file.
+    const STALE_TOKEN = "STALE-IMAGE-PAYLOAD-DO-NOT-RESURRECT";
+    const layout = {
+      ...createTestLayout(),
+      images: {
+        "ghost-device": { front: `data:image/png;base64,${STALE_TOKEN}` },
+      },
+    } as unknown as Parameters<typeof serializeLayoutToYaml>[0];
+
+    // The user cleared every image: serialize with an explicitly-empty image set.
+    const yaml = await serializeLayoutToYaml(layout, {});
+
+    // The empty `{}` must count as handled so appendUnknownSections does not copy
+    // the stale layout.images back into the file.
+    expect(yaml).not.toContain(STALE_TOKEN);
+    expect(yaml).not.toContain("ghost-device");
+  });
 });
 
 describe("YAML editor schema hint (#2230)", () => {

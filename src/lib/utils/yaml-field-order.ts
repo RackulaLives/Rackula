@@ -85,8 +85,9 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
 
 /**
  * Order PlacedDevice fields according to schema v1.0.0
- * Field order: id, device_type, name, position, face, front_image, rear_image,
- *              parent_device, device_bay, container_id, slot_id, auto_created, notes, custom_fields
+ * Field order: id, device_type, name, label, position, face, ports, front_image,
+ *              rear_image, colour_override, parent_device, device_bay, container_id,
+ *              slot_id, auto_created, notes, custom_fields
  */
 function orderPlacedDeviceFields(
   device: PlacedDevice,
@@ -97,13 +98,23 @@ function orderPlacedDeviceFields(
   ordered.id = device.id;
   ordered.device_type = device.device_type;
   if (device.name !== undefined) ordered.name = device.name;
+  // Legacy placement label alias; written next to name so both survive a save.
+  if (device.label !== undefined) ordered.label = device.label;
   ordered.position = device.position;
   ordered.face = device.face;
+
+  // --- Port Instances ---
+  if (device.ports !== undefined && device.ports.length > 0)
+    ordered.ports = device.ports;
 
   // --- Placement Image Override ---
   if (device.front_image !== undefined)
     ordered.front_image = device.front_image;
   if (device.rear_image !== undefined) ordered.rear_image = device.rear_image;
+
+  // --- Placement Colour Override ---
+  if (device.colour_override !== undefined)
+    ordered.colour_override = device.colour_override;
 
   // --- Subdevice Placement ---
   if (device.parent_device !== undefined)
@@ -129,7 +140,7 @@ function orderPlacedDeviceFields(
 
 /**
  * Order Rack fields according to schema v1.0.0
- * Field order: id, name, height, width, depth_mm, base_weight, desc_units, form_factor, starting_unit, position, devices, notes
+ * Field order: id, name, height, width, depth_mm, base_weight, desc_units, show_rear, form_factor, starting_unit, position, devices, notes
  */
 function orderRackFields(rack: Rack): Record<string, unknown> {
   const ordered: Record<string, unknown> = {};
@@ -141,6 +152,8 @@ function orderRackFields(rack: Rack): Record<string, unknown> {
   if (rack.depth_mm !== undefined) ordered.depth_mm = rack.depth_mm;
   if (rack.base_weight !== undefined) ordered.base_weight = rack.base_weight;
   ordered.desc_units = rack.desc_units;
+  // Persist the rear-view toggle; without it the schema default (true) wins on reload.
+  ordered.show_rear = rack.show_rear;
   ordered.form_factor = rack.form_factor;
   ordered.starting_unit = rack.starting_unit;
   ordered.position = rack.position;
@@ -294,8 +307,10 @@ export function orderLayoutFields(
 
   // Embed user images explicitly so appendUnknownSections skips the `images`
   // key (key in target) instead of double-emitting it (#617 / #2208). Set last
-  // so the base64 section trails the structural layout in the file.
-  if (options.images && Object.keys(options.images).length > 0) {
+  // so the base64 section trails the structural layout in the file. An
+  // explicitly-provided empty `{}` (the user cleared every image) still counts
+  // as handled, so a stale layout.images is not resurrected on resave (#2702).
+  if (options.images !== undefined) {
     layoutForSerialization.images = options.images;
   }
 
