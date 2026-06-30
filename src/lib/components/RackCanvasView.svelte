@@ -18,6 +18,7 @@
   import type { DeviceFace } from "$lib/types";
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
+  import { organizeRackRow } from "$lib/utils/rack-row";
 
   interface Props {
     partyMode?: boolean;
@@ -95,23 +96,10 @@
   const activeRackId = $derived(layoutStore.activeRackId);
   const rackGroups = $derived(layoutStore.rack_groups);
 
-  // Organize racks: grouped racks in their groups, then ungrouped racks
-  const organizedRacks = $derived.by(() => {
-    const groupedRackIds = new Set(rackGroups.flatMap((g) => g.rack_ids));
-    const ungroupedRacks = racks.filter((r) => !groupedRackIds.has(r.id));
-
-    // Build group entries with their racks
-    const groupEntries = rackGroups
-      .map((group) => ({
-        group,
-        racks: group.rack_ids
-          .map((id) => racks.find((r) => r.id === id))
-          .filter((r): r is (typeof racks)[0] => r !== undefined),
-      }))
-      .filter((entry) => entry.racks.length > 0);
-
-    return { groupEntries, ungroupedRacks };
-  });
+  // Lay racks out as a single horizontal row ordered by Rack.position. Bayed
+  // groups stay contiguous and render flush; standalone racks are spaced. See
+  // organizeRackRow for the ordering and grouping rules.
+  const rowItems = $derived(organizeRackRow(racks, rackGroups));
 
   // Handle mobile tap-to-place (uses active rack)
   function handlePlacementTap(
@@ -250,8 +238,10 @@
   }
 </script>
 
-<!-- Multi-rack mode: render racks with visual grouping. role="list" gives the
-     rack containers (role="listitem", see RackDualView and Rack) a valid required
+<!-- Single bottom-aligned row: every rack lives in this one row, ordered by
+     Rack.position. Standalone racks are spaced; bayed groups render flush via
+     BayedRackView. There is no free 2D placement. role="list" gives the rack
+     containers (role="listitem", see RackDualView and Rack) a valid required
      parent. The racks are listitems, not options, because each holds interactive
      device buttons and an interactive option may not contain focusable
      descendants (nested-interactive, #2255); the active rack is announced via
@@ -263,13 +253,50 @@
   class:swipe-next={swipeAnimationDirection === "next"}
   class:swipe-previous={swipeAnimationDirection === "previous"}
 >
-  <!-- Render grouped racks with group labels -->
-  {#each organizedRacks.groupEntries as { group, racks: groupRacks } (group.id)}
-    {#if group.layout_preset === "bayed"}
-      <!-- Bayed/touring racks use special stacked view -->
+  {#each rowItems as item (item.kind === "rack" ? `rack:${item.rack.id}` : `group:${item.group.id}`)}
+    {#if item.kind === "rack"}
+      {@const rack = item.rack}
+      {@const isActive = rack.id === activeRackId}
+      {@const isSelected =
+        selectionStore.selectedType === "rack" &&
+        selectionStore.selectedRackId === rack.id}
+      <div class="rack-wrapper" class:active={isActive}>
+        <RackDualView
+          {rack}
+          deviceLibrary={layoutStore.device_types}
+          selected={isSelected}
+          {isActive}
+          selectedDeviceId={selectionStore.selectedType === "device" &&
+          selectionStore.selectedRackId === rack.id
+            ? selectionStore.selectedDeviceId
+            : null}
+          displayMode={uiStore.displayMode}
+          showLabelsOnImages={uiStore.showLabelsOnImages}
+          showAnnotations={uiStore.showAnnotations}
+          annotationField={uiStore.annotationField}
+          showBanana={uiStore.showBanana}
+          {partyMode}
+          {enableLongPress}
+          onselect={(e) => handleRackSelect(e)}
+          ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
+          ondevicedrop={(e) => handleDeviceDrop(e)}
+          ondevicemove={(e) => handleDeviceMove(e)}
+          ondevicemoverack={(e) => handleDeviceMoveRack(e)}
+          onplacementtap={(e) => handlePlacementTap(rack.id, e)}
+          onlongpress={(e) => onracklongpress?.(e)}
+          onfocus={() => onrackfocus?.([rack.id])}
+          onexport={() => onrackexport?.([rack.id])}
+          onedit={() => onrackedit?.(rack.id)}
+          onrename={() => onrackrename?.(rack.id)}
+          onduplicate={() => onrackduplicate?.(rack.id)}
+          ondelete={() => onrackdelete?.(rack.id)}
+        />
+      </div>
+    {:else if item.group.layout_preset === "bayed"}
+      <!-- Bayed/touring racks render flush (no gap) via the stacked dual view -->
       <BayedRackView
-        {group}
-        racks={groupRacks}
+        group={item.group}
+        racks={item.racks}
         deviceLibrary={layoutStore.device_types}
         {activeRackId}
         selectedDeviceId={selectionStore.selectedType === "device"
@@ -301,9 +328,9 @@
     {:else}
       <!-- Standard row layout for non-bayed groups -->
       <div class="rack-group">
-        <div class="group-label">{group.name ?? "Group"}</div>
+        <div class="group-label">{item.group.name ?? "Group"}</div>
         <div class="group-racks">
-          {#each groupRacks as rack (rack.id)}
+          {#each item.racks as rack (rack.id)}
             {@const isActive = rack.id === activeRackId}
             {@const isSelected =
               selectionStore.selectedType === "rack" &&
@@ -345,54 +372,16 @@
       </div>
     {/if}
   {/each}
-
-  <!-- Render ungrouped racks -->
-  {#each organizedRacks.ungroupedRacks as rack (rack.id)}
-    {@const isActive = rack.id === activeRackId}
-    {@const isSelected =
-      selectionStore.selectedType === "rack" &&
-      selectionStore.selectedRackId === rack.id}
-    <div class="rack-wrapper" class:active={isActive}>
-      <RackDualView
-        {rack}
-        deviceLibrary={layoutStore.device_types}
-        selected={isSelected}
-        {isActive}
-        selectedDeviceId={selectionStore.selectedType === "device" &&
-        selectionStore.selectedRackId === rack.id
-          ? selectionStore.selectedDeviceId
-          : null}
-        displayMode={uiStore.displayMode}
-        showLabelsOnImages={uiStore.showLabelsOnImages}
-        showAnnotations={uiStore.showAnnotations}
-        annotationField={uiStore.annotationField}
-        showBanana={uiStore.showBanana}
-        {partyMode}
-        {enableLongPress}
-        onselect={(e) => handleRackSelect(e)}
-        ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
-        ondevicedrop={(e) => handleDeviceDrop(e)}
-        ondevicemove={(e) => handleDeviceMove(e)}
-        ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-        onplacementtap={(e) => handlePlacementTap(rack.id, e)}
-        onlongpress={(e) => onracklongpress?.(e)}
-        onfocus={() => onrackfocus?.([rack.id])}
-        onexport={() => onrackexport?.([rack.id])}
-        onedit={() => onrackedit?.(rack.id)}
-        onrename={() => onrackrename?.(rack.id)}
-        onduplicate={() => onrackduplicate?.(rack.id)}
-        ondelete={() => onrackdelete?.(rack.id)}
-      />
-    </div>
-  {/each}
 </div>
 
 <style>
   .racks-wrapper {
-    /* Multi-rack mode: horizontal layout of all racks */
+    /* Single bottom-aligned row: racks share a common baseline (their bases)
+       whatever their height, like racks standing on a floor. flex-end also
+       stops shorter racks stretching to match the tallest. */
     display: flex;
     flex-direction: row;
-    align-items: flex-start; /* Prevent shorter racks from stretching to match tallest */
+    align-items: flex-end;
     gap: var(--space-6);
     padding: var(--space-4);
   }
@@ -464,7 +453,7 @@
   .group-racks {
     display: flex;
     flex-direction: row;
-    align-items: flex-start; /* Prevent shorter racks from stretching */
+    align-items: flex-end; /* Bottom-align differing-height racks in the group */
     gap: var(--space-4);
   }
 
