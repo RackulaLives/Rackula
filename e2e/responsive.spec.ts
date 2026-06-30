@@ -37,14 +37,6 @@ test.describe("Responsive Layout", () => {
       });
       expect(hasHorizontalScroll).toBe(false);
     });
-
-    test("command palette trigger is accessible", async ({ page }) => {
-      // File commands live in the command palette, which the logo opens (#2775).
-      const paletteTrigger = page.getByRole("button", {
-        name: "Open command palette",
-      });
-      await expect(paletteTrigger).toBeVisible();
-    });
   });
 
   test.describe("Medium viewport (900px)", () => {

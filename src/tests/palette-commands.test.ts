@@ -25,9 +25,9 @@ function ids(ctx: ActionEnabledContext): string[] {
 // pins the contract rather than re-importing an internal.
 const UNIFIED_GROUP_ORDER = [
   "Selection",
-  "Create",
+  "Create / Add device",
   "Navigation / View",
-  "Layout / File",
+  "File / Document",
   "Devices",
   "Workspace",
   "App",
@@ -117,7 +117,9 @@ describe("getPaletteCommands unified grouping (#2775)", () => {
   });
 
   it("groups New custom device under Create, not Devices", () => {
-    expect(idsInGroup(baseCtx, "Create")).toContain("new-custom-device");
+    expect(idsInGroup(baseCtx, "Create / Add device")).toContain(
+      "new-custom-device",
+    );
     expect(idsInGroup(baseCtx, "Devices")).not.toContain("new-custom-device");
   });
 

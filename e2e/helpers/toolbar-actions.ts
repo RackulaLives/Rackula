@@ -21,9 +21,7 @@ export async function runPaletteCommand(
   actionId: string,
 ): Promise<void> {
   await page.getByTestId("btn-app-menu").click();
-  const item = page.getByTestId(`command-palette-item-${actionId}`);
-  await item.waitFor({ state: "visible" });
-  await item.click();
+  await page.getByTestId(`command-palette-item-${actionId}`).click();
 }
 
 /**

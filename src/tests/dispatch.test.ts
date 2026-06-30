@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createActionDispatch } from "$lib/actions/dispatch";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
+import * as layoutStore from "$lib/stores/layout.svelte";
 import * as appActions from "$lib/utils/app-actions";
 import * as storage from "$lib/storage";
 import { registerImportDevicesTrigger } from "$lib/actions/import-devices-trigger";
@@ -62,5 +63,36 @@ describe("createActionDispatch", () => {
     } finally {
       unregister();
     }
+  });
+
+  // new-layout replaces the working copy. When there are changes not yet in any
+  // exported file it must confirm first (the shared confirmReplace dialog),
+  // mirroring restore-file; a backed-up copy resets straight away (#2775).
+  function stubLayoutChangesSinceExport(value: number) {
+    vi.spyOn(layoutStore, "getLayoutStore").mockReturnValue({
+      changesSinceExport: value,
+    } as ReturnType<typeof layoutStore.getLayoutStore>);
+  }
+
+  it("new-layout confirms before resetting when there are unexported changes", () => {
+    stubLayoutChangesSinceExport(2);
+    const reset = vi
+      .spyOn(appActions, "resetAndOpenNewRack")
+      .mockReturnValue(undefined);
+    const dispatch = createActionDispatch();
+    dispatch["new-layout"]();
+    expect(dialogStore.isOpen("confirmReplace")).toBe(true);
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it("new-layout resets straight away when there are no unexported changes", () => {
+    stubLayoutChangesSinceExport(0);
+    const reset = vi
+      .spyOn(appActions, "resetAndOpenNewRack")
+      .mockReturnValue(undefined);
+    const dispatch = createActionDispatch();
+    dispatch["new-layout"]();
+    expect(reset).toHaveBeenCalledOnce();
+    expect(dialogStore.isOpen("confirmReplace")).toBe(false);
   });
 });

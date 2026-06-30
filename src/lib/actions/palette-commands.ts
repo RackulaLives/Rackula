@@ -49,9 +49,9 @@ const EXCLUDED: ReadonlySet<ActionId> = new Set<ActionId>([
  */
 const PALETTE_GROUP_ORDER = [
   "Selection",
-  "Create",
+  "Create / Add device",
   "Navigation / View",
-  "Layout / File",
+  "File / Document",
   "Devices",
   "Workspace",
   "App",
@@ -64,10 +64,10 @@ type PaletteGroup = (typeof PALETTE_GROUP_ORDER)[number];
  * appMenuGroup, or helpGroup in paletteGroupOf below.
  */
 const GROUP_OVERRIDES: Partial<Record<ActionId, PaletteGroup>> = {
-  // "New custom device" creates a device type, so it sits in Create alongside
-  // the palette's "Add device..." entry, not in the Devices (import/library)
-  // group its app-menu placement uses.
-  "new-custom-device": "Create",
+  // "New custom device" creates a device type, so it sits in Create / Add device
+  // alongside the palette's "Add device..." entry, not in the Devices
+  // (import/library) group its app-menu placement uses.
+  "new-custom-device": "Create / Add device",
   // View toggles carry no help or menu group; they are view controls.
   "toggle-annotations": "Navigation / View",
   "toggle-sidebar": "Navigation / View",
@@ -75,9 +75,9 @@ const GROUP_OVERRIDES: Partial<Record<ActionId, PaletteGroup>> = {
 
 /** Fold an action's app-menu intent group onto the unified scheme. */
 const APP_MENU_GROUP_TO_PALETTE: Record<AppMenuGroup, PaletteGroup> = {
-  layout: "Layout / File",
-  output: "Layout / File",
-  "layout-data": "Layout / File",
+  layout: "File / Document",
+  output: "File / Document",
+  "layout-data": "File / Document",
   devices: "Devices",
   workspace: "Workspace",
   app: "App",
@@ -88,7 +88,7 @@ const HELP_GROUP_TO_PALETTE: Record<HelpGroup, PaletteGroup> = {
   Navigation: "Navigation / View",
   General: "Navigation / View",
   Editing: "Selection",
-  File: "Layout / File",
+  File: "File / Document",
 };
 
 /**
