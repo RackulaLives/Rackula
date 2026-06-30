@@ -4,37 +4,79 @@ name: Autoformat PRs
 # formatting-affecting dependency bump (e.g. a prettier minor bump) cannot
 # leave the repo failing the format:check gate in test.yml. See issue #2730.
 #
+# Security model (two jobs, so the write token never shares a job with
+# PR-controlled code):
+#   - "format" runs the PR-controlled code (npm ci, prettier config + plugins)
+#     with NO PAT present, so that code cannot read or exfiltrate the token. It
+#     emits the formatting changes as a patch artifact.
+#   - "push" holds AUTOFORMAT_PAT but runs no PR-controlled code: it only applies
+#     the patch and commits/pushes.
+#
 # Setup required (one-time, by a maintainer): a fine-grained PAT with
 # Contents: read and write on this repo, stored under the name AUTOFORMAT_PAT
 # in BOTH secret stores:
 #   - Settings > Secrets and variables > Actions   (for human in-repo PRs)
 #   - Settings > Secrets and variables > Dependabot (for Dependabot PRs, which
 #     cannot read Actions secrets)
-# The PAT is required, not the default GITHUB_TOKEN: pushes made with
-# GITHUB_TOKEN do not re-trigger other workflows, so the validate workflow
-# would never re-run on the fix commit and the PR would stay blocked.
-#
-# Until the secret exists the job is a green no-op (the gate step below skips
-# the rest), so adding this workflow does not turn every PR red.
+# The PAT (not the default GITHUB_TOKEN) is required because GITHUB_TOKEN pushes
+# do not re-trigger the validate workflow, so format:check would never re-run.
+# Until the secret exists the push job is a green no-op.
 
 on:
   pull_request:
     branches: [main]
 
-# Needed to push the format fix back to the PR branch.
+# Least privilege: the default GITHUB_TOKEN stays read-only. The push job writes
+# via AUTOFORMAT_PAT, not GITHUB_TOKEN, so no write scope is needed here.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: autoformat-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  autoformat:
-    # Skip forks: we cannot push back to a fork branch, and using
-    # pull_request_target to gain a writable token would expose secrets to the
-    # untrusted PR code this job installs and runs.
+  format:
+    # Untrusted: runs PR-controlled code, so it gets no token. Skip forks too.
     if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.fmt.outputs.changed }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.head_ref }}
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci --ignore-scripts
+
+      - id: fmt
+        run: |
+          npm run format
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Already prettier-clean; nothing to do."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git diff > format.patch
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.fmt.outputs.changed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: format-patch
+          path: format.patch
+          retention-days: 1
+
+  push:
+    # Privileged: holds AUTOFORMAT_PAT but runs no PR-controlled code, only
+    # git apply + commit + push of the patch produced by the untrusted job.
+    needs: format
+    if: needs.format.outputs.changed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check AUTOFORMAT_PAT is configured
@@ -56,25 +98,16 @@ jobs:
           token: ${{ secrets.AUTOFORMAT_PAT }}
 
       - if: steps.gate.outputs.enabled == 'true'
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          node-version: "22"
-          cache: "npm"
+          name: format-patch
 
-      # --ignore-scripts: actions/checkout stores the push token in .git/config,
-      # so skipping dependency lifecycle scripts stops a bumped dependency from
-      # reading it during install. Prettier needs no install scripts.
-      - if: steps.gate.outputs.enabled == 'true'
-        run: npm ci --ignore-scripts
-
-      - if: steps.gate.outputs.enabled == 'true'
-        run: npm run format
-
-      - name: Commit and push if formatting changed
+      - name: Apply, commit, and push
         if: steps.gate.outputs.enabled == 'true'
         run: |
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "Already prettier-clean; nothing to commit."
+          git apply format.patch
+          if git diff --quiet; then
+            echo "Patch applied to no effect; nothing to commit."
             exit 0
           fi
           git config user.name "rackula-format-bot"
