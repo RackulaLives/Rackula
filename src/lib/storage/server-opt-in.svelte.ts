@@ -37,10 +37,7 @@ export type SwitchResult =
   | {
       switched: false;
       reason:
-        | "unreachable"
-        | "upload-failed"
-        | "override-failed"
-        | "probe-failed";
+        "unreachable" | "upload-failed" | "override-failed" | "probe-failed";
       message: string;
     }
   | { switched: false; reason: "conflict"; serverCopy: ServerCopyInfo };

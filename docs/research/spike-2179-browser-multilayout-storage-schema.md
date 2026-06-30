@@ -56,9 +56,7 @@ Four key families under the existing `Rackula:` namespace.
 ```jsonc
 {
   "schemaVersion": 2,
-  "layout": {
-    /* full Layout, including base64 images */
-  },
+  "layout": {/* full Layout, including base64 images */},
   "savedAt": "2026-06-14T09:00:00.000Z",
 }
 ```

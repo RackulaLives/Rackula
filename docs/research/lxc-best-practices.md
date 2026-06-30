@@ -663,17 +663,7 @@ Alternatively, the CT script could configure the mount point during container cr
 
 ### Critical Issues (Must Fix Before Submission)
 
-| Gap | Severity | Detail |
-| --- | --- | --- | --- |
-| **Bun install pattern non-standard** | MEDIUM | Uses `/root/.bun` prefix instead of `/opt/bun` (matches `yubal`/`gitea-mirror`). The `curl \| bash` install is actually accepted by maintainers (see `yubal`, `gitea-mirror`). Fix: change install prefix to `/opt/bun`. |
-| **Uses `apt-get` instead of `apt`** | CRITICAL | Line 17: `$STD apt-get install -y` must be `$STD apt install -y` |
-| **Version file in wrong location** | CRITICAL | Current: `~/.rackula`. Required: `/opt/${APP}_version.txt` or the community-scripts standard `~/.rackula` (both accepted but the `check_for_gh_release` function expects `~/.appname`) |
-| **Custom download logic in update** | CRITICAL | Uses custom `curl` + `tar` instead of `fetch_and_deploy_gh_release` |
-| **Update script downloads to `/tmp`** | HIGH | Backups go to `/opt/rackula/data.bak` (correct) but tarball extraction to `/tmp` may be flagged |
-| **No service health verification after update** | HIGH | Services are started but never verified to be running |
-| **User creation may be rejected** | MEDIUM | Anti-pattern says "LXC containers run as root; don't create system users." However, the `rackula` user exists for systemd `User=` directive which is a security best practice. This may need discussion with maintainers. |
-| **systemctl daemon-reload for new service** | MEDIUM | Line 219: not needed for new service creation per community-scripts rules |
-| **Missing `setup_*` function call for Bun** | LOW | No standard function exists yet; `curl | bash`accepted in other scripts with`/opt/bun` prefix |
+| Gap | Severity | Detail | | --- | --- | --- | --- | | **Bun install pattern non-standard** | MEDIUM | Uses `/root/.bun` prefix instead of `/opt/bun` (matches `yubal`/`gitea-mirror`). The `curl \| bash` install is actually accepted by maintainers (see `yubal`, `gitea-mirror`). Fix: change install prefix to `/opt/bun`. | | **Uses `apt-get` instead of `apt`** | CRITICAL | Line 17: `$STD apt-get install -y` must be `$STD apt install -y` | | **Version file in wrong location** | CRITICAL | Current: `~/.rackula`. Required: `/opt/${APP}_version.txt` or the community-scripts standard `~/.rackula` (both accepted but the `check_for_gh_release` function expects `~/.appname`) | | **Custom download logic in update** | CRITICAL | Uses custom `curl` + `tar` instead of `fetch_and_deploy_gh_release` | | **Update script downloads to `/tmp`** | HIGH | Backups go to `/opt/rackula/data.bak` (correct) but tarball extraction to `/tmp` may be flagged | | **No service health verification after update** | HIGH | Services are started but never verified to be running | | **User creation may be rejected** | MEDIUM | Anti-pattern says "LXC containers run as root; don't create system users." However, the `rackula` user exists for systemd `User=` directive which is a security best practice. This may need discussion with maintainers. | | **systemctl daemon-reload for new service** | MEDIUM | Line 219: not needed for new service creation per community-scripts rules | | **Missing `setup_*` function call for Bun** | LOW | No standard function exists yet; `curl | bash`accepted in other scripts with`/opt/bun` prefix |
 
 ### Security Gaps (Should Fix Before Submission)
 

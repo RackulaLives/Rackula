@@ -149,11 +149,7 @@ From SvelteFlow's design, these patterns can inform custom implementation:
 
 ```typescript
 type HandleState =
-  | "idle"
-  | "connecting"
-  | "hovering"
-  | "valid-target"
-  | "invalid-target";
+  "idle" | "connecting" | "hovering" | "valid-target" | "invalid-target";
 
 // Apply to port indicators during connection creation
 ```

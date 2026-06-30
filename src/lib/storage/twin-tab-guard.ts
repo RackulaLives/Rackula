@@ -93,8 +93,7 @@ export interface StorageEventLike {
 
 /** Result of inspecting a storage event for a foreign layout-body write. */
 export type ForeignWriteResult =
-  | { foreign: true; layoutId: string }
-  | { foreign: false };
+  { foreign: true; layoutId: string } | { foreign: false };
 
 /**
  * Decide whether a `storage` event is a foreign tab writing a layout body.

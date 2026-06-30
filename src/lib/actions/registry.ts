@@ -93,12 +93,7 @@ export type HelpGroup = "Navigation" | "General" | "Editing" | "File";
  * #2597) can reuse the same projection without hand-maintaining a copy.
  */
 export type AppMenuGroup =
-  | "layout"
-  | "output"
-  | "layout-data"
-  | "devices"
-  | "workspace"
-  | "app";
+  "layout" | "output" | "layout-data" | "devices" | "workspace" | "app";
 
 export interface ActionDefinition {
   /** Stable identifier; the dispatch map and consumers key off this. */

@@ -189,9 +189,9 @@ version: 1
 layout: { ... }
 images:
   custom-device-1:
-    front: "./assets/custom-device-1-front.png"  # Relative path
+    front: "./assets/custom-device-1-front.png" # Relative path
     # or
-    front: "https://example.com/my-image.png"    # External URL
+    front: "https://example.com/my-image.png" # External URL
 ```
 
 **Directory Structure:**

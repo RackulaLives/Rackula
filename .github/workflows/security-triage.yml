@@ -54,13 +54,11 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure'
 
-
     env:
       TRIGGERING_WORKFLOW: >-
         ${{ github.event_name == 'workflow_dispatch'
             && inputs.triggering_workflow
             || github.event.workflow_run.name }}
-
 
       # Empty on manual dispatch (no workflow_run in the payload): the gate and
       # the playbook treat "no scan start time" as "triage all currently-open

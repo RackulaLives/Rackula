@@ -727,13 +727,7 @@ interface Cable {
 }
 
 type CableType =
-  | "cat5e"
-  | "cat6"
-  | "cat6a"
-  | "dac-passive"
-  | "mmf"
-  | "smf"
-  | "aoc";
+  "cat5e" | "cat6" | "cat6a" | "dac-passive" | "mmf" | "smf" | "aoc";
 ```
 
 ### 8.3 Visualization Priorities

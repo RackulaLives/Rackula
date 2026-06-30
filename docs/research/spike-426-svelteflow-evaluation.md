@@ -171,11 +171,7 @@ While SvelteFlow integration is not recommended, these concepts can inform custo
 
 ```typescript
 type HandleState =
-  | "idle"
-  | "connecting"
-  | "hovering"
-  | "valid-target"
-  | "invalid-target";
+  "idle" | "connecting" | "hovering" | "valid-target" | "invalid-target";
 ```
 
 Apply to port indicators during connection creation.

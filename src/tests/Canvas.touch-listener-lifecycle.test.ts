@@ -18,19 +18,16 @@ describe("Canvas touch listener lifecycle", () => {
     resetPlacementStore();
     resetViewportStore();
 
-    vi.stubGlobal(
-      "matchMedia",
-      (query: string): MediaQueryList => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: () => {},
-        removeListener: () => {},
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        dispatchEvent: () => true,
-      }),
-    );
+    vi.stubGlobal("matchMedia", (query: string): MediaQueryList => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => true,
+    }));
   });
 
   afterEach(() => {
