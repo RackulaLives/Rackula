@@ -60,11 +60,7 @@ export type WeightUnit = "kg" | "lb";
  * Rack form factor types (NetBox-compatible)
  */
 export type FormFactor =
-  | "2-post"
-  | "4-post"
-  | "4-post-cabinet"
-  | "wall-mount"
-  | "open-frame";
+  "2-post" | "4-post" | "4-post-cabinet" | "wall-mount" | "open-frame";
 
 /**
  * Display mode for devices in rack visualization
@@ -91,12 +87,7 @@ export const DISPLAY_MODE_LABELS: Record<DisplayMode, string> = {
  * - 'manufacturer': Brand name (from DeviceType)
  */
 export type AnnotationField =
-  | "name"
-  | "ip"
-  | "notes"
-  | "asset_tag"
-  | "serial"
-  | "manufacturer";
+  "name" | "ip" | "notes" | "asset_tag" | "serial" | "manufacturer";
 
 /**
  * Airflow direction types (NetBox-compatible with full parity)
