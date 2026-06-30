@@ -62,6 +62,36 @@ describe("Edit tab contextual properties (#2077)", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("resolves rack mode for the selected rack when a device selection goes stale (#2739)", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+
+    // Rack B is active; a device in rack A is selected.
+    const rackA = layoutStore.addRack("Rack A", 42);
+    const rackB = layoutStore.addRack("Rack B", 24);
+    layoutStore.setActiveRack(rackB!.id);
+    const deviceType = layoutStore.addDeviceType({
+      name: "Server Type",
+      u_height: 1,
+      category: "server",
+      colour: "#4A90D9",
+    });
+    layoutStore.placeDevice(rackA!.id, deviceType.slug, 1, "front");
+    const device = layoutStore.getRackById(rackA!.id)!.devices[0]!;
+    selectionStore.selectDevice(rackA!.id, device.id);
+
+    // The device is removed without clearing the selection, so the device
+    // selection is stale: selectedType stays "device" and selectedRackId is rack A.
+    layoutStore.removeDeviceFromRack(rackA!.id, 0);
+
+    renderEditTab();
+
+    // Rack mode resolves to rack A (the rack the stale selection points at), not
+    // the active rack B.
+    expect(screen.getByDisplayValue("Rack A")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Rack B")).not.toBeInTheDocument();
+  });
+
   it("switches from rack mode to device mode when the selection changes (#2739)", async () => {
     const layoutStore = getLayoutStore();
     const selectionStore = getSelectionStore();

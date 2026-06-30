@@ -80,18 +80,15 @@
     );
   });
 
-  // The rack the inspector shows in rack mode. A rack or bayed-group selection
-  // names it directly (a group carries its active rack as selectedRackId, so both
-  // the single-rack and group cases resolve through selectionRack). With nothing
-  // selected the inspector defaults to the active rack so rack mode shows rather
-  // than an empty panel (#2739); this is null only when the layout has no racks.
-  // A device selection takes precedence (device mode), so this value is unused then.
-  const rackModeRack = $derived.by(() => {
-    if (selectionStore.isRackSelected || selectionStore.isGroupSelected) {
-      return selectionRack;
-    }
-    return layoutStore.activeRack;
-  });
+  // The rack the inspector shows in rack mode. Any selection that names a rack (a
+  // rack, a bayed group via its active rack, or a device via the rack that holds
+  // it) resolves through selectionRack, so a stale device selection edits the rack
+  // it pointed at rather than the active rack. With nothing selected, or a
+  // selection whose rack no longer exists, it defaults to the active rack so rack
+  // mode shows rather than an empty panel (#2739); null only when the layout has no
+  // racks. A device selection takes precedence (device mode), so this value is
+  // unused while a device resolves.
+  const rackModeRack = $derived(selectionRack ?? layoutStore.activeRack);
 
   // The selected device info, if a device is selected
   const selectedDeviceInfo = $derived.by((): SelectedDeviceInfo | null => {
