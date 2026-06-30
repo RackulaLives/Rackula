@@ -76,7 +76,7 @@ describe("Archive Guardrails", () => {
     let pauseCalls = 0;
     let accumulateCalled = false;
     const CHUNK_BYTES = 50 * 1024 * 1024; // 50MB reported per chunk
-    const CHUNK_COUNT = 8; // 400MB if fully drained; guard must stop near 250MB
+    const CHUNK_COUNT = 6; // 300MB if fully drained; guard must stop near 250MB
 
     const spy = vi
       .spyOn(entryPrototype, "internalStream")
