@@ -315,7 +315,7 @@ function validateParsedLayout(parsed: unknown): {
 
   if (parsed !== null && typeof parsed === "object") {
     const obj = parsed as Record<string, unknown>;
-    if (Object.hasOwn(obj, "images")) {
+    if (Object.prototype.hasOwnProperty.call(obj, "images")) {
       rawImages = obj.images;
       delete obj.images;
     }
