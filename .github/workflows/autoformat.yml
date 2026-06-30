@@ -1,0 +1,83 @@
+name: Autoformat PRs
+
+# Runs prettier on every in-repo PR and commits the result back, so a
+# formatting-affecting dependency bump (e.g. a prettier minor bump) cannot
+# leave the repo failing the format:check gate in test.yml. See issue #2730.
+#
+# Setup required (one-time, by a maintainer): a fine-grained PAT with
+# Contents: read and write on this repo, stored under the name AUTOFORMAT_PAT
+# in BOTH secret stores:
+#   - Settings > Secrets and variables > Actions   (for human in-repo PRs)
+#   - Settings > Secrets and variables > Dependabot (for Dependabot PRs, which
+#     cannot read Actions secrets)
+# The PAT is required, not the default GITHUB_TOKEN: pushes made with
+# GITHUB_TOKEN do not re-trigger other workflows, so the validate workflow
+# would never re-run on the fix commit and the PR would stay blocked.
+#
+# Until the secret exists the job is a green no-op (the gate step below skips
+# the rest), so adding this workflow does not turn every PR red.
+
+on:
+  pull_request:
+    branches: [main]
+
+# Needed to push the format fix back to the PR branch.
+permissions:
+  contents: write
+
+concurrency:
+  group: autoformat-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  autoformat:
+    # Skip forks: we cannot push back to a fork branch, and using
+    # pull_request_target to gain a writable token would expose secrets to the
+    # untrusted PR code this job installs and runs.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check AUTOFORMAT_PAT is configured
+        id: gate
+        env:
+          PAT: ${{ secrets.AUTOFORMAT_PAT }}
+        run: |
+          if [ -z "$PAT" ]; then
+            echo "AUTOFORMAT_PAT is not set; skipping (see workflow header for setup)."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.AUTOFORMAT_PAT }}
+
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      # --ignore-scripts: actions/checkout stores the push token in .git/config,
+      # so skipping dependency lifecycle scripts stops a bumped dependency from
+      # reading it during install. Prettier needs no install scripts.
+      - if: steps.gate.outputs.enabled == 'true'
+        run: npm ci --ignore-scripts
+
+      - if: steps.gate.outputs.enabled == 'true'
+        run: npm run format
+
+      - name: Commit and push if formatting changed
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Already prettier-clean; nothing to commit."
+            exit 0
+          fi
+          git config user.name "rackula-format-bot"
+          git config user.email "rackula-format-bot@users.noreply.github.com"
+          git commit -s -am "chore: prettier auto-format"
+          git push
