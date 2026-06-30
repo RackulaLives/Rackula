@@ -45,6 +45,19 @@ describe("rack-resize", () => {
       expect(result.conflicts).toEqual([]);
     });
 
+    it("allows shrinking when a device is exactly at the target height boundary", () => {
+      const device = createTestDevice({ position: 12 });
+      const rack = createTestRack({ height: 42, devices: [device] });
+      const dt = createTestDeviceType({
+        slug: device.device_type,
+        u_height: 1,
+      });
+
+      const result = canResizeRackTo(rack, 12, [dt]);
+      expect(result.allowed).toBe(true);
+      expect(result.conflicts).toEqual([]);
+    });
+
     it("blocks shrinking when a device would exceed the new height", () => {
       const device = createTestDevice({ position: 20 });
       const rack = createTestRack({ height: 42, devices: [device] });
