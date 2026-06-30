@@ -8,7 +8,6 @@ import {
   locators,
   clickSettings,
   clickNewRack,
-  completeWizardWithClicks,
 } from "./helpers";
 import { dynamicMasks, gotoVisual, settle } from "./helpers/visual";
 
@@ -50,13 +49,13 @@ const POPULATED_RACK = createTestLayout({
 });
 const POPULATED_URL = `/?l=${POPULATED_RACK}`;
 
-// Rack A for the multi-rack row snapshot: a 24U standalone rack. Rack B
-// (12U) is added via the wizard inside the test so the two racks have
-// different heights, proving the bottom-aligned, spaced row (#2733).
+// Rack A for the multi-rack row snapshot: a 12U standalone rack. New Rack
+// then adds a 24U rack directly (#2732), so the two racks differ in height
+// and prove the bottom-aligned, spaced row (#2733).
 const MULTI_RACK_URL = `/?l=${createTestLayout({
   name: "Multi Rack Layout",
   rackName: "Rack A",
-  rackHeight: 24,
+  rackHeight: 12,
 })}`;
 
 test.describe("visual regression", () => {
@@ -187,18 +186,17 @@ test.describe("visual regression", () => {
   }) => {
     // The single bottom-aligned row (#2733): two standalone racks of
     // different heights sit on a common baseline (their bases) with aisle
-    // spacing between them. Rack A (24U) loads from the share link; Rack B
-    // (12U) is added via the wizard.
+    // spacing between them. Rack A (12U) loads from the share link; New Rack
+    // adds a 24U rack directly on the canvas (#2732).
     await gotoVisual(page, MULTI_RACK_URL);
     await clickNewRack(page);
-    await completeWizardWithClicks(page, { name: "Rack B", height: 12 });
-    await expect(page.getByRole("dialog", { name: "New Rack" })).toBeHidden();
-    // Dismiss the empty-rack onboarding hint so it does not clutter the shot,
-    // then frame both racks with the keyboard fit-all (no hover tooltip).
+    await expect(page.locator(locators.rackView.dualViewName)).toHaveCount(2);
+    // Clear the new rack's selection and the empty-rack onboarding hint so the
+    // shot shows just the row, then frame both racks with the keyboard fit-all.
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Dismiss hint" }).click();
     await page.mouse.move(640, 150);
     await page.keyboard.press("f");
-    await expect(page.locator(locators.rackView.dualViewName)).toHaveCount(2);
     await settle(page);
     await expect(page).toHaveScreenshot("canvas-multi-rack-row.png", {
       mask: dynamicMasks(page),
