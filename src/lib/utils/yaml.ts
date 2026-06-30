@@ -259,7 +259,7 @@ export function parseLayoutObject(parsed: unknown): Layout | null {
     // Drop the top-level images section (base64 user images, #617) before
     // validation, same as validateParsedLayout, so base64 never rides onto the
     // runtime Layout (passthrough) and gets re-emitted on later saves.
-    if (Object.hasOwn(rest, "images")) {
+    if (Object.prototype.hasOwnProperty.call(rest, "images")) {
       delete rest.images;
     }
     body = rest;
