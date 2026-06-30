@@ -96,37 +96,42 @@ describe("handleNewRack", () => {
   it("creates a 24U rack and selects it, without opening the wizard", () => {
     const layoutStore = getLayoutStore();
     const selectionStore = getSelectionStore();
-    const before = layoutStore.racks.length;
+    const beforeIds = new Set(layoutStore.racks.map((rack) => rack.id));
 
     handleNewRack();
 
-    expect(layoutStore.racks.length).toBe(before + 1);
-    const created = layoutStore.racks[layoutStore.racks.length - 1]!;
-    expect(created.height).toBe(24);
+    const created = layoutStore.racks.find((rack) => !beforeIds.has(rack.id));
+    expect(created).toBeDefined();
+    expect(created?.height).toBe(24);
     expect(selectionStore.isRackSelected).toBe(true);
-    expect(selectionStore.selectedRackId).toBe(created.id);
+    expect(selectionStore.selectedRackId).toBe(created?.id);
     expect(dialogStore.isOpen("newRack")).toBe(false);
   });
 
   it("applies stage-1 defaults (width 19, ascending U-numbering)", () => {
     const layoutStore = getLayoutStore();
+    const beforeIds = new Set(layoutStore.racks.map((rack) => rack.id));
 
     handleNewRack();
 
-    const created = layoutStore.racks[layoutStore.racks.length - 1]!;
-    expect(created.width).toBe(19);
-    expect(created.desc_units).toBe(false);
+    const created = layoutStore.racks.find((rack) => !beforeIds.has(rack.id));
+    expect(created).toBeDefined();
+    expect(created?.width).toBe(19);
+    expect(created?.desc_units).toBe(false);
   });
 
   it("undo removes the rack it created", () => {
     const layoutStore = getLayoutStore();
-    const before = layoutStore.racks.length;
+    const beforeIds = new Set(layoutStore.racks.map((rack) => rack.id));
 
     handleNewRack();
-    expect(layoutStore.racks.length).toBe(before + 1);
+    const created = layoutStore.racks.find((rack) => !beforeIds.has(rack.id));
+    expect(created).toBeDefined();
 
     layoutStore.undo();
 
-    expect(layoutStore.racks.length).toBe(before);
+    expect(layoutStore.racks.some((rack) => rack.id === created?.id)).toBe(
+      false,
+    );
   });
 });
