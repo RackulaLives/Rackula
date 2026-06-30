@@ -31,7 +31,7 @@ Code generated with AI assistance undergoes the same security review process as 
 ### Security Considerations
 
 - **Client-Side App**: Rackula runs in the browser, communicating with an optional API backend
-- **Authentication Modes**: The API supports `none` (open access), `local` (username/password with bcrypt), and `oidc` (OAuth2/OIDC via environment-configured provider). Mode is set via `RACKULA_AUTH_MODE`.
+- **Authentication Modes**: The API supports `none` (open access), `local` (username/password with bcrypt), and `oidc` (OAuth2/OIDC via environment-configured provider). Mode is set via `RACKULA_AUTH_MODE`. **Security warning:** `none` disables authentication and should only be used for trusted local development/testing in isolated environments; **never** use `none` in production or on internet-facing deployments. For production, use `local` or preferably `oidc` when available.
 - **Session Tokens**: Authenticated sessions use HMAC-signed cookies; tokens are not stored in localStorage
 - **Local Storage**: Layout data is stored in browser localStorage (user-controlled)
 
