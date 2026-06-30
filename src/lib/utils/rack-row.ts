@@ -106,3 +106,30 @@ export function reorderRackRow(
     .flatMap((item) => (item.kind === "rack" ? [item.rack] : item.racks))
     .map((rack, position) => ({ id: rack.id, position }));
 }
+
+/**
+ * Compute the Rack.position values that place `newRackId` immediately to the
+ * right of `sourceRackId` in the canvas row, then reindex the whole row to
+ * sequential positions. Used when baying a rack: a new bayed member is inserted
+ * flush after its source, and every slot to the right is pushed along by one so
+ * no positions collide and group members stay contiguous.
+ *
+ * `newRackId` must not already be in `racks` (it is the about-to-be-created
+ * member); it is woven into the order purely to assign positions. Returns one
+ * assignment per resulting rack in row order (including the new id), or null
+ * when `sourceRackId` is not part of the row.
+ */
+export function planBayedInsert(
+  racks: Rack[],
+  groups: RackGroup[],
+  sourceRackId: string,
+  newRackId: string,
+): RackPositionAssignment[] | null {
+  const ordered = organizeRackRow(racks, groups).flatMap((item) =>
+    item.kind === "rack" ? [item.rack.id] : item.racks.map((rack) => rack.id),
+  );
+  const sourceIndex = ordered.indexOf(sourceRackId);
+  if (sourceIndex === -1) return null;
+  ordered.splice(sourceIndex + 1, 0, newRackId);
+  return ordered.map((id, position) => ({ id, position }));
+}

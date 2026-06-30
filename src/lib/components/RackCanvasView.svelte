@@ -19,7 +19,7 @@
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
   import { organizeRackRow } from "$lib/utils/rack-row";
-  import { IconChevronLeft, IconChevronRight } from "./icons";
+  import { IconChevronLeft, IconChevronRight, IconPlus } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { getMinResizeHeight, snapResizeHeight } from "$lib/utils/rack-resize";
   import { U_HEIGHT_PX } from "$lib/constants/layout";
@@ -129,6 +129,29 @@
     );
   });
 
+  // The selected bayed group's id, or null when the selection is not a group.
+  // Drives the bay-level resize handle and "Bay rack" affordance on a bay slot.
+  const selectedGroupId = $derived(
+    selectionStore.selectedType === "group"
+      ? selectionStore.selectedGroupId
+      : null,
+  );
+
+  // The rack to bay from for the selected slot: a standalone rack bays itself; a
+  // bayed group bays from its active member so a new bay lands beside it. Null
+  // for a non-bayed (row) group, which cannot be bayed.
+  const selectedSlotBaySource = $derived.by(() => {
+    const item = rowItems[selectedSlotIndex];
+    if (!item) return null;
+    if (item.kind === "rack") return item.rack.id;
+    if (item.group.layout_preset !== "bayed") return null;
+    const active =
+      activeRackId && item.racks.some((rack) => rack.id === activeRackId)
+        ? activeRackId
+        : item.racks[0]?.id;
+    return active ?? null;
+  });
+
   // Reorder the selected slot left or right. A grouped rack moves its whole
   // group as a unit. Routed through the layout store so undo/redo covers it.
   function handleMoveRack(direction: "left" | "right") {
@@ -145,8 +168,16 @@
   // high-numbered open end on grow and is removed from it on shrink.
   type ResizeGrip = "top" | "bottom";
 
+  // A resize affordance targets either a standalone rack or a whole bay. A bay
+  // resizes every member together to preserve the equal-height invariant (#2740).
+  type ResizeTarget =
+    | { kind: "rack"; rackId: string }
+    | { kind: "bay"; groupId: string; rackIds: string[] };
+
   interface ResizeDrag {
-    rackId: string;
+    target: ResizeTarget;
+    /** The racks the drag mutates (one rack, or every member of a bay). */
+    rackIds: string[];
     grip: ResizeGrip;
     startHeight: number;
     startClientY: number;
@@ -156,6 +187,35 @@
   }
 
   let resizeDrag = $state<ResizeDrag | null>(null);
+
+  // The racks a target mutates: a standalone rack is itself; a bay is all its
+  // members so they stay equal height.
+  function resizeTargetRackIds(target: ResizeTarget): string[] {
+    return target.kind === "rack" ? [target.rackId] : target.rackIds;
+  }
+
+  // The lowest height the target can shrink to without clipping any device:
+  // the highest floor across every rack the target mutates.
+  function resizeTargetMinHeight(rackIds: string[]): number {
+    let floor = 0;
+    for (const id of rackIds) {
+      const rack = layoutStore.getRackById(id);
+      if (!rack) continue;
+      const min = getMinResizeHeight(rack, layoutStore.device_types);
+      if (min > floor) floor = min;
+    }
+    return floor;
+  }
+
+  // Commit a settled height to the target as a single recorded step: a standalone
+  // rack updates directly; a bay updates every member together.
+  function commitResizeHeight(target: ResizeTarget, height: number) {
+    if (target.kind === "rack") {
+      layoutStore.updateRack(target.rackId, { height });
+    } else {
+      layoutStore.resizeBayedGroupHeight(target.groupId, height);
+    }
+  }
 
   // Dragging away from the rack body grows it: up for the top grip, down for
   // the bottom grip. Both keep device positions fixed (open-end growth).
@@ -175,28 +235,32 @@
   }
 
   function handleResizeStart(
-    rackId: string,
+    target: ResizeTarget,
     grip: ResizeGrip,
     event: PointerEvent,
   ) {
-    const rack = layoutStore.getRackById(rackId);
-    if (!rack) return;
+    const rackIds = resizeTargetRackIds(target);
+    const firstRack = layoutStore.getRackById(rackIds[0] ?? "");
+    if (!firstRack) return;
     event.preventDefault();
     event.stopPropagation();
     // setPointerCapture is absent in some runtimes (happy-dom tests); guard it
     // the same way RackDevice does so a grip press never throws.
-    const target = event.currentTarget as HTMLElement;
-    if (target?.setPointerCapture) target.setPointerCapture(event.pointerId);
-    // Make the dragged rack active so its selection chrome matches; the raw
+    const el = event.currentTarget as HTMLElement;
+    if (el?.setPointerCapture) el.setPointerCapture(event.pointerId);
+    // Make a standalone target active so its selection chrome matches; the raw
     // preview below is id-targeted, so correctness does not depend on this.
-    if (activeRackId !== rackId) layoutStore.setActiveRack(rackId);
+    if (target.kind === "rack" && activeRackId !== target.rackId) {
+      layoutStore.setActiveRack(target.rackId);
+    }
     resizeDrag = {
-      rackId,
+      target,
+      rackIds,
       grip,
-      startHeight: rack.height,
+      startHeight: firstRack.height,
       startClientY: event.clientY,
-      minHeight: getMinResizeHeight(rack, layoutStore.device_types),
-      previewHeight: rack.height,
+      minHeight: resizeTargetMinHeight(rackIds),
+      previewHeight: firstRack.height,
       pointerId: event.pointerId,
     };
   }
@@ -216,7 +280,9 @@
     drag.previewHeight = previewHeight;
     // Live frame preview, id-targeted so a mid-drag active-rack change cannot
     // resize the wrong rack. Raw set records no history and leaves the doc clean.
-    layoutStore.updateRackRaw({ height: previewHeight }, drag.rackId);
+    for (const id of drag.rackIds) {
+      layoutStore.updateRackRaw({ height: previewHeight }, id);
+    }
   }
 
   function handleResizeEnd(event: PointerEvent) {
@@ -232,41 +298,144 @@
       minHeight: drag.minHeight,
       maxHeight: MAX_RACK_HEIGHT,
     });
+    const { target, rackIds, startHeight } = drag;
     resizeDrag = null;
     // Rewind the preview (id-targeted), then commit once so undo sees
     // start -> final as a single step.
-    layoutStore.updateRackRaw({ height: drag.startHeight }, drag.rackId);
-    if (finalHeight !== drag.startHeight) {
-      layoutStore.updateRack(drag.rackId, { height: finalHeight });
+    for (const id of rackIds) {
+      layoutStore.updateRackRaw({ height: startHeight }, id);
+    }
+    if (finalHeight !== startHeight) {
+      commitResizeHeight(target, finalHeight);
     }
   }
 
   function handleResizeCancel(event: PointerEvent) {
     const drag = resizeDrag;
     if (!drag || event.pointerId !== drag.pointerId) return;
+    const { rackIds, startHeight } = drag;
     resizeDrag = null;
-    layoutStore.updateRackRaw({ height: drag.startHeight }, drag.rackId);
+    for (const id of rackIds) {
+      layoutStore.updateRackRaw({ height: startHeight }, id);
+    }
   }
 
   // Keyboard resize for a focused grip: Arrow Up grows, Arrow Down shrinks by
-  // one U. Each press is its own undoable step.
-  function handleResizeKey(rackId: string, event: KeyboardEvent) {
+  // one U. Each press is its own undoable step. A bay grip moves every member.
+  function handleResizeKey(target: ResizeTarget, event: KeyboardEvent) {
     let delta: number;
     if (event.key === "ArrowUp") delta = 1;
     else if (event.key === "ArrowDown") delta = -1;
     else return;
-    const rack = layoutStore.getRackById(rackId);
-    if (!rack) return;
+    const rackIds = resizeTargetRackIds(target);
+    const firstRack = layoutStore.getRackById(rackIds[0] ?? "");
+    if (!firstRack) return;
     event.preventDefault();
     event.stopPropagation();
-    const minHeight = getMinResizeHeight(rack, layoutStore.device_types);
+    const minHeight = resizeTargetMinHeight(rackIds);
     const next = Math.max(
       minHeight,
-      Math.min(MAX_RACK_HEIGHT, rack.height + delta),
+      Math.min(MAX_RACK_HEIGHT, firstRack.height + delta),
     );
-    if (next === rack.height) return;
-    if (activeRackId !== rackId) layoutStore.setActiveRack(rackId);
-    layoutStore.updateRack(rackId, { height: next });
+    if (next === firstRack.height) return;
+    if (target.kind === "rack" && activeRackId !== target.rackId) {
+      layoutStore.setActiveRack(target.rackId);
+    }
+    commitResizeHeight(target, next);
+  }
+
+  // --- Baying: create / extend a bay (#2740) ---
+  // The "Bay rack" button and the resistant edge drag both run one store action
+  // that forms a bay from a standalone rack or extends an existing bay, with the
+  // new member inheriting width / form factor / height from the source.
+  function handleBayRack(sourceRackId: string) {
+    const result = layoutStore.createBayedRack(sourceRackId);
+    if (result.error || !result.groupId) {
+      hapticError();
+      toastStore.showToast(
+        result.error ?? "Can't bay this rack",
+        "warning",
+        3000,
+      );
+      return;
+    }
+    hapticSuccess();
+    // Select the resulting bay so its bay-level affordances surface at once.
+    layoutStore.setActiveRack(sourceRackId);
+    selectionStore.selectGroup(result.groupId, sourceRackId);
+  }
+
+  // Resistant right-edge drag on an empty rack: a rubber-band ghost that snaps
+  // past a threshold to create or insert a bayed rack (#2740). Offered only on
+  // empty racks (AC: racks with no devices).
+  const BAY_SNAP_FRACTION = 0.5;
+
+  interface BayDrag {
+    rackId: string;
+    startClientX: number;
+    /** On-screen width of the source rack, for the threshold and ghost scale. */
+    width: number;
+    /** Rightward drag distance, clamped to >= 0. */
+    growPx: number;
+    /** Pulled past the snap threshold: releasing now commits the bay. */
+    armed: boolean;
+    pointerId: number;
+  }
+
+  let bayDrag = $state<BayDrag | null>(null);
+
+  // The ghost preview shown to the right of the dragged rack. It resists (reveals
+  // at a fraction of the pull) until armed, then snaps to a full-width phantom.
+  const bayGhost = $derived.by(() => {
+    const drag = bayDrag;
+    if (!drag || drag.width <= 0) return null;
+    const threshold = drag.width * BAY_SNAP_FRACTION;
+    const reveal = Math.min(1, drag.growPx / threshold);
+    const widthPx = drag.armed ? drag.width : drag.width * reveal * 0.7;
+    return { rackId: drag.rackId, widthPx, armed: drag.armed };
+  });
+
+  function handleBayDragStart(rackId: string, event: PointerEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const el = event.currentTarget as HTMLElement;
+    if (el?.setPointerCapture) el.setPointerCapture(event.pointerId);
+    // Measure the rack from its wrapper so the threshold and ghost scale with
+    // the current zoom.
+    const wrapper = el?.closest(".rack-wrapper") as HTMLElement | null;
+    const width = wrapper?.getBoundingClientRect().width ?? 0;
+    bayDrag = {
+      rackId,
+      startClientX: event.clientX,
+      width,
+      growPx: 0,
+      armed: false,
+      pointerId: event.pointerId,
+    };
+  }
+
+  function handleBayDragMove(event: PointerEvent) {
+    const drag = bayDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const growPx = Math.max(0, event.clientX - drag.startClientX);
+    const armed = drag.width > 0 && growPx >= drag.width * BAY_SNAP_FRACTION;
+    if (growPx === drag.growPx && armed === drag.armed) return;
+    drag.growPx = growPx;
+    drag.armed = armed;
+  }
+
+  function handleBayDragEnd(event: PointerEvent) {
+    const drag = bayDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const { rackId, armed } = drag;
+    bayDrag = null;
+    if (armed) handleBayRack(rackId);
+  }
+
+  function handleBayDragCancel(event: PointerEvent) {
+    const drag = bayDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    bayDrag = null;
   }
 
   // Handle mobile tap-to-place (uses active rack)
@@ -421,50 +590,71 @@
   class:swipe-next={swipeAnimationDirection === "next"}
   class:swipe-previous={swipeAnimationDirection === "previous"}
 >
-  {#snippet resizeGrip(rackId: string, side: ResizeGrip)}
+  {#snippet resizeGrip(target: ResizeTarget, side: ResizeGrip)}
     <button
       type="button"
       class="resize-grip resize-grip-{side}"
-      aria-label={side === "top"
-        ? "Resize rack height from top edge"
-        : "Resize rack height from bottom edge"}
+      aria-label={`Resize ${target.kind === "bay" ? "bay" : "rack"} height from ${side} edge`}
       aria-keyshortcuts="ArrowUp ArrowDown"
       title="Drag to resize. Arrow Up grows, Arrow Down shrinks."
-      onpointerdown={(e) => handleResizeStart(rackId, side, e)}
+      onpointerdown={(e) => handleResizeStart(target, side, e)}
       onpointermove={handleResizeMove}
       onpointerup={handleResizeEnd}
       onpointercancel={handleResizeCancel}
       onmousedown={blockPan}
       ontouchstart={blockPan}
-      onkeydown={(e) => handleResizeKey(rackId, e)}
+      onkeydown={(e) => handleResizeKey(target, e)}
     >
       <span class="grip-bar" aria-hidden="true"></span>
     </button>
   {/snippet}
   {#each rowItems as item, slotIndex (item.kind === "rack" ? `rack:${item.rack.id}` : `group:${item.group.id}`)}
     <div class="row-slot">
-      {#if rowItems.length >= 2 && slotIndex === selectedSlotIndex}
-        <div class="rack-move-controls" role="group" aria-label="Reorder rack">
-          <button
-            type="button"
-            class="move-button"
-            aria-label="Move rack left"
-            title="Move rack left"
-            disabled={slotIndex === 0}
-            onclick={() => handleMoveRack("left")}
-          >
-            <IconChevronLeft size={ICON_SIZE.sm} />
-          </button>
-          <button
-            type="button"
-            class="move-button"
-            aria-label="Move rack right"
-            title="Move rack right"
-            disabled={slotIndex === rowItems.length - 1}
-            onclick={() => handleMoveRack("right")}
-          >
-            <IconChevronRight size={ICON_SIZE.sm} />
-          </button>
+      {#if slotIndex === selectedSlotIndex}
+        <div class="slot-controls">
+          {#if rowItems.length >= 2}
+            <div
+              class="rack-move-controls"
+              role="group"
+              aria-label="Reorder rack"
+            >
+              <button
+                type="button"
+                class="move-button"
+                aria-label="Move rack left"
+                title="Move rack left"
+                disabled={slotIndex === 0}
+                onclick={() => handleMoveRack("left")}
+              >
+                <IconChevronLeft size={ICON_SIZE.sm} />
+              </button>
+              <button
+                type="button"
+                class="move-button"
+                aria-label="Move rack right"
+                title="Move rack right"
+                disabled={slotIndex === rowItems.length - 1}
+                onclick={() => handleMoveRack("right")}
+              >
+                <IconChevronRight size={ICON_SIZE.sm} />
+              </button>
+            </div>
+          {/if}
+          {#if selectedSlotBaySource}
+            <button
+              type="button"
+              class="bay-button"
+              aria-label="Bay rack"
+              title="Add a bayed rack to the right"
+              onclick={() => {
+                const id = selectedSlotBaySource;
+                if (id) handleBayRack(id);
+              }}
+            >
+              <IconPlus size={ICON_SIZE.sm} />
+              <span class="bay-button-label">Bay</span>
+            </button>
+          {/if}
         </div>
       {/if}
       {#if item.kind === "rack"}
@@ -477,7 +667,8 @@
           class="rack-wrapper"
           class:active={isActive}
           class:resizable={isSelected}
-          style:transform={resizeDrag?.rackId === rack.id &&
+          style:transform={resizeDrag?.target.kind === "rack" &&
+          resizeDrag.target.rackId === rack.id &&
           resizeDrag.grip === "bottom"
             ? `translateY(${(resizeDrag.previewHeight - resizeDrag.startHeight) * U_HEIGHT_PX}px)`
             : undefined}
@@ -513,9 +704,95 @@
             ondelete={() => onrackdelete?.(rack.id)}
           />
           {#if isSelected}
-            {@render resizeGrip(rack.id, "top")}
-            {@render resizeGrip(rack.id, "bottom")}
-            {#if resizeDrag?.rackId === rack.id}
+            {@render resizeGrip({ kind: "rack", rackId: rack.id }, "top")}
+            {@render resizeGrip({ kind: "rack", rackId: rack.id }, "bottom")}
+            {#if resizeDrag?.target.kind === "rack" && resizeDrag.target.rackId === rack.id}
+              <div
+                class="resize-readout resize-readout-{resizeDrag.grip}"
+                role="status"
+                aria-live="polite"
+              >
+                {resizeDrag.previewHeight}U
+              </div>
+            {/if}
+            <!-- Resistant right-edge drag: empty racks only (#2740). Pull right
+                 past the snap threshold to create or insert a bayed rack. -->
+            {#if rack.devices.length === 0}
+              <button
+                type="button"
+                class="bay-edge-grip"
+                aria-label="Drag right to bay a new rack"
+                title="Drag right to create a bayed rack"
+                tabindex="-1"
+                onpointerdown={(e) => handleBayDragStart(rack.id, e)}
+                onpointermove={handleBayDragMove}
+                onpointerup={handleBayDragEnd}
+                onpointercancel={handleBayDragCancel}
+                onmousedown={blockPan}
+                ontouchstart={blockPan}
+              >
+                <span class="edge-grip-bar" aria-hidden="true"></span>
+              </button>
+              {#if bayGhost && bayGhost.rackId === rack.id}
+                <div
+                  class="bay-ghost"
+                  class:armed={bayGhost.armed}
+                  style:width="{bayGhost.widthPx}px"
+                  aria-hidden="true"
+                ></div>
+                <div class="bay-drag-readout" role="status" aria-live="polite">
+                  {bayGhost.armed ? "Release to bay" : "Pull to bay"}
+                </div>
+              {/if}
+            {/if}
+          {/if}
+        </div>
+      {:else if item.group.layout_preset === "bayed"}
+        {@const isBaySelected = item.group.id === selectedGroupId}
+        {@const bayTarget = {
+          kind: "bay" as const,
+          groupId: item.group.id,
+          rackIds: item.racks.map((member) => member.id),
+        }}
+        <!-- Bayed/touring racks render flush (no gap) via the stacked dual view.
+             The wrapper hosts the one bay-level resize handle that resizes every
+             member together, preserving the equal-height invariant (#2740). -->
+        <div class="bay-wrapper" class:resizable={isBaySelected}>
+          <BayedRackView
+            group={item.group}
+            racks={item.racks}
+            deviceLibrary={layoutStore.device_types}
+            {activeRackId}
+            selectedDeviceId={selectionStore.selectedType === "device"
+              ? selectionStore.selectedDeviceId
+              : null}
+            selectedRackId={selectionStore.selectedType === "rack"
+              ? selectionStore.selectedRackId
+              : null}
+            displayMode={uiStore.displayMode}
+            showLabelsOnImages={uiStore.showLabelsOnImages}
+            showAnnotations={uiStore.showAnnotations}
+            annotationField={uiStore.annotationField}
+            {partyMode}
+            {enableLongPress}
+            ongroupselect={(e) => handleGroupSelect(e)}
+            ondeviceselect={(e) => handleDeviceSelect(e.detail.rackId, e)}
+            ondevicedrop={(e) => handleDeviceDrop(e)}
+            ondevicemove={(e) => handleDeviceMove(e)}
+            ondevicemoverack={(e) => handleDeviceMoveRack(e)}
+            onplacementtap={(e) => handlePlacementTap(e.detail.rackId, e)}
+            onlongpress={(e) => onracklongpress?.(e)}
+            onfocus={(rackIds) => onrackfocus?.(rackIds)}
+            onexport={(rackIds) => onrackexport?.(rackIds)}
+            onedit={(rackId) => onrackedit?.(rackId)}
+            onrename={(rackId) => onrackrename?.(rackId)}
+            onduplicate={(rackId) => onrackduplicate?.(rackId)}
+            ondelete={(rackId) => onrackdelete?.(rackId)}
+          />
+          {#if isBaySelected}
+            {@render resizeGrip(bayTarget, "top")}
+            {@render resizeGrip(bayTarget, "bottom")}
+            {#if resizeDrag?.target.kind === "bay" && resizeDrag.target.groupId === item.group.id}
               <div
                 class="resize-readout resize-readout-{resizeDrag.grip}"
                 role="status"
@@ -526,39 +803,6 @@
             {/if}
           {/if}
         </div>
-      {:else if item.group.layout_preset === "bayed"}
-        <!-- Bayed/touring racks render flush (no gap) via the stacked dual view -->
-        <BayedRackView
-          group={item.group}
-          racks={item.racks}
-          deviceLibrary={layoutStore.device_types}
-          {activeRackId}
-          selectedDeviceId={selectionStore.selectedType === "device"
-            ? selectionStore.selectedDeviceId
-            : null}
-          selectedRackId={selectionStore.selectedType === "rack"
-            ? selectionStore.selectedRackId
-            : null}
-          displayMode={uiStore.displayMode}
-          showLabelsOnImages={uiStore.showLabelsOnImages}
-          showAnnotations={uiStore.showAnnotations}
-          annotationField={uiStore.annotationField}
-          {partyMode}
-          {enableLongPress}
-          ongroupselect={(e) => handleGroupSelect(e)}
-          ondeviceselect={(e) => handleDeviceSelect(e.detail.rackId, e)}
-          ondevicedrop={(e) => handleDeviceDrop(e)}
-          ondevicemove={(e) => handleDeviceMove(e)}
-          ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-          onplacementtap={(e) => handlePlacementTap(e.detail.rackId, e)}
-          onlongpress={(e) => onracklongpress?.(e)}
-          onfocus={(rackIds) => onrackfocus?.(rackIds)}
-          onexport={(rackIds) => onrackexport?.(rackIds)}
-          onedit={(rackId) => onrackedit?.(rackId)}
-          onrename={(rackId) => onrackrename?.(rackId)}
-          onduplicate={(rackId) => onrackduplicate?.(rackId)}
-          ondelete={(rackId) => onrackdelete?.(rackId)}
-        />
       {:else}
         <!-- Standard row layout for non-bayed groups -->
         <div class="rack-group">
@@ -852,5 +1096,150 @@
   .resize-readout-bottom {
     bottom: 0;
     transform: translate(-50%, calc(100% + var(--space-2)));
+  }
+
+  /* Per-slot control cluster above a selected slot: reorder pill plus the
+     "Bay rack" button. Sits in the row-slot's column flow above the rack. */
+  .slot-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* "Bay rack" button: forms or extends a bay to the right of the selection. */
+  .bay-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: var(--touch-target-min);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-full);
+    background: var(--colour-surface-overlay, rgba(40, 42, 54, 0.6));
+    color: var(--colour-text);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold, 600);
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .bay-button:hover {
+    background: var(--colour-overlay-hover);
+    color: var(--colour-primary);
+    border-color: var(--colour-selection);
+  }
+
+  .bay-button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring-glow);
+    color: var(--colour-primary);
+  }
+
+  .bay-button-label {
+    line-height: 1;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .bay-button {
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out);
+    }
+  }
+
+  /* Bayed-group wrapper: the positioning context for the bay-level resize grips
+     and readout. */
+  .bay-wrapper {
+    position: relative;
+    display: inline-block;
+  }
+
+  /* Resistant right-edge drag grip (empty racks only). Hugs the right edge; the
+     bar reads as a vertical rail you pull rightward to spawn a bay. */
+  .bay-edge-grip {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 56px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: ew-resize;
+    touch-action: none;
+    transform: translate(50%, -50%);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .edge-grip-bar {
+    width: 6px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    background: var(--colour-border);
+    box-shadow: 0 0 0 4px var(--colour-surface-overlay, rgba(40, 42, 54, 0.6));
+  }
+
+  .bay-edge-grip:hover .edge-grip-bar,
+  .bay-edge-grip:focus-visible .edge-grip-bar {
+    background: var(--colour-selection);
+  }
+
+  .bay-edge-grip:focus-visible {
+    outline: none;
+  }
+
+  .bay-edge-grip:focus-visible .edge-grip-bar {
+    box-shadow:
+      0 0 0 4px var(--colour-surface-overlay, rgba(40, 42, 54, 0.6)),
+      var(--focus-ring-glow);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .edge-grip-bar {
+      transition: background-color var(--duration-fast) var(--ease-out);
+    }
+  }
+
+  /* Ghost preview of the rack the edge drag would spawn: a dashed phantom to the
+     right whose width tracks the pull and snaps solid once armed. */
+  .bay-ghost {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 100%;
+    z-index: 1;
+    border: 2px dashed var(--colour-border);
+    border-radius: var(--radius-lg);
+    background: var(--colour-surface-overlay, rgba(40, 42, 54, 0.35));
+    pointer-events: none;
+  }
+
+  .bay-ghost.armed {
+    border-style: solid;
+    border-color: var(--colour-selection);
+    background: var(--colour-overlay-hover, rgba(80, 250, 123, 0.12));
+  }
+
+  .bay-drag-readout {
+    position: absolute;
+    top: 0;
+    left: 100%;
+    z-index: 3;
+    margin-left: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--colour-selection);
+    color: var(--colour-text-inverse);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold, 600);
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.4));
   }
 </style>

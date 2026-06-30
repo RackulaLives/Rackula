@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { organizeRackRow, reorderRackRow } from "$lib/utils/rack-row";
+import {
+  organizeRackRow,
+  reorderRackRow,
+  planBayedInsert,
+} from "$lib/utils/rack-row";
 import { createTestRack } from "./factories";
 import type { RackGroup } from "$lib/types";
 
@@ -195,5 +199,66 @@ describe("reorderRackRow", () => {
     // is pushed to the far slot.
     expect(Math.abs(byId.get("m1")! - byId.get("m2")!)).toBe(1);
     expect(byId.get("solo")).toBe(2);
+  });
+});
+
+describe("planBayedInsert", () => {
+  it("places the new rack immediately right of a standalone source", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const b = createTestRack({ id: "b", position: 1 });
+    const c = createTestRack({ id: "c", position: 2 });
+
+    const assignments = planBayedInsert([a, b, c], [], "a", "new");
+
+    expect(assignments).toEqual([
+      { id: "a", position: 0 },
+      { id: "new", position: 1 },
+      { id: "b", position: 2 },
+      { id: "c", position: 3 },
+    ]);
+  });
+
+  it("pushes the racks to the right of a mid-row insert along", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const b = createTestRack({ id: "b", position: 1 });
+    const c = createTestRack({ id: "c", position: 2 });
+
+    const assignments = planBayedInsert([a, b, c], [], "b", "new")!;
+    const byId = new Map(assignments.map((x) => [x.id, x.position]));
+
+    // The new rack lands right after b; c is shifted one slot right and nothing
+    // shares a position.
+    expect(byId.get("b")).toBe(1);
+    expect(byId.get("new")).toBe(2);
+    expect(byId.get("c")).toBe(3);
+    expect(new Set(assignments.map((x) => x.position)).size).toBe(
+      assignments.length,
+    );
+  });
+
+  it("keeps the new member inside the source's bay block", () => {
+    const m1 = createTestRack({ id: "m1", position: 0 });
+    const m2 = createTestRack({ id: "m2", position: 1 });
+    const solo = createTestRack({ id: "solo", position: 2 });
+    const group: RackGroup = {
+      id: "g1",
+      rack_ids: ["m1", "m2"],
+      layout_preset: "bayed",
+    };
+
+    const assignments = planBayedInsert([m1, m2, solo], [group], "m1", "new")!;
+    const byId = new Map(assignments.map((x) => [x.id, x.position]));
+
+    // new sits between the two existing members, so the bay block m1/new/m2
+    // stays contiguous and solo follows.
+    expect(byId.get("m1")).toBe(0);
+    expect(byId.get("new")).toBe(1);
+    expect(byId.get("m2")).toBe(2);
+    expect(byId.get("solo")).toBe(3);
+  });
+
+  it("returns null when the source rack is not in the row", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    expect(planBayedInsert([a], [], "missing", "new")).toBeNull();
   });
 });

@@ -25,7 +25,7 @@ import { getTargetRack, getRackById } from "./rack-actions";
  * undo/redo targets the intended rack regardless of which rack is active
  * at undo time (#2126).
  */
-function bindCommandToRack(
+export function bindCommandToRack(
   ctx: LayoutStateAccess,
   rackId: string,
   inner: Command,

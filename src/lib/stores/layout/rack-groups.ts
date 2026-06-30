@@ -16,11 +16,21 @@ import {
   createDeleteRackGroupCommand,
   createAddRackCommand,
   createDeleteRackCommand,
+  createUpdateRackCommand,
   createBatchCommand,
   type Command,
   type RackGroupCommandStore,
 } from "../commands";
-import { getRackLifecycleCommandAdapter } from "./rack-actions";
+import {
+  getRackLifecycleCommandAdapter,
+  type UpdateRacksBatchRecordedFn,
+} from "./rack-actions";
+import { getCommandStoreAdapter } from "./command-adapters";
+import { bindCommandToRack } from "./recorded-rack-actions";
+import {
+  planBayedInsert,
+  type RackPositionAssignment,
+} from "$lib/utils/rack-row";
 import type { LayoutStateAccess } from "./types";
 
 // =============================================================================
@@ -749,4 +759,204 @@ export function reorderRacksInGroup(
 
   // Use updateRackGroup which already has undo/redo support
   return updateRackGroup(ctx, groupId, { rack_ids: newOrder });
+}
+
+// =============================================================================
+// Baying — create and extend a bay (#2740)
+// =============================================================================
+
+/** Result of createBayedRack: the new rack and bay group ids, or an error. */
+export interface CreateBayedRackResult {
+  rackId?: string;
+  groupId?: string;
+  error?: string;
+}
+
+/**
+ * Build the recorded position-update commands that reindex a row after a bayed
+ * insert. The new rack carries its position from creation and is not yet in the
+ * layout, so it is skipped; existing racks already at their target position are
+ * left untouched so the batch stays minimal.
+ */
+function buildRowReindexCommands(
+  ctx: LayoutStateAccess,
+  assignments: RackPositionAssignment[],
+): Command[] {
+  const adapter = getCommandStoreAdapter(ctx);
+  const commands: Command[] = [];
+  for (const { id, position } of assignments) {
+    const rack = ctx.findRack(id);
+    if (!rack || rack.position === position) continue;
+    commands.push(
+      bindCommandToRack(
+        ctx,
+        id,
+        createUpdateRackCommand(
+          { position: rack.position },
+          { position },
+          adapter,
+        ),
+      ),
+    );
+  }
+  return commands;
+}
+
+/**
+ * Create a new bayed rack flush to the right of a source rack.
+ *
+ * When the source is standalone, a new bayed group is formed from
+ * [source, new]; when it already belongs to a bayed group, that group is
+ * extended with the new member woven in right after the source. The new rack is
+ * fully uniform with the source (width, form factor, height, and U-numbering
+ * inherited), and the row is reindexed so a mid-row insert pushes the racks to
+ * its right along without collisions. Baying never merges existing racks, so a
+ * source already in a row (non-bayed) group is refused.
+ *
+ * The whole operation is one BatchCommand: a single undo reverts the new rack,
+ * the group change, and the position reindex together.
+ *
+ * @param ctx - Layout state access
+ * @param sourceRackId - The rack to bay from (a selected bay member when extending)
+ * @returns The new rack and group ids, or an error
+ */
+export function createBayedRack(
+  ctx: LayoutStateAccess,
+  sourceRackId: string,
+): CreateBayedRackResult {
+  const layout = ctx.getLayout();
+  const sourceRack = layout.racks.find((r) => r.id === sourceRackId);
+  if (!sourceRack) {
+    return { error: "Source rack not found" };
+  }
+
+  if (layout.racks.length >= MAX_RACKS) {
+    return { error: "Maximum rack limit reached" };
+  }
+
+  const existingGroup = getRackGroupForRack(ctx, sourceRackId);
+  if (existingGroup && existingGroup.layout_preset !== "bayed") {
+    return { error: "Cannot bay a rack that is already in a row group" };
+  }
+
+  const newRackId = generateRackId();
+  const assignments = planBayedInsert(
+    layout.racks,
+    layout.rack_groups ?? [],
+    sourceRackId,
+    newRackId,
+  );
+  if (!assignments) {
+    return { error: "Source rack is not in the row" };
+  }
+  const newPosition =
+    assignments.find((a) => a.id === newRackId)?.position ??
+    layout.racks.length;
+
+  // Inherit the uniform fields from the source. width is re-validated because a
+  // persisted layout could carry an unexpected value.
+  const validWidths: Rack["width"][] = [10, 19, 21, 23];
+  const width = (
+    validWidths.includes(sourceRack.width) ? sourceRack.width : 19
+  ) as Rack["width"];
+  const bayNumber = (existingGroup ? existingGroup.rack_ids.length : 1) + 1;
+  const newRack = createDefaultRack(
+    `Bay ${bayNumber}`,
+    sourceRack.height,
+    width,
+    sourceRack.form_factor,
+    sourceRack.desc_units,
+    sourceRack.starting_unit,
+    sourceRack.show_rear,
+    newRackId,
+  );
+  newRack.position = newPosition;
+
+  const history = ctx.getHistory();
+  const rackAdapter = getRackLifecycleCommandAdapter(ctx);
+  const groupAdapter = getRackGroupCommandAdapter(ctx);
+
+  const commands: Command[] = [createAddRackCommand(newRack, rackAdapter)];
+  commands.push(...buildRowReindexCommands(ctx, assignments));
+
+  let groupId: string;
+  if (existingGroup) {
+    groupId = existingGroup.id;
+    const sourceIdx = existingGroup.rack_ids.indexOf(sourceRackId);
+    const insertAt =
+      sourceIdx === -1 ? existingGroup.rack_ids.length : sourceIdx + 1;
+    const newRackIds = [...existingGroup.rack_ids];
+    newRackIds.splice(insertAt, 0, newRackId);
+    commands.push(
+      createUpdateRackGroupCommand(
+        groupId,
+        { rack_ids: [...existingGroup.rack_ids] },
+        { rack_ids: newRackIds },
+        groupAdapter,
+      ),
+    );
+  } else {
+    const group: RackGroup = {
+      id: generateGroupId(),
+      rack_ids: [sourceRackId, newRackId],
+      layout_preset: "bayed",
+    };
+    groupId = group.id;
+    commands.push(createCreateRackGroupCommand(group, groupAdapter));
+  }
+
+  const batch = createBatchCommand(
+    existingGroup ? "Extend bay" : "Create bay",
+    commands,
+  );
+  history.execute(batch);
+  ctx.markDirty();
+  ctx.markStarted();
+
+  layoutDebug.group(
+    "createBayedRack: %s rack %s into group %s (position %d)",
+    existingGroup ? "extended" : "formed",
+    newRackId,
+    groupId,
+    newPosition,
+  );
+
+  return { rackId: newRackId, groupId };
+}
+
+/**
+ * Resize every rack in a bayed group to the same height as one recorded step.
+ *
+ * The bay's equal-height invariant is preserved by construction (all members
+ * are set to newHeight together), and one undo reverts the whole resize. The
+ * caller is responsible for clamping newHeight to a value that fits every
+ * member's devices (the canvas drag does this via getMinResizeHeight).
+ *
+ * @param ctx - Layout state access
+ * @param groupId - The bayed group to resize
+ * @param newHeight - The shared new height in whole U
+ * @param updateRacksBatchRecordedFn - Recorded batch update (undo/redo)
+ */
+export function resizeBayedGroupHeight(
+  ctx: LayoutStateAccess,
+  groupId: string,
+  newHeight: number,
+  updateRacksBatchRecordedFn: UpdateRacksBatchRecordedFn,
+): { error?: string } {
+  const group = getRackGroupById(ctx, groupId);
+  if (!group) {
+    return { error: "Group not found" };
+  }
+  if (group.layout_preset !== "bayed") {
+    return { error: "Can only resize bayed rack groups" };
+  }
+
+  updateRacksBatchRecordedFn(
+    group.rack_ids.map((rackId) => ({
+      rackId,
+      updates: { height: newHeight },
+    })),
+    "Resize bay",
+  );
+  return {};
 }
