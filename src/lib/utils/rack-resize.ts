@@ -7,6 +7,7 @@
 
 import type { Rack, DeviceType, PlacedDevice } from "$lib/types";
 import { toHumanUnits } from "./position";
+import { MIN_RACK_HEIGHT } from "$lib/types/constants";
 
 /**
  * Result of resize validation
@@ -72,6 +73,63 @@ export function canResizeRackTo(
     allowed: conflicts.length === 0,
     conflicts,
   };
+}
+
+/**
+ * Lowest height (whole U) a rack can shrink to without clipping a placed
+ * device. Equals the highest occupied U across all devices, or MIN_RACK_HEIGHT
+ * for an empty rack. The canvas drag-resize clamps to this so a shrink can
+ * never drop below the topmost device, the same floor canResizeRackTo enforces.
+ */
+export function getMinResizeHeight(
+  rack: Rack,
+  deviceTypes: DeviceType[],
+): number {
+  let highest = MIN_RACK_HEIGHT;
+  for (const device of rack.devices) {
+    const deviceType = deviceTypes.find((dt) => dt.slug === device.device_type);
+    const uHeight = deviceType?.u_height ?? 1;
+    const top = Math.ceil(toHumanUnits(device.position) + uHeight - 1);
+    if (top > highest) highest = top;
+  }
+  return highest;
+}
+
+/**
+ * Inputs for snapResizeHeight.
+ */
+export interface SnapResizeParams {
+  /** Rack height (whole U) when the drag began. */
+  startHeight: number;
+  /** Signed pixels dragged toward growth; positive grows the rack. */
+  growPx: number;
+  /** On-screen pixels per U: the rendered U height times the canvas zoom. */
+  pxPerU: number;
+  /** Lowest allowed height, from getMinResizeHeight. */
+  minHeight: number;
+  /** Highest allowed height (schema max). */
+  maxHeight: number;
+}
+
+/**
+ * Snap a pointer drag to a whole-U rack height.
+ *
+ * Rounds the drag distance to the nearest whole U so the rail invariant holds
+ * (positions stay on whole-U boundaries), then clamps to [minHeight, maxHeight].
+ * A non-positive pxPerU (a degenerate zoom) holds the start height rather than
+ * dividing by zero.
+ */
+export function snapResizeHeight({
+  startHeight,
+  growPx,
+  pxPerU,
+  minHeight,
+  maxHeight,
+}: SnapResizeParams): number {
+  if (pxPerU <= 0) return startHeight;
+  const deltaU = Math.round(growPx / pxPerU);
+  const raw = startHeight + deltaU;
+  return Math.max(minHeight, Math.min(maxHeight, raw));
 }
 
 /**

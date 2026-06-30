@@ -1,10 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   canResizeRackTo,
   getDeviceRangeText,
   formatConflictMessage,
   getConflictDetails,
+  getMinResizeHeight,
+  snapResizeHeight,
 } from "$lib/utils/rack-resize";
+import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import {
   createTestRack,
   createTestDevice,
@@ -113,6 +116,130 @@ describe("rack-resize", () => {
       expect(formatConflictMessage(conflicts)).toBe(
         "Switch at U10, Storage at U20-22",
       );
+    });
+  });
+
+  describe("getMinResizeHeight", () => {
+    it("returns the single-U floor for an empty rack", () => {
+      const rack = createTestRack({ height: 42, devices: [] });
+      expect(getMinResizeHeight(rack, [])).toBe(1);
+    });
+
+    it("returns the highest occupied U for a single device", () => {
+      const device = createTestDevice({ position: 40 });
+      const rack = createTestRack({ height: 42, devices: [device] });
+      const dt = createTestDeviceType({
+        slug: device.device_type,
+        u_height: 1,
+      });
+      expect(getMinResizeHeight(rack, [dt])).toBe(40);
+    });
+
+    it("accounts for a multi-U device's top edge", () => {
+      const device = createTestDevice({ position: 20 });
+      const rack = createTestRack({ height: 42, devices: [device] });
+      const dt = createTestDeviceType({
+        slug: device.device_type,
+        u_height: 3,
+      });
+      // U20 + 3U occupies U20-22, so the rack cannot shrink below 22.
+      expect(getMinResizeHeight(rack, [dt])).toBe(22);
+    });
+
+    it("takes the maximum top across several devices", () => {
+      const low = createTestDevice({ device_type: "a", position: 5 });
+      const high = createTestDevice({ device_type: "b", position: 30 });
+      const rack = createTestRack({ height: 42, devices: [low, high] });
+      const dtA = createTestDeviceType({ slug: "a", u_height: 1 });
+      const dtB = createTestDeviceType({ slug: "b", u_height: 2 });
+      expect(getMinResizeHeight(rack, [dtA, dtB])).toBe(31);
+    });
+  });
+
+  describe("snapResizeHeight", () => {
+    const base = { minHeight: 1, maxHeight: 100 };
+
+    it("snaps a drag to the nearest whole U", () => {
+      // 46px at 20px/U is 2.3U, which rounds down to +2U.
+      expect(
+        snapResizeHeight({ ...base, startHeight: 10, growPx: 46, pxPerU: 20 }),
+      ).toBe(12);
+      // 54px at 20px/U is 2.7U, which rounds up to +3U.
+      expect(
+        snapResizeHeight({ ...base, startHeight: 10, growPx: 54, pxPerU: 20 }),
+      ).toBe(13);
+    });
+
+    it("shrinks on a negative (toward-body) drag", () => {
+      expect(
+        snapResizeHeight({ ...base, startHeight: 24, growPx: -40, pxPerU: 20 }),
+      ).toBe(22);
+    });
+
+    it("clamps growth to the schema maximum", () => {
+      expect(
+        snapResizeHeight({
+          ...base,
+          startHeight: 90,
+          growPx: 10000,
+          pxPerU: 20,
+        }),
+      ).toBe(100);
+    });
+
+    it("clamps a shrink to the highest occupied U (no clipping)", () => {
+      // A device fixes the floor at 12U; an aggressive shrink stops there.
+      expect(
+        snapResizeHeight({
+          startHeight: 24,
+          growPx: -10000,
+          pxPerU: 20,
+          minHeight: 12,
+          maxHeight: 100,
+        }),
+      ).toBe(12);
+    });
+
+    it("holds the start height when pxPerU is degenerate", () => {
+      expect(
+        snapResizeHeight({ ...base, startHeight: 24, growPx: 100, pxPerU: 0 }),
+      ).toBe(24);
+    });
+  });
+
+  describe("resize via the layout store", () => {
+    beforeEach(() => {
+      resetLayoutStore();
+    });
+
+    it("keeps device positions across grow then shrink, and undo reverts one step", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 24)!;
+      const dt = createTestDeviceType({ slug: "server-2u", u_height: 2 });
+      store.addDeviceTypeRaw(dt);
+      store.placeDevice(rack.id, dt.slug, 10);
+
+      const positionsBefore = store
+        .getRackById(rack.id)!
+        .devices.map((d) => d.position);
+
+      // Grow: empty U is added at the open end, placed gear keeps its U-number.
+      store.updateRack(rack.id, { height: 42 });
+      expect(store.getRackById(rack.id)!.height).toBe(42);
+      expect(
+        store.getRackById(rack.id)!.devices.map((d) => d.position),
+      ).toEqual(positionsBefore);
+
+      // Shrink back to a height that still clears the device's top (U11).
+      store.updateRack(rack.id, { height: 12 });
+      expect(store.getRackById(rack.id)!.height).toBe(12);
+      expect(
+        store.getRackById(rack.id)!.devices.map((d) => d.position),
+      ).toEqual(positionsBefore);
+
+      // A single undo reverts the last resize, not the device placement.
+      store.undo();
+      expect(store.getRackById(rack.id)!.height).toBe(42);
     });
   });
 });

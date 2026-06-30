@@ -21,6 +21,9 @@
   import { organizeRackRow } from "$lib/utils/rack-row";
   import { IconChevronLeft, IconChevronRight } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
+  import { getMinResizeHeight, snapResizeHeight } from "$lib/utils/rack-resize";
+  import { U_HEIGHT_PX } from "$lib/constants/layout";
+  import { MAX_RACK_HEIGHT } from "$lib/types/constants";
 
   interface Props {
     partyMode?: boolean;
@@ -132,6 +135,124 @@
     const id = selectedSlotRackId;
     if (!id) return;
     layoutStore.moveRackInRow(id, direction);
+  }
+
+  // --- Canvas drag-to-resize for standalone racks (#2737) ---
+  // Grips on a selected standalone rack drag its height in whole-U steps. The
+  // frame previews live via a raw (non-recorded) height set, then commits once
+  // on release so undo/redo sees a single step. Only the height changes, never
+  // device positions, so placed gear keeps its U-number: empty U lands at the
+  // high-numbered open end on grow and is removed from it on shrink.
+  type ResizeGrip = "top" | "bottom";
+
+  interface ResizeDrag {
+    rackId: string;
+    grip: ResizeGrip;
+    startHeight: number;
+    startClientY: number;
+    minHeight: number;
+    previewHeight: number;
+    pointerId: number;
+  }
+
+  let resizeDrag = $state<ResizeDrag | null>(null);
+
+  // Dragging away from the rack body grows it: up for the top grip, down for
+  // the bottom grip. Both keep device positions fixed (open-end growth).
+  function resizeGrowPx(
+    grip: ResizeGrip,
+    startClientY: number,
+    clientY: number,
+  ): number {
+    return grip === "top" ? startClientY - clientY : clientY - startClientY;
+  }
+
+  // Keep canvas pan/zoom from hijacking a grip press: panzoom listens for
+  // mousedown/touchstart on an ancestor in the bubble phase, so stopping
+  // propagation here is enough.
+  function blockPan(event: Event) {
+    event.stopPropagation();
+  }
+
+  function handleResizeStart(
+    rackId: string,
+    grip: ResizeGrip,
+    event: PointerEvent,
+  ) {
+    const rack = layoutStore.getRackById(rackId);
+    if (!rack) return;
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    // updateRackRaw targets the active rack; the grips only show on the
+    // selected rack, which is normally active, but make it certain.
+    if (activeRackId !== rackId) layoutStore.setActiveRack(rackId);
+    resizeDrag = {
+      rackId,
+      grip,
+      startHeight: rack.height,
+      startClientY: event.clientY,
+      minHeight: getMinResizeHeight(rack, layoutStore.device_types),
+      previewHeight: rack.height,
+      pointerId: event.pointerId,
+    };
+  }
+
+  function handleResizeMove(event: PointerEvent) {
+    const drag = resizeDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const pxPerU = U_HEIGHT_PX * canvasStore.zoom;
+    const previewHeight = snapResizeHeight({
+      startHeight: drag.startHeight,
+      growPx: resizeGrowPx(drag.grip, drag.startClientY, event.clientY),
+      pxPerU,
+      minHeight: drag.minHeight,
+      maxHeight: MAX_RACK_HEIGHT,
+    });
+    if (previewHeight === drag.previewHeight) return;
+    drag.previewHeight = previewHeight;
+    // Live frame preview: raw set records no history and leaves the doc clean.
+    layoutStore.updateRackRaw({ height: previewHeight });
+  }
+
+  function handleResizeEnd(event: PointerEvent) {
+    const drag = resizeDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const finalHeight = drag.previewHeight;
+    resizeDrag = null;
+    // Rewind the preview, then commit once so undo sees start -> final.
+    layoutStore.updateRackRaw({ height: drag.startHeight });
+    if (finalHeight !== drag.startHeight) {
+      layoutStore.updateRack(drag.rackId, { height: finalHeight });
+    }
+  }
+
+  function handleResizeCancel(event: PointerEvent) {
+    const drag = resizeDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    resizeDrag = null;
+    layoutStore.updateRackRaw({ height: drag.startHeight });
+  }
+
+  // Keyboard resize for a focused grip: Arrow Up grows, Arrow Down shrinks by
+  // one U. Each press is its own undoable step.
+  function handleResizeKey(rackId: string, event: KeyboardEvent) {
+    let delta: number;
+    if (event.key === "ArrowUp") delta = 1;
+    else if (event.key === "ArrowDown") delta = -1;
+    else return;
+    const rack = layoutStore.getRackById(rackId);
+    if (!rack) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const minHeight = getMinResizeHeight(rack, layoutStore.device_types);
+    const next = Math.max(
+      minHeight,
+      Math.min(MAX_RACK_HEIGHT, rack.height + delta),
+    );
+    if (next === rack.height) return;
+    if (activeRackId !== rackId) layoutStore.setActiveRack(rackId);
+    layoutStore.updateRack(rackId, { height: next });
   }
 
   // Handle mobile tap-to-place (uses active rack)
@@ -286,6 +407,23 @@
   class:swipe-next={swipeAnimationDirection === "next"}
   class:swipe-previous={swipeAnimationDirection === "previous"}
 >
+  {#snippet resizeGrip(rackId: string, side: ResizeGrip)}
+    <button
+      type="button"
+      class="resize-grip resize-grip-{side}"
+      aria-label="Resize rack height"
+      title="Drag to resize. Arrow Up grows, Arrow Down shrinks."
+      onpointerdown={(e) => handleResizeStart(rackId, side, e)}
+      onpointermove={handleResizeMove}
+      onpointerup={handleResizeEnd}
+      onpointercancel={handleResizeCancel}
+      onmousedown={blockPan}
+      ontouchstart={blockPan}
+      onkeydown={(e) => handleResizeKey(rackId, e)}
+    >
+      <span class="grip-bar" aria-hidden="true"></span>
+    </button>
+  {/snippet}
   {#each rowItems as item, slotIndex (item.kind === "rack" ? `rack:${item.rack.id}` : `group:${item.group.id}`)}
     <div class="row-slot">
       {#if rowItems.length >= 2 && slotIndex === selectedSlotIndex}
@@ -318,7 +456,11 @@
         {@const isSelected =
           selectionStore.selectedType === "rack" &&
           selectionStore.selectedRackId === rack.id}
-        <div class="rack-wrapper" class:active={isActive}>
+        <div
+          class="rack-wrapper"
+          class:active={isActive}
+          class:resizable={isSelected}
+        >
           <RackDualView
             {rack}
             deviceLibrary={layoutStore.device_types}
@@ -349,6 +491,19 @@
             onduplicate={() => onrackduplicate?.(rack.id)}
             ondelete={() => onrackdelete?.(rack.id)}
           />
+          {#if isSelected}
+            {@render resizeGrip(rack.id, "top")}
+            {@render resizeGrip(rack.id, "bottom")}
+            {#if resizeDrag?.rackId === rack.id}
+              <div
+                class="resize-readout resize-readout-{resizeDrag.grip}"
+                role="status"
+                aria-live="polite"
+              >
+                {resizeDrag.previewHeight}U
+              </div>
+            {/if}
+          {/if}
         </div>
       {:else if item.group.layout_preset === "bayed"}
         <!-- Bayed/touring racks render flush (no gap) via the stacked dual view -->
@@ -585,5 +740,96 @@
         background-color var(--duration-fast) var(--ease-out),
         color var(--duration-fast) var(--ease-out);
     }
+  }
+
+  /* Drag-to-resize grips on a selected standalone rack (#2737). The wrapper is
+     the positioning context; grips straddle the frame's top and bottom edges
+     and the readout reports the live height during a drag. */
+  .rack-wrapper.resizable {
+    position: relative;
+  }
+
+  .resize-grip {
+    position: absolute;
+    left: 50%;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: ns-resize;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .resize-grip-top {
+    top: 0;
+    transform: translate(-50%, -50%);
+  }
+
+  .resize-grip-bottom {
+    bottom: 0;
+    transform: translate(-50%, 50%);
+  }
+
+  /* The visible handle reads as a short rack rail. */
+  .grip-bar {
+    width: 40px;
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: var(--colour-border);
+    box-shadow: 0 0 0 4px var(--colour-surface-overlay, rgba(40, 42, 54, 0.6));
+  }
+
+  .resize-grip:hover .grip-bar,
+  .resize-grip:focus-visible .grip-bar {
+    background: var(--colour-selection);
+  }
+
+  .resize-grip:focus-visible {
+    outline: none;
+  }
+
+  .resize-grip:focus-visible .grip-bar {
+    box-shadow:
+      0 0 0 4px var(--colour-surface-overlay, rgba(40, 42, 54, 0.6)),
+      var(--focus-ring-glow);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .grip-bar {
+      transition: background-color var(--duration-fast) var(--ease-out);
+    }
+  }
+
+  /* Live height readout: the signature of the resize interaction. */
+  .resize-readout {
+    position: absolute;
+    left: 50%;
+    z-index: 3;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--colour-selection);
+    color: var(--colour-text-inverse);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold, 600);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.4));
+  }
+
+  .resize-readout-top {
+    top: 0;
+    transform: translate(-50%, calc(-100% - var(--space-2)));
+  }
+
+  .resize-readout-bottom {
+    bottom: 0;
+    transform: translate(-50%, calc(100% + var(--space-2)));
   }
 </style>
