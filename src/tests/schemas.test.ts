@@ -11,6 +11,7 @@ import {
   DeviceFaceSchema,
   WeightUnitSchema,
   DisplayModeSchema,
+  RackWidthSchema,
   DeviceTypeSchema,
   PlacedDeviceSchema,
   RackSchema,
@@ -220,6 +221,16 @@ describe("DisplayModeSchema", () => {
 
   it("rejects invalid mode", () => {
     expect(DisplayModeSchema.safeParse("both").success).toBe(false);
+  });
+});
+
+describe("RackWidthSchema", () => {
+  it.each([10, 19, 21, 23])("accepts standard rack width %s", (width) => {
+    expect(RackWidthSchema.safeParse(width).success).toBe(true);
+  });
+
+  it.each([0, 15, 24, 42])("rejects out-of-set width %s", (width) => {
+    expect(RackWidthSchema.safeParse(width).success).toBe(false);
   });
 });
 
@@ -479,6 +490,25 @@ describe("DeviceTypeSchema", () => {
 // DeviceTypeSchema interface position validation
 // ============================================================================
 
+describe("DeviceTypeSchema rack_widths", () => {
+  const base = {
+    slug: "width-device",
+    u_height: 1,
+    colour: "#4A90D9",
+    category: "server" as const,
+  };
+
+  it("accepts the full set of rack widths including 21", () => {
+    const device = { ...base, rack_widths: [10, 19, 21, 23] };
+    expect(DeviceTypeSchema.safeParse(device).success).toBe(true);
+  });
+
+  it("rejects an unsupported rack width", () => {
+    const device = { ...base, rack_widths: [15] };
+    expect(DeviceTypeSchema.safeParse(device).success).toBe(false);
+  });
+});
+
 describe("DeviceTypeSchema half-depth interface position validation", () => {
   const validBase = createTestDeviceType({ slug: "test-device" });
 
@@ -728,6 +758,11 @@ describe("RackSchema", () => {
   });
 
   describe("width validation", () => {
+    it.each([10, 19, 21, 23] as const)("accepts %s-inch width", (width) => {
+      const rack = { ...validRack, width };
+      expect(RackSchema.safeParse(rack).success).toBe(true);
+    });
+
     it("rejects invalid width", () => {
       const rack = { ...validRack, width: 15 };
       expect(RackSchema.safeParse(rack).success).toBe(false);

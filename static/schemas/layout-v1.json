@@ -413,6 +413,10 @@
                   "type": "number"
                 },
                 {
+                  "const": 21,
+                  "type": "number"
+                },
+                {
                   "const": 23,
                   "type": "number"
                 }

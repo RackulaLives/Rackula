@@ -234,3 +234,61 @@ test.describe("form factor frames", () => {
     });
   }
 });
+
+/**
+ * Per-width frame snapshots (issue #2736).
+ *
+ * The frame draws to scale: a 10 inch rack is narrower than a 23 inch rack,
+ * while the U-grid (row height and whole-U spacing) is identical across widths.
+ * One snapshot per supported width catches drift in the horizontal scale. Each
+ * rack is loaded from a YAML fixture, the format that carries width and
+ * form_factor deterministically, with a fixed 4-post form factor so only the
+ * width varies between shots.
+ */
+const FRAME_WIDTHS = [10, 19, 21, 23] as const;
+
+function widthFixtureYaml(width: number): string {
+  return [
+    'version: "0.7.0"',
+    `name: "Width ${width}"`,
+    "racks:",
+    '  - id: "rack-1"',
+    `    name: "Width ${width}"`,
+    "    height: 12",
+    `    width: ${width}`,
+    "    desc_units: false",
+    "    show_rear: false",
+    '    form_factor: "4-post"',
+    "    starting_unit: 1",
+    "    position: 0",
+    "    devices: []",
+    "device_types: []",
+    "settings:",
+    '  display_mode: "label"',
+    "  show_labels_on_images: false",
+    "",
+  ].join("\n");
+}
+
+test.describe("frame widths", () => {
+  const baseUrl = `/?l=${createTestLayout({ rackHeight: 12 })}`;
+
+  for (const width of FRAME_WIDTHS) {
+    test(`frame - width ${width}`, async ({ page }) => {
+      const dir = mkdtempSync(join(tmpdir(), "rackula-width-"));
+      const file = join(dir, `width-${width}.rackula.yaml`);
+      writeFileSync(file, widthFixtureYaml(width), "utf8");
+
+      await gotoVisual(page, baseUrl);
+      await loadFileFromDisk(page, file);
+      // The loaded rack name confirms the fixture replaced the base rack.
+      await expect(page.getByText(`Width ${width}`).first()).toBeVisible();
+      await settle(page);
+
+      // Snapshot the rack itself so the drawn frame width is the subject and the
+      // shot is free of surrounding canvas drift.
+      const rack = page.locator(locators.rack.container).first();
+      await expect(rack).toHaveScreenshot(`frame-width-${width}.png`);
+    });
+  }
+});
