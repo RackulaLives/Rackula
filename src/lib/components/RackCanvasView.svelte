@@ -22,7 +22,7 @@
   import { IconChevronLeft, IconChevronRight, IconPlus } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { getMinResizeHeight, snapResizeHeight } from "$lib/utils/rack-resize";
-  import { U_HEIGHT_PX } from "$lib/constants/layout";
+  import { U_HEIGHT_PX, getRackWidth } from "$lib/constants/layout";
   import { MAX_RACK_HEIGHT } from "$lib/types/constants";
 
   interface Props {
@@ -373,9 +373,9 @@
   interface BayDrag {
     rackId: string;
     startClientX: number;
-    /** On-screen width of the source rack, for the threshold and ghost scale. */
-    width: number;
-    /** Rightward drag distance, clamped to >= 0. */
+    /** Source rack width in local (unscaled) canvas px, from the rack model. */
+    localWidth: number;
+    /** Rightward drag distance in screen px, clamped to >= 0. */
     growPx: number;
     /** Pulled past the snap threshold: releasing now commits the bay. */
     armed: boolean;
@@ -384,30 +384,39 @@
 
   let bayDrag = $state<BayDrag | null>(null);
 
-  // The ghost preview shown to the right of the dragged rack. It resists (reveals
-  // at a fraction of the pull) until armed, then snaps to a full-width phantom.
+  // Screen-px distance that arms the snap: half a rack width, scaled by zoom so
+  // the threshold tracks the rack's on-screen size. The pointer delta (growPx)
+  // is in screen px, so the threshold must be too.
+  function baySnapThreshold(drag: BayDrag): number {
+    return drag.localWidth * canvasStore.zoom * BAY_SNAP_FRACTION;
+  }
+
+  // The ghost preview shown to the right of the dragged rack. Its width is in
+  // local canvas coords (the ghost renders inside the zoomed canvas, so the
+  // browser scales it by zoom for us). It resists, revealing at a fraction of
+  // the pull until armed, then snaps to a full-width phantom.
   const bayGhost = $derived.by(() => {
     const drag = bayDrag;
-    if (!drag || drag.width <= 0) return null;
-    const threshold = drag.width * BAY_SNAP_FRACTION;
-    const reveal = Math.min(1, drag.growPx / threshold);
-    const widthPx = drag.armed ? drag.width : drag.width * reveal * 0.7;
+    if (!drag || drag.localWidth <= 0) return null;
+    const threshold = baySnapThreshold(drag);
+    const reveal = threshold > 0 ? Math.min(1, drag.growPx / threshold) : 0;
+    const widthPx = drag.armed
+      ? drag.localWidth
+      : drag.localWidth * reveal * 0.7;
     return { rackId: drag.rackId, widthPx, armed: drag.armed };
   });
 
   function handleBayDragStart(rackId: string, event: PointerEvent) {
+    const rack = layoutStore.getRackById(rackId);
+    if (!rack) return;
     event.preventDefault();
     event.stopPropagation();
     const el = event.currentTarget as HTMLElement;
     if (el?.setPointerCapture) el.setPointerCapture(event.pointerId);
-    // Measure the rack from its wrapper so the threshold and ghost scale with
-    // the current zoom.
-    const wrapper = el?.closest(".rack-wrapper") as HTMLElement | null;
-    const width = wrapper?.getBoundingClientRect().width ?? 0;
     bayDrag = {
       rackId,
       startClientX: event.clientX,
-      width,
+      localWidth: getRackWidth(rack.width),
       growPx: 0,
       armed: false,
       pointerId: event.pointerId,
@@ -418,7 +427,7 @@
     const drag = bayDrag;
     if (!drag || event.pointerId !== drag.pointerId) return;
     const growPx = Math.max(0, event.clientX - drag.startClientX);
-    const armed = drag.width > 0 && growPx >= drag.width * BAY_SNAP_FRACTION;
+    const armed = drag.localWidth > 0 && growPx >= baySnapThreshold(drag);
     if (growPx === drag.growPx && armed === drag.armed) return;
     drag.growPx = growPx;
     drag.armed = armed;
@@ -788,6 +797,12 @@
             onrename={(rackId) => onrackrename?.(rackId)}
             onduplicate={(rackId) => onrackduplicate?.(rackId)}
             ondelete={(rackId) => onrackdelete?.(rackId)}
+            enableBayDrag={isBaySelected}
+            {bayGhost}
+            onbaydragstart={handleBayDragStart}
+            onbaydragmove={handleBayDragMove}
+            onbaydragend={handleBayDragEnd}
+            onbaydragcancel={handleBayDragCancel}
           />
           {#if isBaySelected}
             {@render resizeGrip(bayTarget, "top")}

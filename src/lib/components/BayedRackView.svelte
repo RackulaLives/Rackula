@@ -109,6 +109,19 @@
     onduplicate?: (rackId: string) => void;
     /** Context menu: delete rack callback */
     ondelete?: (rackId: string) => void;
+    /**
+     * Show the resistant right-edge bay-drag grip on each empty member (#2740).
+     * True when the bay is selected; the grip is still gated per member on the
+     * member having no devices.
+     */
+    enableBayDrag?: boolean;
+    /** Live rubber-band ghost for the bay-drag, keyed by the dragged member id. */
+    bayGhost?: { rackId: string; widthPx: number; armed: boolean } | null;
+    /** Bay-drag pointer handlers, owned by the parent so all baying shares one path. */
+    onbaydragstart?: (rackId: string, event: PointerEvent) => void;
+    onbaydragmove?: (event: PointerEvent) => void;
+    onbaydragend?: (event: PointerEvent) => void;
+    onbaydragcancel?: (event: PointerEvent) => void;
   }
 
   let {
@@ -139,6 +152,12 @@
     onrename,
     onduplicate,
     ondelete,
+    enableBayDrag = false,
+    bayGhost = null,
+    onbaydragstart,
+    onbaydragmove,
+    onbaydragend,
+    onbaydragcancel,
   }: Props = $props();
 
   // Calculate max height for U-label column (use tallest rack)
@@ -451,6 +470,37 @@
             {ondevicemoverack}
             onplacementtap={(e) => handlePlacementTap(rack.id, e)}
           />
+          <!-- Resistant right-edge drag on an empty bay member: pull right past
+               the snap threshold to insert a new bayed rack after it (#2740).
+               Same affordance and handlers as a standalone empty rack. -->
+          {#if enableBayDrag && rack.devices.length === 0}
+            <button
+              type="button"
+              class="bay-edge-grip"
+              aria-label="Drag right to bay a new rack"
+              title="Drag right to create a bayed rack"
+              tabindex="-1"
+              onpointerdown={(e) => onbaydragstart?.(rack.id, e)}
+              onpointermove={(e) => onbaydragmove?.(e)}
+              onpointerup={(e) => onbaydragend?.(e)}
+              onpointercancel={(e) => onbaydragcancel?.(e)}
+              onmousedown={(e) => e.stopPropagation()}
+              ontouchstart={(e) => e.stopPropagation()}
+            >
+              <span class="edge-grip-bar" aria-hidden="true"></span>
+            </button>
+            {#if bayGhost && bayGhost.rackId === rack.id}
+              <div
+                class="bay-ghost"
+                class:armed={bayGhost.armed}
+                style:width="{bayGhost.widthPx}px"
+                aria-hidden="true"
+              ></div>
+              <div class="bay-drag-readout" role="status" aria-live="polite">
+                {bayGhost.armed ? "Release to bay" : "Pull to bay"}
+              </div>
+            {/if}
+          {/if}
         </div>
       </RackContextMenu>
       <!-- U-labels column between adjacent bays (not after last bay) -->
@@ -623,6 +673,7 @@
   }
 
   .bay-container {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -678,5 +729,87 @@
     justify-content: flex-start;
     /* Match bay-label height so annotations align with rack content */
     padding-top: var(--bay-label-block-height);
+  }
+
+  /* Resistant right-edge bay-drag grip on an empty member (#2740). Hugs the
+     member's right edge; the bar reads as a rail you pull rightward to insert a
+     new bay. Mirrors the standalone-rack grip in RackCanvasView. */
+  .bay-edge-grip {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 56px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: ew-resize;
+    touch-action: none;
+    transform: translate(50%, -50%);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .edge-grip-bar {
+    width: 6px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    background: var(--colour-border);
+    box-shadow: 0 0 0 4px var(--colour-surface-overlay, rgba(40, 42, 54, 0.6));
+  }
+
+  .bay-edge-grip:hover .edge-grip-bar,
+  .bay-edge-grip:focus-visible .edge-grip-bar {
+    background: var(--colour-selection);
+  }
+
+  .bay-edge-grip:focus-visible {
+    outline: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .edge-grip-bar {
+      transition: background-color var(--duration-fast) var(--ease-out);
+    }
+  }
+
+  /* Ghost preview of the bay the drag would insert: a dashed phantom to the
+     right of the dragged member that snaps solid once armed. */
+  .bay-ghost {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 100%;
+    z-index: 3;
+    border: 2px dashed var(--colour-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface-overlay, rgba(40, 42, 54, 0.35));
+    pointer-events: none;
+  }
+
+  .bay-ghost.armed {
+    border-style: solid;
+    border-color: var(--colour-selection);
+    background: var(--colour-overlay-hover, rgba(80, 250, 123, 0.12));
+  }
+
+  .bay-drag-readout {
+    position: absolute;
+    top: 0;
+    left: 100%;
+    z-index: 5;
+    margin-left: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--colour-selection);
+    color: var(--colour-text-inverse);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold, 600);
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.4));
   }
 </style>

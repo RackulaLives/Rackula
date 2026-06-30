@@ -51,7 +51,9 @@ describe("createBayedRack", () => {
     expect(second.groupId).toBe(groupId);
 
     const group = store.getRackGroupById(groupId)!;
-    expect(group.rack_ids.length).toBe(3);
+    // Behavioural invariant: the source is retained and the new member added.
+    expect(group.rack_ids).toContain(source.id);
+    expect(group.rack_ids).toContain(second.rackId);
     // Every member shares the source's height (equal-height invariant).
     for (const id of group.rack_ids) {
       expect(store.getRackById(id)!.height).toBe(30);

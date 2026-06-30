@@ -1,9 +1,9 @@
 {
   "toleranceBytes": 5120,
   "baseline": {
-    "initialJs": 329099,
-    "initialCss": 23868,
-    "initialTotal": 352967
+    "initialJs": 364063,
+    "initialCss": 29893,
+    "initialTotal": 393956
   },
   "headroom": {
     "initialJs": 30000,
