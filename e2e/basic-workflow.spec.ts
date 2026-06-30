@@ -41,8 +41,11 @@ test.describe("Basic Workflow", () => {
     // In v0.4 dual-view mode, two rack containers exist
     await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
-    // Drag device using helper (drops on first .rack-svg which is front view)
-    await dragDeviceToRack(page);
+    // Drag a full-width device by name. The first palette item is a half-width
+    // device that requires a carrier, so a direct drag onto the rails is refused
+    // (carrier-first model); name the device so reordering the palette cannot
+    // pick an unplaceable one.
+    await dragDeviceToRack(page, { deviceName: "Server" });
 
     // Verify device appears in rack
     await expect(page.locator(locators.rack.device).first()).toBeVisible({
@@ -55,7 +58,7 @@ test.describe("Basic Workflow", () => {
     await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Drag device
-    await dragDeviceToRack(page);
+    await dragDeviceToRack(page, { deviceName: "Server" });
 
     // Verify device is in the rack
     await expect(page.locator(locators.rack.device).first()).toBeVisible();
@@ -66,7 +69,7 @@ test.describe("Basic Workflow", () => {
     await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Drag device
-    await dragDeviceToRack(page);
+    await dragDeviceToRack(page, { deviceName: "Server" });
 
     // Wait for device to appear
     await expect(page.locator(locators.rack.device).first()).toBeVisible();
@@ -85,7 +88,7 @@ test.describe("Basic Workflow", () => {
     await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
     // Drag device
-    await dragDeviceToRack(page);
+    await dragDeviceToRack(page, { deviceName: "Server" });
 
     // Wait for device
     await expect(page.locator(locators.rack.device).first()).toBeVisible();
