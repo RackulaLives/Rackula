@@ -8,16 +8,34 @@ import { getSelectionStore } from "$lib/stores/selection.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
 import { getViewportStore } from "$lib/utils/viewport.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
+import { handleFitAll } from "$lib/utils/app-actions";
 
-/** Open the New Rack dialog; warns when the rack limit is reached. */
+/** Stage-1 default height for a directly-created rack (#2732). */
+const NEW_RACK_DEFAULT_HEIGHT = 24;
+/** Default name for a directly-created rack; renameable in the inspector. */
+const NEW_RACK_DEFAULT_NAME = "Racky McRackface";
+
+/**
+ * Create a 24U rack directly on the canvas and select it, skipping the wizard
+ * (#2732). The rack uses stage-1 defaults: width 19, ascending U-numbering, and
+ * the schema default form factor. It is appended to the end of the row. Warns
+ * when the rack limit is reached.
+ */
 export function handleNewRack(): void {
   const layoutStore = getLayoutStore();
+  const selectionStore = getSelectionStore();
   const toastStore = getToastStore();
   if (!layoutStore.canAddRack) {
     toastStore.showToast("Maximum number of racks reached", "warning");
     return;
   }
-  dialogStore.open("newRack");
+  const rack = layoutStore.addRack(
+    NEW_RACK_DEFAULT_NAME,
+    NEW_RACK_DEFAULT_HEIGHT,
+  );
+  if (!rack) return;
+  selectionStore.selectRack(rack.id);
+  requestAnimationFrame(() => handleFitAll());
 }
 
 /** Open the confirm-delete dialog for the selected rack or device. */
