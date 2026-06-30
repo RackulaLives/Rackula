@@ -166,9 +166,36 @@
   style="fill: var(--rack-rail)"
 />
 
-<!-- Form-factor frame chrome (decorations behind the U-grid and devices).
-     Inline style duplicates the class fill/stroke as a Safari iOS workaround
-     (see interior comment). -->
+<!-- U slot backgrounds (for drop zone highlighting) -->
+{#each Array(rackHeight).fill(null) as _slot, i (i)}
+  {@const uPosition = rackHeight - i}
+  {@const isDropTarget =
+    dropPreview !== null &&
+    uPosition >= dropPreview.position &&
+    uPosition < dropPreview.position + dropPreview.height}
+  {@const isPlacementValid =
+    isPlacementMode && validPlacementSlots?.has(uPosition)}
+  <rect
+    class="u-slot"
+    class:u-slot-even={uPosition % 2 === 0}
+    class:drop-target={isDropTarget}
+    class:drop-valid={isDropTarget && dropPreview?.feedback === "valid"}
+    class:drop-invalid={isDropTarget &&
+      (dropPreview?.feedback === "invalid" ||
+        dropPreview?.feedback === "blocked")}
+    class:placement-valid={isPlacementValid}
+    x={railWidth}
+    y={i * uHeight + rackPadding + railWidth}
+    width={interiorWidth}
+    height={uHeight}
+  />
+{/each}
+
+<!-- Form-factor frame chrome. Rendered after the (near-transparent) U-slot
+     backgrounds so interior decorations like the 2-post centre strip composite
+     on top of them, and before the grid lines, holes and labels so those stay
+     legible. Inline style duplicates the class fill/stroke as a Safari iOS
+     workaround (see interior comment). -->
 {#each chrome.shapes as shape, i (shape.cls + "-" + i)}
   {#if shape.kind === "rect"}
     <rect
@@ -200,31 +227,6 @@
   {:else}
     <path d={shape.d} class={shape.cls} style={chromeStyle[shape.cls]} />
   {/if}
-{/each}
-
-<!-- U slot backgrounds (for drop zone highlighting) -->
-{#each Array(rackHeight).fill(null) as _slot, i (i)}
-  {@const uPosition = rackHeight - i}
-  {@const isDropTarget =
-    dropPreview !== null &&
-    uPosition >= dropPreview.position &&
-    uPosition < dropPreview.position + dropPreview.height}
-  {@const isPlacementValid =
-    isPlacementMode && validPlacementSlots?.has(uPosition)}
-  <rect
-    class="u-slot"
-    class:u-slot-even={uPosition % 2 === 0}
-    class:drop-target={isDropTarget}
-    class:drop-valid={isDropTarget && dropPreview?.feedback === "valid"}
-    class:drop-invalid={isDropTarget &&
-      (dropPreview?.feedback === "invalid" ||
-        dropPreview?.feedback === "blocked")}
-    class:placement-valid={isPlacementValid}
-    x={railWidth}
-    y={i * uHeight + rackPadding + railWidth}
-    width={interiorWidth}
-    height={uHeight}
-  />
 {/each}
 
 <!-- Horizontal grid lines (U dividers) -->
