@@ -124,8 +124,7 @@ export type NetBoxParseOutput = NetBoxParseResult | NetBoxParseError;
  * non-conforming `slug` cannot enter the device library.
  */
 export type ConvertResult =
-  | { success: true; result: ImportResult }
-  | { success: false; error: string };
+  { success: true; result: ImportResult } | { success: false; error: string };
 
 /**
  * Successful conversion payload: the validated DeviceType plus the inferred

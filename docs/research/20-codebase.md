@@ -205,11 +205,7 @@ The Rack type supports:
 
    ```typescript
    export type FormFactor =
-     | "2-post"
-     | "4-post"
-     | "4-post-cabinet"
-     | "wall-mount"
-     | "open-frame";
+     "2-post" | "4-post" | "4-post-cabinet" | "wall-mount" | "open-frame";
    ```
 
 2. **Category color mapping** (constants.ts):
@@ -222,11 +218,7 @@ The Rack type supports:
 3. **Brand pack structure** (brandPacks/apc.ts):
 
    ```typescript
-   export const apcDevices: DeviceType[] = [
-     {
-       /* device configs */
-     },
-   ];
+   export const apcDevices: DeviceType[] = [{/* device configs */}];
    ```
 
 4. **Conditional SVG rendering** (Rack.svelte):

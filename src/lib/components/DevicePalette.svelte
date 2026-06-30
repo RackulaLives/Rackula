@@ -11,6 +11,7 @@
   import {
     searchDevices,
     groupDevicesByCategory,
+    groupDevicesByCategoryOrdered,
     getCategoryDisplayName,
     sortDevicesByBrandThenModel,
     sortDevicesAlphabetically,
@@ -334,8 +335,14 @@
   const filteredGenericDevices = $derived(
     searchDevices(visibleGenericDevices, searchQuery),
   );
+  // Ordered [category, devices] entries (#2723). While browsing, categories
+  // follow categoryOrder and devices sort A-Z within each. During a search,
+  // preserve the Fuse relevance order (insertion order) within each category so
+  // the generic section stays relevance-ranked like the brand sections.
   const groupedGenericDevices = $derived(
-    groupDevicesByCategory(filteredGenericDevices),
+    isSearchActive
+      ? [...groupDevicesByCategory(filteredGenericDevices).entries()]
+      : groupDevicesByCategoryOrdered(filteredGenericDevices),
   );
 
   // Filter and search brand pack devices - only show compatible devices
@@ -357,12 +364,8 @@
     })),
   );
 
-  // Sort brand packs alphabetically (case-insensitive)
-  const sortedBrandPacks = $derived(
-    [...filteredBrandPacks].sort((a, b) =>
-      a.title.toLowerCase().localeCompare(b.title.toLowerCase()),
-    ),
-  );
+  // Brand packs arrive A-Z by title from getBrandPacks(); filteredBrandPacks is
+  // a map that preserves that order, so no render-time re-sort is needed (#2723).
 
   // All devices combined (for category and flat modes) - filtered by rack width
   const allDevicesCombined = $derived(
@@ -378,6 +381,15 @@
   );
   const filteredAllDevices = $derived(
     searchDevices(allDevicesCombined, searchQuery),
+  );
+
+  // Flat A-Z mode renders a single windowed section. Unlike grouped views,
+  // where many sections share the panel under the VIRTUAL_VIEWPORT_MAX cap,
+  // this lone section should grow to fill the panel and scroll within itself.
+  // Gate the fill on the virtualized path: short, search-filtered results stay
+  // on the plain-DOM branch and keep their natural height + the list scroll.
+  const flatFill = $derived(
+    groupingMode === "flat" && filteredAllDevices.length > VIRTUALIZE_THRESHOLD,
   );
 
   // Pinned devices: resolve favourite slugs against the same width/compat/search
@@ -407,7 +419,7 @@
         devices: filteredGenericDevices,
         defaultExpanded: true,
       },
-      ...sortedBrandPacks,
+      ...filteredBrandPacks,
     ]
       .filter((section) => section.devices.length > 0)
       .map((section) => {
@@ -566,7 +578,7 @@
   </div>
 
   <!-- Device List -->
-  <div class="device-list">
+  <div class="device-list" class:fill-flat={flatFill}>
     {#snippet deviceRow(device: DeviceType)}
       <DevicePaletteItem
         {device}
@@ -583,14 +595,14 @@
 
     <!-- Flat device list: windowed when long, plain DOM when short, so the
          accordion height animation survives for small sections. -->
-    {#snippet deviceList(devices: DeviceType[], label: string)}
+    {#snippet deviceList(devices: DeviceType[], label: string, fill = false)}
       {#if devices.length > VIRTUALIZE_THRESHOLD}
         <div
           class="virtual-section"
-          style:height="{Math.min(
-            devices.length * ROW_HEIGHT,
-            VIRTUAL_VIEWPORT_MAX,
-          )}px"
+          class:fill
+          style:height={fill
+            ? null
+            : `${Math.min(devices.length * ROW_HEIGHT, VIRTUAL_VIEWPORT_MAX)}px`}
         >
           <VirtualList
             items={devices}
@@ -680,7 +692,7 @@
               <div class="accordion-content-inner">
                 {#if section.id === "generic" && groupingMode === "brand"}
                   <!-- Generic section uses category grouping (brand mode only) -->
-                  {#each [...groupedGenericDevices.entries()] as [category, devices] (category)}
+                  {#each groupedGenericDevices as [category, devices] (category)}
                     {#if !isSearchActive || devices.length > 0}
                       <div class="category-group">
                         <h3 class="category-header">
@@ -694,8 +706,9 @@
                     {/if}
                   {/each}
                 {:else}
-                  <!-- All other sections show devices in a flat list -->
-                  {@render deviceList(section.devices, section.title)}
+                  <!-- All other sections show devices in a flat list. In flat
+                       A-Z mode the lone section fills the panel (see flatFill). -->
+                  {@render deviceList(section.devices, section.title, flatFill)}
                 {/if}
               </div>
             </Accordion.Content>
@@ -704,11 +717,19 @@
       {/snippet}
 
       {#if accordionMode === "multiple"}
-        <Accordion.Root type="multiple" bind:value={accordionMultipleValue}>
+        <Accordion.Root
+          type="multiple"
+          bind:value={accordionMultipleValue}
+          class="device-accordion"
+        >
           {@render accordionSections()}
         </Accordion.Root>
       {:else}
-        <Accordion.Root type="single" bind:value={accordionSingleValue}>
+        <Accordion.Root
+          type="single"
+          bind:value={accordionSingleValue}
+          class="device-accordion"
+        >
           {@render accordionSections()}
         </Accordion.Root>
       {/if}
@@ -970,6 +991,72 @@
   /* Windowed section: fixed height so VirtualList can scroll within it. */
   .virtual-section {
     overflow: hidden;
+  }
+
+  /* Flat A-Z fill (#2698): the lone windowed section grows to fill the panel
+     and scrolls within itself, instead of being pinned to VIRTUAL_VIEWPORT_MAX.
+     A flex chain runs device-list -> accordion -> item -> open content -> inner
+     -> section so the section resolves a definite fill height, and VirtualList's
+     max-height: 100% then drives the internal scroll. Scoped to .fill-flat so
+     grouped views (Brand/Category) keep the fixed per-section cap. */
+  .device-list.fill-flat {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Pinned favourites sit at the top and the accordion fills the rest. Cap the
+     pinned strip so a long favourites list can never starve the A-Z library to
+     zero height (it scrolls within itself past the cap); the accordion always
+     keeps the majority of the panel. */
+  .device-list.fill-flat > .pinned-section {
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 45%;
+    overflow-y: auto;
+  }
+
+  .device-list.fill-flat :global(.device-accordion) {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Fill only the open section, so a manually-collapsed A-Z section shrinks back
+     to its header height instead of an open item holding the full panel. */
+  .device-list.fill-flat
+    :global(.device-accordion .accordion-item[data-state="open"]) {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Only the open section fills; gating on [data-state="open"] lets a closed
+     one still collapse via the grid 0fr rule (see transition note below). */
+  .device-list.fill-flat
+    :global(.device-accordion .accordion-content[data-state="open"]) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .device-list.fill-flat :global(.accordion-content-inner) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .virtual-section.fill {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* In fill mode the open section is flex-sized, so the grid-row slide no longer
+     tracks the box (flex refills the freed space and the box snaps at the end).
+     Collapse instantly instead; the sole A-Z section is open by default, so the
+     only transition this drops is the rare manual collapse/expand. */
+  .device-list.fill-flat :global(.accordion-content) {
+    transition: none;
   }
 
   .pinned-section {

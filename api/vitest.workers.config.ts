@@ -1,6 +1,10 @@
 import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
 
+// Intentionally pinned for deterministic Workers runtime behavior in tests.
+// Review periodically and bump when validating against newer compatibility behavior.
+const WORKERS_COMPATIBILITY_DATE = "2024-09-23";
+
 /**
  * Vitest config for the Workers-pool storage tests (#2625).
  *
@@ -13,7 +17,7 @@ export default defineConfig({
   plugins: [
     cloudflareTest({
       miniflare: {
-        compatibilityDate: "2024-09-23",
+        compatibilityDate: WORKERS_COMPATIBILITY_DATE,
         compatibilityFlags: ["nodejs_compat"],
         r2Buckets: ["LAYOUTS"],
       },

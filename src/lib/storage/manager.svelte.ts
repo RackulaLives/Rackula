@@ -30,12 +30,7 @@ import type { LayoutMetadata } from "$lib/types";
 import { persistenceDebug } from "$lib/utils/debug";
 
 export type SaveStatus =
-  | "idle"
-  | "saving"
-  | "saved"
-  | "error"
-  | "offline"
-  | "disabled";
+  "idle" | "saving" | "saved" | "error" | "offline" | "disabled";
 let _saveStatus = $state<SaveStatus>("idle");
 
 // Circuit breaker

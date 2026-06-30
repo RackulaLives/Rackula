@@ -646,14 +646,14 @@ device_types:
   - slug: dell-r650
     u_height: 1
     Rackula:
-      colour: '#8BE9FD'
+      colour: "#8BE9FD"
       category: server
 
 # NEW FORMAT (v1.0.0)
 device_types:
   - slug: dell-r650
     u_height: 1
-    colour: '#8BE9FD'
+    colour: "#8BE9FD"
     category: server
 ```
 

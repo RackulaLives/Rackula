@@ -262,11 +262,7 @@ export function crossFaceBridgePath(
 // === MAIN ROUTING FUNCTION ===
 
 export type PathAlgorithm =
-  | "straight"
-  | "quadratic"
-  | "cubic"
-  | "orthogonal"
-  | "external";
+  "straight" | "quadratic" | "cubic" | "orthogonal" | "external";
 
 /**
  * Calculate connection path using specified algorithm.

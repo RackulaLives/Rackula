@@ -151,9 +151,7 @@ function isSafeSnapshotFilename(filename: string): boolean {
 function deriveSnapshotBase(yamlContent: string): string {
   try {
     const parsed = yaml.load(yamlContent, { schema: yaml.JSON_SCHEMA }) as
-      | { name?: unknown; metadata?: { name?: unknown } }
-      | null
-      | undefined;
+      { name?: unknown; metadata?: { name?: unknown } } | null | undefined;
     const name = parsed?.metadata?.name ?? parsed?.name;
     return typeof name === "string" && name ? slugify(name) : "untitled";
   } catch {

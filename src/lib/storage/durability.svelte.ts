@@ -34,10 +34,7 @@ export type DurabilityStatus = "saved" | "pending" | "error";
  * deployment).
  */
 export type DurabilityKind =
-  | "saved"
-  | "pending"
-  | "offline"
-  | "server-not-found";
+  "saved" | "pending" | "offline" | "server-not-found";
 
 export interface LayoutDurability {
   status: DurabilityStatus;

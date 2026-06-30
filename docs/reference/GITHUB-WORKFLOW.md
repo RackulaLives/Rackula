@@ -25,7 +25,7 @@ INTERNAL INPUT:
     → `ready` label immediately
 
 EXECUTION:
-  Claude Code queries: label:ready milestone:v0.x.x
+  Claude Code queries: label:ready milestone:"M002 -- LXC Release & Stability"
     → Picks next issue
     → Implements with TDD
     → Closes issue on completion
@@ -79,7 +79,7 @@ EXECUTION:
 Find next work item:
 
 ```
-label:ready milestone:v0.6.0 sort:created-asc
+label:ready milestone:"M002 -- LXC Release & Stability" sort:created-asc
 ```
 
 Find blocked items:
@@ -96,10 +96,10 @@ Triage queue:
 label:triage
 ```
 
-Current sprint:
+Current milestone:
 
 ```
-milestone:v0.6.0 is:open
+milestone:"M002 -- LXC Release & Stability" is:open
 ```
 
 All bugs:
@@ -190,11 +190,12 @@ The issue body IS the prompt. Claude Code should:
 
 ## Milestones
 
-Milestones = version releases. Use strict semver:
+Milestones are thematic, named work tracks of the form `Mxxx -- Name`, tracked on the [project board](https://github.com/orgs/RackulaLives/projects/2). They group related issues by theme, not by release. Examples:
 
-- `v0.6.1` — Patch release
-- `v0.7.0` — Minor release
-- `v1.0.0` — Major release
+- `M002 -- LXC Release & Stability`
+- `M003 -- Data Format & Interop`
+
+Milestones are decoupled from version numbers. A milestone does not map to a single release, and multiple milestones may ship in the same release window. Releases use CalVer (`YY.M.MICRO`, for example `v26.6.0`) per the versioning policy in CLAUDE.md, not semver.
 
 Every implementation-ready issue should have a milestone assigned.
 

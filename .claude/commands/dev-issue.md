@@ -86,15 +86,7 @@ git checkout main
 
 You have **explicit permission** to perform WITHOUT asking:
 
-| Action       | Scope                                                       |
-| ------------ | ----------------------------------------------------------- | ---- | ----- | -------- | ---- | ------------------ |
-| Git branches | `(fix                                                       | feat | chore | refactor | test | docs)/<number>-\*` |
-| Worktrees    | Sibling directories `.worktree/Rackula-issue-<N>`           |
-| Edit files   | `src/`, `docs/`, test files                                 |
-| Commands     | `npm test`, `npm run build`, `npm run lint`, `gh` CLI       |
-| Git ops      | add, commit, push (non-main), fetch, pull, worktree         |
-| PRs          | `gh pr create`, `gh pr merge --squash` after checks pass    |
-| Issue labels | `gh issue edit --add-label`, `--remove-label` (for locking) |
+| Action | Scope | | ------------ | ----------------------------------------------------------- | ---- | ----- | -------- | ---- | ------------------ | | Git branches | `(fix                                                       | feat | chore | refactor | test | docs)/<number>-\*` | | Worktrees | Sibling directories `.worktree/Rackula-issue-<N>` | | Edit files | `src/`, `docs/`, test files | | Commands | `npm test`, `npm run build`, `npm run lint`, `gh` CLI | | Git ops | add, commit, push (non-main), fetch, pull, worktree | | PRs | `gh pr create`, `gh pr merge --squash` after checks pass | | Issue labels | `gh issue edit --add-label`, `--remove-label` (for locking) |
 
 **STOP and ask for:** Force push, direct main operations, deleting branches/worktrees not created this session, genuine ambiguity.
 

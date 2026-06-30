@@ -50,6 +50,16 @@ export const locators = {
     paletteItem: '[data-testid="device-palette-item"]',
     paletteItemName: '[data-testid="device-palette-item"] .device-name',
     palette: ".device-palette",
+    /** Scrolling device-list region inside the palette. */
+    list: ".device-list",
+    /** "Add custom device" footer pinned below the list. */
+    paletteFooter: ".palette-footer",
+    /** A windowed (virtualized) accordion section's outer box. */
+    virtualSection: ".virtual-section",
+    /** VirtualList's internal scroll viewport. */
+    virtualList: ".virtual-list",
+    /** A grouping accordion section's item wrapper (carries data-state). */
+    accordionItem: ".accordion-item",
   },
 
   toolbar: {

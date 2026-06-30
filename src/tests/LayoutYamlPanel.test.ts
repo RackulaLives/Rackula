@@ -224,8 +224,7 @@ describe("LayoutYamlPanel", () => {
       expect(onApply).toHaveBeenCalledTimes(1);
     });
     const images = onApply.mock.calls[0]?.[1] as
-      | Map<string, unknown>
-      | undefined;
+      Map<string, unknown> | undefined;
     expect(images?.has("my-device")).toBe(true);
     // The widened callback contract also carries the failed-image count.
     expect(onApply.mock.calls[0]?.[2]).toBe(0);

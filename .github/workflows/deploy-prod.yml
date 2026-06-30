@@ -98,22 +98,28 @@ jobs:
       # The deploy job runs a sparse checkout on this same self-hosted runner and
       # leaves the shared workspace in sparse mode. actions/checkout does not clear
       # an existing sparse cone when the sparse-checkout input is omitted, so the
-      # full tree (package-lock.json, e2e specs) would be missing here, breaking
-      # setup-node's npm cache and the npm ci that follows. Disable any leftover
-      # sparse-checkout before the full checkout below.
-      - name: Clear leftover sparse-checkout from the deploy job
-        run: git -C "$GITHUB_WORKSPACE" sparse-checkout disable 2>/dev/null || true
+      # full tree (package-lock.json, e2e specs) would be missing here. Wipe the
+      # workspace before checkout so the full tree is restored cleanly (mirrors
+      # deploy-dev's root fix for #2327).
+      - name: Clean stale workspace from the deploy job
+        run: |
+          if [ -n "$GITHUB_WORKSPACE" ] && [ -d "$GITHUB_WORKSPACE" ]; then
+            find "$GITHUB_WORKSPACE" -mindepth 1 -delete
+          fi
 
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ inputs.tag }}
           persist-credentials: false
 
+      # No cache: "npm" here. The npm cache lookup runs before checkout settles
+      # and hard-errors ("Dependencies lock file is not found", #2327) if a stale
+      # workspace ever slips through. The clean-workspace step above is the root
+      # fix; dropping the cache removes the fragile lockfile-hash dependency.
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: "22"
-          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
