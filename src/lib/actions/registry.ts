@@ -19,8 +19,8 @@ import type { StorageMode } from "$lib/storage";
 
 /**
  * Where a command applies. Consumers use this to place a command on the right
- * surface: global commands live on the app menu, layout commands on view
- * controls, selection commands on the floating verb bars.
+ * surface: global and layout commands fold into the command palette and view
+ * controls, selection commands onto the floating verb bars.
  */
 export type ActionScope = "global" | "layout" | "selection";
 
@@ -75,25 +75,27 @@ export interface KeyBinding {
 export type HelpGroup = "Navigation" | "General" | "Editing" | "File";
 
 /**
- * Sections of the app menu (the menu behind the logo), grouped by intent and
- * rendered in this declared order with separators between them. Actions opt into
- * the menu by declaring an appMenuGroup; the menu is projected from the registry
- * so it cannot drift from the keyboard handler or help overlay (#2073).
+ * Intent groups an action can opt into via `appMenuGroup`. Originally the
+ * sections of the app menu behind the logo (#2596); that dropdown and its mobile
+ * sheet were retired by the unified command surface (#2775/#2779). The field is
+ * retained because the command palette folds each action's intent group onto its
+ * own grouping scheme (see APP_MENU_GROUP_TO_PALETTE in palette-commands.ts).
  *
- * The intent groups (#2596):
+ * The intent groups:
  * - "layout": layout lifecycle (new, open, and server-mode save)
  * - "output": get something out of this layout (image export, share link)
  * - "layout-data": this layout's own data (backup export, restore, view source)
  * - "devices": the device library (import, NetBox, new custom device)
  * - "workspace": workspace-wide backup (export all layouts)
  * - "app": application-level entries (about/shortcuts, settings)
- *
- * Each group carries a display heading (APP_MENU_GROUP_HEADINGS) so a view that
- * renders section titles rather than bare separators (a future mobile sheet,
- * #2597) can reuse the same projection without hand-maintaining a copy.
  */
 export type AppMenuGroup =
-  "layout" | "output" | "layout-data" | "devices" | "workspace" | "app";
+  | "layout"
+  | "output"
+  | "layout-data"
+  | "devices"
+  | "workspace"
+  | "app";
 
 export interface ActionDefinition {
   /** Stable identifier; the dispatch map and consumers key off this. */
@@ -117,8 +119,8 @@ export interface ActionDefinition {
   /** The help overlay group this command appears under, if any. */
   helpGroup?: HelpGroup;
   /**
-   * The app-menu section this command appears under, if any. Actions without
-   * an appMenuGroup are not shown in the menu behind the logo.
+   * The intent group this command belongs to, if any. Used by the command
+   * palette projection to fold the command onto its grouping scheme.
    */
   appMenuGroup?: AppMenuGroup;
   /**
@@ -147,7 +149,13 @@ export interface ActionEnabledContext {
   canRedo: boolean;
   /** Whether the active layout has at least one rack to act on. */
   hasRacks: boolean;
-  /** The active storage mode, for mode-aware app-menu items. */
+  /**
+   * Whether the layout has two or more racks, so rack-cycling commands
+   * (Previous / Next rack) have somewhere to go. Optional: surfaces that never
+   * project the rack-cycling commands (verb bars, mobile inspector) may omit it.
+   */
+  hasMultipleRacks?: boolean;
+  /** The active storage mode, for mode-aware commands. */
   mode: StorageMode;
   /**
    * Whether the selected device is a half-width child whose carrier has more
@@ -183,6 +191,10 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Previous rack",
     scope: "layout",
     bindings: [{ key: "[" }],
+    // Cycling needs somewhere to go: hidden from the palette browse list until
+    // there are two or more racks (#2778). The keyboard shortcut is unaffected -
+    // findActionForEvent does not consult enabledWhen.
+    enabledWhen: (ctx) => ctx.hasMultipleRacks === true,
     helpGroup: "Navigation",
     keywords: ["previous rack", "cycle"],
   },
@@ -191,6 +203,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Next rack",
     scope: "layout",
     bindings: [{ key: "]" }],
+    enabledWhen: (ctx) => ctx.hasMultipleRacks === true,
     helpGroup: "Navigation",
     keywords: ["next rack", "cycle"],
   },
@@ -483,10 +496,10 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     keywords: ["custom", "device", "create"],
   },
 
-  // --- App (app menu) -------------------------------------------------------
-  // show-help ("About and shortcuts") is defined in the General group above
-  // with appMenuGroup: "app"; the menu projection places it in the trailing app
-  // section alongside Settings. Its dialog (HelpPanel) is the About panel and
+  // --- App --------------------------------------------------------------------
+  // show-help ("About and shortcuts") is defined in the General group above with
+  // appMenuGroup: "app"; the palette projection folds it into the trailing App
+  // group alongside Settings. Its dialog (HelpPanel) is the About panel and
   // includes the shortcut list, so one entry covers both about and shortcuts.
   {
     id: "undo",
@@ -612,8 +625,8 @@ export interface HelpGroupSection {
 
 /**
  * Render a single binding with platform-correct modifier labels (e.g. "Ctrl+S"
- * or "Cmd+S"). Shared by the help overlay and the app menu so both surfaces
- * format keys identically.
+ * or "Cmd+S"). Shared by the help overlay and the registry tooltip/shortcut
+ * formatting so all surfaces format keys identically.
  */
 function formatBinding(binding: KeyBinding): string {
   const parts: string[] = [];
@@ -676,127 +689,12 @@ export function getHelpGroups(): HelpGroupSection[] {
 }
 
 /**
- * The order app-menu sections appear in, with separators between them. The
- * cadence runs by intent (#2596): layout lifecycle (new, open, save), then
- * getting something out of this layout (image export, share), then this layout's
- * own data (backup export, restore, view source), then the device library, then
- * the workspace-wide backup, and finally the app-level entries (about/shortcuts,
- * settings).
- */
-const APP_MENU_GROUP_ORDER: AppMenuGroup[] = [
-  "layout",
-  "output",
-  "layout-data",
-  "devices",
-  "workspace",
-  "app",
-];
-
-/**
- * Display heading per app-menu group. The desktop dropdown renders separators
- * rather than visible headings, but the heading is carried in the projection so
- * a view that renders section titles (a future mobile sheet, #2597) reuses the
- * same data instead of hand-maintaining a copy. Every group in
- * APP_MENU_GROUP_ORDER has a heading; the registry test asserts this so the data
- * cannot go stale.
- */
-const APP_MENU_GROUP_HEADINGS: Record<AppMenuGroup, string> = {
-  layout: "Layout",
-  output: "Export & Share",
-  "layout-data": "Data",
-  devices: "Devices",
-  workspace: "Workspace",
-  app: "App",
-};
-
-/** A single projected app-menu item. */
-export interface AppMenuItem {
-  /**
-   * The registry action id this item dispatches. It is also the stable key a
-   * view uses to resolve the item's icon via iconForAction (the registry stays
-   * a pure data and functions module, so it does not import icon components).
-   * Every app-menu item has an icon; the registry test asserts that coverage.
-   */
-  id: ActionId;
-  /** The display label, taken from the registry. */
-  label: string;
-  /** The platform-formatted keyboard shortcut, if the action has one. */
-  shortcut?: string;
-  /**
-   * Whether the item is currently disabled. Computed from the action's
-   * enabledWhen predicate against the supplied context; false when no context
-   * is given or the action declares no predicate. Disabled items stay in the
-   * menu (rendered aria-disabled) rather than being hidden.
-   */
-  disabled?: boolean;
-}
-
-/** A named section of the app menu. */
-export interface AppMenuSection {
-  /** The intent group key, in APP_MENU_GROUP_ORDER. */
-  group: AppMenuGroup;
-  /**
-   * The group's display heading. The desktop dropdown renders separators
-   * instead, but a view that shows section titles (a future mobile sheet, #2597)
-   * uses this directly without re-deriving it.
-   */
-  heading: string;
-  items: AppMenuItem[];
-}
-
-/**
  * Format an action's primary keybinding as a menu shortcut (e.g. "Ctrl+S" or
- * "Cmd+S"). Returns undefined when the action has no keybinding, so the menu
+ * "Cmd+S"). Returns undefined when the action has no keybinding, so a consumer
  * omits the shortcut chip rather than rendering an empty one.
  */
 function formatMenuShortcut(action: ActionDefinition): string | undefined {
   const binding = action.bindings[0];
   if (!binding) return undefined;
   return formatBinding(binding);
-}
-
-/**
- * Project the app menu (the menu behind the logo) from the registry. Items are
- * every action that declares an appMenuGroup, grouped into sections in
- * APP_MENU_GROUP_ORDER and following registry order within each section.
- *
- * Each section also carries its display heading (APP_MENU_GROUP_HEADINGS) so a
- * view that renders section titles, not bare separators, reuses this projection.
- *
- * The menu is storage-mode aware in two layers. The item set splits by mode: a
- * server-only action (Save, Save As) is dropped in browser mode and a
- * browser-only action (the layout backup export) is dropped in server mode. When
- * a live context is supplied, each item's `disabled` is also derived from its
- * action's enabledWhen predicate (e.g. share and view-yaml need a rack), so the
- * menu is the registry's first runtime consumer of enabledWhen. Disabled items
- * stay in the menu (rendered aria-disabled) rather than being hidden. Called
- * with the mode alone, every item is enabled.
- */
-export function getAppMenuSections(
-  mode: StorageMode,
-  context?: ActionEnabledContext,
-): AppMenuSection[] {
-  const sections: AppMenuSection[] = [];
-
-  for (const group of APP_MENU_GROUP_ORDER) {
-    const items: AppMenuItem[] = [];
-
-    for (const action of ACTION_REGISTRY) {
-      if (action.appMenuGroup !== group) continue;
-      if (action.storageMode && action.storageMode !== mode) continue;
-      items.push({
-        id: action.id,
-        label: action.label,
-        shortcut: formatMenuShortcut(action),
-        disabled:
-          context && action.enabledWhen ? !action.enabledWhen(context) : false,
-      });
-    }
-
-    if (items.length > 0) {
-      sections.push({ group, heading: APP_MENU_GROUP_HEADINGS[group], items });
-    }
-  }
-
-  return sections;
 }

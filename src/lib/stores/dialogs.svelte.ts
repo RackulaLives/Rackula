@@ -33,7 +33,6 @@ export type SheetId =
   | "layouts"
   | "racks"
   | "view"
-  | "menu"
   | "yamlEditor";
 
 export interface DeleteTarget {
