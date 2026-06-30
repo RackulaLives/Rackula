@@ -238,21 +238,7 @@
         // Undo: call undo() for each deleted device type to maintain history consistency
         // This properly removes the delete actions from history
         for (let i = 0; i < deletedTypes.length; i++) {
-          if (
-            typeof (layoutStore as { canUndo?: () => boolean }).canUndo ===
-            "function"
-          ) {
-            const canUndo = (
-              layoutStore as { canUndo?: () => boolean }
-            ).canUndo?.();
-            if (!canUndo) break;
-          }
-
-          try {
-            layoutStore.undo();
-          } catch {
-            break;
-          }
+          layoutStore.undo();
         }
         pendingToastId = null;
       },
