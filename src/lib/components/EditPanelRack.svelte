@@ -1,8 +1,8 @@
 <!--
   EditPanelRack Component
   Edit panel section: properties for the selected rack or bayed rack group:
-  name, height, U numbering, rear-view visibility, notes, annotation field,
-  and delete.
+  name, height, width, depth, form factor, U numbering, base weight,
+  rear-view visibility, notes, annotation field, and delete.
 
   Transitional: the "Show Rear View" and "Annotation Field" controls are
   layout-scoped view toggles that move to the M14 View tab (#2078). They live
@@ -20,8 +20,18 @@
     getConflictDetails,
     formatConflictMessage,
   } from "$lib/utils/rack-resize";
-  import { COMMON_RACK_HEIGHTS } from "$lib/types/constants";
-  import type { Rack, RackGroup, AnnotationField } from "$lib/types";
+  import {
+    COMMON_RACK_HEIGHTS,
+    RACK_DEPTH_PRESETS_MM,
+    DEFAULT_RACK_DEPTH_MM,
+    DEFAULT_RACK_BASE_WEIGHT,
+  } from "$lib/types/constants";
+  import type {
+    Rack,
+    RackGroup,
+    AnnotationField,
+    FormFactor,
+  } from "$lib/types";
 
   interface Props {
     selectedRack: Rack;
@@ -35,13 +45,30 @@
   const uiStore = getUIStore();
   const canvasStore = getCanvasStore();
 
+  // Selectable rack widths. RackSchema.width already permits all four; the
+  // to-scale 21-inch drawing lands in #2736.
+  const widthOptions = [10, 19, 21, 23] as const;
+
+  // Form factor options for the selector.
+  const formFactorOptions: { value: FormFactor; label: string }[] = [
+    { value: "2-post", label: "2-post" },
+    { value: "4-post", label: "4-post" },
+    { value: "4-post-cabinet", label: "4-post cabinet" },
+    { value: "wall-mount", label: "Wall mount" },
+    { value: "open-frame", label: "Open frame" },
+  ];
+
   // Local state for form fields
   let rackName = $state("");
   let rackHeight = $state(42);
   let rackNotes = $state("");
+  let rackDepth = $state(DEFAULT_RACK_DEPTH_MM);
+  let rackWeight = $state(DEFAULT_RACK_BASE_WEIGHT);
 
   // Resize validation error state
   let resizeError = $state<string | null>(null);
+  let depthError = $state<string | null>(null);
+  let weightError = $state<string | null>(null);
 
   // Sync local state with selected rack/group and clear errors
   $effect(() => {
@@ -49,7 +76,11 @@
     rackName = selectedGroup?.name ?? selectedRack.name;
     rackHeight = selectedRack.height;
     rackNotes = selectedRack.notes ?? "";
+    rackDepth = selectedRack.depth_mm ?? DEFAULT_RACK_DEPTH_MM;
+    rackWeight = selectedRack.base_weight ?? DEFAULT_RACK_BASE_WEIGHT;
     resizeError = null; // Clear any previous resize error
+    depthError = null;
+    weightError = null;
   });
 
   // Update rack/group name on blur
@@ -146,6 +177,47 @@
     attemptHeightChange(preset);
   }
 
+  // Apply a depth value in millimetres. Rejects blank, non-finite, and
+  // non-positive input so the store never receives an invalid measurement.
+  function applyDepth(value: number) {
+    if (!Number.isFinite(value) || value <= 0) {
+      depthError = "Depth must be a positive number in millimetres.";
+      rackDepth = selectedRack.depth_mm ?? DEFAULT_RACK_DEPTH_MM;
+      return;
+    }
+    depthError = null;
+    rackDepth = value;
+    if (value !== selectedRack.depth_mm) {
+      layoutStore.updateRack(selectedRack.id, { depth_mm: value });
+    }
+  }
+
+  function handleDepthChange(event: Event) {
+    const raw = (event.target as HTMLInputElement).value;
+    applyDepth(raw.trim() === "" ? Number.NaN : Number(raw));
+  }
+
+  function handleDepthPresetClick(preset: number) {
+    applyDepth(preset);
+  }
+
+  // Apply a base-weight value. Rejects blank, non-finite, and negative input;
+  // zero is allowed.
+  function handleWeightChange(event: Event) {
+    const raw = (event.target as HTMLInputElement).value;
+    const value = raw.trim() === "" ? Number.NaN : Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+      weightError = "Base weight must be zero or a positive number.";
+      rackWeight = selectedRack.base_weight ?? DEFAULT_RACK_BASE_WEIGHT;
+      return;
+    }
+    weightError = null;
+    rackWeight = value;
+    if (value !== selectedRack.base_weight) {
+      layoutStore.updateRack(selectedRack.id, { base_weight: value });
+    }
+  }
+
   // Delete selected rack or bayed rack group
   function handleDeleteRack() {
     if (selectedGroup) {
@@ -211,6 +283,70 @@
   </div>
 
   <div class="form-group">
+    <label for="rack-width">Width</label>
+    <div class="preset-row" role="group" aria-label="Rack width in inches">
+      {#each widthOptions as option (option)}
+        <button
+          type="button"
+          class="preset-btn"
+          class:active={selectedRack.width === option}
+          aria-pressed={selectedRack.width === option}
+          onclick={() =>
+            layoutStore.updateRack(selectedRack.id, { width: option })}
+        >
+          {option}"
+        </button>
+      {/each}
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="rack-depth">Depth (mm)</label>
+    <input
+      type="number"
+      id="rack-depth"
+      class="input-field"
+      class:error={depthError !== null}
+      bind:value={rackDepth}
+      onchange={handleDepthChange}
+      min="1"
+      step="1"
+    />
+    {#if depthError}
+      <p class="helper-text error">{depthError}</p>
+    {/if}
+    <div class="preset-row">
+      {#each RACK_DEPTH_PRESETS_MM as preset (preset)}
+        <button
+          type="button"
+          class="preset-btn"
+          class:active={rackDepth === preset}
+          onclick={() => handleDepthPresetClick(preset)}
+        >
+          {preset}
+        </button>
+      {/each}
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="rack-form-factor">Form Factor</label>
+    <select
+      id="rack-form-factor"
+      class="input-field"
+      value={selectedRack.form_factor}
+      onchange={(e) =>
+        layoutStore.updateRack(selectedRack.id, {
+          form_factor: e.currentTarget.value as FormFactor,
+        })}
+    >
+      {#each formFactorOptions as option (option.value)}
+        <option value={option.value}>{option.label}</option>
+      {/each}
+    </select>
+  </div>
+
+  <div class="form-group">
     <label for="rack-numbering">U Numbering</label>
     <SegmentedControl
       options={[
@@ -224,6 +360,23 @@
         })}
       ariaLabel="U numbering direction"
     />
+  </div>
+
+  <div class="form-group">
+    <label for="rack-base-weight">Base Weight</label>
+    <input
+      type="number"
+      id="rack-base-weight"
+      class="input-field"
+      class:error={weightError !== null}
+      bind:value={rackWeight}
+      onchange={handleWeightChange}
+      min="0"
+      step="0.1"
+    />
+    {#if weightError}
+      <p class="helper-text error">{weightError}</p>
+    {/if}
   </div>
 
   <div class="form-group">
@@ -383,6 +536,13 @@
 
   .height-presets {
     display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+  }
+
+  .preset-row {
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--space-2);
     margin-top: var(--space-1);
   }

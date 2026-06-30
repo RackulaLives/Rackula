@@ -82,13 +82,13 @@
     ]
   },
   "dependencies": {
-    "@lucide/svelte": "^1.21.0",
+    "@lucide/svelte": "^1.22.0",
     "bits-ui": "^2.18.1",
     "browser-fs-access": "^0.38.0",
     "debug": "^4.4.3",
     "dompurify": "^3.4.11",
     "fuse.js": "^7.4.2",
-    "js-yaml": "^4.1.1",
+    "js-yaml": "^4.3.0",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "lz-string": "^1.5.0",
@@ -97,7 +97,7 @@
     "pako": "^2.2.0",
     "panzoom": "^9.4.4",
     "qrcode": "^1.5.4",
-    "simple-icons": "^16.24.0",
+    "simple-icons": "^16.24.1",
     "svg2pdf.js": "^2.7.0",
     "zod": "^4.4.3"
   }

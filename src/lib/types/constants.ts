@@ -115,6 +115,23 @@ export const TELCO_RACK_WIDTH = 23;
 export const ALLOWED_RACK_WIDTHS: readonly number[] = [10, 19, 21, 23] as const;
 
 /**
+ * Default internal rack depth in millimetres.
+ */
+export const DEFAULT_RACK_DEPTH_MM = 1000;
+
+/**
+ * Default base weight of an empty rack, in kilograms.
+ */
+export const DEFAULT_RACK_BASE_WEIGHT = 0;
+
+/**
+ * Common internal rack depths in millimetres for quick selection.
+ */
+export const RACK_DEPTH_PRESETS_MM: readonly number[] = [
+  450, 600, 800, 1000, 1200,
+] as const;
+
+/**
  * Default rack view (front-facing)
  */
 export const DEFAULT_RACK_VIEW: RackView = "front";

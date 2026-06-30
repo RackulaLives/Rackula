@@ -599,6 +599,16 @@
     "rack": {
       "additionalProperties": {},
       "properties": {
+        "base_weight": {
+          "default": 0,
+          "minimum": 0,
+          "type": "number"
+        },
+        "depth_mm": {
+          "default": 1000,
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
         "desc_units": {
           "type": "boolean"
         },
@@ -856,6 +866,16 @@
       "items": {
         "additionalProperties": {},
         "properties": {
+          "base_weight": {
+            "default": 0,
+            "minimum": 0,
+            "type": "number"
+          },
+          "depth_mm": {
+            "default": 1000,
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
           "desc_units": {
             "type": "boolean"
           },

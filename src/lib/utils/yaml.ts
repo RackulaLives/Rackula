@@ -57,7 +57,7 @@ const SCHEMA_FETCH_BASE = "https://count.racku.la/schemas/layout-v";
  * default to MAJOR 1, matching the read-side default in SCHEMA.md.
  */
 function buildSchemaHintComment(schemaVersion: string | undefined): string {
-  const major = Number.parseInt(schemaVersion ?? "1.0", 10);
+  const major = parseInt(schemaVersion ?? "1.0", 10);
   const majorSegment = Number.isNaN(major) || major < 1 ? 1 : major;
   return `# yaml-language-server: $schema=${SCHEMA_FETCH_BASE}${majorSegment}.json`;
 }
@@ -259,7 +259,7 @@ export function parseLayoutObject(parsed: unknown): Layout | null {
     // Drop the top-level images section (base64 user images, #617) before
     // validation, same as validateParsedLayout, so base64 never rides onto the
     // runtime Layout (passthrough) and gets re-emitted on later saves.
-    if (Object.hasOwn(rest, "images")) {
+    if (Object.prototype.hasOwnProperty.call(rest, "images")) {
       delete rest.images;
     }
     body = rest;
@@ -315,7 +315,7 @@ function validateParsedLayout(parsed: unknown): {
 
   if (parsed !== null && typeof parsed === "object") {
     const obj = parsed as Record<string, unknown>;
-    if (Object.hasOwn(obj, "images")) {
+    if (Object.prototype.hasOwnProperty.call(obj, "images")) {
       rawImages = obj.images;
       delete obj.images;
     }

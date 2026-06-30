@@ -94,3 +94,19 @@ describe("upgrade corpus: over-rack rail clamp (#2661)", () => {
     expect(device.position % 6).toBe(0);
   });
 });
+
+// === Prior-release racks gain depth_mm/base_weight defaults on load (#2738) ===
+// A layout written before the depth/base-weight fields existed must still load,
+// and the load must fill the schema defaults rather than leaving the fields unset.
+const preDepthWeightYaml = (
+  await import("./fixtures/upgrade-corpus/v26.6.5-pre-depth-weight.rackula.yaml?raw")
+).default as string;
+
+describe("upgrade corpus: depth/base-weight defaults (#2738)", () => {
+  it("fills depth_mm and base_weight defaults for a rack written without them", async () => {
+    const layout = await parseLayoutYaml(preDepthWeightYaml);
+    const rack = layout.racks[0]!;
+    expect(rack.depth_mm).toBe(1000);
+    expect(rack.base_weight).toBe(0);
+  });
+});

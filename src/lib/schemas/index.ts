@@ -5,7 +5,11 @@
 
 import { z } from "../zod";
 import { nanoid } from "nanoid";
-import { UNITS_PER_U } from "$lib/types/constants";
+import {
+  UNITS_PER_U,
+  DEFAULT_RACK_DEPTH_MM,
+  DEFAULT_RACK_BASE_WEIGHT,
+} from "$lib/types/constants";
 import { VERSION } from "$lib/version";
 import {
   SCHEMA_VERSION,
@@ -667,6 +671,12 @@ const RackSchemaInput = z
     position: z.number().int().min(0),
     devices: z.array(PlacedDeviceSchema),
     notes: z.string().max(1000).optional(),
+    depth_mm: z.number().positive().finite().default(DEFAULT_RACK_DEPTH_MM),
+    base_weight: z
+      .number()
+      .nonnegative()
+      .finite()
+      .default(DEFAULT_RACK_BASE_WEIGHT),
   })
   .passthrough();
 
@@ -699,6 +709,12 @@ export const RackSchema = z
     position: z.number().int().min(0),
     devices: z.array(PlacedDeviceSchema),
     notes: z.string().max(1000).optional(),
+    depth_mm: z.number().positive().finite().default(DEFAULT_RACK_DEPTH_MM),
+    base_weight: z
+      .number()
+      .nonnegative()
+      .finite()
+      .default(DEFAULT_RACK_BASE_WEIGHT),
   })
   .passthrough();
 
