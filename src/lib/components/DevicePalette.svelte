@@ -221,11 +221,13 @@
       pendingToastId = null;
     }
 
-    const [firstDeleted] = deletedTypes;
-    const message =
+    const firstDeleted = deletedTypes[0];
+    const singleDeleteMessage =
       deletedTypes.length === 1 && firstDeleted
         ? `Deleted "${firstDeleted.model ?? firstDeleted.slug}"`
-        : `Deleted ${deletedTypes.length} device types`;
+        : null;
+    const message =
+      singleDeleteMessage ?? `Deleted ${deletedTypes.length} device types`;
 
     const actionLabel = deletedTypes.length === 1 ? "Undo" : "Undo All";
 
