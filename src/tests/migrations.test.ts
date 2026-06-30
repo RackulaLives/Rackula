@@ -48,6 +48,12 @@ describe("needsPositionMigration container_id semantics", () => {
     ).toBe(true);
   });
 
+  it("detects old format via the heuristic when container_id is undefined and a rail device sits below U1", () => {
+    // Undefined container_id is also rack-level and must be treated the same
+    // as an empty string by the migration heuristic.
+    expect(needsPositionMigration("0.7.0", [{ position: 1 }])).toBe(true);
+  });
+
   it("does not flag a real container child sitting at a low 0-indexed position", () => {
     // A genuine container child legitimately has a small position and must not
     // be misread as an old-format rail device.
