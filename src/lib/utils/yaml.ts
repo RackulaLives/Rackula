@@ -57,7 +57,7 @@ const SCHEMA_FETCH_BASE = "https://count.racku.la/schemas/layout-v";
  * default to MAJOR 1, matching the read-side default in SCHEMA.md.
  */
 function buildSchemaHintComment(schemaVersion: string | undefined): string {
-  const major = Number.parseInt(schemaVersion ?? "1.0", 10);
+  const major = parseInt(schemaVersion ?? "1.0", 10);
   const majorSegment = Number.isNaN(major) || major < 1 ? 1 : major;
   return `# yaml-language-server: $schema=${SCHEMA_FETCH_BASE}${majorSegment}.json`;
 }
