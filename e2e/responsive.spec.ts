@@ -58,6 +58,37 @@ test.describe("Responsive Layout", () => {
       expect(viewBox.y + viewBox.height).toBeGreaterThan(canvasMidY);
     });
 
+    test("history controls clear the placement banner during placement (#2697)", async ({
+      page,
+    }) => {
+      // The placement banner is a full-width top overlay stacked above the
+      // controls. The upper-left History group must drop below it so undo/redo
+      // stays reachable while a device is armed.
+      const firstDevice = page.locator(locators.device.paletteItem).first();
+      await expect(firstDevice).toBeVisible();
+      await firstDevice.focus();
+      await page.keyboard.press("Enter");
+
+      const banner = page
+        .locator('[data-testid="rack-canvas"] [role="status"]')
+        .filter({ hasText: "Placing:" });
+      await expect(banner).toBeVisible();
+
+      const history = page.getByRole("group", { name: "History actions" });
+      await expect(history).toBeVisible();
+
+      const bannerBox = await banner.boundingBox();
+      const historyBox = await history.boundingBox();
+      expect(bannerBox).not.toBeNull();
+      expect(historyBox).not.toBeNull();
+      if (!bannerBox || !historyBox) return;
+
+      // History's top edge sits at or below the banner's bottom edge: no overlap.
+      expect(historyBox.y).toBeGreaterThanOrEqual(
+        bannerBox.y + bannerBox.height,
+      );
+    });
+
     test("sidebar pane is visible", async ({ page }) => {
       const sidebar = page.locator(locators.sidebar.pane);
       await expect(sidebar).toBeVisible();

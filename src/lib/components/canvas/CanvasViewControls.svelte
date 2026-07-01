@@ -14,6 +14,7 @@
   import { getActionTooltip } from "$lib/actions/registry";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { DISPLAY_MODE_LABELS, type DisplayMode } from "$lib/types";
   import Tooltip from "../Tooltip.svelte";
@@ -38,7 +39,14 @@
 
   const canvasStore = getCanvasStore();
   const layoutStore = getLayoutStore();
+  const placementStore = getPlacementStore();
   const toastStore = getToastStore();
+
+  // The placement banner (PlacementIndicator) is a full-width top overlay shown
+  // while a device is armed, and it stacks above these controls. Drop the
+  // upper-left History group below the banner during placement so undo/redo
+  // stays reachable instead of tucking under it (#2697).
+  const isPlacing = $derived(placementStore.isPlacing);
 
   // Shortcuts come from the registry so they cannot drift from the keyboard
   // handler or help overlay (#117). Zoom in/out have no registry action (they
@@ -66,6 +74,7 @@
 <div class="canvas-view-controls">
   <div
     class="control-group control-group--history"
+    class:control-group--below-banner={isPlacing}
     role="group"
     aria-label="History actions"
   >
@@ -236,6 +245,18 @@
     bottom: auto;
   }
 
+  /* While a device is armed, the full-width placement banner occupies the top
+     edge above this group. Drop History below the banner (its min-height plus
+     its vertical padding and bottom border) so undo/redo never tucks under it.
+     The transition keeps the shift from snapping when placement toggles. */
+  .control-group--below-banner {
+    top: calc(
+      max(var(--space-3), env(safe-area-inset-top, 0px)) +
+        var(--touch-target-min) + var(--space-2) * 2 + 2px
+    );
+    transition: top var(--duration-fast) var(--ease-out);
+  }
+
   .control-button {
     display: inline-flex;
     align-items: center;
@@ -293,7 +314,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .control-button {
+    .control-button,
+    .control-group--below-banner {
       transition: none;
     }
   }
