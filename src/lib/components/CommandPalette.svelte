@@ -612,6 +612,21 @@
     transform: translateY(0);
   }
 
+  /* Command.Root: bits-ui renders this element and the class is forwarded via
+     the `class` prop, so it must be wrapped in :global() like the other
+     forwarded classes. Without a rule it defaults to display:block and grows to
+     content height, breaking the flex-column scroll chain: the palette (capped,
+     overflow:hidden) then clips the tall browse list and pushes the footer out
+     of view. Making it a filling flex column keeps .command-list as the single
+     bounded scroll region and pins .command-footer below it. */
+  :global(.command-root) {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .command-input-row {
     display: flex;
     align-items: center;
@@ -687,6 +702,8 @@
   }
 
   :global(.command-list) {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
   }
 
