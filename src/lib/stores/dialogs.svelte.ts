@@ -4,14 +4,13 @@
  * Provides a single source of truth for all dialog/sheet open states.
  * Handlers live in DialogOrchestrator.svelte (dialog/sheet UI) and App.svelte (triggers).
  * The $lib/storage manager also opens the load dialog, and $lib/utils/app-actions
- * opens the cleanupPrompt, newRack, export, and share dialogs.
+ * opens the cleanupPrompt, export, and share dialogs.
  *
  * Only one dialog can be open at a time (enforced by using single openDialog state).
  * Sheets (mobile bottom sheets) use a separate state since they coexist with dialogs.
  */
 
 export type DialogId =
-  | "newRack"
   | "addDevice"
   | "confirmDelete"
   | "export"

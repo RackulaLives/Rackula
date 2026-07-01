@@ -105,7 +105,6 @@ export const locators = {
   dialog: {
     root: ".dialog",
     title: ".dialog-title",
-    newRack: '[data-testid="dialog-new-rack"]',
   },
 
   toast: {

@@ -12,12 +12,7 @@
  */
 import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
-import {
-  gotoWithRack,
-  gotoMobileWithRack,
-  clickNewLayout,
-  locators,
-} from "./helpers";
+import { gotoWithRack, gotoMobileWithRack, locators } from "./helpers";
 
 /** WCAG 2.5.5 Target Size (Level AAA) / 2.5.8 (Level AA) minimum. */
 const MIN_TOUCH_TARGET_PX = 44;
@@ -149,9 +144,11 @@ test.describe("Accessibility", () => {
         "WebKit skips buttons in Tab order by default (macOS keyboard setting)",
       );
 
-      await clickNewLayout(page);
+      // The New Rack wizard was removed in #2747. Exercise the focus trap on the
+      // command palette, a still-present modal opened from the top-bar pill.
+      await page.getByTestId("btn-command-palette").click();
 
-      const dialog = page.getByRole("dialog");
+      const dialog = page.getByRole("dialog", { name: "Command palette" });
       await expect(dialog).toBeVisible();
 
       // Tab repeatedly; focus must stay inside the dialog on every stop.
@@ -187,18 +184,16 @@ test.describe("Accessibility", () => {
         "WebKit does not focus buttons on activation by default (macOS keyboard setting)",
       );
 
-      // Switch to the Layouts tab and open the wizard from the New layout
-      // button via keyboard, so the trigger genuinely holds focus before the
-      // dialog opens, the way a keyboard user would experience it. #2732 rewired
-      // the New Rack button to create directly, so the wizard now opens via New
-      // layout (#2747).
-      await page.getByTestId("sidebar-tab-layouts").click();
-      const trigger = page.getByTestId("btn-new-layout");
+      // Open a dialog from a focused trigger via keyboard, so the trigger
+      // genuinely holds focus before the dialog opens, the way a keyboard user
+      // would experience it. The New Rack wizard was removed in #2747, so this
+      // uses the command palette, opened from the focused top-bar pill.
+      const trigger = page.getByTestId("btn-command-palette");
       await trigger.focus();
       await expect(trigger).toBeFocused();
       await page.keyboard.press("Enter");
 
-      const dialog = page.getByRole("dialog");
+      const dialog = page.getByRole("dialog", { name: "Command palette" });
       await expect(dialog).toBeVisible();
 
       await page.keyboard.press("Escape");

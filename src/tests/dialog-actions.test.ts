@@ -7,7 +7,8 @@
  * device-details bottom sheet from occluding the confirm dialog (#2490).
  *
  * Also covers handleNewRack(), which creates a 24U rack directly on the canvas
- * and selects it instead of opening the New Rack wizard (#2732).
+ * and selects it (#2732). The New Rack wizard was removed in #2747, so no entry
+ * point opens a dialog to create a rack.
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -105,7 +106,9 @@ describe("handleNewRack", () => {
     expect(created?.height).toBe(24);
     expect(selectionStore.isRackSelected).toBe(true);
     expect(selectionStore.selectedRackId).toBe(created?.id);
-    expect(dialogStore.isOpen("newRack")).toBe(false);
+    // No dialog is opened: the New Rack wizard was removed in #2747, so the
+    // create path never opens a dialog.
+    expect(dialogStore.openDialog).toBeNull();
   });
 
   it("applies stage-1 defaults (width 19, ascending U-numbering)", () => {

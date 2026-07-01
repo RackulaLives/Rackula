@@ -3,7 +3,6 @@ import {
   gotoWithRack,
   SMALL_RACK_SHARE,
   dragDeviceToRack,
-  clickNewLayout,
   PLATFORM_MODIFIER,
   locators,
 } from "./helpers";
@@ -92,15 +91,18 @@ test.describe("Keyboard Shortcuts", () => {
   });
 
   test("Escape closes dialogs", async ({ page }) => {
-    // Open the New Rack wizard. #2732 moved it behind New layout (#2747).
-    await clickNewLayout(page);
-    await expect(page.locator(locators.dialog.root)).toBeVisible();
+    // The New Rack wizard was removed in #2747 (entry points create directly).
+    // Exercise the Escape-to-close behaviour against the command palette, which
+    // is a still-present dialog opened by a keyboard shortcut.
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    const palette = page.getByRole("dialog", { name: "Command palette" });
+    await expect(palette).toBeVisible();
 
     // Press Escape
     await page.keyboard.press("Escape");
 
     // Dialog should close
-    await expect(page.locator(locators.dialog.root)).not.toBeVisible();
+    await expect(palette).not.toBeVisible();
   });
 
   test("Arrow keys move device in rack", async ({ page }) => {

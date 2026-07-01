@@ -1,20 +1,17 @@
 import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
-import { gotoWithRack, clickNewLayout, locators } from "./helpers";
+import { gotoWithRack, createRackDirect, locators } from "./helpers";
 
 /**
- * Helper to open the New Rack wizard and advance past step 1 (name/type).
- * #2732 rewired the New Rack button to create a rack directly, so the wizard is
- * reached via New layout, which opens a fresh layout and raises the wizard for
- * its first rack. Fills name in step 1, clicks Next to reach step 2 (width +
- * height).
+ * Create a fresh rack directly and name it, then return its front-view SVG.
+ * The New Rack wizard was removed in #2747: every entry point now creates a
+ * rack directly (a 24U/19"/ascending rack) and selects it, so rack dimensions
+ * are configured afterwards through the Edit panel (EditPanelRack) rather than
+ * a wizard. createRackDirect places the rack and renames it via the inspector.
  */
-async function openWizardStep2(page: Page, name: string) {
-  await clickNewLayout(page);
-  await expect(page.getByRole("dialog", { name: "New Rack" })).toBeVisible();
-  await page.getByLabel("Rack Name", { exact: true }).fill(name);
-  // Advance from step 1 (Name/Type) to step 2 (Width/Height)
-  await page.click('[data-testid="btn-wizard-next"]');
+async function createNamedRack(page: Page, name: string) {
+  await createRackDirect(page, { name });
+  return page.locator(locators.rackView.dualView).filter({ hasText: name });
 }
 
 test.describe("Rack Configuration", () => {
@@ -22,24 +19,21 @@ test.describe("Rack Configuration", () => {
     await gotoWithRack(page);
   });
 
-  test("can create 10-inch rack with narrower render", async ({ page }) => {
-    await openWizardStep2(page, "Narrow Rack");
+  test("can set a 10-inch rack width with narrower render", async ({
+    page,
+  }) => {
+    const narrowRack = await createNamedRack(page, "Narrow Rack");
 
-    // Step 2: Select 10" width using radio button, then height
-    // 10" racks only offer 4U, 6U, 8U, 12U heights (not 24U)
-    await page.click('[data-testid="radio-width-10"]');
-    await page.click('[data-testid="btn-height-12"]');
+    // The rack is auto-selected on create, so the Edit panel shows its width
+    // presets. Switch the selected rack to 10".
+    await page
+      .getByRole("group", { name: "Rack width in inches" })
+      .getByRole("button", { name: '10"' })
+      .click();
 
-    // Create rack
-    await page.click('[data-testid="btn-wizard-next"]');
-
-    // New rack should be visible — scope to it by name
-    const narrowRack = page
-      .locator(locators.rackView.dualView)
-      .filter({ hasText: "Narrow Rack" });
     await expect(narrowRack).toBeVisible();
 
-    // The rack SVG should have a narrower viewBox for 10" rack
+    // The rack SVG should have a narrower viewBox for a 10" rack.
     const rackSvg = narrowRack.locator(locators.rackView.frontSvg);
     const viewBox = await rackSvg.getAttribute("viewBox");
     expect(viewBox).toBeDefined();
@@ -52,19 +46,13 @@ test.describe("Rack Configuration", () => {
     }
   });
 
-  test("can create 19-inch rack with standard render", async ({ page }) => {
-    await openWizardStep2(page, "Standard Rack");
+  test("19-inch rack renders at standard width", async ({ page }) => {
+    // Direct-created racks default to 19", so no width change is needed.
+    const stdRack = await createNamedRack(page, "Standard Rack");
 
-    // Step 2: 19" is default, just select height
-    await page.click('[data-testid="btn-height-42"]');
+    // Set a 42U height via the Edit panel preset to match the previous coverage.
+    await page.getByTestId("btn-preset-height-42").click();
 
-    // Create rack
-    await page.click('[data-testid="btn-wizard-next"]');
-
-    // New rack should be visible — scope to it by name
-    const stdRack = page
-      .locator(locators.rackView.dualView)
-      .filter({ hasText: "Standard Rack" });
     await expect(stdRack).toBeVisible();
 
     const rackSvg = stdRack.locator(locators.rackView.frontSvg);
@@ -85,42 +73,36 @@ test.describe("Rack Configuration", () => {
   test("rack with ascending units shows U1 at bottom (default desc_units=false, starting_unit=1)", async ({
     page,
   }) => {
-    await openWizardStep2(page, "Ascending Rack");
+    const ascRack = await createNamedRack(page, "Ascending Rack");
 
-    // Step 2: Set a non-preset height of 10U via the slider
-    await page.locator('[data-testid="slider-height"]').fill("10");
+    // Set a non-preset height of 10U via the Edit panel height field.
+    const heightInput = page.locator("#rack-height");
+    await heightInput.fill("10");
+    await heightInput.press("Enter");
 
-    // Create rack
-    await page.click('[data-testid="btn-wizard-next"]');
-
-    // New rack should be visible — scope to it by name
-    const ascRack = page
-      .locator(locators.rackView.dualView)
-      .filter({ hasText: "Ascending Rack" });
     await expect(ascRack).toBeVisible();
 
-    // Scope U labels to the front view of the new rack
+    // Scope U labels to the front view of the new rack.
     const firstRackSvg = ascRack.locator(locators.rackView.frontSvg);
     const uLabels = firstRackSvg.locator(locators.rack.uLabel);
-    const count = await uLabels.count();
-    expect(count).toBe(10);
+    await expect(uLabels).toHaveCount(10);
 
-    // First label (top) should be "10", last label (bottom) should be "1"
-    const firstLabel = uLabels.first();
-    const lastLabel = uLabels.last();
-    await expect(firstLabel).toHaveText("10");
-    await expect(lastLabel).toHaveText("1");
+    // First label (top) should be "10", last label (bottom) should be "1".
+    await expect(uLabels.first()).toHaveText("10");
+    await expect(uLabels.last()).toHaveText("1");
   });
 
-  test("height slider sets a non-preset height", async ({ page }) => {
-    await openWizardStep2(page, "Slider 32 Rack");
+  test("height field sets a non-preset height", async ({ page }) => {
+    const rack = await createNamedRack(page, "Custom Height Rack");
 
-    const slider = page.locator('[data-testid="slider-height"]');
-    await slider.fill("32");
+    const heightInput = page.locator("#rack-height");
+    await heightInput.fill("32");
+    await heightInput.press("Enter");
 
-    await expect(slider).toHaveValue("32");
-    await expect(page.locator('[data-testid="height-value"]')).toHaveText(
-      "32U",
-    );
+    await expect(heightInput).toHaveValue("32");
+
+    // The rack renders the new height: 32 U labels in its front view.
+    const rackSvg = rack.locator(locators.rackView.frontSvg);
+    await expect(rackSvg.locator(locators.rack.uLabel)).toHaveCount(32);
   });
 });

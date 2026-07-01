@@ -27,17 +27,12 @@ export {
   displayNameInput,
 } from "./device-actions";
 
-// Rack wizard setup
-export {
-  completeWizardWithKeyboard,
-  completeWizardWithClicks,
-  createRackDirect,
-} from "./rack-setup";
+// Rack setup
+export { createRackDirect } from "./rack-setup";
 
 // Toolbar actions
 export {
   clickNewRack,
-  clickNewLayout,
   clickSave,
   clickLoad,
   clickExport,

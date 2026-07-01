@@ -463,7 +463,7 @@
 
   function handleNewLayout() {
     workspaceStore.openTab(createLayout());
-    dialogStore.open("newRack");
+    handleNewRack();
   }
 
   // Load a starter template chosen from the empty-state picker (#2095) into the

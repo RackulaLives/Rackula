@@ -2,7 +2,6 @@ import { test, expect } from "./helpers/base-test";
 import {
   gotoWithRack,
   clickNewRack,
-  clickNewLayout,
   createRackDirect,
   locators,
 } from "./helpers";
@@ -69,14 +68,5 @@ test.describe("Multi-Rack Mode", () => {
     await clickNewRack(page);
     await expect(page.locator(locators.toast.warning)).toBeVisible();
     await expect(fronts).toHaveCount(10);
-  });
-
-  test("Escape closes the New Rack wizard dialog", async ({ page }) => {
-    // The wizard now opens via New layout (#2732 / #2747), not the New Rack button.
-    await clickNewLayout(page);
-    await expect(page.locator(locators.dialog.root)).toBeVisible();
-
-    await page.keyboard.press("Escape");
-    await expect(page.locator(locators.dialog.root)).not.toBeVisible();
   });
 });

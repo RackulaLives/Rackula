@@ -15,6 +15,7 @@ import {
   handleSaveAsArchive,
   shouldSaveToServer,
 } from "$lib/storage";
+import { handleNewRack } from "$lib/utils/dialog-actions";
 import { appDebug } from "$lib/utils/debug";
 import { generateShareUrl } from "$lib/utils/share";
 import { generateQRCode, canFitInQR } from "$lib/utils/qrcode";
@@ -57,14 +58,14 @@ export function shouldShowCleanupPrompt(
   return true;
 }
 
-/** Reset the layout, drop orphaned images, and open the New Rack dialog. */
+/** Reset the layout, drop orphaned images, then create a fresh rack directly. */
 export function resetAndOpenNewRack(): void {
   const layoutStore = getLayoutStore();
   const imageStore = getImageStore();
   layoutStore.resetLayout();
   const usedSlugs = layoutStore.getUsedDeviceTypeSlugs();
   imageStore.cleanupOrphanedImages(usedSlugs);
-  dialogStore.open("newRack");
+  handleNewRack();
 }
 
 /** Save to server or download an archive, after the cleanup prompt check. */

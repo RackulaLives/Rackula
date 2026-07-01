@@ -5,7 +5,6 @@
   All dependencies are accessed via module imports and singleton stores (zero props).
 -->
 <script lang="ts">
-  import { NewRackWizard, type CreateRackData } from "$lib/components/wizard";
   import { placementKey } from "$lib/utils/placement-key";
   import AddDeviceForm from "$lib/components/AddDeviceForm.svelte";
   import ImportFromNetBoxDialog from "$lib/components/ImportFromNetBoxDialog.svelte";
@@ -70,7 +69,7 @@
     duplicateSelection,
     canMoveSelectedDeviceSlot,
   } from "$lib/actions/selection-actions";
-  import { handleDelete } from "$lib/utils/dialog-actions";
+  import { handleDelete, handleNewRack } from "$lib/utils/dialog-actions";
   import {
     findNextValidPosition,
     canMoveUp,
@@ -90,7 +89,6 @@
   const placementStore = getPlacementStore();
 
   // Dialog state — derived from dialogStore
-  let newRackFormOpen = $derived(dialogStore.isOpen("newRack"));
   let addDeviceFormOpen = $derived(dialogStore.isOpen("addDevice"));
   let confirmDeleteOpen = $derived(dialogStore.isOpen("confirmDelete"));
   let exportDialogOpen = $derived(dialogStore.isOpen("export"));
@@ -125,34 +123,6 @@
 
   // Device library import file input ref
   let deviceImportInputRef = $state<HTMLInputElement | null>(null);
-
-  // --- New Rack handlers ---
-
-  function handleNewRackCreate(data: CreateRackData) {
-    if (data.layoutType === "bayed" && data.bayCount) {
-      const result = layoutStore.addBayedRackGroup(
-        data.name,
-        data.bayCount,
-        data.height,
-        data.width,
-      );
-      if (!result) {
-        toastStore.showToast(
-          "Could not create Bayed Rack: insufficient capacity",
-          "error",
-        );
-        return;
-      }
-    } else {
-      layoutStore.addRack(data.name, data.height, data.width);
-    }
-    dialogStore.close();
-    requestAnimationFrame(() => handleFitAll());
-  }
-
-  function handleNewRackCancel() {
-    dialogStore.close();
-  }
 
   // --- Replace dialog handlers ---
 
@@ -735,10 +705,10 @@
   }
 
   // The Layouts sheet opens a fresh layout itself (via the workspace store) and
-  // then asks the orchestrator to raise the New Rack wizard, mirroring the
-  // desktop New layout flow.
+  // then asks the orchestrator to create a rack directly, mirroring the desktop
+  // New layout flow.
   function handleLayoutsNewLayout() {
-    dialogStore.open("newRack");
+    handleNewRack();
   }
 
   function handleRacksTabClick() {
@@ -749,10 +719,10 @@
     dialogStore.closeSheet();
   }
 
-  // The Racks sheet raises the New Rack wizard, mirroring the desktop New rack
-  // flow. The wizard's create handler places the rack and centres the canvas.
+  // The Racks sheet creates a rack directly, mirroring the desktop New rack
+  // flow: the rack is placed on the canvas and the view re-centres.
   function handleRacksNewRack() {
-    dialogStore.open("newRack");
+    handleNewRack();
   }
 
   function handleDeviceLibrarySheetClose() {
@@ -830,13 +800,6 @@
     </Dialog>
   {/if}
 {/if}
-
-<NewRackWizard
-  open={newRackFormOpen}
-  rackCount={layoutStore.rackCount}
-  oncreate={handleNewRackCreate}
-  oncancel={handleNewRackCancel}
-/>
 
 <AddDeviceForm
   open={addDeviceFormOpen}

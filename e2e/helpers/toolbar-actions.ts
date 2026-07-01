@@ -25,7 +25,8 @@ export async function runPaletteCommand(
 }
 
 /**
- * Click the "New Rack" button in the sidebar Racks tab.
+ * Click the "New Rack" button in the sidebar Racks tab. New Rack creates a 24U
+ * rack directly on the canvas (#2732); the New Rack wizard was removed in #2747.
  * Switches to the Racks tab if not already selected, then clicks the + button.
  */
 export async function clickNewRack(page: Page): Promise<void> {
@@ -34,21 +35,6 @@ export async function clickNewRack(page: Page): Promise<void> {
   const newRackBtn = page.getByTestId("btn-new-rack");
   await newRackBtn.waitFor({ state: "visible" });
   await newRackBtn.click();
-}
-
-/**
- * Open the New Rack wizard via the "New layout" entry point in the sidebar
- * Layouts tab. #2732 rewired the sidebar New Rack button to create a 24U rack
- * directly, so the wizard now lives behind New layout (and reset-and-create /
- * the mobile racks-sheet). Switches to the Layouts tab and clicks the + button,
- * which opens a fresh layout and raises the wizard for its first rack.
- */
-export async function clickNewLayout(page: Page): Promise<void> {
-  const layoutsTab = page.getByTestId("sidebar-tab-layouts");
-  await layoutsTab.click();
-  const newLayoutBtn = page.getByTestId("btn-new-layout");
-  await newLayoutBtn.waitFor({ state: "visible" });
-  await newLayoutBtn.click();
 }
 
 /**
