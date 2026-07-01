@@ -1,7 +1,7 @@
 /**
  * app-actions behavioural tests
  *
- * Covers resetAndOpenNewRack(), which the New Rack wizard removal (#2747)
+ * Covers resetAndCreateNewRack(), which the New Rack wizard removal (#2747)
  * rewired to create a rack directly. The critical invariant is ordering: the
  * layout is reset FIRST, then a fresh rack is created on the cleared layout, so
  * the result is exactly one rack (the new one) rather than the old rack plus a
@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { resetAndOpenNewRack } from "$lib/utils/app-actions";
+import { resetAndCreateNewRack } from "$lib/utils/app-actions";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import {
@@ -26,7 +26,7 @@ function resetAll() {
   dialogStore.closeSheet();
 }
 
-describe("resetAndOpenNewRack", () => {
+describe("resetAndCreateNewRack", () => {
   beforeEach(resetAll);
 
   it("resets the layout first, then creates a single fresh rack", () => {
@@ -36,10 +36,11 @@ describe("resetAndOpenNewRack", () => {
     const existing = layoutStore.addRack("Old Rack", 42);
     expect(existing).not.toBeNull();
 
-    resetAndOpenNewRack();
+    resetAndCreateNewRack();
 
     // The old rack is gone (reset) and exactly one new rack remains (create).
-    expect(layoutStore.racks.length).toBe(1);
+    // eslint-disable-next-line no-restricted-syntax -- reset-then-create invariant: exactly one rack must remain; a count of two would mean create ran without the preceding reset.
+    expect(layoutStore.racks).toHaveLength(1);
     expect(layoutStore.racks.some((rack) => rack.id === existing?.id)).toBe(
       false,
     );
@@ -49,7 +50,7 @@ describe("resetAndOpenNewRack", () => {
     const layoutStore = getLayoutStore();
     const selectionStore = getSelectionStore();
 
-    resetAndOpenNewRack();
+    resetAndCreateNewRack();
 
     const created = layoutStore.racks[0];
     expect(created).toBeDefined();

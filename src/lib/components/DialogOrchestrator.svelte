@@ -49,7 +49,7 @@
     handleExport,
     handleExportSubmit,
     handleFitAll,
-    resetAndOpenNewRack,
+    resetAndCreateNewRack,
   } from "$lib/utils/app-actions";
   import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { registerImportDevicesTrigger } from "$lib/actions/import-devices-trigger";
@@ -132,14 +132,14 @@
       ? await handleSaveToServer(true)
       : await handleSaveAsArchive();
     if (saved) {
-      resetAndOpenNewRack();
+      resetAndCreateNewRack();
     }
   }
 
   function handleReplace() {
     dialogStore.close();
     clearSession();
-    resetAndOpenNewRack();
+    resetAndCreateNewRack();
   }
 
   function handleCancelReplace() {

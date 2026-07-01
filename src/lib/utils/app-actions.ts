@@ -59,7 +59,7 @@ export function shouldShowCleanupPrompt(
 }
 
 /** Reset the layout, drop orphaned images, then create a fresh rack directly. */
-export function resetAndOpenNewRack(): void {
+export function resetAndCreateNewRack(): void {
   const layoutStore = getLayoutStore();
   const imageStore = getImageStore();
   layoutStore.resetLayout();

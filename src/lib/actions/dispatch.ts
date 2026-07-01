@@ -34,7 +34,7 @@ import {
   maybeExport,
   handleShare,
   handleFitAll,
-  resetAndOpenNewRack,
+  resetAndCreateNewRack,
 } from "$lib/utils/app-actions";
 import {
   handleDelete,
@@ -175,7 +175,7 @@ export function createActionDispatch(): ActionDispatch {
       if (getLayoutStore().changesSinceExport > 0) {
         dialogStore.open("confirmReplace");
       } else {
-        resetAndOpenNewRack();
+        resetAndCreateNewRack();
       }
     },
     "import-devices": runImportDevices,

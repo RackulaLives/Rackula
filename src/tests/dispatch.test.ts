@@ -85,7 +85,7 @@ describe("createActionDispatch", () => {
   it("new-layout confirms before resetting when there are unexported changes", () => {
     stubLayoutChangesSinceExport(2);
     const reset = vi
-      .spyOn(appActions, "resetAndOpenNewRack")
+      .spyOn(appActions, "resetAndCreateNewRack")
       .mockReturnValue(undefined);
     const dispatch = createActionDispatch();
     dispatch["new-layout"]();
@@ -96,7 +96,7 @@ describe("createActionDispatch", () => {
   it("new-layout resets straight away when there are no unexported changes", () => {
     stubLayoutChangesSinceExport(0);
     const reset = vi
-      .spyOn(appActions, "resetAndOpenNewRack")
+      .spyOn(appActions, "resetAndCreateNewRack")
       .mockReturnValue(undefined);
     const dispatch = createActionDispatch();
     dispatch["new-layout"]();
