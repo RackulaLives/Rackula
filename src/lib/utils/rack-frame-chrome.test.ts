@@ -10,59 +10,40 @@ const METRICS: FrameMetrics = {
   rackPadding: 16,
 };
 
-/** Collect every numeric coordinate a shape carries, for finiteness checks. */
-function coordsOf(shape: { kind: string } & Record<string, unknown>): number[] {
-  return Object.values(shape).filter((v): v is number => typeof v === "number");
-}
-
 describe("frameChromeFor", () => {
-  it("returns chrome for every form factor with a matching variant", () => {
+  // The per-form-factor decorative chrome (#2735 / PR #2752) is disabled
+  // (issue #2805): every form factor must return the generic frame.
+  it("returns the generic frame with no decorative shapes for every form factor", () => {
     for (const formFactor of FormFactorSchema.options) {
       const chrome = frameChromeFor(formFactor, METRICS);
+
       expect(chrome.variant).toBe(formFactor);
-      expect(chrome.shapes.length).toBeGreaterThan(0);
+      expect(chrome.shapes).toEqual([]);
+
+      // Solid top bar at the top zone, full rail width.
+      expect(chrome.topBar.y).toBe(METRICS.rackPadding);
+      expect(chrome.topBar.height).toBe(METRICS.railWidth);
+
+      // Solid bottom bar below the U grid, full rail width.
+      const gridBottom =
+        METRICS.rackPadding + METRICS.railWidth + METRICS.totalHeight;
+      expect(chrome.bottomBar.y).toBe(gridBottom);
+      expect(chrome.bottomBar.height).toBe(METRICS.railWidth);
     }
   });
 
-  it("draws an enclosing top bar for enclosed form factors and a thin tie for open ones", () => {
-    const enclosed = ["4-post-cabinet", "4-post", "wall-mount"] as const;
-    const open = ["2-post", "open-frame"] as const;
-
-    for (const formFactor of enclosed) {
-      expect(frameChromeFor(formFactor, METRICS).topBar.height).toBe(
-        METRICS.railWidth,
-      );
-    }
-    for (const formFactor of open) {
-      expect(frameChromeFor(formFactor, METRICS).topBar.height).toBeLessThan(
-        METRICS.railWidth,
-      );
-    }
-  });
-
-  it("produces finite geometry for every shape", () => {
-    for (const formFactor of FormFactorSchema.options) {
+  it("produces the identical frame for every form factor", () => {
+    const [first, ...rest] = FormFactorSchema.options.map((formFactor) => {
       const chrome = frameChromeFor(formFactor, METRICS);
-      const bars = [chrome.topBar, chrome.bottomBar];
-      for (const bar of bars) {
-        expect(Number.isFinite(bar.y)).toBe(true);
-        expect(Number.isFinite(bar.height)).toBe(true);
-      }
-      for (const shape of chrome.shapes) {
-        for (const coord of coordsOf(shape)) {
-          expect(Number.isFinite(coord)).toBe(true);
-        }
-      }
-    }
-  });
-
-  it("gives each form factor a visually distinct chrome", () => {
-    const signatures = FormFactorSchema.options.map((formFactor) => {
-      const chrome = frameChromeFor(formFactor, METRICS);
-      return [chrome.topBar.height, ...chrome.shapes.map((s) => s.cls)].join(
-        "|",
-      );
+      // Compare bars and shapes; variant is intentionally per-form-factor.
+      return JSON.stringify({
+        topBar: chrome.topBar,
+        bottomBar: chrome.bottomBar,
+        shapes: chrome.shapes,
+      });
     });
-    expect(new Set(signatures).size).toBe(signatures.length);
+    for (const signature of rest) {
+      expect(signature).toBe(first);
+    }
   });
 });

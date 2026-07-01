@@ -195,69 +195,6 @@ test.describe("visual regression", () => {
 });
 
 /**
- * Per-form-factor frame snapshots (issue #2735).
- *
- * Each form factor draws a distinct frame; only the chrome differs (the U-grid,
- * rails and labels are identical). One snapshot per form factor catches frame
- * drift. form_factor has no share-link or inspector path yet (the inspector
- * control lands in #2738), so each rack is loaded from a YAML fixture, which is
- * the format that carries form_factor today.
- */
-const FRAME_FORM_FACTORS = [
-  "2-post",
-  "4-post",
-  "4-post-cabinet",
-  "wall-mount",
-  "open-frame",
-] as const;
-
-function frameFixtureYaml(formFactor: string): string {
-  return [
-    'version: "0.7.0"',
-    `name: "Frame ${formFactor}"`,
-    "racks:",
-    '  - id: "rack-1"',
-    `    name: "Frame ${formFactor}"`,
-    "    height: 12",
-    "    width: 19",
-    "    desc_units: false",
-    "    show_rear: false",
-    `    form_factor: "${formFactor}"`,
-    "    starting_unit: 1",
-    "    position: 0",
-    "    devices: []",
-    "device_types: []",
-    "settings:",
-    '  display_mode: "label"',
-    "  show_labels_on_images: false",
-    "",
-  ].join("\n");
-}
-
-test.describe("form factor frames", () => {
-  const baseUrl = `/?l=${createTestLayout({ rackHeight: 12 })}`;
-
-  for (const formFactor of FRAME_FORM_FACTORS) {
-    test(`frame - ${formFactor}`, async ({ page }) => {
-      const dir = mkdtempSync(join(tmpdir(), "rackula-frame-"));
-      const file = join(dir, `frame-${formFactor}.rackula.yaml`);
-      writeFileSync(file, frameFixtureYaml(formFactor), "utf8");
-
-      await gotoVisual(page, baseUrl);
-      await loadFileFromDisk(page, file);
-      // The loaded rack name confirms the fixture replaced the base rack.
-      await expect(page.getByText(`Frame ${formFactor}`).first()).toBeVisible();
-      await settle(page);
-
-      // Snapshot the rack itself: the frame is the subject, and an element shot
-      // keeps the chrome large and free of surrounding canvas drift.
-      const rack = page.locator(locators.rack.container).first();
-      await expect(rack).toHaveScreenshot(`frame-${formFactor}.png`);
-    });
-  }
-});
-
-/**
  * Per-width frame snapshots (issue #2736).
  *
  * The frame draws to scale: a 10 inch rack is narrower than a 23 inch rack,
