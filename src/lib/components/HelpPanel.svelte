@@ -7,7 +7,14 @@
   import Dialog from "./Dialog.svelte";
   import { VERSION } from "$lib/version";
   import LogoLockup from "./LogoLockup.svelte";
-  import { IconGitHub, IconBug, IconChat, IconCheck, IconCopy } from "./icons";
+  import {
+    IconGitHub,
+    IconBug,
+    IconChat,
+    IconCheck,
+    IconCopy,
+    IconQuestionBold,
+  } from "./icons";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getHelpGroups } from "$lib/actions/registry";
@@ -129,11 +136,13 @@
     }
   }
 
-  // Keyboard shortcuts, generated from the actions registry so this overlay and
-  // the keyboard handler can never drift apart.
+  // Mouse-gesture rows for the canvas. Keyboard shortcuts are not listed here:
+  // the command palette shows each command's shortcut inline, so the overlay
+  // only documents the gestures the palette has no equivalent for.
   const shortcutGroups = getHelpGroups();
 
   const GITHUB_URL = "https://github.com/RackulaLives/Rackula";
+  const DOCS_URL = "https://docs.racku.la";
 
   // Pre-filled issue URLs
   const bugReportUrl = $derived.by(() => {
@@ -156,7 +165,7 @@
       </div>
     </header>
 
-    <!-- Keyboard Shortcuts (grouped), generated from the actions registry -->
+    <!-- Canvas mouse gestures. Keyboard shortcuts live in the command palette. -->
     {#each shortcutGroups as group (group.name)}
       <section class="shortcut-group">
         <h4>{group.name}</h4>
@@ -199,6 +208,15 @@
       >
         <IconChat />
         Share Ideas
+      </a>
+      <a
+        href={DOCS_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="quick-link"
+      >
+        <IconQuestionBold />
+        Documentation
       </a>
     </div>
 

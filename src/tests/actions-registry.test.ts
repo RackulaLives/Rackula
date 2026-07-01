@@ -176,59 +176,30 @@ describe("actions registry", () => {
   });
 
   describe("getHelpGroups (help overlay generation)", () => {
-    it("groups actions by their help group, preserving group order", () => {
-      const groups = getHelpGroups();
-      const names = groups.map((g) => g.name);
-      // Groups must appear in a stable, declared order.
-      expect(names).toEqual([...new Set(names)]);
-      expect(groups.length).toBeGreaterThan(0);
-    });
-
-    it("only includes registry actions flagged for the help overlay", () => {
-      const groups = getHelpGroups();
+    it("lists only mouse-gesture rows, no registry keyboard shortcuts", () => {
+      // The command palette now shows each command's shortcut inline, so the
+      // overlay documents only the mouse gestures the palette cannot show.
       const shownLabels = new Set(
-        groups.flatMap((g) => g.rows.map((r) => r.action)),
-      );
-      // Every help-flagged registry action with a renderable key appears.
-      const helpActions = ACTION_REGISTRY.filter(
-        (a) => a.helpGroup && (a.bindings.length > 0 || a.helpKeyLabel),
-      );
-      for (const action of helpActions) {
-        expect(shownLabels.has(action.label)).toBe(true);
-      }
-      // Actions without a help group must NOT appear (e.g. toggle-sidebar).
-      const hiddenAction = ACTION_REGISTRY.find((a) => !a.helpGroup);
-      expect(hiddenAction).toBeDefined();
-      expect(shownLabels.has(hiddenAction!.label)).toBe(false);
-    });
-
-    it("formats the displayed key from the action's primary binding", () => {
-      const groups = getHelpGroups();
-      const saveRow = groups
-        .flatMap((g) => g.rows)
-        .find((r) => r.action.toLowerCase().includes("save layout"));
-      expect(saveRow).toBeDefined();
-      // The mod key formats to Ctrl or Cmd; we just assert it includes "S".
-      expect(saveRow?.key).toContain("S");
-    });
-
-    it("supports display-only help rows that have no real keybinding", () => {
-      // e.g. "Scroll Wheel" -> "Zoom" is documented in help but is not a
-      // keydown shortcut, so it carries a helpKeyLabel instead of bindings.
-      const groups = getHelpGroups();
-      const allRows = groups.flatMap((g) => g.rows);
-      const scrollRow = allRows.find((r) =>
-        r.action.toLowerCase().includes("zoom"),
-      );
-      expect(scrollRow).toBeDefined();
-      expect(scrollRow?.key).toBeTruthy();
-    });
-
-    it("includes the command palette in the help overlay", () => {
-      const labels = new Set(
         getHelpGroups().flatMap((g) => g.rows.map((r) => r.action)),
       );
-      expect(labels.has("Command palette")).toBe(true);
+      // No help-flagged registry action leaks a keyboard-shortcut row.
+      const helpActions = ACTION_REGISTRY.filter((a) => a.helpGroup);
+      expect(helpActions.length).toBeGreaterThan(0);
+      for (const action of helpActions) {
+        expect(shownLabels.has(action.label)).toBe(false);
+      }
+    });
+
+    it("keeps the canvas mouse gestures under one section", () => {
+      const groups = getHelpGroups();
+      // The keyboard sections are gone; only the gesture section survives.
+      const names = groups.map((g) => g.name);
+      expect(names).toEqual(["Canvas"]);
+      const zoomRow = groups
+        .flatMap((g) => g.rows)
+        .find((r) => r.action.toLowerCase().includes("zoom"));
+      expect(zoomRow).toBeDefined();
+      expect(zoomRow?.key).toBeTruthy();
     });
   });
 

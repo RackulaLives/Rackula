@@ -90,7 +90,12 @@ export type HelpGroup = "Navigation" | "General" | "Editing" | "File";
  * - "app": application-level entries (about/shortcuts, settings)
  */
 export type AppMenuGroup =
-  "layout" | "output" | "layout-data" | "devices" | "workspace" | "app";
+  | "layout"
+  | "output"
+  | "layout-data"
+  | "devices"
+  | "workspace"
+  | "app";
 
 export interface ActionDefinition {
   /** Stable identifier; the dispatch map and consumers key off this. */
@@ -125,12 +130,6 @@ export interface ActionDefinition {
    * this field only handles the static server-vs-browser item split (#2073).
    */
   storageMode?: StorageMode;
-  /**
-   * Display label for the help overlay key cell, used only when the command has
-   * no keyboard binding (e.g. mouse gestures documented in help). When omitted,
-   * the key is formatted from the primary binding.
-   */
-  helpKeyLabel?: string;
   /** Fuzzy-search synonyms for the future command palette (#2020). */
   keywords?: string[];
 }
@@ -287,7 +286,6 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [{ key: "ArrowUp" }],
     enabledWhen: (ctx) => !ctx.readOnly && ctx.isDeviceSelected,
     helpGroup: "Editing",
-    helpKeyLabel: "↑ / ↓",
     keywords: ["nudge", "up"],
   },
   {
@@ -524,27 +522,15 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
   },
 ];
 
-/** The order help groups appear in the overlay. */
-const HELP_GROUP_ORDER: HelpGroup[] = [
-  "Navigation",
-  "General",
-  "Editing",
-  "File",
-];
-
 /**
  * Display-only help rows that document mouse gestures rather than keyboard
  * shortcuts. They live in the help overlay but are not dispatchable commands,
  * so they are not registry actions.
  */
-const HELP_GESTURE_ROWS: { group: HelpGroup; key: string; action: string }[] = [
-  {
-    group: "Navigation",
-    key: "Scroll Wheel",
-    action: "Zoom in/out (at cursor)",
-  },
-  { group: "Navigation", key: "Shift + Scroll", action: "Pan horizontally" },
-  { group: "Navigation", key: "Click + Drag", action: "Pan canvas" },
+const HELP_GESTURE_ROWS: { key: string; action: string }[] = [
+  { key: "Scroll Wheel", action: "Zoom in/out (at cursor)" },
+  { key: "Shift + Scroll", action: "Pan horizontally" },
+  { key: "Click + Drag", action: "Pan canvas" },
 ];
 
 /** Look up an action definition by its id. */
@@ -614,7 +600,7 @@ export interface HelpRow {
 
 /** A named group of help rows. */
 export interface HelpGroupSection {
-  name: HelpGroup;
+  name: string;
   rows: HelpRow[];
 }
 
@@ -631,56 +617,28 @@ function formatBinding(binding: KeyBinding): string {
   return formatShortcut(...parts);
 }
 
-/**
- * Format the help-overlay key cell for an action. Prefers an explicit
- * helpKeyLabel; otherwise renders the primary (first) binding with
- * platform-correct modifier labels.
- */
-function formatHelpKey(action: ActionDefinition): string {
-  if (action.helpKeyLabel) return action.helpKeyLabel;
-  const binding = action.bindings[0];
-  if (!binding) return "";
-  return formatBinding(binding);
-}
-
 /** Render a raw binding key into a display glyph. */
 function formatBindingKey(key: string): string {
   if (key.length === 1) return key.toUpperCase();
   return key;
 }
 
+/** Heading for the mouse-gesture section in the help overlay. */
+const HELP_GESTURE_SECTION_NAME = "Canvas";
+
 /**
- * Build the help overlay's grouped shortcut list from the registry. Only
- * actions that opt into a help group are shown, plus the documented mouse
- * gestures. Groups appear in HELP_GROUP_ORDER; rows follow registry order.
+ * Build the help overlay's mouse-gesture list. Keyboard shortcuts are no longer
+ * listed here: the command palette shows each command's shortcut inline, so the
+ * overlay only documents the mouse gestures the palette has no equivalent for.
  */
 export function getHelpGroups(): HelpGroupSection[] {
-  const sections: HelpGroupSection[] = [];
+  const rows: HelpRow[] = HELP_GESTURE_ROWS.map(({ key, action }) => ({
+    key,
+    action,
+  }));
 
-  for (const groupName of HELP_GROUP_ORDER) {
-    const rows: HelpRow[] = [];
-
-    // Documented mouse gestures first (Navigation only, in practice).
-    for (const gesture of HELP_GESTURE_ROWS) {
-      if (gesture.group === groupName) {
-        rows.push({ key: gesture.key, action: gesture.action });
-      }
-    }
-
-    // Registry actions flagged for this help group.
-    for (const action of ACTION_REGISTRY) {
-      if (action.helpGroup !== groupName) continue;
-      const key = formatHelpKey(action);
-      if (!key) continue;
-      rows.push({ key, action: action.label });
-    }
-
-    if (rows.length > 0) {
-      sections.push({ name: groupName, rows });
-    }
-  }
-
-  return sections;
+  if (rows.length === 0) return [];
+  return [{ name: HELP_GESTURE_SECTION_NAME, rows }];
 }
 
 /**
