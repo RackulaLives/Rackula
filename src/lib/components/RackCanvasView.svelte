@@ -653,7 +653,7 @@
               </button>
             </div>
           {/if}
-          {#if selectedSlotBaySource}
+          {#if uiStore.enableBayedRacks && selectedSlotBaySource}
             <button
               type="button"
               class="bay-button"
@@ -729,8 +729,9 @@
               </div>
             {/if}
             <!-- Resistant right-edge drag: empty racks only (#2740). Pull right
-                 past the snap threshold to create or insert a bayed rack. -->
-            {#if rack.devices.length === 0}
+                 past the snap threshold to create or insert a bayed rack.
+                 Gated on the bayed-racks setting (#2742). -->
+            {#if uiStore.enableBayedRacks && rack.devices.length === 0}
               <button
                 type="button"
                 class="bay-edge-grip"
@@ -801,19 +802,20 @@
             onrename={(rackId) => onrackrename?.(rackId)}
             onduplicate={(rackId) => onrackduplicate?.(rackId)}
             ondelete={(rackId) => onrackdelete?.(rackId)}
-            enableBayDrag={isBaySelected}
+            enableBayDrag={isBaySelected && uiStore.enableBayedRacks}
             {bayGhost}
             onbaydragstart={handleBayDragStart}
             onbaydragmove={handleBayDragMove}
             onbaydragend={handleBayDragEnd}
             onbaydragcancel={handleBayDragCancel}
           />
-          {#if isBaySelected}
+          {#if isBaySelected && uiStore.enableBayedRacks}
             <!-- One bay-level handle (AC6). It lives on the top edge: the bay is
                  bottom-anchored in the row, so a top grip grows upward to match
                  the drag with no preview transform. A bottom grip cannot: the
                  stacked front+rear rows grow the wrapper by twice the height
-                 delta, so no single translateY tracks the pointer. -->
+                 delta, so no single translateY tracks the pointer.
+                 Gated on the bayed-racks setting (#2742). -->
             {@render resizeGrip(bayTarget, "top")}
             {#if resizeDrag?.target.kind === "bay" && resizeDrag.target.groupId === item.group.id}
               <div

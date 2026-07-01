@@ -482,6 +482,52 @@ describe("UI Store", () => {
     });
   });
 
+  describe("Bayed racks toggle", () => {
+    it("defaults to on", () => {
+      const store = getUIStore();
+      expect(store.enableBayedRacks).toBe(true);
+    });
+
+    it("toggleEnableBayedRacks flips the flag both ways", () => {
+      const store = getUIStore();
+
+      store.toggleEnableBayedRacks();
+      expect(store.enableBayedRacks).toBe(false);
+
+      store.toggleEnableBayedRacks();
+      expect(store.enableBayedRacks).toBe(true);
+    });
+
+    it("setEnableBayedRacks sets the flag explicitly", () => {
+      const store = getUIStore();
+
+      store.setEnableBayedRacks(false);
+      expect(store.enableBayedRacks).toBe(false);
+
+      store.setEnableBayedRacks(true);
+      expect(store.enableBayedRacks).toBe(true);
+    });
+
+    it("persists the flag to localStorage when turned off", () => {
+      const store = getUIStore();
+      store.setEnableBayedRacks(false);
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        "Rackula_enable_bayed_racks",
+        "false",
+      );
+    });
+
+    it("loads the flag from localStorage on init", () => {
+      localStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === "Rackula_enable_bayed_racks") return "false";
+        return null;
+      });
+      resetUIStore();
+      const store = getUIStore();
+      expect(store.enableBayedRacks).toBe(false);
+    });
+  });
+
   describe("Read-only lock", () => {
     it("starts unlocked", () => {
       const store = getUIStore();

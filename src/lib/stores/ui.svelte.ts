@@ -20,6 +20,7 @@ const SIDE_PANEL_COLLAPSED_KEY = "Rackula_side_panel_collapsed";
 const WARN_UNSAVED_KEY = "Rackula_warn_unsaved";
 const PROMPT_CLEANUP_KEY = "Rackula_prompt_cleanup";
 const COMPATIBLE_ONLY_KEY = "Rackula-device-compatible-only";
+const ENABLE_BAYED_RACKS_KEY = "Rackula_enable_bayed_racks";
 
 /**
  * Valid sidebar tab values for runtime validation
@@ -175,6 +176,24 @@ function savePromptCleanupToStorage(prompt: boolean): void {
   safeSetItem(PROMPT_CLEANUP_KEY, String(prompt));
 }
 
+/**
+ * Load enable bayed racks setting from localStorage
+ */
+function loadEnableBayedRacksFromStorage(): boolean {
+  const stored = safeGetItem(ENABLE_BAYED_RACKS_KEY);
+  if (stored !== null) {
+    return stored === "true";
+  }
+  return true; // default to bayed racks enabled
+}
+
+/**
+ * Save enable bayed racks setting to localStorage
+ */
+function saveEnableBayedRacksToStorage(enabled: boolean): void {
+  safeSetItem(ENABLE_BAYED_RACKS_KEY, String(enabled));
+}
+
 // Zoom constants
 export const ZOOM_MIN = 50;
 export const ZOOM_MAX = 200;
@@ -188,6 +207,7 @@ const initialSidePanelCollapsed = loadSidePanelCollapsedFromStorage();
 const initialWarnUnsaved = loadWarnUnsavedFromStorage();
 const initialPromptCleanup = loadPromptCleanupFromStorage();
 const initialCompatibleOnly = loadCompatibleOnlyFromStorage();
+const initialEnableBayedRacks = loadEnableBayedRacksFromStorage();
 
 // Module-level state (using $state rune)
 let zoom = $state(100);
@@ -204,6 +224,11 @@ let sidePanelCollapsed = $state(initialSidePanelCollapsed);
 let warnOnUnsavedChanges = $state(initialWarnUnsaved);
 let promptCleanupOnSave = $state(initialPromptCleanup);
 let compatibleOnly = $state(initialCompatibleOnly);
+// Bayed racks creation/extension affordances. When off, the "Bay rack" control,
+// the resistant right-edge bay-drag on empty racks, and the bay-level resize
+// handle are hidden. Non-destructive: existing bays still render and are never
+// modified or dissolved by this flag.
+let enableBayedRacks = $state(initialEnableBayedRacks);
 // Read-only lock: presentation safety valve that locks the layout for viewing.
 // Session-scoped (not persisted) so a reload always returns to an editable state.
 let readOnly = $state(false);
@@ -238,6 +263,7 @@ export function resetUIStore(): void {
   warnOnUnsavedChanges = loadWarnUnsavedFromStorage();
   promptCleanupOnSave = loadPromptCleanupFromStorage();
   compatibleOnly = loadCompatibleOnlyFromStorage();
+  enableBayedRacks = loadEnableBayedRacksFromStorage();
   readOnly = false;
   deviceTypeDetailsExpanded = false;
 }
@@ -313,6 +339,9 @@ export function getUIStore() {
     get compatibleOnly() {
       return compatibleOnly;
     },
+    get enableBayedRacks() {
+      return enableBayedRacks;
+    },
 
     // Read-only lock state getter
     get readOnly() {
@@ -369,6 +398,10 @@ export function getUIStore() {
 
     // Compatible-only filter action
     toggleCompatibleOnly,
+
+    // Bayed racks toggle actions
+    toggleEnableBayedRacks,
+    setEnableBayedRacks,
 
     // Read-only lock actions
     toggleReadOnly,
@@ -612,6 +645,23 @@ function setPromptCleanupOnSave(prompt: boolean): void {
 function toggleCompatibleOnly(): void {
   compatibleOnly = !compatibleOnly;
   saveCompatibleOnlyToStorage(compatibleOnly);
+}
+
+/**
+ * Toggle whether bayed-racks creation/extension affordances are shown
+ */
+function toggleEnableBayedRacks(): void {
+  enableBayedRacks = !enableBayedRacks;
+  saveEnableBayedRacksToStorage(enableBayedRacks);
+}
+
+/**
+ * Set whether bayed-racks creation/extension affordances are shown
+ * @param enabled - Whether the baying affordances are available
+ */
+function setEnableBayedRacks(enabled: boolean): void {
+  enableBayedRacks = enabled;
+  saveEnableBayedRacksToStorage(enabled);
 }
 
 /**

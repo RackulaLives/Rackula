@@ -111,8 +111,8 @@
     ondelete?: (rackId: string) => void;
     /**
      * Show the resistant right-edge bay-drag grip on each empty member (#2740).
-     * True when the bay is selected; the grip is still gated per member on the
-     * member having no devices.
+     * True when the bay is selected and the bayed-racks setting is on (#2742);
+     * the grip is still gated per member on the member having no devices.
      */
     enableBayDrag?: boolean;
     /** Live rubber-band ghost for the bay-drag, keyed by the dragged member id. */

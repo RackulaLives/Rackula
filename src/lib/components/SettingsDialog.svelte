@@ -66,6 +66,14 @@
       </div>
       <div class="settings-row">
         <Switch
+          checked={uiStore.enableBayedRacks}
+          label="Enable bayed racks"
+          helperText="Show the controls for baying racks together. Existing bays stay put when off."
+          onchange={() => uiStore.toggleEnableBayedRacks()}
+        />
+      </div>
+      <div class="settings-row">
+        <Switch
           checked={uiStore.warnOnUnsavedChanges}
           label="Warn on unsaved changes"
           helperText="Confirm before leaving with unsaved work."
