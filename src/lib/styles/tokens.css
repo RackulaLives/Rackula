@@ -323,6 +323,11 @@
   --colour-blocked-bg: rgba(239, 68, 68, 0.12); /* Subtle red wash background */
   --colour-blocked-icon: rgba(239, 68, 68, 0.7); /* Directional arrow icon */
 
+  /* Valid placement-slot highlight (counterpart to the blocked-slot tokens).
+     Base hue only; callers derive alpha with color-mix so the pink lives in
+     one place and the pulse animation can vary opacity. */
+  --colour-placement-valid: var(--dracula-pink);
+
   /* Toolbar */
   --toolbar-height: 48px;
   --toolbar-bg: var(--dracula-bg-darker);

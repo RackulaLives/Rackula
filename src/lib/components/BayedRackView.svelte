@@ -633,10 +633,10 @@
 
   /* Long press visual feedback */
   .bayed-rack-view.long-press-active {
-    outline: 3px solid var(--dracula-pink, #ff79c6);
+    outline: 3px solid var(--colour-selection);
     outline-offset: 2px;
     box-shadow: inset 0 0 0 calc(var(--long-press-progress, 0) * 4px)
-      rgba(255, 121, 198, 0.15);
+      color-mix(in srgb, var(--colour-selection) 15%, transparent);
   }
 
   @media (prefers-reduced-motion: reduce) {

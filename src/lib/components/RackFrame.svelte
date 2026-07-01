@@ -440,17 +440,17 @@
 
   /* Valid placement slots - subtle pulse highlight */
   .u-slot.placement-valid {
-    fill: rgba(255, 121, 198, 0.15);
+    fill: color-mix(in srgb, var(--colour-placement-valid) 15%, transparent);
     animation: placement-pulse 2s ease-in-out infinite;
   }
 
   @keyframes placement-pulse {
     0%,
     100% {
-      fill: rgba(255, 121, 198, 0.1);
+      fill: color-mix(in srgb, var(--colour-placement-valid) 10%, transparent);
     }
     50% {
-      fill: rgba(255, 121, 198, 0.25);
+      fill: color-mix(in srgb, var(--colour-placement-valid) 25%, transparent);
     }
   }
 
@@ -473,7 +473,7 @@
   @media (prefers-reduced-motion: reduce) {
     .u-slot.placement-valid {
       animation: none;
-      fill: rgba(255, 121, 198, 0.2);
+      fill: color-mix(in srgb, var(--colour-placement-valid) 20%, transparent);
     }
   }
 </style>
