@@ -23,6 +23,41 @@ test.describe("Responsive Layout", () => {
       await expect(logoMark).toBeVisible();
     });
 
+    test("canvas controls split into upper-left history and lower-left view (#2697)", async ({
+      page,
+    }) => {
+      // History (undo/redo) anchors to the canvas upper-left; the view/zoom pill
+      // stays at the canvas lower-left. Both are on the canvas, left-aligned, and
+      // do not overlap each other.
+      const history = page.getByRole("group", { name: "History actions" });
+      const view = page.getByRole("group", { name: "View actions" });
+      await expect(history).toBeVisible();
+      await expect(view).toBeVisible();
+
+      const canvas = page.locator(locators.canvas.root);
+      const canvasBox = await canvas.boundingBox();
+      const historyBox = await history.boundingBox();
+      const viewBox = await view.boundingBox();
+      expect(canvasBox).not.toBeNull();
+      expect(historyBox).not.toBeNull();
+      expect(viewBox).not.toBeNull();
+      if (!canvasBox || !historyBox || !viewBox) return;
+
+      // History sits above View (upper-left vs lower-left).
+      expect(historyBox.y + historyBox.height).toBeLessThanOrEqual(viewBox.y);
+
+      // Both hug the left edge of the canvas, roughly aligned to the same column.
+      const canvasMidX = canvasBox.x + canvasBox.width / 2;
+      expect(historyBox.x).toBeLessThan(canvasMidX);
+      expect(viewBox.x).toBeLessThan(canvasMidX);
+      expect(Math.abs(historyBox.x - viewBox.x)).toBeLessThan(24);
+
+      // History is anchored to the top half, View to the bottom half.
+      const canvasMidY = canvasBox.y + canvasBox.height / 2;
+      expect(historyBox.y).toBeLessThan(canvasMidY);
+      expect(viewBox.y + viewBox.height).toBeGreaterThan(canvasMidY);
+    });
+
     test("sidebar pane is visible", async ({ page }) => {
       const sidebar = page.locator(locators.sidebar.pane);
       await expect(sidebar).toBeVisible();

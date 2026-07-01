@@ -1,8 +1,9 @@
 <!--
   CanvasViewControls Component
-  Bottom-left canvas cluster holding the view and history controls in two
-  visually separated groups: History (undo, redo) and View (zoom out, zoom
-  readout, zoom in, fit, display-mode lens).
+  Canvas overlay holding the view and history controls as two visually
+  separated groups anchored to opposite left corners: History (undo, redo) at
+  the canvas upper-left, and View (zoom out, zoom readout, zoom in, fit,
+  display-mode lens) at the canvas lower-left (#2697).
 
   This surfaces existing handlers; it does not own view or history logic. The
   display-mode lens here is the canonical layout-scoped control; the side panel
@@ -63,7 +64,11 @@
 </script>
 
 <div class="canvas-view-controls">
-  <div class="control-group" role="group" aria-label="History actions">
+  <div
+    class="control-group control-group--history"
+    role="group"
+    aria-label="History actions"
+  >
     <Tooltip
       text={layoutStore.undoDescription ?? "Undo"}
       shortcut={undoShortcut}
@@ -191,18 +196,26 @@
 </div>
 
 <style>
+  /* Full-region overlay: the wrapper covers the canvas so each group can anchor
+     to its own corner. It stays click-through (pointer-events: none) between the
+     corners; only the pills capture pointer events (#2697). */
   .canvas-view-controls {
     position: absolute;
-    bottom: max(var(--space-3), env(safe-area-inset-bottom, 0px));
-    left: max(var(--space-3), env(safe-area-inset-left, 0px));
+    inset: 0;
     z-index: calc(var(--z-toolbar) + 1);
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
     pointer-events: none;
   }
 
+  /* A group anchors to the canvas lower-left by default; the --history modifier
+     re-anchors to the upper-left. The base rule owns the left inset and a
+     bottom fallback so a group is always explicitly placed, even if a future
+     one ships without a modifier. Both anchors keep their safe-area insets so
+     the pills never tuck under a notch or home indicator on inset-aware
+     displays. */
   .control-group {
+    position: absolute;
+    left: max(var(--space-3), env(safe-area-inset-left, 0px));
+    bottom: max(var(--space-3), env(safe-area-inset-bottom, 0px));
     pointer-events: auto;
     display: inline-flex;
     align-items: center;
@@ -214,6 +227,13 @@
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     box-shadow: var(--shadow-sm);
+  }
+
+  /* History anchors to the canvas upper-left. Clearing the inherited bottom
+     anchor avoids a group stretched between both edges. */
+  .control-group--history {
+    top: max(var(--space-3), env(safe-area-inset-top, 0px));
+    bottom: auto;
   }
 
   .control-button {
