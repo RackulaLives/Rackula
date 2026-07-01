@@ -491,7 +491,7 @@
   /* Banana for scale easter egg container */
   .banana-container {
     position: absolute;
-    bottom: -10px;
+    bottom: 0;
     right: -75px;
     pointer-events: none;
   }
