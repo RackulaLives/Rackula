@@ -82,7 +82,7 @@
     ]
   },
   "dependencies": {
-    "@lucide/svelte": "^1.22.0",
+    "@lucide/svelte": "^1.23.0",
     "bits-ui": "^2.18.1",
     "browser-fs-access": "^0.38.0",
     "debug": "^4.4.3",
@@ -94,7 +94,7 @@
     "lz-string": "^1.5.0",
     "marked": "^18.0.5",
     "nanoid": "^5.1.16",
-    "pako": "^2.2.0",
+    "pako": "^3.0.0",
     "panzoom": "^9.4.4",
     "qrcode": "^1.5.4",
     "simple-icons": "^16.24.1",
