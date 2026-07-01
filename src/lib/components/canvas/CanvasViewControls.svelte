@@ -213,6 +213,15 @@
     inset: 0;
     z-index: calc(var(--z-toolbar) + 1);
     pointer-events: none;
+
+    /* Outer height of the placement banner (PlacementIndicator): its
+       min-height (--touch-target-min) plus its vertical padding (--space-2 top
+       and bottom) and its 2px bottom border. Kept as a single named value so
+       the below-banner offset has one source of truth; the placement-overlap
+       E2E check (responsive.spec.ts) fails loudly if the banner outgrows it. */
+    --banner-clearance: calc(
+      var(--touch-target-min) + var(--space-2) * 2 + 2px
+    );
   }
 
   /* A group anchors to the canvas lower-left by default; the --history modifier
@@ -246,13 +255,13 @@
   }
 
   /* While a device is armed, the full-width placement banner occupies the top
-     edge above this group. Drop History below the banner (its min-height plus
-     its vertical padding and bottom border) so undo/redo never tucks under it.
-     The transition keeps the shift from snapping when placement toggles. */
+     edge above this group. Drop History below the banner (--banner-clearance)
+     so undo/redo never tucks under it. The transition keeps the shift from
+     snapping when placement toggles. */
   .control-group--below-banner {
     top: calc(
       max(var(--space-3), env(safe-area-inset-top, 0px)) +
-        var(--touch-target-min) + var(--space-2) * 2 + 2px
+        var(--banner-clearance)
     );
     transition: top var(--duration-fast) var(--ease-out);
   }
