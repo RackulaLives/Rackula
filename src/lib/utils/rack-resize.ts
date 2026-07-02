@@ -98,6 +98,14 @@ export function getMinResizeHeight(
 }
 
 /**
+ * Travel, in U, the pointer must move past the current committed step before
+ * the next whole-U step commits (#2821). Larger than half a U so pixel jitter
+ * at the half-U line cannot flip the preview back and forth: each step sits in
+ * a +/-0.6U dead band, so the flicker zone disappears.
+ */
+const STEP_HYSTERESIS_U = 0.6;
+
+/**
  * Inputs for snapResizeHeight.
  */
 export interface SnapResizeParams {
@@ -111,15 +119,23 @@ export interface SnapResizeParams {
   minHeight: number;
   /** Highest allowed height (schema max). */
   maxHeight: number;
+  /**
+   * The height currently previewed for this drag (the committed step). The
+   * hysteresis threshold is measured from here, so a step only reverses after
+   * decisive travel back. Defaults to startHeight for the first move of a drag.
+   */
+  currentHeight?: number;
 }
 
 /**
- * Snap a pointer drag to a whole-U rack height.
+ * Snap a pointer drag to a whole-U rack height with directional hysteresis.
  *
- * Rounds the drag distance to the nearest whole U so the rail invariant holds
- * (positions stay on whole-U boundaries), then clamps to [minHeight, maxHeight].
- * A non-positive pxPerU (a degenerate zoom) holds the start height rather than
- * dividing by zero.
+ * The drag distance is measured in U from the start (growPx / pxPerU), but the
+ * height only steps once that travel passes the current committed step by
+ * STEP_HYSTERESIS_U in the direction of movement. Committed heights stay whole
+ * U so the rail invariant holds (positions never go fractional), and the result
+ * is clamped to [minHeight, maxHeight]. A non-positive pxPerU (a degenerate
+ * zoom) holds the start height rather than dividing by a nonsense scale.
  */
 export function snapResizeHeight({
   startHeight,
@@ -127,11 +143,27 @@ export function snapResizeHeight({
   pxPerU,
   minHeight,
   maxHeight,
+  currentHeight = startHeight,
 }: SnapResizeParams): number {
   if (pxPerU <= 0) return startHeight;
-  const deltaU = Math.round(growPx / pxPerU);
-  const raw = startHeight + deltaU;
-  return Math.max(minHeight, Math.min(maxHeight, raw));
+  const travelU = growPx / pxPerU;
+  // Start from the committed step, clamped so the loops also stop at the bounds
+  // and a degenerate travel value can never spin past the allowed range.
+  let height = Math.max(minHeight, Math.min(maxHeight, currentHeight));
+  // Grow only after ~0.6U of travel past the current step; mirror for shrink.
+  while (
+    height < maxHeight &&
+    travelU - (height - startHeight) >= STEP_HYSTERESIS_U
+  ) {
+    height++;
+  }
+  while (
+    height > minHeight &&
+    height - startHeight - travelU >= STEP_HYSTERESIS_U
+  ) {
+    height--;
+  }
+  return height;
 }
 
 /**

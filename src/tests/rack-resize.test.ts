@@ -217,6 +217,149 @@ describe("rack-resize", () => {
       expect(
         snapResizeHeight({ ...base, startHeight: 24, growPx: 100, pxPerU: 0 }),
       ).toBe(24);
+      // A negative pxPerU is equally degenerate: hold the start height rather
+      // than dividing by a nonsense scale, and ignore any committed step.
+      expect(
+        snapResizeHeight({
+          ...base,
+          startHeight: 24,
+          growPx: 500,
+          pxPerU: -5,
+          currentHeight: 30,
+        }),
+      ).toBe(24);
+    });
+
+    // --- Directional hysteresis (#2821) ---
+    // A step commits only after roughly 0.6U of travel past the current
+    // committed step in the direction of movement. This kills the half-U
+    // flicker where nearest-U rounding flipped the preview back and forth.
+
+    it("holds the current step until 0.6U of travel past it, then commits", () => {
+      // Fresh drag (current step === start): 0.59U of travel is not enough.
+      expect(
+        snapResizeHeight({
+          ...base,
+          startHeight: 10,
+          growPx: 59,
+          pxPerU: 100,
+          currentHeight: 10,
+        }),
+      ).toBe(10);
+      // Exactly 0.6U of travel commits the next whole-U step.
+      expect(
+        snapResizeHeight({
+          ...base,
+          startHeight: 10,
+          growPx: 60,
+          pxPerU: 100,
+          currentHeight: 10,
+        }),
+      ).toBe(11);
+    });
+
+    it("does not oscillate when the pointer jitters at the old half-U line", () => {
+      // Nearest-U rounding flipped 10 <-> 11 as travel crossed 0.5U. With
+      // hysteresis the settled step (10) holds across that whole jitter band.
+      for (const growPx of [40, 49, 50, 51, 59]) {
+        expect(
+          snapResizeHeight({
+            ...base,
+            startHeight: 10,
+            growPx,
+            pxPerU: 100,
+            currentHeight: 10,
+          }),
+        ).toBe(10);
+      }
+    });
+
+    it("keeps a committed step steady while the pointer sits on its boundary", () => {
+      // One step is already committed (11). Jitter around that U boundary
+      // (frac ~ 1.0) neither advances to 12 nor retreats to 10.
+      for (const growPx of [90, 100, 110, 150]) {
+        expect(
+          snapResizeHeight({
+            ...base,
+            startHeight: 10,
+            growPx,
+            pxPerU: 100,
+            currentHeight: 11,
+          }),
+        ).toBe(11);
+      }
+    });
+
+    it("requires decisive travel back before reversing a committed step", () => {
+      // Committed at 11; retreating only 0.5U back still holds (needs 0.6U).
+      expect(
+        snapResizeHeight({
+          ...base,
+          startHeight: 10,
+          growPx: 50,
+          pxPerU: 100,
+          currentHeight: 11,
+        }),
+      ).toBe(11);
+      // 0.6U back from the step boundary commits the reversal down to 10.
+      expect(
+        snapResizeHeight({
+          ...base,
+          startHeight: 10,
+          growPx: 40,
+          pxPerU: 100,
+          currentHeight: 11,
+        }),
+      ).toBe(10);
+    });
+
+    it("mirrors the threshold for shrink drags", () => {
+      // Current step 9 (one below start 10). Travelling 0.59U past that step
+      // holds; 0.6U past it commits the next shrink to 8.
+      expect(
+        snapResizeHeight({
+          ...base,
+          startHeight: 10,
+          growPx: -159,
+          pxPerU: 100,
+          currentHeight: 9,
+        }),
+      ).toBe(9);
+      expect(
+        snapResizeHeight({
+          ...base,
+          startHeight: 10,
+          growPx: -160,
+          pxPerU: 100,
+          currentHeight: 9,
+        }),
+      ).toBe(8);
+    });
+
+    it("clamps to maxHeight even from a committed step near the top", () => {
+      expect(
+        snapResizeHeight({
+          startHeight: 98,
+          growPx: 10000,
+          pxPerU: 100,
+          minHeight: 1,
+          maxHeight: 100,
+          currentHeight: 99,
+        }),
+      ).toBe(100);
+    });
+
+    it("clamps to minHeight even from a committed step near the floor", () => {
+      expect(
+        snapResizeHeight({
+          startHeight: 24,
+          growPx: -10000,
+          pxPerU: 100,
+          minHeight: 12,
+          maxHeight: 100,
+          currentHeight: 20,
+        }),
+      ).toBe(12);
     });
   });
 

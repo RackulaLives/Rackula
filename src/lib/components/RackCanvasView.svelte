@@ -277,6 +277,9 @@
       pxPerU,
       minHeight: drag.minHeight,
       maxHeight: MAX_RACK_HEIGHT,
+      // Measure hysteresis from the step already on screen so jitter at a U
+      // boundary does not flip the preview back and forth (#2821).
+      currentHeight: drag.previewHeight,
     });
     if (previewHeight === drag.previewHeight) return;
     drag.previewHeight = previewHeight;
@@ -299,6 +302,9 @@
       pxPerU,
       minHeight: drag.minHeight,
       maxHeight: MAX_RACK_HEIGHT,
+      // Apply the same hysteresis as the live preview so the release cannot
+      // land one U off the height shown under the pointer (#2821).
+      currentHeight: drag.previewHeight,
     });
     const { target, rackIds, startHeight } = drag;
     resizeDrag = null;
