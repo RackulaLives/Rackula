@@ -172,7 +172,11 @@ jobs:
     # block PRs. continue-on-error keeps the full-suite result visible as signal
     # while letting the overall Test run conclude green.
     continue-on-error: true
-    runs-on: [self-hosted, ci-runner]
+    runs-on: [self-hosted, e2e]
+    # Parallelise the full suite on the pve-prod ephemeral e2e runner (VMID 360,
+    # more cores); playwright.config.ts reads PW_WORKERS (else Playwright default).
+    env:
+      PW_WORKERS: 8
     timeout-minutes: 30
     environment: ${{ github.event.pull_request.head.repo.full_name == 'RackulaLives/Rackula' && 'e2e-trusted' || 'e2e-approval' }}
     permissions:
