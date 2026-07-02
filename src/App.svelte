@@ -262,10 +262,13 @@
       const launch = resolveBrowserLaunch();
       if (launch.action === "empty") {
         if (!launch.everHadLayouts) {
-          // Genuine fresh install: land in a default layout with one rack, just
-          // like a Layouts-panel "+" click, so first run is never a bare
-          // zero-rack void (#2831). The first-run notice is for fresh installs.
-          handleNewLayout();
+          // Genuine fresh install: add one default rack to the already-seeded
+          // first tab (its active layout has zero racks), so first run lands in
+          // a layout with one rack and never a bare zero-rack void (#2831). Use
+          // handleNewRack rather than handleNewLayout here: the latter opens a
+          // second tab on top of the seed, leaving a phantom empty tab. The
+          // first-run notice is for genuine fresh installs.
+          handleNewRack();
           maybeShowFirstRunNotice();
         } else {
           // Returning user whose workspace is empty (data lost or wiped). The
