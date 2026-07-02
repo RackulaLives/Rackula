@@ -170,6 +170,125 @@ export function calculateFitAll(
   return { zoom, panX, panY };
 }
 
+/**
+ * Viewport rectangle in screen pixels.
+ */
+export interface Viewport {
+  width: number;
+  height: number;
+}
+
+/**
+ * Panzoom transform: screenPos = canvasPos * scale + pan.
+ */
+export interface Transform {
+  scale: number;
+  panX: number;
+  panY: number;
+}
+
+/**
+ * Clamp a pan offset on one axis so the target extent stays inside the viewport.
+ *
+ * The near edge (canvas `start`) must satisfy start*scale + pan >= 0, and the
+ * far edge (canvas start+size) must satisfy (start+size)*scale + pan <=
+ * viewportSize. When the scaled extent is wider than the viewport the two
+ * bounds cross; align the near edge to the viewport origin so the top/left
+ * stays visible, matching the top-left alignment in calculateFitAll.
+ */
+function clampPanAxis(
+  pan: number,
+  start: number,
+  size: number,
+  scale: number,
+  viewportSize: number,
+): number {
+  const panForNearEdge = -start * scale; // pan >= this keeps the near edge visible
+  const panForFarEdge = viewportSize - (start + size) * scale; // pan <= this
+  const clamped =
+    panForNearEdge > panForFarEdge
+      ? panForNearEdge
+      : Math.min(Math.max(pan, panForNearEdge), panForFarEdge);
+  // Normalise -0 to 0 so callers get stable, comparable pan values.
+  return clamped === 0 ? 0 : clamped;
+}
+
+/**
+ * Compute the minimal transform that keeps `target` (canvas coords) fully
+ * visible in the viewport, given the current transform.
+ *
+ * Returns the current transform unchanged when the target already fits inside
+ * the viewport. Only ever zooms out (never in) and pans by the least amount
+ * needed. A shrinking or already-contained extent is therefore a no-op, so a
+ * caller can invoke this on every direct-manipulation commit without special-
+ * casing grow vs. shrink.
+ *
+ * @param target - Extent to keep visible, in canvas coordinates
+ * @param viewport - Viewport size in screen pixels
+ * @param current - Current panzoom transform
+ * @param minZoom - Lowest zoom the result may use (default FIT_ALL_MIN_ZOOM)
+ * @param maxZoom - Highest zoom the result may use (default FIT_ALL_MAX_ZOOM)
+ */
+export function ensureVisibleTransform(
+  target: Bounds,
+  viewport: Viewport,
+  current: Transform,
+  minZoom: number = FIT_ALL_MIN_ZOOM,
+  maxZoom: number = FIT_ALL_MAX_ZOOM,
+): Transform {
+  // Degenerate target or viewport: nothing to contain, leave the camera still.
+  if (
+    target.width <= 0 ||
+    target.height <= 0 ||
+    viewport.width <= 0 ||
+    viewport.height <= 0
+  ) {
+    return current;
+  }
+
+  const { scale, panX, panY } = current;
+
+  // Project the target to screen space at the current transform.
+  const left = target.x * scale + panX;
+  const top = target.y * scale + panY;
+  const right = (target.x + target.width) * scale + panX;
+  const bottom = (target.y + target.height) * scale + panY;
+
+  const contained =
+    left >= 0 &&
+    top >= 0 &&
+    right <= viewport.width &&
+    bottom <= viewport.height;
+  if (contained) return current;
+
+  // Zoom out just enough to fit the target when it no longer fits at the
+  // current scale; never zoom in (that would move the camera on a contained
+  // or shrinking extent).
+  const fitScale = Math.min(
+    viewport.width / target.width,
+    viewport.height / target.height,
+  );
+  const nextScale =
+    fitScale < scale ? Math.max(minZoom, Math.min(fitScale, maxZoom)) : scale;
+
+  const nextPanX = clampPanAxis(
+    panX,
+    target.x,
+    target.width,
+    nextScale,
+    viewport.width,
+  );
+  const nextPanY = clampPanAxis(
+    panY,
+    target.y,
+    target.height,
+    nextScale,
+    viewport.height,
+  );
+
+  return { scale: nextScale, panX: nextPanX, panY: nextPanY };
+}
+
 // =============================================================================
 // Bayed Rack Dimension Constants
 // =============================================================================

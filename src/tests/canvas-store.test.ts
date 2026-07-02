@@ -511,6 +511,60 @@ describe("Canvas Store", () => {
     });
   });
 
+  describe("ensureRacksVisible", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    function setup(viewportWidth: number, viewportHeight: number) {
+      const store = getCanvasStore();
+      const mockPanzoom = createMockPanzoom(1);
+      vi.stubGlobal(
+        "matchMedia",
+        vi.fn(() => ({ matches: false })),
+      );
+      const mockCanvas = document.createElement("div");
+      Object.defineProperty(mockCanvas, "clientWidth", {
+        value: viewportWidth,
+      });
+      Object.defineProperty(mockCanvas, "clientHeight", {
+        value: viewportHeight,
+      });
+      store.setCanvasElement(mockCanvas);
+      store.setPanzoomInstance(
+        mockPanzoom as ReturnType<typeof import("panzoom").default>,
+      );
+      return { store, mockPanzoom };
+    }
+
+    it("does nothing without a panzoom instance", () => {
+      const store = getCanvasStore();
+      const rack = createTestRack({ id: "rack-1" });
+      expect(() => store.ensureRacksVisible(["rack-1"], [rack])).not.toThrow();
+    });
+
+    it("keeps the camera still when the rack is already fully visible", () => {
+      // A viewport far larger than the rack contains it at scale 1, pan 0.
+      const { store, mockPanzoom } = setup(5000, 5000);
+      const rack = createTestRack({ id: "rack-1", height: 42 });
+
+      store.ensureRacksVisible(["rack-1"], [rack]);
+
+      expect(mockPanzoom.smoothZoomAbs).not.toHaveBeenCalled();
+      expect(mockPanzoom.moveTo).not.toHaveBeenCalled();
+    });
+
+    it("moves the camera when the rack extends past the viewport", () => {
+      // A tiny viewport cannot contain the rack, so the camera must animate.
+      const { store, mockPanzoom } = setup(200, 200);
+      const rack = createTestRack({ id: "rack-1", height: 42 });
+
+      store.ensureRacksVisible(["rack-1"], [rack]);
+
+      expect(mockPanzoom.smoothZoomAbs).toHaveBeenCalled();
+    });
+  });
+
   describe("zoomToDevice", () => {
     afterEach(() => {
       vi.unstubAllGlobals();

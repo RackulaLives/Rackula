@@ -215,6 +215,16 @@
     } else {
       layoutStore.resizeBayedGroupHeight(target.groupId, height);
     }
+    // Direct-manipulation commit (drag release or keyboard step): nudge the
+    // camera by the minimum needed to keep the resized extent on screen.
+    // Growing past an edge pans (or zooms out) just enough; an in-viewport
+    // resize or a shrink stays put. Undo/redo mutate the store directly and
+    // never reach here, so the camera holds still for them.
+    canvasStore.ensureRacksVisible(
+      resizeTargetRackIds(target),
+      layoutStore.racks,
+      layoutStore.rack_groups,
+    );
   }
 
   // Dragging away from the rack body grows it: up for the top grip, down for
@@ -367,6 +377,17 @@
     // Select the resulting bay so its bay-level affordances surface at once.
     layoutStore.setActiveRack(sourceRackId);
     selectionStore.selectGroup(result.groupId, sourceRackId);
+    // Direct-manipulation commit: keep the bay group (including the new member)
+    // on screen with minimal camera movement. Passing the group's rack_ids
+    // resolves to the whole group's extent so the new member ends up visible.
+    const group = layoutStore.getRackGroupById(result.groupId);
+    if (group) {
+      canvasStore.ensureRacksVisible(
+        group.rack_ids,
+        layoutStore.racks,
+        layoutStore.rack_groups,
+      );
+    }
   }
 
   // Resistant right-edge drag on an empty rack: a rubber-band ghost that snaps

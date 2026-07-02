@@ -10,6 +10,7 @@ import {
   calculateRacksBoundingBox,
   racksToPositions,
   calculateFitAll,
+  ensureVisibleTransform,
 } from "$lib/utils/canvas";
 import { createTestRack } from "./factories";
 import {
@@ -198,6 +199,72 @@ describe("Canvas Utils", () => {
       // Content should fit within viewport (with some margin for rounding)
       expect(scaledWidth).toBeLessThanOrEqual(viewportWidth + 1);
       expect(scaledHeight).toBeLessThanOrEqual(viewportHeight + 1);
+    });
+  });
+
+  describe("ensureVisibleTransform", () => {
+    const viewport = { width: 800, height: 600 };
+    const identity = { scale: 1, panX: 0, panY: 0 };
+
+    it("returns the current transform when the target is fully contained", () => {
+      const target = { x: 100, y: 100, width: 200, height: 200 };
+      const result = ensureVisibleTransform(target, viewport, identity);
+      expect(result).toEqual(identity);
+    });
+
+    it("returns the current transform for a shrinking, contained extent", () => {
+      // A smaller extent inside the viewport must never move the camera.
+      const target = { x: 300, y: 250, width: 80, height: 80 };
+      const result = ensureVisibleTransform(target, viewport, identity);
+      expect(result).toEqual(identity);
+    });
+
+    it("respects a non-identity current transform when already contained", () => {
+      // At pan -100 the target's left edge sits exactly at the viewport origin.
+      const target = { x: 100, y: 100, width: 200, height: 200 };
+      const current = { scale: 1, panX: -100, panY: 0 };
+      const result = ensureVisibleTransform(target, viewport, current);
+      expect(result).toEqual(current);
+    });
+
+    it("pans left by the minimum needed when the target overflows the right edge", () => {
+      const target = { x: 700, y: 100, width: 200, height: 200 };
+      const result = ensureVisibleTransform(target, viewport, identity);
+      // Right edge is 900 at pan 0; pan -100 lands it exactly on the edge.
+      expect(result).toEqual({ scale: 1, panX: -100, panY: 0 });
+    });
+
+    it("pans up by the minimum needed when the target overflows the bottom edge", () => {
+      const target = { x: 100, y: 500, width: 200, height: 200 };
+      const result = ensureVisibleTransform(target, viewport, identity);
+      // Bottom edge is 700 at pan 0; pan -100 lands it exactly on the edge.
+      expect(result).toEqual({ scale: 1, panX: 0, panY: -100 });
+    });
+
+    it("pans right and down to reveal a target off the top-left", () => {
+      const target = { x: -100, y: -50, width: 200, height: 200 };
+      const result = ensureVisibleTransform(target, viewport, identity);
+      expect(result).toEqual({ scale: 1, panX: 100, panY: 50 });
+    });
+
+    it("zooms out just enough to fit a target taller than the viewport", () => {
+      const target = { x: 0, y: 0, width: 200, height: 1200 };
+      const result = ensureVisibleTransform(target, viewport, identity);
+      // fit scale = min(800/200, 600/1200) = 0.5; height fills the viewport.
+      expect(result).toEqual({ scale: 0.5, panX: 0, panY: 0 });
+    });
+
+    it("clamps to min zoom and aligns top-left when the target cannot fully fit", () => {
+      const target = { x: 0, y: 0, width: 5000, height: 5000 };
+      const result = ensureVisibleTransform(target, viewport, identity);
+      // fit scale 0.12 < min zoom 0.25, so clamp to 0.25 and align near edges.
+      expect(result).toEqual({ scale: 0.25, panX: 0, panY: 0 });
+    });
+
+    it("leaves the camera still for a degenerate target", () => {
+      const target = { x: 0, y: 0, width: 0, height: 0 };
+      const result = ensureVisibleTransform(target, viewport, identity);
+      expect(result).toEqual(identity);
     });
   });
 });

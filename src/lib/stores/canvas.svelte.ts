@@ -7,6 +7,8 @@ import type panzoom from "panzoom";
 import type { Rack, RackGroup, DeviceType } from "$lib/types";
 import {
   calculateFitAll,
+  calculateRacksBoundingBox,
+  ensureVisibleTransform,
   racksToPositions,
   racksToPositionsWithIds,
 } from "$lib/utils/canvas";
@@ -126,6 +128,7 @@ export function getCanvasStore() {
     moveTo,
     smoothMoveTo,
     fitAll,
+    ensureRacksVisible,
     focusRack,
     zoomToDevice,
     restoreViewport,
@@ -411,6 +414,66 @@ function fitAll(
   canvasDebug.transform("fitAll applied: %o", panzoomInstance.getTransform());
 
   suppressViewportSave = false;
+}
+
+/**
+ * Ensure the given racks stay fully visible after a direct-manipulation commit
+ * (resize release, keyboard resize step, or bay creation).
+ *
+ * Animates the camera by the minimum pan and zoom needed to bring the changed
+ * extent on screen. When the extent already fits (an in-viewport resize, a
+ * shrink, or an undo/redo that leaves it contained) the camera does not move.
+ * Trigger this from the commit handlers, never from store mutations, so undo
+ * and redo stay still.
+ *
+ * @param rackIds - IDs of the racks whose extent must stay visible (pass a
+ *   bayed group's rack_ids to keep the whole group, including a new member,
+ *   on screen)
+ * @param allRacks - All racks from the layout store
+ * @param rackGroups - All rack groups from the layout store (for bayed racks)
+ * @param rightOffset - Optional offset for a right-side overlay (e.g., drawer)
+ */
+function ensureRacksVisible(
+  rackIds: string[],
+  allRacks: Rack[],
+  rackGroups: RackGroup[] = [],
+  rightOffset: number = 0,
+): void {
+  if (!panzoomInstance || !canvasElement || rackIds.length === 0) return;
+
+  // Union the canvas positions of the target racks into a single extent. Bayed
+  // group members share one position object, so any member resolves to the
+  // whole group's bounding box.
+  const targetIds = new Set(rackIds);
+  const targetPositions = racksToPositionsWithIds(allRacks, rackGroups).filter(
+    (pos) => pos.rackIds.some((id) => targetIds.has(id)),
+  );
+  if (targetPositions.length === 0) return;
+
+  const target = calculateRacksBoundingBox(targetPositions);
+
+  const viewportWidth = canvasElement.clientWidth - rightOffset;
+  const viewportHeight = canvasElement.clientHeight;
+
+  const current = panzoomInstance.getTransform();
+  const next = ensureVisibleTransform(
+    target,
+    { width: viewportWidth, height: viewportHeight },
+    { scale: current.scale, panX: current.x, panY: current.y },
+  );
+
+  // Already fully visible (contained, a shrink, or an undo/redo that leaves the
+  // extent on screen): keep the camera still.
+  if (
+    next.scale === current.scale &&
+    next.panX === current.x &&
+    next.panY === current.y
+  ) {
+    return;
+  }
+
+  canvasDebug.transform("ensureRacksVisible: %o", { target, current, next });
+  smoothMoveTo(next.panX, next.panY, next.scale);
 }
 
 /**
