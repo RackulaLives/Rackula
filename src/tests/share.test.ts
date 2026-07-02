@@ -404,6 +404,36 @@ describe("decodeLayout", () => {
     expect(result.layout).toBeNull();
     expect(result.error).toBeDefined();
   });
+
+  it("rejects a payload whose byte length exceeds the ceiling even when its character count does not", () => {
+    // Byte-accuracy guard: 中 is 3 UTF-8 bytes but one UTF-16 code unit, so ~3M of
+    // them decode to ~9 MB (over MAX_DECOMPRESSED_BYTES) while the string length
+    // (~3M) stays under it. A character-based guard would wrongly accept this; the
+    // byte-based guard rejects it. Compresses tiny, so the input-size guard passes
+    // and the decompressed byte ceiling is the thing under test.
+    const oversizedByBytes = "中".repeat(3_000_000);
+    expect(oversizedByBytes.length).toBeLessThan(MAX_DECOMPRESSED_BYTES);
+    const layout = createTestLayout({
+      name: oversizedByBytes,
+      racks: [
+        createTestRack({
+          devices: [
+            createTestDevice({ device_type: "pako-server", position: 2 }),
+          ],
+        }),
+      ],
+      device_types: [createTestDeviceType({ slug: "pako-server" })],
+    });
+    const encoded = base64UrlEncode(
+      pako.deflate(JSON.stringify(toMinimalLayout(layout))),
+    );
+    expect(encoded.length).toBeLessThanOrEqual(MAX_ENCODED_LENGTH);
+
+    const result = decodeLayout(encoded);
+
+    expect(result.layout).toBeNull();
+    expect(result.error).toBeDefined();
+  });
 });
 
 // =============================================================================

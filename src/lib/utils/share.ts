@@ -439,22 +439,23 @@ export const MAX_DECOMPRESSED_BYTES = 8 * 1024 * 1024;
  */
 function inflateBounded(compressed: Uint8Array): string {
   const inflator = new pako.Inflate();
-  // pako 3.x always emits Uint8Array chunks. Decode with a single streaming
-  // TextDecoder so a multi-byte UTF-8 sequence split across a chunk boundary is
-  // reassembled correctly (an 8 MB payload spans many 64 KB pako Inflate chunks).
+  // pako 3.x emits Uint8Array chunks. Count decompressed bytes directly (the
+  // chunk's byte length) so the ceiling is enforced in the same unit as
+  // MAX_DECOMPRESSED_BYTES; a character count would under-measure multi-byte
+  // UTF-8. Decode with a single streaming TextDecoder so a multi-byte sequence
+  // split across a chunk boundary is reassembled correctly.
   const decoder = new TextDecoder();
   let result = "";
-  let length = 0;
+  let byteLength = 0;
 
   inflator.onData = (chunk) => {
-    const text = decoder.decode(chunk, { stream: true });
-    length += text.length;
-    if (length > MAX_DECOMPRESSED_BYTES) {
+    byteLength += chunk.length;
+    if (byteLength > MAX_DECOMPRESSED_BYTES) {
       // Throw from the chunk callback to abort pako's inflate loop early, so a
       // high-ratio payload cannot finish inflating its full output.
       throw new Error("Decompressed share link exceeds size limit");
     }
-    result += text;
+    result += decoder.decode(chunk, { stream: true });
   };
 
   inflator.push(compressed, true);
@@ -463,14 +464,8 @@ function inflateBounded(compressed: Uint8Array): string {
     throw new Error(inflator.msg || "Failed to inflate share link");
   }
   // Flush any bytes the streaming decoder buffered from a trailing partial
-  // sequence (at most one replacement char), applying the same ceiling so the
-  // size guard stays strict rather than allowing the flush to slip past it.
-  const tail = decoder.decode();
-  length += tail.length;
-  if (length > MAX_DECOMPRESSED_BYTES) {
-    throw new Error("Decompressed share link exceeds size limit");
-  }
-  result += tail;
+  // sequence. Those bytes were already counted above, so no further check.
+  result += decoder.decode();
   return result;
 }
 
