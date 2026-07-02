@@ -463,8 +463,14 @@ function inflateBounded(compressed: Uint8Array): string {
     throw new Error(inflator.msg || "Failed to inflate share link");
   }
   // Flush any bytes the streaming decoder buffered from a trailing partial
-  // sequence. Bounded by the same ceiling already enforced above.
-  result += decoder.decode();
+  // sequence (at most one replacement char), applying the same ceiling so the
+  // size guard stays strict rather than allowing the flush to slip past it.
+  const tail = decoder.decode();
+  length += tail.length;
+  if (length > MAX_DECOMPRESSED_BYTES) {
+    throw new Error("Decompressed share link exceeds size limit");
+  }
+  result += tail;
   return result;
 }
 
