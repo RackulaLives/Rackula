@@ -46,6 +46,8 @@ This project uses automated code formatting and linting:
 
 Pre-commit hooks automatically format staged files with Prettier.
 
+Before pushing, run `npm run format` and verify with `npm run format:check` (the exact `prettier --check .` gate CI runs). First make sure your installed Prettier matches `package-lock.json`: run `npm ci` if you are unsure, or if you work in a git worktree that reuses a stale root `node_modules`. Prettier reformats differently between versions, so a stale local Prettier can pass locally yet leave drift that the `rackula-format-bot` reformats on your PR, which re-runs CI. A branch that passes `npm run format:check` under the locked Prettier version never triggers the bot.
+
 ```bash
 # Run linting
 npm run lint

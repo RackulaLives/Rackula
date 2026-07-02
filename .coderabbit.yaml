@@ -26,6 +26,12 @@ reviews:
   # Enable auto-review on all PRs
   auto_review:
     enabled: true
+    # Skip auto-review for the autoformat bot. Note: ignore_usernames is
+    # PR-author-scoped, so this may not suppress incremental re-review of the
+    # bot's pushes to a human-authored PR; the reliable mitigation is keeping
+    # branches prettier-clean so the bot never fires. See issue #2840.
+    ignore_usernames:
+      - rackula-format-bot
 
 chat:
   auto_reply: true
