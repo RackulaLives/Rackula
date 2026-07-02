@@ -16,7 +16,7 @@
  * - Legacy (decode-only): pako gzip + base64url
  */
 
-import pako from "pako";
+import * as pako from "pako";
 import LZString from "lz-string";
 import type { Layout, DeviceType, PlacedDevice, RackGroup } from "$lib/types";
 import {
@@ -438,13 +438,16 @@ export const MAX_DECOMPRESSED_BYTES = 8 * 1024 * 1024;
  * Throws on malformed input or when the size ceiling is exceeded.
  */
 function inflateBounded(compressed: Uint8Array): string {
-  const inflator = new pako.Inflate({ to: "string" });
+  const inflator = new pako.Inflate();
+  // pako 3.x always emits Uint8Array chunks. Decode with a single streaming
+  // TextDecoder so a multi-byte UTF-8 sequence split across a chunk boundary is
+  // reassembled correctly (an 8 MB payload spans many 64 KB pako Inflate chunks).
+  const decoder = new TextDecoder();
   let result = "";
   let length = 0;
 
   inflator.onData = (chunk) => {
-    const text =
-      typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
+    const text = decoder.decode(chunk, { stream: true });
     length += text.length;
     if (length > MAX_DECOMPRESSED_BYTES) {
       // Throw from the chunk callback to abort pako's inflate loop early, so a
@@ -459,6 +462,9 @@ function inflateBounded(compressed: Uint8Array): string {
   if (inflator.err) {
     throw new Error(inflator.msg || "Failed to inflate share link");
   }
+  // Flush any bytes the streaming decoder buffered from a trailing partial
+  // sequence. Bounded by the same ceiling already enforced above.
+  result += decoder.decode();
   return result;
 }
 

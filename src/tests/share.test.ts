@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import pako from "pako";
+import * as pako from "pako";
 import LZString from "lz-string";
 import {
   encodeLayout,
@@ -24,6 +24,14 @@ import {
 } from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
 import type { Layout } from "$lib/types";
+
+// pako 3.x exports a frozen, read-only ESM namespace, so vi.spyOn cannot
+// redefine its properties. Replace it with a spread copy whose properties are
+// writable, restoring spy support for the size-guard test below.
+vi.mock("pako", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("pako")>();
+  return { ...actual };
+});
 
 // =============================================================================
 // Test Helpers
@@ -853,6 +861,40 @@ describe("multi-rack share", () => {
     expect(
       decoded!.racks[0].devices.find((d) => d.device_type === "pako-server"),
     ).toBeDefined();
+  });
+
+  it("decodes a large pako-encoded share link with multi-byte UTF-8 spanning chunk boundaries", () => {
+    // Regression guard for the pako 3.x migration. pako's streaming Inflate emits
+    // 64 KB Uint8Array chunks, so a payload larger than one chunk can split a
+    // multi-byte UTF-8 sequence across a boundary. inflateBounded must decode with a
+    // single streaming TextDecoder; decoding each chunk in isolation corrupts those
+    // characters. 中 is 3 bytes and 65536 is not a multiple of 3, so boundaries fall
+    // mid-character. ~240 KB decompressed spans ~4 chunks but deflates to a tiny link.
+    const longName = "中".repeat(80000);
+    const serverType = createTestDeviceType({ slug: "pako-server" });
+    const layout = createTestLayout({
+      name: longName,
+      racks: [
+        createTestRack({
+          devices: [
+            createTestDevice({ device_type: "pako-server", position: 2 }),
+          ],
+        }),
+      ],
+      device_types: [serverType],
+    });
+    const encoded = base64UrlEncode(
+      pako.deflate(JSON.stringify(toMinimalLayout(layout))),
+    );
+
+    // Stays under the input-size guard so the decompression path actually runs.
+    expect(encoded.length).toBeLessThanOrEqual(MAX_ENCODED_LENGTH);
+
+    const { layout: decoded } = decodeLayout(encoded);
+
+    expect(decoded).not.toBeNull();
+    expect(decoded!.name).toBe(longName);
+    expect(decoded!.name).not.toContain("�");
   });
 
   it("uses lz-string encoding for new share links", () => {

@@ -4,7 +4,7 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import pako from "pako";
+import * as pako from "pako";
 import type { MinimalLayout } from "../../src/lib/schemas/share";
 import { locators } from "./locators";
 
