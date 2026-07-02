@@ -31,28 +31,37 @@ let loaded = $state(false);
 let loadPromise: Promise<StarterTemplate[]> | null = null;
 
 /**
- * Load the starters once and cache the result. Safe to call on every menu open:
- * the first call fetches, the rest return the same promise. `fetcher` is
- * injectable for tests and forwarded to the loader; it is ignored once a load is
- * already in flight or resolved.
+ * Load the starters once and cache a successful, non-empty result. Safe to call
+ * on every menu open: after a successful load later opens serve the cache, and
+ * concurrent opens share one in-flight fetch. A total failure (an empty result,
+ * since loadStarterTemplates is best-effort and resolves to [] rather than
+ * rejecting) is NOT cached, so the next open retries and the "From template"
+ * section can recover without a reload. `fetcher` is injectable for tests.
  */
 export function ensureStartersLoaded(
   fetcher: typeof fetch = fetch,
 ): Promise<StarterTemplate[]> {
+  // Already loaded a non-empty set once: serve it without refetching.
+  if (loaded) return Promise.resolve(templates);
+  // A load is in flight: share it so concurrent opens fetch only once.
   if (loadPromise) return loadPromise;
   const pending = loadStarterTemplates(fetcher).then(
     (result) => {
-      templates = result;
-      loaded = true;
+      if (result.length > 0) {
+        // Cache a successful, non-empty load for the rest of the session.
+        templates = result;
+        loaded = true;
+      } else {
+        // Every template failed to load. Do not cache the failure: clear the
+        // shared promise and leave `loaded` false so the next open retries.
+        if (loadPromise === pending) loadPromise = null;
+      }
       return result;
     },
     () => {
-      // A rejected load must not poison the cache: drop it so a later open
-      // retries instead of reusing the failure, and degrade to an empty set
-      // (the menu then shows Blank only). loadStarterTemplates is best-effort
-      // and does not reject today; this keeps the cache resilient if it ever
-      // does, and resolves rather than rejects so no caller sees an unhandled
-      // rejection.
+      // Defensive: loadStarterTemplates does not reject today, but if it ever
+      // does, drop the shared promise so a later open retries instead of reusing
+      // the failure, and degrade to an empty set so no caller sees a rejection.
       if (loadPromise === pending) loadPromise = null;
       return [] as StarterTemplate[];
     },
@@ -64,11 +73,6 @@ export function ensureStartersLoaded(
 /** The starters loaded so far. Empty until {@link ensureStartersLoaded} resolves. */
 export function getStarterTemplates(): StarterTemplate[] {
   return templates;
-}
-
-/** Whether a starter load has completed (success or empty). */
-export function areStartersLoaded(): boolean {
-  return loaded;
 }
 
 /**

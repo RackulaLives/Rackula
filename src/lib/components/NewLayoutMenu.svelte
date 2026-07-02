@@ -68,7 +68,7 @@
       <button
         {...props}
         type="button"
-        class="new-layout-chevron {variant}"
+        class="new-layout-chevron new-layout-chevron--{variant}"
         aria-label="New layout options"
         data-testid={chevronTestId}
       >
@@ -152,21 +152,21 @@
 
   /* Toolbar tab strip: raw px to pixel-align with the sibling .layout-tab-add
      control in LayoutTabs (itself 44px tall); no 44px design token exists. */
-  .new-layout-chevron.toolbar {
+  .new-layout-chevron--toolbar {
     width: 28px;
     height: 44px;
   }
 
   /* Panel header: matches the small square, bordered "+" button. */
-  .new-layout-chevron.panel {
+  .new-layout-chevron--panel {
     width: var(--space-6);
     height: var(--space-8);
     background: var(--colour-surface-secondary);
     border-color: var(--colour-border);
   }
 
-  .new-layout-chevron.panel:hover,
-  .new-layout-chevron.panel[data-state="open"] {
+  .new-layout-chevron--panel:hover,
+  .new-layout-chevron--panel[data-state="open"] {
     border-color: var(--colour-border-hover);
   }
 

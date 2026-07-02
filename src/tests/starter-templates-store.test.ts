@@ -4,7 +4,6 @@ import {
   openStarterById,
   ensureStartersLoaded,
   getStarterTemplates,
-  areStartersLoaded,
   resetStarterTemplatesForTest,
 } from "$lib/stores/starter-templates.svelte";
 import {
@@ -137,29 +136,55 @@ describe("ensureStartersLoaded", () => {
     resetStarterTemplatesForTest();
   });
 
-  it("exposes no starters when every load fails, so only Blank remains", async () => {
-    const failing = vi.fn(async () => {
-      throw new Error("offline");
-    }) as unknown as typeof fetch;
+  function okFetcher(name: string) {
+    const yaml = validStarterYaml(name);
+    return vi.fn(
+      async () =>
+        ({ ok: true, status: 200, text: async () => yaml }) as Response,
+    );
+  }
 
-    const result = await ensureStartersLoaded(failing);
+  it("caches a successful load, so a repeat open does not refetch", async () => {
+    const fetcher = okFetcher("Home Lab");
 
-    expect(result).toEqual([]);
-    expect(getStarterTemplates()).toEqual([]);
-    expect(areStartersLoaded()).toBe(true);
+    const first = await ensureStartersLoaded(
+      fetcher as unknown as typeof fetch,
+    );
+    expect(first.length).toBeGreaterThan(0);
+    // Cardinality-immune: snapshot the real fetch count, then assert a second
+    // open adds none, rather than pinning a literal tied to TEMPLATE_FILES.length.
+    const callsAfterFirst = fetcher.mock.calls.length;
+    expect(callsAfterFirst).toBeGreaterThan(0);
+
+    await ensureStartersLoaded(fetcher as unknown as typeof fetch);
+
+    expect(fetcher.mock.calls.length).toBe(callsAfterFirst);
   });
 
-  it("loads once and caches, so repeat opens do not refetch", async () => {
+  it("does not cache a failed load, so the next open retries and recovers", async () => {
     const failing = vi.fn(async () => {
       throw new Error("offline");
-    }) as unknown as typeof fetch;
+    });
 
-    await ensureStartersLoaded(failing);
-    await ensureStartersLoaded(failing);
+    const failed = await ensureStartersLoaded(
+      failing as unknown as typeof fetch,
+    );
+    expect(failed).toEqual([]);
+    expect(getStarterTemplates()).toEqual([]);
+    const failingCalls = failing.mock.calls.length;
 
-    // One load fetched each shipped template file exactly once; the second call
-    // reused the cached promise and issued no further fetches.
-    expect(failing).toHaveBeenCalledTimes(3);
+    // The failure was not cached: a later open retries. Give it a working
+    // fetcher and confirm the starters populate.
+    const working = okFetcher("Home Lab");
+    const recovered = await ensureStartersLoaded(
+      working as unknown as typeof fetch,
+    );
+
+    expect(recovered.length).toBeGreaterThan(0);
+    expect(getStarterTemplates().length).toBeGreaterThan(0);
+    // The retry issued fresh fetches rather than reusing the failed attempt.
+    expect(failing.mock.calls.length).toBe(failingCalls);
+    expect(working.mock.calls.length).toBeGreaterThan(0);
   });
 });
 
@@ -175,19 +200,20 @@ describe("openStarterById", () => {
     vi.unstubAllGlobals();
   });
 
-  it("is a no-op for an id that did not load", async () => {
+  it("is a no-op when starters cannot be loaded", async () => {
     const failing = vi.fn(async () => {
       throw new Error("offline");
     }) as unknown as typeof fetch;
-    // Prime the cache with a failed load so the set is empty.
-    await ensureStartersLoaded(failing);
+    // openStarterById loads via the default global fetch; stub it to fail so the
+    // internal load degrades to [] and there is no matching starter to open.
+    vi.stubGlobal("fetch", failing);
 
     const ws = getWorkspaceStore();
     const before = ws.tabs.length;
 
     openStarterById("home-lab");
-    // Let the internal ensureStartersLoaded promise settle.
-    await Promise.resolve();
+    // Flush the internal ensureStartersLoaded().then chain.
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(ws.tabs.length).toBe(before);
   });
