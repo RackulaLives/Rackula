@@ -336,6 +336,23 @@ describe("rack-resize", () => {
       ).toBe(8);
     });
 
+    it("skips multiple steps in one call when a fast release outruns the preview", () => {
+      // A quick release can jump several U past the last previewed step before
+      // any pointermove fired. The grow loop must step through every whole U,
+      // not just one: 3.7U of travel from a non-boundary step lands on 14
+      // (10->11->12->13->14, then 3.7 - 4 = -0.3 < 0.6 stops), well clear of
+      // the min/max clamp.
+      expect(
+        snapResizeHeight({
+          ...base,
+          startHeight: 10,
+          growPx: 370,
+          pxPerU: 100,
+          currentHeight: 10,
+        }),
+      ).toBe(14);
+    });
+
     it("clamps to maxHeight even from a committed step near the top", () => {
       expect(
         snapResizeHeight({
