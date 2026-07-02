@@ -347,18 +347,21 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Move rack left",
     scope: "selection",
     bindings: [],
+    enabledWhen: (ctx) => !ctx.readOnly,
   },
   {
     id: "move-rack-right",
     label: "Move rack right",
     scope: "selection",
     bindings: [],
+    enabledWhen: (ctx) => !ctx.readOnly,
   },
   {
     id: "bay-rack",
     label: "Bay rack",
     scope: "selection",
     bindings: [],
+    enabledWhen: (ctx) => !ctx.readOnly,
   },
 
   // --- File -----------------------------------------------------------------

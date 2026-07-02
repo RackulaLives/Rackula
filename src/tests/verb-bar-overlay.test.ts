@@ -10,6 +10,7 @@ import {
 } from "$lib/stores/selection.svelte";
 import { resetToastStore } from "$lib/stores/toast.svelte";
 import { resetCanvasStore } from "$lib/stores/canvas.svelte";
+import { getUIStore, resetUIStore } from "$lib/stores/ui.svelte";
 import { organizeRackRow } from "$lib/utils/rack-row";
 import { createTestDeviceType } from "./factories";
 import type { DeviceFace } from "$lib/types";
@@ -27,6 +28,7 @@ function resetAll() {
   resetSelectionStore();
   resetToastStore();
   resetCanvasStore();
+  resetUIStore();
 }
 
 function setupRackWithDevice(face: DeviceFace = "front") {
@@ -138,6 +140,36 @@ describe("VerbBarOverlay", () => {
           hidden: true,
         }),
       ).toBeNull();
+    });
+  });
+
+  describe("read-only mode", () => {
+    it("withholds the reorder chevrons and bay verb from a rack selection", () => {
+      const ui = getUIStore();
+      ui.setEnableBayedRacks(true);
+      ui.setReadOnly(true);
+      const layout = getLayoutStore();
+      const a = layout.addRack("A", 42);
+      const b = layout.addRack("B", 42);
+      if (!a || !b) throw new Error("addRack returned null");
+      // Two empty racks with baying on: chevrons and the bay verb would show in
+      // edit mode, so their absence here proves read-only withholds them.
+      getSelectionStore().selectRack(a.id);
+      render(VerbBarOverlay, { props: { canvasEl: null } });
+
+      expect(
+        screen.queryByRole("button", { name: "Move rack left", hidden: true }),
+      ).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Move rack right", hidden: true }),
+      ).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Bay rack", hidden: true }),
+      ).toBeNull();
+      // The read-only-safe object verbs still render, so the bar is present.
+      expect(
+        screen.getByRole("button", { name: "Focus", hidden: true }),
+      ).toBeTruthy();
     });
   });
 });

@@ -90,15 +90,18 @@
   );
 
   // The bay verb is offered only for empty standalone racks and bay groups
-  // (baySource), and only when the bayed-racks setting is on.
+  // (baySource), and only when the bayed-racks setting is on. Baying is a
+  // mutation, so it is withheld in read-only mode like the other mutation verbs.
   const showBayVerb = $derived(
-    ui.enableBayedRacks && slotControls.baySource !== null,
+    !ctx.readOnly && ui.enableBayedRacks && slotControls.baySource !== null,
   );
 
   // Compose the bar: leading reorder chevrons (position verbs), then a divider,
   // then the object verbs (bay plus the registry-filtered selection verbs).
   // Device selections keep the object-verb-only bar. Chevrons show only when the
-  // row has two or more slots and disable at the ends.
+  // row has two or more slots and disable at the ends. Reorder is a mutation, so
+  // it is withheld in read-only mode (matching getVerbsForSelection's filtering
+  // of the object verbs and the move-rack-* enabledWhen predicates).
   const verbs = $derived.by<VerbItem[]>(() => {
     const objectVerbs: VerbItem[] = getVerbsForSelection(ctx).map((a) => ({
       id: a.id,
@@ -107,7 +110,7 @@
 
     if (!isRackOrGroup) return objectVerbs;
 
-    const position: VerbItem[] = slotControls.canReorder
+    const position: VerbItem[] = slotControls.canReorder && !ctx.readOnly
       ? [
           {
             id: "move-rack-left",

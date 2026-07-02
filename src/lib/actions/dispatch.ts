@@ -219,10 +219,20 @@ export function createActionDispatch(): ActionDispatch {
     // Rack reorder and bay verbs live on the floating verb bar (#2822); they
     // have no keybinding and are excluded from the palette, so these entries
     // exist only to keep the dispatch map total. Their real gating (row length,
-    // empty-vs-populated, bay group) is resolved inside the shared handlers.
-    "move-rack-left": () => moveSelectedRack("left"),
-    "move-rack-right": () => moveSelectedRack("right"),
-    "bay-rack": baySelectedRack,
+    // empty-vs-populated, bay group) is resolved inside the shared handlers;
+    // read-only is enforced here like the other mutation verbs.
+    "move-rack-left": () => {
+      if (getUIStore().readOnly) return;
+      moveSelectedRack("left");
+    },
+    "move-rack-right": () => {
+      if (getUIStore().readOnly) return;
+      moveSelectedRack("right");
+    },
+    "bay-rack": () => {
+      if (getUIStore().readOnly) return;
+      baySelectedRack();
+    },
     // rack-actions take string[] not string; wrap selectedRackId in array
     "focus-rack": () => {
       const id = getSelectionStore().selectedRackId;
