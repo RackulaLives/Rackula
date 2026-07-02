@@ -282,11 +282,12 @@ jobs:
           echo "Persist round-trip gate passed"
           docker compose --profile persist down -v
 
-  # GATE: deploy the staged LXC tarball onto a throwaway unprivileged CT on the
-  # non-prod Proxmox (pve-rusty self-hosted runner) and smoke-test it. No creds.
-  # Skipped only under the emergency override.
+  # GATE: deploy the staged LXC tarball onto a throwaway unprivileged CT in the
+  # ci-smoke pool on pve-prod (lxc-gate self-hosted runner) and smoke-test it, via
+  # a least-privileged Proxmox token scoped to that pool. Skipped only under the
+  # emergency override.
   #
-  # The self-hosted ci-runner (label pve-rusty) runs scripts/lxc-smoke-test.sh in its
+  # The self-hosted lxc-gate runner (label lxc-gate) runs scripts/lxc-smoke-test.sh in its
   # api driver (#1982): CT lifecycle via the Proxmox API + ssh-into-CT, no pct on the runner.
   gate-lxc:
     name: "Gate: LXC smoke test"
