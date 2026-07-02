@@ -141,6 +141,25 @@
 
   let resizeDrag = $state<ResizeDrag | null>(null);
 
+  // Resize-handle geometry, all screen-space so the affordance reads the same at
+  // any zoom (#2824). The visible square is a fixed 11px; the invisible hit area
+  // is 44px but shrinks on short racks at low zoom so the top and bottom zones
+  // never overlap, with a small gap between them.
+  const GRIP_SQUARE_PX = 11;
+  const GRIP_HIT_MAX_PX = 44;
+  const GRIP_HIT_GAP_PX = 4;
+
+  // Screen-space height of one grip's hit area. Floored at the visible square so
+  // it never collapses to zero: resize stays reachable at any zoom, even when
+  // half the rack's on-screen height (minus the gap) drops below the square.
+  function resizeHitHeightPx(heightU: number): number {
+    const rackScreenHeight = heightU * U_HEIGHT_PX * canvasStore.zoom;
+    return Math.max(
+      GRIP_SQUARE_PX,
+      Math.min(GRIP_HIT_MAX_PX, rackScreenHeight / 2 - GRIP_HIT_GAP_PX),
+    );
+  }
+
   // The racks a target mutates: a standalone rack is itself; a bay is all its
   // members so they stay equal height.
   function resizeTargetRackIds(target: ResizeTarget): string[] {
@@ -559,10 +578,13 @@
   class:swipe-next={swipeAnimationDirection === "next"}
   class:swipe-previous={swipeAnimationDirection === "previous"}
 >
-  {#snippet resizeGrip(target: ResizeTarget, side: ResizeGrip)}
+  {#snippet resizeGrip(target: ResizeTarget, side: ResizeGrip, heightU: number)}
+    {@const scale = 1 / canvasStore.zoom}
     <button
       type="button"
       class="resize-grip resize-grip-{side}"
+      style:--grip-scale={scale}
+      style:height="{resizeHitHeightPx(heightU) * scale}px"
       aria-label={`Resize ${target.kind === "bay" ? "bay" : "rack"} height from ${side} edge`}
       aria-keyshortcuts="ArrowUp ArrowDown"
       title="Drag to resize. Arrow Up grows, Arrow Down shrinks."
@@ -574,7 +596,7 @@
       ontouchstart={blockPan}
       onkeydown={(e) => handleResizeKey(target, e)}
     >
-      <span class="grip-bar" aria-hidden="true"></span>
+      <span class="grip-square" aria-hidden="true"></span>
     </button>
   {/snippet}
   {#each rowItems as item (item.kind === "rack" ? `rack:${item.rack.id}` : `group:${item.group.id}`)}
@@ -626,8 +648,16 @@
             ondelete={() => onrackdelete?.(rack.id)}
           />
           {#if isSelected}
-            {@render resizeGrip({ kind: "rack", rackId: rack.id }, "top")}
-            {@render resizeGrip({ kind: "rack", rackId: rack.id }, "bottom")}
+            {@render resizeGrip(
+              { kind: "rack", rackId: rack.id },
+              "top",
+              rack.height,
+            )}
+            {@render resizeGrip(
+              { kind: "rack", rackId: rack.id },
+              "bottom",
+              rack.height,
+            )}
             {#if resizeDrag?.target.kind === "rack" && resizeDrag.target.rackId === rack.id}
               <div
                 class="resize-readout resize-readout-{resizeDrag.grip}"
@@ -730,7 +760,7 @@
                  stacked front+rear rows grow the wrapper by twice the height
                  delta, so no single translateY tracks the pointer.
                  Gated on the bayed-racks setting (#2742). -->
-            {@render resizeGrip(bayTarget, "top")}
+            {@render resizeGrip(bayTarget, "top", item.racks[0]?.height ?? 0)}
             {#if resizeDrag?.target.kind === "bay" && resizeDrag.target.groupId === item.group.id}
               <div
                 class="resize-readout resize-readout-{resizeDrag.grip}"
@@ -907,8 +937,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 56px;
-    height: 22px;
+    /* Screen-space hit width; height is set inline per rack so the top and
+       bottom zones shrink on short racks at low zoom and never overlap (#2824). */
+    width: calc(44px * var(--grip-scale, 1));
     padding: 0;
     border: none;
     background: transparent;
@@ -927,17 +958,19 @@
     transform: translate(-50%, 50%);
   }
 
-  /* The visible handle reads as a short rack rail. */
-  .grip-bar {
-    width: 40px;
-    height: 6px;
-    border-radius: var(--radius-full);
-    background: var(--colour-border);
-    box-shadow: 0 0 0 4px var(--colour-surface-overlay, rgba(40, 42, 54, 0.6));
+  /* Edge-midpoint square centred on the selection outline: the vector-tool
+     convention for axis-only resize. Sized in screen space via --grip-scale so
+     it holds ~11px at any zoom (#2824). */
+  .grip-square {
+    width: calc(11px * var(--grip-scale, 1));
+    height: calc(11px * var(--grip-scale, 1));
+    border: calc(1.5px * var(--grip-scale, 1)) solid var(--colour-selection);
+    border-radius: calc(2px * var(--grip-scale, 1));
+    background: var(--colour-surface);
   }
 
-  .resize-grip:hover .grip-bar,
-  .resize-grip:focus-visible .grip-bar {
+  .resize-grip:hover .grip-square,
+  .resize-grip:focus-visible .grip-square {
     background: var(--colour-selection);
   }
 
@@ -945,14 +978,12 @@
     outline: none;
   }
 
-  .resize-grip:focus-visible .grip-bar {
-    box-shadow:
-      0 0 0 4px var(--colour-surface-overlay, rgba(40, 42, 54, 0.6)),
-      var(--focus-ring-glow);
+  .resize-grip:focus-visible .grip-square {
+    box-shadow: var(--focus-ring-glow);
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .grip-bar {
+    .grip-square {
       transition: background-color var(--duration-fast) var(--ease-out);
     }
   }
