@@ -584,6 +584,8 @@
       type="button"
       class="resize-grip resize-grip-{side}"
       style:--grip-scale={scale}
+      style:--grip-hit-max-px="{GRIP_HIT_MAX_PX}px"
+      style:--grip-square-px="{GRIP_SQUARE_PX}px"
       style:height="{resizeHitHeightPx(heightU) * scale}px"
       aria-label={`Resize ${target.kind === "bay" ? "bay" : "rack"} height from ${side} edge`}
       aria-keyshortcuts="ArrowUp ArrowDown"
@@ -939,7 +941,7 @@
     justify-content: center;
     /* Screen-space hit width; height is set inline per rack so the top and
        bottom zones shrink on short racks at low zoom and never overlap (#2824). */
-    width: calc(44px * var(--grip-scale, 1));
+    width: calc(var(--grip-hit-max-px, 44px) * var(--grip-scale, 1));
     padding: 0;
     border: none;
     background: transparent;
@@ -962,8 +964,8 @@
      convention for axis-only resize. Sized in screen space via --grip-scale so
      it holds ~11px at any zoom (#2824). */
   .grip-square {
-    width: calc(11px * var(--grip-scale, 1));
-    height: calc(11px * var(--grip-scale, 1));
+    width: calc(var(--grip-square-px, 11px) * var(--grip-scale, 1));
+    height: calc(var(--grip-square-px, 11px) * var(--grip-scale, 1));
     border: calc(1.5px * var(--grip-scale, 1)) solid var(--colour-selection);
     border-radius: calc(2px * var(--grip-scale, 1));
     background: var(--colour-surface);
