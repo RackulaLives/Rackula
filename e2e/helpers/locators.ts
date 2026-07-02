@@ -46,6 +46,14 @@ export const locators = {
     rearBlockedSlot: '[data-testid="rack-rear"] .blocked-slot',
   },
 
+  bayGroup: {
+    // The group wrapper itself is reached by role/name at the call site
+    // (role="group", accessible name "N bays"). This registry holds only the
+    // structural leaf used to count members.
+    /** Front-row member rack SVGs of a bayed group, one per bay. */
+    frontMemberSvg: ".front-row .rack-svg",
+  },
+
   device: {
     paletteItem: '[data-testid="device-palette-item"]',
     paletteItemName: '[data-testid="device-palette-item"] .device-name',

@@ -421,3 +421,57 @@ describe("baySourceForItem (#2822)", () => {
     expect(baySourceForItem(undefined, null)).toBeNull();
   });
 });
+
+describe("bay affordance gating by selection state (#2823)", () => {
+  // The grip and the verb bar bay action share baySourceForItem: a non-null
+  // source means the bay affordance is offered for that selection. These cover
+  // the three acceptance-criteria selection states.
+
+  it("offers baying on an empty standalone rack (bays itself)", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const [item] = organizeRackRow([a], []);
+    expect(baySourceForItem(item, "a")).toBe("a");
+  });
+
+  it("withholds baying on a populated standalone rack", () => {
+    const a = createTestRack({
+      id: "a",
+      position: 0,
+      devices: [createTestDevice()],
+    });
+    const [item] = organizeRackRow([a], []);
+    expect(baySourceForItem(item, "a")).toBeNull();
+  });
+
+  it("offers baying on a bay group whose members are all empty", () => {
+    const m1 = createTestRack({ id: "m1", position: 0 });
+    const m2 = createTestRack({ id: "m2", position: 1 });
+    const group: RackGroup = {
+      id: "g1",
+      rack_ids: ["m1", "m2"],
+      layout_preset: "bayed",
+    };
+    const [item] = organizeRackRow([m1, m2], [group]);
+    expect(baySourceForItem(item, "m1")).toBe("m1");
+  });
+
+  it("offers baying on a bay group with populated members", () => {
+    const m1 = createTestRack({
+      id: "m1",
+      position: 0,
+      devices: [createTestDevice()],
+    });
+    const m2 = createTestRack({
+      id: "m2",
+      position: 1,
+      devices: [createTestDevice()],
+    });
+    const group: RackGroup = {
+      id: "g1",
+      rack_ids: ["m1", "m2"],
+      layout_preset: "bayed",
+    };
+    const [item] = organizeRackRow([m1, m2], [group]);
+    expect(baySourceForItem(item, "m1")).not.toBeNull();
+  });
+});

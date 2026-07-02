@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { organizeRackRow } from "$lib/utils/rack-row";
+import { CATEGORY_COLOURS } from "$lib/types/constants";
 
 function rowIds(store: ReturnType<typeof getLayoutStore>): string[] {
   return organizeRackRow(store.racks, store.rack_groups).flatMap((item) =>
@@ -58,6 +59,44 @@ describe("createBayedRack", () => {
     for (const id of group.rack_ids) {
       expect(store.getRackById(id)!.height).toBe(30);
     }
+  });
+
+  it("extends a populated bay group with an empty member at group height", () => {
+    // A bay group can be extended regardless of member contents (#2823). The
+    // new member is created empty at group height, so the equal-height invariant
+    // holds even when existing members are populated.
+    const store = getLayoutStore();
+    const created = store.addBayedRackGroup("Bay", 2, 42, 19)!;
+    const groupId = created.group.id;
+    const firstId = created.group.rack_ids[0]!;
+    const lastId = created.group.rack_ids[created.group.rack_ids.length - 1]!;
+
+    const dt = store.addDeviceType({
+      name: "Server 1U",
+      u_height: 1,
+      category: "server",
+      colour: CATEGORY_COLOURS.server,
+    });
+    expect(store.placeDevice(firstId, dt.slug, 5)).toBe(true);
+    expect(store.getRackById(firstId)!.devices.length).toBeGreaterThan(0);
+
+    // Extend from the group's right edge (its last member), as the grip does.
+    const result = store.createBayedRack(lastId);
+    expect(result.error).toBeUndefined();
+
+    // The new member arrives empty: baying is a creation-time decision, not a
+    // copy of the source's contents.
+    const newRack = store.getRackById(result.rackId!)!;
+    expect(newRack.devices).toEqual([]);
+
+    // Every member (populated or not) shares the group height.
+    const group = store.getRackGroupById(groupId)!;
+    for (const id of group.rack_ids) {
+      expect(store.getRackById(id)!.height).toBe(42);
+    }
+    // It joined the same group at its right edge.
+    expect(group.rack_ids).toContain(result.rackId);
+    expect(group.rack_ids[group.rack_ids.length - 1]).toBe(result.rackId);
   });
 
   it("inserts mid-row and pushes the racks to the right along", () => {

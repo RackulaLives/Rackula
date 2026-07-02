@@ -470,10 +470,13 @@
             {ondevicemoverack}
             onplacementtap={(e) => handlePlacementTap(rack.id, e)}
           />
-          <!-- Resistant right-edge drag on an empty bay member: pull right past
-               the snap threshold to insert a new bayed rack after it (#2740).
-               Same affordance and handlers as a standalone empty rack. -->
-          {#if enableBayDrag && rack.devices.length === 0}
+          <!-- Resistant right-edge drag on the group's right edge (#2823): a
+               bay group always extends, whatever its members contain, so the one
+               grip sits on the last member and pulls right past the snap
+               threshold to append a new empty member at group height. Same
+               affordance and handlers as a standalone empty rack. enableBayDrag
+               already encodes selection, the bayed-racks setting, and read-only. -->
+          {#if enableBayDrag && bayIndex === racks.length - 1}
             <button
               type="button"
               class="bay-edge-grip"

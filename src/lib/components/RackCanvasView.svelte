@@ -18,7 +18,7 @@
   import type { DeviceFace } from "$lib/types";
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
-  import { organizeRackRow } from "$lib/utils/rack-row";
+  import { organizeRackRow, baySourceForItem } from "$lib/utils/rack-row";
   import { bayRack } from "$lib/actions/selection-actions";
   import { getMinResizeHeight, snapResizeHeight } from "$lib/utils/rack-resize";
   import { U_HEIGHT_PX, getRackWidth } from "$lib/constants/layout";
@@ -323,9 +323,11 @@
   // existing bay, with the new member inheriting width / form factor / height
   // from the source, then keeps the result on screen (#2822, #2825).
 
-  // Resistant right-edge drag on an empty rack: a rubber-band ghost that snaps
-  // past a threshold to create or insert a bayed rack (#2740). Offered only on
-  // empty racks (AC: racks with no devices).
+  // Resistant right-edge drag: a rubber-band ghost that snaps past a threshold
+  // to create or extend a bay (#2740). Baying is a creation-time affordance, so
+  // the grip is offered only on an empty standalone rack and on a bay group's
+  // right edge (populated standalone racks show none), matching baySourceForItem
+  // and the verb bar bay action (#2823).
   const BAY_SNAP_FRACTION = 0.5;
 
   interface BayDrag {
@@ -635,10 +637,13 @@
                 {resizeDrag.previewHeight}U
               </div>
             {/if}
-            <!-- Resistant right-edge drag: empty racks only (#2740). Pull right
-                 past the snap threshold to create or insert a bayed rack.
-                 Gated on the bayed-racks setting (#2742). -->
-            {#if uiStore.enableBayedRacks && rack.devices.length === 0}
+            <!-- Resistant right-edge drag, gated to match the verb bar bay
+                 action (#2823): baySourceForItem offers it only on an empty
+                 standalone rack (populated standalone racks show no bay
+                 affordance), ANDed with the bayed-racks setting (#2742) and
+                 suppressed in read-only mode. Pull right past the snap threshold
+                 to create a bayed rack. -->
+            {#if !uiStore.readOnly && uiStore.enableBayedRacks && baySourceForItem(item, activeRackId) !== null}
               <button
                 type="button"
                 class="bay-edge-grip"
@@ -709,7 +714,9 @@
             onrename={(rackId) => onrackrename?.(rackId)}
             onduplicate={(rackId) => onrackduplicate?.(rackId)}
             ondelete={(rackId) => onrackdelete?.(rackId)}
-            enableBayDrag={isBaySelected && uiStore.enableBayedRacks}
+            enableBayDrag={isBaySelected &&
+              uiStore.enableBayedRacks &&
+              !uiStore.readOnly}
             {bayGhost}
             onbaydragstart={handleBayDragStart}
             onbaydragmove={handleBayDragMove}
