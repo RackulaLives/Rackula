@@ -182,10 +182,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      # The ci-runner is not ephemeral: it reuses _work across jobs, and a prior
-      # sparse checkout (e.g. the LXC gate) leaves an index that makes
-      # actions/checkout's clean fail with "not uptodate; will not remove".
-      # Wipe the workspace first so the checkout below starts from a clean slate.
+      # The e2e runner is ephemeral (snapshot-reverts to @clean per job), so the
+      # workspace normally starts pristine. This wipe is a cheap safety net (e.g. a
+      # JIT runner that somehow reused a dirty _work) so actions/checkout's clean
+      # can never fail with "not uptodate; will not remove" — start from a clean slate.
       - name: Clean self-hosted workspace
         run: |
           if [ -n "$GITHUB_WORKSPACE" ] && [ -d "$GITHUB_WORKSPACE" ]; then
