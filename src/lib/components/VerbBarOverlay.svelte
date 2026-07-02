@@ -110,20 +110,21 @@
 
     if (!isRackOrGroup) return objectVerbs;
 
-    const position: VerbItem[] = slotControls.canReorder && !ctx.readOnly
-      ? [
-          {
-            id: "move-rack-left",
-            label: "Move rack left",
-            disabled: !slotControls.canMoveLeft,
-          },
-          {
-            id: "move-rack-right",
-            label: "Move rack right",
-            disabled: !slotControls.canMoveRight,
-          },
-        ]
-      : [];
+    const position: VerbItem[] =
+      slotControls.canReorder && !ctx.readOnly
+        ? [
+            {
+              id: "move-rack-left",
+              label: "Move rack left",
+              disabled: !slotControls.canMoveLeft,
+            },
+            {
+              id: "move-rack-right",
+              label: "Move rack right",
+              disabled: !slotControls.canMoveRight,
+            },
+          ]
+        : [];
 
     const bayVerbs: VerbItem[] = showBayVerb
       ? [{ id: "bay-rack", label: "Bay rack" }]
