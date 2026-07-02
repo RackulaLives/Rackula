@@ -81,12 +81,19 @@
           selection.selectedRackId,
           layout.activeRackId,
         )
-      : { canReorder: false, canMoveLeft: false, canMoveRight: false, baySource: null },
+      : {
+          canReorder: false,
+          canMoveLeft: false,
+          canMoveRight: false,
+          baySource: null,
+        },
   );
 
   // The bay verb is offered only for empty standalone racks and bay groups
   // (baySource), and only when the bayed-racks setting is on.
-  const showBayVerb = $derived(ui.enableBayedRacks && slotControls.baySource !== null);
+  const showBayVerb = $derived(
+    ui.enableBayedRacks && slotControls.baySource !== null,
+  );
 
   // Compose the bar: leading reorder chevrons (position verbs), then a divider,
   // then the object verbs (bay plus the registry-filtered selection verbs).
