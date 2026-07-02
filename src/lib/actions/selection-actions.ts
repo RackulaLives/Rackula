@@ -8,7 +8,11 @@
 
 import { getLayoutStore } from "$lib/stores/layout.svelte";
 import { getSelectionStore } from "$lib/stores/selection.svelte";
+import { getCanvasStore } from "$lib/stores/canvas.svelte";
+import { getUIStore } from "$lib/stores/ui.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
+import { hapticSuccess, hapticError } from "$lib/utils/haptics";
+import { getRackSlotControls } from "$lib/utils/rack-row";
 import { findNextValidPosition } from "$lib/utils/device-movement";
 import {
   canPlaceDevice,
@@ -149,6 +153,89 @@ export function moveSelectedDeviceToSlot(): void {
   if (deviceIndex === null) return;
 
   layoutStore.moveDeviceToSlot(selectionStore.selectedRackId, deviceIndex);
+}
+
+/**
+ * Reorder the selected rack (or bayed group) one slot left or right in the
+ * canvas row. A group moves as a unit, since its active member carries the
+ * selection's rack id. No-op unless a rack or group is selected. Routed through
+ * the layout store so undo/redo covers it. Shared by the verb bar (#2822).
+ */
+export function moveSelectedRack(direction: "left" | "right"): void {
+  const selectionStore = getSelectionStore();
+  const layoutStore = getLayoutStore();
+
+  if (!selectionStore.isRackSelected && !selectionStore.isGroupSelected) return;
+  const id = selectionStore.selectedRackId;
+  if (!id) return;
+
+  layoutStore.moveRackInRow(id, direction);
+}
+
+/**
+ * Create a bay from a standalone rack, or extend an existing bay, from the
+ * given source rack. The new member inherits the source's width, form factor,
+ * and height. On success it selects the resulting bay and keeps it on screen
+ * with a minimal ensure-visible camera move (#2825); on failure it surfaces a
+ * toast. Shared by the verb bar (#2822) and the edge-drag grip so both baying
+ * paths behave identically.
+ */
+export function bayRack(sourceRackId: string): void {
+  const layoutStore = getLayoutStore();
+  const selectionStore = getSelectionStore();
+  const canvasStore = getCanvasStore();
+  const toastStore = getToastStore();
+
+  const result = layoutStore.createBayedRack(sourceRackId);
+  if (result.error || !result.groupId) {
+    hapticError();
+    toastStore.showToast(
+      result.error ?? "Can't bay this rack",
+      "warning",
+      3000,
+    );
+    return;
+  }
+  hapticSuccess();
+  // Select the resulting bay so its bay-level affordances surface at once.
+  layoutStore.setActiveRack(sourceRackId);
+  selectionStore.selectGroup(result.groupId, sourceRackId);
+  // Direct-manipulation commit: keep the bay group (including the new member)
+  // on screen with minimal camera movement. Passing the group's rack_ids
+  // resolves to the whole group's extent so the new member ends up visible.
+  const group = layoutStore.getRackGroupById(result.groupId);
+  if (group) {
+    canvasStore.ensureRacksVisible(
+      group.rack_ids,
+      layoutStore.racks,
+      layoutStore.rack_groups,
+    );
+  }
+}
+
+/**
+ * Bay the current selection: resolve the bay source for the selected rack or
+ * group (an empty standalone rack bays itself; a bayed group extends from its
+ * active member) and run bayRack on it. No-op unless the bayed-racks setting is
+ * on, a rack or group is selected, and that slot offers a bay source. Shared by
+ * the verb bar's bay action and the dispatch spine so both gate baying the same
+ * way as the edge grip.
+ */
+export function baySelectedRack(): void {
+  const selectionStore = getSelectionStore();
+  const layoutStore = getLayoutStore();
+  const uiStore = getUIStore();
+
+  if (!uiStore.enableBayedRacks) return;
+  if (!selectionStore.isRackSelected && !selectionStore.isGroupSelected) return;
+
+  const { baySource } = getRackSlotControls(
+    layoutStore.racks,
+    layoutStore.rack_groups,
+    selectionStore.selectedRackId,
+    layoutStore.activeRackId,
+  );
+  if (baySource) bayRack(baySource);
 }
 
 /**

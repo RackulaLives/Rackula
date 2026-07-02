@@ -10,8 +10,17 @@ import {
 } from "$lib/stores/selection.svelte";
 import { resetToastStore } from "$lib/stores/toast.svelte";
 import { resetCanvasStore } from "$lib/stores/canvas.svelte";
+import { organizeRackRow } from "$lib/utils/rack-row";
 import { createTestDeviceType } from "./factories";
 import type { DeviceFace } from "$lib/types";
+
+/** Row order as slot ids (a rack's id, or a group's id) for order assertions. */
+function rowOrder(): string[] {
+  const layout = getLayoutStore();
+  return organizeRackRow(layout.racks, layout.rack_groups).map((item) =>
+    item.kind === "rack" ? item.rack.id : item.group.id,
+  );
+}
 
 function resetAll() {
   resetLayoutStore();
@@ -99,6 +108,36 @@ describe("VerbBarOverlay", () => {
 
       await clickVerb("Delete selected");
       expect(ondelete).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("rack reorder", () => {
+    it("reorders the row when the move-rack-right verb is clicked", async () => {
+      const layout = getLayoutStore();
+      const a = layout.addRack("A", 42);
+      const b = layout.addRack("B", 42);
+      if (!a || !b) throw new Error("addRack returned null");
+      getSelectionStore().selectRack(a.id);
+      render(VerbBarOverlay, { props: { canvasEl: null } });
+
+      expect(rowOrder()).toEqual([a.id, b.id]);
+      await clickVerb("Move rack right");
+      expect(rowOrder()).toEqual([b.id, a.id]);
+    });
+
+    it("shows no reorder chevrons for a single-rack row", () => {
+      const layout = getLayoutStore();
+      const solo = layout.addRack("Solo", 42);
+      if (!solo) throw new Error("addRack returned null");
+      getSelectionStore().selectRack(solo.id);
+      render(VerbBarOverlay, { props: { canvasEl: null } });
+
+      expect(
+        screen.queryByRole("button", {
+          name: "Move rack right",
+          hidden: true,
+        }),
+      ).toBeNull();
     });
   });
 });

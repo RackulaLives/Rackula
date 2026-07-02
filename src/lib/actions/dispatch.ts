@@ -27,6 +27,8 @@ import {
   moveSelectedDeviceToSlot,
   duplicateSelection,
   flipSelectedDeviceFace,
+  moveSelectedRack,
+  baySelectedRack,
 } from "$lib/actions/selection-actions";
 import {
   maybeSave,
@@ -214,6 +216,13 @@ export function createActionDispatch(): ActionDispatch {
       if (getUIStore().readOnly) return;
       flipSelectedDeviceFace();
     },
+    // Rack reorder and bay verbs live on the floating verb bar (#2822); they
+    // have no keybinding and are excluded from the palette, so these entries
+    // exist only to keep the dispatch map total. Their real gating (row length,
+    // empty-vs-populated, bay group) is resolved inside the shared handlers.
+    "move-rack-left": () => moveSelectedRack("left"),
+    "move-rack-right": () => moveSelectedRack("right"),
+    "bay-rack": baySelectedRack,
     // rack-actions take string[] not string; wrap selectedRackId in array
     "focus-rack": () => {
       const id = getSelectionStore().selectedRackId;

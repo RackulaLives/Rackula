@@ -63,6 +63,77 @@ export function organizeRackRow(
   return slots.map((slot) => slot.item);
 }
 
+/**
+ * The rack to bay from for a row item, or null when baying is not offered.
+ *
+ * Baying is a creation-time affordance (design 2026-07-01): it appears only on
+ * an empty standalone rack, which bays from itself, and on a bayed group, which
+ * extends from its active member whatever the members contain. A populated
+ * standalone rack and a non-bayed group return null. The active member is the
+ * one matching activeRackId, or the group's first member when activeRackId is
+ * not part of the group. Does not consult the bayed-racks setting; the caller
+ * ANDs that in. Shared by the verb bar and the edge grip (#2823) so both gate
+ * baying identically.
+ */
+export function baySourceForItem(
+  item: RackRowItem | undefined,
+  activeRackId: string | null,
+): string | null {
+  if (!item) return null;
+  if (item.kind === "rack") {
+    return item.rack.devices.length === 0 ? item.rack.id : null;
+  }
+  if (item.group.layout_preset !== "bayed") return null;
+  const active =
+    activeRackId !== null && item.racks.some((rack) => rack.id === activeRackId)
+      ? activeRackId
+      : item.racks[0]?.id;
+  return active ?? null;
+}
+
+/** Reorder and bay controls for the row slot holding a selected rack or group. */
+export interface RackSlotControls {
+  /** The row has two or more slots, so the reorder chevrons should show. */
+  canReorder: boolean;
+  /** The slot can move left (it is not the first slot). */
+  canMoveLeft: boolean;
+  /** The slot can move right (it is not the last slot). */
+  canMoveRight: boolean;
+  /** The rack to bay from, or null when baying is not offered for this slot. */
+  baySource: string | null;
+}
+
+/**
+ * Reorder availability and bay source for the row slot containing
+ * selectedRackId (a standalone rack, or a group's active member). Chevrons show
+ * only when the row has two or more slots and disable at the ends, matching the
+ * retired slot-controls lane. Baying follows baySourceForItem. Returns the empty
+ * state when nothing reorderable is selected.
+ */
+export function getRackSlotControls(
+  racks: Rack[],
+  groups: RackGroup[],
+  selectedRackId: string | null,
+  activeRackId: string | null,
+): RackSlotControls {
+  const items = organizeRackRow(racks, groups);
+  const index =
+    selectedRackId === null
+      ? -1
+      : items.findIndex((item) =>
+          item.kind === "rack"
+            ? item.rack.id === selectedRackId
+            : item.racks.some((rack) => rack.id === selectedRackId),
+        );
+  const canReorder = index !== -1 && items.length >= 2;
+  return {
+    canReorder,
+    canMoveLeft: canReorder && index > 0,
+    canMoveRight: canReorder && index < items.length - 1,
+    baySource: baySourceForItem(items[index], activeRackId),
+  };
+}
+
 /** A new Rack.position for a rack, in its new row order. */
 export type RackPositionAssignment = { id: string; position: number };
 

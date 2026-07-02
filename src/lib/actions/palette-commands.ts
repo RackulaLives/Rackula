@@ -37,6 +37,12 @@ export interface PaletteCommandGroup {
 const EXCLUDED: ReadonlySet<ActionId> = new Set<ActionId>([
   "command-palette",
   "escape",
+  // Verb-bar-only rack controls (#2822): their availability turns on row
+  // geometry (row length, empty-vs-populated, bay group) that the palette's
+  // context cannot express, so they surface only on the floating verb bar.
+  "move-rack-left",
+  "move-rack-right",
+  "bay-rack",
 ]);
 
 /**

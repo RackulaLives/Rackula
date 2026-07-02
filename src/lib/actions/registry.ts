@@ -53,6 +53,9 @@ export type ActionId =
   | "flip-device-face"
   | "focus-rack"
   | "export-rack"
+  | "move-rack-left"
+  | "move-rack-right"
+  | "bay-rack"
   | "cycle-rack-prev"
   | "cycle-rack-next"
   | "escape"
@@ -334,6 +337,28 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [],
     enabledWhen: (ctx) => ctx.isRackSelected,
     keywords: ["download", "svg", "pdf", "png"],
+  },
+  // Rack reorder and bay verbs live only on the floating verb bar (#2822).
+  // Their availability depends on row geometry (row length, empty-vs-populated,
+  // bay group) that ActionEnabledContext does not carry, so the verb bar gates
+  // them from the row model and they are excluded from the command palette.
+  {
+    id: "move-rack-left",
+    label: "Move rack left",
+    scope: "selection",
+    bindings: [],
+  },
+  {
+    id: "move-rack-right",
+    label: "Move rack right",
+    scope: "selection",
+    bindings: [],
+  },
+  {
+    id: "bay-rack",
+    label: "Bay rack",
+    scope: "selection",
+    bindings: [],
   },
 
   // --- File -----------------------------------------------------------------

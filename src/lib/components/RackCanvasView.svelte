@@ -19,8 +19,7 @@
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
   import { organizeRackRow } from "$lib/utils/rack-row";
-  import { IconChevronLeft, IconChevronRight, IconPlus } from "./icons";
-  import { ICON_SIZE } from "$lib/constants/sizing";
+  import { bayRack } from "$lib/actions/selection-actions";
   import { getMinResizeHeight, snapResizeHeight } from "$lib/utils/rack-resize";
   import { U_HEIGHT_PX, getRackWidth } from "$lib/constants/layout";
   import { MAX_RACK_HEIGHT } from "$lib/types/constants";
@@ -106,59 +105,13 @@
   // organizeRackRow for the ordering and grouping rules.
   const rowItems = $derived(organizeRackRow(racks, rackGroups));
 
-  // The selected row slot is the rack or group the user has selected; a device
-  // selection does not surface the reorder controls. For a selected group the
-  // selection store holds its active member, so the slot lookup resolves to the
-  // group that owns that member.
-  const selectedSlotRackId = $derived(
-    selectionStore.selectedType === "rack" ||
-      selectionStore.selectedType === "group"
-      ? selectionStore.selectedRackId
-      : null,
-  );
-
-  // Index of the selected slot within the row, or -1 when nothing reorderable
-  // is selected. A grouped rack resolves to its group's single slot.
-  const selectedSlotIndex = $derived.by(() => {
-    const id = selectedSlotRackId;
-    if (!id) return -1;
-    return rowItems.findIndex((item) =>
-      item.kind === "rack"
-        ? item.rack.id === id
-        : item.racks.some((rack) => rack.id === id),
-    );
-  });
-
   // The selected bayed group's id, or null when the selection is not a group.
-  // Drives the bay-level resize handle and "Bay rack" affordance on a bay slot.
+  // Drives the bay-level resize handle on a bay slot.
   const selectedGroupId = $derived(
     selectionStore.selectedType === "group"
       ? selectionStore.selectedGroupId
       : null,
   );
-
-  // The rack to bay from for the selected slot: a standalone rack bays itself; a
-  // bayed group bays from its active member so a new bay lands beside it. Null
-  // for a non-bayed (row) group, which cannot be bayed.
-  const selectedSlotBaySource = $derived.by(() => {
-    const item = rowItems[selectedSlotIndex];
-    if (!item) return null;
-    if (item.kind === "rack") return item.rack.id;
-    if (item.group.layout_preset !== "bayed") return null;
-    const active =
-      activeRackId && item.racks.some((rack) => rack.id === activeRackId)
-        ? activeRackId
-        : item.racks[0]?.id;
-    return active ?? null;
-  });
-
-  // Reorder the selected slot left or right. A grouped rack moves its whole
-  // group as a unit. Routed through the layout store so undo/redo covers it.
-  function handleMoveRack(direction: "left" | "right") {
-    const id = selectedSlotRackId;
-    if (!id) return;
-    layoutStore.moveRackInRow(id, direction);
-  }
 
   // --- Canvas drag-to-resize for standalone racks (#2737) ---
   // Grips on a selected standalone rack drag its height in whole-U steps. The
@@ -365,36 +318,10 @@
   }
 
   // --- Baying: create / extend a bay (#2740) ---
-  // The "Bay rack" button and the resistant edge drag both run one store action
-  // that forms a bay from a standalone rack or extends an existing bay, with the
-  // new member inheriting width / form factor / height from the source.
-  function handleBayRack(sourceRackId: string) {
-    const result = layoutStore.createBayedRack(sourceRackId);
-    if (result.error || !result.groupId) {
-      hapticError();
-      toastStore.showToast(
-        result.error ?? "Can't bay this rack",
-        "warning",
-        3000,
-      );
-      return;
-    }
-    hapticSuccess();
-    // Select the resulting bay so its bay-level affordances surface at once.
-    layoutStore.setActiveRack(sourceRackId);
-    selectionStore.selectGroup(result.groupId, sourceRackId);
-    // Direct-manipulation commit: keep the bay group (including the new member)
-    // on screen with minimal camera movement. Passing the group's rack_ids
-    // resolves to the whole group's extent so the new member ends up visible.
-    const group = layoutStore.getRackGroupById(result.groupId);
-    if (group) {
-      canvasStore.ensureRacksVisible(
-        group.rack_ids,
-        layoutStore.racks,
-        layoutStore.rack_groups,
-      );
-    }
-  }
+  // Both the verb bar's bay action and the resistant edge drag run one shared
+  // store action (bayRack) that forms a bay from a standalone rack or extends an
+  // existing bay, with the new member inheriting width / form factor / height
+  // from the source, then keeps the result on screen (#2822, #2825).
 
   // Resistant right-edge drag on an empty rack: a rubber-band ghost that snaps
   // past a threshold to create or insert a bayed rack (#2740). Offered only on
@@ -469,7 +396,7 @@
     if (!drag || event.pointerId !== drag.pointerId) return;
     const { rackId, armed } = drag;
     bayDrag = null;
-    if (armed) handleBayRack(rackId);
+    if (armed) bayRack(rackId);
   }
 
   function handleBayDragCancel(event: PointerEvent) {
@@ -648,55 +575,8 @@
       <span class="grip-bar" aria-hidden="true"></span>
     </button>
   {/snippet}
-  {#each rowItems as item, slotIndex (item.kind === "rack" ? `rack:${item.rack.id}` : `group:${item.group.id}`)}
+  {#each rowItems as item (item.kind === "rack" ? `rack:${item.rack.id}` : `group:${item.group.id}`)}
     <div class="row-slot">
-      {#if slotIndex === selectedSlotIndex}
-        <div class="slot-controls">
-          {#if rowItems.length >= 2}
-            <div
-              class="rack-move-controls"
-              role="group"
-              aria-label="Reorder rack"
-            >
-              <button
-                type="button"
-                class="move-button"
-                aria-label="Move rack left"
-                title="Move rack left"
-                disabled={slotIndex === 0}
-                onclick={() => handleMoveRack("left")}
-              >
-                <IconChevronLeft size={ICON_SIZE.sm} />
-              </button>
-              <button
-                type="button"
-                class="move-button"
-                aria-label="Move rack right"
-                title="Move rack right"
-                disabled={slotIndex === rowItems.length - 1}
-                onclick={() => handleMoveRack("right")}
-              >
-                <IconChevronRight size={ICON_SIZE.sm} />
-              </button>
-            </div>
-          {/if}
-          {#if uiStore.enableBayedRacks && selectedSlotBaySource}
-            <button
-              type="button"
-              class="bay-button"
-              aria-label="Bay rack"
-              title="Add a bayed rack to the right"
-              onclick={() => {
-                const id = selectedSlotBaySource;
-                if (id) handleBayRack(id);
-              }}
-            >
-              <IconPlus size={ICON_SIZE.sm} />
-              <span class="bay-button-label">Bay</span>
-            </button>
-          {/if}
-        </div>
-      {/if}
       {#if item.kind === "rack"}
         {@const rack = item.rack}
         {@const isActive = rack.id === activeRackId}
@@ -996,67 +876,14 @@
     }
   }
 
-  /* Each row slot stacks its reorder controls above the rack. The wrapper is
-     the flex child the row gap and bottom-alignment act on, so unselected slots
-     are the rack alone and the selected slot grows upward without shifting the
-     shared baseline. */
+  /* One row slot per rack or bayed group. The wrapper is the flex child the
+     row gap and bottom-alignment act on, so slots share the baseline whatever
+     their height. Reorder and bay controls now live on the floating verb bar
+     (#2822), not in this lane. */
   .row-slot {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-2);
-  }
-
-  .rack-move-controls {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-1);
-    border-radius: var(--radius-full);
-    border: 1px solid var(--colour-border);
-    background: var(--colour-surface-overlay, rgba(40, 42, 54, 0.6));
-  }
-
-  .move-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--touch-target-min);
-    min-height: var(--touch-target-min);
-    width: var(--touch-target-min);
-    height: var(--touch-target-min);
-    padding: 0;
-    border: none;
-    border-radius: var(--radius-full);
-    background: transparent;
-    color: var(--colour-text);
-    cursor: pointer;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .move-button:hover:not(:disabled) {
-    background: var(--colour-overlay-hover);
-    color: var(--colour-primary);
-  }
-
-  .move-button:focus-visible {
-    outline: none;
-    box-shadow: var(--focus-ring-glow);
-    color: var(--colour-primary);
-  }
-
-  .move-button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .move-button {
-      transition:
-        background-color var(--duration-fast) var(--ease-out),
-        color var(--duration-fast) var(--ease-out);
-    }
   }
 
   /* Drag-to-resize grips on a selected standalone rack (#2737). The wrapper is
@@ -1148,57 +975,6 @@
   .resize-readout-bottom {
     bottom: 0;
     transform: translate(-50%, calc(100% + var(--space-2)));
-  }
-
-  /* Per-slot control cluster above a selected slot: reorder pill plus the
-     "Bay rack" button. Sits in the row-slot's column flow above the rack. */
-  .slot-controls {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  /* "Bay rack" button: forms or extends a bay to the right of the selection. */
-  .bay-button {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    min-height: var(--touch-target-min);
-    padding: 0 var(--space-3);
-    border: 1px solid var(--colour-border);
-    border-radius: var(--radius-full);
-    background: var(--colour-surface-overlay, rgba(40, 42, 54, 0.6));
-    color: var(--colour-text);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold, 600);
-    cursor: pointer;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .bay-button:hover {
-    background: var(--colour-overlay-hover);
-    color: var(--colour-primary);
-    border-color: var(--colour-selection);
-  }
-
-  .bay-button:focus-visible {
-    outline: none;
-    box-shadow: var(--focus-ring-glow);
-    color: var(--colour-primary);
-  }
-
-  .bay-button-label {
-    line-height: 1;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .bay-button {
-      transition:
-        background-color var(--duration-fast) var(--ease-out),
-        color var(--duration-fast) var(--ease-out),
-        border-color var(--duration-fast) var(--ease-out);
-    }
   }
 
   /* Bayed-group wrapper: the positioning context for the bay-level resize grips

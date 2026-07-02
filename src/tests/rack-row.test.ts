@@ -4,8 +4,10 @@ import {
   reorderRackRow,
   planBayedInsert,
   planRowAfterRemoval,
+  getRackSlotControls,
+  baySourceForItem,
 } from "$lib/utils/rack-row";
-import { createTestRack } from "./factories";
+import { createTestRack, createTestDevice } from "./factories";
 import type { RackGroup } from "$lib/types";
 
 describe("organizeRackRow", () => {
@@ -321,5 +323,101 @@ describe("planRowAfterRemoval", () => {
   it("returns null when the removed rack is not in the row", () => {
     const a = createTestRack({ id: "a", position: 0 });
     expect(planRowAfterRemoval([a], [], "missing")).toBeNull();
+  });
+});
+
+describe("getRackSlotControls (verb bar reorder + bay gating, #2822)", () => {
+  it("offers no reorder for a single-slot row", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const controls = getRackSlotControls([a], [], "a", "a");
+    expect(controls.canReorder).toBe(false);
+    expect(controls.canMoveLeft).toBe(false);
+    expect(controls.canMoveRight).toBe(false);
+  });
+
+  it("enables reorder for a two-slot row and disables the chevron at each end", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const b = createTestRack({ id: "b", position: 1 });
+
+    const first = getRackSlotControls([a, b], [], "a", "a");
+    expect(first.canReorder).toBe(true);
+    expect(first.canMoveLeft).toBe(false);
+    expect(first.canMoveRight).toBe(true);
+
+    const last = getRackSlotControls([a, b], [], "b", "b");
+    expect(last.canReorder).toBe(true);
+    expect(last.canMoveLeft).toBe(true);
+    expect(last.canMoveRight).toBe(false);
+  });
+
+  it("returns the empty state when nothing reorderable is selected", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const b = createTestRack({ id: "b", position: 1 });
+    const controls = getRackSlotControls([a, b], [], null, null);
+    expect(controls.canReorder).toBe(false);
+    expect(controls.baySource).toBeNull();
+  });
+
+  it("offers a bay source on an empty standalone rack", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    expect(getRackSlotControls([a], [], "a", "a").baySource).toBe("a");
+  });
+
+  it("withholds the bay source on a populated standalone rack", () => {
+    const a = createTestRack({
+      id: "a",
+      position: 0,
+      devices: [createTestDevice()],
+    });
+    expect(getRackSlotControls([a], [], "a", "a").baySource).toBeNull();
+  });
+
+  it("offers a bay source on a bayed group regardless of member contents", () => {
+    const m1 = createTestRack({
+      id: "m1",
+      position: 0,
+      devices: [createTestDevice()],
+    });
+    const m2 = createTestRack({ id: "m2", position: 1 });
+    const group: RackGroup = {
+      id: "g1",
+      rack_ids: ["m1", "m2"],
+      layout_preset: "bayed",
+    };
+    // The active member is the bay source so a new bay lands beside it.
+    expect(getRackSlotControls([m1, m2], [group], "m2", "m2").baySource).toBe(
+      "m2",
+    );
+  });
+
+  it("withholds the bay source on a non-bayed (row) group", () => {
+    const m1 = createTestRack({ id: "m1", position: 0 });
+    const m2 = createTestRack({ id: "m2", position: 1 });
+    const group: RackGroup = {
+      id: "g1",
+      rack_ids: ["m1", "m2"],
+      layout_preset: "row",
+    };
+    expect(getRackSlotControls([m1, m2], [group], "m1", "m1").baySource).toBe(
+      null,
+    );
+  });
+});
+
+describe("baySourceForItem (#2822)", () => {
+  it("falls back to the group's first member when the active rack is elsewhere", () => {
+    const m1 = createTestRack({ id: "m1", position: 0 });
+    const m2 = createTestRack({ id: "m2", position: 1 });
+    const group: RackGroup = {
+      id: "g1",
+      rack_ids: ["m1", "m2"],
+      layout_preset: "bayed",
+    };
+    const [item] = organizeRackRow([m1, m2], [group]);
+    expect(baySourceForItem(item, "not-in-group")).toBe("m1");
+  });
+
+  it("returns null for an undefined item", () => {
+    expect(baySourceForItem(undefined, null)).toBeNull();
   });
 });

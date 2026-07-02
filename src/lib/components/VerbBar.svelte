@@ -21,10 +21,12 @@
   import {
     IconChevronUp,
     IconChevronDown,
+    IconChevronLeft,
     IconChevronRight,
     IconCopy,
     IconDownloadBold,
     IconFitAllBold,
+    IconPlus,
     IconTransitionRight,
     IconTrash,
   } from "./icons";
@@ -32,6 +34,10 @@
   export interface VerbItem {
     id: ActionId;
     label: string;
+    /** Rendered but not activatable, e.g. a reorder chevron at a row end. */
+    disabled?: boolean;
+    /** Draw a divider before this item, separating position from object verbs. */
+    dividerBefore?: boolean;
   }
 
   interface Props {
@@ -49,6 +55,9 @@
     "move-device-up": IconChevronUp,
     "move-device-down": IconChevronDown,
     "move-device-slot": IconChevronRight,
+    "move-rack-left": IconChevronLeft,
+    "move-rack-right": IconChevronRight,
+    "bay-rack": IconPlus,
     "flip-device-face": IconTransitionRight,
     "duplicate-selection": IconCopy,
     "delete-selection": IconTrash,
@@ -93,6 +102,9 @@
     {#each verbs as verb, index (verb.id)}
       {@const Icon = iconForVerb[verb.id]}
       {@const tooltip = getActionTooltip(verb.id)}
+      {#if verb.dividerBefore}
+        <span class="verb-divider" aria-hidden="true"></span>
+      {/if}
       <Tooltip text={tooltip?.label ?? verb.label} shortcut={tooltip?.shortcut}>
         {#snippet triggerChild({ props })}
           <button
@@ -102,8 +114,11 @@
             class:destructive={isDestructive(verb.id)}
             type="button"
             aria-label={verb.label}
+            aria-disabled={verb.disabled ? "true" : undefined}
             tabindex={index === clampedActiveIndex ? 0 : -1}
-            onclick={() => ondispatch(verb.id)}
+            onclick={() => {
+              if (!verb.disabled) ondispatch(verb.id);
+            }}
           >
             {#if Icon}
               <Icon size={ICON_SIZE.md} />
@@ -195,6 +210,28 @@
   .verb-button.destructive:hover,
   .verb-button.destructive:focus-visible {
     color: var(--colour-button-destructive);
+  }
+
+  /* A disabled reorder chevron stays visible and focusable (aria-disabled, not
+     the native attribute, so the roving toolbar stays reachable at a row end)
+     but reads as inert and does not react to hover. */
+  .verb-button[aria-disabled="true"] {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .verb-button[aria-disabled="true"]:hover {
+    background: transparent;
+    color: var(--colour-text);
+  }
+
+  /* Hairline separating the leading position verbs from the object verbs. */
+  .verb-divider {
+    flex: none;
+    width: 1px;
+    height: var(--space-5);
+    margin-inline: var(--space-1);
+    background: var(--verb-bar-border);
   }
 
   @media (prefers-reduced-motion: no-preference) {

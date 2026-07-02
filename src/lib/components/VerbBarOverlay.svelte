@@ -11,8 +11,9 @@
   canvas transform. VerbBar stays presentation-only.
 -->
 <script lang="ts">
-  import VerbBar from "./VerbBar.svelte";
+  import VerbBar, { type VerbItem } from "./VerbBar.svelte";
   import { getVerbsForSelection } from "$lib/actions/verb-bars";
+  import { getRackSlotControls } from "$lib/utils/rack-row";
   import {
     computeVerbBarPosition,
     VERB_BAR_LOW_ZOOM_THRESHOLD,
@@ -26,6 +27,8 @@
     canMoveSelectedDeviceSlot,
     flipSelectedDeviceFace,
     duplicateSelection,
+    moveSelectedRack,
+    baySelectedRack,
   } from "$lib/actions/selection-actions";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
@@ -63,9 +66,70 @@
     readOnly: ui.readOnly,
   });
 
-  const verbs = $derived(
-    getVerbsForSelection(ctx).map((a) => ({ id: a.id, label: a.label })),
+  // Reorder and bay availability for the selected row slot. A rack or a bayed
+  // group carries the target rack id (a group's active member); a device
+  // selection has no row-slot controls.
+  const isRackOrGroup = $derived(
+    selection.isRackSelected || selection.isGroupSelected,
   );
+
+  const slotControls = $derived(
+    isRackOrGroup
+      ? getRackSlotControls(
+          layout.racks,
+          layout.rack_groups,
+          selection.selectedRackId,
+          layout.activeRackId,
+        )
+      : { canReorder: false, canMoveLeft: false, canMoveRight: false, baySource: null },
+  );
+
+  // The bay verb is offered only for empty standalone racks and bay groups
+  // (baySource), and only when the bayed-racks setting is on.
+  const showBayVerb = $derived(ui.enableBayedRacks && slotControls.baySource !== null);
+
+  // Compose the bar: leading reorder chevrons (position verbs), then a divider,
+  // then the object verbs (bay plus the registry-filtered selection verbs).
+  // Device selections keep the object-verb-only bar. Chevrons show only when the
+  // row has two or more slots and disable at the ends.
+  const verbs = $derived.by<VerbItem[]>(() => {
+    const objectVerbs: VerbItem[] = getVerbsForSelection(ctx).map((a) => ({
+      id: a.id,
+      label: a.label,
+    }));
+
+    if (!isRackOrGroup) return objectVerbs;
+
+    const position: VerbItem[] = slotControls.canReorder
+      ? [
+          {
+            id: "move-rack-left",
+            label: "Move rack left",
+            disabled: !slotControls.canMoveLeft,
+          },
+          {
+            id: "move-rack-right",
+            label: "Move rack right",
+            disabled: !slotControls.canMoveRight,
+          },
+        ]
+      : [];
+
+    const bayVerbs: VerbItem[] = showBayVerb
+      ? [{ id: "bay-rack", label: "Bay rack" }]
+      : [];
+    const trailing: VerbItem[] = [...bayVerbs, ...objectVerbs];
+
+    // The divider sits before the first object verb only when both sides exist.
+    const withDivider =
+      position.length > 0
+        ? trailing.map((verb, i) =>
+            i === 0 ? { ...verb, dividerBefore: true } : verb,
+          )
+        : trailing;
+
+    return [...position, ...withDivider];
+  });
 
   const ariaLabel = $derived(
     selection.isDeviceSelected ? "Device actions" : "Rack actions",
@@ -95,6 +159,15 @@
         break;
       case "duplicate-selection":
         duplicateSelection();
+        break;
+      case "move-rack-left":
+        moveSelectedRack("left");
+        break;
+      case "move-rack-right":
+        moveSelectedRack("right");
+        break;
+      case "bay-rack":
+        baySelectedRack();
         break;
       case "delete-selection":
         ondelete?.();
@@ -129,7 +202,13 @@
       return canvasEl.querySelector(`[data-device-uuid="${uuid}"]`);
     }
 
-    if (selection.isRackSelected && selection.selectedRackId) {
+    // A rack selection, or a bayed-group selection whose active member carries
+    // the rack id, anchors to that rack's container. Group members render with
+    // data-rack-id in BayedRackView, so the same query resolves both.
+    if (
+      (selection.isRackSelected || selection.isGroupSelected) &&
+      selection.selectedRackId
+    ) {
       return canvasEl.querySelector(
         `[data-rack-id="${CSS.escape(selection.selectedRackId)}"]`,
       );
