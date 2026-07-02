@@ -96,10 +96,8 @@ export const locators = {
   canvas: {
     root: '[data-testid="rack-canvas"]',
     panzoomContainer: ".panzoom-container",
-  },
-
-  welcomeScreen: {
-    root: '[data-testid="welcome-screen"]',
+    /** Inline "Add a rack" prompt shown on a zero-rack canvas (#2831). */
+    addRackAffordance: '[data-testid="add-rack-affordance"]',
   },
 
   dialog: {

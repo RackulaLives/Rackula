@@ -24,15 +24,11 @@
   import { hapticTap } from "$lib/utils/haptics";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
   import type { DeviceFace, DisplayMode } from "$lib/types";
-  import {
-    loadStarterTemplates,
-    type StarterTemplate,
-  } from "$lib/templates/starter-templates";
   import RackCanvasView from "./RackCanvasView.svelte";
-  import WelcomeScreen from "./WelcomeScreen.svelte";
   import CanvasContextMenu from "./CanvasContextMenu.svelte";
   import VerbBarOverlay from "./VerbBarOverlay.svelte";
   import PlacementIndicator from "./PlacementIndicator.svelte";
+  import { IconPlus } from "./icons";
 
   const ONBOARDING_HINT_KEY = "Rackula_onboarding_hint_dismissed";
 
@@ -41,11 +37,6 @@
     /** Enable long press gesture for mobile rack editing */
     enableLongPress?: boolean;
     onnewrack?: () => void;
-    onload?: () => void;
-    /** Load a starter template as a new layout (empty-state picker). */
-    onchoosetemplate?: (template: StarterTemplate) => void;
-    /** Open the share flow from the empty-state picker. */
-    onshare?: () => void;
     onfitall?: () => void;
     onresetzoom?: () => void;
     /** Current display mode, for the canvas context-menu toggle entry */
@@ -107,9 +98,6 @@
     partyMode = false,
     enableLongPress = false,
     onnewrack,
-    onload,
-    onchoosetemplate,
-    onshare,
     onfitall,
     onresetzoom,
     displayMode,
@@ -140,21 +128,6 @@
   const hasRacks = $derived(layoutStore.rackCount > 0);
   const allRacksEmpty = $derived(racks.every((r) => r.devices.length === 0));
   let hintDismissed = $state(safeGetItem(ONBOARDING_HINT_KEY) === "1");
-
-  // Starter templates for the empty-state picker. Loaded lazily the first time
-  // the canvas has no racks, so the fetch never runs for users who arrive with a
-  // restored layout. A load failure leaves the list empty, and the picker falls
-  // back to its blank-layout affordance (#2095).
-  let starterTemplates = $state<StarterTemplate[]>([]);
-  let templatesRequested = false;
-
-  $effect(() => {
-    if (hasRacks || templatesRequested) return;
-    templatesRequested = true;
-    loadStarterTemplates().then((loaded) => {
-      starterTemplates = loaded;
-    });
-  });
 
   function dismissOnboardingHint() {
     safeSetItem(ONBOARDING_HINT_KEY, "1");
@@ -492,13 +465,18 @@
         />
       {/if}
     {:else}
-      <WelcomeScreen
-        templates={starterTemplates}
-        onchoosetemplate={(template) => onchoosetemplate?.(template)}
-        onblank={handleNewRack}
-        onimport={() => onload?.()}
-        onshare={() => onshare?.()}
-      />
+      <div class="empty-canvas">
+        <p class="empty-canvas-message">This layout has no racks yet.</p>
+        <button
+          type="button"
+          class="add-rack-button"
+          data-testid="add-rack-affordance"
+          onclick={handleNewRack}
+        >
+          <IconPlus size={18} />
+          <span>Add a rack</span>
+        </button>
+      </div>
     {/if}
   </div>
 </CanvasContextMenu>
@@ -590,5 +568,60 @@
 
   .hint-dismiss:hover {
     color: var(--colour-text);
+  }
+
+  /* Zero-rack state: a small, centred prompt with a single add-rack action so an
+     emptied layout is never a dead end (#2831). Not a full-screen takeover. */
+  .empty-canvas {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4, 16px);
+    padding: var(--space-6, 24px);
+    text-align: center;
+  }
+
+  .empty-canvas-message {
+    margin: 0;
+    color: var(--colour-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .add-rack-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2, 8px);
+    min-height: var(--touch-target-min, 44px);
+    padding: var(--space-2, 8px) var(--space-4, 16px);
+    background: var(--colour-surface);
+    border: 1px solid var(--colour-primary);
+    border-radius: var(--radius-md, 6px);
+    color: var(--colour-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .add-rack-button:hover {
+    background: var(--colour-surface-hover);
+    border-color: var(--colour-border-hover);
+  }
+
+  .add-rack-button:focus-visible {
+    outline: 2px solid var(--colour-focus-ring);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .add-rack-button {
+      transition: none;
+    }
   }
 </style>

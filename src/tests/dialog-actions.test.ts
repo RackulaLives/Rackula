@@ -138,3 +138,28 @@ describe("handleNewRack", () => {
     );
   });
 });
+
+describe("zero-rack add-rack affordance", () => {
+  beforeEach(resetAll);
+
+  // The zero-rack canvas shows an inline "Add a rack" affordance whose button
+  // routes through the same handleNewRack() path as the "+" toolbar action
+  // (#2831). This covers the last-rack-deleted case: an emptied layout is never
+  // a dead end because the affordance re-adds a rack.
+  it("re-adds a rack after the last rack is deleted", () => {
+    const layoutStore = getLayoutStore();
+
+    const rack = layoutStore.addRack("Only Rack", 24);
+    if (!rack) throw new Error("addRack returned null");
+    expect(layoutStore.rackCount).toBe(1);
+
+    // Deleting the last rack drives rackCount to 0, which is what surfaces the
+    // affordance (Canvas renders it when rackCount === 0).
+    layoutStore.deleteRack(rack.id);
+    expect(layoutStore.rackCount).toBe(0);
+
+    // The affordance's action adds a rack back.
+    handleNewRack();
+    expect(layoutStore.rackCount).toBe(1);
+  });
+});

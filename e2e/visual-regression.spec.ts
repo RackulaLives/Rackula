@@ -61,9 +61,9 @@ const MULTI_RACK_URL = `/?l=${createTestLayout({
 })}`;
 
 test.describe("visual regression", () => {
-  test("canvas - welcome (empty state)", async ({ page }) => {
+  test("canvas - fresh session (default rack)", async ({ page }) => {
     await gotoVisual(page, "/");
-    await expect(page).toHaveScreenshot("canvas-welcome.png", {
+    await expect(page).toHaveScreenshot("canvas-fresh-session.png", {
       mask: dynamicMasks(page),
     });
   });

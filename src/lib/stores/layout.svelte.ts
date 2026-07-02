@@ -352,7 +352,7 @@ export function createLayoutStore(
     markExported,
     restoreBackupState,
 
-    // Start tracking (for WelcomeScreen flow)
+    // Start tracking (whether the user has begun a layout)
     markStarted,
 
     // Raw actions for undo/redo system (bypass dirty tracking)

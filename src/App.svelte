@@ -40,7 +40,6 @@
     listSavedLayouts,
     loadSavedLayout,
     finalizeLayoutLoad,
-    handleLoad,
     handleSaveToServer,
     reconcileSession,
     applyReconcile,
@@ -50,11 +49,7 @@
     deleteLayoutBody,
   } from "$lib/storage";
   import { serializeLayoutToYaml } from "$lib/utils/yaml";
-  import {
-    maybeExport,
-    handleShare,
-    handleFitAll,
-  } from "$lib/utils/app-actions";
+  import { maybeExport, handleFitAll } from "$lib/utils/app-actions";
   import {
     handleNewRack,
     handleDelete,
@@ -69,7 +64,6 @@
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getWorkspaceStore } from "$lib/stores/workspace.svelte";
   import { createLayout } from "$lib/utils/serialization";
-  import type { StarterTemplate } from "$lib/templates/starter-templates";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
@@ -267,12 +261,18 @@
     if (!serverMode) {
       const launch = resolveBrowserLaunch();
       if (launch.action === "empty") {
-        layoutStore.resetLayout();
-        // First-run notice is for genuine fresh installs. A returning user whose
-        // workspace is empty (data lost or wiped) must not be told this is their
-        // first time here. #2095/#2018 own the lost-data recovery state.
         if (!launch.everHadLayouts) {
+          // Genuine fresh install: land in a default layout with one rack, just
+          // like a Layouts-panel "+" click, so first run is never a bare
+          // zero-rack void (#2831). The first-run notice is for fresh installs.
+          handleNewLayout();
           maybeShowFirstRunNotice();
+        } else {
+          // Returning user whose workspace is empty (data lost or wiped). The
+          // zero-rack canvas shows the inline "Add a rack" affordance, so this
+          // is not a dead end; do not tell them this is their first time.
+          // #2095/#2018 own the lost-data recovery state.
+          layoutStore.resetLayout();
         }
         return;
       }
@@ -466,19 +466,6 @@
     handleNewRack();
   }
 
-  // Load a starter template chosen from the empty-state picker (#2095) into the
-  // current layout. loadLayout gives it normal undo and storage semantics;
-  // markClean marks the fresh template as an unmodified starting point, matching
-  // the shared-layout load path. fitAll then centres it so the user sees the
-  // whole rack immediately.
-  function handleChooseTemplate(template: StarterTemplate) {
-    layoutStore.loadLayout(template.layout);
-    layoutStore.markClean();
-    requestAnimationFrame(() => {
-      canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-    });
-  }
-
   function handleLayoutExport(tabId: string) {
     workspaceStore.switchTo(tabId);
     maybeExport();
@@ -617,9 +604,6 @@
           <div class="canvas-region">
             <Canvas
               onnewrack={handleNewRack}
-              onload={handleLoad}
-              onchoosetemplate={handleChooseTemplate}
-              onshare={handleShare}
               onfitall={handleFitAll}
               onresetzoom={() => canvasStore.resetZoom()}
               displayMode={uiStore.displayMode}
@@ -670,9 +654,6 @@
       {:else}
         <Canvas
           onnewrack={handleNewRack}
-          onload={handleLoad}
-          onchoosetemplate={handleChooseTemplate}
-          onshare={handleShare}
           onfitall={handleFitAll}
           onresetzoom={() => canvasStore.resetZoom()}
           displayMode={uiStore.displayMode}

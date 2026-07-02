@@ -5,7 +5,6 @@
  * These values are used across:
  * - Rack.svelte (rendering)
  * - RackDevice.svelte (device positioning)
- * - WelcomeScreen.svelte (ghost rack)
  * - canvas.ts (viewport calculations)
  * - canvas.svelte.ts (device focus)
  * - export.ts (SVG export - imports core values)

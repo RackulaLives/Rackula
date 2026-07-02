@@ -49,13 +49,14 @@ test.describe("Post-deploy smoke", () => {
     await expect(page.locator(locators.toolbar.root)).toBeVisible();
     await expect(page.locator(locators.canvas.root)).toBeVisible();
 
-    // First-time visitors land on the canvas empty state (WelcomeScreen);
-    // returning visitors restore a saved layout (canvas shows a rack). Accept
-    // either to stay deployment-state agnostic - both prove the app booted past
-    // the shell.
+    // First-time visitors land in a default layout with one rack in browser mode
+    // (#2831), or on the inline "Add a rack" affordance when a server deployment
+    // starts empty; returning visitors restore a saved layout (a rack). Accept
+    // any of these to stay deployment-state agnostic - all prove the app booted
+    // past the shell.
     await expect(
       page
-        .locator(locators.welcomeScreen.root)
+        .locator(locators.canvas.addRackAffordance)
         .or(page.locator(locators.rack.container).first()),
     ).toBeVisible();
 

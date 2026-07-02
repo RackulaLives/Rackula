@@ -15,7 +15,7 @@ export function createLayout(name: string = "My Layout"): Layout {
   return {
     version: VERSION,
     name,
-    racks: [], // Empty - user creates first rack via New Rack Wizard
+    racks: [], // Empty - the first rack is created directly on the canvas
     device_types: [], // Starter library is a runtime constant, not stored in layout
     settings: {
       display_mode: "label",

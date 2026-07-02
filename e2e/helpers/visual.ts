@@ -29,7 +29,7 @@ export function dynamicMasks(page: Page): Locator[] {
  * Navigate to the app with a clean storage slate, then wait until it is visually
  * settled (shell rendered, fonts loaded, network idle).
  *
- * @param path Relative URL. "/" for the empty-state canvas, "/?l=<share>" for a rack.
+ * @param path Relative URL. "/" for a fresh session, "/?l=<share>" for a rack.
  */
 export async function gotoVisual(page: Page, path: string): Promise<void> {
   await page.addInitScript(() => {
@@ -43,10 +43,10 @@ export async function gotoVisual(page: Page, path: string): Promise<void> {
   await page.setViewportSize(VISUAL_VIEWPORT);
   await page.goto(path);
 
-  // Shell rendered: either the canvas empty state or a loaded rack.
-  const ready = path.includes("?l=")
-    ? page.locator(locators.rack.container).first()
-    : page.locator(locators.welcomeScreen.root);
+  // Shell rendered: a fresh session opens a default layout with one rack
+  // (#2831) and a share link loads its rack, so a rack container is present for
+  // both entry paths.
+  const ready = page.locator(locators.rack.container).first();
   await ready.waitFor({ state: "visible" });
 
   await settle(page);
