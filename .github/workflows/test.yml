@@ -45,7 +45,7 @@ jobs:
         run: |
           author="$(git log -1 --format='%an')"
           subject="$(git log -1 --format='%s')"
-          if [ "$author" = "rackula-format-bot" ] || [ "$subject" = "chore: prettier auto-format" ]; then
+          if [ "$author" = "rackula-format-bot" ] && [ "$subject" = "chore: prettier auto-format" ]; then
             echo "Autoformat commit detected; behaviour jobs will be skipped."
             echo "autoformat=true" >> "$GITHUB_OUTPUT"
           else
@@ -55,7 +55,9 @@ jobs:
   api:
     name: api (typecheck + tests)
     needs: detect
-    if: needs.detect.outputs.autoformat != 'true'
+    # Fail open: skip only on a confirmed autoformat detection. A failed or
+    # cancelled detect job must not silently skip the behaviour tests.
+    if: ${{ !cancelled() && !(needs.detect.result == 'success' && needs.detect.outputs.autoformat == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -161,7 +163,8 @@ jobs:
   e2e-self-hosted:
     name: e2e (self-hosted full suite)
     needs: [validate, detect]
-    if: github.event_name == 'pull_request' && needs.detect.outputs.autoformat != 'true'
+    # Fail open on detect; still gate on validate succeeding and PR context.
+    if: ${{ !cancelled() && needs.validate.result == 'success' && github.event_name == 'pull_request' && !(needs.detect.result == 'success' && needs.detect.outputs.autoformat == 'true') }}
     # Advisory, not merge-blocking. Per spike #1994 the self-hosted tier is
     # *additive* to the GH-hosted chromium smoke (the validate job), which stays
     # the hard gate. This job runs on a single homelab VM (one runner, one host)
@@ -227,7 +230,9 @@ jobs:
   visual:
     name: visual regression
     needs: detect
-    if: needs.detect.outputs.autoformat != 'true'
+    # Fail open: skip only on a confirmed autoformat detection. A failed or
+    # cancelled detect job must not silently skip the behaviour tests.
+    if: ${{ !cancelled() && !(needs.detect.result == 'success' && needs.detect.outputs.autoformat == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -272,7 +277,9 @@ jobs:
   a11y:
     name: a11y (axe-core)
     needs: detect
-    if: needs.detect.outputs.autoformat != 'true'
+    # Fail open: skip only on a confirmed autoformat detection. A failed or
+    # cancelled detect job must not silently skip the behaviour tests.
+    if: ${{ !cancelled() && !(needs.detect.result == 'success' && needs.detect.outputs.autoformat == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
